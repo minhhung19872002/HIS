@@ -1,12 +1,30 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchHealthCheckups, getHealthCheckupStats } from '../api/healthCheckup';
+import { searchHealthCheckups, getHealthCheckupStats, createHealthCheckup, updateHealthCheckup } from '../api/healthCheckup';
 import type { HealthCheckup, HealthCheckupStats } from '../api/healthCheckup';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+// Form KSK công ty/cá nhân — self-contained (không cần picker BN). BE validate là nguồn chuẩn.
+const CKUP_FIELDS: CrudFieldCfg[] = [
+  { key: 'patientName', label: 'Họ tên đối tượng', required: true, placeholder: 'Nguyễn Văn A' },
+  { key: 'patientCode', label: 'Mã/CCCD', placeholder: 'tuỳ chọn' },
+  { key: 'gender', label: 'Giới tính', type: 'select', required: true, options: [{ value: 1, label: 'Nam' }, { value: 2, label: 'Nữ' }] },
+  { key: 'dateOfBirth', label: 'Ngày sinh', type: 'date' },
+  { key: 'companyName', label: 'Công ty', placeholder: 'KSK doanh nghiệp' },
+  { key: 'groupName', label: 'Nhóm' },
+  { key: 'checkupType', label: 'Loại KSK', required: true, placeholder: 'KSK định kỳ / tuyển dụng…' },
+  { key: 'checkupDate', label: 'Ngày khám', type: 'date', required: true },
+  { key: 'examDoctor', label: 'BS khám' },
+  { key: 'conclusion', label: 'Kết luận', type: 'select', options: [
+    { value: 'pass', label: 'Đạt' }, { value: 'conditional', label: 'Có điều kiện' }, { value: 'fail', label: 'Không đạt' }] },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Chờ' }, { value: 1, label: 'Đang khám' }, { value: 2, label: 'Hoàn thành' }, { value: 3, label: 'Đã chứng nhận' }] },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
 
 const STATUS_LABEL: Record<number, string> = {
   0: 'Chờ', 1: 'Đang khám', 2: 'Hoàn thành', 3: 'Đã chứng nhận',
@@ -40,6 +58,11 @@ const HealthCheckupV2: React.FC = () => {
   const [fComp, setFComp] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<HealthCheckup | null>(null);
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+
+  const openCreate = () => { setCrudInit({}); setCrudOpen(true); };
+  const openEdit = (r: HealthCheckup) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
 
   const load = async () => {
     setLoading(true);
@@ -104,6 +127,7 @@ const HealthCheckupV2: React.FC = () => {
   const actions = (r: HealthCheckup) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
       <ActBtn ic="print" title="In phiếu" onClick={() => tk(`In phiếu ${r.checkupCode}`)} />
     </div>
   );
@@ -128,7 +152,7 @@ const HealthCheckupV2: React.FC = () => {
         <button className="ab-btn ghost" type="button" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở chiến dịch KSK')}>
+        <button className="ab-btn primary" type="button" onClick={openCreate}>
           <Ico name="plus" size={12} /> KSK mới
         </button>
       </div>
@@ -153,7 +177,7 @@ const HealthCheckupV2: React.FC = () => {
           <button type="button" className="ab-btn" onClick={() => tk('Đã in giấy chứng nhận')}>
             <Ico name="print" size={12} /> In giấy CN
           </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở cập nhật')}>
+          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Cập nhật
           </button>
         </>}
@@ -199,6 +223,22 @@ const HealthCheckupV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật KSK' : 'Khám sức khoẻ mới'}
+        sub="Khám sức khoẻ định kỳ / doanh nghiệp"
+        fields={CKUP_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          if (editing && crudInit?.id) await updateHealthCheckup(String(crudInit.id), v);
+          else await createHealthCheckup(v);
+          tk(editing ? 'Đã cập nhật KSK' : 'Đã tạo KSK');
+          load();
+        }}
+      />
     </div>
   );
 };

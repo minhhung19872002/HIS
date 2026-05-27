@@ -1,12 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getGuidanceBatches } from '../api/clinicalGuidance';
+import { getGuidanceBatches, createGuidanceBatch, updateGuidanceBatch, deleteGuidanceBatch } from '../api/clinicalGuidance';
 import type { GuidanceBatchDto } from '../api/clinicalGuidance';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const BATCH_FIELDS: CrudFieldCfg[] = [
+  { key: 'title', label: 'Nội dung đợt', required: true },
+  { key: 'targetFacility', label: 'Cơ sở nhận chỉ đạo', required: true },
+  { key: 'guidanceType', label: 'Loại đợt', type: 'select', required: true, options: [
+    { value: 1, label: 'Chuyển giao kỹ thuật' }, { value: 2, label: 'Đào tạo' },
+    { value: 3, label: 'Hỗ trợ chuyên môn' }, { value: 4, label: 'Giám sát' }] },
+  { key: 'startDate', label: 'Bắt đầu', type: 'date', required: true },
+  { key: 'endDate', label: 'Kết thúc', type: 'date', required: true },
+  { key: 'teamMembers', label: 'Thành viên đoàn', type: 'textarea' },
+  { key: 'budget', label: 'Ngân sách (VND)', type: 'number' },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
 
 const TYPE_LABEL: Record<number, string> = {
   0: 'Khám chữa bệnh', 1: 'Đào tạo', 2: 'Chuyển giao KT', 3: 'Hỗ trợ',
@@ -96,10 +109,19 @@ const ClinicalGuidanceV2: React.FC = () => {
     } },
   ];
 
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const openCreate = () => { setCrudInit({ guidanceType: 1 }); setCrudOpen(true); };
+  const openEdit = (r: GuidanceBatchDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+  const del = (r: GuidanceBatchDto) => cf(`Xoá đợt chỉ đạo "${r.title}"?`, async () => {
+    try { await deleteGuidanceBatch(r.id); tk('Đã xoá'); load(); } catch { te('Xoá thất bại'); }
+  }, { tone: 'crit', confirm: 'Xoá' });
+
   const actions = (r: GuidanceBatchDto) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="activity" title="Hoạt động" onClick={() => tk(`Mở hoạt động ${r.batchCode}`)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
+      <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
     </div>
   );
 
@@ -125,7 +147,7 @@ const ClinicalGuidanceV2: React.FC = () => {
         <button className="ab-btn ghost" type="button" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở đợt chỉ đạo mới')}>
+        <button className="ab-btn primary" type="button" onClick={openCreate}>
           <Ico name="plus" size={12} /> Đợt mới
         </button>
       </div>
@@ -150,8 +172,8 @@ const ClinicalGuidanceV2: React.FC = () => {
           <button type="button" className="ab-btn" onClick={() => tk('Mở danh sách hoạt động')}>
             <Ico name="activity" size={12} /> Hoạt động
           </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Đã in báo cáo')}>
-            <Ico name="print" size={12} /> In báo cáo
+          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+            <Ico name="edit" size={12} /> Sửa đợt
           </button>
         </>}
       >
@@ -182,6 +204,23 @@ const ClinicalGuidanceV2: React.FC = () => {
           )}
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật đợt chỉ đạo' : 'Đợt chỉ đạo tuyến mới'}
+        fields={BATCH_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (editing && crudInit?.id) await updateGuidanceBatch(String(crudInit.id), v as any);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          else await createGuidanceBatch(v as any);
+          tk(editing ? 'Đã cập nhật đợt' : 'Đã tạo đợt');
+          load();
+        }}
+      />
     </div>
   );
 };

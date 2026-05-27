@@ -1,12 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchProtocols } from '../api/treatmentProtocol';
+import { searchProtocols, saveProtocol, deleteProtocol } from '../api/treatmentProtocol';
 import type { TreatmentProtocolDto } from '../api/treatmentProtocol';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const PROTO_FIELDS: CrudFieldCfg[] = [
+  { key: 'code', label: 'Mã phác đồ', required: true, disabledOnEdit: true, placeholder: 'PĐ-...' },
+  { key: 'name', label: 'Tên phác đồ', required: true },
+  { key: 'diseaseGroup', label: 'Nhóm bệnh' },
+  { key: 'department', label: 'Khoa áp dụng' },
+  { key: 'icdCode', label: 'Mã ICD-10', placeholder: 'VD: J18' },
+  { key: 'icdName', label: 'Tên bệnh (ICD)' },
+  { key: 'version', label: 'Phiên bản', type: 'number', placeholder: '1' },
+  { key: 'effectiveDate', label: 'Hiệu lực từ', type: 'date' },
+  { key: 'expiryDate', label: 'Hết hạn', type: 'date' },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Nháp' }, { value: 1, label: 'Đang duyệt' }, { value: 2, label: 'Đã duyệt' },
+    { value: 3, label: 'Sửa đổi' }, { value: 4, label: 'Hết hiệu lực' }] },
+  { key: 'description', label: 'Mô tả', type: 'textarea' },
+];
 
 const STATUS_LABEL: Record<number, string> = {
   0: 'Nháp', 1: 'Đang duyệt', 2: 'Đã duyệt', 3: 'Sửa đổi', 4: 'Hết hiệu lực',
@@ -34,6 +50,13 @@ const TreatmentProtocolV2: React.FC = () => {
   const [fGroup, setFGroup] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<TreatmentProtocolDto | null>(null);
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const openCreate = () => { setCrudInit({ status: 0, version: 1 }); setCrudOpen(true); };
+  const openEdit = (r: TreatmentProtocolDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+  const del = (r: TreatmentProtocolDto) => cf(`Xoá phác đồ "${r.name}"?`, async () => {
+    try { await deleteProtocol(r.id); tk('Đã xoá'); load(); } catch { te('Xoá thất bại'); }
+  }, { tone: 'crit', confirm: 'Xoá' });
 
   const load = async () => {
     setLoading(true);
@@ -98,7 +121,9 @@ const TreatmentProtocolV2: React.FC = () => {
   const actions = (r: TreatmentProtocolDto) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
       <ActBtn ic="print" title="In phác đồ" onClick={() => tk(`In phác đồ ${r.code}`)} />
+      <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
     </div>
   );
 
@@ -115,16 +140,10 @@ const TreatmentProtocolV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm tên / mã / ICD…" />
         <Filter value={fGroup} onChange={setFGroup} options={groups} placeholder="▾ Nhóm bệnh" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFGroup(''); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFGroup(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở soạn phác đồ mới')}>
-          <Ico name="plus" size={12} /> Phác đồ mới
-        </button>
+        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="primary" icon="plus" onClick={openCreate}>Phác đồ mới</Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -143,13 +162,9 @@ const TreatmentProtocolV2: React.FC = () => {
         title={sel ? sel.name : ''}
         sub={sel ? `${sel.code} · v${sel.version}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in phác đồ')}>
-            <Ico name="print" size={12} /> In phác đồ
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở soạn thảo')}>
-            <Ico name="edit" size={12} /> Chỉnh sửa
-          </button>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn icon="print" onClick={() => tk('Đã in phác đồ')}>In phác đồ</Btn>
+          <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Chỉnh sửa</Btn>
         </>}
       >
         {sel && <>
@@ -180,6 +195,21 @@ const TreatmentProtocolV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật phác đồ' : 'Phác đồ điều trị mới'}
+        fields={PROTO_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await saveProtocol(v as any);
+          tk(editing ? 'Đã cập nhật phác đồ' : 'Đã tạo phác đồ');
+          load();
+        }}
+      />
     </div>
   );
 };

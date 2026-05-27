@@ -1,12 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchMethadonePatients } from '../api/methadone';
+import { searchMethadonePatients, updatePatient } from '../api/methadone';
 import type { MethadonePatient } from '../api/methadone';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+// Edit thông tin điều trị (updatePatient). Tránh field 'phase' do drift int/string ở DB.
+const MTD_FIELDS: CrudFieldCfg[] = [
+  { key: 'currentDose', label: 'Liều hiện tại (mg)', type: 'number', required: true },
+  { key: 'doseType', label: 'Hình thức cấp', type: 'select', options: [
+    { value: 'witnessed', label: 'Uống có giám sát' }, { value: 'takeHome', label: 'Mang về' }] },
+  { key: 'attendingDoctor', label: 'BS điều trị' },
+  { key: 'missedDoses', label: 'Số lần bỏ liều', type: 'number' },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Đang điều trị' }, { value: 1, label: 'Tạm ngưng' }, { value: 2, label: 'Ra khỏi CT' }, { value: 3, label: 'Chuyển đi' }] },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
 
 const PHASE_LABEL: Record<string, string> = {
   induction: 'Khởi liều', stabilization: 'Ổn định', maintenance: 'Duy trì', tapering: 'Giảm liều',
@@ -104,12 +116,14 @@ const MethadoneTreatmentV2: React.FC = () => {
     } },
   ];
 
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const openEdit = (r: MethadonePatient) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+
   const actions = (r: MethadonePatient) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      {r.status === 0 && (
-        <ActBtn ic="check" title="Cấp liều hôm nay" onClick={() => tk(`Cấp liều cho ${r.patientName}`)} />
-      )}
+      <ActBtn ic="edit" title="Sửa điều trị" onClick={() => openEdit(r)} />
     </div>
   );
 
@@ -163,8 +177,11 @@ const MethadoneTreatmentV2: React.FC = () => {
           <button type="button" className="ab-btn" onClick={() => tk('Mở lịch sử cấp liều')}>
             <Ico name="activity" size={12} /> Lịch sử
           </button>
+          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+            <Ico name="edit" size={12} /> Sửa điều trị
+          </button>
           {sel && sel.status === 0 && (
-            <button type="button" className="ab-btn primary" onClick={() => tk('Cấp liều')}>
+            <button type="button" className="ab-btn" onClick={() => tk('Cấp liều')}>
               <Ico name="check" size={12} /> Cấp liều
             </button>
           )}
@@ -204,6 +221,21 @@ const MethadoneTreatmentV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title="Cập nhật điều trị Methadone"
+        sub={crudInit ? String(crudInit.patientName || '') : ''}
+        fields={MTD_FIELDS}
+        initial={crudInit}
+        size="md"
+        onSubmit={async (v) => {
+          if (crudInit?.id) await updatePatient(String(crudInit.id), v);
+          tk('Đã cập nhật điều trị');
+          load();
+        }}
+      />
     </div>
   );
 };

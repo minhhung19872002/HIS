@@ -1,12 +1,30 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchTreatments } from '../api/traditionalMedicine';
+import { searchTreatments, createTreatment, updateTreatment } from '../api/traditionalMedicine';
 import type { TraditionalTreatment } from '../api/traditionalMedicine';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const TM_FIELDS: CrudFieldCfg[] = [
+  { key: 'treatmentCode', label: 'Mã phác đồ', required: true, disabledOnEdit: true },
+  { key: 'patientName', label: 'Họ tên BN', required: true },
+  { key: 'patientCode', label: 'Mã BN' },
+  { key: 'treatmentType', label: 'Phương pháp', type: 'select', required: true, options: [
+    { value: 'acupuncture', label: 'Châm cứu' }, { value: 'herbal', label: 'Thuốc bắc' },
+    { value: 'massage', label: 'Xoa bóp' }, { value: 'cupping', label: 'Giác hơi' },
+    { value: 'moxibustion', label: 'Cứu ngải' }, { value: 'combined', label: 'Kết hợp' }] },
+  { key: 'diagnosis', label: 'Chẩn đoán', required: true },
+  { key: 'startDate', label: 'Bắt đầu', type: 'date', required: true },
+  { key: 'endDate', label: 'Kết thúc', type: 'date' },
+  { key: 'doctorName', label: 'BS điều trị' },
+  { key: 'totalSessions', label: 'Tổng số buổi', type: 'number' },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Đang điều trị' }, { value: 1, label: 'Hoàn thành' }, { value: 2, label: 'Đã huỷ' }] },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
 
 const TYPE_LABEL: Record<string, string> = {
   acupuncture: 'Châm cứu', herbal: 'Thuốc bắc', massage: 'Xoa bóp',
@@ -98,12 +116,15 @@ const TraditionalMedicineV2: React.FC = () => {
     } },
   ];
 
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const openCreate = () => { setCrudInit({ status: 0, treatmentType: 'acupuncture' }); setCrudOpen(true); };
+  const openEdit = (r: TraditionalTreatment) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+
   const actions = (r: TraditionalTreatment) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      {r.status === 0 && (
-        <ActBtn ic="activity" title="Ghi buổi điều trị" onClick={() => tk(`Ghi buổi cho ${r.patientName}`)} />
-      )}
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
     </div>
   );
 
@@ -127,7 +148,7 @@ const TraditionalMedicineV2: React.FC = () => {
         <button className="ab-btn ghost" type="button" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở phác đồ mới')}>
+        <button className="ab-btn primary" type="button" onClick={openCreate}>
           <Ico name="plus" size={12} /> Phác đồ mới
         </button>
       </div>
@@ -152,8 +173,8 @@ const TraditionalMedicineV2: React.FC = () => {
           <button type="button" className="ab-btn" onClick={() => tk('Mở đơn thuốc bắc')}>
             <Ico name="file-text" size={12} /> Đơn thuốc bắc
           </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Ghi buổi điều trị')}>
-            <Ico name="activity" size={12} /> Ghi buổi
+          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+            <Ico name="edit" size={12} /> Sửa phác đồ
           </button>
         </>}
       >
@@ -182,6 +203,21 @@ const TraditionalMedicineV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật phác đồ YHCT' : 'Phác đồ YHCT mới'}
+        fields={TM_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          if (editing && crudInit?.id) await updateTreatment(String(crudInit.id), v);
+          else await createTreatment(v);
+          tk(editing ? 'Đã cập nhật phác đồ' : 'Đã tạo phác đồ');
+          load();
+        }}
+      />
     </div>
   );
 };

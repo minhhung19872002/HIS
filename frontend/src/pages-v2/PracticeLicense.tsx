@@ -1,12 +1,34 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchLicenses } from '../api/practiceLicense';
+import { searchLicenses, createLicense, updateLicense } from '../api/practiceLicense';
 import type { PracticeLicense } from '../api/practiceLicense';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const LICENSE_FIELDS: CrudFieldCfg[] = [
+  { key: 'licenseCode', label: 'Mã CCHN', required: true, disabledOnEdit: true },
+  { key: 'staffName', label: 'Họ tên NV', required: true },
+  { key: 'staffCode', label: 'Mã NV' },
+  { key: 'licenseType', label: 'Loại CCHN', type: 'select', required: true, options: [
+    { value: 'doctor', label: 'Bác sĩ' }, { value: 'pharmacist', label: 'Dược sĩ' },
+    { value: 'nurse', label: 'Điều dưỡng' }, { value: 'midwife', label: 'Hộ sinh' },
+    { value: 'technician', label: 'KTV' }, { value: 'dentist', label: 'Nha sĩ' },
+    { value: 'traditional_medicine', label: 'YHCT' }] },
+  { key: 'licenseNumber', label: 'Số CCHN', required: true },
+  { key: 'issueDate', label: 'Ngày cấp', type: 'date', required: true },
+  { key: 'expiryDate', label: 'Ngày hết hạn', type: 'date', required: true },
+  { key: 'issuingAuthority', label: 'Nơi cấp' },
+  { key: 'specialty', label: 'Chuyên khoa' },
+  { key: 'practiceScope', label: 'Phạm vi hành nghề', type: 'textarea' },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Hợp lệ' }, { value: 1, label: 'Sắp hết hạn' }, { value: 2, label: 'Hết hạn' },
+    { value: 3, label: 'Thu hồi' }, { value: 4, label: 'Đình chỉ' }] },
+  { key: 'renewalDate', label: 'Ngày gia hạn', type: 'date' },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
 
 const TYPE_LABEL: Record<string, string> = {
   doctor: 'Bác sĩ', pharmacist: 'Dược sĩ', nurse: 'Điều dưỡng', midwife: 'Hộ sinh',
@@ -107,10 +129,16 @@ const PracticeLicenseV2: React.FC = () => {
     } },
   ];
 
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const openCreate = () => { setCrudInit({ status: 0, licenseType: 'doctor' }); setCrudOpen(true); };
+  const openEdit = (r: PracticeLicense) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+
   const actions = (r: PracticeLicense) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="refresh" title="Gia hạn" onClick={() => tk(`Mở gia hạn ${r.licenseNumber}`)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
+      <ActBtn ic="refresh" title="Gia hạn" onClick={() => openEdit(r)} />
     </div>
   );
 
@@ -143,7 +171,7 @@ const PracticeLicenseV2: React.FC = () => {
         <button className="ab-btn ghost" type="button" onClick={() => tk('Mở cảnh báo CCHN sắp hết')}>
           <Ico name="alert" size={12} /> Cảnh báo
         </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Đăng ký CCHN mới')}>
+        <button className="ab-btn primary" type="button" onClick={openCreate}>
           <Ico name="plus" size={12} /> CCHN mới
         </button>
       </div>
@@ -168,8 +196,8 @@ const PracticeLicenseV2: React.FC = () => {
           <button type="button" className="ab-btn" onClick={() => tk('Đã in CCHN')}>
             <Ico name="print" size={12} /> In CCHN
           </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở gia hạn')}>
-            <Ico name="refresh" size={12} /> Gia hạn
+          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+            <Ico name="refresh" size={12} /> Gia hạn / Sửa
           </button>
         </>}
       >
@@ -202,6 +230,21 @@ const PracticeLicenseV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật / Gia hạn CCHN' : 'Đăng ký CCHN mới'}
+        fields={LICENSE_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          if (editing && crudInit?.id) await updateLicense(String(crudInit.id), v);
+          else await createLicense(v);
+          tk(editing ? 'Đã cập nhật CCHN' : 'Đã đăng ký CCHN');
+          load();
+        }}
+      />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getReferrals } from '../api/rehabilitation';
+import { useNavigate } from 'react-router-dom';
+import { getReferrals, acceptReferral } from '../api/rehabilitation';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
   DrawerShell, DrSec, DrField, tk, ti, Ico,
@@ -70,6 +71,16 @@ const RehabilitationV2: React.FC = () => {
   const [fType, setFType] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<Row | null>(null);
+  const navigate = useNavigate();
+
+  const accept = async (r: Row) => {
+    try {
+      await acceptReferral(r.id);
+      tk(`Đã chấp nhận ${r.referralCode || ''}`.trim());
+      setSel(null);
+      load();
+    } catch { ti('Chấp nhận thất bại'); }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -153,7 +164,7 @@ const RehabilitationV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       {sKey(r.status) === 'pending' && (
-        <ActBtn ic="check" title="Chấp nhận" onClick={() => tk(`Đã chấp nhận ${r.referralCode}`)} />
+        <ActBtn ic="check" title="Chấp nhận" onClick={() => accept(r)} />
       )}
     </div>
   );
@@ -178,7 +189,7 @@ const RehabilitationV2: React.FC = () => {
         <button className="ab-btn ghost" type="button" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở giấy GT mới')}>
+        <button className="ab-btn primary" type="button" onClick={() => navigate('/rehabilitation')}>
           <Ico name="plus" size={12} /> Giấy GT
         </button>
       </div>
@@ -204,7 +215,7 @@ const RehabilitationV2: React.FC = () => {
             <Ico name="print" size={12} /> In giấy GT
           </button>
           {sel && sKey(sel.status) === 'pending' && (
-            <button type="button" className="ab-btn primary" onClick={() => { tk('Đã chấp nhận'); setSel(null); }}>
+            <button type="button" className="ab-btn primary" onClick={() => accept(sel)}>
               <Ico name="check" size={12} /> Chấp nhận
             </button>
           )}

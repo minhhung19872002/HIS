@@ -1,12 +1,36 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchIncidents, getIncidentStats } from '../api/foodSafety';
+import { searchIncidents, getIncidentStats, createIncident, updateIncident } from '../api/foodSafety';
 import type { FoodSafetyIncident, FoodSafetyStats } from '../api/foodSafety';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const FS_FIELDS: CrudFieldCfg[] = [
+  { key: 'incidentCode', label: 'Mã vụ', required: true, disabledOnEdit: true },
+  { key: 'incidentDate', label: 'Ngày xảy ra', type: 'date', required: true },
+  { key: 'reportDate', label: 'Ngày báo cáo', type: 'date' },
+  { key: 'location', label: 'Địa điểm', required: true },
+  { key: 'locationAddress', label: 'Địa chỉ' },
+  { key: 'locationType', label: 'Loại địa điểm', type: 'select', options: [
+    { value: 'Restaurant', label: 'Nhà hàng' }, { value: 'School', label: 'Trường học' },
+    { value: 'Factory', label: 'Nhà máy' }, { value: 'Hospital', label: 'Bệnh viện' },
+    { value: 'Market', label: 'Chợ' }, { value: 'Other', label: 'Khác' }] },
+  { key: 'description', label: 'Mô tả', type: 'textarea', required: true },
+  { key: 'suspectedFood', label: 'Thực phẩm nghi ngờ' },
+  { key: 'suspectedCause', label: 'Nguyên nhân nghi ngờ' },
+  { key: 'totalAffected', label: 'Số người AH', type: 'number' },
+  { key: 'hospitalized', label: 'Nhập viện', type: 'number' },
+  { key: 'deaths', label: 'Tử vong', type: 'number' },
+  { key: 'severity', label: 'Mức độ', type: 'select', options: [
+    { value: 1, label: 'Nhẹ' }, { value: 2, label: 'Vừa' }, { value: 3, label: 'Nặng' }, { value: 4, label: 'Nguy kịch' }] },
+  { key: 'investigationStatus', label: 'TT điều tra', type: 'select', options: [
+    { value: 0, label: 'Đã báo cáo' }, { value: 1, label: 'Đang điều tra' }, { value: 2, label: 'Xác nhận' }, { value: 3, label: 'Đã đóng' }] },
+  { key: 'reportedBy', label: 'Người báo cáo' },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
 
 const STATUS_LABEL: Record<number, string> = { 0: 'Báo cáo', 1: 'Điều tra', 2: 'Xác nhận', 3: 'Đóng' };
 const SEVERITY_LABEL: Record<number, string> = { 1: 'Nhẹ', 2: 'Vừa', 3: 'Nặng', 4: 'Nguy kịch' };
@@ -101,12 +125,15 @@ const FoodSafetyV2: React.FC = () => {
     } },
   ];
 
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const openCreate = () => { setCrudInit({ severity: 2, investigationStatus: 0, totalAffected: 0, hospitalized: 0, deaths: 0 }); setCrudOpen(true); };
+  const openEdit = (r: FoodSafetyIncident) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+
   const actions = (r: FoodSafetyIncident) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      {r.investigationStatus < 2 && (
-        <ActBtn ic="activity" title="Cập nhật điều tra" onClick={() => tk(`Mở điều tra ${r.incidentCode}`)} />
-      )}
+      <ActBtn ic="edit" title="Cập nhật điều tra" onClick={() => openEdit(r)} />
     </div>
   );
 
@@ -128,16 +155,10 @@ const FoodSafetyV2: React.FC = () => {
           placeholder="Tìm địa điểm / mã vụ / mô tả…" />
         <Filter value={fLoc} onChange={setFLoc} options={locTypes} placeholder="▾ Loại địa điểm" />
         <Filter value={fSev} onChange={setFSev} options={sevOpts} placeholder="▾ Mức độ" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFLoc(''); setFSev(''); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFLoc(''); setFSev(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở báo cáo vụ mới')}>
-          <Ico name="plus" size={12} /> Báo cáo vụ
-        </button>
+        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="primary" icon="plus" onClick={openCreate}>Báo cáo vụ</Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -156,13 +177,9 @@ const FoodSafetyV2: React.FC = () => {
         title={sel ? `Vụ ${sel.incidentCode}` : ''}
         sub={sel ? `${sel.location} · ${dayjs(sel.incidentDate).format('DD/MM/YYYY')}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in báo cáo')}>
-            <Ico name="print" size={12} /> In báo cáo
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở cập nhật')}>
-            <Ico name="edit" size={12} /> Cập nhật
-          </button>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn icon="print" onClick={() => tk('Đã in báo cáo')}>In báo cáo</Btn>
+          <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Cập nhật</Btn>
         </>}
       >
         {sel && <>
@@ -200,6 +217,21 @@ const FoodSafetyV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật vụ ATTP' : 'Báo cáo vụ ngộ độc TP'}
+        fields={FS_FIELDS}
+        initial={crudInit}
+        size="xl"
+        onSubmit={async (v, editing) => {
+          if (editing && crudInit?.id) await updateIncident(String(crudInit.id), v);
+          else await createIncident(v);
+          tk(editing ? 'Đã cập nhật vụ' : 'Đã báo cáo vụ');
+          load();
+        }}
+      />
     </div>
   );
 };

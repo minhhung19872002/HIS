@@ -1,12 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchWasteRecords } from '../api/environmentalHealth';
+import { searchWasteRecords, createWasteRecord, updateWasteRecord } from '../api/environmentalHealth';
 import type { WasteRecord } from '../api/environmentalHealth';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const WASTE_FIELDS: CrudFieldCfg[] = [
+  { key: 'recordCode', label: 'Mã phiếu', required: true, disabledOnEdit: true },
+  { key: 'recordDate', label: 'Ngày', type: 'date', required: true },
+  { key: 'wasteType', label: 'Loại chất thải', type: 'select', required: true, options: [
+    { value: 'infectious', label: 'Lây nhiễm' }, { value: 'sharp', label: 'Sắc nhọn' },
+    { value: 'pharmaceutical', label: 'Dược phẩm' }, { value: 'chemical', label: 'Hoá chất' },
+    { value: 'radioactive', label: 'Phóng xạ' }, { value: 'general', label: 'Thông thường' }] },
+  { key: 'quantity', label: 'Khối lượng', type: 'number', required: true },
+  { key: 'unit', label: 'Đơn vị', placeholder: 'kg' },
+  { key: 'source', label: 'Nguồn phát sinh' },
+  { key: 'handlerName', label: 'Người xử lý' },
+  { key: 'disposalMethod', label: 'PP xử lý' },
+  { key: 'isCompliant', label: 'Đạt chuẩn', type: 'switch' },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
 
 const TYPE_LABEL: Record<string, string> = {
   infectious: 'Lây nhiễm', sharp: 'Sắc nhọn', pharmaceutical: 'Dược',
@@ -86,9 +102,15 @@ const EnvironmentalHealthV2: React.FC = () => {
     },
   ];
 
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const openCreate = () => { setCrudInit({ isCompliant: true, unit: 'kg', wasteType: 'infectious' }); setCrudOpen(true); };
+  const openEdit = (r: WasteRecord) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+
   const actions = (r: WasteRecord) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
       <ActBtn ic="print" title="In phiếu" onClick={() => tk(`Đã in ${r.recordCode}`)} />
     </div>
   );
@@ -119,7 +141,7 @@ const EnvironmentalHealthV2: React.FC = () => {
         <button className="ab-btn ghost" type="button" onClick={() => tk('Mở quan trắc môi trường')}>
           <Ico name="activity" size={12} /> Quan trắc
         </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở phiếu mới')}>
+        <button className="ab-btn primary" type="button" onClick={openCreate}>
           <Ico name="plus" size={12} /> Phiếu mới
         </button>
       </div>
@@ -141,6 +163,9 @@ const EnvironmentalHealthV2: React.FC = () => {
         sub={sel ? `${TYPE_LABEL[sel.wasteType] || sel.wasteType} · ${dayjs(sel.recordDate).format('DD/MM/YYYY')}` : ''}
         footer={<>
           <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
+          <button type="button" className="ab-btn" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+            <Ico name="edit" size={12} /> Sửa
+          </button>
           <button type="button" className="ab-btn primary" onClick={() => tk('Đã in phiếu')}>
             <Ico name="print" size={12} /> In phiếu
           </button>
@@ -168,6 +193,21 @@ const EnvironmentalHealthV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật phiếu chất thải' : 'Phiếu chất thải mới'}
+        fields={WASTE_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          if (editing && crudInit?.id) await updateWasteRecord(String(crudInit.id), v);
+          else await createWasteRecord(v);
+          tk(editing ? 'Đã cập nhật phiếu' : 'Đã tạo phiếu');
+          load();
+        }}
+      />
     </div>
   );
 };

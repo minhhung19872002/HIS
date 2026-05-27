@@ -1,12 +1,30 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getReagents } from '../api/reagent';
+import { getReagents, createReagent, updateReagent, deleteReagent } from '../api/reagent';
 import type { Reagent } from '../api/reagent';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const REAGENT_FIELDS: CrudFieldCfg[] = [
+  { key: 'code', label: 'Mã hoá chất', required: true, disabledOnEdit: true },
+  { key: 'name', label: 'Tên hoá chất', required: true },
+  { key: 'manufacturer', label: 'Nhà sản xuất' },
+  { key: 'lotNumber', label: 'Số lô', required: true },
+  { key: 'catalogNumber', label: 'Catalog' },
+  { key: 'unit', label: 'Đơn vị' },
+  { key: 'quantity', label: 'Số lượng', type: 'number', required: true },
+  { key: 'minimumStock', label: 'Tồn tối thiểu', type: 'number' },
+  { key: 'storageCondition', label: 'Điều kiện bảo quản' },
+  { key: 'receivedDate', label: 'Ngày nhận', type: 'date' },
+  { key: 'expiryDate', label: 'Hạn dùng', type: 'date', required: true },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Sẵn dùng' }, { value: 1, label: 'Đang dùng' }, { value: 2, label: 'Sắp hết' },
+    { value: 3, label: 'Hết hạn' }, { value: 4, label: 'Đã huỷ' }] },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
 
 const STATUS_LABEL: Record<number, string> = {
   0: 'Sẵn dùng', 1: 'Đang dùng', 2: 'Sắp hết', 3: 'Hết hạn', 4: 'Đã hủy',
@@ -110,10 +128,19 @@ const ReagentManagementV2: React.FC = () => {
     } },
   ];
 
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const openCreate = () => { setCrudInit({ status: 0, quantity: 0, minimumStock: 0, unit: 'test' }); setCrudOpen(true); };
+  const openEdit = (r: Reagent) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+  const del = (r: Reagent) => cf(`Xoá hoá chất "${r.name}"?`, async () => {
+    try { await deleteReagent(r.id); tk('Đã xoá'); load(); } catch { te('Xoá thất bại'); }
+  }, { tone: 'crit', confirm: 'Xoá' });
+
   const actions = (r: Reagent) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="edit" title="Cập nhật" onClick={() => tk(`Mở sửa ${r.code}`)} />
+      <ActBtn ic="edit" title="Cập nhật" onClick={() => openEdit(r)} />
+      <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
     </div>
   );
 
@@ -140,7 +167,7 @@ const ReagentManagementV2: React.FC = () => {
         <button className="ab-btn ghost" type="button" onClick={() => tk('Mở cảnh báo')}>
           <Ico name="alert" size={12} /> Cảnh báo
         </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở form nhập kho')}>
+        <button className="ab-btn primary" type="button" onClick={openCreate}>
           <Ico name="plus" size={12} /> Nhập kho
         </button>
       </div>
@@ -165,8 +192,8 @@ const ReagentManagementV2: React.FC = () => {
           <button type="button" className="ab-btn" onClick={() => tk('Mở lịch sử dùng')}>
             <Ico name="activity" size={12} /> Lịch sử
           </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở ghi nhận sử dụng')}>
-            <Ico name="edit" size={12} /> Ghi nhận
+          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+            <Ico name="edit" size={12} /> Cập nhật
           </button>
         </>}
       >
@@ -215,6 +242,21 @@ const ReagentManagementV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật hoá chất' : 'Nhập kho hoá chất'}
+        fields={REAGENT_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          if (editing && crudInit?.id) await updateReagent(String(crudInit.id), v);
+          else await createReagent(v);
+          tk(editing ? 'Đã cập nhật hoá chất' : 'Đã nhập kho');
+          load();
+        }}
+      />
     </div>
   );
 };

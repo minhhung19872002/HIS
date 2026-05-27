@@ -1,12 +1,38 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getCultureStocks, getCultureStockStats } from '../api/cultureStock';
+import { getCultureStocks, getCultureStockStats, createCultureStock, updateCultureStock } from '../api/cultureStock';
 import type { CultureStock, CultureStockStats } from '../api/cultureStock';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const STOCK_FIELDS: CrudFieldCfg[] = [
+  { key: 'stockCode', label: 'Mã chủng', required: true, disabledOnEdit: true },
+  { key: 'organismCode', label: 'Mã VSV', required: true },
+  { key: 'organismName', label: 'Tên VSV', required: true },
+  { key: 'scientificName', label: 'Tên khoa học' },
+  { key: 'gramStain', label: 'Nhuộm Gram', type: 'select', options: [
+    { value: 'positive', label: 'Gram (+)' }, { value: 'negative', label: 'Gram (−)' }] },
+  { key: 'sourceType', label: 'Nguồn gốc' },
+  { key: 'freezerCode', label: 'Tủ' },
+  { key: 'rackCode', label: 'Rack' },
+  { key: 'boxCode', label: 'Hộp' },
+  { key: 'position', label: 'Vị trí' },
+  { key: 'preservationMethod', label: 'PP bảo quản', type: 'select', required: true, options: [
+    { value: 'glycerol', label: 'Glycerol stock' }, { value: 'freeze_dry', label: 'Đông khô' },
+    { value: 'deep_freeze', label: 'Đông lạnh sâu' }, { value: 'skim_milk', label: 'Sữa gầy' }] },
+  { key: 'storageTemperature', label: 'Nhiệt độ' },
+  { key: 'passageNumber', label: 'Passage', type: 'number' },
+  { key: 'aliquotCount', label: 'Số ống', type: 'number' },
+  { key: 'preservationDate', label: 'Ngày lưu', type: 'date', required: true },
+  { key: 'expiryDate', label: 'Hạn dùng', type: 'date' },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Hoạt động' }, { value: 1, label: 'Sắp hết' }, { value: 2, label: 'Hết hạn' },
+    { value: 3, label: 'Đã cạn' }, { value: 4, label: 'Loại bỏ' }] },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
 
 const STATUS_LABEL: Record<number, string> = {
   0: 'Hoạt động', 1: 'Sắp hết', 2: 'Hết hạn', 3: 'Hết ống', 4: 'Đã hủy',
@@ -103,9 +129,15 @@ const CultureCollectionV2: React.FC = () => {
     } },
   ];
 
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const openCreate = () => { setCrudInit({ status: 0, passageNumber: 0, aliquotCount: 1 }); setCrudOpen(true); };
+  const openEdit = (r: CultureStock) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+
   const actions = (r: CultureStock) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
       <ActBtn ic="package" title="Lấy ống" onClick={() => tk(`Lấy ống từ ${r.stockCode}`)} />
     </div>
   );
@@ -133,7 +165,7 @@ const CultureCollectionV2: React.FC = () => {
         <button className="ab-btn ghost" type="button" onClick={() => tk('Mở cấy chuyền')}>
           <Ico name="activity" size={12} /> Cấy chuyền
         </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở lưu chủng mới')}>
+        <button className="ab-btn primary" type="button" onClick={openCreate}>
           <Ico name="plus" size={12} /> Lưu chủng
         </button>
       </div>
@@ -157,6 +189,9 @@ const CultureCollectionV2: React.FC = () => {
           <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
           <button type="button" className="ab-btn" onClick={() => tk('Mở lịch sử')}>
             <Ico name="activity" size={12} /> Lịch sử
+          </button>
+          <button type="button" className="ab-btn" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+            <Ico name="edit" size={12} /> Sửa
           </button>
           <button type="button" className="ab-btn primary" onClick={() => tk('Mở KT viability')}>
             <Ico name="check" size={12} /> KT viability
@@ -202,6 +237,21 @@ const CultureCollectionV2: React.FC = () => {
           )}
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật chủng VS' : 'Lưu chủng vi sinh mới'}
+        fields={STOCK_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          if (editing && crudInit?.id) await updateCultureStock(String(crudInit.id), v);
+          else await createCultureStock(v);
+          tk(editing ? 'Đã cập nhật chủng' : 'Đã lưu chủng');
+          load();
+        }}
+      />
     </div>
   );
 };

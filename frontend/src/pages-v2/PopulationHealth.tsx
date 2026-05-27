@@ -1,12 +1,30 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchRecords, getStats } from '../api/populationHealth';
+import { searchRecords, getStats, createRecord, updateRecord } from '../api/populationHealth';
 import type { PopulationRecord, PopulationStats } from '../api/populationHealth';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const POP_FIELDS: CrudFieldCfg[] = [
+  { key: 'recordCode', label: 'Mã hồ sơ', required: true, disabledOnEdit: true },
+  { key: 'fullName', label: 'Họ tên', required: true },
+  { key: 'dateOfBirth', label: 'Ngày sinh', type: 'date' },
+  { key: 'gender', label: 'Giới tính', type: 'select', options: [{ value: 1, label: 'Nam' }, { value: 2, label: 'Nữ' }] },
+  { key: 'address', label: 'Địa chỉ' },
+  { key: 'recordType', label: 'Loại hồ sơ', type: 'select', required: true, options: [
+    { value: 'birth', label: 'Khai sinh' }, { value: 'family_planning', label: 'KHHGĐ' },
+    { value: 'elderly_care', label: 'CS người già' }, { value: 'prenatal', label: 'Tiền sản' },
+    { value: 'child_health', label: 'SK trẻ em' }, { value: 'other', label: 'Khác' }] },
+  { key: 'familyCode', label: 'Mã hộ' },
+  { key: 'healthInsuranceNumber', label: 'Số BHYT' },
+  { key: 'managingUnit', label: 'Đơn vị QL', required: true },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Đang QL' }, { value: 1, label: 'Đã đóng' }, { value: 2, label: 'Chuyển đi' }] },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
 
 const TYPE_LABEL: Record<string, string> = {
   birth: 'Khai sinh', family_planning: 'KHHGD', elderly_care: 'CS người già',
@@ -100,10 +118,15 @@ const PopulationHealthV2: React.FC = () => {
     } },
   ];
 
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const openCreate = () => { setCrudInit({ status: 0, gender: 1, recordType: 'other' }); setCrudOpen(true); };
+  const openEdit = (r: PopulationRecord) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+
   const actions = (r: PopulationRecord) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="edit" title="Cập nhật" onClick={() => tk(`Mở cập nhật ${r.recordCode}`)} />
+      <ActBtn ic="edit" title="Cập nhật" onClick={() => openEdit(r)} />
     </div>
   );
 
@@ -121,7 +144,7 @@ const PopulationHealthV2: React.FC = () => {
           <button className="ab-btn ghost" type="button" onClick={load}>
             <Ico name="refresh" size={12} /> Làm mới
           </button>
-          <button className="ab-btn primary" type="button" onClick={() => tk('Mở thêm HS mới')}>
+          <button className="ab-btn primary" type="button" onClick={openCreate}>
             <Ico name="plus" size={12} /> Thêm HS
           </button>
         </>
@@ -156,7 +179,7 @@ const PopulationHealthV2: React.FC = () => {
         sub={sel ? `${sel.recordCode} · ${TYPE_LABEL[sel.recordType] || sel.recordType}` : ''}
         footer={<>
           <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở chỉnh sửa')}>
+          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Cập nhật
           </button>
         </>}
@@ -184,6 +207,21 @@ const PopulationHealthV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật hồ sơ dân số' : 'Thêm hồ sơ dân số'}
+        fields={POP_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          if (editing && crudInit?.id) await updateRecord(String(crudInit.id), v);
+          else await createRecord(v);
+          tk(editing ? 'Đã cập nhật hồ sơ' : 'Đã thêm hồ sơ');
+          load();
+        }}
+      />
     </div>
   );
 };

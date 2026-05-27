@@ -1,12 +1,33 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchCases } from '../api/traumaRegistry';
+import { searchCases, createCase, updateCase } from '../api/traumaRegistry';
 import type { TraumaCase } from '../api/traumaRegistry';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const TRAUMA_FIELDS: CrudFieldCfg[] = [
+  { key: 'caseCode', label: 'Mã ca', required: true, disabledOnEdit: true },
+  { key: 'patientName', label: 'Họ tên BN', required: true },
+  { key: 'patientCode', label: 'Mã BN' },
+  { key: 'injuryDate', label: 'Ngày bị thương', type: 'date' },
+  { key: 'admissionDate', label: 'Ngày nhập viện', type: 'date', required: true },
+  { key: 'injuryType', label: 'Loại chấn thương', required: true },
+  { key: 'injuryMechanism', label: 'Cơ chế' },
+  { key: 'triageCategory', label: 'Phân loại Triage', type: 'select', required: true, options: [
+    { value: 'red', label: 'ĐỎ · Cấp cứu' }, { value: 'yellow', label: 'VÀNG · Khẩn cấp' },
+    { value: 'green', label: 'XANH · Trì hoãn' }, { value: 'black', label: 'ĐEN · Tử vong' }] },
+  { key: 'issScore', label: 'ISS', type: 'number' },
+  { key: 'rtsScore', label: 'RTS', type: 'number' },
+  { key: 'gcsScore', label: 'GCS', type: 'number' },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Nhập viện' }, { value: 1, label: 'ICU' }, { value: 2, label: 'Khoa' },
+    { value: 3, label: 'Xuất viện' }, { value: 4, label: 'Tử vong' }] },
+  { key: 'attendingDoctor', label: 'BS điều trị' },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
 
 const TRIAGE_LABEL: Record<string, string> = {
   red: 'ĐỎ · Cấp cứu', yellow: 'VÀNG · Khẩn cấp', green: 'XANH · Trì hoãn', black: 'ĐEN · Tử vong',
@@ -106,12 +127,15 @@ const TraumaRegistryV2: React.FC = () => {
     } },
   ];
 
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const openCreate = () => { setCrudInit({ status: 0, triageCategory: 'yellow' }); setCrudOpen(true); };
+  const openEdit = (r: TraumaCase) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+
   const actions = (r: TraumaCase) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      {(r.status === 0 || r.status === 1) && (
-        <ActBtn ic="edit" title="Cập nhật" onClick={() => tk(`Mở cập nhật ${r.caseCode}`)} />
-      )}
+      <ActBtn ic="edit" title="Cập nhật" onClick={() => openEdit(r)} />
     </div>
   );
 
@@ -137,7 +161,7 @@ const TraumaRegistryV2: React.FC = () => {
         <button className="ab-btn ghost" type="button" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở đăng ký ca mới')}>
+        <button className="ab-btn primary" type="button" onClick={openCreate}>
           <Ico name="plus" size={12} /> Đăng ký ca
         </button>
       </div>
@@ -162,7 +186,7 @@ const TraumaRegistryV2: React.FC = () => {
           <button type="button" className="ab-btn" onClick={() => tk('Đã in báo cáo')}>
             <Ico name="print" size={12} /> In báo cáo
           </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở cập nhật')}>
+          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Cập nhật
           </button>
         </>}
@@ -206,6 +230,21 @@ const TraumaRegistryV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật ca chấn thương' : 'Đăng ký ca chấn thương'}
+        fields={TRAUMA_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          if (editing && crudInit?.id) await updateCase(String(crudInit.id), v);
+          else await createCase(v);
+          tk(editing ? 'Đã cập nhật ca' : 'Đã đăng ký ca');
+          load();
+        }}
+      />
     </div>
   );
 };

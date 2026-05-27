@@ -1,12 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchCampaigns } from '../api/healthEducation';
+import { searchCampaigns, createCampaign, updateCampaign } from '../api/healthEducation';
 import type { HealthCampaign } from '../api/healthEducation';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const CAMPAIGN_FIELDS: CrudFieldCfg[] = [
+  { key: 'campaignCode', label: 'Mã chiến dịch', required: true, disabledOnEdit: true },
+  { key: 'title', label: 'Tiêu đề', required: true },
+  { key: 'description', label: 'Mô tả', type: 'textarea' },
+  { key: 'startDate', label: 'Bắt đầu', type: 'date', required: true },
+  { key: 'endDate', label: 'Kết thúc', type: 'date' },
+  { key: 'targetAudience', label: 'Đối tượng' },
+  { key: 'location', label: 'Địa điểm' },
+  { key: 'organizerName', label: 'Người tổ chức' },
+  { key: 'participantCount', label: 'Số người TG', type: 'number' },
+  { key: 'budget', label: 'Kinh phí', type: 'number' },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Kế hoạch' }, { value: 1, label: 'Đang diễn ra' }, { value: 2, label: 'Hoàn thành' }, { value: 3, label: 'Đã huỷ' }] },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
 
 const STATUS_LABEL: Record<number, string> = {
   0: 'Lên kế hoạch', 1: 'Đang diễn ra', 2: 'Hoàn thành', 3: 'Hủy',
@@ -89,9 +105,15 @@ const HealthEducationV2: React.FC = () => {
     } },
   ];
 
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const openCreate = () => { setCrudInit({ status: 0, participantCount: 0 }); setCrudOpen(true); };
+  const openEdit = (r: HealthCampaign) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+
   const actions = (r: HealthCampaign) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
       <ActBtn ic="print" title="In poster" onClick={() => tk(`In poster ${r.campaignCode}`)} />
     </div>
   );
@@ -120,7 +142,7 @@ const HealthEducationV2: React.FC = () => {
         <button className="ab-btn ghost" type="button" onClick={() => tk('Mở thư viện tài liệu')}>
           <Ico name="archive" size={12} /> Tài liệu
         </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở chiến dịch mới')}>
+        <button className="ab-btn primary" type="button" onClick={openCreate}>
           <Ico name="plus" size={12} /> Chiến dịch mới
         </button>
       </div>
@@ -145,7 +167,7 @@ const HealthEducationV2: React.FC = () => {
           <button type="button" className="ab-btn" onClick={() => tk('Đã in báo cáo')}>
             <Ico name="print" size={12} /> In báo cáo
           </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở cập nhật')}>
+          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Cập nhật
           </button>
         </>}
@@ -173,6 +195,21 @@ const HealthEducationV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật chiến dịch GDSK' : 'Chiến dịch GDSK mới'}
+        fields={CAMPAIGN_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          if (editing && crudInit?.id) await updateCampaign(String(crudInit.id), v);
+          else await createCampaign(v);
+          tk(editing ? 'Đã cập nhật chiến dịch' : 'Đã tạo chiến dịch');
+          load();
+        }}
+      />
     </div>
   );
 };

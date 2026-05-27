@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  KpiStrip, TopTabs, DataTable, SearchBox, Filter, StatusBadge,
+  KpiStrip, TopTabs, DataTable, SearchBox, Filter, StatusBadge, AbSelect,
   DrawerShell, ModalShell, DrSec, DrField,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
   tk, te, fmtDTg
@@ -179,9 +179,7 @@ const ZnsSendModal: React.FC<{ open: boolean; onClose: () => void; onSent: () =>
       </>}>
       <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 10, padding: 14 }}>
         <span style={{ fontSize: 13 }}>Mẫu tin</span>
-        <select className="ab-sel" value={tplId} onChange={(e) => setTplId(e.target.value)}>
-          {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-        </select>
+        <AbSelect value={tplId} onChange={setTplId} options={templates} fieldNames={{ value: 'id', label: 'name' }} />
         <span style={{ fontSize: 13 }}>SĐT</span>
         <input className="ab-sel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0901234567" />
         {tpl?.params_.map((p) => (

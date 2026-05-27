@@ -1,12 +1,32 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchDiseaseReports, getEpiStats } from '../api/epidemiology';
+import { searchDiseaseReports, getEpiStats, updateDiseaseReport } from '../api/epidemiology';
 import type { DiseaseReport, EpiStats } from '../api/epidemiology';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const DR_FIELDS: CrudFieldCfg[] = [
+  { key: 'reportCode', label: 'Mã báo cáo', required: true, disabledOnEdit: true },
+  { key: 'patientName', label: 'Họ tên BN', required: true },
+  { key: 'patientCode', label: 'Mã BN' },
+  { key: 'gender', label: 'Giới tính', type: 'select', options: [{ value: 1, label: 'Nam' }, { value: 2, label: 'Nữ' }] },
+  { key: 'age', label: 'Tuổi', type: 'number' },
+  { key: 'address', label: 'Địa chỉ' },
+  { key: 'diseaseName', label: 'Tên bệnh', required: true },
+  { key: 'diseaseCode', label: 'Mã bệnh (ICD)' },
+  { key: 'diseaseGroup', label: 'Nhóm bệnh', type: 'select', options: [
+    { value: 'A', label: 'Nhóm A · đặc biệt nguy hiểm' }, { value: 'B', label: 'Nhóm B · nguy hiểm' }, { value: 'C', label: 'Nhóm C · ít nguy hiểm' }] },
+  { key: 'onsetDate', label: 'Ngày khởi phát', type: 'date' },
+  { key: 'diagnosisDate', label: 'Ngày chẩn đoán', type: 'date' },
+  { key: 'reportingDoctor', label: 'BS báo cáo' },
+  { key: 'labConfirmed', label: 'XN khẳng định', type: 'switch' },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Nháp' }, { value: 1, label: 'Đã gửi' }, { value: 2, label: 'Xác nhận' }, { value: 3, label: 'Đã đóng' }] },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
 
 const STATUS_LABEL: Record<number, string> = { 0: 'Nháp', 1: 'Đã gửi', 2: 'Xác nhận', 3: 'Đóng' };
 
@@ -95,11 +115,20 @@ const EpidemiologyV2: React.FC = () => {
     } },
   ];
 
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const openEdit = (r: DiseaseReport) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+  const sendReport = async (r: DiseaseReport) => {
+    try { await updateDiseaseReport(r.id, { status: 1 }); tk(`Đã gửi ${r.reportCode}`); load(); }
+    catch { te('Gửi báo cáo thất bại'); }
+  };
+
   const actions = (r: DiseaseReport) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
       {r.status === 0 && (
-        <ActBtn ic="send" title="Gửi báo cáo" onClick={() => tk(`Đã gửi ${r.reportCode}`)} />
+        <ActBtn ic="send" title="Gửi báo cáo" onClick={() => sendReport(r)} />
       )}
     </div>
   );
@@ -158,8 +187,11 @@ const EpidemiologyV2: React.FC = () => {
           <button type="button" className="ab-btn" onClick={() => tk('Đã in báo cáo')}>
             <Ico name="print" size={12} /> In BC
           </button>
+          <button type="button" className="ab-btn" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+            <Ico name="edit" size={12} /> Sửa
+          </button>
           {sel && sel.status === 0 && (
-            <button type="button" className="ab-btn primary" onClick={() => { tk('Đã gửi'); setSel(null); }}>
+            <button type="button" className="ab-btn primary" onClick={() => { if (sel) sendReport(sel); setSel(null); }}>
               <Ico name="send" size={12} /> Gửi báo cáo
             </button>
           )}
@@ -198,6 +230,20 @@ const EpidemiologyV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title="Cập nhật báo cáo dịch tễ"
+        fields={DR_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v) => {
+          if (crudInit?.id) await updateDiseaseReport(String(crudInit.id), v);
+          tk('Đã cập nhật báo cáo');
+          load();
+        }}
+      />
     </div>
   );
 };

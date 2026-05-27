@@ -39,6 +39,17 @@ const SurgeryV2: React.FC = () => {
     }
   };
 
+  const onApprove = async (r: SurgeryDto, reload: () => void) => {
+    try {
+      await surgeryApi.approveSurgery({ surgeryId: r.id, isApproved: true });
+      message.success(`Đã duyệt ca · ${r.surgeryCode}`);
+      reload();
+    } catch (e) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      message.error((e as any)?.response?.data?.message || 'Duyệt thất bại');
+    }
+  };
+
   const columns: ColumnDef<SurgeryDto>[] = [
     {
       key: 'time', label: 'Giờ mổ', mono: true, width: 80,
@@ -133,6 +144,9 @@ const SurgeryV2: React.FC = () => {
       rowActions={(r, reload) => (
         <div className="ab-actions">
           <ActBtn ic="eye" title="Hồ sơ ca mổ" onClick={() => { /* drawer auto-opens via row click */ }} />
+          {r.status === 0 && (
+            <ActBtn ic="check" title="Duyệt mổ" onClick={() => { void onApprove(r, reload); setReloadVer((v) => v + 1); }} />
+          )}
           {r.status !== 5 && r.status !== 4 && (
             <ActBtn ic="x" title="Hủy ca" onClick={() => { void onCancel(r, reload); setReloadVer((v) => v + 1); }} tone="crit" />
           )}

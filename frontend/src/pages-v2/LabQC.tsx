@@ -1,12 +1,26 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getQCLots, getQCResults } from '../api/labQC';
+import { getQCLots, getQCResults, createQCLot, updateQCLot, deleteQCLot } from '../api/labQC';
 import type { QCLot, QCResult } from '../api/labQC';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const LOT_FIELDS: CrudFieldCfg[] = [
+  { key: 'lotNumber', label: 'Số lô', required: true, disabledOnEdit: true },
+  { key: 'testCode', label: 'Mã xét nghiệm', required: true },
+  { key: 'testName', label: 'Tên xét nghiệm', required: true },
+  { key: 'level', label: 'Mức QC', type: 'select', required: true, options: [
+    { value: 1, label: 'Low' }, { value: 2, label: 'Normal' }, { value: 3, label: 'High' }] },
+  { key: 'manufacturer', label: 'Nhà sản xuất' },
+  { key: 'targetMean', label: 'Target Mean', type: 'number', required: true },
+  { key: 'targetSD', label: 'Target SD', type: 'number', required: true },
+  { key: 'unit', label: 'Đơn vị' },
+  { key: 'expiryDate', label: 'Hạn dùng', type: 'date', required: true },
+  { key: 'isActive', label: 'Đang dùng', type: 'switch' },
+];
 
 const LEVEL_LABEL: Record<number, string> = { 1: 'Low', 2: 'Normal', 3: 'High' };
 
@@ -27,6 +41,13 @@ const LabQCV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [selLot, setSelLot] = useState<QCLot | null>(null);
   const [selRes, setSelRes] = useState<QCResult | null>(null);
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const openCreateLot = () => { setCrudInit({ level: 2, isActive: true }); setCrudOpen(true); };
+  const openEditLot = (r: QCLot) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+  const delLot = (r: QCLot) => cf(`Xoá lô QC "${r.lotNumber}"?`, async () => {
+    try { await deleteQCLot(r.id); tk('Đã xoá'); load(); } catch { te('Xoá thất bại'); }
+  }, { tone: 'crit', confirm: 'Xoá' });
 
   const load = async () => {
     setLoading(true);
@@ -149,7 +170,9 @@ const LabQCV2: React.FC = () => {
   const lotActions = (r: QCLot) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSelLot(r)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEditLot(r)} />
       <ActBtn ic="activity" title="Chạy QC" onClick={() => tk(`Đã mở chạy QC cho lô ${r.lotNumber}`)} />
+      <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => delLot(r)} />
     </div>
   );
   const resActions = (r: QCResult) => (
@@ -168,7 +191,7 @@ const LabQCV2: React.FC = () => {
           <button className="ab-btn ghost" type="button" onClick={load}>
             <Ico name="refresh" size={12} /> Làm mới
           </button>
-          {tab === 'lots' && <button className="ab-btn primary" type="button" onClick={() => tk('Mở form thêm lô QC')}>
+          {tab === 'lots' && <button className="ab-btn primary" type="button" onClick={openCreateLot}>
             <Ico name="plus" size={12} /> Thêm lô
           </button>}
           {tab === 'results' && <button className="ab-btn primary" type="button" onClick={() => tk('Mở form chạy QC')}>
@@ -217,6 +240,9 @@ const LabQCV2: React.FC = () => {
         sub={selLot ? `${selLot.testCode} · ${selLot.testName}` : ''}
         footer={<>
           <button type="button" className="ab-btn ghost" onClick={() => setSelLot(null)}>Đóng</button>
+          <button type="button" className="ab-btn" onClick={() => { if (selLot) openEditLot(selLot); setSelLot(null); }}>
+            <Ico name="edit" size={12} /> Sửa lô
+          </button>
           <button type="button" className="ab-btn primary" onClick={() => tk(`Đã mở chạy QC ${selLot?.lotNumber}`)}>
             <Ico name="activity" size={12} /> Chạy QC
           </button>
@@ -289,6 +315,21 @@ const LabQCV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật lô QC' : 'Thêm lô QC'}
+        fields={LOT_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          if (editing && crudInit?.id) await updateQCLot(String(crudInit.id), v);
+          else await createQCLot(v);
+          tk(editing ? 'Đã cập nhật lô QC' : 'Đã thêm lô QC');
+          load();
+        }}
+      />
     </div>
   );
 };
