@@ -159,7 +159,7 @@ const BillingV2: React.FC = () => {
       )}
       drawerSub={(r) => `${r.patientTypeName || '—'} · ${fmtDMY(r.createdAt)}`}
       toolbarRight={
-        <button type="button" className="ab-btn primary" onClick={() => navigate('/billing')}>
+        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/billing/edit')}>
           <TermIcon name="plus" size={12} /> Tạo HĐ
         </button>
       }
