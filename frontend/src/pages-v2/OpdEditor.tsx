@@ -15,7 +15,7 @@ import { KpiStrip, StatusBadge, ActBtn, fmtVNDg, tk, tw, te, ti } from './_v2kit
 import TermIcon from '../layouts/terminal/Icon';
 import BarcodeScanner from '../components/BarcodeScanner';
 import {
-  examinationApi,
+  examinationApi, createSickLeave,
   type RoomDto, type RoomPatientListDto, type IcdCodeFullDto, type ServiceDto,
   type ServiceOrderFullDto, type DiagnosisFullDto,
 } from '../api/examination';
@@ -57,6 +57,8 @@ const OpdEditorV2: React.FC = () => {
   const [orders, setOrd] = useState<OrderRow[]>([]);
 
   const [scanOpen, setScanOpen] = useState(false);
+  const [sickFrom, setSickFrom] = useState('');
+  const [sickTo, setSickTo] = useState('');
   const [icdQ, setIcdQ] = useState('');
   const [icdResults, setIcdResults] = useState<IcdCodeFullDto[]>([]);
   const [svcQ, setSvcQ] = useState('');
@@ -199,6 +201,17 @@ const OpdEditorV2: React.FC = () => {
   const goPrescribe = () => {
     if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
     navigate(`/v2/prescription/edit?examId=${encodeURIComponent(examId)}`);
+  };
+
+  const saveSickLeave = async () => {
+    if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+    if (!sickFrom || !sickTo) { tw('Chọn từ ngày / đến ngày'); return; }
+    const days = Math.max(1, Math.round((new Date(sickTo).getTime() - new Date(sickFrom).getTime()) / 86400000) + 1);
+    try {
+      await createSickLeave(examId, { days, fromDate: sickFrom, toDate: sickTo });
+      tk(`Đã lưu giấy nghỉ ${days} ngày`);
+      setSickFrom(''); setSickTo('');
+    } catch { te('Lưu giấy nghỉ thất bại'); }
   };
 
   const waitingCount = queue.filter((q) => q.status === 0 || q.status === 1).length;
@@ -378,9 +391,12 @@ const OpdEditorV2: React.FC = () => {
         <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
           <h4 style={{ margin: '0 0 8px', fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Giấy nghỉ ốm</h4>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-            <div><label style={{ fontSize: 10, color: 'var(--t-2)' }}>Từ ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} /></div>
-            <div><label style={{ fontSize: 10, color: 'var(--t-2)' }}>Đến ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} /></div>
+            <div><label style={{ fontSize: 10, color: 'var(--t-2)' }}>Từ ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} value={sickFrom} onChange={(e) => setSickFrom(e.target.value)} /></div>
+            <div><label style={{ fontSize: 10, color: 'var(--t-2)' }}>Đến ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} value={sickTo} onChange={(e) => setSickTo(e.target.value)} /></div>
           </div>
+          <button className="ab-btn ghost sm" style={{ width: '100%', marginTop: 8, justifyContent: 'center' }} disabled={!sickFrom || !sickTo} onClick={saveSickLeave}>
+            <TermIcon name="file-text" size={11} /> Lưu giấy nghỉ
+          </button>
         </section>
 
         <div style={{ display: 'grid', gap: 6 }}>

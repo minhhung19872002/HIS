@@ -22,8 +22,8 @@ import {
   getUnpaidMedicines, type UnpaidMedicineItemDto,
   getDepositBalance, type DepositBalanceDto,
   getPatientInvoice, createPayment,
-  getPatientDeposits, type DepositDto,
-  searchRefunds, type RefundDto,
+  getPatientDeposits, createDeposit, type DepositDto,
+  searchRefunds, createRefund, type RefundDto,
   getCashBooks, type CashBookDto,
   getElectronicInvoices, type ElectronicInvoiceDto,
 } from '../api/billing';
@@ -64,6 +64,9 @@ const BillingEditorV2: React.FC = () => {
 
   const [deposits, setDeposits] = useState<DepositDto[]>([]);
   const [refunds, setRefunds] = useState<RefundDto[]>([]);
+  const [createModal, setCreateModal] = useState<null | 'deposit' | 'refund'>(null);
+  const [cform, setCform] = useState<{ amount: string; method: number; reason: string }>({ amount: '', method: 1, reason: '' });
+  const [savingC, setSavingC] = useState(false);
   const [cashbooks, setCashbooks] = useState<CashBookDto[]>([]);
   const [einvoices, setEinvoices] = useState<ElectronicInvoiceDto[]>([]);
 
@@ -141,6 +144,35 @@ const BillingEditorV2: React.FC = () => {
       selectPatient(pt);
     } catch { te('Thu tiền thất bại'); }
     finally { setBusy(false); }
+  };
+
+  const openCreate = (kind: 'deposit' | 'refund') => {
+    if (!pt) { tw('Chưa chọn bệnh nhân'); return; }
+    setCform({ amount: '', method: 1, reason: '' });
+    setCreateModal(kind);
+  };
+  const saveCreate = async () => {
+    if (!pt) return;
+    const amt = Number(cform.amount);
+    if (!amt || amt <= 0) { tw('Nhập số tiền hợp lệ'); return; }
+    setSavingC(true);
+    try {
+      if (createModal === 'deposit') {
+        await createDeposit({ patientId: pt.patientId, medicalRecordId: pt.medicalRecordId, depositType: 1, depositSource: 1, amount: amt, paymentMethod: cform.method, notes: cform.reason || undefined });
+        const [d, b] = await Promise.allSettled([getPatientDeposits(pt.patientId), getDepositBalance(pt.patientId)]);
+        if (d.status === 'fulfilled') setDeposits(Array.isArray(d.value.data) ? d.value.data : []);
+        if (b.status === 'fulfilled' && b.value.data) setBalance(b.value.data);
+        tk(`Đã tạo tạm ứng ${fmtVNDg(amt)}`);
+      } else if (createModal === 'refund') {
+        if (!cform.reason.trim()) { tw('Nhập lý do hoàn tiền'); setSavingC(false); return; }
+        await createRefund({ patientId: pt.patientId, refundType: 1, refundAmount: amt, refundMethod: cform.method, reason: cform.reason });
+        const r = await searchRefunds({ patientId: pt.patientId, page: 1, pageSize: 50 });
+        setRefunds(r.data?.items || []);
+        tk(`Đã lập phiếu hoàn tiền ${fmtVNDg(amt)}`);
+      }
+      setCreateModal(null);
+    } catch { te('Tạo phiếu thất bại'); }
+    finally { setSavingC(false); }
   };
 
   // ── Columns for read-only tabs ───────────────────────────────────
@@ -257,13 +289,13 @@ const BillingEditorV2: React.FC = () => {
 
           {tab === 'advance' && (
             <div>
-              <div style={{ marginBottom: 12 }}><button className="ab-btn primary" onClick={() => ti('Tạo tạm ứng (P2)')}><TermIcon name="plus" size={12} /> Tạo tạm ứng</button></div>
+              <div style={{ marginBottom: 12 }}><button className="ab-btn primary" onClick={() => openCreate('deposit')}><TermIcon name="plus" size={12} /> Tạo tạm ứng</button></div>
               <DataTable<DepositDto> columns={depositCols} data={deposits} rowKey={(r) => r.id} empty={pt ? 'Chưa có tạm ứng' : 'Chọn bệnh nhân'} />
             </div>
           )}
           {tab === 'refund' && (
             <div>
-              <div style={{ marginBottom: 12 }}><button className="ab-btn primary" onClick={() => ti('Lập phiếu hoàn tiền (P2)')}><TermIcon name="plus" size={12} /> Lập phiếu hoàn tiền</button></div>
+              <div style={{ marginBottom: 12 }}><button className="ab-btn primary" onClick={() => openCreate('refund')}><TermIcon name="plus" size={12} /> Lập phiếu hoàn tiền</button></div>
               <DataTable<RefundDto> columns={refundCols} data={refunds} rowKey={(r) => r.id} empty="Chưa có phiếu hoàn tiền" />
             </div>
           )}
@@ -340,6 +372,33 @@ const BillingEditorV2: React.FC = () => {
           <div style={{ marginTop: 14, padding: 10, background: 'var(--d-1)', borderRadius: 4, fontSize: 11, color: 'var(--t-2)' }}>
             {selectedItems.length} mục · {METHODS.find((m) => m.v === method)?.l}{advUsed > 0 ? ` · dùng tạm ứng ${fmtVNDg(advUsed)}` : ''}
           </div>
+        </div>
+      </ModalShell>
+
+      {/* Create deposit / refund modal */}
+      <ModalShell open={createModal !== null} onClose={() => setCreateModal(null)}
+        title={createModal === 'deposit' ? 'Tạo tạm ứng' : 'Lập phiếu hoàn tiền'} sub={pt?.patientName} size="sm"
+        footer={<>
+          <button className="ab-btn ghost" onClick={() => setCreateModal(null)}>Hủy</button>
+          <button className="ab-btn primary" disabled={savingC} onClick={saveCreate}><TermIcon name="check" size={12} /> Lưu</button>
+        </>}>
+        <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <label style={{ display: 'block', fontSize: 11.5 }}>
+            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 3 }}>Số tiền</span>
+            <input type="number" className="ed-fld mono" style={{ textAlign: 'right', fontSize: 16 }} value={cform.amount} onChange={(e) => setCform((p) => ({ ...p, amount: e.target.value }))} placeholder="0" autoFocus />
+          </label>
+          <div>
+            <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>{createModal === 'deposit' ? 'Phương thức nộp' : 'Phương thức hoàn'}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
+              {METHODS.map((m) => (
+                <button key={m.v} onClick={() => setCform((p) => ({ ...p, method: m.v }))} style={{ padding: '8px 6px', background: cform.method === m.v ? 'var(--c-pri, #2563eb)' : 'var(--d-0)', color: cform.method === m.v ? '#fff' : 'var(--t-1)', border: cform.method === m.v ? '1px solid var(--c-pri, #2563eb)' : '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontSize: 11.5 }}>{m.l}</button>
+              ))}
+            </div>
+          </div>
+          <label style={{ display: 'block', fontSize: 11.5 }}>
+            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 3 }}>{createModal === 'refund' ? 'Lý do hoàn (bắt buộc)' : 'Ghi chú'}</span>
+            <textarea className="ed-fld" rows={2} value={cform.reason} onChange={(e) => setCform((p) => ({ ...p, reason: e.target.value }))} />
+          </label>
         </div>
       </ModalShell>
     </div>
