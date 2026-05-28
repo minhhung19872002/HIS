@@ -595,8 +595,10 @@ export const getHAICaseById = (id: string) =>
 export const getHAICasesByAdmission = (admissionId: string) =>
   apiClient.get<HAISurveillanceDto[]>(`${BASE_URL}/admissions/${admissionId}/hai-cases`);
 
+// Backend create endpoint là POST hai-reports (ReportHAIDto). Route cũ `/hai-cases`
+// chỉ có GET → POST trả 405. Sửa về route thật cho cả v1 lẫn v2.
 export const createHAICase = (dto: CreateHAISurveillanceDto) =>
-  apiClient.post<HAISurveillanceDto>(`${BASE_URL}/hai-cases`, dto);
+  apiClient.post<HAISurveillanceDto>(`${BASE_URL}/hai-reports`, dto);
 
 export const updateHAICase = (id: string, dto: CreateHAISurveillanceDto) =>
   apiClient.put<HAISurveillanceDto>(`${BASE_URL}/hai-cases/${id}`, dto);

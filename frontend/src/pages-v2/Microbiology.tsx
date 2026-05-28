@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Input, Select } from 'antd';
-import { getMicrobiologyCultures, createCulture } from '../api/microbiology';
+import { getMicrobiologyCultures, createCulture, updateCultureStatus } from '../api/microbiology';
 import type { MicrobiologyCulture } from '../api/microbiology';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
@@ -23,6 +23,7 @@ const CULTURE_OPTS = [
 const STATUS_LABEL: Record<number, string> = {
   0: 'Chờ', 1: 'Đang ủ', 2: 'Có VSV mọc', 3: 'Không mọc', 4: 'Đã định danh', 5: 'Hoàn tất',
 };
+const STATUS_OPTS = Object.entries(STATUS_LABEL).map(([value, label]) => ({ value: Number(value), label }));
 
 type SKey = 'pending' | 'incubating' | 'growth' | 'completed';
 const STATUS_TABS = [
@@ -46,6 +47,7 @@ const MicrobiologyV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<MicrobiologyCulture | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [statusCulture, setStatusCulture] = useState<MicrobiologyCulture | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -108,7 +110,7 @@ const MicrobiologyV2: React.FC = () => {
   const actions = (r: MicrobiologyCulture) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="activity" title="Cập nhật trạng thái" onClick={() => tk(`Mở cập nhật ${r.requestCode}`)} />
+      <ActBtn ic="activity" title="Cập nhật trạng thái" onClick={() => setStatusCulture(r)} />
     </div>
   );
 
@@ -159,7 +161,7 @@ const MicrobiologyV2: React.FC = () => {
           <button type="button" className="ab-btn" onClick={() => tk('Đã in phiếu')}>
             <Ico name="print" size={12} /> In phiếu
           </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở cập nhật trạng thái')}>
+          <button type="button" className="ab-btn primary" onClick={() => { if (sel) { setStatusCulture(sel); setSel(null); } }}>
             <Ico name="activity" size={12} /> Cập nhật
           </button>
         </>}
@@ -217,6 +219,14 @@ const MicrobiologyV2: React.FC = () => {
         <CreateCultureModal
           onClose={() => setCreateOpen(false)}
           onDone={() => { setCreateOpen(false); load(); }}
+        />
+      )}
+
+      {statusCulture && (
+        <UpdateStatusModal
+          culture={statusCulture}
+          onClose={() => setStatusCulture(null)}
+          onDone={() => { setStatusCulture(null); load(); }}
         />
       )}
     </div>
@@ -302,6 +312,54 @@ const CreateCultureModal: React.FC<{ onClose: () => void; onDone: () => void }> 
           <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Fld>
         {err && <div style={{ color: 'var(--s-crit)', fontSize: 12 }}>{err}</div>}
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ────────────────────────────────────────────────────────────
+   Modal cập nhật trạng thái nuôi cấy — updateCultureStatus(id,{status,notes})
+   ──────────────────────────────────────────────────────────── */
+
+const UpdateStatusModal: React.FC<{ culture: MicrobiologyCulture; onClose: () => void; onDone: () => void }> = ({ culture, onClose, onDone }) => {
+  const [status, setStatus] = useState<number>(culture.status);
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async (): Promise<void> => {
+    setSubmitting(true);
+    try {
+      await updateCultureStatus(culture.id, { status, notes: notes.trim() || undefined });
+      tk('Đã cập nhật trạng thái nuôi cấy');
+      onDone();
+    } catch {
+      te('Cập nhật trạng thái thất bại');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open
+      onClose={onClose}
+      size="sm"
+      title="Cập nhật trạng thái nuôi cấy"
+      sub={culture.requestCode}
+      footer={<>
+        <button className="ab-btn ghost" type="button" onClick={onClose}>Huỷ</button>
+        <button className="ab-btn primary" type="button" onClick={submit} disabled={submitting}>
+          <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Cập nhật'}
+        </button>
+      </>}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <Fld lbl="Trạng thái" req>
+          <Select style={{ width: '100%' }} value={status} onChange={setStatus} options={STATUS_OPTS} />
+        </Fld>
+        <Fld lbl="Ghi chú">
+          <Input.TextArea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ghi chú kết quả / diễn biến…" />
+        </Fld>
       </div>
     </ModalShell>
   );

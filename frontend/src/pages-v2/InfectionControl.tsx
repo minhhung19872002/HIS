@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getHAICases } from '../api/infectionControl';
+import { getHAICases, createHAICase } from '../api/infectionControl';
+import type { CreateHAISurveillanceDto } from '../api/infectionControl';
+import { getInpatientList } from '../api/inpatient';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, CrudModal,
   DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
 type Row = {
@@ -75,6 +77,30 @@ const InfectionControlV2: React.FC = () => {
   const [fInfType, setFInfType] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<Row | null>(null);
+  const [admissionOpts, setAdmissionOpts] = useState<{ value: string; label: string }[]>([]);
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+
+  const openCreate = () => { setCrudInit({ isMDRO: false, onsetDate: dayjs().format('YYYY-MM-DD') }); setCrudOpen(true); };
+
+  // Form theo đúng contract backend ReportHAIDto (POST hai-reports). Backend không có
+  // endpoint update/investigate/close cho HAI → trang chỉ hỗ trợ tạo mới.
+  const haiFields: CrudFieldCfg[] = useMemo(() => [
+    { key: 'admissionId', label: 'Bệnh nhân (nội trú)', type: 'select', required: true, options: admissionOpts, showSearch: true },
+    { key: 'infectionType', label: 'Loại nhiễm khuẩn', type: 'select', required: true, options: [
+      { value: 'CLABSI', label: 'NK huyết do catheter (CLABSI)' },
+      { value: 'CAUTI', label: 'NK tiết niệu do sonde (CAUTI)' },
+      { value: 'VAP', label: 'Viêm phổi thở máy (VAP)' },
+      { value: 'SSI', label: 'NK vết mổ (SSI)' },
+      { value: 'BSI', label: 'NK huyết (BSI)' },
+      { value: 'Other', label: 'Khác' }] },
+    { key: 'infectionSite', label: 'Vị trí nhiễm khuẩn' },
+    { key: 'onsetDate', label: 'Ngày khởi phát', type: 'date', required: true },
+    { key: 'organism', label: 'Mầm bệnh' },
+    { key: 'isMDRO', label: 'Kháng đa thuốc (MDRO)', type: 'switch' },
+    { key: 'criteriaUsed', label: 'Tiêu chuẩn CDC áp dụng', type: 'textarea' },
+    { key: 'initialNotes', label: 'Ghi chú ban đầu', type: 'textarea' },
+  ], [admissionOpts]);
 
   const load = async () => {
     setLoading(true);
@@ -87,6 +113,14 @@ const InfectionControlV2: React.FC = () => {
     finally { setLoading(false); }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => {
+    (async () => {
+      try {
+        const ip = await getInpatientList({ pageSize: 300 });
+        setAdmissionOpts((ip.data?.items || []).map((p) => ({ value: p.admissionId, label: `${p.patientName} · ${p.bedName || p.roomName || p.departmentName}` })));
+      } catch { /* options optional */ }
+    })();
+  }, []);
 
   const infTypes = useMemo(() => {
     const set = new Set(items.map((r) => r.infectionTypeName || r.infectionType).filter(Boolean) as string[]);
@@ -154,9 +188,6 @@ const InfectionControlV2: React.FC = () => {
   const actions = (r: Row) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      {sKey(r.status) === 'suspected' && (
-        <ActBtn ic="check" title="Xác nhận" onClick={() => tk(`Xác nhận ${r.caseCode}`)} />
-      )}
     </div>
   );
 
@@ -183,7 +214,7 @@ const InfectionControlV2: React.FC = () => {
         <button className="ab-btn ghost" type="button" onClick={() => tk('Mở cách ly')}>
           <Ico name="alert" size={12} /> Cách ly
         </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở báo cáo HAI')}>
+        <button className="ab-btn primary" type="button" onClick={openCreate}>
           <Ico name="plus" size={12} /> Báo cáo HAI
         </button>
       </div>
@@ -207,9 +238,6 @@ const InfectionControlV2: React.FC = () => {
           <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
           <button type="button" className="ab-btn" onClick={() => tk('Đã in báo cáo')}>
             <Ico name="print" size={12} /> In báo cáo
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở cập nhật')}>
-            <Ico name="edit" size={12} /> Cập nhật
           </button>
         </>}
       >
@@ -264,6 +292,20 @@ const InfectionControlV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title="Báo cáo ca nhiễm khuẩn bệnh viện (HAI)"
+        fields={haiFields}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v) => {
+          await createHAICase(v as unknown as CreateHAISurveillanceDto);
+          tk('Đã tạo báo cáo HAI');
+          load();
+        }}
+      />
     </div>
   );
 };

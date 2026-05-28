@@ -1,12 +1,29 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getAssets, getAssetDashboard } from '../api/assetManagement';
-import type { FixedAssetDto, AssetDashboardDto } from '../api/assetManagement';
+import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode } from '../api/assetManagement';
+import type { FixedAssetDto, AssetDashboardDto, AssetQrCodeDto } from '../api/assetManagement';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal, ModalShell,
+  DrawerShell, DrSec, DrField, tk, ti, te,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const ASSET_FIELDS: CrudFieldCfg[] = [
+  { key: 'assetCode', label: 'Mã tài sản', required: true, disabledOnEdit: true, placeholder: 'VD: TS-...' },
+  { key: 'assetName', label: 'Tên tài sản', required: true },
+  { key: 'serialNumber', label: 'Số serial' },
+  { key: 'purchaseDate', label: 'Ngày mua', type: 'date', required: true },
+  { key: 'originalValue', label: 'Nguyên giá (đ)', type: 'number', required: true },
+  { key: 'currentValue', label: 'Giá trị còn lại (đ)', type: 'number', placeholder: 'Bỏ trống = bằng nguyên giá' },
+  { key: 'usefulLifeMonths', label: 'Thời gian khấu hao (tháng)', type: 'number' },
+  { key: 'depreciationMethod', label: 'Phương pháp khấu hao', type: 'select', options: [
+    { value: 1, label: 'Đường thẳng' }, { value: 2, label: 'Số dư giảm dần' }] },
+  { key: 'locationDescription', label: 'Vị trí' },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 0, label: 'Đang dùng' }, { value: 1, label: 'Hỏng' }, { value: 2, label: 'Sửa chữa' },
+    { value: 3, label: 'Chờ thanh lý' }, { value: 4, label: 'Đã thanh lý' }, { value: 5, label: 'Đã chuyển' }] },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
 
 const STATUS_LABEL: Record<number, string> = {
   0: 'Đang dùng', 1: 'Hỏng', 2: 'Sửa chữa', 3: 'Chờ thanh lý', 4: 'Đã thanh lý', 5: 'Đã chuyển',
@@ -36,6 +53,16 @@ const AssetManagementV2: React.FC = () => {
   const [fDept, setFDept] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<FixedAssetDto | null>(null);
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const [qrData, setQrData] = useState<AssetQrCodeDto | null>(null);
+
+  const openCreate = () => { setCrudInit({ status: 0, depreciationMethod: 1, originalValue: 0, currentValue: 0, usefulLifeMonths: 60 }); setCrudOpen(true); };
+  const openEdit = (r: FixedAssetDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+  const showQr = async (r: FixedAssetDto) => {
+    try { const d = await getAssetQrCode(r.id); if (d) setQrData(d); else te('Không lấy được mã QR'); }
+    catch { te('Không lấy được mã QR'); }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -101,7 +128,8 @@ const AssetManagementV2: React.FC = () => {
   const actions = (r: FixedAssetDto) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="qr" title="QR/Barcode" onClick={() => tk(`Hiển thị QR ${r.assetCode}`)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
+      <ActBtn ic="qr" title="QR/Barcode" onClick={() => showQr(r)} />
     </div>
   );
 
@@ -120,19 +148,11 @@ const AssetManagementV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm mã TS / tên / serial…" />
         <Filter value={fDept} onChange={setFDept} options={depts} placeholder="▾ Khoa" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFDept(''); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFDept(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở khấu hao')}>
-          <Ico name="activity" size={12} /> Khấu hao
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở thêm TS')}>
-          <Ico name="plus" size={12} /> Thêm TS
-        </button>
+        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="activity" onClick={() => tk('Tính khấu hao — xem báo cáo khấu hao')}>Khấu hao</Btn>
+        <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm TS</Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -151,13 +171,9 @@ const AssetManagementV2: React.FC = () => {
         title={sel ? sel.assetName : ''}
         sub={sel ? `${sel.assetCode}${sel.serialNumber ? ` · SN ${sel.serialNumber}` : ''}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Mở chuyển khoa')}>
-            <Ico name="send" size={12} /> Chuyển khoa
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('In nhãn QR')}>
-            <Ico name="qr" size={12} /> In nhãn QR
-          </button>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn icon="qr" onClick={() => { if (sel) showQr(sel); }}>Mã QR</Btn>
+          <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Chỉnh sửa</Btn>
         </>}
       >
         {sel && <>
@@ -191,6 +207,44 @@ const AssetManagementV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật tài sản' : 'Thêm tài sản cố định'}
+        fields={ASSET_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          await saveAsset(v as Partial<FixedAssetDto>);
+          tk(editing ? 'Đã cập nhật tài sản' : 'Đã thêm tài sản');
+          load();
+        }}
+      />
+
+      <ModalShell
+        open={!!qrData}
+        onClose={() => setQrData(null)}
+        title="Mã QR tài sản"
+        sub={qrData ? `${qrData.assetCode} · ${qrData.assetName}` : ''}
+        size="sm"
+        footer={<Btn variant="ghost" onClick={() => setQrData(null)}>Đóng</Btn>}
+      >
+        {qrData && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <DrField lbl="Mã TS"><span style={{ fontFamily: 'var(--font-mono)' }}>{qrData.assetCode}</span></DrField>
+            <DrField lbl="Tên">{qrData.assetName}</DrField>
+            {qrData.departmentName && <DrField lbl="Khoa">{qrData.departmentName}</DrField>}
+            {qrData.serialNumber && <DrField lbl="Serial"><span style={{ fontFamily: 'var(--font-mono)' }}>{qrData.serialNumber}</span></DrField>}
+            <DrField lbl="Nội dung QR">
+              <code style={{ display: 'block', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 12,
+                padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6 }}>
+                {qrData.qrContent}
+              </code>
+            </DrField>
+          </div>
+        )}
+      </ModalShell>
     </div>
   );
 };

@@ -1,12 +1,29 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getAnalyzers, getLabconnectStatus } from '../api/lisConfig';
-import type { AnalyzerDto, LabconnectStatusDto } from '../api/lisConfig';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  getAnalyzers, getLabconnectStatus, createAnalyzer, updateAnalyzer, deleteAnalyzer,
+  testAnalyzerConnection, syncLabconnect,
+} from '../api/lisConfig';
+import type { AnalyzerDto, LabconnectStatusDto, CreateAnalyzerDto } from '../api/lisConfig';
+import {
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
+  DrawerShell, DrSec, DrField, tk, ti, tw, te, cf,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const ANALYZER_FIELDS: CrudFieldCfg[] = [
+  { key: 'name', label: 'Tên máy XN', required: true },
+  { key: 'manufacturer', label: 'Hãng sản xuất', required: true },
+  { key: 'model', label: 'Model', required: true },
+  { key: 'connectionType', label: 'Protocol', type: 'select', required: true, options: [
+    { value: 'HL7', label: 'HL7' }, { value: 'ASTM', label: 'ASTM' }, { value: 'Serial', label: 'Serial' }] },
+  { key: 'protocolVersion', label: 'Phiên bản protocol', placeholder: 'VD: 2.5.1' },
+  { key: 'ipAddress', label: 'Địa chỉ IP', placeholder: 'VD: 192.168.1.50' },
+  { key: 'port', label: 'Port', type: 'number', placeholder: 'VD: 8080' },
+  { key: 'baudRate', label: 'Baud rate (Serial)', type: 'number', placeholder: 'VD: 9600' },
+  { key: 'description', label: 'Mô tả', type: 'textarea' },
+  { key: 'isActive', label: 'Kích hoạt', type: 'switch' },
+];
 
 const CONN_LABEL: Record<string, string> = {
   Connected: 'Đã kết nối', Disconnected: 'Mất kết nối', Unknown: 'Không rõ',
@@ -38,6 +55,24 @@ const LISConfigV2: React.FC = () => {
   const [fProto, setFProto] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<AnalyzerDto | null>(null);
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+
+  const openCreate = () => { setCrudInit({ connectionType: 'HL7', isActive: true }); setCrudOpen(true); };
+  const openEdit = (r: AnalyzerDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+  const del = (r: AnalyzerDto) => cf(`Xoá máy XN "${r.name}"?`, async () => {
+    try { await deleteAnalyzer(r.id); tk('Đã xoá'); load(); } catch { te('Xoá thất bại'); }
+  }, { tone: 'crit', confirm: 'Xoá' });
+  const testConn = async (r: AnalyzerDto) => {
+    try {
+      const res = await testAnalyzerConnection(r.id);
+      (res.data?.success ? tk : tw)(res.data?.message || (res.data?.success ? 'Kết nối thành công' : 'Kết nối thất bại'));
+      load();
+    } catch { te('Test kết nối thất bại'); }
+  };
+  const runLabconnect = async () => {
+    try { await syncLabconnect(); tk('Đã chạy đồng bộ LabConnect'); load(); } catch { te('Đồng bộ LabConnect thất bại'); }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -110,7 +145,9 @@ const LISConfigV2: React.FC = () => {
   const actions = (r: AnalyzerDto) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="refresh" title="Test kết nối" onClick={() => tk(`Test KN ${r.name}`)} />
+      <ActBtn ic="refresh" title="Test kết nối" onClick={() => testConn(r)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
+      <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
     </div>
   );
 
@@ -127,19 +164,11 @@ const LISConfigV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm tên / hãng / model / IP…" />
         <Filter value={fProto} onChange={setFProto} options={protos} placeholder="▾ Protocol" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFProto(''); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFProto(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở LabConnect')}>
-          <Ico name="activity" size={12} /> LabConnect
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở thêm máy XN')}>
-          <Ico name="plus" size={12} /> Thêm máy
-        </button>
+        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="activity" onClick={runLabconnect}>LabConnect</Btn>
+        <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm máy</Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -158,13 +187,9 @@ const LISConfigV2: React.FC = () => {
         title={sel ? sel.name : ''}
         sub={sel ? `${sel.manufacturer} · ${sel.model}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Test kết nối')}>
-            <Ico name="refresh" size={12} /> Test KN
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở chỉnh sửa')}>
-            <Ico name="edit" size={12} /> Chỉnh sửa
-          </button>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn icon="refresh" onClick={() => { if (sel) testConn(sel); }}>Test KN</Btn>
+          <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Chỉnh sửa</Btn>
         </>}
       >
         {sel && <>
@@ -195,6 +220,22 @@ const LISConfigV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật máy xét nghiệm' : 'Thêm máy xét nghiệm'}
+        fields={ANALYZER_FIELDS}
+        initial={crudInit}
+        size="md"
+        onSubmit={async (v, editing) => {
+          const dto = v as unknown as CreateAnalyzerDto;
+          if (editing && crudInit?.id) await updateAnalyzer(crudInit.id as string, dto);
+          else await createAnalyzer(dto);
+          tk(editing ? 'Đã cập nhật máy XN' : 'Đã thêm máy XN');
+          load();
+        }}
+      />
     </div>
   );
 };

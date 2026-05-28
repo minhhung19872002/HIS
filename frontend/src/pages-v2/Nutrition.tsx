@@ -1,10 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getDietOrders } from '../api/nutrition';
+import { Input } from 'antd';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  getDietOrders, getDietOrderById, createDietOrder, updateDietOrder, cancelDietOrder, getDietTypes,
+} from '../api/nutrition';
+import type { CreateDietOrderDto } from '../api/nutrition';
+import { getInpatientList } from '../api/inpatient';
+import {
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal, ModalShell,
+  DrawerShell, DrSec, DrField, tk, ti, te,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
 type Row = {
@@ -56,6 +61,48 @@ const NutritionV2: React.FC = () => {
   const [fRoute, setFRoute] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<Row | null>(null);
+  const [dietTypeOpts, setDietTypeOpts] = useState<{ value: string; label: string }[]>([]);
+  const [admissionOpts, setAdmissionOpts] = useState<{ value: string; label: string }[]>([]);
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const [cancelRow, setCancelRow] = useState<Row | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+
+  const openCreate = () => {
+    setCrudInit({ texture: 'Regular', feedingRoute: 'Oral', mealFrequency: 3, snacksIncluded: false, energyKcal: 0, proteinGrams: 0, startDate: dayjs().format('YYYY-MM-DD') });
+    setCrudOpen(true);
+  };
+  const openEdit = async (r: Row) => {
+    try { setCrudInit({ ...(await getDietOrderById(r.id)).data } as Record<string, unknown>); setCrudOpen(true); }
+    catch { te('Không tải được chi tiết đơn'); }
+  };
+  const doCancel = async () => {
+    if (!cancelRow) return;
+    setCancelling(true);
+    try {
+      await cancelDietOrder(cancelRow.id, cancelReason.trim() || 'Ngưng theo chỉ định');
+      tk('Đã ngưng đơn dinh dưỡng'); setCancelRow(null); setCancelReason(''); load();
+    } catch { te('Ngưng đơn thất bại'); }
+    finally { setCancelling(false); }
+  };
+
+  const dietFields: CrudFieldCfg[] = useMemo(() => [
+    { key: 'admissionId', label: 'Bệnh nhân (nội trú)', type: 'select', required: true, options: admissionOpts, showSearch: true, disabledOnEdit: true },
+    { key: 'dietType', label: 'Chế độ ăn', type: 'select', required: true, options: dietTypeOpts, showSearch: true },
+    { key: 'texture', label: 'Cấu trúc', type: 'select', required: true, options: [
+      { value: 'Regular', label: 'Thường' }, { value: 'Soft', label: 'Mềm' }, { value: 'Pureed', label: 'Xay nhuyễn' }, { value: 'Liquid', label: 'Lỏng' }] },
+    { key: 'feedingRoute', label: 'Đường nuôi', type: 'select', required: true, options: [
+      { value: 'Oral', label: 'Đường miệng' }, { value: 'NG', label: 'Sonde dạ dày (NG)' }, { value: 'PEG', label: 'Mở thông dạ dày (PEG)' }, { value: 'TPN', label: 'Nuôi tĩnh mạch (TPN)' }] },
+    { key: 'energyKcal', label: 'Năng lượng (kcal)', type: 'number', required: true },
+    { key: 'proteinGrams', label: 'Protein (g)', type: 'number', required: true },
+    { key: 'fluidMl', label: 'Dịch (ml)', type: 'number' },
+    { key: 'mealFrequency', label: 'Số bữa / ngày', type: 'number', required: true },
+    { key: 'snacksIncluded', label: 'Có bữa phụ', type: 'switch' },
+    { key: 'startDate', label: 'Ngày bắt đầu', type: 'date', required: true },
+    { key: 'endDate', label: 'Ngày kết thúc', type: 'date' },
+    { key: 'specialInstructions', label: 'Hướng dẫn đặc biệt', type: 'textarea' },
+  ], [admissionOpts, dietTypeOpts]);
 
   const load = async () => {
     setLoading(true);
@@ -68,6 +115,15 @@ const NutritionV2: React.FC = () => {
     finally { setLoading(false); }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => {
+    (async () => {
+      try {
+        const [dt, ip] = await Promise.all([getDietTypes(), getInpatientList({ pageSize: 300 })]);
+        setDietTypeOpts((dt.data || []).map((t) => ({ value: t.code, label: t.name })));
+        setAdmissionOpts((ip.data?.items || []).map((p) => ({ value: p.admissionId, label: `${p.patientName} · ${p.bedName || p.roomName || p.departmentName}` })));
+      } catch { /* options optional — modal vẫn mở được, chỉ thiếu gợi ý */ }
+    })();
+  }, []);
 
   const depts = useMemo(() => {
     const set = new Set(items.map((r) => r.departmentName).filter(Boolean) as string[]);
@@ -145,7 +201,8 @@ const NutritionV2: React.FC = () => {
   const actions = (r: Row) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="print" title="In thực đơn" onClick={() => tk(`In thực đơn ${r.orderCode}`)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
+      {isActive(r.status) && <ActBtn ic="x" title="Ngưng đơn" tone="crit" onClick={() => { setCancelRow(r); setCancelReason(''); }} />}
     </div>
   );
 
@@ -165,16 +222,10 @@ const NutritionV2: React.FC = () => {
           placeholder="Tìm BN / mã đơn / khoa…" />
         <Filter value={fDept} onChange={setFDept} options={depts} placeholder="▾ Khoa" />
         <Filter value={fRoute} onChange={setFRoute} options={routes} placeholder="▾ Đường nuôi" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFDept(''); setFRoute(''); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFDept(''); setFRoute(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở đơn dinh dưỡng mới')}>
-          <Ico name="plus" size={12} /> Đơn mới
-        </button>
+        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="primary" icon="plus" onClick={openCreate}>Đơn mới</Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -193,13 +244,12 @@ const NutritionV2: React.FC = () => {
         title={sel ? `Đơn ${sel.orderCode || '—'}` : ''}
         sub={sel ? `${sel.patientName || '—'} · ${sel.dietTypeName || sel.dietType || '—'}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in thực đơn')}>
-            <Ico name="print" size={12} /> In thực đơn
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở chỉnh sửa')}>
-            <Ico name="edit" size={12} /> Chỉnh sửa
-          </button>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn icon="print" onClick={() => { if (sel) tk(`In thực đơn ${sel.orderCode || ''}`); }}>In thực đơn</Btn>
+          {sel && isActive(sel.status) && (
+            <Btn variant="crit" icon="x" onClick={() => { setCancelRow(sel); setCancelReason(''); setSel(null); }}>Ngưng đơn</Btn>
+          )}
+          <Btn variant="primary" icon="edit" onClick={() => { if (sel) { openEdit(sel); setSel(null); } }}>Chỉnh sửa</Btn>
         </>}
       >
         {sel && <>
@@ -239,6 +289,38 @@ const NutritionV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật đơn dinh dưỡng' : 'Đơn dinh dưỡng mới'}
+        fields={dietFields}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          const dto = v as unknown as CreateDietOrderDto;
+          if (editing && crudInit?.id) await updateDietOrder(crudInit.id as string, dto);
+          else await createDietOrder(dto);
+          tk(editing ? 'Đã cập nhật đơn dinh dưỡng' : 'Đã tạo đơn dinh dưỡng');
+          load();
+        }}
+      />
+
+      <ModalShell
+        open={!!cancelRow}
+        onClose={() => setCancelRow(null)}
+        title="Ngưng đơn dinh dưỡng"
+        sub={cancelRow?.orderCode}
+        size="sm"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setCancelRow(null)}>Huỷ</Btn>
+          <Btn variant="crit" disabled={cancelling} onClick={doCancel}>{cancelling ? 'Đang ngưng…' : 'Ngưng đơn'}</Btn>
+        </>}
+      >
+        <DrField lbl="Lý do ngưng">
+          <Input.TextArea rows={3} value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Nhập lý do ngưng đơn…" />
+        </DrField>
+      </ModalShell>
     </div>
   );
 };

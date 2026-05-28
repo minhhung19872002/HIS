@@ -1,11 +1,33 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getConnections, type HIEConnectionDto } from '../api/healthExchange';
 import {
-  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  StatusTabs, DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  getConnections, createConnection, updateConnection, testConnection, activateConnection, deactivateConnection,
+  type HIEConnectionDto, type CreateConnectionDto,
+} from '../api/healthExchange';
+import {
+  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, CrudModal,
+  StatusTabs, DrawerShell, DrSec, DrField, tk, ti, tw, te, Ico,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const CONN_FIELDS: CrudFieldCfg[] = [
+  { key: 'connectionName', label: 'Tên kết nối', required: true },
+  { key: 'connectionType', label: 'Loại kết nối', type: 'select', required: true, options: [
+    { value: 'BHXH', label: 'BHXH' }, { value: 'MOH', label: 'Bộ Y tế (MOH)' }, { value: 'CDC', label: 'CDC' },
+    { value: 'Hospital', label: 'Bệnh viện' }, { value: 'Lab', label: 'Xét nghiệm' }, { value: 'Pharmacy', label: 'Nhà thuốc' }] },
+  { key: 'partnerCode', label: 'Mã đối tác', required: true },
+  { key: 'partnerName', label: 'Tên đối tác', required: true },
+  { key: 'endpoint', label: 'Endpoint URL', required: true, placeholder: 'https://...' },
+  { key: 'protocol', label: 'Protocol', type: 'select', required: true, options: [
+    { value: 'REST', label: 'REST' }, { value: 'SOAP', label: 'SOAP' }, { value: 'HL7', label: 'HL7' }, { value: 'FHIR', label: 'FHIR' }] },
+  { key: 'dataExchangeFormat', label: 'Định dạng dữ liệu', type: 'select', required: true, options: [
+    { value: 'JSON', label: 'JSON' }, { value: 'XML', label: 'XML' }, { value: 'HL7v2', label: 'HL7 v2' }] },
+  { key: 'authType', label: 'Xác thực', type: 'select', required: true, options: [
+    { value: 'OAuth2', label: 'OAuth2' }, { value: 'APIKey', label: 'API Key' }, { value: 'Certificate', label: 'Chứng thư số' }, { value: 'Basic', label: 'Basic Auth' }] },
+  { key: 'supportedOperations', label: 'Hoạt động hỗ trợ', type: 'multiselect', options: [
+    { value: 'Query', label: 'Query (tra cứu)' }, { value: 'Submit', label: 'Submit (gửi)' },
+    { value: 'Subscribe', label: 'Subscribe (đăng ký)' }, { value: 'Notify', label: 'Notify (thông báo)' }] },
+];
 
 const PER = 18;
 
@@ -26,6 +48,27 @@ const HealthExchangeV2: React.FC = () => {
   const [fType, setFType] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<HIEConnectionDto | null>(null);
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+
+  const openCreate = () => { setCrudInit({ protocol: 'REST', dataExchangeFormat: 'JSON', authType: 'APIKey', connectionType: 'BHXH', supportedOperations: [] }); setCrudOpen(true); };
+  const openEdit = (r: HIEConnectionDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+  const doTest = async (r: HIEConnectionDto) => {
+    try {
+      const res = await testConnection(r.id);
+      const d = res.data as { success?: boolean; message?: string } | undefined;
+      const ok = d?.success !== false;
+      (ok ? tk : tw)(d?.message || (ok ? `Kết nối ${r.connectionName} OK` : 'Kết nối thất bại'));
+      load();
+    } catch { te('Test kết nối thất bại'); }
+  };
+  const toggleActive = async (r: HIEConnectionDto) => {
+    try {
+      if (r.status === 1) { await deactivateConnection(r.id); tk('Đã tạm dừng kết nối'); }
+      else { await activateConnection(r.id); tk('Đã kích hoạt kết nối'); }
+      load();
+    } catch { te('Đổi trạng thái thất bại'); }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -90,7 +133,9 @@ const HealthExchangeV2: React.FC = () => {
   const actions = (r: HIEConnectionDto) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="refresh" title="Test kết nối" onClick={() => tk(`Đang kiểm tra ${r.connectionName}…`)} />
+      <ActBtn ic="refresh" title="Test kết nối" onClick={() => doTest(r)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
+      <ActBtn ic={r.status === 1 ? 'x' : 'check'} title={r.status === 1 ? 'Tạm dừng' : 'Kích hoạt'} tone={r.status === 1 ? 'crit' : undefined} onClick={() => toggleActive(r)} />
     </div>
   );
 
@@ -118,7 +163,7 @@ const HealthExchangeV2: React.FC = () => {
         <button className="ab-btn ghost" type="button" onClick={() => tk('Đã chạy đồng bộ tất cả')}>
           <Ico name="cloud" size={12} /> Đồng bộ tất cả
         </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở form thêm kết nối')}>
+        <button className="ab-btn primary" type="button" onClick={openCreate}>
           <Ico name="plus" size={12} /> Thêm kết nối
         </button>
       </div>
@@ -140,11 +185,11 @@ const HealthExchangeV2: React.FC = () => {
         sub={sel ? `${sel.connectionCode} · ${sel.partnerName}` : ''}
         footer={<>
           <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk(`Đang kiểm tra ${sel?.connectionName}…`)}>
+          <button type="button" className="ab-btn" onClick={() => { if (sel) doTest(sel); }}>
             <Ico name="refresh" size={12} /> Test kết nối
           </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Đồng bộ thủ công thành công')}>
-            <Ico name="cloud" size={12} /> Đồng bộ ngay
+          <button type="button" className="ab-btn primary" onClick={() => { if (sel) { openEdit(sel); setSel(null); } }}>
+            <Ico name="edit" size={12} /> Chỉnh sửa
           </button>
         </>}
       >
@@ -186,6 +231,22 @@ const HealthExchangeV2: React.FC = () => {
           )}
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật kết nối HIE' : 'Thêm kết nối HIE'}
+        fields={CONN_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          const dto = { credentials: {}, ...v, supportedOperations: (v.supportedOperations as string[]) || [] } as unknown as CreateConnectionDto;
+          if (editing && crudInit?.id) await updateConnection(crudInit.id as string, dto);
+          else await createConnection(dto);
+          tk(editing ? 'Đã cập nhật kết nối' : 'Đã thêm kết nối');
+          load();
+        }}
+      />
     </div>
   );
 };

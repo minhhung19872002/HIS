@@ -1,12 +1,34 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getDevices } from '../api/endpointSecurity';
-import type { EndpointDeviceDto } from '../api/endpointSecurity';
+import { getDevices, registerDevice, updateDeviceStatus, deleteDevice } from '../api/endpointSecurity';
+import type { EndpointDeviceDto, RegisterDeviceDto, UpdateDeviceStatusDto } from '../api/endpointSecurity';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
+  DrawerShell, DrSec, DrField, tk, ti, te, cf,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const DEVICE_FIELDS: CrudFieldCfg[] = [
+  { key: 'hostname', label: 'Hostname', required: true },
+  { key: 'ipAddress', label: 'Địa chỉ IP', placeholder: 'VD: 192.168.1.50' },
+  { key: 'macAddress', label: 'Địa chỉ MAC' },
+  { key: 'operatingSystem', label: 'Hệ điều hành', placeholder: 'Windows / Linux / macOS' },
+  { key: 'osVersion', label: 'Phiên bản OS' },
+  { key: 'antivirusName', label: 'Phần mềm AV' },
+  { key: 'antivirusStatus', label: 'Trạng thái AV' },
+  { key: 'departmentName', label: 'Khoa / Phòng' },
+  { key: 'assignedUser', label: 'Người sử dụng' },
+  { key: 'agentVersion', label: 'Phiên bản agent' },
+];
+
+const DEVICE_UPDATE_FIELDS: CrudFieldCfg[] = [
+  { key: 'status', label: 'Trạng thái', type: 'select', required: true, options: [
+    { value: 0, label: 'Offline' }, { value: 1, label: 'Online' }, { value: 2, label: 'Cảnh báo' }, { value: 3, label: 'Nguy hiểm' }] },
+  { key: 'isCompliant', label: 'Tuân thủ chính sách', type: 'switch' },
+  { key: 'complianceNotes', label: 'Ghi chú tuân thủ', type: 'textarea' },
+  { key: 'antivirusStatus', label: 'Trạng thái AV' },
+  { key: 'agentVersion', label: 'Phiên bản agent' },
+];
 
 type SKey = 'compliant' | 'noncompliant' | 'offline';
 const STATUS_TABS = [
@@ -32,6 +54,18 @@ const EndpointSecurityV2: React.FC = () => {
   const [fOs, setFOs] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<EndpointDeviceDto | null>(null);
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const editing = !!crudInit?.id;
+
+  const openCreate = () => { setCrudInit({}); setCrudOpen(true); };
+  const openEdit = (r: EndpointDeviceDto) => {
+    setCrudInit({ id: r.id, status: r.status, isCompliant: r.isCompliant, complianceNotes: r.complianceNotes, antivirusStatus: r.antivirusStatus, agentVersion: r.agentVersion });
+    setCrudOpen(true);
+  };
+  const del = (r: EndpointDeviceDto) => cf(`Xoá máy "${r.hostname}"?`, async () => {
+    try { await deleteDevice(r.id); tk('Đã xoá'); load(); } catch { te('Xoá thất bại'); }
+  }, { tone: 'crit', confirm: 'Xoá' });
 
   const load = async () => {
     setLoading(true);
@@ -104,7 +138,8 @@ const EndpointSecurityV2: React.FC = () => {
   const actions = (r: EndpointDeviceDto) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="refresh" title="Làm mới trạng thái" onClick={() => tk(`Refresh ${r.hostname}`)} />
+      <ActBtn ic="edit" title="Cập nhật trạng thái" onClick={() => openEdit(r)} />
+      <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
     </div>
   );
 
@@ -121,19 +156,11 @@ const EndpointSecurityV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm hostname / IP / MAC / NSD…" />
         <Filter value={fOs} onChange={setFOs} options={oses} placeholder="▾ Hệ điều hành" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFOs(''); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFOs(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở SecurityIncidents')}>
-          <Ico name="alert" size={12} /> Sự cố ATTT
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Đăng ký máy mới')}>
-          <Ico name="plus" size={12} /> Thêm máy
-        </button>
+        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="alert" onClick={() => tk('Quản lý sự cố ATTT')}>Sự cố ATTT</Btn>
+        <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm máy</Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -152,13 +179,9 @@ const EndpointSecurityV2: React.FC = () => {
         title={sel ? sel.hostname : ''}
         sub={sel ? `${sel.ipAddress || '—'} · ${sel.operatingSystem || '—'}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã quét')}>
-            <Ico name="activity" size={12} /> Quét bảo mật
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở cập nhật')}>
-            <Ico name="edit" size={12} /> Cập nhật
-          </button>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn icon="activity" onClick={() => { if (sel) tk(`Yêu cầu quét bảo mật: ${sel.hostname}`); }}>Quét bảo mật</Btn>
+          <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Cập nhật</Btn>
         </>}
       >
         {sel && <>
@@ -188,6 +211,21 @@ const EndpointSecurityV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={editing ? 'Cập nhật trạng thái máy' : 'Đăng ký máy mới'}
+        fields={editing ? DEVICE_UPDATE_FIELDS : DEVICE_FIELDS}
+        initial={crudInit}
+        size="md"
+        onSubmit={async (v, isEdit) => {
+          if (isEdit && crudInit?.id) await updateDeviceStatus(crudInit.id as string, v as unknown as UpdateDeviceStatusDto);
+          else await registerDevice(v as unknown as RegisterDeviceDto);
+          tk(isEdit ? 'Đã cập nhật trạng thái máy' : 'Đã đăng ký máy');
+          load();
+        }}
+      />
     </div>
   );
 };

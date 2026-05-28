@@ -1,12 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getTrainingClasses, getTrainingDashboard } from '../api/trainingResearch';
+import { getTrainingClasses, getTrainingDashboard, saveTrainingClass } from '../api/trainingResearch';
 import type { TrainingClassDto, TrainingDashboardDto } from '../api/trainingResearch';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
-  type ColumnDef,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
+  DrawerShell, DrSec, DrField, tk, ti,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const CLASS_FIELDS: CrudFieldCfg[] = [
+  { key: 'classCode', label: 'Mã lớp', required: true, disabledOnEdit: true, placeholder: 'VD: ĐT-2026-...' },
+  { key: 'className', label: 'Tên lớp', required: true },
+  { key: 'trainingType', label: 'Loại đào tạo', type: 'select', required: true, options: [
+    { value: 1, label: 'Nội bộ' }, { value: 2, label: 'Bên ngoài' }, { value: 3, label: 'CME' }, { value: 4, label: 'Chỉ đạo tuyến' }] },
+  { key: 'location', label: 'Địa điểm' },
+  { key: 'startDate', label: 'Ngày bắt đầu', type: 'date' },
+  { key: 'endDate', label: 'Ngày kết thúc', type: 'date' },
+  { key: 'maxStudents', label: 'Sĩ số tối đa', type: 'number' },
+  { key: 'creditHours', label: 'Số tín chỉ', type: 'number' },
+  { key: 'fee', label: 'Học phí (đ)', type: 'number' },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 1, label: 'Kế hoạch' }, { value: 2, label: 'Đang diễn ra' }, { value: 3, label: 'Hoàn thành' }, { value: 4, label: 'Hủy' }] },
+  { key: 'description', label: 'Mô tả', type: 'textarea' },
+];
 
 const STATUS_LABEL: Record<number, string> = {
   0: 'Lên kế hoạch', 1: 'Đang mở', 2: 'Hoàn thành', 3: 'Tạm dừng', 4: 'Hủy',
@@ -36,6 +52,11 @@ const TrainingResearchV2: React.FC = () => {
   const [fType, setFType] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<TrainingClassDto | null>(null);
+  const [crudOpen, setCrudOpen] = useState(false);
+  const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+
+  const openCreate = () => { setCrudInit({ trainingType: 1, status: 1, maxStudents: 30, creditHours: 0, fee: 0 }); setCrudOpen(true); };
+  const openEdit = (r: TrainingClassDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
 
   const load = async () => {
     setLoading(true);
@@ -110,7 +131,8 @@ const TrainingResearchV2: React.FC = () => {
   const actions = (r: TrainingClassDto) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="user" title="Học viên" onClick={() => tk(`Mở học viên ${r.classCode}`)} />
+      <ActBtn ic="user" title="Học viên" onClick={() => tk(`Danh sách học viên lớp ${r.classCode}`)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
     </div>
   );
 
@@ -129,19 +151,11 @@ const TrainingResearchV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm tên / mã lớp / GV…" />
         <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại đào tạo" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở NCKH')}>
-          <Ico name="activity" size={12} /> NCKH
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở mở lớp mới')}>
-          <Ico name="plus" size={12} /> Mở lớp
-        </button>
+        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="activity" onClick={() => tk('Nghiên cứu khoa học — xem tại trang NCKH')}>NCKH</Btn>
+        <Btn variant="primary" icon="plus" onClick={openCreate}>Mở lớp</Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -160,13 +174,9 @@ const TrainingResearchV2: React.FC = () => {
         title={sel ? sel.className : ''}
         sub={sel ? `${sel.classCode} · ${sel.trainingTypeName || ''}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Mở danh sách HV')}>
-            <Ico name="user" size={12} /> Học viên
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở chỉnh sửa')}>
-            <Ico name="edit" size={12} /> Chỉnh sửa
-          </button>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn icon="user" onClick={() => { if (sel) tk(`Danh sách học viên lớp ${sel.classCode}`); }}>Học viên</Btn>
+          <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Chỉnh sửa</Btn>
         </>}
       >
         {sel && <>
@@ -197,6 +207,20 @@ const TrainingResearchV2: React.FC = () => {
           )}
         </>}
       </DrawerShell>
+
+      <CrudModal
+        open={crudOpen}
+        onClose={() => setCrudOpen(false)}
+        title={crudInit?.id ? 'Cập nhật lớp đào tạo' : 'Mở lớp đào tạo mới'}
+        fields={CLASS_FIELDS}
+        initial={crudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          await saveTrainingClass(v as Partial<TrainingClassDto>, editing ? (crudInit?.id as string) : undefined);
+          tk(editing ? 'Đã cập nhật lớp đào tạo' : 'Đã mở lớp đào tạo');
+          load();
+        }}
+      />
     </div>
   );
 };

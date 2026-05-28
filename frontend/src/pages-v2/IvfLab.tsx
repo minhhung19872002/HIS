@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import dayjs from 'dayjs';
-import { getCouples, getIvfDashboard } from '../api/ivfLab';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import dayjs, { type Dayjs } from 'dayjs';
+import { Select, Input, DatePicker, InputNumber } from 'antd';
+import { getCouples, getIvfDashboard, saveCouple } from '../api/ivfLab';
 import type { IvfCouple, IvfDashboard } from '../api/ivfLab';
+import { patientApi } from '../api/patient';
 import {
-  KpiStrip, SearchBox, DataTable, Pager, ActBtn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
+  KpiStrip, SearchBox, DataTable, Pager, ActBtn, ModalShell,
+  DrawerShell, DrSec, DrField, tk, ti, te, Ico,
   type ColumnDef,
 } from './_v2kit';
 
@@ -17,6 +19,7 @@ const IvfLabV2: React.FC = () => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<IvfCouple | null>(null);
+  const [coupleModal, setCoupleModal] = useState<{ couple: IvfCouple | null } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -82,7 +85,7 @@ const IvfLabV2: React.FC = () => {
   const actions = (r: IvfCouple) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="activity" title="Chu kỳ mới" onClick={() => tk(`Mở chu kỳ mới cho ${r.wifeName}`)} />
+      <ActBtn ic="edit" title="Sửa" onClick={() => setCoupleModal({ couple: r })} />
     </div>
   );
 
@@ -108,7 +111,7 @@ const IvfLabV2: React.FC = () => {
         <button className="ab-btn ghost" type="button" onClick={() => tk('Mở quản lý phôi đông')}>
           <Ico name="archive" size={12} /> Phôi đông
         </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Đăng ký cặp đôi mới')}>
+        <button className="ab-btn primary" type="button" onClick={() => setCoupleModal({ couple: null })}>
           <Ico name="plus" size={12} /> Đăng ký
         </button>
       </div>
@@ -128,11 +131,8 @@ const IvfLabV2: React.FC = () => {
         sub={sel ? `${sel.cycleCount} chu kỳ điều trị` : ''}
         footer={<>
           <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Mở các chu kỳ')}>
-            <Ico name="activity" size={12} /> Chu kỳ
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở chu kỳ mới')}>
-            <Ico name="plus" size={12} /> Chu kỳ mới
+          <button type="button" className="ab-btn primary" onClick={() => { if (sel) { setCoupleModal({ couple: sel }); setSel(null); } }}>
+            <Ico name="edit" size={12} /> Chỉnh sửa
           </button>
         </>}
       >
@@ -156,7 +156,140 @@ const IvfLabV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      {coupleModal && (
+        <CoupleModal
+          couple={coupleModal.couple}
+          onClose={() => setCoupleModal(null)}
+          onDone={() => { setCoupleModal(null); load(); }}
+        />
+      )}
     </div>
+  );
+};
+
+/* ────────────────────────────────────────────────────────────
+   Đăng ký / cập nhật cặp đôi IVF — saveCouple (upsert theo id)
+   Vợ + chồng là FK bệnh nhân → chọn qua tìm kiếm (patientApi.search)
+   ──────────────────────────────────────────────────────────── */
+
+const PatientPicker: React.FC<{
+  value?: string;
+  seedLabel?: string;
+  placeholder?: string;
+  onChange: (id: string) => void;
+}> = ({ value, seedLabel, placeholder, onChange }) => {
+  const [opts, setOpts] = useState<{ value: string; label: string }[]>(
+    value && seedLabel ? [{ value, label: seedLabel }] : [],
+  );
+  const [fetching, setFetching] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const doSearch = (kw: string): void => {
+    if (timer.current) clearTimeout(timer.current);
+    if (!kw || kw.trim().length < 2) return;
+    timer.current = setTimeout(async () => {
+      setFetching(true);
+      try {
+        const res = await patientApi.search({ keyword: kw.trim(), pageSize: 20 });
+        const list = res.data?.items || [];
+        setOpts(list.map((p) => ({ value: p.id, label: `${p.fullName} · ${p.patientCode}${p.yearOfBirth ? ` · ${p.yearOfBirth}` : ''}` })));
+      } catch { /* ignore */ }
+      finally { setFetching(false); }
+    }, 350);
+  };
+
+  return (
+    <Select
+      showSearch filterOption={false} value={value || undefined} placeholder={placeholder}
+      onSearch={doSearch} onChange={(v) => onChange(v)} options={opts} loading={fetching}
+      notFoundContent={fetching ? 'Đang tìm…' : 'Gõ ≥2 ký tự để tìm bệnh nhân'} style={{ width: '100%' }}
+    />
+  );
+};
+
+const Fld: React.FC<{ lbl: string; req?: boolean; children: React.ReactNode }> = ({ lbl, req, children }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>
+      {lbl}{req && <span style={{ color: 'var(--s-crit)' }}> *</span>}
+    </span>
+    {children}
+  </div>
+);
+
+const CoupleModal: React.FC<{ couple: IvfCouple | null; onClose: () => void; onDone: () => void }> = ({ couple, onClose, onDone }) => {
+  const editing = !!couple;
+  const [wifeId, setWifeId] = useState(couple?.wifePatientId || '');
+  const [husbandId, setHusbandId] = useState(couple?.husbandPatientId || '');
+  const [duration, setDuration] = useState<number>(couple?.infertilityDurationMonths ?? 0);
+  const [cause, setCause] = useState(couple?.infertilityCause || '');
+  const [marriage, setMarriage] = useState<Dayjs | null>(couple?.marriageDate ? dayjs(couple.marriageDate) : null);
+  const [notes, setNotes] = useState(couple?.notes || '');
+  const [err, setErr] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async (): Promise<void> => {
+    if (!wifeId || !husbandId) { setErr('Chọn cả vợ và chồng'); return; }
+    setErr('');
+    setSubmitting(true);
+    try {
+      await saveCouple({
+        ...(editing ? { id: couple!.id } : {}),
+        wifePatientId: wifeId,
+        husbandPatientId: husbandId,
+        infertilityDurationMonths: duration,
+        infertilityCause: cause.trim() || undefined,
+        marriageDate: marriage ? marriage.format('YYYY-MM-DD') : undefined,
+        notes: notes.trim() || undefined,
+      });
+      tk(editing ? 'Đã cập nhật cặp đôi' : 'Đã đăng ký cặp đôi');
+      onDone();
+    } catch {
+      te('Lưu cặp đôi thất bại');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open
+      onClose={onClose}
+      size="md"
+      title={editing ? 'Cập nhật cặp đôi IVF' : 'Đăng ký cặp đôi IVF'}
+      footer={<>
+        <button className="ab-btn ghost" type="button" onClick={onClose}>Huỷ</button>
+        <button className="ab-btn primary" type="button" onClick={submit} disabled={submitting}>
+          <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : (editing ? 'Cập nhật' : 'Đăng ký')}
+        </button>
+      </>}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <Fld lbl="Vợ (bệnh nhân)" req>
+          <PatientPicker value={wifeId} seedLabel={couple ? `${couple.wifeName || ''} · ${couple.wifeCode || ''}` : undefined}
+            placeholder="Tìm bệnh nhân nữ…" onChange={setWifeId} />
+        </Fld>
+        <Fld lbl="Chồng (bệnh nhân)" req>
+          <PatientPicker value={husbandId} seedLabel={couple ? `${couple.husbandName || ''} · ${couple.husbandCode || ''}` : undefined}
+            placeholder="Tìm bệnh nhân nam…" onChange={setHusbandId} />
+        </Fld>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Fld lbl="Thời gian vô sinh (tháng)">
+            <InputNumber style={{ width: '100%' }} min={0} value={duration} onChange={(v) => setDuration(v ?? 0)} />
+          </Fld>
+          <Fld lbl="Ngày kết hôn">
+            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" value={marriage} onChange={setMarriage} />
+          </Fld>
+        </div>
+        <Fld lbl="Nguyên nhân vô sinh">
+          <Input value={cause} onChange={(e) => setCause(e.target.value)} placeholder="VD: Tắc vòi trứng, tinh trùng yếu…" />
+        </Fld>
+        <Fld lbl="Ghi chú">
+          <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </Fld>
+        {err && <div style={{ color: 'var(--s-crit)', fontSize: 12 }}>{err}</div>}
+      </div>
+    </ModalShell>
   );
 };
 

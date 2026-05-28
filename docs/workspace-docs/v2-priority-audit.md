@@ -110,7 +110,7 @@ Các trang FE để nút "chết" vì **BE chưa có endpoint write**: `SampleSt
 
 1. **🔴 P0 nhanh (ít rủi ro, làm ngay):** `ConsultationRegister` dùng `HOSPITAL_NAME`; `CentralSigning` `console.error`→`warn`; `NonDicomCapture` gom helper URL.
 2. **🔴 P1 — nuốt exception BE (B2):** rà 9 service (IvfLab… Forensic), tách "drift-guard cố ý" vs "che lỗi thật" → thêm log.
-3. **🟡 P1 — CRUD nút chết (A3):** wire các trang CÓ write-API (Nutrition/IvfLab/Microbiology/AssetManagement/EndpointSecurity/HealthExchange/InfectionControl/LISConfig/TrainingResearch) bằng `CrudModal` — pattern đã có.
+3. ~~**🟡 P1 — CRUD nút chết (A3):** wire các trang CÓ write-API (Nutrition/IvfLab/Microbiology/AssetManagement/EndpointSecurity/HealthExchange/InfectionControl/LISConfig/TrainingResearch) bằng `CrudModal` — pattern đã có.~~ → **ĐÃ XONG 2026-05-28** (9/9 trang). Mỗi trang wire create/edit (+delete/cancel/test/activate/status-update tuỳ entity) qua `CrudModal`/bespoke modal + `Btn`/`ActBtn`. Stub còn lại là **sub-module riêng** (NCKH/Học viên, Khấu hao, Sự cố ATTT, Cách ly, Phôi đông, Đồng bộ-tất-cả) + print → KHÔNG phải gap chính. **Bug fix kèm:** `createHAICase` sửa route `/hai-cases`→`/hai-reports` (route cũ chỉ có GET → POST 405, hỏng cả v1+v2). **Gap backend còn:** HAI không có endpoint update/investigate/close (mục C) → InfectionControl chỉ tạo mới.
 4. **🟡 P1 — God service/component:** tách dần `SystemCompleteService`/`RISCompleteService` + `Reception.tsx` theo sub-domain, **giữ interface/route** (backward-compat, migrate-dần — KHÔNG rewrite).
 5. **🟡 P1 — Btn-debt + raw HTML (A2):** migrate `<button ab-btn>`→`<Btn>` + raw `<select>`→`AbSelect` theo từng trang khi đụng tới.
 6. **🟢 Gap backend (C):** khi cần demo đầy đủ → thêm endpoint write rồi wire FE.
