@@ -387,6 +387,7 @@ public class InsuranceRegistrationDto
     public string? PatientCode { get; set; }
     public string? IdentityNumber { get; set; }
     public string? AppointmentCode { get; set; } // Mã hẹn khám
+    public CreatePatientDto? NewPatient { get; set; } // BN mới (đăng ký BHYT lần đầu) — tạo nếu không tìm thấy BN cũ
 
     // Thông tin BHYT
     public string InsuranceNumber { get; set; } = string.Empty;

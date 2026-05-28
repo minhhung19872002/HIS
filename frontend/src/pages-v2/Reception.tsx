@@ -844,6 +844,15 @@ const NewVisitModal: React.FC<{
         await receptionApi.registerInsurancePatient({
           insuranceNumber: data.bhytNo.trim(), roomId: data.dept,
           identityNumber: data.cccd.trim() || undefined, isPriority,
+          // BN mới đăng ký BHYT lần đầu — backend tạo BN nếu chưa có trong hệ thống
+          newPatient: {
+            fullName: data.patientName.trim(),
+            gender: data.gender === 'F' ? 2 : 1,
+            yearOfBirth,
+            phoneNumber: data.phone.trim() || undefined,
+            address: data.address.trim() || undefined,
+            identityNumber: data.cccd.trim() || undefined,
+          },
         });
       } else {
         await receptionApi.registerFeePatient({

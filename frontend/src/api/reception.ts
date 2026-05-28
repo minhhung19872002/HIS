@@ -573,6 +573,16 @@ export interface InsuranceRegistrationDto {
   patientCode?: string;
   identityNumber?: string;
   appointmentCode?: string;
+  // BN mới (đăng ký BHYT lần đầu) — backend tạo nếu không tìm thấy BN cũ
+  newPatient?: {
+    fullName: string;
+    gender: number;
+    dateOfBirth?: string;
+    yearOfBirth?: number;
+    phoneNumber?: string;
+    address?: string;
+    identityNumber?: string;
+  };
   insuranceNumber: string;
   useQRCode?: boolean;
   qrCodeData?: string;

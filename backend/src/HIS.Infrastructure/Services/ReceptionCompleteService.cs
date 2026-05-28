@@ -1191,6 +1191,7 @@ public class ReceptionCompleteService : IReceptionCompleteService
     public async Task<AdmissionDto> RegisterInsurancePatientAsync(InsuranceRegistrationDto dto, Guid userId)
     {
         Patient? patient = null;
+        bool isNewPatient = false;
 
         // Find existing patient
         if (dto.PatientId.HasValue)
@@ -1208,6 +1209,42 @@ public class ReceptionCompleteService : IReceptionCompleteService
         else if (!string.IsNullOrEmpty(dto.InsuranceNumber))
         {
             patient = await _context.Patients.FirstOrDefaultAsync(p => p.InsuranceNumber == dto.InsuranceNumber);
+        }
+
+        // BN chưa có trong hệ thống (đăng ký BHYT lần đầu) → tạo mới từ NewPatient
+        if (patient == null && dto.NewPatient != null)
+        {
+            patient = new Patient
+            {
+                Id = Guid.NewGuid(),
+                PatientCode = await GeneratePatientCodeAsync(),
+                FullName = dto.NewPatient.FullName,
+                DateOfBirth = dto.NewPatient.DateOfBirth,
+                YearOfBirth = dto.NewPatient.YearOfBirth,
+                Gender = dto.NewPatient.Gender,
+                IdentityNumber = dto.NewPatient.IdentityNumber ?? dto.IdentityNumber,
+                PhoneNumber = dto.NewPatient.PhoneNumber,
+                Email = dto.NewPatient.Email,
+                Address = dto.NewPatient.Address,
+                WardCode = dto.NewPatient.WardCode,
+                WardName = dto.NewPatient.WardName,
+                DistrictCode = dto.NewPatient.DistrictCode,
+                DistrictName = dto.NewPatient.DistrictName,
+                ProvinceCode = dto.NewPatient.ProvinceCode,
+                ProvinceName = dto.NewPatient.ProvinceName,
+                EthnicCode = dto.NewPatient.EthnicCode,
+                EthnicName = dto.NewPatient.EthnicName,
+                Occupation = dto.NewPatient.Occupation,
+                InsuranceNumber = dto.InsuranceNumber,
+                GuardianName = dto.NewPatient.GuardianName,
+                GuardianPhone = dto.NewPatient.GuardianPhone,
+                GuardianRelationship = dto.NewPatient.GuardianRelationship,
+                CreatedAt = DateTime.Now,
+                CreatedBy = userId.ToString(),
+                IsDeleted = false
+            };
+            await _patientRepo.AddAsync(patient);
+            isNewPatient = true;
         }
 
         if (patient == null)
@@ -1234,10 +1271,15 @@ public class ReceptionCompleteService : IReceptionCompleteService
             throw new Exception($"Thẻ BHYT đã hết hạn ngày {insuranceResult.EndDate.Value:dd/MM/yyyy}");
         }
 
-        // Update patient insurance info
+        // Update patient insurance info.
+        // BN mới đang ở state Added → KHÔNG gọi UpdateAsync (sẽ chuyển Added→Modified
+        // khiến EF ra lệnh UPDATE thay vì INSERT → FK conflict); set field là đủ, SaveChanges sẽ INSERT.
         patient.InsuranceNumber = dto.InsuranceNumber;
         patient.InsuranceExpireDate = insuranceResult.EndDate;
-        await _patientRepo.UpdateAsync(patient);
+        if (!isNewPatient)
+        {
+            await _patientRepo.UpdateAsync(patient);
+        }
 
         // Create medical record
         var medicalRecord = new MedicalRecord
@@ -2773,6 +2815,9 @@ public class ReceptionCompleteService : IReceptionCompleteService
         }
 
         await _context.Deposits.AddAsync(deposit);
+        // EF sinh shadow FK "ReceivedById" từ nav ReceivedBy (tách khỏi ReceivedByUserId) → mặc định
+        // Guid.Empty gây FK conflict. Set shadow = user đăng nhập (cột NOT NULL, FK tới Users).
+        _context.Entry(deposit).Property("ReceivedById").CurrentValue = userId;
         await _unitOfWork.SaveChangesAsync();
 
         return new DepositReceiptDto
@@ -2817,6 +2862,8 @@ public class ReceptionCompleteService : IReceptionCompleteService
         }
 
         await _context.Payments.AddAsync(payment);
+        // Shadow FK "ReceivedById" (từ nav ReceivedBy) mặc định Guid.Empty → FK conflict. Set = user đăng nhập.
+        _context.Entry(payment).Property("ReceivedById").CurrentValue = userId;
         await _unitOfWork.SaveChangesAsync();
 
         return new PaymentReceiptDto
