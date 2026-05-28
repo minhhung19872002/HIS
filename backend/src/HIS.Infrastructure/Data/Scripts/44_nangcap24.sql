@@ -271,11 +271,19 @@ BEGIN
     VALUES
         (NEWID(),
          'inspector',
-         '$2a$11$Lp3wAjcrhhPHLpkLPnxXMOEcA4Q1mzPgM.dVrwUFLLrxxYbqGzlye',  -- Inspector@123
+         '$2a$11$4I/jQdYCNho6SXgW1MflXeNp59EZDwO/AJLnoOT7D.tq2OKyL0.1q',  -- Inspector@123 (BCrypt verified)
          N'Nguyễn Văn Giám Định',
          'inspector.demo@bhxh.gov.vn',
          'BHXH-GD-001',
          N'Hà Nội',
          1);
 END;
+GO
+
+-- Fix hash seed inspector sai (đã deploy trước): chỉ cập nhật row CÒN hash cũ sai,
+-- KHÔNG đụng tài khoản đã đổi mật khẩu thủ công. Idempotent.
+UPDATE BhxhInspectorAccounts
+   SET PasswordHash = '$2a$11$4I/jQdYCNho6SXgW1MflXeNp59EZDwO/AJLnoOT7D.tq2OKyL0.1q'
+ WHERE Username = 'inspector'
+   AND PasswordHash = '$2a$11$Lp3wAjcrhhPHLpkLPnxXMOEcA4Q1mzPgM.dVrwUFLLrxxYbqGzlye';
 GO
