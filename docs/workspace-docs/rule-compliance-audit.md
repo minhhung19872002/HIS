@@ -85,9 +85,12 @@
 > **🟢 Cụm DỄ: HOÀN TẤT phần code** (D1·D2·D5·D6 ✅ · D3 đã-compliant). Còn **D4** (quy ước nhánh Git) = **quy trình team adopt** (không code — đã ghi ở mục C/D); **D7** = siết `any` dần khi đụng file (không phải đợt riêng).
 
 ### 🟡 TRUNG BÌNH (1–3 ngày/việc · cần test kỹ · rủi ro vừa)
-| Việc | Cách làm | Rủi ro |
+
+> **Tiến độ (2026-05-29):** ✅ **T2 xong**. 🟬 **T1 partial** (3 entity gặp lỗi thật đã fix). ⏳ T3·T4·T5·T6·T7·T8·T9 chưa làm.
+
+| Việc | Cách làm | Trạng thái |
 |---|---|---|
-| **T1. Shadow-FK cho 13 entity có nav `User`** | Thêm Fluent API `.HasForeignKey(x => x.XxxByUserId)` trong `HISDbContext` + script ALTER cột shadow `…ById` thành NULL (idempotent). Test create từng entity. | TB (đụng DbContext shared) |
+| **T1. Shadow-FK cho 13 entity có nav `User`** | Thêm Fluent API `.HasForeignKey(x => x.XxxByUserId)` trong `HISDbContext` + script ALTER cột shadow `…ById` thành NULL. | 🟬 **PARTIAL** — Deposit/Payment (set shadow `ReceivedById`=user) + Prescription (`DoctorId ?? userId`) đã fix phiên này (deploy chung 5 fix BE); blanket 13 entity (Fluent + ALTER) chưa — blast-radius cao, làm đợt riêng evidence-driven |
 | ~~**T2. BloodOrders/BloodOrderItems vào version-control**~~ | ✅ **DONE 2026-05-29** — `Data/Scripts/46_blood_orders.sql` idempotent (IF NOT EXISTS, prod no-op), cột khớp raw-SQL. Verify tạo trên local + BE build 0 lỗi; prod/env mới tự tạo qua repair-runner. | ✅ DONE |
 | **T3. Exception filter NangCap24** | Thêm middleware/filter map business-exception → 400/404/409 + structured body; áp cho controller NangCap24. | TB |
 | **T4. Chuẩn hoá API response envelope** | Định nghĩa `ApiResponse<T> {success,data,message,errors}` + áp dần cho endpoint mới; FE đọc nhất quán. | TB (làm dần, không big-bang) |
