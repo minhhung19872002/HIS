@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { HOSPITAL_NAME } from '../constants/hospital';
 import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
@@ -67,7 +68,7 @@ const ConsultationRegisterV2: React.FC = () => {
     const list = Array.isArray(d.participants) ? d.participants.map((p) => `<li>${p}</li>`).join('') : '';
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>BBHC</title>
 <style>body{font-family:"Times New Roman",serif;padding:32px;font-size:13.5pt}h1{text-align:center;font-size:18pt;margin:20px 0 6px}.subtitle{text-align:center;font-style:italic;margin-bottom:24px}.row{margin:4px 0}.section{margin:16px 0}.section-title{font-weight:bold;margin-top:12px}.sig{display:flex;justify-content:space-around;margin-top:40px}.sig>div{text-align:center;width:30%}ul{margin:4px 0 4px 16px;padding:0}</style></head>
-<body><div style="text-align:center"><div>BỘ Y TẾ</div><div style="font-weight:bold">BỆNH VIỆN</div><div style="margin-top:6px">Mẫu số: MS. 03/BV</div></div>
+<body><div style="text-align:center"><div>BỘ Y TẾ</div><div style="font-weight:bold">${HOSPITAL_NAME}</div><div style="margin-top:6px">Mẫu số: MS. 03/BV</div></div>
 <h1>BIÊN BẢN HỘI CHẨN</h1>
 <div class="subtitle">(${d.consultationTypeName})</div>
 <div class="row"><b>Thời gian:</b> ${dayjs(d.consultationDate).format('HH:mm DD/MM/YYYY')}</div>

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { HOSPITAL_NAME } from '../constants/hospital';
 import {
   Card,
   Row,
@@ -921,7 +922,7 @@ const HealthExchange: React.FC = () => {
           </head>
           <body>
             <div class="header">
-              <h2>BỆNH VIỆN QUẬN 1</h2>
+              <h2>${HOSPITAL_NAME}</h2>
               <h1>PHIẾU CHUYỂN VIỆN</h1>
             </div>
             <table>

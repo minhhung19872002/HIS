@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ConfigProvider, App as AntdApp, theme as antdTheme } from 'antd';
 import viVN from 'antd/locale/vi_VN';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Suspense, lazy } from 'react';
 import { Spin } from 'antd';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -280,15 +279,6 @@ const InterHospitalSharing = lazy(() => import('./pages/InterHospitalSharing'));
 const AssetManagement = lazy(() => import('./pages/AssetManagement'));
 const TrainingResearch = lazy(() => import('./pages/TrainingResearch'));
 const Procurement = lazy(() => import('./pages/Procurement'));
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
-});
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: 200 }}>
@@ -746,17 +736,15 @@ const ThemedApp: React.FC = () => {
       }}
     >
       <AntdApp>
-        <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
-            <AuthProvider>
-              <NotificationProvider>
-                <SigningProvider>
-                  <AppRoutes />
-                </SigningProvider>
-              </NotificationProvider>
-            </AuthProvider>
-          </BrowserRouter>
-        </QueryClientProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <NotificationProvider>
+              <SigningProvider>
+                <AppRoutes />
+              </SigningProvider>
+            </NotificationProvider>
+          </AuthProvider>
+        </BrowserRouter>
       </AntdApp>
     </ConfigProvider>
   );

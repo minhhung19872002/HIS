@@ -3,6 +3,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { HOSPITAL_NAME } from '../constants/hospital';
 import {
   Card, Table, Button, Space, DatePicker, Select, Input, Tag, message, Drawer, Descriptions,
   Typography, Divider,
@@ -91,7 +92,7 @@ export default function ConsultationRegister() {
       </style></head><body>
       <div style="text-align:center">
         <div>BỘ Y TẾ</div>
-        <div style="font-weight:bold">BỆNH VIỆN</div>
+        <div style="font-weight:bold">${HOSPITAL_NAME}</div>
         <div style="margin-top:6px">Mẫu số: MS. 03/BV</div>
       </div>
       <h1>BIÊN BẢN HỘI CHẨN</h1>

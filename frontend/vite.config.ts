@@ -31,7 +31,7 @@ export default defineConfig({
           'vendor-antd': ['antd', '@ant-design/icons'],
           'vendor-charts': ['recharts'],
           'vendor-signalr': ['@microsoft/signalr'],
-          'vendor-utils': ['axios', 'dayjs', '@tanstack/react-query'],
+          'vendor-utils': ['axios', 'dayjs'],
           'vendor-qrcode': ['html5-qrcode'],
           'vendor-cornerstone': [
             '@cornerstonejs/core',
