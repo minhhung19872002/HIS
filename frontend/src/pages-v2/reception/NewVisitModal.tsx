@@ -1,0 +1,379 @@
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import dayjs from 'dayjs';
+import { App as AntdApp, Input, Select, Radio, Checkbox, InputNumber } from 'antd';
+import * as receptionApi from '../../api/reception';
+import type { AdmissionDto, RoomOverviewDto } from '../../api/reception';
+import { KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, DrawerShell, ModalShell, type ColumnDef, type StatusTab, type TopTab } from '../_v2kit';
+import TermIcon from '../../layouts/terminal/Icon';
+import type { RawRow, TopKey, StatusKey } from './shared';
+import { TOP_TABS, STATUS_TABS, PRIORITY_OPTS, VISIT_TYPE_OPTS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from './shared';
+const VISIT_TYPES: { v: string; l: string; ic: string; fee: number; serviceType: number; bhyt?: boolean; emergency?: boolean }[] = [
+  { v: 'kham-thuong', l: 'Khám thường',     ic: 'stethoscope', fee: 38000,  serviceType: 3 },
+  { v: 'kham-bhyt',   l: 'Khám BHYT',        ic: 'shield',      fee: 0,      serviceType: 3, bhyt: true },
+  { v: 'kham-vip',    l: 'Khám dịch vụ',     ic: 'heart',       fee: 250000, serviceType: 2 },
+  { v: 'kham-yc',     l: 'Khám theo yêu cầu', ic: 'user',       fee: 350000, serviceType: 2 },
+  { v: 'tai-kham',    l: 'Tái khám',         ic: 'refresh',     fee: 25000,  serviceType: 3 },
+  { v: 'cap-cuu',     l: 'Cấp cứu',          ic: 'alert',       fee: 0,      serviceType: 3, emergency: true },
+  { v: 'tu-van',      l: 'Tư vấn',           ic: 'info',        fee: 80000,  serviceType: 2 },
+  { v: 'tiem-chung',  l: 'Tiêm chủng',       ic: 'plus',        fee: 50000,  serviceType: 3 },
+];
+
+const Lbl: React.FC<{ label?: string; required?: boolean; error?: string; full?: boolean; children: React.ReactNode }> = ({ label, required, error, full, children }) => (
+  <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
+    {label && (
+      <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>
+        {label}{required && <span style={{ color: 'var(--s-crit)' }}> *</span>}
+      </div>
+    )}
+    {children}
+    {error && <div style={{ fontSize: 10.5, color: 'var(--s-crit)', marginTop: 3 }}>{error}</div>}
+  </div>
+);
+
+const fmtVNDw = (n: number) => (n ? n.toLocaleString('vi-VN') + ' ₫' : 'Miễn phí');
+
+interface WizardData {
+  patientName: string;
+  phone: string;
+  cccd: string;
+  age: number | null;
+  gender: 'M' | 'F';
+  address: string;
+  visitType: string;
+  bhytNo: string;
+  dept: string;          // roomId
+  priority: 'crit' | 'high' | 'norm';
+  reason: string;
+}
+
+// Trích lỗi thật từ axios error (string / {message} / ProblemDetails {title,errors} / {error})
+// để hiện cho user thay vì thông báo chung chung "thất bại".
+function extractApiError(err: unknown, fallback: string): string {
+  const ax = err as { response?: { data?: unknown; status?: number }; message?: string };
+  const d = ax?.response?.data;
+  if (typeof d === 'string' && d.trim()) return d.trim();
+  if (d && typeof d === 'object') {
+    const o = d as Record<string, unknown>;
+    if (typeof o.message === 'string' && o.message.trim()) return o.message.trim();
+    if (o.errors && typeof o.errors === 'object') {
+      const msgs = Object.values(o.errors as Record<string, unknown>)
+        .flatMap((v) => (Array.isArray(v) ? v : [v]))
+        .filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
+      if (msgs.length) return `${typeof o.title === 'string' ? o.title + ': ' : ''}${msgs.join('; ')}`;
+    }
+    if (typeof o.title === 'string' && o.title.trim()) return o.title.trim();
+    if (typeof o.error === 'string' && o.error.trim()) return o.error.trim();
+  }
+  const status = ax?.response?.status;
+  if (status) return `${fallback} (HTTP ${status})`;
+  return ax?.message || fallback;
+}
+
+export const NewVisitModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  rooms: RoomOverviewDto[];
+  onDone: () => void;
+}> = ({ open, onClose, rooms, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [step, setStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [errs, setErrs] = useState<Record<string, string>>({});
+  const [bhytChecked, setBhytChecked] = useState(false);
+  const [bhytValid, setBhytValid] = useState(false);
+  const [bhytInfo, setBhytInfo] = useState<{ exp?: string; rate?: number } | null>(null);
+  const [data, setData] = useState<WizardData>({
+    patientName: '', phone: '', cccd: '', age: null, gender: 'M', address: '',
+    visitType: 'kham-bhyt', bhytNo: '', dept: '', priority: 'norm', reason: '',
+  });
+  const set = <K extends keyof WizardData>(k: K, v: WizardData[K]) => setData((d) => ({ ...d, [k]: v }));
+
+  useEffect(() => {
+    if (open) {
+      setStep(1); setErrs({}); setBhytChecked(false); setBhytValid(false); setBhytInfo(null);
+      setData({ patientName: '', phone: '', cccd: '', age: null, gender: 'M', address: '', visitType: 'kham-bhyt', bhytNo: '', dept: '', priority: 'norm', reason: '' });
+    }
+  }, [open]);
+
+  const visitType = VISIT_TYPES.find((t) => t.v === data.visitType);
+
+  const validate1 = () => {
+    const e: Record<string, string> = {};
+    if (!data.patientName.trim()) e.patientName = 'Bắt buộc';
+    if (!data.phone || !/^0\d{9,10}$/.test(data.phone)) e.phone = 'SĐT 10 số';
+    if (!data.age || data.age < 0 || data.age > 130) e.age = 'Tuổi không hợp lệ';
+    if (!data.cccd || !/^\d{12}$/.test(data.cccd)) e.cccd = 'CCCD 12 số';
+    setErrs(e); return Object.keys(e).length === 0;
+  };
+  const validate2 = () => {
+    if (visitType?.bhyt && !bhytValid) { setErrs({ bhytNo: 'Cần xác thực BHYT hợp lệ' }); return false; }
+    setErrs({}); return true;
+  };
+  const validate3 = () => {
+    const e: Record<string, string> = {};
+    if (!data.dept) e.dept = 'Chọn khoa / phòng';
+    if (!data.reason.trim()) e.reason = 'Nhập lý do khám';
+    setErrs(e); return Object.keys(e).length === 0;
+  };
+
+  const verifyBhyt = async () => {
+    if (!data.bhytNo.trim()) { message.warning('Nhập số thẻ BHYT'); return; }
+    try {
+      const res = await receptionApi.verifyInsurance({ insuranceNumber: data.bhytNo.trim(), patientName: data.patientName || undefined });
+      const r = res.data;
+      const ok = r.isValid && !r.isExpired && !r.isBlacklisted;
+      setBhytChecked(true); setBhytValid(ok);
+      setBhytInfo(ok ? { exp: r.endDate, rate: r.paymentRate } : null);
+      message[ok ? 'success' : 'error'](ok ? 'Thẻ BHYT hợp lệ · còn hạn' : (r.errorMessage || 'Thẻ BHYT không hợp lệ'));
+    } catch {
+      setBhytChecked(true); setBhytValid(false);
+      message.error('Tra cứu BHYT thất bại');
+    }
+  };
+
+  const next = () => {
+    if (step === 1 && !validate1()) return;
+    if (step === 2 && !validate2()) return;
+    if (step === 3 && !validate3()) return;
+    setStep((s) => Math.min(4, s + 1));
+  };
+  const prev = () => setStep((s) => Math.max(1, s - 1));
+
+  const submit = async () => {
+    if (!data.dept) { message.warning('Chọn khoa / phòng'); return; }
+    setSubmitting(true);
+    try {
+      const yearOfBirth = data.age ? new Date().getFullYear() - data.age : undefined;
+      const isPriority = data.priority !== 'norm';
+      if (visitType?.bhyt && data.bhytNo.trim()) {
+        await receptionApi.registerInsurancePatient({
+          insuranceNumber: data.bhytNo.trim(), roomId: data.dept,
+          identityNumber: data.cccd.trim() || undefined, isPriority,
+          // BN mới đăng ký BHYT lần đầu — backend tạo BN nếu chưa có trong hệ thống
+          newPatient: {
+            fullName: data.patientName.trim(),
+            gender: data.gender === 'F' ? 2 : 1,
+            yearOfBirth,
+            phoneNumber: data.phone.trim() || undefined,
+            address: data.address.trim() || undefined,
+            identityNumber: data.cccd.trim() || undefined,
+          },
+        });
+      } else {
+        await receptionApi.registerFeePatient({
+          newPatient: {
+            fullName: data.patientName.trim(),
+            gender: data.gender === 'F' ? 2 : 1,
+            yearOfBirth,
+            phoneNumber: data.phone.trim() || undefined,
+            address: data.address.trim() || undefined,
+            identityNumber: data.cccd.trim() || undefined,
+          },
+          serviceType: visitType?.serviceType ?? 3,
+          roomId: data.dept, isPriority,
+        });
+      }
+      message.success(`Đã đăng ký · ${data.patientName.trim()}`);
+      onDone();
+    } catch (err) {
+      message.error(extractApiError(err, 'Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const STEPS = ['Bệnh nhân', 'BHYT & hình thức', 'Khoa & lý do', 'Xác nhận'];
+  const selRoom = rooms.find((r) => r.roomId === data.dept);
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="lg"
+      title="Đăng ký tiếp đón mới"
+      sub={`Bước ${step}/4`}
+      footer={
+        <>
+          <button type="button" className="ab-btn ghost" onClick={onClose}>Hủy</button>
+          <span style={{ flex: 1 }} />
+          {step > 1 && <button type="button" className="ab-btn" onClick={prev}>← Quay lại</button>}
+          {step < 4
+            ? <button type="button" className="ab-btn primary" onClick={next}>Tiếp tục →</button>
+            : <button type="button" className="ab-btn primary" disabled={submitting} onClick={submit}>
+                <TermIcon name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Đăng ký'}
+              </button>}
+        </>
+      }
+    >
+      <div>
+        {/* Stepper */}
+        <div className="ab-step">
+          {STEPS.map((lbl, i) => (
+            <div key={i} className={`ab-step-it ${step === i + 1 ? 'on' : ''} ${step > i + 1 ? 'done' : ''}`}>
+              <span className="num">{step > i + 1 ? '✓' : i + 1}</span>
+              <span>{lbl}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Step 1 — Bệnh nhân */}
+        {step === 1 && (
+          <div>
+            <div style={{ padding: '12px 14px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
+              <TermIcon name="search" size={14} /> Tìm BN cũ bằng SĐT để tự động điền · hoặc nhập mới bên dưới
+            </div>
+            <div className="rec-grid-2">
+              <Lbl label="Họ và tên" required error={errs.patientName}>
+                <Input value={data.patientName} onChange={(e) => set('patientName', e.target.value)} placeholder="Nguyễn Văn A" />
+              </Lbl>
+              <Lbl label="Số điện thoại" required error={errs.phone}>
+                <Input value={data.phone} onChange={(e) => set('phone', e.target.value)} placeholder="0912 345 678" />
+              </Lbl>
+            </div>
+            <div className="rec-grid-3" style={{ marginTop: 10 }}>
+              <Lbl label="Tuổi" required error={errs.age}>
+                <InputNumber value={data.age} onChange={(v) => set('age', v)} min={0} max={130} style={{ width: '100%' }} />
+              </Lbl>
+              <Lbl label="Giới tính">
+                <Radio.Group value={data.gender} onChange={(e) => set('gender', e.target.value)} optionType="button" options={[{ value: 'M', label: 'Nam' }, { value: 'F', label: 'Nữ' }]} />
+              </Lbl>
+              <Lbl label="CCCD/CMND" required error={errs.cccd}>
+                <Input value={data.cccd} onChange={(e) => set('cccd', e.target.value)} placeholder="012345678901" />
+              </Lbl>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <Lbl label="Địa chỉ thường trú">
+                <Input value={data.address} onChange={(e) => set('address', e.target.value)} placeholder="P. Lê Hồng Phong, TP. Hưng Yên" />
+              </Lbl>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2 — BHYT & hình thức */}
+        {step === 2 && (
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>HÌNH THỨC KHÁM</div>
+            <div className="rec-vtype">
+              {VISIT_TYPES.map((t) => (
+                <label key={t.v} className={data.visitType === t.v ? 'on' : ''}>
+                  <input type="radio" name="vt" checked={data.visitType === t.v} onChange={() => set('visitType', t.v)} />
+                  <TermIcon name={t.ic} size={14} className="ico" />
+                  <span>{t.l}</span>
+                </label>
+              ))}
+            </div>
+            {visitType?.bhyt ? (
+              <div style={{ marginTop: 18 }}>
+                <div style={{ fontSize: 11, color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>THẺ BHYT</div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                  <div style={{ flex: 1 }}>
+                    <Lbl label="Số thẻ BHYT" required error={errs.bhytNo}>
+                      <Input value={data.bhytNo} onChange={(e) => { set('bhytNo', e.target.value); setBhytChecked(false); setBhytValid(false); }} placeholder="HN4 5 08 1234567" />
+                    </Lbl>
+                  </div>
+                  <button type="button" className="ab-btn primary" onClick={verifyBhyt}>
+                    <TermIcon name="shield" size={12} /> Xác thực
+                  </button>
+                </div>
+                {bhytChecked && bhytValid && (
+                  <div className="rec-bhyt-card" style={{ marginTop: 10 }}>
+                    <div className="rec-bhyt-icon"><TermIcon name="check" size={18} /></div>
+                    <div>
+                      <div className="rec-bhyt-num">{data.bhytNo}</div>
+                      <div className="rec-bhyt-meta">
+                        {bhytInfo?.exp && <span>Hạn: <b>{dayjs(bhytInfo.exp).format('DD/MM/YYYY')}</b></span>}
+                        <span>Mức hưởng: <b>{bhytInfo?.rate || 80}%</b></span>
+                      </div>
+                    </div>
+                    <span className="chip ok">Hợp lệ</span>
+                  </div>
+                )}
+                {bhytChecked && !bhytValid && (
+                  <div className="rec-bhyt-card invalid" style={{ marginTop: 10 }}>
+                    <div className="rec-bhyt-icon"><TermIcon name="x" size={18} /></div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--s-crit)' }}>Thẻ không hợp lệ hoặc đã hết hạn</div>
+                      <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>Đổi sang hình thức khám khác hoặc kiểm tra lại số thẻ</div>
+                    </div>
+                    <span className="chip crit">Lỗi</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ marginTop: 18, padding: '12px 14px', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'var(--t-1)' }}>Phí khám {visitType?.l.toLowerCase()}</span>
+                <b style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--a-cy)' }}>{fmtVNDw(visitType?.fee || 0)}</b>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 3 — Khoa & lý do */}
+        {step === 3 && (
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>CHỌN KHOA · PHÒNG KHÁM</div>
+            <div className="rec-deptgrid">
+              {rooms.map((r) => (
+                <label key={r.roomId} className={data.dept === r.roomId ? 'on' : ''}>
+                  <input type="radio" name="dept" checked={data.dept === r.roomId} onChange={() => set('dept', r.roomId)} />
+                  <div className="di"><TermIcon name="stethoscope" size={14} /></div>
+                  <div>
+                    <b>{r.departmentName || r.roomName}</b>
+                    <i>{r.roomName} · chờ {r.waitingCount ?? 0}</i>
+                  </div>
+                  <span className="chip info">{r.waitingCount ?? 0}</span>
+                </label>
+              ))}
+              {rooms.length === 0 && <div style={{ color: 'var(--t-2)', fontSize: 12 }}>Không có phòng khám khả dụng</div>}
+            </div>
+            {errs.dept && <div style={{ color: 'var(--s-crit)', fontSize: 11, marginTop: 6 }}>{errs.dept}</div>}
+            <div style={{ marginTop: 14 }}>
+              <Lbl label="Lý do khám" required error={errs.reason}>
+                <Input.TextArea rows={3} value={data.reason} onChange={(e) => set('reason', e.target.value)} placeholder="Triệu chứng chính, thời gian khởi phát…" />
+              </Lbl>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <Lbl label="Mức ưu tiên">
+                <Radio.Group
+                  value={data.priority}
+                  onChange={(e) => set('priority', e.target.value)}
+                  optionType="button"
+                  options={[{ value: 'norm', label: 'Thường' }, { value: 'high', label: 'Ưu tiên' }, { value: 'crit', label: 'Cấp cứu' }]}
+                />
+              </Lbl>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4 — Xác nhận */}
+        {step === 4 && (
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 }}>XÁC NHẬN ĐĂNG KÝ</div>
+            <div style={{ background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', rowGap: 8, fontSize: 12.5 }}>
+                <span style={{ color: 'var(--t-2)' }}>Bệnh nhân</span><b>{data.patientName} · {data.gender === 'F' ? 'Nữ' : 'Nam'} · {data.age}t</b>
+                <span style={{ color: 'var(--t-2)' }}>SĐT</span><span className="mono">{data.phone}</span>
+                <span style={{ color: 'var(--t-2)' }}>CCCD</span><span className="mono">{data.cccd}</span>
+                {data.address && <><span style={{ color: 'var(--t-2)' }}>Địa chỉ</span><span>{data.address}</span></>}
+                <span style={{ color: 'var(--t-2)' }}>Hình thức</span><span>{visitType?.l}</span>
+                {data.bhytNo && <><span style={{ color: 'var(--t-2)' }}>Thẻ BHYT</span><span className="mono">{data.bhytNo} {bhytValid && <span className="chip ok" style={{ marginLeft: 6 }}>Hợp lệ</span>}</span></>}
+                <span style={{ color: 'var(--t-2)' }}>Khoa khám</span><b>{selRoom?.departmentName} · <span className="mono">{selRoom?.roomName}</span></b>
+                <span style={{ color: 'var(--t-2)' }}>Lý do</span><span>{data.reason}</span>
+                <span style={{ color: 'var(--t-2)' }}>Ưu tiên</span><span><span className={`chip ${data.priority === 'crit' ? 'crit' : data.priority === 'high' ? 'warn' : 'info'}`}>{data.priority === 'crit' ? 'Cấp cứu' : data.priority === 'high' ? 'Ưu tiên' : 'Thường'}</span></span>
+                <span style={{ color: 'var(--t-2)' }}>Phí khám</span><b style={{ color: 'var(--a-cy)', fontFamily: 'var(--font-mono)' }}>{fmtVNDw(visitType?.bhyt && bhytValid ? 0 : (visitType?.fee || 0))}</b>
+              </div>
+            </div>
+            <div style={{ marginTop: 12, padding: '10px 12px', background: '#fefce8', border: '1px solid #fde68a', borderRadius: 6, fontSize: 11.5, color: '#854d0e' }}>
+              <TermIcon name="alert" size={12} /> Sau khi đăng ký, hệ thống cấp số thứ tự và in phiếu hẹn. BN xuất trình phiếu tại phòng khám.
+            </div>
+          </div>
+        )}
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ────────────────────────────────────────────────────────────
+   Now-serving tab — grid of rooms with current ticket
+   ──────────────────────────────────────────────────────────── */
+

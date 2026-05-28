@@ -98,7 +98,7 @@
 ### 🔴 KHÓ (nhiều ngày → tuần · effort lớn · làm theo đợt)
 | Việc | Cách làm | Rủi ro |
 |---|---|---|
-| **K1. Tách 83 god-component FE (>500 dòng)** | Áp pattern đã dùng (thư mục + `_shared` + file con + barrel `index.ts`, import consumer giữ nguyên). Ưu tiên file >2000 dòng (SystemAdmin 4311, OPD 3889, Radiology 3608, Inpatient 3464, Billing 2929, Reports 2545, Pharmacy 2253, EMR 2241, MasterData 2212…). Build-gate sau mỗi file. | Cao (nhiều file, behavior-preserving) |
+| **K1. Tách god-component FE (>500 dòng)** | Áp pattern thư mục + `_shared`/sub-component + barrel/import (import consumer giữ nguyên). **✅ Đã tách 2026-05-29 (6 file):** `EMRPrintTemplates` (1940→4 nhóm) · `SpecialtyMedicalRecordPrintTemplates` (1762) · `SpecialtyEMRForms1/2` (1775/1715) · `EmrManagementTabs` (1040→6 tab) · `pages-v2/Reception.tsx` (1933→**595** main + 8 sub-file `reception/` + `shared`). **Còn lại** ~77 file (chủ yếu `pages/` v1: SystemAdmin 4311, OPD 3889, Radiology 3608, Inpatient 3464, Billing 2929…) — làm dần, build-gate sau mỗi file. | Cao (nhiều file, behavior-preserving) |
 | **K2. Tách ~12 god-service BE (>2000 dòng)** | Dùng **partial class** theo nhóm chức năng (vd `SystemCompleteService.Users.cs`, `.Config.cs`) hoặc tách service con cùng interface. Giữ DI + signature. SystemCompleteService 7129 → ưu tiên. | Cao |
 | **K3. PopulateDataController 4053 dòng** | Tách theo module seed (mỗi `PopulateX` ra file/partial riêng). **Ưu tiên thấp** — là seeder demo, KHÔNG phải logic nghiệp vụ chạy thật (chấp nhận được). | TB→Cao (optional) |
 | **K4. Tách columns/Form/Modal khỏi page god-file (rule Antd #7)** | Đi kèm K1: columns → `*.columns.tsx`, business → hook, modal → component. | Cao (gắn K1) |
