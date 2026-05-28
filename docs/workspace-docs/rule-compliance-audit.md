@@ -149,4 +149,34 @@
 - API shape loạn → FE rải `Array.isArray` workaround khắp nơi, dễ sót.
 - BloodOrders không VC → deploy môi trường mới (hoặc rebuild DB) là vỡ.
 
+---
+
+## G. ⚠️ CHỜ DEPLOY PROD (gom 1 lần — cần gcloud auth)
+
+Code đã push `origin/main` nhưng **Cloud Run KHÔNG tự deploy khi push** (chỉ Vercel-FE tự deploy).
+Các thay đổi **BE** dưới đây đang chờ deploy thủ công lên Cloud Run (`his-api`):
+
+| Đã push (chờ deploy BE) | Commit |
+|---|---|
+| Reception đăng ký BHYT BN mới (create-path) | `895d9d6` |
+| Kê đơn khi lượt khám chưa gán BS (`DoctorId ?? userId`) | `ffcbe03` |
+| Tạm ứng/Thanh toán shadow-FK `ReceivedById` | `895d9d6` |
+| Inspector seed hash đúng — migration `44_nangcap24.sql` (tự chạy lúc khởi động) | `235df44` |
+| **T2** BloodOrders/BloodOrderItems — `46_blood_orders.sql` (tự chạy lúc khởi động) | `d410a13` |
+| **D6** `Console.WriteLine` → `ILogger` | `b91ebf2` |
+
+**Lệnh deploy** (máy có gcloud — máy D:\ đã cài gcloud+proxy, chờ `gcloud auth login`):
+```bash
+IMG="asia-southeast1-docker.pkg.dev/project-4d4a3f8e-d582-4536-97f/his/his-api:$(date +%Y%m%d-%H%M%S)"
+gcloud builds submit --config cloudbuild.yaml --substitutions=_IMAGE=$IMG --project=project-4d4a3f8e-d582-4536-97f
+gcloud run services update his-api --image=$IMG --region=asia-southeast1 --project=project-4d4a3f8e-d582-4536-97f
+```
+Sau deploy → **test lại lần 2 trên prod** (chuỗi nghiệp vụ + 5 fix; inspector `inspector/Inspector@123` login; blood order create).
+
+**Riêng — sửa mojibake vai trò** (data, không qua deploy): chạy `scripts/fix_prod_encoding.ps1` qua Cloud SQL Auth Proxy (commit `0a43897`).
+
+**FE (Vercel)** đã tự deploy: D1/D2, Reception split, 5 god-file split, refactor CSS.
+
+---
+
 *(Số liệu đo 2026-05-29; cập nhật lại sau mỗi đợt xử lý.)*
