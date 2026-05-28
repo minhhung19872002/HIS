@@ -5288,4 +5288,97 @@ giải nén `design-system/bundle-editor/`, đã gitignore). Port 4 editor full-
 `c0dc267` P2 template-apply · `1889e36` P2 EMR export + e-invoice.
 Cloud Run: `his-api-00034-qdf`. Vercel: auto-deploy mỗi push.
 
+---
+
+## Work Log - 2026-05-28 (P1 CRUD wiring + row-click detail + ký số VGCA Sign Service)
+
+Sync đầu phiên: local sau origin 9 commit (v2-kit shared component, CRUD trang
+read-only, DICOM cine/MIP, SystemAdmin CRUD, skills coding-convention,
+dọn docs, e2e-prod CRUD audit) → `git pull --ff-only`. Roadmap hiện ở
+`docs/workspace-docs/v2-priority-audit.md` (plan D, P0/P1/P2).
+
+### 1. Wire CRUD "nút chết" P1 — 9 trang (commit `baf3479`, đã push)
+Theo plan D.3. `_v2kit DataTable/CrudModal` pattern (mẫu `TreatmentProtocol.tsx`).
+- `onRowClick={openEdit}`/CrudModal create-edit: LISConfig (máy XN + test KN +
+  sync LabConnect), TrainingResearch (lớp đào tạo, enum 1-based), AssetManagement
+  (tài sản upsert-by-id + modal QR), EndpointSecurity (device, 2 field-config
+  register vs update-status), Nutrition (đơn dinh dưỡng — admission+dietType
+  select load mount, edit fetch full order, ngưng đơn), Microbiology (cập nhật
+  trạng thái nuôi cấy), InfectionControl (báo cáo HAI), HealthExchange (kết nối
+  HIE + test + activate/deactivate), IvfLab (cặp đôi — 2 patient picker async).
+- **Bug fix kèm:** `api/infectionControl.ts` `createHAICase` route `/hai-cases`
+  → `/hai-reports` (route cũ chỉ có GET → POST 405, hỏng cả v1+v2). Verify backend:
+  POST create HAI dùng `ReportHAIDto` ở `hai`/`hai-reports`; KHÔNG có update/
+  investigate/close endpoint (gap C) → InfectionControl chỉ tạo mới.
+- Field/enum đều verify backend trước (TrainingType 1-based, ReportHAIDto,
+  SaveAssetAsync upsert theo Id, device status 0-3).
+- `npm run build` pass. Cập nhật `v2-priority-audit.md` D.3 = ĐÃ XONG.
+
+### 2. Row-click → detail cho 12 trang v2 (commit `5935eb8`, đã push)
+Root cause: `_v2kit DataTable` chỉ mở detail khi page truyền `onRowClick`;
+`SimpleV2Page` chỉ gắn onRowClick khi có prop `drawer`. Nhiều bespoke page quên
+nối (action button vẫn chạy nhờ ActBtn `stopPropagation`).
+- `onRowClick={openEdit}` (mở modal sửa = detail): LisCatalogAdmin,
+  ReceiptBookAdmin, RisCatalogAdmin, EmployeeProfile.
+- Thêm detail DrawerShell + onRowClick: PaymentTransactions, BiometricEnrollment,
+  Dashboard3Cap, VideoConsultation (room detail), LinenManagement (3 bảng),
+  RisDispatcher (2 bảng), RisAdmin (4 sub-tab), BloodBank (đơn vị/túi sắp hết
+  hạn/yêu cầu — 3 record type).
+- **Cố ý KHÔNG fix** (không phải list record): BillingEditor/EmrEditor (editor
+  sub-list), PaymentReports/QualityDashboardLive/StockReport/WorkloadReport
+  (bảng tổng hợp), ServiceRequeue (grid checkbox chọn nhiều).
+- 5 trang giao subagent (Dashboard3Cap, Biometric, Linen, RisDispatcher,
+  RisAdmin) làm song song; BloodBank/VideoConsultation tự làm (tránh trùng file).
+- `npm run build` pass; grep xác nhận DrawerShell/DrField có nội dung thật.
+
+### 3. Ký số VGCA Sign Service — ký USB token máy trạm (commit `78957d2`, deploy)
+**Bối cảnh:** ký số v2 "không dùng được" trên cloud vì `DigitalSignatureService`
+đọc token từ **Windows X509Store** → chỉ chạy khi backend ở máy Windows có token;
+Cloud Run (Linux) → `open-session` báo "Không tìm thấy USB Token". User chọn
+**Hướng A** (local signing agent, dùng SDK SignServiceJS), ký **cả PDF + XML**.
+- **Backend** (`DigitalSignatureController`, reuse `DocumentSignatures` +
+  `IPdfGenerationService`, KHÔNG tạo bảng/service mới):
+  - `GET /api/digital-signature/content?documentId=&documentType=&fileType=pdf`
+    — sinh PDF **chưa ký** (tách helper `GenerateDocumentHtmlAsync` dùng chung
+    với SignDocumentInternal).
+  - `POST /api/digital-signature/submit-signed` — nhận PDF/XML đã ký (base64),
+    lưu `Reports/Signed/{type}/` + tạo `DocumentSignature` (auto-revoke chữ ký cũ).
+    Backend KHÔNG chạm token.
+- **Frontend:**
+  - `utils/vgcaSign.ts` — nạp SDK `SignServiceJS` + `signPdf/signXml`, **gói 1
+    seam** `invokeSdkSign()` config-driven (`VITE_VGCA_SDK_URL` mặc định
+    `/vgca/SignServiceJS.js`, `VITE_VGCA_SIGN_FN`).
+  - `api/digitalSignature.ts` — `getDocumentContent` + `submitSigned`.
+  - `pages-v2/DigitalSignature.tsx` — nút "Ký bằng USB token (VGCA)" (row +
+    drawer + batch), KHÔNG cần mở phiên server; giữ nguyên "Ký phiên server"
+    (on-prem) cũ.
+- **Deploy:** build `his-api:20260528-220117` SUCCESS → Cloud Run revision
+  **`his-api-00035-pg2`**. Verify prod: `GET /content` 200 trả base64 `%PDF-1.7`
+  thật (đơn thuốc); `POST /submit-signed` body rỗng 200 "Thiếu dữ liệu đã ký"
+  (route OK, không tạo rác).
+
+### CAN LAM TIEP (mai)
+- **Ký VGCA end-to-end cần phần MÁY TRẠM (chưa test được từ cloud):**
+  1. Cài `vgca-sign-service` + driver token + cắm token trên máy người ký
+     (dịch vụ chạy localhost).
+  2. Đặt file SDK `SignServiceJS.js` (bản BV có) vào `frontend/public/vgca/`
+     rồi push (hoặc set env `VITE_VGCA_SDK_URL`).
+  3. Đối chiếu API SDK bản đó: nếu tên hàm ký / hình dạng request-response khác
+     mặc định → chỉnh **đúng 1 hàm** `invokeSdkSign()` trong `utils/vgcaSign.ts`
+     (+ env `VITE_VGCA_SIGN_FN`). Em code theo API SignServiceJS phổ biến, CHƯA
+     test với agent+token thật.
+  4. Mở web TRÊN CHÍNH máy trạm đó (HTTPS + agent localhost) → `/v2/digital-signature`
+     → "Ký bằng USB token (VGCA)".
+- **XML (XAdES):** `submit-signed` đã nhận fileType=xml; nội dung XML lấy từ API
+  CDA sẵn có (`/api/cda`) — chưa wire nút ký XML trên trang CDA (nếu cần).
+- **CentralSigning** còn 6 nút PKI-admin chết (thêm/sửa cert, appearance, HSM,
+  CSR) — chưa làm (cần endpoint backend cho CSR/HSM).
+- Các item plan D khác: D.2 (audit nuốt-exception BE 9 service), D.4 (tách god
+  service `SystemCompleteService` 7129d / `RISCompleteService` 5675d / Reception
+  1924d), D.5 (Btn-debt + raw HTML migrate dần).
+
+### Commits phiên (đã push origin/main)
+`baf3479` P1 CRUD 9 trang · `5935eb8` row-click detail 12 trang · `78957d2`
+VGCA Sign Service. Cloud Run: **`his-api-00035-pg2`**. Vercel: auto-deploy mỗi push.
+
 
