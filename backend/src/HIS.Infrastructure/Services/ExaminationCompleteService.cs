@@ -2176,19 +2176,25 @@ public class ExaminationCompleteService : IExaminationCompleteService
         return prescription != null ? MapToPrescriptionFullDto(prescription) : null;
     }
 
-    public async Task<PrescriptionFullDto> CreatePrescriptionAsync(Application.DTOs.Examination.CreatePrescriptionDto dto)
+    public async Task<PrescriptionFullDto> CreatePrescriptionAsync(Application.DTOs.Examination.CreatePrescriptionDto dto, Guid prescribingUserId = default)
     {
         var examination = await _context.Examinations
             .Include(e => e.MedicalRecord)
             .FirstOrDefaultAsync(e => e.Id == dto.ExaminationId);
         if (examination == null) throw new Exception("Examination not found");
 
+        // Bác sĩ kê đơn = BS đã gán cho lượt khám, nếu chưa gán thì dùng user đang đăng nhập.
+        // DoctorId là FK bắt buộc tới Users → KHÔNG được để Guid.Empty (gây FK conflict → 500).
+        var doctorId = examination.DoctorId ?? (prescribingUserId != Guid.Empty ? prescribingUserId : (Guid?)null);
+        if (doctorId == null || doctorId == Guid.Empty)
+            throw new Exception("Chưa xác định bác sĩ kê đơn. Vui lòng phân công bác sĩ cho lượt khám trước khi kê đơn.");
+
         var prescription = new Prescription
         {
             Id = Guid.NewGuid(),
             MedicalRecordId = examination.MedicalRecordId,
             ExaminationId = dto.ExaminationId, // Set ExaminationId
-            DoctorId = examination.DoctorId ?? Guid.Empty, // Set DoctorId from examination
+            DoctorId = doctorId.Value,
             DepartmentId = examination.DepartmentId,
             PrescriptionCode = $"DT{DateTime.Now:yyyyMMddHHmmss}",
             PrescriptionDate = DateTime.Now,

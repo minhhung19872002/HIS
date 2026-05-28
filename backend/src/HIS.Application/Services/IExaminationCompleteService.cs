@@ -493,7 +493,7 @@ public interface IExaminationCompleteService
     /// <summary>
     /// Tạo đơn thuốc mới
     /// </summary>
-    Task<PrescriptionFullDto> CreatePrescriptionAsync(CreatePrescriptionDto dto);
+    Task<PrescriptionFullDto> CreatePrescriptionAsync(CreatePrescriptionDto dto, Guid prescribingUserId = default);
 
     /// <summary>
     /// Cập nhật đơn thuốc

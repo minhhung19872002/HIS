@@ -1151,7 +1151,7 @@ public class ExaminationCompleteController : ControllerBase
     [HttpPost("prescriptions")]
     public async Task<ActionResult<PrescriptionFullDto>> CreatePrescription([FromBody] CreatePrescriptionDto dto)
     {
-        var result = await _examinationService.CreatePrescriptionAsync(dto);
+        var result = await _examinationService.CreatePrescriptionAsync(dto, GetCurrentUserId());
         return Ok(result);
     }
 
