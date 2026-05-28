@@ -454,15 +454,7 @@ public class DigitalSignatureController : ControllerBase
         byte[] htmlBytes;
         try
         {
-            htmlBytes = request.DocumentType switch
-            {
-                "EMR" => await _pdfGeneration.GenerateEmrPdfAsync(request.DocumentId, "summary"),
-                "Prescription" => await _pdfGeneration.GeneratePrescriptionAsync(request.DocumentId),
-                "LabResult" => await _pdfGeneration.GenerateLabResultAsync(request.DocumentId),
-                "Discharge" => await _pdfGeneration.GenerateDischargeLetterAsync(request.DocumentId),
-                "Referral" => await _pdfGeneration.GenerateEmrPdfAsync(request.DocumentId, "referral"),
-                _ => await _pdfGeneration.GenerateEmrPdfAsync(request.DocumentId, "summary")
-            };
+            htmlBytes = await GenerateDocumentHtmlAsync(request.DocumentId, request.DocumentType);
         }
         catch (Exception ex)
         {
@@ -703,6 +695,113 @@ public class DigitalSignatureController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Sinh HTML tài liệu theo loại (dùng chung cho ký server-side lẫn lấy nội dung cho client-side ký).
+    /// </summary>
+    private async Task<byte[]> GenerateDocumentHtmlAsync(Guid documentId, string documentType)
+    {
+        return documentType switch
+        {
+            "EMR" => await _pdfGeneration.GenerateEmrPdfAsync(documentId, "summary"),
+            "Prescription" => await _pdfGeneration.GeneratePrescriptionAsync(documentId),
+            "LabResult" => await _pdfGeneration.GenerateLabResultAsync(documentId),
+            "Discharge" => await _pdfGeneration.GenerateDischargeLetterAsync(documentId),
+            "Referral" => await _pdfGeneration.GenerateEmrPdfAsync(documentId, "referral"),
+            _ => await _pdfGeneration.GenerateEmrPdfAsync(documentId, "summary")
+        };
+    }
+
+    /// <summary>
+    /// Lấy nội dung tài liệu (PDF chưa ký) để client gửi sang VGCA Sign Service ký bằng USB token máy trạm.
+    /// XML (XAdES) lấy nội dung từ API CDA (/api/cda) — endpoint này phục vụ PAdES/PDF.
+    /// </summary>
+    [HttpGet("content")]
+    public async Task<ActionResult<DocumentContentResponse>> GetDocumentContent(
+        [FromQuery] Guid documentId, [FromQuery] string documentType, [FromQuery] string fileType = "pdf")
+    {
+        if (!string.Equals(fileType, "pdf", StringComparison.OrdinalIgnoreCase))
+            return Ok(new DocumentContentResponse { Success = false, Message = "Endpoint này sinh nội dung PDF; XML lấy từ API CDA (/api/cda)." });
+        try
+        {
+            var htmlBytes = await GenerateDocumentHtmlAsync(documentId, documentType);
+            var pdfBytes = await _pdfService.ConvertHtmlToPdfAsync(htmlBytes);
+            return Ok(new DocumentContentResponse
+            {
+                Success = true,
+                FileType = "pdf",
+                FileName = $"{documentType}_{documentId.ToString()[..8]}.pdf",
+                Base64 = Convert.ToBase64String(pdfBytes),
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GetDocumentContent failed {Type} {Id}", documentType, documentId);
+            return Ok(new DocumentContentResponse { Success = false, Message = $"Lỗi tạo nội dung tài liệu: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
+    /// Nhận tài liệu đã ký (PDF/XML base64) từ client (sau khi VGCA Sign Service ký bằng USB token máy trạm),
+    /// lưu file + tạo bản ghi DocumentSignature. Backend KHÔNG chạm token — chỉ lưu + truy vết.
+    /// </summary>
+    [HttpPost("submit-signed")]
+    public async Task<ActionResult<SignDocumentResponse>> SubmitSigned([FromBody] SubmitSignedRequest request)
+    {
+        if (request == null || string.IsNullOrEmpty(request.SignedBase64))
+            return Ok(new SignDocumentResponse { Success = false, Message = "Thiếu dữ liệu đã ký" });
+        byte[] signedBytes;
+        try { signedBytes = Convert.FromBase64String(request.SignedBase64); }
+        catch { return Ok(new SignDocumentResponse { Success = false, Message = "Dữ liệu đã ký không hợp lệ (base64)" }); }
+
+        var userId = GetCurrentUserId();
+        var ext = string.Equals(request.FileType, "xml", StringComparison.OrdinalIgnoreCase) ? "xml" : "pdf";
+
+        // Tự thu hồi chữ ký cũ đang hiệu lực để ký lại
+        var existing = await _db.DocumentSignatures.FirstOrDefaultAsync(ds =>
+            ds.DocumentId == request.DocumentId && ds.DocumentType == request.DocumentType && ds.Status == 0);
+        if (existing != null)
+        {
+            existing.Status = 1;
+            existing.RevokeReason = "Tự động thu hồi để ký lại";
+            existing.RevokedAt = DateTime.UtcNow;
+            existing.RevokedByUserId = userId;
+        }
+
+        var outputDir = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Signed", request.DocumentType);
+        Directory.CreateDirectory(outputDir);
+        var fileName = $"{request.DocumentId}_{DateTime.UtcNow:yyyyMMddHHmmss}.{ext}";
+        var filePath = Path.Combine(outputDir, fileName);
+        await System.IO.File.WriteAllBytesAsync(filePath, signedBytes);
+
+        var signature = new DocumentSignature
+        {
+            DocumentId = request.DocumentId,
+            DocumentType = request.DocumentType,
+            DocumentCode = $"{request.DocumentType}-{request.DocumentId.ToString()[..8]}",
+            SignedByUserId = userId,
+            SignedAt = DateTime.UtcNow,
+            CertificateSubject = request.CertificateSubject,
+            CertificateSerial = request.CertificateSerial,
+            CaProvider = string.IsNullOrEmpty(request.CaProvider) ? "VGCA Sign Service" : request.CaProvider,
+            SignatureValue = request.SignedBase64,
+            SignedDocumentPath = filePath,
+            Status = 0,
+        };
+        _db.DocumentSignatures.Add(signature);
+        await _db.SaveChangesAsync();
+
+        return Ok(new SignDocumentResponse
+        {
+            Success = true,
+            Message = "Lưu chữ ký thành công",
+            SignerName = request.SignerName ?? request.CertificateSubject,
+            SignedAt = signature.SignedAt.ToString("dd/MM/yyyy HH:mm:ss"),
+            CertificateSerial = request.CertificateSerial,
+            CaProvider = signature.CaProvider,
+            SignedDocumentUrl = $"/api/digital-signature/download/{signature.Id}",
+        });
+    }
+
     private Guid GetCurrentUserId()
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("sub") ?? User.FindFirst("id");
@@ -737,4 +836,27 @@ public class DigitalSignatureController : ControllerBase
 public class RevokeSignatureRequest
 {
     public string Reason { get; set; } = string.Empty;
+}
+
+/// <summary>Nội dung tài liệu (chưa ký) trả cho client gửi sang VGCA Sign Service.</summary>
+public class DocumentContentResponse
+{
+    public bool Success { get; set; }
+    public string? Message { get; set; }
+    public string FileType { get; set; } = "pdf"; // pdf | xml
+    public string? FileName { get; set; }
+    public string? Base64 { get; set; }
+}
+
+/// <summary>Tài liệu đã ký từ client (VGCA Sign Service ký bằng USB token máy trạm).</summary>
+public class SubmitSignedRequest
+{
+    public Guid DocumentId { get; set; }
+    public string DocumentType { get; set; } = string.Empty;
+    public string FileType { get; set; } = "pdf"; // pdf | xml
+    public string SignedBase64 { get; set; } = string.Empty;
+    public string? SignerName { get; set; }
+    public string? CertificateSubject { get; set; }
+    public string? CertificateSerial { get; set; }
+    public string? CaProvider { get; set; }
 }

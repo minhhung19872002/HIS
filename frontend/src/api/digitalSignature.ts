@@ -142,3 +142,33 @@ export const getTokens = () =>
 
 export const registerToken = (tokenSerial: string) =>
   apiClient.post('/digital-signature/register-token', { tokenSerial });
+
+// ─── VGCA Sign Service (ký bằng USB token máy trạm) ───
+export interface DocumentContentResponse {
+  success: boolean;
+  message?: string;
+  fileType: string; // pdf | xml
+  fileName?: string;
+  base64?: string;
+}
+
+export interface SubmitSignedRequest {
+  documentId: string;
+  documentType: string;
+  fileType: string; // pdf | xml
+  signedBase64: string;
+  signerName?: string;
+  certificateSubject?: string;
+  certificateSerial?: string;
+  caProvider?: string;
+}
+
+// Lấy nội dung tài liệu (PDF chưa ký) để gửi sang VGCA Sign Service ký bằng token máy trạm.
+export const getDocumentContent = (documentId: string, documentType: string, fileType = 'pdf') =>
+  apiClient.get<DocumentContentResponse>('/digital-signature/content', {
+    params: { documentId, documentType, fileType },
+  });
+
+// Lưu tài liệu đã ký (nhận từ client sau khi token máy trạm ký).
+export const submitSigned = (data: SubmitSignedRequest) =>
+  apiClient.post<SignDocumentResponse>('/digital-signature/submit-signed', data);

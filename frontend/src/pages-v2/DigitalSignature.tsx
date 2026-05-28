@@ -6,6 +6,7 @@ import type {
   TokenInfoDto, SessionStatusResponse, BatchSignResponse,
 } from '../api/digitalSignature';
 import { apiClient } from '../api/client';
+import { signPdf as vgcaSignPdf } from '../utils/vgcaSign';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
   DrawerShell, DrSec, DrField, tk, ti, tw, Ico,
@@ -165,6 +166,50 @@ const DigitalSignatureV2: React.FC = () => {
     } catch { tw('Lỗi khi ký hàng loạt'); }
   };
 
+  // Ký bằng USB token CẮM TRÊN MÁY TRẠM qua VGCA Sign Service (không cần "mở phiên" server).
+  const signViaVgca = async (d: PendingDocument): Promise<boolean> => {
+    try {
+      const content = await dsApi.getDocumentContent(d.id, d.documentType, 'pdf');
+      if (!content.data?.success || !content.data.base64) {
+        tw(content.data?.message || `Không lấy được nội dung ${d.documentCode}`);
+        return false;
+      }
+      const signed = await vgcaSignPdf(content.data.base64, content.data.fileName || `${d.documentCode}.pdf`);
+      const res = await dsApi.submitSigned({
+        documentId: d.id, documentType: d.documentType, fileType: 'pdf',
+        signedBase64: signed.signedBase64,
+        certificateSubject: signed.certSubject,
+        certificateSerial: signed.certSerial,
+        caProvider: signed.caProvider,
+      });
+      if (res.data?.success) {
+        setPending((prev) => prev.filter((x) => x.id !== d.id));
+        return true;
+      }
+      tw(res.data?.message || `Không lưu được chữ ký ${d.documentCode}`);
+      return false;
+    } catch (e) {
+      tw((e as Error).message || 'Lỗi ký bằng VGCA Sign Service');
+      return false;
+    }
+  };
+
+  const signSingleVgca = async (d: PendingDocument) => {
+    ti(`Đang ký ${d.documentCode} bằng USB token…`);
+    if (await signViaVgca(d)) tk(`Đã ký ${d.documentCode}`);
+  };
+
+  const signBatchVgca = async () => {
+    if (selectedIds.size === 0) { tw('Chọn ít nhất 1 tài liệu'); return; }
+    const docs = pending.filter((p) => selectedIds.has(p.id));
+    ti(`Đang ký ${docs.length} tài liệu bằng USB token…`);
+    let ok = 0;
+    for (const d of docs) { if (await signViaVgca(d)) ok += 1; }
+    tk(`Đã ký ${ok}/${docs.length} tài liệu`);
+    setSelectedIds(new Set());
+    fetchData();
+  };
+
   const pendingCols: ColumnDef<PendingDocument>[] = [
     { key: 'code', label: 'Mã TL', code: true, render: (r) => r.documentCode },
     { key: 'type', label: 'Loại', render: (r) => (
@@ -275,9 +320,14 @@ const DigitalSignatureV2: React.FC = () => {
         </button>
         <span className="spacer" />
         {tab === 'pending' && selectedIds.size > 0 && (
-          <button className="ab-btn primary" type="button" onClick={signBatch}>
-            <Ico name="check" size={12} /> Ký {selectedIds.size} tài liệu
-          </button>
+          <>
+            <button className="ab-btn primary" type="button" onClick={signBatchVgca}>
+              <Ico name="lock" size={12} /> Ký {selectedIds.size} tài liệu (token máy trạm)
+            </button>
+            <button className="ab-btn" type="button" onClick={signBatch}>
+              <Ico name="check" size={12} /> Ký qua phiên server
+            </button>
+          </>
         )}
       </div>
 
@@ -289,7 +339,8 @@ const DigitalSignatureV2: React.FC = () => {
           actions={(r) => (
             <div className="ab-actions">
               <ActBtn ic="eye" title="Chi tiết" onClick={() => setSelDoc(r)} />
-              <ActBtn ic="check" title="Ký tài liệu" onClick={() => signSingle(r)} />
+              <ActBtn ic="lock" title="Ký bằng USB token máy trạm (VGCA)" onClick={() => signSingleVgca(r)} />
+              <ActBtn ic="check" title="Ký qua phiên server (on-prem)" onClick={() => signSingle(r)} />
             </div>
           )}
           empty={'Không có tài liệu chờ ký'}
@@ -327,8 +378,11 @@ const DigitalSignatureV2: React.FC = () => {
         sub={selDoc ? `${DOC_TYPE_LABELS[selDoc.documentType] || selDoc.documentType} · ${selDoc.patientName}` : ''}
         footer={<>
           <button type="button" className="ab-btn ghost" onClick={() => setSelDoc(null)}>Đóng</button>
-          <button type="button" className="ab-btn primary" onClick={() => { if (selDoc) signSingle(selDoc); }}>
-            <Ico name="check" size={12} /> Ký tài liệu
+          <button type="button" className="ab-btn" onClick={() => { if (selDoc) signSingle(selDoc); }}>
+            <Ico name="check" size={12} /> Ký phiên server
+          </button>
+          <button type="button" className="ab-btn primary" onClick={() => { if (selDoc) { signSingleVgca(selDoc); setSelDoc(null); } }}>
+            <Ico name="lock" size={12} /> Ký bằng USB token (VGCA)
           </button>
         </>}
       >
