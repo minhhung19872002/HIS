@@ -4,7 +4,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn,
-  ModalShell, Ico, tk, tw, cf,
+  ModalShell, DrawerShell, DrSec, DrField, Ico, tk, tw, cf,
   type ColumnDef,
 } from './_v2kit';
 
@@ -74,6 +74,7 @@ const PermissionsTab: React.FC = () => {
   const [rooms, setRooms] = useState<Array<{ id: string; roomName: string }>>([]);
   const [editModal, setEditModal] = useState(false);
   const [copyModal, setCopyModal] = useState(false);
+  const [sel, setSel] = useState<PermissionRow | null>(null);
   const [editForm] = Form.useForm<{ roomId?: string; roleTemplate?: string; permissions: number[] }>();
   const [copyForm] = Form.useForm<{ fromUserId: string }>();
 
@@ -156,6 +157,7 @@ const PermissionsTab: React.FC = () => {
         </button>
       </div>
       <DataTable<PermissionRow> columns={cols} data={permissions} rowKey={(r) => r.id}
+        onRowClick={setSel}
         actions={(r) => (
           <div className="ab-actions">
             <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => remove(r)} />
@@ -163,6 +165,30 @@ const PermissionsTab: React.FC = () => {
         )}
         empty={selectedUserId ? 'User này chưa có quyền' : 'Chọn người dùng để xem quyền'}
       />
+
+      <DrawerShell
+        open={!!sel}
+        onClose={() => setSel(null)}
+        size="md"
+        title={sel ? `Quyền · ${sel.roomName}` : ''}
+        sub={sel ? (sel.modalityType || '—') : ''}
+      >
+        {sel && <>
+          <DrSec title="Phạm vi">
+            <DrField lbl="Máy chụp">{sel.roomName}</DrField>
+            <DrField lbl="Loại máy">{sel.modalityType || '—'}</DrField>
+            <DrField lbl="Role">{sel.roleTemplate ? <StatusBadge tone="info">{sel.roleTemplate}</StatusBadge> : '—'}</DrField>
+          </DrSec>
+          <DrSec title="Quyền chi tiết">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {PERMISSION_FLAGS.filter((f) => (sel.permissions & f.flag) !== 0).map((f) => (
+                <StatusBadge key={f.flag} tone="info">{f.label}</StatusBadge>
+              ))}
+              {PERMISSION_FLAGS.filter((f) => (sel.permissions & f.flag) !== 0).length === 0 && '—'}
+            </div>
+          </DrSec>
+        </>}
+      </DrawerShell>
 
       <ModalShell open={editModal} onClose={() => setEditModal(false)} size="lg" title="Phân quyền"
         footer={<>
@@ -213,6 +239,7 @@ const AreasTab: React.FC = () => {
   const [data, setData] = useState<Area[]>([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(false);
+  const [sel, setSel] = useState<Area | null>(null);
   const [form] = Form.useForm();
 
   const load = useCallback(async () => {
@@ -246,7 +273,27 @@ const AreasTab: React.FC = () => {
         </button>
       </div>
       <DataTable<Area> columns={cols} data={data} rowKey={(r) => r.id}
+        onRowClick={setSel}
         empty={loading ? 'Đang tải…' : 'Chưa có khu vực'} />
+
+      <DrawerShell
+        open={!!sel}
+        onClose={() => setSel(null)}
+        size="md"
+        title={sel ? `Khu vực · ${sel.areaName}` : ''}
+        sub={sel ? sel.areaCode : ''}
+      >
+        {sel && <>
+          <DrSec title="Thông tin">
+            <DrField lbl="Mã"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.areaCode}</span></DrField>
+            <DrField lbl="Tên">{sel.areaName}</DrField>
+            <DrField lbl="Địa chỉ">{sel.address || '—'}</DrField>
+            <DrField lbl="Trạng thái">
+              {sel.isActive ? <StatusBadge tone="ok" dot>Hoạt động</StatusBadge> : <StatusBadge tone="warn" dot>Dừng</StatusBadge>}
+            </DrField>
+          </DrSec>
+        </>}
+      </DrawerShell>
 
       <ModalShell open={modal} onClose={() => setModal(false)} size="md" title="Thêm khu vực / chi nhánh"
         footer={<>
@@ -267,6 +314,7 @@ const FOLDER_TYPES: Record<number, string> = { 1: 'Normal', 2: 'Share', 3: 'Uplo
 const FoldersTab: React.FC = () => {
   const [data, setData] = useState<FolderRow[]>([]);
   const [modal, setModal] = useState(false);
+  const [sel, setSel] = useState<FolderRow | null>(null);
   const [form] = Form.useForm();
 
   const load = useCallback(async () => {
@@ -304,7 +352,28 @@ const FoldersTab: React.FC = () => {
           <Ico name="plus" size={12} /> Thêm thư mục
         </button>
       </div>
-      <DataTable<FolderRow> columns={cols} data={data} rowKey={(r) => r.id} empty="Chưa có thư mục" />
+      <DataTable<FolderRow> columns={cols} data={data} rowKey={(r) => r.id} onRowClick={setSel} empty="Chưa có thư mục" />
+
+      <DrawerShell
+        open={!!sel}
+        onClose={() => setSel(null)}
+        size="md"
+        title={sel ? `Thư mục · ${sel.folderName}` : ''}
+        sub={sel ? (FOLDER_TYPES[sel.folderType] || '—') : ''}
+      >
+        {sel && <>
+          <DrSec title="Thông tin">
+            <DrField lbl="Tên">{sel.folderName}</DrField>
+            <DrField lbl="Loại">
+              <StatusBadge tone={sel.folderType === 1 ? 'info' : sel.folderType === 2 ? 'warn' : 'crit'}>
+                {FOLDER_TYPES[sel.folderType] || '—'}
+              </StatusBadge>
+            </DrField>
+            <DrField lbl="Khu vực">{sel.areaName || '—'}</DrField>
+            <DrField lbl="STT"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.sortOrder}</span></DrField>
+          </DrSec>
+        </>}
+      </DrawerShell>
 
       <ModalShell open={modal} onClose={() => setModal(false)} size="md" title="Thêm thư mục"
         footer={<>
@@ -363,6 +432,7 @@ const IcdMapTab: React.FC = () => (
 
 const MachinesTab: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [sel, setSel] = useState<Room | null>(null);
   useEffect(() => {
     apiClient.get<Room[]>('/RISComplete/rooms', { params: { roomType: 'radiology' } })
       .then((r) => setRooms(r.data)).catch(() => setRooms([]));
@@ -380,12 +450,34 @@ const MachinesTab: React.FC = () => {
         <Ico name="info" size={12} /> <b>Cấu hình máy chụp + gán mẫu kết quả</b> — Mỗi máy chụp có thể gán với 1 hoặc nhiều mẫu kết quả đặc trưng.
       </div>
       <DataTable<Room> columns={cols} data={rooms} rowKey={(r) => r.id}
+        onRowClick={setSel}
         actions={(r) => (
           <div className="ab-actions">
             <ActBtn ic="edit" title="Cấu hình mẫu" onClick={() => window.open(`/v2/radiology?config=${r.id}`, '_blank')} />
           </div>
         )}
         empty="Chưa có máy chụp" />
+
+      <DrawerShell
+        open={!!sel}
+        onClose={() => setSel(null)}
+        size="md"
+        title={sel ? `Máy chụp · ${sel.roomName}` : ''}
+        sub={sel ? (sel.modalityType || '—') : ''}
+      >
+        {sel && <>
+          <DrSec title="Thông tin">
+            <DrField lbl="Phòng / Máy">{sel.roomName}</DrField>
+            <DrField lbl="Loại">{sel.modalityType ? <StatusBadge tone="info">{sel.modalityType}</StatusBadge> : '—'}</DrField>
+            <DrField lbl="Khoa">{sel.departmentName || '—'}</DrField>
+          </DrSec>
+          <DrSec title="Thao tác">
+            <button className="ab-btn primary" type="button" onClick={() => window.open(`/v2/radiology?config=${sel.id}`, '_blank')}>
+              <Ico name="edit" size={12} /> Cấu hình mẫu kết quả
+            </button>
+          </DrSec>
+        </>}
+      </DrawerShell>
     </>
   );
 };

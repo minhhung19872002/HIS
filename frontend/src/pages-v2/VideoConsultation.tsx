@@ -8,7 +8,7 @@ import {
 } from '../api/videoConsultation';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn,
-  DrawerShell, ModalShell, Ico, tk, ti, tw, cf,
+  DrawerShell, DrSec, DrField, ModalShell, Ico, tk, ti, tw, cf,
   type ColumnDef,
 } from './_v2kit';
 
@@ -39,6 +39,7 @@ const VideoConsultationV2: React.FC = () => {
   const [endForm] = Form.useForm<{ conclusionNote?: string }>();
   const [participantsDrawer, setParticipantsDrawer] = useState<RoomDto | null>(null);
   const [participants, setParticipants] = useState<ParticipantItem[]>([]);
+  const [sel, setSel] = useState<RoomDto | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -161,6 +162,7 @@ const VideoConsultationV2: React.FC = () => {
 
       <DataTable<RoomDto>
         columns={cols} data={rooms} rowKey={(r) => r.id}
+        onRowClick={setSel}
         actions={(r) => (
           <div className="ab-actions">
             {r.status === 0 && <ActBtn ic="play" title="Bắt đầu" onClick={() => start(r)} />}
@@ -257,6 +259,44 @@ const VideoConsultationV2: React.FC = () => {
           </Form.Item>
         </Form>
       </ModalShell>
+
+      <DrawerShell
+        open={!!sel}
+        onClose={() => setSel(null)}
+        size="md"
+        title={sel ? sel.title : ''}
+        sub={sel ? ROOM_TYPES[sel.roomType] : ''}
+        footer={<>
+          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
+          {sel && sel.status === 1 && <button type="button" className="ab-btn primary" onClick={() => { if (sel) join(sel); }}><Ico name="play" size={12} /> Tham gia</button>}
+          {sel && <button type="button" className="ab-btn" onClick={() => { if (sel) { openParticipants(sel); setSel(null); } }}><Ico name="user" size={12} /> Người tham gia</button>}
+        </>}
+      >
+        {sel && <>
+          <DrSec title="Phòng hội chẩn">
+            <DrField lbl="Tên / Chủ đề">{sel.title}</DrField>
+            <DrField lbl="Loại">{ROOM_TYPES[sel.roomType]}</DrField>
+            {sel.patientName && <DrField lbl="Bệnh nhân">{sel.patientName}</DrField>}
+            <DrField lbl="Host">{sel.hostName || '—'}</DrField>
+            <DrField lbl="Lịch dự kiến">{sel.scheduledAt ? dayjs(sel.scheduledAt).format('DD/MM/YYYY HH:mm') : '—'}</DrField>
+            <DrField lbl="Trạng thái">
+              <StatusBadge tone={STATUS_TABS.find((x) => x.v === sKey(sel.status))?.tone || 'info'} dot>{STATUS_LABELS[sel.status]}</StatusBadge>
+            </DrField>
+            <DrField lbl="Tùy chọn">
+              <span style={{ display: 'flex', gap: 4 }}>
+                {sel.hasPassword ? <StatusBadge tone="warn">🔒 Mật khẩu</StatusBadge> : null}
+                {sel.isRecorded ? <StatusBadge tone="crit">REC</StatusBadge> : null}
+                {!sel.hasPassword && !sel.isRecorded ? <span style={{ color: 'var(--t-2)' }}>—</span> : null}
+              </span>
+            </DrField>
+          </DrSec>
+          {sel.jitsiUrl && (
+            <DrSec title="Liên kết">
+              <DrField lbl="Jitsi URL"><span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, wordBreak: 'break-all' }}>{sel.jitsiUrl}</span></DrField>
+            </DrSec>
+          )}
+        </>}
+      </DrawerShell>
 
       <DrawerShell open={!!participantsDrawer} onClose={() => setParticipantsDrawer(null)}
         size="md" title={`Người tham gia: ${participantsDrawer?.title || ''}`}>

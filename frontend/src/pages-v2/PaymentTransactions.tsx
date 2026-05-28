@@ -7,7 +7,7 @@ import {
 } from '../api/paymentGateway';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, ModalShell,
-  Ico, tk, ti, tw, type ColumnDef,
+  DrawerShell, DrSec, DrField, Ico, tk, ti, tw, type ColumnDef,
 } from './_v2kit';
 
 const { RangePicker } = DatePicker;
@@ -48,6 +48,7 @@ const PaymentTransactionsV2: React.FC = () => {
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null);
   const [page, setPage] = useState(0);
   const [refundOpen, setRefundOpen] = useState<PaymentTransactionDto | null>(null);
+  const [sel, setSel] = useState<PaymentTransactionDto | null>(null);
   const [refundForm] = Form.useForm<{ amount: number; reason: string }>();
 
   const fetchData = async () => {
@@ -139,6 +140,7 @@ const PaymentTransactionsV2: React.FC = () => {
 
       <DataTable<PaymentTransactionDto>
         columns={cols} data={items} rowKey={(r) => r.id}
+        onRowClick={setSel}
         actions={(r) => (
           <div className="ab-actions">
             {r.status === 1 && r.refundedAmount < r.amount && (
@@ -187,6 +189,37 @@ const PaymentTransactionsV2: React.FC = () => {
           </Form.Item>
         </Form>
       </ModalShell>
+
+      <DrawerShell
+        open={!!sel}
+        onClose={() => setSel(null)}
+        size="md"
+        title={sel ? `Giao dịch ${sel.txnRef}` : ''}
+        sub={sel ? `${sel.provider?.toUpperCase()} · ${fmt(sel.amount)} đ` : ''}
+      >
+        {sel && <>
+          <DrSec title="Giao dịch">
+            <DrField lbl="Mã GD"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.txnRef}</span></DrField>
+            <DrField lbl="Cổng thanh toán">{sel.provider?.toUpperCase()}</DrField>
+            <DrField lbl="Nội dung">{sel.orderInfo || '—'}</DrField>
+            <DrField lbl="Ngân hàng"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.bankCode || '—'}</span></DrField>
+            <DrField lbl="Thời gian tạo">{dayjs(sel.createdAt).format('DD/MM/YYYY HH:mm')}</DrField>
+            <DrField lbl="Trạng thái">
+              <StatusBadge tone={STATUS_TABS.find((x) => x.v === sKey(sel.status))?.tone || 'info'} dot>
+                {sel.statusText || STATUS_LABEL[sel.status] || '—'}
+              </StatusBadge>
+            </DrField>
+          </DrSec>
+          <DrSec title="Bệnh nhân">
+            <DrField lbl="Họ tên">{sel.patientName || '—'}</DrField>
+            <DrField lbl="Mã BN"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.patientCode || '—'}</span></DrField>
+          </DrSec>
+          <DrSec title="Số tiền">
+            <DrField lbl="Số tiền"><span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(sel.amount)} đ</span></DrField>
+            <DrField lbl="Đã hoàn"><span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(sel.refundedAmount)} đ</span></DrField>
+          </DrSec>
+        </>}
+      </DrawerShell>
     </div>
   );
 };

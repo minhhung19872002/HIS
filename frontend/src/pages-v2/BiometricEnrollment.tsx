@@ -9,6 +9,7 @@ import React, { useEffect, useState } from 'react';
 import { Form, Input, Radio, Select, Button } from 'antd';
 import {
   KpiStrip, DataTable, SearchBox, ModalShell, StatusBadge, ActBtn,
+  DrawerShell, DrSec, DrField,
   tk, te, fmtDTg, cf,
 } from './_v2kit';
 import type { ColumnDef } from './_v2kit';
@@ -60,6 +61,7 @@ const BiometricEnrollment: React.FC = () => {
   const [enrollForm] = Form.useForm();
   const [signForm] = Form.useForm();
   const [scanning, setScanning] = useState(false);
+  const [selCred, setSelCred] = useState<BiometricCredentialDto | null>(null);
   const webAuthnOk = typeof window !== 'undefined' && !!window.PublicKeyCredential;
 
   const loadPatients = async () => {
@@ -320,6 +322,7 @@ const BiometricEnrollment: React.FC = () => {
                     rowKey={c => c.id}
                     data={myCreds}
                     columns={credCols}
+                    onRowClick={setSelCred}
                     actions={c => c.status === 'active'
                       ? <ActBtn ic="x" title="Thu hồi" tone="crit" onClick={() => revoke(c)} />
                       : null}
@@ -413,6 +416,41 @@ const BiometricEnrollment: React.FC = () => {
           </div>
         </div>
       </ModalShell>
+
+      {/* Credential detail */}
+      <DrawerShell
+        open={!!selCred}
+        onClose={() => setSelCred(null)}
+        size="md"
+        title={selCred ? `Credential · ${selCred.ownerName ?? '—'}` : ''}
+        sub={selCred ? (selCred.ownerType === 'patient' ? 'Bệnh nhân' : 'Người nhà') : ''}
+      >
+        {selCred && <>
+          <DrSec title="Người ký">
+            <DrField lbl="Họ tên">{selCred.ownerName ?? '—'}</DrField>
+            <DrField lbl="Loại người ký">
+              <StatusBadge tone={selCred.ownerType === 'patient' ? 'info' : 'warn'}>
+                {selCred.ownerType === 'patient' ? 'Bệnh nhân' : 'Người nhà'}
+              </StatusBadge>
+            </DrField>
+            <DrField lbl="Bệnh nhân">{sel?.fullName ?? '—'}</DrField>
+          </DrSec>
+          <DrSec title="Thiết bị">
+            <DrField lbl="Thiết bị">{selCred.deviceName ?? '—'}</DrField>
+            <DrField lbl="Mã credential"><span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, wordBreak: 'break-all' }}>{selCred.id}</span></DrField>
+          </DrSec>
+          <DrSec title="Sử dụng">
+            <DrField lbl="Đăng ký lúc"><span style={{ fontFamily: 'var(--font-mono)' }}>{fmtDTg(selCred.enrolledAt)}</span></DrField>
+            <DrField lbl="Lần ký cuối"><span style={{ fontFamily: 'var(--font-mono)' }}>{selCred.lastUsedAt ? fmtDTg(selCred.lastUsedAt) : 'Chưa dùng'}</span></DrField>
+            <DrField lbl="Số lần ký"><span style={{ fontFamily: 'var(--font-mono)' }}>{selCred.usageCount}</span></DrField>
+            <DrField lbl="Trạng thái">
+              {selCred.status === 'active'
+                ? <StatusBadge tone="ok" dot>Hoạt động</StatusBadge>
+                : <StatusBadge tone="crit" dot>Đã thu hồi</StatusBadge>}
+            </DrField>
+          </DrSec>
+        </>}
+      </DrawerShell>
     </div>
   );
 };

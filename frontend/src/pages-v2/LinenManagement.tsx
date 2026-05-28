@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   KpiStrip, TopTabs, DataTable, StatusBadge, ActBtn,
+  DrawerShell, DrSec, DrField,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
   tk, te, fmtDTg
 } from './_v2kit';
@@ -54,6 +55,7 @@ const LinenManagementV2: React.FC = () => {
 
 const LinenItemsPanel: React.FC = () => {
   const [items, setItems] = useState<LinenItemDto[]>([]);
+  const [sel, setSel] = useState<LinenItemDto | null>(null);
 
   const load = useCallback(async () => {
     try { setItems(await linen.listItems({})); }
@@ -92,7 +94,38 @@ const LinenItemsPanel: React.FC = () => {
   return (
     <>
       <KpiStrip items={kpis} />
-      <DataTable<LinenItemDto> rowKey={(r) => r.id} data={items} columns={columns} />
+      <DataTable<LinenItemDto> rowKey={(r) => r.id} data={items} columns={columns} onRowClick={setSel} />
+
+      <DrawerShell
+        open={!!sel}
+        onClose={() => setSel(null)}
+        size="md"
+        title={sel ? `Đồ vải · ${sel.itemName}` : ''}
+        sub={sel ? sel.itemCode : ''}
+      >
+        {sel && <>
+          <DrSec title="Thông tin">
+            <DrField lbl="Mã"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.itemCode}</span></DrField>
+            <DrField lbl="Tên">{sel.itemName}</DrField>
+            <DrField lbl="Loại">{LINEN_CATEGORIES[sel.category] || sel.category}</DrField>
+            <DrField lbl="Đơn vị">{sel.unit}</DrField>
+            <DrField lbl="Trạng thái">
+              {sel.isActive
+                ? <StatusBadge tone="ok" dot>Hoạt động</StatusBadge>
+                : <StatusBadge tone="warn" dot>Ngừng</StatusBadge>}
+            </DrField>
+          </DrSec>
+          <DrSec title="Tồn kho">
+            <DrField lbl="Tồn sạch">
+              <span style={{ fontFamily: 'var(--font-mono)', color: sel.isLowStock ? 'var(--s-crit)' : 'var(--t-0)', fontWeight: 600 }}>{sel.currentStock}</span>
+              {sel.isLowStock && <StatusBadge tone="crit"> Dưới mức</StatusBadge>}
+            </DrField>
+            <DrField lbl="Đang giặt"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.inCleaning}</span></DrField>
+            <DrField lbl="Đang sửa"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.inRepair}</span></DrField>
+            <DrField lbl="Hư hỏng"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.damaged}</span></DrField>
+          </DrSec>
+        </>}
+      </DrawerShell>
     </>
   );
 };
@@ -101,6 +134,7 @@ const LinenItemsPanel: React.FC = () => {
 
 const LinenTxPanel: React.FC = () => {
   const [rows, setRows] = useState<LinenTransactionDto[]>([]);
+  const [sel, setSel] = useState<LinenTransactionDto | null>(null);
 
   const load = useCallback(async () => {
     try { setRows(await linen.searchTransactions({ pageSize: 200 })); }
@@ -139,7 +173,7 @@ const LinenTxPanel: React.FC = () => {
     <>
       <KpiStrip items={kpis} />
       <DataTable<LinenTransactionDto>
-        rowKey={(r) => r.id} data={rows} columns={columns}
+        rowKey={(r) => r.id} data={rows} columns={columns} onRowClick={setSel}
         actions={(r) => (
           <>
             {r.status === 0 && <ActBtn ic="external" title="Đánh dấu đã gửi" onClick={() => advance(r, 1)} />}
@@ -151,6 +185,31 @@ const LinenTxPanel: React.FC = () => {
           </>
         )}
       />
+
+      <DrawerShell
+        open={!!sel}
+        onClose={() => setSel(null)}
+        size="md"
+        title={sel ? `Giao dịch · ${sel.transactionCode}` : ''}
+        sub={sel ? (LINEN_TX_TYPES[sel.transactionType] || sel.transactionType) : ''}
+      >
+        {sel && <>
+          <DrSec title="Giao dịch">
+            <DrField lbl="Mã"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.transactionCode}</span></DrField>
+            <DrField lbl="Loại">{LINEN_TX_TYPES[sel.transactionType] || sel.transactionType}</DrField>
+            <DrField lbl="Ngày"><span style={{ fontFamily: 'var(--font-mono)' }}>{fmtDTg(sel.transactionDate)}</span></DrField>
+            <DrField lbl="Trạng thái">
+              <StatusBadge tone={txTone(sel.status)} dot>{sel.statusName || TX_STATUS_LABEL[sel.status]}</StatusBadge>
+            </DrField>
+          </DrSec>
+          <DrSec title="Điều chuyển">
+            <DrField lbl="Từ">{sel.fromDepartmentName || '—'}</DrField>
+            <DrField lbl="Đến">{sel.toDepartmentName || sel.vendorName || '—'}</DrField>
+            <DrField lbl="Số lượng"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.totalItems} mục</span></DrField>
+            <DrField lbl="Trọng lượng"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.totalWeightKg} kg</span></DrField>
+          </DrSec>
+        </>}
+      </DrawerShell>
     </>
   );
 };
@@ -159,6 +218,7 @@ const LinenTxPanel: React.FC = () => {
 
 const LinenSterPanel: React.FC = () => {
   const [rows, setRows] = useState<SterilizationScheduleDto[]>([]);
+  const [sel, setSel] = useState<SterilizationScheduleDto | null>(null);
 
   const load = useCallback(async () => {
     try { setRows(await linen.searchSchedules({})); }
@@ -200,7 +260,7 @@ const LinenSterPanel: React.FC = () => {
     <>
       <KpiStrip items={kpis} />
       <DataTable<SterilizationScheduleDto>
-        rowKey={(r) => r.id} data={rows} columns={columns}
+        rowKey={(r) => r.id} data={rows} columns={columns} onRowClick={setSel}
         actions={(r) => (
           <>
             {r.status === 0 && <ActBtn ic="external" title="Bắt đầu" onClick={() => advance(r, 1)} />}
@@ -209,6 +269,39 @@ const LinenSterPanel: React.FC = () => {
           </>
         )}
       />
+
+      <DrawerShell
+        open={!!sel}
+        onClose={() => setSel(null)}
+        size="md"
+        title={sel ? `Lịch tiệt trùng · ${sel.scheduleCode}` : ''}
+        sub={sel ? `${sel.areaType} · ${sel.roomName || '—'}` : ''}
+      >
+        {sel && <>
+          <DrSec title="Lịch">
+            <DrField lbl="Mã"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.scheduleCode}</span></DrField>
+            <DrField lbl="Thời gian"><span style={{ fontFamily: 'var(--font-mono)' }}>{fmtDTg(sel.scheduledAt)}</span></DrField>
+            <DrField lbl="Khu vực">{sel.areaType} · {sel.roomName || '—'}</DrField>
+            <DrField lbl="Phương pháp">{sel.sterilizationMethod}</DrField>
+            <DrField lbl="Nhân viên">{sel.assignedStaff || '—'}</DrField>
+            <DrField lbl="Thời lượng"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.durationMinutes} phút</span></DrField>
+            <DrField lbl="Trạng thái">
+              <StatusBadge tone={sterTone(sel.status)} dot>{sel.statusName || STER_STATUS_LABEL[sel.status]}</StatusBadge>
+            </DrField>
+          </DrSec>
+          <DrSec title="Kết quả cấy">
+            <DrField lbl="Mã mẫu cấy"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.cultureSampleCode || '—'}</span></DrField>
+            <DrField lbl="Kết quả">
+              {sel.cultureResult === 'Pass'
+                ? <StatusBadge tone="ok" dot>Pass</StatusBadge>
+                : sel.cultureResult === 'Fail'
+                  ? <StatusBadge tone="crit" dot>Fail</StatusBadge>
+                  : '—'}
+            </DrField>
+            <DrField lbl="Ghi chú">{sel.notes || '—'}</DrField>
+          </DrSec>
+        </>}
+      </DrawerShell>
     </>
   );
 };

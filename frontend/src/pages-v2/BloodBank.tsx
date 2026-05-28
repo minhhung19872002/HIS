@@ -7,7 +7,7 @@ import { catalogApi } from '../api/system';
 import type { DepartmentCatalogDto } from '../api/system';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, DrawerShell, ModalShell,
+  StatusBadge, ActBtn, DrawerShell, DrSec, DrField, ModalShell,
   type ColumnDef, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -53,6 +53,7 @@ const BloodBankV2: React.FC = () => {
   const [filterType, setFilterType] = useState('');
   const [page, setPage] = useState(0);
   const [detailType, setDetailType] = useState<string | null>(null);
+  const [unitSel, setUnitSel] = useState<BloodStockDetailDto | null>(null);
   const [issueOpen, setIssueOpen] = useState(false);
   const PAGE_SIZE = 16;
 
@@ -248,6 +249,7 @@ const BloodBankV2: React.FC = () => {
             columns={unitColumns}
             data={unitsPaged}
             rowKey={(u) => u.bloodBagId}
+            onRowClick={setUnitSel}
             empty={loading ? 'Đang tải…' : <div className="ab-empty"><TermIcon name="drop" size={20} /><div>Không có đơn vị máu</div></div>}
           />
         </>
@@ -266,6 +268,30 @@ const BloodBankV2: React.FC = () => {
         size="lg"
       >
         {detailType && <BloodTypeDetail type={detailType} stock={stock} />}
+      </DrawerShell>
+
+      <DrawerShell
+        open={!!unitSel}
+        onClose={() => setUnitSel(null)}
+        size="md"
+        title={unitSel ? `Đơn vị máu ${unitSel.bagCode}` : ''}
+        sub={unitSel ? `${unitSel.bloodType}${unitSel.rhFactor} · ${unitSel.productTypeName}` : ''}
+      >
+        {unitSel && (
+          <DrSec title="Đơn vị máu">
+            <DrField lbl="Mã đơn vị"><span style={{ fontFamily: 'var(--font-mono)' }}>{unitSel.bagCode}</span></DrField>
+            <DrField lbl="Nhóm máu">{unitSel.bloodType}{unitSel.rhFactor}</DrField>
+            <DrField lbl="Chế phẩm">{unitSel.productTypeName}</DrField>
+            <DrField lbl="Thể tích"><span style={{ fontFamily: 'var(--font-mono)' }}>{unitSel.volume} mL</span></DrField>
+            <DrField lbl="Vị trí">{unitSel.storageLocation || '—'}</DrField>
+            <DrField lbl="Hạn sử dụng">{fmtDMY(unitSel.expiryDate)}{unitSel.daysUntilExpiry != null ? ` · còn ${unitSel.daysUntilExpiry}d` : ''}</DrField>
+            <DrField lbl="Trạng thái">
+              <StatusBadge tone={(STATUS_LABEL[unitSel.status] || { tone: 'info' as const }).tone} dot>
+                {(STATUS_LABEL[unitSel.status] || { l: unitSel.status }).l}
+              </StatusBadge>
+            </DrField>
+          </DrSec>
+        )}
       </DrawerShell>
 
       <BloodIssueModal
@@ -458,6 +484,7 @@ const ExpiringTab: React.FC<{
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   message: any;
 }> = ({ rows, loading, message }) => {
+  const [sel, setSel] = useState<BloodBagDto | null>(null);
   const columns: ColumnDef<BloodBagDto>[] = [
     { key: 'bag', label: 'Mã túi', mono: true, width: 130, render: (b) => b.bagCode },
     { key: 'barcode', label: 'Barcode', mono: true, width: 130, render: (b) => b.barcode },
@@ -493,10 +520,12 @@ const ExpiringTab: React.FC<{
     },
   ];
   return (
+    <>
     <DataTable<BloodBagDto>
       columns={columns}
       data={rows}
       rowKey={(b) => b.id}
+      onRowClick={setSel}
       actions={(b) => (
         <div className="ab-actions">
           <ActBtn ic="send" title="Cấp phát" onClick={() => message.info(`Cấp phát ${b.bagCode}`)} />
@@ -510,10 +539,34 @@ const ExpiringTab: React.FC<{
         </div>
       )}
     />
+    <DrawerShell
+      open={!!sel}
+      onClose={() => setSel(null)}
+      size="md"
+      title={sel ? `Túi máu ${sel.bagCode}` : ''}
+      sub={sel ? `${sel.bloodType}${sel.rhFactor} · ${sel.productTypeName}` : ''}
+    >
+      {sel && (
+        <DrSec title="Túi máu sắp hết hạn">
+          <DrField lbl="Mã túi"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.bagCode}</span></DrField>
+          <DrField lbl="Barcode"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.barcode || '—'}</span></DrField>
+          <DrField lbl="Nhóm máu">{sel.bloodType}{sel.rhFactor}</DrField>
+          <DrField lbl="Chế phẩm">{sel.productTypeName}</DrField>
+          <DrField lbl="Thể tích"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.volume} {sel.unit || 'mL'}</span></DrField>
+          <DrField lbl="Người hiến">{sel.donorName || '—'}{sel.donorCode ? ` (${sel.donorCode})` : ''}</DrField>
+          <DrField lbl="Vị trí">{sel.storageLocation || '—'}</DrField>
+          <DrField lbl="Hạn sử dụng">{fmtDMY(sel.expiryDate)}</DrField>
+          <DrField lbl="Trạng thái"><StatusBadge tone={sel.status === 'available' ? 'ok' : 'warn'} dot>{sel.status}</StatusBadge></DrField>
+        </DrSec>
+      )}
+    </DrawerShell>
+    </>
   );
 };
 
 const RequestsTab: React.FC<{ rows: BloodIssueRequestDto[]; loading: boolean }> = ({ rows, loading }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [sel, setSel] = useState<Record<string, any> | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cols: ColumnDef<any>[] = [
     { key: 'code', label: 'Mã YC', mono: true, width: 130, render: (r) => r.requestCode || r.id?.slice(0, 8) },
@@ -532,10 +585,12 @@ const RequestsTab: React.FC<{ rows: BloodIssueRequestDto[]; loading: boolean }> 
     },
   ];
   return (
+    <>
     <DataTable
       columns={cols}
       data={rows as unknown as Record<string, unknown>[]}
       rowKey={(r) => (r as { id: string }).id}
+      onRowClick={(r) => setSel(r as Record<string, unknown>)}
       empty={loading ? 'Đang tải…' : (
         <div className="ab-empty">
           <TermIcon name="search" size={20} />
@@ -543,6 +598,28 @@ const RequestsTab: React.FC<{ rows: BloodIssueRequestDto[]; loading: boolean }> 
         </div>
       )}
     />
+    <DrawerShell
+      open={!!sel}
+      onClose={() => setSel(null)}
+      size="md"
+      title={sel ? `Yêu cầu ${sel.requestCode || (sel.id as string)?.slice(0, 8)}` : ''}
+      sub={sel ? (sel.patientName || '—') : ''}
+    >
+      {sel && (
+        <DrSec title="Yêu cầu xuất máu">
+          <DrField lbl="Mã YC"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.requestCode || (sel.id as string)?.slice(0, 8)}</span></DrField>
+          <DrField lbl="Bệnh nhân">{sel.patientName || '—'}</DrField>
+          <DrField lbl="Khoa yêu cầu">{sel.departmentName || '—'}</DrField>
+          <DrField lbl="Lý do / Chỉ định">{sel.indication || sel.reason || '—'}</DrField>
+          <DrField lbl="Mức độ">{sel.urgency || 'Thường'}</DrField>
+          <DrField lbl="Trạng thái">
+            <StatusBadge tone={sel.status === 'approved' || sel.status === 'issued' ? 'ok' : 'warn'} dot>{sel.statusName || sel.status || '—'}</StatusBadge>
+          </DrField>
+          <DrField lbl="Ngày YC">{fmtDMY(sel.requestDate || sel.createdAt)}</DrField>
+        </DrSec>
+      )}
+    </DrawerShell>
+    </>
   );
 };
 

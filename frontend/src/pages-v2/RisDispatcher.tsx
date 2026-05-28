@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, ModalShell,
+  DrawerShell, DrSec, DrField,
   Ico, tk, ti, tw, type ColumnDef,
 } from './_v2kit';
 
@@ -27,6 +28,8 @@ const RisDispatcherV2: React.FC = () => {
   const [selectedRoom, setSelectedRoom] = useState('');
   const [loading, setLoading] = useState(false);
   const [dispatchModal, setDispatchModal] = useState<PendingService | null>(null);
+  const [selPending, setSelPending] = useState<PendingService | null>(null);
+  const [selQueue, setSelQueue] = useState<QueueItem | null>(null);
   const [tab, setTab] = useState<Tab>('pending');
   const [dispatchForm] = Form.useForm<{ roomId: string; priority: number; note?: string }>();
 
@@ -152,6 +155,7 @@ const RisDispatcherV2: React.FC = () => {
       {tab === 'pending' && (
         <DataTable<PendingService>
           columns={pendingCols} data={pending} rowKey={(r) => r.serviceRequestDetailId}
+          onRowClick={setSelPending}
           actions={(r) => (
             <div className="ab-actions">
               <ActBtn ic="send" title="Điều phối" onClick={() => {
@@ -167,6 +171,7 @@ const RisDispatcherV2: React.FC = () => {
       {tab === 'queue' && (
         <DataTable<QueueItem>
           columns={queueCols} data={queue} rowKey={(r) => r.id}
+          onRowClick={setSelQueue}
           actions={(r) => (
             <div className="ab-actions">
               {!r.isArrived && <ActBtn ic="check" title="Đã đến" onClick={() => markArrived(r.id)} />}
@@ -205,6 +210,57 @@ const RisDispatcherV2: React.FC = () => {
           </Form.Item>
         </Form>
       </ModalShell>
+
+      <DrawerShell
+        open={!!selPending}
+        onClose={() => setSelPending(null)}
+        size="md"
+        title={selPending ? `Chờ điều phối · ${selPending.patientName}` : ''}
+        sub={selPending ? selPending.patientCode : ''}
+      >
+        {selPending && <>
+          <DrSec title="Bệnh nhân">
+            <DrField lbl="Họ tên">{selPending.patientName}</DrField>
+            <DrField lbl="Mã BN"><span style={{ fontFamily: 'var(--font-mono)' }}>{selPending.patientCode}</span></DrField>
+          </DrSec>
+          <DrSec title="Dịch vụ">
+            <DrField lbl="Dịch vụ">{selPending.serviceName}</DrField>
+            <DrField lbl="Mã DV"><span style={{ fontFamily: 'var(--font-mono)' }}>{selPending.serviceCode}</span></DrField>
+            <DrField lbl="Barcode"><span style={{ fontFamily: 'var(--font-mono)' }}>{selPending.sampleBarcode || '—'}</span></DrField>
+            <DrField lbl="Chỉ định lúc"><span style={{ fontFamily: 'var(--font-mono)' }}>{dayjs(selPending.createdAt).format('HH:mm DD/MM/YYYY')}</span></DrField>
+          </DrSec>
+        </>}
+      </DrawerShell>
+
+      <DrawerShell
+        open={!!selQueue}
+        onClose={() => setSelQueue(null)}
+        size="md"
+        title={selQueue ? `Hàng đợi · ${selQueue.patientName}` : ''}
+        sub={selQueue ? selQueue.patientCode : ''}
+      >
+        {selQueue && <>
+          <DrSec title="Bệnh nhân">
+            <DrField lbl="Họ tên">{selQueue.patientName}</DrField>
+            <DrField lbl="Mã BN"><span style={{ fontFamily: 'var(--font-mono)' }}>{selQueue.patientCode}</span></DrField>
+          </DrSec>
+          <DrSec title="Điều phối">
+            <DrField lbl="Dịch vụ">{selQueue.serviceName}</DrField>
+            <DrField lbl="Ưu tiên">
+              {selQueue.priority === 3 ? <StatusBadge tone="crit" dot>Cấp cứu</StatusBadge>
+                : selQueue.priority === 2 ? <StatusBadge tone="warn" dot>Ưu tiên</StatusBadge>
+                : <StatusBadge tone="info">Thường</StatusBadge>}
+            </DrField>
+            <DrField lbl="Đã đến">
+              {selQueue.isArrived
+                ? <StatusBadge tone="ok" dot>{dayjs(selQueue.arrivedAt).format('HH:mm DD/MM')}</StatusBadge>
+                : <StatusBadge tone="warn">Chưa</StatusBadge>}
+            </DrField>
+            <DrField lbl="Điều phối lúc"><span style={{ fontFamily: 'var(--font-mono)' }}>{dayjs(selQueue.dispatchedAt).format('HH:mm DD/MM/YYYY')}</span></DrField>
+            <DrField lbl="Ghi chú">{selQueue.note || '—'}</DrField>
+          </DrSec>
+        </>}
+      </DrawerShell>
     </div>
   );
 };

@@ -196,6 +196,7 @@ const ReceiptBookAdminV2: React.FC = () => {
 
       <DataTable<ReceiptBook>
         columns={cols} data={data} rowKey={(r) => r.id}
+        onRowClick={openEdit}
         actions={(r) => (
           <div className="ab-actions">
             <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />

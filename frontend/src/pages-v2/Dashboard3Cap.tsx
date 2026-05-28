@@ -9,7 +9,7 @@ import {
 } from '../api/multiFacility';
 import type {
   MultiFacilityDashboardDto, BranchTreeDto,
-  ConsolidatedReportDto, BranchDutyRosterDto,
+  ConsolidatedReportDto, BranchDutyRosterDto, BranchSummary,
 } from '../api/multiFacility';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn,
@@ -54,6 +54,7 @@ const Dashboard3CapV2: React.FC = () => {
   const [branchId, setBranchId] = useState('');
   const [loading, setLoading] = useState(false);
   const [selBranch, setSelBranch] = useState<BranchTreeDto | null>(null);
+  const [selSub, setSelSub] = useState<BranchSummary | null>(null);
 
   const loadTree = async () => {
     try {
@@ -265,6 +266,7 @@ const Dashboard3CapV2: React.FC = () => {
             </div>
             <DataTable
               columns={subCols} data={dashboard.subBranches} rowKey={(r) => r.branchId}
+              onRowClick={setSelSub}
               actions={(r) => (
                 <div className="ab-actions">
                   <ActBtn ic="eye" title="Xem CN" onClick={() => { setBranchId(r.branchId); }} />
@@ -348,6 +350,37 @@ const Dashboard3CapV2: React.FC = () => {
             <DrField lbl="BN"><span style={{ fontFamily: 'var(--font-mono)' }}>{selBranch.patientCount.toLocaleString('vi-VN')}</span></DrField>
             <DrField lbl="NV"><span style={{ fontFamily: 'var(--font-mono)' }}>{selBranch.staffCount}</span></DrField>
             <DrField lbl="Doanh thu hôm nay"><span style={{ fontFamily: 'var(--font-mono)' }}>{fmtCurr(selBranch.todayRevenue)}</span></DrField>
+          </DrSec>
+        </>}
+      </DrawerShell>
+
+      <DrawerShell
+        open={!!selSub}
+        onClose={() => setSelSub(null)}
+        size="md"
+        title={selSub?.branchName || ''}
+        sub={selSub?.branchCode || ''}
+      >
+        {selSub && <>
+          <DrSec title="Chi nhánh con">
+            <DrField lbl="Mã"><span style={{ fontFamily: 'var(--font-mono)' }}>{selSub.branchCode}</span></DrField>
+            <DrField lbl="Tên">{selSub.branchName}</DrField>
+            <DrField lbl="Cấp độ">
+              <StatusBadge tone={selSub.branchLevel === 'Tỉnh/Thành phố' ? 'crit' : selSub.branchLevel === 'Huyện/Quận' ? 'warn' : 'info'}>
+                {selSub.branchLevel}
+              </StatusBadge>
+            </DrField>
+            <DrField lbl="CN con"><span style={{ fontFamily: 'var(--font-mono)' }}>{selSub.subBranchCount}</span></DrField>
+          </DrSec>
+          <DrSec title="Hoạt động">
+            <DrField lbl="Ngoại trú"><span style={{ fontFamily: 'var(--font-mono)' }}>{selSub.outpatients.toLocaleString('vi-VN')}</span></DrField>
+            <DrField lbl="Nội trú"><span style={{ fontFamily: 'var(--font-mono)' }}>{selSub.inpatients.toLocaleString('vi-VN')}</span></DrField>
+            <DrField lbl="Doanh thu"><span style={{ fontFamily: 'var(--font-mono)' }}>{fmtCurr(selSub.revenue)}</span></DrField>
+          </DrSec>
+          <DrSec title="Thao tác">
+            <button className="ab-btn primary" type="button" onClick={() => { setBranchId(selSub.branchId); setSelSub(null); }}>
+              <Ico name="eye" size={12} /> Xem dashboard chi nhánh này
+            </button>
           </DrSec>
         </>}
       </DrawerShell>
