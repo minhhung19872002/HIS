@@ -68,7 +68,7 @@ Requirement gốc + Source-of-truth PDF (HSMT + biểu mẫu)
 Note dev ad-hoc, legacy archive, tài liệu workspace tạm
 
 - [`legacy/`](./dev-notes/legacy/) — Script legacy đã thay thế
-- [`workspace-docs/`](./workspace-docs/) — audit/checklist workspace (v2-priority-audit, …)
+- [`workspace-docs/`](./workspace-docs/) — audit/checklist workspace (rule-compliance-audit, luong_nghiep_vu, …)
 
 ## Quy ước thêm doc mới
 

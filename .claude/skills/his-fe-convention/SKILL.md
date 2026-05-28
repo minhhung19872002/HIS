@@ -44,6 +44,11 @@ Mục tiêu: code luôn đúng convention + kiến trúc hiện có, không lệ
 - **Tên phản ánh DOMAIN/nghiệp vụ**, không kỹ thuật chung chung: `prescriptionItems` ✅ chứ không `dataList`/`arr`/`tmp`.
 - **Không viết tắt khó hiểu**: `medicalRecord` ✅ chứ không `mr/medRec`. Cho phép viết tắt phổ biến của dự án: BN (bệnh nhân), CLS, KSK, CCHN, BHYT.
 - DTO field PHẢI khớp tên BE (camelCase JSON) — không tự đổi tên ở FE.
+- **Props interface đặt tên `<TênComponent>Props`** (PascalCase + hậu tố `Props`), field camelCase: `interface ReceptionPaymentProps { ... }`. Component có props → luôn khai báo interface, không dùng inline `{ x }: { x: T }` cho props phức tạp.
+- **Export — KHÔNG đồng nhất, theo LAYER (đừng ép named export toàn bộ):**
+  - **Page-v2** (`pages-v2/*.tsx`) → **`export default`** (bắt buộc, để `React.lazy(() => import(...))` trong `App.tsx`). Vd `export default ReceptionV2;`.
+  - **Component tái dùng / biểu mẫu in / util / hook / `_v2kit`** → **named export** (`export const PatientTimeline`, `export function toSignatureStamp`) để barrel `export *` + import chọn lọc.
+  - File tách từ god-file → giữ **named export** cho từng phần + `index.ts` barrel re-export (giữ đường import cũ).
 
 ## 2. FE Architecture Rules (tách layer)
 
@@ -104,7 +109,7 @@ Quy tắc:
   thứ Antd/`_v2kit` đã có (Input/Select/Radio/Checkbox/Table/Modal/Tabs/DatePicker/`Btn`/`DataTable`/`CrudModal`…).
   Chỉ dựng/tự-style khi (a) là design-primitive terminal `ab-*` đã quy ước, hoặc (b) Antd thật sự không đáp ứng — và khi đó **gói vào shared component**, không rải raw HTML khắp page.
 - **Input/Select/Radio/Checkbox/Table/Modal nhận config JSON** thay hardcode option inline:
-  dùng `OptionsSelect` / `RadioField` / `CheckboxField` / `AbSelect` / `CrudModal` (`CrudFieldCfg[]`) + `normalizeOptions`/`fieldNames` (map label/value/disabled/group/children/custom-field/async). Xem `can-lam-ketqua.md`.
+  dùng `OptionsSelect` / `RadioField` / `CheckboxField` / `AbSelect` / `CrudModal` (`CrudFieldCfg[]`) + `normalizeOptions`/`fieldNames` (map label/value/disabled/group/children/custom-field/async). Định nghĩa + cách dùng kit: `frontend/src/pages-v2/_v2kit.tsx`.
 - **Typed props đầy đủ** cho mọi component.
 - **KHÔNG tạo wrapper vô nghĩa** chỉ để bọc 1 lớp Antd không thêm giá trị.
 - Antd v6: dùng prop mới (`orientation`/`title`/`size`/`destroyOnHidden`…), tránh deprecated — xem `his-fe-antd-v6`.
