@@ -79,8 +79,10 @@
 | **D3. Stacktrace ở prod** | Program.cs KHÔNG có `UseDeveloperExceptionPage` unconditional; prod thực tế trả `{message}` sạch (verify qua response prod). Stacktrace chỉ ở Development (mặc định ASP.NET). | ✅ **ĐÃ COMPLIANT** · không cần sửa |
 | **D4. Quy ước nhánh Git** | `feature/* fix/* hotfix/*` + bảo vệ `main`. | ⏳ Quy trình (không code) — chưa áp |
 | **D5. Dọn dead CSS / file lạc** | `Inpatient.css` + `Surgery.css` (không importer) đã `git rm`. | ✅ **DONE** |
-| **D6. `Console.WriteLine` BE (2 chỗ)** | Chuyển `Console.WriteLine` → `ILogger` hoặc bỏ debug. | ⏳ chưa làm |
-| **D7. Siết `:any`/`as any` (typed props)** | `RadiologyOps`(9)·`ObservationStay`(8)·`OfficeSupplyApproval`(7)·`MasterData`(6)·`SystemAdmin`(5)… — siết type **khi đụng file** (P2, không làm riêng đợt). `_v2kit.tsx`(13 `any`) = ✅ kit generic cố ý. | ⏳ chưa làm (P2) |
+| **D6. `Console.WriteLine` BE (2 chỗ)** | Inject `ILogger<T>` vào `RISCompleteService` + `RISCompleteController` → `Console.WriteLine` thành `_logger.LogWarning`. Còn **0** Console.WriteLine; BE build 0 lỗi. | ✅ **DONE 2026-05-29** |
+| **D7. Siết `:any`/`as any` (typed props)** | `RadiologyOps`(9)·`ObservationStay`(8)·`OfficeSupplyApproval`(7)·`MasterData`(6)·`SystemAdmin`(5)… — siết type **khi đụng file** (P2). `_v2kit.tsx`(13 `any`) = ✅ kit generic cố ý. | ⏳ làm dần khi sửa file (P2, không phải task lẻ) |
+
+> **🟢 Cụm DỄ: HOÀN TẤT phần code** (D1·D2·D5·D6 ✅ · D3 đã-compliant). Còn **D4** (quy ước nhánh Git) = **quy trình team adopt** (không code — đã ghi ở mục C/D); **D7** = siết `any` dần khi đụng file (không phải đợt riêng).
 
 ### 🟡 TRUNG BÌNH (1–3 ngày/việc · cần test kỹ · rủi ro vừa)
 | Việc | Cách làm | Rủi ro |

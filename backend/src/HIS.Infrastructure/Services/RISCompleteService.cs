@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs.Radiology;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -34,6 +35,7 @@ public class RISCompleteService : IRISCompleteService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IConfiguration _configuration;
     private readonly IResultNotificationService _notificationService;
+    private readonly ILogger<RISCompleteService> _logger;
 
     // PACS configuration (optional - for future integration)
     private readonly string _pacsBaseUrl;
@@ -52,7 +54,8 @@ public class RISCompleteService : IRISCompleteService
         IRepository<Service> serviceRepo,
         IUnitOfWork unitOfWork,
         IConfiguration configuration,
-        IResultNotificationService notificationService)
+        IResultNotificationService notificationService,
+        ILogger<RISCompleteService> logger)
     {
         _context = context;
         _patientRepo = patientRepo;
@@ -67,6 +70,7 @@ public class RISCompleteService : IRISCompleteService
         _unitOfWork = unitOfWork;
         _configuration = configuration;
         _notificationService = notificationService;
+        _logger = logger;
 
         // Optional PACS configuration (disabled by default)
         _pacsEnabled = configuration.GetValue<bool>("PACS:Enabled", false);
@@ -5494,7 +5498,7 @@ public class RISCompleteService : IRISCompleteService
             catch (Exception ex)
             {
                 // Log but don't throw - fall through to stub
-                Console.WriteLine($"Orthanc export failed: {ex.Message}");
+                _logger.LogWarning(ex, "Orthanc export failed: {Message}", ex.Message);
             }
         }
 

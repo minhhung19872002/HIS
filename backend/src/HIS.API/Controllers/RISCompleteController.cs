@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
 using HIS.Application.DTOs.Radiology;
 using HIS.Infrastructure.Services;
+using Microsoft.Extensions.Logging;
 
 // USB Token Sign Request DTO
 public class USBTokenSignRequest
@@ -84,17 +85,20 @@ namespace HIS.API.Controllers
         private readonly IDigitalSignatureService _digitalSignatureService;
         private readonly IPdfSignatureService _pdfSignatureService;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<RISCompleteController> _logger;
 
         public RISCompleteController(
             IRISCompleteService risService,
             IDigitalSignatureService digitalSignatureService,
             IPdfSignatureService pdfSignatureService,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            ILogger<RISCompleteController> logger)
         {
             _risService = risService;
             _digitalSignatureService = digitalSignatureService;
             _pdfSignatureService = pdfSignatureService;
             _configuration = configuration;
+            _logger = logger;
         }
 
         /// <summary>
@@ -1736,7 +1740,7 @@ namespace HIS.API.Controllers
                     catch (Exception dbEx)
                     {
                         // Log the error but don't fail - signature was still created successfully
-                        Console.WriteLine($"Warning: Could not save signature to database: {dbEx.Message}");
+                        _logger.LogWarning(dbEx, "Could not save signature to database: {Message}", dbEx.Message);
                         // Optionally add a note to the result
                         result.Message = "Ký số thành công (chưa lưu vào hồ sơ - báo cáo không tồn tại hoặc đã ký)";
                     }
