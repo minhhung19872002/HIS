@@ -30,7 +30,7 @@
 | 5 | **EF Migrations folder dead** | 7 file auto-gen 10k–19k dòng (`Migrations/*.Designer.cs`, `ModelSnapshot`) | HIS dùng SQL-script + ignore pending model changes → migration EF không dùng nhưng vẫn nằm trong repo, gây nhiễu/nặng |
 | 6 | ~~**react-query cài nhưng gần như không dùng**~~ | `@tanstack/react-query` trong deps, chỉ **1 file** dùng (Provider) | ✅ **ĐÃ XỬ LÝ 2026-05-29** — gỡ hoàn toàn (App.tsx + deps + vite) |
 | 7 | ~~**Hardcode tên BV**~~ | Thực tế **3 chỗ** là tên thật (còn lại là nhãn/chức danh) | ✅ **ĐÃ XỬ LÝ 2026-05-29** — 3 chỗ → `${HOSPITAL_NAME}` |
-| 8 | **Raw SQL tới bảng không version-control** | 6 file dùng `ExecuteSqlRaw/FromSqlRaw`; `BloodOrders/BloodOrderItems` không có entity/DbSet/script | Môi trường mới vỡ (bảng chỉ có trên prod do tạo tay) |
+| 8 | **Raw SQL tới bảng không version-control** | 6 file dùng `ExecuteSqlRaw/FromSqlRaw` | ✅ **BloodOrders/BloodOrderItems ĐÃ có script `46_blood_orders.sql` (2026-05-29)**; còn lại raw-SQL khác rà sau |
 | 9 | **API response chưa chuẩn hoá** | login `{success,message,data}` vs endpoint khác trả mảng thô / `{items,totalCount}` | FE phải xử lý nhiều shape (đã có `Array.isArray` workaround) |
 | 10 | **NangCap24 không exception filter** | validation/not-found trả **500** thay vì 400/404 | Sai HTTP semantics; client khó phân biệt lỗi nghiệp vụ vs lỗi hệ thống |
 | 11 | **Button-debt / raw HTML FE V2** | **707 `<button ab-btn>`** + raw `<select>/<table>/<input>` (18 file) chưa dùng kit | Kit `Btn`/`AbSelect`/`CrudModal` đã có → migrate dần (markup y hệt) |
@@ -86,7 +86,7 @@
 | Việc | Cách làm | Rủi ro |
 |---|---|---|
 | **T1. Shadow-FK cho 13 entity có nav `User`** | Thêm Fluent API `.HasForeignKey(x => x.XxxByUserId)` trong `HISDbContext` + script ALTER cột shadow `…ById` thành NULL (idempotent). Test create từng entity. | TB (đụng DbContext shared) |
-| **T2. BloodOrders/BloodOrderItems vào version-control** | Viết script `Data/Scripts/NN_blood_orders.sql` idempotent (CREATE IF NOT EXISTS) theo cột raw-SQL đang dùng. | TB |
+| ~~**T2. BloodOrders/BloodOrderItems vào version-control**~~ | ✅ **DONE 2026-05-29** — `Data/Scripts/46_blood_orders.sql` idempotent (IF NOT EXISTS, prod no-op), cột khớp raw-SQL. Verify tạo trên local + BE build 0 lỗi; prod/env mới tự tạo qua repair-runner. | ✅ DONE |
 | **T3. Exception filter NangCap24** | Thêm middleware/filter map business-exception → 400/404/409 + structured body; áp cho controller NangCap24. | TB |
 | **T4. Chuẩn hoá API response envelope** | Định nghĩa `ApiResponse<T> {success,data,message,errors}` + áp dần cho endpoint mới; FE đọc nhất quán. | TB (làm dần, không big-bang) |
 | **T5. Gỡ EF Migrations dead** | Xác nhận startup KHÔNG dùng `Database.Migrate()` (dùng ProductionSchemaRepairRunner) → xoá `Migrations/` (giữ snapshot nếu cần) → giảm ~100k dòng repo. | TB (verify kỹ trước khi xoá) |
