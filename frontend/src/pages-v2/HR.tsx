@@ -13,7 +13,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import TermIcon from '../layouts/terminal/Icon';
-import './HR.css';
+import '../styles/HR.css';
 
 type ShiftType = 'morning' | 'evening' | 'night' | 'off';
 

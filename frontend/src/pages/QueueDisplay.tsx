@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { publicClient } from '../api/publicClient';
 import { HOSPITAL_NAME } from '../constants/hospital';
 import type { QueueDisplayDto, QueueTicketDto } from '../api/reception';
-import './QueueDisplay.css';
+import '../styles/QueueDisplay.css';
 
 const POLL_INTERVAL = 4000;
 const DEFAULT_QUEUE_TYPE = 2; // Exam

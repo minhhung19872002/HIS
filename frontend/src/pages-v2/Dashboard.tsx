@@ -18,7 +18,7 @@ import * as alertsApi from '../api/businessAlerts';
 import type { BusinessAlertDto } from '../api/businessAlerts';
 import * as hrApi from '../api/medicalHR';
 import type { MedicalHRDashboardDto } from '../api/medicalHR';
-import './Dashboard.css';
+import '../styles/Dashboard.css';
 
 
 /* ==========================================================================

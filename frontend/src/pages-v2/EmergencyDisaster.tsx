@@ -7,7 +7,7 @@ import {
   getActiveEvent, getVictims, registerVictim,
   type MCIVictimDto, type RegisterVictimDto,
 } from '../api/massCasualty';
-import './EmergencyDisaster.css';
+import '../styles/EmergencyDisaster.css';
 
 type TriageLevel = 1 | 2 | 3 | 4 | 5;
 type EmergencyStatus = 'triage' | 'treating' | 'observing' | 'admitted' | 'discharged' | 'referred';

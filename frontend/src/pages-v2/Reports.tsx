@@ -14,7 +14,7 @@ import dayjs from 'dayjs';
 import TermIcon from '../layouts/terminal/Icon';
 import { statisticsApi } from '../api/system';
 import type { DepartmentRevenueDto, HospitalDashboardDto } from '../api/system';
-import './reports-v2.css';
+import '../styles/reports-v2.css';
 
 type ReportCategoryId = 'operational' | 'clinical' | 'financial' | 'regulatory';
 type ReportPeriodId = 'day' | 'week' | 'month' | 'year';
