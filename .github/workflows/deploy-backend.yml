@@ -1,0 +1,73 @@
+name: Deploy backend to Cloud Run
+
+# Tự động build + deploy backend lên Cloud Run khi push code BE vào main.
+# Xác thực GCP bằng Workload Identity Federation (keyless — không có SA key).
+# FE (Vercel) đã auto-deploy riêng; workflow này chỉ lo backend.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'cloudbuild.yaml'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch: {}
+
+# Không cho 2 lần deploy chạy chồng nhau; lần mới xếp hàng đợi lần trước xong.
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write   # BẮT BUỘC để lấy OIDC token cho Workload Identity Federation
+
+env:
+  GCP_PROJECT: project-4d4a3f8e-d582-4536-97f
+  GCP_REGION: asia-southeast1
+  CLOUD_RUN_SERVICE: his-api
+  IMAGE_REPO: asia-southeast1-docker.pkg.dev/project-4d4a3f8e-d582-4536-97f/his/his-api
+  WIF_PROVIDER: projects/694913628964/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  DEPLOY_SA: github-deploy@project-4d4a3f8e-d582-4536-97f.iam.gserviceaccount.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (Workload Identity)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOY_SA }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Compute image tag
+        id: img
+        run: echo "tag=${IMAGE_REPO}:$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build image (Cloud Build)
+        run: |
+          gcloud builds submit \
+            --config cloudbuild.yaml \
+            --substitutions=_IMAGE=${{ steps.img.outputs.tag }} \
+            --project=${{ env.GCP_PROJECT }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run services update ${{ env.CLOUD_RUN_SERVICE }} \
+            --image=${{ steps.img.outputs.tag }} \
+            --region=${{ env.GCP_REGION }} \
+            --project=${{ env.GCP_PROJECT }} \
+            --update-env-vars=DEPLOY_AT=$(date +%s)
+
+      - name: Summary
+        run: |
+          echo "### ✅ Backend deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image: \`${{ steps.img.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Service: \`${{ env.CLOUD_RUN_SERVICE }}\` (${{ env.GCP_REGION }})" >> "$GITHUB_STEP_SUMMARY"
