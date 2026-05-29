@@ -5381,4 +5381,62 @@ Cloud Run (Linux) → `open-session` báo "Không tìm thấy USB Token". User c
 `baf3479` P1 CRUD 9 trang · `5935eb8` row-click detail 12 trang · `78957d2`
 VGCA Sign Service. Cloud Run: **`his-api-00035-pg2`**. Vercel: auto-deploy mỗi push.
 
+---
+
+## Work Log - 2026-05-29 (CI/CD backend — GitHub Actions auto-deploy Cloud Run)
+
+Member báo "push code mà BE không tự deploy". Điều tra xác nhận đúng:
+KHÔNG có `.github/workflows`, **0 Cloud Build trigger** (global +
+asia-southeast1), không CI provider nào ở cấp repo. `cloudbuild.yaml`
+chỉ là recipe build thủ công (`gcloud builds submit`) và còn KHÔNG có
+bước deploy → deploy BE xưa nay là 2 lệnh `gcloud` tay. FE (Vercel) thì
+auto-deploy nên dễ hiểu nhầm "đã có CI".
+
+### Đã làm — GitHub Actions auto-deploy backend
+
+- `.github/workflows/deploy-backend.yml`: push `main` đụng `backend/**`
+  (hoặc `cloudbuild.yaml` / file workflow) → build Cloud Build + rollout
+  `gcloud run services update` + bump `DEPLOY_AT`. Có `workflow_dispatch`
+  chạy tay. `concurrency` chống deploy chồng. Action đã bump bản Node-24:
+  `actions/checkout@v6`, `google-github-actions/auth@v3`, `setup-gcloud@v3`
+  (tránh GitHub ép Node 24 gãy từ 2026-06-02).
+- **Auth = Workload Identity Federation (keyless)**. User chọn JSON key
+  nhưng org policy `constraints/iam.disableServiceAccountKeyCreation`
+  (kế thừa org, enforced) CHẶN tạo SA key → buộc chuyển WIF.
+- GCP setup (account owner `minhhung19872004@gmail.com`):
+  - SA `github-deploy@project-4d4a3f8e-d582-4536-97f.iam.gserviceaccount.com`
+  - Roles project: `cloudbuild.builds.editor`, `run.admin`, `storage.admin`,
+    `artifactregistry.writer`; + `iam.serviceAccountUser` trên runtime/build
+    SA `694913628964-compute@developer.gserviceaccount.com`
+  - WIF: pool `github-pool`, provider `github-provider` (OIDC GitHub,
+    attribute-condition khoá đúng repo `minhhung19872002/HIS`),
+    `iam.workloadIdentityUser` cho principalSet của repo lên deploy SA
+  - Provider resource:
+    `projects/694913628964/locations/global/workloadIdentityPools/github-pool/providers/github-provider`
+
+### Verify — chạy thật 2 lần, đều success
+
+- Run 1 (commit `1fbaf86`): 6m4s, mọi bước ✓. Deploy luôn cả BE tồn đọng
+  của member ("chờ deploy Cloud Run") → revision `his-api-00036-skz`,
+  schema-drift `missingCount: 0`.
+- Run 2 (bump action `9a68a5d`): success → revision `his-api-00037-z7q`.
+
+### Pitfalls
+- Org policy chặn SA JSON key → phải WIF (keyless). Đây là lý do hệ thống
+  "đẩy" về keyless; không đập policy.
+- `workloadIdentityUser` binding lần đầu `IAM_PERMISSION_DENIED` do
+  propagation ngay sau khi tạo SA/pool → retry là OK.
+- `gh secret`/`gh` đã đăng nhập đúng owner repo nên set được tự động (cuối
+  cùng không cần secret vì WIF dùng provider+SA name, không phải bí mật).
+
+### Hệ quả với skill/docs
+- `his-ops-deploy/SKILL.md` đã cập nhật: gotcha "Cloud Run KHÔNG auto-deploy"
+  giờ thành "BE ĐÃ auto-deploy qua Actions; lệnh gcloud tay là fallback".
+- Sau khi push BE vẫn nên `gh run list --workflow=deploy-backend.yml` kiểm
+  tra (đề phòng workflow fail hoặc đổi BE ngoài path filter).
+
+### Commits phiên (đã push origin/main)
+`52bb69c`→`1fbaf86` add workflow (WIF) · `9a68a5d` bump action Node-24.
+Cloud Run: **`his-api-00037-z7q`**. Frontend Vercel: không đổi (auto-deploy).
+
 

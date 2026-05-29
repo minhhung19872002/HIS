@@ -23,8 +23,9 @@ Skill chuẩn hoá quy trình deploy production HIS: **backend → Google Cloud 
 ## ⚠️ Gotcha sống còn
 
 - **Vercel auto-deploy FE** khi `git push` (build `npm run build` = `tsc -b && vite`).
-- **Cloud Run KHÔNG auto-deploy BE** — phải chạy `gcloud builds submit` + `gcloud run services update` **thủ công**.
-- Hệ quả hay gặp: commit BE đã push, FE live, nhưng mọi endpoint mới trả **404** vì Cloud Run còn ở revision cũ. → Luôn deploy BE sau khi push code BE.
+- **Backend GIỜ ĐÃ auto-deploy** qua GitHub Actions (`.github/workflows/deploy-backend.yml`, từ 2026-05-29): push vào `main` đụng `backend/**` (hoặc `cloudbuild.yaml` / chính file workflow) sẽ tự build (Cloud Build) + `gcloud run services update`. Auth bằng **Workload Identity Federation (keyless)** — không có SA key (org policy `iam.disableServiceAccountKeyCreation` chặn key). Theo dõi: `gh run list --workflow=deploy-backend.yml`; chạy tay: tab Actions → "Run workflow" (workflow_dispatch).
+- **Lệnh `gcloud` thủ công bên dưới vẫn dùng được** làm fallback (khi cần deploy nhanh không qua git, hoặc CI hỏng).
+- Hệ quả CŨ (trước CI): commit BE push xong nhưng quên deploy → FE live mà endpoint mới 404. Giờ chỉ còn xảy ra nếu workflow fail hoặc thay đổi BE nằm ngoài path filter → vẫn nên check `gh run list` sau khi push BE.
 
 ## Quy trình deploy backend (Cloud Run)
 
