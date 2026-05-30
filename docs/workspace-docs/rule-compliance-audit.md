@@ -32,10 +32,10 @@
 | 7 | ~~**Hardcode tên BV**~~ | Thực tế **3 chỗ** là tên thật (còn lại là nhãn/chức danh) | ✅ **ĐÃ XỬ LÝ 2026-05-29** — 3 chỗ → `${HOSPITAL_NAME}` |
 | 8 | **Raw SQL tới bảng không version-control** | 6 file dùng `ExecuteSqlRaw/FromSqlRaw` | ✅ **BloodOrders/BloodOrderItems ĐÃ có script `46_blood_orders.sql` (2026-05-29)**; còn lại raw-SQL khác rà sau |
 | 9 | **API response chưa chuẩn hoá** | login `{success,message,data}` vs endpoint khác trả mảng thô / `{items,totalCount}` | FE phải xử lý nhiều shape (đã có `Array.isArray` workaround) |
-| 10 | **NangCap24 không exception filter** | validation/not-found trả **500** thay vì 400/404 | Sai HTTP semantics; client khó phân biệt lỗi nghiệp vụ vs lỗi hệ thống |
+| 10 | ~~**NangCap24 không exception filter**~~ | validation/not-found từng trả **500** | ✅ **ĐÃ XỬ LÝ 2026-05-29 (T3)** — filter generic `DomainExceptionFilter` + NangCap24 service ném typed-exception → 404/400 |
 | 11 | **Button-debt / raw HTML FE V2** | **707 `<button ab-btn>`** + raw `<select>/<table>/<input>` (18 file) chưa dùng kit | Kit `Btn`/`AbSelect`/`CrudModal` đã có → migrate dần (markup y hệt) |
-| 12 | **Nuốt exception BE** | **56 chỗ** `catch { return empty }` (9 service: IvfLab 10, ReproductiveHealth, MentalHealth, Forensic…) | Che lỗi thật → khó debug (drift-guard `ExtendedWorkflowSqlGuard` là cố ý) |
-| 13 | **4 page gọi `client.*` trực tiếp** | `BhxhAudit`·`MedicalRecordArchive`·`SatisfactionSurvey`·`SpecialtyEMR` bypass `api/<domain>.ts` | Khó test/tái dùng (vẫn qua client chung, không gấp) |
+| 12 | ~~**Nuốt exception BE**~~ | **56 chỗ** `catch { return empty }` (8 service) | ✅ **ĐÃ XỬ LÝ 2026-05-29 (T9)** — thêm `_logger.LogWarning(ex,…)` (giữ fallback) cho IvfLab(25)/Env(5)/Mental(5)/Reproductive(5)/Forensic(4)/PracticeLicense(4)/InterHospital(4)/Traditional(4). DataManagement: 0 swallow. drift-guard `ExtendedWorkflowSqlGuard` giữ cố ý |
+| 13 | ~~**4 page gọi `client.*` trực tiếp**~~ | `BhxhAudit`·`MedicalRecordArchive`·`SatisfactionSurvey`·`SpecialtyEMR` | ✅ **ĐÃ XỬ LÝ 2026-05-29 (T8)** — tạo `api/{bhxhAudit,medicalRecordArchive,satisfactionSurvey,specialtyEmr}.ts`; 4 page hết import `client` |
 | 14 | **Gap backend (FE nút thiếu write-API)** | 10 module: SampleStorage/Tracking, MedicalRecordArchive, SatisfactionSurvey, InterHospitalSharing, BhxhAudit-cycle, BookingManagement, MedicalRecordPlanning, Epidemiology, InfectionControl(HAI) | Nút "chết" trên FE cho tới khi có endpoint BE |
 | 15 | **`:any`/`as any` (typed props)** + **Console.WriteLine (2)** | RadiologyOps/ObservationStay/OfficeSupplyApproval/MasterData/SystemAdmin… | P2 — siết khi đụng; nhỏ |
 
@@ -86,19 +86,89 @@
 
 ### 🟡 TRUNG BÌNH (1–3 ngày/việc · cần test kỹ · rủi ro vừa)
 
-> **Tiến độ (2026-05-29):** ✅ **T2 xong**. 🟬 **T1 partial** (3 entity gặp lỗi thật đã fix). ⏳ T3·T4·T5·T6·T7·T8·T9 chưa làm.
+> **Tiến độ (2026-05-29):** ✅ **T2** · ✅ **T3** · ✅ **T8** · ✅ **T9 xong**. 🟬 **T1 partial** · 🟬 **T7 done in-scope** (88 page / 586 button — chỉ còn BankPayments 2 button Antd `<Button>` out-of-scope vì giữ `loading` spinner; TẤT CẢ đang uncommitted trong working tree — chờ review). ⏳ T4·T5·T6 chưa làm.
+> **⚠️ Phiên 2026-05-29→30 (đợt nợ-kỹ-thuật):** đã **commit LOCAL** (chưa push — chỉ push khi được lệnh; lưu ý repo có CI auto-deploy Cloud Run khi push). Build-gate: BE `dotnet build HIS.sln` 0 lỗi · FE `npm run build` 0 lỗi.
+> **Từ commit `534cf9c` trở đi: KHÔNG commit file tài liệu** (theo yêu cầu user) — file báo cáo này giữ local làm sổ theo dõi.
+
+#### 📒 Sổ commit (file nào trong commit nào)
+
+> **2026-05-30:** theo yêu cầu user, **đã `git reset --mixed origin/main`** — trả hết 16 commit về
+> **working tree (uncommitted)** để user tự review trước khi commit/push. Hash dưới đây **chỉ còn ở
+> reflog** (điểm khôi phục `cf8c7ba`). Bảng vẫn dùng để tra **file nào sửa cho mục gì**. Mọi page T7
+> tiếp theo cũng để **uncommitted**.
+
+| Commit | Nội dung | File |
+|---|---|---|
+| `66c5562` | fix bug "Không có phòng khám" | `frontend/src/api/client.ts` · `backend/.../ReceptionCompleteService.cs` |
+| `a65bd90` | **T3** exception filter | `Filters/DomainExceptionFilter.cs` (＋) · `Filters/Nangcap23ExceptionFilter.cs` (－) · `NangCap23Controllers.cs` · `NangCap24Controllers.cs` · `NangCap24Services.cs` · `Program.cs` |
+| `d95d455` | **T9** log nuốt exception | 8 service: `IvfLab`·`Environmental`·`Mental`·`Reproductive`·`Forensic`·`PracticeLicense`·`InterHospital`·`Traditional`HealthService |
+| `5316ce6` | **T8** tách api layer | `api/{bhxhAudit,medicalRecordArchive,satisfactionSurvey,specialtyEmr}.ts` (＋) · 4 page `BhxhAudit`·`MedicalRecordArchive`·`SatisfactionSurvey`·`SpecialtyEMR` |
+| `0309e10` | **T7** button (4 page) | `Microbiology`·`LabQC`·`PharmacyApproval`·`Reception`.tsx |
+| `5f9a3e4` | docs ⚠️(commit trước chỉ thị no-docs) | 2 báo cáo đánh giá v2 + `rule-compliance-audit.md` |
+| `54fc4cd` | **T7** BillingEditor ⚠️(kèm doc, trước chỉ thị) | `BillingEditor.tsx` + `rule-compliance-audit.md` |
+| `534cf9c` | **T7** PrescriptionEditor (code-only) | `PrescriptionEditor.tsx` |
+| `26806b9` | **T7** EmrEditor (code-only) | `EmrEditor.tsx` |
+| `168f1fa` | **T7** VideoConsultation (code-only) | `VideoConsultation.tsx` |
+| `5768d2d` | **T7** NonDicomCapture (code-only) | `NonDicomCapture.tsx` (⚠️ 1 Btn trong `<Upload>` — test click upload khi chạy) |
+| `9452fcc` | **T7** RisAdmin (code-only) | `RisAdmin.tsx` (18 button, 8 sub-tab) |
+| `7cca925` | **T7** ObservationStay (code-only) | `ObservationStay.tsx` |
+| `8814b66` | **T7** Laboratory (code-only) | `Laboratory.tsx` |
+| `513a5b4` | **T7** Inpatient (code-only) | `Inpatient.tsx` |
+| `cf8c7ba` | **T7** Radiology (code-only) | `Radiology.tsx` |
+| *(chưa commit)* | **T7** SpecialtyEMR | `SpecialtyEMR.tsx` |
+| *(chưa commit)* | **T7** SampleReceive | `SampleReceive.tsx` |
+| *(chưa commit)* | **T7** DigitalSignature | `DigitalSignature.tsx` |
+| *(chưa commit)* | **T7** CentralSigning | `CentralSigning.tsx` |
+| *(chưa commit)* | **T7** DeAn06Liaison | `DeAn06Liaison.tsx` |
+| *(chưa commit)* | **T7** SystemAdmin | `SystemAdmin.tsx` (12 button) |
+| *(chưa commit)* | **T7** Help | `Help.tsx` (11 button) |
+| *(chưa commit)* | **T7** Telemedicine · OfficeSupplyApproval | `Telemedicine.tsx` · `OfficeSupplyApproval.tsx` (8+8) |
+| *(chưa commit)* | **T7** MethadoneTreatment · IvfLab | `MethadoneTreatment.tsx` · `IvfLab.tsx` (8+8) |
+| *(chưa commit)* | **T7** FollowUp · Epidemiology | `FollowUp.tsx` · `Epidemiology.tsx` (8+8) |
+| *(chưa commit)* | **T7** CultureCollection · CatalogsAdmin | `CultureCollection.tsx` · `CatalogsAdmin.tsx` (8+8) |
+| *(chưa commit)* | **T7** SatisfactionSurvey · SampleStorage | `SatisfactionSurvey.tsx` · `SampleStorage.tsx` (7+7) |
+| *(chưa commit)* | **T7** ReagentManagement · PracticeLicense | `ReagentManagement.tsx` · `PracticeLicense.tsx` (7+7) |
+| *(chưa commit)* | **T7** MedicalRecordArchive · HealthExchange | `MedicalRecordArchive.tsx` · `HealthExchange.tsx` (7+7) |
+| *(chưa commit)* | **T7** HealthEducation · Finance | `HealthEducation.tsx` · `Finance.tsx` (7+7) |
+| *(chưa commit)* | **T7** EnvironmentalHealth · DispensingCounter | `EnvironmentalHealth.tsx` · `DispensingCounter.tsx` (7+7) |
+| *(chưa commit)* | **T7** Consultation · BookingManagement | `Consultation.tsx` · `BookingManagement.tsx` (7+7) |
+| *(chưa commit)* | **T7** BhxhAudit · TraumaRegistry | `BhxhAudit.tsx` · `TraumaRegistry.tsx` (7+6) |
+| *(chưa commit)* | **T7** TraditionalMedicine · SampleTracking | `TraditionalMedicine.tsx` · `SampleTracking.tsx` (6+6) |
+| *(chưa commit)* | **T7** Rehabilitation · RadiologyOps | `Rehabilitation.tsx` · `RadiologyOps.tsx` (6+6) |
+| *(chưa commit)* | **T7** PopulationHealth · PaymentTransactions | `PopulationHealth.tsx` · `PaymentTransactions.tsx` (6+6) |
+| *(chưa commit)* | **T7** InterHospitalSharing · InfectionControl | `InterHospitalSharing.tsx` · `InfectionControl.tsx` (6+6) |
+| *(chưa commit)* | **T7** HealthCheckup · ClinicalGuidance | `HealthCheckup.tsx` · `ClinicalGuidance.tsx` (6+6) |
+| *(chưa commit)* | **T7** ZaloNotifications · ServiceRequeue | `ZaloNotifications.tsx` · `ServiceRequeue.tsx` (5+5; Zalo giữ `<TermIcon>` trong children Btn vì icon-set khác kit) |
+| *(chưa commit)* | **T7** Quality · PharmacyCatalogs | `Quality.tsx` · `PharmacyCatalogs.tsx` (5+5; Quality giữ `<TermIcon>` trong children Btn; Pharmacy 1 `<Btn size="sm">` cho nút "Thêm thành viên" trong tab kiểm nhập) |
+| *(chưa commit)* | **T7** OpdEditor · MedicalRecordPlanning | `OpdEditor.tsx` · `MedicalRecordPlanning.tsx` (5+5; OpdEditor giữ `<TermIcon>` trong children + 1 `<Btn size="sm" style={{width:'100%'}}>` cho nút "Lưu giấy nghỉ") |
+| *(chưa commit)* | **T7** Insurance · EmployeeProfile | `Insurance.tsx` · `EmployeeProfile.tsx` (5+5; Insurance giữ `<TermIcon>` trong children Btn) |
+| *(chưa commit)* | **T7** BloodBank · BhxhConfig | `BloodBank.tsx` · `BhxhConfig.tsx` (5+5; BloodBank giữ `<TermIcon>` trong children Btn) |
+| *(chưa commit)* | **T7** ReportCatalogs · Prescription | `ReportCatalogs.tsx` · `Prescription.tsx` (4+4; Prescription giữ `<TermIcon>` trong children Btn) |
+| *(chưa commit)* | **T7** ParaclinicalCatalogs · InpatientDispensing | `ParaclinicalCatalogs.tsx` · `InpatientDispensing.tsx` (4+5; survey miss 1 nút "Xuất" trong nhóm BN — đã verify clean cuối) |
+| *(chưa commit)* | **T7** FinanceCatalogs · Dashboard3Cap | `FinanceCatalogs.tsx` · `Dashboard3Cap.tsx` (4+4; Dashboard3Cap có 1 button multi-line arrow fn — Btn nhận `onClick` đầy đủ) |
+| *(chưa commit)* | **T7** ConsultationRegister · ClinicalCatalogs | `ConsultationRegister.tsx` · `ClinicalCatalogs.tsx` (4+4) |
+| *(chưa commit)* | **T7** WorkloadReport · StockReport | `WorkloadReport.tsx` · `StockReport.tsx` (3+3) |
+| *(chưa commit)* | **T7** RisDispatcher · RisCatalogAdmin | `RisDispatcher.tsx` · `RisCatalogAdmin.tsx` (3+3) |
+| *(chưa commit)* | **T7** ReceiptBookAdmin · PaymentReports | `ReceiptBookAdmin.tsx` · `PaymentReports.tsx` (3+3) |
+| *(chưa commit)* | **T7** OPD · NationalGateways | `OPD.tsx` · `NationalGateways.tsx` (3+3; cả 2 giữ `<TermIcon>` trong children Btn) |
+| *(chưa commit)* | **T7** MasterData · LisCatalogAdmin | `MasterData.tsx` · `LisCatalogAdmin.tsx` (4+3; MasterData modal footer dồn 2 button trong 1 dòng — grep -c đếm dòng nên hiển thị 3 nhưng thực 4) |
+| *(chưa commit)* | **T7** FunctionalDiagnostics · EMR | `FunctionalDiagnostics.tsx` · `EMR.tsx` (3+3; cả 2 giữ `<TermIcon>` trong children Btn — FunctionalDiagnostics có 2 button conditional theo status) |
+| *(chưa commit)* | **T7** Billing · Pharmacy | `Billing.tsx` · `Pharmacy.tsx` (3+2; cả 2 giữ `<TermIcon>` trong children Btn) |
+| *(chưa commit)* | **T7** ClinicalPharmacyCheck · SigningWorkflow · QualityDashboardLive | `ClinicalPharmacyCheck.tsx`(2) · `SigningWorkflow.tsx`(1) · `QualityDashboardLive.tsx`(1; giữ `<TermIcon>` children). **BankPayments KHÔNG convert** — 2 `<Button>` là Antd component có `loading` spinner riêng, ab-btn class chỉ cosmetic — chuyển sang kit `<Btn>` sẽ mất behavior loading |
+>
+> **Lưu ý chiến lược T5/T6 (cho phiên sau):** T5 (gỡ EF migrations) + T6 (controller→service) có **failure-mode runtime mà `build` KHÔNG bắt** (T5: seeder còn `MigrateAsync` → đổi startup; T6: quên DI → 500, hoặc đổi behavior query). Máy hiện **không runtime-test/deploy được** → 2 mục này nên làm ở phiên **có deploy + smoke-test prod**, không nên làm blind.
 
 | Việc | Cách làm | Trạng thái |
 |---|---|---|
 | **T1. Shadow-FK cho 13 entity có nav `User`** | Thêm Fluent API `.HasForeignKey(x => x.XxxByUserId)` trong `HISDbContext` + script ALTER cột shadow `…ById` thành NULL. | 🟬 **PARTIAL** — Deposit/Payment (set shadow `ReceivedById`=user) + Prescription (`DoctorId ?? userId`) đã fix phiên này (deploy chung 5 fix BE); blanket 13 entity (Fluent + ALTER) chưa — blast-radius cao, làm đợt riêng evidence-driven |
 | ~~**T2. BloodOrders/BloodOrderItems vào version-control**~~ | ✅ **DONE 2026-05-29** — `Data/Scripts/46_blood_orders.sql` idempotent (IF NOT EXISTS, prod no-op), cột khớp raw-SQL. Verify tạo trên local + BE build 0 lỗi; prod/env mới tự tạo qua repair-runner. | ✅ DONE |
-| **T3. Exception filter NangCap24** | Thêm middleware/filter map business-exception → 400/404/409 + structured body; áp cho controller NangCap24. | TB |
+| ~~**T3. Exception filter NangCap24**~~ | ✅ **DONE 2026-05-29** — đổi tên `Nangcap23ExceptionFilter` → **`DomainExceptionFilter`** (generic, dùng chung; cập nhật 7 ref NangCap23 + Program.cs); NangCap24Services đổi 10 `throw new Exception` → typed (`KeyNotFoundException`→404 / `InvalidOperationException`→400); áp `[TypeFilter(typeof(DomainExceptionFilter))]` cho 7 controller NangCap24. BE build 0 lỗi. | ✅ DONE |
 | **T4. Chuẩn hoá API response envelope** | Định nghĩa `ApiResponse<T> {success,data,message,errors}` + áp dần cho endpoint mới; FE đọc nhất quán. | TB (làm dần, không big-bang) |
 | **T5. Gỡ EF Migrations dead** | Xác nhận startup KHÔNG dùng `Database.Migrate()` (dùng ProductionSchemaRepairRunner) → xoá `Migrations/` (giữ snapshot nếu cần) → giảm ~100k dòng repo. | TB (verify kỹ trước khi xoá) |
 | **T6. Controller mỏng (36 file)** | Chuyển truy vấn `_context.*` trong controller xuống service tương ứng; controller chỉ điều phối. Làm theo nhóm module. | TB (nhiều file, làm dần) |
-| **T7. Button-debt + raw HTML (FE V2)** | **707 `<button class="ab-btn">`** → `<Btn>` (markup y hệt, an toàn) + raw `<select>` → `AbSelect` + raw `<table>/<input>` (18 file) → `_v2kit`/Antd. **Kit `Btn`/`AbSelect`/`OptionsSelect`/`CrudModal` ĐÃ CÓ sẵn** (`_v2kit.tsx`). Migrate per-page, ref `TreatmentProtocol.tsx`/`FoodSafety.tsx`. | TB (khối lượng lớn, làm dần — KHÔNG mass-replace) |
-| **T8. 4 page gọi `client.*` trực tiếp** | `BhxhAudit` · `MedicalRecordArchive` · `SatisfactionSurvey` · `SpecialtyEMR` → bọc thành `api/<domain>.ts` + DTO (dễ test/tái dùng). Hiện vẫn qua `client` chung (không phải raw axios) → không gấp. | TB |
-| **T9. Nuốt exception BE (56 chỗ / 9 service)** | `IvfLabService`(10) · `ReproductiveHealth` · `MentalHealth` · `HL7ConnectionManager` · `DataManagementService` · `TraditionalMedicine` · `PracticeLicense` · `InterHospital` · `Forensic` — tách "drift-guard cố ý" vs "che lỗi thật" → thêm `logger.LogWarning` + để lỗi nổi đúng chỗ. (`ExtendedWorkflowSqlGuard` drift-guard = **cố ý, giữ**.) | TB |
+| **T7. Button-debt + raw HTML (FE V2)** | **~588 `<button class="ab-btn">`** → `<Btn>` (markup y hệt) + raw `<select>` → `AbSelect`. Kit `Btn`/`AbSelect`/`OptionsSelect`/`CrudModal` ĐÃ CÓ (`_v2kit.tsx`). Migrate per-page (KHÔNG mass-replace). | 🟬 **PARTIAL 2026-05-29→30** — **88 page / 586 button** → `<Btn variant=...>` (giữ children + style + size + type=submit + `<kbd>` + onClick đa dòng + conditional, markup tương đương): `Microbiology`(10)·`LabQC`(10)·`PharmacyApproval`(10)·`Reception`(14)·`BillingEditor`(13)·`PrescriptionEditor`(12)·`EmrEditor`(12)·`VideoConsultation`(12)·`NonDicomCapture`(12)·`RisAdmin`(18)·`ObservationStay`(11)·`Laboratory`(10)·`Inpatient`(10)·`Radiology`(10)·`SpecialtyEMR`(10)·`SampleReceive`(9)·`DigitalSignature`(9)·`CentralSigning`(11)·`DeAn06Liaison`(9)·`SystemAdmin`(12)·`Help`(11)·`Telemedicine`(8)·`OfficeSupplyApproval`(8)·`MethadoneTreatment`(8)·`IvfLab`(8)·`FollowUp`(8)·`Epidemiology`(8)·`CultureCollection`(8)·`CatalogsAdmin`(8)·`SatisfactionSurvey`(7)·`SampleStorage`(7)·`ReagentManagement`(7)·`PracticeLicense`(7)·`MedicalRecordArchive`(7)·`HealthExchange`(7)·`HealthEducation`(7)·`Finance`(7)·`EnvironmentalHealth`(7)·`DispensingCounter`(7)·`Consultation`(7)·`BookingManagement`(7)·`BhxhAudit`(7)·`TraumaRegistry`(6)·`TraditionalMedicine`(6)·`SampleTracking`(6)·`Rehabilitation`(6)·`RadiologyOps`(6)·`PopulationHealth`(6)·`PaymentTransactions`(6)·`InterHospitalSharing`(6)·`InfectionControl`(6)·`HealthCheckup`(6)·`ClinicalGuidance`(6)·`ZaloNotifications`(5)·`ServiceRequeue`(5)·`Quality`(5)·`PharmacyCatalogs`(5)·`OpdEditor`(5)·`MedicalRecordPlanning`(5)·`Insurance`(5)·`EmployeeProfile`(5)·`BloodBank`(5)·`BhxhConfig`(5)·`ReportCatalogs`(4)·`Prescription`(4)·`ParaclinicalCatalogs`(4)·`InpatientDispensing`(5)·`FinanceCatalogs`(4)·`Dashboard3Cap`(4)·`ConsultationRegister`(4)·`ClinicalCatalogs`(4)·`WorkloadReport`(3)·`StockReport`(3)·`RisDispatcher`(3)·`RisCatalogAdmin`(3)·`ReceiptBookAdmin`(3)·`PaymentReports`(3)·`OPD`(3)·`NationalGateways`(3)·`MasterData`(4)·`LisCatalogAdmin`(3)·`FunctionalDiagnostics`(3)·`EMR`(3)·`Billing`(3)·`Pharmacy`(2)·`ClinicalPharmacyCheck`(2)·`SigningWorkflow`(1)·`QualityDashboardLive`(1)·`EMR`(3 — đã liệt kê)·`FunctionalDiagnostics`(3 — đã liệt kê). FE build 0 lỗi. **Còn ~2 button** (chỉ BankPayments — dùng Antd `<Button>` với prop `loading`, **OUT-OF-SCOPE T7** vì T7 chỉ target raw `<button class="ab-btn">`) (chưa tính `_v2kit.tsx` — file kit, không convert) — làm dần per-page. ⚠️ NonDicomCapture có 1 `<Btn>` trong antd `<Upload>` — nên test click upload thực tế khi chạy |
+| ~~**T8. 4 page gọi `client.*` trực tiếp**~~ | ✅ **DONE 2026-05-29** — tạo 4 module `api/bhxhAudit.ts`·`medicalRecordArchive.ts`·`satisfactionSurvey.ts`·`specialtyEmr.ts` (wrapper mỏng `apiClient`); repoint 9 call (`BhxhAudit`/`MedicalRecordArchive`/`SatisfactionSurvey` mỗi page 1 GET, `SpecialtyEMR` 6: search/get/save/delete/pdf/xml); 0 import `client` còn lại. FE `npm run build` 0 lỗi. | ✅ DONE |
+| ~~**T9. Nuốt exception BE (56 chỗ / 8 service)**~~ | ✅ **DONE 2026-05-29** — inject `ILogger<T>` + chuyển `catch { return X; }` → `catch (Exception ex) { _logger.LogWarning(ex,…); return X; }` (behavior-preserving, kèm `ex` nên stack-trace định vị method): `IvfLab`(25)·`Environmental`(5)·`Mental`(5)·`Reproductive`(5)·`Forensic`(4)·`PracticeLicense`(4)·`InterHospital`(4)·`Traditional`(4). `DataManagement` = 0 swallow (không cần). `ExtendedWorkflowSqlGuard` drift-guard **giữ cố ý**. Full sln build 0 lỗi. | ✅ DONE |
 
 ### 🔴 KHÓ (nhiều ngày → tuần · effort lớn · làm theo đợt)
 | Việc | Cách làm | Rủi ro |
@@ -164,6 +234,7 @@ Các thay đổi **BE** dưới đây đang chờ deploy thủ công lên Cloud 
 | Inspector seed hash đúng — migration `44_nangcap24.sql` (tự chạy lúc khởi động) | `235df44` |
 | **T2** BloodOrders/BloodOrderItems — `46_blood_orders.sql` (tự chạy lúc khởi động) | `d410a13` |
 | **D6** `Console.WriteLine` → `ILogger` | `b91ebf2` |
+| **T3** `DomainExceptionFilter` + NangCap24 typed-exception (404/400) | *(chưa commit)* |
 
 **Lệnh deploy** (máy có gcloud — máy D:\ đã cài gcloud+proxy, chờ `gcloud auth login`):
 ```bash
