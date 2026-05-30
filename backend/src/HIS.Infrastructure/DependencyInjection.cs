@@ -60,6 +60,17 @@ public static class DependencyInjection
         services.AddScoped<IAbbreviationService, AbbreviationService>();
 
         // Phân hệ 6: Phẫu thuật Thủ thuật (Surgery)
+        // K12 Plan B TRUE module hóa (2026-05-30): tách sub-service per domain.
+        services.AddScoped<HIS.Application.Services.Surgery.ISurgerySpecialService,
+                           HIS.Infrastructure.Services.Surgery.SurgerySpecialServiceImpl>();
+        services.AddScoped<HIS.Application.Services.Surgery.ISurgeryWaitingService,
+                           HIS.Infrastructure.Services.Surgery.SurgeryWaitingServiceImpl>();
+        services.AddScoped<HIS.Application.Services.Surgery.ISurgerySchedulingService,
+                           HIS.Infrastructure.Services.Surgery.SurgerySchedulingServiceImpl>();
+        services.AddScoped<HIS.Application.Services.Surgery.ISurgeryOperationService,
+                           HIS.Infrastructure.Services.Surgery.SurgeryOperationServiceImpl>();
+        services.AddScoped<HIS.Application.Services.Surgery.ISurgeryPrescriptionService,
+                           HIS.Infrastructure.Services.Surgery.SurgeryPrescriptionServiceImpl>();
         services.AddScoped<ISurgeryCompleteService, SurgeryCompleteService>();
 
         // Phân hệ 8: Chẩn đoán hình ảnh RIS/PACS (Radiology)
