@@ -879,6 +879,194 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
             .HasForeignKey(d => d.EquivalentMedicineId)
             .OnDelete(DeleteBehavior.NoAction);
 
+        // T1 Phase 1B (2026-05-30): explicit Fluent FK trùng convention EF infer (zero
+        // runtime change) — pattern POC để mở rộng cho 168 nav `User` còn lại.
+        // Xem plan-T1-fluent-fk-13-entity.md cho triage rule.
+        // 3 entity POC dưới đây: FK property tên match nav qua convention — explicit hoá
+        // để code self-documenting + immune to convention drift trong EF Core future.
+        // Verify trước khi add: `<NavName>` ↔ `<NavName>Id` hoặc `<NavName>UserId`.
+        modelBuilder.Entity<ChronicDiseaseRecord>()
+            .HasOne(c => c.Doctor)
+            .WithMany()
+            .HasForeignKey(c => c.DoctorId)
+            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ClinicalGuidanceBatch>()
+            .HasOne(c => c.LeadDoctor)
+            .WithMany()
+            .HasForeignKey(c => c.LeadDoctorId)
+            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Abbreviation>()
+            .HasOne(a => a.OwnerUser)
+            .WithMany()
+            .HasForeignKey(a => a.OwnerUserId)
+            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<BloodRequest>()
+            .HasOne(b => b.RequestingDoctor)
+            .WithMany()
+            .HasForeignKey(b => b.RequestingDoctorId)
+            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<BloodTransfusion>()
+            .HasOne(b => b.Nurse)
+            .WithMany()
+            .HasForeignKey(b => b.NurseId)
+            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<BloodTransfusion>()
+            .HasOne(b => b.Doctor)
+            .WithMany()
+            .HasForeignKey(b => b.DoctorId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        // T1 Phase 1C scale-up (2026-05-30): bulk 144 Fluent FK explicit trùng convention.
+        // ZERO runtime change — Fluent config trùng EF Core convention infer (cùng FK column,
+        // cùng DeleteBehavior từ global cascade override). Code self-documenting + immune
+        // to convention drift trong EF Core future. Convention-mismatch entity (FK property
+        // tên khác nav) defer Phase 2 (cần ALTER schema + smoke-test prod).
+        // Xem plan-T1-fluent-fk-13-entity.md cho triage rule + verify script.
+        modelBuilder.Entity<Admission>().HasOne(a => a.AdmittingDoctor).WithMany().HasForeignKey(a => a.AdmittingDoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Allergy>().HasOne(a => a.RecordedBy).WithMany().HasForeignKey(a => a.RecordedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<AntibioticStewardship>().HasOne(a => a.ReviewedBy).WithMany().HasForeignKey(a => a.ReviewedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Appointment>().HasOne(a => a.Doctor).WithMany().HasForeignKey(a => a.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<AuditPlan>().HasOne(a => a.LeadAuditor).WithMany().HasForeignKey(a => a.LeadAuditorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<BhxhAuditSession>().HasOne(b => b.Auditor).WithMany().HasForeignKey(b => b.AuditorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<BlockedInsurance>().HasOne(b => b.BlockedBy).WithMany().HasForeignKey(b => b.BlockedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<BlockedInsurance>().HasOne(b => b.UnblockedBy).WithMany().HasForeignKey(b => b.UnblockedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<CAPA>().HasOne(c => c.AssignedTo).WithMany().HasForeignKey(c => c.AssignedToId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<CAPA>().HasOne(c => c.VerifiedBy).WithMany().HasForeignKey(c => c.VerifiedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<CashBook>().HasOne(c => c.Cashier).WithMany().HasForeignKey(c => c.CashierId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ClinicalDirection>().HasOne(c => c.ResponsibleDoctor).WithMany().HasForeignKey(c => c.ResponsibleDoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ClinicalTemplate>().HasOne(c => c.OwnerUser).WithMany().HasForeignKey(c => c.OwnerUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ConsultationParticipant>().HasOne(c => c.User).WithMany().HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ConsultationRoom>().HasOne(c => c.HostUser).WithMany().HasForeignKey(c => c.HostUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Contraindication>().HasOne(c => c.RecordedBy).WithMany().HasForeignKey(c => c.RecordedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<DailyProgress>().HasOne(d => d.Doctor).WithMany().HasForeignKey(d => d.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Deposit>().HasOne(d => d.ReceivedBy).WithMany().HasForeignKey(d => d.ReceivedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<DietOrder>().HasOne(d => d.OrderedBy).WithMany().HasForeignKey(d => d.OrderedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<DiseaseCase>().HasOne(d => d.Investigator).WithMany().HasForeignKey(d => d.InvestigatorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<DoctorSchedule>().HasOne(d => d.Doctor).WithMany().HasForeignKey(d => d.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<DutyRoster>().HasOne(d => d.CreatedBy).WithMany().HasForeignKey(d => d.CreatedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ElectronicReferral>().HasOne(e => e.ReferredBy).WithMany().HasForeignKey(e => e.ReferredById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<EmployeeAllowance>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<EmployeeAsset>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<EmployeeBankAccount>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<EmployeeCareerHistory>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<EmployeeContract>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<EmployeeEducation>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<EmployeeFamily>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<EmployeeInsuranceInfo>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<EmployeeRewardDiscipline>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Examination>().HasOne(e => e.Doctor).WithMany().HasForeignKey(e => e.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ExaminationActivityLog>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ExaminationTemplate>().HasOne(e => e.CreatedByUser).WithMany().HasForeignKey(e => e.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<FollowUpAppointment>().HasOne(f => f.Doctor).WithMany().HasForeignKey(f => f.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<FunctionalAssessment>().HasOne(f => f.AssessedBy).WithMany().HasForeignKey(f => f.AssessedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<HAICase>().HasOne(h => h.ReportedBy).WithMany().HasForeignKey(h => h.ReportedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<HandHygieneObservation>().HasOne(h => h.ObservedBy).WithMany().HasForeignKey(h => h.ObservedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<HealthCheckContract>().HasOne(h => h.CreatedByUser).WithMany().HasForeignKey(h => h.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<HealthCheckupRecord>().HasOne(h => h.Doctor).WithMany().HasForeignKey(h => h.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<IncidentReport>().HasOne(i => i.Investigator).WithMany().HasForeignKey(i => i.InvestigatorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<IncidentReport>().HasOne(i => i.ReportedBy).WithMany().HasForeignKey(i => i.ReportedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<InstructionLibrary>().HasOne(i => i.CreatedByUser).WithMany().HasForeignKey(i => i.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<InsuranceClaim>().HasOne(i => i.Doctor).WithMany().HasForeignKey(i => i.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<InsuranceXMLSubmission>().HasOne(i => i.SubmittedBy).WithMany().HasForeignKey(i => i.SubmittedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<IsolationOrder>().HasOne(i => i.OrderedBy).WithMany().HasForeignKey(i => i.OrderedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<IvfCycle>().HasOne(i => i.Doctor).WithMany().HasForeignKey(i => i.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<IvfEmbryoTransfer>().HasOne(i => i.Doctor).WithMany().HasForeignKey(i => i.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<IvfEmbryoTransfer>().HasOne(i => i.Embryologist).WithMany().HasForeignKey(i => i.EmbryologistId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<IvfOvumPickup>().HasOne(i => i.PerformedBy).WithMany().HasForeignKey(i => i.PerformedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<LabRequest>().HasOne(l => l.RequestingDoctor).WithMany().HasForeignKey(l => l.RequestingDoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<MaintenanceRecord>().HasOne(m => m.PerformedBy).WithMany().HasForeignKey(m => m.PerformedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ManagedCertificate>().HasOne(m => m.OwnerUser).WithMany().HasForeignKey(m => m.OwnerUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<MCIEvent>().HasOne(m => m.IncidentCommander).WithMany().HasForeignKey(m => m.IncidentCommanderId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<MCISituationReport>().HasOne(m => m.ReportedBy).WithMany().HasForeignKey(m => m.ReportedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<MCIVictim>().HasOne(m => m.TriagedBy).WithMany().HasForeignKey(m => m.TriagedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<MedicalRecord>().HasOne(m => m.Doctor).WithMany().HasForeignKey(m => m.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<MedicalRecordArchive>().HasOne(m => m.ArchivedBy).WithMany().HasForeignKey(m => m.ArchivedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<MedicalRecordBorrowRequest>().HasOne(m => m.ApprovedBy).WithMany().HasForeignKey(m => m.ApprovedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<MedicalRecordBorrowRequest>().HasOne(m => m.RequestedBy).WithMany().HasForeignKey(m => m.RequestedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<MedicalStaff>().HasOne(m => m.User).WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<NonDicomStudy>().HasOne(n => n.PerformedByUser).WithMany().HasForeignKey(n => n.PerformedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Notification>().HasOne(n => n.TargetUser).WithMany().HasForeignKey(n => n.TargetUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<NursingCare>().HasOne(n => n.Nurse).WithMany().HasForeignKey(n => n.NurseId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<NursingCareSheet>().HasOne(n => n.Nurse).WithMany().HasForeignKey(n => n.NurseId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<NutritionAssessment>().HasOne(n => n.AssessedBy).WithMany().HasForeignKey(n => n.AssessedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<NutritionMonitoring>().HasOne(n => n.RecordedBy).WithMany().HasForeignKey(n => n.RecordedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<NutritionScreening>().HasOne(n => n.ScreenedBy).WithMany().HasForeignKey(n => n.ScreenedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ObservationStay>().HasOne(o => o.Doctor).WithMany().HasForeignKey(o => o.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Outbreak>().HasOne(o => o.DetectedBy).WithMany().HasForeignKey(o => o.DetectedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<PathologyRequest>().HasOne(p => p.RequestingDoctor).WithMany().HasForeignKey(p => p.RequestingDoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<PatientFlag>().HasOne(p => p.CreatedByUser).WithMany().HasForeignKey(p => p.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<PatientPhoto>().HasOne(p => p.CapturedBy).WithMany().HasForeignKey(p => p.CapturedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Payment>().HasOne(p => p.ReceivedBy).WithMany().HasForeignKey(p => p.ReceivedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<PharmacyCommission>().HasOne(p => p.Doctor).WithMany().HasForeignKey(p => p.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<PharmacyGppRecord>().HasOne(p => p.RecordedBy).WithMany().HasForeignKey(p => p.RecordedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<PharmacyShift>().HasOne(p => p.Cashier).WithMany().HasForeignKey(p => p.CashierId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<PortalAppointment>().HasOne(p => p.Doctor).WithMany().HasForeignKey(p => p.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Prescription>().HasOne(p => p.Doctor).WithMany().HasForeignKey(p => p.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<PrescriptionTemplate>().HasOne(p => p.CreatedByUser).WithMany().HasForeignKey(p => p.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ProcurementRequest>().HasOne(p => p.ApprovedBy).WithMany().HasForeignKey(p => p.ApprovedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ProcurementRequest>().HasOne(p => p.RequestedBy).WithMany().HasForeignKey(p => p.RequestedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<QualityIndicatorValue>().HasOne(q => q.RecordedBy).WithMany().HasForeignKey(q => q.RecordedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<QueueTicket>().HasOne(q => q.CalledByUser).WithMany().HasForeignKey(q => q.CalledByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyAbbreviation>().HasOne(r => r.CreatedByUser).WithMany().HasForeignKey(r => r.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyCaptureSession>().HasOne(r => r.Operator).WithMany().HasForeignKey(r => r.OperatorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyCLSScreenConfig>().HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyConsultationAttachment>().HasOne(r => r.UploadedByUser).WithMany().HasForeignKey(r => r.UploadedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyConsultationDiscussion>().HasOne(r => r.Participant).WithMany().HasForeignKey(r => r.ParticipantId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyConsultationImageNote>().HasOne(r => r.CreatedByUser).WithMany().HasForeignKey(r => r.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyConsultationMinutes>().HasOne(r => r.CreatedByUser).WithMany().HasForeignKey(r => r.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyConsultationParticipant>().HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyConsultationSession>().HasOne(r => r.Leader).WithMany().HasForeignKey(r => r.LeaderId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyConsultationSession>().HasOne(r => r.Organizer).WithMany().HasForeignKey(r => r.OrganizerId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyConsultationSession>().HasOne(r => r.Secretary).WithMany().HasForeignKey(r => r.SecretaryId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyDiagnosisTemplate>().HasOne(r => r.CreatedByUser).WithMany().HasForeignKey(r => r.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyDispatch>().HasOne(r => r.DispatchedByUser).WithMany().HasForeignKey(r => r.DispatchedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyDutySchedule>().HasOne(r => r.AssistantTechnician).WithMany().HasForeignKey(r => r.AssistantTechnicianId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyDutySchedule>().HasOne(r => r.Doctor).WithMany().HasForeignKey(r => r.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyDutySchedule>().HasOne(r => r.Technician).WithMany().HasForeignKey(r => r.TechnicianId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyExam>().HasOne(r => r.Technician).WithMany().HasForeignKey(r => r.TechnicianId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyHelpArticle>().HasOne(r => r.CreatedByUser).WithMany().HasForeignKey(r => r.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyPermission>().HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyReport>().HasOne(r => r.ApprovedByUser).WithMany().HasForeignKey(r => r.ApprovedBy).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyReport>().HasOne(r => r.Radiologist).WithMany().HasForeignKey(r => r.RadiologistId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyRequest>().HasOne(r => r.RequestingDoctor).WithMany().HasForeignKey(r => r.RequestingDoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyRequestTag>().HasOne(r => r.AddedByUser).WithMany().HasForeignKey(r => r.AddedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyRoomAssignment>().HasOne(r => r.AssignedByUser).WithMany().HasForeignKey(r => r.AssignedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologyServiceDescriptionTemplate>().HasOne(r => r.CreatedByUser).WithMany().HasForeignKey(r => r.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RadiologySignatureHistory>().HasOne(r => r.SignedByUser).WithMany().HasForeignKey(r => r.SignedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Receipt>().HasOne(r => r.Cashier).WithMany().HasForeignKey(r => r.CashierId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RehabReferral>().HasOne(r => r.AcceptedBy).WithMany().HasForeignKey(r => r.AcceptedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RehabReferral>().HasOne(r => r.ReferredBy).WithMany().HasForeignKey(r => r.ReferredById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RehabSession>().HasOne(r => r.Therapist).WithMany().HasForeignKey(r => r.TherapistId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RehabTreatmentPlan>().HasOne(r => r.CreatedBy).WithMany().HasForeignKey(r => r.CreatedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RepairRequest>().HasOne(r => r.AssignedTo).WithMany().HasForeignKey(r => r.AssignedToId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RepairRequest>().HasOne(r => r.RequestedBy).WithMany().HasForeignKey(r => r.RequestedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ReportAccessLog>().HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ResearchProject>().HasOne(r => r.PrincipalInvestigator).WithMany().HasForeignKey(r => r.PrincipalInvestigatorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RetailSale>().HasOne(r => r.Cashier).WithMany().HasForeignKey(r => r.CashierId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ServiceGroupTemplate>().HasOne(s => s.CreatedByUser).WithMany().HasForeignKey(s => s.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ServiceRequest>().HasOne(s => s.Doctor).WithMany().HasForeignKey(s => s.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ServiceRequestDetail>().HasOne(s => s.ResultUser).WithMany().HasForeignKey(s => s.ResultUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<SigningTotpSecret>().HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<SigningTransaction>().HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<StudyShareLink>().HasOne(s => s.CreatedByUser).WithMany().HasForeignKey(s => s.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<SurgeryRequest>().HasOne(s => s.RequestingDoctor).WithMany().HasForeignKey(s => s.RequestingDoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<SurgerySchedule>().HasOne(s => s.Anesthesiologist).WithMany().HasForeignKey(s => s.AnesthesiologistId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<SurgerySchedule>().HasOne(s => s.Surgeon).WithMany().HasForeignKey(s => s.SurgeonId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<SurgeryTeamMember>().HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<SystemLog>().HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<TbHivRecord>().HasOne(t => t.Doctor).WithMany().HasForeignKey(t => t.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<TeleAppointment>().HasOne(t => t.Doctor).WithMany().HasForeignKey(t => t.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<TeleconsultationRequest>().HasOne(t => t.RequestedBy).WithMany().HasForeignKey(t => t.RequestedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<TPNOrder>().HasOne(t => t.OrderedBy).WithMany().HasForeignKey(t => t.OrderedById).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<TrainingClass>().HasOne(t => t.Instructor).WithMany().HasForeignKey(t => t.InstructorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<TrainingStudent>().HasOne(t => t.Staff).WithMany().HasForeignKey(t => t.StaffId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<TreatmentSheet>().HasOne(t => t.Doctor).WithMany().HasForeignKey(t => t.DoctorId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<TreatmentSheet>().HasOne(t => t.Nurse).WithMany().HasForeignKey(t => t.NurseId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<TwoFactorOtp>().HasOne(t => t.User).WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<UserRole>().HasOne(u => u.User).WithMany().HasForeignKey(u => u.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<UserSession>().HasOne(u => u.User).WithMany().HasForeignKey(u => u.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<WebAuthnCredential>().HasOne(w => w.User).WithMany().HasForeignKey(w => w.UserId).OnDelete(DeleteBehavior.NoAction);
+
         // Column-level encryption for Patient PII (SEC-02: Data encryption at rest)
         if (_dataProtectionProvider != null)
         {

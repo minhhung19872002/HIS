@@ -1,4 +1,7 @@
 import apiClient from './client';
+import type { ApiResponse } from './types';
+
+export type { ApiResponse } from './types';
 
 export interface LoginRequest {
   username: string;
@@ -27,13 +30,6 @@ export interface LoginResponse {
   otpUserId?: string;
   maskedEmail?: string;
   otpExpiresAt?: string;
-}
-
-export interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
-  errors?: string[];
 }
 
 export interface TwoFactorStatus {

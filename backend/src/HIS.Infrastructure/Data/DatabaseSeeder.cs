@@ -27,14 +27,25 @@ public static class DatabaseSeeder
             }
             else
             {
-                try
+                // T5 Phase 1A (2026-05-30): env flag để observe trước khi xoá folder Migrations dead.
+                // Default = MigrateAsync() chạy (backward compat). Set EF_AUTO_MIGRATE=false trên Cloud Run
+                // → observe 24h → nếu OK thì commit phase 2 (xoá folder). Xem plan-T5-remove-ef-migrations.md.
+                var autoMigrate = Environment.GetEnvironmentVariable("EF_AUTO_MIGRATE");
+                if (string.Equals(autoMigrate, "false", StringComparison.OrdinalIgnoreCase))
                 {
-                    await context.Database.MigrateAsync();
+                    logger?.LogInformation("EF_AUTO_MIGRATE=false → skip MigrateAsync(); rely on ProductionSchemaRepairRunner.");
                 }
-                catch (InvalidOperationException ex) when (ex.Message.Contains("PendingModelChangesWarning", StringComparison.Ordinal))
+                else
                 {
-                    // The committed migrations are behind the runtime model. Keep startup working and let
-                    // compatibility shims patch the live schema until the migration set is brought up to date.
+                    try
+                    {
+                        await context.Database.MigrateAsync();
+                    }
+                    catch (InvalidOperationException ex) when (ex.Message.Contains("PendingModelChangesWarning", StringComparison.Ordinal))
+                    {
+                        // The committed migrations are behind the runtime model. Keep startup working and let
+                        // compatibility shims patch the live schema until the migration set is brought up to date.
+                    }
                 }
             }
         }
