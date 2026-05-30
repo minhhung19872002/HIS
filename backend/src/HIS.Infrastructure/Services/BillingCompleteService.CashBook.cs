@@ -1,0 +1,357 @@
+using System.Text;
+using Microsoft.EntityFrameworkCore;
+using HIS.Application.DTOs;
+using HIS.Application.DTOs.Billing;
+using HIS.Application.Services;
+using HIS.Core.Entities;
+using HIS.Core.Interfaces;
+using HIS.Infrastructure.Data;
+using static HIS.Infrastructure.Services.PdfTemplateHelper;
+
+namespace HIS.Infrastructure.Services;
+
+// K8 phien 6 (2026-05-30): tach 10.1.1 CashBook + 10.1.2 PatientSearch (~342 dong) khoi BillingCompleteService.
+public partial class BillingCompleteService {
+    #region 10.1.1 Cash Book Management
+
+    public async Task<CashBookDto> CreateCashBookAsync(CreateCashBookDto dto, Guid userId)
+    {
+        var cashBook = new CashBook
+        {
+            Id = Guid.NewGuid(),
+            BookCode = dto.Code,
+            BookName = dto.Name,
+            BookType = dto.BookType,
+            StartDate = DateTime.Now,
+            CashierId = userId,
+            OpeningBalance = dto.OpeningBalance,
+            TotalReceipt = 0,
+            TotalRefund = 0,
+            ClosingBalance = dto.OpeningBalance,
+            IsClosed = false,
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString()
+        };
+
+        _context.CashBooks.Add(cashBook);
+        await _context.SaveChangesAsync();
+
+        return new CashBookDto
+        {
+            Id = cashBook.Id,
+            Code = cashBook.BookCode,
+            Name = cashBook.BookName,
+            BookType = cashBook.BookType,
+            BookTypeName = cashBook.BookType == 1 ? "Thu tiền" : "Tạm ứng",
+            OpeningBalance = cashBook.OpeningBalance,
+            CurrentBalance = cashBook.ClosingBalance,
+            Status = 1,
+            StatusName = "Đang mở",
+            CreatedAt = cashBook.CreatedAt
+        };
+    }
+
+    public async Task<CashBookDto> CreateDepositBookAsync(CreateCashBookDto dto, Guid userId)
+    {
+        var cashBook = new CashBook
+        {
+            Id = Guid.NewGuid(),
+            BookCode = dto.Code,
+            BookName = dto.Name,
+            BookType = 2, // Tạm ứng
+            StartDate = DateTime.Now,
+            CashierId = userId,
+            OpeningBalance = dto.OpeningBalance,
+            TotalReceipt = 0,
+            TotalRefund = 0,
+            ClosingBalance = dto.OpeningBalance,
+            IsClosed = false,
+            CreatedAt = DateTime.Now,
+            CreatedBy = userId.ToString()
+        };
+
+        _context.CashBooks.Add(cashBook);
+        await _context.SaveChangesAsync();
+
+        return new CashBookDto
+        {
+            Id = cashBook.Id,
+            Code = cashBook.BookCode,
+            Name = cashBook.BookName,
+            BookType = 2,
+            BookTypeName = "Tạm ứng",
+            OpeningBalance = cashBook.OpeningBalance,
+            CurrentBalance = cashBook.ClosingBalance,
+            Status = 1,
+            StatusName = "Đang mở",
+            CreatedAt = cashBook.CreatedAt
+        };
+    }
+
+    public async Task<List<CashBookDto>> GetCashBooksAsync(int? bookType, Guid? departmentId)
+    {
+        var query = _context.CashBooks
+            .Include(b => b.Cashier)
+            .Where(b => !b.IsDeleted);
+        if (bookType.HasValue) query = query.Where(b => b.BookType == bookType.Value);
+
+        var books = await query.OrderByDescending(b => b.CreatedAt).ToListAsync();
+        return books.Select(b => new CashBookDto
+        {
+            Id = b.Id,
+            Code = b.BookCode,
+            Name = b.BookName,
+            BookType = b.BookType,
+            BookTypeName = b.BookType switch { 1 => "Sổ thu tiền", 2 => "Sổ tạm ứng", 3 => "Sổ hoàn ứng", _ => "Khác" },
+            ReceiptPrefix = null,
+            CurrentNumber = b.CurrentNumber,
+            MaxNumber = b.EndNumber,
+            OpeningBalance = b.OpeningBalance,
+            CurrentBalance = b.ClosingBalance,
+            Status = b.IsClosed ? 3 : 1,
+            StatusName = b.IsClosed ? "Đã đóng" : "Đang mở",
+            CreatedAt = b.CreatedAt,
+            CreatedBy = b.CreatedBy,
+            ClosedAt = b.EndDate,
+        }).ToList();
+    }
+
+    public async Task<CashBookDto?> GetCashBookByIdAsync(Guid id)
+    {
+        return null;
+    }
+
+    public async Task<CashBookDto> LockCashBookAsync(Guid cashBookId, Guid userId)
+    {
+        var cashBook = await _context.CashBooks.FirstOrDefaultAsync(cb => cb.Id == cashBookId);
+        if (cashBook == null)
+            throw new Exception("Cash book not found");
+
+        if (!cashBook.IsClosed)
+        {
+            cashBook.IsClosed = true;
+            cashBook.ClosedAt = DateTime.Now;
+            cashBook.EndDate = DateTime.Now;
+            cashBook.UpdatedAt = DateTime.Now;
+            cashBook.UpdatedBy = userId.ToString();
+            await _context.SaveChangesAsync();
+        }
+
+        return new CashBookDto
+        {
+            Id = cashBook.Id,
+            Code = cashBook.BookCode,
+            Name = cashBook.BookName,
+            BookType = cashBook.BookType,
+            BookTypeName = cashBook.BookType == 1 ? "Thu tiá»n" : "Táº¡m á»©ng",
+            OpeningBalance = cashBook.OpeningBalance,
+            CurrentBalance = cashBook.ClosingBalance,
+            Status = cashBook.IsClosed ? 2 : 1,
+            StatusName = cashBook.IsClosed ? "ÄÃ£ khÃ³a" : "Äang má»Ÿ",
+            CreatedAt = cashBook.CreatedAt
+        };
+    }
+
+    public async Task<CashBookDto> UnlockCashBookAsync(Guid cashBookId, Guid userId)
+    {
+        var cashBook = await _context.CashBooks.FirstOrDefaultAsync(cb => cb.Id == cashBookId);
+        if (cashBook == null)
+            throw new Exception("Cash book not found");
+
+        if (cashBook.IsClosed)
+        {
+            cashBook.IsClosed = false;
+            cashBook.ClosedAt = null;
+            cashBook.EndDate = null;
+            cashBook.UpdatedAt = DateTime.Now;
+            cashBook.UpdatedBy = userId.ToString();
+            await _context.SaveChangesAsync();
+        }
+
+        return new CashBookDto
+        {
+            Id = cashBook.Id,
+            Code = cashBook.BookCode,
+            Name = cashBook.BookName,
+            BookType = cashBook.BookType,
+            BookTypeName = cashBook.BookType == 1 ? "Thu tiền" : "Tạm ứng",
+            OpeningBalance = cashBook.OpeningBalance,
+            CurrentBalance = cashBook.ClosingBalance,
+            Status = 1,
+            StatusName = "Đang mở",
+            CreatedAt = cashBook.CreatedAt
+        };
+    }
+
+    public async Task<bool> AssignCashBookPermissionAsync(AssignCashBookPermissionDto dto, Guid userId)
+    {
+        // No CashBookPermission table exists - stub implementation
+        await Task.CompletedTask;
+        return true;
+    }
+
+    public async Task<bool> RemoveCashBookPermissionAsync(Guid cashBookId, Guid targetUserId, Guid userId)
+    {
+        // No CashBookPermission table exists - stub implementation
+        await Task.CompletedTask;
+        return true;
+    }
+
+    public async Task<List<CashBookUserDto>> GetCashBookUsersAsync(Guid cashBookId)
+    {
+        // No CashBookPermission table — return the book's owner (Cashier) as the
+        // sole authorised user.
+        var book = await _context.CashBooks
+            .Include(b => b.Cashier)
+            .FirstOrDefaultAsync(b => b.Id == cashBookId && !b.IsDeleted);
+        if (book?.Cashier == null) return new List<CashBookUserDto>();
+        return new List<CashBookUserDto>
+        {
+            new CashBookUserDto
+            {
+                UserId = book.Cashier.Id,
+                UserCode = book.Cashier.UserCode ?? book.Cashier.Username,
+                UserName = book.Cashier.FullName,
+                Permission = 4,
+                PermissionName = "Quản lý",
+                AssignedAt = book.CreatedAt,
+                AssignedBy = book.CreatedBy,
+            },
+        };
+    }
+
+    #endregion
+
+    #region 10.1.2 Patient Search
+
+    public async Task<PagedResultDto<PatientBillingStatusDto>> SearchPatientsAsync(PatientStatusSearchDto dto)
+    {
+        return new PagedResultDto<PatientBillingStatusDto>
+        {
+            Items = new List<PatientBillingStatusDto>(),
+            TotalCount = 0,
+            Page = 1,
+            PageSize = 50
+        };
+    }
+
+    public async Task<PatientBillingStatusDto> GetPatientBillingStatusAsync(Guid medicalRecordId)
+    {
+        try
+        {
+            var record = await _context.MedicalRecords
+                .Include(r => r.Patient)
+                .FirstOrDefaultAsync(r => r.Id == medicalRecordId);
+            if (record == null) return new PatientBillingStatusDto();
+
+            var serviceRequests = await _context.ServiceRequests
+                .Where(sr => sr.MedicalRecordId == medicalRecordId)
+                .ToListAsync();
+
+            var receipts = await _context.Receipts
+                .Where(r => r.MedicalRecordId == medicalRecordId && r.Status == 1)
+                .ToListAsync();
+
+            var deposits = await _context.Deposits
+                .Where(d => d.MedicalRecordId == medicalRecordId && d.Status != 3)
+                .ToListAsync();
+
+            var totalAmount = serviceRequests.Sum(sr => sr.TotalAmount);
+            var insuranceAmount = serviceRequests.Sum(sr => sr.InsuranceAmount);
+            var patientAmount = serviceRequests.Sum(sr => sr.PatientAmount);
+            var paidAmount = receipts.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount)
+                           - receipts.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount);
+            var depositBalance = deposits.Sum(d => d.RemainingAmount);
+            var remaining = patientAmount - paidAmount;
+
+            var statusNames = new Dictionary<int, string>
+            {
+                { 0, "Cho kham" }, { 1, "Dang kham" }, { 2, "Cho TT" },
+                { 3, "Dang dieu tri" }, { 4, "Cho ra vien" }, { 5, "Da dong BA" }
+            };
+
+            var hasUnpaid = serviceRequests.Any(sr => !sr.IsPaid && sr.Status != 4);
+            var paymentStatus = remaining <= 0 ? 2 : (paidAmount > 0 ? 1 : 0);
+            var paymentStatusNames = new[] { "Chua thanh toan", "Thanh toan mot phan", "Da thanh toan" };
+
+            var warnings = new List<string>();
+            if (hasUnpaid) warnings.Add("Co dich vu chua thanh toan");
+            if (remaining > 0 && depositBalance < remaining) warnings.Add("So du tam ung khong du");
+
+            return new PatientBillingStatusDto
+            {
+                PatientId = record.PatientId,
+                PatientCode = record.Patient?.PatientCode ?? string.Empty,
+                PatientName = record.Patient?.FullName ?? string.Empty,
+                MedicalRecordId = record.Id,
+                MedicalRecordCode = record.MedicalRecordCode,
+                RecordStatus = record.Status,
+                RecordStatusName = statusNames.GetValueOrDefault(record.Status, ""),
+                AccountingStatus = record.IsClosed ? 2 : 1,
+                AccountingStatusName = record.IsClosed ? "Da duyet" : "Chua duyet",
+                PaymentStatus = paymentStatus,
+                PaymentStatusName = paymentStatusNames[paymentStatus],
+                TotalAmount = totalAmount,
+                InsuranceAmount = insuranceAmount,
+                PatientAmount = patientAmount,
+                PaidAmount = paidAmount,
+                DepositBalance = depositBalance,
+                RemainingAmount = remaining > 0 ? remaining : 0,
+                HasUnpaidServices = hasUnpaid,
+                HasPendingApproval = !record.IsClosed,
+                IsLocked = record.Status >= 4,
+                CanDischarge = !hasUnpaid && remaining <= 0,
+                Warnings = warnings
+            };
+        }
+        catch { return new PatientBillingStatusDto(); }
+    }
+
+    public async Task<InsuranceCheckDto> CheckInsuranceCardAsync(InsuranceCheckRequestDto dto)
+    {
+        try
+        {
+            var result = new InsuranceCheckDto
+            {
+                InsuranceCardNumber = dto.InsuranceCardNumber,
+                PatientName = dto.PatientName,
+                DateOfBirth = dto.DateOfBirth,
+                CheckedAt = DateTime.Now
+            };
+
+            var patient = await _context.Patients
+                .FirstOrDefaultAsync(p => p.InsuranceNumber == dto.InsuranceCardNumber);
+
+            if (patient == null)
+            {
+                result.Errors.Add("Khong tim thay thong tin the BHYT");
+                return result;
+            }
+
+            result.PatientName = patient.FullName ?? dto.PatientName;
+            result.DateOfBirth = patient.DateOfBirth;
+            result.CardFromDate = patient.InsuranceExpireDate?.AddYears(-1);
+            result.CardToDate = patient.InsuranceExpireDate;
+            result.IsValid = patient.InsuranceExpireDate == null || patient.InsuranceExpireDate >= DateTime.Today;
+            result.IsInNetwork = true;
+            result.InsuranceRate = 0.8m;
+            result.CoPaymentRate = 0.2m;
+
+            if (!result.IsValid)
+                result.Warnings.Add("The BHYT da het han su dung");
+            else if (patient.InsuranceExpireDate.HasValue && patient.InsuranceExpireDate.Value <= DateTime.Today.AddDays(30))
+                result.Warnings.Add("The BHYT sap het han (con " +
+                    (patient.InsuranceExpireDate.Value - DateTime.Today).Days + " ngay)");
+
+            // Check 5-year continuous
+            result.Is5YearContinuous = patient.InsuranceExpireDate.HasValue &&
+                result.CardFromDate.HasValue &&
+                (patient.InsuranceExpireDate.Value - result.CardFromDate.Value).TotalDays >= 1825;
+
+            return result;
+        }
+        catch { return new InsuranceCheckDto { CheckedAt = DateTime.Now }; }
+    }
+
+    #endregion
+}
