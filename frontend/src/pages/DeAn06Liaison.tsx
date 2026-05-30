@@ -9,7 +9,7 @@ import {
   type BirthCertificateDto, type DeathCertificateDto, type DrivingLicenseHealthCheckDto
 } from '../api/nangcap23';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 const DA06_TAG = (s: number, name: string) => {
   const color = s === 2 ? 'success' : s === 1 ? 'processing' : s === 3 ? 'error' : 'default';

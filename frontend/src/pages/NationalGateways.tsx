@@ -6,7 +6,7 @@ import {
 } from 'antd';
 import {
   ApiOutlined, CloudUploadOutlined, ReloadOutlined, SendOutlined,
-  CloseCircleOutlined, SaveOutlined, ThunderboltOutlined, EyeOutlined
+  CloseCircleOutlined, SaveOutlined, ThunderboltOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {

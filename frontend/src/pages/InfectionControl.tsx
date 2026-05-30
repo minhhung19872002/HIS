@@ -66,13 +66,14 @@ const INFECTION_TYPES = [
   { value: 'Other', label: 'Khác' },
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const ISOLATION_TYPES = [
+// Kept as ref for future drop-down options; not currently rendered.
+const _ISOLATION_TYPES = [
   { value: 'Contact', label: 'Cách ly tiếp xúc' },
   { value: 'Droplet', label: 'Cách ly giọt bắn' },
   { value: 'Airborne', label: 'Cách ly không khí' },
   { value: 'Protective', label: 'Cách ly bảo vệ' },
 ];
+void _ISOLATION_TYPES;
 
 const InfectionControl: React.FC = () => {
   const [loading, setLoading] = useState(false);

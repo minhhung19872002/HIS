@@ -35,7 +35,6 @@ import {
   EditOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  UploadOutlined,
   CalendarOutlined,
   BarChartOutlined,
   TeamOutlined,

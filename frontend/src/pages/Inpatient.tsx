@@ -63,6 +63,10 @@ import {
   type CompleteDischargeDto,
   type CreateBedAssignmentDto,
   type TransferBedDto,
+  type TreatmentSheetDto,
+  type NursingCareSheetDto,
+  type InpatientPrescriptionDto,
+  type InpatientServiceOrderDto,
 } from '../api/inpatient';
 import { getAdmissionContext, type AdmissionContextDto } from '../api/dataInheritance';
 import { patientApi, type Patient } from '../api/patient';
@@ -173,9 +177,14 @@ const Inpatient: React.FC = () => {
   // NangCap4: Deposit insufficient warning
   const [depositWarning, setDepositWarning] = useState<{ patientName: string; depositBalance: number; pendingCharges: number } | null>(null);
 
-  // BUG-015: Detail modal sub-data
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [detailSubData, setDetailSubData] = useState<{ treatmentSheets: any[]; prescriptions: any[]; serviceOrders: any[]; nursingCare: any[]; loading: boolean }>({ treatmentSheets: [], prescriptions: [], serviceOrders: [], nursingCare: [], loading: false });
+  // BUG-015: Detail modal sub-data — typed bằng DTO của các API tương ứng
+  const [detailSubData, setDetailSubData] = useState<{
+    treatmentSheets: TreatmentSheetDto[];
+    prescriptions: InpatientPrescriptionDto[];
+    serviceOrders: InpatientServiceOrderDto[];
+    nursingCare: NursingCareSheetDto[];
+    loading: boolean;
+  }>({ treatmentSheets: [], prescriptions: [], serviceOrders: [], nursingCare: [], loading: false });
 
   // NangCap4: Save supply order as template
   const handleSaveSupplyTemplate = () => {

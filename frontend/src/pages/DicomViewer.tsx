@@ -41,7 +41,6 @@ import AiOverlayLayer from '../components/AiOverlayLayer';
 import { openAiReportHtml, downloadAiSignedPdf, uploadAiDicomSr, mergeAiToReport, type AiLabel } from '../api/aiLabeling';
 import { API_ORIGIN } from '../config/api';
 import { loadViewerConfig } from '../components/DicomViewerConfig';
-import DicomViewerConfig from '../components/DicomViewerConfig';
 import CornerstoneViewer, { type CornerstoneViewerHandle } from '../components/CornerstoneViewer';
 import MprViewer from '../components/MprViewer';
 import MammoViewer, { type MammoImage } from '../components/MammoViewer';
