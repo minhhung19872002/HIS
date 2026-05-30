@@ -1063,7 +1063,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<TreatmentSheet>().HasOne(t => t.Doctor).WithMany().HasForeignKey(t => t.DoctorId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<TreatmentSheet>().HasOne(t => t.Nurse).WithMany().HasForeignKey(t => t.NurseId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<TwoFactorOtp>().HasOne(t => t.User).WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.NoAction);
-        modelBuilder.Entity<UserRole>().HasOne(u => u.User).WithMany().HasForeignKey(u => u.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<UserRole>().HasOne(u => u.User).WithMany(usr => usr.UserRoles).HasForeignKey(u => u.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<UserSession>().HasOne(u => u.User).WithMany().HasForeignKey(u => u.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<WebAuthnCredential>().HasOne(w => w.User).WithMany().HasForeignKey(w => w.UserId).OnDelete(DeleteBehavior.NoAction);
 
