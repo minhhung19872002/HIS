@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { searchRecords, getStats, createRecord, updateRecord } from '../api/populationHealth';
 import type { PopulationRecord, PopulationStats } from '../api/populationHealth';
 import {
-  KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
@@ -141,25 +141,25 @@ const PopulationHealthV2: React.FC = () => {
 
       <TopTabs<TKey> tab={tType} setTab={(v) => { setTType(v); setStab('all'); setPage(0); }} tabs={TYPE_TABS} actions={
         <>
-          <button className="ab-btn ghost" type="button" onClick={load}>
+          <Btn variant="ghost" onClick={load}>
             <Ico name="refresh" size={12} /> Làm mới
-          </button>
-          <button className="ab-btn primary" type="button" onClick={openCreate}>
+          </Btn>
+          <Btn variant="primary" onClick={openCreate}>
             <Ico name="plus" size={12} /> Thêm HS
-          </button>
+          </Btn>
         </>
       } />
 
       <div className="ab-toolbar" style={{ borderTop: 'none' }}>
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm họ tên / mã HS / địa chỉ…" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setStab('all'); setTType('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setStab('all'); setTType('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Đã xuất Excel')}>
+        <Btn variant="ghost" onClick={() => tk('Đã xuất Excel')}>
           <Ico name="download" size={12} /> Xuất Excel
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -178,10 +178,10 @@ const PopulationHealthV2: React.FC = () => {
         title={sel ? sel.fullName : ''}
         sub={sel ? `${sel.recordCode} · ${TYPE_LABEL[sel.recordType] || sel.recordType}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn variant="primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Cập nhật
-          </button>
+          </Btn>
         </>}
       >
         {sel && <>

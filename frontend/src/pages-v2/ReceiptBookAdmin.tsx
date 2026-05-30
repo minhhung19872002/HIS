@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import systemApi from '../api/system';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
   Ico, tk, ti, tw, cf, type ColumnDef,
 } from './_v2kit';
 
@@ -180,16 +180,10 @@ const ReceiptBookAdminV2: React.FC = () => {
         <SearchBox value={keyword} onChange={setKeyword} placeholder="Tìm mã / tên / series / VB…" />
         <Filter value={fType} onChange={setFType} options={RECEIPT_TYPES} placeholder="▾ Loại" />
         <InputNumber placeholder="Năm TC" value={fYear} onChange={(v) => setFYear(Number(v) || undefined)} size="small" style={{ width: 100 }} />
-        <button className="ab-btn ghost" type="button" onClick={() => { setKeyword(''); setFType(''); setFYear(undefined); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setKeyword(''); setFType(''); setFYear(undefined); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={openAdd}>
-          <Ico name="plus" size={12} /> Khai báo sổ mới
-        </button>
+        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="primary" icon="plus" onClick={openAdd}>Khai báo sổ mới</Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />

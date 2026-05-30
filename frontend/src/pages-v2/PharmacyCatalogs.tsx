@@ -9,7 +9,7 @@ import { Input, InputNumber, Select, DatePicker, Switch } from 'antd';
 import dayjs from 'dayjs';
 import * as api from '../api/masterCatalog';
 import {
-  KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, te, cf, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -254,8 +254,8 @@ const PharmacyCatalogsV2: React.FC = () => {
           placeholder={tab === 'mfr' ? 'Tìm hãng / quốc gia / địa chỉ…' : tab === 'route' ? 'Tìm đường dùng / mã BHXH…' : 'Tìm hội đồng / mô tả…'}
         />
         <span className="spacer" />
-        <button type="button" className="ab-btn ghost" onClick={exportCsv}><Ico name="download" size={12} /> Xuất CSV</button>
-        <button type="button" className="ab-btn primary" onClick={() => openDrawer()}><Ico name="plus" size={12} /> Thêm mới</button>
+        <Btn variant="ghost" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
+        <Btn variant="primary" icon="plus" onClick={() => openDrawer()}>Thêm mới</Btn>
       </div>
       <DataTable
         columns={cols}
@@ -275,8 +275,8 @@ const PharmacyCatalogsV2: React.FC = () => {
         sub={`Mục: ${tabsDef.find((t) => t.v === tab)?.l.split(' (')[0]}`}
         footer={(
           <>
-            <button type="button" className="ab-btn ghost" onClick={() => setEdit(null)}>Huỷ</button>
-            <button type="button" className="ab-btn primary" onClick={handleSave}><Ico name="check" size={12} /> {editIsNew ? 'Tạo mới' : 'Lưu'}</button>
+            <Btn variant="ghost" onClick={() => setEdit(null)}>Huỷ</Btn>
+            <Btn variant="primary" icon="check" onClick={handleSave}>{editIsNew ? 'Tạo mới' : 'Lưu'}</Btn>
           </>
         )}
       >
@@ -390,9 +390,9 @@ const EditForm: React.FC<{ tab: TabKey; edit: EditState; setEdit: (e: EditState)
       <DrSec
         title={`Thành viên hội đồng (${members.length})`}
         action={(
-          <button type="button" className="ab-btn ghost sm" onClick={addMember}>
+          <Btn variant="ghost" size="sm" onClick={addMember}>
             <Ico name="plus" size={11} /> Thêm
-          </button>
+          </Btn>
         )}
       >
         {members.length === 0 ? (

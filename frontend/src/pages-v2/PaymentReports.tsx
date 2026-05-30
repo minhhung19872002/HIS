@@ -3,7 +3,7 @@ import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
 import {
-  KpiStrip, TopTabs, Filter, DataTable, StatusBadge, Ico, tk, ti, tw,
+  KpiStrip, TopTabs, Filter, DataTable, StatusBadge, Btn, Ico, tk, ti, tw,
   type ColumnDef,
 } from './_v2kit';
 
@@ -229,12 +229,8 @@ const PaymentReportsV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <button className="ab-btn ghost" type="button" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </button>
-          <button className="ab-btn primary" type="button" onClick={exportCsv}>
-            <Ico name="download" size={12} /> Xuất CSV
-          </button>
+          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+          <Btn variant="primary" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
         </>
       } />
 
@@ -243,9 +239,7 @@ const PaymentReportsV2: React.FC = () => {
         {tab === 'bc1' && (
           <Filter value={provider} onChange={setProvider} options={PROVIDERS} placeholder="▾ Cổng TT" />
         )}
-        <button className="ab-btn ghost" type="button" onClick={() => { setRange([dayjs().subtract(7, 'day'), dayjs()]); setProvider(''); }}>
-          <Ico name="x" size={12} /> Reset
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setRange([dayjs().subtract(7, 'day'), dayjs()]); setProvider(''); }}>Reset</Btn>
       </div>
 
       {renderCurrent()}

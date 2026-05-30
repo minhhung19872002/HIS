@@ -4,7 +4,7 @@ import { App as AntdApp } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { getPrescriptions } from '../api/patientPortal';
 import type { PrescriptionHistoryDto } from '../api/patientPortal';
-import { SimpleV2Page, StatusBadge, ActBtn, type ColumnDef, type StatusTab } from './_v2kit';
+import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
 /* Kê đơn v2 — list shell.
@@ -144,15 +144,15 @@ const PrescriptionV2: React.FC = () => {
           <div className="rec-section">
             <h5><TermIcon name="info" size={11} /> THAO TÁC</h5>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/prescription/edit')}>
+              <Btn variant="primary" onClick={() => navigate('/v2/prescription/edit')}>
                 <TermIcon name="edit" size={12} /> Mở editor kê đơn
-              </button>
-              <button type="button" className="ab-btn" onClick={() => message.success('Đã gửi máy in')}>
+              </Btn>
+              <Btn onClick={() => message.success('Đã gửi máy in')}>
                 <TermIcon name="print" size={12} /> In đơn
-              </button>
-              <button type="button" className="ab-btn" onClick={() => navigate('/v2/signing-workflow')}>
+              </Btn>
+              <Btn onClick={() => navigate('/v2/signing-workflow')}>
                 <TermIcon name="check" size={12} /> Ký số
-              </button>
+              </Btn>
             </div>
           </div>
         </>
@@ -165,9 +165,9 @@ const PrescriptionV2: React.FC = () => {
       )}
       drawerSub={(r) => `${r.prescribedBy} · ${fmtDMY(r.prescribedDate)}`}
       toolbarRight={
-        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/prescription/edit')}>
+        <Btn variant="primary" onClick={() => navigate('/v2/prescription/edit')}>
           <TermIcon name="plus" size={12} /> Kê đơn mới
-        </button>
+        </Btn>
       }
     />
   );

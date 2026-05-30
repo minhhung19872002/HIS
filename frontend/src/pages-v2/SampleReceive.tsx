@@ -3,7 +3,7 @@ import { Form, Input } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import {
-  KpiStrip, SearchBox, DataTable, StatusBadge, ActBtn,
+  KpiStrip, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, Ico, tk, ti, tw,
   type ColumnDef,
 } from './_v2kit';
@@ -129,17 +129,17 @@ const SampleReceiveV2: React.FC = () => {
 
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={keyword} onChange={setKeyword} placeholder="Tìm barcode / mã BN / tên / mã phiếu…" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setKeyword(''); load(); }}>
+        <Btn variant="ghost" onClick={() => { setKeyword(''); load(); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
+        </Btn>
         {selected.size > 0 && (
-          <button className="ab-btn primary" type="button" onClick={accept}>
+          <Btn variant="primary" onClick={accept}>
             <Ico name="check" size={12} /> Nhận {selected.size} mẫu
-          </button>
+          </Btn>
         )}
       </div>
 
@@ -200,10 +200,10 @@ const SampleReceiveV2: React.FC = () => {
         size="md"
         title={`Từ chối mẫu ${rejectRow?.sampleBarcode || ''}`}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setRejectRow(null)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={submitReject} style={{ color: 'var(--a-rd-text)' }}>
+          <Btn variant="ghost" onClick={() => setRejectRow(null)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitReject} style={{ color: 'var(--a-rd-text)' }}>
             <Ico name="x" size={12} /> Từ chối
-          </button>
+          </Btn>
         </>}
       >
         <Form form={rejectForm} layout="vertical">
@@ -219,10 +219,10 @@ const SampleReceiveV2: React.FC = () => {
         size="md"
         title={`KTV ghi KQ — ${runRow?.serviceName || ''}`}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setRunRow(null)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={submitRun}>
+          <Btn variant="ghost" onClick={() => setRunRow(null)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitRun}>
             <Ico name="check" size={12} /> Lưu KQ
-          </button>
+          </Btn>
         </>}
       >
         <div style={{ marginBottom: 12 }}><StatusBadge tone="warn">Chỉ ghi KQ — chờ người khác duyệt</StatusBadge></div>
@@ -242,10 +242,10 @@ const SampleReceiveV2: React.FC = () => {
         size="md"
         title={`Duyệt KQ — ${reviewRow?.serviceName || ''}`}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setReviewRow(null)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={submitReview}>
+          <Btn variant="ghost" onClick={() => setReviewRow(null)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitReview}>
             <Ico name="check" size={12} /> Duyệt
-          </button>
+          </Btn>
         </>}
       >
         <div style={{ marginBottom: 12 }}><StatusBadge tone="crit">Người duyệt phải khác KTV ghi KQ (4-eyes principle)</StatusBadge></div>

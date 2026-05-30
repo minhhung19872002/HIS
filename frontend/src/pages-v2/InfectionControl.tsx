@@ -4,7 +4,7 @@ import { getHAICases, createHAICase } from '../api/infectionControl';
 import type { CreateHAISurveillanceDto } from '../api/infectionControl';
 import { getInpatientList } from '../api/inpatient';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, CrudModal,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, CrudModal, Btn,
   DrawerShell, DrSec, DrField, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
@@ -204,19 +204,11 @@ const InfectionControlV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm BN / mã ca / mầm bệnh…" />
         <Filter value={fInfType} onChange={setFInfType} options={infTypes} placeholder="▾ Loại NK" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFInfType(''); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFInfType(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở cách ly')}>
-          <Ico name="alert" size={12} /> Cách ly
-        </button>
-        <button className="ab-btn primary" type="button" onClick={openCreate}>
-          <Ico name="plus" size={12} /> Báo cáo HAI
-        </button>
+        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="alert" onClick={() => tk('Mở cách ly')}>Cách ly</Btn>
+        <Btn variant="primary" icon="plus" onClick={openCreate}>Báo cáo HAI</Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -235,10 +227,8 @@ const InfectionControlV2: React.FC = () => {
         title={sel ? `Ca HAI ${sel.caseCode || '—'}` : ''}
         sub={sel ? `${sel.patientName || '—'} · ${sel.organism || sel.infectionTypeName || '—'}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in báo cáo')}>
-            <Ico name="print" size={12} /> In báo cáo
-          </button>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn icon="print" onClick={() => tk('Đã in báo cáo')}>In báo cáo</Btn>
         </>}
       >
         {sel && <>

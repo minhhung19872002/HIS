@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { searchDiseaseReports, getEpiStats, updateDiseaseReport } from '../api/epidemiology';
 import type { DiseaseReport, EpiStats } from '../api/epidemiology';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
@@ -152,19 +152,19 @@ const EpidemiologyV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm BN / mã BC / bệnh…" />
         <Filter value={fGroup} onChange={setFGroup} options={groupOpts} placeholder="▾ Nhóm bệnh" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFGroup(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFGroup(''); setStab('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở quản lý ổ dịch')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Mở quản lý ổ dịch')}>
           <Ico name="alert" size={12} /> Ổ dịch
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở báo cáo bệnh mới')}>
+        </Btn>
+        <Btn variant="primary" onClick={() => tk('Mở báo cáo bệnh mới')}>
           <Ico name="plus" size={12} /> Báo cáo mới
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -183,17 +183,17 @@ const EpidemiologyV2: React.FC = () => {
         title={sel ? `BC ${sel.reportCode}` : ''}
         sub={sel ? `${sel.diseaseName} · ${sel.patientName}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in báo cáo')}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => tk('Đã in báo cáo')}>
             <Ico name="print" size={12} /> In BC
-          </button>
-          <button type="button" className="ab-btn" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+          </Btn>
+          <Btn onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Sửa
-          </button>
+          </Btn>
           {sel && sel.status === 0 && (
-            <button type="button" className="ab-btn primary" onClick={() => { if (sel) sendReport(sel); setSel(null); }}>
+            <Btn variant="primary" onClick={() => { if (sel) sendReport(sel); setSel(null); }}>
               <Ico name="send" size={12} /> Gửi báo cáo
-            </button>
+            </Btn>
           )}
         </>}
       >

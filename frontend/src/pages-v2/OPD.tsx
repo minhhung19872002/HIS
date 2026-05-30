@@ -4,7 +4,7 @@ import { App as AntdApp } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import * as receptionApi from '../api/reception';
 import type { AdmissionDto } from '../api/reception';
-import { SimpleV2Page, StatusBadge, ActBtn, type ColumnDef, type StatusTab } from './_v2kit';
+import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
 /* Khám bệnh OPD v2 — list shell.
@@ -156,15 +156,15 @@ const OPDV2: React.FC = () => {
           <div className="rec-section">
             <h5><TermIcon name="info" size={11} /> THAO TÁC</h5>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/opd/edit')}>
+              <Btn variant="primary" onClick={() => navigate('/v2/opd/edit')}>
                 <TermIcon name="stethoscope" size={12} /> Mở phòng khám
-              </button>
-              <button type="button" className="ab-btn" onClick={() => navigate('/v2/emr/edit')}>
+              </Btn>
+              <Btn onClick={() => navigate('/v2/emr/edit')}>
                 <TermIcon name="eye" size={12} /> Xem HSBA
-              </button>
-              <button type="button" className="ab-btn" onClick={() => navigate('/v2/prescription/edit')}>
+              </Btn>
+              <Btn onClick={() => navigate('/v2/prescription/edit')}>
                 <TermIcon name="flask" size={12} /> Kê đơn
-              </button>
+              </Btn>
             </div>
           </div>
         </>

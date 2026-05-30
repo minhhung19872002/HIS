@@ -4,7 +4,7 @@ import { getBookings, getBookingStats } from '../api/bookingManagement';
 import type { BookingStatsDto } from '../api/bookingManagement';
 import type { BookingStatusDto } from '../api/appointmentBooking';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -127,19 +127,19 @@ const BookingManagementV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm BN / mã hẹn / SĐT…" />
         <Filter value={fDept} onChange={setFDept} options={depts} placeholder="▾ Khoa" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFDept(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFDept(''); setStab('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở SMS hàng loạt')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Mở SMS hàng loạt')}>
           <Ico name="message-square" size={12} /> Nhắc SMS
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở đặt lịch mới')}>
+        </Btn>
+        <Btn variant="primary" onClick={() => tk('Mở đặt lịch mới')}>
           <Ico name="plus" size={12} /> Đặt lịch
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -158,16 +158,16 @@ const BookingManagementV2: React.FC = () => {
         title={sel ? sel.patientName : ''}
         sub={sel ? `${sel.appointmentCode} · ${dayjs(sel.appointmentDate).format('DD/MM/YYYY')}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
           {sel && sel.status === 0 && (
-            <button type="button" className="ab-btn primary" onClick={() => { tk('Đã xác nhận'); setSel(null); }}>
+            <Btn variant="primary" onClick={() => { tk('Đã xác nhận'); setSel(null); }}>
               <Ico name="check" size={12} /> Xác nhận
-            </button>
+            </Btn>
           )}
           {sel && (sel.status === 0 || sel.status === 1) && (
-            <button type="button" className="ab-btn" onClick={() => tk(`Gọi ${sel.phoneNumber}`)}>
+            <Btn onClick={() => tk(`Gọi ${sel.phoneNumber}`)}>
               <Ico name="phone" size={12} /> Gọi BN
-            </button>
+            </Btn>
           )}
         </>}
       >

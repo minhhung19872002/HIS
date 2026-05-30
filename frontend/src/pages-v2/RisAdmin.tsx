@@ -3,7 +3,7 @@ import { Form, Input, InputNumber, Select, DatePicker, Checkbox } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
 import {
-  KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn,
+  KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn,
   ModalShell, DrawerShell, DrSec, DrField, Ico, tk, tw, cf,
   type ColumnDef,
 } from './_v2kit';
@@ -147,14 +147,14 @@ const PermissionsTab: React.FC = () => {
         <Filter value={selectedUserId} onChange={setSelectedUserId}
           options={users.map((u) => ({ v: u.id, l: `${u.fullName} (${u.username})` }))}
           placeholder="▾ Chọn BS / KTV" />
-        <button className="ab-btn primary" type="button" disabled={!selectedUserId} onClick={() => {
+        <Btn variant="primary" disabled={!selectedUserId} onClick={() => {
           editForm.resetFields(); editForm.setFieldsValue({ permissions: [0x0001] }); setEditModal(true);
         }}>
           <Ico name="plus" size={12} /> Thêm quyền
-        </button>
-        <button className="ab-btn" type="button" disabled={!selectedUserId} onClick={() => { copyForm.resetFields(); setCopyModal(true); }}>
+        </Btn>
+        <Btn disabled={!selectedUserId} onClick={() => { copyForm.resetFields(); setCopyModal(true); }}>
           <Ico name="archive" size={12} /> Copy từ user khác
-        </button>
+        </Btn>
       </div>
       <DataTable<PermissionRow> columns={cols} data={permissions} rowKey={(r) => r.id}
         onRowClick={setSel}
@@ -192,8 +192,8 @@ const PermissionsTab: React.FC = () => {
 
       <ModalShell open={editModal} onClose={() => setEditModal(false)} size="lg" title="Phân quyền"
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setEditModal(false)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={submit}><Ico name="check" size={12} /> Lưu</button>
+          <Btn variant="ghost" onClick={() => setEditModal(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submit}><Ico name="check" size={12} /> Lưu</Btn>
         </>}>
         <Form form={editForm} layout="vertical">
           <Form.Item name="roomId" label="Máy chụp (bỏ trống = áp dụng mọi máy)">
@@ -221,8 +221,8 @@ const PermissionsTab: React.FC = () => {
 
       <ModalShell open={copyModal} onClose={() => setCopyModal(false)} size="md" title="Copy quyền từ user khác"
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setCopyModal(false)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={copy}><Ico name="check" size={12} /> Copy</button>
+          <Btn variant="ghost" onClick={() => setCopyModal(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={copy}><Ico name="check" size={12} /> Copy</Btn>
         </>}>
         <Form form={copyForm} layout="vertical">
           <Form.Item name="fromUserId" label="Copy từ user" rules={[{ required: true }]}>
@@ -268,9 +268,9 @@ const AreasTab: React.FC = () => {
     <>
       <div className="ab-toolbar" style={{ borderTop: 'none' }}>
         <span className="spacer" />
-        <button className="ab-btn primary" type="button" onClick={() => { form.resetFields(); setModal(true); }}>
+        <Btn variant="primary" onClick={() => { form.resetFields(); setModal(true); }}>
           <Ico name="plus" size={12} /> Thêm khu vực
-        </button>
+        </Btn>
       </div>
       <DataTable<Area> columns={cols} data={data} rowKey={(r) => r.id}
         onRowClick={setSel}
@@ -297,8 +297,8 @@ const AreasTab: React.FC = () => {
 
       <ModalShell open={modal} onClose={() => setModal(false)} size="md" title="Thêm khu vực / chi nhánh"
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setModal(false)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={submit}><Ico name="check" size={12} /> Lưu</button>
+          <Btn variant="ghost" onClick={() => setModal(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submit}><Ico name="check" size={12} /> Lưu</Btn>
         </>}>
         <Form form={form} layout="vertical">
           <Form.Item name="areaCode" label="Mã" rules={[{ required: true }]}><Input /></Form.Item>
@@ -348,9 +348,9 @@ const FoldersTab: React.FC = () => {
       </div>
       <div className="ab-toolbar" style={{ borderTop: 'none' }}>
         <span className="spacer" />
-        <button className="ab-btn primary" type="button" onClick={() => { form.resetFields(); setModal(true); }}>
+        <Btn variant="primary" onClick={() => { form.resetFields(); setModal(true); }}>
           <Ico name="plus" size={12} /> Thêm thư mục
-        </button>
+        </Btn>
       </div>
       <DataTable<FolderRow> columns={cols} data={data} rowKey={(r) => r.id} onRowClick={setSel} empty="Chưa có thư mục" />
 
@@ -377,8 +377,8 @@ const FoldersTab: React.FC = () => {
 
       <ModalShell open={modal} onClose={() => setModal(false)} size="md" title="Thêm thư mục"
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setModal(false)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={submit}><Ico name="check" size={12} /> Lưu</button>
+          <Btn variant="ghost" onClick={() => setModal(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submit}><Ico name="check" size={12} /> Lưu</Btn>
         </>}>
         <Form form={form} layout="vertical">
           <Form.Item name="folderName" label="Tên thư mục" rules={[{ required: true }]}><Input /></Form.Item>
@@ -409,9 +409,9 @@ const IcdMapTab: React.FC = () => (
         <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 16 }}>
           Để quản lý mẫu, vào <b>Danh mục → Viết tắt + Template</b> → Tab "Template lâm sàng" → Filter loại "Kết luận khám mẫu"
         </div>
-        <button className="ab-btn primary" type="button" onClick={() => window.open('/v2/catalogs-admin', '_blank')}>
+        <Btn variant="primary" onClick={() => window.open('/v2/catalogs-admin', '_blank')}>
           <Ico name="archive" size={12} /> Mở trang quản lý template
-        </button>
+        </Btn>
       </div>
     </div>
     <div className="panel" style={{ padding: 0, marginTop: 16 }}>
@@ -472,9 +472,9 @@ const MachinesTab: React.FC = () => {
             <DrField lbl="Khoa">{sel.departmentName || '—'}</DrField>
           </DrSec>
           <DrSec title="Thao tác">
-            <button className="ab-btn primary" type="button" onClick={() => window.open(`/v2/radiology?config=${sel.id}`, '_blank')}>
+            <Btn variant="primary" onClick={() => window.open(`/v2/radiology?config=${sel.id}`, '_blank')}>
               <Ico name="edit" size={12} /> Cấu hình mẫu kết quả
-            </button>
+            </Btn>
           </DrSec>
         </>}
       </DrawerShell>
@@ -492,9 +492,9 @@ const SuppliesTab: React.FC = () => (
         <div style={{ fontSize: 13, color: 'var(--t-1)', marginBottom: 12 }}>
           Vật tư chuyên dụng cho CĐHA: thuốc cản quang, gel siêu âm, phim X-quang…
         </div>
-        <button className="ab-btn primary" type="button" onClick={() => window.open('/v2/medical-supply?type=radiology', '_blank')}>
+        <Btn variant="primary" onClick={() => window.open('/v2/medical-supply?type=radiology', '_blank')}>
           <Ico name="medicine" size={12} /> Mở Medical Supply (filter CĐHA)
-        </button>
+        </Btn>
       </div>
     </div>
   </div>
@@ -532,9 +532,9 @@ const HospitalConfigTab: React.FC = () => {
             <Form.Item name="reportFooter" label="Footer phiếu KQ">
               <Input.TextArea rows={3} placeholder="Mô tả cuối phiếu in KQ…" />
             </Form.Item>
-            <button type="submit" className="ab-btn primary">
+            <Btn type="submit" variant="primary">
               <Ico name="check" size={12} /> Lưu cấu hình
-            </button>
+            </Btn>
           </Form>
         </div>
       </div>
@@ -572,13 +572,13 @@ const StatsTab: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: 'none' }}>
         <span style={{ fontSize: 12, color: 'var(--t-2)' }}>Khoảng thời gian:</span>
         <RangePicker value={range} onChange={(v) => setRange(v as [Dayjs, Dayjs] | null)} />
-        <button className="ab-btn ghost" type="button" onClick={() => setRange([dayjs().subtract(7, 'day'), dayjs()])}>
+        <Btn variant="ghost" onClick={() => setRange([dayjs().subtract(7, 'day'), dayjs()])}>
           <Ico name="x" size={12} /> 7 ngày
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={() => window.open('/v2/reports?tab=radiology', '_blank')}>
+        <Btn variant="ghost" onClick={() => window.open('/v2/reports?tab=radiology', '_blank')}>
           <Ico name="archive" size={12} /> Reports đầy đủ
-        </button>
+        </Btn>
       </div>
       <DataTable<Stat> columns={cols} data={data} rowKey={(r) => r.label} />
     </>

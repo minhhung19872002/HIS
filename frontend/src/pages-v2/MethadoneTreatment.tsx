@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { searchMethadonePatients, updatePatient } from '../api/methadone';
 import type { MethadonePatient } from '../api/methadone';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
@@ -142,19 +142,19 @@ const MethadoneTreatmentV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm BN / SĐT / địa chỉ…" />
         <Filter value={fPhase} onChange={setFPhase} options={phases} placeholder="▾ Pha điều trị" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFPhase(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFPhase(''); setStab('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở XN nước tiểu')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Mở XN nước tiểu')}>
           <Ico name="activity" size={12} /> XN nước tiểu
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở cấp liều hôm nay')}>
+        </Btn>
+        <Btn variant="primary" onClick={() => tk('Mở cấp liều hôm nay')}>
           <Ico name="check" size={12} /> Cấp liều
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -173,17 +173,17 @@ const MethadoneTreatmentV2: React.FC = () => {
         title={sel ? sel.patientName : ''}
         sub={sel ? `${sel.patientCode} · ${sel.currentDose}mg/ngày` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Mở lịch sử cấp liều')}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => tk('Mở lịch sử cấp liều')}>
             <Ico name="activity" size={12} /> Lịch sử
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+          </Btn>
+          <Btn variant="primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Sửa điều trị
-          </button>
+          </Btn>
           {sel && sel.status === 0 && (
-            <button type="button" className="ab-btn" onClick={() => tk('Cấp liều')}>
+            <Btn onClick={() => tk('Cấp liều')}>
               <Ico name="check" size={12} /> Cấp liều
-            </button>
+            </Btn>
           )}
         </>}
       >

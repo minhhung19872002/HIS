@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { getReferrals, acceptReferral } from '../api/rehabilitation';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -182,16 +182,16 @@ const RehabilitationV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm BN / mã GT / chẩn đoán…" />
         <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại PHCN" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => navigate('/rehabilitation')}>
+        </Btn>
+        <Btn variant="primary" onClick={() => navigate('/rehabilitation')}>
           <Ico name="plus" size={12} /> Giấy GT
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -210,14 +210,14 @@ const RehabilitationV2: React.FC = () => {
         title={sel ? `Giấy GT ${sel.referralCode || '—'}` : ''}
         sub={sel ? `${sel.patientName || '—'} · ${sel.rehabTypeName || sel.rehabType || '—'}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in giấy GT')}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => tk('Đã in giấy GT')}>
             <Ico name="print" size={12} /> In giấy GT
-          </button>
+          </Btn>
           {sel && sKey(sel.status) === 'pending' && (
-            <button type="button" className="ab-btn primary" onClick={() => accept(sel)}>
+            <Btn variant="primary" onClick={() => accept(sel)}>
               <Ico name="check" size={12} /> Chấp nhận
-            </button>
+            </Btn>
           )}
         </>}
       >

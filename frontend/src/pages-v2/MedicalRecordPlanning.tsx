@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { getRecordCodes } from '../api/medicalRecordPlanning';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -121,16 +121,10 @@ const MedicalRecordPlanningV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm BN / mã BA…" />
         <Filter value={fDept} onChange={setFDept} options={depts} placeholder="▾ Khoa" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFDept(''); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFDept(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở cấp dải mã BA')}>
-          <Ico name="plus" size={12} /> Cấp dải mã
-        </button>
+        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="primary" icon="plus" onClick={() => tk('Mở cấp dải mã BA')}>Cấp dải mã</Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -149,11 +143,9 @@ const MedicalRecordPlanningV2: React.FC = () => {
         title={sel ? `Mã BA ${sel.recordCode}` : ''}
         sub={sel ? sel.statusName : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
           {sel && sel.status === 0 && (
-            <button type="button" className="ab-btn primary" onClick={() => tk('Mở gán BN')}>
-              <Ico name="user" size={12} /> Gán BN
-            </button>
+            <Btn variant="primary" icon="user" onClick={() => tk('Mở gán BN')}>Gán BN</Btn>
           )}
         </>}
       >

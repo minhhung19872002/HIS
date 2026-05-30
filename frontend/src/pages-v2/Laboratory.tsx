@@ -6,7 +6,7 @@ import * as labApi from '../api/laboratory';
 import type { LabRequest, LabTestItem } from '../api/laboratory';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, DrawerShell,
+  StatusBadge, ActBtn, Btn, DrawerShell,
   type ColumnDef, type StatusTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -244,26 +244,26 @@ const LaboratoryV2: React.FC = () => {
           placeholder="Tìm BN, mã XN, barcode mẫu…"
         />
         <Filter value={fGroup} onChange={setFGroup} options={groupOpts} placeholder="▾ Nhóm XN" />
-        <button type="button" className="ab-btn ghost" onClick={() => { setSearch(''); setFGroup(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFGroup(''); setStab('all'); }}>
           <TermIcon name="refresh" size={12} /> Bỏ lọc
-        </button>
-        <button type="button" className="ab-btn ghost" onClick={() => setDate(date.subtract(1, 'day'))}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => setDate(date.subtract(1, 'day'))}>
           <TermIcon name="chevronL" size={12} />
-        </button>
-        <button type="button" className="ab-btn ghost" onClick={() => setDate(dayjs())}>Hôm nay</button>
-        <button type="button" className="ab-btn ghost" onClick={() => setDate(date.add(1, 'day'))}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => setDate(dayjs())}>Hôm nay</Btn>
+        <Btn variant="ghost" onClick={() => setDate(date.add(1, 'day'))}>
           <TermIcon name="chevronR" size={12} />
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button type="button" className="ab-btn ghost" onClick={reload}>
+        <Btn variant="ghost" onClick={reload}>
           <TermIcon name="refresh" size={12} /> Làm mới
-        </button>
-        <button type="button" className="ab-btn ghost" onClick={() => navigate('/v2/lab-qc')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => navigate('/v2/lab-qc')}>
           <TermIcon name="chart" size={12} /> QC hôm nay
-        </button>
-        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/sample-receive')}>
+        </Btn>
+        <Btn variant="primary" onClick={() => navigate('/v2/sample-receive')}>
           <TermIcon name="plus" size={12} /> Chỉ định <kbd>F2</kbd>
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
@@ -319,15 +319,15 @@ const LaboratoryV2: React.FC = () => {
         size="lg"
         footer={detail ? (
           <>
-            <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
+            <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             <span style={{ flex: 1 }} />
-            <button type="button" className="ab-btn" onClick={() => message.success('Đã in phiếu KQ')}>
+            <Btn onClick={() => message.success('Đã in phiếu KQ')}>
               <TermIcon name="print" size={12} /> In phiếu
-            </button>
+            </Btn>
             {statusKey(detail.status) === 'running' && (
-              <button type="button" className="ab-btn primary" onClick={() => { onApprove(detail); setDetail(null); }}>
+              <Btn variant="primary" onClick={() => { onApprove(detail); setDetail(null); }}>
                 <TermIcon name="check" size={12} /> Duyệt KQ
-              </button>
+              </Btn>
             )}
           </>
         ) : null}

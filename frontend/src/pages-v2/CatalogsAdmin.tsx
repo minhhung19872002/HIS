@@ -10,7 +10,7 @@ import {
 } from '../api/clinicalTemplate';
 import { invalidateAbbreviationCache } from '../hooks/useAbbreviationExpander';
 import {
-  KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn,
+  KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
   ModalShell, DrawerShell, Ico, tk, ti, tw, cf,
   type ColumnDef,
 } from './_v2kit';
@@ -156,21 +156,21 @@ const CatalogsAdminV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <button className="ab-btn ghost" type="button" onClick={() => tab === 'abbr' ? loadAbbrs() : loadTpls()}>
+          <Btn variant="ghost" onClick={() => tab === 'abbr' ? loadAbbrs() : loadTpls()}>
             <Ico name="refresh" size={12} /> Làm mới
-          </button>
-          <button className="ab-btn primary" type="button" onClick={() => tab === 'abbr' ? openAbbrAdd() : openTplAdd()}>
+          </Btn>
+          <Btn variant="primary" onClick={() => tab === 'abbr' ? openAbbrAdd() : openTplAdd()}>
             <Ico name="plus" size={12} /> {tab === 'abbr' ? 'Thêm viết tắt' : 'Thêm template'}
-          </button>
+          </Btn>
         </>
       } />
 
       {tab === 'abbr' && <>
         <div className="ab-toolbar" style={{ borderTop: 'none' }}>
           <Filter value={abbrScope} onChange={setAbbrScope} options={SCOPE_OPTIONS} placeholder="▾ Lọc scope" />
-          <button className="ab-btn ghost" type="button" onClick={() => setAbbrScope('')}>
+          <Btn variant="ghost" onClick={() => setAbbrScope('')}>
             <Ico name="x" size={12} /> Bỏ lọc
-          </button>
+          </Btn>
           <span className="spacer" />
           <span style={{ fontSize: 11, color: 'var(--t-2)' }}>Hướng dẫn: gõ code trong textarea rồi bấm F2 để tự động thay thế</span>
         </div>
@@ -192,9 +192,9 @@ const CatalogsAdminV2: React.FC = () => {
             options={Object.entries(TEMPLATE_TYPE_LABELS).map(([k, v]) => ({ v: k, l: v as string }))}
             placeholder="▾ Loại template" />
           <SearchBox value={tplKeyword} onChange={setTplKeyword} placeholder="Tìm theo tên / ICD…" />
-          <button className="ab-btn ghost" type="button" onClick={() => { setTplKeyword(''); setTplType(''); }}>
+          <Btn variant="ghost" onClick={() => { setTplKeyword(''); setTplType(''); }}>
             <Ico name="x" size={12} /> Bỏ lọc
-          </button>
+          </Btn>
         </div>
         <DataTable<ClinicalTemplateDto>
           columns={tplCols} data={tpls} rowKey={(r) => r.id}
@@ -215,10 +215,10 @@ const CatalogsAdminV2: React.FC = () => {
         size="md"
         title={abbrEditing ? 'Sửa viết tắt' : 'Thêm viết tắt'}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setAbbrModal(false)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={submitAbbr}>
+          <Btn variant="ghost" onClick={() => setAbbrModal(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitAbbr}>
             <Ico name="check" size={12} /> Lưu
-          </button>
+          </Btn>
         </>}
       >
         <Form form={abbrForm} layout="vertical">
@@ -249,10 +249,10 @@ const CatalogsAdminV2: React.FC = () => {
         title={tplEditing ? 'Sửa template' : 'Thêm template mới'}
         sub={tplEditing?.templateTypeName}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setTplDrawer(false)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={submitTpl}>
+          <Btn variant="ghost" onClick={() => setTplDrawer(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitTpl}>
             <Ico name="check" size={12} /> Lưu
-          </button>
+          </Btn>
         </>}
       >
         <div style={{ padding: 20 }}>

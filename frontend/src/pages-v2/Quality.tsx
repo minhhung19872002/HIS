@@ -7,7 +7,7 @@ import { catalogApi } from '../api/system';
 import type { DepartmentCatalogDto } from '../api/system';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager,
-  StatusBadge, ActBtn, DrawerShell, ModalShell,
+  StatusBadge, ActBtn, Btn, DrawerShell, ModalShell,
   type ColumnDef, type StatusTab, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -156,12 +156,12 @@ const QualityV2: React.FC = () => {
         tabs={TOP_TABS}
         actions={
           <>
-            <button type="button" className="ab-btn ghost" onClick={reload}>
+            <Btn variant="ghost" onClick={reload}>
               <TermIcon name="refresh" size={12} /> Làm mới
-            </button>
-            <button type="button" className="ab-btn primary" onClick={() => setReportOpen(true)}>
+            </Btn>
+            <Btn variant="primary" onClick={() => setReportOpen(true)}>
               <TermIcon name="plus" size={12} /> Báo cáo sự cố
-            </button>
+            </Btn>
           </>
         }
       />
@@ -172,9 +172,9 @@ const QualityV2: React.FC = () => {
         <>
           <div className="ab-tools">
             <SearchBox value={search} onChange={setSearch} placeholder="Tìm mã / khoa / loại / người báo cáo…" />
-            <button type="button" className="ab-btn ghost" onClick={() => { setSearch(''); setStab('all'); }}>
+            <Btn variant="ghost" onClick={() => { setSearch(''); setStab('all'); }}>
               <TermIcon name="refresh" size={12} /> Bỏ lọc
-            </button>
+            </Btn>
             <span className="spacer" />
             <span style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{incFiltered.length} sự cố</span>
           </div>
@@ -305,10 +305,10 @@ const IncidentReportModal: React.FC<{
       title="Báo cáo sự cố y khoa"
       footer={(
         <>
-          <button type="button" className="ab-btn ghost" onClick={onClose}>Hủy</button>
-          <button type="button" className="ab-btn primary" disabled={busy} onClick={submit}>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="primary" disabled={busy} onClick={submit}>
             <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Ghi nhận'}
-          </button>
+          </Btn>
         </>
       )}
     >

@@ -8,7 +8,7 @@ import type {
 import { apiClient } from '../api/client';
 import { signPdf as vgcaSignPdf } from '../utils/vgcaSign';
 import {
-  KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, tw, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -295,17 +295,17 @@ const DigitalSignatureV2: React.FC = () => {
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
           {!isActive ? (
-            <button className="ab-btn primary" type="button" onClick={() => setLoginOpen(true)}>
+            <Btn variant="primary" onClick={() => setLoginOpen(true)}>
               <Ico name="lock" size={12} /> Mở phiên ký
-            </button>
+            </Btn>
           ) : (
-            <button className="ab-btn" type="button" onClick={closeSession}>
+            <Btn onClick={closeSession}>
               <Ico name="x" size={12} /> Đóng phiên
-            </button>
+            </Btn>
           )}
-          <button className="ab-btn ghost" type="button" onClick={fetchData}>
+          <Btn variant="ghost" onClick={fetchData}>
             <Ico name="refresh" size={12} /> Làm mới
-          </button>
+          </Btn>
         </>
       } />
 
@@ -315,18 +315,18 @@ const DigitalSignatureV2: React.FC = () => {
         {tab === 'pending' && (
           <Filter value={fType} onChange={setFType} options={docTypes} placeholder="▾ Loại tài liệu" />
         )}
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFType(''); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFType(''); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
         {tab === 'pending' && selectedIds.size > 0 && (
           <>
-            <button className="ab-btn primary" type="button" onClick={signBatchVgca}>
+            <Btn variant="primary" onClick={signBatchVgca}>
               <Ico name="lock" size={12} /> Ký {selectedIds.size} tài liệu (token máy trạm)
-            </button>
-            <button className="ab-btn" type="button" onClick={signBatch}>
+            </Btn>
+            <Btn onClick={signBatch}>
               <Ico name="check" size={12} /> Ký qua phiên server
-            </button>
+            </Btn>
           </>
         )}
       </div>
@@ -377,13 +377,13 @@ const DigitalSignatureV2: React.FC = () => {
         title={selDoc?.documentCode || ''}
         sub={selDoc ? `${DOC_TYPE_LABELS[selDoc.documentType] || selDoc.documentType} · ${selDoc.patientName}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSelDoc(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => { if (selDoc) signSingle(selDoc); }}>
+          <Btn variant="ghost" onClick={() => setSelDoc(null)}>Đóng</Btn>
+          <Btn onClick={() => { if (selDoc) signSingle(selDoc); }}>
             <Ico name="check" size={12} /> Ký phiên server
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => { if (selDoc) { signSingleVgca(selDoc); setSelDoc(null); } }}>
+          </Btn>
+          <Btn variant="primary" onClick={() => { if (selDoc) { signSingleVgca(selDoc); setSelDoc(null); } }}>
             <Ico name="lock" size={12} /> Ký bằng USB token (VGCA)
-          </button>
+          </Btn>
         </>}
       >
         {selDoc && <>

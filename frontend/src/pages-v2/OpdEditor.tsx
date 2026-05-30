@@ -11,7 +11,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { KpiStrip, StatusBadge, ActBtn, fmtVNDg, tk, tw, te, ti } from './_v2kit';
+import { KpiStrip, StatusBadge, ActBtn, Btn, fmtVNDg, tk, tw, te, ti } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 import BarcodeScanner from '../components/BarcodeScanner';
 import {
@@ -394,16 +394,16 @@ const OpdEditorV2: React.FC = () => {
             <div><label style={{ fontSize: 10, color: 'var(--t-2)' }}>Từ ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} value={sickFrom} onChange={(e) => setSickFrom(e.target.value)} /></div>
             <div><label style={{ fontSize: 10, color: 'var(--t-2)' }}>Đến ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} value={sickTo} onChange={(e) => setSickTo(e.target.value)} /></div>
           </div>
-          <button className="ab-btn ghost sm" style={{ width: '100%', marginTop: 8, justifyContent: 'center' }} disabled={!sickFrom || !sickTo} onClick={saveSickLeave}>
+          <Btn variant="ghost" size="sm" style={{ width: '100%', marginTop: 8, justifyContent: 'center' }} disabled={!sickFrom || !sickTo} onClick={saveSickLeave}>
             <TermIcon name="file-text" size={11} /> Lưu giấy nghỉ
-          </button>
+          </Btn>
         </section>
 
         <div style={{ display: 'grid', gap: 6 }}>
-          <button className="ab-btn ghost" disabled={saving} onClick={saveDraft}><TermIcon name="folder" size={12} /> Lưu nháp</button>
-          <button className="ab-btn ghost" onClick={goPrescribe}><TermIcon name="pill" size={12} /> Kê đơn thuốc →</button>
-          <button className="ab-btn ghost" onClick={() => tk('Đã gửi máy in')}><TermIcon name="print" size={12} /> In phiếu khám</button>
-          <button className="ab-btn primary" disabled={saving} onClick={complete}><TermIcon name="check" size={12} /> Hoàn tất khám</button>
+          <Btn variant="ghost" disabled={saving} onClick={saveDraft}><TermIcon name="folder" size={12} /> Lưu nháp</Btn>
+          <Btn variant="ghost" onClick={goPrescribe}><TermIcon name="pill" size={12} /> Kê đơn thuốc →</Btn>
+          <Btn variant="ghost" onClick={() => tk('Đã gửi máy in')}><TermIcon name="print" size={12} /> In phiếu khám</Btn>
+          <Btn variant="primary" disabled={saving} onClick={complete}><TermIcon name="check" size={12} /> Hoàn tất khám</Btn>
         </div>
       </aside>
 

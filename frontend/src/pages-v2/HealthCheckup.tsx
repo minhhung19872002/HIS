@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { searchHealthCheckups, getHealthCheckupStats, createHealthCheckup, updateHealthCheckup } from '../api/healthCheckup';
 import type { HealthCheckup, HealthCheckupStats } from '../api/healthCheckup';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
@@ -145,16 +145,10 @@ const HealthCheckupV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm BN / mã KSK / công ty…" />
         <Filter value={fComp} onChange={setFComp} options={companies} placeholder="▾ Công ty" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFComp(''); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFComp(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={openCreate}>
-          <Ico name="plus" size={12} /> KSK mới
-        </button>
+        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="primary" icon="plus" onClick={openCreate}>KSK mới</Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -173,13 +167,9 @@ const HealthCheckupV2: React.FC = () => {
         title={sel ? sel.patientName : ''}
         sub={sel ? `${sel.checkupCode} · ${sel.checkupType}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in giấy chứng nhận')}>
-            <Ico name="print" size={12} /> In giấy CN
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
-            <Ico name="edit" size={12} /> Cập nhật
-          </button>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn icon="print" onClick={() => tk('Đã in giấy chứng nhận')}>In giấy CN</Btn>
+          <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Cập nhật</Btn>
         </>}
       >
         {sel && <>

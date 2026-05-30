@@ -5,7 +5,7 @@ import { getCouples, getIvfDashboard, saveCouple } from '../api/ivfLab';
 import type { IvfCouple, IvfDashboard } from '../api/ivfLab';
 import { patientApi } from '../api/patient';
 import {
-  KpiStrip, SearchBox, DataTable, Pager, ActBtn, ModalShell,
+  KpiStrip, SearchBox, DataTable, Pager, ActBtn, Btn, ModalShell,
   DrawerShell, DrSec, DrField, tk, ti, te, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -101,19 +101,19 @@ const IvfLabV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm vợ/chồng / mã BN…" />
-        <button className="ab-btn ghost" type="button" onClick={() => setSearch('')}>
+        <Btn variant="ghost" onClick={() => setSearch('')}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở quản lý phôi đông')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Mở quản lý phôi đông')}>
           <Ico name="archive" size={12} /> Phôi đông
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => setCoupleModal({ couple: null })}>
+        </Btn>
+        <Btn variant="primary" onClick={() => setCoupleModal({ couple: null })}>
           <Ico name="plus" size={12} /> Đăng ký
-        </button>
+        </Btn>
       </div>
 
       <DataTable<IvfCouple>
@@ -130,10 +130,10 @@ const IvfLabV2: React.FC = () => {
         title={sel ? `${sel.wifeName || '?'} & ${sel.husbandName || '?'}` : ''}
         sub={sel ? `${sel.cycleCount} chu kỳ điều trị` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn primary" onClick={() => { if (sel) { setCoupleModal({ couple: sel }); setSel(null); } }}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn variant="primary" onClick={() => { if (sel) { setCoupleModal({ couple: sel }); setSel(null); } }}>
             <Ico name="edit" size={12} /> Chỉnh sửa
-          </button>
+          </Btn>
         </>}
       >
         {sel && <>
@@ -258,10 +258,10 @@ const CoupleModal: React.FC<{ couple: IvfCouple | null; onClose: () => void; onD
       size="md"
       title={editing ? 'Cập nhật cặp đôi IVF' : 'Đăng ký cặp đôi IVF'}
       footer={<>
-        <button className="ab-btn ghost" type="button" onClick={onClose}>Huỷ</button>
-        <button className="ab-btn primary" type="button" onClick={submit} disabled={submitting}>
+        <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
+        <Btn variant="primary" onClick={submit} disabled={submitting}>
           <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : (editing ? 'Cập nhật' : 'Đăng ký')}
-        </button>
+        </Btn>
       </>}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

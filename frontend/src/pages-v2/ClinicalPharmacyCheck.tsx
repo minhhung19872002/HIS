@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import {
-  KpiStrip, SearchBox, StatusBadge, Ico, tk, ti, tw,
+  KpiStrip, SearchBox, StatusBadge, Btn, Ico, tk, ti, tw,
 } from './_v2kit';
 
 interface PharmacyCheckData {
@@ -66,13 +66,9 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={keyword} onChange={setKeyword}
           placeholder="Nhập mã BN / CCCD / SĐT / tên BN…" minWidth={400} />
-        <button className="ab-btn primary" type="button" onClick={handleSearch} disabled={loading}>
-          <Ico name="search" size={12} /> Kiểm tra
-        </button>
+        <Btn variant="primary" icon="search" onClick={handleSearch} disabled={loading}>Kiểm tra</Btn>
         {data && (
-          <button className="ab-btn ghost" type="button" onClick={() => { setData(null); setKeyword(''); }}>
-            <Ico name="x" size={12} /> Tìm BN khác
-          </button>
+          <Btn variant="ghost" icon="x" onClick={() => { setData(null); setKeyword(''); }}>Tìm BN khác</Btn>
         )}
         <span className="spacer" />
         {loading && <span style={{ color: 'var(--t-2)', fontSize: 12 }}>Đang tải…</span>}

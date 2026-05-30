@@ -12,7 +12,7 @@ import type {
   ConsolidatedReportDto, BranchDutyRosterDto, BranchSummary,
 } from '../api/multiFacility';
 import {
-  KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn,
+  KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -176,24 +176,18 @@ const Dashboard3CapV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <button className="ab-btn ghost" type="button" onClick={() => {
+          <Btn variant="ghost" icon="refresh" onClick={() => {
             if (tab === 'dashboard') loadDashboard();
             else if (tab === 'consolidated') loadReport();
             else loadDuty();
-          }}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </button>
-          <button className="ab-btn primary" type="button" onClick={() => tk('Đã xuất báo cáo')}>
-            <Ico name="download" size={12} /> Xuất Excel
-          </button>
+          }}>Làm mới</Btn>
+          <Btn variant="primary" icon="download" onClick={() => tk('Đã xuất báo cáo')}>Xuất Excel</Btn>
         </>
       } />
 
       <div className="ab-toolbar" style={{ borderTop: 'none' }}>
         <Filter value={branchId} onChange={setBranchId} options={branchOpts} placeholder="▾ Toàn hệ thống" />
-        <button className="ab-btn ghost" type="button" onClick={() => setBranchId('')}>
-          <Ico name="x" size={12} /> Xem tất cả
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => setBranchId('')}>Xem tất cả</Btn>
         <span className="spacer" />
         <span style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
           {dayjs().format('dddd · DD/MM/YYYY')}
@@ -378,9 +372,7 @@ const Dashboard3CapV2: React.FC = () => {
             <DrField lbl="Doanh thu"><span style={{ fontFamily: 'var(--font-mono)' }}>{fmtCurr(selSub.revenue)}</span></DrField>
           </DrSec>
           <DrSec title="Thao tác">
-            <button className="ab-btn primary" type="button" onClick={() => { setBranchId(selSub.branchId); setSelSub(null); }}>
-              <Ico name="eye" size={12} /> Xem dashboard chi nhánh này
-            </button>
+            <Btn variant="primary" icon="eye" onClick={() => { setBranchId(selSub.branchId); setSelSub(null); }}>Xem dashboard chi nhánh này</Btn>
           </DrSec>
         </>}
       </DrawerShell>

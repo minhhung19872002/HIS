@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   KpiStrip, TopTabs, DataTable, SearchBox, Filter, StatusBadge,
-  DrawerShell, ActBtn, DrSec, DrField,
+  DrawerShell, ActBtn, Btn, DrSec, DrField,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
   tk, ti, tw, te, cf, fmtDTg, fmtDMYg
 } from './_v2kit';
@@ -230,9 +230,9 @@ const NgPharmPanel: React.FC = () => {
       <KpiStrip items={kpis} />
       <div className="ab-toolbar">
         <span className="spacer" />
-        <button type="button" className="ab-btn primary" onClick={generate}>
+        <Btn variant="primary" onClick={generate}>
           <TermIcon name="plus" size={12} /> Tạo &amp; gửi
-        </button>
+        </Btn>
       </div>
       <DataTable<NationalPharmacyOutboundReportDto>
         rowKey={(r) => r.id} data={rows} columns={columns}
@@ -307,12 +307,12 @@ const NgConfigPanel: React.FC = () => {
           onChange={(e) => set('timeoutSeconds', Number(e.target.value))} />
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-        <button type="button" className="ab-btn primary" onClick={save}>
+        <Btn variant="primary" onClick={save}>
           <TermIcon name="check" size={12} /> Lưu cấu hình
-        </button>
-        <button type="button" className="ab-btn" onClick={test}>
+        </Btn>
+        <Btn onClick={test}>
           <TermIcon name="activity" size={12} /> Kiểm tra kết nối
-        </button>
+        </Btn>
         {tested !== null && (
           <StatusBadge tone={tested ? 'ok' : 'crit'} dot>
             {tested ? 'Kết nối OK' : 'Mất kết nối'}

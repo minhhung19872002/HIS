@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import { App as AntdApp, Input, InputNumber, Select } from 'antd';
 import { searchInvoices, createPayment, printInvoice } from '../api/billing';
 import type { InvoiceDto } from '../api/billing';
-import { SimpleV2Page, StatusBadge, ActBtn, ModalShell, type ColumnDef, type StatusTab } from './_v2kit';
+import { SimpleV2Page, StatusBadge, ActBtn, Btn, ModalShell, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
 /* Viện phí v2 — port of Billing v2.html */
@@ -159,9 +159,9 @@ const BillingV2: React.FC = () => {
       )}
       drawerSub={(r) => `${r.patientTypeName || '—'} · ${fmtDMY(r.createdAt)}`}
       toolbarRight={
-        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/billing/edit')}>
+        <Btn variant="primary" onClick={() => navigate('/v2/billing/edit')}>
           <TermIcon name="plus" size={12} /> Tạo HĐ
-        </button>
+        </Btn>
       }
     />
 
@@ -235,10 +235,10 @@ const PayModal: React.FC<{
       title="Thu tiền hóa đơn"
       footer={(
         <>
-          <button type="button" className="ab-btn ghost" onClick={onClose}>Hủy</button>
-          <button type="button" className="ab-btn primary" disabled={busy} onClick={submit}>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="primary" disabled={busy} onClick={submit}>
             <TermIcon name="check" size={12} /> {busy ? 'Đang thu…' : 'Xác nhận thu'}
-          </button>
+          </Btn>
         </>
       )}
     >

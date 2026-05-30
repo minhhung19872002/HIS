@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Input, InputNumber, Switch, Select, Modal } from 'antd';
 import apiClient from '../api/client';
 import {
-  KpiStrip, TopTabs, SearchBox, DataTable, StatusBadge, ActBtn,
+  KpiStrip, TopTabs, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
   Ico, tk, ti, tw, cf, type ColumnDef,
 } from './_v2kit';
 
@@ -208,20 +208,14 @@ const LisCatalogAdminV2: React.FC = () => {
 
       <TopTabs<TabKey> tab={tab} setTab={(v) => { setTab(v); setKeyword(''); }} tabs={TABS} actions={
         <>
-          <button className="ab-btn ghost" type="button" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </button>
-          <button className="ab-btn primary" type="button" onClick={openAdd}>
-            <Ico name="plus" size={12} /> Thêm mới
-          </button>
+          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+          <Btn variant="primary" icon="plus" onClick={openAdd}>Thêm mới</Btn>
         </>
       } />
 
       <div className="ab-toolbar" style={{ borderTop: 'none' }}>
         <SearchBox value={keyword} onChange={setKeyword} placeholder="Tìm kiếm…" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setKeyword(''); load(); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setKeyword(''); load(); }}>Bỏ lọc</Btn>
       </div>
 
       <DataTable<Row>

@@ -9,7 +9,7 @@ import { Input, InputNumber, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
 import * as api from '../api/masterCatalog';
 import {
-  KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, te, cf, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -264,8 +264,8 @@ const ParaclinicalCatalogsV2: React.FC = () => {
           <Filter value={filterMachine} onChange={setFilterMachine} options={machineOptions} placeholder="Tất cả máy" />
         )}
         <span className="spacer" />
-        <button type="button" className="ab-btn ghost" onClick={exportCsv}><Ico name="download" size={12} /> Xuất CSV</button>
-        <button type="button" className="ab-btn primary" onClick={() => openDrawer()}><Ico name="plus" size={12} /> Thêm mới</button>
+        <Btn variant="ghost" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
+        <Btn variant="primary" icon="plus" onClick={() => openDrawer()}>Thêm mới</Btn>
       </div>
       <DataTable
         columns={cols}
@@ -285,10 +285,8 @@ const ParaclinicalCatalogsV2: React.FC = () => {
         sub={`Mục: ${tabsDef.find((t) => t.v === tab)?.l.split(' (')[0]}`}
         footer={(
           <>
-            <button type="button" className="ab-btn ghost" onClick={() => setEdit(null)}>Huỷ</button>
-            <button type="button" className="ab-btn primary" onClick={handleSave}>
-              <Ico name="check" size={12} /> {editIsNew ? 'Tạo mới' : 'Lưu'}
-            </button>
+            <Btn variant="ghost" onClick={() => setEdit(null)}>Huỷ</Btn>
+            <Btn variant="primary" icon="check" onClick={handleSave}>{editIsNew ? 'Tạo mới' : 'Lưu'}</Btn>
           </>
         )}
       >

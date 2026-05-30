@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import client from '../api/client';
+import { getArchiveList } from '../api/medicalRecordArchive';
 import {
-  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   StatusTabs, DrawerShell, DrSec, DrField, tk, ti, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -41,7 +41,7 @@ const MedicalRecordArchiveV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await client.get('/inpatient/medical-record-archive/list');
+      const res = await getArchiveList();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data = (res.data?.items || res.data || []) as any[];
       const rows: ArchivedRecord[] = data.map((r, i) => ({
@@ -133,19 +133,19 @@ const MedicalRecordArchiveV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm BN / mã HSBA…" />
         <Filter value={fFmt} onChange={setFFmt} options={formats} placeholder="▾ Định dạng" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFFmt(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFFmt(''); setStab('all'); }}>
           <Ico name="refresh" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Đã đồng bộ cloud')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Đã đồng bộ cloud')}>
           <Ico name="cloud" size={12} /> Đồng bộ cloud
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Lưu trữ hồ sơ mới')}>
+        </Btn>
+        <Btn variant="primary" onClick={() => tk('Lưu trữ hồ sơ mới')}>
           <Ico name="archive" size={12} /> Lưu hồ sơ mới
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<Verified> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
@@ -164,13 +164,13 @@ const MedicalRecordArchiveV2: React.FC = () => {
         title={sel ? `Hồ sơ · ${sel.medicalRecordCode}` : ''}
         sub={sel?.patientName ?? ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã tải xuống')}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => tk('Đã tải xuống')}>
             <Ico name="download" size={12} /> Tải xuống
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Đã in HSBA')}>
+          </Btn>
+          <Btn variant="primary" onClick={() => tk('Đã in HSBA')}>
             <Ico name="print" size={12} /> In HSBA
-          </button>
+          </Btn>
         </>}
       >
         {sel && <>

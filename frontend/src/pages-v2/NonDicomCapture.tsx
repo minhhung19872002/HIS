@@ -3,7 +3,7 @@ import { Form, Input, Select, Modal, Upload } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import {
-  KpiStrip, Filter, DataTable, StatusBadge, ActBtn,
+  KpiStrip, Filter, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, Ico, tk, tw, cf,
   type ColumnDef,
 } from './_v2kit';
@@ -196,20 +196,20 @@ const NonDicomCaptureV2: React.FC = () => {
 
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <Filter value={filterType} onChange={setFilterType} options={DEVICE_TYPES} placeholder="▾ Loại thiết bị" />
-        <button className="ab-btn ghost" type="button" onClick={() => setFilterType('')}>
+        <Btn variant="ghost" onClick={() => setFilterType('')}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={loadWorklist}>
+        <Btn variant="ghost" onClick={loadWorklist}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => {
+        </Btn>
+        <Btn variant="primary" onClick={() => {
           createForm.resetFields();
           createForm.setFieldsValue({ deviceType: 'Endoscopy' });
           setCreateOpen(true);
         }}>
           <Ico name="plus" size={12} /> Chụp mới
-        </button>
+        </Btn>
       </div>
 
       <DataTable<StudyListItem>
@@ -225,8 +225,8 @@ const NonDicomCaptureV2: React.FC = () => {
 
       <ModalShell open={createOpen} onClose={() => setCreateOpen(false)} size="md" title="Tạo study NON-DICOM mới"
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setCreateOpen(false)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={submitCreate}><Ico name="qr" size={12} /> Mở camera</button>
+          <Btn variant="ghost" onClick={() => setCreateOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitCreate}><Ico name="qr" size={12} /> Mở camera</Btn>
         </>}>
         <Form form={createForm} layout="vertical">
           <Form.Item name="patientName" label="Tên BN" rules={[{ required: true }]}>
@@ -249,10 +249,10 @@ const NonDicomCaptureV2: React.FC = () => {
         width={1000}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <button type="button" className="ab-btn ghost" onClick={closeCapture}>Hủy</button>
-            <button type="button" className="ab-btn primary" onClick={uploadAll} disabled={captures.length === 0}>
+            <Btn variant="ghost" onClick={closeCapture}>Hủy</Btn>
+            <Btn variant="primary" onClick={uploadAll} disabled={captures.length === 0}>
               <Ico name="send" size={12} /> Upload {captures.length > 0 ? `(${captures.length})` : ''}
-            </button>
+            </Btn>
           </div>
         }
       >
@@ -261,9 +261,9 @@ const NonDicomCaptureV2: React.FC = () => {
             {cameraError ? (
               <div style={{ padding: 40, textAlign: 'center', background: 'var(--d-1)', border: '1px solid var(--a-rd-text)', borderRadius: 4, color: 'var(--a-rd-text)' }}>
                 <div>{cameraError}</div>
-                <button type="button" className="ab-btn ghost" style={{ marginTop: 12 }} onClick={startCamera}>
+                <Btn variant="ghost" style={{ marginTop: 12 }} onClick={startCamera}>
                   <Ico name="refresh" size={12} /> Thử lại
-                </button>
+                </Btn>
               </div>
             ) : (
               <>
@@ -272,17 +272,17 @@ const NonDicomCaptureV2: React.FC = () => {
                 </div>
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
                 <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                  <button type="button" className="ab-btn primary" onClick={snapshot} disabled={!streamRef.current}>
+                  <Btn variant="primary" onClick={snapshot} disabled={!streamRef.current}>
                     <Ico name="qr" size={12} /> Chụp (Space)
-                  </button>
+                  </Btn>
                   {!recording ? (
-                    <button type="button" className="ab-btn" onClick={startRec} disabled={!streamRef.current}>
+                    <Btn onClick={startRec} disabled={!streamRef.current}>
                       <Ico name="play" size={12} /> Quay video
-                    </button>
+                    </Btn>
                   ) : (
-                    <button type="button" className="ab-btn" style={{ color: 'var(--a-rd-text)' }} onClick={stopRec}>
+                    <Btn style={{ color: 'var(--a-rd-text)' }} onClick={stopRec}>
                       <Ico name="x" size={12} /> Dừng quay
-                    </button>
+                    </Btn>
                   )}
                   <Upload
                     beforeUpload={(file) => {
@@ -293,9 +293,9 @@ const NonDicomCaptureV2: React.FC = () => {
                     }}
                     showUploadList={false} multiple
                   >
-                    <button type="button" className="ab-btn ghost">
+                    <Btn variant="ghost">
                       <Ico name="archive" size={12} /> Upload file ngoài
-                    </button>
+                    </Btn>
                   </Upload>
                 </div>
               </>

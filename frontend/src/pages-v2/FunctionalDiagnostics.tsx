@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   KpiStrip, DataTable, SearchBox, Filter, StatusBadge,
-  DrawerShell, ActBtn, DrSec, DrField, Pager,
+  DrawerShell, ActBtn, Btn, DrSec, DrField, Pager,
   type ColumnDef, type KpiItem, type StatusTone,
   tk, te, fmtDTg
 } from './_v2kit';
@@ -124,16 +124,16 @@ const FunctionalDiagnosticsV2: React.FC = () => {
         title={detail ? `${detail.testTypeName} · ${detail.testCode}` : ''}
         footer={detail ? (
           <>
-            <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
+            <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             {detail.status === 1 && (
-              <button type="button" className="ab-btn" onClick={() => complete(detail)}>
+              <Btn onClick={() => complete(detail)}>
                 <TermIcon name="check" size={12} /> Hoàn thành
-              </button>
+              </Btn>
             )}
             {detail.status === 2 && (
-              <button type="button" className="ab-btn primary" onClick={() => verify(detail)}>
+              <Btn variant="primary" onClick={() => verify(detail)}>
                 <TermIcon name="check" size={12} /> Duyệt KQ
-              </button>
+              </Btn>
             )}
           </>
         ) : undefined}

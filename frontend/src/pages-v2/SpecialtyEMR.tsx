@@ -7,13 +7,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Input, InputNumber, Select, Checkbox, DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import client from '../api/client';
+import {
+  searchSpecialtyRecords, getSpecialtyRecord, saveSpecialtyRecord,
+  deleteSpecialtyRecord, getSpecialtyRecordPdf, getSpecialtyRecordXml,
+} from '../api/specialtyEmr';
 import { useRegisterCommands } from '../contexts/CommandContext';
 import {
   SPECIALTY_TYPES, SPECIALTY_FIELDS, SPECIALTY_LABEL, type FieldDef,
 } from '../constants/specialtyEmr';
 import {
-  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   StatusTabs, DrawerShell, DrSec, DrField, tk, ti, te, cf, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -124,7 +127,7 @@ const SpecialtyEMRV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await client.get('/specialty-emr/search', { params: { pageIndex: 0, pageSize: 200 } });
+      const res = await searchSpecialtyRecords(0, 200);
       const body = res.data;
       const data = (Array.isArray(body) ? body : body?.items || body?.data || []) as Partial<SpecialtyRecord>[];
       const rows: SpecialtyRecord[] = data.map((r, i) => ({
@@ -195,7 +198,7 @@ const SpecialtyEMRV2: React.FC = () => {
     // Fetch full record (fieldData) so the dynamic section is pre-filled.
     let detail: Partial<SpecialtyRecord> = r;
     try {
-      const res = await client.get(`/specialty-emr/${r.id}`);
+      const res = await getSpecialtyRecord(r.id);
       detail = (res.data?.data || res.data || r) as Partial<SpecialtyRecord>;
     } catch { /* fall back to row data */ }
     setForm({
@@ -238,7 +241,7 @@ const SpecialtyEMRV2: React.FC = () => {
         fieldData: JSON.stringify(form.fieldData || {}),
         status: form.status,
       };
-      await client.post('/specialty-emr', payload);
+      await saveSpecialtyRecord(payload);
       tk(isNew ? 'Đã tạo HSBA chuyên khoa' : 'Đã cập nhật HSBA');
       setForm(null);
       load();
@@ -249,7 +252,7 @@ const SpecialtyEMRV2: React.FC = () => {
   const handleDelete = (r: SpecialtyRecord) => {
     cf(`Xoá HSBA của "${r.patientName}" (${r.patientCode})?`, async () => {
       try {
-        await client.delete(`/specialty-emr/${r.id}`);
+        await deleteSpecialtyRecord(r.id);
         tk('Đã xoá HSBA');
         setSel(null);
         load();
@@ -259,7 +262,7 @@ const SpecialtyEMRV2: React.FC = () => {
 
   const openReport = async (r: SpecialtyRecord) => {
     try {
-      const res = await client.get(`/specialty-emr/${r.id}/pdf`, { responseType: 'blob' });
+      const res = await getSpecialtyRecordPdf(r.id);
       const url = URL.createObjectURL(new Blob([res.data], { type: 'text/html' }));
       const w = window.open(url, '_blank');
       if (w) { try { w.addEventListener('load', () => { try { w.print(); } catch { /* ignore */ } }); } catch { /* ignore */ } }
@@ -269,7 +272,7 @@ const SpecialtyEMRV2: React.FC = () => {
 
   const downloadXml = async (r: SpecialtyRecord) => {
     try {
-      const res = await client.get(`/specialty-emr/${r.id}/xml`, { responseType: 'blob' });
+      const res = await getSpecialtyRecordXml(r.id);
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/xml' }));
       const a = document.createElement('a');
       a.href = url; a.download = `benh-an-ck-${r.patientCode || r.id}.xml`; a.click();
@@ -347,16 +350,16 @@ const SpecialtyEMRV2: React.FC = () => {
           options={specOptions}
           placeholder="▾ Chuyên khoa"
         />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFSpec(''); setStab('all'); setPage(0); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFSpec(''); setStab('all'); setPage(0); }}>
           <Ico name="refresh" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={openCreate}>
+        </Btn>
+        <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> HSBA mới
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
@@ -391,10 +394,10 @@ const SpecialtyEMRV2: React.FC = () => {
         sub={sel ? `${sel.patientCode} · ${specialtyLabel(sel)}` : ''}
         footer={sel ? (
           <>
-            <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-            <button type="button" className="ab-btn" onClick={() => downloadXml(sel)}><Ico name="download" size={12} /> Xuất XML</button>
-            <button type="button" className="ab-btn" onClick={() => openReport(sel)}><Ico name="print" size={12} /> In HSBA</button>
-            <button type="button" className="ab-btn primary" onClick={() => openEdit(sel)}><Ico name="edit" size={12} /> Sửa</button>
+            <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+            <Btn onClick={() => downloadXml(sel)}><Ico name="download" size={12} /> Xuất XML</Btn>
+            <Btn onClick={() => openReport(sel)}><Ico name="print" size={12} /> In HSBA</Btn>
+            <Btn variant="primary" onClick={() => openEdit(sel)}><Ico name="edit" size={12} /> Sửa</Btn>
           </>
         ) : null}
       >
@@ -440,15 +443,15 @@ const SpecialtyEMRV2: React.FC = () => {
         sub={form ? (SPECIALTY_FIELDS[form.specialtyType]?.title || '') : ''}
         footer={form ? (
           <>
-            <button type="button" className="ab-btn ghost" onClick={() => setForm(null)}>Huỷ</button>
+            <Btn variant="ghost" onClick={() => setForm(null)}>Huỷ</Btn>
             {!isNew && form.id && (
-              <button type="button" className="ab-btn" onClick={() => openReport(form as unknown as SpecialtyRecord)}>
+              <Btn onClick={() => openReport(form as unknown as SpecialtyRecord)}>
                 <Ico name="print" size={12} /> In
-              </button>
+              </Btn>
             )}
-            <button type="button" className="ab-btn primary" disabled={saving} onClick={handleSave}>
+            <Btn variant="primary" disabled={saving} onClick={handleSave}>
               <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : isNew ? 'Tạo mới' : 'Lưu'}
-            </button>
+            </Btn>
           </>
         ) : null}
       >

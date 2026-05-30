@@ -3,7 +3,7 @@ import { Form, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import {
-  KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, ModalShell,
+  KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn, ModalShell,
   DrawerShell, DrSec, DrField,
   Ico, tk, ti, tw, type ColumnDef,
 } from './_v2kit';
@@ -146,9 +146,7 @@ const RisDispatcherV2: React.FC = () => {
         <>
           <Filter value={selectedRoom} onChange={setSelectedRoom}
             options={rooms.map((r) => ({ v: r.id, l: r.roomName }))} placeholder="▾ Phòng" />
-          <button className="ab-btn ghost" type="button" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </button>
+          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
         </>
       } />
 
@@ -189,10 +187,8 @@ const RisDispatcherV2: React.FC = () => {
         size="md"
         title={`Điều phối: ${dispatchModal?.patientName || ''}`}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setDispatchModal(null)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={handleDispatch}>
-            <Ico name="send" size={12} /> Điều phối + In phiếu
-          </button>
+          <Btn variant="ghost" onClick={() => setDispatchModal(null)}>Hủy</Btn>
+          <Btn variant="primary" icon="send" onClick={handleDispatch}>Điều phối + In phiếu</Btn>
         </>}
       >
         <Form form={dispatchForm} layout="vertical">

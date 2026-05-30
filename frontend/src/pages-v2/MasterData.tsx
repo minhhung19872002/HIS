@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Input, InputNumber, Select, Form } from 'antd';
 import systemApi from '../api/system';
 import {
-  KpiStrip, SearchBox, DataTable, StatusBadge, ModalShell, ActBtn, tk, te, cf,
+  KpiStrip, SearchBox, DataTable, StatusBadge, ModalShell, ActBtn, Btn, tk, te, cf,
   type ColumnDef,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -196,9 +196,9 @@ const MasterDataV2: React.FC = () => {
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <div className="ab-tools">
             <SearchBox value={keyword} onChange={setKeyword} placeholder="Tìm trong danh mục theo mã / tên…" />
-            <button type="button" className="ab-btn ghost" onClick={loadAll}><TermIcon name="refresh" size={12} /> Làm mới</button>
+            <Btn variant="ghost" onClick={loadAll}><TermIcon name="refresh" size={12} /> Làm mới</Btn>
             <span className="spacer" />
-            {writable ? <button type="button" className="ab-btn primary" onClick={openNew}>+ Thêm mới</button>
+            {writable ? <Btn variant="primary" onClick={openNew}>+ Thêm mới</Btn>
               : <span style={{ fontSize: 11, color: 'var(--t-2)' }}>Danh mục chỉ đọc (chưa có API ghi)</span>}
           </div>
           <DataTable<CatalogRow>
@@ -212,7 +212,7 @@ const MasterDataV2: React.FC = () => {
 
       <ModalShell open={!!modal} onClose={() => setModal(null)}
         title={`${modal === 'new' ? 'Thêm' : 'Sửa'} — ${CATALOGS.find((c) => c.v === active)?.l}`} size="md"
-        footer={<><button type="button" className="ab-btn" onClick={() => setModal(null)}>Huỷ</button><button type="button" className="ab-btn primary" disabled={saving} onClick={submit}>{saving ? 'Đang lưu…' : 'Lưu'}</button></>}>
+        footer={<><Btn onClick={() => setModal(null)}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submit}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn></>}>
         <Form form={mF} layout="vertical" scrollToFirstError requiredMark>
           {(FORM_FIELDS[active] || []).map((f) => (
             <Form.Item key={f.key} name={f.key} label={f.label}

@@ -4,7 +4,7 @@ import { App as AntdApp } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { getEmrRecords } from '../api/examination';
 import type { EmrRecordDto } from '../api/examination';
-import { SimpleV2Page, ActBtn, type ColumnDef } from './_v2kit';
+import { SimpleV2Page, ActBtn, Btn, type ColumnDef } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
 /* ────────────────────────────────────────────────────────────
@@ -134,15 +134,15 @@ const EMRV2: React.FC = () => {
           <div className="rec-section">
             <h5><TermIcon name="info" size={11} /> THAO TÁC</h5>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/emr/edit')}>
+              <Btn variant="primary" onClick={() => navigate('/v2/emr/edit')}>
                 <TermIcon name="eye" size={12} /> Mở HS chi tiết
-              </button>
-              <button type="button" className="ab-btn" onClick={() => message.success('Đã gửi PDF')}>
+              </Btn>
+              <Btn onClick={() => message.success('Đã gửi PDF')}>
                 <TermIcon name="print" size={12} /> In hồ sơ
-              </button>
-              <button type="button" className="ab-btn" onClick={() => navigate('/v2/signing-workflow')}>
+              </Btn>
+              <Btn onClick={() => navigate('/v2/signing-workflow')}>
                 <TermIcon name="check" size={12} /> Ký số
-              </button>
+              </Btn>
             </div>
           </div>
         </div>

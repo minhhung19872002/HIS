@@ -5,7 +5,7 @@ import {
   type HIEConnectionDto, type CreateConnectionDto,
 } from '../api/healthExchange';
 import {
-  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, CrudModal,
+  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
   StatusTabs, DrawerShell, DrSec, DrField, tk, ti, tw, te, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
@@ -153,19 +153,19 @@ const HealthExchangeV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm tên / đối tác…" />
         <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại kết nối" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
           <Ico name="refresh" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Đã chạy đồng bộ tất cả')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Đã chạy đồng bộ tất cả')}>
           <Ico name="cloud" size={12} /> Đồng bộ tất cả
-        </button>
-        <button className="ab-btn primary" type="button" onClick={openCreate}>
+        </Btn>
+        <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> Thêm kết nối
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
@@ -184,13 +184,13 @@ const HealthExchangeV2: React.FC = () => {
         title={sel?.connectionName ?? ''}
         sub={sel ? `${sel.connectionCode} · ${sel.partnerName}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => { if (sel) doTest(sel); }}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => { if (sel) doTest(sel); }}>
             <Ico name="refresh" size={12} /> Test kết nối
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => { if (sel) { openEdit(sel); setSel(null); } }}>
+          </Btn>
+          <Btn variant="primary" onClick={() => { if (sel) { openEdit(sel); setSel(null); } }}>
             <Ico name="edit" size={12} /> Chỉnh sửa
-          </button>
+          </Btn>
         </>}
       >
         {sel && <>

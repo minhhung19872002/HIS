@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { getQCLots, getQCResults, createQCLot, updateQCLot, deleteQCLot } from '../api/labQC';
 import type { QCLot, QCResult } from '../api/labQC';
 import {
-  KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
@@ -188,28 +188,28 @@ const LabQCV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <button className="ab-btn ghost" type="button" onClick={load}>
+          <Btn variant="ghost" onClick={load}>
             <Ico name="refresh" size={12} /> Làm mới
-          </button>
-          {tab === 'lots' && <button className="ab-btn primary" type="button" onClick={openCreateLot}>
+          </Btn>
+          {tab === 'lots' && <Btn variant="primary" onClick={openCreateLot}>
             <Ico name="plus" size={12} /> Thêm lô
-          </button>}
-          {tab === 'results' && <button className="ab-btn primary" type="button" onClick={() => tk('Mở form chạy QC')}>
+          </Btn>}
+          {tab === 'results' && <Btn variant="primary" onClick={() => tk('Mở form chạy QC')}>
             <Ico name="activity" size={12} /> Chạy QC
-          </button>}
+          </Btn>}
         </>
       } />
 
       <div className="ab-toolbar" style={{ borderTop: 'none' }}>
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder={tab === 'lots' ? 'Tìm mã/tên XN, số lô…' : 'Tìm mã/tên XN…'} />
-        <button className="ab-btn ghost" type="button" onClick={() => setSearch('')}>
+        <Btn variant="ghost" onClick={() => setSearch('')}>
           <Ico name="x" size={12} /> Xóa lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Đã xuất Excel')}>
+        <Btn variant="ghost" onClick={() => tk('Đã xuất Excel')}>
           <Ico name="download" size={12} /> Xuất Excel
-        </button>
+        </Btn>
       </div>
 
       {tab === 'lots' ? (
@@ -239,13 +239,13 @@ const LabQCV2: React.FC = () => {
         title={selLot ? `Lô QC · ${selLot.lotNumber}` : ''}
         sub={selLot ? `${selLot.testCode} · ${selLot.testName}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSelLot(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => { if (selLot) openEditLot(selLot); setSelLot(null); }}>
+          <Btn variant="ghost" onClick={() => setSelLot(null)}>Đóng</Btn>
+          <Btn onClick={() => { if (selLot) openEditLot(selLot); setSelLot(null); }}>
             <Ico name="edit" size={12} /> Sửa lô
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk(`Đã mở chạy QC ${selLot?.lotNumber}`)}>
+          </Btn>
+          <Btn variant="primary" onClick={() => tk(`Đã mở chạy QC ${selLot?.lotNumber}`)}>
             <Ico name="activity" size={12} /> Chạy QC
-          </button>
+          </Btn>
         </>}
       >
         {selLot && <>
@@ -281,10 +281,10 @@ const LabQCV2: React.FC = () => {
         title={selRes ? `KQ QC · ${selRes.testName}` : ''}
         sub={selRes ? `Lô ${selRes.lotNumber} · ${dayjs(selRes.runDate).format('DD/MM HH:mm')}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSelRes(null)}>Đóng</button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở Levey-Jennings')}>
+          <Btn variant="ghost" onClick={() => setSelRes(null)}>Đóng</Btn>
+          <Btn variant="primary" onClick={() => tk('Mở Levey-Jennings')}>
             <Ico name="activity" size={12} /> L-J Chart
-          </button>
+          </Btn>
         </>}
       >
         {selRes && <>

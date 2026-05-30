@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import { getWarehouses } from '../api/warehouse';
 import {
-  KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, Ico, tk, ti, tw,
+  KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, Btn, Ico, tk, ti, tw,
   type ColumnDef,
 } from './_v2kit';
 
@@ -167,12 +167,8 @@ const StockReportV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <button className="ab-btn ghost" type="button" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </button>
-          <button className="ab-btn primary" type="button" onClick={exportCsv}>
-            <Ico name="download" size={12} /> Xuất CSV
-          </button>
+          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+          <Btn variant="primary" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
         </>
       } />
 
@@ -191,9 +187,7 @@ const StockReportV2: React.FC = () => {
             Ngưỡng tồn <InputNumber min={1} value={threshold} onChange={(v) => setThreshold(Number(v) || 10)} size="small" />
           </span>
         )}
-        <button className="ab-btn ghost" type="button" onClick={() => { setKeyword(''); setWarehouseId(''); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setKeyword(''); setWarehouseId(''); }}>Bỏ lọc</Btn>
       </div>
 
       {tab === 'detail' && (

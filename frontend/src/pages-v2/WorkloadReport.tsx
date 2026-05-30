@@ -6,7 +6,7 @@ import {
   type RadiologistWorkloadDto, type TechnicianWorkloadDto,
 } from '../api/workloadReport';
 import {
-  KpiStrip, TopTabs, DataTable, StatusBadge, Ico, tk, ti, tw,
+  KpiStrip, TopTabs, DataTable, StatusBadge, Btn, Ico, tk, ti, tw,
   type ColumnDef,
 } from './_v2kit';
 
@@ -87,21 +87,15 @@ const WorkloadReportV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <button className="ab-btn ghost" type="button" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </button>
-          <button className="ab-btn primary" type="button" onClick={exportCsv}>
-            <Ico name="download" size={12} /> Xuất CSV
-          </button>
+          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+          <Btn variant="primary" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
         </>
       } />
 
       <div className="ab-toolbar" style={{ borderTop: 'none' }}>
         <RangePicker value={range} onChange={(v) => v && v[0] && v[1] && setRange([v[0], v[1]])}
           format="DD/MM/YYYY" allowClear={false} />
-        <button className="ab-btn ghost" type="button" onClick={() => setRange([dayjs().subtract(30, 'day').startOf('day'), dayjs().endOf('day')])}>
-          <Ico name="x" size={12} /> Reset
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => setRange([dayjs().subtract(30, 'day').startOf('day'), dayjs().endOf('day')])}>Reset</Btn>
       </div>
 
       {tab === 'doctors' && (

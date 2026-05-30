@@ -6,7 +6,7 @@ import { getAppointments, confirmAppointment, cancelAppointment } from '../api/t
 import type { TelemedicineAppointmentDto } from '../api/telemedicine';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
-  StatusBadge, ActBtn, DrawerShell,
+  StatusBadge, ActBtn, Btn, DrawerShell,
   type ColumnDef, type StatusTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -172,19 +172,19 @@ const TelemedicineV2: React.FC = () => {
 
       <div className="ab-tools">
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm BN / BS / mã hẹn / lý do…" />
-        <button type="button" className="ab-btn ghost" onClick={() => { setSearch(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setStab('all'); }}>
           <TermIcon name="refresh" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button type="button" className="ab-btn ghost" onClick={reload}>
+        <Btn variant="ghost" onClick={reload}>
           <TermIcon name="refresh" size={12} /> Làm mới
-        </button>
-        <button type="button" className="ab-btn ghost" onClick={() => message.success(`Đã xuất ${filtered.length} dòng`)}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => message.success(`Đã xuất ${filtered.length} dòng`)}>
           <TermIcon name="download" size={12} /> Xuất Excel
-        </button>
-        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/booking-management')}>
+        </Btn>
+        <Btn variant="primary" onClick={() => navigate('/v2/booking-management')}>
           <TermIcon name="plus" size={12} /> Đặt lịch
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
@@ -226,22 +226,22 @@ const TelemedicineV2: React.FC = () => {
         size="lg"
         footer={detail ? (
           <>
-            <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
+            <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             <span style={{ flex: 1 }} />
             {detail.status === 0 && (
-              <button type="button" className="ab-btn ok" onClick={() => { onConfirm(detail); setDetail(null); }}>
+              <Btn variant="ok" onClick={() => { onConfirm(detail); setDetail(null); }}>
                 <TermIcon name="check" size={12} /> Xác nhận
-              </button>
+              </Btn>
             )}
             {![3, 4, 5].includes(detail.status) && (
-              <button type="button" className="ab-btn" onClick={() => { onCancel(detail); setDetail(null); }} style={{ color: 'var(--s-crit)' }}>
+              <Btn onClick={() => { onCancel(detail); setDetail(null); }} style={{ color: 'var(--s-crit)' }}>
                 <TermIcon name="x" size={12} /> Huỷ
-              </button>
+              </Btn>
             )}
             {detail.videoRoomUrl && (
-              <button type="button" className="ab-btn primary" onClick={() => onJoin(detail)}>
+              <Btn variant="primary" onClick={() => onJoin(detail)}>
                 <TermIcon name="play" size={12} /> Vào phòng
-              </button>
+              </Btn>
             )}
           </>
         ) : null}

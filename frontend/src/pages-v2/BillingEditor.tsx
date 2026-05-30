@@ -12,7 +12,7 @@
 
 import React, { useState, useCallback } from 'react';
 import {
-  KpiStrip, StatusBadge, ActBtn, DataTable, TopTabs, ModalShell,
+  KpiStrip, StatusBadge, ActBtn, Btn, DataTable, TopTabs, ModalShell,
   fmtVNDg, fmtDTg, tk, tw, te, ti, type ColumnDef, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -243,7 +243,7 @@ const BillingEditorV2: React.FC = () => {
 
       {/* Patient panel */}
       <aside className={'ed-left-panel ' + (leftOpen ? 'is-open' : '')} style={{ borderRight: '1px solid var(--line)', padding: 12, background: 'var(--d-1)', overflow: 'auto' }}>
-        <button className="ab-btn ghost sm" style={{ width: '100%', marginBottom: 10, justifyContent: 'center' }} onClick={() => setSearchOpen(true)}><TermIcon name="search" size={11} /> Tìm bệnh nhân</button>
+        <Btn variant="ghost" size="sm" style={{ width: '100%', marginBottom: 10, justifyContent: 'center' }} onClick={() => setSearchOpen(true)}><TermIcon name="search" size={11} /> Tìm bệnh nhân</Btn>
         {!pt ? (
           <div style={{ padding: '40px 12px', textAlign: 'center', color: 'var(--t-3)' }}>
             <TermIcon name="user" size={28} />
@@ -313,13 +313,13 @@ const BillingEditorV2: React.FC = () => {
 
           {tab === 'advance' && (
             <div>
-              <div style={{ marginBottom: 12 }}><button className="ab-btn primary" onClick={() => openCreate('deposit')}><TermIcon name="plus" size={12} /> Tạo tạm ứng</button></div>
+              <div style={{ marginBottom: 12 }}><Btn variant="primary" onClick={() => openCreate('deposit')}><TermIcon name="plus" size={12} /> Tạo tạm ứng</Btn></div>
               <DataTable<DepositDto> columns={depositCols} data={deposits} rowKey={(r) => r.id} empty={pt ? 'Chưa có tạm ứng' : 'Chọn bệnh nhân'} />
             </div>
           )}
           {tab === 'refund' && (
             <div>
-              <div style={{ marginBottom: 12 }}><button className="ab-btn primary" onClick={() => openCreate('refund')}><TermIcon name="plus" size={12} /> Lập phiếu hoàn tiền</button></div>
+              <div style={{ marginBottom: 12 }}><Btn variant="primary" onClick={() => openCreate('refund')}><TermIcon name="plus" size={12} /> Lập phiếu hoàn tiền</Btn></div>
               <DataTable<RefundDto> columns={refundCols} data={refunds} rowKey={(r) => r.id} empty="Chưa có phiếu hoàn tiền" />
             </div>
           )}
@@ -328,7 +328,7 @@ const BillingEditorV2: React.FC = () => {
           )}
           {tab === 'einv' && (
             <div>
-              <div style={{ marginBottom: 12 }}><button className="ab-btn primary" onClick={openEinv}><TermIcon name="plus" size={12} /> Phát hành HĐĐT</button></div>
+              <div style={{ marginBottom: 12 }}><Btn variant="primary" onClick={openEinv}><TermIcon name="plus" size={12} /> Phát hành HĐĐT</Btn></div>
               <DataTable<ElectronicInvoiceDto> columns={einvCols} data={einvoices} rowKey={(r) => r.id} empty="Chưa có hoá đơn điện tử"
                 actions={(r) => <><ActBtn ic="send" title="Gửi email" onClick={() => ti('Gửi email HĐ (P2)')} /><ActBtn ic="print" title="In" onClick={() => tk('Đã gửi in')} /></>} />
             </div>
@@ -365,10 +365,10 @@ const BillingEditorV2: React.FC = () => {
           </div>
 
           <div style={{ display: 'grid', gap: 6 }}>
-            <button className="ab-btn primary" style={{ height: 40, fontSize: 13 }} onClick={() => setConfirmOpen(true)} disabled={selectedItems.length === 0 || busy}>
+            <Btn variant="primary" style={{ height: 40, fontSize: 13 }} onClick={() => setConfirmOpen(true)} disabled={selectedItems.length === 0 || busy}>
               <TermIcon name="check" size={13} /> Thu tiền · {fmtVNDg(finalAmount)}
-            </button>
-            <button className="ab-btn ghost" onClick={() => tk('Đã gửi in biên lai')}><TermIcon name="print" size={12} /> In biên lai</button>
+            </Btn>
+            <Btn variant="ghost" onClick={() => tk('Đã gửi in biên lai')}><TermIcon name="print" size={12} /> In biên lai</Btn>
           </div>
         </aside>
       )}
@@ -386,8 +386,8 @@ const BillingEditorV2: React.FC = () => {
       {/* Confirm payment modal */}
       <ModalShell open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Xác nhận thu tiền" sub={METHODS.find((m) => m.v === method)?.l} size="sm"
         footer={<>
-          <button className="ab-btn ghost" onClick={() => setConfirmOpen(false)}>Hủy</button>
-          <button className="ab-btn primary" disabled={busy} onClick={doPayment}><TermIcon name="check" size={12} /> Xác nhận đã thu</button>
+          <Btn variant="ghost" onClick={() => setConfirmOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" disabled={busy} onClick={doPayment}><TermIcon name="check" size={12} /> Xác nhận đã thu</Btn>
         </>}>
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div style={{ fontSize: 14, color: 'var(--t-2)', marginBottom: 6 }}>BN cần trả</div>
@@ -403,8 +403,8 @@ const BillingEditorV2: React.FC = () => {
       <ModalShell open={createModal !== null} onClose={() => setCreateModal(null)}
         title={createModal === 'deposit' ? 'Tạo tạm ứng' : 'Lập phiếu hoàn tiền'} sub={pt?.patientName} size="sm"
         footer={<>
-          <button className="ab-btn ghost" onClick={() => setCreateModal(null)}>Hủy</button>
-          <button className="ab-btn primary" disabled={savingC} onClick={saveCreate}><TermIcon name="check" size={12} /> Lưu</button>
+          <Btn variant="ghost" onClick={() => setCreateModal(null)}>Hủy</Btn>
+          <Btn variant="primary" disabled={savingC} onClick={saveCreate}><TermIcon name="check" size={12} /> Lưu</Btn>
         </>}>
         <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <label style={{ display: 'block', fontSize: 11.5 }}>
@@ -429,8 +429,8 @@ const BillingEditorV2: React.FC = () => {
       {/* Issue e-invoice modal */}
       <ModalShell open={einvOpen} onClose={() => setEinvOpen(false)} title="Phát hành hoá đơn điện tử" sub={pt?.patientName} size="sm"
         footer={<>
-          <button className="ab-btn ghost" onClick={() => setEinvOpen(false)}>Hủy</button>
-          <button className="ab-btn primary" disabled={savingEinv} onClick={issueEinv}><TermIcon name="check" size={12} /> Phát hành</button>
+          <Btn variant="ghost" onClick={() => setEinvOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" disabled={savingEinv} onClick={issueEinv}><TermIcon name="check" size={12} /> Phát hành</Btn>
         </>}>
         <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <label style={{ display: 'block', fontSize: 11.5 }}>
@@ -470,7 +470,7 @@ const BillingPatientSearch: React.FC<{ open: boolean; onClose: () => void; onPic
 
   return (
     <ModalShell open={open} onClose={onClose} title="Tìm bệnh nhân" sub="Tên · Mã · Mã hồ sơ" size="md"
-      footer={<button className="ab-btn ghost" onClick={onClose}>Đóng</button>}>
+      footer={<Btn variant="ghost" onClick={onClose}>Đóng</Btn>}>
       <div style={{ padding: 16 }}>
         <div className="ab-search" style={{ width: '100%' }}>
           <TermIcon name="search" size={13} />

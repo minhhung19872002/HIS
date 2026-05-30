@@ -3,7 +3,7 @@ import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, tw, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -163,20 +163,20 @@ ${row.items.map((it) => `<div class="label"><h3>${it.medicineName}</h3><p><stron
         <DatePicker value={date} onChange={(v) => v && setDate(v)} format="DD/MM/YYYY" />
         <Filter value={counter} onChange={setCounter} options={COUNTER_OPTIONS} placeholder="▾ Quầy" />
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm mã BN / tên / mã đơn…" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); load(); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); load(); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Quét barcode')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Quét barcode')}>
           <Ico name="qr" size={12} /> Quét barcode
-        </button>
+        </Btn>
         {stab === 'pending' && selected.size > 0 && (
-          <button className="ab-btn primary" type="button" onClick={handleDispense}>
+          <Btn variant="primary" onClick={handleDispense}>
             <Ico name="check" size={12} /> Phát {selected.size} đơn
-          </button>
+          </Btn>
         )}
       </div>
 
@@ -206,20 +206,20 @@ ${row.items.map((it) => `<div class="label"><h3>${it.medicineName}</h3><p><stron
         title={detail ? `Đơn ${detail.prescriptionCode}` : ''}
         sub={detail ? `${detail.patientName} · ${detail.patientCode}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
+          <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
           {detail && <>
-            <button type="button" className="ab-btn" onClick={() => printLabels(detail)}>
+            <Btn onClick={() => printLabels(detail)}>
               <Ico name="print" size={12} /> In tem
-            </button>
+            </Btn>
             {!detail.isDispensed && (
-              <button type="button" className="ab-btn primary" onClick={async () => {
+              <Btn variant="primary" onClick={async () => {
                 try {
                   await apiClient.post(`/warehousecomplete/issues/dispense-outpatient/${detail.prescriptionId}`);
                   tk('Đã phát'); setDetail(null); load();
                 } catch { tw('Phát thất bại'); }
               }}>
                 <Ico name="check" size={12} /> Phát đơn này
-              </button>
+              </Btn>
             )}
           </>}
         </>}

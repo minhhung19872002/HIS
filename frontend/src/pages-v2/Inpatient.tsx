@@ -7,7 +7,7 @@ import type { InpatientListDto, WardLayoutDto, BedLayoutDto } from '../api/inpat
 import { catalogApi } from '../api/system';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, DrawerShell,
+  StatusBadge, ActBtn, Btn, DrawerShell,
   type ColumnDef, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -188,15 +188,15 @@ const InpatientV2: React.FC = () => {
         tabs={TOP_TABS}
         actions={
           <>
-            <button type="button" className="ab-btn ghost" onClick={loadData}>
+            <Btn variant="ghost" onClick={loadData}>
               <TermIcon name="refresh" size={12} /> Làm mới
-            </button>
-            <button type="button" className="ab-btn ghost" onClick={() => navigate('/v2/hr')}>
+            </Btn>
+            <Btn variant="ghost" onClick={() => navigate('/v2/hr')}>
               <TermIcon name="users" size={12} /> Bàn giao ca <kbd>F4</kbd>
-            </button>
-            <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/inpatient-dispensing')}>
+            </Btn>
+            <Btn variant="primary" onClick={() => navigate('/v2/inpatient-dispensing')}>
               <TermIcon name="plus" size={12} /> Y lệnh mới <kbd>F2</kbd>
-            </button>
+            </Btn>
           </>
         }
       />
@@ -205,9 +205,9 @@ const InpatientV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder="Tìm tên BN, mã BN, mã giường…" />
         <Filter value={fWard} onChange={(v) => { setFWard(v); setPage(0); }} options={wardOpts} placeholder="▾ Khoa" />
         {tab === 'grid' && <Filter value={fStatus} onChange={setFStatus} options={BED_STATUS} placeholder="▾ Trạng thái" />}
-        <button type="button" className="ab-btn ghost" onClick={() => { setSearch(''); setFWard(''); setFStatus(''); setPage(0); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFWard(''); setFStatus(''); setPage(0); }}>
           <TermIcon name="refresh" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
         <span style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
           {tab === 'grid' ? `${filteredBeds.length} giường` : tab === 'list' ? `${listFiltered.length} BN` : `${ordersList.length} BN có y lệnh`}
@@ -317,15 +317,15 @@ const InpatientV2: React.FC = () => {
         footer={bed ? (
           bed.patientName ? (
             <>
-              <button type="button" className="ab-btn ghost" onClick={() => setBed(null)}>Đóng</button>
-              <button type="button" className="ab-btn primary" onClick={() => { setBed(null); navigate('/v2/inpatient-dispensing'); }}>
+              <Btn variant="ghost" onClick={() => setBed(null)}>Đóng</Btn>
+              <Btn variant="primary" onClick={() => { setBed(null); navigate('/v2/inpatient-dispensing'); }}>
                 <TermIcon name="clipboard" size={12} /> Y lệnh
-              </button>
+              </Btn>
             </>
           ) : (
             <>
-              <button type="button" className="ab-btn ghost" onClick={() => setBed(null)}>Đóng</button>
-              <button type="button" className="ab-btn primary" onClick={() => { setBed(null); message.info('Chọn giường để nhập viện'); }}>Nhập viện vào giường này</button>
+              <Btn variant="ghost" onClick={() => setBed(null)}>Đóng</Btn>
+              <Btn variant="primary" onClick={() => { setBed(null); message.info('Chọn giường để nhập viện'); }}>Nhập viện vào giường này</Btn>
             </>
           )
         ) : null}
@@ -375,10 +375,10 @@ const InpatientV2: React.FC = () => {
         sub={detail ? `${detail.departmentName} · ${detail.roomName}${detail.bedName ? ` · ${detail.bedName}` : ''} · ${detail.daysOfStay} ngày` : ''}
         footer={detail ? (
           <>
-            <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
-            <button type="button" className="ab-btn primary" onClick={() => { setDetail(null); navigate('/v2/inpatient-dispensing'); }}>
+            <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
+            <Btn variant="primary" onClick={() => { setDetail(null); navigate('/v2/inpatient-dispensing'); }}>
               <TermIcon name="clipboard" size={12} /> Y lệnh
-            </button>
+            </Btn>
           </>
         ) : null}
       >

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import client from '../api/client';
+import { getSurveyResults } from '../api/satisfactionSurvey';
 import {
-  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   StatusTabs, DrawerShell, DrSec, DrField, tk, ti, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -43,7 +43,7 @@ const SatisfactionSurveyV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await client.get('/satisfaction-survey/results');
+      const res = await getSurveyResults();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data = (res.data?.items || res.data || []) as any[];
       const rows: SurveyResult[] = data.map((r, i) => ({
@@ -144,19 +144,19 @@ const SatisfactionSurveyV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm BN / mẫu khảo sát…" />
         <Filter value={fTmpl} onChange={setFTmpl} options={templates} placeholder="▾ Mẫu khảo sát" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFTmpl(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFTmpl(''); setStab('all'); }}>
           <Ico name="refresh" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Đã xuất CSV')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Đã xuất CSV')}>
           <Ico name="download" size={12} /> Xuất CSV
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Tạo chiến dịch khảo sát mới')}>
+        </Btn>
+        <Btn variant="primary" onClick={() => tk('Tạo chiến dịch khảo sát mới')}>
           <Ico name="plus" size={12} /> Chiến dịch mới
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<ScoreKey> value={stab} onChange={setStab} tabs={SCORE_TABS} counts={counts} />
@@ -198,14 +198,14 @@ const SatisfactionSurveyV2: React.FC = () => {
         title={sel ? `Phản hồi · ${sel.patientName}` : ''}
         sub={sel ? `${sel.patientCode} · ${sel.templateName}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in phản hồi')}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => tk('Đã in phản hồi')}>
             <Ico name="print" size={12} /> In
-          </button>
+          </Btn>
           {sel && sel.score <= 2 && sel.score > 0 && (
-            <button type="button" className="ab-btn primary" onClick={() => { tk('Đã đặt lịch liên hệ BN'); setSel(null); }}>
+            <Btn variant="primary" onClick={() => { tk('Đã đặt lịch liên hệ BN'); setSel(null); }}>
               <Ico name="phone" size={12} /> Liên hệ BN
-            </button>
+            </Btn>
           )}
         </>}
       >

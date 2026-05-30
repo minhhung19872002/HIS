@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { searchTreatments, createTreatment, updateTreatment } from '../api/traditionalMedicine';
 import type { TraditionalTreatment } from '../api/traditionalMedicine';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
@@ -141,16 +141,16 @@ const TraditionalMedicineV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm BN / mã phác đồ / chẩn đoán…" />
         <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Phương pháp" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={openCreate}>
+        </Btn>
+        <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> Phác đồ mới
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -169,13 +169,13 @@ const TraditionalMedicineV2: React.FC = () => {
         title={sel ? `Phác đồ ${sel.treatmentCode}` : ''}
         sub={sel ? `${sel.patientName} · ${TYPE_LABEL[sel.treatmentType] || sel.treatmentType}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Mở đơn thuốc bắc')}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => tk('Mở đơn thuốc bắc')}>
             <Ico name="file-text" size={12} /> Đơn thuốc bắc
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+          </Btn>
+          <Btn variant="primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Sửa phác đồ
-          </button>
+          </Btn>
         </>}
       >
         {sel && <>

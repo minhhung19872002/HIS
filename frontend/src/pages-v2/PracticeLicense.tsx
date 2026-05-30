@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { searchLicenses, createLicense, updateLicense } from '../api/practiceLicense';
 import type { PracticeLicense } from '../api/practiceLicense';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
@@ -161,19 +161,19 @@ const PracticeLicenseV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm tên / mã NV / số CCHN…" />
         <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại CCHN" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở cảnh báo CCHN sắp hết')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Mở cảnh báo CCHN sắp hết')}>
           <Ico name="alert" size={12} /> Cảnh báo
-        </button>
-        <button className="ab-btn primary" type="button" onClick={openCreate}>
+        </Btn>
+        <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> CCHN mới
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -192,13 +192,13 @@ const PracticeLicenseV2: React.FC = () => {
         title={sel ? sel.staffName : ''}
         sub={sel ? `${sel.licenseNumber} · ${TYPE_LABEL[sel.licenseType] || sel.licenseType}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in CCHN')}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => tk('Đã in CCHN')}>
             <Ico name="print" size={12} /> In CCHN
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+          </Btn>
+          <Btn variant="primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="refresh" size={12} /> Gia hạn / Sửa
-          </button>
+          </Btn>
         </>}
       >
         {sel && <>

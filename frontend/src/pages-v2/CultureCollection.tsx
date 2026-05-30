@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { getCultureStocks, getCultureStockStats, createCultureStock, updateCultureStock } from '../api/cultureStock';
 import type { CultureStock, CultureStockStats } from '../api/cultureStock';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
@@ -155,19 +155,19 @@ const CultureCollectionV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm mã chủng / VSV / vị trí…" />
         <Filter value={fMethod} onChange={setFMethod} options={methods} placeholder="▾ PP bảo quản" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFMethod(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFMethod(''); setStab('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở cấy chuyền')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Mở cấy chuyền')}>
           <Ico name="activity" size={12} /> Cấy chuyền
-        </button>
-        <button className="ab-btn primary" type="button" onClick={openCreate}>
+        </Btn>
+        <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> Lưu chủng
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -186,16 +186,16 @@ const CultureCollectionV2: React.FC = () => {
         title={sel ? sel.organismName : ''}
         sub={sel ? `${sel.stockCode} · ${sel.locationDisplay}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Mở lịch sử')}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => tk('Mở lịch sử')}>
             <Ico name="activity" size={12} /> Lịch sử
-          </button>
-          <button type="button" className="ab-btn" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+          </Btn>
+          <Btn onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Sửa
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở KT viability')}>
+          </Btn>
+          <Btn variant="primary" onClick={() => tk('Mở KT viability')}>
             <Ico name="check" size={12} /> KT viability
-          </button>
+          </Btn>
         </>}
       >
         {sel && <>

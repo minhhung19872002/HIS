@@ -11,7 +11,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  KpiStrip, StatusBadge, ActBtn, ModalShell, DrawerShell, fmtVNDg, tk, tw, te,
+  KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, DrawerShell, fmtVNDg, tk, tw, te,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 import { examinationApi, type MedicineDto, type DrugInteractionDto, type CreatePrescriptionDto, type PrescriptionTemplateDto, type WarehouseDto } from '../api/examination';
@@ -253,7 +253,7 @@ const PrescriptionEditorV2: React.FC = () => {
       <aside className={'ed-left-panel ' + (leftOpen ? 'is-open' : '')} style={{ borderRight: '1px solid var(--line)', overflow: 'auto', padding: 12, background: 'var(--d-1)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <h4 style={{ margin: 0, fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)', letterSpacing: '.06em' }}>Bệnh nhân</h4>
-          <button className="ab-btn ghost sm" onClick={() => setSearchOpen(true)}><TermIcon name="search" size={11} /> Tìm BN</button>
+          <Btn variant="ghost" size="sm" onClick={() => setSearchOpen(true)}><TermIcon name="search" size={11} /> Tìm BN</Btn>
         </div>
         {!pt ? (
           <div style={{ padding: '40px 12px', textAlign: 'center', color: 'var(--t-3)' }}>
@@ -322,10 +322,10 @@ const PrescriptionEditorV2: React.FC = () => {
             {warehouses.map((w) => <option key={w.id} value={w.id}>{w.code} — {w.name}</option>)}
           </select>
           <span className="spacer" style={{ flex: 1 }} />
-          <button className="ab-btn ghost" onClick={() => setTplOpen(true)}><TermIcon name="folder" size={12} /> Đơn mẫu</button>
-          <button className="ab-btn ghost" disabled={saving} onClick={saveDraft}><TermIcon name="folder" size={12} /> Lưu nháp</button>
-          <button className="ab-btn ghost" onClick={() => tk('Đã gửi máy in')}><TermIcon name="print" size={12} /> In</button>
-          <button className="ab-btn primary" disabled={saving} onClick={onClickSign}><TermIcon name="check" size={12} /> Hoàn tất · Ký số</button>
+          <Btn variant="ghost" onClick={() => setTplOpen(true)}><TermIcon name="folder" size={12} /> Đơn mẫu</Btn>
+          <Btn variant="ghost" disabled={saving} onClick={saveDraft}><TermIcon name="folder" size={12} /> Lưu nháp</Btn>
+          <Btn variant="ghost" onClick={() => tk('Đã gửi máy in')}><TermIcon name="print" size={12} /> In</Btn>
+          <Btn variant="primary" disabled={saving} onClick={onClickSign}><TermIcon name="check" size={12} /> Hoàn tất · Ký số</Btn>
         </div>
 
         {/* Drug search */}
@@ -421,12 +421,12 @@ const PrescriptionEditorV2: React.FC = () => {
           </div>
         </div>
 
-        <button className="ab-btn ghost" onClick={() => setTplOpen(true)} style={{ width: '100%', justifyContent: 'flex-start' }}>
+        <Btn variant="ghost" onClick={() => setTplOpen(true)} style={{ width: '100%', justifyContent: 'flex-start' }}>
           <TermIcon name="folder" size={12} /> Đơn mẫu ({templates.length})
-        </button>
-        <button className="ab-btn ghost" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => navigate('/v2/signing-workflow')}>
+        </Btn>
+        <Btn variant="ghost" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => navigate('/v2/signing-workflow')}>
           <TermIcon name="check" size={12} /> Luồng ký số
-        </button>
+        </Btn>
       </aside>
 
       {/* Responsive toggles (≤1180px) */}
@@ -474,7 +474,7 @@ const PrescriptionEditorV2: React.FC = () => {
                 <b>{t.templateName}</b>
                 <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 3 }}>{t.items?.length || 0} thuốc{t.description ? ` · ${t.description}` : ''}</div>
               </div>
-              <button className="ab-btn primary sm" onClick={() => applyTemplate(t)}>Áp dụng</button>
+              <Btn variant="primary" size="sm" onClick={() => applyTemplate(t)}>Áp dụng</Btn>
             </div>
           ))}
         </div>
@@ -483,8 +483,8 @@ const PrescriptionEditorV2: React.FC = () => {
       {/* Sign modal */}
       <ModalShell open={signOpen} onClose={() => setSignOpen(false)} title="Hoàn tất & ký số đơn thuốc" sub="USB Token · VNPT-CA" size="sm"
         footer={<>
-          <button className="ab-btn ghost" onClick={() => setSignOpen(false)}>Hủy</button>
-          <button className="ab-btn primary" disabled={saving} onClick={completeWithSign}><TermIcon name="check" size={12} /> Xác nhận</button>
+          <Btn variant="ghost" onClick={() => setSignOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" disabled={saving} onClick={completeWithSign}><TermIcon name="check" size={12} /> Xác nhận</Btn>
         </>}>
         <div style={{ padding: 18 }}>
           <div style={{ padding: 12, background: 'var(--d-1)', borderRadius: 6, marginBottom: 14, fontSize: 12 }}>
@@ -493,7 +493,7 @@ const PrescriptionEditorV2: React.FC = () => {
           </div>
           <div style={{ fontSize: 11.5, color: 'var(--t-2)' }}>
             Nhấn "Xác nhận" để tạo & hoàn tất đơn. Ký số PKI đầy đủ thực hiện ở
-            <button className="ab-btn ghost sm" style={{ marginLeft: 6 }} onClick={() => { setSignOpen(false); navigate('/v2/signing-workflow'); }}>Luồng ký số</button>
+            <Btn variant="ghost" size="sm" style={{ marginLeft: 6 }} onClick={() => { setSignOpen(false); navigate('/v2/signing-workflow'); }}>Luồng ký số</Btn>
           </div>
         </div>
       </ModalShell>
@@ -524,7 +524,7 @@ const PatientSearchModal: React.FC<{ open: boolean; onClose: () => void; onPick:
 
   return (
     <ModalShell open={open} onClose={onClose} title="Tìm bệnh nhân" sub="Tên · Mã · CCCD · Thẻ BHYT" size="md"
-      footer={<button className="ab-btn ghost" onClick={onClose}>Đóng</button>}>
+      footer={<Btn variant="ghost" onClick={onClose}>Đóng</Btn>}>
       <div style={{ padding: 16 }}>
         <div className="ab-search" style={{ width: '100%' }}>
           <TermIcon name="search" size={13} />

@@ -4,7 +4,7 @@ import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
 import {
-  KpiStrip, SearchBox, Filter, DataTable, StatusBadge, ActBtn,
+  KpiStrip, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, Ico, tk, ti, tw,
   type ColumnDef,
 } from './_v2kit';
@@ -119,13 +119,9 @@ const ConsultationRegisterV2: React.FC = () => {
         <RangePicker format="DD/MM/YYYY" value={range} onChange={(v) => setRange(v as [Dayjs, Dayjs] | null)} />
         <Filter value={filterType} onChange={setFilterType} options={TYPE_OPTIONS} placeholder="▾ Loại" />
         <SearchBox value={keyword} onChange={setKeyword} placeholder="Tên BN / mã BN / lý do…" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setKeyword(''); setFilterType(''); setRange([dayjs().subtract(30, 'day'), dayjs()]); }}>
-          <Ico name="x" size={12} /> Reset
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setKeyword(''); setFilterType(''); setRange([dayjs().subtract(30, 'day'), dayjs()]); }}>Reset</Btn>
         <span className="spacer" />
-        <button className="ab-btn primary" type="button" onClick={load}>
-          <Ico name="search" size={12} /> Tra cứu
-        </button>
+        <Btn variant="primary" icon="search" onClick={load}>Tra cứu</Btn>
       </div>
 
       <DataTable<RegisterEntry>
@@ -150,10 +146,8 @@ const ConsultationRegisterV2: React.FC = () => {
         title={detail ? `Biên bản hội chẩn ${dayjs(detail.consultationDate).format('DD/MM HH:mm')}` : ''}
         sub={detail ? `${detail.consultationTypeName} · ${detail.patient.name}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
-          <button type="button" className="ab-btn primary" onClick={() => detail && printMinutes(detail)}>
-            <Ico name="print" size={12} /> In BBHC
-          </button>
+          <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
+          <Btn variant="primary" icon="print" onClick={() => detail && printMinutes(detail)}>In BBHC</Btn>
         </>}
       >
         {detail && <>

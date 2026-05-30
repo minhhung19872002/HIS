@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import * as pharmacyApi from '../api/pharmacy';
 import type { PendingPrescription } from '../api/pharmacy';
-import { SimpleV2Page, StatusBadge, ActBtn, type ColumnDef, type StatusTab } from './_v2kit';
+import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
 /* Nhà thuốc v2 — port of Pharmacy v2.html (RX dispensing tab) */
@@ -163,12 +163,12 @@ const PharmacyV2: React.FC = () => {
       drawerSub={(r) => `${r.doctorName} · ${r.department} · ${fmtDT(r.createdDate)}`}
       toolbarRight={
         <>
-          <button type="button" className="ab-btn ghost" onClick={() => navigate('/v2/pharmacy-approval')}>
+          <Btn variant="ghost" onClick={() => navigate('/v2/pharmacy-approval')}>
             <TermIcon name="download" size={12} /> Nhập kho
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/dispensing-counter')}>
+          </Btn>
+          <Btn variant="primary" onClick={() => navigate('/v2/dispensing-counter')}>
             <TermIcon name="plus" size={12} /> Đơn ngoại
-          </button>
+          </Btn>
         </>
       }
     />

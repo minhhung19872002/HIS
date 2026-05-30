@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import * as api from '../api/centralSigning';
 import {
-  KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, tw, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -157,17 +157,17 @@ const CentralSigningV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={(v) => { setTab(v); setPage(0); }} tabs={TABS} actions={
         <>
-          <button className="ab-btn ghost" type="button" onClick={() => {
+          <Btn variant="ghost" onClick={() => {
             if (tab === 'certs') fetchCerts();
             else if (tab === 'transactions') fetchTxs(page);
             fetchStats();
           }}>
             <Ico name="refresh" size={12} /> Làm mới
-          </button>
+          </Btn>
           {tab === 'certs' && (
-            <button className="ab-btn primary" type="button" onClick={() => tk('Mở thêm chứng thư')}>
+            <Btn variant="primary" onClick={() => tk('Mở thêm chứng thư')}>
               <Ico name="plus" size={12} /> Thêm chứng thư
-            </button>
+            </Btn>
           )}
         </>
       } />
@@ -177,24 +177,24 @@ const CentralSigningV2: React.FC = () => {
           <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
             placeholder="Tìm subject / CCCD / serial / CA…" />
           <Filter value={fStorage} onChange={setFStorage} options={storages} placeholder="▾ Loại lưu trữ" />
-          <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFStorage(''); }}>
+          <Btn variant="ghost" onClick={() => { setSearch(''); setFStorage(''); }}>
             <Ico name="x" size={12} /> Bỏ lọc
-          </button>
+          </Btn>
         </>}
         {tab === 'transactions' && <>
           <Filter value={fSuccess} onChange={(v) => { setFSuccess(v); setPage(0); }} options={successOpts} placeholder="▾ Trạng thái" />
-          <button className="ab-btn ghost" type="button" onClick={() => setFSuccess('')}>
+          <Btn variant="ghost" onClick={() => setFSuccess('')}>
             <Ico name="x" size={12} /> Bỏ lọc
-          </button>
+          </Btn>
         </>}
         <span className="spacer" />
         {tab === 'transactions' && (
-          <button className="ab-btn ghost" type="button" onClick={async () => {
+          <Btn variant="ghost" onClick={async () => {
             try { const r = await api.exportSerials(); tk('Đã xuất serials'); console.log(r); }
             catch { tw('Lỗi khi xuất'); }
           }}>
             <Ico name="download" size={12} /> Xuất serials
-          </button>
+          </Btn>
         )}
       </div>
 
@@ -240,21 +240,21 @@ const CentralSigningV2: React.FC = () => {
             <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 13 }}>
               <div style={{ marginBottom: 8 }}>Cấu hình appearance · TOTP · CSR · HSM cho ký số tập trung.</div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
-                <button className="ab-btn" type="button" onClick={() => tk('Mở appearance config')}>
+                <Btn onClick={() => tk('Mở appearance config')}>
                   <Ico name="edit" size={12} /> Cấu hình appearance
-                </button>
-                <button className="ab-btn" type="button" onClick={async () => {
+                </Btn>
+                <Btn onClick={async () => {
                   try { await api.setupTotp(); tk('Đã setup TOTP'); }
                   catch { tw('Lỗi setup TOTP'); }
                 }}>
                   <Ico name="lock" size={12} /> Setup TOTP
-                </button>
-                <button className="ab-btn" type="button" onClick={() => tk('Mở HSM info')}>
+                </Btn>
+                <Btn onClick={() => tk('Mở HSM info')}>
                   <Ico name="card" size={12} /> HSM info
-                </button>
-                <button className="ab-btn" type="button" onClick={() => tk('Mở tạo CSR')}>
+                </Btn>
+                <Btn onClick={() => tk('Mở tạo CSR')}>
                   <Ico name="plus" size={12} /> Tạo CSR
-                </button>
+                </Btn>
               </div>
             </div>
           </div>
@@ -268,10 +268,10 @@ const CentralSigningV2: React.FC = () => {
         title={selCert?.subjectName || ''}
         sub={selCert ? `${selCert.caProvider} · ${selCert.storageType}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSelCert(null)}>Đóng</button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở chỉnh sửa')}>
+          <Btn variant="ghost" onClick={() => setSelCert(null)}>Đóng</Btn>
+          <Btn variant="primary" onClick={() => tk('Mở chỉnh sửa')}>
             <Ico name="edit" size={12} /> Chỉnh sửa
-          </button>
+          </Btn>
         </>}
       >
         {selCert && <>

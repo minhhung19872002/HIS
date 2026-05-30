@@ -5,7 +5,7 @@ import apiClient from '../api/client';
 import systemApi from '../api/system';
 import { getWarehouses } from '../api/warehouse';
 import {
-  KpiStrip, Filter, StatusBadge, Ico, tk, ti, tw,
+  KpiStrip, Filter, StatusBadge, Btn, Ico, tk, ti, tw,
 } from './_v2kit';
 
 interface PendingItem {
@@ -149,13 +149,9 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicine
         <Filter value={warehouseId} onChange={setWarehouseId} options={whOpts} placeholder="▾ Kho xuất" />
         <Filter value={filterDept} onChange={setFilterDept} options={deptOpts} placeholder="▾ Lọc khoa" />
         <Input placeholder="Ghi chú phiếu" value={note} onChange={(e) => setNote(e.target.value)} style={{ width: 240 }} />
-        <button className="ab-btn ghost" type="button" onClick={() => { setFilterDept(''); setWarehouseId(''); setNote(''); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setFilterDept(''); setWarehouseId(''); setNote(''); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
+        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
       </div>
 
       {groups.length === 0 && !loading && (
@@ -184,15 +180,13 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicine
                 <span style={{ color: 'var(--a-em-text)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
                   {fmt(g.totalAmount)} đ
                 </span>
-                <button
-                  className="ab-btn primary"
-                  type="button"
+                <Btn
+                  variant="primary"
+                  icon="check"
                   disabled={!warehouseId || sel.size === 0 || submitting}
                   onClick={() => submitBatch(g)}
                   style={{ marginLeft: 8 }}
-                >
-                  <Ico name="check" size={12} /> Xuất ({sel.size})
-                </button>
+                >Xuất ({sel.size})</Btn>
               </div>
               {expanded && (
                 <table className="ab-tbl">
@@ -239,10 +233,8 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicine
         width={800}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <button type="button" className="ab-btn ghost" onClick={() => setPrintData(null)}>Đóng</button>
-            <button type="button" className="ab-btn primary" onClick={handlePrint}>
-              <Ico name="print" size={12} /> In phiếu
-            </button>
+            <Btn variant="ghost" onClick={() => setPrintData(null)}>Đóng</Btn>
+            <Btn variant="primary" icon="print" onClick={handlePrint}>In phiếu</Btn>
           </div>
         }
       >

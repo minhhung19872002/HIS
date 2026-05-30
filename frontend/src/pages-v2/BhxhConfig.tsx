@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Input, InputNumber, Select } from 'antd';
 import apiClient from '../api/client';
 import {
-  KpiStrip, TopTabs, StatusBadge, Ico, tk, ti, tw,
+  KpiStrip, TopTabs, StatusBadge, Btn, Ico, tk, ti, tw,
 } from './_v2kit';
 
 interface ConfigData {
@@ -100,13 +100,9 @@ const BhxhConfigV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
-          <button className="ab-btn ghost" type="button" onClick={load}>
-            <Ico name="refresh" size={12} /> Làm mới
-          </button>
+          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
           {tab === 'config' && (
-            <button className="ab-btn primary" type="button" onClick={save}>
-              <Ico name="check" size={12} /> Lưu cấu hình
-            </button>
+            <Btn variant="primary" icon="check" onClick={save}>Lưu cấu hình</Btn>
           )}
         </>
       } />
@@ -148,9 +144,7 @@ const BhxhConfigV2: React.FC = () => {
               <span>1. Test kết nối gateway</span>
             </div>
             <div style={{ padding: 14 }}>
-              <button className="ab-btn primary" type="button" onClick={testConn} disabled={testing === 'conn'}>
-                <Ico name="activity" size={12} /> Ping Gateway URL
-              </button>
+              <Btn variant="primary" icon="activity" onClick={testConn} disabled={testing === 'conn'}>Ping Gateway URL</Btn>
               {connResult && (
                 <div style={{ marginTop: 12, padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
                   <StatusBadge tone={connResult.reachable ? 'ok' : 'crit'} dot>
@@ -170,9 +164,7 @@ const BhxhConfigV2: React.FC = () => {
               <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 8 }}>
                 Gửi POST {'{username, password, grant_type: "password"}'} tới Token URL, xem có trả access_token không.
               </div>
-              <button className="ab-btn primary" type="button" onClick={testAuth} disabled={testing === 'auth'}>
-                <Ico name="lock" size={12} /> Lấy access_token
-              </button>
+              <Btn variant="primary" icon="lock" onClick={testAuth} disabled={testing === 'auth'}>Lấy access_token</Btn>
               {authResult && (
                 <div style={{ marginTop: 12, padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
                   <StatusBadge tone={authResult.authenticated ? 'ok' : 'crit'} dot>
@@ -202,9 +194,7 @@ const BhxhConfigV2: React.FC = () => {
                 <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 4 }}>XML payload</div>
                 <Input.TextArea rows={10} value={testXml} onChange={(e) => setTestXml(e.target.value)} style={{ fontFamily: 'monospace' }} />
               </div>
-              <button className="ab-btn primary" type="button" onClick={testSubmit} disabled={testing === 'submit'}>
-                <Ico name="send" size={12} /> Gửi thử
-              </button>
+              <Btn variant="primary" icon="send" onClick={testSubmit} disabled={testing === 'submit'}>Gửi thử</Btn>
               {submitResult && (
                 <div style={{ marginTop: 12, padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
                   <StatusBadge tone={submitResult.success ? 'ok' : 'crit'} dot>

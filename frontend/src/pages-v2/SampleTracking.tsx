@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { getSampleRejections } from '../api/sampleTracking';
 import type { SampleRejection } from '../api/sampleTracking';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -118,16 +118,16 @@ const SampleTrackingV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm BN / barcode / mã YC…" />
         <Filter value={fReason} onChange={setFReason} options={reasons} placeholder="▾ Mã từ chối" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFReason(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFReason(''); setStab('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở báo cáo từ chối')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Mở báo cáo từ chối')}>
           <Ico name="activity" size={12} /> Báo cáo
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -146,14 +146,14 @@ const SampleTrackingV2: React.FC = () => {
         title={sel ? `Mẫu từ chối · ${sel.sampleBarcode}` : ''}
         sub={sel ? `${sel.patientName} · ${sel.requestCode}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
           {sel && !sel.reCollected && !sel.isUndone && <>
-            <button type="button" className="ab-btn" onClick={() => { tk('Đã hủy TC'); setSel(null); }}>
+            <Btn onClick={() => { tk('Đã hủy TC'); setSel(null); }}>
               <Ico name="refresh" size={12} /> Hủy TC
-            </button>
-            <button type="button" className="ab-btn primary" onClick={() => { tk('Đã yêu cầu lấy lại'); setSel(null); }}>
+            </Btn>
+            <Btn variant="primary" onClick={() => { tk('Đã yêu cầu lấy lại'); setSel(null); }}>
               <Ico name="package" size={12} /> Lấy lại
-            </button>
+            </Btn>
           </>}
         </>}
       >

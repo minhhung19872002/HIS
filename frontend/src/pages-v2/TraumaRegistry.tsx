@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { searchCases, createCase, updateCase } from '../api/traumaRegistry';
 import type { TraumaCase } from '../api/traumaRegistry';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
@@ -154,16 +154,16 @@ const TraumaRegistryV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm BN / mã ca / cơ chế…" />
         <Filter value={fTriage} onChange={setFTriage} options={triageOpts} placeholder="▾ Triage" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFTriage(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFTriage(''); setStab('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={openCreate}>
+        </Btn>
+        <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> Đăng ký ca
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -182,13 +182,13 @@ const TraumaRegistryV2: React.FC = () => {
         title={sel ? `Ca ${sel.caseCode}` : ''}
         sub={sel ? `${sel.patientName} · ${sel.injuryType}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in báo cáo')}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => tk('Đã in báo cáo')}>
             <Ico name="print" size={12} /> In báo cáo
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+          </Btn>
+          <Btn variant="primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Cập nhật
-          </button>
+          </Btn>
         </>}
       >
         {sel && <>

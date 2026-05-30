@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { financeApi, type RevenueByServiceDto } from '../api/system';
 import {
-  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, fmtVNDg, tk, ti, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -99,19 +99,19 @@ const FinanceV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm tên / mã dịch vụ…" />
         <Filter value={fGroup} onChange={setFGroup} options={groups} placeholder="▾ Nhóm dịch vụ" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFGroup(''); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFGroup(''); }}>
           <Ico name="refresh" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Đã xuất Excel')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Đã xuất Excel')}>
           <Ico name="download" size={12} /> Xuất Excel
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở báo cáo tổng hợp tháng')}>
+        </Btn>
+        <Btn variant="primary" onClick={() => tk('Mở báo cáo tổng hợp tháng')}>
           <Ico name="activity" size={12} /> Báo cáo tháng
-        </button>
+        </Btn>
       </div>
 
       <DataTable<Row>
@@ -128,13 +128,13 @@ const FinanceV2: React.FC = () => {
         title={sel ? `Dịch vụ · ${sel.serviceName}` : ''}
         sub={sel ? `${sel.serviceCode} · ${sel.serviceGroupName}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in báo cáo dịch vụ')}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => tk('Đã in báo cáo dịch vụ')}>
             <Ico name="print" size={12} /> In
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Đã gửi báo cáo')}>
+          </Btn>
+          <Btn variant="primary" onClick={() => tk('Đã gửi báo cáo')}>
             <Ico name="send" size={12} /> Gửi báo cáo
-          </button>
+          </Btn>
         </>}
       >
         {sel && <>

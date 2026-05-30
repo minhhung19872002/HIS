@@ -9,7 +9,7 @@ import { Input, InputNumber, Select, DatePicker, Switch } from 'antd';
 import dayjs from 'dayjs';
 import * as api from '../api/masterCatalog';
 import {
-  KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, fmtVNDg, tk, te, cf, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -284,12 +284,8 @@ const FinanceCatalogsV2: React.FC = () => {
       <div className="ab-toolbar">
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm theo mã, tên, ghi chú…" />
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={exportCsv}>
-          <Ico name="download" size={12} /> Xuất CSV
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => openDrawer()}>
-          <Ico name="plus" size={12} /> Thêm mới
-        </button>
+        <Btn variant="ghost" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
+        <Btn variant="primary" icon="plus" onClick={() => openDrawer()}>Thêm mới</Btn>
       </div>
       <DataTable
         columns={cols}
@@ -311,10 +307,8 @@ const FinanceCatalogsV2: React.FC = () => {
         sub={`Mục: ${tabsDef.find((t) => t.v === tab)?.l.split(' (')[0]}`}
         footer={(
           <>
-            <button className="ab-btn ghost" type="button" onClick={() => setEdit(null)}>Huỷ</button>
-            <button className="ab-btn primary" type="button" onClick={handleSave}>
-              <Ico name="check" size={12} /> {editIsNew ? 'Tạo mới' : 'Lưu'}
-            </button>
+            <Btn variant="ghost" onClick={() => setEdit(null)}>Huỷ</Btn>
+            <Btn variant="primary" icon="check" onClick={handleSave}>{editIsNew ? 'Tạo mới' : 'Lưu'}</Btn>
           </>
         )}
       >

@@ -9,7 +9,7 @@ import {
   type PharmacyApprovalSearchRequest, type ExpiringMedicineDto,
 } from '../api/pharmacyApproval';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, tk, ti, tw, cf, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -169,17 +169,17 @@ const PharmacyApprovalV2: React.FC = () => {
           placeholder="Tìm mã phiếu / ghi chú / BN…" />
         <Filter value={fType} onChange={(v) => { setFType(v); setPage(0); }} options={typeOpts} placeholder="▾ Loại phiếu" />
         <RangePicker value={range as [Dayjs, Dayjs] | null} onChange={(v) => { setRange(v as [Dayjs, Dayjs] | null); setPage(0); }} />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFType(''); setRange(null); setStab('all'); setPage(0); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFType(''); setRange(null); setStab('all'); setPage(0); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={refresh}>
+        <Btn variant="ghost" onClick={refresh}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
+        </Btn>
         {expiring.length > 0 && (
-          <button className="ab-btn ghost" type="button" onClick={() => setShowExpiring(true)}>
+          <Btn variant="ghost" onClick={() => setShowExpiring(true)}>
             <Ico name="alert" size={12} /> Cảnh báo HSD ({expiring.length})
-          </button>
+          </Btn>
         )}
       </div>
 
@@ -200,16 +200,16 @@ const PharmacyApprovalV2: React.FC = () => {
         title={detail ? `Phiếu ${detail.approvalCode}` : ''}
         sub={detail ? `${detail.approvalTypeName} · ${STATUS_LABELS[detail.status]}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
+          <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
           {detail && detail.status === 2 && (
-            <button type="button" className="ab-btn primary" onClick={() => openApprove(detail.id)}>
+            <Btn variant="primary" onClick={() => openApprove(detail.id)}>
               <Ico name="check" size={12} /> Duyệt
-            </button>
+            </Btn>
           )}
           {detail && detail.status === 3 && (
-            <button type="button" className="ab-btn" onClick={() => openRevoke(detail)}>
+            <Btn onClick={() => openRevoke(detail)}>
               <Ico name="refresh" size={12} /> Thu hồi
-            </button>
+            </Btn>
           )}
         </>}
       >
@@ -259,10 +259,10 @@ const PharmacyApprovalV2: React.FC = () => {
         size="lg"
         title="Duyệt phiếu cấp phát"
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setApproveOpen(false)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={handleApprove}>
+          <Btn variant="ghost" onClick={() => setApproveOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={handleApprove}>
             <Ico name="check" size={12} /> Duyệt
-          </button>
+          </Btn>
         </>}
       >
         <div style={{ fontSize: 12, color: 'var(--a-cy-text)', marginBottom: 12 }}>
@@ -314,10 +314,10 @@ const PharmacyApprovalV2: React.FC = () => {
         size="md"
         title="Thu hồi phiếu đã duyệt"
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setRevokeOpen(false)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={handleRevoke} style={{ color: 'var(--a-rd-text)' }}>
+          <Btn variant="ghost" onClick={() => setRevokeOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={handleRevoke} style={{ color: 'var(--a-rd-text)' }}>
             <Ico name="refresh" size={12} /> Thu hồi
-          </button>
+          </Btn>
         </>}
       >
         <div style={{ fontSize: 12, color: 'var(--a-or-text)', marginBottom: 12 }}>

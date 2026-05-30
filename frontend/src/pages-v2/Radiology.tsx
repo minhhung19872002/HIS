@@ -6,7 +6,7 @@ import * as risApi from '../api/ris';
 import type { RadiologyOrderDto, RadiologyResultDto, RadiologyOrderItemDto } from '../api/ris';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, DrawerShell,
+  StatusBadge, ActBtn, Btn, DrawerShell,
   type ColumnDef, type StatusTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -223,26 +223,26 @@ const RadiologyV2: React.FC = () => {
           options={MODALITIES.map((m) => ({ v: m.v, l: `${m.v} · ${m.l}` }))}
           placeholder="▾ Modality"
         />
-        <button type="button" className="ab-btn ghost" onClick={() => { setSearch(''); setFMod(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFMod(''); setStab('all'); }}>
           <TermIcon name="refresh" size={12} /> Bỏ lọc
-        </button>
-        <button type="button" className="ab-btn ghost" onClick={() => setDate(date.subtract(1, 'day'))}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => setDate(date.subtract(1, 'day'))}>
           <TermIcon name="chevronL" size={12} />
-        </button>
-        <button type="button" className="ab-btn ghost" onClick={() => setDate(dayjs())}>Hôm nay</button>
-        <button type="button" className="ab-btn ghost" onClick={() => setDate(date.add(1, 'day'))}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => setDate(dayjs())}>Hôm nay</Btn>
+        <Btn variant="ghost" onClick={() => setDate(date.add(1, 'day'))}>
           <TermIcon name="chevronR" size={12} />
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button type="button" className="ab-btn ghost" onClick={reload}>
+        <Btn variant="ghost" onClick={reload}>
           <TermIcon name="refresh" size={12} /> Làm mới
-        </button>
-        <button type="button" className="ab-btn ghost" onClick={() => navigate('/v2/ris-dispatcher')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => navigate('/v2/ris-dispatcher')}>
           <TermIcon name="image" size={12} /> DICOM
-        </button>
-        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/radiology-ops')}>
+        </Btn>
+        <Btn variant="primary" onClick={() => navigate('/v2/radiology-ops')}>
           <TermIcon name="plus" size={12} /> Chỉ định <kbd>F2</kbd>
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
@@ -288,15 +288,15 @@ const RadiologyV2: React.FC = () => {
         size="lg"
         footer={detail ? (
           <>
-            <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
+            <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             <span style={{ flex: 1 }} />
-            <button type="button" className="ab-btn" onClick={onPrint}>
+            <Btn onClick={onPrint}>
               <TermIcon name="print" size={12} /> In phiếu
-            </button>
+            </Btn>
             {detail.items?.[0]?.hasImages && (
-              <button type="button" className="ab-btn primary" onClick={() => onViewer(detail)}>
+              <Btn variant="primary" onClick={() => onViewer(detail)}>
                 <TermIcon name="image" size={12} /> Xem ảnh DICOM
-              </button>
+              </Btn>
             )}
           </>
         ) : null}

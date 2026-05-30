@@ -6,7 +6,7 @@ import {
   type PaymentTransactionDto, type PaymentSearchRequest, type PaymentStatsDto,
 } from '../api/paymentGateway';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, ModalShell,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, ModalShell,
   DrawerShell, DrSec, DrField, Ico, tk, ti, tw, type ColumnDef,
 } from './_v2kit';
 
@@ -121,19 +121,19 @@ const PaymentTransactionsV2: React.FC = () => {
         <SearchBox value={keyword} onChange={setKeyword} placeholder="Tìm mã GD / tên BN / mã cổng…" />
         <Filter value={provider} onChange={setProvider} options={PROVIDERS} placeholder="▾ Cổng TT" />
         <RangePicker value={range as [Dayjs, Dayjs] | null} onChange={(v) => setRange(v as [Dayjs, Dayjs] | null)} />
-        <button className="ab-btn ghost" type="button" onClick={() => { setKeyword(''); setProvider(''); setRange(null); setStab('all'); fetchData(); }}>
+        <Btn variant="ghost" onClick={() => { setKeyword(''); setProvider(''); setRange(null); setStab('all'); fetchData(); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => { setPage(0); fetchData(); }}>
+        </Btn>
+        <Btn variant="primary" onClick={() => { setPage(0); fetchData(); }}>
           <Ico name="search" size={12} /> Tìm
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={fetchData}>
+        <Btn variant="ghost" onClick={fetchData}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Đã xuất Excel')} disabled={items.length === 0}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Đã xuất Excel')} disabled={items.length === 0}>
           <Ico name="download" size={12} /> Xuất Excel
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -161,10 +161,10 @@ const PaymentTransactionsV2: React.FC = () => {
         size="md"
         title="Hoàn tiền giao dịch"
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => { setRefundOpen(null); refundForm.resetFields(); }}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={handleRefund}>
+          <Btn variant="ghost" onClick={() => { setRefundOpen(null); refundForm.resetFields(); }}>Hủy</Btn>
+          <Btn variant="primary" onClick={handleRefund}>
             <Ico name="refresh" size={12} /> Hoàn tiền
-          </button>
+          </Btn>
         </>}
       >
         {refundOpen && (

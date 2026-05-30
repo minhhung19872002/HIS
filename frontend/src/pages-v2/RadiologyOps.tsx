@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import { getWarehouses } from '../api/warehouse';
 import {
-  KpiStrip, TopTabs, SearchBox, DataTable, StatusBadge,
+  KpiStrip, TopTabs, SearchBox, DataTable, StatusBadge, Btn,
   Ico, tk, ti, tw, type ColumnDef,
 } from './_v2kit';
 
@@ -146,13 +146,13 @@ const RadiologyOpsV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={keyword} onChange={setKeyword}
           placeholder="Tìm mã phiếu CĐHA / mã BN / tên BN…" minWidth={400} />
-        <button className="ab-btn primary" type="button" onClick={search} disabled={loading}>
+        <Btn variant="primary" onClick={search} disabled={loading}>
           <Ico name="search" size={12} /> Tìm phiếu
-        </button>
+        </Btn>
         {selected && (
-          <button className="ab-btn ghost" type="button" onClick={() => setSelected(null)}>
+          <Btn variant="ghost" onClick={() => setSelected(null)}>
             <Ico name="x" size={12} /> Bỏ chọn
-          </button>
+          </Btn>
         )}
       </div>
 
@@ -192,9 +192,9 @@ const RadiologyOpsV2: React.FC = () => {
                 <Form.Item label="Lý do chỉ định thêm" name="reason" rules={[{ required: true }]}>
                   <Input.TextArea rows={3} placeholder="VD: cần chụp thêm tư thế nghiêng để đánh giá…" />
                 </Form.Item>
-                <button className="ab-btn primary" type="button" onClick={submitAddOn}>
+                <Btn variant="primary" onClick={submitAddOn}>
                   <Ico name="plus" size={12} /> Tạo phiếu chỉ định thêm
-                </button>
+                </Btn>
               </Form>
             </div>
           )}
@@ -225,23 +225,23 @@ const RadiologyOpsV2: React.FC = () => {
                           <Form.Item name={[f.name, 'note']} style={{ flex: 1, marginBottom: 0 }}>
                             <Input placeholder="Ghi chú" />
                           </Form.Item>
-                          <button type="button" className="ab-btn ghost" onClick={() => remove(f.name)}>
+                          <Btn variant="ghost" onClick={() => remove(f.name)}>
                             <Ico name="trash" size={12} />
-                          </button>
+                          </Btn>
                         </div>
                       ))}
-                      <button type="button" className="ab-btn ghost" onClick={() => add()}>
+                      <Btn variant="ghost" onClick={() => add()}>
                         <Ico name="plus" size={12} /> Thêm dòng
-                      </button>
+                      </Btn>
                     </>
                   )}
                 </Form.List>
                 <Form.Item label="Ghi chú phiếu" name="note" style={{ marginTop: 16 }}>
                   <Input.TextArea rows={2} />
                 </Form.Item>
-                <button className="ab-btn primary" type="button" onClick={submitDispense}>
+                <Btn variant="primary" onClick={submitDispense}>
                   <Ico name="medicine" size={12} /> Xuất kho cho BN
-                </button>
+                </Btn>
               </Form>
             </div>
           )}

@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import systemApi from '../api/system';
 import {
-  KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, DrawerShell, ModalShell, DrSec, DrField,
+  KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, DrSec, DrField,
   Ico, tk, ti, tw, type ColumnDef,
 } from './_v2kit';
 
@@ -167,12 +167,12 @@ const ObservationStayV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <span style={{ fontSize: 12, color: 'var(--t-2)' }}>Phòng lưu / Observation ngắn hạn (≤24h)</span>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => setCreateOpen(true)}>
+        </Btn>
+        <Btn variant="primary" onClick={() => setCreateOpen(true)}>
           <Ico name="plus" size={12} /> Tiếp nhận
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
@@ -195,17 +195,17 @@ const ObservationStayV2: React.FC = () => {
         title={detail ? `${detail.stayCode} — ${detail.patientName}` : ''}
         sub={detail ? `${detail.hoursInObservation}h · MEWS ${detail.ewsScore ?? '—'}` : ''}
         footer={detail?.status === 1 ? <>
-          <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => setVitalOpen(true)}>
+          <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
+          <Btn onClick={() => setVitalOpen(true)}>
             <Ico name="heart" size={12} /> Ghi sinh hiệu
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => setDischargeOpen('discharge')}>
+          </Btn>
+          <Btn variant="primary" onClick={() => setDischargeOpen('discharge')}>
             <Ico name="check" size={12} /> Cho về
-          </button>
-          <button type="button" className="ab-btn" onClick={() => setDischargeOpen('escalate')}>
+          </Btn>
+          <Btn onClick={() => setDischargeOpen('escalate')}>
             <Ico name="send" size={12} /> Chuyển NV
-          </button>
-        </> : <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>}
+          </Btn>
+        </> : <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>}
       >
         {detail && <>
           <DrSec title="Phiên lưu">
@@ -288,10 +288,10 @@ const ObservationStayV2: React.FC = () => {
         size="md"
         title="Ghi sinh hiệu"
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setVitalOpen(false)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={submitVital}>
+          <Btn variant="ghost" onClick={() => setVitalOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitVital}>
             <Ico name="check" size={12} /> Lưu
-          </button>
+          </Btn>
         </>}
       >
         <Form form={vitalForm} layout="vertical">
@@ -314,10 +314,10 @@ const ObservationStayV2: React.FC = () => {
         size="md"
         title={dischargeOpen === 'discharge' ? 'Cho về' : 'Chuyển nhập viện'}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setDischargeOpen(null)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={submitDischarge}>
+          <Btn variant="ghost" onClick={() => setDischargeOpen(null)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitDischarge}>
             <Ico name="check" size={12} /> Xác nhận
-          </button>
+          </Btn>
         </>}
       >
         <Form form={dischargeForm} layout="vertical">

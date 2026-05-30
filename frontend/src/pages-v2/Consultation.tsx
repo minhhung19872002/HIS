@@ -6,7 +6,7 @@ import risApi from '../api/ris';
 import type { ConsultationSessionDto } from '../api/ris';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
-  StatusBadge, ActBtn, DrawerShell,
+  StatusBadge, ActBtn, Btn, DrawerShell,
   type ColumnDef, type StatusTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -144,19 +144,19 @@ const ConsultationV2: React.FC = () => {
 
       <div className="ab-tools">
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm mã / chủ đề / người tạo…" />
-        <button type="button" className="ab-btn ghost" onClick={() => { setSearch(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setStab('all'); }}>
           <TermIcon name="refresh" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button type="button" className="ab-btn ghost" onClick={reload}>
+        <Btn variant="ghost" onClick={reload}>
           <TermIcon name="refresh" size={12} /> Làm mới
-        </button>
-        <button type="button" className="ab-btn ghost" onClick={() => message.success(`Đã xuất ${filtered.length} phiên`)}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => message.success(`Đã xuất ${filtered.length} phiên`)}>
           <TermIcon name="download" size={12} /> Xuất Excel
-        </button>
-        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/consultation-register')}>
+        </Btn>
+        <Btn variant="primary" onClick={() => navigate('/v2/consultation-register')}>
           <TermIcon name="plus" size={12} /> Tạo hội chẩn
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
@@ -198,15 +198,15 @@ const ConsultationV2: React.FC = () => {
         size="lg"
         footer={detail ? (
           <>
-            <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
+            <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             <span style={{ flex: 1 }} />
-            <button type="button" className="ab-btn" onClick={() => message.success('Đã in biên bản')}>
+            <Btn onClick={() => message.success('Đã in biên bản')}>
               <TermIcon name="print" size={12} /> In biên bản
-            </button>
+            </Btn>
             {detail.meetingUrl && (
-              <button type="button" className="ab-btn primary" onClick={() => window.open(detail.meetingUrl!, '_blank')}>
+              <Btn variant="primary" onClick={() => window.open(detail.meetingUrl!, '_blank')}>
                 <TermIcon name="play" size={12} /> Vào phòng họp
-              </button>
+              </Btn>
             )}
           </>
         ) : null}

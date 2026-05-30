@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { searchRequests } from '../api/interHospitalSharing';
 import type { InterHospitalRequest } from '../api/interHospitalSharing';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -128,16 +128,10 @@ const InterHospitalSharingV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm chủ đề / BV / BN…" />
         <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại YC" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở yêu cầu liên viện mới')}>
-          <Ico name="plus" size={12} /> Yêu cầu mới
-        </button>
+        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="primary" icon="plus" onClick={() => tk('Mở yêu cầu liên viện mới')}>Yêu cầu mới</Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -156,14 +150,10 @@ const InterHospitalSharingV2: React.FC = () => {
         title={sel ? sel.subject : ''}
         sub={sel ? `${sel.requestCode} · ${TYPE_LABEL[sel.requestType] || sel.requestType}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in YC')}>
-            <Ico name="print" size={12} /> In YC
-          </button>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn icon="print" onClick={() => tk('Đã in YC')}>In YC</Btn>
           {sel && (sel.status === 0 || sel.status === 1) && (
-            <button type="button" className="ab-btn primary" onClick={() => { tk('Đã xử lý'); setSel(null); }}>
-              <Ico name="check" size={12} /> Xử lý
-            </button>
+            <Btn variant="primary" icon="check" onClick={() => { tk('Đã xử lý'); setSel(null); }}>Xử lý</Btn>
           )}
         </>}
       >

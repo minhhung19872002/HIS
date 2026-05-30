@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { searchCampaigns, createCampaign, updateCampaign } from '../api/healthEducation';
 import type { HealthCampaign } from '../api/healthEducation';
 import {
-  KpiStrip, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
@@ -132,19 +132,19 @@ const HealthEducationV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm tiêu đề / địa điểm / đối tượng…" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setStab('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở thư viện tài liệu')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Mở thư viện tài liệu')}>
           <Ico name="archive" size={12} /> Tài liệu
-        </button>
-        <button className="ab-btn primary" type="button" onClick={openCreate}>
+        </Btn>
+        <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> Chiến dịch mới
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -163,13 +163,13 @@ const HealthEducationV2: React.FC = () => {
         title={sel ? sel.title : ''}
         sub={sel ? `${sel.campaignCode} · ${sel.location}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in báo cáo')}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => tk('Đã in báo cáo')}>
             <Ico name="print" size={12} /> In báo cáo
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+          </Btn>
+          <Btn variant="primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Cập nhật
-          </button>
+          </Btn>
         </>}
       >
         {sel && <>

@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { getSampleStorageRecords } from '../api/sampleStorage';
 import type { SampleStorageRecord } from '../api/sampleStorage';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -120,19 +120,19 @@ const SampleStorageV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm barcode / BN / vị trí…" />
         <Filter value={fCond} onChange={setFCond} options={conds} placeholder="▾ Điều kiện BQ" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFCond(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFCond(''); setStab('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở quét QR/barcode')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Mở quét QR/barcode')}>
           <Ico name="qr" size={12} /> Quét QR
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk('Mở lưu mẫu mới')}>
+        </Btn>
+        <Btn variant="primary" onClick={() => tk('Mở lưu mẫu mới')}>
           <Ico name="plus" size={12} /> Lưu mẫu
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -151,14 +151,14 @@ const SampleStorageV2: React.FC = () => {
         title={sel ? `Mẫu · ${sel.sampleBarcode}` : ''}
         sub={sel ? `${sel.sampleType} · ${sel.storageLocation}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
           {sel && sKey(sel) === 'stored' && <>
-            <button type="button" className="ab-btn" onClick={() => tk(`Mở lấy mẫu ${sel.sampleBarcode}`)}>
+            <Btn onClick={() => tk(`Mở lấy mẫu ${sel.sampleBarcode}`)}>
               <Ico name="package" size={12} /> Lấy mẫu
-            </button>
-            <button type="button" className="ab-btn primary" onClick={() => tk(`Mở hủy mẫu ${sel.sampleBarcode}`)}>
+            </Btn>
+            <Btn variant="primary" onClick={() => tk(`Mở hủy mẫu ${sel.sampleBarcode}`)}>
               <Ico name="trash" size={12} /> Hủy mẫu
-            </button>
+            </Btn>
           </>}
         </>}
       >

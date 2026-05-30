@@ -5,7 +5,7 @@ import * as receptionApi from '../api/reception';
 import type { AdmissionDto, RoomOverviewDto } from '../api/reception';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, DrawerShell, ModalShell,
+  StatusBadge, ActBtn, Btn, DrawerShell, ModalShell,
   type ColumnDef, type StatusTab, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -64,11 +64,14 @@ const ReceptionV2: React.FC = () => {
       if (rm.status === 'fulfilled') {
         setRooms(Array.isArray(rm.value.data) ? rm.value.data : []);
       } else {
+        // Không nuốt lỗi: hiện thông báo để phân biệt "tải phòng khám lỗi" với "thật sự 0 phòng".
+        // (401/token hết hạn đã được interceptor đưa về /login.)
         setRooms([]);
+        message.warning('Không tải được danh sách phòng khám. Vui lòng thử lại.');
       }
       setLoading(false);
     });
-  }, []);
+  }, [message]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -371,21 +374,21 @@ const ReceptionV2: React.FC = () => {
         tabs={TOP_TABS}
         actions={
           <>
-            <button type="button" className="ab-btn ghost" onClick={loadData}>
+            <Btn variant="ghost" onClick={loadData}>
               <TermIcon name="refresh" size={12} /> Làm mới
-            </button>
-            <button type="button" className="ab-btn ghost" onClick={() => setBhytOpen(true)}>
+            </Btn>
+            <Btn variant="ghost" onClick={() => setBhytOpen(true)}>
               <TermIcon name="shield" size={12} /> Tra cứu BHYT
-            </button>
-            <button type="button" className="ab-btn ghost" onClick={() => setLookupOpen(true)}>
+            </Btn>
+            <Btn variant="ghost" onClick={() => setLookupOpen(true)}>
               <TermIcon name="search" size={12} /> Tìm BN cũ <kbd>F4</kbd>
-            </button>
-            <button type="button" className="ab-btn ok" onClick={onCallNext}>
+            </Btn>
+            <Btn variant="ok" onClick={onCallNext}>
               <TermIcon name="bell" size={12} /> Gọi số tiếp <kbd>F3</kbd>
-            </button>
-            <button type="button" className="ab-btn primary" onClick={() => setNewOpen(true)}>
+            </Btn>
+            <Btn variant="primary" onClick={() => setNewOpen(true)}>
               <TermIcon name="plus" size={12} /> Đăng ký mới <kbd>F2</kbd>
-            </button>
+            </Btn>
           </>
         }
       />
@@ -413,25 +416,25 @@ const ReceptionV2: React.FC = () => {
               options={[{ v: 'y', l: 'Có BHYT' }, { v: 'n', l: 'Không BHYT' }]}
               placeholder="▾ BHYT"
             />
-            <button type="button" className="ab-btn ghost" onClick={onResetFilter}>
+            <Btn variant="ghost" onClick={onResetFilter}>
               <TermIcon name="refresh" size={12} /> Bỏ lọc
-            </button>
+            </Btn>
             <span className="spacer" />
-            <button type="button" className="ab-btn ghost" onClick={onExport}>
+            <Btn variant="ghost" onClick={onExport}>
               <TermIcon name="download" size={12} /> Xuất
-            </button>
+            </Btn>
           </div>
 
           {selRows.size > 0 && (
             <div className="ab-bulk">
               <TermIcon name="check" size={13} /> Đã chọn <b>{selRows.size}</b> phiên
               <span className="spacer" />
-              <button type="button" className="ab-btn primary" onClick={onBulkPrint}>
+              <Btn variant="primary" onClick={onBulkPrint}>
                 <TermIcon name="print" size={12} /> In hàng loạt
-              </button>
-              <button type="button" className="ab-btn ghost" onClick={() => setSelRows(new Set())}>
+              </Btn>
+              <Btn variant="ghost" onClick={() => setSelRows(new Set())}>
                 Bỏ chọn
-              </button>
+              </Btn>
             </div>
           )}
 
@@ -481,7 +484,7 @@ const ReceptionV2: React.FC = () => {
                 <div className="ab-empty">
                   <TermIcon name="search" size={20} />
                   <div>Không có phiên tiếp đón nào.</div>
-                  <button type="button" className="ab-btn ghost" onClick={onResetFilter}>Bỏ lọc</button>
+                  <Btn variant="ghost" onClick={onResetFilter}>Bỏ lọc</Btn>
                 </div>
               )
             }
@@ -524,20 +527,20 @@ const ReceptionV2: React.FC = () => {
         size="lg"
         footer={detail ? (
           <>
-            <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
+            <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             <span style={{ flex: 1 }} />
-            <button type="button" className="ab-btn" onClick={() => onPrint(detail)}>
+            <Btn onClick={() => onPrint(detail)}>
               <TermIcon name="print" size={12} /> In phiếu
-            </button>
+            </Btn>
             {(statusKey(detail) === 'waiting' || statusKey(detail) === 'noshow') && (
-              <button type="button" className="ab-btn primary" onClick={() => { onCheckin(detail); setDetail(null); }}>
+              <Btn variant="primary" onClick={() => { onCheckin(detail); setDetail(null); }}>
                 <TermIcon name="check" size={12} /> {statusKey(detail) === 'noshow' ? 'Gọi lại' : 'Bắt đầu khám'}
-              </button>
+              </Btn>
             )}
             {(statusKey(detail) === 'serving' || statusKey(detail) === 'waitresult') && (
-              <button type="button" className="ab-btn ok" onClick={() => { onComplete(detail); setDetail(null); }}>
+              <Btn variant="ok" onClick={() => { onComplete(detail); setDetail(null); }}>
                 <TermIcon name="check" size={12} /> Hoàn thành
-              </button>
+              </Btn>
             )}
           </>
         ) : null}

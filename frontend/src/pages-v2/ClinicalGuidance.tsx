@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { getGuidanceBatches, createGuidanceBatch, updateGuidanceBatch, deleteGuidanceBatch } from '../api/clinicalGuidance';
 import type { GuidanceBatchDto } from '../api/clinicalGuidance';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
@@ -140,16 +140,10 @@ const ClinicalGuidanceV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm nội dung / cơ sở / mã đợt…" />
         <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại đợt" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={openCreate}>
-          <Ico name="plus" size={12} /> Đợt mới
-        </button>
+        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="primary" icon="plus" onClick={openCreate}>Đợt mới</Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -168,13 +162,9 @@ const ClinicalGuidanceV2: React.FC = () => {
         title={sel ? sel.title : ''}
         sub={sel ? `${sel.batchCode} · ${sel.targetFacility}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Mở danh sách hoạt động')}>
-            <Ico name="activity" size={12} /> Hoạt động
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
-            <Ico name="edit" size={12} /> Sửa đợt
-          </button>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn icon="activity" onClick={() => tk('Mở danh sách hoạt động')}>Hoạt động</Btn>
+          <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Sửa đợt</Btn>
         </>}
       >
         {sel && <>

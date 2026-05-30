@@ -6,7 +6,7 @@ import { searchInsuranceClaims } from '../api/insurance';
 import type { InsuranceClaimSummaryDto } from '../api/insurance';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
-  StatusBadge, ActBtn, DrawerShell,
+  StatusBadge, ActBtn, Btn, DrawerShell,
   type ColumnDef, type StatusTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -141,22 +141,22 @@ const InsuranceV2: React.FC = () => {
 
       <div className="ab-tools">
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm BN / mã LK / số thẻ BHYT / CĐ…" />
-        <button type="button" className="ab-btn ghost" onClick={() => { setSearch(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setStab('all'); }}>
           <TermIcon name="refresh" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button type="button" className="ab-btn ghost" onClick={reload}>
+        <Btn variant="ghost" onClick={reload}>
           <TermIcon name="refresh" size={12} /> Làm mới
-        </button>
-        <button type="button" className="ab-btn ghost" onClick={() => navigate('/v2/bhxh-audit')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => navigate('/v2/bhxh-audit')}>
           <TermIcon name="check" size={12} /> Validate XML
-        </button>
-        <button type="button" className="ab-btn ghost" onClick={() => message.success(`Đã xuất ${filtered.length} dòng`)}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => message.success(`Đã xuất ${filtered.length} dòng`)}>
           <TermIcon name="download" size={12} /> Xuất XML
-        </button>
-        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/bhxh-config')}>
+        </Btn>
+        <Btn variant="primary" onClick={() => navigate('/v2/bhxh-config')}>
           <TermIcon name="send" size={12} /> Gửi BHXH
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />

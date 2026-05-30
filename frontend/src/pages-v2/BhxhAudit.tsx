@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import client from '../api/client';
+import { getAuditSessions } from '../api/bhxhAudit';
 import {
-  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   StatusTabs, DrawerShell, DrSec, DrField, fmtVNDg, tk, ti, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -49,7 +49,7 @@ const BhxhAuditV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await client.get('/bhxh-audit/sessions');
+      const res = await getAuditSessions();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data = (res.data?.items || res.data || []) as any[];
       const rows: AuditRecord[] = data.map((r, i) => ({
@@ -152,19 +152,19 @@ const BhxhAuditV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm mã LK / BN / số BHYT…" />
         <Filter value={fDept} onChange={setFDept} options={depts} placeholder="▾ Khoa" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFDept(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFDept(''); setStab('all'); }}>
           <Ico name="refresh" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk(`Đã xuất XML ${items.length} hồ sơ`)}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk(`Đã xuất XML ${items.length} hồ sơ`)}>
           <Ico name="download" size={12} /> Xuất XML BHXH
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => tk(`Đã gửi ${items.length - sentCount} hồ sơ lên cổng`)}>
+        </Btn>
+        <Btn variant="primary" onClick={() => tk(`Đã gửi ${items.length - sentCount} hồ sơ lên cổng`)}>
           <Ico name="send" size={12} /> Gửi tất cả lên cổng
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<AuditKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
@@ -183,14 +183,14 @@ const BhxhAuditV2: React.FC = () => {
         title={sel ? `Hồ sơ giám định · ${sel.maLk}` : ''}
         sub={sel ? `${sel.patientName} · BHYT ${sel.insuranceNumber}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in phiếu giám định')}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => tk('Đã in phiếu giám định')}>
             <Ico name="print" size={12} /> In phiếu
-          </button>
+          </Btn>
           {sel && auditKey(sel.auditStatus) === 'pending' && (
-            <button type="button" className="ab-btn primary" onClick={() => { tk(`Đã duyệt ${sel.maLk}`); setSel(null); }}>
+            <Btn variant="primary" onClick={() => { tk(`Đã duyệt ${sel.maLk}`); setSel(null); }}>
               <Ico name="check" size={12} /> Duyệt hồ sơ
-            </button>
+            </Btn>
           )}
         </>}
       >

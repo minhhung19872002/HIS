@@ -11,7 +11,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  KpiStrip, StatusBadge, ActBtn, DataTable, TopTabs, DrawerShell, ModalShell,
+  KpiStrip, StatusBadge, ActBtn, Btn, DataTable, TopTabs, DrawerShell, ModalShell,
   fmtDMYg, fmtDTg, tk, ti, te, tw, type ColumnDef, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -257,10 +257,10 @@ const EmrEditorV2: React.FC = () => {
                 <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{sel.patientCode} · {sel.lastRoomName || '—'} · {sel.lastVisit ? fmtDMYg(sel.lastVisit) : '—'}{full?.medicalRecordCode ? ` · ${full.medicalRecordCode}` : ''}</div>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button className="ab-btn ghost" onClick={exportXml}><TermIcon name="download" size={12} /> XML</button>
-                <button className="ab-btn ghost" onClick={exportPdf}><TermIcon name="download" size={12} /> PDF</button>
-                <button className="ab-btn ghost" onClick={() => setPrintOpen(true)}><TermIcon name="print" size={12} /> In biểu mẫu</button>
-                <button className="ab-btn primary" onClick={() => setSignOpen(true)}><TermIcon name="check" size={12} /> Ký số</button>
+                <Btn variant="ghost" onClick={exportXml}><TermIcon name="download" size={12} /> XML</Btn>
+                <Btn variant="ghost" onClick={exportPdf}><TermIcon name="download" size={12} /> PDF</Btn>
+                <Btn variant="ghost" onClick={() => setPrintOpen(true)}><TermIcon name="print" size={12} /> In biểu mẫu</Btn>
+                <Btn variant="primary" onClick={() => setSignOpen(true)}><TermIcon name="check" size={12} /> Ký số</Btn>
               </div>
             </div>
 
@@ -326,7 +326,7 @@ const EmrEditorV2: React.FC = () => {
               {tab === 'treatment' && (
                 <div>
                   <div style={{ marginBottom: 12, display: 'flex', gap: 8 }}>
-                    <button className="ab-btn primary" onClick={() => openCreate('treatment')}><TermIcon name="plus" size={12} /> Tạo phiếu điều trị</button>
+                    <Btn variant="primary" onClick={() => openCreate('treatment')}><TermIcon name="plus" size={12} /> Tạo phiếu điều trị</Btn>
                   </div>
                   <DataTable<TreatmentSheetDto> columns={treatCols} data={treatments} rowKey={(r) => r.id} empty="Chưa có phiếu điều trị" />
                 </div>
@@ -334,14 +334,14 @@ const EmrEditorV2: React.FC = () => {
 
               {tab === 'consult' && (
                 <div>
-                  <div style={{ marginBottom: 12 }}><button className="ab-btn primary" onClick={() => openCreate('consult')}><TermIcon name="plus" size={12} /> Đề xuất hội chẩn</button></div>
+                  <div style={{ marginBottom: 12 }}><Btn variant="primary" onClick={() => openCreate('consult')}><TermIcon name="plus" size={12} /> Đề xuất hội chẩn</Btn></div>
                   <DataTable<ConsultationRecordDto> columns={consultCols} data={consults} rowKey={(r) => r.id} empty="Chưa có biên bản hội chẩn" />
                 </div>
               )}
 
               {tab === 'nursing' && (
                 <div>
-                  <div style={{ marginBottom: 12 }}><button className="ab-btn primary" onClick={() => openCreate('nursing')}><TermIcon name="plus" size={12} /> Phiếu chăm sóc</button></div>
+                  <div style={{ marginBottom: 12 }}><Btn variant="primary" onClick={() => openCreate('nursing')}><TermIcon name="plus" size={12} /> Phiếu chăm sóc</Btn></div>
                   <DataTable<NursingCareSheetDto> columns={nursingCols} data={nursing} rowKey={(r) => r.id} empty="Chưa có phiếu chăm sóc" />
                 </div>
               )}
@@ -388,7 +388,7 @@ const EmrEditorV2: React.FC = () => {
           {PRINT_FORMS.map((m) => (
             <div key={m} style={{ padding: 10, border: '1px solid var(--line)', borderRadius: 6, marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 12.5 }}>{m}</span>
-              <button className="ab-btn ghost sm" onClick={() => tk(`Đã gửi in: ${m.split(' · ')[0]}`)}><TermIcon name="print" size={11} /> In</button>
+              <Btn variant="ghost" size="sm" onClick={() => tk(`Đã gửi in: ${m.split(' · ')[0]}`)}><TermIcon name="print" size={11} /> In</Btn>
             </div>
           ))}
         </div>
@@ -397,8 +397,8 @@ const EmrEditorV2: React.FC = () => {
       {/* Sign modal → real PKI signing via signing-workflow */}
       <ModalShell open={signOpen} onClose={() => setSignOpen(false)} title="Ký số hồ sơ bệnh án" sub="USB Token · VNPT-CA" size="sm"
         footer={<>
-          <button className="ab-btn ghost" onClick={() => setSignOpen(false)}>Hủy</button>
-          <button className="ab-btn primary" onClick={() => { setSignOpen(false); navigate('/v2/signing-workflow'); }}><TermIcon name="check" size={12} /> Tới luồng ký số</button>
+          <Btn variant="ghost" onClick={() => setSignOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={() => { setSignOpen(false); navigate('/v2/signing-workflow'); }}><TermIcon name="check" size={12} /> Tới luồng ký số</Btn>
         </>}>
         <div style={{ padding: 18, fontSize: 12.5, color: 'var(--t-1)' }}>
           Ký số HSBA <b>{sel?.patientName}</b> ({sel?.patientCode}) — {treatments.length} phiếu điều trị, {consults.length} hội chẩn.
@@ -411,8 +411,8 @@ const EmrEditorV2: React.FC = () => {
         title={modal === 'treatment' ? 'Tạo phiếu điều trị' : modal === 'consult' ? 'Đề xuất hội chẩn' : 'Tạo phiếu chăm sóc'}
         sub={sel?.patientName} size="md"
         footer={<>
-          <button className="ab-btn ghost" onClick={() => setModal(null)}>Hủy</button>
-          <button className="ab-btn primary" disabled={savingForm} onClick={saveSheet}><TermIcon name="check" size={12} /> Lưu</button>
+          <Btn variant="ghost" onClick={() => setModal(null)}>Hủy</Btn>
+          <Btn variant="primary" disabled={savingForm} onClick={saveSheet}><TermIcon name="check" size={12} /> Lưu</Btn>
         </>}>
         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

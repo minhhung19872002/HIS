@@ -5,7 +5,7 @@ import apiClient from '../api/client';
 import systemApi from '../api/system';
 import { getWarehouses } from '../api/warehouse';
 import {
-  KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, DrawerShell, ModalShell, DrSec, DrField,
+  KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, DrSec, DrField,
   Ico, tk, ti, tw, type ColumnDef,
 } from './_v2kit';
 
@@ -150,12 +150,12 @@ const OfficeSupplyApprovalV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <span style={{ fontSize: 12, color: 'var(--t-2)' }}>VPP / TTB văn phòng (vật tư không phải y tế)</span>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => setCreateOpen(true)}>
+        </Btn>
+        <Btn variant="primary" onClick={() => setCreateOpen(true)}>
           <Ico name="plus" size={12} /> Tạo phiếu yêu cầu
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
@@ -181,11 +181,11 @@ const OfficeSupplyApprovalV2: React.FC = () => {
         title={detail ? `Phiếu ${detail.approvalCode}` : ''}
         sub={detail ? `${detail.departmentName} → ${detail.warehouseName}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
+          <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
           {detail && detail.status === 2 && (
-            <button type="button" className="ab-btn primary" onClick={() => { setApproveReq(detail); setApproveQty({}); }}>
+            <Btn variant="primary" onClick={() => { setApproveReq(detail); setApproveQty({}); }}>
               <Ico name="check" size={12} /> Duyệt
-            </button>
+            </Btn>
           )}
         </>}
       >
@@ -233,10 +233,10 @@ const OfficeSupplyApprovalV2: React.FC = () => {
         size="lg"
         title={`Duyệt phiếu ${approveReq?.approvalCode || ''}`}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setApproveReq(null)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={submitApprove}>
+          <Btn variant="ghost" onClick={() => setApproveReq(null)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitApprove}>
             <Ico name="check" size={12} /> Duyệt
-          </button>
+          </Btn>
         </>}
       >
         {approveReq && (
@@ -301,14 +301,14 @@ const OfficeSupplyApprovalV2: React.FC = () => {
                     <Form.Item name={[f.name, 'note']} style={{ flex: 1, marginBottom: 0 }}>
                       <Input placeholder="Ghi chú" />
                     </Form.Item>
-                    <button type="button" className="ab-btn ghost" onClick={() => remove(f.name)}>
+                    <Btn variant="ghost" onClick={() => remove(f.name)}>
                       <Ico name="trash" size={12} />
-                    </button>
+                    </Btn>
                   </div>
                 ))}
-                <button type="button" className="ab-btn ghost" onClick={() => add()}>
+                <Btn variant="ghost" onClick={() => add()}>
                   <Ico name="plus" size={12} /> Thêm dòng
-                </button>
+                </Btn>
               </>
             )}
           </Form.List>

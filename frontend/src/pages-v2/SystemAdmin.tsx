@@ -7,7 +7,7 @@ import { getAuditLogs } from '../api/audit';
 import type { AuditLogDto } from '../api/audit';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, DrawerShell, DrSec, DrField, StatusBadge,
-  ModalShell, ActBtn, tk, te, cf,
+  ModalShell, ActBtn, Btn, tk, te, cf,
   type ColumnDef, type TopTab,
 } from './_v2kit';
 
@@ -249,9 +249,9 @@ const SystemAdminV2: React.FC = () => {
         <SearchBox value={keyword} onChange={setKeyword}
           placeholder={tab === 'users' ? 'Tìm tài khoản / họ tên / vai trò…' : tab === 'roles' ? 'Tìm vai trò…' : tab === 'config' ? 'Tìm khoá / nhóm cấu hình…' : 'Tìm theo username / module…'} />
         <span className="spacer" />
-        {tab === 'users' && <button type="button" className="ab-btn primary" onClick={openNewUser}>+ Thêm người dùng</button>}
-        {tab === 'roles' && <button type="button" className="ab-btn primary" onClick={openNewRole}>+ Thêm vai trò</button>}
-        <button type="button" className="ab-btn ghost" onClick={load}>Làm mới</button>
+        {tab === 'users' && <Btn variant="primary" onClick={openNewUser}>+ Thêm người dùng</Btn>}
+        {tab === 'roles' && <Btn variant="primary" onClick={openNewRole}>+ Thêm vai trò</Btn>}
+        <Btn variant="ghost" onClick={load}>Làm mới</Btn>
       </div>
 
       {tab === 'users' && (
@@ -298,9 +298,9 @@ const SystemAdminV2: React.FC = () => {
             <DrField lbl="Trạng thái">{selUser.isLocked ? 'Khoá' : selUser.isActive ? 'Hoạt động' : 'Tạm dừng'}</DrField>
           </DrSec>
           <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
-            <button type="button" className="ab-btn primary" onClick={() => { setSelUser(null); openEditUser(selUser); }}>Sửa</button>
-            <button type="button" className="ab-btn" onClick={() => lockToggle(selUser)}>{selUser.isLocked ? 'Mở khoá' : 'Khoá'}</button>
-            <button type="button" className="ab-btn" onClick={() => resetPw(selUser)}>Reset mật khẩu</button>
+            <Btn variant="primary" onClick={() => { setSelUser(null); openEditUser(selUser); }}>Sửa</Btn>
+            <Btn onClick={() => lockToggle(selUser)}>{selUser.isLocked ? 'Mở khoá' : 'Khoá'}</Btn>
+            <Btn onClick={() => resetPw(selUser)}>Reset mật khẩu</Btn>
           </div>
         </>)}
       </DrawerShell>
@@ -308,7 +308,7 @@ const SystemAdminV2: React.FC = () => {
       {/* User create/edit — Antd Form: validate + lỗi inline + scrollToFirstError */}
       <ModalShell open={!!userModal} onClose={() => setUserModal(null)}
         title={userModal === 'new' ? 'Thêm người dùng' : 'Sửa người dùng'} size="md"
-        footer={<><button type="button" className="ab-btn" onClick={() => setUserModal(null)}>Huỷ</button><button type="button" className="ab-btn primary" disabled={saving} onClick={submitUser}>{saving ? 'Đang lưu…' : 'Lưu'}</button></>}>
+        footer={<><Btn onClick={() => setUserModal(null)}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submitUser}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn></>}>
         <Form form={userF} layout="vertical" scrollToFirstError requiredMark>
           <Form.Item name="username" label="Tài khoản" rules={[{ required: true, message: 'Nhập tài khoản' }]}>
             <Input disabled={userModal === 'edit'} placeholder="vd: bs.nguyenvana" />
@@ -328,7 +328,7 @@ const SystemAdminV2: React.FC = () => {
       {/* Role create/edit */}
       <ModalShell open={!!roleModal} onClose={() => setRoleModal(null)}
         title={roleModal === 'new' ? 'Thêm vai trò' : 'Sửa vai trò'} size="sm"
-        footer={<><button type="button" className="ab-btn" onClick={() => setRoleModal(null)}>Huỷ</button><button type="button" className="ab-btn primary" disabled={saving} onClick={submitRole}>{saving ? 'Đang lưu…' : 'Lưu'}</button></>}>
+        footer={<><Btn onClick={() => setRoleModal(null)}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submitRole}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn></>}>
         <Form form={roleF} layout="vertical" scrollToFirstError requiredMark>
           <Form.Item name="code" label="Mã vai trò" rules={[{ required: true, message: 'Nhập mã' }]}><Input disabled={roleModal === 'edit'} placeholder="vd: Nurse" /></Form.Item>
           <Form.Item name="name" label="Tên vai trò" rules={[{ required: true, message: 'Nhập tên' }]}><Input placeholder="Điều dưỡng" /></Form.Item>
@@ -339,7 +339,7 @@ const SystemAdminV2: React.FC = () => {
 
       {/* Config edit */}
       <ModalShell open={!!cfgModal} onClose={() => setCfgModal(null)} title="Sửa cấu hình" sub={cfgModal?.configKey} size="sm"
-        footer={<><button type="button" className="ab-btn" onClick={() => setCfgModal(null)}>Huỷ</button><button type="button" className="ab-btn primary" disabled={saving} onClick={submitCfg}>{saving ? 'Đang lưu…' : 'Lưu'}</button></>}>
+        footer={<><Btn onClick={() => setCfgModal(null)}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submitCfg}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn></>}>
         <Form form={cfgF} layout="vertical" scrollToFirstError>
           <div style={{ color: 'var(--t-2)', fontSize: 12, marginBottom: 8 }}>{cfgModal?.description || cfgModal?.category}</div>
           <Form.Item name="configValue" label="Giá trị" rules={[{ required: true, message: 'Nhập giá trị' }]}><Input.TextArea rows={3} /></Form.Item>

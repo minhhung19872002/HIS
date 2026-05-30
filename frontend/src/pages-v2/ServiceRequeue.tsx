@@ -3,7 +3,7 @@ import { Form, Input, Checkbox } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import {
-  KpiStrip, SearchBox, DataTable, StatusBadge, ModalShell, DrSec, DrField,
+  KpiStrip, SearchBox, DataTable, StatusBadge, ModalShell, DrSec, DrField, Btn,
   Ico, tk, ti, tw, type ColumnDef,
 } from './_v2kit';
 
@@ -97,19 +97,13 @@ const ServiceRequeueV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={keyword} onChange={setKeyword}
           placeholder="Mã HSBA / mã BN / tên BN / SĐT…" minWidth={400} />
-        <button className="ab-btn primary" type="button" onClick={search} disabled={loading}>
-          <Ico name="search" size={12} /> Tìm HSBA
-        </button>
+        <Btn variant="primary" icon="search" onClick={search} disabled={loading}>Tìm HSBA</Btn>
         {mr && (
-          <button className="ab-btn ghost" type="button" onClick={() => { setMr(null); setServices([]); setKeyword(''); setSelected(new Set()); }}>
-            <Ico name="x" size={12} /> Tìm HSBA khác
-          </button>
+          <Btn variant="ghost" icon="x" onClick={() => { setMr(null); setServices([]); setKeyword(''); setSelected(new Set()); }}>Tìm HSBA khác</Btn>
         )}
         <span className="spacer" />
         {selected.size > 0 && (
-          <button className="ab-btn primary" type="button" onClick={() => setConfirmOpen(true)}>
-            <Ico name="refresh" size={12} /> Cho lại {selected.size} DV — {fmt(totalSelected)}đ
-          </button>
+          <Btn variant="primary" icon="refresh" onClick={() => setConfirmOpen(true)}>Cho lại {selected.size} DV — {fmt(totalSelected)}đ</Btn>
         )}
       </div>
 
@@ -141,10 +135,8 @@ const ServiceRequeueV2: React.FC = () => {
         size="md"
         title="Cho lại chỉ định"
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setConfirmOpen(false)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={submit}>
-            <Ico name="check" size={12} /> Xác nhận cho lại
-          </button>
+          <Btn variant="ghost" onClick={() => setConfirmOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" icon="check" onClick={submit}>Xác nhận cho lại</Btn>
         </>}
       >
         <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, marginBottom: 12 }}>

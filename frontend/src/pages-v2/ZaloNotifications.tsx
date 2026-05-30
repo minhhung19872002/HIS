@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  KpiStrip, TopTabs, DataTable, SearchBox, Filter, StatusBadge, AbSelect,
+  KpiStrip, TopTabs, DataTable, SearchBox, Filter, StatusBadge, AbSelect, Btn,
   DrawerShell, ModalShell, DrSec, DrField,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
   tk, te, fmtDTg
@@ -101,9 +101,9 @@ const ZnsLogsPanel: React.FC = () => {
           options={ZNS_STATUS.map((s) => ({ v: String(s.v), l: s.l }))}
           placeholder="▾ Trạng thái" />
         <span className="spacer" />
-        <button type="button" className="ab-btn primary" onClick={() => setSendOpen(true)}>
+        <Btn variant="primary" onClick={() => setSendOpen(true)}>
           <TermIcon name="external" size={12} /> Gửi thử
-        </button>
+        </Btn>
       </div>
       <DataTable<ZaloNotificationLogDto>
         rowKey={(r) => r.id} data={filtered} columns={columns}
@@ -172,10 +172,10 @@ const ZnsSendModal: React.FC<{ open: boolean; onClose: () => void; onSent: () =>
   return (
     <ModalShell open={open} onClose={onClose} title="Gửi tin Zalo (ZNS)" size="md"
       footer={<>
-        <button type="button" className="ab-btn ghost" onClick={onClose}>Hủy</button>
-        <button type="button" className="ab-btn primary" onClick={submit}>
+        <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+        <Btn variant="primary" onClick={submit}>
           <TermIcon name="external" size={12} /> Gửi
-        </button>
+        </Btn>
       </>}>
       <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 10, padding: 14 }}>
         <span style={{ fontSize: 13 }}>Mẫu tin</span>
@@ -247,12 +247,12 @@ const ZnsConfigPanel: React.FC = () => {
         </label>
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-        <button type="button" className="ab-btn primary" onClick={save}>
+        <Btn variant="primary" onClick={save}>
           <TermIcon name="check" size={12} /> Lưu cấu hình
-        </button>
-        <button type="button" className="ab-btn" onClick={test}>
+        </Btn>
+        <Btn onClick={test}>
           <TermIcon name="activity" size={12} /> Kiểm tra kết nối
-        </button>
+        </Btn>
         {tested !== null && (
           <StatusBadge tone={tested ? 'ok' : 'crit'} dot>
             {tested ? 'Kết nối OK' : 'Mất kết nối'}

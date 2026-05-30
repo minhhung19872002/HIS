@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { searchWasteRecords, createWasteRecord, updateWasteRecord } from '../api/environmentalHealth';
 import type { WasteRecord } from '../api/environmentalHealth';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
@@ -131,19 +131,19 @@ const EnvironmentalHealthV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm phiếu / nguồn / PP xử lý…" />
         <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại chất thải" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở quan trắc môi trường')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Mở quan trắc môi trường')}>
           <Ico name="activity" size={12} /> Quan trắc
-        </button>
-        <button className="ab-btn primary" type="button" onClick={openCreate}>
+        </Btn>
+        <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> Phiếu mới
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -162,13 +162,13 @@ const EnvironmentalHealthV2: React.FC = () => {
         title={sel ? `Phiếu ${sel.recordCode}` : ''}
         sub={sel ? `${TYPE_LABEL[sel.wasteType] || sel.wasteType} · ${dayjs(sel.recordDate).format('DD/MM/YYYY')}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Sửa
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Đã in phiếu')}>
+          </Btn>
+          <Btn variant="primary" onClick={() => tk('Đã in phiếu')}>
             <Ico name="print" size={12} /> In phiếu
-          </button>
+          </Btn>
         </>}
       >
         {sel && <>

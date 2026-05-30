@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   KpiStrip, TopTabs, DataTable, StatusBadge,
-  DrawerShell, ActBtn, DrSec, DrField,
+  DrawerShell, ActBtn, Btn, DrSec, DrField,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
   tk, te, fmtDTg, fmtDMYg
 } from './_v2kit';
@@ -105,12 +105,12 @@ const BirthTab: React.FC = () => {
         title={`Chứng sinh · ${detail?.certificateNumber || ''}`}
         footer={detail && detail.da06Status < 2 ? (
           <>
-            <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
-            <button type="button" className="ab-btn primary" onClick={() => detail && submit(detail)}>
+            <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
+            <Btn variant="primary" onClick={() => detail && submit(detail)}>
               <TermIcon name="external" size={12} /> Gửi cổng Đề án 06
-            </button>
+            </Btn>
           </>
-        ) : <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>}>
+        ) : <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>}>
         {detail && (
           <>
             <DrSec title="MẸ">
@@ -204,12 +204,12 @@ const DeathTab: React.FC = () => {
         title={`Báo tử · ${detail?.certificateNumber || ''}`}
         footer={detail && detail.da06Status < 2 ? (
           <>
-            <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
-            <button type="button" className="ab-btn primary" onClick={() => detail && submit(detail)}>
+            <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
+            <Btn variant="primary" onClick={() => detail && submit(detail)}>
               <TermIcon name="external" size={12} /> Gửi cổng Đề án 06
-            </button>
+            </Btn>
           </>
-        ) : <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>}>
+        ) : <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>}>
         {detail && (
           <>
             <DrSec title="BỆNH NHÂN">
@@ -306,12 +306,12 @@ const DlhcTab: React.FC = () => {
         title={`KSK lái xe · ${detail?.certificateNumber || ''}`}
         footer={detail && detail.da06Status < 2 ? (
           <>
-            <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
-            <button type="button" className="ab-btn primary" onClick={() => detail && submit(detail)}>
+            <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
+            <Btn variant="primary" onClick={() => detail && submit(detail)}>
               <TermIcon name="external" size={12} /> Gửi cổng Đề án 06
-            </button>
+            </Btn>
           </>
-        ) : <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>}>
+        ) : <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>}>
         {detail && (
           <>
             <DrSec title="BN">

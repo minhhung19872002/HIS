@@ -4,7 +4,7 @@ import { Input, Select } from 'antd';
 import { getMicrobiologyCultures, createCulture, updateCultureStatus } from '../api/microbiology';
 import type { MicrobiologyCulture } from '../api/microbiology';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, tk, ti, te, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -129,16 +129,16 @@ const MicrobiologyV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm BN / mã YC / barcode…" />
         <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại cấy" />
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => setCreateOpen(true)}>
+        </Btn>
+        <Btn variant="primary" onClick={() => setCreateOpen(true)}>
           <Ico name="plus" size={12} /> Cấy mới
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -157,13 +157,13 @@ const MicrobiologyV2: React.FC = () => {
         title={sel ? `Cấy · ${sel.requestCode}` : ''}
         sub={sel ? `${sel.patientName} · ${sel.sampleType}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          <button type="button" className="ab-btn" onClick={() => tk('Đã in phiếu')}>
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => tk('Đã in phiếu')}>
             <Ico name="print" size={12} /> In phiếu
-          </button>
-          <button type="button" className="ab-btn primary" onClick={() => { if (sel) { setStatusCulture(sel); setSel(null); } }}>
+          </Btn>
+          <Btn variant="primary" onClick={() => { if (sel) { setStatusCulture(sel); setSel(null); } }}>
             <Ico name="activity" size={12} /> Cập nhật
-          </button>
+          </Btn>
         </>}
       >
         {sel && <>
@@ -287,10 +287,10 @@ const CreateCultureModal: React.FC<{ onClose: () => void; onDone: () => void }> 
       size="md"
       title="Tạo nuôi cấy mới"
       footer={<>
-        <button className="ab-btn ghost" type="button" onClick={onClose}>Huỷ</button>
-        <button className="ab-btn primary" type="button" onClick={submit} disabled={submitting}>
+        <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
+        <Btn variant="primary" onClick={submit} disabled={submitting}>
           <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Tạo cấy'}
-        </button>
+        </Btn>
       </>}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -347,10 +347,10 @@ const UpdateStatusModal: React.FC<{ culture: MicrobiologyCulture; onClose: () =>
       title="Cập nhật trạng thái nuôi cấy"
       sub={culture.requestCode}
       footer={<>
-        <button className="ab-btn ghost" type="button" onClick={onClose}>Huỷ</button>
-        <button className="ab-btn primary" type="button" onClick={submit} disabled={submitting}>
+        <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
+        <Btn variant="primary" onClick={submit} disabled={submitting}>
           <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Cập nhật'}
-        </button>
+        </Btn>
       </>}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

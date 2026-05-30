@@ -5,7 +5,7 @@ import {
 } from '../api/signingWorkflow';
 import type { SigningRequestItem, SigningWorkflowStats } from '../api/signingWorkflow';
 import {
-  KpiStrip, TopTabs, DataTable, DrawerShell, DrSec, DrField, StatusBadge,
+  KpiStrip, TopTabs, DataTable, DrawerShell, DrSec, DrField, StatusBadge, Btn,
   type ColumnDef, type TopTab,
 } from './_v2kit';
 
@@ -87,7 +87,7 @@ const SigningWorkflowV2: React.FC = () => {
       <div className="ab-tools">
         <TopTabs tab={tab} setTab={setTab} tabs={TABS} />
         <span className="spacer" />
-        <button type="button" className="ab-btn ghost" onClick={load}>Làm mới</button>
+        <Btn variant="ghost" onClick={load}>Làm mới</Btn>
       </div>
 
       <DataTable<SigningRequestItem>

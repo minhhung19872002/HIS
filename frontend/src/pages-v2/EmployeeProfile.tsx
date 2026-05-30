@@ -3,7 +3,7 @@ import { Form, Input, InputNumber, DatePicker, Select, Checkbox } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
 import {
-  KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn,
+  KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn,
   ModalShell, Ico, tk, tw, cf,
   type ColumnDef,
 } from './_v2kit';
@@ -56,9 +56,7 @@ const EmployeeProfileV2: React.FC = () => {
         <Filter value={userId} onChange={setUserId}
           options={users.map((u) => ({ v: u.id, l: `${u.fullName}${u.username ? ` (${u.username})` : ''}` }))}
           placeholder="▾ Chọn nhân viên" />
-        <button className="ab-btn ghost" type="button" onClick={() => setUserId('')}>
-          <Ico name="x" size={12} /> Bỏ chọn
-        </button>
+        <Btn variant="ghost" icon="x" onClick={() => setUserId('')}>Bỏ chọn</Btn>
       </div>
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} />
@@ -134,9 +132,7 @@ function GenericCrudTab<T extends { id: string }>(props: CrudConfig<T>) {
     <>
       <div className="ab-toolbar" style={{ borderTop: 'none' }}>
         <span className="spacer" />
-        <button className="ab-btn primary" type="button" onClick={openAdd}>
-          <Ico name="plus" size={12} /> Thêm mới
-        </button>
+        <Btn variant="primary" icon="plus" onClick={openAdd}>Thêm mới</Btn>
       </div>
       <DataTable<T> columns={columns} data={items} rowKey={(r) => r.id}
         onRowClick={openEdit}
@@ -151,8 +147,8 @@ function GenericCrudTab<T extends { id: string }>(props: CrudConfig<T>) {
       <ModalShell open={modal} onClose={() => { setModal(false); setEditing(null); form.resetFields(); }}
         size="md" title={editing ? 'Sửa' : 'Thêm mới'}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => { setModal(false); setEditing(null); form.resetFields(); }}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={submit}><Ico name="check" size={12} /> Lưu</button>
+          <Btn variant="ghost" onClick={() => { setModal(false); setEditing(null); form.resetFields(); }}>Hủy</Btn>
+          <Btn variant="primary" icon="check" onClick={submit}>Lưu</Btn>
         </>}>
         <Form form={form} layout="vertical">{formItems}</Form>
       </ModalShell>
@@ -486,9 +482,7 @@ const InsuranceTab: React.FC<{ userId: string }> = ({ userId }) => {
               </Form.Item>
             </div>
             <Form.Item name="note" label="Ghi chú"><Input.TextArea rows={2} /></Form.Item>
-            <button type="button" className="ab-btn primary" onClick={submit} disabled={loading}>
-              <Ico name="check" size={12} /> {loading ? 'Đang lưu…' : 'Lưu'}
-            </button>
+            <Btn variant="primary" icon="check" onClick={submit} disabled={loading}>{loading ? 'Đang lưu…' : 'Lưu'}</Btn>
           </Form>
         </div>
       </div>

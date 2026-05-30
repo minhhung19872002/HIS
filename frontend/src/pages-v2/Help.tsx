@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import risApi from '../api/ris';
 import type { HelpCategoryDto, HelpArticleDto, TroubleshootingDto } from '../api/ris';
 import {
-  KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn,
+  KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, Ico,
   type ColumnDef,
 } from './_v2kit';
@@ -154,12 +154,12 @@ const HelpV2: React.FC = () => {
 
       <TopTabs<Tab> tab={tab} setTab={(v) => { setTab(v); setPage(0); }} tabs={TABS} actions={
         <>
-          <button className="ab-btn ghost" type="button" onClick={load}>
+          <Btn variant="ghost" onClick={load}>
             <Ico name="refresh" size={12} /> Làm mới
-          </button>
-          <button className="ab-btn primary" type="button" onClick={() => tk(`Mở thêm ${tab}`)}>
+          </Btn>
+          <Btn variant="primary" onClick={() => tk(`Mở thêm ${tab}`)}>
             <Ico name="plus" size={12} /> Thêm mới
-          </button>
+          </Btn>
         </>
       } />
 
@@ -171,13 +171,13 @@ const HelpV2: React.FC = () => {
         {tab === 'articles' && (
           <Filter value={fCat} onChange={setFCat} options={catOpts} placeholder="▾ Danh mục" />
         )}
-        <button className="ab-btn ghost" type="button" onClick={() => { setSearch(''); setFCat(''); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFCat(''); }}>
           <Ico name="x" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Mở docs')}>
+        <Btn variant="ghost" onClick={() => tk('Mở docs')}>
           <Ico name="archive" size={12} /> Tài liệu PDF
-        </button>
+        </Btn>
       </div>
 
       {tab === 'articles' && <>
@@ -232,15 +232,15 @@ const HelpV2: React.FC = () => {
         title={selArt?.title || ''}
         sub={selArt ? `${selArt.categoryName || '—'} · ${selArt.viewCount.toLocaleString('vi-VN')} lượt xem` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSelArt(null)}>Đóng</button>
+          <Btn variant="ghost" onClick={() => setSelArt(null)}>Đóng</Btn>
           {selArt?.videoUrl && (
-            <button type="button" className="ab-btn" onClick={() => tk('Mở video')}>
+            <Btn onClick={() => tk('Mở video')}>
               <Ico name="play" size={12} /> Xem video
-            </button>
+            </Btn>
           )}
-          <button type="button" className="ab-btn primary" onClick={() => tk('Đã in')}>
+          <Btn variant="primary" onClick={() => tk('Đã in')}>
             <Ico name="print" size={12} /> In bài viết
-          </button>
+          </Btn>
         </>}
       >
         {selArt && <>
@@ -273,10 +273,10 @@ const HelpV2: React.FC = () => {
         title={selTrouble?.problem || ''}
         sub={selTrouble ? `${selTrouble.code} · ${selTrouble.category}` : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSelTrouble(null)}>Đóng</button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Đã in')}>
+          <Btn variant="ghost" onClick={() => setSelTrouble(null)}>Đóng</Btn>
+          <Btn variant="primary" onClick={() => tk('Đã in')}>
             <Ico name="print" size={12} /> In hướng dẫn
-          </button>
+          </Btn>
         </>}
       >
         {selTrouble && <>
@@ -305,10 +305,10 @@ const HelpV2: React.FC = () => {
         title={selCat?.name || ''}
         sub={selCat?.code || ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSelCat(null)}>Đóng</button>
-          <button type="button" className="ab-btn primary" onClick={() => tk('Mở chỉnh sửa')}>
+          <Btn variant="ghost" onClick={() => setSelCat(null)}>Đóng</Btn>
+          <Btn variant="primary" onClick={() => tk('Mở chỉnh sửa')}>
             <Ico name="edit" size={12} /> Chỉnh sửa
-          </button>
+          </Btn>
         </>}
       >
         {selCat && <>

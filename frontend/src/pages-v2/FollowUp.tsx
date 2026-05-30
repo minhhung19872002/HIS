@@ -6,7 +6,7 @@ import { searchAppointments, updateAppointmentStatus } from '../api/examination'
 import type { AppointmentListDto } from '../api/examination';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
-  StatusBadge, ActBtn, DrawerShell,
+  StatusBadge, ActBtn, Btn, DrawerShell,
   type ColumnDef, type StatusTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -181,22 +181,22 @@ const FollowUpV2: React.FC = () => {
 
       <div className="ab-tools">
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm BN / SĐT / mã hẹn / lý do…" />
-        <button type="button" className="ab-btn ghost" onClick={() => { setSearch(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setStab('all'); }}>
           <TermIcon name="refresh" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
-        <button type="button" className="ab-btn ghost" onClick={reload}>
+        <Btn variant="ghost" onClick={reload}>
           <TermIcon name="refresh" size={12} /> Làm mới
-        </button>
-        <button type="button" className="ab-btn ghost" onClick={() => navigate('/v2/sms-management')}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => navigate('/v2/sms-management')}>
           <TermIcon name="message-square" size={12} /> Nhắc hàng loạt
-        </button>
-        <button type="button" className="ab-btn ghost" onClick={() => message.success(`Đã xuất ${filtered.length} dòng`)}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => message.success(`Đã xuất ${filtered.length} dòng`)}>
           <TermIcon name="download" size={12} /> Xuất Excel
-        </button>
-        <button type="button" className="ab-btn primary" onClick={() => navigate('/v2/booking-management')}>
+        </Btn>
+        <Btn variant="primary" onClick={() => navigate('/v2/booking-management')}>
           <TermIcon name="plus" size={12} /> Lập kế hoạch
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
@@ -242,16 +242,16 @@ const FollowUpV2: React.FC = () => {
         size="lg"
         footer={detail ? (
           <>
-            <button type="button" className="ab-btn ghost" onClick={() => setDetail(null)}>Đóng</button>
+            <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             <span style={{ flex: 1 }} />
             {[0, 1].includes(detail.status) && detail.phoneNumber && (
               <>
-                <button type="button" className="ab-btn" onClick={() => onRemind(detail, 'SMS')}>
+                <Btn onClick={() => onRemind(detail, 'SMS')}>
                   <TermIcon name="message-square" size={12} /> Nhắc SMS
-                </button>
-                <button type="button" className="ab-btn primary" onClick={() => message.info(`Đang gọi ${detail.phoneNumber}`)}>
+                </Btn>
+                <Btn variant="primary" onClick={() => message.info(`Đang gọi ${detail.phoneNumber}`)}>
                   <TermIcon name="phone" size={12} /> Gọi BN
-                </button>
+                </Btn>
               </>
             )}
           </>

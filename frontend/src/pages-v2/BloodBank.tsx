@@ -7,7 +7,7 @@ import { catalogApi } from '../api/system';
 import type { DepartmentCatalogDto } from '../api/system';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, DrawerShell, DrSec, DrField, ModalShell,
+  StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, ModalShell,
   type ColumnDef, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -198,12 +198,12 @@ const BloodBankV2: React.FC = () => {
         tabs={TOP_TABS}
         actions={
           <>
-            <button type="button" className="ab-btn ghost" onClick={reload}>
+            <Btn variant="ghost" onClick={reload}>
               <TermIcon name="refresh" size={12} /> Làm mới
-            </button>
-            <button type="button" className="ab-btn primary" onClick={() => setIssueOpen(true)}>
+            </Btn>
+            <Btn variant="primary" onClick={() => setIssueOpen(true)}>
               <TermIcon name="plus" size={12} /> Xuất máu
-            </button>
+            </Btn>
           </>
         }
       />
@@ -215,9 +215,9 @@ const BloodBankV2: React.FC = () => {
           options={ALL_TYPES.map((t) => ({ v: t, l: t }))}
           placeholder="▾ Nhóm máu"
         />
-        <button type="button" className="ab-btn ghost" onClick={() => { setSearch(''); setFilterType(''); setPage(0); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFilterType(''); setPage(0); }}>
           <TermIcon name="refresh" size={12} /> Bỏ lọc
-        </button>
+        </Btn>
         <span className="spacer" />
         <span style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
           {tab === 'stock' ? `${unitsFiltered.length} đơn vị` :
@@ -379,10 +379,10 @@ const BloodIssueModal: React.FC<{
       title="Tạo phiếu yêu cầu xuất máu"
       footer={(
         <>
-          <button type="button" className="ab-btn ghost" onClick={onClose}>Hủy</button>
-          <button type="button" className="ab-btn primary" disabled={busy} onClick={submit}>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="primary" disabled={busy} onClick={submit}>
             <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Tạo phiếu'}
-          </button>
+          </Btn>
         </>
       )}
     >

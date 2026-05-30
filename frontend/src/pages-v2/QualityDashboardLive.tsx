@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  KpiStrip, TopTabs, DataTable,
+  KpiStrip, TopTabs, DataTable, Btn,
   type ColumnDef, type TopTab, type KpiItem,
   fmtVNDg, fmtHMg, ti
 } from './_v2kit';
@@ -49,9 +49,9 @@ const QualityDashboardLiveV2: React.FC = () => {
     <div className="ab" data-testid="quality-dashboard-page">
       <TopTabs<TabKey> tab={tab} setTab={setTab} tabs={TOP_TABS}
         actions={
-          <button type="button" className="ab-btn" onClick={refresh}>
+          <Btn onClick={refresh}>
             <TermIcon name="refresh" size={12} /> Làm mới · {fmtHMg(refreshAt)}
-          </button>
+          </Btn>
         }
       />
       {tab === 'clinic'       && <ClinicView rows={data?.clinicQueues || []} />}

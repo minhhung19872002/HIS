@@ -7,7 +7,7 @@ import {
   ROOM_TYPES, STATUS_LABELS, type RoomDto,
 } from '../api/videoConsultation';
 import {
-  KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn,
+  KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, ModalShell, Ico, tk, ti, tw, cf,
   type ColumnDef,
 } from './_v2kit';
@@ -143,19 +143,19 @@ const VideoConsultationV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <span style={{ fontSize: 12, color: 'var(--t-2)' }}>Hội chẩn video conference (Jitsi self-host)</span>
         <span className="spacer" />
-        <button className="ab-btn ghost" type="button" onClick={load}>
+        <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
-        </button>
-        <button className="ab-btn ghost" type="button" onClick={() => tk('Đã xuất Excel')} disabled={rooms.length === 0}>
+        </Btn>
+        <Btn variant="ghost" onClick={() => tk('Đã xuất Excel')} disabled={rooms.length === 0}>
           <Ico name="download" size={12} /> Xuất Excel
-        </button>
-        <button className="ab-btn primary" type="button" onClick={() => {
+        </Btn>
+        <Btn variant="primary" onClick={() => {
           createForm.resetFields();
           createForm.setFieldsValue({ roomType: 1, isRecorded: false, usePassword: true });
           setCreateOpen(true);
         }}>
           <Ico name="plus" size={12} /> Tạo phòng hội chẩn
-        </button>
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
@@ -178,10 +178,10 @@ const VideoConsultationV2: React.FC = () => {
 
       <ModalShell open={createOpen} onClose={() => setCreateOpen(false)} size="lg" title="Tạo phòng hội chẩn"
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setCreateOpen(false)}>Hủy</button>
-          <button type="button" className="ab-btn primary" onClick={submitCreate}>
+          <Btn variant="ghost" onClick={() => setCreateOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitCreate}>
             <Ico name="plus" size={12} /> Tạo phòng
-          </button>
+          </Btn>
         </>}>
         <Form form={createForm} layout="vertical">
           <Form.Item name="title" label="Tên phòng / Chủ đề" rules={[{ required: true }]}>
@@ -216,7 +216,7 @@ const VideoConsultationV2: React.FC = () => {
       </ModalShell>
 
       <ModalShell open={!!currentRoom} onClose={() => setCurrentRoom(null)} size="md" title="Phòng hội chẩn đã tạo"
-        footer={<button type="button" className="ab-btn ghost" onClick={() => setCurrentRoom(null)}>Đóng</button>}>
+        footer={<Btn variant="ghost" onClick={() => setCurrentRoom(null)}>Đóng</Btn>}>
         {currentRoom && (
           <div>
             <div style={{ marginBottom: 12 }}>
@@ -227,11 +227,11 @@ const VideoConsultationV2: React.FC = () => {
               <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 4 }}>Jitsi URL:</div>
               <div style={{ display: 'flex', gap: 4 }}>
                 <Input value={currentRoom.jitsiUrl} readOnly style={{ flex: 1 }} />
-                <button type="button" className="ab-btn ghost" onClick={() => {
+                <Btn variant="ghost" onClick={() => {
                   navigator.clipboard.writeText(currentRoom.jitsiUrl); tk('Đã copy');
                 }}>
                   <Ico name="card" size={12} /> Copy
-                </button>
+                </Btn>
               </div>
             </div>
             {currentRoom.hasPassword && <StatusBadge tone="warn" dot>🔒 Có mật khẩu</StatusBadge>}
@@ -247,10 +247,10 @@ const VideoConsultationV2: React.FC = () => {
 
       <ModalShell open={!!endModal} onClose={() => setEndModal(null)} size="md" title="Kết thúc phòng hội chẩn"
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setEndModal(null)}>Hủy</button>
-          <button type="button" className="ab-btn primary" style={{ color: 'var(--a-rd-text)' }} onClick={submitEnd}>
+          <Btn variant="ghost" onClick={() => setEndModal(null)}>Hủy</Btn>
+          <Btn variant="primary" style={{ color: 'var(--a-rd-text)' }} onClick={submitEnd}>
             <Ico name="x" size={12} /> Kết thúc
-          </button>
+          </Btn>
         </>}>
         <Form form={endForm} layout="vertical">
           <Form.Item name="conclusionNote" label="Kết luận hội chẩn (bắt buộc)"
@@ -267,9 +267,9 @@ const VideoConsultationV2: React.FC = () => {
         title={sel ? sel.title : ''}
         sub={sel ? ROOM_TYPES[sel.roomType] : ''}
         footer={<>
-          <button type="button" className="ab-btn ghost" onClick={() => setSel(null)}>Đóng</button>
-          {sel && sel.status === 1 && <button type="button" className="ab-btn primary" onClick={() => { if (sel) join(sel); }}><Ico name="play" size={12} /> Tham gia</button>}
-          {sel && <button type="button" className="ab-btn" onClick={() => { if (sel) { openParticipants(sel); setSel(null); } }}><Ico name="user" size={12} /> Người tham gia</button>}
+          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          {sel && sel.status === 1 && <Btn variant="primary" onClick={() => { if (sel) join(sel); }}><Ico name="play" size={12} /> Tham gia</Btn>}
+          {sel && <Btn onClick={() => { if (sel) { openParticipants(sel); setSel(null); } }}><Ico name="user" size={12} /> Người tham gia</Btn>}
         </>}
       >
         {sel && <>
