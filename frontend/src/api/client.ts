@@ -24,15 +24,16 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    // 401 = lỗi XÁC THỰC (token thiếu / hết hạn / không hợp lệ). Backend trả 403 cho lỗi
+    // PHÂN QUYỀN, nên gặp 401 nghĩa là phiên đã hết hiệu lực → xoá phiên + đưa về /login.
+    // Trước đây chỉ redirect khi không còn token trong localStorage, nên token hết hạn (JWT
+    // sống 60 phút, không có refresh) khiến mọi call nền 401 bị nuốt → các trang im lặng rỗng
+    // dữ liệu (vd Tiếp đón báo "Không có phòng khám khả dụng") mà không bắt đăng nhập lại.
     if (error.response?.status === 401) {
-      // Only redirect to login for actual auth failures (login/refresh endpoints)
-      // Don't redirect for data API 401s that may just be permission issues
-      const url = error.config?.url || '';
-      const isAuthEndpoint = url.includes('/auth/') || url.includes('/login');
       // /inspector-portal là cổng standalone (login riêng của giám định viên BHXH);
       // không redirect về /login chính kể cả khi call nền (notification poll) bị 401.
       const onInspectorPortal = window.location.pathname.startsWith('/inspector-portal');
-      if ((isAuthEndpoint || !localStorage.getItem('token')) && !onInspectorPortal) {
+      if (!onInspectorPortal) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         if (window.location.pathname !== '/login') {
