@@ -88,43 +88,11 @@ import type { ProvincialReportDto, ProvincialStatsDto } from '../api/provincialH
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-type ReferralFormValues = {
-  patientId: string;
-  destinationFacilityCode: string;
-  destinationDepartment?: string;
-  diagnosis: string;
-  diagnosisIcd?: string;
-  reason: string;
-  clinicalSummary?: string;
-  treatmentHistory?: string;
-  currentMedications?: string;
-  allergies?: string;
-  specialInstructions?: string;
-  urgency: number;
-};
-
-type ConsultationFormValues = {
-  requestType?: string;
-  patientId: string;
-  consultingFacilityCode: string;
-  specialty: string;
-  chiefComplaint?: string;
-  clinicalQuestion?: string;
-  reason?: string;
-  relevantHistory?: string;
-  currentFindings?: string;
-  urgency?: number;
-  preferredDate?: dayjs.Dayjs;
-  preferredTime?: string;
-};
-
-type XMLFormValues = {
-  xmlType: string;
-  periodFrom?: dayjs.Dayjs;
-  periodTo?: dayjs.Dayjs;
-  departmentId?: string;
-  patientId?: string;
-};
+import type {
+  ReferralFormValues,
+  ConsultationFormValues,
+  XMLFormValues,
+} from './health-exchange/types';
 
 const HealthExchange: React.FC = () => {
   const [loading, setLoading] = useState(false);

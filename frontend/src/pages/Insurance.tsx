@@ -51,54 +51,12 @@ const { Title, Text } = Typography;
 const { Search } = Input;
 const { RangePicker } = DatePicker;
 
-// Interfaces
-interface InsuranceClaim {
-  id: string;
-  claimCode: string;
-  patientCode: string;
-  patientName: string;
-  insuranceNumber: string;
-  visitDate: string;
-  dischargeDate?: string;
-  department: string;
-  diagnosis: string;
-  totalAmount: number;
-  insuranceAmount: number;
-  patientAmount: number;
-  status: number; // 0: Draft, 1: Pending, 2: Submitted, 3: Approved, 4: Rejected, 5: Locked
-  xmlStatus?: string;
-  submittedDate?: string;
-  approvedDate?: string;
-  rejectReason?: string;
-}
-
-interface XmlBatch {
-  id: string;
-  batchCode: string;
-  period: string;
-  claimCount: number;
-  totalAmount: number;
-  createdDate: string;
-  submittedDate?: string;
-  status: number; // 0: Draft, 1: Ready, 2: Submitted, 3: Confirmed
-  xmlType: string;
-}
-
-type ApiEnvelope<T> = { data?: T } | T;
-
-const unwrapData = <T,>(value: ApiEnvelope<T>): T => {
-  if (value && typeof value === 'object' && 'data' in value) {
-    return (value as { data?: T }).data as T;
-  }
-  return value as T;
-};
-
-const getResponseBlobPart = (value: unknown): BlobPart => {
-  if (value && typeof value === 'object' && 'data' in value) {
-    return (value as { data?: BlobPart }).data ?? '';
-  }
-  return '';
-};
+import type {
+  InsuranceClaim,
+  XmlBatch,
+  ApiEnvelope,
+} from './insurance/types';
+import { unwrapData, getResponseBlobPart } from './insurance/utils';
 
 const Insurance: React.FC = () => {
   const [activeTab, setActiveTab] = useState('claims');

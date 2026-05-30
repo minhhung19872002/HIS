@@ -61,26 +61,11 @@ const { Title, Text } = Typography;
 const { Search } = Input;
 const { RangePicker } = DatePicker;
 
-const PAYMENT_LABELS: Record<number, string> = {
-  0: 'Tiền mặt',
-  1: 'Thẻ',
-  2: 'Chuyển khoản',
-};
-
-const PAYMENT_COLORS: Record<number, string> = {
-  0: 'green',
-  1: 'blue',
-  2: 'purple',
-};
-
-interface CartItem {
-  medicineId: string;
-  medicineName: string;
-  unit: string;
-  quantity: number;
-  unitPrice: number;
-  amount: number;
-}
+import {
+  PAYMENT_LABELS,
+  PAYMENT_COLORS,
+  type CartItem,
+} from './hospital-pharmacy/types';
 
 const HospitalPharmacy: React.FC = () => {
   const [loading, setLoading] = useState(false);

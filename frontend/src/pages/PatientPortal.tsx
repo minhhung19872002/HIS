@@ -97,23 +97,10 @@ import type {
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
-type AppointmentFormValues = {
-  type: string;
-  departmentId: string;
-  specialtyId?: string;
-  doctorId?: string;
-  date?: string | Date;
-  time?: string;
-  notes?: string;
-};
-
-type FeedbackFormValues = {
-  departmentId?: string;
-  department?: string;
-  comment: string;
-  rating: number;
-  visitId?: string;
-};
+import type {
+  AppointmentFormValues,
+  FeedbackFormValues,
+} from './patient-portal/types';
 
 const PatientPortal: React.FC = () => {
   const [loading, setLoading] = useState(true);

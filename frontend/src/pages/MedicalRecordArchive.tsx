@@ -23,151 +23,20 @@ const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 const { Text } = Typography;
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface ArchiveExamination {
-  id: string;
-  patientId: string;
-  patientCode: string;
-  patientName: string;
-  gender: number;
-  dateOfBirth?: string;
-  medicalRecordCode?: string;
-  examinationDate: string;
-  departmentName?: string;
-  roomName?: string;
-  doctorName?: string;
-  diagnosisCode?: string;
-  diagnosisName?: string;
-  status: number;
-  statusName?: string;
-  insuranceNumber?: string;
-  conclusionType?: number;
-}
-
-interface ArchiveStats {
-  totalRecords: number;
-  pendingReview: number;
-  handedOver: number;
-  approved: number;
-}
-
-interface MedicalRecordTree {
-  medicalRecord?: MedicalRecordNode;
-  treatmentSheets: TreeItem[];
-  serviceOrders: TreeItem[];
-  serviceResults: TreeItem[];
-  treatmentOrders: TreeItem[];
-  nursingCareSheets: TreeItem[];
-  vitalSignsRecords: TreeItem[];
-  infusionRecords: TreeItem[];
-  bloodTransfusionRecords: TreeItem[];
-  costSummary: TreeItem[];
-  surgeryRecords: TreeItem[];
-  admissionExam: TreeItem[];
-}
-
-interface MedicalRecordNode {
-  id: string;
-  code: string;
-  patientName: string;
-  diagnosis?: string;
-  createdAt?: string;
-}
-
-interface TreeItem {
-  id: string;
-  title: string;
-  date?: string;
-  status?: number;
-  detail?: Record<string, unknown>;
-}
-
-interface HandoverRecord {
-  id: string;
-  medicalRecordCode: string;
-  patientCode: string;
-  patientName: string;
-  departmentName: string;
-  dischargeDate?: string;
-  handoverStatus: number; // 0=pending, 1=sent, 2=received, 3=approved
-  handoverDate?: string;
-  approvedDate?: string;
-  approvedBy?: string;
-  comments?: string;
-  totalForms: number;
-  completedForms: number;
-}
-
-interface HandoverSummary {
-  departmentName: string;
-  totalPending: number;
-  totalSent: number;
-  totalReceived: number;
-  totalApproved: number;
-}
-
-interface ArchivedRecord {
-  id: string;
-  patientCode: string;
-  patientName: string;
-  medicalRecordCode: string;
-  archiveDate: string;
-  archiveFormat: 'XML' | 'HL7' | 'CDA';
-  storageType: 'local' | 'cloud' | 'both';
-  fileSize: number; // KB
-  verified: boolean;
-  departmentName?: string;
-  dischargeDate?: string;
-}
-
-interface StorageStatus {
-  localUsed: number; // MB
-  localTotal: number; // MB
-  cloudUsed: number; // MB
-  cloudTotal: number; // MB
-  lastSyncDate?: string;
-  syncStatus: 'synced' | 'syncing' | 'error' | 'pending';
-  totalArchived: number;
-  localOnly: number;
-  cloudOnly: number;
-  bothStored: number;
-}
-
-type ArchivedRecordsResponse = {
-  items?: ArchivedRecord[];
-  data?: ArchivedRecord[];
-  totalCount?: number;
-  total?: number;
-};
-
-type StorageStatusResponse = {
-  localUsed?: number;
-  localTotal?: number;
-  cloudUsed?: number;
-  cloudTotal?: number;
-  lastSyncDate?: string;
-  syncStatus?: StorageStatus['syncStatus'];
-  totalArchived?: number;
-  localOnly?: number;
-  cloudOnly?: number;
-  bothStored?: number;
-};
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const HANDOVER_STATUS_MAP: Record<number, { label: string; color: string }> = {
-  0: { label: 'Chờ bàn giao', color: 'default' },
-  1: { label: 'Đã gửi', color: 'processing' },
-  2: { label: 'Đã nhận', color: 'warning' },
-  3: { label: 'Đã duyệt', color: 'success' },
-};
-
-const GENDER_MAP: Record<number, string> = { 0: 'Nam', 1: 'Nữ', 2: 'Khác' };
+import type {
+  ArchiveExamination,
+  ArchiveStats,
+  MedicalRecordTree,
+  MedicalRecordNode,
+  TreeItem,
+  HandoverRecord,
+  HandoverSummary,
+  ArchivedRecord,
+  StorageStatus,
+  ArchivedRecordsResponse,
+  StorageStatusResponse,
+} from './medical-record-archive/types';
+import { HANDOVER_STATUS_MAP, GENDER_MAP } from './medical-record-archive/constants';
 
 // ---------------------------------------------------------------------------
 // Component

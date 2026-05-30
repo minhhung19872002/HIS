@@ -78,125 +78,28 @@ import type {
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
 import ShareStudyModal from '../components/ShareStudyModal';
 import DicomViewerConfig from '../components/DicomViewerConfig';
+import type {
+  ApiErrorLike,
+  RadiologyWaitingListItem,
+  RadiologyRequest,
+  RadiologyExam,
+  RadiologyReport,
+} from './radiology/types';
+import { getApiErrorMessage, isFormValidationError } from './radiology/utils';
+import {
+  getStatusTag,
+  getExamStatusTag,
+  getReportStatusTag,
+  getPriorityBadge,
+} from './radiology/statusTags';
+import { buildRadiologyReportHtml } from './radiology/printTemplates';
 
 const { Title } = Typography;
 const { Search } = Input;
 const { TextArea } = Input;
 
-type ApiErrorLike = {
-  response?: {
-    data?: {
-      message?: string;
-    };
-  };
-  errorFields?: unknown;
-};
-
-const getApiErrorMessage = (error: unknown, fallback: string) => {
-  if (typeof error === 'object' && error !== null && 'response' in error) {
-    const apiError = error as ApiErrorLike;
-    return apiError.response?.data?.message || fallback;
-  }
-  return fallback;
-};
-
-const isFormValidationError = (error: unknown): error is ApiErrorLike =>
-  typeof error === 'object' && error !== null && 'errorFields' in error;
 const radiologyLabelConfigDtoMarker = null as unknown as RadiologyLabelConfigDto | null;
 void radiologyLabelConfigDtoMarker;
-
-type RadiologyWaitingListItem = RadiologyWaitingListDto & {
-  id?: string;
-  requestCode?: string;
-  contrast?: boolean;
-  priority?: string | number;
-  requestDate?: string;
-  scheduledDate?: string;
-  statusCode?: number;
-  doctorName?: string;
-  modalityName?: string;
-  studyInstanceUID?: string;
-  orthancStudyId?: string;
-  hasImages?: boolean;
-  gender?: string | number;
-  patientId?: string;
-};
-
-// Interfaces
-interface RadiologyRequest {
-  id: string;
-  requestCode: string;
-  patientCode: string;
-  patientName: string;
-  gender: number;
-  dateOfBirth?: string;
-  serviceName: string;
-  bodyPart?: string;
-  contrast: boolean;
-  priority: number; // 1: Normal, 2: Urgent, 3: Emergency
-  requestDate: string;
-  scheduledDate?: string;
-  statusCode: number; // 0: Pending, 1: Scheduled, 2: InProgress, 3: Completed, 4: Reported, 5: Approved
-  status: string; // Display name for status
-  departmentName?: string;
-  doctorName?: string;
-  clinicalInfo?: string;
-  modalityName?: string;
-  studyInstanceUID?: string; // DICOM Study Instance UID
-  orthancStudyId?: string; // Orthanc internal UUID for sharing
-  hasImages?: boolean; // True if DICOM images available
-  patientId?: string; // For sharing context
-  // Report and signature fields
-  description?: string;
-  conclusion?: string;
-  reportedAt?: string;
-  isSigned?: boolean;
-  signedBy?: string;
-  signedAt?: string;
-}
-
-interface RadiologyExam {
-  id: string;
-  requestId: string;
-  requestCode: string;
-  patientCode: string;
-  patientName: string;
-  serviceName: string;
-  modalityCode: string;
-  modalityName: string;
-  accessionNumber: string;
-  examDate: string;
-  technicianName?: string;
-  status: number; // 0: Pending, 1: InProgress, 2: Completed
-  startTime?: string;
-  endTime?: string;
-  dose?: number;
-  notes?: string;
-}
-
-interface RadiologyReport {
-  id: string;
-  examId: string;
-  requestCode: string;
-  patientName: string;
-  patientCode: string;
-  serviceName: string;
-  description?: string;
-  conclusion?: string;
-  findings?: string;
-  impression?: string;
-  recommendations?: string;
-  radiologistName?: string;
-  doctorName?: string;
-  reportDate?: string;
-  reportedAt?: string;
-  status: number; // 0: Draft, 1: Completed, 2: Approved
-  approvedBy?: string;
-  approvedAt?: string;
-  isSigned?: boolean;
-  signedBy?: string;
-  signedAt?: string;
-}
 
 const Radiology: React.FC = () => {
   const [activeTab, setActiveTab] = useState('pending');
@@ -632,93 +535,7 @@ const Radiology: React.FC = () => {
       return;
     }
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Kết quả Chẩn đoán Hình ảnh - ${report.requestCode}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Times New Roman', serif; font-size: 13px; line-height: 1.5; padding: 20px; }
-          .header { display: flex; justify-content: space-between; margin-bottom: 15px; }
-          .header-left { width: 50%; }
-          .header-right { width: 30%; text-align: right; }
-          .title { font-size: 18px; font-weight: bold; text-align: center; margin: 15px 0; text-transform: uppercase; }
-          .subtitle { text-align: center; margin-bottom: 15px; font-size: 14px; }
-          .patient-info { border: 1px solid #000; padding: 10px; margin-bottom: 15px; }
-          .info-row { margin: 5px 0; }
-          .field { border-bottom: 1px dotted #000; min-width: 100px; display: inline-block; padding: 0 5px; }
-          .section { margin: 15px 0; }
-          .section-title { font-weight: bold; font-size: 14px; margin-bottom: 8px; text-decoration: underline; }
-          .section-content { border: 1px solid #ddd; padding: 10px; min-height: 80px; background-color: #fafafa; }
-          .conclusion { border: 2px solid #000; padding: 15px; margin: 15px 0; background-color: #f0f5ff; }
-          .signature-row { display: flex; justify-content: space-between; margin-top: 40px; text-align: center; }
-          .signature-col { width: 45%; }
-          .footer { margin-top: 20px; font-size: 11px; text-align: center; color: #666; }
-          @media print { body { padding: 10px; } }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="header-left">
-            <div><strong>SỞ Y TẾ TP.HCM</strong></div>
-            <div><strong>${HOSPITAL_NAME}</strong></div>
-            <div>Khoa: Chẩn đoán Hình ảnh</div>
-          </div>
-          <div class="header-right">
-            <div><strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong></div>
-            <div><em>Độc lập - Tự do - Hạnh phúc</em></div>
-          </div>
-        </div>
-
-        <div class="title">PHIẾU KẾT QUẢ CHẨN ĐOÁN HÌNH ẢNH</div>
-        <div class="subtitle">Số phiếu: ${report.requestCode}</div>
-
-        <div class="patient-info">
-          <div class="info-row">Họ và tên: <span class="field" style="width: 250px;"><strong>${report.patientName}</strong></span> Mã BN: <span class="field">${report.patientCode}</span></div>
-          <div class="info-row">Loại chụp: <span class="field" style="width: 400px;">${report.serviceName}</span></div>
-          <div class="info-row">Ngày thực hiện: <span class="field">${report.reportDate ? dayjs(report.reportDate).format('DD/MM/YYYY HH:mm') : ''}</span></div>
-        </div>
-
-        <div class="section">
-          <div class="section-title">1. MÔ TẢ HÌNH ẢNH:</div>
-          <div class="section-content">${report.findings || 'Không có mô tả.'}</div>
-        </div>
-
-        <div class="conclusion">
-          <div class="section-title">2. KẾT LUẬN:</div>
-          <div style="font-size: 14px; margin-top: 10px;">${report.impression || 'Không có kết luận.'}</div>
-        </div>
-
-        ${report.recommendations ? `
-        <div class="section">
-          <div class="section-title">3. ĐỀ NGHỊ:</div>
-          <div class="section-content">${report.recommendations}</div>
-        </div>
-        ` : ''}
-
-        <div class="signature-row">
-          <div class="signature-col">
-            <div>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</div>
-            <div><strong>BÁC SĨ ĐỌC KẾT QUẢ</strong></div>
-            <div style="margin-top: 50px;">${report.radiologistName || ''}</div>
-          </div>
-          <div class="signature-col">
-            ${report.approvedBy ? `
-            <div>Ngày ${report.approvedAt ? dayjs(report.approvedAt).format('DD') : dayjs().format('DD')} tháng ${report.approvedAt ? dayjs(report.approvedAt).format('MM') : dayjs().format('MM')} năm ${report.approvedAt ? dayjs(report.approvedAt).format('YYYY') : dayjs().format('YYYY')}</div>
-            <div><strong>TRƯỞNG KHOA</strong></div>
-            <div style="margin-top: 50px;">${report.approvedBy}</div>
-            ` : ''}
-          </div>
-        </div>
-
-        <div class="footer">
-          <em>Phiếu này chỉ có giá trị khi có chữ ký và dấu của Bệnh viện</em>
-        </div>
-      </body>
-      </html>
-    `);
-
+    printWindow.document.write(buildRadiologyReportHtml(report));
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500);
@@ -990,67 +807,7 @@ const Radiology: React.FC = () => {
     return () => { cancelled = true; window.clearInterval(id); };
   }, []);
 
-  // Get priority badge
-  const getPriorityBadge = (priority: number) => {
-    switch (priority) {
-      case 1:
-        return <Badge status="default" text="Bình thường" />;
-      case 2:
-        return <Badge status="warning" text="Khẩn" />;
-      case 3:
-        return <Badge status="error" text="Cấp cứu" />;
-      default:
-        return <Badge status="default" text="Không xác định" />;
-    }
-  };
-
-  // Get status tag
-  const getStatusTag = (status: number) => {
-    switch (status) {
-      case 0:
-        return <Tag color="orange" icon={<ClockCircleOutlined />}>Chờ thực hiện</Tag>;
-      case 1:
-        return <Tag color="blue" icon={<CalendarOutlined />}>Đã hẹn lịch</Tag>;
-      case 2:
-        return <Tag color="purple" icon={<PlayCircleOutlined />}>Đang thực hiện</Tag>;
-      case 3:
-        return <Tag color="cyan" icon={<CameraOutlined />}>Hoàn thành chụp</Tag>;
-      case 4:
-        return <Tag color="geekblue" icon={<FileSearchOutlined />}>Đã có báo cáo</Tag>;
-      case 5:
-        return <Tag color="green" icon={<CheckCircleOutlined />}>Đã duyệt</Tag>;
-      default:
-        return <Tag>Không xác định</Tag>;
-    }
-  };
-
-  // Get exam status tag
-  const getExamStatusTag = (status: number) => {
-    switch (status) {
-      case 0:
-        return <Tag color="orange" icon={<ClockCircleOutlined />}>Chờ thực hiện</Tag>;
-      case 1:
-        return <Tag color="purple" icon={<PlayCircleOutlined />}>Đang thực hiện</Tag>;
-      case 2:
-        return <Tag color="green" icon={<CheckCircleOutlined />}>Hoàn thành</Tag>;
-      default:
-        return <Tag>Không xác định</Tag>;
-    }
-  };
-
-  // Get report status tag
-  const getReportStatusTag = (status: number) => {
-    switch (status) {
-      case 0:
-        return <Tag color="orange">Nháp</Tag>;
-      case 1:
-        return <Tag color="cyan">Hoàn thành</Tag>;
-      case 2:
-        return <Tag color="green" icon={<CheckCircleOutlined />}>Đã duyệt</Tag>;
-      default:
-        return <Tag>Không xác định</Tag>;
-    }
-  };
+  // Status tag renderers + priority badge moved to ./radiology/statusTags.tsx (K14 B2-B3).
   void getExamStatusTag;
   void getReportStatusTag;
 

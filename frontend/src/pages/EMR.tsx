@@ -44,56 +44,12 @@ import { getSignatures, getSignaturesBatch } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';
 import PatientFlagBanner from '../components/PatientFlagBanner';
 
+import { statusColors, statusNames } from './emr/constants';
+import { buildPrintDocument } from './emr/printDocument';
+
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
-
-const statusColors: Record<number, string> = {
-  0: 'default', 1: 'processing', 2: 'warning', 3: 'orange', 4: 'success',
-};
-const statusNames: Record<number, string> = {
-  0: 'Chờ khám', 1: 'Đang khám', 2: 'Chờ CLS', 3: 'Chờ kết luận', 4: 'Hoàn thành',
-};
-
-function buildPrintDocument(printMarkup: string): string {
-  const styleMarkup = Array.from(
-    document.querySelectorAll('style, link[rel="stylesheet"]')
-  )
-    .map((node) => node.outerHTML)
-    .join('\n');
-
-  return `<!DOCTYPE html>
-<html lang="${document.documentElement.lang || 'vi'}">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>In biểu mẫu</title>
-  <base href="${window.location.origin}" />
-  ${styleMarkup}
-  <style>
-    html, body {
-      background: #fff;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .no-print {
-      display: none !important;
-    }
-    @page {
-      size: auto;
-      margin: 12mm;
-    }
-  </style>
-</head>
-<body>
-  ${printMarkup}
-</body>
-</html>`;
-}
 
 const EMR: React.FC = () => {
   // Search state

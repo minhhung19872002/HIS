@@ -85,8 +85,7 @@ const { Title, Text } = Typography;
 const { Search } = Input;
 const { TextArea } = Input;
 
-const hasFormErrors = (error: unknown): error is { errorFields: unknown[] } =>
-  typeof error === 'object' && error !== null && 'errorFields' in error;
+import { hasFormErrors } from './lis-config/utils';
 
 // ===========================
 // Tab 1: Analyzer Config

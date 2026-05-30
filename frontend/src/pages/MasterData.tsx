@@ -63,97 +63,18 @@ const { Title, Text } = Typography;
 const { Search } = Input;
 const { TextArea } = Input;
 
-// Interfaces
-interface ServiceItem {
-  id?: string;
-  code: string;
-  name: string;
-  bhytCode?: string;
-  groupName: string;
-  price: number;
-  bhytPrice?: number;
-  unit: string;
-  departmentId?: string;
-  isActive: boolean;
-}
-
-interface Medicine {
-  id?: string;
-  code: string;
-  name: string;
-  activeIngredient: string;
-  registrationNumber: string;
-  manufacturer: string;
-  country: string;
-  unit: string;
-  dosageForm: string;
-  bhytCode?: string;
-  price: number;
-  bhytPrice?: number;
-  isActive: boolean;
-}
-
-interface Department {
-  id?: string;
-  code: string;
-  name: string;
-  bhytCode?: string;
-  type: string;
-  parentId?: string;
-  headDoctor?: string;
-  isActive: boolean;
-}
-
-interface IcdCode {
-  id?: string;
-  code: string;
-  name: string;
-  nameEnglish?: string;
-  chapter: string;
-  group: string;
-  isActive: boolean;
-}
-
-type MasterDataRecord =
-  | ServiceItem
-  | Medicine
-  | Department
-  | IcdCode
-  | ClinicalTermCatalogDto
-  | OccupationDto
-  | GenderDto
-  | AdministrativeDivisionDto
-  | CountryDto
-  | HealthcareFacilityDto;
-
-type ApiListResponse<T> =
-  | T[]
-  | {
-      data?: T[] | { data?: T[]; items?: T[] };
-    }
-  | null
-  | undefined;
-
-type KeywordSearchRecord = {
-  code?: string;
-  name?: string;
-  bhytCode?: string;
-};
-
-type FormValidationError = {
-  errorFields?: unknown[];
-};
-
-type ServiceCatalogLike = ParaclinicalServiceCatalogDto & {
-  unit?: string;
-};
-
-type DepartmentCatalogLike = DepartmentCatalogDto & {
-  departmentCode?: string;
-  departmentName?: string;
-  bhxhCode?: string;
-  departmentCodeBYT?: string;
-};
+import type {
+  ServiceItem,
+  Medicine,
+  Department,
+  IcdCode,
+  MasterDataRecord,
+  ApiListResponse,
+  KeywordSearchRecord,
+  FormValidationError,
+  ServiceCatalogLike,
+  DepartmentCatalogLike,
+} from './master-data/types';
 
 // Mock data removed - data will be fetched from API
 

@@ -45,70 +45,12 @@ import { HOSPITAL_NAME } from '../constants/hospital';
 const { Title, Text } = Typography;
 const { Search } = Input;
 
-// Interfaces
-interface BloodUnit {
-  id: string;
-  unitCode: string;
-  bloodType: string;
-  component: string;
-  volume: number;
-  expiryDate: string;
-  receiveDate: string;
-  supplier: string;
-  status: number; // 0: Available, 1: Reserved, 2: Used, 3: Expired, 4: Discarded
-  location: string;
-  donorId?: string;
-  testResults?: string;
-  bagCode?: string;
-  collectionDate?: string;
-  source?: string;
-}
-
-interface BloodRequest {
-  id: string;
-  requestCode: string;
-  patientCode: string;
-  patientName: string;
-  bloodType: string;
-  component: string;
-  quantity: number;
-  urgency: number; // 0: Normal, 1: Urgent, 2: Emergency
-  requestDate: string;
-  requestedBy: string;
-  department: string;
-  status: number; // 0: Pending, 1: Approved, 2: Issued, 3: Transfused, 4: Cancelled
-  reason: string;
-}
-
-type BloodStockDetailDto = {
-  bloodBagId: string;
-  bagCode: string;
-  bloodType: string;
-  rhFactor: string;
-  productTypeName: string;
-  volume: number;
-  expiryDate: string;
-  collectionDate: string;
-  status: string;
-  storageLocation?: string;
-};
-
-type BloodIssueRequestDto = {
-  id: string;
-  requestCode: string;
-  patientCode?: string;
-  patientName?: string;
-  bloodType: string;
-  rhFactor: string;
-  productTypeName: string;
-  requestedQuantity: number;
-  urgency: string;
-  requestDate: string;
-  requestedByName: string;
-  departmentName: string;
-  status: string;
-  clinicalIndication?: string;
-};
+import type {
+  BloodUnit,
+  BloodRequest,
+  BloodStockDetailDto,
+  BloodIssueRequestDto,
+} from './blood-bank/types';
 
 const BloodBank: React.FC = () => {
   const [activeTab, setActiveTab] = useState('inventory');

@@ -55,164 +55,27 @@ import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import { getPrescriptions as getRecentPrescriptions } from '../api/patientPortal';
 import PatientFlagBanner from '../components/PatientFlagBanner';
 
-interface RecentPrescriptionDto {
-  id: string;
-  prescriptionCode?: string;
-  prescriptionDate: string;
-  patientId?: string;
-  patientCode?: string;
-  patientName?: string;
-  diagnosis?: string;
-  doctorName?: string;
-  departmentName?: string;
-  status: string;
-}
+import type {
+  RecentPrescriptionDto,
+  Patient,
+  Medicine,
+  DosageInstruction,
+  PrescriptionItem,
+  DrugInteraction,
+  DrugInteractionApiDto,
+  PrescriptionTemplate,
+  Prescription,
+} from './prescription/types';
+import {
+  convertMedicineDto,
+  calculateTotalDose,
+  calculateCost,
+  formatDosage,
+} from './prescription/utils';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
-
-// ==================== INTERFACES ====================
-
-interface Patient {
-  id: string;
-  patientCode: string;
-  fullName: string;
-  dateOfBirth?: string;
-  gender: number;
-  phoneNumber?: string;
-  address?: string;
-  allergies?: string[];
-  currentMedications?: string[];
-  insuranceNumber?: string;
-}
-
-// Medicine interface compatible with API
-interface Medicine {
-  id: string;
-  code: string;
-  name: string;
-  activeIngredient: string;
-  dosageForm: string;
-  strength: string;
-  unit: string;
-  unitPrice: number;
-  stock: number;
-  manufacturer?: string;
-  insuranceCovered: boolean;
-}
-
-// Helper to convert MedicineDto to local Medicine interface
-const convertMedicineDto = (dto: MedicineDto): Medicine => ({
-  id: dto.id,
-  code: dto.code,
-  name: dto.name,
-  activeIngredient: dto.activeIngredient || '',
-  dosageForm: dto.unit || 'Viên',
-  strength: '',
-  unit: dto.unit || 'Viên',
-  unitPrice: dto.unitPrice,
-  stock: dto.availableQuantity,
-  manufacturer: dto.manufacturer,
-  insuranceCovered: dto.insurancePrice > 0,
-});
-
-interface DosageInstruction {
-  morning: number;
-  noon: number;
-  evening: number;
-  night: number;
-  beforeMeal: boolean;
-  afterMeal: boolean;
-}
-
-interface PrescriptionItem {
-  id: string;
-  medicine: Medicine;
-  dosageForm: string;
-  strength: string;
-  quantity: number;
-  dosage: DosageInstruction;
-  duration: number;
-  route: string;
-  notes?: string;
-  totalDose: number;
-  totalCost: number;
-  insuranceCoverage: number;
-}
-
-interface DrugInteraction {
-  medicine1: string;
-  medicine2: string;
-  severity: 'high' | 'medium' | 'low';
-  description: string;
-  recommendation?: string;
-}
-
-interface DrugInteractionApiDto {
-  drug1Name: string;
-  drug2Name: string;
-  severity?: number;
-  severityName?: string;
-  description?: string;
-  recommendation?: string;
-}
-
-interface PrescriptionTemplate {
-  id: string;
-  name: string;
-  diagnosis: string;
-  items: Omit<PrescriptionItem, 'id'>[];
-}
-
-interface Prescription {
-  id?: string;
-  patientId: string;
-  examinationId?: string;
-  prescriptionDate: string;
-  diagnosis?: string;
-  items: PrescriptionItem[];
-  interactions: DrugInteraction[];
-  totalCost: number;
-  insuranceCoverage: number;
-  finalCost: number;
-  notes?: string;
-  status: 'draft' | 'completed' | 'sent';
-  overrideReason?: string;
-}
-
-// ==================== HELPER FUNCTIONS ====================
-
-const calculateTotalDose = (dosage: DosageInstruction, duration: number): number => {
-  const dailyDose = dosage.morning + dosage.noon + dosage.evening + dosage.night;
-  return dailyDose * duration;
-};
-
-const calculateCost = (
-  quantity: number,
-  unitPrice: number,
-  insuranceCovered: boolean,
-  insuranceRate: number = 0.8
-): { total: number; insurance: number; final: number } => {
-  const total = quantity * unitPrice;
-  const insurance = insuranceCovered ? total * insuranceRate : 0;
-  const final = total - insurance;
-  return { total, insurance, final };
-};
-
-const formatDosage = (dosage: DosageInstruction): string => {
-  const parts: string[] = [];
-  if (dosage.morning > 0) parts.push(`Sáng: ${dosage.morning}`);
-  if (dosage.noon > 0) parts.push(`Trưa: ${dosage.noon}`);
-  if (dosage.evening > 0) parts.push(`Chiều: ${dosage.evening}`);
-  if (dosage.night > 0) parts.push(`Tối: ${dosage.night}`);
-
-  let result = parts.join(', ');
-  if (dosage.beforeMeal) result += ' (Trước ăn)';
-  else if (dosage.afterMeal) result += ' (Sau ăn)';
-
-  return result;
-};
 
 
 // ==================== MAIN COMPONENT ====================

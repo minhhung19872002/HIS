@@ -53,13 +53,7 @@ import { patientApi, type Patient } from '../api/patient';
 import ClinicalTermSelector from '../components/ClinicalTermSelector';
 import VoiceDictation from '../components/VoiceDictation';
 import { HOSPITAL_NAME } from '../constants/hospital';
-import {
-  examinationApi,
-  type RoomPatientListDto,
-  type RoomDto,
-  type ExaminationDto,
-  type ServiceDto,
-} from '../api/examination';
+import { examinationApi, type RoomDto } from '../api/examination';
 import { getOpdContext, type OpdContextDto } from '../api/dataInheritance';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -75,86 +69,28 @@ import DoctorLicenseBanner from '../components/DoctorLicenseBanner';
 import type { LicenseStatusDto } from '../api/doctorLicense';
 import { getDepositBalance } from '../api/billing';
 import { buildApiUrl } from '../config/api';
-
-// Type aliases for compatibility
-type QueuePatient = RoomPatientListDto;
-type Examination = ExaminationDto & {
-  patientId: string;
-  queueNumber: number;
-  departmentId?: string;
-  departmentName?: string;
-};
-// Local types for state management
-interface Diagnosis {
-  icdCode: string;
-  icdName: string;
-  diagnosisType: number;
-}
-interface TreatmentOrder {
-  id: string;
-  serviceId: string;
-  serviceCode: string;
-  serviceName: string;
-  orderType: number;
-  quantity: number;
-  unit?: string;
-  unitPrice: number;
-  amount: number;
-  instructions?: string;
-  paymentSource: number;
-  insuranceRatio: number;
-  status: number;
-  isSaved?: boolean;
-}
-type Service = ServiceDto;
+import type {
+  QueuePatient,
+  Examination,
+  Diagnosis,
+  TreatmentOrder,
+  Service,
+  ICDOption,
+  ServiceOption,
+  QueueListDetails,
+  SupplyOrderResponseItem,
+  SupplyAutoCompleteOption,
+} from './opd/types';
+import { OPD_RECORD_TYPES } from './opd/constants';
+import TabAllergies from './opd/tabs/TabAllergies';
+import TabComorbidities from './opd/tabs/TabComorbidities';
+import TabVitalSigns from './opd/tabs/TabVitalSigns';
+import TabMedicalHistory from './opd/tabs/TabMedicalHistory';
+import TabPhysicalExam from './opd/tabs/TabPhysicalExam';
+import { buildSupplyOrderHtml, buildOutpatientRecordHtml } from './opd/printTemplates';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-
-interface ICDOption {
-  value: string;
-  label: string;
-  code: string;
-  name: string;
-}
-
-interface ServiceOption {
-  value: string;
-  label: string;
-  data: Service;
-}
-
-type QueueListDetails = {
-  dateOfBirth?: string;
-  visitReason?: string;
-};
-
-type SupplyOrderResponseItem = {
-  serviceId?: string;
-  itemId?: string;
-  serviceCode?: string;
-  itemCode?: string;
-  serviceName?: string;
-  itemName?: string;
-  unit?: string;
-  quantity?: number;
-  stockQuantity?: number;
-};
-
-type SupplyAutoCompleteOption = {
-  value: string;
-  label: string;
-  data?: StockDto;
-};
-
-// Danh sách các loại bệnh án ngoại trú theo Bộ Y tế
-const OPD_RECORD_TYPES = [
-  { value: 'ngoai_tru_chung', label: 'Bệnh án ngoại trú chung', code: '15/BV-01' },
-  { value: 'ngoai_tru_rhm', label: 'Bệnh án ngoại trú Răng hàm mặt', code: '16/BV-01' },
-  { value: 'tuyen_xa_phuong', label: 'Bệnh án dành cho tuyến xã phường', code: '17/BV-01' },
-  { value: 'ngoai_tru_yhct', label: 'Bệnh án ngoại trú YHCT', code: '19/BV-01' },
-  { value: 'ngoai_tru_phcn', label: 'Bệnh án ngoại trú Phục hồi chức năng', code: '29/BV-01' },
-];
 
 const OPD: React.FC = () => {
   // State for room selection
@@ -1142,38 +1078,7 @@ const OPD: React.FC = () => {
       return;
     }
     const totalItems = supplyOrders.reduce((sum, s) => sum + s.quantity, 0);
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html><head>
-        <title>Phiếu kê vật tư</title>
-        <style>
-          body { font-family: 'Times New Roman', serif; font-size: 13px; padding: 20px; }
-          .title { text-align: center; font-size: 16px; font-weight: bold; margin: 15px 0; }
-          table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-          th, td { border: 1px solid #000; padding: 5px; text-align: left; }
-          th { background: #f0f0f0; }
-          .footer { display: flex; justify-content: space-between; margin-top: 30px; text-align: center; }
-          .footer div { width: 45%; }
-          @media print { body { padding: 10px; } }
-        </style>
-      </head><body>
-        <div class="title">PHIẾU KÊ VẬT TƯ Y TẾ</div>
-        <p><strong>Bệnh nhân:</strong> ${selectedPatient.fullName} &nbsp;&nbsp; <strong>Mã BN:</strong> ${selectedPatient.patientCode}</p>
-        <p><strong>Chẩn đoán:</strong> ${diagnoses.map(d => `${d.icdCode} - ${d.icdName}`).join('; ') || '-'}</p>
-        <p><strong>Ngày:</strong> ${dayjs().format('DD/MM/YYYY HH:mm')}</p>
-        <table>
-          <thead><tr><th>STT</th><th>Mã VT</th><th>Tên vật tư</th><th>ĐVT</th><th>SL</th></tr></thead>
-          <tbody>
-            ${supplyOrders.map((s, i) => `<tr><td>${i + 1}</td><td>${s.itemCode}</td><td>${s.itemName}</td><td>${s.unit}</td><td>${s.quantity}</td></tr>`).join('')}
-          </tbody>
-          <tfoot><tr><td colspan="4"><strong>Tổng cộng</strong></td><td><strong>${totalItems}</strong></td></tr></tfoot>
-        </table>
-        <div class="footer">
-          <div><strong>Người kê</strong><br/><br/><br/>(Ký, ghi rõ họ tên)</div>
-          <div>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}<br/><strong>Bác sĩ điều trị</strong><br/><br/><br/>(Ký, ghi rõ họ tên)</div>
-        </div>
-      </body></html>
-    `);
+    printWindow.document.write(buildSupplyOrderHtml(selectedPatient, diagnoses, supplyOrders, totalItems));
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => printWindow.print(), 500);
@@ -1532,153 +1437,7 @@ const OPD: React.FC = () => {
       return;
     }
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${recordType.label} - MS: ${recordType.code}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Times New Roman', serif; font-size: 13px; line-height: 1.4; padding: 20px; }
-          .header { display: flex; justify-content: space-between; margin-bottom: 10px; }
-          .header-left { width: 40%; }
-          .header-right { width: 30%; text-align: right; }
-          .title { font-size: 18px; font-weight: bold; text-align: center; margin: 15px 0; }
-          .subtitle { font-size: 14px; text-align: center; margin-bottom: 15px; }
-          .section { margin: 10px 0; }
-          .section-title { font-weight: bold; margin: 10px 0 5px 0; }
-          .row { display: flex; margin: 3px 0; }
-          .col { flex: 1; }
-          .col-2 { flex: 2; }
-          .col-3 { flex: 3; }
-          .field { border-bottom: 1px dotted #000; min-width: 100px; display: inline-block; padding: 0 5px; }
-          .field-long { border-bottom: 1px dotted #000; width: 100%; display: block; min-height: 20px; padding: 0 5px; }
-          .checkbox { display: inline-block; width: 14px; height: 14px; border: 1px solid #000; margin-right: 3px; vertical-align: middle; text-align: center; line-height: 12px; }
-          .checkbox.checked::after { content: '✓'; }
-          table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-          table th, table td { border: 1px solid #000; padding: 5px; text-align: left; }
-          .vital-box { border: 1px solid #000; padding: 5px; margin-left: 10px; width: 150px; float: right; }
-          .signature-row { display: flex; justify-content: space-between; margin-top: 30px; text-align: center; }
-          .signature-col { width: 45%; }
-          @media print { body { padding: 10px; } }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="header-left">
-            <div>Sở Y tế: <span class="field">${formValues.healthDepartment || '...........................'}</span></div>
-            <div>Bệnh viện: <span class="field">${formValues.hospitalName || '...........................'}</span></div>
-          </div>
-          <div style="text-align: right;">
-            <div><strong>MS: ${recordType.code}</strong></div>
-            <div>Số ngoại trú: <span class="field">${examination?.id?.substring(0, 8) || '...........'}</span></div>
-            <div>Số lưu trữ: <span class="field">................</span></div>
-          </div>
-        </div>
-
-        <div class="title">${recordType.label.toUpperCase()}</div>
-        <div class="subtitle">KHOA: <span class="field">${formValues.departmentName || '..............................'}</span></div>
-
-        <div class="section">
-          <div class="section-title">I. HÀNH CHÍNH:</div>
-          <div class="row">
-            <div class="col-2">1. Họ và tên (In hoa): <span class="field">${formValues.patientName || ''}</span></div>
-            <div class="col">2. Sinh ngày: <span class="field">${formValues.dateOfBirth || ''}</span></div>
-            <div style="width: 60px;">Tuổi: <span class="field">${formValues.age || ''}</span></div>
-          </div>
-          <div class="row">
-            <div class="col">3. Giới:
-              <span class="checkbox ${formValues.gender === 'Nam' ? 'checked' : ''}"></span>Nam
-              <span class="checkbox ${formValues.gender === 'Nữ' ? 'checked' : ''}"></span>Nữ
-            </div>
-            <div class="col">4. Nghề nghiệp: <span class="field">${formValues.occupation || ''}</span></div>
-          </div>
-          <div class="row">
-            <div class="col">5. Dân tộc: <span class="field">${formValues.ethnicity || ''}</span></div>
-            <div class="col">6. Ngoại kiều: <span class="field">${formValues.nationality || ''}</span></div>
-          </div>
-          <div class="row">
-            <div>7. Địa chỉ: <span class="field" style="width: 90%;">${formValues.address || ''}</span></div>
-          </div>
-          <div class="row">
-            <div class="col">8. Nơi làm việc: <span class="field">${formValues.workplace || ''}</span></div>
-            <div class="col">9. Đối tượng:
-              <span class="checkbox ${selectedPatient?.insuranceNumber ? 'checked' : ''}"></span>BHYT
-              <span class="checkbox ${!selectedPatient?.insuranceNumber ? 'checked' : ''}"></span>Thu phí
-              <span class="checkbox"></span>Miễn
-              <span class="checkbox"></span>Khác
-            </div>
-          </div>
-          <div class="row">
-            <div>10. BHYT giá trị đến ngày <span class="field">${formValues.insuranceExpiry || '......./......./........'}</span> Số thẻ BHYT: <span class="field">${formValues.insuranceNumber || ''}</span></div>
-          </div>
-          <div class="row">
-            <div>11. Họ tên, địa chỉ người nhà khi cần báo tin: <span class="field">${formValues.contactName || ''}</span> ĐT: <span class="field">${formValues.contactPhone || ''}</span></div>
-          </div>
-          <div class="row">
-            <div>12. Đến khám bệnh lúc: <span class="field">${formValues.visitTime || ''}</span></div>
-          </div>
-          <div class="row">
-            <div>13. Chẩn đoán của nơi giới thiệu: <span class="field">${formValues.referralDiagnosis || ''}</span>
-              <span class="checkbox"></span>Y tế <span class="checkbox"></span>Tự đến
-            </div>
-          </div>
-        </div>
-
-        <div class="section">
-          <div class="section-title">II. LÝ DO VÀO VIỆN:</div>
-          <div class="field-long">${formValues.visitReason || ''}</div>
-        </div>
-
-        <div class="section">
-          <div class="section-title">III. HỎI BỆNH:</div>
-          <div>1. Quá trình bệnh lý:</div>
-          <div class="field-long" style="min-height: 60px;">${formValues.diseaseProgress || ''}</div>
-          <div style="margin-top: 10px;">2. Tiền sử bệnh:</div>
-          <div>+ Bản thân: <span class="field-long">${formValues.personalHistory || ''}</span></div>
-          <div>+ Gia đình: <span class="field-long">${formValues.familyHistory || ''}</span></div>
-        </div>
-
-        <div class="section">
-          <div class="section-title" style="display: flex; justify-content: space-between;">
-            <span>IV. KHÁM BỆNH:</span>
-            <div class="vital-box">
-              <div>Mạch: ${formValues.pulse || '......'} lần/ph</div>
-              <div>Nhiệt độ: ${formValues.temperature || '......'} °C</div>
-              <div>Huyết áp: ${formValues.bloodPressure || '.../..'} mmHg</div>
-              <div>Nhịp thở: ${formValues.respiratoryRate || '......'} lần/ph</div>
-              <div>Cân nặng: ${formValues.weight || '......'} kg</div>
-            </div>
-          </div>
-          <div>1. Toàn thân:</div>
-          <div class="field-long" style="min-height: 40px;">${formValues.generalExam || ''}</div>
-          <div style="margin-top: 10px;">2. Các bộ phận:</div>
-          <div class="field-long" style="min-height: 80px; white-space: pre-wrap;">${formValues.organExam || ''}</div>
-          <div style="margin-top: 10px;">3. Tóm tắt kết quả cận lâm sàng:</div>
-          <div class="field-long" style="min-height: 40px;">${formValues.labResults || ''}</div>
-          <div style="margin-top: 10px;">4. Chẩn đoán ban đầu:</div>
-          <div class="field-long">${formValues.initialDiagnosis || ''}</div>
-          <div style="margin-top: 10px;">5. Đã xử lý (thuốc, chăm sóc):</div>
-          <div class="field-long" style="min-height: 60px;">${formValues.treatment || ''}</div>
-          <div style="margin-top: 10px;">6. Chẩn đoán khi ra viện: <span class="field" style="width: 70%;">${formValues.finalDiagnosis || ''}</span></div>
-          <div style="margin-top: 5px;">7. Điều trị ngoại trú từ ngày <span class="field">${formValues.treatmentFromDate || '....../....../........'}</span> đến ngày <span class="field">${formValues.treatmentToDate || '....../....../........'}</span></div>
-        </div>
-
-        <div class="signature-row">
-          <div class="signature-col">
-            <div><strong>Giám đốc bệnh viện</strong></div>
-            <div style="margin-top: 60px;">Họ tên: ................................</div>
-          </div>
-          <div class="signature-col">
-            <div>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</div>
-            <div><strong>Bác sỹ khám bệnh</strong></div>
-            <div style="margin-top: 40px;">Họ tên: ................................</div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `);
-
+    printWindow.document.write(buildOutpatientRecordHtml(formValues, recordType, examination?.id, selectedPatient?.insuranceNumber));
     printWindow.document.close();
     printWindow.focus();
 
@@ -2320,174 +2079,10 @@ const OPD: React.FC = () => {
                         </span>
                       ),
                       children: (
-                        <>
-                        <Row gutter={16}>
-                          <Col xs={24} sm={12} md={8}>
-                            <Form.Item
-                              label="Cân nặng (kg)"
-                              name={['vitalSigns', 'weight']}
-                            >
-                              <InputNumber
-                                min={0}
-                                max={300}
-                                step={0.1}
-                                style={{ width: '100%' }}
-                                placeholder="Nhập cân nặng"
-                                onChange={(value) => {
-                                  const height = examForm.getFieldValue(['vitalSigns', 'height']);
-                                  if (value && height && height > 0) {
-                                    const heightM = height / 100;
-                                    const bmi = parseFloat((Number(value) / (heightM * heightM)).toFixed(1));
-                                    examForm.setFieldValue(['vitalSigns', 'bmi'], bmi);
-                                  }
-                                }}
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
-                            <Form.Item
-                              label="Chiều cao (cm)"
-                              name={['vitalSigns', 'height']}
-                            >
-                              <InputNumber
-                                min={0}
-                                max={250}
-                                step={0.1}
-                                style={{ width: '100%' }}
-                                placeholder="Nhập chiều cao"
-                                onChange={(value) => {
-                                  const weight = examForm.getFieldValue(['vitalSigns', 'weight']);
-                                  if (weight && value && Number(value) > 0) {
-                                    const heightM = Number(value) / 100;
-                                    const bmi = parseFloat((weight / (heightM * heightM)).toFixed(1));
-                                    examForm.setFieldValue(['vitalSigns', 'bmi'], bmi);
-                                  }
-                                }}
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
-                            <Form.Item label="BMI" name={['vitalSigns', 'bmi']}>
-                              <InputNumber
-                                min={0}
-                                max={100}
-                                step={0.1}
-                                style={{ width: '100%' }}
-                                placeholder="Tự động tính"
-                                disabled
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
-                            <Form.Item
-                              label="Huyết áp tâm thu (mmHg)"
-                              name={['vitalSigns', 'bloodPressureSystolic']}
-                            >
-                              <InputNumber
-                                min={0}
-                                max={300}
-                                style={{ width: '100%' }}
-                                placeholder="VD: 120"
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
-                            <Form.Item
-                              label="Huyết áp tâm trương (mmHg)"
-                              name={['vitalSigns', 'bloodPressureDiastolic']}
-                            >
-                              <InputNumber
-                                min={0}
-                                max={200}
-                                style={{ width: '100%' }}
-                                placeholder="VD: 80"
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
-                            <Form.Item
-                              label="Nhiệt độ (°C)"
-                              name={['vitalSigns', 'temperature']}
-                            >
-                              <InputNumber
-                                min={30}
-                                max={45}
-                                step={0.1}
-                                style={{ width: '100%' }}
-                                placeholder="VD: 36.5"
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
-                            <Form.Item
-                              label="Mạch (lần/phút)"
-                              name={['vitalSigns', 'pulse']}
-                            >
-                              <InputNumber
-                                min={0}
-                                max={300}
-                                style={{ width: '100%' }}
-                                placeholder="VD: 72"
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
-                            <Form.Item
-                              label="Nhịp thở (lần/phút)"
-                              name={['vitalSigns', 'respiratoryRate']}
-                            >
-                              <InputNumber
-                                min={0}
-                                max={100}
-                                style={{ width: '100%' }}
-                                placeholder="VD: 18"
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col xs={24} sm={12} md={8}>
-                            <Form.Item
-                              label="SpO2 (%)"
-                              name={['vitalSigns', 'spo2']}
-                            >
-                              <InputNumber
-                                min={0}
-                                max={100}
-                                style={{ width: '100%' }}
-                                placeholder="VD: 98"
-                              />
-                            </Form.Item>
-                          </Col>
-                        </Row>
-
-                        {/* NEWS2 Early Warning Score */}
-                        {earlyWarningScore && (
-                          <Card size="small" style={{ marginTop: 12, borderColor: earlyWarningScore.riskColor === 'red' ? '#ff4d4f' : earlyWarningScore.riskColor === 'orange' ? '#fa8c16' : earlyWarningScore.riskColor === 'gold' ? '#faad14' : '#52c41a' }}>
-                            <Row align="middle" gutter={16}>
-                              <Col>
-                                <div style={{ textAlign: 'center' }}>
-                                  <div style={{ fontSize: 28, fontWeight: 'bold', color: earlyWarningScore.riskColor === 'green' ? '#52c41a' : earlyWarningScore.riskColor === 'gold' ? '#faad14' : earlyWarningScore.riskColor === 'orange' ? '#fa8c16' : '#ff4d4f' }}>
-                                    {earlyWarningScore.totalScore}
-                                  </div>
-                                  <Tag color={earlyWarningScore.riskColor === 'green' ? 'success' : earlyWarningScore.riskColor === 'gold' ? 'warning' : earlyWarningScore.riskColor === 'orange' ? 'orange' : 'error'}>
-                                    NEWS2: {earlyWarningScore.riskLevel}
-                                  </Tag>
-                                </div>
-                              </Col>
-                              <Col flex="auto">
-                                <Text strong>Khuyến nghị: </Text>
-                                <Text>{earlyWarningScore.recommendation}</Text>
-                                <div style={{ marginTop: 4 }}>
-                                  {earlyWarningScore.parameters.filter(p => p.score > 0).map((p, i) => (
-                                    <Tag key={i} color={p.score >= 3 ? 'red' : p.score >= 2 ? 'orange' : 'gold'}>
-                                      {p.name}: {p.value} (+{p.score})
-                                    </Tag>
-                                  ))}
-                                </div>
-                              </Col>
-                            </Row>
-                          </Card>
-                        )}
-                        </>
+                        <TabVitalSigns
+                          examForm={examForm}
+                          earlyWarningScore={earlyWarningScore}
+                        />
                       ),
                     },
                     {
@@ -2497,90 +2092,7 @@ const OPD: React.FC = () => {
                           <FileTextOutlined /> Bệnh sử & Triệu chứng
                         </span>
                       ),
-                      children: (
-                        <Row gutter={16}>
-                          <Col span={24}>
-                            <Form.Item
-                              label="Lý do khám (triệu chứng)"
-                              name={['medicalHistory', 'chiefComplaint']}
-                              getValueFromEvent={(v: string) => v}
-                            >
-                              <ClinicalTermSelector
-                                category="Symptom"
-                                placeholder="Ghi thêm triệu chứng khác..."
-                                maxHeight={150}
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col span={24}>
-                            <Form.Item
-                              label={<span>Bệnh sử <VoiceDictation onTranscript={(text) => {
-                                const prev = examForm.getFieldValue(['medicalHistory', 'historyOfPresentIllness']) || '';
-                                examForm.setFieldValue(['medicalHistory', 'historyOfPresentIllness'], prev ? `${prev} ${text}` : text);
-                              }} /></span>}
-                              name={['medicalHistory', 'historyOfPresentIllness']}
-                            >
-                              <TextArea
-                                rows={4}
-                                placeholder="Nhập quá trình bệnh lý hiện tại..."
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col span={24}>
-                            <Form.Item
-                              label={<span>Tiền sử bệnh <VoiceDictation onTranscript={(text) => {
-                                const prev = examForm.getFieldValue(['medicalHistory', 'pastMedicalHistory']) || '';
-                                examForm.setFieldValue(['medicalHistory', 'pastMedicalHistory'], prev ? `${prev} ${text}` : text);
-                              }} /></span>}
-                              name={['medicalHistory', 'pastMedicalHistory']}
-                            >
-                              <TextArea
-                                rows={3}
-                                placeholder="Các bệnh đã mắc, phẫu thuật..."
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col span={24}>
-                            <Form.Item
-                              label={<span>Tiền sử gia đình <VoiceDictation onTranscript={(text) => {
-                                const prev = examForm.getFieldValue(['medicalHistory', 'familyHistory']) || '';
-                                examForm.setFieldValue(['medicalHistory', 'familyHistory'], prev ? `${prev} ${text}` : text);
-                              }} /></span>}
-                              name={['medicalHistory', 'familyHistory']}
-                            >
-                              <TextArea
-                                rows={2}
-                                placeholder="Bệnh lý gia đình..."
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col span={24}>
-                            <Form.Item
-                              label={<span>Dị ứng <VoiceDictation onTranscript={(text) => {
-                                const prev = examForm.getFieldValue(['medicalHistory', 'allergies']) || '';
-                                examForm.setFieldValue(['medicalHistory', 'allergies'], prev ? `${prev} ${text}` : text);
-                              }} /></span>}
-                              name={['medicalHistory', 'allergies']}
-                            >
-                              <TextArea
-                                rows={2}
-                                placeholder="Dị ứng thuốc, thực phẩm..."
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col span={24}>
-                            <Form.Item
-                              label="Thuốc đang dùng"
-                              name={['medicalHistory', 'currentMedications']}
-                            >
-                              <TextArea
-                                rows={2}
-                                placeholder="Các thuốc đang sử dụng..."
-                              />
-                            </Form.Item>
-                          </Col>
-                        </Row>
-                      ),
+                      children: <TabMedicalHistory examForm={examForm} />,
                     },
                     {
                       key: 'allergies',
@@ -2589,48 +2101,7 @@ const OPD: React.FC = () => {
                           <WarningOutlined /> Dị ứng
                         </span>
                       ),
-                      children: (
-                        <>
-                          <Alert
-                            title="Dị ứng thuốc / thực phẩm"
-                            description="Ghi nhận các loại dị ứng để hệ thống kiểm tra tương kỵ khi kê đơn. Click 'Thêm dị ứng' để thêm từng mục."
-                            type="warning"
-                            showIcon
-                            style={{ marginBottom: 12 }}
-                          />
-                          <Row gutter={16}>
-                            <Col span={12}>
-                              <Form.Item label="Dị ứng thuốc" name={['medicalHistory', 'drugAllergies']}>
-                                <TextArea
-                                  rows={3}
-                                  placeholder="VD: Penicillin (nổi mày đay), Sulfamide (shock phản vệ)"
-                                />
-                              </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                              <Form.Item label="Dị ứng thức ăn" name={['medicalHistory', 'foodAllergies']}>
-                                <TextArea
-                                  rows={3}
-                                  placeholder="VD: Hải sản, đậu phộng"
-                                />
-                              </Form.Item>
-                            </Col>
-                            <Col span={24}>
-                              <Form.Item label="Mức độ + Phản ứng" name={['medicalHistory', 'allergyReaction']}>
-                                <TextArea
-                                  rows={2}
-                                  placeholder="VD: Độ 1-4, biểu hiện: mày đay, khó thở, shock..."
-                                />
-                              </Form.Item>
-                            </Col>
-                            <Col span={24}>
-                              <Form.Item label="Ghi chú dị ứng khác" name={['medicalHistory', 'allergies']}>
-                                <TextArea rows={2} placeholder="Dị ứng khác..." />
-                              </Form.Item>
-                            </Col>
-                          </Row>
-                        </>
-                      ),
+                      children: <TabAllergies />,
                     },
                     {
                       key: 'comorbidities',
@@ -2640,75 +2111,10 @@ const OPD: React.FC = () => {
                         </span>
                       ),
                       children: (
-                        <>
-                          <Alert
-                            title="Bệnh kèm theo / Tiền sử bệnh"
-                            description="Ghi các bệnh lý đồng mắc (đái tháo đường, THA, hen, tim mạch...) để hệ thống tính tương kỵ + chống chỉ định."
-                            type="info"
-                            showIcon
-                            style={{ marginBottom: 12 }}
-                          />
-                          <Space style={{ marginBottom: 12 }} wrap>
-                            <Input
-                              placeholder="Mã ICD hoặc tên bệnh"
-                              style={{ width: 280 }}
-                              id="comorbidity-code-input"
-                            />
-                            <Input
-                              placeholder="Ghi chú (tùy chọn)"
-                              style={{ width: 280 }}
-                              id="comorbidity-note-input"
-                            />
-                            <Button
-                              type="primary"
-                              icon={<PlusOutlined />}
-                              onClick={() => {
-                                const codeEl = document.getElementById('comorbidity-code-input') as HTMLInputElement;
-                                const noteEl = document.getElementById('comorbidity-note-input') as HTMLInputElement;
-                                if (codeEl?.value) {
-                                  setComorbidities(prev => [...prev, {
-                                    code: codeEl.value,
-                                    name: codeEl.value,
-                                    note: noteEl?.value,
-                                  }]);
-                                  codeEl.value = '';
-                                  if (noteEl) noteEl.value = '';
-                                }
-                              }}
-                            >
-                              Thêm
-                            </Button>
-                          </Space>
-                          <Table<{ code: string; name: string; note?: string }>
-                            rowKey={(_, idx) => String(idx)}
-                            dataSource={comorbidities}
-                            pagination={false}
-                            size="small"
-                            columns={[
-                              { title: 'Mã ICD / Tên', dataIndex: 'code' },
-                              { title: 'Ghi chú', dataIndex: 'note' },
-                              {
-                                title: '',
-                                width: 60,
-                                render: (_, _r, idx) => (
-                                  <Button
-                                    size="small"
-                                    danger
-                                    icon={<DeleteOutlined />}
-                                    onClick={() => setComorbidities(prev => prev.filter((_, i) => i !== idx))}
-                                  />
-                                ),
-                              },
-                            ]}
-                          />
-                          <Form.Item
-                            label="Tiền sử bệnh tổng hợp (mô tả)"
-                            name={['medicalHistory', 'comorbidityNote']}
-                            style={{ marginTop: 16 }}
-                          >
-                            <TextArea rows={3} placeholder="Mô tả tổng hợp tiền sử bệnh nếu cần..." />
-                          </Form.Item>
-                        </>
+                        <TabComorbidities
+                          comorbidities={comorbidities}
+                          setComorbidities={setComorbidities}
+                        />
                       ),
                     },
                     {
@@ -2718,119 +2124,7 @@ const OPD: React.FC = () => {
                           <MedicineBoxOutlined /> Khám lâm sàng
                         </span>
                       ),
-                      children: (
-                        <Row gutter={16}>
-                          <Col span={24}>
-                            <Form.Item
-                              label="Toàn thân"
-                              name={['physicalExamination', 'generalAppearance']}
-                              getValueFromEvent={(v: string) => v}
-                            >
-                              <ClinicalTermSelector
-                                category="Sign"
-                                bodySystem="General"
-                                placeholder="Ghi thêm triệu chứng toàn thân..."
-                                maxHeight={120}
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col span={24}>
-                            <Form.Item
-                              label="Tim mạch"
-                              name={['physicalExamination', 'cardiovascular']}
-                              getValueFromEvent={(v: string) => v}
-                            >
-                              <ClinicalTermSelector
-                                category="Sign"
-                                bodySystem="Cardiovascular"
-                                placeholder="Ghi thêm khám tim mạch..."
-                                maxHeight={120}
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col span={24}>
-                            <Form.Item
-                              label="Hô hấp"
-                              name={['physicalExamination', 'respiratory']}
-                              getValueFromEvent={(v: string) => v}
-                            >
-                              <ClinicalTermSelector
-                                category="Sign"
-                                bodySystem="Respiratory"
-                                placeholder="Ghi thêm khám hô hấp..."
-                                maxHeight={120}
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col span={24}>
-                            <Form.Item
-                              label="Tiêu hóa"
-                              name={['physicalExamination', 'gastrointestinal']}
-                              getValueFromEvent={(v: string) => v}
-                            >
-                              <ClinicalTermSelector
-                                category="Sign"
-                                bodySystem="GI"
-                                placeholder="Ghi thêm khám tiêu hóa..."
-                                maxHeight={120}
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col span={24}>
-                            <Form.Item
-                              label="Thần kinh"
-                              name={['physicalExamination', 'neurological']}
-                              getValueFromEvent={(v: string) => v}
-                            >
-                              <ClinicalTermSelector
-                                category="Sign"
-                                bodySystem="Neuro"
-                                placeholder="Ghi thêm khám thần kinh..."
-                                maxHeight={120}
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col span={24}>
-                            <Form.Item
-                              label={<span>Cơ xương khớp <VoiceDictation onTranscript={(text) => {
-                                const prev = examForm.getFieldValue(['physicalExamination', 'musculoskeletal']) || '';
-                                examForm.setFieldValue(['physicalExamination', 'musculoskeletal'], prev ? `${prev} ${text}` : text);
-                              }} /></span>}
-                              name={['physicalExamination', 'musculoskeletal']}
-                            >
-                              <TextArea
-                                rows={2}
-                                placeholder="Khám cơ xương khớp..."
-                              />
-                            </Form.Item>
-                          </Col>
-                          <Col span={24}>
-                            <Form.Item
-                              label={<span>Da <VoiceDictation onTranscript={(text) => {
-                                const prev = examForm.getFieldValue(['physicalExamination', 'skin']) || '';
-                                examForm.setFieldValue(['physicalExamination', 'skin'], prev ? `${prev} ${text}` : text);
-                              }} /></span>}
-                              name={['physicalExamination', 'skin']}
-                            >
-                              <TextArea rows={2} placeholder="Khám da..." />
-                            </Form.Item>
-                          </Col>
-                          <Col span={24}>
-                            <Form.Item
-                              label={<span>Khác <VoiceDictation onTranscript={(text) => {
-                                const prev = examForm.getFieldValue(['physicalExamination', 'other']) || '';
-                                examForm.setFieldValue(['physicalExamination', 'other'], prev ? `${prev} ${text}` : text);
-                              }} /></span>}
-                              name={['physicalExamination', 'other']}
-                            >
-                              <TextArea
-                                rows={2}
-                                placeholder="Các khám khác..."
-                              />
-                            </Form.Item>
-                          </Col>
-                        </Row>
-                      ),
+                      children: <TabPhysicalExam examForm={examForm} />,
                     },
                     {
                       key: 'diagnosis',
