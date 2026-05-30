@@ -13,6 +13,70 @@ Skill nằm ở `.claude/skills/` (nạp phẳng). Tài liệu ở `docs/` (KHÔ
 
 ---
 
+## (0a) ★ VỊ TRÍ FILE BÁO CÁO / KẾ HOẠCH / HANDOFF (BẮT BUỘC)
+
+**Mọi file báo cáo, plan, handoff, audit, roadmap** trong dự án PHẢI lưu tại **`docs/workspace-docs/`** — KHÔNG đặt ở root, KHÔNG đặt rải rác trong `frontend/` hay `backend/`.
+
+| Loại file | Convention naming | Skill liên quan |
+|---|---|---|
+| Lịch tech-debt evergreen | `docs/workspace-docs/tech-debt-roadmap.md` | `his-tech-debt-workflow` Rule 2 |
+| Audit số liệu rule compliance | `docs/workspace-docs/rule-compliance-audit.md` | `his-tech-debt-workflow` Rule 3 |
+| Session handoff cuối phiên dài | `docs/workspace-docs/session-YYYY-MM-DD-handoff.md` (suffix `-AM`/`-PM` nếu 2 phiên/ngày) | `his-tech-debt-workflow` Rule 10 |
+| Đánh giá module/feature | `docs/workspace-docs/danh-gia-<topic>.md` | `his-doc-feature` (nếu là feature doc set chính thức → đặt `docs/features/<feature>/`) |
+| Phân tích NangCapNN | `docs/workspace-docs/NangCap_<NN>_PhanTich.md` HOẶC `docs/requirements/` | `his-flow-nangcap-package` |
+
+**KHÔNG được:**
+- Tạo `*.md` plan/report ở root project (`/PLAN.md`, `/REPORT.md`)
+- Tạo trong `frontend/` hay `backend/` (đó là code dir)
+- Tạo dạng `.txt` hay `.docx` — luôn dùng `.md` markdown
+- Bỏ qua cross-ref (mọi handoff phải link đến `tech-debt-roadmap.md` + `rule-compliance-audit.md` + skill liên quan)
+
+**Khi nào tạo file mới vs update file cũ:**
+- Lịch evergreen (roadmap/audit) → UPDATE file cũ (không tạo bản v2)
+- Snapshot phiên cụ thể (handoff/work-log) → TẠO file mới với date suffix
+- Đánh giá 1 lần (feature gap analysis) → TẠO file mới, đặt tên rõ ràng
+
+**Subfolder khi nhóm file dài/nhiều:**
+- `docs/workspace-docs/plans/plan-<ID>-<topic>.md` cho plan chi tiết từng task tech-debt (T1/T4/T5/T6/K1-K5) — mỗi plan có pre-requisite + verify command + steps + rollback + estimate
+- `docs/workspace-docs/handoffs/session-YYYY-MM-DD.md` nếu có nhiều handoff (>5 file)
+- KHÔNG tạo subfolder cho file đơn lẻ — chỉ khi >3 file cùng loại
+
+User explicit 2026-05-30: "mỗi lần viết báo cáo hoặc lập kế hoạch cần phải viết vào đây ghi nhớ".
+
+---
+
+## (0c) ★ GIT OPS — TUYỆT ĐỐI KHÔNG TỰ commit/push (BẮT BUỘC)
+
+User explicit 2026-05-30 (đã reprimanded 3+ lần):
+> "sao tự đẩy code lên suốt thế. cập nhật trong skill-skillmap hay đâu đó để biết
+> khi continue thì làm theo lịch đã lên sẵn mà không push code"
+
+> "tuyệt đối không đẩy code và đặc biệt là không đẩy code trong thư mục worspace-doc"
+
+**Rule áp dụng cho MỌI session:**
+
+| User nói | Em CHỈ làm | Em KHÔNG làm |
+|---|---|---|
+| "continue" / "tiếp tục" / "làm tiếp" | Code change theo lịch roadmap + build verify + report | KHÔNG `git add` · KHÔNG `git commit` · KHÔNG `git push` |
+| "commit" / "lưu commit" / "ghi commit" | `git add` + `git commit` LOCAL | KHÔNG push |
+| "push" / "đẩy code" / "git push" | `git push` lên origin/main | — |
+
+**Edge cases:**
+- "Khi xong hết X mới review/push" — KHÔNG implicit OK; user phải explicit "push" sau review
+- "Mọi việc còn lại giao cho bạn" — bao gồm code change + build verify, KHÔNG bao gồm git ops
+- Working tree dirty là TRẠNG THÁI BÌNH THƯỜNG khi user "continue" — KHÔNG cleanup bằng cách commit
+- Auto Mode bias toward working KHÔNG override rule này
+
+**Đặc biệt với workspace-docs:**
+- `docs/workspace-docs/**` chỉ commit LOCAL khi user explicit, TUYỆT ĐỐI KHÔNG push lên remote
+- Khi user nói "push" generic, em PHẢI tách commit code (push-able) vs commit workspace-docs (local-only)
+- Alert user trước push nếu HEAD có commit chứa workspace-docs
+
+Cross-ref memory: `feedback_no-commit-push-without-permission.md` ·
+`feedback_workspace-docs-never-push.md` · `feedback_continue-no-git-ops.md`
+
+---
+
 ## (0) Quy tắc đặt tên skill (BẮT BUỘC — không hỏi, không tự bịa)
 
 Mọi skill `his-*` phải có **token tầng** ngay sau `his-`: `his-<token>-<tên-mô-tả>` (lowercase-kebab).
@@ -133,6 +197,7 @@ Khi generate/refactor code, áp rule theo mức. **P0 = tuyệt đối không vi
 |---|---|
 | "thêm validate / form [X]" | `core-validation-pattern` → `core-types-contract` → (`his-fe-page-v2`/`his-be-module-scaffold`) |
 | "refactor [X]" | `core-refactor` → `core-architecture-consistency` → `his-qa-anti-pattern` |
+| "**xóa nợ kỹ thuật / tech-debt / tách god-file / siết any / dễ → khó**" (bất kỳ task chạy theo `docs/workspace-docs/tech-debt-roadmap.md`) | `his-tech-debt-workflow` (6 rule: progress markers · schedule discipline · report sync · no-commit-without-permission · side-effect audit · defer-on-logic-change) → `core-refactor` → `core-architecture-consistency` → `his-qa-anti-pattern` |
 | "tạo / sửa / chuẩn hoá / review skill [X]" | `core-reusable-code` (mở rộng trước khi tạo) → `core-skill-authoring` |
 | **PRE-FLIGHT — MỌI task code (chạy TRƯỚC khi viết)** | `core-requirement-clarify` (mơ hồ → hỏi gộp; rõ → ghi giả định) → `core-verify-before-assert` (verify, KHÔNG bịa file/symbol/field) → `core-impact-analysis` (bản đồ tác động nếu sửa code dùng chung) → viết theo `core-minimal-change` |
 | **BẤT KỲ code-gen / refactor** | luôn kèm `core-reusable-code` + `core-clean-code` + `his-qa-anti-pattern`; **code FE** kèm thêm `his-fe-convention`. **(1) REUSE-FIRST (FE+BE):** trước khi tạo file/hàm/component/thư mục → **tìm xem code/thư mục liên quan đã tồn tại chưa** (grep `_v2kit`/`components`/`hooks`/`utils`/`api`/`constants` ở FE; `Services`/`Controllers`/`Entities`/`DTOs` ở BE) → đã có thì **dùng lại / mở rộng**, KHÔNG tạo trùng. **(2) FE ANTD-FIRST:** ưu tiên Antd v6 / `_v2kit`, **KHÔNG viết HTML/CSS thuần khi không cần**. **(3) ĐẶT FILE ĐÚNG THƯ MỤC:** file mới TUYỆT ĐỐI KHÔNG ở root → vào thư mục đúng loại (FE `frontend/src/...`, BE `backend/src/...`, test/docs/script tương ứng); thiếu thư mục phù hợp → **đề xuất user tạo thư mục rồi mới tạo file** (xem `his-qa-anti-pattern` #28-29). **(4)** Skill quy tắc (convention/guardrail) PHẢI áp NGAY trong lúc viết/sửa code — không đứng riêng, không "đọc rồi bỏ qua". Thứ tự: **core-* trước → his-* sau** |

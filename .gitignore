@@ -76,6 +76,12 @@ Desktop.ini
 *.swo
 *~
 .vscode/settings.json
+.vscode/extensions.json
+.vscode/launch.json
+.vscode/tasks.json
+
+# T1 enum script (tooling 1-lần, plan-T1 đã có snippet sẵn)
+scripts/test-local/
 
 # =========================
 # Misc
