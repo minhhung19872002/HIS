@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -9,10 +10,12 @@ namespace HIS.Infrastructure.Services;
 public class ForensicService : IForensicService
 {
     private readonly HISDbContext _context;
+    private readonly ILogger<ForensicService> _logger;
 
-    public ForensicService(HISDbContext context)
+    public ForensicService(HISDbContext context, ILogger<ForensicService> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     public async Task<List<ForensicCaseDto>> SearchCasesAsync(ForensicCaseSearchDto? filter = null)
@@ -62,7 +65,7 @@ public class ForensicService : IForensicService
                 })
                 .ToListAsync();
         }
-        catch { return new List<ForensicCaseDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "ForensicService thao tác thất bại, trả giá trị mặc định"); return new List<ForensicCaseDto>(); }
     }
 
     public async Task<ForensicCaseDetailDto?> GetCaseByIdAsync(Guid id)
@@ -105,7 +108,7 @@ public class ForensicService : IForensicService
                 }).ToList(),
             };
         }
-        catch { return null; }
+        catch (Exception ex) { _logger.LogWarning(ex, "ForensicService thao tác thất bại, trả giá trị mặc định"); return null; }
     }
 
     public async Task<ForensicCaseDto> CreateCaseAsync(CreateForensicCaseDto dto)
@@ -193,7 +196,7 @@ public class ForensicService : IForensicService
                 })
                 .ToListAsync();
         }
-        catch { return new List<ForensicExaminationDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "ForensicService thao tác thất bại, trả giá trị mặc định"); return new List<ForensicExaminationDto>(); }
     }
 
     public async Task<ForensicExaminationDto> AddExaminationAsync(CreateForensicExaminationDto dto)
@@ -276,7 +279,7 @@ public class ForensicService : IForensicService
                     .ToList(),
             };
         }
-        catch { return new ForensicStatsDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "ForensicService thao tác thất bại, trả giá trị mặc định"); return new ForensicStatsDto(); }
     }
 
     public async Task<byte[]> PrintCertificateAsync(Guid caseId)

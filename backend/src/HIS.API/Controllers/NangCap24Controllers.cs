@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.API.Filters;
 using HIS.Application.DTOs.NangCap24;
 using HIS.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -12,6 +13,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/biometric")]
 [Authorize]
+[TypeFilter(typeof(DomainExceptionFilter))]
 public class BiometricSignatureController : ControllerBase
 {
     private readonly IBiometricSignatureService _service;
@@ -54,6 +56,7 @@ public class BiometricSignatureController : ControllerBase
 // ============================================================
 [ApiController]
 [Route("api/inspector-portal")]
+[TypeFilter(typeof(DomainExceptionFilter))]
 public class BhxhInspectorPortalController : ControllerBase
 {
     private readonly IBhxhInspectorService _service;
@@ -127,6 +130,7 @@ public class BhxhInspectorPortalController : ControllerBase
 [ApiController]
 [Route("api/emr/hl7")]
 [Authorize]
+[TypeFilter(typeof(DomainExceptionFilter))]
 public class EmrHl7ArchiveController : ControllerBase
 {
     private readonly IEmrHl7ArchiveService _service;
@@ -150,6 +154,7 @@ public class EmrHl7ArchiveController : ControllerBase
 [ApiController]
 [Route("api/emr/cloud-sync")]
 [Authorize]
+[TypeFilter(typeof(DomainExceptionFilter))]
 public class EmrCloudSyncController : ControllerBase
 {
     private readonly IEmrCloudSyncService _service;
@@ -187,6 +192,7 @@ public class EmrCloudSyncController : ControllerBase
 [ApiController]
 [Route("api/dicom-autosend")]
 [Authorize]
+[TypeFilter(typeof(DomainExceptionFilter))]
 public class DicomAutoSendController : ControllerBase
 {
     private readonly IDicomAutoSendService _service;
@@ -247,6 +253,7 @@ public class DicomAutoSendController : ControllerBase
 [ApiController]
 [Route("api/hl7-queue")]
 [Authorize]
+[TypeFilter(typeof(DomainExceptionFilter))]
 public class Hl7QueueController : ControllerBase
 {
     private readonly IHl7QueueService _service;
@@ -306,6 +313,7 @@ public class Hl7QueueController : ControllerBase
 [ApiController]
 [Route("api/dicom-study-log")]
 [Authorize]
+[TypeFilter(typeof(DomainExceptionFilter))]
 public class DicomStudyActivityController : ControllerBase
 {
     private readonly IDicomStudyActivityService _service;

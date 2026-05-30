@@ -33,7 +33,7 @@ builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options =>
     {
         // Med-New-3: model-binding failures (malformed JSON, missing required field,
-        // type mismatch...) trả về cùng shape {error, message, field} với Nangcap23ExceptionFilter.
+        // type mismatch...) trả về cùng shape {error, message, field} với DomainExceptionFilter.
         // FE chỉ phải implement 1 error handler — không phải phân biệt ProblemDetails vs custom.
         options.InvalidModelStateResponseFactory = ctx =>
         {

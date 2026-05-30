@@ -7,23 +7,23 @@ using Microsoft.EntityFrameworkCore;
 namespace HIS.API.Filters;
 
 /// <summary>
-/// Map domain exception sang HTTP status code phù hợp cho NangCap23 controllers.
+/// Map domain exception sang HTTP status code phù hợp (dùng chung mọi module, vd NangCap23/NangCap24).
 ///
 ///   ArgumentException            → 400 Bad Request   (DTO validation fail)
-///   InvalidOperationException    → 400 Bad Request   (state machine guard fail)
+///   InvalidOperationException    → 400 Bad Request   (state machine guard fail / xung đột nghiệp vụ)
 ///   KeyNotFoundException         → 404 Not Found     (entity không tồn tại)
 ///   JsonException                → 400 Bad Request   (malformed JSON từ DB hoặc payload)
 ///   DbUpdateException + UNIQUE   → 409 Conflict      (race-condition duplicate)
 ///   DbUpdateException khác       → 500 (log + masked message)
 ///   OperationCanceledException   → 499 Client Closed (user huỷ giữa chừng)
 ///
-/// Filter chỉ apply cho controller có attribute [TypeFilter(typeof(Nangcap23ExceptionFilter))]
+/// Filter chỉ apply cho controller có attribute [TypeFilter(typeof(DomainExceptionFilter))]
 /// — không global để tránh ảnh hưởng module khác.
 /// </summary>
-public sealed class Nangcap23ExceptionFilter : IExceptionFilter
+public sealed class DomainExceptionFilter : IExceptionFilter
 {
-    private readonly ILogger<Nangcap23ExceptionFilter> _logger;
-    public Nangcap23ExceptionFilter(ILogger<Nangcap23ExceptionFilter> logger) => _logger = logger;
+    private readonly ILogger<DomainExceptionFilter> _logger;
+    public DomainExceptionFilter(ILogger<DomainExceptionFilter> logger) => _logger = logger;
 
     public void OnException(ExceptionContext context)
     {
@@ -37,7 +37,7 @@ public sealed class Nangcap23ExceptionFilter : IExceptionFilter
                     field = argEx.ParamName
                 });
                 context.ExceptionHandled = true;
-                _logger.LogInformation("NangCap23 validation: {Msg}", argEx.Message);
+                _logger.LogInformation("Domain validation: {Msg}", argEx.Message);
                 break;
             case InvalidOperationException invEx:
                 context.Result = new BadRequestObjectResult(new
@@ -46,7 +46,7 @@ public sealed class Nangcap23ExceptionFilter : IExceptionFilter
                     message = invEx.Message
                 });
                 context.ExceptionHandled = true;
-                _logger.LogInformation("NangCap23 state guard: {Msg}", invEx.Message);
+                _logger.LogInformation("Domain state guard: {Msg}", invEx.Message);
                 break;
             case KeyNotFoundException kEx:
                 context.Result = new NotFoundObjectResult(new
@@ -63,7 +63,7 @@ public sealed class Nangcap23ExceptionFilter : IExceptionFilter
                     message = "Dữ liệu JSON không hợp lệ: " + jsEx.Message
                 });
                 context.ExceptionHandled = true;
-                _logger.LogInformation("NangCap23 invalid JSON: {Msg}", jsEx.Message);
+                _logger.LogInformation("Domain invalid JSON: {Msg}", jsEx.Message);
                 break;
             case DbUpdateException dbEx when IsUniqueViolation(dbEx):
                 context.Result = new ConflictObjectResult(new
@@ -72,13 +72,13 @@ public sealed class Nangcap23ExceptionFilter : IExceptionFilter
                     message = "Bản ghi này đã tồn tại. Vui lòng refresh danh sách."
                 });
                 context.ExceptionHandled = true;
-                _logger.LogWarning("NangCap23 unique violation: {Msg}", dbEx.InnerException?.Message);
+                _logger.LogWarning("Domain unique violation: {Msg}", dbEx.InnerException?.Message);
                 break;
             case OperationCanceledException:
                 // 499 Client Closed Request (Nginx convention; ASP.NET không có sẵn enum)
                 context.Result = new StatusCodeResult(499);
                 context.ExceptionHandled = true;
-                _logger.LogInformation("NangCap23 request cancelled by client");
+                _logger.LogInformation("Domain request cancelled by client");
                 break;
             // Default → middleware error handler chung xử lý + log
         }

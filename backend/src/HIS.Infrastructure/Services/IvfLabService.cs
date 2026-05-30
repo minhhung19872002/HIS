@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -9,10 +10,12 @@ namespace HIS.Infrastructure.Services;
 public class IvfLabService : IIvfLabService
 {
     private readonly HISDbContext _context;
+    private readonly ILogger<IvfLabService> _logger;
 
-    public IvfLabService(HISDbContext context)
+    public IvfLabService(HISDbContext context, ILogger<IvfLabService> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     private static readonly Dictionary<int, string> CycleStatusNames = new()
@@ -86,7 +89,7 @@ public class IvfLabService : IIvfLabService
                     CycleCount = c.Cycles.Count(cy => !cy.IsDeleted)
                 }).ToListAsync();
         }
-        catch { return new List<IvfCoupleDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new List<IvfCoupleDto>(); }
     }
 
     public async Task<IvfCoupleDetailDto?> GetCoupleByIdAsync(Guid id)
@@ -136,7 +139,7 @@ public class IvfLabService : IIvfLabService
                 }).ToList()
             };
         }
-        catch { return null; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return null; }
     }
 
     public async Task<IvfCoupleDto> SaveCoupleAsync(SaveIvfCoupleDto dto)
@@ -166,7 +169,7 @@ public class IvfLabService : IIvfLabService
             await _context.SaveChangesAsync();
             return new IvfCoupleDto { Id = entity.Id, WifePatientId = entity.WifePatientId, HusbandPatientId = entity.HusbandPatientId, InfertilityDurationMonths = entity.InfertilityDurationMonths, InfertilityCause = entity.InfertilityCause, Notes = entity.Notes };
         }
-        catch { return new IvfCoupleDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfCoupleDto(); }
     }
 
     // ---- Cycles ----
@@ -195,7 +198,7 @@ public class IvfLabService : IIvfLabService
                     TransferCount = c.Transfers.Count(t => !t.IsDeleted)
                 }).ToListAsync();
         }
-        catch { return new List<IvfCycleDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new List<IvfCycleDto>(); }
     }
 
     public async Task<IvfCycleDetailDto?> GetCycleByIdAsync(Guid id)
@@ -276,7 +279,7 @@ public class IvfLabService : IIvfLabService
                 }).ToList()
             };
         }
-        catch { return null; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return null; }
     }
 
     public async Task<IvfCycleDto> SaveCycleAsync(SaveIvfCycleDto dto)
@@ -312,7 +315,7 @@ public class IvfLabService : IIvfLabService
                 Protocol = entity.Protocol, Notes = entity.Notes
             };
         }
-        catch { return new IvfCycleDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfCycleDto(); }
     }
 
     public async Task<bool> UpdateCycleStatusAsync(Guid id, int status)
@@ -326,7 +329,7 @@ public class IvfLabService : IIvfLabService
             await _context.SaveChangesAsync();
             return true;
         }
-        catch { return false; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return false; }
     }
 
     // ---- OvumPickup ----
@@ -367,7 +370,7 @@ public class IvfLabService : IIvfLabService
                 PerformedById = entity.PerformedById, Notes = entity.Notes
             };
         }
-        catch { return new IvfOvumPickupDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfOvumPickupDto(); }
     }
 
     public async Task<IvfOvumPickupDto?> GetOvumPickupAsync(Guid cycleId)
@@ -391,7 +394,7 @@ public class IvfLabService : IIvfLabService
                 Notes = e.Notes
             };
         }
-        catch { return null; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return null; }
     }
 
     // ---- Embryos ----
@@ -416,7 +419,7 @@ public class IvfLabService : IIvfLabService
                     Notes = e.Notes, ImageUrl = e.ImageUrl
                 }).ToListAsync();
         }
-        catch { return new List<IvfEmbryoDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new List<IvfEmbryoDto>(); }
     }
 
     public async Task<IvfEmbryoDto> SaveEmbryoAsync(SaveIvfEmbryoDto dto)
@@ -456,7 +459,7 @@ public class IvfLabService : IIvfLabService
                 Notes = entity.Notes, ImageUrl = entity.ImageUrl
             };
         }
-        catch { return new IvfEmbryoDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfEmbryoDto(); }
     }
 
     public async Task<bool> UpdateEmbryoStatusAsync(Guid id, int status)
@@ -470,7 +473,7 @@ public class IvfLabService : IIvfLabService
             await _context.SaveChangesAsync();
             return true;
         }
-        catch { return false; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return false; }
     }
 
     public async Task<bool> FreezeEmbryoAsync(Guid id, FreezeIvfEmbryoDto dto)
@@ -490,7 +493,7 @@ public class IvfLabService : IIvfLabService
             await _context.SaveChangesAsync();
             return true;
         }
-        catch { return false; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return false; }
     }
 
     public async Task<bool> ThawEmbryoAsync(Guid id, ThawIvfEmbryoDto dto)
@@ -505,7 +508,7 @@ public class IvfLabService : IIvfLabService
             await _context.SaveChangesAsync();
             return true;
         }
-        catch { return false; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return false; }
     }
 
     // ---- Transfer ----
@@ -547,7 +550,7 @@ public class IvfLabService : IIvfLabService
                 ResultStatusName = ResultStatusNames.GetValueOrDefault(entity.ResultStatus, "")
             };
         }
-        catch { return new IvfTransferDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfTransferDto(); }
     }
 
     public async Task<List<IvfTransferDto>> GetTransfersAsync(Guid cycleId)
@@ -572,7 +575,7 @@ public class IvfLabService : IIvfLabService
                     ResultStatusName = ResultStatusNames.GetValueOrDefault(t.ResultStatus, "")
                 }).ToListAsync();
         }
-        catch { return new List<IvfTransferDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new List<IvfTransferDto>(); }
     }
 
     public async Task<bool> UpdateTransferResultAsync(Guid id, int resultStatus)
@@ -586,7 +589,7 @@ public class IvfLabService : IIvfLabService
             await _context.SaveChangesAsync();
             return true;
         }
-        catch { return false; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return false; }
     }
 
     // ---- SpermBank ----
@@ -631,7 +634,7 @@ public class IvfLabService : IIvfLabService
                     StorageFee = s.StorageFee, Notes = s.Notes
                 }).ToListAsync();
         }
-        catch { return new List<IvfSpermSampleDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new List<IvfSpermSampleDto>(); }
     }
 
     public async Task<IvfSpermSampleDto> SaveSpermSampleAsync(SaveIvfSpermSampleDto dto)
@@ -678,7 +681,7 @@ public class IvfLabService : IIvfLabService
                 StorageFee = entity.StorageFee, Notes = entity.Notes
             };
         }
-        catch { return new IvfSpermSampleDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfSpermSampleDto(); }
     }
 
     public async Task<bool> UpdateSpermStatusAsync(Guid id, int status)
@@ -692,7 +695,7 @@ public class IvfLabService : IIvfLabService
             await _context.SaveChangesAsync();
             return true;
         }
-        catch { return false; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return false; }
     }
 
     public async Task<List<IvfSpermSampleDto>> GetExpiringStorageAsync(int daysAhead = 30)
@@ -717,7 +720,7 @@ public class IvfLabService : IIvfLabService
                     StorageFee = s.StorageFee
                 }).ToListAsync();
         }
-        catch { return new List<IvfSpermSampleDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new List<IvfSpermSampleDto>(); }
     }
 
     // ---- Biopsy ----
@@ -745,7 +748,7 @@ public class IvfLabService : IIvfLabService
                     Result = b.Result, Notes = b.Notes
                 }).ToListAsync();
         }
-        catch { return new List<IvfBiopsyDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new List<IvfBiopsyDto>(); }
     }
 
     public async Task<IvfBiopsyDto> SaveBiopsyAsync(SaveIvfBiopsyDto dto)
@@ -783,7 +786,7 @@ public class IvfLabService : IIvfLabService
                 Result = entity.Result, Notes = entity.Notes
             };
         }
-        catch { return new IvfBiopsyDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfBiopsyDto(); }
     }
 
     // ---- Dashboard & Reports ----
@@ -818,7 +821,7 @@ public class IvfLabService : IIvfLabService
                 CompletedCycles = completedCycles
             };
         }
-        catch { return new IvfDashboardDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfDashboardDto(); }
     }
 
     public async Task<IvfDailyReportDto> GetDailyReportAsync(string? date = null)
@@ -849,6 +852,6 @@ public class IvfLabService : IIvfLabService
 
             return new IvfDailyReportDto { Date = reportDate.ToString("yyyy-MM-dd"), Items = items };
         }
-        catch { return new IvfDailyReportDto { Date = date }; }
+        catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new IvfDailyReportDto { Date = date }; }
     }
 }

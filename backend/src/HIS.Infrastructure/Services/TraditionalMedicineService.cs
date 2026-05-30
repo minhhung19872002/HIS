@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -9,10 +10,12 @@ namespace HIS.Infrastructure.Services;
 public class TraditionalMedicineService : ITraditionalMedicineService
 {
     private readonly HISDbContext _context;
+    private readonly ILogger<TraditionalMedicineService> _logger;
 
-    public TraditionalMedicineService(HISDbContext context)
+    public TraditionalMedicineService(HISDbContext context, ILogger<TraditionalMedicineService> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     public async Task<List<TraditionalMedicineTreatmentDto>> SearchTreatmentsAsync(TraditionalMedicineSearchDto? filter = null)
@@ -63,7 +66,7 @@ public class TraditionalMedicineService : ITraditionalMedicineService
                 })
                 .ToListAsync();
         }
-        catch { return new List<TraditionalMedicineTreatmentDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "TraditionalMedicineService thao tác thất bại, trả giá trị mặc định"); return new List<TraditionalMedicineTreatmentDto>(); }
     }
 
     public async Task<TraditionalMedicineTreatmentDetailDto?> GetByIdAsync(Guid id)
@@ -106,7 +109,7 @@ public class TraditionalMedicineService : ITraditionalMedicineService
                 }).ToList(),
             };
         }
-        catch { return null; }
+        catch (Exception ex) { _logger.LogWarning(ex, "TraditionalMedicineService thao tác thất bại, trả giá trị mặc định"); return null; }
     }
 
     public async Task<TraditionalMedicineTreatmentDto> CreateTreatmentAsync(CreateTraditionalMedicineTreatmentDto dto)
@@ -233,7 +236,7 @@ public class TraditionalMedicineService : ITraditionalMedicineService
                 })
                 .ToListAsync();
         }
-        catch { return new List<HerbalPrescriptionDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "TraditionalMedicineService thao tác thất bại, trả giá trị mặc định"); return new List<HerbalPrescriptionDto>(); }
     }
 
     public async Task<TraditionalMedicineStatsDto> GetStatsAsync()
@@ -251,7 +254,7 @@ public class TraditionalMedicineService : ITraditionalMedicineService
                     .ToList(),
             };
         }
-        catch { return new TraditionalMedicineStatsDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "TraditionalMedicineService thao tác thất bại, trả giá trị mặc định"); return new TraditionalMedicineStatsDto(); }
     }
 
     public async Task<TraditionalMedicineTreatmentDto> CompleteTreatmentAsync(Guid id)

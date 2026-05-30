@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -9,10 +10,12 @@ namespace HIS.Infrastructure.Services;
 public class EnvironmentalHealthService : IEnvironmentalHealthService
 {
     private readonly HISDbContext _context;
+    private readonly ILogger<EnvironmentalHealthService> _logger;
 
-    public EnvironmentalHealthService(HISDbContext context)
+    public EnvironmentalHealthService(HISDbContext context, ILogger<EnvironmentalHealthService> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     public async Task<List<WasteRecordDto>> SearchWasteRecordsAsync(WasteRecordSearchDto? filter = null)
@@ -62,7 +65,7 @@ public class EnvironmentalHealthService : IEnvironmentalHealthService
                 })
                 .ToListAsync();
         }
-        catch { return new List<WasteRecordDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "EnvironmentalHealthService thao tác thất bại, trả giá trị mặc định"); return new List<WasteRecordDto>(); }
     }
 
     public async Task<WasteRecordDto> CreateWasteRecordAsync(CreateWasteRecordDto dto)
@@ -155,7 +158,7 @@ public class EnvironmentalHealthService : IEnvironmentalHealthService
                 })
                 .ToListAsync();
         }
-        catch { return new List<EnvironmentalMonitoringDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "EnvironmentalHealthService thao tác thất bại, trả giá trị mặc định"); return new List<EnvironmentalMonitoringDto>(); }
     }
 
     public async Task<EnvironmentalMonitoringDto> CreateMonitoringAsync(CreateEnvironmentalMonitoringDto dto)
@@ -213,7 +216,7 @@ public class EnvironmentalHealthService : IEnvironmentalHealthService
                     .ToList(),
             };
         }
-        catch { return new WasteStatsDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "EnvironmentalHealthService thao tác thất bại, trả giá trị mặc định"); return new WasteStatsDto(); }
     }
 
     public async Task<MonitoringStatsDto> GetMonitoringStatsAsync()
@@ -234,7 +237,7 @@ public class EnvironmentalHealthService : IEnvironmentalHealthService
                     .ToList(),
             };
         }
-        catch { return new MonitoringStatsDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "EnvironmentalHealthService thao tác thất bại, trả giá trị mặc định"); return new MonitoringStatsDto(); }
     }
 
     public async Task<BiosafetyStatusDto> GetBiosafetyStatusAsync()
@@ -267,6 +270,6 @@ public class EnvironmentalHealthService : IEnvironmentalHealthService
                 OverallStatus = overallStatus,
             };
         }
-        catch { return new BiosafetyStatusDto { OverallStatus = "unknown" }; }
+        catch (Exception ex) { _logger.LogWarning(ex, "EnvironmentalHealthService thao tác thất bại, trả giá trị mặc định"); return new BiosafetyStatusDto { OverallStatus = "unknown" }; }
     }
 }

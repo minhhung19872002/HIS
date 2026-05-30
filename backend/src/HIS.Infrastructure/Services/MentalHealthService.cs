@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -9,10 +10,12 @@ namespace HIS.Infrastructure.Services;
 public class MentalHealthService : IMentalHealthService
 {
     private readonly HISDbContext _context;
+    private readonly ILogger<MentalHealthService> _logger;
 
-    public MentalHealthService(HISDbContext context)
+    public MentalHealthService(HISDbContext context, ILogger<MentalHealthService> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     public async Task<List<MentalHealthCaseDto>> SearchCasesAsync(MentalHealthCaseSearchDto? filter = null)
@@ -69,7 +72,7 @@ public class MentalHealthService : IMentalHealthService
                 })
                 .ToListAsync();
         }
-        catch { return new List<MentalHealthCaseDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "MentalHealthService thao tác thất bại, trả giá trị mặc định"); return new List<MentalHealthCaseDto>(); }
     }
 
     public async Task<MentalHealthCaseDetailDto?> GetByIdAsync(Guid id)
@@ -118,7 +121,7 @@ public class MentalHealthService : IMentalHealthService
                 }).ToList(),
             };
         }
-        catch { return null; }
+        catch (Exception ex) { _logger.LogWarning(ex, "MentalHealthService thao tác thất bại, trả giá trị mặc định"); return null; }
     }
 
     public async Task<MentalHealthCaseDto> CreateCaseAsync(CreateMentalHealthCaseDto dto)
@@ -239,7 +242,7 @@ public class MentalHealthService : IMentalHealthService
                 })
                 .ToListAsync();
         }
-        catch { return new List<PsychiatricAssessmentDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "MentalHealthService thao tác thất bại, trả giá trị mặc định"); return new List<PsychiatricAssessmentDto>(); }
     }
 
     public async Task<MentalHealthStatsDto> GetStatsAsync()
@@ -263,7 +266,7 @@ public class MentalHealthService : IMentalHealthService
                     .ToList(),
             };
         }
-        catch { return new MentalHealthStatsDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "MentalHealthService thao tác thất bại, trả giá trị mặc định"); return new MentalHealthStatsDto(); }
     }
 
     public async Task<List<MentalHealthCaseDto>> GetOverdueFollowUpsAsync()
@@ -288,7 +291,7 @@ public class MentalHealthService : IMentalHealthService
                 })
                 .ToListAsync();
         }
-        catch { return new List<MentalHealthCaseDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "MentalHealthService thao tác thất bại, trả giá trị mặc định"); return new List<MentalHealthCaseDto>(); }
     }
 
     public Task<ScreeningResultDto> ScreenDepressionAsync(Guid caseId, int phq9Score)

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -9,10 +10,12 @@ namespace HIS.Infrastructure.Services;
 public class ReproductiveHealthService : IReproductiveHealthService
 {
     private readonly HISDbContext _context;
+    private readonly ILogger<ReproductiveHealthService> _logger;
 
-    public ReproductiveHealthService(HISDbContext context)
+    public ReproductiveHealthService(HISDbContext context, ILogger<ReproductiveHealthService> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     public async Task<List<PrenatalRecordDto>> SearchPrenatalAsync(PrenatalSearchDto? filter = null)
@@ -69,7 +72,7 @@ public class ReproductiveHealthService : IReproductiveHealthService
                 })
                 .ToListAsync();
         }
-        catch { return new List<PrenatalRecordDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "ReproductiveHealthService thao tác thất bại, trả giá trị mặc định"); return new List<PrenatalRecordDto>(); }
     }
 
     public async Task<PrenatalRecordDetailDto?> GetPrenatalByIdAsync(Guid id)
@@ -107,7 +110,7 @@ public class ReproductiveHealthService : IReproductiveHealthService
                 Notes = r.Notes,
             };
         }
-        catch { return null; }
+        catch (Exception ex) { _logger.LogWarning(ex, "ReproductiveHealthService thao tác thất bại, trả giá trị mặc định"); return null; }
     }
 
     public async Task<PrenatalRecordDto> CreatePrenatalAsync(CreatePrenatalRecordDto dto)
@@ -213,7 +216,7 @@ public class ReproductiveHealthService : IReproductiveHealthService
                 })
                 .ToListAsync();
         }
-        catch { return new List<FamilyPlanningRecordDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "ReproductiveHealthService thao tác thất bại, trả giá trị mặc định"); return new List<FamilyPlanningRecordDto>(); }
     }
 
     public async Task<FamilyPlanningRecordDto> CreateFamilyPlanningAsync(CreateFamilyPlanningRecordDto dto)
@@ -282,7 +285,7 @@ public class ReproductiveHealthService : IReproductiveHealthService
                     .ToList(),
             };
         }
-        catch { return new ReproductiveHealthStatsDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "ReproductiveHealthService thao tác thất bại, trả giá trị mặc định"); return new ReproductiveHealthStatsDto(); }
     }
 
     public async Task<List<PrenatalRecordDto>> GetHighRiskPregnanciesAsync()
@@ -306,6 +309,6 @@ public class ReproductiveHealthService : IReproductiveHealthService
                 })
                 .ToListAsync();
         }
-        catch { return new List<PrenatalRecordDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "ReproductiveHealthService thao tác thất bại, trả giá trị mặc định"); return new List<PrenatalRecordDto>(); }
     }
 }

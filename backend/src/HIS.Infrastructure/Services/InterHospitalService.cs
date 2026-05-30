@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -9,10 +10,12 @@ namespace HIS.Infrastructure.Services;
 public class InterHospitalService : IInterHospitalService
 {
     private readonly HISDbContext _context;
+    private readonly ILogger<InterHospitalService> _logger;
 
-    public InterHospitalService(HISDbContext context)
+    public InterHospitalService(HISDbContext context, ILogger<InterHospitalService> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     public async Task<List<InterHospitalRequestDto>> SearchRequestsAsync(InterHospitalRequestSearchDto? filter = null)
@@ -50,7 +53,7 @@ public class InterHospitalService : IInterHospitalService
                 .Select(r => MapToDto(r))
                 .ToListAsync();
         }
-        catch { return new List<InterHospitalRequestDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "InterHospitalService thao tác thất bại, trả giá trị mặc định"); return new List<InterHospitalRequestDto>(); }
     }
 
     public async Task<InterHospitalRequestDto?> GetByIdAsync(Guid id)
@@ -61,7 +64,7 @@ public class InterHospitalService : IInterHospitalService
             if (r == null) return null;
             return MapToDto(r);
         }
-        catch { return null; }
+        catch (Exception ex) { _logger.LogWarning(ex, "InterHospitalService thao tác thất bại, trả giá trị mặc định"); return null; }
     }
 
     public async Task<InterHospitalRequestDto> CreateRequestAsync(CreateInterHospitalRequestDto dto)
@@ -121,7 +124,7 @@ public class InterHospitalService : IInterHospitalService
                 .Select(r => MapToDto(r))
                 .ToListAsync();
         }
-        catch { return new List<InterHospitalRequestDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "InterHospitalService thao tác thất bại, trả giá trị mặc định"); return new List<InterHospitalRequestDto>(); }
     }
 
     public async Task<InterHospitalStatsDto> GetStatsAsync()
@@ -144,7 +147,7 @@ public class InterHospitalService : IInterHospitalService
                     .ToList(),
             };
         }
-        catch { return new InterHospitalStatsDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "InterHospitalService thao tác thất bại, trả giá trị mặc định"); return new InterHospitalStatsDto(); }
     }
 
     private static InterHospitalRequestDto MapToDto(InterHospitalRequest r) => new()

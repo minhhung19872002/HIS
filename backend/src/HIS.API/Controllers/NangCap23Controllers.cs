@@ -14,7 +14,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/national-prescription-gateway")]
 [Authorize]
-[TypeFilter(typeof(Nangcap23ExceptionFilter))]
+[TypeFilter(typeof(DomainExceptionFilter))]
 public class NationalPrescriptionGatewayController : ControllerBase
 {
     private readonly INationalPrescriptionGatewayService _svc;
@@ -80,7 +80,7 @@ public class NationalPrescriptionGatewayController : ControllerBase
 [ApiController]
 [Route("api/national-pharmacy")]
 [Authorize]
-[TypeFilter(typeof(Nangcap23ExceptionFilter))]
+[TypeFilter(typeof(DomainExceptionFilter))]
 public class NationalPharmacyController : ControllerBase
 {
     private readonly INationalPharmacyGatewayService _svc;
@@ -127,7 +127,7 @@ public class NationalPharmacyController : ControllerBase
 [ApiController]
 [Route("api/de-an-06")]
 [Authorize]
-[TypeFilter(typeof(Nangcap23ExceptionFilter))]
+[TypeFilter(typeof(DomainExceptionFilter))]
 public class DeAn06Controller : ControllerBase
 {
     private readonly IDeAn06CertificateService _svc;
@@ -227,7 +227,7 @@ public class DeAn06Controller : ControllerBase
 [ApiController]
 [Route("api/linen")]
 [Authorize]
-[TypeFilter(typeof(Nangcap23ExceptionFilter))]
+[TypeFilter(typeof(DomainExceptionFilter))]
 public class LinenManagementController : ControllerBase
 {
     private readonly ILinenManagementService _svc;
@@ -319,7 +319,7 @@ public class LinenManagementController : ControllerBase
 [ApiController]
 [Route("api/functional-diagnostics")]
 [Authorize]
-[TypeFilter(typeof(Nangcap23ExceptionFilter))]
+[TypeFilter(typeof(DomainExceptionFilter))]
 public class FunctionalDiagnosticsController : ControllerBase
 {
     private readonly IFunctionalDiagnosticsService _svc;
@@ -386,7 +386,7 @@ public class FunctionalDiagnosticsController : ControllerBase
 [ApiController]
 [Route("api/zalo-notification")]
 [Authorize]
-[TypeFilter(typeof(Nangcap23ExceptionFilter))]
+[TypeFilter(typeof(DomainExceptionFilter))]
 public class ZaloNotificationController : ControllerBase
 {
     private readonly IZaloNotificationService _svc;
@@ -451,7 +451,7 @@ public class ZaloNotificationController : ControllerBase
 [ApiController]
 [Route("api/quality-dashboard")]
 [Authorize]
-[TypeFilter(typeof(Nangcap23ExceptionFilter))]
+[TypeFilter(typeof(DomainExceptionFilter))]
 public class QualityDashboardController : ControllerBase
 {
     private readonly IQualityDashboardService _svc;

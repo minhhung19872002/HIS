@@ -34,7 +34,7 @@ public class BiometricSignatureService : IBiometricSignatureService
     public async Task<BiometricRegisterBeginResponseDto> BeginRegisterAsync(BiometricRegisterBeginDto dto)
     {
         var patient = await _db.Patients.FirstOrDefaultAsync(p => p.Id == dto.PatientId);
-        if (patient == null) throw new Exception("Bệnh nhân không tồn tại");
+        if (patient == null) throw new KeyNotFoundException("Bệnh nhân không tồn tại");
 
         // Sinh challenge ngẫu nhiên 32 bytes
         var challenge = RandomNumberGenerator.GetBytes(32);
@@ -66,7 +66,7 @@ public class BiometricSignatureService : IBiometricSignatureService
         var existing = await _db.BiometricCredentials
             .FirstOrDefaultAsync(c => c.CredentialId == dto.CredentialId);
         if (existing != null)
-            throw new Exception("Credential đã đăng ký trước đó");
+            throw new InvalidOperationException("Credential đã đăng ký trước đó");
 
         var entity = new BiometricCredential
         {
@@ -119,7 +119,7 @@ public class BiometricSignatureService : IBiometricSignatureService
 
         var list = await creds.ToListAsync();
         if (!list.Any())
-            throw new Exception("Bệnh nhân chưa đăng ký vân tay");
+            throw new KeyNotFoundException("Bệnh nhân chưa đăng ký vân tay");
 
         var challenge = RandomNumberGenerator.GetBytes(32);
 
@@ -331,7 +331,7 @@ public class BhxhInspectorService : IBhxhInspectorService
     public async Task<InspectorAccountDto> CreateAccountAsync(InspectorCreateDto dto, Guid adminUserId)
     {
         if (await _db.BhxhInspectorAccounts.AnyAsync(a => a.Username == dto.Username && !a.IsDeleted))
-            throw new Exception("Tên đăng nhập đã tồn tại");
+            throw new InvalidOperationException("Tên đăng nhập đã tồn tại");
 
         var account = new BhxhInspectorAccount
         {
@@ -592,7 +592,7 @@ public class EmrHl7ArchiveService : IEmrHl7ArchiveService
             .Include(m => m.Patient)
             .Include(m => m.Department)
             .FirstOrDefaultAsync(m => m.Id == request.MedicalRecordId);
-        if (record == null) throw new Exception("Hồ sơ không tồn tại");
+        if (record == null) throw new KeyNotFoundException("Hồ sơ không tồn tại");
 
         var msgCount = 0;
         var sb = new StringBuilder();
@@ -789,7 +789,7 @@ public class EmrCloudSyncService : IEmrCloudSyncService
     public async Task<EmrCloudSyncResponseDto> SyncRecordAsync(EmrCloudSyncRequestDto request, Guid userId)
     {
         var record = await _db.MedicalRecords.FirstOrDefaultAsync(m => m.Id == request.MedicalRecordId);
-        if (record == null) throw new Exception("Hồ sơ không tồn tại");
+        if (record == null) throw new KeyNotFoundException("Hồ sơ không tồn tại");
 
         var response = new EmrCloudSyncResponseDto { MedicalRecordId = record.Id };
 
@@ -1031,7 +1031,7 @@ public class DicomAutoSendService : IDicomAutoSendService
     public async Task<DicomAutoSendRuleDto> UpdateRuleAsync(Guid id, DicomAutoSendRuleCreateDto dto, Guid userId)
     {
         var rule = await _db.DicomAutoSendRules.FirstOrDefaultAsync(r => r.Id == id);
-        if (rule == null) throw new Exception("Rule không tồn tại");
+        if (rule == null) throw new KeyNotFoundException("Rule không tồn tại");
         rule.RuleName = dto.RuleName;
         rule.Modality = dto.Modality;
         rule.SourceAeTitle = dto.SourceAeTitle;
@@ -1063,7 +1063,7 @@ public class DicomAutoSendService : IDicomAutoSendService
     public async Task<DicomTransmissionLogDto> SendStudyAsync(DicomSendRequestDto dto, Guid userId)
     {
         var server = await _db.RemotePacsServers.FirstOrDefaultAsync(s => s.Id == dto.DestinationServerId);
-        if (server == null) throw new Exception("Server đích không tồn tại");
+        if (server == null) throw new KeyNotFoundException("Server đích không tồn tại");
 
         var log = new DicomTransmissionLog
         {
@@ -1328,8 +1328,8 @@ public class Hl7QueueService : IHl7QueueService
     public async Task<Hl7MessageQueueDto> RetryAsync(Guid id, Guid userId)
     {
         var msg = await _db.Hl7MessageQueues.FirstOrDefaultAsync(m => m.Id == id);
-        if (msg == null) throw new Exception("Message không tồn tại");
-        if (msg.Status == "acked") throw new Exception("Message đã ACK, không cần retry");
+        if (msg == null) throw new KeyNotFoundException("Message không tồn tại");
+        if (msg.Status == "acked") throw new InvalidOperationException("Message đã ACK, không cần retry");
 
         msg.Status = "retrying";
         msg.RetryCount++;

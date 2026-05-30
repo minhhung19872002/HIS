@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -9,10 +10,12 @@ namespace HIS.Infrastructure.Services;
 public class PracticeLicenseService : IPracticeLicenseService
 {
     private readonly HISDbContext _context;
+    private readonly ILogger<PracticeLicenseService> _logger;
 
-    public PracticeLicenseService(HISDbContext context)
+    public PracticeLicenseService(HISDbContext context, ILogger<PracticeLicenseService> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     public async Task<List<PracticeLicenseDto>> SearchLicensesAsync(PracticeLicenseSearchDto? filter = null)
@@ -66,7 +69,7 @@ public class PracticeLicenseService : IPracticeLicenseService
                 })
                 .ToListAsync();
         }
-        catch { return new List<PracticeLicenseDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "PracticeLicenseService thao tác thất bại, trả giá trị mặc định"); return new List<PracticeLicenseDto>(); }
     }
 
     public async Task<PracticeLicenseDetailDto?> GetByIdAsync(Guid id)
@@ -101,7 +104,7 @@ public class PracticeLicenseService : IPracticeLicenseService
                 DaysUntilExpiry = daysUntilExpiry,
             };
         }
-        catch { return null; }
+        catch (Exception ex) { _logger.LogWarning(ex, "PracticeLicenseService thao tác thất bại, trả giá trị mặc định"); return null; }
     }
 
     public async Task<PracticeLicenseDto> CreateLicenseAsync(CreatePracticeLicenseDto dto)
@@ -179,7 +182,7 @@ public class PracticeLicenseService : IPracticeLicenseService
                 })
                 .ToListAsync();
         }
-        catch { return new List<PracticeLicenseDto>(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "PracticeLicenseService thao tác thất bại, trả giá trị mặc định"); return new List<PracticeLicenseDto>(); }
     }
 
     public async Task<PracticeLicenseStatsDto> GetStatsAsync()
@@ -202,7 +205,7 @@ public class PracticeLicenseService : IPracticeLicenseService
                     .ToList(),
             };
         }
-        catch { return new PracticeLicenseStatsDto(); }
+        catch (Exception ex) { _logger.LogWarning(ex, "PracticeLicenseService thao tác thất bại, trả giá trị mặc định"); return new PracticeLicenseStatsDto(); }
     }
 
     public async Task<PracticeLicenseDto> RenewLicenseAsync(Guid id, string? newExpiryDate)
