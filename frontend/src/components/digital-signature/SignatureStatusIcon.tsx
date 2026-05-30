@@ -1,4 +1,3 @@
-import React from 'react';
 import { Tooltip } from 'antd';
 import { SafetyCertificateOutlined } from '@ant-design/icons';
 import type { DocumentSignatureDto } from '../../api/digitalSignature';

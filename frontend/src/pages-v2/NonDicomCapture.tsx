@@ -66,8 +66,7 @@ const NonDicomCaptureV2: React.FC = () => {
       streamRef.current = stream;
       if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
     } catch (e: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const err = e as any;
+      const err = e as { message?: string };
       setCameraError(err?.message || 'Không truy cập được camera. Đảm bảo đã cấp quyền.');
     }
   }, []);

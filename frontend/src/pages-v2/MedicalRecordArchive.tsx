@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { getArchiveList } from '../api/medicalRecordArchive';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   StatusTabs, DrawerShell, DrSec, DrField, tk, ti, Ico,
@@ -42,8 +43,16 @@ const MedicalRecordArchiveV2: React.FC = () => {
     setLoading(true);
     try {
       const res = await getArchiveList();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = (res.data?.items || res.data || []) as any[];
+      // BE field name alias do evolve — widen optional
+      interface RawArchiveRow {
+        id?: string; patientCode?: string; patientName?: string;
+        medicalRecordCode?: string; recordCode?: string;
+        archiveDate?: string; createdAt?: string;
+        archiveFormat?: string; storageType?: string;
+        fileSize?: number; verified?: boolean;
+        departmentName?: string; dischargeDate?: string;
+      }
+      const data = normalizeArrayResponse<RawArchiveRow>(res.data);
       const rows: ArchivedRecord[] = data.map((r, i) => ({
         id: r.id || `r-${i}`,
         patientCode: r.patientCode || '',

@@ -3,8 +3,8 @@ import { Form, Input, Checkbox } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import {
-  KpiStrip, SearchBox, DataTable, StatusBadge, ModalShell, DrSec, DrField, Btn,
-  Ico, tk, ti, tw, type ColumnDef,
+  KpiStrip, SearchBox, DataTable, StatusBadge, ModalShell, Btn,
+  tk, ti, tw, type ColumnDef,
 } from './_v2kit';
 
 interface CancelledService {
@@ -31,13 +31,16 @@ const ServiceRequeueV2: React.FC = () => {
     if (!keyword) return;
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: r } = await apiClient.get<{ items?: any[] }>('/examination/medical-records/search', {
+      interface SearchedRecord {
+        id: string; medicalRecordCode?: string;
+        patientName?: string; patient?: { fullName?: string };
+      }
+      const { data: r } = await apiClient.get<{ items?: SearchedRecord[] }>('/examination/medical-records/search', {
         params: { keyword, pageSize: 1 },
       }).catch(() => ({ data: { items: [] } }));
       const item = (r?.items || [])[0];
       if (!item) { tw('Không tìm thấy hồ sơ'); setServices([]); setMr(null); return; }
-      setMr({ id: item.id, code: item.medicalRecordCode, patientName: item.patientName || item.patient?.fullName || '' });
+      setMr({ id: item.id, code: item.medicalRecordCode || '', patientName: item.patientName || item.patient?.fullName || '' });
       const { data } = await apiClient.get<CancelledService[]>(`/service-refund/cancelled-services/${item.id}`);
       setServices(data || []);
       setSelected(new Set());
@@ -48,13 +51,13 @@ const ServiceRequeueV2: React.FC = () => {
   const submit = async () => {
     const v = await form.validateFields();
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data }: { data: any } = await apiClient.post('/service-refund/requeue', {
+      interface RequeueResponse { requeued?: number; total?: number }
+      const { data }: { data: RequeueResponse } = await apiClient.post('/service-refund/requeue', {
         serviceRequestDetailIds: Array.from(selected),
         reason: v.reason,
         keepAsPaid: v.keepAsPaid ?? true,
       });
-      tk(`Đã cho lại ${data.requeued}/${data.total} chỉ định`);
+      tk(`Đã cho lại ${data.requeued ?? 0}/${data.total ?? 0} chỉ định`);
       setConfirmOpen(false); form.resetFields(); search();
     } catch { tw('Xử lý thất bại'); }
   };

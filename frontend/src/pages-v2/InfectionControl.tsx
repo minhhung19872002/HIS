@@ -5,7 +5,7 @@ import type { CreateHAISurveillanceDto } from '../api/infectionControl';
 import { getInpatientList } from '../api/inpatient';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, CrudModal, Btn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
+  DrawerShell, DrSec, DrField, tk, ti,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 

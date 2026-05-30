@@ -11,8 +11,32 @@ import { ReloadOutlined, DatabaseOutlined, WarningOutlined, AlertOutlined, Expor
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import { getWarehouses } from '../api/warehouse';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 
 interface Warehouse { id: string; warehouseName: string }
+
+// Shape báo cáo /stock-report/* — chỉ field UI cần. Một số field optional vì 4 view khác nhau (detail/summary/expiring/low-stock).
+interface StockReportRow {
+  warehouseName?: string;
+  itemCode?: string;
+  itemName?: string;
+  batchNumber?: string;
+  expiryDate?: string;
+  daysToExpiry?: number;
+  severity?: 'expired' | 'critical' | 'warning' | string;
+  quantity?: number;
+  value?: number;
+  // Báo cáo tự sinh nhiều field tùy view — chấp nhận field ngoài qua index sig.
+  [k: string]: unknown;
+}
+interface StockReportDto {
+  items?: StockReportRow[];
+  count?: number;
+  totalValue?: number;
+  totalQuantity?: number;
+  // Báo cáo có thể có thêm field tổng kết khác — chấp nhận key tự do với value cho phép Statistic render.
+  [k: string]: number | string | StockReportRow[] | undefined;
+}
 
 export default function StockReport() {
   const [tab, setTab] = useState('detail');
@@ -22,14 +46,14 @@ export default function StockReport() {
   const [days, setDays] = useState(90);
   const [threshold, setThreshold] = useState(10);
 
-  const [detail, setDetail] = useState<any>(null);
-  const [summary, setSummary] = useState<any>(null);
-  const [expiring, setExpiring] = useState<any>(null);
-  const [lowStock, setLowStock] = useState<any>(null);
+  const [detail, setDetail] = useState<StockReportDto | null>(null);
+  const [summary, setSummary] = useState<StockReportDto | null>(null);
+  const [expiring, setExpiring] = useState<StockReportDto | null>(null);
+  const [lowStock, setLowStock] = useState<StockReportDto | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    getWarehouses(1).then(r => setWarehouses(((r as any)?.data?.items || (r as any)?.data || []))).catch(() => {/* empty */});
+    getWarehouses(1).then(r => setWarehouses(normalizeArrayResponse<Warehouse>((r as { data?: unknown })?.data))).catch(() => {/* empty */});
   }, []);
 
   const load = useCallback(async () => {
@@ -63,7 +87,7 @@ export default function StockReport() {
       : lowStock?.items;
     if (!rows || rows.length === 0) return message.warning('Không có dữ liệu');
     const keys = Object.keys(rows[0]).filter(k => typeof rows[0][k] !== 'object' || rows[0][k] instanceof Date);
-    const csv = [keys.join(',')].concat(rows.map((r: any) => keys.map(k => {
+    const csv = [keys.join(',')].concat(rows.map((r: StockReportRow) => keys.map(k => {
       const v = r[k];
       if (v == null) return '';
       if (typeof v === 'string' && (v.includes(',') || v.includes('"'))) return `"${v.replace(/"/g, '""')}"`;
@@ -222,7 +246,7 @@ export default function StockReport() {
                       { title: 'HSD', dataIndex: 'expiryDate', width: 110,
                         render: (v: string) => dayjs(v).format('DD/MM/YYYY') },
                       { title: 'Còn (ngày)', dataIndex: 'daysToExpiry', width: 110, align: 'right',
-                        render: (d: number, r: any) => {
+                        render: (d: number, r: StockReportRow) => {
                           const color = r.severity === 'expired' ? 'red' : r.severity === 'critical' ? 'volcano' : 'orange';
                           return <Tag color={color}>{d < 0 ? `Quá ${Math.abs(d)}d` : `${d}d`}</Tag>;
                         } },

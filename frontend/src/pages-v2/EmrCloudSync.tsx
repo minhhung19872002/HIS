@@ -35,7 +35,8 @@ const PER = 18;
 const EmrCloudSync: React.FC = () => {
   const [rows, setRows] = useState<EmrCloudSyncLogDto[]>([]);
   const [status, setStatus] = useState<EmrCloudSyncStatusDto | null>(null);
-  const [loading, setLoading] = useState(false);
+  // loading state value chưa render trực tiếp (giữ setLoading cho deps callbacks)
+  const [, setLoading] = useState(false);
   const [stab, setStab] = useState<CSStatusKey | 'all'>('all');
   const [fDest, setFDest] = useState('');
   const [search, setSearch] = useState('');
@@ -114,8 +115,9 @@ const EmrCloudSync: React.FC = () => {
       tk('Đã trigger đồng bộ');
       setSyncModal(false); form.resetFields();
       load();
-    } catch (e: any) {
-      if (!e?.errorFields) te('Đồng bộ thất bại');
+    } catch (e: unknown) {
+      const err = e as { errorFields?: unknown };
+      if (!err?.errorFields) te('Đồng bộ thất bại');
     }
   };
 

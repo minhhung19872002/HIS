@@ -1,10 +1,7 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import dayjs from 'dayjs';
-import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../../constants/hospital';
-import type { MedicalRecordFullDto, TreatmentSheetDto, ConsultationRecordDto, NursingCareSheetDto } from '../../api/examination';
-import type { DocumentSignatureDto } from '../../api/digitalSignature';
-import { printStyles, PrintHeader, SignatureBlock, Field, CheckMarkSvg, DigitalSignatureStamp, toSignatureStamp } from './_shared';
-import type { SignatureStampInfo } from './_shared';
+import type { MedicalRecordFullDto, PatientInfoDto } from '../../api/examination';
+import { printStyles, PrintHeader, SignatureBlock, Field } from './_shared';
 interface AdmissionExamProps { record?: MedicalRecordFullDto | null; }
 export const AdmissionExamPrint = forwardRef<HTMLDivElement, AdmissionExamProps>(
   ({ record }, ref) => {
@@ -72,7 +69,7 @@ AdmissionExamPrint.displayName = 'AdmissionExamPrint';
 // ============================================================
 // MS. 18/BV - Bệnh án Sản khoa (Obstetrics Medical Record)
 // ============================================================
-interface ObstetricsMedicalRecordProps { record?: MedicalRecordFullDto | null; patient?: any; }
+interface ObstetricsMedicalRecordProps { record?: MedicalRecordFullDto | null; patient?: PatientInfoDto | null; }
 export const ObstetricsMedicalRecordPrint = forwardRef<HTMLDivElement, ObstetricsMedicalRecordProps>(
   ({ record, patient }, ref) => {
     const p = record?.patient || patient;
@@ -91,7 +88,7 @@ export const ObstetricsMedicalRecordPrint = forwardRef<HTMLDivElement, Obstetric
           </div>
           <Field label="Địa chỉ" value={p?.address} />
           <div className="row">
-            <div className="col"><Field label="Số BHYT" value={p?.insuranceNumber} /></div>
+            <div className="col"><Field label="Số BHYT" value={(p as (PatientInfoDto & { insuranceNumber?: string }) | undefined)?.insuranceNumber} /></div>
             <div className="col"><Field label="Nghề nghiệp" /></div>
           </div>
           <div className="row">
@@ -196,7 +193,7 @@ ObstetricsMedicalRecordPrint.displayName = 'ObstetricsMedicalRecordPrint';
 // ============================================================
 // MS. 19/BV - Bệnh án Sơ sinh (Neonatal Medical Record)
 // ============================================================
-interface NeonatalMedicalRecordProps { record?: MedicalRecordFullDto | null; patient?: any; }
+interface NeonatalMedicalRecordProps { record?: MedicalRecordFullDto | null; patient?: PatientInfoDto | null; }
 export const NeonatalMedicalRecordPrint = forwardRef<HTMLDivElement, NeonatalMedicalRecordProps>(
   ({ record, patient }, ref) => {
     const p = record?.patient || patient;
@@ -323,7 +320,7 @@ NeonatalMedicalRecordPrint.displayName = 'NeonatalMedicalRecordPrint';
 // ============================================================
 // MS. 20/BV - Bệnh án Nhi khoa (Pediatric Medical Record)
 // ============================================================
-interface PediatricMedicalRecordProps { record?: MedicalRecordFullDto | null; patient?: any; }
+interface PediatricMedicalRecordProps { record?: MedicalRecordFullDto | null; patient?: PatientInfoDto | null; }
 export const PediatricMedicalRecordPrint = forwardRef<HTMLDivElement, PediatricMedicalRecordProps>(
   ({ record, patient }, ref) => {
     const p = record?.patient || patient;

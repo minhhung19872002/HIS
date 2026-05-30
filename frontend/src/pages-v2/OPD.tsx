@@ -114,7 +114,7 @@ const OPDV2: React.FC = () => {
           { lbl: 'Cấp cứu', val: emergency, tone: 'crit' },
         ];
       }}
-      rowActions={(r) => (
+      rowActions={() => (
         <div className="ab-actions">
           <ActBtn ic="stethoscope" title="Khám" onClick={() => navigate('/v2/opd/edit')} />
           <ActBtn ic="eye" title="Xem hồ sơ" onClick={() => navigate('/v2/emr/edit')} />

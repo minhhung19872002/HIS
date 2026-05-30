@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { searchMethadonePatients, updatePatient } from '../api/methadone';
 import type { MethadonePatient } from '../api/methadone';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
@@ -56,10 +57,8 @@ const MethadoneTreatmentV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const r: any = await searchMethadonePatients({ keyword: search });
-      const list = (r?.items || (Array.isArray(r) ? r : [])) as MethadonePatient[];
-      setItems(list);
+      const r = await searchMethadonePatients({ keyword: search });
+      setItems(normalizeArrayResponse<MethadonePatient>(r));
     } catch { ti('Không tải được BN methadone'); }
     finally { setLoading(false); }
   };

@@ -9,8 +9,12 @@ import {
 } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, BookOutlined, PauseCircleOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../api/client';
 import systemApi from '../api/system';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
+
+interface DeptLite { id: string; departmentCode?: string; departmentName: string }
 
 interface ReceiptBook {
   id: string; bookCode: string; bookName: string;
@@ -49,14 +53,14 @@ export default function ReceiptBookAdmin() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<ReceiptBook | null>(null);
   const [closeOpen, setCloseOpen] = useState<ReceiptBook | null>(null);
-  const [departments, setDepartments] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<DeptLite[]>([]);
   const [form] = Form.useForm();
   const [closeForm] = Form.useForm();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = {};
+      const params: { keyword?: string; receiptType?: number; status?: number; fiscalYear?: number } = {};
       if (keyword) params.keyword = keyword;
       if (filterType) params.receiptType = filterType;
       if (filterStatus != null) params.status = filterStatus;
@@ -75,7 +79,7 @@ export default function ReceiptBookAdmin() {
     (async () => {
       try {
         const d = await systemApi.catalog.getDepartments();
-        setDepartments((d as any)?.data || []);
+        setDepartments(normalizeArrayResponse<DeptLite>((d as { data?: unknown })?.data));
       } catch { /* empty */ }
     })();
   }, []);
@@ -159,7 +163,7 @@ export default function ReceiptBookAdmin() {
     }
   };
 
-  const columns: any[] = [
+  const columns: ColumnsType<ReceiptBook> = [
     { title: 'Mã sổ', dataIndex: 'bookCode', width: 120 },
     { title: 'Tên', dataIndex: 'bookName' },
     { title: 'Loại', dataIndex: 'receiptType', width: 150,
@@ -167,9 +171,9 @@ export default function ReceiptBookAdmin() {
     { title: 'Ký hiệu', dataIndex: 'series', width: 110 },
     { title: 'Năm', dataIndex: 'fiscalYear', width: 70 },
     { title: 'Dải số', width: 180,
-      render: (_: any, r: ReceiptBook) => `${r.startNumber.toLocaleString('vi-VN')} - ${r.endNumber.toLocaleString('vi-VN')}` },
+      render: (_: unknown, r: ReceiptBook) => `${r.startNumber.toLocaleString('vi-VN')} - ${r.endNumber.toLocaleString('vi-VN')}` },
     { title: 'Đã dùng', width: 180,
-      render: (_: any, r: ReceiptBook) => {
+      render: (_: unknown, r: ReceiptBook) => {
         const total = r.endNumber - r.startNumber + 1;
         const used = r.used;
         const pct = total > 0 ? Math.round(used / total * 100) : 0;
@@ -182,7 +186,7 @@ export default function ReceiptBookAdmin() {
         return <Tag color={t.color}>{t.label}</Tag>;
       } },
     { title: 'Thao tác', width: 180,
-      render: (_: any, r: ReceiptBook) => <Space size="small">
+      render: (_: unknown, r: ReceiptBook) => <Space size="small">
         <Button icon={<EditOutlined />} size="small" onClick={() => openEdit(r)} />
         {r.status === 0 && (
           <Button icon={<PlayCircleOutlined />} size="small" type="primary" onClick={() => activate(r)}>Bật</Button>

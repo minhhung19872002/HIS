@@ -5,7 +5,7 @@ import {
   searchApprovals, approveApproval, revokeApproval, submitApproval,
   getApprovalById, getExpiringMedicines, deleteApprovalDraft,
   APPROVAL_TYPE_LABELS, STATUS_LABELS,
-  type PharmacyApprovalDto, type PharmacyApprovalItemDto,
+  type PharmacyApprovalDto,
   type PharmacyApprovalSearchRequest, type ExpiringMedicineDto,
 } from '../api/pharmacyApproval';
 import {

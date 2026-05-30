@@ -5,7 +5,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
 import {
   KpiStrip, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, Ico, tk, ti, tw,
+  DrawerShell, DrSec, DrField, ti, tw,
   type ColumnDef,
 } from './_v2kit';
 
@@ -43,8 +43,8 @@ const ConsultationRegisterV2: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const params: any = {};
+      interface RegisterSearchParams { fromDate?: string; toDate?: string; consultationType?: number; keyword?: string }
+      const params: RegisterSearchParams = {};
       if (range?.[0]) params.fromDate = range[0].toISOString();
       if (range?.[1]) params.toDate = range[1].toISOString();
       if (filterType) params.consultationType = Number(filterType);

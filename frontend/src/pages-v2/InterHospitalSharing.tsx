@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { searchRequests } from '../api/interHospitalSharing';
 import type { InterHospitalRequest } from '../api/interHospitalSharing';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
+  DrawerShell, DrSec, DrField, tk, ti,
   type ColumnDef,
 } from './_v2kit';
 
@@ -48,10 +49,8 @@ const InterHospitalSharingV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const r: any = await searchRequests({ keyword: search });
-      const list = (r?.items || (Array.isArray(r) ? r : [])) as InterHospitalRequest[];
-      setItems(list);
+      const r = await searchRequests({ keyword: search });
+      setItems(normalizeArrayResponse<InterHospitalRequest>(r));
     } catch { ti('Không tải được yêu cầu liên viện'); }
     finally { setLoading(false); }
   };

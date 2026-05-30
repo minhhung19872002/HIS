@@ -13,7 +13,6 @@ import {
   type DrivingLicenseHealthCheckDto
 } from '../api/nangcap23';
 
-type Kind = 'birth' | 'death' | 'dlhc';
 type TabKey = 'birth' | 'death' | 'driver';
 const TOP_TABS: TopTab<TabKey>[] = [
   { v: 'birth',  l: 'Giấy chứng sinh', ic: 'heart' },

@@ -1,13 +1,11 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
-import { App as AntdApp, Input, Select, Radio, Checkbox, InputNumber } from 'antd';
+import { App as AntdApp, Input } from 'antd';
 import * as receptionApi from '../../api/reception';
-import type { AdmissionDto, RoomOverviewDto } from '../../api/reception';
-import { KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, DrawerShell, ModalShell, type ColumnDef, type StatusTab, type TopTab } from '../_v2kit';
+import { ModalShell } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
-import type { RawRow, TopKey, StatusKey } from './shared';
-import { TOP_TABS, STATUS_TABS, PRIORITY_OPTS, VISIT_TYPE_OPTS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from './shared';
-type LookupRow = any;
+// API trả PatientSearchResultDto (field gối nhau, có index signature) — đủ rộng cho UI lookup.
+type LookupRow = receptionApi.PatientSearchResultDto;
 
 export const PatientLookupModal: React.FC<{
   open: boolean;

@@ -1,8 +1,7 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import dayjs from 'dayjs';
-import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../../constants/hospital';
-import { printStyles, PrintHeader, SignatureBlock, Field, Checkbox, DottedLines, PatientInfoBlock } from './_shared';
-export const TMHBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+import { printStyles, PrintHeader, SignatureBlock, Field, Checkbox, DottedLines, PatientInfoBlock, type SpecialtyEMRPrintData } from './_shared';
+export const TMHBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -111,7 +110,7 @@ TMHBAPrint.displayName = 'TMHBAPrint';
 // =====================================================================
 // 12. BA NGOẠI TRÚ CHUNG (General Outpatient Medical Record)
 // =====================================================================
-export const NgoaiTruChungBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const NgoaiTruChungBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -165,13 +164,13 @@ export const NgoaiTruChungBAPrint = forwardRef<HTMLDivElement, { data: any }>(
 
       <div className="section">
         <div className="section-title">V. ĐƠN THUỐC</div>
-        {data?.prescriptions?.length > 0 ? (
+        {Array.isArray(data?.prescriptions) && data.prescriptions.length > 0 ? (
           <table>
             <thead>
               <tr><th>STT</th><th>Tên thuốc</th><th>ĐVT</th><th>SL</th><th>Cách dùng</th></tr>
             </thead>
             <tbody>
-              {data.prescriptions.map((rx: any, i: number) => (
+              {(data.prescriptions as unknown as Array<{ id?: string; medicineName?: string; unit?: string; quantity?: number | string; dosageInstruction?: string }>).map((rx, i) => (
                 <tr key={rx.id || i}>
                   <td style={{ textAlign: 'center' }}>{i + 1}</td>
                   <td>{rx.medicineName}</td>
@@ -202,7 +201,7 @@ NgoaiTruChungBAPrint.displayName = 'NgoaiTruChungBAPrint';
 // =====================================================================
 // 13. BA NGOẠI TRÚ RĂNG HÀM MẶT (Outpatient Dental Record)
 // =====================================================================
-export const NgoaiTruRHMBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const NgoaiTruRHMBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -286,7 +285,7 @@ NgoaiTruRHMBAPrint.displayName = 'NgoaiTruRHMBAPrint';
 // =====================================================================
 // 14. BA TUYẾN XÃ (Commune Health Station Medical Record)
 // =====================================================================
-export const TuyenXaBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const TuyenXaBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -371,7 +370,7 @@ TuyenXaBAPrint.displayName = 'TuyenXaBAPrint';
 // =====================================================================
 // 15. BA YHCT NỘI TRÚ (Inpatient Traditional Medicine Medical Record)
 // =====================================================================
-export const YHCTNoiTruBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const YHCTNoiTruBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -456,13 +455,13 @@ export const YHCTNoiTruBAPrint = forwardRef<HTMLDivElement, { data: any }>(
 
         <h3>1. Thuốc YHCT</h3>
         <Field label="Bài thuốc" value={data?.herbalFormula} />
-        {data?.herbs?.length > 0 ? (
+        {Array.isArray(data?.herbs) && data.herbs.length > 0 ? (
           <table>
             <thead>
               <tr><th>STT</th><th>Vị thuốc</th><th>Liều lượng (g)</th><th>Ghi chú</th></tr>
             </thead>
             <tbody>
-              {data.herbs.map((herb: any, i: number) => (
+              {(data.herbs as unknown as Array<{ id?: string; name?: string; dosage?: number | string; note?: string }>).map((herb, i) => (
                 <tr key={herb.id || i}>
                   <td style={{ textAlign: 'center' }}>{i + 1}</td>
                   <td>{herb.name}</td>

@@ -55,11 +55,8 @@ const TelemedicineV2: React.FC = () => {
     getAppointments({
       fromDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
       toDate:   dayjs().add(60, 'day').format('YYYY-MM-DD'),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any).then((r) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const arr = ((r as any)?.data?.items || (r as any)?.data || []) as TelemedicineAppointmentDto[];
-      setRows(Array.isArray(arr) ? arr : []);
+    }).then((r) => {
+      setRows(r.data?.items || []);
     }).catch(() => setRows([])).finally(() => setLoading(false));
   };
   useEffect(reload, []);

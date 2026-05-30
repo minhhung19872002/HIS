@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Input, InputNumber, Select } from 'antd';
+import type { AxiosError } from 'axios';
 import apiClient from '../api/client';
+import type { ServerValidationError } from '../utils/formError';
 import {
-  KpiStrip, TopTabs, StatusBadge, Btn, Ico, tk, ti, tw,
+  KpiStrip, TopTabs, StatusBadge, Btn, tk, ti, tw,
 } from './_v2kit';
 
 interface ConfigData {
@@ -22,7 +24,8 @@ const TABS = [
 
 const BhxhConfigV2: React.FC = () => {
   const [tab, setTab] = useState<Tab>('config');
-  const [loading, setLoading] = useState(false);
+  // loading state — giá trị không render trực tiếp, nhưng setLoading vẫn được gọi (deps cho tương lai add Spin)
+  const [, setLoading] = useState(false);
   const [data, setData] = useState<ConfigData | null>(null);
   const [form] = Form.useForm();
   const [testXml, setTestXml] = useState('<?xml version="1.0" encoding="UTF-8"?>\n<BHXH>\n  <MA_CSKCB></MA_CSKCB>\n  <MA_DVI></MA_DVI>\n  <data></data>\n</BHXH>');
@@ -59,8 +62,10 @@ const BhxhConfigV2: React.FC = () => {
     try {
       const { data } = await apiClient.post<ConnResult>('/bhxh-config/test-connection');
       setConnResult(data);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (e: any) { setConnResult({ reachable: false, error: e?.response?.data?.message || 'Failed' }); }
+    } catch (e: unknown) {
+      const ax = e as AxiosError<ServerValidationError>;
+      setConnResult({ reachable: false, error: ax?.response?.data?.message || 'Failed' });
+    }
     finally { setTesting(null); }
   };
 
@@ -69,8 +74,10 @@ const BhxhConfigV2: React.FC = () => {
     try {
       const { data } = await apiClient.post<AuthResult>('/bhxh-config/test-auth');
       setAuthResult(data);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (e: any) { setAuthResult({ authenticated: false, error: e?.response?.data?.message || 'Failed' }); }
+    } catch (e: unknown) {
+      const ax = e as AxiosError<ServerValidationError>;
+      setAuthResult({ authenticated: false, error: ax?.response?.data?.message || 'Failed' });
+    }
     finally { setTesting(null); }
   };
 
@@ -81,8 +88,10 @@ const BhxhConfigV2: React.FC = () => {
         xml: testXml, endpoint: testEndpoint || undefined,
       });
       setSubmitResult(data);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (e: any) { setSubmitResult({ success: false, error: e?.response?.data?.message || 'Failed' }); }
+    } catch (e: unknown) {
+      const ax = e as AxiosError<ServerValidationError>;
+      setSubmitResult({ success: false, error: ax?.response?.data?.message || 'Failed' });
+    }
     finally { setTesting(null); }
   };
 

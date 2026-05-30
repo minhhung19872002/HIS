@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { searchTreatments, createTreatment, updateTreatment } from '../api/traditionalMedicine';
 import type { TraditionalTreatment } from '../api/traditionalMedicine';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
@@ -54,10 +55,8 @@ const TraditionalMedicineV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const r: any = await searchTreatments({ keyword: search });
-      const list = (r?.items || (Array.isArray(r) ? r : [])) as TraditionalTreatment[];
-      setItems(list);
+      const r = await searchTreatments({ keyword: search });
+      setItems(normalizeArrayResponse<TraditionalTreatment>(r));
     } catch { ti('Không tải được phác đồ YHCT'); }
     finally { setLoading(false); }
   };

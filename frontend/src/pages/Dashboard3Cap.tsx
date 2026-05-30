@@ -3,15 +3,15 @@
  * NangCap21 - HIS Đám Mây 3 Cấp: Tổng hợp Trạm YT → Huyện → Tỉnh
  * Dashboard đa chi nhánh với branch selector và 3-tier view
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  Row, Col, Card, Statistic, Typography, Spin, Tag, message,
+  Row, Col, Card, Statistic, Typography, Spin, Tag,
   Select, TreeSelect, DatePicker, Tree, Button, Empty, Space, Divider, Badge,
-  Segmented, Progress, Table, Tooltip
+  Segmented, Progress, Table
 } from 'antd';
 import {
   HomeOutlined, TeamOutlined, DollarOutlined, MedicineBoxOutlined,
-  ExperimentOutlined, FileTextOutlined, CheckCircleOutlined,
+  ExperimentOutlined, FileTextOutlined,
   ClockCircleOutlined, ReloadOutlined, SafetyOutlined,
   ThunderboltOutlined, PlusOutlined, MinusOutlined,
   BankOutlined, UserSwitchOutlined, MenuOutlined,
@@ -27,13 +27,10 @@ import dayjs from 'dayjs';
 import { getMultiFacilityDashboard, getBranchTree, getBranchesByLevel, getConsolidatedReport, getBranchDutyRoster } from '../api/multiFacility';
 import type {
   MultiFacilityDashboardDto, BranchTreeDto, BranchSummary,
-  DailyTrendItem, BranchDepartmentStat, PatientTypeBreakdown,
-  ConsolidatedReportDto, BranchReportItem, BranchDutyRosterDto, DutyShiftItem, BranchStaffSummary
+  ConsolidatedReportDto, BranchReportItem, BranchDutyRosterDto, BranchStaffSummary
 } from '../api/multiFacility';
 
 const { Title, Text } = Typography;
-const { RangePicker } = DatePicker;
-const { Option } = Select;
 
 // Branch level colors
 const LEVEL_COLORS: Record<string, string> = {
@@ -82,10 +79,14 @@ export default function Dashboard3Cap() {
     return result;
   };
 
-  const flatBranches = branchTree ? flattenBranches([branchTree]) : [];
-
   // Tree data for branch selector
-  const buildTreeData = (nodes: BranchTreeDto[]): { key: string; title: string; children?: any[] }[] => {
+  interface BranchTreeNode {
+    key: string;
+    title: string;
+    children?: BranchTreeNode[];
+    isLeaf?: boolean;
+  }
+  const buildTreeData = (nodes: BranchTreeDto[]): BranchTreeNode[] => {
     return nodes.map(n => ({
       key: n.id,
       title: `${n.branchName} ${n.branchLevel !== 'Tỉnh/Thành phố' ? `(${n.branchCode})` : ''}`,
@@ -615,18 +616,21 @@ export default function Dashboard3Cap() {
                     showLine
                     defaultExpandAll
                     treeData={buildTreeData([branchTree])}
-                    titleRender={(nodeData: any) => (
-                      <Space>
-                        {nodeData.key === branchTree.id ? (
-                          <HomeOutlined style={{ color: '#1890ff' }} />
-                        ) : nodeData.isLeaf ? (
-                          <SafetyOutlined style={{ color: '#faad14' }} />
-                        ) : (
-                          <BankOutlined style={{ color: '#52c41a' }} />
-                        )}
-                        <Text>{nodeData.title}</Text>
-                      </Space>
-                    )}
+                    titleRender={(nodeData) => {
+                      const node = nodeData as unknown as BranchTreeNode;
+                      return (
+                        <Space>
+                          {node.key === branchTree.id ? (
+                            <HomeOutlined style={{ color: '#1890ff' }} />
+                          ) : node.isLeaf ? (
+                            <SafetyOutlined style={{ color: '#faad14' }} />
+                          ) : (
+                            <BankOutlined style={{ color: '#52c41a' }} />
+                          )}
+                          <Text>{node.title}</Text>
+                        </Space>
+                      );
+                    }}
                   />
                 </Card>
               </Col>
@@ -643,7 +647,7 @@ export default function Dashboard3Cap() {
                           <Tag
                             key={b.id}
                             style={{ margin: '2px 4px', cursor: 'pointer' }}
-                            onClick={() => setSelectedBranchId(b.id as any)}
+                            onClick={() => setSelectedBranchId(b.id)}
                           >
                             {b.branchCode} - {b.branchName}
                           </Tag>

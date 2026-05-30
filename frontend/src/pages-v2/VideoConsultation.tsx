@@ -74,8 +74,9 @@ const VideoConsultationV2: React.FC = () => {
 
   const join = async (r: RoomDto) => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const user = JSON.parse(localStorage.getItem('user') || '{}') as any;
+      // user info từ localStorage — Antd Layout / Auth context cũng dùng shape này
+      interface SessionUser { fullName?: string; username?: string; email?: string }
+      const user = JSON.parse(localStorage.getItem('user') || '{}') as SessionUser;
       const info = await joinRoom(r.id, user.fullName || user.username || 'User', user.email, 'participant');
       const url = new URL(info.jitsiUrl);
       if (info.password) url.hash = `password=${encodeURIComponent(info.password)}`;

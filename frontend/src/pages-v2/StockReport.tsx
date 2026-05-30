@@ -3,8 +3,9 @@ import { InputNumber } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import { getWarehouses } from '../api/warehouse';
+import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {
-  KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, Btn, Ico, tk, ti, tw,
+  KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, Btn, tk, ti, tw,
   type ColumnDef,
 } from './_v2kit';
 
@@ -40,8 +41,12 @@ const StockReportV2: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getWarehouses(1).then((r) => setWarehouses(((r as any)?.data?.items || (r as any)?.data || []) as Warehouse[])).catch(() => {});
+    getWarehouses(1)
+      .then((r) => {
+        const body = (r as { data?: MaybePaged<Warehouse> }).data;
+        setWarehouses(unwrapList<Warehouse>(body));
+      })
+      .catch(() => {});
   }, []);
 
   const load = useCallback(async () => {
@@ -67,16 +72,15 @@ const StockReportV2: React.FC = () => {
   useEffect(() => { load(); }, [load]);
 
   const exportCsv = () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rows: any[] = tab === 'detail' ? (detail.items || [])
-      : tab === 'summary' ? (summary.items || [])
-      : tab === 'expiring' ? (expiring.items || [])
-      : (lowStock.items || []);
+    // 4 row type khác nhau theo tab → dùng Record<string, unknown> để view chung cho CSV serialization
+    type CsvRow = Record<string, unknown>;
+    const rows: CsvRow[] = tab === 'detail' ? (detail.items || []) as unknown as CsvRow[]
+      : tab === 'summary' ? (summary.items || []) as unknown as CsvRow[]
+      : tab === 'expiring' ? (expiring.items || []) as unknown as CsvRow[]
+      : (lowStock.items || []) as unknown as CsvRow[];
     if (rows.length === 0) { tw('Không có dữ liệu'); return; }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const keys = Object.keys(rows[0]).filter((k) => typeof (rows[0] as any)[k] !== 'object' || (rows[0] as any)[k] instanceof Date);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const csv = [keys.join(',')].concat(rows.map((r: any) => keys.map((k) => {
+    const keys = Object.keys(rows[0]).filter((k) => typeof rows[0][k] !== 'object' || rows[0][k] instanceof Date);
+    const csv = [keys.join(',')].concat(rows.map((r) => keys.map((k) => {
       const v = r[k]; if (v == null) return '';
       if (typeof v === 'string' && (v.includes(',') || v.includes('"'))) return `"${v.replace(/"/g, '""')}"`;
       return v;

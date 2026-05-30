@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Modal, Form, Input, Radio, Table, InputNumber, Alert, Tag, Space, Checkbox, message,
+  Modal, Form, Input, Radio, Table, Alert, Tag, Space, message,
   Typography, Select,
 } from 'antd';
 import apiClient from '../api/client';

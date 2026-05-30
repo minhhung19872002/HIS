@@ -6,7 +6,7 @@ import {
   type RadiologistWorkloadDto, type TechnicianWorkloadDto,
 } from '../api/workloadReport';
 import {
-  KpiStrip, TopTabs, DataTable, StatusBadge, Btn, Ico, tk, ti, tw,
+  KpiStrip, TopTabs, DataTable, StatusBadge, Btn, tk, ti, tw,
   type ColumnDef,
 } from './_v2kit';
 
@@ -53,8 +53,9 @@ const WorkloadReportV2: React.FC = () => {
 
   const exportCsv = () => {
     if (!data) { tw('Chưa có dữ liệu'); return; }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rows: any[] = tab === 'doctors' ? data.doctors : tab === 'radiologists' ? data.radiologists : data.technicians;
+    // 3 nhóm shape khác nhau (doctors/radiologists/technicians) → view chung cho CSV
+    type CsvRow = Record<string, unknown>;
+    const rows: CsvRow[] = (tab === 'doctors' ? data.doctors : tab === 'radiologists' ? data.radiologists : data.technicians) as unknown as CsvRow[];
     if (rows.length === 0) { tw('Không có dữ liệu'); return; }
     const keys = Object.keys(rows[0]);
     const csv = [keys.join(',')].concat(rows.map((r) => keys.map((k) => r[k] ?? '').join(','))).join('\n');

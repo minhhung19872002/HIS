@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { searchProtocols, saveProtocol, deleteProtocol } from '../api/treatmentProtocol';
-import type { TreatmentProtocolDto } from '../api/treatmentProtocol';
+import type { TreatmentProtocolDto, SaveTreatmentProtocolDto } from '../api/treatmentProtocol';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
@@ -204,8 +204,7 @@ const TreatmentProtocolV2: React.FC = () => {
         initial={crudInit}
         size="lg"
         onSubmit={async (v, editing) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await saveProtocol(v as any);
+          await saveProtocol(v as unknown as SaveTreatmentProtocolDto);
           tk(editing ? 'Đã cập nhật phác đồ' : 'Đã tạo phác đồ');
           load();
         }}

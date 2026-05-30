@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Card, Tabs, Table, Button, Space, Input, Modal, Form, message, Tag, Typography, Drawer, Descriptions,
+  Card, Table, Button, Space, Input, Modal, Form, message, Tag, Typography, Drawer, Descriptions,
   Divider, Timeline,
 } from 'antd';
 import {
@@ -165,7 +165,7 @@ export default function SampleReceive() {
             { title: 'Lấy mẫu lúc', dataIndex: 'sampleCollectedAt', width: 140,
               render: (v: string) => v ? dayjs(v).format('DD/MM HH:mm') : '-' },
             { title: 'Thao tác', width: 320,
-              render: (_: any, r: PendingSample) => <Space size="small" wrap>
+              render: (_: unknown, r: PendingSample) => <Space size="small" wrap>
                 <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(r)}>Xem</Button>
                 <Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => setRejectRow(r)}>
                   Từ chối

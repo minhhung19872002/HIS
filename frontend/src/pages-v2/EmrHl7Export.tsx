@@ -6,6 +6,8 @@
  */
 import React, { useState } from 'react';
 import { Form, Input, Checkbox, Button } from 'antd';
+import type { AxiosError } from 'axios';
+import type { ServerValidationError } from '../utils/formError';
 import {
   KpiStrip, DrawerShell, StatusBadge,
   tk, te, fmtDTg, fmtDMYg, fmtHMg,
@@ -41,8 +43,9 @@ const EmrHl7Export: React.FC = () => {
       });
       setResult(r);
       tk(`Đã tạo ${r.messageCount} HL7 message · ${(r.contentSizeBytes / 1024).toFixed(1)} KB`);
-    } catch (e: any) {
-      te(e?.response?.data?.message ?? 'Xuất HL7 thất bại');
+    } catch (e: unknown) {
+      const ax = e as AxiosError<ServerValidationError>;
+      te(ax?.response?.data?.message ?? 'Xuất HL7 thất bại');
     } finally { setRunning(false); }
   };
 

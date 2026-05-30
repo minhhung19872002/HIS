@@ -91,7 +91,7 @@ const PrescriptionV2: React.FC = () => {
           { lbl: 'Tổng thuốc', val: totalItems, sub: 'lượt kê' },
         ];
       }}
-      rowActions={(r) => (
+      rowActions={() => (
         <div className="ab-actions">
           <ActBtn ic="edit" title="Mở editor kê đơn" onClick={() => navigate('/v2/prescription/edit')} />
           <ActBtn ic="print" title="In đơn" onClick={() => message.success('Đã gửi máy in')} />

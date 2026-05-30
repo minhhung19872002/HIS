@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { getAuditSessions } from '../api/bhxhAudit';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   StatusTabs, DrawerShell, DrSec, DrField, fmtVNDg, tk, ti, Ico,
@@ -50,8 +51,19 @@ const BhxhAuditV2: React.FC = () => {
     setLoading(true);
     try {
       const res = await getAuditSessions();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = (res.data?.items || res.data || []) as any[];
+      // BE trả mảng thô hoặc { items: [] } — field name alias do BHXH XML evolve
+      interface RawAuditRow {
+        id?: string; maLk?: string;
+        patientCode?: string; patientName?: string;
+        insuranceNumber?: string;
+        admissionDate?: string; dischargeDate?: string;
+        departmentName?: string;
+        diagnosisCode?: string; diagnosisName?: string;
+        totalAmount?: number; insuranceAmount?: number; patientAmount?: number;
+        auditStatus?: number; paymentStatus?: number;
+        sentToPortal?: boolean;
+      }
+      const data = normalizeArrayResponse<RawAuditRow>(res.data);
       const rows: AuditRecord[] = data.map((r, i) => ({
         id: r.id || `r-${i}`,
         maLk: r.maLk || '',
@@ -101,7 +113,7 @@ const BhxhAuditV2: React.FC = () => {
   const paged = filtered.slice(page * PER, (page + 1) * PER);
 
   const totalIns = items.reduce((s, r) => s + (r.insuranceAmount || 0), 0);
-  const totalAmt = items.reduce((s, r) => s + (r.totalAmount || 0), 0);
+  // totalAmt removed - không dùng trong KPI strip hiện tại (chỉ hiển thị totalIns)
   const sentCount = items.filter((r) => r.sentToPortal).length;
 
   const cols: ColumnDef<AuditRecord>[] = [

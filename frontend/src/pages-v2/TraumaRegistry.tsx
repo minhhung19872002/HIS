@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { searchCases, createCase, updateCase } from '../api/traumaRegistry';
 import type { TraumaCase } from '../api/traumaRegistry';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
@@ -62,10 +63,8 @@ const TraumaRegistryV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const r: any = await searchCases({ keyword: search });
-      const list = (r?.items || (Array.isArray(r) ? r : [])) as TraumaCase[];
-      setItems(list);
+      const r = await searchCases({ keyword: search });
+      setItems(normalizeArrayResponse<TraumaCase>(r));
     } catch { ti('Không tải được ca chấn thương'); }
     finally { setLoading(false); }
   };

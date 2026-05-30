@@ -3,6 +3,7 @@ import { Form, Input, InputNumber, Select, Checkbox } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import { getWarehouses } from '../api/warehouse';
+import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, StatusBadge, Btn,
   Ico, tk, ti, tw, type ColumnDef,
@@ -17,6 +18,20 @@ interface Service { id: string; serviceCode: string; serviceName: string; unitPr
 interface Medicine { id: string; medicineCode: string; medicineName: string; unit?: string; unitPrice: number }
 interface Supply { id: string; supplyCode: string; supplyName: string; unit?: string; unitPrice: number }
 interface Warehouse { id: string; warehouseName: string }
+
+// Raw API row — BE trả nhiều shape (search vs orders), alias các field.
+interface RawRequest {
+  id: string; status: number; patientId: string;
+  requestCode?: string; orderCode?: string; code?: string;
+  patientCode?: string; patientName?: string;
+  patient?: { patientCode?: string; fullName?: string };
+  service?: { serviceName?: string }; serviceName?: string;
+  bodyPart?: string; requestDate?: string; createdAt?: string;
+  medicalRecordId?: string; contrast?: boolean; priority?: number;
+}
+interface AddOnResponse { created?: { id: string }[] }
+interface DispenseResponse { receiptCode: string; totalAmount?: number }
+interface DispenseItemForm { itemId: string; quantity: number; note?: string }
 
 type Tab = 'add-on' | 'dispense';
 const TABS = [
@@ -48,17 +63,15 @@ const RadiologyOpsV2: React.FC = () => {
           const { data } = await apiClient.get('/radiology/orders', { params: { keyword, pageSize: 20 } });
           return { data };
         });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const items = (data as any)?.items || data || [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setRequests(items.map((r: any) => ({
+      const items = unwrapList<RawRequest>(data as MaybePaged<RawRequest>);
+      setRequests(items.map((r) => ({
         id: r.id,
-        requestCode: r.requestCode || r.orderCode || r.code,
-        patientCode: r.patientCode || r.patient?.patientCode,
+        requestCode: r.requestCode || r.orderCode || r.code || '',
+        patientCode: r.patientCode || r.patient?.patientCode || '',
         patientName: r.patientName || r.patient?.fullName || '',
         serviceName: r.serviceName || r.service?.serviceName || '',
         bodyPart: r.bodyPart, status: r.status,
-        requestDate: r.requestDate || r.createdAt,
+        requestDate: r.requestDate || r.createdAt || '',
         medicalRecordId: r.medicalRecordId, patientId: r.patientId,
         contrast: r.contrast, priority: r.priority,
       })));
@@ -69,17 +82,14 @@ const RadiologyOpsV2: React.FC = () => {
   useEffect(() => {
     (async () => {
       try { const { data: s } = await apiClient.get('/catalog/paraclinical-services', { params: { serviceType: 3, isActive: true, pageSize: 500 } });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setServices(Array.isArray(s) ? (s as Service[]) : ((s as any)?.items ?? [])); } catch { /* empty */ }
+        setServices(unwrapList<Service>(s as MaybePaged<Service>)); } catch { /* empty */ }
       try { const { data: m } = await apiClient.get('/catalog/medicines', { params: { isActive: true, pageSize: 500 } });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setMedicines(Array.isArray(m) ? (m as Medicine[]) : ((m as any)?.items ?? [])); } catch { /* empty */ }
+        setMedicines(unwrapList<Medicine>(m as MaybePaged<Medicine>)); } catch { /* empty */ }
       try { const { data: sp } = await apiClient.get('/catalog/medical-supplies', { params: { isActive: true, pageSize: 500 } });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setSupplies(Array.isArray(sp) ? (sp as Supply[]) : ((sp as any)?.items ?? [])); } catch { /* empty */ }
+        setSupplies(unwrapList<Supply>(sp as MaybePaged<Supply>)); } catch { /* empty */ }
       try { const w = await getWarehouses(1);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setWarehouses(((w as any)?.data?.items || (w as any)?.data || []) as Warehouse[]); } catch { /* empty */ }
+        const body = (w as { data?: MaybePaged<Warehouse> }).data;
+        setWarehouses(unwrapList<Warehouse>(body)); } catch { /* empty */ }
     })();
   }, []);
 
@@ -87,8 +97,7 @@ const RadiologyOpsV2: React.FC = () => {
     if (!selected) { tw('Chọn 1 phiếu CĐHA trước'); return; }
     const v = await addOnForm.validateFields();
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data }: { data: any } = await apiClient.post('/radiology-ops/add-on', {
+      const { data }: { data: AddOnResponse } = await apiClient.post('/radiology-ops/add-on', {
         parentRequestId: selected.id, serviceIds: v.serviceIds, reason: v.reason, withContrast: v.withContrast ?? false,
       });
       tk(`Đã tạo ${data.created?.length || 0} phiếu CĐHA mới`);
@@ -100,12 +109,10 @@ const RadiologyOpsV2: React.FC = () => {
     if (!selected) { tw('Chọn 1 phiếu CĐHA trước'); return; }
     const v = await dispenseForm.validateFields();
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data }: { data: any } = await apiClient.post('/radiology-ops/dispense', {
+      const { data }: { data: DispenseResponse } = await apiClient.post('/radiology-ops/dispense', {
         warehouseId: v.warehouseId, patientId: selected.patientId,
         radiologyRequestId: selected.id, medicalRecordId: selected.medicalRecordId, note: v.note,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        items: (v.items || []).map((it: any) => {
+        items: ((v.items || []) as DispenseItemForm[]).map((it) => {
           const med = medicines.find((m) => m.id === it.itemId);
           const sup = supplies.find((s) => s.id === it.itemId);
           return {

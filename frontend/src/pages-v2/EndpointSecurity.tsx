@@ -70,10 +70,9 @@ const EndpointSecurityV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const r: any = await getDevices(search || undefined);
-      const list = (r?.data?.items || (Array.isArray(r?.data) ? r.data : (Array.isArray(r) ? r : []))) as EndpointDeviceDto[];
-      setItems(list);
+      // getDevices đã unwrap `r.data` → trả EndpointDeviceDto[]
+      const r = await getDevices(search || undefined);
+      setItems(Array.isArray(r) ? r : []);
     } catch { ti('Không tải được danh sách máy'); }
     finally { setLoading(false); }
   };

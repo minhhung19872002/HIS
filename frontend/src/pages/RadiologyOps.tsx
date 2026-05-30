@@ -4,13 +4,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Card, Tabs, Input, Button, Space, Form, Select, InputNumber, message, Typography, Alert, Descriptions,
+  Card, Tabs, Input, Button, Space, Form, Select, InputNumber, message, Typography, Alert,
   Table, Divider, Tag,
 } from 'antd';
 import { SearchOutlined, PlusOutlined, ExperimentOutlined, MedicineBoxOutlined, ScanOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import { getWarehouses } from '../api/warehouse';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 
 const { Text } = Typography;
 
@@ -25,6 +26,25 @@ interface Service { id: string; serviceCode: string; serviceName: string; unitPr
 interface Medicine { id: string; medicineCode: string; medicineName: string; unit?: string; unitPrice: number }
 interface Supply { id: string; supplyCode: string; supplyName: string; unit?: string; unitPrice: number }
 interface Warehouse { id: string; warehouseName: string }
+
+// Raw shape từ /radiology/requests/search hoặc /radiology/orders (2 endpoint khác nhau, field tên khác).
+interface RawRequest {
+  id: string;
+  requestCode?: string; orderCode?: string; code?: string;
+  patientCode?: string; patient?: { patientCode?: string; fullName?: string };
+  patientName?: string;
+  serviceName?: string; service?: { serviceName?: string };
+  bodyPart?: string;
+  status: number;
+  requestDate?: string; createdAt?: string;
+  medicalRecordId?: string;
+  patientId: string;
+  contrast?: boolean;
+  priority?: number;
+}
+
+// Form item shape của RadiologyOps dispense form.
+interface DispenseFormItem { itemId: string; quantity: number; note?: string }
 
 export default function RadiologyOps() {
   const [keyword, setKeyword] = useState('');
@@ -52,15 +72,15 @@ export default function RadiologyOps() {
         return { data };
       });
       const items = data?.items || data || [];
-      setRequests(items.map((r: any) => ({
+      setRequests((items as RawRequest[]).map((r) => ({
         id: r.id,
-        requestCode: r.requestCode || r.orderCode || r.code,
-        patientCode: r.patientCode || r.patient?.patientCode,
+        requestCode: r.requestCode || r.orderCode || r.code || '',
+        patientCode: r.patientCode || r.patient?.patientCode || '',
         patientName: r.patientName || r.patient?.fullName || '',
         serviceName: r.serviceName || r.service?.serviceName || '',
         bodyPart: r.bodyPart,
         status: r.status,
-        requestDate: r.requestDate || r.createdAt,
+        requestDate: r.requestDate || r.createdAt || '',
         medicalRecordId: r.medicalRecordId,
         patientId: r.patientId,
         contrast: r.contrast,
@@ -94,7 +114,7 @@ export default function RadiologyOps() {
       } catch { /* empty */ }
       try {
         const w = await getWarehouses(1);
-        setWarehouses((w as any)?.data?.items || (w as any)?.data || []);
+        setWarehouses(normalizeArrayResponse<Warehouse>((w as { data?: unknown })?.data));
       } catch { /* empty */ }
     })();
   }, []);
@@ -128,7 +148,7 @@ export default function RadiologyOps() {
         radiologyRequestId: selectedRequest.id,
         medicalRecordId: selectedRequest.medicalRecordId,
         note: v.note,
-        items: (v.items || []).map((it: any) => {
+        items: ((v.items || []) as DispenseFormItem[]).map((it) => {
           const med = medicines.find(m => m.id === it.itemId);
           const sup = supplies.find(s => s.id === it.itemId);
           return {

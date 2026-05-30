@@ -4,7 +4,7 @@ import { searchIncidents, getIncidentStats, createIncident, updateIncident } fro
 import type { FoodSafetyIncident, FoodSafetyStats } from '../api/foodSafety';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 

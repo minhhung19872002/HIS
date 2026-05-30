@@ -83,10 +83,8 @@ const EquipmentV2: React.FC = () => {
     <SimpleV2Page<EquipmentDto>
       title="Trang thiết bị y tế"
       load={async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const r = await getEquipment({ page: 1, pageSize: 200 } as any);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return ((r as any)?.data?.items || []) as EquipmentDto[];
+        const r = await getEquipment({ page: 1, pageSize: 200 });
+        return r.data?.items || [];
       }}
       rowKey={(r) => r.id}
       columns={columns}

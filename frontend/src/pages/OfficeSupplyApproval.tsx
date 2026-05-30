@@ -8,11 +8,17 @@ import {
   Card, Tabs, Table, Button, Modal, Form, Select, InputNumber, Input, Space, message, Tag, Descriptions,
   Divider, Typography,
 } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, ReloadOutlined, CheckCircleOutlined, ShopOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import systemApi from '../api/system';
 import { getWarehouses } from '../api/warehouse';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
+
+interface DeptLite { id: string; departmentCode?: string; departmentName: string }
+interface WarehouseLite { id: string; warehouseCode?: string; warehouseName: string }
+interface CreateFormItem { supplyId: string; requestedQuantity: number; note?: string }
 
 const { Text } = Typography;
 
@@ -58,8 +64,8 @@ export default function OfficeSupplyApproval() {
   const [approveRequest, setApproveRequest] = useState<ApprovalRequest | null>(null);
   const [approveQuantities, setApproveQuantities] = useState<Record<string, number>>({});
   const [supplies, setSupplies] = useState<Supply[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<DeptLite[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseLite[]>([]);
   const [form] = Form.useForm();
 
   const load = useCallback(async () => {
@@ -84,11 +90,11 @@ export default function OfficeSupplyApproval() {
       } catch { /* empty */ }
       try {
         const d = await systemApi.catalog.getDepartments();
-        setDepartments((d as any)?.data || []);
+        setDepartments(normalizeArrayResponse<DeptLite>((d as { data?: unknown })?.data));
       } catch { /* empty */ }
       try {
         const w = await getWarehouses(1);
-        setWarehouses((w as any)?.data?.items || (w as any)?.data || []);
+        setWarehouses(normalizeArrayResponse<WarehouseLite>((w as { data?: unknown })?.data));
       } catch { /* empty */ }
     })();
   }, []);
@@ -101,7 +107,7 @@ export default function OfficeSupplyApproval() {
         departmentId: v.departmentId,
         warehouseId: v.warehouseId,
         note: v.note,
-        items: v.items.map((it: any) => {
+        items: (v.items as CreateFormItem[]).map((it) => {
           const sup = supplies.find(s => s.id === it.supplyId);
           return {
             supplyId: it.supplyId,
@@ -139,7 +145,7 @@ export default function OfficeSupplyApproval() {
     }
   };
 
-  const columns: any[] = [
+  const columns: ColumnsType<ApprovalRequest> = [
     { title: 'Mã', dataIndex: 'approvalCode', width: 160 },
     { title: 'Ngày', dataIndex: 'requestDate', width: 130,
       render: (v: string) => dayjs(v).format('DD/MM/YYYY HH:mm') },
@@ -154,7 +160,7 @@ export default function OfficeSupplyApproval() {
         return <Tag color={t.color}>{t.label}</Tag>;
       } },
     { title: 'Thao tác', width: 130,
-      render: (_: any, r: ApprovalRequest) => r.status === 2 ? (
+      render: (_: unknown, r: ApprovalRequest) => r.status === 2 ? (
         <Button size="small" type="primary" icon={<CheckCircleOutlined />}
           onClick={() => { setApproveRequest(r); setApproveQuantities({}); }}>
           Duyệt
@@ -294,7 +300,7 @@ export default function OfficeSupplyApproval() {
                   title: 'SL duyệt',
                   width: 120,
                   align: 'right',
-                  render: (_: any, item: RequestItem) => approveRequest.status === 2 ? (
+                  render: (_: unknown, item: RequestItem) => approveRequest.status === 2 ? (
                     <InputNumber
                       min={0}
                       max={item.requestedQuantity}

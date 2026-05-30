@@ -105,10 +105,9 @@ const BillingV2: React.FC = () => {
     <SimpleV2Page<InvoiceDto>
       title="Hóa đơn viện phí"
       load={async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const r = await searchInvoices({ pageIndex: 0, pageSize: 200 } as any);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return ((r as any)?.data?.items || []) as InvoiceDto[];
+        // InvoiceSearchDto dùng `page` (1-based)
+        const r = await searchInvoices({ page: 1, pageSize: 200 });
+        return r.data?.items || [];
       }}
       rowKey={(r) => r.id}
       columns={columns}

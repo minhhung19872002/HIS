@@ -5,7 +5,7 @@ import apiClient from '../api/client';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn, ModalShell,
   DrawerShell, DrSec, DrField,
-  Ico, tk, ti, tw, type ColumnDef,
+  tk, ti, tw, type ColumnDef,
 } from './_v2kit';
 
 interface PendingService {

@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Card, Table, Button, Space, Tag, Modal, Form, Input, Select, Switch,
-  DatePicker, message, Drawer, Typography, Popconfirm, Divider, Badge,
+  DatePicker, message, Drawer, Typography, Popconfirm, Divider,
 } from 'antd';
 import {
   VideoCameraOutlined, PlayCircleOutlined, StopOutlined, LinkOutlined,
@@ -21,7 +21,7 @@ import {
   ROOM_TYPES, STATUS_LABELS, type RoomDto,
 } from '../api/videoConsultation';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 export default function VideoConsultation() {
   const [tab, setTab] = useState<'active' | 'scheduled' | 'ended' | 'all'>('active');
@@ -39,7 +39,8 @@ export default function VideoConsultation() {
     inviteEmails?: string;
   }>();
   const [currentRoom, setCurrentRoom] = useState<RoomDto | null>(null);
-  const [joinInfo, setJoinInfo] = useState<{ jitsiUrl: string; password?: string } | null>(null);
+  // joinInfo state — giá trị chưa render trực tiếp, giữ setJoinInfo cho mở rộng tương lai (currently jitsiUrl mở window.open trực tiếp trong handler)
+  const [, setJoinInfo] = useState<{ jitsiUrl: string; password?: string } | null>(null);
   const [endModal, setEndModal] = useState<RoomDto | null>(null);
   const [endForm] = Form.useForm<{ conclusionNote?: string }>();
   const [participantsDrawer, setParticipantsDrawer] = useState<RoomDto | null>(null);

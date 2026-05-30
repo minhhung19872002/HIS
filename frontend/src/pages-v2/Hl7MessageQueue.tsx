@@ -114,8 +114,9 @@ const Hl7MessageQueue: React.FC = () => {
       tk('Đã thêm message vào queue');
       setEnqueueModal(false); form.resetFields();
       load();
-    } catch (e: any) {
-      if (!e?.errorFields) te('Thêm thất bại');
+    } catch (e: unknown) {
+      const err = e as { errorFields?: unknown };
+      if (!err?.errorFields) te('Thêm thất bại');
     }
   };
   const openDetail = async (r: Hl7MessageQueueDto) => {

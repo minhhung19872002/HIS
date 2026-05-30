@@ -220,8 +220,9 @@ const BankPayments: React.FC = () => {
       setConfirming(null);
       form.resetFields();
       load();
-    } catch (e: any) {
-      if (e?.errorFields) return;
+    } catch (e: unknown) {
+      const err = e as { errorFields?: unknown };
+      if (err?.errorFields) return;
       te('Xác nhận thất bại');
     }
   };

@@ -60,8 +60,7 @@ const EMRV2: React.FC = () => {
       load={async () => {
         try {
           const r = await getEmrRecords(undefined, 1, 300);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return ((r as any)?.data?.items || []) as EmrRecordDto[];
+          return r.data?.items || [];
         } catch {
           return [];
         }
@@ -86,7 +85,7 @@ const EMRV2: React.FC = () => {
           { lbl: 'Tổng lượt khám', val: totalVisits, sub: '365 ngày' },
         ];
       }}
-      rowActions={(r) => (
+      rowActions={() => (
         <div className="ab-actions">
           <ActBtn ic="eye" title="Mở hồ sơ" onClick={() => navigate('/v2/emr/edit')} />
           <ActBtn ic="print" title="In HS" onClick={() => message.success('Đã gửi PDF')} />

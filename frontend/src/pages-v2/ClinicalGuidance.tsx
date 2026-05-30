@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { getGuidanceBatches, createGuidanceBatch, updateGuidanceBatch, deleteGuidanceBatch } from '../api/clinicalGuidance';
-import type { GuidanceBatchDto } from '../api/clinicalGuidance';
+import type { GuidanceBatchDto, CreateGuidanceBatchDto } from '../api/clinicalGuidance';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
@@ -203,10 +203,10 @@ const ClinicalGuidanceV2: React.FC = () => {
         initial={crudInit}
         size="lg"
         onSubmit={async (v, editing) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          if (editing && crudInit?.id) await updateGuidanceBatch(String(crudInit.id), v as any);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          else await createGuidanceBatch(v as any);
+          // CrudModal trả Record<string, unknown> chung — cast về DTO chính xác
+          const dto = v as unknown as CreateGuidanceBatchDto;
+          if (editing && crudInit?.id) await updateGuidanceBatch(String(crudInit.id), dto);
+          else await createGuidanceBatch(dto);
           tk(editing ? 'Đã cập nhật đợt' : 'Đã tạo đợt');
           load();
         }}

@@ -81,7 +81,37 @@ import type {
   ServiceOrderDoctorsItemDto,
   DispensingVsBillingItemDto,
   DispensingVsStandardsItemDto,
+  SupplierProcurementReportDto,
+  RevenueByRecordReportDto,
+  DeptCostVsFeesReportDto,
+  RecordCostSummaryReportDto,
+  FeesVsStandardsReportDto,
+  ServiceOrderDoctorsReportDto,
+  DispensingVsBillingReportDto,
+  DispensingVsStandardsReportDto,
 } from '../api/reconciliation';
+
+// Union DTO covering tất cả response của reconciliationApi.getX()
+type ReconciliationReportDto =
+  | SupplierProcurementReportDto
+  | RevenueByRecordReportDto
+  | DeptCostVsFeesReportDto
+  | RecordCostSummaryReportDto
+  | FeesVsStandardsReportDto
+  | ServiceOrderDoctorsReportDto
+  | DispensingVsBillingReportDto
+  | DispensingVsStandardsReportDto;
+
+// Union row item — đủ phủ rowKey + render trong getColumns()
+type ReconciliationRowItem =
+  | SupplierProcurementItemDto
+  | RevenueByRecordItemDto
+  | DeptCostVsFeesItemDto
+  | RecordCostSummaryItemDto
+  | FeesVsStandardsItemDto
+  | ServiceOrderDoctorsItemDto
+  | DispensingVsBillingItemDto
+  | DispensingVsStandardsItemDto;
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -554,7 +584,10 @@ const callReportApi = async (
 
   const { apiCategory, reportType } = mapping;
 
-  let response: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  // Different export endpoints (finance/pharmacy/statistics) return different
+  // wrapper shapes — some return AxiosResponse<Blob>, some return Blob directly.
+  // Normalize bằng cách đọc .data?? (xem block dưới).
+  let response: { data?: Blob | unknown } | Blob | undefined;
 
   switch (apiCategory) {
     case 'finance': {
@@ -606,7 +639,12 @@ const callReportApi = async (
   }
 
   // response may be AxiosResponse with .data as Blob, or already a Blob
-  const blob = response?.data instanceof Blob ? response.data : response?.data;
+  const blob =
+    response instanceof Blob
+      ? response
+      : (response && typeof response === 'object' && 'data' in response
+          ? (response as { data?: unknown }).data
+          : undefined);
   if (!(blob instanceof Blob)) {
     throw new Error('Server không trả về dữ liệu báo cáo hợp lệ.');
   }
@@ -729,8 +767,8 @@ const ReconciliationTab: React.FC = () => {
   ]);
   const [departmentFilter, setDepartmentFilter] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
-  const [reportData, setReportData] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
-  const [summaryData, setSummaryData] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const [reportData, setReportData] = useState<ReconciliationRowItem[] | null>(null);
+  const [summaryData, setSummaryData] = useState<ReconciliationReportDto | null>(null);
 
   const handleRunReport = useCallback(async () => {
     if (!selectedReport) {
@@ -800,7 +838,7 @@ const ReconciliationTab: React.FC = () => {
   }, []);
 
   // Table column definitions for each report type
-  const getColumns = (): ColumnsType<any> => { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const getColumns = (): ColumnsType<ReconciliationRowItem> => {
     switch (selectedReport) {
       case 'supplier-procurement':
         return [
@@ -812,7 +850,7 @@ const ReconciliationTab: React.FC = () => {
           { title: 'Giá trị giao', dataIndex: 'deliveredValue', key: 'deliveredValue', width: 140, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
           { title: 'Tỷ lệ thực hiện', dataIndex: 'fulfillmentRate', key: 'fulfillmentRate', width: 110, align: 'right' as const, render: (v: number) => fmtPct(v) },
           { title: 'Ngày giao cuối', dataIndex: 'lastDeliveryDate', key: 'lastDeliveryDate', width: 120 },
-        ] as ColumnsType<SupplierProcurementItemDto>;
+        ] as unknown as ColumnsType<ReconciliationRowItem>;
 
       case 'revenue-by-record':
         return [
@@ -825,7 +863,7 @@ const ReconciliationTab: React.FC = () => {
           { title: 'Tổng CP', dataIndex: 'totalCost', key: 'totalCost', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
           { title: 'Lợi nhuận', dataIndex: 'profit', key: 'profit', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: v >= 0 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
           { title: 'Tỷ suất', dataIndex: 'profitMargin', key: 'profitMargin', width: 90, align: 'right' as const, render: (v: number) => fmtPct(v) },
-        ] as ColumnsType<RevenueByRecordItemDto>;
+        ] as unknown as ColumnsType<ReconciliationRowItem>;
 
       case 'dept-cost-vs-fees':
         return [
@@ -837,7 +875,7 @@ const ReconciliationTab: React.FC = () => {
           { title: 'Tổng VP thu', dataIndex: 'totalHospitalFees', key: 'totalHospitalFees', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
           { title: 'Chênh lệch', dataIndex: 'difference', key: 'difference', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: v >= 0 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
           { title: '% CL', dataIndex: 'differencePercent', key: 'differencePercent', width: 80, align: 'right' as const, render: (v: number) => fmtPct(v) },
-        ] as ColumnsType<DeptCostVsFeesItemDto>;
+        ] as unknown as ColumnsType<ReconciliationRowItem>;
 
       case 'record-cost-summary':
         return [
@@ -854,7 +892,7 @@ const ReconciliationTab: React.FC = () => {
             const text = s === 'Match' ? 'Khớp' : s === 'Overcharged' ? 'Thu đủ' : 'Thu thiếu';
             return <Tag color={color}>{text}</Tag>;
           }},
-        ] as ColumnsType<RecordCostSummaryItemDto>;
+        ] as unknown as ColumnsType<ReconciliationRowItem>;
 
       case 'fees-vs-standards':
         return [
@@ -867,7 +905,7 @@ const ReconciliationTab: React.FC = () => {
           { title: 'Tổng thực tế', dataIndex: 'totalActualAmount', key: 'totalActualAmount', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
           { title: 'Chênh lệch', dataIndex: 'difference', key: 'difference', width: 110, align: 'right' as const, render: (v: number) => <span style={{ color: Math.abs(v) < 1 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
           { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 110, render: (s: string) => <Tag color={s === 'WithinStandard' ? 'green' : 'red'}>{s === 'WithinStandard' ? 'Đạt' : 'Vượt'}</Tag> },
-        ] as ColumnsType<FeesVsStandardsItemDto>;
+        ] as unknown as ColumnsType<ReconciliationRowItem>;
 
       case 'service-order-doctors':
         return [
@@ -884,7 +922,7 @@ const ReconciliationTab: React.FC = () => {
             const text = s === 'SameDoctor' ? 'Cùng BS' : s === 'DifferentDoctor' ? 'Khác BS' : 'Chưa TH';
             return <Tag color={color}>{text}</Tag>;
           }},
-        ] as ColumnsType<ServiceOrderDoctorsItemDto>;
+        ] as unknown as ColumnsType<ReconciliationRowItem>;
 
       case 'dispensing-vs-billing':
         return [
@@ -897,7 +935,7 @@ const ReconciliationTab: React.FC = () => {
           { title: 'VT thu', dataIndex: 'supplyBilled', key: 'supplyBilled', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
           { title: 'Tổng thu', dataIndex: 'totalBilled', key: 'totalBilled', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
           { title: 'Chênh lệch', dataIndex: 'difference', key: 'difference', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: Math.abs(v) < 1 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
-        ] as ColumnsType<DispensingVsBillingItemDto>;
+        ] as unknown as ColumnsType<ReconciliationRowItem>;
 
       case 'dispensing-vs-standards':
         return [
@@ -911,7 +949,7 @@ const ReconciliationTab: React.FC = () => {
           { title: 'Tổng ĐM', dataIndex: 'totalStandard', key: 'totalStandard', width: 120, align: 'right' as const, render: (v: number) => fmtNum(Math.round(v)) },
           { title: 'Chênh lệch', dataIndex: 'difference', key: 'difference', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: Math.abs(v) < 1 ? '#52c41a' : '#ff4d4f' }}>{fmtNum(Math.round(v))}</span> },
           { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 110, render: (s: string) => <Tag color={s === 'WithinStandard' ? 'green' : 'red'}>{s === 'WithinStandard' ? 'Đạt' : 'Vượt'}</Tag> },
-        ] as ColumnsType<DispensingVsStandardsItemDto>;
+        ] as unknown as ColumnsType<ReconciliationRowItem>;
 
       default:
         return [];
@@ -922,81 +960,99 @@ const ReconciliationTab: React.FC = () => {
   const renderSummary = () => {
     if (!summaryData || !selectedReport) return null;
 
+    // TS không narrow được union ReconciliationReportDto theo selectedReport
+    // (2 biến độc lập). Cast per-case về DTO khớp với case.
     switch (selectedReport) {
-      case 'supplier-procurement':
+      case 'supplier-procurement': {
+        const d = summaryData as SupplierProcurementReportDto;
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={6}><Statistic title="Tổng NCC" value={summaryData.totalSuppliers} /></Col>
-            <Col span={6}><Statistic title="Tổng mặt hàng" value={summaryData.totalItems} /></Col>
-            <Col span={6}><Statistic title="Giá trị hợp đồng" value={fmtMoney(summaryData.totalContractValue)} /></Col>
-            <Col span={6}><Statistic title="Tỷ lệ thực hiện" value={fmtPct(summaryData.fulfillmentRate)} /></Col>
+            <Col span={6}><Statistic title="Tổng NCC" value={d.totalSuppliers} /></Col>
+            <Col span={6}><Statistic title="Tổng mặt hàng" value={d.totalItems} /></Col>
+            <Col span={6}><Statistic title="Giá trị hợp đồng" value={fmtMoney(d.totalContractValue)} /></Col>
+            <Col span={6}><Statistic title="Tỷ lệ thực hiện" value={fmtPct(d.fulfillmentRate)} /></Col>
           </Row>
         );
-      case 'revenue-by-record':
+      }
+      case 'revenue-by-record': {
+        const d = summaryData as RevenueByRecordReportDto;
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={5}><Statistic title="Tổng HSBA" value={summaryData.totalRecords} /></Col>
-            <Col span={5}><Statistic title="Tổng doanh thu" value={fmtMoney(summaryData.totalRevenue)} /></Col>
-            <Col span={5}><Statistic title="Tổng chi phí" value={fmtMoney(summaryData.totalCost)} /></Col>
-            <Col span={5}><Statistic title="Tổng lợi nhuận" value={fmtMoney(summaryData.totalProfit)} styles={{ content: { color: summaryData.totalProfit >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
-            <Col span={4}><Statistic title="TB tỷ suất LN" value={fmtPct(summaryData.averageProfitMargin)} /></Col>
+            <Col span={5}><Statistic title="Tổng HSBA" value={d.totalRecords} /></Col>
+            <Col span={5}><Statistic title="Tổng doanh thu" value={fmtMoney(d.totalRevenue)} /></Col>
+            <Col span={5}><Statistic title="Tổng chi phí" value={fmtMoney(d.totalCost)} /></Col>
+            <Col span={5}><Statistic title="Tổng lợi nhuận" value={fmtMoney(d.totalProfit)} styles={{ content: { color: d.totalProfit >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
+            <Col span={4}><Statistic title="TB tỷ suất LN" value={fmtPct(d.averageProfitMargin)} /></Col>
           </Row>
         );
-      case 'dept-cost-vs-fees':
+      }
+      case 'dept-cost-vs-fees': {
+        const d = summaryData as DeptCostVsFeesReportDto;
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={8}><Statistic title="Tổng CP khoa phòng" value={fmtMoney(summaryData.totalDeptCost)} /></Col>
-            <Col span={8}><Statistic title="Tổng VP thu" value={fmtMoney(summaryData.totalHospitalFees)} /></Col>
-            <Col span={8}><Statistic title="Chênh lệch" value={fmtMoney(summaryData.totalDifference)} styles={{ content: { color: summaryData.totalDifference >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
+            <Col span={8}><Statistic title="Tổng CP khoa phòng" value={fmtMoney(d.totalDeptCost)} /></Col>
+            <Col span={8}><Statistic title="Tổng VP thu" value={fmtMoney(d.totalHospitalFees)} /></Col>
+            <Col span={8}><Statistic title="Chênh lệch" value={fmtMoney(d.totalDifference)} styles={{ content: { color: d.totalDifference >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
           </Row>
         );
-      case 'record-cost-summary':
+      }
+      case 'record-cost-summary': {
+        const d = summaryData as RecordCostSummaryReportDto;
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={4}><Statistic title="Tổng HSBA" value={summaryData.totalRecords} /></Col>
-            <Col span={5}><Statistic title="Tổng sử dụng" value={fmtMoney(summaryData.totalUsed)} /></Col>
-            <Col span={5}><Statistic title="Tổng đã thu" value={fmtMoney(summaryData.totalCollected)} /></Col>
-            <Col span={4}><Statistic title="Chênh lệch" value={fmtMoney(summaryData.totalDifference)} styles={{ content: { color: summaryData.totalDifference >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
-            <Col span={3}><Statistic title="Thu đủ" value={summaryData.overchargedCount} styles={{ content: { color: '#fa8c16' } }} /></Col>
-            <Col span={3}><Statistic title="Thu thiếu" value={summaryData.underchargedCount} styles={{ content: { color: '#ff4d4f' } }} /></Col>
+            <Col span={4}><Statistic title="Tổng HSBA" value={d.totalRecords} /></Col>
+            <Col span={5}><Statistic title="Tổng sử dụng" value={fmtMoney(d.totalUsed)} /></Col>
+            <Col span={5}><Statistic title="Tổng đã thu" value={fmtMoney(d.totalCollected)} /></Col>
+            <Col span={4}><Statistic title="Chênh lệch" value={fmtMoney(d.totalDifference)} styles={{ content: { color: d.totalDifference >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
+            <Col span={3}><Statistic title="Thu đủ" value={d.overchargedCount} styles={{ content: { color: '#fa8c16' } }} /></Col>
+            <Col span={3}><Statistic title="Thu thiếu" value={d.underchargedCount} styles={{ content: { color: '#ff4d4f' } }} /></Col>
           </Row>
         );
-      case 'fees-vs-standards':
+      }
+      case 'fees-vs-standards': {
+        const d = summaryData as FeesVsStandardsReportDto;
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={4}><Statistic title="Tổng DV" value={summaryData.totalServices} /></Col>
-            <Col span={5}><Statistic title="Tổng thực tế" value={fmtMoney(summaryData.totalActualFees)} /></Col>
-            <Col span={5}><Statistic title="Tổng định mức" value={fmtMoney(summaryData.totalStandardFees)} /></Col>
-            <Col span={5}><Statistic title="Đạt định mức" value={summaryData.withinStandardCount} styles={{ content: { color: '#52c41a' } }} /></Col>
-            <Col span={5}><Statistic title="Vượt định mức" value={summaryData.exceedStandardCount} styles={{ content: { color: '#ff4d4f' } }} /></Col>
+            <Col span={4}><Statistic title="Tổng DV" value={d.totalServices} /></Col>
+            <Col span={5}><Statistic title="Tổng thực tế" value={fmtMoney(d.totalActualFees)} /></Col>
+            <Col span={5}><Statistic title="Tổng định mức" value={fmtMoney(d.totalStandardFees)} /></Col>
+            <Col span={5}><Statistic title="Đạt định mức" value={d.withinStandardCount} styles={{ content: { color: '#52c41a' } }} /></Col>
+            <Col span={5}><Statistic title="Vượt định mức" value={d.exceedStandardCount} styles={{ content: { color: '#ff4d4f' } }} /></Col>
           </Row>
         );
-      case 'service-order-doctors':
+      }
+      case 'service-order-doctors': {
+        const d = summaryData as ServiceOrderDoctorsReportDto;
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={6}><Statistic title="Tổng chỉ định" value={summaryData.totalOrders} /></Col>
-            <Col span={6}><Statistic title="Cùng BS" value={summaryData.sameDoctorCount} styles={{ content: { color: '#52c41a' } }} /></Col>
-            <Col span={6}><Statistic title="Khác BS" value={summaryData.differentDoctorCount} styles={{ content: { color: '#1890ff' } }} /></Col>
-            <Col span={6}><Statistic title="Chưa TH" value={summaryData.noExecutorCount} styles={{ content: { color: '#fa8c16' } }} /></Col>
+            <Col span={6}><Statistic title="Tổng chỉ định" value={d.totalOrders} /></Col>
+            <Col span={6}><Statistic title="Cùng BS" value={d.sameDoctorCount} styles={{ content: { color: '#52c41a' } }} /></Col>
+            <Col span={6}><Statistic title="Khác BS" value={d.differentDoctorCount} styles={{ content: { color: '#1890ff' } }} /></Col>
+            <Col span={6}><Statistic title="Chưa TH" value={d.noExecutorCount} styles={{ content: { color: '#fa8c16' } }} /></Col>
           </Row>
         );
-      case 'dispensing-vs-billing':
+      }
+      case 'dispensing-vs-billing': {
+        const d = summaryData as DispensingVsBillingReportDto;
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={8}><Statistic title="Tổng xuất kho" value={fmtMoney(summaryData.totalDispensed)} /></Col>
-            <Col span={8}><Statistic title="Tổng viện phí thu" value={fmtMoney(summaryData.totalBilled)} /></Col>
-            <Col span={8}><Statistic title="Chênh lệch" value={fmtMoney(summaryData.totalDifference)} styles={{ content: { color: summaryData.totalDifference >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
+            <Col span={8}><Statistic title="Tổng xuất kho" value={fmtMoney(d.totalDispensed)} /></Col>
+            <Col span={8}><Statistic title="Tổng viện phí thu" value={fmtMoney(d.totalBilled)} /></Col>
+            <Col span={8}><Statistic title="Chênh lệch" value={fmtMoney(d.totalDifference)} styles={{ content: { color: d.totalDifference >= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
           </Row>
         );
-      case 'dispensing-vs-standards':
+      }
+      case 'dispensing-vs-standards': {
+        const d = summaryData as DispensingVsStandardsReportDto;
         return (
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={6}><Statistic title="Tổng khoa" value={summaryData.totalDepartments} /></Col>
-            <Col span={6}><Statistic title="Tổng xuất kho" value={fmtMoney(summaryData.totalDispensed)} /></Col>
-            <Col span={6}><Statistic title="Tổng định mức" value={fmtMoney(summaryData.totalStandard)} /></Col>
-            <Col span={6}><Statistic title="Chênh lệch" value={fmtMoney(summaryData.totalDispensed - summaryData.totalStandard)} styles={{ content: { color: (summaryData.totalDispensed - summaryData.totalStandard) <= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
+            <Col span={6}><Statistic title="Tổng khoa" value={d.totalDepartments} /></Col>
+            <Col span={6}><Statistic title="Tổng xuất kho" value={fmtMoney(d.totalDispensed)} /></Col>
+            <Col span={6}><Statistic title="Tổng định mức" value={fmtMoney(d.totalStandard)} /></Col>
+            <Col span={6}><Statistic title="Chênh lệch" value={fmtMoney(d.totalDispensed - d.totalStandard)} styles={{ content: { color: (d.totalDispensed - d.totalStandard) <= 0 ? '#52c41a' : '#ff4d4f' } }} /></Col>
           </Row>
         );
+      }
       default:
         return null;
     }
@@ -1125,7 +1181,12 @@ const ReconciliationTab: React.FC = () => {
             <Table
               columns={getColumns()}
               dataSource={reportData}
-              rowKey={(record: any, index?: number) => record.supplierId || record.medicalRecordId || record.departmentId || record.serviceId || record.serviceRequestId || record.departmentCode || `row-${index}`} // eslint-disable-line @typescript-eslint/no-explicit-any
+              rowKey={(record: ReconciliationRowItem, index?: number) => {
+                // Mỗi loại item có 1 trong các id sau — đọc qua loose record để rowKey
+                // không phải mặt riêng từng union member.
+                const r = record as unknown as Record<string, string | undefined>;
+                return r.supplierId || r.medicalRecordId || r.departmentId || r.serviceId || r.serviceRequestId || r.departmentCode || `row-${index}`;
+              }}
               size="small"
               scroll={{ x: 1200 }}
               pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `Tổng: ${total} dòng` }}
@@ -1207,7 +1268,7 @@ const FullReportsContent: React.FC = () => {
         downloadBlob(blob, filename);
         message.success(`Đã xuất báo cáo ra ${formatName} thành công`);
       }
-    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    } catch (error: unknown) {
       console.warn('Error exporting report:', error);
       message.warning(`Xuất báo cáo ra ${formatName} thất bại. Vui lòng thử lại.`);
     } finally {
@@ -1224,7 +1285,7 @@ const FullReportsContent: React.FC = () => {
       setPreviewTitle(reportName);
       setPreviewContent(htmlContent);
       setPreviewVisible(true);
-    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    } catch (error: unknown) {
       console.warn('Error previewing report:', error);
       message.warning('Xem trước báo cáo thất bại. Vui lòng thử lại.');
     } finally {
@@ -1240,7 +1301,7 @@ const FullReportsContent: React.FC = () => {
       const filename = `${reportName}_${dateRange[0].format('YYYYMMDD')}_${dateRange[1].format('YYYYMMDD')}.xlsx`;
       downloadBlob(blob, filename);
       message.success(`Đã tải xuống: ${reportName}`);
-    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    } catch (error: unknown) {
       console.warn('Error downloading report:', error);
       message.warning('Tải xuống báo cáo thất bại. Vui lòng thử lại.');
     } finally {
@@ -2168,8 +2229,7 @@ const Nc10ReportTab: React.FC<Nc10ReportTabProps> = ({
   const [departmentFilter, setDepartmentFilter] = useState<string | undefined>(undefined);
   const [patientTypeFilter, setPatientTypeFilter] = useState<string | undefined>(undefined);
   const [reportData, setReportData] = useState<Record<string, unknown>[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [reportColumns, setReportColumns] = useState<ColumnsType<any>>([]);
+  const [reportColumns, setReportColumns] = useState<ColumnsType<Record<string, unknown>>>([]);
 
   const handleOpenReport = useCallback((report: Nc10ReportDef) => {
     setSelectedReport(report);
@@ -2190,12 +2250,17 @@ const Nc10ReportTab: React.FC<Nc10ReportTabProps> = ({
       if (patientTypeFilter) params.patientType = patientTypeFilter;
 
       const response = await apiFn(selectedReport.id, params);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = (response as any)?.data;
-      if (data && Array.isArray(data.items)) {
-        setReportData(data.items);
-        if (data.items.length > 0) {
-          const cols = Object.keys(data.items[0]).map((key) => ({
+      // apiFn() có shape không thống nhất giữa các module (AxiosResponse vs unwrapped)
+      // — đọc qua cast tối thiểu rồi narrow runtime.
+      const data = (response as { data?: unknown })?.data;
+      const dataItems =
+        data && typeof data === 'object' && 'items' in data && Array.isArray((data as { items?: unknown }).items)
+          ? (data as { items: Record<string, unknown>[] }).items
+          : null;
+      if (dataItems) {
+        setReportData(dataItems);
+        if (dataItems.length > 0) {
+          const cols = Object.keys(dataItems[0]).map((key) => ({
             title: key,
             dataIndex: key,
             key,
@@ -2206,10 +2271,11 @@ const Nc10ReportTab: React.FC<Nc10ReportTabProps> = ({
           setReportColumns(cols);
         }
         message.success(`Da tai bao cao: ${selectedReport.name}`);
-      } else if (data && Array.isArray(data)) {
-        setReportData(data);
-        if (data.length > 0) {
-          const cols = Object.keys(data[0]).map((key) => ({
+      } else if (Array.isArray(data)) {
+        const rows = data as Record<string, unknown>[];
+        setReportData(rows);
+        if (rows.length > 0) {
+          const cols = Object.keys(rows[0]).map((key) => ({
             title: key,
             dataIndex: key,
             key,

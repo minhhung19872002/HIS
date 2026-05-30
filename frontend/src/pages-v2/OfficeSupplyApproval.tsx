@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import systemApi from '../api/system';
 import { getWarehouses } from '../api/warehouse';
+import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, DrSec, DrField,
   Ico, tk, ti, tw, type ColumnDef,
@@ -25,6 +26,11 @@ interface ApprovalRequest {
   totalItems: number; totalAmount: number;
   items: RequestItem[];
 }
+interface Department { id: string; departmentName: string; departmentCode?: string }
+interface Warehouse { id: string; warehouseName: string; warehouseCode?: string }
+interface CreateRequestResponse { approvalCode?: string; id?: string }
+interface ApproveResponse { exportReceiptId?: string }
+interface CreateItemForm { supplyId: string; requestedQuantity: number; note?: string }
 
 const STATUS_LABEL: Record<number, string> = {
   1: 'Chưa nhập', 2: 'Chờ duyệt', 3: 'Đã duyệt', 4: 'Đã thu hồi',
@@ -50,10 +56,8 @@ const OfficeSupplyApprovalV2: React.FC = () => {
   const [approveQty, setApproveQty] = useState<Record<string, number>>({});
   const [detail, setDetail] = useState<ApprovalRequest | null>(null);
   const [supplies, setSupplies] = useState<Supply[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [departments, setDepartments] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [form] = Form.useForm();
 
   const load = useCallback(async () => {
@@ -77,13 +81,13 @@ const OfficeSupplyApprovalV2: React.FC = () => {
       } catch { /* empty */ }
       try {
         const d = await systemApi.catalog.getDepartments();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setDepartments((d as any)?.data || []);
+        const dBody = (d as { data?: MaybePaged<Department> }).data;
+        setDepartments(unwrapList<Department>(dBody));
       } catch { /* empty */ }
       try {
         const w = await getWarehouses(1);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setWarehouses(((w as any)?.data?.items || (w as any)?.data || []) as any[]);
+        const wBody = (w as { data?: MaybePaged<Warehouse> }).data;
+        setWarehouses(unwrapList<Warehouse>(wBody));
       } catch { /* empty */ }
     })();
   }, []);
@@ -92,11 +96,9 @@ const OfficeSupplyApprovalV2: React.FC = () => {
     const v = await form.validateFields();
     if (!v.items || v.items.length === 0) { tw('Chưa có vật tư'); return; }
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data }: { data: any } = await apiClient.post('/office-supply/requests', {
+      const { data }: { data: CreateRequestResponse } = await apiClient.post('/office-supply/requests', {
         departmentId: v.departmentId, warehouseId: v.warehouseId, note: v.note,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        items: v.items.map((it: any) => {
+        items: (v.items as CreateItemForm[]).map((it) => {
           const sup = supplies.find((s) => s.id === it.supplyId);
           return {
             supplyId: it.supplyId, requestedQuantity: it.requestedQuantity,
@@ -112,8 +114,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
   const submitApprove = async () => {
     if (!approveReq) return;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data }: { data: any } = await apiClient.post('/office-supply/requests/approve', {
+      const { data }: { data: ApproveResponse } = await apiClient.post('/office-supply/requests/approve', {
         id: approveReq.id, approvedQuantities: approveQty,
       });
       tk(`Đã duyệt — phiếu xuất ${data.exportReceiptId}`);
@@ -275,13 +276,11 @@ const OfficeSupplyApprovalV2: React.FC = () => {
         <Form form={form} layout="vertical">
           <Form.Item name="departmentId" label="Khoa yêu cầu" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label"
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              options={departments.map((d: any) => ({ value: d.id, label: d.departmentName }))} />
+              options={departments.map((d) => ({ value: d.id, label: d.departmentName }))} />
           </Form.Item>
           <Form.Item name="warehouseId" label="Kho xuất" rules={[{ required: true }]}>
             <Select showSearch optionFilterProp="label"
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              options={warehouses.map((w: any) => ({ value: w.id, label: w.warehouseName }))} />
+              options={warehouses.map((w) => ({ value: w.id, label: w.warehouseName }))} />
           </Form.Item>
           <Form.Item name="note" label="Ghi chú">
             <Input.TextArea rows={2} />

@@ -1,23 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Tabs, Table, Button, Modal, Form, Input, Select, Tag, Space, message,
-  Popconfirm, DatePicker, Switch, Badge, Tooltip, Card, Row, Col,
-  Timeline, Empty, Drawer, Spin, Alert,
+  Button, Modal, Form, Input, Select, Tag, Space, message,
+  Popconfirm, Switch, Card, Row, Col,
+  Empty, Spin,
 } from 'antd';
 import {
-  ShareAltOutlined, LockOutlined, FileProtectOutlined, EditOutlined,
-  PictureOutlined, ThunderboltOutlined, CheckCircleOutlined,
-  CloseCircleOutlined, WarningOutlined, DeleteOutlined, PlusOutlined,
-  ReloadOutlined, SearchOutlined, UnlockOutlined, CopyOutlined,
-  OrderedListOutlined, TagOutlined, CodeOutlined, SafetyOutlined,
-  EyeOutlined,
+  EditOutlined,
+  PictureOutlined,
+  DeleteOutlined, PlusOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import * as emrMgmt from '../../api/emrManagement';
 import type {
-  EmrShareDto, ShareAccessLogDto, EmrExtractDto, EmrSpineDto,
-  EmrSpineSectionDto, EmrImageDto, EmrShortcodeDto,
-  AutoCheckRuleDto, AutoCheckViolationDto,
+  EmrImageDto,
 } from '../../api/emrManagement';
 
 const { TextArea } = Input;

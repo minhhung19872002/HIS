@@ -456,8 +456,19 @@ export const verifyInsurance = (dto: InsuranceVerificationRequest) =>
 export const verifyInsuranceByQR = (qrData: string) =>
   api.post<InsuranceVerificationResultDto>('/reception/insurance/verify-qr', { qrData });
 
+export interface BlockedInsuranceDto {
+  id: string;
+  insuranceNumber: string;
+  reason?: number;
+  reasonName?: string;
+  notes?: string;
+  blockedAt?: string;
+  blockedByName?: string;
+  patientName?: string;
+}
+
 export const getBlockedInsuranceList = (keyword?: string, page = 1, pageSize = 50) =>
-  api.get<PagedResult<any>>('/reception/insurance/blocked', {
+  api.get<PagedResult<BlockedInsuranceDto>>('/reception/insurance/blocked', {
     params: { keyword, page, pageSize }
   });
 
@@ -657,16 +668,43 @@ export const getHealthCheckContracts = (keyword?: string, status?: number, page 
     params: { keyword, status, page, pageSize }
   });
 
-export const importHealthCheckPatients = (contractId: string, patients: any[]) =>
+/**
+ * Mỗi dòng import từ Excel khám sức khỏe — backend tự validate.
+ * Loose shape vì cấu trúc cột Excel khác nhau giữa các BV/đối tác.
+ */
+export interface HealthCheckPatientImportRow {
+  fullName?: string;
+  gender?: number;
+  dateOfBirth?: string;
+  yearOfBirth?: number;
+  identityNumber?: string;
+  phoneNumber?: string;
+  address?: string;
+  packageCode?: string;
+  [k: string]: unknown;
+}
+
+export const importHealthCheckPatients = (contractId: string, patients: HealthCheckPatientImportRow[]) =>
   api.post<{ success: number; failed: number; errors: string[] }>(
     `/reception/health-check/contracts/${contractId}/import`,
     patients
   );
 
+/** Field con BN mới khi đăng ký BHYT/viện phí (giống nested `newPatient` trong InsuranceRegistrationDto/FeeRegistrationDto). */
+export interface NewPatientInput {
+  fullName: string;
+  gender: number;
+  dateOfBirth?: string;
+  yearOfBirth?: number;
+  phoneNumber?: string;
+  address?: string;
+  identityNumber?: string;
+}
+
 export interface HealthCheckRegistrationDto {
   contractId?: string;
   patientId?: string;
-  newPatient?: any;
+  newPatient?: NewPatientInput;
   packageId: string;
   hasLifeInsurance?: boolean;
   lifeInsuranceNumber?: string;
@@ -704,7 +742,20 @@ export interface EmergencyRegistrationDto {
 export const registerEmergencyPatient = (dto: EmergencyRegistrationDto) =>
   api.post<AdmissionDto>('/reception/register/emergency', dto);
 
-export const updateEmergencyPatientInfo = (medicalRecordId: string, dto: any) =>
+/** Cập nhật thông tin BN cấp cứu (sau khi xác minh nhân thân). Field optional, BE chỉ ghi đè giá trị có gửi lên. */
+export interface UpdateEmergencyPatientInfoDto {
+  patientName?: string;
+  gender?: number;
+  dateOfBirth?: string;
+  yearOfBirth?: number;
+  identityNumber?: string;
+  phoneNumber?: string;
+  address?: string;
+  insuranceNumber?: string;
+  notes?: string;
+}
+
+export const updateEmergencyPatientInfo = (medicalRecordId: string, dto: UpdateEmergencyPatientInfoDto) =>
   api.put<AdmissionDto>(`/reception/emergency/${medicalRecordId}/patient-info`, dto);
 
 export const mergePatients = (sourcePatientId: string, targetPatientId: string, reason: string) =>
@@ -727,13 +778,34 @@ export const changeRoom = (medicalRecordId: string, newRoomId: string, newDoctor
     reason
   });
 
-export const updateAdmission = (id: string, dto: any) =>
+/** Sửa nhanh phiên tiếp đón: đổi phòng/BS/loại điều trị/lưu ý. Field optional, BE patch theo giá trị có. */
+export interface UpdateAdmissionDto {
+  roomId?: string;
+  doctorId?: string;
+  priority?: number;
+  patientType?: number;
+  treatmentType?: number;
+  chiefComplaint?: string;
+  notes?: string;
+}
+
+export const updateAdmission = (id: string, dto: UpdateAdmissionDto) =>
   api.put<AdmissionDto>(`/reception/admissions/${id}`, dto);
 
 export const getOtherPayers = () =>
   api.get('/reception/payers');
 
-export const saveGuardianInfo = (patientId: string, guardian: any) =>
+/** Thông tin người giám hộ / thân nhân — dùng cho trẻ em / BN không có CCCD. */
+export interface GuardianInfoDto {
+  fullName: string;
+  identityNumber?: string;
+  phoneNumber?: string;
+  address?: string;
+  relationship: string;
+  insuranceNumber?: string;
+}
+
+export const saveGuardianInfo = (patientId: string, guardian: GuardianInfoDto) =>
   api.post(`/reception/patients/${patientId}/guardian`, guardian);
 
 // #endregion
@@ -900,14 +972,47 @@ export const getQueueConfiguration = (roomId: string, queueType: number) =>
     params: { queueType }
   });
 
-export const saveQueueConfiguration = (dto: any) =>
+/** Cấu hình hàng đợi cho 1 phòng + loại STT (đếm ngược / nhảy số / ngắt giờ trưa…). */
+export interface QueueConfigurationDto {
+  roomId: string;
+  queueType: number;
+  maxPerDay?: number;
+  maxInsurancePerDay?: number;
+  startNumber?: number;
+  resetAtMidnight?: boolean;
+  notes?: string;
+  [k: string]: unknown;
+}
+
+export const saveQueueConfiguration = (dto: QueueConfigurationDto) =>
   api.post('/reception/queue/config', dto);
 
+/**
+ * Kết quả tìm BN tại tiếp đón. Backend trả từ nhiều bảng (Patient/MedicalRecord/Admission) → field
+ * gối nhau (`fullName | patientName`, `id | patientId`). FE đọc cả 2 dạng — xem
+ * `pages-v2/reception/PatientLookupModal.tsx` + `pages/Reception.tsx`.
+ */
+export interface PatientSearchResultDto {
+  id?: string;
+  patientId?: string;
+  patientCode?: string;
+  fullName?: string;
+  patientName?: string;
+  gender?: number;
+  dateOfBirth?: string;
+  yearOfBirth?: number;
+  phoneNumber?: string;
+  identityNumber?: string;
+  address?: string;
+  insuranceNumber?: string;
+  [k: string]: unknown;
+}
+
 export const searchPatient = (keyword: string) =>
-  api.get<any[]>('/reception/patients/search', { params: { keyword } });
+  api.get<PatientSearchResultDto[]>('/reception/patients/search', { params: { keyword } });
 
 // Print barcode label for medical record
-export const printBarcodeLabel = (patientId: string) => {
+export const printBarcodeLabel = (_patientId: string) => {
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
   // The actual print content is generated by the calling page (Reception.tsx)

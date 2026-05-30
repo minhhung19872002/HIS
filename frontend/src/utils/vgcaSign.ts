@@ -24,8 +24,10 @@ export interface VgcaSignResult {
   caProvider?: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyWin = Window & Record<string, any>;
+// SDK do nhà cung cấp expose các hàm/đối tượng toàn cục với tên không xác định trước
+// (xem VITE_VGCA_SIGN_FN + candidates). Type 1 lần ở đây, không rải nhiều chỗ.
+// TODO type chặt khi có @types/<sdk> chính thức.
+type GlobalLookup = Window & Record<string, unknown>;
 
 let sdkLoading: Promise<void> | null = null;
 
@@ -50,15 +52,18 @@ export function loadSignServiceSdk(): Promise<void> {
 }
 
 /** Tìm hàm ký toàn cục mà SDK expose (tên khác nhau giữa các bản vgca). */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function resolveSignFn(): ((...args: any[]) => any) | null {
-  const w = window as AnyWin;
+type SdkSignFunction = (...args: unknown[]) => unknown;
+function resolveSignFn(): SdkSignFunction | null {
+  const w = window as unknown as GlobalLookup;
   const candidates = [SIGN_FN, 'SignServiceJS', 'signServiceJS', 'CallSignServiceJS', 'vgca_sign', 'SignFile', 'gca_sign'].filter(Boolean);
   for (const name of candidates) {
     const fn = w[name];
-    if (typeof fn === 'function') return fn;
+    if (typeof fn === 'function') return fn as SdkSignFunction;
     // Một số bản expose object có method .sign
-    if (fn && typeof fn.sign === 'function') return fn.sign.bind(fn);
+    if (fn && typeof fn === 'object' && typeof (fn as { sign?: unknown }).sign === 'function') {
+      const obj = fn as { sign: SdkSignFunction };
+      return obj.sign.bind(obj);
+    }
   }
   return null;
 }
@@ -81,29 +86,41 @@ function invokeSdkSign(fileType: 'pdf' | 'xml', base64: string, fileName: string
       Data: base64,
       FileName: fileName,
     };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const onResult = (res: any) => {
+    // SDK trả về shape không nhất quán giữa các bản — narrow runtime trước khi dùng.
+    const onResult = (res: unknown) => {
       try {
         if (res == null) { reject(new Error('SDK VGCA trả kết quả rỗng')); return; }
         // Một số bản trả string base64 trực tiếp, số khác trả object.
         if (typeof res === 'string') { resolve({ signedBase64: res }); return; }
-        const ok = res.Status === 0 || res.status === 0 || res.Success === true || res.success === true || res.code === 0;
-        const signed = res.Data || res.data || res.SignedData || res.signedData || res.FileData || res.result;
-        if (!ok && !signed) { reject(new Error(res.Message || res.message || 'Ký thất bại từ SDK VGCA')); return; }
+        const r = res as Record<string, unknown>;
+        const ok = r.Status === 0 || r.status === 0 || r.Success === true || r.success === true || r.code === 0;
+        const signed = (r.Data || r.data || r.SignedData || r.signedData || r.FileData || r.result) as string | undefined;
+        if (!ok && !signed) {
+          const msg = (r.Message || r.message) as string | undefined;
+          reject(new Error(msg || 'Ký thất bại từ SDK VGCA'));
+          return;
+        }
         resolve({
-          signedBase64: signed,
-          certSubject: res.CertSubject || res.certSubject || res.Subject,
-          certSerial: res.CertSerial || res.certSerial || res.Serial,
-          caProvider: res.CaProvider || res.caProvider || res.Issuer,
+          signedBase64: signed as string,
+          certSubject: (r.CertSubject || r.certSubject || r.Subject) as string | undefined,
+          certSerial: (r.CertSerial || r.certSerial || r.Serial) as string | undefined,
+          caProvider: (r.CaProvider || r.caProvider || r.Issuer) as string | undefined,
         });
       } catch (e) { reject(e as Error); }
     };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const onError = (err: any) => reject(new Error(typeof err === 'string' ? err : (err?.message || 'Lỗi ký VGCA')));
+    const onError = (err: unknown) => {
+      if (typeof err === 'string') { reject(new Error(err)); return; }
+      const message = (err && typeof err === 'object' && 'message' in err)
+        ? String((err as { message?: unknown }).message ?? 'Lỗi ký VGCA')
+        : 'Lỗi ký VGCA';
+      reject(new Error(message));
+    };
     try {
       // SignServiceJS thường dùng callback (success, error). Nếu bản anh trả Promise thì nhánh .then xử lý.
       const maybe = fn(request, onResult, onError);
-      if (maybe && typeof maybe.then === 'function') maybe.then(onResult).catch(onError);
+      if (maybe && typeof maybe === 'object' && typeof (maybe as { then?: unknown }).then === 'function') {
+        (maybe as Promise<unknown>).then(onResult).catch(onError);
+      }
     } catch (e) { reject(e as Error); }
   });
 }

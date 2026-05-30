@@ -52,14 +52,13 @@ const FollowUpV2: React.FC = () => {
 
   const reload = () => {
     setLoading(true);
+    // AppointmentSearchDto dùng `page` (1-based)
     searchAppointments({
       fromDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
       toDate:   dayjs().add(60, 'day').format('YYYY-MM-DD'),
-      pageIndex: 0, pageSize: 200,
-    } as any).then((r) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const arr = ((r as any)?.data?.items || (r as any)?.data || []) as AppointmentListDto[];
-      setRows(Array.isArray(arr) ? arr : []);
+      page: 1, pageSize: 200,
+    }).then((r) => {
+      setRows(r.data?.items || []);
     }).catch(() => setRows([])).finally(() => setLoading(false));
   };
   useEffect(reload, []);

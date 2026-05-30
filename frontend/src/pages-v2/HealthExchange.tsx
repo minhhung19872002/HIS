@@ -4,6 +4,7 @@ import {
   getConnections, createConnection, updateConnection, testConnection, activateConnection, deactivateConnection,
   type HIEConnectionDto, type CreateConnectionDto,
 } from '../api/healthExchange';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
   StatusTabs, DrawerShell, DrSec, DrField, tk, ti, tw, te, Ico,
@@ -74,9 +75,7 @@ const HealthExchangeV2: React.FC = () => {
     setLoading(true);
     try {
       const r = await getConnections();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = (Array.isArray(r) ? r : (r as any)?.items || []) as HIEConnectionDto[];
-      setItems(data);
+      setItems(normalizeArrayResponse<HIEConnectionDto>(r));
     } catch { setItems([]); ti('Không tải được kết nối HIE'); }
     finally { setLoading(false); }
   };

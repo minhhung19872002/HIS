@@ -3,7 +3,7 @@ import { Form, Input, InputNumber, Switch, Select, Modal } from 'antd';
 import apiClient from '../api/client';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
-  Ico, tk, ti, tw, cf, type ColumnDef,
+  tk, ti, tw, cf, type ColumnDef,
 } from './_v2kit';
 
 type TabKey = 'modalities' | 'body-parts' | 'protocols' | 'report-templates';

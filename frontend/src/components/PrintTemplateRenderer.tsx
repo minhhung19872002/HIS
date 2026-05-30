@@ -1,16 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { Spin } from 'antd';
+import type { MedicalRecordFullDto, ConsultationRecordDto, TreatmentSheetDto, NursingCareSheetDto } from '../api/examination';
+
+// Superset record shape — gồm MedicalRecordFullDto + các field mở rộng mà các print
+// template hậu lấy ra (examination snapshot, admissionDate, main ICD ngoài diagnoses[]).
+// Optional hết để mọi bản ghi đều bind được.
+type PrintRecord = MedicalRecordFullDto & {
+  admissionDate?: string;
+  mainDiagnosis?: string;
+  mainIcdCode?: string;
+  examination?: Record<string, unknown>;
+};
 
 interface PrintTemplateRendererProps {
   printType: string;
-  record: any;
-  printRef: React.RefObject<any>;
-  selectedConsultation?: any;
-  treatmentSheets?: any[];
-  nursingSheets?: any[];
+  record: PrintRecord | null;
+  printRef: React.RefObject<HTMLDivElement | null>;
+  selectedConsultation?: ConsultationRecordDto | null;
+  treatmentSheets?: TreatmentSheetDto[];
+  nursingSheets?: NursingCareSheetDto[];
 }
 
-async function loadTemplate(printType: string): Promise<React.ComponentType<any> | null> {
+// Renderer dispatches props per template — declare a loose record-shape so each
+// branch in render() can pass concrete props without per-template type narrowing.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyPrintComponent = React.ComponentType<any>;
+
+async function loadTemplate(printType: string): Promise<AnyPrintComponent | null> {
   switch (printType) {
     // EMRPrintTemplates
     case 'summary': return (await import('./EMRPrintTemplates')).MedicalRecordSummaryPrint;
@@ -114,7 +130,7 @@ async function loadTemplate(printType: string): Promise<React.ComponentType<any>
 }
 
 export default function PrintTemplateRenderer({ printType, record, printRef, selectedConsultation, treatmentSheets, nursingSheets }: PrintTemplateRendererProps) {
-  const [Component, setComponent] = useState<React.ComponentType<any> | null>(null);
+  const [Component, setComponent] = useState<AnyPrintComponent | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -168,10 +184,17 @@ export default function PrintTemplateRenderer({ printType, record, printRef, sel
       daysOfStay={0}
     />;
   }
-  // Referral (BV01) - destructure patient + clinical props
+  // Referral (BV01) - destructure patient + clinical props.
+  // PatientInfoDto thiếu vài field BHYT/dân tộc — augment intersection cho gọn.
   if (printType === 'referral' && record?.patient) {
-    const p = record.patient;
-    const e = (record as any).examination ?? {};
+    const p = record.patient as typeof record.patient & {
+      ethnicity?: string;
+      insuranceNumber?: string;
+      insuranceValidFrom?: string;
+      insuranceValidTo?: string;
+    };
+    // `examination` là snapshot dạng key-value (DTO chưa khai báo strict).
+    const e = (record.examination ?? {}) as Record<string, unknown>;
     return <Component ref={printRef}
       destinationHospital={e.referralDestination ?? ''}
       destinationReason={e.referralReason}
@@ -186,15 +209,15 @@ export default function PrintTemplateRenderer({ printType, record, printRef, sel
       insuranceNumber={p.insuranceNumber}
       insuranceValidFrom={p.insuranceValidFrom}
       insuranceValidTo={p.insuranceValidTo}
-      admissionDate={(record as any).admissionDate}
+      admissionDate={record.admissionDate}
       chiefComplaint={e.chiefComplaint}
       medicalHistory={e.medicalHistory}
       physicalExam={e.physicalExam}
       vitalSigns={e.vitalSigns}
       labResults={e.labResults}
       imagingResults={e.imagingResults}
-      diagnosis={e.mainDiagnosis ?? (record as any).mainDiagnosis ?? ''}
-      icdCode={e.mainIcdCode ?? (record as any).mainIcdCode}
+      diagnosis={e.mainDiagnosis ?? record.mainDiagnosis ?? ''}
+      icdCode={e.mainIcdCode ?? record.mainIcdCode}
       treatmentGiven={e.treatmentPlan}
       patientConditionBeforeTransfer={e.conclusion}
       doctorName={e.doctorName}

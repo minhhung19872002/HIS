@@ -13,7 +13,7 @@ import type {
 } from '../api/multiFacility';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
+  DrawerShell, DrSec, DrField, tk, ti,
   type ColumnDef,
 } from './_v2kit';
 

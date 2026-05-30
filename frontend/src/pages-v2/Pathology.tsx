@@ -2,6 +2,7 @@ import React from 'react';
 import dayjs from 'dayjs';
 import { getPathologyRequests } from '../api/pathology';
 import type { PathologyRequest } from '../api/pathology';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import { SimpleV2Page, StatusBadge, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
@@ -48,8 +49,7 @@ const PathologyV2: React.FC = () => {
       title="Phiếu giải phẫu bệnh"
       load={async () => {
         const r = await getPathologyRequests();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return Array.isArray(r) ? r : ((r as any)?.items || []);
+        return normalizeArrayResponse<PathologyRequest>(r);
       }}
       rowKey={(r) => r.id}
       columns={columns}

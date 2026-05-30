@@ -4,7 +4,7 @@ import { searchHealthCheckups, getHealthCheckupStats, createHealthCheckup, updat
 import type { HealthCheckup, HealthCheckupStats } from '../api/healthCheckup';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 

@@ -5,11 +5,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Card, Row, Col, Table, Tag, Button, Space, Select, Modal, Form, Input, InputNumber,
-  message, Drawer, Badge, Tabs, Typography,
+  Card, Table, Tag, Button, Space, Select, Modal, Form, Input,
+  message, Badge, Tabs, Typography,
 } from 'antd';
 import {
-  SendOutlined, PrinterOutlined, CheckCircleOutlined, CloseCircleOutlined,
+  SendOutlined, CheckCircleOutlined, CloseCircleOutlined,
   ReloadOutlined, EnvironmentOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';

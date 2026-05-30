@@ -582,20 +582,28 @@ function InsuranceTab({ userId }: { userId: string }) {
 // =========================================================
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// Generic CRUD tab — form values là Antd Form record (key→string|number|boolean|Date)
+// chưa biết shape DTO cụ thể (mỗi tab khác nhau: education / cert / training...).
+// Render callback giữ `value` linh hoạt (Antd ColumnType pattern — caller pass
+// `(v: string) => ...` hợp lệ vì TS bivariant function-parameter check).
+type FormValues = Record<string, unknown>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CellValue = any;
+interface ColumnDef<T> {
+  title: string;
+  dataIndex?: keyof T & string;
+  width?: number;
+  align?: 'left' | 'right' | 'center';
+  render?: (v: CellValue, r: T) => React.ReactNode;
+}
 interface GenericCrudTabProps<T extends { id: string }> {
   endpoint: string;
   userId: string;
   subPath: string;
-  renderColumns: () => Array<{
-    title: string;
-    dataIndex?: keyof T & string;
-    width?: number;
-    align?: 'left' | 'right' | 'center';
-    render?: (v: any, r: T) => React.ReactNode;
-  }>;
+  renderColumns: () => ColumnDef<T>[];
   formItems: () => React.ReactNode;
-  formTransform?: (values: any) => any;
-  valueTransform?: (values: any) => any;
+  formTransform?: (values: FormValues) => FormValues;
+  valueTransform?: (values: T) => FormValues;
 }
 
 function GenericCrudTab<T extends { id: string }>(props: GenericCrudTabProps<T>) {
@@ -642,7 +650,7 @@ function GenericCrudTab<T extends { id: string }>(props: GenericCrudTabProps<T>)
   const handleEdit = (row: T) => {
     setEditing(row);
     form.resetFields();
-    form.setFieldsValue(valueTransform ? valueTransform(row as Record<string, unknown>) : row);
+    form.setFieldsValue(valueTransform ? valueTransform(row) : (row as unknown as FormValues));
     setModal(true);
   };
 

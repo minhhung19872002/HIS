@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 
 // ---- Types ----
 
@@ -63,10 +64,11 @@ export const searchMethadonePatients = async (params?: {
   keyword?: string;
   phase?: string;
   status?: number;
-}) => {
+}): Promise<MethadonePatient[]> => {
   try {
-    const response = await apiClient.get<any>('/methadone/patients', { params });
-    return Array.isArray(response.data) ? response.data : (response.data?.items || []);
+    // Backend trả mảng thô hoặc paged { items } — normalize qua util.
+    const response = await apiClient.get<unknown>('/methadone/patients', { params });
+    return normalizeArrayResponse<MethadonePatient>(response.data);
   } catch {
     console.warn('Failed to fetch methadone patients');
     return [];
@@ -97,11 +99,11 @@ export const getDosingHistory = async (params?: {
   patientId?: string;
   fromDate?: string;
   toDate?: string;
-}) => {
+}): Promise<DoseRecord[]> => {
   try {
     if (params?.patientId) {
-      const response = await apiClient.get<any>(`/methadone/patient/${params.patientId}/doses`);
-      return Array.isArray(response.data) ? response.data : [];
+      const response = await apiClient.get<unknown>(`/methadone/patient/${params.patientId}/doses`);
+      return normalizeArrayResponse<DoseRecord>(response.data);
     }
     return [];
   } catch {
@@ -119,11 +121,11 @@ export const getUrineTests = async (params?: {
   patientId?: string;
   fromDate?: string;
   toDate?: string;
-}) => {
+}): Promise<UrineTest[]> => {
   try {
     if (params?.patientId) {
-      const response = await apiClient.get<any>(`/methadone/patient/${params.patientId}/screenings`);
-      return Array.isArray(response.data) ? response.data : [];
+      const response = await apiClient.get<unknown>(`/methadone/patient/${params.patientId}/screenings`);
+      return normalizeArrayResponse<UrineTest>(response.data);
     }
     return [];
   } catch {

@@ -163,10 +163,11 @@ export interface ReportServiceGroupDto {
 }
 
 // ───── helper to drop the wrapped {data, success} envelope ─────
-const unwrap = <T,>(r: { data: T } | T): T => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const body = r as any;
-  return (body?.data !== undefined && body?.success !== undefined) ? body.data : (r as T);
+// Backend trả 2 shape: `{success, data: T}` (envelope) hoặc `T` thẳng.
+type Envelope<T> = { success?: unknown; data?: T };
+const unwrap = <T,>(r: Envelope<T> | T): T => {
+  const body = r as Envelope<T>;
+  return (body?.data !== undefined && body?.success !== undefined) ? (body.data as T) : (r as T);
 };
 
 // ───── #1 Manufacturer ─────

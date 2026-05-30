@@ -1,8 +1,13 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import dayjs from 'dayjs';
-import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../../constants/hospital';
-import { printStyles, PrintHeader, SignatureBlock, Field, Checkbox, DottedLines, PatientInfoBlock } from './_shared';
-export const NgoaiTruPHCNBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+import { printStyles, PrintHeader, SignatureBlock, Field, Checkbox, DottedLines, type SpecialtyEMRPrintData } from './_shared';
+
+// Helper render — các table-row trong dữ liệu chăm sóc/dịch truyền/thuốc của các
+// BA chuyên khoa không có DTO strict, vẫn cần render text.
+type RowAny = Record<string, unknown> | undefined;
+const cell = (v: unknown): React.ReactNode => v === null || v === undefined || v === '' ? '' : (v as React.ReactNode);
+const rowKey = (r: RowAny, i: number): React.Key => (typeof r?.id === 'string' || typeof r?.id === 'number' ? r.id : i);
+export const NgoaiTruPHCNBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -79,7 +84,7 @@ NgoaiTruPHCNBAPrint.displayName = 'NgoaiTruPHCNBAPrint';
 // =====================================================================
 // 27. PHIẾU KHÁM THEO YÊU CẦU (VIP / Service Exam)
 // =====================================================================
-export const KhamTheoYCPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const KhamTheoYCPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -181,7 +186,7 @@ KhamTheoYCPrint.displayName = 'KhamTheoYCPrint';
 // =====================================================================
 // 28. PHIẾU KHÁM CHUYÊN KHOA (Specialty Outpatient Exam)
 // =====================================================================
-export const KhamCKPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const KhamCKPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -255,11 +260,11 @@ export const KhamCKPrint = forwardRef<HTMLDivElement, { data: any }>(
 
       <div className="section">
         <div className="section-title">VIII. ĐƠN THUỐC</div>
-        {data?.prescriptions?.length > 0 ? (
+        {Array.isArray(data?.prescriptions) && data.prescriptions.length > 0 ? (
           <table>
             <thead><tr><th>STT</th><th>Tên thuốc</th><th>ĐVT</th><th>SL</th><th>Cách dùng</th></tr></thead>
             <tbody>
-              {data.prescriptions.map((rx: any, i: number) => (
+              {(data.prescriptions as unknown as Array<{ id?: string; medicineName?: string; unit?: string; quantity?: number | string; dosageInstruction?: string }>).map((rx, i) => (
                 <tr key={rx.id || i}>
                   <td style={{ textAlign: 'center' }}>{i + 1}</td>
                   <td>{rx.medicineName}</td>
@@ -289,7 +294,7 @@ KhamCKPrint.displayName = 'KhamCKPrint';
 // =====================================================================
 // 29. PHIẾU CHĂM SÓC CẤP 1 (Level 1 Nursing Care - Critical)
 // =====================================================================
-export const CSCap1Print = forwardRef<HTMLDivElement, { data: any }>(
+export const CSCap1Print = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -331,17 +336,20 @@ export const CSCap1Print = forwardRef<HTMLDivElement, { data: any }>(
             </tr>
           </thead>
           <tbody>
-            {(data?.vitalSignsRecords?.length > 0 ? data.vitalSignsRecords : Array.from({ length: 12 })).map((record: any, i: number) => (
-              <tr key={record?.id || i}>
-                <td style={{ textAlign: 'center' }}>{record?.time || ''}</td>
-                <td style={{ textAlign: 'center' }}>{record?.pulse || ''}</td>
-                <td style={{ textAlign: 'center' }}>{record?.bloodPressure || ''}</td>
-                <td style={{ textAlign: 'center' }}>{record?.respiratoryRate || ''}</td>
-                <td style={{ textAlign: 'center' }}>{record?.spo2 || ''}</td>
-                <td style={{ textAlign: 'center' }}>{record?.temperature || ''}</td>
-                <td style={{ textAlign: 'center' }}>{record?.gcs || ''}</td>
-                <td style={{ textAlign: 'center' }}>{record?.urineOutput || ''}</td>
-                <td>{record?.note || ''}</td>
+            {(((data?.vitalSignsRecords as unknown as RowAny[] | undefined) ?? []).length > 0
+              ? (data!.vitalSignsRecords as unknown as RowAny[])
+              : (Array.from({ length: 12 }) as RowAny[])
+            ).map((record, i) => (
+              <tr key={rowKey(record, i)}>
+                <td style={{ textAlign: 'center' }}>{cell(record?.time)}</td>
+                <td style={{ textAlign: 'center' }}>{cell(record?.pulse)}</td>
+                <td style={{ textAlign: 'center' }}>{cell(record?.bloodPressure)}</td>
+                <td style={{ textAlign: 'center' }}>{cell(record?.respiratoryRate)}</td>
+                <td style={{ textAlign: 'center' }}>{cell(record?.spo2)}</td>
+                <td style={{ textAlign: 'center' }}>{cell(record?.temperature)}</td>
+                <td style={{ textAlign: 'center' }}>{cell(record?.gcs)}</td>
+                <td style={{ textAlign: 'center' }}>{cell(record?.urineOutput)}</td>
+                <td>{cell(record?.note)}</td>
               </tr>
             ))}
           </tbody>
@@ -355,14 +363,17 @@ export const CSCap1Print = forwardRef<HTMLDivElement, { data: any }>(
             <tr><th>Giờ bắt đầu</th><th>Loại dịch</th><th>Thể tích (ml)</th><th>Tốc độ (gtts/p)</th><th>Giờ kết thúc</th><th>Phản ứng</th></tr>
           </thead>
           <tbody>
-            {(data?.infusionRecords?.length > 0 ? data.infusionRecords : Array.from({ length: 4 })).map((record: any, i: number) => (
-              <tr key={record?.id || i}>
-                <td>{record?.startTime || ''}</td>
-                <td>{record?.fluidType || ''}</td>
-                <td style={{ textAlign: 'center' }}>{record?.volume || ''}</td>
-                <td style={{ textAlign: 'center' }}>{record?.rate || ''}</td>
-                <td>{record?.endTime || ''}</td>
-                <td>{record?.reaction || ''}</td>
+            {(((data?.infusionRecords as unknown as RowAny[] | undefined) ?? []).length > 0
+              ? (data!.infusionRecords as unknown as RowAny[])
+              : (Array.from({ length: 4 }) as RowAny[])
+            ).map((record, i) => (
+              <tr key={rowKey(record, i)}>
+                <td>{cell(record?.startTime)}</td>
+                <td>{cell(record?.fluidType)}</td>
+                <td style={{ textAlign: 'center' }}>{cell(record?.volume)}</td>
+                <td style={{ textAlign: 'center' }}>{cell(record?.rate)}</td>
+                <td>{cell(record?.endTime)}</td>
+                <td>{cell(record?.reaction)}</td>
               </tr>
             ))}
           </tbody>
@@ -376,14 +387,17 @@ export const CSCap1Print = forwardRef<HTMLDivElement, { data: any }>(
             <tr><th>Giờ</th><th>Tên thuốc</th><th>Liều</th><th>Đường dùng</th><th>Phản ứng</th><th>ĐD thực hiện</th></tr>
           </thead>
           <tbody>
-            {(data?.medicationRecords?.length > 0 ? data.medicationRecords : Array.from({ length: 6 })).map((record: any, i: number) => (
-              <tr key={record?.id || i}>
-                <td>{record?.time || ''}</td>
-                <td>{record?.drugName || ''}</td>
-                <td>{record?.dose || ''}</td>
-                <td>{record?.route || ''}</td>
-                <td>{record?.reaction || ''}</td>
-                <td>{record?.nurseName || ''}</td>
+            {(((data?.medicationRecords as unknown as RowAny[] | undefined) ?? []).length > 0
+              ? (data!.medicationRecords as unknown as RowAny[])
+              : (Array.from({ length: 6 }) as RowAny[])
+            ).map((record, i) => (
+              <tr key={rowKey(record, i)}>
+                <td>{cell(record?.time)}</td>
+                <td>{cell(record?.drugName)}</td>
+                <td>{cell(record?.dose)}</td>
+                <td>{cell(record?.route)}</td>
+                <td>{cell(record?.reaction)}</td>
+                <td>{cell(record?.nurseName)}</td>
               </tr>
             ))}
           </tbody>
@@ -428,7 +442,7 @@ CSCap1Print.displayName = 'CSCap1Print';
 // =====================================================================
 // 30. PHIẾU CHĂM SÓC CẤP 2 (Level 2 Nursing Care - Intermediate)
 // =====================================================================
-export const CSCap2Print = forwardRef<HTMLDivElement, { data: any }>(
+export const CSCap2Print = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -471,15 +485,18 @@ export const CSCap2Print = forwardRef<HTMLDivElement, { data: any }>(
             </tr>
           </thead>
           <tbody>
-            {(data?.vitalSignsRecords?.length > 0 ? data.vitalSignsRecords : Array.from({ length: 8 })).map((record: any, i: number) => (
-              <tr key={record?.id || i}>
-                <td style={{ textAlign: 'center' }}>{record?.time || ''}</td>
-                <td style={{ textAlign: 'center' }}>{record?.pulse || ''}</td>
-                <td style={{ textAlign: 'center' }}>{record?.bloodPressure || ''}</td>
-                <td style={{ textAlign: 'center' }}>{record?.respiratoryRate || ''}</td>
-                <td style={{ textAlign: 'center' }}>{record?.temperature || ''}</td>
-                <td style={{ textAlign: 'center' }}>{record?.spo2 || ''}</td>
-                <td>{record?.note || ''}</td>
+            {(((data?.vitalSignsRecords as unknown as RowAny[] | undefined) ?? []).length > 0
+              ? (data!.vitalSignsRecords as unknown as RowAny[])
+              : (Array.from({ length: 8 }) as RowAny[])
+            ).map((record, i) => (
+              <tr key={rowKey(record, i)}>
+                <td style={{ textAlign: 'center' }}>{cell(record?.time)}</td>
+                <td style={{ textAlign: 'center' }}>{cell(record?.pulse)}</td>
+                <td style={{ textAlign: 'center' }}>{cell(record?.bloodPressure)}</td>
+                <td style={{ textAlign: 'center' }}>{cell(record?.respiratoryRate)}</td>
+                <td style={{ textAlign: 'center' }}>{cell(record?.temperature)}</td>
+                <td style={{ textAlign: 'center' }}>{cell(record?.spo2)}</td>
+                <td>{cell(record?.note)}</td>
               </tr>
             ))}
           </tbody>
@@ -505,13 +522,16 @@ export const CSCap2Print = forwardRef<HTMLDivElement, { data: any }>(
             <tr><th>Giờ</th><th>Y lệnh</th><th>Thực hiện</th><th>Kết quả</th><th>ĐD ký</th></tr>
           </thead>
           <tbody>
-            {(data?.orderRecords?.length > 0 ? data.orderRecords : Array.from({ length: 6 })).map((record: any, i: number) => (
-              <tr key={record?.id || i}>
-                <td>{record?.time || ''}</td>
-                <td>{record?.order || ''}</td>
-                <td>{record?.execution || ''}</td>
-                <td>{record?.result || ''}</td>
-                <td>{record?.nurseSig || ''}</td>
+            {(((data?.orderRecords as unknown as RowAny[] | undefined) ?? []).length > 0
+              ? (data!.orderRecords as unknown as RowAny[])
+              : (Array.from({ length: 6 }) as RowAny[])
+            ).map((record, i) => (
+              <tr key={rowKey(record, i)}>
+                <td>{cell(record?.time)}</td>
+                <td>{cell(record?.order)}</td>
+                <td>{cell(record?.execution)}</td>
+                <td>{cell(record?.result)}</td>
+                <td>{cell(record?.nurseSig)}</td>
               </tr>
             ))}
           </tbody>

@@ -1,9 +1,7 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import dayjs from 'dayjs';
-import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../../constants/hospital';
-import type { MedicalRecordFullDto, TreatmentSheetDto, ConsultationRecordDto, NursingCareSheetDto } from '../../api/examination';
-import type { DocumentSignatureDto } from '../../api/digitalSignature';
-import { printStyles, PrintHeader, SignatureBlock, Field, CheckMarkSvg, DigitalSignatureStamp, toSignatureStamp } from './_shared';
+import type { MedicalRecordFullDto, TreatmentSheetDto, ConsultationRecordDto } from '../../api/examination';
+import { printStyles, PrintHeader, SignatureBlock, Field } from './_shared';
 import type { SignatureStampInfo } from './_shared';
 interface MedicalRecordSummaryProps {
   record: MedicalRecordFullDto;
@@ -18,7 +16,7 @@ interface MedicalRecordSummaryProps {
 }
 
 export const MedicalRecordSummaryPrint = forwardRef<HTMLDivElement, MedicalRecordSummaryProps>(
-  ({ record, admissionDate, dischargeDate, departmentName, doctorName, treatmentSummary, proceduresSummary, dischargeCondition, followUpInstructions }, ref) => {
+  ({ record, admissionDate, dischargeDate, departmentName, doctorName: _doctorName, treatmentSummary, proceduresSummary, dischargeCondition, followUpInstructions }, ref) => {
     const p = record.patient;
     const vs = record.vitalSigns;
     const iv = record.interview;

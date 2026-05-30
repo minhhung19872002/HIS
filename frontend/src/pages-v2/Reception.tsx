@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import dayjs from 'dayjs';
-import { App as AntdApp, Input, Select, Radio, Checkbox, InputNumber } from 'antd';
+import { App as AntdApp } from 'antd';
 import * as receptionApi from '../api/reception';
-import type { AdmissionDto, RoomOverviewDto } from '../api/reception';
+import type { RoomOverviewDto } from '../api/reception';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell, ModalShell,
-  type ColumnDef, type StatusTab, type TopTab,
+  StatusBadge, ActBtn, Btn, DrawerShell,
+  type ColumnDef,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 

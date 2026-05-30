@@ -13,6 +13,7 @@ import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import systemApi from '../api/system';
 import { getWarehouses } from '../api/warehouse';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 
 const { Title, Text } = Typography;
 
@@ -59,12 +60,32 @@ export default function InpatientDispensing() {
   const [selectedIds, setSelectedIds] = useState<Record<string, string[]>>({}); // departmentId -> prescriptionIds
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [printData, setPrintData] = useState<any>(null);
+  // Shape của response /inpatient-dispensing/receipt/{id} — chỉ field cần để in.
+  interface PrintItem {
+    medicineName?: string;
+    medicineCode?: string;
+    batchNumber?: string;
+    expiryDate?: string;
+    quantity?: number;
+    unit?: string;
+    unitPrice?: number;
+    amount?: number;
+  }
+  interface PrintReceipt {
+    receiptCode?: string;
+    receiptDate?: string;
+    warehouseName?: string;
+    departmentName?: string;
+    note?: string;
+    items?: PrintItem[];
+    totalAmount?: number;
+  }
+  const [printData, setPrintData] = useState<PrintReceipt | null>(null);
 
   const loadPending = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = {};
+      const params: { departmentId?: string; warehouseId?: string } = {};
       if (filterDept) params.departmentId = filterDept;
       if (warehouseId) params.warehouseId = warehouseId;
       const { data } = await apiClient.get<PendingGroup[]>('/inpatient-dispensing/pending', { params });
@@ -79,8 +100,9 @@ export default function InpatientDispensing() {
     (async () => {
       try {
         const [d, w] = await Promise.all([systemApi.catalog.getDepartments(), getWarehouses(1)]);
-        setDepartments((d as any)?.data?.items || (d as any)?.data || []);
-        setWarehouses((w as any)?.data?.items || (w as any)?.data || []);
+        // API trả 2 shape (mảng thô vs paged) — dùng helper bao trùm cả 2.
+        setDepartments(normalizeArrayResponse<Department>((d as { data?: unknown })?.data));
+        setWarehouses(normalizeArrayResponse<Warehouse>((w as { data?: unknown })?.data));
       } catch { /* empty */ }
     })();
   }, []);
@@ -127,7 +149,7 @@ export default function InpatientDispensing() {
       <p>Kho xuất: <b>${printData.warehouseName || ''}</b> &nbsp; Khoa nhận: <b>${printData.departmentName || ''}</b></p>
       <p>${printData.note || ''}</p>
       <table><thead><tr><th>STT</th><th>Tên thuốc</th><th>Mã</th><th>Lô</th><th>HSD</th><th>SL</th><th>ĐV</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead><tbody>
-      ${(printData.items || []).map((it: any, i: number) => `<tr>
+      ${(printData.items || []).map((it: PrintItem, i: number) => `<tr>
         <td>${i + 1}</td><td>${it.medicineName}</td><td>${it.medicineCode}</td>
         <td>${it.batchNumber || ''}</td><td>${it.expiryDate ? dayjs(it.expiryDate).format('DD/MM/YYYY') : ''}</td>
         <td style="text-align:right">${it.quantity}</td><td>${it.unit || ''}</td>

@@ -7,10 +7,40 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   Card, Tabs, Table, Button, Modal, Form, Input, InputNumber, Switch, Select, Space, message, Popconfirm, Tag,
 } from 'antd';
+import type { ColumnsType, ColumnType } from 'antd/es/table';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, ScanOutlined } from '@ant-design/icons';
 import apiClient from '../api/client';
 
 type TabKey = 'modalities' | 'body-parts' | 'protocols' | 'report-templates';
+
+// Union shape phủ 4 tab: modalities / body-parts / protocols / report-templates.
+// Mỗi field optional; cột chỉ đọc field tương ứng với tab đang chọn.
+interface RisCatalogRow {
+  id: string;
+  isActive?: boolean;
+  sortOrder?: number;
+  // Modality
+  modalityCode?: string; modalityName?: string; modalityType?: number;
+  modalityId?: string;
+  // BodyPart
+  bodyPartCode?: string; bodyPartName?: string; englishName?: string;
+  dicomCode?: string; region?: string; description?: string;
+  bodyPartId?: string;
+  // Protocol
+  protocolCode?: string; protocolName?: string; useContrast?: boolean;
+  contrastAgent?: string; contrastDose?: string;
+  kvp?: number; mas?: number; sliceThickness?: number;
+  position?: string; instructions?: string; notes?: string;
+  // ReportTemplate
+  templateCode?: string; templateName?: string; techniqueText?: string;
+  findingsTemplate?: string; impressionTemplate?: string; note?: string;
+}
+
+interface RisLookupRow {
+  id: string;
+  modalityCode?: string; modalityName?: string;
+  bodyPartCode?: string; bodyPartName?: string;
+}
 
 const MODALITY_TYPE_OPTIONS = [
   { label: 'X-quang (1)', value: 1 },
@@ -29,21 +59,21 @@ const POSITION_OPTIONS = ['Standing', 'Supine', 'Prone', 'Decubitus', 'Lateral',
 export default function RisCatalogAdmin() {
   const [tab, setTab] = useState<TabKey>('modalities');
   const [keyword, setKeyword] = useState('');
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<RisCatalogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<any | null>(null);
+  const [editing, setEditing] = useState<RisCatalogRow | null>(null);
   const [form] = Form.useForm();
 
-  const [modalities, setModalities] = useState<any[]>([]);
-  const [bodyParts, setBodyParts] = useState<any[]>([]);
+  const [modalities, setModalities] = useState<RisLookupRow[]>([]);
+  const [bodyParts, setBodyParts] = useState<RisLookupRow[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = {};
+      const params: { keyword?: string } = {};
       if (keyword) params.keyword = keyword;
-      const { data } = await apiClient.get(`/ris-catalog/${tab}`, { params });
+      const { data } = await apiClient.get<RisCatalogRow[]>(`/ris-catalog/${tab}`, { params });
       setData(Array.isArray(data) ? data : []);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } };
@@ -56,18 +86,18 @@ export default function RisCatalogAdmin() {
   useEffect(() => {
     (async () => {
       try {
-        const { data: m } = await apiClient.get('/ris-catalog/modalities', { params: { isActive: true } });
+        const { data: m } = await apiClient.get<RisLookupRow[]>('/ris-catalog/modalities', { params: { isActive: true } });
         setModalities(Array.isArray(m) ? m : []);
       } catch { /* empty */ }
       try {
-        const { data: b } = await apiClient.get('/ris-catalog/body-parts');
+        const { data: b } = await apiClient.get<RisLookupRow[]>('/ris-catalog/body-parts');
         setBodyParts(Array.isArray(b) ? b : []);
       } catch { /* empty */ }
     })();
   }, [tab]);
 
   const openAdd = () => { setEditing(null); form.resetFields(); setModalOpen(true); };
-  const openEdit = (row: any) => {
+  const openEdit = (row: RisCatalogRow) => {
     setEditing(row);
     form.setFieldsValue({ ...row, isActive: row.isActive ?? true });
     setModalOpen(true);
@@ -87,7 +117,7 @@ export default function RisCatalogAdmin() {
     }
   };
 
-  const remove = async (row: any) => {
+  const remove = async (row: RisCatalogRow) => {
     try {
       await apiClient.delete(`/ris-catalog/${tab}/${row.id}`);
       message.success('Đã xóa');
@@ -98,10 +128,10 @@ export default function RisCatalogAdmin() {
     }
   };
 
-  const actionCol: any = {
+  const actionCol: ColumnType<RisCatalogRow> = {
     title: 'Thao tác',
     width: 140,
-    render: (_: any, r: any) => (
+    render: (_: unknown, r: RisCatalogRow) => (
       <Space size="small">
         <Button icon={<EditOutlined />} size="small" onClick={() => openEdit(r)} />
         <Popconfirm title="Xóa?" onConfirm={() => remove(r)}>
@@ -110,12 +140,12 @@ export default function RisCatalogAdmin() {
       </Space>
     ),
   };
-  const activeCol: any = {
+  const activeCol: ColumnType<RisCatalogRow> = {
     title: 'Hoạt động', dataIndex: 'isActive', width: 100,
     render: (v: boolean) => v ? <Tag color="green">Có</Tag> : <Tag>Ẩn</Tag>,
   };
 
-  const columnsByTab: Record<TabKey, any[]> = {
+  const columnsByTab: Record<TabKey, ColumnsType<RisCatalogRow>> = {
     modalities: [
       { title: 'Mã', dataIndex: 'modalityCode', width: 100 },
       { title: 'Tên', dataIndex: 'modalityName' },

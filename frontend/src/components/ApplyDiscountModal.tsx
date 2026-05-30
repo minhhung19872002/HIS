@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { Modal, Form, InputNumber, Select, Input, Alert, Space, Tag, message, Radio } from 'antd';
+import { Modal, Form, InputNumber, Select, Input, Alert, Tag, message, Radio } from 'antd';
 import apiClient from '../api/client';
 import { DISCOUNT_REASONS, DISCOUNT_APPROVAL_THRESHOLD, DISCOUNT_GM_THRESHOLD } from '../constants/discountReasons';
 

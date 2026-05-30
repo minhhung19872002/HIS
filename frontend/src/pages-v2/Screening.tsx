@@ -2,6 +2,7 @@ import React from 'react';
 import dayjs from 'dayjs';
 import { getScreeningRequests } from '../api/screening';
 import type { ScreeningRequest } from '../api/screening';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import { SimpleV2Page, StatusBadge, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
@@ -58,8 +59,7 @@ const ScreeningV2: React.FC = () => {
       title="Sàng lọc sơ sinh / trước sinh"
       load={async () => {
         const r = await getScreeningRequests();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return Array.isArray(r) ? r : ((r as any)?.items || (r as any)?.data || []);
+        return normalizeArrayResponse<ScreeningRequest>(r);
       }}
       rowKey={(r) => r.id}
       columns={columns}

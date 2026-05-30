@@ -330,7 +330,7 @@ const BillingEditorV2: React.FC = () => {
             <div>
               <div style={{ marginBottom: 12 }}><Btn variant="primary" onClick={openEinv}><TermIcon name="plus" size={12} /> Phát hành HĐĐT</Btn></div>
               <DataTable<ElectronicInvoiceDto> columns={einvCols} data={einvoices} rowKey={(r) => r.id} empty="Chưa có hoá đơn điện tử"
-                actions={(r) => <><ActBtn ic="send" title="Gửi email" onClick={() => ti('Gửi email HĐ (P2)')} /><ActBtn ic="print" title="In" onClick={() => tk('Đã gửi in')} /></>} />
+                actions={() => <><ActBtn ic="send" title="Gửi email" onClick={() => ti('Gửi email HĐ (P2)')} /><ActBtn ic="print" title="In" onClick={() => tk('Đã gửi in')} /></>} />
             </div>
           )}
         </div>

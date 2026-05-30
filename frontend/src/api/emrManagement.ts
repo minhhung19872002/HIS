@@ -159,169 +159,188 @@ export interface DeletedRecordDto {
   canRestore: boolean;
 }
 
-const mapShare = (item: any): EmrShareDto => {
-  const expiresAt = item.expiresAt ?? undefined;
+// ============ Raw backend shapes ============
+// BE entity field-name khác FE DTO (vd. sharedByUserName vs sharedByName, isRevoked vs status, severity int vs string).
+// Khai loose interface cho từng nhóm để tránh `any` mà vẫn dung sai BE đổi schema nhỏ.
+type RawDoc = Record<string, unknown>;
+
+const asStr = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
+const asNum = (v: unknown): number | undefined => (typeof v === 'number' ? v : undefined);
+const asBool = (v: unknown): boolean => v === true;
+
+const mapShare = (item: RawDoc): EmrShareDto => {
+  const expiresAt = asStr(item.expiresAt);
   const isExpired = !!expiresAt && new Date(expiresAt).getTime() < Date.now();
   const shareTargetType = item.sharedToUserId ? 'User' : 'Department';
   return {
-    id: item.id,
-    examinationId: item.examinationId,
-    patientName: item.patientName,
-    sharedByUserId: item.sharedByUserId,
-    sharedByName: item.sharedByUserName ?? item.sharedByUserId,
+    id: String(item.id ?? ''),
+    examinationId: String(item.examinationId ?? ''),
+    patientName: asStr(item.patientName),
+    sharedByUserId: String(item.sharedByUserId ?? ''),
+    sharedByName: asStr(item.sharedByUserName) ?? asStr(item.sharedByUserId),
     shareTargetType,
-    shareTargetId: item.sharedToUserId ?? item.sharedToDepartmentId ?? '',
-    shareTargetName: item.sharedToUserName ?? item.sharedToDepartmentName ?? item.sharedToUserId ?? item.sharedToDepartmentId,
+    shareTargetId: asStr(item.sharedToUserId) ?? asStr(item.sharedToDepartmentId) ?? '',
+    shareTargetName: asStr(item.sharedToUserName) ?? asStr(item.sharedToDepartmentName) ?? asStr(item.sharedToUserId) ?? asStr(item.sharedToDepartmentId),
     shareType: item.shareType === 2 ? 'Form' : 'Whole',
-    formTypes: item.formType,
+    formTypes: asStr(item.formType),
     expiresAt,
-    accessCount: item.accessCount ?? 0,
-    note: item.note,
+    accessCount: asNum(item.accessCount) ?? 0,
+    note: asStr(item.note),
     status: item.isRevoked ? 'Revoked' : isExpired ? 'Expired' : 'Active',
-    createdAt: item.createdAt,
+    createdAt: String(item.createdAt ?? ''),
   };
 };
 
-const mapShareAccessLog = (item: any): ShareAccessLogDto => ({
-  id: item.id,
-  shareId: item.emrShareId,
-  accessedByUserId: item.accessedByUserId,
-  accessedByName: item.accessedByUserName ?? item.accessedByUserId,
-  accessedAt: item.accessedAt,
-  action: item.action,
-  ipAddress: item.ipAddress,
+const mapShareAccessLog = (item: RawDoc): ShareAccessLogDto => ({
+  id: String(item.id ?? ''),
+  shareId: String(item.emrShareId ?? ''),
+  accessedByUserId: String(item.accessedByUserId ?? ''),
+  accessedByName: asStr(item.accessedByUserName) ?? asStr(item.accessedByUserId),
+  accessedAt: String(item.accessedAt ?? ''),
+  action: String(item.action ?? ''),
+  ipAddress: asStr(item.ipAddress),
 });
 
-const mapExtract = (item: any): EmrExtractDto => {
-  const expiresAt = item.expiresAt ?? undefined;
+const mapExtract = (item: RawDoc): EmrExtractDto => {
+  const expiresAt = asStr(item.expiresAt);
   const isExpired = !!expiresAt && new Date(expiresAt).getTime() < Date.now();
   return {
-    id: item.id,
-    examinationId: item.examinationId,
-    patientName: item.patientName,
-    extractedByName: item.extractedByUserName ?? item.extractedByUserId,
+    id: String(item.id ?? ''),
+    examinationId: String(item.examinationId ?? ''),
+    patientName: asStr(item.patientName),
+    extractedByName: asStr(item.extractedByUserName) ?? asStr(item.extractedByUserId),
     extractType: item.extractType === 2 ? 'Partial' : 'Full',
-    formTypes: item.formTypes,
+    formTypes: asStr(item.formTypes),
     hasWatermark: !!item.watermarkText,
-    accessCode: item.accessCode,
-    accessCount: item.accessCount ?? 0,
-    maxAccessCount: item.maxAccessCount ?? 0,
+    accessCode: asStr(item.accessCode),
+    accessCount: asNum(item.accessCount) ?? 0,
+    maxAccessCount: asNum(item.maxAccessCount) ?? 0,
     expiresAt,
     status: item.isRevoked ? 'Revoked' : isExpired ? 'Expired' : 'Active',
-    createdAt: item.createdAt,
+    createdAt: String(item.createdAt ?? ''),
   };
 };
 
-const mapSpine = (item: any): EmrSpineDto => ({
-  id: item.id,
-  name: item.name,
-  description: item.description,
-  isDefault: !!item.isDefault,
-  isActive: !!item.isActive,
-  code: item.code,
-  sortOrder: item.sortOrder ?? 0,
-  sections: (item.sections ?? []).map((section: any) => ({
-    id: section.id,
-    formType: section.formType,
-    formName: section.formName,
-    sortOrder: section.sortOrder ?? 0,
-    isRequired: !!section.isRequired,
-  })),
+const mapSpine = (item: RawDoc): EmrSpineDto => {
+  const sections = Array.isArray(item.sections) ? (item.sections as RawDoc[]) : [];
+  return {
+    id: String(item.id ?? ''),
+    name: String(item.name ?? ''),
+    description: asStr(item.description),
+    isDefault: asBool(item.isDefault),
+    isActive: asBool(item.isActive),
+    code: asStr(item.code),
+    sortOrder: asNum(item.sortOrder) ?? 0,
+    sections: sections.map((section) => ({
+      id: asStr(section.id),
+      formType: String(section.formType ?? ''),
+      formName: String(section.formName ?? ''),
+      sortOrder: asNum(section.sortOrder) ?? 0,
+      isRequired: asBool(section.isRequired),
+    })),
+  };
+};
+
+const mapPatientSignature = (item: RawDoc): PatientSignatureDto => ({
+  id: String(item.id ?? ''),
+  patientId: String(item.patientId ?? ''),
+  patientName: asStr(item.patientName),
+  examinationId: asStr(item.examinationId),
+  documentType: String(item.documentType ?? ''),
+  signatureData: String(item.signatureData ?? ''),
+  signedAt: String(item.signedAt ?? ''),
+  verificationCode: asStr(item.verificationCode),
+  isVerified: asBool(item.isVerified),
+  verifiedByName: asStr(item.verifiedByName),
+  verifiedAt: asStr(item.verifiedAt),
 });
 
-const mapPatientSignature = (item: any): PatientSignatureDto => ({
-  id: item.id,
-  patientId: item.patientId,
-  patientName: item.patientName,
-  examinationId: item.examinationId,
-  documentType: item.documentType,
-  signatureData: item.signatureData,
-  signedAt: item.signedAt,
-  verificationCode: item.verificationCode,
-  isVerified: !!item.isVerified,
-  verifiedByName: item.verifiedByName,
-  verifiedAt: item.verifiedAt,
-});
-
-const mapDocumentLock = (item: any): DocumentLockDto => {
+const mapDocumentLock = (item: RawDoc | null | undefined): DocumentLockDto => {
   if (!item || item.isLocked === false) {
     return {
-      documentType: item?.documentType ?? '',
-      documentId: item?.documentId ?? '',
+      documentType: asStr(item?.documentType) ?? '',
+      documentId: asStr(item?.documentId) ?? '',
       isLocked: false,
     };
   }
 
   return {
-    id: item.id,
-    documentType: item.documentType,
-    documentId: item.documentId,
-    isLocked: !!item.isActive,
-    lockedByUserId: item.lockedByUserId,
-    lockedByName: item.lockedByUserName ?? item.lockedByName,
-    lockedAt: item.lockedAt,
-    expiresAt: item.expiresAt,
+    id: asStr(item.id),
+    documentType: String(item.documentType ?? ''),
+    documentId: String(item.documentId ?? ''),
+    isLocked: asBool(item.isActive),
+    lockedByUserId: asStr(item.lockedByUserId),
+    lockedByName: asStr(item.lockedByUserName) ?? asStr(item.lockedByName),
+    lockedAt: asStr(item.lockedAt),
+    expiresAt: asStr(item.expiresAt),
   };
 };
 
-const mapImage = (item: any): EmrImageDto => ({
-  id: item.id,
-  title: item.title,
-  description: item.description,
-  category: item.category,
-  tags: item.tags,
-  imageData: item.imageData,
-  thumbnailUrl: item.thumbnailUrl,
-  isShared: !!item.isShared,
-  createdByName: item.uploadedByUserName ?? item.createdByName ?? item.uploadedByUserId,
-  createdAt: item.createdAt,
+const mapImage = (item: RawDoc): EmrImageDto => ({
+  id: String(item.id ?? ''),
+  title: String(item.title ?? ''),
+  description: asStr(item.description),
+  category: asStr(item.category),
+  tags: asStr(item.tags),
+  imageData: asStr(item.imageData),
+  thumbnailUrl: asStr(item.thumbnailUrl),
+  isShared: asBool(item.isShared),
+  createdByName: asStr(item.uploadedByUserName) ?? asStr(item.createdByName) ?? asStr(item.uploadedByUserId),
+  createdAt: String(item.createdAt ?? ''),
 });
 
-const mapShortcode = (item: any): EmrShortcodeDto => ({
-  id: item.id,
-  code: item.code,
-  fullText: item.fullText,
-  category: item.category,
+const mapShortcode = (item: RawDoc): EmrShortcodeDto => ({
+  id: String(item.id ?? ''),
+  code: String(item.code ?? ''),
+  fullText: String(item.fullText ?? ''),
+  category: asStr(item.category),
   scope: item.isGlobal ? 'Global' : item.departmentId ? 'Department' : 'User',
-  isActive: !!item.isActive,
+  isActive: asBool(item.isActive),
 });
 
-const mapRule = (item: any): AutoCheckRuleDto => ({
-  id: item.id,
-  name: item.ruleName,
-  ruleType: item.ruleType,
-  formType: item.formType,
-  fieldName: item.fieldName,
-  condition: item.condition ?? '',
-  errorMessage: item.errorMessage,
-  severity: item.severity >= 2 ? 'Error' : item.severity === 1 ? 'Warning' : 'Info',
-  isActive: !!item.isActive,
+const severityLabel = (s: unknown): 'Error' | 'Warning' | 'Info' => {
+  const n = typeof s === 'number' ? s : 0;
+  if (n >= 2) return 'Error';
+  if (n === 1) return 'Warning';
+  return 'Info';
+};
+
+const mapRule = (item: RawDoc): AutoCheckRuleDto => ({
+  id: String(item.id ?? ''),
+  name: String(item.ruleName ?? ''),
+  ruleType: String(item.ruleType ?? ''),
+  formType: asStr(item.formType),
+  fieldName: asStr(item.fieldName),
+  condition: asStr(item.condition) ?? '',
+  errorMessage: String(item.errorMessage ?? ''),
+  severity: severityLabel(item.severity),
+  isActive: asBool(item.isActive),
 });
 
-const mapViolation = (item: any): AutoCheckViolationDto => ({
-  ruleName: item.ruleName,
-  formType: item.formType ?? '',
-  fieldName: item.fieldName,
-  severity: item.severity >= 2 ? 'Error' : item.severity === 1 ? 'Warning' : 'Info',
-  message: item.errorMessage ?? item.message ?? '',
+const mapViolation = (item: RawDoc): AutoCheckViolationDto => ({
+  ruleName: String(item.ruleName ?? ''),
+  formType: asStr(item.formType) ?? '',
+  fieldName: asStr(item.fieldName),
+  severity: severityLabel(item.severity),
+  message: asStr(item.errorMessage) ?? asStr(item.message) ?? '',
 });
 
-const mapCloseLog = (item: any): EmrCloseLogDto => ({
-  id: item.id,
-  examinationId: item.examinationId,
+const mapCloseLog = (item: RawDoc): EmrCloseLogDto => ({
+  id: String(item.id ?? ''),
+  examinationId: String(item.examinationId ?? ''),
   action: item.status === 2 ? 'Reopen' : 'Close',
-  reason: item.note,
-  performedByName: item.closedByUserName ?? item.closedByUserId,
-  performedAt: item.closedAt,
+  reason: asStr(item.note),
+  performedByName: asStr(item.closedByUserName) ?? asStr(item.closedByUserId),
+  performedAt: String(item.closedAt ?? ''),
 });
 
-const mapDeletedRecord = (item: any): DeletedRecordDto => ({
-  id: item.id,
-  entityType: item.entityType,
-  entityId: item.id,
-  entityName: item.displayName,
-  deletedByName: item.deletedBy,
-  deletedAt: item.deletedAt,
+const mapDeletedRecord = (item: RawDoc): DeletedRecordDto => ({
+  id: String(item.id ?? ''),
+  entityType: String(item.entityType ?? ''),
+  entityId: String(item.id ?? ''),
+  entityName: asStr(item.displayName),
+  deletedByName: asStr(item.deletedBy),
+  deletedAt: String(item.deletedAt ?? ''),
   canRestore: true,
 });
 

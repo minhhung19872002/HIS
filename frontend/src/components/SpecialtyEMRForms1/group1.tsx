@@ -1,8 +1,7 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import dayjs from 'dayjs';
-import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../../constants/hospital';
-import { printStyles, PrintHeader, SignatureBlock, Field, Checkbox, DottedLines, PatientInfoBlock } from './_shared';
-export const NoiKhoaBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+import { printStyles, PrintHeader, SignatureBlock, Field, DottedLines, PatientInfoBlock, type SpecialtyEMRPrintData } from './_shared';
+export const NoiKhoaBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -124,7 +123,7 @@ NoiKhoaBAPrint.displayName = 'NoiKhoaBAPrint';
 // =====================================================================
 // 2. BA TRUYỀN NHIỄM (Infectious Disease Medical Record)
 // =====================================================================
-export const TruyenNhiemBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const TruyenNhiemBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -150,7 +149,7 @@ export const TruyenNhiemBAPrint = forwardRef<HTMLDivElement, { data: any }>(
 
       <div className="section">
         <div className="section-title">III. BỆNH SỬ</div>
-        <Field label="Ngày khởi phát" value={data?.onsetDate ? dayjs(data.onsetDate).format('DD/MM/YYYY') : undefined} />
+        <Field label="Ngày khởi phát" value={data?.onsetDate ? dayjs(data.onsetDate as string).format('DD/MM/YYYY') : undefined} />
         <DottedLines content={data?.historyOfPresentIllness} count={4} />
       </div>
 
@@ -233,7 +232,7 @@ TruyenNhiemBAPrint.displayName = 'TruyenNhiemBAPrint';
 // =====================================================================
 // 3. BA PHỤ KHOA (Gynecology Medical Record)
 // =====================================================================
-export const PhuKhoaBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const PhuKhoaBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -253,7 +252,7 @@ export const PhuKhoaBAPrint = forwardRef<HTMLDivElement, { data: any }>(
           <div className="col"><Field label="Chu kỳ" value={data?.menstrualCycle ? `${data.menstrualCycle} ngày` : undefined} /></div>
           <div className="col"><Field label="Số ngày hành kinh" value={data?.menstrualDuration ? `${data.menstrualDuration} ngày` : undefined} /></div>
         </div>
-        <Field label="Kinh nguyệt cuối" value={data?.lastMenstrualPeriod ? dayjs(data.lastMenstrualPeriod).format('DD/MM/YYYY') : undefined} />
+        <Field label="Kinh nguyệt cuối" value={data?.lastMenstrualPeriod ? dayjs(data.lastMenstrualPeriod as string).format('DD/MM/YYYY') : undefined} />
         <Field label="Đặc điểm kinh nguyệt" value={data?.menstrualCharacteristics} />
         <Field label="Rối loạn kinh nguyệt" value={data?.menstrualDisorders} />
       </div>
@@ -347,7 +346,7 @@ PhuKhoaBAPrint.displayName = 'PhuKhoaBAPrint';
 // =====================================================================
 // 4. BA TÂM THẦN (Psychiatry Medical Record)
 // =====================================================================
-export const TamThanBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const TamThanBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -381,7 +380,7 @@ export const TamThanBAPrint = forwardRef<HTMLDivElement, { data: any }>(
       <div className="section">
         <div className="section-title">IV. BỆNH SỬ</div>
         <Field label="Hoàn cảnh khởi phát" value={data?.onsetCircumstances} />
-        <Field label="Ngày khởi phát" value={data?.onsetDate ? dayjs(data.onsetDate).format('DD/MM/YYYY') : undefined} />
+        <Field label="Ngày khởi phát" value={data?.onsetDate ? dayjs(data.onsetDate as string).format('DD/MM/YYYY') : undefined} />
         <DottedLines content={data?.historyOfPresentIllness} count={5} />
       </div>
 
@@ -472,7 +471,7 @@ TamThanBAPrint.displayName = 'TamThanBAPrint';
 // =====================================================================
 // 5. BA DA LIỄU (Dermatology Medical Record)
 // =====================================================================
-export const DaLieuBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const DaLieuBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>

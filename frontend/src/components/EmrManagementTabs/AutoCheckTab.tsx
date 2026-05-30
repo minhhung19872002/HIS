@@ -1,22 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Tabs, Table, Button, Modal, Form, Input, Select, Tag, Space, message,
-  Popconfirm, DatePicker, Switch, Badge, Tooltip, Card, Row, Col,
-  Timeline, Empty, Drawer, Spin, Alert,
+  Table, Button, Modal, Form, Input, Select, Tag, Space, message,
+  Popconfirm, Switch, Card, Row, Col,
+  Alert,
 } from 'antd';
 import {
-  ShareAltOutlined, LockOutlined, FileProtectOutlined, EditOutlined,
-  PictureOutlined, ThunderboltOutlined, CheckCircleOutlined,
-  CloseCircleOutlined, WarningOutlined, DeleteOutlined, PlusOutlined,
-  ReloadOutlined, SearchOutlined, UnlockOutlined, CopyOutlined,
-  OrderedListOutlined, TagOutlined, CodeOutlined, SafetyOutlined,
-  EyeOutlined,
+  EditOutlined,
+  WarningOutlined, DeleteOutlined, PlusOutlined,
+  ReloadOutlined,
+  SafetyOutlined,
 } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import * as emrMgmt from '../../api/emrManagement';
 import type {
-  EmrShareDto, ShareAccessLogDto, EmrExtractDto, EmrSpineDto,
-  EmrSpineSectionDto, EmrImageDto, EmrShortcodeDto,
   AutoCheckRuleDto, AutoCheckViolationDto,
 } from '../../api/emrManagement';
 

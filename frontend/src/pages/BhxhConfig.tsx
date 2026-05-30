@@ -30,9 +30,32 @@ export default function BhxhConfig() {
   const [testXml, setTestXml] = useState('<?xml version="1.0" encoding="UTF-8"?>\n<BHXH>\n  <MA_CSKCB></MA_CSKCB>\n  <MA_DVI></MA_DVI>\n  <data></data>\n</BHXH>');
   const [testEndpoint, setTestEndpoint] = useState('');
 
-  const [connResult, setConnResult] = useState<any>(null);
-  const [authResult, setAuthResult] = useState<any>(null);
-  const [submitResult, setSubmitResult] = useState<any>(null);
+  // Shape trả về từ /bhxh-config/test-connection · test-auth · test-submit-xml
+  // (xem BhxhConfigController). Chỉ những field hiển thị trong UI.
+  interface ConnTestResult {
+    reachable?: boolean;
+    statusCode?: number;
+    status?: string;
+    latencyMs?: number;
+    error?: string;
+  }
+  interface AuthTestResult {
+    authenticated?: boolean;
+    tokenMasked?: string;
+    statusCode?: number;
+    body?: string;
+    error?: string;
+  }
+  interface SubmitTestResult {
+    success?: boolean;
+    statusCode?: number;
+    latencyMs?: number;
+    body?: string;
+    error?: string;
+  }
+  const [connResult, setConnResult] = useState<ConnTestResult | null>(null);
+  const [authResult, setAuthResult] = useState<AuthTestResult | null>(null);
+  const [submitResult, setSubmitResult] = useState<SubmitTestResult | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
 
   const load = useCallback(async () => {

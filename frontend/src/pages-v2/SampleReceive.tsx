@@ -52,9 +52,9 @@ const SampleReceiveV2: React.FC = () => {
   const accept = async () => {
     if (selected.size === 0) { tw('Chưa chọn mẫu'); return; }
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data }: { data: any } = await apiClient.post('/sample-receive/accept', { detailIds: Array.from(selected) });
-      tk(`Đã nhận ${data.received} mẫu`); setSelected(new Set()); load();
+      interface AcceptResponse { received?: number }
+      const { data }: { data: AcceptResponse } = await apiClient.post('/sample-receive/accept', { detailIds: Array.from(selected) });
+      tk(`Đã nhận ${data.received ?? 0} mẫu`); setSelected(new Set()); load();
     } catch { tw('Nhận mẫu thất bại'); }
   };
 

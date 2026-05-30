@@ -3,6 +3,7 @@ import { Form, Input, InputNumber, Select, Modal } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import systemApi from '../api/system';
+import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, DrSec, DrField,
   Ico, tk, ti, tw, type ColumnDef,
@@ -23,6 +24,12 @@ interface Vital {
   bloodPressure?: string; spO2?: number; consciousness?: number;
   nurseNote?: string; doctorNote?: string;
 }
+interface Department { id: string; departmentName: string; departmentCode?: string }
+interface Room { id: string; roomCode: string; roomName: string; departmentId?: string }
+interface PatientSearchResult { id: string; patientCode: string; fullName: string }
+interface PatientOption { label: string; value: string }
+interface StayCreateResponse { stayCode: string; id?: string }
+interface VitalCreateResponse { ewsScore?: number }
 
 type SKey = 'observing' | 'discharged' | 'escalated';
 const STATUS_TABS = [
@@ -43,12 +50,9 @@ const ObservationStayV2: React.FC = () => {
   const [vitals, setVitals] = useState<Vital[]>([]);
   const [vitalOpen, setVitalOpen] = useState(false);
   const [dischargeOpen, setDischargeOpen] = useState<'discharge' | 'escalate' | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [departments, setDepartments] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [rooms, setRooms] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [patientOptions, setPatientOptions] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [patientOptions, setPatientOptions] = useState<PatientOption[]>([]);
   const [createForm] = Form.useForm();
   const [vitalForm] = Form.useForm();
   const [dischargeForm] = Form.useForm();
@@ -68,11 +72,9 @@ const ObservationStayV2: React.FC = () => {
     (async () => {
       try {
         const d = await systemApi.catalog.getDepartments();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setDepartments(((d as any)?.data?.items || (d as any)?.data || []) as any[]);
+        setDepartments(unwrapList<Department>((d as { data?: MaybePaged<Department> }).data));
         const r = await apiClient.get('/catalog/rooms');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setRooms(((r as any)?.data?.items || (r as any)?.data || []) as any[]);
+        setRooms(unwrapList<Room>((r as { data?: MaybePaged<Room> }).data));
       } catch { /* empty */ }
     })();
   }, []);
@@ -88,18 +90,15 @@ const ObservationStayV2: React.FC = () => {
   const searchPatient = async (kw: string) => {
     if (!kw) return;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data } = await apiClient.get<{ items?: any[] }>('/reception/patients/search', { params: { keyword: kw, pageSize: 10 } });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setPatientOptions((data.items || []).map((p: any) => ({ label: `${p.patientCode} — ${p.fullName}`, value: p.id })));
+      const { data } = await apiClient.get<{ items?: PatientSearchResult[] }>('/reception/patients/search', { params: { keyword: kw, pageSize: 10 } });
+      setPatientOptions((data.items || []).map((p) => ({ label: `${p.patientCode} — ${p.fullName}`, value: p.id })));
     } catch { setPatientOptions([]); }
   };
 
   const createStay = async () => {
     const v = await createForm.validateFields();
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data }: { data: any } = await apiClient.post('/observation', v);
+      const { data }: { data: StayCreateResponse } = await apiClient.post('/observation', v);
       tk(`Tạo phiên ${data.stayCode} thành công`);
       setCreateOpen(false); createForm.resetFields(); load();
     } catch { tw('Tạo phiên thất bại'); }
@@ -109,8 +108,7 @@ const ObservationStayV2: React.FC = () => {
     if (!detail) return;
     const v = await vitalForm.validateFields();
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data }: { data: any } = await apiClient.post(`/observation/${detail.id}/vitals`, v);
+      const { data }: { data: VitalCreateResponse } = await apiClient.post(`/observation/${detail.id}/vitals`, v);
       tk(`Đã ghi sinh hiệu (MEWS: ${data.ewsScore})`);
       vitalForm.resetFields(); setVitalOpen(false);
       openDetail(detail); load();
@@ -265,13 +263,11 @@ const ObservationStayV2: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Form.Item label="Khoa" name="departmentId">
               <Select allowClear showSearch optionFilterProp="label"
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                options={departments.map((d: any) => ({ label: d.departmentName, value: d.id }))} />
+                options={departments.map((d) => ({ label: d.departmentName, value: d.id }))} />
             </Form.Item>
             <Form.Item label="Phòng" name="roomId">
               <Select allowClear showSearch optionFilterProp="label"
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                options={rooms.map((r: any) => ({ label: `${r.roomCode} — ${r.roomName}`, value: r.id }))} />
+                options={rooms.map((r) => ({ label: `${r.roomCode} — ${r.roomName}`, value: r.id }))} />
             </Form.Item>
           </div>
           <Form.Item label="Lý do vào lưu" name="chiefComplaint" rules={[{ required: true }]}>

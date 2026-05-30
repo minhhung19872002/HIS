@@ -3,6 +3,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import type { Dayjs } from 'dayjs';
 import { HOSPITAL_NAME } from '../constants/hospital';
 import {
   Card, Table, Button, Space, DatePicker, Select, Input, Tag, message, Drawer, Descriptions,
@@ -13,7 +14,7 @@ import dayjs from 'dayjs';
 import apiClient from '../api/client';
 
 const { RangePicker } = DatePicker;
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface RegisterEntry {
   id: string; consultationDate: string; consultationType: number; consultationTypeName: string;
@@ -40,7 +41,7 @@ const TYPE_OPTIONS = [
 export default function ConsultationRegister() {
   const [data, setData] = useState<RegisterEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [range, setRange] = useState<[any, any] | null>([dayjs().subtract(30, 'day'), dayjs()]);
+  const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>([dayjs().subtract(30, 'day'), dayjs()]);
   const [filterType, setFilterType] = useState<number | undefined>();
   const [keyword, setKeyword] = useState('');
   const [detail, setDetail] = useState<Detail | null>(null);
@@ -48,7 +49,7 @@ export default function ConsultationRegister() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = {};
+      const params: { fromDate?: string; toDate?: string; consultationType?: number; keyword?: string } = {};
       if (range?.[0]) params.fromDate = range[0].toISOString();
       if (range?.[1]) params.toDate = range[1].toISOString();
       if (filterType) params.consultationType = filterType;
@@ -144,7 +145,7 @@ export default function ConsultationRegister() {
     <div>
       <Card title={<Space><BookOutlined /> Sổ hội chẩn + trích biên bản (N1.20)</Space>}>
         <Space wrap style={{ marginBottom: 16 }}>
-          <RangePicker format="DD/MM/YYYY" value={range as any} onChange={v => setRange(v as any)} />
+          <RangePicker format="DD/MM/YYYY" value={range} onChange={v => setRange(v as [Dayjs | null, Dayjs | null] | null)} />
           <Select placeholder="Loại hội chẩn" allowClear style={{ width: 200 }}
             value={filterType} onChange={setFilterType} options={TYPE_OPTIONS} />
           <Input.Search placeholder="Tên BN / mã BN / lý do / kết luận..." style={{ width: 320 }}
@@ -169,7 +170,7 @@ export default function ConsultationRegister() {
             { title: 'Lý do', dataIndex: 'reason', ellipsis: true },
             { title: 'Chủ trì', dataIndex: 'presidedBy', width: 160 },
             { title: 'Thao tác', width: 160,
-              render: (_: any, r: RegisterEntry) => <Space size="small">
+              render: (_: unknown, r: RegisterEntry) => <Space size="small">
                 <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(r)}>Xem</Button>
                 <Button size="small" icon={<PrinterOutlined />} type="primary" onClick={async () => {
                   await openDetail(r);

@@ -113,7 +113,10 @@ const MipMinIpViewer: React.FC<Props> = ({
 
         addTool(WindowLevelTool); addTool(PanTool); addTool(ZoomTool); addTool(StackScrollTool);
 
-        const volume: any = await volumeLoader.createAndCacheVolume(volumeId, { imageIds });
+        // Cornerstone3D volume — chỉ dùng `volume.load(progressCb)`; minimal type.
+        const volume = (await volumeLoader.createAndCacheVolume(volumeId, { imageIds })) as {
+          load: (cb: (evt: { numFrames: number; framesProcessed: number }) => void) => void;
+        };
         if (cancelled) return;
 
         renderingEngine = new RenderingEngine(RENDER_ID);
@@ -167,20 +170,33 @@ const MipMinIpViewer: React.FC<Props> = ({
       const blend = m === 'MIP'
         ? Enums.BlendModes.MAXIMUM_INTENSITY_BLEND
         : Enums.BlendModes.MINIMUM_INTENSITY_BLEND;
+      // VolumeViewport ở 3.x phơi 3 method qua interface khác nhau; duck-type minimal.
+      type BlendViewport = {
+        setBlendMode?: (blend: number) => void;
+        setSlabThickness?: (s: number) => void;
+        setProperties?: (props: { slabThickness?: number }) => void;
+        render?: () => void;
+      };
       [VP_AXIAL, VP_SAGITTAL, VP_CORONAL].forEach(vpId => {
-        const vp = engine.getViewport(vpId) as any;
+        const vp = engine.getViewport(vpId) as BlendViewport | undefined;
         if (!vp) return;
         try {
-          vp.setBlendMode(blend);
+          vp.setBlendMode?.(blend);
           if (typeof vp.setSlabThickness === 'function') vp.setSlabThickness(s);
           else if (typeof vp.setProperties === 'function') vp.setProperties({ slabThickness: s });
-          vp.render();
+          vp.render?.();
         } catch { /* */ }
       });
     } catch { /* */ }
   };
 
-  const applyTool = (tg: any, tEnums: any, t: ToolKey) => {
+  // Cornerstone3D-tools ToolGroup + tEnums dynamic imports — minimal shape duck-typed.
+  type ToolGroupLike = {
+    setToolPassive: (name: string) => void;
+    setToolActive: (name: string, opts: { bindings: { mouseButton: number }[] }) => void;
+  };
+  type ToolEnums = { MouseBindings: { Primary: number; Wheel: number } };
+  const applyTool = (tg: ToolGroupLike, tEnums: ToolEnums, t: ToolKey) => {
     // Reset all to passive then activate selected
     try {
       ['WindowLevel', 'Pan', 'Zoom', 'StackScroll'].forEach(name => {

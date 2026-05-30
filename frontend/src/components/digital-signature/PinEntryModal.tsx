@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Modal, Input, Button, Alert, Space } from 'antd';
 import { LockOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 

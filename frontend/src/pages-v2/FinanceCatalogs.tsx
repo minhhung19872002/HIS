@@ -10,7 +10,7 @@ import dayjs from 'dayjs';
 import * as api from '../api/masterCatalog';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, fmtVNDg, tk, te, cf, Ico,
+  DrawerShell, DrSec, DrField, fmtVNDg, tk, te, cf,
   type ColumnDef,
 } from './_v2kit';
 

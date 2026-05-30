@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Input, InputNumber, Switch, Select, Modal } from 'antd';
 import apiClient from '../api/client';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
-  Ico, tk, ti, tw, cf, type ColumnDef,
+  tk, ti, tw, cf, type ColumnDef,
 } from './_v2kit';
 
 type TabKey = 'books' | 'groups' | 'units' | 'organisms' | 'antibiotics' | 'chemicals';
@@ -40,8 +41,7 @@ const LisCatalogAdminV2: React.FC = () => {
     try {
       const params = keyword ? { keyword } : {};
       const { data } = await apiClient.get(`/lis-catalog/${tab}`, { params });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setData(Array.isArray(data) ? (data as Row[]) : ((data as any)?.items ?? []));
+      setData(normalizeArrayResponse<Row>(data));
     } catch { ti('Tải danh sách thất bại'); }
     finally { setLoading(false); }
   }, [tab, keyword]);
@@ -52,11 +52,9 @@ const LisCatalogAdminV2: React.FC = () => {
     (async () => {
       try { const { data: b } = await apiClient.get('/lis-catalog/books', { params: { isActive: true } }); setBooks(Array.isArray(b) ? (b as Row[]) : []); } catch { /* empty */ }
       try { const { data: s } = await apiClient.get('/catalog/paraclinical-services', { params: { serviceType: 2, isActive: true } });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setServices(Array.isArray(s) ? (s as Row[]) : ((s as any)?.items ?? [])); } catch { /* empty */ }
+        setServices(normalizeArrayResponse<Row>(s)); } catch { /* empty */ }
       try { const { data: sp } = await apiClient.get('/catalog/medical-supplies', { params: { isActive: true } });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setSupplies(Array.isArray(sp) ? (sp as Row[]) : ((sp as any)?.items ?? [])); } catch { /* empty */ }
+        setSupplies(normalizeArrayResponse<Row>(sp)); } catch { /* empty */ }
     })();
   }, []);
 

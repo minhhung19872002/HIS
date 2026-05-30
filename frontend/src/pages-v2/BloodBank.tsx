@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input, Select, InputNumber } from 'antd';
+import type { MessageInstance } from 'antd/es/message/interface';
 import { getBloodStock, getBloodStockDetail, getExpiringBloodBags, getIssueRequests, getProductTypes, createIssueRequest } from '../api/bloodBank';
 import type { BloodStockDto, BloodBagDto, BloodIssueRequestDto, BloodProductTypeDto, BloodStockDetailDto } from '../api/bloodBank';
 import { catalogApi } from '../api/system';
@@ -104,11 +105,7 @@ const BloodBankV2: React.FC = () => {
     return { total, available, reserved, expiring7, pendingReq, oNeg };
   }, [stock, requests, byType]);
 
-  // ─── Filtered detail rows for Stock tab ───
-  const stockRows = useMemo(() => {
-    return ALL_TYPES.map((t) => ({ key: t, ...byType[t] }))
-      .filter((r) => !filterType || r.key === filterType);
-  }, [byType, filterType]);
+  // (stockRows useMemo + StockTab component dead code — removed K1 audit cleanup 2026-05-30)
 
   // ─── Blood units (Kho máu table) ───
   const unitsFiltered = useMemo(() => {
@@ -141,8 +138,7 @@ const BloodBankV2: React.FC = () => {
     return requests.filter((r) => {
       if (search.trim()) {
         const q = search.toLowerCase();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const hay = [(r as any).requestCode, (r as any).patientName, (r as any).departmentName]
+        const hay = [r.requestCode, r.patientName, r.departmentName]
           .filter(Boolean).join(' ').toLowerCase();
         if (!hay.includes(q)) return false;
       }
@@ -429,60 +425,10 @@ const BbFld: React.FC<{ label?: string; full?: boolean; children: React.ReactNod
   </div>
 );
 
-const StockTab: React.FC<{
-  rows: { key: string; total: number; available: number; reserved: number; expiring: number; expired: number; volume: number }[];
-  loading: boolean;
-  onPick: (t: string) => void;
-}> = ({ rows, loading, onPick }) => (
-  <div className="ab-stack" style={{ padding: '14px', overflow: 'auto' }}>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-      {loading && <div style={{ gridColumn: 'span 4', textAlign: 'center', color: 'var(--t-2)', padding: 20 }}>Đang tải…</div>}
-      {!loading && rows.map((r) => {
-        const isCrit = r.available === 0;
-        const isLow = r.available > 0 && r.available <= 5;
-        const banner = isCrit ? 'crit' : isLow ? 'warn' : r.expiring > 0 ? 'warn' : 'ok';
-        return (
-          <button key={r.key} type="button" onClick={() => onPick(r.key)} style={{
-            background: '#fff', border: `1.5px solid ${
-              banner === 'crit' ? '#fca5a5' :
-              banner === 'warn' ? '#fcd34d' :
-              'var(--line)'
-            }`,
-            borderRadius: 8, padding: '14px 16px',
-            cursor: 'pointer', textAlign: 'left',
-            display: 'flex', flexDirection: 'column', gap: 8,
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <span style={{
-                fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700,
-                color: r.key.endsWith('-') ? 'var(--s-crit)' : 'var(--a-cy)',
-              }}>{r.key}</span>
-              <span className={`chip ${banner}`}>{r.available} khả dụng</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', fontSize: 11.5 }}>
-              <span style={{ color: 'var(--t-2)' }}>Tổng</span><b className="mono">{r.total}</b>
-              <span style={{ color: 'var(--t-2)' }}>Đặt trước</span><b className="mono">{r.reserved}</b>
-              <span style={{ color: 'var(--t-2)' }}>Sắp HSD</span>
-              <b className="mono" style={{ color: r.expiring > 0 ? 'var(--s-warn)' : 'var(--t-1)' }}>{r.expiring}</b>
-              <span style={{ color: 'var(--t-2)' }}>Thể tích</span><b className="mono">{fmtVol(r.volume)}</b>
-            </div>
-          </button>
-        );
-      })}
-      {!loading && rows.length === 0 && (
-        <div style={{ gridColumn: 'span 4', textAlign: 'center', color: 'var(--t-2)', padding: 20 }}>
-          Không có nhóm máu nào khớp lọc
-        </div>
-      )}
-    </div>
-  </div>
-);
-
 const ExpiringTab: React.FC<{
   rows: BloodBagDto[];
   loading: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  message: any;
+  message: MessageInstance;
 }> = ({ rows, loading, message }) => {
   const [sel, setSel] = useState<BloodBagDto | null>(null);
   const columns: ColumnDef<BloodBagDto>[] = [
@@ -564,15 +510,18 @@ const ExpiringTab: React.FC<{
   );
 };
 
+// BE có thể trả thêm `statusName`/`reason`/`indication` không khai trong DTO — widen optional
+type BloodIssueRequestRow = BloodIssueRequestDto & {
+  statusName?: string; reason?: string; indication?: string;
+};
+
 const RequestsTab: React.FC<{ rows: BloodIssueRequestDto[]; loading: boolean }> = ({ rows, loading }) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [sel, setSel] = useState<Record<string, any> | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cols: ColumnDef<any>[] = [
+  const [sel, setSel] = useState<BloodIssueRequestRow | null>(null);
+  const cols: ColumnDef<BloodIssueRequestRow>[] = [
     { key: 'code', label: 'Mã YC', mono: true, width: 130, render: (r) => r.requestCode || r.id?.slice(0, 8) },
     { key: 'patient', label: 'Bệnh nhân', render: (r) => r.patientName || '—' },
     { key: 'dept', label: 'Khoa yêu cầu', render: (r) => r.departmentName || '—' },
-    { key: 'reason', label: 'Lý do', render: (r) => r.indication || r.reason || '—' },
+    { key: 'reason', label: 'Lý do', render: (r) => r.clinicalIndication || r.indication || r.reason || '—' },
     { key: 'urgency', label: 'Mức', width: 100,
       render: (r) => <span className={`chip ${r.urgency === 'STAT' || r.urgency === 'urgent' ? 'crit' : 'info'}`}>{r.urgency || 'Thường'}</span> },
     {
@@ -586,11 +535,11 @@ const RequestsTab: React.FC<{ rows: BloodIssueRequestDto[]; loading: boolean }> 
   ];
   return (
     <>
-    <DataTable
+    <DataTable<BloodIssueRequestRow>
       columns={cols}
-      data={rows as unknown as Record<string, unknown>[]}
-      rowKey={(r) => (r as { id: string }).id}
-      onRowClick={(r) => setSel(r as Record<string, unknown>)}
+      data={rows}
+      rowKey={(r) => r.id}
+      onRowClick={(r) => setSel(r)}
       empty={loading ? 'Đang tải…' : (
         <div className="ab-empty">
           <TermIcon name="search" size={20} />
@@ -602,15 +551,15 @@ const RequestsTab: React.FC<{ rows: BloodIssueRequestDto[]; loading: boolean }> 
       open={!!sel}
       onClose={() => setSel(null)}
       size="md"
-      title={sel ? `Yêu cầu ${sel.requestCode || (sel.id as string)?.slice(0, 8)}` : ''}
+      title={sel ? `Yêu cầu ${sel.requestCode || sel.id?.slice(0, 8)}` : ''}
       sub={sel ? (sel.patientName || '—') : ''}
     >
       {sel && (
         <DrSec title="Yêu cầu xuất máu">
-          <DrField lbl="Mã YC"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.requestCode || (sel.id as string)?.slice(0, 8)}</span></DrField>
+          <DrField lbl="Mã YC"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.requestCode || sel.id?.slice(0, 8)}</span></DrField>
           <DrField lbl="Bệnh nhân">{sel.patientName || '—'}</DrField>
           <DrField lbl="Khoa yêu cầu">{sel.departmentName || '—'}</DrField>
-          <DrField lbl="Lý do / Chỉ định">{sel.indication || sel.reason || '—'}</DrField>
+          <DrField lbl="Lý do / Chỉ định">{sel.clinicalIndication || sel.indication || sel.reason || '—'}</DrField>
           <DrField lbl="Mức độ">{sel.urgency || 'Thường'}</DrField>
           <DrField lbl="Trạng thái">
             <StatusBadge tone={sel.status === 'approved' || sel.status === 'issued' ? 'ok' : 'warn'} dot>{sel.statusName || sel.status || '—'}</StatusBadge>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Modal, Progress, Table, Tag, Button, Alert, Space } from 'antd';
 import {
   SafetyCertificateOutlined,

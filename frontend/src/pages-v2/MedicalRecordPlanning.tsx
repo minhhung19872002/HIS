@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { getRecordCodes } from '../api/medicalRecordPlanning';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
+  DrawerShell, DrSec, DrField, tk, ti,
   type ColumnDef,
 } from './_v2kit';
 

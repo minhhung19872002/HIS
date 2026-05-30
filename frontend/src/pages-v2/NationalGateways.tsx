@@ -4,7 +4,7 @@ import {
   KpiStrip, TopTabs, DataTable, SearchBox, Filter, StatusBadge,
   DrawerShell, ActBtn, Btn, DrSec, DrField,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
-  tk, ti, tw, te, cf, fmtDTg, fmtDMYg
+  tk, tw, te, cf, fmtDTg, fmtDMYg
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 import {

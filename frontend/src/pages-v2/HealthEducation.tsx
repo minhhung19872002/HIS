@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { searchCampaigns, createCampaign, updateCampaign } from '../api/healthEducation';
 import type { HealthCampaign } from '../api/healthEducation';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
@@ -53,10 +54,8 @@ const HealthEducationV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const r: any = await searchCampaigns({ keyword: search });
-      const list = (r?.items || (Array.isArray(r) ? r : [])) as HealthCampaign[];
-      setItems(list);
+      const r = await searchCampaigns({ keyword: search });
+      setItems(normalizeArrayResponse<HealthCampaign>(r));
     } catch { ti('Không tải được chiến dịch'); }
     finally { setLoading(false); }
   };

@@ -125,7 +125,6 @@ export async function getAiHistoryByStudy(studyUid: string): Promise<AiResultDto
 
 /** Open the HTML report in a new tab; user can Ctrl+P to print as PDF. */
 export function openAiReportHtml(aiResultId: string): void {
-  const token = localStorage.getItem('token') || '';
   // Inline token into URL hash so the new tab can attach it via interceptor.
   // The simpler approach: rely on cookie-based auth. Since this app uses
   // localStorage JWT, we instead fetch the HTML via authenticated axios

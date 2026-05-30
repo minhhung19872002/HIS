@@ -1,9 +1,5 @@
-import React, { forwardRef } from 'react';
-import dayjs from 'dayjs';
-import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../../constants/hospital';
-import { DigitalSignatureStamp } from '../EMRPrintTemplates';
-import type { SignatureStampInfo } from '../EMRPrintTemplates';
-import { printStyles, PrintHeader, Field, SignatureBlock, PatientBlock, DottedArea } from './_shared';
+import { forwardRef } from 'react';
+import { printStyles, PrintHeader, Field, SignatureBlock, PatientBlock } from './_shared';
 export const RehabilitationMRPrint = forwardRef<HTMLDivElement, { data: Record<string, any> }>(
   ({ data: d }, ref) => (
     <div ref={ref} className="emr-print-container">

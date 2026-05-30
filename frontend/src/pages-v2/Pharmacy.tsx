@@ -24,7 +24,7 @@ const fmtVND = (n: number) => `${(n || 0).toLocaleString('vi-VN')} ₫`;
 const PharmacyV2: React.FC = () => {
   const { message, modal } = AntdApp.useApp();
   const navigate = useNavigate();
-  const [reloadVer, setReloadVer] = useState(0);
+  const [reloadVer] = useState(0);
 
   const onAccept = async (r: PendingPrescription, reload: () => void) => {
     try {

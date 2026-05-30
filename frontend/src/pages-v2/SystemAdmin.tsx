@@ -1,15 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Input, Select, Switch, Form } from 'antd';
+import type { AxiosError } from 'axios';
 import { adminApi, catalogApi } from '../api/system';
 import type { SystemUserDto, RoleDto, SystemConfigDto, UserSessionDto, CreateUserDto, UpdateUserDto } from '../api/system';
 import { getAuditLogs } from '../api/audit';
 import type { AuditLogDto } from '../api/audit';
+import { applyServerErrors, type ServerValidationError } from '../utils/formError';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, DrawerShell, DrSec, DrField, StatusBadge,
   ModalShell, ActBtn, Btn, tk, te, cf,
   type ColumnDef, type TopTab,
 } from './_v2kit';
+
+// Department có 2 shape (id|departmentId, name|departmentName) khi đến từ catalog API khác nhau
+interface RawDepartmentLite { id?: string; departmentId?: string; name?: string; departmentName?: string }
 
 type AdminTab = 'users' | 'roles' | 'audit' | 'config';
 const TABS: TopTab<AdminTab>[] = [
@@ -29,22 +34,6 @@ function isAdminUser(u: SystemUserDto): boolean {
     const n = (typeof r === 'string' ? r : (r?.name || r?.code || '')).toLowerCase();
     return n.includes('admin') || n.includes('quản trị') || n.includes('quan tri');
   });
-}
-
-// Map lỗi validate từ BACKEND (authoritative) về đúng field của Antd Form + cuộn/focus tới field lỗi
-// để dễ nhận diện. Hỗ trợ ModelState `{errors:{Field:[msg]}}` lẫn `{field,message}`.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyServerErrors(form: any, e: any): boolean {
-  const d = e?.response?.data;
-  if (!d) return false;
-  const raw = d.errors || (d.field ? { [d.field]: [d.message || 'Không hợp lệ'] } : null);
-  if (raw && typeof raw === 'object') {
-    const fields = Object.entries(raw)
-      .filter(([k]) => k && k.toLowerCase() !== 'dto')
-      .map(([k, v]) => ({ name: k.charAt(0).toLowerCase() + k.slice(1), errors: (Array.isArray(v) ? v : [String(v)]) as string[] }));
-    if (fields.length) { form.setFields(fields); try { form.scrollToField(fields[0].name); } catch { /* ignore */ } return true; }
-  }
-  return false;
 }
 
 const SystemAdminV2: React.FC = () => {
@@ -80,9 +69,12 @@ const SystemAdminV2: React.FC = () => {
         if (s.status === 'fulfilled') setSessions(Array.isArray(s.value.data) ? s.value.data : []);
         if (r.status === 'fulfilled') setRoles(Array.isArray(r.value.data) ? r.value.data : []);
         if (d.status === 'fulfilled') {
-          const arr = Array.isArray(d.value.data) ? d.value.data : [];
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          setDepts(arr.map((x: any) => ({ id: x.id || x.departmentId, name: x.name || x.departmentName })).filter((x: { id?: string }) => x.id));
+          const arr: RawDepartmentLite[] = Array.isArray(d.value.data) ? d.value.data : [];
+          setDepts(
+            arr
+              .map((x) => ({ id: x.id || x.departmentId, name: x.name || x.departmentName }))
+              .filter((x): x is { id: string; name: string } => !!x.id)
+          );
         }
       } catch { /* keep current */ }
     })();
@@ -142,8 +134,10 @@ const SystemAdminV2: React.FC = () => {
         await adminApi.updateUser(editUserId!, dto); tk('Đã cập nhật người dùng');
       }
       setUserModal(null); load();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (e: any) { if (!applyServerErrors(userF, e)) te(e?.response?.data?.message || 'Lưu thất bại'); }
+    } catch (e: unknown) {
+      const ax = e as AxiosError<ServerValidationError>;
+      if (!applyServerErrors(userF, e)) te(ax?.response?.data?.message || 'Lưu thất bại');
+    }
     finally { setSaving(false); }
   };
   const lockToggle = (u: SystemUserDto) => {
@@ -162,8 +156,10 @@ const SystemAdminV2: React.FC = () => {
     try {
       await adminApi.saveRole({ id: editRoleId || undefined, code: (v.code as string).trim(), name: (v.name as string).trim(), description: (v.description as string) || '', isSystemRole: !!v.isSystemRole, isActive: v.isActive !== false } as RoleDto);
       tk('Đã lưu vai trò'); setRoleModal(null); load();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (e: any) { if (!applyServerErrors(roleF, e)) te(e?.response?.data?.message || 'Lưu thất bại'); }
+    } catch (e: unknown) {
+      const ax = e as AxiosError<ServerValidationError>;
+      if (!applyServerErrors(roleF, e)) te(ax?.response?.data?.message || 'Lưu thất bại');
+    }
     finally { setSaving(false); }
   };
   const delRole = (r: RoleDto) => {
@@ -179,8 +175,10 @@ const SystemAdminV2: React.FC = () => {
     try { v = await cfgF.validateFields(); } catch { return; }
     setSaving(true);
     try { await adminApi.saveSystemConfig({ ...cfgModal, configValue: v.configValue as string }); tk('Đã lưu cấu hình'); setCfgModal(null); load(); }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    catch (e: any) { if (!applyServerErrors(cfgF, e)) te(e?.response?.data?.message || 'Lưu thất bại'); }
+    catch (e: unknown) {
+      const ax = e as AxiosError<ServerValidationError>;
+      if (!applyServerErrors(cfgF, e)) te(ax?.response?.data?.message || 'Lưu thất bại');
+    }
     finally { setSaving(false); }
   };
 

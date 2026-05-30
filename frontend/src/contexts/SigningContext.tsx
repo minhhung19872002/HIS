@@ -5,7 +5,6 @@ import type {
   SessionStatusResponse,
   SignDocumentResponse,
   BatchSignResponse,
-  BatchSignItemResult,
 } from '../api/digitalSignature';
 import {
   openSession as apiOpenSession,

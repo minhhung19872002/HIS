@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { searchWasteRecords, createWasteRecord, updateWasteRecord } from '../api/environmentalHealth';
 import type { WasteRecord } from '../api/environmentalHealth';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
@@ -53,10 +54,8 @@ const EnvironmentalHealthV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const r: any = await searchWasteRecords({ keyword: search });
-      const list = (r?.items || (Array.isArray(r) ? r : [])) as WasteRecord[];
-      setItems(list);
+      const r = await searchWasteRecords({ keyword: search });
+      setItems(normalizeArrayResponse<WasteRecord>(r));
     } catch { ti('Không tải được dữ liệu chất thải'); }
     finally { setLoading(false); }
   };

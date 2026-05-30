@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Modal, Tabs, Table, Form, Input, InputNumber, Select, Button, Space, Tag, message, Typography, Checkbox } from 'antd';
+import { Modal, Tabs, Table, Form, Input, InputNumber, Select, Button, Tag, message, Typography, Checkbox } from 'antd';
 import { DragOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;

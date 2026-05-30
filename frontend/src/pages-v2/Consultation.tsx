@@ -54,9 +54,7 @@ const ConsultationV2: React.FC = () => {
       toDate:   dayjs().add(30, 'day').format('YYYY-MM-DD'),
       page: 1, pageSize: 200,
     }).then((r) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const arr = (r as any)?.data?.items || (r as any)?.data || [];
-      setRows(Array.isArray(arr) ? arr : []);
+      setRows(r.data?.items || []);
     }).catch(() => setRows([])).finally(() => setLoading(false));
   };
   useEffect(reload, []);

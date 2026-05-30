@@ -60,7 +60,7 @@ const PatientInfoBlock: React.FC<{ record?: MedicalRecordFullDto | null }> = ({ 
   return (
     <div className="section">
       <div className="row"><div className="col"><Field label="Họ tên" value={p?.fullName} /></div><div className="col"><Field label="Tuổi" value={p?.dateOfBirth ? dayjs().diff(dayjs(p.dateOfBirth), 'year') + '' : undefined} /></div><div className="col"><Field label="Giới" value={p?.gender === 1 ? 'Nam' : p?.gender === 2 ? 'Nữ' : undefined} /></div></div>
-      <div className="row"><div className="col"><Field label="Mã BN" value={p?.patientCode} /></div><div className="col"><Field label="Khoa" value={(record as any)?.departmentName} /></div><div className="col"><Field label="Buồng/Giường" /></div></div>
+      <div className="row"><div className="col"><Field label="Mã BN" value={p?.patientCode} /></div><div className="col"><Field label="Khoa" value={(record as MedicalRecordFullDto & { departmentName?: string })?.departmentName} /></div><div className="col"><Field label="Buồng/Giường" /></div></div>
       <Field label="Chẩn đoán" value={record?.diagnoses?.[0]?.icdName} />
     </div>
   );

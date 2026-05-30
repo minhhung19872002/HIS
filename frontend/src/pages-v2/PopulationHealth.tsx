@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { searchRecords, getStats, createRecord, updateRecord } from '../api/populationHealth';
 import type { PopulationRecord, PopulationStats } from '../api/populationHealth';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
@@ -65,10 +66,8 @@ const PopulationHealthV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const r: any = await searchRecords({ keyword: search });
-      const list = (r?.items || (Array.isArray(r) ? r : [])) as PopulationRecord[];
-      setItems(list);
+      const r = await searchRecords({ keyword: search });
+      setItems(normalizeArrayResponse<PopulationRecord>(r));
       const s = await getStats();
       setStats(s);
     } catch { ti('Không tải được dữ liệu dân số'); }

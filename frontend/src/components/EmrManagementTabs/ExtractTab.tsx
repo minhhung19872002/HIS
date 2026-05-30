@@ -1,26 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
-  Tabs, Table, Button, Modal, Form, Input, Select, Tag, Space, message,
-  Popconfirm, DatePicker, Switch, Badge, Tooltip, Card, Row, Col,
-  Timeline, Empty, Drawer, Spin, Alert,
+  Table, Button, Modal, Form, Input, Select, Tag, Space, message,
+  Popconfirm, DatePicker, Tooltip,
 } from 'antd';
 import {
-  ShareAltOutlined, LockOutlined, FileProtectOutlined, EditOutlined,
-  PictureOutlined, ThunderboltOutlined, CheckCircleOutlined,
-  CloseCircleOutlined, WarningOutlined, DeleteOutlined, PlusOutlined,
-  ReloadOutlined, SearchOutlined, UnlockOutlined, CopyOutlined,
-  OrderedListOutlined, TagOutlined, CodeOutlined, SafetyOutlined,
-  EyeOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined, PlusOutlined,
+  SearchOutlined, CopyOutlined,
 } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import * as emrMgmt from '../../api/emrManagement';
 import type {
-  EmrShareDto, ShareAccessLogDto, EmrExtractDto, EmrSpineDto,
-  EmrSpineSectionDto, EmrImageDto, EmrShortcodeDto,
-  AutoCheckRuleDto, AutoCheckViolationDto,
+  EmrExtractDto,
 } from '../../api/emrManagement';
-
-const { TextArea } = Input;
 
 // ============ Tab 1: Chia se BA (Sharing B.1.2) ============
 

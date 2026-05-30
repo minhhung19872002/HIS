@@ -67,10 +67,9 @@ const InpatientV2: React.FC = () => {
       // 1) inpatient list (list tab + KPIs)
       let ip: InpatientListDto[] = [];
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const r = await getInpatientList({ pageIndex: 0, pageSize: 300 } as any);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ip = ((r as any)?.data?.items || []) as InpatientListDto[];
+        // InpatientSearchDto dùng `page` (1-based), không phải `pageIndex` (0-based)
+        const r = await getInpatientList({ page: 1, pageSize: 300 });
+        ip = r.data?.items || [];
       } catch { ip = []; }
       setInpatients(ip);
 

@@ -1,11 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Input, InputNumber, Select, Form } from 'antd';
+import type { AxiosError } from 'axios';
 import systemApi from '../api/system';
+import { applyServerErrors, type ServerValidationError } from '../utils/formError';
 import {
   KpiStrip, SearchBox, DataTable, StatusBadge, ModalShell, ActBtn, Btn, tk, te, cf,
   type ColumnDef,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+
+// Row raw từ API — opaque dict để Antd Form setFieldsValue + truyền lại khi save
+type CatalogRowRaw = Record<string, unknown>;
+// Shape chung khi map các catalog read-only (services / icd / clinical-terms)
+interface RawCatalogItem {
+  id?: string; code?: string; name?: string;
+  serviceType?: string; isActive?: boolean;
+  chapterCode?: string;
+  category?: string; bodySystem?: string;
+}
 
 /* Danh mục v2 — sidebar + table + CRUD. departments/medicines/clinical-terms có API ghi;
    services + ICD hiện chỉ đọc (chưa có API ghi). Validate: client (UX, focus) + BACKEND (authoritative). */
@@ -21,8 +33,7 @@ const CATALOGS: { v: CatalogKey; l: string; ic: string }[] = [
   { v: 'clinical-terms', l: 'Thuật ngữ LS',   ic: 'book' },
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-interface CatalogRow { id?: string; code: string; name: string; meta?: string; isActive?: boolean; raw?: any; }
+interface CatalogRow { id?: string; code: string; name: string; meta?: string; isActive?: boolean; raw?: CatalogRowRaw; }
 
 type FieldType = 'text' | 'number' | 'select';
 interface FieldCfg { key: string; label: string; type?: FieldType; required?: boolean; options?: { value: string; label: string }[]; }
@@ -59,46 +70,29 @@ const FORM_FIELDS: Record<string, FieldCfg[]> = {
   ],
 };
 
-// Map lỗi validate BACKEND về field Antd Form + scroll/focus
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyServerErrors(form: any, e: any): boolean {
-  const d = e?.response?.data;
-  if (!d) return false;
-  const raw = d.errors || (d.field ? { [d.field]: [d.message || 'Không hợp lệ'] } : null);
-  if (raw && typeof raw === 'object') {
-    const fields = Object.entries(raw).filter(([k]) => k && k.toLowerCase() !== 'dto')
-      .map(([k, v]) => ({ name: k.charAt(0).toLowerCase() + k.slice(1), errors: (Array.isArray(v) ? v : [String(v)]) as string[] }));
-    if (fields.length) { form.setFields(fields); try { form.scrollToField(fields[0].name); } catch { /* ignore */ } return true; }
-  }
-  return false;
-}
-
 async function loadCatalog(cat: CatalogKey, keyword?: string): Promise<CatalogRow[]> {
   if (cat === 'departments') {
     const r = await systemApi.catalog.getDepartments(keyword || undefined, undefined, true);
-    return (r.data || []).map((d) => ({ id: d.id, code: d.code, name: d.name, meta: d.departmentType, isActive: true, raw: d }));
+    return (r.data || []).map((d) => ({ id: d.id, code: d.code, name: d.name, meta: d.departmentType, isActive: true, raw: d as unknown as CatalogRowRaw }));
   }
   if (cat === 'services') {
     const r = await systemApi.catalog.getParaclinicalServices(keyword || undefined, undefined, true);
-    const items = Array.isArray(r.data) ? r.data : [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return items.map((s: any) => ({ id: s.id, code: s.code, name: s.name, meta: s.serviceType, isActive: s.isActive, raw: s }));
+    const items: RawCatalogItem[] = Array.isArray(r.data) ? r.data : [];
+    return items.map((s) => ({ id: s.id, code: s.code || '', name: s.name || '', meta: s.serviceType, isActive: s.isActive, raw: s as CatalogRowRaw }));
   }
   if (cat === 'medicines') {
     const r = await systemApi.catalog.getMedicines({ keyword: keyword || undefined, isActive: true } as Parameters<typeof systemApi.catalog.getMedicines>[0]);
     const items = Array.isArray(r.data) ? r.data : [];
-    return items.map((m) => ({ id: m.id, code: m.code, name: m.name, meta: `${m.activeIngredient || ''} · ${m.unit || ''}`, isActive: m.isActive, raw: m }));
+    return items.map((m) => ({ id: m.id, code: m.code, name: m.name, meta: `${m.activeIngredient || ''} · ${m.unit || ''}`, isActive: m.isActive, raw: m as unknown as CatalogRowRaw }));
   }
   if (cat === 'icd') {
     const r = await systemApi.catalog.getICD10Codes(keyword || undefined, undefined, true);
-    const items = Array.isArray(r.data) ? r.data : [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return items.map((i: any) => ({ id: i.id, code: i.code, name: i.name, meta: i.chapterCode, raw: i }));
+    const items: RawCatalogItem[] = Array.isArray(r.data) ? r.data : [];
+    return items.map((i) => ({ id: i.id, code: i.code || '', name: i.name || '', meta: i.chapterCode, raw: i as CatalogRowRaw }));
   }
   const r = await systemApi.catalog.getClinicalTerms(keyword || undefined, undefined, undefined, true);
-  const items = Array.isArray(r.data) ? r.data : [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return items.map((c: any) => ({ id: c.id, code: c.code, name: c.name, meta: `${c.category || ''} · ${c.bodySystem || ''}`, raw: c }));
+  const items: RawCatalogItem[] = Array.isArray(r.data) ? r.data : [];
+  return items.map((c) => ({ id: c.id, code: c.code || '', name: c.name || '', meta: `${c.category || ''} · ${c.bodySystem || ''}`, raw: c as CatalogRowRaw }));
 }
 
 const MasterDataV2: React.FC = () => {
@@ -142,8 +136,10 @@ const MasterDataV2: React.FC = () => {
       else if (active === 'medicines') await systemApi.catalog.saveMedicine(v as unknown as Parameters<typeof systemApi.catalog.saveMedicine>[0]);
       else if (active === 'clinical-terms') await systemApi.catalog.saveClinicalTerm({ sortOrder: 0, isActive: true, ...v } as unknown as Parameters<typeof systemApi.catalog.saveClinicalTerm>[0]);
       tk(modal === 'new' ? 'Đã thêm' : 'Đã cập nhật'); setModal(null); loadOne(active);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (e: any) { if (!applyServerErrors(mF, e)) te(e?.response?.data?.message || 'Lưu thất bại'); }
+    } catch (e: unknown) {
+      const ax = e as AxiosError<ServerValidationError>;
+      if (!applyServerErrors(mF, e)) te(ax?.response?.data?.message || 'Lưu thất bại');
+    }
     finally { setSaving(false); }
   };
   const del = (r: CatalogRow) => {

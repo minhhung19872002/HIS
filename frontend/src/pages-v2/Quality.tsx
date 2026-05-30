@@ -59,12 +59,10 @@ const QualityV2: React.FC = () => {
   const reload = () => {
     setLoading(true);
     Promise.allSettled([
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      getIncidents({ page: 1, pageSize: 200 } as any),
+      getIncidents({ page: 1, pageSize: 200 }),
       getQualityIndicators(),
     ]).then(([i, q]) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (i.status === 'fulfilled') setIncidents(((i.value as any).data?.items || []) as IncidentReportDto[]);
+      if (i.status === 'fulfilled') setIncidents(i.value.data?.items || []);
       if (q.status === 'fulfilled') setIndicators((q.value.data || []) as QualityIndicatorDto[]);
       setLoading(false);
     });
@@ -96,8 +94,8 @@ const QualityV2: React.FC = () => {
   const kpis = useMemo(() => {
     const total = indicators.length;
     const onTarget = indicators.filter((i) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cur = (i as any).currentValue || 0;
+      // currentValue do BE bổ sung runtime — chưa khai trong QualityIndicatorDto type. Widen nội bộ.
+      const cur = (i as QualityIndicatorDto & { currentValue?: number }).currentValue || 0;
       return i.targetType === 'AtMost' ? cur <= i.targetValue : cur >= i.targetValue;
     }).length;
     const severeIncidents = incidents.filter((x) => x.severity >= 5).length;
@@ -395,8 +393,7 @@ const KpiTab: React.FC<{ indicators: QualityIndicatorDto[]; loading: boolean }> 
           }}>{groupName}</div>
           <div>
             {items.map((ind) => {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const cur = (ind as any).currentValue || 0;
+              const cur = (ind as QualityIndicatorDto & { currentValue?: number }).currentValue || 0;
               const ok = ind.targetType === 'AtMost' ? cur <= ind.targetValue : cur >= ind.targetValue;
               const pct = Math.min(100, (cur / Math.max(ind.targetValue, cur, 1)) * 100);
               return (

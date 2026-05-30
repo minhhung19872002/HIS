@@ -89,9 +89,25 @@ const RENDERING_ENGINE_ID = 'his-dicom-engine';
  * Cornerstone3D doesn't expose this directly — derive it from imageData
  * (origin + spacing + dimensions) + viewport.worldToCanvas().
  * Returns null if viewport has no image data yet.
+ *
+ * Cornerstone3D 3.x viewport typing is incomplete in @types; minimal duck-type
+ * interface here for the few methods/properties we touch.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function computeImageRect(viewport: any): ImageCanvasRect | null {
+interface VtkLikeImageData {
+  dimensions?: number[];
+  origin?: number[];
+  spacing?: number[];
+  imageData?: {
+    getDimensions?: () => number[];
+    getOrigin?: () => number[];
+    getSpacing?: () => number[];
+  };
+}
+interface MinimalCornerstoneViewport {
+  worldToCanvas?: (xyz: number[]) => number[];
+  getImageData?: () => VtkLikeImageData | null | undefined;
+}
+function computeImageRect(viewport: MinimalCornerstoneViewport | null | undefined): ImageCanvasRect | null {
   try {
     if (!viewport || typeof viewport.worldToCanvas !== 'function') return null;
     const imageData = viewport.getImageData?.();
@@ -309,7 +325,7 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
             const engine = csCore.getRenderingEngine(RENDERING_ENGINE_ID);
             if (!engine) return;
             const vp = engine.getViewport(VIEWPORT_ID);
-            const rect = computeImageRect(vp);
+            const rect = computeImageRect(vp as unknown as MinimalCornerstoneViewport);
             setImageRect(rect);
           } catch { /* ignore */ }
         })();
@@ -341,7 +357,7 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
         const engine = csCore.getRenderingEngine(RENDERING_ENGINE_ID);
         if (!engine) return;
         const vp = engine.getViewport(VIEWPORT_ID);
-        setImageRect(computeImageRect(vp));
+        setImageRect(computeImageRect(vp as unknown as MinimalCornerstoneViewport));
       } catch { /* ignore */ }
     })();
   }, [ready, viewportSize.width, viewportSize.height]);

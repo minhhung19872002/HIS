@@ -7,8 +7,10 @@
  */
 import React, { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
+import type { AxiosError } from 'axios';
 import { inspectorApi } from '../api/nangcap24';
 import type { InspectorRecordListItemDto, InspectorRecordDetailDto } from '../api/nangcap24';
+import type { ServerValidationError } from '../utils/formError';
 import TermIcon from '../layouts/terminal/Icon';
 
 const INSPECTOR_TOKEN_KEY = 'inspector_token';
@@ -65,8 +67,9 @@ const InspectorLogin: React.FC<{ onLogin: (token: string, info: InspectorInfo) =
       localStorage.setItem(INSPECTOR_INFO_KEY, JSON.stringify(r.inspector));
       localStorage.setItem('token', r.token);    // share with apiClient
       onLogin(r.token, r.inspector);
-    } catch (e: any) {
-      setErr(e?.response?.data?.message ?? 'Đăng nhập thất bại');
+    } catch (e: unknown) {
+      const ax = e as AxiosError<ServerValidationError>;
+      setErr(ax?.response?.data?.message ?? 'Đăng nhập thất bại');
     } finally { setL(false); }
   };
 

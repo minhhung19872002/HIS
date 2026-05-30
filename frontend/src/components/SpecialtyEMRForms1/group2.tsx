@@ -1,8 +1,7 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import dayjs from 'dayjs';
-import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../../constants/hospital';
-import { printStyles, PrintHeader, SignatureBlock, Field, Checkbox, DottedLines, PatientInfoBlock } from './_shared';
-export const HuyetHocBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+import { printStyles, PrintHeader, SignatureBlock, Field, Checkbox, DottedLines, PatientInfoBlock, type SpecialtyEMRPrintData } from './_shared';
+export const HuyetHocBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -125,7 +124,7 @@ HuyetHocBAPrint.displayName = 'HuyetHocBAPrint';
 // =====================================================================
 // 7. BA NGOẠI KHOA (Surgery Medical Record)
 // =====================================================================
-export const NgoaiKhoaBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const NgoaiKhoaBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -240,7 +239,7 @@ NgoaiKhoaBAPrint.displayName = 'NgoaiKhoaBAPrint';
 // =====================================================================
 // 8. BA BỎNG (Burns Medical Record)
 // =====================================================================
-export const BongBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const BongBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -348,7 +347,7 @@ BongBAPrint.displayName = 'BongBAPrint';
 // =====================================================================
 // 9. BA UNG BƯỚU (Oncology Medical Record)
 // =====================================================================
-export const UngBuouBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const UngBuouBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -476,7 +475,7 @@ UngBuouBAPrint.displayName = 'UngBuouBAPrint';
 // =====================================================================
 // 10. BA RĂNG HÀM MẶT (Dentistry / Maxillofacial Medical Record)
 // =====================================================================
-export const RHMBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const RHMBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>

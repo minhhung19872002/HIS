@@ -2,11 +2,25 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Input, InputNumber, DatePicker, Select, Checkbox } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn,
-  ModalShell, Ico, tk, tw, cf,
+  ModalShell, tk, tw, cf,
   type ColumnDef,
 } from './_v2kit';
+
+// Insurance subform có nhiều field date — lấy shape lỏng (BE trả mixed Date / string / undefined).
+interface InsuranceData {
+  socialInsuranceStartDate?: string | null;
+  healthInsuranceStartDate?: string | null;
+  healthInsuranceEndDate?: string | null;
+  [key: string]: unknown;
+}
+
+// Form values type cho GenericCrudTab — Antd Form gửi/nhận record dict
+type FormValues = Record<string, unknown>;
+// Helper: chuyển field date từ BE (ISO string) về Dayjs, type-safe khỏi `any` cast
+const toDay = (v: unknown): Dayjs | undefined => v ? dayjs(v as string) : undefined;
 
 interface User { id: string; fullName: string; username?: string }
 
@@ -32,11 +46,7 @@ const EmployeeProfileV2: React.FC = () => {
 
   useEffect(() => {
     apiClient.get<{ items?: User[] } | User[]>('/admin/users', { params: { pageSize: 300 } })
-      .then((res) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const list = Array.isArray(res.data) ? res.data : (res.data as any)?.items ?? [];
-        setUsers(list);
-      })
+      .then((res) => setUsers(normalizeArrayResponse<User>(res.data)))
       .catch(() => setUsers([]));
   }, []);
 
@@ -83,10 +93,9 @@ interface CrudConfig<T extends { id: string }> {
   endpoint: string; userId: string; subPath: string;
   columns: ColumnDef<T>[];
   formItems: React.ReactNode;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  formTransform?: (v: any) => any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  valueTransform?: (v: any) => any;
+  // Transform value khi submit (vd Dayjs → ISO string); và khi load từ BE (vd ISO → Dayjs)
+  formTransform?: (v: FormValues) => FormValues;
+  valueTransform?: (v: FormValues) => FormValues;
 }
 
 function GenericCrudTab<T extends { id: string }>(props: CrudConfig<T>) {
@@ -184,7 +193,7 @@ const AssetsTab: React.FC<{ userId: string }> = ({ userId }) => (
       <Form.Item name="acquiredAt" label="Ngày sở hữu"><DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" /></Form.Item>
     </>}
     formTransform={(v) => ({ ...v, acquiredAt: (v.acquiredAt as Dayjs | undefined)?.toISOString() })}
-    valueTransform={(v) => ({ ...v, acquiredAt: v.acquiredAt ? dayjs(v.acquiredAt) : undefined })}
+    valueTransform={(v) => ({ ...v, acquiredAt: toDay(v.acquiredAt) })}
   />
 );
 
@@ -223,8 +232,8 @@ const AllowancesTab: React.FC<{ userId: string }> = ({ userId }) => (
       effectiveTo: (v.effectiveTo as Dayjs | undefined)?.toISOString(),
     })}
     valueTransform={(v) => ({ ...v,
-      effectiveFrom: v.effectiveFrom ? dayjs(v.effectiveFrom) : undefined,
-      effectiveTo: v.effectiveTo ? dayjs(v.effectiveTo) : undefined,
+      effectiveFrom: toDay(v.effectiveFrom),
+      effectiveTo: toDay(v.effectiveTo),
     })}
   />
 );
@@ -250,7 +259,7 @@ const CareerTab: React.FC<{ userId: string }> = ({ userId }) => (
       <Form.Item name="reason" label="Lý do chuyển"><Input.TextArea rows={2} /></Form.Item>
     </>}
     formTransform={(v) => ({ ...v, transferDate: (v.transferDate as Dayjs | undefined)?.toISOString() })}
-    valueTransform={(v) => ({ ...v, transferDate: v.transferDate ? dayjs(v.transferDate) : undefined })}
+    valueTransform={(v) => ({ ...v, transferDate: toDay(v.transferDate) })}
   />
 );
 
@@ -285,7 +294,7 @@ const EducationsTab: React.FC<{ userId: string }> = ({ userId }) => (
       <Form.Item name="documentUrl" label="URL scan bằng"><Input /></Form.Item>
     </>}
     formTransform={(v) => ({ ...v, graduatedAt: (v.graduatedAt as Dayjs | undefined)?.toISOString() })}
-    valueTransform={(v) => ({ ...v, graduatedAt: v.graduatedAt ? dayjs(v.graduatedAt) : undefined })}
+    valueTransform={(v) => ({ ...v, graduatedAt: toDay(v.graduatedAt) })}
   />
 );
 
@@ -319,7 +328,7 @@ const FamiliesTab: React.FC<{ userId: string }> = ({ userId }) => (
       </Form.Item>
     </>}
     formTransform={(v) => ({ ...v, dateOfBirth: (v.dateOfBirth as Dayjs | undefined)?.toISOString() })}
-    valueTransform={(v) => ({ ...v, dateOfBirth: v.dateOfBirth ? dayjs(v.dateOfBirth) : undefined })}
+    valueTransform={(v) => ({ ...v, dateOfBirth: toDay(v.dateOfBirth) })}
   />
 );
 
@@ -349,7 +358,7 @@ const RewardsTab: React.FC<{ userId: string }> = ({ userId }) => (
       <Form.Item name="decidedBy" label="Người quyết định"><Input /></Form.Item>
     </>}
     formTransform={(v) => ({ ...v, decisionDate: (v.decisionDate as Dayjs | undefined)?.toISOString() })}
-    valueTransform={(v) => ({ ...v, decisionDate: v.decisionDate ? dayjs(v.decisionDate) : undefined })}
+    valueTransform={(v) => ({ ...v, decisionDate: toDay(v.decisionDate) })}
   />
 );
 
@@ -415,8 +424,8 @@ const ContractsTab: React.FC<{ userId: string }> = ({ userId }) => (
       endDate: (v.endDate as Dayjs | undefined)?.toISOString(),
     })}
     valueTransform={(v) => ({ ...v,
-      startDate: v.startDate ? dayjs(v.startDate) : undefined,
-      endDate: v.endDate ? dayjs(v.endDate) : undefined,
+      startDate: toDay(v.startDate),
+      endDate: toDay(v.endDate),
     })}
   />
 );
@@ -426,16 +435,14 @@ const InsuranceTab: React.FC<{ userId: string }> = ({ userId }) => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    apiClient.get(`/employee-profile/${userId}/insurance`)
+    apiClient.get<InsuranceData>(`/employee-profile/${userId}/insurance`)
       .then(({ data }) => {
         if (data) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const d = data as any;
           form.setFieldsValue({
-            ...d,
-            socialInsuranceStartDate: d.socialInsuranceStartDate ? dayjs(d.socialInsuranceStartDate) : undefined,
-            healthInsuranceStartDate: d.healthInsuranceStartDate ? dayjs(d.healthInsuranceStartDate) : undefined,
-            healthInsuranceEndDate: d.healthInsuranceEndDate ? dayjs(d.healthInsuranceEndDate) : undefined,
+            ...data,
+            socialInsuranceStartDate: data.socialInsuranceStartDate ? dayjs(data.socialInsuranceStartDate) : undefined,
+            healthInsuranceStartDate: data.healthInsuranceStartDate ? dayjs(data.healthInsuranceStartDate) : undefined,
+            healthInsuranceEndDate: data.healthInsuranceEndDate ? dayjs(data.healthInsuranceEndDate) : undefined,
           });
         }
       })

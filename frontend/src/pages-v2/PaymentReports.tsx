@@ -3,7 +3,7 @@ import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
 import {
-  KpiStrip, TopTabs, Filter, DataTable, StatusBadge, Btn, Ico, tk, ti, tw,
+  KpiStrip, TopTabs, Filter, DataTable, StatusBadge, Btn, tk, ti, tw,
   type ColumnDef,
 } from './_v2kit';
 
@@ -84,18 +84,18 @@ const PaymentReportsV2: React.FC = () => {
   useEffect(() => { load(); }, [load]);
 
   const exportCsv = () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rows: any[] = tab === 'bc1' ? bc1?.items || []
-      : tab === 'bc2' ? bc2?.byDay || []
-      : tab === 'bc3' ? bc3
-      : tab === 'bc4' ? bc4?.items || []
-      : tab === 'bc5' ? bc5?.items || []
-      : tab === 'bc6' ? bc6
-      : bc7?.items || [];
-    if (rows.length === 0) { tw('Không có dữ liệu'); return; }
+    // 7 nhóm báo cáo, shape khác nhau → view chung Record<string, unknown> cho CSV serialization
+    type CsvRow = Record<string, unknown>;
+    const rows: CsvRow[] = tab === 'bc1' ? (bc1?.items || []) as unknown as CsvRow[]
+      : tab === 'bc2' ? (bc2?.byDay || []) as unknown as CsvRow[]
+      : tab === 'bc3' ? (bc3 as unknown as CsvRow[])
+      : tab === 'bc4' ? (bc4?.items || []) as unknown as CsvRow[]
+      : tab === 'bc5' ? (bc5?.items || []) as unknown as CsvRow[]
+      : tab === 'bc6' ? (bc6 as unknown as CsvRow[])
+      : (bc7?.items || []) as unknown as CsvRow[];
+    if (!rows || rows.length === 0) { tw('Không có dữ liệu'); return; }
     const keys = Object.keys(rows[0]).filter((k) => typeof rows[0][k] !== 'object' || rows[0][k] instanceof Date);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const csv = [keys.join(',')].concat(rows.map((r: any) => keys.map((k) => {
+    const csv = [keys.join(',')].concat(rows.map((r) => keys.map((k) => {
       const v = r[k]; if (v == null) return '';
       if (typeof v === 'string' && (v.includes(',') || v.includes('"'))) return `"${v.replace(/"/g, '""')}"`;
       return v;

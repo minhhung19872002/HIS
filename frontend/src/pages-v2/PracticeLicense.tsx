@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { searchLicenses, createLicense, updateLicense } from '../api/practiceLicense';
 import type { PracticeLicense } from '../api/practiceLicense';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
@@ -65,10 +66,8 @@ const PracticeLicenseV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const r: any = await searchLicenses({ keyword: search });
-      const list = (r?.items || (Array.isArray(r) ? r : [])) as PracticeLicense[];
-      setItems(list);
+      const r = await searchLicenses({ keyword: search });
+      setItems(normalizeArrayResponse<PracticeLicense>(r));
     } catch { ti('Không tải được CCHN'); }
     finally { setLoading(false); }
   };

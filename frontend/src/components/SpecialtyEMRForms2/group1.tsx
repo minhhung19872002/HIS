@@ -1,8 +1,7 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import dayjs from 'dayjs';
-import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../../constants/hospital';
-import { printStyles, PrintHeader, SignatureBlock, Field, Checkbox, DottedLines, PatientInfoBlock } from './_shared';
-export const YHCTNgoaiTruBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+import { printStyles, PrintHeader, SignatureBlock, Field, Checkbox, DottedLines, PatientInfoBlock, type SpecialtyEMRPrintData } from './_shared';
+export const YHCTNgoaiTruBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -86,7 +85,7 @@ YHCTNgoaiTruBAPrint.displayName = 'YHCTNgoaiTruBAPrint';
 // =====================================================================
 // 17. BA NHI YHCT (Pediatric Traditional Medicine)
 // =====================================================================
-export const NhiYHCTBAPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const NhiYHCTBAPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -203,7 +202,7 @@ NhiYHCTBAPrint.displayName = 'NhiYHCTBAPrint';
 // =====================================================================
 // 18. BA MẮT CHUNG (General Ophthalmology)
 // =====================================================================
-export const MatBenhAnPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const MatBenhAnPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -322,7 +321,7 @@ MatBenhAnPrint.displayName = 'MatBenhAnPrint';
 // =====================================================================
 // 19. MẮT GLAUCOMA
 // =====================================================================
-export const MatGlaucomaPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const MatGlaucomaPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>
@@ -444,7 +443,7 @@ MatGlaucomaPrint.displayName = 'MatGlaucomaPrint';
 // =====================================================================
 // 20. MẮT ĐỤC THỂ THỦY TINH (Cataract)
 // =====================================================================
-export const MatDucTTTPrint = forwardRef<HTMLDivElement, { data: any }>(
+export const MatDucTTTPrint = forwardRef<HTMLDivElement, { data: SpecialtyEMRPrintData }>(
   ({ data }, ref) => (
     <div ref={ref} className="emr-print-container">
       <style>{printStyles}</style>

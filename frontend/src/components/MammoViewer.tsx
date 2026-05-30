@@ -265,8 +265,9 @@ const MammoViewer: React.FC<Props> = ({ images, priorImages, height = '78vh', de
         if (!slots[k]) continue;
         const vp = engine.getViewport(`mammo-${k}`);
         vp?.resetCamera();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (vp as any)?.resetProperties?.();
+        // Cornerstone3D 3.x viewport types don't expose resetProperties on the base IViewport;
+        // it exists on stack/volume viewports. Duck-type cast it.
+        (vp as { resetProperties?: () => void } | undefined)?.resetProperties?.();
         vp?.render();
       }
     } catch { /* ignore */ }
@@ -302,8 +303,8 @@ const MammoViewer: React.FC<Props> = ({ images, priorImages, height = '78vh', de
         if (!vp) continue;
         // 1 mm = 96/25.4 ≈ 3.78 px on a standard 96 DPI display. Scale ratio ~= pxPerMm.
         // Cornerstone setZoom() scales the viewport camera; combine with pixelSpacing.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const vpAny = vp as any;
+        // setZoom có ở stack/volume viewport nhưng không có trong IViewport base type của 3.x.
+        const vpAny = vp as { setZoom?: (z: number) => void };
         if (typeof vpAny.setZoom === 'function') {
           // Reset first so zoom is relative
           vp.resetCamera();

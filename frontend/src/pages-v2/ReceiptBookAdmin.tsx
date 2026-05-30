@@ -3,10 +3,16 @@ import { Form, Input, InputNumber, Select, DatePicker, Modal } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import systemApi from '../api/system';
+import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
-  Ico, tk, ti, tw, cf, type ColumnDef,
+  tk, ti, tw, cf, type ColumnDef,
 } from './_v2kit';
+
+interface Department { id: string; departmentName: string; departmentCode?: string }
+interface ReceiptBookSearchParams {
+  keyword?: string; receiptType?: number; status?: number; fiscalYear?: number; departmentId?: string;
+}
 
 interface ReceiptBook {
   id: string; bookCode: string; bookName: string;
@@ -53,16 +59,14 @@ const ReceiptBookAdminV2: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<ReceiptBook | null>(null);
   const [closeOpen, setCloseOpen] = useState<ReceiptBook | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [departments, setDepartments] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [form] = Form.useForm();
   const [closeForm] = Form.useForm();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const params: any = {};
+      const params: ReceiptBookSearchParams = {};
       if (keyword) params.keyword = keyword;
       if (fType) params.receiptType = Number(fType);
       if (stab !== 'all') params.status = STATUS_TABS.findIndex((t) => t.v === stab);
@@ -79,8 +83,7 @@ const ReceiptBookAdminV2: React.FC = () => {
     (async () => {
       try {
         const d = await systemApi.catalog.getDepartments();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setDepartments((d as any)?.data || []);
+        setDepartments(unwrapList<Department>((d as { data?: MaybePaged<Department> }).data));
       } catch { /* empty */ }
     })();
   }, []);
@@ -229,8 +232,7 @@ const ReceiptBookAdminV2: React.FC = () => {
             <Form.Item label="Số VB khai báo" name="registrationNumber"><Input /></Form.Item>
             <Form.Item label="Khoa" name="departmentId" style={{ gridColumn: 'span 2' }}>
               <Select allowClear showSearch optionFilterProp="label"
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                options={departments.map((d: any) => ({ value: d.id, label: d.departmentName }))} />
+                options={departments.map((d) => ({ value: d.id, label: d.departmentName }))} />
             </Form.Item>
             <Form.Item label="Ghi chú" name="notes" style={{ gridColumn: 'span 3' }}><Input.TextArea rows={2} /></Form.Item>
           </div>

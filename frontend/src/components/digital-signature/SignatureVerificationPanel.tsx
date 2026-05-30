@@ -1,4 +1,3 @@
-import React from 'react';
 import { Drawer, Descriptions, Tag, Timeline, Button, Space, Popconfirm, message } from 'antd';
 import {
   SafetyCertificateOutlined,

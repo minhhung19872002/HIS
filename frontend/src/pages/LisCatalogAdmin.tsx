@@ -7,20 +7,47 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   Card, Tabs, Table, Button, Modal, Form, Input, InputNumber, Switch, Select, Space, message, Popconfirm, Tag,
 } from 'antd';
+import type { ColumnsType, ColumnType } from 'antd/es/table';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, ExperimentOutlined } from '@ant-design/icons';
 import apiClient from '../api/client';
+import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 
 type TabKey = 'books' | 'groups' | 'units' | 'organisms' | 'antibiotics' | 'chemicals';
 
-interface TabConfig {
-  key: TabKey;
-  label: string;
-  idField: string;
-  loadParams?: Record<string, any>;
-  columns: any[];
-  formFields: (form: any, options: any) => React.ReactElement;
-  emptyRow: any;
+// Union row phủ 6 tab. Mỗi field optional; cột chỉ đọc field tương ứng với tab.
+interface LisCatalogRow {
+  id: string;
+  isActive?: boolean;
+  sortOrder?: number;
+  // Book
+  bookCode?: string; bookName?: string; barcodePrefix?: string; description?: string;
+  // Group
+  labBookId?: string; groupCode?: string; groupName?: string;
+  // Unit
+  unitCode?: string; unitName?: string; unitSymbol?: string;
+  // Organism
+  organismCode?: string; organismName?: string; latinName?: string;
+  gramType?: string; morphologyType?: string; category?: string; notes?: string;
+  // Antibiotic
+  antibioticCode?: string; antibioticName?: string; genericName?: string;
+  atcCode?: string; drugClass?: string; route?: string; isRestricted?: boolean;
+  // Chemical
+  serviceId?: string; serviceName?: string;
+  medicalSupplyId?: string; supplyName?: string;
+  quantityPerTest?: number; unit?: string; objectType?: string; note?: string;
 }
+
+interface LisLookupRow {
+  id: string;
+  // Books lookup
+  bookCode?: string; bookName?: string;
+  // Services lookup
+  serviceCode?: string; serviceName?: string;
+  // Supplies lookup
+  supplyCode?: string; supplyName?: string;
+}
+
+// TabConfig interface removed — không dùng đâu (dead code audit cleanup)
 
 const GRAM_OPTIONS = [
   { label: 'Gram (+)', value: '+' },
@@ -36,24 +63,24 @@ const ROUTE_OPTIONS = ['PO', 'IV', 'IM', 'Topical', 'Inhaled'].map(v => ({ label
 export default function LisCatalogAdmin() {
   const [tab, setTab] = useState<TabKey>('books');
   const [keyword, setKeyword] = useState('');
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<LisCatalogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<any | null>(null);
+  const [editing, setEditing] = useState<LisCatalogRow | null>(null);
   const [form] = Form.useForm();
 
   // Option sources loaded once
-  const [books, setBooks] = useState<any[]>([]);
-  const [services, setServices] = useState<any[]>([]);
-  const [supplies, setSupplies] = useState<any[]>([]);
+  const [books, setBooks] = useState<LisLookupRow[]>([]);
+  const [services, setServices] = useState<LisLookupRow[]>([]);
+  const [supplies, setSupplies] = useState<LisLookupRow[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = {};
+      const params: { keyword?: string } = {};
       if (keyword) params.keyword = keyword;
-      const { data } = await apiClient.get(`/lis-catalog/${tab}`, { params });
-      setData(Array.isArray(data) ? data : (data?.items ?? []));
+      const { data } = await apiClient.get<MaybePaged<LisCatalogRow>>(`/lis-catalog/${tab}`, { params });
+      setData(unwrapList<LisCatalogRow>(data));
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } };
       message.error(err?.response?.data?.message || 'Tải danh sách thất bại');
@@ -66,22 +93,22 @@ export default function LisCatalogAdmin() {
   useEffect(() => {
     (async () => {
       try {
-        const { data: b } = await apiClient.get('/lis-catalog/books', { params: { isActive: true } });
+        const { data: b } = await apiClient.get<LisLookupRow[]>('/lis-catalog/books', { params: { isActive: true } });
         setBooks(Array.isArray(b) ? b : []);
       } catch { /* empty */ }
       try {
-        const { data: s } = await apiClient.get('/catalog/services', { params: { serviceType: 'XN', isActive: true } });
-        setServices(Array.isArray(s) ? s : (s?.items ?? []));
+        const { data: s } = await apiClient.get<MaybePaged<LisLookupRow>>('/catalog/services', { params: { serviceType: 'XN', isActive: true } });
+        setServices(unwrapList<LisLookupRow>(s));
       } catch { /* empty */ }
       try {
-        const { data: sp } = await apiClient.get('/catalog/supplies', { params: { isActive: true } });
-        setSupplies(Array.isArray(sp) ? sp : (sp?.items ?? []));
+        const { data: sp } = await apiClient.get<MaybePaged<LisLookupRow>>('/catalog/supplies', { params: { isActive: true } });
+        setSupplies(unwrapList<LisLookupRow>(sp));
       } catch { /* empty */ }
     })();
   }, []);
 
   const openAdd = () => { setEditing(null); form.resetFields(); setModalOpen(true); };
-  const openEdit = (row: any) => {
+  const openEdit = (row: LisCatalogRow) => {
     setEditing(row);
     form.setFieldsValue({ ...row, isActive: row.isActive ?? true });
     setModalOpen(true);
@@ -101,7 +128,7 @@ export default function LisCatalogAdmin() {
     }
   };
 
-  const remove = async (row: any) => {
+  const remove = async (row: LisCatalogRow) => {
     try {
       await apiClient.delete(`/lis-catalog/${tab}/${row.id}`);
       message.success('Đã xóa');
@@ -112,10 +139,10 @@ export default function LisCatalogAdmin() {
     }
   };
 
-  const actionCol: any = {
+  const actionCol: ColumnType<LisCatalogRow> = {
     title: 'Thao tác',
     width: 140,
-    render: (_: any, r: any) => (
+    render: (_: unknown, r: LisCatalogRow) => (
       <Space size="small">
         <Button icon={<EditOutlined />} size="small" onClick={() => openEdit(r)} />
         <Popconfirm title="Xóa?" onConfirm={() => remove(r)}>
@@ -124,14 +151,14 @@ export default function LisCatalogAdmin() {
       </Space>
     ),
   };
-  const activeCol: any = {
+  const activeCol: ColumnType<LisCatalogRow> = {
     title: 'Hoạt động',
     dataIndex: 'isActive',
     width: 100,
     render: (v: boolean) => v ? <Tag color="green">Có</Tag> : <Tag>Ẩn</Tag>,
   };
 
-  const columnsByTab: Record<TabKey, any[]> = {
+  const columnsByTab: Record<TabKey, ColumnsType<LisCatalogRow>> = {
     books: [
       { title: 'Mã', dataIndex: 'bookCode', width: 120 },
       { title: 'Tên sổ', dataIndex: 'bookName' },

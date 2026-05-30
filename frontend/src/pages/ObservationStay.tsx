@@ -9,9 +9,11 @@ import {
   Drawer, Statistic, Row, Col, Timeline, Typography, Divider,
 } from 'antd';
 import { ReloadOutlined, HomeOutlined, UserAddOutlined, HeartOutlined, LogoutOutlined, SwapOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import systemApi from '../api/system';
+import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 
 const { Text } = Typography;
 
@@ -32,6 +34,11 @@ interface Vital {
   nurseNote?: string; doctorNote?: string;
 }
 
+interface DepartmentOpt { id: string; departmentName?: string }
+interface RoomOpt { id: string; roomCode?: string; roomName?: string }
+interface PatientSearchItem { id: string; patientCode?: string; fullName?: string }
+interface PatientOption { label: string; value: string }
+
 const STATUS_TAGS: Record<number, { color: string; label: string }> = {
   1: { color: 'blue', label: 'Đang lưu' },
   2: { color: 'green', label: 'Cho về' },
@@ -49,8 +56,8 @@ export default function ObservationStayPage() {
   const [detailVitals, setDetailVitals] = useState<Vital[]>([]);
   const [vitalOpen, setVitalOpen] = useState(false);
   const [dischargeOpen, setDischargeOpen] = useState<'discharge' | 'escalate' | null>(null);
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [rooms, setRooms] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<DepartmentOpt[]>([]);
+  const [rooms, setRooms] = useState<RoomOpt[]>([]);
 
   const [createForm] = Form.useForm();
   const [vitalForm] = Form.useForm();
@@ -73,9 +80,9 @@ export default function ObservationStayPage() {
     (async () => {
       try {
         const d = await systemApi.catalog.getDepartments();
-        setDepartments((d as any)?.data?.items || (d as any)?.data || []);
-        const r = await apiClient.get('/catalog/rooms');
-        setRooms((r as any)?.data?.items || (r as any)?.data || []);
+        setDepartments(unwrapList<DepartmentOpt>((d as { data?: MaybePaged<DepartmentOpt> }).data));
+        const r = await apiClient.get<MaybePaged<RoomOpt>>('/catalog/rooms');
+        setRooms(unwrapList<RoomOpt>(r.data));
       } catch { /* empty */ }
     })();
   }, []);
@@ -88,18 +95,18 @@ export default function ObservationStayPage() {
     } catch { /* empty */ }
   };
 
-  const searchPatient = async (kw: string) => {
+  const searchPatient = async (kw: string): Promise<PatientOption[]> => {
     if (!kw) return [];
     try {
-      const { data } = await apiClient.get('/reception/patients/search', { params: { keyword: kw, pageSize: 10 } });
-      return (data.items || []).map((p: any) => ({
+      const { data } = await apiClient.get<{ items?: PatientSearchItem[] }>('/reception/patients/search', { params: { keyword: kw, pageSize: 10 } });
+      return (data.items || []).map((p) => ({
         label: `${p.patientCode} - ${p.fullName}`,
         value: p.id,
       }));
     } catch { return []; }
   };
 
-  const [patientOptions, setPatientOptions] = useState<any[]>([]);
+  const [patientOptions, setPatientOptions] = useState<PatientOption[]>([]);
 
   const createStay = async () => {
     const v = await createForm.validateFields();
@@ -147,14 +154,14 @@ export default function ObservationStayPage() {
     }
   };
 
-  const columns: any[] = [
+  const columns: ColumnsType<Stay> = [
     { title: 'Mã', dataIndex: 'stayCode', width: 160 },
-    { title: 'BN', render: (_: any, r: Stay) => <>
+    { title: 'BN', render: (_: unknown, r: Stay) => <>
       <Text strong>{r.patientName}</Text> <Text type="secondary">({r.patientCode})</Text>
     </> },
     { title: 'Lý do', dataIndex: 'chiefComplaint', ellipsis: true },
     { title: 'CĐ sơ bộ', dataIndex: 'initialDiagnosis', ellipsis: true },
-    { title: 'Khoa/Phòng', render: (_: any, r: Stay) => `${r.departmentName || '-'} / ${r.roomName || '-'}` },
+    { title: 'Khoa/Phòng', render: (_: unknown, r: Stay) => `${r.departmentName || '-'} / ${r.roomName || '-'}` },
     { title: 'Vào', dataIndex: 'admittedAt', width: 130, render: (v: string) => dayjs(v).format('DD/MM HH:mm') },
     { title: 'Giờ lưu', dataIndex: 'hoursInObservation', width: 90, align: 'right' as const,
       render: (h: number) => <Tag color={h > 12 ? 'red' : h > 6 ? 'orange' : 'blue'}>{h}h</Tag> },
@@ -166,7 +173,7 @@ export default function ObservationStayPage() {
         return <Tag color={t.color}>{t.label}</Tag>;
       } },
     { title: 'Thao tác', width: 100,
-      render: (_: any, r: Stay) => <Button size="small" onClick={() => openDetail(r)}>Chi tiết</Button> },
+      render: (_: unknown, r: Stay) => <Button size="small" onClick={() => openDetail(r)}>Chi tiết</Button> },
   ];
 
   return (

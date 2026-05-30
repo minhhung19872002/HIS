@@ -87,8 +87,9 @@ const DicomAutoSend: React.FC = () => {
       if (ruleModal === 'new') { await dicomAutoSendApi.createRule(v); tk('Đã tạo quy tắc'); }
       else if (ruleModal && typeof ruleModal === 'object') { await dicomAutoSendApi.updateRule(ruleModal.id, v); tk('Đã cập nhật quy tắc'); }
       setRuleModal(null); load();
-    } catch (e: any) {
-      if (!e?.errorFields) te('Lưu thất bại');
+    } catch (e: unknown) {
+      const err = e as { errorFields?: unknown };
+      if (!err?.errorFields) te('Lưu thất bại');
     }
   };
   const handleDelete = (r: DicomAutoSendRuleDto) =>

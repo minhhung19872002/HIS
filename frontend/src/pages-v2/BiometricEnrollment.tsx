@@ -145,8 +145,9 @@ const BiometricEnrollment: React.FC = () => {
       tk(`Đã đăng ký vân tay cho ${result.ownerName ?? v.ownerType}`);
       setEnrollModal(false); enrollForm.resetFields();
       loadCredentials(sel.id);
-    } catch (e: any) {
-      if (!e?.errorFields) te(`Đăng ký thất bại: ${e?.message ?? e}`);
+    } catch (e: unknown) {
+      const err = e as { errorFields?: unknown; message?: string };
+      if (!err?.errorFields) te(`Đăng ký thất bại: ${err?.message ?? e}`);
     } finally { setScanning(false); }
   };
 
@@ -175,8 +176,9 @@ const BiometricEnrollment: React.FC = () => {
       else te(`Ký thất bại: ${result.error}`);
       setSignModal(false); signForm.resetFields();
       loadCredentials(sel.id);
-    } catch (e: any) {
-      if (!e?.errorFields) te(`Ký thất bại: ${e?.message ?? e}`);
+    } catch (e: unknown) {
+      const err = e as { errorFields?: unknown; message?: string };
+      if (!err?.errorFields) te(`Ký thất bại: ${err?.message ?? e}`);
     } finally { setScanning(false); }
   };
 

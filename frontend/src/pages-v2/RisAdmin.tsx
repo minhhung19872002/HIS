@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Input, InputNumber, Select, DatePicker, Checkbox } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn,
   ModalShell, DrawerShell, DrSec, DrField, Ico, tk, tw, cf,
@@ -85,8 +86,7 @@ const PermissionsTab: React.FC = () => {
           apiClient.get<{ items?: User[] } | User[]>('/admin/users', { params: { pageSize: 200 } }).catch(() => ({ data: [] })),
           apiClient.get<Array<{ id: string; roomName: string }>>('/RISComplete/rooms', { params: { roomType: 'radiology' } }).catch(() => ({ data: [] })),
         ]);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setUsers(Array.isArray(u.data) ? (u.data as User[]) : ((u.data as any)?.items ?? []));
+        setUsers(normalizeArrayResponse<User>(u.data));
         setRooms(r.data);
       } catch { /* empty */ }
     })();

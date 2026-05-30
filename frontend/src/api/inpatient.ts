@@ -1314,11 +1314,32 @@ export const checkTransferWarnings = (admissionId: string) =>
 export const getDiagnosisFromRecord = (admissionId: string) =>
   apiClient.get<{ diagnosisCode?: string; diagnosis?: string }>(`${BASE_URL}/diagnosis/${admissionId}`);
 
+// Service tree / search items dùng shape backend chưa khai DTO chính thức (ServiceCatalog).
+// Khai loose interface để FE narrow khi cần; tránh `any` lan toàn module.
+export interface ServiceTreeNodeDto {
+  id: string;
+  code?: string;
+  name: string;
+  parentId?: string;
+  hasChildren?: boolean;
+  serviceType?: string;
+  [k: string]: unknown;
+}
+
+export interface ServiceSearchResultDto {
+  id: string;
+  code?: string;
+  name: string;
+  unitPrice?: number;
+  groupName?: string;
+  [k: string]: unknown;
+}
+
 export const getServiceTree = (parentId?: string) =>
-  apiClient.get<any[]>(`${BASE_URL}/service-tree`, { params: { parentId } });
+  apiClient.get<ServiceTreeNodeDto[]>(`${BASE_URL}/service-tree`, { params: { parentId } });
 
 export const searchServices = (keyword: string, serviceType?: string) =>
-  apiClient.get<any[]>(`${BASE_URL}/search-services`, { params: { keyword, serviceType } });
+  apiClient.get<ServiceSearchResultDto[]>(`${BASE_URL}/search-services`, { params: { keyword, serviceType } });
 
 export const createServiceOrder = (dto: CreateInpatientServiceOrderDto) =>
   apiClient.post<InpatientServiceOrderDto>(`${BASE_URL}/service-orders`, dto);
@@ -1360,11 +1381,32 @@ export const printServiceOrder = (orderId: string) =>
 
 // #region 3.4 Kê đơn thuốc nội trú
 
+// Loose DTOs cho search thuốc / cảnh báo chống chỉ định — backend chưa publish schema cố định.
+export interface MedicineSearchItemDto {
+  id: string;
+  code?: string;
+  name: string;
+  activeIngredient?: string;
+  unit?: string;
+  unitPrice?: number;
+  stock?: number;
+  [k: string]: unknown;
+}
+
+export interface MedicineContraindicationDto {
+  medicineId: string;
+  medicineName?: string;
+  warnings?: string[];
+  allergies?: string[];
+  interactions?: DrugInteractionDto[];
+  [k: string]: unknown;
+}
+
 export const searchMedicines = (keyword: string, warehouseId: string) =>
-  apiClient.get<any[]>(`${BASE_URL}/search-medicines`, { params: { keyword, warehouseId } });
+  apiClient.get<MedicineSearchItemDto[]>(`${BASE_URL}/search-medicines`, { params: { keyword, warehouseId } });
 
 export const getMedicineContraindications = (medicineId: string, admissionId: string) =>
-  apiClient.get<any>(`${BASE_URL}/medicine-contraindications/${medicineId}`, { params: { admissionId } });
+  apiClient.get<MedicineContraindicationDto>(`${BASE_URL}/medicine-contraindications/${medicineId}`, { params: { admissionId } });
 
 export const getMedicineStock = (medicineId: string, warehouseId: string) =>
   apiClient.get<number>(`${BASE_URL}/medicine-stock/${medicineId}`, { params: { warehouseId } });
@@ -1384,11 +1426,21 @@ export const getPrescriptions = (admissionId: string, fromDate?: string, toDate?
 export const getPrescriptionById = (id: string) =>
   apiClient.get<InpatientPrescriptionDto>(`${BASE_URL}/prescription/${id}`);
 
+// Tủ trực cấp cứu — DTO chuẩn của BE chưa cố định, dùng loose interface.
+export interface EmergencyCabinetDto {
+  id: string;
+  code?: string;
+  name: string;
+  departmentId?: string;
+  roomId?: string;
+  [k: string]: unknown;
+}
+
 export const createEmergencyCabinetPrescription = (admissionId: string, cabinetId: string, items: CreateInpatientMedicineItemDto[]) =>
-  apiClient.post<any>(`${BASE_URL}/emergency-cabinet-prescription`, { admissionId, cabinetId, items });
+  apiClient.post<InpatientPrescriptionDto>(`${BASE_URL}/emergency-cabinet-prescription`, { admissionId, cabinetId, items });
 
 export const getEmergencyCabinets = (departmentId: string) =>
-  apiClient.get<any[]>(`${BASE_URL}/emergency-cabinets/${departmentId}`);
+  apiClient.get<EmergencyCabinetDto[]>(`${BASE_URL}/emergency-cabinets/${departmentId}`);
 
 export const checkPrescriptionWarnings = (admissionId: string, items: CreateInpatientMedicineItemDto[]) =>
   apiClient.post<PrescriptionWarningDto>(`${BASE_URL}/prescription-warnings`, { admissionId, items });
@@ -1535,8 +1587,17 @@ export const getDepartmentRevenueReport = (search: ReportSearchDto) =>
 export const getTreatmentActivityReport = (search: ReportSearchDto) =>
   apiClient.get<TreatmentActivityReportDto>(`${BASE_URL}/reports/treatment-activity`, { params: search });
 
+// Sổ 4069 (TT 4069/QĐ-BYT) — backend trả raw report object, FE chỉ in trực tiếp.
+export interface Register4069ReportDto {
+  fromDate: string;
+  toDate: string;
+  departmentId?: string;
+  rows?: Array<Record<string, unknown>>;
+  [k: string]: unknown;
+}
+
 export const getRegister4069 = (fromDate: string, toDate: string, departmentId?: string) =>
-  apiClient.get<any>(`${BASE_URL}/reports/register-4069`, { params: { fromDate, toDate, departmentId } });
+  apiClient.get<Register4069ReportDto>(`${BASE_URL}/reports/register-4069`, { params: { fromDate, toDate, departmentId } });
 
 export const printRegister4069 = (fromDate: string, toDate: string, departmentId?: string) =>
   apiClient.get(`${BASE_URL}/reports/print-register-4069`, { params: { fromDate, toDate, departmentId }, responseType: 'blob' });

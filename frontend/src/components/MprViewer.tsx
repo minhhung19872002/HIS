@@ -39,6 +39,24 @@ const VP_SAGITTAL = 'his-mpr-sagittal';
 const VP_CORONAL = 'his-mpr-coronal';
 const VP_3D = 'his-mpr-3d';
 
+// Cornerstone3D 3.x — typings cho volume + preset không công khai trên @types.
+// Khai báo minimal duck-types để tránh `any`.
+interface VrPreset {
+  name: string;
+  [k: string]: unknown;
+}
+interface CornerstonePresetUtils {
+  utilities?: {
+    applyPreset?: (actor: unknown, preset: VrPreset) => void;
+  };
+  CONSTANTS?: {
+    VIEWPORT_PRESETS?: VrPreset[];
+  };
+}
+interface StreamingVolume {
+  load: (cb: (evt: { numFrames: number; framesProcessed: number }) => void) => void;
+}
+
 const MprViewer: React.FC<Props> = ({ imageIds, height = '70vh', onError }) => {
   const axialRef = useRef<HTMLDivElement>(null);
   const sagittalRef = useRef<HTMLDivElement>(null);
@@ -81,7 +99,7 @@ const MprViewer: React.FC<Props> = ({ imageIds, height = '70vh', onError }) => {
 
         // Create + cache the volume from imageIds. The streaming loader fetches
         // slices on demand; we wait for the first batch to render before showing.
-        const volume: any = await volumeLoader.createAndCacheVolume(volumeId, { imageIds });
+        const volume = (await volumeLoader.createAndCacheVolume(volumeId, { imageIds })) as StreamingVolume;
         if (cancelled) return;
 
         renderingEngine = new RenderingEngine(RENDER_ID);
@@ -124,11 +142,11 @@ const MprViewer: React.FC<Props> = ({ imageIds, height = '70vh', onError }) => {
         // 3D viewport: apply VR preset
         const vp3d = renderingEngine.getViewport(VP_3D) as import('@cornerstonejs/core').VolumeViewport3D;
         try {
-          const presets = await import('@cornerstonejs/core');
-          const utilities = (presets as any).utilities;
+          const presets = (await import('@cornerstonejs/core')) as unknown as CornerstonePresetUtils;
+          const utilities = presets.utilities;
           if (utilities?.applyPreset) {
-            const presetList = (presets as any).CONSTANTS?.VIEWPORT_PRESETS || [];
-            const preset = presetList.find((p: any) => p.name === vrPreset);
+            const presetList: VrPreset[] = presets.CONSTANTS?.VIEWPORT_PRESETS || [];
+            const preset = presetList.find((p) => p.name === vrPreset);
             const actor = vp3d.getDefaultActor();
             if (preset && actor) utilities.applyPreset(actor.actor, preset);
           }
@@ -184,8 +202,9 @@ const MprViewer: React.FC<Props> = ({ imageIds, height = '70vh', onError }) => {
     return () => {
       cancelled = true;
       try {
-        const csTools = (window as any).cornerstoneTools;
-        if (csTools) csTools.ToolGroupManager?.destroyToolGroup?.(TG_ID);
+        // Cornerstone-tools attaches itself to window in some builds; duck-type cleanup.
+        const csTools = (window as unknown as { cornerstoneTools?: { ToolGroupManager?: { destroyToolGroup?: (id: string) => void } } }).cornerstoneTools;
+        csTools?.ToolGroupManager?.destroyToolGroup?.(TG_ID);
       } catch { /* ignore */ }
       try {
         if (renderingEngine) renderingEngine.destroy();
@@ -200,9 +219,10 @@ const MprViewer: React.FC<Props> = ({ imageIds, height = '70vh', onError }) => {
       const engine = cs.getRenderingEngine(RENDER_ID);
       if (!engine) return;
       const vp3d = engine.getViewport(VP_3D) as import('@cornerstonejs/core').VolumeViewport3D;
-      const utilities = (cs as any).utilities;
-      const presetList = (cs as any).CONSTANTS?.VIEWPORT_PRESETS || [];
-      const preset = presetList.find((p: any) => p.name === presetName);
+      const csUtils = cs as unknown as CornerstonePresetUtils;
+      const utilities = csUtils.utilities;
+      const presetList: VrPreset[] = csUtils.CONSTANTS?.VIEWPORT_PRESETS || [];
+      const preset = presetList.find((p) => p.name === presetName);
       const actor = vp3d.getDefaultActor();
       if (preset && actor && utilities?.applyPreset) {
         utilities.applyPreset(actor.actor, preset);
@@ -219,7 +239,8 @@ const MprViewer: React.FC<Props> = ({ imageIds, height = '70vh', onError }) => {
       [VP_AXIAL, VP_SAGITTAL, VP_CORONAL, VP_3D].forEach((id) => {
         const v = engine.getViewport(id);
         v?.resetCamera();
-        (v as any)?.resetProperties?.();
+        // resetProperties chỉ có ở stack/volume viewport, không có trong IViewport base type 3.x.
+        (v as { resetProperties?: () => void } | undefined)?.resetProperties?.();
       });
       engine.renderViewports([VP_AXIAL, VP_SAGITTAL, VP_CORONAL, VP_3D]);
     } catch { /* ignore */ }

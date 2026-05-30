@@ -55,10 +55,8 @@ const DoctorPortalV2: React.FC = () => {
           fromDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
           toDate:   dayjs().add(1, 'day').format('YYYY-MM-DD'),
           pageIndex: 1, pageSize: 200,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return ((r as any)?.data?.items || (r as any)?.data || []) as ExaminationDto[];
+        });
+        return r.data?.items || [];
       }}
       rowKey={(r) => r.id}
       columns={columns}

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import {
   Card,
@@ -103,8 +102,6 @@ const getApiErrorMessage = (error: unknown, fallback: string) => {
 
 const isFormValidationError = (error: unknown): error is ApiErrorLike =>
   typeof error === 'object' && error !== null && 'errorFields' in error;
-void getApiErrorMessage;
-void isFormValidationError;
 const radiologyLabelConfigDtoMarker = null as unknown as RadiologyLabelConfigDto | null;
 void radiologyLabelConfigDtoMarker;
 
@@ -302,10 +299,10 @@ const Radiology: React.FC = () => {
       setEditingTemplate(null);
       templateForm.resetFields();
       loadResultTemplates();
-    } catch (error: any) {
-      if (error?.errorFields) return;
+    } catch (error: unknown) {
+      if ((error as ApiErrorLike)?.errorFields) return;
       console.warn('Save template error:', error);
-      message.warning(error?.response?.data?.message || 'Khong the luu mau ket qua');
+      message.warning((error as ApiErrorLike)?.response?.data?.message || 'Khong the luu mau ket qua');
     }
   };
 
@@ -314,9 +311,9 @@ const Radiology: React.FC = () => {
       await risApi.deleteResultTemplate(templateId);
       message.success('Da xoa mau ket qua');
       loadResultTemplates();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.warn('Delete template error:', error);
-      message.warning(error?.response?.data?.message || 'Khong the xoa mau ket qua');
+      message.warning((error as ApiErrorLike)?.response?.data?.message || 'Khong the xoa mau ket qua');
     }
   };
 
@@ -345,31 +342,41 @@ const Radiology: React.FC = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       message.success('Da xuat file DICOM thanh cong');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.warn('DICOM export error:', error);
-      message.warning(error?.response?.data?.message || 'Khong the xuat file DICOM');
+      message.warning((error as ApiErrorLike)?.response?.data?.message || 'Khong the xuat file DICOM');
     } finally {
       setDicomExportLoading(null);
     }
   };
 
   // ===== Feature: DICOM Send to Remote PACS (NangCap15) =====
+  // Shape khớp risApi.saveRemoteServer payload + id luôn có sau khi save.
+  interface RemoteServerRow {
+    id: string;
+    name: string;
+    aeTitle: string;
+    host: string;
+    port: number;
+    description?: string;
+    isActive?: boolean;
+  }
   const [dicomSendLoading, setDicomSendLoading] = useState<string | null>(null);
   const [remoteServerDrawerOpen, setRemoteServerDrawerOpen] = useState(false);
-  const [remoteServers, setRemoteServers] = useState<any[]>([]);
+  const [remoteServers, setRemoteServers] = useState<RemoteServerRow[]>([]);
   const [remoteServerLoading, setRemoteServerLoading] = useState(false);
   const [remoteServerModalOpen, setRemoteServerModalOpen] = useState(false);
-  const [editingRemoteServer, setEditingRemoteServer] = useState<any>(null);
+  const [editingRemoteServer, setEditingRemoteServer] = useState<RemoteServerRow | null>(null);
   const [remoteServerForm] = Form.useForm();
 
   const fetchRemoteServers = async () => {
     setRemoteServerLoading(true);
     try {
       const response = await risApi.getRemoteServers();
-      setRemoteServers(response.data || []);
-    } catch (error: any) {
+      setRemoteServers((response.data as RemoteServerRow[]) || []);
+    } catch (error: unknown) {
       console.warn('Fetch remote servers error:', error);
-      message.warning(error?.response?.data?.message || 'Khong the tai danh sach Remote PACS');
+      message.warning((error as ApiErrorLike)?.response?.data?.message || 'Khong the tai danh sach Remote PACS');
     } finally {
       setRemoteServerLoading(false);
     }
@@ -381,11 +388,11 @@ const Radiology: React.FC = () => {
       return;
     }
     // Fetch servers if not loaded
-    let servers = remoteServers;
+    let servers: RemoteServerRow[] = remoteServers;
     if (servers.length === 0) {
       try {
         const resp = await risApi.getRemoteServers();
-        servers = resp.data || [];
+        servers = (resp.data as RemoteServerRow[]) || [];
         setRemoteServers(servers);
       } catch {
         // ignore
@@ -397,7 +404,7 @@ const Radiology: React.FC = () => {
       fetchRemoteServers();
       return;
     }
-    const activeServers = servers.filter((s: any) => s.isActive !== false);
+    const activeServers = servers.filter((s) => s.isActive !== false);
     if (activeServers.length === 0) {
       message.warning('Khong co Remote PACS server nao dang hoat dong.');
       return;
@@ -408,9 +415,9 @@ const Radiology: React.FC = () => {
       try {
         await risApi.sendDicomToRemote({ studyId, remoteServerId: activeServers[0].id });
         message.success(`Da gui DICOM den ${activeServers[0].name} thanh cong`);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.warn('DICOM send error:', error);
-        message.warning(error?.response?.data?.message || 'Khong the gui DICOM den Remote PACS');
+        message.warning((error as ApiErrorLike)?.response?.data?.message || 'Khong the gui DICOM den Remote PACS');
       } finally {
         setDicomSendLoading(null);
       }
@@ -425,20 +432,22 @@ const Radiology: React.FC = () => {
           style={{ width: '100%', marginTop: 12 }}
           placeholder="Chon PACS server"
           id="remote-pacs-select"
-          options={activeServers.map((s: any) => ({ label: `${s.name} (${s.aeTitle}@${s.host}:${s.port})`, value: s.id }))}
+          options={activeServers.map((s) => ({ label: `${s.name} (${s.aeTitle}@${s.host}:${s.port})`, value: s.id }))}
         />
       ),
       onOk: async () => {
-        const selectEl = document.getElementById('remote-pacs-select') as any;
+        // Antd `Select` chèn dữ liệu vào internal `_value` của host element
+        // — không có public API; đọc qua loose shape vừa đủ để lấy id đang chọn.
+        const selectEl = document.getElementById('remote-pacs-select') as (HTMLElement & { _value?: string }) | null;
         const selectedId = selectEl?._value || activeServers[0].id;
         setDicomSendLoading(studyInstanceUID);
         try {
           await risApi.sendDicomToRemote({ studyId, remoteServerId: selectedId });
-          const serverName = activeServers.find((s: any) => s.id === selectedId)?.name || 'Remote PACS';
+          const serverName = activeServers.find((s) => s.id === selectedId)?.name || 'Remote PACS';
           message.success(`Da gui DICOM den ${serverName} thanh cong`);
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.warn('DICOM send error:', error);
-          message.warning(error?.response?.data?.message || 'Khong the gui DICOM den Remote PACS');
+          message.warning((error as ApiErrorLike)?.response?.data?.message || 'Khong the gui DICOM den Remote PACS');
         } finally {
           setDicomSendLoading(null);
         }
@@ -456,10 +465,10 @@ const Radiology: React.FC = () => {
       setEditingRemoteServer(null);
       remoteServerForm.resetFields();
       fetchRemoteServers();
-    } catch (error: any) {
-      if (error?.errorFields) return; // form validation error
+    } catch (error: unknown) {
+      if ((error as ApiErrorLike)?.errorFields) return; // form validation error
       console.warn('Save remote server error:', error);
-      message.warning(error?.response?.data?.message || 'Khong the luu Remote PACS server');
+      message.warning((error as ApiErrorLike)?.response?.data?.message || 'Khong the luu Remote PACS server');
     }
   };
 
@@ -468,9 +477,9 @@ const Radiology: React.FC = () => {
       await risApi.deleteRemoteServer(id);
       message.success('Da xoa Remote PACS server');
       fetchRemoteServers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.warn('Delete remote server error:', error);
-      message.warning(error?.response?.data?.message || 'Khong the xoa Remote PACS server');
+      message.warning((error as ApiErrorLike)?.response?.data?.message || 'Khong the xoa Remote PACS server');
     }
   };
 
@@ -835,9 +844,9 @@ const Radiology: React.FC = () => {
           message.warning(result.data?.message || 'Ký số thất bại');
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.warn('Sign result error:', error);
-      message.warning(error?.response?.data?.message || 'Có lỗi xảy ra khi ký số');
+      message.warning((error as ApiErrorLike)?.response?.data?.message || 'Có lỗi xảy ra khi ký số');
     } finally {
       setSignatureLoading(false);
     }
@@ -1070,9 +1079,9 @@ const Radiology: React.FC = () => {
       scheduleForm.resetFields();
       setSelectedRequest(null);
       fetchRadiologyData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.warn('Schedule submit error:', error);
-      message.warning(error?.response?.data?.message || 'Không thể hẹn lịch');
+      message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể hẹn lịch');
     }
   };
 
@@ -1082,9 +1091,9 @@ const Radiology: React.FC = () => {
       await risApi.startExam(record.id);
       message.success('Đã bắt đầu thực hiện');
       fetchRadiologyData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.warn('Start exam error:', error);
-      message.warning(error?.response?.data?.message || 'Không thể bắt đầu thực hiện');
+      message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể bắt đầu thực hiện');
     }
   };
 
@@ -1116,9 +1125,9 @@ const Radiology: React.FC = () => {
       setSelectedExam(null);
       setSelectedRequest(null);
       fetchRadiologyData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.warn('Report submit error:', error);
-      message.warning(error?.response?.data?.message || 'Không thể lưu báo cáo');
+      message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể lưu báo cáo');
     }
   };
 
@@ -1135,9 +1144,9 @@ const Radiology: React.FC = () => {
           });
           message.success('Đã duyệt báo cáo thành công');
           fetchRadiologyData();
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.warn('Approve report error:', error);
-          message.warning(error?.response?.data?.message || 'Không thể duyệt báo cáo');
+          message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể duyệt báo cáo');
         }
       },
     });
@@ -1365,9 +1374,9 @@ const Radiology: React.FC = () => {
               await risApi.completeExam(record.id);
               message.success(`Đã hoàn thành chụp phiếu ${record.requestCode}`);
               fetchRadiologyData();
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.warn('Complete exam error:', error);
-              message.warning(error?.response?.data?.message || 'Không thể hoàn thành ca chụp');
+              message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể hoàn thành ca chụp');
             }
           }}
         >
@@ -2085,9 +2094,9 @@ const Radiology: React.FC = () => {
                                 averageTATMinutes: response.data.averageTATMinutes,
                               });
                             }
-                          } catch (error: any) {
+                          } catch (error: unknown) {
                             console.warn('Statistics error:', error);
-                            message.warning(error?.response?.data?.message || 'Không thể tải thống kê');
+                            message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể tải thống kê');
                           } finally {
                             setStatsLoading(false);
                           }
@@ -2114,9 +2123,9 @@ const Radiology: React.FC = () => {
                             document.body.removeChild(link);
                             window.URL.revokeObjectURL(url);
                             message.success('Đã xuất Excel thành công');
-                          } catch (error: any) {
+                          } catch (error: unknown) {
                             console.warn('Export Excel error:', error);
-                            message.warning(error?.response?.data?.message || 'Không thể xuất Excel');
+                            message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể xuất Excel');
                           }
                         }}
                       >
@@ -2186,9 +2195,9 @@ const Radiology: React.FC = () => {
                             if (response.data) {
                               setTagsData(response.data);
                             }
-                          } catch (error: any) {
+                          } catch (error: unknown) {
                             console.warn('Search tags error:', error);
-                            message.warning(error?.response?.data?.message || 'Không thể tìm tag');
+                            message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể tìm tag');
                           } finally {
                             setTagsLoading(false);
                           }
@@ -2288,9 +2297,9 @@ const Radiology: React.FC = () => {
                               setDutySchedules(response.data);
                               message.success(`Đã tải ${response.data.length} lịch trực`);
                             }
-                          } catch (error: any) {
+                          } catch (error: unknown) {
                             console.warn('Load duty schedules error:', error);
-                            message.warning(error?.response?.data?.message || 'Không thể tải lịch trực');
+                            message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể tải lịch trực');
                           } finally {
                             setDutyLoading(false);
                           }
@@ -2404,9 +2413,9 @@ const Radiology: React.FC = () => {
                                 averageResponseTimeMs: statsResponse.data.averageResponseTimeMs,
                               });
                             }
-                          } catch (error: any) {
+                          } catch (error: unknown) {
                             console.warn('Search integration logs error:', error);
-                            message.warning(error?.response?.data?.message || 'Không thể tìm kiếm log');
+                            message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể tìm kiếm log');
                           } finally {
                             setLogsLoading(false);
                           }
@@ -2523,8 +2532,8 @@ const Radiology: React.FC = () => {
                                 />
                               ),
                             });
-                          } catch (error: any) {
-                            message.warning(error?.response?.data?.message || 'Không thể tải mẫu chẩn đoán');
+                          } catch (error: unknown) {
+                            message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể tải mẫu chẩn đoán');
                           }
                         }}>Quản lý</Button>}
                       >
@@ -2555,8 +2564,8 @@ const Radiology: React.FC = () => {
                                 />
                               ),
                             });
-                          } catch (error: any) {
-                            message.warning(error?.response?.data?.message || 'Không thể tải từ viết tắt');
+                          } catch (error: unknown) {
+                            message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể tải từ viết tắt');
                           }
                         }}>Quản lý</Button>}
                       >
@@ -2591,14 +2600,14 @@ const Radiology: React.FC = () => {
                                   columns={[
                                     { title: 'Mã', dataIndex: 'code', key: 'code', width: 80 },
                                     { title: 'Tên', dataIndex: 'name', key: 'name', width: 200 },
-                                    { title: 'Kích thước', key: 'size', width: 100, render: (_: any, r: any) => `${r.width}x${r.height}` },
+                                    { title: 'Kích thước', key: 'size', width: 100, render: (_: unknown, r: RadiologyLabelConfigDto) => `${r.width}x${r.height}` },
                                     { title: 'Mặc định', dataIndex: 'isDefault', key: 'isDefault', width: 80, render: (v: boolean) => v ? <Tag color="blue">Mặc định</Tag> : '-' },
                                   ]}
                                 />
                               ),
                             });
-                          } catch (error: any) {
-                            message.warning(error?.response?.data?.message || 'Không thể tải cấu hình nhãn in');
+                          } catch (error: unknown) {
+                            message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể tải cấu hình nhãn in');
                           }
                         }}>Quản lý</Button>}
                       >
@@ -2630,8 +2639,8 @@ const Radiology: React.FC = () => {
                                 />
                               ),
                             });
-                          } catch (error: any) {
-                            message.warning(error?.response?.data?.message || 'Không thể tải cấu hình ký số');
+                          } catch (error: unknown) {
+                            message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể tải cấu hình ký số');
                           }
                         }}>Quản lý</Button>}
                       >
@@ -2665,8 +2674,8 @@ const Radiology: React.FC = () => {
                                 />
                               ),
                             });
-                          } catch (error: any) {
-                            message.warning(error?.response?.data?.message || 'Không thể tải danh sách modality');
+                          } catch (error: unknown) {
+                            message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể tải danh sách modality');
                           }
                         }}>Quản lý</Button>}
                       >
@@ -2700,8 +2709,8 @@ const Radiology: React.FC = () => {
                                 />
                               ),
                             });
-                          } catch (error: any) {
-                            message.warning(error?.response?.data?.message || 'Không thể tải kết nối PACS');
+                          } catch (error: unknown) {
+                            message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể tải kết nối PACS');
                           }
                         }}>Quản lý</Button>}
                       >
@@ -2841,7 +2850,7 @@ const Radiology: React.FC = () => {
                         title: 'Thao tác',
                         key: 'action',
                         width: 150,
-                        render: (_: any, tpl: RadiologyResultTemplateDto) => (
+                        render: (_: unknown, tpl: RadiologyResultTemplateDto) => (
                           <Space>
                             <Button
                               size="small"
@@ -3396,10 +3405,10 @@ const Radiology: React.FC = () => {
                 setTagsData(response.data);
               }
             } catch { /* ignore refresh error */ }
-          } catch (error: any) {
-            if (error?.errorFields) return; // validation error
+          } catch (error: unknown) {
+            if ((error as ApiErrorLike)?.errorFields) return; // validation error
             console.warn('Save tag error:', error);
-            message.warning(error?.response?.data?.message || 'Không thể tạo tag');
+            message.warning((error as ApiErrorLike)?.response?.data?.message || 'Không thể tạo tag');
           }
         }}
         okText="Lưu"
@@ -3530,7 +3539,7 @@ const Radiology: React.FC = () => {
               title: 'Thao tac',
               key: 'action',
               width: 120,
-              render: (_: any, record: any) => (
+              render: (_: unknown, record: RemoteServerRow) => (
                 <Space>
                   <Button size="small" icon={<EditOutlined />} onClick={() => {
                     setEditingRemoteServer(record);

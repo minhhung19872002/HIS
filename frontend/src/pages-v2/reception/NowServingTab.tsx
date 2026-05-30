@@ -1,12 +1,7 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import dayjs from 'dayjs';
-import { App as AntdApp, Input, Select, Radio, Checkbox, InputNumber } from 'antd';
-import * as receptionApi from '../../api/reception';
-import type { AdmissionDto, RoomOverviewDto } from '../../api/reception';
-import { KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, DrawerShell, ModalShell, type ColumnDef, type StatusTab, type TopTab } from '../_v2kit';
-import TermIcon from '../../layouts/terminal/Icon';
-import type { RawRow, TopKey, StatusKey } from './shared';
-import { TOP_TABS, STATUS_TABS, PRIORITY_OPTS, VISIT_TYPE_OPTS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from './shared';
+import React from 'react';
+import type { RoomOverviewDto } from '../../api/reception';
+import type { RawRow } from './shared';
+import { statusKey, genderLabel, ageOf } from './shared';
 export const NowServingTab: React.FC<{ rooms: RoomOverviewDto[]; rows: RawRow[] }> = ({ rooms, rows }) => {
   const now = new Date();
   const hm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;

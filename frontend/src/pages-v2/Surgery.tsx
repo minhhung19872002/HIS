@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
+import type { AxiosError } from 'axios';
 import * as surgeryApi from '../api/surgery';
-import type { SurgeryDto } from '../api/surgery';
+import type { SurgeryDto, SurgeryTeamMemberDto } from '../api/surgery';
+import type { ServerValidationError } from '../utils/formError';
 import { SimpleV2Page, StatusBadge, ActBtn, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
@@ -21,7 +23,6 @@ const STATUS_TABS: StatusTab<StatusKey>[] = [
 const statusKey = (s: number): StatusKey =>
   s === 1 ? 'preop' : s === 2 ? 'ongoing' : s === 3 ? 'recovery' : s === 4 ? 'completed' : s === 5 ? 'cancelled' : 'scheduled';
 const fmtHM = (iso?: string) => iso ? dayjs(iso).format('HH:mm') : '—';
-const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM HH:mm') : '—';
 
 const SurgeryV2: React.FC = () => {
@@ -44,9 +45,9 @@ const SurgeryV2: React.FC = () => {
       await surgeryApi.approveSurgery({ surgeryId: r.id, isApproved: true });
       message.success(`Đã duyệt ca · ${r.surgeryCode}`);
       reload();
-    } catch (e) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      message.error((e as any)?.response?.data?.message || 'Duyệt thất bại');
+    } catch (e: unknown) {
+      const ax = e as AxiosError<ServerValidationError>;
+      message.error(ax?.response?.data?.message || 'Duyệt thất bại');
     }
   };
 
@@ -106,14 +107,14 @@ const SurgeryV2: React.FC = () => {
       key={reloadVer}
       title="Ca mổ"
       load={async () => {
+        // SurgerySearchDto dùng `page` (không phải `pageIndex`) — trước đây ép kiểu lỏng để
+        // pass-through field sai → BE ignore. Sau khi typed, dùng đúng `page`.
         const r = await surgeryApi.getSurgeries({
           fromDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
           toDate:   dayjs().add(7, 'day').format('YYYY-MM-DD'),
-          pageIndex: 0, pageSize: 200,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return ((r as any)?.data?.items || []) as SurgeryDto[];
+          page: 0, pageSize: 200,
+        });
+        return r.data?.items || [];
       }}
       rowKey={(r) => r.id}
       columns={columns}
@@ -196,8 +197,11 @@ const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => (
       <div className="rec-section">
         <h5><TermIcon name="users" size={11} /> EKIP PHẪU THUẬT ({r.teamMembers.length})</h5>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          {r.teamMembers.map((m, i) => <span key={i} className="chip info">{(m as any).fullName || (m as any).userName || `TV ${i + 1}`}</span>)}
+          {/* SDK type là SurgeryTeamMemberDto (có staffName); BE legacy có thể trả fullName/userName
+              → giữ fallback. Widen type minimal để vẫn type-safe. */}
+          {r.teamMembers.map((m: SurgeryTeamMemberDto & { fullName?: string; userName?: string }, i) =>
+            <span key={i} className="chip info">{m.fullName || m.userName || m.staffName || `TV ${i + 1}`}</span>
+          )}
         </div>
       </div>
     )}

@@ -4,9 +4,16 @@ import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import systemApi from '../api/system';
 import { getWarehouses } from '../api/warehouse';
+import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {
   KpiStrip, Filter, StatusBadge, Btn, Ico, tk, ti, tw,
 } from './_v2kit';
+
+interface BatchDispenseResponse {
+  receiptCode?: string;
+  exportReceiptId?: string;
+  totalAmount?: number;
+}
 
 interface PendingItem {
   id: string; medicineId: string; medicineName: string; medicineCode: string;
@@ -63,10 +70,8 @@ const InpatientDispensingV2: React.FC = () => {
     (async () => {
       try {
         const [d, w] = await Promise.all([systemApi.catalog.getDepartments(), getWarehouses(1)]);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setDepartments(((d as any)?.data?.items || (d as any)?.data || []) as Department[]);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setWarehouses(((w as any)?.data?.items || (w as any)?.data || []) as Warehouse[]);
+        setDepartments(unwrapList<Department>((d as { data?: MaybePaged<Department> }).data));
+        setWarehouses(unwrapList<Warehouse>((w as { data?: MaybePaged<Warehouse> }).data));
       } catch { /* empty */ }
     })();
   }, []);
@@ -101,8 +106,7 @@ const InpatientDispensingV2: React.FC = () => {
     if (!warehouseId) { tw('Chọn kho xuất trước'); return; }
     setSubmitting(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data }: { data: any } = await apiClient.post('/inpatient-dispensing/batch', {
+      const { data }: { data: BatchDispenseResponse } = await apiClient.post('/inpatient-dispensing/batch', {
         warehouseId, departmentId: g.departmentId, prescriptionIds: ids, note,
       });
       tk(`Đã tạo phiếu ${data.receiptCode} (${ids.length} đơn, ${fmt(data.totalAmount || 0)}đ)`);

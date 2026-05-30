@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Button, Space, Card } from 'antd';
-import { ClearOutlined, SaveOutlined, UndoOutlined } from '@ant-design/icons';
+import { SaveOutlined, UndoOutlined } from '@ant-design/icons';
 
 interface PatientSignaturePadProps {
   onSave?: (base64: string) => void;

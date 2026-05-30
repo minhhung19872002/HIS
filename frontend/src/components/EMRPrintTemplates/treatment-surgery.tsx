@@ -1,10 +1,7 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import dayjs from 'dayjs';
-import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../../constants/hospital';
-import type { MedicalRecordFullDto, TreatmentSheetDto, ConsultationRecordDto, NursingCareSheetDto } from '../../api/examination';
-import type { DocumentSignatureDto } from '../../api/digitalSignature';
-import { printStyles, PrintHeader, SignatureBlock, Field, CheckMarkSvg, DigitalSignatureStamp, toSignatureStamp } from './_shared';
-import type { SignatureStampInfo } from './_shared';
+import type { MedicalRecordFullDto, NursingCareSheetDto } from '../../api/examination';
+import { printStyles, PrintHeader, SignatureBlock, Field } from './_shared';
 interface NursingCarePrintProps {
   record: MedicalRecordFullDto;
   sheets: NursingCareSheetDto[];
@@ -83,7 +80,7 @@ interface PreAnestheticExamProps {
 }
 
 export const PreAnestheticExamPrint = forwardRef<HTMLDivElement, PreAnestheticExamProps>(
-  ({ record, asaClassification, mallampatiScore, airwayAssessment, anesthesiaType, anesthesiaPlan, risks, preOpInstructions, anesthesiologistName }, ref) => {
+  ({ record, asaClassification, mallampatiScore, airwayAssessment, anesthesiaType, anesthesiaPlan, risks, preOpInstructions, anesthesiologistName: _anesthesiologistName }, ref) => {
     const p = record.patient;
     const vs = record.vitalSigns;
     const iv = record.interview;
@@ -253,7 +250,7 @@ interface TreatmentProgressNoteProps {
 }
 
 export const TreatmentProgressNotePrint = forwardRef<HTMLDivElement, TreatmentProgressNoteProps>(
-  ({ record, periodFrom, periodTo, dayCount, admissionDate, departmentName, clinicalProgress, labResults, imagingResults, currentTreatment, treatmentResponse, currentCondition, nextPlan, prognosis, doctorName }, ref) => {
+  ({ record, periodFrom, periodTo, dayCount, admissionDate, departmentName, clinicalProgress, labResults, imagingResults, currentTreatment, treatmentResponse, currentCondition, nextPlan, prognosis, doctorName: _doctorName }, ref) => {
     const p = record.patient;
     const vs = record.vitalSigns;
     const primaryDiag = record.diagnoses?.find(d => d.diagnosisType === 1);
@@ -341,7 +338,7 @@ interface CounselingFormProps {
 }
 
 export const CounselingFormPrint = forwardRef<HTMLDivElement, CounselingFormProps>(
-  ({ record, counselingTopic, counselingContent, patientQuestions, patientUnderstanding, counselorName, counselorTitle }, ref) => {
+  ({ record, counselingTopic, counselingContent, patientQuestions, patientUnderstanding, counselorName: _counselorName, counselorTitle }, ref) => {
     const p = record.patient;
 
     return (

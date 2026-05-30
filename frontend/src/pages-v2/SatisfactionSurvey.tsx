@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { getSurveyResults } from '../api/satisfactionSurvey';
+import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   StatusTabs, DrawerShell, DrSec, DrField, tk, ti, Ico,
@@ -44,8 +45,15 @@ const SatisfactionSurveyV2: React.FC = () => {
     setLoading(true);
     try {
       const res = await getSurveyResults();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = (res.data?.items || res.data || []) as any[];
+      // BE có thể trả mảng thô hoặc { items: [] } — chuẩn hoá. Field name alias do BE evolve.
+      interface RawSurveyRow {
+        id?: string; patientCode?: string; patientName?: string;
+        templateName?: string; score?: number;
+        date?: string; createdAt?: string;
+        status?: string;
+        department?: string; departmentName?: string;
+      }
+      const data = normalizeArrayResponse<RawSurveyRow>(res.data);
       const rows: SurveyResult[] = data.map((r, i) => ({
         id: r.id || `r-${i}`,
         patientCode: r.patientCode || '',
