@@ -72,6 +72,8 @@ builder.Services.AddCors(options =>
 
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
+if (jwtKey.Length < 32)
+    throw new InvalidOperationException($"Jwt:Key too short ({jwtKey.Length} chars). HmacSha256 requires ≥32 chars (256 bits).");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
 

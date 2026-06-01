@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs.EmrAdmin;
 using HIS.Application.Services;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 
@@ -27,7 +28,7 @@ namespace HIS.Infrastructure.Services
             _http.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         private string? GetCurrentUserName() =>
             _http.HttpContext?.User?.FindFirst(ClaimTypes.Name)?.Value
-            ?? _http.HttpContext?.User?.FindFirst("fullName")?.Value;
+            ?? _http.HttpContext?.User?.FindFirst(JwtClaims.FullName)?.Value;
 
         // ============ Cover Types ============
         public async Task<List<EmrCoverTypeDto>> GetCoverTypesAsync(string? keyword = null, string? category = null)

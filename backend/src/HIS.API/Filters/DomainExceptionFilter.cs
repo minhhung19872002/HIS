@@ -80,7 +80,26 @@ public sealed class DomainExceptionFilter : IExceptionFilter
                 context.ExceptionHandled = true;
                 _logger.LogInformation("Domain request cancelled by client");
                 break;
-            // Default → middleware error handler chung xử lý + log
+            default:
+                // Catch-all cho exception không lường trước (SqlException, NullReference, ...)
+                // → trả 500 JSON body cùng shape với các case khác (tránh body rỗng làm FE
+                //   chỉ nhận "Network Error" generic). Stack trace KHÔNG leak vào response
+                //   (chỉ vào log server-side để debug).
+                // Reference: bug 2026-05-30 login prod 500 empty (SqlException UserId1 shadow FK).
+                _logger.LogError(context.Exception,
+                    "Unhandled exception in {Path}",
+                    context.HttpContext.Request.Path);
+                context.Result = new ObjectResult(new
+                {
+                    error = "INTERNAL_ERROR",
+                    message = "Hệ thống đang gặp sự cố, vui lòng thử lại sau ít phút.",
+                    traceId = context.HttpContext.TraceIdentifier
+                })
+                {
+                    StatusCode = 500
+                };
+                context.ExceptionHandled = true;
+                break;
         }
     }
 

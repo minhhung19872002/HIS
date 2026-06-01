@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using HIS.Application.DTOs.NangCap24;
 using HIS.Application.Services;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -300,15 +301,15 @@ public class BhxhInspectorService : IBhxhInspectorService
 
     private string GenerateInspectorToken(BhxhInspectorAccount account)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key not configured")));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, account.Id.ToString()),
             new Claim(ClaimTypes.Name, account.Username),
             new Claim(ClaimTypes.Role, "BhxhInspector"),
-            new Claim("inspectorType", "bhxh"),
-            new Claim("fullName", account.FullName)
+            new Claim(JwtClaims.InspectorType, "bhxh"),
+            new Claim(JwtClaims.FullName, account.FullName)
         };
         var token = new JwtSecurityToken(
             issuer: _config["Jwt:Issuer"],

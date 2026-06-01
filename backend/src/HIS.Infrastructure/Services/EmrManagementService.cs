@@ -5,6 +5,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.Interfaces;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 
@@ -25,7 +26,7 @@ public class EmrManagementService : IEmrManagementService
         _http.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     private string? GetCurrentUserName() =>
         _http.HttpContext?.User?.FindFirst(ClaimTypes.Name)?.Value
-        ?? _http.HttpContext?.User?.FindFirst("fullName")?.Value;
+        ?? _http.HttpContext?.User?.FindFirst(JwtClaims.FullName)?.Value;
 
     // ============================================================
     // Sharing (B.1.2)

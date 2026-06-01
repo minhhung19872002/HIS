@@ -922,6 +922,18 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         // to convention drift trong EF Core future. Convention-mismatch entity (FK property
         // tên khác nav) defer Phase 2 (cần ALTER schema + smoke-test prod).
         // Xem plan-T1-fluent-fk-13-entity.md cho triage rule + verify script.
+        //
+        // ⚠️ WARNING — shadow FK landmine (bug 2026-05-30 login prod 500):
+        // Các dòng dưới dùng pattern `.HasOne(x => x.User).WithMany()` KHÔNG truyền inverse
+        // collection. Pattern này HỢP LỆ chỉ khi `User` entity (HIS.Core/Entities/User.cs)
+        // KHÔNG có `ICollection<X>` tương ứng. Nếu ai đó thêm inverse collection vào User
+        // (vd: `public virtual ICollection<TwoFactorOtp> TwoFactorOtps { get; set; }`),
+        // EF sẽ coi đó là relationship THỨ 2 → tạo SHADOW FK `UserId1` (vì `UserId` đã dùng)
+        // → SqlException "Invalid column name 'UserId1'" khi query Include.
+        // Reference: commit 48aed7e fix UserRole.User (vì User.UserRoles inverse tồn tại).
+        // RULE: thêm `ICollection<X>` vào User.cs → PHẢI đổi `.WithMany()` thành
+        // `.WithMany(u => u.Xs)` cho relationship tương ứng dưới đây.
+        // Xem docs/workspace-docs/conventions/ef-fluent-fk.md cho checklist convention.
         modelBuilder.Entity<Admission>().HasOne(a => a.AdmittingDoctor).WithMany().HasForeignKey(a => a.AdmittingDoctorId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Allergy>().HasOne(a => a.RecordedBy).WithMany().HasForeignKey(a => a.RecordedByUserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<AntibioticStewardship>().HasOne(a => a.ReviewedBy).WithMany().HasForeignKey(a => a.ReviewedById).OnDelete(DeleteBehavior.NoAction);

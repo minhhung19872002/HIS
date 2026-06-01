@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using AutoMapper;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 
@@ -246,15 +247,15 @@ public class AuthService : IAuthService
 
     public string GenerateJwtToken(UserDto user)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key not configured")));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.Username),
-            new("fullName", user.FullName),
-            new("employeeCode", user.EmployeeCode ?? "")
+            new(JwtClaims.FullName, user.FullName),
+            new(JwtClaims.EmployeeCode, user.EmployeeCode ?? "")
         };
 
         foreach (var role in user.Roles)
@@ -277,7 +278,7 @@ public class AuthService : IAuthService
 
         foreach (var permission in user.Permissions)
         {
-            claims.Add(new Claim("permission", permission));
+            claims.Add(new Claim(JwtClaims.Permission, permission));
         }
 
         var expireMinutes = int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "60");

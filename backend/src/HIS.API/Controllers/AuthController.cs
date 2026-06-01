@@ -3,11 +3,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
+using HIS.API.Filters;
 
 namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[TypeFilter(typeof(DomainExceptionFilter))]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;

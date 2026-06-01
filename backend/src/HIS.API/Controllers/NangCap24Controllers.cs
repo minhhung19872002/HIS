@@ -2,6 +2,7 @@ using System.Security.Claims;
 using HIS.API.Filters;
 using HIS.Application.DTOs.NangCap24;
 using HIS.Application.Services;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -321,7 +322,7 @@ public class DicomStudyActivityController : ControllerBase
 
     private Guid GetUserId() =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
-    private string? GetUserName() => User.FindFirstValue("fullName");
+    private string? GetUserName() => User.FindFirstValue(JwtClaims.FullName);
     private string? GetClientIp() => HttpContext.Connection.RemoteIpAddress?.ToString();
 
     [HttpGet]
