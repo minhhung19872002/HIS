@@ -10,9 +10,9 @@ metadata:
 Skill "guardrail" cho tech-debt clean-up. **MỌI** task dạng "xóa nợ" / refactor god-file / mass-replace types / migrate FE-BE pattern phải tuân thủ 6 rule dưới. Vi phạm → output không rõ, báo cáo stale, hoặc tệ hơn — vỡ logic nghiệp vụ.
 
 Cross-ref:
-- Roadmap chi tiết: `docs/workspace-docs/tech-debt-roadmap.md`
-- Số liệu nợ: `docs/workspace-docs/rule-compliance-audit.md`
-- Vận hành dang dở: `docs/workspace-docs/session-handoff-*.md`
+- Roadmap chi tiết: `docs/workspace-docs/20-backlog/tech-debt-roadmap.md`
+- Số liệu nợ: `docs/workspace-docs/10-assessment/rule-compliance-audit.md`
+- Vận hành dang dở: `docs/workspace-docs/90-archive/handoffs/session-handoff-*.md`
 - Memory entries chi tiết (auto-load): xem `~/.claude/projects/.../memory/feedback_*.md`
 
 ---
@@ -32,7 +32,7 @@ Mỗi reply liên quan tech-debt phải có **marker rõ** để user nhìn 1 sc
 
 ## Rule 2 — Schedule discipline (roadmap dễ → khó)
 
-1. Mọi work tech-debt khởi đầu bằng **đọc `tech-debt-roadmap.md`** trước.
+1. Mọi work tech-debt khởi đầu bằng **đọc `20-backlog/tech-debt-roadmap.md`** trước.
 2. Chọn mục đầu tiên còn `⏳` theo **decision matrix theo hạn chế hạ tầng** (máy D:\ không deploy được → skip mục cần deploy).
 3. Sort lịch theo: **EASY → MEDIUM → HARD** (ưu tiên dễ trước).
 4. Mỗi mục trong roadmap phải có:
@@ -51,8 +51,8 @@ Mỗi reply liên quan tech-debt phải có **marker rõ** để user nhìn 1 sc
 
 Sau mỗi mục hoàn tất (vd D7 đợt 1, K1 phiên 2…) → **update ngay**, không đợi cuối phiên:
 
-1. `rule-compliance-audit.md`: strike-through item, đổi ✅/🟬, ghi số liệu thật.
-2. `tech-debt-roadmap.md`: cập nhật mục + add 1 dòng Update log cuối file.
+1. `10-assessment/rule-compliance-audit.md`: strike-through item, đổi ✅/🟬, ghi số liệu thật.
+2. `20-backlog/tech-debt-roadmap.md`: cập nhật mục + add 1 dòng Update log cuối file.
 3. Trong terminal output: "Báo cáo X đã cập nhật" để user thấy.
 4. Khi liệt kê "Đã làm" cuối reply: list rõ file báo cáo đã update.
 
@@ -116,7 +116,7 @@ Với mỗi side-effect → audit:
 Khi clean tech-debt mà phát hiện change sẽ **ảnh hưởng logic nghiệp vụ**:
 
 1. **STOP** tại đó.
-2. Document trong `tech-debt-roadmap.md`: chuyển mục sang 🔴 BLOCKED / ⚠️ PHẢI XÁC NHẬN, ghi rõ change ảnh hưởng gì.
+2. Document trong `20-backlog/tech-debt-roadmap.md`: chuyển mục sang 🔴 BLOCKED / ⚠️ PHẢI XÁC NHẬN, ghi rõ change ảnh hưởng gì.
 3. Báo user **trích đoạn code trước/sau** + impact.
 4. Hỏi user: fix-now (nếu minimal) / defer-and-schedule / revert toàn bộ.
 5. **Auto fix CHỈ KHI**: (a) change minimal (vd 1 prop preserve behavior), VÀ (b) verify behavior preserved bằng đọc code 2 chiều — không đoán.
@@ -193,7 +193,7 @@ Sau MỌI bulk fix (manual hoặc subagent) >20 file — PHẢI spot-check thự
 
 Cuối phiên tech-debt LỚN (>5 task hoặc >50 file modified) HOẶC khi user yêu cầu **"tổng hợp / lập kế hoạch / handoff / chuyển giao"** — PHẢI tạo session handoff doc.
 
-**Vị trí BẮT BUỘC:** `docs/workspace-docs/session-YYYY-MM-DD-handoff.md` (kèm suffix `-AM`/`-PM` nếu cùng ngày có 2 phiên).
+**Vị trí BẮT BUỘC:** `docs/workspace-docs/90-archive/handoffs/session-YYYY-MM-DD-handoff.md` (kèm suffix `-AM`/`-PM` nếu cùng ngày có 2 phiên).
 
 **7 section bắt buộc:**
 
@@ -208,8 +208,8 @@ Cuối phiên tech-debt LỚN (>5 task hoặc >50 file modified) HOẶC khi user
 | **G. CẢNH BÁO + GOTCHA** | List risk cho phiên sau (vd "máy D:\ không deploy", "Antd Tabs giữ mount", "subagent KHÔNG biết domain") |
 
 **Cross-ref bắt buộc trong doc:**
-- `docs/workspace-docs/tech-debt-roadmap.md`
-- `docs/workspace-docs/rule-compliance-audit.md`
+- `docs/workspace-docs/20-backlog/tech-debt-roadmap.md`
+- `docs/workspace-docs/10-assessment/rule-compliance-audit.md`
 - `.claude/skills/his-tech-debt-workflow/SKILL.md`
 - Memory feedback files relevant
 
