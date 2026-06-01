@@ -16,6 +16,24 @@ Khi nhận **bất kỳ yêu cầu làm tính năng / sửa code / viết test /
 Skill nằm ở `.claude/skills/` (auto-nạp description). SKILL-MAP/PROMPT-TEMPLATES là file thường — **phải chủ
 động Read** theo chỉ thị này. Bỏ qua bước routing = sai quy trình.
 
+## Agent routing (tự chọn — LUÔN báo đang dùng gì)
+
+Mặc định **trả lời inline** (rẻ nhất). Chỉ spawn subagent khi việc **độc lập / song song / nặng** đáng đánh đổi token;
+**việc nhẹ/lặp → `agy`** (free). Đầu mỗi reply nói rõ: *inline* hay *agent nào* (+ vì sao ngắn gọn).
+
+| Loại việc | Chọn |
+|---|---|
+| Q&A · giải thích · tra cứu · sửa rất nhỏ | **inline** |
+| Tìm kiếm rộng nhiều file (chỉ cần kết luận) | `Explore` |
+| Thêm/sửa/refactor code thật (có blast radius) | `code-change-controller` |
+| Thiết kế · plan · module mới · migration lớn | `his-architecture-planner` |
+| Tài liệu (README/API/handoff/ADR) | `his-docs-manager` |
+| Review · audit chất lượng · regression | `his-quality-reviewer` |
+| Viết/sửa test | `his-test-engineer` |
+| Tech-debt lớn (god-file split, siết `:any`) | `tech-debt-manager` |
+| Task lớn đa-domain (phân loại + điều phối) | `ai-project-orchestrator` |
+| Nhiều mảnh độc lập | fan-out **song song** (báo chi phí token trước) |
+
 ## Project Structure
 - **Backend**: ASP.NET Core Clean Architecture (HIS.Core → HIS.Application → HIS.Infrastructure → HIS.API)
 - **Frontend**: React 19 + TypeScript + Ant Design v6 + Vite
