@@ -1,5 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "skillListingMaxDescChars": 700,
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -8,6 +9,64 @@
             "type": "command",
             "command": "echo \"SKILL-ROUTER reminder: For any feature/code/test/migration/deploy/doc task in this HIS project, FIRST read .claude/SKILL-MAP.md (thin router), THEN per its dispatch table (2) read the matching .claude/skill-routes/<tier>.md sub-map (fe/be/test/ops-doc; _reference.md for the end-to-end playbook), and route to the core-* + his-* skills before implementing (fallback per section 6 if none fit). PRE-FLIGHT for any code task: clarify-if-ambiguous (ask, don't guess) -> verify-before-assert (never invent files/symbols/fields) -> impact-analysis (map blast radius before editing shared code) -> minimal-change (smallest correct diff, no over-engineering). OUTPUT STYLE (core-execution-output): concise grouped summaries by default, no raw-log/probe/temp-path/bg-poll spam; auto-expand to exact failing command + root-cause logs only on failure or when asked; always surface destructive ops (rm, git reset/force, db migration, pkg install, env change); never hide errors or claim unverified success. REQUIRED OUTPUT: begin every reply with a one-line note in Vietnamese stating you have consulted .claude/SKILL-MAP.md, naming the skill(s) you selected for this request AND its file location (path under .claude/skills/<name>/ for project skills, or note 'skill built-in/plugin' if it lives outside that folder) -- or state 'Khong phai task code, khong ap skill' if the request is not a code task.\"",
             "statusMessage": "Skill-router reminder"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "if": "Bash(git push*)",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-no-push-workspace-docs.sh\"",
+            "statusMessage": "Guard: no-push workspace-docs"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/notify-stop.sh\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/remind-status.sh\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh\""
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/precompact-preserve.sh\""
           }
         ]
       }
