@@ -51,65 +51,17 @@ import type {
   CAPADto,
   SatisfactionStatisticsDto,
   PagedResultDto,
-  CreateCorrectiveActionDto,
 } from '../api/quality';
 import { HOSPITAL_NAME } from '../constants/hospital';
+import type {
+  IncidentFormValues,
+  InvestigationFormValues,
+  AuditFormValues,
+} from './quality/types';
+import { INCIDENT_TYPES, SEVERITY_LEVELS } from './quality/constants';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-
-type IncidentFormValues = {
-  incidentDate: dayjs.Dayjs;
-  departmentId: string;
-  locationDescription?: string;
-  incidentType: string;
-  severity: number;
-  patientId?: string;
-  description: string;
-  immediateActions?: string;
-  isReportable?: boolean;
-  notes?: string;
-};
-
-type InvestigationFormValues = {
-  investigationFindings?: string;
-  rootCauseAnalysis?: string;
-  rcaMethod?: string;
-  contributingFactors?: string[];
-  correctiveActions?: CreateCorrectiveActionDto[];
-  preventiveMeasures?: string;
-  lessonLearned?: string;
-};
-
-type AuditFormValues = {
-  auditType: string;
-  title: string;
-  scope?: string;
-  objective?: string;
-  criteria?: string;
-  departmentId: string;
-  scheduledDate: dayjs.Dayjs;
-  leadAuditorId?: string;
-  notes?: string;
-};
-
-const INCIDENT_TYPES = [
-  { value: 'MedicationError', label: 'Sai sót thuốc' },
-  { value: 'Fall', label: 'Té ngã' },
-  { value: 'HAI', label: 'Nhiễm khuẩn' },
-  { value: 'PatientSafety', label: 'Sai định danh' },
-  { value: 'Equipment', label: 'Thiết bị hỏng' },
-  { value: 'Other', label: 'Khác' },
-];
-
-const SEVERITY_LEVELS = [
-  { value: 1, label: 'Suýt xảy ra', color: 'blue' },
-  { value: 2, label: 'Không tổn thương', color: 'cyan' },
-  { value: 3, label: 'Nhẹ', color: 'green' },
-  { value: 4, label: 'Vừa', color: 'orange' },
-  { value: 5, label: 'Nặng', color: 'red' },
-  { value: 6, label: 'Trọng yếu', color: 'volcano' },
-];
 
 const Quality: React.FC = () => {
   const [loading, setLoading] = useState(false);

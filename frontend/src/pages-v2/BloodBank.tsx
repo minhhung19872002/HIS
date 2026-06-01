@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input, Select, InputNumber } from 'antd';
 import type { MessageInstance } from 'antd/es/message/interface';
-import { getBloodStock, getBloodStockDetail, getExpiringBloodBags, getIssueRequests, getProductTypes, createIssueRequest } from '../api/bloodBank';
-import type { BloodStockDto, BloodBagDto, BloodIssueRequestDto, BloodProductTypeDto, BloodStockDetailDto } from '../api/bloodBank';
+import { DatePicker } from 'antd';
+import { getBloodStock, getBloodStockDetail, getExpiringBloodBags, getIssueRequests, getProductTypes, createIssueRequest, createImportReceipt, getSuppliers } from '../api/bloodBank';
+import type { BloodStockDto, BloodBagDto, BloodIssueRequestDto, BloodProductTypeDto, BloodStockDetailDto, BloodSupplierDto } from '../api/bloodBank';
 import { catalogApi } from '../api/system';
 import type { DepartmentCatalogDto } from '../api/system';
 import {
@@ -56,6 +57,7 @@ const BloodBankV2: React.FC = () => {
   const [detailType, setDetailType] = useState<string | null>(null);
   const [unitSel, setUnitSel] = useState<BloodStockDetailDto | null>(null);
   const [issueOpen, setIssueOpen] = useState(false);
+  const [receiveOpen, setReceiveOpen] = useState(false);
   const PAGE_SIZE = 16;
 
   const reload = () => {
@@ -197,8 +199,11 @@ const BloodBankV2: React.FC = () => {
             <Btn variant="ghost" onClick={reload}>
               <TermIcon name="refresh" size={12} /> Làm mới
             </Btn>
+            <Btn variant="ghost" onClick={() => setReceiveOpen(true)}>
+              <TermIcon name="plus" size={12} /> Nhận máu
+            </Btn>
             <Btn variant="primary" onClick={() => setIssueOpen(true)}>
-              <TermIcon name="plus" size={12} /> Xuất máu
+              <TermIcon name="send" size={12} /> Xuất máu
             </Btn>
           </>
         }
@@ -294,6 +299,12 @@ const BloodBankV2: React.FC = () => {
         open={issueOpen}
         onClose={() => setIssueOpen(false)}
         onDone={() => { setIssueOpen(false); reload(); }}
+      />
+
+      <BloodReceiveModal
+        open={receiveOpen}
+        onClose={() => setReceiveOpen(false)}
+        onDone={() => { setReceiveOpen(false); reload(); }}
       />
     </div>
   );
@@ -616,6 +627,144 @@ const BloodTypeDetail: React.FC<{ type: string; stock: BloodStockDto[] }> = ({ t
         ))}
       </div>
     </>
+  );
+};
+
+/* ──────────────────────────────────────────────────────────
+   Blood receive (nhập kho từ nhà cung cấp) modal — port từ v1
+   (pages/BloodBank.tsx). Pattern raw useState theo BloodIssueModal.
+   API: createImportReceipt + getSuppliers + getProductTypes (đã có).
+   ────────────────────────────────────────────────────────── */
+
+const BloodReceiveModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [suppliers, setSuppliers] = useState<BloodSupplierDto[]>([]);
+  const [products, setProducts] = useState<BloodProductTypeDto[]>([]);
+  const [supplierId, setSupplierId] = useState<string | undefined>(undefined);
+  const [bloodType, setBloodType] = useState('O');
+  const [rh, setRh] = useState('+');
+  const [productTypeId, setProductTypeId] = useState<string | undefined>(undefined);
+  const [volume, setVolume] = useState<number>(350);
+  const [receiveDate, setReceiveDate] = useState<dayjs.Dayjs | null>(dayjs());
+  const [expiryDate, setExpiryDate] = useState<dayjs.Dayjs | null>(dayjs().add(42, 'day'));
+  const [bagCode, setBagCode] = useState('');
+  const [deliveryPerson, setDeliveryPerson] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // Reset state + load lookup khi mở (pattern BloodIssueModal)
+  useEffect(() => {
+    if (open) {
+      setSupplierId(undefined); setBloodType('O'); setRh('+'); setProductTypeId(undefined);
+      setVolume(350); setReceiveDate(dayjs()); setExpiryDate(dayjs().add(42, 'day'));
+      setBagCode(`BU${dayjs().format('YYMMDD')}${String(Date.now()).slice(-4)}`);
+      setDeliveryPerson(''); setNote('');
+      Promise.allSettled([
+        getSuppliers(),
+        getProductTypes(),
+      ]).then(([s, p]) => {
+        if (s.status === 'fulfilled') setSuppliers((s.value.data || []) as BloodSupplierDto[]);
+        if (p.status === 'fulfilled') setProducts((p.value.data || []) as BloodProductTypeDto[]);
+      });
+    }
+  }, [open]);
+
+  const submit = async () => {
+    if (!supplierId) { message.warning('Chọn nhà cung cấp'); return; }
+    if (!productTypeId) { message.warning('Chọn chế phẩm máu'); return; }
+    if (!bagCode.trim()) { message.warning('Nhập mã túi máu'); return; }
+    if (!volume || volume <= 0) { message.warning('Nhập thể tích'); return; }
+    if (!receiveDate) { message.warning('Chọn ngày nhập'); return; }
+    if (!expiryDate) { message.warning('Chọn hạn sử dụng'); return; }
+    setBusy(true);
+    try {
+      await createImportReceipt({
+        receiptDate: receiveDate.format('YYYY-MM-DD'),
+        supplierId,
+        deliveryPerson: deliveryPerson.trim() || undefined,
+        note: note.trim() || undefined,
+        items: [{
+          bagCode: bagCode.trim(),
+          barcode: bagCode.trim(),
+          bloodType,
+          rhFactor: rh,
+          productTypeId,
+          volume,
+          collectionDate: receiveDate.format('YYYY-MM-DD'),
+          expiryDate: expiryDate.format('YYYY-MM-DD'),
+          price: 0,
+        }],
+      });
+      message.success(`Đã nhập đơn vị máu ${bagCode}`);
+      onDone();
+    } catch {
+      message.error('Nhập máu thất bại');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="md"
+      title="Nhận máu vào kho"
+      footer={(
+        <>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="primary" disabled={busy} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Lưu'}
+          </Btn>
+        </>
+      )}
+    >
+      <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <BbFld label="Nhà cung cấp *" full>
+          <Select
+            value={supplierId} onChange={setSupplierId} showSearch optionFilterProp="label"
+            placeholder="Chọn nhà cung cấp" style={{ width: '100%' }}
+            options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+          />
+        </BbFld>
+        <BbFld label="Mã túi máu *">
+          <Input value={bagCode} onChange={(e) => setBagCode(e.target.value)} placeholder="BU241231xxxx" />
+        </BbFld>
+        <BbFld label="Người giao">
+          <Input value={deliveryPerson} onChange={(e) => setDeliveryPerson(e.target.value)} placeholder="Tên người giao" />
+        </BbFld>
+        <BbFld label="Nhóm máu">
+          <Select value={bloodType} onChange={setBloodType} style={{ width: '100%' }}
+            options={BLOOD_GROUPS.map((g) => ({ value: g, label: g }))} />
+        </BbFld>
+        <BbFld label="Rh">
+          <Select value={rh} onChange={setRh} options={RH_OPTS} style={{ width: '100%' }} />
+        </BbFld>
+        <BbFld label="Chế phẩm *" full>
+          <Select
+            value={productTypeId} onChange={setProductTypeId} showSearch optionFilterProp="label"
+            placeholder="Chọn chế phẩm máu" style={{ width: '100%' }}
+            options={products.map((p) => ({ value: p.id, label: `${p.name} (${p.unit})` }))}
+          />
+        </BbFld>
+        <BbFld label="Thể tích (mL)">
+          <InputNumber value={volume} onChange={(v) => setVolume(Number(v) || 0)} min={1} step={50} style={{ width: '100%' }} />
+        </BbFld>
+        <BbFld label="Ngày nhập / lấy máu *">
+          <DatePicker value={receiveDate} onChange={setReceiveDate} format="DD/MM/YYYY" style={{ width: '100%' }} />
+        </BbFld>
+        <BbFld label="Hạn sử dụng *" full>
+          <DatePicker value={expiryDate} onChange={setExpiryDate} format="DD/MM/YYYY" style={{ width: '100%' }} />
+        </BbFld>
+        <BbFld label="Ghi chú" full>
+          <Input.TextArea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Ghi chú nhập máu…" />
+        </BbFld>
+      </div>
+    </ModalShell>
   );
 };
 

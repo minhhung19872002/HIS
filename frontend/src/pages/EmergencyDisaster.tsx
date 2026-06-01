@@ -65,25 +65,13 @@ import {
   type DepartmentStaffDto,
 } from '../api/massCasualty';
 
+import type {
+  ActivateFormValues,
+  VictimFormValues,
+} from './emergency-disaster/types';
+
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-
-type ActivateFormValues = {
-  description: string;
-  eventType?: string;
-  alertLevel: number;
-  location: string;
-  estimatedCasualties?: number | string;
-};
-
-type VictimFormValues = {
-  name?: string;
-  estimatedAge?: number | string;
-  gender?: string;
-  currentLocation?: string;
-  injuries?: string;
-  triageCategory?: string;
-};
 
 const EmergencyDisaster: React.FC = () => {
   const [loading, setLoading] = useState(false);

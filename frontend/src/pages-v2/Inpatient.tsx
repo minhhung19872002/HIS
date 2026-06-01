@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { App as AntdApp } from 'antd';
+import { App as AntdApp, Input, Select } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { getInpatientList, getWardLayout } from '../api/inpatient';
+import { getInpatientList, getWardLayout, admitFromOpd } from '../api/inpatient';
 import type { InpatientListDto, WardLayoutDto, BedLayoutDto } from '../api/inpatient';
 import { catalogApi } from '../api/system';
+import type { DepartmentCatalogDto } from '../api/system';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell,
+  StatusBadge, ActBtn, Btn, DrawerShell, ModalShell,
   type ColumnDef, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -59,6 +60,7 @@ const InpatientV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [bed, setBed] = useState<(BedLayoutDto & { wardName?: string }) | null>(null);
   const [detail, setDetail] = useState<InpatientListDto | null>(null);
+  const [admitOpen, setAdmitOpen] = useState(false);
   const LIST_PAGE = 16;
 
   const loadData = useCallback(() => {
@@ -193,8 +195,11 @@ const InpatientV2: React.FC = () => {
             <Btn variant="ghost" onClick={() => navigate('/v2/hr')}>
               <TermIcon name="users" size={12} /> Bàn giao ca <kbd>F4</kbd>
             </Btn>
+            <Btn variant="ghost" onClick={() => setAdmitOpen(true)}>
+              <TermIcon name="plus" size={12} /> Nhập viện
+            </Btn>
             <Btn variant="primary" onClick={() => navigate('/v2/inpatient-dispensing')}>
-              <TermIcon name="plus" size={12} /> Y lệnh mới <kbd>F2</kbd>
+              <TermIcon name="clipboard" size={12} /> Y lệnh mới <kbd>F2</kbd>
             </Btn>
           </>
         }
@@ -421,5 +426,135 @@ const InpatientV2: React.FC = () => {
     </div>
   );
 };
+
+/* ──────────────────────────────────────────────────────────
+   Admit (Nhập viện) modal — port MINIMAL từ v1 (pages/Inpatient.tsx).
+   Skip OPD context lookup + patient search async (phase 2 enhance).
+   8 field theo AdmitFromOpdDto: medicalRecordId, departmentId,
+   roomId, bedId?, admissionType, diagnosisOnAdmission, reasonForAdmission,
+   attendingDoctorId. API: admitFromOpd (đã có).
+   Pattern raw useState theo BloodReceiveModal.
+   ────────────────────────────────────────────────────────── */
+
+const ADMISSION_TYPES = [
+  { value: 1, label: 'Cấp cứu' },
+  { value: 2, label: 'Chuyển từ OPD' },
+  { value: 3, label: 'Theo lịch' },
+  { value: 4, label: 'Khác' },
+];
+
+const AdmitModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [depts, setDepts] = useState<DepartmentCatalogDto[]>([]);
+  const [medicalRecordId, setMedicalRecordId] = useState('');
+  const [departmentId, setDepartmentId] = useState<string | undefined>(undefined);
+  const [roomId, setRoomId] = useState('');
+  const [bedId, setBedId] = useState('');
+  const [admissionType, setAdmissionType] = useState<number>(2);
+  const [diagnosisOnAdmission, setDiagnosisOnAdmission] = useState('');
+  const [reasonForAdmission, setReasonForAdmission] = useState('');
+  const [attendingDoctorId, setAttendingDoctorId] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setMedicalRecordId(''); setDepartmentId(undefined);
+      setRoomId(''); setBedId(''); setAdmissionType(2);
+      setDiagnosisOnAdmission(''); setReasonForAdmission('');
+      setAttendingDoctorId('');
+      catalogApi.getDepartments(undefined, undefined, true).then((r) => {
+        setDepts(r.data || []);
+      }).catch(() => setDepts([]));
+    }
+  }, [open]);
+
+  const submit = async () => {
+    if (!medicalRecordId.trim()) { message.warning('Nhập mã HSBA'); return; }
+    if (!departmentId) { message.warning('Chọn khoa nhập viện'); return; }
+    if (!roomId.trim()) { message.warning('Nhập mã phòng'); return; }
+    if (!attendingDoctorId.trim()) { message.warning('Nhập mã BS điều trị'); return; }
+    setBusy(true);
+    try {
+      await admitFromOpd({
+        medicalRecordId: medicalRecordId.trim(),
+        departmentId,
+        roomId: roomId.trim(),
+        bedId: bedId.trim() || undefined,
+        admissionType,
+        diagnosisOnAdmission: diagnosisOnAdmission.trim() || undefined,
+        reasonForAdmission: reasonForAdmission.trim() || undefined,
+        attendingDoctorId: attendingDoctorId.trim(),
+      });
+      message.success('Đã nhập viện thành công');
+      onDone();
+    } catch {
+      message.error('Nhập viện thất bại');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="md"
+      title="Nhập viện"
+      footer={(
+        <>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="primary" disabled={busy} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Nhập viện'}
+          </Btn>
+        </>
+      )}
+    >
+      <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <IpFld label="Mã hồ sơ bệnh án *" full>
+          <Input value={medicalRecordId} onChange={(e) => setMedicalRecordId(e.target.value)} placeholder="Mã HSBA hoặc UUID" />
+        </IpFld>
+        <IpFld label="Khoa nhập viện *" full>
+          <Select
+            value={departmentId} onChange={setDepartmentId} showSearch optionFilterProp="label"
+            placeholder="Chọn khoa" style={{ width: '100%' }}
+            options={depts.map((d) => ({ value: d.id!, label: d.name }))}
+          />
+        </IpFld>
+        <IpFld label="Mã phòng *">
+          <Input value={roomId} onChange={(e) => setRoomId(e.target.value)} placeholder="Mã phòng / UUID" />
+        </IpFld>
+        <IpFld label="Mã giường">
+          <Input value={bedId} onChange={(e) => setBedId(e.target.value)} placeholder="Mã giường (tùy chọn)" />
+        </IpFld>
+        <IpFld label="Loại nhập viện *" full>
+          <Select<number>
+            value={admissionType} onChange={setAdmissionType} style={{ width: '100%' }}
+            options={ADMISSION_TYPES}
+          />
+        </IpFld>
+        <IpFld label="Chẩn đoán vào viện" full>
+          <Input value={diagnosisOnAdmission} onChange={(e) => setDiagnosisOnAdmission(e.target.value)} placeholder="VD: J18.9 - Viêm phổi" />
+        </IpFld>
+        <IpFld label="Mã BS điều trị *" full>
+          <Input value={attendingDoctorId} onChange={(e) => setAttendingDoctorId(e.target.value)} placeholder="Mã BS / UUID" />
+        </IpFld>
+        <IpFld label="Lý do nhập viện" full>
+          <Input.TextArea value={reasonForAdmission} onChange={(e) => setReasonForAdmission(e.target.value)} rows={2} placeholder="Mô tả lý do nhập viện…" />
+        </IpFld>
+      </div>
+    </ModalShell>
+  );
+};
+
+const IpFld: React.FC<{ label?: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
+  <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
+    {label && <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>}
+    {children}
+  </div>
+);
 
 export default InpatientV2;

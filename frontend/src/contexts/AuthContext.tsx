@@ -11,6 +11,21 @@ interface OtpPending {
 
 type LoginResult = 'success' | 'otp' | false;
 
+// Helper log auth error với HTTP status + message (debug only — không expose lên UI;
+// Login.tsx vẫn render generic message khi return false giữ contract).
+// Per project convention: dùng console.warn cho expected failures (xem CLAUDE.md).
+function logAuthError(operation: string, err: unknown): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const e = err as any;
+  const status = e?.response?.status;
+  const message = e?.response?.data?.message || e?.message || 'Unknown error';
+  if (!status && !e?.response) {
+    console.warn(`[Auth/${operation}] Network error:`, message);
+  } else {
+    console.warn(`[Auth/${operation}] HTTP ${status ?? '?'}:`, message);
+  }
+}
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
@@ -35,21 +50,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
 
-      if (token && storedUser) {
+      // Chỉ setUser SAU khi getCurrentUser() validate xong với server, tránh race
+      // render protected page với user cache cũ rồi mới phát hiện token expired
+      // → flicker UX. ProtectedRoute đã handle isLoading=true (App.tsx:292).
+      if (token) {
         try {
-          setUser(JSON.parse(storedUser));
-          // Optionally validate token with server
           const response = await authApi.getCurrentUser();
           if (response.success && response.data) {
             setUser(response.data);
             localStorage.setItem('user', JSON.stringify(response.data));
+          } else {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
           }
         } catch {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
-          setUser(null);
         }
       }
       setIsLoading(false);
@@ -79,7 +96,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return 'success';
       }
       return false;
-    } catch {
+    } catch (err) {
+      logAuthError('login', err);
       return false;
     }
   };
@@ -96,7 +114,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return true;
       }
       return false;
-    } catch {
+    } catch (err) {
+      logAuthError('verifyOtp', err);
       return false;
     }
   };
@@ -106,7 +125,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const response = await authApi.resendOtp(otpPending.userId);
       return response.success;
-    } catch {
+    } catch (err) {
+      logAuthError('resendOtp', err);
       return false;
     }
   };
