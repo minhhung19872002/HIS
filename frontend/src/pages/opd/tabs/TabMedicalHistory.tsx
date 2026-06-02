@@ -6,11 +6,13 @@
  *
  * Extracted khỏi pages/OPD.tsx (K13 Batch 4).
  */
-import React from 'react';
-import { Col, Form, Input, Row } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Col, Form, Input, Row, Select, message } from 'antd';
 import type { FormInstance } from 'antd';
 import ClinicalTermSelector from '../../../components/ClinicalTermSelector';
 import VoiceDictation from '../../../components/VoiceDictation';
+import { getOutpatientRecordTemplates, getOutpatientRecordTemplate } from '../../../api/clinicalNarratives';
+import type { OutpatientRecordTemplateDto } from '../../../api/clinicalNarratives';
 
 const { TextArea } = Input;
 
@@ -18,8 +20,57 @@ interface TabMedicalHistoryProps {
   examForm: FormInstance;
 }
 
-const TabMedicalHistory: React.FC<TabMedicalHistoryProps> = ({ examForm }) => (
+const TabMedicalHistory: React.FC<TabMedicalHistoryProps> = ({ examForm }) => {
+  const [templates, setTemplates] = useState<OutpatientRecordTemplateDto[]>([]);
+
+  useEffect(() => {
+    getOutpatientRecordTemplates().then(r => setTemplates(r.data || [])).catch(() => {});
+  }, []);
+
+  const handleApplyTemplate = useCallback(async (templateId: string) => {
+    try {
+      const res = await getOutpatientRecordTemplate(templateId);
+      const t = res.data;
+      if (!t) return;
+      examForm.setFieldsValue({
+        medicalHistory: {
+          chiefComplaint: t.chiefComplaint || undefined,
+          historyOfPresentIllness: t.medicalHistory || undefined,
+          pastMedicalHistory: t.physicalExamination || undefined,
+          familyHistory: undefined,
+        },
+        physicalExamination: {
+          generalAppearance: t.generalExamBody || undefined,
+          cardiovascular: t.cardiovascularExam || undefined,
+          respiratory: t.respiratoryExam || undefined,
+          gastrointestinal: t.giExam || undefined,
+          neurological: t.neuroExam || undefined,
+        },
+      });
+      message.success(`Đã áp dụng mẫu HSBA "${t.templateName}"`);
+    } catch {
+      message.warning('Không thể tải mẫu HSBA');
+    }
+  }, [examForm]);
+
+  return (
   <Row gutter={16}>
+    {templates.length > 0 && (
+      <Col span={24} style={{ marginBottom: 12 }}>
+        <Select
+          placeholder="📋 Chọn mẫu HSBA ngoại trú để điền nhanh..."
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          onChange={handleApplyTemplate}
+          options={templates.map(t => ({
+            value: t.id,
+            label: `${t.templateCode} — ${t.templateName}${t.diagnosisCode ? ` (${t.diagnosisCode})` : ''}`,
+          }))}
+          style={{ width: '100%' }}
+        />
+      </Col>
+    )}
     <Col span={24}>
       <Form.Item
         label="Lý do khám (triệu chứng)"
@@ -123,6 +174,7 @@ const TabMedicalHistory: React.FC<TabMedicalHistoryProps> = ({ examForm }) => (
       </Form.Item>
     </Col>
   </Row>
-);
+  );
+};
 
 export default TabMedicalHistory;
