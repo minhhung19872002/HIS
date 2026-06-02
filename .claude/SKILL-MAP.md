@@ -151,7 +151,8 @@ Khi generate/refactor code, áp rule theo mức. **P0 = tuyệt đối không vi
 | Sub-tier | Skill | Chọn khi yêu cầu liên quan |
 |---|---|---|
 | A0 governance | `core-skill-authoring` | tạo/sửa/review skill `.claude/skills/*/SKILL.md` |
-| A-discipline (pre-flight) | `core-requirement-clarify` | hiểu đúng yêu cầu; STOP-and-ask vs proceed (đầu MỌI task) |
+| A-discipline (pre-flight) | `core-prod-change-discipline` | ★ **umbrella Tech-Lead** cho thay đổi hệ Production — bọc vòng đời (clarify→analyze→root-cause→blast-radius→minimal→**≥3 phương án**→scope→tech-debt→**self-critique**→**gate lint+test**→**báo cáo 7 phần**→thứ tự ưu tiên); LINK các skill dưới |
+| | `core-requirement-clarify` | hiểu đúng yêu cầu; STOP-and-ask vs proceed (đầu MỌI task) |
 | | `core-verify-before-assert` | chống ảo tưởng; verify file/symbol/endpoint/field trước khi khẳng định |
 | | `core-impact-analysis` | bản đồ tác động (callers/contract/test/migration) trước khi sửa code dùng chung |
 | | `core-minimal-change` | YAGNI; thay đổi nhỏ nhất đúng, không over-engineer, không sửa ngoài scope |
@@ -162,10 +163,12 @@ Khi generate/refactor code, áp rule theo mức. **P0 = tuyệt đối không vi
 | | `core-clean-code` | **mọi** code-gen/refactor — clean code mức hàm/câu lệnh (SRP, guard clause, magic value, immutability, async hygiene, dễ bảo trì/nâng cấp) |
 | | `core-architecture-consistency` | thêm feature theo tiền lệ |
 | | `core-refactor` | "refactor / clean up / tách" giữ behavior |
+| | `core-codebase-map-tooling` | điều hướng codebase nhanh (tìm hàm/lớp/symbol "ở đâu / ai gọi") bằng index **ctags** (`tags`) / LSP-MCP — ít token; onboard repo lạ |
 | A2 cross-cutting | `core-types-contract` | định nghĩa API contract / signature |
 | | `core-validation-pattern` | validate form/payload (FE+BE consistency) |
 | | `core-error-loading-state` | UI có fetch/submit (loading/empty/error/success) |
 | | `core-accessibility-pattern` | UI cần a11y/WCAG (keyboard, focus, ARIA, tương phản, nhãn) |
+| | `core-ui-aesthetics` | UI cần **có gu thẩm mỹ / bớt generic / pro hơn** (spacing/typo/màu/phân cấp/tiết chế) — KHÔNG hại UX; portable mọi dự án |
 | | `core-localization-pattern` | thêm text hiển thị / đa ngôn ngữ |
 | A3 testing | `core-testing-architecture` | chọn level unit/integration/e2e/contract |
 | | `core-testing-reuse` | reuse helper/fixture/mock + regression |
@@ -174,7 +177,7 @@ Khi generate/refactor code, áp rule theo mức. **P0 = tuyệt đối không vi
 
 | Tầng | Skill | Map con (đọc khi task thuộc tầng) |
 |---|---|---|
-| FE | `his-fe-convention` (★ guardrail convention/kiến trúc — kèm MỌI code-gen/refactor FE), `his-fe-page-v2`, `his-fe-api-client`, `his-fe-antd-v6`, `his-fe-webauthn-biometric`, `his-fe-standalone-portal`, `his-fe-dicom-viewer`, `his-fe-emr-print-form`, `his-fe-performance`, `his-fs-realtime-signalr` | `skill-routes/fe.md` |
+| FE | `his-fe-convention` (★ guardrail convention/kiến trúc — kèm MỌI code-gen/refactor FE), `his-fe-library-policy` (★ chọn/tích hợp thư viện đúng lúc — kèm MỌI code-gen FE), `his-fe-page-v2`, `his-fe-api-client`, `his-fe-antd-v6`, `his-fe-webauthn-biometric`, `his-fe-standalone-portal`, `his-fe-dicom-viewer`, `his-fe-emr-print-form`, `his-fe-performance`, `his-fs-realtime-signalr` | `skill-routes/fe.md` |
 | BE/DB | `his-be-module-scaffold`, `his-db-migration`, `his-be-payment-gateway`, `his-be-external-gateway`, `his-be-background-worker`, `his-be-scalability` | `skill-routes/be.md` |
 | TEST | `his-test-api-powershell`, `his-test-e2e` | `skill-routes/test.md` |
 | OPS/DOC | `his-ops-deploy`, `his-doc-feature` | `skill-routes/ops-doc.md` |
@@ -191,6 +194,7 @@ Khi generate/refactor code, áp rule theo mức. **P0 = tuyệt đối không vi
 | test UI/E2E · test API backend | `skill-routes/test.md` | |
 | deploy prod · viết tài liệu phân hệ | `skill-routes/ops-doc.md` | |
 | làm **cả gói** NangCapNN / đối chiếu PDF gói thầu | (không cần map con) `his-flow-nangcap-package` điều phối → chain theo gap (đọc `_reference.md` cho playbook) | PDF `docs/requirements/`, `NangCap_PhanTich.md` |
+| **điều hướng codebase nhanh / tìm "hàm·lớp·symbol ở đâu / ai gọi" / onboard repo** | (không cần map con) `core-codebase-map-tooling` — grep index `tags` (ctags) hoặc LSP-MCP | cài: `winget install UniversalCtags.Ctags` · regen `scripts/gen-tags.ps1` · `tags` đã gitignore |
 
 **Chuỗi cross-cutting (giữ tại đây — không thuộc 1 tầng):**
 
@@ -200,8 +204,8 @@ Khi generate/refactor code, áp rule theo mức. **P0 = tuyệt đối không vi
 | "refactor [X]" | `core-refactor` → `core-architecture-consistency` → `his-qa-anti-pattern` |
 | "**xóa nợ kỹ thuật / tech-debt / tách god-file / siết any / dễ → khó**" (bất kỳ task chạy theo `docs/workspace-docs/20-backlog/tech-debt-roadmap.md`) | `his-tech-debt-workflow` (6 rule: progress markers · schedule discipline · report sync · no-commit-without-permission · side-effect audit · defer-on-logic-change) → `core-refactor` → `core-architecture-consistency` → `his-qa-anti-pattern` |
 | "tạo / sửa / chuẩn hoá / review skill [X]" | `core-reusable-code` (mở rộng trước khi tạo) → `core-skill-authoring` |
-| **PRE-FLIGHT — MỌI task code (chạy TRƯỚC khi viết)** | `core-requirement-clarify` (mơ hồ → hỏi gộp; rõ → ghi giả định) → `core-verify-before-assert` (verify, KHÔNG bịa file/symbol/field) → `core-impact-analysis` (bản đồ tác động nếu sửa code dùng chung) → viết theo `core-minimal-change`. **Khi user nói "thêm/sửa/xóa code", "fix bug", "refactor", "delete file/function", hoặc bất kỳ task code-gen scope cụ thể** → bổ sung `core-code-change-workflow` (workflow tổng add/modify/delete với pre-flight, file-allow-list, fail criteria, rollback) |
-| **BẤT KỲ code-gen / refactor** | luôn kèm `core-reusable-code` + `core-clean-code` + `his-qa-anti-pattern`; **code FE** kèm thêm `his-fe-convention`. **(1) REUSE-FIRST (FE+BE):** trước khi tạo file/hàm/component/thư mục → **tìm xem code/thư mục liên quan đã tồn tại chưa** (grep `_v2kit`/`components`/`hooks`/`utils`/`api`/`constants` ở FE; `Services`/`Controllers`/`Entities`/`DTOs` ở BE) → đã có thì **dùng lại / mở rộng**, KHÔNG tạo trùng. **(2) FE ANTD-FIRST:** ưu tiên Antd v6 / `_v2kit`, **KHÔNG viết HTML/CSS thuần khi không cần**. **(3) ĐẶT FILE ĐÚNG THƯ MỤC:** file mới TUYỆT ĐỐI KHÔNG ở root → vào thư mục đúng loại (FE `frontend/src/...`, BE `backend/src/...`, test/docs/script tương ứng); thiếu thư mục phù hợp → **đề xuất user tạo thư mục rồi mới tạo file** (xem `his-qa-anti-pattern` #28-29). **(4)** Skill quy tắc (convention/guardrail) PHẢI áp NGAY trong lúc viết/sửa code — không đứng riêng, không "đọc rồi bỏ qua". Thứ tự: **core-* trước → his-* sau** |
+| **PRE-FLIGHT — MỌI task code (chạy TRƯỚC khi viết)** | `core-requirement-clarify` (mơ hồ → hỏi gộp; rõ → ghi giả định) → `core-verify-before-assert` (verify, KHÔNG bịa file/symbol/field) → `core-impact-analysis` (bản đồ tác động nếu sửa code dùng chung) → viết theo `core-minimal-change`. **Khi user nói "thêm/sửa/xóa code", "fix bug", "refactor", "delete file/function", hoặc bất kỳ task code-gen scope cụ thể** → bổ sung `core-code-change-workflow` (workflow tổng add/modify/delete với pre-flight, file-allow-list, fail criteria, rollback). **Thay đổi hệ Production (rủi ro/khó rollback/auth·tiền·schema·contract) hoặc "fix lỗi prod"** → bọc cả vòng đời bằng `core-prod-change-discipline` (root-cause+bằng chứng · **≥3 phương án** ưu/nhược/phức-tạp/rủi-ro/chi-phí · self-critique · **gate lint+typecheck+build+test** · **báo cáo 7 phần** · thứ tự ưu tiên) |
+| **BẤT KỲ code-gen / refactor** | luôn kèm `core-reusable-code` + `core-clean-code` + `his-qa-anti-pattern`; **code FE** kèm thêm `his-fe-convention` + `his-fe-library-policy` (cân nhắc + giải thích chọn thư viện cho từng nhóm form/data/state/test… — default stack HIS, lib mới chỉ khi tối ưu rõ + user duyệt); **dựng/sửa UI** kèm `core-ui-aesthetics` (gu thẩm mỹ + tiết chế, chống "AI-slop", KHÔNG hại UX). **(1) REUSE-FIRST (FE+BE):** trước khi tạo file/hàm/component/thư mục → **tìm xem code/thư mục liên quan đã tồn tại chưa** (grep `_v2kit`/`components`/`hooks`/`utils`/`api`/`constants` ở FE; `Services`/`Controllers`/`Entities`/`DTOs` ở BE) → đã có thì **dùng lại / mở rộng**, KHÔNG tạo trùng. **(2) FE ANTD-FIRST:** ưu tiên Antd v6 / `_v2kit`, **KHÔNG viết HTML/CSS thuần khi không cần**. **(3) ĐẶT FILE ĐÚNG THƯ MỤC:** file mới TUYỆT ĐỐI KHÔNG ở root → vào thư mục đúng loại (FE `frontend/src/...`, BE `backend/src/...`, test/docs/script tương ứng); thiếu thư mục phù hợp → **đề xuất user tạo thư mục rồi mới tạo file** (xem `his-qa-anti-pattern` #28-29). **(4)** Skill quy tắc (convention/guardrail) PHẢI áp NGAY trong lúc viết/sửa code — không đứng riêng, không "đọc rồi bỏ qua". Thứ tự: **core-* trước → his-* sau** |
 | **BÁO CÁO kết quả chạy lệnh (mọi task)** | `core-execution-output`: ngắn gọn mặc định · tự bung root-cause khi lỗi · luôn nêu thao tác phá huỷ/bảo mật · không claim success khi chưa verify |
 | **HOÀN THÀNH thêm/sửa/XOÁ code → BUILD-GATE trước khi báo** | **BẮT BUỘC build sạch tầng đã đụng rồi mới báo "xong"** (áp cho cả thêm·sửa·xoá) — FE: `cd frontend && npm run build` (tsc -b + vite, EXIT 0, KHÔNG chỉ `tsc --noEmit`); BE: `cd backend && dotnet build HIS.sln` (0 errors); đụng cả 2 → build cả 2; chỉ `.claude/`/docs → không cần build. Còn lỗi build = chưa xong. Chi tiết: `his-qa-anti-pattern` #27 |
 | **SELF-REVIEW trước khi báo (BE+FE)** | AI **tự rà 9 điểm** (duplicate logic · dead code · hard-code · anti-pattern · component/service quá lớn · function quá dài · import cycle · naming · state management) cho **cả BE lẫn FE** rồi mới báo — không chờ user nhắc, vi phạm thì sửa trước. Chi tiết: `his-qa-anti-pattern` #30 (FE: `his-fe-convention` §7) |

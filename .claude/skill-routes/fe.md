@@ -16,6 +16,7 @@
 | Skill | Mục đích | Chọn khi yêu cầu liên quan |
 |---|---|---|
 | `his-fe-convention` | ★ convention + kiến trúc FE bắt buộc (naming/layer/folder/component/refactor/review) | **MỌI** generate/refactor/review code FE |
+| `his-fe-library-policy` | ★ chọn/tích hợp thư viện đúng lúc (form/validate/data/state/date/chart/test/error) — default stack HIS, lib mới chỉ khi tối ưu rõ + user duyệt + cài dep + coexist | **MỌI** generate/refactor code FE (tránh "code đại trà") |
 | `his-fe-page-v2` | page v2 (`_v2kit` + `ab-*`, route `/v2/*`, menu) | tạo/sửa màn hình v2 |
 | `his-fe-api-client` | axios `api/*.ts` + DTO interface | gọi backend từ FE |
 | `his-fe-antd-v6` | UI Antd v6 page v1 + tránh deprecated | sửa page v1 / lỗi antd |
@@ -26,7 +27,7 @@
 | `his-fe-performance` | bundle/code-split/re-render, vendor nặng (Cornerstone/Antd/recharts) | build cảnh báo >500KB, trang load chậm/lag nhiều dòng, tune manualChunks |
 | `his-fs-realtime-signalr` | SignalR hub + client (reconnect + polling fallback) | realtime/đẩy thông báo, chat, hàng đợi live (xuyên FE+BE) |
 
-> A11y/WCAG dùng `core-accessibility-pattern` (CORE — xem SKILL-MAP §1a A2), áp kèm `his-fe-page-v2` khi build/review UI.
+> A11y/WCAG dùng `core-accessibility-pattern`; **gu thẩm mỹ / polish** dùng `core-ui-aesthetics` (CORE portable — chống "AI-slop", KHÔNG hại UX). Cả hai áp kèm `his-fe-page-v2` khi build/review UI.
 
 > B5 domain: biểu mẫu in (`his-fe-emr-print-form`) đã tách riêng. Tạo thêm skill domain khi 1 module HIS có nghiệp vụ đặc thù lặp lại (xem (6) Fallback trong SKILL-MAP).
 
@@ -34,7 +35,7 @@
 
 | Khi developer prompt | Skills (core → his, đúng thứ tự) | File/đường dẫn chạm tới |
 |---|---|---|
-| "tạo page v2 [X]" | `core-reusable-code` → `core-error-loading-state` → `his-fe-api-client` → `his-fe-page-v2` → `his-fe-convention` → `his-fe-antd-v6`(nếu cần) → `his-qa-anti-pattern` | `frontend/src/api/*.ts`, `frontend/src/pages-v2/*.tsx`, `App.tsx`, `TerminalLayout.tsx` |
+| "tạo page v2 [X]" | `core-reusable-code` → `core-error-loading-state` → `his-fe-library-policy` (chọn lib form/data/state) → `his-fe-api-client` → `his-fe-page-v2` → `his-fe-convention` → `core-ui-aesthetics` (polish gu thẩm mỹ, không hại UX) → `his-fe-antd-v6`(nếu cần) → `his-qa-anti-pattern` | `frontend/src/api/*.ts`, `frontend/src/pages-v2/*.tsx`, `App.tsx`, `TerminalLayout.tsx` |
 | "thêm api client [X]" | `core-types-contract` → `his-fe-api-client` | `frontend/src/api/*.ts` |
 | "sửa page v1 / lỗi antd [X]" | `core-error-loading-state` → `his-fe-antd-v6` → `his-qa-anti-pattern` | `frontend/src/pages/*.tsx`, `MainLayout` |
 | "ký sinh trắc / vân tay BN [X]" | `core-types-contract` → `core-error-loading-state` → `his-fe-api-client` → `his-fe-webauthn-biometric` → `his-qa-anti-pattern` | `api/nangcap24.ts`, `pages-v2/BiometricEnrollment.tsx`, `/api/biometric` |
@@ -44,6 +45,7 @@
 | "realtime / đẩy thông báo / chat / hàng đợi live [X]" | `core-error-loading-state` → `his-fe-api-client` → `his-fs-realtime-signalr` | `HIS.API/Hubs/*`, `Program.cs`, `contexts/NotificationContext.tsx`, `vite.config.ts` (xuyên FE+BE — xem thêm be.md) |
 | "tối ưu hiệu năng / giảm bundle / trang lag [X]" | `core-minimal-change` → `his-fe-performance` (đo trước, chỉ tối ưu điểm nóng) | `vite.config.ts` (manualChunks/worker.format), `App.tsx` (lazy), `components/*Viewer.tsx` (dynamic import), `pages-v2/*` |
 | "làm UI dễ tiếp cận / a11y / WCAG [X]" | `core-accessibility-pattern` → `his-fe-page-v2` → `his-qa-anti-pattern` | `pages-v2/*.tsx`, `layouts/terminal/*` |
+| "làm UI đẹp hơn / có gu / bớt generic / pro hơn [X]" | `core-ui-aesthetics` (gu + tiết chế, chống slop) → `core-accessibility-pattern` (giữ UX/contrast) → `his-fe-page-v2`/`his-fe-convention` | `pages-v2/*.tsx`, `_v2kit.tsx`, `layouts/terminal/ab-module.css` |
 
 ## Conflict (FE)
 - Page v1 (Antd) vs v2 (`_v2kit`): v1 → `his-fe-antd-v6`; v2 → `his-fe-page-v2`. Mặc định feature mới = **v2**. KHÔNG trộn.
