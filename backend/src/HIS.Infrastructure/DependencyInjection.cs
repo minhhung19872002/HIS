@@ -201,6 +201,7 @@ public static class DependencyInjection
         // Background worker that auto-queues AI analysis when new DICOM studies
         // arrive. Disabled by default; flip on via AiLabeling:Worklist:Enabled=true.
         services.AddHostedService<AiWorklistService>();
+        services.AddHostedService<ExpiryAlertWorker>();
 
         // HL7 CDA R2 Document Generation (health information exchange)
         services.AddScoped<ICdaDocumentService, CdaDocumentService>();

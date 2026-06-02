@@ -137,6 +137,54 @@ public static class AbbreviationScope
     };
 }
 
+public static class StockIssueType
+{
+    public const int OutpatientPrescription = 1;
+    public const int InpatientRequisition = 2;
+    public const int DepartmentIssue = 3;
+    public const int WarehouseTransfer = 4;
+    public const int SupplierReturn = 5;
+    public const int ExternalIssue = 6;
+    public const int Destruction = 7;
+    public const int TestSample = 8;
+    public const int StockTakeAdjust = 9;
+    public const int Disposal = 10;
+    public const int RetailSale = 11;
+
+    public static string GetName(int type) => type switch
+    {
+        OutpatientPrescription => "Xuất đơn thuốc ngoại trú",
+        InpatientRequisition => "Xuất phiếu lĩnh nội trú",
+        DepartmentIssue => "Xuất khoa/phòng",
+        WarehouseTransfer => "Xuất chuyển kho",
+        SupplierReturn => "Xuất trả NCC",
+        ExternalIssue => "Xuất ngoại viện",
+        Destruction => "Xuất hủy",
+        TestSample => "Xuất kiểm nghiệm",
+        StockTakeAdjust => "Xuất kiểm kê",
+        Disposal => "Xuất thanh lý",
+        RetailSale => "Xuất bán nhà thuốc",
+        _ => "Khác",
+    };
+}
+
+public static class CompoundingStatus
+{
+    public const int Pending = 0;
+    public const int InProgress = 1;
+    public const int Completed = 2;
+    public const int Cancelled = 3;
+
+    public static string GetName(int status) => status switch
+    {
+        Pending => "Chờ pha chế",
+        InProgress => "Đang pha chế",
+        Completed => "Hoàn thành",
+        Cancelled => "Hủy",
+        _ => "Khác",
+    };
+}
+
 public static class DrugOrderType
 {
     public const int Regular = 1;

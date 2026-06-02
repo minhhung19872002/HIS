@@ -175,6 +175,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<StockTakeItem> StockTakeItems => Set<StockTakeItem>();
     public DbSet<SurgeryNarrativeTemplate> SurgeryNarrativeTemplates => Set<SurgeryNarrativeTemplate>();
     public DbSet<OutpatientRecordTemplate> OutpatientRecordTemplates => Set<OutpatientRecordTemplate>();
+    public DbSet<CompoundingOrder> CompoundingOrders => Set<CompoundingOrder>();
+    public DbSet<CompoundingOrderItem> CompoundingOrderItems => Set<CompoundingOrderItem>();
 
     // Service packages (gói khám)
     public DbSet<ServicePackage> ServicePackages => Set<ServicePackage>();

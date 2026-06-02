@@ -124,3 +124,49 @@ public class StockTakeItem : BaseEntity
     public decimal UnitPrice { get; set; }
     public string? Notes { get; set; }
 }
+
+/// <summary>
+/// Phieu pha che trung tam — CompoundingOrder (MQSoft: Pha chế trung tâm)
+/// IV admixture, TPN, cytotoxic reconstitution tại khoa dược trung tâm.
+/// </summary>
+public class CompoundingOrder : BaseEntity
+{
+    public string OrderCode { get; set; } = string.Empty;
+    public Guid PrescriptionId { get; set; }
+    public virtual Prescription? Prescription { get; set; }
+    public Guid PatientId { get; set; }
+    public virtual Patient? Patient { get; set; }
+    public Guid? AdmissionId { get; set; }
+    public Guid DepartmentId { get; set; }
+    public virtual Department? Department { get; set; }
+    public int CompoundingType { get; set; } // 1-IV Admixture, 2-TPN, 3-Cytotoxic, 4-Other
+    public string? Instructions { get; set; }
+    public string? BaseFluid { get; set; }
+    public decimal? TotalVolume { get; set; }
+    public string? InfusionRate { get; set; }
+    public string? StabilityNotes { get; set; }
+    public DateTime? PreparedAt { get; set; }
+    public Guid? PreparedById { get; set; }
+    public virtual User? PreparedBy { get; set; }
+    public DateTime? CheckedAt { get; set; }
+    public Guid? CheckedById { get; set; }
+    public virtual User? CheckedBy { get; set; }
+    public int Status { get; set; } // See CompoundingStatus: 0-Pending, 1-InProgress, 2-Completed, 3-Cancelled
+    public string? CancelReason { get; set; }
+    public virtual ICollection<CompoundingOrderItem> Items { get; set; } = new List<CompoundingOrderItem>();
+}
+
+/// <summary>
+/// Chi tiet pha che — CompoundingOrderItem
+/// </summary>
+public class CompoundingOrderItem : BaseEntity
+{
+    public Guid CompoundingOrderId { get; set; }
+    public virtual CompoundingOrder CompoundingOrder { get; set; } = null!;
+    public Guid MedicineId { get; set; }
+    public virtual Medicine? Medicine { get; set; }
+    public decimal Quantity { get; set; }
+    public string? Unit { get; set; }
+    public string? MixingInstructions { get; set; }
+    public int SortOrder { get; set; }
+}
