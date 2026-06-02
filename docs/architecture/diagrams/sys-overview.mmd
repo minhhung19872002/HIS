@@ -1,0 +1,9 @@
+flowchart LR
+  U["Người dùng / Trình duyệt"] --> FE["Frontend Vercel: React 19 + Vite"]
+  FE -->|"REST qua axios"| API["Backend API Cloud Run: ASP.NET Core"]
+  API -->|"SignalR realtime"| FE
+  API --> DB[("SQL Server / Cloud SQL")]
+  API --> PACS["Orthanc PACS DICOM"]
+  API --> RED[("Redis cache")]
+  API --> GW["Cổng ngoài: BHXH, Đơn thuốc QG, Zalo, SMS, FHIR"]
+  FE -.->|"WADO"| PACS

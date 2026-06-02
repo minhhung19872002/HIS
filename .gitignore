@@ -212,3 +212,7 @@ NangCap*.txt
 scripts/test-prod/
 
 .local-dotnet-sdks
+
+# ctags code map (generated symbol index for AI agents — large, can go stale; regenerate via scripts/gen-tags.ps1)
+/tags
+/tags.lock

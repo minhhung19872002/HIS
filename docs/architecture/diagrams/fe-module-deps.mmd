@@ -1,0 +1,89 @@
+flowchart LR
+
+subgraph 0["src"]
+1["App.css"]
+2["App.tsx"]
+subgraph 3["api"]
+4[" "]
+end
+subgraph 5["components"]
+6[" "]
+end
+subgraph 7["config"]
+8[" "]
+end
+subgraph 9["constants"]
+A[" "]
+end
+subgraph B["contexts"]
+C[" "]
+end
+subgraph D["hooks"]
+E[" "]
+end
+F["index.css"]
+subgraph G["layouts"]
+H[" "]
+end
+I["main.tsx"]
+subgraph J["pages-mobile"]
+K[" "]
+end
+subgraph L["pages-v2"]
+M[" "]
+end
+subgraph N["pages"]
+O[" "]
+end
+subgraph P["services"]
+Q[" "]
+end
+subgraph R["styles"]
+S[" "]
+end
+subgraph T["utils"]
+U[" "]
+end
+end
+2-->1
+2-->C
+2-->E
+2-->H
+2-->K
+2-->M
+2-->O
+4-->8
+4-->U
+6-->4
+6-->C
+6-->Q
+6-->H
+6-->A
+C-->4
+C-->8
+E-->4
+H-->6
+H-->C
+H-->A
+I-->2
+I-->F
+K-->4
+M-->4
+M-->H
+M-->U
+M-->E
+M-->A
+M-->S
+M-->O
+M-->C
+M-->6
+O-->4
+O-->6
+O-->8
+O-->A
+O-->U
+O-->E
+O-->C
+O-->S
+Q-->4
+U-->8

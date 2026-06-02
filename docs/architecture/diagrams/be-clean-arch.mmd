@@ -1,0 +1,6 @@
+flowchart TD
+  API["HIS.API: Controllers + DI"] --> APP["HIS.Application: Services, DTOs, Interfaces"]
+  INF["HIS.Infrastructure: EF Core, Service impl, Gateways"] --> APP
+  APP --> CORE["HIS.Core: Entities, Domain"]
+  INF --> CORE
+  API -.->|"đăng ký DI"| INF
