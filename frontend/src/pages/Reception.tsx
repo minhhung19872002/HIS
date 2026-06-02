@@ -51,6 +51,7 @@ import * as insuranceApi from '../api/insurance';
 import BarcodeScanner from '../components/BarcodeScanner';
 import WebcamCapture from '../components/WebcamCapture';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useSafetyAlerts } from '../hooks/useSafetyAlerts';
 
 import type {
   ReceptionRecord,
@@ -99,6 +100,8 @@ const Reception: React.FC = () => {
   const [isInsuranceHistoryModalOpen, setIsInsuranceHistoryModalOpen] = useState(false);
   const [bhxhHistory, setBhxhHistory] = useState<insuranceApi.InsuranceHistoryDto | null>(null);
   const [bhxhHistoryLoading, setBhxhHistoryLoading] = useState(false);
+
+  const { alertUnfilledRx } = useSafetyAlerts();
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
@@ -328,6 +331,11 @@ const Reception: React.FC = () => {
       // Prepare registration DTO based on patient type
       const patientType = values.patientType;
       const extraRoomIds: string[] = values.extraRoomIds || [];
+
+      // Rule 38: Check unfilled prescriptions for returning patients
+      if (values.patientId) {
+        alertUnfilledRx(values.patientId);
+      }
 
       // Multi-room registration (chỉ áp dụng cho thu phí/dịch vụ)
       if (extraRoomIds.length > 0 && patientType !== 1) {

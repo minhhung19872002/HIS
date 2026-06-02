@@ -53,6 +53,7 @@ import { getSignatures } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import { getPrescriptions as getRecentPrescriptions } from '../api/patientPortal';
+import { useSafetyAlerts } from '../hooks/useSafetyAlerts';
 import PatientFlagBanner from '../components/PatientFlagBanner';
 
 import type {
@@ -91,6 +92,8 @@ const Prescription: React.FC = () => {
   const [prescriptionType, setPrescriptionType] = useState<1 | 2>(urlPrescriptionType as 1 | 2);
   // Khoa dùng 2 kho (YHCT): popup chọn kho thuốc vs kho dược liệu khi kê đơn F3
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string | undefined>();
+
+  const { alertIcdProtocol } = useSafetyAlerts();
 
   // State
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -551,6 +554,10 @@ const Prescription: React.FC = () => {
     }
     try {
       const diagnosis = form.getFieldValue('diagnosis');
+      const icdCode = form.getFieldValue('icdCode') || form.getFieldValue('diagnosisCode');
+      if (patient?.id && icdCode && prescriptionItems.length > 0) {
+        alertIcdProtocol(patient.id, icdCode, prescriptionItems.map(i => i.medicine.id));
+      }
       const dto = {
         examinationId: '',
         prescriptionType,

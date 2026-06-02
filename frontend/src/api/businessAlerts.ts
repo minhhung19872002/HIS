@@ -92,6 +92,50 @@ export const checkPharmacyAlerts = () =>
 export const checkBillingAlerts = (patientId: string) =>
   apiClient.get<AlertCheckResult>(`${BASE_URL}/check/billing/${patientId}`);
 
+// ===== Inline Safety Checks (Rules 35-39) =====
+
+export const checkBloodTypeMismatch = (patientId: string, bloodType: string, rhFactor?: string) =>
+  apiClient.get<AlertCheckResult>(`${BASE_URL}/check/blood-type/${patientId}`, {
+    params: { bloodType, rhFactor },
+  });
+
+export const checkBhytClsDailyLimit = (patientId: string, newOrderCount = 1) =>
+  apiClient.get<AlertCheckResult>(`${BASE_URL}/check/bhyt-cls-limit/${patientId}`, {
+    params: { newOrderCount },
+  });
+
+export const checkIcdBhytProtocol = (patientId: string, icdCode: string, medicineIds: string[]) =>
+  apiClient.post<AlertCheckResult>(`${BASE_URL}/check/bhyt-protocol/${patientId}`, medicineIds, {
+    params: { icdCode },
+  });
+
+export const checkUnfilledPrescriptions = (patientId: string) =>
+  apiClient.get<AlertCheckResult>(`${BASE_URL}/check/unfilled-rx/${patientId}`);
+
+export interface CostEstimationResult {
+  patientId: string;
+  patientType: number;
+  patientTypeName: string;
+  insuranceCoverageRate?: number;
+  items: CostEstimationItem[];
+  totalAmount: number;
+  insuranceAmount: number;
+  patientAmount: number;
+}
+
+export interface CostEstimationItem {
+  serviceId: string;
+  serviceName: string;
+  serviceGroupName: string;
+  unitPrice: number;
+  insurancePrice: number;
+  patientPrice: number;
+  coverageRate?: number;
+}
+
+export const estimateCost = (patientId: string, serviceIds: string[]) =>
+  apiClient.post<CostEstimationResult>(`${BASE_URL}/estimate-cost/${patientId}`, serviceIds);
+
 // ===== Query Alerts =====
 
 export const getActiveAlerts = (params: BusinessAlertSearchDto) =>

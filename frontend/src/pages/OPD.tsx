@@ -68,6 +68,7 @@ import PatientFlagBanner from '../components/PatientFlagBanner';
 import DoctorLicenseBanner from '../components/DoctorLicenseBanner';
 import type { LicenseStatusDto } from '../api/doctorLicense';
 import { getDepositBalance } from '../api/billing';
+import { useSafetyAlerts } from '../hooks/useSafetyAlerts';
 import { buildApiUrl } from '../config/api';
 import type {
   QueuePatient,
@@ -204,6 +205,8 @@ const OPD: React.FC = () => {
 
   // F11 — Bệnh kèm theo (danh sách)
   const [comorbidities, setComorbidities] = useState<{ code: string; name: string; note?: string }[]>([]);
+
+  const { alertBhytClsLimit } = useSafetyAlerts();
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
@@ -685,6 +688,9 @@ const OPD: React.FC = () => {
     }
 
     const persistOrder = async () => {
+      if (examination?.medicalRecord?.patientId) {
+        alertBhytClsLimit(examination.medicalRecord.patientId);
+      }
       const primaryDiagnosis = diagnoses.find((d) => d.diagnosisType === 1);
       const createdResponse = await examinationApi.createServiceOrders({
         examinationId: examination.id,
