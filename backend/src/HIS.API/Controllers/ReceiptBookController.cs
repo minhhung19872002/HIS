@@ -137,6 +137,45 @@ public class ReceiptBookController : ControllerBase
         return Ok(new { b.Id, b.Status });
     }
 
+    [HttpPost("{id:guid}/next-number")]
+    [Authorize(Roles = "Admin,Accountant,Cashier")]
+    public async Task<IActionResult> NextNumber(Guid id)
+    {
+        await using var tx = await _db.Database.BeginTransactionAsync();
+        try
+        {
+            var b = await _db.ReceiptBooks
+                .FromSqlRaw("SELECT * FROM ReceiptBooks WITH (UPDLOCK, ROWLOCK) WHERE Id = {0}", id)
+                .FirstOrDefaultAsync();
+            if (b == null) { await tx.RollbackAsync(); return NotFound(); }
+            if (b.Status != 1)
+                return BadRequest(new { message = "Sổ biên lai chưa được kích hoạt" });
+            if (b.CurrentNumber > b.EndNumber)
+                return BadRequest(new { message = "Sổ biên lai đã hết số — vui lòng đóng sổ và mở sổ mới" });
+
+            var number = b.CurrentNumber;
+            b.CurrentNumber++;
+            b.UpdatedAt = DateTime.Now;
+            b.UpdatedBy = GetUserId().ToString();
+            await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            return Ok(new
+            {
+                receiptBookId = b.Id,
+                series = b.Series,
+                number,
+                formatted = $"{b.Series}{number:D7}",
+                remaining = b.EndNumber - b.CurrentNumber + 1,
+            });
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(Guid id)

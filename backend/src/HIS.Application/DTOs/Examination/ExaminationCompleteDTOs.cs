@@ -853,6 +853,7 @@ public class CreatePrescriptionDto
 {
     public Guid ExaminationId { get; set; }
     public int PrescriptionType { get; set; }
+    public int PaymentCategory { get; set; } // 1-BHYT, 2-Thu phí, 3-Thuốc ngoài (see PaymentCategory constants)
 
     // Chẩn đoán
     public string? DiagnosisCode { get; set; }

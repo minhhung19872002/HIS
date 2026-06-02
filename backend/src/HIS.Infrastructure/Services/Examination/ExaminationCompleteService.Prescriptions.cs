@@ -70,6 +70,7 @@ public partial class ExaminationCompleteService
             PrescriptionCode = $"DT{DateTime.Now:yyyyMMddHHmmss}",
             PrescriptionDate = DateTime.Now,
             PrescriptionType = dto.PrescriptionType,
+            PaymentCategory = dto.PaymentCategory > 0 ? dto.PaymentCategory : examination.MedicalRecord.PatientType,
             DiagnosisCode = dto.DiagnosisCode,
             DiagnosisName = dto.DiagnosisName,
             WarehouseId = dto.WarehouseId,

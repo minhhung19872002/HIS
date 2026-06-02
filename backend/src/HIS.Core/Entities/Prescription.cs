@@ -32,8 +32,15 @@ public class Prescription : BaseEntity
     public string? DiagnosisCode { get; set; } // Mã chẩn đoán (ICD-10)
     public string? DiagnosisName { get; set; } // Tên chẩn đoán
 
-    // Loại đơn
+    // Loại đơn (scope)
     public int PrescriptionType { get; set; } // 1-Ngoại trú, 2-Nội trú, 3-Nhà thuốc, 4-YHCT
+
+    // Đối tượng thanh toán (MQSoft: 3 tabs trên màn hình kê đơn)
+    public int PaymentCategory { get; set; } // 1-BHYT, 2-Thu phí (viện phí), 3-Thuốc ngoài (external)
+
+    // Loại y lệnh nội trú (MQSoft: 3 loại trên Tờ điều trị)
+    public int DrugOrderType { get; set; } // See DrugOrderType: 1-Thường qui (Phiếu lĩnh), 2-Xuất tủ trực, 3-Hoàn trả
+
     public int TotalDays { get; set; } // Số ngày đơn thuốc
     public int TotalTangs { get; set; } // Số thang (YHCT)
 

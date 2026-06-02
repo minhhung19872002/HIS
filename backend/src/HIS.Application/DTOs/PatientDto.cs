@@ -19,6 +19,8 @@ public class PatientDto
     public string? InsuranceNumber { get; set; }
     public DateTime? InsuranceExpireDate { get; set; }
     public string? InsuranceFacilityCode { get; set; }
+    public string? BloodType { get; set; }
+    public string? RhFactor { get; set; }
     public string? PhotoPath { get; set; }
 }
 
@@ -45,6 +47,8 @@ public class CreatePatientDto
     public DateTime? InsuranceExpireDate { get; set; }
     public string? InsuranceFacilityCode { get; set; }
     public string? InsuranceFacilityName { get; set; }
+    public string? BloodType { get; set; }
+    public string? RhFactor { get; set; }
     public string? GuardianName { get; set; }
     public string? GuardianPhone { get; set; }
     public string? GuardianRelationship { get; set; }

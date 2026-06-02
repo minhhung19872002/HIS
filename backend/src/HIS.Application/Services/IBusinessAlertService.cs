@@ -21,4 +21,21 @@ public interface IBusinessAlertService
 
     // Rules catalog
     Task<List<BusinessAlertRuleDto>> GetAlertRulesAsync();
+
+    // ===== INLINE SAFETY CHECKS (called at point of action, not background) =====
+
+    /// <summary>Rule 35: Blood type mismatch — called when creating blood request</summary>
+    Task<AlertCheckResultDto> CheckBloodTypeMismatchAsync(Guid patientId, string requestedBloodType, string? requestedRhFactor);
+
+    /// <summary>Rule 36: BHYT CLS daily limit — called when ordering CLS</summary>
+    Task<AlertCheckResultDto> CheckBhytClsDailyLimitAsync(Guid patientId, int newOrderCount);
+
+    /// <summary>Rule 37: ICD-BHYT protocol compliance — called when prescribing BHYT drugs</summary>
+    Task<AlertCheckResultDto> CheckIcdBhytProtocolAsync(Guid patientId, string icdCode, List<Guid> medicineIds);
+
+    /// <summary>Rule 38: Previous unfilled prescription — called at registration</summary>
+    Task<AlertCheckResultDto> CheckUnfilledPrescriptionsAsync(Guid patientId);
+
+    /// <summary>Rule 39: Cost estimation at registration — not an alert, returns breakdown</summary>
+    Task<CostEstimationResultDto> EstimateCostAsync(Guid patientId, List<Guid> serviceIds);
 }

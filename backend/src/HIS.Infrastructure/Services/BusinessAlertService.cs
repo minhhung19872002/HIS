@@ -1383,6 +1383,213 @@ public class BusinessAlertService : IBusinessAlertService
     }
 
     // =====================================================================
+    // INLINE SAFETY CHECKS (Rules 35-39)
+    // =====================================================================
+
+    // Rule 35: Blood type mismatch
+    public async Task<AlertCheckResultDto> CheckBloodTypeMismatchAsync(Guid patientId, string requestedBloodType, string? requestedRhFactor)
+    {
+        var alerts = new List<BusinessAlertDto>();
+        try
+        {
+            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == patientId);
+            if (patient == null) return BuildResult(alerts);
+
+            if (!string.IsNullOrEmpty(patient.BloodType) && !string.IsNullOrEmpty(requestedBloodType))
+            {
+                if (!string.Equals(patient.BloodType, requestedBloodType, StringComparison.OrdinalIgnoreCase))
+                {
+                    alerts.Add(CreateAlert("BLOOD-35", "BloodBank", 1, "BloodBank",
+                        "Khac nhom mau benh nhan",
+                        $"BN nhom mau {patient.BloodType}{(patient.RhFactor != null ? $" {patient.RhFactor}" : "")} — yeu cau nhom {requestedBloodType}{(requestedRhFactor != null ? $" {requestedRhFactor}" : "")}. XAC NHAN truoc khi thuc hien.",
+                        patientId, null, null));
+                }
+
+                if (!string.IsNullOrEmpty(patient.RhFactor) && !string.IsNullOrEmpty(requestedRhFactor)
+                    && !string.Equals(patient.RhFactor, requestedRhFactor, StringComparison.OrdinalIgnoreCase))
+                {
+                    alerts.Add(CreateAlert("BLOOD-35", "BloodBank", 1, "BloodBank",
+                        "Khac Rh benh nhan",
+                        $"BN Rh {patient.RhFactor} — yeu cau Rh {requestedRhFactor}. NGUY HIEM neu truyen khac Rh.",
+                        patientId, null, null));
+                }
+            }
+            else if (string.IsNullOrEmpty(patient.BloodType))
+            {
+                alerts.Add(CreateAlert("BLOOD-35", "BloodBank", 2, "BloodBank",
+                    "Chua co nhom mau benh nhan",
+                    "BN chua co thong tin nhom mau trong ho so. Can xet nghiem nhom mau truoc khi truyen.",
+                    patientId, null, null));
+            }
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Rule BLOOD-35 error"); }
+
+        await PersistNewAlertsAsync(alerts, patientId);
+        return BuildResult(alerts);
+    }
+
+    // Rule 36: BHYT CLS daily limit
+    public async Task<AlertCheckResultDto> CheckBhytClsDailyLimitAsync(Guid patientId, int newOrderCount)
+    {
+        var alerts = new List<BusinessAlertDto>();
+        try
+        {
+            var today = DateTime.UtcNow.Date;
+            var todayClsCount = await _context.ServiceRequests
+                .Include(sr => sr.MedicalRecord)
+                .Where(sr => sr.MedicalRecord != null && sr.MedicalRecord.PatientId == patientId
+                    && sr.MedicalRecord.PatientType == 1 // BHYT
+                    && sr.CreatedAt >= today
+                    && sr.Status != 4) // Not cancelled
+                .CountAsync();
+
+            const int bhytDailyLimit = 15;
+            var totalAfterOrder = todayClsCount + newOrderCount;
+            if (totalAfterOrder > bhytDailyLimit)
+            {
+                alerts.Add(CreateAlert("BHYT-36", "BHYT", totalAfterOrder > bhytDailyLimit + 5 ? 1 : 2, "OPD",
+                    "Vuot gioi han CLS BHYT/ngay",
+                    $"BN BHYT da co {todayClsCount} CLS hom nay, them {newOrderCount} = {totalAfterOrder} (gioi han {bhytDailyLimit}/ngay). BHXH co the tu choi thanh toan phan vuot.",
+                    patientId, null, null));
+            }
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Rule BHYT-36 error"); }
+
+        await PersistNewAlertsAsync(alerts, patientId);
+        return BuildResult(alerts);
+    }
+
+    // Rule 37: ICD-BHYT protocol compliance
+    public async Task<AlertCheckResultDto> CheckIcdBhytProtocolAsync(Guid patientId, string icdCode, List<Guid> medicineIds)
+    {
+        var alerts = new List<BusinessAlertDto>();
+        try
+        {
+            if (string.IsNullOrEmpty(icdCode) || !medicineIds.Any()) return BuildResult(alerts);
+
+            var icdMap = await _context.Set<IcdInsuranceMap>()
+                .Where(m => m.IcdCode == icdCode && m.IsCovered)
+                .FirstOrDefaultAsync();
+
+            if (icdMap == null)
+            {
+                alerts.Add(CreateAlert("BHYT-37", "BHYT", 2, "OPD",
+                    "Ma ICD khong trong danh muc BHYT",
+                    $"Ma benh {icdCode} khong nam trong danh muc BHYT duoc chi tra. BN phai tu chi tra.",
+                    patientId, null, null));
+                return BuildResult(alerts);
+            }
+
+            var medicines = await _context.Medicines
+                .Where(m => medicineIds.Contains(m.Id))
+                .Select(m => new { m.Id, m.MedicineName, m.InsurancePaymentRate })
+                .ToListAsync();
+
+            foreach (var med in medicines)
+            {
+                if (med.InsurancePaymentRate <= 0)
+                {
+                    alerts.Add(CreateAlert("BHYT-37", "BHYT", 2, "OPD",
+                        "Thuoc ngoai phac do BHYT",
+                        $"Thuoc {med.MedicineName} khong thuoc danh muc BHYT cho ma ICD {icdCode}. BN tu chi tra.",
+                        patientId, null, null));
+                }
+            }
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Rule BHYT-37 error"); }
+
+        await PersistNewAlertsAsync(alerts, patientId);
+        return BuildResult(alerts);
+    }
+
+    // Rule 38: Previous unfilled prescription
+    public async Task<AlertCheckResultDto> CheckUnfilledPrescriptionsAsync(Guid patientId)
+    {
+        var alerts = new List<BusinessAlertDto>();
+        try
+        {
+            var unfilledRx = await _context.Prescriptions
+                .Include(p => p.MedicalRecord)
+                .Where(p => p.MedicalRecord != null && p.MedicalRecord.PatientId == patientId
+                    && !p.IsDispensed
+                    && p.Status <= 1 // Draft or Approved but not dispensed
+                    && p.CreatedAt >= DateTime.UtcNow.AddDays(-30))
+                .OrderByDescending(p => p.PrescriptionDate)
+                .Take(5)
+                .Select(p => new { p.PrescriptionCode, p.PrescriptionDate, p.TotalAmount })
+                .ToListAsync();
+
+            if (unfilledRx.Any())
+            {
+                var rxList = string.Join(", ", unfilledRx.Select(r => $"{r.PrescriptionCode} ({r.PrescriptionDate:dd/MM})"));
+                alerts.Add(CreateAlert("REG-38", "Registration", unfilledRx.Count >= 3 ? 1 : 2, "Reception",
+                    "Don thuoc chua linh",
+                    $"BN co {unfilledRx.Count} don thuoc chua linh trong 30 ngay: {rxList}. Nhac BN linh thuoc cu truoc khi kham moi.",
+                    patientId, null, null));
+            }
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Rule REG-38 error"); }
+
+        await PersistNewAlertsAsync(alerts, patientId);
+        return BuildResult(alerts);
+    }
+
+    // Rule 39: Cost estimation at registration
+    public async Task<CostEstimationResultDto> EstimateCostAsync(Guid patientId, List<Guid> serviceIds)
+    {
+        var result = new CostEstimationResultDto { PatientId = patientId };
+        try
+        {
+            var mr = await _context.MedicalRecords
+                .Where(m => m.PatientId == patientId)
+                .OrderByDescending(m => m.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            result.PatientType = mr?.PatientType ?? 2;
+            result.PatientTypeName = result.PatientType switch
+            {
+                1 => "BHYT",
+                2 => "Viện phí",
+                3 => "Dịch vụ",
+                4 => "Khám sức khỏe",
+                _ => "Khác"
+            };
+            result.InsuranceCoverageRate = mr?.InsuranceCoverageRate ?? (result.PatientType == 1 ? 80 : 0);
+
+            var services = await _context.Services
+                .Where(s => serviceIds.Contains(s.Id))
+                .Select(s => new { s.Id, s.ServiceName, s.ServiceGroupId, GroupName = s.ServiceGroup != null ? s.ServiceGroup.GroupName : "", s.UnitPrice, s.InsurancePrice })
+                .ToListAsync();
+
+            foreach (var svc in services)
+            {
+                var coverageRate = result.InsuranceCoverageRate ?? 0;
+                var insPrice = result.PatientType == 1 && svc.InsurancePrice > 0
+                    ? svc.InsurancePrice * coverageRate / 100m
+                    : 0;
+                var patientPrice = svc.UnitPrice - insPrice;
+
+                result.Items.Add(new CostEstimationItemDto
+                {
+                    ServiceId = svc.Id,
+                    ServiceName = svc.ServiceName,
+                    ServiceGroupName = svc.GroupName,
+                    UnitPrice = svc.UnitPrice,
+                    InsurancePrice = insPrice,
+                    PatientPrice = patientPrice,
+                    CoverageRate = coverageRate,
+                });
+            }
+
+            result.TotalAmount = result.Items.Sum(i => i.UnitPrice);
+            result.InsuranceAmount = result.Items.Sum(i => i.InsurancePrice);
+            result.PatientAmount = result.Items.Sum(i => i.PatientPrice);
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Rule REG-39 (cost estimation) error"); }
+        return result;
+    }
+
+    // =====================================================================
     // HELPERS
     // =====================================================================
 
@@ -1547,5 +1754,12 @@ public class BusinessAlertService : IBusinessAlertService
         // Billing (33-34)
         new() { AlertCode = "BILL-33", Category = "Billing", Title = "Vuot tran BHXH", Description = "Canh bao vuot han muc BHYT nam", DefaultSeverity = 1, Module = "Billing" },
         new() { AlertCode = "BILL-34", Category = "Billing", Title = "Chua thanh toan", Description = "Canh bao cong no qua han >3 ngay", DefaultSeverity = 2, Module = "Billing" },
+
+        // Inline safety (35-39)
+        new() { AlertCode = "BLOOD-35", Category = "BloodBank", Title = "Khac nhom mau", Description = "Canh bao nhom mau/Rh khac giua BN va yeu cau truyen mau", DefaultSeverity = 1, Module = "BloodBank" },
+        new() { AlertCode = "BHYT-36", Category = "BHYT", Title = "Vuot gioi han CLS/ngay", Description = "Canh bao vuot gioi han so luong CLS BHYT/ngay", DefaultSeverity = 2, Module = "OPD" },
+        new() { AlertCode = "BHYT-37", Category = "BHYT", Title = "Ngoai phac do BHYT", Description = "Canh bao thuoc/dich vu ngoai phac do BHYT theo ma ICD", DefaultSeverity = 2, Module = "OPD" },
+        new() { AlertCode = "REG-38", Category = "Registration", Title = "Don thuoc chua linh", Description = "Canh bao BN con don thuoc cu chua linh tai quay", DefaultSeverity = 2, Module = "Reception" },
+        new() { AlertCode = "REG-39", Category = "Registration", Title = "Uoc tinh chi phi", Description = "Uoc tinh chi phi dich vu truoc khi kham", DefaultSeverity = 3, Module = "Reception" },
     };
 }

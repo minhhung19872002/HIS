@@ -23,6 +23,14 @@ public class MedicalRecord : BaseEntity
     public DateTime? InsuranceExpireDate { get; set; }
     public string? InsuranceFacilityCode { get; set; }
     public int InsuranceRightRoute { get; set; } // 1-Đúng tuyến, 2-Trái tuyến, 3-Thông tuyến
+    public int? InsuranceCoverageRate { get; set; } // Tỷ lệ BHYT chi trả: 80, 95, 100 (%)
+    public bool InsuranceFiveYearContinuous { get; set; } // BHYT 5 năm liên tục (tăng mức hưởng)
+
+    // Giấy chuyển viện (referral from another facility)
+    public string? ReferralFromFacilityCode { get; set; }
+    public string? ReferralFromFacilityName { get; set; }
+    public string? ReferralIcdCode { get; set; }
+    public DateTime? ReferralDate { get; set; }
 
     // Chẩn đoán
     public string? InitialDiagnosis { get; set; } // Chẩn đoán ban đầu
@@ -50,7 +58,7 @@ public class MedicalRecord : BaseEntity
     public virtual User? Doctor { get; set; }
 
     // Trạng thái
-    public int Status { get; set; } // 0-Chờ khám, 1-Đang khám, 2-Chờ kết luận, 3-Hoàn thành, 4-Đã thanh toán
+    public int Status { get; set; } // See MedicalRecordStatus: 0-Chờ khám, 1-Đang khám, 2-Chờ kết luận, 3-Hoàn thành, 4-Đã thanh toán, 5-Chờ CLS, 6-Hủy
     public bool IsClosed { get; set; } // Đã đóng bệnh án
 
     // Navigation

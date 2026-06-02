@@ -87,3 +87,40 @@ public class ProfitMarginConfig : BaseEntity
     public DateTime? EffectiveTo { get; set; }
     public string? Notes { get; set; }
 }
+
+/// <summary>
+/// Phieu kiem ke kho — StockTake (MQSoft: Kiểm kê tồn kho)
+/// </summary>
+public class StockTake : BaseEntity
+{
+    public string StockTakeCode { get; set; } = string.Empty;
+    public DateTime StockTakeDate { get; set; }
+    public Guid WarehouseId { get; set; }
+    public virtual Warehouse? Warehouse { get; set; }
+    public DateTime PeriodFrom { get; set; }
+    public DateTime PeriodTo { get; set; }
+    public int Status { get; set; } // 0-Mới tạo, 1-Đang kiểm, 2-Hoàn thành, 3-Đã điều chỉnh, 4-Hủy
+    public string? CancelReason { get; set; }
+    public string? Notes { get; set; }
+    public virtual ICollection<StockTakeItem> Items { get; set; } = new List<StockTakeItem>();
+}
+
+/// <summary>
+/// Chi tiet kiem ke — StockTakeItem
+/// </summary>
+public class StockTakeItem : BaseEntity
+{
+    public Guid StockTakeId { get; set; }
+    public virtual StockTake StockTake { get; set; } = null!;
+    public Guid InventoryItemId { get; set; }
+    public Guid ItemId { get; set; }
+    public string ItemCode { get; set; } = string.Empty;
+    public string ItemName { get; set; } = string.Empty;
+    public string? Unit { get; set; }
+    public string? BatchNumber { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+    public decimal BookQuantity { get; set; }
+    public decimal ActualQuantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public string? Notes { get; set; }
+}

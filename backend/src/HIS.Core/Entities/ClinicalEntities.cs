@@ -379,6 +379,62 @@ public class DrugInteraction : BaseEntity
     public bool IsActive { get; set; } = true;
 }
 
+/// <summary>
+/// Mau tuong trinh phau thuat — SurgeryNarrativeTemplate (MQSoft muc 4)
+/// BS tao template tuong trinh cho cac loai phau thuat thuong gap, tai su dung khi viet tuong trinh moi.
+/// </summary>
+public class SurgeryNarrativeTemplate : BaseEntity
+{
+    public string TemplateCode { get; set; } = string.Empty;
+    public string TemplateName { get; set; } = string.Empty;
+    public Guid? SurgeryServiceId { get; set; }
+    public virtual Service? SurgeryService { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public virtual Department? Department { get; set; }
+    public string? PreOpDiagnosis { get; set; }
+    public string? PostOpDiagnosis { get; set; }
+    public string? SurgeryMethod { get; set; }
+    public string? AnesthesiaMethod { get; set; }
+    public string? NarrativeBody { get; set; }
+    public string? Complications { get; set; }
+    public string? PostOpOrders { get; set; }
+    public bool IsPublic { get; set; }
+    public Guid? CreatedByUserId { get; set; }
+    public virtual User? CreatedByUser { get; set; }
+    public bool IsActive { get; set; } = true;
+    public int SortOrder { get; set; }
+}
+
+/// <summary>
+/// Mau HSBA ngoai tru — OutpatientRecordTemplate (MQSoft muc 3)
+/// BS tao template benh an mau cho cac benh thuong gap (ICD), fill nhanh khi kham.
+/// </summary>
+public class OutpatientRecordTemplate : BaseEntity
+{
+    public string TemplateCode { get; set; } = string.Empty;
+    public string TemplateName { get; set; } = string.Empty;
+    public string? DiagnosisCode { get; set; }
+    public string? DiagnosisName { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public virtual Department? Department { get; set; }
+    public string? ChiefComplaint { get; set; }
+    public string? MedicalHistory { get; set; }
+    public string? PhysicalExamination { get; set; }
+    public string? GeneralExamBody { get; set; }
+    public string? CardiovascularExam { get; set; }
+    public string? RespiratoryExam { get; set; }
+    public string? GiExam { get; set; }
+    public string? NeuroExam { get; set; }
+    public string? Conclusion { get; set; }
+    public string? TreatmentPlan { get; set; }
+    public string? FollowUpNotes { get; set; }
+    public bool IsPublic { get; set; }
+    public Guid? CreatedByUserId { get; set; }
+    public virtual User? CreatedByUser { get; set; }
+    public bool IsActive { get; set; } = true;
+    public int SortOrder { get; set; }
+}
+
 // Note: HealthCheckContract, HealthCheckPackage already defined elsewhere
 
 /// <summary>

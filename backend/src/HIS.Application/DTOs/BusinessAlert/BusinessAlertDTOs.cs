@@ -67,6 +67,31 @@ public class AlertCheckResultDto
     public int InfoCount { get; set; }
 }
 
+// ===== Cost Estimation =====
+
+public class CostEstimationResultDto
+{
+    public Guid PatientId { get; set; }
+    public int PatientType { get; set; }
+    public string PatientTypeName { get; set; } = string.Empty;
+    public int? InsuranceCoverageRate { get; set; }
+    public List<CostEstimationItemDto> Items { get; set; } = new();
+    public decimal TotalAmount { get; set; }
+    public decimal InsuranceAmount { get; set; }
+    public decimal PatientAmount { get; set; }
+}
+
+public class CostEstimationItemDto
+{
+    public Guid ServiceId { get; set; }
+    public string ServiceName { get; set; } = string.Empty;
+    public string ServiceGroupName { get; set; } = string.Empty;
+    public decimal UnitPrice { get; set; }
+    public decimal InsurancePrice { get; set; }
+    public decimal PatientPrice { get; set; }
+    public int? CoverageRate { get; set; }
+}
+
 // ===== Rule Definition =====
 
 public class BusinessAlertRuleDto

@@ -113,12 +113,64 @@ public class BusinessAlertController : ControllerBase
     }
 
     /// <summary>
-    /// Get all 34 alert rules catalog
+    /// Get all 39 alert rules catalog
     /// </summary>
     [HttpGet("rules")]
     public async Task<IActionResult> GetAlertRules()
     {
         var result = await _alertService.GetAlertRulesAsync();
+        return Ok(result);
+    }
+
+    // ===== INLINE SAFETY CHECKS (Rules 35-39) =====
+
+    /// <summary>
+    /// Rule 35: Check blood type mismatch before blood request
+    /// </summary>
+    [HttpGet("check/blood-type/{patientId}")]
+    public async Task<IActionResult> CheckBloodTypeMismatch(Guid patientId, [FromQuery] string bloodType, [FromQuery] string? rhFactor)
+    {
+        var result = await _alertService.CheckBloodTypeMismatchAsync(patientId, bloodType, rhFactor);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Rule 36: Check BHYT CLS daily limit before ordering
+    /// </summary>
+    [HttpGet("check/bhyt-cls-limit/{patientId}")]
+    public async Task<IActionResult> CheckBhytClsDailyLimit(Guid patientId, [FromQuery] int newOrderCount = 1)
+    {
+        var result = await _alertService.CheckBhytClsDailyLimitAsync(patientId, newOrderCount);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Rule 37: Check ICD-BHYT protocol compliance before prescribing
+    /// </summary>
+    [HttpPost("check/bhyt-protocol/{patientId}")]
+    public async Task<IActionResult> CheckIcdBhytProtocol(Guid patientId, [FromQuery] string icdCode, [FromBody] List<Guid> medicineIds)
+    {
+        var result = await _alertService.CheckIcdBhytProtocolAsync(patientId, icdCode, medicineIds);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Rule 38: Check unfilled prescriptions at registration
+    /// </summary>
+    [HttpGet("check/unfilled-rx/{patientId}")]
+    public async Task<IActionResult> CheckUnfilledPrescriptions(Guid patientId)
+    {
+        var result = await _alertService.CheckUnfilledPrescriptionsAsync(patientId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Rule 39: Estimate cost for services (BHYT co-pay breakdown)
+    /// </summary>
+    [HttpPost("estimate-cost/{patientId}")]
+    public async Task<IActionResult> EstimateCost(Guid patientId, [FromBody] List<Guid> serviceIds)
+    {
+        var result = await _alertService.EstimateCostAsync(patientId, serviceIds);
         return Ok(result);
     }
 }

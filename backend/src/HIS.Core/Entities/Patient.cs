@@ -47,6 +47,10 @@ public class Patient : BaseEntity
     public string? GuardianPhone { get; set; }
     public string? GuardianRelationship { get; set; }
 
+    // Nhóm máu (critical for transfusion safety — MQSoft blood type mismatch alert)
+    public string? BloodType { get; set; } // A, B, AB, O
+    public string? RhFactor { get; set; } // Positive, Negative
+
     // Tiền sử
     public string? MedicalHistory { get; set; } // Tiền sử bệnh
     public string? AllergyHistory { get; set; } // Dị ứng
