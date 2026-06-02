@@ -91,6 +91,8 @@ const HIS_GROUPS: NavGroup[] = [
     items: [
       { id: 'pharmacy',             path: '/v2/pharmacy',             label: '[24] Nhà thuốc' },
       { id: 'hospital-pharmacy',    path: '/v2/hospital-pharmacy',    label: '[24] Nhà thuốc bệnh viện' },
+      { id: 'pharmacy-stock-in',    path: '/v2/pharmacy-stock-in',    label: 'Nhập kho NCC' },
+      { id: 'pharmacy-stock-take',  path: '/v2/pharmacy-stock-take',  label: 'Kiểm kê kho' },
       { id: 'medical-supply',       path: '/v2/medical-supply',       label: '[24] Vật tư y tế' },
       { id: 'nutrition',            path: '/v2/nutrition',            label: '[24] Dinh dưỡng' },
       { id: 'rehabilitation',       path: '/v2/rehabilitation',       label: 'VLTL / PHCN' },

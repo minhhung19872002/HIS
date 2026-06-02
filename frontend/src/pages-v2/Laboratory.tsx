@@ -16,6 +16,14 @@ import TermIcon from '../layouts/terminal/Icon';
    Layout: KpiStrip + filter toolbar + StatusTabs + DataTable + Drawer
    ──────────────────────────────────────────────────────────── */
 
+/** Mở phiếu kết quả XN (PDF blob) ở tab mới. Throw nếu lỗi để caller xử lý. */
+const printLabResultBlob = async (orderId: string): Promise<void> => {
+  const blob = await labApi.printTestResultReport(orderId);
+  const url = URL.createObjectURL(blob as Blob);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+};
+
 type StatusKey = 'ordered' | 'collected' | 'running' | 'verified' | 'rejected';
 
 const STATUS_TABS: StatusTab<StatusKey>[] = [
@@ -147,6 +155,47 @@ const LaboratoryV2: React.FC = () => {
     } catch {
       message.error('Ghi nhận thất bại');
     }
+  };
+
+  // Duyệt 2 bước: KTV duyệt sơ bộ (status 3 → 4)
+  const onPreliminary = async (r: LabRequest) => {
+    try {
+      await labApi.preliminaryApprove(r.id);
+      message.success(`Đã duyệt sơ bộ · ${r.requestCode}`);
+      reload();
+    } catch {
+      message.error('Duyệt sơ bộ thất bại');
+    }
+  };
+
+  // Duyệt 2 bước: BS duyệt chính thức (status 4 → 5)
+  const onFinal = async (r: LabRequest) => {
+    try {
+      await labApi.finalApprove(r.id);
+      message.success(`Đã duyệt chính thức · ${r.requestCode}`);
+      reload();
+    } catch {
+      message.error('Duyệt chính thức thất bại');
+    }
+  };
+
+  // Hủy duyệt (status 4/5 → 3) — yêu cầu lý do
+  const onCancelApproval = async (r: LabRequest) => {
+    const reason = window.prompt(`Lý do hủy duyệt ${r.requestCode}:`, '');
+    if (reason === null) return;            // bấm Cancel
+    if (!reason.trim()) { message.warning('Cần nhập lý do hủy duyệt'); return; }
+    try {
+      await labApi.cancelApproval(r.id, reason.trim());
+      message.success(`Đã hủy duyệt · ${r.requestCode}`);
+      reload();
+    } catch {
+      message.error('Hủy duyệt thất bại');
+    }
+  };
+
+  const onPrintRow = async (r: LabRequest) => {
+    try { await printLabResultBlob(r.id); }
+    catch { message.error('Không in được phiếu'); }
   };
 
   const columns: ColumnDef<LabRequest>[] = [
@@ -283,8 +332,17 @@ const LaboratoryV2: React.FC = () => {
               {sk === 'running' && (
                 <ActBtn ic="check" title="Duyệt kết quả" onClick={() => onApprove(r)} />
               )}
+              {r.status === 3 && (
+                <ActBtn ic="check" title="Duyệt sơ bộ (KTV)" onClick={() => onPreliminary(r)} />
+              )}
+              {r.status === 4 && (
+                <ActBtn ic="check" title="Duyệt chính thức (BS)" onClick={() => onFinal(r)} />
+              )}
+              {r.status >= 4 && (
+                <ActBtn ic="x" title="Hủy duyệt" tone="warn" onClick={() => onCancelApproval(r)} />
+              )}
               <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
-              <ActBtn ic="print" title="In phiếu" onClick={() => message.success('Đã gửi máy in')} />
+              <ActBtn ic="print" title="In phiếu" onClick={() => onPrintRow(r)} />
             </div>
           );
         }}
@@ -321,12 +379,27 @@ const LaboratoryV2: React.FC = () => {
           <>
             <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             <span style={{ flex: 1 }} />
-            <Btn onClick={() => message.success('Đã in phiếu KQ')}>
+            {detail.status >= 4 && (
+              <Btn onClick={() => onCancelApproval(detail)}>
+                <TermIcon name="x" size={12} /> Hủy duyệt
+              </Btn>
+            )}
+            <Btn onClick={() => onPrintRow(detail)}>
               <TermIcon name="print" size={12} /> In phiếu
             </Btn>
             {statusKey(detail.status) === 'running' && (
               <Btn variant="primary" onClick={() => { onApprove(detail); setDetail(null); }}>
                 <TermIcon name="check" size={12} /> Duyệt KQ
+              </Btn>
+            )}
+            {detail.status === 3 && (
+              <Btn variant="primary" onClick={() => { onPreliminary(detail); setDetail(null); }}>
+                <TermIcon name="check" size={12} /> Duyệt sơ bộ
+              </Btn>
+            )}
+            {detail.status === 4 && (
+              <Btn variant="primary" onClick={() => { onFinal(detail); setDetail(null); }}>
+                <TermIcon name="check" size={12} /> Duyệt chính thức
               </Btn>
             )}
           </>

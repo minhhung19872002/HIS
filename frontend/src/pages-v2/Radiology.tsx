@@ -1,15 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { App as AntdApp } from 'antd';
+import { App as AntdApp, Input } from 'antd';
 import * as risApi from '../api/ris';
-import type { RadiologyOrderDto, RadiologyResultDto, RadiologyOrderItemDto } from '../api/ris';
+import type { RadiologyOrderDto, RadiologyResultDto, RadiologyOrderItemDto, RadiologyResultTemplateDto } from '../api/ris';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell,
+  StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, AbSelect,
   type ColumnDef, type StatusTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+
+type ApiErr = { response?: { data?: { message?: string } } };
+
+/** Mở phiếu kết quả CĐHA (PDF blob) ở tab mới. Throw nếu lỗi để caller xử lý. */
+const printResultBlob = async (resultId: string): Promise<void> => {
+  const res = await risApi.printRadiologyResult(resultId);
+  const url = URL.createObjectURL(res.data as Blob);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+};
 
 /* ────────────────────────────────────────────────────────────
    RIS v2 — port of design-system-v2/his/project/RIS v2.html
@@ -59,6 +69,171 @@ const fmtHM = (iso?: string) => {
 };
 const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM HH:mm') : '—';
 
+// ─────────────── Nhập kết quả CĐHA (enter → final-approve → in) ───────────────
+
+const FormRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div>
+    <div style={{
+      fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+      letterSpacing: '0.05em', color: 'var(--t-2)', marginBottom: 6,
+    }}>{label}</div>
+    {children}
+  </div>
+);
+
+const ResultEntryModal: React.FC<{
+  open: boolean;
+  order: RadiologyOrderDto | null;
+  onClose: () => void;
+  onSaved: () => void;
+}> = ({ open, order, onClose, onSaved }) => {
+  const { message } = AntdApp.useApp();
+  const item = order?.items?.[0];
+  const [templates, setTemplates] = useState<RadiologyResultTemplateDto[]>([]);
+  const [tplId, setTplId] = useState('');
+  const [description, setDescription] = useState('');
+  const [conclusion, setConclusion] = useState('');
+  const [note, setNote] = useState('');
+  const [resultId, setResultId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [printing, setPrinting] = useState(false);
+
+  // Nạp mẫu KQ theo dịch vụ + prefill nếu đã có KQ cũ.
+  useEffect(() => {
+    const it = order?.items?.[0];
+    if (!open || !it) return;
+    setTplId(''); setDescription(''); setConclusion(''); setNote(''); setResultId(null);
+    if (it.serviceId) {
+      risApi.getResultTemplatesByService(it.serviceId)
+        .then((r) => setTemplates(Array.isArray(r.data) ? r.data : []))
+        .catch(() => setTemplates([]));
+    } else {
+      setTemplates([]);
+    }
+    if (it.hasResult) {
+      risApi.getRadiologyResult(it.id)
+        .then((r) => {
+          const d = r.data;
+          if (!d) return;
+          setResultId(d.id);
+          setDescription(d.description || '');
+          setConclusion(d.conclusion || '');
+          setNote(d.note || '');
+        })
+        .catch(() => { /* chưa có KQ — bỏ qua */ });
+    }
+  }, [open, order]);
+
+  const applyTemplate = (id: string) => {
+    setTplId(id);
+    const t = templates.find((x) => x.id === id);
+    if (!t) return;
+    if (t.descriptionTemplate) setDescription(t.descriptionTemplate);
+    if (t.conclusionTemplate) setConclusion(t.conclusionTemplate);
+    if (t.noteTemplate) setNote(t.noteTemplate);
+  };
+
+  // Lưu (enter result) — trả resultId để duyệt/in.
+  const persist = async (): Promise<string | null> => {
+    if (!item) return null;
+    if (!description.trim() && !conclusion.trim()) {
+      message.warning('Nhập mô tả hoặc kết luận trước khi lưu');
+      return null;
+    }
+    const res = await risApi.enterRadiologyResult({
+      orderItemId: item.id,
+      templateId: tplId || undefined,
+      description: description.trim() || undefined,
+      conclusion: conclusion.trim() || undefined,
+      note: note.trim() || undefined,
+    });
+    const id = res.data?.id || resultId;
+    if (id) setResultId(id);
+    return id ?? null;
+  };
+
+  const handleSaveDraft = async () => {
+    setSaving(true);
+    try {
+      const id = await persist();
+      if (id) { message.success('Đã lưu báo cáo'); onSaved(); onClose(); }
+    } catch (e) {
+      message.error((e as ApiErr)?.response?.data?.message || 'Không thể lưu báo cáo');
+    } finally { setSaving(false); }
+  };
+
+  const handleSaveApprove = async () => {
+    setApproving(true);
+    try {
+      const id = await persist();
+      if (!id) return;
+      await risApi.finalApproveResult(id, { resultId: id, isFinalApproval: true });
+      message.success('Đã lưu & duyệt báo cáo');
+      onSaved(); onClose();
+    } catch (e) {
+      message.error((e as ApiErr)?.response?.data?.message || 'Không thể duyệt báo cáo');
+    } finally { setApproving(false); }
+  };
+
+  const handlePrint = async () => {
+    if (!resultId) return;
+    setPrinting(true);
+    try { await printResultBlob(resultId); }
+    catch { message.error('Không in được phiếu'); }
+    finally { setPrinting(false); }
+  };
+
+  if (!order || !item) return null;
+  const busy = saving || approving;
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="lg"
+      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <TermIcon name="file-text" size={14} />
+        <span>Nhập kết quả CĐHA</span>
+      </span>}
+      sub={`${order.patientName} · ${item.serviceName}`}
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
+        <span style={{ flex: 1 }} />
+        {resultId && (
+          <Btn onClick={handlePrint} loading={printing} icon="print">In phiếu</Btn>
+        )}
+        <Btn onClick={handleSaveDraft} loading={saving} disabled={approving}>Lưu nháp</Btn>
+        <Btn variant="primary" onClick={handleSaveApprove} loading={approving} disabled={saving} icon="check">Lưu &amp; Duyệt</Btn>
+      </>}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <FormRow label="Mẫu kết quả">
+          <AbSelect
+            options={templates}
+            fieldNames={{ value: 'id', label: 'name' }}
+            value={tplId}
+            onChange={applyTemplate}
+            placeholder={templates.length ? '— Chọn mẫu để điền nhanh —' : '(Không có mẫu)'}
+          />
+        </FormRow>
+        <FormRow label="Mô tả hình ảnh">
+          <Input.TextArea rows={6} value={description} onChange={(e) => setDescription(e.target.value)}
+            placeholder="Nhập mô tả chi tiết hình ảnh…" disabled={busy} />
+        </FormRow>
+        <FormRow label="Kết luận">
+          <Input.TextArea rows={4} value={conclusion} onChange={(e) => setConclusion(e.target.value)}
+            placeholder="Nhập kết luận…" disabled={busy} />
+        </FormRow>
+        <FormRow label="Đề nghị / Ghi chú">
+          <Input.TextArea rows={3} value={note} onChange={(e) => setNote(e.target.value)}
+            placeholder="Nhập đề nghị (nếu có)…" disabled={busy} />
+        </FormRow>
+      </div>
+    </ModalShell>
+  );
+};
+
 const RadiologyV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   const navigate = useNavigate();
@@ -70,6 +245,7 @@ const RadiologyV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState<RadiologyOrderDto | null>(null);
   const [result, setResult] = useState<RadiologyResultDto | null>(null);
+  const [resultTarget, setResultTarget] = useState<RadiologyOrderDto | null>(null);
   const [date, setDate] = useState(() => dayjs());
   const PAGE_SIZE = 18;
 
@@ -188,7 +364,21 @@ const RadiologyV2: React.FC = () => {
     },
   ];
 
-  const onPrint = () => message.success('Đã gửi máy in');
+  const onPrintRow = async (r: RadiologyOrderDto) => {
+    const it = r.items?.[0];
+    if (!it?.hasResult) { message.warning('Chưa có kết quả để in'); return; }
+    try {
+      const res = await risApi.getRadiologyResult(it.id);
+      const id = res.data?.id;
+      if (!id) { message.warning('Chưa có kết quả để in'); return; }
+      await printResultBlob(id);
+    } catch { message.error('Không in được phiếu'); }
+  };
+  const onPrintResult = async () => {
+    if (!result?.id) { message.warning('Chưa có kết quả để in'); return; }
+    try { await printResultBlob(result.id); }
+    catch { message.error('Không in được phiếu'); }
+  };
   const onViewer = (r: RadiologyOrderDto) => {
     const firstItem = r.items?.[0];
     if (!firstItem) { message.warning('Không có ảnh DICOM'); return; }
@@ -252,17 +442,23 @@ const RadiologyV2: React.FC = () => {
         data={paged}
         rowKey={(r) => r.id}
         onRowClick={(r) => setDetail(r)}
-        actions={(r) => (
-          <div className="ab-actions">
-            {r.items?.[0]?.hasResult && (
-              <ActBtn ic="eye" title="Xem KQ" onClick={() => setDetail(r)} />
-            )}
-            {r.items?.[0]?.hasImages && (
-              <ActBtn ic="image" title="Xem ảnh DICOM" onClick={() => onViewer(r)} />
-            )}
-            <ActBtn ic="print" title="In phiếu" onClick={onPrint} />
-          </div>
-        )}
+        actions={(r) => {
+          const sk = statusKey(r.status);
+          return (
+            <div className="ab-actions">
+              {r.items?.[0]?.hasResult && (
+                <ActBtn ic="eye" title="Xem KQ" onClick={() => setDetail(r)} />
+              )}
+              {sk !== 'cancelled' && sk !== 'reported' && (
+                <ActBtn ic="edit" title="Nhập kết quả" onClick={() => setResultTarget(r)} />
+              )}
+              {r.items?.[0]?.hasImages && (
+                <ActBtn ic="image" title="Xem ảnh DICOM" onClick={() => onViewer(r)} />
+              )}
+              <ActBtn ic="print" title="In phiếu" onClick={() => onPrintRow(r)} />
+            </div>
+          );
+        }}
         empty={loading ? 'Đang tải…' : (
           <div className="ab-empty">
             <TermIcon name="search" size={20} />
@@ -290,7 +486,12 @@ const RadiologyV2: React.FC = () => {
           <>
             <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             <span style={{ flex: 1 }} />
-            <Btn onClick={onPrint}>
+            {statusKey(detail.status) !== 'cancelled' && (
+              <Btn onClick={() => { setResultTarget(detail); setDetail(null); }}>
+                <TermIcon name="edit" size={12} /> {detail.items?.[0]?.hasResult ? 'Sửa KQ' : 'Nhập KQ'}
+              </Btn>
+            )}
+            <Btn onClick={onPrintResult}>
               <TermIcon name="print" size={12} /> In phiếu
             </Btn>
             {detail.items?.[0]?.hasImages && (
@@ -303,6 +504,13 @@ const RadiologyV2: React.FC = () => {
       >
         {detail && <RadiologyDrawerBody r={detail} result={result} />}
       </DrawerShell>
+
+      <ResultEntryModal
+        open={!!resultTarget}
+        order={resultTarget}
+        onClose={() => setResultTarget(null)}
+        onSaved={reload}
+      />
     </div>
   );
 };
