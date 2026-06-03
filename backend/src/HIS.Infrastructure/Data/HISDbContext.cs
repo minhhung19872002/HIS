@@ -177,6 +177,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<OutpatientRecordTemplate> OutpatientRecordTemplates => Set<OutpatientRecordTemplate>();
     public DbSet<CompoundingOrder> CompoundingOrders => Set<CompoundingOrder>();
     public DbSet<CompoundingOrderItem> CompoundingOrderItems => Set<CompoundingOrderItem>();
+    public DbSet<DutySchedule> DutySchedules => Set<DutySchedule>();
 
     // Service packages (gói khám)
     public DbSet<ServicePackage> ServicePackages => Set<ServicePackage>();

@@ -435,6 +435,22 @@ public class OutpatientRecordTemplate : BaseEntity
     public int SortOrder { get; set; }
 }
 
+/// <summary>
+/// Lich truc BS / booking doctor schedule — DutySchedule (K5)
+/// </summary>
+public class DutySchedule : BaseEntity
+{
+    public Guid DoctorId { get; set; }
+    public virtual User? Doctor { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public virtual Department? Department { get; set; }
+    public DateTime Date { get; set; }
+    public int ShiftType { get; set; } // 1-Sang, 2-Chieu, 3-Toi, 4-24h
+    public Guid? RoomId { get; set; }
+    public virtual Room? Room { get; set; }
+    public string? Notes { get; set; }
+}
+
 // Note: HealthCheckContract, HealthCheckPackage already defined elsewhere
 
 /// <summary>

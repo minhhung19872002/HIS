@@ -171,6 +171,13 @@ public class MedicalRecordArchive : BaseEntity
 
     public int ArchiveYear { get; set; } // Năm lưu trữ
 
+    // Mượn/trả nhanh (K5)
+    public bool IsOnLoan { get; set; }
+    public Guid? BorrowedByUserId { get; set; }
+    public DateTime? BorrowedAt { get; set; }
+    public DateTime? ReturnedAt { get; set; }
+    public string? BorrowReason { get; set; }
+
     public virtual ICollection<MedicalRecordBorrowRequest> BorrowRequests { get; set; } = new List<MedicalRecordBorrowRequest>();
 }
 
