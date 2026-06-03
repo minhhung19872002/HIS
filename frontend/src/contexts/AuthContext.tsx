@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from '../api/auth';
 import type { User, LoginRequest } from '../api/auth';
+import apiClient from '../api/client';
+import { Modal } from 'antd';
 
 interface OtpPending {
   userId: string;
@@ -75,6 +77,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     initAuth();
   }, []);
 
+  const checkExpiryAlertsOnLogin = () => {
+    apiClient.get('/pharmacy/expiry-alerts/on-login').then(res => {
+      const body = res.data;
+      const alerts = body?.alerts || [];
+      if (alerts.length > 0) {
+        const content = alerts.map((a: { medicineName: string; batchNumber: string; expiryDate: string; alertLevelName: string }) =>
+          `• ${a.medicineName} (lô ${a.batchNumber}) — hạn ${new Date(a.expiryDate).toLocaleDateString('vi-VN')} [${a.alertLevelName}]`
+        ).join('\n');
+        Modal.warning({
+          title: `⚠️ Cảnh báo thuốc sắp hết hạn (${alerts.length})`,
+          content,
+          width: 600,
+          okText: 'Đã hiểu',
+        });
+      }
+    }).catch(() => {});
+  };
+
   const login = async (data: LoginRequest): Promise<LoginResult> => {
     try {
       const response = await authApi.login(data);
@@ -93,6 +113,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
         setUser(response.data.user);
+        checkExpiryAlertsOnLogin();
         return 'success';
       }
       return false;
@@ -111,6 +132,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.setItem('user', JSON.stringify(response.data.user));
         setUser(response.data.user);
         setOtpPending(null);
+        checkExpiryAlertsOnLogin();
         return true;
       }
       return false;
