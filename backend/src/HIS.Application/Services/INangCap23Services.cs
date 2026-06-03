@@ -114,4 +114,6 @@ public interface IQualityDashboardService
     Task<ParaclinicalStatusViewDto> GetParaclinicalStatusAsync(DateTime? asOfDate = null);
     Task<LabStatusViewDto> GetLabStatusAsync(DateTime? asOfDate = null);
     Task<DailyRevenueViewDto> GetDailyRevenueAsync(DateTime? asOfDate = null);
+    Task<List<WaitTimeByVisitTypeDto>> GetWaitTimeByVisitTypeAsync(DateTime? asOfDate = null);
+    Task<List<ClsCostByPaymentTypeDto>> GetClsCostByPaymentTypeAsync(DateTime? asOfDate = null);
 }

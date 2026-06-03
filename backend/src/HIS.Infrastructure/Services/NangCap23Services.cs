@@ -2097,7 +2097,9 @@ public class QualityDashboardService : IQualityDashboardService
             InpatientByDepartment = await GetInpatientByDepartmentAsync(dt),
             Paraclinical = await GetParaclinicalStatusAsync(dt),
             Lab = await GetLabStatusAsync(dt),
-            Revenue = await GetDailyRevenueAsync(dt)
+            Revenue = await GetDailyRevenueAsync(dt),
+            WaitTimeByVisitType = await GetWaitTimeByVisitTypeAsync(dt),
+            ClsCostByPaymentType = await GetClsCostByPaymentTypeAsync(dt),
         };
     }
 
@@ -2347,5 +2349,96 @@ public class QualityDashboardService : IQualityDashboardService
         }
 
         return view;
+    }
+
+    public async Task<List<WaitTimeByVisitTypeDto>> GetWaitTimeByVisitTypeAsync(DateTime? asOfDate = null)
+    {
+        var date = (asOfDate ?? DateTime.Today).Date;
+        var nextDay = date.AddDays(1);
+        var results = new List<WaitTimeByVisitTypeDto>();
+
+        try
+        {
+            var tickets = await _db.QueueTickets.AsNoTracking()
+                .Where(q => q.CreatedAt >= date && q.CreatedAt < nextDay && q.Status >= 2)
+                .ToListAsync();
+
+            var mrIds = tickets.Where(t => t.MedicalRecordId.HasValue).Select(t => t.MedicalRecordId!.Value).Distinct().ToList();
+            var mrHasCls = new Dictionary<Guid, (bool hasLab, bool hasRad)>();
+            if (mrIds.Any())
+            {
+                var srGroups = await _db.ServiceRequests.AsNoTracking()
+                    .Where(sr => mrIds.Contains(sr.MedicalRecordId) && sr.Status != 4)
+                    .GroupBy(sr => sr.MedicalRecordId)
+                    .Select(g => new { g.Key, HasLab = g.Any(x => x.RequestType == 1), HasRad = g.Any(x => x.RequestType == 2) })
+                    .ToListAsync();
+                foreach (var g in srGroups) mrHasCls[g.Key] = (g.HasLab, g.HasRad);
+            }
+
+            var groups = tickets
+                .Select(t =>
+                {
+                    var cls = t.MedicalRecordId.HasValue && mrHasCls.TryGetValue(t.MedicalRecordId.Value, out var c) ? c : (false, false);
+                    var type = cls switch { (true, true) => "KHÁM+XN+CĐHA", (true, false) => "KHÁM+XN", (false, true) => "KHÁM+CĐHA", _ => "KHÁM" };
+                    var waitMin = t.CalledTime.HasValue ? (int)(t.CalledTime.Value - t.CreatedAt).TotalMinutes : 0;
+                    return new { Type = type, WaitMin = Math.Max(0, waitMin) };
+                })
+                .GroupBy(x => x.Type);
+
+            foreach (var g in groups)
+            {
+                var waits = g.Select(x => x.WaitMin).ToList();
+                results.Add(new WaitTimeByVisitTypeDto
+                {
+                    VisitType = g.Key,
+                    TotalVisits = waits.Count,
+                    MinMinutes = waits.Min(),
+                    MaxMinutes = waits.Max(),
+                    AvgMinutes = (int)waits.Average(),
+                });
+            }
+        }
+        catch { }
+
+        return results.OrderBy(r => r.VisitType).ToList();
+    }
+
+    public async Task<List<ClsCostByPaymentTypeDto>> GetClsCostByPaymentTypeAsync(DateTime? asOfDate = null)
+    {
+        var date = (asOfDate ?? DateTime.Today).Date;
+        var nextDay = date.AddDays(1);
+        var results = new List<ClsCostByPaymentTypeDto>();
+
+        try
+        {
+            var details = await _db.ServiceRequestDetails.AsNoTracking()
+                .Include(d => d.ServiceRequest).ThenInclude(sr => sr!.MedicalRecord)
+                .Include(d => d.Service).ThenInclude(s => s!.ServiceGroup)
+                .Where(d => d.CreatedAt >= date && d.CreatedAt < nextDay && d.ServiceRequest != null && d.ServiceRequest.Status != 4)
+                .Select(d => new
+                {
+                    GroupName = d.Service != null && d.Service.ServiceGroup != null ? d.Service.ServiceGroup.GroupName : "Khác",
+                    PatientType = d.ServiceRequest != null && d.ServiceRequest.MedicalRecord != null ? d.ServiceRequest.MedicalRecord.PatientType : 2,
+                    Amount = d.Amount,
+                })
+                .ToListAsync();
+
+            var groups = details.GroupBy(d => d.GroupName);
+            foreach (var g in groups)
+            {
+                results.Add(new ClsCostByPaymentTypeDto
+                {
+                    ServiceGroup = g.Key,
+                    BhytAmount = g.Where(x => x.PatientType == 1).Sum(x => x.Amount),
+                    FeeAmount = g.Where(x => x.PatientType == 2).Sum(x => x.Amount),
+                    ServiceAmount = g.Where(x => x.PatientType == 3).Sum(x => x.Amount),
+                    OtherAmount = g.Where(x => x.PatientType >= 4).Sum(x => x.Amount),
+                    TotalAmount = g.Sum(x => x.Amount),
+                });
+            }
+        }
+        catch { }
+
+        return results.OrderByDescending(r => r.TotalAmount).ToList();
     }
 }

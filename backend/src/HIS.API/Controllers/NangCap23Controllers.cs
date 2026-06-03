@@ -480,4 +480,12 @@ public class QualityDashboardController : ControllerBase
     [HttpGet("revenue")]
     public async Task<ActionResult<DailyRevenueViewDto>> GetRevenue([FromQuery] DateTime? asOfDate = null)
         => Ok(await _svc.GetDailyRevenueAsync(asOfDate));
+
+    [HttpGet("wait-time")]
+    public async Task<ActionResult<List<WaitTimeByVisitTypeDto>>> GetWaitTime([FromQuery] DateTime? asOfDate = null)
+        => Ok(await _svc.GetWaitTimeByVisitTypeAsync(asOfDate));
+
+    [HttpGet("cls-cost")]
+    public async Task<ActionResult<List<ClsCostByPaymentTypeDto>>> GetClsCost([FromQuery] DateTime? asOfDate = null)
+        => Ok(await _svc.GetClsCostByPaymentTypeAsync(asOfDate));
 }

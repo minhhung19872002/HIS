@@ -505,6 +505,27 @@ public class QualityDashboardDto
     public ParaclinicalStatusViewDto Paraclinical { get; set; } = new();
     public LabStatusViewDto Lab { get; set; } = new();
     public DailyRevenueViewDto Revenue { get; set; } = new();
+    public List<WaitTimeByVisitTypeDto> WaitTimeByVisitType { get; set; } = new();
+    public List<ClsCostByPaymentTypeDto> ClsCostByPaymentType { get; set; } = new();
+}
+
+public class WaitTimeByVisitTypeDto
+{
+    public string VisitType { get; set; } = string.Empty;
+    public int TotalVisits { get; set; }
+    public int MinMinutes { get; set; }
+    public int MaxMinutes { get; set; }
+    public int AvgMinutes { get; set; }
+}
+
+public class ClsCostByPaymentTypeDto
+{
+    public string ServiceGroup { get; set; } = string.Empty;
+    public decimal BhytAmount { get; set; }
+    public decimal FeeAmount { get; set; }
+    public decimal ServiceAmount { get; set; }
+    public decimal OtherAmount { get; set; }
+    public decimal TotalAmount { get; set; }
 }
 
 public class ClinicQueueViewDto
