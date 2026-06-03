@@ -8,6 +8,7 @@ using System.Security.Claims;
 namespace HIS.API.Controllers;
 
 [ApiController]
+[Route("api/write-gap")]
 [Authorize]
 public class WriteGapController : ControllerBase
 {
@@ -17,7 +18,7 @@ public class WriteGapController : ControllerBase
 
     // ========== 1. Sample Storage (store/retrieve) ==========
 
-    [HttpPost("api/liscomplete/sample-storage/store")]
+    [HttpPost("sample/sample-storage/store")]
     public async Task<IActionResult> StoreSample([FromBody] StoreSampleDto dto)
     {
         var item = await _db.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
@@ -29,7 +30,7 @@ public class WriteGapController : ControllerBase
         return Ok(new { success = true, message = $"Đã lưu trữ mẫu tại {dto.Location}" });
     }
 
-    [HttpPost("api/liscomplete/sample-storage/retrieve")]
+    [HttpPost("sample/sample-storage/retrieve")]
     public async Task<IActionResult> RetrieveSample([FromBody] RetrieveSampleDto dto)
     {
         var item = await _db.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
@@ -43,7 +44,7 @@ public class WriteGapController : ControllerBase
 
     // ========== 2. Sample Tracking (reject/undo) ==========
 
-    [HttpPost("api/liscomplete/sample-tracking/reject")]
+    [HttpPost("sample/sample-tracking/reject")]
     public async Task<IActionResult> RejectSample([FromBody] RejectSampleDto dto)
     {
         var item = await _db.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
@@ -57,7 +58,7 @@ public class WriteGapController : ControllerBase
         return Ok(new { success = true });
     }
 
-    [HttpPost("api/liscomplete/sample-tracking/undo-reject")]
+    [HttpPost("sample/sample-tracking/undo-reject")]
     public async Task<IActionResult> UndoRejectSample([FromBody] UndoRejectDto dto)
     {
         var item = await _db.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
@@ -73,7 +74,7 @@ public class WriteGapController : ControllerBase
 
     // ========== 3. Epidemiology (create disease report) ==========
 
-    [HttpPost("api/epidemiology/reports/create")]
+    [HttpPost("epidemiology/reports")]
     public async Task<IActionResult> CreateDiseaseReport([FromBody] DiseaseReport dto)
     {
         dto.Id = Guid.NewGuid();
@@ -87,7 +88,7 @@ public class WriteGapController : ControllerBase
 
     // ========== 4. Infection Control (update/close HAI case) ==========
 
-    [HttpPut("api/infectioncontrol/hai-reports/{id:guid}/investigate")]
+    [HttpPut("hai/hai-reports/{id:guid}/investigate")]
     public async Task<IActionResult> InvestigateHAI(Guid id, [FromBody] InvestigateHaiDto dto)
     {
         var hai = await _db.HAICases.FirstOrDefaultAsync(h => h.Id == id);
@@ -102,7 +103,7 @@ public class WriteGapController : ControllerBase
         return Ok(new { success = true });
     }
 
-    [HttpPut("api/infectioncontrol/hai-reports/{id:guid}/close")]
+    [HttpPut("hai/hai-reports/{id:guid}/close")]
     public async Task<IActionResult> CloseHAI(Guid id, [FromBody] CloseHaiDto dto)
     {
         var hai = await _db.HAICases.FirstOrDefaultAsync(h => h.Id == id);
@@ -119,7 +120,7 @@ public class WriteGapController : ControllerBase
 
     // ========== 5. Medical Record Archive (save) ==========
 
-    [HttpPost("api/inpatient/medical-record-archive/save")]
+    [HttpPost("archive/medical-record-archive/save")]
     public async Task<IActionResult> SaveArchive([FromBody] SaveArchiveDto dto)
     {
         if (dto.Id.HasValue)
@@ -157,7 +158,7 @@ public class WriteGapController : ControllerBase
 
     // ========== 6. Inter-Hospital Sharing (create) ==========
 
-    [HttpPost("api/inter-hospital/requests/create")]
+    [HttpPost("inter-hospital/requests")]
     public async Task<IActionResult> CreateInterHospitalRequest([FromBody] CreateInterHospitalDto dto)
     {
         var entity = new InterHospitalRequest
@@ -181,7 +182,7 @@ public class WriteGapController : ControllerBase
 
     // ========== 7. Medical Record Planning (borrow/return) ==========
 
-    [HttpPost("api/medical-record-planning/borrow")]
+    [HttpPost("record-planning/borrow")]
     public async Task<IActionResult> BorrowRecord([FromBody] BorrowRecordDto dto)
     {
         var archive = await _db.MedicalRecordArchives.FirstOrDefaultAsync(a => a.Id == dto.ArchiveId);
@@ -197,7 +198,7 @@ public class WriteGapController : ControllerBase
         return Ok(new { success = true });
     }
 
-    [HttpPost("api/medical-record-planning/return")]
+    [HttpPost("record-planning/return")]
     public async Task<IActionResult> ReturnRecord([FromBody] ReturnArchiveDto dto)
     {
         var archive = await _db.MedicalRecordArchives.FirstOrDefaultAsync(a => a.Id == dto.ArchiveId);
@@ -213,7 +214,7 @@ public class WriteGapController : ControllerBase
 
     // ========== 8. Booking Management (doctor schedule) ==========
 
-    [HttpPost("api/booking/doctor-schedule")]
+    [HttpPost("booking/doctor-schedule")]
     public async Task<IActionResult> SaveDoctorSchedule([FromBody] DoctorScheduleDto dto)
     {
         var existing = await _db.DutySchedules
@@ -245,7 +246,7 @@ public class WriteGapController : ControllerBase
         return Ok(new { success = true });
     }
 
-    [HttpGet("api/booking/doctor-schedule")]
+    [HttpGet("booking/doctor-schedule")]
     public async Task<IActionResult> GetDoctorSchedules([FromQuery] Guid? doctorId, [FromQuery] Guid? departmentId, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
     {
         var q = _db.DutySchedules.Where(d => !d.IsDeleted);
@@ -261,7 +262,7 @@ public class WriteGapController : ControllerBase
 
     // ========== 9. BHXH Audit (run audit session) ==========
 
-    [HttpPost("api/bhxh-audit/sessions/create")]
+    [HttpPost("bhxh-audit/sessions")]
     public async Task<IActionResult> CreateAuditSession([FromBody] CreateBhxhAuditDto dto)
     {
         var session = new BhxhAuditSession
