@@ -20,9 +20,15 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor
+// Response interceptor — auto-unwrap ApiResponse envelope
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const body = response.data;
+    if (body && typeof body === 'object' && 'success' in body && 'data' in body) {
+      response.data = body.data;
+    }
+    return response;
+  },
   (error) => {
     // 401 = lỗi XÁC THỰC (token thiếu / hết hạn / không hợp lệ). Backend trả 403 cho lỗi
     // PHÂN QUYỀN, nên gặp 401 nghĩa là phiên đã hết hiệu lực → xoá phiên + đưa về /login.
