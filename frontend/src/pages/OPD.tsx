@@ -688,8 +688,8 @@ const OPD: React.FC = () => {
     }
 
     const persistOrder = async () => {
-      if (examination?.medicalRecord?.patientId) {
-        alertBhytClsLimit(examination.medicalRecord.patientId);
+      if (examination?.patientId) {
+        alertBhytClsLimit(examination.patientId);
       }
       const primaryDiagnosis = diagnoses.find((d) => d.diagnosisType === 1);
       const createdResponse = await examinationApi.createServiceOrders({

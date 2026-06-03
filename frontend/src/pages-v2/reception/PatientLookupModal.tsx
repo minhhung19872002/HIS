@@ -16,10 +16,27 @@ export const PatientLookupModal: React.FC<{
   const [kw, setKw] = useState('');
   const [busy, setBusy] = useState(false);
   const [list, setList] = useState<LookupRow[]>([]);
+  const [histOf, setHistOf] = useState<string | null>(null);
+  const [hist, setHist] = useState<receptionApi.PatientVisitHistoryDto[]>([]);
+  const [histBusy, setHistBusy] = useState(false);
 
   useEffect(() => {
-    if (open) { setKw(''); setList([]); }
+    if (open) { setKw(''); setList([]); setHistOf(null); setHist([]); }
   }, [open]);
+
+  // Lịch sử khám của 1 BN (toggle mở/đóng inline).
+  const toggleHistory = async (pid: string) => {
+    if (histOf === pid) { setHistOf(null); setHist([]); return; }
+    setHistOf(pid); setHist([]); setHistBusy(true);
+    try {
+      const res = await receptionApi.getPatientVisitHistory(pid, 5);
+      setHist(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      message.error('Không tải được lịch sử khám');
+    } finally {
+      setHistBusy(false);
+    }
+  };
 
   const doSearch = async () => {
     if (!kw.trim()) { message.warning('Nhập tên / mã BN / SĐT / CCCD'); return; }
@@ -62,12 +79,15 @@ export const PatientLookupModal: React.FC<{
               {busy ? 'Đang tìm…' : 'Nhập từ khóa rồi bấm Tìm'}
             </div>
           ) : (
-            list.map((p, i) => (
+            list.map((p, i) => {
+              const pid = p.patientId || p.id || '';
+              const open2 = histOf === pid && !!pid;
+              return (
+              <React.Fragment key={pid || i}>
               <div
-                key={p.id || p.patientId || i}
                 style={{
-                  padding: '10px 12px', borderBottom: '1px solid var(--line-soft)',
-                  display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center', cursor: 'pointer',
+                  padding: '10px 12px', borderBottom: open2 ? 'none' : '1px solid var(--line-soft)',
+                  display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 10, alignItems: 'center', cursor: 'pointer',
                 }}
                 onClick={() => onPick(p)}
               >
@@ -80,11 +100,37 @@ export const PatientLookupModal: React.FC<{
                     {p.insuranceNumber ? ` · BHYT ${p.insuranceNumber}` : ''}
                   </div>
                 </div>
+                <button type="button" className="ab-btn ghost" disabled={!pid}
+                  onClick={(e) => { e.stopPropagation(); if (pid) toggleHistory(pid); }}>
+                  <TermIcon name="file-text" size={12} /> {open2 ? 'Ẩn' : 'Lịch sử'}
+                </button>
                 <button type="button" className="ab-btn ghost" onClick={(e) => { e.stopPropagation(); onPick(p); }}>
                   Chọn
                 </button>
               </div>
-            ))
+              {open2 && (
+                <div style={{ padding: '8px 12px 12px', background: 'var(--d-1)', borderBottom: '1px solid var(--line-soft)' }}>
+                  {histBusy ? (
+                    <div style={{ fontSize: 11.5, color: 'var(--t-2)' }}>Đang tải lịch sử khám…</div>
+                  ) : hist.length === 0 ? (
+                    <div style={{ fontSize: 11.5, color: 'var(--t-2)' }}>Chưa có lần khám nào</div>
+                  ) : (
+                    hist.map((v) => (
+                      <div key={v.medicalRecordId} style={{ display: 'grid', gridTemplateColumns: '92px 1fr auto', gap: 8, padding: '4px 0', fontSize: 12, borderTop: '1px dashed var(--line-soft)' }}>
+                        <span className="mono" style={{ color: 'var(--a-cy)' }}>{dayjs(v.visitDate).format('DD/MM/YYYY')}</span>
+                        <span>
+                          <b>{v.diagnosisName || v.diagnosisCode || '—'}</b>
+                          <span style={{ color: 'var(--t-2)' }}> · {v.departmentName || '—'}{v.doctorName ? ` · ${v.doctorName}` : ''}</span>
+                        </span>
+                        <span className="mono" style={{ color: 'var(--t-2)' }}>{(v.totalAmount || 0).toLocaleString('vi-VN')}₫</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+              </React.Fragment>
+              );
+            })
           )}
         </div>
       </div>

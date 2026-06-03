@@ -4,6 +4,7 @@ import { StatusBadge } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
 import type { RawRow } from './shared';
 import { STATUS_TABS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from './shared';
+import { TempInsuranceModal, DocumentHoldModal, PhotoModal, ServiceOrderModal } from './VisitActionsModals';
 type DrawerTab = 'info' | 'audit' | 'related';
 
 export const VisitDrawerBody: React.FC<{ v: RawRow; rows: RawRow[] }> = ({ v, rows }) => {
@@ -42,14 +43,88 @@ export const VisitDrawerBody: React.FC<{ v: RawRow; rows: RawRow[] }> = ({ v, ro
   );
 };
 
+type ActionModal = 'tempInsurance' | 'docHold' | 'photo' | 'serviceOrder' | null;
+
 const DrawerInfoTab: React.FC<{ v: RawRow }> = ({ v }) => {
   const sk = statusKey(v);
   const tone = statusTone(sk);
   const lbl = STATUS_TABS.find((t) => t.v === sk)?.l || v.statusName || String(v.status);
   const pk = priorityKey(v);
+  const [actionModal, setActionModal] = useState<ActionModal>(null);
+
+  const hasMR = !!v.id; // medicalRecordId is v.id on AdmissionDto
+  const hasPat = !!v.patientId;
 
   return (
     <>
+      {/* Action buttons strip */}
+      <div className="rec-section">
+        <h5><TermIcon name="plus" size={11} /> THAO TÁC NHANH</h5>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <button
+            type="button" className="ab-btn ghost sm"
+            disabled={!hasPat}
+            onClick={() => setActionModal('tempInsurance')}
+            title={!hasPat ? 'Cần có thông tin bệnh nhân' : ''}
+          >
+            <TermIcon name="shield" size={11} /> Thẻ BHYT tạm
+          </button>
+          <button
+            type="button" className="ab-btn ghost sm"
+            disabled={!hasPat}
+            onClick={() => setActionModal('docHold')}
+            title={!hasPat ? 'Cần có thông tin bệnh nhân' : ''}
+          >
+            <TermIcon name="info" size={11} /> Giữ / Trả giấy tờ
+          </button>
+          <button
+            type="button" className="ab-btn ghost sm"
+            disabled={!hasPat}
+            onClick={() => setActionModal('photo')}
+            title={!hasPat ? 'Cần có thông tin bệnh nhân' : ''}
+          >
+            <TermIcon name="user" size={11} /> Chụp ảnh BN
+          </button>
+          <button
+            type="button" className="ab-btn ghost sm"
+            disabled={!hasMR}
+            onClick={() => setActionModal('serviceOrder')}
+            title={!hasMR ? 'Cần có mã hồ sơ' : ''}
+          >
+            <TermIcon name="stethoscope" size={11} /> Chỉ định CLS
+          </button>
+        </div>
+      </div>
+
+      {/* Action modals */}
+      <TempInsuranceModal
+        open={actionModal === 'tempInsurance'}
+        onClose={() => setActionModal(null)}
+        defaultPatientName={v.patientName}
+        defaultDateOfBirth={v.dateOfBirth}
+        defaultGender={typeof v.gender === 'number' ? v.gender : undefined}
+      />
+      <DocumentHoldModal
+        open={actionModal === 'docHold'}
+        onClose={() => setActionModal(null)}
+        patientId={v.patientId}
+        medicalRecordId={v.id}
+        patientName={v.patientName}
+      />
+      <PhotoModal
+        open={actionModal === 'photo'}
+        onClose={() => setActionModal(null)}
+        patientId={v.patientId}
+        medicalRecordId={v.id}
+        patientName={v.patientName}
+      />
+      <ServiceOrderModal
+        open={actionModal === 'serviceOrder'}
+        onClose={() => setActionModal(null)}
+        medicalRecordId={v.id}
+        patientName={v.patientName}
+      />
+
       {/* Status banner */}
       <div className="rec-section">
         <h5><TermIcon name="check" size={11} /> TRẠNG THÁI</h5>

@@ -58,9 +58,10 @@ const InpatientV2: React.FC = () => {
   const [fWard, setFWard] = useState('');
   const [fStatus, setFStatus] = useState('');
   const [page, setPage] = useState(0);
-  const [bed, setBed] = useState<(BedLayoutDto & { wardName?: string }) | null>(null);
+  const [bed, setBed] = useState<(BedLayoutDto & { wardName?: string ; wardId?: string; roomId?: string; roomName?: string }) | null>(null);
   const [detail, setDetail] = useState<InpatientListDto | null>(null);
   const [admitOpen, setAdmitOpen] = useState(false);
+  const [admitPrefill, setAdmitPrefill] = useState<AdmitPrefill | null>(null);
   const LIST_PAGE = 16;
 
   const loadData = useCallback(() => {
@@ -95,7 +96,7 @@ const InpatientV2: React.FC = () => {
 
   // All beds flattened (with ward name) for grid + filtering.
   const allBeds = useMemo(
-    () => wards.flatMap((w) => (w.rooms ?? []).flatMap((r) => (r.beds ?? []).map((b) => ({ ...b, wardId: w.departmentId, wardName: w.departmentName })))),
+    () => wards.flatMap((w) => (w.rooms ?? []).flatMap((r) => (r.beds ?? []).map((b) => ({ ...b, wardId: w.departmentId, wardName: w.departmentName, roomId: r.roomId, roomName: r.roomName })))),
     [wards],
   );
 
@@ -195,7 +196,7 @@ const InpatientV2: React.FC = () => {
             <Btn variant="ghost" onClick={() => navigate('/v2/hr')}>
               <TermIcon name="users" size={12} /> Bàn giao ca <kbd>F4</kbd>
             </Btn>
-            <Btn variant="ghost" onClick={() => setAdmitOpen(true)}>
+            <Btn variant="ghost" onClick={() => { setAdmitPrefill(null); setAdmitOpen(true); }}>
               <TermIcon name="plus" size={12} /> Nhập viện
             </Btn>
             <Btn variant="primary" onClick={() => navigate('/v2/inpatient-dispensing')}>
@@ -329,7 +330,7 @@ const InpatientV2: React.FC = () => {
           ) : (
             <>
               <Btn variant="ghost" onClick={() => setBed(null)}>Đóng</Btn>
-              <Btn variant="primary" onClick={() => { setBed(null); message.info('Chọn giường để nhập viện'); }}>Nhập viện vào giường này</Btn>
+              <Btn variant="primary" onClick={() => { setAdmitPrefill({ departmentId: bed.wardId, roomId: bed.roomId, bedId: bed.bedId }); setBed(null); setAdmitOpen(true); }}>Nhập viện vào giường này</Btn>
             </>
           )
         ) : null}
@@ -423,6 +424,13 @@ const InpatientV2: React.FC = () => {
           </div>
         )}
       </DrawerShell>
+
+      <AdmitModal
+        open={admitOpen}
+        prefill={admitPrefill}
+        onClose={() => setAdmitOpen(false)}
+        onDone={() => { setAdmitOpen(false); loadData(); }}
+      />
     </div>
   );
 };
@@ -436,6 +444,8 @@ const InpatientV2: React.FC = () => {
    Pattern raw useState theo BloodReceiveModal.
    ────────────────────────────────────────────────────────── */
 
+type AdmitPrefill = { departmentId?: string; roomId?: string; bedId?: string };
+
 const ADMISSION_TYPES = [
   { value: 1, label: 'Cấp cứu' },
   { value: 2, label: 'Chuyển từ OPD' },
@@ -445,9 +455,10 @@ const ADMISSION_TYPES = [
 
 const AdmitModal: React.FC<{
   open: boolean;
+  prefill?: AdmitPrefill | null;
   onClose: () => void;
   onDone: () => void;
-}> = ({ open, onClose, onDone }) => {
+}> = ({ open, prefill, onClose, onDone }) => {
   const { message } = AntdApp.useApp();
   const [depts, setDepts] = useState<DepartmentCatalogDto[]>([]);
   const [medicalRecordId, setMedicalRecordId] = useState('');
@@ -462,14 +473,18 @@ const AdmitModal: React.FC<{
 
   useEffect(() => {
     if (open) {
-      setMedicalRecordId(''); setDepartmentId(undefined);
-      setRoomId(''); setBedId(''); setAdmissionType(2);
+      setMedicalRecordId('');
+      setDepartmentId(prefill?.departmentId);
+      setRoomId(prefill?.roomId || '');
+      setBedId(prefill?.bedId || '');
+      setAdmissionType(2);
       setDiagnosisOnAdmission(''); setReasonForAdmission('');
       setAttendingDoctorId('');
       catalogApi.getDepartments(undefined, undefined, true).then((r) => {
         setDepts(r.data || []);
       }).catch(() => setDepts([]));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const submit = async () => {
