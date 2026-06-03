@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using HIS.Application.Services;
 using HIS.Application.DTOs.Laboratory;
 using ApproveLabResultDto = HIS.Application.Services.ApproveLabResultDto;
@@ -20,10 +21,12 @@ namespace HIS.API.Controllers
     public class LISCompleteController : ControllerBase
     {
         private readonly ILISCompleteService _lisService;
+        private readonly HIS.Infrastructure.Data.HISDbContext _context;
 
-        public LISCompleteController(ILISCompleteService lisService)
+        public LISCompleteController(ILISCompleteService lisService, HIS.Infrastructure.Data.HISDbContext context)
         {
             _lisService = lisService;
+            _context = context;
         }
 
         private Guid? GetUserId()
@@ -1357,6 +1360,62 @@ namespace HIS.API.Controllers
 
     #endregion
 
+    #region Sample Storage/Tracking Write (K5)
+
+    [HttpPost("sample-storage/store")]
+    public async Task<IActionResult> StoreSample([FromBody] StoreSampleRequest dto)
+    {
+        var item = await _context.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
+        if (item == null) return NotFound(new { message = "Mẫu không tồn tại" });
+        item.SampleLocation = dto.Location;
+        item.UpdatedAt = DateTime.Now;
+        item.UpdatedBy = GetUserId().ToString();
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true, message = $"Đã lưu trữ mẫu tại {dto.Location}" });
+    }
+
+    [HttpPost("sample-storage/retrieve")]
+    public async Task<IActionResult> RetrieveSample([FromBody] RetrieveSampleRequest dto)
+    {
+        var item = await _context.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
+        if (item == null) return NotFound(new { message = "Mẫu không tồn tại" });
+        item.SampleLocation = null;
+        item.UpdatedAt = DateTime.Now;
+        item.UpdatedBy = GetUserId().ToString();
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true, message = "Đã lấy mẫu ra khỏi kho" });
+    }
+
+    [HttpPost("sample-tracking/reject")]
+    public async Task<IActionResult> RejectSample([FromBody] RejectSampleRequest dto)
+    {
+        var item = await _context.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
+        if (item == null) return NotFound();
+        item.Status = 5;
+        item.RejectionReason = dto.Reason;
+        item.RejectedAt = DateTime.Now;
+        item.UpdatedAt = DateTime.Now;
+        item.UpdatedBy = GetUserId().ToString();
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true });
+    }
+
+    [HttpPost("sample-tracking/undo-reject")]
+    public async Task<IActionResult> UndoRejectSample([FromBody] UndoRejectRequest dto)
+    {
+        var item = await _context.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
+        if (item == null) return NotFound();
+        item.Status = 1;
+        item.RejectionReason = null;
+        item.RejectedAt = null;
+        item.UpdatedAt = DateTime.Now;
+        item.UpdatedBy = GetUserId().ToString();
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true });
+    }
+
+    #endregion
+
     #region Queue Display (Public)
 
     /// <summary>
@@ -1373,3 +1432,8 @@ namespace HIS.API.Controllers
     #endregion
     }
 }
+
+public record StoreSampleRequest(Guid SampleId, string Location);
+public record RetrieveSampleRequest(Guid SampleId);
+public record RejectSampleRequest(Guid SampleId, string Reason);
+public record UndoRejectRequest(Guid SampleId);
