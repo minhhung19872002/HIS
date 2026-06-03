@@ -101,6 +101,9 @@ const Dashboard3CapV2 = lazy(() => import('./pages-v2/Dashboard3Cap'));
 const DigitalSignatureV2 = lazy(() => import('./pages-v2/DigitalSignature'));
 const CentralSigningV2 = lazy(() => import('./pages-v2/CentralSigning'));
 const DicomViewerV2 = lazy(() => import('./pages-v2/DicomViewer'));
+// Pharmacy stock-in (supplier receipt — Phase 1)
+const PharmacyStockInV2 = lazy(() => import('./pages-v2/PharmacyStockIn'));
+const PharmacyStockTakeV2 = lazy(() => import('./pages-v2/PharmacyStockTake'));
 // Batch 7: Pharmacy/Stock admin (v1-only routes converted to v2)
 const PharmacyApprovalV2 = lazy(() => import('./pages-v2/PharmacyApproval'));
 const DispensingCounterV2 = lazy(() => import('./pages-v2/DispensingCounter'));
@@ -576,6 +579,9 @@ const AppRoutes: React.FC = () => {
           <Route path="asset-management" element={<AssetManagementV2 />} />
           <Route path="training-research" element={<TrainingResearchV2 />} />
           <Route path="procurement" element={<ProcurementV2 />} />
+          {/* Pharmacy stock-in (supplier receipt — Phase 1) */}
+          <Route path="pharmacy-stock-in" element={<PharmacyStockInV2 />} />
+          <Route path="pharmacy-stock-take" element={<PharmacyStockTakeV2 />} />
           {/* Batch 7: Pharmacy/Stock admin */}
           <Route path="pharmacy-approval" element={<PharmacyApprovalV2 />} />
           <Route path="dispensing-counter" element={<DispensingCounterV2 />} />

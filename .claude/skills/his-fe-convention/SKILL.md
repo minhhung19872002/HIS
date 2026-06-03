@@ -9,7 +9,7 @@ metadata:
 
 Guardrail BẮT BUỘC cho **mọi** lần generate/refactor code FE HIS (React 19 + TS + Antd v6 + Vite).
 Mục tiêu: code luôn đúng convention + kiến trúc hiện có, không lệch giữa các session AISau.
-Đọc CÙNG skill chuyên môn (`his-fe-page-v2`, `his-fe-api-client`, `his-fe-antd-v6`…) + `core-clean-code` (clean code mức hàm/câu lệnh, FE+BE) + `his-qa-anti-pattern`.
+Đọc CÙNG skill chuyên môn (`his-fe-page-v2`, `his-fe-api-client`, `his-fe-antd-v6`…) + `his-fe-library-policy` (cân nhắc + giải thích **chọn thư viện** cho từng nhóm form/data/state/test — tránh "code đại trà") + `core-clean-code` (clean code mức hàm/câu lệnh, FE+BE) + `his-qa-anti-pattern`.
 
 ## Khi nào dùng
 - Trước/khi tạo hoặc sửa file FE bất kỳ (page, component, hook, service api, type, util).

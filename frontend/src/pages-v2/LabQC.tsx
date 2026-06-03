@@ -1,12 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import dayjs from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
+import { Input, InputNumber, DatePicker } from 'antd';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip as RTooltip, ResponsiveContainer, ReferenceLine,
+} from 'recharts';
 import { getQCLots, getQCResults, createQCLot, updateQCLot, deleteQCLot } from '../api/labQC';
 import type { QCLot, QCResult } from '../api/labQC';
+import { runQC, getLeveyJenningsChart, getAnalyzers, getLabTestCatalog } from '../api/lis';
+import type { QCResultDto, LeveyJenningsChartDto, LabAnalyzerDto, LabTestCatalogDto } from '../api/lis';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,
+  DrawerShell, DrSec, DrField, CrudModal, ModalShell, AbSelect, tk, ti, te, cf, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+type ApiErr = { response?: { data?: { message?: string } } };
 
 const LOT_FIELDS: CrudFieldCfg[] = [
   { key: 'lotNumber', label: 'Số lô', required: true, disabledOnEdit: true },
@@ -32,6 +41,252 @@ const TABS = [
 
 const PER = 18;
 
+// ─────────────── Chạy QC + Levey-Jennings (dùng api/lis — contract chuẩn) ───────────────
+
+const QC_LEVELS = [
+  { value: 'Level1', label: 'Level 1 · Low' },
+  { value: 'Level2', label: 'Level 2 · Normal' },
+  { value: 'Level3', label: 'Level 3 · High' },
+];
+
+const FormRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div>
+    <div style={{
+      fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+      letterSpacing: '0.05em', color: 'var(--t-2)', marginBottom: 6,
+    }}>{label}</div>
+    {children}
+  </div>
+);
+
+const QCResultPanel: React.FC<{ result: QCResultDto }> = ({ result }) => (
+  <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+      <StatusBadge tone={result.isAccepted ? 'ok' : 'crit'} dot>{result.isAccepted ? 'QC ĐẠT' : 'QC VI PHẠM'}</StatusBadge>
+      {result.westgardRule && <span className="chip crit">{result.westgardRule}</span>}
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, fontFamily: 'var(--font-mono)', fontSize: 12.5 }}>
+      <div><div style={{ color: 'var(--t-2)', fontSize: 10.5 }}>Giá trị</div><b>{result.value}</b></div>
+      <div><div style={{ color: 'var(--t-2)', fontSize: 10.5 }}>Mean ± SD</div><b>{result.mean} ± {result.sd}</b></div>
+      <div><div style={{ color: 'var(--t-2)', fontSize: 10.5 }}>CV%</div><b>{result.cv}</b></div>
+      <div><div style={{ color: 'var(--t-2)', fontSize: 10.5 }}>Z-score</div>
+        <b style={{ color: Math.abs(result.zScore) >= 3 ? 'var(--a-rd-text)' : Math.abs(result.zScore) >= 2 ? 'var(--a-or-text)' : undefined }}>
+          {result.zScore.toFixed(2)}
+        </b>
+      </div>
+    </div>
+    {result.violations?.length > 0 && (
+      <div style={{ marginTop: 10, fontSize: 12, color: 'var(--a-rd-text)' }}>Vi phạm: {result.violations.join(' · ')}</div>
+    )}
+  </div>
+);
+
+// recharts dot — đỏ nếu điểm bị reject (vi phạm Westgard)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const renderLJDot = (props: any): React.ReactElement => {
+  const { cx, cy, payload, index } = props;
+  return <circle key={index} cx={cx} cy={cy} r={4} fill={payload?.rejected ? '#dc2626' : '#0891b2'} stroke="#fff" strokeWidth={1.2} />;
+};
+
+const LJChart: React.FC<{ chart: LeveyJenningsChartDto }> = ({ chart }) => {
+  const data = (chart.dataPoints || []).map((p, i) => ({
+    idx: i + 1,
+    date: dayjs(p.date).format('DD/MM'),
+    value: p.value,
+    rejected: p.isRejected,
+  }));
+  return (
+    <div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 12, color: 'var(--t-2)', marginBottom: 10 }}>
+        <span><b style={{ color: 'var(--t-0)' }}>{chart.testName}</b></span>
+        <span>Máy: {chart.analyzerName}</span>
+        <span style={{ fontFamily: 'var(--font-mono)' }}>Mean {chart.mean} · SD {chart.sd} · n={data.length}</span>
+      </div>
+      <div style={{ width: '100%', height: 340 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 12, right: 30, bottom: 8, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--line-soft)" />
+            <XAxis dataKey="date" fontSize={11} />
+            <YAxis fontSize={11} domain={['auto', 'auto']} width={48} />
+            <RTooltip />
+            <ReferenceLine y={chart.plus3SD} stroke="#dc2626" strokeDasharray="4 4" label={{ value: '+3SD', fontSize: 10, fill: '#dc2626' }} />
+            <ReferenceLine y={chart.plus2SD} stroke="#d97706" strokeDasharray="4 4" label={{ value: '+2SD', fontSize: 10, fill: '#d97706' }} />
+            <ReferenceLine y={chart.plus1SD} stroke="#9ca3af" strokeDasharray="4 4" />
+            <ReferenceLine y={chart.mean} stroke="#16a34a" strokeWidth={1.5} label={{ value: 'Mean', fontSize: 10, fill: '#16a34a' }} />
+            <ReferenceLine y={chart.minus1SD} stroke="#9ca3af" strokeDasharray="4 4" />
+            <ReferenceLine y={chart.minus2SD} stroke="#d97706" strokeDasharray="4 4" label={{ value: '-2SD', fontSize: 10, fill: '#d97706' }} />
+            <ReferenceLine y={chart.minus3SD} stroke="#dc2626" strokeDasharray="4 4" label={{ value: '-3SD', fontSize: 10, fill: '#dc2626' }} />
+            <Line type="monotone" dataKey="value" stroke="#0891b2" strokeWidth={2} dot={renderLJDot} isAnimationActive={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
+// Modal Chạy QC — chọn máy + test (lấy GUID từ danh mục) → runQC → hiển thị đánh giá Westgard
+const RunQCModal: React.FC<{
+  open: boolean;
+  lot: QCLot | null;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, lot, onClose, onDone }) => {
+  const [analyzers, setAnalyzers] = useState<LabAnalyzerDto[]>([]);
+  const [tests, setTests] = useState<LabTestCatalogDto[]>([]);
+  const [analyzerId, setAnalyzerId] = useState('');
+  const [testId, setTestId] = useState('');
+  const [level, setLevel] = useState('Level2');
+  const [lotNumber, setLotNumber] = useState('');
+  const [value, setValue] = useState<number | null>(null);
+  const [runTime, setRunTime] = useState<Dayjs>(() => dayjs());
+  const [result, setResult] = useState<QCResultDto | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setResult(null); setAnalyzerId(''); setValue(null); setRunTime(dayjs());
+    setLevel(lot ? `Level${lot.level}` : 'Level2');
+    setLotNumber(lot?.lotNumber || '');
+    getAnalyzers().then((r) => setAnalyzers(r.data || [])).catch(() => setAnalyzers([]));
+    getLabTestCatalog().then((r) => setTests(r.data || [])).catch(() => setTests([]));
+  }, [open, lot]);
+
+  // map lot.testCode → testId (Guid) khi danh mục test đã tải
+  useEffect(() => {
+    if (!open) return;
+    if (lot && tests.length) {
+      const t = tests.find((x) => x.code === lot.testCode);
+      setTestId(t?.id || '');
+    } else if (!lot) {
+      setTestId('');
+    }
+  }, [open, lot, tests]);
+
+  const submit = async () => {
+    if (!analyzerId || !testId || !lotNumber.trim() || value == null) {
+      te('Chọn máy XN, xét nghiệm, số lô và nhập giá trị đo');
+      return;
+    }
+    setSaving(true);
+    try {
+      const r = await runQC({
+        analyzerId, testId, qcLevel: level,
+        qcLotNumber: lotNumber.trim(), qcValue: value,
+        runTime: runTime.toISOString(),
+      });
+      setResult(r.data);
+      if (r.data.isAccepted) tk('QC đạt'); else ti('QC vi phạm quy tắc Westgard');
+      onDone();
+    } catch (e) {
+      te((e as ApiErr)?.response?.data?.message || 'Chạy QC thất bại');
+    } finally { setSaving(false); }
+  };
+
+  if (!open) return null;
+  return (
+    <ModalShell open={open} onClose={onClose} size="lg"
+      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}><Ico name="activity" size={14} /> Chạy QC</span>}
+      sub={lot ? `Lô ${lot.lotNumber} · ${lot.testName}` : 'Nhập kết quả nội kiểm để đánh giá Westgard'}
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
+        <span style={{ flex: 1 }} />
+        <Btn variant="primary" onClick={submit} loading={saving} icon="check">Chạy QC</Btn>
+      </>}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <FormRow label="Máy xét nghiệm">
+          <AbSelect options={analyzers} fieldNames={{ value: 'id', label: 'name' }} value={analyzerId} onChange={setAnalyzerId} placeholder="— Chọn máy —" />
+        </FormRow>
+        <FormRow label="Xét nghiệm">
+          <AbSelect options={tests} fieldNames={{ value: 'id', label: 'name' }} value={testId} onChange={setTestId} placeholder="— Chọn xét nghiệm —" />
+        </FormRow>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <FormRow label="Mức QC">
+            <AbSelect options={QC_LEVELS} fieldNames={{ value: 'value', label: 'label' }} value={level} onChange={setLevel} />
+          </FormRow>
+          <FormRow label="Số lô QC">
+            <Input value={lotNumber} onChange={(e) => setLotNumber(e.target.value)} placeholder="Số lô…" />
+          </FormRow>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <FormRow label="Giá trị đo">
+            <InputNumber style={{ width: '100%' }} value={value} onChange={(v) => setValue(v)} placeholder="Giá trị…" />
+          </FormRow>
+          <FormRow label="Thời điểm chạy">
+            <DatePicker showTime style={{ width: '100%' }} value={runTime} onChange={(d) => setRunTime(d || dayjs())} format="DD/MM/YYYY HH:mm" />
+          </FormRow>
+        </div>
+        {result && <QCResultPanel result={result} />}
+      </div>
+    </ModalShell>
+  );
+};
+
+// Modal Levey-Jennings — biểu đồ nội kiểm theo thời gian
+const LJModal: React.FC<{
+  open: boolean;
+  result: QCResult | null;
+  onClose: () => void;
+}> = ({ open, result, onClose }) => {
+  const [analyzers, setAnalyzers] = useState<LabAnalyzerDto[]>([]);
+  const [tests, setTests] = useState<LabTestCatalogDto[]>([]);
+  const [analyzerId, setAnalyzerId] = useState('');
+  const [testId, setTestId] = useState('');
+  const [range, setRange] = useState<[Dayjs, Dayjs]>(() => [dayjs().subtract(30, 'day'), dayjs()]);
+  const [chart, setChart] = useState<LeveyJenningsChartDto | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setChart(null);
+    setAnalyzerId(result?.analyzerId || '');
+    setRange([dayjs().subtract(30, 'day'), dayjs()]);
+    getAnalyzers().then((r) => setAnalyzers(r.data || [])).catch(() => setAnalyzers([]));
+    getLabTestCatalog().then((r) => setTests(r.data || [])).catch(() => setTests([]));
+  }, [open, result]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (result && tests.length) {
+      const t = tests.find((x) => x.code === result.testCode);
+      setTestId(t?.id || '');
+    } else if (!result) {
+      setTestId('');
+    }
+  }, [open, result, tests]);
+
+  const load = async () => {
+    if (!testId || !analyzerId) { te('Chọn xét nghiệm và máy XN'); return; }
+    setLoading(true);
+    try {
+      const r = await getLeveyJenningsChart(testId, analyzerId, range[0].format('YYYY-MM-DD'), range[1].format('YYYY-MM-DD'));
+      setChart(r.data);
+    } catch (e) {
+      te((e as ApiErr)?.response?.data?.message || 'Không tải được biểu đồ');
+    } finally { setLoading(false); }
+  };
+
+  if (!open) return null;
+  return (
+    <ModalShell open={open} onClose={onClose} size="xl"
+      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}><Ico name="activity" size={14} /> Biểu đồ Levey-Jennings</span>}
+      sub="Theo dõi nội kiểm QC theo thời gian (Mean ± 1/2/3 SD)"
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
+        <span style={{ flex: 1 }} />
+        <Btn variant="primary" onClick={load} loading={loading} icon="activity">Vẽ biểu đồ</Btn>
+      </>}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 180px' }}><FormRow label="Xét nghiệm"><AbSelect options={tests} fieldNames={{ value: 'id', label: 'name' }} value={testId} onChange={setTestId} placeholder="— Chọn —" /></FormRow></div>
+        <div style={{ flex: '1 1 180px' }}><FormRow label="Máy xét nghiệm"><AbSelect options={analyzers} fieldNames={{ value: 'id', label: 'name' }} value={analyzerId} onChange={setAnalyzerId} placeholder="— Chọn —" /></FormRow></div>
+        <div style={{ flex: '1 1 230px' }}><FormRow label="Khoảng thời gian"><DatePicker.RangePicker style={{ width: '100%' }} value={range} onChange={(v) => { if (v && v[0] && v[1]) setRange([v[0], v[1]]); }} format="DD/MM/YYYY" /></FormRow></div>
+      </div>
+      {chart
+        ? <LJChart chart={chart} />
+        : <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-2)', fontSize: 13 }}>{loading ? 'Đang tải…' : 'Chọn xét nghiệm + máy XN rồi bấm "Vẽ biểu đồ"'}</div>}
+    </ModalShell>
+  );
+};
+
 const LabQCV2: React.FC = () => {
   const [tab, setTab] = useState<Tab>('lots');
   const [lots, setLots] = useState<QCLot[]>([]);
@@ -43,6 +298,12 @@ const LabQCV2: React.FC = () => {
   const [selRes, setSelRes] = useState<QCResult | null>(null);
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
+  const [runQCOpen, setRunQCOpen] = useState(false);
+  const [runQCLot, setRunQCLot] = useState<QCLot | null>(null);
+  const [ljOpen, setLjOpen] = useState(false);
+  const [ljResult, setLjResult] = useState<QCResult | null>(null);
+  const openRunQC = (l: QCLot | null) => { setRunQCLot(l); setRunQCOpen(true); };
+  const openLJ = (r: QCResult | null) => { setLjResult(r); setLjOpen(true); };
   const openCreateLot = () => { setCrudInit({ level: 2, isActive: true }); setCrudOpen(true); };
   const openEditLot = (r: QCLot) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
   const delLot = (r: QCLot) => cf(`Xoá lô QC "${r.lotNumber}"?`, async () => {
@@ -171,14 +432,14 @@ const LabQCV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSelLot(r)} />
       <ActBtn ic="edit" title="Sửa" onClick={() => openEditLot(r)} />
-      <ActBtn ic="activity" title="Chạy QC" onClick={() => tk(`Đã mở chạy QC cho lô ${r.lotNumber}`)} />
+      <ActBtn ic="activity" title="Chạy QC" onClick={() => openRunQC(r)} />
       <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => delLot(r)} />
     </div>
   );
   const resActions = (r: QCResult) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSelRes(r)} />
-      <ActBtn ic="activity" title="Levey-Jennings" onClick={() => tk(`Mở chart cho ${r.testName}`)} />
+      <ActBtn ic="activity" title="Levey-Jennings" onClick={() => openLJ(r)} />
     </div>
   );
 
@@ -194,7 +455,7 @@ const LabQCV2: React.FC = () => {
           {tab === 'lots' && <Btn variant="primary" onClick={openCreateLot}>
             <Ico name="plus" size={12} /> Thêm lô
           </Btn>}
-          {tab === 'results' && <Btn variant="primary" onClick={() => tk('Mở form chạy QC')}>
+          {tab === 'results' && <Btn variant="primary" onClick={() => openRunQC(null)}>
             <Ico name="activity" size={12} /> Chạy QC
           </Btn>}
         </>
@@ -243,7 +504,7 @@ const LabQCV2: React.FC = () => {
           <Btn onClick={() => { if (selLot) openEditLot(selLot); setSelLot(null); }}>
             <Ico name="edit" size={12} /> Sửa lô
           </Btn>
-          <Btn variant="primary" onClick={() => tk(`Đã mở chạy QC ${selLot?.lotNumber}`)}>
+          <Btn variant="primary" onClick={() => { if (selLot) openRunQC(selLot); setSelLot(null); }}>
             <Ico name="activity" size={12} /> Chạy QC
           </Btn>
         </>}
@@ -282,7 +543,7 @@ const LabQCV2: React.FC = () => {
         sub={selRes ? `Lô ${selRes.lotNumber} · ${dayjs(selRes.runDate).format('DD/MM HH:mm')}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSelRes(null)}>Đóng</Btn>
-          <Btn variant="primary" onClick={() => tk('Mở Levey-Jennings')}>
+          <Btn variant="primary" onClick={() => { openLJ(selRes); setSelRes(null); }}>
             <Ico name="activity" size={12} /> L-J Chart
           </Btn>
         </>}
@@ -329,6 +590,18 @@ const LabQCV2: React.FC = () => {
           tk(editing ? 'Đã cập nhật lô QC' : 'Đã thêm lô QC');
           load();
         }}
+      />
+
+      <RunQCModal
+        open={runQCOpen}
+        lot={runQCLot}
+        onClose={() => setRunQCOpen(false)}
+        onDone={() => { if (tab === 'results') load(); }}
+      />
+      <LJModal
+        open={ljOpen}
+        result={ljResult}
+        onClose={() => setLjOpen(false)}
       />
     </div>
   );

@@ -268,6 +268,24 @@ export const approveTestResults = async (id: string, data: ApproveResultRequest)
   return response.data;
 };
 
+// Duyệt 2 bước: KTV duyệt sơ bộ (status 3 → 4)
+export const preliminaryApprove = async (orderId: string, technicianNote = '') => {
+  const response = await apiClient.post(`/LISComplete/orders/${orderId}/preliminary-approve`, { technicianNote });
+  return response.data;
+};
+
+// Duyệt 2 bước: BS duyệt chính thức (status 4 → 5)
+export const finalApprove = async (orderId: string, doctorNote = '') => {
+  const response = await apiClient.post(`/LISComplete/orders/${orderId}/final-approve`, { doctorNote });
+  return response.data;
+};
+
+// Hủy duyệt (status 4/5 → 3)
+export const cancelApproval = async (orderId: string, reason: string) => {
+  const response = await apiClient.post(`/LISComplete/orders/${orderId}/cancel-approval`, { reason });
+  return response.data;
+};
+
 // Print barcode label - get from API
 export const printBarcodeLabel = async (orderId: string) => {
   const response = await apiClient.get('/LISComplete/sample-collection/' + orderId + '/barcode', {
@@ -324,6 +342,9 @@ export default {
   getTestResultById,
   saveTestResults,
   approveTestResults,
+  preliminaryApprove,
+  finalApprove,
+  cancelApproval,
   printBarcodeLabel,
   printBarcode,
   printTestResultReport,

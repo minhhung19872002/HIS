@@ -1,0 +1,12 @@
+flowchart LR
+  subgraph FE["Frontend src"]
+    V2["pages-v2 v2 chính: TerminalLayout, _v2kit, ab-css"]
+    V1["pages v1 cũ: MainLayout, Antd v6"]
+    APIC["api ts: axios apiClient, DTO"]
+    SH["components, hooks, contexts, utils, constants"]
+  end
+  V2 --> APIC
+  V1 --> APIC
+  V2 --> SH
+  V1 --> SH
+  APIC -->|HTTP| BE["Backend API"]

@@ -9,6 +9,8 @@ metadata:
 
 Skill chuẩn hoá cách tạo 1 trang **v2** (giao diện TerminalLayout, prefix route `/v2/*`) bằng design pack `_v2kit` + CSS `ab-*`. Đây là layer UI chính của HIS hiện nay (toàn bộ 121 route đã chuyển v2). KHÔNG dùng cho page v1 (Antd MainLayout trong `pages/`).
 
+> Polish thẩm mỹ: áp kèm `core-ui-aesthetics` (gu + tiết chế, chống "AI-slop", KHÔNG hại UX) + `core-accessibility-pattern` (a11y/contrast) — bám đúng token `ab-*` + primitive `_v2kit`, giữ mật độ "terminal" của HIS.
+
 ## Khi nào dùng
 
 - Tạo màn hình mới dạng danh sách + chi tiết (vd: phân hệ NangCapNN mới).
