@@ -103,6 +103,7 @@ const CentralSigningV2 = lazy(() => import('./pages-v2/CentralSigning'));
 const DicomViewerV2 = lazy(() => import('./pages-v2/DicomViewer'));
 // Pharmacy stock-in (supplier receipt — Phase 1)
 const PharmacyStockInV2 = lazy(() => import('./pages-v2/PharmacyStockIn'));
+const PharmacyStockIssueV2 = lazy(() => import('./pages-v2/PharmacyStockIssue'));
 const PharmacyStockTakeV2 = lazy(() => import('./pages-v2/PharmacyStockTake'));
 // Batch 7: Pharmacy/Stock admin (v1-only routes converted to v2)
 const PharmacyApprovalV2 = lazy(() => import('./pages-v2/PharmacyApproval'));
@@ -581,6 +582,8 @@ const AppRoutes: React.FC = () => {
           <Route path="procurement" element={<ProcurementV2 />} />
           {/* Pharmacy stock-in (supplier receipt — Phase 1) */}
           <Route path="pharmacy-stock-in" element={<PharmacyStockInV2 />} />
+          {/* Pharmacy stock-issue (xuất kho — B3.1) */}
+          <Route path="pharmacy-stock-issue" element={<PharmacyStockIssueV2 />} />
           <Route path="pharmacy-stock-take" element={<PharmacyStockTakeV2 />} />
           {/* Batch 7: Pharmacy/Stock admin */}
           <Route path="pharmacy-approval" element={<PharmacyApprovalV2 />} />

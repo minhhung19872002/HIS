@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import { App as AntdApp, Input, Radio, InputNumber } from 'antd';
 import * as receptionApi from '../../api/reception';
 import type { RoomOverviewDto } from '../../api/reception';
+import { registerMultipleRooms } from '../../api/multiSpecialtyExam';
 import { ModalShell } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
 const VISIT_TYPES: { v: string; l: string; ic: string; fee: number; serviceType: number; bhyt?: boolean; emergency?: boolean }[] = [
@@ -39,7 +40,8 @@ interface WizardData {
   address: string;
   visitType: string;
   bhytNo: string;
-  dept: string;          // roomId
+  dept: string;          // roomId (phòng chính)
+  extraRooms: string[];  // roomId[] — phòng khám thêm đồng thời (chỉ thu phí/dịch vụ, KHÔNG áp dụng BHYT)
   priority: 'crit' | 'high' | 'norm';
   reason: string;
 }
@@ -82,14 +84,14 @@ export const NewVisitModal: React.FC<{
   const [bhytInfo, setBhytInfo] = useState<{ exp?: string; rate?: number } | null>(null);
   const [data, setData] = useState<WizardData>({
     patientName: '', phone: '', cccd: '', age: null, gender: 'M', address: '',
-    visitType: 'kham-bhyt', bhytNo: '', dept: '', priority: 'norm', reason: '',
+    visitType: 'kham-bhyt', bhytNo: '', dept: '', extraRooms: [], priority: 'norm', reason: '',
   });
   const set = <K extends keyof WizardData>(k: K, v: WizardData[K]) => setData((d) => ({ ...d, [k]: v }));
 
   useEffect(() => {
     if (open) {
       setStep(1); setErrs({}); setBhytChecked(false); setBhytValid(false); setBhytInfo(null);
-      setData({ patientName: '', phone: '', cccd: '', age: null, gender: 'M', address: '', visitType: 'kham-bhyt', bhytNo: '', dept: '', priority: 'norm', reason: '' });
+      setData({ patientName: '', phone: '', cccd: '', age: null, gender: 'M', address: '', visitType: 'kham-bhyt', bhytNo: '', dept: '', extraRooms: [], priority: 'norm', reason: '' });
     }
   }, [open]);
 
@@ -158,7 +160,7 @@ export const NewVisitModal: React.FC<{
           },
         });
       } else {
-        await receptionApi.registerFeePatient({
+        const feeResp = await receptionApi.registerFeePatient({
           newPatient: {
             fullName: data.patientName.trim(),
             gender: data.gender === 'F' ? 2 : 1,
@@ -170,8 +172,19 @@ export const NewVisitModal: React.FC<{
           serviceType: visitType?.serviceType ?? 3,
           roomId: data.dept, isPriority,
         });
+        // Đa chuyên khoa: đăng ký BN vào các phòng khám thêm (chỉ thu phí/dịch vụ).
+        const createdPatientId = feeResp.data?.patientId;
+        if (data.extraRooms.length > 0 && createdPatientId) {
+          await registerMultipleRooms({
+            patientId: createdPatientId,
+            patientType: visitType?.serviceType ?? 3,
+            roomIds: data.extraRooms,
+            chiefComplaint: data.reason.trim() || undefined,
+          });
+        }
       }
-      message.success(`Đã đăng ký · ${data.patientName.trim()}`);
+      const extraMsg = (!visitType?.bhyt && data.extraRooms.length > 0) ? ` · +${data.extraRooms.length} phòng thêm` : '';
+      message.success(`Đã đăng ký · ${data.patientName.trim()}${extraMsg}`);
       onDone();
     } catch (err) {
       message.error(extractApiError(err, 'Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.'));
@@ -313,7 +326,7 @@ export const NewVisitModal: React.FC<{
             <div className="rec-deptgrid">
               {rooms.map((r) => (
                 <label key={r.roomId} className={data.dept === r.roomId ? 'on' : ''}>
-                  <input type="radio" name="dept" checked={data.dept === r.roomId} onChange={() => set('dept', r.roomId)} />
+                  <input type="radio" name="dept" checked={data.dept === r.roomId} onChange={() => setData((d) => ({ ...d, dept: r.roomId, extraRooms: d.extraRooms.filter((x) => x !== r.roomId) }))} />
                   <div className="di"><TermIcon name="stethoscope" size={14} /></div>
                   <div>
                     <b>{r.departmentName || r.roomName}</b>
@@ -325,6 +338,44 @@ export const NewVisitModal: React.FC<{
               {rooms.length === 0 && <div style={{ color: 'var(--t-2)', fontSize: 12 }}>Không có phòng khám khả dụng</div>}
             </div>
             {errs.dept && <div style={{ color: 'var(--s-crit)', fontSize: 11, marginTop: 6 }}>{errs.dept}</div>}
+
+            {/* Phòng khám thêm — đa chuyên khoa (chỉ thu phí/dịch vụ, KHÔNG áp dụng BHYT) */}
+            {!visitType?.bhyt && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 11, color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>
+                  PHÒNG KHÁM THÊM <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(đồng thời · tùy chọn)</span>
+                </div>
+                <div className="rec-deptgrid">
+                  {rooms.filter((r) => r.roomId !== data.dept).map((r) => {
+                    const on = data.extraRooms.includes(r.roomId);
+                    return (
+                      <label key={r.roomId} className={on ? 'on' : ''}>
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={() => setData((d) => ({
+                            ...d,
+                            extraRooms: on
+                              ? d.extraRooms.filter((x) => x !== r.roomId)
+                              : [...d.extraRooms, r.roomId],
+                          }))}
+                        />
+                        <div className="di"><TermIcon name="plus" size={14} /></div>
+                        <div>
+                          <b>{r.departmentName || r.roomName}</b>
+                          <i>{r.roomName} · chờ {r.waitingCount ?? 0}</i>
+                        </div>
+                        {on && <span className="chip ok">+</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: 10.5, color: 'var(--t-2)', marginTop: 6 }}>
+                  BN được cấp số ở <b>tất cả</b> phòng đã chọn (khám đa chuyên khoa). Không áp dụng cho khám BHYT.
+                </div>
+              </div>
+            )}
+
             <div style={{ marginTop: 14 }}>
               <Lbl label="Lý do khám" required error={errs.reason}>
                 <Input.TextArea rows={3} value={data.reason} onChange={(e) => set('reason', e.target.value)} placeholder="Triệu chứng chính, thời gian khởi phát…" />
@@ -356,6 +407,15 @@ export const NewVisitModal: React.FC<{
                 <span style={{ color: 'var(--t-2)' }}>Hình thức</span><span>{visitType?.l}</span>
                 {data.bhytNo && <><span style={{ color: 'var(--t-2)' }}>Thẻ BHYT</span><span className="mono">{data.bhytNo} {bhytValid && <span className="chip ok" style={{ marginLeft: 6 }}>Hợp lệ</span>}</span></>}
                 <span style={{ color: 'var(--t-2)' }}>Khoa khám</span><b>{selRoom?.departmentName} · <span className="mono">{selRoom?.roomName}</span></b>
+                {!visitType?.bhyt && data.extraRooms.length > 0 && (
+                  <>
+                    <span style={{ color: 'var(--t-2)' }}>Phòng thêm</span>
+                    <span>
+                      {data.extraRooms.map((id) => rooms.find((r) => r.roomId === id)?.roomName || id).join(', ')}
+                      <span className="chip info" style={{ marginLeft: 6 }}>+{data.extraRooms.length} phòng</span>
+                    </span>
+                  </>
+                )}
                 <span style={{ color: 'var(--t-2)' }}>Lý do</span><span>{data.reason}</span>
                 <span style={{ color: 'var(--t-2)' }}>Ưu tiên</span><span><span className={`chip ${data.priority === 'crit' ? 'crit' : data.priority === 'high' ? 'warn' : 'info'}`}>{data.priority === 'crit' ? 'Cấp cứu' : data.priority === 'high' ? 'Ưu tiên' : 'Thường'}</span></span>
                 <span style={{ color: 'var(--t-2)' }}>Phí khám</span><b style={{ color: 'var(--a-cy)', fontFamily: 'var(--font-mono)' }}>{fmtVNDw(visitType?.bhyt && bhytValid ? 0 : (visitType?.fee || 0))}</b>

@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { StatusBadge } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
 import type { RawRow } from './shared';
 import { STATUS_TABS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from './shared';
 import { TempInsuranceModal, DocumentHoldModal, PhotoModal, ServiceOrderModal } from './VisitActionsModals';
+import { getReceptionWarnings } from '../../api/reception';
+import type { ReceptionWarningDto } from '../../api/reception';
 type DrawerTab = 'info' | 'audit' | 'related';
 
 export const VisitDrawerBody: React.FC<{ v: RawRow; rows: RawRow[] }> = ({ v, rows }) => {
@@ -45,6 +47,102 @@ export const VisitDrawerBody: React.FC<{ v: RawRow; rows: RawRow[] }> = ({ v, ro
 
 type ActionModal = 'tempInsurance' | 'docHold' | 'photo' | 'serviceOrder' | null;
 
+const fmtWarnMoney = (n?: number) =>
+  n != null ? n.toLocaleString('vi-VN') + ' đ' : '';
+
+/**
+ * Cảnh báo an toàn bệnh nhân ở tiếp đón (B1.7 / P0 #4).
+ * Nguồn: getReceptionWarnings(patientId) -> ReceptionWarningDto[].
+ * Màu theo isBlocking (chặn = đỏ/crit, lưu ý = vàng/warn). Hiển thị TRƯỚC mọi thao tác.
+ */
+const PatientWarnings: React.FC<{ patientId?: string }> = ({ patientId }) => {
+  const [warnings, setWarnings] = useState<ReceptionWarningDto[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    if (!patientId) { setWarnings(null); return; }
+    let alive = true;
+    setLoading(true); setErr(false);
+    getReceptionWarnings(patientId)
+      .then((r) => { if (alive) setWarnings(r.data ?? []); })
+      .catch(() => { if (alive) setErr(true); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [patientId]);
+
+  if (!patientId) return null;
+
+  if (loading) {
+    return (
+      <div className="rec-section">
+        <h5><TermIcon name="alert" size={11} /> CẢNH BÁO AN TOÀN</h5>
+        <div style={{ fontSize: 11.5, color: 'var(--t-2)' }}>Đang kiểm tra cảnh báo bệnh nhân…</div>
+      </div>
+    );
+  }
+  if (err) {
+    return (
+      <div className="rec-section">
+        <h5><TermIcon name="alert" size={11} /> CẢNH BÁO AN TOÀN</h5>
+        <div style={{ fontSize: 11.5, color: 'var(--s-crit)' }}>Không kiểm tra được cảnh báo (lỗi kết nối).</div>
+      </div>
+    );
+  }
+  if (!warnings) return null;
+
+  if (warnings.length === 0) {
+    return (
+      <div className="rec-section">
+        <div className="rec-status-banner ok" style={{ gap: 8 }}>
+          <TermIcon name="check" size={14} />
+          <span style={{ fontSize: 11.5, color: 'var(--t-2)' }}>Không có cảnh báo an toàn cho bệnh nhân này.</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Chặn lên đầu để gây chú ý.
+  const sorted = [...warnings].sort((a, b) => Number(b.isBlocking) - Number(a.isBlocking));
+  const blockingCount = warnings.filter((w) => w.isBlocking).length;
+
+  return (
+    <div className="rec-section">
+      <h5 style={{ color: blockingCount > 0 ? 'var(--s-crit)' : undefined }}>
+        <TermIcon name="alert" size={11} /> CẢNH BÁO AN TOÀN
+        {blockingCount > 0 && <i style={{ color: 'var(--s-crit)' }}>{blockingCount} chặn</i>}
+      </h5>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {sorted.map((w, i) => {
+          const tone = w.isBlocking ? 'crit' : 'warn';
+          return (
+            <div
+              key={i}
+              className={`rec-status-banner ${tone}`}
+              style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 3, padding: '8px 10px' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+                <TermIcon name="alert" size={12} />
+                <b style={{ fontSize: 12 }}>{w.warningTypeName || 'Cảnh báo'}</b>
+                <span className={`chip ${w.isBlocking ? 'crit' : 'warn'}`} style={{ marginLeft: 'auto' }}>
+                  {w.isBlocking ? 'Chặn tiếp nhận' : 'Lưu ý'}
+                </span>
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--t-1)' }}>{w.message}</div>
+              {(w.amount != null || w.date) && (
+                <div style={{ fontSize: 11, color: 'var(--t-2)', display: 'flex', gap: 12 }}>
+                  {w.amount != null && <span>Số tiền: <b>{fmtWarnMoney(w.amount)}</b></span>}
+                  {w.date && <span>Ngày: <b>{dayjs(w.date).format('DD/MM/YYYY')}</b></span>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const DrawerInfoTab: React.FC<{ v: RawRow }> = ({ v }) => {
   const sk = statusKey(v);
   const tone = statusTone(sk);
@@ -57,6 +155,9 @@ const DrawerInfoTab: React.FC<{ v: RawRow }> = ({ v }) => {
 
   return (
     <>
+      {/* Patient-safety warnings — show first (P0 an toàn BN) */}
+      <PatientWarnings patientId={v.patientId} />
+
       {/* Action buttons strip */}
       <div className="rec-section">
         <h5><TermIcon name="plus" size={11} /> THAO TÁC NHANH</h5>

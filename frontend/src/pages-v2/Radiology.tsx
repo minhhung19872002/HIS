@@ -71,15 +71,124 @@ const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM HH:mm') : '—';
 
 // ─────────────── Nhập kết quả CĐHA (enter → final-approve → in) ───────────────
 
-const FormRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+const FormRow: React.FC<{ label: string; extra?: React.ReactNode; children: React.ReactNode }> = ({ label, extra, children }) => (
   <div>
-    <div style={{
-      fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
-      letterSpacing: '0.05em', color: 'var(--t-2)', marginBottom: 6,
-    }}>{label}</div>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, minHeight: 18 }}>
+      <span style={{
+        fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+        letterSpacing: '0.05em', color: 'var(--t-2)',
+      }}>{label}</span>
+      {extra}
+    </div>
     {children}
   </div>
 );
+
+const SIGN_TYPES = [
+  { id: 'USBToken', name: 'USB Token (chữ ký số CA)' },
+  { id: 'SmartCA', name: 'SmartCA (VNPT/Viettel)' },
+  { id: 'SignServer', name: 'SignServer (HSM tập trung)' },
+  { id: 'eKYC', name: 'eKYC / OTP' },
+];
+
+/** Ký số báo cáo CĐHA — reportId = id của RadiologyResult (báo cáo đọc phim). */
+const SignResultModal: React.FC<{
+  open: boolean;
+  reportId: string | null;
+  onClose: () => void;
+  onSigned: () => void;
+}> = ({ open, reportId, onClose, onSigned }) => {
+  const { message } = AntdApp.useApp();
+  const [signatureType, setSignatureType] = useState('USBToken');
+  const [pin, setPin] = useState('');
+  const [otp, setOtp] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [history, setHistory] = useState<risApi.SignatureHistoryDto[]>([]);
+
+  useEffect(() => {
+    if (!open || !reportId) return;
+    setSignatureType('USBToken'); setPin(''); setOtp('');
+    risApi.getSignatureHistory(reportId)
+      .then((r) => setHistory(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setHistory([]));
+  }, [open, reportId]);
+
+  const needsPin = signatureType === 'USBToken' || signatureType === 'SignServer';
+  const needsOtp = signatureType === 'SmartCA' || signatureType === 'eKYC';
+
+  const submit = async () => {
+    if (!reportId) return;
+    if (needsPin && !pin.trim()) { message.warning('Nhập mã PIN của token/chứng thư'); return; }
+    if (needsOtp && !otp.trim()) { message.warning('Nhập mã OTP'); return; }
+    setBusy(true);
+    try {
+      const r = await risApi.signResult({
+        reportId,
+        signatureType,
+        pin: pin.trim() || undefined,
+        otp: otp.trim() || undefined,
+      });
+      if (r.data?.success) {
+        message.success('Đã ký số báo cáo thành công');
+        onSigned();
+        onClose();
+      } else {
+        message.error(r.data?.message || 'Ký số thất bại');
+      }
+    } catch (e) {
+      message.error((e as ApiErr)?.response?.data?.message || 'Ký số thất bại');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="sm"
+      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <TermIcon name="shield" size={14} /><span>Ký số báo cáo CĐHA</span>
+      </span>}
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+        <Btn variant="primary" onClick={submit} loading={busy} icon="check">Ký số</Btn>
+      </>}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <FormRow label="Hình thức ký">
+          <AbSelect
+            options={SIGN_TYPES}
+            fieldNames={{ value: 'id', label: 'name' }}
+            value={signatureType}
+            onChange={setSignatureType}
+            placeholder="— Chọn hình thức ký —"
+          />
+        </FormRow>
+        {needsPin && (
+          <FormRow label="Mã PIN">
+            <Input.Password value={pin} onChange={(e) => setPin(e.target.value)} placeholder="Mã PIN token / chứng thư" />
+          </FormRow>
+        )}
+        {needsOtp && (
+          <FormRow label="Mã OTP">
+            <Input value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="Mã OTP nhận qua app/SMS" />
+          </FormRow>
+        )}
+        {history.length > 0 && (
+          <div className="rec-section" style={{ marginTop: 4 }}>
+            <h5><TermIcon name="check" size={11} /> ĐÃ KÝ ({history.length})</h5>
+            {history.map((h) => (
+              <div key={h.id} style={{ fontSize: 11.5, color: 'var(--t-2)', padding: '3px 0' }}>
+                <b style={{ color: h.isValid ? 'var(--s-ok, #16a34a)' : 'var(--s-crit)' }}>{h.signedByName}</b>
+                {' · '}{h.signatureType}{' · '}{fmtDT(h.signedTime)}
+                {!h.isValid && <span style={{ color: 'var(--s-crit)' }}> · không hợp lệ</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </ModalShell>
+  );
+};
 
 const ResultEntryModal: React.FC<{
   open: boolean;
@@ -98,6 +207,29 @@ const ResultEntryModal: React.FC<{
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [expandingField, setExpandingField] = useState<'desc' | 'concl' | null>(null);
+  const [signOpen, setSignOpen] = useState(false);
+
+  // Bung viết tắt: gọi expandAbbreviations rồi thay nội dung ô tương ứng.
+  const expandField = async (which: 'desc' | 'concl') => {
+    const text = which === 'desc' ? description : conclusion;
+    const setter = which === 'desc' ? setDescription : setConclusion;
+    const label = which === 'desc' ? 'mô tả' : 'kết luận';
+    if (!text.trim()) { message.info('Chưa có nội dung để bung viết tắt'); return; }
+    setExpandingField(which);
+    try {
+      const r = await risApi.expandAbbreviations({ text });
+      const d = r.data;
+      if (d) {
+        setter(d.expandedText);
+        message.success(d.expansionsApplied > 0
+          ? `Đã bung ${d.expansionsApplied} viết tắt ở phần ${label}`
+          : `Không có viết tắt nào ở phần ${label}`);
+      }
+    } catch {
+      message.error('Không bung được viết tắt');
+    } finally { setExpandingField(null); }
+  };
 
   // Nạp mẫu KQ theo dịch vụ + prefill nếu đã có KQ cũ.
   useEffect(() => {
@@ -188,6 +320,7 @@ const ResultEntryModal: React.FC<{
   const busy = saving || approving;
 
   return (
+    <>
     <ModalShell
       open={open}
       onClose={onClose}
@@ -200,6 +333,11 @@ const ResultEntryModal: React.FC<{
       footer={<>
         <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
         <span style={{ flex: 1 }} />
+        {resultId && (
+          <Btn onClick={() => setSignOpen(true)} disabled={busy}>
+            <TermIcon name="shield" size={12} /> Ký số
+          </Btn>
+        )}
         {resultId && (
           <Btn onClick={handlePrint} loading={printing} icon="print">In phiếu</Btn>
         )}
@@ -217,11 +355,27 @@ const ResultEntryModal: React.FC<{
             placeholder={templates.length ? '— Chọn mẫu để điền nhanh —' : '(Không có mẫu)'}
           />
         </FormRow>
-        <FormRow label="Mô tả hình ảnh">
+        <FormRow
+          label="Mô tả hình ảnh"
+          extra={
+            <Btn variant="ghost" size="sm" onClick={() => void expandField('desc')}
+              loading={expandingField === 'desc'} disabled={busy}>
+              <TermIcon name="zap" size={11} /> Bung viết tắt
+            </Btn>
+          }
+        >
           <Input.TextArea rows={6} value={description} onChange={(e) => setDescription(e.target.value)}
             placeholder="Nhập mô tả chi tiết hình ảnh…" disabled={busy} />
         </FormRow>
-        <FormRow label="Kết luận">
+        <FormRow
+          label="Kết luận"
+          extra={
+            <Btn variant="ghost" size="sm" onClick={() => void expandField('concl')}
+              loading={expandingField === 'concl'} disabled={busy}>
+              <TermIcon name="zap" size={11} /> Bung viết tắt
+            </Btn>
+          }
+        >
           <Input.TextArea rows={4} value={conclusion} onChange={(e) => setConclusion(e.target.value)}
             placeholder="Nhập kết luận…" disabled={busy} />
         </FormRow>
@@ -231,6 +385,13 @@ const ResultEntryModal: React.FC<{
         </FormRow>
       </div>
     </ModalShell>
+    <SignResultModal
+      open={signOpen}
+      reportId={resultId}
+      onClose={() => setSignOpen(false)}
+      onSigned={onSaved}
+    />
+    </>
   );
 };
 
@@ -384,6 +545,14 @@ const RadiologyV2: React.FC = () => {
     if (!firstItem) { message.warning('Không có ảnh DICOM'); return; }
     message.info('Mở DICOM Viewer (TODO)');
   };
+  const onStartExam = async (r: RadiologyOrderDto) => {
+    try { await risApi.startExam(r.id); message.success('Đã bắt đầu ca chụp'); reload(); }
+    catch (e) { message.error((e as ApiErr)?.response?.data?.message || 'Không bắt đầu được ca'); }
+  };
+  const onCompleteExam = async (r: RadiologyOrderDto) => {
+    try { await risApi.completeExam(r.id); message.success('Đã hoàn thành ca chụp'); reload(); }
+    catch (e) { message.error((e as ApiErr)?.response?.data?.message || 'Không hoàn thành được ca'); }
+  };
 
   return (
     <div className="ab">
@@ -448,6 +617,12 @@ const RadiologyV2: React.FC = () => {
             <div className="ab-actions">
               {r.items?.[0]?.hasResult && (
                 <ActBtn ic="eye" title="Xem KQ" onClick={() => setDetail(r)} />
+              )}
+              {sk === 'scheduled' && (
+                <ActBtn ic="play" title="Bắt đầu chụp" onClick={() => void onStartExam(r)} />
+              )}
+              {sk === 'imaging' && (
+                <ActBtn ic="check" title="Hoàn thành chụp" onClick={() => void onCompleteExam(r)} />
               )}
               {sk !== 'cancelled' && sk !== 'reported' && (
                 <ActBtn ic="edit" title="Nhập kết quả" onClick={() => setResultTarget(r)} />

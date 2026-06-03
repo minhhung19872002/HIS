@@ -4,6 +4,7 @@ import { App as AntdApp, Input, Select } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { getInpatientList, getWardLayout, admitFromOpd } from '../api/inpatient';
 import type { InpatientListDto, WardLayoutDto, BedLayoutDto } from '../api/inpatient';
+import TreatmentMonitorSection from './inpatient/TreatmentMonitorSection';
 import { catalogApi } from '../api/system';
 import type { DepartmentCatalogDto } from '../api/system';
 import {
@@ -421,6 +422,7 @@ const InpatientV2: React.FC = () => {
                 </div>
               </div>
             )}
+            <TreatmentMonitorSection patient={detail} onRefresh={loadData} />
           </div>
         )}
       </DrawerShell>

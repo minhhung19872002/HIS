@@ -11,7 +11,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { KpiStrip, StatusBadge, ActBtn, Btn, fmtVNDg, tk, tw, te, ti } from './_v2kit';
+import { KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, fmtVNDg, tk, tw, te, ti } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 import BarcodeScanner from '../components/BarcodeScanner';
 import {
@@ -19,6 +19,16 @@ import {
   type RoomDto, type RoomPatientListDto, type IcdCodeFullDto, type ServiceDto,
   type ServiceOrderFullDto, type DiagnosisFullDto,
 } from '../api/examination';
+import {
+  addFollowUpSpecialty,
+  changeRoomBeforeExam,
+  getCompletionStatus,
+  printBill,
+  cancelPrintBill,
+  cancelCompletion,
+  deleteRegistration,
+  type ExamCompletionStatus,
+} from '../api/multiSpecialtyExam';
 import '../layouts/terminal/ed-responsive.css';
 
 interface Vitals { pulse?: number; temperature?: number; systolicBP?: number; diastolicBP?: number; respiratoryRate?: number; spO2?: number; weight?: number; height?: number; }
@@ -65,7 +75,43 @@ const OpdEditorV2: React.FC = () => {
   const [svcResults, setSvcResults] = useState<ServiceDto[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // ── Đa chuyên khoa state ─────────────────────────────────────────
+  const [completion, setCompletion] = useState<ExamCompletionStatus | null>(null);
+
+  // Modal: khám thêm CK khác
+  const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [followUpRoomId, setFollowUpRoomId] = useState('');
+  const [followUpReason, setFollowUpReason] = useState('');
+  const [followUpSaving, setFollowUpSaving] = useState(false);
+
+  // Modal: đổi phòng trước khám
+  const [changeRoomOpen, setChangeRoomOpen] = useState(false);
+  const [changeRoomNewId, setChangeRoomNewId] = useState('');
+  const [changeRoomReason, setChangeRoomReason] = useState('');
+  const [changeRoomSaving, setChangeRoomSaving] = useState(false);
+
+  // Modal: xóa đăng ký
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteSaving, setDeleteSaving] = useState(false);
+
   const examId = selPt?.examinationId ?? null;
+
+  // ── Completion status: load when patient selected, clear when deselected ──
+  const refreshCompletion = useCallback(async (eid: string) => {
+    try {
+      const status = await getCompletionStatus(eid);
+      setCompletion(status);
+    } catch {
+      setCompletion(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!examId) { setCompletion(null); return; }
+    refreshCompletion(examId);
+  }, [examId, refreshCompletion]);
+
   const bmi = vitals.weight && vitals.height ? (vitals.weight / ((vitals.height / 100) ** 2)) : null;
   const bmiStr = bmi ? bmi.toFixed(1) : '—';
   const totalSvc = orders.reduce((s, o) => s + o.unitPrice * o.qty, 0);
@@ -405,7 +451,351 @@ const OpdEditorV2: React.FC = () => {
           <Btn variant="ghost" onClick={() => tk('Đã gửi máy in')}><TermIcon name="print" size={12} /> In phiếu khám</Btn>
           <Btn variant="primary" disabled={saving} onClick={complete}><TermIcon name="check" size={12} /> Hoàn tất khám</Btn>
         </div>
+
+        {/* ── ĐA CHUYÊN KHOA ─────────────────────────────────── */}
+        <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
+          <h4 style={{ margin: '0 0 10px', fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Đa chuyên khoa</h4>
+
+          {/* 1. Khám thêm CK khác */}
+          <div style={{ display: 'grid', gap: 6, marginBottom: 10 }}>
+            <Btn
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+                setFollowUpRoomId('');
+                setFollowUpReason('');
+                setFollowUpOpen(true);
+              }}
+            >
+              <TermIcon name="plus" size={11} /> Khám thêm CK khác
+            </Btn>
+
+            {/* 2. Đổi phòng (trước khám) — chỉ khi status Chờ hoặc Gọi */}
+            <Btn
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+                if (selPt?.status !== 0 && selPt?.status !== 1) {
+                  tw('Chỉ có thể đổi phòng khi bệnh nhân đang Chờ hoặc Gọi');
+                  return;
+                }
+                setChangeRoomNewId('');
+                setChangeRoomReason('');
+                setChangeRoomOpen(true);
+              }}
+              disabled={examId !== null && selPt?.status !== 0 && selPt?.status !== 1}
+            >
+              <TermIcon name="arrow-right" size={11} /> Đổi phòng (trước khám)
+            </Btn>
+          </div>
+
+          {/* 3. Bảng kê chi phí — completion status */}
+          <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, marginBottom: 8 }}>
+            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)', marginBottom: 6 }}>Bảng kê chi phí</div>
+            {completion ? (
+              <>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6, fontSize: 11 }}>
+                  <span>Hoàn tất: <b style={{ color: completion.isCompleted ? 'var(--s-ok)' : 'var(--t-2)' }}>{completion.isCompleted ? '✓' : '✗'}</b></span>
+                  <span>Đã in BK: <b style={{ color: completion.isBillPrinted ? 'var(--s-ok)' : 'var(--t-2)' }}>{completion.isBillPrinted ? '✓' : '✗'}</b></span>
+                  {completion.totalExamsInChain > 1 && (
+                    <span style={{ color: 'var(--t-2)' }}>{completion.completedExamsInChain}/{completion.totalExamsInChain} CK</span>
+                  )}
+                </div>
+                {completion.blockReason && (
+                  <div style={{ fontSize: 11, color: 'var(--s-warn)', marginBottom: 6, padding: '4px 6px', background: 'var(--d-1)', borderRadius: 4, borderLeft: '3px solid var(--s-warn)' }}>
+                    {completion.blockReason}
+                  </div>
+                )}
+                <div style={{ display: 'grid', gap: 5 }}>
+                  {/* In bảng kê */}
+                  {completion.canPrintBill && (
+                    <Btn
+                      variant="ok"
+                      size="sm"
+                      onClick={async () => {
+                        if (!examId) return;
+                        try {
+                          const result = await printBill(examId);
+                          tk('Đã in chi phí (bảng kê)');
+                          setCompletion(result);
+                        } catch (err: unknown) {
+                          const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                          te(msg || 'Không thể in bảng kê chi phí');
+                        }
+                      }}
+                    >
+                      <TermIcon name="print" size={11} /> In bảng kê chi phí
+                    </Btn>
+                  )}
+                  {/* Hủy in chi phí */}
+                  {completion.isBillPrinted && (
+                    <Btn
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        if (!examId) return;
+                        try {
+                          const result = await cancelPrintBill(examId);
+                          tk('Đã hủy in chi phí');
+                          setCompletion(result);
+                        } catch (err: unknown) {
+                          const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                          te(msg || 'Không thể hủy in chi phí');
+                        }
+                      }}
+                    >
+                      <TermIcon name="x" size={11} /> Hủy in chi phí
+                    </Btn>
+                  )}
+                  {/* Hủy hoàn tất */}
+                  {completion.isCompleted && (
+                    <Btn
+                      variant="crit"
+                      size="sm"
+                      onClick={async () => {
+                        if (!examId) return;
+                        // Cảnh báo nếu đã in bảng kê
+                        const confirmed = window.confirm(
+                          'Hủy hoàn tất? Phiên khám trở về Đang khám.' +
+                          (completion.isBillPrinted ? ' Cần hủy in chi phí trước nếu có.' : ''),
+                        );
+                        if (!confirmed) return;
+                        try {
+                          const result = await cancelCompletion(examId);
+                          tk('Đã hủy hoàn tất');
+                          setCompletion(result);
+                          loadQueue(roomId);
+                        } catch (err: unknown) {
+                          const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                          te(msg || 'Không thể hủy hoàn tất');
+                        }
+                      }}
+                    >
+                      <TermIcon name="refresh" size={11} /> Hủy hoàn tất (về Đang khám)
+                    </Btn>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 11, color: 'var(--t-3)' }}>{examId ? 'Đang tải…' : 'Chọn bệnh nhân để xem trạng thái'}</div>
+            )}
+          </div>
+
+          {/* 4. Xóa đăng ký — destructive */}
+          <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8 }}>
+            <Btn
+              variant="crit"
+              size="sm"
+              style={{ width: '100%', justifyContent: 'center' }}
+              onClick={() => {
+                if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+                setDeleteReason('');
+                setDeleteOpen(true);
+              }}
+            >
+              <TermIcon name="trash" size={11} /> Xóa đăng ký khám
+            </Btn>
+          </div>
+        </section>
       </aside>
+
+      {/* ── Modal: Khám thêm CK khác ─────────────────────────────────── */}
+      <ModalShell
+        open={followUpOpen}
+        onClose={() => setFollowUpOpen(false)}
+        title="Khám thêm chuyên khoa khác"
+        sub="Tạo phiên khám tại phòng chuyên khoa khác cho bệnh nhân này"
+        size="sm"
+        footer={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Btn variant="ghost" size="sm" onClick={() => setFollowUpOpen(false)}>Hủy</Btn>
+            <Btn
+              variant="primary"
+              size="sm"
+              disabled={!followUpRoomId || followUpSaving}
+              onClick={async () => {
+                if (!examId || !followUpRoomId) return;
+                setFollowUpSaving(true);
+                try {
+                  const result = await addFollowUpSpecialty({
+                    parentExaminationId: examId,
+                    roomId: followUpRoomId,
+                    reason: followUpReason || undefined,
+                  });
+                  tk(`Đã tạo phiên khám CK khác — Phòng ${result.roomName}, STT ${result.queueNumber}`);
+                  setFollowUpOpen(false);
+                  loadQueue(roomId);
+                } catch (err: unknown) {
+                  const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                  te(msg || 'Không thêm được phiên khám CK khác');
+                } finally {
+                  setFollowUpSaving(false);
+                }
+              }}
+            >
+              <TermIcon name="plus" size={11} /> Tạo phiên khám
+            </Btn>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Phòng chuyên khoa <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <select
+              className="hui-inp hui-sel"
+              value={followUpRoomId}
+              onChange={(e) => setFollowUpRoomId(e.target.value)}
+              style={{ width: '100%', height: 30 }}
+            >
+              <option value="">(Chọn phòng)</option>
+              {rooms.filter((r) => r.id !== roomId).map((r) => (
+                <option key={r.id} value={r.id}>{r.code} · {r.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do (tùy chọn)</label>
+            <textarea
+              className="hui-inp"
+              value={followUpReason}
+              onChange={(e) => setFollowUpReason(e.target.value)}
+              placeholder="Lý do chuyển khám chuyên khoa…"
+              rows={3}
+              style={{ width: '100%', resize: 'vertical' }}
+            />
+          </div>
+        </div>
+      </ModalShell>
+
+      {/* ── Modal: Đổi phòng trước khám ──────────────────────────────── */}
+      <ModalShell
+        open={changeRoomOpen}
+        onClose={() => setChangeRoomOpen(false)}
+        title="Đổi phòng trước khi khám"
+        sub="Chuyển bệnh nhân sang phòng khám khác (chỉ khi chưa bắt đầu khám)"
+        size="sm"
+        footer={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Btn variant="ghost" size="sm" onClick={() => setChangeRoomOpen(false)}>Hủy</Btn>
+            <Btn
+              variant="primary"
+              size="sm"
+              disabled={!changeRoomNewId || changeRoomSaving}
+              onClick={async () => {
+                if (!examId || !changeRoomNewId) return;
+                setChangeRoomSaving(true);
+                try {
+                  await changeRoomBeforeExam({
+                    examinationId: examId,
+                    newRoomId: changeRoomNewId,
+                    reason: changeRoomReason || undefined,
+                  });
+                  tk('Đã đổi phòng trước khám');
+                  setChangeRoomOpen(false);
+                  setSelPt(null);
+                  loadQueue(roomId);
+                } catch (err: unknown) {
+                  const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                  te(msg || 'Không thể đổi phòng');
+                } finally {
+                  setChangeRoomSaving(false);
+                }
+              }}
+            >
+              <TermIcon name="arrow-right" size={11} /> Xác nhận đổi phòng
+            </Btn>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Phòng mới <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <select
+              className="hui-inp hui-sel"
+              value={changeRoomNewId}
+              onChange={(e) => setChangeRoomNewId(e.target.value)}
+              style={{ width: '100%', height: 30 }}
+            >
+              <option value="">(Chọn phòng)</option>
+              {rooms.filter((r) => r.id !== roomId).map((r) => (
+                <option key={r.id} value={r.id}>{r.code} · {r.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do (tùy chọn)</label>
+            <textarea
+              className="hui-inp"
+              value={changeRoomReason}
+              onChange={(e) => setChangeRoomReason(e.target.value)}
+              placeholder="Lý do đổi phòng…"
+              rows={3}
+              style={{ width: '100%', resize: 'vertical' }}
+            />
+          </div>
+        </div>
+      </ModalShell>
+
+      {/* ── Modal: Xóa đăng ký khám ──────────────────────────────────── */}
+      <ModalShell
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Xóa đăng ký khám"
+        sub="Thao tác này không thể hoàn tác"
+        size="sm"
+        tone="danger"
+        footer={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Btn variant="ghost" size="sm" onClick={() => setDeleteOpen(false)}>Hủy</Btn>
+            <Btn
+              variant="crit"
+              size="sm"
+              disabled={!deleteReason.trim() || deleteSaving}
+              onClick={async () => {
+                if (!examId || !deleteReason.trim()) return;
+                setDeleteSaving(true);
+                try {
+                  await deleteRegistration(examId, deleteReason.trim());
+                  tk('Đã xóa đăng ký khám');
+                  setDeleteOpen(false);
+                  setSelPt(null);
+                  setCompletion(null);
+                  loadQueue(roomId);
+                } catch (err: unknown) {
+                  const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                  te(msg || 'Không thể xóa đăng ký khám');
+                } finally {
+                  setDeleteSaving(false);
+                }
+              }}
+            >
+              <TermIcon name="trash" size={11} /> Xóa đăng ký
+            </Btn>
+          </div>
+        }
+      >
+        <div>
+          <div style={{ marginBottom: 10, fontSize: 12, color: 'var(--t-1)' }}>
+            Xóa đăng ký khám của <b>{selPt?.patientName}</b> (STT {selPt?.queueNumber})?
+          </div>
+          <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>
+            Lý do xóa <span style={{ color: 'var(--s-err)' }}>*</span>
+          </label>
+          <textarea
+            className="hui-inp"
+            value={deleteReason}
+            onChange={(e) => setDeleteReason(e.target.value)}
+            placeholder="Bắt buộc nhập lý do xóa…"
+            rows={3}
+            style={{ width: '100%', resize: 'vertical', borderColor: !deleteReason.trim() ? 'var(--s-err)' : undefined }}
+          />
+          {!deleteReason.trim() && (
+            <div style={{ fontSize: 11, color: 'var(--s-err)', marginTop: 4 }}>Lý do không được để trống</div>
+          )}
+        </div>
+      </ModalShell>
 
       {/* Responsive toggles */}
       {(leftOpen || rightOpen) && <div className="ed-panel-backdrop" onClick={closeAll} />}
