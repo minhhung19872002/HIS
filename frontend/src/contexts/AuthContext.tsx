@@ -58,10 +58,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // → flicker UX. ProtectedRoute đã handle isLoading=true (App.tsx:292).
       if (token) {
         try {
-          const response = await authApi.getCurrentUser();
-          if (response.success && response.data) {
-            setUser(response.data);
-            localStorage.setItem('user', JSON.stringify(response.data));
+          const raw = await authApi.getCurrentUser() as any;
+          // Tolerant: interceptor unwrap → raw đã là User; fallback raw.data nếu chưa unwrap.
+          const me = (raw && ('id' in raw || 'username' in raw)) ? raw : raw?.data;
+          if (me && (me.id || me.username)) {
+            setUser(me);
+            localStorage.setItem('user', JSON.stringify(me));
           } else {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
@@ -97,24 +99,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (data: LoginRequest): Promise<LoginResult> => {
     try {
-      const response = await authApi.login(data);
-      if (response.success && response.data) {
+      const raw = await authApi.login(data) as any;
+      // Tolerant cả 2 shape: apiClient interceptor (client.ts) auto-unwrap envelope
+      // {success,data} → raw đã là payload bên trong. Nếu vì lý do nào đó chưa unwrap,
+      // fallback raw.data. (Trước đây check response.success → luôn undefined → login vỡ.)
+      const payload = (raw && ('token' in raw || 'requiresOtp' in raw)) ? raw : raw?.data;
+      if (payload) {
         // Check if OTP is required
-        if (response.data.requiresOtp && response.data.otpUserId) {
+        if (payload.requiresOtp && payload.otpUserId) {
           setOtpPending({
-            userId: response.data.otpUserId,
-            maskedEmail: response.data.maskedEmail || '***@***',
-            expiresAt: response.data.otpExpiresAt || new Date(Date.now() + 5 * 60000).toISOString(),
+            userId: payload.otpUserId,
+            maskedEmail: payload.maskedEmail || '***@***',
+            expiresAt: payload.otpExpiresAt || new Date(Date.now() + 5 * 60000).toISOString(),
           });
           return 'otp';
         }
 
         // Normal login (no 2FA)
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        setUser(response.data.user);
-        checkExpiryAlertsOnLogin();
-        return 'success';
+        if (payload.token) {
+          localStorage.setItem('token', payload.token);
+          localStorage.setItem('user', JSON.stringify(payload.user));
+          setUser(payload.user);
+          checkExpiryAlertsOnLogin();
+          return 'success';
+        }
       }
       return false;
     } catch (err) {
@@ -126,11 +134,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const verifyOtp = async (otpCode: string): Promise<boolean> => {
     if (!otpPending) return false;
     try {
-      const response = await authApi.verifyOtp(otpPending.userId, otpCode);
-      if (response.success && response.data && response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        setUser(response.data.user);
+      const raw = await authApi.verifyOtp(otpPending.userId, otpCode) as any;
+      // Tolerant cả 2 shape (xem ghi chú ở login): payload đã unwrap hoặc raw.data.
+      const payload = (raw && 'token' in raw) ? raw : raw?.data;
+      if (payload && payload.token) {
+        localStorage.setItem('token', payload.token);
+        localStorage.setItem('user', JSON.stringify(payload.user));
+        setUser(payload.user);
         setOtpPending(null);
         checkExpiryAlertsOnLogin();
         return true;
@@ -145,8 +155,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const resendOtp = async (): Promise<boolean> => {
     if (!otpPending) return false;
     try {
-      const response = await authApi.resendOtp(otpPending.userId);
-      return response.success;
+      const raw = await authApi.resendOtp(otpPending.userId) as any;
+      // Tolerant: interceptor unwrap → raw là boolean; fallback raw.success nếu chưa unwrap.
+      return typeof raw === 'boolean' ? raw : !!raw?.success;
     } catch (err) {
       logAuthError('resendOtp', err);
       return false;
