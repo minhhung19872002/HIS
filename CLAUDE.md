@@ -85,6 +85,9 @@ If a new service/controller is added, register it there or you get 500 errors.
   → skill `his-fe-page-v2`.
 - **v1 (cũ)** — `frontend/src/pages/`, `MainLayout`, Antd v6 → skill `his-fe-antd-v6`.
 - **API client** — `frontend/src/api/*.ts` qua axios `apiClient`; login trả `{data:{token}}` → skill `his-fe-api-client`.
+  ⚠️ Interceptor (`client.ts`) **auto-unwrap envelope** `{success,data}` → caller nhận thẳng `data` bên trong.
+  **KHÔNG check `response.success`/`.data` sau khi gọi `apiClient`** — mismatch này từng làm hỏng login prod
+  (fix tolerant 2 shape trong `AuthContext.tsx`, commit `92d35a2`). Code mới: đọc payload đã-unwrap trực tiếp.
 - Khi xóa nợ kỹ thuật FE: **ưu tiên `pages-v2/` trước `pages/`**.
 
 ### Backend
