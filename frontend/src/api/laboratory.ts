@@ -286,6 +286,33 @@ export const cancelApproval = async (orderId: string, reason: string) => {
   return response.data;
 };
 
+// ── Hủy chuỗi ngược workflow XN (M3.14 — LabCancelChainController) ──
+// Thao tác theo TỪNG LabRequestItem; backend validate bước trước phải hủy trước.
+export interface CancelChainResponse {
+  success: boolean;
+  newStatus: number;
+  newStatusLabel: string;
+  message: string;
+}
+
+// Step 1: Hủy duyệt kết quả (item 4 → 3)
+export const cancelChainApproval = async (labRequestItemId: string, reason: string) => {
+  const response = await apiClient.post<CancelChainResponse>('/laboratory/cancel-chain/cancel-approval', { labRequestItemId, reason });
+  return response.data;
+};
+
+// Step 2: Hủy kết quả + hủy xác nhận mẫu (item 2/3 → 1)
+export const cancelChainResult = async (labRequestItemId: string, reason: string) => {
+  const response = await apiClient.post<CancelChainResponse>('/laboratory/cancel-chain/cancel-result', { labRequestItemId, reason });
+  return response.data;
+};
+
+// Step 3: Hủy lấy mẫu (item 1 → 0)
+export const cancelChainCollection = async (labRequestItemId: string, reason: string) => {
+  const response = await apiClient.post<CancelChainResponse>('/laboratory/cancel-chain/cancel-collection', { labRequestItemId, reason });
+  return response.data;
+};
+
 // Print barcode label - get from API
 export const printBarcodeLabel = async (orderId: string) => {
   const response = await apiClient.get('/LISComplete/sample-collection/' + orderId + '/barcode', {
@@ -330,6 +357,42 @@ export const getTestTemplates = async () => {
 export const getAnalyzers = async () => {
   const response = await apiClient.get('/LISComplete/analyzers');
   return response.data;
+};
+
+// ── G-01: Trả KQ XN tại giường (nội trú) ──────────────────────────────────
+
+export interface BedLabTestItem {
+  id: string;
+  labOrderId: string;
+  testCode: string;
+  testName: string;
+  sampleTypeName?: string;
+  result?: string;
+  unit?: string;
+  referenceRange?: string;
+  abnormalFlag?: number; // 0=BT, 1=Thấp, 2=Cao, 3=Nguy hiểm thấp, 4=Nguy hiểm cao
+  status: number; // 0=Chờ, 1=Có mẫu, 2=Đang XN, 3=Có KQ, 4=Đã duyệt
+  statusName: string;
+  notes?: string;
+}
+
+export interface BedLabOrder {
+  id: string;
+  orderCode: string;
+  orderDoctorName: string;
+  diagnosis?: string;
+  icdCode?: string;
+  status: number; // 0=Chờ lấy mẫu, 3=Chờ duyệt, 4=Đã duyệt sơ bộ, 5=Hoàn thành
+  statusName: string;
+  orderedAt: string;
+  approvedAt?: string;
+  tests: BedLabTestItem[];
+}
+
+/** Lấy danh sách phiếu XN theo lượt nội trú (admissionId) */
+export const getLabOrdersByAdmission = async (admissionId: string): Promise<BedLabOrder[]> => {
+  const response = await apiClient.get<BedLabOrder[]>(`/LISComplete/orders/by-admission/${admissionId}`);
+  return response.data || [];
 };
 
 export default {

@@ -6,7 +6,7 @@ import * as labApi from '../api/laboratory';
 import type { LabRequest, LabTestItem } from '../api/laboratory';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell,
+  StatusBadge, ActBtn, Btn, DrawerShell, ModalShell,
   type ColumnDef, type StatusTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -80,6 +80,13 @@ const LaboratoryV2: React.FC = () => {
   const [detail, setDetail] = useState<LabRequest | null>(null);
   const [date, setDate]   = useState(() => dayjs());
   const PAGE_SIZE = 18;
+
+  // Hủy ngược chuỗi workflow (M3.14): mức hủy + lý do, áp cho mọi test item của phiếu
+  const [chainOpen, setChainOpen] = useState(false);
+  const [chainTarget, setChainTarget] = useState<LabRequest | null>(null);
+  const [chainLevel, setChainLevel] = useState<1 | 2 | 3>(1);
+  const [chainReason, setChainReason] = useState('');
+  const [chainBusy, setChainBusy] = useState(false);
 
   const reload = () => {
     setLoading(true);
@@ -196,6 +203,37 @@ const LaboratoryV2: React.FC = () => {
   const onPrintRow = async (r: LabRequest) => {
     try { await printLabResultBlob(r.id); }
     catch { message.error('Không in được phiếu'); }
+  };
+
+  const openChainCancel = (r: LabRequest) => {
+    setChainTarget(r); setChainLevel(1); setChainReason(''); setChainOpen(true);
+  };
+
+  /**
+   * Hủy ngược chuỗi cho mọi test item của phiếu, tuần tự theo bước backend:
+   * 4→3 (hủy duyệt) → 3/2→1 (hủy KQ + nhận mẫu) → 1→0 (hủy lấy mẫu).
+   * Mỗi bước backend tự validate; item không đúng trạng thái sẽ bị bỏ qua.
+   */
+  const runChainCancel = async () => {
+    if (!chainTarget) return;
+    if (!chainReason.trim()) { message.warning('Cần nhập lý do hủy'); return; }
+    const items = chainTarget.tests || [];
+    if (items.length === 0) { message.warning('Phiếu không có test item để hủy'); return; }
+    setChainBusy(true);
+    const reason = chainReason.trim();
+    let touched = 0;
+    for (const t of items) {
+      const r1 = await labApi.cancelChainApproval(t.id, reason).catch(() => null);
+      const r2 = chainLevel >= 2 ? await labApi.cancelChainResult(t.id, reason).catch(() => null) : null;
+      const r3 = chainLevel >= 3 ? await labApi.cancelChainCollection(t.id, reason).catch(() => null) : null;
+      if (r1 || r2 || r3) touched += 1;
+    }
+    setChainBusy(false);
+    setChainOpen(false);
+    if (touched > 0) message.success(`Đã hủy ngược chuỗi ${touched}/${items.length} chỉ số · ${chainTarget.requestCode}`);
+    else message.warning('Không có chỉ số nào hủy được — kiểm tra trạng thái từng bước');
+    setDetail(null);
+    reload();
   };
 
   const columns: ColumnDef<LabRequest>[] = [
@@ -378,7 +416,15 @@ const LaboratoryV2: React.FC = () => {
         footer={detail ? (
           <>
             <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
+            <Btn variant="ghost" onClick={() => navigate(`/v2/emr/edit?patientId=${encodeURIComponent(detail.patientId)}`)}>
+              <TermIcon name="folder" size={12} /> Hồ sơ BA
+            </Btn>
             <span style={{ flex: 1 }} />
+            {detail.status >= 1 && (
+              <Btn onClick={() => openChainCancel(detail)}>
+                <TermIcon name="refresh" size={12} /> Hủy ngược chuỗi
+              </Btn>
+            )}
             {detail.status >= 4 && (
               <Btn onClick={() => onCancelApproval(detail)}>
                 <TermIcon name="x" size={12} /> Hủy duyệt
@@ -407,6 +453,52 @@ const LaboratoryV2: React.FC = () => {
       >
         {detail && <LabDrawerBody r={detail} />}
       </DrawerShell>
+
+      {/* ── Modal: hủy ngược chuỗi workflow XN ───────────────────────── */}
+      <ModalShell
+        open={chainOpen}
+        onClose={() => { if (!chainBusy) setChainOpen(false); }}
+        title="Hủy ngược chuỗi xét nghiệm"
+        sub={chainTarget ? `${chainTarget.requestCode} · ${chainTarget.patientName} · ${(chainTarget.tests || []).length} chỉ số` : ''}
+        size="sm"
+        tone="danger"
+        footer={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Btn variant="ghost" size="sm" disabled={chainBusy} onClick={() => setChainOpen(false)}>Hủy bỏ</Btn>
+            <Btn variant="crit" size="sm" disabled={chainBusy || !chainReason.trim()} onClick={runChainCancel}>
+              <TermIcon name="refresh" size={11} /> {chainBusy ? 'Đang xử lý…' : 'Thực hiện hủy'}
+            </Btn>
+          </div>
+        }
+      >
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 6 }}>Mức hủy (áp cho mọi chỉ số của phiếu, chạy tuần tự theo bước)</label>
+            {([
+              { v: 1 as const, l: 'Hủy duyệt kết quả', d: 'Đã duyệt → Đã có KQ' },
+              { v: 2 as const, l: 'Hủy KQ + hủy nhận mẫu', d: 'Đã có KQ / Đang xử lý → Đã lấy mẫu (xóa kết quả)' },
+              { v: 3 as const, l: 'Hủy lấy mẫu', d: 'Đã lấy mẫu → Chờ lấy mẫu (hủy toàn bộ về đầu)' },
+            ]).map((o) => (
+              <label key={o.v} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 6, marginBottom: 4, cursor: 'pointer', background: chainLevel === o.v ? 'var(--d-1)' : 'transparent' }}>
+                <input type="radio" name="chain-level" checked={chainLevel === o.v} onChange={() => setChainLevel(o.v)} style={{ marginTop: 2 }} />
+                <span>
+                  <b style={{ fontSize: 12 }}>{o.l}</b>
+                  <span style={{ display: 'block', fontSize: 11, color: 'var(--t-2)' }}>{o.d}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do hủy <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={chainReason} onChange={(e) => setChainReason(e.target.value)} placeholder="Bắt buộc — ghi vào ghi chú KTV của từng chỉ số…" />
+          </div>
+          {chainLevel >= 2 && (
+            <div style={{ fontSize: 11.5, color: 'var(--s-warn)', padding: '6px 8px', background: 'var(--d-1)', borderRadius: 4, borderLeft: '3px solid var(--s-warn)' }}>
+              ⚠ Mức này XÓA kết quả đã nhập của các chỉ số — không thể hoàn tác.
+            </div>
+          )}
+        </div>
+      </ModalShell>
     </div>
   );
 };
