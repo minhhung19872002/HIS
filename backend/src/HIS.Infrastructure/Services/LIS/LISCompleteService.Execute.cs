@@ -248,12 +248,203 @@ public partial class LISCompleteService {
 
     public async Task<SendWorklistResultDto> SendWorklistToAnalyzerAsync(SendWorklistDto dto)
     {
-        return new SendWorklistResultDto { Success = true, SentCount = dto.OrderIds?.Count ?? 0, Errors = new List<string>() };
+        // MockMode: log the order list and return real count from DB — no socket sent.
+        // TODO(real): when analyzer driver is available, open TCP/serial and send HL7 ORM.
+        bool mockMode = _configuration.GetValue<bool>("LIS:MockMode", true);
+
+        // Count real pending orders for the analyzer
+        int realCount = 0;
+        if (dto.OrderIds != null && dto.OrderIds.Count > 0)
+        {
+            realCount = dto.OrderIds.Count;
+        }
+        else
+        {
+            // Count all pending worklist items for this analyzer from DB
+            realCount = await _context.LabWorklists
+                .CountAsync(w => w.AnalyzerId == dto.AnalyzerId && w.Status == 0);
+        }
+
+        _logger.LogInformation(
+            "[MockMode={MockMode}] SendWorklistToAnalyzer: analyzerId={AnalyzerId}, orderCount={Count}",
+            mockMode, dto.AnalyzerId, realCount);
+
+        if (!mockMode)
+        {
+            // TODO: real driver — open connection and send HL7 ORM^O01 per order
+            _logger.LogWarning("SendWorklistToAnalyzer real driver not yet implemented — falling back to MockMode");
+        }
+
+        return new SendWorklistResultDto
+        {
+            Success = true,
+            SentCount = realCount,
+            FailedCount = 0,
+            Errors = mockMode ? new List<string> { "[MockMode] Worklist logged, not sent via hardware" } : new List<string>()
+        };
     }
 
     public async Task<ReceiveResultDto> ReceiveResultFromAnalyzerAsync(Guid analyzerId)
     {
-        return new ReceiveResultDto { ReceivedCount = 0, ProcessedCount = 0, ErrorCount = 0, Errors = new List<string>(), Results = new List<AnalyzerResultDto>() };
+        // Trigger ProcessAnalyzerResultAsync with an empty payload so the inbox reflects
+        // results already pushed via HL7ReceiverService (TCP) or mock-receive endpoint.
+        // For polling-based analyzers: TODO — pull from analyzer socket here.
+        bool mockMode = _configuration.GetValue<bool>("LIS:MockMode", true);
+
+        _logger.LogInformation(
+            "[MockMode={MockMode}] ReceiveResultFromAnalyzer: analyzerId={AnalyzerId}",
+            mockMode, analyzerId);
+
+        // Return summary of current inbox state for this analyzer
+        var inboxItems = await _context.LabRawResults
+            .Where(r => r.AnalyzerId == analyzerId && !r.IsDeleted)
+            .ToListAsync();
+
+        var pending  = inboxItems.Count(r => r.Status == 0);
+        var matched  = inboxItems.Count(r => r.Status == 1);
+        var errored  = inboxItems.Count(r => r.Status == 3);
+
+        return new ReceiveResultDto
+        {
+            ReceivedCount  = inboxItems.Count,
+            ProcessedCount = matched,
+            ErrorCount     = errored,
+            Errors = mockMode
+                ? new List<string> { $"[MockMode] Inbox has {pending} pending, {matched} matched" }
+                : new List<string>(),
+            Results = inboxItems.Take(50).Select(r => new AnalyzerResultDto
+            {
+                SampleId   = r.SampleId ?? "",
+                TestCode   = r.TestCode ?? "",
+                Result     = r.Result ?? "",
+                Unit       = r.Unit,
+                Flag       = r.Flag,
+                ResultTime = r.ResultTime ?? r.CreatedAt,
+                AnalyzerId = r.AnalyzerId
+            }).ToList()
+        };
+    }
+
+    public async Task<List<AnalyzerInboxItemDto>> GetAnalyzerInboxAsync(AnalyzerInboxQueryDto query)
+    {
+        var q = _context.LabRawResults
+            .Include(r => r.Analyzer)
+            .Where(r => !r.IsDeleted)
+            .AsQueryable();
+
+        if (query.AnalyzerId.HasValue)
+            q = q.Where(r => r.AnalyzerId == query.AnalyzerId.Value);
+
+        if (query.Status.HasValue)
+            q = q.Where(r => r.Status == query.Status.Value);
+
+        if (query.FromDate.HasValue)
+            q = q.Where(r => r.CreatedAt >= query.FromDate.Value);
+
+        if (query.ToDate.HasValue)
+        {
+            var toEnd = query.ToDate.Value.Date.AddDays(1);
+            q = q.Where(r => r.CreatedAt < toEnd);
+        }
+
+        var items = await q
+            .OrderByDescending(r => r.CreatedAt)
+            .Skip(query.Page * query.PageSize)
+            .Take(query.PageSize)
+            .ToListAsync();
+
+        return items.Select(r => new AnalyzerInboxItemDto
+        {
+            Id                      = r.Id,
+            AnalyzerId              = r.AnalyzerId,
+            AnalyzerName            = r.Analyzer?.Name ?? "",
+            SampleBarcode           = r.SampleId ?? "",
+            TestCode                = r.TestCode ?? "",
+            Result                  = r.Result ?? "",
+            Unit                    = r.Unit ?? "",
+            Flag                    = r.Flag ?? "",
+            ResultTime              = r.ResultTime,
+            ReceivedAt              = r.CreatedAt,
+            Status                  = r.Status,
+            StatusName              = r.Status switch
+            {
+                0 => "Chờ",
+                1 => "Đã khớp",
+                2 => "Khớp thủ công",
+                3 => "Từ chối",
+                4 => "Đã chuyển",
+                _ => "Không rõ"
+            },
+            MatchedLabRequestItemId = r.MappedToLabRequestItemId,
+            RejectedReason          = r.RejectedReason,
+            TransferredAt           = r.TransferredAt,
+        }).ToList();
+    }
+
+    public async Task<bool> TransferInboxResultAsync(Guid inboxId, Guid? userId = null)
+    {
+        var raw = await _context.LabRawResults.FindAsync(inboxId);
+        if (raw == null) throw new InvalidOperationException($"Inbox item {inboxId} not found");
+        if (raw.Status != 1 && raw.Status != 2)
+            throw new InvalidOperationException("Only Matched or ManualMapped items can be transferred");
+        if (!raw.MappedToLabRequestItemId.HasValue)
+            throw new InvalidOperationException("No matched LabRequestItem — cannot transfer");
+
+        // Reuse existing EnterLabResultAsync flow to write result into LabOrderItem
+        var enterDto = new EnterLabResultDto
+        {
+            LabTestItemId = raw.MappedToLabRequestItemId.Value,
+            Result        = raw.Result ?? "",
+            Notes         = $"[Auto-transferred from analyzer inbox {inboxId}]",
+        };
+
+        var success = await EnterLabResultAsync(enterDto);
+        if (!success) return false;
+
+        // Mark as Transferred
+        raw.Status        = 4;
+        raw.TransferredAt = DateTime.UtcNow;
+        raw.UpdatedAt     = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Transferred inbox result {InboxId} to LabOrderItem {ItemId}", inboxId, raw.MappedToLabRequestItemId);
+        return true;
+    }
+
+    public async Task<bool> RejectInboxResultAsync(Guid inboxId, string reason)
+    {
+        var raw = await _context.LabRawResults.FindAsync(inboxId);
+        if (raw == null) throw new InvalidOperationException($"Inbox item {inboxId} not found");
+
+        raw.Status         = 3; // Ignored/Rejected
+        raw.RejectedReason = reason;
+        raw.UpdatedAt      = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Rejected inbox result {InboxId}, reason: {Reason}", inboxId, reason);
+        return true;
+    }
+
+    public async Task<ProcessAnalyzerResultDto> MockReceiveResultsAsync(Guid analyzerId, List<MockLabResultDto> results)
+    {
+        // Build minimal HL7 ORU^R01 from JSON list → reuse ProcessAnalyzerResultAsync parser
+        // This is the mock-receive path; real HL7 push goes through HL7ReceiverService TCP.
+        _logger.LogInformation("[MockReceive] analyzer={AnalyzerId}, items={Count}", analyzerId, results.Count);
+
+        var sb = new System.Text.StringBuilder();
+        var ts = DateTime.Now.ToString("yyyyMMddHHmmss");
+        sb.AppendLine($"MSH|^~\\&|MOCK|LAB|HIS|HOSPITAL|{ts}||ORU^R01|MOCK{ts}|P|2.5");
+        sb.AppendLine("PID|1||MOCKPID^^^MRN||MOCK^PATIENT||19800101|M");
+
+        foreach (var item in results)
+        {
+            var barcode = item.SampleBarcode ?? "MOCK001";
+            var obTime  = (item.ResultTime ?? DateTime.Now).ToString("yyyyMMddHHmmss");
+            sb.AppendLine($"OBR|1|{barcode}|{barcode}|{item.TestCode}^{item.TestCode}||{obTime}");
+            sb.AppendLine($"OBX|1|NM|{item.TestCode}^{item.TestCode}||{item.Result}|{item.Unit ?? ""}|{item.Flag ?? "N"}|||F|||{obTime}");
+        }
+
+        return await ProcessAnalyzerResultAsync(analyzerId, sb.ToString());
     }
 
     public async Task<bool> EnterLabResultAsync(EnterLabResultDto dto)

@@ -148,7 +148,7 @@
 
 /* ============== Tab bar ============== */
 .pp-tabbar {
-  display: grid; grid-template-columns: repeat(5, 1fr);
+  display: grid; grid-template-columns: repeat(6, 1fr);
   position: absolute; bottom: 0; left: 0; right: 0;
   background: rgba(255,255,255,0.96);
   backdrop-filter: blur(20px);
@@ -162,12 +162,12 @@
   display: flex; flex-direction: column; align-items: center;
   gap: 2px; background: none; border: 0; cursor: pointer;
   padding: 6px 0; color: var(--pp-muted);
-  font-size: 10.5px; font-weight: 500;
+  font-size: 9.5px; font-weight: 500;
   font-family: inherit;
   transition: color 0.15s;
 }
 .pp-tab.on { color: var(--pp-blue); }
-.pp-tab svg { width: 22px; height: 22px; }
+.pp-tab svg { width: 20px; height: 20px; }
 
 /* ============== Home ============== */
 .pp-home-hdr {
@@ -1028,3 +1028,138 @@
 [data-theme="dark"] .dp-foot-btn { background: #1f2937; }
 .dp-foot-btn.primary { background: #0f766e; color: #fff; }
 .dp-foot-btn.ghost { background: transparent; color: var(--pp-muted); }
+
+/* ============================================
+   G-39: EMR Tab — Hồ sơ bệnh án
+   ============================================ */
+
+/* EMR visit list row */
+.pp-emr-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 14px;
+  border-bottom: 1px solid var(--pp-line);
+  cursor: pointer;
+}
+.pp-emr-date {
+  font-size: 12px; color: var(--pp-muted);
+  min-width: 70px; padding-top: 2px;
+  flex-shrink: 0;
+}
+.pp-emr-body { flex: 1; min-width: 0; }
+.pp-emr-dept { font-size: 14px; font-weight: 700; color: var(--pp-text); }
+.pp-emr-doc { font-size: 12.5px; color: var(--pp-muted); margin-top: 1px; }
+.pp-emr-diag {
+  font-size: 12px; color: var(--pp-text);
+  margin-top: 4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* EMR detail sheet */
+.pp-emr-sheet {
+  max-height: 92vh;
+  display: flex; flex-direction: column;
+}
+.pp-emr-body-scroll {
+  overflow-y: auto; flex: 1;
+  padding-bottom: 24px;
+}
+.pp-emr-section {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--pp-line);
+}
+.pp-emr-section-title {
+  font-size: 11px; font-weight: 700; letter-spacing: .8px;
+  color: var(--pp-muted); text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.pp-emr-info-row {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 4px 0; gap: 8px;
+  font-size: 13.5px;
+}
+.pp-emr-info-row span:first-child {
+  color: var(--pp-muted); min-width: 90px; flex-shrink: 0;
+}
+.pp-emr-info-row b { font-weight: 600; color: var(--pp-text); text-align: right; }
+
+/* Sinh hiệu grid */
+.pp-emr-vitals {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.pp-emr-vital-item {
+  background: #f8fafc; border-radius: 8px;
+  padding: 8px 10px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.pp-emr-vl { font-size: 11.5px; color: var(--pp-muted); }
+.pp-emr-vv { font-size: 15px; font-weight: 700; color: var(--pp-text); }
+.pp-emr-vv small { font-size: 11px; font-weight: 400; color: var(--pp-muted); }
+
+/* Prescription trong EMR */
+.pp-emr-rx { margin-bottom: 8px; }
+.pp-emr-rx-hdr {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 6px;
+}
+
+/* Tờ điều trị */
+.pp-emr-ts {
+  background: #f8fafc; border-radius: 8px;
+  padding: 10px 12px; margin-bottom: 8px;
+}
+.pp-emr-ts-day {
+  font-size: 12px; font-weight: 700; color: var(--pp-blue);
+  margin-bottom: 6px;
+}
+.pp-emr-ts-row {
+  display: flex; gap: 8px; padding: 3px 0;
+  font-size: 12.5px;
+}
+.pp-emr-ts-row span:first-child {
+  color: var(--pp-muted); min-width: 70px; flex-shrink: 0;
+}
+
+/* ============================================
+   G-39: @media print — ẩn chrome, chỉ in nội dung EMR
+   ============================================ */
+@media print {
+  /* Ẩn toàn bộ chrome của app */
+  .pp-tabbar,
+  .pp-status,
+  .pp-frame-stage,
+  .pp-frame-bg,
+  .pp-frame-phone,
+  .pp-sheet-hdr,
+  .pp-icobtn,
+  .pp-home-icons,
+  .pp-quick,
+  .pp-nav { display: none !important; }
+
+  /* Để sheet/overlay fill trang khi print */
+  .pp-sheet-bg {
+    position: static !important;
+    background: transparent !important;
+  }
+  .pp-sheet {
+    position: static !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    max-height: none !important;
+  }
+  .pp-emr-body-scroll {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* Chỉ in pp-print-area nếu có */
+  body * { visibility: hidden; }
+  .pp-print-area, .pp-print-area * { visibility: visible; }
+  .pp-print-area {
+    position: absolute; top: 0; left: 0; width: 100%;
+  }
+
+  /* Typography print */
+  .pp-emr-section-title { border-bottom: 1px solid #333; padding-bottom: 4px; }
+  .pp-emr-info-row, .pp-emr-ts-row { page-break-inside: avoid; }
+}

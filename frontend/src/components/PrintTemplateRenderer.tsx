@@ -67,6 +67,11 @@ async function loadTemplate(printType: string): Promise<AnyPrintComponent | null
     case 'ls-allergy': return (await import('./ClinicalFormPrintTemplates')).AllergyFormPrint;
     case 'ls-postop': return (await import('./ClinicalFormPrintTemplates')).PostOpNotePrint;
     case 'ls-icuinfo': return (await import('./ClinicalFormPrintTemplates')).ICUInfoSheetPrint;
+    case 'ls-triage': return (await import('./ClinicalFormPrintTemplates')).TriagePrint;
+    case 'ls-admission-consent': return (await import('./ClinicalFormPrintTemplates')).AdmissionConsentPrint;
+    case 'ls-refusal-consent': return (await import('./ClinicalFormPrintTemplates')).RefusalConsentPrint;
+    case 'ls-transfer-consent': return (await import('./ClinicalFormPrintTemplates')).TransferConsentPrint;
+    case 'ls-ama-discharge': return (await import('./ClinicalFormPrintTemplates')).AMADischargePrint;
 
     // EMRNursingPrintTemplates
     case 'dd01-careplan': return (await import('./EMRNursingPrintTemplates')).NursingCarePlanPrint;

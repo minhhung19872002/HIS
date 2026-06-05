@@ -264,6 +264,74 @@ export interface VisitSummaryDto {
   notes?: string;
 }
 
+// G-39: Portal EMR — mapped from VisitSummaryDto returned by /api/portal/visits
+export interface PortalVisitDetailSummary {
+  visitId: string;
+  visitDate: string;
+  department: string;
+  doctorName: string;
+  diagnosis?: string;
+}
+
+// G-39: Full visit detail from /api/portal/visits/{examId}
+export interface PortalVisitDetailFull {
+  visitId: string;
+  visitDate: string;
+  department: string;
+  doctorName: string;
+  chiefComplaint: string;
+  presentIllness: string;
+  physicalExamination: string;
+  temperature?: number;
+  pulse?: number;
+  bloodPressureSystolic?: number;
+  bloodPressureDiastolic?: number;
+  respiratoryRate?: number;
+  height?: number;
+  weight?: number;
+  spO2?: number;
+  initialDiagnosis: string;
+  mainDiagnosis: string;
+  mainIcdCode: string;
+  subDiagnosis: string;
+  conclusionNote: string;
+  treatmentPlan: string;
+  followUpDate?: string;
+  prescriptions: PortalVisitPrescription[];
+  treatmentSheets: PortalTreatmentSheet[];
+  surgeries: PortalSurgery[];
+}
+
+export interface PortalVisitPrescription {
+  id: string;
+  prescriptionCode: string;
+  prescriptionDate: string;
+  status: string;
+  items: PortalVisitPrescriptionItem[];
+}
+
+export interface PortalVisitPrescriptionItem {
+  medicineName: string;
+  quantity: number;
+  unit: string;
+  usage: string;
+}
+
+export interface PortalTreatmentSheet {
+  treatmentDate: string;
+  day: number;
+  doctorOrders: string;
+  patientCondition: string;
+  notes: string;
+}
+
+export interface PortalSurgery {
+  surgeryName: string;
+  procedureCode: string;
+  scheduledDate?: string;
+  status: string;
+}
+
 export interface DiagnosisSummaryDto {
   diagnosisDate: string;
   diagnosisCode: string;
@@ -818,6 +886,16 @@ export const getVisits = (fromDate?: string, toDate?: string, page?: number, pag
 export const getVisitDetails = (visitId: string) =>
   apiClient.get(`${BASE_URL}/visits/${visitId}`);
 
+// G-39: Portal EMR endpoints — real patientId-scoped visit history + full detail
+export const getPortalVisits = (patientId: string, limit = 20) =>
+  apiClient.get<PortalVisitDetailSummary[]>(`${BASE_URL}/visits`, { params: { patientId, limit } });
+
+export const getPortalVisitDetail = (examId: string, patientId: string) =>
+  apiClient.get<PortalVisitDetailFull>(`${BASE_URL}/visits/${examId}`, { params: { patientId } });
+
+export const exportHealthRecord = (patientId: string) =>
+  apiClient.get(`${BASE_URL}/export-health-record`, { params: { patientId }, responseType: 'blob' });
+
 export const getMedicalDocuments = (documentType?: string, fromDate?: string, toDate?: string) =>
   apiClient.get<MedicalDocumentDto[]>(`${BASE_URL}/documents`, { params: { documentType, fromDate, toDate } });
 
@@ -1027,6 +1105,9 @@ export default {
   getHealthRecord,
   getVisits,
   getVisitDetails,
+  getPortalVisits,
+  getPortalVisitDetail,
+  exportHealthRecord,
   getMedicalDocuments,
   downloadDocument,
   getVitalSignHistory,

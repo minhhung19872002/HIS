@@ -1226,6 +1226,66 @@ export const getMicrobiologyStatistics = (fromDate: string, toDate: string) =>
 
 // #endregion
 
+// #region Analyzer Inbox (KQ máy — G-18)
+
+/** Status values: 0=Pending, 1=Matched, 2=ManualMapped, 3=Ignored, 4=Transferred */
+export interface AnalyzerInboxItemDto {
+  id: string;
+  analyzerId: string;
+  analyzerName: string;
+  sampleBarcode: string;
+  testCode: string;
+  result: string;
+  unit: string;
+  flag: string;
+  resultTime?: string;
+  receivedAt: string;
+  /** 0=Pending, 1=Matched, 2=ManualMapped, 3=Ignored, 4=Transferred */
+  status: number;
+  statusName: string;
+  matchedLabRequestItemId?: string;
+  rejectedReason?: string;
+  transferredAt?: string;
+}
+
+export interface MockLabResultDto {
+  sampleBarcode: string;
+  testCode: string;
+  result: string;
+  unit?: string;
+  flag?: string;
+  resultTime?: string;
+}
+
+export interface ProcessAnalyzerResultDto {
+  processedCount: number;
+  matchedCount: number;
+  unmatchedCount: number;
+  errors: string[];
+}
+
+export const getAnalyzerInbox = (params: {
+  analyzerId?: string;
+  status?: number;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  pageSize?: number;
+}) =>
+  apiClient.get<AnalyzerInboxItemDto[]>('/LISComplete/inbox', { params });
+
+export const transferInboxResult = (inboxId: string) =>
+  apiClient.post<{ success: boolean }>(`/LISComplete/inbox/${inboxId}/transfer`);
+
+export const rejectInboxResult = (inboxId: string, reason: string) =>
+  apiClient.post<{ success: boolean }>(`/LISComplete/inbox/${inboxId}/reject`, { reason });
+
+/** Admin only — post mock results for testing */
+export const mockReceiveResults = (analyzerId: string, results: MockLabResultDto[]) =>
+  apiClient.post<ProcessAnalyzerResultDto>(`/LISComplete/mock-receive/${analyzerId}`, results);
+
+// #endregion
+
 export default {
   // Analyzer Management
   getAnalyzers,
@@ -1317,5 +1377,11 @@ export default {
   enterAntibioticSensitivity,
   getAntibiotics,
   getBacterias,
-  getMicrobiologyStatistics
+  getMicrobiologyStatistics,
+
+  // Analyzer Inbox (G-18)
+  getAnalyzerInbox,
+  transferInboxResult,
+  rejectInboxResult,
+  mockReceiveResults,
 };

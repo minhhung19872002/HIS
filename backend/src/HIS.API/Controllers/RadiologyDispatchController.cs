@@ -159,6 +159,8 @@ public class RadiologyDispatchController : ControllerBase
     public record SavePermissionDto(
         Guid UserId,
         Guid? RoomId,
+        /// <summary>G-36: FK sang RadiologyModalities.Id — null = áp dụng mọi loại máy</summary>
+        Guid? ModalityId,
         string? ModalityType,
         int Permissions,
         string? RoleTemplate);
@@ -167,12 +169,14 @@ public class RadiologyDispatchController : ControllerBase
     [Authorize(Roles = "Admin,DepartmentHead")]
     public async Task<IActionResult> SavePermission([FromBody] SavePermissionDto dto)
     {
+        // G-36: unique key = (UserId, RoomId, ModalityId) — phân biệt quyền theo máy cụ thể
         var existing = await _db.RadiologyPermissions
-            .FirstOrDefaultAsync(p => p.UserId == dto.UserId && p.RoomId == dto.RoomId);
+            .FirstOrDefaultAsync(p => p.UserId == dto.UserId && p.RoomId == dto.RoomId && p.ModalityId == dto.ModalityId);
         if (existing != null)
         {
             existing.Permissions = dto.Permissions;
             existing.ModalityType = dto.ModalityType;
+            existing.ModalityId = dto.ModalityId;
             existing.RoleTemplate = dto.RoleTemplate;
             existing.IsActive = true;
             existing.UpdatedAt = DateTime.UtcNow;
@@ -185,6 +189,7 @@ public class RadiologyDispatchController : ControllerBase
                 Id = Guid.NewGuid(),
                 UserId = dto.UserId,
                 RoomId = dto.RoomId,
+                ModalityId = dto.ModalityId,
                 ModalityType = dto.ModalityType,
                 Permissions = dto.Permissions,
                 RoleTemplate = dto.RoleTemplate,
@@ -231,12 +236,16 @@ public class RadiologyDispatchController : ControllerBase
     {
         var perms = await _db.RadiologyPermissions
             .Include(p => p.Room)
+            .Include(p => p.Modality) // G-36: per-modality permission
             .Where(p => p.UserId == userId && p.IsActive)
             .Select(p => new
             {
                 p.Id,
                 p.RoomId,
                 RoomName = p.Room != null ? p.Room.RoomName : "Tất cả máy",
+                p.ModalityId,
+                ModalityCode = p.Modality != null ? p.Modality.ModalityCode : null,
+                ModalityName = p.Modality != null ? p.Modality.ModalityName : null,
                 p.ModalityType,
                 p.Permissions,
                 p.RoleTemplate,

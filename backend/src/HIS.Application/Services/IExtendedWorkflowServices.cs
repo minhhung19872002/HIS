@@ -419,6 +419,7 @@ namespace HIS.Application.Services
         // Medical Records
         Task<HealthRecordSummaryDto> GetHealthRecordSummaryAsync(Guid patientId);
         Task<List<VisitSummaryDto>> GetVisitHistoryAsync(Guid patientId, int limit = 20);
+        Task<PortalVisitDetailDto> GetVisitDetailAsync(Guid examId, Guid patientId);
         Task<byte[]> ExportHealthRecordPdfAsync(Guid patientId);
 
         // Lab & Imaging Results

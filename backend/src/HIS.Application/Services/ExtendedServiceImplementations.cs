@@ -1724,6 +1724,13 @@ namespace HIS.Application.Services
             return new List<VisitSummaryDto>();
         }
 
+        // G-39: stub — real impl in PatientPortalServiceImpl
+        public Task<PortalVisitDetailDto> GetVisitDetailAsync(Guid examId, Guid patientId)
+        {
+            _logger.LogInformation("GetVisitDetailAsync stub called for exam {ExamId}", examId);
+            return Task.FromResult<PortalVisitDetailDto>(null!);
+        }
+
         public async Task<byte[]> ExportHealthRecordPdfAsync(Guid patientId)
         {
             _logger.LogInformation("Exporting health record PDF for patient {PatientId}", patientId);

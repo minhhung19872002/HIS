@@ -89,6 +89,15 @@ const BankPayments: React.FC = () => {
 
   useEffect(() => { load(); }, []);
 
+  // Auto-refresh mỗi 20s để cập nhật trạng thái GD QR (pending → paid/expired).
+  // Cleanup interval khi unmount để tránh memory leak / state-on-unmounted-component.
+  useEffect(() => {
+    const timer = setInterval(() => { load(); }, 20_000);
+    return () => clearInterval(timer);
+  // load không thay đổi reference qua các lần render — eslint-disable safe ở đây.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const bankCodes = new Set(banks.map(b => b.code));
   const onlyBank = rows.filter(r => bankCodes.has(r.provider));
 
@@ -206,6 +215,20 @@ const BankPayments: React.FC = () => {
     tk(`Đã xuất ${filtered.length} giao dịch (CSV)`);
   };
 
+  const handleMarkExpired = async () => {
+    try {
+      const res = await bankPaymentApi.markExpired();
+      if (res.changed) {
+        tk('Đã đánh dấu hết hạn các QR quá thời hạn');
+        load();
+      } else {
+        tk('Không có giao dịch nào quá hạn cần cập nhật');
+      }
+    } catch {
+      te('Không thể đánh dấu hết hạn');
+    }
+  };
+
   const handleConfirm = async () => {
     if (!confirming) return;
     try {
@@ -241,7 +264,10 @@ const BankPayments: React.FC = () => {
         />
         <span className="spacer" style={{ flex: 1 }} />
         <Button className="ab-btn ghost" size="small" onClick={load} loading={loading}>
-          <TermIcon name="refresh" size={12} /> Đối soát tự động
+          <TermIcon name="refresh" size={12} /> Làm mới
+        </Button>
+        <Button className="ab-btn ghost" size="small" onClick={handleMarkExpired}>
+          <TermIcon name="clock" size={12} /> Đánh dấu hết hạn
         </Button>
         <Button className="ab-btn ghost" size="small" onClick={exportCsv}>
           <TermIcon name="download" size={12} /> Xuất CSV

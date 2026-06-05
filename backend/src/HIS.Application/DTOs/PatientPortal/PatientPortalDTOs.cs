@@ -721,5 +721,76 @@ namespace HIS.Application.DTOs.PatientPortal
         public string Answer { get; set; }
     }
 
+    // G-39: Full EMR visit detail for Patient Portal
+    public class PortalVisitDetailDto
+    {
+        public Guid VisitId { get; set; }
+        public DateTime VisitDate { get; set; }
+        public string Department { get; set; }
+        public string DoctorName { get; set; }
+        // Hỏi bệnh
+        public string ChiefComplaint { get; set; }
+        public string PresentIllness { get; set; }
+        public string PhysicalExamination { get; set; }
+        // Sinh hiệu
+        public decimal? Temperature { get; set; }
+        public int? Pulse { get; set; }
+        public int? BloodPressureSystolic { get; set; }
+        public int? BloodPressureDiastolic { get; set; }
+        public int? RespiratoryRate { get; set; }
+        public decimal? Height { get; set; }
+        public decimal? Weight { get; set; }
+        public decimal? SpO2 { get; set; }
+        // Chẩn đoán
+        public string InitialDiagnosis { get; set; }
+        public string MainDiagnosis { get; set; }
+        public string MainIcdCode { get; set; }
+        public string SubDiagnosis { get; set; }
+        // Kết luận
+        public string ConclusionNote { get; set; }
+        public string TreatmentPlan { get; set; }
+        public DateTime? FollowUpDate { get; set; }
+        // Đơn thuốc trong lượt khám này
+        public List<PortalVisitPrescriptionDto> Prescriptions { get; set; } = new();
+        // Tờ điều trị (nội trú)
+        public List<PortalTreatmentSheetDto> TreatmentSheets { get; set; } = new();
+        // Phẫu thuật/thủ thuật
+        public List<PortalSurgeryDto> Surgeries { get; set; } = new();
+    }
+
+    public class PortalVisitPrescriptionDto
+    {
+        public Guid Id { get; set; }
+        public string PrescriptionCode { get; set; }
+        public DateTime PrescriptionDate { get; set; }
+        public string Status { get; set; }
+        public List<PortalVisitPrescriptionItemDto> Items { get; set; } = new();
+    }
+
+    public class PortalVisitPrescriptionItemDto
+    {
+        public string MedicineName { get; set; }
+        public decimal Quantity { get; set; }
+        public string Unit { get; set; }
+        public string Usage { get; set; }
+    }
+
+    public class PortalTreatmentSheetDto
+    {
+        public DateTime TreatmentDate { get; set; }
+        public int Day { get; set; }
+        public string DoctorOrders { get; set; }
+        public string PatientCondition { get; set; }
+        public string Notes { get; set; }
+    }
+
+    public class PortalSurgeryDto
+    {
+        public string SurgeryName { get; set; }
+        public string ProcedureCode { get; set; }
+        public DateTime? ScheduledDate { get; set; }
+        public string Status { get; set; }
+    }
+
     #endregion
 }

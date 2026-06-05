@@ -490,3 +490,157 @@ export const ICUInfoSheetPrint: React.FC<{ record?: Record<string, unknown> }> =
     <SignatureBlock titles={['Dieu duong HSCC', 'Bac si HSCC']} />
   </div>
 );
+
+// ============ 5 Missing Forms (G-37 audit 2026-06-05) ============
+
+// LS-04: Phieu phan loai benh nhan cap cuu (Triage ED) — Manchester Triage adapted VN
+export const TriagePrint: React.FC<{ record?: Record<string, unknown> }> = ({ record }) => (
+  <div style={{ fontFamily: 'Times New Roman', padding: 20, maxWidth: 800 }}>
+    <PrintHeader formCode="LS-04" formTitle="PHIEU PHAN LOAI BENH NHAN CAP CUU (TRIAGE)" />
+    <PatientInfo record={record} />
+    <Field label="Gio tiep nhan" value={record?.triageTime as string} inline />
+    <Field label="Nhan vien triage" value={record?.triageNurse as string} inline />
+    <div style={{ marginTop: 8 }}>
+      <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Mau triage (danh dau):</div>
+      {(['Do — Cap cuu ngay (0-10 phat)', 'Da cam — Cap cuu (10-30 phat)', 'Vang — Can theo doi (30-60 phat)', 'Xanh la — Nhe (60-120 phat)', 'Den/Xam — Pho thac/Khong can cap cuu'] as const).map((label, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: 4, gap: 8 }}>
+          <div style={{ width: 16, height: 16, border: '1px solid #333', flexShrink: 0 }}>{record?.triageColor === ['red', 'orange', 'yellow', 'green', 'black'][i] ? '✓' : ''}</div>
+          <span>{label}</span>
+        </div>
+      ))}
+    </div>
+    <div style={{ marginTop: 8 }}>
+      <div style={{ fontWeight: 'bold' }}>Ly do den cap cuu / Trieu chung chinh:</div>
+      <div style={{ minHeight: 48, border: '1px dashed #ccc', padding: 8 }}>{(record?.chiefComplaint as string) || ''}</div>
+    </div>
+    <div style={{ display: 'flex', gap: 24, marginTop: 8 }}>
+      <Field label="Mach (l/p)" value={record?.pulse as string} />
+      <Field label="Huyet ap (mmHg)" value={record?.bloodPressure as string} />
+      <Field label="Nhiet do (°C)" value={record?.temperature as string} />
+      <Field label="SpO2 (%)" value={record?.spo2 as string} />
+      <Field label="GCS" value={record?.gcs as string} />
+    </div>
+    <div style={{ marginTop: 8 }}>
+      <Field label="Dau (VAS 0-10)" value={record?.painScore as string} inline />
+      <Field label="AVPU" value={record?.avpu as string} inline />
+    </div>
+    <div style={{ marginTop: 8 }}>
+      <div style={{ fontWeight: 'bold' }}>Xu tri ban dau:</div>
+      <div style={{ minHeight: 40, border: '1px dashed #ccc', padding: 8 }}>{(record?.initialManagement as string) || ''}</div>
+    </div>
+    <Field label="Buong dieu tri" value={record?.room as string} inline />
+    <Field label="Bac si nhan benh" value={record?.receivingDoctor as string} inline />
+    <SignatureBlock titles={['Dieu duong Triage', 'Bac si Cap cuu']} />
+  </div>
+);
+
+// LS-05: Giay cung cap thong tin va cam ket nhap vien
+export const AdmissionConsentPrint: React.FC<{ record?: Record<string, unknown> }> = ({ record }) => (
+  <div style={{ fontFamily: 'Times New Roman', padding: 20, maxWidth: 800 }}>
+    <PrintHeader formCode="LS-05" formTitle="GIAY CAM KET NHAP VIEN VA CUNG CAP THONG TIN" />
+    <PatientInfo record={record} />
+    <div style={{ marginTop: 8 }}>
+      <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Nguoi benh / Nguoi giam ho:</div>
+      <Field label="Ho ten" value={record?.representativeName as string} inline />
+      <Field label="Quan he" value={record?.relationship as string} inline />
+      <Field label="CCCD/CMND" value={record?.representativeId as string} inline />
+      <Field label="SDT" value={record?.representativePhone as string} />
+    </div>
+    <div style={{ marginTop: 12, fontSize: 12, lineHeight: 1.8 }}>
+      <p>Toi da duoc bac si giai thich ro rang ve:</p>
+      <p>1. Tinh trang benh ly hien tai, cac phuong phap dieu tri du kien va nhung rui ro co the gap phai.</p>
+      <p>2. Quyen loi va nghia vu cua nguoi benh trong qua trinh nam vien.</p>
+      <p>3. Noi quy benh vien va chi phi dieu tri uoc tinh.</p>
+      <p>Toi DONG Y nhap vien va dong y cho phep co so y te thuc hien cac thu thuat can thiet trong khuon kho dieu tri, dong thoi cam ket:</p>
+      <ul style={{ marginLeft: 20 }}>
+        <li>Tuan thu noi quy, quy che benh vien.</li>
+        <li>Cung cap day du, trung thuc lich su benh ly va thong tin ca nhan.</li>
+        <li>Thanh toan cac chi phi theo quy dinh.</li>
+        <li>Khong mang theo tien mat, tu trang co gia tri; co so y te khong chiu trach nhiem neu mat mat.</li>
+      </ul>
+      <div style={{ marginTop: 8 }}>
+        <Field label="Chan doan nhap vien" value={record?.admissionDiagnosis as string} />
+        <Field label="Khoa nhap vien" value={record?.departmentName as string} inline />
+        <Field label="Ngay nhap vien" value={record?.admissionDate as string} inline />
+      </div>
+    </div>
+    <SignatureBlock titles={['Nguoi benh / Nguoi giam ho', 'Bac si lam thu tuc', 'Truong khoa']} />
+  </div>
+);
+
+// LS-06: Giay cam ket tu choi dich vu / thu thuat
+export const RefusalConsentPrint: React.FC<{ record?: Record<string, unknown> }> = ({ record }) => (
+  <div style={{ fontFamily: 'Times New Roman', padding: 20, maxWidth: 800 }}>
+    <PrintHeader formCode="LS-06" formTitle="GIAY CAM KET TU CHOI DICH VU Y TE" />
+    <PatientInfo record={record} />
+    <div style={{ marginTop: 8 }}>
+      <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Nguoi benh / Nguoi giam ho:</div>
+      <Field label="Ho ten" value={record?.representativeName as string} inline />
+      <Field label="Quan he" value={record?.relationship as string} inline />
+      <Field label="CCCD/CMND" value={record?.representativeId as string} inline />
+      <Field label="SDT" value={record?.representativePhone as string} />
+    </div>
+    <div style={{ marginTop: 12, fontSize: 12, lineHeight: 1.8 }}>
+      <p>Sau khi duoc bac si giai thich day du ve sự can thiet cua:</p>
+      <div style={{ minHeight: 40, border: '1px dashed #ccc', padding: 8, marginBottom: 8 }}>{(record?.refusedService as string) || ''}</div>
+      <p>Va cac rui ro co the xay ra neu khong thuc hien dich vu tren:</p>
+      <div style={{ minHeight: 40, border: '1px dashed #ccc', padding: 8, marginBottom: 8 }}>{(record?.risks as string) || ''}</div>
+      <p>Toi hieu ro nhung rui ro tren, tuy nhien TOI TU CHOI thuc hien dich vu noi tren va hoan toan chiu trach nhiem truoc phap luat ve quyet dinh nay. Co so y te khong chiu trach nhiem ve nhung hau qua co the xay ra do tu choi dich vu.</p>
+    </div>
+    <Field label="Ngay" value={record?.refusalDate ? dayjs(record.refusalDate as string).format('DD/MM/YYYY') : undefined} />
+    <SignatureBlock titles={['Nguoi benh / Nguoi giam ho', 'Nguoi chung kien', 'Bac si tu van']} />
+  </div>
+);
+
+// LS-07: Giay cam ket chuyen co so dieu tri (theo yeu cau nguoi benh)
+export const TransferConsentPrint: React.FC<{ record?: Record<string, unknown> }> = ({ record }) => (
+  <div style={{ fontFamily: 'Times New Roman', padding: 20, maxWidth: 800 }}>
+    <PrintHeader formCode="LS-07" formTitle="GIAY CAM KET CHUYEN CO SO DIEU TRI THEO YEU CAU" />
+    <PatientInfo record={record} />
+    <div style={{ marginTop: 8 }}>
+      <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Nguoi benh / Nguoi giam ho:</div>
+      <Field label="Ho ten" value={record?.representativeName as string} inline />
+      <Field label="Quan he" value={record?.relationship as string} inline />
+      <Field label="CCCD/CMND" value={record?.representativeId as string} inline />
+      <Field label="SDT" value={record?.representativePhone as string} />
+    </div>
+    <div style={{ marginTop: 12, fontSize: 12, lineHeight: 1.8 }}>
+      <p>Sau khi duoc bac si thong bao ve tinh trang benh ly hien tai va khuyen nghi tiep tuc dieu tri tai co so nay, toi van YÊU CAU chuyen toi:</p>
+      <Field label="Co so nhan chuyen" value={record?.destinationHospital as string} />
+      <p style={{ marginTop: 8 }}>Ly do yeu cau chuyen:</p>
+      <div style={{ minHeight: 40, border: '1px dashed #ccc', padding: 8, marginBottom: 8 }}>{(record?.transferReason as string) || ''}</div>
+      <p>Toi hieu rang viec chuyen vien trong tinh trang benh ly hien tai co the gay ra nhung rui ro sau:</p>
+      <div style={{ minHeight: 40, border: '1px dashed #ccc', padding: 8, marginBottom: 8 }}>{(record?.risks as string) || ''}</div>
+      <p>Toi hoan toan DONG Y va chiu trach nhiem ve nhung rui ro co the xay ra trong qua trinh van chuyen va sau chuyen vien theo yeu cau cua ban than.</p>
+    </div>
+    <Field label="Ngay" value={record?.transferDate ? dayjs(record.transferDate as string).format('DD/MM/YYYY') : undefined} />
+    <SignatureBlock titles={['Nguoi benh / Nguoi giam ho', 'Nguoi chung kien', 'Bac si phu trach']} />
+  </div>
+);
+
+// LS-08: Giay cam ket ra vien trai chi dinh (AMA — Against Medical Advice)
+export const AMADischargePrint: React.FC<{ record?: Record<string, unknown> }> = ({ record }) => (
+  <div style={{ fontFamily: 'Times New Roman', padding: 20, maxWidth: 800 }}>
+    <PrintHeader formCode="LS-08" formTitle="GIAY CAM KET XIN RA VIEN TRAI CHI DINH" />
+    <PatientInfo record={record} />
+    <div style={{ marginTop: 8 }}>
+      <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Nguoi benh / Nguoi giam ho:</div>
+      <Field label="Ho ten" value={record?.representativeName as string} inline />
+      <Field label="Quan he" value={record?.relationship as string} inline />
+      <Field label="CCCD/CMND" value={record?.representativeId as string} inline />
+      <Field label="SDT" value={record?.representativePhone as string} />
+    </div>
+    <div style={{ marginTop: 12, fontSize: 12, lineHeight: 1.8 }}>
+      <p>Sau khi duoc bac si thong bao day du ve tinh trang benh ly hien tai:</p>
+      <Field label="Chan doan hien tai" value={record?.currentDiagnosis as string} />
+      <p style={{ marginTop: 8 }}>Va khuyen nghi cua bac si la tiep tuc dieu tri tai co so vi:</p>
+      <div style={{ minHeight: 40, border: '1px dashed #ccc', padding: 8, marginBottom: 8 }}>{(record?.doctorRecommendation as string) || ''}</div>
+      <p>Toi da hieu ro tinh trang benh cua ban than / nguoi than va cac rui ro NGHIEM TRONG co the xay ra khi ra vien som, bao gom:</p>
+      <div style={{ minHeight: 40, border: '1px dashed #ccc', padding: 8, marginBottom: 8 }}>{(record?.risks as string) || ''}</div>
+      <p>Tuy nhien toi van quyet dinh XIN RA VIEN va hoan toan TU CHIU TRACH NHIEM truoc phap luat ve nhung hau qua co the xay ra. Co so y te khong chiu trach nhiem ve viec cham dut dieu tri noi tren.</p>
+      <p>Toi da duoc tu van va nhan don thuoc (neu co) de tiep tuc dieu tri ngoai tru.</p>
+    </div>
+    <Field label="Ngay xin ra vien" value={record?.amaDate ? dayjs(record.amaDate as string).format('DD/MM/YYYY HH:mm') : undefined} />
+    <SignatureBlock titles={['Nguoi benh / Nguoi giam ho', 'Nguoi chung kien', 'Bac si phu trach']} />
+  </div>
+);

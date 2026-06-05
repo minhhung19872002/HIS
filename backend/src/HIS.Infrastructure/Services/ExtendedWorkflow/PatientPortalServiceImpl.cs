@@ -148,6 +148,90 @@ public class PatientPortalServiceImpl : IPatientPortalService
         return exams.Select(e => new VisitSummaryDto { VisitId = e.Id, VisitDate = e.StartTime ?? DateTime.MinValue, Department = e.Room?.Department?.DepartmentName ?? "", DoctorName = e.Doctor?.FullName ?? "", Diagnosis = e.MainDiagnosis }).ToList();
     }
 
+    // G-39: Full visit detail for portal — security: verifies exam belongs to patientId before returning
+    public async Task<PortalVisitDetailDto> GetVisitDetailAsync(Guid examId, Guid patientId)
+    {
+        var exam = await _context.Examinations
+            .Include(x => x.Room).ThenInclude(x => x!.Department)
+            .Include(x => x.Doctor)
+            .Include(x => x.MedicalRecord)
+            .FirstOrDefaultAsync(x => x.Id == examId);
+
+        if (exam == null) return null!;
+        // Security: ensure this exam belongs to the requested patient
+        if (patientId != Guid.Empty && exam.MedicalRecord?.PatientId != patientId) return null!;
+
+        var prescriptions = await _context.Prescriptions
+            .Include(x => x.Details).ThenInclude(d => d.Medicine)
+            .Where(x => x.ExaminationId == examId)
+            .OrderByDescending(x => x.PrescriptionDate)
+            .ToListAsync();
+
+        var treatmentSheets = await _context.TreatmentSheets
+            .Where(x => x.ExaminationId == examId)
+            .OrderBy(x => x.Day)
+            .ToListAsync();
+
+        var surgeries = await _context.SurgeryRequests
+            .Where(x => x.ExaminationId == examId)
+            .ToListAsync();
+
+        return new PortalVisitDetailDto
+        {
+            VisitId = exam.Id,
+            VisitDate = exam.StartTime ?? DateTime.MinValue,
+            Department = exam.Room?.Department?.DepartmentName ?? "",
+            DoctorName = exam.Doctor?.FullName ?? "",
+            ChiefComplaint = exam.ChiefComplaint ?? "",
+            PresentIllness = exam.PresentIllness ?? "",
+            PhysicalExamination = exam.PhysicalExamination ?? "",
+            Temperature = exam.Temperature,
+            Pulse = exam.Pulse,
+            BloodPressureSystolic = exam.BloodPressureSystolic,
+            BloodPressureDiastolic = exam.BloodPressureDiastolic,
+            RespiratoryRate = exam.RespiratoryRate,
+            Height = exam.Height,
+            Weight = exam.Weight,
+            SpO2 = exam.SpO2,
+            InitialDiagnosis = exam.InitialDiagnosis ?? "",
+            MainDiagnosis = exam.MainDiagnosis ?? "",
+            MainIcdCode = exam.MainIcdCode ?? "",
+            SubDiagnosis = exam.SubDiagnosis ?? "",
+            ConclusionNote = exam.ConclusionNote ?? "",
+            TreatmentPlan = exam.TreatmentPlan ?? "",
+            FollowUpDate = exam.FollowUpDate,
+            Prescriptions = prescriptions.Select(p => new PortalVisitPrescriptionDto
+            {
+                Id = p.Id,
+                PrescriptionCode = p.PrescriptionCode ?? "",
+                PrescriptionDate = p.PrescriptionDate,
+                Status = p.Status == 2 ? "Đã cấp" : p.Status == 1 ? "Đang xử lý" : "Chờ cấp",
+                Items = p.Details.Select(d => new PortalVisitPrescriptionItemDto
+                {
+                    MedicineName = d.Medicine?.MedicineName ?? "",
+                    Quantity = d.Quantity,
+                    Unit = d.Unit ?? "",
+                    Usage = d.Usage ?? d.UsageInstructions ?? ""
+                }).ToList()
+            }).ToList(),
+            TreatmentSheets = treatmentSheets.Select(t => new PortalTreatmentSheetDto
+            {
+                TreatmentDate = t.TreatmentDate,
+                Day = t.Day,
+                DoctorOrders = t.DoctorOrders ?? "",
+                PatientCondition = t.PatientCondition ?? "",
+                Notes = t.Notes ?? ""
+            }).ToList(),
+            Surgeries = surgeries.Select(s => new PortalSurgeryDto
+            {
+                SurgeryName = s.PlannedProcedure ?? s.SurgeryType ?? "",
+                ProcedureCode = s.RequestCode,
+                ScheduledDate = s.RequestDate,
+                Status = s.Status == 3 ? "Hoàn thành" : s.Status == 2 ? "Đang thực hiện" : s.Status == 1 ? "Đã lên lịch" : s.Status == 4 ? "Đã hủy" : "Chờ lên lịch"
+            }).ToList()
+        };
+    }
+
     public async Task<byte[]> ExportHealthRecordPdfAsync(Guid patientId)
     {
         try

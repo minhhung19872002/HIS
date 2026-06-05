@@ -176,13 +176,23 @@ export const finalizeRecord = async (recordId: string, notes?: string): Promise<
   catch { console.warn('Failed to finalize record'); return null; }
 };
 
+export interface SaveAttachmentPayload {
+  medicalRecordId: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  filePath: string;
+  documentCategory?: string;
+  description?: string;
+}
+
 // ============ Attachments ============
 export const getAttachments = async (recordId: string): Promise<EmrDocumentAttachmentDto[]> => {
   try { const resp = await apiClient.get(`/emr-admin/attachments/${recordId}`); return Array.isArray(resp.data) ? resp.data : []; }
   catch { console.warn('Failed to load attachments'); return []; }
 };
 
-export const saveAttachment = async (data: Record<string, unknown>): Promise<EmrDocumentAttachmentDto | null> => {
+export const saveAttachment = async (data: SaveAttachmentPayload): Promise<EmrDocumentAttachmentDto | null> => {
   try { const resp = await apiClient.post('/emr-admin/attachments', data); return resp.data; }
   catch { console.warn('Failed to save attachment'); return null; }
 };

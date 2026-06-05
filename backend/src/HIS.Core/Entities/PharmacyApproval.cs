@@ -57,6 +57,12 @@ public class PharmacyApproval : BaseEntity
 
     public string? Note { get; set; }
 
+    /// <summary>
+    /// Set when ApprovalType=1 is approved: points to the ExportReceipt
+    /// created by CreateTransferIssueAsync so FE can print the transfer issue.
+    /// </summary>
+    public Guid? LinkedExportReceiptId { get; set; }
+
     public virtual ICollection<PharmacyApprovalItem> Items { get; set; } = new List<PharmacyApprovalItem>();
 }
 

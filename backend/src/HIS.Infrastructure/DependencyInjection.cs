@@ -340,6 +340,9 @@ public static class DependencyInjection
         services.AddScoped<IZaloNotificationService, ZaloNotificationService>();
         services.AddScoped<IQualityDashboardService, QualityDashboardService>();
 
+        // G-41/42/44: Admin modules MVP (Payroll, HR Decisions, Official Documents)
+        services.AddScoped<IAdminModulesService, AdminModulesService>();
+
         // NangCap24: HSMT BV Đa khoa (10 gap)
         services.AddScoped<IBiometricSignatureService, BiometricSignatureService>();
         services.AddScoped<IBhxhInspectorService, BhxhInspectorService>();

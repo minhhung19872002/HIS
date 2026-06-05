@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -292,6 +293,85 @@ namespace HIS.API.Controllers
         #endregion
 
         #region 7.3 Thực hiện xét nghiệm
+
+        /// <summary>
+        /// G-01: Danh sách phiếu XN (kèm items + results) theo lượt nội trú — dùng cho "Trả KQ tại giường"
+        /// Join: Admission.MedicalRecordId → LabRequest.MedicalRecordId
+        /// </summary>
+        [HttpGet("orders/by-admission/{admissionId}")]
+        public async Task<ActionResult<List<LabOrderDto>>> GetLabOrdersByAdmission(Guid admissionId)
+        {
+            var admission = await _context.Set<HIS.Core.Entities.Admission>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == admissionId && !a.IsDeleted);
+            if (admission == null) return NotFound(new { message = "Admission not found" });
+
+            var medicalRecordId = admission.MedicalRecordId;
+            var orders = await _context.LabRequests
+                .AsNoTracking()
+                .Where(r => r.MedicalRecordId == medicalRecordId && !r.IsDeleted)
+                .Include(r => r.Items).ThenInclude(i => i.Results)
+                .Include(r => r.RequestingDoctor)
+                .OrderByDescending(r => r.RequestDate)
+                .ToListAsync();
+
+            var dtos = orders.Select(r => new LabOrderDto
+            {
+                Id = r.Id,
+                OrderCode = r.RequestCode,
+                PatientId = r.PatientId,
+                PatientCode = "",
+                PatientName = "",
+                MedicalRecordId = r.MedicalRecordId ?? Guid.Empty,
+                MedicalRecordCode = "",
+                OrderDepartmentId = r.DepartmentId,
+                OrderDoctorId = r.RequestingDoctorId,
+                OrderDoctorName = r.RequestingDoctor?.FullName ?? "",
+                Diagnosis = r.DiagnosisName,
+                IcdCode = r.DiagnosisCode,
+                Notes = r.Notes,
+                Status = r.Status,
+                StatusName = r.Status switch
+                {
+                    0 => "Chờ lấy mẫu",
+                    1 => "Đã lấy mẫu",
+                    2 => "Đang XN",
+                    3 => "Chờ duyệt",
+                    4 => "Đã duyệt sơ bộ",
+                    5 => "Hoàn thành",
+                    _ => "Đã hủy"
+                },
+                IsPriority = r.Priority >= 2,
+                IsEmergency = r.Priority >= 3,
+                OrderedAt = r.RequestDate,
+                ApprovedAt = r.ApprovedAt,
+                Tests = r.Items.Select(i => new HIS.Application.DTOs.Laboratory.LabTestItemDto
+                {
+                    Id = i.Id,
+                    LabOrderId = r.Id,
+                    TestCode = i.TestCode,
+                    TestName = i.TestName,
+                    SampleTypeName = i.SampleType,
+                    Result = i.Results.OrderByDescending(res => res.ResultedAt).FirstOrDefault()?.ResultValue,
+                    Unit = i.Results.OrderByDescending(res => res.ResultedAt).FirstOrDefault()?.Unit,
+                    ReferenceRange = i.Results.OrderByDescending(res => res.ResultedAt).FirstOrDefault()?.ReferenceRange,
+                    AbnormalFlag = i.Results.Any(res => res.IsAbnormal) ? 1 : 0,
+                    Status = i.Status,
+                    StatusName = i.Status switch
+                    {
+                        0 => "Chờ",
+                        1 => "Có mẫu",
+                        2 => "Đang XN",
+                        3 => "Có KQ",
+                        4 => "Đã duyệt",
+                        5 => "Từ chối",
+                        _ => "Không rõ"
+                    }
+                }).ToList()
+            }).ToList();
+
+            return Ok(dtos);
+        }
 
         /// <summary>
         /// 7.3.1 Danh sách xét nghiệm chờ thực hiện
@@ -864,6 +944,69 @@ namespace HIS.API.Controllers
 
         #endregion
 
+        #region Analyzer Inbox (KQ máy — MockMode skeleton)
+
+        /// <summary>
+        /// Lấy danh sách inbox kết quả máy XN theo trạng thái + ngày
+        /// </summary>
+        [HttpGet("inbox")]
+        public async Task<ActionResult<List<AnalyzerInboxItemDto>>> GetAnalyzerInbox(
+            [FromQuery] Guid? analyzerId,
+            [FromQuery] int? status,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
+            [FromQuery] int page = 0,
+            [FromQuery] int pageSize = 50)
+        {
+            var query = new AnalyzerInboxQueryDto
+            {
+                AnalyzerId = analyzerId,
+                Status = status,
+                FromDate = fromDate,
+                ToDate = toDate,
+                Page = page,
+                PageSize = Math.Min(pageSize, 200),
+            };
+            var result = await _lisService.GetAnalyzerInboxAsync(query);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Chuyển kết quả Matched từ inbox vào phiếu (Transferred)
+        /// </summary>
+        [HttpPost("inbox/{inboxId}/transfer")]
+        public async Task<ActionResult> TransferInboxResult(Guid inboxId)
+        {
+            var userId = GetUserId();
+            await _lisService.TransferInboxResultAsync(inboxId, userId);
+            return Ok(new { success = true });
+        }
+
+        /// <summary>
+        /// Từ chối kết quả inbox
+        /// </summary>
+        [HttpPost("inbox/{inboxId}/reject")]
+        public async Task<ActionResult> RejectInboxResult(Guid inboxId, [FromBody] RejectInboxRequest request)
+        {
+            await _lisService.RejectInboxResultAsync(inboxId, request.Reason ?? "");
+            return Ok(new { success = true });
+        }
+
+        /// <summary>
+        /// Mock-receive: POST danh sách kết quả giả để test (Admin only)
+        /// </summary>
+        [HttpPost("mock-receive/{analyzerId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<ProcessAnalyzerResultDto>> MockReceiveResults(
+            Guid analyzerId,
+            [FromBody] List<MockLabResultDto> results)
+        {
+            var result = await _lisService.MockReceiveResultsAsync(analyzerId, results);
+            return Ok(result);
+        }
+
+        #endregion
+
         #region POCT (Point of Care Testing)
 
         /// <summary>
@@ -970,6 +1113,66 @@ namespace HIS.API.Controllers
         {
             var result = await _lisService.GetMicrobiologyStatisticsAsync(fromDate, toDate);
             return Ok(result);
+        }
+
+        // -- G-19: FE Microbiology v2 routes (persist) --
+
+        /// <summary>Danh sách nuôi cấy v2 — trả real data từ DB</summary>
+        [HttpGet("microbiology/cultures/v2")]
+        public async Task<ActionResult<List<MicrobiologyCultureV2Dto>>> GetMicrobiologyCulturesV2(
+            [FromQuery] int? status = null,
+            [FromQuery] string keyword = null)
+        {
+            var result = await _lisService.GetMicrobiologyCulturesV2Async(status, keyword);
+            return Ok(result);
+        }
+
+        /// <summary>Chi tiết 1 nuôi cấy</summary>
+        [HttpGet("microbiology/cultures/{id:guid}")]
+        public async Task<ActionResult<MicrobiologyCultureV2Dto>> GetMicrobiologyCultureById(Guid id)
+        {
+            var result = await _lisService.GetMicrobiologyCultureByIdAsync(id);
+            if (result == null) return NotFound();
+            return Ok(result);
+        }
+
+        /// <summary>Tạo nuôi cấy mới</summary>
+        [HttpPost("microbiology/cultures")]
+        public async Task<ActionResult<MicrobiologyCultureV2Dto>> CreateMicrobiologyCulture(
+            [FromBody] CreateMicrobiologyCultureDto dto)
+        {
+            var result = await _lisService.CreateMicrobiologyCultureAsync(dto);
+            return Ok(result);
+        }
+
+        /// <summary>Cập nhật trạng thái nuôi cấy</summary>
+        [HttpPut("microbiology/cultures/{id:guid}/status")]
+        public async Task<ActionResult> UpdateMicrobiologyCultureStatus(
+            Guid id,
+            [FromBody] UpdateCultureStatusDto dto)
+        {
+            await _lisService.UpdateMicrobiologyCultureStatusAsync(id, dto);
+            return Ok(new { success = true });
+        }
+
+        /// <summary>Thêm vi sinh vật vào nuôi cấy</summary>
+        [HttpPost("microbiology/cultures/{cultureId:guid}/organisms")]
+        public async Task<ActionResult<MicrobiologyOrganismV2Dto>> AddOrganismToCulture(
+            Guid cultureId,
+            [FromBody] AddOrganismDto dto)
+        {
+            var result = await _lisService.AddOrganismToCultureAsync(cultureId, dto);
+            return Ok(result);
+        }
+
+        /// <summary>Lưu kháng sinh đồ cho 1 organism finding</summary>
+        [HttpPost("microbiology/organisms/{organismId:guid}/antibiogram")]
+        public async Task<ActionResult> SaveAntibiogram(
+            Guid organismId,
+            [FromBody] List<SaveAntibioticResultDto> results)
+        {
+            await _lisService.SaveAntibiogramAsync(organismId, results);
+            return Ok(new { success = true });
         }
 
         #endregion
@@ -1437,3 +1640,4 @@ public record StoreSampleRequest(Guid SampleId, string Location);
 public record RetrieveSampleRequest(Guid SampleId);
 public record RejectSampleRequest(Guid SampleId, string Reason);
 public record UndoRejectRequest(Guid SampleId);
+public record RejectInboxRequest(string? Reason);

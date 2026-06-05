@@ -280,6 +280,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<DicomTransmissionLog> DicomTransmissionLogs => Set<DicomTransmissionLog>();
     public DbSet<Hl7MessageQueue> Hl7MessageQueues => Set<Hl7MessageQueue>();
     public DbSet<DicomStudyActivityLog> DicomStudyActivityLogs => Set<DicomStudyActivityLog>();
+    public DbSet<PacsKeyImage> PacsKeyImages => Set<PacsKeyImage>();
+    public DbSet<PacsImageAnnotation> PacsImageAnnotations => Set<PacsImageAnnotation>();
 
     // Dược/Cấp phát
     public DbSet<DispenseRequest> DispenseRequests => Set<DispenseRequest>();
@@ -446,10 +448,17 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<LabOrganism> LabOrganisms => Set<LabOrganism>();
     public DbSet<LabAntibiotic> LabAntibiotics => Set<LabAntibiotic>();
 
+    // Microbiology culture results (G-19)
+    public DbSet<MicrobiologyCulture> MicrobiologyCultures => Set<MicrobiologyCulture>();
+    public DbSet<MicrobiologyOrganismFinding> MicrobiologyOrganismFindings => Set<MicrobiologyOrganismFinding>();
+    public DbSet<AntibioticSensitivityResult> AntibioticSensitivityResults => Set<AntibioticSensitivityResult>();
+
     // N1.11: Radiology master catalog
     public DbSet<RadiologyBodyPart> RadiologyBodyParts => Set<RadiologyBodyPart>();
     public DbSet<RadiologyProtocol> RadiologyProtocols => Set<RadiologyProtocol>();
     public DbSet<RadiologyReportTemplate> RadiologyReportTemplates => Set<RadiologyReportTemplate>();
+    // G-34c: ICD → template mapping
+    public DbSet<RisIcdTemplateMapping> RisIcdTemplateMappings => Set<RisIcdTemplateMapping>();
 
     // N1.13: Receipt book (sổ biên lai khai báo)
     public DbSet<ReceiptBook> ReceiptBooks => Set<ReceiptBook>();
@@ -654,6 +663,12 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<AnesthesiaChartEntry> AnesthesiaChartEntries => Set<AnesthesiaChartEntry>();
     public DbSet<DrugEquivalence> DrugEquivalences => Set<DrugEquivalence>();
     public DbSet<LabResultAccessLink> LabResultAccessLinks => Set<LabResultAccessLink>();
+
+    // G-41/42/44: Admin modules MVP (Payroll, HR Decisions, Official Documents)
+    public DbSet<PayrollPeriod> PayrollPeriods => Set<PayrollPeriod>();
+    public DbSet<PayrollItem> PayrollItems => Set<PayrollItem>();
+    public DbSet<HrDecision> HrDecisions => Set<HrDecision>();
+    public DbSet<OfficialDocument> OfficialDocuments => Set<OfficialDocument>();
 
     // NangCap23: HSMT gói thầu BV Đa khoa (gap #1-9)
     public DbSet<NationalPrescriptionSubmission> NationalPrescriptionSubmissions => Set<NationalPrescriptionSubmission>();
@@ -1045,6 +1060,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<RadiologyExam>().HasOne(r => r.Technician).WithMany().HasForeignKey(r => r.TechnicianId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<RadiologyHelpArticle>().HasOne(r => r.CreatedByUser).WithMany().HasForeignKey(r => r.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<RadiologyPermission>().HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.NoAction);
+        // G-36: RadiologyPermission.Modality (optional FK → RadiologyModalities)
+        modelBuilder.Entity<RadiologyPermission>().HasOne(r => r.Modality).WithMany().HasForeignKey(r => r.ModalityId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<RadiologyReport>().HasOne(r => r.ApprovedByUser).WithMany().HasForeignKey(r => r.ApprovedBy).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<RadiologyReport>().HasOne(r => r.Radiologist).WithMany().HasForeignKey(r => r.RadiologistId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<RadiologyRequest>().HasOne(r => r.RequestingDoctor).WithMany().HasForeignKey(r => r.RequestingDoctorId).OnDelete(DeleteBehavior.NoAction);
@@ -1085,6 +1102,37 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<UserRole>().HasOne(u => u.User).WithMany(usr => usr.UserRoles).HasForeignKey(u => u.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<UserSession>().HasOne(u => u.User).WithMany().HasForeignKey(u => u.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<WebAuthnCredential>().HasOne(w => w.User).WithMany().HasForeignKey(w => w.UserId).OnDelete(DeleteBehavior.NoAction);
+
+        // G-34b: RadiologyModality.DefaultResultTemplate (optional FK → RadiologyReportTemplate)
+        modelBuilder.Entity<RadiologyModality>()
+            .HasOne(m => m.DefaultResultTemplate)
+            .WithMany()
+            .HasForeignKey(m => m.DefaultResultTemplateId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // G-34c: RisIcdTemplateMapping FKs
+        modelBuilder.Entity<RisIcdTemplateMapping>()
+            .HasOne(r => r.Template)
+            .WithMany()
+            .HasForeignKey(r => r.TemplateId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RisIcdTemplateMapping>()
+            .HasOne(r => r.Modality)
+            .WithMany()
+            .HasForeignKey(r => r.ModalityId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // G-22/23: LisTestParameter FKs for new navigation properties
+        modelBuilder.Entity<LisTestParameter>()
+            .HasOne(t => t.Group)
+            .WithMany()
+            .HasForeignKey(t => t.GroupId)
+            .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<LisTestParameter>()
+            .HasOne(t => t.Service)
+            .WithMany()
+            .HasForeignKey(t => t.ServiceId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         // Column-level encryption for Patient PII (SEC-02: Data encryption at rest)
         if (_dataProtectionProvider != null)

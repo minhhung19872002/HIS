@@ -12,7 +12,10 @@ public class EmrAdminController : ControllerBase
 {
     private readonly IEmrAdminService _service;
 
-    public EmrAdminController(IEmrAdminService service) => _service = service;
+    public EmrAdminController(IEmrAdminService service)
+    {
+        _service = service;
+    }
 
     // ============ Cover Types (Vo benh an) ============
     [HttpGet("cover-types")]

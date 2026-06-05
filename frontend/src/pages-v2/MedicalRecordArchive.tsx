@@ -1,163 +1,206 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getArchiveList } from '../api/medicalRecordArchive';
-import { normalizeArrayResponse } from '../utils/apiNormalize';
+import { Form, Input } from 'antd';
+import { getArchiveList, createArchive } from '../api/medicalRecordArchive';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  StatusTabs, DrawerShell, DrSec, DrField, tk, ti, Ico,
+  StatusTabs, DrawerShell, ModalShell, DrSec, DrField, tk, ti, tw, Ico,
   type ColumnDef,
 } from './_v2kit';
 
+// ArchiveDto từ BE: status 1 = Archived, 0 = Pending
 interface ArchivedRecord {
   id: string;
+  archiveCode: string;
   patientCode: string;
   patientName: string;
   medicalRecordCode: string;
+  medicalRecordId: string;
   archiveDate: string;
-  archiveFormat?: string;
-  storageType?: string;
-  fileSize?: number;
-  verified?: boolean;
   departmentName?: string;
   dischargeDate?: string;
+  storageLocation?: string;
+  shelfNumber?: string;
+  boxNumber?: string;
+  status: number;           // 0=Pending, 1=Archived
+  statusName: string;
+  archiveYear: number;
+  borrowCount: number;
 }
 
 const PER = 20;
 
-type Verified = 'verified' | 'unverified';
+// Tab "xác thực" tương ứng status=1 (Archived) vs 0 (Pending)
+type ArchiveStatus = 'archived' | 'pending';
 const STATUS_TABS = [
-  { v: 'verified' as Verified,   l: 'Đã xác thực', tone: 'ok' as const },
-  { v: 'unverified' as Verified, l: 'Chưa xác thực', tone: 'warn' as const },
+  { v: 'archived' as ArchiveStatus, l: 'Đã lưu trữ',  tone: 'ok'   as const },
+  { v: 'pending'  as ArchiveStatus, l: 'Chờ xử lý',   tone: 'warn' as const },
 ];
 
 const MedicalRecordArchiveV2: React.FC = () => {
   const [items, setItems] = useState<ArchivedRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stab, setStab] = useState<Verified | 'all'>('all');
-  const [fFmt, setFFmt] = useState('');
+  const [stab, setStab] = useState<ArchiveStatus | 'all'>('all');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<ArchivedRecord | null>(null);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const [archiveForm] = Form.useForm<{ medicalRecordId: string; storageLocation?: string }>();
 
   const load = async () => {
     setLoading(true);
     try {
-      const res = await getArchiveList();
-      // BE field name alias do evolve — widen optional
-      interface RawArchiveRow {
-        id?: string; patientCode?: string; patientName?: string;
-        medicalRecordCode?: string; recordCode?: string;
-        archiveDate?: string; createdAt?: string;
-        archiveFormat?: string; storageType?: string;
-        fileSize?: number; verified?: boolean;
+      const res = await getArchiveList({ pageSize: 200 });
+      // BE trả PagedArchiveResult: { totalCount, items: ArchiveDto[] }
+      // interceptor đã unwrap envelope → res là PagedArchiveResult trực tiếp
+      const raw = res.data as { totalCount?: number; items?: unknown[] } | unknown[];
+      const list: unknown[] = Array.isArray(raw)
+        ? raw
+        : ((raw as { items?: unknown[] })?.items ?? []);
+
+      interface RawDto {
+        id?: string; archiveCode?: string;
+        patientCode?: string; patientName?: string;
+        medicalRecordCode?: string; medicalRecordId?: string;
+        archivedDate?: string; createdAt?: string;
         departmentName?: string; dischargeDate?: string;
+        storageLocation?: string; shelfNumber?: string; boxNumber?: string;
+        status?: number; statusName?: string;
+        archiveYear?: number; borrowCount?: number;
       }
-      const data = normalizeArrayResponse<RawArchiveRow>(res.data);
-      const rows: ArchivedRecord[] = data.map((r, i) => ({
+
+      const rows: ArchivedRecord[] = (list as RawDto[]).map((r, i) => ({
         id: r.id || `r-${i}`,
+        archiveCode: r.archiveCode || '',
         patientCode: r.patientCode || '',
         patientName: r.patientName || '',
-        medicalRecordCode: r.medicalRecordCode || r.recordCode || '',
-        archiveDate: r.archiveDate || r.createdAt || '',
-        archiveFormat: r.archiveFormat,
-        storageType: r.storageType,
-        fileSize: r.fileSize,
-        verified: r.verified,
+        medicalRecordCode: r.medicalRecordCode || '',
+        medicalRecordId: r.medicalRecordId || '',
+        archiveDate: r.archivedDate || r.createdAt || '',
         departmentName: r.departmentName,
         dischargeDate: r.dischargeDate,
+        storageLocation: r.storageLocation,
+        shelfNumber: r.shelfNumber,
+        boxNumber: r.boxNumber,
+        status: r.status ?? 0,
+        statusName: r.statusName || '',
+        archiveYear: r.archiveYear ?? 0,
+        borrowCount: r.borrowCount ?? 0,
       }));
       setItems(rows);
     } catch { setItems([]); ti('Không tải được hồ sơ lưu trữ'); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
-  const formats = useMemo(() => {
-    const set = new Set(items.map((r) => r.archiveFormat).filter(Boolean) as string[]);
-    return Array.from(set).map((t) => ({ v: t, l: t }));
-  }, [items]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: items.length };
-    c.verified = items.filter((r) => r.verified).length;
-    c.unverified = items.filter((r) => !r.verified).length;
+    c.archived = items.filter((r) => r.status === 1).length;
+    c.pending  = items.filter((r) => r.status !== 1).length;
     return c;
   }, [items]);
 
   const filtered = useMemo(() => {
     const k = search.trim().toLowerCase();
     return items.filter((r) => {
-      if (stab === 'verified' && !r.verified) return false;
-      if (stab === 'unverified' && r.verified) return false;
-      if (fFmt && r.archiveFormat !== fFmt) return false;
+      if (stab === 'archived' && r.status !== 1) return false;
+      if (stab === 'pending'  && r.status === 1) return false;
       if (!k) return true;
-      return [r.patientName, r.patientCode, r.medicalRecordCode].some((v) => (v || '').toLowerCase().includes(k));
+      return [r.patientName, r.patientCode, r.medicalRecordCode, r.archiveCode]
+        .some((v) => (v || '').toLowerCase().includes(k));
     });
-  }, [items, search, stab, fFmt]);
+  }, [items, search, stab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);
 
-  const totalSize = items.reduce((s, r) => s + (r.fileSize || 0), 0);
-  const cloudCount = items.filter((r) => r.storageType === 'cloud' || r.storageType === 'both').length;
-  const localCount = items.filter((r) => r.storageType === 'local' || r.storageType === 'both').length;
+  const archivedCount = counts.archived ?? 0;
+  const pendingCount  = counts.pending  ?? 0;
+  const borrowedCount = items.reduce((s, r) => s + r.borrowCount, 0);
 
   const cols: ColumnDef<ArchivedRecord>[] = [
-    { key: 'mrc', label: 'Mã HSBA', code: true, render: (r) => r.medicalRecordCode || '—' },
-    { key: 'pat', label: 'Bệnh nhân', render: (r) => (
+    { key: 'code', label: 'Mã lưu trữ', code: true, render: (r) => r.archiveCode || '—' },
+    { key: 'mrc',  label: 'Mã HSBA',    code: true, render: (r) => r.medicalRecordCode || '—' },
+    { key: 'pat',  label: 'Bệnh nhân',  render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
         <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'dept', label: 'Khoa', render: (r) => r.departmentName || '—' },
-    { key: 'date', label: 'Ngày lưu', mono: true, render: (r) => r.archiveDate ? dayjs(r.archiveDate).format('DD/MM/YYYY') : '—' },
-    { key: 'fmt', label: 'Định dạng', render: (r) => <span className="ab-stat info" style={{ height: 20, padding: '0 8px', fontSize: 10 }}>{r.archiveFormat || '—'}</span> },
-    { key: 'store', label: 'Lưu trữ', render: (r) => r.storageType || '—' },
-    { key: 'size', label: 'KB', mono: true, render: (r) => r.fileSize ? r.fileSize.toLocaleString('vi-VN') : '—' },
-    { key: 'v', label: 'Xác thực', render: (r) => (
-      <StatusBadge tone={r.verified ? 'ok' : 'warn'} dot>{r.verified ? 'Đã xác thực' : 'Chưa'}</StatusBadge>
+    { key: 'date', label: 'Ngày lưu', mono: true,
+      render: (r) => r.archiveDate ? dayjs(r.archiveDate).format('DD/MM/YYYY') : '—' },
+    { key: 'year', label: 'Năm', mono: true, width: 70,
+      render: (r) => r.archiveYear || '—' },
+    { key: 'st',   label: 'Trạng thái', render: (r) => (
+      <StatusBadge tone={r.status === 1 ? 'ok' : 'warn'} dot>
+        {r.status === 1 ? 'Đã lưu trữ' : (r.statusName || 'Chờ xử lý')}
+      </StatusBadge>
     ) },
   ];
 
   const actions = (r: ArchivedRecord) => (
     <div className="ab-actions">
-      <ActBtn ic="eye" title="Xem" onClick={() => setSel(r)} />
-      <ActBtn ic="download" title="Tải xuống" onClick={() => tk(`Đã tải ${r.medicalRecordCode}`)} />
-      {!r.verified && <ActBtn ic="check" title="Xác thực" onClick={() => tk('Đã xác thực hồ sơ')} />}
+      <ActBtn ic="eye" title="Xem chi tiết" onClick={() => setSel(r)} />
+      <ActBtn ic="download" title="Tải xuống" onClick={() => tk(`Đã tải ${r.archiveCode || r.medicalRecordCode}`)} />
     </div>
   );
+
+  const handleArchiveNow = async () => {
+    setArchiving(true);
+    try {
+      const vals = await archiveForm.validateFields();
+      await createArchive({
+        medicalRecordId: vals.medicalRecordId.trim(),
+        storageLocation: vals.storageLocation?.trim() || undefined,
+      });
+      tk('Đã lưu trữ hồ sơ thành công');
+      setArchiveOpen(false);
+      archiveForm.resetFields();
+      load();
+    } catch (e: unknown) {
+      const err = e as { errorFields?: unknown };
+      if (err?.errorFields) return; // form validation error — không toast
+      tw('Lưu trữ thất bại — kiểm tra MedicalRecordId và quyền truy cập');
+    } finally {
+      setArchiving(false);
+    }
+  };
 
   return (
     <div className="ab">
       <KpiStrip items={[
-        { lbl: 'Tổng hồ sơ', val: items.length, sub: `${formats.length} định dạng` },
-        { lbl: 'Đã xác thực', val: counts.verified || 0, sub: `${Math.round(((counts.verified || 0) / Math.max(1, items.length)) * 100)}%`, tone: 'ok' },
-        { lbl: 'Chưa xác thực', val: counts.unverified || 0, sub: 'cần kiểm tra', tone: 'warn' },
-        { lbl: 'Cloud', val: cloudCount, sub: 'lưu cloud', tone: 'info' },
-        { lbl: 'Local', val: localCount, sub: 'lưu nội bộ' },
-        { lbl: 'Dung lượng', val: Math.round(totalSize / 1024), unit: 'MB', sub: 'tổng' },
+        { lbl: 'Tổng hồ sơ', val: items.length, sub: 'đã nhập hệ thống' },
+        { lbl: 'Đã lưu trữ', val: archivedCount,
+          sub: `${Math.round((archivedCount / Math.max(1, items.length)) * 100)}%`, tone: 'ok' },
+        { lbl: 'Chờ xử lý',  val: pendingCount, sub: 'cần lưu trữ', tone: 'warn' },
+        { lbl: 'Lượt mượn',  val: borrowedCount, sub: 'tổng cộng', tone: 'info' },
       ]} />
 
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
-        <SearchBox value={search} onChange={setSearch} placeholder="Tìm BN / mã HSBA…" />
-        <Filter value={fFmt} onChange={setFFmt} options={formats} placeholder="▾ Định dạng" />
-        <Btn variant="ghost" onClick={() => { setSearch(''); setFFmt(''); setStab('all'); }}>
-          <Ico name="refresh" size={12} /> Bỏ lọc
+        <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
+          placeholder="Tìm BN / mã HSBA / mã lưu trữ…" />
+        <Btn variant="ghost" onClick={() => { setSearch(''); setStab('all'); setPage(0); }}>
+          <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Đã đồng bộ cloud')}>
-          <Ico name="cloud" size={12} /> Đồng bộ cloud
-        </Btn>
-        <Btn variant="primary" onClick={() => tk('Lưu trữ hồ sơ mới')}>
-          <Ico name="archive" size={12} /> Lưu hồ sơ mới
+        <Btn variant="primary" onClick={() => { archiveForm.resetFields(); setArchiveOpen(true); }}>
+          <Ico name="archive" size={12} /> Lưu trữ ngay
         </Btn>
       </div>
 
-      <StatusTabs<Verified> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
+      <StatusTabs<ArchiveStatus>
+        value={stab}
+        onChange={(v) => { setStab(v); setPage(0); }}
+        tabs={STATUS_TABS}
+        counts={counts}
+      />
 
       <DataTable<ArchivedRecord>
         columns={cols} data={paged} rowKey={(r) => r.id}
@@ -166,11 +209,47 @@ const MedicalRecordArchiveV2: React.FC = () => {
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
+      {/* Modal Lưu trữ ngay */}
+      <ModalShell
+        open={archiveOpen}
+        onClose={() => { setArchiveOpen(false); archiveForm.resetFields(); }}
+        title="Lưu trữ hồ sơ ngay"
+        size="md"
+        footer={<>
+          <Btn variant="ghost" onClick={() => { setArchiveOpen(false); archiveForm.resetFields(); }}>Hủy</Btn>
+          <Btn variant="primary" onClick={handleArchiveNow} loading={archiving}>
+            <Ico name="archive" size={12} /> Xác nhận lưu trữ
+          </Btn>
+        </>}
+      >
+        <div style={{ padding: '8px 0' }}>
+          <div style={{
+            padding: 10, marginBottom: 14, background: 'var(--d-1)',
+            border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, color: 'var(--t-2)',
+          }}>
+            Lưu trữ ngay hồ sơ bệnh án đã hoàn thành. Hệ thống sẽ kiểm tra điều kiện và tạo bản lưu trữ.
+          </div>
+          <Form form={archiveForm} layout="vertical">
+            <Form.Item
+              name="medicalRecordId"
+              label="ID hồ sơ bệnh án (MedicalRecordId)"
+              rules={[{ required: true, message: 'Nhập ID hồ sơ cần lưu trữ' }]}
+            >
+              <Input placeholder="VD: 3fa85f64-5717-4562-b3fc-2c963f66afa6" style={{ fontFamily: 'var(--font-mono)' }} />
+            </Form.Item>
+            <Form.Item name="storageLocation" label="Vị trí lưu trữ (tuỳ chọn)">
+              <Input placeholder="VD: Kho A / Tầng 2" />
+            </Form.Item>
+          </Form>
+        </div>
+      </ModalShell>
+
+      {/* Drawer chi tiết */}
       <DrawerShell
         open={!!sel}
         onClose={() => setSel(null)}
         size="lg"
-        title={sel ? `Hồ sơ · ${sel.medicalRecordCode}` : ''}
+        title={sel ? `Hồ sơ · ${sel.archiveCode || sel.medicalRecordCode}` : ''}
         sub={sel?.patientName ?? ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
@@ -187,19 +266,26 @@ const MedicalRecordArchiveV2: React.FC = () => {
             <DrField lbl="Mã BN">{sel.patientCode}</DrField>
             <DrField lbl="Họ tên">{sel.patientName}</DrField>
             <DrField lbl="Khoa">{sel.departmentName || '—'}</DrField>
-            <DrField lbl="Ngày ra viện">{sel.dischargeDate ? dayjs(sel.dischargeDate).format('DD/MM/YYYY') : '—'}</DrField>
+            <DrField lbl="Ngày ra viện">
+              {sel.dischargeDate ? dayjs(sel.dischargeDate).format('DD/MM/YYYY') : '—'}
+            </DrField>
           </DrSec>
           <DrSec title="Lưu trữ">
-            <DrField lbl="Mã HSBA">{sel.medicalRecordCode}</DrField>
-            <DrField lbl="Ngày lưu">{sel.archiveDate ? dayjs(sel.archiveDate).format('DD/MM/YYYY HH:mm') : '—'}</DrField>
-            <DrField lbl="Định dạng">{sel.archiveFormat || '—'}</DrField>
-            <DrField lbl="Loại lưu trữ">{sel.storageType || '—'}</DrField>
-            <DrField lbl="Kích thước">{sel.fileSize ? `${sel.fileSize.toLocaleString('vi-VN')} KB` : '—'}</DrField>
+            <DrField lbl="Mã lưu trữ"><span className="mono">{sel.archiveCode || '—'}</span></DrField>
+            <DrField lbl="Mã HSBA"><span className="mono">{sel.medicalRecordCode || '—'}</span></DrField>
+            <DrField lbl="Năm lưu">{sel.archiveYear || '—'}</DrField>
+            <DrField lbl="Ngày lưu">
+              {sel.archiveDate ? dayjs(sel.archiveDate).format('DD/MM/YYYY HH:mm') : '—'}
+            </DrField>
+            {sel.storageLocation && <DrField lbl="Vị trí">{sel.storageLocation}</DrField>}
+            {sel.shelfNumber    && <DrField lbl="Kệ số">{sel.shelfNumber}</DrField>}
+            {sel.boxNumber      && <DrField lbl="Hộp số">{sel.boxNumber}</DrField>}
+            <DrField lbl="Lượt mượn">{sel.borrowCount}</DrField>
           </DrSec>
           <DrSec title="Trạng thái">
-            <DrField lbl="Xác thực">
-              <StatusBadge tone={sel.verified ? 'ok' : 'warn'} dot>
-                {sel.verified ? 'Đã xác thực' : 'Chưa xác thực'}
+            <DrField lbl="Trạng thái">
+              <StatusBadge tone={sel.status === 1 ? 'ok' : 'warn'} dot>
+                {sel.status === 1 ? 'Đã lưu trữ' : (sel.statusName || 'Chờ xử lý')}
               </StatusBadge>
             </DrField>
           </DrSec>

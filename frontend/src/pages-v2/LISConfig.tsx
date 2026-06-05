@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import {
   getAnalyzers, getLabconnectStatus, createAnalyzer, updateAnalyzer, deleteAnalyzer,
@@ -47,6 +48,7 @@ const sKey = (r: AnalyzerDto): SKey => {
 const PER = 18;
 
 const LISConfigV2: React.FC = () => {
+  const navigate = useNavigate();
   const [items, setItems] = useState<AnalyzerDto[]>([]);
   const [labconn, setLabconn] = useState<LabconnectStatusDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -168,6 +170,7 @@ const LISConfigV2: React.FC = () => {
         <span className="spacer" />
         <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
         <Btn variant="ghost" icon="activity" onClick={runLabconnect}>LabConnect</Btn>
+        <Btn variant="ghost" icon="inbox" onClick={() => navigate('/v2/analyzer-inbox')}>KQ máy</Btn>
         <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm máy</Btn>
       </div>
 

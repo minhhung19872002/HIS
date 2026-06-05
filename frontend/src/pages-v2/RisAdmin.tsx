@@ -33,16 +33,17 @@ interface FolderRow { id: string; folderName: string; folderType: number; areaNa
 interface Room { id: string; roomName: string; modalityType?: string; departmentName?: string }
 interface Stat { label: string; value: number }
 
-type Tab = 'permissions' | 'areas' | 'folders' | 'icdMap' | 'machines' | 'supplies' | 'hospital' | 'stats';
+type Tab = 'permissions' | 'areas' | 'folders' | 'icdMap' | 'machines' | 'supplies' | 'hospital' | 'stats' | 'modalityPerm';
 const TABS = [
-  { v: 'permissions' as Tab, l: 'Phân quyền',     ic: 'user' },
-  { v: 'areas' as Tab,       l: 'Khu vực / CN',   ic: 'archive' },
-  { v: 'folders' as Tab,     l: 'Thư mục',        ic: 'archive' },
-  { v: 'icdMap' as Tab,      l: 'ICD ↔ Mẫu',      ic: 'file-text' },
-  { v: 'machines' as Tab,    l: 'Máy chụp',       ic: 'qr' },
-  { v: 'supplies' as Tab,    l: 'Vật tư',         ic: 'medicine' },
-  { v: 'hospital' as Tab,    l: 'Cấu hình BV',    ic: 'edit' },
-  { v: 'stats' as Tab,       l: 'Thống kê',       ic: 'activity' },
+  { v: 'permissions' as Tab,  l: 'Phân quyền',        ic: 'user' },
+  { v: 'modalityPerm' as Tab, l: 'Quyền theo máy',    ic: 'user' },
+  { v: 'areas' as Tab,        l: 'Khu vực / CN',      ic: 'archive' },
+  { v: 'folders' as Tab,      l: 'Thư mục',           ic: 'archive' },
+  { v: 'icdMap' as Tab,       l: 'ICD ↔ Mẫu',         ic: 'file-text' },
+  { v: 'machines' as Tab,     l: 'Máy chụp',          ic: 'qr' },
+  { v: 'supplies' as Tab,     l: 'Vật tư',            ic: 'medicine' },
+  { v: 'hospital' as Tab,     l: 'Cấu hình BV',       ic: 'edit' },
+  { v: 'stats' as Tab,        l: 'Thống kê',          ic: 'activity' },
 ];
 
 const RisAdminV2: React.FC = () => {
@@ -57,6 +58,7 @@ const RisAdminV2: React.FC = () => {
       ]} />
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} />
       {tab === 'permissions' && <PermissionsTab />}
+      {tab === 'modalityPerm' && <ModalityPermTab />}
       {tab === 'areas' && <AreasTab />}
       {tab === 'folders' && <FoldersTab />}
       {tab === 'icdMap' && <IcdMapTab />}
@@ -581,6 +583,128 @@ const StatsTab: React.FC = () => {
         </Btn>
       </div>
       <DataTable<Stat> columns={cols} data={data} rowKey={(r) => r.label} />
+    </>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// G-36 — Tab "Quyền theo máy": matrix user × modality × Đọc KQ / Duyệt KQ
+// ─────────────────────────────────────────────────────────────────────────────
+interface ModalityRow { id: string; modalityCode: string; modalityName: string }
+interface ModalityPermRow {
+  id: string;
+  modalityId: string | null;
+  modalityCode: string | null;
+  modalityName: string | null;
+  permissions: number;
+}
+
+const FLAG_DOC = 0x0004;   // DocKQ
+const FLAG_DUYET = 0x0010; // DuyetKQ
+
+const ModalityPermTab: React.FC = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [modalities, setModalities] = useState<ModalityRow[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [perms, setPerms] = useState<ModalityPermRow[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [u, m] = await Promise.all([
+          apiClient.get<{ items?: User[] } | User[]>('/admin/users', { params: { pageSize: 200 } }).catch(() => ({ data: [] })),
+          apiClient.get<ModalityRow[]>('/ris-catalog/modalities', { params: { isActive: true } }).catch(() => ({ data: [] })),
+        ]);
+        setUsers(normalizeArrayResponse<User>(u.data));
+        setModalities(Array.isArray(m.data) ? m.data : []);
+      } catch { /* empty */ }
+    })();
+  }, []);
+
+  const loadPerms = useCallback(async (uid: string) => {
+    try {
+      const res = await apiClient.get<ModalityPermRow[]>(`/radiology-dispatch/permissions/user/${uid}`);
+      setPerms(Array.isArray(res.data) ? res.data : []);
+    } catch { setPerms([]); }
+  }, []);
+
+  useEffect(() => { if (selectedUserId) loadPerms(selectedUserId); }, [selectedUserId, loadPerms]);
+
+  /** Lấy permission hiện tại cho 1 modality (null modalityId = row áp dụng mọi máy) */
+  const getFlags = (modalityId: string): number => {
+    const row = perms.find((p) => p.modalityId === modalityId);
+    return row?.permissions ?? 0;
+  };
+
+  const hasFlag = (modalityId: string, flag: number) => (getFlags(modalityId) & flag) !== 0;
+
+  const toggleFlag = async (modality: ModalityRow, flag: number) => {
+    if (!selectedUserId) return;
+    setSaving(true);
+    try {
+      const current = getFlags(modality.id);
+      const next = (current & flag) !== 0 ? current & ~flag : current | flag;
+      await apiClient.post('/radiology-dispatch/permissions', {
+        userId: selectedUserId,
+        modalityId: modality.id,
+        modalityType: modality.modalityCode,
+        permissions: next,
+        roleTemplate: null,
+        roomId: null,
+      });
+      await loadPerms(selectedUserId);
+    } catch { tw('Lưu thất bại'); }
+    finally { setSaving(false); }
+  };
+
+  const cols: ColumnDef<ModalityRow>[] = [
+    { key: 'code', label: 'Mã máy', code: true, render: (r) => r.modalityCode },
+    { key: 'name', label: 'Tên máy', render: (r) => r.modalityName },
+    {
+      key: 'doc', label: 'Đọc KQ',
+      render: (r) => (
+        <Checkbox
+          checked={hasFlag(r.id, FLAG_DOC)}
+          disabled={saving || !selectedUserId}
+          onChange={() => toggleFlag(r, FLAG_DOC)}
+        />
+      ),
+    },
+    {
+      key: 'duyet', label: 'Duyệt KQ',
+      render: (r) => (
+        <Checkbox
+          checked={hasFlag(r.id, FLAG_DUYET)}
+          disabled={saving || !selectedUserId}
+          onChange={() => toggleFlag(r, FLAG_DUYET)}
+        />
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <div className="ab-toolbar" style={{ borderTop: 'none' }}>
+        <span style={{ fontSize: 12, color: 'var(--t-2)' }}>Người dùng:</span>
+        <Filter
+          value={selectedUserId}
+          onChange={setSelectedUserId}
+          options={users.map((u) => ({ v: u.id, l: `${u.fullName} (${u.username})` }))}
+          placeholder="▾ Chọn BS / KTV"
+        />
+        {selectedUserId && (
+          <span style={{ fontSize: 12, color: 'var(--t-2)', marginLeft: 8 }}>
+            Tick checkbox để bật/tắt quyền — lưu tức thì. Không tick = không hạn chế (quyền mặc định đầy đủ).
+          </span>
+        )}
+      </div>
+      <DataTable<ModalityRow>
+        columns={cols}
+        data={modalities}
+        rowKey={(r) => r.id}
+        empty={selectedUserId ? 'Chưa có máy chụp' : 'Chọn người dùng để cấu hình quyền theo máy'}
+      />
     </>
   );
 };

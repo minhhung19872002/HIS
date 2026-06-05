@@ -82,6 +82,7 @@ const HealthCheckupV2 = lazy(() => import('./pages-v2/HealthCheckup'));
 const InfectionControlV2 = lazy(() => import('./pages-v2/InfectionControl'));
 const IvfLabV2 = lazy(() => import('./pages-v2/IvfLab'));
 const LISConfigV2 = lazy(() => import('./pages-v2/LISConfig'));
+const AnalyzerInboxV2 = lazy(() => import('./pages-v2/AnalyzerInbox'));
 const MedicalRecordPlanningV2 = lazy(() => import('./pages-v2/MedicalRecordPlanning'));
 const NutritionV2 = lazy(() => import('./pages-v2/Nutrition'));
 const RehabilitationV2 = lazy(() => import('./pages-v2/Rehabilitation'));
@@ -159,6 +160,12 @@ const EmrCloudSyncV2 = lazy(() => import('./pages-v2/EmrCloudSync'));
 const DicomAutoSendV2 = lazy(() => import('./pages-v2/DicomAutoSend'));
 const Hl7MessageQueueV2 = lazy(() => import('./pages-v2/Hl7MessageQueue'));
 const DicomStudyAuditLogV2 = lazy(() => import('./pages-v2/DicomStudyAuditLog'));
+
+// G-41/42/43/44: Admin modules MVP
+const PayrollAdminV2 = lazy(() => import('./pages-v2/PayrollAdmin'));
+const HrDecisionsV2 = lazy(() => import('./pages-v2/HrDecisions'));
+const VppStockCardV2 = lazy(() => import('./pages-v2/VppStockCard'));
+const OfficialDocumentsV2 = lazy(() => import('./pages-v2/OfficialDocuments'));
 
 // Lazy-loaded pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -549,6 +556,7 @@ const AppRoutes: React.FC = () => {
           <Route path="doctor-portal" element={<Navigate to="/m/doctor-portal" replace />} />
           <Route path="satisfaction-survey" element={<SatisfactionSurveyV2 />} />
           <Route path="lis-config" element={<LISConfigV2 />} />
+          <Route path="analyzer-inbox" element={<AnalyzerInboxV2 />} />
           <Route path="specialty-emr" element={<SpecialtyEMRV2 />} />
           <Route path="signing-workflow" element={<SigningWorkflowV2 />} />
           <Route path="medical-record-planning" element={<MedicalRecordPlanningV2 />} />
@@ -634,6 +642,11 @@ const AppRoutes: React.FC = () => {
           <Route path="dicom-autosend" element={<DicomAutoSendV2 />} />
           <Route path="hl7-message-queue" element={<Hl7MessageQueueV2 />} />
           <Route path="dicom-study-audit-log" element={<DicomStudyAuditLogV2 />} />
+          {/* G-41/42/43/44: Admin modules MVP */}
+          <Route path="payroll" element={<PayrollAdminV2 />} />
+          <Route path="hr-decisions" element={<HrDecisionsV2 />} />
+          <Route path="vpp-stock-card" element={<VppStockCardV2 />} />
+          <Route path="official-documents" element={<OfficialDocumentsV2 />} />
           <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />
           </Route>
         </Route>

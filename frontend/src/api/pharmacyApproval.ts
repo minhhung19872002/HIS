@@ -78,6 +78,8 @@ export interface PharmacyApprovalDto {
   revokeReason?: string;
   note?: string;
   createdAt: string;
+  /** Set when ApprovalType=1 is approved — points to the auto-generated transfer ExportReceipt. */
+  linkedExportReceiptId?: string;
   items: PharmacyApprovalItemDto[];
   totalAmount: number;
 }

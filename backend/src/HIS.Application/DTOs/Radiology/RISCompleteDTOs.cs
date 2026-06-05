@@ -361,6 +361,8 @@ namespace HIS.Application.DTOs.Radiology
         public Guid ResultId { get; set; }
         public string Note { get; set; }
         public bool IsFinalApproval { get; set; }
+        /// <summary>G-36: ID user đang duyệt (do controller điền từ JWT claim). Null = bỏ qua check quyền.</summary>
+        public Guid? ApprovingUserId { get; set; }
     }
 
     /// <summary>

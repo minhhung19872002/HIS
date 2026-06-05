@@ -1,4 +1,5 @@
 using HIS.Application.DTOs.Pharmacy;
+using HIS.Application.DTOs.Warehouse;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
@@ -11,11 +12,16 @@ public class PharmacyApprovalService : IPharmacyApprovalService
 {
     private readonly HISDbContext _db;
     private readonly ILogger<PharmacyApprovalService> _logger;
+    private readonly IWarehouseCompleteService _warehouseService;
 
-    public PharmacyApprovalService(HISDbContext db, ILogger<PharmacyApprovalService> logger)
+    public PharmacyApprovalService(
+        HISDbContext db,
+        ILogger<PharmacyApprovalService> logger,
+        IWarehouseCompleteService warehouseService)
     {
         _db = db;
         _logger = logger;
+        _warehouseService = warehouseService;
     }
 
     public async Task<PharmacyApprovalDto> CreateAsync(CreatePharmacyApprovalDto dto, Guid userId)
@@ -191,6 +197,55 @@ public class PharmacyApprovalService : IPharmacyApprovalService
 
         LogTransition(approval.Id, 2, 3, "Approve", userId, dto.Note);
         await _db.SaveChangesAsync();
+
+        // ApprovalType=1: auto-generate transfer stock issue (ExportType=4)
+        // from FromWarehouse to ToWarehouse for all approved items.
+        if (approval.ApprovalType == 1 && approval.FromWarehouseId.HasValue)
+        {
+            try
+            {
+                var issueDto = new CreateStockIssueDto
+                {
+                    IssueDate = DateTime.Now,
+                    WarehouseId = approval.FromWarehouseId.Value,
+                    TargetWarehouseId = approval.ToWarehouseId,
+                    DepartmentId = approval.FromDepartmentId,
+                    IssueType = 4, // Transfer
+                    Notes = $"[DU_TRU:{approval.ApprovalCode}] {approval.Note}",
+                    Items = approval.Items
+                        .Where(i => !i.IsExcluded && i.ApprovedQuantity > 0)
+                        .Select(i => new CreateStockIssueItemDto
+                        {
+                            ItemId = (i.MedicineId ?? i.SupplyId) ?? Guid.Empty,
+                            StockId = i.InventoryItemId,
+                            Quantity = i.ApprovedQuantity,
+                            PaymentSource = 0,
+                        })
+                        .Where(i => i.ItemId != Guid.Empty)
+                        .ToList()
+                };
+
+                if (issueDto.Items.Count > 0)
+                {
+                    var issued = await _warehouseService.CreateTransferIssueAsync(issueDto, userId);
+                    // Store link so FE can print the transfer issue
+                    approval.LinkedExportReceiptId = issued.Id;
+                    await _db.SaveChangesAsync();
+                    _logger.LogInformation(
+                        "Auto-created transfer issue {IssueId} for PharmacyApproval {ApprovalId}",
+                        issued.Id, approval.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log warning but do NOT rollback the approval — transfer issue
+                // can be created manually if stock is insufficient.
+                _logger.LogWarning(ex,
+                    "Failed to auto-create transfer issue for PharmacyApproval {Id}. Approval remains approved.",
+                    approval.Id);
+            }
+        }
+
         _logger.LogInformation(
             "User {UserId} approved PharmacyApproval {Id} type={Type}",
             userId, approval.Id, approval.ApprovalType);
@@ -386,6 +441,7 @@ public class PharmacyApprovalService : IPharmacyApprovalService
         RevokeReason = a.RevokeReason,
         Note = a.Note,
         CreatedAt = a.CreatedAt,
+        LinkedExportReceiptId = a.LinkedExportReceiptId,
         Items = a.Items.Select(i => new PharmacyApprovalItemDto
         {
             Id = i.Id,

@@ -54,6 +54,8 @@ public class PharmacyApprovalDto
     public string? RevokeReason { get; set; }
     public string? Note { get; set; }
     public DateTime CreatedAt { get; set; }
+    /// <summary>ExportReceipt Id generated when ApprovalType=1 is approved (transfer issue).</summary>
+    public Guid? LinkedExportReceiptId { get; set; }
     public List<PharmacyApprovalItemDto> Items { get; set; } = new();
     public decimal TotalAmount { get; set; }
 }

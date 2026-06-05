@@ -23,6 +23,9 @@ export const bankPaymentApi = {
   listBanks: () => apiClient.get<SupportedBankDto[]>('/payment/bank/list').then(r => r.data),
   confirmTransfer: (dto: BankConfirmDto) =>
     apiClient.post('/payment/bank/confirm', dto).then(r => r.data),
+  /** Đánh dấu hết hạn các GD QR quá thời hạn. BE route: POST /payment/mark-expired (Admin only). */
+  markExpired: () =>
+    apiClient.post<{ changed: boolean }>('/payment/mark-expired').then(r => r.data),
 };
 
 // ============================================================================

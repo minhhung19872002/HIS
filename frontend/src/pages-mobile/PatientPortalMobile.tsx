@@ -17,8 +17,11 @@ interface LabItem { name: string; val: number | string; unit?: string; ref?: str
 interface LabRow { id: string; date: string; panel: string; status: string; abnormal: number; items: LabItem[] }
 interface VitalRow { date: string; bp: string; hr: number; weight?: number }
 interface UserInfo { name: string; pid: string; age: number | string; gender: string; phone: string; bhyt: string; bhytExp?: string; addr: string; bloodType: string; allergies: string[]; family: { name: string; rel: string; age: number }[] }
+// G-39: EMR visit types
+interface EmrVisit { id: string; date: string; dept: string; doctor: string; diagnosis: string }
+interface EmrDetail extends portal.PortalVisitDetailFull { /* already has all fields */ }
 
-type Tab = 'home' | 'appts' | 'rx' | 'labs' | 'me';
+type Tab = 'home' | 'appts' | 'rx' | 'labs' | 'me' | 'emr';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const arr = (r: any): any[] => (Array.isArray(r?.data) ? r.data : Array.isArray(r?.data?.items) ? r.data.items : []);
@@ -110,6 +113,7 @@ const TABS: { v: Tab; ic: string; l: string }[] = [
   { v: 'appts', ic: 'calendar', l: 'Lịch hẹn' },
   { v: 'rx', ic: 'pill', l: 'Đơn thuốc' },
   { v: 'labs', ic: 'flask', l: 'Kết quả' },
+  { v: 'emr', ic: 'stethoscope', l: 'Hồ sơ BA' },
   { v: 'me', ic: 'user', l: 'Cá nhân' },
 ];
 
@@ -124,6 +128,10 @@ const PatientPortalMobile: React.FC = () => {
   const [rxOpen, setRxOpen] = useState<RxRow | null>(null);
   const [labOpen, setLabOpen] = useState<LabRow | null>(null);
   const [apptOpen, setApptOpen] = useState(false);
+  // G-39: EMR tab state
+  const [emrVisits, setEmrVisits] = useState<EmrVisit[]>([]);
+  const [emrDetail, setEmrDetail] = useState<EmrDetail | null>(null);
+  const [emrLoading, setEmrLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -205,6 +213,45 @@ const PatientPortalMobile: React.FC = () => {
   const bpVals = useMemo(() => vitals.map((v) => parseInt(v.bp) || 0).filter(Boolean), [vitals]);
   const hrVals = useMemo(() => vitals.map((v) => v.hr).filter(Boolean), [vitals]);
 
+  // G-39: load EMR visits when tab becomes active (lazy — only on first open)
+  const handleGoEmr = () => {
+    setTab('emr');
+    if (emrVisits.length === 0 && !emrLoading) {
+      setEmrLoading(true);
+      const pid = user?.pid || '';
+      portal.getPortalVisits(pid, 30)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .then((res: any) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setEmrVisits(list.map((v: any) => ({
+            id: v.visitId || v.id || '',
+            date: fmtD(v.visitDate),
+            dept: v.department || '—',
+            doctor: v.doctorName || '—',
+            diagnosis: v.diagnosis || v.mainDiagnosis || '—',
+          })));
+        })
+        .catch(() => { /* silent — show empty state */ })
+        .finally(() => setEmrLoading(false));
+    }
+  };
+
+  const loadEmrDetail = (examId: string) => {
+    const pid = user?.pid || '';
+    setEmrDetail(null);
+    setEmrLoading(true);
+    portal.getPortalVisitDetail(examId, pid)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((res: any) => {
+        const d = res?.data ?? res;
+        setEmrDetail(d as EmrDetail);
+      })
+      .catch(() => { /* silent */ })
+      .finally(() => setEmrLoading(false));
+  };
+
   return (
     <PhoneFrame>
       <StatusBar />
@@ -213,11 +260,13 @@ const PatientPortalMobile: React.FC = () => {
         {tab === 'appts' && <Appts appts={appts} setApptOpen={setApptOpen} />}
         {tab === 'rx' && <RxList rx={rx} setRxOpen={setRxOpen} />}
         {tab === 'labs' && <Labs labs={labs} setLabOpen={setLabOpen} />}
+        {tab === 'emr' && <EmrList visits={emrVisits} loading={emrLoading} onSelect={loadEmrDetail} />}
         {tab === 'me' && <Me user={user} onLogout={() => message.info('Đăng xuất cổng BN')} />}
       </div>
       <nav className="pp-tabbar">
         {TABS.map((t) => (
-          <button key={t.v} className={`pp-tab ${tab === t.v ? 'on' : ''}`} onClick={() => setTab(t.v)}>
+          <button key={t.v} className={`pp-tab ${tab === t.v ? 'on' : ''}`}
+            onClick={() => t.v === 'emr' ? handleGoEmr() : setTab(t.v as Tab)}>
             <Ico name={t.ic} size={22} /><span>{t.l}</span>
           </button>
         ))}
@@ -226,6 +275,7 @@ const PatientPortalMobile: React.FC = () => {
       <ApptSheet open={apptOpen} onClose={() => setApptOpen(false)} user={user} onBooked={() => { setApptOpen(false); message.success('Đã gửi yêu cầu đặt khám'); }} />
       <RxDetail rx={rxOpen} onClose={() => setRxOpen(null)} />
       <LabDetail lab={labOpen} onClose={() => setLabOpen(null)} />
+      <EmrDetail detail={emrDetail} loading={emrLoading} onClose={() => setEmrDetail(null)} />
     </PhoneFrame>
   );
 };
@@ -462,6 +512,155 @@ const PP_DEPTS = [
   { code: 'mat', name: 'Mắt', icon: 'user' },
   { code: 'nhi', name: 'Nhi', icon: 'user' },
 ];
+
+/* ─────────── G-39: EMR List Screen ─────────── */
+const EmrList: React.FC<{ visits: EmrVisit[]; loading: boolean; onSelect: (id: string) => void }> = ({ visits, loading, onSelect }) => (
+  <>
+    <div className="pp-page-hdr"><h2>Hồ sơ bệnh án</h2></div>
+    {loading && <div className="pp-empty"><div>Đang tải…</div></div>}
+    {!loading && visits.length === 0 && (
+      <div className="pp-empty"><Ico name="stethoscope" size={42} /><div>Chưa có lượt khám</div></div>
+    )}
+    <div className="pp-list">
+      {visits.map((v) => (
+        <div key={v.id} className="pp-card pp-emr-row" onClick={() => onSelect(v.id)}>
+          <div className="pp-emr-date">{v.date}</div>
+          <div className="pp-emr-body">
+            <div className="pp-emr-dept">{v.dept}</div>
+            <div className="pp-emr-doc">{v.doctor}</div>
+            <div className="pp-emr-diag">{v.diagnosis}</div>
+          </div>
+          <Ico name="chevron" size={18} />
+        </div>
+      ))}
+    </div>
+  </>
+);
+
+/* ─────────── G-39: EMR Detail Sheet ─────────── */
+const EmrDetail: React.FC<{ detail: EmrDetail | null; loading: boolean; onClose: () => void }> = ({ detail, loading, onClose }) => {
+  if (!detail && !loading) return null;
+  const hasBP = detail?.bloodPressureSystolic && detail?.bloodPressureDiastolic;
+
+  const handlePrint = () => {
+    // window.print() — tabbar/nav hidden via CSS @media print
+    window.print();
+  };
+
+  return (
+    <div className="pp-sheet-bg" onClick={onClose}>
+      <div className="pp-sheet pp-emr-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="pp-sheet-hdr">
+          <button className="pp-icobtn" onClick={onClose}><Ico name="back" /></button>
+          <h3>Chi tiết lượt khám</h3>
+          <button className="pp-icobtn" onClick={handlePrint} title="In hồ sơ">
+            {/* printer icon */}
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+              <rect x="6" y="14" width="12" height="8" />
+            </svg>
+          </button>
+        </div>
+
+        {loading && <div className="pp-empty" style={{ minHeight: 200 }}><div>Đang tải chi tiết…</div></div>}
+
+        {detail && !loading && (
+          <div className="pp-sheet-body pp-emr-body-scroll pp-print-area">
+            {/* Thông tin chung */}
+            <div className="pp-emr-section">
+              <div className="pp-emr-section-title">Thông tin lượt khám</div>
+              <div className="pp-emr-info-row"><span>Ngày khám</span><b>{fmtD(detail.visitDate)}</b></div>
+              <div className="pp-emr-info-row"><span>Khoa/Phòng</span><b>{detail.department}</b></div>
+              <div className="pp-emr-info-row"><span>Bác sĩ</span><b>{detail.doctorName}</b></div>
+              {detail.chiefComplaint && <div className="pp-emr-info-row"><span>Lý do khám</span><b>{detail.chiefComplaint}</b></div>}
+            </div>
+
+            {/* Sinh hiệu */}
+            {(hasBP || detail.pulse || detail.temperature || detail.spO2) && (
+              <div className="pp-emr-section">
+                <div className="pp-emr-section-title">Dấu hiệu sinh tồn</div>
+                <div className="pp-emr-vitals">
+                  {hasBP && <div className="pp-emr-vital-item"><span className="pp-emr-vl">Huyết áp</span><span className="pp-emr-vv">{detail.bloodPressureSystolic}/{detail.bloodPressureDiastolic} <small>mmHg</small></span></div>}
+                  {detail.pulse && <div className="pp-emr-vital-item"><span className="pp-emr-vl">Mạch</span><span className="pp-emr-vv">{detail.pulse} <small>bpm</small></span></div>}
+                  {detail.temperature && <div className="pp-emr-vital-item"><span className="pp-emr-vl">Nhiệt độ</span><span className="pp-emr-vv">{detail.temperature} <small>°C</small></span></div>}
+                  {detail.spO2 && <div className="pp-emr-vital-item"><span className="pp-emr-vl">SpO2</span><span className="pp-emr-vv">{detail.spO2} <small>%</small></span></div>}
+                  {detail.weight && <div className="pp-emr-vital-item"><span className="pp-emr-vl">Cân nặng</span><span className="pp-emr-vv">{detail.weight} <small>kg</small></span></div>}
+                  {detail.height && <div className="pp-emr-vital-item"><span className="pp-emr-vl">Chiều cao</span><span className="pp-emr-vv">{detail.height} <small>cm</small></span></div>}
+                </div>
+              </div>
+            )}
+
+            {/* Chẩn đoán */}
+            {(detail.mainDiagnosis || detail.initialDiagnosis) && (
+              <div className="pp-emr-section">
+                <div className="pp-emr-section-title">Chẩn đoán</div>
+                {detail.initialDiagnosis && <div className="pp-emr-info-row"><span>Sơ bộ</span><b>{detail.initialDiagnosis}</b></div>}
+                {detail.mainDiagnosis && <div className="pp-emr-info-row"><span>Chính {detail.mainIcdCode ? `(${detail.mainIcdCode})` : ''}</span><b>{detail.mainDiagnosis}</b></div>}
+                {detail.subDiagnosis && <div className="pp-emr-info-row"><span>Bệnh kèm</span><b>{detail.subDiagnosis}</b></div>}
+              </div>
+            )}
+
+            {/* Kết luận & kế hoạch */}
+            {(detail.conclusionNote || detail.treatmentPlan || detail.followUpDate) && (
+              <div className="pp-emr-section">
+                <div className="pp-emr-section-title">Kết luận & điều trị</div>
+                {detail.conclusionNote && <div className="pp-emr-info-row"><span>Kết luận</span><b>{detail.conclusionNote}</b></div>}
+                {detail.treatmentPlan && <div className="pp-emr-info-row"><span>Hướng điều trị</span><b>{detail.treatmentPlan}</b></div>}
+                {detail.followUpDate && <div className="pp-emr-info-row"><span>Ngày tái khám</span><b>{fmtD(detail.followUpDate)}</b></div>}
+              </div>
+            )}
+
+            {/* Đơn thuốc */}
+            {detail.prescriptions.length > 0 && (
+              <div className="pp-emr-section">
+                <div className="pp-emr-section-title">Đơn thuốc</div>
+                {detail.prescriptions.map((rx) => (
+                  <div key={rx.id} className="pp-emr-rx">
+                    <div className="pp-emr-rx-hdr"><span className="pp-pill green">{rx.status}</span><span>{fmtD(rx.prescriptionDate)}</span></div>
+                    {rx.items.map((it, i) => (
+                      <div key={i} className="pp-rx-item" style={{ padding: '6px 0' }}>
+                        <Ico name="pill" size={16} />
+                        <div><div className="pp-rx-name">{it.medicineName}</div><div className="pp-rx-dose">{it.usage} · {it.quantity} {it.unit}</div></div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Tờ điều trị */}
+            {detail.treatmentSheets.length > 0 && (
+              <div className="pp-emr-section">
+                <div className="pp-emr-section-title">Tờ điều trị</div>
+                {detail.treatmentSheets.map((t, i) => (
+                  <div key={i} className="pp-emr-ts">
+                    <div className="pp-emr-ts-day">Ngày {t.day} · {fmtD(t.treatmentDate)}</div>
+                    {t.patientCondition && <div className="pp-emr-ts-row"><span>Tình trạng</span><span>{t.patientCondition}</span></div>}
+                    {t.doctorOrders && <div className="pp-emr-ts-row"><span>Y lệnh</span><span>{t.doctorOrders}</span></div>}
+                    {t.notes && <div className="pp-emr-ts-row"><span>Ghi chú</span><span>{t.notes}</span></div>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Phẫu thuật/thủ thuật */}
+            {detail.surgeries.length > 0 && (
+              <div className="pp-emr-section">
+                <div className="pp-emr-section-title">Phẫu thuật / Thủ thuật</div>
+                {detail.surgeries.map((s, i) => (
+                  <div key={i} className="pp-emr-info-row">
+                    <span>{s.surgeryName || s.procedureCode}</span>
+                    <span className={`pp-pill ${s.status === 'Hoàn thành' ? 'green' : 'blue'}`}>{s.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const ApptSheet: React.FC<{ open: boolean; onClose: () => void; user: UserInfo | null; onBooked: () => void }> = ({ open, onClose, user, onBooked }) => {
   const [step, setStep] = useState(0);

@@ -379,6 +379,26 @@ namespace HIS.Application.Services
         /// </summary>
         Task<List<AnalyzerRealtimeStatusDto>> GetAnalyzersRealtimeStatusAsync();
 
+        /// <summary>
+        /// Lấy danh sách inbox kết quả từ máy theo trạng thái + ngày
+        /// </summary>
+        Task<List<AnalyzerInboxItemDto>> GetAnalyzerInboxAsync(AnalyzerInboxQueryDto query);
+
+        /// <summary>
+        /// Chuyển kết quả Matched từ inbox vào LabOrderItem (Transferred)
+        /// </summary>
+        Task<bool> TransferInboxResultAsync(Guid inboxId, Guid? userId = null);
+
+        /// <summary>
+        /// Từ chối / đánh dấu lỗi kết quả inbox
+        /// </summary>
+        Task<bool> RejectInboxResultAsync(Guid inboxId, string reason);
+
+        /// <summary>
+        /// Mock-receive: nhận danh sách kết quả JSON giả (Admin only)
+        /// </summary>
+        Task<ProcessAnalyzerResultDto> MockReceiveResultsAsync(Guid analyzerId, List<MockLabResultDto> results);
+
         #endregion
 
         #region Xét nghiệm nhanh (POCT - Point of Care Testing)
@@ -431,6 +451,26 @@ namespace HIS.Application.Services
         /// Báo cáo thống kê vi sinh
         /// </summary>
         Task<MicrobiologyStatisticsDto> GetMicrobiologyStatisticsAsync(DateTime fromDate, DateTime toDate);
+
+        // -- FE Microbiology v2 endpoints (G-19) --
+
+        /// <summary>Lấy danh sách nuôi cấy (v2 — hỗ trợ keyword, trả MicrobiologyCultureV2Dto)</summary>
+        Task<List<MicrobiologyCultureV2Dto>> GetMicrobiologyCulturesV2Async(int? status, string keyword);
+
+        /// <summary>Lấy chi tiết 1 nuôi cấy kèm organisms + antibiogram</summary>
+        Task<MicrobiologyCultureV2Dto?> GetMicrobiologyCultureByIdAsync(Guid id);
+
+        /// <summary>Tạo mới nuôi cấy từ mã YC xét nghiệm</summary>
+        Task<MicrobiologyCultureV2Dto> CreateMicrobiologyCultureAsync(CreateMicrobiologyCultureDto dto);
+
+        /// <summary>Cập nhật trạng thái nuôi cấy</summary>
+        Task UpdateMicrobiologyCultureStatusAsync(Guid id, UpdateCultureStatusDto dto);
+
+        /// <summary>Thêm vi sinh vật vào nuôi cấy</summary>
+        Task<MicrobiologyOrganismV2Dto> AddOrganismToCultureAsync(Guid cultureId, AddOrganismDto dto);
+
+        /// <summary>Lưu kháng sinh đồ cho 1 organism finding</summary>
+        Task SaveAntibiogramAsync(Guid organismFindingId, List<SaveAntibioticResultDto> results);
 
         #endregion
 
@@ -994,6 +1034,56 @@ namespace HIS.Application.Services
         public List<string> ActiveAlerts { get; set; }
     }
 
+    /// <summary>
+    /// Query DTO for AnalyzerInbox
+    /// </summary>
+    public class AnalyzerInboxQueryDto
+    {
+        public Guid? AnalyzerId { get; set; }
+        /// <summary>Null = all statuses. 0=Pending,1=Matched,2=ManualMapped,3=Ignored,4=Transferred</summary>
+        public int? Status { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public int Page { get; set; } = 0;
+        public int PageSize { get; set; } = 50;
+    }
+
+    /// <summary>
+    /// Single inbox item (LabRawResult projected for UI)
+    /// </summary>
+    public class AnalyzerInboxItemDto
+    {
+        public Guid Id { get; set; }
+        public Guid AnalyzerId { get; set; }
+        public string AnalyzerName { get; set; }
+        public string SampleBarcode { get; set; }
+        public string TestCode { get; set; }
+        public string Result { get; set; }
+        public string Unit { get; set; }
+        public string Flag { get; set; }
+        public DateTime? ResultTime { get; set; }
+        public DateTime ReceivedAt { get; set; }
+        /// <summary>0=Pending,1=Matched,2=ManualMapped,3=Ignored,4=Transferred</summary>
+        public int Status { get; set; }
+        public string StatusName { get; set; }
+        public Guid? MatchedLabRequestItemId { get; set; }
+        public string? RejectedReason { get; set; }
+        public DateTime? TransferredAt { get; set; }
+    }
+
+    /// <summary>
+    /// Mock receive request item
+    /// </summary>
+    public class MockLabResultDto
+    {
+        public string SampleBarcode { get; set; }
+        public string TestCode { get; set; }
+        public string Result { get; set; }
+        public string Unit { get; set; }
+        public string Flag { get; set; }
+        public DateTime? ResultTime { get; set; }
+    }
+
     public class POCTDeviceDto
     {
         public Guid Id { get; set; }
@@ -1132,6 +1222,88 @@ namespace HIS.Application.Services
         public string Flag { get; set; }
         public DateTime? ResultTime { get; set; }
         public string RawData { get; set; }
+    }
+
+    // -- G-19: Microbiology v2 DTOs matching FE microbiology.ts shape --
+
+    public class MicrobiologyCultureV2Dto
+    {
+        public Guid Id { get; set; }
+        public Guid? LabRequestId { get; set; }
+        public string RequestCode { get; set; }
+        public Guid? PatientId { get; set; }
+        public string PatientName { get; set; }
+        public string PatientCode { get; set; }
+        public string SampleType { get; set; }
+        public string SampleBarcode { get; set; }
+        public string CultureType { get; set; }
+        public DateTime CultureDate { get; set; }
+        public DateTime? IncubationStart { get; set; }
+        public DateTime? IncubationEnd { get; set; }
+        public DateTime? ResultDate { get; set; }
+        public int Status { get; set; }
+        public string Notes { get; set; }
+        public List<MicrobiologyOrganismV2Dto> Organisms { get; set; } = new();
+    }
+
+    public class MicrobiologyOrganismV2Dto
+    {
+        public Guid Id { get; set; }
+        public Guid CultureId { get; set; }
+        public string OrganismCode { get; set; }
+        public string OrganismName { get; set; }
+        public string ColonyCount { get; set; }
+        public string Morphology { get; set; }
+        public string GramStain { get; set; }
+        public string IdentificationMethod { get; set; }
+        public List<AntibioticSensitivityV2Dto> Antibiogram { get; set; } = new();
+    }
+
+    public class AntibioticSensitivityV2Dto
+    {
+        public Guid Id { get; set; }
+        public Guid OrganismId { get; set; }
+        public string AntibioticCode { get; set; }
+        public string AntibioticName { get; set; }
+        public decimal? Mic { get; set; }
+        public decimal? ZoneDiameter { get; set; }
+        public string Interpretation { get; set; } // S, I, R
+        public string Method { get; set; }
+    }
+
+    public class CreateMicrobiologyCultureDto
+    {
+        public string LabRequestId { get; set; } // may be Guid or code string from FE
+        public string SampleType { get; set; }
+        public string CultureType { get; set; }
+        public string SampleBarcode { get; set; }
+        public string Notes { get; set; }
+    }
+
+    public class UpdateCultureStatusDto
+    {
+        public int Status { get; set; }
+        public string Notes { get; set; }
+    }
+
+    public class AddOrganismDto
+    {
+        public string OrganismCode { get; set; }
+        public string OrganismName { get; set; }
+        public string ColonyCount { get; set; }
+        public string Morphology { get; set; }
+        public string GramStain { get; set; }
+        public string IdentificationMethod { get; set; }
+    }
+
+    public class SaveAntibioticResultDto
+    {
+        public string AntibioticCode { get; set; }
+        public string AntibioticName { get; set; }
+        public decimal? Mic { get; set; }
+        public decimal? ZoneDiameter { get; set; }
+        public string Interpretation { get; set; } // S, I, R
+        public string Method { get; set; }
     }
 
     #endregion

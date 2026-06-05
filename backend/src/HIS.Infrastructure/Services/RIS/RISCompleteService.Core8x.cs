@@ -1428,8 +1428,37 @@ public partial class RISCompleteService
         var report = await _context.RadiologyReports.FindAsync(dto.ResultId);
         if (report == null) return false;
 
+        // G-36: per-modality permission check.
+        // Chỉ áp khi ApprovingUserId có giá trị (controller điền từ JWT).
+        // Logic: nếu user có RadiologyPermission row nào cho modality của ca chụp
+        // → phải có bit DuyetKQ (0x0010). Không có row nào = không hạn chế (backward-compat).
+        if (dto.ApprovingUserId.HasValue && dto.ApprovingUserId.Value != Guid.Empty)
+        {
+            var examForCheck = await _context.RadiologyExams
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.Id == report.RadiologyExamId);
+
+            if (examForCheck != null)
+            {
+                const int DuyetKQFlag = 0x0010;
+                var modalityPerms = await _context.RadiologyPermissions
+                    .Where(p =>
+                        p.UserId == dto.ApprovingUserId.Value &&
+                        p.IsActive &&
+                        (p.ModalityId == examForCheck.ModalityId || p.ModalityId == null))
+                    .ToListAsync();
+
+                // Có row hạn chế → phải có flag DuyetKQ
+                if (modalityPerms.Count > 0 && !modalityPerms.Any(p => (p.Permissions & DuyetKQFlag) != 0))
+                {
+                    throw new UnauthorizedAccessException(
+                        "Bạn không có quyền duyệt kết quả cho loại máy chụp này.");
+                }
+            }
+        }
+
         report.Status = 2; // Final approved
-        report.ApprovedBy = Guid.Parse("9e5309dc-ecf9-4d48-9a09-224cd15347b1"); // Admin
+        report.ApprovedBy = dto.ApprovingUserId ?? Guid.Parse("9e5309dc-ecf9-4d48-9a09-224cd15347b1");
         report.ApprovedAt = DateTime.Now;
         report.UpdatedAt = DateTime.Now;
 

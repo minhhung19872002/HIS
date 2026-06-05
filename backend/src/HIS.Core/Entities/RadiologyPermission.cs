@@ -22,9 +22,17 @@ public class RadiologyPermission : BaseEntity
     public Guid UserId { get; set; }
     public virtual User? User { get; set; }
 
-    /// <summary>Null = áp dụng cho TẤT CẢ máy chụp. Có giá trị = chỉ máy cụ thể.</summary>
+    /// <summary>Null = áp dụng cho TẤT CẢ máy chụp. Có giá trị = chỉ phòng cụ thể.</summary>
     public Guid? RoomId { get; set; }
     public virtual Room? Room { get; set; }
+
+    /// <summary>
+    /// G-36: FK sang RadiologyModalities.Id. Null = áp dụng mọi loại máy.
+    /// Có giá trị = chỉ máy chụp cụ thể đó mới áp dụng hạn chế quyền này.
+    /// Backward-compat: user chưa có row nào cho modality = full quyền như cũ.
+    /// </summary>
+    public Guid? ModalityId { get; set; }
+    public virtual RadiologyModality? Modality { get; set; }
 
     public string? ModalityType { get; set; }
 

@@ -9,7 +9,7 @@
  * ===================================================================== */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   KpiStrip, StatusBadge, Btn, ActBtn, DataTable, TopTabs, DrawerShell, ModalShell,
   fmtDMYg, fmtDTg, tk, ti, te, tw, type ColumnDef, type TopTab,
@@ -74,6 +74,8 @@ const PRINT_FORMS = [
 
 const EmrEditorV2: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectDone = useRef(false); // chỉ auto-chọn 1 lần theo ?patientId=
   const [leftOpen, setLeftOpen] = useState(false);
 
   const [records, setRecords] = useState<EmrRecordDto[]>([]);
@@ -120,6 +122,7 @@ const EmrEditorV2: React.FC = () => {
     setLeftOpen(false);
     setTab('record');
     setFull(null); setExamId(null); setTreatments([]); setConsults([]); setNursing([]);
+    setAttachments([]);
     let hist: MedicalHistoryDto[] = [];
     try {
       const h = await getPatientMedicalHistory(rec.patientId, 30);
@@ -140,6 +143,14 @@ const EmrEditorV2: React.FC = () => {
     if (c.status === 'fulfilled' && Array.isArray(c.value.data)) setConsults(c.value.data);
     if (n.status === 'fulfilled' && Array.isArray(n.value.data)) setNursing(n.value.data);
   }, []);
+
+  // Deep-link từ màn khác (vd LIS): /v2/emr/edit?patientId=… → auto mở hồ sơ BN đó
+  useEffect(() => {
+    const pid = searchParams.get('patientId');
+    if (!pid || preselectDone.current || records.length === 0) return;
+    const rec = records.find((r) => r.patientId === pid);
+    if (rec) { preselectDone.current = true; selectRecord(rec); }
+  }, [records, searchParams, selectRecord]);
 
   const downloadBlob = (data: BlobPart, filename: string, mime: string) => {
     const url = window.URL.createObjectURL(new Blob([data], { type: mime }));

@@ -144,12 +144,22 @@ public class LabRawResult : BaseEntity
     public string? RawMessage { get; set; }
 
     /// <summary>
-    /// Trạng thái: 0=Pending, 1=Matched, 2=ManualMapped, 3=Ignored
+    /// Trạng thái: 0=Pending, 1=Matched, 2=ManualMapped, 3=Ignored, 4=Transferred
     /// </summary>
     public int Status { get; set; }
     public Guid? MappedToLabRequestItemId { get; set; }
     public DateTime? MappedAt { get; set; }
     public Guid? MappedBy { get; set; }
+
+    /// <summary>
+    /// Lý do từ chối (khi Status=3/Ignored)
+    /// </summary>
+    public string? RejectedReason { get; set; }
+
+    /// <summary>
+    /// Thời điểm chuyển kết quả vào phiếu (khi Status=4/Transferred)
+    /// </summary>
+    public DateTime? TransferredAt { get; set; }
 
     // Navigation
     public virtual LabAnalyzer? Analyzer { get; set; }
@@ -368,23 +378,46 @@ public class LisAnalyzer : BaseEntity
 }
 
 /// <summary>
-/// Thông số xét nghiệm (Test Parameters)
+/// Thông số xét nghiệm (Test Parameters) — G-22 / G-23.
+/// Catalog chính cho tab "Chỉ số XN" trong LisCatalogAdmin.
 /// </summary>
 public class LisTestParameter : BaseEntity
 {
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Unit { get; set; } = string.Empty;
+
+    /// <summary>Giá trị tham chiếu tổng quát (không phân biệt giới)</summary>
     public decimal? ReferenceLow { get; set; }
     public decimal? ReferenceHigh { get; set; }
+
+    /// <summary>Giá trị tham chiếu theo giới (G-22)</summary>
+    public decimal? NormalMinMale { get; set; }
+    public decimal? NormalMaxMale { get; set; }
+    public decimal? NormalMinFemale { get; set; }
+    public decimal? NormalMaxFemale { get; set; }
+
+    /// <summary>Ngưỡng cảnh báo nguy hiểm (G-22)</summary>
     public decimal? CriticalLow { get; set; }
     public decimal? CriticalHigh { get; set; }
+
+    /// <summary>Mã HL7 trao đổi với LIS (G-22)</summary>
+    public string? Hl7Code { get; set; }
+
+    /// <summary>Nhóm XN (G-22) — FK → LabTestGroups</summary>
+    public Guid? GroupId { get; set; }
+
+    /// <summary>Liên kết dịch vụ viện phí (G-23) — FK → Services</summary>
+    public Guid? ServiceId { get; set; }
+
     public string DataType { get; set; } = "Number"; // Number, Text, Enum
     public string? EnumValues { get; set; } // JSON array of allowed values for Enum type
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
 
     // Navigation
+    public virtual LabTestGroup? Group { get; set; }
+    public virtual Service? Service { get; set; }
     public virtual ICollection<LisReferenceRange> ReferenceRanges { get; set; } = new List<LisReferenceRange>();
     public virtual ICollection<LisAnalyzerMapping> AnalyzerMappings { get; set; } = new List<LisAnalyzerMapping>();
 }

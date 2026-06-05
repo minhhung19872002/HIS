@@ -93,6 +93,7 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'hospital-pharmacy',    path: '/v2/hospital-pharmacy',    label: '[24] Nhà thuốc bệnh viện' },
       { id: 'pharmacy-stock-in',    path: '/v2/pharmacy-stock-in',    label: 'Nhập kho NCC' },
       { id: 'pharmacy-stock-issue', path: '/v2/pharmacy-stock-issue', label: 'Xuất kho' },
+      { id: 'pharmacy-approval',    path: '/v2/pharmacy-approval',    label: 'Dự trù & Duyệt cấp phát' },
       { id: 'pharmacy-stock-take',  path: '/v2/pharmacy-stock-take',  label: 'Kiểm kê kho' },
       { id: 'medical-supply',       path: '/v2/medical-supply',       label: '[24] Vật tư y tế' },
       { id: 'nutrition',            path: '/v2/nutrition',            label: '[24] Dinh dưỡng' },
@@ -130,6 +131,10 @@ const HIS_GROUPS: NavGroup[] = [
     items: [
       { id: 'admin',             path: '/v2/admin',             label: '[24] Quản trị hệ thống' },
       { id: 'hr',                path: '/v2/hr',                label: 'Nhân sự' },
+      { id: 'payroll',           path: '/v2/payroll',           label: 'Lương (Payroll)' },
+      { id: 'hr-decisions',      path: '/v2/hr-decisions',      label: 'Quyết định nhân sự' },
+      { id: 'vpp-stock-card',    path: '/v2/vpp-stock-card',    label: 'Kho TTB/VPP (thẻ kho)' },
+      { id: 'official-documents', path: '/v2/official-documents', label: 'Công văn đến/đi' },
       { id: 'quality',           path: '/v2/quality',           label: 'Chất lượng BV' },
       { id: 'equipment',         path: '/v2/equipment',         label: 'Thiết bị y tế' },
       { id: 'asset-management',  path: '/v2/asset-management',  label: 'Tài sản - CCDC' },

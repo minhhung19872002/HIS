@@ -902,6 +902,38 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<HealthRecordSummaryDto>> GetHealthRecord([FromQuery] Guid patientId)
             => Ok(await _service.GetHealthRecordSummaryAsync(patientId));
 
+        // G-39: Visit list for EMR tab
+        [HttpGet("visits")]
+        [Authorize]
+        public async Task<ActionResult<List<VisitSummaryDto>>> GetVisits(
+            [FromQuery] Guid patientId,
+            [FromQuery] int limit = 20)
+            => Ok(await _service.GetVisitHistoryAsync(patientId, limit));
+
+        // G-39: Full visit detail - security: service verifies exam belongs to patientId
+        // RISK NOTE: patientId accepted from query param (current portal auth model) — not from JWT claims.
+        // If portal moves to patient self-login, extract patientId from claims instead.
+        [HttpGet("visits/{examId}")]
+        [Authorize]
+        public async Task<ActionResult<PortalVisitDetailDto>> GetVisitDetail(
+            Guid examId,
+            [FromQuery] Guid patientId)
+        {
+            var result = await _service.GetVisitDetailAsync(examId, patientId);
+            if (result == null) return NotFound();
+            return Ok(result);
+        }
+
+        // G-39: Export full health record as HTML (printable)
+        [HttpGet("export-health-record")]
+        [Authorize]
+        public async Task<ActionResult> ExportHealthRecord([FromQuery] Guid patientId)
+        {
+            var bytes = await _service.ExportHealthRecordPdfAsync(patientId);
+            if (bytes == null || bytes.Length == 0) return NotFound();
+            return File(bytes, "text/html", "ho-so-suc-khoe.html");
+        }
+
         [HttpGet("lab-results")]
         [Authorize]
         public async Task<ActionResult<List<PortalLabResultDto>>> GetLabResults(

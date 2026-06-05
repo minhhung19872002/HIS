@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -87,6 +88,10 @@ namespace HIS.API.Controllers
         private readonly IConfiguration _configuration;
         private readonly ILogger<RISCompleteController> _logger;
 
+        // G-36: helper lấy userId từ JWT claim (dùng cho permission check)
+        private Guid GetUserId() =>
+            Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
+
         public RISCompleteController(
             IRISCompleteService risService,
             IDigitalSignatureService digitalSignatureService,
@@ -117,7 +122,9 @@ namespace HIS.API.Controllers
         [HttpPost("results/approve")]
         public async Task<ActionResult> ApproveResult([FromBody] ApproveRadiologyResultDto dto)
         {
-            await _risService.FinalApproveResultAsync(dto);
+            dto.ApprovingUserId = GetUserId(); // G-36: per-modality permission check
+            try { await _risService.FinalApproveResultAsync(dto); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, new { success = false, message = ex.Message }); }
             return Ok(new { success = true });
         }
 
@@ -718,7 +725,9 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> FinalApproveResult(Guid resultId, [FromBody] ApproveRadiologyResultDto dto)
         {
             dto.ResultId = resultId;
-            await _risService.FinalApproveResultAsync(dto);
+            dto.ApprovingUserId = GetUserId(); // G-36: per-modality permission check
+            try { await _risService.FinalApproveResultAsync(dto); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, new { success = false, message = ex.Message }); }
             return Ok(new { success = true });
         }
 
