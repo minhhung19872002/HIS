@@ -50,7 +50,8 @@ export interface MicrobiologyReport {
 }
 
 export const getMicrobiologyCultures = async (params?: { status?: number; fromDate?: string; keyword?: string }) => {
-  const resp = await apiClient.get('/LISComplete/microbiology/cultures', { params });
+  // Route /cultures/v2 accepts status + keyword query params and returns real DB data (G-19)
+  const resp = await apiClient.get('/LISComplete/microbiology/cultures/v2', { params });
   return resp.data;
 };
 

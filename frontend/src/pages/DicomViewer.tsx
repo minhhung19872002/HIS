@@ -34,7 +34,7 @@ import {
   RobotOutlined,
 } from '@ant-design/icons';
 import risApi from '../api/ris';
-import type { DicomSeriesDto, DicomImageDto } from '../api/ris';
+import type { DicomSeriesDto, DicomImageDto, KeyImageDto } from '../api/ris';
 import { createRoom, searchRooms, joinRoom } from '../api/videoConsultation';
 import AiLabelingModal from '../components/AiLabelingModal';
 import AiOverlayLayer from '../components/AiOverlayLayer';
@@ -134,6 +134,11 @@ const DicomViewer: React.FC = () => {
   const [useCs, setUseCs] = useState(true); // default to native renderer
   const csRef = useRef<CornerstoneViewerHandle>(null);
 
+  // Key Images — loaded per study, refreshed after mark/unmark
+  const [keyImages, setKeyImages] = useState<KeyImageDto[]>([]);
+  // Index within the current images[] array that is currently viewed in viewer
+  const [viewerCurrentIdx, setViewerCurrentIdx] = useState(0);
+
   // Build wadouri:URL list from images (raw DICOM proxy through backend)
   // Backend endpoint /pacs/instances/{id}/file streams raw DICOM bytes.
   // imageUrl pattern is `/api/RISComplete/pacs/instances/{instanceId}/(preview|rendered)?...` —
@@ -212,6 +217,38 @@ const DicomViewer: React.FC = () => {
     message.success('Đã tải lại cấu hình viewer');
   }, []);
 
+  // Load key images for the current study (called on study load + after mark/unmark)
+  const loadKeyImages = useCallback(async (studyUID: string) => {
+    if (!studyUID) return;
+    try {
+      const resp = await risApi.getKeyImages(studyUID);
+      setKeyImages(resp.data ?? []);
+    } catch {
+      // Non-critical — silently skip if PACS feature not yet deployed
+    }
+  }, []);
+
+  // Toggle mark/unmark key image for the image at given index in current series
+  const handleToggleKeyImage = useCallback(async (idx: number) => {
+    const img = images[idx];
+    if (!img || !studyInstanceUID) return;
+    const sop = img.sopInstanceUID;
+    if (!sop) { message.warning('Không có SOP Instance UID cho ảnh này'); return; }
+    const alreadyMarked = keyImages.some((k) => k.sopInstanceUID === sop);
+    try {
+      await risApi.markKeyImage({
+        studyInstanceUID,
+        sopInstanceUID: sop,
+        description: img.imageType ?? '',
+        unmark: alreadyMarked,
+      });
+      message.success(alreadyMarked ? 'Đã bỏ đánh dấu ảnh key' : 'Đã đánh dấu ảnh key');
+      await loadKeyImages(studyInstanceUID);
+    } catch {
+      message.error('Không thể thực hiện thao tác ảnh key');
+    }
+  }, [images, keyImages, studyInstanceUID, loadKeyImages]);
+
 
   const loadStudyData = useCallback(async () => {
     setLoading(true);
@@ -242,6 +279,8 @@ const DicomViewer: React.FC = () => {
         // Auto-select first series
         setSelectedSeries(firstSeries);
         void loadImages(firstSeries.seriesInstanceUID);
+        // Load key images for this study (non-critical)
+        void loadKeyImages(studyInstanceUID);
 
         // Ghi log THẬT (DicomStudyActivityLog gap #9): BS/KTV mở xem ca chụp.
         // Audit log không chặn luồng xem ảnh nếu fail.
@@ -273,7 +312,7 @@ const DicomViewer: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [studyInstanceUID]);
+  }, [studyInstanceUID, loadKeyImages]);
 
   // Check PACS availability and load study data
   useEffect(() => {
@@ -956,6 +995,12 @@ const DicomViewer: React.FC = () => {
                         imageIds={cornerstoneImageIds}
                         initialIndex={Math.max(0, images.findIndex((i) => resolveApiUrl(i.imageUrl || '') === selectedImageUrl))}
                         height="calc(100vh - 460px)"
+                        onToggleKeyImage={handleToggleKeyImage}
+                        onIndexChange={setViewerCurrentIdx}
+                        isKeyImage={
+                          !!images[viewerCurrentIdx]?.sopInstanceUID &&
+                          keyImages.some((k) => k.sopInstanceUID === images[viewerCurrentIdx]?.sopInstanceUID)
+                        }
                         overlay={(size, imageRect) =>
                           showAiOverlay && aiOverlayLabels.length > 0 ? (
                             <AiOverlayLayer

@@ -50,31 +50,142 @@ public partial class RISCompleteService
 
     public async Task<ImageAnnotationDto> SaveAnnotationAsync(ImageAnnotationDto annotation)
     {
-        annotation.Id = Guid.NewGuid();
-        annotation.CreatedTime = DateTime.Now;
+        // Upsert: if Id is provided and exists, update; otherwise insert new record.
+        PacsImageAnnotation? entity = null;
+        if (annotation.Id != Guid.Empty)
+            entity = await _context.PacsImageAnnotations
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(a => a.Id == annotation.Id);
+
+        if (entity == null)
+        {
+            entity = new PacsImageAnnotation
+            {
+                Id = Guid.NewGuid(),
+                CreatedAt = DateTime.Now,
+                AnnotatedTime = DateTime.Now,
+            };
+            await _context.PacsImageAnnotations.AddAsync(entity);
+        }
+        else
+        {
+            entity.UpdatedAt = DateTime.Now;
+        }
+
+        entity.StudyInstanceUID = annotation.StudyInstanceUID;
+        entity.SeriesInstanceUID = annotation.SeriesInstanceUID;
+        entity.SOPInstanceUID = annotation.SOPInstanceUID ?? string.Empty;
+        entity.AnnotationType = annotation.AnnotationType ?? string.Empty;
+        entity.AnnotationData = annotation.AnnotationData;
+        entity.AnnotatedBy = annotation.CreatedBy;
+        entity.IsDeleted = false;
+
+        await _unitOfWork.SaveChangesAsync();
+
+        annotation.Id = entity.Id;
+        annotation.CreatedTime = entity.AnnotatedTime;
         return annotation;
     }
 
     public async Task<List<ImageAnnotationDto>> GetAnnotationsAsync(string sopInstanceUID)
     {
-        return await Task.FromResult(new List<ImageAnnotationDto>());
+        var records = await _context.PacsImageAnnotations
+            .Where(a => a.SOPInstanceUID == sopInstanceUID)
+            .OrderBy(a => a.CreatedAt)
+            .ToListAsync();
+
+        return records.Select(a => new ImageAnnotationDto
+        {
+            Id = a.Id,
+            StudyInstanceUID = a.StudyInstanceUID,
+            SeriesInstanceUID = a.SeriesInstanceUID,
+            SOPInstanceUID = a.SOPInstanceUID,
+            AnnotationType = a.AnnotationType,
+            AnnotationData = a.AnnotationData,
+            CreatedBy = a.AnnotatedBy,
+            CreatedTime = a.AnnotatedTime,
+        }).ToList();
     }
 
     public async Task<KeyImageDto> MarkKeyImageAsync(MarkKeyImageDto dto)
     {
+        // Unmark: soft-delete existing record if Unmark flag is set
+        if (dto.Unmark)
+        {
+            var existing = await _context.PacsKeyImages
+                .FirstOrDefaultAsync(k => k.StudyInstanceUID == dto.StudyInstanceUID
+                                       && k.SOPInstanceUID == dto.SOPInstanceUID);
+            if (existing != null)
+            {
+                existing.IsDeleted = true;
+                existing.UpdatedAt = DateTime.Now;
+                await _unitOfWork.SaveChangesAsync();
+            }
+            return new KeyImageDto
+            {
+                Id = existing?.Id ?? Guid.Empty,
+                StudyInstanceUID = dto.StudyInstanceUID,
+                SOPInstanceUID = dto.SOPInstanceUID,
+                Description = dto.Description,
+                MarkedTime = DateTime.Now,
+            };
+        }
+
+        // Mark: check for existing (allow re-mark if previously deleted)
+        var record = await _context.PacsKeyImages
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(k => k.StudyInstanceUID == dto.StudyInstanceUID
+                                   && k.SOPInstanceUID == dto.SOPInstanceUID);
+        if (record == null)
+        {
+            record = new PacsKeyImage
+            {
+                Id = Guid.NewGuid(),
+                CreatedAt = DateTime.Now,
+                MarkedTime = DateTime.Now,
+            };
+            await _context.PacsKeyImages.AddAsync(record);
+        }
+        else
+        {
+            record.UpdatedAt = DateTime.Now;
+            record.IsDeleted = false;
+        }
+
+        record.StudyInstanceUID = dto.StudyInstanceUID;
+        record.SOPInstanceUID = dto.SOPInstanceUID;
+        record.Description = dto.Description;
+        record.MarkedTime = DateTime.Now;
+
+        await _unitOfWork.SaveChangesAsync();
+
         return new KeyImageDto
         {
-            Id = Guid.NewGuid(),
-            StudyInstanceUID = dto.StudyInstanceUID,
-            SOPInstanceUID = dto.SOPInstanceUID,
-            Description = dto.Description,
-            MarkedTime = DateTime.Now
+            Id = record.Id,
+            StudyInstanceUID = record.StudyInstanceUID,
+            SOPInstanceUID = record.SOPInstanceUID,
+            Description = record.Description,
+            MarkedBy = record.MarkedBy,
+            MarkedTime = record.MarkedTime,
         };
     }
 
     public async Task<List<KeyImageDto>> GetKeyImagesAsync(string studyInstanceUID)
     {
-        return await Task.FromResult(new List<KeyImageDto>());
+        var records = await _context.PacsKeyImages
+            .Where(k => k.StudyInstanceUID == studyInstanceUID)
+            .OrderBy(k => k.MarkedTime)
+            .ToListAsync();
+
+        return records.Select(k => new KeyImageDto
+        {
+            Id = k.Id,
+            StudyInstanceUID = k.StudyInstanceUID,
+            SOPInstanceUID = k.SOPInstanceUID,
+            Description = k.Description,
+            MarkedBy = k.MarkedBy,
+            MarkedTime = k.MarkedTime,
+        }).ToList();
     }
 
     public async Task<byte[]> EditImageAsync(ImageEditDto dto)

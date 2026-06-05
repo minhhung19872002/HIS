@@ -699,6 +699,8 @@ export interface MarkKeyImageDto {
   studyInstanceUID: string;
   sopInstanceUID: string;
   description?: string;
+  /** Set true to unmark (soft-delete) an existing key image */
+  unmark?: boolean;
 }
 
 export interface ImageEditDto {

@@ -10,6 +10,12 @@ import {
   RadiusBottomleftOutlined,
   ReloadOutlined,
   BgColorsOutlined,
+  StarFilled,
+  StarOutlined,
+  RadiusUpleftOutlined,
+  BorderOutlined,
+  ExpandAltOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 
 // Cornerstone3D singleton init flag — bootstrap engine only once per page load
@@ -36,7 +42,10 @@ async function ensureCornerstoneInit() {
   return csInitPromise;
 }
 
-export type CsToolName = 'WindowLevel' | 'Pan' | 'Zoom' | 'StackScroll' | 'Length' | 'Angle' | 'Probe' | 'Magnify';
+export type CsToolName =
+  | 'WindowLevel' | 'Pan' | 'Zoom' | 'StackScroll'
+  | 'Length' | 'Angle' | 'Probe' | 'Magnify'
+  | 'EllipticalROI' | 'RectangleROI' | 'Bidirectional' | 'PlanarFreehandROI';
 
 export interface WlPreset {
   key: string;
@@ -78,6 +87,17 @@ interface Props {
    * is null until the first image renders.
    */
   overlay?: (size: { width: number; height: number }, imageRect: ImageCanvasRect | null) => React.ReactNode;
+  /**
+   * Called when the user clicks the Key Image button (mark / unmark toggle).
+   * Parent passes current sopInstanceUID (from images[currentIdx]) and whether
+   * it's currently marked. The viewer itself doesn't fetch key-image state —
+   * parent controls `isKeyImage` prop.
+   */
+  onToggleKeyImage?: (currentIndex: number) => void;
+  /** True when the currently displayed image is already a marked key image. */
+  isKeyImage?: boolean;
+  /** Fired whenever the displayed frame index changes (stack scroll or setIndex). */
+  onIndexChange?: (index: number) => void;
 }
 
 const TOOL_GROUP_ID = 'his-dicom-toolgroup';
@@ -151,6 +171,7 @@ function computeImageRect(viewport: MinimalCornerstoneViewport | null | undefine
 
 const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
   imageIds, initialIndex = 0, height = '60vh', onError, overlay,
+  onToggleKeyImage, isKeyImage = false, onIndexChange,
 }, ref) => {
   const elementRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
@@ -197,6 +218,7 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
           ToolGroupManager,
           WindowLevelTool, PanTool, ZoomTool, StackScrollTool,
           LengthTool, AngleTool, ProbeTool, MagnifyTool,
+          EllipticalROITool, RectangleROITool, BidirectionalTool, PlanarFreehandROITool,
           addTool, Enums: tEnums,
         } = csTools;
 
@@ -204,6 +226,8 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
         addTool(WindowLevelTool); addTool(PanTool); addTool(ZoomTool);
         addTool(StackScrollTool); addTool(LengthTool); addTool(AngleTool);
         addTool(ProbeTool); addTool(MagnifyTool);
+        addTool(EllipticalROITool); addTool(RectangleROITool);
+        addTool(BidirectionalTool); addTool(PlanarFreehandROITool);
 
         renderingEngine = new RenderingEngine(RENDERING_ENGINE_ID);
         const viewportInput = {
@@ -227,6 +251,10 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
         tg.addTool(AngleTool.toolName);
         tg.addTool(ProbeTool.toolName);
         tg.addTool(MagnifyTool.toolName);
+        tg.addTool(EllipticalROITool.toolName);
+        tg.addTool(RectangleROITool.toolName);
+        tg.addTool(BidirectionalTool.toolName);
+        tg.addTool(PlanarFreehandROITool.toolName);
 
         // Default: WindowLevel = left, Pan = middle, Zoom = right, StackScroll = wheel
         tg.setToolActive(WindowLevelTool.toolName, { bindings: [{ mouseButton: tEnums.MouseBindings.Primary }] });
@@ -297,12 +325,13 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
       if (detail && typeof detail.imageIdIndex === 'number') {
         setCurrentIdx(detail.imageIdIndex);
         currentIdxRef.current = detail.imageIdIndex;
+        onIndexChange?.(detail.imageIdIndex);
       }
     };
     // CSE event names — string literal matches Enums.Events.STACK_NEW_IMAGE
     el.addEventListener('CORNERSTONE_STACK_NEW_IMAGE', handler);
     return () => el.removeEventListener('CORNERSTONE_STACK_NEW_IMAGE', handler);
-  }, [ready]);
+  }, [ready, onIndexChange]);
 
   // Subscribe to camera-modified to update imageRect for AI overlays.
   // CORNERSTONE_CAMERA_MODIFIED fires on every pan/zoom, plus once on initial
@@ -428,9 +457,12 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
       const csTools = await import('@cornerstonejs/tools');
       const tg = csTools.ToolGroupManager.getToolGroup(TOOL_GROUP_ID);
       if (!tg) return;
-      // Disable all tools that were on left mouse, then set new one active on left
-      const TOOLS: CsToolName[] = ['WindowLevel', 'Pan', 'Zoom', 'Length', 'Angle', 'Probe', 'Magnify'];
-      TOOLS.forEach((name) => {
+      // Disable all left-mouse tools, then activate the selected one
+      const ALL_TOOLS: CsToolName[] = [
+        'WindowLevel', 'Pan', 'Zoom', 'Length', 'Angle', 'Probe', 'Magnify',
+        'EllipticalROI', 'RectangleROI', 'Bidirectional', 'PlanarFreehandROI',
+      ];
+      ALL_TOOLS.forEach((name) => {
         try { tg.setToolPassive(name); } catch { /* tool not added */ }
       });
       tg.setToolActive(t, { bindings: [{ mouseButton: csTools.Enums.MouseBindings.Primary }] });
@@ -443,15 +475,32 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <Space wrap size={4}>
-        <ToolBtn icon={<ColumnHeightOutlined />}    label="W/L"     active={activeTool === 'WindowLevel'} onClick={() => switchTool('WindowLevel')} />
-        <ToolBtn icon={<DragOutlined />}            label="Pan"     active={activeTool === 'Pan'}         onClick={() => switchTool('Pan')} />
-        <ToolBtn icon={<ZoomInOutlined />}          label="Zoom"    active={activeTool === 'Zoom'}        onClick={() => switchTool('Zoom')} />
-        <ToolBtn icon={<HighlightOutlined />}       label="Đo DT"   active={activeTool === 'Length'}      onClick={() => switchTool('Length')} />
-        <ToolBtn icon={<RadiusBottomleftOutlined />} label="Đo góc" active={activeTool === 'Angle'}       onClick={() => switchTool('Angle')} />
-        <ToolBtn icon={<AimOutlined />}             label="Probe"   active={activeTool === 'Probe'}       onClick={() => switchTool('Probe')} />
-        <ToolBtn icon={<RetweetOutlined />}         label="Magnify" active={activeTool === 'Magnify'}     onClick={() => switchTool('Magnify')} />
+        <ToolBtn icon={<ColumnHeightOutlined />}    label="W/L"        active={activeTool === 'WindowLevel'}      onClick={() => switchTool('WindowLevel')} />
+        <ToolBtn icon={<DragOutlined />}            label="Pan"        active={activeTool === 'Pan'}              onClick={() => switchTool('Pan')} />
+        <ToolBtn icon={<ZoomInOutlined />}          label="Zoom"       active={activeTool === 'Zoom'}             onClick={() => switchTool('Zoom')} />
+        <ToolBtn icon={<HighlightOutlined />}       label="Đo DT"      active={activeTool === 'Length'}           onClick={() => switchTool('Length')} />
+        <ToolBtn icon={<RadiusBottomleftOutlined />} label="Đo góc"   active={activeTool === 'Angle'}            onClick={() => switchTool('Angle')} />
+        <ToolBtn icon={<ExpandAltOutlined />}       label="2 trục"     active={activeTool === 'Bidirectional'}    onClick={() => switchTool('Bidirectional')} />
+        <ToolBtn icon={<RadiusUpleftOutlined />}    label="ROI Elip"   active={activeTool === 'EllipticalROI'}    onClick={() => switchTool('EllipticalROI')} />
+        <ToolBtn icon={<BorderOutlined />}          label="ROI Rect"   active={activeTool === 'RectangleROI'}     onClick={() => switchTool('RectangleROI')} />
+        <ToolBtn icon={<EditOutlined />}            label="ROI Tự do"  active={activeTool === 'PlanarFreehandROI'} onClick={() => switchTool('PlanarFreehandROI')} />
+        <ToolBtn icon={<AimOutlined />}             label="Probe"      active={activeTool === 'Probe'}            onClick={() => switchTool('Probe')} />
+        <ToolBtn icon={<RetweetOutlined />}         label="Magnify"    active={activeTool === 'Magnify'}          onClick={() => switchTool('Magnify')} />
         <Tooltip title="Đảo màu (Invert)"><Button size="small" icon={<BgColorsOutlined />} onClick={() => (ref as React.RefObject<CornerstoneViewerHandle>)?.current?.invert()} /></Tooltip>
         <Tooltip title="Reset"><Button size="small" icon={<ReloadOutlined />} onClick={() => (ref as React.RefObject<CornerstoneViewerHandle>)?.current?.reset()} /></Tooltip>
+        {onToggleKeyImage && (
+          <Tooltip title={isKeyImage ? 'Bỏ đánh dấu ảnh key' : 'Đánh dấu ảnh key (Key Image)'}>
+            <Button
+              size="small"
+              type={isKeyImage ? 'primary' : 'default'}
+              danger={isKeyImage}
+              icon={isKeyImage ? <StarFilled /> : <StarOutlined />}
+              onClick={() => onToggleKeyImage(currentIdx)}
+            >
+              {isKeyImage ? 'Key' : 'Key?'}
+            </Button>
+          </Tooltip>
+        )}
         <span style={{ marginLeft: 12, fontSize: 12, color: '#999', fontFamily: 'monospace' }}>
           {imageIds.length > 0 ? `${currentIdx + 1} / ${imageIds.length}` : '—'}
         </span>

@@ -1062,6 +1062,10 @@ namespace HIS.Application.Services
         public string StudyInstanceUID { get; set; }
         public string SOPInstanceUID { get; set; }
         public string Description { get; set; }
+        /// <summary>
+        /// Set true to unmark (soft-delete) an existing key image instead of marking it.
+        /// </summary>
+        public bool Unmark { get; set; } = false;
     }
 
     public class SaveRadiologyRoomDto

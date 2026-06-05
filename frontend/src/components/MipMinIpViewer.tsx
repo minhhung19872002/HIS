@@ -34,7 +34,7 @@ async function ensureCornerstoneInit() {
 interface Props {
   imageIds: string[];
   height?: number | string;
-  defaultMode?: 'MIP' | 'MinIP';
+  defaultMode?: 'MIP' | 'MinIP' | 'AvgMIP';
   studyInfo?: {
     patient?: string;
     pid?: string;
@@ -74,7 +74,7 @@ const MipMinIpViewer: React.FC<Props> = ({
     coronal:  useRef<HTMLDivElement>(null),
   };
 
-  const [mode, setMode] = useState<'MIP' | 'MinIP'>(defaultMode);
+  const [mode, setMode] = useState<'MIP' | 'MinIP' | 'AvgMIP'>(defaultMode ?? 'MIP');
   const [slab, setSlab] = useState(30);
   const [tool, setTool] = useState<ToolKey>('wwwc');
   const [loading, setLoading] = useState(true);
@@ -161,7 +161,7 @@ const MipMinIpViewer: React.FC<Props> = ({
 
   const applyBlend = async (
     engine: import('@cornerstonejs/core').RenderingEngine,
-    m: 'MIP' | 'MinIP',
+    m: 'MIP' | 'MinIP' | 'AvgMIP',
     s: number,
   ) => {
     try {
@@ -169,7 +169,9 @@ const MipMinIpViewer: React.FC<Props> = ({
       const { Enums } = cs;
       const blend = m === 'MIP'
         ? Enums.BlendModes.MAXIMUM_INTENSITY_BLEND
-        : Enums.BlendModes.MINIMUM_INTENSITY_BLEND;
+        : m === 'MinIP'
+          ? Enums.BlendModes.MINIMUM_INTENSITY_BLEND
+          : Enums.BlendModes.AVERAGE_INTENSITY_BLEND;
       // VolumeViewport ở 3.x phơi 3 method qua interface khác nhau; duck-type minimal.
       type BlendViewport = {
         setBlendMode?: (blend: number) => void;
@@ -213,7 +215,7 @@ const MipMinIpViewer: React.FC<Props> = ({
     } catch { /* */ }
   };
 
-  const onModeChange = async (m: 'MIP' | 'MinIP') => {
+  const onModeChange = async (m: 'MIP' | 'MinIP' | 'AvgMIP') => {
     setMode(m);
     const cs = await import('@cornerstonejs/core');
     const engine = cs.getRenderingEngine(RENDER_ID);
@@ -310,7 +312,7 @@ const MipMinIpViewer: React.FC<Props> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 11, color: '#94a3b8' }}>Chế độ chiếu:</span>
           <div style={{ display: 'inline-flex', background: '#1f2937', borderRadius: 4, padding: 2 }}>
-            {(['MIP', 'MinIP'] as const).map(m => (
+            {(['MIP', 'AvgMIP', 'MinIP'] as const).map(m => (
               <button
                 key={m}
                 data-testid={`mip-mode-${m}`}
@@ -321,7 +323,7 @@ const MipMinIpViewer: React.FC<Props> = ({
                   border: 0, padding: '5px 12px', borderRadius: 3, cursor: 'pointer',
                   fontSize: 11.5, fontWeight: mode === m ? 700 : 400,
                 }}
-              >{m === 'MIP' ? 'MIP (Maximum)' : 'MinIP (Minimum)'}</button>
+              >{m === 'MIP' ? 'MIP (Max)' : m === 'AvgMIP' ? 'AvgMIP (Mean)' : 'MinIP (Min)'}</button>
             ))}
           </div>
         </div>

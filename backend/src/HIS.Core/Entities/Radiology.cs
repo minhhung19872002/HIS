@@ -147,6 +147,17 @@ public class RadiologyModality : BaseEntity
 
     public string? Notes { get; set; }
 
+    // G-34a: Cấu hình ảnh
+    /// <summary>Số ảnh tối đa in trên report</summary>
+    public int? MaxImagesPerReport { get; set; } = 4;
+
+    /// <summary>Số ảnh tối đa lưu trữ mỗi ca chụp</summary>
+    public int? MaxImagesToStore { get; set; } = 100;
+
+    // G-34b: Mẫu kết quả mặc định theo máy chụp
+    public Guid? DefaultResultTemplateId { get; set; }
+    public virtual RadiologyReportTemplate? DefaultResultTemplate { get; set; }
+
     // Navigation
     public virtual ICollection<RadiologyExam> Exams { get; set; } = new List<RadiologyExam>();
 }
@@ -940,6 +951,35 @@ public class RadiologyServiceDescriptionTemplate : BaseEntity
 
     public Guid? CreatedByUserId { get; set; }
     public virtual User? CreatedByUser { get; set; }
+}
+
+/// <summary>
+/// PACS key image — marked as clinically important by reading doctor.
+/// Supports unmark via soft-delete (IsDeleted = true).
+/// </summary>
+public class PacsKeyImage : BaseEntity
+{
+    public string StudyInstanceUID { get; set; } = string.Empty;
+    public string? SeriesInstanceUID { get; set; }
+    public string SOPInstanceUID { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? MarkedBy { get; set; }
+    public DateTime MarkedTime { get; set; }
+}
+
+/// <summary>
+/// PACS image annotation — free-form tools (arrow, text, measurement, ROI)
+/// stored as JSON per SOP instance.
+/// </summary>
+public class PacsImageAnnotation : BaseEntity
+{
+    public string? StudyInstanceUID { get; set; }
+    public string? SeriesInstanceUID { get; set; }
+    public string SOPInstanceUID { get; set; } = string.Empty;
+    public string AnnotationType { get; set; } = string.Empty; // Arrow, Text, Length, ROI ...
+    public string? AnnotationData { get; set; } // JSON payload from Cornerstone3D tools
+    public string? AnnotatedBy { get; set; }
+    public DateTime AnnotatedTime { get; set; }
 }
 
 #endregion
