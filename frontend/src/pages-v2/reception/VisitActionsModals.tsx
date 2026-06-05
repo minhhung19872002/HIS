@@ -575,9 +575,11 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
 
 // ─── 4. Chỉ định dịch vụ CLS tại tiếp đón ────────────────────────────────────
 
+// Đối tượng thanh toán — KHỚP backend StatusConstants.PatientType (1=BHYT, 2=Viện phí, 3=Dịch vụ).
+// Trước đây 1/2 bị đảo nhãn (1='Viện phí', 2='BHYT') → chọn sai đối tượng khi chỉ định DV. Đã sửa.
 const PAYMENT_TYPES = [
-  { value: 1, label: 'Viện phí' },
-  { value: 2, label: 'BHYT' },
+  { value: 1, label: 'BHYT' },
+  { value: 2, label: 'Viện phí' },
   { value: 3, label: 'Dịch vụ' },
 ];
 
