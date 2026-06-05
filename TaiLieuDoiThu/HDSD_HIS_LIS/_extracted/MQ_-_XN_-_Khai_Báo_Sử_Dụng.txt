@@ -1,0 +1,179 @@
+===== PAGE 1 ===== (chars=2305)
+1 
+MQ Solutions : XN   Khai báo  danh m ục sử dụng   
+MQ Solutions  
+Điện tho ại: 091 449 77 46  
+Email:  mqsoftvn@gmail.com  
+Website:  mqsoft.vn  
+XÉT NGHI ỆM  
+Khai báo s ử dụng 
+ 
+Mục lục 
+Khai báo danh m ục đơn v ị đo ................................ ................................ ..............................  3 
+1. Vào màn hình khai báo “Đơn v ị đo” ................................ ................................ ........  3 
+2. Khai báo “Đơn v ị đo” ................................ ................................ ...............................  5 
+3. Sửa “Đơn v ị đo” ................................ ................................ ................................ ....... 5 
+Khai báo Danh m ục vi trùng, vi khu ẩn ................................ ................................ ................  6 
+1. Vào màn hình khai báo “Vi trùng – vi khu ẩn” ................................ .........................  6 
+2. Khai báo “Vi trùng – vi khu ẩn” ................................ ................................ ................  6 
+3. Sửa “Vi trùng – Vi khu ẩn” ................................ ................................ ........................  6 
+Danh m ục kháng sinh  ................................ ................................ ................................ ..........  7 
+1. Vào màn hình khai báo “Kháng sinh”  ................................ ................................ ...... 7 
+2. Khai báo “Kháng sinh”  ................................ ................................ .............................  7 
+3. Sửa “Kháng sinh”  ................................ ................................ ................................ ..... 7 
+Khai báo danh m ục Sổ Xét nghi ệm* ................................ ................................ ...................  8 
+1. Vào màn hình khai báo “S ổ xét nghi ệm” ................................ ................................ . 8 
+2. Khai báo “S ổ xét nghi ệm” ................................ ................................ ........................  8 
+3. Sửa “Sổ xét nghi ệm” ................................ ................................ ................................  9 
+Khai báo danh m ục Xét nghi ệm* ................................ ................................ ......................  10 
+
+===== PAGE 2 ===== (chars=422)
+2 
+MQ Solutions : XN   Khai báo  danh m ục sử dụng 1. Vào màn hình khai báo “Xét nghi ệm” ................................ ................................ ... 10 
+2. Khai báo “Xét nghi ệm” ................................ ................................ ..........................  11 
+3. Sửa “Xét nghi ệm” ................................ ................................ ................................ ... 11 
+ 
+ 
+  
+===== PAGE 3 ===== (chars=237)
+3 
+MQ Solutions : XN   Khai báo  danh m ục sử dụng Khai báo danh m ục đơn v ị đo 
+1. Vào màn hình khai báo “Đơn v ị đo” 
+1. Mở phần mềm MQ Main  
+ 
+2. Chọn vào ph ần Xét nghi ệm (MQ LIS) 
+ 
+3. Nhập tài kho ản, mật khẩu được cung c ấp 
+ 
+
+===== PAGE 4 ===== (chars=204)
+4 
+MQ Solutions : XN   Khai báo  danh m ục sử dụng 4. Vào “C. Ti ện ích” → “Danh m ục” → “Đơn v ị đo” 
+ 
+ 
+Hình 1: Màn hình khai báo "Đơn v ị đo" 
+1. Danh sách các đơn v ị đo 
+2. Thông tin đơn v ị đo 
+  
+
+===== PAGE 5 ===== (chars=517)
+5 
+MQ Solutions : XN   Khai báo  danh m ục sử dụng 2. Khai báo “Đơn v ị đo” 
+1. Kiểm tra trong khung  tìm ki ếm nếu chưa có đơn v ị đo trong danh sách thì nhấn 
+“Mới” để tiến hành khai báo.  
+ 
+2. Khai báo các thông s ố 
+3. Nhấn “Lưu”  
+Ghi chú:  Bấm “B ỏ qua” n ếu không mu ốn lưu thông tin đã nh ập 
+3. Sửa “Đơn v ị đo” 
+1. Chọn đơn v ị đo muốn chỉnh sửa trên danh sách  
+2. Nhấn “Sửa” → Chỉnh sửa thông tin c ần thiết 
+3. Nhấn “Lưu”  
+Ghi chú:  Bấm “B ỏ qua” n ếu không mu ốn lưu thông tin đã nh ập hay s ửa 
+ 
+  
+
+===== PAGE 6 ===== (chars=757)
+6 
+MQ Solutions : XN   Khai báo  danh m ục sử dụng Khai báo Danh m ục vi trùng,  vi khu ẩn 
+1. Vào màn hình khai báo “ Vi trùng  – vi khu ẩn” 
+Sau khi đăng nh ập chương trình Xét nghi ệm (MQ LIS ) 
+Chọn “Tiện ích ” → “Danh m ục” → “Vi trùng ” 
+ 
+2. Khai báo “Vi trùng – vi khu ẩn” 
+1. Kiểm tra trong khung  tìm ki ếm nếu chưa có loại vi trùng – vi khu ẩn trong danh 
+sách thì nhấn “Mới” để tiến hành khai báo.  
+ 
+2. Khai báo các thông s ố 
+3. Nhấn “Lưu”  
+Ghi chú:  Bấm “B ỏ qua” n ếu không mu ốn lưu thông tin đã nh ập 
+3. Sửa “Vi trùng – Vi khu ẩn” 
+1. Chọn loại vi trùng – vi khu ẩn muốn chỉnh sửa trên danh sách  
+2. Nhấn “Sửa” → Chỉnh sửa thông tin c ần thiết 
+3. Nhấn “Lưu”  
+Ghi chú:  Bấm “B ỏ qua” n ếu không mu ốn lưu thông tin đã nh ập hay s ửa 
+
+===== PAGE 7 ===== (chars=693)
+7 
+MQ Solutions : XN   Khai báo  danh m ục sử dụng Danh m ục kháng sinh  
+1. Vào màn hình khai báo “ Kháng sinh ” 
+Sau khi đăng nh ập chương trình Xét nghi ệm (MQ LIS ) 
+Chọn “Tiện ích ” → “Danh m ục” → “Kháng sinh”  
+ 
+2. Khai báo “Kháng sinh”  
+1. Kiểm tra trong khung  tìm ki ếm nếu chưa có kháng sinh  trong danh sách thì nhấn 
+“Mới” để tiến hành khai báo.  
+ 
+2. Khai báo các thông s ố 
+3. Nhấn “Lưu”  
+Ghi chú:  Bấm “B ỏ qua” n ếu không mu ốn lưu thông tin đã nh ập 
+3. Sửa “Kháng sinh”  
+1. Chọn loại kháng sinh mu ốn chỉnh sửa trên danh sách  
+2. Nhấn “Sửa” → Chỉnh sửa thông tin c ần thiết 
+3. Nhấn “Lưu”  
+Ghi chú:  Bấm “B ỏ qua” n ếu không mu ốn lưu thông tin đã nh ập hay s ửa 
+  
+
+===== PAGE 8 ===== (chars=976)
+8 
+MQ Solutions : XN   Khai báo  danh m ục sử dụng Khai báo danh m ục Sổ Xét nghi ệm* 
+Chức năng này giúp khai báo chi ti ết Sổ xét nghi ệm, trong s ổ Xét nghi ệm tên các loại Xét 
+nghiệm và m ỗi tên Xét nghi ệm cần khai báo các thông s ố chi ti ết của mỗi Xét nghi ệm đó,  
+để khi máy Xét nghi ệm trả kết quả sẽ điền thông tin vào các thông s ố đó. 
+Đây cũng là màn hình ch ức năng cho phép liên k ết các ch ỉ định giá Xét nghi ệm của 
+chương trình qu ản lý Vi ện Phí v ới danh m ục các Xét nghi ệm của chương trình Xét 
+nghiệm để có th ể tạo 1 k ết nối liên hoàn gi ữa Khoa phòng ch ỉ định Xét Nghi ệm → Sử 
+dụng ph ần mềm Viện Phí thu ti ền → Xét nghi ệm th ực hiện. 
+1. Vào màn hình khai báo “ Sổ xét nghi ệm” 
+Sau khi đăng nh ập chương trình Xét nghi ệm (MQ LIS ) 
+Chọn “Tiện ích ” → “Danh m ục” → “Sổ xét nghi ệm” 
+ 
+2. Khai báo “S ổ xét nghi ệm” 
+1. Kiểm tra trong khung  tìm ki ếm nếu chưa có sổ xét nghi ệm trong danh sách thì 
+nhấn “M ới” để tiến hành khai báo.  
+ 
+
+===== PAGE 9 ===== (chars=384)
+9 
+MQ Solutions : XN   Khai báo  danh m ục sử dụng 2. Khai báo các thông s ố 
+3. Nhấn “Lưu”  
+Ghi chú:  Bấm “B ỏ qua” n ếu không mu ốn lưu thông tin đã nh ập 
+3. Sửa “Sổ xét nghi ệm” 
+1. Chọn sổ xét nghi ệm mu ốn chỉnh sửa trên danh sách  
+2. Nhấn “Sửa” → Chỉnh sửa thông tin c ần thiết 
+3. Nhấn “Lưu”  
+Ghi chú:  Bấm “B ỏ qua” n ếu không mu ốn lưu thông tin đã nh ập hay s ửa 
+ 
+ 
+  
+===== PAGE 10 ===== (chars=572)
+10 
+MQ Solutions : XN   Khai báo  danh m ục sử dụng Khai báo danh m ục Xét nghi ệm* 
+1. Vào màn hình khai báo “ Xét nghi ệm” 
+Sau khi đăng nh ập chương trình Xét nghi ệm (MQ LIS ) 
+Chọn “Tiện ích ” → “Danh m ục” → “Xét nghi ệm” 
+ 
+Màn hình th ể hiện bên trái đư ợc phân c ấp theo s ổ xét nghi ệm, nhóm xét nghi ệm, phân 
+loại xét nghi ệm. Ứng với mỗi mục đã chọn sẽ thể hiện nội dung chi ti ết của từng phân 
+loại xét nghi ệm bên màn hình bên ph ải. 
+Phía trên m ỗi màn hình là thanh công c ụ thể hiện các ch ức năng như thêm,  xóa, sửa, cập 
+nhật thông tin thay đ ổi. 
+ 
+
+===== PAGE 11 ===== (chars=602)
+11 
+MQ Solutions : XN   Khai báo  danh m ục sử dụng 2. Khai báo “Xét nghi ệm” 
+1. Kiểm tra trong khung  tìm ki ếm nếu chưa có sổ xét nghi ệm trong danh m ục thì 
+nhấn “M ới” để tiến hành khai báo.  
+ 
+2. Khai báo các thông s ố 
+  
+3. Nhấn “Lưu”  
+Ghi chú:  Bấm “B ỏ qua” n ếu không mu ốn lưu thông tin đã nh ập 
+Nên nh ấn vào bi ểu tượng  để xem t ất cả xét nghi ệm và tìm ki ếm dễ hơn 
+3. Sửa “Xét nghi ệm” 
+1. Chọn xét nghi ệm mu ốn chỉnh sửa trên danh sách  
+2. Nhấn “Sửa” → Chỉnh sửa thông tin c ần thiết 
+ 
+3. Nhấn “Lưu”  
+Ghi chú:  Bấm “B ỏ qua” n ếu không mu ốn lưu thông tin đã nh ập hay s ửa 

@@ -80,7 +80,7 @@ Desktop.ini
 .vscode/launch.json
 .vscode/tasks.json
 
-# T1 enum script (tooling 1-lần, plan-T1 đã có snippet sẵn)
+# T1 enum script (tooling 1-láº§n, plan-T1 Ä‘Ã£ cÃ³ snippet sáºµn)
 scripts/test-local/
 
 # =========================
@@ -166,7 +166,6 @@ test-reception-full.ps1
 
 # SQL Server backup dump (local migration artifact)
 *.bak
-TaiLieuDoiThu/
 
 # Large ONNX model files: 28MB DenseNet + 90MB ResNet50 both shipped in
 # image so /api/ai-labeling/model endpoint can serve either without R2.
@@ -189,7 +188,7 @@ backend/test-results/
 # Local browser/auth state dumps
 localstorage.json
 
-# Design pack — large prototypes from Claude Design (claude.ai/design)
+# Design pack â€” large prototypes from Claude Design (claude.ai/design)
 # Keep README + key v2 sources; ignore chat transcripts (4MB) and unused HTML files.
 design-system/chats/
 design-system/nangcap22-bundle/
@@ -213,6 +212,6 @@ scripts/test-prod/
 
 .local-dotnet-sdks
 
-# ctags code map (generated symbol index for AI agents — large, can go stale; regenerate via scripts/gen-tags.ps1)
+# ctags code map (generated symbol index for AI agents â€” large, can go stale; regenerate via scripts/gen-tags.ps1)
 /tags
 /tags.lock

@@ -1,0 +1,167 @@
+===== PAGE 1 ===== (chars=1069)
+1 
+MQ Solutions : CĐHA   Thực hiện CĐHA     
+MQ Solutions  
+Điện tho ại: 091 449 77 46  
+Email:  mqsoftvn@gmail.com  
+Website:  mqsoft.vn  
+CHẨN ĐOÁN HÌNH ẢNH 
+Thực hiện 
+ 
+Mục lục 
+Chẩn Đoán Hình Ảnh ................................ ................................ ................................ ..........  2 
+1. Vào màn hình “Ch ẩn đoán hình ảnh” ................................ ................................ ....... 2 
+2. Quy trình th ực hiện “Ch ẩn đoán hình ảnh” ................................ ..............................  5 
+3. Khai báo vi ết tắt ................................ ................................ ................................ ........  7 
+4. Xuất thuốc – VTYT  ................................ ................................ ................................ .. 8 
+5. Chỉ định thêm d ịch vụ ................................ ................................ ............................  10 
+6. Nhập sinh thi ết ................................ ................................ ................................ ........  11 
+ 
+  
+
+===== PAGE 2 ===== (chars=224)
+2 
+MQ Solutions : CĐHA   Thực hiện CĐHA   Chẩn Đoán Hình Ảnh 
+1. Vào màn hình “ Chẩn đoán hình ảnh” 
+1. Mở phần mềm MQ Main  
+ 
+2. Chọn vào ph ần Chẩn đoán hình ảnh (MQ RIS) 
+ 
+3. Nhập tài kho ản, mật khẩu được cung c ấp 
+ 
+
+===== PAGE 3 ===== (chars=471)
+3 
+MQ Solutions : CĐHA   Thực hiện CĐHA    
+4. Vào “ 1. Cập nhật” → Loại “CĐHA” mu ốn thực hiện 
+ 
+Siêu âm ch ọn 1 trong 4 lo ại siêu âm tương ứng, n ội soi ch ọn nội soi, …  
+5. Chọn thông tin làm vi ệc, ch ọn các thông tin phù h ợp với khoa phòng th ực hiện 
+gồm tên BS th ực hiện, Y tá, phòng th ực hiện và máy th ực hiện. 
+ 
+Nhập tên Bác sĩ th ực hiện, mật khẩu đăng nh ập, y t á (điều dưỡng), Phòng th ực hiện và 
+máy th ực hiện tương ứng với khoa/phòng th ực hiện 
+
+===== PAGE 4 ===== (chars=932)
+4 
+MQ Solutions : CĐHA   Thực hiện CĐHA   Lưu ý:  Nên ch ọn đúng phòng, máy th ực hiện tương ứng với khoa/phòng th ực hiện 
+ 
+Hình 1: Màn hình tr ả kết quả CĐHA  
+Tương t ự các danh m ục CĐHA khác như: Siêu âm, CT, Xquang, MRI, Đi ện tim, Đi ện 
+não, … (Gi ải phẫu bệnh và Sinh h ọc phân t ử) cũng gi ống như v ậy. 
+• Thông tin BN và  tên k ỹ thuật CĐHA th ực hiện 
+• Lịch sử thực hiện CĐHA (Tu ỳ theo lo ại CĐHA th ực hiện sẽ hiện lịch sử thực hiện 
+loại CĐHA đó. VD: Siêu âm s ẽ hiển thị lịch sử đã th ực hiện Siêu âm, …)  Nhấn 
+vào   để hiển thị lịch sử thực hiện. 
+• Hình ảnh trực tiếp khi k ết nối với máy: Khi k ết nối với máy th ực hiện, hình ảnh 
+đang quay tr ực tiếp sẽ hiển thị ở đây 
+• Hình ảnh đã ch ụp: Sau khi nh ấn chụp (F2) hình ảnh sẽ được thể hiện ở đây. Có th ể 
+lựa chọn những hình ảnh sẽ hiển thị lên báo cáo k ết quả. 
+• Các nút ch ức năng h ệ thống 
+ 
+1. Kết nối thiết bị 
+2. Chụp hình (F2)  
+3. Chọn hình   
+
+===== PAGE 5 ===== (chars=879)
+5 
+MQ Solutions : CĐHA   Thực hiện CĐHA   2. Quy trình th ực hiện “Ch ẩn đoán hình ảnh” 
+1. Gõ, quét mã BN có ch ỉ định th ực hiện xét nghi ệm vào ô mã BN hay tìm ki ếm BN 
+trong màn hình “Danh sách ch ờ” (Tích ch ọn “Chưa” → Nhấn “Xem” → Nhấn 2 
+lần vào BN mu ốn chọn) 
+- 
+→ Thông tin hành ch ính kèm theo thông tin ch ỉ định dịch vụ của BN t ừ khoa phong hi ện 
+lên. Màn hình danh sách ch ỉ định cho phép ki ểm tra danh sách nh ững BN đang ch ờ thực 
+hiện, danh sách b ệnh nhân đã th ực hiện. 
+2. Thực hiện kỹ thuật. Trong lúc th ực hiện kỹ thuật có th ể chụp (F2) bao nhiêu hình 
+tùy thích,  hình ảnh sẽ được lưu tr ữ ở 1 thư m ục trên máy tính thực hiện. 
+• Để chụp hình tr ực tiếp (sau khi k ết nối máy) nhấn vào bi ểu tượng  hoặc 
+nhấn “F2” đ ể chụp hình  
+• Để chọn hình đã lưu t ừ máy nh ấn vào bi ểu tượng  để mở “File Explorer” 
+→ vào đường dẫn chọn hình mong mu ốn 
+ 
+
+===== PAGE 6 ===== (chars=495)
+6 
+MQ Solutions : CĐHA   Thực hiện CĐHA   3. Chọn ảnh để in phi ếu kết quả. Sau khi ch ụp và ch ọn ảnh từ máy → Lựa chọn hình 
+ảnh in phi ếu kết quả → Tích ch ọn ảnh mu ốn in k ết quả (Ảnh đã tích là ảnh sẽ 
+được in trên phi ếu kết quả, Ảnh không tích là ảnh không đư ợc in) 
+ 
+ 
+4. Tích vào “M ẫu mới” → Nhấn “Mô t ả” chương trình s ẽ trình bày m ẫu mô tả đã 
+khai báo s ẵn trư ớc đó → Chỉnh sửa, thêm b ớt số liệu, ch ẩn đoán . 
+5. Nhấn “Lưu”  → Nhấn “In” đ ể in phi ếu kết quả trả BN 
+ 
+ 
+  
+
+===== PAGE 7 ===== (chars=802)
+7 
+MQ Solutions : CĐHA   Thực hiện CĐHA   3. Khai báo vi ết tắt 
+Khi vào màn hình k ết quả của từng lo ại CĐHA, góc dư ới bên ph ải nhấn vào bi ểu tượng 
+ để khai báo bi ết tắt. 
+ 
+• Nhấn “M ới” để khai m ẫu mới (Khai báo t ừ viết tắt, từ đầy đủ) 
+• Nhấn “Lưu” đ ể lưu m ẫu 
+• Nhấn “Sửa” để sửa các m ẫu có s ẵn (Chọn từ muốn sửa trên danh sách r ồi mới 
+nhấn) 
+• Nhấn “H ủy” để xóa m ẫu viết tắt (Chọn từ muốn huỷ, xoá trên danh sách r ồi mới 
+nhấn) 
+Cách s ử dụng: Ở phần nhập thông tin như: mô t ả, kết luận, đề nghị → từ viết tắt + 
+“Phím cách – Space  bar”.  
+Ghi chú:  Nhấn “Bỏ qua” n ếu không mu ốn lưu thông tin đã nh ập. 
+Lưu ý:  Chức năng vi ết tắt hoạt động theo t ừng kỹ thuật. Chọn BN đư ợc chỉ định kỹ thuật 
+muốn khai báo thì m ới khai báo  được và sử dụng đư ợc chức năng này.  
+ 
+ 
+  
+
+===== PAGE 8 ===== (chars=310)
+8 
+MQ Solutions : CĐHA   Thực hiện CĐHA   4. Xuất thu ốc – VTYT  
+1. Ở màn hình “K ết quả” của từng lo ại CĐHA, nh ấn chọn chức năng “Thu ốc vật tư” 
+cho BN  
+2. Tiến hành ch ọn thông s ố tủ trực tương ứng với khoa phòng  
+ 
+3. Bấm “Đ ồng ý” đ ể chọn 
+4. Sau đó ti ến hành nh ập thu ốc-VTYT cho b ệnh nhân  
+ 
+
+===== PAGE 9 ===== (chars=502)
+9 
+MQ Solutions : CĐHA   Thực hiện CĐHA   Nhập thu ốc – VTYT:  
+• Nhấn “M ới → Nhập thu ốc, VTYT → Nhấn “Thêm”  → Nhấn “Lưu” n ếu mu ốn kết 
+thúc, tiếp tục nhập thu ốc – VTYT n ếu mu ốn thêm ti ếp.  
+Huỷ (xoá) thu ốc – VTYT đã nh ập:  
+• Chọn thu ốc – VTYT mu ốn xoá trên danh sách → Nhấn “Hu ỷ” → Nhấn “Lưu”  
+Thay đ ổi đối tượng thu ốc – VTYT :  
+• Bỏ tích “Đ ối tượng” → Chọn đối tượng mu ốn đổi → Tiếp tục nhập thu ốc – VTYT  
+   
+Ghi chú:  Nhấn “Bỏ qua” n ếu không mu ốn lưu thông tin đã nh ập 
+  
+===== PAGE 10 ===== (chars=498)
+10 
+MQ Solutions : CĐHA   Thực hiện CĐHA   5. Chỉ định thêm d ịch vụ 
+Trong trư ờng hợp khi th ực hiện chỉ định, BN yêu c ầu chỉ định thêm d ịch vụ gây mê BS, 
+Điều dưỡng có th ể chỉ định thêm d ịch vụ và thu ti ền tại phòng th ực hiện 
+1.  Ở màn hình “K ết quả” của từng lo ại CĐHA, nh ấn chọn biểu tượng ch ức năng 
+ 
+ 
+2. Tiến hành nh ập thông tin ch ỉ định thêm → “Lưu”  
+3. Thu ti ền 
+Chỉnh sửa đối tượng ch ỉ định thêm:  
+ 
+Ghi chú:  Nhấn “Bỏ qua” n ếu không mu ốn lưu thông tin đã nh ập 
+  
+
+===== PAGE 11 ===== (chars=261)
+11 
+MQ Solutions : CĐHA   Thực hiện CĐHA   6. Nhập sinh thi ết 
+Ở màn hình “K ết quả” của từng lo ại CĐHA, nh ấn chọn biểu tượng ch ức năng  
+ 
+ 
+Nhập thông tin → Nhấn “In”  
+Chưa mu ốn in ngay có th ể nhấn “Lưu” → Chọn vào bi ểu tượng ch ức năng  để in 
+ 
+ 
+ 

@@ -1,0 +1,55 @@
+===== PAGE 1 ===== (chars=577)
+ 
+MQ Solutions: Xét nghiệm  Phân quyền KTV và Ngư ời duyệt    
+MQ Solutions  
+Điện thoại: 091 449 77 46  
+Email: mqsoftvn@gmail.com  
+Website: mqsoft.vn 
+XÉT NGHI ỆM 
+Phân quy ền KTV và Ngườ i 
+duyệt 
+Mục lục 
+Phân quyền KTV – Người duyệt KQ  ............................................................................... 1 
+Lưu ý: .............................................................................................................................. 2 
+Phân quyền chứ c năng mớ i “Xác nhận mẫu”  ................................................................... 3 
+
+===== PAGE 2 ===== (chars=295)
+1 
+MQ Solutions: Xét nghiệm  Phân quyền KTV và Ngư ời duyệt  Phân quy ền KTV – Người duy ệt KQ  
+1. Vào “Quản lý ngư ời dùng”  
+Xét nghiệm (LIS)   “Tiện ích”   “Phân quyền sử  dụng” 
+ 
+2. Chọn tài khoản muốn chỉnh sử a trên danh sách quản lý ngư ời dùng  Nhấn vào 
+biểu tư ợng chứ c năng  
+ 
+
+===== PAGE 3 ===== (chars=530)
+2 
+MQ Solutions: Xét nghiệm  Phân quyền KTV và Ngư ời duyệt  3. . 
+ 
+Nhập tên nhân viên ở  ô “Nhân viên” để  mặc đ ịnh họ là ngư ời duyệt kết qu ả XN 
+Nhập tên nhân viên ở  ô “KTV” để mặc đ ịnh h ọ là KTV trả KQ XN 
+4. Nhấn “Lưu” để hoàn tất 
+ 
+Lưu ý:  
+Khi nhập họ tên ngư ời dùng ở ô “KTV” mà không thấy danh sách hiện ra, có thể  nhập ở 
+ô “Nhân viên” copy mã ở ô “Nhân viên” paste ở ô mã “KTV”   Enter để  cập nhật thông 
+tin KTV . (Nhớ  xóa thông tin đã nhập ở ô “Nhân viên” nếu ngư ời đó không có quyền 
+duyệt kết quả) 
+  
+
+===== PAGE 4 ===== (chars=256)
+3 
+MQ Solutions: Xét nghiệm  Phân quyền KTV và Ngư ời duyệt  Phân quy ền chức năng m ới “Xác nh ận mẫu” 
+Ở màn hình “Quản lý ngư ời dùng” (Phân quyền sử  dụng” 
+1. Chọn tài khoản muốn phân quyền 
+2. Tích chọn chức năng “Xác nhận mẫu”  
+3. Nhấn “Lưu” 
+ 
+  
+
+===== PAGE 5 ===== (chars=103)
+4 
+MQ Solutions: Xét nghiệm  Phân quyền KTV và Ngư ời duyệt   
+ 
+Danh sách tài khoản hiện tại của XN  

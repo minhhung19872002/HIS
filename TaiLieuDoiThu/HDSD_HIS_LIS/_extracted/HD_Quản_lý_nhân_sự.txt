@@ -1,0 +1,66 @@
+===== PAGE 1 ===== (chars=437)
+Tài li ệu MQ SOFT   
+ 
+ Lần 1  ngày 17/06/2019 )  QUẢN LÝ NHÂN S Ự MQ HUMAN  
+I.  HỒ SƠ NHÂN VIÊN  
+ 
+- Trong đó:  
++ Số 1: giao di ện hiển thị thông tin nhân viên  
++ Số 2: Các Menu hi ệu chỉnh thông tin t ừng nội dung  
++ Số 3: Danh sách toàn b ộ nhân viên  
+1. Thông tin: thông tin chi ti ết cơ quan; thông tin tài s ản; thông tin ph ụ cấp  
+•  Thông tin chi ti ết cơ quan: b ổ sung, c ập nhật đặt điểm lịch sử, thông tin cơ quan  
+ 
+
+===== PAGE 2 ===== (chars=436)
+Tài li ệu MQ SOFT   
+ 
+ Lần 1  ngày 17/06/2019 )  • Thông tin tài s ản: Bất động sản, hiện kim, hi ện vật, tài s ản cố định 
+ 
+• Thông tin phụ cấp: loại phụ cấp, cách th ức, giá tr ị được phụ cấp, thời hạn phụ cấp…vv  
+ 
+2. Quá trình công tác : chuy ển bộ phận, lịch sử công tác  
+• Chuy ển bộ phận: bộ phận cũ, ch ức vụ cũ, b ộ phận mới, chức vụ mới, ngày chuy ển…  
+ 
+• Lịch sử công tác: ghi nh ận lịch sử công tác c ủa nhân viên  
+ 
+
+===== PAGE 3 ===== (chars=271)
+Tài li ệu MQ SOFT   
+ 
+ Lần 1  ngày 17/06/2019 )  3. Đào t ạo : Bằng cấp, chuyên ngành,  h ọc vị …vv  
+ 
+4. Gia đình – bản thân – đoàn th ể :  
+• Quan h ệ gia đình: quan h ệ, tên, ngày sinh, ngh ề nghiệp… 
+ 
+• Bản thân: trư ớc tuy ển dụng, sau tuy ển dụng 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 4 ===== (chars=180)
+Tài li ệu MQ SOFT   
+ 
+ Lần 1  ngày 17/06/2019 )  • Đoàn th ể: 
+ 
+5. Kỹ luật khen thư ởng: n ội dung khen thư ởng hay k ỹ luật  
+ 
+6. Quản lý thông tin v ề lương: b ậc, hệ số…  
+ 
+
+===== PAGE 5 ===== (chars=147)
+Tài li ệu MQ SOFT   
+ 
+ Lần 1  ngày 17/06/2019 )  7. Quản lý Tài kho ản ngân hàng  
+ 
+8. Thông tin h ợp đồng 
+ 
+9. Thông tin BHXH - BHYT  
+ 
+ 
+ 
+ 
