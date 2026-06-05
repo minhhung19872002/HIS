@@ -11,6 +11,7 @@ export interface EmrDocumentAttachmentDto {
   id: string; medicalRecordId: string; fileName: string; fileType: string;
   fileSize: number; filePath: string; documentCategory?: string;
   description?: string; uploadedByName?: string; uploadedAt: string;
+  hasContent?: boolean; // true = co file bytes (tai/xem duoc); false/undefined = ban ghi metadata cu
 }
 
 export interface EmrPrintLogDto {
@@ -189,6 +190,27 @@ export const saveAttachment = async (data: Record<string, unknown>): Promise<Emr
 export const deleteAttachment = async (id: string): Promise<boolean> => {
   try { await apiClient.delete(`/emr-admin/attachments/${id}`); return true; }
   catch { console.warn('Failed to delete attachment'); return false; }
+};
+
+// B3.4 - upload file that (base64) -> DB blob. KHONG nuot loi (de UI hien message that, vd "File vuot qua 10MB").
+export const uploadAttachment = async (payload: {
+  medicalRecordId: string;
+  fileName: string;
+  fileType: string;
+  contentBase64: string;
+  documentCategory?: string;
+  description?: string;
+}): Promise<EmrDocumentAttachmentDto> => {
+  const resp = await apiClient.post('/emr-admin/attachments/upload', payload);
+  return resp.data as EmrDocumentAttachmentDto;
+};
+
+// B3.4 - tai/xem noi dung file dinh kem (blob). Tra null neu loi.
+export const downloadAttachment = async (id: string): Promise<Blob | null> => {
+  try {
+    const resp = await apiClient.get(`/emr-admin/attachments/${id}/download`, { responseType: 'blob' });
+    return resp.data as Blob;
+  } catch { console.warn('Failed to download attachment'); return null; }
 };
 
 // ============ Print Logs ============

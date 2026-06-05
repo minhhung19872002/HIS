@@ -408,7 +408,8 @@ namespace HIS.Infrastructure.Services
                     Id = a.Id, MedicalRecordId = a.MedicalRecordId, FileName = a.FileName,
                     FileType = a.FileType, FileSize = a.FileSize, FilePath = a.FilePath,
                     DocumentCategory = a.DocumentCategory, Description = a.Description,
-                    UploadedByName = a.UploadedByName, UploadedAt = a.UploadedAt
+                    UploadedByName = a.UploadedByName, UploadedAt = a.UploadedAt,
+                    HasContent = a.FileContent != null
                 }).ToListAsync();
         }
 
@@ -430,6 +431,41 @@ namespace HIS.Infrastructure.Services
                 FileType = entity.FileType, FileSize = entity.FileSize, FilePath = entity.FilePath,
                 DocumentCategory = entity.DocumentCategory, Description = entity.Description,
                 UploadedByName = entity.UploadedByName, UploadedAt = entity.UploadedAt
+            };
+        }
+
+        public async Task<EmrDocumentAttachmentDto> UploadAttachmentAsync(UploadAttachmentDto dto, byte[] content)
+        {
+            var entity = new EmrDocumentAttachment
+            {
+                MedicalRecordId = dto.MedicalRecordId, FileName = dto.FileName,
+                FileType = string.IsNullOrWhiteSpace(dto.FileType) ? "application/octet-stream" : dto.FileType,
+                FileSize = content.LongLength, FileContent = content, FilePath = string.Empty,
+                DocumentCategory = dto.DocumentCategory, Description = dto.Description,
+                UploadedById = Guid.TryParse(GetCurrentUserId(), out var uid) ? uid : null,
+                UploadedByName = GetCurrentUserName(), UploadedAt = DateTime.UtcNow
+            };
+            _db.Set<EmrDocumentAttachment>().Add(entity);
+            await _db.SaveChangesAsync();
+            return new EmrDocumentAttachmentDto
+            {
+                Id = entity.Id, MedicalRecordId = entity.MedicalRecordId, FileName = entity.FileName,
+                FileType = entity.FileType, FileSize = entity.FileSize, FilePath = entity.FilePath,
+                DocumentCategory = entity.DocumentCategory, Description = entity.Description,
+                UploadedByName = entity.UploadedByName, UploadedAt = entity.UploadedAt, HasContent = true
+            };
+        }
+
+        public async Task<EmrAttachmentContentDto?> DownloadAttachmentAsync(Guid id)
+        {
+            var entity = await _db.Set<EmrDocumentAttachment>().AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == id);
+            if (entity?.FileContent == null || entity.FileContent.Length == 0) return null;
+            return new EmrAttachmentContentDto
+            {
+                Content = entity.FileContent,
+                FileType = string.IsNullOrWhiteSpace(entity.FileType) ? "application/octet-stream" : entity.FileType,
+                FileName = string.IsNullOrWhiteSpace(entity.FileName) ? "attachment" : entity.FileName
             };
         }
 

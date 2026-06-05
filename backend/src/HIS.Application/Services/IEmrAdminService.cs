@@ -46,6 +46,8 @@ namespace HIS.Application.Services
         // Attachments (Dinh kem)
         Task<List<EmrDocumentAttachmentDto>> GetAttachmentsAsync(Guid medicalRecordId);
         Task<EmrDocumentAttachmentDto> SaveAttachmentAsync(SaveAttachmentDto dto);
+        Task<EmrDocumentAttachmentDto> UploadAttachmentAsync(UploadAttachmentDto dto, byte[] content); // upload file that -> DB blob (B3.4)
+        Task<EmrAttachmentContentDto?> DownloadAttachmentAsync(Guid id);                                // lay bytes de tai/xem
         Task<bool> DeleteAttachmentAsync(Guid id);
 
         // Print Logs (Nhat ky in)

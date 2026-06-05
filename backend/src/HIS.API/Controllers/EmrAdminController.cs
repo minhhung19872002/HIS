@@ -115,6 +115,30 @@ public class EmrAdminController : ControllerBase
     public async Task<IActionResult> SaveAttachment([FromBody] SaveAttachmentDto dto)
         => Ok(await _service.SaveAttachmentAsync(dto));
 
+    // B3.4 - upload file that (base64) -> luu DB blob. Cap 10MB.
+    [HttpPost("attachments/upload")]
+    public async Task<IActionResult> UploadAttachment([FromBody] UploadAttachmentDto dto)
+    {
+        if (dto.MedicalRecordId == Guid.Empty) return BadRequest("Thieu ma ho so benh an");
+        if (string.IsNullOrWhiteSpace(dto.FileName)) return BadRequest("Thieu ten file");
+        if (string.IsNullOrWhiteSpace(dto.ContentBase64)) return BadRequest("Thieu noi dung file");
+        byte[] bytes;
+        try { bytes = Convert.FromBase64String(dto.ContentBase64); }
+        catch { return BadRequest("Noi dung file (base64) khong hop le"); }
+        if (bytes.Length == 0) return BadRequest("File rong");
+        if (bytes.Length > 10 * 1024 * 1024) return BadRequest("File vuot qua gioi han 10MB");
+        return Ok(await _service.UploadAttachmentAsync(dto, bytes));
+    }
+
+    // B3.4 - tai/xem noi dung file dinh kem (tra binary, KHONG boc envelope).
+    [HttpGet("attachments/{id}/download")]
+    public async Task<IActionResult> DownloadAttachment(Guid id)
+    {
+        var r = await _service.DownloadAttachmentAsync(id);
+        if (r == null) return NotFound();
+        return File(r.Content, r.FileType, r.FileName);
+    }
+
     [HttpDelete("attachments/{id}")]
     public async Task<IActionResult> DeleteAttachment(Guid id)
         => await _service.DeleteAttachmentAsync(id) ? Ok() : NotFound();

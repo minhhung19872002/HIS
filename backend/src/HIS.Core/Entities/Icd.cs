@@ -408,6 +408,7 @@ public class EmrDocumentAttachment : BaseEntity
     public string FileType { get; set; } = string.Empty; // image/jpeg, application/pdf, etc.
     public long FileSize { get; set; }
     public string FilePath { get; set; } = string.Empty;
+    public byte[]? FileContent { get; set; } // VARBINARY(MAX) - bytes file luu DB blob (B3.4 so hoa HSBA). Null = ban ghi metadata cu.
     public string? DocumentCategory { get; set; } // XN, CDHA, BenhAn, GiayTo, Khac
     public string? Description { get; set; }
     public Guid? UploadedById { get; set; }

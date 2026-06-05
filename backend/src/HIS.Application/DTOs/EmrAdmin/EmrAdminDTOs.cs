@@ -43,6 +43,7 @@ namespace HIS.Application.DTOs.EmrAdmin
         public string? Description { get; set; }
         public string? UploadedByName { get; set; }
         public DateTime UploadedAt { get; set; }
+        public bool HasContent { get; set; } // true = co file bytes luu DB (tai/xem duoc); false = ban ghi metadata cu
     }
 
     public class SaveAttachmentDto
@@ -54,6 +55,25 @@ namespace HIS.Application.DTOs.EmrAdmin
         public string FilePath { get; set; } = string.Empty;
         public string? DocumentCategory { get; set; }
         public string? Description { get; set; }
+    }
+
+    // Upload file that (bytes base64) -> luu DB blob (B3.4). FileSize tinh tu bytes giai ma.
+    public class UploadAttachmentDto
+    {
+        public Guid MedicalRecordId { get; set; }
+        public string FileName { get; set; } = string.Empty;
+        public string FileType { get; set; } = string.Empty;   // MIME tu file picker
+        public string ContentBase64 { get; set; } = string.Empty; // noi dung file dang base64
+        public string? DocumentCategory { get; set; }
+        public string? Description { get; set; }
+    }
+
+    // Ket qua tai file (bytes) tu DB blob.
+    public class EmrAttachmentContentDto
+    {
+        public byte[] Content { get; set; } = global::System.Array.Empty<byte>();
+        public string FileType { get; set; } = "application/octet-stream";
+        public string FileName { get; set; } = "attachment";
     }
 
     // ============ Print Log (Nhat ky in) ============

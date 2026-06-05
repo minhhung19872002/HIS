@@ -8,15 +8,19 @@
  * No backend change. Replaces the v1 navigate('/emr') jump.
  * ===================================================================== */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  KpiStrip, StatusBadge, Btn, DataTable, TopTabs, DrawerShell, ModalShell,
+  KpiStrip, StatusBadge, Btn, ActBtn, DataTable, TopTabs, DrawerShell, ModalShell,
   fmtDMYg, fmtDTg, tk, ti, te, tw, type ColumnDef, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 import apiClient from '../api/client';
 import { generateCdaDocument } from '../api/cda';
+import {
+  getAttachments, uploadAttachment, downloadAttachment, deleteAttachment,
+  type EmrDocumentAttachmentDto,
+} from '../api/emrAdmin';
 import {
   getEmrRecords, type EmrRecordDto,
   getPatientMedicalHistory, type MedicalHistoryDto,
@@ -27,7 +31,7 @@ import {
 } from '../api/examination';
 import '../layouts/terminal/ed-responsive.css';
 
-type TabKey = 'record' | 'history' | 'treatment' | 'consult' | 'nursing' | 'reaction' | 'partograph';
+type TabKey = 'record' | 'history' | 'treatment' | 'consult' | 'nursing' | 'reaction' | 'partograph' | 'attach';
 const TABS: TopTab<TabKey>[] = [
   { v: 'record', l: 'Hồ sơ BA', ic: 'folder' },
   { v: 'history', l: 'Lịch sử khám', ic: 'clock' },
@@ -36,6 +40,27 @@ const TABS: TopTab<TabKey>[] = [
   { v: 'nursing', l: 'Chăm sóc ĐD', ic: 'heart' },
   { v: 'reaction', l: 'Phản ứng thuốc', ic: 'alert' },
   { v: 'partograph', l: 'Biểu đồ chuyển dạ', ic: 'activity' },
+  { v: 'attach', l: 'Đính kèm', ic: 'file-text' },
+];
+
+// Doc file -> base64 (bo phan prefix "data:...;base64,")
+const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const res = reader.result as string;
+    const comma = res.indexOf(',');
+    resolve(comma >= 0 ? res.slice(comma + 1) : res);
+  };
+  reader.onerror = reject;
+  reader.readAsDataURL(file);
+});
+
+const fmtSize = (n: number) =>
+  n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n >= 1024 ? Math.round(n / 1024) + ' KB' : n + ' B';
+
+const ATTACH_CATS = [
+  { v: 'XN', l: 'Xét nghiệm' }, { v: 'CDHA', l: 'Chẩn đoán hình ảnh' },
+  { v: 'BenhAn', l: 'Bệnh án' }, { v: 'GiayTo', l: 'Giấy tờ' }, { v: 'Khac', l: 'Khác' },
 ];
 
 const PRINT_FORMS = [
@@ -62,6 +87,10 @@ const EmrEditorV2: React.FC = () => {
   const [treatments, setTreatments] = useState<TreatmentSheetDto[]>([]);
   const [consults, setConsults] = useState<ConsultationRecordDto[]>([]);
   const [nursing, setNursing] = useState<NursingCareSheetDto[]>([]);
+  const [attachments, setAttachments] = useState<EmrDocumentAttachmentDto[]>([]);
+  const [attachCat, setAttachCat] = useState('');
+  const [attachBusy, setAttachBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [printOpen, setPrintOpen] = useState(false);
   const [signOpen, setSignOpen] = useState(false);
@@ -173,6 +202,72 @@ const EmrEditorV2: React.FC = () => {
     } catch { te('Tạo phiếu thất bại'); }
     finally { setSavingForm(false); }
   };
+
+  // ── Attachments (B3.4 so hoa HSBA — upload bytes vao DB blob) ─────
+  const loadAttachments = useCallback(async (recordId: string) => {
+    setAttachments(await getAttachments(recordId));
+  }, []);
+  useEffect(() => {
+    if (full?.id) loadAttachments(full.id); else setAttachments([]);
+  }, [full?.id, loadAttachments]);
+
+  const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // cho phep chon lai cung file
+    if (!file) return;
+    if (!full?.id) { tw('Chưa chọn HSBA có hồ sơ bệnh án'); return; }
+    if (file.size > 10 * 1024 * 1024) { tw('File vượt quá giới hạn 10MB'); return; }
+    setAttachBusy(true);
+    try {
+      const contentBase64 = await fileToBase64(file);
+      await uploadAttachment({
+        medicalRecordId: full.id,
+        fileName: file.name,
+        fileType: file.type || 'application/octet-stream',
+        contentBase64,
+        documentCategory: attachCat || undefined,
+      });
+      tk('Đã đính kèm ' + file.name);
+      await loadAttachments(full.id);
+    } catch (err) {
+      const msg = (err as { response?: { data?: unknown } })?.response?.data;
+      te(typeof msg === 'string' && msg.trim() ? msg : 'Đính kèm thất bại');
+    } finally { setAttachBusy(false); }
+  };
+
+  const onDownloadAttach = async (a: EmrDocumentAttachmentDto) => {
+    const blob = await downloadAttachment(a.id);
+    if (!blob) { te('Không tải được tệp (bản ghi cũ không có nội dung)'); return; }
+    downloadBlob(blob, a.fileName, a.fileType || 'application/octet-stream');
+  };
+
+  // Xem inline (anh/PDF) trong tab moi qua object URL; loai khac thi tai ve.
+  const onViewAttach = async (a: EmrDocumentAttachmentDto) => {
+    const blob = await downloadAttachment(a.id);
+    if (!blob) { te('Không xem được tệp (bản ghi cũ không có nội dung)'); return; }
+    const typed = blob.type ? blob : new Blob([blob], { type: a.fileType || 'application/octet-stream' });
+    const url = URL.createObjectURL(typed);
+    window.open(url, '_blank', 'noopener');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
+
+  const isViewable = (t?: string) => !!t && (t.startsWith('image/') || t === 'application/pdf');
+
+  const onDeleteAttach = async (a: EmrDocumentAttachmentDto) => {
+    if (!window.confirm(`Xóa đính kèm "${a.fileName}"?`)) return;
+    if (await deleteAttachment(a.id)) { tk('Đã xóa đính kèm'); if (full?.id) loadAttachments(full.id); }
+    else te('Xóa đính kèm thất bại');
+  };
+
+  const attachCols: ColumnDef<EmrDocumentAttachmentDto>[] = [
+    { key: 'name', label: 'Tên tệp', render: (r) => (
+      <div className="cell-2l"><b>{r.fileName}</b><i>{r.fileType}{r.hasContent === false ? ' · bản ghi cũ (không có tệp)' : ''}</i></div>
+    ) },
+    { key: 'cat', label: 'Phân loại', width: 130, render: (r) => ATTACH_CATS.find((c) => c.v === r.documentCategory)?.l || r.documentCategory || '—' },
+    { key: 'size', label: 'Dung lượng', mono: true, width: 100, render: (r) => fmtSize(r.fileSize) },
+    { key: 'by', label: 'Người tải', width: 140, render: (r) => r.uploadedByName || '—' },
+    { key: 'at', label: 'Thời gian', mono: true, width: 150, render: (r) => fmtDTg(r.uploadedAt) },
+  ];
 
   const filtered = records.filter((r) =>
     !search || `${r.patientCode} ${r.patientName} ${r.lastDiagnosisName || ''}`.toLowerCase().includes(search.toLowerCase()));
@@ -367,6 +462,42 @@ const EmrEditorV2: React.FC = () => {
                   <div style={{ height: 320, background: 'var(--d-1)', borderRadius: 6, display: 'grid', placeItems: 'center', color: 'var(--t-2)', fontSize: 12, textAlign: 'center', padding: 16 }}>
                     Biểu đồ partograph (độ mở CTC · ngôi · tim thai · cơn co) — chỉ áp dụng HSBA sản khoa.
                   </div>
+                </div>
+              )}
+
+              {tab === 'attach' && (
+                <div>
+                  <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <select className="ed-fld" style={{ width: 220 }} value={attachCat} onChange={(e) => setAttachCat(e.target.value)}>
+                      <option value="">— Phân loại (tùy chọn) —</option>
+                      {ATTACH_CATS.map((c) => <option key={c.v} value={c.v}>{c.l}</option>)}
+                    </select>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      style={{ display: 'none' }}
+                      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+                      onChange={onPickFile}
+                    />
+                    <Btn variant="primary" disabled={!full?.id || attachBusy} onClick={() => fileInputRef.current?.click()}>
+                      <TermIcon name="upload" size={12} /> {attachBusy ? 'Đang tải lên…' : 'Quét / Chọn tệp đính kèm'}
+                    </Btn>
+                    <span style={{ fontSize: 11, color: 'var(--t-2)' }}>Tối đa 10MB · ảnh / PDF / Office</span>
+                  </div>
+                  {!full?.id && <div style={{ color: 'var(--t-3)', fontSize: 12, marginBottom: 10 }}>Chọn HSBA có hồ sơ bệnh án để đính kèm tài liệu.</div>}
+                  <DataTable<EmrDocumentAttachmentDto>
+                    columns={attachCols}
+                    data={attachments}
+                    rowKey={(r) => r.id}
+                    empty="Chưa có tài liệu đính kèm"
+                    actions={(r) => (
+                      <div className="ab-actions">
+                        {r.hasContent !== false && isViewable(r.fileType) && <ActBtn ic="eye" title="Xem" onClick={() => onViewAttach(r)} />}
+                        {r.hasContent !== false && <ActBtn ic="download" title="Tải về" onClick={() => onDownloadAttach(r)} />}
+                        <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => onDeleteAttach(r)} />
+                      </div>
+                    )}
+                  />
                 </div>
               )}
             </div>
