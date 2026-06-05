@@ -255,6 +255,18 @@ public class WarehouseCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// Xuất tủ trực — cabinet dispensing for patient (OPD/Inpatient/Surgery context)
+    /// IssueType forced to 12 server-side. Warehouse must have WarehouseType=4 or IsCabinet=true.
+    /// </summary>
+    [HttpPost("issues/cabinet-issue")]
+    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff,Pharmacist,Doctor,Nurse")]
+    public async Task<ActionResult<StockIssueDto>> CreateCabinetIssue([FromBody] CreateCabinetIssueDto dto)
+    {
+        var result = await _warehouseService.CreateCabinetIssueAsync(dto, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Bán thuốc nhà thuốc theo đơn
     /// </summary>
     [HttpPost("pharmacy-sales/by-prescription/{prescriptionId}")]

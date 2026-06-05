@@ -115,6 +115,7 @@ public partial class InpatientCompleteService {
             DiagnosisCode = dto.MainDiagnosisCode,
             DiagnosisName = dto.MainDiagnosis,
             PrescriptionType = 2, // Nội trú
+            DrugOrderType = dto.DrugOrderType > 0 ? dto.DrugOrderType : 1, // G-07: default 1=Thường qui
             TotalDays = 1,
             Status = 0, // Chờ duyệt
             CreatedAt = DateTime.Now,
@@ -181,6 +182,7 @@ public partial class InpatientCompleteService {
             MainDiagnosis = dto.MainDiagnosis,
             WarehouseId = dto.WarehouseId,
             WarehouseName = warehouse?.WarehouseName ?? string.Empty,
+            DrugOrderType = prescription.DrugOrderType, // G-07
             Items = items,
             Status = 0,
             TotalAmount = totalAmount,
@@ -384,9 +386,31 @@ public partial class InpatientCompleteService {
         });
     }
 
-    public Task<List<object>> GetEmergencyCabinetsAsync(Guid departmentId)
+    public async Task<List<object>> GetEmergencyCabinetsAsync(Guid departmentId)
     {
-        return Task.FromResult(new List<object>());
+        // Query warehouses that are emergency cabinets: either WarehouseType=4 or IsCabinet=true.
+        // Filter by DepartmentId when provided (only that department's cabinet).
+        // Falls back to all active cabinets if no match for the department.
+        var query = _context.Warehouses
+            .Where(w => w.IsActive && (w.WarehouseType == 4 || w.IsCabinet));
+
+        if (departmentId != Guid.Empty)
+            query = query.Where(w => w.DepartmentId == departmentId || w.DepartmentId == null);
+
+        var cabinets = await query
+            .OrderBy(w => w.WarehouseName)
+            .Select(w => (object)new
+            {
+                id = w.Id,
+                code = w.WarehouseCode,
+                name = w.WarehouseName,
+                departmentId = w.DepartmentId,
+                isCabinet = w.IsCabinet,
+                warehouseType = w.WarehouseType
+            })
+            .ToListAsync();
+
+        return cabinets;
     }
 
     public Task<InpatientPrescriptionDto> CreateTraditionalMedicinePrescriptionAsync(Guid admissionId, int numberOfDoses, List<CreateInpatientMedicineItemDto> items, Guid userId)

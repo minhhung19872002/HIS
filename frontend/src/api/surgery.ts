@@ -21,6 +21,8 @@ export interface SurgeryDto {
   medicalRecordId: string;
   medicalRecordCode: string;
   inpatientId?: string;
+  /** Link to OPD/CĐHA examination (G-09, G-33 workflow) */
+  examinationId?: string;
   requestDepartmentId: string;
   requestDepartmentName: string;
   requestDoctorId: string;
@@ -131,6 +133,8 @@ export interface SurgerySupplyDto {
 export interface CreateSurgeryRequestDto {
   medicalRecordId: string;
   inpatientId?: string;
+  /** Link to OPD/CĐHA examination — used for workflow integration (G-09, G-33) */
+  examinationId?: string;
   surgeryServiceId: string;
   surgeryType: number;
   surgeryClass: number;
@@ -200,6 +204,10 @@ export interface SurgerySearchDto {
   status?: number;
   fromDate?: string;
   toDate?: string;
+  /** Filter by OPD/CĐHA examination (G-09, G-33 workflow) */
+  examinationId?: string;
+  /** Filter by medical record (inpatient workflow) */
+  medicalRecordId?: string;
   page?: number;
   pageSize?: number;
 }

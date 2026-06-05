@@ -387,4 +387,101 @@ public class LisCatalogController : ControllerBase
         await _db.SaveChangesAsync();
         return NoContent();
     }
+
+    // =====================
+    // 7. LisTestParameter (Chỉ số XN) — G-22 / G-23
+    // =====================
+
+    [HttpGet("tests")]
+    public async Task<IActionResult> GetTests(
+        [FromQuery] string? keyword,
+        [FromQuery] Guid? groupId,
+        [FromQuery] bool? isActive)
+    {
+        var q = _db.LisTestParameters
+            .Include(t => t.Group)
+            .Include(t => t.Service)
+            .AsQueryable();
+        if (isActive.HasValue) q = q.Where(t => t.IsActive == isActive.Value);
+        if (groupId.HasValue) q = q.Where(t => t.GroupId == groupId.Value);
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim();
+            q = q.Where(t => t.Code.Contains(kw) || t.Name.Contains(kw)
+                || (t.Hl7Code != null && t.Hl7Code.Contains(kw)));
+        }
+        var list = await q.OrderBy(t => t.SortOrder).ThenBy(t => t.Code).Take(500).ToListAsync();
+        return Ok(list.Select(t => new
+        {
+            t.Id,
+            t.Code,
+            t.Name,
+            t.Unit,
+            t.Hl7Code,
+            t.GroupId,
+            GroupName = t.Group != null ? t.Group.Name : null,
+            t.ServiceId,
+            ServiceCode = t.Service != null ? t.Service.ServiceCode : null,
+            ServiceName = t.Service != null ? t.Service.ServiceName : null,
+            t.NormalMinMale,
+            t.NormalMaxMale,
+            t.NormalMinFemale,
+            t.NormalMaxFemale,
+            t.ReferenceLow,
+            t.ReferenceHigh,
+            t.CriticalLow,
+            t.CriticalHigh,
+            t.DataType,
+            t.SortOrder,
+            t.IsActive,
+        }));
+    }
+
+    [HttpPost("tests")]
+    [Authorize(Roles = "Admin,LabManager")]
+    public async Task<IActionResult> SaveTest([FromBody] LisTestParameter dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.Name))
+            return BadRequest(new { message = "Mã và tên chỉ số là bắt buộc" });
+        var existing = dto.Id != Guid.Empty ? await _db.LisTestParameters.FindAsync(dto.Id) : null;
+        if (existing == null)
+        {
+            Stamp(dto, true);
+            _db.LisTestParameters.Add(dto);
+        }
+        else
+        {
+            existing.Code = dto.Code;
+            existing.Name = dto.Name;
+            existing.Unit = dto.Unit;
+            existing.Hl7Code = dto.Hl7Code;
+            existing.GroupId = dto.GroupId;
+            existing.ServiceId = dto.ServiceId;
+            existing.NormalMinMale = dto.NormalMinMale;
+            existing.NormalMaxMale = dto.NormalMaxMale;
+            existing.NormalMinFemale = dto.NormalMinFemale;
+            existing.NormalMaxFemale = dto.NormalMaxFemale;
+            existing.ReferenceLow = dto.ReferenceLow;
+            existing.ReferenceHigh = dto.ReferenceHigh;
+            existing.CriticalLow = dto.CriticalLow;
+            existing.CriticalHigh = dto.CriticalHigh;
+            existing.DataType = dto.DataType;
+            existing.SortOrder = dto.SortOrder;
+            existing.IsActive = dto.IsActive;
+            Stamp(existing, false);
+        }
+        await _db.SaveChangesAsync();
+        return Ok(new { id = existing?.Id ?? dto.Id });
+    }
+
+    [HttpDelete("tests/{id:guid}")]
+    [Authorize(Roles = "Admin,LabManager")]
+    public async Task<IActionResult> DeleteTest(Guid id)
+    {
+        var e = await _db.LisTestParameters.FindAsync(id);
+        if (e == null) return NotFound();
+        e.IsDeleted = true;
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
 }

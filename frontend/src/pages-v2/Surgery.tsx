@@ -5,8 +5,12 @@ import type { AxiosError } from 'axios';
 import * as surgeryApi from '../api/surgery';
 import type { SurgeryDto, SurgeryTeamMemberDto } from '../api/surgery';
 import type { ServerValidationError } from '../utils/formError';
-import { SimpleV2Page, StatusBadge, ActBtn, type ColumnDef, type StatusTab } from './_v2kit';
+import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+import { CabinetIssueModal } from './shared/CabinetIssueModal';
+import { PreAnesthesiaModal } from './shared/SurgeryFormModals';
+import { AnesthesiaMonitorModal } from './shared/SurgeryFormModals';
+import { ConsentModal } from './shared/SurgeryFormModals';
 
 /* Phẫu thuật v2 — port of OR v2.html */
 
@@ -165,8 +169,69 @@ const SurgeryV2: React.FC = () => {
   );
 };
 
-const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => (
+const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => {
+  const [cabinetOpen, setCabinetOpen]     = useState(false);
+  const [preAnesthOpen, setPreAnesthOpen] = useState(false);
+  const [anesthMonOpen, setAnesthMonOpen] = useState(false);
+  const [consentOpen, setConsentOpen]     = useState(false);
+
+  return (
   <>
+    {/* G-10c: Xuất tủ trực phòng mổ */}
+    <div className="rec-section" style={{ paddingBottom: 8 }}>
+      <Btn variant="ghost" size="sm" onClick={() => setCabinetOpen(true)}>
+        <TermIcon name="package" size={12} /> Xuất tủ trực (hao phí PTTT)
+      </Btn>
+      <CabinetIssueModal
+        open={cabinetOpen}
+        onClose={() => setCabinetOpen(false)}
+        patientName={r.patientName}
+        patientCode={r.patientCode}
+        surgeryId={r.id}
+      />
+    </div>
+
+    {/* G-04: Phiếu phòng mổ */}
+    <div className="rec-section" style={{ paddingBottom: 8 }}>
+      <h5 style={{ marginBottom: 6 }}><TermIcon name="file-text" size={11} /> PHIẾU PHÒNG MỔ</h5>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <Btn variant="ghost" size="sm" onClick={() => setPreAnesthOpen(true)}>
+          <TermIcon name="activity" size={11} /> Khám tiền mê
+        </Btn>
+        <Btn variant="ghost" size="sm" onClick={() => setAnesthMonOpen(true)}>
+          <TermIcon name="chart" size={11} /> Theo dõi gây mê
+        </Btn>
+        <Btn variant="ghost" size="sm" onClick={() => setConsentOpen(true)}>
+          <TermIcon name="check" size={11} /> Cam đoan PTTT
+        </Btn>
+      </div>
+
+      <PreAnesthesiaModal
+        open={preAnesthOpen}
+        onClose={() => setPreAnesthOpen(false)}
+        surgeryId={r.id}
+        patientId={r.patientId}
+        patientName={r.patientName}
+        surgeryCode={r.surgeryCode}
+      />
+      <AnesthesiaMonitorModal
+        open={anesthMonOpen}
+        onClose={() => setAnesthMonOpen(false)}
+        surgeryId={r.id}
+        patientId={r.patientId}
+        patientName={r.patientName}
+        surgeryCode={r.surgeryCode}
+      />
+      <ConsentModal
+        open={consentOpen}
+        onClose={() => setConsentOpen(false)}
+        surgeryId={r.id}
+        patientName={r.patientName}
+        surgeryCode={r.surgeryCode}
+        plannedProcedure={r.surgeryServiceName}
+        diagnosis={r.preOperativeDiagnosis}
+      />
+    </div>
     <div className="rec-section">
       <h5><TermIcon name="user" size={11} /> BỆNH NHÂN & CHẨN ĐOÁN</h5>
       <div className="rec-kv">
@@ -241,6 +306,7 @@ const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => (
       </div>
     </div>
   </>
-);
+  );
+};
 
 export default SurgeryV2;

@@ -22,6 +22,8 @@ public class SurgeryDto
     public Guid MedicalRecordId { get; set; }
     public string MedicalRecordCode { get; set; } = string.Empty;
     public Guid? InpatientId { get; set; }
+    /// <summary>Lần khám ngoại trú (OPD/CĐHA workflow)</summary>
+    public Guid? ExaminationId { get; set; }
 
     // Khoa yêu cầu
     public Guid RequestDepartmentId { get; set; }
@@ -199,6 +201,8 @@ public class CreateSurgeryRequestDto
 {
     public Guid MedicalRecordId { get; set; }
     public Guid? InpatientId { get; set; }
+    /// <summary>Link về lần khám ngoại trú (OPD/CĐHA workflow)</summary>
+    public Guid? ExaminationId { get; set; }
     public Guid SurgeryServiceId { get; set; }
     public int SurgeryType { get; set; }
     public int SurgeryClass { get; set; }
@@ -292,6 +296,10 @@ public class SurgerySearchDto
     public int? Status { get; set; }
     public DateTime? FromDate { get; set; }
     public DateTime? ToDate { get; set; }
+    /// <summary>Lọc theo lần khám ngoại trú — dùng tại OPD/CĐHA workflow</summary>
+    public Guid? ExaminationId { get; set; }
+    /// <summary>Lọc theo hồ sơ bệnh án (nội trú)</summary>
+    public Guid? MedicalRecordId { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
 }

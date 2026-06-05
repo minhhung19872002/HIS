@@ -456,6 +456,34 @@ public partial class WarehouseCompleteService {
         return await CreateStockIssueByTypeAsync(dto, userId, 10, "TL");
     }
 
+    public async Task<StockIssueDto> CreateCabinetIssueAsync(CreateCabinetIssueDto dto, Guid userId)
+    {
+        // Force IssueType = 12 (EmergencyCabinetIssue) regardless of client value.
+        // Context IDs (AdmissionId/SurgeryId/ExaminationId) stored in ExportReceipt.Note
+        // for traceability until ExportReceipt entity gains dedicated FK columns.
+        dto.IssueType = 12;
+
+        string contextTag = string.Empty;
+        if (dto.AdmissionId.HasValue)
+            contextTag = $"[ADMISSION:{dto.AdmissionId}]";
+        else if (dto.SurgeryId.HasValue)
+            contextTag = $"[SURGERY:{dto.SurgeryId}]";
+        else if (dto.ExaminationId.HasValue)
+            contextTag = $"[EXAM:{dto.ExaminationId}]";
+
+        if (!string.IsNullOrEmpty(contextTag))
+            dto.Notes = string.IsNullOrEmpty(dto.Notes) ? contextTag : $"{contextTag} {dto.Notes}";
+
+        // Validate cabinet warehouse (must be WarehouseType=4 or IsCabinet=true)
+        var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
+        if (warehouse == null)
+            throw new Exception("Warehouse not found");
+        if (warehouse.WarehouseType != 4 && !warehouse.IsCabinet)
+            throw new Exception("Selected warehouse is not an emergency cabinet (WarehouseType must be 4 or IsCabinet=true)");
+
+        return await CreateStockIssueByTypeAsync(dto, userId, 12, "TT");
+    }
+
     public async Task<PharmacySaleDto> CreatePharmacySaleByPrescriptionAsync(Guid prescriptionId, Guid userId)
     {
         var user = await _context.Users.FindAsync(userId);

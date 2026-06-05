@@ -685,5 +685,114 @@ public partial class InpatientCompleteService {
         return Encoding.UTF8.GetBytes(html);
     }
 
+    // G-08: Lay danh sach ServiceRequest cua dot dieu tri (chua huy)
+    public async Task<List<InpatientServiceRequestItemDto>> GetAdmissionServiceRequestsAsync(Guid admissionId)
+    {
+        var admission = await _context.Set<Admission>()
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return new();
+
+        var requests = await _context.ServiceRequests
+            .Include(r => r.Details).ThenInclude(d => d.Service)
+            .Where(r => r.MedicalRecordId == admission.MedicalRecordId && r.Status != 4)
+            .OrderByDescending(r => r.RequestDate)
+            .ToListAsync();
+
+        return requests.Select(r => new InpatientServiceRequestItemDto
+        {
+            Id = r.Id,
+            RequestCode = r.RequestCode,
+            RequestDate = r.RequestDate,
+            ServiceName = r.Service?.ServiceName ?? r.Details.FirstOrDefault()?.Service?.ServiceName,
+            Quantity = r.Quantity > 0 ? r.Quantity : r.Details.Sum(d => d.Quantity),
+            UnitPrice = r.UnitPrice,
+            TotalAmount = r.TotalAmount > 0 ? r.TotalAmount : r.Details.Sum(d => d.Amount),
+            RequestType = r.RequestType,
+            Status = r.Status,
+            PatientType = r.Details.FirstOrDefault()?.PatientType ?? 2,
+            IsEmergency = r.IsEmergency,
+        }).ToList();
+    }
+
+    // G-08: Huy nhieu chi dinh CLS mot lan
+    public async Task<CancelServiceRequestsResultDto> CancelServiceRequestsAsync(Guid admissionId, CancelServiceRequestsDto dto, Guid userId)
+    {
+        var admission = await _context.Set<Admission>()
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return new() { FailedIds = dto.ServiceRequestIds };
+
+        var result = new CancelServiceRequestsResultDto();
+        var now = DateTime.Now;
+        var userStr = userId.ToString();
+
+        foreach (var requestId in dto.ServiceRequestIds)
+        {
+            var sr = await _context.ServiceRequests
+                .FirstOrDefaultAsync(r => r.Id == requestId
+                    && r.MedicalRecordId == admission.MedicalRecordId
+                    && r.Status != 4);
+            if (sr == null)
+            {
+                result.FailedIds.Add(requestId);
+                continue;
+            }
+            // Only cancel if not yet having results (status 0 or 2)
+            if (sr.Status == 3)
+            {
+                result.FailedIds.Add(requestId);
+                continue;
+            }
+            sr.Status = 4; // Cancelled
+            sr.Notes = string.IsNullOrEmpty(dto.Reason) ? sr.Notes : $"Hủy: {dto.Reason}";
+            sr.UpdatedAt = now;
+            sr.UpdatedBy = userStr;
+            result.CancelledCount++;
+        }
+
+        if (result.CancelledCount > 0)
+            await _context.SaveChangesAsync();
+
+        return result;
+    }
+
+    // G-15: Doi doi tuong thanh toan ServiceRequest (BHYT<->Vien phi)
+    public async Task<InpatientServiceRequestItemDto> UpdateServiceRequestPaymentTypeAsync(Guid serviceRequestId, UpdateServiceRequestPaymentTypeDto dto, Guid userId)
+    {
+        var sr = await _context.ServiceRequests
+            .Include(r => r.Details).ThenInclude(d => d.Service)
+            .FirstOrDefaultAsync(r => r.Id == serviceRequestId);
+        if (sr == null) throw new Exception("ServiceRequest not found");
+        if (sr.Status == 4) throw new Exception("Cannot update cancelled ServiceRequest");
+
+        var now = DateTime.Now;
+        var userStr = userId.ToString();
+
+        foreach (var detail in sr.Details)
+        {
+            detail.PatientType = dto.PatientType;
+            detail.UpdatedAt = now;
+            detail.UpdatedBy = userStr;
+        }
+        sr.UpdatedAt = now;
+        sr.UpdatedBy = userStr;
+
+        await _context.SaveChangesAsync();
+
+        return new InpatientServiceRequestItemDto
+        {
+            Id = sr.Id,
+            RequestCode = sr.RequestCode,
+            RequestDate = sr.RequestDate,
+            ServiceName = sr.Service?.ServiceName ?? sr.Details.FirstOrDefault()?.Service?.ServiceName,
+            Quantity = sr.Quantity > 0 ? sr.Quantity : sr.Details.Sum(d => d.Quantity),
+            UnitPrice = sr.UnitPrice,
+            TotalAmount = sr.TotalAmount,
+            RequestType = sr.RequestType,
+            Status = sr.Status,
+            PatientType = dto.PatientType,
+            IsEmergency = sr.IsEmergency,
+        };
+    }
+
     #endregion
 }

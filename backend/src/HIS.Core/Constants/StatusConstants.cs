@@ -150,6 +150,7 @@ public static class StockIssueType
     public const int StockTakeAdjust = 9;
     public const int Disposal = 10;
     public const int RetailSale = 11;
+    public const int EmergencyCabinetIssue = 12; // Xuất tủ trực (cabinet dispensing for patient)
 
     public static string GetName(int type) => type switch
     {
@@ -164,6 +165,7 @@ public static class StockIssueType
         StockTakeAdjust => "Xuất kiểm kê",
         Disposal => "Xuất thanh lý",
         RetailSale => "Xuất bán nhà thuốc",
+        EmergencyCabinetIssue => "Xuất tủ trực",
         _ => "Khác",
     };
 }

@@ -528,6 +528,8 @@ export interface InpatientPrescriptionDto {
   mainDiagnosis?: string;
   warehouseId: string;
   warehouseName: string;
+  // G-07: 1-Thuong qui, 2-Xuat tu truc, 3-Hoan tra, 4-Don xuat vien
+  drugOrderType?: number;
   items: InpatientMedicineItemDto[];
   status: number;
   statusName: string;
@@ -565,6 +567,8 @@ export interface CreateInpatientPrescriptionDto {
   mainDiagnosisCode?: string;
   mainDiagnosis?: string;
   warehouseId: string;
+  // G-07: 1-Thuong qui(default), 2-Xuat tu truc, 3-Hoan tra, 4-Don xuat vien (toa ve)
+  drugOrderType?: number;
   items: CreateInpatientMedicineItemDto[];
 }
 
@@ -1465,6 +1469,54 @@ export const printMedicineOrderSummary = (summaryId: string) =>
 
 // #endregion
 
+// #region G-08 + G-15: Chỉ định CLS nội trú (ServiceRequest)
+
+export interface InpatientServiceRequestItemDto {
+  id: string;
+  requestCode: string;
+  requestDate: string;
+  serviceName?: string;
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  requestType: number; // 1-XN, 2-CDHA, 3-TDCN, 4-PTTT, 5-Khac
+  requestTypeName?: string;
+  status: number; // 0-Cho TT, 1-Da TT, 2-Dang TH, 3-Co KQ, 4-Da huy
+  statusName?: string;
+  patientType: number; // 1-BHYT, 2-Vien phi, 3-Dich vu
+  patientTypeName?: string;
+  isEmergency: boolean;
+}
+
+export interface CancelServiceRequestsDto {
+  serviceRequestIds: string[];
+  reason: string;
+}
+
+export interface CancelServiceRequestsResultDto {
+  cancelledCount: number;
+  failedIds: string[];
+}
+
+export interface UpdateServiceRequestPaymentTypeDto {
+  patientType: number; // 1-BHYT, 2-Vien phi, 3-Dich vu
+  reason?: string;
+}
+
+// G-08: Lay danh sach chi dinh CLS chua huy cua dot dieu tri
+export const getAdmissionServiceRequests = (admissionId: string) =>
+  apiClient.get<InpatientServiceRequestItemDto[]>(`${BASE_URL}/${admissionId}/service-requests`);
+
+// G-08: Huy nhieu chi dinh CLS
+export const cancelServiceRequests = (admissionId: string, dto: CancelServiceRequestsDto) =>
+  apiClient.post<CancelServiceRequestsResultDto>(`${BASE_URL}/${admissionId}/cancel-service-requests`, dto);
+
+// G-15: Doi doi tuong thanh toan ServiceRequest
+export const updateServiceRequestPaymentType = (requestId: string, dto: UpdateServiceRequestPaymentTypeDto) =>
+  apiClient.put<InpatientServiceRequestItemDto>(`${BASE_URL}/service-request/${requestId}/payment-type`, dto);
+
+// #endregion
+
 // #region 3.5 Chỉ định dinh dưỡng
 
 export const createNutritionOrder = (dto: CreateNutritionOrderDto) =>
@@ -1711,6 +1763,11 @@ export default {
   recordTransfusionReaction,
   createDrugReactionRecord,
   getDrugReactionRecords,
+
+  // G-08 + G-15: CLS ServiceRequests
+  getAdmissionServiceRequests,
+  cancelServiceRequests,
+  updateServiceRequestPaymentType,
 
   // Discharge
   checkPreDischarge,

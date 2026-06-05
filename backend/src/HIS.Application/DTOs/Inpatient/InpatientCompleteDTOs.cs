@@ -734,6 +734,9 @@ public class InpatientPrescriptionDto
     public Guid WarehouseId { get; set; }
     public string WarehouseName { get; set; } = string.Empty;
 
+    // G-07: loai y lenh (1-Thuong qui, 2-Xuat tu truc, 3-Hoan tra, 4-Don xuat vien)
+    public int DrugOrderType { get; set; }
+
     public List<InpatientMedicineItemDto> Items { get; set; } = new();
 
     public int Status { get; set; } // 0-Chờ duyệt, 1-Đã duyệt, 2-Đã phát, 3-Hủy
@@ -795,6 +798,9 @@ public class CreateInpatientPrescriptionDto
     public string? MainDiagnosis { get; set; }
 
     public Guid WarehouseId { get; set; }
+
+    // G-07: 1-Thuong qui, 2-Xuat tu truc, 3-Hoan tra, 4-Don xuat vien (toa ve). Default = 1.
+    public int DrugOrderType { get; set; } = 1;
 
     public List<CreateInpatientMedicineItemDto> Items { get; set; } = new();
 }
@@ -2023,6 +2029,69 @@ public class ReportSearchDto
     public Guid? DoctorId { get; set; }
     public int? PaymentSource { get; set; }
     public string? GroupBy { get; set; } // Day, Week, Month
+}
+
+// G-08: Hủy nhiều chỉ định CLS một lần
+public class CancelServiceRequestsDto
+{
+    public List<Guid> ServiceRequestIds { get; set; } = new();
+    public string Reason { get; set; } = string.Empty;
+}
+
+// G-08: Kết quả hủy chỉ định
+public class CancelServiceRequestsResultDto
+{
+    public int CancelledCount { get; set; }
+    public List<Guid> FailedIds { get; set; } = new();
+}
+
+// G-15: Cập nhật đối tượng thanh toán cho ServiceRequest
+public class UpdateServiceRequestPaymentTypeDto
+{
+    // PatientType: 1-BHYT, 2-Viện phí, 3-Dịch vụ
+    public int PatientType { get; set; }
+    public string? Reason { get; set; }
+}
+
+// Item hiển thị ServiceRequest cho BN nội trú
+public class InpatientServiceRequestItemDto
+{
+    public Guid Id { get; set; }
+    public string RequestCode { get; set; } = string.Empty;
+    public DateTime RequestDate { get; set; }
+    public string? ServiceName { get; set; }
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public decimal TotalAmount { get; set; }
+    public int RequestType { get; set; } // 1-XN, 2-CDHA, 3-TDCN, 4-PTTT, 5-Khac
+    public string? RequestTypeName => RequestType switch
+    {
+        1 => "Xét nghiệm",
+        2 => "CĐHA",
+        3 => "TDCN",
+        4 => "PTTT",
+        _ => "Khác"
+    };
+    public int Status { get; set; } // 0-Chờ TT, 1-Đã TT, 2-Đang TH, 3-Có KQ, 4-Đã hủy
+    public string? StatusName => Status switch
+    {
+        0 => "Chờ thực hiện",
+        1 => "Đã thanh toán",
+        2 => "Đang thực hiện",
+        3 => "Có kết quả",
+        4 => "Đã hủy",
+        _ => ""
+    };
+    // PatientType from Details[0] (primary detail type)
+    public int PatientType { get; set; } // 1-BHYT, 2-Viện phí, 3-Dịch vụ
+    public string? PatientTypeName => PatientType switch
+    {
+        1 => "BHYT",
+        2 => "Viện phí",
+        3 => "Dịch vụ",
+        _ => "Khác"
+    };
+    public bool IsEmergency { get; set; }
 }
 
 #endregion

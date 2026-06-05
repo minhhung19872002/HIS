@@ -823,5 +823,14 @@ public interface IInpatientCompleteService
     /// </summary>
     Task<DTOs.NangCap18.ServiceCompatibilityResultDto> CheckServiceOrderCompatibilityAsync(DTOs.NangCap18.CheckServiceCompatibilityDto dto);
 
+    // G-08: Lấy danh sách ServiceRequest của đợt điều trị (chưa hủy) để hiển thị + hủy
+    Task<List<InpatientServiceRequestItemDto>> GetAdmissionServiceRequestsAsync(Guid admissionId);
+
+    // G-08: Hủy nhiều chỉ định CLS một lần
+    Task<CancelServiceRequestsResultDto> CancelServiceRequestsAsync(Guid admissionId, CancelServiceRequestsDto dto, Guid userId);
+
+    // G-15: Đổi đối tượng thanh toán (BHYT↔Viện phí) cho ServiceRequest
+    Task<InpatientServiceRequestItemDto> UpdateServiceRequestPaymentTypeAsync(Guid serviceRequestId, UpdateServiceRequestPaymentTypeDto dto, Guid userId);
+
     #endregion
 }

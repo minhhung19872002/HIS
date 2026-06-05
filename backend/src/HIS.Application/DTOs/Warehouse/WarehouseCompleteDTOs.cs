@@ -226,6 +226,7 @@ public class StockIssueDto
         9 => "Xuất kiểm kê",
         10 => "Xuất thanh lý",
         11 => "Xuất bán nhà thuốc",
+        12 => "Xuất tủ trực",
         _ => ""
     };
 
@@ -312,9 +313,23 @@ public class CreateStockIssueDto
     public Guid? PatientId { get; set; }
     public Guid? PrescriptionId { get; set; }
 
+    // Context for cabinet dispensing (IssueType=12): one of these is set
+    public Guid? AdmissionId { get; set; }    // Inpatient admission context
+    public Guid? SurgeryId { get; set; }      // Surgery (PTTT) context
+    public Guid? ExaminationId { get; set; }  // OPD examination context
+
     public List<CreateStockIssueItemDto> Items { get; set; } = new();
 
     public string? Notes { get; set; }
+}
+
+/// <summary>
+/// Request DTO for creating a cabinet (tủ trực) stock issue.
+/// Wraps CreateStockIssueDto; IssueType is forced to 12 server-side.
+/// </summary>
+public class CreateCabinetIssueDto : CreateStockIssueDto
+{
+    // IssueType intentionally not set by client — server forces 12
 }
 
 /// <summary>

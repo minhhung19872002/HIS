@@ -145,6 +145,12 @@ public interface IWarehouseCompleteService
     Task<StockIssueDto> CreateDisposalIssueAsync(CreateStockIssueDto dto, Guid userId);
 
     /// <summary>
+    /// Xuất tủ trực — cabinet dispensing linked to a patient context
+    /// (OPD examinationId, inpatient admissionId, or surgery surgeryId)
+    /// </summary>
+    Task<StockIssueDto> CreateCabinetIssueAsync(CreateCabinetIssueDto dto, Guid userId);
+
+    /// <summary>
     /// Bán thuốc nhà thuốc theo đơn BS
     /// </summary>
     Task<PharmacySaleDto> CreatePharmacySaleByPrescriptionAsync(Guid prescriptionId, Guid userId);

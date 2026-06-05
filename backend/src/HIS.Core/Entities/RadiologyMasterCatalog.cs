@@ -82,3 +82,27 @@ public class RadiologyReportTemplate : BaseEntity
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
 }
+
+/// <summary>
+/// Gán mẫu kết quả theo ICD (G-34c) — ICD code → RadiologyReportTemplate.
+/// Cho phép hệ thống tự gợi ý template phù hợp khi BS nhập chẩn đoán sơ bộ.
+/// </summary>
+public class RisIcdTemplateMapping : BaseEntity
+{
+    /// <summary>Mã ICD-10 (vd A00, J18.9)</summary>
+    public string IcdCode { get; set; } = string.Empty;
+
+    /// <summary>Tên bệnh — cache để hiển thị nhanh</summary>
+    public string? IcdName { get; set; }
+
+    /// <summary>Template kết quả được gán</summary>
+    public Guid TemplateId { get; set; }
+    public virtual RadiologyReportTemplate? Template { get; set; }
+
+    /// <summary>Lọc thêm theo modality (optional)</summary>
+    public Guid? ModalityId { get; set; }
+    public virtual RadiologyModality? Modality { get; set; }
+
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}

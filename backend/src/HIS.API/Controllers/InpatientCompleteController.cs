@@ -558,6 +558,32 @@ public partial class InpatientCompleteController : ControllerBase
         return Ok(result);
     }
 
+    // G-08: Lay danh sach chi dinh CLS cua dot dieu tri
+    [HttpGet("{admissionId}/service-requests")]
+    public async Task<ActionResult<List<InpatientServiceRequestItemDto>>> GetAdmissionServiceRequests(Guid admissionId)
+    {
+        var result = await _inpatientService.GetAdmissionServiceRequestsAsync(admissionId);
+        return Ok(result);
+    }
+
+    // G-08: Huy nhieu chi dinh CLS
+    [HttpPost("{admissionId}/cancel-service-requests")]
+    public async Task<ActionResult<CancelServiceRequestsResultDto>> CancelServiceRequests(
+        Guid admissionId, [FromBody] CancelServiceRequestsDto dto)
+    {
+        var result = await _inpatientService.CancelServiceRequestsAsync(admissionId, dto, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    // G-15: Doi doi tuong thanh toan ServiceRequest
+    [HttpPut("service-request/{requestId}/payment-type")]
+    public async Task<ActionResult<InpatientServiceRequestItemDto>> UpdateServiceRequestPaymentType(
+        Guid requestId, [FromBody] UpdateServiceRequestPaymentTypeDto dto)
+    {
+        var result = await _inpatientService.UpdateServiceRequestPaymentTypeAsync(requestId, dto, GetCurrentUserId());
+        return Ok(result);
+    }
+
     /// <summary>
     /// In phiếu chỉ định
     /// </summary>

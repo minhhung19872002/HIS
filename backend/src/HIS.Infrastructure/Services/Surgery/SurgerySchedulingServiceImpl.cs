@@ -71,6 +71,8 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                 RequestCode = requestCode,
                 PatientId = patient.Id,
                 MedicalRecordId = dto.MedicalRecordId != Guid.Empty ? dto.MedicalRecordId : null,
+                // Link examination (OPD/CĐHA workflow) when provided
+                ExaminationId = dto.ExaminationId != Guid.Empty ? dto.ExaminationId : null,
                 RequestDate = DateTime.Now,
                 SurgeryType = GetSurgeryTypeName(dto.SurgeryType),
                 RequestingDoctorId = doctorId,
@@ -98,6 +100,7 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                 PatientCode = patient.PatientCode,
                 PatientName = patient.FullName,
                 MedicalRecordId = request.MedicalRecordId ?? Guid.Empty,
+                ExaminationId = request.ExaminationId,
                 SurgeryType = dto.SurgeryType,
                 SurgeryTypeName = request.SurgeryType,
                 SurgeryClass = dto.SurgeryClass,
@@ -340,6 +343,14 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
             if (dto.ToDate.HasValue)
                 query = query.Where(r => r.RequestDate <= dto.ToDate.Value);
 
+            // Filter by examination (OPD/CĐHA workflow)
+            if (dto.ExaminationId.HasValue)
+                query = query.Where(r => r.ExaminationId == dto.ExaminationId.Value);
+
+            // Filter by medical record (inpatient workflow)
+            if (dto.MedicalRecordId.HasValue)
+                query = query.Where(r => r.MedicalRecordId == dto.MedicalRecordId.Value);
+
             var totalCount = await query.CountAsync();
             var items = await query
                 .OrderByDescending(r => r.CreatedAt)
@@ -359,6 +370,7 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                     DateOfBirth = r.Patient?.DateOfBirth,
                     Gender = r.Patient?.Gender == 1 ? "Nam" : "Nữ",
                     MedicalRecordId = r.MedicalRecordId ?? Guid.Empty,
+                    ExaminationId = r.ExaminationId,
                     SurgeryType = int.TryParse(r.SurgeryType, out var st) ? st : 1,
                     SurgeryTypeName = r.SurgeryType,
                     SurgeryNature = r.Priority,

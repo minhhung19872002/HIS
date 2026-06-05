@@ -12,13 +12,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, fmtVNDg, tk, tw, te, ti } from './_v2kit';
+import { SurgeryReportModal } from './shared/SurgeryReportModal';
+import { CabinetIssueModal } from './shared/CabinetIssueModal';
 import TermIcon from '../layouts/terminal/Icon';
 import BarcodeScanner from '../components/BarcodeScanner';
 import {
   examinationApi, createSickLeave,
+  getPatientLabResults, getPatientAllergies,
+  getConsultationRecords, createConsultationRecord, printExaminationForm,
   type RoomDto, type RoomPatientListDto, type IcdCodeFullDto, type ServiceDto,
   type ServiceOrderFullDto, type DiagnosisFullDto,
+  type PatientLabResultsDto, type AllergyDto, type ConsultationRecordDto,
 } from '../api/examination';
+import { useAbbrExpansion } from '../utils/abbrExpand';
+import { ABBREVIATION_SCOPES } from '../api/abbreviation';
 import {
   addFollowUpSpecialty,
   changeRoomBeforeExam,
@@ -34,6 +41,11 @@ import '../layouts/terminal/ed-responsive.css';
 interface Vitals { pulse?: number; temperature?: number; systolicBP?: number; diastolicBP?: number; respiratoryRate?: number; spO2?: number; weight?: number; height?: number; }
 interface DxRow { icdCode: string; icdName: string; isPrimary: boolean; }
 interface OrderRow { serviceId: string; code: string; name: string; qty: number; unitPrice: number; }
+
+// Viết tắt (F2-style macro): bung ở bệnh sử / khám LS / kết luận — gõ code + space
+const OPD_ABBR_SCOPES = [ABBREVIATION_SCOPES.GENERAL, ABBREVIATION_SCOPES.DIAGNOSIS] as const;
+
+const SEVERITY_LABEL: Record<number, string> = { 1: 'Nhẹ', 2: 'Vừa', 3: 'Nặng', 4: 'Phản vệ' };
 
 const VITAL_FIELDS: { k: keyof Vitals; l: string; unit: string }[] = [
   { k: 'pulse', l: 'Mạch', unit: 'l/p' },
@@ -61,10 +73,32 @@ const OpdEditorV2: React.FC = () => {
 
   const [vitals, setVitals] = useState<Vitals>({});
   const [history, setHistory] = useState('');       // → MedicalInterview.historyOfPresentIllness
+  const [pastHist, setPastHist] = useState('');     // → MedicalInterview.pastMedicalHistory
+  const [familyHist, setFamilyHist] = useState(''); // → MedicalInterview.familyHistory
+  const [allergyHist, setAllergyHist] = useState(''); // → MedicalInterview.allergyHistory
+  const [allergies, setAllergies] = useState<AllergyDto[]>([]); // hồ sơ dị ứng cấu trúc (đọc)
   const [exam, setExam] = useState('');             // → PhysicalExamination.generalAppearance
   const [conclusion, setConclusion] = useState(''); // → completeExamination.conclusionNotes
   const [diagnoses, setDx] = useState<DxRow[]>([]);
   const [orders, setOrd] = useState<OrderRow[]>([]);
+  const expandAbbr = useAbbrExpansion(OPD_ABBR_SCOPES);
+
+  // Modal: KQ CLS tại phòng khám
+  const [clsOpen, setClsOpen] = useState(false);
+  const [clsData, setClsData] = useState<PatientLabResultsDto | null>(null);
+  const [clsLoading, setClsLoading] = useState(false);
+
+  // Modal: PTTT (G-09) — tường trình phẫu thuật/thủ thuật tại phòng khám
+  const [ptttOpen, setPtttOpen] = useState(false);
+
+  // Modal: Xuất tủ trực (G-10a) — OPD cabinet dispensing
+  const [cabinetOpen, setCabinetOpen] = useState(false);
+
+  // Modal: sổ hội chẩn
+  const [consultOpen, setConsultOpen] = useState(false);
+  const [consults, setConsults] = useState<ConsultationRecordDto[]>([]);
+  const [consultForm, setConsultForm] = useState({ reason: '', summary: '', conclusion: '', recommendations: '' });
+  const [consultSaving, setConsultSaving] = useState(false);
 
   const [scanOpen, setScanOpen] = useState(false);
   const [sickFrom, setSickFrom] = useState('');
@@ -142,20 +176,31 @@ const OpdEditorV2: React.FC = () => {
     setSelPt(q);
     setLeftOpen(false);
     // reset then load
-    setVitals({}); setHistory(''); setExam(''); setConclusion(''); setDx([]); setOrd([]);
+    setVitals({}); setHistory(''); setPastHist(''); setFamilyHist(''); setAllergyHist('');
+    setAllergies([]); setExam(''); setConclusion(''); setDx([]); setOrd([]);
     const id = q.examinationId;
-    const [v, mi, pe, dx, so] = await Promise.allSettled([
+    const [v, mi, pe, dx, so, al] = await Promise.allSettled([
       examinationApi.getVitalSigns(id),
       examinationApi.getMedicalInterview(id),
       examinationApi.getPhysicalExamination(id),
       examinationApi.getDiagnoses(id),
       examinationApi.getServiceOrders(id),
+      getPatientAllergies(q.patientId),
     ]);
     if (v.status === 'fulfilled' && v.value.data) {
       const d = v.value.data;
       setVitals({ pulse: d.pulse, temperature: d.temperature, systolicBP: d.systolicBP, diastolicBP: d.diastolicBP, respiratoryRate: d.respiratoryRate, spO2: d.spO2, weight: d.weight, height: d.height });
     }
-    if (mi.status === 'fulfilled' && mi.value.data) setHistory(mi.value.data.historyOfPresentIllness || mi.value.data.chiefComplaint || '');
+    if (mi.status === 'fulfilled' && mi.value.data) {
+      const m = mi.value.data;
+      setHistory(m.historyOfPresentIllness || m.chiefComplaint || '');
+      setPastHist(m.pastMedicalHistory || '');
+      setFamilyHist(m.familyHistory || '');
+      setAllergyHist(m.allergyHistory || '');
+    }
+    if (al.status === 'fulfilled' && Array.isArray(al.value.data)) {
+      setAllergies((al.value.data as AllergyDto[]).filter((a) => a.isActive !== false));
+    }
     if (pe.status === 'fulfilled' && pe.value.data) setExam(pe.value.data.generalAppearance || '');
     if (dx.status === 'fulfilled' && Array.isArray(dx.value.data)) {
       setDx((dx.value.data as DiagnosisFullDto[]).map((x) => ({ icdCode: x.icdCode, icdName: x.icdName, isPrimary: x.isPrimary })));
@@ -203,7 +248,12 @@ const OpdEditorV2: React.FC = () => {
     const primary = diagnoses.find((d) => d.isPrimary);
     await Promise.allSettled([
       examinationApi.updateVitalSigns(examId, { ...vitals, measuredAt: new Date().toISOString() }),
-      examinationApi.updateMedicalInterview(examId, { historyOfPresentIllness: history }),
+      examinationApi.updateMedicalInterview(examId, {
+        historyOfPresentIllness: history,
+        pastMedicalHistory: pastHist,
+        familyHistory: familyHist,
+        allergyHistory: allergyHist,
+      }),
       examinationApi.updatePhysicalExamination(examId, { generalAppearance: exam }),
       examinationApi.updateDiagnosisList(examId, {
         primaryIcdCode: primary?.icdCode,
@@ -247,6 +297,57 @@ const OpdEditorV2: React.FC = () => {
   const goPrescribe = () => {
     if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
     navigate(`/v2/prescription/edit?examId=${encodeURIComponent(examId)}`);
+  };
+
+  // In phiếu khám thật (PDF blob → tab mới) — thay nút giả cũ
+  const printExamForm = async () => {
+    if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+    try {
+      const r = await printExaminationForm(examId);
+      const url = URL.createObjectURL(r.data as Blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch { te('Không in được phiếu khám'); }
+  };
+
+  // KQ CLS (XN + CĐHA) tại phòng khám
+  const openClsResults = async () => {
+    if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+    setClsOpen(true); setClsLoading(true); setClsData(null);
+    try { const r = await getPatientLabResults(examId); setClsData(r.data ?? null); }
+    catch { te('Không tải được kết quả CLS'); }
+    finally { setClsLoading(false); }
+  };
+
+  // Sổ hội chẩn của lần khám
+  const openConsults = async () => {
+    if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+    setConsultForm({ reason: '', summary: '', conclusion: '', recommendations: '' });
+    setConsultOpen(true);
+    try { const r = await getConsultationRecords(examId); setConsults(Array.isArray(r.data) ? r.data : []); }
+    catch { setConsults([]); }
+  };
+
+  const saveConsult = async () => {
+    if (!examId) return;
+    if (!consultForm.reason.trim()) { tw('Cần nhập lý do hội chẩn'); return; }
+    setConsultSaving(true);
+    try {
+      await createConsultationRecord({
+        id: '', examinationId: examId,
+        consultationDate: new Date().toISOString(),
+        reason: consultForm.reason.trim(),
+        summary: consultForm.summary.trim(),
+        conclusion: consultForm.conclusion.trim(),
+        recommendations: consultForm.recommendations.trim(),
+        consultants: [],
+      });
+      tk('Đã lưu biên bản hội chẩn');
+      setConsultForm({ reason: '', summary: '', conclusion: '', recommendations: '' });
+      const r = await getConsultationRecords(examId);
+      setConsults(Array.isArray(r.data) ? r.data : []);
+    } catch { te('Lưu biên bản hội chẩn thất bại'); }
+    finally { setConsultSaving(false); }
   };
 
   const saveSickLeave = async () => {
@@ -344,11 +445,39 @@ const OpdEditorV2: React.FC = () => {
             <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
                 <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Bệnh sử · Lý do khám</h4>
-                <textarea value={history} onChange={(e) => setHistory(e.target.value)} placeholder="Lý do đến khám, diễn biến bệnh, tiền sử…" style={{ width: '100%', minHeight: 80, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, background: 'var(--d-0)', color: 'var(--t-0)' }} />
+                <textarea value={history} onChange={(e) => setHistory(expandAbbr(e.target.value))} placeholder="Lý do đến khám, diễn biến bệnh… (gõ từ viết tắt + space để bung)" style={{ width: '100%', minHeight: 80, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, background: 'var(--d-0)', color: 'var(--t-0)' }} />
               </div>
               <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
                 <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Khám lâm sàng</h4>
-                <textarea value={exam} onChange={(e) => setExam(e.target.value)} placeholder="Toàn thân, tim, phổi, bụng…" style={{ width: '100%', minHeight: 80, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, background: 'var(--d-0)', color: 'var(--t-0)' }} />
+                <textarea value={exam} onChange={(e) => setExam(expandAbbr(e.target.value))} placeholder="Toàn thân, tim, phổi, bụng…" style={{ width: '100%', minHeight: 80, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, background: 'var(--d-0)', color: 'var(--t-0)' }} />
+              </div>
+            </section>
+
+            {/* Tiền sử · Dị ứng (MedicalInterview + hồ sơ dị ứng cấu trúc) */}
+            <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
+              <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Tiền sử · Dị ứng</h4>
+              {allergies.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                  {allergies.map((a) => (
+                    <span key={a.id} className="chip crit" title={a.reaction || ''}>
+                      ⚠ {a.allergenName}{SEVERITY_LABEL[a.severity] ? ` · ${SEVERITY_LABEL[a.severity]}` : ''}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                <div>
+                  <label style={{ fontSize: 10, color: 'var(--t-2)' }}>Tiền sử bệnh bản thân</label>
+                  <textarea value={pastHist} onChange={(e) => setPastHist(expandAbbr(e.target.value))} placeholder="Bệnh nền, phẫu thuật cũ…" style={{ width: '100%', minHeight: 56, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, background: 'var(--d-0)', color: 'var(--t-0)' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, color: 'var(--t-2)' }}>Tiền sử gia đình</label>
+                  <textarea value={familyHist} onChange={(e) => setFamilyHist(expandAbbr(e.target.value))} placeholder="Bệnh di truyền, dịch tễ gia đình…" style={{ width: '100%', minHeight: 56, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, background: 'var(--d-0)', color: 'var(--t-0)' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, color: 'var(--t-2)' }}>Dị ứng (thuốc / thức ăn)</label>
+                  <textarea value={allergyHist} onChange={(e) => setAllergyHist(expandAbbr(e.target.value))} placeholder="Thuốc, thức ăn, tác nhân dị ứng…" style={{ width: '100%', minHeight: 56, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, background: 'var(--d-0)', color: 'var(--t-0)' }} />
+                </div>
               </div>
             </section>
 
@@ -431,7 +560,7 @@ const OpdEditorV2: React.FC = () => {
       <aside className={'ed-right-panel ' + (rightOpen ? 'is-open' : '')} style={{ borderLeft: '1px solid var(--line)', padding: 12, background: 'var(--d-1)', display: 'flex', flexDirection: 'column', gap: 10, overflow: 'auto' }}>
         <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
           <h4 style={{ margin: '0 0 8px', fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Kết luận</h4>
-          <textarea value={conclusion} onChange={(e) => setConclusion(e.target.value)} placeholder="Kết luận khám, hướng xử trí, hẹn tái khám…" style={{ width: '100%', minHeight: 80, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 11.5, background: 'var(--d-0)', color: 'var(--t-0)' }} />
+          <textarea value={conclusion} onChange={(e) => setConclusion(expandAbbr(e.target.value))} placeholder="Kết luận khám, hướng xử trí, hẹn tái khám…" style={{ width: '100%', minHeight: 80, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 11.5, background: 'var(--d-0)', color: 'var(--t-0)' }} />
         </section>
 
         <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
@@ -448,7 +577,17 @@ const OpdEditorV2: React.FC = () => {
         <div style={{ display: 'grid', gap: 6 }}>
           <Btn variant="ghost" disabled={saving} onClick={saveDraft}><TermIcon name="folder" size={12} /> Lưu nháp</Btn>
           <Btn variant="ghost" onClick={goPrescribe}><TermIcon name="pill" size={12} /> Kê đơn thuốc →</Btn>
-          <Btn variant="ghost" onClick={() => tk('Đã gửi máy in')}><TermIcon name="print" size={12} /> In phiếu khám</Btn>
+          <Btn variant="ghost" onClick={openClsResults}><TermIcon name="flask" size={12} /> KQ XN · CĐHA</Btn>
+          <Btn variant="ghost" onClick={openConsults}><TermIcon name="users" size={12} /> Sổ hội chẩn</Btn>
+          <Btn variant="ghost" onClick={() => {
+            if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+            setPtttOpen(true);
+          }}><TermIcon name="scissors" size={12} /> PTTT (F6)</Btn>
+          <Btn variant="ghost" onClick={() => {
+            if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+            setCabinetOpen(true);
+          }}><TermIcon name="package" size={12} /> Xuất tủ trực</Btn>
+          <Btn variant="ghost" onClick={printExamForm}><TermIcon name="print" size={12} /> In phiếu khám</Btn>
           <Btn variant="primary" disabled={saving} onClick={complete}><TermIcon name="check" size={12} /> Hoàn tất khám</Btn>
         </div>
 
@@ -808,6 +947,141 @@ const OpdEditorV2: React.FC = () => {
           <TermIcon name="check" size={18} />
         </button>
       </div>
+
+      {/* ── Modal: KQ XN · CĐHA tại phòng khám ───────────────────────── */}
+      <ModalShell
+        open={clsOpen}
+        onClose={() => setClsOpen(false)}
+        title="Kết quả XN · CĐHA"
+        sub={selPt ? `${selPt.patientName} · ${selPt.patientCode}` : ''}
+        size="lg"
+        footer={<div style={{ display: 'flex', justifyContent: 'flex-end' }}><Btn variant="ghost" size="sm" onClick={() => setClsOpen(false)}>Đóng</Btn></div>}
+      >
+        {clsLoading && <div style={{ padding: 20, textAlign: 'center', color: 'var(--t-3)', fontSize: 12 }}>Đang tải…</div>}
+        {!clsLoading && clsData && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Xét nghiệm ({clsData.labResults?.length ?? 0})</h4>
+              {(clsData.labResults || []).length === 0 && <div style={{ fontSize: 12, color: 'var(--t-3)' }}>Chưa có kết quả xét nghiệm</div>}
+              {(clsData.labResults || []).map((lr) => (
+                <div key={lr.orderId} style={{ border: '1px solid var(--line)', borderRadius: 6, padding: 10, marginBottom: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                    <b style={{ fontSize: 12.5 }}>{lr.serviceName}</b>
+                    <span className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{lr.serviceCode}</span>
+                    <span className="spacer" />
+                    <span style={{ fontSize: 11, color: 'var(--t-2)' }}>{lr.resultDate ? new Date(lr.resultDate).toLocaleString('vi-VN') : 'Chưa có KQ'}</span>
+                  </div>
+                  {(lr.items || []).map((it, idx) => (
+                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: 8, fontSize: 12, padding: '3px 0', borderBottom: '1px solid var(--line-soft)' }}>
+                      <span>{it.testName}</span>
+                      <span className="mono" style={{ textAlign: 'right', fontWeight: 600, color: it.isAbnormal ? 'var(--s-crit)' : 'var(--t-0)' }}>
+                        {it.result || '—'}{it.unit ? ` ${it.unit}` : ''}{it.isAbnormal ? ' ⚠' : ''}
+                      </span>
+                      <span className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{it.referenceRange || '—'}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div>
+              <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>CĐHA · TDCN ({clsData.imagingResults?.length ?? 0})</h4>
+              {(clsData.imagingResults || []).length === 0 && <div style={{ fontSize: 12, color: 'var(--t-3)' }}>Chưa có kết quả CĐHA</div>}
+              {(clsData.imagingResults || []).map((ir) => (
+                <div key={ir.orderId} style={{ border: '1px solid var(--line)', borderRadius: 6, padding: 10, marginBottom: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <b style={{ fontSize: 12.5 }}>{ir.serviceName}</b>
+                    <span className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{ir.serviceCode}</span>
+                    <span className="spacer" />
+                    <span style={{ fontSize: 11, color: 'var(--t-2)' }}>{ir.resultDate ? new Date(ir.resultDate).toLocaleString('vi-VN') : 'Chưa có KQ'}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {!clsLoading && !clsData && <div style={{ padding: 20, textAlign: 'center', color: 'var(--t-3)', fontSize: 12 }}>Không có dữ liệu</div>}
+      </ModalShell>
+
+      {/* ── Modal: Sổ hội chẩn ───────────────────────────────────────── */}
+      <ModalShell
+        open={consultOpen}
+        onClose={() => setConsultOpen(false)}
+        title="Sổ hội chẩn"
+        sub={selPt ? `${selPt.patientName} · ${selPt.patientCode}` : ''}
+        size="lg"
+        footer={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Btn variant="ghost" size="sm" onClick={() => setConsultOpen(false)}>Đóng</Btn>
+            <Btn variant="primary" size="sm" disabled={consultSaving || !consultForm.reason.trim()} onClick={saveConsult}>
+              <TermIcon name="plus" size={11} /> Lưu biên bản
+            </Btn>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {consults.length > 0 && (
+            <div>
+              <h4 style={{ margin: '0 0 6px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Biên bản đã lập ({consults.length})</h4>
+              {consults.map((c) => (
+                <div key={c.id} style={{ border: '1px solid var(--line)', borderRadius: 6, padding: 10, marginBottom: 6, fontSize: 12 }}>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+                    <b>{c.reason}</b>
+                    <span className="spacer" />
+                    <span style={{ color: 'var(--t-2)', fontSize: 11 }}>{c.consultationDate ? new Date(c.consultationDate).toLocaleString('vi-VN') : ''}</span>
+                  </div>
+                  {c.conclusion && <div style={{ color: 'var(--t-1)' }}>KL: {c.conclusion}</div>}
+                  {c.recommendations && <div style={{ color: 'var(--t-2)', fontSize: 11.5 }}>Đề nghị: {c.recommendations}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+          <div>
+            <h4 style={{ margin: '0 0 6px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Lập biên bản mới</h4>
+            <div style={{ display: 'grid', gap: 8 }}>
+              <div>
+                <label style={{ fontSize: 11, color: 'var(--t-2)' }}>Lý do hội chẩn <span style={{ color: 'var(--s-err)' }}>*</span></label>
+                <input className="hui-inp" style={{ width: '100%', height: 28 }} value={consultForm.reason} onChange={(e) => setConsultForm((f) => ({ ...f, reason: e.target.value }))} placeholder="Ca khó, đa bệnh lý…" />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, color: 'var(--t-2)' }}>Tóm tắt diễn biến</label>
+                <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={consultForm.summary} onChange={(e) => setConsultForm((f) => ({ ...f, summary: e.target.value }))} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div>
+                  <label style={{ fontSize: 11, color: 'var(--t-2)' }}>Kết luận</label>
+                  <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={consultForm.conclusion} onChange={(e) => setConsultForm((f) => ({ ...f, conclusion: e.target.value }))} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: 'var(--t-2)' }}>Đề nghị</label>
+                  <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={consultForm.recommendations} onChange={(e) => setConsultForm((f) => ({ ...f, recommendations: e.target.value }))} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ModalShell>
+
+      {/* ── Modal: Tường trình PTTT (G-09) ─────────────────────────── */}
+      <SurgeryReportModal
+        open={ptttOpen}
+        onClose={() => setPtttOpen(false)}
+        onSaved={() => setPtttOpen(false)}
+        examinationId={examId}
+        patientId={selPt?.patientId}
+        patientName={selPt?.patientName}
+        patientCode={selPt?.patientCode}
+        prefillDiagnosis={diagnoses.find((d) => d.isPrimary)?.icdName}
+      />
+
+      {/* ── Modal: Xuất tủ trực (G-10a) ────────────────────────────── */}
+      <CabinetIssueModal
+        open={cabinetOpen}
+        onClose={() => setCabinetOpen(false)}
+        onSaved={() => setCabinetOpen(false)}
+        patientName={selPt?.patientName}
+        patientCode={selPt?.patientCode}
+        examinationId={examId}
+      />
 
       {/* Barcode scan → find patient in current room queue */}
       <BarcodeScanner

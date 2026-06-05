@@ -6,7 +6,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
-import { App as AntdApp, Input, InputNumber, Select, DatePicker } from 'antd';
+import { App as AntdApp, Input, InputNumber, Select, DatePicker, Checkbox, Tag } from 'antd';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, Legend, ResponsiveContainer,
@@ -19,6 +19,10 @@ import {
   createBloodTransfusion,
   getBillingStatement6556,
   printBillingStatement6556,
+  getPrescriptions,
+  getAdmissionServiceRequests,
+  cancelServiceRequests,
+  updateServiceRequestPaymentType,
 } from '../../api/inpatient';
 import type {
   CreateVitalSignsDto,
@@ -29,11 +33,16 @@ import type {
   CreateBloodTransfusionDto,
   BillingStatement6556Dto,
   InpatientListDto,
+  InpatientPrescriptionDto,
+  InpatientMedicineItemDto,
+  InpatientServiceRequestItemDto,
 } from '../../api/inpatient';
 import { catalogApi } from '../../api/system';
 import type { DepartmentCatalogDto } from '../../api/system';
 import { ModalShell, Btn } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
+import BedLabResultSection from './BedLabResultSection';
+import { CabinetIssueModal } from '../shared/CabinetIssueModal';
 
 // ---------------------------------------------------------------------------
 // Local helpers
@@ -852,6 +861,487 @@ const BillingStatementModal: React.FC<{
 };
 
 // ---------------------------------------------------------------------------
+// G-02: Drug return modal (Hoan tra thuoc y lenh)
+// ---------------------------------------------------------------------------
+
+const RETURN_REASONS = [
+  { value: 'Thừa thuốc', label: 'Thừa thuốc' },
+  { value: 'Đổi thuốc', label: 'Đổi thuốc' },
+  { value: 'Ngừng điều trị', label: 'Ngừng điều trị' },
+  { value: 'Khác', label: 'Khác' },
+];
+
+interface ReturnItem {
+  medicineId: string;
+  medicineName: string;
+  unit: string;
+  maxQty: number;
+  returnQty: number;
+  selected: boolean;
+}
+
+const DrugReturnModal: React.FC<{
+  open: boolean;
+  admissionId: string;
+  patientId: string;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, admissionId, patientId, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [items, setItems] = useState<ReturnItem[]>([]);
+  const [reason, setReason] = useState('Thừa thuốc');
+  const [note, setNote] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setReason('Thừa thuốc'); setNote('');
+    setLoading(true);
+    getPrescriptions(admissionId)
+      .then((r) => {
+        const prescriptions: InpatientPrescriptionDto[] = Array.isArray(r.data) ? r.data : [];
+        // Aggregate items across prescriptions — only issued (status >= 2)
+        const map = new Map<string, ReturnItem>();
+        prescriptions.forEach((p) => {
+          if (p.status < 1) return; // skip un-approved
+          p.items.forEach((it: InpatientMedicineItemDto) => {
+            const existing = map.get(it.medicineId);
+            if (existing) {
+              existing.maxQty += it.quantity;
+            } else {
+              map.set(it.medicineId, {
+                medicineId: it.medicineId,
+                medicineName: it.medicineName,
+                unit: it.unit,
+                maxQty: it.quantity,
+                returnQty: it.quantity,
+                selected: false,
+              });
+            }
+          });
+        });
+        setItems(Array.from(map.values()));
+      })
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
+  }, [open, admissionId]);
+
+  const toggleItem = (idx: number) =>
+    setItems((prev) => prev.map((it, i) => i === idx ? { ...it, selected: !it.selected } : it));
+  const setReturnQty = (idx: number, v: number | null) =>
+    setItems((prev) => prev.map((it, i) => i === idx ? { ...it, returnQty: Math.min(v ?? 1, it.maxQty) } : it));
+
+  const submit = async () => {
+    const selected = items.filter((it) => it.selected && it.returnQty > 0);
+    if (!selected.length) { message.warning('Chọn ít nhất 1 thuốc cần hoàn trả'); return; }
+    if (!reason.trim()) { message.warning('Chọn lý do hoàn trả'); return; }
+    setBusy(true);
+    try {
+      // Import createApproval inline to avoid circular — re-import from pharmacyApproval
+      const { createApproval } = await import('../../api/pharmacyApproval');
+      await createApproval({
+        approvalType: 5, // HOAN_TRA
+        patientId,
+        note: `${reason}${note ? ` — ${note}` : ''}`,
+        items: selected.map((it) => ({
+          medicineId: it.medicineId,
+          requestedQuantity: it.returnQty,
+          unit: it.unit,
+          unitPrice: 0,
+          usageInstruction: reason,
+        })),
+      });
+      message.success('Đã tạo phiếu hoàn trả — chờ dược duyệt');
+      onDone();
+    } catch {
+      message.error('Tạo phiếu hoàn trả thất bại');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="lg"
+      title="Hoàn trả thuốc y lệnh"
+      footer={
+        <>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="primary" disabled={busy} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang tạo phiếu…' : 'Tạo phiếu hoàn trả'}
+          </Btn>
+        </>
+      }
+    >
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {loading && <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 12 }}>Đang tải danh sách thuốc…</div>}
+        {!loading && items.length === 0 && (
+          <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 12 }}>
+            Không có thuốc nào đã lĩnh trong đợt nằm viện này.
+          </div>
+        )}
+        {!loading && items.length > 0 && (
+          <div style={{ border: '1px solid var(--line-soft)', borderRadius: 6, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: 'var(--d-1, #f7f9fc)' }}>
+                  <th style={{ padding: '6px 10px', textAlign: 'left', width: 36 }}></th>
+                  <th style={{ padding: '6px 10px', textAlign: 'left' }}>Tên thuốc</th>
+                  <th style={{ padding: '6px 10px', textAlign: 'right', width: 60 }}>Đã lĩnh</th>
+                  <th style={{ padding: '6px 10px', textAlign: 'right', width: 100 }}>SL trả</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((it, idx) => (
+                  <tr key={it.medicineId} style={{ borderTop: '1px solid var(--line-soft)', background: it.selected ? 'var(--accent-soft, #f0f9ff)' : undefined }}>
+                    <td style={{ padding: '5px 10px', textAlign: 'center' }}>
+                      <Checkbox checked={it.selected} onChange={() => toggleItem(idx)} />
+                    </td>
+                    <td style={{ padding: '5px 10px' }}>
+                      {it.medicineName}
+                      <span style={{ color: 'var(--t-2)', marginLeft: 4 }}>{it.unit}</span>
+                    </td>
+                    <td style={{ padding: '5px 10px', textAlign: 'right' }}>{it.maxQty}</td>
+                    <td style={{ padding: '5px 10px' }}>
+                      <InputNumber
+                        size="small"
+                        value={it.returnQty}
+                        onChange={(v) => setReturnQty(idx, v)}
+                        min={1} max={it.maxQty}
+                        disabled={!it.selected}
+                        style={{ width: 80 }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <IpFld label="Lý do hoàn trả *">
+            <Select
+              value={reason}
+              onChange={setReason}
+              options={RETURN_REASONS}
+              style={{ width: '100%' }}
+            />
+          </IpFld>
+          <IpFld label="Ghi chú thêm">
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ghi chú (tùy chọn)" />
+          </IpFld>
+        </div>
+      </div>
+    </ModalShell>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// G-07: Discharge prescription modal (Don thuoc xuat vien — toa ve)
+// ---------------------------------------------------------------------------
+
+const DischargePrescriptionModal: React.FC<{
+  open: boolean;
+  admissionId: string;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, admissionId, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [medicineName, setMedicineName] = useState('');
+  const [qty, setQty] = useState<number | null>(null);
+  const [dosage, setDosage] = useState('');
+  const [warehouseId, setWarehouseId] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setMedicineName(''); setQty(null); setDosage(''); setNote('');
+    // Default empty warehouseId — user would pick from available warehouses in full impl
+  }, [open]);
+
+  const submit = async () => {
+    if (!medicineName.trim()) { message.warning('Nhập tên thuốc'); return; }
+    if (!qty || qty <= 0) { message.warning('Nhập số lượng'); return; }
+    // Note: In a full implementation this should search medicine by code/name.
+    // For this sprint, we use a simplified single-item form with medicine name as note.
+    message.info('Chức năng đơn thuốc xuất viện đang phát triển — cần liên kết kho thuốc.');
+    onClose();
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="sm"
+      title="Đơn thuốc xuất viện (toa về)"
+      footer={
+        <>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="primary" disabled={busy} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Lưu đơn'}
+          </Btn>
+        </>
+      }
+    >
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ padding: '8px 12px', borderRadius: 6, background: 'var(--info-soft, #f0f9ff)', border: '1px solid var(--info, #0891b2)', fontSize: 11, color: 'var(--t-1)' }}>
+          Đơn thuốc loại <b>DrugOrderType=4</b> — kê đơn cho BN mang về sau xuất viện. Sẽ tích hợp đầy đủ với màn hình kê đơn nội trú.
+        </div>
+        <IpFld label="Tên thuốc *">
+          <Input value={medicineName} onChange={(e) => setMedicineName(e.target.value)} placeholder="VD: Paracetamol 500mg" />
+        </IpFld>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <IpFld label="Số lượng *">
+            <InputNumber value={qty} onChange={setQty} min={1} max={1000} placeholder="30" style={{ width: '100%' }} />
+          </IpFld>
+          <IpFld label="Liều dùng">
+            <Input value={dosage} onChange={(e) => setDosage(e.target.value)} placeholder="1 viên × 3 lần/ngày" />
+          </IpFld>
+        </div>
+        <IpFld label="Lời dặn / hướng dẫn" full>
+          <Input.TextArea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Uống sau ăn, không uống rượu bia…" />
+        </IpFld>
+      </div>
+    </ModalShell>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// G-08 + G-15: CLS service requests modal
+// ---------------------------------------------------------------------------
+
+const PATIENT_TYPE_OPTIONS = [
+  { value: 1, label: 'BHYT' },
+  { value: 2, label: 'Viện phí' },
+  { value: 3, label: 'Dịch vụ' },
+];
+
+const PATIENT_TYPE_COLORS: Record<number, string> = { 1: 'green', 2: 'blue', 3: 'purple' };
+
+const ClsOrdersModal: React.FC<{
+  open: boolean;
+  admissionId: string;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, admissionId, onClose, onDone }) => {
+  const { message, modal } = AntdApp.useApp();
+  const [orders, setOrders] = useState<InpatientServiceRequestItemDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [cancelReason, setCancelReason] = useState('');
+  const cancelReasonRef = React.useRef('');
+  const [cancelling, setCancelling] = useState(false);
+  // G-15 payment type change
+  const [paymentChangeId, setPaymentChangeId] = useState<string | null>(null);
+  const [newPatientType, setNewPatientType] = useState<number>(1);
+  const [paymentBusy, setPaymentBusy] = useState(false);
+
+  const reload = () => {
+    setLoading(true);
+    getAdmissionServiceRequests(admissionId)
+      .then((r) => setOrders(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setOrders([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    setSelectedIds([]); setCancelReason(''); setPaymentChangeId(null);
+    reload();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, admissionId]);
+
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+
+  const handleCancelSelected = async () => {
+    if (!selectedIds.length) { message.warning('Chọn ít nhất 1 chỉ định để hủy'); return; }
+    cancelReasonRef.current = '';
+    modal.confirm({
+      title: `Hủy ${selectedIds.length} chỉ định CLS?`,
+      content: (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ marginBottom: 6, fontSize: 12 }}>Lý do hủy:</div>
+          <Input
+            placeholder="Nhập lý do…"
+            onChange={(e) => { cancelReasonRef.current = e.target.value; setCancelReason(e.target.value); }}
+          />
+        </div>
+      ),
+      okText: 'Xác nhận hủy',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setCancelling(true);
+        try {
+          const r = await cancelServiceRequests(admissionId, { serviceRequestIds: selectedIds, reason: cancelReasonRef.current });
+          const result = r.data as typeof r.data;
+          message.success(`Đã hủy ${result.cancelledCount} chỉ định${result.failedIds.length ? `, ${result.failedIds.length} không thể hủy (đã có KQ)` : ''}`);
+          setSelectedIds([]);
+          reload();
+          onDone();
+        } catch {
+          message.error('Hủy chỉ định thất bại');
+        } finally {
+          setCancelling(false);
+        }
+      },
+    });
+  };
+
+  const handleChangePaymentType = async (requestId: string) => {
+    if (!newPatientType) return;
+    setPaymentBusy(true);
+    try {
+      await updateServiceRequestPaymentType(requestId, { patientType: newPatientType });
+      message.success('Đã đổi đối tượng thanh toán');
+      setPaymentChangeId(null);
+      reload();
+    } catch {
+      message.error('Đổi đối tượng thanh toán thất bại');
+    } finally {
+      setPaymentBusy(false);
+    }
+  };
+
+  const activeOrders = orders.filter((o) => o.status !== 4);
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="lg"
+      title="Chỉ định CLS nội trú"
+      footer={
+        <>
+          <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
+          {selectedIds.length > 0 && (
+            <Btn variant="crit" disabled={cancelling} onClick={handleCancelSelected}>
+              <TermIcon name="x" size={12} /> Hủy {selectedIds.length} chỉ định
+            </Btn>
+          )}
+        </>
+      }
+    >
+      <div style={{ padding: 16 }}>
+        {loading && <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 12, padding: 16 }}>Đang tải…</div>}
+        {!loading && activeOrders.length === 0 && (
+          <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 12, padding: 16 }}>
+            Không có chỉ định CLS nào trong đợt điều trị này.
+          </div>
+        )}
+        {!loading && activeOrders.length > 0 && (
+          <div style={{ border: '1px solid var(--line-soft)', borderRadius: 6, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: 'var(--d-1, #f7f9fc)' }}>
+                  <th style={{ padding: '6px 8px', width: 36 }}>
+                    <Checkbox
+                      checked={selectedIds.length === activeOrders.filter(o => o.status < 3).length && activeOrders.filter(o => o.status < 3).length > 0}
+                      indeterminate={selectedIds.length > 0 && selectedIds.length < activeOrders.filter(o => o.status < 3).length}
+                      onChange={(e) => {
+                        const cancellable = activeOrders.filter(o => o.status < 3).map(o => o.id);
+                        setSelectedIds(e.target.checked ? cancellable : []);
+                      }}
+                    />
+                  </th>
+                  <th style={{ padding: '6px 8px', textAlign: 'left' }}>Dịch vụ</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'center', width: 80 }}>Loại</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'center', width: 90 }}>Trạng thái</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'center', width: 100 }}>Đ.Tượng TT</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'right', width: 80 }}>Tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activeOrders.map((o) => {
+                  const isCancellable = o.status < 3;
+                  const isChangingPayment = paymentChangeId === o.id;
+                  return (
+                    <tr
+                      key={o.id}
+                      style={{
+                        borderTop: '1px solid var(--line-soft)',
+                        background: selectedIds.includes(o.id) ? 'var(--accent-soft, #f0f9ff)' : undefined,
+                        opacity: !isCancellable ? 0.6 : 1,
+                      }}
+                    >
+                      <td style={{ padding: '5px 8px', textAlign: 'center' }}>
+                        {isCancellable && (
+                          <Checkbox
+                            checked={selectedIds.includes(o.id)}
+                            onChange={() => toggleSelect(o.id)}
+                          />
+                        )}
+                      </td>
+                      <td style={{ padding: '5px 8px' }}>
+                        {o.serviceName ?? o.requestCode}
+                        {o.isEmergency && <Tag color="red" style={{ marginLeft: 4, fontSize: 10 }}>CẤP CỨU</Tag>}
+                      </td>
+                      <td style={{ padding: '5px 8px', textAlign: 'center' }}>
+                        <Tag>{o.requestTypeName ?? o.requestType}</Tag>
+                      </td>
+                      <td style={{ padding: '5px 8px', textAlign: 'center' }}>
+                        <Tag color={o.status === 3 ? 'success' : o.status === 2 ? 'processing' : 'warning'}>
+                          {o.statusName ?? o.status}
+                        </Tag>
+                      </td>
+                      <td style={{ padding: '5px 8px', textAlign: 'center' }}>
+                        {isChangingPayment ? (
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                            <Select<number>
+                              size="small"
+                              value={newPatientType}
+                              onChange={setNewPatientType}
+                              options={PATIENT_TYPE_OPTIONS}
+                              style={{ width: 90 }}
+                            />
+                            <Btn variant="primary" onClick={() => handleChangePaymentType(o.id)} disabled={paymentBusy}>
+                              <TermIcon name="check" size={10} />
+                            </Btn>
+                            <Btn variant="ghost" onClick={() => setPaymentChangeId(null)}>
+                              <TermIcon name="x" size={10} />
+                            </Btn>
+                          </div>
+                        ) : (
+                          <Tag
+                            color={PATIENT_TYPE_COLORS[o.patientType] ?? 'default'}
+                            style={{ cursor: isCancellable ? 'pointer' : 'default' }}
+                            onClick={() => {
+                              if (!isCancellable) return;
+                              setNewPatientType(o.patientType);
+                              setPaymentChangeId(o.id);
+                            }}
+                          >
+                            {o.patientTypeName ?? (o.patientType === 1 ? 'BHYT' : o.patientType === 2 ? 'Viện phí' : 'Dịch vụ')}
+                            {isCancellable && <span style={{ marginLeft: 3 }}><TermIcon name="edit-2" size={9} /></span>}
+                          </Tag>
+                        )}
+                      </td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right' }}>
+                        {(o.totalAmount ?? 0).toLocaleString('vi-VN')}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {!loading && activeOrders.length > 0 && (
+          <div style={{ marginTop: 8, fontSize: 11, color: 'var(--t-2)' }}>
+            Nhấn vào tag đối tượng thanh toán để đổi BHYT↔Viện phí. Tick checkbox + nút Hủy để hủy nhiều chỉ định.
+            Chỉ định đã có kết quả (status=3) không thể hủy.
+          </div>
+        )}
+      </div>
+    </ModalShell>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Main section component — rendered inside the patient detail drawer
 // ---------------------------------------------------------------------------
 
@@ -860,7 +1350,7 @@ export interface TreatmentMonitorSectionProps {
   onRefresh: () => void;
 }
 
-type ActiveModal = 'vitals' | 'transfer' | 'nutrition' | 'infusion' | 'transfusion' | 'billing' | null;
+type ActiveModal = 'vitals' | 'transfer' | 'nutrition' | 'infusion' | 'transfusion' | 'billing' | 'cabinet' | 'drugReturn' | 'dischargePrescription' | 'clsOrders' | null;
 
 const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patient, onRefresh }) => {
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
@@ -888,6 +1378,18 @@ const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patie
         </Btn>
         <Btn variant="ghost" onClick={() => setActiveModal('billing')}>
           <TermIcon name="file-text" size={12} /> Bang ke 6556
+        </Btn>
+        <Btn variant="ghost" onClick={() => setActiveModal('cabinet')}>
+          <TermIcon name="package" size={12} /> Xuat tu truc
+        </Btn>
+        <Btn variant="ghost" onClick={() => setActiveModal('drugReturn')}>
+          <TermIcon name="rotate-ccw" size={12} /> Hoan tra thuoc
+        </Btn>
+        <Btn variant="ghost" onClick={() => setActiveModal('clsOrders')}>
+          <TermIcon name="list" size={12} /> Chi dinh CLS
+        </Btn>
+        <Btn variant="ghost" onClick={() => setActiveModal('dischargePrescription')}>
+          <TermIcon name="home" size={12} /> Don xuat vien
         </Btn>
       </div>
 
@@ -926,6 +1428,44 @@ const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patie
         admissionId={patient.admissionId}
         onClose={close}
       />
+
+      {/* G-10b: Xuất tủ trực nội trú */}
+      <CabinetIssueModal
+        open={activeModal === 'cabinet'}
+        onClose={close}
+        onSaved={done}
+        patientName={patient.patientName}
+        patientCode={patient.patientCode}
+        admissionId={patient.admissionId}
+      />
+
+      {/* G-02: Hoàn trả thuốc y lệnh */}
+      <DrugReturnModal
+        open={activeModal === 'drugReturn'}
+        admissionId={patient.admissionId}
+        patientId={patient.patientId}
+        onClose={close}
+        onDone={done}
+      />
+
+      {/* G-07: Đơn thuốc xuất viện (toa về) */}
+      <DischargePrescriptionModal
+        open={activeModal === 'dischargePrescription'}
+        admissionId={patient.admissionId}
+        onClose={close}
+        onDone={done}
+      />
+
+      {/* G-08 + G-15: Chỉ định CLS — hủy nhiều + đổi đối tượng TT */}
+      <ClsOrdersModal
+        open={activeModal === 'clsOrders'}
+        admissionId={patient.admissionId}
+        onClose={close}
+        onDone={done}
+      />
+
+      {/* G-01: Trả KQ XN tại giường — section riêng, không dùng modal trigger */}
+      <BedLabResultSection admissionId={patient.admissionId} />
     </div>
   );
 };

@@ -6,12 +6,13 @@ import {
   tk, ti, tw, cf, type ColumnDef,
 } from './_v2kit';
 
-type TabKey = 'modalities' | 'body-parts' | 'protocols' | 'report-templates';
+type TabKey = 'modalities' | 'body-parts' | 'protocols' | 'report-templates' | 'icd-templates';
 const TABS = [
-  { v: 'modalities' as TabKey,       l: 'Modality',     ic: 'qr' },
-  { v: 'body-parts' as TabKey,       l: 'Vị trí chụp',  ic: 'user' },
-  { v: 'protocols' as TabKey,        l: 'Giao thức',    ic: 'list' },
-  { v: 'report-templates' as TabKey, l: 'Mẫu báo cáo',  ic: 'file-text' },
+  { v: 'modalities' as TabKey,       l: 'Modality',       ic: 'qr' },
+  { v: 'body-parts' as TabKey,       l: 'Vị trí chụp',   ic: 'user' },
+  { v: 'protocols' as TabKey,        l: 'Giao thức',      ic: 'list' },
+  { v: 'report-templates' as TabKey, l: 'Mẫu báo cáo',   ic: 'file-text' },
+  { v: 'icd-templates' as TabKey,    l: 'ICD → Mẫu KQ',  ic: 'link' },
 ];
 
 const MODALITY_TYPE_OPTIONS = [
@@ -36,6 +37,7 @@ const RisCatalogAdminV2: React.FC = () => {
   const [form] = Form.useForm();
   const [modalities, setModalities] = useState<Row[]>([]);
   const [bodyParts, setBodyParts] = useState<Row[]>([]);
+  const [reportTemplates, setReportTemplates] = useState<Row[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,6 +55,7 @@ const RisCatalogAdminV2: React.FC = () => {
     (async () => {
       try { const { data: m } = await apiClient.get('/ris-catalog/modalities', { params: { isActive: true } }); setModalities(Array.isArray(m) ? (m as Row[]) : []); } catch { /* empty */ }
       try { const { data: b } = await apiClient.get('/ris-catalog/body-parts'); setBodyParts(Array.isArray(b) ? (b as Row[]) : []); } catch { /* empty */ }
+      try { const { data: t } = await apiClient.get('/ris-catalog/report-templates', { params: { isActive: true } }); setReportTemplates(Array.isArray(t) ? (t as Row[]) : []); } catch { /* empty */ }
     })();
   }, [tab]);
 
@@ -76,6 +79,17 @@ const RisCatalogAdminV2: React.FC = () => {
       { key: 'code', label: 'Mã', code: true, render: (r) => r.modalityCode },
       { key: 'name', label: 'Tên', render: (r) => r.modalityName },
       { key: 'type', label: 'Loại', render: (r) => MODALITY_TYPE_OPTIONS.find((o) => o.value === r.modalityType)?.label || String(r.modalityType) },
+      { key: 'maxPrint', label: 'Ảnh in', mono: true, render: (r) => r.maxImagesPerReport ?? '—' },
+      { key: 'maxStore', label: 'Ảnh lưu', mono: true, render: (r) => r.maxImagesToStore ?? '—' },
+      { key: 'defTpl', label: 'Mẫu mặc định', render: (r) => r.defaultResultTemplateName || '—' },
+      { key: 'active', label: 'Hoạt động', render: (r) => r.isActive ? <StatusBadge tone="ok" dot>Có</StatusBadge> : <StatusBadge tone="warn" dot>Ẩn</StatusBadge> },
+    ],
+    'icd-templates': [
+      { key: 'icd', label: 'Mã ICD', code: true, render: (r) => r.icdCode },
+      { key: 'icdName', label: 'Tên bệnh', render: (r) => r.icdName || '—' },
+      { key: 'tpl', label: 'Mẫu kết quả', render: (r) => r.templateName || '—' },
+      { key: 'mod', label: 'Modality', render: (r) => r.modalityName || 'Tất cả' },
+      { key: 'order', label: 'STT', mono: true, render: (r) => r.sortOrder ?? 0 },
       { key: 'active', label: 'Hoạt động', render: (r) => r.isActive ? <StatusBadge tone="ok" dot>Có</StatusBadge> : <StatusBadge tone="warn" dot>Ẩn</StatusBadge> },
     ],
     'body-parts': [
@@ -107,9 +121,36 @@ const RisCatalogAdminV2: React.FC = () => {
 
   const formFieldsByTab: Record<TabKey, React.ReactElement> = {
     modalities: <>
-      <Form.Item label="Mã modality" name="modalityCode" rules={[{ required: true }]}><Input placeholder="XR, CT, MR, US…" /></Form.Item>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Form.Item label="Mã modality" name="modalityCode" rules={[{ required: true }]}><Input placeholder="XR, CT, MR, US…" /></Form.Item>
+        <Form.Item label="Loại" name="modalityType" rules={[{ required: true }]}><Select options={MODALITY_TYPE_OPTIONS} /></Form.Item>
+      </div>
       <Form.Item label="Tên modality" name="modalityName" rules={[{ required: true }]}><Input /></Form.Item>
-      <Form.Item label="Loại" name="modalityType" rules={[{ required: true }]}><Select options={MODALITY_TYPE_OPTIONS} /></Form.Item>
+      <div style={{ marginBottom: 8, fontWeight: 500, color: '#595959' }}>Cấu hình ảnh (G-34a)</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Form.Item label="Số ảnh tối đa in report" name="maxImagesPerReport" initialValue={4}><InputNumber min={1} max={50} style={{ width: '100%' }} /></Form.Item>
+        <Form.Item label="Số ảnh tối đa lưu trữ" name="maxImagesToStore" initialValue={100}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
+      </div>
+      <Form.Item label="Mẫu kết quả mặc định (G-34b)" name="defaultResultTemplateId">
+        <Select allowClear showSearch optionFilterProp="label"
+          options={reportTemplates.map((t) => ({ label: `${t.templateCode} — ${t.templateName}`, value: t.id }))} />
+      </Form.Item>
+      <Form.Item label="Hoạt động" name="isActive" valuePropName="checked" initialValue={true}><Switch /></Form.Item>
+    </>,
+    'icd-templates': <>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Form.Item label="Mã ICD-10" name="icdCode" rules={[{ required: true }]}><Input placeholder="vd A00, J18.9" /></Form.Item>
+        <Form.Item label="Tên bệnh" name="icdName"><Input placeholder="Cache tên bệnh để hiển thị" /></Form.Item>
+      </div>
+      <Form.Item label="Mẫu kết quả" name="templateId" rules={[{ required: true }]}>
+        <Select showSearch optionFilterProp="label"
+          options={reportTemplates.map((t) => ({ label: `${t.templateCode} — ${t.templateName}`, value: t.id }))} />
+      </Form.Item>
+      <Form.Item label="Lọc theo Modality (không bắt buộc)" name="modalityId">
+        <Select allowClear showSearch optionFilterProp="label"
+          options={modalities.map((m) => ({ label: `${m.modalityCode} — ${m.modalityName}`, value: m.id }))} />
+      </Form.Item>
+      <Form.Item label="STT" name="sortOrder"><InputNumber min={0} /></Form.Item>
       <Form.Item label="Hoạt động" name="isActive" valuePropName="checked" initialValue={true}><Switch /></Form.Item>
     </>,
     'body-parts': <>

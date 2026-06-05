@@ -192,9 +192,16 @@ export interface CreateStockIssueDto {
   supplierId?: string;
   patientId?: string;
   prescriptionId?: string;
+  /** Context for cabinet issue (IssueType=12): one of these is set */
+  admissionId?: string;
+  surgeryId?: string;
+  examinationId?: string;
   items: CreateStockIssueItemDto[];
   notes?: string;
 }
+
+/** Cabinet dispensing — IssueType forced to 12 server-side */
+export type CreateCabinetIssueDto = Omit<CreateStockIssueDto, 'issueType'>;
 
 export interface CreateStockIssueItemDto {
   itemId: string;
@@ -718,6 +725,9 @@ export const createSupplierReturn = (dto: CreateStockIssueDto) =>
 export const createDestructionIssue = (dto: CreateStockIssueDto) =>
   apiClient.post<StockIssueDto>(`${BASE_URL}/issues/destruction`, dto);
 
+export const createCabinetIssue = (dto: CreateCabinetIssueDto) =>
+  apiClient.post<StockIssueDto>(`${BASE_URL}/issues/cabinet-issue`, { ...dto, issueType: 12 });
+
 export const createPharmacySaleByPrescription = (prescriptionId: string) =>
   apiClient.post<PharmacySaleDto>(`${BASE_URL}/pharmacy-sales/by-prescription/${prescriptionId}`);
 
@@ -873,6 +883,7 @@ export default {
   createTransferIssue,
   createSupplierReturn,
   createDestructionIssue,
+  createCabinetIssue,
   createPharmacySaleByPrescription,
   createRetailSale,
   getStockIssues,

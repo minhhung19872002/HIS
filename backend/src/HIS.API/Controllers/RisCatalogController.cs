@@ -45,14 +45,29 @@ public class RisCatalogController : ControllerBase
     [HttpGet("modalities")]
     public async Task<IActionResult> GetModalities([FromQuery] string? keyword, [FromQuery] bool? isActive)
     {
-        var q = _db.Set<RadiologyModality>().AsQueryable();
+        var q = _db.Set<RadiologyModality>()
+            .Include(m => m.DefaultResultTemplate)
+            .AsQueryable();
         if (isActive.HasValue) q = q.Where(m => m.IsActive == isActive.Value);
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             var kw = keyword.Trim();
             q = q.Where(m => m.ModalityCode.Contains(kw) || m.ModalityName.Contains(kw));
         }
-        return Ok(await q.OrderBy(m => m.ModalityCode).ToListAsync());
+        var list = await q.OrderBy(m => m.ModalityCode).ToListAsync();
+        return Ok(list.Select(m => new
+        {
+            m.Id, m.ModalityCode, m.ModalityName, m.ModalityType,
+            m.AETitle, m.IPAddress, m.Port, m.RoomId,
+            m.Status, m.IsActive,
+            m.Manufacturer, m.ModelName, m.SerialNumber,
+            m.InstallationDate, m.LastMaintenanceDate, m.Notes,
+            // G-34a/b fields
+            m.MaxImagesPerReport,
+            m.MaxImagesToStore,
+            m.DefaultResultTemplateId,
+            DefaultResultTemplateName = m.DefaultResultTemplate != null ? m.DefaultResultTemplate.TemplateName : null,
+        }));
     }
 
     [HttpPost("modalities")]
@@ -73,6 +88,10 @@ public class RisCatalogController : ControllerBase
             existing.ModalityName = dto.ModalityName;
             existing.ModalityType = dto.ModalityType;
             existing.IsActive = dto.IsActive;
+            // G-34a/b
+            existing.MaxImagesPerReport = dto.MaxImagesPerReport;
+            existing.MaxImagesToStore = dto.MaxImagesToStore;
+            existing.DefaultResultTemplateId = dto.DefaultResultTemplateId;
             Stamp(existing, false);
         }
         await _db.SaveChangesAsync();
@@ -290,6 +309,79 @@ public class RisCatalogController : ControllerBase
     public async Task<IActionResult> DeleteReportTemplate(Guid id)
     {
         var e = await _db.RadiologyReportTemplates.FindAsync(id);
+        if (e == null) return NotFound();
+        e.IsDeleted = true;
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    // =====================
+    // 5. ICD → Template Mapping (G-34c)
+    // =====================
+
+    [HttpGet("icd-templates")]
+    public async Task<IActionResult> GetIcdTemplateMappings(
+        [FromQuery] string? icdCode,
+        [FromQuery] Guid? modalityId,
+        [FromQuery] string? keyword)
+    {
+        var q = _db.RisIcdTemplateMappings
+            .Include(m => m.Template)
+            .Include(m => m.Modality)
+            .AsQueryable();
+        if (!string.IsNullOrWhiteSpace(icdCode)) q = q.Where(m => m.IcdCode == icdCode);
+        if (modalityId.HasValue) q = q.Where(m => m.ModalityId == modalityId.Value);
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim();
+            q = q.Where(m => m.IcdCode.Contains(kw) || (m.IcdName != null && m.IcdName.Contains(kw)));
+        }
+        var list = await q.OrderBy(m => m.SortOrder).ThenBy(m => m.IcdCode).Take(500).ToListAsync();
+        return Ok(list.Select(m => new
+        {
+            m.Id,
+            m.IcdCode,
+            m.IcdName,
+            m.TemplateId,
+            TemplateName = m.Template != null ? m.Template.TemplateName : null,
+            m.ModalityId,
+            ModalityName = m.Modality != null ? m.Modality.ModalityName : null,
+            m.SortOrder,
+            m.IsActive,
+        }));
+    }
+
+    [HttpPost("icd-templates")]
+    [Authorize(Roles = "Admin,RadiologyManager,Radiologist")]
+    public async Task<IActionResult> SaveIcdTemplateMapping([FromBody] RisIcdTemplateMapping dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.IcdCode) || dto.TemplateId == Guid.Empty)
+            return BadRequest(new { message = "Mã ICD và template là bắt buộc" });
+        var existing = dto.Id != Guid.Empty ? await _db.RisIcdTemplateMappings.FindAsync(dto.Id) : null;
+        if (existing == null)
+        {
+            Stamp(dto, true);
+            _db.RisIcdTemplateMappings.Add(dto);
+        }
+        else
+        {
+            existing.IcdCode = dto.IcdCode;
+            existing.IcdName = dto.IcdName;
+            existing.TemplateId = dto.TemplateId;
+            existing.ModalityId = dto.ModalityId;
+            existing.SortOrder = dto.SortOrder;
+            existing.IsActive = dto.IsActive;
+            Stamp(existing, false);
+        }
+        await _db.SaveChangesAsync();
+        return Ok(new { id = existing?.Id ?? dto.Id });
+    }
+
+    [HttpDelete("icd-templates/{id:guid}")]
+    [Authorize(Roles = "Admin,RadiologyManager")]
+    public async Task<IActionResult> DeleteIcdTemplateMapping(Guid id)
+    {
+        var e = await _db.RisIcdTemplateMappings.FindAsync(id);
         if (e == null) return NotFound();
         e.IsDeleted = true;
         await _db.SaveChangesAsync();

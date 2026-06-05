@@ -10,8 +10,14 @@ import {
   type ColumnDef, type StatusTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+import { useAbbrExpansion } from '../utils/abbrExpand';
+import { ABBREVIATION_SCOPES } from '../api/abbreviation';
+import { SurgeryReportModal } from './shared/SurgeryReportModal';
 
 type ApiErr = { response?: { data?: { message?: string } } };
+
+/** Scope viết tắt CĐHA — khai báo ngoài component để tránh refetch mỗi render. */
+const RIS_ABBR_SCOPES = [ABBREVIATION_SCOPES.RADIOLOGY] as const;
 
 /** Mở phiếu kết quả CĐHA (PDF blob) ở tab mới. Throw nếu lỗi để caller xử lý. */
 const printResultBlob = async (resultId: string): Promise<void> => {
@@ -90,6 +96,76 @@ const SIGN_TYPES = [
   { id: 'SignServer', name: 'SignServer (HSM tập trung)' },
   { id: 'eKYC', name: 'eKYC / OTP' },
 ];
+
+/** Gọi bệnh nhân vào phòng chụp CĐHA. roomId là bắt buộc theo CallPatientDto của backend. */
+const CallPatientModal: React.FC<{
+  open: boolean;
+  order: RadiologyOrderDto | null;
+  rooms: { id: string; name: string }[];
+  onClose: () => void;
+  onCalled: () => void;
+}> = ({ open, order, rooms, onClose, onCalled }) => {
+  const { message } = AntdApp.useApp();
+  const [roomId, setRoomId] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) setRoomId(rooms[0]?.id || '');
+  }, [open, rooms]);
+
+  const submit = async () => {
+    if (!order) return;
+    if (!roomId) { message.warning('Chọn phòng chụp để gọi bệnh nhân'); return; }
+    setBusy(true);
+    try {
+      const r = await risApi.callPatient({
+        orderId: order.id,
+        roomId,
+        useSpeaker: true,
+      });
+      message.success(r.data?.message || 'Đã gọi bệnh nhân');
+      onCalled();
+      onClose();
+    } catch (e) {
+      message.error((e as ApiErr)?.response?.data?.message || 'Không gọi được bệnh nhân');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="sm"
+      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <TermIcon name="user" size={14} /><span>Gọi bệnh nhân vào phòng</span>
+      </span>}
+      sub={order ? `${order.patientName} · ${order.orderCode}` : ''}
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+        <Btn variant="primary" onClick={submit} loading={busy} icon="check">Gọi</Btn>
+      </>}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <FormRow label="Phòng chụp">
+          <AbSelect
+            options={rooms}
+            fieldNames={{ value: 'id', label: 'name' }}
+            value={roomId}
+            onChange={setRoomId}
+            placeholder="— Chọn phòng —"
+          />
+        </FormRow>
+        {order && (
+          <div style={{ fontSize: 12.5, color: 'var(--t-2)', padding: '6px 10px', background: 'var(--d-1)', borderRadius: 5 }}>
+            <b style={{ color: 'var(--t-1)' }}>{order.patientName}</b>
+            {' · '}
+            {order.items?.[0]?.serviceName || '—'}
+          </div>
+        )}
+      </div>
+    </ModalShell>
+  );
+};
 
 /** Ký số báo cáo CĐHA — reportId = id của RadiologyResult (báo cáo đọc phim). */
 const SignResultModal: React.FC<{
@@ -207,29 +283,13 @@ const ResultEntryModal: React.FC<{
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
   const [printing, setPrinting] = useState(false);
-  const [expandingField, setExpandingField] = useState<'desc' | 'concl' | null>(null);
   const [signOpen, setSignOpen] = useState(false);
+  // PTTT tường trình (G-33) — sinh thiết / thủ thuật dưới hướng dẫn CĐHA
+  const [ptttOpen, setPtttOpen] = useState(false);
 
-  // Bung viết tắt: gọi expandAbbreviations rồi thay nội dung ô tương ứng.
-  const expandField = async (which: 'desc' | 'concl') => {
-    const text = which === 'desc' ? description : conclusion;
-    const setter = which === 'desc' ? setDescription : setConclusion;
-    const label = which === 'desc' ? 'mô tả' : 'kết luận';
-    if (!text.trim()) { message.info('Chưa có nội dung để bung viết tắt'); return; }
-    setExpandingField(which);
-    try {
-      const r = await risApi.expandAbbreviations({ text });
-      const d = r.data;
-      if (d) {
-        setter(d.expandedText);
-        message.success(d.expansionsApplied > 0
-          ? `Đã bung ${d.expansionsApplied} viết tắt ở phần ${label}`
-          : `Không có viết tắt nào ở phần ${label}`);
-      }
-    } catch {
-      message.error('Không bung được viết tắt');
-    } finally { setExpandingField(null); }
-  };
+  // Bung viết tắt inline (MQSoft F2 style) — không cần API call riêng.
+  // Hook nạp từ điển một lần và trả hàm expand() chạy local.
+  const expand = useAbbrExpansion(RIS_ABBR_SCOPES);
 
   // Nạp mẫu KQ theo dịch vụ + prefill nếu đã có KQ cũ.
   useEffect(() => {
@@ -332,6 +392,13 @@ const ResultEntryModal: React.FC<{
       sub={`${order.patientName} · ${item.serviceName}`}
       footer={<>
         <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
+        <Btn
+          variant="ghost"
+          onClick={() => setPtttOpen(true)}
+          title="Tường trình phẫu thuật / thủ thuật dưới hướng dẫn CĐHA (sinh thiết…)"
+        >
+          <TermIcon name="scissors" size={12} /> Tường trình PTTT
+        </Btn>
         <span style={{ flex: 1 }} />
         {resultId && (
           <Btn onClick={() => setSignOpen(true)} disabled={busy}>
@@ -358,26 +425,34 @@ const ResultEntryModal: React.FC<{
         <FormRow
           label="Mô tả hình ảnh"
           extra={
-            <Btn variant="ghost" size="sm" onClick={() => void expandField('desc')}
-              loading={expandingField === 'desc'} disabled={busy}>
-              <TermIcon name="zap" size={11} /> Bung viết tắt
-            </Btn>
+            <span style={{ fontSize: 10.5, color: 'var(--t-3)', fontFamily: 'var(--font-mono)' }}>
+              <TermIcon name="zap" size={10} /> gõ viết tắt + Space để bung
+            </span>
           }
         >
-          <Input.TextArea rows={6} value={description} onChange={(e) => setDescription(e.target.value)}
-            placeholder="Nhập mô tả chi tiết hình ảnh…" disabled={busy} />
+          <Input.TextArea
+            rows={6}
+            value={description}
+            onChange={(e) => setDescription(expand(e.target.value))}
+            placeholder="Nhập mô tả chi tiết hình ảnh…"
+            disabled={busy}
+          />
         </FormRow>
         <FormRow
           label="Kết luận"
           extra={
-            <Btn variant="ghost" size="sm" onClick={() => void expandField('concl')}
-              loading={expandingField === 'concl'} disabled={busy}>
-              <TermIcon name="zap" size={11} /> Bung viết tắt
-            </Btn>
+            <span style={{ fontSize: 10.5, color: 'var(--t-3)', fontFamily: 'var(--font-mono)' }}>
+              <TermIcon name="zap" size={10} /> gõ viết tắt + Space để bung
+            </span>
           }
         >
-          <Input.TextArea rows={4} value={conclusion} onChange={(e) => setConclusion(e.target.value)}
-            placeholder="Nhập kết luận…" disabled={busy} />
+          <Input.TextArea
+            rows={4}
+            value={conclusion}
+            onChange={(e) => setConclusion(expand(e.target.value))}
+            placeholder="Nhập kết luận…"
+            disabled={busy}
+          />
         </FormRow>
         <FormRow label="Đề nghị / Ghi chú">
           <Input.TextArea rows={3} value={note} onChange={(e) => setNote(e.target.value)}
@@ -390,6 +465,16 @@ const ResultEntryModal: React.FC<{
       reportId={resultId}
       onClose={() => setSignOpen(false)}
       onSigned={onSaved}
+    />
+    {/* PTTT tường trình (G-33): biopsy / procedure under imaging guidance */}
+    <SurgeryReportModal
+      open={ptttOpen}
+      onClose={() => setPtttOpen(false)}
+      examinationId={order?.visitId ?? null}
+      patientName={order?.patientName}
+      patientCode={order?.patientCode}
+      prefillServiceName={item?.serviceName}
+      prefillDiagnosis={order?.diagnosis}
     />
     </>
   );
@@ -407,6 +492,8 @@ const RadiologyV2: React.FC = () => {
   const [detail, setDetail] = useState<RadiologyOrderDto | null>(null);
   const [result, setResult] = useState<RadiologyResultDto | null>(null);
   const [resultTarget, setResultTarget] = useState<RadiologyOrderDto | null>(null);
+  const [callTarget, setCallTarget] = useState<RadiologyOrderDto | null>(null);
+  const [rooms, setRooms] = useState<{ id: string; name: string }[]>([]);
   const [date, setDate] = useState(() => dayjs());
   const PAGE_SIZE = 18;
 
@@ -421,6 +508,14 @@ const RadiologyV2: React.FC = () => {
       .finally(() => setLoading(false));
   };
   useEffect(reload, [date]);
+
+  // Nạp danh sách phòng chụp một lần khi mount (dùng cho CallPatientModal)
+  useEffect(() => {
+    risApi.getRooms()
+      .then((r) => setRooms((Array.isArray(r.data) ? r.data : []).map((rm) => ({ id: rm.id, name: rm.name }))))
+      .catch(() => setRooms([]));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load full result when drawer opens
   useEffect(() => {
@@ -618,6 +713,9 @@ const RadiologyV2: React.FC = () => {
               {r.items?.[0]?.hasResult && (
                 <ActBtn ic="eye" title="Xem KQ" onClick={() => setDetail(r)} />
               )}
+              {(sk === 'scheduled' || sk === 'imaging') && (
+                <ActBtn ic="user" title="Gọi bệnh nhân" onClick={() => setCallTarget(r)} />
+              )}
               {sk === 'scheduled' && (
                 <ActBtn ic="play" title="Bắt đầu chụp" onClick={() => void onStartExam(r)} />
               )}
@@ -685,6 +783,14 @@ const RadiologyV2: React.FC = () => {
         order={resultTarget}
         onClose={() => setResultTarget(null)}
         onSaved={reload}
+      />
+
+      <CallPatientModal
+        open={!!callTarget}
+        order={callTarget}
+        rooms={rooms}
+        onClose={() => setCallTarget(null)}
+        onCalled={reload}
       />
     </div>
   );
