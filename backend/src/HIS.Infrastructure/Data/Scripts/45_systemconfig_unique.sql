@@ -26,7 +26,7 @@ WITH ranked AS (
     FROM dbo.SystemConfigs
     WHERE IsDeleted = 0
 )
-UPDATE r
+UPDATE r2
    SET r2.IsDeleted = 1,
        r2.UpdatedAt = SYSUTCDATETIME()
 FROM ranked r
