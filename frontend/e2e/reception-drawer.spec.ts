@@ -39,8 +39,8 @@ test('Reception drawer renders enriched fields', async ({ page }) => {
 
   await page.screenshot({ path: 'test-results/reception-after-click.png', fullPage: true });
 
-  // Antd v6 may use ant-drawer or [role=dialog] — try multiple selectors
-  const drawer = page.locator('.ant-drawer-content, [role="dialog"]').first();
+  // Reception v2 dùng DrawerShell (_v2kit) → .hui-drawer; giữ fallback antd cho an toàn
+  const drawer = page.locator('.hui-drawer, .ant-drawer-content, [role="dialog"]').first();
   await expect(drawer).toBeVisible({ timeout: 5000 });
 
   const drawerText = await drawer.innerText();
