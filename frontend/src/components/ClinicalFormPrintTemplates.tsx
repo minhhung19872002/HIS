@@ -392,6 +392,92 @@ export const MicrobiologyReportPrint: React.FC<{ record?: Record<string, unknown
   </div>
 );
 
+// G-37: phieu XN dong mau (XN-05) — bo thong so co dinh, doc record[key]
+export const CoagulationReportPrint: React.FC<{ record?: Record<string, unknown> }> = ({ record }) => (
+  <div style={{ fontFamily: 'Times New Roman', padding: 20, maxWidth: 800 }}>
+    <PrintHeader formCode="XN-05" formTitle="PHIEU KET QUA DONG MAU" />
+    <PatientInfo record={record} />
+    <Field label="Loai mau" value={record?.sampleType as string} inline />
+    <Field label="Ngay lay mau" value={record?.sampleDate as string} inline />
+    <div style={{ marginTop: 12 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <thead>
+          <tr>
+            <th style={{ border: '1px solid #999', padding: 4 }}>Thong so</th>
+            <th style={{ border: '1px solid #999', padding: 4 }}>Ket qua</th>
+            <th style={{ border: '1px solid #999', padding: 4 }}>Don vi</th>
+            <th style={{ border: '1px solid #999', padding: 4 }}>Binh thuong</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[
+            { k: 'pt', l: 'PT (Prothrombin)', u: 'giay', n: '11-14' },
+            { k: 'ptpercent', l: 'PT %', u: '%', n: '70-140' },
+            { k: 'inr', l: 'INR', u: '', n: '0.8-1.2' },
+            { k: 'aptt', l: 'APTT', u: 'giay', n: '25-35' },
+            { k: 'apttratio', l: 'APTT ratio', u: '', n: '0.8-1.2' },
+            { k: 'fibrinogen', l: 'Fibrinogen', u: 'g/L', n: '2-4' },
+            { k: 'tt', l: 'TT (Thrombin)', u: 'giay', n: '14-21' },
+            { k: 'ddimer', l: 'D-dimer', u: 'mg/L FEU', n: '< 0.5' },
+          ].map((p) => (
+            <tr key={p.k}>
+              <td style={{ border: '1px solid #999', padding: 4, fontWeight: 'bold' }}>{p.l}</td>
+              <td style={{ border: '1px solid #999', padding: 4 }}>{(record?.[p.k] as string) || '...'}</td>
+              <td style={{ border: '1px solid #999', padding: 4 }}>{p.u}</td>
+              <td style={{ border: '1px solid #999', padding: 4 }}>{p.n}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <SignatureBlock titles={['Ky thuat vien', 'Bac si huyet hoc']} />
+  </div>
+);
+
+// G-37: phieu XN nuoc tieu (XN-06) — 10 thong so que thu + cap lang
+export const UrinalysisReportPrint: React.FC<{ record?: Record<string, unknown> }> = ({ record }) => (
+  <div style={{ fontFamily: 'Times New Roman', padding: 20, maxWidth: 800 }}>
+    <PrintHeader formCode="XN-06" formTitle="PHIEU KET QUA XET NGHIEM NUOC TIEU" />
+    <PatientInfo record={record} />
+    <Field label="Ngay lay mau" value={record?.sampleDate as string} inline />
+    <div style={{ marginTop: 12, fontWeight: 'bold' }}>Tong phan tich nuoc tieu (10 thong so):</div>
+    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginTop: 4 }}>
+      <thead>
+        <tr>
+          <th style={{ border: '1px solid #999', padding: 4 }}>Thong so</th>
+          <th style={{ border: '1px solid #999', padding: 4 }}>Ket qua</th>
+          <th style={{ border: '1px solid #999', padding: 4 }}>Binh thuong</th>
+        </tr>
+      </thead>
+      <tbody>
+        {[
+          { k: 'sg', l: 'Ty trong (SG)', n: '1.003-1.030' },
+          { k: 'ph', l: 'pH', n: '4.5-8.0' },
+          { k: 'protein', l: 'Protein (PRO)', n: 'Am tinh' },
+          { k: 'glucose', l: 'Glucose (GLU)', n: 'Am tinh' },
+          { k: 'ketone', l: 'Ceton (KET)', n: 'Am tinh' },
+          { k: 'blood', l: 'Hong cau (BLD)', n: 'Am tinh' },
+          { k: 'leukocyte', l: 'Bach cau (LEU)', n: 'Am tinh' },
+          { k: 'nitrite', l: 'Nitrit (NIT)', n: 'Am tinh' },
+          { k: 'urobilinogen', l: 'Urobilinogen (URO)', n: 'Binh thuong' },
+          { k: 'bilirubin', l: 'Bilirubin (BIL)', n: 'Am tinh' },
+        ].map((p) => (
+          <tr key={p.k}>
+            <td style={{ border: '1px solid #999', padding: 4, fontWeight: 'bold' }}>{p.l}</td>
+            <td style={{ border: '1px solid #999', padding: 4 }}>{(record?.[p.k] as string) || '...'}</td>
+            <td style={{ border: '1px solid #999', padding: 4 }}>{p.n}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    <div style={{ marginTop: 12 }}>
+      <div style={{ fontWeight: 'bold' }}>Cap lang nuoc tieu:</div>
+      <div style={{ minHeight: 36, border: '1px dashed #ccc', padding: 8 }}>{(record?.sediment as string) || ''}</div>
+    </div>
+    <SignatureBlock titles={['Ky thuat vien', 'Bac si XN']} />
+  </div>
+);
+
 // ============ 3 Clinical Forms ============
 
 export const AllergyFormPrint: React.FC<{ record?: Record<string, unknown> }> = ({ record }) => (

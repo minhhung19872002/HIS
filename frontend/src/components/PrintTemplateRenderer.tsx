@@ -64,6 +64,8 @@ async function loadTemplate(printType: string): Promise<AnyPrintComponent | null
     case 'xn-hematology': return (await import('./ClinicalFormPrintTemplates')).HematologyReportPrint;
     case 'xn-biochemistry': return (await import('./ClinicalFormPrintTemplates')).BiochemistryReportPrint;
     case 'xn-microbiology': return (await import('./ClinicalFormPrintTemplates')).MicrobiologyReportPrint;
+    case 'xn-coagulation': return (await import('./ClinicalFormPrintTemplates')).CoagulationReportPrint; // G-37 dong mau
+    case 'xn-urinalysis': return (await import('./ClinicalFormPrintTemplates')).UrinalysisReportPrint;   // G-37 nuoc tieu
     case 'ls-allergy': return (await import('./ClinicalFormPrintTemplates')).AllergyFormPrint;
     case 'ls-postop': return (await import('./ClinicalFormPrintTemplates')).PostOpNotePrint;
     case 'ls-icuinfo': return (await import('./ClinicalFormPrintTemplates')).ICUInfoSheetPrint;
