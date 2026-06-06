@@ -103,7 +103,9 @@ public class BookingStatusDto
     public TimeSpan? AppointmentTime { get; set; }
     public int AppointmentType { get; set; }
     public string AppointmentTypeName { get; set; } = string.Empty;
+    public Guid? DepartmentId { get; set; }
     public string? DepartmentName { get; set; }
+    public Guid? DoctorId { get; set; }
     public string? DoctorName { get; set; }
     public string? RoomName { get; set; }
     public string? Reason { get; set; }
@@ -142,6 +144,7 @@ public interface IBookingManagementService
 
     // Booking management for staff
     Task<BookingManagementPagedResult> GetBookingsAsync(BookingSearchDto search);
+    Task<BookingStatusDto> UpdateBookingAsync(string appointmentCode, UpdateBookingDto dto);
     Task<BookingStatusDto> ConfirmBookingAsync(string appointmentCode);
     Task<BookingStatusDto> CheckInBookingAsync(string appointmentCode);
     Task<BookingStatusDto> MarkNoShowAsync(string appointmentCode);
@@ -189,6 +192,24 @@ public class SaveDoctorScheduleDto
     public int ScheduleType { get; set; } = 1;
     public string? Note { get; set; }
     public bool IsRecurring { get; set; }
+}
+
+/// <summary>
+/// Cập nhật lịch hẹn (nhân viên y tế). Chỉ cho sửa khi chưa đến khám / chưa hủy.
+/// </summary>
+public class UpdateBookingDto
+{
+    // Thông tin bệnh nhân (cập nhật trên hồ sơ BN nếu có nhập)
+    public string? PatientName { get; set; }
+    public string? PhoneNumber { get; set; }
+
+    // Thông tin hẹn
+    public DateTime AppointmentDate { get; set; }
+    public TimeSpan? AppointmentTime { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public Guid? DoctorId { get; set; }
+    public int AppointmentType { get; set; } = 2; // 1-Tái khám, 2-Khám mới, 3-KSKD
+    public string? Reason { get; set; }
 }
 
 public class BookingSearchDto

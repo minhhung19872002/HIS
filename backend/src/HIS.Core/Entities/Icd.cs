@@ -338,6 +338,7 @@ public class AnesthesiaRecord : BaseEntity
     public string? AirwayPlan { get; set; }
     public string? PreOpAssessment { get; set; }
     public string? RecoveryNotes { get; set; }
+    public string? PostSurgeryPlan { get; set; } // Ke hoach sau gay me – phau thuat (Prompt 6 Item 4)
     public int Status { get; set; } // 0=Draft, 1=InProgress, 2=Completed
 }
 
@@ -530,6 +531,20 @@ public class SigningRequest : BaseEntity
     public Guid? PatientId { get; set; }
     public string? PatientName { get; set; }
     public string? DepartmentName { get; set; }
+    public string? SignerRole { get; set; } // Vai trò người ký: KTV, BacSi, TruongKhoa, etc.
+}
+
+/// <summary>
+/// Cài đặt per-user dạng generic key-value (Prompt 11 Đợt 3)
+/// Dùng cho DefaultLabRole, viewer config, và các setting khác.
+/// SettingKey ví dụ: lab.default_ktv_name, lab.default_approver_id
+/// </summary>
+public class UserSetting : BaseEntity
+{
+    public Guid UserId { get; set; }
+    public string SettingKey { get; set; } = string.Empty;
+    public string? SettingValue { get; set; }
+    public virtual User? User { get; set; }
 }
 
 /// <summary>

@@ -163,6 +163,38 @@ public class OfficeSupplyController : ControllerBase
         return Ok(new { approval.Id, approval.ApprovalCode });
     }
 
+    /// <summary>Thu hồi phiếu yêu cầu VPP — đưa về trạng thái Nháp (1) để chỉnh sửa lại.</summary>
+    [HttpPost("requests/{id}/recall")]
+    public async Task<IActionResult> Recall(Guid id, [FromBody] string? note = null)
+    {
+        var approval = await _db.Set<PharmacyApproval>().FirstOrDefaultAsync(a => a.Id == id);
+        if (approval == null) return NotFound();
+        if (approval.Status != 2)
+            return BadRequest(new { message = "Chỉ thu hồi được phiếu đang ở trạng thái Chờ duyệt" });
+
+        var uid = GetUserId();
+        var now = DateTime.Now;
+        approval.Status = 4; // Đã thu hồi
+        approval.UpdatedAt = now;
+        approval.UpdatedBy = uid.ToString();
+
+        _db.Set<PharmacyApprovalLog>().Add(new PharmacyApprovalLog
+        {
+            Id = Guid.NewGuid(),
+            PharmacyApprovalId = approval.Id,
+            FromStatus = 2, ToStatus = 4,
+            Action = "Recall",
+            ActorId = uid,
+            ActedAt = now,
+            Note = note,
+            CreatedAt = now,
+            CreatedBy = uid.ToString(),
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { id, status = 4 });
+    }
+
     public class ApproveOfficeDto
     {
         public Guid Id { get; set; }
@@ -275,5 +307,201 @@ public class OfficeSupplyController : ControllerBase
 
         await _db.SaveChangesAsync();
         return Ok(new { approval.Id, approval.Status, exportReceiptId = export.Id });
+    }
+
+    // ===== HOÀN TRẢ VPP =====
+
+    /// <summary>Danh sách phiếu hoàn trả VPP.</summary>
+    [HttpGet("returns")]
+    public async Task<IActionResult> Returns([FromQuery] int? status, [FromQuery] Guid? departmentId)
+    {
+        var q = _db.Set<PharmacyApproval>()
+            .Include(a => a.FromDepartment)
+            .Include(a => a.ToWarehouse)
+            .Include(a => a.Items).ThenInclude(i => i.Supply)
+            .Where(a => a.ApprovalType == 5 // Hoàn trả VPP
+                && a.Items.Any(i => i.Supply != null && !i.Supply.IsMedical));
+        if (status.HasValue) q = q.Where(a => a.Status == status.Value);
+        if (departmentId.HasValue) q = q.Where(a => a.FromDepartmentId == departmentId.Value);
+
+        var list = await q.OrderByDescending(a => a.RequestDate).Take(200).ToListAsync();
+        return Ok(list.Select(a => new
+        {
+            a.Id, a.ApprovalCode, a.RequestDate,
+            DepartmentName = a.FromDepartment != null ? a.FromDepartment.DepartmentName : null,
+            WarehouseName = a.ToWarehouse != null ? a.ToWarehouse.WarehouseName : null,
+            a.Status, a.Note,
+            totalItems = a.Items.Count,
+            totalAmount = a.Items.Sum(i => i.RequestedQuantity * i.UnitPrice),
+            items = a.Items.Select(i => new
+            {
+                i.Id, i.SupplyId,
+                SupplyCode = i.Supply != null ? i.Supply.SupplyCode : null,
+                SupplyName = i.Supply != null ? i.Supply.SupplyName : null,
+                i.RequestedQuantity, i.ApprovedQuantity, i.Unit, i.UnitPrice,
+                Amount = i.RequestedQuantity * i.UnitPrice, i.Note,
+            }),
+        }));
+    }
+
+    public class CreateReturnDto
+    {
+        public Guid DepartmentId { get; set; }
+        public Guid WarehouseId { get; set; }
+        public List<OfficeRequestItemDto> Items { get; set; } = new();
+        public string? Note { get; set; }
+    }
+
+    /// <summary>Tạo phiếu yêu cầu hoàn trả VPP.</summary>
+    [HttpPost("returns")]
+    public async Task<IActionResult> CreateReturn([FromBody] CreateReturnDto dto)
+    {
+        if (dto.Items.Count == 0)
+            return BadRequest(new { message = "Chưa chọn vật tư hoàn trả" });
+
+        var now = DateTime.Now;
+        var uid = GetUserId();
+
+        var approval = new PharmacyApproval
+        {
+            Id = Guid.NewGuid(),
+            ApprovalCode = $"HTV{now:yyyyMMddHHmmss}",
+            ApprovalType = 5, // Hoàn trả VPP
+            FromDepartmentId = dto.DepartmentId,
+            ToWarehouseId = dto.WarehouseId,
+            RequestDate = now,
+            Status = 2, // Chờ duyệt
+            RequestedBy = uid,
+            RequestedAt = now,
+            SubmittedBy = uid,
+            SubmittedAt = now,
+            Note = dto.Note,
+            CreatedAt = now,
+            CreatedBy = uid.ToString(),
+        };
+        _db.Set<PharmacyApproval>().Add(approval);
+
+        foreach (var it in dto.Items)
+        {
+            _db.Set<PharmacyApprovalItem>().Add(new PharmacyApprovalItem
+            {
+                Id = Guid.NewGuid(),
+                PharmacyApprovalId = approval.Id,
+                SupplyId = it.SupplyId,
+                RequestedQuantity = it.RequestedQuantity,
+                ApprovedQuantity = 0,
+                Unit = it.Unit,
+                UnitPrice = it.UnitPrice,
+                Amount = it.RequestedQuantity * it.UnitPrice,
+                Note = it.Note,
+                ObjectType = "HoanTra",
+                CreatedAt = now,
+                CreatedBy = uid.ToString(),
+            });
+        }
+
+        _db.Set<PharmacyApprovalLog>().Add(new PharmacyApprovalLog
+        {
+            Id = Guid.NewGuid(),
+            PharmacyApprovalId = approval.Id,
+            FromStatus = 1, ToStatus = 2,
+            Action = "SubmitReturn",
+            ActorId = uid,
+            ActedAt = now,
+            CreatedAt = now,
+            CreatedBy = uid.ToString(),
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { approval.Id, approval.ApprovalCode });
+    }
+
+    public class ApproveReturnDto
+    {
+        public Guid Id { get; set; }
+        public Dictionary<Guid, decimal>? ApprovedQuantities { get; set; }
+        public string? Note { get; set; }
+    }
+
+    /// <summary>Duyệt phiếu hoàn trả — nhập lại tồn kho.</summary>
+    [HttpPost("returns/approve")]
+    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+    public async Task<IActionResult> ApproveReturn([FromBody] ApproveReturnDto dto)
+    {
+        var approval = await _db.Set<PharmacyApproval>()
+            .Include(a => a.Items)
+            .FirstOrDefaultAsync(a => a.Id == dto.Id && a.ApprovalType == 5);
+        if (approval == null) return NotFound();
+        if (approval.Status != 2)
+            return BadRequest(new { message = "Phiếu không ở trạng thái chờ duyệt" });
+        if (!approval.ToWarehouseId.HasValue)
+            return BadRequest(new { message = "Phiếu chưa gán kho nhập" });
+
+        var warehouseId = approval.ToWarehouseId.Value;
+        var now = DateTime.Now;
+        var uid = GetUserId();
+
+        // Nhập lại tồn kho: tìm batch phù hợp hoặc tạo mới
+        foreach (var item in approval.Items)
+        {
+            var qty = dto.ApprovedQuantities != null && dto.ApprovedQuantities.TryGetValue(item.Id, out var q)
+                ? q
+                : item.RequestedQuantity;
+            if (qty <= 0) continue;
+
+            // Cộng lại vào tồn hiện tại (batch mới không có hạn dùng)
+            var existing = await _db.InventoryItems
+                .Where(i => i.WarehouseId == warehouseId && i.SupplyId == item.SupplyId)
+                .OrderByDescending(i => i.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (existing != null)
+            {
+                existing.Quantity += qty;
+                existing.UpdatedAt = now;
+            }
+            else
+            {
+                _db.InventoryItems.Add(new InventoryItem
+                {
+                    Id = Guid.NewGuid(),
+                    WarehouseId = warehouseId,
+                    SupplyId = item.SupplyId,
+                    ItemType = "Supply",
+                    Quantity = qty,
+                    ReservedQuantity = 0,
+                    UnitPrice = item.UnitPrice,
+                    BatchNumber = $"HTV-{now:yyyyMMdd}",
+                    CreatedAt = now,
+                    CreatedBy = uid.ToString(),
+                });
+            }
+
+            item.ApprovedQuantity = qty;
+            item.UpdatedAt = now;
+            item.UpdatedBy = uid.ToString();
+        }
+
+        approval.Status = 3; // Đã duyệt
+        approval.ApprovedBy = uid;
+        approval.ApprovedAt = now;
+        approval.UpdatedAt = now;
+        approval.UpdatedBy = uid.ToString();
+
+        _db.Set<PharmacyApprovalLog>().Add(new PharmacyApprovalLog
+        {
+            Id = Guid.NewGuid(),
+            PharmacyApprovalId = approval.Id,
+            FromStatus = 2, ToStatus = 3,
+            Action = "ApproveReturn",
+            ActorId = uid,
+            ActedAt = now,
+            Note = dto.Note,
+            CreatedAt = now,
+            CreatedBy = uid.ToString(),
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { approval.Id, approval.Status });
     }
 }

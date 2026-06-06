@@ -115,6 +115,47 @@ public class AssetDisposal : BaseEntity
 }
 
 /// <summary>
+/// Kiem ke tai san co dinh - Asset Stocktake
+/// Status: 1=Draft, 2=InProgress, 3=Completed, 4=Approved
+/// </summary>
+public class AssetStocktake : BaseEntity
+{
+    public string StocktakeCode { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public DateTime StocktakeDate { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public string? DepartmentName { get; set; }
+    public string? ConductedById { get; set; }
+    public string? ApprovedById { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public int Status { get; set; } = 1; // 1=Draft
+    public string? Notes { get; set; }
+
+    // Navigation
+    public ICollection<AssetStocktakeItem> Items { get; set; } = new List<AssetStocktakeItem>();
+}
+
+/// <summary>
+/// Chi tiet kiem ke - Stocktake item line
+/// </summary>
+public class AssetStocktakeItem : BaseEntity
+{
+    public Guid AssetStocktakeId { get; set; }
+    public Guid FixedAssetId { get; set; }
+    public string? AssetCode { get; set; }
+    public string? AssetName { get; set; }
+    public string? SerialNumber { get; set; }
+    public string? LocationDescription { get; set; }
+    public bool IsFound { get; set; } = true;
+    public int ConditionStatus { get; set; } = 1; // 1=Good, 2=Degraded, 3=Broken
+    public string? Remark { get; set; }
+
+    // Navigation
+    public AssetStocktake? Stocktake { get; set; }
+    public FixedAsset? FixedAsset { get; set; }
+}
+
+/// <summary>
 /// Khau hao tai san - Asset Depreciation (monthly record)
 /// </summary>
 public class AssetDepreciation : BaseEntity

@@ -6,6 +6,7 @@ import type { RoomOverviewDto } from '../../api/reception';
 import { registerMultipleRooms } from '../../api/multiSpecialtyExam';
 import { ModalShell } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
+import { BookingPickerModal } from './BookingPickerModal';
 const VISIT_TYPES: { v: string; l: string; ic: string; fee: number; serviceType: number; bhyt?: boolean; emergency?: boolean }[] = [
   { v: 'kham-thuong', l: 'Khám thường',     ic: 'stethoscope', fee: 38000,  serviceType: 3 },
   { v: 'kham-bhyt',   l: 'Khám BHYT',        ic: 'shield',      fee: 0,      serviceType: 3, bhyt: true },
@@ -82,6 +83,7 @@ export const NewVisitModal: React.FC<{
   const [bhytChecked, setBhytChecked] = useState(false);
   const [bhytValid, setBhytValid] = useState(false);
   const [bhytInfo, setBhytInfo] = useState<{ exp?: string; rate?: number } | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [data, setData] = useState<WizardData>({
     patientName: '', phone: '', cccd: '', age: null, gender: 'M', address: '',
     visitType: 'kham-bhyt', bhytNo: '', dept: '', extraRooms: [], priority: 'norm', reason: '',
@@ -231,7 +233,11 @@ export const NewVisitModal: React.FC<{
         {step === 1 && (
           <div>
             <div style={{ padding: '12px 14px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
-              <TermIcon name="search" size={14} /> Tìm BN cũ bằng SĐT để tự động điền · hoặc nhập mới bên dưới
+              <TermIcon name="search" size={14} />
+              <span style={{ flex: 1 }}>Tìm BN cũ bằng SĐT để tự động điền · hoặc nhập mới bên dưới</span>
+              <button type="button" className="ab-btn ghost sm" onClick={() => setPickerOpen(true)}>
+                <TermIcon name="calendar" size={11} /> Từ lịch đặt khám
+              </button>
             </div>
             <div className="rec-grid-2">
               <Lbl label="Họ và tên" required error={errs.patientName}>
@@ -427,6 +433,13 @@ export const NewVisitModal: React.FC<{
           </div>
         )}
       </div>
+
+      {/* Picker: chọn BN đã đặt khám → check-in (quickRegisterByAppointment) */}
+      <BookingPickerModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onCheckedIn={() => { setPickerOpen(false); onDone(); }}
+      />
     </ModalShell>
   );
 };

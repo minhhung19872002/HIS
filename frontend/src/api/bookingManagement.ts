@@ -41,6 +41,17 @@ export interface SaveDoctorScheduleDto {
   isRecurring?: boolean;
 }
 
+export interface UpdateBookingDto {
+  patientName?: string;
+  phoneNumber?: string;
+  appointmentDate: string;
+  appointmentTime?: string;
+  departmentId?: string;
+  doctorId?: string;
+  appointmentType?: number;
+  reason?: string;
+}
+
 export interface BookingSearchDto {
   fromDate?: string;
   toDate?: string;
@@ -106,6 +117,9 @@ export const generateRecurringSchedules = (id: string, fromDate: string, toDate:
 
 export const getBookings = (params: BookingSearchDto) =>
   client.get<BookingManagementPagedResult>('/booking-management/bookings', { params }).then(r => r.data);
+
+export const updateBooking = (code: string, dto: UpdateBookingDto) =>
+  client.put<BookingStatusDto>(`/booking-management/bookings/${code}`, dto).then(r => r.data);
 
 export const confirmBooking = (code: string) =>
   client.put<BookingStatusDto>(`/booking-management/bookings/${code}/confirm`).then(r => r.data);

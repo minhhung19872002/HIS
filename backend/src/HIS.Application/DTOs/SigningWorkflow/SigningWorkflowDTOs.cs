@@ -22,6 +22,7 @@ public class SigningRequestDto
     public Guid? PatientId { get; set; }
     public string? PatientName { get; set; }
     public string? DepartmentName { get; set; }
+    public string? SignerRole { get; set; } // Vai trò người ký
     public DateTime CreatedAt { get; set; }
 }
 
@@ -33,6 +34,7 @@ public class SigningRequestSearchDto
     public string? Keyword { get; set; }
     public string? DocumentType { get; set; }
     public int? Status { get; set; }
+    public string? SignerRole { get; set; } // Lọc theo vai trò người ký
     public DateTime? FromDate { get; set; }
     public DateTime? ToDate { get; set; }
 }

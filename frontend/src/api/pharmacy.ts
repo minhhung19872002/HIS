@@ -156,6 +156,36 @@ export const resolveAlert = (alertId: string) =>
   apiClient.post<boolean>(`${BASE_URL}/alerts/${alertId}/resolve`);
 
 // ============================================================================
+// Expiry Alerts — login-time popup (PharmacyEnhancementController)
+// ============================================================================
+
+export interface LoginExpiryAlert {
+  id: string;
+  medicineId: string;
+  medicineName: string;
+  warehouseId: string;
+  warehouseName: string;
+  batchNumber: string;
+  expiryDate: string;
+  quantity: number;
+  alertLevel: number;          // 1 = sắp hết hạn (<1 tháng), 2 = cảnh báo (1-3 tháng)
+  alertLevelName: string;
+}
+
+export interface LoginExpiryResponse {
+  totalAlerts: number;
+  alerts: LoginExpiryAlert[];
+}
+
+/** Lấy cảnh báo hạn dùng hiện tại để hiện modal khi vào module Dược */
+export const getExpiryAlertsOnLogin = () =>
+  apiClient.get<LoginExpiryResponse>(`${BASE_URL}/expiry-alerts/on-login`);
+
+/** Xác nhận (acknowledge) 1 cảnh báo hạn dùng */
+export const acknowledgeExpiryAlert = (alertId: string) =>
+  apiClient.put<{ success: boolean }>(`${BASE_URL}/expiry-alerts/${alertId}/acknowledge`);
+
+// ============================================================================
 // Clinical Pharmacy (Dược lâm sàng)
 // ============================================================================
 

@@ -1,11 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getBookings, getBookingStats } from '../api/bookingManagement';
+import { Input, Select, DatePicker } from 'antd';
+import { getBookings, getBookingStats, confirmBooking, checkInBooking, markNoShow, updateBooking } from '../api/bookingManagement';
 import type { BookingStatsDto } from '../api/bookingManagement';
 import type { BookingStatusDto } from '../api/appointmentBooking';
 import {
+  bookAppointment, getBookingDepartments, getBookingDoctors,
+  type BookingDepartmentDto, type BookingDoctorDto,
+} from '../api/appointmentBooking';
+import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
+  DrawerShell, DrSec, DrField, ModalShell, tk, ti, te, cf, Ico,
   type ColumnDef,
 } from './_v2kit';
 
@@ -38,8 +43,11 @@ const BookingManagementV2: React.FC = () => {
   const [fDept, setFDept] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<Booking | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Booking | null>(null);
+  const [acting, setActing] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const [r, s] = await Promise.all([
@@ -51,8 +59,38 @@ const BookingManagementV2: React.FC = () => {
       setStats(s);
     } catch { ti('Không tải được lịch hẹn'); }
     finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  }, [search]);
+  useEffect(() => { load(); }, [load]);
+
+  // Gọi 1 action quản lý lịch (confirm / checkin / no-show) rồi refetch.
+  const runAction = useCallback(async (
+    fn: () => Promise<unknown>, okMsg: string, errMsg: string,
+  ) => {
+    setActing(true);
+    try {
+      await fn();
+      tk(okMsg);
+      setSel(null);
+      load();
+    } catch (e: unknown) {
+      const ax = e as { response?: { data?: { message?: string } } };
+      te(ax?.response?.data?.message || errMsg);
+    } finally {
+      setActing(false);
+    }
+  }, [load]);
+
+  const onConfirm = (r: Booking) =>
+    runAction(() => confirmBooking(r.appointmentCode), `Đã xác nhận ${r.appointmentCode}`, 'Xác nhận thất bại');
+  const onCheckIn = (r: Booking) =>
+    runAction(() => checkInBooking(r.appointmentCode), `Đã ghi nhận BN đến · ${r.patientName}`, 'Check-in thất bại');
+  const onNoShow = (r: Booking) =>
+    cf(`Đánh dấu vắng mặt lịch ${r.appointmentCode}?`, () =>
+      void runAction(() => markNoShow(r.appointmentCode), `Đã đánh dấu vắng · ${r.appointmentCode}`, 'Thao tác thất bại'),
+    { tone: 'warn', confirm: 'Vắng mặt' });
+  // Mở sửa lịch — chỉ cho phép khi chưa đến khám / chưa hủy (status 0 hoặc 1).
+  const onEdit = (r: Booking) => { setSel(null); setEditTarget(r); };
+  const canEdit = (r: Booking) => r.status === 0 || r.status === 1;
 
   const depts = useMemo(() => {
     const set = new Set(items.map((r) => r.departmentName).filter(Boolean) as string[]);
@@ -105,11 +143,17 @@ const BookingManagementV2: React.FC = () => {
   const actions = (r: Booking) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
+      {canEdit(r) && (
+        <ActBtn ic="edit" title="Sửa lịch" onClick={() => onEdit(r)} />
+      )}
       {r.status === 0 && (
-        <ActBtn ic="check" title="Xác nhận" onClick={() => tk(`Đã xác nhận ${r.appointmentCode}`)} />
+        <ActBtn ic="check" title="Xác nhận" onClick={() => onConfirm(r)} />
       )}
       {(r.status === 0 || r.status === 1) && (
-        <ActBtn ic="phone" title="Nhắc lịch" onClick={() => tk(`Gọi nhắc ${r.phoneNumber}`)} />
+        <ActBtn ic="arrow-right" title="BN đã đến" onClick={() => onCheckIn(r)} />
+      )}
+      {(r.status === 0 || r.status === 1) && (
+        <ActBtn ic="alert" title="Vắng mặt" onClick={() => onNoShow(r)} tone="warn" />
       )}
     </div>
   );
@@ -134,10 +178,7 @@ const BookingManagementV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Mở SMS hàng loạt')}>
-          <Ico name="message-square" size={12} /> Nhắc SMS
-        </Btn>
-        <Btn variant="primary" onClick={() => tk('Mở đặt lịch mới')}>
+        <Btn variant="primary" onClick={() => setNewOpen(true)}>
           <Ico name="plus" size={12} /> Đặt lịch
         </Btn>
       </div>
@@ -159,14 +200,25 @@ const BookingManagementV2: React.FC = () => {
         sub={sel ? `${sel.appointmentCode} · ${dayjs(sel.appointmentDate).format('DD/MM/YYYY')}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          {sel && canEdit(sel) && (
+            <Btn variant="ghost" onClick={() => onEdit(sel)}>
+              <Ico name="edit" size={12} /> Sửa
+            </Btn>
+          )}
+          <span style={{ flex: 1 }} />
+          {sel && (sel.status === 0 || sel.status === 1) && (
+            <Btn variant="crit" disabled={acting} onClick={() => onNoShow(sel)}>
+              <Ico name="alert" size={12} /> Vắng mặt
+            </Btn>
+          )}
           {sel && sel.status === 0 && (
-            <Btn variant="primary" onClick={() => { tk('Đã xác nhận'); setSel(null); }}>
+            <Btn variant="primary" disabled={acting} onClick={() => onConfirm(sel)}>
               <Ico name="check" size={12} /> Xác nhận
             </Btn>
           )}
           {sel && (sel.status === 0 || sel.status === 1) && (
-            <Btn onClick={() => tk(`Gọi ${sel.phoneNumber}`)}>
-              <Ico name="phone" size={12} /> Gọi BN
+            <Btn variant="ok" disabled={acting} onClick={() => onCheckIn(sel)}>
+              <Ico name="arrow-right" size={12} /> BN đã đến
             </Btn>
           )}
         </>}
@@ -195,7 +247,206 @@ const BookingManagementV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      <BookingModal mode="create" initial={null} open={newOpen}
+        onClose={() => setNewOpen(false)} onDone={() => { setNewOpen(false); load(); }} />
+      <BookingModal mode="edit" initial={editTarget} open={!!editTarget}
+        onClose={() => setEditTarget(null)} onDone={() => { setEditTarget(null); load(); }} />
     </div>
+  );
+};
+
+/* ────────────────────────────────────────────────────────────
+   Modal đặt / sửa lịch khám tại quầy.
+   - mode="create": tái dùng endpoint công khai POST /booking/book
+     (AppointmentBookingController.BookAppointment), tạo lịch ở trạng thái
+     "Chờ xác nhận" (status 0).
+   - mode="edit": gọi PUT /booking-management/bookings/{code}
+     (BookingManagementController.UpdateBooking) — chỉ cho sửa khi lịch
+     chưa đến khám / chưa hủy (status 0 hoặc 1).
+   ──────────────────────────────────────────────────────────── */
+
+interface NewBookingState {
+  patientName: string;
+  phoneNumber: string;
+  appointmentDate: dayjs.Dayjs | null;
+  appointmentTime: string;
+  departmentId: string;
+  doctorId: string;
+  reason: string;
+  appointmentType: number;
+}
+
+const EMPTY_BOOKING: NewBookingState = {
+  patientName: '', phoneNumber: '', appointmentDate: dayjs(), appointmentTime: '',
+  departmentId: '', doctorId: '', reason: '', appointmentType: 1,
+};
+
+// Map một lịch hẹn (Booking) -> state form khi mở chế độ Sửa.
+const toFormState = (b: Booking): NewBookingState => ({
+  patientName: b.patientName || '',
+  phoneNumber: b.phoneNumber || '',
+  appointmentDate: b.appointmentDate ? dayjs(b.appointmentDate) : dayjs(),
+  appointmentTime: b.appointmentTime ? String(b.appointmentTime).slice(0, 5) : '',
+  departmentId: b.departmentId || '',
+  doctorId: b.doctorId || '',
+  reason: b.reason || '',
+  appointmentType: b.appointmentType || 1,
+});
+
+const BookingModal: React.FC<{
+  mode: 'create' | 'edit';
+  initial: Booking | null;
+  open: boolean;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ mode, initial, open, onClose, onDone }) => {
+  const isEdit = mode === 'edit';
+  const [form, setForm] = useState<NewBookingState>(EMPTY_BOOKING);
+  const [depts, setDepts] = useState<BookingDepartmentDto[]>([]);
+  const [doctors, setDoctors] = useState<BookingDoctorDto[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  const setField = <K extends keyof NewBookingState>(k: K, v: NewBookingState[K]) =>
+    setForm((s) => ({ ...s, [k]: v }));
+
+  useEffect(() => {
+    if (!open) return;
+    setForm(isEdit && initial ? toFormState(initial) : EMPTY_BOOKING);
+    setDoctors([]);
+    getBookingDepartments().then((d) => setDepts(Array.isArray(d) ? d : [])).catch(() => setDepts([]));
+  }, [open, isEdit, initial]);
+
+  // Tải bác sĩ theo khoa đã chọn.
+  useEffect(() => {
+    if (!form.departmentId) { setDoctors([]); return; }
+    let alive = true;
+    getBookingDoctors(form.departmentId)
+      .then((d) => { if (alive) setDoctors(Array.isArray(d) ? d : []); })
+      .catch(() => { if (alive) setDoctors([]); });
+    return () => { alive = false; };
+  }, [form.departmentId]);
+
+  const submit = async () => {
+    if (!form.patientName.trim()) { te('Nhập họ tên bệnh nhân'); return; }
+    if (!/^0\d{9,10}$/.test(form.phoneNumber.trim())) { te('Số điện thoại không hợp lệ'); return; }
+    if (!form.appointmentDate) { te('Chọn ngày hẹn'); return; }
+    setSaving(true);
+    try {
+      if (isEdit && initial) {
+        await updateBooking(initial.appointmentCode, {
+          patientName: form.patientName.trim(),
+          phoneNumber: form.phoneNumber.trim(),
+          appointmentDate: form.appointmentDate.format('YYYY-MM-DD'),
+          appointmentTime: form.appointmentTime ? `${form.appointmentTime}:00` : undefined,
+          departmentId: form.departmentId || undefined,
+          doctorId: form.doctorId || undefined,
+          appointmentType: form.appointmentType,
+          reason: form.reason.trim() || undefined,
+        });
+        tk(`Đã cập nhật lịch · ${initial.appointmentCode}`);
+        onDone();
+        return;
+      }
+      const res = await bookAppointment({
+        patientName: form.patientName.trim(),
+        phoneNumber: form.phoneNumber.trim(),
+        appointmentDate: form.appointmentDate.format('YYYY-MM-DD'),
+        appointmentTime: form.appointmentTime ? `${form.appointmentTime}:00` : undefined,
+        departmentId: form.departmentId || undefined,
+        doctorId: form.doctorId || undefined,
+        appointmentType: form.appointmentType,
+        reason: form.reason.trim() || undefined,
+      });
+      if (res?.success === false) { te(res.message || 'Đặt lịch thất bại'); return; }
+      tk(`Đã đặt lịch · ${res.appointmentCode}`);
+      onDone();
+    } catch (e: unknown) {
+      const ax = e as { response?: { data?: { message?: string } } };
+      te(ax?.response?.data?.message || (isEdit ? 'Cập nhật thất bại' : 'Đặt lịch thất bại'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const lblStyle: React.CSSProperties = { fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="md"
+      title={isEdit ? 'Sửa lịch hẹn' : 'Đặt lịch khám tại quầy'}
+      footer={
+        <>
+          <button type="button" className="ab-btn" onClick={onClose}>Huỷ</button>
+          <span style={{ flex: 1 }} />
+          <button type="button" className="ab-btn primary" disabled={saving} onClick={submit}>
+            <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : (isEdit ? 'Lưu thay đổi' : 'Đặt lịch')}
+          </button>
+        </>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <div style={lblStyle}>Họ và tên <span style={{ color: 'var(--s-crit)' }}>*</span></div>
+            <Input value={form.patientName} onChange={(e) => setField('patientName', e.target.value)} placeholder="Nguyễn Văn A" />
+          </div>
+          <div>
+            <div style={lblStyle}>Số điện thoại <span style={{ color: 'var(--s-crit)' }}>*</span></div>
+            <Input value={form.phoneNumber} onChange={(e) => setField('phoneNumber', e.target.value)} placeholder="0912345678" />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <div style={lblStyle}>Ngày hẹn <span style={{ color: 'var(--s-crit)' }}>*</span></div>
+            <DatePicker
+              style={{ width: '100%' }}
+              format="DD/MM/YYYY"
+              value={form.appointmentDate}
+              onChange={(d) => setField('appointmentDate', d)}
+              disabledDate={(d) => !!d && d.isBefore(dayjs().startOf('day'))}
+            />
+          </div>
+          <div>
+            <div style={lblStyle}>Giờ hẹn (HH:mm)</div>
+            <Input value={form.appointmentTime} onChange={(e) => setField('appointmentTime', e.target.value)} placeholder="09:30" />
+          </div>
+        </div>
+        <div>
+          <div style={lblStyle}>Khoa khám</div>
+          <Select
+            style={{ width: '100%' }}
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            placeholder="Chọn khoa"
+            value={form.departmentId || undefined}
+            onChange={(v) => setForm((s) => ({ ...s, departmentId: v || '', doctorId: '' }))}
+            options={depts.map((d) => ({ value: d.id, label: d.name }))}
+          />
+        </div>
+        <div>
+          <div style={lblStyle}>Bác sĩ (tùy chọn)</div>
+          <Select
+            style={{ width: '100%' }}
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            placeholder={form.departmentId ? 'Chọn bác sĩ' : 'Chọn khoa trước'}
+            disabled={!form.departmentId}
+            value={form.doctorId || undefined}
+            onChange={(v) => setField('doctorId', v || '')}
+            options={doctors.map((d) => ({ value: d.id, label: d.fullName }))}
+          />
+        </div>
+        <div>
+          <div style={lblStyle}>Lý do khám</div>
+          <Input.TextArea rows={2} value={form.reason} onChange={(e) => setField('reason', e.target.value)} placeholder="Triệu chứng chính…" />
+        </div>
+      </div>
+    </ModalShell>
   );
 };
 

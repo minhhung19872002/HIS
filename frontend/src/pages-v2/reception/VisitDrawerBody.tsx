@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { Modal, Form, Input, Select, message } from 'antd';
 import { StatusBadge } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
 import type { RawRow } from './shared';
-import { STATUS_TABS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from './shared';
+import { STATUS_TABS, PRIORITY_OPTS, VISIT_TYPE_OPTS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from './shared';
 import { TempInsuranceModal, DocumentHoldModal, PhotoModal, ServiceOrderModal } from './VisitActionsModals';
-import { getReceptionWarnings } from '../../api/reception';
+import { getReceptionWarnings, updateAdmission } from '../../api/reception';
 import type { ReceptionWarningDto } from '../../api/reception';
+import { PatientFlagsSection } from './PatientFlagsSection';
 type DrawerTab = 'info' | 'audit' | 'related';
 
 export const VisitDrawerBody: React.FC<{ v: RawRow; rows: RawRow[] }> = ({ v, rows }) => {
@@ -45,7 +47,7 @@ export const VisitDrawerBody: React.FC<{ v: RawRow; rows: RawRow[] }> = ({ v, ro
   );
 };
 
-type ActionModal = 'tempInsurance' | 'docHold' | 'photo' | 'serviceOrder' | null;
+type ActionModal = 'tempInsurance' | 'docHold' | 'photo' | 'serviceOrder' | 'editAdmission' | null;
 
 const fmtWarnMoney = (n?: number) =>
   n != null ? n.toLocaleString('vi-VN') + ' đ' : '';
@@ -158,6 +160,9 @@ const DrawerInfoTab: React.FC<{ v: RawRow }> = ({ v }) => {
       {/* Patient-safety warnings — show first (P0 an toàn BN) */}
       <PatientWarnings patientId={v.patientId} />
 
+      {/* Cờ cảnh báo BN — CRUD (thêm/sửa/xoá) ngay tại quầy tiếp đón */}
+      <PatientFlagsSection patientId={v.patientId} />
+
       {/* Action buttons strip */}
       <div className="rec-section">
         <h5><TermIcon name="plus" size={11} /> THAO TÁC NHANH</h5>
@@ -194,6 +199,14 @@ const DrawerInfoTab: React.FC<{ v: RawRow }> = ({ v }) => {
           >
             <TermIcon name="stethoscope" size={11} /> Chỉ định CLS
           </button>
+          <button
+            type="button" className="ab-btn ghost sm"
+            disabled={!hasMR}
+            onClick={() => setActionModal('editAdmission')}
+            title={!hasMR ? 'Cần có mã hồ sơ' : ''}
+          >
+            <TermIcon name="edit" size={11} /> Sửa thông tin
+          </button>
         </div>
       </div>
 
@@ -224,6 +237,11 @@ const DrawerInfoTab: React.FC<{ v: RawRow }> = ({ v }) => {
         onClose={() => setActionModal(null)}
         medicalRecordId={v.id}
         patientName={v.patientName}
+      />
+      <EditAdmissionModal
+        open={actionModal === 'editAdmission'}
+        onClose={() => setActionModal(null)}
+        admission={v}
       />
 
       {/* Status banner */}
@@ -319,6 +337,86 @@ const DrawerInfoTab: React.FC<{ v: RawRow }> = ({ v }) => {
         </div>
       )}
     </>
+  );
+};
+
+// ── Sửa thông tin hành chính ────────────────────────────────────────────────
+interface EditAdmissionProps {
+  open: boolean;
+  onClose: () => void;
+  admission: RawRow;
+}
+
+const EditAdmissionModal: React.FC<EditAdmissionProps> = ({ open, onClose, admission }) => {
+  const [form] = Form.useForm();
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      form.setFieldsValue({
+        chiefComplaint: admission.chiefComplaint ?? '',
+        priority: String(priorityKey(admission) === 'crit' ? 3 : priorityKey(admission) === 'high' ? 2 : 1),
+        treatmentType: String(
+          admission.treatmentTypeName?.includes('BHYT') ? 1 :
+          admission.treatmentTypeName?.includes('dịch vụ') ? 2 :
+          admission.treatmentTypeName?.includes('cấp cứu') || admission.isEmergency ? 3 : 2
+        ),
+        notes: (admission as RawRow & { notes?: string }).notes ?? '',
+      });
+    }
+  }, [open, admission, form]);
+
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields();
+      setSaving(true);
+      await updateAdmission(admission.id, {
+        chiefComplaint: values.chiefComplaint || undefined,
+        priority: values.priority ? Number(values.priority) : undefined,
+        treatmentType: values.treatmentType ? Number(values.treatmentType) : undefined,
+        notes: values.notes || undefined,
+      });
+      void message.success('Đã cập nhật thông tin hành chính');
+      onClose();
+    } catch (err) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return; // form validation
+      void message.error('Cập nhật thất bại');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      title={
+        <span>
+          <TermIcon name="edit" size={13} /> Sửa thông tin hành chính — {admission.patientName}
+        </span>
+      }
+      onCancel={onClose}
+      onOk={handleSave}
+      okText="Lưu"
+      cancelText="Hủy"
+      confirmLoading={saving}
+      destroyOnHidden
+      width={460}
+    >
+      <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
+        <Form.Item name="chiefComplaint" label="Lý do khám">
+          <Input.TextArea rows={2} placeholder="Nhập lý do / triệu chứng chính" />
+        </Form.Item>
+        <Form.Item name="priority" label="Mức ưu tiên">
+          <Select options={PRIORITY_OPTS.map((o) => ({ value: o.v, label: o.l }))} />
+        </Form.Item>
+        <Form.Item name="treatmentType" label="Hình thức khám">
+          <Select options={VISIT_TYPE_OPTS.map((o) => ({ value: o.v, label: o.l }))} />
+        </Form.Item>
+        <Form.Item name="notes" label="Ghi chú">
+          <Input.TextArea rows={2} placeholder="Ghi chú thêm (không bắt buộc)" />
+        </Form.Item>
+      </Form>
+    </Modal>
   );
 };
 

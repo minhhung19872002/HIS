@@ -23,7 +23,7 @@ interface ReceiptBook {
   registeredDate?: string; registrationNumber?: string;
   status: number; closedDate?: string; closedReason?: string;
   departmentId?: string; departmentName?: string; cashierId?: string;
-  notes?: string; isActive: boolean;
+  notes?: string; collectionReason?: string; isActive: boolean;
 }
 
 const RECEIPT_TYPES = [
@@ -233,6 +233,9 @@ const ReceiptBookAdminV2: React.FC = () => {
             <Form.Item label="Khoa" name="departmentId" style={{ gridColumn: 'span 2' }}>
               <Select allowClear showSearch optionFilterProp="label"
                 options={departments.map((d) => ({ value: d.id, label: d.departmentName }))} />
+            </Form.Item>
+            <Form.Item label="Lý do thu" name="collectionReason" style={{ gridColumn: 'span 3' }}>
+              <Input placeholder="VD: Thu viện phí KCB, Thu đặt cọc dịch vụ, Thu khác…" />
             </Form.Item>
             <Form.Item label="Ghi chú" name="notes" style={{ gridColumn: 'span 3' }}><Input.TextArea rows={2} /></Form.Item>
           </div>

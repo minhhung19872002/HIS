@@ -66,6 +66,13 @@ public class BookingManagementController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPut("bookings/{code}")]
+    public async Task<IActionResult> UpdateBooking(string code, [FromBody] UpdateBookingDto dto)
+    {
+        var result = await _service.UpdateBookingAsync(code, dto);
+        return Ok(result);
+    }
+
     [HttpPut("bookings/{code}/confirm")]
     public async Task<IActionResult> ConfirmBooking(string code)
     {

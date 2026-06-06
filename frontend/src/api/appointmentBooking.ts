@@ -77,7 +77,9 @@ export interface BookingStatusDto {
   appointmentTime?: string;
   appointmentType: number;
   appointmentTypeName: string;
+  departmentId?: string;
   departmentName?: string;
+  doctorId?: string;
   doctorName?: string;
   roomName?: string;
   reason?: string;

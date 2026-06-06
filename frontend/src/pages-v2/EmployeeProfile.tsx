@@ -24,7 +24,7 @@ const toDay = (v: unknown): Dayjs | undefined => v ? dayjs(v as string) : undefi
 
 interface User { id: string; fullName: string; username?: string }
 
-type Tab = 'assets' | 'allowances' | 'career' | 'educations' | 'families' | 'rewards' | 'banks' | 'contracts' | 'insurance';
+type Tab = 'assets' | 'allowances' | 'career' | 'educations' | 'families' | 'rewards' | 'banks' | 'contracts' | 'insurance' | 'union';
 const TABS = [
   { v: 'assets' as Tab,     l: 'Tài sản',     ic: 'archive' },
   { v: 'allowances' as Tab, l: 'Phụ cấp',     ic: 'dollar' },
@@ -35,6 +35,7 @@ const TABS = [
   { v: 'banks' as Tab,      l: 'Tài khoản NH', ic: 'card' },
   { v: 'contracts' as Tab,  l: 'Hợp đồng',    ic: 'file-text' },
   { v: 'insurance' as Tab,  l: 'BHXH/BHYT',   ic: 'heart' },
+  { v: 'union' as Tab,      l: 'Đoàn thể',    ic: 'users' },
 ];
 
 const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
@@ -85,6 +86,7 @@ const EmployeeProfileV2: React.FC = () => {
       {userId && tab === 'banks' && <BanksTab userId={userId} />}
       {userId && tab === 'contracts' && <ContractsTab userId={userId} />}
       {userId && tab === 'insurance' && <InsuranceTab userId={userId} />}
+      {userId && tab === 'union' && <UnionTab userId={userId} />}
     </div>
   );
 };
@@ -496,5 +498,57 @@ const InsuranceTab: React.FC<{ userId: string }> = ({ userId }) => {
     </div>
   );
 };
+
+// ── Tab Đoàn thể ─────────────────────────────────────────────────────────────
+const UNION_ORG_OPTS = [
+  { v: 'CongDoan',  l: 'Công đoàn' },
+  { v: 'DoanTNCS',  l: 'Đoàn TNCS Hồ Chí Minh' },
+  { v: 'DangCSVN',  l: 'Đảng CSVN' },
+  { v: 'HoiPhuNu',  l: 'Hội Phụ nữ' },
+  { v: 'HoiNongDan', l: 'Hội Nông dân' },
+  { v: 'Khac',       l: 'Khác' },
+];
+
+interface UnionMembership { id: string; organizationType: string; memberCode?: string; joinDate?: string; position?: string; monthlyFee?: number; isActive: boolean; note?: string; }
+
+const UnionTab: React.FC<{ userId: string }> = ({ userId }) => (
+  <GenericCrudTab<UnionMembership>
+    endpoint="/employee-profile"
+    userId={userId}
+    subPath="union"
+    columns={[
+      { key: 'org', label: 'Tổ chức', render: (r) => <StatusBadge tone="info">{UNION_ORG_OPTS.find((o) => o.v === r.organizationType)?.l || r.organizationType}</StatusBadge> },
+      { key: 'code', label: 'Mã thành viên', mono: true, render: (r) => r.memberCode || '—' },
+      { key: 'pos', label: 'Chức vụ', render: (r) => r.position || '—' },
+      { key: 'join', label: 'Ngày tham gia', render: (r) => r.joinDate ? dayjs(r.joinDate).format('DD/MM/YYYY') : '—' },
+      { key: 'fee', label: 'Đoàn phí/tháng', mono: true, render: (r) => r.monthlyFee != null ? fmt(r.monthlyFee) + ' đ' : '—' },
+      { key: 'active', label: 'Trạng thái', render: (r) => <StatusBadge tone={r.isActive ? 'ok' : 'warn'}>{r.isActive ? 'Đang hoạt động' : 'Nghỉ'}</StatusBadge> },
+    ]}
+    formItems={<>
+      <Form.Item name="organizationType" label="Tổ chức" rules={[{ required: true }]}>
+        <Select options={UNION_ORG_OPTS.map((o) => ({ value: o.v, label: o.l }))} />
+      </Form.Item>
+      <Form.Item name="memberCode" label="Mã thành viên / đoàn viên">
+        <Input placeholder="Mã do tổ chức cấp" />
+      </Form.Item>
+      <Form.Item name="position" label="Chức vụ trong tổ chức">
+        <Input placeholder="VD: Ủy viên BCH, Bí thư chi đoàn..." />
+      </Form.Item>
+      <Form.Item name="joinDate" label="Ngày tham gia">
+        <Input type="date" />
+      </Form.Item>
+      <Form.Item name="monthlyFee" label="Đoàn phí / hội phí hàng tháng (đ)">
+        <InputNumber style={{ width: '100%' }} min={0} />
+      </Form.Item>
+      <Form.Item name="isActive" label="Trạng thái">
+        <Select options={[{ value: true, label: 'Đang hoạt động' }, { value: false, label: 'Nghỉ / Tạm dừng' }]} />
+      </Form.Item>
+      <Form.Item name="note" label="Ghi chú">
+        <Input.TextArea rows={2} />
+      </Form.Item>
+    </>}
+    formTransform={(v) => ({ ...v, isActive: v.isActive !== false })}
+  />
+);
 
 export default EmployeeProfileV2;

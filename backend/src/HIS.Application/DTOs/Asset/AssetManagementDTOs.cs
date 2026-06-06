@@ -319,6 +319,65 @@ public class AssetQrCodeDto
     public string QrContent { get; set; } = string.Empty;
 }
 
+// ---- Stocktake DTOs ----
+
+public class AssetStocktakeDto
+{
+    public Guid Id { get; set; }
+    public string StocktakeCode { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public DateTime StocktakeDate { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public string? DepartmentName { get; set; }
+    public string? ConductedById { get; set; }
+    public string? ApprovedById { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public int Status { get; set; }
+    public string? Notes { get; set; }
+    public int TotalItems { get; set; }
+    public int FoundCount { get; set; }
+    public int MissingCount { get; set; }
+    public List<AssetStocktakeItemDto> Items { get; set; } = new();
+    public DateTime CreatedAt { get; set; }
+}
+
+public class AssetStocktakeItemDto
+{
+    public Guid Id { get; set; }
+    public Guid FixedAssetId { get; set; }
+    public string? AssetCode { get; set; }
+    public string? AssetName { get; set; }
+    public string? SerialNumber { get; set; }
+    public string? LocationDescription { get; set; }
+    public bool IsFound { get; set; }
+    public int ConditionStatus { get; set; }
+    public string? Remark { get; set; }
+}
+
+public class CreateAssetStocktakeDto
+{
+    public string Title { get; set; } = string.Empty;
+    public DateTime StocktakeDate { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public string? Notes { get; set; }
+    public List<CreateAssetStocktakeItemDto> Items { get; set; } = new();
+}
+
+public class CreateAssetStocktakeItemDto
+{
+    public Guid FixedAssetId { get; set; }
+    public bool IsFound { get; set; } = true;
+    public int ConditionStatus { get; set; } = 1;
+    public string? Remark { get; set; }
+}
+
+public class UpdateAssetStocktakeItemDto
+{
+    public bool IsFound { get; set; }
+    public int ConditionStatus { get; set; } = 1; // 1=Good, 2=Degraded, 3=Broken
+    public string? Remark { get; set; }
+}
+
 // ---- Paged Result ----
 
 public class AssetPagedResult<T>

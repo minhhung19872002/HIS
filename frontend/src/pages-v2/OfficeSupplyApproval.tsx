@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Form, Input, InputNumber, Modal, Select } from 'antd';
+import { Form, Input, InputNumber, Modal, Select, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import systemApi from '../api/system';
@@ -31,6 +31,7 @@ interface Warehouse { id: string; warehouseName: string; warehouseCode?: string 
 interface CreateRequestResponse { approvalCode?: string; id?: string }
 interface ApproveResponse { exportReceiptId?: string }
 interface CreateItemForm { supplyId: string; requestedQuantity: number; note?: string }
+interface ReturnResponse { id?: string; approvalCode?: string }
 
 const STATUS_LABEL: Record<number, string> = {
   1: 'Chưa nhập', 2: 'Chờ duyệt', 3: 'Đã duyệt', 4: 'Đã thu hồi',
@@ -48,25 +49,33 @@ const tabToStatus = (s: SKey | 'all') => s === 'pending' ? 2 : s === 'approved' 
 const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 
 const OfficeSupplyApprovalV2: React.FC = () => {
+  const [moduleTab, setModuleTab] = useState<'requests' | 'returns'>('requests');
   const [stab, setStab] = useState<SKey | 'all'>('pending');
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
+  const [returns, setReturns] = useState<ApprovalRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
   const [approveReq, setApproveReq] = useState<ApprovalRequest | null>(null);
   const [approveQty, setApproveQty] = useState<Record<string, number>>({});
+  const [approveReturn, setApproveReturn] = useState<ApprovalRequest | null>(null);
+  const [approveReturnQty, setApproveReturnQty] = useState<Record<string, number>>({});
   const [detail, setDetail] = useState<ApprovalRequest | null>(null);
   const [supplies, setSupplies] = useState<Supply[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [form] = Form.useForm();
+  const [returnForm] = Form.useForm();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await apiClient.get<ApprovalRequest[]>('/office-supply/requests', {
-        params: { status: tabToStatus(stab) },
-      });
-      setRequests(data || []);
+      const [reqRes, retRes] = await Promise.all([
+        apiClient.get<ApprovalRequest[]>('/office-supply/requests', { params: { status: tabToStatus(stab) } }),
+        apiClient.get<ApprovalRequest[]>('/office-supply/returns', { params: { status: tabToStatus(stab) } }),
+      ]);
+      setRequests(reqRes.data || []);
+      setReturns(retRes.data || []);
     } catch { ti('Tải danh sách thất bại'); }
     finally { setLoading(false); }
   }, [stab]);
@@ -122,7 +131,46 @@ const OfficeSupplyApprovalV2: React.FC = () => {
     } catch { tw('Duyệt thất bại'); }
   };
 
-  const counts = useMemo(() => ({ all: requests.length }) as Record<string, number>, [requests]);
+  const submitRecall = async (req: ApprovalRequest) => {
+    try {
+      await apiClient.post(`/office-supply/requests/${req.id}/recall`);
+      tk(`Đã thu hồi phiếu ${req.approvalCode}`);
+      load();
+    } catch { tw('Thu hồi thất bại'); }
+  };
+
+  const submitCreateReturn = async () => {
+    const v = await returnForm.validateFields();
+    if (!v.items || v.items.length === 0) { tw('Chưa có vật tư hoàn trả'); return; }
+    try {
+      const { data }: { data: ReturnResponse } = await apiClient.post('/office-supply/returns', {
+        departmentId: v.departmentId, warehouseId: v.warehouseId, note: v.note,
+        items: (v.items as CreateItemForm[]).map((it) => {
+          const sup = supplies.find((s) => s.id === it.supplyId);
+          return {
+            supplyId: it.supplyId, requestedQuantity: it.requestedQuantity,
+            unit: sup?.unit, unitPrice: sup?.unitPrice || 0, note: it.note,
+          };
+        }),
+      });
+      tk(`Đã tạo phiếu hoàn trả ${data.approvalCode}`);
+      setReturnOpen(false); returnForm.resetFields(); load();
+    } catch { tw('Tạo phiếu hoàn trả thất bại'); }
+  };
+
+  const submitApproveReturn = async () => {
+    if (!approveReturn) return;
+    try {
+      await apiClient.post('/office-supply/returns/approve', {
+        id: approveReturn.id, approvedQuantities: approveReturnQty,
+      });
+      tk('Đã duyệt hoàn trả — tồn kho đã được cộng lại');
+      setApproveReturn(null); setApproveReturnQty({}); load();
+    } catch { tw('Duyệt hoàn trả thất bại'); }
+  };
+
+  const activeList = moduleTab === 'requests' ? requests : returns;
+  const counts = useMemo(() => ({ all: activeList.length }) as Record<string, number>, [activeList]);
 
   const cols: ColumnDef<ApprovalRequest>[] = [
     { key: 'code', label: 'Mã phiếu', code: true, render: (r) => r.approvalCode },
@@ -137,55 +185,86 @@ const OfficeSupplyApprovalV2: React.FC = () => {
     } },
   ];
 
-  const totalAmt = requests.reduce((s, r) => s + (r.totalAmount || 0), 0);
+  const totalAmt = activeList.reduce((s, r) => s + (r.totalAmount || 0), 0);
 
   return (
     <div className="ab">
       <KpiStrip items={[
-        { lbl: 'Tổng phiếu', val: requests.length, sub: STATUS_LABEL[tabToStatus(stab)] },
-        { lbl: 'Tổng vật tư', val: requests.reduce((s, r) => s + r.totalItems, 0), sub: 'mặt hàng', tone: 'info' },
+        { lbl: 'Tổng phiếu', val: activeList.length, sub: STATUS_LABEL[tabToStatus(stab)] },
+        { lbl: 'Tổng vật tư', val: activeList.reduce((s, r) => s + r.totalItems, 0), sub: 'mặt hàng', tone: 'info' },
         { lbl: 'Tổng tiền', val: Math.round(totalAmt / 1_000_000), unit: 'tr', sub: 'VND', tone: 'ok' },
-        { lbl: 'Cần duyệt', val: requests.filter((r) => r.status === 2).length, sub: 'cần xử lý', tone: 'warn' },
+        { lbl: 'Cần duyệt', val: activeList.filter((r) => r.status === 2).length, sub: 'cần xử lý', tone: 'warn' },
       ]} />
 
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
-        <span style={{ fontSize: 12, color: 'var(--t-2)' }}>VPP / TTB văn phòng (vật tư không phải y tế)</span>
+        <Tabs
+          activeKey={moduleTab}
+          onChange={(k) => setModuleTab(k as 'requests' | 'returns')}
+          size="small"
+          style={{ marginBottom: 0 }}
+          items={[
+            { key: 'requests', label: 'Phiếu yêu cầu cấp' },
+            { key: 'returns',  label: 'Phiếu hoàn trả' },
+          ]}
+        />
         <span className="spacer" />
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="primary" onClick={() => setCreateOpen(true)}>
-          <Ico name="plus" size={12} /> Tạo phiếu yêu cầu
-        </Btn>
+        {moduleTab === 'requests' ? (
+          <Btn variant="primary" onClick={() => setCreateOpen(true)}>
+            <Ico name="plus" size={12} /> Tạo phiếu yêu cầu
+          </Btn>
+        ) : (
+          <Btn variant="primary" onClick={() => setReturnOpen(true)}>
+            <Ico name="plus" size={12} /> Tạo phiếu hoàn trả
+          </Btn>
+        )}
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
 
       <DataTable<ApprovalRequest>
-        columns={cols} data={requests} rowKey={(r) => r.id}
+        columns={cols} data={activeList} rowKey={(r) => r.id}
         onRowClick={setDetail}
         actions={(r) => (
           <div className="ab-actions">
             <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
-            {r.status === 2 && (
+            {r.status === 2 && moduleTab === 'requests' && (
               <ActBtn ic="check" title="Duyệt" onClick={() => { setApproveReq(r); setApproveQty({}); }} />
+            )}
+            {r.status === 2 && moduleTab === 'requests' && (
+              <ActBtn ic="x" title="Thu hồi" onClick={() => submitRecall(r)} />
+            )}
+            {r.status === 2 && moduleTab === 'returns' && (
+              <ActBtn ic="check" title="Duyệt hoàn trả" onClick={() => { setApproveReturn(r); setApproveReturnQty({}); }} />
             )}
           </div>
         )}
-        empty={loading ? 'Đang tải…' : 'Không có phiếu yêu cầu'}
+        empty={loading ? 'Đang tải…' : moduleTab === 'requests' ? 'Không có phiếu yêu cầu' : 'Không có phiếu hoàn trả'}
       />
 
       <DrawerShell
-        open={!!detail && !approveReq}
+        open={!!detail && !approveReq && !approveReturn}
         onClose={() => setDetail(null)}
         size="lg"
         title={detail ? `Phiếu ${detail.approvalCode}` : ''}
         sub={detail ? `${detail.departmentName} → ${detail.warehouseName}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
-          {detail && detail.status === 2 && (
+          {detail && detail.status === 2 && moduleTab === 'requests' && (
+            <Btn variant="ghost" onClick={() => { submitRecall(detail); setDetail(null); }}>
+              <Ico name="x" size={12} /> Thu hồi
+            </Btn>
+          )}
+          {detail && detail.status === 2 && moduleTab === 'requests' && (
             <Btn variant="primary" onClick={() => { setApproveReq(detail); setApproveQty({}); }}>
               <Ico name="check" size={12} /> Duyệt
+            </Btn>
+          )}
+          {detail && detail.status === 2 && moduleTab === 'returns' && (
+            <Btn variant="primary" onClick={() => { setApproveReturn(detail); setApproveReturnQty({}); }}>
+              <Ico name="check" size={12} /> Duyệt hoàn trả
             </Btn>
           )}
         </>}
@@ -313,6 +392,94 @@ const OfficeSupplyApprovalV2: React.FC = () => {
           </Form.List>
         </Form>
       </Modal>
+
+      {/* Tạo phiếu hoàn trả */}
+      <Modal
+        open={returnOpen}
+        onCancel={() => setReturnOpen(false)}
+        title="Tạo phiếu hoàn trả VPP"
+        onOk={submitCreateReturn}
+        okText="Tạo phiếu hoàn trả"
+        cancelText="Hủy"
+        width={800}
+      >
+        <Form form={returnForm} layout="vertical">
+          <Form.Item name="departmentId" label="Khoa hoàn trả" rules={[{ required: true }]}>
+            <Select showSearch optionFilterProp="label"
+              options={departments.map((d) => ({ value: d.id, label: d.departmentName }))} />
+          </Form.Item>
+          <Form.Item name="warehouseId" label="Kho nhập lại" rules={[{ required: true }]}>
+            <Select showSearch optionFilterProp="label"
+              options={warehouses.map((w) => ({ value: w.id, label: w.warehouseName }))} />
+          </Form.Item>
+          <Form.Item name="note" label="Lý do hoàn trả">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.List name="items">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map((f) => (
+                  <div key={f.key} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                    <Form.Item name={[f.name, 'supplyId']} rules={[{ required: true }]} style={{ flex: 2, marginBottom: 0 }}>
+                      <Select showSearch placeholder="Vật tư hoàn trả" optionFilterProp="label"
+                        options={supplies.map((s) => ({ value: s.id, label: `${s.supplyName} (${s.supplyCode})` }))} />
+                    </Form.Item>
+                    <Form.Item name={[f.name, 'requestedQuantity']} rules={[{ required: true }]} style={{ width: 100, marginBottom: 0 }}>
+                      <InputNumber min={1} placeholder="SL" />
+                    </Form.Item>
+                    <Form.Item name={[f.name, 'note']} style={{ flex: 1, marginBottom: 0 }}>
+                      <Input placeholder="Ghi chú" />
+                    </Form.Item>
+                    <Btn variant="ghost" onClick={() => remove(f.name)}>
+                      <Ico name="trash" size={12} />
+                    </Btn>
+                  </div>
+                ))}
+                <Btn variant="ghost" onClick={() => add()}>
+                  <Ico name="plus" size={12} /> Thêm dòng
+                </Btn>
+              </>
+            )}
+          </Form.List>
+        </Form>
+      </Modal>
+
+      {/* Duyệt hoàn trả */}
+      <ModalShell
+        open={!!approveReturn}
+        onClose={() => setApproveReturn(null)}
+        size="lg"
+        title={`Duyệt hoàn trả ${approveReturn?.approvalCode || ''}`}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setApproveReturn(null)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitApproveReturn}>
+            <Ico name="check" size={12} /> Duyệt hoàn trả
+          </Btn>
+        </>}
+      >
+        {approveReturn && (
+          <table className="ab-tbl">
+            <thead><tr><th>Vật tư</th><th>SL hoàn trả</th><th>SL duyệt</th><th>ĐV</th><th>Đơn giá</th></tr></thead>
+            <tbody>
+              {approveReturn.items.map((it) => (
+                <tr key={it.id}>
+                  <td>{it.supplyName} <span style={{ fontSize: 11, color: 'var(--t-2)' }}>({it.supplyCode})</span></td>
+                  <td className="mono">{it.requestedQuantity}</td>
+                  <td>
+                    <InputNumber
+                      size="small" min={0} max={it.requestedQuantity}
+                      defaultValue={it.requestedQuantity}
+                      onChange={(v) => setApproveReturnQty((p) => ({ ...p, [it.id]: Number(v) || 0 }))}
+                    />
+                  </td>
+                  <td>{it.unit || '—'}</td>
+                  <td className="mono">{fmt(it.unitPrice)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </ModalShell>
     </div>
   );
 };

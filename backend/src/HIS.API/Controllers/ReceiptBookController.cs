@@ -51,7 +51,7 @@ public class ReceiptBookController : ControllerBase
             b.Status, b.ClosedDate, b.ClosedReason,
             DepartmentName = b.Department != null ? b.Department.DepartmentName : null,
             b.DepartmentId, b.CashierId,
-            b.Notes, b.IsActive,
+            b.Notes, b.CollectionReason, b.IsActive,
         }));
     }
 
@@ -101,6 +101,7 @@ public class ReceiptBookController : ControllerBase
             existing.DepartmentId = dto.DepartmentId;
             existing.CashierId = dto.CashierId;
             existing.Notes = dto.Notes;
+            existing.CollectionReason = dto.CollectionReason;
             existing.IsActive = dto.IsActive;
             existing.UpdatedAt = DateTime.Now;
             existing.UpdatedBy = uid.ToString();

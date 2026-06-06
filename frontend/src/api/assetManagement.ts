@@ -338,6 +338,108 @@ export const getAssetQrCode = async (assetId: string): Promise<AssetQrCodeDto | 
   }
 };
 
+// ---- Stocktake ----
+
+export interface AssetStocktakeItemDto {
+  id: string;
+  fixedAssetId: string;
+  assetCode?: string;
+  assetName?: string;
+  serialNumber?: string;
+  locationDescription?: string;
+  isFound: boolean;
+  conditionStatus: number; // 1=Good, 2=Degraded, 3=Broken
+  remark?: string;
+}
+
+export interface AssetStocktakeDto {
+  id: string;
+  stocktakeCode: string;
+  title: string;
+  stocktakeDate: string;
+  departmentId?: string;
+  departmentName?: string;
+  conductedById?: string;
+  approvedById?: string;
+  approvedAt?: string;
+  status: number; // 1=Draft, 2=InProgress, 3=Completed, 4=Approved
+  notes?: string;
+  totalItems: number;
+  foundCount: number;
+  missingCount: number;
+  items: AssetStocktakeItemDto[];
+  createdAt: string;
+}
+
+export interface CreateStocktakeItemDto {
+  fixedAssetId: string;
+  isFound?: boolean;
+  conditionStatus?: number;
+  remark?: string;
+}
+
+export interface CreateStocktakeDto {
+  title: string;
+  stocktakeDate: string;
+  departmentId?: string;
+  notes?: string;
+  items?: CreateStocktakeItemDto[];
+}
+
+export const getStocktakes = async (departmentId?: string, status?: number): Promise<AssetStocktakeDto[]> => {
+  try {
+    const r = await apiClient.get<AssetStocktakeDto[]>('/asset-management/stocktakes', { params: { departmentId, status } });
+    return r.data || [];
+  } catch { console.warn('Failed to fetch stocktakes'); return []; }
+};
+
+export const getStocktakeById = async (id: string): Promise<AssetStocktakeDto | null> => {
+  try {
+    const r = await apiClient.get<AssetStocktakeDto>(`/asset-management/stocktakes/${id}`);
+    return r.data;
+  } catch { return null; }
+};
+
+export const createStocktake = async (dto: CreateStocktakeDto): Promise<AssetStocktakeDto> => {
+  const r = await apiClient.post<AssetStocktakeDto>('/asset-management/stocktakes', dto);
+  return r.data;
+};
+
+export const completeStocktake = async (id: string): Promise<AssetStocktakeDto> => {
+  const r = await apiClient.put<AssetStocktakeDto>(`/asset-management/stocktakes/${id}/complete`);
+  return r.data;
+};
+
+export const approveStocktake = async (id: string): Promise<AssetStocktakeDto> => {
+  const r = await apiClient.put<AssetStocktakeDto>(`/asset-management/stocktakes/${id}/approve`);
+  return r.data;
+};
+
+export interface UpdateStocktakeItemDto {
+  isFound: boolean;
+  conditionStatus: number; // 1=Good, 2=Degraded, 3=Broken
+  remark?: string;
+}
+
+export const updateStocktakeItem = async (
+  stocktakeId: string, itemId: string, dto: UpdateStocktakeItemDto,
+): Promise<AssetStocktakeItemDto> => {
+  const r = await apiClient.put<AssetStocktakeItemDto>(
+    `/asset-management/stocktakes/${stocktakeId}/items/${itemId}`, dto,
+  );
+  return r.data;
+};
+
+export const printStocktake = async (id: string): Promise<void> => {
+  const r = await apiClient.get(`/asset-management/stocktakes/${id}/print`, { responseType: 'text' });
+  const html = r.data as string;
+  const win = window.open('', '_blank');
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+  }
+};
+
 // Dashboard
 export const getAssetDashboard = async (): Promise<AssetDashboardDto> => {
   try {

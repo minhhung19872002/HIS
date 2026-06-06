@@ -41,4 +41,13 @@ public interface IAssetManagementService
     Task<byte[]> PrintAssetReportAsync(int reportType, AssetReportFilterDto filter);
     Task<List<AssetReportTypeDto>> GetAssetReportTypesAsync();
     Task<AssetQrCodeDto> GetAssetQrCodeDataAsync(Guid assetId);
+
+    // Stocktake
+    Task<List<AssetStocktakeDto>> GetStocktakesAsync(Guid? departmentId, int? status);
+    Task<AssetStocktakeDto?> GetStocktakeByIdAsync(Guid id);
+    Task<AssetStocktakeDto> CreateStocktakeAsync(CreateAssetStocktakeDto dto, string userId);
+    Task<AssetStocktakeDto> CompleteStocktakeAsync(Guid id, string userId);
+    Task<AssetStocktakeDto> ApproveStocktakeAsync(Guid id, string userId);
+    Task<AssetStocktakeItemDto> UpdateStocktakeItemAsync(Guid stocktakeId, Guid itemId, UpdateAssetStocktakeItemDto dto, string userId);
+    Task<byte[]> PrintStocktakeAsync(Guid stocktakeId);
 }

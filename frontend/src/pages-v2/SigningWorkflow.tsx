@@ -5,7 +5,7 @@ import {
 } from '../api/signingWorkflow';
 import type { SigningRequestItem, SigningWorkflowStats } from '../api/signingWorkflow';
 import {
-  KpiStrip, TopTabs, DataTable, DrawerShell, DrSec, DrField, StatusBadge, Btn,
+  KpiStrip, TopTabs, DataTable, DrawerShell, DrSec, DrField, StatusBadge, Btn, Filter, Ico,
   type ColumnDef, type TopTab,
 } from './_v2kit';
 
@@ -23,12 +23,23 @@ const STATUS_LABEL: Record<number, { label: string; tone: 'warn' | 'ok' | 'crit'
   3: { label: 'Hủy',      tone: 'info' },
 };
 
+// Danh sách vai trò ký chuẩn để hiển thị trong dropdown filter
+const SIGNER_ROLE_OPTIONS = [
+  { v: 'KTV',        l: 'KTV xét nghiệm' },
+  { v: 'BacSi',      l: 'Bác sĩ' },
+  { v: 'TruongKhoa', l: 'Trưởng khoa' },
+  { v: 'GiamDoc',    l: 'Giám đốc / PGĐ' },
+  { v: 'DieuDuong',  l: 'Điều dưỡng' },
+  { v: 'Duoc',       l: 'Dược sĩ' },
+];
+
 const SigningWorkflowV2: React.FC = () => {
   const [tab, setTab] = useState<Tab>('pending');
   const [items, setItems] = useState<SigningRequestItem[]>([]);
   const [stats, setStats] = useState<SigningWorkflowStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<SigningRequestItem | null>(null);
+  const [fSignerRole, setFSignerRole] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -36,13 +47,14 @@ const SigningWorkflowV2: React.FC = () => {
       const fn = tab === 'pending' ? getPendingRequests
         : tab === 'submitted' ? getSubmittedRequests
         : getHistory;
-      const list = await fn();
+      const params = fSignerRole ? { signerRole: fSignerRole } : undefined;
+      const list = await fn(params);
       setItems(Array.isArray(list) ? list : []);
       const s = await getSigningStats().catch(() => null);
       setStats(s);
     } catch { setItems([]); }
     finally { setLoading(false); }
-  }, [tab]);
+  }, [tab, fSignerRole]);
   useEffect(() => { load(); }, [load]);
 
   const counts = useMemo(() => ({
@@ -70,7 +82,16 @@ const SigningWorkflowV2: React.FC = () => {
     { key: 'submittedByName', label: 'Người gửi',
       render: (r) => r.submittedByName },
     { key: 'assignedToName',  label: 'Người ký',
-      render: (r) => r.assignedToName },
+      render: (r) => (
+        <div>
+          <div>{r.assignedToName}</div>
+          {r.signerRole && (
+            <div style={{ fontSize: 10, color: 'var(--t-2)' }}>
+              {SIGNER_ROLE_OPTIONS.find((o) => o.v === r.signerRole)?.l || r.signerRole}
+            </div>
+          )}
+        </div>
+      ) },
     { key: 'createdAt',     label: 'Ngày tạo', mono: true,
       render: (r) => dayjs(r.createdAt).format('DD/MM HH:mm') },
     { key: 'status',        label: 'Trạng thái',
@@ -86,6 +107,17 @@ const SigningWorkflowV2: React.FC = () => {
 
       <div className="ab-tools">
         <TopTabs tab={tab} setTab={setTab} tabs={TABS} />
+        <Filter
+          value={fSignerRole}
+          onChange={(v) => setFSignerRole(v)}
+          options={SIGNER_ROLE_OPTIONS}
+          placeholder="▾ Vai trò người ký"
+        />
+        {fSignerRole && (
+          <Btn variant="ghost" onClick={() => setFSignerRole('')}>
+            <Ico name="x" size={12} /> Bỏ lọc
+          </Btn>
+        )}
         <span className="spacer" />
         <Btn variant="ghost" onClick={load}>Làm mới</Btn>
       </div>
@@ -115,7 +147,19 @@ const SigningWorkflowV2: React.FC = () => {
             </DrSec>
             <DrSec title="Quy trình">
               <DrField lbl="Người gửi">{detail.submittedByName}</DrField>
-              <DrField lbl="Người ký">{detail.assignedToName}</DrField>
+              <DrField lbl="Người ký">
+                {detail.assignedToName}
+                {detail.signerRole && (
+                  <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--t-2)' }}>
+                    ({SIGNER_ROLE_OPTIONS.find((o) => o.v === detail.signerRole)?.l || detail.signerRole})
+                  </span>
+                )}
+              </DrField>
+              {detail.signerRole && (
+                <DrField lbl="Vai trò ký">
+                  {SIGNER_ROLE_OPTIONS.find((o) => o.v === detail.signerRole)?.l || detail.signerRole}
+                </DrField>
+              )}
               <DrField lbl="Ngày tạo">{dayjs(detail.createdAt).format('DD/MM/YYYY HH:mm')}</DrField>
               {detail.signedAt && (
                 <DrField lbl="Ngày ký">{dayjs(detail.signedAt).format('DD/MM/YYYY HH:mm')}</DrField>

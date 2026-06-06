@@ -177,6 +177,11 @@ public static class DependencyInjection
         // Audit Logging (Level 6 security compliance)
         services.AddScoped<IAuditLogService, AuditLogService>();
 
+        // Tra cứu công khai HSBA đã ký số bằng CCCD + ngày sinh (không cần đăng nhập).
+        // IMemoryCache: lưu token tra cứu ngắn hạn + đếm rate-limit theo IP (AddMemoryCache idempotent).
+        services.AddMemoryCache();
+        services.AddScoped<IPublicEmrLookupService, PublicEmrLookupService>();
+
         // Security Compliance (Level 6 - access control matrix, sensitive data access reports)
         services.AddScoped<ISecurityService, SecurityService>();
 
@@ -250,6 +255,9 @@ public static class DependencyInjection
 
         // Signing Workflow (Trinh ky - NangCap10 EMR #44)
         services.AddScoped<ISigningWorkflowService, SigningWorkflowService>();
+
+        // Per-user settings (Prompt 11 Đợt 3: DefaultLabRole + generic settings)
+        services.AddScoped<IUserSettingsService, UserSettingsService>();
 
         // NangCap11: EMR Admin (cover types, signers, signing roles, document types, completeness, etc.)
         services.AddScoped<IEmrAdminService, EmrAdminService>();
@@ -434,6 +442,24 @@ public static class DependencyInjection
                 c.Timeout = zaloTimeout;
             }).AddPolicyHandler(circuitBreaker());
         }
+
+        // HĐĐT (E-invoice) — provider cắm-thay-được (IElectronicInvoiceProvider).
+        // Endpoint/tài khoản/mật khẩu/ký hiệu/mẫu số đọc từ config "EInvoice:*" (env, KHÔNG hardcode).
+        // Khi chưa cấu hình → provider.IsConfigured=false → BillingCompleteService fallback phát hành
+        // nội bộ (không vỡ luồng thu ngân). BaseUrl rỗng dùng placeholder chỉ để khởi tạo HttpClient
+        // (không bao giờ gọi tới khi IsConfigured=false).
+        var einvUrl = configuration["EInvoice:Vnpt:BaseUrl"];
+        if (string.IsNullOrWhiteSpace(einvUrl))
+            einvUrl = "https://einvoice-not-configured.invalid";
+        else
+            HIS.Application.Services.Nangcap23ConfigValidator.EnsureSafeUrl(einvUrl, "EInvoice:Vnpt:BaseUrl");
+        var einvTimeout = TimeSpan.FromSeconds(configuration.GetValue<int>("EInvoice:TimeoutSeconds", 30));
+        services.AddHttpClient<HIS.Application.Services.IElectronicInvoiceProvider,
+            HIS.Infrastructure.Services.External.VnptEInvoiceProvider>(c =>
+        {
+            c.BaseAddress = new Uri(einvUrl);
+            c.Timeout = einvTimeout;
+        });
 
         return services;
     }

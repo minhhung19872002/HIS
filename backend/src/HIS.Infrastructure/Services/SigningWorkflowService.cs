@@ -170,6 +170,9 @@ public class SigningWorkflowService : ISigningWorkflowService
         if (filter.Status.HasValue)
             query = query.Where(r => r.Status == filter.Status.Value);
 
+        if (!string.IsNullOrWhiteSpace(filter.SignerRole))
+            query = query.Where(r => r.SignerRole == filter.SignerRole);
+
         if (filter.FromDate.HasValue)
             query = query.Where(r => r.CreatedAt >= filter.FromDate.Value);
 
@@ -207,6 +210,7 @@ public class SigningWorkflowService : ISigningWorkflowService
             PatientId = entity.PatientId,
             PatientName = entity.PatientName,
             DepartmentName = entity.DepartmentName,
+            SignerRole = entity.SignerRole,
             CreatedAt = entity.CreatedAt,
         };
     }

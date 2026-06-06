@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import dayjs from 'dayjs';
-import { App as AntdApp } from 'antd';
-import { getEquipment } from '../api/equipment';
+import { App as AntdApp, Form, Input, DatePicker, Select } from 'antd';
+import { getEquipment, createMaintenanceRecord } from '../api/equipment';
 import type { EquipmentDto } from '../api/equipment';
-import { SimpleV2Page, StatusBadge, ActBtn, type ColumnDef, type StatusTab } from './_v2kit';
+import { SimpleV2Page, StatusBadge, ActBtn, ModalShell, Btn, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
 /* Trang thiết bị y tế v2 */
@@ -22,6 +22,8 @@ const fmtVND = (n?: number) => n != null ? `${n.toLocaleString('vi-VN')} ₫` : 
 
 const EquipmentV2: React.FC = () => {
   const { message } = AntdApp.useApp();
+  const [maintTarget, setMaintTarget] = useState<EquipmentDto | null>(null);
+  const [maintForm] = Form.useForm();
 
   const columns: ColumnDef<EquipmentDto>[] = [
     { key: 'code', label: 'Mã TB', mono: true, width: 130, render: (r) => r.equipmentCode },
@@ -80,6 +82,7 @@ const EquipmentV2: React.FC = () => {
   ];
 
   return (
+    <>
     <SimpleV2Page<EquipmentDto>
       title="Trang thiết bị y tế"
       load={async () => {
@@ -117,7 +120,7 @@ const EquipmentV2: React.FC = () => {
       rowActions={(r) => (
         <div className="ab-actions">
           <ActBtn ic="eye" title="Chi tiết" onClick={() => message.info(`Chi tiết ${r.equipmentCode}`)} />
-          <ActBtn ic="check" title="Lên lịch bảo trì" onClick={() => message.success('Đã lên lịch BT')} />
+          <ActBtn ic="check" title="Lên lịch bảo trì" onClick={() => { setMaintTarget(r); maintForm.resetFields(); }} />
         </div>
       )}
       drawer={(r) => <EquipmentDrawerBody r={r} />}
@@ -129,6 +132,59 @@ const EquipmentV2: React.FC = () => {
       )}
       drawerSub={(r) => `${r.manufacturer} · ${r.model} · ${r.departmentName}`}
     />
+
+    <ModalShell
+      open={!!maintTarget}
+      onClose={() => setMaintTarget(null)}
+      title={maintTarget ? `Lên lịch bảo trì: ${maintTarget.name}` : ''}
+      sub={maintTarget ? `${maintTarget.equipmentCode} · ${maintTarget.departmentName}` : ''}
+      size="md"
+      footer={<>
+        <Btn variant="ghost" onClick={() => setMaintTarget(null)}>Hủy</Btn>
+        <Btn variant="primary" onClick={async () => {
+          if (!maintTarget) return;
+          try {
+            const v = await maintForm.validateFields();
+            const scheduledIso = v.scheduledDate ? dayjs(v.scheduledDate as Parameters<typeof dayjs>[0]).toISOString() : undefined;
+            await createMaintenanceRecord({
+              equipmentId: maintTarget.id,
+              maintenanceType: (v.maintenanceType as string) || 'Preventive',
+              scheduledDate: scheduledIso,
+              performedDate: new Date().toISOString(),
+              description: (v.description as string) || '',
+              workPerformed: (v.description as string) || '',
+              afterStatus: maintTarget.operationalStatus,
+              nextMaintenanceDate: scheduledIso,
+              notes: v.notes as string | undefined,
+            });
+            message.success(`Đã lên lịch bảo trì cho ${maintTarget.name}`);
+            setMaintTarget(null);
+          } catch { message.warning('Lên lịch bảo trì thất bại'); }
+        }}>Lưu lịch</Btn>
+      </>}
+    >
+      {maintTarget && (
+        <Form form={maintForm} layout="vertical">
+          <Form.Item name="maintenanceType" label="Loại bảo trì" initialValue="Preventive">
+            <Select options={[
+              { value: 'Preventive', label: 'Bảo trì định kỳ (Preventive)' },
+              { value: 'Corrective', label: 'Bảo trì khắc phục (Corrective)' },
+              { value: 'Calibration', label: 'Hiệu chuẩn (Calibration)' },
+            ]} />
+          </Form.Item>
+          <Form.Item name="scheduledDate" label="Ngày bảo trì dự kiến" rules={[{ required: true }]}>
+            <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} disabledDate={(d) => d.isBefore(dayjs(), 'day')} />
+          </Form.Item>
+          <Form.Item name="description" label="Mô tả công việc">
+            <Input.TextArea rows={3} placeholder="Mô tả nội dung bảo trì cần thực hiện…" />
+          </Form.Item>
+          <Form.Item name="notes" label="Ghi chú">
+            <Input placeholder="Ghi chú thêm" />
+          </Form.Item>
+        </Form>
+      )}
+    </ModalShell>
+    </>
   );
 };
 

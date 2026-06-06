@@ -146,3 +146,23 @@ public class EmployeeInsuranceInfo : BaseEntity
     public decimal MonthlyEmployerContribution { get; set; }
     public string? Note { get; set; }
 }
+
+/// <summary>
+/// Tab Đoàn thể — khai báo thành viên Công đoàn / Đoàn TNCS / Đảng / các tổ chức chính trị khác.
+/// Liên kết với hồ sơ NV (UserId) và module Payroll để đóng đoàn phí.
+/// </summary>
+public class EmployeeUnionMembership : BaseEntity
+{
+    public Guid UserId { get; set; }
+    public virtual User? User { get; set; }
+
+    /// <summary>Tên tổ chức: CongDoan / DoanTNCS / DangCSVN / HoiPhuNu / HoiNongDan / Khac</summary>
+    public string OrganizationType { get; set; } = "CongDoan";
+
+    public string? MemberCode { get; set; }           // Mã hội viên / đoàn viên
+    public DateTime? JoinDate { get; set; }           // Ngày tham gia
+    public string? Position { get; set; }             // Chức vụ trong tổ chức (nếu có)
+    public decimal? MonthlyFee { get; set; }          // Đoàn phí / hội phí hàng tháng
+    public bool IsActive { get; set; } = true;
+    public string? Note { get; set; }
+}

@@ -221,4 +221,60 @@ public class AssetManagementController : ControllerBase
             return NotFound(ex.Message);
         }
     }
+
+    // ===== STOCKTAKE =====
+
+    [HttpGet("stocktakes")]
+    public async Task<ActionResult<List<AssetStocktakeDto>>> GetStocktakes(
+        [FromQuery] Guid? departmentId = null, [FromQuery] int? status = null)
+        => Ok(await _service.GetStocktakesAsync(departmentId, status));
+
+    [HttpGet("stocktakes/{id}")]
+    public async Task<ActionResult<AssetStocktakeDto>> GetStocktake(Guid id)
+    {
+        var result = await _service.GetStocktakeByIdAsync(id);
+        if (result == null) return NotFound();
+        return Ok(result);
+    }
+
+    [HttpPost("stocktakes")]
+    public async Task<ActionResult<AssetStocktakeDto>> CreateStocktake([FromBody] CreateAssetStocktakeDto dto)
+        => Ok(await _service.CreateStocktakeAsync(dto, GetUserId()));
+
+    [HttpPut("stocktakes/{id}/complete")]
+    public async Task<ActionResult<AssetStocktakeDto>> CompleteStocktake(Guid id)
+    {
+        try { return Ok(await _service.CompleteStocktakeAsync(id, GetUserId())); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    [HttpPut("stocktakes/{id}/approve")]
+    [Authorize(Roles = "Admin,AssetManager")]
+    public async Task<ActionResult<AssetStocktakeDto>> ApproveStocktake(Guid id)
+    {
+        try { return Ok(await _service.ApproveStocktakeAsync(id, GetUserId())); }
+        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    /// <summary>Cập nhật 1 dòng tài sản trong phiếu kiểm kê (IsFound/ConditionStatus/Remark). Chỉ khi phiếu chưa duyệt.</summary>
+    [HttpPut("stocktakes/{id}/items/{itemId}")]
+    public async Task<ActionResult<AssetStocktakeItemDto>> UpdateStocktakeItem(
+        Guid id, Guid itemId, [FromBody] UpdateAssetStocktakeItemDto dto)
+    {
+        try { return Ok(await _service.UpdateStocktakeItemAsync(id, itemId, dto, GetUserId())); }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    /// <summary>In phiếu kiểm kê tài sản theo stocktakeId — HTML report.</summary>
+    [HttpGet("stocktakes/{id}/print")]
+    public async Task<ActionResult> PrintStocktake(Guid id)
+    {
+        try
+        {
+            var bytes = await _service.PrintStocktakeAsync(id);
+            return File(bytes, "text/html; charset=utf-8");
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+    }
 }

@@ -18,6 +18,7 @@ export interface SigningRequestItem {
   patientId?: string;
   patientName?: string;
   departmentName?: string;
+  signerRole?: string; // Vai trò người ký
   createdAt: string;
 }
 

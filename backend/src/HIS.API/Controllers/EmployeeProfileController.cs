@@ -220,6 +220,31 @@ public class EmployeeProfileController : ControllerBase
         return Ok(new { success = true });
     }
 
+    // ===== Union Membership (Đoàn thể) =====
+    [HttpGet("{userId:guid}/union")]
+    public async Task<IActionResult> ListUnion(Guid userId)
+        => Ok(await _db.EmployeeUnionMemberships.Where(a => a.UserId == userId).ToListAsync());
+
+    [HttpPost("{userId:guid}/union")]
+    public async Task<IActionResult> SaveUnion(Guid userId, [FromBody] EmployeeUnionMembership dto)
+    {
+        if (dto.Id == Guid.Empty) dto.Id = Guid.NewGuid();
+        dto.UserId = userId;
+        if (await _db.EmployeeUnionMemberships.AnyAsync(a => a.Id == dto.Id))
+            _db.EmployeeUnionMemberships.Update(dto);
+        else _db.EmployeeUnionMemberships.Add(dto);
+        await _db.SaveChangesAsync();
+        return Ok(dto);
+    }
+
+    [HttpDelete("union/{id:guid}")]
+    public async Task<IActionResult> DeleteUnion(Guid id)
+    {
+        var e = await _db.EmployeeUnionMemberships.FindAsync(id);
+        if (e != null) { e.IsDeleted = true; await _db.SaveChangesAsync(); }
+        return Ok(new { success = true });
+    }
+
     // ===== Insurance =====
     [HttpGet("{userId:guid}/insurance")]
     public async Task<IActionResult> GetInsurance(Guid userId)

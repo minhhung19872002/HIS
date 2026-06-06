@@ -93,9 +93,11 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<EmployeeBankAccount> EmployeeBankAccounts => Set<EmployeeBankAccount>();
     public DbSet<EmployeeContract> EmployeeContracts => Set<EmployeeContract>();
     public DbSet<EmployeeInsuranceInfo> EmployeeInsuranceInfos => Set<EmployeeInsuranceInfo>();
+    public DbSet<EmployeeUnionMembership> EmployeeUnionMemberships => Set<EmployeeUnionMembership>();
     public DbSet<LabBook> LabBooks => Set<LabBook>();
     public DbSet<LabBookGroup> LabBookGroups => Set<LabBookGroup>();
     public DbSet<LabChemical> LabChemicals => Set<LabChemical>();
+    public DbSet<SampleAppointment> SampleAppointments => Set<SampleAppointment>();
 
     // Hàng đợi
     public DbSet<Queue> Queues => Set<Queue>();
@@ -459,6 +461,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<RadiologyReportTemplate> RadiologyReportTemplates => Set<RadiologyReportTemplate>();
     // G-34c: ICD → template mapping
     public DbSet<RisIcdTemplateMapping> RisIcdTemplateMappings => Set<RisIcdTemplateMapping>();
+    // Prompt 8 Đợt 2: CĐHA dịch vụ ↔ mẫu tường trình PTTT
+    public DbSet<RisSurgeryServiceMapping> RisSurgeryServiceMappings => Set<RisSurgeryServiceMapping>();
 
     // N1.13: Receipt book (sổ biên lai khai báo)
     public DbSet<ReceiptBook> ReceiptBooks => Set<ReceiptBook>();
@@ -496,6 +500,9 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
 
     // Trình ký (Signing Workflow)
     public DbSet<SigningRequest> SigningRequests => Set<SigningRequest>();
+
+    // Per-user settings (Prompt 11 Đợt 3: DefaultLabRole + future settings)
+    public DbSet<UserSetting> UserSettings => Set<UserSetting>();
 
     // NangCap11: EMR Admin Catalogs
     public DbSet<EmrCoverType> EmrCoverTypes => Set<EmrCoverType>();
@@ -627,6 +634,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<AssetHandover> AssetHandovers => Set<AssetHandover>();
     public DbSet<AssetDisposal> AssetDisposals => Set<AssetDisposal>();
     public DbSet<AssetDepreciation> AssetDepreciations => Set<AssetDepreciation>();
+    public DbSet<AssetStocktake> AssetStocktakes => Set<AssetStocktake>();
+    public DbSet<AssetStocktakeItem> AssetStocktakeItems => Set<AssetStocktakeItem>();
 
     // NangCap17: Dao tao, Chi dao tuyen, NCKH
     public DbSet<TrainingClass> TrainingClasses => Set<TrainingClass>();
@@ -988,6 +997,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<EmployeeFamily>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<EmployeeInsuranceInfo>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<EmployeeRewardDiscipline>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<EmployeeUnionMembership>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Examination>().HasOne(e => e.Doctor).WithMany().HasForeignKey(e => e.DoctorId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<ExaminationActivityLog>().HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<ExaminationTemplate>().HasOne(e => e.CreatedByUser).WithMany().HasForeignKey(e => e.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);

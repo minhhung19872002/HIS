@@ -49,5 +49,12 @@ public class ReceiptBook : BaseEntity
     public Guid? CashierId { get; set; } // Thủ quỹ được gán
 
     public string? Notes { get; set; }
+
+    /// <summary>
+    /// Lý do thu — phân biệt mục đích thu tiền rõ ràng hơn Notes chung.
+    /// VD: "Thu viện phí khám chữa bệnh", "Thu đặt cọc dịch vụ", "Thu khác".
+    /// </summary>
+    public string? CollectionReason { get; set; }
+
     public bool IsActive { get; set; } = true;
 }

@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode } from '../api/assetManagement';
-import type { FixedAssetDto, AssetDashboardDto, AssetQrCodeDto } from '../api/assetManagement';
+import { Form, Input, DatePicker, Tabs, Select, Checkbox } from 'antd';
+import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode, getStocktakes, createStocktake, completeStocktake, approveStocktake, updateStocktakeItem, printStocktake } from '../api/assetManagement';
+import type { FixedAssetDto, AssetDashboardDto, AssetQrCodeDto, AssetStocktakeDto, AssetStocktakeItemDto } from '../api/assetManagement';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal, ModalShell,
   DrawerShell, DrSec, DrField, tk, ti, te,
@@ -44,7 +45,10 @@ const sKey = (n: number): SKey =>
 const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 const PER = 18;
 
+const STOCKTAKE_STATUS: Record<number, string> = { 1: 'Nháp', 2: 'Đang kiểm', 3: 'Đã kiểm', 4: 'Đã duyệt' };
+
 const AssetManagementV2: React.FC = () => {
+  const [moduleTab, setModuleTab] = useState<'assets' | 'stocktake'>('assets');
   const [items, setItems] = useState<FixedAssetDto[]>([]);
   const [dash, setDash] = useState<AssetDashboardDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +60,15 @@ const AssetManagementV2: React.FC = () => {
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
   const [qrData, setQrData] = useState<AssetQrCodeDto | null>(null);
+  // Stocktake state
+  const [stocktakes, setStocktakes] = useState<AssetStocktakeDto[]>([]);
+  const [stocktakeDetail, setStocktakeDetail] = useState<AssetStocktakeDto | null>(null);
+  const [newStocktakeOpen, setNewStocktakeOpen] = useState(false);
+  const [stocktakeForm] = Form.useForm();
+  // Stocktake item inline edit
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editItemForm] = Form.useForm();
+  const [itemSaving, setItemSaving] = useState(false);
 
   const openCreate = () => { setCrudInit({ status: 0, depreciationMethod: 1, originalValue: 0, currentValue: 0, usefulLifeMonths: 60 }); setCrudOpen(true); };
   const openEdit = (r: FixedAssetDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
@@ -67,12 +80,14 @@ const AssetManagementV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const [r, d] = await Promise.all([
+      const [r, d, sk] = await Promise.all([
         getAssets({ keyword: search, pageSize: 200 }),
         getAssetDashboard(),
+        getStocktakes(),
       ]);
       setItems(r.items || []);
       setDash(d);
+      setStocktakes(sk);
     } catch { ti('Không tải được tài sản'); }
     finally { setLoading(false); }
   };
@@ -145,24 +160,81 @@ const AssetManagementV2: React.FC = () => {
       ]} />
 
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
-        <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
-          placeholder="Tìm mã TS / tên / serial…" />
-        <Filter value={fDept} onChange={setFDept} options={depts} placeholder="▾ Khoa" />
-        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFDept(''); setStab('all'); }}>Bỏ lọc</Btn>
+        <Tabs
+          activeKey={moduleTab}
+          onChange={(k) => setModuleTab(k as 'assets' | 'stocktake')}
+          size="small"
+          style={{ marginBottom: 0 }}
+          items={[
+            { key: 'assets', label: 'Danh sách tài sản' },
+            { key: 'stocktake', label: `Kiểm kê (${stocktakes.length})` },
+          ]}
+        />
         <span className="spacer" />
         <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
-        <Btn variant="ghost" icon="activity" onClick={() => tk('Tính khấu hao — xem báo cáo khấu hao')}>Khấu hao</Btn>
-        <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm TS</Btn>
+        {moduleTab === 'assets' && <>
+          <Btn variant="ghost" icon="activity" onClick={() => tk('Tính khấu hao — xem báo cáo khấu hao')}>Khấu hao</Btn>
+          <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm TS</Btn>
+        </>}
+        {moduleTab === 'stocktake' && (
+          <Btn variant="primary" icon="plus" onClick={() => setNewStocktakeOpen(true)}>Tạo phiếu kiểm kê</Btn>
+        )}
       </div>
 
-      <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
+      {moduleTab === 'assets' && <>
+        <div style={{ display: 'flex', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--line)' }}>
+          <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
+            placeholder="Tìm mã TS / tên / serial…" />
+          <Filter value={fDept} onChange={setFDept} options={depts} placeholder="▾ Khoa" />
+          <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFDept(''); setStab('all'); }}>Bỏ lọc</Btn>
+        </div>
+        <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
+        <DataTable<FixedAssetDto>
+          columns={cols} data={paged} rowKey={(r) => r.id}
+          onRowClick={setSel} actions={actions}
+          empty={loading ? 'Đang tải…' : 'Chưa có tài sản'}
+        />
+        <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
+      </>}
 
-      <DataTable<FixedAssetDto>
-        columns={cols} data={paged} rowKey={(r) => r.id}
-        onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có tài sản'}
-      />
-      <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
+      {moduleTab === 'stocktake' && (
+        <DataTable<AssetStocktakeDto>
+          columns={[
+            { key: 'code', label: 'Mã phiếu', code: true, render: (r) => r.stocktakeCode },
+            { key: 'title', label: 'Tiêu đề', render: (r) => r.title },
+            { key: 'date', label: 'Ngày KK', mono: true, render: (r) => dayjs(r.stocktakeDate).format('DD/MM/YYYY') },
+            { key: 'dept', label: 'Khoa', render: (r) => r.departmentName || 'Toàn viện' },
+            { key: 'items', label: 'Số TS', mono: true, render: (r) => r.totalItems },
+            { key: 'found', label: 'Có mặt', mono: true, render: (r) => <span style={{ color: 'var(--s-ok)' }}>{r.foundCount}</span> },
+            { key: 'miss', label: 'Thiếu', mono: true, render: (r) => r.missingCount > 0 ? <span style={{ color: 'var(--s-crit)' }}>{r.missingCount}</span> : '—' },
+            { key: 'st', label: 'Trạng thái', render: (r) => {
+              const tone = r.status === 4 ? 'ok' : r.status === 3 ? 'info' : r.status === 2 ? 'warn' : undefined;
+              return <StatusBadge tone={tone} dot>{STOCKTAKE_STATUS[r.status] || '—'}</StatusBadge>;
+            } },
+          ] as ColumnDef<AssetStocktakeDto>[]}
+          data={stocktakes}
+          rowKey={(r) => r.id}
+          onRowClick={setStocktakeDetail}
+          actions={(r) => (
+            <div className="ab-actions">
+              <ActBtn ic="eye" title="Chi tiết" onClick={() => setStocktakeDetail(r)} />
+              {r.status === 1 && (
+                <ActBtn ic="check" title="Hoàn thành kiểm kê" onClick={async () => {
+                  try { const u = await completeStocktake(r.id); setStocktakes((p) => p.map((x) => x.id === r.id ? u : x)); tk('Đã hoàn thành kiểm kê'); }
+                  catch { te('Lỗi khi hoàn thành kiểm kê'); }
+                }} />
+              )}
+              {r.status === 3 && (
+                <ActBtn ic="check" title="Duyệt phiếu" onClick={async () => {
+                  try { const u = await approveStocktake(r.id); setStocktakes((p) => p.map((x) => x.id === r.id ? u : x)); tk('Đã duyệt phiếu kiểm kê'); }
+                  catch { te('Lỗi khi duyệt phiếu'); }
+                }} />
+              )}
+            </div>
+          )}
+          empty={loading ? 'Đang tải…' : 'Chưa có phiếu kiểm kê'}
+        />
+      )}
 
       <DrawerShell
         open={!!sel}
@@ -221,6 +293,202 @@ const AssetManagementV2: React.FC = () => {
           load();
         }}
       />
+
+      {/* Stocktake detail drawer */}
+      <DrawerShell
+        open={!!stocktakeDetail}
+        onClose={() => { setStocktakeDetail(null); setEditingItemId(null); }}
+        size="lg"
+        title={stocktakeDetail ? `Phiếu ${stocktakeDetail.stocktakeCode}` : ''}
+        sub={stocktakeDetail ? `${stocktakeDetail.title} · ${stocktakeDetail.departmentName || 'Toàn viện'}` : ''}
+        footer={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Btn variant="ghost" onClick={() => { setStocktakeDetail(null); setEditingItemId(null); }}>Đóng</Btn>
+            {stocktakeDetail && (
+              <Btn icon="printer" onClick={async () => {
+                try { await printStocktake(stocktakeDetail.id); }
+                catch { te('Không thể in phiếu kiểm kê'); }
+              }}>In phiếu</Btn>
+            )}
+          </div>
+        }
+      >
+        {stocktakeDetail && <>
+          <DrSec title="Thông tin phiếu">
+            <DrField lbl="Mã phiếu"><span style={{ fontFamily: 'var(--font-mono)' }}>{stocktakeDetail.stocktakeCode}</span></DrField>
+            <DrField lbl="Tiêu đề">{stocktakeDetail.title}</DrField>
+            <DrField lbl="Ngày kiểm kê">{dayjs(stocktakeDetail.stocktakeDate).format('DD/MM/YYYY')}</DrField>
+            <DrField lbl="Khoa">{stocktakeDetail.departmentName || 'Toàn viện'}</DrField>
+            <DrField lbl="Trạng thái">
+              <StatusBadge tone={stocktakeDetail.status === 4 ? 'ok' : stocktakeDetail.status === 3 ? 'info' : 'warn'} dot>
+                {STOCKTAKE_STATUS[stocktakeDetail.status]}
+              </StatusBadge>
+            </DrField>
+            <DrField lbl="Tổng TS"><span style={{ fontFamily: 'var(--font-mono)' }}>{stocktakeDetail.totalItems}</span></DrField>
+            <DrField lbl="Có mặt"><span style={{ color: 'var(--s-ok)', fontFamily: 'var(--font-mono)' }}>{stocktakeDetail.foundCount}</span></DrField>
+            {stocktakeDetail.missingCount > 0 && (
+              <DrField lbl="Thiếu"><span style={{ color: 'var(--s-crit)', fontFamily: 'var(--font-mono)' }}>{stocktakeDetail.missingCount}</span></DrField>
+            )}
+            {stocktakeDetail.notes && <DrField lbl="Ghi chú">{stocktakeDetail.notes}</DrField>}
+          </DrSec>
+          <DrSec title={`Danh sách tài sản (${stocktakeDetail.items.length})${stocktakeDetail.status < 4 ? ' — click dòng để chỉnh sửa' : ''}`}>
+            <table className="ab-tbl">
+              <thead>
+                <tr>
+                  <th>Mã TS</th><th>Tên</th><th>Serial</th><th>Vị trí</th>
+                  <th>Có mặt</th><th>Tình trạng</th><th>Ghi chú</th>
+                  {stocktakeDetail.status < 4 && <th style={{ width: 60 }}></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {stocktakeDetail.items.map((it) => {
+                  const isEditing = editingItemId === it.id;
+                  if (isEditing) {
+                    return (
+                      <tr key={it.id} style={{ background: 'var(--d-2)' }}>
+                        <td className="mono">{it.assetCode}</td>
+                        <td>{it.assetName}</td>
+                        <td className="mono">{it.serialNumber || '—'}</td>
+                        <td>{it.locationDescription || '—'}</td>
+                        <td className="center">
+                          <Checkbox
+                            defaultChecked={it.isFound}
+                            onChange={(e) => editItemForm.setFieldValue('isFound', e.target.checked)}
+                          />
+                        </td>
+                        <td>
+                          <Select
+                            defaultValue={it.conditionStatus}
+                            size="small"
+                            style={{ width: 100 }}
+                            onChange={(v) => editItemForm.setFieldValue('conditionStatus', v)}
+                            options={[
+                              { value: 1, label: 'Tốt' },
+                              { value: 2, label: 'Xuống cấp' },
+                              { value: 3, label: 'Hỏng' },
+                            ]}
+                          />
+                        </td>
+                        <td>
+                          <Input
+                            size="small"
+                            defaultValue={it.remark || ''}
+                            onChange={(e) => editItemForm.setFieldValue('remark', e.target.value)}
+                            placeholder="Ghi chú…"
+                          />
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <Btn
+                              variant="primary"
+                              style={{ padding: '2px 8px', fontSize: 12 }}
+                              disabled={itemSaving}
+                              onClick={async () => {
+                                setItemSaving(true);
+                                try {
+                                  const vals = editItemForm.getFieldsValue() as { isFound?: boolean; conditionStatus?: number; remark?: string };
+                                  const updated: AssetStocktakeItemDto = await updateStocktakeItem(
+                                    stocktakeDetail.id, it.id,
+                                    {
+                                      isFound: vals.isFound ?? it.isFound,
+                                      conditionStatus: vals.conditionStatus ?? it.conditionStatus,
+                                      remark: vals.remark ?? it.remark,
+                                    },
+                                  );
+                                  // Update local state
+                                  setStocktakeDetail((prev) => prev ? {
+                                    ...prev,
+                                    items: prev.items.map((x) => x.id === it.id ? { ...x, ...updated } : x),
+                                    foundCount: prev.items.map((x) => x.id === it.id ? { ...x, ...updated } : x).filter((x) => x.isFound).length,
+                                    missingCount: prev.items.map((x) => x.id === it.id ? { ...x, ...updated } : x).filter((x) => !x.isFound).length,
+                                  } : prev);
+                                  setEditingItemId(null);
+                                  tk('Đã cập nhật');
+                                } catch { te('Cập nhật thất bại'); }
+                                finally { setItemSaving(false); }
+                              }}
+                            >Lưu</Btn>
+                            <Btn variant="ghost" style={{ padding: '2px 8px', fontSize: 12 }} onClick={() => setEditingItemId(null)}>Hủy</Btn>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return (
+                    <tr
+                      key={it.id}
+                      style={{ cursor: stocktakeDetail.status < 4 ? 'pointer' : undefined }}
+                      onClick={() => {
+                        if (stocktakeDetail.status < 4) {
+                          editItemForm.setFieldsValue({ isFound: it.isFound, conditionStatus: it.conditionStatus, remark: it.remark });
+                          setEditingItemId(it.id);
+                        }
+                      }}
+                    >
+                      <td className="mono">{it.assetCode}</td>
+                      <td>{it.assetName}</td>
+                      <td className="mono">{it.serialNumber || '—'}</td>
+                      <td>{it.locationDescription || '—'}</td>
+                      <td>{it.isFound ? <span style={{ color: 'var(--s-ok)' }}>Có</span> : <span style={{ color: 'var(--s-crit)' }}>Thiếu</span>}</td>
+                      <td>{it.conditionStatus === 1 ? 'Tốt' : it.conditionStatus === 2 ? 'Xuống cấp' : 'Hỏng'}</td>
+                      <td>{it.remark || '—'}</td>
+                      {stocktakeDetail.status < 4 && <td style={{ color: 'var(--t-2)', fontSize: 11 }}>Sửa</td>}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {/* Hidden form used only for holding field values during inline edit */}
+            <Form form={editItemForm} style={{ display: 'none' }}>
+              <Form.Item name="isFound" />
+              <Form.Item name="conditionStatus" />
+              <Form.Item name="remark" />
+            </Form>
+          </DrSec>
+        </>}
+      </DrawerShell>
+
+      {/* Tạo phiếu kiểm kê */}
+      <ModalShell
+        open={newStocktakeOpen}
+        onClose={() => setNewStocktakeOpen(false)}
+        title="Tạo phiếu kiểm kê tài sản"
+        size="md"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setNewStocktakeOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={async () => {
+            try {
+              const v = await stocktakeForm.validateFields();
+              const dto = {
+                title: v.title as string,
+                stocktakeDate: v.stocktakeDate ? dayjs(v.stocktakeDate as Parameters<typeof dayjs>[0]).format('YYYY-MM-DD') : new Date().toISOString().slice(0, 10),
+                notes: v.notes as string | undefined,
+                items: [],
+              };
+              const result = await createStocktake(dto);
+              setStocktakes((p) => [result, ...p]);
+              tk(`Đã tạo phiếu ${result.stocktakeCode} — ${result.totalItems} tài sản được tự động nạp`);
+              setNewStocktakeOpen(false);
+              stocktakeForm.resetFields();
+            } catch { te('Tạo phiếu kiểm kê thất bại'); }
+          }}>Tạo phiếu</Btn>
+        </>}
+      >
+        <Form form={stocktakeForm} layout="vertical">
+          <Form.Item name="title" label="Tiêu đề phiếu" rules={[{ required: true }]}>
+            <Input placeholder="VD: Kiểm kê quý 2/2026 — Khoa Nội" />
+          </Form.Item>
+          <Form.Item name="stocktakeDate" label="Ngày kiểm kê" rules={[{ required: true }]}>
+            <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="notes" label="Ghi chú">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <p style={{ fontSize: 12, color: 'var(--t-2)' }}>
+            Hệ thống sẽ tự động nạp toàn bộ tài sản cố định hiện có vào phiếu kiểm kê. Sau khi tạo, bạn có thể cập nhật trạng thái từng tài sản.
+          </p>
+        </Form>
+      </ModalShell>
 
       <ModalShell
         open={!!qrData}
