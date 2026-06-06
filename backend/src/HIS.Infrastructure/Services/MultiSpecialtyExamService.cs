@@ -51,8 +51,10 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
         _db.MedicalRecords.Add(record);
 
         var examinations = new List<Examination>();
+        // CreatedAt lưu UTC → "hôm nay" tính theo ngày VN (fix lệch khung 00h–07h / 17h–24h tùy env).
+        var (qFromUtc, qToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
         var queueBase = await _db.Examinations
-            .Where(e => e.CreatedAt.Date == DateTime.Today)
+            .Where(e => e.CreatedAt >= qFromUtc && e.CreatedAt < qToUtc)
             .MaxAsync(e => (int?)e.QueueNumber) ?? 0;
 
         for (int i = 0; i < rooms.Count; i++)
@@ -108,8 +110,10 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
         var room = await _db.Rooms.FindAsync(dto.RoomId)
             ?? throw new KeyNotFoundException("Phòng khám không tồn tại");
 
+        // CreatedAt lưu UTC → "hôm nay" tính theo ngày VN (đồng bộ với CreateMultiSpecialtyExam).
+        var (qFromUtc, qToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
         var queueBase = await _db.Examinations
-            .Where(e => e.CreatedAt.Date == DateTime.Today)
+            .Where(e => e.CreatedAt >= qFromUtc && e.CreatedAt < qToUtc)
             .MaxAsync(e => (int?)e.QueueNumber) ?? 0;
 
         var child = new Examination

@@ -558,9 +558,10 @@ public partial class ReceptionCompleteService {
             });
         }
 
-        // Check recent visit
+        // Check recent visit — AdmissionDate ghi DateTime.Now → DayRangeUtc tránh lệch UTC 00h-07h VN.
+        var (rvFromUtc, rvToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
         var recentVisit = await _context.MedicalRecords
-            .Where(m => m.PatientId == patientId && m.AdmissionDate.Date == DateTime.Today)
+            .Where(m => m.PatientId == patientId && m.AdmissionDate >= rvFromUtc && m.AdmissionDate < rvToUtc)
             .AnyAsync();
 
         if (recentVisit)

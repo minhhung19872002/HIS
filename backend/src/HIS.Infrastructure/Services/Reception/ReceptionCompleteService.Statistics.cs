@@ -60,7 +60,9 @@ public partial class ReceptionCompleteService {
 
     public async Task<QueueDailyStatisticsDto> GetDailyStatisticsAsync(DateTime date, Guid? departmentId)
     {
-        var query = _context.QueueTickets.Where(t => t.IssueDate.Date == date.Date);
+        // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
+        var (dsFromUtc, dsToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
+        var query = _context.QueueTickets.Where(t => t.IssueDate >= dsFromUtc && t.IssueDate < dsToUtc);
 
         if (departmentId.HasValue)
         {

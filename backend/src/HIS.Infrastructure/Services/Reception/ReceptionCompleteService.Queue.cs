@@ -142,11 +142,14 @@ public partial class ReceptionCompleteService {
 
     public async Task<List<AdmissionDto>> GetTodayAdmissionsAsync(Guid? roomId, DateTime date)
     {
+        // CreatedAt lưu UTC; date là ngày local VN từ FE → so theo khoảng UTC của trọn ngày VN.
+        // (Fix bug bảng tiếp đón rỗng khung 00h–07h sáng — xem HIS.Core.Common.VnTime.)
+        var (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
         var query = _context.MedicalRecords
             .Include(m => m.Patient)
             .Include(m => m.Room)
             .ThenInclude(r => r!.Department)
-            .Where(m => m.CreatedAt.Date == date.Date);
+            .Where(m => m.CreatedAt >= fromUtc && m.CreatedAt < toUtc);
 
         if (roomId.HasValue)
         {
@@ -156,9 +159,11 @@ public partial class ReceptionCompleteService {
         var records = await query.OrderByDescending(m => m.CreatedAt).ToListAsync();
 
         // Load today's queue tickets to map actual queue numbers
+        // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để so sánh đúng ngày VN.
+        var (qtFromUtc164, qtToUtc164) = HIS.Core.Common.VnTime.DayRangeUtc(date);
         var patientIds = records.Where(r => r.PatientId != Guid.Empty).Select(r => r.PatientId).Distinct().ToList();
         var todayTickets = await _context.QueueTickets
-            .Where(t => t.IssueDate.Date == date.Date && t.PatientId.HasValue && patientIds.Contains(t.PatientId.Value))
+            .Where(t => t.IssueDate >= qtFromUtc164 && t.IssueDate < qtToUtc164 && t.PatientId.HasValue && patientIds.Contains(t.PatientId.Value))
             .ToListAsync();
 
         // Build lookup: PatientId+RoomId → latest ticket
@@ -259,7 +264,8 @@ public partial class ReceptionCompleteService {
 
         var kw = keyword.Trim().ToLower();
         var pattern = $"%{kw}%";
-        var today = DateTime.Today;
+        var today = HIS.Core.Common.VnTime.TodayVn;
+        var (todayFromUtc, todayToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(today);
 
         // Search across all recent medical records (not just today) so the
         // reception search bar can find historical patients. The
@@ -281,9 +287,10 @@ public partial class ReceptionCompleteService {
             .ToListAsync();
 
         // BUG-017: Load queue tickets to map actual queue numbers (same as GetTodayAdmissionsAsync)
+        // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để so sánh đúng ngày VN.
         var patientIds = records.Where(r => r.PatientId != Guid.Empty).Select(r => r.PatientId).Distinct().ToList();
         var todayTickets = await _context.QueueTickets
-            .Where(t => t.IssueDate.Date == today && t.PatientId.HasValue && patientIds.Contains(t.PatientId.Value))
+            .Where(t => t.IssueDate >= todayFromUtc && t.IssueDate < todayToUtc && t.PatientId.HasValue && patientIds.Contains(t.PatientId.Value))
             .ToListAsync();
         var ticketLookup = todayTickets
             .GroupBy(t => new { t.PatientId, t.RoomId })
@@ -301,7 +308,8 @@ public partial class ReceptionCompleteService {
 
     public async Task<QueueTicketDto> IssueQueueTicketAsync(IssueQueueTicketDto dto)
     {
-        var today = DateTime.Today;
+        var today = HIS.Core.Common.VnTime.TodayVn; // Local VN date — dùng cho reset daily
+        var (iqFromUtc, iqToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(today);
 
         // Get or create queue config
         var config = await _context.QueueConfigurations
@@ -343,10 +351,11 @@ public partial class ReceptionCompleteService {
         var room = await _roomRepo.GetByIdAsync(dto.RoomId);
 
         // Check duplicate ticket: same patient, same room, same day
+        // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để so sánh đúng ngày VN.
         var existingTicket = await _context.QueueTickets
             .FirstOrDefaultAsync(t => t.PatientId == dto.PatientId
                 && t.RoomId == dto.RoomId
-                && t.IssueDate.Date == today
+                && t.IssueDate >= iqFromUtc && t.IssueDate < iqToUtc
                 && t.Status < 2); // Waiting or InProgress
         if (existingTicket != null)
             throw new Exception($"Bệnh nhân đã có số thứ tự {existingTicket.TicketNumber} tại phòng này hôm nay");
@@ -356,14 +365,14 @@ public partial class ReceptionCompleteService {
             Id = Guid.NewGuid(),
             TicketNumber = $"{config.Prefix}{nextNumber:D3}",
             QueueNumber = nextNumber,
-            IssueDate = DateTime.Now,
+            IssueDate = DateTime.UtcNow, // Chuẩn hóa UTC — query dùng DayRangeUtc để so sánh đúng ngày VN
             QueueType = dto.QueueType,
             Priority = dto.Priority,
             Status = 0, // Waiting
             PatientId = dto.PatientId,
             RoomId = dto.RoomId,
             Notes = dto.Source,
-            CreatedAt = DateTime.Now,
+            CreatedAt = DateTime.UtcNow,
             IsDeleted = false
         };
 
@@ -405,12 +414,12 @@ public partial class ReceptionCompleteService {
 
     public async Task<QueueTicketDto?> CallNextAsync(Guid roomId, int queueType, Guid userId)
     {
-        var today = DateTime.Today;
+        var (cnFromUtc, cnToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
 
         var nextTicket = await _context.QueueTickets
             .Where(t => t.RoomId == roomId &&
                        t.QueueType == queueType &&
-                       t.IssueDate.Date == today &&
+                       t.IssueDate >= cnFromUtc && t.IssueDate < cnToUtc &&
                        t.Status == 0) // Waiting
             .OrderBy(t => t.Priority == 2 ? 0 : t.Priority == 1 ? 1 : 2) // Emergency first
             .ThenBy(t => t.QueueNumber)
@@ -513,12 +522,13 @@ public partial class ReceptionCompleteService {
 
     public async Task<List<QueueTicketDto>> GetWaitingListAsync(Guid roomId, int queueType, DateTime date)
     {
+        var (wlFromUtc, wlToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
         var tickets = await _context.QueueTickets
             .Include(t => t.Patient)
             .Include(t => t.Room)
             .Where(t => t.RoomId == roomId &&
                        t.QueueType == queueType &&
-                       t.IssueDate.Date == date.Date &&
+                       t.IssueDate >= wlFromUtc && t.IssueDate < wlToUtc &&
                        t.Status == 0)
             .OrderBy(t => t.Priority == 2 ? 0 : t.Priority == 1 ? 1 : 2)
             .ThenBy(t => t.QueueNumber)
@@ -529,12 +539,13 @@ public partial class ReceptionCompleteService {
 
     public async Task<List<QueueTicketDto>> GetServingListAsync(Guid roomId, int queueType, DateTime date)
     {
+        var (slFromUtc, slToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
         var tickets = await _context.QueueTickets
             .Include(t => t.Patient)
             .Include(t => t.Room)
             .Where(t => t.RoomId == roomId &&
                        t.QueueType == queueType &&
-                       t.IssueDate.Date == date.Date &&
+                       t.IssueDate >= slFromUtc && t.IssueDate < slToUtc &&
                        t.Status == 2)
             .ToListAsync();
 
@@ -544,11 +555,12 @@ public partial class ReceptionCompleteService {
     public async Task<QueueDisplayDto> GetDisplayDataAsync(Guid roomId, int queueType)
     {
         var room = await _roomRepo.GetByIdAsync(roomId);
-        var today = DateTime.Today;
+        var today = HIS.Core.Common.VnTime.TodayVn;
+        var (gdFromUtc, gdToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(today);
 
         var currentServing = await _context.QueueTickets
             .Include(t => t.Patient)
-            .Where(t => t.RoomId == roomId && t.QueueType == queueType && t.IssueDate.Date == today && t.Status == 2)
+            .Where(t => t.RoomId == roomId && t.QueueType == queueType && t.IssueDate >= gdFromUtc && t.IssueDate < gdToUtc && t.Status == 2)
             .FirstOrDefaultAsync();
 
         var callingList = await GetCallingTicketsAsync(roomId, 5);
@@ -568,11 +580,11 @@ public partial class ReceptionCompleteService {
 
     public async Task<List<QueueTicketDto>> GetCallingTicketsAsync(Guid roomId, int limit = 5)
     {
-        var today = DateTime.Today;
+        var (ctFromUtc, ctToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
         var tickets = await _context.QueueTickets
             .Include(t => t.Patient)
             .Include(t => t.Room)
-            .Where(t => t.RoomId == roomId && t.IssueDate.Date == today && t.Status == 1)
+            .Where(t => t.RoomId == roomId && t.IssueDate >= ctFromUtc && t.IssueDate < ctToUtc && t.Status == 1)
             .OrderByDescending(t => t.CalledTime)
             .Take(limit)
             .ToListAsync();

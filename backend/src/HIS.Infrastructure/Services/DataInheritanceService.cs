@@ -42,10 +42,12 @@ public class DataInheritanceService : IDataInheritanceService
             var mr = exam.MedicalRecord;
 
             // Get queue ticket for this examination
+            // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
+            var (diFromUtc, diToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
             var queueTicket = await _context.QueueTickets
                 .Where(qt => qt.PatientId == patient.Id
                     && qt.RoomId == exam.RoomId
-                    && qt.IssueDate.Date == DateTime.Today
+                    && qt.IssueDate >= diFromUtc && qt.IssueDate < diToUtc
                     && !qt.IsDeleted)
                 .OrderByDescending(qt => qt.CreatedAt)
                 .FirstOrDefaultAsync();

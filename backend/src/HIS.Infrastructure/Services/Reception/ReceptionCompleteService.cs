@@ -152,8 +152,10 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
         // Status mapping aligns with MedicalRecord.Status:
         //   0=Waiting (chờ tiếp đón) | 1=InProgress (đang khám)
         //   2=WaitingResult (chờ kết quả CLS) | 3=Completed (hoàn thành)
+        // AdmissionDate ghi bằng DateTime.Now — DayRangeUtc tránh lệch UTC 00h-07h VN.
+        var (admFromUtc, admToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
         var records = await _context.MedicalRecords
-            .Where(m => m.RoomId == roomId && m.AdmissionDate.Date == date.Date)
+            .Where(m => m.RoomId == roomId && m.AdmissionDate >= admFromUtc && m.AdmissionDate < admToUtc)
             .Select(m => new { m.Status, m.PatientType })
             .ToListAsync();
 
@@ -170,11 +172,12 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
 
     private async Task<int> CalculateEstimatedWaitAsync(Guid roomId, int queueType)
     {
-        var today = DateTime.Today;
+        // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
+        var (ewFromUtc, ewToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
 
         // Get waiting tickets ahead (status 0=waiting), ordered by priority then queue number
         var waitingTickets = await _context.QueueTickets
-            .Where(t => t.RoomId == roomId && t.QueueType == queueType && t.IssueDate.Date == today && t.Status == 0)
+            .Where(t => t.RoomId == roomId && t.QueueType == queueType && t.IssueDate >= ewFromUtc && t.IssueDate < ewToUtc && t.Status == 0)
             .ToListAsync();
 
         if (waitingTickets.Count == 0)
@@ -182,7 +185,7 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
 
         // Calculate average service time from completed tickets today
         var completedToday = await _context.QueueTickets
-            .Where(t => t.RoomId == roomId && t.QueueType == queueType && t.IssueDate.Date == today
+            .Where(t => t.RoomId == roomId && t.QueueType == queueType && t.IssueDate >= ewFromUtc && t.IssueDate < ewToUtc
                 && t.Status == 3 && t.CalledTime.HasValue && t.CompletedTime.HasValue)
             .Select(t => new { t.CalledTime, t.CompletedTime })
             .ToListAsync();
@@ -277,16 +280,20 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
 
     private async Task<string> GenerateDepositReceiptNumberAsync()
     {
-        var today = DateTime.Today;
-        var count = await _context.Deposits.CountAsync(d => d.ReceiptDate.Date == today);
-        return $"TU{today:yyyyMMdd}{(count + 1):D4}";
+        // ReceiptDate ghi bằng DateTime.Now — DayRangeUtc tránh lệch UTC 00h-07h VN.
+        var todayVn = HIS.Core.Common.VnTime.TodayVn;
+        var (depFromUtc, depToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(todayVn);
+        var count = await _context.Deposits.CountAsync(d => d.ReceiptDate >= depFromUtc && d.ReceiptDate < depToUtc);
+        return $"TU{todayVn:yyyyMMdd}{(count + 1):D4}";
     }
 
     private async Task<string> GeneratePaymentReceiptNumberAsync()
     {
-        var today = DateTime.Today;
-        var count = await _context.Payments.CountAsync(p => p.ReceiptDate.Date == today);
-        return $"PT{today:yyyyMMdd}{(count + 1):D4}";
+        // ReceiptDate ghi bằng DateTime.Now — DayRangeUtc tránh lệch UTC 00h-07h VN.
+        var todayVn = HIS.Core.Common.VnTime.TodayVn;
+        var (payFromUtc, payToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(todayVn);
+        var count = await _context.Payments.CountAsync(p => p.ReceiptDate >= payFromUtc && p.ReceiptDate < payToUtc);
+        return $"PT{todayVn:yyyyMMdd}{(count + 1):D4}";
     }
 
     private QueueTicketDto MapToQueueTicketDto(QueueTicket ticket)

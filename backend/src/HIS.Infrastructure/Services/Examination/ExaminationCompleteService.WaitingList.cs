@@ -29,11 +29,13 @@ public partial class ExaminationCompleteService
             .Include(r => r.Department)
             .FirstOrDefaultAsync(r => r.Id == roomId);
 
-        var today = DateTime.Today;
+        // AdmissionDate lưu DateTime.Now (local trên dev, UTC trên prod Cloud Run).
+        // Dùng DayRangeUtc để tránh lệch bucket UTC trong khung 00h–07h sáng VN.
+        var (admFromUtc, admToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
         var examinations = await _context.Examinations
             .Include(e => e.MedicalRecord)
             .ThenInclude(m => m.Patient)
-            .Where(e => e.RoomId == roomId && e.MedicalRecord.AdmissionDate.Date == today)
+            .Where(e => e.RoomId == roomId && e.MedicalRecord.AdmissionDate >= admFromUtc && e.MedicalRecord.AdmissionDate < admToUtc)
             .ToListAsync();
 
         var currentServing = examinations.FirstOrDefault(e => e.Status == 1);
@@ -114,11 +116,11 @@ public partial class ExaminationCompleteService
 
     public async Task<CallingPatientDto?> CallNextPatientAsync(Guid roomId)
     {
-        var today = DateTime.Today;
+        var (admFromUtc, admToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
         var nextPatient = await _context.Examinations
             .Include(e => e.MedicalRecord)
             .ThenInclude(m => m.Patient)
-            .Where(e => e.RoomId == roomId && e.MedicalRecord.AdmissionDate.Date == today && e.Status == 0)
+            .Where(e => e.RoomId == roomId && e.MedicalRecord.AdmissionDate >= admFromUtc && e.MedicalRecord.AdmissionDate < admToUtc && e.Status == 0)
             .OrderBy(e => e.QueueNumber)
             .FirstOrDefaultAsync();
 
@@ -161,8 +163,9 @@ public partial class ExaminationCompleteService
         if (examination == null) return false;
 
         // Move to end of queue
+        var (skipFromUtc, skipToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
         var maxQueue = await _context.Examinations
-            .Where(e => e.RoomId == examination.RoomId && e.MedicalRecord.AdmissionDate.Date == DateTime.Today)
+            .Where(e => e.RoomId == examination.RoomId && e.MedicalRecord.AdmissionDate >= skipFromUtc && e.MedicalRecord.AdmissionDate < skipToUtc)
             .MaxAsync(e => (int?)e.QueueNumber) ?? 0;
 
         examination.QueueNumber = maxQueue + 1;
@@ -178,10 +181,12 @@ public partial class ExaminationCompleteService
 
     public async Task<List<RoomPatientListDto>> GetRoomPatientListAsync(Guid roomId, DateTime date, int? status = null)
     {
+        // AdmissionDate ghi bằng DateTime.Now — dùng DayRangeUtc để so sargable.
+        var (admFromUtc, admToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
         var query = _context.Examinations
             .Include(e => e.MedicalRecord)
             .ThenInclude(m => m.Patient)
-            .Where(e => e.RoomId == roomId && e.MedicalRecord.AdmissionDate.Date == date.Date);
+            .Where(e => e.RoomId == roomId && e.MedicalRecord.AdmissionDate >= admFromUtc && e.MedicalRecord.AdmissionDate < admToUtc);
 
         if (status.HasValue)
             query = query.Where(e => e.Status == status.Value);

@@ -212,8 +212,9 @@ public class HospitalPharmacyService : IHospitalPharmacyService
                 .Where(s => !s.IsDeleted)
                 .ToListAsync();
 
-            var today = DateTime.UtcNow.Date;
-            var todaySales = sales.Where(s => s.CreatedAt.Date == today && s.Status == "Completed").ToList();
+            // CreatedAt lưu UTC → "doanh số hôm nay" tính theo ngày VN.
+            var (todayFromUtc, todayToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
+            var todaySales = sales.Where(s => s.CreatedAt >= todayFromUtc && s.CreatedAt < todayToUtc && s.Status == "Completed").ToList();
 
             var paymentBreakdown = sales
                 .Where(s => s.Status == "Completed")

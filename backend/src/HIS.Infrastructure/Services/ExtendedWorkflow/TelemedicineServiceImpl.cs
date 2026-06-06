@@ -179,13 +179,15 @@ public class TelemedicineServiceImpl : ITelemedicineService
     public async Task<TelemedicineDashboardDto> GetDashboardAsync(DateTime? date = null)
     {
         var d = date ?? DateTime.Today;
+        // TeleSession.StartTime ghi bằng DateTime.Now — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
+        var (sessFromUtc, sessToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(d);
         try
         {
             return new TelemedicineDashboardDto
             {
                 Date = d,
                 TodayAppointments = await _context.TeleAppointments.CountAsync(x => x.AppointmentDate.Date == d.Date),
-                TodayCompleted = await _context.TeleSessions.CountAsync(x => x.StartTime.HasValue && x.StartTime.Value.Date == d.Date && x.Status == "Completed"),
+                TodayCompleted = await _context.TeleSessions.CountAsync(x => x.StartTime.HasValue && x.StartTime.Value >= sessFromUtc && x.StartTime.Value < sessToUtc && x.Status == "Completed"),
                 CurrentWaitingPatients = await _context.TeleAppointments.CountAsync(x => x.Status == "Pending" && x.AppointmentDate.Date == d.Date)
             };
         }

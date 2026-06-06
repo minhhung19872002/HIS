@@ -277,7 +277,9 @@ public class BookingManagementService : IBookingManagementService
                 AppointmentTime = a.AppointmentTime,
                 AppointmentType = a.AppointmentType,
                 AppointmentTypeName = typeNames.GetValueOrDefault(a.AppointmentType, "Khác"),
+                DepartmentId = a.DepartmentId,
                 DepartmentName = a.Department?.DepartmentName,
+                DoctorId = a.DoctorId,
                 DoctorName = a.Doctor?.FullName,
                 RoomName = a.Room?.RoomName,
                 Reason = a.Reason,
@@ -287,6 +289,107 @@ public class BookingManagementService : IBookingManagementService
             TotalCount = total,
             PageIndex = search.PageIndex,
             PageSize = search.PageSize
+        };
+    }
+
+    public async Task<BookingStatusDto> UpdateBookingAsync(string appointmentCode, UpdateBookingDto dto)
+    {
+        var appointment = await _context.Appointments
+            .Include(a => a.Patient)
+            .Include(a => a.Department)
+            .Include(a => a.Doctor)
+            .Include(a => a.Room)
+            .FirstOrDefaultAsync(a => !a.IsDeleted && a.AppointmentCode == appointmentCode)
+            ?? throw new Exception("Không tìm thấy lịch hẹn");
+
+        // Chỉ cho sửa khi lịch chưa đến khám / chưa hủy / chưa đánh dấu vắng (status 0-Chờ XN, 1-Đã XN)
+        if (appointment.Status >= 2)
+            throw new Exception("Không thể sửa lịch hẹn đã đến khám hoặc đã hủy");
+
+        // Validate ngày hẹn (tái dùng quy tắc của BookAppointment)
+        if (dto.AppointmentDate.Date < DateTime.Today)
+            throw new Exception("Ngày hẹn không hợp lệ");
+
+        // Cập nhật thông tin bệnh nhân trên hồ sơ (nếu có nhập)
+        if (appointment.Patient != null)
+        {
+            if (!string.IsNullOrWhiteSpace(dto.PatientName))
+                appointment.Patient.FullName = dto.PatientName.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
+                appointment.Patient.PhoneNumber = dto.PhoneNumber.Trim();
+            appointment.Patient.UpdatedAt = DateTime.UtcNow;
+        }
+
+        // Kiểm tra trùng lịch hẹn (cùng BN, cùng ngày) — loại trừ chính lịch đang sửa
+        var duplicate = await _context.Appointments
+            .AnyAsync(a => !a.IsDeleted
+                && a.Id != appointment.Id
+                && a.PatientId == appointment.PatientId
+                && a.AppointmentDate.Date == dto.AppointmentDate.Date
+                && a.Status < 3);
+        if (duplicate)
+            throw new Exception("Bệnh nhân đã có lịch hẹn khác trong ngày này");
+
+        // Khi đổi khoa: tự gán lại phòng trống (giống logic BookAppointment)
+        if (dto.DepartmentId != appointment.DepartmentId)
+        {
+            Guid? roomId = null;
+            if (dto.DepartmentId.HasValue)
+            {
+                var room = await _context.Rooms
+                    .Where(r => !r.IsDeleted && r.IsActive && r.DepartmentId == dto.DepartmentId)
+                    .OrderBy(r => r.DisplayOrder)
+                    .FirstOrDefaultAsync();
+                roomId = room?.Id;
+            }
+            appointment.DepartmentId = dto.DepartmentId;
+            appointment.RoomId = roomId;
+        }
+
+        appointment.DoctorId = dto.DoctorId;
+        appointment.AppointmentDate = dto.AppointmentDate.Date;
+        appointment.AppointmentTime = dto.AppointmentTime;
+        appointment.AppointmentType = dto.AppointmentType;
+        appointment.Reason = dto.Reason?.Trim();
+        appointment.UpdatedAt = DateTime.UtcNow;
+
+        await _unitOfWork.SaveChangesAsync();
+
+        // Nạp lại navigation (khoa/phòng/bác sĩ có thể đã đổi)
+        appointment = await _context.Appointments
+            .Include(a => a.Patient)
+            .Include(a => a.Department)
+            .Include(a => a.Doctor)
+            .Include(a => a.Room)
+            .FirstAsync(a => a.Id == appointment.Id);
+
+        var typeNames = new Dictionary<int, string>
+        {
+            { 1, "Tái khám" }, { 2, "Khám mới" }, { 3, "Khám sức khỏe" }
+        };
+        var statusNames = new Dictionary<int, string>
+        {
+            { 0, "Chờ xác nhận" }, { 1, "Đã xác nhận" }, { 2, "Đã đến khám" },
+            { 3, "Không đến" }, { 4, "Đã hủy" }
+        };
+
+        return new BookingStatusDto
+        {
+            AppointmentCode = appointment.AppointmentCode,
+            PatientName = appointment.Patient?.FullName ?? "",
+            PhoneNumber = appointment.Patient?.PhoneNumber,
+            AppointmentDate = appointment.AppointmentDate,
+            AppointmentTime = appointment.AppointmentTime,
+            AppointmentType = appointment.AppointmentType,
+            AppointmentTypeName = typeNames.GetValueOrDefault(appointment.AppointmentType, "Khác"),
+            DepartmentId = appointment.DepartmentId,
+            DepartmentName = appointment.Department?.DepartmentName,
+            DoctorId = appointment.DoctorId,
+            DoctorName = appointment.Doctor?.FullName,
+            RoomName = appointment.Room?.RoomName,
+            Reason = appointment.Reason,
+            Status = appointment.Status,
+            StatusName = statusNames.GetValueOrDefault(appointment.Status, "Không xác định")
         };
     }
 
@@ -421,8 +524,10 @@ public class BookingManagementService : IBookingManagementService
         await _context.Examinations.AddAsync(examination);
 
         // Create queue ticket (QueueType=2: Khám bệnh)
+        // IssueDate chuẩn hóa UTC — query dùng DayRangeUtc để so sánh đúng ngày VN.
+        var (bkFromUtc, bkToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
         var maxQueue = await _context.QueueTickets
-            .Where(q => !q.IsDeleted && q.IssueDate.Date == DateTime.Today)
+            .Where(q => !q.IsDeleted && q.IssueDate >= bkFromUtc && q.IssueDate < bkToUtc)
             .MaxAsync(q => (int?)q.QueueNumber) ?? 0;
 
         var queueNumber = maxQueue + 1;
@@ -431,7 +536,7 @@ public class BookingManagementService : IBookingManagementService
             Id = Guid.NewGuid(),
             TicketNumber = $"A{queueNumber:D3}",
             QueueNumber = queueNumber,
-            IssueDate = DateTime.Now,
+            IssueDate = DateTime.UtcNow, // Chuẩn hóa UTC — đồng bộ với Queue.cs
             PatientId = appointment.PatientId,
             RoomId = appointment.RoomId,
             QueueType = 2, // Khám bệnh
@@ -501,7 +606,9 @@ public class BookingManagementService : IBookingManagementService
             AppointmentTime = appointment.AppointmentTime,
             AppointmentType = appointment.AppointmentType,
             AppointmentTypeName = typeNames.GetValueOrDefault(appointment.AppointmentType, "Khác"),
+            DepartmentId = appointment.DepartmentId,
             DepartmentName = appointment.Department?.DepartmentName,
+            DoctorId = appointment.DoctorId,
             DoctorName = appointment.Doctor?.FullName,
             RoomName = appointment.Room?.RoomName,
             Reason = appointment.Reason,
