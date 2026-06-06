@@ -20,10 +20,13 @@ import {
   examinationApi, createSickLeave,
   getPatientLabResults, getPatientAllergies,
   getConsultationRecords, createConsultationRecord, printExaminationForm,
+  requestHospitalization, requestTransfer, createAppointment,
+  printAdmissionForm, printTransferForm, printAppointmentSlip,
   type RoomDto, type RoomPatientListDto, type IcdCodeFullDto, type ServiceDto,
   type ServiceOrderFullDto, type DiagnosisFullDto,
   type PatientLabResultsDto, type AllergyDto, type ConsultationRecordDto,
 } from '../api/examination';
+import { catalogApi, type DepartmentCatalogDto } from '../api/system';
 import { useAbbrExpansion } from '../utils/abbrExpand';
 import { ABBREVIATION_SCOPES } from '../api/abbreviation';
 import {
@@ -129,6 +132,29 @@ const OpdEditorV2: React.FC = () => {
   const [deleteReason, setDeleteReason] = useState('');
   const [deleteSaving, setDeleteSaving] = useState(false);
 
+  // ── Xử trí state ─────────────────────────────────────────────────
+  const [departments, setDepartments] = useState<DepartmentCatalogDto[]>([]);
+
+  // Modal: Nhập viện
+  const [hospOpen, setHospOpen] = useState(false);
+  const [hospDeptId, setHospDeptId] = useState('');
+  const [hospReason, setHospReason] = useState('');
+  const [hospEmergency, setHospEmergency] = useState(false);
+  const [hospSaving, setHospSaving] = useState(false);
+
+  // Modal: Chuyển viện
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferFacility, setTransferFacility] = useState('');
+  const [transferReason, setTransferReason] = useState('');
+  const [transferTransport, setTransferTransport] = useState('');
+  const [transferSaving, setTransferSaving] = useState(false);
+
+  // Modal: Hẹn tái khám
+  const [apptOpen, setApptOpen] = useState(false);
+  const [apptDate, setApptDate] = useState('');
+  const [apptNotes, setApptNotes] = useState('');
+  const [apptSaving, setApptSaving] = useState(false);
+
   const examId = selPt?.examinationId ?? null;
 
   // ── Completion status: load when patient selected, clear when deselected ──
@@ -159,6 +185,13 @@ const OpdEditorV2: React.FC = () => {
         if (list.length > 0) setRoomId(list[0].id);
       })
       .catch(() => setRooms([]));
+  }, []);
+
+  // ── Departments (once) — dùng cho modal Nhập viện ────────────────
+  useEffect(() => {
+    catalogApi.getDepartments(undefined, undefined, true)
+      .then((r) => setDepartments(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setDepartments([]));
   }, []);
 
   // ── Queue when room changes ──────────────────────────────────────
@@ -299,15 +332,102 @@ const OpdEditorV2: React.FC = () => {
     navigate(`/v2/prescription/edit?examId=${encodeURIComponent(examId)}`);
   };
 
+  // Mở PDF blob ở tab mới (dùng chung cho các nút in)
+  const openPdfBlob = (data: Blob) => {
+    const url = URL.createObjectURL(data);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
+
   // In phiếu khám thật (PDF blob → tab mới) — thay nút giả cũ
   const printExamForm = async () => {
     if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
     try {
       const r = await printExaminationForm(examId);
-      const url = URL.createObjectURL(r.data as Blob);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      openPdfBlob(r.data as Blob);
     } catch { te('Không in được phiếu khám'); }
+  };
+
+  // ── Xử trí: Nhập viện ────────────────────────────────────────────
+  const doHospitalize = async () => {
+    if (!examId) return;
+    if (!hospDeptId) { tw('Chọn khoa nhập viện'); return; }
+    if (!hospReason.trim()) { tw('Nhập lý do nhập viện'); return; }
+    setHospSaving(true);
+    try {
+      const primary = diagnoses.find((d) => d.isPrimary);
+      await requestHospitalization(examId, {
+        departmentId: hospDeptId,
+        reason: hospReason.trim(),
+        diagnosisCode: primary?.icdCode,
+        diagnosisName: primary?.icdName,
+        isEmergency: hospEmergency,
+      });
+      tk('Đã tạo yêu cầu nhập viện');
+      try { const r = await printAdmissionForm(examId); openPdfBlob(r.data as Blob); }
+      catch { ti('Đã tạo yêu cầu nhưng không in được giấy nhập viện'); }
+      setHospOpen(false);
+      setHospDeptId(''); setHospReason(''); setHospEmergency(false);
+      refreshCompletion(examId);
+      loadQueue(roomId);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      te(msg || 'Yêu cầu nhập viện thất bại');
+    } finally { setHospSaving(false); }
+  };
+
+  // ── Xử trí: Chuyển viện ──────────────────────────────────────────
+  const doTransfer = async () => {
+    if (!examId) return;
+    if (!transferFacility.trim()) { tw('Nhập tên cơ sở chuyển đến'); return; }
+    if (!transferReason.trim()) { tw('Nhập lý do chuyển viện'); return; }
+    setTransferSaving(true);
+    try {
+      const primary = diagnoses.find((d) => d.isPrimary);
+      await requestTransfer(examId, {
+        facilityName: transferFacility.trim(),
+        reason: transferReason.trim(),
+        diagnosisCode: primary?.icdCode,
+        diagnosisName: primary?.icdName,
+        transportMethod: transferTransport.trim() || undefined,
+      });
+      tk('Đã tạo yêu cầu chuyển viện');
+      try { const r = await printTransferForm(examId); openPdfBlob(r.data as Blob); }
+      catch { ti('Đã tạo yêu cầu nhưng không in được giấy chuyển viện'); }
+      setTransferOpen(false);
+      setTransferFacility(''); setTransferReason(''); setTransferTransport('');
+      refreshCompletion(examId);
+      loadQueue(roomId);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      te(msg || 'Yêu cầu chuyển viện thất bại');
+    } finally { setTransferSaving(false); }
+  };
+
+  // ── Xử trí: Hẹn tái khám ─────────────────────────────────────────
+  const doAppointment = async () => {
+    if (!examId) return;
+    if (!apptDate) { tw('Chọn ngày hẹn tái khám'); return; }
+    setApptSaving(true);
+    try {
+      const r = await createAppointment(examId, {
+        appointmentDate: new Date(apptDate).toISOString(),
+        roomId: roomId || undefined,
+        notes: apptNotes.trim() || undefined,
+      });
+      tk('Đã tạo lịch hẹn tái khám');
+      const apptId = r.data?.id;
+      if (apptId) {
+        try { const slip = await printAppointmentSlip(apptId); openPdfBlob(slip.data as Blob); }
+        catch { /* giấy hẹn là tùy chọn */ }
+      }
+      setApptOpen(false);
+      setApptDate(''); setApptNotes('');
+      refreshCompletion(examId);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      te(msg || 'Hẹn tái khám thất bại');
+    } finally { setApptSaving(false); }
   };
 
   // KQ CLS (XN + CĐHA) tại phòng khám
@@ -590,6 +710,46 @@ const OpdEditorV2: React.FC = () => {
           <Btn variant="ghost" onClick={printExamForm}><TermIcon name="print" size={12} /> In phiếu khám</Btn>
           <Btn variant="primary" disabled={saving} onClick={complete}><TermIcon name="check" size={12} /> Hoàn tất khám</Btn>
         </div>
+
+        {/* ── XỬ TRÍ ─────────────────────────────────────────── */}
+        <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
+          <h4 style={{ margin: '0 0 10px', fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Xử trí</h4>
+          <div style={{ display: 'grid', gap: 6 }}>
+            <Btn
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+                setHospDeptId(''); setHospReason(''); setHospEmergency(false);
+                setHospOpen(true);
+              }}
+            >
+              <TermIcon name="bed" size={11} /> Nhập viện
+            </Btn>
+            <Btn
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+                setTransferFacility(''); setTransferReason(''); setTransferTransport('');
+                setTransferOpen(true);
+              }}
+            >
+              <TermIcon name="arrow-right" size={11} /> Chuyển viện
+            </Btn>
+            <Btn
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+                setApptDate(''); setApptNotes('');
+                setApptOpen(true);
+              }}
+            >
+              <TermIcon name="calendar" size={11} /> Hẹn tái khám
+            </Btn>
+          </div>
+        </section>
 
         {/* ── ĐA CHUYÊN KHOA ─────────────────────────────────── */}
         <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
@@ -933,6 +1093,102 @@ const OpdEditorV2: React.FC = () => {
           {!deleteReason.trim() && (
             <div style={{ fontSize: 11, color: 'var(--s-err)', marginTop: 4 }}>Lý do không được để trống</div>
           )}
+        </div>
+      </ModalShell>
+
+      {/* ── Modal: Nhập viện ─────────────────────────────────────────── */}
+      <ModalShell
+        open={hospOpen}
+        onClose={() => setHospOpen(false)}
+        title="Yêu cầu nhập viện"
+        sub={selPt ? `${selPt.patientName} · ${selPt.patientCode}` : ''}
+        size="sm"
+        footer={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Btn variant="ghost" size="sm" onClick={() => setHospOpen(false)}>Hủy</Btn>
+            <Btn variant="primary" size="sm" disabled={!hospDeptId || !hospReason.trim() || hospSaving} onClick={doHospitalize}>
+              <TermIcon name="bed" size={11} /> Tạo yêu cầu &amp; in
+            </Btn>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Khoa nhập viện <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <select className="hui-inp hui-sel" value={hospDeptId} onChange={(e) => setHospDeptId(e.target.value)} style={{ width: '100%', height: 30 }}>
+              <option value="">(Chọn khoa)</option>
+              {departments.filter((d) => d.id).map((d) => (
+                <option key={d.id} value={d.id}>{d.code} · {d.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do nhập viện <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <textarea className="hui-inp" value={hospReason} onChange={(e) => setHospReason(e.target.value)} placeholder="Lý do nhập viện…" rows={3} style={{ width: '100%', resize: 'vertical' }} />
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t-1)' }}>
+            <input type="checkbox" checked={hospEmergency} onChange={(e) => setHospEmergency(e.target.checked)} /> Nhập viện cấp cứu
+          </label>
+        </div>
+      </ModalShell>
+
+      {/* ── Modal: Chuyển viện ───────────────────────────────────────── */}
+      <ModalShell
+        open={transferOpen}
+        onClose={() => setTransferOpen(false)}
+        title="Yêu cầu chuyển viện"
+        sub={selPt ? `${selPt.patientName} · ${selPt.patientCode}` : ''}
+        size="sm"
+        footer={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Btn variant="ghost" size="sm" onClick={() => setTransferOpen(false)}>Hủy</Btn>
+            <Btn variant="primary" size="sm" disabled={!transferFacility.trim() || !transferReason.trim() || transferSaving} onClick={doTransfer}>
+              <TermIcon name="arrow-right" size={11} /> Tạo yêu cầu &amp; in
+            </Btn>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Cơ sở chuyển đến <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <input className="hui-inp" value={transferFacility} onChange={(e) => setTransferFacility(e.target.value)} placeholder="Tên bệnh viện / cơ sở y tế…" style={{ width: '100%', height: 30 }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do chuyển viện <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <textarea className="hui-inp" value={transferReason} onChange={(e) => setTransferReason(e.target.value)} placeholder="Lý do chuyển viện…" rows={3} style={{ width: '100%', resize: 'vertical' }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Phương tiện vận chuyển</label>
+            <input className="hui-inp" value={transferTransport} onChange={(e) => setTransferTransport(e.target.value)} placeholder="Xe cứu thương, tự túc…" style={{ width: '100%', height: 30 }} />
+          </div>
+        </div>
+      </ModalShell>
+
+      {/* ── Modal: Hẹn tái khám ──────────────────────────────────────── */}
+      <ModalShell
+        open={apptOpen}
+        onClose={() => setApptOpen(false)}
+        title="Hẹn tái khám"
+        sub={selPt ? `${selPt.patientName} · ${selPt.patientCode}` : ''}
+        size="sm"
+        footer={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Btn variant="ghost" size="sm" onClick={() => setApptOpen(false)}>Hủy</Btn>
+            <Btn variant="primary" size="sm" disabled={!apptDate || apptSaving} onClick={doAppointment}>
+              <TermIcon name="calendar" size={11} /> Tạo lịch hẹn
+            </Btn>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Ngày hẹn tái khám <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <input type="date" className="hui-inp" value={apptDate} onChange={(e) => setApptDate(e.target.value)} style={{ width: '100%', height: 30 }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do / ghi chú</label>
+            <textarea className="hui-inp" value={apptNotes} onChange={(e) => setApptNotes(e.target.value)} placeholder="Lý do hẹn tái khám, dặn dò…" rows={3} style={{ width: '100%', resize: 'vertical' }} />
+          </div>
         </div>
       </ModalShell>
 

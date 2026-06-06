@@ -3,14 +3,25 @@
    mod-doctor-portal-mobile.jsx. Standalone full-screen mobile app
    (phone-frame preview on desktop). Real examination API.
    ===================================================================== */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { App as AntdApp } from 'antd';
 import dayjs from 'dayjs';
 import { searchExaminations } from '../api/examination';
 import type { ExaminationDto } from '../api/examination';
+import {
+  getInpatientList,
+  createTreatmentSheet,
+  createPrescription,
+  createServiceOrder,
+  printTreatmentSheet,
+  searchMedicines,
+} from '../api/inpatient';
+import type { InpatientListDto, MedicineSearchItemDto } from '../api/inpatient';
+import { getWarehouses } from '../api/warehouse';
+import type { WarehouseDto } from '../api/warehouse';
 import './portal-mobile.css';
 
-type Tab = 'today' | 'queue' | 'patients' | 'msg' | 'me';
+type Tab = 'today' | 'queue' | 'patients' | 'inpatient' | 'me';
 
 interface QRow { stt: number; name: string; pid: string; reason: string; time: string; status: 'next' | 'wait' | 'done'; room: string }
 interface PRow { pid: string; name: string; visits: number; dx: string; lastVisit: string }
@@ -77,7 +88,7 @@ const TABS: { v: Tab; ic: string; l: string; badge?: number }[] = [
   { v: 'today', ic: 'today', l: 'Hôm nay' },
   { v: 'queue', ic: 'stetho', l: 'Hàng đợi' },
   { v: 'patients', ic: 'patients', l: 'Bệnh nhân' },
-  { v: 'msg', ic: 'msg', l: 'Tin nhắn' },
+  { v: 'inpatient', ic: 'edit', l: 'Nội trú' },
   { v: 'me', ic: 'user', l: 'Tôi' },
 ];
 
@@ -85,6 +96,7 @@ const DoctorPortalMobile: React.FC = () => {
   const { message } = AntdApp.useApp();
   const [tab, setTab] = useState<Tab>('today');
   const [exams, setExams] = useState<ExaminationDto[]>([]);
+  const [inpatients, setInpatients] = useState<InpatientListDto[]>([]);
 
   const doctorName = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}').fullName || 'Bác sĩ'; } catch { return 'Bác sĩ'; }
@@ -106,6 +118,21 @@ const DoctorPortalMobile: React.FC = () => {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Load danh sách BN nội trú khi chuyển sang tab Nội trú
+  useEffect(() => {
+    if (tab !== 'inpatient') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const r = await getInpatientList({ status: 1, pageSize: 100 } as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (!cancelled) setInpatients(((r as any)?.items ?? (r as any)?.data?.items ?? r ?? []) as InpatientListDto[]);
+      } catch { if (!cancelled) setInpatients([]); }
+    })();
+    return () => { cancelled = true; };
+  }, [tab]);
 
   const today = dayjs().startOf('day');
   const todayExams = useMemo(() => exams.filter((e) => dayjs(e.examinationDate).isSame(today, 'day')), [exams, today]);
@@ -146,7 +173,7 @@ const DoctorPortalMobile: React.FC = () => {
         {tab === 'today' && <Today doctorName={doctorName} stats={stats} next={next} queue={queue} go={setTab} onStart={() => message.info('Mở phiên khám')} />}
         {tab === 'queue' && <Queue queue={queue} onPick={() => message.info('Mở phiên khám')} />}
         {tab === 'patients' && <Patients patients={patients} />}
-        {tab === 'msg' && <div className="pp-empty" style={{ marginTop: 60 }}><Ico name="msg" size={42} /><div>Chưa có tin nhắn</div></div>}
+        {tab === 'inpatient' && <Inpatient inpatients={inpatients} onMessage={message.info} />}
         {tab === 'me' && <Me doctorName={doctorName} stats={stats} onLogout={() => message.info('Tan ca / Đăng xuất')} />}
       </div>
       <nav className="pp-tabbar">
@@ -314,5 +341,338 @@ const Me: React.FC<{ doctorName: string; stats: { done: number; pending: number;
     <div className="pp-version">HIS Terminal · Cổng Bác sĩ</div>
   </>
 );
+
+// ===================================================
+// Tab Nội trú — nhập tờ điều trị, dự trù thuốc, CLS
+// ===================================================
+
+type InpatientSubTab = 'list' | 'treatment' | 'rx' | 'cls';
+
+const Inpatient: React.FC<{ inpatients: InpatientListDto[]; onMessage: (msg: string) => void }> = ({ inpatients, onMessage }) => {
+  const [subTab, setSubTab] = useState<InpatientSubTab>('list');
+  const [selected, setSelected] = useState<InpatientListDto | null>(null);
+  const [q, setQ] = useState('');
+
+  // Search filter
+  const filtered = inpatients.filter((p) =>
+    !q || p.patientName.toLowerCase().includes(q.toLowerCase()) || p.patientCode.toLowerCase().includes(q.toLowerCase())
+  );
+
+  const selectPatient = (p: InpatientListDto) => {
+    setSelected(p);
+    setSubTab('treatment');
+  };
+
+  const back = useCallback(() => {
+    setSelected(null);
+    setSubTab('list');
+  }, []);
+
+  if (subTab === 'list' || !selected) {
+    return (
+      <>
+        <div className="pp-page-hdr"><h2>Nội trú</h2></div>
+        <div className="dp-search"><Ico name="search" size={18} /><input placeholder="Tìm tên / mã BN nội trú" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+        <div className="pp-list">
+          {filtered.map((p) => (
+            <div key={p.admissionId} className="pp-card dp-p-card" onClick={() => selectPatient(p)} style={{ cursor: 'pointer' }}>
+              <div className="pp-avatar pp-avatar-md">{lastName(p.patientName).charAt(0)}</div>
+              <div className="dp-p-body">
+                <div className="dp-p-name">{p.patientName}</div>
+                <div className="dp-p-meta">{p.patientCode} · {p.roomName}{p.bedName ? `/${p.bedName}` : ''}</div>
+                <div className="dp-p-dx">{p.mainDiagnosis || '—'}</div>
+              </div>
+              <div className="dp-p-last">{p.daysOfStay}<small>ngày</small></div>
+            </div>
+          ))}
+          {filtered.length === 0 && (
+            <div className="pp-empty"><Ico name="patients" size={42} /><div>{inpatients.length === 0 ? 'Đang tải...' : 'Không có BN nội trú'}</div></div>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="pp-page-hdr" style={{ gap: 8 }}>
+        <button className="pp-circ" onClick={back}><Ico name="chevron" size={16} /></button>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>{selected.patientName}</div>
+          <div style={{ fontSize: 11, color: '#888' }}>{selected.patientCode} · {selected.roomName}{selected.bedName ? `/${selected.bedName}` : ''}</div>
+        </div>
+      </div>
+
+      {/* Sub-tab: Tờ điều trị / Dự trù thuốc / CLS */}
+      <div className="pp-segmented" style={{ gridTemplateColumns: 'repeat(3,1fr)', margin: '0 12px 8px' }}>
+        <button className={subTab === 'treatment' ? 'on' : ''} onClick={() => setSubTab('treatment')}>Tờ ĐT</button>
+        <button className={subTab === 'rx' ? 'on' : ''} onClick={() => setSubTab('rx')}>Dự trù</button>
+        <button className={subTab === 'cls' ? 'on' : ''} onClick={() => setSubTab('cls')}>CLS</button>
+      </div>
+
+      {subTab === 'treatment' && <TreatmentForm admissionId={selected.admissionId} onMessage={onMessage} />}
+      {subTab === 'rx' && <PrescriptionForm admissionId={selected.admissionId} onMessage={onMessage} />}
+      {subTab === 'cls' && <ServiceOrderForm admissionId={selected.admissionId} onMessage={onMessage} />}
+    </>
+  );
+};
+
+// ---- Tờ điều trị ----
+const TreatmentForm: React.FC<{ admissionId: string; onMessage: (m: string) => void }> = ({ admissionId, onMessage }) => {
+  const [progress, setProgress] = useState('');
+  const [orders, setOrders] = useState('');
+  const [nursingOrders, setNursingOrders] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [lastId, setLastId] = useState<string | null>(null);
+
+  const save = async () => {
+    if (!progress && !orders) { onMessage('Nhập ít nhất diễn biến hoặc y lệnh'); return; }
+    setSaving(true);
+    try {
+      const r = await createTreatmentSheet({
+        admissionId,
+        treatmentDate: dayjs().toISOString(),
+        progressNotes: progress || undefined,
+        treatmentOrders: orders || undefined,
+        nursingOrders: nursingOrders || undefined,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const id = (r as any)?.id ?? (r as any)?.data?.id;
+      setLastId(id ?? null);
+      setProgress(''); setOrders(''); setNursingOrders('');
+      onMessage('Đã lưu tờ điều trị');
+    } catch { onMessage('Lưu thất bại — kiểm tra kết nối'); }
+    finally { setSaving(false); }
+  };
+
+  const printLast = async () => {
+    if (!lastId) { onMessage('Chưa có tờ điều trị vừa lưu'); return; }
+    try {
+      const blob = await printTreatmentSheet(lastId);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const url = URL.createObjectURL((blob as any)?.data ?? blob);
+      window.open(url, '_blank');
+    } catch { onMessage('Không thể in — thử lại sau'); }
+  };
+
+  return (
+    <div style={{ padding: '0 12px 24px' }}>
+      <div style={{ fontWeight: 600, marginBottom: 8, color: '#555' }}>TỜ ĐIỀU TRỊ — {dayjs().format('DD/MM/YYYY')}</div>
+      <label style={{ fontSize: 12, color: '#888' }}>Diễn biến lâm sàng</label>
+      <textarea
+        rows={4} value={progress} onChange={(e) => setProgress(e.target.value)}
+        placeholder="Tình trạng BN, dấu hiệu sinh tồn..."
+        style={{ width: '100%', marginBottom: 8, padding: 8, borderRadius: 8, border: '1px solid #ddd', fontFamily: 'inherit', fontSize: 13 }}
+      />
+      <label style={{ fontSize: 12, color: '#888' }}>Y lệnh</label>
+      <textarea
+        rows={3} value={orders} onChange={(e) => setOrders(e.target.value)}
+        placeholder="Thuốc, xét nghiệm, chế độ..."
+        style={{ width: '100%', marginBottom: 8, padding: 8, borderRadius: 8, border: '1px solid #ddd', fontFamily: 'inherit', fontSize: 13 }}
+      />
+      <label style={{ fontSize: 12, color: '#888' }}>Y lệnh điều dưỡng</label>
+      <textarea
+        rows={2} value={nursingOrders} onChange={(e) => setNursingOrders(e.target.value)}
+        placeholder="Theo dõi, chăm sóc..."
+        style={{ width: '100%', marginBottom: 12, padding: 8, borderRadius: 8, border: '1px solid #ddd', fontFamily: 'inherit', fontSize: 13 }}
+      />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={save} disabled={saving}
+          style={{ flex: 1, padding: '10px 0', borderRadius: 10, background: saving ? '#ccc' : '#1677ff', color: '#fff', border: 'none', fontWeight: 600, fontSize: 14 }}
+        >{saving ? 'Đang lưu...' : 'Lưu tờ điều trị'}</button>
+        {lastId && (
+          <button
+            onClick={printLast}
+            style={{ padding: '10px 16px', borderRadius: 10, background: '#f0f0f0', border: 'none', fontWeight: 600, fontSize: 14 }}
+          ><Ico name="sign" size={16} /></button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ---- Dự trù thuốc (prescription) ----
+const PrescriptionForm: React.FC<{ admissionId: string; onMessage: (m: string) => void }> = ({ admissionId, onMessage }) => {
+  const [keyword, setKeyword] = useState('');
+  const [items, setItems] = useState<Array<{ medicineName: string; medicineId: string; quantity: number; dosage: string }>>([]);
+  const [saving, setSaving] = useState(false);
+  // Backend bắt buộc WarehouseId (Guid) + medicineId (Guid) → phải chọn kho thật + thuốc thật.
+  const [warehouses, setWarehouses] = useState<WarehouseDto[]>([]);
+  const [warehouseId, setWarehouseId] = useState('');
+  const [suggests, setSuggests] = useState<MedicineSearchItemDto[]>([]);
+
+  useEffect(() => {
+    getWarehouses()
+      .then((r) => {
+        const list = Array.isArray(r.data) ? r.data : [];
+        setWarehouses(list);
+        if (list.length > 0) setWarehouseId(list[0].id);
+      })
+      .catch(() => setWarehouses([]));
+  }, []);
+
+  // Autocomplete: tìm thuốc thật trong kho đã chọn (debounce nhẹ)
+  useEffect(() => {
+    if (!keyword.trim() || !warehouseId) { setSuggests([]); return; }
+    const t = setTimeout(() => {
+      searchMedicines(keyword.trim(), warehouseId)
+        .then((r) => setSuggests((Array.isArray(r.data) ? r.data : []).slice(0, 8)))
+        .catch(() => setSuggests([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [keyword, warehouseId]);
+
+  const addMedicine = (m: MedicineSearchItemDto) => {
+    setItems((prev) => prev.some((p) => p.medicineId === m.id)
+      ? prev
+      : [...prev, { medicineName: m.name, medicineId: m.id, quantity: 1, dosage: '' }]);
+    setKeyword(''); setSuggests([]);
+  };
+
+  const removeItem = (i: number) => setItems((prev) => prev.filter((_, idx) => idx !== i));
+
+  const save = async () => {
+    const filled = items.filter((it) => it.medicineId);
+    if (!filled.length) { onMessage('Thêm ít nhất 1 thuốc'); return; }
+    if (!warehouseId) { onMessage('Chưa chọn kho'); return; }
+    setSaving(true);
+    try {
+      await createPrescription({
+        admissionId,
+        prescriptionDate: dayjs().toISOString(),
+        warehouseId,
+        items: filled.map((it) => ({
+          medicineId: it.medicineId,
+          quantity: it.quantity,
+          dosage: it.dosage || undefined,
+          paymentSource: 1,
+        })),
+      });
+      setItems([]);
+      onMessage('Đã lưu dự trù thuốc');
+    } catch { onMessage('Lưu thất bại'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{ padding: '0 12px 24px' }}>
+      <div style={{ fontWeight: 600, marginBottom: 8, color: '#555' }}>DỰ TRÙ THUỐC</div>
+      <select
+        value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}
+        style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, marginBottom: 8, background: '#fff' }}
+      >
+        {warehouses.length === 0 && <option value="">— Không tải được danh sách kho —</option>}
+        {warehouses.map((w) => <option key={w.id} value={w.id}>{w.warehouseName}</option>)}
+      </select>
+      <div style={{ position: 'relative', marginBottom: 8 }}>
+        <input
+          value={keyword} onChange={(e) => setKeyword(e.target.value)}
+          placeholder="Tìm thuốc trong kho (gõ ≥2 ký tự)…"
+          style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }}
+        />
+        {suggests.length > 0 && (
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 30, background: '#fff', border: '1px solid #ddd', borderRadius: 8, marginTop: 2, maxHeight: 220, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,.12)' }}>
+            {suggests.map((m) => (
+              <div key={m.id} onClick={() => addMedicine(m)}
+                style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}>
+                <b>{m.name}</b>{m.unit ? ` · ${m.unit}` : ''}{m.stock != null ? ` · tồn ${m.stock}` : ''}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {items.map((it, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, background: '#f9f9f9', borderRadius: 8, padding: '6px 10px' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: 13 }}>{it.medicineName}</div>
+            <input
+              value={it.dosage} onChange={(e) => setItems((prev) => prev.map((p, idx) => idx === i ? { ...p, dosage: e.target.value } : p))}
+              placeholder="Liều / cách dùng"
+              style={{ width: '100%', fontSize: 12, border: 'none', background: 'transparent', outline: 'none', color: '#888' }}
+            />
+          </div>
+          <input
+            type="number" min={1} value={it.quantity}
+            onChange={(e) => setItems((prev) => prev.map((p, idx) => idx === i ? { ...p, quantity: Number(e.target.value) } : p))}
+            style={{ width: 52, padding: '4px 6px', borderRadius: 6, border: '1px solid #ddd', textAlign: 'center', fontSize: 13 }}
+          />
+          <button onClick={() => removeItem(i)} style={{ padding: '4px 8px', borderRadius: 6, background: '#fff1f0', border: 'none', color: '#ff4d4f', fontWeight: 700 }}>✕</button>
+        </div>
+      ))}
+      {items.length > 0 && (
+        <button
+          onClick={save} disabled={saving}
+          style={{ width: '100%', padding: '10px 0', borderRadius: 10, marginTop: 8, background: saving ? '#ccc' : '#1677ff', color: '#fff', border: 'none', fontWeight: 600, fontSize: 14 }}
+        >{saving ? 'Đang lưu...' : `Lưu dự trù (${items.length} thuốc)`}</button>
+      )}
+      {items.length === 0 && <div className="pp-empty" style={{ marginTop: 24 }}><Ico name="sign" size={36} /><div>Thêm thuốc vào dự trù</div></div>}
+    </div>
+  );
+};
+
+// ---- CLS (service orders) ----
+const ServiceOrderForm: React.FC<{ admissionId: string; onMessage: (m: string) => void }> = ({ admissionId, onMessage }) => {
+  const [keyword, setKeyword] = useState('');
+  const [items, setItems] = useState<Array<{ serviceName: string; serviceId: string }>>([]);
+  const [saving, setSaving] = useState(false);
+
+  const addItem = () => {
+    if (!keyword.trim()) return;
+    setItems((prev) => [...prev, { serviceName: keyword.trim(), serviceId: '' }]);
+    setKeyword('');
+  };
+
+  const removeItem = (i: number) => setItems((prev) => prev.filter((_, idx) => idx !== i));
+
+  const save = async () => {
+    const filled = items.filter((it) => it.serviceName);
+    if (!filled.length) { onMessage('Thêm ít nhất 1 dịch vụ CLS'); return; }
+    setSaving(true);
+    try {
+      await createServiceOrder({
+        admissionId,
+        services: filled.map((it) => ({
+          serviceId: it.serviceId || it.serviceName,
+          quantity: 1,
+          paymentSource: 1,
+          isUrgent: false,
+          isEmergency: false,
+        })),
+      });
+      setItems([]);
+      onMessage('Đã lưu chỉ định CLS');
+    } catch { onMessage('Lưu thất bại'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{ padding: '0 12px 24px' }}>
+      <div style={{ fontWeight: 600, marginBottom: 8, color: '#555' }}>CHỈ ĐỊNH CLS</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <input
+          value={keyword} onChange={(e) => setKeyword(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && addItem()}
+          placeholder="Tên xét nghiệm / CĐHA (Enter để thêm)"
+          style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }}
+        />
+        <button onClick={addItem} style={{ padding: '8px 14px', borderRadius: 8, background: '#1677ff', color: '#fff', border: 'none', fontWeight: 700 }}>+</button>
+      </div>
+      {items.map((it, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, background: '#f9f9f9', borderRadius: 8, padding: '8px 12px' }}>
+          <div style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{it.serviceName}</div>
+          <button onClick={() => removeItem(i)} style={{ padding: '4px 8px', borderRadius: 6, background: '#fff1f0', border: 'none', color: '#ff4d4f', fontWeight: 700 }}>✕</button>
+        </div>
+      ))}
+      {items.length > 0 && (
+        <button
+          onClick={save} disabled={saving}
+          style={{ width: '100%', padding: '10px 0', borderRadius: 10, marginTop: 8, background: saving ? '#ccc' : '#1677ff', color: '#fff', border: 'none', fontWeight: 600, fontSize: 14 }}
+        >{saving ? 'Đang lưu...' : `Chỉ định CLS (${items.length} DV)`}</button>
+      )}
+      {items.length === 0 && <div className="pp-empty" style={{ marginTop: 24 }}><Ico name="stetho" size={36} /><div>Thêm dịch vụ CLS</div></div>}
+    </div>
+  );
+};
 
 export default DoctorPortalMobile;

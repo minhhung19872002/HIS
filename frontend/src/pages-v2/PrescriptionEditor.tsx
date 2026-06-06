@@ -14,7 +14,7 @@ import {
   KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, DrawerShell, fmtVNDg, tk, tw, te,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
-import { examinationApi, type MedicineDto, type DrugInteractionDto, type CreatePrescriptionDto, type PrescriptionTemplateDto, type WarehouseDto } from '../api/examination';
+import { examinationApi, printExternalPrescription, type MedicineDto, type DrugInteractionDto, type CreatePrescriptionDto, type PrescriptionTemplateDto, type WarehouseDto } from '../api/examination';
 import { patientApi, type Patient } from '../api/patient';
 import { getPrescriptionContext, type PrescriptionContextDto } from '../api/dataInheritance';
 import '../layouts/terminal/ed-responsive.css';
@@ -69,6 +69,9 @@ const PrescriptionEditorV2: React.FC = () => {
   const [tplOpen, setTplOpen] = useState(false);
   const [signOpen, setSignOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Toa ngoài / nhà thuốc (mua ngoài) — tách khỏi toa BHYT, in qua print-external
+  const [external, setExternal] = useState(false);
+  const [printingExt, setPrintingExt] = useState(false);
 
   const allergyNames = (ctx?.allergies || []).map((a) => a.allergenName);
   const total = items.reduce((s, x) => s + x.price * x.qty, 0);
@@ -206,6 +209,24 @@ const PrescriptionEditorV2: React.FC = () => {
 
   const onClickSign = () => { if (guard()) setSignOpen(true); };
 
+  // In toa nhà thuốc (mua ngoài): tạo đơn rồi in qua endpoint print-external.
+  // DTO tạo đơn không có cờ phân loại toa-ngoài nên không set field — chỉ in bản nhà thuốc.
+  const printExternalRx = async () => {
+    if (!guard()) return;
+    setPrintingExt(true);
+    try {
+      const created = await examinationApi.createPrescription(buildDto());
+      const rxId = created.data?.id;
+      if (!rxId) { te('Không lấy được mã đơn vừa tạo'); return; }
+      const blob = await printExternalPrescription(rxId);
+      const url = URL.createObjectURL(blob.data as Blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      tk('Đã tạo & in toa nhà thuốc');
+    } catch { te('In toa nhà thuốc thất bại'); }
+    finally { setPrintingExt(false); }
+  };
+
   // Apply a template: resolve each item's medicine (name/price) then add to cart.
   const applyTemplate = async (t: PrescriptionTemplateDto) => {
     setTplOpen(false);
@@ -242,7 +263,7 @@ const PrescriptionEditorV2: React.FC = () => {
       <div style={{ gridColumn: '1 / -1' }}>
         <KpiStrip items={[
           { lbl: 'BN đang kê', val: pt ? pt.fullName : '—', sub: pt ? `${pt.patientCode} · ${ageOf(pt)}T · ${pt.gender === 1 ? 'Nam' : 'Nữ'}` : 'Chưa chọn' },
-          { lbl: 'Loại đơn', val: type === 1 ? 'Ngoại trú' : 'YHCT', tone: 'info' },
+          { lbl: 'Loại đơn', val: external ? 'Toa ngoài' : (type === 1 ? 'Ngoại trú' : 'YHCT'), tone: external ? 'warn' : 'info', sub: external ? 'Mua ngoài / nhà thuốc' : 'Theo kho nội viện' },
           { lbl: 'Số thuốc', val: items.length, sub: items.length ? `${items.reduce((s, x) => s + x.qty, 0)} viên/gói` : '—' },
           { lbl: 'Cảnh báo', val: intCount + allergyNames.length, tone: 'warn', sub: `${intCount} tương tác · ${allergyNames.length} dị ứng` },
           { lbl: 'Tổng tiền', val: fmtVNDg(total), tone: 'ok' },
@@ -317,15 +338,18 @@ const PrescriptionEditorV2: React.FC = () => {
               <button key={t.v} onClick={() => setType(t.v)} style={{ background: type === t.v ? 'var(--c-pri)' : 'transparent', color: type === t.v ? '#fff' : 'var(--t-1)', border: 0, padding: '5px 12px', borderRadius: 3, cursor: 'pointer', fontSize: 11.5, fontWeight: type === t.v ? 700 : 400 }}>{t.l}</button>
             ))}
           </div>
-          <select className="hui-inp hui-sel" value={warehouse} onChange={(e) => setWh(e.target.value)} style={{ width: 200, height: 32 }}>
+          <select className="hui-inp hui-sel" value={warehouse} onChange={(e) => setWh(e.target.value)} style={{ width: 200, height: 32 }} disabled={external} title={external ? 'Toa ngoài không cấp theo kho nội viện' : undefined}>
             {warehouses.length === 0 && <option value="">(Chưa có kho)</option>}
             {warehouses.map((w) => <option key={w.id} value={w.id}>{w.code} — {w.name}</option>)}
           </select>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: external ? 'var(--s-warn)' : 'var(--t-2)', fontWeight: external ? 700 : 400, cursor: 'pointer', whiteSpace: 'nowrap' }} title="Toa mua ngoài / nhà thuốc — tách khỏi toa BHYT">
+            <input type="checkbox" checked={external} onChange={(e) => setExternal(e.target.checked)} /> Toa ngoài (nhà thuốc)
+          </label>
           <span className="spacer" style={{ flex: 1 }} />
           <Btn variant="ghost" onClick={() => setTplOpen(true)}><TermIcon name="folder" size={12} /> Đơn mẫu</Btn>
           <Btn variant="ghost" disabled={saving} onClick={saveDraft}><TermIcon name="folder" size={12} /> Lưu nháp</Btn>
-          <Btn variant="ghost" onClick={() => tk('Đã gửi máy in')}><TermIcon name="print" size={12} /> In</Btn>
-          <Btn variant="primary" disabled={saving} onClick={onClickSign}><TermIcon name="check" size={12} /> Hoàn tất · Ký số</Btn>
+          <Btn variant="ghost" disabled={printingExt} onClick={printExternalRx}><TermIcon name="print" size={12} /> In toa nhà thuốc</Btn>
+          {!external && <Btn variant="primary" disabled={saving} onClick={onClickSign}><TermIcon name="check" size={12} /> Hoàn tất · Ký số</Btn>}
         </div>
 
         {/* Drug search */}

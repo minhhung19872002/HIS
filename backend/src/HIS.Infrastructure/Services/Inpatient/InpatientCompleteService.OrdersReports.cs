@@ -196,6 +196,91 @@ public partial class InpatientCompleteService {
         return (medRecord.MainIcdCode, medRecord.MainDiagnosis);
     }
 
+    public async Task<InpatientDiagnosisDto> GetInpatientDiagnosisAsync(Guid admissionId)
+    {
+        var admission = await _context.Set<Admission>().FindAsync(admissionId);
+        if (admission == null)
+            return new InpatientDiagnosisDto();
+
+        var medRecord = await _context.MedicalRecords.FindAsync(admission.MedicalRecordId);
+        if (medRecord == null)
+            return new InpatientDiagnosisDto();
+
+        var secondaries = new List<SecondaryDiagnosisItemDto>();
+        if (!string.IsNullOrWhiteSpace(medRecord.SubIcdCodes))
+        {
+            var codes = medRecord.SubIcdCodes.Split('|');
+            var names = medRecord.SubDiagnosis?.Split('|') ?? Array.Empty<string>();
+            for (int i = 0; i < codes.Length; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(codes[i]))
+                    secondaries.Add(new SecondaryDiagnosisItemDto
+                    {
+                        Code = codes[i],
+                        Name = i < names.Length ? names[i] : string.Empty,
+                    });
+            }
+        }
+
+        return new InpatientDiagnosisDto
+        {
+            MainDiagnosisCode = medRecord.MainIcdCode,
+            MainDiagnosis = medRecord.MainDiagnosis,
+            SecondaryDiagnoses = secondaries,
+        };
+    }
+
+    public async Task<InpatientDiagnosisDto> SaveInpatientDiagnosisAsync(Guid admissionId, SaveInpatientDiagnosisDto dto, Guid userId)
+    {
+        var admission = await _context.Set<Admission>().FindAsync(admissionId)
+            ?? throw new Exception($"Đợt điều trị {admissionId} không tìm thấy");
+
+        var medRecord = await _context.MedicalRecords.FindAsync(admission.MedicalRecordId)
+            ?? throw new Exception($"Hồ sơ bệnh án không tìm thấy");
+
+        // Update MedicalRecord fields (existing columns — no migration needed)
+        medRecord.MainIcdCode = dto.MainDiagnosisCode?.Trim();
+        medRecord.MainDiagnosis = dto.MainDiagnosis?.Trim();
+
+        // SubIcdCodes / SubDiagnosis stored as pipe-delimited strings (existing pattern)
+        if (dto.SecondaryDiagnoses.Count > 0)
+        {
+            medRecord.SubIcdCodes = string.Join("|", dto.SecondaryDiagnoses.Select(x => x.Code));
+            medRecord.SubDiagnosis = string.Join("|", dto.SecondaryDiagnoses.Select(x => x.Name));
+        }
+        else
+        {
+            medRecord.SubIcdCodes = null;
+            medRecord.SubDiagnosis = null;
+        }
+
+        medRecord.UpdatedAt = DateTime.UtcNow;
+        if (_context.Entry(medRecord).State == Microsoft.EntityFrameworkCore.EntityState.Detached)
+            _context.MedicalRecords.Update(medRecord);
+
+        await _context.SaveChangesAsync();
+
+        // Build response from saved data
+        var secondaries = new List<SecondaryDiagnosisItemDto>();
+        if (!string.IsNullOrWhiteSpace(medRecord.SubIcdCodes))
+        {
+            var codes = medRecord.SubIcdCodes.Split('|');
+            var names = medRecord.SubDiagnosis?.Split('|') ?? Array.Empty<string>();
+            for (int i = 0; i < codes.Length; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(codes[i]))
+                    secondaries.Add(new SecondaryDiagnosisItemDto { Code = codes[i], Name = i < names.Length ? names[i] : string.Empty });
+            }
+        }
+
+        return new InpatientDiagnosisDto
+        {
+            MainDiagnosisCode = medRecord.MainIcdCode,
+            MainDiagnosis = medRecord.MainDiagnosis,
+            SecondaryDiagnoses = secondaries,
+        };
+    }
+
     public Task<List<object>> GetServiceTreeAsync(Guid? parentId)
     {
         return Task.FromResult(new List<object>());

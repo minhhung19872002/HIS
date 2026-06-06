@@ -419,13 +419,25 @@ public partial class InpatientCompleteController : ControllerBase
     #region 3.3 Chỉ định dịch vụ nội trú
 
     /// <summary>
-    /// Lấy chẩn đoán từ hồ sơ
+    /// Lấy chẩn đoán đầy đủ (chính + kèm theo) từ hồ sơ bệnh án
     /// </summary>
     [HttpGet("diagnosis/{admissionId}")]
-    public async Task<ActionResult<object>> GetDiagnosisFromRecord(Guid admissionId)
+    public async Task<ActionResult<InpatientDiagnosisDto>> GetDiagnosisFromRecord(Guid admissionId)
     {
-        var (code, diagnosis) = await _inpatientService.GetDiagnosisFromRecordAsync(admissionId);
-        return Ok(new { DiagnosisCode = code, Diagnosis = diagnosis });
+        var result = await _inpatientService.GetInpatientDiagnosisAsync(admissionId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lưu chẩn đoán chính + kèm theo cho đợt điều trị nội trú
+    /// POST /api/inpatient/diagnosis/{admissionId}
+    /// </summary>
+    [HttpPost("diagnosis/{admissionId}")]
+    public async Task<ActionResult<InpatientDiagnosisDto>> SaveInpatientDiagnosis(
+        Guid admissionId, [FromBody] SaveInpatientDiagnosisDto dto)
+    {
+        var result = await _inpatientService.SaveInpatientDiagnosisAsync(admissionId, dto, GetCurrentUserId());
+        return Ok(result);
     }
 
     /// <summary>

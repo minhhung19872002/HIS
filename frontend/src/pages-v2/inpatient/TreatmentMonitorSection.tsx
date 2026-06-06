@@ -24,6 +24,8 @@ import {
   getAdmissionServiceRequests,
   cancelServiceRequests,
   updateServiceRequestPaymentType,
+  getDiagnosisFromRecord,
+  saveInpatientDiagnosis,
 } from '../../api/inpatient';
 import { getWarehouses } from '../../api/warehouse';
 import type { WarehouseDto } from '../../api/warehouse';
@@ -39,6 +41,7 @@ import type {
   InpatientPrescriptionDto,
   InpatientMedicineItemDto,
   InpatientServiceRequestItemDto,
+  SecondaryDiagnosisItemDto,
 } from '../../api/inpatient';
 import { catalogApi } from '../../api/system';
 import type { DepartmentCatalogDto } from '../../api/system';
@@ -46,6 +49,9 @@ import { ModalShell, Btn } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
 import BedLabResultSection from './BedLabResultSection';
 import { CabinetIssueModal, ItemPicker } from '../shared/CabinetIssueModal';
+import { InpatientPrescriptionModal } from './InpatientPrescriptionModal';
+import { InpatientServiceOrderCreateModal } from './InpatientServiceOrderCreateModal';
+import DischargeModal from './DischargeModal';
 
 // ---------------------------------------------------------------------------
 // Local helpers
@@ -1235,6 +1241,8 @@ const ClsOrdersModal: React.FC<{
   const [paymentChangeId, setPaymentChangeId] = useState<string | null>(null);
   const [newPatientType, setNewPatientType] = useState<number>(1);
   const [paymentBusy, setPaymentBusy] = useState(false);
+  // Tạo chỉ định CLS mới
+  const [createOpen, setCreateOpen] = useState(false);
 
   const reload = () => {
     setLoading(true);
@@ -1306,6 +1314,7 @@ const ClsOrdersModal: React.FC<{
   const activeOrders = orders.filter((o) => o.status !== 4);
 
   return (
+   <>
     <ModalShell
       open={open}
       onClose={onClose}
@@ -1314,6 +1323,9 @@ const ClsOrdersModal: React.FC<{
       footer={
         <>
           <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
+          <Btn variant="primary" onClick={() => setCreateOpen(true)}>
+            <TermIcon name="plus" size={12} /> Tạo chỉ định
+          </Btn>
           {selectedIds.length > 0 && (
             <Btn variant="crit" disabled={cancelling} onClick={handleCancelSelected}>
               <TermIcon name="x" size={12} /> Hủy {selectedIds.length} chỉ định
@@ -1434,6 +1446,169 @@ const ClsOrdersModal: React.FC<{
         )}
       </div>
     </ModalShell>
+
+    {/* Tạo chỉ định CLS mới — search + cây danh mục */}
+    <InpatientServiceOrderCreateModal
+      open={createOpen}
+      admissionId={admissionId}
+      onClose={() => setCreateOpen(false)}
+      onDone={() => { setCreateOpen(false); reload(); onDone(); }}
+    />
+   </>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Diagnosis modal — thêm/sửa chẩn đoán chính + kèm theo
+// ---------------------------------------------------------------------------
+
+const InpatientDiagnosisModal: React.FC<{
+  open: boolean;
+  admissionId: string;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, admissionId, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [mainCode, setMainCode] = useState('');
+  const [mainName, setMainName] = useState('');
+  const [secondaries, setSecondaries] = useState<SecondaryDiagnosisItemDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    getDiagnosisFromRecord(admissionId)
+      .then((r) => {
+        setMainCode(r.data?.mainDiagnosisCode ?? '');
+        setMainName(r.data?.mainDiagnosis ?? '');
+        setSecondaries(r.data?.secondaryDiagnoses ?? []);
+      })
+      .catch(() => { setMainCode(''); setMainName(''); setSecondaries([]); })
+      .finally(() => setLoading(false));
+  }, [open, admissionId]);
+
+  const addSecondary = () =>
+    setSecondaries((prev) => [...prev, { code: '', name: '' }]);
+
+  const removeSecondary = (idx: number) =>
+    setSecondaries((prev) => prev.filter((_, i) => i !== idx));
+
+  const updateSecondary = (idx: number, field: 'code' | 'name', val: string) =>
+    setSecondaries((prev) =>
+      prev.map((it, i) => i === idx ? { ...it, [field]: val } : it)
+    );
+
+  const submit = async () => {
+    if (!mainCode.trim() && !mainName.trim()) {
+      message.warning('Nhập ít nhất mã hoặc tên chẩn đoán chính');
+      return;
+    }
+    setBusy(true);
+    try {
+      await saveInpatientDiagnosis(admissionId, {
+        mainDiagnosisCode: mainCode.trim() || undefined,
+        mainDiagnosis: mainName.trim() || undefined,
+        secondaryDiagnoses: secondaries.filter((s) => s.code.trim() || s.name.trim()),
+      });
+      message.success('Đã lưu chẩn đoán');
+      onDone();
+    } catch {
+      message.error('Lưu chẩn đoán thất bại');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="md"
+      title="Chẩn đoán nội trú"
+      footer={
+        <>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="primary" disabled={busy || loading} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Lưu chẩn đoán'}
+          </Btn>
+        </>
+      }
+    >
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {loading && (
+          <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 12 }}>
+            Đang tải chẩn đoán hiện tại…
+          </div>
+        )}
+        {!loading && (
+          <>
+            {/* Chẩn đoán chính */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--t-1)' }}>
+                Chẩn đoán chính
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 8 }}>
+                <IpFld label="Mã ICD-10">
+                  <Input
+                    value={mainCode}
+                    onChange={(e) => setMainCode(e.target.value)}
+                    placeholder="VD: J06.9"
+                    size="small"
+                  />
+                </IpFld>
+                <IpFld label="Tên chẩn đoán chính">
+                  <Input
+                    value={mainName}
+                    onChange={(e) => setMainName(e.target.value)}
+                    placeholder="Nhập tên chẩn đoán chính..."
+                    size="small"
+                  />
+                </IpFld>
+              </div>
+            </div>
+
+            {/* Chẩn đoán kèm theo */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-1)' }}>
+                  Chẩn đoán kèm theo ({secondaries.length})
+                </div>
+                <Btn variant="ghost" onClick={addSecondary}>
+                  <TermIcon name="plus" size={11} /> Thêm
+                </Btn>
+              </div>
+              {secondaries.length === 0 && (
+                <div style={{ fontSize: 12, color: 'var(--t-3)', fontStyle: 'italic', textAlign: 'center', padding: '8px 0' }}>
+                  Chưa có chẩn đoán kèm theo
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {secondaries.map((s, idx) => (
+                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: '100px 1fr auto', gap: 6, alignItems: 'center' }}>
+                    <Input
+                      value={s.code}
+                      onChange={(e) => updateSecondary(idx, 'code', e.target.value)}
+                      placeholder="Mã ICD"
+                      size="small"
+                    />
+                    <Input
+                      value={s.name}
+                      onChange={(e) => updateSecondary(idx, 'name', e.target.value)}
+                      placeholder="Tên chẩn đoán kèm theo"
+                      size="small"
+                    />
+                    <Btn variant="crit" onClick={() => removeSecondary(idx)}>
+                      <TermIcon name="x" size={11} />
+                    </Btn>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </ModalShell>
   );
 };
 
@@ -1446,7 +1621,7 @@ export interface TreatmentMonitorSectionProps {
   onRefresh: () => void;
 }
 
-type ActiveModal = 'vitals' | 'transfer' | 'nutrition' | 'infusion' | 'transfusion' | 'billing' | 'cabinet' | 'drugReturn' | 'dischargePrescription' | 'clsOrders' | null;
+type ActiveModal = 'vitals' | 'transfer' | 'nutrition' | 'infusion' | 'transfusion' | 'billing' | 'cabinet' | 'drugReturn' | 'prescription' | 'dischargePrescription' | 'clsOrders' | 'discharge' | 'diagnosis' | null;
 
 const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patient, onRefresh }) => {
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
@@ -1457,6 +1632,9 @@ const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patie
     <div className="rec-section">
       <h5><TermIcon name="activity" size={11} /> THEO DOI DIEU TRI</h5>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Btn variant="primary" onClick={() => setActiveModal('prescription')}>
+          <TermIcon name="pill" size={12} /> Ke y lenh thuoc
+        </Btn>
         <Btn variant="ghost" onClick={() => setActiveModal('vitals')}>
           <TermIcon name="activity" size={12} /> Sinh hieu
         </Btn>
@@ -1484,8 +1662,14 @@ const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patie
         <Btn variant="ghost" onClick={() => setActiveModal('clsOrders')}>
           <TermIcon name="list" size={12} /> Chi dinh CLS
         </Btn>
+        <Btn variant="ghost" onClick={() => setActiveModal('diagnosis')}>
+          <TermIcon name="clipboard" size={12} /> Chan doan
+        </Btn>
         <Btn variant="ghost" onClick={() => setActiveModal('dischargePrescription')}>
           <TermIcon name="home" size={12} /> Don xuat vien
+        </Btn>
+        <Btn variant="crit" onClick={() => setActiveModal('discharge')}>
+          <TermIcon name="log-out" size={12} /> Ra vien
         </Btn>
       </div>
 
@@ -1544,7 +1728,17 @@ const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patie
         onDone={done}
       />
 
-      {/* G-07: Đơn thuốc xuất viện (toa về) */}
+      {/* Kê y lệnh thuốc nội trú có cấu trúc (thường quy) */}
+      <InpatientPrescriptionModal
+        open={activeModal === 'prescription'}
+        admissionId={patient.admissionId}
+        drugOrderType={1}
+        patientName={`${patient.patientName} · ${patient.patientCode}`}
+        onClose={close}
+        onDone={done}
+      />
+
+      {/* G-07: Đơn thuốc xuất viện (toa về) — modal chuyên dụng với ItemPicker */}
       <DischargePrescriptionModal
         open={activeModal === 'dischargePrescription'}
         admissionId={patient.admissionId}
@@ -1552,9 +1746,25 @@ const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patie
         onDone={done}
       />
 
+      {/* 3.7: Ra viện + tổng kết bệnh án */}
+      <DischargeModal
+        open={activeModal === 'discharge'}
+        patient={patient}
+        onClose={close}
+        onDone={done}
+      />
+
       {/* G-08 + G-15: Chỉ định CLS — hủy nhiều + đổi đối tượng TT */}
       <ClsOrdersModal
         open={activeModal === 'clsOrders'}
+        admissionId={patient.admissionId}
+        onClose={close}
+        onDone={done}
+      />
+
+      {/* Chẩn đoán chính + kèm theo */}
+      <InpatientDiagnosisModal
+        open={activeModal === 'diagnosis'}
         admissionId={patient.admissionId}
         onClose={close}
         onDone={done}

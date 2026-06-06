@@ -38,4 +38,29 @@ public interface IPdfGenerationService
     /// Sinh HTML phieu ket qua xet nghiem
     /// </summary>
     Task<byte[]> GenerateLabResultAsync(Guid labRequestId);
+
+    /// <summary>
+    /// Sinh HTML giay chung nhan phau thuat / thu thuat (MS. 18/BV)
+    /// </summary>
+    Task<byte[]> GenerateSurgeryCertificateAsync(Guid surgeryId);
+
+    /// <summary>
+    /// Sinh HTML bien ban kiem thao tu vong (MS. 19/BV)
+    /// </summary>
+    Task<byte[]> GenerateDeathReviewAsync(Guid medicalRecordId);
+
+    /// <summary>
+    /// Sinh HTML phieu nhan dinh phan loai cap cuu (MS. 20/BV)
+    /// </summary>
+    Task<byte[]> GenerateTriageAssessmentAsync(Guid examinationId);
+
+    /// <summary>
+    /// Sinh HTML phieu ban giao chuyen khoa bac si (MS. 21/BV)
+    /// </summary>
+    Task<byte[]> GenerateDeptTransferDocAsync(Guid admissionId);
+
+    /// <summary>
+    /// Sinh HTML phieu ban giao chuyen khoa dieu duong (DD. 22)
+    /// </summary>
+    Task<byte[]> GenerateDeptTransferNurseAsync(Guid admissionId);
 }

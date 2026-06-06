@@ -1,11 +1,160 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
-import { App as AntdApp } from 'antd';
+import { App as AntdApp, Modal, Form, Input, Select, Table, Button, Tag, Popconfirm } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/client';
 import { getEmrRecords } from '../api/examination';
 import type { EmrRecordDto } from '../api/examination';
 import { SimpleV2Page, ActBtn, Btn, type ColumnDef } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+
+// ── Mẫu HSBA (ClinicalTemplate) ─────────────────────────────────────────────
+interface ClinicalTemplateDto {
+  id: string;
+  templateCode: string;
+  templateName: string;
+  templateType: number;
+  templateTypeName: string;
+  icdCode?: string;
+  departmentName?: string;
+  isPublic: boolean;
+  usageCount: number;
+  isActive: boolean;
+  content: string;
+  createdAt: string;
+}
+
+const TEMPLATE_TYPES = [
+  { value: 1, label: 'Khám ngoại trú (OPD)' },
+  { value: 2, label: 'Tường trình PTTT' },
+  { value: 3, label: 'Phiếu chăm sóc ĐD' },
+  { value: 4, label: 'Tờ điều trị nội trú' },
+  { value: 5, label: 'Tổng kết bệnh án' },
+  { value: 99, label: 'Khác' },
+];
+
+const ClinicalTemplateManager: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
+  const [templates, setTemplates] = useState<ClinicalTemplateDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState<ClinicalTemplateDto | null>(null);
+  const [form] = Form.useForm();
+  const [fType, setFType] = useState<number | undefined>(undefined);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: Record<string, unknown> = { onlyActive: false, pageSize: 200 };
+      if (fType != null) params.templateType = fType;
+      const r = await apiClient.get<ClinicalTemplateDto[]>('/clinical-template', { params });
+      setTemplates(Array.isArray(r.data) ? r.data : []);
+    } catch { setTemplates([]); }
+    finally { setLoading(false); }
+  }, [fType]);
+
+  useEffect(() => { if (open) load(); }, [open, load]);
+
+  const openEdit = (t?: ClinicalTemplateDto) => {
+    setEditing(t ?? null);
+    form.resetFields();
+    if (t) form.setFieldsValue({ ...t, isPublic: t.isPublic ? 'true' : 'false' });
+    setEditOpen(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      const v = await form.validateFields();
+      const payload = { ...v, isPublic: v.isPublic === 'true', id: editing?.id };
+      await apiClient.post('/clinical-template', payload);
+      setEditOpen(false); load();
+    } catch { /* form errors */ }
+  };
+
+  const handleDelete = async (id: string) => {
+    await apiClient.delete(`/clinical-template/${id}`);
+    load();
+  };
+
+  const cols = [
+    { title: 'Tên mẫu', dataIndex: 'templateName', render: (v: string) => <b>{v}</b> },
+    { title: 'Loại', dataIndex: 'templateType', width: 180, render: (_: number, r: ClinicalTemplateDto) => <Tag color="blue">{r.templateTypeName || 'Khác'}</Tag> },
+    { title: 'ICD', dataIndex: 'icdCode', width: 90 },
+    { title: 'Công khai', dataIndex: 'isPublic', width: 90, render: (v: boolean) => v ? <Tag color="green">Có</Tag> : <Tag>Riêng</Tag> },
+    { title: 'SL dùng', dataIndex: 'usageCount', width: 80 },
+    {
+      title: '', width: 120,
+      render: (_: unknown, r: ClinicalTemplateDto) => (
+        <div style={{ display: 'flex', gap: 6 }}>
+          <Button size="small" onClick={() => openEdit(r)}>Sửa</Button>
+          <Popconfirm title="Xóa mẫu này?" onConfirm={() => handleDelete(r.id)} okText="Xóa" cancelText="Hủy" okButtonProps={{ danger: true }}>
+            <Button size="small" danger>Xóa</Button>
+          </Popconfirm>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <Modal
+      open={open}
+      title="Quản lý mẫu HSBA / tường trình PTTT"
+      width={920}
+      onCancel={onClose}
+      footer={null}
+      destroyOnHidden
+    >
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+        <Select
+          allowClear placeholder="Lọc theo loại" style={{ width: 220 }}
+          options={TEMPLATE_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+          value={fType}
+          onChange={setFType}
+        />
+        <Button type="primary" onClick={() => openEdit()}>+ Thêm mẫu mới</Button>
+        <Button onClick={load}>Tải lại</Button>
+      </div>
+      <Table
+        dataSource={templates}
+        columns={cols}
+        rowKey="id"
+        size="small"
+        loading={loading}
+        pagination={{ pageSize: 15, hideOnSinglePage: true }}
+        scroll={{ y: 400 }}
+      />
+
+      {/* Edit modal */}
+      <Modal
+        open={editOpen}
+        title={editing ? 'Sửa mẫu HSBA' : 'Thêm mẫu HSBA mới'}
+        onCancel={() => setEditOpen(false)}
+        onOk={handleSave}
+        okText="Lưu"
+        cancelText="Hủy"
+        destroyOnHidden
+        width={700}
+      >
+        <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
+          <Form.Item name="templateName" label="Tên mẫu" rules={[{ required: true }]}>
+            <Input placeholder="VD: Mẫu HSBA ngoại trú nội khoa" />
+          </Form.Item>
+          <Form.Item name="templateType" label="Loại mẫu" rules={[{ required: true }]}>
+            <Select options={TEMPLATE_TYPES.map((t) => ({ value: t.value, label: t.label }))} />
+          </Form.Item>
+          <Form.Item name="icdCode" label="ICD (nếu chuyên biệt)">
+            <Input placeholder="VD: J18.9 (tùy chọn)" />
+          </Form.Item>
+          <Form.Item name="isPublic" label="Phạm vi">
+            <Select options={[{ value: 'true', label: 'Công khai (tất cả BS)' }, { value: 'false', label: 'Cá nhân' }]} />
+          </Form.Item>
+          <Form.Item name="content" label="Nội dung mẫu" rules={[{ required: true }]}>
+            <Input.TextArea rows={8} placeholder="Nhập nội dung / shortcode mẫu..." />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </Modal>
+  );
+};
 
 /* ────────────────────────────────────────────────────────────
    HSBA điện tử v2 — record-centric (theo mock EMR v2):
@@ -19,6 +168,7 @@ const genderLabel = (g: number) => (g === 1 ? 'Nam' : g === 2 ? 'Nữ' : '—');
 const EMRV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   const navigate = useNavigate();
+  const [templateMgrOpen, setTemplateMgrOpen] = useState(false);
 
   const columns: ColumnDef<EmrRecordDto>[] = [
     { key: 'code', label: 'Mã BN', mono: true, code: true, width: 150, render: (r) => r.patientCode },
@@ -55,6 +205,7 @@ const EMRV2: React.FC = () => {
   ];
 
   return (
+    <>
     <SimpleV2Page<EmrRecordDto>
       title="Hồ sơ bệnh án điện tử"
       load={async () => {
@@ -153,7 +304,14 @@ const EMRV2: React.FC = () => {
         </span>
       )}
       drawerSub={(r) => `${r.visitCount} lượt khám · lần cuối ${fmtDMY(r.lastVisit)}`}
+      toolbarRight={
+        <Btn onClick={() => setTemplateMgrOpen(true)}>
+          <TermIcon name="file-text" size={12} /> Mẫu HSBA
+        </Btn>
+      }
     />
+    <ClinicalTemplateManager open={templateMgrOpen} onClose={() => setTemplateMgrOpen(false)} />
+    </>
   );
 };
 

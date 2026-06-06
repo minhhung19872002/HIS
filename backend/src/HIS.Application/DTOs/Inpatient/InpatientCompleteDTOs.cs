@@ -1,5 +1,40 @@
 namespace HIS.Application.DTOs.Inpatient;
 
+#region Chẩn đoán nội trú
+
+/// <summary>
+/// Chẩn đoán kèm theo (1 item)
+/// </summary>
+public class SecondaryDiagnosisItemDto
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// DTO lưu chẩn đoán tờ điều trị nội trú (chẩn đoán chính + kèm theo)
+/// Lưu vào MedicalRecord: MainIcdCode / MainDiagnosis / SubIcdCodes (JSON) / SubDiagnosis
+/// </summary>
+public class SaveInpatientDiagnosisDto
+{
+    public string? MainDiagnosisCode { get; set; }
+    public string? MainDiagnosis { get; set; }
+    /// <summary>JSON list of secondary diagnoses [{Code, Name}]</summary>
+    public List<SecondaryDiagnosisItemDto> SecondaryDiagnoses { get; set; } = new();
+}
+
+/// <summary>
+/// Kết quả trả về sau khi lưu chẩn đoán nội trú
+/// </summary>
+public class InpatientDiagnosisDto
+{
+    public string? MainDiagnosisCode { get; set; }
+    public string? MainDiagnosis { get; set; }
+    public List<SecondaryDiagnosisItemDto> SecondaryDiagnoses { get; set; } = new();
+}
+
+#endregion
+
 #region 3.1 Màn hình chờ buồng bệnh
 
 /// <summary>

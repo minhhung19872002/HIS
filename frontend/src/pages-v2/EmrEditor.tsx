@@ -29,6 +29,7 @@ import {
   getConsultationRecords, createConsultationRecord, type ConsultationRecordDto,
   getNursingCareSheets, createNursingCareSheet, type NursingCareSheetDto,
 } from '../api/examination';
+import { printTreatmentSheet as printInpatientTreatmentSheet } from '../api/inpatient';
 import '../layouts/terminal/ed-responsive.css';
 
 type TabKey = 'record' | 'history' | 'treatment' | 'consult' | 'nursing' | 'reaction' | 'partograph' | 'attach';
@@ -98,6 +99,7 @@ const EmrEditorV2: React.FC = () => {
   const [signOpen, setSignOpen] = useState(false);
   const [modal, setModal] = useState<null | 'treatment' | 'consult' | 'nursing'>(null);
   const [form, setForm] = useState<Record<string, string>>({});
+  const [printingTreatId, setPrintingTreatId] = useState<string | null>(null);
   const [savingForm, setSavingForm] = useState(false);
 
   const openCreate = (kind: 'treatment' | 'consult' | 'nursing') => {
@@ -286,6 +288,23 @@ const EmrEditorV2: React.FC = () => {
   const activeCount = records.filter((r) => (r.allergies?.length ?? 0) > 0).length;
 
   // ── Tab renderers ────────────────────────────────────────────────
+
+  const printTreatSheet = async (id: string) => {
+    if (printingTreatId) return;
+    setPrintingTreatId(id);
+    try {
+      const r = await printInpatientTreatmentSheet(id);
+      const url = URL.createObjectURL(r.data as Blob);
+      const w = window.open(url, '_blank');
+      if (w) w.onload = () => URL.revokeObjectURL(url);
+      else URL.revokeObjectURL(url);
+    } catch {
+      te('Không in được tờ điều trị');
+    } finally {
+      setPrintingTreatId(null);
+    }
+  };
+
   const treatCols: ColumnDef<TreatmentSheetDto>[] = [
     { key: 'date', label: 'Ngày', mono: true, width: 110, render: (r) => fmtDMYg(r.treatmentDate) },
     { key: 'day', label: 'Ngày thứ', mono: true, width: 80, render: (r) => r.dayNumber },
@@ -434,7 +453,21 @@ const EmrEditorV2: React.FC = () => {
                   <div style={{ marginBottom: 12, display: 'flex', gap: 8 }}>
                     <Btn variant="primary" onClick={() => openCreate('treatment')}><TermIcon name="plus" size={12} /> Tạo phiếu điều trị</Btn>
                   </div>
-                  <DataTable<TreatmentSheetDto> columns={treatCols} data={treatments} rowKey={(r) => r.id} empty="Chưa có phiếu điều trị" />
+                  <DataTable<TreatmentSheetDto>
+                    columns={treatCols}
+                    data={treatments}
+                    rowKey={(r) => r.id}
+                    empty="Chưa có phiếu điều trị"
+                    actions={(r) => (
+                      <div className="ab-actions">
+                        <ActBtn
+                          ic="printer"
+                          title="In tờ điều trị"
+                          onClick={() => { void printTreatSheet(r.id); }}
+                        />
+                      </div>
+                    )}
+                  />
                 </div>
               )}
 

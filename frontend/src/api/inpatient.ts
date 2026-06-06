@@ -1316,7 +1316,27 @@ export const checkTransferWarnings = (admissionId: string) =>
 // #region 3.3 Chỉ định dịch vụ nội trú
 
 export const getDiagnosisFromRecord = (admissionId: string) =>
-  apiClient.get<{ diagnosisCode?: string; diagnosis?: string }>(`${BASE_URL}/diagnosis/${admissionId}`);
+  apiClient.get<InpatientDiagnosisDto>(`${BASE_URL}/diagnosis/${admissionId}`);
+
+export interface SecondaryDiagnosisItemDto {
+  code: string;
+  name: string;
+}
+
+export interface SaveInpatientDiagnosisDto {
+  mainDiagnosisCode?: string;
+  mainDiagnosis?: string;
+  secondaryDiagnoses: SecondaryDiagnosisItemDto[];
+}
+
+export interface InpatientDiagnosisDto {
+  mainDiagnosisCode?: string;
+  mainDiagnosis?: string;
+  secondaryDiagnoses: SecondaryDiagnosisItemDto[];
+}
+
+export const saveInpatientDiagnosis = (admissionId: string, dto: SaveInpatientDiagnosisDto) =>
+  apiClient.post<InpatientDiagnosisDto>(`${BASE_URL}/diagnosis/${admissionId}`, dto);
 
 // Service tree / search items dùng shape backend chưa khai DTO chính thức (ServiceCatalog).
 // Khai loose interface để FE narrow khi cần; tránh `any` lan toàn module.

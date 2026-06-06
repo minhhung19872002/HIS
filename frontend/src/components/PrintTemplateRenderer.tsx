@@ -75,6 +75,13 @@ async function loadTemplate(printType: string): Promise<AnyPrintComponent | null
     case 'ls-transfer-consent': return (await import('./ClinicalFormPrintTemplates')).TransferConsentPrint;
     case 'ls-ama-discharge': return (await import('./ClinicalFormPrintTemplates')).AMADischargePrint;
 
+    // TT32/2023 supplementary forms
+    case 'ls-surgery-cert': return (await import('./EMRPrintTemplates/tt32-forms')).SurgeryCertificatePrint;
+    case 'ls-death-review': return (await import('./EMRPrintTemplates/tt32-forms')).DeathReviewFormPrint;
+    case 'ls-triage-assess': return (await import('./EMRPrintTemplates/tt32-forms')).TriageAssessmentPrint;
+    case 'ls-dept-transfer-doc': return (await import('./EMRPrintTemplates/tt32-forms')).DeptTransferDocPrint;
+    case 'ls-dept-transfer-nurse': return (await import('./EMRPrintTemplates/tt32-forms')).DeptTransferNursePrint;
+
     // EMRNursingPrintTemplates
     case 'dd01-careplan': return (await import('./EMRNursingPrintTemplates')).NursingCarePlanPrint;
     case 'dd02-icucare': return (await import('./EMRNursingPrintTemplates')).ICUNursingCarePlanPrint;

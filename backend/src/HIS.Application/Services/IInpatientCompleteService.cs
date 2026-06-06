@@ -205,9 +205,19 @@ public interface IInpatientCompleteService
     #region 3.3 Chỉ định dịch vụ nội trú
 
     /// <summary>
-    /// Lấy chẩn đoán từ hồ sơ
+    /// Lấy chẩn đoán từ hồ sơ (legacy tuple)
     /// </summary>
     Task<(string? DiagnosisCode, string? Diagnosis)> GetDiagnosisFromRecordAsync(Guid admissionId);
+
+    /// <summary>
+    /// Lấy chẩn đoán đầy đủ (chính + kèm theo) từ hồ sơ bệnh án
+    /// </summary>
+    Task<InpatientDiagnosisDto> GetInpatientDiagnosisAsync(Guid admissionId);
+
+    /// <summary>
+    /// Lưu chẩn đoán chính + kèm theo cho đợt điều trị nội trú
+    /// </summary>
+    Task<InpatientDiagnosisDto> SaveInpatientDiagnosisAsync(Guid admissionId, SaveInpatientDiagnosisDto dto, Guid userId);
 
     /// <summary>
     /// Tìm kiếm dịch vụ theo cây

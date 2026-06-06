@@ -7,10 +7,8 @@ import type { SurgeryDto, SurgeryTeamMemberDto } from '../api/surgery';
 import type { ServerValidationError } from '../utils/formError';
 import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
-import { CabinetIssueModal } from './shared/CabinetIssueModal';
-import { PreAnesthesiaModal } from './shared/SurgeryFormModals';
-import { AnesthesiaMonitorModal } from './shared/SurgeryFormModals';
-import { ConsentModal } from './shared/SurgeryFormModals';
+import { SurgeryCabinetIssueModal } from './shared/SurgeryCabinetIssueModal';
+import { PreAnesthesiaModal, AnesthesiaMonitorModal, ConsentModal, PostAnesthesiaPlanModal } from './shared/SurgeryFormModals';
 
 /* Phẫu thuật v2 — port of OR v2.html */
 
@@ -170,19 +168,20 @@ const SurgeryV2: React.FC = () => {
 };
 
 const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => {
-  const [cabinetOpen, setCabinetOpen]     = useState(false);
-  const [preAnesthOpen, setPreAnesthOpen] = useState(false);
-  const [anesthMonOpen, setAnesthMonOpen] = useState(false);
-  const [consentOpen, setConsentOpen]     = useState(false);
+  const [cabinetOpen, setCabinetOpen]         = useState(false);
+  const [preAnesthOpen, setPreAnesthOpen]     = useState(false);
+  const [anesthMonOpen, setAnesthMonOpen]     = useState(false);
+  const [consentOpen, setConsentOpen]         = useState(false);
+  const [postAnesthOpen, setPostAnesthOpen]   = useState(false);
 
   return (
   <>
-    {/* G-10c: Xuất tủ trực phòng mổ */}
+    {/* G-10c: Xuất tủ trực phòng mổ — SurgeryCabinetIssueModal phân đối tượng (Prompt 8 Đợt 2) */}
     <div className="rec-section" style={{ paddingBottom: 8 }}>
       <Btn variant="ghost" size="sm" onClick={() => setCabinetOpen(true)}>
-        <TermIcon name="package" size={12} /> Xuất tủ trực (hao phí PTTT)
+        <TermIcon name="package" size={12} /> Xuất tủ trực (phân đối tượng BHYT/VP/HP)
       </Btn>
-      <CabinetIssueModal
+      <SurgeryCabinetIssueModal
         open={cabinetOpen}
         onClose={() => setCabinetOpen(false)}
         patientName={r.patientName}
@@ -203,6 +202,10 @@ const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => {
         </Btn>
         <Btn variant="ghost" size="sm" onClick={() => setConsentOpen(true)}>
           <TermIcon name="check" size={11} /> Cam đoan PTTT
+        </Btn>
+        {/* Kế hoạch sau gây mê – phẫu thuật (Prompt 8 Đợt 2) */}
+        <Btn variant="ghost" size="sm" onClick={() => setPostAnesthOpen(true)}>
+          <TermIcon name="clipboard" size={11} /> KH sau gây mê
         </Btn>
       </div>
 
@@ -230,6 +233,15 @@ const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => {
         surgeryCode={r.surgeryCode}
         plannedProcedure={r.surgeryServiceName}
         diagnosis={r.preOperativeDiagnosis}
+      />
+      {/* Kế hoạch sau gây mê – phẫu thuật (Prompt 8 Đợt 2) */}
+      <PostAnesthesiaPlanModal
+        open={postAnesthOpen}
+        onClose={() => setPostAnesthOpen(false)}
+        surgeryId={r.id}
+        patientId={r.patientId}
+        patientName={r.patientName}
+        surgeryCode={r.surgeryCode}
       />
     </div>
     <div className="rec-section">
