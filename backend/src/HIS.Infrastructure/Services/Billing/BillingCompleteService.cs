@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Billing;
 using HIS.Application.Services;
@@ -19,11 +20,19 @@ public partial class BillingCompleteService : IBillingCompleteService
 {
     private readonly HISDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IElectronicInvoiceProvider _eInvoiceProvider;
+    private readonly ILogger<BillingCompleteService> _logger;
 
-    public BillingCompleteService(HISDbContext context, IUnitOfWork unitOfWork)
+    public BillingCompleteService(
+        HISDbContext context,
+        IUnitOfWork unitOfWork,
+        IElectronicInvoiceProvider eInvoiceProvider,
+        ILogger<BillingCompleteService> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
+        _eInvoiceProvider = eInvoiceProvider;
+        _logger = logger;
     }
 
 

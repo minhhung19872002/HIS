@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Billing;
 using HIS.Application.Services;
@@ -293,19 +294,144 @@ public partial class BillingCompleteService {
         if (eInvoice.Status == 3)
             throw new Exception("Không thể xuất hóa đơn đã hủy");
 
-        // Simulate export to provider (VNInvoice/Misa)
-        // In production, this would call the provider's API
-        eInvoice.ProviderInvoiceId ??= Guid.NewGuid().ToString("N")[..16].ToUpper();
-        eInvoice.LookupCode ??= $"LK{DateTime.Now:yyyyMMddHHmmssfff}";
-        eInvoice.LookupUrl ??= $"https://einvoice.vn/lookup/{eInvoice.LookupCode}";
+        // Phát hành HĐĐT qua nhà cung cấp THẬT (cắm-thay-được qua IElectronicInvoiceProvider).
+        // - Provider đã cấu hình ("EInvoice:Enabled"=true + đủ thông tin) → gọi REST API NCC,
+        //   nhận số hóa đơn + mã CQT (mã cơ quan thuế) + URL tra cứu.
+        // - Chưa cấu hình → fallback an toàn: giữ hành vi cũ (đánh dấu đã phát hành nội bộ +
+        //   mã/URL tra cứu nội bộ) để không vỡ luồng thu ngân. NCC thật sẽ ghi đè khi bật cấu hình.
+        if (_eInvoiceProvider.IsConfigured)
+        {
+            try
+            {
+                var req = BuildEInvoiceRequest(eInvoice);
+                var result = await _eInvoiceProvider.IssueAsync(req);
 
-        if (eInvoice.Status == 0) // Draft -> Issued
-            eInvoice.Status = 1;
+                if (result.Success)
+                {
+                    if (!string.IsNullOrWhiteSpace(result.ProviderInvoiceId))
+                        eInvoice.ProviderInvoiceId = result.ProviderInvoiceId;
+                    if (!string.IsNullOrWhiteSpace(result.InvoiceNumber))
+                        eInvoice.InvoiceNumber = result.InvoiceNumber!;
+                    if (!string.IsNullOrWhiteSpace(result.LookupCode))
+                        eInvoice.LookupCode = result.LookupCode;
+                    if (!string.IsNullOrWhiteSpace(result.LookupUrl))
+                        eInvoice.LookupUrl = result.LookupUrl;
+                    // Mã CQT (mã cơ quan thuế) — entity chưa có cột riêng → lưu vào SignatureData
+                    // (field nullable đang để trống cho ElectronicInvoice, ngữ nghĩa "thông tin
+                    // xác thực hóa đơn đã phát hành"). Cân nhắc thêm cột TaxAuthorityCode qua migration sau.
+                    if (!string.IsNullOrWhiteSpace(result.TaxAuthorityCode))
+                        eInvoice.SignatureData = result.TaxAuthorityCode;
+
+                    eInvoice.Status = 1; // Issued
+                }
+                else
+                {
+                    _logger.LogWarning("Phát hành HĐĐT thất bại {Id}: {Code} {Msg}",
+                        eInvoice.Id, result.ErrorCode, result.ErrorMessage);
+                    throw new InvalidOperationException(
+                        $"Phát hành HĐĐT thất bại: {result.ErrorMessage ?? result.ErrorCode ?? "lỗi không xác định"}");
+                }
+            }
+            catch (Exception ex) when (ex is not InvalidOperationException)
+            {
+                // Lỗi gọi NCC (mạng/timeout/từ chối) — không nuốt im, ném lên để controller trả lỗi rõ ràng.
+                _logger.LogWarning(ex, "Lỗi gọi NCC HĐĐT cho hóa đơn {Id}", eInvoice.Id);
+                throw new Exception("Không thể phát hành HĐĐT qua nhà cung cấp: " + ex.Message);
+            }
+        }
+        else
+        {
+            // Fallback giữ hành vi cũ khi chưa cấu hình NCC (đánh dấu chờ/đã phát hành nội bộ).
+            _logger.LogInformation("HĐĐT chưa cấu hình NCC — phát hành nội bộ tạm thời cho {Id}", eInvoice.Id);
+            eInvoice.ProviderInvoiceId ??= Guid.NewGuid().ToString("N")[..16].ToUpper();
+            eInvoice.LookupCode ??= $"LK{DateTime.Now:yyyyMMddHHmmssfff}";
+            eInvoice.LookupUrl ??= $"https://einvoice.vn/lookup/{eInvoice.LookupCode}";
+
+            if (eInvoice.Status == 0) // Draft -> Issued
+                eInvoice.Status = 1;
+        }
 
         eInvoice.UpdatedBy = userId.ToString();
         await _context.SaveChangesAsync();
 
         return MapToEInvoiceDto(eInvoice);
+    }
+
+    /// <summary>Map entity HĐĐT sang request gửi NCC — chỉ dùng field có thật trên entity.</summary>
+    private static EInvoiceRequest BuildEInvoiceRequest(ElectronicInvoice e) => new()
+    {
+        EInvoiceId = e.Id,
+        InvoiceSeries = e.InvoiceSeries,
+        InvoiceNumber = e.InvoiceNumber,
+        InvoiceDate = e.InvoiceDate,
+        BuyerName = e.BuyerName ?? e.PatientName,
+        BuyerAddress = e.PatientAddress,
+        BuyerTaxCode = e.TaxCode,
+        BuyerEmail = e.SentTo,
+        PaymentMethod = e.PaymentMethod ?? "TM",
+        SubTotal = e.SubTotal,
+        VatRate = e.VatRate,
+        VatAmount = e.VatAmount,
+        DiscountAmount = e.DiscountAmount,
+        TotalAmount = e.TotalAmount,
+        Items = ParseEInvoiceItems(e)
+    };
+
+    /// <summary>Parse ItemsJson ([{name,unit,qty,price,amount}]) → danh sách dòng hàng. Fallback 1 dòng tổng hợp.</summary>
+    private static List<EInvoiceItem> ParseEInvoiceItems(ElectronicInvoice e)
+    {
+        var items = new List<EInvoiceItem>();
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(e.ItemsJson))
+            {
+                var rows = System.Text.Json.JsonSerializer
+                    .Deserialize<List<Dictionary<string, System.Text.Json.JsonElement>>>(e.ItemsJson);
+                if (rows != null)
+                {
+                    foreach (var row in rows)
+                    {
+                        items.Add(new EInvoiceItem
+                        {
+                            Name = GetJsonString(row, "name") ?? "Dịch vụ y tế",
+                            Unit = GetJsonString(row, "unit") ?? "Lần",
+                            Quantity = GetJsonDecimal(row, "qty", 1),
+                            UnitPrice = GetJsonDecimal(row, "price", 0),
+                            Amount = GetJsonDecimal(row, "amount", 0),
+                            VatRate = e.VatRate
+                        });
+                    }
+                }
+            }
+        }
+        catch { /* ItemsJson lỗi → dùng fallback bên dưới */ }
+
+        if (items.Count == 0)
+        {
+            items.Add(new EInvoiceItem
+            {
+                Name = "Dịch vụ y tế",
+                Unit = "Lần",
+                Quantity = 1,
+                UnitPrice = e.SubTotal,
+                Amount = e.SubTotal,
+                VatRate = e.VatRate
+            });
+        }
+        return items;
+    }
+
+    private static string? GetJsonString(Dictionary<string, System.Text.Json.JsonElement> row, string key)
+        => row.TryGetValue(key, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
+
+    private static decimal GetJsonDecimal(Dictionary<string, System.Text.Json.JsonElement> row, string key, decimal fallback)
+    {
+        if (row.TryGetValue(key, out var v))
+        {
+            if (v.ValueKind == System.Text.Json.JsonValueKind.Number && v.TryGetDecimal(out var d)) return d;
+            if (v.ValueKind == System.Text.Json.JsonValueKind.String && decimal.TryParse(v.GetString(), out var ds)) return ds;
+        }
+        return fallback;
     }
 
     public async Task<ElectronicInvoiceStatsDto> GetElectronicInvoiceStatsAsync(DateTime? fromDate, DateTime? toDate)
