@@ -195,6 +195,7 @@ const SampleReceive = lazy(() => import('./pages/SampleReceive'));
 const BhxhConfig = lazy(() => import('./pages/BhxhConfig'));
 const ConsultationRegister = lazy(() => import('./pages/ConsultationRegister'));
 const PublicStudyViewer = lazy(() => import('./pages/PublicStudyViewer'));
+const PublicEmrLookup = lazy(() => import('./pages/PublicEmrLookup'));
 const RisDispatcher = lazy(() => import('./pages/RisDispatcher'));
 const RisAdmin = lazy(() => import('./pages/RisAdmin'));
 const VideoConsultation = lazy(() => import('./pages/VideoConsultation'));
@@ -322,7 +323,7 @@ const HomeEntry: React.FC = () => {
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated } = useAuth();
-  useGlobalAbbreviationExpander();
+  useGlobalAbbreviationExpander(undefined, isAuthenticated);
 
   return (
     <Suspense fallback={<PageLoader />}>
@@ -330,6 +331,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/queue-display" element={<QueueDisplay />} />
         <Route path="/dat-lich" element={<AppointmentBooking />} />
         <Route path="/shared/:token" element={<PublicStudyViewer />} />
+        <Route path="/tra-cuu-benh-an" element={<PublicEmrLookup />} />
         <Route
           path="/login"
           element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}

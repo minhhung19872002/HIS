@@ -31,11 +31,14 @@ async function loadDict(scope: number | undefined): Promise<AbbreviationDto[]> {
 /**
  * Install global F2 handler. Loads all-scope dict on mount.
  * @param initialScopes các scope cần preload (ưu tiên lookup trước)
+ * @param enabled chỉ load dict khi đã đăng nhập — route public (/tra-cuu-benh-an, /dat-lich,
+ *   /shared/:token) không có token, gọi API sẽ 401 → interceptor đá về /login làm hỏng trang public.
  */
-export function useGlobalAbbreviationExpander(initialScopes: number[] = [0, 1, 2, 3, 4, 5]) {
+export function useGlobalAbbreviationExpander(initialScopes: number[] = [0, 1, 2, 3, 4, 5], enabled = true) {
   const [dict, setDict] = useState<AbbreviationDto[]>([]);
 
   useEffect(() => {
+    if (!enabled) return;
     Promise.all(initialScopes.map(loadDict))
       .then((arrs) => {
         const merged = new Map<string, AbbreviationDto>();
@@ -46,7 +49,8 @@ export function useGlobalAbbreviationExpander(initialScopes: number[] = [0, 1, 2
         setDict(Array.from(merged.values()));
       })
       .catch(() => {});
-  }, []);
+    // re-run khi đăng nhập xong (enabled flip false→true) để dict không bị rỗng sau SPA login
+  }, [enabled]);
 
   const handler = useCallback((e: KeyboardEvent) => {
     if (e.key !== 'F2') return;
