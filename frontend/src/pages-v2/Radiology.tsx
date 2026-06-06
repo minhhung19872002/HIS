@@ -1,9 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { App as AntdApp, Input } from 'antd';
+import { App as AntdApp, Input, Select } from 'antd';
 import * as risApi from '../api/ris';
-import type { RadiologyOrderDto, RadiologyResultDto, RadiologyOrderItemDto, RadiologyResultTemplateDto } from '../api/ris';
+import type { RadiologyOrderDto, RadiologyResultDto, RadiologyOrderItemDto, RadiologyResultTemplateDto, PtttServiceMappingDto } from '../api/ris';
+import * as pathologyApi from '../api/pathology';
+import type { SpecimenType } from '../api/pathology';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, AbSelect,
@@ -13,6 +15,7 @@ import TermIcon from '../layouts/terminal/Icon';
 import { useAbbrExpansion } from '../utils/abbrExpand';
 import { ABBREVIATION_SCOPES } from '../api/abbreviation';
 import { SurgeryReportModal } from './shared/SurgeryReportModal';
+import ShareStudyModal from '../components/ShareStudyModal';
 
 type ApiErr = { response?: { data?: { message?: string } } };
 
@@ -286,6 +289,8 @@ const ResultEntryModal: React.FC<{
   const [signOpen, setSignOpen] = useState(false);
   // PTTT tường trình (G-33) — sinh thiết / thủ thuật dưới hướng dẫn CĐHA
   const [ptttOpen, setPtttOpen] = useState(false);
+  // Sinh thiết / GPB (Prompt 8 Đợt 2)
+  const [biopsyOpen, setBiopsyOpen] = useState(false);
 
   // Bung viết tắt inline (MQSoft F2 style) — không cần API call riêng.
   // Hook nạp từ điển một lần và trả hàm expand() chạy local.
@@ -394,6 +399,13 @@ const ResultEntryModal: React.FC<{
         <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
         <Btn
           variant="ghost"
+          onClick={() => setBiopsyOpen(true)}
+          title="Nhập kết quả sinh thiết / giải phẫu bệnh (GPB) liên quan ca CĐHA"
+        >
+          <TermIcon name="scissors" size={12} /> Sinh thiết / GPB
+        </Btn>
+        <Btn
+          variant="ghost"
           onClick={() => setPtttOpen(true)}
           title="Tường trình phẫu thuật / thủ thuật dưới hướng dẫn CĐHA (sinh thiết…)"
         >
@@ -476,9 +488,157 @@ const ResultEntryModal: React.FC<{
       prefillServiceName={item?.serviceName}
       prefillDiagnosis={order?.diagnosis}
     />
+    {/* Sinh thiết / GPB (Prompt 8 Đợt 2) */}
+    <BiopsyModal
+      open={biopsyOpen}
+      order={order}
+      onClose={() => setBiopsyOpen(false)}
+      onSaved={() => { /* không cần reload — KQ GPB là entity riêng */ }}
+    />
     </>
   );
 };
+
+// ─────────────── Modal nhập sinh thiết / GPB từ màn KQ CĐHA ───────────────
+
+const BiopsyModal: React.FC<{
+  open: boolean;
+  order: RadiologyOrderDto | null;
+  onClose: () => void;
+  onSaved: () => void;
+}> = ({ open, order, onClose, onSaved }) => {
+  const { message } = AntdApp.useApp();
+  const [specimenTypes, setSpecimenTypes] = useState<SpecimenType[]>([]);
+  const [specimenType, setSpecimenType] = useState('biopsy');
+  const [specimenSite, setSpecimenSite] = useState('');
+  const [clinicalDiagnosis, setClinicalDiagnosis] = useState('');
+  const [grossDescription, setGrossDescription] = useState('');
+  const [microscopicDescription, setMicroscopicDescription] = useState('');
+  const [diagnosis, setDiagnosis] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+
+  const loadTypes = useCallback(async () => {
+    const types = await pathologyApi.getSpecimenTypes();
+    setSpecimenTypes(types);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    loadTypes();
+    setSpecimenType('biopsy');
+    setSpecimenSite('');
+    setClinicalDiagnosis(order?.diagnosis || '');
+    setGrossDescription('');
+    setMicroscopicDescription('');
+    setDiagnosis('');
+    setSavedId(null);
+  }, [open, order, loadTypes]);
+
+  const handleSave = async () => {
+    if (!specimenSite.trim()) { message.warning('Nhập vị trí lấy mẫu'); return; }
+    setSaving(true);
+    try {
+      const result = await pathologyApi.createPathologyResult({
+        specimenType: specimenType as 'biopsy' | 'cytology' | 'pap' | 'frozenSection',
+        grossDescription,
+        microscopicDescription,
+        diagnosis,
+      } as Parameters<typeof pathologyApi.createPathologyResult>[0]);
+      setSavedId(result.id);
+      message.success('Đã lưu kết quả sinh thiết / GPB');
+      onSaved();
+    } catch (e) {
+      message.error((e as ApiErr)?.response?.data?.message || 'Không thể lưu kết quả sinh thiết');
+    } finally { setSaving(false); }
+  };
+
+  const handlePrint = async () => {
+    if (!savedId) { message.warning('Lưu trước khi in'); return; }
+    setPrinting(true);
+    try {
+      const blob = await pathologyApi.printPathologyReport(savedId);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch { message.error('Không in được phiếu sinh thiết'); }
+    finally { setPrinting(false); }
+  };
+
+  if (!order) return null;
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="lg"
+      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <TermIcon name="scissors" size={14} /><span>Nhập sinh thiết / GPB</span>
+      </span>}
+      sub={`${order.patientName} · ${order.orderCode}`}
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
+        <span style={{ flex: 1 }} />
+        {savedId && (
+          <Btn onClick={handlePrint} loading={printing} icon="print">In phiếu sinh thiết</Btn>
+        )}
+        <Btn variant="primary" onClick={handleSave} loading={saving} icon="check">Lưu kết quả</Btn>
+      </>}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <FormRow label="Loại mẫu">
+          <Select
+            value={specimenType}
+            onChange={setSpecimenType}
+            style={{ width: '100%' }}
+            options={specimenTypes.map((t) => ({ label: t.name, value: t.code }))}
+          />
+        </FormRow>
+        <FormRow label="Vị trí lấy mẫu">
+          <Input
+            value={specimenSite}
+            onChange={(e) => setSpecimenSite(e.target.value)}
+            placeholder="Mô tả vị trí lấy mẫu (vd: thùy trái tuyến giáp)"
+          />
+        </FormRow>
+        <FormRow label="Chẩn đoán lâm sàng (nghi ngờ)">
+          <Input
+            value={clinicalDiagnosis}
+            onChange={(e) => setClinicalDiagnosis(e.target.value)}
+            placeholder="Chẩn đoán trước sinh thiết"
+          />
+        </FormRow>
+        <FormRow label="Mô tả đại thể">
+          <Input.TextArea
+            rows={3}
+            value={grossDescription}
+            onChange={(e) => setGrossDescription(e.target.value)}
+            placeholder="Mô tả màu sắc, kích thước, tính chất mẫu…"
+          />
+        </FormRow>
+        <FormRow label="Mô tả vi thể">
+          <Input.TextArea
+            rows={3}
+            value={microscopicDescription}
+            onChange={(e) => setMicroscopicDescription(e.target.value)}
+            placeholder="Đặc điểm tế bào, mô bệnh học…"
+          />
+        </FormRow>
+        <FormRow label="Kết luận GPB">
+          <Input.TextArea
+            rows={3}
+            value={diagnosis}
+            onChange={(e) => setDiagnosis(e.target.value)}
+            placeholder="Chẩn đoán giải phẫu bệnh cuối cùng"
+          />
+        </FormRow>
+      </div>
+    </ModalShell>
+  );
+};
+
+// ─────────────── Modal chia sẻ ca chụp (v2 wrapper) ───────────────
+// ShareStudyModal đã có đầy đủ HideDemographics — dùng lại không sửa.
 
 const RadiologyV2: React.FC = () => {
   const { message } = AntdApp.useApp();
@@ -495,6 +655,18 @@ const RadiologyV2: React.FC = () => {
   const [callTarget, setCallTarget] = useState<RadiologyOrderDto | null>(null);
   const [rooms, setRooms] = useState<{ id: string; name: string }[]>([]);
   const [date, setDate] = useState(() => dayjs());
+  // Chia sẻ ca chụp (Prompt 8 Đợt 2)
+  const [shareCtx, setShareCtx] = useState<{
+    studyInstanceUID: string;
+    orthancStudyId?: string;
+    patientId?: string;
+  } | null>(null);
+  // Tường trình PTTT từ drawer chi tiết (Prompt 8 DEFER-resolve)
+  const [ptttDrawerOpen, setPtttDrawerOpen] = useState(false);
+  const [detailPtttMapping, setDetailPtttMapping] = useState<PtttServiceMappingDto | null>(null);
+  // Bulk download (Prompt 8 Đợt 2)
+  const [bulkSelected, setBulkSelected] = useState<string[]>([]);
+  const [bulkDownloading, setBulkDownloading] = useState(false);
   const PAGE_SIZE = 18;
 
   const reload = () => {
@@ -526,6 +698,17 @@ const RadiologyV2: React.FC = () => {
     risApi.getRadiologyResult(firstItem.id)
       .then((r) => setResult(r.data || null))
       .catch(() => setResult(null));
+  }, [detail]);
+
+  // Load PTTT mapping khi drawer mở để kiểm tra dịch vụ có mapping hay không
+  useEffect(() => {
+    setDetailPtttMapping(null);
+    if (!detail) return;
+    const serviceId = detail.items?.[0]?.serviceId;
+    if (!serviceId) return;
+    risApi.getPtttMappingByService(serviceId)
+      .then((r) => setDetailPtttMapping(r.data || null))
+      .catch(() => setDetailPtttMapping(null)); // 404 = không có mapping — ẩn nút
   }, [detail]);
 
   const counts = useMemo(() => {
@@ -649,6 +832,39 @@ const RadiologyV2: React.FC = () => {
     catch (e) { message.error((e as ApiErr)?.response?.data?.message || 'Không hoàn thành được ca'); }
   };
 
+  const onShare = (r: RadiologyOrderDto) => {
+    // Dùng studyInstanceUID thật từ DicomStudy nếu có; fallback về orderId để StudyShareController
+    // vẫn tạo được link (BS cập nhật UID thật sau khi DICOM về).
+    setShareCtx({
+      studyInstanceUID: r.studyInstanceUID || r.id,
+      patientId: r.patientId,
+    });
+  };
+
+  const onBulkDownload = async (anonymize: boolean) => {
+    if (bulkSelected.length === 0) { message.warning('Chọn ít nhất 1 ca để tải'); return; }
+    setBulkDownloading(true);
+    try {
+      const resp = await risApi.bulkExportDicom({ studyIds: bulkSelected, anonymize });
+      const blob = new Blob([resp.data as BlobPart], { type: 'application/zip' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = anonymize ? 'bulk_anon_export.zip' : 'bulk_export.zip';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      message.success(`Đã tải ${bulkSelected.length} study`);
+      setBulkSelected([]);
+    } catch { message.error('Tải xuống thất bại'); }
+    finally { setBulkDownloading(false); }
+  };
+
+  const toggleBulkSelect = (id: string) => {
+    setBulkSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
   return (
     <div className="ab">
       <KpiStrip
@@ -688,6 +904,22 @@ const RadiologyV2: React.FC = () => {
           <TermIcon name="chevronR" size={12} />
         </Btn>
         <span className="spacer" />
+        {bulkSelected.length > 0 && (
+          <>
+            <span style={{ fontSize: 12, color: 'var(--t-2)' }}>
+              {bulkSelected.length} đã chọn
+            </span>
+            <Btn variant="ghost" onClick={() => void onBulkDownload(false)} loading={bulkDownloading}>
+              <TermIcon name="download" size={12} /> Tải ZIP
+            </Btn>
+            <Btn variant="ghost" onClick={() => void onBulkDownload(true)} loading={bulkDownloading}>
+              <TermIcon name="shield" size={12} /> Tải ẩn danh
+            </Btn>
+            <Btn variant="ghost" onClick={() => setBulkSelected([])}>
+              <TermIcon name="x" size={12} /> Bỏ chọn
+            </Btn>
+          </>
+        )}
         <Btn variant="ghost" onClick={reload}>
           <TermIcon name="refresh" size={12} /> Làm mới
         </Btn>
@@ -728,6 +960,12 @@ const RadiologyV2: React.FC = () => {
               {r.items?.[0]?.hasImages && (
                 <ActBtn ic="image" title="Xem ảnh DICOM" onClick={() => onViewer(r)} />
               )}
+              <ActBtn ic="share" title="Chia sẻ ca chụp (ẩn danh tùy chọn)" onClick={() => onShare(r)} />
+              <ActBtn
+                ic={bulkSelected.includes(r.id) ? 'check' : 'download'}
+                title={bulkSelected.includes(r.id) ? 'Đã chọn tải hàng loạt' : 'Chọn tải hàng loạt'}
+                onClick={() => toggleBulkSelect(r.id)}
+              />
               <ActBtn ic="print" title="In phiếu" onClick={() => onPrintRow(r)} />
             </div>
           );
@@ -759,6 +997,15 @@ const RadiologyV2: React.FC = () => {
           <>
             <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             <span style={{ flex: 1 }} />
+            {/* Nút PTTT chỉ hiện khi dịch vụ có mapping trong RisSurgeryServiceMappings */}
+            {detailPtttMapping && statusKey(detail.status) !== 'cancelled' && (
+              <Btn
+                onClick={() => setPtttDrawerOpen(true)}
+                title={`Tường trình PTTT — mẫu: ${detailPtttMapping.surgeryNarrativeTemplateName || 'tự do'}`}
+              >
+                <TermIcon name="scissors" size={12} /> Tường trình PTTT
+              </Btn>
+            )}
             {statusKey(detail.status) !== 'cancelled' && (
               <Btn onClick={() => { setResultTarget(detail); setDetail(null); }}>
                 <TermIcon name="edit" size={12} /> {detail.items?.[0]?.hasResult ? 'Sửa KQ' : 'Nhập KQ'}
@@ -791,6 +1038,27 @@ const RadiologyV2: React.FC = () => {
         rooms={rooms}
         onClose={() => setCallTarget(null)}
         onCalled={reload}
+      />
+
+      {/* Chia sẻ ca chụp với anonymize (Prompt 8 Đợt 2) */}
+      <ShareStudyModal
+        open={shareCtx !== null}
+        onClose={() => setShareCtx(null)}
+        studyInstanceUID={shareCtx?.studyInstanceUID || ''}
+        orthancStudyId={shareCtx?.orthancStudyId}
+        patientId={shareCtx?.patientId}
+      />
+
+      {/* Tường trình PTTT từ drawer chi tiết — chỉ hiện khi dịch vụ có mapping */}
+      <SurgeryReportModal
+        open={ptttDrawerOpen}
+        onClose={() => setPtttDrawerOpen(false)}
+        examinationId={detail?.visitId ?? null}
+        patientId={detail?.patientId}
+        patientName={detail?.patientName}
+        patientCode={detail?.patientCode}
+        prefillServiceName={detailPtttMapping?.template?.surgeryMethod || detail?.items?.[0]?.serviceName}
+        prefillDiagnosis={detailPtttMapping?.template?.preOpDiagnosis || detail?.diagnosis}
       />
     </div>
   );

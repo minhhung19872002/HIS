@@ -233,6 +233,8 @@ export interface RadiologyOrderDto {
   items: RadiologyOrderItemDto[];
   status: string;
   patientType: string;
+  /** DICOM Study Instance UID — null nếu chưa có DICOM linked */
+  studyInstanceUID?: string;
 }
 
 export interface RadiologyOrderItemDto {
@@ -1295,6 +1297,40 @@ export const getImages = (seriesInstanceUID: string) =>
 
 export const linkStudyToOrder = (orderItemId: string, studyInstanceUID: string) =>
   apiClient.post(`/RISComplete/order-items/${orderItemId}/link-study`, { studyInstanceUID });
+
+// #region PTTT Service Mapping (ris-catalog)
+
+export interface PtttMappingTemplate {
+  id: string;
+  templateCode: string;
+  templateName: string;
+  preOpDiagnosis?: string;
+  postOpDiagnosis?: string;
+  surgeryMethod?: string;
+  anesthesiaMethod?: string;
+  narrativeBody?: string;
+  complications?: string;
+  postOpOrders?: string;
+}
+
+export interface PtttServiceMappingDto {
+  id: string;
+  radiologyServiceId: string;
+  radiologyServiceName: string;
+  surgeryNarrativeTemplateId?: string;
+  surgeryNarrativeTemplateName?: string;
+  notes?: string;
+  template?: PtttMappingTemplate;
+}
+
+/**
+ * Resolve mapping PTTT theo serviceId của dịch vụ CĐHA.
+ * Trả 404 (throw) nếu dịch vụ không có mapping — caller nên bắt lỗi và ẩn nút.
+ */
+export const getPtttMappingByService = (serviceId: string) =>
+  apiClient.get<PtttServiceMappingDto>(`/ris-catalog/pttt-service-mappings/by-service/${serviceId}`);
+
+// #endregion PTTT Service Mapping
 
 export const preliminaryApproveResult = (resultId: string, note?: string) =>
   apiClient.post(`/RISComplete/results/${resultId}/preliminary-approve`, { note });
@@ -2508,6 +2544,13 @@ export const exportDicomStudy = (data: DicomExportRequestDto) =>
 
 export const getDicomExportStatus = (studyInstanceUID: string) =>
   apiClient.get<DicomExportResultDto>(`/RISComplete/dicom/export-status/${studyInstanceUID}`);
+
+// Bulk export — nhiều study theo patient/list + tùy chọn anonymize (Prompt 8 Đợt 2)
+export const bulkExportDicom = (data: { studyIds: string[]; anonymize: boolean }) =>
+  apiClient.post('/RISComplete/dicom/bulk-export', data, {
+    responseType: 'blob',
+    timeout: 300_000, // 5 phút cho nhiều study
+  });
 
 // DICOM Send to remote PACS
 export const sendDicomToRemote = (data: { studyId: string; remoteServerId: string }) =>

@@ -1,15 +1,29 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
+import apiClient from '../api/client';
 import * as labApi from '../api/laboratory';
 import type { LabRequest, LabTestItem } from '../api/laboratory';
+import * as settingsApi from '../api/userSettings';
+import type { LabDefaultRoles } from '../api/userSettings';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, ModalShell,
   type ColumnDef, type StatusTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+
+// ─── Types cho Panel Tiện ích ────────────────────────────────
+interface WarehouseStock {
+  id: string; itemCode: string; itemName: string; itemTypeName: string;
+  unit: string; quantity: number; availableQuantity: number;
+  warehouseName: string; batchNumber?: string; expiryDate?: string; daysToExpiry?: number;
+}
+interface LabChemicalItem {
+  id: string; serviceName?: string; supplyName?: string; supplyCode?: string;
+  quantityPerTest: number; unit?: string; objectType: string; isActive: boolean; note?: string;
+}
 
 /* ────────────────────────────────────────────────────────────
    Lab v2 (LIS) — port of design-system-v2/his/project/LIS v2.html
@@ -80,6 +94,51 @@ const LaboratoryV2: React.FC = () => {
   const [detail, setDetail] = useState<LabRequest | null>(null);
   const [date, setDate]   = useState(() => dayjs());
   const PAGE_SIZE = 18;
+
+  // Panel Tiện ích: tồn tủ trực + tồn hóa chất
+  const [utilOpen, setUtilOpen] = useState(false);
+  const [utilStock, setUtilStock] = useState<WarehouseStock[]>([]);
+  const [utilChemicals, setUtilChemicals] = useState<LabChemicalItem[]>([]);
+  const [utilLoading, setUtilLoading] = useState(false);
+
+  const loadUtilData = async () => {
+    setUtilLoading(true);
+    try {
+      const [stockRes, chemRes] = await Promise.all([
+        // interceptor already unwraps {success,data} — payload = PagedResultDto<StockDto> = {items:[...],totalCount,...}
+        apiClient.get<{ items: WarehouseStock[] } | WarehouseStock[]>('/warehouse/stock', {
+          params: { itemType: 3, pageSize: 100 }, // ItemType 3 = Hóa chất
+        }),
+        apiClient.get<LabChemicalItem[]>('/lis-catalog/chemicals'),
+      ]);
+      // Handle both array and paged wrapper shapes
+      const stockPayload = stockRes.data;
+      const stockItems: WarehouseStock[] = Array.isArray(stockPayload)
+        ? stockPayload
+        : ((stockPayload as { items?: WarehouseStock[] }).items ?? []);
+      setUtilStock(stockItems);
+      setUtilChemicals(Array.isArray(chemRes.data) ? chemRes.data : []);
+    } catch {
+      // warn only — panel is non-critical, failure should not crash the lab page
+      console.warn('[Laboratory] loadUtilData failed');
+    } finally {
+      setUtilLoading(false);
+    }
+  };
+
+  // DefaultLabRole per-user (Prompt 11 Đợt 3)
+  const [labRoles, setLabRoles] = useState<LabDefaultRoles>({});
+  const [rolesOpen, setRolesOpen] = useState(false);
+  const [rolesEdit, setRolesEdit] = useState<LabDefaultRoles>({});
+  const [rolesSaving, setRolesSaving] = useState(false);
+  // Track first mount — load once
+  const rolesFetched = useRef(false);
+
+  useEffect(() => {
+    if (rolesFetched.current) return;
+    rolesFetched.current = true;
+    settingsApi.getLabDefaultRoles().then(setLabRoles).catch(() => { /* non-critical */ });
+  }, []);
 
   // Hủy ngược chuỗi workflow (M3.14): mức hủy + lý do, áp cho mọi test item của phiếu
   const [chainOpen, setChainOpen] = useState(false);
@@ -152,10 +211,12 @@ const LaboratoryV2: React.FC = () => {
 
   const onCollect = async (r: LabRequest) => {
     try {
+      // Auto-fill KTV từ DefaultLabRole; fallback về tên generic nếu chưa cấu hình
+      const collectorName = labRoles.defaultKtvName || 'KTV thu mẫu';
       await labApi.collectSample(r.id, {
         sampleType: 'Blood',
         collectionTime: new Date().toISOString(),
-        collectorName: 'NV thu mẫu',
+        collectorName,
       });
       message.success(`Đã ghi nhận lấy mẫu · ${r.requestCode}`);
       reload();
@@ -348,6 +409,20 @@ const LaboratoryV2: React.FC = () => {
         <Btn variant="ghost" onClick={() => navigate('/v2/lab-qc')}>
           <TermIcon name="chart" size={12} /> QC hôm nay
         </Btn>
+        <Btn variant="ghost" onClick={() => { setUtilOpen(true); loadUtilData(); }}>
+          <TermIcon name="flask" size={12} /> Tiện ích
+        </Btn>
+        <Btn variant="ghost" title="Cài đặt KTV / Người duyệt mặc định" onClick={() => {
+          setRolesEdit({ ...labRoles });
+          setRolesOpen(true);
+        }}>
+          <TermIcon name="user" size={12} /> Vai trò
+          {labRoles.defaultKtvName && (
+            <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--t-2)' }}>
+              {labRoles.defaultKtvName.split(' ').slice(-1)[0]}
+            </span>
+          )}
+        </Btn>
         <Btn variant="primary" onClick={() => navigate('/v2/sample-receive')}>
           <TermIcon name="plus" size={12} /> Chỉ định <kbd>F2</kbd>
         </Btn>
@@ -417,7 +492,7 @@ const LaboratoryV2: React.FC = () => {
           <>
             <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             <Btn variant="ghost" onClick={() => navigate(`/v2/emr/edit?patientId=${encodeURIComponent(detail.patientId)}`)}>
-              <TermIcon name="folder" size={12} /> Hồ sơ BA
+              <TermIcon name="folder" size={12} /> Xem HSBA
             </Btn>
             <span style={{ flex: 1 }} />
             {detail.status >= 1 && (
@@ -453,6 +528,166 @@ const LaboratoryV2: React.FC = () => {
       >
         {detail && <LabDrawerBody r={detail} />}
       </DrawerShell>
+
+      {/* ── Drawer: Tiện ích — tồn hóa chất + tồn tủ trực ──────────── */}
+      <DrawerShell
+        open={utilOpen}
+        onClose={() => setUtilOpen(false)}
+        title="Tiện ích XN — Tồn kho"
+        sub="Tồn hóa chất · Tủ trực hóa chất"
+        size="lg"
+      >
+        {utilLoading ? (
+          <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
+        ) : (
+          <>
+            <div className="rec-section">
+              <h5><TermIcon name="flask" size={11} /> TỒN HÓA CHẤT (Kho XN — ItemType=Hóa chất)</h5>
+              {utilStock.length === 0 ? (
+                <div style={{ color: 'var(--t-3)', fontSize: 12, padding: '8px 0' }}>Không có dữ liệu tồn kho hóa chất</div>
+              ) : (
+                <div style={{ display: 'grid', gap: 4 }}>
+                  <div style={{
+                    display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                    fontSize: 10, color: 'var(--t-2)', textTransform: 'uppercase',
+                    fontWeight: 600, padding: '4px 0', borderBottom: '1px solid var(--line-soft)',
+                  }}>
+                    <span>Tên hóa chất</span>
+                    <span style={{ textAlign: 'right' }}>Tồn</span>
+                    <span style={{ textAlign: 'right' }}>Khả dụng</span>
+                    <span>HSD</span>
+                  </div>
+                  {utilStock.slice(0, 50).map((s) => (
+                    <div key={s.id} style={{
+                      display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                      padding: '6px 0', borderBottom: '1px solid var(--line-soft)',
+                      fontSize: 12.5, alignItems: 'center',
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{s.itemName}</div>
+                        <div style={{ fontSize: 10, color: 'var(--t-2)' }}>{s.warehouseName}</div>
+                      </div>
+                      <span className="mono" style={{ textAlign: 'right' }}>{s.quantity} {s.unit}</span>
+                      <span className="mono" style={{
+                        textAlign: 'right',
+                        color: s.availableQuantity <= 0 ? 'var(--s-crit)' : s.availableQuantity < 10 ? '#d97706' : 'inherit',
+                        fontWeight: s.availableQuantity <= 0 ? 700 : 400,
+                      }}>
+                        {s.availableQuantity}
+                      </span>
+                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? '#d97706' : 'var(--t-2)' }}>
+                        {s.expiryDate ? dayjs(s.expiryDate).format('MM/YYYY') : '—'}
+                        {s.daysToExpiry !== undefined && s.daysToExpiry < 30 && (
+                          <span style={{ marginLeft: 4, color: 'var(--s-crit)', fontSize: 10 }}>({s.daysToExpiry}d)</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rec-section" style={{ marginTop: 16 }}>
+              <h5><TermIcon name="activity" size={11} /> ĐỊNH MỨC HÓA CHẤT THEO XN (LIS Catalog)</h5>
+              {utilChemicals.length === 0 ? (
+                <div style={{ color: 'var(--t-3)', fontSize: 12, padding: '8px 0' }}>Chưa khai báo định mức hóa chất</div>
+              ) : (
+                <div style={{ display: 'grid', gap: 4 }}>
+                  <div style={{
+                    display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr',
+                    fontSize: 10, color: 'var(--t-2)', textTransform: 'uppercase',
+                    fontWeight: 600, padding: '4px 0', borderBottom: '1px solid var(--line-soft)',
+                  }}>
+                    <span>Dịch vụ XN</span>
+                    <span>Hóa chất</span>
+                    <span style={{ textAlign: 'right' }}>Định mức/lần</span>
+                    <span>Loại</span>
+                  </div>
+                  {utilChemicals.filter(c => c.isActive).slice(0, 50).map((c) => (
+                    <div key={c.id} style={{
+                      display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr',
+                      padding: '6px 0', borderBottom: '1px solid var(--line-soft)',
+                      fontSize: 12.5, alignItems: 'center',
+                    }}>
+                      <span>{c.serviceName || '—'}</span>
+                      <span>
+                        <span style={{ fontWeight: 500 }}>{c.supplyName || '—'}</span>
+                        {c.supplyCode && <span style={{ fontSize: 10, color: 'var(--t-2)', marginLeft: 4 }}>({c.supplyCode})</span>}
+                      </span>
+                      <span className="mono" style={{ textAlign: 'right' }}>{c.quantityPerTest} {c.unit || ''}</span>
+                      <span style={{
+                        fontSize: 11,
+                        color: c.objectType === 'ThuPhi' ? '#d97706' : 'var(--t-2)',
+                      }}>
+                        {c.objectType === 'ThuPhi' ? 'Thu phí' : 'Hao phí'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </DrawerShell>
+
+      {/* ── Modal: cài đặt KTV / Người duyệt mặc định ───────────────── */}
+      <ModalShell
+        open={rolesOpen}
+        onClose={() => { if (!rolesSaving) setRolesOpen(false); }}
+        title="Cài đặt vai trò mặc định (LIS)"
+        sub="Auto-fill KTV và Người duyệt khi thao tác trên phiếu XN"
+        size="sm"
+        footer={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Btn variant="ghost" size="sm" disabled={rolesSaving} onClick={() => setRolesOpen(false)}>Hủy</Btn>
+            <Btn variant="primary" size="sm" disabled={rolesSaving} onClick={async () => {
+              setRolesSaving(true);
+              try {
+                await settingsApi.saveLabDefaultRoles(rolesEdit);
+                setLabRoles({ ...rolesEdit });
+                message.success('Đã lưu cài đặt vai trò mặc định');
+                setRolesOpen(false);
+              } catch {
+                message.error('Không lưu được cài đặt');
+              } finally {
+                setRolesSaving(false);
+              }
+            }}>
+              <TermIcon name="check" size={11} /> {rolesSaving ? 'Đang lưu…' : 'Lưu cài đặt'}
+            </Btn>
+          </div>
+        }
+      >
+        <div style={{ display: 'grid', gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>
+              Tên KTV mặc định (auto-fill khi nhận mẫu)
+            </label>
+            <input
+              className="hui-inp"
+              style={{ width: '100%' }}
+              placeholder="Ví dụ: Nguyễn Văn A"
+              value={rolesEdit.defaultKtvName || ''}
+              onChange={(e) => setRolesEdit((p) => ({ ...p, defaultKtvName: e.target.value || null }))}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>
+              Tên Người duyệt mặc định (auto-fill khi duyệt chính thức)
+            </label>
+            <input
+              className="hui-inp"
+              style={{ width: '100%' }}
+              placeholder="Ví dụ: BS. Trần Thị B"
+              value={rolesEdit.defaultApproverName || ''}
+              onChange={(e) => setRolesEdit((p) => ({ ...p, defaultApproverName: e.target.value || null }))}
+            />
+          </div>
+          <div style={{ fontSize: 11.5, color: 'var(--t-2)', padding: '6px 8px', background: 'var(--d-1)', borderRadius: 4, borderLeft: '3px solid var(--a-cy)' }}>
+            Cài đặt này lưu riêng theo tài khoản đăng nhập. Sau khi lưu, tên sẽ tự động điền vào các thao tác lấy mẫu và duyệt kết quả.
+          </div>
+        </div>
+      </ModalShell>
 
       {/* ── Modal: hủy ngược chuỗi workflow XN ───────────────────────── */}
       <ModalShell

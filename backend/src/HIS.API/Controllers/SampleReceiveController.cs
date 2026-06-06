@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Common;
 using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -165,6 +166,85 @@ public class SampleReceiveController : ControllerBase
         d.UpdatedBy = uid.ToString();
         await _db.SaveChangesAsync();
         return Ok(new { d.Id, d.ReviewerUserId, d.ReviewedAt });
+    }
+
+    public class CancelReceiveDto
+    {
+        public List<Guid> DetailIds { get; set; } = new();
+        public string? Reason { get; set; }
+    }
+
+    /// <summary>Hủy nhận mẫu — đảo ReceiveStatus 1→0, clear ReceivedByUserId/At, Status về 0.</summary>
+    [HttpPost("cancel-receive")]
+    [Authorize(Roles = "Admin,LabReceptionist,LabManager")]
+    public async Task<IActionResult> CancelReceive([FromBody] CancelReceiveDto dto)
+    {
+        if (dto.DetailIds.Count == 0) return BadRequest(new { message = "Chưa chọn mẫu cần hủy nhận" });
+        var items = await _db.ServiceRequestDetails
+            .Where(d => dto.DetailIds.Contains(d.Id) && d.ReceiveStatus == 1)
+            .ToListAsync();
+        if (items.Count == 0) return BadRequest(new { message = "Không có mẫu nào đang ở trạng thái đã nhận" });
+        var now = DateTime.Now;
+        var uid = GetUserId();
+        foreach (var d in items)
+        {
+            // Chỉ hủy nhận nếu chưa có KTV ghi KQ (bảo vệ dữ liệu đã xử lý)
+            if (d.TechnicianUserId.HasValue)
+                return BadRequest(new { message = $"Mẫu {d.SampleBarcode} đã có KTV ghi KQ — không thể hủy nhận. Dùng hủy ngược chuỗi." });
+            d.ReceiveStatus = 0;
+            d.ReceivedByUserId = null;
+            d.ReceivedAt = null;
+            d.Status = 0; // Trả về Pending
+            d.UpdatedAt = now;
+            d.UpdatedBy = uid.ToString();
+        }
+        await _db.SaveChangesAsync();
+        return Ok(new { cancelled = items.Count, reason = dto.Reason });
+    }
+
+    /// <summary>
+    /// Danh sách mẫu đã nhận hôm nay (ReceiveStatus=1, trong ngày VN).
+    /// Dùng VnTime.DayRangeUtc để tránh lệch bucket UTC trong khung 00h–07h.
+    /// </summary>
+    [HttpGet("accepted")]
+    public async Task<IActionResult> Accepted([FromQuery] string? keyword)
+    {
+        var today = VnTime.TodayVn;
+        var (fromUtc, toUtc) = VnTime.DayRangeUtc(today);
+
+        var q = _db.ServiceRequestDetails
+            .Include(d => d.Service)
+            .Include(d => d.ServiceRequest).ThenInclude(r => r.MedicalRecord).ThenInclude(m => m.Patient)
+            .Where(d => d.ReceiveStatus == 1
+                && d.ReceivedAt >= fromUtc && d.ReceivedAt < toUtc);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim();
+            q = q.Where(d => (d.SampleBarcode != null && d.SampleBarcode.Contains(kw))
+                || d.ServiceRequest.MedicalRecord.Patient.FullName.Contains(kw)
+                || d.ServiceRequest.MedicalRecord.Patient.PatientCode.Contains(kw)
+                || d.ServiceRequest.RequestCode.Contains(kw));
+        }
+
+        var list = await q.OrderByDescending(d => d.ReceivedAt).Take(300).ToListAsync();
+        return Ok(list.Select(d => new
+        {
+            d.Id,
+            d.SampleBarcode,
+            d.ServiceRequestId,
+            RequestCode = d.ServiceRequest.RequestCode,
+            PatientCode = d.ServiceRequest.MedicalRecord.Patient.PatientCode,
+            PatientName = d.ServiceRequest.MedicalRecord.Patient.FullName,
+            ServiceCode = d.Service.ServiceCode,
+            ServiceName = d.Service.ServiceName,
+            d.SampleCollectedAt,
+            d.CollectedByUserId,
+            d.ReceivedAt,
+            d.ReceivedByUserId,
+            d.Status,
+            ReceiveStatus = d.ReceiveStatus,
+        }));
     }
 
     /// <summary>Trạng thái của 1 detail (cho tracking).</summary>

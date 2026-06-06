@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using HIS.Core.Common;
+using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -41,12 +43,14 @@ public class SampleCollectionController : ControllerBase
         }
 
         var prefix = string.IsNullOrWhiteSpace(dto.PreferredPrefix) ? "XN" : dto.PreferredPrefix;
-        var today = DateTime.Today;
-        var dateStr = today.ToString("yyMMdd");
+        var todayVn = VnTime.TodayVn;
+        var dateStr = todayVn.ToString("yyMMdd");
 
+        // SampleCollectedAt lưu UTC — dùng DayRangeUtc để so sánh sargable (tránh .Date trên cột).
+        var (fromUtc, toUtc) = VnTime.DayRangeUtc(todayVn);
         var todayCount = await _db.ServiceRequestDetails
             .CountAsync(d => d.SampleCollectedAt != null
-                && d.SampleCollectedAt.Value.Date == today);
+                && d.SampleCollectedAt.Value >= fromUtc && d.SampleCollectedAt.Value < toUtc);
 
         var seq = todayCount + 1;
         var barcode = $"{prefix}-{dateStr}-{seq:D4}";
@@ -123,6 +127,94 @@ public class SampleCollectionController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok(new AssignSequenceResultDto(newBarcode, dto.NewSequenceNumber));
     }
+
+    // ─── Hẹn lấy mẫu / tái XN định kỳ ───────────────────────────────────────
+
+    public record CreateAppointmentDto(
+        Guid PatientId,
+        DateTime AppointmentAt,
+        string RecurrenceType,   // None / Daily / Weekly / Monthly
+        int RecurrenceCount,
+        string? ServiceName,
+        string? Note,
+        Guid? ServiceRequestDetailId);
+
+    /// <summary>Tạo hẹn lấy mẫu / tái XN định kỳ.</summary>
+    [HttpPost("appointments")]
+    public async Task<IActionResult> CreateAppointment([FromBody] CreateAppointmentDto dto)
+    {
+        if (dto.PatientId == Guid.Empty) return BadRequest(new { message = "Thiếu PatientId" });
+        if (dto.AppointmentAt < DateTime.Now.AddMinutes(-5))
+            return BadRequest(new { message = "Ngày hẹn phải trong tương lai" });
+
+        var uid = GetUserId();
+        var appt = new SampleAppointment
+        {
+            Id = Guid.NewGuid(),
+            PatientId = dto.PatientId,
+            ServiceRequestDetailId = dto.ServiceRequestDetailId,
+            AppointmentAt = dto.AppointmentAt,
+            RecurrenceType = dto.RecurrenceType,
+            RecurrenceCount = dto.RecurrenceCount,
+            ServiceName = dto.ServiceName,
+            Note = dto.Note,
+            Status = "Scheduled",
+            CreatedByUserId = uid,
+            CreatedAt = DateTime.Now,
+            CreatedBy = uid.ToString(),
+        };
+        _db.SampleAppointments.Add(appt);
+        await _db.SaveChangesAsync();
+        return Ok(new { appt.Id, appt.AppointmentAt, appt.Status });
+    }
+
+    /// <summary>Danh sách hẹn của BN (hoặc toàn hệ thống nếu không truyền patientId).</summary>
+    [HttpGet("appointments")]
+    public async Task<IActionResult> GetAppointments(
+        [FromQuery] Guid? patientId,
+        [FromQuery] string? status,
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate)
+    {
+        var q = _db.SampleAppointments
+            .Include(a => a.Patient)
+            .AsQueryable();
+        if (patientId.HasValue) q = q.Where(a => a.PatientId == patientId.Value);
+        if (!string.IsNullOrWhiteSpace(status)) q = q.Where(a => a.Status == status);
+        if (fromDate.HasValue) q = q.Where(a => a.AppointmentAt >= fromDate.Value);
+        if (toDate.HasValue) q = q.Where(a => a.AppointmentAt <= toDate.Value.AddDays(1));
+        var list = await q.OrderBy(a => a.AppointmentAt).Take(200).ToListAsync();
+        return Ok(list.Select(a => new
+        {
+            a.Id,
+            a.PatientId,
+            PatientName = a.Patient != null ? a.Patient.FullName : null,
+            PatientCode = a.Patient != null ? a.Patient.PatientCode : null,
+            a.AppointmentAt,
+            a.RecurrenceType,
+            a.RecurrenceCount,
+            a.ServiceName,
+            a.Note,
+            a.Status,
+            a.CreatedAt,
+        }));
+    }
+
+    /// <summary>Cập nhật trạng thái hẹn (Complete / Cancel).</summary>
+    [HttpPatch("appointments/{id:guid}")]
+    public async Task<IActionResult> UpdateAppointment(Guid id, [FromBody] UpdateAppointmentDto dto)
+    {
+        var appt = await _db.SampleAppointments.FindAsync(id);
+        if (appt == null) return NotFound();
+        appt.Status = dto.Status;
+        appt.Note = dto.Note ?? appt.Note;
+        appt.UpdatedAt = DateTime.Now;
+        appt.UpdatedBy = GetUserId().ToString();
+        await _db.SaveChangesAsync();
+        return Ok(new { appt.Id, appt.Status });
+    }
+
+    public record UpdateAppointmentDto(string Status, string? Note);
 
     /// <summary>Lịch sử lấy mẫu của BN, group theo ngày/đợt</summary>
     [HttpGet("history/{patientId:guid}")]

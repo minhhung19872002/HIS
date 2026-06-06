@@ -247,6 +247,8 @@ namespace HIS.Application.DTOs.Radiology
         public List<RadiologyOrderItemDto> Items { get; set; }
         public string Status { get; set; }
         public string PatientType { get; set; }
+        /// <summary>DICOM Study Instance UID — từ DicomStudy đầu tiên liên kết với exam. Null nếu chưa có DICOM.</summary>
+        public string? StudyInstanceUID { get; set; }
     }
 
     /// <summary>

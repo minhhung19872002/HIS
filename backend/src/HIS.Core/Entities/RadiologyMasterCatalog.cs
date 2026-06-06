@@ -84,6 +84,31 @@ public class RadiologyReportTemplate : BaseEntity
 }
 
 /// <summary>
+/// Khai báo dịch vụ CĐHA có thể kết hợp tường trình PTTT (Prompt 8 Đợt 2).
+/// Mapping: dịch vụ CĐHA → danh sách mẫu tường trình PTTT áp dụng.
+/// </summary>
+public class RisSurgeryServiceMapping : BaseEntity
+{
+    /// <summary>Id dịch vụ CĐHA (FK → Service)</summary>
+    public Guid RadiologyServiceId { get; set; }
+
+    /// <summary>Tên dịch vụ CĐHA — cache để tra cứu nhanh</summary>
+    public string RadiologyServiceName { get; set; } = string.Empty;
+
+    /// <summary>Id template tường trình PTTT (FK → SurgeryNarrativeTemplate, optional)</summary>
+    public Guid? SurgeryNarrativeTemplateId { get; set; }
+
+    /// <summary>Tên mẫu tường trình — cache hiển thị</summary>
+    public string? SurgeryNarrativeTemplateName { get; set; }
+
+    /// <summary>Ghi chú / mô tả mapping</summary>
+    public string? Notes { get; set; }
+
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
 /// Gán mẫu kết quả theo ICD (G-34c) — ICD code → RadiologyReportTemplate.
 /// Cho phép hệ thống tự gợi ý template phù hợp khi BS nhập chẩn đoán sơ bộ.
 /// </summary>

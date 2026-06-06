@@ -32,6 +32,8 @@ import {
   DiffOutlined,
   BlockOutlined,
   RobotOutlined,
+  StarOutlined,
+  StarFilled,
 } from '@ant-design/icons';
 import risApi from '../api/ris';
 import type { DicomSeriesDto, DicomImageDto, KeyImageDto } from '../api/ris';
@@ -136,8 +138,38 @@ const DicomViewer: React.FC = () => {
 
   // Key Images — loaded per study, refreshed after mark/unmark
   const [keyImages, setKeyImages] = useState<KeyImageDto[]>([]);
+  // Gallery modal — quản lý danh sách key images hàng loạt
+  const [keyImageGalleryOpen, setKeyImageGalleryOpen] = useState(false);
   // Index within the current images[] array that is currently viewed in viewer
   const [viewerCurrentIdx, setViewerCurrentIdx] = useState(0);
+
+  // Favorite study per-user — lưu localStorage theo userId (lấy từ JWT username)
+  const FAVE_KEY = 'dicom_fave_studies_v1';
+  const [isFavorite, setIsFavorite] = useState(false);
+  useEffect(() => {
+    if (!studyInstanceUID) return;
+    try {
+      const raw = localStorage.getItem(FAVE_KEY);
+      const list: string[] = raw ? JSON.parse(raw) : [];
+      setIsFavorite(list.includes(studyInstanceUID));
+    } catch { setIsFavorite(false); }
+  }, [studyInstanceUID]);
+
+  const toggleFavorite = useCallback(() => {
+    try {
+      const raw = localStorage.getItem(FAVE_KEY);
+      let list: string[] = raw ? JSON.parse(raw) : [];
+      if (list.includes(studyInstanceUID)) {
+        list = list.filter((s) => s !== studyInstanceUID);
+        message.info('Đã xóa khỏi Favorite');
+      } else {
+        list = [studyInstanceUID, ...list].slice(0, 50); // giữ tối đa 50
+        message.success('Đã thêm vào Favorite');
+      }
+      localStorage.setItem(FAVE_KEY, JSON.stringify(list));
+      setIsFavorite(list.includes(studyInstanceUID));
+    } catch { /* ignore */ }
+  }, [studyInstanceUID]);
 
   // Build wadouri:URL list from images (raw DICOM proxy through backend)
   // Backend endpoint /pacs/instances/{id}/file streams raw DICOM bytes.
@@ -602,6 +634,23 @@ const DicomViewer: React.FC = () => {
                   data-testid="dicom-export-btn"
                 >
                   Xuất DICOM
+                </Button>
+                <Button
+                  icon={isFavorite ? <StarFilled style={{ color: '#faad14' }} /> : <StarOutlined />}
+                  onClick={toggleFavorite}
+                  title={isFavorite ? 'Xóa khỏi Favorite' : 'Thêm vào Favorite'}
+                  data-testid="dicom-favorite-btn"
+                >
+                  {isFavorite ? 'Bỏ Favorite' : 'Favorite'}
+                </Button>
+                <Button
+                  icon={<PictureOutlined />}
+                  onClick={() => setKeyImageGalleryOpen(true)}
+                  disabled={keyImages.length === 0}
+                  title={`${keyImages.length} key image${keyImages.length !== 1 ? 's' : ''}`}
+                  data-testid="dicom-key-gallery-btn"
+                >
+                  Key Images ({keyImages.length})
                 </Button>
               </>
             )}
@@ -1260,6 +1309,67 @@ const DicomViewer: React.FC = () => {
           }}
         />
       )}
+
+      {/* Key Image Gallery — quản lý hàng loạt */}
+      <Modal
+        open={keyImageGalleryOpen}
+        title={`Key Images — ${studyInstanceUID || '—'} (${keyImages.length} ảnh)`}
+        onCancel={() => setKeyImageGalleryOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setKeyImageGalleryOpen(false)}>Đóng</Button>,
+        ]}
+        width={700}
+        destroyOnHidden
+      >
+        {keyImages.length === 0 ? (
+          <Empty description="Chưa có key image nào được đánh dấu" />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {keyImages.map((ki) => (
+              <div
+                key={ki.id}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '8px 12px', border: '1px solid #f0f0f0', borderRadius: 6,
+                }}
+              >
+                <PictureOutlined style={{ fontSize: 20, color: '#1677ff' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>{ki.sopInstanceUID}</div>
+                  {ki.description && <div style={{ fontSize: 11, color: '#888' }}>{ki.description}</div>}
+                  {ki.markedTime && (
+                    <div style={{ fontSize: 11, color: '#aaa' }}>
+                      Đánh dấu: {new Date(ki.markedTime).toLocaleString('vi-VN')}
+                      {ki.markedBy && ` · ${ki.markedBy}`}
+                    </div>
+                  )}
+                </div>
+                <Button
+                  size="small"
+                  danger
+                  onClick={async () => {
+                    try {
+                      await risApi.markKeyImage({
+                        studyInstanceUID,
+                        sopInstanceUID: ki.sopInstanceUID,
+                        unmark: true,
+                      });
+                      // Reload key images
+                      const resp = await risApi.getKeyImages(studyInstanceUID);
+                      setKeyImages(resp.data ?? []);
+                      message.success('Đã xóa key image');
+                    } catch {
+                      message.error('Xóa thất bại');
+                    }
+                  }}
+                >
+                  Xóa
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

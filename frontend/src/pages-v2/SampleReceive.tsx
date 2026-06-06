@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Form, Input } from 'antd';
+import { Form, Input, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import {
@@ -13,7 +13,9 @@ interface PendingSample {
   requestCode: string; patientCode: string; patientName: string;
   serviceCode: string; serviceName: string;
   sampleCollectedAt?: string; collectedByUserId?: string;
+  receivedAt?: string; receivedByUserId?: string;
   status: number;
+  receiveStatus?: number;  // included from accepted list
 }
 interface DetailStatus {
   id: string; sampleBarcode?: string;
@@ -26,14 +28,17 @@ interface DetailStatus {
 }
 
 const SampleReceiveV2: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'pending' | 'accepted'>('pending');
   const [keyword, setKeyword] = useState('');
   const [samples, setSamples] = useState<PendingSample[]>([]);
+  const [accepted, setAccepted] = useState<PendingSample[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [rejectRow, setRejectRow] = useState<PendingSample | null>(null);
   const [runRow, setRunRow] = useState<PendingSample | null>(null);
   const [reviewRow, setReviewRow] = useState<PendingSample | null>(null);
   const [detail, setDetail] = useState<DetailStatus | null>(null);
+  const [cancelReceiveBusy, setCancelReceiveBusy] = useState(false);
   const [rejectForm] = Form.useForm();
   const [runForm] = Form.useForm();
   const [reviewForm] = Form.useForm();
@@ -41,8 +46,12 @@ const SampleReceiveV2: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await apiClient.get<PendingSample[]>('/sample-receive/pending', { params: { keyword } });
-      setSamples(data || []);
+      const [pendingRes, acceptedRes] = await Promise.all([
+        apiClient.get<PendingSample[]>('/sample-receive/pending', { params: { keyword } }),
+        apiClient.get<PendingSample[]>('/sample-receive/accepted', { params: { keyword } }),
+      ]);
+      setSamples(pendingRes.data || []);
+      setAccepted(acceptedRes.data || []);
     } catch { ti('Tải danh sách thất bại'); }
     finally { setLoading(false); }
   }, [keyword]);
@@ -87,6 +96,26 @@ const SampleReceiveV2: React.FC = () => {
     } catch { tw('Duyệt thất bại'); }
   };
 
+  const cancelReceive = async (detailId: string, barcode?: string) => {
+    if (!window.confirm(`Hủy nhận mẫu ${barcode || detailId}?\nMẫu sẽ trở về trạng thái chờ nhận.`)) return;
+    setCancelReceiveBusy(true);
+    try {
+      interface CancelReceiveResponse { cancelled?: number }
+      const { data }: { data: CancelReceiveResponse } = await apiClient.post('/sample-receive/cancel-receive', {
+        detailIds: [detailId],
+        reason: 'Hủy nhận thủ công từ UI',
+      });
+      tk(`Đã hủy nhận ${data.cancelled ?? 1} mẫu`);
+      setDetail(null);
+      load();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      ti(e?.response?.data?.message || 'Hủy nhận thất bại');
+    } finally {
+      setCancelReceiveBusy(false);
+    }
+  };
+
   const openDetail = async (row: PendingSample) => {
     try {
       const { data } = await apiClient.get<DetailStatus>(`/sample-receive/status/${row.id}`);
@@ -118,45 +147,84 @@ const SampleReceiveV2: React.FC = () => {
     }
   };
 
+  const colsAccepted: ColumnDef<PendingSample>[] = [
+    { key: 'bar', label: 'Barcode', code: true, render: (r) => r.sampleBarcode || '—' },
+    { key: 'req', label: 'Phiếu', code: true, render: (r) => r.requestCode },
+    { key: 'pt', label: 'Bệnh nhân', render: (r) => (
+      <div>
+        <div style={{ fontWeight: 600 }}>{r.patientName}</div>
+        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
+      </div>
+    ) },
+    { key: 'svc', label: 'Dịch vụ XN', render: (r) => r.serviceName },
+    { key: 'recv', label: 'Nhận lúc', mono: true, render: (r) => r.receivedAt ? dayjs(r.receivedAt).format('HH:mm') : '—' },
+  ];
+
   return (
     <div className="ab">
       <KpiStrip items={[
         { lbl: 'Mẫu chờ nhận', val: samples.length, sub: 'tất cả', tone: 'warn' },
+        { lbl: 'Đã nhận hôm nay', val: accepted.length, sub: 'trong ngày', tone: 'ok' },
         { lbl: 'Đã chọn', val: selected.size, sub: 'sẽ nhận', tone: selected.size > 0 ? 'crit' : 'ok' },
-        { lbl: 'BN unique', val: new Set(samples.map((s) => s.patientCode)).size, sub: 'số BN', tone: 'info' },
-        { lbl: 'DV unique', val: new Set(samples.map((s) => s.serviceCode)).size, sub: 'số DV', tone: 'info' },
+        { lbl: 'BN unique', val: new Set(samples.map((s) => s.patientCode)).size, sub: 'chờ nhận', tone: 'info' },
       ]} />
 
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
+        <Tabs
+          activeKey={activeTab}
+          onChange={(k) => setActiveTab(k as 'pending' | 'accepted')}
+          size="small"
+          style={{ marginBottom: 0 }}
+          items={[
+            { key: 'pending', label: `Chờ nhận (${samples.length})` },
+            { key: 'accepted', label: `Đã nhận hôm nay (${accepted.length})` },
+          ]}
+        />
+        <span className="spacer" />
         <SearchBox value={keyword} onChange={setKeyword} placeholder="Tìm barcode / mã BN / tên / mã phiếu…" />
         <Btn variant="ghost" onClick={() => { setKeyword(''); load(); }}>
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
-        <span className="spacer" />
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        {selected.size > 0 && (
+        {activeTab === 'pending' && selected.size > 0 && (
           <Btn variant="primary" onClick={accept}>
             <Ico name="check" size={12} /> Nhận {selected.size} mẫu
           </Btn>
         )}
       </div>
 
-      <DataTable<PendingSample>
-        columns={cols} data={samples} rowKey={(r) => r.id}
-        selected={selected} onToggle={togglePending} onToggleAll={toggleAll}
-        onRowClick={openDetail}
-        actions={(r) => (
-          <div className="ab-actions">
-            <ActBtn ic="eye" title="Xem" onClick={() => openDetail(r)} />
-            <ActBtn ic="x" title="Từ chối" tone="crit" onClick={() => setRejectRow(r)} />
-            <ActBtn ic="activity" title="KTV ghi KQ" onClick={() => setRunRow(r)} />
-            <ActBtn ic="check" title="Reviewer duyệt" onClick={() => setReviewRow(r)} />
-          </div>
-        )}
-        empty={loading ? 'Đang tải…' : 'Không có mẫu chờ nhận'}
-      />
+      {activeTab === 'pending' && (
+        <DataTable<PendingSample>
+          columns={cols} data={samples} rowKey={(r) => r.id}
+          selected={selected} onToggle={togglePending} onToggleAll={toggleAll}
+          onRowClick={openDetail}
+          actions={(r) => (
+            <div className="ab-actions">
+              <ActBtn ic="eye" title="Xem" onClick={() => openDetail(r)} />
+              <ActBtn ic="x" title="Từ chối" tone="crit" onClick={() => setRejectRow(r)} />
+              <ActBtn ic="activity" title="KTV ghi KQ" onClick={() => setRunRow(r)} />
+              <ActBtn ic="check" title="Reviewer duyệt" onClick={() => setReviewRow(r)} />
+            </div>
+          )}
+          empty={loading ? 'Đang tải…' : 'Không có mẫu chờ nhận'}
+        />
+      )}
+
+      {activeTab === 'accepted' && (
+        <DataTable<PendingSample>
+          columns={colsAccepted} data={accepted} rowKey={(r) => r.id}
+          onRowClick={openDetail}
+          actions={(r) => (
+            <div className="ab-actions">
+              <ActBtn ic="eye" title="Xem chi tiết" onClick={() => openDetail(r)} />
+              <ActBtn ic="x" title="Hủy nhận" tone="crit" onClick={() => cancelReceive(r.id, r.sampleBarcode)} />
+            </div>
+          )}
+          empty={loading ? 'Đang tải…' : 'Chưa nhận mẫu nào hôm nay'}
+        />
+      )}
 
       <DrawerShell
         open={!!detail}
@@ -164,6 +232,18 @@ const SampleReceiveV2: React.FC = () => {
         size="lg"
         title={detail?.sampleBarcode || 'Chi tiết mẫu'}
         sub={detail ? `${detail.serviceName} · ${detail.patientName}` : ''}
+        footer={detail && detail.receiveStatus === 1 ? (
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
+            <Btn
+              variant="crit"
+              disabled={cancelReceiveBusy}
+              onClick={() => cancelReceive(detail.id, detail.sampleBarcode)}
+            >
+              <Ico name="x" size={12} /> {cancelReceiveBusy ? 'Đang xử lý…' : 'Hủy nhận mẫu'}
+            </Btn>
+          </div>
+        ) : undefined}
       >
         {detail && <>
           <DrSec title="Mẫu">

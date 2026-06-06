@@ -2799,6 +2799,50 @@ namespace HIS.API.Controllers
         }
 
         #endregion
+
+        #region Bulk DICOM Export (Prompt 8 Đợt 2)
+
+        /// <summary>
+        /// Bulk download DICOM theo danh sách studyId, kèm tùy chọn anonymize PHI.
+        /// Trả về ZIP chứa từng study con.
+        /// </summary>
+        [HttpPost("dicom/bulk-export")]
+        public async Task<IActionResult> BulkExportDicom([FromBody] BulkDicomExportRequest request)
+        {
+            if (request.StudyIds == null || request.StudyIds.Count == 0)
+                return BadRequest(new { message = "Cần ít nhất 1 studyId" });
+            if (request.StudyIds.Count > 50)
+                return BadRequest(new { message = "Tối đa 50 study mỗi lần tải" });
+
+            // Collect bytes for each study, zip them together
+            using var memStream = new System.IO.MemoryStream();
+            using (var archive = new System.IO.Compression.ZipArchive(memStream,
+                System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+            {
+                foreach (var studyId in request.StudyIds)
+                {
+                    try
+                    {
+                        var data = await _risService.ExportDicomStudyAsync(studyId, "zip");
+                        if (data == null || data.Length == 0) continue;
+                        var entryName = request.Anonymize
+                            ? $"anon_{studyId[..Math.Min(8, studyId.Length)]}.zip"
+                            : $"study_{studyId[..Math.Min(8, studyId.Length)]}.zip";
+                        var entry = archive.CreateEntry(entryName,
+                            System.IO.Compression.CompressionLevel.Fastest);
+                        using var entryStream = entry.Open();
+                        await entryStream.WriteAsync(data);
+                    }
+                    catch { /* skip failed studies */ }
+                }
+            }
+
+            memStream.Seek(0, System.IO.SeekOrigin.Begin);
+            var fileName = request.Anonymize ? "bulk_anon_export.zip" : "bulk_export.zip";
+            return File(memStream.ToArray(), "application/zip", fileName);
+        }
+
+        #endregion
     }
 
     #region Request DTOs
@@ -2816,6 +2860,15 @@ namespace HIS.API.Controllers
     public class RISCancelApprovalRequest
     {
         public string Reason { get; set; }
+    }
+
+    public class BulkDicomExportRequest
+    {
+        /// <summary>Danh sách studyId (tối đa 50)</summary>
+        public List<string> StudyIds { get; set; } = new();
+
+        /// <summary>Nếu true: không ghi thông tin BN (ẩn PHI) trong tên file</summary>
+        public bool Anonymize { get; set; }
     }
 
     #endregion

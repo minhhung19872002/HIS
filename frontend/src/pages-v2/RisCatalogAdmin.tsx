@@ -6,13 +6,14 @@ import {
   tk, ti, tw, cf, type ColumnDef,
 } from './_v2kit';
 
-type TabKey = 'modalities' | 'body-parts' | 'protocols' | 'report-templates' | 'icd-templates';
+type TabKey = 'modalities' | 'body-parts' | 'protocols' | 'report-templates' | 'icd-templates' | 'pttt-service-mappings';
 const TABS = [
-  { v: 'modalities' as TabKey,       l: 'Modality',       ic: 'qr' },
-  { v: 'body-parts' as TabKey,       l: 'Vị trí chụp',   ic: 'user' },
-  { v: 'protocols' as TabKey,        l: 'Giao thức',      ic: 'list' },
-  { v: 'report-templates' as TabKey, l: 'Mẫu báo cáo',   ic: 'file-text' },
-  { v: 'icd-templates' as TabKey,    l: 'ICD → Mẫu KQ',  ic: 'link' },
+  { v: 'modalities' as TabKey,              l: 'Modality',           ic: 'qr' },
+  { v: 'body-parts' as TabKey,              l: 'Vị trí chụp',       ic: 'user' },
+  { v: 'protocols' as TabKey,               l: 'Giao thức',          ic: 'list' },
+  { v: 'report-templates' as TabKey,        l: 'Mẫu báo cáo',       ic: 'file-text' },
+  { v: 'icd-templates' as TabKey,           l: 'ICD → Mẫu KQ',      ic: 'link' },
+  { v: 'pttt-service-mappings' as TabKey,   l: 'DV CĐHA → PTTT',    ic: 'scissors' },
 ];
 
 const MODALITY_TYPE_OPTIONS = [
@@ -74,6 +75,18 @@ const RisCatalogAdminV2: React.FC = () => {
   const openAdd = () => { setEditing(null); form.resetFields(); setModalOpen(true); };
   const openEdit = (row: Row) => { setEditing(row); form.setFieldsValue({ ...row, isActive: row.isActive ?? true }); setModalOpen(true); };
 
+  // surgeryNarrativeTemplates dùng cho tab PTTT mapping
+  const [surgeryTemplates, setSurgeryTemplates] = useState<Row[]>([]);
+  useEffect(() => {
+    if (tab !== 'pttt-service-mappings') return;
+    (async () => {
+      try {
+        const { data: st } = await apiClient.get('/clinical-narratives/surgery');
+        setSurgeryTemplates(Array.isArray(st) ? (st as Row[]) : []);
+      } catch { /* không sẵn sàng — không block tab khác */ }
+    })();
+  }, [tab]);
+
   const colsByTab: Record<TabKey, ColumnDef<Row>[]> = {
     modalities: [
       { key: 'code', label: 'Mã', code: true, render: (r) => r.modalityCode },
@@ -115,6 +128,13 @@ const RisCatalogAdminV2: React.FC = () => {
       { key: 'name', label: 'Tên', render: (r) => r.templateName },
       { key: 'mod', label: 'Modality', render: (r) => r.modalityName || '—' },
       { key: 'bp', label: 'Vị trí', render: (r) => r.bodyPartName || '—' },
+      { key: 'active', label: 'Hoạt động', render: (r) => r.isActive ? <StatusBadge tone="ok" dot>Có</StatusBadge> : <StatusBadge tone="warn" dot>Ẩn</StatusBadge> },
+    ],
+    'pttt-service-mappings': [
+      { key: 'svc', label: 'Dịch vụ CĐHA', render: (r) => r.radiologyServiceName },
+      { key: 'tpl', label: 'Mẫu tường trình PTTT', render: (r) => r.surgeryNarrativeTemplateName || '—' },
+      { key: 'notes', label: 'Ghi chú', render: (r) => r.notes || '—' },
+      { key: 'order', label: 'STT', mono: true, render: (r) => r.sortOrder ?? 0 },
       { key: 'active', label: 'Hoạt động', render: (r) => r.isActive ? <StatusBadge tone="ok" dot>Có</StatusBadge> : <StatusBadge tone="warn" dot>Ẩn</StatusBadge> },
     ],
   };
@@ -203,6 +223,44 @@ const RisCatalogAdminV2: React.FC = () => {
       <Form.Item label="Findings mẫu" name="findingsTemplate"><Input.TextArea rows={4} /></Form.Item>
       <Form.Item label="Kết luận mẫu" name="impressionTemplate"><Input.TextArea rows={3} /></Form.Item>
       <Form.Item label="Ghi chú" name="note"><Input.TextArea rows={2} /></Form.Item>
+      <Form.Item label="STT" name="sortOrder"><InputNumber min={0} /></Form.Item>
+      <Form.Item label="Hoạt động" name="isActive" valuePropName="checked" initialValue={true}><Switch /></Form.Item>
+    </>,
+    'pttt-service-mappings': <>
+      <Form.Item
+        label="Tên dịch vụ CĐHA"
+        name="radiologyServiceName"
+        rules={[{ required: true, message: 'Nhập tên dịch vụ CĐHA' }]}
+        extra="Nhập tên dịch vụ CĐHA có thể kết hợp nhập tường trình PTTT (ví dụ: Sinh thiết dưới hướng dẫn siêu âm)"
+      >
+        <Input placeholder="Ví dụ: Sinh thiết dưới hướng dẫn siêu âm" />
+      </Form.Item>
+      <Form.Item
+        label="Mã dịch vụ CĐHA (radiologyServiceId)"
+        name="radiologyServiceId"
+        rules={[{ required: true, message: 'Nhập mã UUID dịch vụ' }]}
+        extra="UUID của Service trong danh mục (lấy từ /api/services hoặc tra cứu admin)"
+      >
+        <Input placeholder="UUID dịch vụ" />
+      </Form.Item>
+      <Form.Item label="Mẫu tường trình PTTT (không bắt buộc)" name="surgeryNarrativeTemplateId">
+        <Select allowClear showSearch optionFilterProp="label"
+          placeholder="Chọn mẫu PTTT mặc định (nếu có)"
+          options={surgeryTemplates.map((t) => ({
+            label: `${t.templateCode || ''} — ${t.templateName}`,
+            value: t.id,
+          }))}
+          onChange={(val: string | null) => {
+            const found = surgeryTemplates.find((t) => t.id === val);
+            if (found) {
+              form.setFieldValue('surgeryNarrativeTemplateName', found.templateName as string);
+            }
+          }}
+        />
+      </Form.Item>
+      {/* Hidden field để capture surgeryNarrativeTemplateName khi submit */}
+      <Form.Item name="surgeryNarrativeTemplateName" hidden><Input /></Form.Item>
+      <Form.Item label="Ghi chú" name="notes"><Input.TextArea rows={2} /></Form.Item>
       <Form.Item label="STT" name="sortOrder"><InputNumber min={0} /></Form.Item>
       <Form.Item label="Hoạt động" name="isActive" valuePropName="checked" initialValue={true}><Switch /></Form.Item>
     </>,

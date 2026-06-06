@@ -387,4 +387,140 @@ public class RisCatalogController : ControllerBase
         await _db.SaveChangesAsync();
         return NoContent();
     }
+
+    // =====================
+    // 6. PTTT service mapping (Prompt 8 Đợt 2)
+    // Khai báo dịch vụ CĐHA ↔ mẫu tường trình PTTT
+    // =====================
+
+    /// <summary>
+    /// Resolve mẫu tường trình PTTT theo radiologyServiceId.
+    /// FE gọi để biết dịch vụ đang trả KQ có mapping hay không và prefill template.
+    /// Trả null/404 nếu không có mapping active.
+    /// </summary>
+    [HttpGet("pttt-service-mappings/by-service/{serviceId:guid}")]
+    public async Task<IActionResult> GetPtttMappingByService(Guid serviceId)
+    {
+        var mapping = await _db.RisSurgeryServiceMappings
+            .Where(m => m.RadiologyServiceId == serviceId && m.IsActive && !m.IsDeleted)
+            .OrderBy(m => m.SortOrder)
+            .Select(m => new
+            {
+                m.Id,
+                m.RadiologyServiceId,
+                m.RadiologyServiceName,
+                m.SurgeryNarrativeTemplateId,
+                m.SurgeryNarrativeTemplateName,
+                m.Notes,
+            })
+            .FirstOrDefaultAsync();
+
+        if (mapping == null) return NotFound(new { message = "Không có mapping PTTT cho dịch vụ này" });
+
+        // Nếu có templateId, trả thêm nội dung template để FE prefill
+        object? templateDetail = null;
+        if (mapping.SurgeryNarrativeTemplateId.HasValue)
+        {
+            templateDetail = await _db.SurgeryNarrativeTemplates
+                .Where(t => t.Id == mapping.SurgeryNarrativeTemplateId.Value && t.IsActive && !t.IsDeleted)
+                .Select(t => new
+                {
+                    t.Id,
+                    t.TemplateCode,
+                    t.TemplateName,
+                    t.PreOpDiagnosis,
+                    t.PostOpDiagnosis,
+                    t.SurgeryMethod,
+                    t.AnesthesiaMethod,
+                    t.NarrativeBody,
+                    t.Complications,
+                    t.PostOpOrders,
+                })
+                .FirstOrDefaultAsync();
+        }
+
+        return Ok(new
+        {
+            mapping.Id,
+            mapping.RadiologyServiceId,
+            mapping.RadiologyServiceName,
+            mapping.SurgeryNarrativeTemplateId,
+            mapping.SurgeryNarrativeTemplateName,
+            mapping.Notes,
+            Template = templateDetail,
+        });
+    }
+
+    [HttpGet("pttt-service-mappings")]
+    public async Task<IActionResult> GetPtttServiceMappings(
+        [FromQuery] string? keyword,
+        [FromQuery] bool? isActive)
+    {
+        var q = _db.RisSurgeryServiceMappings.AsQueryable();
+        if (isActive.HasValue) q = q.Where(m => m.IsActive == isActive.Value);
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim();
+            q = q.Where(m => m.RadiologyServiceName.Contains(kw)
+                || (m.SurgeryNarrativeTemplateName != null && m.SurgeryNarrativeTemplateName.Contains(kw)));
+        }
+        var list = await q
+            .Where(m => !m.IsDeleted)
+            .OrderBy(m => m.SortOrder)
+            .ThenBy(m => m.RadiologyServiceName)
+            .ToListAsync();
+        return Ok(list.Select(m => new
+        {
+            m.Id,
+            m.RadiologyServiceId,
+            m.RadiologyServiceName,
+            m.SurgeryNarrativeTemplateId,
+            m.SurgeryNarrativeTemplateName,
+            m.Notes,
+            m.SortOrder,
+            m.IsActive,
+        }));
+    }
+
+    [HttpPost("pttt-service-mappings")]
+    [Authorize(Roles = "Admin,RadiologyManager")]
+    public async Task<IActionResult> SavePtttServiceMapping([FromBody] RisSurgeryServiceMapping dto)
+    {
+        if (dto.RadiologyServiceId == Guid.Empty || string.IsNullOrWhiteSpace(dto.RadiologyServiceName))
+            return BadRequest(new { message = "RadiologyServiceId và RadiologyServiceName là bắt buộc" });
+
+        var existing = dto.Id != Guid.Empty
+            ? await _db.RisSurgeryServiceMappings.FindAsync(dto.Id)
+            : null;
+
+        if (existing == null)
+        {
+            Stamp(dto, true);
+            _db.RisSurgeryServiceMappings.Add(dto);
+        }
+        else
+        {
+            existing.RadiologyServiceId = dto.RadiologyServiceId;
+            existing.RadiologyServiceName = dto.RadiologyServiceName;
+            existing.SurgeryNarrativeTemplateId = dto.SurgeryNarrativeTemplateId;
+            existing.SurgeryNarrativeTemplateName = dto.SurgeryNarrativeTemplateName;
+            existing.Notes = dto.Notes;
+            existing.SortOrder = dto.SortOrder;
+            existing.IsActive = dto.IsActive;
+            Stamp(existing, false);
+        }
+        await _db.SaveChangesAsync();
+        return Ok(new { id = existing?.Id ?? dto.Id });
+    }
+
+    [HttpDelete("pttt-service-mappings/{id:guid}")]
+    [Authorize(Roles = "Admin,RadiologyManager")]
+    public async Task<IActionResult> DeletePtttServiceMapping(Guid id)
+    {
+        var e = await _db.RisSurgeryServiceMappings.FindAsync(id);
+        if (e == null) return NotFound();
+        e.IsDeleted = true;
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
 }

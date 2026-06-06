@@ -918,8 +918,10 @@ public partial class RISCompleteService
 
     public async Task<RoomAssignmentDto> AssignRoomAsync(AssignRoomRequestDto request)
     {
+        // AssignedAt ghi bằng DateTime.Now — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
+        var (asgnFromUtc, asgnToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
         var queueNumber = await _context.Set<RadiologyRoomAssignment>()
-            .Where(a => a.RoomId == request.RoomId && a.AssignedAt.Date == DateTime.Today)
+            .Where(a => a.RoomId == request.RoomId && a.AssignedAt >= asgnFromUtc && a.AssignedAt < asgnToUtc)
             .CountAsync() + 1;
 
         var assignment = new RadiologyRoomAssignment
@@ -974,6 +976,8 @@ public partial class RISCompleteService
 
     public async Task<List<RoomAssignmentDto>> GetRoomQueueAsync(Guid roomId, DateTime date)
     {
+        // AssignedAt ghi bằng DateTime.Now — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
+        var (rqFromUtc, rqToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
         var assignments = await _context.Set<RadiologyRoomAssignment>()
             .Include(a => a.RadiologyRequest)
                 .ThenInclude(r => r.Patient)
@@ -981,7 +985,7 @@ public partial class RISCompleteService
                 .ThenInclude(r => r.Service)
             .Include(a => a.Room)
             .Include(a => a.Modality)
-            .Where(a => a.RoomId == roomId && a.AssignedAt.Date == date.Date && a.Status < 3)
+            .Where(a => a.RoomId == roomId && a.AssignedAt >= rqFromUtc && a.AssignedAt < rqToUtc && a.Status < 3)
             .OrderBy(a => a.QueueNumber)
             .ToListAsync();
 
@@ -1048,13 +1052,15 @@ public partial class RISCompleteService
 
     public async Task<List<RoomStatisticsDto>> GetRoomStatisticsAsync(DateTime date)
     {
+        // AssignedAt ghi bằng DateTime.Now — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
+        var (rsFromUtc, rsToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
         var rooms = await _context.Rooms.Where(r => r.RoomType >= 10 && r.RoomType < 20 && r.IsActive).ToListAsync();
         var result = new List<RoomStatisticsDto>();
 
         foreach (var room in rooms)
         {
             var assignments = await _context.Set<RadiologyRoomAssignment>()
-                .Where(a => a.RoomId == room.Id && a.AssignedAt.Date == date.Date)
+                .Where(a => a.RoomId == room.Id && a.AssignedAt >= rsFromUtc && a.AssignedAt < rsToUtc)
                 .ToListAsync();
 
             result.Add(new RoomStatisticsDto

@@ -29,13 +29,15 @@ public partial class RISCompleteService
         string status = null,
         string keyword = null)
     {
+        // RequestDate ghi bằng DateTime.Now — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
+        var (rdFromUtc, rdToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
         var query = _context.RadiologyRequests
             .Include(r => r.Patient)
             .Include(r => r.Service)
             .Include(r => r.RequestingDoctor)
             .Include(r => r.Exams)
                 .ThenInclude(e => e.DicomStudies)
-            .Where(r => r.RequestDate.Date == date.Date);
+            .Where(r => r.RequestDate >= rdFromUtc && r.RequestDate < rdToUtc);
 
         if (roomId.HasValue)
         {
@@ -731,6 +733,7 @@ public partial class RISCompleteService
             .Include(r => r.Service)
             .Include(r => r.RequestingDoctor)
             .Include(r => r.Exams)
+                .ThenInclude(e => e.DicomStudies)
             .Where(r => r.RequestDate >= fromDate && r.RequestDate <= toDate.AddDays(1));
 
         if (!string.IsNullOrEmpty(status))
@@ -779,6 +782,7 @@ public partial class RISCompleteService
             ClinicalInfo = r.ClinicalInfo,
             Status = GetStatusName(r.Status),
             PatientType = r.PatientType == 1 ? "BHYT" : "Vien phi",
+            StudyInstanceUID = r.Exams.SelectMany(e => e.DicomStudies).FirstOrDefault()?.StudyInstanceUID,
             Items = new List<RadiologyOrderItemDto>
             {
                 new RadiologyOrderItemDto
@@ -831,6 +835,7 @@ public partial class RISCompleteService
             ClinicalInfo = request.ClinicalInfo,
             Status = GetStatusName(request.Status),
             PatientType = request.PatientType == 1 ? "BHYT" : "Vien phi",
+            StudyInstanceUID = request.Exams.SelectMany(e => e.DicomStudies).FirstOrDefault()?.StudyInstanceUID,
             Items = new List<RadiologyOrderItemDto>
             {
                 new RadiologyOrderItemDto
