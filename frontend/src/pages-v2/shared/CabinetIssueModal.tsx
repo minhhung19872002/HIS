@@ -64,14 +64,16 @@ function emptyLine(): LineItem {
 
 // ── ItemPicker (debounced autocomplete) ────────────────────────────────────
 
-interface ItemPickerProps {
+export interface ItemPickerProps {
   warehouseId: string;
   onSelect: (med: MedicineDto) => void;
   value: string;
   onChange: (v: string) => void;
 }
 
-const ItemPicker: React.FC<ItemPickerProps> = ({ warehouseId, onSelect, value, onChange }) => {
+// Reusable medicine/supply autocomplete (debounced searchMedicines theo kho).
+// Dùng lại ở G-07 toa về (TreatmentMonitorSection) — reuse > duplicate.
+export const ItemPicker: React.FC<ItemPickerProps> = ({ warehouseId, onSelect, value, onChange }) => {
   const [options, setOptions] = useState<{ value: string; label: string; med: MedicineDto }[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 

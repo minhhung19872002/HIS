@@ -20,10 +20,13 @@ import {
   getBillingStatement6556,
   printBillingStatement6556,
   getPrescriptions,
+  createPrescription,
   getAdmissionServiceRequests,
   cancelServiceRequests,
   updateServiceRequestPaymentType,
 } from '../../api/inpatient';
+import { getWarehouses } from '../../api/warehouse';
+import type { WarehouseDto } from '../../api/warehouse';
 import type {
   CreateVitalSignsDto,
   VitalSignsChartDto,
@@ -42,7 +45,7 @@ import type { DepartmentCatalogDto } from '../../api/system';
 import { ModalShell, Btn } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
 import BedLabResultSection from './BedLabResultSection';
-import { CabinetIssueModal } from '../shared/CabinetIssueModal';
+import { CabinetIssueModal, ItemPicker } from '../shared/CabinetIssueModal';
 
 // ---------------------------------------------------------------------------
 // Local helpers
@@ -1043,6 +1046,20 @@ const DrugReturnModal: React.FC<{
 // G-07: Discharge prescription modal (Don thuoc xuat vien — toa ve)
 // ---------------------------------------------------------------------------
 
+interface DischargeRxLine {
+  key: string;
+  medicineId: string;
+  medicineName: string;
+  unit: string;
+  quantity: number;
+  dosage: string;
+  usage: string;
+}
+const emptyRxLine = (): DischargeRxLine => ({
+  key: Math.random().toString(36).slice(2),
+  medicineId: '', medicineName: '', unit: '', quantity: 1, dosage: '', usage: '',
+});
+
 const DischargePrescriptionModal: React.FC<{
   open: boolean;
   admissionId: string;
@@ -1050,33 +1067,63 @@ const DischargePrescriptionModal: React.FC<{
   onDone: () => void;
 }> = ({ open, admissionId, onClose, onDone }) => {
   const { message } = AntdApp.useApp();
-  const [medicineName, setMedicineName] = useState('');
-  const [qty, setQty] = useState<number | null>(null);
-  const [dosage, setDosage] = useState('');
+  const [warehouses, setWarehouses] = useState<WarehouseDto[]>([]);
   const [warehouseId, setWarehouseId] = useState('');
-  const [note, setNote] = useState('');
+  const [lines, setLines] = useState<DischargeRxLine[]>([emptyRxLine()]);
+  const [labels, setLabels] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setMedicineName(''); setQty(null); setDosage(''); setNote('');
-    // Default empty warehouseId — user would pick from available warehouses in full impl
+    setLines([emptyRxLine()]); setLabels({}); setWarehouseId('');
+    // Kho thuốc (WarehouseType=1) — nguồn xuất toa về.
+    getWarehouses(1)
+      .then((r) => {
+        const list = (Array.isArray(r.data) ? r.data : []) as WarehouseDto[];
+        setWarehouses(list);
+        if (list.length === 1) setWarehouseId(list[0].id);
+      })
+      .catch(() => setWarehouses([]));
   }, [open]);
 
+  const updateLine = (key: string, patch: Partial<DischargeRxLine>) =>
+    setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  const removeLine = (key: string) => setLines((ls) => ls.filter((l) => l.key !== key));
+
   const submit = async () => {
-    if (!medicineName.trim()) { message.warning('Nhập tên thuốc'); return; }
-    if (!qty || qty <= 0) { message.warning('Nhập số lượng'); return; }
-    // Note: In a full implementation this should search medicine by code/name.
-    // For this sprint, we use a simplified single-item form with medicine name as note.
-    message.info('Chức năng đơn thuốc xuất viện đang phát triển — cần liên kết kho thuốc.');
-    onClose();
+    if (!warehouseId) { message.warning('Chọn kho thuốc'); return; }
+    const valid = lines.filter((l) => l.medicineId && l.quantity > 0);
+    if (valid.length === 0) { message.warning('Chọn ít nhất 1 thuốc'); return; }
+    setBusy(true);
+    try {
+      await createPrescription({
+        admissionId,
+        prescriptionDate: dayjs().toISOString(),
+        warehouseId,
+        drugOrderType: 4, // toa về (đơn xuất viện)
+        items: valid.map((l) => ({
+          medicineId: l.medicineId,
+          quantity: l.quantity,
+          dosage: l.dosage.trim() || undefined,
+          usageInstructions: l.usage.trim() || undefined,
+          paymentSource: 1,
+        })),
+      });
+      message.success('Đã lưu đơn thuốc xuất viện (toa về)');
+      onDone();
+    } catch (e) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      message.error(msg || 'Lưu đơn thuốc xuất viện thất bại');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <ModalShell
       open={open}
       onClose={onClose}
-      size="sm"
+      size="lg"
       title="Đơn thuốc xuất viện (toa về)"
       footer={
         <>
@@ -1089,22 +1136,71 @@ const DischargePrescriptionModal: React.FC<{
     >
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ padding: '8px 12px', borderRadius: 6, background: 'var(--info-soft, #f0f9ff)', border: '1px solid var(--info, #0891b2)', fontSize: 11, color: 'var(--t-1)' }}>
-          Đơn thuốc loại <b>DrugOrderType=4</b> — kê đơn cho BN mang về sau xuất viện. Sẽ tích hợp đầy đủ với màn hình kê đơn nội trú.
+          Đơn loại <b>toa về (DrugOrderType=4)</b> — thuốc BN mang về sau xuất viện, lấy từ kho thuốc đã chọn.
         </div>
-        <IpFld label="Tên thuốc *">
-          <Input value={medicineName} onChange={(e) => setMedicineName(e.target.value)} placeholder="VD: Paracetamol 500mg" />
+        <IpFld label="Kho thuốc *">
+          <Select
+            value={warehouseId || undefined}
+            onChange={setWarehouseId}
+            placeholder="Chọn kho thuốc…"
+            style={{ width: '100%' }}
+            showSearch
+            optionFilterProp="label"
+            options={warehouses.map((w) => ({ value: w.id, label: `${w.warehouseCode} · ${w.warehouseName}` }))}
+            notFoundContent={warehouses.length === 0 ? 'Không có kho thuốc' : 'Không tìm thấy'}
+          />
         </IpFld>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <IpFld label="Số lượng *">
-            <InputNumber value={qty} onChange={setQty} min={1} max={1000} placeholder="30" style={{ width: '100%' }} />
-          </IpFld>
-          <IpFld label="Liều dùng">
-            <Input value={dosage} onChange={(e) => setDosage(e.target.value)} placeholder="1 viên × 3 lần/ngày" />
-          </IpFld>
+
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ background: 'var(--d-1)', borderBottom: '1px solid var(--line)' }}>
+                {['Thuốc', 'SL', 'Liều dùng', 'Cách dùng', ''].map((h) => (
+                  <th key={h} style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((l) => (
+                <tr key={l.key} style={{ borderBottom: '1px solid var(--line)' }}>
+                  <td style={{ padding: '4px 4px', minWidth: 220 }}>
+                    <ItemPicker
+                      warehouseId={warehouseId}
+                      value={labels[l.key] ?? ''}
+                      onChange={(v) => setLabels((m) => ({ ...m, [l.key]: v }))}
+                      onSelect={(med) => {
+                        setLabels((m) => ({ ...m, [l.key]: med.name }));
+                        updateLine(l.key, { medicineId: med.id, medicineName: med.name, unit: med.unit ?? '' });
+                      }}
+                    />
+                  </td>
+                  <td style={{ padding: '4px 4px', width: 80 }}>
+                    <InputNumber value={l.quantity} min={1} max={1000} size="small" style={{ width: '100%' }}
+                      onChange={(v) => updateLine(l.key, { quantity: v ?? 1 })} />
+                  </td>
+                  <td style={{ padding: '4px 4px', width: 150 }}>
+                    <Input size="small" value={l.dosage} placeholder="1v × 3/ngày"
+                      onChange={(e) => updateLine(l.key, { dosage: e.target.value })} />
+                  </td>
+                  <td style={{ padding: '4px 4px', minWidth: 160 }}>
+                    <Input size="small" value={l.usage} placeholder="Uống sau ăn…"
+                      onChange={(e) => updateLine(l.key, { usage: e.target.value })} />
+                  </td>
+                  <td style={{ padding: '4px 4px', width: 32 }}>
+                    {lines.length > 1 && (
+                      <Btn variant="ghost" onClick={() => removeLine(l.key)} style={{ color: 'var(--s-crit)' }}>
+                        <TermIcon name="x" size={11} />
+                      </Btn>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <IpFld label="Lời dặn / hướng dẫn" full>
-          <Input.TextArea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Uống sau ăn, không uống rượu bia…" />
-        </IpFld>
+        <Btn variant="ghost" onClick={() => setLines((ls) => [...ls, emptyRxLine()])}>
+          <TermIcon name="plus" size={11} /> Thêm thuốc
+        </Btn>
       </div>
     </ModalShell>
   );
