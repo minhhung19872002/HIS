@@ -1,6 +1,24 @@
 # STATUS — đang ở đâu · blocker · việc kế tiếp
 
-> Cập nhật cuối: **2026-06-07 ~04:00**. File này là cửa vào nhanh; chi tiết xem
+> Cập nhật cuối: **2026-06-07 ~09:30** (sau Prompt 12 regression toàn hệ thống).
+
+## ✅ PROMPT 12 — REGRESSION TOÀN HỆ THỐNG 2026-06-07 (KẾT QUẢ CUỐI)
+
+- Build gate: FE install+build EXIT 0 · BE 0 err · startup sạch · schema-drift 0.
+- **Cypress 81/81** mọi route · **Playwright FULL 588 passed / 9 skipped / 0 failed** (4.3m).
+- API: `test-doithu-gap.ps1` MỚI **28/28** (smoke+write+authz 401+privacy lookup) · test-ipd/test-reception sạch ·
+  `test-regression-suite.ps1` **10/10** (kể cả Real workflow luồng lõi: đăng ký→khám→kê đơn→hóa đơn→thu tiền).
+- **BUG THẬT bắt được + fix (CHƯA commit/push):**
+  1. 🔴 Migration `70_prescription_payment_category.sql` — DB thiếu cột `PaymentCategory`+`DrugOrderType`
+     (entity có, không kèm migration — class "13 cột" tái diễn) → 500 kê đơn/xem đơn/tạo hóa đơn. Đã apply local.
+     ⚠️ `/health/schema-drift` KHÔNG bắt được (so list tĩnh, không so EF model) — cần nâng cấp checker (backlog).
+  2. 🟡 2 Drawer `width=` deprecated trong pages-v2/Dashboard.tsx → `size="large"` (convention antd v6).
+- **Fix hạ tầng test (CHƯA commit):** suite path `$repoRoot` 2 cấp + `test_real_workflow.js` về `scripts/misc-js/` ·
+  `sqlcmd -I` ×4 script (filtered index) · unwrap envelope test-print-lis-signing · 8 spec Playwright stale
+  envelope/selector (unwrap helper, agent fix 91 passed/8 skipped) · spec 10-ris-pacs 60/60 ·
+  `design-diff/**` loại khỏi suite mặc định (workbench cần server :3003) · spec MỚI `doithu-gap-dot23.spec.ts` 9/9.
+- Skip có chủ đích (9): ACRIN CT data-dependent · seed-demo-btn selector chưa có · menu v1 cần layoutMode ·
+  5 clinical-safety data-dependent · mobile soft-skip. File này là cửa vào nhanh; chi tiết xem
 > [`10-assessment/prompts-doithu-gap.md`](10-assessment/prompts-doithu-gap.md) (mục "Tình trạng triển khai") +
 > handoff trong [`90-archive/handoffs/`](90-archive/handoffs/).
 
@@ -25,18 +43,20 @@
 ## Blocker / rủi ro đang treo
 
 1. **HDDT (P5)**: khung config-driven xong — **chờ user cấp thông tin NCC** (VNPT/Viettel/MISA, endpoint, credential qua ENV).
-2. Attachment số hóa HSBA lưu filesystem — Cloud Run ephemeral → cần R2/GCS trước khi dùng thật.
+2. ~~Attachment số hóa HSBA filesystem~~ → ✅ XÁC MINH STALE 2026-06-07 (`EmrAdminService` đã lưu DB blob `FileContent`, migration 47).
 3. Tường trình PTTT pack sentinel vào `SurgeryRequest.Notes` (tạm).
 4. Portal mobile `patientId` FromQuery — siết auth khi BN tự đăng nhập.
 5. ~~G-07 toa được phát: medicine picker~~ → ✅ ĐÃ XONG (commit `88d115d` từ nguồn song song — ItemPicker + lưu thật).
 6. Rotate R2 API token (TODO bảo mật cũ).
-7. Defer nhỏ còn treo: batch-check mapping PTTT row action · prefill narrativeBody SurgeryReportModal ·
-   UI nhập SignerRole khi tạo trình ký · DefaultKtvId/ApproverId vào API collect · worker nhắc hẹn lấy mẫu.
+7. ~~Defer nhỏ~~ → ✅ ĐÃ XONG + DEPLOY 2026-06-07 (commit `196f116`, revision `his-api-00058-t9f`): batch-check PTTT ·
+   prefill narrativeBody · SignerRole DTO (form standalone bị GỠ — fake documentId, caller module thật sẽ truyền) ·
+   DefaultKtv → cột `CollectorId` LabOrders · worker nhắc hẹn (migration 69, **mặc định TẮT** — bật:
+   env `SampleAppointmentReminder__Enabled=true` trên Cloud Run) · 3 site DosingDate (audit TZ → 100%).
 
 ## Việc kế tiếp
 
-1. **User quyết: commit (nhóm theo đợt/wave) + push** → GitHub Actions deploy → verify schema-drift prod
-   (migration 61–68 tự apply) + re-smoke prod.
-2. Task riêng: audit nốt pattern TZ (`IssueDate=DateTime.Now` subsystem queue + phân loại ~50 site `.Date ==`).
+1. **HDDT**: chờ user cấp thông tin NCC (VNPT/Viettel/MISA + endpoint + credential qua ENV) — duy nhất còn chặn.
+2. Tùy chọn vận hành: bật worker nhắc hẹn trên prod (env trên) · rotate R2 token.
 3. Smoke UI thủ công các trang mới/đổi + viết thêm E2E cho Đợt 2/3 + wave.
-4. HDDT: chờ thông tin NCC.
+4. Việc nền dài hạn: chuẩn hóa storage `AdmissionDate/ReceiptDate` Now→UtcNow (hiện đúng prod, lệch nhẹ dev ban đêm) ·
+   bỏ sentinel Notes PTTT · siết auth portal · recurrence generation cho hẹn lấy mẫu · user picker cho trình ký.

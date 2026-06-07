@@ -9,6 +9,11 @@ import { test, expect, request as pwRequest } from '@playwright/test';
 
 const LOCAL_API = 'http://localhost:5106/api';
 
+// Global envelope wrapper: { success, data, ... } — unwrap before asserting shape.
+function unwrap(body: any): any {
+  return body && typeof body === 'object' && 'data' in body && body.data !== undefined ? body.data : body;
+}
+
 async function getToken(): Promise<string> {
   const ctx = await pwRequest.newContext();
   const r = await ctx.post(`${LOCAL_API}/auth/login`, {
@@ -30,7 +35,7 @@ test.describe('AI Phase 4 — Worklist + Providers', () => {
     });
     const r = await ctx.get(`${LOCAL_API}/ai-labeling/queue?limit=20`);
     expect(r.status()).toBe(200);
-    const body = await r.json() as Array<{
+    const body = unwrap(await r.json()) as Array<{
       id: string;
       studyInstanceUID: string;
       queuedAt: string;
@@ -53,7 +58,7 @@ test.describe('AI Phase 4 — Worklist + Providers', () => {
     });
     const r = await ctx.get(`${LOCAL_API}/ai-labeling/providers`);
     expect(r.status()).toBe(200);
-    const body = await r.json() as Array<{
+    const body = unwrap(await r.json()) as Array<{
       id: string;
       name: string;
       supportedModalities: string[];
@@ -83,7 +88,7 @@ test.describe('AI Phase 4 — Worklist + Providers', () => {
       },
     });
     expect(r.status()).toBe(400);
-    const body = await r.json() as { message: string };
+    const body = unwrap(await r.json()) as { message: string };
     expect(body.message).toMatch(/Provider.*không có/i);
     await ctx.dispose();
   });

@@ -15,6 +15,11 @@ import { test, expect, request as pwRequest } from '@playwright/test';
 
 const LOCAL_API = 'http://localhost:5106/api';
 
+// Global envelope wrapper: { success, data, ... } — unwrap before asserting shape.
+function unwrap(body: any): any {
+  return body && typeof body === 'object' && 'data' in body && body.data !== undefined ? body.data : body;
+}
+
 async function getLocalToken(): Promise<string> {
   const ctx = await pwRequest.newContext();
   const r = await ctx.post(`${LOCAL_API}/auth/login`, {
@@ -39,7 +44,7 @@ test.describe('AI Phase 1 — multi-modality config', () => {
     });
     const r = await ctx.get(`${LOCAL_API}/ai-labeling/modalities`);
     expect(r.status()).toBe(200);
-    const body = await r.json() as Array<{
+    const body = unwrap(await r.json()) as Array<{
       modality: string;
       aliases: string[];
       modelName: string;
@@ -61,7 +66,7 @@ test.describe('AI Phase 1 — multi-modality config', () => {
     });
     const r = await ctx.get(`${LOCAL_API}/ai-labeling/config?modality=CT`);
     expect(r.status()).toBe(200);
-    const body = await r.json() as {
+    const body = unwrap(await r.json()) as {
       modality: string;
       modelName: string;
       labels: string[];
@@ -88,7 +93,7 @@ test.describe('AI Phase 1 — multi-modality config', () => {
     });
     const r = await ctx.get(`${LOCAL_API}/ai-labeling/config?modality=DX`);
     expect(r.status()).toBe(200);
-    const body = await r.json() as { modality: string };
+    const body = unwrap(await r.json()) as { modality: string };
     // Alias resolution: backend echoes the primary modality (CR), not DX.
     expect(body.modality).toBe('CR');
     await ctx.dispose();

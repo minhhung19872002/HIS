@@ -180,8 +180,13 @@ test.describe('LIS Module - HL7 Integration Tests', () => {
 
     console.log('Create analyzer response status:', response.status());
 
+    // API wraps response in global envelope { success, data } — unwrap before accessing fields.
+    function unwrapAnalyzer(raw: any) {
+      return raw && raw.data !== undefined ? raw.data : raw;
+    }
+
     if (response.ok()) {
-      const data = await response.json();
+      const data = unwrapAnalyzer(await response.json());
       testAnalyzerId = data.id;
       console.log('Created analyzer:', testAnalyzerId);
       expect(data.code).toBe('HL7SPY-001');
@@ -192,9 +197,11 @@ test.describe('LIS Module - HL7 Integration Tests', () => {
       });
 
       if (listResponse.ok()) {
-        const analyzers = await listResponse.json();
-        if (analyzers.length > 0) {
-          testAnalyzerId = analyzers[0].id;
+        const raw = await listResponse.json();
+        const analyzers = unwrapAnalyzer(raw);
+        const list = Array.isArray(analyzers) ? analyzers : (analyzers.items || []);
+        if (list.length > 0) {
+          testAnalyzerId = list[0].id;
           console.log('Using existing analyzer:', testAnalyzerId);
         }
       }
@@ -216,7 +223,9 @@ test.describe('LIS Module - HL7 Integration Tests', () => {
     console.log('Connection status response:', response.status());
 
     if (response.ok()) {
-      const status = await response.json();
+      const raw = await response.json();
+      // API wraps response in global envelope { success, data } — unwrap before accessing fields.
+      const status = (raw && raw.data !== undefined) ? raw.data : raw;
       console.log('Analyzer connection status:', status);
       expect(status.analyzerId).toBe(testAnalyzerId);
     }
@@ -349,7 +358,9 @@ test.describe('LIS Module - HL7 Integration Tests', () => {
     console.log('Process result status:', response.status());
 
     if (response.ok()) {
-      const result = await response.json();
+      const raw = await response.json();
+      // API wraps response in global envelope { success, data } — unwrap before accessing fields.
+      const result = (raw && raw.data !== undefined) ? raw.data : raw;
       console.log('Process result:', result);
       expect(result.processedCount).toBeGreaterThanOrEqual(0);
     }

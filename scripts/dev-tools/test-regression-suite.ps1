@@ -1,11 +1,13 @@
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$repoRoot = Split-Path -Parent $root
+# repo root = 2 cap tren dev-tools (scripts/dev-tools -> scripts -> repo). Truoc day chi lui 1 cap
+# nen test-reception-full/test-ipd-flow (nam o repo root) khong tim thay -> exit -196608.
+$repoRoot = Split-Path -Parent (Split-Path -Parent $root)
 $steps = @(
     @{ Name = "Cleanup before"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$root/test-cleanup-generated-data.ps1") },
     @{ Name = "Soft delete AUTO-REG before"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$root/test-soft-delete-auto-reg-patients.ps1") },
-    @{ Name = "Real workflow"; Command = @("node", "$root/test_real_workflow.js") },
+    @{ Name = "Real workflow"; Command = @("node", "$repoRoot/scripts/misc-js/test_real_workflow.js") },
     @{ Name = "Reception"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$repoRoot/test-reception-full.ps1") },
     @{ Name = "IPD"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$repoRoot/test-ipd-flow.ps1") },
     @{ Name = "Surgery"; Command = @("powershell", "-ExecutionPolicy", "Bypass", "-File", "$root/test-surgery-flow.ps1") },

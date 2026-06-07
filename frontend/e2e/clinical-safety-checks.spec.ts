@@ -127,9 +127,10 @@ test.describe('Pharmacy Expiry Alerts', () => {
 test.describe('K5 Write Endpoints', () => {
   test('POST /epidemiology/reports/create', async () => {
     const ctx = await request.newContext();
+    // Controller expects body wrapped in { dto: { ... } } — not a flat payload.
     const res = await ctx.post(`${API}/write-gap/epidemiology/reports`, {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      data: { patientName: 'Test E2E', diseaseCode: 'A09', diseaseName: 'Tiêu chảy', status: 'Confirmed' },
+      data: { dto: { patientName: 'Test E2E', diseaseCode: 'A09', diseaseName: 'Tiêu chảy', status: 'Confirmed' } },
     });
     expect(res.status()).toBe(200);
     const body = await res.json();

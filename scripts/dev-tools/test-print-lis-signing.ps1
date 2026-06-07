@@ -36,7 +36,8 @@ function Invoke-Json {
 function Invoke-SqlText {
     param([string]$Query)
 
-    $lines = & sqlcmd -S $sqlServer -U $sqlUser -P $sqlPassword -d $sqlDatabase -Q $Query -W -h -1
+    # -I: QUOTED_IDENTIFIER ON — bat buoc khi DML tren bang co filtered index
+    $lines = & sqlcmd -S $sqlServer -U $sqlUser -P $sqlPassword -d $sqlDatabase -Q $Query -W -h -1 -I
     return @($lines | Where-Object { $_ -and $_.Trim() -and $_.Trim() -notmatch '^-+$' } | ForEach-Object { $_.Trim() })
 }
 
@@ -143,8 +144,10 @@ if ($null -eq $targetOrder) {
 
 Write-Host "  Pending endpoint returned seeded order: $($targetOrder.orderCode) / $($targetOrder.patientName)" -ForegroundColor Green
 
-$detail = Invoke-Json -Method Get -Url "$baseUrl/api/LISComplete/orders/$($seededOrder.id)" -Headers $headers
-$testItems = @($detail.testItems)
+$detailResp = Invoke-Json -Method Get -Url "$baseUrl/api/LISComplete/orders/$($seededOrder.id)" -Headers $headers
+# API boc envelope {success,data} -> unwrap truoc khi doc testItems (truoc day thieu -> mang chua $null -> 400)
+$detail = if ($detailResp.PSObject.Properties.Name -contains 'data' -and $detailResp.data) { $detailResp.data } else { $detailResp }
+$testItems = @($detail.testItems | Where-Object { $_ })
 Write-Host "  Test items: $($testItems.Count)"
 
 foreach ($item in $testItems) {

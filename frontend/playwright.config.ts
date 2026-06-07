@@ -8,6 +8,10 @@ export default defineConfig({
   // Thu muc chua test files
   testDir: './e2e',
 
+  // design-diff/* la workbench so anh voi design pack — can server rieng :3003 serve __design/*.html.
+  // Khong phai regression: loai khoi run mac dinh (mo lai bang cach sua testIgnore khi lam design).
+  testIgnore: ['**/design-diff/**'],
+
   // Chay test song song
   fullyParallel: true,
 

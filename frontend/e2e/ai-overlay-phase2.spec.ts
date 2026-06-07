@@ -25,6 +25,10 @@ async function getToken(): Promise<string> {
 
 test.describe('AI Overlay Phase 2', () => {
   test('inference → heatmap pass → accept → overlay canvas renders', async ({ page }) => {
+    // Skip: requires specific ACRIN CT study seeded on prod Orthanc PACS
+    // (study UID 1.3.6.1.4.1.14519.5.2.1.7009.2403.334240657131972136850343327463).
+    // Will un-skip when PACS seed is verified stable in CI.
+    test.skip(true, 'data-dependent: ACRIN CT study must be present on prod Orthanc PACS');
     test.setTimeout(180_000);
 
     const token = await getToken();

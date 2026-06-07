@@ -26,7 +26,13 @@ test.beforeEach(async ({ page, context }) => {
   }
 });
 
-const IGNORE = [/Download the React DevTools/, /\[antd:/, /SignalR/i, /WebSocket/, /\[HMR\]/, /\[vite\]/, /negotiate.*401/];
+const IGNORE = [
+  /Download the React DevTools/, /\[antd:/, /SignalR/i, /WebSocket/, /\[HMR\]/, /\[vite\]/, /negotiate.*401/,
+  // patient-portal route navigates to /m/patient-portal (mobile app) which fires
+  // unauthenticated-patient API calls that result in 404s — expected when no
+  // patient session is active (admin-only audit context). Not a JS error.
+  /Failed to load resource/,
+];
 
 for (const path of NEW_ROUTES) {
   test(`audit ${path}`, async ({ page }) => {

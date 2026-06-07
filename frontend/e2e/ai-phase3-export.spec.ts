@@ -25,6 +25,11 @@ interface AiResult {
   reviewStatus: number;
 }
 
+// Global envelope wrapper: { success, data, ... } — unwrap before asserting shape.
+function unwrap(body: any): any {
+  return body && typeof body === 'object' && 'data' in body && body.data !== undefined ? body.data : body;
+}
+
 async function seedAiResult(token: string): Promise<string> {
   const ctx = await pwRequest.newContext({
     extraHTTPHeaders: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=utf-8' },
@@ -46,7 +51,7 @@ async function seedAiResult(token: string): Promise<string> {
       inputImageHash: 'phase3test' + Date.now(),
     },
   });
-  const created = await createRes.json() as AiResult;
+  const created = unwrap(await createRes.json()) as AiResult;
   expect(created.id, 'AI result created').toBeTruthy();
 
   // Mark as accepted (partial — 2 of 3 labels) so HTML + merge see "accepted" labels.
@@ -121,7 +126,7 @@ test.describe('AI Phase 3 — Export endpoints', () => {
     });
     const r = await ctx.post(`${LOCAL_API}/ai-labeling/${aiId}/merge-to-report`);
     expect(r.status()).toBe(200);
-    const body = await r.json() as { merged: boolean; message?: string };
+    const body = unwrap(await r.json()) as { merged: boolean; message?: string };
     expect(body.merged).toBe(false);
     expect(body.message).toMatch(/không tìm thấy/i);
     await ctx.dispose();
@@ -136,7 +141,7 @@ test.describe('AI Phase 3 — Export endpoints', () => {
     });
     const r = await ctx.post(`${LOCAL_API}/ai-labeling/${aiId}/export/dicom-sr/upload`);
     expect([200, 400, 500]).toContain(r.status());
-    const body = await r.json() as { message?: string; instanceId?: string };
+    const body = unwrap(await r.json()) as { message?: string; instanceId?: string };
     if (r.status() === 200) {
       expect(body.instanceId).toBeTruthy();
     } else {

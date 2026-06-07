@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $sqlServer = "localhost,1433"
 $sqlDatabase = "HIS"
@@ -131,10 +131,11 @@ EXEC sp_executesql @sql;
 "@
 
 Write-Host "=== SOFT DELETE AUTO-REG PATIENT DATA ===" -ForegroundColor Cyan
-$output = & sqlcmd -S $sqlServer -U $sqlUser -P $sqlPassword -d $sqlDatabase -Q $query -W -s "|" 2>&1
+$output = & sqlcmd -S $sqlServer -U $sqlUser -P $sqlPassword -d $sqlDatabase -Q $query -W -s "|" -I 2>&1
 if ($LASTEXITCODE -ne 0) {
     $output | Write-Host
     exit $LASTEXITCODE
 }
 
 $output | Write-Host
+

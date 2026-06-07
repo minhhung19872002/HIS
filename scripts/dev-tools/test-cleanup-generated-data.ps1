@@ -83,7 +83,8 @@ SELECT 'AutoMedicalRecordsReport', COUNT(*) FROM @AutoMedicalRecords;
 "@
 
 Write-Host "=== CLEANUP GENERATED TEST DATA ===" -ForegroundColor Cyan
-$output = & sqlcmd -S $sqlServer -U $sqlUser -P $sqlPassword -d $sqlDatabase -Q $query -W -s "|" 2>&1
+# -I (QUOTED_IDENTIFIER ON): DB co filtered index (UX_SystemConfigs_ConfigKey_Active...) — DML thieu se fail
+$output = & sqlcmd -S $sqlServer -U $sqlUser -P $sqlPassword -d $sqlDatabase -Q $query -W -s "|" -I 2>&1
 if ($LASTEXITCODE -ne 0) {
     $output | Write-Host
     exit $LASTEXITCODE

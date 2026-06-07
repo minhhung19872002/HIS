@@ -237,16 +237,16 @@ test.describe('Reception E2E Flow', () => {
     await test.step('Buoc 3: Chon phong kham', async () => {
       const modal = page.locator('.ant-modal:has-text("Đăng ký khám")');
 
-      // Tim va click select phong kham
+      // Tim va click select phong kham — only try VISIBLE selects to avoid timeout
+      // on hidden/disabled ones (the modal may have up to 6 selects with some not displayed).
       const selects = modal.locator('.ant-select');
       const count = await selects.count();
 
-      // Limit iterations to avoid timeout - try last select first (usually room), then first 3
-      const maxTries = Math.min(count, 3);
-      const indices = count > 1 ? [count - 1, 0, 1].slice(0, maxTries) : [0];
-
-      for (const i of indices) {
+      for (let i = 0; i < count; i++) {
         const select = selects.nth(i);
+        const isVis = await select.isVisible().catch(() => false);
+        if (!isVis) continue;
+
         await select.click();
         await page.waitForTimeout(300);
 

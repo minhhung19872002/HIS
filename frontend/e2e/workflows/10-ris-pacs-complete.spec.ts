@@ -1,6 +1,6 @@
-/**
+﻿/**
  * RIS/PACS Complete E2E Tests
- * Module 8: Chẩn đoán hình ảnh, Thăm dò chức năng
+ * Module 8: Cháº©n Ä‘oÃ¡n hÃ¬nh áº£nh, ThÄƒm dÃ² chá»©c nÄƒng
  * Comprehensive tests for all RIS/PACS functionality
  */
 
@@ -11,6 +11,12 @@ const API_BASE_URL = 'http://localhost:5106/api';
 
 // Test credentials
 const ADMIN_USER = { username: 'admin', password: 'Admin@123' };
+
+// API bá»c envelope {success,data} (global wrapper) â€” unwrap trÆ°á»›c khi assert shape.
+// Spec nÃ y viáº¿t trÆ°á»›c khi cÃ³ wrapper nÃªn assert trá»±c tiáº¿p â†’ 13 test fail giáº£.
+function unwrap(body: any): any {
+  return body && typeof body === 'object' && 'data' in body && body.data !== undefined ? body.data : body;
+}
 
 // Helper function to login and get token
 async function getAuthToken(request: APIRequestContext): Promise<string> {
@@ -72,7 +78,7 @@ test.describe('RIS/PACS API Tests', () => {
       const today = new Date().toISOString().split('T')[0];
       const response = await apiCall(request, token, 'GET', `/RISComplete/waiting-list?date=${today}`);
       expect(response.ok()).toBeTruthy();
-      const data = await response.json();
+      const data = unwrap(await response.json());
       expect(Array.isArray(data)).toBeTruthy();
     });
 
@@ -99,7 +105,7 @@ test.describe('RIS/PACS API Tests', () => {
     test('should get modalities list', async ({ request }) => {
       const response = await apiCall(request, token, 'GET', '/RISComplete/modalities');
       expect(response.ok()).toBeTruthy();
-      const data = await response.json();
+      const data = unwrap(await response.json());
       expect(Array.isArray(data)).toBeTruthy();
     });
 
@@ -114,7 +120,7 @@ test.describe('RIS/PACS API Tests', () => {
     test('should get PACS connections', async ({ request }) => {
       const response = await apiCall(request, token, 'GET', '/RISComplete/pacs-connections');
       expect(response.ok()).toBeTruthy();
-      const data = await response.json();
+      const data = unwrap(await response.json());
       expect(Array.isArray(data)).toBeTruthy();
     });
   });
@@ -123,14 +129,14 @@ test.describe('RIS/PACS API Tests', () => {
     test('should get all result templates', async ({ request }) => {
       const response = await apiCall(request, token, 'GET', '/RISComplete/templates');
       expect(response.ok()).toBeTruthy();
-      const data = await response.json();
+      const data = unwrap(await response.json());
       expect(Array.isArray(data)).toBeTruthy();
     });
 
     test('should search result templates by keyword', async ({ request }) => {
       const response = await apiCall(
         request, token, 'GET',
-        '/RISComplete/templates?keyword=siêu'
+        '/RISComplete/templates?keyword=siÃªu'
       );
       expect(response.ok()).toBeTruthy();
     });
@@ -163,7 +169,7 @@ test.describe('RIS/PACS API Tests', () => {
         `/RISComplete/orders?fromDate=${fromDate}&toDate=${toDate}`
       );
       expect(response.ok()).toBeTruthy();
-      const data = await response.json();
+      const data = unwrap(await response.json());
       expect(Array.isArray(data)).toBeTruthy();
     });
 
@@ -222,14 +228,14 @@ test.describe('RIS/PACS API Tests', () => {
     test('should get USB Token status', async ({ request }) => {
       const response = await apiCall(request, token, 'GET', '/RISComplete/usb-token/status');
       expect(response.ok()).toBeTruthy();
-      const data = await response.json();
+      const data = unwrap(await response.json());
       expect(data).toHaveProperty('available');
     });
 
     test('should get USB Token certificates', async ({ request }) => {
       const response = await apiCall(request, token, 'GET', '/RISComplete/usb-token/certificates');
       expect(response.ok()).toBeTruthy();
-      const data = await response.json();
+      const data = unwrap(await response.json());
       expect(Array.isArray(data)).toBeTruthy();
     });
 
@@ -243,7 +249,7 @@ test.describe('RIS/PACS API Tests', () => {
     test('should get radiology rooms', async ({ request }) => {
       const response = await apiCall(request, token, 'GET', '/RISComplete/rooms');
       expect(response.ok()).toBeTruthy();
-      const data = await response.json();
+      const data = unwrap(await response.json());
       expect(Array.isArray(data)).toBeTruthy();
     });
 
@@ -261,7 +267,7 @@ test.describe('RIS/PACS API Tests', () => {
     test('should get tags list', async ({ request }) => {
       const response = await apiCall(request, token, 'GET', '/RISComplete/tags');
       expect(response.ok()).toBeTruthy();
-      const data = await response.json();
+      const data = unwrap(await response.json());
       expect(Array.isArray(data)).toBeTruthy();
     });
 
@@ -320,14 +326,14 @@ test.describe('RIS/PACS API Tests', () => {
     test('should get diagnosis templates', async ({ request }) => {
       const response = await apiCall(request, token, 'GET', '/RISComplete/diagnosis-templates');
       expect(response.ok()).toBeTruthy();
-      const data = await response.json();
+      const data = unwrap(await response.json());
       expect(Array.isArray(data)).toBeTruthy();
     });
 
     test('should search diagnosis templates', async ({ request }) => {
       const response = await apiCall(
         request, token, 'GET',
-        '/RISComplete/diagnosis-templates?keyword=phổi'
+        '/RISComplete/diagnosis-templates?keyword=phá»•i'
       );
       expect(response.ok()).toBeTruthy();
     });
@@ -337,13 +343,13 @@ test.describe('RIS/PACS API Tests', () => {
     test('should get abbreviations', async ({ request }) => {
       const response = await apiCall(request, token, 'GET', '/RISComplete/abbreviations');
       expect(response.ok()).toBeTruthy();
-      const data = await response.json();
+      const data = unwrap(await response.json());
       expect(Array.isArray(data)).toBeTruthy();
     });
 
     test('should expand abbreviations', async ({ request }) => {
       const response = await apiCall(request, token, 'POST', '/RISComplete/abbreviations/expand', {
-        text: 'BN có tiền sử HA'
+        text: 'BN cÃ³ tiá»n sá»­ HA'
       });
       expect(response.ok()).toBeTruthy();
     });
@@ -367,7 +373,7 @@ test.describe('RIS/PACS API Tests', () => {
     test('should get capture devices', async ({ request }) => {
       const response = await apiCall(request, token, 'GET', '/RISComplete/capture-devices');
       expect(response.ok()).toBeTruthy();
-      const data = await response.json();
+      const data = unwrap(await response.json());
       expect(Array.isArray(data)).toBeTruthy();
     });
 
@@ -474,7 +480,7 @@ test.describe('RIS/PACS UI Tests', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Click on statistics tab if exists
-    const statsTab = page.locator('text=Thống kê, text=Statistics, [data-node-key*="stat"]').first();
+    const statsTab = page.locator('text=Thá»‘ng kÃª, text=Statistics, [data-node-key*="stat"]').first();
     if (await statsTab.isVisible()) {
       await statsTab.click();
       await page.waitForLoadState('domcontentloaded');
@@ -486,7 +492,7 @@ test.describe('RIS/PACS UI Tests', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Click on settings tab if exists
-    const settingsTab = page.locator('text=Cài đặt, text=Settings, [data-node-key*="setting"]').first();
+    const settingsTab = page.locator('text=CÃ i Ä‘áº·t, text=Settings, [data-node-key*="setting"]').first();
     if (await settingsTab.isVisible()) {
       await settingsTab.click();
       await page.waitForLoadState('domcontentloaded');
@@ -507,7 +513,7 @@ test.describe('RIS/PACS UI Tests', () => {
     await page.goto('/radiology');
     await page.waitForLoadState('domcontentloaded');
 
-    const searchInput = page.locator('input[placeholder*="Tìm"], input[placeholder*="Search"], .ant-input-search').first();
+    const searchInput = page.locator('input[placeholder*="TÃ¬m"], input[placeholder*="Search"], .ant-input-search').first();
     if (await searchInput.isVisible()) {
       await expect(searchInput).toBeVisible();
     }
@@ -598,9 +604,9 @@ test.describe('RIS/PACS Integration Flow Tests', () => {
       code: `TEST_TPL_${Date.now()}`,
       name: 'Test Template - Auto Generated',
       gender: 'Both',
-      descriptionTemplate: 'Mô tả test',
-      conclusionTemplate: 'Kết luận test',
-      noteTemplate: 'Ghi chú test',
+      descriptionTemplate: 'MÃ´ táº£ test',
+      conclusionTemplate: 'Káº¿t luáº­n test',
+      noteTemplate: 'Ghi chÃº test',
       sortOrder: 999,
       isDefault: false,
       isActive: true
