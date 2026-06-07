@@ -1,6 +1,17 @@
 # STATUS — đang ở đâu · blocker · việc kế tiếp
 
-> Cập nhật cuối: **2026-06-07 ~15:30** (sau UI-ALL audit-ui-print-stub + regression lần 3).
+> Cập nhật cuối: **2026-06-07 ~18:00** (sau audit-stub-buttons-full: wire 83 nút giả + 6 endpoint BE mới).
+
+## ✅ AUDIT-STUB-BUTTONS-FULL (audit-stub-buttons-full-2026-06-06.md) — XONG 2026-06-07 (CHƯA PUSH)
+
+- Verify lại: 81/97 nút còn stub thật + 2 page v1 → **83 nút xử lý** (fan-out 1 BE + 9 FE agent, 3 wave, build-gate tập trung).
+- **BE mới (build 0 err · migration 75/76 applied local)**: printDrugLabel · bhxhAudit 5 endpoint (mig 75) · copyRoster · bulkAllocate · satisfactionSurvey (mig 76) · healthExchange syncAll. Fix 2 class trùng interface (dead code) + đổi tên DTO trùng `CreateCampaignDto`→`CreateSurveyCampaignDto`.
+- **FE**: wire ~72 nút (lab/mẫu/lâm sàng/viện phí/admin/HR/tài chính/public-health) — nối API có sẵn / xuất Excel-CSV (helper chung) / print blob / ẩn-navigate nút không nghiệp vụ. BillingEditor email+in HĐ+biên lai dùng hàm ĐÃ CÓ (audit đoán nhầm CẦN BE).
+- **✅ 8 defer cần BE — ĐÃ LÀM NỐT 2026-06-07 tối** (4 agent vertical-slice, migration **77** MCI/Code Blue applied local, build 2 tầng 0 err, schema-drift 0): rehab print giấy GT · barcode lookup đơn thuốc · EMR `medicalRecordId` + OPD `examinationId` (DTO map) · CCHN print · Finance gửi báo cáo email (MockMode) · **Code Blue thật** (POST /api/mci/activate-code-blue, smoke OK) · BHXH export XML hàng loạt (zip). Fix tập trung: 2 class stub trùng interface + 1 Guid-null + 6 TS FE. Chi tiết cuối file audit.
+- **Prompt 12 regression ĐÃ CHẠY 2026-06-07 tối**: build BE 0 err · FE EXIT 0 · BE startup OK · **schema-drift missingCount=0** · **Cypress 81/81** · **Playwright 587 pass / 1 fail / 9 skip** · API **test-doithu-gap 28/28** · suite 9/10.
+  - **2 fail đều PRE-EXISTING (verify trên HEAD sạch — KHÔNG do phiên này)**:
+    (1) Playwright `13-opd-service-selection-regression` — stash về HEAD vẫn fail → quirk dev-ban-đêm (`AdmissionDate/ReceiptDate=Now` vs query range UTC, BN tối rơi ngoài "hôm nay"); (2) suite "Real workflow" — `ExaminationCompleteService.StartExaminationAsync` "Examination not found" do test harness dùng `medicalRecordId` làm `examinationId`; diff phiên này KHÔNG chạm examination/reception BE.
+- **CHƯA**: git commit/push (chờ lệnh "push").
 
 ## ✅ UI-ALL (audit-ui-print-stub-2026-06-06.md) — XONG 2026-06-07 (CHƯA PUSH)
 
