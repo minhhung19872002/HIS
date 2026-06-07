@@ -245,7 +245,7 @@ const NutritionV2: React.FC = () => {
         sub={sel ? `${sel.patientName || '—'} · ${sel.dietTypeName || sel.dietType || '—'}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn icon="print" onClick={() => { if (sel) tk(`In thực đơn ${sel.orderCode || ''}`); }}>In thực đơn</Btn>
+          <Btn icon="print" onClick={() => window.print()}>In thực đơn</Btn>
           {sel && isActive(sel.status) && (
             <Btn variant="crit" icon="x" onClick={() => { setCancelRow(sel); setCancelReason(''); setSel(null); }}>Ngưng đơn</Btn>
           )}

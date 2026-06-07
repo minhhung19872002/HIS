@@ -246,7 +246,7 @@ const Screening: React.FC = () => {
       <Modal title={`Chi tiết sàng lọc - ${selectedRequest?.requestCode}`} open={detailModalOpen}
         onCancel={() => setDetailModalOpen(false)} width={800} footer={
           <Space>
-            <Button icon={<PrinterOutlined />} onClick={() => message.info('Tính năng in đang phát triển')}>In phiếu</Button>
+            <Button icon={<PrinterOutlined />} onClick={() => window.print()}>In phiếu</Button>
             <Button onClick={() => setDetailModalOpen(false)}>Đóng</Button>
           </Space>
         }>

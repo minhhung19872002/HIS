@@ -110,7 +110,7 @@ const EnvironmentalHealthV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      <ActBtn ic="print" title="In phiếu" onClick={() => tk(`Đã in ${r.recordCode}`)} />
+      <ActBtn ic="eye" title="Xem chi tiết" onClick={() => setSel(r)} />
     </div>
   );
 
@@ -165,7 +165,7 @@ const EnvironmentalHealthV2: React.FC = () => {
           <Btn onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Sửa
           </Btn>
-          <Btn variant="primary" onClick={() => tk('Đã in phiếu')}>
+          <Btn variant="primary" onClick={() => window.print()}>
             <Ico name="print" size={12} /> In phiếu
           </Btn>
         </>}

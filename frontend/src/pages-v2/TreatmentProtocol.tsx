@@ -122,7 +122,7 @@ const TreatmentProtocolV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      <ActBtn ic="print" title="In phác đồ" onClick={() => tk(`In phác đồ ${r.code}`)} />
+      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
     </div>
   );
@@ -163,7 +163,7 @@ const TreatmentProtocolV2: React.FC = () => {
         sub={sel ? `${sel.code} · v${sel.version}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn icon="print" onClick={() => tk('Đã in phác đồ')}>In phác đồ</Btn>
+          <Btn icon="print" onClick={() => window.print()}>In phác đồ</Btn>
           <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Chỉnh sửa</Btn>
         </>}
       >

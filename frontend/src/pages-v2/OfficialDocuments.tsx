@@ -2,7 +2,7 @@
  * G-44 Official Documents — quản lý công văn đến/đi (MVP).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { DatePicker, Form, Input, Modal, Select } from 'antd';
+import { DatePicker, Descriptions, Drawer, Form, Input, Modal, Select, Space, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import {
@@ -59,6 +59,13 @@ const OfficialDocumentsV2: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Detail / edit drawer
+  const [editForm] = Form.useForm();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerDoc, setDrawerDoc] = useState<OfficialDocument | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+
   // ── Load ────────────────────────────────────────────────────────────────
 
   const load = useCallback(async () => {
@@ -99,6 +106,51 @@ const OfficialDocumentsV2: React.FC = () => {
       try { await apiClient.delete(`/admin-modules/official-documents/${r.id}`); tk('Đã xóa'); load(); }
       catch { tw('Xóa thất bại'); }
     }, { tone: 'crit', confirm: 'Xóa' });
+
+  const openDetail = (r: OfficialDocument) => {
+    setDrawerDoc(r);
+    setEditMode(false);
+    setDrawerOpen(true);
+  };
+
+  const openEdit = (r: OfficialDocument) => {
+    setDrawerDoc(r);
+    editForm.setFieldsValue({
+      ...r,
+      documentDate: r.documentDate ? dayjs(r.documentDate) : undefined,
+      deadline: r.deadline ? dayjs(r.deadline) : undefined,
+    });
+    setEditMode(true);
+    setDrawerOpen(true);
+  };
+
+  const submitEdit = async () => {
+    if (!drawerDoc) return;
+    setEditSaving(true);
+    try {
+      const v = await editForm.validateFields();
+      // Backend SaveOfficialDocumentAsync checks dto.Id to determine add vs update
+      await apiClient.post('/admin-modules/official-documents', {
+        ...v,
+        id: drawerDoc.id,
+        documentDate: v.documentDate?.toISOString?.() ?? v.documentDate,
+        deadline: v.deadline?.toISOString?.() ?? v.deadline,
+      });
+      tk('Đã cập nhật'); setDrawerOpen(false); load();
+    } catch { tw('Lưu thất bại'); }
+    finally { setEditSaving(false); }
+  };
+
+  const openAttachment = (path: string) => {
+    // attachmentPath có thể là URL tuyệt đối hoặc path tương đối từ backend
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      window.open(path, '_blank', 'noopener,noreferrer');
+    } else {
+      // Assume backend serves at /api/files/...  hoặc path tương đối
+      const base = (import.meta.env.VITE_API_URL as string | undefined) || '';
+      window.open(`${base}/files/${path}`, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   // ── Derived ──────────────────────────────────────────────────────────────
 
@@ -187,11 +239,128 @@ const OfficialDocumentsV2: React.FC = () => {
         columns={columns}
         data={filtered}
         rowKey={(r) => r.id}
+        onRowClick={(r) => openDetail(r)}
         actions={(r) => (
-          <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => del(r)} />
+          <div style={{ display: 'flex', gap: 4 }}>
+            <ActBtn ic="edit" title="Sửa" onClick={(e) => { e.stopPropagation(); openEdit(r); }} />
+            <ActBtn ic="trash" title="Xóa" tone="crit" onClick={(e) => { e.stopPropagation(); del(r); }} />
+          </div>
         )}
         empty={loading ? 'Đang tải…' : 'Chưa có công văn nào'}
       />
+
+      {/* Detail / Edit Drawer */}
+      <Drawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title={
+          drawerDoc
+            ? <Space>
+                <span style={{ fontWeight: 700 }}>{drawerDoc.documentNumber}</span>
+                <StatusBadge tone={STATUS_TONE[drawerDoc.status] || 'info'}>{drawerDoc.statusName}</StatusBadge>
+              </Space>
+            : ''
+        }
+        size="large"
+        destroyOnHidden
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            {!editMode && drawerDoc?.attachmentPath && (
+              <Tooltip title="Mở file đính kèm">
+                <Btn variant="ghost" icon="file-text" onClick={() => openAttachment(drawerDoc.attachmentPath!)}>
+                  File đính kèm
+                </Btn>
+              </Tooltip>
+            )}
+            {!editMode && (
+              <Btn variant="ghost" icon="edit" onClick={() => drawerDoc && openEdit(drawerDoc)}>
+                Sửa
+              </Btn>
+            )}
+            {editMode && (
+              <>
+                <Btn variant="ghost" onClick={() => setEditMode(false)}>Hủy sửa</Btn>
+                <Btn variant="primary" icon="check" onClick={submitEdit} disabled={editSaving}>
+                  {editSaving ? 'Đang lưu…' : 'Lưu'}
+                </Btn>
+              </>
+            )}
+            <Btn variant="ghost" onClick={() => setDrawerOpen(false)}>Đóng</Btn>
+          </div>
+        }
+      >
+        {drawerDoc && !editMode && (
+          <Descriptions column={1} bordered size="small" labelStyle={{ width: 160 }}>
+            <Descriptions.Item label="Số công văn">{drawerDoc.documentNumber}</Descriptions.Item>
+            <Descriptions.Item label="Loại">{drawerDoc.documentTypeName}</Descriptions.Item>
+            <Descriptions.Item label="Ngày">{new Date(drawerDoc.documentDate).toLocaleDateString('vi-VN')}</Descriptions.Item>
+            <Descriptions.Item label="Nơi gửi">{drawerDoc.sender || '—'}</Descriptions.Item>
+            <Descriptions.Item label="Nơi nhận">{drawerDoc.receiver || '—'}</Descriptions.Item>
+            <Descriptions.Item label="Trích yếu">{drawerDoc.summary}</Descriptions.Item>
+            <Descriptions.Item label="Người xử lý">{drawerDoc.handler || '—'}</Descriptions.Item>
+            <Descriptions.Item label="Hạn xử lý">
+              {drawerDoc.deadline
+                ? <span style={{ color: drawerDoc.isOverdue ? 'var(--a-rd-text)' : undefined, fontWeight: drawerDoc.isOverdue ? 700 : undefined }}>
+                    {new Date(drawerDoc.deadline).toLocaleDateString('vi-VN')}
+                    {drawerDoc.isOverdue && ' — Quá hạn!'}
+                  </span>
+                : '—'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">
+              <StatusBadge tone={STATUS_TONE[drawerDoc.status] || 'info'}>{drawerDoc.statusName}</StatusBadge>
+            </Descriptions.Item>
+            {drawerDoc.attachmentPath && (
+              <Descriptions.Item label="File đính kèm">
+                <a
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); openAttachment(drawerDoc.attachmentPath!); }}
+                  style={{ color: 'var(--a-cy)' }}
+                >
+                  {drawerDoc.attachmentPath}
+                </a>
+              </Descriptions.Item>
+            )}
+          </Descriptions>
+        )}
+
+        {drawerDoc && editMode && (
+          <Form form={editForm} layout="vertical">
+            <Form.Item name="documentNumber" label="Số công văn" rules={[{ required: true }]}>
+              <Input />
+            </Form.Item>
+            <Form.Item name="documentType" label="Loại" rules={[{ required: true }]}>
+              <Select options={[{ value: 0, label: 'Công văn đến' }, { value: 1, label: 'Công văn đi' }]} />
+            </Form.Item>
+            <Form.Item name="documentDate" label="Ngày" rules={[{ required: true }]}>
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+            <Form.Item name="sender" label="Nơi gửi (CV đến)">
+              <Input />
+            </Form.Item>
+            <Form.Item name="receiver" label="Nơi nhận (CV đi)">
+              <Input />
+            </Form.Item>
+            <Form.Item name="summary" label="Trích yếu" rules={[{ required: true }]}>
+              <Input.TextArea rows={2} />
+            </Form.Item>
+            <Form.Item name="handler" label="Người xử lý">
+              <Input />
+            </Form.Item>
+            <Form.Item name="deadline" label="Hạn xử lý">
+              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            </Form.Item>
+            <Form.Item name="status" label="Trạng thái">
+              <Select options={[
+                { value: 0, label: 'Mới' }, { value: 1, label: 'Đang xử lý' },
+                { value: 2, label: 'Hoàn thành' }, { value: 3, label: 'Lưu' },
+              ]} />
+            </Form.Item>
+            <Form.Item name="attachmentPath" label="Đường dẫn file đính kèm">
+              <Input />
+            </Form.Item>
+          </Form>
+        )}
+      </Drawer>
 
       <Modal
         open={modalOpen}

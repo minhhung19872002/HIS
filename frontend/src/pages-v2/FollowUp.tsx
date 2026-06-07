@@ -190,8 +190,29 @@ const FollowUpV2: React.FC = () => {
         <Btn variant="ghost" onClick={() => navigate('/v2/sms-management')}>
           <TermIcon name="message-square" size={12} /> Nhắc hàng loạt
         </Btn>
-        <Btn variant="ghost" onClick={() => message.success(`Đã xuất ${filtered.length} dòng`)}>
-          <TermIcon name="download" size={12} /> Xuất Excel
+        <Btn variant="ghost" onClick={() => {
+          if (!filtered.length) { message.warning('Không có dữ liệu để xuất'); return; }
+          const header = 'Mã hẹn,Bệnh nhân,Mã BN,SĐT,Lý do tái khám,Bác sĩ,Ngày hẹn,Quá hạn (ngày),Đã nhắc,Trạng thái';
+          const csvRows = filtered.map((r) => [
+            r.appointmentCode,
+            r.patientName,
+            r.patientCode,
+            r.phoneNumber || '',
+            r.reason || '',
+            r.doctorName || '',
+            r.appointmentDate ? dayjs(r.appointmentDate).format('DD/MM/YYYY') : '',
+            r.daysOverdue > 0 ? String(r.daysOverdue) : '',
+            r.isReminderSent ? 'Đã nhắc' : '',
+            r.statusName || '',
+          ].map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','));
+          const blob = new Blob(['﻿' + [header, ...csvRows].join('\n')], { type: 'text/csv;charset=utf-8;' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = `followup_${dayjs().format('YYYYMMDD-HHmm')}.csv`; a.click();
+          window.URL.revokeObjectURL(url);
+          message.success(`Đã xuất ${filtered.length} dòng`);
+        }}>
+          <TermIcon name="download" size={12} /> Xuất CSV
         </Btn>
         <Btn variant="primary" onClick={() => navigate('/v2/booking-management')}>
           <TermIcon name="plus" size={12} /> Lập kế hoạch
@@ -208,7 +229,7 @@ const FollowUpV2: React.FC = () => {
         actions={(r) => (
           <div className="ab-actions">
             {r.phoneNumber && (
-              <ActBtn ic="phone" title="Gọi BN" onClick={() => message.info(`Đang gọi ${r.phoneNumber}`)} />
+              <ActBtn ic="phone" title="Ghi nhận liên lạc" onClick={() => onRemind(r, 'SMS')} />
             )}
             {[0, 1].includes(r.status) && (
               <ActBtn ic="message-square" title="Nhắc SMS" onClick={() => onRemind(r, 'SMS')} />
@@ -248,8 +269,8 @@ const FollowUpV2: React.FC = () => {
                 <Btn onClick={() => onRemind(detail, 'SMS')}>
                   <TermIcon name="message-square" size={12} /> Nhắc SMS
                 </Btn>
-                <Btn variant="primary" onClick={() => message.info(`Đang gọi ${detail.phoneNumber}`)}>
-                  <TermIcon name="phone" size={12} /> Gọi BN
+                <Btn variant="primary" onClick={() => onRemind(detail, 'SMS')}>
+                  <TermIcon name="phone" size={12} /> Ghi nhận liên lạc
                 </Btn>
               </>
             )}

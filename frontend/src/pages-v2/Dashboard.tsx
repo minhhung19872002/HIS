@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { Link } from 'react-router-dom';
-import { Modal, Drawer, InputNumber, Select as AntdSelect, App as AntdApp, DatePicker } from 'antd';
+import { Link, useNavigate } from 'react-router-dom';
+import { Modal, Drawer, InputNumber, Select as AntdSelect, App as AntdApp, DatePicker, Tooltip } from 'antd';
 import { statisticsApi } from '../api/system';
 import type { HospitalDashboardDto, DepartmentStatisticsDto } from '../api/system';
 import * as receptionApi from '../api/reception';
@@ -68,6 +68,7 @@ function essFromPriority(a: AdmissionDto): 'ESI-1' | 'ESI-2' | 'ESI-3' | 'ESI-4'
 const DashboardV2: React.FC = () => {
   const today = useMemo(() => dayjs().format('YYYY-MM-DD'), []);
   const { message } = AntdApp.useApp();
+  const navigate = useNavigate();
 
   const [loading, setLoading]       = useState(true);
   const [history, setHistory]       = useState<(HospitalDashboardDto | null)[]>([]);
@@ -299,11 +300,12 @@ const DashboardV2: React.FC = () => {
         bed={bedIt}
         onClose={() => setBedIt(null)}
         onReserve={() => {
-          message.success(`Đã đặt trước ${bedIt?.bedName ?? ''}`);
+          // "Đặt giường" cần thông tin BN/phòng ban — không thể thực hiện từ dashboard
+          message.warning('Vui lòng đặt giường từ màn hình Nội trú');
           setBedIt(null);
         }}
         onOpenRecord={() => {
-          message.info(`Mở hồ sơ ${bedIt?.bedName ?? ''}`);
+          navigate('/v2/ipd');
           setBedIt(null);
         }}
       />
@@ -311,18 +313,29 @@ const DashboardV2: React.FC = () => {
         data={orIt}
         onClose={() => setOrIt(null)}
         onPrint={() => message.info('Đã gửi phiếu mổ tới máy in')}
-        onMarkDone={() => {
-          message.success(`Đã đánh dấu ${orIt?.surgery.surgeryServiceName ?? 'ca'} hoàn tất`);
-          setOrIt(null);
+        onMarkDone={async () => {
+          if (!orIt) return;
+          try {
+            await surgeryApi.completeSurgery({
+              surgeryId: orIt.surgery.surgeryId,
+              endTime: dayjs().toISOString(),
+            });
+            message.success(`Đã hoàn tất ca ${orIt.surgery.surgeryServiceName ?? ''}`);
+          } catch {
+            message.error('Đánh dấu hoàn tất thất bại');
+          } finally {
+            setOrIt(null);
+          }
         }}
       />
       <StockReorderModal
         item={stockIt}
         onClose={() => setStockIt(null)}
-        onCreatePO={(qty) => {
-          const poNo = Math.floor(Math.random() * 900 + 100);
-          message.success(`Đã tạo PO-2026-${poNo} · ${qty.toLocaleString('vi-VN')} ${stockIt?.unit ?? ''}`);
+        onCreatePO={(_qty) => {
+          // Tạo PO cần nghiệp vụ Mua sắm — chuyển sang trang Mua sắm
+          message.info('Vui lòng tạo PO từ trang Mua sắm');
           setStockIt(null);
+          navigate('/v2/procurement');
         }}
       />
       <AlertDetailModal

@@ -151,8 +151,9 @@ const VppStockCardV2: React.FC = () => {
         columns={stockCols}
         data={filtered}
         rowKey={(r) => r.itemId}
+        onRowClick={(r) => openCard(r.itemId)}
         actions={(r) => (
-          <ActBtn ic="book" title="Xem thẻ kho" onClick={() => openCard(r.itemId)} />
+          <ActBtn ic="book" title="Xem thẻ kho" onClick={(e) => { e.stopPropagation(); openCard(r.itemId); }} />
         )}
         empty={stockLoading ? 'Đang tải…' : selectedWarehouse ? 'Không có hàng trong kho' : 'Chọn kho để xem tồn kho'}
       />

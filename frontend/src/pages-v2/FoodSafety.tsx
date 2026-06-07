@@ -178,7 +178,7 @@ const FoodSafetyV2: React.FC = () => {
         sub={sel ? `${sel.location} · ${dayjs(sel.incidentDate).format('DD/MM/YYYY')}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn icon="print" onClick={() => tk('Đã in báo cáo')}>In báo cáo</Btn>
+          <Btn icon="print" onClick={() => window.print()}>In báo cáo</Btn>
           <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Cập nhật</Btn>
         </>}
       >

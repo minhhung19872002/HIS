@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { App as AntdApp, Drawer, Select, Input } from 'antd';
+import { App as AntdApp, Drawer, Select, Input, Tag } from 'antd';
 import { AlertOutlined, EyeOutlined, HomeOutlined, LogoutOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import TermIcon from '../layouts/terminal/Icon';
@@ -245,7 +245,7 @@ function mapVictimToCase(v: MCIVictimDto): EmergencyCase {
 }
 
 const EmergencyDisasterV2: React.FC = () => {
-  const { message } = AntdApp.useApp();
+  const { message, modal } = AntdApp.useApp();
   const [rows, setRows] = useState<EmergencyCase[]>(() => buildEmergencySeed());
   const [usingMock, setUsingMock] = useState(true);
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
@@ -418,6 +418,12 @@ const EmergencyDisasterV2: React.FC = () => {
 
   return (
     <div className="er-v2-page">
+      {usingMock && (
+        <div style={{ background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 4, padding: '6px 12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+          <Tag color="orange">MÔ PHỎNG / DỮ LIỆU DIỄN TẬP</Tag>
+          Dữ liệu hiển thị là mô phỏng — chưa có sự kiện MCI đang hoạt động trên hệ thống thật.
+        </div>
+      )}
       <div className="er-v2-strip">
         {metrics.map((metric) => (
           <StatCard
@@ -444,10 +450,24 @@ const EmergencyDisasterV2: React.FC = () => {
             <button
               className="er-v2-btn"
               type="button"
-              onClick={() => message.warning('Đã kích hoạt quy trình Code Blue')}
+              onClick={() => modal.confirm({
+                title: 'Kích hoạt Code Blue — MÔ PHỎNG / DIỄN TẬP',
+                content: (
+                  <div>
+                    <Tag color="orange" style={{ marginBottom: 8 }}>MÔ PHỎNG / DIỄN TẬP</Tag>
+                    <p>Chức năng kích hoạt Code Blue thật chưa được nối API backend.</p>
+                    <p>Nếu đây là tình huống thật, vui lòng thông báo qua hệ thống cảnh báo nội bộ.</p>
+                  </div>
+                ),
+                okText: 'Xác nhận (diễn tập)',
+                cancelText: 'Huỷ',
+                okType: 'danger',
+                onOk: () => message.warning('Đã kích hoạt quy trình Code Blue (diễn tập — chưa lưu hệ thống)'),
+              })}
             >
               <AlertOutlined />
               Code Blue
+              <Tag color="orange" style={{ marginLeft: 4, fontSize: 10, padding: '0 4px' }}>MÔ PHỎNG</Tag>
             </button>
           </div>
 
@@ -610,7 +630,7 @@ const EmergencyDisasterV2: React.FC = () => {
               mutateRow(selectedCase.code, { status: 'admitted' });
               message.success('Đã chuyển nội trú');
             }}
-            onPrint={() => message.success('Đã tạo bản in hồ sơ cấp cứu')}
+            onPrint={() => window.print()}
           />
         )}
       </Drawer>

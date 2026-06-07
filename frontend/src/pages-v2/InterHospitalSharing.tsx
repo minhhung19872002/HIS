@@ -150,7 +150,7 @@ const InterHospitalSharingV2: React.FC = () => {
         sub={sel ? `${sel.requestCode} · ${TYPE_LABEL[sel.requestType] || sel.requestType}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn icon="print" onClick={() => tk('Đã in YC')}>In YC</Btn>
+          <Btn icon="print" onClick={() => window.print()}>In YC</Btn>
           {sel && (sel.status === 0 || sel.status === 1) && (
             <Btn variant="primary" icon="check" onClick={() => { tk('Đã xử lý'); setSel(null); }}>Xử lý</Btn>
           )}

@@ -228,7 +228,7 @@ const InfectionControlV2: React.FC = () => {
         sub={sel ? `${sel.patientName || '—'} · ${sel.organism || sel.infectionTypeName || '—'}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn icon="print" onClick={() => tk('Đã in báo cáo')}>In báo cáo</Btn>
+          <Btn icon="print" onClick={() => window.print()}>In báo cáo</Btn>
         </>}
       >
         {sel && <>

@@ -1,6 +1,25 @@
 # STATUS — đang ở đâu · blocker · việc kế tiếp
 
-> Cập nhật cuối: **2026-06-07 ~12:30** (sau khi sửa toàn bộ lỗi kiểm định verify-doithu + regression lần 2).
+> Cập nhật cuối: **2026-06-07 ~15:30** (sau UI-ALL audit-ui-print-stub + regression lần 3).
+
+## ✅ UI-ALL (audit-ui-print-stub-2026-06-06.md) — XONG 2026-06-07 (CHƯA PUSH)
+
+- **Đợt 1 in lâm sàng**: drawer "In biểu mẫu HSBA" EmrEditor nối PrintTemplateRenderer THẬT (6 mẫu, preview+print) ·
+  2 template mới `partograph`/`drug-reaction` · in đơn thuốc print-external blob · CSV thật Insurance/Consultation.
+- **Đợt 2 nghiệp vụ**: cấp phát/tiêu hủy túi máu (BloodBankComplete, modal+lý do) · mở DICOM viewer thật theo UID ·
+  drawer chi tiết thiết bị · HR duyệt/từ chối đổi ca + chốt lịch (publishRoster) + Excel CSV.
+- **Đợt 3 row-detail**: OfficialDocuments (drawer xem/sửa + attachment) + HrDecisions (setEditing) hết HỎNG ·
+  PayrollAdmin/VppStockCard onRowClick · CSV thật Telemedicine/FollowUp · FollowUp "Gọi BN"→"Ghi nhận liên lạc" thật ·
+  Reports nối export pdf/excel ReportingController, nút chưa có BE → disable+tooltip · Dashboard bỏ PO-random
+  (→/v2/procurement), Hoàn tất ca nối completeSurgery, Mở hồ sơ →/v2/ipd.
+- **Đợt 4 dọn dẹp**: XÓA dead code SpecialtyMedicalRecordPrintTemplates/ (7 file) · util chung utils/csvExport.ts ·
+  11 trang public-health hết toast giả (in thật từ drawer / row-action đổi Chi tiết) · EmergencyDisaster banner+nhãn
+  "MÔ PHỎNG / DIỄN TẬP" + confirm.
+- **Regression lần 3 SẠCH**: build 2 tầng 0 err · schema-drift 0 · gap 28/28 · suite 10/10 · Cypress 81/81 ·
+  Playwright 588/9 skip/0 fail.
+- **Defer trung thực còn treo** (ghi trong report agents): OPD in phiếu khám cần map examinationId · BHYT claim /
+  RIS consultation print cần BE endpoint · BHYT-01 template riêng · HR swap-list còn mock + sao chép lịch tuần ·
+  Đặt giường từ Dashboard · Code Blue chờ BE endpoint · print CSS @media cho drawer public-health.
 
 ## ✅ SỬA LỖI KIỂM ĐỊNH verify-doithu-2026-06-06.md — XONG 2026-06-07 (CHƯA PUSH)
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Drawer, Form, Input, Modal, Select, message } from 'antd';
+import { App as AntdApp, Drawer, Form, Input, Modal, Select, Tooltip } from 'antd';
 import {
   DownloadOutlined,
   EyeOutlined,
@@ -14,6 +14,7 @@ import dayjs from 'dayjs';
 import TermIcon from '../layouts/terminal/Icon';
 import { statisticsApi } from '../api/system';
 import type { DepartmentRevenueDto, HospitalDashboardDto } from '../api/system';
+import apiClient from '../api/client';
 import '../styles/reports-v2.css';
 
 type ReportCategoryId = 'operational' | 'clinical' | 'financial' | 'regulatory';
@@ -274,12 +275,14 @@ const TrendBadge: React.FC<{ value: number; inverse?: boolean }> = ({ value, inv
 };
 
 const ReportsV2: React.FC = () => {
+  const { message } = AntdApp.useApp();
   const [activeCategory, setActiveCategory] = React.useState<ReportCategoryId>('operational');
   const [search, setSearch] = React.useState('');
   const [period, setPeriod] = React.useState<ReportPeriodId>('month');
   const [dashboard, setDashboard] = React.useState<HospitalDashboardDto | null>(null);
   const [selectedReport, setSelectedReport] = React.useState<ReportDefinition | null>(null);
   const [createModalOpen, setCreateModalOpen] = React.useState(false);
+  const [runningReport, setRunningReport] = React.useState<string | null>(null);
   const [form] = Form.useForm<NewReportForm>();
 
   React.useEffect(() => {
@@ -405,18 +408,81 @@ const ReportsV2: React.FC = () => {
   };
 
   const handleCreateReport = async () => {
-    const values = await form.validateFields();
+    // Chưa có endpoint POST /reporting/definitions — ẩn chức năng tạo mới
     setCreateModalOpen(false);
     form.resetFields();
-    message.success(`Đã tạo báo cáo mới: ${values.name}`);
+    message.warning('Tạo báo cáo mới chưa được triển khai');
   };
 
-  const handleRunReport = (report: ReportDefinition) => {
-    message.success(`Đang chạy báo cáo: ${report.name}`);
+  const getDateRange = () => {
+    const now = dayjs();
+    switch (period) {
+      case 'day':   return { fromDate: now.format('YYYY-MM-DD'), toDate: now.format('YYYY-MM-DD') };
+      case 'week':  return { fromDate: now.startOf('week').format('YYYY-MM-DD'), toDate: now.endOf('week').format('YYYY-MM-DD') };
+      case 'year':  return { fromDate: now.startOf('year').format('YYYY-MM-DD'), toDate: now.endOf('year').format('YYYY-MM-DD') };
+      default:      return { fromDate: now.startOf('month').format('YYYY-MM-DD'), toDate: now.endOf('month').format('YYYY-MM-DD') };
+    }
   };
 
-  const handleDownloadPdf = (report: ReportDefinition) => {
-    message.success(`Đã chuẩn bị gói PDF cho: ${report.name}`);
+  const downloadBlob = async (url: string, filename: string) => {
+    const resp = await apiClient.get(url, { responseType: 'blob' });
+    const blob = new Blob([resp.data as BlobPart]);
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    window.URL.revokeObjectURL(link.href);
+  };
+
+  const handleRunReport = async (report: ReportDefinition) => {
+    if (runningReport === report.id) return;
+    setRunningReport(report.id);
+    try {
+      const { fromDate, toDate } = getDateRange();
+      await downloadBlob(
+        `/reporting/export/pdf/${report.id}?fromDate=${fromDate}&toDate=${toDate}`,
+        `${report.id}_${dayjs().format('YYYYMMDD')}.pdf`,
+      );
+      message.success(`Đã tải PDF báo cáo: ${report.name}`);
+    } catch {
+      message.error('Chạy báo cáo thất bại — thử lại sau');
+    } finally {
+      setRunningReport(null);
+    }
+  };
+
+  const handleDownloadPdf = async (report: ReportDefinition) => {
+    if (runningReport === report.id) return;
+    setRunningReport(report.id);
+    try {
+      const { fromDate, toDate } = getDateRange();
+      await downloadBlob(
+        `/reporting/export/pdf/${report.id}?fromDate=${fromDate}&toDate=${toDate}`,
+        `${report.id}_${dayjs().format('YYYYMMDD')}.pdf`,
+      );
+      message.success(`Đã tải PDF: ${report.name}`);
+    } catch {
+      message.error('Tải PDF thất bại — thử lại sau');
+    } finally {
+      setRunningReport(null);
+    }
+  };
+
+  const handleDownloadExcel = async (report: ReportDefinition) => {
+    if (runningReport === report.id) return;
+    setRunningReport(report.id);
+    try {
+      const { fromDate, toDate } = getDateRange();
+      await downloadBlob(
+        `/reporting/export/excel/${report.id}?fromDate=${fromDate}&toDate=${toDate}`,
+        `${report.id}_${dayjs().format('YYYYMMDD')}.xlsx`,
+      );
+      message.success(`Đã tải Excel: ${report.name}`);
+    } catch {
+      message.error('Tải Excel thất bại — thử lại sau');
+    } finally {
+      setRunningReport(null);
+    }
   };
 
   return (
@@ -552,24 +618,26 @@ const ReportsV2: React.FC = () => {
               <button
                 type="button"
                 className="reports-v2-btn ghost"
+                disabled={runningReport === report.id}
                 onClick={(event) => {
                   event.stopPropagation();
                   handleRunReport(report);
                 }}
               >
                 <PlayCircleOutlined />
-                <span>Chạy ngay</span>
+                <span>{runningReport === report.id ? 'Đang chạy…' : 'Tải PDF'}</span>
               </button>
               <button
                 type="button"
                 className="reports-v2-btn ghost"
+                disabled={runningReport === report.id}
                 onClick={(event) => {
                   event.stopPropagation();
-                  handleDownloadPdf(report);
+                  handleDownloadExcel(report);
                 }}
               >
-                <DownloadOutlined />
-                <span>Tải PDF</span>
+                <FileExcelOutlined />
+                <span>Tải Excel</span>
               </button>
               <button
                 type="button"
@@ -609,22 +677,36 @@ const ReportsV2: React.FC = () => {
             <button type="button" className="reports-v2-btn ghost" onClick={() => setSelectedReport(null)}>
               Đóng
             </button>
-            <button type="button" className="reports-v2-btn" onClick={() => message.info('Mở cấu hình báo cáo')}>
-              <SettingOutlined />
-              <span>Cấu hình</span>
-            </button>
-            <button type="button" className="reports-v2-btn" onClick={() => handleRunReport(selectedReport)}>
+            <Tooltip title="Cấu hình lịch báo cáo tự động chưa được triển khai">
+              <button type="button" className="reports-v2-btn" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                <SettingOutlined />
+                <span>Cấu hình</span>
+              </button>
+            </Tooltip>
+            <button
+              type="button"
+              className="reports-v2-btn"
+              disabled={runningReport === selectedReport.id}
+              onClick={() => handleRunReport(selectedReport)}
+            >
               <ReloadOutlined />
-              <span>Chạy lại</span>
+              <span>{runningReport === selectedReport.id ? 'Đang tải…' : 'Tải PDF'}</span>
             </button>
-            <button type="button" className="reports-v2-btn" onClick={() => message.success('Đã chuẩn bị Excel')}>
+            <button
+              type="button"
+              className="reports-v2-btn"
+              disabled={runningReport === selectedReport.id}
+              onClick={() => handleDownloadExcel(selectedReport)}
+            >
               <FileExcelOutlined />
               <span>Tải Excel</span>
             </button>
-            <button type="button" className="reports-v2-btn primary" onClick={() => message.success('Đang gửi báo cáo qua email')}>
-              <SendOutlined />
-              <span>Gửi báo cáo</span>
-            </button>
+            <Tooltip title="Gửi email báo cáo chưa được triển khai">
+              <button type="button" className="reports-v2-btn primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                <SendOutlined />
+                <span>Gửi báo cáo</span>
+              </button>
+            </Tooltip>
           </div>
         ) : undefined}
         styles={{ body: { padding: 0 }, footer: { padding: '12px 18px' } }}

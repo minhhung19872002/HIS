@@ -176,8 +176,26 @@ const TelemedicineV2: React.FC = () => {
         <Btn variant="ghost" onClick={reload}>
           <TermIcon name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => message.success(`Đã xuất ${filtered.length} dòng`)}>
-          <TermIcon name="download" size={12} /> Xuất Excel
+        <Btn variant="ghost" onClick={() => {
+          if (!filtered.length) { message.warning('Không có dữ liệu để xuất'); return; }
+          const header = 'Mã hẹn,Bệnh nhân,Bác sĩ,Ngày hẹn,Lý do,Trạng thái,URL phòng';
+          const csvRows = filtered.map((r) => [
+            r.appointmentCode,
+            r.patientName,
+            r.doctorName || '',
+            r.scheduledDate ? `${dayjs(r.scheduledDate).format('DD/MM/YYYY')} ${(r.scheduledTime || '').slice(0, 5)}`.trim() : '',
+            r.chiefComplaint || '',
+            r.statusName || '',
+            r.videoRoomUrl || '',
+          ].map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','));
+          const blob = new Blob(['﻿' + [header, ...csvRows].join('\n')], { type: 'text/csv;charset=utf-8;' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = `telemedicine_${dayjs().format('YYYYMMDD-HHmm')}.csv`; a.click();
+          window.URL.revokeObjectURL(url);
+          message.success(`Đã xuất ${filtered.length} dòng`);
+        }}>
+          <TermIcon name="download" size={12} /> Xuất CSV
         </Btn>
         <Btn variant="primary" onClick={() => navigate('/v2/booking-management')}>
           <TermIcon name="plus" size={12} /> Đặt lịch

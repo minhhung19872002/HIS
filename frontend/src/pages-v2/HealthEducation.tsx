@@ -113,7 +113,7 @@ const HealthEducationV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      <ActBtn ic="print" title="In poster" onClick={() => tk(`In poster ${r.campaignCode}`)} />
+      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
     </div>
   );
 
@@ -138,8 +138,8 @@ const HealthEducationV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Mở thư viện tài liệu')}>
-          <Ico name="archive" size={12} /> Tài liệu
+        <Btn variant="ghost" onClick={() => window.print()}>
+          <Ico name="archive" size={12} /> Xuất danh sách
         </Btn>
         <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> Chiến dịch mới
@@ -163,7 +163,7 @@ const HealthEducationV2: React.FC = () => {
         sub={sel ? `${sel.campaignCode} · ${sel.location}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={() => tk('Đã in báo cáo')}>
+          <Btn onClick={() => window.print()}>
             <Ico name="print" size={12} /> In báo cáo
           </Btn>
           <Btn variant="primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>

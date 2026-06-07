@@ -39,7 +39,7 @@ export const PRINT_STYLES_BASE = `
 .emr-print-container .form-number { text-align: right; font-size: 11px; font-style: italic; }
 `;
 
-/** Digital signature stamp styles (used by EMRPrintTemplates, EMRNursingPrintTemplates, SpecialtyMedicalRecordPrintTemplates) */
+/** Digital signature stamp styles (used by EMRPrintTemplates, EMRNursingPrintTemplates) */
 export const PRINT_STYLES_DIGITAL_SIG = `
 .emr-print-container .digital-sig-stamp { border: 2px solid #52c41a; border-radius: 4px; padding: 8px 12px; display: inline-block; text-align: left; font-size: 11px; line-height: 1.5; margin-top: 4px; position: relative; background: #fff; }
 .emr-print-container .digital-sig-stamp .sig-stamp-header { font-weight: bold; font-style: italic; color: #333; margin-bottom: 4px; }

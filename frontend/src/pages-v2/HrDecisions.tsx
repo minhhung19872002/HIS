@@ -100,6 +100,21 @@ const HrDecisionsV2: React.FC = () => {
     setModalOpen(true);
   };
 
+  const openEdit = (r: HrDecision) => {
+    setEditing(r);
+    form.setFieldsValue({
+      decisionNumber: r.decisionNumber,
+      decisionType:   r.decisionType,
+      staffCode:      r.staffCode,
+      staffName:      r.staffName,
+      effectiveDate:  r.effectiveDate ? dayjs(r.effectiveDate) : dayjs(),
+      summary:        r.summary,
+      content:        r.content,
+      status:         r.status,
+    });
+    setModalOpen(true);
+  };
+
   const submit = async () => {
     setSaving(true);
     try {
@@ -195,10 +210,11 @@ const HrDecisionsV2: React.FC = () => {
         columns={columns}
         data={filtered}
         rowKey={(r) => r.id}
+        onRowClick={(r) => openEdit(r)}
         actions={(r) => (
           <div style={{ display: 'flex', gap: 4 }}>
-            <ActBtn ic="printer" title="In quyết định" onClick={() => printDecision(r)} />
-            <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => del(r)} />
+            <ActBtn ic="printer" title="In quyết định" onClick={(e) => { e.stopPropagation(); printDecision(r); }} />
+            <ActBtn ic="trash" title="Xóa" tone="crit" onClick={(e) => { e.stopPropagation(); del(r); }} />
           </div>
         )}
         empty={loading ? 'Đang tải…' : 'Chưa có quyết định nào'}

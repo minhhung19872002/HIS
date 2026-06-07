@@ -128,7 +128,7 @@ const HealthCheckupV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      <ActBtn ic="print" title="In phiếu" onClick={() => tk(`In phiếu ${r.checkupCode}`)} />
+      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
     </div>
   );
 
@@ -168,7 +168,7 @@ const HealthCheckupV2: React.FC = () => {
         sub={sel ? `${sel.checkupCode} · ${sel.checkupType}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn icon="print" onClick={() => tk('Đã in giấy chứng nhận')}>In giấy CN</Btn>
+          <Btn icon="print" onClick={() => window.print()}>In giấy CN</Btn>
           <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Cập nhật</Btn>
         </>}
       >

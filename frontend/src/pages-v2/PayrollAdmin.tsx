@@ -218,9 +218,10 @@ const PayrollAdminV2: React.FC = () => {
         columns={periodCols}
         data={filtered}
         rowKey={(r) => r.id}
+        onRowClick={(r) => { setSelectedPeriod(r); loadItems(r.id); }}
         actions={(r) => (
           <div style={{ display: 'flex', gap: 4 }}>
-            <ActBtn ic="eye" title="Xem dòng lương" onClick={() => { setSelectedPeriod(r); loadItems(r.id); }} />
+            <ActBtn ic="eye" title="Xem dòng lương" onClick={(e) => { e.stopPropagation(); setSelectedPeriod(r); loadItems(r.id); }} />
             {r.status === 0 && (
               <>
                 <ActBtn ic="zap" title="Tạo dòng lương tự động" onClick={() => generateItems(r)} tone="warn" />
