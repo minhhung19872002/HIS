@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { App as AntdApp, Drawer, Modal, Select } from 'antd';
-import { getStaff, getRoster, type StaffProfileDto, type RosterAssignmentDto } from '../api/medicalHR';
+import { getStaff, getRoster, approveSwapRequest, publishRoster, type StaffProfileDto, type RosterAssignmentDto, type DutyRosterDto } from '../api/medicalHR';
 import {
   CheckOutlined,
   CopyOutlined,
@@ -141,12 +142,26 @@ function buildRotaFromAssignments(
   return out;
 }
 
+/** CSV helper — inline (same pattern as Reports.tsx downloadCsv) */
+function downloadCsv(filename: string, lines: string[]): void {
+  const blob = new Blob([`﻿${lines.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
 const HRV2: React.FC = () => {
   const { message } = AntdApp.useApp();
+  const navigate = useNavigate();
   const [week, setWeek] = useState(43);
   const [staffList, setStaffList] = useState<StaffMember[]>(STAFF);
   const [rota, setRota] = useState<Record<string, ShiftType[]>>(() => buildRotaSeed());
   const [usingMock, setUsingMock] = useState(true);
+  const [rosterId, setRosterId] = useState<string | null>(null);
+  const [commitLoading, setCommitLoading] = useState(false);
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
   const [search, setSearch] = useState('');
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
@@ -178,6 +193,11 @@ const HRV2: React.FC = () => {
         const weekStart = now.startOf('week').add(1, 'day'); // dayjs week starts Sunday by default
         const rosterBody = rosterRes.status === 'fulfilled'
           ? rosterRes.value?.data as unknown : null;
+        // Capture roster id for chốt lịch action
+        if (rosterBody && !Array.isArray(rosterBody)) {
+          const dto = rosterBody as DutyRosterDto;
+          if (dto.id) setRosterId(dto.id);
+        }
         const assignments: RosterAssignmentDto[] = (() => {
           if (!rosterBody) return [];
           if (Array.isArray(rosterBody)) return rosterBody as RosterAssignmentDto[];
@@ -277,16 +297,26 @@ const HRV2: React.FC = () => {
     });
   };
 
-  const approveSwap = (requestId: string): void => {
-    setSwapRequests((currentRequests) =>
-      currentRequests.map((request) => (request.id === requestId ? { ...request, status: 'approved' } : request)),
-    );
-    message.success('Đã duyệt yêu cầu đổi ca');
+  const approveSwap = async (requestId: string): Promise<void> => {
+    try {
+      await approveSwapRequest(requestId, true);
+      setSwapRequests((currentRequests) =>
+        currentRequests.map((request) => (request.id === requestId ? { ...request, status: 'approved' } : request)),
+      );
+      message.success('Đã duyệt yêu cầu đổi ca');
+    } catch {
+      message.error('Duyệt đổi ca thất bại');
+    }
   };
 
-  const rejectSwap = (requestId: string): void => {
-    setSwapRequests((currentRequests) => currentRequests.filter((request) => request.id !== requestId));
-    message.warning('Đã từ chối yêu cầu đổi ca');
+  const rejectSwap = async (requestId: string): Promise<void> => {
+    try {
+      await approveSwapRequest(requestId, false);
+      setSwapRequests((currentRequests) => currentRequests.filter((request) => request.id !== requestId));
+      message.warning('Đã từ chối yêu cầu đổi ca');
+    } catch {
+      message.error('Từ chối đổi ca thất bại');
+    }
   };
 
   const submitSwapRequest = (): void => {
@@ -363,17 +393,56 @@ const HRV2: React.FC = () => {
               <SwapOutlined />
               Yêu cầu đổi ca
             </button>
-            <button type="button" className="hr-v2-btn" onClick={() => message.success('Đã sao chép lịch từ tuần trước')}>
+            <button
+              type="button"
+              className="hr-v2-btn"
+              title="Tính năng sao chép tuần đang phát triển"
+              onClick={() => message.info('Sao chép lịch tuần: tính năng đang phát triển')}
+            >
               <CopyOutlined />
               Copy tuần trước
             </button>
-            <button type="button" className="hr-v2-btn" onClick={() => message.success('Đã xuất Excel lịch trực')}>
+            <button
+              type="button"
+              className="hr-v2-btn"
+              onClick={() => {
+                const header = 'Nhân sự,Mã NS,Vai trò,Khoa,' + DAYS.join(',');
+                const dataRows = visibleStaff.map((member) => {
+                  const shifts = (rota[member.id] ?? []).map((s) => SHIFT_TYPES.find((t) => t.value === s)?.label || s);
+                  return [member.name, member.id, member.role, member.department, ...shifts].join(',');
+                });
+                downloadCsv(
+                  `lich-truc-tuan-${week}-${dayjs().format('YYYYMMDD')}.csv`,
+                  [header, ...dataRows],
+                );
+                message.success(`Đã xuất CSV lịch trực tuần ${week} (${visibleStaff.length} nhân sự)`);
+              }}
+            >
               <DownloadOutlined />
               Xuất Excel
             </button>
-            <button type="button" className="hr-v2-btn primary" onClick={() => message.success('Đã chốt lịch trực tuần')}>
+            <button
+              type="button"
+              className="hr-v2-btn primary"
+              disabled={commitLoading}
+              onClick={async () => {
+                if (!rosterId) {
+                  message.warning('Không có lịch trực đang hoạt động để chốt (đang dùng dữ liệu mẫu)');
+                  return;
+                }
+                setCommitLoading(true);
+                try {
+                  await publishRoster(rosterId);
+                  message.success('Đã chốt (publish) lịch trực tuần thành công');
+                } catch {
+                  message.error('Chốt lịch trực thất bại');
+                } finally {
+                  setCommitLoading(false);
+                }
+              }}
+            >
               <CheckOutlined />
-              Chốt tuần
+              {commitLoading ? 'Đang chốt…' : 'Chốt tuần'}
             </button>
           </div>
         </div>
@@ -521,11 +590,23 @@ const HRV2: React.FC = () => {
               </div>
             </div>
             <div className="hr-v2-drawer-actions">
-              <button type="button" className="hr-v2-btn" onClick={() => message.success('Đã mở hồ sơ nhân sự')}>
+              <button
+                type="button"
+                className="hr-v2-btn"
+                onClick={() => {
+                  setSelectedStaff(null);
+                  navigate('/v2/employee-profile');
+                }}
+              >
                 <UserOutlined />
                 Hồ sơ NS
               </button>
-              <button type="button" className="hr-v2-btn primary" onClick={() => message.success('Đã mở chế độ sửa lịch')}>
+              <button
+                type="button"
+                className="hr-v2-btn primary"
+                title="Click ô ca trong bảng để đổi ca trực tiếp"
+                onClick={() => message.info('Sửa lịch: click trực tiếp vào ô ca trong bảng để thay đổi ca')}
+              >
                 <EditOutlined />
                 Sửa lịch
               </button>

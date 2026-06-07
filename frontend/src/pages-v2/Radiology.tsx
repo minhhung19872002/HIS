@@ -835,9 +835,9 @@ const RadiologyV2: React.FC = () => {
     catch { message.error('Không in được phiếu'); }
   };
   const onViewer = (r: RadiologyOrderDto) => {
-    const firstItem = r.items?.[0];
-    if (!firstItem) { message.warning('Không có ảnh DICOM'); return; }
-    message.info('Mở DICOM Viewer (TODO)');
+    const uid = r.studyInstanceUID;
+    if (!uid) { message.warning('Ca chụp chưa có Study UID — DICOM chưa được gửi về PACS'); return; }
+    navigate(`/v2/radiology/viewer?study=${encodeURIComponent(uid)}`);
   };
   const onStartExam = async (r: RadiologyOrderDto) => {
     try { await risApi.startExam(r.id); message.success('Đã bắt đầu ca chụp'); reload(); }

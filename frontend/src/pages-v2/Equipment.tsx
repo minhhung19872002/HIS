@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { App as AntdApp, Form, Input, DatePicker, Select } from 'antd';
 import { getEquipment, createMaintenanceRecord } from '../api/equipment';
 import type { EquipmentDto } from '../api/equipment';
-import { SimpleV2Page, StatusBadge, ActBtn, ModalShell, Btn, type ColumnDef, type StatusTab } from './_v2kit';
+import { SimpleV2Page, StatusBadge, ActBtn, ModalShell, DrawerShell, Btn, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
 /* Trang thiết bị y tế v2 */
@@ -24,6 +24,7 @@ const EquipmentV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   const [maintTarget, setMaintTarget] = useState<EquipmentDto | null>(null);
   const [maintForm] = Form.useForm();
+  const [detailEq, setDetailEq] = useState<EquipmentDto | null>(null);
 
   const columns: ColumnDef<EquipmentDto>[] = [
     { key: 'code', label: 'Mã TB', mono: true, width: 130, render: (r) => r.equipmentCode },
@@ -119,7 +120,7 @@ const EquipmentV2: React.FC = () => {
       }}
       rowActions={(r) => (
         <div className="ab-actions">
-          <ActBtn ic="eye" title="Chi tiết" onClick={() => message.info(`Chi tiết ${r.equipmentCode}`)} />
+          <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetailEq(r)} />
           <ActBtn ic="check" title="Lên lịch bảo trì" onClick={() => { setMaintTarget(r); maintForm.resetFields(); }} />
         </div>
       )}
@@ -184,6 +185,22 @@ const EquipmentV2: React.FC = () => {
         </Form>
       )}
     </ModalShell>
+
+    {/* Drawer chi tiết thiết bị (từ nút Chi tiết trong cột actions) */}
+    <DrawerShell
+      open={!!detailEq}
+      onClose={() => setDetailEq(null)}
+      size="md"
+      title={detailEq ? (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{detailEq.equipmentCode}</span>
+          <span style={{ fontSize: 14 }}>{detailEq.name}</span>
+        </span>
+      ) : ''}
+      sub={detailEq ? `${detailEq.manufacturer} · ${detailEq.model} · ${detailEq.departmentName}` : ''}
+    >
+      {detailEq && <EquipmentDrawerBody r={detailEq} />}
+    </DrawerShell>
     </>
   );
 };

@@ -4,6 +4,7 @@ import { App as AntdApp } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { getPrescriptions } from '../api/patientPortal';
 import type { PrescriptionHistoryDto } from '../api/patientPortal';
+import { printExternalPrescription } from '../api/examination';
 import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
@@ -28,6 +29,13 @@ const statusKey = (s: string): StatusKey => {
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
 type Row = PrescriptionHistoryDto & { patientName?: string; patientCode?: string };
+
+/** Mở PDF blob ở tab mới rồi tự revoke URL sau 60s */
+const openPdfBlob = (blob: Blob): void => {
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+};
 
 const PrescriptionV2: React.FC = () => {
   const { message } = AntdApp.useApp();
@@ -91,10 +99,15 @@ const PrescriptionV2: React.FC = () => {
           { lbl: 'Tổng thuốc', val: totalItems, sub: 'lượt kê' },
         ];
       }}
-      rowActions={() => (
+      rowActions={(r) => (
         <div className="ab-actions">
           <ActBtn ic="edit" title="Mở editor kê đơn" onClick={() => navigate('/v2/prescription/edit')} />
-          <ActBtn ic="print" title="In đơn" onClick={() => message.success('Đã gửi máy in')} />
+          <ActBtn ic="print" title="In đơn" onClick={async () => {
+            try {
+              const res = await printExternalPrescription(r.id);
+              openPdfBlob(res.data as Blob);
+            } catch { message.error('Không in được đơn thuốc'); }
+          }} />
         </div>
       )}
       drawer={(r) => (
@@ -147,7 +160,12 @@ const PrescriptionV2: React.FC = () => {
               <Btn variant="primary" onClick={() => navigate('/v2/prescription/edit')}>
                 <TermIcon name="edit" size={12} /> Mở editor kê đơn
               </Btn>
-              <Btn onClick={() => message.success('Đã gửi máy in')}>
+              <Btn onClick={async () => {
+                try {
+                  const res = await printExternalPrescription(r.id);
+                  openPdfBlob(res.data as Blob);
+                } catch { message.error('Không in được đơn thuốc'); }
+              }}>
                 <TermIcon name="print" size={12} /> In đơn
               </Btn>
               <Btn onClick={() => navigate('/v2/signing-workflow')}>

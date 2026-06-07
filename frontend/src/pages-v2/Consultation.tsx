@@ -11,6 +11,20 @@ import {
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
+/** Tải CSV với BOM UTF-8 để Excel mở đúng tiếng Việt */
+function downloadCsv(filename: string, lines: string[]): void {
+  const blob = new Blob([`﻿${lines.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+function escapeCsvCell(v: unknown): string {
+  const s = String(v ?? '');
+  return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
 /* ────────────────────────────────────────────────────────────
    Hội chẩn v2 — port of design-system-v2/his/project/Consultation v2.html
    ──────────────────────────────────────────────────────────── */
@@ -149,8 +163,20 @@ const ConsultationV2: React.FC = () => {
         <Btn variant="ghost" onClick={reload}>
           <TermIcon name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => message.success(`Đã xuất ${filtered.length} phiên`)}>
-          <TermIcon name="download" size={12} /> Xuất Excel
+        <Btn variant="ghost" onClick={() => {
+          const header = ['Ma phien', 'Chu de', 'Lich hop', 'Nguoi tao', 'So ca', 'Trang thai'];
+          const rows2 = filtered.map((r) => [
+            r.sessionCode, r.title,
+            r.scheduledTime ? dayjs(r.scheduledTime).format('DD/MM/YYYY HH:mm') : '',
+            r.createdByUserName, r.caseCount, r.statusName,
+          ]);
+          downloadCsv(
+            `hoi-chan-${dayjs().format('YYYYMMDD-HHmm')}.csv`,
+            [header, ...rows2].map((row) => row.map(escapeCsvCell).join(',')),
+          );
+          message.success(`Đã xuất ${filtered.length} phiên hội chẩn`);
+        }}>
+          <TermIcon name="download" size={12} /> Xuất CSV
         </Btn>
         <Btn variant="primary" onClick={() => navigate('/v2/consultation-register')}>
           <TermIcon name="plus" size={12} /> Tạo hội chẩn
@@ -170,7 +196,7 @@ const ConsultationV2: React.FC = () => {
             {r.meetingUrl && (
               <ActBtn ic="play" title="Vào phòng họp" onClick={() => window.open(r.meetingUrl!, '_blank')} />
             )}
-            <ActBtn ic="print" title="In biên bản" onClick={() => message.success('Đã gửi máy in')} />
+            <ActBtn ic="print" title="In biên bản" onClick={() => { setDetail(r); setTimeout(() => window.print(), 300); }} />
           </div>
         )}
         empty={loading ? 'Đang tải…' : (
@@ -198,7 +224,7 @@ const ConsultationV2: React.FC = () => {
           <>
             <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             <span style={{ flex: 1 }} />
-            <Btn onClick={() => message.success('Đã in biên bản')}>
+            <Btn onClick={() => window.print()}>
               <TermIcon name="print" size={12} /> In biên bản
             </Btn>
             {detail.meetingUrl && (

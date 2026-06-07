@@ -74,6 +74,9 @@ async function loadTemplate(printType: string): Promise<AnyPrintComponent | null
     case 'ls-refusal-consent': return (await import('./ClinicalFormPrintTemplates')).RefusalConsentPrint;
     case 'ls-transfer-consent': return (await import('./ClinicalFormPrintTemplates')).TransferConsentPrint;
     case 'ls-ama-discharge': return (await import('./ClinicalFormPrintTemplates')).AMADischargePrint;
+    // Biểu đồ chuyển dạ (sản khoa — pháp lý) + Thử phản ứng thuốc
+    case 'partograph': return (await import('./ClinicalFormPrintTemplates')).PartographPrint;
+    case 'drug-reaction': return (await import('./ClinicalFormPrintTemplates')).DrugReactionPrint;
 
     // TT32/2023 supplementary forms
     case 'ls-surgery-cert': return (await import('./EMRPrintTemplates/tt32-forms')).SurgeryCertificatePrint;
@@ -168,6 +171,10 @@ export default function PrintTemplateRenderer({ printType, record, printRef, sel
   }
   // Clinical/radiology/lab forms use untyped `record` prop
   if (printType.startsWith('cdha-') || printType.startsWith('tdcn-') || printType.startsWith('xn-') || printType.startsWith('ls-')) {
+    return <Component record={record as unknown as Record<string, unknown> | undefined} />;
+  }
+  // Obstetric partograph + drug-reaction test — clinical supplementary forms
+  if (printType === 'partograph' || printType === 'drug-reaction') {
     return <Component record={record as unknown as Record<string, unknown> | undefined} />;
   }
   // Consultation needs extra prop

@@ -730,3 +730,105 @@ export const AMADischargePrint: React.FC<{ record?: Record<string, unknown> }> =
     <SignatureBlock titles={['Nguoi benh / Nguoi giam ho', 'Nguoi chung kien', 'Bac si phu trach']} />
   </div>
 );
+
+// ============ Bieu do chuyen da (Partograph) ============
+// Template in theo TT52/2017. Data chi tiet duoc ghi tu tab "Bieu do chuyen da".
+export const PartographPrint: React.FC<{ record?: Record<string, unknown> }> = ({ record }) => {
+  const p = record?.patient as Record<string, unknown> | undefined;
+  return (
+    <div style={{ fontFamily: 'Times New Roman', padding: 20, maxWidth: 800 }}>
+      <PrintHeader formCode="LS-PG" formTitle="BIEU DO CHUYEN DA (PARTOGRAPH)" />
+      <PatientInfo record={record} />
+
+      <div style={{ marginBottom: 12 }}>
+        <Field label="Ho va ten me" value={p?.fullName as string} inline />
+        <Field label="Ma benh nhan" value={p?.patientCode as string} inline />
+      </div>
+
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, marginBottom: 16 }}>
+        <thead>
+          <tr style={{ background: '#f0f0f0' }}>
+            {['Gio ghi', 'Do mo CTC (cm)', 'Tu the ngoi thai', 'Tim thai (l/ph)', 'Con co (so lan/10ph)', 'HA me (mmHg)', 'Mach me', 'Ghi chu'].map((h) => (
+              <th key={h} style={{ border: '1px solid #999', padding: '4px 6px', textAlign: 'center' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {[1, 2, 3, 4].map((i) => (
+            <tr key={i}>
+              {Array(8).fill(null).map((_, j) => (
+                <td key={j} style={{ border: '1px solid #ccc', padding: '6px', height: 24 }} />
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div style={{ fontSize: 10, color: '#666', marginBottom: 12 }}>
+        * Du lieu chi tiet duoc ghi trong tab "Bieu do chuyen da" tren he thong EMR.
+        Mau so tham khao theo TT52/2017 - Bo Y te.
+      </div>
+
+      <SignatureBlock titles={['Ho sinh phu trach', 'Bac si san khoa', 'Giam sat']} />
+    </div>
+  );
+};
+
+// ============ Thu phan ung thuoc (Drug Reaction Test) ============
+// Hien thi du lieu di ung da ghi nhan trong MedicalRecordFullDto.allergies.
+export const DrugReactionPrint: React.FC<{ record?: Record<string, unknown> }> = ({ record }) => {
+  const p = record?.patient as Record<string, unknown> | undefined;
+  const allergies = (record?.allergies as Array<Record<string, unknown>> | undefined) ?? [];
+  return (
+    <div style={{ fontFamily: 'Times New Roman', padding: 20, maxWidth: 800 }}>
+      <PrintHeader formCode="LS-DR" formTitle="PHIEU THU PHAN UNG THUOC" />
+      <PatientInfo record={record} />
+
+      <div style={{ marginBottom: 12 }}>
+        <Field label="Ho va ten" value={p?.fullName as string} inline />
+        <Field label="Ma BN" value={p?.patientCode as string} inline />
+        <Field label="Tuoi" value={p?.age as string} inline />
+      </div>
+
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, marginBottom: 16 }}>
+        <thead>
+          <tr style={{ background: '#f0f0f0' }}>
+            {['STT', 'Ten thuoc', 'Ham luong / Duong dung', 'Ket qua thu', 'Phan ung (neu co)', 'Xu tri', 'Ghi chu'].map((h) => (
+              <th key={h} style={{ border: '1px solid #999', padding: '4px 6px', textAlign: 'center' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {allergies.length > 0
+            ? allergies.map((a, i) => (
+                <tr key={String(a.id ?? i)}>
+                  <td style={{ border: '1px solid #ccc', padding: '4px 6px', textAlign: 'center' }}>{i + 1}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '4px 6px' }}>{String(a.allergenName ?? '')}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '4px 6px' }}>{String(a.dosage ?? '')}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '4px 6px', textAlign: 'center' }}>
+                    {a.severity === 3 ? 'Duong tinh nang' : a.severity === 2 ? 'Duong tinh vua' : 'Am tinh / nhe'}
+                  </td>
+                  <td style={{ border: '1px solid #ccc', padding: '4px 6px' }}>{String(a.reaction ?? '')}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '4px 6px' }}>{String(a.treatment ?? '')}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '4px 6px' }}></td>
+                </tr>
+              ))
+            : [1, 2, 3].map((i) => (
+                <tr key={i}>
+                  {Array(7).fill(null).map((_, j) => (
+                    <td key={j} style={{ border: '1px solid #ccc', padding: '6px', height: 24 }} />
+                  ))}
+                </tr>
+              ))}
+        </tbody>
+      </table>
+
+      <div style={{ fontSize: 10, color: '#666', marginBottom: 12 }}>
+        * Ket qua thu phan ung thuoc ghi nhan trong vong 20-30 phut sau khi thu.
+        Mau so tham khao theo TT52/2017 - Bo Y te.
+      </div>
+
+      <SignatureBlock titles={['Dieu duong thu thuoc', 'Bac si chi dinh', 'Nguoi benh / Nguoi giam ho']} />
+    </div>
+  );
+};

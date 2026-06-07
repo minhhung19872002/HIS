@@ -13,6 +13,20 @@ import TermIcon from '../layouts/terminal/Icon';
 
 /* BHYT v2 — claims management */
 
+/** Tải CSV với BOM UTF-8 để Excel mở đúng tiếng Việt */
+function downloadCsv(filename: string, lines: string[]): void {
+  const blob = new Blob([`﻿${lines.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+function escapeCsvCell(v: unknown): string {
+  const s = String(v ?? '');
+  return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
 type StatusKey = 'draft' | 'pending' | 'submitted' | 'approved' | 'rejected';
 
 const STATUS_TABS: StatusTab<StatusKey>[] = [
@@ -151,8 +165,23 @@ const InsuranceV2: React.FC = () => {
         <Btn variant="ghost" onClick={() => navigate('/v2/bhxh-audit')}>
           <TermIcon name="check" size={12} /> Validate XML
         </Btn>
-        <Btn variant="ghost" onClick={() => message.success(`Đã xuất ${filtered.length} dòng`)}>
-          <TermIcon name="download" size={12} /> Xuất XML
+        <Btn variant="ghost" onClick={() => {
+          const header = ['Ma LK', 'Ma BN', 'Ho ten', 'So the BHYT', 'Ngay vao vien', 'Ngay ra vien', 'Ma ICD', 'Chan doan', 'Tong tien', 'BHYT chi tra', 'BN dong chi tra', 'BN tu tra', 'Trang thai'];
+          const rows = filtered.map((r) => [
+            r.maLk, r.patientCode, r.patientName, r.insuranceNumber,
+            r.admissionDate ? dayjs(r.admissionDate).format('DD/MM/YYYY') : '',
+            r.dischargeDate ? dayjs(r.dischargeDate).format('DD/MM/YYYY') : '',
+            r.diagnosisCode, r.diagnosisName,
+            r.totalAmount, r.insuranceAmount, r.coPayAmount, r.patientAmount,
+            r.statusName,
+          ]);
+          downloadCsv(
+            `bhyt-claims-${dayjs().format('YYYYMMDD-HHmm')}.csv`,
+            [header, ...rows].map((row) => row.map(escapeCsvCell).join(',')),
+          );
+          message.success(`Đã xuất ${filtered.length} hồ sơ BHYT`);
+        }}>
+          <TermIcon name="download" size={12} /> Xuất CSV
         </Btn>
         <Btn variant="primary" onClick={() => navigate('/v2/bhxh-config')}>
           <TermIcon name="send" size={12} /> Gửi BHXH
@@ -169,7 +198,7 @@ const InsuranceV2: React.FC = () => {
         actions={(r) => (
           <div className="ab-actions">
             <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
-            <ActBtn ic="print" title="In phiếu BHYT" onClick={() => message.success('Đã gửi máy in')} />
+            <ActBtn ic="print" title="In phiếu BHYT" onClick={() => { setDetail(r); setTimeout(() => window.print(), 300); }} />
           </div>
         )}
         empty={loading ? 'Đang tải…' : (

@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { App as AntdApp, Input, Select, InputNumber } from 'antd';
 import type { MessageInstance } from 'antd/es/message/interface';
 import { DatePicker } from 'antd';
-import { getBloodStock, getBloodStockDetail, getExpiringBloodBags, getIssueRequests, getProductTypes, createIssueRequest, createImportReceipt, getSuppliers } from '../api/bloodBank';
+import { getBloodStock, getBloodStockDetail, getExpiringBloodBags, getIssueRequests, getProductTypes, createIssueRequest, createImportReceipt, getSuppliers, updateBloodBagStatus, destroyExpiredBloodBags } from '../api/bloodBank';
 import type { BloodStockDto, BloodBagDto, BloodIssueRequestDto, BloodProductTypeDto, BloodStockDetailDto, BloodSupplierDto } from '../api/bloodBank';
 import { catalogApi } from '../api/system';
 import type { DepartmentCatalogDto } from '../api/system';
@@ -255,7 +255,7 @@ const BloodBankV2: React.FC = () => {
           />
         </>
       )}
-      {tab === 'expiring' && <ExpiringTab rows={expiringFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} message={message} />}
+      {tab === 'expiring' && <ExpiringTab rows={expiringFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} message={message} onReload={reload} />}
       {tab === 'requests' && <RequestsTab rows={requestsFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} />}
 
       <Pager page={page} totalPages={totalPages} setPage={setPage}
@@ -440,8 +440,12 @@ const ExpiringTab: React.FC<{
   rows: BloodBagDto[];
   loading: boolean;
   message: MessageInstance;
-}> = ({ rows, loading, message }) => {
+  onReload: () => void;
+}> = ({ rows, loading, message, onReload }) => {
   const [sel, setSel] = useState<BloodBagDto | null>(null);
+  const [actionBag, setActionBag] = useState<{ bag: BloodBagDto; type: 'dispense' | 'discard' } | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [discardReason, setDiscardReason] = useState('');
   const columns: ColumnDef<BloodBagDto>[] = [
     { key: 'bag', label: 'Mã túi', mono: true, width: 130, render: (b) => b.bagCode },
     { key: 'barcode', label: 'Barcode', mono: true, width: 130, render: (b) => b.barcode },
@@ -485,8 +489,8 @@ const ExpiringTab: React.FC<{
       onRowClick={setSel}
       actions={(b) => (
         <div className="ab-actions">
-          <ActBtn ic="send" title="Cấp phát" onClick={() => message.info(`Cấp phát ${b.bagCode}`)} />
-          <ActBtn ic="alert" title="Tiêu huỷ" onClick={() => message.warning(`Đánh dấu tiêu huỷ ${b.bagCode}`)} tone="warn" />
+          <ActBtn ic="send" title="Cấp phát" onClick={() => { setDiscardReason(''); setActionBag({ bag: b, type: 'dispense' }); }} />
+          <ActBtn ic="alert" title="Tiêu huỷ" tone="warn" onClick={() => { setDiscardReason(''); setActionBag({ bag: b, type: 'discard' }); }} />
         </div>
       )}
       empty={loading ? 'Đang tải…' : (
@@ -517,6 +521,65 @@ const ExpiringTab: React.FC<{
         </DrSec>
       )}
     </DrawerShell>
+
+    {/* Confirm modal cho Cấp phát / Tiêu huỷ */}
+    <ModalShell
+      open={!!actionBag}
+      onClose={() => setActionBag(null)}
+      title={actionBag?.type === 'dispense' ? `Cấp phát túi máu ${actionBag.bag.bagCode}` : `Tiêu huỷ túi máu ${actionBag?.bag.bagCode}`}
+      sub={actionBag ? `${actionBag.bag.bloodType}${actionBag.bag.rhFactor} · ${actionBag.bag.productTypeName} · ${actionBag.bag.volume} ${actionBag.bag.unit || 'mL'}` : ''}
+      size="sm"
+      footer={<>
+        <Btn variant="ghost" onClick={() => setActionBag(null)}>Huỷ</Btn>
+        <Btn
+          variant={actionBag?.type === 'dispense' ? 'primary' : 'ghost'}
+          style={actionBag?.type === 'discard' ? { background: 'var(--s-crit)', color: '#fff', borderColor: 'var(--s-crit)' } : undefined}
+          loading={actionLoading}
+          onClick={async () => {
+            if (!actionBag) return;
+            if (actionBag.type === 'discard' && !discardReason.trim()) {
+              message.warning('Cần nhập lý do tiêu huỷ');
+              return;
+            }
+            setActionLoading(true);
+            try {
+              if (actionBag.type === 'dispense') {
+                await updateBloodBagStatus(actionBag.bag.id, 'Issued', 'Cấp phát từ kho sắp hết hạn');
+                message.success(`Đã cấp phát túi máu ${actionBag.bag.bagCode}`);
+              } else {
+                await destroyExpiredBloodBags([actionBag.bag.id], discardReason.trim());
+                message.success(`Đã tiêu huỷ túi máu ${actionBag.bag.bagCode}`);
+              }
+              setActionBag(null);
+              onReload();
+            } catch {
+              message.error(actionBag.type === 'dispense' ? 'Cấp phát thất bại' : 'Tiêu huỷ thất bại');
+            } finally {
+              setActionLoading(false);
+            }
+          }}
+        >
+          {actionBag?.type === 'dispense' ? 'Xác nhận cấp phát' : 'Xác nhận tiêu huỷ'}
+        </Btn>
+      </>}
+    >
+      {actionBag?.type === 'discard' && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Lý do tiêu huỷ *</div>
+          <Input.TextArea
+            rows={2}
+            value={discardReason}
+            onChange={(e) => setDiscardReason(e.target.value)}
+            placeholder="Nhập lý do tiêu huỷ túi máu…"
+          />
+        </div>
+      )}
+      {actionBag?.type === 'dispense' && (
+        <div style={{ color: 'var(--t-2)', fontSize: 13 }}>
+          Xác nhận cấp phát túi máu <b>{actionBag.bag.bagCode}</b> ({actionBag.bag.bloodType}{actionBag.bag.rhFactor}) ra khỏi kho?
+        </div>
+      )}
+    </ModalShell>
     </>
   );
 };

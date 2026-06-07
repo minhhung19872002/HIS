@@ -30,6 +30,7 @@ import {
   getNursingCareSheets, createNursingCareSheet, type NursingCareSheetDto,
 } from '../api/examination';
 import { printTreatmentSheet as printInpatientTreatmentSheet } from '../api/inpatient';
+import PrintTemplateRenderer from '../components/PrintTemplateRenderer';
 import '../layouts/terminal/ed-responsive.css';
 
 type TabKey = 'record' | 'history' | 'treatment' | 'consult' | 'nursing' | 'reaction' | 'partograph' | 'attach';
@@ -64,13 +65,13 @@ const ATTACH_CATS = [
   { v: 'BenhAn', l: 'Bệnh án' }, { v: 'GiayTo', l: 'Giấy tờ' }, { v: 'Khac', l: 'Khác' },
 ];
 
-const PRINT_FORMS = [
-  'MS-01 · Tóm tắt bệnh án ra viện',
-  'MS-02 · Bệnh án tổng quát',
-  'MS-03 · Phiếu điều trị',
-  'MS-04 · Phiếu chăm sóc ĐD',
-  'DD-01 · Phiếu công khai DV-Thuốc',
-  'BHYT-01 · Tổng hợp thanh toán',
+const PRINT_FORMS: { label: string; printType: string }[] = [
+  { label: 'MS-01 · Tóm tắt bệnh án ra viện',  printType: 'summary' },
+  { label: 'MS-02 · Bệnh án tổng quát',          printType: 'finalsummary' },
+  { label: 'MS-03 · Phiếu điều trị',             printType: 'treatment' },
+  { label: 'MS-04 · Phiếu chăm sóc ĐD',         printType: 'nursing' },
+  { label: 'DD-01 · Phiếu công khai DV-Thuốc',  printType: 'dd09-meddisclosure' },
+  { label: 'BHYT-01 · Tổng hợp thanh toán',      printType: 'finalsummary' }, // dùng tổng kết HSBA làm proxy — chưa có template riêng BHYT-01
 ];
 
 const EmrEditorV2: React.FC = () => {
@@ -96,6 +97,9 @@ const EmrEditorV2: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [printOpen, setPrintOpen] = useState(false);
+  const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
+  const [printPreviewType, setPrintPreviewType] = useState('summary');
+  const printPreviewRef = useRef<HTMLDivElement>(null);
   const [signOpen, setSignOpen] = useState(false);
   const [modal, setModal] = useState<null | 'treatment' | 'consult' | 'nursing'>(null);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -111,6 +115,18 @@ const EmrEditorV2: React.FC = () => {
     setModal(kind);
   };
   const fld = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
+
+  /** Mở preview biểu mẫu in trong DrawerShell */
+  const openPrintForm = (printType: string) => {
+    if (!full) { tw('Chọn bệnh nhân và tải đủ dữ liệu HSBA trước khi in'); return; }
+    setPrintPreviewType(printType);
+    setPrintPreviewOpen(true);
+  };
+
+  /** Kích window.print() — chỉ in vùng có class emr-print-container */
+  const handleDoPrint = () => {
+    window.print();
+  };
 
   // ── Load EMR list ────────────────────────────────────────────────
   const loadList = useCallback(async (kw?: string) => {
@@ -625,15 +641,49 @@ const EmrEditorV2: React.FC = () => {
         </button>
       </div>
 
-      {/* Print drawer */}
+      {/* Print drawer — danh sách biểu mẫu */}
       <DrawerShell open={printOpen} onClose={() => setPrintOpen(false)} title="In biểu mẫu HSBA" size="md">
         <div style={{ padding: 14 }}>
+          {!full && (
+            <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 6, fontSize: 12, color: 'var(--t-2)' }}>
+              Chọn một bệnh nhân để xem trước và in biểu mẫu.
+            </div>
+          )}
           {PRINT_FORMS.map((m) => (
-            <div key={m} style={{ padding: 10, border: '1px solid var(--line)', borderRadius: 6, marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 12.5 }}>{m}</span>
-              <Btn variant="ghost" size="sm" onClick={() => tk(`Đã gửi in: ${m.split(' · ')[0]}`)}><TermIcon name="print" size={11} /> In</Btn>
+            <div key={m.printType + m.label} style={{ padding: 10, border: '1px solid var(--line)', borderRadius: 6, marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12.5 }}>{m.label}</span>
+              <Btn variant="ghost" size="sm" disabled={!full} onClick={() => { setPrintOpen(false); openPrintForm(m.printType); }}>
+                <TermIcon name="print" size={11} /> In
+              </Btn>
             </div>
           ))}
+        </div>
+      </DrawerShell>
+
+      {/* Print preview drawer — hiển thị biểu mẫu thật + nút In */}
+      <DrawerShell
+        open={printPreviewOpen}
+        onClose={() => setPrintPreviewOpen(false)}
+        title="Xem trước biểu mẫu"
+        size="lg"
+        footer={
+          <>
+            <Btn variant="ghost" onClick={() => setPrintPreviewOpen(false)}>Đóng</Btn>
+            <span style={{ flex: 1 }} />
+            <Btn variant="primary" onClick={handleDoPrint}>
+              <TermIcon name="print" size={12} /> In
+            </Btn>
+          </>
+        }
+      >
+        <div ref={printPreviewRef} style={{ padding: 8 }}>
+          <PrintTemplateRenderer
+            printType={printPreviewType}
+            record={full}
+            printRef={printPreviewRef}
+            treatmentSheets={treatments}
+            nursingSheets={nursing}
+          />
         </div>
       </DrawerShell>
 
