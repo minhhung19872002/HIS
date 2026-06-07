@@ -445,6 +445,9 @@ public class NursingCareSheetDto
 
     public VitalSignsFullDto? VitalSigns { get; set; }
 
+    // Phân cấp chăm sóc: 1 = Cấp 1, 2 = Cấp 2, null = chưa phân cấp
+    public int? CareLevel { get; set; }
+
     public Guid? NurseId { get; set; }
     public string? NurseName { get; set; }
 }

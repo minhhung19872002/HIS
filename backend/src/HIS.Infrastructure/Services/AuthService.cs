@@ -483,4 +483,19 @@ public class AuthService : IAuthService
     }
 
     #endregion
+
+    // ---------------------------------------------------------------------------
+    // VerifyPassword — confirm identity for sensitive actions (e.g., lab result approval)
+    // ---------------------------------------------------------------------------
+
+    public async Task<bool> VerifyPasswordAsync(Guid userId, string password)
+    {
+        var user = await _context.Users
+            .Where(u => u.Id == userId && u.IsActive && !u.IsDeleted)
+            .Select(u => new { u.PasswordHash })
+            .FirstOrDefaultAsync();
+
+        if (user == null) return false;
+        return BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
+    }
 }

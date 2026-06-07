@@ -136,6 +136,9 @@ public class NursingCareSheet : BaseEntity
     public string? PatientResponse { get; set; } // Phan hoi benh nhan
     public string? Notes { get; set; }
 
+    // Phân cấp chăm sóc: 1 = Cấp 1 (BN nặng, theo dõi liên tục), 2 = Cấp 2 (BN vừa, theo dõi định kỳ)
+    public int? CareLevel { get; set; }
+
     public Guid? NurseId { get; set; }
     public virtual User? Nurse { get; set; }
 }

@@ -101,6 +101,9 @@ const EmrEditorV2: React.FC = () => {
   const [form, setForm] = useState<Record<string, string>>({});
   const [printingTreatId, setPrintingTreatId] = useState<string | null>(null);
   const [savingForm, setSavingForm] = useState(false);
+  // Multi-select in tờ điều trị
+  const [selectedTreatIds, setSelectedTreatIds] = useState<Set<string>>(new Set());
+  const [printingAllTreat, setPrintingAllTreat] = useState(false);
 
   const openCreate = (kind: 'treatment' | 'consult' | 'nursing') => {
     if (!examId) { tw('Chưa có lần khám để thêm phiếu'); return; }
@@ -208,6 +211,7 @@ const EmrEditorV2: React.FC = () => {
           shift: Number(form.shift) || 1, patientCondition: form.patientCondition,
           nursingAssessment: form.nursingAssessment, nursingInterventions: form.nursingInterventions,
           patientResponse: form.patientResponse, nurseId: '',
+          careLevel: form.careLevel ? Number(form.careLevel) : undefined,
         });
         const r = await getNursingCareSheets(examId); setNursing(Array.isArray(r.data) ? r.data : []);
       }
@@ -305,6 +309,29 @@ const EmrEditorV2: React.FC = () => {
     }
   };
 
+  // In tuần tự tất cả phiếu đã chọn (mỗi phiếu mở 1 tab mới)
+  const printAllSelected = async () => {
+    if (selectedTreatIds.size === 0) { tw('Chưa chọn phiếu nào để in'); return; }
+    if (printingAllTreat) return;
+    setPrintingAllTreat(true);
+    const ids = Array.from(selectedTreatIds);
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        const r = await printInpatientTreatmentSheet(id);
+        const url = URL.createObjectURL(r.data as Blob);
+        const w = window.open(url, '_blank');
+        if (w) w.onload = () => URL.revokeObjectURL(url);
+        else URL.revokeObjectURL(url);
+      } catch {
+        failed++;
+      }
+    }
+    setPrintingAllTreat(false);
+    if (failed > 0) te(`Không in được ${failed}/${ids.length} phiếu`);
+    else tk(`Đã mở ${ids.length} phiếu điều trị`);
+  };
+
   const treatCols: ColumnDef<TreatmentSheetDto>[] = [
     { key: 'date', label: 'Ngày', mono: true, width: 110, render: (r) => fmtDMYg(r.treatmentDate) },
     { key: 'day', label: 'Ngày thứ', mono: true, width: 80, render: (r) => r.dayNumber },
@@ -320,6 +347,7 @@ const EmrEditorV2: React.FC = () => {
   const nursingCols: ColumnDef<NursingCareSheetDto>[] = [
     { key: 'date', label: 'Ngày', mono: true, width: 150, render: (r) => fmtDTg(r.careDate) },
     { key: 'shift', label: 'Ca', width: 70, render: (r) => (r.shift === 1 ? 'Sáng' : r.shift === 2 ? 'Chiều' : r.shift === 3 ? 'Tối' : `${r.shift}`) },
+    { key: 'careLevel', label: 'Cấp CS', width: 90, render: (r) => (r.careLevel === 1 ? 'Cấp 1' : r.careLevel === 2 ? 'Cấp 2' : '—') },
     { key: 'interv', label: 'Can thiệp chăm sóc', render: (r) => r.nursingInterventions || r.patientCondition || '—' },
     { key: 'nurse', label: 'ĐD phụ trách', width: 140, render: (r) => r.nurseName || '—' },
   ];
@@ -450,8 +478,33 @@ const EmrEditorV2: React.FC = () => {
 
               {tab === 'treatment' && (
                 <div>
-                  <div style={{ marginBottom: 12, display: 'flex', gap: 8 }}>
+                  <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <Btn variant="primary" onClick={() => openCreate('treatment')}><TermIcon name="plus" size={12} /> Tạo phiếu điều trị</Btn>
+                    {treatments.length > 0 && (
+                      <>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedTreatIds.size === treatments.length && treatments.length > 0}
+                            onChange={(e) => {
+                              if (e.target.checked) setSelectedTreatIds(new Set(treatments.map((t) => t.id)));
+                              else setSelectedTreatIds(new Set());
+                            }}
+                          />
+                          Chọn tất cả ({treatments.length})
+                        </label>
+                        {selectedTreatIds.size > 0 && (
+                          <Btn
+                            variant="ghost"
+                            disabled={printingAllTreat}
+                            onClick={() => { void printAllSelected(); }}
+                          >
+                            <TermIcon name="printer" size={12} />
+                            {printingAllTreat ? 'Đang in…' : `In ${selectedTreatIds.size} phiếu`}
+                          </Btn>
+                        )}
+                      </>
+                    )}
                   </div>
                   <DataTable<TreatmentSheetDto>
                     columns={treatCols}
@@ -459,7 +512,17 @@ const EmrEditorV2: React.FC = () => {
                     rowKey={(r) => r.id}
                     empty="Chưa có phiếu điều trị"
                     actions={(r) => (
-                      <div className="ab-actions">
+                      <div className="ab-actions" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedTreatIds.has(r.id)}
+                          onChange={(e) => {
+                            const next = new Set(selectedTreatIds);
+                            if (e.target.checked) next.add(r.id);
+                            else next.delete(r.id);
+                            setSelectedTreatIds(next);
+                          }}
+                        />
                         <ActBtn
                           ic="printer"
                           title="In tờ điều trị"
@@ -482,6 +545,11 @@ const EmrEditorV2: React.FC = () => {
                 <div>
                   <div style={{ marginBottom: 12 }}><Btn variant="primary" onClick={() => openCreate('nursing')}><TermIcon name="plus" size={12} /> Phiếu chăm sóc</Btn></div>
                   <DataTable<NursingCareSheetDto> columns={nursingCols} data={nursing} rowKey={(r) => r.id} empty="Chưa có phiếu chăm sóc" />
+                  {nursing.length > 0 && (
+                    <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 6 }}>
+                      In phiếu chăm sóc: chọn <b>In biểu mẫu</b> → Phiếu chăm sóc Cấp 1 hoặc Cấp 2 tương ứng.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -595,6 +663,15 @@ const EmrEditorV2: React.FC = () => {
             {modal === 'treatment' && <FormField lbl="Ngày thứ"><input type="number" className="ed-fld" value={form.dayNumber || ''} onChange={(e) => fld('dayNumber', e.target.value)} /></FormField>}
             {modal === 'nursing' && (
               <FormField lbl="Ca"><select className="ed-fld" value={form.shift || '1'} onChange={(e) => fld('shift', e.target.value)}><option value="1">Sáng</option><option value="2">Chiều</option><option value="3">Tối</option></select></FormField>
+            )}
+            {modal === 'nursing' && (
+              <FormField lbl="Cấp chăm sóc">
+                <select className="ed-fld" value={form.careLevel || ''} onChange={(e) => fld('careLevel', e.target.value)}>
+                  <option value="">— Chưa phân cấp —</option>
+                  <option value="1">Cấp 1 — BN nặng (theo dõi liên tục)</option>
+                  <option value="2">Cấp 2 — BN vừa (theo dõi định kỳ)</option>
+                </select>
+              </FormField>
             )}
           </div>
           {modal === 'treatment' && <>

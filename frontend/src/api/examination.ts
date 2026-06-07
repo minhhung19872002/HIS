@@ -302,6 +302,8 @@ export interface NursingCareSheetDto {
   nursingInterventions?: string;
   patientResponse?: string;
   vitalSigns?: VitalSignsFullDto;
+  /** Phân cấp chăm sóc: 1 = Cấp 1 (BN nặng), 2 = Cấp 2 (BN vừa), undefined = chưa phân cấp */
+  careLevel?: number;
   nurseId: string;
   nurseName?: string;
 }
@@ -525,6 +527,8 @@ export interface PrescriptionItemFullDto {
 export interface CreatePrescriptionDto {
   examinationId: string;
   prescriptionType: number;
+  /** 1-BHYT, 2-Thu phí (viện phí), 3-Thuốc ngoài (mua tại nhà thuốc) */
+  paymentCategory?: number;
   diagnosisCode?: string;
   diagnosisName?: string;
   warehouseId?: string;

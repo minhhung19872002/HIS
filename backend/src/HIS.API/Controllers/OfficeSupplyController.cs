@@ -174,7 +174,7 @@ public class OfficeSupplyController : ControllerBase
 
         var uid = GetUserId();
         var now = DateTime.Now;
-        approval.Status = 4; // Đã thu hồi
+        approval.Status = 1; // Nháp — cho phép chỉnh sửa và gửi lại
         approval.UpdatedAt = now;
         approval.UpdatedBy = uid.ToString();
 
@@ -182,7 +182,7 @@ public class OfficeSupplyController : ControllerBase
         {
             Id = Guid.NewGuid(),
             PharmacyApprovalId = approval.Id,
-            FromStatus = 2, ToStatus = 4,
+            FromStatus = 2, ToStatus = 1,
             Action = "Recall",
             ActorId = uid,
             ActedAt = now,
@@ -192,7 +192,7 @@ public class OfficeSupplyController : ControllerBase
         });
 
         await _db.SaveChangesAsync();
-        return Ok(new { id, status = 4 });
+        return Ok(new { id, status = 1 });
     }
 
     public class ApproveOfficeDto

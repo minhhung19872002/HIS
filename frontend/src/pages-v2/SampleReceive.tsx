@@ -7,6 +7,16 @@ import {
   DrawerShell, ModalShell, DrSec, DrField, Ico, tk, ti, tw,
   type ColumnDef,
 } from './_v2kit';
+import TermIcon from '../layouts/terminal/Icon';
+
+// ── Types cho Panel Tiện ích XN (tái sử dụng từ Laboratory.tsx) ──
+interface UtilWarehouseStock {
+  id: string; itemCode: string; itemName: string; unit: string;
+  quantity: number; availableQuantity: number;
+  warehouseName: string; warehouseType?: number;
+  expiryDate?: string; daysToExpiry?: number;
+}
+const UTIL_CABINET_TYPE = 5; // WarehouseType=5 = Tủ trực
 
 interface PendingSample {
   id: string; sampleBarcode?: string; serviceRequestId: string;
@@ -42,6 +52,38 @@ const SampleReceiveV2: React.FC = () => {
   const [rejectForm] = Form.useForm();
   const [runForm] = Form.useForm();
   const [reviewForm] = Form.useForm();
+
+  // Panel Tiện ích XN
+  const [utilOpen, setUtilOpen] = useState(false);
+  const [utilCabinetStock, setUtilCabinetStock] = useState<UtilWarehouseStock[]>([]);
+  const [utilChemStock, setUtilChemStock] = useState<UtilWarehouseStock[]>([]);
+  const [utilLoading, setUtilLoading] = useState(false);
+
+  const loadUtilData = async () => {
+    setUtilLoading(true);
+    try {
+      const [cabRes, chemRes] = await Promise.all([
+        apiClient.get<{ items: UtilWarehouseStock[] } | UtilWarehouseStock[]>('/warehouse/stock', {
+          params: { warehouseType: UTIL_CABINET_TYPE, itemType: 3, pageSize: 200 },
+        }),
+        apiClient.get<{ items: UtilWarehouseStock[] } | UtilWarehouseStock[]>('/warehouse/stock', {
+          params: { itemType: 3, pageSize: 200 },
+        }),
+      ]);
+      const toItems = (r: { data: { items: UtilWarehouseStock[] } | UtilWarehouseStock[] }) => {
+        const p = r.data;
+        return Array.isArray(p) ? p : ((p as { items?: UtilWarehouseStock[] }).items ?? []);
+      };
+      const cabItems = toItems(cabRes);
+      const cabIds = new Set(cabItems.map((s) => s.id));
+      setUtilCabinetStock(cabItems);
+      setUtilChemStock(toItems(chemRes).filter((s) => !cabIds.has(s.id)));
+    } catch {
+      console.warn('[SampleReceive] loadUtilData failed');
+    } finally {
+      setUtilLoading(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -187,6 +229,9 @@ const SampleReceiveV2: React.FC = () => {
         </Btn>
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
+        </Btn>
+        <Btn variant="ghost" onClick={() => { setUtilOpen(true); loadUtilData(); }}>
+          <TermIcon name="flask" size={12} /> Tiện ích XN
         </Btn>
         {activeTab === 'pending' && selected.size > 0 && (
           <Btn variant="primary" onClick={accept}>
@@ -335,6 +380,80 @@ const SampleReceiveV2: React.FC = () => {
           </Form.Item>
         </Form>
       </ModalShell>
+
+      {/* ── Drawer: Tiện ích XN — tủ trực + tồn kho hóa chất ─────── */}
+      <DrawerShell
+        open={utilOpen}
+        onClose={() => setUtilOpen(false)}
+        title="Tiện ích XN — Tồn kho"
+        sub="Tủ trực hóa chất · Tồn kho hóa chất"
+        size="lg"
+      >
+        {utilLoading ? (
+          <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
+        ) : (
+          <>
+            <div className="rec-section">
+              <h5><TermIcon name="package" size={11} /> TỒN TỦ TRỰC</h5>
+              {utilCabinetStock.length === 0 ? (
+                <div style={{ color: 'var(--t-3)', fontSize: 12, padding: '8px 0' }}>Không có dữ liệu tủ trực</div>
+              ) : (
+                <div style={{ display: 'grid', gap: 4 }}>
+                  {utilCabinetStock.slice(0, 50).map((s) => (
+                    <div key={s.id} style={{
+                      display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                      padding: '6px 0', borderBottom: '1px solid var(--line-soft)', fontSize: 12.5, alignItems: 'center',
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{s.itemName}</div>
+                        <div style={{ fontSize: 10, color: 'var(--t-2)' }}>{s.warehouseName}</div>
+                      </div>
+                      <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{s.quantity} {s.unit}</span>
+                      <span style={{
+                        textAlign: 'right', fontFamily: 'var(--font-mono)',
+                        color: s.availableQuantity <= 0 ? 'var(--s-crit)' : s.availableQuantity < 10 ? '#d97706' : 'inherit',
+                        fontWeight: s.availableQuantity <= 0 ? 700 : 400,
+                      }}>{s.availableQuantity}</span>
+                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? '#d97706' : 'var(--t-2)' }}>
+                        {s.expiryDate ? dayjs(s.expiryDate).format('MM/YYYY') : '—'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="rec-section" style={{ marginTop: 16 }}>
+              <h5><TermIcon name="flask" size={11} /> TỒN KHO HÓA CHẤT</h5>
+              {utilChemStock.length === 0 ? (
+                <div style={{ color: 'var(--t-3)', fontSize: 12, padding: '8px 0' }}>Không có dữ liệu tồn kho hóa chất</div>
+              ) : (
+                <div style={{ display: 'grid', gap: 4 }}>
+                  {utilChemStock.slice(0, 50).map((s) => (
+                    <div key={s.id} style={{
+                      display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                      padding: '6px 0', borderBottom: '1px solid var(--line-soft)', fontSize: 12.5, alignItems: 'center',
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{s.itemName}</div>
+                        <div style={{ fontSize: 10, color: 'var(--t-2)' }}>{s.warehouseName}</div>
+                      </div>
+                      <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{s.quantity} {s.unit}</span>
+                      <span style={{
+                        textAlign: 'right', fontFamily: 'var(--font-mono)',
+                        color: s.availableQuantity <= 0 ? 'var(--s-crit)' : s.availableQuantity < 10 ? '#d97706' : 'inherit',
+                        fontWeight: s.availableQuantity <= 0 ? 700 : 400,
+                      }}>{s.availableQuantity}</span>
+                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? '#d97706' : 'var(--t-2)' }}>
+                        {s.expiryDate ? dayjs(s.expiryDate).format('MM/YYYY') : '—'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </DrawerShell>
     </div>
   );
 };

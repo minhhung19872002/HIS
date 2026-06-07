@@ -1369,6 +1369,9 @@ public class NursingCareSheetDto
     // Ghi chú
     public string? Notes { get; set; }
 
+    // Phân cấp chăm sóc: 1 = Cấp 1, 2 = Cấp 2, null = chưa phân cấp
+    public int? CareLevel { get; set; }
+
     public DateTime CreatedAt { get; set; }
 }
 
@@ -1390,6 +1393,9 @@ public class CreateNursingCareSheetDto
     public string? SpecialMonitoring { get; set; }
     public string? IssuesAndActions { get; set; }
     public string? Notes { get; set; }
+
+    // Phân cấp chăm sóc: 1 = Cấp 1, 2 = Cấp 2
+    public int? CareLevel { get; set; }
 }
 
 /// <summary>

@@ -34,17 +34,18 @@ interface CreateItemForm { supplyId: string; requestedQuantity: number; note?: s
 interface ReturnResponse { id?: string; approvalCode?: string }
 
 const STATUS_LABEL: Record<number, string> = {
-  1: 'Chưa nhập', 2: 'Chờ duyệt', 3: 'Đã duyệt', 4: 'Đã thu hồi',
+  1: 'Nháp', 2: 'Chờ duyệt', 3: 'Đã duyệt', 4: 'Đã thu hồi (cũ)',
 };
 
-type SKey = 'pending' | 'approved' | 'revoked';
+type SKey = 'draft' | 'pending' | 'approved' | 'revoked';
 const STATUS_TABS = [
-  { v: 'pending' as SKey,  l: 'Chờ duyệt',  tone: 'warn' as const },
-  { v: 'approved' as SKey, l: 'Đã duyệt',   tone: 'ok' as const },
-  { v: 'revoked' as SKey,  l: 'Đã thu hồi', tone: 'crit' as const },
+  { v: 'draft' as SKey,    l: 'Nháp / Thu hồi', tone: 'info' as const },
+  { v: 'pending' as SKey,  l: 'Chờ duyệt',      tone: 'warn' as const },
+  { v: 'approved' as SKey, l: 'Đã duyệt',        tone: 'ok' as const },
+  { v: 'revoked' as SKey,  l: 'Đã thu hồi (cũ)', tone: 'crit' as const },
 ];
 
-const tabToStatus = (s: SKey | 'all') => s === 'pending' ? 2 : s === 'approved' ? 3 : s === 'revoked' ? 4 : 0;
+const tabToStatus = (s: SKey | 'all') => s === 'draft' ? 1 : s === 'pending' ? 2 : s === 'approved' ? 3 : s === 'revoked' ? 4 : 0;
 
 const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 
@@ -134,7 +135,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
   const submitRecall = async (req: ApprovalRequest) => {
     try {
       await apiClient.post(`/office-supply/requests/${req.id}/recall`);
-      tk(`Đã thu hồi phiếu ${req.approvalCode}`);
+      tk(`Đã thu hồi phiếu ${req.approvalCode} — phiếu về Nháp để chỉnh sửa lại`);
       load();
     } catch { tw('Thu hồi thất bại'); }
   };
@@ -276,7 +277,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
             <DrField lbl="Khoa">{detail.departmentName || '—'}</DrField>
             <DrField lbl="Kho">{detail.warehouseName || '—'}</DrField>
             <DrField lbl="Trạng thái">
-              <StatusBadge tone={detail.status === 3 ? 'ok' : detail.status === 4 ? 'crit' : 'warn'} dot>
+              <StatusBadge tone={detail.status === 3 ? 'ok' : detail.status === 4 ? 'crit' : detail.status === 1 ? 'info' : 'warn'} dot>
                 {STATUS_LABEL[detail.status]}
               </StatusBadge>
             </DrField>

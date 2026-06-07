@@ -102,6 +102,9 @@ export interface PrescriptionContextDto {
   chiefComplaint?: string;
   presentIllness?: string;
 
+  // Đối tượng BN: 1=BHYT, 2=Thu phí (dùng để derive paymentCategory toa thuốc)
+  patientType?: number;
+
   // Allergies
   allergyHistory?: string;
   allergies: AllergyInfoDto[];

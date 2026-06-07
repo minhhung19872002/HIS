@@ -1,6 +1,22 @@
 # STATUS — đang ở đâu · blocker · việc kế tiếp
 
-> Cập nhật cuối: **2026-06-07 ~09:30** (sau Prompt 12 regression toàn hệ thống).
+> Cập nhật cuối: **2026-06-07 ~12:30** (sau khi sửa toàn bộ lỗi kiểm định verify-doithu + regression lần 2).
+
+## ✅ SỬA LỖI KIỂM ĐỊNH verify-doithu-2026-06-06.md — XONG 2026-06-07 (CHƯA PUSH)
+
+- **P0/P1 6/6 fixed**: (1) bulk-download DICOM anonymize THẬT qua Orthanc anonymize→archive→DELETE; share
+  HideDemographics chọn phương án trung thực (disable + 400 rõ, TODO anonymize-at-share); (2) HĐĐT Issue=Nháp
+  Status 0 không mã giả, Export=phát hành thật (rà đủ caller, defer AutoIssue gateway); (3) nhập viện persist đủ
+  khoa/cấp cứu/chẩn đoán (migration 72); (4) màu XN H đỏ/L xanh/HH-LL đậm + fix criticalLow→LL; (5) chặn in KQ
+  chưa duyệt 2 lớp BE+FE; (6) hủy đặt khám quầy + guard check-in.
+- **P2 11/12 fixed** (migration 73 chuyển viện + 74 CareLevel/cam kết): toa ngoài persist PaymentCategory ·
+  verify-password BCrypt người duyệt tại giường · panel Tiện ích tách tủ trực (BE thêm filter WarehouseType) ·
+  in nhiều tờ điều trị · nút In sau gây mê · TT32 cam kết (seed — component có sẵn) · CareLevel 1/2 · mobile
+  chẩn đoán+mẫu · BC8 nhà thuốc · VPP recall→Nháp. DEFER: trình ký nhiều cấp (thiết kế 5 bước trong report agent).
+- **Regression lần 2 SẠCH**: build 2 tầng 0 err · migration 72/73/74 sạch · schema-drift 0 ·
+  test-doithu-gap 28/28 · suite 10/10 · Cypress 81/81 · Playwright 588/9 skip/0 fail.
+- **Khi deploy nhớ**: bật worker `SampleAppointmentReminder__Enabled=true` (P2 ops) · test 1 study thật trên
+  Orthanc prod verify anonymize parse đúng · dữ liệu HĐĐT cũ Status=1 mã giả cần quyết cách dọn (note agent V1.2).
 
 ## ✅ PROMPT 12 — REGRESSION TOÀN HỆ THỐNG 2026-06-07 (KẾT QUẢ CUỐI)
 

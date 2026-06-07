@@ -26,6 +26,9 @@ import {
   updateServiceRequestPaymentType,
   getDiagnosisFromRecord,
   saveInpatientDiagnosis,
+  getTreatmentSheets,
+  printTreatmentSheet,
+  type TreatmentSheetDto,
 } from '../../api/inpatient';
 import { getWarehouses } from '../../api/warehouse';
 import type { WarehouseDto } from '../../api/warehouse';
@@ -1613,6 +1616,120 @@ const InpatientDiagnosisModal: React.FC<{
 };
 
 // ---------------------------------------------------------------------------
+// TreatmentSheetsModal — chọn nhiều đợt điều trị + in tuần tự
+// ---------------------------------------------------------------------------
+
+const TreatmentSheetsModal: React.FC<{
+  open: boolean;
+  admissionId: string;
+  onClose: () => void;
+}> = ({ open, admissionId, onClose }) => {
+  const { message } = AntdApp.useApp();
+  const [sheets, setSheets] = useState<TreatmentSheetDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [printing, setPrinting] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setSelectedIds(new Set());
+    setLoading(true);
+    getTreatmentSheets({ admissionId }).then((r) => {
+      setSheets(Array.isArray(r.data) ? r.data : []);
+    }).catch(() => {
+      message.warning('Không tải được danh sách phiếu điều trị');
+    }).finally(() => setLoading(false));
+  }, [open, admissionId, message]);
+
+  const toggle = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === sheets.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(sheets.map((s) => s.id)));
+  };
+
+  const printSelected = async () => {
+    if (selectedIds.size === 0) { message.warning('Chưa chọn phiếu nào'); return; }
+    setPrinting(true);
+    const ids = Array.from(selectedIds);
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        const r = await printTreatmentSheet(id);
+        const url = URL.createObjectURL(r.data as Blob);
+        const w = window.open(url, '_blank');
+        if (w) w.onload = () => URL.revokeObjectURL(url);
+        else URL.revokeObjectURL(url);
+      } catch {
+        failed++;
+      }
+    }
+    setPrinting(false);
+    if (failed > 0) message.error(`Không in được ${failed}/${ids.length} phiếu`);
+    else message.success(`Đã mở ${ids.length} tờ điều trị`);
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="md"
+      title="In tờ điều trị"
+      sub={`Chọn đợt điều trị cần in · ${sheets.length} phiếu`}
+      footer={
+        <>
+          <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
+          <Btn variant="primary" disabled={printing || selectedIds.size === 0} onClick={printSelected}>
+            <TermIcon name="printer" size={12} />
+            {printing ? 'Đang in…' : `In ${selectedIds.size} phiếu`}
+          </Btn>
+        </>
+      }
+    >
+      <div style={{ padding: 16 }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', color: 'var(--t-2)', padding: 24 }}>Đang tải…</div>
+        ) : sheets.length === 0 ? (
+          <div style={{ textAlign: 'center', color: 'var(--t-3)', padding: 24 }}>Chưa có phiếu điều trị</div>
+        ) : (
+          <>
+            <div style={{ marginBottom: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                <input type="checkbox" checked={selectedIds.size === sheets.length} onChange={toggleAll} />
+                Chọn tất cả ({sheets.length} phiếu)
+              </label>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 360, overflowY: 'auto' }}>
+              {sheets.map((s) => (
+                <label key={s.id} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer',
+                  padding: '8px 10px', borderRadius: 6,
+                  background: selectedIds.has(s.id) ? 'var(--a-em-bg, #eff6ff)' : 'var(--d-1)',
+                  border: `1px solid ${selectedIds.has(s.id) ? 'var(--a-em-bd, #93c5fd)' : 'var(--line)'}`,
+                  fontSize: 12.5,
+                }}>
+                  <input type="checkbox" checked={selectedIds.has(s.id)} onChange={() => toggle(s.id)} style={{ marginTop: 2 }} />
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{dayjs(s.treatmentDate).format('DD/MM/YYYY')}</div>
+                    <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{s.doctorName || '—'}</div>
+                    {s.progressNotes && <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2, whiteSpace: 'pre-line', maxWidth: 400 }}>{s.progressNotes.slice(0, 80)}{s.progressNotes.length > 80 ? '…' : ''}</div>}
+                  </div>
+                </label>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </ModalShell>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Main section component — rendered inside the patient detail drawer
 // ---------------------------------------------------------------------------
 
@@ -1621,7 +1738,7 @@ export interface TreatmentMonitorSectionProps {
   onRefresh: () => void;
 }
 
-type ActiveModal = 'vitals' | 'transfer' | 'nutrition' | 'infusion' | 'transfusion' | 'billing' | 'cabinet' | 'drugReturn' | 'prescription' | 'dischargePrescription' | 'clsOrders' | 'discharge' | 'diagnosis' | null;
+type ActiveModal = 'vitals' | 'transfer' | 'nutrition' | 'infusion' | 'transfusion' | 'billing' | 'cabinet' | 'drugReturn' | 'prescription' | 'dischargePrescription' | 'clsOrders' | 'discharge' | 'diagnosis' | 'treatmentSheets' | null;
 
 const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patient, onRefresh }) => {
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
@@ -1667,6 +1784,9 @@ const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patie
         </Btn>
         <Btn variant="ghost" onClick={() => setActiveModal('dischargePrescription')}>
           <TermIcon name="home" size={12} /> Don xuat vien
+        </Btn>
+        <Btn variant="ghost" onClick={() => setActiveModal('treatmentSheets')}>
+          <TermIcon name="printer" size={12} /> To dieu tri
         </Btn>
         <Btn variant="crit" onClick={() => setActiveModal('discharge')}>
           <TermIcon name="log-out" size={12} /> Ra vien
@@ -1772,6 +1892,13 @@ const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patie
 
       {/* G-01: Trả KQ XN tại giường — section riêng, không dùng modal trigger */}
       <BedLabResultSection admissionId={patient.admissionId} />
+
+      {/* In tờ điều trị nhiều đợt */}
+      <TreatmentSheetsModal
+        open={activeModal === 'treatmentSheets'}
+        admissionId={patient.admissionId}
+        onClose={close}
+      />
     </div>
   );
 };

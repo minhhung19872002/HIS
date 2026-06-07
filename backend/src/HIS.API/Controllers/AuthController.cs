@@ -114,6 +114,21 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse<UserDto>.Ok(user));
     }
 
+    /// <summary>
+    /// Xác thực mật khẩu theo userId — dùng để confirm danh tính người duyệt KQ XN tại giường.
+    /// Trả 200 {valid:true/false}; KHÔNG log password trong body.
+    /// </summary>
+    [Authorize]
+    [HttpPost("verify-password")]
+    public async Task<ActionResult<ApiResponse<bool>>> VerifyPassword([FromBody] VerifyPasswordDto dto)
+    {
+        if (dto.UserId == Guid.Empty || string.IsNullOrWhiteSpace(dto.Password))
+            return BadRequest(ApiResponse<bool>.Fail("UserId và Password là bắt buộc"));
+
+        var valid = await _authService.VerifyPasswordAsync(dto.UserId, dto.Password);
+        return Ok(ApiResponse<bool>.Ok(valid));
+    }
+
     // WebAuthn/FIDO2 endpoints (NangCap12)
     [Authorize]
     [HttpPost("webauthn/register-options")]

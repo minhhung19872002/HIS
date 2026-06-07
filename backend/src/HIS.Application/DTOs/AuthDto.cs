@@ -112,3 +112,12 @@ public class WebAuthnCredentialDto
     public DateTime LastUsedAt { get; set; }
     public bool IsActive { get; set; }
 }
+
+/// <summary>
+/// Xác thực mật khẩu người duyệt — dùng cho luồng approve KQ XN tại giường.
+/// </summary>
+public class VerifyPasswordDto
+{
+    public Guid UserId { get; set; }
+    public string Password { get; set; } = string.Empty;
+}

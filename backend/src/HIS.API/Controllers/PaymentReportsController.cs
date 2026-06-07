@@ -245,4 +245,51 @@ public class PaymentReportsController : ControllerBase
             })
         });
     }
+
+    /// <summary>BC8 — Báo cáo nhà thuốc (doanh thu bán lẻ thuốc)</summary>
+    [HttpGet("pharmacy-retail")]
+    public async Task<IActionResult> PharmacyRetail(
+        [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate,
+        [FromQuery] string? paymentMethod)
+    {
+        var (from, to) = NormalizeRange(fromDate, toDate);
+        var q = _db.RetailSales
+            .Include(s => s.Patient)
+            .Include(s => s.Cashier)
+            .Include(s => s.Items)
+            .Where(s => s.Status == "Completed"
+                && s.CreatedAt >= from && s.CreatedAt < to);
+        if (!string.IsNullOrWhiteSpace(paymentMethod))
+            q = q.Where(s => s.PaymentMethod == paymentMethod);
+        var list = await q.OrderBy(s => s.CreatedAt).ToListAsync();
+        var byMethod = list
+            .GroupBy(s => s.PaymentMethod)
+            .Select(g => new { method = g.Key, count = g.Count(), total = g.Sum(s => s.PaidAmount) })
+            .ToList();
+        return Ok(new
+        {
+            fromDate = from,
+            toDate = to,
+            paymentMethod,
+            totalCount = list.Count,
+            totalAmount = list.Sum(s => s.TotalAmount),
+            totalDiscount = list.Sum(s => s.DiscountAmount),
+            totalPaid = list.Sum(s => s.PaidAmount),
+            byPaymentMethod = byMethod,
+            items = list.Select(s => new
+            {
+                s.SaleCode,
+                SaleDate = s.CreatedAt,
+                PatientName = s.PatientName ?? s.Patient?.FullName ?? "Khách vãng lai",
+                s.PhoneNumber,
+                s.TotalAmount,
+                s.DiscountAmount,
+                s.PaidAmount,
+                s.PaymentMethod,
+                s.PaymentReference,
+                CashierName = s.Cashier?.FullName,
+                ItemCount = s.Items.Count,
+            })
+        });
+    }
 }

@@ -417,9 +417,20 @@ const Inpatient: React.FC<{ inpatients: InpatientListDto[]; onMessage: (msg: str
   );
 };
 
+// Mẫu diễn biến thường dùng — hardcode local const, không cần API
+const PROGRESS_TEMPLATES = [
+  'Bệnh nhân ổn định, tỉnh táo, tiếp xúc tốt. Dấu hiệu sinh tồn trong giới hạn bình thường.',
+  'Bệnh nhân tiến triển tốt, giảm đau, ăn uống được. Tiếp tục điều trị theo phác đồ.',
+  'Bệnh nhân còn đau vừa, mệt nhiều. Tiếp tục theo dõi và điều trị tích cực.',
+  'Bệnh nhân nặng hơn, khó thở tăng. Đã xử trí cấp cứu, theo dõi sát.',
+  'Bệnh nhân ổn định sau can thiệp. Không có biến chứng mới trong 24 giờ qua.',
+];
+
 // ---- Tờ điều trị ----
 const TreatmentForm: React.FC<{ admissionId: string; onMessage: (m: string) => void }> = ({ admissionId, onMessage }) => {
+  const [diagnosis, setDiagnosis] = useState('');
   const [progress, setProgress] = useState('');
+  const [showTemplates, setShowTemplates] = useState(false);
   const [orders, setOrders] = useState('');
   const [nursingOrders, setNursingOrders] = useState('');
   const [saving, setSaving] = useState(false);
@@ -428,18 +439,21 @@ const TreatmentForm: React.FC<{ admissionId: string; onMessage: (m: string) => v
   const save = async () => {
     if (!progress && !orders) { onMessage('Nhập ít nhất diễn biến hoặc y lệnh'); return; }
     setSaving(true);
+    const progressWithDx = diagnosis.trim()
+      ? `[Chẩn đoán: ${diagnosis.trim()}]\n${progress}`
+      : progress;
     try {
       const r = await createTreatmentSheet({
         admissionId,
         treatmentDate: dayjs().toISOString(),
-        progressNotes: progress || undefined,
+        progressNotes: progressWithDx || undefined,
         treatmentOrders: orders || undefined,
         nursingOrders: nursingOrders || undefined,
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const id = (r as any)?.id ?? (r as any)?.data?.id;
       setLastId(id ?? null);
-      setProgress(''); setOrders(''); setNursingOrders('');
+      setDiagnosis(''); setProgress(''); setOrders(''); setNursingOrders('');
       onMessage('Đã lưu tờ điều trị');
     } catch { onMessage('Lưu thất bại — kiểm tra kết nối'); }
     finally { setSaving(false); }
@@ -458,7 +472,32 @@ const TreatmentForm: React.FC<{ admissionId: string; onMessage: (m: string) => v
   return (
     <div style={{ padding: '0 12px 24px' }}>
       <div style={{ fontWeight: 600, marginBottom: 8, color: '#555' }}>TỜ ĐIỀU TRỊ — {dayjs().format('DD/MM/YYYY')}</div>
-      <label style={{ fontSize: 12, color: '#888' }}>Diễn biến lâm sàng</label>
+
+      <label style={{ fontSize: 12, color: '#888' }}>Chẩn đoán</label>
+      <textarea
+        rows={2} value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)}
+        placeholder="Chẩn đoán bệnh chính / kèm theo..."
+        style={{ width: '100%', marginBottom: 8, padding: 8, borderRadius: 8, border: '1px solid #ddd', fontFamily: 'inherit', fontSize: 13 }}
+      />
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <label style={{ fontSize: 12, color: '#888' }}>Diễn biến lâm sàng</label>
+        <button
+          onClick={() => setShowTemplates((v) => !v)}
+          style={{ fontSize: 11, color: '#1677ff', background: 'none', border: '1px solid #1677ff', borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}
+        >Mẫu nhanh</button>
+      </div>
+      {showTemplates && (
+        <div style={{ marginBottom: 8, background: '#f5f5f5', borderRadius: 8, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {PROGRESS_TEMPLATES.map((t, i) => (
+            <button
+              key={i}
+              onClick={() => { setProgress(t); setShowTemplates(false); }}
+              style={{ textAlign: 'left', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: '6px 10px', fontSize: 12, cursor: 'pointer', lineHeight: 1.5 }}
+            >{t}</button>
+          ))}
+        </div>
+      )}
       <textarea
         rows={4} value={progress} onChange={(e) => setProgress(e.target.value)}
         placeholder="Tình trạng BN, dấu hiệu sinh tồn..."

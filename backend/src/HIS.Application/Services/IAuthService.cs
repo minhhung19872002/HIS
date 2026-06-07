@@ -14,6 +14,12 @@ public interface IAuthService
     Task<UserDto?> GetCurrentUserAsync(Guid userId);
     string GenerateJwtToken(UserDto user);
 
+    /// <summary>
+    /// Xác thực mật khẩu của một user theo userId — dùng để confirm danh tính người duyệt.
+    /// KHÔNG log password. Trả false nếu user không tồn tại hoặc mật khẩu sai.
+    /// </summary>
+    Task<bool> VerifyPasswordAsync(Guid userId, string password);
+
     // WebAuthn (NangCap12)
     Task<List<WebAuthnCredentialDto>> GetWebAuthnCredentialsAsync(Guid userId);
     Task<WebAuthnCredentialDto?> RegisterWebAuthnCredentialAsync(Guid userId, WebAuthnRegisterDto dto);

@@ -940,6 +940,25 @@ export const PostAnesthesiaPlanModal: React.FC<PostAnesthesiaPlanModalProps> = (
 
   useEffect(() => { if (open) load(); }, [open, load]);
 
+  const handlePrint = () => {
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ke hoach sau gay me</title>
+<style>body{font-family:'Times New Roman',serif;padding:24px;font-size:13pt}h2{text-align:center;font-size:15pt;margin-bottom:16px}h3{font-size:13pt;margin:12px 0 4px}p{margin:4px 0 8px}label{font-weight:bold}pre{white-space:pre-wrap;margin:0 0 8px;border-bottom:1px solid #aaa;padding-bottom:4px;min-height:36px}@media print{body{padding:0}}</style>
+</head><body>
+<h2>KE HOACH SAU GAY ME - PHAU THUAT</h2>
+<p><label>Benh nhan:</label> ${patientName || ''}&nbsp;&nbsp;<label>Ma PT:</label> ${surgeryCode || ''}</p>
+<p><label>Ngay:</label> ${new Date().toLocaleDateString('vi-VN')}</p>
+<h3>I. Dien bien hoi tinh</h3><pre>${form.recoveryNotes || ''}</pre>
+<h3>II. Ke hoach cham soc sau phau thuat</h3><pre>${form.postSurgeryPlan || ''}</pre>
+<div style="margin-top:40px;display:flex;justify-content:flex-end"><div style="text-align:center;width:220px"><p>Bac si gay me</p><br/><br/><p style="border-top:1px solid #333;padding-top:4px">(Ky va ghi ro ho ten)</p></div></div>
+</body></html>`;
+    const w = window.open('', '_blank', 'width=800,height=600');
+    if (!w) { tw('Trình duyệt chặn popup — vui lòng cho phép popup để in'); return; }
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    w.print();
+  };
+
   const handleSave = async () => {
     if (!form.recoveryNotes.trim() && !form.postSurgeryPlan.trim()) {
       tw('Nhập ít nhất diễn biến hồi tỉnh hoặc kế hoạch chăm sóc');
@@ -985,6 +1004,9 @@ export const PostAnesthesiaPlanModal: React.FC<PostAnesthesiaPlanModalProps> = (
         <>
           <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
           <span style={{ flex: 1 }} />
+          <Btn variant="ghost" onClick={handlePrint} title="In kế hoạch sau gây mê">
+            <TermIcon name="print" size={12} /> In
+          </Btn>
           <Btn variant="primary" loading={saving} onClick={handleSave}>
             <TermIcon name="download" size={12} /> Lưu
           </Btn>

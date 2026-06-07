@@ -185,6 +185,10 @@ public partial class WarehouseCompleteService {
         if (searchDto.WarehouseId.HasValue)
             query = query.Where(i => i.WarehouseId == searchDto.WarehouseId.Value);
 
+        // Lọc theo loại kho (5=Tủ trực) — panel Tiện ích LIS tách tủ trực / tồn kho.
+        if (searchDto.WarehouseType.HasValue)
+            query = query.Where(i => i.Warehouse.WarehouseType == searchDto.WarehouseType.Value);
+
         if (!string.IsNullOrWhiteSpace(searchDto.Keyword))
         {
             var kw = searchDto.Keyword.ToLower();

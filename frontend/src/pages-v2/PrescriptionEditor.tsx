@@ -168,9 +168,17 @@ const PrescriptionEditorV2: React.FC = () => {
   const removeItem = (i: number) => setItems((p) => p.filter((_, j) => j !== i));
 
   // ── Save / complete ──────────────────────────────────────────────
+  // Derive paymentCategory: 3=Thuốc ngoài (F5), 1=BHYT, 2=Thu phí
+  const derivePaymentCategory = (): number => {
+    if (external) return 3;
+    if (ctx?.patientType === 1) return 1; // BHYT
+    return 2; // Thu phí / viện phí
+  };
+
   const buildDto = (): CreatePrescriptionDto => ({
     examinationId: examinationId!,
     prescriptionType: type,
+    paymentCategory: derivePaymentCategory(),
     diagnosisCode: ctx?.mainIcdCode,
     diagnosisName: ctx?.mainDiagnosis,
     warehouseId: warehouse || undefined,

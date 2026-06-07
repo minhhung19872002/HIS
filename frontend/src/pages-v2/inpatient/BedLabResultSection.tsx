@@ -6,7 +6,7 @@
  * - abbrExpand scope LAB (3) trong ô ghi chú
  */
 import React, { useEffect, useState, useCallback } from 'react';
-import { App as AntdApp, Input, InputNumber, Spin, Tag } from 'antd';
+import { App as AntdApp, Input, InputNumber, Select, Spin, Tag } from 'antd';
 import {
   getLabOrdersByAdmission,
   saveTestResults,
@@ -16,6 +16,8 @@ import {
   type BedLabOrder,
   type BedLabTestItem,
 } from '../../api/laboratory';
+import { adminApi } from '../../api/system';
+import apiClient from '../../api/client';
 import { useAbbrExpansion } from '../../utils/abbrExpand';
 import { ModalShell, Btn } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
@@ -226,6 +228,8 @@ const EnterResultModal: React.FC<{
 // ApproveModal — duyệt sơ bộ hoặc chính thức
 // ---------------------------------------------------------------------------
 
+interface ApproverUser { id: string; fullName: string; username: string; }
+
 const ApproveModal: React.FC<{
   open: boolean;
   order: BedLabOrder | null;
@@ -236,13 +240,46 @@ const ApproveModal: React.FC<{
   const { message } = AntdApp.useApp();
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  // Người duyệt + mật khẩu xác thực
+  const [approverUsers, setApproverUsers] = useState<ApproverUser[]>([]);
+  const [approverUserId, setApproverUserId] = useState<string>('');
+  const [approverPassword, setApproverPassword] = useState('');
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
-    if (open) setNote('');
+    if (!open) return;
+    setNote('');
+    setApproverUserId('');
+    setApproverPassword('');
+    // Load danh sách user active — filter role phù hợp (KTV/BS) ở phía user
+    adminApi.getUsers(undefined, undefined, true).then((r) => {
+      const list = Array.isArray(r.data) ? r.data : [];
+      setApproverUsers(list.map((u) => ({ id: u.id ?? '', fullName: u.fullName, username: u.username })));
+    }).catch(() => { /* non-critical */ });
   }, [open]);
 
   const submit = async () => {
     if (!order) return;
+    if (!approverUserId) { message.warning('Chọn người duyệt'); return; }
+    if (!approverPassword.trim()) { message.warning('Nhập mật khẩu xác thực'); return; }
+
+    setVerifying(true);
+    let valid = false;
+    try {
+      const vr = await apiClient.post<boolean>('/auth/verify-password', {
+        userId: approverUserId,
+        password: approverPassword,
+      });
+      valid = vr.data === true;
+    } catch {
+      message.error('Xác thực thất bại — kiểm tra kết nối');
+      setVerifying(false);
+      return;
+    }
+    setVerifying(false);
+
+    if (!valid) { message.error('Mật khẩu không đúng'); return; }
+
     setBusy(true);
     try {
       if (mode === 'preliminary') {
@@ -262,6 +299,8 @@ const ApproveModal: React.FC<{
 
   if (!order) return null;
 
+  const isLoading = busy || verifying;
+
   return (
     <ModalShell
       open={open}
@@ -270,14 +309,36 @@ const ApproveModal: React.FC<{
       title={mode === 'preliminary' ? `Duyệt sơ bộ — ${order.orderCode}` : `Duyệt chính thức — ${order.orderCode}`}
       footer={
         <>
-          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={submit}>
-            <TermIcon name="check" size={12} /> {busy ? 'Đang duyệt…' : mode === 'preliminary' ? 'Duyệt sơ bộ' : 'Duyệt chính thức'}
+          <Btn variant="ghost" onClick={onClose} disabled={isLoading}>Hủy</Btn>
+          <Btn variant="primary" disabled={isLoading} onClick={submit}>
+            <TermIcon name="check" size={12} /> {isLoading ? 'Đang xử lý…' : mode === 'preliminary' ? 'Duyệt sơ bộ' : 'Duyệt chính thức'}
           </Btn>
         </>
       }
     >
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <IpFld label="Người duyệt *" full>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="Chọn người duyệt…"
+            value={approverUserId || undefined}
+            onChange={setApproverUserId}
+            showSearch
+            optionFilterProp="label"
+            options={approverUsers.map((u) => ({
+              value: u.id,
+              label: `${u.fullName} (${u.username})`,
+            }))}
+          />
+        </IpFld>
+        <IpFld label="Mật khẩu xác thực *" full>
+          <Input.Password
+            value={approverPassword}
+            onChange={(e) => setApproverPassword(e.target.value)}
+            placeholder="Nhập mật khẩu của người duyệt…"
+            autoComplete="new-password"
+          />
+        </IpFld>
         <IpFld label={mode === 'preliminary' ? 'Ghi chú kỹ thuật viên' : 'Ghi chú bác sĩ'} full>
           <Input.TextArea
             value={note}

@@ -9,7 +9,7 @@ import {
 
 const { RangePicker } = DatePicker;
 
-type Tab = 'bc1' | 'bc2' | 'bc3' | 'bc4' | 'bc5' | 'bc6' | 'bc7';
+type Tab = 'bc1' | 'bc2' | 'bc3' | 'bc4' | 'bc5' | 'bc6' | 'bc7' | 'bc8';
 const TABS = [
   { v: 'bc1' as Tab, l: 'BC1 · Tạm ứng cổng',     ic: 'card' },
   { v: 'bc2' as Tab, l: 'BC2 · Thu/ngày tổng',    ic: 'activity' },
@@ -18,12 +18,20 @@ const TABS = [
   { v: 'bc5' as Tab, l: 'BC5 · HDDT dịch vụ',     ic: 'file-text' },
   { v: 'bc6' as Tab, l: 'BC6 · Viện phí CT',      ic: 'archive' },
   { v: 'bc7' as Tab, l: 'BC7 · Hoàn cổng',        ic: 'refresh' },
+  { v: 'bc8' as Tab, l: 'BC8 · Nhà thuốc',        ic: 'package' },
 ];
 
 const PROVIDERS = [
   { v: 'vnpay', l: 'VNPay' },
   { v: 'momo', l: 'MoMo' },
   { v: 'zalopay', l: 'ZaloPay' },
+];
+
+const PHARM_METHODS = [
+  { v: 'Cash', l: 'Tiền mặt' },
+  { v: 'Card', l: 'Thẻ' },
+  { v: 'Transfer', l: 'Chuyển khoản' },
+  { v: 'Mixed', l: 'Hỗn hợp' },
 ];
 
 interface TxnRow { txnRef: string; gatewayTxnRef?: string; patientName?: string; patientCode?: string; amount: number; provider: string; bankCode?: string; completedAt?: string }
@@ -34,6 +42,7 @@ interface EInvoiceRow { invoiceSeries: string; invoiceNumber: string; invoiceDat
 type BillingDetailRow = Record<string, any>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type RefundRow = Record<string, any>;
+interface PharmacyRetailRow { saleCode: string; saleDate: string; patientName: string; phoneNumber?: string; totalAmount: number; discountAmount: number; paidAmount: number; paymentMethod: string; cashierName?: string; itemCount: number }
 
 const fmt = (n?: number) => (n || 0).toLocaleString('vi-VN');
 
@@ -50,6 +59,8 @@ const PaymentReportsV2: React.FC = () => {
   const [bc5, setBc5] = useState<{ items: EInvoiceRow[]; totalAmount: number; count: number } | null>(null);
   const [bc6, setBc6] = useState<BillingDetailRow[]>([]);
   const [bc7, setBc7] = useState<{ items: RefundRow[]; count: number; totalRefunded: number } | null>(null);
+  const [bc8, setBc8] = useState<{ items: PharmacyRetailRow[]; totalCount: number; totalPaid: number; totalDiscount: number } | null>(null);
+  const [pharmMethod, setPharmMethod] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,13 +84,16 @@ const PaymentReportsV2: React.FC = () => {
       } else if (tab === 'bc6') {
         const { data } = await apiClient.get<BillingDetailRow[]>('/payment-reports/billing-detail', { params });
         setBc6(data || []);
-      } else {
+      } else if (tab === 'bc7') {
         const { data } = await apiClient.get('/payment-reports/refund-gateway', { params });
         setBc7(data as typeof bc7);
+      } else {
+        const { data } = await apiClient.get('/payment-reports/pharmacy-retail', { params: { ...params, paymentMethod: pharmMethod || undefined } });
+        setBc8(data as typeof bc8);
       }
     } catch { ti('Tải báo cáo thất bại'); }
     finally { setLoading(false); }
-  }, [tab, range, provider]);
+  }, [tab, range, provider, pharmMethod]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -92,7 +106,8 @@ const PaymentReportsV2: React.FC = () => {
       : tab === 'bc4' ? (bc4?.items || []) as unknown as CsvRow[]
       : tab === 'bc5' ? (bc5?.items || []) as unknown as CsvRow[]
       : tab === 'bc6' ? (bc6 as unknown as CsvRow[])
-      : (bc7?.items || []) as unknown as CsvRow[];
+      : tab === 'bc7' ? (bc7?.items || []) as unknown as CsvRow[]
+      : (bc8?.items || []) as unknown as CsvRow[];
     if (!rows || rows.length === 0) { tw('Không có dữ liệu'); return; }
     const keys = Object.keys(rows[0]).filter((k) => typeof rows[0][k] !== 'object' || rows[0][k] instanceof Date);
     const csv = [keys.join(',')].concat(rows.map((r) => keys.map((k) => {
@@ -171,6 +186,19 @@ const PaymentReportsV2: React.FC = () => {
     { key: 'reason', label: 'Lý do', render: (r) => String(r.refundReason || '—') },
   ];
 
+  const bc8Cols: ColumnDef<PharmacyRetailRow>[] = [
+    { key: 'code', label: 'Mã phiếu', code: true, render: (r) => r.saleCode },
+    { key: 'date', label: 'Ngày bán', mono: true, render: (r) => dayjs(r.saleDate).format('DD/MM HH:mm') },
+    { key: 'pt', label: 'Khách hàng', render: (r) => r.patientName },
+    { key: 'phone', label: 'SĐT', render: (r) => r.phoneNumber || '—' },
+    { key: 'total', label: 'Tổng tiền', mono: true, render: (r) => fmt(r.totalAmount) },
+    { key: 'disc', label: 'Giảm giá', mono: true, render: (r) => fmt(r.discountAmount) },
+    { key: 'paid', label: 'Thanh toán', mono: true, render: (r) => <b>{fmt(r.paidAmount)}</b> },
+    { key: 'pm', label: 'PTTT', render: (r) => <StatusBadge tone="info">{r.paymentMethod}</StatusBadge> },
+    { key: 'cashier', label: 'Thu ngân', render: (r) => r.cashierName || '—' },
+    { key: 'items', label: 'Số mặt hàng', mono: true, render: (r) => r.itemCount },
+  ];
+
   const renderCurrent = () => {
     if (tab === 'bc1') return <DataTable<TxnRow> columns={bc1Cols} data={bc1?.items || []} rowKey={(r) => r.txnRef} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
     if (tab === 'bc2') return <DataTable<DailySumRow> columns={bc2Cols} data={bc2?.byDay || []} rowKey={(r) => r.date} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
@@ -178,7 +206,8 @@ const PaymentReportsV2: React.FC = () => {
     if (tab === 'bc4') return <DataTable<EInvoiceRow> columns={eInvoiceCols} data={bc4?.items || []} rowKey={(r) => `${r.invoiceSeries}-${r.invoiceNumber}`} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
     if (tab === 'bc5') return <DataTable<EInvoiceRow> columns={eInvoiceCols} data={bc5?.items || []} rowKey={(r) => `${r.invoiceSeries}-${r.invoiceNumber}`} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
     if (tab === 'bc6') return <DataTable<BillingDetailRow> columns={bc6Cols} data={bc6} rowKey={(_r) => Math.random().toString()} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
-    return <DataTable<RefundRow> columns={bc7Cols} data={bc7?.items || []} rowKey={(r) => String(r.txnRef)} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
+    if (tab === 'bc7') return <DataTable<RefundRow> columns={bc7Cols} data={bc7?.items || []} rowKey={(r) => String(r.txnRef)} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
+    return <DataTable<PharmacyRetailRow> columns={bc8Cols} data={bc8?.items || []} rowKey={(r) => r.saleCode} empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />;
   };
 
   const kpiSet = () => {
@@ -215,10 +244,16 @@ const PaymentReportsV2: React.FC = () => {
       { lbl: 'Số DV unique', val: new Set(bc6.map((r) => r.itemCode).filter(Boolean)).size, sub: 'mã DV' },
       { lbl: 'Khoảng', val: range[1].diff(range[0], 'day') + 1, unit: 'ngày', sub: range[0].format('DD/MM') + '–' + range[1].format('DD/MM') },
     ];
-    return [
+    if (tab === 'bc7') return [
       { lbl: 'Số GD hoàn', val: bc7?.count ?? 0, sub: 'qua cổng', tone: 'crit' as const },
       { lbl: 'Tổng hoàn', val: Math.round((bc7?.totalRefunded ?? 0) / 1_000_000), unit: 'tr', sub: 'VND', tone: 'crit' as const },
       { lbl: 'TB/GD', val: bc7?.count ? Math.round((bc7.totalRefunded / bc7.count) / 1000) : 0, unit: 'k', sub: 'đ/GD' },
+      { lbl: 'Khoảng', val: range[1].diff(range[0], 'day') + 1, unit: 'ngày', sub: range[0].format('DD/MM') + '–' + range[1].format('DD/MM') },
+    ];
+    return [
+      { lbl: 'Số phiếu bán', val: bc8?.totalCount ?? 0, sub: 'nhà thuốc', tone: 'info' as const },
+      { lbl: 'Doanh thu', val: Math.round((bc8?.totalPaid ?? 0) / 1_000_000), unit: 'tr', sub: 'VND', tone: 'ok' as const },
+      { lbl: 'Giảm giá', val: Math.round((bc8?.totalDiscount ?? 0) / 1_000_000), unit: 'tr', sub: 'VND', tone: 'warn' as const },
       { lbl: 'Khoảng', val: range[1].diff(range[0], 'day') + 1, unit: 'ngày', sub: range[0].format('DD/MM') + '–' + range[1].format('DD/MM') },
     ];
   };
@@ -239,7 +274,10 @@ const PaymentReportsV2: React.FC = () => {
         {tab === 'bc1' && (
           <Filter value={provider} onChange={setProvider} options={PROVIDERS} placeholder="▾ Cổng TT" />
         )}
-        <Btn variant="ghost" icon="x" onClick={() => { setRange([dayjs().subtract(7, 'day'), dayjs()]); setProvider(''); }}>Reset</Btn>
+        {tab === 'bc8' && (
+          <Filter value={pharmMethod} onChange={setPharmMethod} options={PHARM_METHODS} placeholder="▾ Phương thức TT" />
+        )}
+        <Btn variant="ghost" icon="x" onClick={() => { setRange([dayjs().subtract(7, 'day'), dayjs()]); setProvider(''); setPharmMethod(''); }}>Reset</Btn>
       </div>
 
       {renderCurrent()}

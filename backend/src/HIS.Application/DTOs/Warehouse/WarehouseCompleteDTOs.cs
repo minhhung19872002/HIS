@@ -516,6 +516,8 @@ public class StockDto
 public class StockSearchDto
 {
     public Guid? WarehouseId { get; set; }
+    /// <summary>Lọc theo loại kho (1-Thuốc, 2-Vật tư, 3-Hóa chất, 4-Nhà thuốc, 5-Tủ trực) — panel Tiện ích LIS dùng để tách tủ trực.</summary>
+    public int? WarehouseType { get; set; }
     public int? ItemType { get; set; }
     public string? Keyword { get; set; }
     public bool? IsExpiringSoon { get; set; }
