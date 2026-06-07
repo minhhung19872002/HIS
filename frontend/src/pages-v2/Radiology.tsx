@@ -664,6 +664,10 @@ const RadiologyV2: React.FC = () => {
   // Tường trình PTTT từ drawer chi tiết (Prompt 8 DEFER-resolve)
   const [ptttDrawerOpen, setPtttDrawerOpen] = useState(false);
   const [detailPtttMapping, setDetailPtttMapping] = useState<PtttServiceMappingDto | null>(null);
+  // Batch-check PTTT mapping cho cả trang (1 call thay vì N) — dùng cho row action icon
+  const [ptttMapByRow, setPtttMapByRow] = useState<Record<string, { hasMapping: boolean; templateId?: string }>>({});
+  // Quick-open PTTT từ row action (không cần mở drawer)
+  const [ptttRowTarget, setPtttRowTarget] = useState<RadiologyOrderDto | null>(null);
   // Bulk download (Prompt 8 Đợt 2)
   const [bulkSelected, setBulkSelected] = useState<string[]>([]);
   const [bulkDownloading, setBulkDownloading] = useState(false);
@@ -680,6 +684,18 @@ const RadiologyV2: React.FC = () => {
       .finally(() => setLoading(false));
   };
   useEffect(reload, [date]);
+
+  // Batch-check PTTT mapping: chạy sau khi rows thay đổi.
+  // Thu thập serviceId duy nhất từ items[0], gọi 1 request, lưu vào map.
+  useEffect(() => {
+    const serviceIds = Array.from(new Set(
+      rows.map((r) => r.items?.[0]?.serviceId).filter((id): id is string => !!id)
+    ));
+    if (serviceIds.length === 0) { setPtttMapByRow({}); return; }
+    risApi.checkBatchPtttMappings(serviceIds)
+      .then((res) => setPtttMapByRow(res.data ?? {}))
+      .catch(() => setPtttMapByRow({}));
+  }, [rows]);
 
   // Nạp danh sách phòng chụp một lần khi mount (dùng cho CallPatientModal)
   useEffect(() => {
@@ -967,6 +983,14 @@ const RadiologyV2: React.FC = () => {
                 onClick={() => toggleBulkSelect(r.id)}
               />
               <ActBtn ic="print" title="In phiếu" onClick={() => onPrintRow(r)} />
+              {/* Nút PTTT: chỉ hiện khi serviceId có mapping (từ batch-check) */}
+              {ptttMapByRow[r.items?.[0]?.serviceId ?? '']?.hasMapping && (
+                <ActBtn
+                  ic="scissors"
+                  title="Tường trình PTTT"
+                  onClick={() => setPtttRowTarget(r)}
+                />
+              )}
             </div>
           );
         }}
@@ -1059,6 +1083,19 @@ const RadiologyV2: React.FC = () => {
         patientCode={detail?.patientCode}
         prefillServiceName={detailPtttMapping?.template?.surgeryMethod || detail?.items?.[0]?.serviceName}
         prefillDiagnosis={detailPtttMapping?.template?.preOpDiagnosis || detail?.diagnosis}
+        prefillNarrativeBody={detailPtttMapping?.template?.narrativeBody}
+      />
+
+      {/* Tường trình PTTT từ row action (batch-check) — không cần mở drawer */}
+      <SurgeryReportModal
+        open={!!ptttRowTarget}
+        onClose={() => setPtttRowTarget(null)}
+        examinationId={ptttRowTarget?.visitId ?? null}
+        patientId={ptttRowTarget?.patientId}
+        patientName={ptttRowTarget?.patientName}
+        patientCode={ptttRowTarget?.patientCode}
+        prefillServiceName={ptttRowTarget?.items?.[0]?.serviceName}
+        prefillDiagnosis={ptttRowTarget?.diagnosis}
       />
     </div>
   );

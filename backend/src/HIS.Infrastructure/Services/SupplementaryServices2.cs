@@ -748,7 +748,8 @@ public class MethadoneTreatmentService : IMethadoneTreatmentService
     public async Task<MethadoneDashboardDto2> GetDashboardAsync()
     {
         var patients = await _context.MethadonePatients.Where(m => !m.IsDeleted).ToListAsync();
-        var today = DateTime.UtcNow.Date;
+        // DosingDate là ngày user chọn (giờ VN) → "hôm nay" phải theo ngày VN, không phải UTC.
+        var today = HIS.Core.Common.VnTime.TodayVn;
         var monthStart = new DateTime(today.Year, today.Month, 1);
 
         var dosedToday = await _context.MethadoneDosingRecords

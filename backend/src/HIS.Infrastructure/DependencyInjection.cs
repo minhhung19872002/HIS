@@ -340,6 +340,7 @@ public static class DependencyInjection
         // NangCap23: HSMT gói thầu BV Đa khoa (9 gap)
         services.AddScoped<HIS.Application.Services.INangCap23ConfigStore, NangCap23ConfigStore>();
         services.AddHostedService<HIS.Infrastructure.Services.Workers.Nangcap23RetryWorker>();
+        services.AddHostedService<HIS.Infrastructure.Services.Workers.SampleAppointmentReminderWorker>();
         services.AddScoped<INationalPrescriptionGatewayService, NationalPrescriptionGatewayService>();
         services.AddScoped<INationalPharmacyGatewayService, NationalPharmacyGatewayService>();
         services.AddScoped<IDeAn06CertificateService, DeAn06CertificateService>();

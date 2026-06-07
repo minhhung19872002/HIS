@@ -451,6 +451,44 @@ public class RisCatalogController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Batch-check nhiều serviceId xem có mapping PTTT không.
+    /// Trả dictionary: serviceId → { hasMappingng, templateId? }.
+    /// FE dùng 1 call cho cả trang thay vì N lần by-service/{id}.
+    /// </summary>
+    [HttpPost("pttt-service-mappings/check-batch")]
+    public async Task<IActionResult> CheckBatchPtttMapping([FromBody] List<Guid> serviceIds)
+    {
+        if (serviceIds == null || serviceIds.Count == 0)
+            return Ok(new Dictionary<string, object>());
+
+        var mappings = await _db.RisSurgeryServiceMappings
+            .Where(m => serviceIds.Contains(m.RadiologyServiceId) && m.IsActive && !m.IsDeleted)
+            .Select(m => new
+            {
+                m.RadiologyServiceId,
+                m.SurgeryNarrativeTemplateId,
+                m.SurgeryNarrativeTemplateName,
+            })
+            .ToListAsync();
+
+        // Kết quả: dict serviceId (string lower) → { hasMapping, templateId? }
+        var result = serviceIds.ToDictionary(
+            id => id.ToString(),
+            id =>
+            {
+                var m = mappings.FirstOrDefault(x => x.RadiologyServiceId == id);
+                return (object)new
+                {
+                    hasMapping = m != null,
+                    templateId = m?.SurgeryNarrativeTemplateId,
+                    templateName = m?.SurgeryNarrativeTemplateName,
+                };
+            });
+
+        return Ok(result);
+    }
+
     [HttpGet("pttt-service-mappings")]
     public async Task<IActionResult> GetPtttServiceMappings(
         [FromQuery] string? keyword,

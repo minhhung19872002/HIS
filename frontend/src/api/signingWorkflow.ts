@@ -42,6 +42,8 @@ export interface SubmitSigningRequest {
   patientId?: string;
   patientName?: string;
   departmentName?: string;
+  /** Vai trò người ký (tùy chọn): KTV, BacSi, TruongKhoa, GiamDoc, DieuDuong, Duoc */
+  signerRole?: string;
 }
 
 export const getPendingRequests = async (params?: Record<string, unknown>): Promise<SigningRequestItem[]> => {

@@ -78,6 +78,8 @@ export interface CollectSampleRequest {
   collectionTime: string;
   collectorName: string;
   notes?: string;
+  /** UUID người lấy mẫu (từ labRoles.defaultKtvId). Optional — nếu có sẽ lưu vào CollectedByUserId. */
+  collectorUserId?: string;
 }
 
 export interface ProcessSampleRequest {

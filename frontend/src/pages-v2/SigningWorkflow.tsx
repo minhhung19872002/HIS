@@ -33,6 +33,10 @@ const SIGNER_ROLE_OPTIONS = [
   { v: 'Duoc',       l: 'Dược sĩ' },
 ];
 
+// LƯU Ý: KHÔNG có form "tạo trình ký" standalone ở trang này — phiếu trình ký phải được
+// tạo từ luồng module thật (EMR/đơn thuốc/phiếu KQ) với documentId + assignedToId thật.
+// BE đã nhận SignerRole trong SubmitSigningRequestDto cho các caller đó.
+
 const SigningWorkflowV2: React.FC = () => {
   const [tab, setTab] = useState<Tab>('pending');
   const [items, setItems] = useState<SigningRequestItem[]>([]);
@@ -176,6 +180,7 @@ const SigningWorkflowV2: React.FC = () => {
           </>
         )}
       </DrawerShell>
+
     </div>
   );
 };

@@ -67,6 +67,7 @@ public class SigningWorkflowService : ISigningWorkflowService
             PatientId = dto.PatientId,
             PatientName = dto.PatientName,
             DepartmentName = dto.DepartmentName,
+            SignerRole = dto.SignerRole,
             CreatedBy = submittedById.ToString(),
         };
 

@@ -91,6 +91,8 @@ export interface SurgeryReportModalProps {
   prefillServiceName?: string;
   /** Pre-fill for pre-operative diagnosis */
   prefillDiagnosis?: string;
+  /** Pre-fill narrative body text (từ SurgeryNarrativeTemplate.NarrativeBody) */
+  prefillNarrativeBody?: string;
 }
 
 interface SurgeryForm {
@@ -138,6 +140,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
   patientCode,
   prefillServiceName,
   prefillDiagnosis,
+  prefillNarrativeBody,
 }) => {
   const expand = useAbbrExpansion(PTTT_ABBR_SCOPES);
 
@@ -159,10 +162,11 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
       ...EMPTY_FORM,
       surgeryMethod: prefillServiceName ?? '',
       preOperativeDiagnosis: prefillDiagnosis ?? '',
+      description: prefillNarrativeBody ?? '',
     });
     setMainPhoto([]);
     setExtraPhotos([]);
-  }, [open, prefillServiceName, prefillDiagnosis]);
+  }, [open, prefillServiceName, prefillDiagnosis, prefillNarrativeBody]);
 
   // Load existing surgery records for this examination
   const loadExisting = useCallback(async () => {

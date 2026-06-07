@@ -1309,7 +1309,8 @@ public class PublicHealthService : IPublicHealthService
     public async Task<MethadoneStatsDto> GetMethadoneStatsAsync()
     {
         var patients = await _context.MethadonePatients.Where(m => !m.IsDeleted).ToListAsync();
-        var today = DateTime.UtcNow.Date;
+        // DosingDate là ngày user chọn (giờ VN) → "hôm nay" phải theo ngày VN, không phải UTC.
+        var today = HIS.Core.Common.VnTime.TodayVn;
         var missedToday = await _context.MethadoneDosingRecords
             .Where(d => !d.IsDeleted && d.Status == 1 && d.DosingDate.Date == today)
             .CountAsync();

@@ -352,19 +352,29 @@ public partial class LISCompleteService {
             {
                 await connection.OpenAsync();
 
-                // Update LabOrders table with barcode and collection time
-                var updateSql = @"
-                    UPDATE LabOrders SET
-                        SampleBarcode = @Barcode,
-                        CollectedAt = @CollectionTime,
-                        Status = 1  -- Đã lấy mẫu
-                    WHERE Id = @OrderId";
+                // Update LabOrders table with barcode and collection time.
+                // CollectorId (cột uniqueidentifier có sẵn của LabOrders) set khi caller
+                // truyền CollectorUserId (từ labRoles.defaultKtvId).
+                var updateSql = dto.CollectorUserId.HasValue
+                    ? @"UPDATE LabOrders SET
+                            SampleBarcode = @Barcode,
+                            CollectedAt = @CollectionTime,
+                            CollectorId = @CollectorUserId,
+                            Status = 1
+                        WHERE Id = @OrderId"
+                    : @"UPDATE LabOrders SET
+                            SampleBarcode = @Barcode,
+                            CollectedAt = @CollectionTime,
+                            Status = 1
+                        WHERE Id = @OrderId";
 
                 using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(updateSql, connection))
                 {
                     cmd.Parameters.AddWithValue("@Barcode", barcode);
                     cmd.Parameters.AddWithValue("@CollectionTime", collectionTime);
                     cmd.Parameters.AddWithValue("@OrderId", dto.LabOrderId);
+                    if (dto.CollectorUserId.HasValue)
+                        cmd.Parameters.AddWithValue("@CollectorUserId", dto.CollectorUserId.Value);
 
                     var rowsAffected = await cmd.ExecuteNonQueryAsync();
                     if (rowsAffected > 0)

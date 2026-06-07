@@ -30,4 +30,10 @@ public class SampleAppointment : BaseEntity
     public string Status { get; set; } = "Scheduled";
 
     public Guid? CreatedByUserId { get; set; }
+
+    /// <summary>
+    /// Thời điểm đã gửi nhắc (UTC). Null = chưa nhắc.
+    /// Worker dùng để đảm bảo idempotent — không nhắc trùng.
+    /// </summary>
+    public DateTime? ReminderSentAt { get; set; }
 }

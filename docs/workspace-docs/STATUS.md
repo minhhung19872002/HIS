@@ -15,7 +15,11 @@
   + 2 nơi ghi `IssueDate` Now→UtcNow). Verify repro bảng tiếp đón 0→4 rows lúc 1h sáng. Còn defer: 3 site DosingDate
   (semantics chưa rõ — UNKNOWN) + lưu ý AdmissionDate/ReceiptDate vẫn ghi `DateTime.Now` (đúng trên prod UTC,
   lệch nhẹ ban đêm trên dev — chuẩn hóa storage là việc riêng).
-- **TOÀN BỘ thay đổi CHƯA commit** (~115+ file). Quy ước: chỉ commit khi user ra lệnh.
+- **✅ ĐÃ COMMIT + PUSH + DEPLOY PROD 2026-06-07** (7 commit `45e5e33..fb9183e`, rebase lên 3 commit song song
+  từ nguồn khác: G-37 phiếu in XN, G-07 toa về ItemPicker, fix money-bug đảo nhãn, fix mới script 45 Msg 1934).
+  Conflict duy nhất (TreatmentMonitorSection): giữ cả modal G-07 remote (wire `dischargePrescription`) lẫn
+  InpatientPrescriptionModal cho y lệnh thường quy. **Prod verify: schema-drift 0 (migration 61–68 tự apply),
+  smoke 9/9 endpoint mới OK, public lookup anonymous trả thông điệp trung lập đúng.**
 - E2E mới trong phiên: `frontend/e2e/doithu-gap-dot1.spec.ts` (+ sửa spec cũ `reception-drawer.spec.ts` selector `.hui-drawer`).
 
 ## Blocker / rủi ro đang treo
@@ -24,7 +28,7 @@
 2. Attachment số hóa HSBA lưu filesystem — Cloud Run ephemeral → cần R2/GCS trước khi dùng thật.
 3. Tường trình PTTT pack sentinel vào `SurgeryRequest.Notes` (tạm).
 4. Portal mobile `patientId` FromQuery — siết auth khi BN tự đăng nhập.
-5. G-07 toa được phát: medicine picker dùng chung (stub).
+5. ~~G-07 toa được phát: medicine picker~~ → ✅ ĐÃ XONG (commit `88d115d` từ nguồn song song — ItemPicker + lưu thật).
 6. Rotate R2 API token (TODO bảo mật cũ).
 7. Defer nhỏ còn treo: batch-check mapping PTTT row action · prefill narrativeBody SurgeryReportModal ·
    UI nhập SignerRole khi tạo trình ký · DefaultKtvId/ApproverId vào API collect · worker nhắc hẹn lấy mẫu.

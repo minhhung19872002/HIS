@@ -53,6 +53,8 @@ public class SubmitSigningRequestDto
     public Guid? PatientId { get; set; }
     public string? PatientName { get; set; }
     public string? DepartmentName { get; set; }
+    /// <summary>Vai trò người ký (tùy chọn): KTV, BacSi, TruongKhoa, GiamDoc, DieuDuong, Duoc</summary>
+    public string? SignerRole { get; set; }
 }
 
 /// <summary>

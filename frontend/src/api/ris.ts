@@ -1330,6 +1330,17 @@ export interface PtttServiceMappingDto {
 export const getPtttMappingByService = (serviceId: string) =>
   apiClient.get<PtttServiceMappingDto>(`/ris-catalog/pttt-service-mappings/by-service/${serviceId}`);
 
+/**
+ * Batch-check nhiều serviceId xem có mapping PTTT không.
+ * Trả dict: { [serviceId: string]: { hasMapping: boolean; templateId?: string; templateName?: string } }
+ * 1 call cho cả trang thay vì N lần by-service/{id}.
+ */
+export const checkBatchPtttMappings = (serviceIds: string[]) =>
+  apiClient.post<Record<string, { hasMapping: boolean; templateId?: string; templateName?: string }>>(
+    '/ris-catalog/pttt-service-mappings/check-batch',
+    serviceIds,
+  );
+
 // #endregion PTTT Service Mapping
 
 export const preliminaryApproveResult = (resultId: string, note?: string) =>

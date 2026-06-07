@@ -217,6 +217,7 @@ const LaboratoryV2: React.FC = () => {
         sampleType: 'Blood',
         collectionTime: new Date().toISOString(),
         collectorName,
+        collectorUserId: labRoles.defaultKtvId ?? undefined,
       });
       message.success(`Đã ghi nhận lấy mẫu · ${r.requestCode}`);
       reload();

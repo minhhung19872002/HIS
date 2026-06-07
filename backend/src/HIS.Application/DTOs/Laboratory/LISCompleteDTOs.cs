@@ -203,6 +203,11 @@ public class CollectSampleDto
     public Guid LabOrderId { get; set; }
     public List<SampleCollectedDto> Samples { get; set; } = new();
     public string? Notes { get; set; }
+    /// <summary>
+    /// Người lấy mẫu (optional). Truyền từ FE labRoles.defaultKtvId khi có.
+    /// Nếu null, giữ nguyên CollectedByUserId hiện tại trong DB.
+    /// </summary>
+    public Guid? CollectorUserId { get; set; }
 }
 
 /// <summary>
