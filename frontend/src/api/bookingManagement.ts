@@ -135,3 +135,6 @@ export const getBookingStats = (date?: string) =>
 
 export const checkinFromBooking = (code: string) =>
   client.post<BookingCheckinResultDto>(`/booking-management/bookings/${code}/reception-checkin`).then(r => r.data);
+
+export const cancelBooking = (code: string, reason?: string) =>
+  client.put<BookingStatusDto>(`/booking-management/bookings/${code}/cancel`, { reason }).then(r => r.data);

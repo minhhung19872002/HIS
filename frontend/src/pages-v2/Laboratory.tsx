@@ -18,12 +18,16 @@ import TermIcon from '../layouts/terminal/Icon';
 interface WarehouseStock {
   id: string; itemCode: string; itemName: string; itemTypeName: string;
   unit: string; quantity: number; availableQuantity: number;
-  warehouseName: string; batchNumber?: string; expiryDate?: string; daysToExpiry?: number;
+  warehouseName: string; warehouseId?: string; warehouseType?: number;
+  batchNumber?: string; expiryDate?: string; daysToExpiry?: number;
 }
 interface LabChemicalItem {
   id: string; serviceName?: string; supplyName?: string; supplyCode?: string;
   quantityPerTest: number; unit?: string; objectType: string; isActive: boolean; note?: string;
 }
+
+// WarehouseType=5 là Tủ trực (IsCabinet=true)
+const WAREHOUSE_TYPE_CABINET = 5;
 
 /* ────────────────────────────────────────────────────────────
    Lab v2 (LIS) — port of design-system-v2/his/project/LIS v2.html
@@ -62,15 +66,20 @@ const statusTone = (s: StatusKey) => STATUS_TABS.find((t) => t.v === s)?.tone ||
 const PRIO_LABEL: Record<number, string> = { 0: 'ROUTINE', 1: 'URGENT', 2: 'STAT' };
 const PRIO_TONE: Record<number, 'ok' | 'warn' | 'crit'> = { 0: 'ok', 1: 'warn', 2: 'crit' };
 
-const flagFor = (test: LabTestItem): '' | 'H' | 'L' | 'HH' => {
+const flagFor = (test: LabTestItem): '' | 'H' | 'L' | 'HH' | 'LL' => {
   if (!test.result) return '';
   const v = parseFloat(test.result);
   if (Number.isNaN(v)) return '';
   if (typeof test.criticalHigh === 'number' && v >= test.criticalHigh) return 'HH';
-  if (typeof test.criticalLow === 'number' && v <= test.criticalLow) return 'HH';
+  if (typeof test.criticalLow === 'number' && v <= test.criticalLow) return 'LL';
   if (typeof test.normalMax === 'number' && v > test.normalMax) return 'H';
   if (typeof test.normalMin === 'number' && v < test.normalMin) return 'L';
   return '';
+};
+
+// Màu cờ theo tài liệu nghiệp vụ: cao → ĐỎ (HH đậm hơn), thấp → XANH (LL đậm hơn).
+const FLAG_COLOR: Record<string, string> = {
+  HH: '#991b1b', H: '#dc2626', LL: '#1e40af', L: '#2563eb',
 };
 const abnormalCount = (tests?: LabTestItem[]): number =>
   (tests || []).filter((t) => flagFor(t) !== '').length;
@@ -95,36 +104,61 @@ const LaboratoryV2: React.FC = () => {
   const [date, setDate]   = useState(() => dayjs());
   const PAGE_SIZE = 18;
 
-  // Panel Tiện ích: tồn tủ trực + tồn hóa chất
+  // Panel Tiện ích: tủ trực + tồn kho hóa chất (2 nguồn tách biệt)
   const [utilOpen, setUtilOpen] = useState(false);
-  const [utilStock, setUtilStock] = useState<WarehouseStock[]>([]);
+  const [utilCabinetStock, setUtilCabinetStock] = useState<WarehouseStock[]>([]); // WarehouseType=5
+  const [utilChemStock, setUtilChemStock] = useState<WarehouseStock[]>([]);       // Tồn kho hóa chất chung
   const [utilChemicals, setUtilChemicals] = useState<LabChemicalItem[]>([]);
   const [utilLoading, setUtilLoading] = useState(false);
+  // Filter cho panel
+  const [utilFilterMonth, setUtilFilterMonth] = useState<string>(''); // 'YYYY-MM' hoặc '' để lọc HSD
 
   const loadUtilData = async () => {
     setUtilLoading(true);
     try {
-      const [stockRes, chemRes] = await Promise.all([
-        // interceptor already unwraps {success,data} — payload = PagedResultDto<StockDto> = {items:[...],totalCount,...}
+      const [cabinetRes, chemStockRes, chemRes] = await Promise.all([
+        // Tủ trực: warehouseType=5, itemType=3 (Hóa chất)
         apiClient.get<{ items: WarehouseStock[] } | WarehouseStock[]>('/warehouse/stock', {
-          params: { itemType: 3, pageSize: 100 }, // ItemType 3 = Hóa chất
+          params: { warehouseType: WAREHOUSE_TYPE_CABINET, itemType: 3, pageSize: 200 },
+        }),
+        // Tồn kho hóa chất chung (không phải tủ trực)
+        apiClient.get<{ items: WarehouseStock[] } | WarehouseStock[]>('/warehouse/stock', {
+          params: { itemType: 3, pageSize: 200 },
         }),
         apiClient.get<LabChemicalItem[]>('/lis-catalog/chemicals'),
       ]);
-      // Handle both array and paged wrapper shapes
-      const stockPayload = stockRes.data;
-      const stockItems: WarehouseStock[] = Array.isArray(stockPayload)
-        ? stockPayload
-        : ((stockPayload as { items?: WarehouseStock[] }).items ?? []);
-      setUtilStock(stockItems);
+
+      const toItems = (res: { data: { items: WarehouseStock[] } | WarehouseStock[] }) => {
+        const p = res.data;
+        return Array.isArray(p) ? p : ((p as { items?: WarehouseStock[] }).items ?? []);
+      };
+
+      const cabinetItems = toItems(cabinetRes);
+      const allChemItems = toItems(chemStockRes);
+      // Tách tồn kho hóa chất = all − tủ trực (không trùng nhau)
+      const cabinetIds = new Set(cabinetItems.map((s) => s.id));
+      const chemOnlyItems = allChemItems.filter((s) => !cabinetIds.has(s.id));
+
+      setUtilCabinetStock(cabinetItems);
+      setUtilChemStock(chemOnlyItems);
       setUtilChemicals(Array.isArray(chemRes.data) ? chemRes.data : []);
     } catch {
-      // warn only — panel is non-critical, failure should not crash the lab page
+      // warn only — panel is non-critical
       console.warn('[Laboratory] loadUtilData failed');
     } finally {
       setUtilLoading(false);
     }
   };
+
+  // Filter helpers cho panel
+  const filterByMonth = (items: WarehouseStock[]) => {
+    if (!utilFilterMonth) return items;
+    return items.filter((s) => {
+      if (!s.expiryDate) return true; // Hạn không xác định → giữ lại
+      return s.expiryDate.startsWith(utilFilterMonth);
+    });
+  };
+  const applyUtilFilters = (items: WarehouseStock[]) => filterByMonth(items);
 
   // DefaultLabRole per-user (Prompt 11 Đợt 3)
   const [labRoles, setLabRoles] = useState<LabDefaultRoles>({});
@@ -263,6 +297,12 @@ const LaboratoryV2: React.FC = () => {
   };
 
   const onPrintRow = async (r: LabRequest) => {
+    // Rule tài liệu: chưa duyệt KQ (status < 4) → "Không có số liệu", không in.
+    // (Backend PrintLabResultAsync cũng enforce — đây là guard sớm phía client.)
+    if (r.status < 4) {
+      message.warning(`Chưa duyệt kết quả ${r.requestCode} — không có số liệu để in.`);
+      return;
+    }
     try { await printLabResultBlob(r.id); }
     catch { message.error('Không in được phiếu'); }
   };
@@ -530,22 +570,52 @@ const LaboratoryV2: React.FC = () => {
         {detail && <LabDrawerBody r={detail} />}
       </DrawerShell>
 
-      {/* ── Drawer: Tiện ích — tồn hóa chất + tồn tủ trực ──────────── */}
+      {/* ── Drawer: Tiện ích — Tủ trực | Tồn kho hóa chất | Định mức XN ── */}
       <DrawerShell
         open={utilOpen}
         onClose={() => setUtilOpen(false)}
         title="Tiện ích XN — Tồn kho"
-        sub="Tồn hóa chất · Tủ trực hóa chất"
+        sub="Tủ trực hóa chất · Tồn kho hóa chất · Định mức XN"
         size="lg"
       >
         {utilLoading ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
         ) : (
           <>
+            {/* ── Filter chung ── */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--t-2)', marginBottom: 2 }}>Tháng/Năm HSD</div>
+                <input
+                  type="month"
+                  value={utilFilterMonth}
+                  onChange={(e) => setUtilFilterMonth(e.target.value)}
+                  style={{
+                    padding: '4px 8px', border: '1px solid var(--line)', borderRadius: 4,
+                    fontSize: 12, background: 'var(--d-1)', color: 'inherit',
+                  }}
+                />
+              </div>
+              {utilFilterMonth && (
+                <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                  <button
+                    onClick={() => setUtilFilterMonth('')}
+                    style={{ padding: '4px 8px', fontSize: 11, cursor: 'pointer',
+                      border: '1px solid var(--line)', borderRadius: 4, background: 'var(--d-0)', color: 'var(--t-2)' }}
+                  >
+                    Xóa lọc
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* ── Section 1: Tủ trực (WarehouseType=5) ── */}
             <div className="rec-section">
-              <h5><TermIcon name="flask" size={11} /> TỒN HÓA CHẤT (Kho XN — ItemType=Hóa chất)</h5>
-              {utilStock.length === 0 ? (
-                <div style={{ color: 'var(--t-3)', fontSize: 12, padding: '8px 0' }}>Không có dữ liệu tồn kho hóa chất</div>
+              <h5><TermIcon name="package" size={11} /> TỒN TỦ TRỰC (Kho hóa chất nội bộ khoa)</h5>
+              {applyUtilFilters(utilCabinetStock).length === 0 ? (
+                <div style={{ color: 'var(--t-3)', fontSize: 12, padding: '8px 0' }}>
+                  {utilCabinetStock.length === 0 ? 'Không có dữ liệu tủ trực' : 'Không có mục nào khớp filter'}
+                </div>
               ) : (
                 <div style={{ display: 'grid', gap: 4 }}>
                   <div style={{
@@ -553,12 +623,12 @@ const LaboratoryV2: React.FC = () => {
                     fontSize: 10, color: 'var(--t-2)', textTransform: 'uppercase',
                     fontWeight: 600, padding: '4px 0', borderBottom: '1px solid var(--line-soft)',
                   }}>
-                    <span>Tên hóa chất</span>
+                    <span>Tên hóa chất / Kho</span>
                     <span style={{ textAlign: 'right' }}>Tồn</span>
                     <span style={{ textAlign: 'right' }}>Khả dụng</span>
                     <span>HSD</span>
                   </div>
-                  {utilStock.slice(0, 50).map((s) => (
+                  {applyUtilFilters(utilCabinetStock).slice(0, 50).map((s) => (
                     <div key={s.id} style={{
                       display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr',
                       padding: '6px 0', borderBottom: '1px solid var(--line-soft)',
@@ -588,6 +658,56 @@ const LaboratoryV2: React.FC = () => {
               )}
             </div>
 
+            {/* ── Section 2: Tồn kho hóa chất (ngoài tủ trực) ── */}
+            <div className="rec-section" style={{ marginTop: 16 }}>
+              <h5><TermIcon name="flask" size={11} /> TỒN KHO HÓA CHẤT (Kho XN — không kể tủ trực)</h5>
+              {applyUtilFilters(utilChemStock).length === 0 ? (
+                <div style={{ color: 'var(--t-3)', fontSize: 12, padding: '8px 0' }}>
+                  {utilChemStock.length === 0 ? 'Không có dữ liệu tồn kho hóa chất' : 'Không có mục nào khớp filter'}
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gap: 4 }}>
+                  <div style={{
+                    display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                    fontSize: 10, color: 'var(--t-2)', textTransform: 'uppercase',
+                    fontWeight: 600, padding: '4px 0', borderBottom: '1px solid var(--line-soft)',
+                  }}>
+                    <span>Tên hóa chất / Kho</span>
+                    <span style={{ textAlign: 'right' }}>Tồn</span>
+                    <span style={{ textAlign: 'right' }}>Khả dụng</span>
+                    <span>HSD</span>
+                  </div>
+                  {applyUtilFilters(utilChemStock).slice(0, 50).map((s) => (
+                    <div key={s.id} style={{
+                      display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                      padding: '6px 0', borderBottom: '1px solid var(--line-soft)',
+                      fontSize: 12.5, alignItems: 'center',
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{s.itemName}</div>
+                        <div style={{ fontSize: 10, color: 'var(--t-2)' }}>{s.warehouseName}</div>
+                      </div>
+                      <span className="mono" style={{ textAlign: 'right' }}>{s.quantity} {s.unit}</span>
+                      <span className="mono" style={{
+                        textAlign: 'right',
+                        color: s.availableQuantity <= 0 ? 'var(--s-crit)' : s.availableQuantity < 10 ? '#d97706' : 'inherit',
+                        fontWeight: s.availableQuantity <= 0 ? 700 : 400,
+                      }}>
+                        {s.availableQuantity}
+                      </span>
+                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? '#d97706' : 'var(--t-2)' }}>
+                        {s.expiryDate ? dayjs(s.expiryDate).format('MM/YYYY') : '—'}
+                        {s.daysToExpiry !== undefined && s.daysToExpiry < 30 && (
+                          <span style={{ marginLeft: 4, color: 'var(--s-crit)', fontSize: 10 }}>({s.daysToExpiry}d)</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── Section 3: Định mức hóa chất theo XN ── */}
             <div className="rec-section" style={{ marginTop: 16 }}>
               <h5><TermIcon name="activity" size={11} /> ĐỊNH MỨC HÓA CHẤT THEO XN (LIS Catalog)</h5>
               {utilChemicals.length === 0 ? (
@@ -798,7 +918,7 @@ const LabDrawerBody: React.FC<{ r: LabRequest }> = ({ r }) => {
           </div>
           {(r.tests || []).map((t) => {
             const flag = flagFor(t);
-            const color = flag === 'HH' ? 'var(--s-crit)' : flag === 'H' || flag === 'L' ? '#d97706' : 'var(--t-0)';
+            const color = FLAG_COLOR[flag] || 'var(--t-0)';
             return (
               <div key={t.id} style={{
                 display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 50px',
@@ -817,7 +937,7 @@ const LabDrawerBody: React.FC<{ r: LabRequest }> = ({ r }) => {
                   {flag && (
                     <span style={{
                       padding: '1px 6px', borderRadius: 3,
-                      background: flag === 'HH' ? 'var(--s-crit)' : color,
+                      background: color,
                       color: '#fff', fontSize: 10, fontWeight: 700,
                     }}>{flag}</span>
                   )}

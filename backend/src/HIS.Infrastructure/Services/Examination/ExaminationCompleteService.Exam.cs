@@ -762,6 +762,7 @@ public partial class ExaminationCompleteService
             Evaluation = dto.Evaluation,
             PatientResponse = dto.PatientResponse,
             Notes = dto.Notes,
+            CareLevel = dto.CareLevel,
             NurseId = dto.NurseId
         };
 
@@ -790,6 +791,7 @@ public partial class ExaminationCompleteService
         sheet.Evaluation = dto.Evaluation;
         sheet.PatientResponse = dto.PatientResponse;
         sheet.Notes = dto.Notes;
+        sheet.CareLevel = dto.CareLevel;
         sheet.NurseId = dto.NurseId;
 
         await _unitOfWork.SaveChangesAsync();
@@ -822,6 +824,7 @@ public partial class ExaminationCompleteService
                 Evaluation = n.Evaluation,
                 PatientResponse = n.PatientResponse,
                 Notes = n.Notes,
+                CareLevel = n.CareLevel,
                 NurseId = n.NurseId,
                 NurseName = n.Nurse != null ? n.Nurse.FullName : null
             })

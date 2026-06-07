@@ -856,6 +856,13 @@ namespace HIS.Application.Services
     Task<byte[]> ExportDicomStudyAsync(string studyId, string format = "zip");
 
     /// <summary>
+    /// Anonymize a DICOM study via Orthanc POST /studies/{id}/anonymize (removes PHI from tags),
+    /// archive the anonymized copy, delete the temporary anonymized study, and return the ZIP bytes.
+    /// Returns empty array if PACS is unavailable or anonymization fails.
+    /// </summary>
+    Task<byte[]> ExportDicomStudyAnonymizedAsync(string orthancStudyId);
+
+    /// <summary>
     /// Send DICOM study to remote PACS via C-STORE
     /// </summary>
     Task<DicomSendResultDto> SendDicomToRemoteAsync(DicomSendRequest request);

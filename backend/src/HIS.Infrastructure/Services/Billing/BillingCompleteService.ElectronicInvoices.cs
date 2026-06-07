@@ -123,8 +123,9 @@ public partial class BillingCompleteService {
 
         var invoiceNumber = await GenerateEInvoiceNumberAsync();
         var series = $"1C{DateTime.Now:yy}TAA";
-        var lookupCode = $"LK{DateTime.Now:yyyyMMddHHmmssfff}";
 
+        // Phương án A: Issue chỉ tạo Nháp (Status=0). Không sinh ProviderInvoiceId/LookupCode/Url giả.
+        // Phát hành thật (Status=1 + gọi NCC) phải đi qua ExportElectronicInvoiceAsync (PUT /e-invoices/{id}/export).
         var eInvoice = new ElectronicInvoice
         {
             Id = Guid.NewGuid(),
@@ -145,11 +146,9 @@ public partial class BillingCompleteService {
             TotalAmount = totalAmount,
             DiscountAmount = discountAmount,
             ItemsJson = itemsJson,
-            Status = 1, // Issued
+            Status = 0, // Nháp — chưa phát hành. Gọi Export để phát hành thật qua NCC.
             ProviderName = "VNInvoice",
-            ProviderInvoiceId = Guid.NewGuid().ToString("N")[..16].ToUpper(),
-            LookupCode = lookupCode,
-            LookupUrl = $"https://einvoice.vn/lookup/{lookupCode}",
+            // ProviderInvoiceId / LookupCode / LookupUrl để null — sẽ được điền bởi ExportElectronicInvoiceAsync
             SignedBy = userId.ToString(),
             CreatedBy = userId.ToString()
         };

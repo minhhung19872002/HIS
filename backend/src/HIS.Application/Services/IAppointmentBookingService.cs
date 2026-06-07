@@ -152,6 +152,17 @@ public interface IBookingManagementService
 
     // Booking → Reception
     Task<BookingCheckinResultDto> CheckinFromBookingAsync(string appointmentCode);
+
+    // Staff-side cancel (không cần xác thực SĐT như public cancel)
+    Task<BookingStatusDto> CancelBookingAsync(string appointmentCode, string? reason);
+}
+
+/// <summary>
+/// Payload hủy lịch tại quầy (nhân viên y tế — không cần SĐT xác thực).
+/// </summary>
+public class StaffCancelBookingDto
+{
+    public string? Reason { get; set; }
 }
 
 public class DoctorScheduleListDto

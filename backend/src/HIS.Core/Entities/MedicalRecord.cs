@@ -135,6 +135,19 @@ public class Examination : BaseEntity
     public DateTime? FollowUpDate { get; set; } // Ngày hẹn tái khám
     public string? TreatmentPlan { get; set; } // Phương hướng điều trị
 
+    // Yêu cầu nhập viện — lưu đủ để tạo hồ sơ nội trú sau này
+    public Guid? HospitalizationDepartmentId { get; set; } // Khoa nội trú BN được chuyển vào
+    public bool HospitalizationIsEmergency { get; set; }   // Có phải cấp cứu không
+    public string? HospitalizationDiagnosisCode { get; set; } // ICD-10 tại thời điểm yêu cầu
+    public string? HospitalizationDiagnosisName { get; set; } // Tên chẩn đoán kèm theo
+
+    // Yêu cầu chuyển viện — lưu có cấu trúc thay vì gộp vào ConclusionNote
+    public string? TransferToHospital { get; set; }    // Tên cơ sở chuyển đến
+    public string? TransferTransportMethod { get; set; } // Phương tiện vận chuyển
+    public string? TransferDiagnosisCode { get; set; }  // ICD-10 khi chuyển
+    public string? TransferDiagnosisName { get; set; }  // Tên chẩn đoán khi chuyển
+    public string? TransferReason { get; set; }         // Lý do chuyển viện
+
     public int Status { get; set; } // 0-Chờ khám, 1-Đang khám, 2-Chờ CLS, 3-Chờ kết luận, 4-Hoàn thành
 }
 

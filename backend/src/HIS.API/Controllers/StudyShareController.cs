@@ -62,6 +62,19 @@ public class StudyShareController : ControllerBase
         if (string.IsNullOrWhiteSpace(dto.StudyInstanceUID))
             return BadRequest("StudyInstanceUID required");
 
+        // HideDemographics chưa được hỗ trợ ở mức DICOM tag.
+        // Hiện tại chỉ null PatientName/PatientCode trong response metadata — không ẩn PHI trong tag (0010,xxxx).
+        // Viewer vẫn đọc được tên BN từ tag nếu kết nối trực tiếp Orthanc.
+        // Trả lỗi rõ thay vì tạo link gây hiểu nhầm an toàn dữ liệu.
+        // TODO (P1): Implement real PHI anonymization: call Orthanc POST /studies/{id}/anonymize at
+        // share creation time, store anonymized orthancStudyId, delete when share is revoked.
+        if (dto.HideDemographics)
+            return BadRequest(new
+            {
+                message = "Tính năng 'Ẩn thông tin bệnh nhân' ở mức DICOM tag chưa được hỗ trợ. " +
+                          "Nếu cần ẩn thông tin BN mức ảnh, liên hệ quản trị hệ thống."
+            });
+
         var link = new StudyShareLink
         {
             Id = Guid.NewGuid(),
@@ -70,7 +83,7 @@ public class StudyShareController : ControllerBase
             OrthancStudyId = dto.OrthancStudyId,
             PatientId = dto.PatientId,
             PasswordHash = !string.IsNullOrWhiteSpace(dto.Password) ? Sha256Hash(dto.Password) : null,
-            HideDemographics = dto.HideDemographics,
+            HideDemographics = false, // luôn false cho đến khi implement Orthanc anonymize at share-time
             ExpiresAt = dto.ExpiresInMinutes.HasValue
                 ? DateTime.UtcNow.AddMinutes(dto.ExpiresInMinutes.Value)
                 : null,

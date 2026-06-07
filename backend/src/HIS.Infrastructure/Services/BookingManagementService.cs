@@ -408,6 +408,56 @@ public class BookingManagementService : IBookingManagementService
         return await UpdateBookingStatus(appointmentCode, 3, "Không đến");
     }
 
+    public async Task<BookingStatusDto> CancelBookingAsync(string appointmentCode, string? reason)
+    {
+        var appointment = await _context.Appointments
+            .Include(a => a.Patient)
+            .Include(a => a.Department)
+            .Include(a => a.Doctor)
+            .Include(a => a.Room)
+            .FirstOrDefaultAsync(a => !a.IsDeleted && a.AppointmentCode == appointmentCode)
+            ?? throw new Exception("Không tìm thấy lịch hẹn");
+
+        if (appointment.Status == 2)
+            throw new Exception("Không thể hủy lịch hẹn đã check-in (BN đã đến khám)");
+
+        if (appointment.Status >= 3)
+            throw new Exception("Lịch hẹn đã ở trạng thái kết thúc, không thể hủy");
+
+        appointment.Status = 4; // Đã hủy
+        appointment.UpdatedAt = DateTime.UtcNow;
+        if (!string.IsNullOrWhiteSpace(reason))
+            appointment.Notes = string.IsNullOrEmpty(appointment.Notes)
+                ? $"Hủy tại quầy: {reason}"
+                : $"{appointment.Notes}\nHủy tại quầy: {reason}";
+
+        await _unitOfWork.SaveChangesAsync();
+
+        var typeNames = new Dictionary<int, string>
+        {
+            { 1, "Tái khám" }, { 2, "Khám mới" }, { 3, "Khám sức khỏe" }
+        };
+
+        return new BookingStatusDto
+        {
+            AppointmentCode = appointment.AppointmentCode,
+            PatientName = appointment.Patient?.FullName ?? "",
+            PhoneNumber = appointment.Patient?.PhoneNumber,
+            AppointmentDate = appointment.AppointmentDate,
+            AppointmentTime = appointment.AppointmentTime,
+            AppointmentType = appointment.AppointmentType,
+            AppointmentTypeName = typeNames.GetValueOrDefault(appointment.AppointmentType, "Khác"),
+            DepartmentId = appointment.DepartmentId,
+            DepartmentName = appointment.Department?.DepartmentName,
+            DoctorId = appointment.DoctorId,
+            DoctorName = appointment.Doctor?.FullName,
+            RoomName = appointment.Room?.RoomName,
+            Reason = appointment.Reason,
+            Status = 4,
+            StatusName = "Đã hủy"
+        };
+    }
+
     public async Task<BookingStatsDto> GetBookingStatsAsync(DateTime? date)
     {
         var targetDate = date ?? DateTime.Today;

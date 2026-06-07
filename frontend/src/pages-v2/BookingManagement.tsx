@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Input, Select, DatePicker } from 'antd';
-import { getBookings, getBookingStats, confirmBooking, checkInBooking, markNoShow, updateBooking } from '../api/bookingManagement';
+import { getBookings, getBookingStats, confirmBooking, checkInBooking, markNoShow, updateBooking, cancelBooking } from '../api/bookingManagement';
 import type { BookingStatsDto } from '../api/bookingManagement';
 import type { BookingStatusDto } from '../api/appointmentBooking';
 import {
@@ -46,6 +46,8 @@ const BookingManagementV2: React.FC = () => {
   const [newOpen, setNewOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Booking | null>(null);
   const [acting, setActing] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,6 +93,26 @@ const BookingManagementV2: React.FC = () => {
   // Mở sửa lịch — chỉ cho phép khi chưa đến khám / chưa hủy (status 0 hoặc 1).
   const onEdit = (r: Booking) => { setSel(null); setEditTarget(r); };
   const canEdit = (r: Booking) => r.status === 0 || r.status === 1;
+
+  // Hủy lịch — không cho phép khi đã check-in (status 2) hoặc đã kết thúc (status >= 3).
+  const canCancel = (r: Booking) => r.status === 0 || r.status === 1;
+  const onCancel = (r: Booking) => { setSel(null); setCancelTarget(r); setCancelReason(''); };
+  const doCancel = async () => {
+    if (!cancelTarget) return;
+    setActing(true);
+    try {
+      await cancelBooking(cancelTarget.appointmentCode, cancelReason.trim() || undefined);
+      tk(`Đã hủy lịch hẹn · ${cancelTarget.appointmentCode}`);
+      setCancelTarget(null);
+      setCancelReason('');
+      load();
+    } catch (e: unknown) {
+      const ax = e as { response?: { data?: { message?: string } } };
+      te(ax?.response?.data?.message || 'Hủy lịch hẹn thất bại');
+    } finally {
+      setActing(false);
+    }
+  };
 
   const depts = useMemo(() => {
     const set = new Set(items.map((r) => r.departmentName).filter(Boolean) as string[]);
@@ -155,6 +177,9 @@ const BookingManagementV2: React.FC = () => {
       {(r.status === 0 || r.status === 1) && (
         <ActBtn ic="alert" title="Vắng mặt" onClick={() => onNoShow(r)} tone="warn" />
       )}
+      {canCancel(r) && (
+        <ActBtn ic="x" title="Hủy lịch" onClick={() => onCancel(r)} tone="crit" />
+      )}
     </div>
   );
 
@@ -206,6 +231,11 @@ const BookingManagementV2: React.FC = () => {
             </Btn>
           )}
           <span style={{ flex: 1 }} />
+          {sel && canCancel(sel) && (
+            <Btn variant="crit" disabled={acting} onClick={() => onCancel(sel)}>
+              <Ico name="x" size={12} /> Hủy lịch
+            </Btn>
+          )}
           {sel && (sel.status === 0 || sel.status === 1) && (
             <Btn variant="crit" disabled={acting} onClick={() => onNoShow(sel)}>
               <Ico name="alert" size={12} /> Vắng mặt
@@ -252,6 +282,36 @@ const BookingManagementV2: React.FC = () => {
         onClose={() => setNewOpen(false)} onDone={() => { setNewOpen(false); load(); }} />
       <BookingModal mode="edit" initial={editTarget} open={!!editTarget}
         onClose={() => setEditTarget(null)} onDone={() => { setEditTarget(null); load(); }} />
+
+      <ModalShell
+        open={!!cancelTarget}
+        onClose={() => { setCancelTarget(null); setCancelReason(''); }}
+        title="Xác nhận hủy lịch hẹn"
+        sub={cancelTarget ? `${cancelTarget.appointmentCode} · ${cancelTarget.patientName}` : ''}
+        size="sm"
+        tone="danger"
+        footer={<>
+          <Btn variant="ghost" onClick={() => { setCancelTarget(null); setCancelReason(''); }}>Không</Btn>
+          <span style={{ flex: 1 }} />
+          <Btn variant="crit" disabled={acting} onClick={() => void doCancel()}>
+            <Ico name="x" size={12} /> Hủy lịch
+          </Btn>
+        </>}
+      >
+        <p style={{ marginBottom: 12, color: 'var(--t-1)' }}>
+          Lịch hẹn sẽ chuyển sang trạng thái <strong>Đã hủy</strong> và không thể khôi phục.
+        </p>
+        <label style={{ display: 'block', marginBottom: 4, fontSize: 13, color: 'var(--t-2)' }}>
+          Lý do hủy (tùy chọn)
+        </label>
+        <Input
+          value={cancelReason}
+          onChange={(e) => setCancelReason(e.target.value)}
+          placeholder="VD: BN xin đổi lịch, nhầm ngày…"
+          maxLength={200}
+          onPressEnter={() => void doCancel()}
+        />
+      </ModalShell>
     </div>
   );
 };

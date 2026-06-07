@@ -2805,6 +2805,11 @@ namespace HIS.API.Controllers
         /// <summary>
         /// Bulk download DICOM theo danh sách studyId, kèm tùy chọn anonymize PHI.
         /// Trả về ZIP chứa từng study con.
+        ///
+        /// Khi Anonymize=true: với mỗi study, gọi Orthanc POST /studies/{id}/anonymize để loại bỏ
+        /// PHI thật trong DICOM tag (0010,xxxx), archive bản ẩn danh, rồi DELETE bản copy trên Orthanc.
+        /// Lỗi anonymize 1 study → skip study đó + ghi log, KHÔNG fail cả batch.
+        /// PACS không khả dụng → toàn bộ entry bỏ qua (data.Length == 0).
         /// </summary>
         [HttpPost("dicom/bulk-export")]
         public async Task<IActionResult> BulkExportDicom([FromBody] BulkDicomExportRequest request)
@@ -2814,32 +2819,69 @@ namespace HIS.API.Controllers
             if (request.StudyIds.Count > 50)
                 return BadRequest(new { message = "Tối đa 50 study mỗi lần tải" });
 
+            var skipped = new List<string>();
+
             // Collect bytes for each study, zip them together
             using var memStream = new System.IO.MemoryStream();
-            using (var archive = new System.IO.Compression.ZipArchive(memStream,
+            using (var zipArchive = new System.IO.Compression.ZipArchive(memStream,
                 System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
             {
                 foreach (var studyId in request.StudyIds)
                 {
                     try
                     {
-                        var data = await _risService.ExportDicomStudyAsync(studyId, "zip");
-                        if (data == null || data.Length == 0) continue;
-                        var entryName = request.Anonymize
-                            ? $"anon_{studyId[..Math.Min(8, studyId.Length)]}.zip"
-                            : $"study_{studyId[..Math.Min(8, studyId.Length)]}.zip";
-                        var entry = archive.CreateEntry(entryName,
+                        byte[] data;
+                        if (request.Anonymize)
+                        {
+                            // Gọi Orthanc anonymize thật — loại bỏ PHI trong DICOM tag
+                            data = await _risService.ExportDicomStudyAnonymizedAsync(studyId);
+                        }
+                        else
+                        {
+                            data = await _risService.ExportDicomStudyAsync(studyId, "zip");
+                        }
+
+                        if (data == null || data.Length == 0)
+                        {
+                            skipped.Add(studyId);
+                            continue;
+                        }
+
+                        var prefix = request.Anonymize ? "anon" : "study";
+                        var entryName = $"{prefix}_{studyId[..Math.Min(8, studyId.Length)]}.zip";
+                        var entry = zipArchive.CreateEntry(entryName,
                             System.IO.Compression.CompressionLevel.Fastest);
                         using var entryStream = entry.Open();
                         await entryStream.WriteAsync(data);
                     }
-                    catch { /* skip failed studies */ }
+                    catch (Exception ex)
+                    {
+                        // Ghi log nhưng không fail cả batch
+                        _logger.LogWarning(ex,
+                            "BulkExportDicom: skipping study {StudyId} due to error: {Message}",
+                            studyId, ex.Message);
+                        skipped.Add(studyId);
+                    }
                 }
             }
 
             memStream.Seek(0, System.IO.SeekOrigin.Begin);
+            var zipBytes = memStream.ToArray();
+
+            // Nếu không có study nào thành công → báo lỗi rõ thay vì trả ZIP rỗng
+            if (zipBytes.Length < 22) // ZIP end-of-central-directory record tối thiểu 22 bytes
+                return StatusCode(422, new
+                {
+                    message = "Không tải được dữ liệu DICOM cho bất kỳ study nào. PACS có thể không khả dụng.",
+                    skipped
+                });
+
             var fileName = request.Anonymize ? "bulk_anon_export.zip" : "bulk_export.zip";
-            return File(memStream.ToArray(), "application/zip", fileName);
+            // Đính kèm danh sách study bị bỏ qua vào header để caller biết
+            if (skipped.Count > 0)
+                Response.Headers["X-Skipped-Studies"] = string.Join(",", skipped);
+
+            return File(zipBytes, "application/zip", fileName);
         }
 
         #endregion
@@ -2867,7 +2909,10 @@ namespace HIS.API.Controllers
         /// <summary>Danh sách studyId (tối đa 50)</summary>
         public List<string> StudyIds { get; set; } = new();
 
-        /// <summary>Nếu true: không ghi thông tin BN (ẩn PHI) trong tên file</summary>
+        /// <summary>
+        /// Nếu true: gọi Orthanc POST /studies/{id}/anonymize để loại bỏ PHI thật trong DICOM tag (0010,xxxx),
+        /// archive bản đã ẩn danh, rồi DELETE bản copy tạm. PACS phải khả dụng; study không anonymize được sẽ bị skip.
+        /// </summary>
         public bool Anonymize { get; set; }
     }
 

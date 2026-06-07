@@ -490,8 +490,16 @@ namespace HIS.API.Controllers
         // Authorize removed for testing
         public async Task<ActionResult> PrintLabResult(Guid orderId, [FromQuery] string format = "A4")
         {
-            var result = await _lisService.PrintLabResultAsync(orderId, format);
-            return File(result, "application/pdf", $"lab_result_{orderId}.pdf");
+            try
+            {
+                var result = await _lisService.PrintLabResultAsync(orderId, format);
+                return File(result, "application/pdf", $"lab_result_{orderId}.pdf");
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Chưa duyệt KQ → "Không có số liệu" (rule tài liệu) — 400 message rõ, không in.
+                return BadRequest(new { success = false, message = ex.Message });
+            }
         }
 
         /// <summary>

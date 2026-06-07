@@ -21,6 +21,99 @@ public partial class RISCompleteService
 {
     #region DICOM Export / Send (NangCap15 PACS 3/4)
 
+    /// <summary>
+    /// Gọi Orthanc POST /studies/{id}/anonymize để loại bỏ PHI (tag 0010,xxxx) khỏi DICOM,
+    /// archive study ẩn danh, rồi XÓA bản copy trên Orthanc sau khi đọc xong (tránh rác PACS).
+    /// Trả về byte[] ZIP của study đã ẩn danh, hoặc rỗng nếu PACS không khả dụng.
+    /// </summary>
+    public async Task<byte[]> ExportDicomStudyAnonymizedAsync(string orthancStudyId)
+    {
+        if (!_pacsEnabled || string.IsNullOrEmpty(_pacsBaseUrl))
+            return Array.Empty<byte>();
+
+        var pacsBaseUrl = _pacsBaseUrl.TrimEnd('/');
+        var pacsUser = _configuration["PACS:Username"] ?? "admin";
+        var pacsPass = _configuration["PACS:Password"] ?? "orthanc";
+
+        using var httpClient = new HttpClient();
+        httpClient.Timeout = TimeSpan.FromMinutes(10); // anonymize + archive có thể chậm với study lớn
+        var authBytes = System.Text.Encoding.ASCII.GetBytes($"{pacsUser}:{pacsPass}");
+        httpClient.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(authBytes));
+
+        string? anonymizedId = null;
+        try
+        {
+            // Bước 1: Anonymize — Orthanc tạo bản sao mới không có PHI
+            var anonBody = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+            var anonResp = await httpClient.PostAsync(
+                $"{pacsBaseUrl}/studies/{orthancStudyId}/anonymize",
+                anonBody);
+
+            if (!anonResp.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "Orthanc anonymize failed for study {StudyId}: HTTP {StatusCode}",
+                    orthancStudyId, anonResp.StatusCode);
+                return Array.Empty<byte>();
+            }
+
+            var anonJson = await anonResp.Content.ReadAsStringAsync();
+            using var doc = System.Text.Json.JsonDocument.Parse(anonJson);
+            if (!doc.RootElement.TryGetProperty("ID", out var idProp))
+            {
+                _logger.LogWarning(
+                    "Orthanc anonymize response missing 'ID' field for study {StudyId}",
+                    orthancStudyId);
+                return Array.Empty<byte>();
+            }
+            anonymizedId = idProp.GetString();
+
+            if (string.IsNullOrEmpty(anonymizedId))
+                return Array.Empty<byte>();
+
+            // Bước 2: Archive bản đã ẩn danh
+            var archResp = await httpClient.PostAsync(
+                $"{pacsBaseUrl}/studies/{anonymizedId}/archive",
+                new StringContent("", System.Text.Encoding.UTF8));
+
+            if (!archResp.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "Orthanc archive failed for anonymized study {AnonId}: HTTP {StatusCode}",
+                    anonymizedId, archResp.StatusCode);
+                return Array.Empty<byte>();
+            }
+
+            return await archResp.Content.ReadAsByteArrayAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Orthanc anonymize+archive failed for study {StudyId}: {Message}",
+                orthancStudyId, ex.Message);
+            return Array.Empty<byte>();
+        }
+        finally
+        {
+            // Bước 3: Dọn bản copy ẩn danh trên Orthanc (tránh rác PACS)
+            if (!string.IsNullOrEmpty(anonymizedId))
+            {
+                try
+                {
+                    await httpClient.DeleteAsync($"{pacsBaseUrl}/studies/{anonymizedId}");
+                }
+                catch (Exception ex)
+                {
+                    // Không fail export vì lỗi cleanup — ghi log để admin dọn thủ công nếu cần
+                    _logger.LogWarning(ex,
+                        "Failed to delete anonymized study {AnonId} from Orthanc after export. Manual cleanup may be needed.",
+                        anonymizedId);
+                }
+            }
+        }
+    }
+
     public async Task<byte[]> ExportDicomStudyAsync(string studyId, string format = "zip")
     {
         // Try to export from Orthanc PACS

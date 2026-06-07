@@ -4,8 +4,8 @@
  */
 
 import { useState } from 'react';
-import { Modal, Form, Input, Select, Checkbox, Button, Space, Tag, message, InputNumber, Divider, Typography } from 'antd';
-import { CopyOutlined, QrcodeOutlined, LinkOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, Select, Checkbox, Button, Space, Tag, message, InputNumber, Divider, Typography, Tooltip } from 'antd';
+import { CopyOutlined, QrcodeOutlined, LinkOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { QRCodeCanvas } from 'qrcode.react';
 import { createShareLink, type ShareLinkDto } from '../api/studyShare';
 
@@ -127,7 +127,7 @@ export default function ShareStudyModal({
           layout="vertical"
           initialValues={{
             usePassword: true,
-            hideDemographics: false,
+            hideDemographics: false, // locked to false — PHI tag anonymization not yet implemented
             ttl: '240',
           }}
         >
@@ -161,8 +161,18 @@ export default function ShareStudyModal({
           <Form.Item name="maxViews" label="Tối đa số lượt xem (tùy chọn)">
             <InputNumber style={{ width: '100%' }} min={1} placeholder="Bỏ trống = không giới hạn" />
           </Form.Item>
+          {/* Ẩn thông tin BN mức DICOM tag chưa được hỗ trợ — tính năng đang phát triển.
+              Checkbox bị disable để tránh hiểu nhầm về mức độ bảo vệ thông tin BN. */}
           <Form.Item name="hideDemographics" valuePropName="checked">
-            <Checkbox>Ẩn thông tin BN (tên, mã, ngày sinh) khi xem qua link</Checkbox>
+            <Tooltip
+              title="Tính năng ẩn thông tin BN mức DICOM tag (PHI trong ảnh) đang được phát triển. Hiện tại chưa thể bật tùy chọn này."
+            >
+              <Checkbox disabled>
+                Ẩn thông tin BN khi xem qua link{' '}
+                <InfoCircleOutlined style={{ color: '#aaa', fontSize: 13 }} />
+                <span style={{ color: '#aaa', fontSize: 12, marginLeft: 4 }}>(sắp có)</span>
+              </Checkbox>
+            </Tooltip>
           </Form.Item>
         </Form>
       )}

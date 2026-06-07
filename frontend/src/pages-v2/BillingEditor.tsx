@@ -194,7 +194,7 @@ const BillingEditorV2: React.FC = () => {
       const r = await getElectronicInvoices();
       setEinvoices(Array.isArray(r.data) ? r.data : []);
       setEinvOpen(false);
-      tk('Đã phát hành hoá đơn điện tử');
+      tk('Đã tạo nháp hoá đơn điện tử — bấm Xuất để phát hành qua nhà cung cấp');
     } catch { te('Phát hành HĐĐT thất bại'); }
     finally { setSavingEinv(false); }
   };
@@ -226,7 +226,7 @@ const BillingEditorV2: React.FC = () => {
     { key: 'date', label: 'Ngày', mono: true, width: 150, render: (r) => fmtDTg(r.eInvoiceDate) },
     { key: 'patient', label: 'Bệnh nhân', render: (r) => r.patientName || r.buyerName || '—' },
     { key: 'amount', label: 'Số tiền', mono: true, width: 130, render: (r) => fmtVNDg(r.totalAmount) },
-    { key: 'status', label: 'TT', width: 130, render: (r) => <StatusBadge tone={r.status === 1 ? 'ok' : 'crit'} dot>{r.status === 1 ? 'Đã phát hành' : 'Đã huỷ'}</StatusBadge> },
+    { key: 'status', label: 'TT', width: 130, render: (r) => <StatusBadge tone={r.status === 1 ? 'ok' : r.status === 0 ? 'warn' : 'crit'} dot>{r.status === 1 ? 'Đã phát hành' : r.status === 0 ? 'Nháp' : 'Đã huỷ'}</StatusBadge> },
   ];
 
   return (

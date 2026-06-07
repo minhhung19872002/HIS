@@ -136,6 +136,12 @@ public partial class ExaminationCompleteService
         examination.Status = 4;
         examination.EndTime = DateTime.Now;
 
+        // Persist thông tin yêu cầu nhập viện đầy đủ
+        examination.HospitalizationDepartmentId = dto.DepartmentId == Guid.Empty ? null : dto.DepartmentId;
+        examination.HospitalizationIsEmergency = dto.IsEmergency;
+        examination.HospitalizationDiagnosisCode = dto.DiagnosisCode;
+        examination.HospitalizationDiagnosisName = dto.DiagnosisName;
+
         await _unitOfWork.SaveChangesAsync();
 
         return MapToExaminationDto(examination);
@@ -151,7 +157,14 @@ public partial class ExaminationCompleteService
         if (examination == null) throw new Exception("Examination not found");
 
         examination.ConclusionType = 4; // Transfer
-        examination.ConclusionNote = $"Chuyen vien: {dto.FacilityName}. Ly do: {dto.Reason}";
+        // Persist từng trường riêng thay vì gộp chuỗi vào ConclusionNote
+        examination.TransferToHospital = dto.FacilityName;
+        examination.TransferReason = dto.Reason;
+        examination.TransferTransportMethod = dto.TransportMethod;
+        examination.TransferDiagnosisCode = dto.DiagnosisCode;
+        examination.TransferDiagnosisName = dto.DiagnosisName;
+        // Giữ ConclusionNote dạng tóm tắt ngắn cho backward-compat (hiển thị ở màn danh sách)
+        examination.ConclusionNote = $"Chuyển viện: {dto.FacilityName}";
         examination.Status = 4;
         examination.EndTime = DateTime.Now;
 

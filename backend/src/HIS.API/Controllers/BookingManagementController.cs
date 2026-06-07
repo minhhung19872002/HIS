@@ -94,6 +94,13 @@ public class BookingManagementController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPut("bookings/{code}/cancel")]
+    public async Task<IActionResult> CancelBooking(string code, [FromBody] StaffCancelBookingDto dto)
+    {
+        var result = await _service.CancelBookingAsync(code, dto.Reason);
+        return Ok(result);
+    }
+
     [HttpGet("stats")]
     public async Task<IActionResult> GetBookingStats([FromQuery] string? date)
     {

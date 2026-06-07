@@ -642,6 +642,14 @@ public partial class LISCompleteService {
 
     public async Task<byte[]> PrintLabResultAsync(Guid orderId, string format = "A4")
     {
+        // Rule tài liệu: chưa duyệt KQ (Status < 4 — chưa duyệt sơ bộ/chính thức) → KHÔNG in,
+        // báo "Không có số liệu". (Màn tại giường BedLabResultSection đã enforce; đây là màn chính.)
+        var orderStatus = await _context.Database
+            .SqlQueryRaw<int>("SELECT Status AS Value FROM LabOrders WHERE Id = {0} AND IsDeleted = 0", orderId)
+            .FirstOrDefaultAsync();
+        if (orderStatus < 4)
+            throw new InvalidOperationException("Chưa duyệt kết quả — không có số liệu để in.");
+
         try
         {
             using var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString());
