@@ -877,7 +877,7 @@ const ErPatientDrawer: React.FC<{
     <Drawer
       open={!!row}
       onClose={onClose}
-      width={560}
+      size="large"
       title={
         <div>
           <div style={{ fontSize: 14, fontWeight: 600 }}>{row.patientName}</div>
@@ -1107,7 +1107,7 @@ const AllAlertsDrawer: React.FC<{
   <Drawer
     open={open}
     onClose={onClose}
-    width={540}
+    size="large"
     title={
       <div>
         <div style={{ fontSize: 14, fontWeight: 600 }}>Tất cả cảnh báo</div>
