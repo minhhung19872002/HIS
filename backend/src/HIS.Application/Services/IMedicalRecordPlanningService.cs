@@ -39,6 +39,9 @@ public interface IMedicalRecordPlanningService
 
     // Stats
     Task<PlanningStatsDto> GetStatsAsync();
+
+    // Bulk Allocate Record Codes
+    Task<BulkAllocateResultDto> BulkAllocateRecordCodesAsync(BulkAllocateDto dto, Guid userId);
 }
 
 // === Record Code DTOs ===
@@ -352,6 +355,40 @@ public class AttendanceCheckInDto
     public DateTime CheckInTime { get; set; }
     public string? CheckInByName { get; set; }
     public bool Success { get; set; }
+}
+
+// === Bulk Allocate DTOs ===
+
+/// <summary>
+/// Cấp dải mã hồ sơ hàng loạt. Hỗ trợ 2 chế độ:
+/// 1. Dải số: FromCode..ToCode (cùng prefix hoặc số thuần)
+/// 2. Prefix + Count: sinh tự động N mã từ prefix
+/// </summary>
+public class BulkAllocateDto
+{
+    public Guid DepartmentId { get; set; }
+    /// <summary>Mã bắt đầu dải (VD: "HS0001"). Dùng khi không dùng chế độ Prefix+Count.</summary>
+    public string? FromCode { get; set; }
+    /// <summary>Mã kết thúc dải (VD: "HS0100"). Dùng khi không dùng chế độ Prefix+Count.</summary>
+    public string? ToCode { get; set; }
+    /// <summary>Prefix cho chế độ Prefix+Count (VD: "HS"). Bỏ trống nếu dùng FromCode/ToCode.</summary>
+    public string? Prefix { get; set; }
+    /// <summary>Số mã cần sinh trong chế độ Prefix+Count.</summary>
+    public int? Count { get; set; }
+    /// <summary>Bỏ qua mã đã tồn tại thay vì báo lỗi.</summary>
+    public bool SkipExisting { get; set; } = true;
+}
+
+public class BulkAllocateResultDto
+{
+    public int Requested { get; set; }
+    public int Allocated { get; set; }
+    public int Skipped { get; set; }
+    public int Failed { get; set; }
+    public List<string> AllocatedCodes { get; set; } = new();
+    public List<string> SkippedCodes { get; set; } = new();
+    public List<string> Errors { get; set; } = new();
+    public string Message { get; set; } = string.Empty;
 }
 
 // === Planning Stats DTOs ===

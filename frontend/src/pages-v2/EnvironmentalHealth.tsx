@@ -1,13 +1,30 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchWasteRecords, createWasteRecord, updateWasteRecord } from '../api/environmentalHealth';
-import type { WasteRecord } from '../api/environmentalHealth';
+import { searchWasteRecords, createWasteRecord, updateWasteRecord, searchMonitoring, createMonitoring } from '../api/environmentalHealth';
+import type { WasteRecord, MonitoringRecord } from '../api/environmentalHealth';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+const MONITORING_FIELDS: CrudFieldCfg[] = [
+  { key: 'recordCode', label: 'Mã phiếu', required: true, disabledOnEdit: true },
+  { key: 'monitoringDate', label: 'Ngày quan trắc', type: 'date', required: true },
+  { key: 'monitoringType', label: 'Loại quan trắc', type: 'select', required: true, options: [
+    { value: 'air', label: 'Không khí' }, { value: 'water', label: 'Nước' },
+    { value: 'surface', label: 'Bề mặt' }, { value: 'noise', label: 'Tiếng ồn' },
+    { value: 'radiation', label: 'Phóng xạ' }] },
+  { key: 'location', label: 'Địa điểm', required: true },
+  { key: 'parameter', label: 'Thông số đo', required: true },
+  { key: 'value', label: 'Giá trị', type: 'number', required: true },
+  { key: 'unit', label: 'Đơn vị' },
+  { key: 'standardLimit', label: 'Giới hạn chuẩn', type: 'number' },
+  { key: 'isCompliant', label: 'Đạt chuẩn', type: 'switch' },
+  { key: 'measuredBy', label: 'Người đo' },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
 
 const WASTE_FIELDS: CrudFieldCfg[] = [
   { key: 'recordCode', label: 'Mã phiếu', required: true, disabledOnEdit: true },
@@ -106,6 +123,22 @@ const EnvironmentalHealthV2: React.FC = () => {
   const openCreate = () => { setCrudInit({ isCompliant: true, unit: 'kg', wasteType: 'infectious' }); setCrudOpen(true); };
   const openEdit = (r: WasteRecord) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
 
+  // Quan trắc môi trường
+  const [monitorOpen, setMonitorOpen] = useState(false);
+  const [monitorings, setMonitorings] = useState<MonitoringRecord[]>([]);
+  const [monitorLoading, setMonitorLoading] = useState(false);
+  const [monitorCrudOpen, setMonitorCrudOpen] = useState(false);
+  const loadMonitorings = async () => {
+    setMonitorLoading(true);
+    try { const r = await searchMonitoring({}); setMonitorings(r); }
+    catch { ti('Không tải được dữ liệu quan trắc'); }
+    finally { setMonitorLoading(false); }
+  };
+
+  const MONITOR_TYPE_LABEL: Record<string, string> = {
+    air: 'Không khí', water: 'Nước', surface: 'Bề mặt', noise: 'Tiếng ồn', radiation: 'Phóng xạ',
+  };
+
   const actions = (r: WasteRecord) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
@@ -137,7 +170,7 @@ const EnvironmentalHealthV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Mở quan trắc môi trường')}>
+        <Btn variant="ghost" onClick={() => { setMonitorOpen(true); loadMonitorings(); }}>
           <Ico name="activity" size={12} /> Quan trắc
         </Btn>
         <Btn variant="primary" onClick={openCreate}>
@@ -205,6 +238,60 @@ const EnvironmentalHealthV2: React.FC = () => {
           else await createWasteRecord(v);
           tk(editing ? 'Đã cập nhật phiếu' : 'Đã tạo phiếu');
           load();
+        }}
+      />
+
+      {/* Drawer quan trắc môi trường */}
+      <DrawerShell
+        open={monitorOpen}
+        onClose={() => setMonitorOpen(false)}
+        size="lg"
+        title="Quan trắc môi trường"
+        sub={`${monitorings.length} bản ghi`}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setMonitorOpen(false)}>Đóng</Btn>
+          <Btn variant="primary" onClick={() => setMonitorCrudOpen(true)}>
+            <Ico name="plus" size={12} /> Bản ghi mới
+          </Btn>
+        </>}
+      >
+        {monitorLoading ? (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
+        ) : monitorings.length === 0 ? (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)' }}>Chưa có bản ghi quan trắc</div>
+        ) : monitorings.map((m) => (
+          <DrSec key={m.id} title={`${MONITOR_TYPE_LABEL[m.monitoringType] || m.monitoringType} · ${m.location}`}>
+            <DrField lbl="Ngày">{dayjs(m.monitoringDate).format('DD/MM/YYYY')}</DrField>
+            <DrField lbl="Thông số">{m.parameter}</DrField>
+            <DrField lbl="Kết quả">
+              <span style={{ fontFamily: 'var(--font-mono)' }}>{m.value} {m.unit}</span>
+              {' / '}
+              <span style={{ color: 'var(--t-2)', fontSize: 11 }}>giới hạn {m.standardLimit} {m.unit}</span>
+            </DrField>
+            <DrField lbl="Kết luận">
+              {m.isCompliant
+                ? <StatusBadge tone="ok" dot>Đạt chuẩn</StatusBadge>
+                : <StatusBadge tone="crit" dot>Vi phạm</StatusBadge>}
+            </DrField>
+            {m.measuredBy && <DrField lbl="Người đo">{m.measuredBy}</DrField>}
+            {m.notes && <DrField lbl="Ghi chú">{m.notes}</DrField>}
+          </DrSec>
+        ))}
+      </DrawerShell>
+
+      {/* Modal tạo bản ghi quan trắc mới */}
+      <CrudModal
+        open={monitorCrudOpen}
+        onClose={() => setMonitorCrudOpen(false)}
+        title="Bản ghi quan trắc mới"
+        fields={MONITORING_FIELDS}
+        initial={{ isCompliant: true, monitoringType: 'air' }}
+        size="lg"
+        onSubmit={async (v) => {
+          await createMonitoring(v as Partial<MonitoringRecord>);
+          tk('Đã thêm bản ghi quan trắc');
+          setMonitorCrudOpen(false);
+          loadMonitorings();
         }}
       />
     </div>

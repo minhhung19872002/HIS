@@ -7,6 +7,7 @@ import { getEmrRecords } from '../api/examination';
 import type { EmrRecordDto } from '../api/examination';
 import { SimpleV2Page, ActBtn, Btn, type ColumnDef } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+import * as pdf from '../api/pdf';
 
 // ── Mẫu HSBA (ClinicalTemplate) ─────────────────────────────────────────────
 interface ClinicalTemplateDto {
@@ -236,10 +237,16 @@ const EMRV2: React.FC = () => {
           { lbl: 'Tổng lượt khám', val: totalVisits, sub: '365 ngày' },
         ];
       }}
-      rowActions={() => (
+      rowActions={(r) => (
         <div className="ab-actions">
           <ActBtn ic="eye" title="Mở hồ sơ" onClick={() => navigate('/v2/emr/edit')} />
-          <ActBtn ic="print" title="In HS" onClick={() => message.success('Đã gửi PDF')} />
+          <ActBtn ic="print" title="In hồ sơ" onClick={() => {
+            if (r.medicalRecordId) {
+              pdf.printMedicalRecord(r.medicalRecordId);
+            } else {
+              message.warning(`Để in HS của ${r.patientName}: mở hồ sơ chi tiết rồi bấm In`);
+            }
+          }} />
         </div>
       )}
       drawer={(r) => (
@@ -287,7 +294,13 @@ const EMRV2: React.FC = () => {
               <Btn variant="primary" onClick={() => navigate('/v2/emr/edit')}>
                 <TermIcon name="eye" size={12} /> Mở HS chi tiết
               </Btn>
-              <Btn onClick={() => message.success('Đã gửi PDF')}>
+              <Btn onClick={() => {
+                if (r.medicalRecordId) {
+                  pdf.printMedicalRecord(r.medicalRecordId);
+                } else {
+                  message.warning('Chưa có mã hồ sơ bệnh án — mở hồ sơ chi tiết để in');
+                }
+              }}>
                 <TermIcon name="print" size={12} /> In hồ sơ
               </Btn>
               <Btn onClick={() => navigate('/v2/signing-workflow')}>

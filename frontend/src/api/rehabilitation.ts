@@ -783,6 +783,13 @@ export const exportRehabReport = (fromDate: string, toDate: string, reportType: 
 
 // #endregion
 
+// #region Print
+
+export const printReferral = (id: string) =>
+  apiClient.get(`${BASE_URL}/referrals/${id}/print-referral`, { responseType: 'blob' });
+
+// #endregion
+
 export default {
   // Referrals
   getReferrals,
@@ -831,4 +838,6 @@ export default {
   getDashboard,
   getRehabStatistics,
   exportRehabReport,
+  // Print
+  printReferral,
 };

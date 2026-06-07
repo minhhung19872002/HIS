@@ -280,15 +280,17 @@ export const ActBtn: React.FC<{
   title: string;
   onClick: (e: React.MouseEvent) => void;
   tone?: 'crit' | 'warn';
-}> = ({ ic, title, onClick, tone }) => (
+  loading?: boolean;
+}> = ({ ic, title, onClick, tone, loading }) => (
   <button
     type="button"
     className="ab-iconbtn"
     title={title}
+    disabled={loading}
     onClick={(e) => { e.stopPropagation(); onClick(e); }}
     style={tone === 'crit' ? { color: 'var(--s-crit)' } : tone === 'warn' ? { color: 'var(--s-warn)' } : undefined}
   >
-    <TermIcon name={ic} size={12} />
+    {loading ? <TermIcon name="refresh" size={12} /> : <TermIcon name={ic} size={12} />}
   </button>
 );
 

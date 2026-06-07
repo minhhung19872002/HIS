@@ -1,11 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchTreatments, createTreatment, updateTreatment } from '../api/traditionalMedicine';
-import type { TraditionalTreatment } from '../api/traditionalMedicine';
+import { message } from 'antd';
+import {
+  searchTreatments, createTreatment, updateTreatment,
+  createHerbalPrescription, getHerbalPrescriptions,
+} from '../api/traditionalMedicine';
+import type { TraditionalTreatment, HerbalPrescription } from '../api/traditionalMedicine';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  DrawerShell, ModalShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
@@ -120,6 +124,52 @@ const TraditionalMedicineV2: React.FC = () => {
   const openCreate = () => { setCrudInit({ status: 0, treatmentType: 'acupuncture' }); setCrudOpen(true); };
   const openEdit = (r: TraditionalTreatment) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
 
+  // ── Đơn thuốc bắc ────────────────────────────────────────────────────────
+  const [rxTarget, setRxTarget] = useState<TraditionalTreatment | null>(null);
+  const [rxList, setRxList] = useState<HerbalPrescription[]>([]);
+  const [rxLoading, setRxLoading] = useState(false);
+  const [rxFormOpen, setRxFormOpen] = useState(false);
+  const [rxIngredients, setRxIngredients] = useState('');
+  const [rxDosage, setRxDosage] = useState('');
+  const [rxPrep, setRxPrep] = useState('');
+  const [rxDuration, setRxDuration] = useState('7');
+  const [rxSubmitting, setRxSubmitting] = useState(false);
+
+  const openRx = async (r: TraditionalTreatment) => {
+    setRxTarget(r);
+    setRxList([]);
+    setRxLoading(true);
+    try {
+      const rows = await getHerbalPrescriptions(r.id);
+      setRxList(rows);
+    } catch { ti('Không tải được đơn thuốc bắc'); }
+    finally { setRxLoading(false); }
+  };
+
+  const submitRx = async () => {
+    if (!rxTarget) return;
+    if (!rxIngredients.trim()) { message.error('Vui lòng nhập thành phần bài thuốc'); return; }
+    setRxSubmitting(true);
+    try {
+      await createHerbalPrescription(rxTarget.id, {
+        prescriptionDate: new Date().toISOString(),
+        ingredients: rxIngredients.trim(),
+        dosage: rxDosage.trim(),
+        preparation: rxPrep.trim(),
+        duration: parseInt(rxDuration, 10) || 7,
+        durationUnit: 'ngày',
+      });
+      tk('Đã tạo đơn thuốc bắc');
+      setRxFormOpen(false);
+      setRxIngredients(''); setRxDosage(''); setRxPrep(''); setRxDuration('7');
+      // Reload list
+      const rows = await getHerbalPrescriptions(rxTarget.id);
+      setRxList(rows);
+      load();
+    } catch { message.error('Tạo đơn thuốc bắc thất bại'); }
+    finally { setRxSubmitting(false); }
+  };
+
   const actions = (r: TraditionalTreatment) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
@@ -169,7 +219,7 @@ const TraditionalMedicineV2: React.FC = () => {
         sub={sel ? `${sel.patientName} · ${TYPE_LABEL[sel.treatmentType] || sel.treatmentType}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={() => tk('Mở đơn thuốc bắc')}>
+          <Btn onClick={() => { if (sel) { openRx(sel); setSel(null); } }}>
             <Ico name="file-text" size={12} /> Đơn thuốc bắc
           </Btn>
           <Btn variant="primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
@@ -217,6 +267,73 @@ const TraditionalMedicineV2: React.FC = () => {
           load();
         }}
       />
+
+      {/* ── Drawer Đơn thuốc bắc ── */}
+      <DrawerShell
+        open={!!rxTarget}
+        onClose={() => { setRxTarget(null); setRxList([]); }}
+        size="lg"
+        title={rxTarget ? `Đơn thuốc bắc — ${rxTarget.patientName}` : ''}
+        sub={rxTarget ? `Phác đồ ${rxTarget.treatmentCode}` : ''}
+        footer={<>
+          <Btn variant="ghost" onClick={() => { setRxTarget(null); setRxList([]); }}>Đóng</Btn>
+          <Btn variant="primary" onClick={() => setRxFormOpen(true)}>
+            <Ico name="plus" size={12} /> Tạo đơn mới
+          </Btn>
+        </>}
+      >
+        {rxLoading && <div style={{ padding: 16, color: 'var(--t-2)' }}>Đang tải…</div>}
+        {!rxLoading && rxList.length === 0 && (
+          <div style={{ padding: 16, color: 'var(--t-2)' }}>Chưa có đơn thuốc bắc nào</div>
+        )}
+        {!rxLoading && rxList.map((rx) => (
+          <DrSec key={rx.id} title={`Đơn ${rx.prescriptionCode || rx.id.slice(0, 8)}`}>
+            <DrField lbl="Ngày kê">{dayjs(rx.prescriptionDate).format('DD/MM/YYYY')}</DrField>
+            <DrField lbl="Thành phần"><span style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{rx.ingredients}</span></DrField>
+            {rx.dosage && <DrField lbl="Liều dùng">{rx.dosage}</DrField>}
+            {rx.preparation && <DrField lbl="Cách bào chế">{rx.preparation}</DrField>}
+            <DrField lbl="Thời gian"><span style={{ fontFamily: 'var(--font-mono)' }}>{rx.duration} {rx.durationUnit}</span></DrField>
+            <DrField lbl="BS kê">{rx.doctorName || '—'}</DrField>
+          </DrSec>
+        ))}
+      </DrawerShell>
+
+      {/* ── Modal tạo đơn thuốc bắc mới ── */}
+      <ModalShell
+        open={rxFormOpen}
+        onClose={() => setRxFormOpen(false)}
+        title="Tạo đơn thuốc bắc"
+        sub={rxTarget ? `${rxTarget.patientName} · ${rxTarget.treatmentCode}` : ''}
+        size="md"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setRxFormOpen(false)}>Huỷ</Btn>
+          <Btn variant="primary" onClick={submitRx} disabled={rxSubmitting}>
+            <Ico name="check" size={12} /> {rxSubmitting ? 'Đang lưu…' : 'Tạo đơn'}
+          </Btn>
+        </>}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {([
+            ['Thành phần bài thuốc *', rxIngredients, setRxIngredients, true],
+            ['Liều dùng', rxDosage, setRxDosage, false],
+            ['Cách bào chế', rxPrep, setRxPrep, false],
+          ] as [string, string, (v: string) => void, boolean][]).map(([lbl, val, setter, big]) => (
+            <div key={lbl} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>{lbl}</span>
+              {big
+                ? <textarea rows={4} value={val} onChange={(e) => setter(e.target.value)}
+                    style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 13, resize: 'vertical' }} />
+                : <input value={val} onChange={(e) => setter(e.target.value)}
+                    style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 13 }} />}
+            </div>
+          ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Số ngày dùng</span>
+            <input type="number" min={1} value={rxDuration} onChange={(e) => setRxDuration(e.target.value)}
+              style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 13 }} />
+          </div>
+        </div>
+      </ModalShell>
     </div>
   );
 };

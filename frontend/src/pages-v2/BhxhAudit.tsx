@@ -1,6 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getAuditSessions } from '../api/bhxhAudit';
+import { App as AntdApp } from 'antd';
+import {
+  getAuditSessions,
+  approveAuditSession,
+  submitToPortal,
+  submitBatch,
+  exportXml,
+  exportBatchXml,
+  printAuditForm,
+} from '../api/bhxhAudit';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
@@ -39,6 +48,7 @@ const STATUS_TABS = [
 const auditKey = (n: number): AuditKey => n === 1 ? 'approved' : n === 2 ? 'rejected' : 'pending';
 
 const BhxhAuditV2: React.FC = () => {
+  const { message, modal } = AntdApp.useApp();
   const [items, setItems] = useState<AuditRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -46,6 +56,12 @@ const BhxhAuditV2: React.FC = () => {
   const [fDept, setFDept] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<AuditRecord | null>(null);
+  const [approveLoading, setApproveLoading] = useState<string | null>(null);
+  const [submitLoading, setSubmitLoading] = useState<string | null>(null);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchXmlLoading, setBatchXmlLoading] = useState(false);
+  const [xmlLoading, setXmlLoading] = useState<string | null>(null);
+  const [printLoading, setPrintLoading] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -87,6 +103,128 @@ const BhxhAuditV2: React.FC = () => {
     finally { setLoading(false); }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+
+  const handleApprove = (r: AuditRecord) => {
+    let notes = '';
+    modal.confirm({
+      title: `Duyệt hồ sơ giám định · ${r.maLk}`,
+      content: (
+        <div>
+          <p style={{ marginBottom: 8 }}>Bệnh nhân: <b>{r.patientName}</b></p>
+          <textarea
+            placeholder="Ghi chú (tùy chọn)"
+            rows={3}
+            style={{ width: '100%', resize: 'vertical', padding: 6, borderRadius: 4, border: '1px solid #d9d9d9' }}
+            onChange={(e) => { notes = e.target.value; }}
+          />
+        </div>
+      ),
+      okText: 'Duyệt',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        setApproveLoading(r.id);
+        try {
+          await approveAuditSession(r.id, notes || undefined);
+          message.success(`Đã duyệt hồ sơ ${r.maLk}`);
+          if (sel?.id === r.id) setSel(null);
+          load();
+        } catch {
+          message.error('Duyệt thất bại — vui lòng thử lại');
+        } finally {
+          setApproveLoading(null);
+        }
+      },
+    });
+  };
+
+  const handleSubmitToPortal = async (r: AuditRecord) => {
+    setSubmitLoading(r.id);
+    try {
+      await submitToPortal(r.id);
+      message.success(`Đã gửi ${r.maLk} lên cổng BHXH`);
+      load();
+    } catch {
+      message.error('Gửi cổng thất bại — vui lòng thử lại');
+    } finally {
+      setSubmitLoading(null);
+    }
+  };
+
+  const handleBatchSubmit = async () => {
+    const ids = filtered.filter((r) => !r.sentToPortal).map((r) => r.id);
+    if (ids.length === 0) { message.info('Không có hồ sơ nào chưa gửi trong bộ lọc hiện tại'); return; }
+    modal.confirm({
+      title: 'Gửi hàng loạt lên cổng BHXH',
+      content: `Sẽ gửi ${ids.length} hồ sơ chưa gửi (theo bộ lọc hiện tại).`,
+      okText: 'Gửi hàng loạt',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        setBatchLoading(true);
+        try {
+          const { data: res } = await submitBatch(ids);
+          message.success(`Gửi xong: ${res?.submitted ?? ids.length} hồ sơ — bỏ qua ${res?.skipped ?? 0} — lỗi ${res?.failed ?? 0}`);
+          load();
+        } catch {
+          message.error('Gửi hàng loạt thất bại — vui lòng thử lại');
+        } finally {
+          setBatchLoading(false);
+        }
+      },
+    });
+  };
+
+  const handleBatchExportXml = async () => {
+    const ids = filtered.map((r) => r.id);
+    if (ids.length === 0) { message.info('Không có hồ sơ nào trong bộ lọc hiện tại'); return; }
+    setBatchXmlLoading(true);
+    try {
+      const { data: blob } = await exportBatchXml(ids);
+      const url = URL.createObjectURL(blob as unknown as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `BHXH_XML_batch_${dayjs().format('YYYYMMDD')}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      message.success(`Đã tải ZIP ${ids.length} XML hồ sơ`);
+    } catch {
+      message.error('Xuất XML hàng loạt thất bại');
+    } finally {
+      setBatchXmlLoading(false);
+    }
+  };
+
+  const handleExportXml = async (sessionId: string, maLk: string) => {
+    setXmlLoading(sessionId);
+    try {
+      const { data: blob } = await exportXml(sessionId);
+      const url = URL.createObjectURL(blob as unknown as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `BHXH_XML_${maLk}_${dayjs().format('YYYYMMDD')}.xml`;
+      a.click();
+      URL.revokeObjectURL(url);
+      message.success(`Đã tải XML hồ sơ ${maLk}`);
+    } catch {
+      message.error('Xuất XML thất bại');
+    } finally {
+      setXmlLoading(null);
+    }
+  };
+
+  const handlePrintAuditForm = async (sessionId: string) => {
+    setPrintLoading(sessionId);
+    try {
+      const { data: html } = await printAuditForm(sessionId);
+      const win = window.open('', '_blank');
+      if (!win) { message.error('Trình duyệt chặn popup — cho phép popup để in'); return; }
+      win.document.write(html as unknown as string);
+      win.document.close();
+    } catch {
+      message.error('In phiếu thất bại');
+    } finally {
+      setPrintLoading(null);
+    }
+  };
 
   const depts = useMemo(() => {
     const set = new Set(items.map((r) => r.departmentName).filter(Boolean));
@@ -142,10 +280,20 @@ const BhxhAuditV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       {auditKey(r.auditStatus) === 'pending' && (
-        <ActBtn ic="check" title="Duyệt" onClick={() => tk(`Đã duyệt ${r.maLk}`)} />
+        <ActBtn
+          ic="check"
+          title="Duyệt"
+          loading={approveLoading === r.id}
+          onClick={() => handleApprove(r)}
+        />
       )}
       {!r.sentToPortal && (
-        <ActBtn ic="send" title="Gửi cổng BHXH" onClick={() => tk(`Đã gửi ${r.maLk} lên cổng`)} />
+        <ActBtn
+          ic="send"
+          title="Gửi cổng BHXH"
+          loading={submitLoading === r.id}
+          onClick={() => handleSubmitToPortal(r)}
+        />
       )}
     </div>
   );
@@ -171,10 +319,24 @@ const BhxhAuditV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk(`Đã xuất XML ${items.length} hồ sơ`)}>
-          <Ico name="download" size={12} /> Xuất XML BHXH
+        <Btn
+          variant="ghost"
+          disabled={!sel}
+          onClick={() => sel && handleExportXml(sel.id, sel.maLk)}
+          title="Xuất XML hồ sơ đang chọn trong drawer"
+        >
+          <Ico name="download" size={12} /> Xuất XML
         </Btn>
-        <Btn variant="primary" onClick={() => tk(`Đã gửi ${items.length - sentCount} hồ sơ lên cổng`)}>
+        <Btn
+          variant="ghost"
+          loading={batchXmlLoading}
+          disabled={filtered.length === 0}
+          onClick={handleBatchExportXml}
+          title={`Xuất ZIP XML cho ${filtered.length} hồ sơ trong bộ lọc hiện tại`}
+        >
+          <Ico name="download" size={12} /> Xuất XML hàng loạt
+        </Btn>
+        <Btn variant="primary" loading={batchLoading} onClick={handleBatchSubmit}>
           <Ico name="send" size={12} /> Gửi tất cả lên cổng
         </Btn>
       </div>
@@ -196,11 +358,25 @@ const BhxhAuditV2: React.FC = () => {
         sub={sel ? `${sel.patientName} · BHYT ${sel.insuranceNumber}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={() => tk('Đã in phiếu giám định')}>
+          <Btn
+            loading={sel ? printLoading === sel.id : false}
+            onClick={() => sel && handlePrintAuditForm(sel.id)}
+          >
             <Ico name="print" size={12} /> In phiếu
           </Btn>
+          <Btn
+            variant="ghost"
+            loading={sel ? xmlLoading === sel.id : false}
+            onClick={() => sel && handleExportXml(sel.id, sel.maLk)}
+          >
+            <Ico name="download" size={12} /> Xuất XML
+          </Btn>
           {sel && auditKey(sel.auditStatus) === 'pending' && (
-            <Btn variant="primary" onClick={() => { tk(`Đã duyệt ${sel.maLk}`); setSel(null); }}>
+            <Btn
+              variant="primary"
+              loading={approveLoading === sel.id}
+              onClick={() => handleApprove(sel)}
+            >
               <Ico name="check" size={12} /> Duyệt hồ sơ
             </Btn>
           )}

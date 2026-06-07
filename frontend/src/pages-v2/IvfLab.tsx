@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Select, Input, DatePicker, InputNumber } from 'antd';
-import { getCouples, getIvfDashboard, saveCouple } from '../api/ivfLab';
-import type { IvfCouple, IvfDashboard } from '../api/ivfLab';
+import { message, Select, Input, DatePicker, InputNumber } from 'antd';
+import { getCouples, getIvfDashboard, saveCouple, getCycles, getEmbryos } from '../api/ivfLab';
+import type { IvfCouple, IvfDashboard, IvfEmbryo } from '../api/ivfLab';
 import { patientApi } from '../api/patient';
 import {
   KpiStrip, SearchBox, DataTable, Pager, ActBtn, Btn, ModalShell,
@@ -20,6 +20,26 @@ const IvfLabV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<IvfCouple | null>(null);
   const [coupleModal, setCoupleModal] = useState<{ couple: IvfCouple | null } | null>(null);
+
+  // ── Quản lý phôi đông ─────────────────────────────────────────────────────
+  const [embryoTarget, setEmbryoTarget] = useState<IvfCouple | null>(null);
+  const [embryos, setEmbryos] = useState<IvfEmbryo[]>([]);
+  const [embryoLoading, setEmbryoLoading] = useState(false);
+
+  const openEmbryos = async (couple: IvfCouple) => {
+    setEmbryoTarget(couple);
+    setEmbryos([]);
+    setEmbryoLoading(true);
+    try {
+      const cycles = await getCycles(couple.id);
+      if (cycles.length === 0) { setEmbryoLoading(false); return; }
+      const allEmbryos = await Promise.all(cycles.map((c) => getEmbryos(c.id)));
+      // Chỉ hiển thị phôi đông (có freezeDate)
+      const frozen = allEmbryos.flat().filter((e) => e.freezeDate);
+      setEmbryos(frozen);
+    } catch { message.warning('Không tải được danh sách phôi đông'); }
+    finally { setEmbryoLoading(false); }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -108,7 +128,10 @@ const IvfLabV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Mở quản lý phôi đông')}>
+        <Btn variant="ghost" onClick={() => {
+          if (sel) { openEmbryos(sel); setSel(null); }
+          else message.info('Chọn cặp đôi từ danh sách để xem phôi đông');
+        }}>
           <Ico name="archive" size={12} /> Phôi đông
         </Btn>
         <Btn variant="primary" onClick={() => setCoupleModal({ couple: null })}>
@@ -131,6 +154,9 @@ const IvfLabV2: React.FC = () => {
         sub={sel ? `${sel.cycleCount} chu kỳ điều trị` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn onClick={() => { if (sel) { openEmbryos(sel); setSel(null); } }}>
+            <Ico name="archive" size={12} /> Phôi đông
+          </Btn>
           <Btn variant="primary" onClick={() => { if (sel) { setCoupleModal({ couple: sel }); setSel(null); } }}>
             <Ico name="edit" size={12} /> Chỉnh sửa
           </Btn>
@@ -156,6 +182,49 @@ const IvfLabV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      {/* ── Drawer Phôi đông ── */}
+      {embryoTarget && (
+        <DrawerShell
+          open={!!embryoTarget}
+          onClose={() => { setEmbryoTarget(null); setEmbryos([]); }}
+          size="lg"
+          title={`Phôi đông — ${embryoTarget.wifeName || '?'} & ${embryoTarget.husbandName || '?'}`}
+          sub={`${embryos.length} phôi đông`}
+          footer={<Btn variant="ghost" onClick={() => { setEmbryoTarget(null); setEmbryos([]); }}>Đóng</Btn>}
+        >
+          {embryoLoading && <div style={{ padding: 16, color: 'var(--t-2)' }}>Đang tải…</div>}
+          {!embryoLoading && embryos.length === 0 && (
+            <div style={{ padding: 16, color: 'var(--t-2)' }}>Không có phôi đông nào</div>
+          )}
+          {!embryoLoading && embryos.length > 0 && (
+            <table className="ab-tbl">
+              <thead>
+                <tr>
+                  <th>Mã phôi</th>
+                  <th>Chất lượng</th>
+                  <th>Ngày đông</th>
+                  <th>Ống / Hộp / Tủ</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                {embryos.map((e) => (
+                  <tr key={e.id}>
+                    <td className="mono">{e.embryoCode}</td>
+                    <td>{e.day5Grade || e.day3Grade || e.day2Grade || '—'}</td>
+                    <td className="mono">{e.freezeDate ? dayjs(e.freezeDate).format('DD/MM/YYYY') : '—'}</td>
+                    <td style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                      {[e.strawCode, e.boxCode, e.tankCode].filter(Boolean).join(' / ') || '—'}
+                    </td>
+                    <td>{e.statusName || e.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </DrawerShell>
+      )}
 
       {coupleModal && (
         <CoupleModal

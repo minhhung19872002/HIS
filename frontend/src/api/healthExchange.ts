@@ -790,6 +790,10 @@ export const reportNotifiableDisease = (dto: NotifiableDiseaseReportDto) =>
 export const getDashboard = () =>
   apiClient.get<HIEDashboardDto>(`${BASE_URL}/dashboard`);
 
+/** Sync tất cả HIE connection đang active — ping endpoint, cập nhật trạng thái kết nối. */
+export const syncAll = () =>
+  apiClient.post(`${BASE_URL}/sync-all`);
+
 export const getAlerts = (acknowledged?: boolean) =>
   apiClient.get<HIEAlertDto[]>(`${BASE_URL}/alerts`, { params: { acknowledged } });
 
@@ -855,6 +859,7 @@ export default {
   reportNotifiableDisease,
   // Dashboard
   getDashboard,
+  syncAll,
   getAlerts,
   acknowledgeAlert,
   getHIEStatistics,

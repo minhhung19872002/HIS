@@ -130,6 +130,22 @@ const PharmacyV2: React.FC = () => {
   const { message, modal } = AntdApp.useApp();
   const navigate = useNavigate();
   const [reloadVer] = useState(0);
+  const [printLabelLoading, setPrintLabelLoading] = useState<string | null>(null);
+
+  const onPrintLabel = async (r: PendingPrescription) => {
+    setPrintLabelLoading(r.id);
+    try {
+      const { data: html } = await pharmacyApi.printDrugLabel(r.id);
+      const win = window.open('', '_blank');
+      if (!win) { message.error('Trình duyệt chặn popup — cho phép popup để in'); return; }
+      win.document.write(html as unknown as string);
+      win.document.close();
+    } catch {
+      message.error('In nhãn thất bại — vui lòng thử lại');
+    } finally {
+      setPrintLabelLoading(null);
+    }
+  };
 
   const onAccept = async (r: PendingPrescription, reload: () => void) => {
     try {
@@ -254,7 +270,7 @@ const PharmacyV2: React.FC = () => {
           {(r.status === 'accepted' || r.status === 'dispensing') && (
             <ActBtn ic="check" title="Cấp phát" onClick={() => onComplete(r, reload)} />
           )}
-          <ActBtn ic="print" title="In nhãn" onClick={() => message.success('Đã in nhãn thuốc')} />
+          <ActBtn ic="print" title="In nhãn" loading={printLabelLoading === r.id} onClick={() => onPrintLabel(r)} />
           {r.status !== 'completed' && r.status !== 'rejected' && (
             <ActBtn ic="x" title="Hoàn" onClick={() => onReject(r, reload)} tone="crit" />
           )}

@@ -15,6 +15,16 @@ export interface HospitalReportResult {
   columns: string[];
 }
 
+export interface SendReportEmailDto {
+  toEmail: string;
+  from?: string;
+  to?: string;
+}
+
+export interface SendReportEmailResult {
+  message: string;
+}
+
 export interface BirthCertificateRequest {
   admissionId: string;
   babyName: string;
@@ -61,6 +71,13 @@ export const hospitalReportApi = {
     client.post('/reports/hospital/print/birth-certificate', data, {
       responseType: 'blob',
     }),
+
+  /**
+   * Gửi báo cáo qua email.
+   * MockMode: BE log + trả success khi chưa cấu hình SMTP.
+   */
+  sendReport: (reportCode: string, dto: SendReportEmailDto) =>
+    client.post<SendReportEmailResult>(`/reports/hospital/${reportCode}/send-email`, dto),
 };
 
 export default hospitalReportApi;

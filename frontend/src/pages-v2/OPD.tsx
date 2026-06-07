@@ -6,6 +6,7 @@ import * as receptionApi from '../api/reception';
 import type { AdmissionDto } from '../api/reception';
 import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+import * as pdf from '../api/pdf';
 
 /* Khám bệnh OPD v2 — list shell.
    Form khám đầy đủ (vital signs, history, exam, CĐ, CLS) là native v2 tại
@@ -114,11 +115,17 @@ const OPDV2: React.FC = () => {
           { lbl: 'Cấp cứu', val: emergency, tone: 'crit' },
         ];
       }}
-      rowActions={() => (
+      rowActions={(r) => (
         <div className="ab-actions">
           <ActBtn ic="stethoscope" title="Khám" onClick={() => navigate('/v2/opd/edit')} />
           <ActBtn ic="eye" title="Xem hồ sơ" onClick={() => navigate('/v2/emr/edit')} />
-          <ActBtn ic="print" title="In phiếu" onClick={() => message.success('Đã gửi máy in')} />
+          <ActBtn ic="print" title="In phiếu khám" onClick={() => {
+            if (r.examinationId) {
+              pdf.printEmrForm(r.examinationId, 'kham');
+            } else {
+              message.warning('Chưa có phiếu khám — bấm "Khám" để tạo phiếu trước');
+            }
+          }} />
         </div>
       )}
       drawer={(r) => (
@@ -164,6 +171,15 @@ const OPDV2: React.FC = () => {
               </Btn>
               <Btn onClick={() => navigate('/v2/prescription/edit')}>
                 <TermIcon name="flask" size={12} /> Kê đơn
+              </Btn>
+              <Btn onClick={() => {
+                if (r.examinationId) {
+                  pdf.printEmrForm(r.examinationId, 'kham');
+                } else {
+                  message.warning('Chưa có phiếu khám — bấm "Mở phòng khám" để tạo phiếu trước');
+                }
+              }}>
+                <TermIcon name="print" size={12} /> In phiếu khám
               </Btn>
             </div>
           </div>

@@ -3,7 +3,7 @@ import risApi from '../api/ris';
 import type { HelpCategoryDto, HelpArticleDto, TroubleshootingDto } from '../api/ris';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
+  DrawerShell, DrSec, DrField, ti, Ico,
   type ColumnDef,
 } from './_v2kit';
 
@@ -157,9 +157,6 @@ const HelpV2: React.FC = () => {
           <Btn variant="ghost" onClick={load}>
             <Ico name="refresh" size={12} /> Làm mới
           </Btn>
-          <Btn variant="primary" onClick={() => tk(`Mở thêm ${tab}`)}>
-            <Ico name="plus" size={12} /> Thêm mới
-          </Btn>
         </>
       } />
 
@@ -175,9 +172,7 @@ const HelpV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={() => tk('Mở docs')}>
-          <Ico name="archive" size={12} /> Tài liệu PDF
-        </Btn>
+        {/* Tài liệu PDF — ẩn vì không có URL tài liệu từ BE */}
       </div>
 
       {tab === 'articles' && <>
@@ -187,7 +182,7 @@ const HelpV2: React.FC = () => {
           actions={(r) => (
             <div className="ab-actions">
               <ActBtn ic="eye" title="Đọc bài" onClick={() => setSelArt(r)} />
-              {r.videoUrl && <ActBtn ic="play" title="Xem video" onClick={() => tk(`Mở video ${r.title}`)} />}
+              {r.videoUrl && <ActBtn ic="play" title="Xem video" onClick={() => window.open(r.videoUrl, '_blank')} />}
             </div>
           )}
           empty={loading ? 'Đang tải…' : 'Chưa có bài viết'}
@@ -201,7 +196,7 @@ const HelpV2: React.FC = () => {
           actions={(r) => (
             <div className="ab-actions">
               <ActBtn ic="eye" title="Chi tiết" onClick={() => setSelCat(r)} />
-              <ActBtn ic="edit" title="Sửa" onClick={() => tk(`Sửa ${r.name}`)} />
+              {/* Sửa danh mục — ẩn, không có BE endpoint quản lý nội dung */}
             </div>
           )}
           empty={loading ? 'Đang tải…' : 'Chưa có danh mục'}
@@ -234,11 +229,11 @@ const HelpV2: React.FC = () => {
         footer={<>
           <Btn variant="ghost" onClick={() => setSelArt(null)}>Đóng</Btn>
           {selArt?.videoUrl && (
-            <Btn onClick={() => tk('Mở video')}>
+            <Btn onClick={() => window.open(selArt.videoUrl, '_blank')}>
               <Ico name="play" size={12} /> Xem video
             </Btn>
           )}
-          <Btn variant="primary" onClick={() => tk('Đã in')}>
+          <Btn variant="primary" onClick={() => window.print()}>
             <Ico name="print" size={12} /> In bài viết
           </Btn>
         </>}
@@ -274,7 +269,7 @@ const HelpV2: React.FC = () => {
         sub={selTrouble ? `${selTrouble.code} · ${selTrouble.category}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSelTrouble(null)}>Đóng</Btn>
-          <Btn variant="primary" onClick={() => tk('Đã in')}>
+          <Btn variant="primary" onClick={() => window.print()}>
             <Ico name="print" size={12} /> In hướng dẫn
           </Btn>
         </>}
@@ -306,9 +301,7 @@ const HelpV2: React.FC = () => {
         sub={selCat?.code || ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSelCat(null)}>Đóng</Btn>
-          <Btn variant="primary" onClick={() => tk('Mở chỉnh sửa')}>
-            <Ico name="edit" size={12} /> Chỉnh sửa
-          </Btn>
+          {/* Chỉnh sửa danh mục — ẩn, không có BE endpoint */}
         </>}
       >
         {selCat && <>

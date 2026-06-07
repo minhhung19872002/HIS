@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchDiseaseReports, getEpiStats, updateDiseaseReport } from '../api/epidemiology';
-import type { DiseaseReport, EpiStats } from '../api/epidemiology';
+import { searchDiseaseReports, getEpiStats, updateDiseaseReport, reportDisease, searchOutbreaks } from '../api/epidemiology';
+import type { DiseaseReport, EpiStats, Outbreak } from '../api/epidemiology';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, Ico,
@@ -123,6 +123,20 @@ const EpidemiologyV2: React.FC = () => {
     catch { te('Gửi báo cáo thất bại'); }
   };
 
+  // Báo cáo mới
+  const [newReportOpen, setNewReportOpen] = useState(false);
+
+  // Ổ dịch
+  const [outbreakOpen, setOutbreakOpen] = useState(false);
+  const [outbreaks, setOutbreaks] = useState<Outbreak[]>([]);
+  const [outbreakLoading, setOutbreakLoading] = useState(false);
+  const loadOutbreaks = async () => {
+    setOutbreakLoading(true);
+    try { const r = await searchOutbreaks(); setOutbreaks(r); }
+    catch { ti('Không tải được danh sách ổ dịch'); }
+    finally { setOutbreakLoading(false); }
+  };
+
   const actions = (r: DiseaseReport) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
@@ -159,10 +173,10 @@ const EpidemiologyV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Mở quản lý ổ dịch')}>
+        <Btn variant="ghost" onClick={() => { setOutbreakOpen(true); loadOutbreaks(); }}>
           <Ico name="alert" size={12} /> Ổ dịch
         </Btn>
-        <Btn variant="primary" onClick={() => tk('Mở báo cáo bệnh mới')}>
+        <Btn variant="primary" onClick={() => { setNewReportOpen(true); }}>
           <Ico name="plus" size={12} /> Báo cáo mới
         </Btn>
       </div>
@@ -184,7 +198,7 @@ const EpidemiologyV2: React.FC = () => {
         sub={sel ? `${sel.diseaseName} · ${sel.patientName}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={() => tk('Đã in báo cáo')}>
+          <Btn onClick={() => window.print()}>
             <Ico name="print" size={12} /> In BC
           </Btn>
           <Btn onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
@@ -244,6 +258,60 @@ const EpidemiologyV2: React.FC = () => {
           load();
         }}
       />
+
+      {/* Modal báo cáo bệnh mới */}
+      <CrudModal
+        open={newReportOpen}
+        onClose={() => setNewReportOpen(false)}
+        title="Báo cáo ca bệnh truyền nhiễm"
+        fields={DR_FIELDS}
+        initial={null}
+        size="lg"
+        onSubmit={async (v) => {
+          await reportDisease(v as Partial<DiseaseReport>);
+          tk('Đã gửi báo cáo ca bệnh');
+          setNewReportOpen(false);
+          load();
+        }}
+      />
+
+      {/* Drawer danh sách ổ dịch */}
+      <DrawerShell
+        open={outbreakOpen}
+        onClose={() => setOutbreakOpen(false)}
+        size="lg"
+        title="Danh sách ổ dịch"
+        sub={`${outbreaks.length} ổ dịch`}
+        footer={<Btn variant="ghost" onClick={() => setOutbreakOpen(false)}>Đóng</Btn>}
+      >
+        {outbreakLoading ? (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
+        ) : outbreaks.length === 0 ? (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)' }}>Chưa có ổ dịch nào</div>
+        ) : outbreaks.map((ob) => {
+          const riskTone = ob.riskLevel >= 3 ? 'crit' : ob.riskLevel === 2 ? 'warn' : 'info';
+          const stTone = ob.status === 0 ? 'warn' : ob.status === 1 ? 'crit' : 'ok';
+          const stLabel = ['Nghi ngờ', 'Xác nhận', 'Kiểm soát', 'Đã giải quyết'][ob.status] ?? '—';
+          return (
+            <DrSec key={ob.id} title={ob.name}>
+              <DrField lbl="Bệnh">{ob.diseaseName} · <span style={{ fontFamily: 'var(--font-mono)' }}>{ob.diseaseCode}</span></DrField>
+              <DrField lbl="Địa điểm">{ob.location}</DrField>
+              <DrField lbl="Bắt đầu">{dayjs(ob.startDate).format('DD/MM/YYYY')}</DrField>
+              {ob.endDate && <DrField lbl="Kết thúc">{dayjs(ob.endDate).format('DD/MM/YYYY')}</DrField>}
+              <DrField lbl="Ca bệnh / Tử vong">
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{ob.caseCount} / {ob.deathCount}</span>
+              </DrField>
+              <DrField lbl="Mức độ rủi ro">
+                <StatusBadge tone={riskTone} dot>{['', 'Thấp', 'Trung bình', 'Cao', 'Nguy cấp'][ob.riskLevel] ?? '—'}</StatusBadge>
+              </DrField>
+              <DrField lbl="Trạng thái">
+                <StatusBadge tone={stTone} dot>{stLabel}</StatusBadge>
+              </DrField>
+              {ob.responseActions && <DrField lbl="Biện pháp">{ob.responseActions}</DrField>}
+            </DrSec>
+          );
+        })}
+      </DrawerShell>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getTrainingClasses, getTrainingDashboard, saveTrainingClass } from '../api/trainingResearch';
-import type { TrainingClassDto, TrainingDashboardDto } from '../api/trainingResearch';
+import { getTrainingClasses, getTrainingDashboard, saveTrainingClass, getClassStudents } from '../api/trainingResearch';
+import type { TrainingClassDto, TrainingDashboardDto, TrainingStudentDto } from '../api/trainingResearch';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
   DrawerShell, DrSec, DrField, tk, ti,
@@ -57,6 +57,27 @@ const TrainingResearchV2: React.FC = () => {
 
   const openCreate = () => { setCrudInit({ trainingType: 1, status: 1, maxStudents: 30, creditHours: 0, fee: 0 }); setCrudOpen(true); };
   const openEdit = (r: TrainingClassDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+  // Students drawer
+  const [studentsOpen, setStudentsOpen] = useState(false);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [students, setStudents] = useState<TrainingStudentDto[]>([]);
+  const [studentsClass, setStudentsClass] = useState<TrainingClassDto | null>(null);
+
+  const openStudents = async (r: TrainingClassDto) => {
+    setStudentsClass(r);
+    setStudentsOpen(true);
+    setStudentsLoading(true);
+    setStudents([]);
+    try {
+      const data = await getClassStudents(r.id);
+      setStudents(Array.isArray(data) ? data : []);
+    } catch {
+      ti('Không tải được danh sách học viên');
+      setStudentsOpen(false);
+    } finally {
+      setStudentsLoading(false);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -131,7 +152,7 @@ const TrainingResearchV2: React.FC = () => {
   const actions = (r: TrainingClassDto) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="user" title="Học viên" onClick={() => tk(`Danh sách học viên lớp ${r.classCode}`)} />
+      <ActBtn ic="user" title="Học viên" onClick={() => openStudents(r)} />
       <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
     </div>
   );
@@ -154,7 +175,7 @@ const TrainingResearchV2: React.FC = () => {
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
         <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
-        <Btn variant="ghost" icon="activity" onClick={() => tk('Nghiên cứu khoa học — xem tại trang NCKH')}>NCKH</Btn>
+        {/* NCKH button hidden: không có route /v2/research riêng — defer khi route được tạo */}
         <Btn variant="primary" icon="plus" onClick={openCreate}>Mở lớp</Btn>
       </div>
 
@@ -175,7 +196,7 @@ const TrainingResearchV2: React.FC = () => {
         sub={sel ? `${sel.classCode} · ${sel.trainingTypeName || ''}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn icon="user" onClick={() => { if (sel) tk(`Danh sách học viên lớp ${sel.classCode}`); }}>Học viên</Btn>
+          <Btn icon="user" onClick={() => { if (sel) { setSel(null); openStudents(sel); } }}>Học viên</Btn>
           <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Chỉnh sửa</Btn>
         </>}
       >
@@ -221,6 +242,47 @@ const TrainingResearchV2: React.FC = () => {
           load();
         }}
       />
+
+      {/* Drawer danh sách học viên */}
+      <DrawerShell
+        open={studentsOpen}
+        onClose={() => setStudentsOpen(false)}
+        size="lg"
+        title={studentsClass ? `Học viên: ${studentsClass.className}` : 'Học viên'}
+        sub={studentsClass ? `${studentsClass.classCode} · ${studentsLoading ? 'Đang tải…' : `${students.length} học viên`}` : ''}
+        footer={<Btn variant="ghost" onClick={() => setStudentsOpen(false)}>Đóng</Btn>}
+      >
+        {studentsLoading && <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải danh sách học viên…</div>}
+        {!studentsLoading && students.length === 0 && (
+          <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Chưa có học viên đăng ký</div>
+        )}
+        {!studentsLoading && students.length > 0 && (
+          <table className="ab-tbl" style={{ width: '100%', fontSize: 12 }}>
+            <thead>
+              <tr>
+                <th>#</th><th>Tên học viên</th><th>Loại</th>
+                <th>Điểm</th><th>Trạng thái</th><th>Chứng chỉ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((s, i) => (
+                <tr key={s.id}>
+                  <td className="mono">{i + 1}</td>
+                  <td>{s.displayName || '—'}</td>
+                  <td>{s.studentTypeName || `#${s.studentType}`}</td>
+                  <td className="mono">{s.score != null ? s.score : '—'}</td>
+                  <td>
+                    <StatusBadge tone={s.attendanceStatus === 2 ? 'ok' : s.attendanceStatus === 3 ? 'crit' : 'info'} dot>
+                      {s.attendanceStatusName || `#${s.attendanceStatus}`}
+                    </StatusBadge>
+                  </td>
+                  <td>{s.certificateNumber || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </DrawerShell>
     </div>
   );
 };

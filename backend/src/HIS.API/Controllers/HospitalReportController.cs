@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Reporting;
 using HIS.Application.Services;
+using HIS.Infrastructure.Services;
+using System.Text;
+using System.Text.Json;
 
 namespace HIS.API.Controllers
 {
@@ -17,11 +20,13 @@ namespace HIS.API.Controllers
     public class HospitalReportController : ControllerBase
     {
         private readonly IHospitalReportService _service;
+        private readonly IEmailService _emailService;
         private readonly ILogger<HospitalReportController> _logger;
 
-        public HospitalReportController(IHospitalReportService service, ILogger<HospitalReportController> logger)
+        public HospitalReportController(IHospitalReportService service, IEmailService emailService, ILogger<HospitalReportController> logger)
         {
             _service = service;
+            _emailService = emailService;
             _logger = logger;
         }
 
@@ -50,6 +55,46 @@ namespace HIS.API.Controllers
         }
 
         /// <summary>
+        /// Gửi báo cáo qua email (MockMode khi chưa có SMTP)
+        /// POST /api/reports/hospital/{reportCode}/send-email
+        /// Body: { toEmail, from?, to? }
+        /// </summary>
+        [HttpPost("{reportCode}/send-email")]
+        public async Task<IActionResult> SendReportEmail(
+            string reportCode,
+            [FromBody] SendReportEmailDto dto,
+            [FromQuery] DateTime? from = null,
+            [FromQuery] DateTime? to = null)
+        {
+            if (string.IsNullOrWhiteSpace(dto?.ToEmail))
+                return BadRequest(new { message = "toEmail không được để trống" });
+
+            var fromDate = dto.From.HasValue ? dto.From : from;
+            var toDate = dto.To.HasValue ? dto.To : to;
+
+            try
+            {
+                var reportData = await _service.GetReportDataAsync(reportCode, fromDate, toDate, null, null);
+
+                // Serialize report to JSON for attachment
+                var json = JsonSerializer.Serialize(reportData, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+                var bytes = Encoding.UTF8.GetBytes(json);
+                var fileName = $"baocao-{reportCode}-{DateTime.Now:yyyyMMdd}.json";
+
+                var sent = await _emailService.SendReportAsync(dto.ToEmail.Trim(), reportData.ReportName, bytes, fileName);
+                if (sent)
+                    return Ok(new { message = $"Đã gửi báo cáo '{reportData.ReportName}' tới {dto.ToEmail}" });
+
+                return StatusCode(500, new { message = "Gửi email thất bại" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending report email {ReportCode}", reportCode);
+                return StatusCode(500, new { message = $"Lỗi gửi báo cáo: {ex.Message}" });
+            }
+        }
+
+        /// <summary>
         /// Print birth certificate (Giay chung sinh)
         /// POST /api/reports/hospital/print/birth-certificate
         /// Returns HTML content for browser printing
@@ -74,4 +119,15 @@ namespace HIS.API.Controllers
             }
         }
     }
+}
+
+/// <summary>Request DTO for sending a report by email.</summary>
+public class SendReportEmailDto
+{
+    /// <summary>Địa chỉ email nhận báo cáo (bắt buộc).</summary>
+    public string ToEmail { get; set; } = string.Empty;
+    /// <summary>Ngày bắt đầu kỳ báo cáo (ghi đè query param).</summary>
+    public DateTime? From { get; set; }
+    /// <summary>Ngày kết thúc kỳ báo cáo (ghi đè query param).</summary>
+    public DateTime? To { get; set; }
 }

@@ -11,4 +11,5 @@ public interface IPracticeLicenseService
     Task<List<PracticeLicenseDto>> GetExpiringLicensesAsync(int withinDays = 90);
     Task<PracticeLicenseStatsDto> GetStatsAsync();
     Task<PracticeLicenseDto> RenewLicenseAsync(Guid id, string? newExpiryDate);
+    Task<byte[]> PrintLicenseAsync(Guid licenseId);
 }

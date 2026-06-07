@@ -185,6 +185,13 @@ export const getExpiryAlertsOnLogin = () =>
 export const acknowledgeExpiryAlert = (alertId: string) =>
   apiClient.put<{ success: boolean }>(`${BASE_URL}/expiry-alerts/${alertId}/acknowledge`);
 
+// Drug Label Print
+/** In nhãn thuốc (trả HTML text để mở cửa sổ in). FE mở window mới với nội dung này. */
+export const printDrugLabel = (prescriptionId: string) =>
+  apiClient.get<string>(`${BASE_URL}/prescriptions/${prescriptionId}/print-drug-label`, {
+    responseType: 'text',
+  });
+
 // ============================================================================
 // Clinical Pharmacy (Dược lâm sàng)
 // ============================================================================
@@ -220,4 +227,5 @@ export default {
   getClinicalReviews,
   getAdrReports,
   submitAdrReport,
+  printDrugLabel,
 };

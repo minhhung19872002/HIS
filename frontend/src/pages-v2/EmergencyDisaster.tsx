@@ -4,7 +4,7 @@ import { AlertOutlined, EyeOutlined, HomeOutlined, LogoutOutlined } from '@ant-d
 import dayjs from 'dayjs';
 import TermIcon from '../layouts/terminal/Icon';
 import {
-  getActiveEvent, getVictims, registerVictim,
+  getActiveEvent, getVictims, registerVictim, activateCodeBlue,
   type MCIVictimDto, type RegisterVictimDto,
 } from '../api/massCasualty';
 import '../styles/EmergencyDisaster.css';
@@ -448,26 +448,32 @@ const EmergencyDisasterV2: React.FC = () => {
               Tiếp nhận cấp cứu
             </button>
             <button
-              className="er-v2-btn"
+              className="er-v2-btn danger"
               type="button"
               onClick={() => modal.confirm({
-                title: 'Kích hoạt Code Blue — MÔ PHỎNG / DIỄN TẬP',
+                title: 'Kích hoạt Code Blue — Báo động đỏ cấp cứu',
                 content: (
                   <div>
-                    <Tag color="orange" style={{ marginBottom: 8 }}>MÔ PHỎNG / DIỄN TẬP</Tag>
-                    <p>Chức năng kích hoạt Code Blue thật chưa được nối API backend.</p>
-                    <p>Nếu đây là tình huống thật, vui lòng thông báo qua hệ thống cảnh báo nội bộ.</p>
+                    <Tag color="red" style={{ marginBottom: 8 }}>CẢNH BÁO — Hành động thật, không thể hoàn tác</Tag>
+                    <p>Sự kiện Code Blue sẽ được ghi vào hệ thống ngay lập tức.</p>
+                    <p>Xác nhận chỉ khi đây là tình huống cấp cứu thật sự.</p>
                   </div>
                 ),
-                okText: 'Xác nhận (diễn tập)',
+                okText: 'Kích hoạt Code Blue',
                 cancelText: 'Huỷ',
                 okType: 'danger',
-                onOk: () => message.warning('Đã kích hoạt quy trình Code Blue (diễn tập — chưa lưu hệ thống)'),
+                onOk: async () => {
+                  try {
+                    const evt = await activateCodeBlue();
+                    message.success(`Code Blue đã kích hoạt — Mã: ${evt.data?.eventCode ?? ''}`);
+                  } catch {
+                    message.error('Kích hoạt Code Blue thất bại. Vui lòng thử lại.');
+                  }
+                },
               })}
             >
               <AlertOutlined />
               Code Blue
-              <Tag color="orange" style={{ marginLeft: 4, fontSize: 10, padding: '0 4px' }}>MÔ PHỎNG</Tag>
             </button>
           </div>
 

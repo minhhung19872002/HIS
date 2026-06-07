@@ -190,6 +190,8 @@ namespace HIS.Application.DTOs
         public DateTime? StartedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
         public string Notes { get; set; }
+        /// <summary>ExaminationId của lượt khám hôm nay — dùng để in phiếu khám (pdf/emr/{id}).</summary>
+        public Guid? ExaminationId { get; set; }
     }
 
     public class AdmissionSearchDto

@@ -63,4 +63,11 @@ public class PracticeLicenseController : ControllerBase
     {
         return Ok(await _service.RenewLicenseAsync(id, newExpiryDate));
     }
+
+    [HttpGet("licenses/{id}/print")]
+    public async Task<IActionResult> PrintLicense(Guid id)
+    {
+        var bytes = await _service.PrintLicenseAsync(id);
+        return File(bytes, "text/html; charset=utf-8", $"cchn-{id:N}.html");
+    }
 }

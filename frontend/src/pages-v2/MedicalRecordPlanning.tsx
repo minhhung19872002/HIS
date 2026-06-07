@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getRecordCodes } from '../api/medicalRecordPlanning';
+import { Form, Input, InputNumber, Divider } from 'antd';
+import { getRecordCodes, assignRecordCode, bulkAllocate } from '../api/medicalRecordPlanning';
+import type { BulkAllocateResult } from '../api/medicalRecordPlanning';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, tk, ti,
+  DrawerShell, ModalShell, DrSec, DrField, tk, ti, tw, Ico,
   type ColumnDef,
 } from './_v2kit';
 
@@ -45,6 +47,17 @@ const MedicalRecordPlanningV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<RecordCode | null>(null);
 
+  // --- Gán BN modal ---
+  const [assignTarget, setAssignTarget] = useState<RecordCode | null>(null);
+  const [assignSaving, setAssignSaving] = useState(false);
+  const [assignForm] = Form.useForm();
+
+  // --- Cấp dải mã modal ---
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkResult, setBulkResult] = useState<BulkAllocateResult | null>(null);
+  const [bulkForm] = Form.useForm();
+
   const load = async () => {
     setLoading(true);
     try {
@@ -55,6 +68,63 @@ const MedicalRecordPlanningV2: React.FC = () => {
     finally { setLoading(false); }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+
+  const openAssign = (r: RecordCode) => {
+    setAssignTarget(r);
+    assignForm.resetFields();
+    assignForm.setFieldValue('examinationId', '');
+  };
+
+  const handleAssign = async () => {
+    setAssignSaving(true);
+    try {
+      const v = await assignForm.validateFields();
+      await assignRecordCode({ examinationId: v.examinationId.trim(), recordCode: assignTarget?.recordCode });
+      tk(`Đã gán mã BA ${assignTarget?.recordCode}`);
+      setAssignTarget(null);
+      setSel(null);
+      assignForm.resetFields();
+      load();
+    } catch (e: unknown) {
+      const err = e as { errorFields?: unknown };
+      if (err?.errorFields) return;
+      tw('Gán BN thất bại');
+    } finally {
+      setAssignSaving(false);
+    }
+  };
+
+  const openBulk = () => {
+    setBulkResult(null);
+    bulkForm.resetFields();
+    setBulkOpen(true);
+  };
+
+  const handleBulkAllocate = async () => {
+    setBulkSaving(true);
+    try {
+      const v = await bulkForm.validateFields();
+      const dto = {
+        departmentId: v.departmentId?.trim() || '',
+        prefix: v.prefix?.trim() || undefined,
+        count: v.count ? Number(v.count) : undefined,
+        fromCode: v.fromCode?.trim() || undefined,
+        toCode: v.toCode?.trim() || undefined,
+        skipExisting: true,
+      };
+      const r = await bulkAllocate(dto);
+      const result = r.data as BulkAllocateResult;
+      setBulkResult(result);
+      tk(`Đã cấp ${result.allocated} mã BA`);
+      load();
+    } catch (e: unknown) {
+      const err = e as { errorFields?: unknown };
+      if (err?.errorFields) return;
+      tw('Cấp dải mã thất bại');
+    } finally {
+      setBulkSaving(false);
+    }
+  };
 
   const depts = useMemo(() => {
     const set = new Set(items.map((r) => r.departmentName).filter(Boolean) as string[]);
@@ -103,7 +173,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       {r.status === 0 && (
-        <ActBtn ic="user" title="Gán BN" onClick={() => tk(`Mở gán BN cho ${r.recordCode}`)} />
+        <ActBtn ic="user" title="Gán BN" onClick={() => openAssign(r)} />
       )}
     </div>
   );
@@ -124,7 +194,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFDept(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
         <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
-        <Btn variant="primary" icon="plus" onClick={() => tk('Mở cấp dải mã BA')}>Cấp dải mã</Btn>
+        <Btn variant="primary" icon="plus" onClick={openBulk}>Cấp dải mã</Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -145,7 +215,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
           {sel && sel.status === 0 && (
-            <Btn variant="primary" icon="user" onClick={() => tk('Mở gán BN')}>Gán BN</Btn>
+            <Btn variant="primary" icon="user" onClick={() => { openAssign(sel); setSel(null); }}>Gán BN</Btn>
           )}
         </>}
       >
@@ -169,6 +239,104 @@ const MedicalRecordPlanningV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+      {/* ===== Modal Gán BN ===== */}
+      <ModalShell
+        open={!!assignTarget}
+        onClose={() => { setAssignTarget(null); assignForm.resetFields(); }}
+        title={assignTarget ? `Gán BN cho mã BA · ${assignTarget.recordCode}` : 'Gán BN'}
+        size="md"
+        footer={<>
+          <Btn variant="ghost" onClick={() => { setAssignTarget(null); assignForm.resetFields(); }}>Hủy</Btn>
+          <Btn variant="primary" onClick={handleAssign} loading={assignSaving}>
+            <Ico name="check" size={12} /> Xác nhận gán
+          </Btn>
+        </>}
+      >
+        <div style={{ padding: '8px 0' }}>
+          <div style={{ padding: 10, marginBottom: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, color: 'var(--t-2)' }}>
+            Gán bệnh nhân (qua ExaminationId) cho mã BA{' '}
+            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--t-0)' }}>{assignTarget?.recordCode}</span>.
+          </div>
+          <Form form={assignForm} layout="vertical">
+            <Form.Item name="examinationId" label="ExaminationId (lần khám)" rules={[{ required: true, message: 'Nhập ExaminationId' }]}>
+              <Input placeholder="VD: 3fa85f64-5717-4562-b3fc-2c963f66afa6" style={{ fontFamily: 'var(--font-mono)' }} />
+            </Form.Item>
+          </Form>
+        </div>
+      </ModalShell>
+
+      {/* ===== Modal Cấp dải mã ===== */}
+      <ModalShell
+        open={bulkOpen}
+        onClose={() => { setBulkOpen(false); setBulkResult(null); bulkForm.resetFields(); }}
+        title="Cấp dải mã BA"
+        size="lg"
+        footer={bulkResult ? (
+          <Btn variant="primary" onClick={() => { setBulkOpen(false); setBulkResult(null); bulkForm.resetFields(); }}>Đóng</Btn>
+        ) : (
+          <>
+            <Btn variant="ghost" onClick={() => setBulkOpen(false)}>Hủy</Btn>
+            <Btn variant="primary" onClick={handleBulkAllocate} loading={bulkSaving}>
+              <Ico name="plus" size={12} /> Cấp mã
+            </Btn>
+          </>
+        )}
+      >
+        {bulkResult ? (
+          <div style={{ padding: '8px 0' }}>
+            <div style={{ marginBottom: 12, padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
+              <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--t-0)' }}>{bulkResult.message}</div>
+              <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
+                <span>Yêu cầu: <b>{bulkResult.requested}</b></span>
+                <span style={{ color: 'var(--a-gn-text)' }}>Cấp: <b>{bulkResult.allocated}</b></span>
+                <span style={{ color: 'var(--a-or-text)' }}>Bỏ qua: <b>{bulkResult.skipped}</b></span>
+                <span style={{ color: 'var(--a-rd-text)' }}>Lỗi: <b>{bulkResult.failed}</b></span>
+              </div>
+            </div>
+            {bulkResult.allocatedCodes.length > 0 && (
+              <DrSec title={`Mã đã cấp (${bulkResult.allocatedCodes.length})`}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, lineHeight: '22px', color: 'var(--t-1)' }}>
+                  {bulkResult.allocatedCodes.join(' · ')}
+                </div>
+              </DrSec>
+            )}
+            {bulkResult.errors.length > 0 && (
+              <DrSec title="Lỗi">
+                {bulkResult.errors.map((e, i) => (
+                  <div key={i} style={{ fontSize: 12, color: 'var(--a-rd-text)', marginBottom: 2 }}>{e}</div>
+                ))}
+              </DrSec>
+            )}
+          </div>
+        ) : (
+          <Form form={bulkForm} layout="vertical" style={{ padding: '8px 0' }}>
+            <Form.Item name="departmentId" label="Department ID">
+              <Input placeholder="UUID khoa (để trống nếu không cần)" style={{ fontFamily: 'var(--font-mono)' }} />
+            </Form.Item>
+            <Divider style={{ margin: '8px 0', borderColor: 'var(--line)' }}>
+              <span style={{ fontSize: 11, color: 'var(--t-2)' }}>Chọn 1 trong 2 cách cấp mã</span>
+            </Divider>
+            <div style={{ marginBottom: 8, fontSize: 12, color: 'var(--t-2)', fontWeight: 600 }}>Cách 1: Prefix + Số lượng</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Form.Item name="prefix" label="Prefix" style={{ flex: 1 }}>
+                <Input placeholder="VD: HS" />
+              </Form.Item>
+              <Form.Item name="count" label="Số lượng" style={{ flex: 1 }}>
+                <InputNumber min={1} max={1000} style={{ width: '100%' }} placeholder="VD: 100" />
+              </Form.Item>
+            </div>
+            <div style={{ marginBottom: 8, fontSize: 12, color: 'var(--t-2)', fontWeight: 600 }}>Cách 2: Dải từ — đến</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Form.Item name="fromCode" label="Từ mã" style={{ flex: 1 }}>
+                <Input placeholder="VD: HS0001" style={{ fontFamily: 'var(--font-mono)' }} />
+              </Form.Item>
+              <Form.Item name="toCode" label="Đến mã" style={{ flex: 1 }}>
+                <Input placeholder="VD: HS0100" style={{ fontFamily: 'var(--font-mono)' }} />
+              </Form.Item>
+            </div>
+          </Form>
+        )}
+      </ModalShell>
     </div>
   );
 };

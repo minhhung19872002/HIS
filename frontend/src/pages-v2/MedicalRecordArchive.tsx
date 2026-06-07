@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Form, Input } from 'antd';
 import { getArchiveList, createArchive } from '../api/medicalRecordArchive';
+import * as pdfApi from '../api/pdf';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   StatusTabs, DrawerShell, ModalShell, DrSec, DrField, tk, ti, tw, Ico,
@@ -145,7 +146,11 @@ const MedicalRecordArchiveV2: React.FC = () => {
   const actions = (r: ArchivedRecord) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Xem chi tiết" onClick={() => setSel(r)} />
-      <ActBtn ic="download" title="Tải xuống" onClick={() => tk(`Đã tải ${r.archiveCode || r.medicalRecordCode}`)} />
+      <ActBtn ic="download" title="Tải xuống / In HSBA" onClick={() => {
+        if (!r.medicalRecordId) { tw('Không có MedicalRecordId để in'); return; }
+        pdfApi.printMedicalRecord(r.medicalRecordId);
+        tk(`Đang mở HSBA · ${r.medicalRecordCode || r.archiveCode}`);
+      }} />
     </div>
   );
 
@@ -253,10 +258,18 @@ const MedicalRecordArchiveV2: React.FC = () => {
         sub={sel?.patientName ?? ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={() => tk('Đã tải xuống')}>
+          <Btn onClick={() => {
+            if (!sel?.medicalRecordId) { tw('Không có MedicalRecordId để tải'); return; }
+            pdfApi.printMedicalRecord(sel.medicalRecordId);
+            tk(`Đang mở HSBA · ${sel.medicalRecordCode || sel.archiveCode}`);
+          }}>
             <Ico name="download" size={12} /> Tải xuống
           </Btn>
-          <Btn variant="primary" onClick={() => tk('Đã in HSBA')}>
+          <Btn variant="primary" onClick={() => {
+            if (!sel?.medicalRecordId) { tw('Không có MedicalRecordId để in'); return; }
+            pdfApi.printMedicalRecord(sel.medicalRecordId);
+            tk(`Đang mở in HSBA · ${sel.medicalRecordCode || sel.archiveCode}`);
+          }}>
             <Ico name="print" size={12} /> In HSBA
           </Btn>
         </>}

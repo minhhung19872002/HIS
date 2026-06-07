@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { DatePicker } from 'antd';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DatePicker, Input, Modal, type InputRef } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
+import { searchPrescriptionByCode, type DispensePrescriptionLookupDto } from '../api/examination';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, tw, Ico,
@@ -50,6 +51,10 @@ const DispensingCounterV2: React.FC = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detail, setDetail] = useState<DispenseRow | null>(null);
   const [printCount, setPrintCount] = useState(0);
+  const [barcodeOpen, setBarcodeOpen] = useState(false);
+  const [barcodeVal, setBarcodeVal] = useState('');
+  const [barcodeLoading, setBarcodeLoading] = useState(false);
+  const barcodeInputRef = useRef<InputRef>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -112,6 +117,40 @@ const DispensingCounterV2: React.FC = () => {
     catch { tw('Hủy thất bại'); }
   };
 
+  const handleBarcodeSearch = async () => {
+    const code = barcodeVal.trim();
+    if (!code) { tw('Nhập mã đơn hoặc quét barcode'); return; }
+    setBarcodeLoading(true);
+    try {
+      // request wrapper (examination.ts dùng @/utils/request) trả { success, data }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const res = await searchPrescriptionByCode(code) as any;
+      const p: DispensePrescriptionLookupDto = res?.data ?? res;
+      const row: DispenseRow = {
+        prescriptionId: p.id,
+        prescriptionCode: p.prescriptionCode,
+        patientCode: p.patientCode ?? '',
+        patientName: p.patientName ?? '',
+        gender: p.gender,
+        prescribedAt: p.prescribedAt || p.prescriptionDate,
+        doctorName: p.doctorName,
+        totalItems: p.items?.length ?? 0,
+        totalAmount: p.totalAmount,
+        insuranceType: p.insuranceType || 'Thu phí',
+        isDispensed: p.isDispensed,
+        items: (p.items ?? []).map((it) => ({ ...it, medicineName: it.medicineName ?? '' })),
+      };
+      setBarcodeOpen(false);
+      setBarcodeVal('');
+      setDetail(row);
+      tk(`Tìm thấy đơn ${p.prescriptionCode}`);
+    } catch {
+      tw('Không tìm thấy đơn thuốc với mã này');
+    } finally {
+      setBarcodeLoading(false);
+    }
+  };
+
   const printLabels = (row: DispenseRow) => {
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Tem thuốc ${row.patientCode}</title>
 <style>body{font-family:Arial;margin:0;padding:10px}.label{border:1px solid #000;padding:8px 12px;margin-bottom:8px;width:260px}.label h3{margin:0 0 4px;font-size:13px}.label p{margin:2px 0;font-size:11px}.barcode{font-family:'Libre Barcode 128',monospace;font-size:32px;text-align:center}@media print{.no-print{display:none}}</style></head>
@@ -170,7 +209,7 @@ ${row.items.map((it) => `<div class="label"><h3>${it.medicineName}</h3><p><stron
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Quét barcode')}>
+        <Btn variant="ghost" onClick={() => { setBarcodeOpen(true); setTimeout(() => barcodeInputRef.current?.focus(), 100); }}>
           <Ico name="qr" size={12} /> Quét barcode
         </Btn>
         {stab === 'pending' && selected.size > 0 && (
@@ -198,6 +237,31 @@ ${row.items.map((it) => `<div class="label"><h3>${it.medicineName}</h3><p><stron
         )}
         empty={loading ? 'Đang tải…' : (stab === 'pending' ? 'Không còn đơn chờ phát' : 'Chưa phát đơn nào')}
       />
+
+      <Modal
+        open={barcodeOpen}
+        title="Quét / nhập mã đơn thuốc"
+        onCancel={() => { setBarcodeOpen(false); setBarcodeVal(''); }}
+        onOk={handleBarcodeSearch}
+        okText="Tìm đơn"
+        cancelText="Đóng"
+        confirmLoading={barcodeLoading}
+        destroyOnHidden
+        width={400}
+      >
+        <p style={{ fontSize: 13, color: 'var(--t-2)', marginBottom: 12 }}>
+          Nhập mã đơn thuốc hoặc để máy quét barcode tự điền vào ô bên dưới.
+        </p>
+        <Input
+          ref={barcodeInputRef}
+          placeholder="VD: RX20240601001 hoặc ID đơn"
+          value={barcodeVal}
+          onChange={(e) => setBarcodeVal(e.target.value)}
+          onPressEnter={handleBarcodeSearch}
+          size="large"
+          allowClear
+        />
+      </Modal>
 
       <DrawerShell
         open={!!detail}

@@ -80,6 +80,15 @@ namespace HIS.Application.DTOs.MassCasualty
     }
 
     /// <summary>
+    /// Kích hoạt Code Blue (cấp cứu khẩn — AlertLevel Red, EventType Violence)
+    /// </summary>
+    public class ActivateCodeBlueRequest
+    {
+        /// <summary>Vị trí xảy ra sự cố. Mặc định: "Toàn bệnh viện"</summary>
+        public string? Location { get; set; }
+    }
+
+    /// <summary>
     /// Cập nhật trạng thái sự kiện
     /// </summary>
     public class UpdateMCIEventDto

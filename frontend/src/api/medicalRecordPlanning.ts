@@ -61,3 +61,32 @@ export const checkIn = (data: { departmentId: string; note?: string }) =>
 // Stats
 export const getPlanningStats = () =>
   client.get('/medical-record-planning/stats');
+
+// Bulk Allocate Record Codes
+export interface BulkAllocateDto {
+  departmentId: string;
+  /** Dải số: mã bắt đầu, VD "HS0001" */
+  fromCode?: string;
+  /** Dải số: mã kết thúc, VD "HS0100" */
+  toCode?: string;
+  /** Prefix+Count mode: prefix VD "HS" */
+  prefix?: string;
+  /** Prefix+Count mode: số mã cần sinh */
+  count?: number;
+  /** Bỏ qua mã đã tồn tại thay vì báo lỗi (default true) */
+  skipExisting?: boolean;
+}
+
+export interface BulkAllocateResult {
+  requested: number;
+  allocated: number;
+  skipped: number;
+  failed: number;
+  allocatedCodes: string[];
+  skippedCodes: string[];
+  errors: string[];
+  message: string;
+}
+
+export const bulkAllocate = (dto: BulkAllocateDto) =>
+  client.post<BulkAllocateResult>('/medical-record-planning/record-codes/bulk-allocate', dto);

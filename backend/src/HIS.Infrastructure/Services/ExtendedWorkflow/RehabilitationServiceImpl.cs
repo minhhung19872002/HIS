@@ -260,6 +260,67 @@ public class RehabilitationServiceImpl : IRehabilitationService
         }
     }
 
+    public async Task<byte[]> PrintReferralAsync(Guid referralId)
+    {
+        var dto = await GetReferralAsync(referralId);
+        if (dto == null) throw new InvalidOperationException("Không tìm thấy giấy giới thiệu PHCN");
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'/>");
+        sb.AppendLine("<style>");
+        sb.AppendLine("body{font-family:'Times New Roman',Times,serif;font-size:13pt;margin:20mm 15mm;}");
+        sb.AppendLine(".header{text-align:center;margin-bottom:8px;}");
+        sb.AppendLine(".title{text-align:center;font-weight:bold;font-size:16pt;text-transform:uppercase;margin:16px 0 4px;}");
+        sb.AppendLine(".subtitle{text-align:center;font-size:11pt;margin-bottom:20px;}");
+        sb.AppendLine(".field-row{display:flex;margin-bottom:6px;}");
+        sb.AppendLine(".field-label{min-width:200px;font-weight:bold;}");
+        sb.AppendLine(".field-value{flex:1;border-bottom:1px dotted #555;}");
+        sb.AppendLine(".section-title{font-weight:bold;margin:14px 0 6px;text-decoration:underline;}");
+        sb.AppendLine(".sig-row{display:flex;justify-content:space-between;margin-top:40px;}");
+        sb.AppendLine(".sig-box{text-align:center;width:45%;}");
+        sb.AppendLine(".sig-name{margin-top:60px;font-weight:bold;}");
+        sb.AppendLine("@media print{body{margin:10mm;}}");
+        sb.AppendLine("</style></head><body>");
+
+        sb.AppendLine("<div class='header'>");
+        sb.AppendLine("<div>BỘ Y TẾ</div>");
+        sb.AppendLine("</div>");
+
+        sb.AppendLine("<div class='title'>GIẤY GIỚI THIỆU PHỤC HỒI CHỨC NĂNG</div>");
+        sb.AppendLine($"<div class='subtitle'>Số: {System.Web.HttpUtility.HtmlEncode(dto.ReferralCode)}</div>");
+
+        sb.AppendLine("<div class='section-title'>I. THÔNG TIN BỆNH NHÂN</div>");
+        sb.AppendLine($"<div class='field-row'><span class='field-label'>Họ và tên:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dto.PatientName)}</span></div>");
+        sb.AppendLine($"<div class='field-row'><span class='field-label'>Mã bệnh nhân:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dto.PatientCode)}</span></div>");
+        var genderText = dto.PatientGender ?? "";
+        var ageText = dto.PatientAge > 0 ? dto.PatientAge.ToString() + " tuổi" : "";
+        sb.AppendLine($"<div class='field-row'><span class='field-label'>Tuổi / Giới tính:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(ageText)} / {System.Web.HttpUtility.HtmlEncode(genderText)}</span></div>");
+
+        sb.AppendLine("<div class='section-title'>II. THÔNG TIN LÂM SÀNG</div>");
+        sb.AppendLine($"<div class='field-row'><span class='field-label'>Khoa gửi:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dto.SourceDepartment)}</span></div>");
+        sb.AppendLine($"<div class='field-row'><span class='field-label'>Bác sĩ giới thiệu:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dto.ReferringDoctor)}</span></div>");
+        sb.AppendLine($"<div class='field-row'><span class='field-label'>Chẩn đoán chính:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dto.PrimaryDiagnosis)}</span></div>");
+        if (!string.IsNullOrWhiteSpace(dto.DiagnosisICD))
+            sb.AppendLine($"<div class='field-row'><span class='field-label'>Mã ICD:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dto.DiagnosisICD)}</span></div>");
+        if (!string.IsNullOrWhiteSpace(dto.Precautions))
+            sb.AppendLine($"<div class='field-row'><span class='field-label'>Lưu ý / Chống chỉ định:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dto.Precautions)}</span></div>");
+
+        sb.AppendLine("<div class='section-title'>III. YÊU CẦU PHỤC HỒI CHỨC NĂNG</div>");
+        sb.AppendLine($"<div class='field-row'><span class='field-label'>Loại PHCN:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dto.RehabType)}</span></div>");
+        sb.AppendLine($"<div class='field-row'><span class='field-label'>Mục tiêu PHCN:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dto.RehabGoals ?? dto.SpecificRequests ?? "")}</span></div>");
+
+        var referralDate = dto.ReferralDate != default ? dto.ReferralDate.ToString("dd/MM/yyyy") : DateTime.Today.ToString("dd/MM/yyyy");
+        sb.AppendLine($"<div style='text-align:right;margin-top:20px;font-style:italic'>Ngày {referralDate}</div>");
+
+        sb.AppendLine("<div class='sig-row'>");
+        sb.AppendLine("<div class='sig-box'><div>TRƯỞNG KHOA GỬI</div><div style='font-size:10pt;font-style:italic'>(Ký, ghi rõ họ tên)</div><div class='sig-name'>&nbsp;</div></div>");
+        sb.AppendLine($"<div class='sig-box'><div>BÁC SĨ GIỚI THIỆU</div><div style='font-size:10pt;font-style:italic'>(Ký, ghi rõ họ tên)</div><div class='sig-name'>{System.Web.HttpUtility.HtmlEncode(dto.ReferringDoctor)}</div></div>");
+        sb.AppendLine("</div>");
+
+        sb.AppendLine("</body></html>");
+        return System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+    }
+
     private static RehabSessionDto MapToRehabSessionDto(RehabSession e) => new()
     {
         Id = e.Id, TreatmentPlanId = e.TreatmentPlanId, SessionNumber = e.SessionNumber, ScheduledDate = e.SessionDate,

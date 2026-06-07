@@ -459,3 +459,26 @@ public class BhxhAuditStatisticsDto
     public string? MostCommonErrorType { get; set; }
     public List<MonthlyAuditDto> MonthlyStats { get; set; } = new();
 }
+
+// === BHXH Audit — Portal Submit DTOs ===
+
+public class BhxhAuditPortalSubmitResultDto
+{
+    public Guid SessionId { get; set; }
+    public string SessionCode { get; set; } = string.Empty;
+    /// <summary>MockMode: always "MockSubmitted" until real BHXH gateway is integrated.</summary>
+    public string PortalStatus { get; set; } = string.Empty;
+    public string? TransactionId { get; set; }
+    public DateTime SubmittedAt { get; set; }
+    public bool Success { get; set; }
+    public string? Message { get; set; }
+}
+
+public class BhxhAuditBatchSubmitResultDto
+{
+    public int TotalRequested { get; set; }
+    public int Submitted { get; set; }
+    public int Skipped { get; set; }
+    public int Failed { get; set; }
+    public List<BhxhAuditPortalSubmitResultDto> Results { get; set; } = new();
+}

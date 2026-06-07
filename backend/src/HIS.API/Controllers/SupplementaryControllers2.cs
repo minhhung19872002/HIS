@@ -395,4 +395,132 @@ public class BhxhAuditController : ControllerBase
         var result = await _service.GetStatisticsAsync();
         return Ok(result);
     }
+
+    /// <summary>
+    /// Duyệt hồ sơ giám định (Completed → Approved)
+    /// </summary>
+    [HttpPost("session/{id}/approve")]
+    public async Task<ActionResult<BhxhAuditDetailDto>> ApproveSession(Guid id, [FromBody] ApproveAuditSessionDto dto)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
+            var result = await _service.ApproveSessionAsync(id, userId, dto?.Notes);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Gửi 1 phiên giám định lên cổng BHXH (MockMode)
+    /// </summary>
+    [HttpPost("session/{id}/submit-portal")]
+    public async Task<ActionResult<BhxhAuditPortalSubmitResultDto>> SubmitToPortal(Guid id)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
+            var result = await _service.SubmitToPortalAsync(id, userId);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Gửi hàng loạt phiên giám định lên cổng BHXH (MockMode)
+    /// </summary>
+    [HttpPost("sessions/submit-batch")]
+    public async Task<ActionResult<BhxhAuditBatchSubmitResultDto>> SubmitBatch([FromBody] BatchSubmitAuditDto dto)
+    {
+        if (dto?.SessionIds == null || !dto.SessionIds.Any())
+            return BadRequest(new { message = "Cần chọn ít nhất 1 phiên giám định" });
+
+        var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
+        var result = await _service.SubmitBatchAsync(dto.SessionIds, userId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Xuất XML giám định (XML130 format)
+    /// </summary>
+    [HttpGet("session/{id}/export-xml")]
+    public async Task<IActionResult> ExportXml(Guid id)
+    {
+        try
+        {
+            var bytes = await _service.ExportXmlAsync(id);
+            return File(bytes, "application/xml", $"bhxh-giamdinh-{id:N}.xml");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Xuất hàng loạt XML giám định — trả ZIP chứa {SessionCode}.xml
+    /// POST /api/bhxh-audit/sessions/export-batch-xml
+    /// Body: { "sessionIds": ["guid1", "guid2", ...] }
+    /// </summary>
+    [HttpPost("sessions/export-batch-xml")]
+    public async Task<IActionResult> ExportBatchXml([FromBody] BatchExportXmlDto dto)
+    {
+        if (dto?.SessionIds == null || !dto.SessionIds.Any())
+            return BadRequest(new { message = "Cần chọn ít nhất 1 phiên giám định" });
+
+        try
+        {
+            var zipBytes = await _service.ExportBatchXmlAsync(dto.SessionIds);
+            var fileName = $"bhxh-batch-{DateTime.Now:yyyyMMdd}.zip";
+            return File(zipBytes, "application/zip", fileName);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// In phiếu giám định BHXH (HTML)
+    /// </summary>
+    [HttpGet("session/{id}/print-form")]
+    public async Task<IActionResult> PrintAuditForm(Guid id)
+    {
+        try
+        {
+            var bytes = await _service.PrintAuditFormAsync(id);
+            return File(bytes, "text/html; charset=utf-8");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+}
+
+// === Request DTOs ===
+
+public class ApproveAuditSessionDto
+{
+    public string? Notes { get; set; }
+}
+
+public class BatchSubmitAuditDto
+{
+    public List<Guid> SessionIds { get; set; } = new();
+}
+
+public class BatchExportXmlDto
+{
+    public List<Guid> SessionIds { get; set; } = new();
 }

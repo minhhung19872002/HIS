@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getHAICases, createHAICase } from '../api/infectionControl';
-import type { CreateHAISurveillanceDto } from '../api/infectionControl';
+import { getHAICases, createHAICase, createIsolationOrder } from '../api/infectionControl';
+import type { CreateHAISurveillanceDto, CreateIsolationOrderDto } from '../api/infectionControl';
 import { getInpatientList } from '../api/inpatient';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, CrudModal, Btn,
-  DrawerShell, DrSec, DrField, tk, ti,
+  DrawerShell, DrSec, DrField, tk, ti, te,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
@@ -78,6 +78,35 @@ const InfectionControlV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<Row | null>(null);
   const [admissionOpts, setAdmissionOpts] = useState<{ value: string; label: string }[]>([]);
+  const [isoOpen, setIsoOpen] = useState(false);
+  const [isoInit, setIsoInit] = useState<Record<string, unknown> | null>(null);
+
+  const isoFields: CrudFieldCfg[] = useMemo(() => [
+    { key: 'admissionId', label: 'Bệnh nhân (nội trú)', type: 'select', required: true, options: admissionOpts, showSearch: true },
+    { key: 'isolationType', label: 'Loại cách ly', type: 'select', required: true, options: [
+      { value: 'Contact',    label: 'Cách ly tiếp xúc' },
+      { value: 'Droplet',   label: 'Cách ly giọt bắn' },
+      { value: 'Airborne',  label: 'Cách ly không khí' },
+      { value: 'Protective', label: 'Cách ly bảo vệ' }] },
+    { key: 'precautions', label: 'Biện pháp phòng ngừa', type: 'multiselect', options: [
+      { value: 'Gloves',  label: 'Găng tay' },
+      { value: 'Gown',    label: 'Áo choàng' },
+      { value: 'Mask',    label: 'Khẩu trang thường' },
+      { value: 'N95',     label: 'Khẩu trang N95' },
+      { value: 'Goggles', label: 'Kính bảo hộ' },
+      { value: 'PrivateRoom', label: 'Phòng riêng' }] },
+    { key: 'reason', label: 'Lý do cách ly', required: true, type: 'textarea' },
+    { key: 'organism', label: 'Mầm bệnh' },
+    { key: 'isMDRO', label: 'Kháng đa thuốc (MDRO)', type: 'switch' },
+    { key: 'ppeRequirements', label: 'Yêu cầu PPE', type: 'multiselect', options: [
+      { value: 'Gloves',  label: 'Găng tay' },
+      { value: 'Gown',    label: 'Áo choàng' },
+      { value: 'Mask',    label: 'Khẩu trang' },
+      { value: 'N95',     label: 'N95' },
+      { value: 'FaceShield', label: 'Tấm che mặt' }] },
+    { key: 'visitorRestrictions', label: 'Hạn chế thăm bệnh', type: 'textarea' },
+    { key: 'specialInstructions', label: 'Hướng dẫn đặc biệt', type: 'textarea' },
+  ], [admissionOpts]);
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
 
@@ -207,7 +236,7 @@ const InfectionControlV2: React.FC = () => {
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFInfType(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
         <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
-        <Btn variant="ghost" icon="alert" onClick={() => tk('Mở cách ly')}>Cách ly</Btn>
+        <Btn variant="ghost" icon="alert" onClick={() => { setIsoInit({ isMDRO: false }); setIsoOpen(true); }}>Cách ly</Btn>
         <Btn variant="primary" icon="plus" onClick={openCreate}>Báo cáo HAI</Btn>
       </div>
 
@@ -293,6 +322,32 @@ const InfectionControlV2: React.FC = () => {
         onSubmit={async (v) => {
           await createHAICase(v as unknown as CreateHAISurveillanceDto);
           tk('Đã tạo báo cáo HAI');
+          load();
+        }}
+      />
+
+      <CrudModal
+        open={isoOpen}
+        onClose={() => setIsoOpen(false)}
+        title="Lệnh cách ly bệnh nhân"
+        fields={isoFields}
+        initial={isoInit}
+        size="lg"
+        onSubmit={async (v) => {
+          const dto: CreateIsolationOrderDto = {
+            admissionId: v.admissionId as string,
+            isolationType: v.isolationType as string,
+            precautions: (v.precautions as string[]) || [],
+            reason: v.reason as string,
+            organism: v.organism as string | undefined,
+            isMDRO: !!(v.isMDRO),
+            roomId: v.roomId as string | undefined,
+            ppeRequirements: (v.ppeRequirements as string[]) || [],
+            visitorRestrictions: v.visitorRestrictions as string | undefined,
+            specialInstructions: v.specialInstructions as string | undefined,
+          };
+          await createIsolationOrder(dto);
+          tk('Đã tạo lệnh cách ly');
           load();
         }}
       />

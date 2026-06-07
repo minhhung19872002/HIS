@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchCases, createCase, updateCase } from '../api/traumaRegistry';
-import type { TraumaCase } from '../api/traumaRegistry';
+import { searchCases, createCase, updateCase, getOutcomeReport } from '../api/traumaRegistry';
+import type { TraumaCase, TraumaOutcomeReport } from '../api/traumaRegistry';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
@@ -126,6 +126,20 @@ const TraumaRegistryV2: React.FC = () => {
     } },
   ];
 
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportData, setReportData] = useState<TraumaOutcomeReport | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+
+  const openReport = async () => {
+    setReportLoading(true);
+    setReportOpen(true);
+    try {
+      const r = await getOutcomeReport();
+      setReportData(r);
+    } catch { ti('Không tải được báo cáo kết cục'); setReportOpen(false); }
+    finally { setReportLoading(false); }
+  };
+
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
   const openCreate = () => { setCrudInit({ status: 0, triageCategory: 'yellow' }); setCrudOpen(true); };
@@ -182,7 +196,7 @@ const TraumaRegistryV2: React.FC = () => {
         sub={sel ? `${sel.patientName} · ${sel.injuryType}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={() => tk('Đã in báo cáo')}>
+          <Btn onClick={() => { setSel(null); openReport(); }}>
             <Ico name="print" size={12} /> In báo cáo
           </Btn>
           <Btn variant="primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
@@ -226,6 +240,48 @@ const TraumaRegistryV2: React.FC = () => {
             <DrField lbl="BS phụ trách">{sel.attendingDoctor}</DrField>
             <DrField lbl="Kết quả">{sel.outcome}</DrField>
             {sel.notes && <DrField lbl="Ghi chú">{sel.notes}</DrField>}
+          </DrSec>
+        </>}
+      </DrawerShell>
+
+      <DrawerShell
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        size="md"
+        title="Báo cáo kết cục chấn thương"
+        sub="Tổng hợp outcome · triage · loại chấn thương"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setReportOpen(false)}>Đóng</Btn>
+          <Btn variant="primary" onClick={() => window.print()}>
+            <Ico name="print" size={12} /> In báo cáo
+          </Btn>
+        </>}
+      >
+        {reportLoading && <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>}
+        {!reportLoading && reportData && <>
+          <DrSec title="Tổng quan">
+            <DrField lbl="Tổng ca"><span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{reportData.totalCases}</span></DrField>
+          </DrSec>
+          <DrSec title="Kết cục điều trị">
+            {reportData.outcomeBreakdown.map((o) => (
+              <DrField key={o.outcome} lbl={o.outcome}>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{o.count} <span style={{ color: 'var(--t-2)' }}>({o.percentage.toFixed(1)}%)</span></span>
+              </DrField>
+            ))}
+          </DrSec>
+          <DrSec title="Phân loại Triage">
+            {reportData.triageBreakdown.map((t) => (
+              <DrField key={t.category} lbl={t.category}>
+                <StatusBadge tone={TRIAGE_TONE[t.category] || 'info'}>{t.count}</StatusBadge>
+              </DrField>
+            ))}
+          </DrSec>
+          <DrSec title="Loại chấn thương">
+            {reportData.injuryTypeBreakdown.map((i) => (
+              <DrField key={i.type} lbl={i.type}>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{i.count}</span>
+              </DrField>
+            ))}
           </DrSec>
         </>}
       </DrawerShell>

@@ -347,6 +347,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     // Satisfaction Survey
     public DbSet<SatisfactionSurveyTemplate> SatisfactionSurveyTemplates => Set<SatisfactionSurveyTemplate>();
     public DbSet<SatisfactionSurveyResult> SatisfactionSurveyResults => Set<SatisfactionSurveyResult>();
+    public DbSet<SatisfactionSurveyCampaign> SatisfactionSurveyCampaigns => Set<SatisfactionSurveyCampaign>();
+    public DbSet<SurveyFeedbackCallback> SurveyFeedbackCallbacks => Set<SurveyFeedbackCallback>();
 
     // Nurse Shift Handover
     public DbSet<NurseShiftHandover> NurseShiftHandovers => Set<NurseShiftHandover>();

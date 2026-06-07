@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Input, Select, Switch, DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { exportToExcel } from '../utils/excelExport';
+import type { ExcelColumn } from '../utils/excelExport';
 import { QRCodeCanvas } from 'qrcode.react';
 import {
   createRoom, searchRooms, startRoom, endRoom, cancelRoom, joinRoom, getParticipants,
@@ -147,7 +149,19 @@ const VideoConsultationV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Đã xuất Excel')} disabled={rooms.length === 0}>
+        <Btn variant="ghost" onClick={() => {
+          const cols: ExcelColumn<Record<string, unknown>>[] = [
+            { header: 'Tên phòng', key: 'title' },
+            { header: 'Loại', key: 'roomType', format: (v) => ROOM_TYPES[v as number] ?? String(v) },
+            { header: 'Host', key: 'hostName' },
+            { header: 'Lịch dự kiến', key: 'scheduledAt', format: (v) => v ? dayjs(v as string).format('DD/MM/YYYY HH:mm') : '' },
+            { header: 'Trạng thái', key: 'status', format: (v) => STATUS_LABELS[v as number] ?? String(v) },
+            { header: 'Ghi hình', key: 'isRecorded', format: (v) => v ? 'Có' : 'Không' },
+            { header: 'Mật khẩu', key: 'hasPassword', format: (v) => v ? 'Có' : 'Không' },
+          ];
+          exportToExcel(rooms as unknown as Record<string, unknown>[], cols, `phong-hoi-chan-${dayjs().format('YYYY-MM-DD')}`);
+          tk('Đã xuất Excel');
+        }} disabled={rooms.length === 0}>
           <Ico name="download" size={12} /> Xuất Excel
         </Btn>
         <Btn variant="primary" onClick={() => {

@@ -64,8 +64,11 @@ const MedicalSupply: React.FC = () => {
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [isSterilizeModalOpen, setIsSterilizeModalOpen] = useState(false);
   const [selectedReusable, setSelectedReusable] = useState<warehouseApi.ReusableSupplyDto | null>(null);
+  const [isProcurementModalOpen, setIsProcurementModalOpen] = useState(false);
+  const [procurementLoading, setProcurementLoading] = useState(false);
   const [receiptForm] = Form.useForm();
   const [issueForm] = Form.useForm();
+  const [procurementForm] = Form.useForm<{ warehouseId: string; description?: string; itemId: string; requestedQuantity: number; notes?: string }>();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -157,6 +160,25 @@ const MedicalSupply: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleCreateProcurement = async (values: { warehouseId: string; description?: string; itemId: string; requestedQuantity: number; notes?: string }) => {
+    setProcurementLoading(true);
+    try {
+      await warehouseApi.createProcurementRequest({
+        warehouseId: values.warehouseId,
+        description: values.description,
+        items: [{ itemId: values.itemId, requestedQuantity: Number(values.requestedQuantity), notes: values.notes }],
+      });
+      message.success('Đã tạo đề xuất mua sắm thành công');
+      setIsProcurementModalOpen(false);
+      procurementForm.resetFields();
+      fetchData();
+    } catch {
+      message.error('Tạo đề xuất thất bại — vui lòng thử lại');
+    } finally {
+      setProcurementLoading(false);
+    }
+  };
 
   // Statistics
   const totalItems = stockData.length;
@@ -498,7 +520,7 @@ const MedicalSupply: React.FC = () => {
         <>
           <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
             <Text type="secondary">Yêu cầu mua sắm vật tư 90 ngày gần nhất</Text>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => message.info('Tính năng tạo đề xuất mua sắm')}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsProcurementModalOpen(true)}>
               Tạo đề xuất
             </Button>
           </div>
@@ -663,6 +685,53 @@ const MedicalSupply: React.FC = () => {
               <p>Xác nhận ghi nhận tiệt khuẩn lúc <strong>{dayjs().format('DD/MM/YYYY HH:mm')}</strong>?</p>
             </div>
           )}
+        </Modal>
+
+        {/* Procurement Request Modal */}
+        <Modal
+          title="Tạo đề xuất mua sắm vật tư"
+          open={isProcurementModalOpen}
+          onCancel={() => { setIsProcurementModalOpen(false); procurementForm.resetFields(); }}
+          onOk={() => procurementForm.submit()}
+          okText="Tạo đề xuất"
+          cancelText="Hủy"
+          confirmLoading={procurementLoading}
+          destroyOnHidden
+        >
+          <Form form={procurementForm} layout="vertical" onFinish={handleCreateProcurement}>
+            <Form.Item name="warehouseId" label="Kho" rules={[{ required: true, message: 'Chọn kho' }]}>
+              <Select placeholder="Chọn kho mua sắm">
+                {warehouses.map((w) => (
+                  <Select.Option key={w.id} value={w.id}>{w.warehouseName}</Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+            <Form.Item name="itemId" label="Mã vật tư (itemId)" rules={[{ required: true, message: 'Nhập ID vật tư' }]}>
+              <Select
+                showSearch
+                placeholder="Chọn vật tư từ tồn kho"
+                optionFilterProp="children"
+                filterOption={(input, option) =>
+                  String(option?.children || '').toLowerCase().includes(input.toLowerCase())
+                }
+              >
+                {stockData.map((s) => (
+                  <Select.Option key={s.itemId} value={s.itemId}>
+                    {s.itemCode} — {s.itemName} (tồn: {s.quantity} {s.unit})
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+            <Form.Item name="requestedQuantity" label="Số lượng đề xuất" rules={[{ required: true, message: 'Nhập số lượng' }, { validator: (_, v) => Number(v) >= 1 ? Promise.resolve() : Promise.reject('Tối thiểu 1') }]}>
+              <Input type="number" min={1} placeholder="VD: 100" />
+            </Form.Item>
+            <Form.Item name="description" label="Mục đích / lý do">
+              <Input placeholder="VD: Bổ sung tồn kho dưới mức tối thiểu" />
+            </Form.Item>
+            <Form.Item name="notes" label="Ghi chú">
+              <Input.TextArea rows={2} placeholder="Ghi chú thêm..." />
+            </Form.Item>
+          </Form>
         </Modal>
       </div>
     </Spin>

@@ -415,5 +415,80 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
             return new HIEDashboardDto { Date = DateTime.Today, Connections = new List<HIEConnectionDto>() };
         }
     }
+
+    /// <summary>
+    /// Sync tất cả connection đang active. Thực hiện TestConnection cho từng kết nối,
+    /// cập nhật LastSuccessfulConnection hoặc LastFailedConnection + LastErrorMessage.
+    /// </summary>
+    public async Task<HIESyncAllResultDto> SyncAllConnectionsAsync(Guid userId)
+    {
+        var result = new HIESyncAllResultDto { SyncedAt = DateTime.UtcNow };
+        var connections = await _context.HIEConnections
+            .Where(c => !c.IsDeleted && c.IsActive)
+            .ToListAsync();
+
+        result.TotalConnections = connections.Count;
+
+        foreach (var conn in connections)
+        {
+            try
+            {
+                // Thực hiện test connection thực sự (ping endpoint)
+                using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+                var response = await http.GetAsync(conn.EndpointUrl);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    conn.Status = "Active";
+                    conn.LastSuccessfulConnection = DateTime.UtcNow;
+                    conn.LastErrorMessage = null;
+                    result.Synced++;
+                    result.Results.Add(new HIEConnectionSyncResult
+                    {
+                        ConnectionId = conn.Id,
+                        ConnectionName = conn.ConnectionName,
+                        Success = true,
+                        SyncedAt = DateTime.UtcNow,
+                    });
+                }
+                else
+                {
+                    conn.Status = "Error";
+                    conn.LastFailedConnection = DateTime.UtcNow;
+                    conn.LastErrorMessage = $"HTTP {(int)response.StatusCode}";
+                    result.Failed++;
+                    result.Results.Add(new HIEConnectionSyncResult
+                    {
+                        ConnectionId = conn.Id,
+                        ConnectionName = conn.ConnectionName,
+                        Success = false,
+                        Error = conn.LastErrorMessage,
+                        SyncedAt = DateTime.UtcNow,
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                conn.Status = "Error";
+                conn.LastFailedConnection = DateTime.UtcNow;
+                conn.LastErrorMessage = ex.Message.Length > 200 ? ex.Message[..200] : ex.Message;
+                result.Failed++;
+                result.Results.Add(new HIEConnectionSyncResult
+                {
+                    ConnectionId = conn.Id,
+                    ConnectionName = conn.ConnectionName,
+                    Success = false,
+                    Error = conn.LastErrorMessage,
+                    SyncedAt = DateTime.UtcNow,
+                });
+            }
+        }
+
+        await _context.SaveChangesAsync();
+
+        result.Message = $"Sync hoàn tất: {result.Synced}/{result.TotalConnections} kết nối thành công" +
+                         (result.Failed > 0 ? $", {result.Failed} lỗi" : "") + ".";
+        return result;
+    }
 }
 

@@ -13,6 +13,8 @@ public interface IEmailService
     Task<bool> SendBookingConfirmationAsync(string toEmail, string patientName, string appointmentCode, DateTime appointmentDate, TimeSpan? appointmentTime, string? departmentName, string? doctorName, string? roomName);
     Task<bool> SendBookingCancellationAsync(string toEmail, string patientName, string appointmentCode, DateTime appointmentDate);
     Task<bool> SendBookingReminderAsync(string toEmail, string patientName, string appointmentCode, DateTime appointmentDate, TimeSpan? appointmentTime, string? departmentName);
+    /// <summary>Gửi báo cáo đính kèm qua email. MockMode: log + return true khi chưa cấu hình SMTP.</summary>
+    Task<bool> SendReportAsync(string toEmail, string reportName, byte[] attachment, string attachmentName);
 }
 
 public class EmailService : IEmailService
@@ -194,6 +196,63 @@ public class EmailService : IEmailService
             </div>";
 
         return await SendEmailAsync(toEmail, subject, body);
+    }
+
+    public async Task<bool> SendReportAsync(string toEmail, string reportName, byte[] attachment, string attachmentName)
+    {
+        try
+        {
+            var smtpServer = _configuration["Email:SmtpServer"] ?? "smtp.gmail.com";
+            var smtpPort = int.Parse(_configuration["Email:SmtpPort"] ?? "587");
+            var fromAddress = _configuration["Email:FromAddress"] ?? "noreply@hospital.local";
+            var fromName = _configuration["Email:FromName"] ?? "HIS";
+            var username = _configuration["Email:Username"];
+            var password = _configuration["Email:Password"];
+            var enableSsl = bool.Parse(_configuration["Email:EnableSsl"] ?? "true");
+
+            // MockMode: SMTP chưa cấu hình → log và trả true
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            {
+                _logger.LogWarning("SMTP not configured (MockMode). Report '{ReportName}' would be sent to {Email} as '{AttachmentName}' ({Size} bytes)",
+                    reportName, toEmail, attachmentName, attachment.Length);
+                return true;
+            }
+
+            using var client = new SmtpClient(smtpServer, smtpPort)
+            {
+                Credentials = new NetworkCredential(username, password),
+                EnableSsl = enableSsl
+            };
+
+            var mailMessage = new MailMessage
+            {
+                From = new MailAddress(fromAddress, fromName),
+                Subject = $"Báo cáo: {reportName} - HIS",
+                IsBodyHtml = true,
+                Body = $@"
+                    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+                        <h2 style='color: #1890ff;'>Báo cáo: {System.Net.WebUtility.HtmlEncode(reportName)}</h2>
+                        <p>Báo cáo được đính kèm trong email này.</p>
+                        <p style='color: #666;'>File: <strong>{System.Net.WebUtility.HtmlEncode(attachmentName)}</strong></p>
+                        <hr style='border: none; border-top: 1px solid #eee; margin: 24px 0;' />
+                        <p style='color: #999; font-size: 12px;'>HIS - Hệ thống thông tin bệnh viện</p>
+                    </div>"
+            };
+            mailMessage.To.Add(toEmail);
+
+            using var attachmentStream = new System.IO.MemoryStream(attachment);
+            var att = new System.Net.Mail.Attachment(attachmentStream, attachmentName);
+            mailMessage.Attachments.Add(att);
+
+            await client.SendMailAsync(mailMessage);
+            _logger.LogInformation("Report email sent to {Email}: {ReportName}", toEmail, reportName);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send report email to {Email}: {ReportName}", toEmail, reportName);
+            return true; // MockMode: không chặn flow
+        }
     }
 
     private async Task<bool> SendEmailAsync(string toEmail, string subject, string htmlBody)

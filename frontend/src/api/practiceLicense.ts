@@ -86,6 +86,9 @@ export const renewLicense = async (id: string, data: { newExpiryDate: string; re
   return response.data;
 };
 
+export const printLicense = (id: string) =>
+  apiClient.get(`/practice-license/licenses/${id}/print`, { responseType: 'blob' });
+
 export default {
   searchLicenses,
   getById,
@@ -94,4 +97,5 @@ export default {
   getExpiringLicenses,
   getStats,
   renewLicense,
+  printLicense,
 };

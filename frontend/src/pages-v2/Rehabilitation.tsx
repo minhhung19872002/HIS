@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
-import { getReferrals, acceptReferral } from '../api/rehabilitation';
+import { getReferrals, acceptReferral, printReferral } from '../api/rehabilitation';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, Ico,
@@ -211,7 +211,16 @@ const RehabilitationV2: React.FC = () => {
         sub={sel ? `${sel.patientName || '—'} · ${sel.rehabTypeName || sel.rehabType || '—'}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={() => tk('Đã in giấy GT')}>
+          <Btn onClick={async () => {
+            if (!sel) return;
+            try {
+              const res = await printReferral(sel.id);
+              const url = URL.createObjectURL(res.data as Blob);
+              window.open(url, '_blank');
+            } catch {
+              tk('Không thể in giấy GT');
+            }
+          }}>
             <Ico name="print" size={12} /> In giấy GT
           </Btn>
           {sel && sKey(sel.status) === 'pending' && (

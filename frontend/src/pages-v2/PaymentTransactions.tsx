@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Form, Input, InputNumber, DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { exportToExcel, formatDateTime, formatVnd, type ExcelColumn } from '../utils/excelExport';
 import {
   searchTransactions, refundPayment, getPaymentStats,
   type PaymentTransactionDto, type PaymentSearchRequest, type PaymentStatsDto,
@@ -108,6 +109,25 @@ const PaymentTransactionsV2: React.FC = () => {
 
   const totalPages = Math.max(1, Math.ceil(total / 20));
 
+  const doExportExcel = () => {
+    if (items.length === 0) { tw('Không có dữ liệu để xuất'); return; }
+    const cols: ExcelColumn<PaymentTransactionDto>[] = [
+      { header: 'Mã giao dịch', key: 'txnRef', width: 24 },
+      { header: 'Cổng thanh toán', key: 'provider', width: 14 },
+      { header: 'Tên bệnh nhân', key: 'patientName', width: 28 },
+      { header: 'Mã bệnh nhân', key: 'patientCode', width: 16 },
+      { header: 'Nội dung', key: 'orderInfo', width: 36 },
+      { header: 'Số tiền (VND)', key: 'amount', format: (v) => formatVnd(v), width: 18 },
+      { header: 'Ngân hàng', key: 'bankCode', width: 14 },
+      { header: 'Trạng thái', key: 'status', format: (v) => STATUS_LABEL[v as number] ?? String(v), width: 14 },
+      { header: 'Thời gian tạo', key: 'createdAt', format: (v) => formatDateTime(v), width: 20 },
+      { header: 'Số tiền đã hoàn (VND)', key: 'refundedAmount', format: (v) => formatVnd(v), width: 22 },
+    ];
+    const dateStr = dayjs().format('YYYYMMDD-HHmm');
+    exportToExcel(items as unknown as Record<string, unknown>[], cols as unknown as ExcelColumn<Record<string, unknown>>[], `giao-dich-${dateStr}`);
+    tk('Đã xuất Excel');
+  };
+
   return (
     <div className="ab">
       <KpiStrip items={[
@@ -131,7 +151,7 @@ const PaymentTransactionsV2: React.FC = () => {
         <Btn variant="ghost" onClick={fetchData}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Đã xuất Excel')} disabled={items.length === 0}>
+        <Btn variant="ghost" onClick={doExportExcel} disabled={items.length === 0}>
           <Ico name="download" size={12} /> Xuất Excel
         </Btn>
       </div>

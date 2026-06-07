@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getGuidanceBatches, createGuidanceBatch, updateGuidanceBatch, deleteGuidanceBatch } from '../api/clinicalGuidance';
-import type { GuidanceBatchDto, CreateGuidanceBatchDto } from '../api/clinicalGuidance';
+import {
+  getGuidanceBatches, createGuidanceBatch, updateGuidanceBatch, deleteGuidanceBatch,
+  getGuidanceActivities, createGuidanceActivity,
+} from '../api/clinicalGuidance';
+import type { GuidanceBatchDto, CreateGuidanceBatchDto, GuidanceActivityDto, CreateGuidanceActivityDto } from '../api/clinicalGuidance';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf,
@@ -41,6 +44,10 @@ const sKey = (n: number): SKey =>
 
 const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 const PER = 18;
+
+const ACT_TYPE_LABEL: Record<number, string> = {
+  0: 'Khám bệnh', 1: 'Phẫu thuật', 2: 'Đào tạo', 3: 'Hội chẩn', 4: 'Chuyển giao KT', 5: 'Hỗ trợ vật tư',
+};
 
 const ClinicalGuidanceV2: React.FC = () => {
   const [items, setItems] = useState<GuidanceBatchDto[]>([]);
@@ -113,6 +120,34 @@ const ClinicalGuidanceV2: React.FC = () => {
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
   const openCreate = () => { setCrudInit({ guidanceType: 1 }); setCrudOpen(true); };
   const openEdit = (r: GuidanceBatchDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+
+  // Activities drawer
+  const [actBatch, setActBatch] = useState<GuidanceBatchDto | null>(null);
+  const [activities, setActivities] = useState<GuidanceActivityDto[]>([]);
+  const [actLoading, setActLoading] = useState(false);
+  const [actCrudOpen, setActCrudOpen] = useState(false);
+  const [actCrudInit, setActCrudInit] = useState<Record<string, unknown> | null>(null);
+
+  const openActivities = async (batch: GuidanceBatchDto) => {
+    setActBatch(batch);
+    setActivities([]);
+    setActLoading(true);
+    try {
+      const list = await getGuidanceActivities(batch.id);
+      setActivities(list);
+    } catch { ti('Không tải được danh sách hoạt động'); }
+    finally { setActLoading(false); }
+  };
+
+  const actFields: CrudFieldCfg[] = [
+    { key: 'activityType', label: 'Loại hoạt động', type: 'select', required: true, options:
+      Object.entries(ACT_TYPE_LABEL).map(([v, l]) => ({ value: Number(v), label: l })) },
+    { key: 'activityDate', label: 'Ngày thực hiện', type: 'date', required: true },
+    { key: 'description', label: 'Mô tả', required: true, type: 'textarea' },
+    { key: 'staffName', label: 'Nhân sự thực hiện' },
+    { key: 'result', label: 'Kết quả', type: 'textarea' },
+    { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+  ];
   const del = (r: GuidanceBatchDto) => cf(`Xoá đợt chỉ đạo "${r.title}"?`, async () => {
     try { await deleteGuidanceBatch(r.id); tk('Đã xoá'); load(); } catch { te('Xoá thất bại'); }
   }, { tone: 'crit', confirm: 'Xoá' });
@@ -120,6 +155,7 @@ const ClinicalGuidanceV2: React.FC = () => {
   const actions = (r: GuidanceBatchDto) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
+      <ActBtn ic="activity" title="Hoạt động" onClick={() => openActivities(r)} />
       <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
       <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
     </div>
@@ -163,7 +199,7 @@ const ClinicalGuidanceV2: React.FC = () => {
         sub={sel ? `${sel.batchCode} · ${sel.targetFacility}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn icon="activity" onClick={() => tk('Mở danh sách hoạt động')}>Hoạt động</Btn>
+          <Btn icon="activity" onClick={() => { if (sel) { setSel(null); openActivities(sel); } }}>Hoạt động</Btn>
           <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Sửa đợt</Btn>
         </>}
       >
@@ -203,12 +239,69 @@ const ClinicalGuidanceV2: React.FC = () => {
         initial={crudInit}
         size="lg"
         onSubmit={async (v, editing) => {
-          // CrudModal trả Record<string, unknown> chung — cast về DTO chính xác
           const dto = v as unknown as CreateGuidanceBatchDto;
           if (editing && crudInit?.id) await updateGuidanceBatch(String(crudInit.id), dto);
           else await createGuidanceBatch(dto);
           tk(editing ? 'Đã cập nhật đợt' : 'Đã tạo đợt');
           load();
+        }}
+      />
+
+      {/* Drawer danh sách hoạt động của batch đang chọn */}
+      <DrawerShell
+        open={!!actBatch}
+        onClose={() => setActBatch(null)}
+        size="lg"
+        title={actBatch ? `Hoạt động: ${actBatch.title}` : ''}
+        sub={actBatch ? `${actBatch.batchCode} · ${activities.length} hoạt động` : ''}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setActBatch(null)}>Đóng</Btn>
+          <Btn variant="primary" icon="plus" onClick={() => {
+            if (actBatch) setActCrudInit({ batchId: actBatch.id, activityDate: dayjs().format('YYYY-MM-DD') });
+            setActCrudOpen(true);
+          }}>Thêm hoạt động</Btn>
+        </>}
+      >
+        {actLoading && <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>}
+        {!actLoading && activities.length === 0 && (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-3)' }}>Chưa có hoạt động nào</div>
+        )}
+        {!actLoading && activities.map((act) => (
+          <DrSec key={act.id} title={`${ACT_TYPE_LABEL[act.activityType] || '—'} · ${dayjs(act.activityDate).format('DD/MM/YYYY')}`}>
+            <DrField lbl="Mô tả">{act.description}</DrField>
+            {act.staffName && <DrField lbl="Nhân sự">{act.staffName}</DrField>}
+            {act.result && <DrField lbl="Kết quả">{act.result}</DrField>}
+            {act.notes && <DrField lbl="Ghi chú">{act.notes}</DrField>}
+          </DrSec>
+        ))}
+      </DrawerShell>
+
+      {/* Modal tạo hoạt động mới */}
+      <CrudModal
+        open={actCrudOpen}
+        onClose={() => setActCrudOpen(false)}
+        title="Thêm hoạt động"
+        fields={actFields}
+        initial={actCrudInit}
+        size="md"
+        onSubmit={async (v) => {
+          const dto: CreateGuidanceActivityDto = {
+            batchId: actBatch!.id,
+            activityType: Number(v.activityType),
+            description: v.description as string,
+            activityDate: v.activityDate as string,
+            staffName: v.staffName as string | undefined,
+            result: v.result as string | undefined,
+            notes: v.notes as string | undefined,
+          };
+          await createGuidanceActivity(dto);
+          tk('Đã thêm hoạt động');
+          setActCrudOpen(false);
+          // Reload activities list
+          if (actBatch) {
+            const list = await getGuidanceActivities(actBatch.id);
+            setActivities(list);
+          }
         }}
       />
     </div>

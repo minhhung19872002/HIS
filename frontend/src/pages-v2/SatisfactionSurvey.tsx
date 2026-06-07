@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getSurveyResults } from '../api/satisfactionSurvey';
+import { Form, Input } from 'antd';
+import { getSurveyResults, contactCallback, createCampaign, exportSurveys } from '../api/satisfactionSurvey';
+import type { CreateCampaignDto, ContactCallbackDto } from '../api/satisfactionSurvey';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
+import { downloadCsv, escapeCsvCell } from '../utils/csvExport';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  StatusTabs, DrawerShell, DrSec, DrField, tk, ti, Ico,
+  StatusTabs, DrawerShell, DrSec, DrField, ModalShell, tk, ti, tw, Ico,
   type ColumnDef,
 } from './_v2kit';
 
@@ -40,6 +43,80 @@ const SatisfactionSurveyV2: React.FC = () => {
   const [fTmpl, setFTmpl] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<SurveyResult | null>(null);
+
+  // --- Chiến dịch mới ---
+  const [campaignOpen, setCampaignOpen] = useState(false);
+  const [campaignSubmitting, setCampaignSubmitting] = useState(false);
+  const [campaignForm] = Form.useForm<{ name: string; description?: string; startDate: string; endDate: string; targetCount?: number; notes?: string }>();
+
+  const submitCampaign = async () => {
+    try {
+      const v = await campaignForm.validateFields();
+      setCampaignSubmitting(true);
+      const dto: CreateCampaignDto = { name: v.name, description: v.description, startDate: v.startDate, endDate: v.endDate, targetCount: v.targetCount, notes: v.notes };
+      await createCampaign(dto);
+      tk('Đã tạo chiến dịch khảo sát');
+      setCampaignOpen(false);
+      campaignForm.resetFields();
+      load();
+    } catch { tw('Tạo chiến dịch thất bại'); }
+    finally { setCampaignSubmitting(false); }
+  };
+
+  // --- Liên hệ phản hồi ---
+  const [callbackTarget, setCallbackTarget] = useState<SurveyResult | null>(null);
+  const [callbackSubmitting, setCallbackSubmitting] = useState(false);
+  const [callbackForm] = Form.useForm<{ issueDescription?: string; contactedByName?: string; resolution?: string }>();
+
+  const submitCallback = async () => {
+    if (!callbackTarget) return;
+    try {
+      const v = await callbackForm.validateFields();
+      setCallbackSubmitting(true);
+      const dto: ContactCallbackDto = {
+        surveyResultId: callbackTarget.id,
+        patientCode: callbackTarget.patientCode,
+        patientName: callbackTarget.patientName,
+        issueDescription: v.issueDescription,
+        contactedByName: v.contactedByName,
+        resolution: v.resolution,
+      };
+      await contactCallback(dto);
+      tk('Đã ghi nhận liên hệ phản hồi');
+      setCallbackTarget(null);
+      callbackForm.resetFields();
+      load();
+    } catch { tw('Ghi nhận liên hệ thất bại'); }
+    finally { setCallbackSubmitting(false); }
+  };
+
+  // --- Xuất CSV ---
+  const [csvLoading, setCsvLoading] = useState(false);
+
+  const handleExportCsv = async () => {
+    setCsvLoading(true);
+    try {
+      const res = await exportSurveys();
+      // interceptor không unwrap blob → res.data là Blob
+      const blob: Blob = (res as unknown as { data: Blob }).data;
+      if (blob instanceof Blob) {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `khao-sat-hai-long-${dayjs().format('YYYY-MM-DD')}.csv`; a.click();
+        window.URL.revokeObjectURL(url);
+        tk('Đã xuất CSV');
+      } else throw new Error('no blob');
+    } catch {
+      // fallback: xuất từ data đang hiển thị
+      const header = ['Mã BN', 'Họ tên', 'Mẫu khảo sát', 'Khoa', 'Điểm', 'Ngày', 'Trạng thái'].map(escapeCsvCell).join(',');
+      const rows = filtered.map((r) =>
+        [r.patientCode, r.patientName, r.templateName, r.department || '', r.score, r.date ? dayjs(r.date).format('DD/MM/YYYY') : '', r.status]
+          .map(escapeCsvCell).join(',')
+      );
+      downloadCsv(`khao-sat-hai-long-${dayjs().format('YYYY-MM-DD')}.csv`, [header, ...rows]);
+      tk('Đã xuất CSV (dữ liệu hiển thị)');
+    } finally { setCsvLoading(false); }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -133,7 +210,7 @@ const SatisfactionSurveyV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       {r.score <= 2 && r.score > 0 && (
-        <ActBtn ic="phone" title="Liên hệ phản hồi" onClick={() => tk('Đã ghi nhận yêu cầu liên hệ')} tone="warn" />
+        <ActBtn ic="phone" title="Liên hệ phản hồi" onClick={() => { callbackForm.resetFields(); setCallbackTarget(r); }} tone="warn" />
       )}
     </div>
   );
@@ -159,10 +236,10 @@ const SatisfactionSurveyV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Đã xuất CSV')}>
-          <Ico name="download" size={12} /> Xuất CSV
+        <Btn variant="ghost" onClick={handleExportCsv} disabled={csvLoading}>
+          <Ico name="download" size={12} /> {csvLoading ? 'Đang xuất…' : 'Xuất CSV'}
         </Btn>
-        <Btn variant="primary" onClick={() => tk('Tạo chiến dịch khảo sát mới')}>
+        <Btn variant="primary" onClick={() => { campaignForm.resetFields(); setCampaignOpen(true); }}>
           <Ico name="plus" size={12} /> Chiến dịch mới
         </Btn>
       </div>
@@ -207,11 +284,11 @@ const SatisfactionSurveyV2: React.FC = () => {
         sub={sel ? `${sel.patientCode} · ${sel.templateName}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={() => tk('Đã in phản hồi')}>
+          <Btn onClick={() => window.print()}>
             <Ico name="print" size={12} /> In
           </Btn>
           {sel && sel.score <= 2 && sel.score > 0 && (
-            <Btn variant="primary" onClick={() => { tk('Đã đặt lịch liên hệ BN'); setSel(null); }}>
+            <Btn variant="primary" onClick={() => { callbackForm.resetFields(); setCallbackTarget(sel); setSel(null); }}>
               <Ico name="phone" size={12} /> Liên hệ BN
             </Btn>
           )}
@@ -245,6 +322,67 @@ const SatisfactionSurveyV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      {/* Modal tạo chiến dịch */}
+      <ModalShell
+        open={campaignOpen}
+        onClose={() => setCampaignOpen(false)}
+        size="md"
+        title="Tạo chiến dịch khảo sát"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setCampaignOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitCampaign} disabled={campaignSubmitting}>
+            <Ico name="plus" size={12} /> {campaignSubmitting ? 'Đang tạo…' : 'Tạo chiến dịch'}
+          </Btn>
+        </>}
+      >
+        <Form form={campaignForm} layout="vertical">
+          <Form.Item name="name" label="Tên chiến dịch" rules={[{ required: true, message: 'Nhập tên chiến dịch' }]}>
+            <Input placeholder="VD: Khảo sát hài lòng tháng 6/2026" />
+          </Form.Item>
+          <Form.Item name="description" label="Mô tả">
+            <Input.TextArea rows={2} placeholder="Mô tả ngắn về chiến dịch…" />
+          </Form.Item>
+          <Form.Item name="startDate" label="Ngày bắt đầu" rules={[{ required: true }]}>
+            <Input type="date" />
+          </Form.Item>
+          <Form.Item name="endDate" label="Ngày kết thúc" rules={[{ required: true }]}>
+            <Input type="date" />
+          </Form.Item>
+          <Form.Item name="targetCount" label="Mục tiêu số phản hồi">
+            <Input type="number" min={1} placeholder="VD: 200" />
+          </Form.Item>
+          <Form.Item name="notes" label="Ghi chú">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </ModalShell>
+
+      {/* Modal liên hệ phản hồi */}
+      <ModalShell
+        open={!!callbackTarget}
+        onClose={() => setCallbackTarget(null)}
+        size="md"
+        title={callbackTarget ? `Liên hệ phản hồi · ${callbackTarget.patientName}` : 'Liên hệ phản hồi'}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setCallbackTarget(null)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitCallback} disabled={callbackSubmitting}>
+            <Ico name="phone" size={12} /> {callbackSubmitting ? 'Đang ghi nhận…' : 'Ghi nhận liên hệ'}
+          </Btn>
+        </>}
+      >
+        <Form form={callbackForm} layout="vertical">
+          <Form.Item name="issueDescription" label="Mô tả vấn đề BN phản ánh">
+            <Input.TextArea rows={3} placeholder="BN phàn nàn về…" />
+          </Form.Item>
+          <Form.Item name="contactedByName" label="Người liên hệ (nhân viên)">
+            <Input placeholder="Tên nhân viên xử lý" />
+          </Form.Item>
+          <Form.Item name="resolution" label="Hướng xử lý / kết quả">
+            <Input.TextArea rows={2} placeholder="Đã giải thích / hẹn gặp / chuyển khoa…" />
+          </Form.Item>
+        </Form>
+      </ModalShell>
     </div>
   );
 };

@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import { searchRecords, getStats, createRecord, updateRecord } from '../api/populationHealth';
 import type { PopulationRecord, PopulationStats } from '../api/populationHealth';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
+import { exportToExcel } from '../utils/excelExport';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
@@ -156,7 +157,24 @@ const PopulationHealthV2: React.FC = () => {
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={() => tk('Đã xuất Excel')}>
+        <Btn variant="ghost" onClick={() => exportToExcel(
+          filtered as unknown as Record<string, unknown>[],
+          [
+            { header: 'Mã hồ sơ', key: 'recordCode', width: 14 },
+            { header: 'Họ tên', key: 'fullName', width: 22 },
+            { header: 'Ngày sinh', key: 'dateOfBirth', width: 14, format: (v) => v ? dayjs(v as string).format('DD/MM/YYYY') : '' },
+            { header: 'Giới tính', key: 'gender', width: 10, format: (v) => v === 1 ? 'Nam' : 'Nữ' },
+            { header: 'Địa chỉ', key: 'address', width: 30 },
+            { header: 'Loại hồ sơ', key: 'recordType', width: 16, format: (v) => TYPE_LABEL[v as string] || String(v) },
+            { header: 'Mã hộ', key: 'familyCode', width: 14 },
+            { header: 'Số BHYT', key: 'healthInsuranceNumber', width: 16 },
+            { header: 'Đơn vị QL', key: 'managingUnit', width: 20 },
+            { header: 'Khám gần nhất', key: 'lastVisitDate', width: 16, format: (v) => v ? dayjs(v as string).format('DD/MM/YYYY') : '—' },
+            { header: 'Trạng thái', key: 'status', width: 12, format: (v) => ['Đang QL', 'Đã đóng', 'Đã chuyển'][v as number] ?? '—' },
+          ],
+          'ho-so-dan-so',
+          'Hồ sơ dân số',
+        )}>
           <Ico name="download" size={12} /> Xuất Excel
         </Btn>
       </div>

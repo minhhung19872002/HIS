@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchMethadonePatients, updatePatient } from '../api/methadone';
-import type { MethadonePatient } from '../api/methadone';
+import { message } from 'antd';
+import {
+  searchMethadonePatients, updatePatient, recordDose, recordUrineTest, getDosingHistory,
+} from '../api/methadone';
+import type { MethadonePatient, DoseRecord } from '../api/methadone';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  DrawerShell, ModalShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
@@ -119,9 +122,90 @@ const MethadoneTreatmentV2: React.FC = () => {
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
   const openEdit = (r: MethadonePatient) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
 
+  // ── Cấp liều ──────────────────────────────────────────────────────────────
+  const [doseTarget, setDoseTarget] = useState<MethadonePatient | null>(null);
+  const [doseAmt, setDoseAmt] = useState('');
+  const [doseType, setDoseType] = useState('witnessed');
+  const [doseSubmitting, setDoseSubmitting] = useState(false);
+
+  const openDose = (r: MethadonePatient) => {
+    setDoseTarget(r);
+    setDoseAmt(String(r.currentDose));
+    setDoseType(r.doseType || 'witnessed');
+  };
+
+  const submitDose = async () => {
+    if (!doseTarget) return;
+    const amt = parseFloat(doseAmt);
+    if (!amt || amt <= 0) { message.error('Vui lòng nhập liều hợp lệ'); return; }
+    setDoseSubmitting(true);
+    try {
+      await recordDose({
+        patientId: doseTarget.id,
+        doseDate: new Date().toISOString(),
+        doseAmount: amt,
+        doseType,
+      });
+      tk(`Đã cấp liều ${amt} mg cho ${doseTarget.patientName}`);
+      setDoseTarget(null);
+      load();
+    } catch { message.error('Cấp liều thất bại'); }
+    finally { setDoseSubmitting(false); }
+  };
+
+  // ── XN nước tiểu ──────────────────────────────────────────────────────────
+  const [urineTarget, setUrineTarget] = useState<MethadonePatient | null>(null);
+  const [morphine, setMorphine] = useState('negative');
+  const [amphetamine, setAmphetamine] = useState('negative');
+  const [thc, setThc] = useState('negative');
+  const [urineSubmitting, setUrineSubmitting] = useState(false);
+
+  const openUrine = (r?: MethadonePatient) => {
+    setUrineTarget(r || null);
+    setMorphine('negative'); setAmphetamine('negative'); setThc('negative');
+  };
+
+  const submitUrine = async () => {
+    if (!urineTarget) { message.error('Chọn bệnh nhân trước'); return; }
+    setUrineSubmitting(true);
+    try {
+      await recordUrineTest({
+        patientId: urineTarget.id,
+        testDate: new Date().toISOString(),
+        morphine, amphetamine, thc,
+        methadone: 'positive',
+        benzodiazepine: 'negative',
+      });
+      tk(`Đã ghi XN nước tiểu cho ${urineTarget.patientName}`);
+      setUrineTarget(null);
+      load();
+    } catch { message.error('Ghi XN nước tiểu thất bại'); }
+    finally { setUrineSubmitting(false); }
+  };
+
+  // ── Lịch sử cấp liều ──────────────────────────────────────────────────────
+  const [histTarget, setHistTarget] = useState<MethadonePatient | null>(null);
+  const [histRows, setHistRows] = useState<DoseRecord[]>([]);
+  const [histLoading, setHistLoading] = useState(false);
+
+  const openHistory = async (r: MethadonePatient) => {
+    setHistTarget(r);
+    setHistRows([]);
+    setHistLoading(true);
+    try {
+      const rows = await getDosingHistory({ patientId: r.id });
+      setHistRows(rows);
+    } catch { ti('Không tải được lịch sử cấp liều'); }
+    finally { setHistLoading(false); }
+  };
+
+  const DOSE_STATUS: Record<number, string> = { 0: 'Đã lên lịch', 1: 'Đã cấp', 2: 'Bỏ liều', 3: 'Từ chối' };
+
   const actions = (r: MethadonePatient) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
+      <ActBtn ic="activity" title="XN nước tiểu" onClick={() => openUrine(r)} />
+      {r.status === 0 && <ActBtn ic="check" title="Cấp liều" onClick={() => openDose(r)} />}
       <ActBtn ic="edit" title="Sửa điều trị" onClick={() => openEdit(r)} />
     </div>
   );
@@ -148,10 +232,17 @@ const MethadoneTreatmentV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Mở XN nước tiểu')}>
+        <Btn variant="ghost" onClick={() => {
+          const active = items.find((p) => p.status === 0);
+          if (active) openUrine(active);
+          else message.warning('Chọn bệnh nhân từ danh sách để ghi XN');
+        }}>
           <Ico name="activity" size={12} /> XN nước tiểu
         </Btn>
-        <Btn variant="primary" onClick={() => tk('Mở cấp liều hôm nay')}>
+        <Btn variant="primary" onClick={() => {
+          const active = items.find((p) => p.status === 0);
+          if (active) openDose(active); else message.warning('Chọn bệnh nhân từ danh sách');
+        }}>
           <Ico name="check" size={12} /> Cấp liều
         </Btn>
       </div>
@@ -173,14 +264,14 @@ const MethadoneTreatmentV2: React.FC = () => {
         sub={sel ? `${sel.patientCode} · ${sel.currentDose}mg/ngày` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={() => tk('Mở lịch sử cấp liều')}>
+          <Btn onClick={() => { if (sel) { openHistory(sel); setSel(null); } }}>
             <Ico name="activity" size={12} /> Lịch sử
           </Btn>
           <Btn variant="primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Sửa điều trị
           </Btn>
           {sel && sel.status === 0 && (
-            <Btn onClick={() => tk('Cấp liều')}>
+            <Btn onClick={() => { openDose(sel); setSel(null); }}>
               <Ico name="check" size={12} /> Cấp liều
             </Btn>
           )}
@@ -235,6 +326,110 @@ const MethadoneTreatmentV2: React.FC = () => {
           load();
         }}
       />
+
+      {/* ── Modal Cấp liều ── */}
+      <ModalShell
+        open={!!doseTarget}
+        onClose={() => setDoseTarget(null)}
+        title="Cấp liều Methadone"
+        sub={doseTarget ? `${doseTarget.patientName} · ${doseTarget.patientCode}` : ''}
+        size="sm"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setDoseTarget(null)}>Huỷ</Btn>
+          <Btn variant="primary" onClick={submitDose} disabled={doseSubmitting}>
+            <Ico name="check" size={12} /> {doseSubmitting ? 'Đang lưu…' : 'Xác nhận cấp liều'}
+          </Btn>
+        </>}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Liều (mg) <span style={{ color: 'var(--s-crit)' }}>*</span></span>
+            <input
+              type="number" min={1} step={0.5}
+              value={doseAmt}
+              onChange={(e) => setDoseAmt(e.target.value)}
+              style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 14 }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Hình thức</span>
+            <select
+              value={doseType}
+              onChange={(e) => setDoseType(e.target.value)}
+              style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 14 }}
+            >
+              <option value="witnessed">Uống có giám sát</option>
+              <option value="takeHome">Mang về</option>
+            </select>
+          </div>
+        </div>
+      </ModalShell>
+
+      {/* ── Modal XN nước tiểu ── */}
+      <ModalShell
+        open={!!urineTarget}
+        onClose={() => setUrineTarget(null)}
+        title="Ghi kết quả XN nước tiểu"
+        sub={urineTarget ? `${urineTarget.patientName} · ${urineTarget.patientCode}` : ''}
+        size="sm"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setUrineTarget(null)}>Huỷ</Btn>
+          <Btn variant="primary" onClick={submitUrine} disabled={urineSubmitting}>
+            <Ico name="check" size={12} /> {urineSubmitting ? 'Đang lưu…' : 'Ghi kết quả'}
+          </Btn>
+        </>}
+      >
+        {([
+          ['Morphine', morphine, setMorphine],
+          ['Amphetamine', amphetamine, setAmphetamine],
+          ['THC (cần sa)', thc, setThc],
+        ] as [string, string, (v: string) => void][]).map(([lbl, val, setter]) => (
+          <div key={lbl} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+            <span style={{ fontSize: 13, color: 'var(--t-1)' }}>{lbl}</span>
+            <select
+              value={val}
+              onChange={(e) => setter(e.target.value)}
+              style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '4px 8px', fontSize: 13 }}
+            >
+              <option value="negative">Âm tính</option>
+              <option value="positive">Dương tính</option>
+            </select>
+          </div>
+        ))}
+      </ModalShell>
+
+      {/* ── Drawer Lịch sử cấp liều ── */}
+      <DrawerShell
+        open={!!histTarget}
+        onClose={() => { setHistTarget(null); setHistRows([]); }}
+        size="lg"
+        title={histTarget ? `Lịch sử — ${histTarget.patientName}` : ''}
+        sub={histTarget ? histTarget.patientCode : ''}
+        footer={<Btn variant="ghost" onClick={() => { setHistTarget(null); setHistRows([]); }}>Đóng</Btn>}
+      >
+        {histLoading && <div style={{ padding: 16, color: 'var(--t-2)' }}>Đang tải…</div>}
+        {!histLoading && histRows.length === 0 && (
+          <div style={{ padding: 16, color: 'var(--t-2)' }}>Chưa có lịch sử cấp liều</div>
+        )}
+        {!histLoading && histRows.length > 0 && (
+          <table className="ab-tbl">
+            <thead>
+              <tr><th>Ngày</th><th>Liều (mg)</th><th>Hình thức</th><th>Người cấp</th><th>Trạng thái</th></tr>
+            </thead>
+            <tbody>
+              {histRows.map((row) => (
+                <tr key={row.id}>
+                  <td className="mono">{dayjs(row.doseDate).format('DD/MM/YYYY HH:mm')}</td>
+                  <td className="mono"><b>{row.doseAmount}</b></td>
+                  <td>{row.doseType === 'witnessed' ? 'Có giám sát' : 'Mang về'}</td>
+                  <td>{row.administeredBy || '—'}</td>
+                  <td>{DOSE_STATUS[row.status] || row.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </DrawerShell>
     </div>
   );
 };

@@ -7,6 +7,7 @@ import {
 } from 'recharts';
 import { getQCLots, getQCResults, createQCLot, updateQCLot, deleteQCLot } from '../api/labQC';
 import type { QCLot, QCResult } from '../api/labQC';
+import { exportToExcel, formatDate } from '../utils/excelExport';
 import { runQC, getLeveyJenningsChart, getAnalyzers, getLabTestCatalog } from '../api/lis';
 import type { QCResultDto, LeveyJenningsChartDto, LabAnalyzerDto, LabTestCatalogDto } from '../api/lis';
 import {
@@ -468,7 +469,50 @@ const LabQCV2: React.FC = () => {
           <Ico name="x" size={12} /> Xóa lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={() => tk('Đã xuất Excel')}>
+        <Btn variant="ghost" onClick={() => {
+          if (tab === 'lots') {
+            if (!lots.length) { ti('Chưa có lô QC để xuất'); return; }
+            exportToExcel(
+              lots as unknown as Record<string, unknown>[],
+              [
+                { header: 'Số lô', key: 'lotNumber', width: 16 },
+                { header: 'Mã XN', key: 'testCode', width: 14 },
+                { header: 'Tên xét nghiệm', key: 'testName', width: 28 },
+                { header: 'Mức QC', key: 'level', width: 10, format: (v) => v === 1 ? 'Low' : v === 2 ? 'Normal' : 'High' },
+                { header: 'NSX', key: 'manufacturer', width: 18 },
+                { header: 'Mean', key: 'targetMean', width: 10 },
+                { header: 'SD', key: 'targetSD', width: 10 },
+                { header: 'Đơn vị', key: 'unit', width: 10 },
+                { header: 'Hạn dùng', key: 'expiryDate', width: 14, format: formatDate },
+                { header: 'Trạng thái', key: 'isActive', width: 12, format: (v) => v ? 'Active' : 'Inactive' },
+              ],
+              `lab-qc-lots-${dayjs().format('YYYYMMDD')}`,
+            );
+            tk('Đã xuất Excel danh sách lô QC');
+          } else {
+            if (!results.length) { ti('Chưa có kết quả QC để xuất'); return; }
+            exportToExcel(
+              results as unknown as Record<string, unknown>[],
+              [
+                { header: 'Thời gian', key: 'runDate', width: 18, format: (v) => v ? new Date(v as string).toLocaleString('vi-VN') : '' },
+                { header: 'Mã XN', key: 'testCode', width: 14 },
+                { header: 'Tên xét nghiệm', key: 'testName', width: 28 },
+                { header: 'Số lô', key: 'lotNumber', width: 14 },
+                { header: 'Mức QC', key: 'level', width: 10, format: (v) => v === 1 ? 'Low' : v === 2 ? 'Normal' : 'High' },
+                { header: 'Giá trị', key: 'value', width: 10 },
+                { header: 'Mean', key: 'mean', width: 10 },
+                { header: 'SD', key: 'sd', width: 10 },
+                { header: 'Z-score', key: 'zScore', width: 10, format: (v) => Number(v).toFixed(3) },
+                { header: 'Vi phạm Westgard', key: 'isViolation', width: 16, format: (v) => v ? 'Vi phạm' : 'OK' },
+                { header: 'Quy tắc', key: 'westgardRule', width: 14 },
+                { header: 'Máy XN', key: 'analyzerName', width: 18 },
+                { header: 'KTV', key: 'operatorName', width: 16 },
+              ],
+              `lab-qc-results-${dayjs().format('YYYYMMDD')}`,
+            );
+            tk('Đã xuất Excel kết quả QC');
+          }
+        }}>
           <Ico name="download" size={12} /> Xuất Excel
         </Btn>
       </div>

@@ -872,4 +872,28 @@ namespace HIS.Application.DTOs.MedicalHR
     }
 
     #endregion
+
+    #region Copy Roster DTOs
+
+    public class CopyRosterWeekDto
+    {
+        /// <summary>Khoa/Phòng cần sao chép lịch trực</summary>
+        public Guid DepartmentId { get; set; }
+        /// <summary>Ngày bắt đầu tuần nguồn (ISO date, Monday preferred)</summary>
+        public DateTime SourceWeekStart { get; set; }
+        /// <summary>Ngày bắt đầu tuần đích</summary>
+        public DateTime TargetWeekStart { get; set; }
+        /// <summary>Ghi đè nếu đã có lịch trực ở tuần đích? (false = bỏ qua trùng)</summary>
+        public bool OverwriteExisting { get; set; } = false;
+    }
+
+    public class CopyRosterResultDto
+    {
+        public int TotalShifts { get; set; }
+        public int CopiedShifts { get; set; }
+        public int SkippedShifts { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+
+    #endregion
 }

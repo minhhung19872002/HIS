@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { exportToExcel } from '../utils/excelExport';
+import type { ExcelColumn } from '../utils/excelExport';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -181,7 +183,46 @@ const Dashboard3CapV2: React.FC = () => {
             else if (tab === 'consolidated') loadReport();
             else loadDuty();
           }}>Làm mới</Btn>
-          <Btn variant="primary" icon="download" onClick={() => tk('Đã xuất báo cáo')}>Xuất Excel</Btn>
+          <Btn variant="primary" icon="download" onClick={() => {
+            if (tab === 'dashboard' && dashboard) {
+              const cols: ExcelColumn<Record<string, unknown>>[] = [
+                { header: 'Chi nhánh', key: 'branchName' },
+                { header: 'Mã CN', key: 'branchCode' },
+                { header: 'Ngoại trú', key: 'outpatients' },
+                { header: 'Nội trú', key: 'inpatients' },
+                { header: 'Doanh thu', key: 'revenue', format: (v) => fmtCurr(Number(v)) },
+              ];
+              exportToExcel(dashboard.subBranches as unknown as Record<string, unknown>[], cols, `dashboard-3cap-${dayjs().format('YYYY-MM-DD')}`);
+              tk('Đã xuất Excel');
+            } else if (tab === 'consolidated' && report) {
+              const cols: ExcelColumn<Record<string, unknown>>[] = [
+                { header: 'Mã CN', key: 'branchCode' },
+                { header: 'Tên CN', key: 'branchName' },
+                { header: 'Cấp', key: 'branchLevel' },
+                { header: 'Bệnh nhân', key: 'patientCount' },
+                { header: 'Lượt khám', key: 'visitCount' },
+                { header: 'Nhập viện', key: 'admissionCount' },
+                { header: 'Doanh thu', key: 'revenue', format: (v) => fmtCurr(Number(v)) },
+                { header: 'Tỷ lệ (%)', key: 'revenuePercentage', format: (v) => `${(v as number).toFixed(1)}%` },
+              ];
+              exportToExcel(report.branchItems as unknown as Record<string, unknown>[], cols, `bao-cao-hop-nhat-${dayjs().format('YYYY-MM-DD')}`);
+              tk('Đã xuất Excel');
+            } else if (tab === 'duty' && duty) {
+              const cols: ExcelColumn<Record<string, unknown>>[] = [
+                { header: 'Nhân viên', key: 'staffName' },
+                { header: 'Chức danh', key: 'title' },
+                { header: 'Khoa', key: 'departmentName' },
+                { header: 'Ca sáng', key: 'morningShifts' },
+                { header: 'Ca chiều', key: 'afternoonShifts' },
+                { header: 'Ca đêm', key: 'nightShifts' },
+                { header: 'Tổng ca', key: 'totalShifts' },
+              ];
+              exportToExcel(duty.staffSummary as unknown as Record<string, unknown>[], cols, `lich-truc-thang-${duty.month}-${duty.year}`);
+              tk('Đã xuất Excel');
+            } else {
+              tk('Chưa có dữ liệu để xuất');
+            }
+          }}>Xuất Excel</Btn>
         </>
       } />
 

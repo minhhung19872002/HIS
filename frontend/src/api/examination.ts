@@ -976,6 +976,35 @@ export const saveAsExaminationTemplate = (examinationId: string, templateName: s
 export const getPatientAllergies = (patientId: string) =>
   request.get<AllergyDto[]>(`/examination/patient/${patientId}/allergies`);
 
+/** Lookup đơn thuốc theo mã/barcode — dùng tại quầy phát thuốc (DispensingCounter). */
+export interface DispensePrescriptionLookupDto {
+  id: string;
+  prescriptionCode: string;
+  prescriptionDate: string;
+  prescribedAt: string;
+  patientCode?: string;
+  patientName?: string;
+  gender?: number;
+  doctorName?: string;
+  diagnosis?: string;
+  isDispensed: boolean;
+  status: number;
+  totalAmount: number;
+  insuranceType: string;
+  items: {
+    id: string;
+    medicineName?: string;
+    quantity: number;
+    unit?: string;
+    dosage?: string;
+    days?: number;
+  }[];
+}
+export const searchPrescriptionByCode = (code: string) =>
+  request.get<DispensePrescriptionLookupDto>(
+    `/examination/prescriptions/search-by-code/${encodeURIComponent(code)}`,
+  );
+
 /** EMR record-centric (per patient) — kèm bệnh nền + dị ứng. */
 export interface EmrRecordDto {
   patientId: string;
@@ -984,6 +1013,7 @@ export interface EmrRecordDto {
   gender: number;
   age?: number;
   insuranceNumber?: string;
+  medicalRecordId?: string;
   visitCount: number;
   lastVisit: string;
   lastDiagnosisName?: string;

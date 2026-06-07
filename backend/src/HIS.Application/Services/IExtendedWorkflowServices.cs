@@ -190,6 +190,9 @@ namespace HIS.Application.Services
 
         // Dashboard
         Task<RehabDashboardDto> GetDashboardAsync(DateTime? date = null);
+
+        // Print
+        Task<byte[]> PrintReferralAsync(Guid referralId);
     }
 
     #endregion
@@ -268,6 +271,8 @@ namespace HIS.Application.Services
         Task<DutyRosterDto> PublishDutyRosterAsync(Guid rosterId);
         Task<DutyShiftDto> AddShiftAssignmentAsync(Guid shiftId, Guid staffId, string role);
         Task<bool> RemoveShiftAssignmentAsync(Guid assignmentId);
+        /// <summary>Sao chép lịch trực từ tuần nguồn sang tuần đích (clone ca trực, không trùng)</summary>
+        Task<CopyRosterResultDto> CopyRosterWeekAsync(CopyRosterWeekDto dto, Guid userId);
 
         // Shift Swaps
         Task<List<ShiftSwapRequestDto>> GetPendingSwapRequestsAsync(Guid? departmentId = null);
@@ -527,6 +532,9 @@ namespace HIS.Application.Services
 
         // Dashboard
         Task<HIEDashboardDto> GetDashboardAsync();
+
+        // Bulk Sync
+        Task<HIESyncAllResultDto> SyncAllConnectionsAsync(Guid userId);
     }
 
     #endregion
@@ -543,6 +551,7 @@ namespace HIS.Application.Services
         Task<List<MCIEventDto>> GetEventsAsync(DateTime? fromDate = null, DateTime? toDate = null);
         Task<MCIEventDto> GetEventAsync(Guid id);
         Task<MCIEventDto> ActivateEventAsync(ActivateMCIEventDto dto);
+        Task<MCIEventDto> ActivateCodeBlueAsync(string location, Guid activatedByUserId);
         Task<MCIEventDto> UpdateEventAsync(UpdateMCIEventDto dto);
         Task<bool> EscalateEventAsync(Guid eventId, string newAlertLevel);
         Task<bool> DeactivateEventAsync(Guid eventId, string reason);

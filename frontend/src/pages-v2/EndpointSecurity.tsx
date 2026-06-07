@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getDevices, registerDevice, updateDeviceStatus, deleteDevice } from '../api/endpointSecurity';
-import type { EndpointDeviceDto, RegisterDeviceDto, UpdateDeviceStatusDto } from '../api/endpointSecurity';
+import { getDevices, registerDevice, updateDeviceStatus, deleteDevice, getIncidents } from '../api/endpointSecurity';
+import type { EndpointDeviceDto, RegisterDeviceDto, UpdateDeviceStatusDto, SecurityIncidentDto } from '../api/endpointSecurity';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
   DrawerShell, DrSec, DrField, tk, ti, te, cf,
@@ -57,6 +57,10 @@ const EndpointSecurityV2: React.FC = () => {
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
   const editing = !!crudInit?.id;
+  // Incidents drawer
+  const [incidentOpen, setIncidentOpen] = useState(false);
+  const [incidentLoading, setIncidentLoading] = useState(false);
+  const [incidents, setIncidents] = useState<SecurityIncidentDto[]>([]);
 
   const openCreate = () => { setCrudInit({}); setCrudOpen(true); };
   const openEdit = (r: EndpointDeviceDto) => {
@@ -158,7 +162,20 @@ const EndpointSecurityV2: React.FC = () => {
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFOs(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
         <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
-        <Btn variant="ghost" icon="alert" onClick={() => tk('Quản lý sự cố ATTT')}>Sự cố ATTT</Btn>
+        <Btn variant="ghost" icon="alert" onClick={async () => {
+          setIncidentOpen(true);
+          setIncidentLoading(true);
+          setIncidents([]);
+          try {
+            const data = await getIncidents();
+            setIncidents(Array.isArray(data) ? data : []);
+          } catch {
+            te('Không tải được danh sách sự cố ATTT');
+            setIncidentOpen(false);
+          } finally {
+            setIncidentLoading(false);
+          }
+        }}>Sự cố ATTT</Btn>
         <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm máy</Btn>
       </div>
 
@@ -225,6 +242,52 @@ const EndpointSecurityV2: React.FC = () => {
           load();
         }}
       />
+
+      {/* Drawer sự cố ATTT */}
+      <DrawerShell
+        open={incidentOpen}
+        onClose={() => setIncidentOpen(false)}
+        size="lg"
+        title="Sự cố An toàn thông tin"
+        sub={incidentLoading ? 'Đang tải…' : `${incidents.length} sự cố`}
+        footer={<Btn variant="ghost" onClick={() => setIncidentOpen(false)}>Đóng</Btn>}
+      >
+        {incidentLoading && <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải danh sách sự cố…</div>}
+        {!incidentLoading && incidents.length === 0 && (
+          <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Không có sự cố ATTT nào</div>
+        )}
+        {!incidentLoading && incidents.length > 0 && (
+          <table className="ab-tbl" style={{ width: '100%', fontSize: 12 }}>
+            <thead>
+              <tr>
+                <th>Mã SC</th><th>Tiêu đề</th><th>Mức độ</th>
+                <th>Danh mục</th><th>Máy bị ảnh hưởng</th><th>Trạng thái</th><th>Thời gian</th>
+              </tr>
+            </thead>
+            <tbody>
+              {incidents.map((inc) => (
+                <tr key={inc.id}>
+                  <td className="mono">{inc.incidentCode}</td>
+                  <td>{inc.title}</td>
+                  <td>
+                    <StatusBadge tone={inc.severity >= 4 ? 'crit' : inc.severity >= 3 ? 'warn' : 'info'} dot>
+                      {inc.severityText}
+                    </StatusBadge>
+                  </td>
+                  <td>{inc.category || '—'}</td>
+                  <td className="mono">{inc.deviceHostname || '—'}</td>
+                  <td>
+                    <StatusBadge tone={inc.status >= 3 ? 'ok' : inc.status >= 2 ? 'warn' : 'crit'} dot>
+                      {inc.statusText}
+                    </StatusBadge>
+                  </td>
+                  <td className="mono">{dayjs(inc.createdAt).format('DD/MM HH:mm')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </DrawerShell>
     </div>
   );
 };

@@ -1221,6 +1221,220 @@ public class BhxhAuditService : IBhxhAuditService
         };
     }
 
+    public async Task<BhxhAuditDetailDto> ApproveSessionAsync(Guid sessionId, Guid approvedByUserId, string? notes)
+    {
+        var session = await _context.Set<BhxhAuditSession>()
+            .Include(s => s.Auditor)
+            .FirstOrDefaultAsync(s => s.Id == sessionId && !s.IsDeleted)
+            ?? throw new InvalidOperationException("Audit session not found");
+
+        if (session.Status < 2)
+            throw new InvalidOperationException("Phiên giám định chưa hoàn thành, không thể duyệt");
+
+        // Use new audit columns added by migration 75
+        session.Status = 4; // Approved
+        session.ApprovedBy = approvedByUserId;
+        session.ApprovedAt = DateTime.UtcNow;
+        if (!string.IsNullOrWhiteSpace(notes))
+            session.Notes = notes;
+        session.UpdatedAt = DateTime.UtcNow;
+
+        await _unitOfWork.SaveChangesAsync();
+
+        return new BhxhAuditDetailDto
+        {
+            Id = session.Id,
+            SessionCode = session.SessionCode,
+            PeriodMonth = session.PeriodMonth,
+            PeriodYear = session.PeriodYear,
+            TotalRecords = session.TotalRecords,
+            TotalAmount = session.TotalAmount,
+            ErrorCount = session.ErrorCount,
+            ErrorAmount = session.ErrorAmount,
+            Status = session.Status,
+            StatusName = StatusNames.GetValueOrDefault(session.Status, "Đã duyệt"),
+            AuditorName = session.Auditor?.FullName,
+            Notes = session.Notes,
+            CreatedAt = session.CreatedAt,
+            Errors = new List<AuditErrorDto>()
+        };
+    }
+
+    public async Task<BhxhAuditPortalSubmitResultDto> SubmitToPortalAsync(Guid sessionId, Guid userId)
+    {
+        var session = await _context.Set<BhxhAuditSession>()
+            .FirstOrDefaultAsync(s => s.Id == sessionId && !s.IsDeleted)
+            ?? throw new InvalidOperationException("Audit session not found");
+
+        if (session.Status < 2)
+            throw new InvalidOperationException("Phiên giám định chưa hoàn thành, không thể gửi cổng");
+
+        // MockMode: update status + log, not calling real BHXH portal (gateway not integrated yet)
+        var mockTxId = $"MOCK-{DateTime.UtcNow:yyyyMMddHHmmss}-{sessionId.ToString("N")[..8].ToUpper()}";
+        session.Status = 3; // Submitted
+        session.SubmittedAt = DateTime.UtcNow;
+        session.SubmittedBy = userId;
+        session.PortalTransactionId = mockTxId;
+        session.UpdatedAt = DateTime.UtcNow;
+
+        await _unitOfWork.SaveChangesAsync();
+
+        return new BhxhAuditPortalSubmitResultDto
+        {
+            SessionId = session.Id,
+            SessionCode = session.SessionCode,
+            PortalStatus = "MockSubmitted",
+            TransactionId = mockTxId,
+            SubmittedAt = session.SubmittedAt.Value,
+            Success = true,
+            Message = "[MockMode] Đã cập nhật trạng thái gửi cổng. Tích hợp cổng BHXH thật sẽ được implement trong sprint tiếp theo."
+        };
+    }
+
+    public async Task<BhxhAuditBatchSubmitResultDto> SubmitBatchAsync(IEnumerable<Guid> sessionIds, Guid userId)
+    {
+        var result = new BhxhAuditBatchSubmitResultDto();
+        var ids = sessionIds.ToList();
+        result.TotalRequested = ids.Count;
+
+        foreach (var id in ids)
+        {
+            try
+            {
+                var item = await SubmitToPortalAsync(id, userId);
+                result.Results.Add(item);
+                if (item.Success) result.Submitted++;
+                else result.Failed++;
+            }
+            catch (InvalidOperationException ex)
+            {
+                result.Skipped++;
+                result.Results.Add(new BhxhAuditPortalSubmitResultDto
+                {
+                    SessionId = id,
+                    PortalStatus = "Skipped",
+                    Success = false,
+                    Message = ex.Message,
+                    SubmittedAt = DateTime.UtcNow
+                });
+            }
+        }
+
+        return result;
+    }
+
+    public async Task<byte[]> ExportXmlAsync(Guid sessionId)
+    {
+        var session = await _context.Set<BhxhAuditSession>()
+            .Include(s => s.Errors)
+            .FirstOrDefaultAsync(s => s.Id == sessionId && !s.IsDeleted)
+            ?? throw new InvalidOperationException("Audit session not found");
+
+        // XML130-like format (simplified — real XML130 schema needs BHXH specification)
+        var sb = new StringBuilder();
+        sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+        sb.AppendLine("<GiamDinhBHXH xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">");
+        sb.AppendLine($"  <PhienGiamDinh ma=\"{session.SessionCode}\" thang=\"{session.PeriodMonth}\" nam=\"{session.PeriodYear}\"/>");
+        sb.AppendLine($"  <TongHop soHoSo=\"{session.TotalRecords}\" tongTien=\"{session.TotalAmount}\" soLoi=\"{session.ErrorCount}\" tienLoi=\"{session.ErrorAmount}\"/>");
+        sb.AppendLine("  <DanhSachLoi>");
+        int idx = 1;
+        foreach (var err in session.Errors.Where(e => !e.IsDeleted))
+        {
+            sb.AppendLine($"    <Loi stt=\"{idx++}\">");
+            sb.AppendLine($"      <HoTenBN>{System.Security.SecurityElement.Escape(err.PatientName ?? "")}</HoTenBN>");
+            sb.AppendLine($"      <SoTheBHYT>{System.Security.SecurityElement.Escape(err.InsuranceNumber ?? "")}</SoTheBHYT>");
+            sb.AppendLine($"      <LoaiLoi>{System.Security.SecurityElement.Escape(err.ErrorType)}</LoaiLoi>");
+            sb.AppendLine($"      <MoTa>{System.Security.SecurityElement.Escape(err.ErrorDescription ?? "")}</MoTa>");
+            sb.AppendLine($"      <TienGoc>{err.OriginalAmount}</TienGoc>");
+            sb.AppendLine($"      <TienDieuChinh>{err.AdjustedAmount}</TienDieuChinh>");
+            sb.AppendLine($"      <DaSua>{(err.IsFixed ? "1" : "0")}</DaSua>");
+            sb.AppendLine("    </Loi>");
+        }
+        sb.AppendLine("  </DanhSachLoi>");
+        sb.AppendLine("</GiamDinhBHXH>");
+
+        return Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+    }
+
+    public async Task<byte[]> ExportBatchXmlAsync(IEnumerable<Guid> sessionIds)
+    {
+        var idList = sessionIds?.ToList() ?? new List<Guid>();
+        if (idList.Count == 0)
+            throw new ArgumentException("Cần ít nhất 1 phiên giám định");
+
+        using var zipStream = new System.IO.MemoryStream();
+        using (var archive = new System.IO.Compression.ZipArchive(zipStream, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var sessionId in idList)
+            {
+                var session = await _context.Set<BhxhAuditSession>()
+                    .Include(s => s.Errors)
+                    .FirstOrDefaultAsync(s => s.Id == sessionId && !s.IsDeleted);
+
+                if (session == null) continue; // bỏ qua session không tồn tại
+
+                var xmlBytes = await ExportXmlAsync(sessionId);
+                var entryName = $"{session.SessionCode}.xml";
+                var entry = archive.CreateEntry(entryName, System.IO.Compression.CompressionLevel.Optimal);
+                using var entryStream = entry.Open();
+                await entryStream.WriteAsync(xmlBytes);
+            }
+        }
+
+        return zipStream.ToArray();
+    }
+
+    public async Task<byte[]> PrintAuditFormAsync(Guid sessionId)
+    {
+        var session = await _context.Set<BhxhAuditSession>()
+            .Include(s => s.Auditor)
+            .Include(s => s.Errors)
+            .FirstOrDefaultAsync(s => s.Id == sessionId && !s.IsDeleted)
+            ?? throw new InvalidOperationException("Audit session not found");
+
+        var sb = new StringBuilder();
+        sb.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'/>");
+        sb.AppendLine("<style>");
+        sb.AppendLine("body{font-family:Times New Roman,serif;font-size:12pt;margin:20px;}");
+        sb.AppendLine("table{width:100%;border-collapse:collapse;margin:8px 0;}");
+        sb.AppendLine("th,td{border:1px solid #333;padding:4px 6px;font-size:11pt;}");
+        sb.AppendLine("th{background:#f0f0f0;font-weight:bold;text-align:center;}");
+        sb.AppendLine(".title{text-align:center;font-weight:bold;font-size:14pt;margin-bottom:4px;}");
+        sb.AppendLine(".subtitle{text-align:center;margin-bottom:12px;}");
+        sb.AppendLine("@media print{body{margin:10mm;}}");
+        sb.AppendLine("</style></head><body>");
+        sb.AppendLine("<div class='title'>PHIẾU GIÁM ĐỊNH BHXH</div>");
+        sb.AppendLine($"<div class='subtitle'>Kỳ: Tháng {session.PeriodMonth}/{session.PeriodYear} &nbsp;|&nbsp; Mã phiên: {System.Web.HttpUtility.HtmlEncode(session.SessionCode)}</div>");
+        sb.AppendLine("<table>");
+        sb.AppendLine("<tr><th colspan='2'>THÔNG TIN PHIÊN GIÁM ĐỊNH</th></tr>");
+        sb.AppendLine($"<tr><td>Mã phiên</td><td>{System.Web.HttpUtility.HtmlEncode(session.SessionCode)}</td></tr>");
+        sb.AppendLine($"<tr><td>Kỳ giám định</td><td>Tháng {session.PeriodMonth}/{session.PeriodYear}</td></tr>");
+        sb.AppendLine($"<tr><td>Tổng hồ sơ</td><td>{session.TotalRecords:N0}</td></tr>");
+        sb.AppendLine($"<tr><td>Tổng tiền</td><td>{session.TotalAmount:N0} VND</td></tr>");
+        sb.AppendLine($"<tr><td>Số lỗi</td><td>{session.ErrorCount}</td></tr>");
+        sb.AppendLine($"<tr><td>Tiền lỗi</td><td>{session.ErrorAmount:N0} VND</td></tr>");
+        sb.AppendLine($"<tr><td>Kiểm toán viên</td><td>{System.Web.HttpUtility.HtmlEncode(session.Auditor?.FullName ?? "")}</td></tr>");
+        sb.AppendLine($"<tr><td>Ngày lập</td><td>{session.CreatedAt:dd/MM/yyyy HH:mm}</td></tr>");
+        sb.AppendLine("</table>");
+
+        if (session.Errors.Any(e => !e.IsDeleted))
+        {
+            sb.AppendLine("<table>");
+            sb.AppendLine("<tr><th>STT</th><th>Họ tên BN</th><th>Số thẻ BHYT</th><th>Loại lỗi</th><th>Mô tả</th><th>Tiền gốc</th><th>Tiền điều chỉnh</th><th>Đã sửa</th></tr>");
+            int i = 1;
+            foreach (var err in session.Errors.Where(e => !e.IsDeleted).OrderBy(e => e.ErrorType))
+            {
+                sb.AppendLine($"<tr><td>{i++}</td><td>{System.Web.HttpUtility.HtmlEncode(err.PatientName ?? "")}</td><td>{System.Web.HttpUtility.HtmlEncode(err.InsuranceNumber ?? "")}</td><td>{System.Web.HttpUtility.HtmlEncode(ErrorTypeNames.GetValueOrDefault(err.ErrorType, err.ErrorType))}</td><td>{System.Web.HttpUtility.HtmlEncode(err.ErrorDescription ?? "")}</td><td style='text-align:right'>{err.OriginalAmount:N0}</td><td style='text-align:right'>{err.AdjustedAmount:N0}</td><td style='text-align:center'>{(err.IsFixed ? "✓" : "")}</td></tr>");
+            }
+            sb.AppendLine("</table>");
+        }
+
+        sb.AppendLine("<script>window.onload=function(){window.print();}</script>");
+        sb.AppendLine("</body></html>");
+
+        return Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+    }
+
     private static AuditErrorDto MapErrorDto(BhxhAuditError e) => new()
     {
         Id = e.Id,

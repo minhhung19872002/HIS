@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import { Input, Select } from 'antd';
 import { getMicrobiologyCultures, createCulture, updateCultureStatus } from '../api/microbiology';
 import type { MicrobiologyCulture } from '../api/microbiology';
+import { printLabResult } from '../api/pdf';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, tk, ti, te, Ico,
@@ -158,7 +159,11 @@ const MicrobiologyV2: React.FC = () => {
         sub={sel ? `${sel.patientName} · ${sel.sampleType}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={() => tk('Đã in phiếu')}>
+          <Btn onClick={() => {
+            if (!sel?.labRequestId) { ti('Mẫu chưa có mã yêu cầu xét nghiệm để in'); return; }
+            printLabResult(sel.labRequestId);
+            tk('Đang mở phiếu KQ vi sinh để in…');
+          }}>
             <Ico name="print" size={12} /> In phiếu
           </Btn>
           <Btn variant="primary" onClick={() => { if (sel) { setStatusCulture(sel); setSel(null); } }}>

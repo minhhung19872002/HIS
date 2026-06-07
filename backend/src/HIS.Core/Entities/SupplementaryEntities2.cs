@@ -15,11 +15,18 @@ public class BhxhAuditSession : BaseEntity
     public int ErrorCount { get; set; }
     public decimal ErrorAmount { get; set; }
     /// <summary>
-    /// 0=Draft, 1=InProgress, 2=Completed, 3=Submitted
+    /// 0=Draft, 1=InProgress, 2=Completed, 3=Submitted, 4=Approved
     /// </summary>
     public int Status { get; set; }
     public Guid? AuditorId { get; set; }
     public string? Notes { get; set; }
+
+    // Added by migration 75: approval + portal submit tracking
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public Guid? SubmittedBy { get; set; }
+    public DateTime? SubmittedAt { get; set; }
+    public string? PortalTransactionId { get; set; }
 
     public virtual User? Auditor { get; set; }
     public virtual ICollection<BhxhAuditError> Errors { get; set; } = new List<BhxhAuditError>();

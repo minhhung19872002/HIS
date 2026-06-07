@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getSampleRejections } from '../api/sampleTracking';
+import { Input } from 'antd';
+import { getSampleRejections, undoRejection, reCollectSample } from '../api/sampleTracking';
 import type { SampleRejection } from '../api/sampleTracking';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
+  DrawerShell, ModalShell, DrSec, DrField, tk, ti, te, cf, Ico,
   type ColumnDef,
 } from './_v2kit';
 
@@ -28,6 +29,10 @@ const SampleTrackingV2: React.FC = () => {
   const [fReason, setFReason] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<SampleRejection | null>(null);
+  const [undoTarget, setUndoTarget] = useState<SampleRejection | null>(null);
+  const [undoReason, setUndoReason] = useState('');
+  const [undoLoading, setUndoLoading] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -93,13 +98,25 @@ const SampleTrackingV2: React.FC = () => {
     } },
   ];
 
+  const handleReCollect = (r: SampleRejection) => cf(
+    `Yêu cầu lấy lại mẫu "${r.sampleBarcode}"?`,
+    async () => {
+      try {
+        await reCollectSample(r.id);
+        tk('Đã yêu cầu lấy lại mẫu');
+        load();
+      } catch { te('Lấy lại mẫu thất bại'); }
+    },
+    { confirm: 'Lấy lại' },
+  );
+
   const actions = (r: SampleRejection) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       {!r.reCollected && !r.isUndone && (
         <>
-          <ActBtn ic="refresh" title="Hủy từ chối" onClick={() => tk(`Đã hủy TC ${r.sampleBarcode}`)} />
-          <ActBtn ic="package" title="Lấy lại mẫu" onClick={() => tk(`Đã yêu cầu lấy lại ${r.sampleBarcode}`)} />
+          <ActBtn ic="refresh" title="Hủy từ chối" onClick={() => { setUndoTarget(r); setUndoReason(''); }} />
+          <ActBtn ic="package" title="Lấy lại mẫu" onClick={() => handleReCollect(r)} />
         </>
       )}
     </div>
@@ -125,7 +142,7 @@ const SampleTrackingV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Mở báo cáo từ chối')}>
+        <Btn variant="ghost" onClick={() => setReportOpen(true)}>
           <Ico name="activity" size={12} /> Báo cáo
         </Btn>
       </div>
@@ -139,6 +156,74 @@ const SampleTrackingV2: React.FC = () => {
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
+      {/* Modal Hủy từ chối */}
+      <ModalShell
+        open={!!undoTarget}
+        onClose={() => setUndoTarget(null)}
+        size="sm"
+        title={`Hủy từ chối · ${undoTarget?.sampleBarcode || ''}`}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setUndoTarget(null)}>Huỷ</Btn>
+          <Btn variant="primary" disabled={undoLoading} onClick={async () => {
+            if (!undoReason.trim()) { te('Nhập lý do hủy từ chối'); return; }
+            setUndoLoading(true);
+            try {
+              await undoRejection(undoTarget!.id, { reason: undoReason.trim() });
+              tk('Đã hủy từ chối mẫu');
+              setUndoTarget(null);
+              load();
+            } catch { te('Hủy từ chối thất bại'); }
+            finally { setUndoLoading(false); }
+          }}>
+            <Ico name="check" size={12} /> {undoLoading ? 'Đang lưu…' : 'Xác nhận'}
+          </Btn>
+        </>}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Lý do hủy từ chối *</span>
+          <Input.TextArea rows={3} value={undoReason} onChange={(e) => setUndoReason(e.target.value)} placeholder="Nhập lý do…" />
+        </div>
+      </ModalShell>
+
+      {/* Drawer Báo cáo từ chối */}
+      <DrawerShell
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        size="lg"
+        title="Báo cáo mẫu từ chối"
+        sub={`${items.length} mẫu · 30 ngày qua`}
+        footer={<Btn variant="ghost" onClick={() => setReportOpen(false)}>Đóng</Btn>}
+      >
+        <div style={{ padding: '8px 0' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
+            {[
+              { lbl: 'Tổng từ chối', val: items.length, color: 'var(--t-0)' },
+              { lbl: 'Chưa xử lý', val: counts.pending || 0, color: 'var(--a-or-text)' },
+              { lbl: 'Đã lấy lại', val: counts.recollected || 0, color: 'var(--a-em-text)' },
+            ].map((k) => (
+              <div key={k.lbl} style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6, textAlign: 'center' }}>
+                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono)', color: k.color }}>{k.val}</div>
+                <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 4 }}>{k.lbl}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Lý do từ chối phổ biến
+          </div>
+          {Array.from(new Set(items.map((r) => r.rejectionReason))).slice(0, 10).map((reason) => {
+            const cnt = items.filter((r) => r.rejectionReason === reason).length;
+            const pct = Math.round((cnt / Math.max(1, items.length)) * 100);
+            return (
+              <div key={reason} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+                <span style={{ fontSize: 13, color: 'var(--t-1)' }}>{reason}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 13 }}>{cnt} <span style={{ color: 'var(--t-2)', fontWeight: 400 }}>({pct}%)</span></span>
+              </div>
+            );
+          })}
+          {items.length === 0 && <div style={{ textAlign: 'center', color: 'var(--t-2)', padding: 32 }}>Không có dữ liệu</div>}
+        </div>
+      </DrawerShell>
+
       <DrawerShell
         open={!!sel}
         onClose={() => setSel(null)}
@@ -148,10 +233,10 @@ const SampleTrackingV2: React.FC = () => {
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
           {sel && !sel.reCollected && !sel.isUndone && <>
-            <Btn onClick={() => { tk('Đã hủy TC'); setSel(null); }}>
+            <Btn onClick={() => { setUndoTarget(sel); setUndoReason(''); setSel(null); }}>
               <Ico name="refresh" size={12} /> Hủy TC
             </Btn>
-            <Btn variant="primary" onClick={() => { tk('Đã yêu cầu lấy lại'); setSel(null); }}>
+            <Btn variant="primary" onClick={() => { handleReCollect(sel); setSel(null); }}>
               <Ico name="package" size={12} /> Lấy lại
             </Btn>
           </>}

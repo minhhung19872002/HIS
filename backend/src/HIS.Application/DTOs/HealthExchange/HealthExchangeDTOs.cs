@@ -560,4 +560,28 @@ namespace HIS.Application.DTOs.HealthExchange
     }
 
     #endregion
+
+    #region Sync All
+
+    public class HIESyncAllResultDto
+    {
+        public int TotalConnections { get; set; }
+        public int Synced { get; set; }
+        public int Failed { get; set; }
+        public int Skipped { get; set; }
+        public List<HIEConnectionSyncResult> Results { get; set; } = new();
+        public string Message { get; set; } = string.Empty;
+        public DateTime SyncedAt { get; set; }
+    }
+
+    public class HIEConnectionSyncResult
+    {
+        public Guid ConnectionId { get; set; }
+        public string ConnectionName { get; set; } = string.Empty;
+        public bool Success { get; set; }
+        public string? Error { get; set; }
+        public DateTime SyncedAt { get; set; }
+    }
+
+    #endregion
 }

@@ -26,6 +26,7 @@ import {
   searchRefunds, createRefund, type RefundDto,
   getCashBooks, type CashBookDto,
   getElectronicInvoices, issueElectronicInvoice, type ElectronicInvoiceDto,
+  printPaymentReceipt, printInvoice, sendElectronicInvoice,
 } from '../api/billing';
 import '../layouts/terminal/ed-responsive.css';
 
@@ -61,6 +62,12 @@ const BillingEditorV2: React.FC = () => {
   const [useAdvance, setUseAdvance] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [lastPaymentId, setLastPaymentId] = useState<string | null>(null);
+  const [printingReceipt, setPrintingReceipt] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailTarget, setEmailTarget] = useState<ElectronicInvoiceDto | null>(null);
+  const [emailInput, setEmailInput] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const [deposits, setDeposits] = useState<DepositDto[]>([]);
   const [refunds, setRefunds] = useState<RefundDto[]>([]);
@@ -79,6 +86,7 @@ const BillingEditorV2: React.FC = () => {
     setSearchOpen(false);
     setItems([]); setSel(new Set()); setBalance(null);
     setDeposits([]); setRefunds([]); setEinvoices([]);
+    setLastPaymentId(null);
     const [svc, med, bal] = await Promise.allSettled([
       getUnpaidServices(p.patientId),
       getUnpaidMedicines(p.patientId),
@@ -133,7 +141,7 @@ const BillingEditorV2: React.FC = () => {
       const inv = await getPatientInvoice(pt.medicalRecordId);
       const invoiceId = inv.data?.id;
       if (!invoiceId) { tw('Bệnh nhân chưa có hoá đơn — tạo hoá đơn ở bản v1 (P2)'); setBusy(false); return; }
-      await createPayment({
+      const payRes = await createPayment({
         invoiceId,
         paymentMethod: method,
         amount: finalAmount,
@@ -141,6 +149,8 @@ const BillingEditorV2: React.FC = () => {
         depositUsedAmount: advUsed || undefined,
         notes: `Thu ${selectedItems.length} mục qua editor v2`,
       });
+      const newPaymentId: string | undefined = payRes?.data?.id;
+      if (newPaymentId) setLastPaymentId(newPaymentId);
       setConfirmOpen(false);
       tk(`✓ Đã thu ${fmtVNDg(finalAmount)} · ${METHODS.find((m) => m.v === method)?.l}`);
       // refresh unpaid items
@@ -176,6 +186,47 @@ const BillingEditorV2: React.FC = () => {
       setCreateModal(null);
     } catch { te('Tạo phiếu thất bại'); }
     finally { setSavingC(false); }
+  };
+
+  const doPrintReceipt = async () => {
+    if (!lastPaymentId) { tw('Chưa có biên lai — vui lòng thu tiền trước'); return; }
+    setPrintingReceipt(true);
+    try {
+      const res = await printPaymentReceipt(lastPaymentId);
+      const blob = res.data as Blob;
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch { te('Không thể in biên lai'); }
+    finally { setPrintingReceipt(false); }
+  };
+
+  const doPrintInvoice = async (einv: ElectronicInvoiceDto) => {
+    try {
+      const res = await printInvoice(einv.invoiceId);
+      const blob = res.data as Blob;
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch { te('Không thể in hóa đơn'); }
+  };
+
+  const openSendEmail = (einv: ElectronicInvoiceDto) => {
+    setEmailTarget(einv);
+    setEmailInput(einv.buyerEmail || einv.sentTo || '');
+    setEmailModalOpen(true);
+  };
+
+  const doSendEmail = async () => {
+    if (!emailTarget) return;
+    if (!emailInput.trim()) { tw('Nhập địa chỉ email'); return; }
+    setSendingEmail(true);
+    try {
+      await sendElectronicInvoice(emailTarget.id, emailInput.trim());
+      tk(`Đã gửi HĐĐT đến ${emailInput.trim()}`);
+      setEmailModalOpen(false);
+    } catch { te('Gửi email thất bại'); }
+    finally { setSendingEmail(false); }
   };
 
   const openEinv = () => {
@@ -330,7 +381,7 @@ const BillingEditorV2: React.FC = () => {
             <div>
               <div style={{ marginBottom: 12 }}><Btn variant="primary" onClick={openEinv}><TermIcon name="plus" size={12} /> Phát hành HĐĐT</Btn></div>
               <DataTable<ElectronicInvoiceDto> columns={einvCols} data={einvoices} rowKey={(r) => r.id} empty="Chưa có hoá đơn điện tử"
-                actions={() => <><ActBtn ic="send" title="Gửi email" onClick={() => ti('Gửi email HĐ (P2)')} /><ActBtn ic="print" title="In" onClick={() => tk('Đã gửi in')} /></>} />
+                actions={(r) => <><ActBtn ic="send" title="Gửi email" onClick={() => openSendEmail(r)} /><ActBtn ic="print" title="In" onClick={() => doPrintInvoice(r)} /></>} />
             </div>
           )}
         </div>
@@ -368,7 +419,7 @@ const BillingEditorV2: React.FC = () => {
             <Btn variant="primary" style={{ height: 40, fontSize: 13 }} onClick={() => setConfirmOpen(true)} disabled={selectedItems.length === 0 || busy}>
               <TermIcon name="check" size={13} /> Thu tiền · {fmtVNDg(finalAmount)}
             </Btn>
-            <Btn variant="ghost" onClick={() => tk('Đã gửi in biên lai')}><TermIcon name="print" size={12} /> In biên lai</Btn>
+            <Btn variant="ghost" onClick={doPrintReceipt} disabled={printingReceipt || !lastPaymentId}><TermIcon name="print" size={12} /> In biên lai</Btn>
           </div>
         </aside>
       )}
@@ -422,6 +473,27 @@ const BillingEditorV2: React.FC = () => {
           <label style={{ display: 'block', fontSize: 11.5 }}>
             <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 3 }}>{createModal === 'refund' ? 'Lý do hoàn (bắt buộc)' : 'Ghi chú'}</span>
             <textarea className="ed-fld" rows={2} value={cform.reason} onChange={(e) => setCform((p) => ({ ...p, reason: e.target.value }))} />
+          </label>
+        </div>
+      </ModalShell>
+
+      {/* Send e-invoice email modal */}
+      <ModalShell open={emailModalOpen} onClose={() => setEmailModalOpen(false)} title="Gửi hoá đơn điện tử qua email" sub={emailTarget?.eInvoiceNumber || emailTarget?.invoiceCode} size="sm"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setEmailModalOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" disabled={sendingEmail} onClick={doSendEmail}><TermIcon name="send" size={12} /> Gửi</Btn>
+        </>}>
+        <div style={{ padding: 18 }}>
+          <label style={{ display: 'block', fontSize: 11.5 }}>
+            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 3 }}>Địa chỉ email nhận</span>
+            <input
+              type="email"
+              className="ed-fld"
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              placeholder="vd: benhnhan@email.com"
+              autoFocus
+            />
           </label>
         </div>
       </ModalShell>

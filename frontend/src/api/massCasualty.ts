@@ -741,6 +741,9 @@ export const getActiveEvent = () =>
 export const activateMCI = (dto: ActivateMCIDto) =>
   apiClient.post<MCIActivationResultDto>(`${BASE_URL}/events/activate`, dto);
 
+export const activateCodeBlue = (location?: string) =>
+  apiClient.post<MCIEventDto>(`${BASE_URL}/activate-code-blue`, { location: location ?? '' });
+
 export const escalateAlert = (dto: EscalateAlertDto) =>
   apiClient.post<MCIEventDto>(`${BASE_URL}/events/escalate`, dto);
 
@@ -899,6 +902,7 @@ export default {
   getEvent,
   getActiveEvent,
   activateMCI,
+  activateCodeBlue,
   escalateAlert,
   updateEventPhase,
   deactivateMCI,

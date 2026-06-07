@@ -230,4 +230,19 @@ public class MedicalRecordPlanningController : ControllerBase
         var result = await _planningService.GetStatsAsync();
         return Ok(result);
     }
+
+    // ========================================================================
+    // Bulk Allocate Record Codes
+    // ========================================================================
+
+    /// <summary>
+    /// Cấp dải mã hồ sơ hàng loạt. Hỗ trợ 2 chế độ: dải số (FromCode..ToCode) hoặc Prefix+Count.
+    /// Trả về danh sách mã khả dụng (chưa được sử dụng) trong dải yêu cầu.
+    /// </summary>
+    [HttpPost("record-codes/bulk-allocate")]
+    public async Task<ActionResult<BulkAllocateResultDto>> BulkAllocateRecordCodes([FromBody] BulkAllocateDto dto)
+    {
+        var result = await _planningService.BulkAllocateRecordCodesAsync(dto, GetUserId());
+        return Ok(result);
+    }
 }

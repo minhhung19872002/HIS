@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getReagents, createReagent, updateReagent, deleteReagent } from '../api/reagent';
-import type { Reagent } from '../api/reagent';
+import { getReagents, createReagent, updateReagent, deleteReagent, getReagentAlerts, getReagentUsageHistory } from '../api/reagent';
+import type { Reagent, ReagentAlert, ReagentUsage } from '../api/reagent';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,
@@ -55,6 +55,13 @@ const ReagentManagementV2: React.FC = () => {
   const [fAna, setFAna] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<Reagent | null>(null);
+  const [alertsOpen, setAlertsOpen] = useState(false);
+  const [alerts, setAlerts] = useState<ReagentAlert[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyReagent, setHistoryReagent] = useState<Reagent | null>(null);
+  const [usageHistory, setUsageHistory] = useState<ReagentUsage[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -128,6 +135,29 @@ const ReagentManagementV2: React.FC = () => {
     } },
   ];
 
+  const openAlerts = async () => {
+    setAlertsOpen(true);
+    setAlertsLoading(true);
+    try {
+      const data = await getReagentAlerts();
+      const list = Array.isArray(data) ? data : (data?.items ?? []);
+      setAlerts(list as ReagentAlert[]);
+    } catch { te('Không tải được cảnh báo'); setAlerts([]); }
+    finally { setAlertsLoading(false); }
+  };
+
+  const openHistory = async (r: Reagent) => {
+    setHistoryReagent(r);
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    try {
+      const data = await getReagentUsageHistory({ reagentId: r.id });
+      const list = Array.isArray(data) ? data : (data?.items ?? []);
+      setUsageHistory(list as ReagentUsage[]);
+    } catch { te('Không tải được lịch sử'); setUsageHistory([]); }
+    finally { setHistoryLoading(false); }
+  };
+
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
   const openCreate = () => { setCrudInit({ status: 0, quantity: 0, minimumStock: 0, unit: 'test' }); setCrudOpen(true); };
@@ -164,7 +194,7 @@ const ReagentManagementV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Mở cảnh báo')}>
+        <Btn variant="ghost" onClick={openAlerts}>
           <Ico name="alert" size={12} /> Cảnh báo
         </Btn>
         <Btn variant="primary" onClick={openCreate}>
@@ -189,7 +219,7 @@ const ReagentManagementV2: React.FC = () => {
         sub={sel ? `${sel.code} · Lô ${sel.lotNumber}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={() => tk('Mở lịch sử dùng')}>
+          <Btn onClick={() => { if (sel) { openHistory(sel); setSel(null); } }}>
             <Ico name="activity" size={12} /> Lịch sử
           </Btn>
           <Btn variant="primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
@@ -241,6 +271,70 @@ const ReagentManagementV2: React.FC = () => {
             </DrField>
           </DrSec>
         </>}
+      </DrawerShell>
+
+      {/* Drawer Cảnh báo */}
+      <DrawerShell
+        open={alertsOpen}
+        onClose={() => setAlertsOpen(false)}
+        size="lg"
+        title="Cảnh báo hoá chất"
+        sub="Hết hạn · Sắp hết · Tồn thấp"
+        footer={<Btn variant="ghost" onClick={() => setAlertsOpen(false)}>Đóng</Btn>}
+      >
+        {alertsLoading
+          ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--t-2)' }}>Đang tải…</div>
+          : alerts.length === 0
+            ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--t-2)' }}>Không có cảnh báo</div>
+            : alerts.map((a) => (
+              <div key={a.id} style={{
+                display: 'flex', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--line)', alignItems: 'flex-start',
+              }}>
+                <StatusBadge tone={a.severity === 'critical' ? 'crit' : 'warn'}>
+                  {a.type === 'expired' ? 'Hết hạn' : a.type === 'expiringSoon' ? 'Sắp hết hạn' : 'Tồn thấp'}
+                </StatusBadge>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--t-0)' }}>{a.reagentName}</div>
+                  <div style={{ fontSize: 12, color: 'var(--t-1)', marginTop: 2 }}>{a.message}</div>
+                  <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>Lô: {a.lotNumber}</div>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
+                  {dayjs(a.createdAt).format('DD/MM HH:mm')}
+                </div>
+              </div>
+            ))
+        }
+      </DrawerShell>
+
+      {/* Drawer Lịch sử dùng */}
+      <DrawerShell
+        open={historyOpen}
+        onClose={() => { setHistoryOpen(false); setHistoryReagent(null); setUsageHistory([]); }}
+        size="lg"
+        title={historyReagent ? `Lịch sử dùng · ${historyReagent.name}` : 'Lịch sử dùng'}
+        sub={historyReagent ? `Lô ${historyReagent.lotNumber}` : ''}
+        footer={<Btn variant="ghost" onClick={() => { setHistoryOpen(false); setHistoryReagent(null); setUsageHistory([]); }}>Đóng</Btn>}
+      >
+        {historyLoading
+          ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--t-2)' }}>Đang tải…</div>
+          : usageHistory.length === 0
+            ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--t-2)' }}>Chưa có lịch sử dùng</div>
+            : usageHistory.map((u) => (
+              <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--line)', gap: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--t-0)' }}>{u.testName}</div>
+                  <div style={{ fontSize: 12, color: 'var(--t-2)' }}>{u.analyzerName} · {u.operatorName}</div>
+                  <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{u.testCode}</div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 13 }}>−{u.quantityUsed}</div>
+                  <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
+                    {dayjs(u.usageDate).format('DD/MM/YYYY HH:mm')}
+                  </div>
+                </div>
+              </div>
+            ))
+        }
       </DrawerShell>
 
       <CrudModal

@@ -43,6 +43,7 @@ public class ExaminationCompleteController : ControllerBase
             .Select(e => new
             {
                 PatientId = e.MedicalRecord.PatientId,
+                MedicalRecordId = (Guid?)e.MedicalRecordId,
                 Code = e.MedicalRecord.Patient.PatientCode,
                 Name = e.MedicalRecord.Patient.FullName,
                 Gender = e.MedicalRecord.Patient.Gender,
@@ -67,6 +68,7 @@ public class ExaminationCompleteController : ControllerBase
                 return new EmrRecordDto
                 {
                     PatientId = g.Key,
+                    MedicalRecordId = latest.MedicalRecordId,
                     PatientCode = latest.Code ?? "",
                     PatientName = latest.Name ?? "",
                     Gender = latest.Gender,
@@ -1136,6 +1138,62 @@ public class ExaminationCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// Tra đơn thuốc theo mã/barcode — dùng tại quầy phát thuốc ngoại trú (DispensingCounter).
+    /// Tìm theo PrescriptionCode (ưu tiên) hoặc Id nếu code là GUID hợp lệ.
+    /// Trả về shape tương thích DispenseRow để FE có thể điền trực tiếp vào drawer.
+    /// </summary>
+    [HttpGet("prescriptions/search-by-code/{code}")]
+    public async Task<IActionResult> SearchPrescriptionByCode(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return BadRequest(new { message = "Mã đơn không được để trống" });
+
+        var trimmed = code.Trim();
+
+        var q = _db.Prescriptions
+            .Include(p => p.MedicalRecord).ThenInclude(m => m!.Patient)
+            .Include(p => p.Doctor)
+            .Include(p => p.Details).ThenInclude(i => i.Medicine)
+            .AsQueryable();
+
+        // Thử tìm theo PrescriptionCode trước (barcode in trên đơn)
+        var p = await q.FirstOrDefaultAsync(x => x.PrescriptionCode == trimmed);
+
+        // Nếu không tìm thấy và code trông như GUID → thử tìm theo Id
+        if (p == null && Guid.TryParse(trimmed, out var pid))
+            p = await q.FirstOrDefaultAsync(x => x.Id == pid);
+
+        if (p == null)
+            return NotFound(new { message = $"Không tìm thấy đơn thuốc với mã '{trimmed}'" });
+
+        return Ok(new
+        {
+            id = p.Id,
+            prescriptionCode = p.PrescriptionCode,
+            prescriptionDate = p.PrescriptionDate,
+            prescribedAt = p.PrescriptionDate,
+            patientCode = p.MedicalRecord?.Patient?.PatientCode,
+            patientName = p.MedicalRecord?.Patient?.FullName,
+            gender = p.MedicalRecord?.Patient?.Gender,
+            doctorName = p.Doctor?.FullName,
+            diagnosis = p.Diagnosis,
+            isDispensed = p.IsDispensed,
+            status = p.Status,
+            totalAmount = p.TotalAmount,
+            insuranceType = p.PrescriptionType switch { 1 => "Ngoại trú", 2 => "Nội trú", 3 => "Nhà thuốc", _ => "Thu phí" },
+            items = p.Details.Select(i => new
+            {
+                id = i.Id,
+                medicineName = i.Medicine != null ? i.Medicine.MedicineName : null,
+                quantity = i.Quantity,
+                unit = i.Unit ?? (i.Medicine != null ? i.Medicine.Unit : null),
+                dosage = i.Dosage,
+                days = i.Days,
+            }),
+        });
+    }
+
+    /// <summary>
     /// Lấy chi tiết đơn thuốc
     /// </summary>
     [HttpGet("prescriptions/{id}")]
@@ -1905,6 +1963,8 @@ public class EmrRecordDto
     public int Gender { get; set; }
     public int? Age { get; set; }
     public string? InsuranceNumber { get; set; }
+    /// <summary>MedicalRecordId của lượt khám mới nhất — dùng để gọi pdf/medical-record/{id}.</summary>
+    public Guid? MedicalRecordId { get; set; }
     public int VisitCount { get; set; }
     public DateTime LastVisit { get; set; }
     public string? LastDiagnosisName { get; set; }

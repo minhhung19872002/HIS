@@ -397,6 +397,13 @@ namespace HIS.API.Controllers
         [HttpGet("statistics")]
         public async Task<ActionResult<RehabDashboardDto>> GetStatistics([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
             => Ok(await _service.GetDashboardAsync(fromDate));
+
+        [HttpGet("referrals/{id}/print-referral")]
+        public async Task<IActionResult> PrintReferral(Guid id)
+        {
+            var bytes = await _service.PrintReferralAsync(id);
+            return File(bytes, "text/html; charset=utf-8", $"giay-gt-phcn-{id:N}.html");
+        }
     }
 
     // NangCap12 request DTOs for Rehabilitation
@@ -541,6 +548,14 @@ namespace HIS.API.Controllers
         [HttpPost("duty-roster")]
         public async Task<ActionResult<DutyRosterDto>> CreateDutyRoster([FromBody] CreateDutyRosterDto dto)
             => Ok(await _service.CreateDutyRosterAsync(dto));
+
+        [HttpPost("rosters/copy-week")]
+        public async Task<ActionResult<CopyRosterResultDto>> CopyRosterWeek([FromBody] CopyRosterWeekDto dto)
+        {
+            var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
+            var result = await _service.CopyRosterWeekAsync(dto, userId);
+            return Ok(result);
+        }
 
         [HttpGet("clinic-assignments")]
         public async Task<ActionResult<List<ClinicAssignmentDto>>> GetClinicAssignments(
@@ -1163,6 +1178,17 @@ namespace HIS.API.Controllers
         [HttpGet("dashboard")]
         public async Task<ActionResult<HIEDashboardDto>> GetDashboard()
             => Ok(await _service.GetDashboardAsync());
+
+        /// <summary>
+        /// Sync tất cả HIE connection đang active — ping endpoint, cập nhật trạng thái.
+        /// </summary>
+        [HttpPost("sync-all")]
+        public async Task<ActionResult<HIESyncAllResultDto>> SyncAll()
+        {
+            var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
+            var result = await _service.SyncAllConnectionsAsync(userId);
+            return Ok(result);
+        }
     }
 
     #endregion
@@ -1205,6 +1231,14 @@ namespace HIS.API.Controllers
         [HttpPost("events/activate")]
         public async Task<ActionResult<MCIEventDto>> ActivateEvent([FromBody] ActivateMCIEventDto dto)
             => Ok(await _service.ActivateEventAsync(dto));
+
+        [HttpPost("activate-code-blue")]
+        public async Task<ActionResult<MCIEventDto>> ActivateCodeBlue([FromBody] ActivateCodeBlueRequest req)
+        {
+            var userId = Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var uid)
+                ? uid : Guid.Empty;
+            return Ok(await _service.ActivateCodeBlueAsync(req.Location ?? string.Empty, userId));
+        }
 
         [HttpPost("events/{id}/deactivate")]
         public async Task<ActionResult<bool>> DeactivateEvent(Guid id, [FromBody] string reason)

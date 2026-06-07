@@ -171,10 +171,24 @@ public partial class ReceptionCompleteService {
             .GroupBy(t => new { t.PatientId, t.RoomId })
             .ToDictionary(g => g.Key, g => g.OrderByDescending(t => t.IssueDate).First());
 
-        return records.Select(m => {
+        // Load latest Examination per MedicalRecord — cần examinationId để in phiếu khám (OPD).
+        var medicalRecordIds = records.Select(r => r.Id).ToList();
+        var examinations = await _context.Examinations
+            .Where(e => medicalRecordIds.Contains(e.MedicalRecordId))
+            .Select(e => new { e.MedicalRecordId, e.Id, e.CreatedAt })
+            .ToListAsync();
+        var examLookup = examinations
+            .GroupBy(e => e.MedicalRecordId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.CreatedAt).First().Id);
+
+        var result = records.Select(m => {
             var ticket = ticketLookup.GetValueOrDefault(new { PatientId = (Guid?)m.PatientId, RoomId = m.RoomId });
-            return BuildAdmissionDto(m, ticket);
+            var dto = BuildAdmissionDto(m, ticket);
+            if (examLookup.TryGetValue(m.Id, out var examId))
+                dto.ExaminationId = examId;
+            return dto;
         }).ToList();
+        return result;
     }
 
     private static AdmissionDto BuildAdmissionDto(MedicalRecord m, QueueTicket? ticket)

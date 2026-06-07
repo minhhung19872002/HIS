@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { Form, Input, InputNumber, Select, Switch } from 'antd';
 import * as api from '../api/centralSigning';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, tk, ti, tw, Ico,
+  DrawerShell, ModalShell, DrSec, DrField, tk, ti, tw, Ico,
   type ColumnDef,
 } from './_v2kit';
 
@@ -49,6 +50,30 @@ const CentralSigningV2: React.FC = () => {
   const [selCert, setSelCert] = useState<ManagedCertificate | null>(null);
   const [selTx, setSelTx] = useState<SigningTransaction | null>(null);
 
+  // --- cert form modal ---
+  const [certModalOpen, setCertModalOpen] = useState(false);
+  const [editingCert, setEditingCert] = useState<ManagedCertificate | null>(null);
+  const [certSaving, setCertSaving] = useState(false);
+  const [certForm] = Form.useForm();
+
+  // --- appearance drawer ---
+  const [appearOpen, setAppearOpen] = useState(false);
+  const [appearData, setAppearData] = useState<Record<string, unknown> | null>(null);
+  const [appearLoading, setAppearLoading] = useState(false);
+  const [appearSaving, setAppearSaving] = useState(false);
+  const [appearForm] = Form.useForm();
+
+  // --- HSM info drawer ---
+  const [hsmOpen, setHsmOpen] = useState(false);
+  const [hsmData, setHsmData] = useState<Record<string, unknown> | null>(null);
+  const [hsmLoading, setHsmLoading] = useState(false);
+
+  // --- CSR modal ---
+  const [csrOpen, setCsrOpen] = useState(false);
+  const [csrSaving, setCsrSaving] = useState(false);
+  const [csrResult, setCsrResult] = useState<string | null>(null);
+  const [csrForm] = Form.useForm();
+
   const fetchCerts = useCallback(async () => {
     try { const r = await api.getCertificates(); setCerts((r.data || []) as ManagedCertificate[]); }
     catch { ti('Không tải được chứng thư'); }
@@ -72,6 +97,125 @@ const CentralSigningV2: React.FC = () => {
 
   useEffect(() => { fetchCerts(); fetchStats(); }, [fetchCerts, fetchStats]);
   useEffect(() => { if (tab === 'transactions') fetchTxs(page); }, [tab, page, fetchTxs]);
+
+  const openCertModal = (cert?: ManagedCertificate) => {
+    setEditingCert(cert ?? null);
+    if (cert) {
+      certForm.setFieldsValue({
+        ...cert,
+        validFrom: cert.validFrom ? dayjs(cert.validFrom).format('YYYY-MM-DD') : '',
+        validTo: cert.validTo ? dayjs(cert.validTo).format('YYYY-MM-DD') : '',
+      });
+    } else {
+      certForm.resetFields();
+    }
+    setCertModalOpen(true);
+  };
+
+  const handleSaveCert = async () => {
+    setCertSaving(true);
+    try {
+      const v = await certForm.validateFields();
+      await api.saveCertificate({
+        id: editingCert?.id,
+        serialNumber: v.serialNumber,
+        subjectName: v.subjectName,
+        issuerName: v.issuerName,
+        caProvider: v.caProvider,
+        validFrom: v.validFrom,
+        validTo: v.validTo,
+        isActive: v.isActive ?? true,
+        ownerUserId: v.ownerUserId,
+        cccd: v.cccd,
+        storageType: v.storageType || 'Token',
+      });
+      tk(editingCert ? 'Đã cập nhật chứng thư' : 'Đã thêm chứng thư');
+      setCertModalOpen(false);
+      certForm.resetFields();
+      setEditingCert(null);
+      fetchCerts();
+    } catch (e: unknown) {
+      const err = e as { errorFields?: unknown };
+      if (err?.errorFields) return;
+      tw('Lưu chứng thư thất bại');
+    } finally {
+      setCertSaving(false);
+    }
+  };
+
+  const openAppearance = async () => {
+    setAppearOpen(true);
+    setAppearLoading(true);
+    try {
+      const r = await api.getAppearanceConfig();
+      const data = r.data as Record<string, unknown>;
+      setAppearData(data);
+      appearForm.setFieldsValue(data);
+    } catch { ti('Không tải được cấu hình appearance'); }
+    finally { setAppearLoading(false); }
+  };
+
+  const handleSaveAppearance = async () => {
+    setAppearSaving(true);
+    try {
+      const v = await appearForm.validateFields();
+      await api.saveAppearanceConfig(v as Parameters<typeof api.saveAppearanceConfig>[0]);
+      tk('Đã lưu cấu hình appearance');
+      setAppearOpen(false);
+    } catch (e: unknown) {
+      const err = e as { errorFields?: unknown };
+      if (err?.errorFields) return;
+      tw('Lưu cấu hình thất bại');
+    } finally {
+      setAppearSaving(false);
+    }
+  };
+
+  const openHsm = async () => {
+    setHsmOpen(true);
+    setHsmLoading(true);
+    try {
+      const r = await api.getHsmInfo();
+      setHsmData(r.data as Record<string, unknown>);
+    } catch { ti('Không tải được HSM info'); }
+    finally { setHsmLoading(false); }
+  };
+
+  const openCsr = () => {
+    csrForm.resetFields();
+    setCsrResult(null);
+    setCsrOpen(true);
+  };
+
+  const handleCreateCsr = async () => {
+    setCsrSaving(true);
+    try {
+      const v = await csrForm.validateFields();
+      const r = await api.createCsr({
+        commonName: v.commonName,
+        organization: v.organization,
+        organizationUnit: v.organizationUnit,
+        country: v.country,
+        province: v.province,
+        keySize: v.keySize,
+      });
+      const result = r.data as { csr?: string; csrPem?: string } | string;
+      setCsrResult(
+        typeof result === 'string'
+          ? result
+          : (result as { csr?: string; csrPem?: string }).csr
+            ?? (result as { csrPem?: string }).csrPem
+            ?? JSON.stringify(result, null, 2)
+      );
+      tk('Đã tạo CSR');
+    } catch (e: unknown) {
+      const err = e as { errorFields?: unknown };
+      if (err?.errorFields) return;
+      tw('Tạo CSR thất bại');
+    } finally {
+      setCsrSaving(false);
+    }
+  };
 
   const storages = useMemo(() => {
     const set = new Set(certs.map((c) => c.storageType).filter(Boolean));
@@ -165,7 +309,7 @@ const CentralSigningV2: React.FC = () => {
             <Ico name="refresh" size={12} /> Làm mới
           </Btn>
           {tab === 'certs' && (
-            <Btn variant="primary" onClick={() => tk('Mở thêm chứng thư')}>
+            <Btn variant="primary" onClick={() => openCertModal()}>
               <Ico name="plus" size={12} /> Thêm chứng thư
             </Btn>
           )}
@@ -205,7 +349,7 @@ const CentralSigningV2: React.FC = () => {
           actions={(r) => (
             <div className="ab-actions">
               <ActBtn ic="eye" title="Chi tiết" onClick={() => setSelCert(r)} />
-              <ActBtn ic="edit" title="Sửa" onClick={() => tk(`Sửa ${r.subjectName}`)} />
+              <ActBtn ic="edit" title="Sửa" onClick={() => openCertModal(r)} />
               <ActBtn ic="trash" title="Xóa" tone="crit" onClick={async () => {
                 try { await api.deleteCertificate(r.id); tk('Đã xóa'); fetchCerts(); }
                 catch { tw('Lỗi khi xóa'); }
@@ -240,7 +384,7 @@ const CentralSigningV2: React.FC = () => {
             <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 13 }}>
               <div style={{ marginBottom: 8 }}>Cấu hình appearance · TOTP · CSR · HSM cho ký số tập trung.</div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
-                <Btn onClick={() => tk('Mở appearance config')}>
+                <Btn onClick={openAppearance}>
                   <Ico name="edit" size={12} /> Cấu hình appearance
                 </Btn>
                 <Btn onClick={async () => {
@@ -249,10 +393,10 @@ const CentralSigningV2: React.FC = () => {
                 }}>
                   <Ico name="lock" size={12} /> Setup TOTP
                 </Btn>
-                <Btn onClick={() => tk('Mở HSM info')}>
+                <Btn onClick={openHsm}>
                   <Ico name="card" size={12} /> HSM info
                 </Btn>
-                <Btn onClick={() => tk('Mở tạo CSR')}>
+                <Btn onClick={openCsr}>
                   <Ico name="plus" size={12} /> Tạo CSR
                 </Btn>
               </div>
@@ -269,7 +413,7 @@ const CentralSigningV2: React.FC = () => {
         sub={selCert ? `${selCert.caProvider} · ${selCert.storageType}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSelCert(null)}>Đóng</Btn>
-          <Btn variant="primary" onClick={() => tk('Mở chỉnh sửa')}>
+          <Btn variant="primary" onClick={() => { if (selCert) { openCertModal(selCert); setSelCert(null); } }}>
             <Ico name="edit" size={12} /> Chỉnh sửa
           </Btn>
         </>}
@@ -307,6 +451,202 @@ const CentralSigningV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+
+      {/* ===== Modal Thêm/Sửa chứng thư ===== */}
+      <ModalShell
+        open={certModalOpen}
+        onClose={() => { setCertModalOpen(false); certForm.resetFields(); setEditingCert(null); }}
+        title={editingCert ? `Chỉnh sửa · ${editingCert.subjectName}` : 'Thêm chứng thư mới'}
+        size="lg"
+        footer={<>
+          <Btn variant="ghost" onClick={() => { setCertModalOpen(false); certForm.resetFields(); setEditingCert(null); }}>Hủy</Btn>
+          <Btn variant="primary" onClick={handleSaveCert} loading={certSaving}>
+            <Ico name="check" size={12} /> {editingCert ? 'Cập nhật' : 'Thêm mới'}
+          </Btn>
+        </>}
+      >
+        <Form form={certForm} layout="vertical" style={{ padding: '8px 0' }}>
+          <Form.Item name="serialNumber" label="Số serial" rules={[{ required: true, message: 'Nhập số serial' }]}>
+            <Input placeholder="VD: 01AB3F..." style={{ fontFamily: 'var(--font-mono)' }} />
+          </Form.Item>
+          <Form.Item name="subjectName" label="Chủ thể (Subject Name)" rules={[{ required: true, message: 'Nhập tên chủ thể' }]}>
+            <Input placeholder="VD: CN=Nguyen Van A, O=BV..." />
+          </Form.Item>
+          <Form.Item name="issuerName" label="Cấp bởi (Issuer)" rules={[{ required: true, message: 'Nhập issuer' }]}>
+            <Input placeholder="VD: CN=VietCA Root, O=..." />
+          </Form.Item>
+          <Form.Item name="caProvider" label="CA Provider" rules={[{ required: true, message: 'Nhập CA provider' }]}>
+            <Input placeholder="VD: VietCA / VNPT-CA / FPT-CA" />
+          </Form.Item>
+          <Form.Item name="storageType" label="Loại lưu trữ">
+            <Select placeholder="Chọn loại lưu trữ" options={[
+              { value: 'Token', label: 'Token (USB)' },
+              { value: 'HSM', label: 'HSM' },
+              { value: 'Server', label: 'Server' },
+            ]} />
+          </Form.Item>
+          <Form.Item name="validFrom" label="Hiệu lực từ" rules={[{ required: true, message: 'Nhập ngày bắt đầu' }]}>
+            <Input type="date" />
+          </Form.Item>
+          <Form.Item name="validTo" label="Hết hạn" rules={[{ required: true, message: 'Nhập ngày hết hạn' }]}>
+            <Input type="date" />
+          </Form.Item>
+          <Form.Item name="cccd" label="CCCD chủ sở hữu">
+            <Input placeholder="12 chữ số" style={{ fontFamily: 'var(--font-mono)' }} />
+          </Form.Item>
+          <Form.Item name="ownerUserId" label="User ID chủ sở hữu">
+            <Input placeholder="UUID của user trong hệ thống" style={{ fontFamily: 'var(--font-mono)' }} />
+          </Form.Item>
+          <Form.Item name="isActive" label="Kích hoạt" valuePropName="checked" initialValue={true}>
+            <Switch />
+          </Form.Item>
+        </Form>
+      </ModalShell>
+
+      {/* ===== Drawer Appearance Config ===== */}
+      <DrawerShell
+        open={appearOpen}
+        onClose={() => setAppearOpen(false)}
+        size="lg"
+        title="Cấu hình hiển thị chữ ký"
+        sub="Vị trí, font, thông tin hiển thị trên chữ ký PDF"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setAppearOpen(false)}>Đóng</Btn>
+          <Btn variant="primary" onClick={handleSaveAppearance} loading={appearSaving}>
+            <Ico name="check" size={12} /> Lưu cấu hình
+          </Btn>
+        </>}
+      >
+        {appearLoading ? (
+          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 13 }}>Đang tải cấu hình…</div>
+        ) : appearData === null && !appearLoading ? (
+          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 13 }}>Không tải được cấu hình.</div>
+        ) : (
+          <Form form={appearForm} layout="vertical" style={{ padding: '8px 0' }}>
+            <DrSec title="Vị trí chữ ký">
+              <Form.Item name="position" label="Vị trí">
+                <Select options={[
+                  { value: 'bottom-right', label: 'Dưới phải' },
+                  { value: 'bottom-left', label: 'Dưới trái' },
+                  { value: 'top-right', label: 'Trên phải' },
+                  { value: 'top-left', label: 'Trên trái' },
+                  { value: 'custom', label: 'Tuỳ chỉnh' },
+                ]} />
+              </Form.Item>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Form.Item name="x" label="X" style={{ flex: 1 }}><InputNumber style={{ width: '100%' }} /></Form.Item>
+                <Form.Item name="y" label="Y" style={{ flex: 1 }}><InputNumber style={{ width: '100%' }} /></Form.Item>
+                <Form.Item name="width" label="Rộng" style={{ flex: 1 }}><InputNumber style={{ width: '100%' }} /></Form.Item>
+                <Form.Item name="page" label="Trang" style={{ flex: 1 }}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
+              </div>
+            </DrSec>
+            <DrSec title="Font chữ">
+              <Form.Item name="fontFamily" label="Font">
+                <Input placeholder="VD: Arial" />
+              </Form.Item>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Form.Item name="fontSize" label="Cỡ chữ" style={{ flex: 1 }}><InputNumber min={6} max={72} style={{ width: '100%' }} /></Form.Item>
+                <Form.Item name="fontColor" label="Màu chữ" style={{ flex: 1 }}><Input type="color" /></Form.Item>
+              </div>
+            </DrSec>
+            <DrSec title="Hiển thị thông tin">
+              <Form.Item name="showSignerName" label="Tên người ký" valuePropName="checked"><Switch /></Form.Item>
+              <Form.Item name="showDate" label="Ngày ký" valuePropName="checked"><Switch /></Form.Item>
+              <Form.Item name="showCertSerial" label="Serial chứng thư" valuePropName="checked"><Switch /></Form.Item>
+              <Form.Item name="showCaLogo" label="Logo CA" valuePropName="checked"><Switch /></Form.Item>
+            </DrSec>
+          </Form>
+        )}
+      </DrawerShell>
+
+      {/* ===== Drawer HSM Info ===== */}
+      <DrawerShell
+        open={hsmOpen}
+        onClose={() => setHsmOpen(false)}
+        size="md"
+        title="HSM Info"
+        sub="Thông tin Hardware Security Module"
+      >
+        {hsmLoading ? (
+          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 13 }}>Đang tải HSM info…</div>
+        ) : !hsmData ? (
+          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 13 }}>Không có dữ liệu HSM.</div>
+        ) : (
+          <DrSec title="Thông tin HSM">
+            {Object.entries(hsmData).map(([k, v]) => (
+              <DrField key={k} lbl={k}>
+                <span style={{ fontFamily: typeof v === 'string' && v.length > 20 ? 'var(--font-mono)' : undefined, fontSize: 12 }}>
+                  {String(v ?? '—')}
+                </span>
+              </DrField>
+            ))}
+          </DrSec>
+        )}
+      </DrawerShell>
+
+      {/* ===== Modal Tạo CSR ===== */}
+      <ModalShell
+        open={csrOpen}
+        onClose={() => setCsrOpen(false)}
+        title="Tạo CSR (Certificate Signing Request)"
+        size="lg"
+        footer={csrResult ? (
+          <Btn variant="primary" onClick={() => setCsrOpen(false)}>Đóng</Btn>
+        ) : (
+          <>
+            <Btn variant="ghost" onClick={() => setCsrOpen(false)}>Hủy</Btn>
+            <Btn variant="primary" onClick={handleCreateCsr} loading={csrSaving}>
+              <Ico name="plus" size={12} /> Tạo CSR
+            </Btn>
+          </>
+        )}
+      >
+        {csrResult ? (
+          <div style={{ padding: '8px 0' }}>
+            <div style={{ marginBottom: 8, fontWeight: 600, color: 'var(--t-1)' }}>CSR đã tạo — sao chép gửi CA:</div>
+            <textarea
+              readOnly
+              value={csrResult}
+              onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+              style={{
+                width: '100%', minHeight: 220, fontFamily: 'var(--font-mono)', fontSize: 11,
+                background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4,
+                padding: 8, resize: 'vertical', color: 'var(--t-0)',
+              }}
+            />
+            <Btn variant="ghost" style={{ marginTop: 8 }} onClick={() => { navigator.clipboard.writeText(csrResult); tk('Đã copy CSR vào clipboard'); }}>
+              <Ico name="download" size={12} /> Copy CSR
+            </Btn>
+          </div>
+        ) : (
+          <Form form={csrForm} layout="vertical" style={{ padding: '8px 0' }}>
+            <Form.Item name="commonName" label="Common Name (CN)" rules={[{ required: true, message: 'Nhập Common Name' }]}>
+              <Input placeholder="VD: Nguyen Van A" />
+            </Form.Item>
+            <Form.Item name="organization" label="Tổ chức (O)" rules={[{ required: true, message: 'Nhập tên tổ chức' }]}>
+              <Input placeholder="VD: Benh Vien Xanh Pon" />
+            </Form.Item>
+            <Form.Item name="organizationUnit" label="Đơn vị (OU)" rules={[{ required: true, message: 'Nhập đơn vị' }]}>
+              <Input placeholder="VD: Khoa Noi" />
+            </Form.Item>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Form.Item name="country" label="Quốc gia (C)" style={{ flex: 1 }} initialValue="VN">
+                <Input placeholder="VN" maxLength={2} />
+              </Form.Item>
+              <Form.Item name="province" label="Tỉnh/Thành (ST)" style={{ flex: 2 }}>
+                <Input placeholder="VD: Ho Chi Minh" />
+              </Form.Item>
+            </div>
+            <Form.Item name="keySize" label="Key size (bits)" initialValue={2048}>
+              <Select options={[
+                { value: 1024, label: '1024' },
+                { value: 2048, label: '2048 (khuyến nghị)' },
+                { value: 4096, label: '4096' },
+              ]} />
+            </Form.Item>
+          </Form>
+        )}
+      </ModalShell>
 
       <DrawerShell
         open={!!selTx}

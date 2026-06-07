@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Form, Input, DatePicker, Tabs, Select, Checkbox } from 'antd';
-import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode, getStocktakes, createStocktake, completeStocktake, approveStocktake, updateStocktakeItem, printStocktake } from '../api/assetManagement';
-import type { FixedAssetDto, AssetDashboardDto, AssetQrCodeDto, AssetStocktakeDto, AssetStocktakeItemDto } from '../api/assetManagement';
+import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode, getStocktakes, createStocktake, completeStocktake, approveStocktake, updateStocktakeItem, printStocktake, getDepreciationReport } from '../api/assetManagement';
+import type { FixedAssetDto, AssetDashboardDto, AssetQrCodeDto, AssetStocktakeDto, AssetStocktakeItemDto, DepreciationReportDto } from '../api/assetManagement';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal, ModalShell,
   DrawerShell, DrSec, DrField, tk, ti, te,
@@ -69,6 +69,10 @@ const AssetManagementV2: React.FC = () => {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editItemForm] = Form.useForm();
   const [itemSaving, setItemSaving] = useState(false);
+  // Depreciation report drawer
+  const [deprOpen, setDeprOpen] = useState(false);
+  const [deprLoading, setDeprLoading] = useState(false);
+  const [deprItems, setDeprItems] = useState<DepreciationReportDto[]>([]);
 
   const openCreate = () => { setCrudInit({ status: 0, depreciationMethod: 1, originalValue: 0, currentValue: 0, usefulLifeMonths: 60 }); setCrudOpen(true); };
   const openEdit = (r: FixedAssetDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
@@ -173,7 +177,21 @@ const AssetManagementV2: React.FC = () => {
         <span className="spacer" />
         <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
         {moduleTab === 'assets' && <>
-          <Btn variant="ghost" icon="activity" onClick={() => tk('Tính khấu hao — xem báo cáo khấu hao')}>Khấu hao</Btn>
+          <Btn variant="ghost" icon="activity" onClick={async () => {
+            setDeprOpen(true);
+            setDeprLoading(true);
+            setDeprItems([]);
+            try {
+              const now = new Date();
+              const result = await getDepreciationReport({ month: now.getMonth() + 1, year: now.getFullYear(), pageSize: 100 });
+              setDeprItems(result.items || []);
+            } catch {
+              te('Không tải được báo cáo khấu hao');
+              setDeprOpen(false);
+            } finally {
+              setDeprLoading(false);
+            }
+          }}>Khấu hao</Btn>
           <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm TS</Btn>
         </>}
         {moduleTab === 'stocktake' && (
@@ -489,6 +507,55 @@ const AssetManagementV2: React.FC = () => {
           </p>
         </Form>
       </ModalShell>
+
+      {/* Báo cáo khấu hao */}
+      <DrawerShell
+        open={deprOpen}
+        onClose={() => setDeprOpen(false)}
+        size="lg"
+        title={`Báo cáo khấu hao tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()}`}
+        sub={deprLoading ? 'Đang tải…' : `${deprItems.length} tài sản`}
+        footer={<Btn variant="ghost" onClick={() => setDeprOpen(false)}>Đóng</Btn>}
+      >
+        {deprLoading && <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải báo cáo khấu hao…</div>}
+        {!deprLoading && deprItems.length === 0 && (
+          <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Không có dữ liệu khấu hao tháng này</div>
+        )}
+        {!deprLoading && deprItems.length > 0 && (
+          <table className="ab-tbl" style={{ width: '100%', fontSize: 12 }}>
+            <thead>
+              <tr>
+                <th>Mã TS</th><th>Tên tài sản</th><th>Khoa</th>
+                <th>Đầu kỳ (đ)</th><th>Khấu hao (đ)</th><th>Cuối kỳ (đ)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {deprItems.map((d) => (
+                <tr key={d.fixedAssetId}>
+                  <td className="mono">{d.assetCode}</td>
+                  <td>{d.assetName}</td>
+                  <td>{d.departmentName || '—'}</td>
+                  <td className="mono">{fmt(d.openingValue)}</td>
+                  <td className="mono" style={{ color: 'var(--a-or-text)' }}>−{fmt(d.depreciationAmount)}</td>
+                  <td className="mono" style={{ color: d.closingValue < d.openingValue * 0.2 ? 'var(--a-rd-text)' : undefined }}>
+                    {fmt(d.closingValue)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700 }}>
+                <td colSpan={3}>Tổng cộng</td>
+                <td className="mono">{fmt(deprItems.reduce((s, d) => s + d.openingValue, 0))}</td>
+                <td className="mono" style={{ color: 'var(--a-or-text)' }}>
+                  −{fmt(deprItems.reduce((s, d) => s + d.depreciationAmount, 0))}
+                </td>
+                <td className="mono">{fmt(deprItems.reduce((s, d) => s + d.closingValue, 0))}</td>
+              </tr>
+            </tfoot>
+          </table>
+        )}
+      </DrawerShell>
 
       <ModalShell
         open={!!qrData}

@@ -39,11 +39,15 @@ import {
   getDashboard,
   createRepairRequest,
   createMaintenanceRecord,
+  createEquipment,
+  getEquipmentCategories,
   type EquipmentDto,
   type MaintenanceScheduleDto,
   type RepairRequestDto,
   type EquipmentDashboardDto,
   type PagedResultDto,
+  type CreateEquipmentDto,
+  type EquipmentCategoryDto,
 } from '../api/equipment';
 
 const { Title, Text } = Typography;
@@ -53,6 +57,22 @@ type RepairFormValues = {
   priority: number;
   issueDescription: string;
   reportedBy?: string;
+};
+
+type AddEquipmentFormValues = {
+  equipmentCode: string;
+  name: string;
+  category: string;
+  manufacturer: string;
+  model: string;
+  serialNumber: string;
+  departmentId: string;
+  riskClass: string;
+  trainingRequired: boolean;
+  purchaseDate?: dayjs.Dayjs;
+  purchasePrice?: number;
+  warrantyExpiry?: dayjs.Dayjs;
+  notes?: string;
 };
 
 type MaintenanceFormValues = {
@@ -72,8 +92,12 @@ const Equipment: React.FC = () => {
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
   const [isRepairModalOpen, setIsRepairModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isAddEquipmentModalOpen, setIsAddEquipmentModalOpen] = useState(false);
+  const [addEquipmentLoading, setAddEquipmentLoading] = useState(false);
+  const [equipmentCategories, setEquipmentCategories] = useState<EquipmentCategoryDto[]>([]);
   const [repairForm] = Form.useForm();
   const [maintenanceForm] = Form.useForm();
+  const [addEquipmentForm] = Form.useForm<AddEquipmentFormValues>();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -167,6 +191,48 @@ const Equipment: React.FC = () => {
       fetchData();
     } catch {
       message.warning('Không thể lên lịch bảo trì');
+    }
+  };
+
+  const handleOpenAddEquipment = async () => {
+    setIsAddEquipmentModalOpen(true);
+    if (equipmentCategories.length === 0) {
+      try {
+        const res = await getEquipmentCategories();
+        setEquipmentCategories(res.data || []);
+      } catch {
+        // categories optional — form vẫn dùng được với input thủ công
+      }
+    }
+  };
+
+  const handleAddEquipment = async (values: AddEquipmentFormValues) => {
+    setAddEquipmentLoading(true);
+    try {
+      const dto: CreateEquipmentDto = {
+        equipmentCode: values.equipmentCode,
+        name: values.name,
+        category: values.category,
+        manufacturer: values.manufacturer,
+        model: values.model,
+        serialNumber: values.serialNumber,
+        departmentId: values.departmentId,
+        riskClass: values.riskClass,
+        trainingRequired: values.trainingRequired ?? false,
+        purchaseDate: values.purchaseDate?.format('YYYY-MM-DD'),
+        purchasePrice: values.purchasePrice ? Number(values.purchasePrice) : undefined,
+        warrantyExpiry: values.warrantyExpiry?.format('YYYY-MM-DD'),
+        notes: values.notes,
+      };
+      await createEquipment(dto);
+      message.success('Đã thêm thiết bị thành công');
+      setIsAddEquipmentModalOpen(false);
+      addEquipmentForm.resetFields();
+      fetchData();
+    } catch {
+      message.error('Thêm thiết bị thất bại — vui lòng thử lại');
+    } finally {
+      setAddEquipmentLoading(false);
     }
   };
 
@@ -416,7 +482,7 @@ const Equipment: React.FC = () => {
         {/* Main Content */}
         <Card
           extra={
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => message.info('Chức năng thêm thiết bị đang phát triển')}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenAddEquipment}>
               Thêm thiết bị
             </Button>
           }
@@ -626,6 +692,108 @@ const Equipment: React.FC = () => {
             <Form.Item name="technician" label="Đơn vị thực hiện">
               <Input placeholder="VD: Siemens VN, GE Healthcare" />
             </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* Add Equipment Modal */}
+        <Modal
+          title="Thêm thiết bị y tế mới"
+          open={isAddEquipmentModalOpen}
+          onCancel={() => { setIsAddEquipmentModalOpen(false); addEquipmentForm.resetFields(); }}
+          onOk={() => addEquipmentForm.submit()}
+          okText="Thêm thiết bị"
+          cancelText="Hủy"
+          confirmLoading={addEquipmentLoading}
+          destroyOnHidden
+          width={720}
+        >
+          <Form form={addEquipmentForm} layout="vertical" onFinish={handleAddEquipment}>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="equipmentCode" label="Mã thiết bị" rules={[{ required: true, message: 'Nhập mã thiết bị' }]}>
+                  <Input placeholder="VD: ECG-001" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="name" label="Tên thiết bị" rules={[{ required: true, message: 'Nhập tên thiết bị' }]}>
+                  <Input placeholder="VD: Máy điện tim 12 kênh" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="category" label="Danh mục" rules={[{ required: true, message: 'Chọn danh mục' }]}>
+                  {equipmentCategories.length > 0 ? (
+                    <Select placeholder="Chọn danh mục" showSearch optionFilterProp="children">
+                      {equipmentCategories.map((c) => (
+                        <Select.Option key={c.code} value={c.code}>{c.name}</Select.Option>
+                      ))}
+                    </Select>
+                  ) : (
+                    <Input placeholder="VD: imaging, monitoring, lab" />
+                  )}
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="riskClass" label="Nhóm nguy cơ" rules={[{ required: true, message: 'Chọn nhóm' }]}>
+                  <Select>
+                    <Select.Option value="I">Loại I</Select.Option>
+                    <Select.Option value="II">Loại II</Select.Option>
+                    <Select.Option value="III">Loại III</Select.Option>
+                    <Select.Option value="A">Loại A</Select.Option>
+                    <Select.Option value="B">Loại B</Select.Option>
+                    <Select.Option value="C">Loại C</Select.Option>
+                    <Select.Option value="D">Loại D</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="manufacturer" label="Hãng sản xuất" rules={[{ required: true, message: 'Nhập hãng sản xuất' }]}>
+                  <Input placeholder="VD: Philips, GE, Siemens" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="model" label="Model" rules={[{ required: true, message: 'Nhập model' }]}>
+                  <Input placeholder="VD: PageWriter TC30" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="serialNumber" label="Số serial" rules={[{ required: true, message: 'Nhập số serial' }]}>
+                  <Input placeholder="VD: SN2024001234" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="departmentId" label="Khoa/Phòng" rules={[{ required: true, message: 'Nhập ID khoa' }]}>
+                  <Input placeholder="ID khoa/phòng sử dụng" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="purchaseDate" label="Ngày mua">
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="warrantyExpiry" label="Hạn bảo hành">
+                  <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="purchasePrice" label="Nguyên giá (VND)">
+                  <Input type="number" placeholder="VD: 250000000" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item name="trainingRequired" label="Cần đào tạo" initialValue={false}>
+                  <Select>
+                    <Select.Option value={false}>Không</Select.Option>
+                    <Select.Option value={true}>Có</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={24}>
+                <Form.Item name="notes" label="Ghi chú">
+                  <Input.TextArea rows={2} placeholder="Ghi chú thêm về thiết bị..." />
+                </Form.Item>
+              </Col>
+            </Row>
           </Form>
         </Modal>
       </div>

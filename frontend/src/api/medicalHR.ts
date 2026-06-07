@@ -614,6 +614,13 @@ export const getShiftDefinitions = () =>
 export const printRoster = (rosterId: string) =>
   apiClient.get(`${BASE_URL}/rosters/${rosterId}/print`, { responseType: 'blob' });
 
+export const copyWeekRoster = (dto: {
+  departmentId: string;
+  sourceWeekStart: string; // ISO date string e.g. "2026-06-02"
+  targetWeekStart: string;
+  overwriteExisting?: boolean;
+}) => apiClient.post(`${BASE_URL}/rosters/copy-week`, dto);
+
 // Shift Swaps
 export const getSwapRequests = (departmentId?: string, status?: number) =>
   apiClient.get<ShiftSwapRequestDto[]>(`${BASE_URL}/shift-swaps`, { params: { departmentId, status } });
@@ -1163,6 +1170,7 @@ export default {
   getStaffRoster,
   getShiftDefinitions,
   printRoster,
+  copyWeekRoster,
   getSwapRequests,
   createSwapRequest,
   approveSwapRequest,

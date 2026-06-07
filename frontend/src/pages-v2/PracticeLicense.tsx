@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchLicenses, createLicense, updateLicense } from '../api/practiceLicense';
+import { searchLicenses, createLicense, updateLicense, getExpiringLicenses, printLicense } from '../api/practiceLicense';
 import type { PracticeLicense } from '../api/practiceLicense';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, tw, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
@@ -133,6 +133,21 @@ const PracticeLicenseV2: React.FC = () => {
   const openCreate = () => { setCrudInit({ status: 0, licenseType: 'doctor' }); setCrudOpen(true); };
   const openEdit = (r: PracticeLicense) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
 
+  // --- Drawer cảnh báo CCHN sắp hết hạn ---
+  const [expiringOpen, setExpiringOpen] = useState(false);
+  const [expiringList, setExpiringList] = useState<PracticeLicense[]>([]);
+  const [expiringLoading, setExpiringLoading] = useState(false);
+
+  const openExpiring = async () => {
+    setExpiringOpen(true);
+    setExpiringLoading(true);
+    try {
+      const r = await getExpiringLicenses();
+      setExpiringList(r);
+    } catch { ti('Không tải được danh sách CCHN sắp hết'); }
+    finally { setExpiringLoading(false); }
+  };
+
   const actions = (r: PracticeLicense) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
@@ -167,7 +182,7 @@ const PracticeLicenseV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Mở cảnh báo CCHN sắp hết')}>
+        <Btn variant="ghost" onClick={openExpiring}>
           <Ico name="alert" size={12} /> Cảnh báo
         </Btn>
         <Btn variant="primary" onClick={openCreate}>
@@ -192,7 +207,16 @@ const PracticeLicenseV2: React.FC = () => {
         sub={sel ? `${sel.licenseNumber} · ${TYPE_LABEL[sel.licenseType] || sel.licenseType}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={() => tk('Đã in CCHN')}>
+          <Btn onClick={async () => {
+            if (!sel) return;
+            try {
+              const res = await printLicense(sel.id);
+              const url = URL.createObjectURL(res.data as Blob);
+              window.open(url, '_blank');
+            } catch {
+              tw('Không thể in CCHN');
+            }
+          }}>
             <Ico name="print" size={12} /> In CCHN
           </Btn>
           <Btn variant="primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
@@ -228,6 +252,59 @@ const PracticeLicenseV2: React.FC = () => {
             {sel.notes && <DrField lbl="Ghi chú">{sel.notes}</DrField>}
           </DrSec>
         </>}
+      </DrawerShell>
+
+      {/* ===== Drawer Cảnh báo CCHN sắp hết hạn ===== */}
+      <DrawerShell
+        open={expiringOpen}
+        onClose={() => setExpiringOpen(false)}
+        size="lg"
+        title="Cảnh báo CCHN sắp hết hạn"
+        sub={expiringList.length > 0 ? `${expiringList.length} CCHN cần chú ý` : 'Không có CCHN sắp hết hạn'}
+      >
+        {expiringLoading ? (
+          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 13 }}>Đang tải…</div>
+        ) : expiringList.length === 0 ? (
+          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 13 }}>Không có CCHN sắp hết hạn trong thời gian tới.</div>
+        ) : (
+          <DrSec title="Danh sách CCHN sắp hết hạn">
+            {expiringList.map((lic) => {
+              const daysLeft = dayjs(lic.expiryDate).diff(today, 'day');
+              const isExpired = daysLeft < 0;
+              return (
+                <div key={lic.id} style={{
+                  padding: '10px 12px', marginBottom: 8,
+                  background: 'var(--d-1)', border: `1px solid ${isExpired ? 'var(--a-rd)' : 'var(--a-or)'}`,
+                  borderRadius: 4,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, color: 'var(--t-0)', marginBottom: 2 }}>{lic.staffName}</div>
+                      <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                        {lic.staffCode} · {TYPE_LABEL[lic.licenseType] || lic.licenseType}
+                        {lic.specialty ? ` · ${lic.specialty}` : ''}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{
+                        fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600,
+                        color: isExpired ? 'var(--a-rd-text)' : 'var(--a-or-text)',
+                      }}>
+                        {dayjs(lic.expiryDate).format('DD/MM/YYYY')}
+                      </div>
+                      <div style={{ fontSize: 11, color: isExpired ? 'var(--a-rd-text)' : 'var(--a-or-text)' }}>
+                        {isExpired ? `Quá hạn ${-daysLeft} ngày` : `Còn ${daysLeft} ngày`}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 6, display: 'flex', gap: 8 }}>
+                    <ActBtn ic="edit" title="Gia hạn / Sửa" onClick={() => { setExpiringOpen(false); openEdit(lic); }} />
+                  </div>
+                </div>
+              );
+            })}
+          </DrSec>
+        )}
       </DrawerShell>
 
       <CrudModal

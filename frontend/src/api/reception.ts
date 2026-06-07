@@ -151,6 +151,8 @@ export interface AdmissionDto {
   isPriority: boolean;
   createdAt: string;
   createdBy?: string;
+  /** ExaminationId của lượt khám hôm nay — dùng để in phiếu khám pdf.printEmrForm */
+  examinationId?: string;
 }
 
 export interface DocumentHoldDto {

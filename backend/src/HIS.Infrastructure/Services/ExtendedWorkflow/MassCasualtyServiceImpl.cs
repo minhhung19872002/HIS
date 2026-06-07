@@ -58,6 +58,42 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
         return new MCIEventDto { Id = entity.Id, EventCode = entity.EventCode, EventName = entity.EventName, EventType = entity.EventType, Location = entity.EventLocation, AlertLevel = entity.AlertLevel, Status = "Active", ActivatedAt = entity.ActivatedAt };
     }
 
+    public async Task<MCIEventDto> ActivateCodeBlueAsync(string location, Guid activatedByUserId)
+    {
+        var now = DateTime.Now;
+        var entity = new MCIEvent
+        {
+            Id = Guid.NewGuid(),
+            EventCode = $"CODEBLUE{now:yyyyMMddHHmmss}",
+            EventName = "Code Blue — Báo động đỏ cấp cứu",
+            EventType = "Violence",
+            EventLocation = string.IsNullOrWhiteSpace(location) ? "Toàn bệnh viện" : location,
+            AlertReceivedAt = now,
+            ActivatedAt = now,
+            AlertLevel = "Red",
+            EstimatedVictims = 0,
+            Status = "Active",
+            IncidentCommanderId = activatedByUserId,
+            BloodBankAlerted = true,
+            ORsCleared = true,
+            CreatedAt = now,
+            CreatedBy = activatedByUserId != Guid.Empty ? activatedByUserId.ToString() : null
+        };
+        _context.MCIEvents.Add(entity);
+        await _context.SaveChangesAsync();
+        return new MCIEventDto
+        {
+            Id = entity.Id,
+            EventCode = entity.EventCode,
+            EventName = entity.EventName,
+            EventType = entity.EventType,
+            Location = entity.EventLocation,
+            AlertLevel = entity.AlertLevel,
+            Status = "Active",
+            ActivatedAt = entity.ActivatedAt
+        };
+    }
+
     public async Task<MCIEventDto> UpdateEventAsync(UpdateMCIEventDto dto)
     {
         var e = await _context.MCIEvents.FindAsync(dto.EventId);

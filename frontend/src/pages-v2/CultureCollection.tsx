@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getCultureStocks, getCultureStockStats, createCultureStock, updateCultureStock } from '../api/cultureStock';
-import type { CultureStock, CultureStockStats } from '../api/cultureStock';
+import { Input, InputNumber, Select } from 'antd';
+import {
+  getCultureStocks, getCultureStockStats, createCultureStock, updateCultureStock,
+  retrieveAliquot, subcultureStock, getStockLogs, recordViabilityCheck,
+} from '../api/cultureStock';
+import type { CultureStock, CultureStockStats, CultureStockLog } from '../api/cultureStock';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  DrawerShell, ModalShell, DrSec, DrField, CrudModal, tk, ti, te, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
@@ -52,6 +56,170 @@ const sKey = (n: number): SKey =>
 
 const PER = 18;
 
+/* ── Modal Lấy ống (retrieveAliquot) ── */
+const RetrieveAliquotModal: React.FC<{
+  open: boolean;
+  stock: CultureStock | null;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, stock, onClose, onDone }) => {
+  const [count, setCount] = useState<number | null>(1);
+  const [purpose, setPurpose] = useState('');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => { if (open) { setCount(1); setPurpose(''); setNotes(''); } }, [open]);
+
+  const submit = async () => {
+    if (!stock || !count || count < 1) { te('Số ống phải ≥ 1'); return; }
+    if (count > stock.remainingAliquots) { te(`Chỉ còn ${stock.remainingAliquots} ống`); return; }
+    setSubmitting(true);
+    try {
+      await retrieveAliquot(stock.id, { aliquotCount: count, purpose: purpose.trim() || undefined, notes: notes.trim() || undefined });
+      tk(`Đã lấy ${count} ống từ ${stock.stockCode}`);
+      onDone();
+    } catch { te('Lấy ống thất bại'); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <ModalShell open={open} onClose={onClose} size="sm"
+      title={`Lấy ống · ${stock?.stockCode || ''}`}
+      sub={stock ? `${stock.organismName} · Còn ${stock.remainingAliquots}/${stock.aliquotCount} ống` : ''}
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
+        <Btn variant="primary" onClick={submit} disabled={submitting}>
+          <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Lấy ống'}
+        </Btn>
+      </>}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Số ống cần lấy *</div>
+          <InputNumber style={{ width: '100%' }} value={count} onChange={(v) => setCount(v)} min={1} max={stock?.remainingAliquots || 1} />
+        </div>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Mục đích</div>
+          <Input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Vd: Cấy subculture / Kháng sinh đồ…" />
+        </div>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Ghi chú</div>
+          <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </div>
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ── Modal Cấy chuyền (subcultureStock) ── */
+const SubcultureModal: React.FC<{
+  open: boolean;
+  stock: CultureStock | null;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, stock, onClose, onDone }) => {
+  const [targetLocation, setTargetLocation] = useState('');
+  const [purpose, setPurpose] = useState('');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => { if (open) { setTargetLocation(''); setPurpose(''); setNotes(''); } }, [open]);
+
+  const submit = async () => {
+    if (!stock) return;
+    if (!targetLocation.trim()) { te('Nhập vị trí chủng cấy chuyền'); return; }
+    setSubmitting(true);
+    try {
+      await subcultureStock(stock.id, { targetLocation: targetLocation.trim(), purpose: purpose.trim() || undefined, notes: notes.trim() || undefined });
+      tk(`Đã mở cấy chuyền từ ${stock.stockCode}`);
+      onDone();
+    } catch { te('Cấy chuyền thất bại'); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <ModalShell open={open} onClose={onClose} size="sm"
+      title={`Cấy chuyền · ${stock?.stockCode || ''}`}
+      sub={stock?.organismName || ''}
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
+        <Btn variant="primary" onClick={submit} disabled={submitting}>
+          <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Xác nhận cấy'}
+        </Btn>
+      </>}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Vị trí chủng mới *</div>
+          <Input value={targetLocation} onChange={(e) => setTargetLocation(e.target.value)} placeholder="Vd: Freezer-B/Rack-1/Box-3/Pos-4" />
+        </div>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Mục đích</div>
+          <Input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Vd: Subculture lần 2 / Nhân giống…" />
+        </div>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Ghi chú</div>
+          <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </div>
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ── Modal KT Viability (recordViabilityCheck) ── */
+const ViabilityModal: React.FC<{
+  open: boolean;
+  stock: CultureStock | null;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, stock, onClose, onDone }) => {
+  const [isViable, setIsViable] = useState<string>('true');
+  const [method, setMethod] = useState('');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => { if (open) { setIsViable('true'); setMethod(''); setNotes(''); } }, [open]);
+
+  const submit = async () => {
+    if (!stock) return;
+    setSubmitting(true);
+    try {
+      await recordViabilityCheck(stock.id, { isViable: isViable === 'true', method: method.trim() || undefined, notes: notes.trim() || undefined });
+      tk(`Đã ghi kết quả KT viability: ${isViable === 'true' ? 'Sống' : 'Chết'}`);
+      onDone();
+    } catch { te('Ghi KT viability thất bại'); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <ModalShell open={open} onClose={onClose} size="sm"
+      title={`KT Viability · ${stock?.stockCode || ''}`}
+      sub={stock?.organismName || ''}
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
+        <Btn variant="primary" onClick={submit} disabled={submitting}>
+          <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Ghi kết quả'}
+        </Btn>
+      </>}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Kết quả *</div>
+          <Select style={{ width: '100%' }} value={isViable} onChange={setIsViable} options={[
+            { value: 'true', label: 'Sống (Viable)' },
+            { value: 'false', label: 'Chết (Non-viable)' },
+          ]} />
+        </div>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Phương pháp</div>
+          <Input value={method} onChange={(e) => setMethod(e.target.value)} placeholder="Vd: Cấy thạch / Nhuộm Gram…" />
+        </div>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Ghi chú</div>
+          <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </div>
+      </div>
+    </ModalShell>
+  );
+};
+
 const CultureCollectionV2: React.FC = () => {
   const [items, setItems] = useState<CultureStock[]>([]);
   const [stats, setStats] = useState<CultureStockStats | null>(null);
@@ -61,6 +229,12 @@ const CultureCollectionV2: React.FC = () => {
   const [fMethod, setFMethod] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<CultureStock | null>(null);
+  const [retrieveTarget, setRetrieveTarget] = useState<CultureStock | null>(null);
+  const [subcultureTarget, setSubcultureTarget] = useState<CultureStock | null>(null);
+  const [viabilityTarget, setViabilityTarget] = useState<CultureStock | null>(null);
+  const [logStock, setLogStock] = useState<CultureStock | null>(null);
+  const [logs, setLogs] = useState<CultureStockLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -134,11 +308,22 @@ const CultureCollectionV2: React.FC = () => {
   const openCreate = () => { setCrudInit({ status: 0, passageNumber: 0, aliquotCount: 1 }); setCrudOpen(true); };
   const openEdit = (r: CultureStock) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
 
+  const openLogs = async (r: CultureStock) => {
+    setLogStock(r);
+    setLogsLoading(true);
+    try {
+      const data = await getStockLogs(r.id);
+      setLogs(data);
+    } catch { te('Không tải được lịch sử'); setLogs([]); }
+    finally { setLogsLoading(false); }
+  };
+
   const actions = (r: CultureStock) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      <ActBtn ic="package" title="Lấy ống" onClick={() => tk(`Lấy ống từ ${r.stockCode}`)} />
+      <ActBtn ic="package" title="Lấy ống" onClick={() => setRetrieveTarget(r)} />
+      <ActBtn ic="activity" title="Cấy chuyền" onClick={() => setSubcultureTarget(r)} />
     </div>
   );
 
@@ -162,7 +347,7 @@ const CultureCollectionV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Mở cấy chuyền')}>
+        <Btn variant="ghost" onClick={() => ti('Chọn chủng trong bảng → nhấn "Lịch sử" hoặc mở chi tiết → Cấy chuyền')}>
           <Ico name="activity" size={12} /> Cấy chuyền
         </Btn>
         <Btn variant="primary" onClick={openCreate}>
@@ -187,13 +372,13 @@ const CultureCollectionV2: React.FC = () => {
         sub={sel ? `${sel.stockCode} · ${sel.locationDisplay}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={() => tk('Mở lịch sử')}>
+          <Btn onClick={() => { if (sel) openLogs(sel); setSel(null); }}>
             <Ico name="activity" size={12} /> Lịch sử
           </Btn>
           <Btn onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
             <Ico name="edit" size={12} /> Sửa
           </Btn>
-          <Btn variant="primary" onClick={() => tk('Mở KT viability')}>
+          <Btn variant="primary" onClick={() => { if (sel) setViabilityTarget(sel); setSel(null); }}>
             <Ico name="check" size={12} /> KT viability
           </Btn>
         </>}
@@ -236,6 +421,63 @@ const CultureCollectionV2: React.FC = () => {
             </DrSec>
           )}
         </>}
+      </DrawerShell>
+
+      {/* Modal lấy ống */}
+      <RetrieveAliquotModal
+        open={!!retrieveTarget}
+        stock={retrieveTarget}
+        onClose={() => setRetrieveTarget(null)}
+        onDone={() => { setRetrieveTarget(null); load(); }}
+      />
+
+      {/* Modal cấy chuyền */}
+      <SubcultureModal
+        open={!!subcultureTarget}
+        stock={subcultureTarget}
+        onClose={() => setSubcultureTarget(null)}
+        onDone={() => { setSubcultureTarget(null); load(); }}
+      />
+
+      {/* Modal KT viability */}
+      <ViabilityModal
+        open={!!viabilityTarget}
+        stock={viabilityTarget}
+        onClose={() => setViabilityTarget(null)}
+        onDone={() => { setViabilityTarget(null); load(); }}
+      />
+
+      {/* Drawer lịch sử */}
+      <DrawerShell
+        open={!!logStock}
+        onClose={() => { setLogStock(null); setLogs([]); }}
+        size="lg"
+        title={logStock ? `Lịch sử · ${logStock.stockCode}` : ''}
+        sub={logStock?.organismName || ''}
+        footer={<Btn variant="ghost" onClick={() => { setLogStock(null); setLogs([]); }}>Đóng</Btn>}
+      >
+        {logsLoading
+          ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--t-2)' }}>Đang tải…</div>
+          : logs.length === 0
+            ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--t-2)' }}>Chưa có lịch sử</div>
+            : logs.map((log) => (
+              <div key={log.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--t-0)', fontSize: 13 }}>{log.action}</div>
+                  {log.purpose && <div style={{ fontSize: 12, color: 'var(--t-1)' }}>{log.purpose}</div>}
+                  {log.result && <div style={{ fontSize: 12, color: 'var(--t-2)' }}>KQ: {log.result}</div>}
+                  {log.notes && <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{log.notes}</div>}
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  {log.aliquotsTaken !== undefined && log.aliquotsTaken !== null && (
+                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 13, color: 'var(--a-or-text)' }}>−{log.aliquotsTaken} ống</div>
+                  )}
+                  <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{dayjs(log.performedAt).format('DD/MM/YYYY HH:mm')}</div>
+                  <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{log.performedBy}</div>
+                </div>
+              </div>
+            ))
+        }
       </DrawerShell>
 
       <CrudModal

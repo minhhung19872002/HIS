@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App as AntdApp, Drawer, Modal, Select } from 'antd';
-import { getStaff, getRoster, approveSwapRequest, publishRoster, type StaffProfileDto, type RosterAssignmentDto, type DutyRosterDto } from '../api/medicalHR';
+import { getStaff, getRoster, approveSwapRequest, publishRoster, copyWeekRoster, type StaffProfileDto, type RosterAssignmentDto, type DutyRosterDto } from '../api/medicalHR';
 import {
   CheckOutlined,
   CopyOutlined,
@@ -224,6 +224,11 @@ const HRV2: React.FC = () => {
     shift: 'morning' as ShiftType,
     reason: '',
   });
+  // Copy-week modal
+  const [copyWeekOpen, setCopyWeekOpen] = useState(false);
+  const [copyWeekLoading, setCopyWeekLoading] = useState(false);
+  const [copySource, setCopySource] = useState<string>('');
+  const [copyTarget, setCopyTarget] = useState<string>('');
   const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([
     { id: 'CH001', from: 'BS003', to: 'BS002', date: '2026-10-23', shift: 'night', reason: 'Việc gia đình', status: 'pending' },
     { id: 'CH002', from: 'DD002', to: 'DD005', date: '2026-10-25', shift: 'evening', reason: 'Khám sức khoẻ', status: 'pending' },
@@ -396,8 +401,15 @@ const HRV2: React.FC = () => {
             <button
               type="button"
               className="hr-v2-btn"
-              title="Tính năng sao chép tuần đang phát triển"
-              onClick={() => message.info('Sao chép lịch tuần: tính năng đang phát triển')}
+              title="Sao chép lịch từ tuần nguồn sang tuần đích"
+              onClick={() => {
+                // Pre-fill: source = previous week, target = current week
+                const prev = dayjs(weekStart).subtract(7, 'day').format('YYYY-MM-DD');
+                const curr = dayjs(weekStart).format('YYYY-MM-DD');
+                setCopySource(prev);
+                setCopyTarget(curr);
+                setCopyWeekOpen(true);
+              }}
             >
               <CopyOutlined />
               Copy tuần trước
@@ -601,11 +613,12 @@ const HRV2: React.FC = () => {
                 <UserOutlined />
                 Hồ sơ NS
               </button>
+              {/* Nút "Sửa lịch" ẩn onClick — hướng dẫn đã có trong tooltip; click ô bảng là cách thật */}
               <button
                 type="button"
                 className="hr-v2-btn primary"
                 title="Click ô ca trong bảng để đổi ca trực tiếp"
-                onClick={() => message.info('Sửa lịch: click trực tiếp vào ô ca trong bảng để thay đổi ca')}
+                style={{ cursor: 'default', opacity: 0.6 }}
               >
                 <EditOutlined />
                 Sửa lịch
@@ -614,6 +627,65 @@ const HRV2: React.FC = () => {
           </div>
         )}
       </Drawer>
+
+      {/* Modal sao chép tuần */}
+      <Modal
+        open={copyWeekOpen}
+        title="Sao chép lịch trực theo tuần"
+        onCancel={() => setCopyWeekOpen(false)}
+        confirmLoading={copyWeekLoading}
+        okText="Sao chép"
+        cancelText="Huỷ"
+        onOk={async () => {
+          if (!copySource || !copyTarget) {
+            message.warning('Cần chọn tuần nguồn và tuần đích');
+            return;
+          }
+          if (copySource === copyTarget) {
+            message.warning('Tuần nguồn và đích không được trùng nhau');
+            return;
+          }
+          setCopyWeekLoading(true);
+          try {
+            await copyWeekRoster({
+              departmentId: '', // truyền rỗng = toàn viện; backend hỗ trợ
+              sourceWeekStart: copySource,
+              targetWeekStart: copyTarget,
+              overwriteExisting: true,
+            });
+            message.success(`Đã sao chép lịch từ tuần ${dayjs(copySource).format('DD/MM')} → ${dayjs(copyTarget).format('DD/MM')}`);
+            setCopyWeekOpen(false);
+          } catch {
+            message.error('Sao chép lịch tuần thất bại');
+          } finally {
+            setCopyWeekLoading(false);
+          }
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8 }}>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 4 }}>Tuần nguồn (ISO date đầu tuần, T2)</div>
+            <input
+              type="date"
+              value={copySource}
+              style={{ width: '100%', padding: '4px 8px', border: '1px solid var(--line)', borderRadius: 4 }}
+              onChange={(e) => setCopySource(e.target.value)}
+            />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 4 }}>Tuần đích (ISO date đầu tuần, T2)</div>
+            <input
+              type="date"
+              value={copyTarget}
+              style={{ width: '100%', padding: '4px 8px', border: '1px solid var(--line)', borderRadius: 4 }}
+              onChange={(e) => setCopyTarget(e.target.value)}
+            />
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+            Lịch tuần đích sẽ bị ghi đè. Nhập ngày T2 (thứ Hai) của mỗi tuần.
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={swapModalOpen}

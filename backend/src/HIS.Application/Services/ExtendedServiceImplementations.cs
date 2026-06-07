@@ -657,6 +657,13 @@ namespace HIS.Application.Services
             _logger = logger;
         }
 
+        // Note: legacy stub implementation. Live class is RehabilitationServiceImpl (Infrastructure), wired in DI.
+        public async Task<byte[]> PrintReferralAsync(Guid referralId)
+        {
+            _logger.LogInformation("PrintReferralAsync (stub)");
+            return await Task.FromResult(Array.Empty<byte>());
+        }
+
         // Referrals
         public async Task<List<RehabReferralDto>> GetPendingReferralsAsync()
         {
@@ -1088,6 +1095,13 @@ namespace HIS.Application.Services
         public MedicalHRService(ILogger<MedicalHRService> logger)
         {
             _logger = logger;
+        }
+
+        // Note: legacy stub implementation. Live class is MedicalHRServiceImpl (Infrastructure), wired in DI.
+        public async Task<CopyRosterResultDto> CopyRosterWeekAsync(CopyRosterWeekDto dto, Guid userId)
+        {
+            _logger.LogInformation("CopyRosterWeekAsync (stub)");
+            return await Task.FromResult(new CopyRosterResultDto());
         }
 
         // Staff Profiles
@@ -1912,6 +1926,13 @@ namespace HIS.Application.Services
             _logger = logger;
         }
 
+        // Note: legacy stub implementation. Live class is HealthExchangeServiceImpl (Infrastructure), wired in DI.
+        public async Task<HIESyncAllResultDto> SyncAllConnectionsAsync(Guid userId)
+        {
+            _logger.LogInformation("SyncAllConnectionsAsync (stub)");
+            return await Task.FromResult(new HIESyncAllResultDto());
+        }
+
         // Connections
         public async Task<List<HIEConnectionDto>> GetConnectionsAsync()
         {
@@ -2156,6 +2177,13 @@ namespace HIS.Application.Services
         public MassCasualtyService(ILogger<MassCasualtyService> logger)
         {
             _logger = logger;
+        }
+
+        // Note: legacy stub implementation. Live class is MassCasualtyServiceImpl (Infrastructure), wired in DI.
+        public async Task<MCIEventDto> ActivateCodeBlueAsync(string location, Guid activatedByUserId)
+        {
+            _logger.LogInformation("ActivateCodeBlueAsync (stub)");
+            return await Task.FromResult<MCIEventDto>(null);
         }
 
         // Event Management

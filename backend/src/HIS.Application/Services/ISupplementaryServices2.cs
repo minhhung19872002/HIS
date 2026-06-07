@@ -58,4 +58,16 @@ public interface IBhxhAuditService
     Task<AuditDashboardDto> GetDashboardAsync();
     Task<byte[]> ExportSessionAsync(Guid sessionId);
     Task<BhxhAuditStatisticsDto> GetStatisticsAsync();
+    /// <summary>Duyệt hồ sơ giám định (status Completed → Approved)</summary>
+    Task<BhxhAuditDetailDto> ApproveSessionAsync(Guid sessionId, Guid approvedByUserId, string? notes);
+    /// <summary>Gửi 1 phiên giám định lên cổng BHXH (MockMode — cập nhật status + log)</summary>
+    Task<BhxhAuditPortalSubmitResultDto> SubmitToPortalAsync(Guid sessionId, Guid userId);
+    /// <summary>Gửi hàng loạt phiên giám định lên cổng BHXH (MockMode)</summary>
+    Task<BhxhAuditBatchSubmitResultDto> SubmitBatchAsync(IEnumerable<Guid> sessionIds, Guid userId);
+    /// <summary>Xuất XML giám định (XML130 format — trả bytes)</summary>
+    Task<byte[]> ExportXmlAsync(Guid sessionId);
+    /// <summary>Xuất hàng loạt XML giám định — trả bytes ZIP (mỗi session 1 file {SessionCode}.xml)</summary>
+    Task<byte[]> ExportBatchXmlAsync(IEnumerable<Guid> sessionIds);
+    /// <summary>In phiếu giám định (HTML → trả bytes UTF-8)</summary>
+    Task<byte[]> PrintAuditFormAsync(Guid sessionId);
 }

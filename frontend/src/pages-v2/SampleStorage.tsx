@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getSampleStorageRecords } from '../api/sampleStorage';
+import { Input, Select } from 'antd';
+import {
+  getSampleStorageRecords, retrieveSample, disposeSample, storeSample, getSampleByBarcode,
+} from '../api/sampleStorage';
 import type { SampleStorageRecord } from '../api/sampleStorage';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, tk, ti, Ico,
+  DrawerShell, ModalShell, DrSec, DrField, tk, ti, te, Ico,
   type ColumnDef,
 } from './_v2kit';
 
@@ -29,6 +32,169 @@ const sKey = (r: SampleStorageRecord): SKey => {
 
 const PER = 18;
 
+/* ── Modal Lấy mẫu / Hủy mẫu ── */
+const ActionModal: React.FC<{
+  open: boolean;
+  title: string;
+  label: string;
+  onClose: () => void;
+  onSubmit: (reason: string) => Promise<void>;
+}> = ({ open, title, label, onClose, onSubmit }) => {
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const handleSubmit = async () => {
+    if (!reason.trim()) { te('Nhập lý do'); return; }
+    setSubmitting(true);
+    try { await onSubmit(reason.trim()); onClose(); }
+    catch { te('Thao tác thất bại'); }
+    finally { setSubmitting(false); }
+  };
+  return (
+    <ModalShell open={open} onClose={onClose} size="sm" title={title}
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
+        <Btn variant="primary" onClick={handleSubmit} disabled={submitting}>
+          <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : label}
+        </Btn>
+      </>}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Lý do *</span>
+        <Input.TextArea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Nhập lý do…" />
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ── Modal Lưu mẫu mới / Quét QR ── */
+const STORAGE_COND_OPTS = [
+  { value: 'room', label: 'Nhiệt độ phòng' },
+  { value: 'refrigerator', label: 'Tủ lạnh (2-8°C)' },
+  { value: 'frozen', label: 'Đông lạnh (-20°C)' },
+  { value: 'deepFrozen', label: 'Siêu đông lạnh (-80°C)' },
+];
+
+const StoreSampleModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  onDone: () => void;
+  initialBarcode?: string;
+}> = ({ open, onClose, onDone, initialBarcode }) => {
+  const [barcode, setBarcode] = useState(initialBarcode || '');
+  const [location, setLocation] = useState('');
+  const [condition, setCondition] = useState<string | undefined>(undefined);
+  const [temp, setTemp] = useState('');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => { if (open) { setBarcode(initialBarcode || ''); setErr(''); } }, [open, initialBarcode]);
+
+  const handleSubmit = async () => {
+    if (!barcode.trim() || !location.trim() || !condition) {
+      setErr('Nhập barcode, vị trí và điều kiện bảo quản'); return;
+    }
+    setErr('');
+    setSubmitting(true);
+    try {
+      await storeSample({
+        sampleBarcode: barcode.trim(),
+        storageLocation: location.trim(),
+        storageCondition: condition,
+        temperature: temp ? Number(temp) : undefined,
+        notes: notes.trim() || undefined,
+      });
+      tk('Đã lưu mẫu vào kho');
+      onDone();
+    } catch { te('Lưu mẫu thất bại'); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <ModalShell open={open} onClose={onClose} size="md" title="Lưu mẫu vào kho"
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
+        <Btn variant="primary" onClick={handleSubmit} disabled={submitting}>
+          <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Lưu mẫu'}
+        </Btn>
+      </>}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Barcode mẫu *</div>
+          <Input value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Quét hoặc nhập barcode" />
+        </div>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Vị trí lưu * (vd: Freezer-A/Rack-2/Box-5/Pos-12)</div>
+          <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Freezer/Rack/Box/Position" />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Điều kiện bảo quản *</div>
+            <Select style={{ width: '100%' }} value={condition} onChange={setCondition} placeholder="Chọn điều kiện" options={STORAGE_COND_OPTS} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Nhiệt độ (°C)</div>
+            <Input value={temp} onChange={(e) => setTemp(e.target.value)} placeholder="Vd: -20" type="number" />
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Ghi chú</div>
+          <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </div>
+        {err && <div style={{ color: 'var(--s-crit)', fontSize: 12 }}>{err}</div>}
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ── Modal Quét QR ── */
+const ScanModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  onFound: (rec: SampleStorageRecord) => void;
+}> = ({ open, onClose, onFound }) => {
+  const [barcode, setBarcode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => { if (open) { setBarcode(''); setErr(''); } }, [open]);
+
+  const handleScan = async () => {
+    if (!barcode.trim()) { setErr('Nhập barcode'); return; }
+    setLoading(true);
+    setErr('');
+    try {
+      const rec = await getSampleByBarcode(barcode.trim()) as SampleStorageRecord;
+      if (!rec) { setErr('Không tìm thấy mẫu'); return; }
+      tk(`Tìm thấy: ${rec.sampleBarcode}`);
+      onFound(rec);
+      onClose();
+    } catch { setErr('Không tìm thấy mẫu với barcode này'); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <ModalShell open={open} onClose={onClose} size="sm" title="Quét QR / Barcode"
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
+        <Btn variant="primary" onClick={handleScan} disabled={loading}>
+          <Ico name="search" size={12} /> {loading ? 'Đang tìm…' : 'Tìm mẫu'}
+        </Btn>
+      </>}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Barcode *</span>
+        <Input
+          value={barcode}
+          onChange={(e) => setBarcode(e.target.value)}
+          onPressEnter={handleScan}
+          placeholder="Quét hoặc nhập barcode mẫu"
+          autoFocus
+        />
+        {err && <div style={{ color: 'var(--s-crit)', fontSize: 12 }}>{err}</div>}
+      </div>
+    </ModalShell>
+  );
+};
+
 const SampleStorageV2: React.FC = () => {
   const [items, setItems] = useState<SampleStorageRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +203,10 @@ const SampleStorageV2: React.FC = () => {
   const [fCond, setFCond] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<SampleStorageRecord | null>(null);
+  const [retrieveTarget, setRetrieveTarget] = useState<SampleStorageRecord | null>(null);
+  const [disposeTarget, setDisposeTarget] = useState<SampleStorageRecord | null>(null);
+  const [storeOpen, setStoreOpen] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -102,7 +272,7 @@ const SampleStorageV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       {sKey(r) === 'stored' && (
-        <ActBtn ic="package" title="Lấy mẫu" onClick={() => tk(`Mở lấy mẫu ${r.sampleBarcode}`)} />
+        <ActBtn ic="package" title="Lấy mẫu" onClick={() => setRetrieveTarget(r)} />
       )}
     </div>
   );
@@ -127,10 +297,10 @@ const SampleStorageV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Mở quét QR/barcode')}>
+        <Btn variant="ghost" onClick={() => setScanOpen(true)}>
           <Ico name="qr" size={12} /> Quét QR
         </Btn>
-        <Btn variant="primary" onClick={() => tk('Mở lưu mẫu mới')}>
+        <Btn variant="primary" onClick={() => setStoreOpen(true)}>
           <Ico name="plus" size={12} /> Lưu mẫu
         </Btn>
       </div>
@@ -144,6 +314,40 @@ const SampleStorageV2: React.FC = () => {
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
+      {/* Modals */}
+      <ActionModal
+        open={!!retrieveTarget}
+        title={`Lấy mẫu · ${retrieveTarget?.sampleBarcode || ''}`}
+        label="Lấy mẫu"
+        onClose={() => setRetrieveTarget(null)}
+        onSubmit={async (reason) => {
+          await retrieveSample(retrieveTarget!.id, { reason });
+          tk('Đã lấy mẫu thành công');
+          load();
+        }}
+      />
+      <ActionModal
+        open={!!disposeTarget}
+        title={`Hủy mẫu · ${disposeTarget?.sampleBarcode || ''}`}
+        label="Hủy mẫu"
+        onClose={() => setDisposeTarget(null)}
+        onSubmit={async (reason) => {
+          await disposeSample(disposeTarget!.id, { reason });
+          tk('Đã hủy mẫu');
+          load();
+        }}
+      />
+      <StoreSampleModal
+        open={storeOpen}
+        onClose={() => setStoreOpen(false)}
+        onDone={() => { setStoreOpen(false); load(); }}
+      />
+      <ScanModal
+        open={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onFound={(rec) => setSel(rec)}
+      />
+
       <DrawerShell
         open={!!sel}
         onClose={() => setSel(null)}
@@ -153,10 +357,10 @@ const SampleStorageV2: React.FC = () => {
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
           {sel && sKey(sel) === 'stored' && <>
-            <Btn onClick={() => tk(`Mở lấy mẫu ${sel.sampleBarcode}`)}>
+            <Btn onClick={() => { setRetrieveTarget(sel); setSel(null); }}>
               <Ico name="package" size={12} /> Lấy mẫu
             </Btn>
-            <Btn variant="primary" onClick={() => tk(`Mở hủy mẫu ${sel.sampleBarcode}`)}>
+            <Btn variant="primary" onClick={() => { setDisposeTarget(sel); setSel(null); }}>
               <Ico name="trash" size={12} /> Hủy mẫu
             </Btn>
           </>}

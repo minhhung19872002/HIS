@@ -225,4 +225,86 @@ public class PracticeLicenseService : IPracticeLicenseService
 
         return new PracticeLicenseDto { Id = entity.Id, LicenseCode = entity.LicenseCode, LicenseType = entity.LicenseType, HolderName = entity.HolderName, Status = entity.Status, ExpiryDate = entity.ExpiryDate?.ToString("yyyy-MM-dd") };
     }
+
+    public async Task<byte[]> PrintLicenseAsync(Guid licenseId)
+    {
+        var dto = await GetByIdAsync(licenseId)
+            ?? throw new InvalidOperationException("Không tìm thấy chứng chỉ hành nghề");
+
+        var licenseTypeLabel = dto.LicenseType switch
+        {
+            "doctor" => "Bác sĩ",
+            "pharmacist" => "Dược sĩ",
+            "nurse" => "Điều dưỡng",
+            "midwife" => "Hộ sinh",
+            "technician" => "Kỹ thuật viên",
+            "dentist" => "Nha sĩ",
+            "traditional_medicine" => "Y học cổ truyền",
+            _ => dto.LicenseType ?? ""
+        };
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'/>");
+        sb.AppendLine("<style>");
+        sb.AppendLine("body{font-family:'Times New Roman',Times,serif;font-size:13pt;margin:20mm 15mm;}");
+        sb.AppendLine(".header{text-align:center;margin-bottom:8px;font-size:11pt;}");
+        sb.AppendLine(".title{text-align:center;font-weight:bold;font-size:16pt;text-transform:uppercase;margin:16px 0 4px;}");
+        sb.AppendLine(".subtitle{text-align:center;font-size:11pt;margin-bottom:20px;}");
+        sb.AppendLine(".field-row{display:flex;margin-bottom:8px;}");
+        sb.AppendLine(".field-label{min-width:220px;font-weight:bold;}");
+        sb.AppendLine(".field-value{flex:1;border-bottom:1px dotted #555;padding-left:4px;}");
+        sb.AppendLine(".section-title{font-weight:bold;margin:14px 0 6px;text-decoration:underline;}");
+        sb.AppendLine(".sig-row{display:flex;justify-content:space-between;margin-top:50px;}");
+        sb.AppendLine(".sig-box{text-align:center;width:45%;}");
+        sb.AppendLine(".sig-name{margin-top:60px;font-weight:bold;}");
+        sb.AppendLine(".code-box{border:2px solid #333;padding:6px 12px;display:inline-block;font-size:11pt;font-family:monospace;margin-bottom:8px;}");
+        sb.AppendLine("@media print{body{margin:10mm;}}");
+        sb.AppendLine("</style></head><body>");
+
+        sb.AppendLine("<div class='header'>");
+        sb.AppendLine("<div>BỘ Y TẾ</div>");
+        sb.AppendLine("</div>");
+
+        sb.AppendLine("<div class='title'>CHỨNG CHỈ HÀNH NGHỀ</div>");
+        sb.AppendLine($"<div class='subtitle'>{System.Web.HttpUtility.HtmlEncode(licenseTypeLabel)}</div>");
+        sb.AppendLine($"<div style='text-align:center;margin-bottom:16px'><span class='code-box'>{System.Web.HttpUtility.HtmlEncode(dto.LicenseCode)}</span></div>");
+
+        sb.AppendLine("<div class='section-title'>I. THÔNG TIN NGƯỜI ĐƯỢC CẤP CHỨNG CHỈ</div>");
+        sb.AppendLine($"<div class='field-row'><span class='field-label'>Họ và tên:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dto.HolderName)}</span></div>");
+        if (!string.IsNullOrWhiteSpace(dto.Cccd))
+            sb.AppendLine($"<div class='field-row'><span class='field-label'>Số CCCD/CMND:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dto.Cccd)}</span></div>");
+        if (!string.IsNullOrWhiteSpace(dto.DateOfBirth))
+        {
+            var dobDisplay = DateTime.TryParse(dto.DateOfBirth, out var dob) ? dob.ToString("dd/MM/yyyy") : dto.DateOfBirth;
+            sb.AppendLine($"<div class='field-row'><span class='field-label'>Ngày sinh:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dobDisplay)}</span></div>");
+        }
+
+        sb.AppendLine("<div class='section-title'>II. NỘI DUNG CHỨNG CHỈ</div>");
+        sb.AppendLine($"<div class='field-row'><span class='field-label'>Loại chứng chỉ:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(licenseTypeLabel)}</span></div>");
+        if (!string.IsNullOrWhiteSpace(dto.Specialty))
+            sb.AppendLine($"<div class='field-row'><span class='field-label'>Chuyên khoa:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dto.Specialty)}</span></div>");
+        if (!string.IsNullOrWhiteSpace(dto.CertificateNumber))
+            sb.AppendLine($"<div class='field-row'><span class='field-label'>Số chứng chỉ:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dto.CertificateNumber)}</span></div>");
+        if (!string.IsNullOrWhiteSpace(dto.FacilityName))
+            sb.AppendLine($"<div class='field-row'><span class='field-label'>Cơ sở hành nghề:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dto.FacilityName)}</span></div>");
+
+        sb.AppendLine("<div class='section-title'>III. THỜI HẠN</div>");
+        var issueDateDisplay = !string.IsNullOrWhiteSpace(dto.IssueDate) && DateTime.TryParse(dto.IssueDate, out var isd) ? isd.ToString("dd/MM/yyyy") : (dto.IssueDate ?? "");
+        var expiryDateDisplay = !string.IsNullOrWhiteSpace(dto.ExpiryDate) && DateTime.TryParse(dto.ExpiryDate, out var exd) ? exd.ToString("dd/MM/yyyy") : (dto.ExpiryDate ?? "Không thời hạn");
+        sb.AppendLine($"<div class='field-row'><span class='field-label'>Ngày cấp:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(issueDateDisplay)}</span></div>");
+        sb.AppendLine($"<div class='field-row'><span class='field-label'>Có giá trị đến:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(expiryDateDisplay)}</span></div>");
+        if (!string.IsNullOrWhiteSpace(dto.IssuingAuthority))
+            sb.AppendLine($"<div class='field-row'><span class='field-label'>Cơ quan cấp:</span><span class='field-value'>{System.Web.HttpUtility.HtmlEncode(dto.IssuingAuthority)}</span></div>");
+
+        var printDate = DateTime.Now;
+        sb.AppendLine($"<div style='text-align:right;margin-top:20px;font-style:italic'>Ngày {printDate:dd/MM/yyyy}</div>");
+
+        sb.AppendLine("<div class='sig-row'>");
+        sb.AppendLine("<div class='sig-box'><div>NGƯỜI ĐƯỢC CẤP CHỨNG CHỈ</div><div style='font-size:10pt;font-style:italic'>(Ký, ghi rõ họ tên)</div><div class='sig-name'>&nbsp;</div></div>");
+        sb.AppendLine($"<div class='sig-box'><div>{System.Web.HttpUtility.HtmlEncode(dto.IssuingAuthority ?? "CƠ QUAN CẤP")}</div><div style='font-size:10pt;font-style:italic'>(Ký, đóng dấu, ghi rõ họ tên)</div><div class='sig-name'>&nbsp;</div></div>");
+        sb.AppendLine("</div>");
+
+        sb.AppendLine("</body></html>");
+        return System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+    }
 }

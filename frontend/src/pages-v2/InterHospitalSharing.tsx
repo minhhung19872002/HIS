@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchRequests } from '../api/interHospitalSharing';
+import { searchRequests, respondToRequest, createRequest } from '../api/interHospitalSharing';
 import type { InterHospitalRequest } from '../api/interHospitalSharing';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, tk, ti,
-  type ColumnDef,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te,
+  type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
 const TYPE_LABEL: Record<string, string> = {
@@ -45,6 +45,28 @@ const InterHospitalSharingV2: React.FC = () => {
   const [fType, setFType] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<InterHospitalRequest | null>(null);
+  const [respondOpen, setRespondOpen] = useState(false);
+  const [respondTarget, setRespondTarget] = useState<InterHospitalRequest | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const openRespond = (r: InterHospitalRequest) => { setRespondTarget(r); setRespondOpen(true); };
+
+  const RESPOND_FIELDS: CrudFieldCfg[] = [
+    { key: 'statusDecision', label: 'Quyết định', type: 'select', required: true, options: [
+      { value: 'approve', label: 'Chấp nhận (Approve)' },
+      { value: 'reject',  label: 'Từ chối (Reject)' }] },
+    { key: 'responseNotes', label: 'Nội dung phản hồi', type: 'textarea', required: true },
+  ];
+
+  const CREATE_FIELDS: CrudFieldCfg[] = [
+    { key: 'requestType', label: 'Loại yêu cầu', type: 'select', required: true, options: Object.entries(TYPE_LABEL).map(([v, l]) => ({ value: v, label: l })) },
+    { key: 'respondingHospital', label: 'Bệnh viện nhận', required: true },
+    { key: 'subject', label: 'Chủ đề', required: true },
+    { key: 'details', label: 'Chi tiết', type: 'textarea', required: true },
+    { key: 'urgency', label: 'Mức độ ưu tiên', type: 'select', required: true, options: Object.entries(URGENCY_LABEL).map(([v, l]) => ({ value: v, label: l })) },
+    { key: 'patientName', label: 'Tên bệnh nhân (nếu có)' },
+    { key: 'patientCode', label: 'Mã bệnh nhân' },
+  ];
 
   const load = async () => {
     setLoading(true);
@@ -109,7 +131,7 @@ const InterHospitalSharingV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       {(r.status === 0 || r.status === 1) && (
-        <ActBtn ic="check" title="Xử lý" onClick={() => tk(`Xử lý ${r.requestCode}`)} />
+        <ActBtn ic="check" title="Xử lý" onClick={() => openRespond(r)} />
       )}
     </div>
   );
@@ -130,7 +152,7 @@ const InterHospitalSharingV2: React.FC = () => {
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
         <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
-        <Btn variant="primary" icon="plus" onClick={() => tk('Mở yêu cầu liên viện mới')}>Yêu cầu mới</Btn>
+        <Btn variant="primary" icon="plus" onClick={() => setCreateOpen(true)}>Yêu cầu mới</Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -142,6 +164,50 @@ const InterHospitalSharingV2: React.FC = () => {
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
 
+      {/* Modal phản hồi yêu cầu */}
+      <CrudModal
+        open={respondOpen}
+        onClose={() => setRespondOpen(false)}
+        title={respondTarget ? `Phản hồi: ${respondTarget.requestCode}` : 'Phản hồi yêu cầu liên viện'}
+        fields={RESPOND_FIELDS}
+        initial={{ statusDecision: 'approve', responseNotes: '' }}
+        size="md"
+        onSubmit={async (v) => {
+          if (!respondTarget) return;
+          const statusCode = v.statusDecision === 'approve' ? 3 : 4; // 3=completed, 4=rejected
+          await respondToRequest(respondTarget.id, {
+            status: statusCode,
+            responseNotes: v.responseNotes as string,
+          });
+          tk(v.statusDecision === 'approve' ? 'Đã chấp nhận yêu cầu' : 'Đã từ chối yêu cầu');
+          load();
+        }}
+      />
+
+      {/* Modal tạo yêu cầu liên viện mới */}
+      <CrudModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Yêu cầu liên viện mới"
+        fields={CREATE_FIELDS}
+        initial={{ requestType: 'consultation', urgency: 'normal' }}
+        size="lg"
+        onSubmit={async (v) => {
+          await createRequest({
+            requestType: v.requestType as InterHospitalRequest['requestType'],
+            direction: 'outgoing',
+            urgency: v.urgency as InterHospitalRequest['urgency'],
+            respondingHospital: v.respondingHospital as string,
+            subject: v.subject as string,
+            details: v.details as string,
+            patientName: v.patientName as string | undefined,
+            patientCode: v.patientCode as string | undefined,
+          });
+          tk('Đã gửi yêu cầu liên viện');
+          load();
+        }}
+      />
+
       <DrawerShell
         open={!!sel}
         onClose={() => setSel(null)}
@@ -152,7 +218,7 @@ const InterHospitalSharingV2: React.FC = () => {
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
           <Btn icon="print" onClick={() => window.print()}>In YC</Btn>
           {sel && (sel.status === 0 || sel.status === 1) && (
-            <Btn variant="primary" icon="check" onClick={() => { tk('Đã xử lý'); setSel(null); }}>Xử lý</Btn>
+            <Btn variant="primary" icon="check" onClick={() => { openRespond(sel); setSel(null); }}>Xử lý</Btn>
           )}
         </>}
       >

@@ -118,6 +118,98 @@ public class MedicalHRServiceImpl : IMedicalHRService
         return new DutyShiftDto { Id = shift.Id, ShiftDate = shift.ShiftDate, ShiftType = shift.ShiftType };
     }
 
+    public async Task<CopyRosterResultDto> CopyRosterWeekAsync(CopyRosterWeekDto dto, Guid userId)
+    {
+        var sourceStart = dto.SourceWeekStart.Date;
+        var sourceEnd = sourceStart.AddDays(6);
+        var targetStart = dto.TargetWeekStart.Date;
+        var diff = (targetStart - sourceStart).Days;
+
+        // Lấy ca trực của khoa trong tuần nguồn
+        var sourceRosters = await _context.DutyRosters
+            .Where(r => r.DepartmentId == dto.DepartmentId
+                     && !r.IsDeleted
+                     && ((r.Year == sourceStart.Year && r.Month == sourceStart.Month)
+                      || (r.Year == sourceEnd.Year && r.Month == sourceEnd.Month)))
+            .ToListAsync();
+
+        var rosterIds = sourceRosters.Select(r => r.Id).ToList();
+        var sourceShifts = await _context.DutyShifts
+            .Where(s => rosterIds.Contains(s.DutyRosterId)
+                     && s.ShiftDate >= sourceStart && s.ShiftDate <= sourceEnd
+                     && !s.IsDeleted)
+            .ToListAsync();
+
+        if (!sourceShifts.Any())
+            return new CopyRosterResultDto { TotalShifts = 0, CopiedShifts = 0, SkippedShifts = 0, Message = "Không có ca trực trong tuần nguồn" };
+
+        // Lấy hoặc tạo DutyRoster cho tuần đích
+        var targetRoster = await _context.DutyRosters
+            .FirstOrDefaultAsync(r => r.DepartmentId == dto.DepartmentId
+                                   && r.Year == targetStart.Year
+                                   && r.Month == targetStart.Month
+                                   && !r.IsDeleted);
+        if (targetRoster == null)
+        {
+            targetRoster = new DutyRoster
+            {
+                Id = Guid.NewGuid(),
+                DepartmentId = dto.DepartmentId,
+                Year = targetStart.Year,
+                Month = targetStart.Month,
+                Status = "Draft",
+                CreatedById = userId,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.DutyRosters.Add(targetRoster);
+        }
+
+        int copied = 0, skipped = 0;
+        foreach (var shift in sourceShifts)
+        {
+            var newDate = shift.ShiftDate.AddDays(diff);
+
+            // Kiểm tra trùng (cùng staff + ngày + loại ca)
+            var exists = await _context.DutyShifts.AnyAsync(s =>
+                s.DutyRosterId == targetRoster.Id
+                && s.StaffId == shift.StaffId
+                && s.ShiftDate.Date == newDate.Date
+                && s.ShiftType == shift.ShiftType
+                && !s.IsDeleted);
+
+            if (exists && !dto.OverwriteExisting)
+            {
+                skipped++;
+                continue;
+            }
+
+            var newShift = new DutyShift
+            {
+                Id = Guid.NewGuid(),
+                DutyRosterId = targetRoster.Id,
+                StaffId = shift.StaffId,
+                ShiftDate = newDate,
+                ShiftType = shift.ShiftType,
+                StartTime = shift.StartTime,
+                EndTime = shift.EndTime,
+                Status = "Scheduled",
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.DutyShifts.Add(newShift);
+            copied++;
+        }
+
+        await _context.SaveChangesAsync();
+
+        return new CopyRosterResultDto
+        {
+            TotalShifts = sourceShifts.Count,
+            CopiedShifts = copied,
+            SkippedShifts = skipped,
+            Message = $"Đã sao chép {copied}/{sourceShifts.Count} ca trực sang tuần {targetStart:dd/MM/yyyy}"
+        };
+    }
+
     public async Task<bool> RemoveShiftAssignmentAsync(Guid assignmentId)
     {
         var e = await _context.DutyShifts.FindAsync(assignmentId);

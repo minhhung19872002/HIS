@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   getConnections, createConnection, updateConnection, testConnection, activateConnection, deactivateConnection,
+  syncAll,
   type HIEConnectionDto, type CreateConnectionDto,
 } from '../api/healthExchange';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
@@ -49,6 +50,7 @@ const HealthExchangeV2: React.FC = () => {
   const [fType, setFType] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<HIEConnectionDto | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
 
@@ -159,8 +161,21 @@ const HealthExchangeV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
-        <Btn variant="ghost" onClick={() => tk('Đã chạy đồng bộ tất cả')}>
-          <Ico name="cloud" size={12} /> Đồng bộ tất cả
+        <Btn variant="ghost" disabled={syncing} onClick={async () => {
+          setSyncing(true);
+          try {
+            const res = await syncAll();
+            const d = res.data as { synced?: number; failed?: number; message?: string } | undefined;
+            if (d?.failed && d.failed > 0) {
+              tw(`Đồng bộ xong: ${d.synced ?? 0} thành công, ${d.failed} thất bại`);
+            } else {
+              tk(d?.message || `Đồng bộ hoàn tất${d?.synced != null ? ` (${d.synced} kết nối)` : ''}`);
+            }
+            load();
+          } catch { te('Đồng bộ thất bại'); }
+          finally { setSyncing(false); }
+        }}>
+          <Ico name="cloud" size={12} /> {syncing ? 'Đang đồng bộ…' : 'Đồng bộ tất cả'}
         </Btn>
         <Btn variant="primary" onClick={openCreate}>
           <Ico name="plus" size={12} /> Thêm kết nối

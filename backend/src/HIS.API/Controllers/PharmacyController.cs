@@ -854,6 +854,90 @@ public class PharmacyController : ControllerBase
         }
     }
 
+    // ==================== Drug Label Print ====================
+
+    /// <summary>
+    /// In nhãn thuốc cho từng chi tiết đơn thuốc (trả HTML để FE in trực tiếp hoặc mở cửa sổ in)
+    /// </summary>
+    [HttpGet("prescriptions/{prescriptionId}/print-drug-label")]
+    public async Task<IActionResult> PrintDrugLabel(Guid prescriptionId)
+    {
+        try
+        {
+            var prescription = await _context.Prescriptions
+                .AsNoTracking()
+                .Include(p => p.MedicalRecord).ThenInclude(m => m.Patient)
+                .Include(p => p.Doctor)
+                .Include(p => p.Details).ThenInclude(d => d.Medicine)
+                .FirstOrDefaultAsync(p => p.Id == prescriptionId && !p.IsDeleted);
+
+            if (prescription == null)
+                return NotFound(new { message = "Không tìm thấy đơn thuốc" });
+
+            var patient = prescription.MedicalRecord?.Patient;
+            var html = new System.Text.StringBuilder();
+            html.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'/>");
+            html.AppendLine("<style>");
+            html.AppendLine("body{font-family:Arial,sans-serif;font-size:11px;margin:0;padding:4px;}");
+            html.AppendLine(".label{border:1px solid #000;padding:4px 6px;margin-bottom:4px;page-break-inside:avoid;width:60mm;}");
+            html.AppendLine(".label-title{font-weight:bold;font-size:12px;text-align:center;border-bottom:1px dashed #333;padding-bottom:2px;margin-bottom:2px;}");
+            html.AppendLine(".label-row{margin:1px 0;}");
+            html.AppendLine(".label-drug{font-weight:bold;font-size:11px;}");
+            html.AppendLine("@media print{body{margin:0;} .no-print{display:none;}}");
+            html.AppendLine("</style></head><body>");
+
+            var patientName = patient?.FullName ?? "";
+            var patientCode = patient?.PatientCode ?? "";
+            var dob = patient?.DateOfBirth?.ToString("dd/MM/yyyy") ?? "";
+            var doctorName = prescription.Doctor?.FullName ?? "";
+            var rxCode = prescription.PrescriptionCode;
+            var rxDate = prescription.PrescriptionDate.ToString("dd/MM/yyyy");
+            var diagnosis = prescription.DiagnosisName ?? prescription.Diagnosis ?? "";
+
+            foreach (var detail in prescription.Details.Where(d => !d.IsDeleted))
+            {
+                var medicineName = detail.Medicine?.MedicineName ?? detail.Medicine?.MedicineCode ?? "(thuốc)";
+                var dosage = detail.Dosage ?? "";
+                var frequency = detail.Frequency ?? "";
+                var route = detail.Route ?? "";
+                var days = detail.Days;
+                var qty = detail.Quantity;
+                var unit = detail.Unit ?? "";
+                var usage = detail.UsageInstructions ?? detail.Usage ?? "";
+
+                html.AppendLine("<div class='label'>");
+                html.AppendLine("<div class='label-title'>NHÃN THUỐC</div>");
+                html.AppendLine($"<div class='label-row'>BN: <b>{System.Web.HttpUtility.HtmlEncode(patientName)}</b> ({System.Web.HttpUtility.HtmlEncode(patientCode)})</div>");
+                if (!string.IsNullOrEmpty(dob))
+                    html.AppendLine($"<div class='label-row'>Ngày sinh: {dob}</div>");
+                html.AppendLine($"<div class='label-row label-drug'>{System.Web.HttpUtility.HtmlEncode(medicineName)}</div>");
+                html.AppendLine($"<div class='label-row'>SL: {qty} {System.Web.HttpUtility.HtmlEncode(unit)} | {days} ngày</div>");
+                if (!string.IsNullOrEmpty(dosage))
+                    html.AppendLine($"<div class='label-row'>Liều: {System.Web.HttpUtility.HtmlEncode(dosage)}</div>");
+                if (!string.IsNullOrEmpty(frequency))
+                    html.AppendLine($"<div class='label-row'>Tần suất: {System.Web.HttpUtility.HtmlEncode(frequency)}</div>");
+                if (!string.IsNullOrEmpty(route))
+                    html.AppendLine($"<div class='label-row'>Đường dùng: {System.Web.HttpUtility.HtmlEncode(route)}</div>");
+                if (!string.IsNullOrEmpty(usage))
+                    html.AppendLine($"<div class='label-row'>Cách dùng: {System.Web.HttpUtility.HtmlEncode(usage)}</div>");
+                html.AppendLine($"<div class='label-row'>Đơn: {rxCode} | {rxDate} | BS: {System.Web.HttpUtility.HtmlEncode(doctorName)}</div>");
+                if (!string.IsNullOrEmpty(diagnosis))
+                    html.AppendLine($"<div class='label-row'>CĐ: {System.Web.HttpUtility.HtmlEncode(diagnosis)}</div>");
+                html.AppendLine("</div>");
+            }
+
+            html.AppendLine("<script>window.onload=function(){window.print();}</script>");
+            html.AppendLine("</body></html>");
+
+            return Content(html.ToString(), "text/html; charset=utf-8");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error printing drug label for prescription {Id}", prescriptionId);
+            return StatusCode(500, new { message = "Lỗi khi in nhãn thuốc" });
+        }
+    }
+
     // ==================== Request DTOs ====================
 
     public class RejectRequest

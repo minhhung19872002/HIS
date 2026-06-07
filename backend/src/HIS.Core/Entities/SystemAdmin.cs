@@ -122,6 +122,45 @@ public class SatisfactionSurveyResult : BaseEntity
 }
 
 /// <summary>
+/// Chiến dịch khảo sát hài lòng - Satisfaction Survey Campaign
+/// Phân nhóm các đợt khảo sát (VD: "Tháng 6 Nội trú", "Quý 2 Ngoại trú").
+/// </summary>
+public class SatisfactionSurveyCampaign : BaseEntity
+{
+    public string CampaignCode { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? TargetGroup { get; set; } // OPD, IPD, Emergency, All
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public Guid? TemplateId { get; set; }
+    public string? TemplateName { get; set; }
+    public int Status { get; set; } // 0=Draft, 1=Active, 2=Closed, 3=Archived
+    public int TargetCount { get; set; } // Số lượng mục tiêu
+    public int ActualCount { get; set; } // Số lượng thực tế đã khảo sát
+    public string? Notes { get; set; }
+}
+
+/// <summary>
+/// Phản hồi cần liên hệ lại - Feedback Callback
+/// Theo dõi việc liên hệ lại với bệnh nhân có phản hồi tiêu cực.
+/// </summary>
+public class SurveyFeedbackCallback : BaseEntity
+{
+    public Guid? SurveyResultId { get; set; }
+    public Guid? CampaignId { get; set; }
+    public string? PatientName { get; set; }
+    public string? PatientPhone { get; set; }
+    public string? PatientCode { get; set; }
+    public string? IssueDescription { get; set; }
+    public int Status { get; set; } // 0=Pending, 1=Contacted, 2=Resolved, 3=Closed
+    public string? ContactedByName { get; set; }
+    public DateTime? ContactedAt { get; set; }
+    public string? Resolution { get; set; }
+    public string? AcknowledgmentNote { get; set; }
+}
+
+/// <summary>
 /// Biên bản bàn giao ca trực điều dưỡng - Nurse Shift Handover
 /// </summary>
 public class NurseShiftHandover : BaseEntity
