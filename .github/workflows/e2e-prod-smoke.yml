@@ -1,0 +1,75 @@
+name: E2E prod smoke
+
+# Chạy bộ smoke prod (Playwright e2e-prod/smoke.spec.ts) lên runner GitHub SAU khi deploy.
+# Mục tiêu: sau khi Cloud Run chạy schema-repair + Vercel deploy FE → xác nhận các path
+# trọng yếu KHÔNG còn 500 và FE render được data (read-only, KHÔNG create/delete).
+#
+# Trigger:
+#  - workflow_dispatch: bấm tay sau khi deploy xong (FE Vercel hoặc BE Cloud Run).
+#  - workflow_run: tự chạy sau khi "Deploy backend to Cloud Run" hoàn tất THÀNH CÔNG.
+#
+# Target prod mặc định lấy từ playwright.prod.config.ts (his-psi.vercel.app + Cloud Run API).
+# Có thể override qua input PROD_URL / PROD_API_URL khi dispatch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      prod_url:
+        description: 'PROD_URL (FE)'
+        required: false
+        default: 'https://his-psi.vercel.app'
+      prod_api_url:
+        description: 'PROD_API_URL (BE, có /api)'
+        required: false
+        default: 'https://his-api-694913628964.asia-southeast1.run.app/api'
+  workflow_run:
+    workflows: ['Deploy backend to Cloud Run']
+    types: [completed]
+
+# Không chạy chồng nhau.
+concurrency:
+  group: e2e-prod-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    # workflow_run: chỉ chạy khi deploy THÀNH CÔNG. workflow_dispatch: luôn chạy.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      PROD_URL: ${{ github.event.inputs.prod_url || 'https://his-psi.vercel.app' }}
+      PROD_API_URL: ${{ github.event.inputs.prod_api_url || 'https://his-api-694913628964.asia-southeast1.run.app/api' }}
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run prod smoke (smoke.spec.ts)
+        run: npx playwright test --config=playwright.prod.config.ts e2e-prod/smoke.spec.ts
+
+      - name: Upload report (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-prod-report
+          path: |
+            frontend/playwright-prod-report.json
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
