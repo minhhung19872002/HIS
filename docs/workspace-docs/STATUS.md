@@ -1,6 +1,25 @@
 # STATUS — đang ở đâu · blocker · việc kế tiếp
 
-> Cập nhật cuối: **2026-06-08 ~15:30** (audit luồng nghiệp vụ FLOW-1+2+3 — sửa mạch gãy mất dữ liệu).
+> Cập nhật cuối: **2026-06-08 ~22:30** (FLOW-4 + FLOW-FINAL bảo mật + P1/P2 bounded + F1 feature). **Mai làm tiếp.**
+
+## ✅ PHIÊN 2026-06-08 (chiều→tối) — FLOW-4 + bảo mật + F1 (đã PUSH phần code, F1 CHƯA commit)
+
+Nguồn: `10-assessment/{audit-luong-nghiepvu, fix-rowclick-detail, FLOW-FINAL-all-remaining, FLOW4-A}.md`. Chi tiết roadmap: `20-backlog/tech-debt-roadmap.md`.
+
+- **FLOW-3 #14a–e + #15/#16/#17 ✅ ĐÃ PUSH** (cancel-chain→model 1, bridge CĐHA model1→4 mig 80, auto-summary BA, CheckTransferWarnings, auto-billing mig 79). #14e gỡ bảng = DEFER (destructive).
+- **FLOW-4 (#14b reader + analyzer) ✅ ĐÃ PUSH**: portal/report đọc KQ XN model 1; **analyzer HL7 + KTV LIS dual-write → ServiceRequestDetail** (KQ máy/tay/màn khám cùng 1 nguồn). KQ cấu trúc per-parameter = feature roadmap.
+- **FLOW-FINAL bảo mật P0 ✅ ĐÃ PUSH**: **B1** chặn CCHN hết hạn khi bắt đầu khám · **B3** RBAC ký số (loại lễ tân/kế toán) · **B2** siết role `/api/portal/*` (mitigation; portal self-login = FEATURE roadmap). **B3-global fallback** = DEFER (cần audit public endpoint).
+- **P1/P2 bounded ✅ ĐÃ PUSH**: F2 (DietTypes đọc DB, hết bug GUID) · F5 (booking check-in→sinh lượt khám) · F1-diag · F10 (responseRate thật).
+- **F1-full PTTT vào viện phí ✅ XONG (CHƯA COMMIT — working tree dirty)**: bảng `SurgeryMedicineItems`+`SurgerySupplyItems` (**mig 82**) + service persist + giá + **trừ kho FEFO** + gộp viện phí. Build 0 err · schema-drift 0 · suite Surgery/IPD PASS · doithu 28/28.
+- **⚠️ docs-leak**: 2 commit workspace-docs (`d19cde4`,`d02156a`) đã LỠ lên remote main (qua reorg) — chỉ tài liệu, vô hại. Chọn A (để nguyên, không force-push vì nhánh song song active).
+- **Real workflow test fail = flaky pre-existing** (`StartExamination "Examination not found"`, timing/data — KHÔNG do thay đổi phiên này; verify git diff 0 file examination; Print/LIS/Signing + Surgery + IPD đều PASS).
+
+### 🔜 MAI LÀM TIẾP (FLOW-FINAL feature-sized còn lại — mỗi cái 1 chunk)
+- **F1**: commit + push (đang dirty) + tinh chỉnh (tách BHYT per-item, restore kho khi xoá, bỏ nuốt lỗi schema Start/CompleteSurgery).
+- **F3** cấp cứu persist (ReceptionComplete+ObservationStay, FE+BE) · **F4** BHYT đối soát · **F6** YHCT→phí+trừ kho dược liệu · **F7** Rehab buổi→phí · **F8** tele tạo Rx thật sang quầy · **F9** quality/infection/portal persist.
+- **B3-global** RequireAuthenticatedUser (sau khi audit [AllowAnonymous] public endpoint) · **#14e** gỡ bảng model 2/3 (destructive, chờ duyệt).
+
+## ✅ AUDIT LUỒNG NGHIỆP VỤ — FLOW-1 (P0) + FLOW-2 (P1) + FLOW-3 (#17 + plan) — XONG 2026-06-08 (COMMIT LOCAL, CHƯA PUSH)
 
 ## ✅ AUDIT LUỒNG NGHIỆP VỤ — FLOW-1 (P0) + FLOW-2 (P1) + FLOW-3 (#17 + plan) — XONG 2026-06-08 (COMMIT LOCAL, CHƯA PUSH)
 

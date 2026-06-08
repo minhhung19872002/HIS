@@ -126,8 +126,11 @@ PDF/FHIR/DQGVN) đọc + tô màu. Khi đó các export cấu trúc (PdfGen/FHIR
   ✅ F5 (booking check-in nối QuickRegisterByAppointment → sinh lượt khám thật) · ✅ F1-diag (bỏ hardcode
   "Viêm ruột thừa cấp", đọc HSBA) · ✅ F10 (responseRate tính thật = khảo sát/BN ra viện, bỏ 68.5).
   **⏸️ Còn FEATURE-sized (cần bảng/billing, làm theo nhu cầu từng cái)**:
-  - **F1-full**: `SurgeryPrescriptionServiceImpl` toàn stub → cần bảng SurgeryMedicine/Supply + persist +
-    trừ kho + nối BillingComplete (phân BHYT/thu phí). Bỏ nuốt lỗi schema ở Start/CompleteSurgery (:68-116).
+  - **F1-full ✅ XONG 2026-06-08**: bảng `SurgeryMedicineItems`+`SurgerySupplyItems` (**mig 82**) + entity + DbSet;
+    `SurgeryPrescriptionServiceImpl` persist Add/Get/Update/Remove + tính giá (BHYT/UnitPrice) + **trừ kho FEFO**
+    (best-effort); `GetPatientBillingStatusAsync` gộp tiền vật tư PTTT (PaymentObject≠3) → **vào viện phí**.
+    Build 0 err · schema-drift 0 · suite Surgery+IPD PASS · doithu 28/28. *(Còn tinh chỉnh: tách BHYT per-item,
+    restore kho khi xoá dòng, bỏ nuốt lỗi schema Start/CompleteSurgery :68-116.)*
   - **F3**: cấp cứu thường — EmergencyDisaster.tsx bỏ `buildEmergencySeed`, nối ReceptionComplete +
     ObservationStay + triage persist (FE+BE feature).
   - **F4**: BHYT đối soát (InsuranceXmlService :1647/1709) — import KQ giám định + tính chênh lệch thật.
