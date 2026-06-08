@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Billing;
 using HIS.Application.Services;
@@ -256,9 +257,20 @@ public partial class BillingCompleteService {
                 .Where(d => d.MedicalRecordId == medicalRecordId && d.Status != 3)
                 .ToListAsync();
 
-            var totalAmount = serviceRequests.Sum(sr => sr.TotalAmount);
-            var insuranceAmount = serviceRequests.Sum(sr => sr.InsuranceAmount);
-            var patientAmount = serviceRequests.Sum(sr => sr.PatientAmount);
+            // Gộp tiền thuốc vào bảng kê (audit luồng nghiệp vụ 2026-06-06 #5): trước đây chỉ
+            // Σ ServiceRequests nên BN còn nợ thuốc vẫn được cho ra viện. Loại đơn Hoàn trả(3)/Hủy(4).
+            // (Vật tư/giường nếu phát sinh đã đi qua ServiceRequests — không bịa model giá giường ở đây.)
+            var prescriptions = await _context.Prescriptions
+                .Where(p => p.MedicalRecordId == medicalRecordId && !p.IsDeleted
+                         && p.Status != 3 && p.Status != 4)
+                .ToListAsync();
+            var rxTotal = prescriptions.Sum(p => p.TotalAmount);
+            var rxInsurance = prescriptions.Sum(p => p.InsuranceAmount);
+            var rxPatient = prescriptions.Sum(p => p.PatientAmount);
+
+            var totalAmount = serviceRequests.Sum(sr => sr.TotalAmount) + rxTotal;
+            var insuranceAmount = serviceRequests.Sum(sr => sr.InsuranceAmount) + rxInsurance;
+            var patientAmount = serviceRequests.Sum(sr => sr.PatientAmount) + rxPatient;
             var paidAmount = receipts.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount)
                            - receipts.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount);
             var depositBalance = deposits.Sum(d => d.RemainingAmount);
@@ -270,12 +282,16 @@ public partial class BillingCompleteService {
                 { 3, "Dang dieu tri" }, { 4, "Cho ra vien" }, { 5, "Da dong BA" }
             };
 
-            var hasUnpaid = serviceRequests.Any(sr => !sr.IsPaid && sr.Status != 4);
+            var hasUnpaidServices = serviceRequests.Any(sr => !sr.IsPaid && sr.Status != 4);
+            // Thuốc không có cờ IsPaid riêng → còn nợ nếu tổng phải-thu (đã gồm thuốc) vượt đã-thu.
+            var hasOutstanding = remaining > 0;
+            var hasUnpaid = hasUnpaidServices || hasOutstanding;
             var paymentStatus = remaining <= 0 ? 2 : (paidAmount > 0 ? 1 : 0);
             var paymentStatusNames = new[] { "Chua thanh toan", "Thanh toan mot phan", "Da thanh toan" };
 
             var warnings = new List<string>();
-            if (hasUnpaid) warnings.Add("Co dich vu chua thanh toan");
+            if (hasUnpaidServices) warnings.Add("Co dich vu chua thanh toan");
+            if (rxPatient > 0 && hasOutstanding) warnings.Add("Con no tien thuoc");
             if (remaining > 0 && depositBalance < remaining) warnings.Add("So du tam ung khong du");
 
             return new PatientBillingStatusDto
@@ -304,7 +320,18 @@ public partial class BillingCompleteService {
                 Warnings = warnings
             };
         }
-        catch { return new PatientBillingStatusDto(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetPatientBillingStatusAsync failed for medical record {MedicalRecordId}", medicalRecordId);
+            // KHÔNG trả DTO rỗng (mặc định trông như "sạch nợ") — sẽ cho ra viện nhầm.
+            // Trả trạng thái chặn an toàn để người dùng biết cần kiểm tra lại công nợ.
+            return new PatientBillingStatusDto
+            {
+                MedicalRecordId = medicalRecordId,
+                CanDischarge = false,
+                Warnings = new List<string> { "Loi tinh cong no - khong the xac nhan ra vien, vui long thu lai" }
+            };
+        }
     }
 
     public async Task<InsuranceCheckDto> CheckInsuranceCardAsync(InsuranceCheckRequestDto dto)

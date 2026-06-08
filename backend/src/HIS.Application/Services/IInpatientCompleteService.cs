@@ -61,6 +61,12 @@ public interface IInpatientCompleteService
     Task<AdmissionDto> AdmitFromOpdAsync(AdmitFromOpdDto dto, Guid userId);
 
     /// <summary>
+    /// Worklist "chờ nhập viện": các phiên khám OPD đã kết luận nhập viện (ConclusionType=3)
+    /// nhưng chưa có hồ sơ nội trú (chưa Admission). Lọc theo khoa nếu truyền departmentId.
+    /// </summary>
+    Task<List<PendingAdmissionDto>> GetPendingAdmissionsAsync(Guid? departmentId);
+
+    /// <summary>
     /// Tiếp nhận bệnh nhân từ khoa khác
     /// </summary>
     Task<AdmissionDto> AdmitFromDepartmentAsync(AdmitFromDepartmentDto dto, Guid userId);

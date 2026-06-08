@@ -163,31 +163,61 @@ public class HospitalPharmacyService : IHospitalPharmacyService
             CreatedAt = DateTime.UtcNow,
         };
 
-        _context.RetailSales.Add(sale);
-
-        foreach (var item in dto.Items)
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        try
         {
-            var saleItem = new RetailSaleItem
-            {
-                Id = Guid.NewGuid(),
-                RetailSaleId = sale.Id,
-                MedicineId = item.MedicineId,
-                MedicineName = item.MedicineName,
-                Unit = item.Unit,
-                Quantity = item.Quantity,
-                UnitPrice = item.UnitPrice,
-                Amount = item.Quantity * item.UnitPrice,
-                DiscountAmount = item.DiscountAmount,
-                BatchNumber = item.BatchNumber,
-                ExpiryDate = DateTime.TryParse(item.ExpiryDate, out var ed) ? ed : null,
-                WarehouseId = item.WarehouseId,
-                CreatedAt = DateTime.UtcNow,
-            };
-            _context.RetailSaleItems.Add(saleItem);
-        }
+            _context.RetailSales.Add(sale);
 
-        await _context.SaveChangesAsync();
-        return (await GetSaleByIdAsync(sale.Id))!;
+            foreach (var item in dto.Items)
+            {
+                // Trừ tồn kho FEFO khi có kho (audit luồng nghiệp vụ 2026-06-06 #6) — trước đây bán
+                // lẻ KHÔNG đụng tồn kho. Lô hết hạn gần nhất + đủ số lượng được trừ trước.
+                string? usedBatch = item.BatchNumber;
+                DateTime? usedExpiry = DateTime.TryParse(item.ExpiryDate, out var ed) ? ed : null;
+                if (item.WarehouseId.HasValue && item.WarehouseId.Value != Guid.Empty)
+                {
+                    var stock = await _context.InventoryItems
+                        .Where(i => i.WarehouseId == item.WarehouseId.Value
+                            && i.MedicineId == item.MedicineId
+                            && (i.Quantity - i.ReservedQuantity) >= item.Quantity
+                            && i.ExpiryDate >= DateTime.Today)
+                        .OrderBy(i => i.ExpiryDate)
+                        .FirstOrDefaultAsync();
+                    if (stock == null)
+                        throw new InvalidOperationException($"Không đủ tồn kho cho thuốc {item.MedicineName}");
+                    stock.Quantity -= item.Quantity;
+                    usedBatch = stock.BatchNumber;
+                    usedExpiry = stock.ExpiryDate;
+                }
+
+                var saleItem = new RetailSaleItem
+                {
+                    Id = Guid.NewGuid(),
+                    RetailSaleId = sale.Id,
+                    MedicineId = item.MedicineId,
+                    MedicineName = item.MedicineName,
+                    Unit = item.Unit,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.UnitPrice,
+                    Amount = item.Quantity * item.UnitPrice,
+                    DiscountAmount = item.DiscountAmount,
+                    BatchNumber = usedBatch,
+                    ExpiryDate = usedExpiry,
+                    WarehouseId = item.WarehouseId,
+                    CreatedAt = DateTime.UtcNow,
+                };
+                _context.RetailSaleItems.Add(saleItem);
+            }
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+            return (await GetSaleByIdAsync(sale.Id))!;
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<bool> CancelSaleAsync(Guid id, string reason)

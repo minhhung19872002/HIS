@@ -233,28 +233,61 @@ public partial class ExaminationCompleteService
 
         if (examination == null) throw new Exception("Examination not found");
 
-        // Get lab results
-        var labResults = await _context.LabResults
-            .Include(r => r.LabRequestItem)
-            .ThenInclude(i => i.LabRequest)
-            .Where(r => r.LabRequestItem.LabRequest.MedicalRecordId == examination.MedicalRecordId)
-            .OrderByDescending(r => r.ResultDate)
-            .Select(r => new LabResultSummaryDto
+        // KQ Xét nghiệm — đọc từ ServiceRequestDetail (model 1, RequestType=1 XN), nơi
+        // SampleReceive/LIS ghi KQ thật + nơi billing đọc. Bảng LabResults (model 2) thực tế
+        // rỗng nên trước đây BS không bao giờ thấy KQ (audit luồng nghiệp vụ 2026-06-06 #1).
+        var labResults = await _context.ServiceRequestDetails
+            .Include(d => d.Service)
+            .Include(d => d.ServiceRequest)
+            .Where(d => d.ServiceRequest.MedicalRecordId == examination.MedicalRecordId
+                     && d.ServiceRequest.RequestType == 1
+                     && d.Status != 3
+                     && (d.Status == 2 || d.Result != null || d.ResultDate != null))
+            .OrderByDescending(d => d.ResultDate)
+            .Select(d => new LabResultSummaryDto
             {
-                Id = r.Id,
-                TestCode = r.LabRequestItem.TestCode,
-                TestName = r.LabRequestItem.TestName,
-                ResultValue = r.ResultValue,
-                Unit = r.Unit,
-                ReferenceRange = r.ReferenceRange,
-                IsAbnormal = r.IsAbnormal,
-                ResultDate = r.ResultDate,
-                Status = r.Status
+                Id = d.Id,
+                OrderId = d.ServiceRequestId,
+                TestCode = d.Service.ServiceCode,
+                TestName = d.Service.ServiceName,
+                ServiceCode = d.Service.ServiceCode,
+                ServiceName = d.Service.ServiceName,
+                ResultValue = d.Result,
+                Unit = null,
+                ReferenceRange = null,
+                IsAbnormal = false,
+                ResultDate = d.ResultDate,
+                Status = d.Status
             })
             .ToListAsync();
 
-        // Get imaging results
-        var imagingResults = await _context.RadiologyReports
+        // KQ Chẩn đoán hình ảnh — gộp 2 nguồn: model 1 (ServiceRequestDetail RequestType=2)
+        // + model 4 (RadiologyReports — nơi RIS tường trình), tránh BS bỏ sót tuỳ nguồn nhập.
+        var imagingFromSr = await _context.ServiceRequestDetails
+            .Include(d => d.Service)
+            .Include(d => d.ServiceRequest)
+            .Where(d => d.ServiceRequest.MedicalRecordId == examination.MedicalRecordId
+                     && d.ServiceRequest.RequestType == 2
+                     && d.Status != 3
+                     && (d.Status == 2 || d.Result != null || d.ResultDescription != null || d.ResultDate != null))
+            .OrderByDescending(d => d.ResultDate)
+            .Select(d => new ImagingResultSummaryDto
+            {
+                Id = d.Id,
+                OrderId = d.ServiceRequestId,
+                ExamCode = d.Service.ServiceCode,
+                ExamName = d.Service.ServiceName,
+                ServiceCode = d.Service.ServiceCode,
+                ServiceName = d.Service.ServiceName,
+                Modality = null,
+                Findings = d.ResultDescription ?? d.Result,
+                Conclusion = d.Conclusion,
+                ResultDate = d.ResultDate,
+                Status = d.Status
+            })
+            .ToListAsync();
+
+        var imagingFromRis = await _context.RadiologyReports
             .Include(r => r.RadiologyExam)
             .ThenInclude(e => e.RadiologyRequest)
             .Include(r => r.RadiologyExam.Modality)
@@ -263,8 +296,11 @@ public partial class ExaminationCompleteService
             .Select(r => new ImagingResultSummaryDto
             {
                 Id = r.Id,
+                OrderId = r.RadiologyExam.RadiologyRequestId,
                 ExamCode = r.RadiologyExam.ExamCode,
                 ExamName = r.RadiologyExam.ExamName,
+                ServiceCode = r.RadiologyExam.ExamCode,
+                ServiceName = r.RadiologyExam.ExamName,
                 Modality = r.RadiologyExam.Modality.ModalityName,
                 Findings = r.Findings,
                 Conclusion = r.Impression ?? string.Empty,
@@ -272,6 +308,10 @@ public partial class ExaminationCompleteService
                 Status = r.Status
             })
             .ToListAsync();
+
+        var imagingResults = imagingFromSr.Concat(imagingFromRis)
+            .OrderByDescending(x => x.ResultDate)
+            .ToList();
 
         return new PatientLabResultsDto
         {

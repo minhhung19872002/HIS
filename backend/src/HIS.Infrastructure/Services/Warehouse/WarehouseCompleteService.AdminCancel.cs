@@ -378,6 +378,11 @@ public partial class WarehouseCompleteService {
         if (exportReceipt == null)
             return new PharmacyBillingResultDto { Success = false, Message = "Không tìm thấy phiếu xuất" };
 
+        // #17: idempotent — phiếu xuất đã tạo billing rồi thì KHÔNG cộng tiền thuốc lần nữa
+        // (auto-call sau dispense + nút thủ công không double-bill vào InvoiceSummary).
+        if (exportReceipt.IsBilled)
+            return new PharmacyBillingResultDto { Success = true, Message = "Phiếu xuất đã được tạo thanh toán trước đó" };
+
         // Tìm MedicalRecord qua prescription
         Guid? medicalRecordId = exportReceipt.MedicalRecordId;
         if (!medicalRecordId.HasValue && exportReceipt.PrescriptionId.HasValue)
@@ -426,6 +431,7 @@ public partial class WarehouseCompleteService {
             invoice.UpdatedAt = DateTime.Now;
         }
 
+        exportReceipt.IsBilled = true; // đánh dấu đã tạo billing — guard double-bill
         await _context.SaveChangesAsync();
 
         return new PharmacyBillingResultDto

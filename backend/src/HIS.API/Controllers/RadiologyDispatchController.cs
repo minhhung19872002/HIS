@@ -97,6 +97,15 @@ public class RadiologyDispatchController : ControllerBase
             ?? throw new KeyNotFoundException();
         d.IsPerformed = true;
         d.PerformedAt = DateTime.UtcNow;
+
+        // #8 (audit luồng nghiệp vụ 2026-06-06): cập nhật ServiceRequestDetail (model 1) sang
+        // "Đang thực hiện" để màn khám/điều phối phản ánh đúng bước (trước đây mark-performed
+        // không đổi SRD.Status → kẹt "chưa thực hiện"). Bridge sang model 4 (RadiologyRequest)
+        // để radiologist tường trình thuộc nợ hợp nhất model #14 (FLOW-3).
+        var srd = await _db.ServiceRequestDetails.FirstOrDefaultAsync(s => s.Id == d.ServiceRequestDetailId);
+        if (srd != null && srd.Status < 1)
+            srd.Status = 1; // Đang TH
+
         await _db.SaveChangesAsync();
         return Ok(new { success = true });
     }

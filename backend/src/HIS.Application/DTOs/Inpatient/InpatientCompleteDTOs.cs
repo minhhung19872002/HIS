@@ -227,6 +227,30 @@ public class AdmitFromOpdDto
 }
 
 /// <summary>
+/// Một mục trong worklist "chờ nhập viện": phiên khám OPD đã kết luận nhập viện
+/// (ConclusionType=3) nhưng CHƯA tạo hồ sơ nội trú (chưa có Admission).
+/// Khoa nội trú chọn từ list này để admit thay vì gõ tay Mã HSBA
+/// (audit luồng nghiệp vụ 2026-06-06 #4).
+/// </summary>
+public class PendingAdmissionDto
+{
+    public Guid ExaminationId { get; set; }
+    public Guid MedicalRecordId { get; set; }
+    public string MedicalRecordCode { get; set; } = string.Empty;
+    public Guid PatientId { get; set; }
+    public string PatientName { get; set; } = string.Empty;
+    public string PatientCode { get; set; } = string.Empty;
+
+    public Guid? DepartmentId { get; set; }      // Khoa đề nghị nhập (HospitalizationDepartmentId)
+    public string? DepartmentName { get; set; }
+    public bool IsEmergency { get; set; }
+    public string? DiagnosisCode { get; set; }
+    public string? DiagnosisName { get; set; }
+    public string? Reason { get; set; }
+    public DateTime? RequestedAt { get; set; }
+}
+
+/// <summary>
 /// DTO tiếp nhận BN từ khoa khác
 /// </summary>
 public class AdmitFromDepartmentDto

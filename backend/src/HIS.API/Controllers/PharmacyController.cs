@@ -444,6 +444,23 @@ public class PharmacyController : ControllerBase
             if (prescription == null)
                 return NotFound(new { message = "Không tìm thấy đơn thuốc" });
 
+            // Idempotent: đã phát rồi thì KHÔNG trừ kho lần nữa.
+            if (prescription.IsDispensed)
+                return Ok(true);
+
+            var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
+
+            // Phát thuốc PHẢI trừ kho FEFO (audit luồng nghiệp vụ 2026-06-06 #6): đi qua nhánh chuẩn
+            // WarehouseComplete (tạo phiếu xuất + trừ tồn + set trạng thái đơn trong transaction).
+            if (prescription.WarehouseId.HasValue && prescription.WarehouseId.Value != Guid.Empty)
+            {
+                var warehouseService = HttpContext.RequestServices.GetRequiredService<HIS.Application.Services.IWarehouseCompleteService>();
+                await warehouseService.DispenseOutpatientPrescriptionAsync(prescriptionId, userId);
+                return Ok(true);
+            }
+
+            // Fallback: đơn chưa gán kho → không thể trừ tồn, chỉ đánh dấu trạng thái + cảnh báo.
+            _logger.LogWarning("CompleteDispensing: prescription {Id} chưa gán kho — đánh dấu đã phát nhưng KHÔNG trừ tồn", prescriptionId);
             prescription.Status = 2; // Đã cấp phát
             prescription.IsDispensed = true;
             prescription.DispensedAt = DateTime.UtcNow;
@@ -451,6 +468,12 @@ public class PharmacyController : ControllerBase
             await _context.SaveChangesAsync();
 
             return Ok(true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // #12: tồn kho không đủ → lỗi client rõ ràng (không phải 500), người dùng biết để nhập kho.
+            _logger.LogWarning(ex, "CompleteDispensing: không đủ tồn kho cho prescription {Id}", prescriptionId);
+            return BadRequest(new { message = ex.Message });
         }
         catch (Exception ex)
         {

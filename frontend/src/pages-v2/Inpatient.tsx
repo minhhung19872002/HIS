@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input, Select } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { getInpatientList, getWardLayout, admitFromOpd } from '../api/inpatient';
+import { getInpatientList, getWardLayout, admitFromOpd, getPendingAdmissions, type PendingAdmissionDto } from '../api/inpatient';
 import type { InpatientListDto, WardLayoutDto, BedLayoutDto } from '../api/inpatient';
 import TreatmentMonitorSection from './inpatient/TreatmentMonitorSection';
 import { catalogApi } from '../api/system';
@@ -472,6 +472,8 @@ const AdmitModal: React.FC<{
   const [reasonForAdmission, setReasonForAdmission] = useState('');
   const [attendingDoctorId, setAttendingDoctorId] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<PendingAdmissionDto[]>([]);
+  const [pendingId, setPendingId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (open) {
@@ -482,9 +484,11 @@ const AdmitModal: React.FC<{
       setAdmissionType(2);
       setDiagnosisOnAdmission(''); setReasonForAdmission('');
       setAttendingDoctorId('');
+      setPendingId(undefined);
       catalogApi.getDepartments(undefined, undefined, true).then((r) => {
         setDepts(r.data || []);
       }).catch(() => setDepts([]));
+      getPendingAdmissions().then((r) => setPending(r.data || [])).catch(() => setPending([]));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -531,6 +535,29 @@ const AdmitModal: React.FC<{
       )}
     >
       <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <IpFld label="Chọn BN chờ nhập viện (từ phòng khám)" full>
+          <Select
+            value={pendingId}
+            onChange={(v) => {
+              setPendingId(v);
+              const p = pending.find((x) => x.examinationId === v);
+              if (p) {
+                setMedicalRecordId(p.medicalRecordId);
+                if (p.departmentId) setDepartmentId(p.departmentId);
+                setDiagnosisOnAdmission([p.diagnosisCode, p.diagnosisName].filter(Boolean).join(' - '));
+                setReasonForAdmission(p.reason || '');
+                setAdmissionType(p.isEmergency ? 1 : 2);
+              }
+            }}
+            allowClear showSearch optionFilterProp="label"
+            placeholder={pending.length ? 'Chọn bệnh nhân đã chỉ định nhập viện' : 'Không có BN chờ nhập viện — nhập tay bên dưới'}
+            style={{ width: '100%' }}
+            options={pending.map((p) => ({
+              value: p.examinationId,
+              label: `${p.patientName} (${p.patientCode}) · ${p.medicalRecordCode}${p.departmentName ? ' · ' + p.departmentName : ''}${p.isEmergency ? ' · CẤP CỨU' : ''}`,
+            }))}
+          />
+        </IpFld>
         <IpFld label="Mã hồ sơ bệnh án *" full>
           <Input value={medicalRecordId} onChange={(e) => setMedicalRecordId(e.target.value)} placeholder="Mã HSBA hoặc UUID" />
         </IpFld>

@@ -153,6 +153,16 @@ public partial class InpatientCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// Worklist "chờ nhập viện": phiên khám OPD kết luận nhập viện nhưng chưa tạo hồ sơ nội trú.
+    /// </summary>
+    [HttpGet("pending-admissions")]
+    public async Task<ActionResult<List<PendingAdmissionDto>>> GetPendingAdmissions([FromQuery] Guid? departmentId)
+    {
+        var result = await _inpatientService.GetPendingAdmissionsAsync(departmentId);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Tiếp nhận bệnh nhân từ khoa khác
     /// </summary>
     [HttpPost("admit-from-department")]

@@ -353,8 +353,9 @@ public partial class InpatientCompleteService {
         medicalRecord.DoctorId = dto.AttendingDoctorId;
         medicalRecord.UpdatedAt = DateTime.Now;
 
-        // Update source admission status
-        sourceAdmission.Status = 1; // Chuyển khoa
+        // Update source admission status — #11: dùng 5 "Đã chuyển khoa" (trước đây =1 trùng
+        // "Đã xuất viện", làm BN chuyển khoa bị coi như đã ra viện).
+        sourceAdmission.Status = 5; // Đã chuyển khoa
 
         // Create new admission
         var admission = new Admission
@@ -807,9 +808,76 @@ public partial class InpatientCompleteService {
         });
     }
 
-    public Task<List<LabResultItemDto>> GetLabResultsAsync(Guid admissionId, DateTime? fromDate, DateTime? toDate)
+    public async Task<List<LabResultItemDto>> GetLabResultsAsync(Guid admissionId, DateTime? fromDate, DateTime? toDate)
     {
-        return Task.FromResult(new List<LabResultItemDto>());
+        // KQ XN nội trú đọc từ ServiceRequestDetail (model 1) — nguồn-sự-thật, giống màn khám OPD
+        // (audit luồng nghiệp vụ 2026-06-06 #1/#2). Trước đây trả rỗng.
+        var admission = await _context.Set<Admission>().FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return new List<LabResultItemDto>();
+
+        var query = _context.ServiceRequestDetails
+            .Include(d => d.Service)
+            .Include(d => d.ServiceRequest)
+            .Where(d => d.ServiceRequest.MedicalRecordId == admission.MedicalRecordId
+                     && d.ServiceRequest.RequestType == 1
+                     && d.Status != 3
+                     && (d.Status == 2 || d.Result != null || d.ResultDate != null));
+        if (fromDate.HasValue) query = query.Where(d => d.ResultDate >= fromDate.Value);
+        if (toDate.HasValue) query = query.Where(d => d.ResultDate <= toDate.Value);
+
+        var details = await query.OrderByDescending(d => d.ResultDate).ToListAsync();
+        return details.Select(d => new LabResultItemDto
+        {
+            Id = d.Id,
+            TestCode = d.Service.ServiceCode,
+            TestName = d.Service.ServiceName,
+            Result = d.Result,
+            Unit = null,
+            ReferenceRange = null,
+            IsAbnormal = false,
+            Status = d.Status == 2 ? 1 : 0,
+            ResultDate = d.ResultDate
+        }).ToList();
+    }
+
+    public async Task<List<PendingAdmissionDto>> GetPendingAdmissionsAsync(Guid? departmentId)
+    {
+        // Worklist "chờ nhập viện" (audit luồng nghiệp vụ 2026-06-06 #4): phiên khám OPD đã kết
+        // luận nhập viện (ConclusionType=3 + có khoa đề nghị) nhưng chưa tạo Admission. Trước đây
+        // khoa nội trú không thấy BN này, phải gõ tay Mã HSBA.
+        var query = _context.Examinations
+            .Include(e => e.MedicalRecord).ThenInclude(m => m.Patient)
+            .Where(e => e.ConclusionType == 3
+                     && e.HospitalizationDepartmentId != null
+                     && !_context.Admissions.Any(a => a.MedicalRecordId == e.MedicalRecordId));
+        if (departmentId.HasValue && departmentId.Value != Guid.Empty)
+            query = query.Where(e => e.HospitalizationDepartmentId == departmentId.Value);
+
+        var exams = await query.OrderByDescending(e => e.EndTime).Take(200).ToListAsync();
+
+        var deptIds = exams.Where(e => e.HospitalizationDepartmentId.HasValue)
+            .Select(e => e.HospitalizationDepartmentId!.Value).Distinct().ToList();
+        var deptNames = await _context.Departments
+            .Where(d => deptIds.Contains(d.Id))
+            .ToDictionaryAsync(d => d.Id, d => d.DepartmentName);
+
+        return exams.Select(e => new PendingAdmissionDto
+        {
+            ExaminationId = e.Id,
+            MedicalRecordId = e.MedicalRecordId,
+            MedicalRecordCode = e.MedicalRecord?.MedicalRecordCode ?? string.Empty,
+            PatientId = e.MedicalRecord?.PatientId ?? Guid.Empty,
+            PatientName = e.MedicalRecord?.Patient?.FullName ?? string.Empty,
+            PatientCode = e.MedicalRecord?.Patient?.PatientCode ?? string.Empty,
+            DepartmentId = e.HospitalizationDepartmentId,
+            DepartmentName = e.HospitalizationDepartmentId.HasValue && deptNames.ContainsKey(e.HospitalizationDepartmentId.Value)
+                ? deptNames[e.HospitalizationDepartmentId.Value] : null,
+            IsEmergency = e.HospitalizationIsEmergency,
+            DiagnosisCode = e.HospitalizationDiagnosisCode,
+            DiagnosisName = e.HospitalizationDiagnosisName,
+            Reason = e.ConclusionNote,
+            RequestedAt = e.EndTime,
+        }).ToList();
     }
 
     public async Task<byte[]> PrintLabResultsAsync(Guid admissionId, List<Guid> resultIds)

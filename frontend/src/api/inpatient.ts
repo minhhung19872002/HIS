@@ -1233,6 +1233,28 @@ export const getInpatientList = (search: InpatientSearchDto) =>
 export const admitFromOpd = (dto: AdmitFromOpdDto) =>
   apiClient.post<AdmissionDto>(`${BASE_URL}/admit-from-opd`, dto);
 
+// Worklist "chờ nhập viện": phiên khám OPD kết luận nhập viện nhưng chưa tạo hồ sơ nội trú.
+export interface PendingAdmissionDto {
+  examinationId: string;
+  medicalRecordId: string;
+  medicalRecordCode: string;
+  patientId: string;
+  patientName: string;
+  patientCode: string;
+  departmentId?: string | null;
+  departmentName?: string | null;
+  isEmergency: boolean;
+  diagnosisCode?: string | null;
+  diagnosisName?: string | null;
+  reason?: string | null;
+  requestedAt?: string | null;
+}
+
+export const getPendingAdmissions = (departmentId?: string) =>
+  apiClient.get<PendingAdmissionDto[]>(`${BASE_URL}/pending-admissions`, {
+    params: departmentId ? { departmentId } : undefined,
+  });
+
 export const admitFromDepartment = (dto: AdmitFromDepartmentDto) =>
   apiClient.post<AdmissionDto>(`${BASE_URL}/admit-from-department`, dto);
 

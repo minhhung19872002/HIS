@@ -281,19 +281,75 @@ public partial class InpatientCompleteService {
         };
     }
 
-    public Task<List<object>> GetServiceTreeAsync(Guid? parentId)
+    public async Task<List<object>> GetServiceTreeAsync(Guid? parentId)
     {
-        return Task.FromResult(new List<object>());
+        // Cây dịch vụ nhóm theo ServiceType (audit luồng nghiệp vụ 2026-06-06 #2 — trước đây rỗng).
+        var services = await _context.Services
+            .Where(s => s.IsActive)
+            .OrderBy(s => s.ServiceType).ThenBy(s => s.ServiceName)
+            .ToListAsync();
+        return services
+            .GroupBy(s => s.ServiceType)
+            .Select(g => (object)new
+            {
+                serviceType = g.Key,
+                children = g.Select(s => new
+                {
+                    id = s.Id,
+                    serviceCode = s.ServiceCode,
+                    serviceName = s.ServiceName,
+                    unitPrice = s.UnitPrice
+                }).ToList()
+            })
+            .ToList();
     }
 
-    public Task<List<object>> SearchServicesAsync(string keyword, string? serviceType)
+    public async Task<List<object>> SearchServicesAsync(string keyword, string? serviceType)
     {
-        return Task.FromResult(new List<object>());
+        var query = _context.Services.Where(s => s.IsActive);
+        if (!string.IsNullOrWhiteSpace(keyword))
+            query = query.Where(s => s.ServiceCode.Contains(keyword) || s.ServiceName.Contains(keyword));
+        if (!string.IsNullOrWhiteSpace(serviceType) && int.TryParse(serviceType, out var st))
+            query = query.Where(s => s.ServiceType == st);
+        var services = await query.OrderBy(s => s.ServiceName).Take(100).ToListAsync();
+        return services.Select(s => (object)new
+        {
+            id = s.Id,
+            serviceCode = s.ServiceCode,
+            serviceName = s.ServiceName,
+            serviceType = s.ServiceType,
+            unitPrice = s.UnitPrice
+        }).ToList();
     }
 
     public async Task<InpatientServiceOrderDto> CreateServiceOrderAsync(CreateInpatientServiceOrderDto dto, Guid userId)
     {
+        // Persist THẬT: 1 ServiceRequest (header, mã CDNT*) + ServiceRequestDetail mỗi dịch vụ —
+        // cùng nguồn-sự-thật với OPD/LIS/RIS + viện phí (audit luồng nghiệp vụ 2026-06-06 #2).
+        // Trước đây chỉ trả DTO in-memory ("we don't have a ServiceOrders table") → chỉ định CLS
+        // tại giường biến mất, không lấy mẫu/trả KQ/tính viện phí được.
+        var admission = await _context.Set<Admission>()
+            .FirstOrDefaultAsync(a => a.Id == dto.AdmissionId);
+        if (admission == null) throw new Exception("Admission not found");
+
         var doctor = await _context.Users.FindAsync(userId);
+
+        var request = new ServiceRequest
+        {
+            Id = Guid.NewGuid(),
+            RequestCode = $"CDNT{DateTime.Now:yyyyMMddHHmmss}",
+            RequestDate = DateTime.Now,
+            MedicalRecordId = admission.MedicalRecordId,
+            DoctorId = userId,
+            DepartmentId = admission.DepartmentId,
+            RequestType = 0, // hỗn hợp — phân loại theo từng dịch vụ ở Detail
+            Diagnosis = dto.MainDiagnosis,
+            IcdCode = dto.MainDiagnosisCode,
+            RequestedByUserId = userId,
+            RequestedDate = DateTime.Now,
+            Status = 0,
+        };
+
         var serviceItems = new List<InpatientServiceItemDto>();
         decimal totalAmount = 0;
 
@@ -302,8 +358,23 @@ public partial class InpatientCompleteService {
             var service = await _context.Services.FindAsync(item.ServiceId);
             if (service == null) continue;
 
-            var amount = service.ServicePrice * item.Quantity;
+            var amount = service.UnitPrice * item.Quantity;
             totalAmount += amount;
+
+            request.Details.Add(new ServiceRequestDetail
+            {
+                Id = Guid.NewGuid(),
+                ServiceRequestId = request.Id,
+                ServiceId = item.ServiceId,
+                Quantity = item.Quantity,
+                UnitPrice = service.UnitPrice,
+                Amount = amount,
+                InsuranceAmount = 0,
+                PatientAmount = amount,
+                PatientType = item.PaymentSource,
+                Status = 0,
+                Note = item.Note,
+            });
 
             serviceItems.Add(new InpatientServiceItemDto
             {
@@ -312,19 +383,31 @@ public partial class InpatientCompleteService {
                 ServiceCode = service.ServiceCode,
                 ServiceName = service.ServiceName,
                 Quantity = item.Quantity,
-                UnitPrice = service.ServicePrice,
+                UnitPrice = service.UnitPrice,
                 Amount = amount,
                 PaymentSource = item.PaymentSource,
+                ExecutingRoomId = item.ExecutingRoomId,
+                ScheduledDate = item.ScheduledDate,
                 Status = 0
             });
         }
 
-        // Return DTO (stored in-memory for now since we don't have a ServiceOrders table)
+        request.Quantity = dto.Services.Sum(s => s.Quantity);
+        request.ServiceId = dto.Services.FirstOrDefault()?.ServiceId;
+        request.UnitPrice = serviceItems.Count > 0 ? serviceItems[0].UnitPrice : 0;
+        request.TotalPrice = totalAmount;
+        request.TotalAmount = totalAmount;
+        request.InsuranceAmount = 0;
+        request.PatientAmount = totalAmount;
+
+        await _context.ServiceRequests.AddAsync(request);
+        await _context.SaveChangesAsync();
+
         return new InpatientServiceOrderDto
         {
-            Id = Guid.NewGuid(),
+            Id = request.Id,
             AdmissionId = dto.AdmissionId,
-            OrderDate = DateTime.Now,
+            OrderDate = request.RequestDate,
             OrderingDoctorId = userId,
             OrderingDoctorName = doctor?.FullName ?? string.Empty,
             MainDiagnosisCode = dto.MainDiagnosisCode,
@@ -341,31 +424,100 @@ public partial class InpatientCompleteService {
 
     public async Task<InpatientServiceOrderDto> UpdateServiceOrderAsync(Guid id, CreateInpatientServiceOrderDto dto, Guid userId)
     {
-        // Reuse CreateServiceOrderAsync pattern with the given id
-        var result = await CreateServiceOrderAsync(dto, userId);
-        result.Id = id;
-        return result;
+        // Cập nhật = huỷ phiếu cũ (chưa thực hiện) rồi tạo phiếu mới — tránh nhân đôi phiếu khi
+        // phiếu đã persist. Chỉ huỷ được khi còn ở trạng thái Chờ (0), không đụng phiếu đã làm.
+        var existing = await _context.ServiceRequests
+            .Include(r => r.Details)
+            .FirstOrDefaultAsync(r => r.Id == id);
+        if (existing != null && existing.Status == 0)
+        {
+            existing.Status = 4; // Đã hủy (ServiceRequest.Status: 4=hủy; SRD.Status: 3=hủy)
+            foreach (var d in existing.Details) d.Status = 3;
+            await _context.SaveChangesAsync();
+        }
+        return await CreateServiceOrderAsync(dto, userId);
     }
 
-    public Task DeleteServiceOrderAsync(Guid id, Guid userId)
+    public async Task DeleteServiceOrderAsync(Guid id, Guid userId)
     {
-        return Task.CompletedTask;
+        var request = await _context.ServiceRequests
+            .Include(r => r.Details)
+            .FirstOrDefaultAsync(r => r.Id == id);
+        if (request == null || request.Status != 0) return; // chỉ huỷ phiếu chưa thực hiện
+        request.Status = 4; // Đã hủy (ServiceRequest.Status: 4=hủy; SRD.Status: 3=hủy)
+        foreach (var d in request.Details) d.Status = 3;
+        await _context.SaveChangesAsync();
     }
 
-    public Task DeleteServiceItemAsync(Guid itemId, Guid userId)
+    public async Task DeleteServiceItemAsync(Guid itemId, Guid userId)
     {
-        return Task.CompletedTask;
+        var detail = await _context.ServiceRequestDetails.FirstOrDefaultAsync(d => d.Id == itemId);
+        if (detail == null || detail.Status != 0) return;
+        detail.Status = 3; // Huỷ dòng dịch vụ
+        await _context.SaveChangesAsync();
     }
 
-    public Task<List<InpatientServiceOrderDto>> GetServiceOrdersAsync(Guid admissionId, DateTime? fromDate, DateTime? toDate)
+    public async Task<List<InpatientServiceOrderDto>> GetServiceOrdersAsync(Guid admissionId, DateTime? fromDate, DateTime? toDate)
     {
-        // Return empty list - service orders stored transiently until a ServiceOrders table is added
-        return Task.FromResult(new List<InpatientServiceOrderDto>());
+        // Đọc lại các chỉ định CLS tại giường đã persist (mã CDNT*) cho HSBA của lần nhập viện này.
+        var admission = await _context.Set<Admission>().FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return new List<InpatientServiceOrderDto>();
+
+        var query = _context.ServiceRequests
+            .Include(r => r.Doctor)
+            .Include(r => r.Details).ThenInclude(d => d.Service)
+            .Where(r => r.MedicalRecordId == admission.MedicalRecordId
+                     && r.RequestCode.StartsWith("CDNT")
+                     && r.Status != 4);
+        if (fromDate.HasValue) query = query.Where(r => r.RequestDate >= fromDate.Value);
+        if (toDate.HasValue) query = query.Where(r => r.RequestDate <= toDate.Value);
+
+        var requests = await query.OrderByDescending(r => r.RequestDate).ToListAsync();
+        return requests.Select(r => MapToInpatientOrder(r, admissionId)).ToList();
     }
 
-    public Task<InpatientServiceOrderDto?> GetServiceOrderByIdAsync(Guid id)
+    public async Task<InpatientServiceOrderDto?> GetServiceOrderByIdAsync(Guid id)
     {
-        return Task.FromResult<InpatientServiceOrderDto?>(null);
+        var r = await _context.ServiceRequests
+            .Include(x => x.Doctor)
+            .Include(x => x.Details).ThenInclude(d => d.Service)
+            .FirstOrDefaultAsync(x => x.Id == id);
+        if (r == null) return null;
+        var admission = await _context.Set<Admission>()
+            .FirstOrDefaultAsync(a => a.MedicalRecordId == r.MedicalRecordId);
+        return MapToInpatientOrder(r, admission?.Id ?? Guid.Empty);
+    }
+
+    private static InpatientServiceOrderDto MapToInpatientOrder(ServiceRequest r, Guid admissionId)
+    {
+        return new InpatientServiceOrderDto
+        {
+            Id = r.Id,
+            AdmissionId = admissionId,
+            OrderDate = r.RequestDate,
+            OrderingDoctorId = r.DoctorId,
+            OrderingDoctorName = r.Doctor?.FullName ?? string.Empty,
+            MainDiagnosisCode = r.IcdCode,
+            MainDiagnosis = r.Diagnosis,
+            Services = r.Details
+                .Where(d => d.Status != 3)
+                .Select(d => new InpatientServiceItemDto
+                {
+                    Id = d.Id,
+                    ServiceId = d.ServiceId,
+                    ServiceCode = d.Service?.ServiceCode ?? string.Empty,
+                    ServiceName = d.Service?.ServiceName ?? string.Empty,
+                    Quantity = d.Quantity,
+                    UnitPrice = d.UnitPrice,
+                    Amount = d.Amount,
+                    PaymentSource = d.PatientType,
+                    Status = d.Status
+                }).ToList(),
+            Status = r.Status,
+            TotalAmount = r.TotalAmount,
+            InsuranceAmount = r.InsuranceAmount,
+            PatientPayAmount = r.PatientAmount
+        };
     }
 
     public Task<ServiceGroupTemplateDto> CreateServiceGroupTemplateAsync(ServiceGroupTemplateDto dto, Guid userId)

@@ -102,6 +102,23 @@ public partial class ExaminationCompleteService
                 Notes = item.Notes
             };
 
+            // #9 (audit luồng nghiệp vụ 2026-06-06): tạo ServiceRequestDetail cho mỗi dịch vụ —
+            // nguồn-sự-thật cho lấy mẫu/nhận mẫu/trả KQ (đọc bởi GetPatientLabResultsAsync #1) + viện phí.
+            request.Details.Add(new ServiceRequestDetail
+            {
+                Id = Guid.NewGuid(),
+                ServiceRequestId = request.Id,
+                ServiceId = item.ServiceId,
+                Quantity = item.Quantity,
+                UnitPrice = service.UnitPrice,
+                Amount = service.UnitPrice * item.Quantity,
+                InsuranceAmount = 0,
+                PatientAmount = service.UnitPrice * item.Quantity,
+                PatientType = item.PaymentType,
+                Status = 0,
+                Note = item.Notes,
+            });
+
             await _context.ServiceRequests.AddAsync(request);
 
             results.Add(new ServiceOrderFullDto
@@ -126,6 +143,15 @@ public partial class ExaminationCompleteService
                 OrderNotes = request.Notes,
                 OrderedById = effectiveDoctorId.Value,
             });
+        }
+
+        // #7: phiên khám chuyển sang "Chờ CLS" (ExaminationStatus=2) khi vừa tạo chỉ định CLS —
+        // hàng đợi phòng khám phản ánh đúng bước BN đang ở. Chỉ tiến, không lùi trạng thái.
+        if (results.Count > 0)
+        {
+            var examEntity = await _context.Examinations.FirstOrDefaultAsync(e => e.Id == dto.ExaminationId);
+            if (examEntity != null && examEntity.Status < HIS.Core.Constants.ExaminationStatus.PendingCLS)
+                examEntity.Status = HIS.Core.Constants.ExaminationStatus.PendingCLS;
         }
 
         await _unitOfWork.SaveChangesAsync();

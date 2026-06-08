@@ -113,7 +113,9 @@ const DispensingCounterV2: React.FC = () => {
   };
 
   const handleCancel = async (id: string) => {
-    try { await apiClient.post(`/warehousecomplete/issues/${id}/cancel`); tk('Đã hủy phát'); load(); }
+    // #13: route cũ /warehousecomplete/issues/{id}/cancel KHÔNG tồn tại → dùng nhánh chuẩn
+    // /pharmacy/cancel-dispensed/{prescriptionId} (hoàn tồn kho + reset trạng thái đơn).
+    try { await apiClient.post(`/pharmacy/cancel-dispensed/${id}`, { reason: 'Hủy phát tại quầy' }); tk('Đã hủy phát'); load(); }
     catch { tw('Hủy thất bại'); }
   };
 

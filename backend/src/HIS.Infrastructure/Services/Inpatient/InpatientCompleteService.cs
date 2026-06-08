@@ -76,6 +76,9 @@ public partial class InpatientCompleteService : IInpatientCompleteService
             1 => "Đã xuất viện",
             2 => "Đã chuyển viện",
             3 => "Đã tử vong",
+            4 => "Bỏ về",          // DischargeType 3 (audit #11: trước đây không có tên)
+            5 => "Đã chuyển khoa", // chuyển nội bộ — phân biệt với "Đã xuất viện" (1)
+            6 => "Chờ ra viện",
             _ => "Không xác định"
         };
     }

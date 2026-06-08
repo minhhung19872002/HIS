@@ -146,6 +146,10 @@ public class ExportReceipt : BaseEntity
     public string? Note { get; set; }
     public int Status { get; set; } // 0-Chờ, 1-Đã xuất, 2-Đã hủy
 
+    // #17 (audit luồng nghiệp vụ): đã tạo billing thuốc cho phiếu xuất này chưa — guard idempotent
+    // để auto-call CreateBillingAfterDispensingAsync không cộng tiền thuốc 2 lần vào InvoiceSummary.
+    public bool IsBilled { get; set; }
+
     // Navigation
     public virtual ICollection<ExportReceiptDetail> Details { get; set; } = new List<ExportReceiptDetail>();
 }

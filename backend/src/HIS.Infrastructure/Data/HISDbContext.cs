@@ -301,6 +301,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     // Nội trú (IPD)
     public DbSet<Admission> Admissions => Set<Admission>();
     public DbSet<BedAssignment> BedAssignments => Set<BedAssignment>();
+    public DbSet<InpatientVitalSign> InpatientVitalSigns => Set<InpatientVitalSign>();
     public DbSet<DailyProgress> DailyProgresses => Set<DailyProgress>();
     public DbSet<NursingCare> NursingCares => Set<NursingCare>();
     public DbSet<Discharge> Discharges => Set<Discharge>();

@@ -102,20 +102,36 @@ public partial class WarehouseCompleteService {
 
         foreach (var detail in prescription.Details)
         {
-            // Find inventory with FEFO (First Expired First Out) - exclude expired items
-            var stock = await _context.InventoryItems
+            // FEFO gộp NHIỀU lô (audit luồng nghiệp vụ 2026-06-06 #12): chọn các lô còn hạn theo
+            // hạn dùng tăng dần đến khi đủ số lượng. Tổng tồn không đủ → THROW (transaction rollback),
+            // KHÔNG bỏ dòng âm thầm khiến đơn "đã phát" mà thật ra thiếu thuốc. Giữ loại trừ lô hết
+            // hạn để bảo đảm an toàn BN.
+            var batches = await _context.InventoryItems
                 .Where(i => i.WarehouseId == warehouseId
                     && i.MedicineId == detail.MedicineId
-                    && (i.Quantity - i.ReservedQuantity) >= detail.Quantity
-                    && i.ExpiryDate >= DateTime.Today)
+                    && (i.Quantity - i.ReservedQuantity) > 0
+                    && i.ExpiryDate >= DateTime.Today
+                    && !i.IsLocked && !i.IsDeleted)
                 .OrderBy(i => i.ExpiryDate)
-                .FirstOrDefaultAsync();
+                .ToListAsync();
 
-            if (stock != null)
+            var totalAvailable = batches.Sum(b => b.Quantity - b.ReservedQuantity);
+            if (totalAvailable < detail.Quantity)
+                throw new InvalidOperationException(
+                    $"Không đủ tồn kho để phát thuốc {detail.Medicine?.MedicineName ?? detail.MedicineId.ToString()} " +
+                    $"(cần {detail.Quantity}, còn {totalAvailable})");
+
+            var remaining = detail.Quantity;
+            foreach (var stock in batches)
             {
-                stock.Quantity -= detail.Quantity;
+                if (remaining <= 0) break;
+                var take = Math.Min(stock.Quantity - stock.ReservedQuantity, remaining);
+                if (take <= 0) continue;
 
-                var amount = detail.Quantity * detail.UnitPrice;
+                stock.Quantity -= take;
+                remaining -= take;
+
+                var amount = take * detail.UnitPrice;
                 totalAmount += amount;
 
                 var exportDetail = new ExportReceiptDetail
@@ -126,14 +142,13 @@ public partial class WarehouseCompleteService {
                     InventoryItemId = stock.Id,
                     BatchNumber = stock.BatchNumber,
                     ExpiryDate = stock.ExpiryDate,
-                    Quantity = detail.Quantity,
+                    Quantity = take,
                     Unit = detail.Unit,
                     UnitPrice = detail.UnitPrice,
                     Amount = amount,
                     CreatedAt = DateTime.Now,
                     CreatedBy = userId.ToString()
                 };
-
                 _context.ExportReceiptDetails.Add(exportDetail);
 
                 issueItems.Add(new StockIssueItemDto
@@ -148,15 +163,14 @@ public partial class WarehouseCompleteService {
                     StockId = stock.Id,
                     BatchNumber = stock.BatchNumber,
                     ExpiryDate = stock.ExpiryDate,
-                    Quantity = detail.Quantity,
+                    Quantity = take,
                     UnitPrice = detail.UnitPrice,
                     Amount = amount
                 });
-
-                // Update prescription detail status only when stock was found
-                detail.DispensedQuantity = detail.Quantity;
-                detail.Status = 1; // Đã cấp
             }
+
+            detail.DispensedQuantity = detail.Quantity;
+            detail.Status = 1; // Đã cấp
         }
 
         exportReceipt.TotalAmount = totalAmount;
@@ -170,6 +184,13 @@ public partial class WarehouseCompleteService {
 
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
+
+        // #17 (audit luồng nghiệp vụ 2026-06-06): tự động tạo billing thuốc ngay sau khi phát
+        // (idempotent qua ExportReceipt.IsBilled) — trước đây phải gọi tay, quên thì tiền thuốc
+        // không vào hóa đơn. Cố ý nuốt lỗi: việc phát đã commit thành công, billing lỗi có thể
+        // retry bằng nút thủ công /pharmacy/create-billing — KHÔNG được rollback phần đã phát.
+        try { await CreateBillingAfterDispensingAsync(exportReceipt.Id, userId); }
+        catch { /* billing retryable; không làm hỏng việc phát đã commit */ }
 
         var patient = prescription.MedicalRecord.Patient;
 

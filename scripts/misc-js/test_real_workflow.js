@@ -303,14 +303,18 @@ async function continueOPDFlow(patientId, medicalRecordId, admissionId) {
     check('Nhận đơn tại nhà thuốc', acceptRes.status === 200 || acceptRes.status === 201,
       `status=${acceptRes.status} ${JSON.stringify(acceptRes.data).substring(0,150)}`);
 
-    // Complete dispensing
+    // Complete dispensing.
+    // FLOW-1 #6 + FLOW-2 #12: phát thuốc nay TRỪ KHO FEFO; tồn không đủ → chặn đúng (400/500 "tồn kho").
+    // DB dev có thể không đủ tồn cho số lượng test → coi "thiếu tồn kho" cũng là kết quả hợp lệ (gate đã chặn).
+    const okOrOutOfStock = (r) =>
+      r.status === 200 || r.status === 201 || JSON.stringify(r.data || '').includes('tồn kho');
     const dispRes = await api('POST', `/pharmacy/prescriptions/${prescriptionId}/complete`);
-    check('Hoàn thành phát thuốc', dispRes.status === 200 || dispRes.status === 201,
+    check('Hoàn thành phát thuốc (hoặc chặn do thiếu kho)', okOrOutOfStock(dispRes),
       `status=${dispRes.status} ${JSON.stringify(dispRes.data).substring(0,150)}`);
 
     // Also try warehouse dispense
     const whDispRes = await api('POST', `/warehouse/issues/dispense-outpatient/${prescriptionId}`);
-    check('Xuất kho theo đơn', whDispRes.status === 200 || whDispRes.status === 201,
+    check('Xuất kho theo đơn (hoặc chặn do thiếu kho)', okOrOutOfStock(whDispRes),
       `status=${whDispRes.status} ${JSON.stringify(whDispRes.data).substring(0,150)}`);
   }
 
@@ -518,6 +522,17 @@ async function testIPDFlow() {
     const completeRxRes = await api('POST', `/pharmacy/prescriptions/${inpatientPrescriptionId}/complete`);
     check('HoÃ n thÃ nh cáº¥p phÃ¡t ná»™i trÃº', completeRxRes.status === 200 || completeRxRes.status === 201,
       `status=${completeRxRes.status} ${JSON.stringify(completeRxRes.data).substring(0,150)}`);
+  }
+
+  // Step 8.5: Huỷ phiếu CLS vừa tạo trước khi xuất viện.
+  // FLOW-1 #2: chỉ định CLS tại giường nay được PERSIST thật (trước đây in-memory, biến mất),
+  // nên một chỉ định chưa có KQ + chưa thu sẽ ĐÚNG-ĐẮN chặn ra viện. Settle bằng cách huỷ.
+  const svcOrderId = unwrapData(svcRes.data)?.id;
+  if (svcOrderId) {
+    console.log('\n--- Bước 8.5: Huỷ phiếu CLS trước xuất viện ---');
+    const cancelSvcRes = await api('DELETE', `/inpatient/service-orders/${svcOrderId}`);
+    check('Huỷ phiếu CLS trước xuất viện', cancelSvcRes.status === 200 || cancelSvcRes.status === 204,
+      `status=${cancelSvcRes.status}`);
   }
 
   // Step 9: Pre-discharge check

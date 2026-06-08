@@ -296,9 +296,10 @@ public partial class InpatientCompleteService {
         return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<VitalSignsRecordDto> CreateVitalSignsAsync(CreateVitalSignsDto dto, Guid userId)
+    // Sinh hiệu nội trú lưu DB thật (audit luồng nghiệp vụ 2026-06-06 #3) — trước đây stub in-memory.
+    public async Task<VitalSignsRecordDto> CreateVitalSignsAsync(CreateVitalSignsDto dto, Guid userId)
     {
-        return Task.FromResult(new VitalSignsRecordDto
+        var entity = new InpatientVitalSign
         {
             Id = Guid.NewGuid(),
             AdmissionId = dto.AdmissionId,
@@ -312,48 +313,81 @@ public partial class InpatientCompleteService {
             Weight = dto.Weight,
             Height = dto.Height,
             Notes = dto.Notes,
-            RecordedBy = userId
-        });
+            RecordedBy = userId,
+        };
+        _context.InpatientVitalSigns.Add(entity);
+        await _context.SaveChangesAsync();
+        return MapVitalSign(entity);
     }
 
-    public Task<VitalSignsRecordDto> UpdateVitalSignsAsync(Guid id, CreateVitalSignsDto dto, Guid userId)
+    public async Task<VitalSignsRecordDto> UpdateVitalSignsAsync(Guid id, CreateVitalSignsDto dto, Guid userId)
     {
-        return Task.FromResult(new VitalSignsRecordDto
-        {
-            Id = id,
-            AdmissionId = dto.AdmissionId,
-            RecordTime = dto.RecordTime,
-            Temperature = dto.Temperature,
-            Pulse = dto.Pulse,
-            RespiratoryRate = dto.RespiratoryRate,
-            SystolicBP = dto.SystolicBP,
-            DiastolicBP = dto.DiastolicBP,
-            SpO2 = dto.SpO2,
-            Weight = dto.Weight,
-            Height = dto.Height,
-            Notes = dto.Notes,
-            RecordedBy = userId
-        });
+        var entity = await _context.InpatientVitalSigns.FirstOrDefaultAsync(v => v.Id == id && !v.IsDeleted);
+        if (entity == null) throw new Exception("Vital signs record not found");
+        entity.RecordTime = dto.RecordTime;
+        entity.Temperature = dto.Temperature;
+        entity.Pulse = dto.Pulse;
+        entity.RespiratoryRate = dto.RespiratoryRate;
+        entity.SystolicBP = dto.SystolicBP;
+        entity.DiastolicBP = dto.DiastolicBP;
+        entity.SpO2 = dto.SpO2;
+        entity.Weight = dto.Weight;
+        entity.Height = dto.Height;
+        entity.Notes = dto.Notes;
+        entity.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+        return MapVitalSign(entity);
     }
 
-    public Task<List<VitalSignsRecordDto>> GetVitalSignsListAsync(Guid admissionId, DateTime? fromDate, DateTime? toDate)
+    public async Task<List<VitalSignsRecordDto>> GetVitalSignsListAsync(Guid admissionId, DateTime? fromDate, DateTime? toDate)
     {
-        return Task.FromResult(new List<VitalSignsRecordDto>());
+        var query = _context.InpatientVitalSigns
+            .Where(v => v.AdmissionId == admissionId && !v.IsDeleted);
+        if (fromDate.HasValue) query = query.Where(v => v.RecordTime >= fromDate.Value);
+        if (toDate.HasValue) query = query.Where(v => v.RecordTime <= toDate.Value);
+        var list = await query.OrderBy(v => v.RecordTime).ToListAsync();
+        return list.Select(MapVitalSign).ToList();
     }
 
-    public Task<VitalSignsChartDto> GetVitalSignsChartAsync(Guid admissionId, DateTime fromDate, DateTime toDate)
+    public async Task<VitalSignsChartDto> GetVitalSignsChartAsync(Guid admissionId, DateTime fromDate, DateTime toDate)
     {
-        return Task.FromResult(new VitalSignsChartDto
+        var list = await _context.InpatientVitalSigns
+            .Where(v => v.AdmissionId == admissionId && !v.IsDeleted
+                     && v.RecordTime >= fromDate && v.RecordTime <= toDate)
+            .OrderBy(v => v.RecordTime)
+            .ToListAsync();
+        return new VitalSignsChartDto
         {
             AdmissionId = admissionId,
             FromDate = fromDate,
             ToDate = toDate,
-            TemperatureData = new List<VitalSignsPointDto>(),
-            PulseData = new List<VitalSignsPointDto>(),
-            BPData = new List<VitalSignsPointDto>(),
-            SpO2Data = new List<VitalSignsPointDto>()
-        });
+            TemperatureData = list.Where(v => v.Temperature.HasValue)
+                .Select(v => new VitalSignsPointDto { Time = v.RecordTime, Value = v.Temperature }).ToList(),
+            PulseData = list.Where(v => v.Pulse.HasValue)
+                .Select(v => new VitalSignsPointDto { Time = v.RecordTime, Value = v.Pulse }).ToList(),
+            BPData = list.Where(v => v.SystolicBP.HasValue || v.DiastolicBP.HasValue)
+                .Select(v => new VitalSignsPointDto { Time = v.RecordTime, Value = v.SystolicBP, Value2 = v.DiastolicBP }).ToList(),
+            SpO2Data = list.Where(v => v.SpO2.HasValue)
+                .Select(v => new VitalSignsPointDto { Time = v.RecordTime, Value = v.SpO2 }).ToList(),
+        };
     }
+
+    private static VitalSignsRecordDto MapVitalSign(InpatientVitalSign v) => new()
+    {
+        Id = v.Id,
+        AdmissionId = v.AdmissionId,
+        RecordTime = v.RecordTime,
+        Temperature = v.Temperature,
+        Pulse = v.Pulse,
+        RespiratoryRate = v.RespiratoryRate,
+        SystolicBP = v.SystolicBP,
+        DiastolicBP = v.DiastolicBP,
+        SpO2 = v.SpO2,
+        Weight = v.Weight,
+        Height = v.Height,
+        Notes = v.Notes,
+        RecordedBy = v.RecordedBy,
+    };
 
     public async Task<byte[]> PrintVitalSignsAsync(Guid admissionId, DateTime fromDate, DateTime toDate)
     {
