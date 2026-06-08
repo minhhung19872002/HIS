@@ -12,7 +12,9 @@ namespace HIS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/central-signing")]
-[Authorize]
+// B3 (audit bảo mật 2026-06-06): ký số tập trung là hành vi lâm sàng/pháp lý — chỉ vai trò lâm sàng,
+// loại lễ tân/kế toán/thu ngân (trước đây [Authorize] trơn cho bất kỳ user đăng nhập).
+[Authorize(Roles = "Admin,Doctor,DepartmentHead,Nurse")]
 public class CentralSigningController : ControllerBase
 {
     private readonly ICentralSigningService _signingService;

@@ -89,6 +89,15 @@ public partial class ExaminationCompleteService
 
         if (examination == null) throw new Exception("Examination not found");
 
+        // B1 (audit bảo mật 2026-06-06): CHẶN server-side bác sĩ có CCHN hết hạn/đình chỉ/thu hồi —
+        // không chỉ cảnh báo mềm (khớp NangCap18). Chỉ chặn khi BS CÓ license nhưng không hợp lệ
+        // (LicenseExpiry.HasValue && !IsValid); KHÔNG chặn BS chưa có record CCHN để tránh vỡ luồng
+        // khám khi hệ thống chưa nhập đủ CCHN (an toàn lâm sàng > chặt cứng).
+        var cert = await CheckDoctorCertificationAsync(doctorId);
+        if (!cert.IsValid && cert.LicenseExpiry.HasValue)
+            throw new InvalidOperationException(
+                $"Không thể bắt đầu khám: {cert.Message ?? "Chứng chỉ hành nghề không hợp lệ"}");
+
         examination.Status = 1; // In progress
         examination.StartTime = DateTime.Now;
         examination.DoctorId = doctorId;

@@ -16,7 +16,9 @@ namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/digital-signature")]
-[Authorize]
+// B3 (audit bảo mật 2026-06-06): ký số HSBA/tài liệu là hành vi lâm sàng/pháp lý — chỉ vai trò lâm sàng,
+// loại lễ tân/kế toán/thu ngân (trước đây [Authorize] trơn cho bất kỳ user đăng nhập).
+[Authorize(Roles = "Admin,Doctor,DepartmentHead,Nurse")]
 public class DigitalSignatureController : ControllerBase
 {
     private readonly Pkcs11SessionManager _sessionManager;
