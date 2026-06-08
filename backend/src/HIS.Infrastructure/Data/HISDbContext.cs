@@ -312,6 +312,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<SurgeryRecord> SurgeryRecords => Set<SurgeryRecord>();
     public DbSet<OperatingRoom> OperatingRooms => Set<OperatingRoom>();
     public DbSet<SurgeryTeamMember> SurgeryTeamMembers => Set<SurgeryTeamMember>();
+    public DbSet<SurgeryMedicineItem> SurgeryMedicineItems => Set<SurgeryMedicineItem>(); // F1
+    public DbSet<SurgerySupplyItem> SurgerySupplyItems => Set<SurgerySupplyItem>();        // F1
 
     // Ky so (Digital Signature)
     public DbSet<DocumentSignature> DocumentSignatures => Set<DocumentSignature>();

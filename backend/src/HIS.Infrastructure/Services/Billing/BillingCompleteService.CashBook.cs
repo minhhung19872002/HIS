@@ -268,9 +268,23 @@ public partial class BillingCompleteService {
             var rxInsurance = prescriptions.Sum(p => p.InsuranceAmount);
             var rxPatient = prescriptions.Sum(p => p.PatientAmount);
 
-            var totalAmount = serviceRequests.Sum(sr => sr.TotalAmount) + rxTotal;
+            // F1 (audit FLOW-FINAL 2026-06-06): gộp tiền thuốc/vật tư PTTT (loại PaymentObject=3 hao-phí)
+            // vào bảng kê — trước đây kê thuốc/vật tư phòng mổ KHÔNG vào viện phí (thất thu).
+            // SurgeryMedicineItem/SupplyItem.SurgeryId = SurgeryRequest.Id (ca mổ keyed theo phiếu PTTT).
+            var surgeryIds = await _context.SurgeryRequests
+                .Where(s => s.MedicalRecordId == medicalRecordId)
+                .Select(s => s.Id).ToListAsync();
+            decimal surgMatTotal = 0;
+            if (surgeryIds.Count > 0)
+            {
+                surgMatTotal =
+                    (await _context.SurgeryMedicineItems.Where(m => surgeryIds.Contains(m.SurgeryId) && !m.IsDeleted && m.PaymentObject != 3).SumAsync(m => (decimal?)m.Amount) ?? 0)
+                  + (await _context.SurgerySupplyItems.Where(s => surgeryIds.Contains(s.SurgeryId) && !s.IsDeleted && s.PaymentObject != 3).SumAsync(s => (decimal?)s.Amount) ?? 0);
+            }
+
+            var totalAmount = serviceRequests.Sum(sr => sr.TotalAmount) + rxTotal + surgMatTotal;
             var insuranceAmount = serviceRequests.Sum(sr => sr.InsuranceAmount) + rxInsurance;
-            var patientAmount = serviceRequests.Sum(sr => sr.PatientAmount) + rxPatient;
+            var patientAmount = serviceRequests.Sum(sr => sr.PatientAmount) + rxPatient + surgMatTotal;
             var paidAmount = receipts.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount)
                            - receipts.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount);
             var depositBalance = deposits.Sum(d => d.RemainingAmount);

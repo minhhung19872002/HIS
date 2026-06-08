@@ -26,56 +26,155 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
 
     #region 6.5 Kê thuốc, vật tư trong PTTT
 
-    public Task<SurgeryPrescriptionDto> GetPrescriptionAsync(Guid surgeryId)
+    // F1 (audit FLOW-FINAL 2026-06-06): persist thuốc/vật tư PTTT THẬT + tính tiền (cho viện phí) +
+    // trừ kho FEFO. Trước đây toàn stub in-memory → mất dữ liệu, thất thu, không trừ kho.
+
+    public async Task<SurgeryPrescriptionDto> GetPrescriptionAsync(Guid surgeryId)
     {
-        return Task.FromResult(new SurgeryPrescriptionDto
+        var meds = await (from m in _context.SurgeryMedicineItems.Where(x => x.SurgeryId == surgeryId && !x.IsDeleted)
+                          join med in _context.Medicines on m.MedicineId equals med.Id into mj
+                          from med in mj.DefaultIfEmpty()
+                          select new SurgeryMedicineDto
+                          {
+                              Id = m.Id, SurgeryId = m.SurgeryId, MedicineId = m.MedicineId,
+                              MedicineCode = med != null ? med.MedicineCode : "", MedicineName = med != null ? med.MedicineName : "",
+                              Unit = med != null ? (med.Unit ?? "") : "", Quantity = m.Quantity, UnitPrice = m.UnitPrice, Amount = m.Amount,
+                              IsInPackage = m.IsInPackage, WarehouseId = m.WarehouseId ?? Guid.Empty, BatchNumber = m.BatchNumber,
+                              PaymentObject = m.PaymentObject, Notes = m.UsageInstruction
+                          }).ToListAsync();
+        var supplies = await (from s in _context.SurgerySupplyItems.Where(x => x.SurgeryId == surgeryId && !x.IsDeleted)
+                              join sup in _context.MedicalSupplies on s.SupplyId equals sup.Id into sj
+                              from sup in sj.DefaultIfEmpty()
+                              select new SurgerySupplyDto
+                              {
+                                  Id = s.Id, SurgeryId = s.SurgeryId, SupplyId = s.SupplyId,
+                                  SupplyCode = sup != null ? sup.SupplyCode : "", SupplyName = sup != null ? sup.SupplyName : "",
+                                  Unit = sup != null ? (sup.Unit ?? "") : "", Quantity = s.Quantity, UnitPrice = s.UnitPrice, Amount = s.Amount,
+                                  IsInPackage = s.IsInPackage, WarehouseId = s.WarehouseId ?? Guid.Empty,
+                                  PaymentObject = s.PaymentObject, Notes = s.Notes
+                              }).ToListAsync();
+        return new SurgeryPrescriptionDto { SurgeryId = surgeryId, Medicines = meds, Supplies = supplies };
+    }
+
+    /// <summary>Trừ kho FEFO best-effort (vật tư PTTT đã dùng trong mổ → trừ những gì có, không chặn).</summary>
+    private async Task<(bool deducted, string? batch)> DeductStockFefoAsync(Guid warehouseId, Guid? medicineId, Guid? supplyId, decimal qty)
+    {
+        if (warehouseId == Guid.Empty || qty <= 0) return (false, null);
+        var batches = await _context.InventoryItems
+            .Where(i => i.WarehouseId == warehouseId
+                && ((medicineId != null && i.MedicineId == medicineId) || (supplyId != null && i.SupplyId == supplyId))
+                && (i.Quantity - i.ReservedQuantity) > 0 && i.ExpiryDate >= DateTime.Today && !i.IsLocked && !i.IsDeleted)
+            .OrderBy(i => i.ExpiryDate).ToListAsync();
+        var remaining = qty; string? firstBatch = null;
+        foreach (var b in batches)
         {
-            SurgeryId = surgeryId,
-            Medicines = new List<SurgeryMedicineDto>(),
-            Supplies = new List<SurgerySupplyDto>()
-        });
+            if (remaining <= 0) break;
+            var take = Math.Min(b.Quantity - b.ReservedQuantity, remaining);
+            if (take <= 0) continue;
+            b.Quantity -= take; remaining -= take;
+            firstBatch ??= b.BatchNumber;
+        }
+        return (remaining <= 0, firstBatch);
     }
 
-    public Task<SurgeryMedicineDto> AddMedicineAsync(AddSurgeryMedicineDto dto, Guid userId)
+    public async Task<SurgeryMedicineDto> AddMedicineAsync(AddSurgeryMedicineDto dto, Guid userId)
     {
-        return Task.FromResult(new SurgeryMedicineDto
+        var med = await _context.Medicines.FirstOrDefaultAsync(m => m.Id == dto.MedicineId)
+            ?? throw new Exception("Không tìm thấy thuốc");
+        var unitPrice = (dto.PaymentObject == 1 && med.InsurancePrice > 0) ? med.InsurancePrice : med.UnitPrice;
+        var (deducted, batch) = await DeductStockFefoAsync(dto.WarehouseId, dto.MedicineId, null, dto.Quantity);
+        var entity = new SurgeryMedicineItem
         {
-            Id = Guid.NewGuid(),
-            SurgeryId = dto.SurgeryId,
-            MedicineId = dto.MedicineId,
-            Quantity = dto.Quantity
-        });
-    }
-
-    public Task<SurgerySupplyDto> AddSupplyAsync(AddSurgerySupplyDto dto, Guid userId)
-    {
-        return Task.FromResult(new SurgerySupplyDto
+            Id = Guid.NewGuid(), SurgeryId = dto.SurgeryId, MedicineId = dto.MedicineId,
+            Quantity = dto.Quantity, UnitPrice = unitPrice, Amount = unitPrice * dto.Quantity,
+            PaymentObject = dto.PaymentObject == 0 ? 2 : dto.PaymentObject,
+            WarehouseId = dto.WarehouseId == Guid.Empty ? null : dto.WarehouseId,
+            BatchNumber = string.IsNullOrEmpty(dto.BatchNumber) ? batch : dto.BatchNumber,
+            IsInPackage = dto.IsInPackage, UsageInstruction = dto.UsageInstruction,
+            IsStockDeducted = deducted, CreatedBy = userId.ToString(),
+        };
+        _context.SurgeryMedicineItems.Add(entity);
+        await _context.SaveChangesAsync();
+        return new SurgeryMedicineDto
         {
-            Id = Guid.NewGuid(),
-            SurgeryId = dto.SurgeryId,
-            SupplyId = dto.SupplyId,
-            Quantity = dto.Quantity
-        });
+            Id = entity.Id, SurgeryId = entity.SurgeryId, MedicineId = entity.MedicineId,
+            MedicineCode = med.MedicineCode, MedicineName = med.MedicineName, Unit = med.Unit ?? "",
+            Quantity = entity.Quantity, UnitPrice = entity.UnitPrice, Amount = entity.Amount,
+            IsInPackage = entity.IsInPackage, WarehouseId = entity.WarehouseId ?? Guid.Empty,
+            BatchNumber = entity.BatchNumber, PaymentObject = entity.PaymentObject, Notes = entity.UsageInstruction
+        };
     }
 
-    public Task<SurgeryMedicineDto> UpdateMedicineAsync(Guid medicineItemId, AddSurgeryMedicineDto dto, Guid userId)
+    public async Task<SurgerySupplyDto> AddSupplyAsync(AddSurgerySupplyDto dto, Guid userId)
     {
-        return Task.FromResult(new SurgeryMedicineDto { Id = medicineItemId });
+        var sup = await _context.MedicalSupplies.FirstOrDefaultAsync(s => s.Id == dto.SupplyId)
+            ?? throw new Exception("Không tìm thấy vật tư");
+        var unitPrice = (dto.PaymentObject == 1 && sup.InsurancePrice > 0) ? sup.InsurancePrice : sup.UnitPrice;
+        var (deducted, batch) = await DeductStockFefoAsync(dto.WarehouseId, null, dto.SupplyId, dto.Quantity);
+        var entity = new SurgerySupplyItem
+        {
+            Id = Guid.NewGuid(), SurgeryId = dto.SurgeryId, SupplyId = dto.SupplyId,
+            Quantity = dto.Quantity, UnitPrice = unitPrice, Amount = unitPrice * dto.Quantity,
+            PaymentObject = dto.PaymentObject == 0 ? 2 : dto.PaymentObject,
+            WarehouseId = dto.WarehouseId == Guid.Empty ? null : dto.WarehouseId,
+            BatchNumber = batch,
+            IsInPackage = dto.IsInPackage, Notes = dto.Notes,
+            IsStockDeducted = deducted, CreatedBy = userId.ToString(),
+        };
+        _context.SurgerySupplyItems.Add(entity);
+        await _context.SaveChangesAsync();
+        return new SurgerySupplyDto
+        {
+            Id = entity.Id, SurgeryId = entity.SurgeryId, SupplyId = entity.SupplyId,
+            SupplyCode = sup.SupplyCode, SupplyName = sup.SupplyName, Unit = sup.Unit ?? "",
+            Quantity = entity.Quantity, UnitPrice = entity.UnitPrice, Amount = entity.Amount,
+            IsInPackage = entity.IsInPackage, WarehouseId = entity.WarehouseId ?? Guid.Empty,
+            PaymentObject = entity.PaymentObject, Notes = entity.Notes
+        };
     }
 
-    public Task<SurgerySupplyDto> UpdateSupplyAsync(Guid supplyItemId, AddSurgerySupplyDto dto, Guid userId)
+    public async Task<SurgeryMedicineDto> UpdateMedicineAsync(Guid medicineItemId, AddSurgeryMedicineDto dto, Guid userId)
     {
-        return Task.FromResult(new SurgerySupplyDto { Id = supplyItemId });
+        var entity = await _context.SurgeryMedicineItems.FirstOrDefaultAsync(m => m.Id == medicineItemId && !m.IsDeleted);
+        if (entity == null) throw new Exception("Không tìm thấy dòng thuốc PTTT");
+        entity.Quantity = dto.Quantity;
+        entity.Amount = entity.UnitPrice * dto.Quantity;
+        entity.PaymentObject = dto.PaymentObject == 0 ? entity.PaymentObject : dto.PaymentObject;
+        entity.UsageInstruction = dto.UsageInstruction;
+        entity.UpdatedAt = DateTime.UtcNow; entity.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+        return new SurgeryMedicineDto { Id = entity.Id, SurgeryId = entity.SurgeryId, MedicineId = entity.MedicineId, Quantity = entity.Quantity, UnitPrice = entity.UnitPrice, Amount = entity.Amount, PaymentObject = entity.PaymentObject };
     }
 
-    public Task<bool> RemoveMedicineAsync(Guid medicineItemId, Guid userId)
+    public async Task<SurgerySupplyDto> UpdateSupplyAsync(Guid supplyItemId, AddSurgerySupplyDto dto, Guid userId)
     {
-        return Task.FromResult(true);
+        var entity = await _context.SurgerySupplyItems.FirstOrDefaultAsync(s => s.Id == supplyItemId && !s.IsDeleted);
+        if (entity == null) throw new Exception("Không tìm thấy dòng vật tư PTTT");
+        entity.Quantity = dto.Quantity;
+        entity.Amount = entity.UnitPrice * dto.Quantity;
+        entity.PaymentObject = dto.PaymentObject == 0 ? entity.PaymentObject : dto.PaymentObject;
+        entity.Notes = dto.Notes;
+        entity.UpdatedAt = DateTime.UtcNow; entity.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+        return new SurgerySupplyDto { Id = entity.Id, SurgeryId = entity.SurgeryId, SupplyId = entity.SupplyId, Quantity = entity.Quantity, UnitPrice = entity.UnitPrice, Amount = entity.Amount, PaymentObject = entity.PaymentObject };
     }
 
-    public Task<bool> RemoveSupplyAsync(Guid supplyItemId, Guid userId)
+    public async Task<bool> RemoveMedicineAsync(Guid medicineItemId, Guid userId)
     {
-        return Task.FromResult(true);
+        var entity = await _context.SurgeryMedicineItems.FirstOrDefaultAsync(m => m.Id == medicineItemId && !m.IsDeleted);
+        if (entity == null) return false;
+        entity.IsDeleted = true; entity.UpdatedAt = DateTime.UtcNow; entity.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> RemoveSupplyAsync(Guid supplyItemId, Guid userId)
+    {
+        var entity = await _context.SurgerySupplyItems.FirstOrDefaultAsync(s => s.Id == supplyItemId && !s.IsDeleted);
+        if (entity == null) return false;
+        entity.IsDeleted = true; entity.UpdatedAt = DateTime.UtcNow; entity.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public Task<SurgeryPrescriptionDto> ApplyPackageAsync(Guid surgeryId, Guid packageId, Guid userId)
