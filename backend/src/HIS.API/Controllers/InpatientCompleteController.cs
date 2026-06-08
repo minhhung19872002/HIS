@@ -162,6 +162,14 @@ public partial class InpatientCompleteController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>#15: tự tổng hợp tóm tắt quá trình điều trị (prefill bệnh án ra viện).</summary>
+    [HttpGet("{admissionId}/auto-summary")]
+    public async Task<ActionResult<object>> GetAutoTreatmentSummary(Guid admissionId)
+    {
+        var summary = await _inpatientService.GenerateTreatmentSummaryAsync(admissionId);
+        return Ok(new { summary });
+    }
+
     /// <summary>
     /// Tiếp nhận bệnh nhân từ khoa khác
     /// </summary>

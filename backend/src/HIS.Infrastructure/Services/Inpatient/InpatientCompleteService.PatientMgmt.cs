@@ -880,6 +880,48 @@ public partial class InpatientCompleteService {
         }).ToList();
     }
 
+    public async Task<string> GenerateTreatmentSummaryAsync(Guid admissionId)
+    {
+        // #15 (audit luồng nghiệp vụ): tự tổng hợp tóm tắt điều trị thay field text tay.
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null) return string.Empty;
+        var mrId = admission.MedicalRecordId;
+
+        var progresses = await _context.DailyProgresses
+            .Where(p => p.AdmissionId == admissionId && !p.IsDeleted)
+            .OrderBy(p => p.ProgressDate)
+            .ToListAsync();
+        var rxCount = await _context.Prescriptions
+            .CountAsync(p => p.MedicalRecordId == mrId && p.PrescriptionType == 2 && p.Status != 4 && !p.IsDeleted);
+        var clsCount = await _context.ServiceRequests
+            .CountAsync(r => r.MedicalRecordId == mrId && r.Status != 4);
+        var surgeries = await _context.SurgeryRequests
+            .Where(s => s.MedicalRecordId == mrId && !s.IsDeleted)
+            .Select(s => s.PlannedProcedure ?? s.SurgeryType)
+            .ToListAsync();
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"TÓM TẮT QUÁ TRÌNH ĐIỀU TRỊ (tự tổng hợp {DateTime.Now:dd/MM/yyyy HH:mm}):");
+        sb.AppendLine($"- Vào viện: {admission.AdmissionDate:dd/MM/yyyy} · Khoa: {admission.MedicalRecord?.Department?.DepartmentName ?? "-"}");
+        sb.AppendLine($"- Chẩn đoán vào viện: {admission.DiagnosisOnAdmission ?? "-"}");
+        sb.AppendLine($"- Số ngày có ghi diễn biến: {progresses.Count}");
+        var last = progresses.LastOrDefault();
+        if (last != null)
+        {
+            if (!string.IsNullOrWhiteSpace(last.Assessment))
+                sb.AppendLine($"- Đánh giá gần nhất ({last.ProgressDate:dd/MM}): {last.Assessment}");
+            if (!string.IsNullOrWhiteSpace(last.Plan))
+                sb.AppendLine($"- Hướng xử trí gần nhất: {last.Plan}");
+        }
+        sb.AppendLine($"- Đơn thuốc nội trú: {rxCount} · Chỉ định CLS: {clsCount}");
+        var surgList = surgeries.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+        if (surgList.Count > 0)
+            sb.AppendLine($"- Phẫu thuật/thủ thuật: {string.Join("; ", surgList)}");
+        return sb.ToString();
+    }
+
     public async Task<byte[]> PrintLabResultsAsync(Guid admissionId, List<Guid> resultIds)
     {
         var admission = await _context.Set<Admission>()
@@ -1006,19 +1048,43 @@ public partial class InpatientCompleteService {
         return Task.FromResult(new List<DepositRequestDto>());
     }
 
-    public Task<TransferWarningDto> CheckTransferWarningsAsync(Guid admissionId)
+    public async Task<TransferWarningDto> CheckTransferWarningsAsync(Guid admissionId)
     {
-        return Task.FromResult(new TransferWarningDto
+        // #16 (audit luồng nghiệp vụ): cảnh báo THẬT trước khi chuyển khoa — trước đây stub luôn
+        // CanTransfer=true, không soi đơn chưa cấp / CLS chưa KQ. Cảnh báo mang tính advisory
+        // (chuyển khoa có thể cần dù còn pending) → UI hiển thị để người dùng quyết.
+        var admission = await _context.Set<Admission>()
+            .Include(a => a.Patient)
+            .FirstOrDefaultAsync(a => a.Id == admissionId);
+        if (admission == null)
+            return new TransferWarningDto { AdmissionId = admissionId, CanTransfer = false };
+
+        var mrId = admission.MedicalRecordId;
+
+        var unclaimedRx = await _context.Prescriptions
+            .CountAsync(p => p.MedicalRecordId == mrId && p.PrescriptionType == 2 && p.Status < 2 && !p.IsDeleted);
+
+        var pendingDetails = await _context.ServiceRequestDetails
+            .Include(d => d.Service)
+            .Include(d => d.ServiceRequest)
+            .Where(d => d.ServiceRequest.MedicalRecordId == mrId && d.Status < 2)
+            .ToListAsync();
+        var pendingLab = pendingDetails.Where(d => d.ServiceRequest.RequestType == 1).ToList();
+        var pendingSvc = pendingDetails.Where(d => d.ServiceRequest.RequestType != 1).ToList();
+
+        return new TransferWarningDto
         {
             AdmissionId = admissionId,
-            HasUnclaimedMedicine = false,
-            UnclaimedMedicineCount = 0,
-            HasPendingLabResults = false,
-            PendingLabCount = 0,
-            HasPendingServices = false,
-            PendingServiceCount = 0,
+            PatientName = admission.Patient?.FullName ?? string.Empty,
+            HasUnclaimedMedicine = unclaimedRx > 0,
+            UnclaimedMedicineCount = unclaimedRx,
+            HasPendingLabResults = pendingLab.Count > 0,
+            PendingLabCount = pendingLab.Count,
+            PendingLabNames = pendingLab.Select(d => d.Service?.ServiceName ?? "").Where(s => s.Length > 0).Take(20).ToList(),
+            HasPendingServices = pendingSvc.Count > 0,
+            PendingServiceCount = pendingSvc.Count,
             CanTransfer = true
-        });
+        };
     }
 
     #endregion

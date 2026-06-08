@@ -167,6 +167,12 @@ public interface IInpatientCompleteService
     Task<DailyOrderSummaryDto> GetDailyOrderSummaryAsync(Guid admissionId, DateTime date);
 
     /// <summary>
+    /// #15: tự tổng hợp tóm tắt quá trình điều trị nội trú (DailyProgress + đơn nội trú + CLS + PTTT)
+    /// thay vì gõ tay — dùng prefill field TreatmentSummary lúc làm bệnh án ra viện.
+    /// </summary>
+    Task<string> GenerateTreatmentSummaryAsync(Guid admissionId);
+
+    /// <summary>
     /// Lấy kết quả CLS của bệnh nhân
     /// </summary>
     Task<List<LabResultItemDto>> GetLabResultsAsync(Guid admissionId, DateTime? fromDate, DateTime? toDate);
