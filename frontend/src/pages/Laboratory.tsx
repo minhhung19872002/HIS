@@ -960,7 +960,7 @@ const Laboratory: React.FC = () => {
           )}
           {record.status >= 1 && (
             <LabCancelChainMenu
-              labRequestItemId={record.id}
+              serviceRequestDetailId={record.id}
               currentStatus={record.status === 2 ? 4 : record.status === 1 ? 3 : record.status}
               onChanged={() => { fetchLabRequests(); fetchTestResults(); }}
             />

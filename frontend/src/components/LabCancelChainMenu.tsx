@@ -10,14 +10,15 @@ import { DownOutlined, UndoOutlined } from '@ant-design/icons';
 import { cancelApproval, cancelCollection, cancelResult } from '../api/labCancelChain';
 
 interface Props {
-  labRequestItemId: string;
+  // FLOW-3 #14a: id của ServiceRequestDetail (model 1) hoặc ServiceRequest cha (BE dual-lookup).
+  serviceRequestDetailId: string;
   /** 0=Pending 1=Collected 2=Processing 3=Completed 4=Approved */
   currentStatus: number;
   onChanged?: (newStatus: number, label: string) => void;
   buttonSize?: 'small' | 'middle' | 'large';
 }
 
-export default function LabCancelChainMenu({ labRequestItemId, currentStatus, onChanged, buttonSize = 'small' }: Props) {
+export default function LabCancelChainMenu({ serviceRequestDetailId, currentStatus, onChanged, buttonSize = 'small' }: Props) {
   const [promptOpen, setPromptOpen] = useState<null | 'approval' | 'result' | 'collection'>(null);
   const [form] = Form.useForm<{ reason: string }>();
 
@@ -32,7 +33,7 @@ export default function LabCancelChainMenu({ labRequestItemId, currentStatus, on
       const fn = promptOpen === 'approval' ? cancelApproval
         : promptOpen === 'result' ? cancelResult
         : cancelCollection;
-      const res = await fn(labRequestItemId, values.reason);
+      const res = await fn(serviceRequestDetailId, values.reason);
       if (res.success) {
         message.success(res.message);
         onChanged?.(res.newStatus, res.newStatusLabel);

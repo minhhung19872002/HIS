@@ -7,14 +7,16 @@ export interface CancelChainResponse {
   message: string;
 }
 
-async function post(path: string, labRequestItemId: string, reason: string) {
+// FLOW-3 #14a: cancel-chain nay thao tác trên ServiceRequestDetail (model 1). Field gửi đổi
+// sang serviceRequestDetailId (id của ServiceRequestDetail hoặc ServiceRequest cha — BE dual-lookup).
+async function post(path: string, serviceRequestDetailId: string, reason: string) {
   const { data } = await apiClient.post<CancelChainResponse>(
     `/laboratory/cancel-chain/${path}`,
-    { labRequestItemId, reason }
+    { serviceRequestDetailId, reason }
   );
   return data;
 }
 
-export const cancelApproval = (itemId: string, reason: string) => post('cancel-approval', itemId, reason);
-export const cancelResult = (itemId: string, reason: string) => post('cancel-result', itemId, reason);
-export const cancelCollection = (itemId: string, reason: string) => post('cancel-collection', itemId, reason);
+export const cancelApproval = (id: string, reason: string) => post('cancel-approval', id, reason);
+export const cancelResult = (id: string, reason: string) => post('cancel-result', id, reason);
+export const cancelCollection = (id: string, reason: string) => post('cancel-collection', id, reason);

@@ -298,20 +298,21 @@ export interface CancelChainResponse {
 }
 
 // Step 1: Hủy duyệt kết quả (item 4 → 3)
-export const cancelChainApproval = async (labRequestItemId: string, reason: string) => {
-  const response = await apiClient.post<CancelChainResponse>('/laboratory/cancel-chain/cancel-approval', { labRequestItemId, reason });
+// FLOW-3 #14a: gửi serviceRequestDetailId (model 1) thay labRequestItemId (model 2 chết).
+export const cancelChainApproval = async (serviceRequestDetailId: string, reason: string) => {
+  const response = await apiClient.post<CancelChainResponse>('/laboratory/cancel-chain/cancel-approval', { serviceRequestDetailId, reason });
   return response.data;
 };
 
-// Step 2: Hủy kết quả + hủy xác nhận mẫu (item 2/3 → 1)
-export const cancelChainResult = async (labRequestItemId: string, reason: string) => {
-  const response = await apiClient.post<CancelChainResponse>('/laboratory/cancel-chain/cancel-result', { labRequestItemId, reason });
+// Step 2: Hủy kết quả (Có KQ → Đang thực hiện)
+export const cancelChainResult = async (serviceRequestDetailId: string, reason: string) => {
+  const response = await apiClient.post<CancelChainResponse>('/laboratory/cancel-chain/cancel-result', { serviceRequestDetailId, reason });
   return response.data;
 };
 
-// Step 3: Hủy lấy mẫu (item 1 → 0)
-export const cancelChainCollection = async (labRequestItemId: string, reason: string) => {
-  const response = await apiClient.post<CancelChainResponse>('/laboratory/cancel-chain/cancel-collection', { labRequestItemId, reason });
+// Step 3: Hủy lấy mẫu (→ Chờ lấy mẫu)
+export const cancelChainCollection = async (serviceRequestDetailId: string, reason: string) => {
+  const response = await apiClient.post<CancelChainResponse>('/laboratory/cancel-chain/cancel-collection', { serviceRequestDetailId, reason });
   return response.data;
 };
 

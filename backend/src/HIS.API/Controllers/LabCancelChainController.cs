@@ -9,11 +9,19 @@ namespace HIS.API.Controllers;
 
 /// <summary>
 /// M3.14 — Hủy chuỗi ngược workflow XN.
-/// BN đã có kết quả → muốn hủy mẫu phải:
-///   1) Hủy duyệt kết quả (Approved → Completed)
-///   2) Hủy kết quả + hủy xác nhận mẫu (Completed/Processing → SampleCollected)
-///   3) Hủy lấy mẫu (SampleCollected → Pending)
-/// Mỗi endpoint validate bước trước phải được hủy trước.
+/// FLOW-3 #14a (audit luồng nghiệp vụ 2026-06-06 #10): viết lại để thao tác trên
+/// <see cref="ServiceRequestDetail"/> (model 1 — nguồn-sự-thật, nơi KQ XN thật được ghi),
+/// thay vì <c>LabRequestItem</c> (model 2 — chỉ seed tạo, chết trong luồng thật).
+///
+/// Trạng thái CLS trên model 1 (ServiceRequestDetail.Status: 0=Chờ,1=Đang TH,2=Có KQ,3=Hủy),
+/// "đã duyệt" = ReviewedAt != null. Chuỗi hủy ngược:
+///   1) Hủy duyệt (ReviewedAt set → clear)             — cancel-approval
+///   2) Hủy KQ (Status 2 → 1, xóa Result)              — cancel-result
+///   3) Hủy lấy mẫu (IsSampleCollected → false, → 0)   — cancel-collection
+/// Mỗi bước validate bước sau phải được hủy trước. Đồng thời cập nhật ServiceRequest.Status cha.
+///
+/// Input nhận id của một ServiceRequestDetail HOẶC một ServiceRequest (UI v1 cấp order) —
+/// dual-lookup: nếu là phiếu cha thì áp cho mọi dòng chưa hủy.
 /// </summary>
 [ApiController]
 [Route("api/laboratory/cancel-chain")]
@@ -27,117 +35,135 @@ public class LabCancelChainController : ControllerBase
     private Guid GetUserId() =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
 
-    public record CancelRequest(Guid LabRequestItemId, string Reason);
+    // Giữ tên field cũ cho tương thích, NHƯNG nay là id của ServiceRequestDetail/ServiceRequest (model 1).
+    public record CancelRequest(Guid ServiceRequestDetailId, string Reason);
     public record CancelResponse(bool Success, int NewStatus, string NewStatusLabel, string Message);
 
     private static string StatusLabel(int s) => s switch
     {
         0 => "Chờ lấy mẫu",
-        1 => "Đã lấy mẫu",
-        2 => "Đang xử lý",
-        3 => "Đã có KQ",
-        4 => "Đã duyệt",
-        5 => "Bị từ chối",
+        1 => "Đang thực hiện",
+        2 => "Có kết quả",
+        3 => "Đã hủy",
         _ => "Khác"
     };
 
-    /// <summary>
-    /// Step 1: Hủy duyệt kết quả (Approved → Completed).
-    /// KTV hoặc Reviewer undo the approval.
-    /// </summary>
+    /// <summary>Resolve target details: id là ServiceRequestDetail → 1 dòng; nếu là ServiceRequest → mọi dòng chưa hủy.</summary>
+    private async Task<List<ServiceRequestDetail>> ResolveDetailsAsync(Guid id)
+    {
+        var one = await _db.ServiceRequestDetails.FirstOrDefaultAsync(d => d.Id == id);
+        if (one != null) return new List<ServiceRequestDetail> { one };
+        return await _db.ServiceRequestDetails
+            .Where(d => d.ServiceRequestId == id && d.Status != 3)
+            .ToListAsync();
+    }
+
+    /// <summary>Cập nhật Status phiếu cha theo các dòng còn lại: còn dòng "Có KQ" → 2 (đang có KQ), ngược lại → 2 (đang TH).</summary>
+    private async Task UpdateParentStatusAsync(IEnumerable<Guid> serviceRequestIds)
+    {
+        foreach (var srId in serviceRequestIds.Distinct())
+        {
+            var sr = await _db.ServiceRequests.FirstOrDefaultAsync(r => r.Id == srId);
+            if (sr == null) continue;
+            // Phiếu "Có kết quả" (Status=3) khi đã rollback KQ phải lùi về "Đang thực hiện" (2).
+            if (sr.Status == 3) sr.Status = 2;
+        }
+    }
+
+    /// <summary>Step 1: Hủy duyệt kết quả (đã duyệt → bỏ duyệt, giữ KQ).</summary>
     [HttpPost("cancel-approval")]
     public async Task<ActionResult<CancelResponse>> CancelApproval([FromBody] CancelRequest dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Reason))
             return BadRequest(new { message = "Phải ghi lý do hủy duyệt" });
 
-        var item = await _db.Set<LabRequestItem>().FirstOrDefaultAsync(i => i.Id == dto.LabRequestItemId);
-        if (item == null) return NotFound(new { message = "Không tìm thấy xét nghiệm" });
+        var details = await ResolveDetailsAsync(dto.ServiceRequestDetailId);
+        var targets = details.Where(d => d.ReviewedAt != null).ToList();
+        if (targets.Count == 0)
+            return BadRequest(new CancelResponse(false, 0, "",
+                "Không có kết quả đã duyệt để hủy duyệt"));
 
-        if (item.Status != 4)
-            return BadRequest(new CancelResponse(false, item.Status, StatusLabel(item.Status),
-                $"Chỉ hủy duyệt được khi trạng thái = Đã duyệt. Hiện tại: {StatusLabel(item.Status)}"));
-
-        item.Status = 3; // Completed
-        item.ApprovedAt = null;
-        item.ApprovedBy = null;
-        item.TechnicianNote = (item.TechnicianNote ?? "") + $"\n[Hủy duyệt {DateTime.Now:dd/MM HH:mm} - {GetUserId()}]: {dto.Reason}";
-        item.UpdatedAt = DateTime.UtcNow;
+        var note = $"\n[Hủy duyệt {DateTime.Now:dd/MM HH:mm} - {GetUserId()}]: {dto.Reason}";
+        foreach (var d in targets)
+        {
+            d.ReviewedAt = null;
+            d.ReviewerUserId = null;
+            d.Note = (d.Note ?? "") + note;
+            d.UpdatedAt = DateTime.UtcNow;
+        }
 
         await _db.SaveChangesAsync();
-        return Ok(new CancelResponse(true, item.Status, StatusLabel(item.Status), "Đã hủy duyệt kết quả"));
+        var st = targets[0].Status;
+        return Ok(new CancelResponse(true, st, StatusLabel(st), $"Đã hủy duyệt {targets.Count} kết quả"));
     }
 
-    /// <summary>
-    /// Step 2: Hủy kết quả + hủy xác nhận mẫu (Completed/Processing → SampleCollected).
-    /// Xóa LabResults rồi set Status = 1.
-    /// </summary>
+    /// <summary>Step 2: Hủy kết quả (Có KQ → Đang TH). Phải hủy duyệt trước.</summary>
     [HttpPost("cancel-result")]
     public async Task<ActionResult<CancelResponse>> CancelResult([FromBody] CancelRequest dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Reason))
             return BadRequest(new { message = "Phải ghi lý do hủy kết quả" });
 
-        var item = await _db.Set<LabRequestItem>()
-            .Include(i => i.Results)
-            .FirstOrDefaultAsync(i => i.Id == dto.LabRequestItemId);
-        if (item == null) return NotFound(new { message = "Không tìm thấy xét nghiệm" });
-
-        if (item.Status == 4)
-            return BadRequest(new CancelResponse(false, item.Status, StatusLabel(item.Status),
+        var details = await ResolveDetailsAsync(dto.ServiceRequestDetailId);
+        var withResult = details.Where(d => d.Status == 2 || d.Result != null || d.ResultDate != null).ToList();
+        if (withResult.Count == 0)
+            return BadRequest(new CancelResponse(false, 0, "", "Không có kết quả để hủy"));
+        if (withResult.Any(d => d.ReviewedAt != null))
+            return BadRequest(new CancelResponse(false, 2, StatusLabel(2),
                 "KQ đã duyệt. Phải hủy duyệt trước (bước 1)"));
-        if (item.Status < 2)
-            return BadRequest(new CancelResponse(false, item.Status, StatusLabel(item.Status),
-                $"Không có kết quả để hủy. Hiện tại: {StatusLabel(item.Status)}"));
 
-        // Soft-delete results
-        foreach (var r in item.Results.Where(r => !r.IsDeleted))
+        var note = $"\n[Hủy KQ {DateTime.Now:dd/MM HH:mm} - {GetUserId()}]: {dto.Reason}";
+        foreach (var d in withResult)
         {
-            r.IsDeleted = true;
-            r.UpdatedAt = DateTime.UtcNow;
+            d.Result = null;
+            d.ResultDescription = null;
+            d.Conclusion = null;
+            d.ResultDate = null;
+            d.ResultUserId = null;
+            d.TechnicianUserId = null;
+            d.TechnicianRunAt = null;
+            d.Status = 1; // Đang thực hiện (giữ mẫu đã nhận)
+            d.Note = (d.Note ?? "") + note;
+            d.UpdatedAt = DateTime.UtcNow;
         }
-
-        item.Status = 1; // SampleCollected (giữ mẫu)
-        item.ProcessingStartAt = null;
-        item.ProcessingEndAt = null;
-        item.ProcessedBy = null;
-        item.TechnicianNote = (item.TechnicianNote ?? "") + $"\n[Hủy KQ {DateTime.Now:dd/MM HH:mm} - {GetUserId()}]: {dto.Reason}";
-        item.UpdatedAt = DateTime.UtcNow;
+        await UpdateParentStatusAsync(withResult.Select(d => d.ServiceRequestId));
 
         await _db.SaveChangesAsync();
-        return Ok(new CancelResponse(true, item.Status, StatusLabel(item.Status),
-            $"Đã hủy {item.Results.Count(r => r.IsDeleted)} dòng KQ + rollback sang 'Đã lấy mẫu'"));
+        return Ok(new CancelResponse(true, 1, StatusLabel(1),
+            $"Đã hủy {withResult.Count} kết quả, rollback sang 'Đang thực hiện'"));
     }
 
-    /// <summary>
-    /// Step 3: Hủy lấy mẫu (SampleCollected → Pending).
-    /// </summary>
+    /// <summary>Step 3: Hủy lấy/nhận mẫu (→ Chờ lấy mẫu). Phải hủy KQ trước.</summary>
     [HttpPost("cancel-collection")]
     public async Task<ActionResult<CancelResponse>> CancelCollection([FromBody] CancelRequest dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Reason))
             return BadRequest(new { message = "Phải ghi lý do hủy lấy mẫu" });
 
-        var item = await _db.Set<LabRequestItem>().FirstOrDefaultAsync(i => i.Id == dto.LabRequestItemId);
-        if (item == null) return NotFound(new { message = "Không tìm thấy xét nghiệm" });
+        var details = await ResolveDetailsAsync(dto.ServiceRequestDetailId);
+        var collected = details.Where(d => d.IsSampleCollected || d.SampleCollectedAt != null || d.ReceiveStatus == 1).ToList();
+        if (collected.Count == 0)
+            return BadRequest(new CancelResponse(false, 0, StatusLabel(0), "Mẫu chưa lấy, không cần hủy"));
+        if (collected.Any(d => d.Status == 2 || d.Result != null))
+            return BadRequest(new CancelResponse(false, 2, StatusLabel(2),
+                "Mẫu đã có KQ. Phải hủy KQ trước (bước 2)"));
 
-        if (item.Status >= 2)
-            return BadRequest(new CancelResponse(false, item.Status, StatusLabel(item.Status),
-                "Mẫu đã xử lý/có KQ. Phải hủy KQ trước (bước 2)"));
-        if (item.Status < 1)
-            return BadRequest(new CancelResponse(false, item.Status, StatusLabel(item.Status),
-                "Mẫu chưa lấy, không cần hủy"));
-
-        item.Status = 0; // Pending
-        item.SampleCollectedAt = null;
-        item.SampleCollectedBy = null;
-        item.SampleBarcode = null;
-        item.SampleLocation = null;
-        item.SampleCondition = null;
-        item.TechnicianNote = (item.TechnicianNote ?? "") + $"\n[Hủy lấy mẫu {DateTime.Now:dd/MM HH:mm} - {GetUserId()}]: {dto.Reason}";
-        item.UpdatedAt = DateTime.UtcNow;
+        var note = $"\n[Hủy lấy mẫu {DateTime.Now:dd/MM HH:mm} - {GetUserId()}]: {dto.Reason}";
+        foreach (var d in collected)
+        {
+            d.IsSampleCollected = false;
+            d.SampleCollectedAt = null;
+            d.SampleBarcode = null;
+            d.CollectedByUserId = null;
+            d.ReceiveStatus = 0;
+            d.ReceivedAt = null;
+            d.ReceivedByUserId = null;
+            d.Status = 0; // Chờ lấy mẫu
+            d.Note = (d.Note ?? "") + note;
+            d.UpdatedAt = DateTime.UtcNow;
+        }
 
         await _db.SaveChangesAsync();
-        return Ok(new CancelResponse(true, item.Status, StatusLabel(item.Status), "Đã hủy lấy mẫu"));
+        return Ok(new CancelResponse(true, 0, StatusLabel(0), $"Đã hủy lấy mẫu {collected.Count} dòng"));
     }
 }
