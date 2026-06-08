@@ -1,44 +1,49 @@
 # STATUS — đang ở đâu · blocker · việc kế tiếp
 
-> Cập nhật cuối: **2026-06-08** (sync origin +18 commit + slice BE-storage tường trình PTTT).
+> Cập nhật cuối: **2026-06-08 ~15:30** (audit luồng nghiệp vụ FLOW-1+2+3 — sửa mạch gãy mất dữ liệu).
 
-## ✅ PHIÊN 2026-06-08 — sync origin + tách cột tường trình PTTT (slice BE-storage)
+## ✅ AUDIT LUỒNG NGHIỆP VỤ — FLOW-1 (P0) + FLOW-2 (P1) + FLOW-3 (#17 + plan) — XONG 2026-06-08 (COMMIT LOCAL, CHƯA PUSH)
 
-- **Git sync:** local đã rebase lên `origin/main` (kéo về **18 commit** code của user: gap đối thủ, seed worker demo, wire 83 stub-button, fix UI v2…). 2 commit docs LOCAL-ONLY của phiên trước được giữ (`audit-g37` + `plan-pttt`); STATUS lấy bản origin. Tag an toàn `backup-local-docs-2026-06-08`.
-- **▶ Tiếp tục plan `20-backlog/items/plan-pttt-narrative-columns.md`** — làm **nửa BE-storage additive** (verify được local, KHÔNG cần smoke):
-  - Entity `SurgeryRequest` +3 cột `SurgeryReport`/`Conclusion`/`AttachedImageUrls`.
-  - **Migration `78_surgery_narrative_columns.sql`** (ADD idempotent + backfill từ sentinel `Notes`) — áp local Docker 2 lần OK, 0 lỗi.
-  - Service create parse sentinel → cột mới (`ApplyNarrativeFromNotes`), **giữ nguyên `Notes`** (không regression in).
-  - Verify: `dotnet build` 0 err · migration idempotent · parse expr đúng.
-  - **DEFER (cần phiên deploy + browser smoke):** FE flip `SurgeryReportModal` · print `PrintSurgeryReportAsync` render cột mới + fallback · expose `SurgeryDto` (29 điểm map). Chi tiết trong plan file.
-- **✅ ĐÃ PUSH 2026-06-08:** code commit `aa18467` (entity+service+migration 78) + chore `b59d609` (Stop hook ép cập nhật STATUS) → `origin/main` (backend/** → GitHub Actions tự deploy Cloud Run; migration 78 auto-apply, verify `/health/schema-drift`=0 sau deploy). Docs commit `d42ea76` giữ local.
-- **🔧 Cơ chế chống quên:** `notify-stop.sh` (Stop hook) nay CHẶN kết thúc lượt nếu code đổi mà STATUS chưa cập nhật trong ngày → buộc đồng bộ workspace-docs mỗi phiên.
+Nguồn: [`10-assessment/audit-luong-nghiepvu-2026-06-06.md`](10-assessment/audit-luong-nghiepvu-2026-06-06.md). Sửa **đứt mạch dữ liệu nghiệp vụ** (nặng hơn lỗi UI).
 
-## 🧭 TỒN ĐỌNG — phân loại theo blocker (cập nhật 2026-06-08)
+- **FLOW-1 P0 (6/6)**: (1) KQ XN/CĐHA về màn khám — `GetPatientLabResultsAsync` đọc `ServiceRequestDetail` (model 1) thay `LabResults` (model 2 rỗng) · (2) CLS tại giường nội trú persist `ServiceRequest`+`Detail` (trước in-memory) · (3) sinh hiệu nội trú lưu DB — bảng `InpatientVitalSigns` (**mig 78**) · (4) worklist "chờ nhập viện" OPD→nội trú (BE endpoint + FE Admit modal) · (5) bảng kê gom nợ thuốc + chặn ra viện + bỏ `catch{}` · (6) phát thuốc trừ kho FEFO (nhánh chuẩn + bán lẻ transaction).
+- **FLOW-2 P1 (6/7)**: (#9) OPD tạo `ServiceRequestDetail` · (#7) phiên khám "Chờ CLS"=2 · (#8 một phần) mark-performed cập nhật SRD.Status · (#11) Admission.Status 5="Đã chuyển khoa" + tên 4/5/6 · (#12) FEFO gộp nhiều lô + throw khi thiếu · (#13) nút Hủy phát đúng route. **#10 DEFER → #14** (LabRequestItem không có link tới SRD — cần model unification).
+- **FLOW-3 P2 (phần lớn XONG)**: **#17** auto-billing (mig 79) · **#14a** cancel-chain→model 1 (đóng #10) · **#14b**
+  pending XN→model 1 (phần lâm sàng; còn ~9 reader báo cáo/FHIR) · **#14c** model 3 LabOrder = legacy · **#14d**
+  bridge CĐHA model1→model4 (mig 80, đóng #8) · **#15** auto-summary BA nội trú · **#16** CheckTransferWarnings thật
+  (còn stub feature nutrition/hội chẩn/truyền dịch/ADR). **CÒN**: #14b-remaining (grind báo cáo) · **#14e gỡ bảng
+  model 2/3 (DESTRUCTIVE — chờ duyệt)** · stub feature #16. Chi tiết [`20-backlog/tech-debt-roadmap.md`](20-backlog/tech-debt-roadmap.md).
+- **Bug bắt khi regression + fix**: `ServiceRequest.Status` header hủy=**4** (không phải 3=Có KQ) — xem memory `servicerequest-status-enum-gotcha`. `CompleteDispensing` trả **400** rõ ràng khi thiếu kho. Test `test_real_workflow.js` cập nhật: settle order trước xuất viện + coi "thiếu tồn kho" là hợp lệ.
+- **Regression SẠCH** (chạy lại sau MỖI thay đổi): BE/FE build 0 err · schema-drift 0 (mig 78+79) · API suite **10/10** · doithu-gap **28/28** · Cypress **81/81** · Playwright **588/9skip/0fail**.
+- **TIẾP THEO**: FLOW-3 #14 (hợp nhất 4 model CLS) theo plan — P0 khảo sát → P1 thêm link migration additive (đang làm).
 
-> Mọi mục dưới đây **không làm trọn được từ máy local-only này** (thiếu: thông tin user / quyền prod-gcloud / browser-smoke). Liệt kê rõ "mở khoá bằng gì" để phiên/người sau xử lý ngay.
+## ✅ DAILY SEED WORKER + FIX ROW-CLICK — XONG + ĐÃ PUSH + DEPLOY 2026-06-08
 
-| # | Việc | Blocker | Mở khoá bằng |
-|---|---|---|---|
-| 1 | **HDDT (P5)** — nối NCC hoá đơn điện tử thật | ⛔ Chờ USER | User cấp NCC (VNPT/Viettel/MISA) + endpoint + credential qua ENV |
-| 2 | Bật worker nhắc hẹn lấy mẫu trên prod | ⛔ Quyền prod | Set env `SampleAppointmentReminder__Enabled=true` trên Cloud Run (cần gcloud) |
-| 3 | Rotate R2 API token (bảo mật) | ⛔ Quyền prod | Tạo token R2 mới + cập nhật env Cloud Run |
-| 4 | ~~**PTTT** nửa hiển thị: FE flip + print render~~ | ✅ XONG 2026-06-08 | auto-smoke API PASS; còn visual layout check sau deploy (không chặn) |
-| 5 | ~~**3 phiếu in gây mê** (theo dõi/hồi tỉnh/biên bản)~~ | ✅ XONG 2026-06-08 | FE print component + wire xong, tsc 0 err; visual browser smoke defer (cần seed data gây mê) |
-| 6 | Chuẩn hoá storage `AdmissionDate/ReceiptDate` Now→UtcNow | 🟡 Logic-nhạy-cảm | Phiên có smoke biên đêm (fix luôn Playwright `13-opd-...` fail) — user lên lịch |
-| 7 | Siết auth portal mobile (`patientId` FromQuery) · recurrence hẹn lấy mẫu · user-picker trình ký | 🟡 Feature + smoke | Lên lịch từng cái (đụng auth/luồng → cần kiểm thực tế) |
+## ✅ DAILY SEED WORKER + FIX ROW-CLICK — XONG + ĐÃ PUSH + DEPLOY 2026-06-08
 
-**Kết luận:** sau khi user duyệt làm tiếp với auto-smoke local, **#4 (PTTT) + #5 (3 phiếu gây mê) ĐÃ XONG 2026-06-08**. Tồn đọng còn lại (#1 HDDT, #2/#3 ops prod, #6/#7 logic-nhạy/feature) **đều cần user mở blocker** (info NCC / quyền gcloud / lên lịch smoke) — không làm trọn được từ máy local-only.
+**Bối cảnh**: user báo Tiếp Đón (và các phân hệ khác) không có data. Gốc rễ: logic seed đã có sẵn
+(`DailySeedController` + `PopulateDataController`) nhưng **không có gì tự kích hoạt** → DB rỗng.
 
-## ✅ PHIÊN 2026-06-08 (đợt 2) — hoàn tất PTTT hiển thị + 3 phiếu in gây mê (auto-smoke local)
+- **Job seed hằng ngày (BE)**: thêm `HIS.API/Workers/DailyDemoSeedWorker.cs` (BackgroundService) chạy ~30s
+  sau khởi động + mỗi 24h, **reuse 100%** logic: gọi `DailySeedController.RunDailySeedAsync` (tách core khỏi
+  HttpContext/key) → `PopulateDataController.PopulateAll`. Idempotent (mã `*SEED*`/bảng rỗng). Đăng ký
+  `AddHostedService` trong `Program.cs` (đặt ở tầng API vì Infra không reference được API). Config
+  `DailyDemoSeed` (appsettings) mặc định **TẮT**; bật prod bằng env `DailyDemoSeed__Enabled=true`.
+- **Fix row-click (FE)**: `pages-v2/EmergencyDisaster.tsx` + `InspectorPortal.tsx` — bảng tự dựng còn sót,
+  thêm `onClick` cấp dòng gọi hàm detail sẵn có (openCase/openDetail) + `cursor:pointer` + `e.stopPropagation()`
+  cho nút con. Quét toàn bộ pages-v2 (41 dòng `<tr key=` + Explore) xác nhận **không còn trường hợp khác**
+  (theo `10-assessment/fix-rowclick-detail-2026-06-06.md`).
+- **Regression SẠCH**: BE/FE build 0 err · startup + schema-drift **missingCount=0** · API regression-suite
+  **10/10** · doithu-gap **28/28** · Cypress console-errors **81/81** · Playwright **588 pass / 9 skip / 0 fail**.
+- **ĐÃ PUSH** `main` (`32f9287..2897ccd`, 2 commit code: `34440a6` seed worker, `2897ccd` fix row-click;
+  file `fix-rowclick-detail-*.md` giữ local-only). BE auto-deploy Cloud Run (run 27113544814 success),
+  FE Vercel auto-deploy.
+- **BẬT WORKER PROD**: `gcloud run services update his-api --update-env-vars=DailyDemoSeed__Enabled=true`
+  → revision `his-api-00063-r8l`. **Verify thật**: log prod `Daily seed: 30 patients + 30 records + 30 exams
+  + 10 tele + 10 rx + 10 lab + 5 incidents + 5 rehab + 6 signing + 4 proc + 8 archive...`;
+  `/reception/admissions/today` trả **30** BN. Từ giờ prod tự bơm data mỗi 24h.
 
-- **PTTT nửa hiển thị (plan items/plan-pttt…):** BE `CreateSurgeryRequestDto` +3 field · service create ưu tiên field tường minh (fallback parse Notes) · `PrintSurgeryReportAsync` thêm section TƯỜNG TRÌNH + `ExtractNoteTag` fallback · FE `SurgeryReportModal` gửi field riêng + `surgery.ts` type. **Auto-smoke API (:5199) PASS** explicit + legacy; cột persist verify SQL. Read-DTO bỏ (print đọc entity).
-- **3 phiếu in gây mê (audit-g37):** subagent thêm `frontend/src/components/AnesthesiaPrintTemplates.tsx` (3 component + 3 helper, presentational) · đăng ký `gayme-monitor/recovery/record` trong `PrintTemplateRenderer` · wire nút In trong `SurgeryFormModals` (AnesthesiaMonitorModal +2 nút khi có existingId; PostAnesthesiaPlanModal đổi handlePrint inline→template). Spot-check sạch (additive, no API trong component), **tsc 0 err**. Visual browser smoke defer.
-- Build: BE 0 err · FE tsc 0 err · registry print 94→97.
-- **✅ ĐÃ PUSH HẾT 2026-06-08** (user waive docs-hold lần này): `origin/main = 35ea5c5`. Build BE+FE 0 err trên base mới (sau khi rebase lên origin parallel +5 commit flow3). Backend test :5199 đã stop.
-  - `f42b7ad` code PTTT+gây mê · `c9c1296` workspace-docs · `1699a09` e2e-smoke workflow + recent-features cypress · `35ea5c5` reorg docs.
-- **📦 REORG docs (process song song của user):** `docs/TaiLieuChucNang/DoiThu/` + `knowledge/` → `docs/requirements/` (**742 renames + 66 added**, git nhận diện move sạch). User duyệt push as-is dù process còn đang chạy → **working tree có thể còn churn docs tiếp**; chỉ là PDF/markdown, KHÔNG ảnh hưởng code prod.
-  - ⚠️ Lưu ý phối hợp đa máy: user push song song (parallel commit `16ccdb5` từng renumber migration vitals 78→81 tránh trùng migration 78 surgery của tôi). LUÔN fetch trước khi làm tiếp ([[feedback_fetch-origin-before-backlog]]).
+## ✅ AUDIT-STUB-BUTTONS-FULL (audit-stub-buttons-full-2026-06-06.md) — XONG 2026-06-07 (CHƯA PUSH)
 
 ## ✅ AUDIT-STUB-BUTTONS-FULL (audit-stub-buttons-full-2026-06-06.md) — XONG 2026-06-07 (CHƯA PUSH)
 
@@ -142,6 +147,5 @@
 1. **HDDT**: chờ user cấp thông tin NCC (VNPT/Viettel/MISA + endpoint + credential qua ENV) — duy nhất còn chặn.
 2. Tùy chọn vận hành: bật worker nhắc hẹn trên prod (env trên) · rotate R2 token.
 3. Smoke UI thủ công các trang mới/đổi + viết thêm E2E cho Đợt 2/3 + wave.
-4. **Tường trình PTTT** — BE-storage XONG (migration 78, 2026-06-08); **còn nửa hiển thị: FE flip + print render + read-DTO** → phiên có deploy + browser smoke (xem `20-backlog/items/plan-pttt-narrative-columns.md`). Cùng phiên có thể làm nốt **3 phiếu in gây mê** (audit-g37, cũng cần smoke).
-5. Việc nền dài hạn: chuẩn hóa storage `AdmissionDate/ReceiptDate` Now→UtcNow (hiện đúng prod, lệch nhẹ dev ban đêm) ·
-   siết auth portal · recurrence generation cho hẹn lấy mẫu · user picker cho trình ký.
+4. Việc nền dài hạn: chuẩn hóa storage `AdmissionDate/ReceiptDate` Now→UtcNow (hiện đúng prod, lệch nhẹ dev ban đêm) ·
+   bỏ sentinel Notes PTTT · siết auth portal · recurrence generation cho hẹn lấy mẫu · user picker cho trình ký.
