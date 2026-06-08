@@ -85,6 +85,19 @@ Endpoint `GET inpatient/{admissionId}/auto-summary` → `GenerateTreatmentSummar
 
 ### #17 — ✅ XONG (xem trên).
 
+### 🆕 FEATURE — KQ XN cấu trúc per-parameter (🟠 MEDIUM, lập plan riêng)
+**Bối cảnh**: `ServiceRequestDetail.Result` hiện là **1 string** → mất cấu trúc per-parameter
+(ParameterName · Value · Unit · ReferenceRange/Min/Max · IsAbnormal · CriticalLow/High · SequenceNumber)
+mà model 2 `LabResult` / model 3 `LabOrderItem` từng có. Cần cho: **tô màu cảnh báo cao/thấp (H đỏ / L xanh /
+HH-LL nguy kịch)**, khớp **mẫu phiếu KQ MQ**, in phiếu XN cấu trúc, export FHIR/DQGVN đúng chuẩn.
+**Hiện trạng (2026-06-08)**: analyzer (`ProcessLabResultsAsync`) + KTV (`EnterLabResultAsync` dual-write) +
+SampleReceive đều ghi `SRD.Result` (string, KHÔNG có ngưỡng/cảnh báo per-parameter). Đủ để hiển thị KQ
+ở màn khám/portal/báo cáo, NHƯNG chưa tô màu H/L được.
+**Đề xuất plan sau**: thêm bảng `ServiceRequestDetailResult` (1-n từ SRD) với các cột per-parameter +
+ngưỡng; mọi write-path (analyzer/KTV/SampleReceive) tách dòng kết quả vào bảng này; reader (màn khám/portal/
+PDF/FHIR/DQGVN) đọc + tô màu. Khi đó các export cấu trúc (PdfGen/FHIR/DQGVN/NangCap24) mới convert đầy đủ
+được (đã defer ở FLOW-4). KHÔNG làm vội — lập plan + migration cẩn thận.
+
 ---
 
 ## Nguyên tắc thực thi (his-tech-debt-workflow)
