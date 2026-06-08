@@ -88,6 +88,10 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                 CreatedBy = userId.ToString()
             };
 
+            // Tách tường trình/kết luận/ảnh từ sentinel Notes (OPD-inline PTTT) → cột riêng.
+            // Additive + backward-compat: Notes vẫn giữ nguyên; cột mới phục vụ truy vấn/in (migration 78).
+            ApplyNarrativeFromNotes(request, dto.Notes);
+
             _context.Set<SurgeryRequest>().Add(request);
             await _context.SaveChangesAsync();
 
@@ -124,6 +128,26 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
             System.Diagnostics.Debug.WriteLine($"CreateSurgeryRequestAsync Error: {ex.Message}");
             throw new Exception($"Lỗi tạo yêu cầu phẫu thuật: {ex.Message}", ex);
         }
+    }
+
+    // Tách narrative PTTT từ chuỗi Notes pack sentinel ([TUONGTRINH]/[KETLUAN]/[HINHCHINH]/[HINHPHU])
+    // mà SurgeryReportModal FE đang gửi, đổ vào cột riêng. Best-effort, từng dòng; không đụng Notes gốc.
+    private static void ApplyNarrativeFromNotes(SurgeryRequest request, string? notes)
+    {
+        if (string.IsNullOrWhiteSpace(notes)) return;
+        var images = new List<string>();
+        foreach (var raw in notes.Replace("\r\n", "\n").Split('\n'))
+        {
+            var line = raw.TrimStart();
+            if (line.StartsWith("[TUONGTRINH]"))
+                request.SurgeryReport = line.Substring("[TUONGTRINH]".Length).Trim();
+            else if (line.StartsWith("[KETLUAN]"))
+                request.Conclusion = line.Substring("[KETLUAN]".Length).Trim();
+            else if (line.StartsWith("[HINHCHINH]") || line.StartsWith("[HINHPHU]"))
+                images.Add(line);
+        }
+        if (images.Count > 0)
+            request.AttachedImageUrls = string.Join("\n", images);
     }
 
     private static string GetSurgeryTypeName(int surgeryType) => surgeryType switch

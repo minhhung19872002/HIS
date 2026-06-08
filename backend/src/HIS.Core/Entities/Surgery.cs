@@ -45,6 +45,11 @@ public class SurgeryRequest : BaseEntity
     public string? Notes { get; set; }
     public string? SpecialRequirements { get; set; } // Yêu cầu đặc biệt
 
+    // Tường trình PTTT (OPD-inline, phiếu MS.PT-02) — tách khỏi sentinel Notes (migration 78)
+    public string? SurgeryReport { get; set; } // Tường trình phẫu thuật
+    public string? Conclusion { get; set; } // Kết luận sau PT
+    public string? AttachedImageUrls { get; set; } // Ảnh đính kèm: các dòng [HINHCHINH]/[HINHPHU] giữ nguyên tag, join '\n'
+
     // Navigation
     public virtual ICollection<SurgerySchedule> Schedules { get; set; } = new List<SurgerySchedule>();
 }
