@@ -541,7 +541,7 @@ const EmergencyDisasterV2: React.FC = () => {
                 const triage = TRIAGE_LEVELS.find((item) => item.level === row.triage)!;
                 const status = STATUS_OPTIONS.find((item) => item.value === row.status)!;
                 return (
-                  <tr key={row.code}>
+                  <tr key={row.code} onClick={() => openCase(row)} style={{ cursor: 'pointer' }}>
                     <td>
                       <span
                         className="er-v2-triage-chip"
@@ -567,14 +567,15 @@ const EmergencyDisasterV2: React.FC = () => {
                     </td>
                     <td>
                       <div className="er-v2-actions">
-                        <button type="button" className="er-v2-icon-btn" onClick={() => openCase(row)}>
+                        <button type="button" className="er-v2-icon-btn" onClick={(e) => { e.stopPropagation(); openCase(row); }}>
                           <EyeOutlined />
                         </button>
                         {row.status === 'treating' && (
                           <button
                             type="button"
                             className="er-v2-icon-btn"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               mutateRow(row.code, { status: 'admitted' });
                               message.success(`Đã chuyển ${row.patientName} sang nội trú`);
                             }}
@@ -585,7 +586,8 @@ const EmergencyDisasterV2: React.FC = () => {
                         <button
                           type="button"
                           className="er-v2-icon-btn"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             mutateRow(row.code, { status: 'discharged' });
                             message.success(`Đã hoàn tất xử trí cho ${row.patientName}`);
                           }}

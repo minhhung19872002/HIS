@@ -312,7 +312,7 @@ const InspectorWorkspace: React.FC<{ info: InspectorInfo; onLogout: () => void }
                 <tr><td colSpan={10} style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Không có HSBA</td></tr>
               )}
               {!loading && rows.map(r => (
-                <tr key={r.medicalRecordId} style={{ borderTop: '1px solid #e2e8f0' }}>
+                <tr key={r.medicalRecordId} onClick={() => openDetail(r)} style={{ borderTop: '1px solid #e2e8f0', cursor: 'pointer' }}>
                   <td style={{ padding: '10px 12px', fontFamily: 'monospace', color: '#1e3a8a', fontWeight: 600 }}>{r.medicalRecordCode}</td>
                   <td style={{ padding: '10px 12px' }}>
                     {r.patientName}
@@ -330,8 +330,8 @@ const InspectorWorkspace: React.FC<{ info: InspectorInfo; onLogout: () => void }
                   </td>
                   <td style={{ padding: '10px 12px', fontFamily: 'monospace', textAlign: 'right', fontWeight: 600 }}>{fmtVND(r.totalAmount)}</td>
                   <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
-                    <button onClick={() => openDetail(r)} style={{ background: 'transparent', border: 0, color: '#2563eb', fontSize: 12, cursor: 'pointer', marginRight: 8 }}>Xem</button>
-                    <button onClick={() => downloadXml(r)} style={{ background: 'transparent', border: 0, color: '#2563eb', fontSize: 12, cursor: 'pointer' }}>Tải XML</button>
+                    <button onClick={(e) => { e.stopPropagation(); openDetail(r); }} style={{ background: 'transparent', border: 0, color: '#2563eb', fontSize: 12, cursor: 'pointer', marginRight: 8 }}>Xem</button>
+                    <button onClick={(e) => { e.stopPropagation(); downloadXml(r); }} style={{ background: 'transparent', border: 0, color: '#2563eb', fontSize: 12, cursor: 'pointer' }}>Tải XML</button>
                   </td>
                 </tr>
               ))}
