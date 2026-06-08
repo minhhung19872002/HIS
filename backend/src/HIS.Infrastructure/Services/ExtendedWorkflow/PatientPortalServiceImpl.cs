@@ -314,12 +314,17 @@ th {{ background: #f0f0f0; text-align: center; }}
     {
         try
         {
-            var query = _context.LabResults.Include(x => x.LabRequestItem).ThenInclude(x => x!.LabRequest).AsQueryable();
-            if (patientId != Guid.Empty) query = query.Where(x => x.LabRequestItem!.LabRequest!.PatientId == patientId);
-            if (fromDate.HasValue) query = query.Where(x => x.ResultDate >= fromDate);
-            if (toDate.HasValue) query = query.Where(x => x.ResultDate <= toDate);
-            var list = await query.OrderByDescending(x => x.ResultDate).Take(30).ToListAsync();
-            return list.Select(e => new PortalLabResultDto { Id = e.Id, OrderCode = e.LabRequestItem?.LabRequest?.RequestCode ?? "", ResultDate = e.ResultDate, Status = e.Status == 1 ? "Completed" : "Pending" }).ToList();
+            // #14b: KQ XN đọc từ ServiceRequestDetail (model 1) — bảng LabResults (model 2) chết
+            // trong luồng thật nên BN trước đây không thấy KQ trên portal.
+            var query = _context.ServiceRequestDetails
+                .Include(d => d.ServiceRequest).ThenInclude(r => r.MedicalRecord)
+                .Where(d => d.ServiceRequest.RequestType == 1 && d.Status != 3
+                         && (d.Status == 2 || d.Result != null || d.ResultDate != null));
+            if (patientId != Guid.Empty) query = query.Where(d => d.ServiceRequest.MedicalRecord.PatientId == patientId);
+            if (fromDate.HasValue) query = query.Where(d => d.ResultDate >= fromDate);
+            if (toDate.HasValue) query = query.Where(d => d.ResultDate <= toDate);
+            var list = await query.OrderByDescending(d => d.ResultDate).Take(30).ToListAsync();
+            return list.Select(d => new PortalLabResultDto { Id = d.Id, OrderCode = d.ServiceRequest != null ? d.ServiceRequest.RequestCode : "", ResultDate = d.ResultDate ?? DateTime.MinValue, Status = d.Status == 2 ? "Completed" : "Pending" }).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -329,8 +334,9 @@ th {{ background: #f0f0f0; text-align: center; }}
 
     public async Task<PortalLabResultDto> GetLabResultAsync(Guid id)
     {
-        var e = await _context.LabResults.Include(x => x.LabRequestItem).ThenInclude(x => x!.LabRequest).FirstOrDefaultAsync(x => x.Id == id);
-        return e == null ? null! : new PortalLabResultDto { Id = e.Id, OrderCode = e.LabRequestItem?.LabRequest?.RequestCode ?? "", ResultDate = e.ResultDate, Status = e.Status == 1 ? "Completed" : "Pending" };
+        // #14b: đọc 1 KQ XN từ ServiceRequestDetail (model 1).
+        var e = await _context.ServiceRequestDetails.Include(d => d.ServiceRequest).FirstOrDefaultAsync(d => d.Id == id);
+        return e == null ? null! : new PortalLabResultDto { Id = e.Id, OrderCode = e.ServiceRequest != null ? e.ServiceRequest.RequestCode : "", ResultDate = e.ResultDate ?? DateTime.MinValue, Status = e.Status == 2 ? "Completed" : "Pending" };
     }
 
     public Task<bool> MarkLabResultViewedAsync(Guid id)
@@ -477,7 +483,8 @@ th {{ background: #f0f0f0; text-align: center; }}
             var unpaidInvoices = 0;
             try { unpaidInvoices = await _context.Receipts.CountAsync(x => (!hasPatient || x.PatientId == patientId) && x.Status != 1); } catch (SqlException) { }
             var newLabResults = 0;
-            try { newLabResults = await _context.LabResults.CountAsync(x => (!hasPatient || x.LabRequestItem!.LabRequest!.PatientId == patientId) && x.Status == 1); } catch (SqlException) { }
+            // #14b: đếm KQ XN mới từ ServiceRequestDetail (model 1) thay LabResults (model 2 chết).
+            try { newLabResults = await _context.ServiceRequestDetails.CountAsync(d => (!hasPatient || d.ServiceRequest.MedicalRecord.PatientId == patientId) && d.ServiceRequest.RequestType == 1 && d.Status == 2); } catch (SqlException) { }
             return new PatientPortalDashboardDto
             {
                 PatientId = patientId,

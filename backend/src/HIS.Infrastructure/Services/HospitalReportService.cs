@@ -1549,11 +1549,13 @@ public class HospitalReportService : IHospitalReportService
 
     private async Task FillParaclinicalSummary(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
-        var labCount = await _context.LabRequests.AsNoTracking()
-            .Where(l => l.CreatedAt >= from && l.CreatedAt < to && !l.IsDeleted)
+        // #14b: đếm phiếu/chỉ định XN từ model 1 (ServiceRequest/Detail RequestType=1) — bảng
+        // LabRequest(Item) (model 2) chết trong luồng thật nên báo cáo trước đây đếm = 0.
+        var labCount = await _context.ServiceRequests.AsNoTracking()
+            .Where(r => r.RequestType == 1 && r.CreatedAt >= from && r.CreatedAt < to && !r.IsDeleted && r.Status != 4)
             .CountAsync();
-        var labItemCount = await _context.LabRequestItems.AsNoTracking()
-            .Where(li => li.CreatedAt >= from && li.CreatedAt < to && !li.IsDeleted)
+        var labItemCount = await _context.ServiceRequestDetails.AsNoTracking()
+            .Where(d => d.ServiceRequest.RequestType == 1 && d.CreatedAt >= from && d.CreatedAt < to && !d.IsDeleted && d.Status != 3)
             .CountAsync();
 
         result.Data.Add(new Dictionary<string, object>
