@@ -81,6 +81,19 @@ public class DailySeedController : ControllerBase
         if (count < 1 || count > 200)
             return BadRequest(new { error = "count must be 1..200" });
 
+        var result = await RunDailySeedAsync(count, purge);
+        if (result is null)
+            return StatusCode(503, new { error = "No active examination rooms" });
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Core daily-seed logic, callable in-process (e.g. by DailyDemoSeedWorker) without
+    /// an HttpContext. Returns the seed summary object, or <c>null</c> when there are no
+    /// active examination rooms to attach today's medical records to.
+    /// </summary>
+    public async Task<object?> RunDailySeedAsync(int count = 30, bool purge = false)
+    {
         // Use Vietnam local date since clinicians read the app in VN timezone; UTC
         // "today" would diverge for ~7h each evening and mask seeded rows.
         TimeZoneInfo vnTz;
@@ -129,7 +142,7 @@ public class DailySeedController : ControllerBase
             .Select(r => new { r.Id, r.DepartmentId })
             .ToListAsync();
         if (rooms.Count == 0)
-            return StatusCode(503, new { error = "No active examination rooms" });
+            return null;
 
         var rng = new Random(today.DayOfYear);
         var toCreate = Math.Max(0, count - existingToday);
@@ -1309,7 +1322,7 @@ public class DailySeedController : ControllerBase
             newPatients.Count, newRecords.Count, newExams.Count, newTele.Count, newRx.Count, newLab.Count, newStaff.Count, newEquip.Count,
             newIncidents, newRehab, newSigning, newSurvey, newProc, newArchive, newHie, newTraining, newResearch, newAssets, today);
 
-        return Ok(new
+        return new
         {
             createdPatients = newPatients.Count,
             createdRecords = newRecords.Count,
@@ -1341,6 +1354,6 @@ public class DailySeedController : ControllerBase
             createdQueueTickets = newQueueTickets,
             date = today,
             totalTodayAfter = existingToday + newPatients.Count
-        });
+        };
     }
 }

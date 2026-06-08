@@ -24,6 +24,12 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// Worker bơm dữ liệu demo mỗi ngày (Tiếp Đón + các phân hệ rỗng). Mặc định TẮT —
+// bật trên Cloud Run bằng env var DailyDemoSeed__Enabled=true. Đặt ở tầng API vì
+// reuse trực tiếp DailySeedController/PopulateDataController (Infrastructure không
+// được reference API).
+builder.Services.AddHostedService<HIS.API.Workers.DailyDemoSeedWorker>();
+
 // Controllers
 builder.Services.AddControllers(options =>
     {
