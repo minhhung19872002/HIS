@@ -35,8 +35,10 @@
 - **PTTT nửa hiển thị (plan items/plan-pttt…):** BE `CreateSurgeryRequestDto` +3 field · service create ưu tiên field tường minh (fallback parse Notes) · `PrintSurgeryReportAsync` thêm section TƯỜNG TRÌNH + `ExtractNoteTag` fallback · FE `SurgeryReportModal` gửi field riêng + `surgery.ts` type. **Auto-smoke API (:5199) PASS** explicit + legacy; cột persist verify SQL. Read-DTO bỏ (print đọc entity).
 - **3 phiếu in gây mê (audit-g37):** subagent thêm `frontend/src/components/AnesthesiaPrintTemplates.tsx` (3 component + 3 helper, presentational) · đăng ký `gayme-monitor/recovery/record` trong `PrintTemplateRenderer` · wire nút In trong `SurgeryFormModals` (AnesthesiaMonitorModal +2 nút khi có existingId; PostAnesthesiaPlanModal đổi handlePrint inline→template). Spot-check sạch (additive, no API trong component), **tsc 0 err**. Visual browser smoke defer.
 - Build: BE 0 err · FE tsc 0 err · registry print 94→97.
-- **CHƯA push (đợt này):** chờ commit. Backend test :5199 còn chạy (cần stop khi xong).
-- **⚠️ ANOMALY KHÔNG PHẢI CỦA TÔI:** working tree có **~35 PDF `docs/TaiLieuChucNang/` bị xoá + xuất hiện `docs/requirements/TaiLieuChucNang/`** (MOVE ở filesystem, không qua git, không trong reflog/commit phiên này). Nghi user/tool khác di chuyển song song. **KHÔNG commit mớ này** (chỉ `git add` file cụ thể). Cần user xác nhận: giữ move (stage rename) hay hoàn tác.
+- **✅ ĐÃ PUSH HẾT 2026-06-08** (user waive docs-hold lần này): `origin/main = 35ea5c5`. Build BE+FE 0 err trên base mới (sau khi rebase lên origin parallel +5 commit flow3). Backend test :5199 đã stop.
+  - `f42b7ad` code PTTT+gây mê · `c9c1296` workspace-docs · `1699a09` e2e-smoke workflow + recent-features cypress · `35ea5c5` reorg docs.
+- **📦 REORG docs (process song song của user):** `docs/TaiLieuChucNang/DoiThu/` + `knowledge/` → `docs/requirements/` (**742 renames + 66 added**, git nhận diện move sạch). User duyệt push as-is dù process còn đang chạy → **working tree có thể còn churn docs tiếp**; chỉ là PDF/markdown, KHÔNG ảnh hưởng code prod.
+  - ⚠️ Lưu ý phối hợp đa máy: user push song song (parallel commit `16ccdb5` từng renumber migration vitals 78→81 tránh trùng migration 78 surgery của tôi). LUÔN fetch trước khi làm tiếp ([[feedback_fetch-origin-before-backlog]]).
 
 ## ✅ AUDIT-STUB-BUTTONS-FULL (audit-stub-buttons-full-2026-06-06.md) — XONG 2026-06-07 (CHƯA PUSH)
 
