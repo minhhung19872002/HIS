@@ -84,6 +84,21 @@ public class BookingManagementController : ControllerBase
     public async Task<IActionResult> CheckInBooking(string code)
     {
         var result = await _service.CheckInBookingAsync(code);
+
+        // F5 (audit FLOW-FINAL 2026-06-06): check-in nay TẠO lượt khám thật (Reception/Admission +
+        // hàng đợi) qua QuickRegisterByAppointment có sẵn — trước đây chỉ đổi Status=2, BN "đã đến"
+        // nhưng không sinh lượt khám (dead-end). Best-effort: lỗi đăng ký (vd đã đăng ký rồi) KHÔNG
+        // làm hỏng check-in đã thành công — có thể đăng ký lại tại quầy.
+        try
+        {
+            var reception = HttpContext.RequestServices
+                .GetRequiredService<HIS.Application.Services.IReceptionCompleteService>();
+            var userId = Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var uid)
+                ? uid : Guid.Empty;
+            await reception.QuickRegisterByAppointmentAsync(code, userId);
+        }
+        catch { /* check-in đã OK; tạo lượt khám có thể retry tại quầy */ }
+
         return Ok(result);
     }
 

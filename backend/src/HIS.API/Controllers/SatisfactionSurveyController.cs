@@ -33,13 +33,20 @@ public class SatisfactionSurveyController : ControllerBase
             var satisfiedCount = recentSurveys.Count(s => s.OverallScore >= 4);
             var satisfactionRate = recentSurveys.Any() ? (double)satisfiedCount / recentSurveys.Count * 100 : 0;
 
+            // F10 (audit FLOW-FINAL 2026-06-06): tỷ lệ phản hồi THẬT = số khảo sát / số BN ra viện
+            // trong tháng (thay placeholder hardcode 68.5).
+            var dischargedThisMonth = await _db.Set<HIS.Core.Entities.Discharge>()
+                .CountAsync(d => d.DischargeDate >= thisMonth && !d.IsDeleted);
+            var responseRate = dischargedThisMonth > 0
+                ? Math.Round((double)recentSurveys.Count / dischargedThisMonth * 100, 1) : 0;
+
             return Ok(new
             {
                 totalSurveys,
                 recentCount = recentSurveys.Count,
                 averageScore = Math.Round(avgScore, 1),
                 satisfactionRate = Math.Round(satisfactionRate, 1),
-                responseRate = 68.5, // Placeholder - would need total discharged patients
+                responseRate,
                 byDepartment = recentSurveys
                     .GroupBy(s => s.DepartmentName ?? "Chưa xác định")
                     .Select(g => new { department = g.Key, avgScore = Math.Round(g.Average(s => s.OverallScore), 1), count = g.Count() })

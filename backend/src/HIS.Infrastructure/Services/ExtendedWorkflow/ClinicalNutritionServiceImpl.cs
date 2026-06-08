@@ -171,14 +171,23 @@ public class ClinicalNutritionServiceImpl : IClinicalNutritionService
         return true;
     }
 
-    public Task<List<DietTypeDto>> GetDietTypesAsync(string? category = null)
+    public async Task<List<DietTypeDto>> GetDietTypesAsync(string? category = null)
     {
-        var types = new List<DietTypeDto>
-        {
-            new() { Id = Guid.NewGuid(), Code = "REG", Name = "Chế độ ăn thường", Category = "Regular" },
-            new() { Id = Guid.NewGuid(), Code = "DM", Name = "Chế độ ăn tiểu đường", Category = "Therapeutic" }
-        };
-        return Task.FromResult(category != null ? types.Where(t => t.Category == category).ToList() : types);
+        // F2 (audit FLOW-FINAL 2026-06-06): đọc DietType từ DB — trước đây hardcode Guid.NewGuid()
+        // MỖI lần gọi → id ngẫu nhiên, đặt suất ăn (DietOrder.DietTypeId) vỡ tham chiếu.
+        var query = _context.DietTypes.Where(d => d.IsActive);
+        if (!string.IsNullOrEmpty(category)) query = query.Where(d => d.Category == category);
+        return await query.OrderBy(d => d.Name)
+            .Select(d => new DietTypeDto
+            {
+                Id = d.Id,
+                Code = d.Code,
+                Name = d.Name,
+                Category = d.Category,
+                Description = d.Description ?? string.Empty,
+                DefaultCalories = d.BaseCalories
+            })
+            .ToListAsync();
     }
 
     public Task<List<MealPlanDto>> GetMealPlansAsync(DateTime date, Guid? departmentId = null) => Task.FromResult(new List<MealPlanDto>());

@@ -827,6 +827,11 @@ namespace HIS.API.Controllers
     /// </summary>
     [ApiController]
     [Route("api/portal")]
+    // B2 (audit bảo mật 2026-06-06) — mitigation bounded: model hiện tại là staff-on-behalf (chưa có
+    // patient self-login — xem tech-debt-roadmap "B2 FEATURE"). Tạm siết về các vai trò NHÂN VIÊN được
+    // phép tra cứu BN (lâm sàng/tiếp đón/quản lý HSBA/viện phí + Admin) thay vì bất kỳ user đăng nhập —
+    // giảm bề mặt IDOR. (Register vẫn [AllowAnonymous] để BN tự đăng ký account.)
+    [Authorize(Roles = "Admin,Director,Manager,Receptionist,Doctor,Nurse,Midwife,DepartmentHead,MedicalRecordManager,Accountant,Cashier,InsuranceOfficer")]
     public class PatientPortalController : ControllerBase
     {
         private readonly IPatientPortalService _service;

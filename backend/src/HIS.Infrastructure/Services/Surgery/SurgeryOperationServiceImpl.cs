@@ -993,9 +993,15 @@ public class SurgeryOperationServiceImpl : ISurgeryOperationService
 
     #region 6.4 Chỉ định dịch vụ trong PTTT
 
-    public Task<string?> GetDiagnosisFromOrderAsync(Guid medicalRecordId)
+    public async Task<string?> GetDiagnosisFromOrderAsync(Guid medicalRecordId)
     {
-        return Task.FromResult<string?>("Viêm ruột thừa cấp");
+        // F1 (audit FLOW-FINAL 2026-06-06): đọc chẩn đoán THẬT từ HSBA thay hardcode "Viêm ruột thừa cấp".
+        var mr = await _context.MedicalRecords
+            .Where(m => m.Id == medicalRecordId)
+            .Select(m => new { m.InitialDiagnosis, m.MainIcdCode })
+            .FirstOrDefaultAsync();
+        if (mr == null) return null;
+        return !string.IsNullOrWhiteSpace(mr.InitialDiagnosis) ? mr.InitialDiagnosis : mr.MainIcdCode;
     }
 
     public Task<List<IcdCodeDto>> SearchIcdCodesAsync(string keyword, bool byCode)
