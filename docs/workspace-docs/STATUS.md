@@ -1,6 +1,42 @@
 # STATUS — đang ở đâu · blocker · việc kế tiếp
 
-> Cập nhật cuối: **2026-06-07 ~18:00** (sau audit-stub-buttons-full: wire 83 nút giả + 6 endpoint BE mới).
+> Cập nhật cuối: **2026-06-08** (sync origin +18 commit + slice BE-storage tường trình PTTT).
+
+## ✅ PHIÊN 2026-06-08 — sync origin + tách cột tường trình PTTT (slice BE-storage)
+
+- **Git sync:** local đã rebase lên `origin/main` (kéo về **18 commit** code của user: gap đối thủ, seed worker demo, wire 83 stub-button, fix UI v2…). 2 commit docs LOCAL-ONLY của phiên trước được giữ (`audit-g37` + `plan-pttt`); STATUS lấy bản origin. Tag an toàn `backup-local-docs-2026-06-08`.
+- **▶ Tiếp tục plan `20-backlog/items/plan-pttt-narrative-columns.md`** — làm **nửa BE-storage additive** (verify được local, KHÔNG cần smoke):
+  - Entity `SurgeryRequest` +3 cột `SurgeryReport`/`Conclusion`/`AttachedImageUrls`.
+  - **Migration `78_surgery_narrative_columns.sql`** (ADD idempotent + backfill từ sentinel `Notes`) — áp local Docker 2 lần OK, 0 lỗi.
+  - Service create parse sentinel → cột mới (`ApplyNarrativeFromNotes`), **giữ nguyên `Notes`** (không regression in).
+  - Verify: `dotnet build` 0 err · migration idempotent · parse expr đúng.
+  - **DEFER (cần phiên deploy + browser smoke):** FE flip `SurgeryReportModal` · print `PrintSurgeryReportAsync` render cột mới + fallback · expose `SurgeryDto` (29 điểm map). Chi tiết trong plan file.
+- **✅ ĐÃ PUSH 2026-06-08:** code commit `aa18467` (entity+service+migration 78) + chore `b59d609` (Stop hook ép cập nhật STATUS) → `origin/main` (backend/** → GitHub Actions tự deploy Cloud Run; migration 78 auto-apply, verify `/health/schema-drift`=0 sau deploy). Docs commit `d42ea76` giữ local.
+- **🔧 Cơ chế chống quên:** `notify-stop.sh` (Stop hook) nay CHẶN kết thúc lượt nếu code đổi mà STATUS chưa cập nhật trong ngày → buộc đồng bộ workspace-docs mỗi phiên.
+
+## 🧭 TỒN ĐỌNG — phân loại theo blocker (cập nhật 2026-06-08)
+
+> Mọi mục dưới đây **không làm trọn được từ máy local-only này** (thiếu: thông tin user / quyền prod-gcloud / browser-smoke). Liệt kê rõ "mở khoá bằng gì" để phiên/người sau xử lý ngay.
+
+| # | Việc | Blocker | Mở khoá bằng |
+|---|---|---|---|
+| 1 | **HDDT (P5)** — nối NCC hoá đơn điện tử thật | ⛔ Chờ USER | User cấp NCC (VNPT/Viettel/MISA) + endpoint + credential qua ENV |
+| 2 | Bật worker nhắc hẹn lấy mẫu trên prod | ⛔ Quyền prod | Set env `SampleAppointmentReminder__Enabled=true` trên Cloud Run (cần gcloud) |
+| 3 | Rotate R2 API token (bảo mật) | ⛔ Quyền prod | Tạo token R2 mới + cập nhật env Cloud Run |
+| 4 | ~~**PTTT** nửa hiển thị: FE flip + print render~~ | ✅ XONG 2026-06-08 | auto-smoke API PASS; còn visual layout check sau deploy (không chặn) |
+| 5 | ~~**3 phiếu in gây mê** (theo dõi/hồi tỉnh/biên bản)~~ | ✅ XONG 2026-06-08 | FE print component + wire xong, tsc 0 err; visual browser smoke defer (cần seed data gây mê) |
+| 6 | Chuẩn hoá storage `AdmissionDate/ReceiptDate` Now→UtcNow | 🟡 Logic-nhạy-cảm | Phiên có smoke biên đêm (fix luôn Playwright `13-opd-...` fail) — user lên lịch |
+| 7 | Siết auth portal mobile (`patientId` FromQuery) · recurrence hẹn lấy mẫu · user-picker trình ký | 🟡 Feature + smoke | Lên lịch từng cái (đụng auth/luồng → cần kiểm thực tế) |
+
+**Kết luận:** sau khi user duyệt làm tiếp với auto-smoke local, **#4 (PTTT) + #5 (3 phiếu gây mê) ĐÃ XONG 2026-06-08**. Tồn đọng còn lại (#1 HDDT, #2/#3 ops prod, #6/#7 logic-nhạy/feature) **đều cần user mở blocker** (info NCC / quyền gcloud / lên lịch smoke) — không làm trọn được từ máy local-only.
+
+## ✅ PHIÊN 2026-06-08 (đợt 2) — hoàn tất PTTT hiển thị + 3 phiếu in gây mê (auto-smoke local)
+
+- **PTTT nửa hiển thị (plan items/plan-pttt…):** BE `CreateSurgeryRequestDto` +3 field · service create ưu tiên field tường minh (fallback parse Notes) · `PrintSurgeryReportAsync` thêm section TƯỜNG TRÌNH + `ExtractNoteTag` fallback · FE `SurgeryReportModal` gửi field riêng + `surgery.ts` type. **Auto-smoke API (:5199) PASS** explicit + legacy; cột persist verify SQL. Read-DTO bỏ (print đọc entity).
+- **3 phiếu in gây mê (audit-g37):** subagent thêm `frontend/src/components/AnesthesiaPrintTemplates.tsx` (3 component + 3 helper, presentational) · đăng ký `gayme-monitor/recovery/record` trong `PrintTemplateRenderer` · wire nút In trong `SurgeryFormModals` (AnesthesiaMonitorModal +2 nút khi có existingId; PostAnesthesiaPlanModal đổi handlePrint inline→template). Spot-check sạch (additive, no API trong component), **tsc 0 err**. Visual browser smoke defer.
+- Build: BE 0 err · FE tsc 0 err · registry print 94→97.
+- **CHƯA push (đợt này):** chờ commit. Backend test :5199 còn chạy (cần stop khi xong).
+- **⚠️ ANOMALY KHÔNG PHẢI CỦA TÔI:** working tree có **~35 PDF `docs/TaiLieuChucNang/` bị xoá + xuất hiện `docs/requirements/TaiLieuChucNang/`** (MOVE ở filesystem, không qua git, không trong reflog/commit phiên này). Nghi user/tool khác di chuyển song song. **KHÔNG commit mớ này** (chỉ `git add` file cụ thể). Cần user xác nhận: giữ move (stage rename) hay hoàn tác.
 
 ## ✅ AUDIT-STUB-BUTTONS-FULL (audit-stub-buttons-full-2026-06-06.md) — XONG 2026-06-07 (CHƯA PUSH)
 
@@ -104,5 +140,6 @@
 1. **HDDT**: chờ user cấp thông tin NCC (VNPT/Viettel/MISA + endpoint + credential qua ENV) — duy nhất còn chặn.
 2. Tùy chọn vận hành: bật worker nhắc hẹn trên prod (env trên) · rotate R2 token.
 3. Smoke UI thủ công các trang mới/đổi + viết thêm E2E cho Đợt 2/3 + wave.
-4. Việc nền dài hạn: chuẩn hóa storage `AdmissionDate/ReceiptDate` Now→UtcNow (hiện đúng prod, lệch nhẹ dev ban đêm) ·
-   bỏ sentinel Notes PTTT · siết auth portal · recurrence generation cho hẹn lấy mẫu · user picker cho trình ký.
+4. **Tường trình PTTT** — BE-storage XONG (migration 78, 2026-06-08); **còn nửa hiển thị: FE flip + print render + read-DTO** → phiên có deploy + browser smoke (xem `20-backlog/items/plan-pttt-narrative-columns.md`). Cùng phiên có thể làm nốt **3 phiếu in gây mê** (audit-g37, cũng cần smoke).
+5. Việc nền dài hạn: chuẩn hóa storage `AdmissionDate/ReceiptDate` Now→UtcNow (hiện đúng prod, lệch nhẹ dev ban đêm) ·
+   siết auth portal · recurrence generation cho hẹn lấy mẫu · user picker cho trình ký.
