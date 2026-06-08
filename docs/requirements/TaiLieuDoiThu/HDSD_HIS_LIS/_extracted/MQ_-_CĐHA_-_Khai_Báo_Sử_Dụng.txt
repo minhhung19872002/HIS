@@ -1,0 +1,190 @@
+===== PAGE 1 ===== (chars=1774)
+1 
+MQ Solutions : CĐHA    Khai báo s ử dụng   
+MQ Solutions  
+Điện tho ại: 091 449 77 46  
+Email:  mqsoftvn@gmail.com  
+Website:  mqsoft.vn  
+CĐHA  
+Khai báo sử dụng 
+ 
+Mục lục 
+Khai báo danh m ục loại chẩn đoán hình ảnh ................................ ................................ ....... 2 
+1. Vào màn hình khai báo “Lo ại chẩn đoán hình ảnh” ................................ ................  2 
+2. Khai báo lo ại chẩn đoán hình ảnh ................................ ................................ ............  4 
+3. Sửa loại chẩn đoán hình ảnh ................................ ................................ .....................  4 
+Khai báo máy th ực hiện ................................ ................................ ................................ ....... 6 
+1. Vào màn hình khai báo “Máy th ực hiện” ................................ ................................ . 6 
+2. Khai báo máy th ực hiện ................................ ................................ ............................  8 
+3. Sửa máy th ực hiện ................................ ................................ ................................ .... 8 
+Khai báo m ẫu mô t ả (Template)  ................................ ................................ ..........................  9 
+1. Vào màn hình Khai báo m ẫu CĐHA  ................................ ................................ ........  9 
+2. Khai báo m ẫu mô t ả ................................ ................................ ................................  10 
+3. Chỉnh sửa mẫu mô t ả ................................ ................................ ..............................  12 
+4. Sử dụng m ẫu mô t ả đã khai báo  ................................ ................................ .............  14 
+ 
+  
+
+===== PAGE 2 ===== (chars=263)
+2 
+MQ Solutions : CĐHA    Khai báo s ử dụng Khai báo danh m ục loại chẩn đoán hình ảnh 
+1. Vào màn hình khai báo “Lo ại chẩn đoán hình ảnh” 
+1. Mở phần mềm MQ Main  
+ 
+2. Chọn vào ph ần Chẩn đoán hình ảnh (MQ RIS) 
+ 
+3. Nhập tài kho ản, mật khẩu được cung cấp 
+ 
+
+===== PAGE 3 ===== (chars=307)
+3 
+MQ Solutions : CĐHA    Khai báo s ử dụng  
+4. Vào “3. Ti ện ích” → “Danh m ục” → “Loại chẩn đoán hình ảnh” 
+ 
+ 
+Hình 1: Màn hình khai báo "Lo ại chẩn đoán hình ảnh" 
+1. Danh sách các lo ại chẩn đoán hình ảnh 
+2. Dược khoa phòng  
+3. Quầy thực hiện 
+4. Thông tin và tu ỳ chọn của loại chẩn đoán hình ảnh 
+
+===== PAGE 4 ===== (chars=919)
+4 
+MQ Solutions : CĐHA    Khai báo s ử dụng 2. Khai báo lo ại chẩn đoán hình ảnh 
+1. Nhấn “M ới” → Điền đầy đủ thông  tin lo ại chẩn đoán hình ảnh: STT, Khoa/Phòng , 
+…  
+2. Tích các tu ỳ chọn cần thiết (VD: chọn hình và ch ụp hình  nếu mẫu báo cáo có 
+hình) 
+3. Loại chẩn đoán hình ảnh đó s ử dụng dư ợc của khoa phòng nào  thì ch ọn (Khung s ố 
+2 đã tô đ ỏ). Không có thì không tích  
+4. Quầy thực hiện 
+5. Lưu 
+Lưu ý:  
+• Ở phần “Tên report” liên h ệ phòng IT đ ể thiết kế report và cung c ấp tên report  
+• Nếu có tích ch ọn “Ch ụp hình”, “Ch ọn hình”  thì sẽ chọn được số lượng hình tối đa 
+in trên report và s ố lượng hình  tối đa lưu trên máy .  
+VD: Ch ụp CT  
+ 
+• Dược khoa/phòng c ủa phòng CT Scan  
+• Quầy thực hiện: CT -Scanner  
+• Do CT ch ụp hình bên ngoài nên không c ần tích chụp, ch ọn hình trên report  
+3. Sửa loại chẩn đoán hình ảnh 
+1. Chọn loại chẩn đoán hình ảnh mu ốn chỉnh sửa trên danh sách  
+
+===== PAGE 5 ===== (chars=250)
+5 
+MQ Solutions : CĐHA    Khai báo s ử dụng 2. Nhấn “Sửa” → Chỉnh sửa thông tin c ần thiết 
+3. Nhấn “Lưu”  
+Lưu ý:  
+• Không s ửa “Tên Report” → Lỗi → Không th ể in report  
+Ghi chú:  Bấm “B ỏ qua” n ếu không mu ốn lưu thông tin đã nh ập hay s ửa 
+  
+===== PAGE 6 ===== (chars=235)
+6 
+MQ Solutions : CĐHA    Khai báo s ử dụng Khai báo máy thực hiện 
+1. Vào màn hình khai báo “ Máy th ực hiện” 
+1. Mở phần mềm MQ Main  
+ 
+2. Chọn vào ph ần Chẩn đoán hình ảnh (MQ RIS) 
+ 
+3. Nhập tài kho ản, mật khẩu được cung c ấp 
+ 
+
+===== PAGE 7 ===== (chars=182)
+7 
+MQ Solutions : CĐHA    Khai báo s ử dụng  
+4. Vào “3. Ti ện ích” → “Danh m ục” → “Máy th ực hiện” 
+ 
+5. Chọn “Lo ại chẩn đoán hình ảnh” mu ốn khai báo máy  → Nhấn “Ch ọn” 
+ 
+ 
+  
+
+===== PAGE 8 ===== (chars=435)
+8 
+MQ Solutions : CĐHA    Khai báo s ử dụng  
+Hình 2: Màn hình khai báo " Máy th ực hiện" 
+2. Khai báo máy th ực hiện 
+1. Nhấn “M ới” → Điền đầy đủ thông tin máy th ực hiện: Mã máy và tên máy  
+2. Nhấn “Lưu” 
+3. Sửa máy th ực hiện 
+1. Chọn máy th ực hiện mu ốn chỉnh sửa trên danh sách  
+2. Nhấn “Sửa” → Chỉnh sửa thông tin c ần thiết 
+3. Nhấn “Lưu ” 
+Ghi chú:  Bấm “B ỏ qua” n ếu không mu ốn lưu thông tin đã nh ập hay s ửa 
+ 
+ 
+ 
+  
+
+===== PAGE 9 ===== (chars=238)
+9 
+MQ Solutions : CĐHA    Khai báo s ử dụng Khai báo m ẫu mô t ả (Template)  
+1. Vào màn hình  Khai báo mẫu CĐHA  
+1. Mở phần mềm MQ Main  
+ 
+2. Chọn vào ph ần Chẩn đoán hình ảnh (MQ RIS) 
+ 
+3. Nhập tài kho ản, mật khẩu được cung c ấp 
+ 
+
+===== PAGE 10 ===== (chars=204)
+10 
+MQ Solutions : CĐHA    Khai báo s ử dụng  
+4. Vào “3. Ti ện ích” → “Khai báo s ử dụng” → “Mẫu 1 – Template”  
+ 
+2. Khai báo m ẫu mô t ả 
+1. Chọn loại CĐHA mu ốn khai báo m ẫu mô t ả → Nhấn “Ch ọn” 
+ 
+
+===== PAGE 11 ===== (chars=419)
+11 
+MQ Solutions : CĐHA    Khai báo s ử dụng  
+Hình 3: Màn hình khai báo m ẫu mô t ả 
+2. Nhấn “M ới” 
+ 
+3. Chọn tên Bác s ĩ sử dụng m ẫu => Gõ “Chung” đ ể dùng chung cho t ất cả bác s ĩ 
+4. Chọn kỹ thuật => Chọn đúng theo  mã K ỹ thuật chỉ định phòng khám  
+5. Đặt tên m ẫu theo ý mu ốn để phân bi ệt từng m ẫu cho t ừng đối tượng 
+6. Chọn đối tượng “T ất cả”, “Nam”, “N ữ” để mẫu chỉ sử dụng riêng cho đ ối tượng 
+đó 
+
+===== PAGE 12 ===== (chars=565)
+12 
+MQ Solutions : CĐHA    Khai báo s ử dụng 7. Nhấn “Lưu”  
+Ghi chú:  
+• Một kỹ thuật có th ể có nhi ều mẫu mô tả 
+• Mẫu mô t ả nên có K ết luận. (Nên đ ể mặc định “Không có phát hi ện bất thường 
+…” hay ch ỉ cần “.”  Để đẩy cổng, nếu có thay đ ổi thì có th ể chỉnh sửa khi đưa ra 
+kết quả)  
+• Bấm “B ỏ qua” n ếu không mu ốn lưu thông tin đã nh ập 
+3. Chỉnh sửa mẫu mô t ả 
+ 
+1. Ở màn hình  “Khai báo m ẫu” ch ọn “Danh sách m ẫu đã khai”  
+2. Ở đây s ẽ hiện ra danh sách m ẫu mô t ả đã khai, ch ọn mẫu mô t ả muốn chỉnh sửa 
+(nhấn 2 lần vào mẫu mu ốn chỉnh sửa) 
+
+===== PAGE 13 ===== (chars=256)
+13 
+MQ Solutions : CĐHA    Khai báo s ử dụng  
+3. Sau khi ch ọn, sẽ chuy ển qua màn hình  “Khai báo m ẫu” → Nhấn “Sửa” → Tiến 
+hành ch ỉnh sửa 
+ 
+4. Sau khi ch ỉnh sửa xong → Nhấn “Lưu”  
+Ghi chú:  Bấm “B ỏ qua” n ếu không mu ốn lưu thông tin đã s ửa 
+ 
+ 
+
+===== PAGE 14 ===== (chars=384)
+14 
+MQ Solutions : CĐHA    Khai báo s ử dụng 4.  Sử dụng m ẫu mô t ả đã khai báo  
+1. Vào màn hình  thực hiện kỹ thuật CĐHA tương ứng 
+ 
+ 
+2. Thực hiện quy trình “Tr ả kết quả CĐHA”  
+3. Tích vào ô “Mẫu mới” 
+4. Nhấn “Mô t ả” 
+Ghi chú:  Khi không mu ốn sử dụng m ẫu mô t ả đã khai báo v ẫn phải nhấn “Mô t ả” để 
+nhập được nội dung vào mô t ả, kết luận và đ ề nghị. 
+PACIFICCROSS  
+ 

@@ -1,0 +1,406 @@
+===== PAGE 1 ===== (chars=2339)
+ 
+MQ Solutions : Dược   
+MQ Solutions  
+Điện tho ại: 091 449 77 46  
+Email:  mqsoftvn@gmail.com  
+Website:  mqsoft.vn  
+DƯỢC 
+Quản lý Dư ợc 
+Mục lục 
+Vào ph ần mềm “Dư ợc” ................................ ................................ ................................ ....... 3 
+Kho ................................ ................................ ................................ ................................ ...... 5 
+1. Nhập kho  ................................ ................................ ................................ ..................  5 
+1.1 Vào màn hình “Nh ập kho”  ................................ ................................ ................  5 
+1.2 Thao tác “Phi ếu nhập kho”  ................................ ................................ ...............  5 
+1.3 Xóa, s ửa phi ếu nhập kho  ................................ ................................ ...................  6 
+2. Xuất chuy ển kho  ................................ ................................ ................................ ...... 9 
+2.1 Vào màn hình “Xu ất chuy ển kho”  ................................ ................................ .... 9 
+2.2 Thao tác “Phi ếu xuất chuy ển kho”  ................................ ................................ .... 9 
+2.3 Xóa, s ửa phi ếu xuất chuy ển kho  ................................ ................................ ..... 10 
+3. Phiếu dự trù và ch ức năng Duy ệt cấp theo kho d ự trù ................................ ..........  10 
+3.1 Phiếu dự trù ................................ ................................ ................................ ..... 10 
+3.2 Duyệt cấp theo kho d ự trù ................................ ................................ ...............  13 
+4. Các ch ức năng duy ệt cấp,bù thu ốc VTYT  ................................ ............................  15 
+Ngoại trú ................................ ................................ ................................ ............................  22 
+1. BHYT  ................................ ................................ .... Error! Bookmark not defined.  
+1.1 Vào màn hình phát thu ốc BHYT  ................................ ................................ .... 22 
+1.2 Phát thu ốc BHYT  ................................ ................................ ............................  22 
+
+===== PAGE 2 ===== (chars=389)
+ 
+MQ Solutions : Dược 1.3 Hủy phát thu ốc BHYT  ................................ ................................ ....................  23 
+Chức năng khác  ................................ ................................ ................................ .................  27 
+1. Màn hình xem chi ti ết thuốc, dịch vụ BN ................................ .............................  27 
+===== PAGE 3 ===== (chars=171)
+3 
+MQ Solutions : Dược    Vào ph ần mềm “Dư ợc” 
+1. Mở phần mềm MQ Main  
+ 
+2. Chọn vào ph ần Quản lý dư ợc (MQ PHIS) 
+ 
+3. Nhập tài kho ản, mật khẩu được cung c ấp 
+ 
+  
+
+===== PAGE 4 ===== (chars=157)
+4 
+MQ Solutions : Dược    Khi đăng nh ập vào ch ức năng thì phần mềm sẽ hiển thị “Danh sách thu ốc sẽ hết hạn sử 
+dụng” tính đ ến tháng…năm  (nếu có)  
+ 
+  
+
+===== PAGE 5 ===== (chars=313)
+5 
+MQ Solutions : Dược    Kho  
+1. Nhập kho  
+1.1  Vào màn hình “Nhập kho ” 
+Vào “Nh ập kho” → “Phiếu nhập kho”  
+ 
+1.2 Thao tác “ Phiếu nh ập kho ” 
+1. Nhấn “M ới” để bắt đầu nhập phi ếu 
+ 
+2. Nhập thông tin  hóa đơn  nhập kho  
+• Ngày nh ập 
+• Hóa đơn  
+• BB ki ểm số, Ngày l ập BB (n ếu có)  
+• Nhà cung c ấp 
+
+===== PAGE 6 ===== (chars=756)
+6 
+MQ Solutions : Dược    • Chiết khấu(Nếu có)  
+• Kho: kho nh ập 
+• Ngày hóa đơn  
+• Lý do  
+3. Nhập thông tin m ặt hàng  
+• Tên 
+• Số lượng 
+• Số tiền 
+• Thuế  
+• Tổng tiền 
+• Giá bán  
+• Date  
+• Lô sản xuất 
+4. Nhấn “Thêm” → Tiếp tục nhập thông tin m ặt hàng tu ần tự để nhập thêm m ặt hàng  
+5. Nhấn “Lưu” đ ể hoàn t ất 
+Để xóa m ặt hàng nh ập sai (Chưa nh ấn “Lưu”) → Chọn mặt hàng nh ập sai trên danh sách 
+đã thêm → Nhấn “Xóa”  
+Để sửa mặt hàng đã nh ập (Chưa nh ấn “Lưu”) → Chọn mặt hàng đã nh ập trên danh sách 
+đã thêm  → Sửa thông tin m ặt hàng → Nhấn “Thêm”  
+1.3 Xóa, s ửa phi ếu nh ập kho  
+1. Sửa phi ếu nh ập kho  
+Sau khi đã lưu “Phiếu nhập kho” các phi ếu sẽ lưu lại ngay trên màn hình “Phi ếu nhập 
+kho”  
+1. Chọn số phiếu mu ốn sửa 
+ 
+
+===== PAGE 7 ===== (chars=249)
+7 
+MQ Solutions : Dược    2. Nhấn “Sửa” 
+3. Chọn thông tin m ặt hàng mu ốn sửa trên danh sách đã nh ập  
+ 
+4. Sửa thông tin m ặt hàng  
+ 
+5. Nhấn “Thêm”  
+Để xóa m ặt hàng nh ập sai → Chọn mặt hàng nh ập sai trên danh sách đã thêm → Nhấn 
+“Xóa”  
+ 
+
+===== PAGE 8 ===== (chars=258)
+8 
+MQ Solutions : Dược    2. Xóa phi ếu nh ập kho  
+Sau khi đã lưu “Phi ếu nhập kho” các phi ếu sẽ lưu lại ngay trên màn hình “Phi ếu nhập 
+kho”  
+1. Chọn số phiếu mu ốn xóa  
+ 
+2. Nhấn “H ủy” 
+ 
+3. Nhấn “Yes” đ ể đồng ý h ủy phi ếu || “No” đ ể hoàn tác  
+ 
+
+===== PAGE 9 ===== (chars=572)
+9 
+MQ Solutions : Dược    2. Xuất chuy ển kho  
+2.1 Vào màn hình “Xu ất chuy ển kho”  
+Vào “Xu ất kho” → “Phiếu xuất chuy ển kho” (Cho ch ọn hạn dùng, lô s ản xuất) 
+ 
+2.2 Thao tác “ Phiếu xuất chuy ển kho ” 
+1. Nhấn “M ới” để bắt đầu nhập phi ếu 
+ 
+2. Chọn kho xu ất, kho nh ập 
+3. Nhập tên m ặt hàng, s ố lượng 
+4. Nhấn “Thêm” → Tiếp tục nhập thông tin m ặt hàng tu ần tự để nhập thêm m ặt hàng  
+5. Nhấn “Lưu” đ ể hoàn t ất 
+6. Nhấn “In” đ ể in phi ếu xuất 
+Để xóa m ặt hàng nh ập sai (Chưa nh ấn “Lưu”) → Chọn mặt hàng nh ập sai trên danh sách 
+đã thêm → Nhấn “Xóa”  
+
+===== PAGE 10 ===== (chars=981)
+10 
+MQ Solutions : Dược    Để sửa mặt hàng đã nh ập (Chưa nh ấn “Lưu”) → Chọn mặt hàng đã nh ập trên danh sách 
+đã thêm → Sửa thông tin m ặt hàng → Nhấn “Thêm”  
+2.3 Xóa, sửa phiếu xuất chuy ển kho  
+1. Sửa phi ếu xuất chuy ển kho  
+Sau khi đã lưu “Phi ếu xuất chuy ển kho” các phi ếu sẽ lưu lại ngay trên màn hình “Phi ếu 
+xuất chuy ển kho”  
+1. Chọn số phiếu mu ốn sửa 
+ 
+2. Nhấn “Sửa” 
+3. Chọn thông tin m ặt hàng mu ốn sửa trên danh sách đã nh ập  
+4. Sửa thông tin m ặt hàng  
+5. Nhấn “Thêm”  
+Để xóa m ặt hàng nh ập sai → Chọn mặt hàng nh ập sai trên danh sách đã thêm → Nhấn 
+“Xóa”  
+2. Xóa phi ếu xuất chuy ển kho  
+Sau khi đã lưu “Phi ếu xuất chuy ển kho” các phi ếu sẽ lưu lại ngay trên màn hình “Phi ếu 
+xuất chuy ển kho”  
+1. Chọn số phiếu mu ốn xóa  
+2. Nhấn “H ủy” 
+3. Nhấn “Yes” đ ể đồng ý h ủy phiếu || “No” đ ể hoàn tác  
+3. Phiếu dự trù và ch ức năng Duy ệt cấp theo kho d ự trù 
+3.1 Phiếu dự trù 
+1. Vào màn hình “Phi ếu dự trù” 
+Vào “D ự trù” → “Phiếu dự trù” 
+
+===== PAGE 11 ===== (chars=625)
+11 
+MQ Solutions : Dược     
+2. Thao tác “Phi ếu dự trù” 
+1. Nhấn “M ới” để bắt đầu nhập phi ếu 
+2. Chọn kho xu ất, kho nh ập 
+3. Nhập tên m ặt hàng, s ố lượng 
+4. Nhấn “Thêm” → Tiếp tục nhập thông tin m ặt hàng tu ần tự để nhập thêm m ặt hàng  
+5. Nhấn “Lưu” đ ể hoàn t ất 
+6. Nhấn “In” đ ể in phi ếu dự trù 
+ 
+Để xóa m ặt hàng nh ập sai (Chưa nh ấn “Lưu”) → Chọn mặt hàng nh ập sai trên danh sách 
+đã thêm → Nhấn “Xóa”  
+Để sửa mặt hàng đã nh ập (Chưa nh ấn “Lưu”) → Chọn mặt hàng đã nh ập trên danh sách 
+đã thêm → Sửa thông tin m ặt hàng → Nhấn “Thêm”  
+Nhấn “Li ệt kê” đ ể xem danh m ục tồn kho (Xu ất) đã ch ọn ở trên 
+
+===== PAGE 12 ===== (chars=626)
+12 
+MQ Solutions : Dược     
+3. Sửa phi ếu xuất chuy ển kho  
+Sau khi đã lưu “Phi ếu dự trù” các phi ếu sẽ lưu lại ngay trên màn hình “Phi ếu dụ trù”  
+1. Chọn số phiếu mu ốn sửa 
+ 
+2. Nhấn “Sửa” 
+3. Chọn thông tin m ặt hàng mu ốn sửa trên danh sách đã nh ập  
+4. Sửa thông tin m ặt hàng  
+5. Nhấn “Thêm”  
+Để xóa m ặt hàng nh ập sai → Chọn mặt hàng nh ập sai trên danh sách đã thêm → Nhấn 
+“Xóa”  
+4. Xóa phi ếu xuất chuy ển kho  
+Sau khi đã lưu “Phi ếu dự trù” các phi ếu sẽ lưu lại ngay trên màn hình “Phi ếu dự trù” 
+1. Chọn số phiếu mu ốn xóa  
+2. Nhấn “H ủy” 
+3. Nhấn “Yes” đ ể đồng ý h ủy phi ếu || “No” đ ể hoàn tác  
+
+===== PAGE 13 ===== (chars=493)
+13 
+MQ Solutions : Dược    3.2 Duyệt cấp theo kho d ự trù 
+1. Vào màn hình “Duy ệt cấp theo kho d ự trù” 
+Vào “Xu ất kho” → “Duyệt cấp theo kho d ự trù” 
+ 
+2. Thao tác “Duy ệt cấp theo kho d ự trù” 
+Cách 1: Duy ệt 
+Sau khi các kho th ực hiện thao tác nh ập “Phi ếu dự trù”  
+1. Nhấn “Duy ệt” 
+ 
+Menu duy ệt cấp hiện lên  
+2. Chọn kho xu ất, kho nh ập, số phiếu, để hiển thị phiếu cần duy ệt 
+3. Có thể thay đ ổi số lượng duy ệt cấp bằng cách nh ập vào vào m ục “Duyệt cấp” số 
+lượng duy ệt 
+ 
+
+===== PAGE 14 ===== (chars=902)
+14 
+MQ Solutions : Dược    4. Nhấn “Đ ồng ý” đ ể hoàn t ất duy ệt 
+5. Nhấn “In” đ ể in phi ếu xuất chuy ển kho  
+Sau khi đã duy ệt thì bên menu “Phiếu dự trù” sẽ hiển thị phiếu đã duy ệt và s ố lượng 
+duyệt. 
+ 
+Cách 2: T ự nhập 
+Thay vì các kho th ực hiện thao tác nh ập “Phi ếu dự trù” và c ần được duy ệt ở chức năng 
+“Duy ệt cấp theo kho d ự trù”. Ở màn hình ch ức năng  “Duy ệt cấp theo kho d ự trù” có th ể 
+tự nhập dự trù cho các kho. Khi nh ập màn hình ch ức năng này không c ần thao tác 
+“Duy ệt” 
+ 
+1. Nhấn “M ới” để bắt đầu nhập phi ếu 
+2. Chọn kho xu ất, kho nh ập 
+3. Nhập tên m ặt hàng, s ố lượng, ghi chú (n ếu có)  
+4. Nhấn “Thêm” → Tiếp tục nhập thông tin m ặt hàng tu ần tự để nhập thêm m ặt hàng  
+5. Nhấn “Lưu” đ ể hoàn t ất 
+6. Nhấn “In” đ ể in phi ếu xuất chuy ển kho  
+Để xóa m ặt hàng nh ập sai (Chưa nh ấn “Lưu”) → Chọn mặt hàng nh ập sai trên danh sách 
+đã thêm → Nhấn “Xóa”  
+
+===== PAGE 15 ===== (chars=917)
+15 
+MQ Solutions : Dược    Để sửa mặt hàng đã nh ập (Chưa nh ấn “Lưu”) → Chọn mặt hàng đã nh ập trên danh sách 
+đã thêm → Sửa thông tin m ặt hàng → Nhấn “Thêm”  
+3. Sửa phi ếu xuất chuy ển kho  
+Sau khi đã lưu , duy ệt “Duy ệt cấp theo kho d ự trù” các phi ếu sẽ lưu lại ngay trên màn 
+hình “Duy ệt cấp theo kho d ự trù”. 
+1. Chọn số phiếu mu ốn sửa 
+ 
+2. Nhấn “Sửa” 
+3. Chọn thông tin m ặt hàng mu ốn sửa trên danh sách đã nh ập  
+4. Sửa thông tin m ặt hàng  
+5. Nhấn “Thêm”  
+Để xóa m ặt hàng nh ập sai → Chọn mặt hàng nh ập sai trên danh sách đã thêm → Nhấn 
+“Xóa”  
+4. Xóa phi ếu xuất chuy ển kho  
+Sau khi đã lưu , duy ệt “Duy ệt cấp theo kho d ự trù” các phi ếu sẽ lưu lại ngay trên màn 
+hình “Duy ệt cấp theo kho d ự trù”. 
+1. Chọn số phiếu mu ốn xóa  
+2. Nhấn “H ủy” 
+3. Nhấn “Yes” đ ể đồng ý h ủy phi ếu || “No” đ ể hoàn tác  
+4. Các ch ức năng duy ệt cấp,bù thu ốc VTYT  *** 
+4.1 Vào màn hình duy ệt cấp 
+ 
+
+===== PAGE 16 ===== (chars=441)
+16 
+MQ Solutions : Dược    4.2 Thao tác duy ệt cấp, bù thu ốc VTYT  
+Duyệt cấp theo ngư ời bệnh: 
+ Sử dụng để duyệt các phi ếu lĩnh thu ốc của bệnh nhân  
+ 
+Danh sách thông tin các phi ếu dự trù đã chuy ển xuống 
+1. Chọn số ngày (g ần nhất so với ngày hi ện hành ) muốn duy ệt ở ô “Số ngày” → 
+Nhấn “Danh sách ch ờ duyệt” (Nhấn vào bi ểu tượng “+” để xem chi ti ết phiếu) 
+2. Chọn khoa/phòng mu ốn duy ệt trên danh sách → Nhấn “Duy ệt”  
+ 
+
+===== PAGE 17 ===== (chars=525)
+17 
+MQ Solutions : Dược    Lưu ý:  
+Trong trư ờng hợp chọn khoa/phòng → Nhấn “Duy ệt” nhưng không th ấy tên khoa phòng 
+→ Vào “Ti ện ích” → Tích vào “Hi ện tất cả khoa phòng”  
+ 
+3. Ở màn hình duy ệt phiếu → Nhấn “Lấy số liệu” 
+ 
+4. Ở màn hình l ấy số liệu → Lấy số liệu từ ngày đ ến ngày tương ứng 
+5. Ở phiếu khoa n ếu tích ch ọn là ch ỉ lấy phi ếu đã tích ch ọn, không tích là l ấy hết 
+6. Nhấn “Ch ọn” 
+7. Quay tr ở lại màn hình duy ệt phiếu → Tích ch ọn vào thu ốc không mu ốn duy ệt để 
+bỏ (Nếu có)  
+8. Nhấn “Lưu”  
+ 
+
+===== PAGE 18 ===== (chars=417)
+18 
+MQ Solutions : Dược    9. Nhấn “In” (2 l ần) để in phi ếu lĩnh  
+ 
+4.3 Thu h ồi duy ệt cấp, bù thu ốc VTYT  
+Sau khi đã duy ệt cấp, bù thu ốc VTYT các phi ếu sẽ lưu lại ngay trên màn hình duy ệt cấp, 
+bù thu ốc VTYT tương ứng 
+1. Ở màn hình duyệt cấp, bù thu ốc VTYT  → Nhấn “Thu h ồi” 
+2. Chọn khoa/phòng, phi ếu mu ốn thu h ồi tương ứng 
+ 
+3. Nhấn “Đ ồng ý” đ ể hoàn t ất thu h ồi || Nh ấn “H ủy” để hoàn tác  
+
+===== PAGE 19 ===== (chars=416)
+19 
+MQ Solutions : Dược    Sau khi “H ủy” phi ếu hủy sẽ trở về lại trong danh sách ch ờ duyệt 
+ 
+Với cách ho ạt động trên các ch ức năng th ực hiện thao tác tương t ự: 
+Duyệt bù cơ s ố tủ trực theo ngư ời bệnh: 
+ Duyệt bù s ố thuốc tủ trực đã xu ất cho b ệnh nhân  
+Duyệt cấp hao phí theo khoa/phòng : 
+ Duyệt cấp hao phí theo phi ếu khoa đã l ập 
+Duyệt hoàn tr ả theo người bệnh: 
+ Duyệt hoàn tr ả thuốc dư  
+  
+
+===== PAGE 20 ===== (chars=254)
+20 
+MQ Solutions : Dược    5. Xem t ồn kho  
+Lấy giá bán theo đ ợt nhập, số lượng tồn của kho  
+5.1 Tồn kho chi ti ết 
+1. Vào “Ti ện ích” → “Kho” → “Chi ti ết”  
+ 
+2. Chọn thông s ố (Tháng, năm và kho) mu ốn xem t ồn 
+  
+Màn hình t ồn kho chi ti ết 
+   
+
+===== PAGE 21 ===== (chars=183)
+21 
+MQ Solutions : Dược    5.2 Tồn kho t ổng hợp 
+1. Vào “Ti ện ích” → “Kho” → “Tổng hợp”  
+ 
+2. Chọn thông s ố (Tháng, năm và kho) mu ốn xem t ồn 
+  
+Màn hình t ồn kho t ổng hợp
+ 
+ 
+
+===== PAGE 22 ===== (chars=195)
+22 
+MQ Solutions : Dược    Phát thu ốc “Ngoại trú” 
+1. Vào màn hình phát thu ốc 
+Vào “Xu ất kho” → “Bảo hiểm” → “Phát thu ốc” 
+ 
+2. Phát thu ốc 
+1. Chọn ngày, gi ờ, quầy phát → Nhấn “Ch ọn” 
+ 
+ 
+
+===== PAGE 23 ===== (chars=323)
+23 
+MQ Solutions : Dược    2. Sau khi th ấy DS thu ốc của BN và so ạn thu ốc → Phát thu ốc cho BN → “Tích vào 
+ô phát → Nhấn “In” đ ể in tem thu ốc → Nhấn “Lưu”  
+ 
+3. BN s ẽ hiện diện bên danh sách “Đã phát”  
+3. Hủy phát thu ốc 
+1. Ở màn hình “Phát thu ốc” ch ọn trạng thái “Đã phát”  
+ 
+2. Bỏ tích “Phát” → Nhấn “Lưu”  
+
+===== PAGE 24 ===== (chars=70)
+24 
+MQ Solutions : Dược     
+3. BN tr ở về danh sách “Chưa phát”  
+  
+
+===== PAGE 25 ===== (chars=230)
+25 
+MQ Solutions : Dược    Phát thu ốc “N ội trú”  
+1. Vào màn hình phát thu ốc (đơn v ề) 
+Vào “Xu ất kho” → “Duyệt đơn v ề” → “Đánh d ấu phát thu ốc” 
+ 
+2. Phát thu ốc (đơn v ề) 
+1. Chọn ngày, gi ờ, quầy phát → Nhấn “Ch ọn” 
+ 
+ 
+
+===== PAGE 26 ===== (chars=326)
+26 
+MQ Solutions : Dược    2. Sau khi th ấy DS thu ốc của BN và so ạn thu ốc → Phát thu ốc cho BN → “Tích vào 
+ô phát → Nhấn “In” đ ể in tem thu ốc → Nhấn “Lưu”  
+ 
+3. BN s ẽ hiện diện bên danh sách “Đã phát”  
+3. Hủy phát thu ốc 
+1. Ở màn hình “Phát thu ốc” ch ọn trạng thái “Đã phát”  
+ 
+2. Bỏ tích “Phát” → Nhấn “Lưu”  
+  
+
+===== PAGE 27 ===== (chars=355)
+27 
+MQ Solutions : Dược    Chức năng khác  
+1. Màn hình xem chi ti ết thu ốc, dịch vụ BN 
+1. “Tiện ích” → “Kiểm tra dư ợc lâm sàng”  
+ 
+2. Ở màn hình “Ki ểm tra dư ợc lâm sàng” → Chọn trạng thái → Nhấn “Danh sách” 
+để xem toàn b ộ danh sách BN có đơn thu ốc về 
+ 
+3. Xem thông tin chi ti ết BN: Ch ẩn đoán, thu ốc, CLS (CĐHA, XN), PTTT mà BN 
+thực hiện. 
+
+===== PAGE 28 ===== (chars=29)
+28 
+MQ Solutions : Dược     
