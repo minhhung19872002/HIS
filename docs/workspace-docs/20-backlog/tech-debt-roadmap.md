@@ -100,6 +100,43 @@ PDF/FHIR/DQGVN) đọc + tô màu. Khi đó các export cấu trúc (PdfGen/FHIR
 
 ---
 
+## 🔐 BẢO MẬT — audit FLOW-FINAL 2026-06-06 (P0)
+- **B1 ✅ XONG 2026-06-08**: enforce CCHN server-side trong `StartExaminationAsync` — chặn BS có license
+  hết hạn/đình chỉ/thu hồi (`!IsValid && LicenseExpiry.HasValue`); KHÔNG chặn BS chưa có record (tránh vỡ).
+- **B3 ✅ một phần XONG 2026-06-08**: `[Authorize(Roles="Admin,Doctor,DepartmentHead,Nurse")]` cho
+  `DigitalSignatureController` + `CentralSigningController` (loại lễ tân/kế toán ký số).
+- **B2 ⏸️ DEFER → FEATURE (đã verify kỹ 2026-06-08)**: IDOR `/api/portal/*` nhận `patientId`/`accountId` từ query
+  (ExtendedWorkflowControllers :828-992). **Kết luận sau khi đọc code**: model hiện tại là **staff-on-behalf** —
+  KHÔNG có patient self-login. Cụ thể: (1) `RegisterAccountAsync` tạo PortalAccount Status=Pending, KHÔNG set PatientId;
+  (2) `LinkPatientRecordAsync` CÓ link `account.PatientId = patient.Id` sau verify; (3) **KHÔNG có portal-login route**
+  → PortalAccount không lấy được JWT; (4) JWT hiện chỉ của staff (`AuthService`, NameIdentifier=user.Id ≠ PortalAccount.Id).
+  → "Lấy patientId từ JWT" **bất khả thi** (không có claim) + thêm check ownership sẽ chặn toàn bộ (staff JWT không map
+  PortalAccount) → **vỡ portal**. **Fix đúng = build FEATURE portal patient self-login**: endpoint login PortalAccount
+  (verify password/OTP) → JWT mang claim `portalAccountId` → mọi `/api/portal/*` derive `patientId = account.PatientId`
+  (bỏ query param) + chặn nếu account chưa Active/chưa link. Lập plan + làm như 1 feature, KHÔNG vá tạm.
+- **B3-global ⏸️ DEFER**: fallback `RequireAuthenticatedUser` toàn cục (Program.cs) để controller quên `[Authorize]`
+  không mở toang — cần **audit kỹ mọi endpoint công khai** (AppointmentBooking/public-emr/queue-display có
+  `[AllowAnonymous]` chưa) trước khi bật, tránh vỡ luồng public.
+
+## 🌐 GHI NHẬN — feature lớn / chưa làm (audit FLOW-FINAL)
+- **Đa cơ sở (multi-facility)**: entity lõi thiếu `FacilityId`, query không lọc theo cơ sở. An toàn vì deploy
+  single-facility. Đa cơ sở sau → feature lớn (thêm FacilityId + global query filter EF).
+- **Hội chẩn organizer hardcode GUID** `9e5309dc...` → đổi dùng current-user (data-quality nhỏ).
+- **P1/P2 FLOW-FINAL — đã làm bounded 2026-06-08**: ✅ F2 (GetDietTypes đọc DB, hết bug Guid.NewGuid) ·
+  ✅ F5 (booking check-in nối QuickRegisterByAppointment → sinh lượt khám thật) · ✅ F1-diag (bỏ hardcode
+  "Viêm ruột thừa cấp", đọc HSBA) · ✅ F10 (responseRate tính thật = khảo sát/BN ra viện, bỏ 68.5).
+  **⏸️ Còn FEATURE-sized (cần bảng/billing, làm theo nhu cầu từng cái)**:
+  - **F1-full**: `SurgeryPrescriptionServiceImpl` toàn stub → cần bảng SurgeryMedicine/Supply + persist +
+    trừ kho + nối BillingComplete (phân BHYT/thu phí). Bỏ nuốt lỗi schema ở Start/CompleteSurgery (:68-116).
+  - **F3**: cấp cứu thường — EmergencyDisaster.tsx bỏ `buildEmergencySeed`, nối ReceptionComplete +
+    ObservationStay + triage persist (FE+BE feature).
+  - **F4**: BHYT đối soát (InsuranceXmlService :1647/1709) — import KQ giám định + tính chênh lệch thật.
+  - **F6**: YHCT đơn thuốc bắc → ServiceRequest/Prescription + viện phí + trừ kho dược liệu.
+  - **F7**: Rehab mỗi buổi trị liệu → ServiceRequestDetail tính phí.
+  - **F8**: Telemedicine `SendPrescriptionToPharmacyAsync` đã đổi status; cần tạo Prescription thật sang quầy phát.
+  - **F9**: Quality corrective / InfectionControl env / Portal refill-feedback-eKYC — persist thật hoặc ẩn UI.
+  - **F2-meal**: meal plan/cấp phát suất ăn (GenerateMealPlan/MarkMealDelivered stub) — cần bảng MealPlan hoặc ẩn UI.
+
 ## Nguyên tắc thực thi (his-tech-debt-workflow)
 - Dễ → khó; mỗi item: build-gate 2 tầng + regression Prompt 12 trước khi báo xong.
 - **KHÔNG commit/push** khi chưa có lệnh; workspace-docs **không bao giờ push**.
