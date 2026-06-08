@@ -327,21 +327,26 @@ public partial class ExaminationCompleteService
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
         if (examination == null) return new List<LabStatusDto>();
 
-        // Get pending lab requests
-        var labItems = await _context.LabRequestItems
-            .Include(i => i.LabRequest)
-            .Where(i => i.LabRequest.MedicalRecordId == examination.MedicalRecordId && i.Status < 3) // Not completed
+        // #14b (audit luồng nghiệp vụ): pending XN đọc từ ServiceRequestDetail (model 1) — nơi
+        // order CLS thật được tạo. LabRequestItems (model 2) chỉ seed tạo → reader cũ luôn rỗng.
+        // Status SRD: 0=Chờ, 1=Đang TH, 2=Có KQ, 3=Hủy → pending = Status < 2.
+        var labDetails = await _context.ServiceRequestDetails
+            .Include(d => d.Service)
+            .Include(d => d.ServiceRequest)
+            .Where(d => d.ServiceRequest.MedicalRecordId == examination.MedicalRecordId
+                     && d.ServiceRequest.RequestType == 1
+                     && d.Status < 2)
             .ToListAsync();
 
-        var labRequests = labItems.Select(i => new LabStatusDto
+        var labRequests = labDetails.Select(d => new LabStatusDto
         {
-            RequestId = i.LabRequestId,
-            TestCode = i.TestCode,
-            TestName = i.TestName,
-            Status = i.Status,
-            StatusName = GetLabStatusName(i.Status),
-            RequestedAt = i.LabRequest?.RequestDate,
-            EstimatedCompletionTime = i.LabRequest?.RequestDate.AddHours(2)
+            RequestId = d.ServiceRequestId,
+            TestCode = d.Service.ServiceCode,
+            TestName = d.Service.ServiceName,
+            Status = d.Status,
+            StatusName = d.Status == 0 ? "Chờ thực hiện" : "Đang thực hiện",
+            RequestedAt = d.ServiceRequest.RequestDate,
+            EstimatedCompletionTime = d.ServiceRequest.RequestDate.AddHours(2)
         }).ToList();
 
         // Get pending imaging requests

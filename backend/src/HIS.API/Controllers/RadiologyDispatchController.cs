@@ -98,13 +98,48 @@ public class RadiologyDispatchController : ControllerBase
         d.IsPerformed = true;
         d.PerformedAt = DateTime.UtcNow;
 
-        // #8 (audit luồng nghiệp vụ 2026-06-06): cập nhật ServiceRequestDetail (model 1) sang
-        // "Đang thực hiện" để màn khám/điều phối phản ánh đúng bước (trước đây mark-performed
-        // không đổi SRD.Status → kẹt "chưa thực hiện"). Bridge sang model 4 (RadiologyRequest)
-        // để radiologist tường trình thuộc nợ hợp nhất model #14 (FLOW-3).
-        var srd = await _db.ServiceRequestDetails.FirstOrDefaultAsync(s => s.Id == d.ServiceRequestDetailId);
-        if (srd != null && srd.Status < 1)
-            srd.Status = 1; // Đang TH
+        // #8 + #14d (audit luồng nghiệp vụ 2026-06-06): cập nhật ServiceRequestDetail (model 1)
+        // sang "Đang thực hiện" + BRIDGE sang model 4 (RadiologyRequest) để radiologist tường trình.
+        // Trước đây CĐHA order qua ServiceRequest không sinh model 4 → KQ CĐHA không nhập/hiện được.
+        var srd = await _db.ServiceRequestDetails
+            .Include(s => s.ServiceRequest)
+            .FirstOrDefaultAsync(s => s.Id == d.ServiceRequestDetailId);
+        if (srd != null)
+        {
+            if (srd.Status < 1) srd.Status = 1; // Đang TH
+
+            // Idempotent: chỉ tạo phiếu CĐHA model 4 nếu chưa có (theo link SourceServiceRequestDetailId).
+            var alreadyBridged = await _db.RadiologyRequests
+                .AnyAsync(r => r.SourceServiceRequestDetailId == srd.Id);
+            if (!alreadyBridged)
+            {
+                var sr = srd.ServiceRequest;
+                _db.RadiologyRequests.Add(new RadiologyRequest
+                {
+                    Id = Guid.NewGuid(),
+                    RequestCode = $"CDHA{DateTime.Now:yyyyMMddHHmmss}",
+                    PatientId = d.PatientId,
+                    ExaminationId = sr?.ExaminationId,
+                    MedicalRecordId = sr?.MedicalRecordId,
+                    RequestDate = sr?.RequestDate ?? DateTime.Now,
+                    ServiceId = srd.ServiceId,
+                    RequestingDoctorId = sr?.DoctorId ?? Guid.Empty,
+                    Priority = d.Priority,
+                    Status = 2, // InProgress — vừa thực hiện
+                    ClinicalInfo = sr?.Diagnosis,
+                    PatientType = srd.PatientType == 0 ? 2 : srd.PatientType,
+                    TotalAmount = srd.Amount,
+                    InsuranceAmount = srd.InsuranceAmount,
+                    PatientAmount = srd.PatientAmount,
+                    IsPaid = false,
+                    ScheduledDate = DateTime.Now,
+                    SourceServiceRequestDetailId = srd.Id,
+                    Notes = "Tạo tự động từ điều phối CĐHA (model 1)",
+                    CreatedAt = DateTime.Now,
+                    CreatedBy = GetUserId().ToString(),
+                });
+            }
+        }
 
         await _db.SaveChangesAsync();
         return Ok(new { success = true });

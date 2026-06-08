@@ -47,6 +47,10 @@ public class RadiologyRequest : BaseEntity
     public DateTime? CancelledAt { get; set; }
     public Guid? CancelledBy { get; set; }
 
+    // FLOW-3 #14d: link sang ServiceRequestDetail (model 1) — phiếu CĐHA model 4 sinh tự động từ
+    // điều phối model 1. Idempotent guard tránh tạo trùng khi mark-performed nhiều lần.
+    public Guid? SourceServiceRequestDetailId { get; set; }
+
     // Navigation
     public virtual ICollection<RadiologyExam> Exams { get; set; } = new List<RadiologyExam>();
 }
