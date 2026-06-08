@@ -331,99 +331,32 @@ public partial class LISCompleteService {
                 _logger.LogInformation("Processing result: SampleId={SampleId}, TestCode={TestCode}, Value={Value}",
                     result.SampleId, result.TestCode, result.Value);
 
-                // Find the labRequestItem by sample barcode and test code using raw SQL
-                var sql = @"
-                    SELECT i.Id, i.LabOrderId, i.NormalMin, i.NormalMax, i.CriticalLow, i.CriticalHigh, o.SampleBarcode
-                    FROM LabOrderItems i
-                    INNER JOIN LabOrders o ON i.LabOrderId = o.Id
-                    WHERE o.SampleBarcode = @SampleId AND i.TestCode = @TestCode";
+                // #14b (audit luồng nghiệp vụ 2026-06-06): ghi KQ máy phân tích vào ServiceRequestDetail
+                // (model 1) — nguồn-sự-thật CHUNG với KQ nhập tay (SampleReceive) + màn khám. Khớp theo
+                // SampleBarcode + mã dịch vụ (HL7 TestCode = Service.ServiceCode). Trước đây ghi
+                // LabOrderItems (model 3 — không có creator thật) nên KQ máy không bao giờ vào hệ thống.
+                // (Cảnh báo cao/thấp/nguy-kịch per-parameter cần KQ XN cấu trúc — xem tech-debt-roadmap.)
+                if (string.IsNullOrWhiteSpace(result.SampleId)) continue;
 
-                using (var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString()))
+                var detail = await _context.ServiceRequestDetails
+                    .Include(d => d.Service)
+                    .FirstOrDefaultAsync(d => d.SampleBarcode == result.SampleId
+                                           && d.Service.ServiceCode == result.TestCode
+                                           && d.Status != 3);
+                if (detail == null)
                 {
-                    await connection.OpenAsync();
-
-                    Guid? orderItemId = null;
-                    Guid? labOrderId = null;
-                    decimal? normalMin = null, normalMax = null, criticalLow = null, criticalHigh = null;
-
-                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(sql, connection))
-                    {
-                        cmd.Parameters.AddWithValue("@SampleId", result.SampleId ?? "");
-                        cmd.Parameters.AddWithValue("@TestCode", result.TestCode ?? "");
-
-                        using (var reader = await cmd.ExecuteReaderAsync())
-                        {
-                            if (await reader.ReadAsync())
-                            {
-                                orderItemId = reader.GetGuid(0);
-                                labOrderId = reader.GetGuid(1);
-                                normalMin = reader.IsDBNull(2) ? null : reader.GetDecimal(2);
-                                normalMax = reader.IsDBNull(3) ? null : reader.GetDecimal(3);
-                                criticalLow = reader.IsDBNull(4) ? null : reader.GetDecimal(4);
-                                criticalHigh = reader.IsDBNull(5) ? null : reader.GetDecimal(5);
-                            }
-                        }
-                    }
-
-                    if (orderItemId.HasValue)
-                    {
-                        // Calculate result status
-                        int resultStatus = 0;
-                        if (decimal.TryParse(result.Value, out var numericResult))
-                        {
-                            if (criticalLow.HasValue && numericResult < criticalLow.Value)
-                                resultStatus = 3; // Critical Low
-                            else if (criticalHigh.HasValue && numericResult > criticalHigh.Value)
-                                resultStatus = 4; // Critical High
-                            else if (normalMin.HasValue && numericResult < normalMin.Value)
-                                resultStatus = 1; // Low
-                            else if (normalMax.HasValue && numericResult > normalMax.Value)
-                                resultStatus = 2; // High
-                        }
-
-                        // Update result in LabOrderItems
-                        var updateSql = @"
-                            UPDATE LabOrderItems
-                            SET Result = @Result, ResultStatus = @ResultStatus, ResultAt = @ResultAt
-                            WHERE Id = @Id";
-
-                        using (var updateCmd = new Microsoft.Data.SqlClient.SqlCommand(updateSql, connection))
-                        {
-                            updateCmd.Parameters.AddWithValue("@Result", result.Value ?? "");
-                            updateCmd.Parameters.AddWithValue("@ResultStatus", resultStatus);
-                            updateCmd.Parameters.AddWithValue("@ResultAt", result.DateTimeOfObservation ?? DateTime.Now);
-                            updateCmd.Parameters.AddWithValue("@Id", orderItemId.Value);
-                            await updateCmd.ExecuteNonQueryAsync();
-                        }
-
-                        // Check if all items have results and update order status
-                        var checkSql = @"
-                            SELECT COUNT(*) FROM LabOrderItems WHERE LabOrderId = @OrderId AND (Result IS NULL OR Result = '')";
-                        using (var checkCmd = new Microsoft.Data.SqlClient.SqlCommand(checkSql, connection))
-                        {
-                            checkCmd.Parameters.AddWithValue("@OrderId", labOrderId.Value);
-                            var pendingCount = (int)await checkCmd.ExecuteScalarAsync();
-
-                            var newStatus = pendingCount == 0 ? 3 : 2; // 3=Chờ duyệt, 2=Đang XN
-                            var updateOrderSql = @"
-                                UPDATE LabOrders SET Status = @Status, ProcessingEndTime = CASE WHEN @Status = 3 THEN GETDATE() ELSE ProcessingEndTime END
-                                WHERE Id = @OrderId";
-                            using (var updateOrderCmd = new Microsoft.Data.SqlClient.SqlCommand(updateOrderSql, connection))
-                            {
-                                updateOrderCmd.Parameters.AddWithValue("@Status", newStatus);
-                                updateOrderCmd.Parameters.AddWithValue("@OrderId", labOrderId.Value);
-                                await updateOrderCmd.ExecuteNonQueryAsync();
-                            }
-                        }
-
-                        _logger.LogInformation("Updated result for OrderItem {OrderItemId}: {Value}", orderItemId.Value, result.Value);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("No labRequestItem found for SampleId={SampleId}, TestCode={TestCode}",
-                            result.SampleId, result.TestCode);
-                    }
+                    _logger.LogWarning("No ServiceRequestDetail for SampleId={SampleId}, TestCode={TestCode}",
+                        result.SampleId, result.TestCode);
+                    continue;
                 }
+
+                detail.Result = result.Value ?? "";
+                detail.ResultDate = result.DateTimeOfObservation ?? DateTime.Now;
+                detail.TechnicianRunAt = DateTime.Now;
+                detail.Status = 2; // Có KQ
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Analyzer result -> ServiceRequestDetail {Id}: {Value}", detail.Id, result.Value);
             }
         }
         catch (Exception ex)

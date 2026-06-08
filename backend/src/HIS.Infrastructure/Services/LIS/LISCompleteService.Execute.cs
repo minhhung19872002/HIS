@@ -493,6 +493,47 @@ public partial class LISCompleteService {
             await cmd.ExecuteNonQueryAsync();
         }
 
+        // #14b dual-write (audit luồng nghiệp vụ): KQ nhập tay qua màn LIS (model 3) cũng ghi vào
+        // ServiceRequestDetail (model 1) để màn khám/portal/báo cáo thấy CÙNG nguồn KQ với KQ máy +
+        // KQ qua SampleReceive. Map LabOrderItem -> SRD theo SampleBarcode + TestCode. Lỗi mirror
+        // không làm hỏng việc ghi model 3 (best-effort, có log).
+        try
+        {
+            string barcode = null, testCode = null;
+            var mapSql = @"SELECT o.SampleBarcode, i.TestCode FROM LabOrderItems i
+                           INNER JOIN LabOrders o ON i.LabOrderId = o.Id WHERE i.Id = @ItemId";
+            using (var mapCmd = new SqlCommand(mapSql, connection))
+            {
+                mapCmd.Parameters.AddWithValue("@ItemId", dto.LabTestItemId);
+                using var mr = await mapCmd.ExecuteReaderAsync();
+                if (await mr.ReadAsync())
+                {
+                    barcode = mr.IsDBNull(0) ? null : mr.GetString(0);
+                    testCode = mr.IsDBNull(1) ? null : mr.GetString(1);
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(barcode))
+            {
+                var srd = await _context.ServiceRequestDetails
+                    .Include(d => d.Service)
+                    .FirstOrDefaultAsync(d => d.SampleBarcode == barcode
+                                           && (testCode == null || d.Service.ServiceCode == testCode)
+                                           && d.Status != 3);
+                if (srd != null)
+                {
+                    srd.Result = dto.Result;
+                    srd.ResultDate = DateTime.Now;
+                    srd.TechnicianRunAt = DateTime.Now;
+                    srd.Status = 2; // Có KQ
+                    await _context.SaveChangesAsync();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "EnterLabResult: mirror sang ServiceRequestDetail thất bại cho item {ItemId}", dto.LabTestItemId);
+        }
+
         // Update order status if all items have results
         if (labOrderId.HasValue)
         {
