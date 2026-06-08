@@ -239,13 +239,11 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
         surgeryMethod: form.surgeryMethod,
         anesthesiaType: form.anesthesiaType,
         anesthesiaMethod: form.anesthesiaMethod || undefined,
-        // Pack tường trình + kết luận + ảnh vào notes (sentinel pattern)
-        notes: [
-          form.description ? `[TUONGTRINH] ${form.description}` : null,
-          form.conclusion  ? `[KETLUAN] ${form.conclusion}` : null,
-          form.notes       ? `[GHICHU] ${form.notes}` : null,
-          ...photoNotes,
-        ].filter(Boolean).join('\n'),
+        // Field tường minh (BE map vào cột riêng, migration 78) — thay sentinel Notes cũ.
+        surgeryReport: form.description || undefined,
+        conclusion: form.conclusion || undefined,
+        attachedImageUrls: photoNotes.length > 0 ? photoNotes.join('\n') : undefined,
+        notes: form.notes || undefined,
       });
       tk('Đã lưu tường trình PTTT');
       await loadExisting();

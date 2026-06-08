@@ -66,6 +66,11 @@ async function loadTemplate(printType: string): Promise<AnyPrintComponent | null
     case 'xn-microbiology': return (await import('./ClinicalFormPrintTemplates')).MicrobiologyReportPrint;
     case 'xn-coagulation': return (await import('./ClinicalFormPrintTemplates')).CoagulationReportPrint; // G-37 dong mau
     case 'xn-urinalysis': return (await import('./ClinicalFormPrintTemplates')).UrinalysisReportPrint;   // G-37 nuoc tieu
+
+    // AnesthesiaPrintTemplates — G-37 gay me (3 phieu con lai)
+    case 'gayme-monitor':  return (await import('./AnesthesiaPrintTemplates')).GaymMonitorPrint;   // Phieu theo doi gay me
+    case 'gayme-recovery': return (await import('./AnesthesiaPrintTemplates')).GaymRecoveryPrint;  // Phieu hoi tinh
+    case 'gayme-record':   return (await import('./AnesthesiaPrintTemplates')).GaymRecordPrint;    // Bien ban gay me
     case 'ls-allergy': return (await import('./ClinicalFormPrintTemplates')).AllergyFormPrint;
     case 'ls-postop': return (await import('./ClinicalFormPrintTemplates')).PostOpNotePrint;
     case 'ls-icuinfo': return (await import('./ClinicalFormPrintTemplates')).ICUInfoSheetPrint;
@@ -169,8 +174,8 @@ export default function PrintTemplateRenderer({ printType, record, printRef, sel
   if (printType.startsWith('sp-')) {
     return <Component ref={printRef} data={record} />;
   }
-  // Clinical/radiology/lab forms use untyped `record` prop
-  if (printType.startsWith('cdha-') || printType.startsWith('tdcn-') || printType.startsWith('xn-') || printType.startsWith('ls-')) {
+  // Clinical/radiology/lab/anesthesia forms use untyped `record` prop
+  if (printType.startsWith('cdha-') || printType.startsWith('tdcn-') || printType.startsWith('xn-') || printType.startsWith('ls-') || printType.startsWith('gayme-')) {
     return <Component record={record as unknown as Record<string, unknown> | undefined} />;
   }
   // Obstetric partograph + drug-reaction test — clinical supplementary forms

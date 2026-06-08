@@ -215,6 +215,10 @@ public class CreateSurgeryRequestDto
     public DateTime? ScheduledDate { get; set; }
     public Guid? OperatingRoomId { get; set; }
     public string? Notes { get; set; }
+    // Tường trình PTTT (OPD-inline, MS.PT-02) — FE mới gửi field tường minh thay sentinel Notes.
+    public string? SurgeryReport { get; set; }
+    public string? Conclusion { get; set; }
+    public string? AttachedImageUrls { get; set; } // các dòng [HINHCHINH]/[HINHPHU] join '\n'
     public List<SurgeryTeamMemberRequestDto>? TeamMembers { get; set; }
 }
 

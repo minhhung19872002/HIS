@@ -147,6 +147,10 @@ export interface CreateSurgeryRequestDto {
   scheduledDate?: string;
   operatingRoomId?: string;
   notes?: string;
+  /** Tường trình PTTT (OPD-inline, MS.PT-02) — field tường minh thay sentinel Notes */
+  surgeryReport?: string;
+  conclusion?: string;
+  attachedImageUrls?: string;
   teamMembers?: SurgeryTeamMemberRequestDto[];
 }
 

@@ -23,6 +23,11 @@ import {
   type SurgeryConsentDto,
   type SaveConsentDto,
 } from '../../api/surgery';
+import {
+  printAnesthesiaMonitor,
+  printAnesthesiaRecovery,
+  printAnesthesiaRecord,
+} from '../../components/AnesthesiaPrintTemplates';
 
 // ---------------------------------------------------------------------------
 // Local layout helpers
@@ -355,6 +360,7 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
   const [drugs, setDrugs]           = useState<DrugEntry[]>([]);
   const [loading, setLoading]       = useState(false);
   const [saving, setSaving]         = useState(false);
+  const [printing, setPrinting]     = useState(false);
 
   const load = useCallback(async () => {
     if (!open || !surgeryId) return;
@@ -439,6 +445,37 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
     }
   };
 
+  // In phiếu: fetch bản ghi mới nhất rồi gọi print helper
+  const handlePrintMonitor = async () => {
+    if (!surgeryId) return;
+    setPrinting(true);
+    try {
+      const records = await anesthesiaApi.getRecords({ surgeryId });
+      const rec = Array.isArray(records) ? records[0] : null;
+      if (!rec) { tw('Chưa có dữ liệu theo dõi gây mê để in'); return; }
+      printAnesthesiaMonitor(rec);
+    } catch {
+      te('Không in được phiếu theo dõi gây mê');
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  const handlePrintRecord = async () => {
+    if (!surgeryId) return;
+    setPrinting(true);
+    try {
+      const records = await anesthesiaApi.getRecords({ surgeryId });
+      const rec = Array.isArray(records) ? records[0] : null;
+      if (!rec) { tw('Chưa có dữ liệu để in biên bản gây mê'); return; }
+      printAnesthesiaRecord(rec);
+    } catch {
+      te('Không in được biên bản gây mê');
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   return (
     <ModalShell
       open={open}
@@ -455,6 +492,16 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
         <>
           <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
           <span style={{ flex: 1 }} />
+          {existingId && (
+            <>
+              <Btn variant="ghost" loading={printing} onClick={handlePrintMonitor} icon="print">
+                In phiếu TD gây mê
+              </Btn>
+              <Btn variant="ghost" loading={printing} onClick={handlePrintRecord} icon="print">
+                In biên bản GM
+              </Btn>
+            </>
+          )}
           <Btn variant="primary" loading={saving} onClick={handleSave}>
             <TermIcon name="download" size={12} /> Lưu
           </Btn>
@@ -940,23 +987,21 @@ export const PostAnesthesiaPlanModal: React.FC<PostAnesthesiaPlanModalProps> = (
 
   useEffect(() => { if (open) load(); }, [open, load]);
 
-  const handlePrint = () => {
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ke hoach sau gay me</title>
-<style>body{font-family:'Times New Roman',serif;padding:24px;font-size:13pt}h2{text-align:center;font-size:15pt;margin-bottom:16px}h3{font-size:13pt;margin:12px 0 4px}p{margin:4px 0 8px}label{font-weight:bold}pre{white-space:pre-wrap;margin:0 0 8px;border-bottom:1px solid #aaa;padding-bottom:4px;min-height:36px}@media print{body{padding:0}}</style>
-</head><body>
-<h2>KE HOACH SAU GAY ME - PHAU THUAT</h2>
-<p><label>Benh nhan:</label> ${patientName || ''}&nbsp;&nbsp;<label>Ma PT:</label> ${surgeryCode || ''}</p>
-<p><label>Ngay:</label> ${new Date().toLocaleDateString('vi-VN')}</p>
-<h3>I. Dien bien hoi tinh</h3><pre>${form.recoveryNotes || ''}</pre>
-<h3>II. Ke hoach cham soc sau phau thuat</h3><pre>${form.postSurgeryPlan || ''}</pre>
-<div style="margin-top:40px;display:flex;justify-content:flex-end"><div style="text-align:center;width:220px"><p>Bac si gay me</p><br/><br/><p style="border-top:1px solid #333;padding-top:4px">(Ky va ghi ro ho ten)</p></div></div>
-</body></html>`;
-    const w = window.open('', '_blank', 'width=800,height=600');
-    if (!w) { tw('Trình duyệt chặn popup — vui lòng cho phép popup để in'); return; }
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    w.print();
+  // In phiếu hồi tỉnh — fetch bản ghi đầy đủ (có monitors) + merge form hiện tại
+  const handlePrint = async () => {
+    if (!surgeryId) return;
+    try {
+      const records = await anesthesiaApi.getRecords({ surgeryId });
+      const base = (Array.isArray(records) ? records[0] : null) ?? {};
+      printAnesthesiaRecovery({
+        ...base,
+        patientName: patientName ?? (base.patientName ?? ''),
+        recoveryNotes: form.recoveryNotes || base.recoveryNotes || '',
+        postSurgeryPlan: form.postSurgeryPlan || base.postSurgeryPlan || '',
+      });
+    } catch {
+      te('Không in được phiếu hồi tỉnh');
+    }
   };
 
   const handleSave = async () => {

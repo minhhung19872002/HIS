@@ -249,6 +249,19 @@ public class SurgeryOperationServiceImpl : ISurgeryOperationService
         }
     }
 
+    // Lấy nội dung dòng có sentinel tag (vd "[TUONGTRINH]") trong Notes pack kiểu cũ. Null nếu không có.
+    private static string? ExtractNoteTag(string? notes, string tag)
+    {
+        if (string.IsNullOrWhiteSpace(notes)) return null;
+        foreach (var raw in notes.Replace("\r\n", "\n").Split('\n'))
+        {
+            var line = raw.TrimStart();
+            if (line.StartsWith(tag, StringComparison.Ordinal))
+                return line.Substring(tag.Length).Trim();
+        }
+        return null;
+    }
+
     public async Task<byte[]> PrintSurgeryReportAsync(Guid surgeryId)
     {
         try
@@ -269,6 +282,21 @@ public class SurgeryOperationServiceImpl : ISurgeryOperationService
 <div class=""field""><span class=""field-label"">Phương pháp vô cảm:</span><span class=""field-value"">{GetAnesthesiaTypeName(req.AnesthesiaType ?? 0)}</span></div>
 <div class=""field""><span class=""field-label"">Loại phẫu thuật:</span><span class=""field-value"">{Esc(req.SurgeryType)}</span></div>
 <div class=""field""><span class=""field-label"">Yêu cầu đặc biệt:</span><span class=""field-value"">{Esc(req.SpecialRequirements)}</span></div>");
+
+            // Tường trình PTTT (OPD-inline, MS.PT-02): ưu tiên cột riêng (migration 78),
+            // fallback parse sentinel trong Notes cho row legacy chưa backfill.
+            var surgeryReport = !string.IsNullOrWhiteSpace(req.SurgeryReport)
+                ? req.SurgeryReport : ExtractNoteTag(req.Notes, "[TUONGTRINH]");
+            var surgeryConclusion = !string.IsNullOrWhiteSpace(req.Conclusion)
+                ? req.Conclusion : ExtractNoteTag(req.Notes, "[KETLUAN]");
+            if (!string.IsNullOrWhiteSpace(surgeryReport) || !string.IsNullOrWhiteSpace(surgeryConclusion))
+            {
+                body.AppendLine($@"
+<div class=""section-title"">TƯỜNG TRÌNH PHẪU THUẬT / THỦ THUẬT</div>
+<p>{Esc(surgeryReport).Replace("\n", "<br/>")}</p>");
+                if (!string.IsNullOrWhiteSpace(surgeryConclusion))
+                    body.AppendLine($@"<p class=""mt-10""><b>Kết luận:</b> {Esc(surgeryConclusion).Replace("\n", "<br/>")}</p>");
+            }
 
             if (sched != null)
             {

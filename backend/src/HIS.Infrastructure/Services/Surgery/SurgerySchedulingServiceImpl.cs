@@ -88,9 +88,13 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                 CreatedBy = userId.ToString()
             };
 
-            // Tách tường trình/kết luận/ảnh từ sentinel Notes (OPD-inline PTTT) → cột riêng.
-            // Additive + backward-compat: Notes vẫn giữ nguyên; cột mới phục vụ truy vấn/in (migration 78).
-            ApplyNarrativeFromNotes(request, dto.Notes);
+            // Tường trình PTTT → cột riêng (migration 78). Ưu tiên field tường minh (FE mới);
+            // fallback parse sentinel trong Notes cho FE cũ / row legacy. Notes giữ nguyên.
+            request.SurgeryReport = dto.SurgeryReport;
+            request.Conclusion = dto.Conclusion;
+            request.AttachedImageUrls = dto.AttachedImageUrls;
+            if (request.SurgeryReport is null && request.Conclusion is null && request.AttachedImageUrls is null)
+                ApplyNarrativeFromNotes(request, dto.Notes);
 
             _context.Set<SurgeryRequest>().Add(request);
             await _context.SaveChangesAsync();
