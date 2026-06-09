@@ -274,17 +274,23 @@ public partial class BillingCompleteService {
             var surgeryIds = await _context.SurgeryRequests
                 .Where(s => s.MedicalRecordId == medicalRecordId)
                 .Select(s => s.Id).ToListAsync();
-            decimal surgMatTotal = 0;
+            // F1-refine (2026-06-09): tách thuốc/vật tư PTTT theo ĐỐI TƯỢNG chi trả thay vì gộp tất cả
+            // vào phần BN tự trả. PaymentObject: 1-BHYT→quỹ BHYT, 2-Thu phí→BN tự trả, 3-Hao phí→không thu (loại).
+            // Trước đây surgMatTotal (gồm cả BHYT) đổ hết vào patientAmount → thu nhầm BN phần BHYT chi trả.
+            decimal surgMatInsurance = 0, surgMatPatient = 0;
             if (surgeryIds.Count > 0)
             {
-                surgMatTotal =
-                    (await _context.SurgeryMedicineItems.Where(m => surgeryIds.Contains(m.SurgeryId) && !m.IsDeleted && m.PaymentObject != 3).SumAsync(m => (decimal?)m.Amount) ?? 0)
-                  + (await _context.SurgerySupplyItems.Where(s => surgeryIds.Contains(s.SurgeryId) && !s.IsDeleted && s.PaymentObject != 3).SumAsync(s => (decimal?)s.Amount) ?? 0);
+                surgMatInsurance =
+                    (await _context.SurgeryMedicineItems.Where(m => surgeryIds.Contains(m.SurgeryId) && !m.IsDeleted && m.PaymentObject == 1).SumAsync(m => (decimal?)m.Amount) ?? 0)
+                  + (await _context.SurgerySupplyItems.Where(s => surgeryIds.Contains(s.SurgeryId) && !s.IsDeleted && s.PaymentObject == 1).SumAsync(s => (decimal?)s.Amount) ?? 0);
+                surgMatPatient =
+                    (await _context.SurgeryMedicineItems.Where(m => surgeryIds.Contains(m.SurgeryId) && !m.IsDeleted && m.PaymentObject == 2).SumAsync(m => (decimal?)m.Amount) ?? 0)
+                  + (await _context.SurgerySupplyItems.Where(s => surgeryIds.Contains(s.SurgeryId) && !s.IsDeleted && s.PaymentObject == 2).SumAsync(s => (decimal?)s.Amount) ?? 0);
             }
 
-            var totalAmount = serviceRequests.Sum(sr => sr.TotalAmount) + rxTotal + surgMatTotal;
-            var insuranceAmount = serviceRequests.Sum(sr => sr.InsuranceAmount) + rxInsurance;
-            var patientAmount = serviceRequests.Sum(sr => sr.PatientAmount) + rxPatient + surgMatTotal;
+            var totalAmount = serviceRequests.Sum(sr => sr.TotalAmount) + rxTotal + surgMatInsurance + surgMatPatient;
+            var insuranceAmount = serviceRequests.Sum(sr => sr.InsuranceAmount) + rxInsurance + surgMatInsurance;
+            var patientAmount = serviceRequests.Sum(sr => sr.PatientAmount) + rxPatient + surgMatPatient;
             var paidAmount = receipts.Where(r => r.ReceiptType != 3).Sum(r => r.FinalAmount)
                            - receipts.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount);
             var depositBalance = deposits.Sum(d => d.RemainingAmount);

@@ -1,5 +1,4 @@
 using System.Text;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Surgery;
@@ -34,88 +33,67 @@ public class SurgeryOperationServiceImpl : ISurgeryOperationService
 
     public async Task<SurgeryDto> StartSurgeryAsync(StartSurgeryDto dto, Guid userId)
     {
-        try
-        {
-            var schedule = await _context.Set<SurgerySchedule>()
-                .FirstOrDefaultAsync(s => s.SurgeryRequestId == dto.SurgeryId);
+        // F1-refine (2026-06-09): KHÔNG nuốt lỗi rồi trả SurgeryDto rỗng như-thể-thành-công.
+        // Bảng spine PTTT (SurgerySchedule/Record/Request) đã ổn định → schema-missing không còn xảy ra.
+        // Nuốt lỗi cũ khiến Status=2 (gate viện phí/xuất viện) ngầm fail mà caller tưởng đã bắt đầu mổ.
+        var schedule = await _context.Set<SurgerySchedule>()
+            .FirstOrDefaultAsync(s => s.SurgeryRequestId == dto.SurgeryId);
 
-            if (schedule != null)
+        if (schedule != null)
+        {
+            schedule.Status = 3; // Đang mổ
+            schedule.UpdatedAt = DateTime.Now;
+            schedule.UpdatedBy = userId.ToString();
+
+            var record = new SurgeryRecord
             {
-                schedule.Status = 3; // Đang mổ
-                schedule.UpdatedAt = DateTime.Now;
-                schedule.UpdatedBy = userId.ToString();
+                Id = Guid.NewGuid(),
+                SurgeryScheduleId = schedule.Id,
+                ActualStartTime = dto.StartTime,
+                CreatedAt = DateTime.Now,
+                CreatedBy = userId.ToString()
+            };
+            _context.Set<SurgeryRecord>().Add(record);
 
-                var record = new SurgeryRecord
-                {
-                    Id = Guid.NewGuid(),
-                    SurgeryScheduleId = schedule.Id,
-                    ActualStartTime = dto.StartTime,
-                    CreatedAt = DateTime.Now,
-                    CreatedBy = userId.ToString()
-                };
-                _context.Set<SurgeryRecord>().Add(record);
+            var request = await _context.Set<SurgeryRequest>().FindAsync(dto.SurgeryId);
+            if (request != null) request.Status = 2;
 
-                var request = await _context.Set<SurgeryRequest>().FindAsync(dto.SurgeryId);
-                if (request != null) request.Status = 2;
-
-                await _context.SaveChangesAsync();
-            }
-
-            return await _scheduling.GetSurgeryByIdAsync(dto.SurgeryId) ?? new SurgeryDto();
+            await _context.SaveChangesAsync();
         }
-        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
-        {
-            System.Diagnostics.Debug.WriteLine($"StartSurgeryAsync: missing table/column - {ex.Message}");
-            return new SurgeryDto { Id = dto.SurgeryId };
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"StartSurgeryAsync error: {ex.Message}");
-            return new SurgeryDto { Id = dto.SurgeryId };
-        }
+
+        return await _scheduling.GetSurgeryByIdAsync(dto.SurgeryId) ?? new SurgeryDto();
     }
 
     public async Task<SurgeryDto> CompleteSurgeryAsync(CompleteSurgeryDto dto, Guid userId)
     {
-        try
+        // F1-refine (2026-06-09): bỏ nuốt lỗi (xem ghi chú StartSurgeryAsync). Status=3 gate hậu-phẫu/viện phí
+        // không được phép ngầm fail.
+        var schedule = await _context.Set<SurgerySchedule>()
+            .Include(s => s.SurgeryRecord)
+            .FirstOrDefaultAsync(s => s.SurgeryRequestId == dto.SurgeryId);
+
+        if (schedule != null)
         {
-            var schedule = await _context.Set<SurgerySchedule>()
-                .Include(s => s.SurgeryRecord)
-                .FirstOrDefaultAsync(s => s.SurgeryRequestId == dto.SurgeryId);
+            schedule.Status = 4; // Hoàn thành
+            schedule.UpdatedAt = DateTime.Now;
+            schedule.UpdatedBy = userId.ToString();
 
-            if (schedule != null)
+            if (schedule.SurgeryRecord != null)
             {
-                schedule.Status = 4; // Hoàn thành
-                schedule.UpdatedAt = DateTime.Now;
-                schedule.UpdatedBy = userId.ToString();
-
-                if (schedule.SurgeryRecord != null)
-                {
-                    schedule.SurgeryRecord.ActualEndTime = dto.EndTime;
-                    schedule.SurgeryRecord.PostOpDiagnosis = dto.PostOperativeDiagnosis;
-                    schedule.SurgeryRecord.PostOpIcdCode = dto.PostOperativeIcdCode;
-                    schedule.SurgeryRecord.Findings = dto.Description;
-                    schedule.SurgeryRecord.Complications = dto.Complications;
-                }
-
-                var request = await _context.Set<SurgeryRequest>().FindAsync(dto.SurgeryId);
-                if (request != null) request.Status = 3;
-
-                await _context.SaveChangesAsync();
+                schedule.SurgeryRecord.ActualEndTime = dto.EndTime;
+                schedule.SurgeryRecord.PostOpDiagnosis = dto.PostOperativeDiagnosis;
+                schedule.SurgeryRecord.PostOpIcdCode = dto.PostOperativeIcdCode;
+                schedule.SurgeryRecord.Findings = dto.Description;
+                schedule.SurgeryRecord.Complications = dto.Complications;
             }
 
-            return await _scheduling.GetSurgeryByIdAsync(dto.SurgeryId) ?? new SurgeryDto();
+            var request = await _context.Set<SurgeryRequest>().FindAsync(dto.SurgeryId);
+            if (request != null) request.Status = 3;
+
+            await _context.SaveChangesAsync();
         }
-        catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
-        {
-            System.Diagnostics.Debug.WriteLine($"CompleteSurgeryAsync: missing table/column - {ex.Message}");
-            return new SurgeryDto { Id = dto.SurgeryId };
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"CompleteSurgeryAsync error: {ex.Message}");
-            return new SurgeryDto { Id = dto.SurgeryId };
-        }
+
+        return await _scheduling.GetSurgeryByIdAsync(dto.SurgeryId) ?? new SurgeryDto();
     }
 
     public Task<SurgeryDto> UpdateExecutionInfoAsync(SurgeryExecutionDto dto, Guid userId)

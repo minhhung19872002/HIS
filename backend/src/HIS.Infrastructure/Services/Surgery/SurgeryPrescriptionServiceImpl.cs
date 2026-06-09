@@ -77,6 +77,23 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
         return (remaining <= 0, firstBatch);
     }
 
+    /// <summary>F1-refine: hoàn kho best-effort khi xoá dòng đã trừ kho — cộng trả lượng đã trừ về
+    /// đúng lô (BatchNumber) nếu còn, không thì lô sớm hết hạn nhất cùng kho/mặt hàng. Đối xứng với
+    /// <see cref="DeductStockFefoAsync"/> (cũng best-effort) để xoá thuốc/vật tư PTTT không làm thất thoát tồn.</summary>
+    private async Task RestoreStockAsync(Guid? warehouseId, Guid? medicineId, Guid? supplyId, string? batchNumber, decimal qty)
+    {
+        if (warehouseId == null || warehouseId == Guid.Empty || qty <= 0) return;
+        var items = await _context.InventoryItems
+            .Where(i => i.WarehouseId == warehouseId
+                && ((medicineId != null && i.MedicineId == medicineId) || (supplyId != null && i.SupplyId == supplyId))
+                && !i.IsDeleted)
+            .ToListAsync();
+        if (items.Count == 0) return;
+        var target = (!string.IsNullOrEmpty(batchNumber) ? items.FirstOrDefault(i => i.BatchNumber == batchNumber) : null)
+            ?? items.OrderBy(i => i.ExpiryDate).First();
+        target.Quantity += qty;
+    }
+
     public async Task<SurgeryMedicineDto> AddMedicineAsync(AddSurgeryMedicineDto dto, Guid userId)
     {
         var med = await _context.Medicines.FirstOrDefaultAsync(m => m.Id == dto.MedicineId)
@@ -163,6 +180,11 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
     {
         var entity = await _context.SurgeryMedicineItems.FirstOrDefaultAsync(m => m.Id == medicineItemId && !m.IsDeleted);
         if (entity == null) return false;
+        if (entity.IsStockDeducted)
+        {
+            await RestoreStockAsync(entity.WarehouseId, entity.MedicineId, null, entity.BatchNumber, entity.Quantity);
+            entity.IsStockDeducted = false;
+        }
         entity.IsDeleted = true; entity.UpdatedAt = DateTime.UtcNow; entity.UpdatedBy = userId.ToString();
         await _context.SaveChangesAsync();
         return true;
@@ -172,6 +194,11 @@ public class SurgeryPrescriptionServiceImpl : ISurgeryPrescriptionService
     {
         var entity = await _context.SurgerySupplyItems.FirstOrDefaultAsync(s => s.Id == supplyItemId && !s.IsDeleted);
         if (entity == null) return false;
+        if (entity.IsStockDeducted)
+        {
+            await RestoreStockAsync(entity.WarehouseId, null, entity.SupplyId, entity.BatchNumber, entity.Quantity);
+            entity.IsStockDeducted = false;
+        }
         entity.IsDeleted = true; entity.UpdatedAt = DateTime.UtcNow; entity.UpdatedBy = userId.ToString();
         await _context.SaveChangesAsync();
         return true;
