@@ -190,9 +190,90 @@ public class ClinicalNutritionServiceImpl : IClinicalNutritionService
             .ToListAsync();
     }
 
-    public Task<List<MealPlanDto>> GetMealPlansAsync(DateTime date, Guid? departmentId = null) => Task.FromResult(new List<MealPlanDto>());
-    public Task<MealPlanDto> GenerateMealPlanAsync(DateTime date, string mealType, Guid? departmentId = null) => Task.FromResult(new MealPlanDto { Date = date, MealType = mealType });
-    public Task<bool> MarkMealDeliveredAsync(Guid dietOrderId, DateTime date, string mealType) => Task.FromResult(true);
+    // F2 (audit FLOW-FINAL): meal plan persist THẬT (bảng MealPlans/MealPlanItems) — trước chỉ trả DTO,
+    // không lưu → suất ăn không vào hệ thống, không theo dõi cấp phát.
+    public async Task<List<MealPlanDto>> GetMealPlansAsync(DateTime date, Guid? departmentId = null)
+    {
+        var query = _context.MealPlans
+            .Include(p => p.Department)
+            .Include(p => p.Items!).ThenInclude(i => i.Patient)
+            .Include(p => p.Items!).ThenInclude(i => i.DietOrder).ThenInclude(o => o!.DietType)
+            .Where(p => !p.IsDeleted && p.Date.Date == date.Date);
+        if (departmentId.HasValue) query = query.Where(p => p.DepartmentId == departmentId.Value);
+        var plans = await query.OrderBy(p => p.MealType).ToListAsync();
+        return plans.Select(MapMealPlanDto).ToList();
+    }
+
+    public async Task<MealPlanDto> GenerateMealPlanAsync(DateTime date, string mealType, Guid? departmentId = null)
+    {
+        // Idempotent: đã có meal plan cho (ngày, bữa, khoa) → trả lại.
+        var existingId = await _context.MealPlans
+            .Where(p => !p.IsDeleted && p.Date.Date == date.Date && p.MealType == mealType && p.DepartmentId == departmentId)
+            .Select(p => (Guid?)p.Id).FirstOrDefaultAsync();
+        if (existingId.HasValue)
+            return MapMealPlanDto((await LoadMealPlanAsync(existingId.Value))!);
+
+        // Sinh suất ăn từ y lệnh ăn đang hiệu lực (lọc theo khoa nếu có).
+        var ordersQ = _context.DietOrders
+            .Include(o => o.Admission).ThenInclude(a => a!.Bed)
+            .Where(o => o.Status == "Active");
+        if (departmentId.HasValue) ordersQ = ordersQ.Where(o => o.Admission!.DepartmentId == departmentId.Value);
+        var orders = await ordersQ.ToListAsync();
+
+        var now = DateTime.Now;
+        var plan = new MealPlan
+        {
+            Id = Guid.NewGuid(), Date = date.Date, MealType = mealType, DepartmentId = departmentId,
+            Status = "Planned", TotalPatients = orders.Count, CreatedAt = now,
+            Items = orders.Select(o => new MealPlanItem
+            {
+                Id = Guid.NewGuid(), DietOrderId = o.Id, PatientId = o.PatientId,
+                RoomBed = o.Admission?.Bed?.BedName ?? o.Admission?.Bed?.BedCode,
+                IsDelivered = false, CreatedAt = now,
+            }).ToList(),
+        };
+        _context.MealPlans.Add(plan);
+        await _context.SaveChangesAsync();
+        return MapMealPlanDto((await LoadMealPlanAsync(plan.Id))!);
+    }
+
+    public async Task<bool> MarkMealDeliveredAsync(Guid dietOrderId, DateTime date, string mealType)
+    {
+        var item = await _context.MealPlanItems
+            .Include(i => i.MealPlan)
+            .FirstOrDefaultAsync(i => !i.IsDeleted && i.DietOrderId == dietOrderId
+                && i.MealPlan!.Date.Date == date.Date && i.MealPlan.MealType == mealType);
+        if (item == null) return false;
+        item.IsDelivered = true; item.DeliveredAt = DateTime.Now; item.UpdatedAt = DateTime.Now;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    private async Task<MealPlan?> LoadMealPlanAsync(Guid id) =>
+        await _context.MealPlans
+            .Include(p => p.Department)
+            .Include(p => p.Items!).ThenInclude(i => i.Patient)
+            .Include(p => p.Items!).ThenInclude(i => i.DietOrder).ThenInclude(o => o!.DietType)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+    private static MealPlanDto MapMealPlanDto(MealPlan p) => new()
+    {
+        Id = p.Id, Date = p.Date, MealType = p.MealType,
+        DepartmentName = p.Department?.DepartmentName ?? "",
+        TotalPatients = p.TotalPatients, Status = p.Status,
+        Items = (p.Items ?? new List<MealPlanItem>()).Select(i => new MealPlanItemDto
+        {
+            DietOrderId = i.DietOrderId,
+            PatientName = i.Patient?.FullName ?? "",
+            BedNumber = i.RoomBed ?? "",
+            DietType = i.DietOrder?.DietType?.Name ?? "",
+            Texture = i.DietOrder?.TextureModification ?? "",
+            Allergies = SplitCsv(i.DietOrder?.Allergies),
+            SpecialNotes = i.Notes ?? "",
+            MenuItems = new List<MenuItemDto>(),
+            IsDelivered = i.IsDelivered,
+        }).ToList(),
+    };
 
     public async Task<NutritionMonitoringDto> GetMonitoringAsync(Guid admissionId, DateTime date)
     {

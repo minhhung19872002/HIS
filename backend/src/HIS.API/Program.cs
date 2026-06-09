@@ -122,7 +122,16 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // B3-global (audit bảo mật 2026-06-06, làm 2026-06-09): fallback RequireAuthenticatedUser —
+    // endpoint quên [Authorize] mặc định VẪN yêu cầu đăng nhập (chống mở toang). Endpoint công khai
+    // phải [AllowAnonymous] tường minh (login · public-emr · appointment-booking · health · payment-IPN ·
+    // FHIR · seed/dev · frontend-compat — đã rà đủ). 2 SignalR Hub đã có [Authorize]; Swagger là middleware.
+    options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {

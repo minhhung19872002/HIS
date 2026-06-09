@@ -19,6 +19,7 @@ public class AuthController : ControllerBase
         _authService = authService;
     }
 
+    [AllowAnonymous] // B3-global: endpoint công khai (chưa đăng nhập) — giữ anonymous tường minh
     [HttpPost("login")]
     public async Task<ActionResult<ApiResponse<LoginResponseDto>>> Login([FromBody] LoginDto dto)
     {
@@ -29,6 +30,7 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse<LoginResponseDto>.Ok(result, result.RequiresOtp ? "OTP sent" : "Login successful"));
     }
 
+    [AllowAnonymous] // B3-global: bước 2 đăng nhập (OTP) — chưa có token
     [HttpPost("verify-otp")]
     public async Task<ActionResult<ApiResponse<LoginResponseDto>>> VerifyOtp([FromBody] VerifyOtpDto dto)
     {
@@ -39,6 +41,7 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse<LoginResponseDto>.Ok(result, "Login successful"));
     }
 
+    [AllowAnonymous] // B3-global: gửi lại OTP trong luồng đăng nhập — chưa có token
     [HttpPost("resend-otp")]
     public async Task<ActionResult<ApiResponse<bool>>> ResendOtp([FromBody] ResendOtpRequest request)
     {
@@ -164,6 +167,7 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse<WebAuthnCredentialDto>.Ok(result, "Biometric credential registered"));
     }
 
+    [AllowAnonymous] // B3-global: đăng nhập sinh trắc (WebAuthn) — chưa có token
     [HttpPost("webauthn/authenticate-options")]
     public async Task<ActionResult<ApiResponse<WebAuthnAuthOptionsDto>>> WebAuthnAuthOptions([FromQuery] Guid userId)
     {
@@ -179,6 +183,7 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse<WebAuthnAuthOptionsDto>.Ok(options));
     }
 
+    [AllowAnonymous] // B3-global: đăng nhập sinh trắc (WebAuthn) — chưa có token
     [HttpPost("webauthn/authenticate")]
     public async Task<ActionResult<ApiResponse<LoginResponseDto>>> WebAuthnAuthenticate([FromBody] WebAuthnAuthenticateDto dto)
     {

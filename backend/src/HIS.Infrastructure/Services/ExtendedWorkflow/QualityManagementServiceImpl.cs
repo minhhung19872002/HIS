@@ -171,35 +171,61 @@ public class QualityManagementServiceImpl : IQualityManagementService
     public Task<AuditResultDto> SubmitAuditResultAsync(AuditResultDto dto) => Task.FromResult(dto);
     public Task<List<AuditFindingDto>> GetOpenFindingsAsync(Guid? departmentId = null) => Task.FromResult(new List<AuditFindingDto>());
 
+    // F10 (audit FLOW-FINAL): THỐNG NHẤT 2 hệ khảo sát — dùng chung 1 nguồn `SatisfactionSurveyResults`
+    // (đúng nguồn mà SatisfactionSurveyController + UI khảo sát đọc/ghi), thay vì bảng `SatisfactionSurveys`
+    // riêng của module Quality (gây split data, báo cáo lệch). Bảng cũ giữ nguyên (không destructive) nhưng ngừng dùng.
     public async Task<List<PatientSatisfactionSurveyDto>> GetSurveysAsync(DateTime fromDate, DateTime toDate, string? surveyType = null)
     {
-        var query = _context.SatisfactionSurveys.Where(x => x.SurveyDate >= fromDate && x.SurveyDate <= toDate);
-        if (!string.IsNullOrEmpty(surveyType)) query = query.Where(x => x.SurveyType == surveyType);
-        var list = await query.ToListAsync();
-        return list.Select(e => new PatientSatisfactionSurveyDto { Id = e.Id, SurveyDate = e.SurveyDate, SurveyType = e.SurveyType, OverallSatisfaction = e.OverallRating ?? 0 }).ToList();
+        var query = _context.SatisfactionSurveyResults.Where(x => !x.IsDeleted && x.CreatedAt >= fromDate && x.CreatedAt <= toDate);
+        if (!string.IsNullOrEmpty(surveyType)) query = query.Where(x => x.TemplateName == surveyType);
+        var list = await query.OrderByDescending(x => x.CreatedAt).ToListAsync();
+        return list.Select(e => new PatientSatisfactionSurveyDto
+        {
+            Id = e.Id, SurveyDate = e.CreatedAt, SurveyType = e.TemplateName ?? "General",
+            OverallSatisfaction = (int)Math.Round(e.OverallScore), Department = e.DepartmentName ?? "",
+            PatientId = e.PatientId, PositiveFeedback = e.Comment ?? "",
+        }).ToList();
     }
 
     public async Task<PatientSatisfactionSurveyDto> SubmitSurveyAsync(PatientSatisfactionSurveyDto dto)
     {
-        var entity = new SatisfactionSurvey { Id = Guid.NewGuid(), SurveyDate = DateTime.Now, SurveyType = dto.SurveyType ?? "General", OverallRating = dto.OverallSatisfaction, PositiveFeedback = "", CreatedAt = DateTime.Now };
-        _context.SatisfactionSurveys.Add(entity);
+        var entity = new SatisfactionSurveyResult
+        {
+            Id = Guid.NewGuid(),
+            TemplateName = dto.SurveyType ?? "General",
+            PatientId = dto.PatientId,
+            DepartmentName = dto.Department,
+            OverallScore = dto.OverallSatisfaction,
+            Comment = string.IsNullOrWhiteSpace(dto.NegativeFeedback) ? dto.PositiveFeedback : dto.NegativeFeedback,
+            CreatedAt = DateTime.Now,
+        };
+        _context.SatisfactionSurveyResults.Add(entity);
         await _context.SaveChangesAsync();
-        return new PatientSatisfactionSurveyDto { Id = entity.Id, SurveyDate = entity.SurveyDate, SurveyType = entity.SurveyType, OverallSatisfaction = entity.OverallRating ?? 0 };
+        dto.Id = entity.Id; dto.SurveyDate = entity.CreatedAt;
+        return dto;
     }
 
     public async Task<SatisfactionReportDto> GetSatisfactionReportAsync(DateTime fromDate, DateTime toDate, string? surveyType = null, string? department = null)
     {
-        var query = _context.SatisfactionSurveys.Where(x => x.SurveyDate >= fromDate && x.SurveyDate <= toDate);
-        if (!string.IsNullOrEmpty(surveyType)) query = query.Where(x => x.SurveyType == surveyType);
+        var query = _context.SatisfactionSurveyResults.Where(x => !x.IsDeleted && x.CreatedAt >= fromDate && x.CreatedAt <= toDate);
+        if (!string.IsNullOrEmpty(surveyType)) query = query.Where(x => x.TemplateName == surveyType);
+        if (!string.IsNullOrEmpty(department)) query = query.Where(x => x.DepartmentName == department);
         var surveys = await query.ToListAsync();
-        return new SatisfactionReportDto { FromDate = fromDate, ToDate = toDate, TotalResponses = surveys.Count, AverageOverall = surveys.Any() ? (decimal)surveys.Average(x => x.OverallRating ?? 0) : 0 };
+        return new SatisfactionReportDto
+        {
+            FromDate = fromDate, ToDate = toDate, SurveyType = surveyType ?? "", Department = department ?? "",
+            TotalSurveys = surveys.Count, TotalResponses = surveys.Count,
+            AverageOverall = surveys.Any() ? Math.Round((decimal)surveys.Average(x => x.OverallScore), 2) : 0,
+            OverallSatisfactionScore = surveys.Any() ? Math.Round((decimal)surveys.Average(x => x.OverallScore), 2) : 0,
+        };
     }
 
     public async Task<bool> MarkSurveyFollowedUpAsync(Guid id, string notes)
     {
-        var e = await _context.SatisfactionSurveys.FindAsync(id);
+        var e = await _context.SatisfactionSurveyResults.FindAsync(id);
         if (e == null) return false;
-        e.Suggestions = notes;
+        e.Comment = string.IsNullOrWhiteSpace(e.Comment) ? $"[Đã liên hệ lại] {notes}" : $"{e.Comment}\n[Đã liên hệ lại] {notes}";
+        e.UpdatedAt = DateTime.Now;
         await _context.SaveChangesAsync();
         return true;
     }

@@ -174,10 +174,22 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<List<MealPlanDto>>> GetMealPlans([FromQuery] DateTime date, [FromQuery] Guid? departmentId)
             => Ok(await _service.GetMealPlansAsync(date, departmentId));
 
+        // F2: sinh suất ăn + đánh dấu đã cấp phát (trước method service không có endpoint).
+        [HttpPost("meal-plans/generate")]
+        public async Task<ActionResult<MealPlanDto>> GenerateMealPlan([FromBody] GenerateMealPlanRequest req)
+            => Ok(await _service.GenerateMealPlanAsync(req.Date, string.IsNullOrWhiteSpace(req.MealType) ? "Lunch" : req.MealType, req.DepartmentId));
+
+        [HttpPost("meal-plans/mark-delivered")]
+        public async Task<ActionResult<bool>> MarkMealDelivered([FromBody] MarkMealDeliveredRequest req)
+            => Ok(await _service.MarkMealDeliveredAsync(req.DietOrderId, req.Date, string.IsNullOrWhiteSpace(req.MealType) ? "Lunch" : req.MealType));
+
         [HttpGet("dashboard")]
         public async Task<ActionResult<NutritionDashboardDto>> GetDashboard([FromQuery] DateTime? date)
             => Ok(await _service.GetDashboardAsync(date));
     }
+
+    public class GenerateMealPlanRequest { public DateTime Date { get; set; } public string? MealType { get; set; } public Guid? DepartmentId { get; set; } }
+    public class MarkMealDeliveredRequest { public Guid DietOrderId { get; set; } public DateTime Date { get; set; } public string? MealType { get; set; } }
 
     #endregion
 
@@ -830,6 +842,11 @@ namespace HIS.API.Controllers
                 fromDate ?? DateTime.Today.AddMonths(-1),
                 toDate ?? DateTime.Today.AddDays(1),
                 null, null));
+
+        // F10: ghi khảo sát hài lòng (vào chung nguồn SatisfactionSurveyResults — thống nhất 2 hệ).
+        [HttpPost("surveys")]
+        public async Task<ActionResult<PatientSatisfactionSurveyDto>> SubmitSurvey([FromBody] PatientSatisfactionSurveyDto dto)
+            => Ok(await _service.SubmitSurveyAsync(dto));
 
         [HttpGet("surveys/statistics")]
         public async Task<ActionResult<SatisfactionReportDto>> GetSurveyStatistics(
