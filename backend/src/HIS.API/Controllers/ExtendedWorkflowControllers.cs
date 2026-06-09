@@ -86,6 +86,26 @@ namespace HIS.API.Controllers
         [HttpGet("dashboard")]
         public async Task<ActionResult<TelemedicineDashboardDto>> GetDashboard([FromQuery] DateTime? date)
             => Ok(await _service.GetDashboardAsync(date));
+
+        // F8 (audit FLOW-FINAL): wire kê đơn tele + gửi sang quầy phát (trước đây method service không có endpoint).
+        [HttpPost("prescriptions")]
+        public async Task<ActionResult<TelePrescriptionDto>> CreatePrescription([FromBody] CreateTelePrescriptionRequest req)
+            => Ok(await _service.CreatePrescriptionAsync(req.SessionId, req.Items ?? new List<TelePrescriptionItemDto>(), req.Note ?? ""));
+
+        [HttpPost("prescriptions/{id}/sign")]
+        public async Task<ActionResult<TelePrescriptionDto>> SignPrescription(Guid id)
+            => Ok(await _service.SignPrescriptionAsync(id));
+
+        [HttpPost("prescriptions/send-to-pharmacy")]
+        public async Task<ActionResult<bool>> SendPrescriptionToPharmacy([FromBody] SendPrescriptionToPharmacyDto dto)
+            => Ok(await _service.SendPrescriptionToPharmacyAsync(dto));
+    }
+
+    public class CreateTelePrescriptionRequest
+    {
+        public Guid SessionId { get; set; }
+        public List<TelePrescriptionItemDto>? Items { get; set; }
+        public string? Note { get; set; }
     }
 
     #endregion

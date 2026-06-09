@@ -142,6 +142,19 @@ public class TelemedicineServiceImpl : ITelemedicineService
             Status = "Draft", Note = note, PrescriptionDate = DateTime.Now, CreatedAt = DateTime.Now
         };
         _context.TelePrescriptions.Add(entity);
+        // F8: persist chi tiết đơn (trước đây items bị bỏ → không có gì để chuyển sang quầy phát).
+        foreach (var it in items ?? new List<TelePrescriptionItemDto>())
+        {
+            _context.Set<TelePrescriptionItem>().Add(new TelePrescriptionItem
+            {
+                Id = Guid.NewGuid(), PrescriptionId = entity.Id,
+                MedicineId = it.DrugId, MedicineName = it.DrugName ?? "",
+                Quantity = it.Quantity, Unit = it.Unit ?? "",
+                Dosage = it.Dosage, Frequency = it.Frequency,
+                DurationDays = it.DurationDays, Instructions = it.Instructions,
+                CreatedAt = DateTime.Now,
+            });
+        }
         await _context.SaveChangesAsync();
         return new TelePrescriptionDto { Id = entity.Id, PrescriptionCode = entity.PrescriptionCode, Status = entity.Status, Items = items };
     }
@@ -155,10 +168,83 @@ public class TelemedicineServiceImpl : ITelemedicineService
         return new TelePrescriptionDto { Id = e.Id, PrescriptionCode = e.PrescriptionCode, Status = e.Status };
     }
 
+    // F8 (audit FLOW-FINAL 2026-06-06): gửi đơn tele sang quầy phát THẬT — tạo Prescription + Detail
+    // (Status=0 → quầy phát thấy đơn chờ), thay vì chỉ đổi status đơn tele (đơn không bao giờ tới quầy).
     public async Task<bool> SendPrescriptionToPharmacyAsync(SendPrescriptionToPharmacyDto dto)
     {
-        var e = await _context.TelePrescriptions.FindAsync(dto.PrescriptionId);
+        var e = await _context.TelePrescriptions
+            .Include(t => t.Items)
+            .FirstOrDefaultAsync(t => t.Id == dto.PrescriptionId);
         if (e == null) return false;
+
+        var rxCode = $"TELE-{e.Id:N}";
+        // Idempotent: chưa có đơn phát thật tương ứng → tạo.
+        if (!await _context.Prescriptions.AnyAsync(p => p.PrescriptionCode == rxCode))
+        {
+            var session = await _context.TeleSessions.Include(s => s.Appointment)
+                .FirstOrDefaultAsync(s => s.Id == e.SessionId);
+            var appt = session?.Appointment;
+            if (appt != null)
+            {
+                var mr = await _context.MedicalRecords
+                    .Where(m => m.PatientId == appt.PatientId && !m.IsDeleted)
+                    .OrderByDescending(m => m.AdmissionDate)
+                    .Select(m => new { m.Id, m.DepartmentId })
+                    .FirstOrDefaultAsync();
+
+                Guid? deptId = appt.SpecialityId ?? mr?.DepartmentId;
+                if (deptId == null || deptId == Guid.Empty)
+                    deptId = (await _context.Departments.FirstOrDefaultAsync(d => !d.IsDeleted))?.Id;
+
+                Guid doctorId = appt.DoctorId;
+                if (doctorId == Guid.Empty || !await _context.Users.AnyAsync(u => u.Id == doctorId))
+                    doctorId = await _context.Users.Where(u => !u.IsDeleted).Select(u => u.Id).FirstOrDefaultAsync();
+
+                if (mr != null && mr.Id != Guid.Empty && deptId != null && deptId != Guid.Empty && doctorId != Guid.Empty)
+                {
+                    var by = doctorId.ToString();
+                    var rx = new Prescription
+                    {
+                        Id = Guid.NewGuid(),
+                        PrescriptionCode = rxCode,
+                        PrescriptionDate = DateTime.Now,
+                        MedicalRecordId = mr.Id,
+                        DoctorId = doctorId,
+                        DepartmentId = deptId.Value,
+                        PrescriptionType = 1, // Ngoại trú (tele)
+                        PaymentCategory = 2,  // Thu phí
+                        Status = 0,           // Chờ duyệt/phát → quầy phát thấy
+                        Note = e.Note,
+                        CreatedAt = DateTime.Now,
+                        CreatedBy = by,
+                        Details = new List<PrescriptionDetail>(),
+                    };
+                    decimal total = 0;
+                    foreach (var it in e.Items ?? new List<TelePrescriptionItem>())
+                    {
+                        var med = await _context.Medicines.FindAsync(it.MedicineId);
+                        var price = med?.UnitPrice ?? 0;
+                        var amount = price * it.Quantity;
+                        total += amount;
+                        rx.Details.Add(new PrescriptionDetail
+                        {
+                            Id = Guid.NewGuid(), PrescriptionId = rx.Id,
+                            MedicineId = it.MedicineId, Quantity = it.Quantity,
+                            Unit = string.IsNullOrEmpty(it.Unit) ? med?.Unit : it.Unit,
+                            UnitPrice = price, Amount = amount, TotalPrice = amount, PatientAmount = amount,
+                            PatientType = 2,
+                            Dosage = it.Dosage, Frequency = it.Frequency, Days = it.DurationDays ?? 0,
+                            UsageInstructions = it.Instructions,
+                            Status = 0,
+                            CreatedAt = DateTime.Now, CreatedBy = by,
+                        });
+                    }
+                    rx.TotalAmount = total; rx.PatientAmount = total;
+                    _context.Prescriptions.Add(rx);
+                }
+            }
+        }
+
         e.Status = "SentToPharmacy"; e.SentToPharmacyAt = DateTime.Now;
         await _context.SaveChangesAsync();
         return true;
