@@ -60,6 +60,7 @@ public class ObservationStayController : ControllerBase
             s.InitialDiagnosis,
             s.FinalDiagnosis,
             s.Status,
+            s.TriageLevel,
             s.DischargeReason,
             s.EwsScore,
             HoursInObservation = s.DischargedAt.HasValue
@@ -79,6 +80,7 @@ public class ObservationStayController : ControllerBase
         public string? ChiefComplaint { get; set; }
         public string? InitialDiagnosis { get; set; }
         public string? Notes { get; set; }
+        public int? TriageLevel { get; set; }
     }
 
     /// <summary>Tiếp nhận vào phòng lưu.</summary>
@@ -103,6 +105,7 @@ public class ObservationStayController : ControllerBase
             ChiefComplaint = dto.ChiefComplaint,
             InitialDiagnosis = dto.InitialDiagnosis,
             Notes = dto.Notes,
+            TriageLevel = dto.TriageLevel,
             Status = 1,
             CreatedAt = now,
             CreatedBy = GetUserId().ToString(),

@@ -7,6 +7,11 @@ import {
   getActiveEvent, getVictims, registerVictim, activateCodeBlue,
   type MCIVictimDto, type RegisterVictimDto,
 } from '../api/massCasualty';
+import { registerEmergencyPatient, type EmergencyRegistrationDto } from '../api/reception';
+import {
+  listObservationStays, createObservationStay, dischargeObservationStay, escalateObservationStay,
+  type ObservationStayDto,
+} from '../api/observation';
 import '../styles/EmergencyDisaster.css';
 
 type TriageLevel = 1 | 2 | 3 | 4 | 5;
@@ -36,6 +41,7 @@ type Vitals = {
 
 type EmergencyCase = {
   code: string;
+  stayId?: string; // ObservationStay.Id — có khi nguồn là phòng lưu thật (F3), dùng để persist disposition
   patientCode: string;
   patientName: string;
   age: number;
@@ -80,93 +86,42 @@ const STATUS_OPTIONS: StatusMeta[] = [
   { value: 'referred', label: 'Chuyển tuyến', tone: 'info' },
 ];
 
-const COMPLAINTS = [
-  'Đau ngực dữ dội',
-  'Khó thở cấp',
-  'Chấn thương đầu',
-  'Tai nạn giao thông',
-  'Đau bụng cấp',
-  'Co giật',
-  'Sốt cao + co giật',
-  'Ngất xỉu',
-  'Bỏng độ 2',
-  'Vết thương dao đâm',
-  'Đột quỵ nghi ngờ',
-  'Ngộ độc thuốc',
-];
-
-const NAMES = [
-  'Nguyễn Văn Hùng',
-  'Trần Thị Lan',
-  'Lê Quốc Anh',
-  'Phạm Hữu Nam',
-  'Đỗ Thanh Hà',
-  'Bùi Mai Hương',
-  'Vũ Thuỳ Linh',
-  'Trần Văn Thái',
-  'Hoàng Thị Bích',
-  'Phan Đăng Khoa',
-  'Tô Anh Đức',
-  'Lý Thuý Vy',
-];
-
-const DOCTORS = ['BS. Phan Văn Tâm', 'BS. Đỗ Thị Linh', 'BS. Nguyễn Đức Long', 'BS. Trần Hải Nam'];
-const ARRIVAL_MODES = ['115', 'Tự đến', 'Người nhà đưa vào', 'Chuyển tuyến'];
 const PAGE_SIZE = 18;
 
-function seededNumber(seed: number): number {
-  const value = Math.sin(seed * 999.91) * 10000;
-  return value - Math.floor(value);
+// ─── ObservationStay → EmergencyCase mapper (F3 — nguồn dữ liệu thật) ──────────
+// Màn Cấp cứu đọc phiên phòng lưu thật từ /observation/list (thay seed mô phỏng cũ).
+// Danh sách chỉ mang field cấp-list (không có sinh hiệu chi tiết) → vitals hiển thị '—'.
+
+function statusFromStayStatus(status: number): EmergencyStatus {
+  switch (status) {
+    case 2: return 'discharged';  // Cho về
+    case 3: return 'admitted';    // Chuyển nhập viện
+    case 4: return 'referred';    // Chuyển viện
+    case 5: return 'discharged';  // Tử vong — không có trạng thái UI riêng
+    default: return 'observing';  // 1 = Đang lưu
+  }
 }
 
-function seededPick<T>(items: T[], seed: number): T {
-  return items[Math.floor(seededNumber(seed) * items.length) % items.length];
-}
-
-function buildEmergencySeed(): EmergencyCase[] {
-  const base = dayjs().startOf('day');
-
-  return Array.from({ length: 36 }, (_, index) => {
-    const triageSeed = seededNumber(index + 4);
-    const triage: TriageLevel =
-      triageSeed < 0.08 ? 1 :
-      triageSeed < 0.24 ? 2 :
-      triageSeed < 0.55 ? 3 :
-      triageSeed < 0.82 ? 4 : 5;
-    const status = seededPick<EmergencyStatus>(
-      ['triage', 'treating', 'observing', 'observing', 'admitted', 'discharged', 'referred'],
-      index + 11,
-    );
-    const arrivalHour = 1 + Math.floor(seededNumber(index + 13) * 22);
-    const arrivalMinute = Math.floor(seededNumber(index + 17) * 60);
-    const hr = triage <= 2 ? 102 + Math.floor(seededNumber(index + 19) * 38) : 66 + Math.floor(seededNumber(index + 19) * 26);
-    const temp = triage <= 2 ? 37.1 + seededNumber(index + 23) * 2.3 : 36 + seededNumber(index + 23) * 1.6;
-    const spo2 = triage <= 2 ? 85 + Math.floor(seededNumber(index + 29) * 10) : 92 + Math.floor(seededNumber(index + 29) * 7);
-    const systolic = triage <= 2 ? 82 + Math.floor(seededNumber(index + 31) * 28) : 108 + Math.floor(seededNumber(index + 31) * 24);
-    const diastolic = triage <= 2 ? 52 + Math.floor(seededNumber(index + 37) * 18) : 68 + Math.floor(seededNumber(index + 37) * 18);
-
-    return {
-      code: `ER-${base.format('YYMMDD')}-${String(index + 1).padStart(3, '0')}`,
-      patientCode: `BN${base.format('YY')}${String(10000 + index * 7).slice(-5)}`,
-      patientName: seededPick(NAMES, index + 7),
-      age: 18 + Math.floor(seededNumber(index + 41) * 68),
-      gender: seededNumber(index + 43) > 0.48 ? ('Nam' as const) : ('Nữ' as const),
-      arrivalTime: base.add(arrivalHour, 'hour').add(arrivalMinute, 'minute').toISOString(),
-      triage,
-      status,
-      complaint: seededPick(COMPLAINTS, index + 47),
-      mode: seededPick(ARRIVAL_MODES, index + 53),
-      doctor: seededPick(DOCTORS, index + 59),
-      bed: triage <= 3 ? `CC-${String((index % 8) + 1).padStart(2, '0')}` : undefined,
-      gcs: triage <= 2 ? 8 + Math.floor(seededNumber(index + 61) * 5) : 14 + Math.floor(seededNumber(index + 61) * 2),
-      vitals: {
-        bp: `${systolic}/${diastolic}`,
-        hr,
-        temp: Number(temp.toFixed(1)),
-        spo2,
-      },
-    };
-  }).sort((left, right) => dayjs(right.arrivalTime).valueOf() - dayjs(left.arrivalTime).valueOf());
+function mapStayToCase(s: ObservationStayDto): EmergencyCase {
+  const triage = (s.triageLevel && s.triageLevel >= 1 && s.triageLevel <= 5
+    ? s.triageLevel : 3) as TriageLevel;
+  return {
+    code: s.stayCode,
+    stayId: s.id,
+    patientCode: s.patientCode || '—',
+    patientName: s.patientName || '—',
+    age: s.dateOfBirth ? dayjs().diff(dayjs(s.dateOfBirth), 'year') : 0,
+    gender: s.gender === 2 ? 'Nữ' : 'Nam',
+    arrivalTime: s.admittedAt,
+    triage,
+    status: statusFromStayStatus(s.status),
+    complaint: s.chiefComplaint || s.initialDiagnosis || '—',
+    mode: '—',
+    doctor: s.doctorName || '—',
+    bed: s.bedName || undefined,
+    gcs: triage <= 2 ? 10 : 15,
+    vitals: { bp: '—', hr: 0, temp: 0, spo2: 0 },
+  };
 }
 
 function toneClass(tone: StatusMeta['tone']): string {
@@ -244,10 +199,14 @@ function mapVictimToCase(v: MCIVictimDto): EmergencyCase {
   };
 }
 
+const byArrivalDesc = (a: EmergencyCase, b: EmergencyCase) =>
+  dayjs(b.arrivalTime).valueOf() - dayjs(a.arrivalTime).valueOf();
+
 const EmergencyDisasterV2: React.FC = () => {
   const { message, modal } = AntdApp.useApp();
-  const [rows, setRows] = useState<EmergencyCase[]>(() => buildEmergencySeed());
-  const [usingMock, setUsingMock] = useState(true);
+  const [rows, setRows] = useState<EmergencyCase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [source, setSource] = useState<'mci' | 'observation'>('observation');
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [intakeSubmitting, setIntakeSubmitting] = useState(false);
@@ -257,36 +216,50 @@ const EmergencyDisasterV2: React.FC = () => {
     try {
       const vRes = await getVictims(eventId, 'all', 0);
       const list = Array.isArray(vRes?.data) ? vRes.data : [];
-      if (list.length === 0) return;
-      const real = list.map(mapVictimToCase)
-        .sort((a, b) => dayjs(b.arrivalTime).valueOf() - dayjs(a.arrivalTime).valueOf());
-      setRows(real);
-      setUsingMock(false);
+      setRows(list.map(mapVictimToCase).sort(byArrivalDesc));
     } catch {
       // giữ dữ liệu hiện tại nếu API lỗi
     }
   }, []);
 
-  // Thử API MCI thật khi mount; không có sự kiện/nạn nhân thì giữ seed cho demo.
+  // Tải danh sách phiên phòng lưu thật — nguồn cấp cứu thường khi không có MCI.
+  const reloadObservation = useCallback(async () => {
+    try {
+      const res = await listObservationStays();
+      const list = Array.isArray(res?.data) ? res.data : [];
+      setRows(list.map(mapStayToCase).sort(byArrivalDesc));
+    } catch {
+      // giữ dữ liệu hiện tại nếu API lỗi
+    }
+  }, []);
+
+  // Reload theo nguồn đang hiển thị (sau khi tiếp nhận / đổi disposition).
+  const reload = useCallback(async () => {
+    if (activeEventId) await reloadVictims(activeEventId);
+    else await reloadObservation();
+  }, [activeEventId, reloadVictims, reloadObservation]);
+
+  // Mount: ưu tiên MCI đang hoạt động; không có sự kiện → đọc phòng lưu thật.
   useEffect(() => {
     (async () => {
+      setLoading(true);
       try {
         const evt = await getActiveEvent();
-        if (!evt?.data?.id) return; // chưa có MCI — giữ seed
-        setActiveEventId(evt.data.id);
-        // Backend bắt buộc status + triageCategory dù FE để optional → truyền dummy.
-        const vRes = await getVictims(evt.data.id, 'all', 0);
-        const list = Array.isArray(vRes?.data) ? vRes.data : [];
-        if (list.length === 0) return; // có sự kiện nhưng chưa có nạn nhân — giữ seed
-        const real = list.map(mapVictimToCase)
-          .sort((a, b) => dayjs(b.arrivalTime).valueOf() - dayjs(a.arrivalTime).valueOf());
-        setRows(real);
-        setUsingMock(false);
-        message.success(`Đang hiển thị MCI thật: ${evt.data.eventName} (${real.length} ca)`);
+        if (evt?.data?.id) {
+          setActiveEventId(evt.data.id);
+          setSource('mci');
+          const vRes = await getVictims(evt.data.id, 'all', 0);
+          const list = Array.isArray(vRes?.data) ? vRes.data : [];
+          setRows(list.map(mapVictimToCase).sort(byArrivalDesc));
+          message.success(`Đang hiển thị MCI thật: ${evt.data.eventName} (${list.length} ca)`);
+          return;
+        }
       } catch {
-        // API lỗi/schema drift — giữ seed cho demo
+        // không có MCI / API lỗi → fallback đọc phòng lưu
       }
-    })();
+      setSource('observation');
+      await reloadObservation();
+    })().finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [statusFilter, setStatusFilter] = useState<'all' | EmergencyStatus>('all');
@@ -333,7 +306,7 @@ const EmergencyDisasterV2: React.FC = () => {
     const treating = rows.filter((row) => row.status === 'treating').length;
     const admitted = rows.filter((row) => row.status === 'admitted').length;
     const referred = rows.filter((row) => row.status === 'referred').length;
-    const averageWait = Math.max(
+    const averageWait = rows.length === 0 ? 0 : Math.max(
       6,
       Math.round(rows.reduce((sum, row) => sum + (row.triage <= 2 ? 6 : row.triage === 3 ? 14 : 22), 0) / rows.length),
     );
@@ -357,8 +330,43 @@ const EmergencyDisasterV2: React.FC = () => {
     setSelectedCase(row);
   };
 
+  // Chuyển nội trú: phiên phòng lưu thật → escalate (status=3) + reload; nguồn khác (MCI) → đổi local.
+  const handleAdmit = async (row: EmergencyCase): Promise<void> => {
+    if (row.stayId) {
+      try {
+        await escalateObservationStay(row.stayId, { dischargeReason: 'Chuyển nhập viện từ phòng lưu cấp cứu' });
+        await reload();
+        message.success(`Đã chuyển ${row.patientName} sang nội trú`);
+      } catch {
+        message.error('Chuyển nội trú thất bại. Vui lòng thử lại.');
+      }
+      return;
+    }
+    mutateRow(row.code, { status: 'admitted' });
+    message.success(`Đã chuyển ${row.patientName} sang nội trú`);
+  };
+
+  // Cho về sau theo dõi: phiên phòng lưu thật → discharge (status=2) + reload; nguồn khác → đổi local.
+  const handleDischarge = async (row: EmergencyCase): Promise<void> => {
+    if (row.stayId) {
+      try {
+        await dischargeObservationStay(row.stayId, { dischargeReason: 'Cho về sau theo dõi cấp cứu' });
+        await reload();
+        message.success(`Đã hoàn tất xử trí cho ${row.patientName}`);
+      } catch {
+        message.error('Cho về thất bại. Vui lòng thử lại.');
+      }
+      return;
+    }
+    mutateRow(row.code, { status: 'discharged' });
+    message.success(`Đã hoàn tất xử trí cho ${row.patientName}`);
+  };
+
   // Tiếp nhận ca cấp cứu mới → registerVictim vào MCI đang hoạt động.
-  // Chưa có sự kiện MCI: thêm tạm vào danh sách (demo, không lưu BE).
+  // Tiếp nhận ca cấp cứu mới:
+  //  - Có MCI đang hoạt động → registerVictim vào sự kiện (như cũ).
+  //  - Không có MCI (cấp cứu thường) → đăng ký tiếp nhận cấp cứu thật (Reception, TreatmentType=3)
+  //    rồi tạo phiên phòng lưu (ObservationStay) để theo dõi + persist triage/disposition.
   const onIntakeSubmit = async (payload: IntakePayload): Promise<void> => {
     setIntakeSubmitting(true);
     try {
@@ -379,24 +387,32 @@ const EmergencyDisasterV2: React.FC = () => {
         await reloadVictims(activeEventId);
         message.success(`Đã tiếp nhận ca cấp cứu · ${payload.fullName || 'chưa xác định'}`);
       } else {
-        const lvl = payload.triage;
-        const localCase: EmergencyCase = {
-          code: `CC-${dayjs().format('HHmmss')}`,
-          patientCode: `BN-${Math.floor(1000 + Math.random() * 9000)}`,
-          patientName: payload.fullName.trim() || 'Chưa xác định',
-          age: payload.estimatedAge ? Number(payload.estimatedAge) : 0,
-          gender: payload.gender,
-          arrivalTime: dayjs().toISOString(),
-          triage: lvl,
-          status: 'triage',
-          complaint: payload.complaint.trim() || '—',
-          mode: payload.mode || 'Tự đến',
-          doctor: 'Chưa phân',
-          gcs: lvl <= 2 ? 10 : 15,
-          vitals: { bp: '—', hr: 0, temp: 0, spo2: 0 },
+        // 1) Đăng ký tiếp nhận cấp cứu → tạo BN tạm + HSBA (TreatmentType=3) + lượt khám ưu tiên.
+        const regDto: EmergencyRegistrationDto = {
+          patientName: payload.fullName.trim() || undefined,
+          gender: payload.gender === 'Nam' ? 1 : 2,
+          estimatedAge: payload.estimatedAge ? Number(payload.estimatedAge) : undefined,
+          patientType: 2, // Viện phí (chưa xác minh BHYT khi cấp cứu)
+          chiefComplaint: payload.complaint.trim() || payload.injuries.trim() || undefined,
+          severity: Math.min(4, payload.triage), // severity DTO 1-4
+          transportMethod: payload.mode || undefined,
         };
-        setRows((prev) => [localCase, ...prev]);
-        message.info('Chưa có sự kiện MCI đang hoạt động — ca được thêm tạm (demo, chưa lưu hệ thống).');
+        const admRes = await registerEmergencyPatient(regDto);
+        const adm = admRes.data;
+        // 2) Tạo phiên phòng lưu theo dõi gắn với HSBA cấp cứu vừa tạo.
+        await createObservationStay({
+          patientId: adm.patientId,
+          medicalRecordId: adm.id,
+          departmentId: adm.departmentId,
+          doctorId: adm.doctorId,
+          chiefComplaint: payload.complaint.trim() || undefined,
+          initialDiagnosis: payload.injuries.trim() || undefined,
+          notes: payload.injuryMechanism.trim() || undefined,
+          triageLevel: payload.triage,
+        });
+        await reloadObservation();
+        const who = adm.patientName || payload.fullName || 'BN cấp cứu';
+        message.success(`Đã tiếp nhận cấp cứu · ${who}${adm.medicalRecordCode ? ` (${adm.medicalRecordCode})` : ''}`);
       }
       setIntakeOpen(false);
     } catch {
@@ -418,10 +434,10 @@ const EmergencyDisasterV2: React.FC = () => {
 
   return (
     <div className="er-v2-page">
-      {usingMock && (
-        <div style={{ background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 4, padding: '6px 12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-          <Tag color="orange">MÔ PHỎNG / DỮ LIỆU DIỄN TẬP</Tag>
-          Dữ liệu hiển thị là mô phỏng — chưa có sự kiện MCI đang hoạt động trên hệ thống thật.
+      {source === 'mci' && (
+        <div style={{ background: '#fff1f0', border: '1px solid #ffccc7', borderRadius: 4, padding: '6px 12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+          <Tag color="red">MCI ĐANG HOẠT ĐỘNG</Tag>
+          Đang hiển thị nạn nhân của sự kiện thảm họa hàng loạt (mass casualty) trên hệ thống thật.
         </div>
       )}
       <div className="er-v2-strip">
@@ -495,8 +511,8 @@ const EmergencyDisasterV2: React.FC = () => {
               options={TRIAGE_LEVELS.map((item) => ({ value: String(item.level), label: item.label }))}
             />
             <span className="er-v2-timestamp">Cập nhật {dayjs().format('HH:mm')}</span>
-            <span className={'er-v2-badge ' + (usingMock ? 'warn' : 'ok')} title={usingMock ? 'Không có MCI active — hiển thị dữ liệu mẫu' : 'Đang hiển thị MCI thật'}>
-              {usingMock ? 'Demo' : 'Live'}
+            <span className="er-v2-badge ok" title={source === 'mci' ? 'Đang hiển thị nạn nhân MCI thật' : 'Đang hiển thị phiên phòng lưu cấp cứu thật'}>
+              {source === 'mci' ? 'MCI' : 'Phòng lưu'}
             </span>
           </div>
         </div>
@@ -537,7 +553,15 @@ const EmergencyDisasterV2: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {pagedRows.map((row) => {
+              {loading && (
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '28px 0', color: '#6b7280' }}>Đang tải dữ liệu cấp cứu…</td></tr>
+              )}
+              {!loading && pagedRows.length === 0 && (
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '28px 0', color: '#6b7280' }}>
+                  {source === 'mci' ? 'Sự kiện MCI chưa có nạn nhân.' : 'Chưa có ca cấp cứu nào đang theo dõi. Bấm “Tiếp nhận cấp cứu” để thêm.'}
+                </td></tr>
+              )}
+              {!loading && pagedRows.map((row) => {
                 const triage = TRIAGE_LEVELS.find((item) => item.level === row.triage)!;
                 const status = STATUS_OPTIONS.find((item) => item.value === row.status)!;
                 return (
@@ -570,30 +594,26 @@ const EmergencyDisasterV2: React.FC = () => {
                         <button type="button" className="er-v2-icon-btn" onClick={(e) => { e.stopPropagation(); openCase(row); }}>
                           <EyeOutlined />
                         </button>
-                        {row.status === 'treating' && (
-                          <button
-                            type="button"
-                            className="er-v2-icon-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              mutateRow(row.code, { status: 'admitted' });
-                              message.success(`Đã chuyển ${row.patientName} sang nội trú`);
-                            }}
-                          >
-                            <HomeOutlined />
-                          </button>
+                        {!['admitted', 'discharged', 'referred'].includes(row.status) && (
+                          <>
+                            <button
+                              type="button"
+                              className="er-v2-icon-btn"
+                              title="Chuyển nội trú"
+                              onClick={(e) => { e.stopPropagation(); void handleAdmit(row); }}
+                            >
+                              <HomeOutlined />
+                            </button>
+                            <button
+                              type="button"
+                              className="er-v2-icon-btn"
+                              title="Cho về sau theo dõi"
+                              onClick={(e) => { e.stopPropagation(); void handleDischarge(row); }}
+                            >
+                              <LogoutOutlined />
+                            </button>
+                          </>
                         )}
-                        <button
-                          type="button"
-                          className="er-v2-icon-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            mutateRow(row.code, { status: 'discharged' });
-                            message.success(`Đã hoàn tất xử trí cho ${row.patientName}`);
-                          }}
-                        >
-                          <LogoutOutlined />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -635,8 +655,9 @@ const EmergencyDisasterV2: React.FC = () => {
             emergencyCase={selectedCase}
             onClose={() => setSelectedCase(null)}
             onAdmit={() => {
-              mutateRow(selectedCase.code, { status: 'admitted' });
-              message.success('Đã chuyển nội trú');
+              const target = selectedCase;
+              setSelectedCase(null);
+              void handleAdmit(target);
             }}
             onPrint={() => window.print()}
           />
@@ -884,10 +905,10 @@ const IntakeDrawerContent: React.FC<IntakeDrawerContentProps> = ({ submitting, i
 
       {!isMci && (
         <div style={{
-          margin: '0 0 10px', padding: '10px 12px', background: '#fffbeb',
-          border: '1px solid #fde68a', borderRadius: 6, fontSize: 12, color: '#854d0e',
+          margin: '0 0 10px', padding: '10px 12px', background: '#ecfdf5',
+          border: '1px solid #a7f3d0', borderRadius: 6, fontSize: 12, color: '#065f46',
         }}>
-          Chưa có sự kiện MCI đang hoạt động — ca sẽ được thêm tạm để theo dõi (demo), chưa lưu xuống hệ thống.
+          Cấp cứu thường — hệ thống sẽ tạo hồ sơ tiếp nhận cấp cứu thật + phiên phòng lưu theo dõi (lưu xuống hệ thống).
         </div>
       )}
 

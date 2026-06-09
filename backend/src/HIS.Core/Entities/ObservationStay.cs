@@ -46,6 +46,9 @@ public class ObservationStay : BaseEntity
     public string? DischargeReason { get; set; }
     public string? Notes { get; set; }
 
+    /// <summary>Mức phân loại cấp cứu (triage) 1-5: 1=Hồi sức … 5=Không cấp. F3 persist từ màn Cấp cứu.</summary>
+    public int? TriageLevel { get; set; }
+
     /// <summary>Điểm cảnh báo sớm (MEWS/NEWS) nếu có.</summary>
     public int? EwsScore { get; set; }
 
