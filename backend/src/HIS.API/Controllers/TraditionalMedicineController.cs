@@ -58,6 +58,13 @@ public class TraditionalMedicineController : ControllerBase
         return Ok(await _service.GetHerbalPrescriptionsAsync(treatmentId));
     }
 
+    // F6: danh mục vị thuốc bắc cho herb-picker.
+    [HttpGet("herbs")]
+    public async Task<ActionResult<List<HerbItemDto>>> GetHerbs([FromQuery] string? keyword)
+    {
+        return Ok(await _service.GetHerbsAsync(keyword));
+    }
+
     [HttpGet("stats")]
     public async Task<ActionResult<TraditionalMedicineStatsDto>> GetStats()
     {

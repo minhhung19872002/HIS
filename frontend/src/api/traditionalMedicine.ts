@@ -23,13 +23,32 @@ export interface HerbalPrescription {
   treatmentId: string;
   prescriptionCode: string;
   prescriptionDate: string;
-  ingredients: string; // JSON string of ingredients
+  ingredients: string; // JSON string of HerbIngredientInput[]
   dosage: string;
   preparation: string;
   duration: number;
   durationUnit: string;
+  quantity?: number; // số thang
   notes?: string;
   doctorName: string;
+}
+
+/** F6: vị thuốc bắc trong danh mục (Medicine type=2) cho herb-picker. */
+export interface HerbItem {
+  id: string;
+  code: string;
+  name: string;
+  unit: string;
+  unitPrice: number;
+  stock: number;
+}
+
+/** F6: 1 vị trong đơn (lưu vào ingredients dạng JSON array). */
+export interface HerbIngredientInput {
+  medicineId: string;
+  name: string;
+  quantity: number; // gram mỗi thang
+  unit: string;
 }
 
 export interface TraditionalMedicineStats {
@@ -80,6 +99,16 @@ export const createHerbalPrescription = async (treatmentId: string, data: Partia
   return response.data;
 };
 
+export const getHerbs = async (keyword?: string): Promise<HerbItem[]> => {
+  try {
+    const response = await apiClient.get<HerbItem[]>('/traditional-medicine/herbs', { params: { keyword } });
+    return response.data || [];
+  } catch {
+    console.warn('Failed to fetch herb catalog');
+    return [];
+  }
+};
+
 export const getHerbalPrescriptions = async (treatmentId: string) => {
   try {
     const response = await apiClient.get<HerbalPrescription[]>(`/traditional-medicine/treatments/${treatmentId}/herbal-prescriptions`);
@@ -111,6 +140,7 @@ export default {
   createTreatment,
   updateTreatment,
   createHerbalPrescription,
+  getHerbs,
   getHerbalPrescriptions,
   getStats,
   completeTreatment,

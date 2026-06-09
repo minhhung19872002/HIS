@@ -89,3 +89,14 @@ public class TreatmentTypeBreakdownDto
     public string TreatmentType { get; set; } = string.Empty;
     public int Count { get; set; }
 }
+
+/// <summary>F6: vị thuốc bắc cho herb-picker (Medicine type=2) — kèm tồn khả dụng + đơn giá.</summary>
+public class HerbItemDto
+{
+    public Guid Id { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Unit { get; set; } = "g";
+    public decimal UnitPrice { get; set; }
+    public decimal Stock { get; set; }
+}

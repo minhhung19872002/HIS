@@ -10,6 +10,7 @@ public interface ITraditionalMedicineService
     Task<TraditionalMedicineTreatmentDto> UpdateTreatmentAsync(Guid id, CreateTraditionalMedicineTreatmentDto dto);
     Task<HerbalPrescriptionDto> CreateHerbalPrescriptionAsync(CreateHerbalPrescriptionDto dto);
     Task<List<HerbalPrescriptionDto>> GetHerbalPrescriptionsAsync(Guid treatmentId);
+    Task<List<HerbItemDto>> GetHerbsAsync(string? keyword);
     Task<TraditionalMedicineStatsDto> GetStatsAsync();
     Task<TraditionalMedicineTreatmentDto> CompleteTreatmentAsync(Guid id);
 }

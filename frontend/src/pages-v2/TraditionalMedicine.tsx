@@ -3,9 +3,9 @@ import dayjs from 'dayjs';
 import { message } from 'antd';
 import {
   searchTreatments, createTreatment, updateTreatment,
-  createHerbalPrescription, getHerbalPrescriptions,
+  createHerbalPrescription, getHerbalPrescriptions, getHerbs,
 } from '../api/traditionalMedicine';
-import type { TraditionalTreatment, HerbalPrescription } from '../api/traditionalMedicine';
+import type { TraditionalTreatment, HerbalPrescription, HerbItem } from '../api/traditionalMedicine';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
@@ -129,16 +129,24 @@ const TraditionalMedicineV2: React.FC = () => {
   const [rxList, setRxList] = useState<HerbalPrescription[]>([]);
   const [rxLoading, setRxLoading] = useState(false);
   const [rxFormOpen, setRxFormOpen] = useState(false);
-  const [rxIngredients, setRxIngredients] = useState('');
+  // F6: đơn thuốc bắc structured — chọn vị từ danh mục (Medicine type=2) + số gram/thang.
+  type RxRow = { medicineId: string; name: string; unit: string; unitPrice: number; quantity: number };
+  const [herbCatalog, setHerbCatalog] = useState<HerbItem[]>([]);
+  const [rxRows, setRxRows] = useState<RxRow[]>([]);
+  const [rxThang, setRxThang] = useState('1');
   const [rxDosage, setRxDosage] = useState('');
   const [rxPrep, setRxPrep] = useState('');
   const [rxDuration, setRxDuration] = useState('7');
   const [rxSubmitting, setRxSubmitting] = useState(false);
 
+  const rxThangNum = Math.max(1, parseInt(rxThang, 10) || 1);
+  const rxTotal = rxRows.reduce((s, r) => s + r.unitPrice * r.quantity, 0) * rxThangNum;
+
   const openRx = async (r: TraditionalTreatment) => {
     setRxTarget(r);
     setRxList([]);
     setRxLoading(true);
+    if (herbCatalog.length === 0) { try { setHerbCatalog(await getHerbs()); } catch { /* giữ rỗng */ } }
     try {
       const rows = await getHerbalPrescriptions(r.id);
       setRxList(rows);
@@ -146,23 +154,37 @@ const TraditionalMedicineV2: React.FC = () => {
     finally { setRxLoading(false); }
   };
 
+  const addRxRow = () => setRxRows((p) => [...p, { medicineId: '', name: '', unit: 'g', unitPrice: 0, quantity: 0 }]);
+  const updateRxRow = (idx: number, patch: Partial<RxRow>) =>
+    setRxRows((p) => p.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  const removeRxRow = (idx: number) => setRxRows((p) => p.filter((_, i) => i !== idx));
+  const pickHerb = (idx: number, medicineId: string) => {
+    const h = herbCatalog.find((x) => x.id === medicineId);
+    if (h) updateRxRow(idx, { medicineId: h.id, name: h.name, unit: h.unit, unitPrice: h.unitPrice });
+    else updateRxRow(idx, { medicineId: '' });
+  };
+
   const submitRx = async () => {
     if (!rxTarget) return;
-    if (!rxIngredients.trim()) { message.error('Vui lòng nhập thành phần bài thuốc'); return; }
+    const valid = rxRows.filter((r) => r.medicineId && r.quantity > 0);
+    if (valid.length === 0) { message.error('Chọn ít nhất 1 vị thuốc và nhập số lượng'); return; }
     setRxSubmitting(true);
     try {
+      const ingredients = JSON.stringify(valid.map((r) => ({
+        medicineId: r.medicineId, name: r.name, quantity: r.quantity, unit: r.unit,
+      })));
       await createHerbalPrescription(rxTarget.id, {
         prescriptionDate: new Date().toISOString(),
-        ingredients: rxIngredients.trim(),
+        ingredients,
         dosage: rxDosage.trim(),
         preparation: rxPrep.trim(),
         duration: parseInt(rxDuration, 10) || 7,
         durationUnit: 'ngày',
+        quantity: rxThangNum, // số thang
       });
-      tk('Đã tạo đơn thuốc bắc');
+      tk('Đã tạo đơn thuốc bắc + vào viện phí');
       setRxFormOpen(false);
-      setRxIngredients(''); setRxDosage(''); setRxPrep(''); setRxDuration('7');
-      // Reload list
+      setRxRows([]); setRxThang('1'); setRxDosage(''); setRxPrep(''); setRxDuration('7');
       const rows = await getHerbalPrescriptions(rxTarget.id);
       setRxList(rows);
       load();
@@ -313,24 +335,58 @@ const TraditionalMedicineV2: React.FC = () => {
         </>}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {([
-            ['Thành phần bài thuốc *', rxIngredients, setRxIngredients, true],
-            ['Liều dùng', rxDosage, setRxDosage, false],
-            ['Cách bào chế', rxPrep, setRxPrep, false],
-          ] as [string, string, (v: string) => void, boolean][]).map(([lbl, val, setter, big]) => (
+          {/* Herb-picker: chọn vị thuốc từ danh mục + số gram mỗi thang */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Thành phần bài thuốc (vị · gram/thang) *</span>
+              <Btn variant="ghost" onClick={addRxRow}><Ico name="plus" size={11} /> Thêm vị</Btn>
+            </div>
+            {rxRows.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--t-3)', padding: '6px 0' }}>Chưa có vị thuốc — bấm “Thêm vị”.</div>
+            )}
+            {rxRows.map((row, idx) => {
+              const herb = herbCatalog.find((x) => x.id === row.medicineId);
+              return (
+                <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <select value={row.medicineId} onChange={(e) => pickHerb(idx, e.target.value)}
+                    style={{ flex: 1, border: '1px solid var(--line)', borderRadius: 4, padding: '6px 8px', fontSize: 13 }}>
+                    <option value="">— Chọn vị thuốc —</option>
+                    {herbCatalog.map((h) => (
+                      <option key={h.id} value={h.id}>{h.name} ({h.unitPrice.toLocaleString('vi-VN')}đ/{h.unit}, tồn {h.stock})</option>
+                    ))}
+                  </select>
+                  <input type="number" min={0} value={row.quantity || ''} placeholder="g/thang"
+                    onChange={(e) => updateRxRow(idx, { quantity: parseFloat(e.target.value) || 0 })}
+                    style={{ width: 90, border: '1px solid var(--line)', borderRadius: 4, padding: '6px 8px', fontSize: 13 }} />
+                  <span style={{ width: 70, fontSize: 12, color: 'var(--t-2)', textAlign: 'right' }}>
+                    {herb ? (herb.unitPrice * row.quantity).toLocaleString('vi-VN') + 'đ' : ''}
+                  </span>
+                  <ActBtn ic="trash" title="Xoá vị" tone="crit" onClick={() => removeRxRow(idx)} />
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Số thang *</span>
+              <input type="number" min={1} value={rxThang} onChange={(e) => setRxThang(e.target.value)}
+                style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 13 }} />
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Số ngày dùng</span>
+              <input type="number" min={1} value={rxDuration} onChange={(e) => setRxDuration(e.target.value)}
+                style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 13 }} />
+            </div>
+          </div>
+          {([['Liều dùng', rxDosage, setRxDosage], ['Cách bào chế', rxPrep, setRxPrep]] as [string, string, (v: string) => void][]).map(([lbl, val, setter]) => (
             <div key={lbl} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>{lbl}</span>
-              {big
-                ? <textarea rows={4} value={val} onChange={(e) => setter(e.target.value)}
-                    style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 13, resize: 'vertical' }} />
-                : <input value={val} onChange={(e) => setter(e.target.value)}
-                    style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 13 }} />}
+              <input value={val} onChange={(e) => setter(e.target.value)}
+                style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 13 }} />
             </div>
           ))}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Số ngày dùng</span>
-            <input type="number" min={1} value={rxDuration} onChange={(e) => setRxDuration(e.target.value)}
-              style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 13 }} />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 13, fontWeight: 700, color: 'var(--t-1)' }}>
+            Tạm tính: {rxTotal.toLocaleString('vi-VN')}đ <span style={{ fontWeight: 400, color: 'var(--t-3)', marginLeft: 6 }}>({rxThangNum} thang)</span>
           </div>
         </div>
       </ModalShell>
