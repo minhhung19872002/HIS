@@ -154,7 +154,20 @@ public class LabResultItemDto
     public string? Unit { get; set; }
     public string? ReferenceRange { get; set; }
     public bool IsAbnormal { get; set; }
-    public int? AbnormalType { get; set; } // 1-Cao, 2-Thấp
+    public int? AbnormalType { get; set; } // 1-Cao, 2-Thấp, 3-Nguy kịch
+    public string? Flag { get; set; }      // R1: N/H/L/HH/LL
+}
+
+/// <summary>R1: input 1 chỉ số XN khi KTV/analyzer ghi KQ per-parameter. Min/Max/Flag BE tự suy từ catalog
+/// (LisTestParameter theo ServiceId) nếu không truyền. Optional — bỏ trống thì giữ hành vi ghi 1 chuỗi cũ.</summary>
+public class LabResultParameterInputDto
+{
+    public string ParameterCode { get; set; } = string.Empty;
+    public string ParameterName { get; set; } = string.Empty;
+    public string? Value { get; set; }
+    public string? Unit { get; set; }
+    public decimal? ReferenceMin { get; set; }
+    public decimal? ReferenceMax { get; set; }
 }
 
 public class ImagingResultSummaryDto

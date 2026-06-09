@@ -86,9 +86,12 @@ public static class PrescriptionStatus
 {
     public const int PendingApproval = 0;  // Chờ duyệt
     public const int Approved = 1;         // Đã duyệt
-    public const int Dispensed = 2;        // Đã cấp phát
+    public const int Dispensed = 2;        // Đã cấp phát (đủ)
     public const int Returned = 3;         // Hoàn trả
     public const int Cancelled = 4;        // Hủy
+    // 6 = Cấp một phần (conformance state-machine tài liệu). KHÔNG chèn vào value 3 để tránh dịch literal
+    // Status==3/4 đang dùng khắp billing/data-inheritance/insurance. Set khi còn dòng thuốc chưa cấp đủ.
+    public const int PartialDispensed = 6;
 }
 
 public static class LabRequestStatus

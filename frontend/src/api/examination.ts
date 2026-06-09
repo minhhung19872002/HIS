@@ -109,7 +109,8 @@ export interface LabResultItemDto {
   unit?: string;
   referenceRange?: string;
   isAbnormal: boolean;
-  abnormalType?: number;
+  abnormalType?: number; // 1-Cao, 2-Thấp, 3-Nguy kịch
+  flag?: string;         // R1: N/H/L/HH/LL
 }
 
 export interface ImagingResultSummaryDto {

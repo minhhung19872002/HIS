@@ -49,6 +49,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<ServicePrice> ServicePrices => Set<ServicePrice>();
     public DbSet<ServiceRequest> ServiceRequests => Set<ServiceRequest>();
     public DbSet<ServiceRequestDetail> ServiceRequestDetails => Set<ServiceRequestDetail>();
+    public DbSet<ServiceRequestDetailParameter> ServiceRequestDetailParameters => Set<ServiceRequestDetailParameter>(); // R1
 
     // Thuốc/Vật tư
     public DbSet<Medicine> Medicines => Set<Medicine>();

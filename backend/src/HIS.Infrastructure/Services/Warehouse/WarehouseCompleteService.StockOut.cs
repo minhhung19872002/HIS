@@ -176,11 +176,12 @@ public partial class WarehouseCompleteService {
         exportReceipt.TotalAmount = totalAmount;
         _context.ExportReceipts.Add(exportReceipt);
 
-        // Update prescription status
+        // Update prescription status — Cấp một phần (6) nếu còn dòng chưa cấp đủ, ngược lại Đã cấp phát (2).
         prescription.IsDispensed = true;
         prescription.DispensedAt = DateTime.Now;
         prescription.DispensedBy = userId;
-        prescription.Status = 2; // Đã cấp phát
+        var allFull1 = prescription.Details.All(d => d.IsDeleted || d.DispensedQuantity >= d.Quantity);
+        prescription.Status = allFull1 ? 2 : 6; // 2=Đã cấp phát đủ, 6=Cấp một phần
 
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
@@ -315,7 +316,8 @@ public partial class WarehouseCompleteService {
         prescription.IsDispensed = true;
         prescription.DispensedAt = DateTime.Now;
         prescription.DispensedBy = userId;
-        prescription.Status = 2;
+        var allFull2 = prescription.Details.All(d => d.IsDeleted || d.DispensedQuantity >= d.Quantity);
+        prescription.Status = allFull2 ? 2 : 6; // 2=Đã cấp phát đủ, 6=Cấp một phần
 
         await _context.SaveChangesAsync();
 

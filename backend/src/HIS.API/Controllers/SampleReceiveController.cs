@@ -1,6 +1,9 @@
 using System.Security.Claims;
 using HIS.Core.Common;
+using HIS.Core.Entities;
+using HIS.Application.DTOs.Examination;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -118,6 +121,7 @@ public class SampleReceiveController : ControllerBase
         public Guid DetailId { get; set; }
         public string? Result { get; set; }
         public string? ResultDescription { get; set; }
+        public List<LabResultParameterInputDto>? Parameters { get; set; } // R1: KQ per-parameter (optional)
     }
 
     /// <summary>KTV nhập kết quả (chưa duyệt).</summary>
@@ -138,6 +142,47 @@ public class SampleReceiveController : ControllerBase
         d.Status = 2; // Có KQ (chờ duyệt)
         d.UpdatedAt = DateTime.Now;
         d.UpdatedBy = uid.ToString();
+
+        // R1: ghi KQ per-parameter nếu có (giữ d.Result làm tóm tắt/legacy). Min/Max/cờ suy từ catalog
+        // LisTestParameter theo ServiceId, fallback range truyền trực tiếp trong input.
+        if (dto.Parameters is { Count: > 0 })
+        {
+            var oldParams = await _db.ServiceRequestDetailParameters
+                .Where(x => x.ServiceRequestDetailId == d.Id && !x.IsDeleted).ToListAsync();
+            if (oldParams.Count > 0) _db.ServiceRequestDetailParameters.RemoveRange(oldParams); // re-run idempotent
+
+            var catalog = await _db.LisTestParameters
+                .Where(p => p.ServiceId == d.ServiceId && p.IsActive && !p.IsDeleted).ToListAsync();
+            int seq = 0;
+            foreach (var p in dto.Parameters)
+            {
+                var cat = catalog.FirstOrDefault(c => c.Code == p.ParameterCode || c.Hl7Code == p.ParameterCode);
+                var min = p.ReferenceMin ?? cat?.ReferenceLow ?? cat?.NormalMinMale;
+                var max = p.ReferenceMax ?? cat?.ReferenceHigh ?? cat?.NormalMaxMale;
+                var num = LabFlagEvaluator.TryParse(p.Value);
+                var flag = LabFlagEvaluator.EvaluateFlag(num, min, max, cat?.CriticalLow, cat?.CriticalHigh);
+                _db.ServiceRequestDetailParameters.Add(new ServiceRequestDetailParameter
+                {
+                    Id = Guid.NewGuid(),
+                    ServiceRequestDetailId = d.Id,
+                    ParameterCode = p.ParameterCode,
+                    ParameterName = p.ParameterName,
+                    Value = p.Value,
+                    NumericValue = num,
+                    Unit = string.IsNullOrEmpty(p.Unit) ? cat?.Unit : p.Unit,
+                    ReferenceMin = min,
+                    ReferenceMax = max,
+                    ReferenceRange = LabFlagEvaluator.BuildReferenceRange(min, max),
+                    Flag = flag,
+                    SequenceNumber = seq++,
+                    CreatedAt = DateTime.Now,
+                    CreatedBy = uid.ToString(),
+                });
+            }
+            if (string.IsNullOrWhiteSpace(d.Result))
+                d.Result = string.Join("; ", dto.Parameters.Select(p => $"{p.ParameterName} {p.Value}"));
+        }
+
         await _db.SaveChangesAsync();
         return Ok(new { d.Id, d.TechnicianUserId, d.TechnicianRunAt });
     }

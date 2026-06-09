@@ -261,6 +261,33 @@ public partial class ExaminationCompleteService
             })
             .ToListAsync();
 
+        // R1 (conformance 2026-06-09): nạp chỉ số con per-parameter (Items) cho từng SRD lab.
+        // Backward-compat: SRD legacy chưa có param con → Items rỗng, FE fallback hiển thị ResultValue (chuỗi).
+        // Gom 1 query theo srdIds rồi group in-memory (tránh N+1).
+        var srdIds = labResults.Select(r => r.Id).ToList();
+        if (srdIds.Count > 0)
+        {
+            var paramRows = await _context.ServiceRequestDetailParameters
+                .Where(p => srdIds.Contains(p.ServiceRequestDetailId) && !p.IsDeleted)
+                .OrderBy(p => p.SequenceNumber)
+                .ToListAsync();
+            var byDetail = paramRows.GroupBy(p => p.ServiceRequestDetailId).ToDictionary(g => g.Key, g => g.ToList());
+            foreach (var r in labResults)
+            {
+                if (!byDetail.TryGetValue(r.Id, out var ps)) continue;
+                r.Items = ps.Select(p => new LabResultItemDto
+                {
+                    TestName = p.ParameterName,
+                    Result = p.Value,
+                    Unit = p.Unit,
+                    ReferenceRange = p.ReferenceRange,
+                    IsAbnormal = LabFlagEvaluator.IsAbnormal(p.Flag),
+                    AbnormalType = LabFlagEvaluator.FlagToAbnormalType(p.Flag),
+                    Flag = p.Flag,
+                }).ToList();
+            }
+        }
+
         // KQ Chẩn đoán hình ảnh — gộp 2 nguồn: model 1 (ServiceRequestDetail RequestType=2)
         // + model 4 (RadiologyReports — nơi RIS tường trình), tránh BS bỏ sót tuỳ nguồn nhập.
         var imagingFromSr = await _context.ServiceRequestDetails

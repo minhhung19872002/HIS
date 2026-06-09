@@ -30,7 +30,7 @@ public class Admission : BaseEntity
     public virtual Bed? Bed { get; set; }
 
     // Trạng thái
-    public int Status { get; set; } // 0-Đang điều trị, 1-Chuyển khoa, 2-Xuất viện, 3-Tử vong, 4-Bỏ về
+    public int Status { get; set; } // 0-Đang điều trị, 1-Chuyển khoa(legacy), 2-Xuất viện, 3-Tử vong, 4-Bỏ về, 5-Đã chuyển khoa(nội bộ, FLOW-2 #11), 6-Chờ ra viện
 
     // Chẩn đoán khi nhập viện
     public string? DiagnosisOnAdmission { get; set; }
