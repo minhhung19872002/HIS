@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text;
+using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -1585,9 +1586,11 @@ public class InsuranceXmlService : IInsuranceXmlService
             .Where(c => c.ServiceDate >= startDate && c.ServiceDate <= endDate)
             .ToListAsync();
 
+        // Id deterministic theo (year, month) — đợt quyết toán sinh on-the-fly nhưng cần Id ổn định
+        // để các bước đối soát (import KQ giám định / tính chênh lệch) map ngược về kỳ. Xem PeriodToBatchId.
         return new InsuranceSettlementBatchDto
         {
-            Id = Guid.NewGuid(),
+            Id = PeriodToBatchId(year, month),
             BatchCode = $"QT-{year}{month:D2}",
             Month = month,
             Year = year,
@@ -1604,8 +1607,29 @@ public class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<InsuranceSettlementBatchDto?> GetSettlementBatchAsync(Guid batchId)
     {
-        // Settlement batches are generated on the fly from claims data
-        return null;
+        var period = BatchIdToPeriod(batchId);
+        if (period == null) return null;
+        var (year, month) = period.Value;
+        var startDate = new DateTime(year, month, 1);
+        var endDate = startDate.AddMonths(1).AddDays(-1);
+        var claims = await _context.InsuranceClaims
+            .Where(c => c.ServiceDate >= startDate && c.ServiceDate <= endDate)
+            .ToListAsync();
+        return new InsuranceSettlementBatchDto
+        {
+            Id = batchId,
+            BatchCode = $"QT-{year}{month:D2}",
+            Month = month,
+            Year = year,
+            TotalRecords = claims.Count,
+            ValidRecords = claims.Count(c => c.ClaimStatus != 4),
+            InvalidRecords = claims.Count(c => c.ClaimStatus == 4),
+            TotalAmount = claims.Sum(c => c.TotalAmount),
+            InsuranceAmount = claims.Sum(c => c.InsuranceAmount),
+            PatientAmount = claims.Sum(c => c.PatientAmount),
+            Status = claims.Any(c => c.ProcessedAt != null) ? 3 : 0,
+            CreatedAt = DateTime.Now
+        };
     }
 
     public async Task<List<InsuranceSettlementBatchDto>> GetSettlementBatchesAsync(int year)
@@ -1626,7 +1650,7 @@ public class InsuranceXmlService : IInsuranceXmlService
 
             batches.Add(new InsuranceSettlementBatchDto
             {
-                Id = Guid.NewGuid(),
+                Id = PeriodToBatchId(year, month),
                 BatchCode = $"QT-{year}{month:D2}",
                 Month = month,
                 Year = year,
@@ -1644,45 +1668,137 @@ public class InsuranceXmlService : IInsuranceXmlService
         return batches;
     }
 
-    public async Task<InsuranceReconciliationDto> ImportReconciliationResultAsync(Guid batchId, byte[] fileContent)
+    // F4 (audit FLOW-FINAL 2026-06-06): đối soát THẬT — parse file KQ giám định từ cổng BHXH →
+    // ghi xuất toán per-hồ sơ (InsuranceRejection) + cập nhật trạng thái claim, KHÔNG hardcode 0.
+    public async Task<InsuranceReconciliationDto> ImportReconciliationResultAsync(Guid batchId, byte[] fileContent, Guid userId)
     {
-        return new InsuranceReconciliationDto
+        var period = BatchIdToPeriod(batchId);
+        var dto = new InsuranceReconciliationDto
         {
-            Id = Guid.NewGuid(),
-            BatchCode = $"DS-{batchId.ToString()[..8]}",
-            HospitalRecordCount = 0,
-            HospitalTotalAmount = 0,
-            AcceptedRecordCount = 0,
-            AcceptedTotalAmount = 0,
-            RejectedRecordCount = 0,
-            DifferenceAmount = 0,
+            Id = batchId,
+            BatchCode = period != null ? $"QT-{period.Value.year}{period.Value.month:D2}" : $"DS-{batchId.ToString()[..8]}",
+            Month = period?.month ?? 0,
+            Year = period?.year ?? 0,
             RejectedClaims = new List<RejectedClaimDto>(),
             Status = 0,
-            ReconciliationDate = DateTime.Now
+            ReconciliationDate = DateTime.Now,
         };
+        if (period == null) return dto; // batchId không map được kỳ → không đối soát được
+
+        var (year, month) = period.Value;
+        var startDate = new DateTime(year, month, 1);
+        var endDate = startDate.AddMonths(1).AddDays(-1);
+
+        var rows = ParseReconciliationFile(fileContent);
+        if (rows.Count == 0)
+            _logger.LogWarning("ImportReconciliationResult: file rỗng/không đọc được cho kỳ {Month}/{Year}", month, year);
+
+        var claims = await _context.InsuranceClaims
+            .Include(c => c.Patient)
+            .Where(c => c.ServiceDate >= startDate && c.ServiceDate <= endDate)
+            .ToListAsync();
+        var byCode = claims
+            .Where(c => !string.IsNullOrEmpty(c.ClaimCode))
+            .GroupBy(c => c.ClaimCode)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var now = DateTime.Now;
+        var processed = new HashSet<Guid>();
+        int acceptedCount = 0, rejectedCount = 0;
+        decimal acceptedInsurance = 0, rejectedTotal = 0;
+
+        foreach (var row in rows)
+        {
+            if (!byCode.TryGetValue(row.MaLk, out var claim) || processed.Contains(claim.Id)) continue;
+            processed.Add(claim.Id);
+
+            // Xoá KQ giám định cũ của hồ sơ → re-import idempotent.
+            var oldRej = await _context.InsuranceRejections.Where(x => x.ClaimId == claim.Id && !x.IsDeleted).ToListAsync();
+            if (oldRej.Count > 0) _context.InsuranceRejections.RemoveRange(oldRej);
+
+            claim.ProcessedAt = now;
+            claim.ProcessedBy = userId == Guid.Empty ? null : userId;
+            if (!string.IsNullOrWhiteSpace(row.ProcessorName)) claim.ProcessorName = row.ProcessorName;
+
+            if (row.RejectedAmount > 0)
+            {
+                rejectedCount++;
+                rejectedTotal += row.RejectedAmount;
+                acceptedInsurance += Math.Max(0, claim.InsuranceAmount - row.RejectedAmount);
+                claim.ClaimStatus = row.RejectedAmount >= claim.InsuranceAmount ? 4 : 3; // 4-từ chối toàn bộ, 3-một phần
+                claim.ProcessorNote = row.RejectReason;
+                _context.InsuranceRejections.Add(new InsuranceRejection
+                {
+                    Id = Guid.NewGuid(),
+                    ClaimId = claim.Id,
+                    RejectionCode = row.RejectCode ?? "",
+                    RejectionReason = string.IsNullOrWhiteSpace(row.RejectReason) ? "Xuất toán theo KQ giám định" : row.RejectReason,
+                    RejectedAmount = row.RejectedAmount,
+                    RejectedAt = now,
+                    RejectedBy = userId == Guid.Empty ? null : userId,
+                    RejectorName = row.ProcessorName,
+                    AppealStatus = 0,
+                    CreatedAt = now,
+                    CreatedBy = userId.ToString(),
+                });
+                dto.RejectedClaims.Add(new RejectedClaimDto
+                {
+                    MaLk = claim.ClaimCode,
+                    PatientName = claim.Patient?.FullName ?? "",
+                    InsuranceNumber = claim.InsuranceNumber ?? claim.Patient?.InsuranceNumber ?? "",
+                    RejectCode = row.RejectCode ?? "",
+                    RejectReason = row.RejectReason ?? "",
+                    ClaimAmount = claim.InsuranceAmount,
+                    RejectedAmount = row.RejectedAmount,
+                });
+            }
+            else
+            {
+                acceptedCount++;
+                acceptedInsurance += claim.InsuranceAmount;
+                claim.ClaimStatus = 2; // Đã duyệt
+            }
+        }
+
+        await _context.SaveChangesAsync();
+
+        dto.HospitalRecordCount = claims.Count;
+        dto.HospitalTotalAmount = claims.Sum(c => c.TotalAmount);
+        dto.HospitalInsuranceAmount = claims.Sum(c => c.InsuranceAmount);
+        dto.AcceptedRecordCount = acceptedCount;
+        dto.AcceptedInsuranceAmount = acceptedInsurance;
+        dto.AcceptedTotalAmount = acceptedInsurance;
+        dto.RejectedRecordCount = rejectedCount;
+        dto.DifferenceAmount = rejectedTotal;
+        dto.Status = 1;
+        dto.ReconciliationDate = now;
+        return dto;
     }
 
     public async Task<List<RejectedClaimDto>> GetRejectedClaimsAsync(Guid batchId)
     {
-        // batchId is conceptual — no batch entity exists yet. Return medical
-        // records currently in a "rejected" state with patient + financial info.
-        var rejected = await _context.MedicalRecords
-            .Include(r => r.Patient)
-            .Where(r => !r.IsDeleted
-                        && r.Patient != null
-                        && !string.IsNullOrEmpty(r.Patient.InsuranceNumber)
-                        && r.Status == 5)
-            .Take(200)
-            .ToListAsync();
-        return rejected.Select(r => new RejectedClaimDto
+        // Đọc xuất toán THẬT đã import (InsuranceRejection) cho các hồ sơ thuộc kỳ của batchId.
+        var period = BatchIdToPeriod(batchId);
+        if (period == null) return new List<RejectedClaimDto>();
+        var (year, month) = period.Value;
+        var startDate = new DateTime(year, month, 1);
+        var endDate = startDate.AddMonths(1).AddDays(-1);
+
+        var query =
+            from rej in _context.InsuranceRejections.Where(x => !x.IsDeleted)
+            join claim in _context.InsuranceClaims on rej.ClaimId equals claim.Id
+            where claim.ServiceDate >= startDate && claim.ServiceDate <= endDate
+            select new { rej, claim, claim.Patient };
+        var list = await query.OrderByDescending(x => x.rej.RejectedAt).Take(500).ToListAsync();
+        return list.Select(x => new RejectedClaimDto
         {
-            MaLk = r.MedicalRecordCode,
-            PatientName = r.Patient?.FullName ?? "",
-            InsuranceNumber = r.Patient?.InsuranceNumber ?? "",
-            RejectCode = "",
-            RejectReason = "",
-            ClaimAmount = 0,
-            RejectedAmount = 0,
+            MaLk = x.claim.ClaimCode,
+            PatientName = x.Patient != null ? x.Patient.FullName : "",
+            InsuranceNumber = x.claim.InsuranceNumber ?? (x.Patient != null ? x.Patient.InsuranceNumber : "") ?? "",
+            RejectCode = x.rej.RejectionCode,
+            RejectReason = x.rej.RejectionReason,
+            ClaimAmount = x.claim.InsuranceAmount,
+            RejectedAmount = x.rej.RejectedAmount,
         }).ToList();
     }
 
@@ -1708,14 +1824,159 @@ public class InsuranceXmlService : IInsuranceXmlService
 
     public async Task<ReconciliationDifferenceDto> CalculateReconciliationDifferenceAsync(Guid batchId)
     {
-        return new ReconciliationDifferenceDto
+        // Chênh lệch THẬT = Σ tiền BHYT BV đề nghị − Σ tiền BHXH chấp nhận (= đề nghị − xuất toán).
+        var result = new ReconciliationDifferenceDto { BatchId = batchId, Details = new List<DifferenceDetail>() };
+        var period = BatchIdToPeriod(batchId);
+        if (period == null) return result;
+        var (year, month) = period.Value;
+        var startDate = new DateTime(year, month, 1);
+        var endDate = startDate.AddMonths(1).AddDays(-1);
+
+        var claims = await _context.InsuranceClaims
+            .Where(c => c.ServiceDate >= startDate && c.ServiceDate <= endDate)
+            .ToListAsync();
+        var claimIds = claims.Select(c => c.Id).ToList();
+        var rejections = await _context.InsuranceRejections
+            .Where(r => !r.IsDeleted && claimIds.Contains(r.ClaimId))
+            .ToListAsync();
+        var rejectedByClaim = rejections
+            .GroupBy(r => r.ClaimId)
+            .ToDictionary(g => g.Key, g => g.Sum(r => r.RejectedAmount));
+
+        decimal hospital = claims.Sum(c => c.InsuranceAmount);
+        decimal rejectedTotal = rejectedByClaim.Values.Sum();
+        result.HospitalAmount = hospital;
+        result.InsuranceAmount = hospital - rejectedTotal;
+        result.DifferenceAmount = rejectedTotal;
+
+        var typeNames = new Dictionary<int, string> { { 1, "Ngoại trú" }, { 2, "Nội trú" }, { 3, "Cấp cứu" } };
+        foreach (var grp in claims.GroupBy(c => c.TreatmentType).OrderBy(g => g.Key))
         {
-            BatchId = batchId,
-            HospitalAmount = 0,
-            InsuranceAmount = 0,
-            DifferenceAmount = 0,
-            Details = new List<DifferenceDetail>()
-        };
+            decimal gHospital = grp.Sum(c => c.InsuranceAmount);
+            decimal gRejected = grp.Sum(c => rejectedByClaim.TryGetValue(c.Id, out var v) ? v : 0);
+            result.Details.Add(new DifferenceDetail
+            {
+                Category = typeNames.TryGetValue(grp.Key, out var n) ? n : $"Loại {grp.Key}",
+                HospitalAmount = gHospital,
+                InsuranceAmount = gHospital - gRejected,
+                Difference = gRejected,
+            });
+        }
+        return result;
+    }
+
+    // ─── F4: Đối soát BHYT — helpers (2026-06-09) ─────────────────────────────────
+
+    private static readonly byte[] BatchSig = { 0x42, 0x48, 0x59, 0x54, 0x51, 0x54 }; // "BHYTQT"
+
+    /// <summary>Sinh Id đợt quyết toán deterministic từ (year, month). Đợt sinh on-the-fly nên Id phải
+    /// ổn định + decode ngược được (BatchIdToPeriod) để import/tính chênh lệch map đúng kỳ.
+    /// Round-trip an toàn: new Guid(byte[16]) ↔ ToByteArray() là nghịch đảo của nhau.</summary>
+    private static Guid PeriodToBatchId(int year, int month)
+    {
+        var b = new byte[16];
+        Array.Copy(BatchSig, 0, b, 0, BatchSig.Length); // bytes 0..5
+        b[6] = (byte)((year >> 8) & 0xFF);
+        b[7] = (byte)(year & 0xFF);
+        b[8] = (byte)(month & 0xFF);
+        return new Guid(b);
+    }
+
+    private static (int year, int month)? BatchIdToPeriod(Guid id)
+    {
+        var b = id.ToByteArray();
+        for (int i = 0; i < BatchSig.Length; i++) if (b[i] != BatchSig[i]) return null;
+        int year = (b[6] << 8) | b[7];
+        int month = b[8];
+        if (year < 2000 || year > 9999 || month < 1 || month > 12) return null;
+        return (year, month);
+    }
+
+    /// <summary>Dòng KQ giám định đã parse từ file cổng BHXH (gom theo MaLk).</summary>
+    private sealed class ReconRow
+    {
+        public string MaLk = "";
+        public decimal RejectedAmount;
+        public string? RejectCode;
+        public string? RejectReason;
+        public string? ProcessorName;
+    }
+
+    /// <summary>Parse file KQ đối soát cổng BHXH. 2 định dạng:
+    ///  - XML (4210): mỗi node có con MA_LK + tiền xuất toán (T_XUATTOAN/T_TUCHOI/TIEN_TUCHOI) + lý do (MA_TUCHOI/LYDO_TUCHOI).
+    ///  - CSV: cột MaLk,RejectedAmount,RejectCode,RejectReason (có/không header; phân tách , ; hoặc tab).
+    /// Gom theo MaLk (SUM tiền xuất toán) để tránh đếm trùng dòng header/chi tiết.</summary>
+    private static List<ReconRow> ParseReconciliationFile(byte[] content)
+    {
+        var rows = new List<ReconRow>();
+        if (content == null || content.Length == 0) return rows;
+        var text = Encoding.UTF8.GetString(content).TrimStart('﻿');
+        if (string.IsNullOrWhiteSpace(text)) return rows;
+
+        var map = new Dictionary<string, ReconRow>(StringComparer.OrdinalIgnoreCase);
+        void Upsert(string? maLk, decimal rejected, string? code, string? reason, string? processor)
+        {
+            if (string.IsNullOrWhiteSpace(maLk)) return;
+            maLk = maLk.Trim();
+            if (!map.TryGetValue(maLk, out var r)) { r = new ReconRow { MaLk = maLk }; map[maLk] = r; }
+            r.RejectedAmount += rejected;
+            if (string.IsNullOrEmpty(r.RejectCode) && !string.IsNullOrWhiteSpace(code)) r.RejectCode = code.Trim();
+            if (string.IsNullOrEmpty(r.RejectReason) && !string.IsNullOrWhiteSpace(reason)) r.RejectReason = reason.Trim();
+            if (string.IsNullOrEmpty(r.ProcessorName) && !string.IsNullOrWhiteSpace(processor)) r.ProcessorName = processor.Trim();
+        }
+
+        if (text.TrimStart().StartsWith("<"))
+        {
+            try
+            {
+                var doc = XDocument.Parse(text);
+                foreach (var el in doc.Descendants())
+                {
+                    var maLk = ChildVal(el, "MA_LK");
+                    if (string.IsNullOrWhiteSpace(maLk)) continue;
+                    var rejected = ParseMoney(ChildVal(el, "T_XUATTOAN", "T_TUCHOI", "TIEN_TUCHOI", "SOTIEN_TUCHOI", "T_CHENHLECH"));
+                    var code = ChildVal(el, "MA_TUCHOI", "MA_LYDO", "MA_LOI");
+                    var reason = ChildVal(el, "LYDO_TUCHOI", "LY_DO_TUCHOI", "LY_DO", "GHI_CHU", "MOTA_LOI");
+                    var processor = ChildVal(el, "NGUOI_GD", "MA_GIAMDINHVIEN", "NGUOIGD");
+                    Upsert(maLk, rejected, code, reason, processor);
+                }
+            }
+            catch { /* XML hỏng → trả những gì gom được */ }
+        }
+        else
+        {
+            var lines = text.Replace("\r", "").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var raw in lines)
+            {
+                var cols = raw.Split(new[] { ',', ';', '\t' });
+                if (cols.Length < 2) continue;
+                var maLk = cols[0].Trim().Trim('"');
+                if (string.IsNullOrWhiteSpace(maLk) || maLk.Equals("MaLk", StringComparison.OrdinalIgnoreCase)) continue; // bỏ header
+                var rejected = ParseMoney(cols[1]);
+                var code = cols.Length > 2 ? cols[2].Trim().Trim('"') : null;
+                var reason = cols.Length > 3 ? cols[3].Trim().Trim('"') : null;
+                Upsert(maLk, rejected, code, reason, null);
+            }
+        }
+        rows.AddRange(map.Values);
+        return rows;
+    }
+
+    private static string? ChildVal(XElement el, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            var child = el.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, name, StringComparison.OrdinalIgnoreCase));
+            if (child != null && !string.IsNullOrWhiteSpace(child.Value)) return child.Value;
+        }
+        return null;
+    }
+
+    private static decimal ParseMoney(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return 0;
+        s = s.Trim().Replace(",", "").Replace("\"", "");
+        return decimal.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0;
     }
 
     #endregion

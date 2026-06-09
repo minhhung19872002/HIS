@@ -511,11 +511,16 @@ public class InsuranceXmlController : ControllerBase
     [HttpPost("reconciliation/import/{batchId}")]
     public async Task<ActionResult<InsuranceReconciliationDto>> ImportReconciliationResult(Guid batchId, IFormFile file)
     {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "Chưa chọn file kết quả đối soát" });
         using var stream = new MemoryStream();
         await file.CopyToAsync(stream);
-        var result = await _insuranceService.ImportReconciliationResultAsync(batchId, stream.ToArray());
+        var result = await _insuranceService.ImportReconciliationResultAsync(batchId, stream.ToArray(), GetUserId());
         return Ok(result);
     }
+
+    private Guid GetUserId() =>
+        Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var id) ? id : Guid.Empty;
 
     /// <summary>
     /// Lấy danh sách hồ sơ bị từ chối

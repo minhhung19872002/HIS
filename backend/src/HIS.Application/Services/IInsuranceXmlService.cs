@@ -249,7 +249,7 @@ public interface IInsuranceXmlService
     /// <summary>
     /// Import kết quả đối soát từ BHXH
     /// </summary>
-    Task<InsuranceReconciliationDto> ImportReconciliationResultAsync(Guid batchId, byte[] fileContent);
+    Task<InsuranceReconciliationDto> ImportReconciliationResultAsync(Guid batchId, byte[] fileContent, Guid userId);
 
     /// <summary>
     /// Lấy danh sách hồ sơ bị từ chối
