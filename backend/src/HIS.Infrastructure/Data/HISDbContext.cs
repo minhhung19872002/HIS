@@ -435,6 +435,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<IncidentReport> IncidentReports => Set<IncidentReport>();
     public DbSet<CAPA> CAPAs => Set<CAPA>();
     public DbSet<AuditPlan> AuditPlans => Set<AuditPlan>();
+    public DbSet<RefillRequest> RefillRequests => Set<RefillRequest>(); // F9
+    public DbSet<ServiceFeedback> ServiceFeedbacks => Set<ServiceFeedback>(); // F9
     public DbSet<SatisfactionSurvey> SatisfactionSurveys => Set<SatisfactionSurvey>();
 
     // Luồng 18: Patient Portal

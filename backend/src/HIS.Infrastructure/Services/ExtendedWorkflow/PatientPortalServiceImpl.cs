@@ -57,6 +57,8 @@ public class PatientPortalServiceImpl : IPatientPortalService
         return true;
     }
 
+    // eKYC = DEFER (F9): lưu base64 ảnh CCCD/selfie sinh trắc là quyết định PII/biometric nhạy cảm
+    // (storage/mã hoá/đối chiếu KYC) — cần thiết kế riêng, không persist vội. Xem STATUS F9.
     public Task<eKYCVerificationDto> SubmitEKYCAsync(Guid accountId, eKYCVerificationDto dto) => Task.FromResult(dto);
     public async Task<bool> UpdatePreferencesAsync(Guid accountId, PortalAccountDto preferences)
     {
@@ -389,8 +391,39 @@ th {{ background: #f0f0f0; text-align: center; }}
         return e == null ? null! : new PortalPrescriptionDto { Id = e.Id, PrescriptionDate = e.PrescriptionDate, Status = e.Status == 2 ? "FullyDispensed" : e.Status == 1 ? "Active" : "Pending" };
     }
 
-    public Task<RefillRequestDto> RequestRefillAsync(RefillRequestDto dto) => Task.FromResult(dto);
-    public Task<List<PortalPrescriptionDto>> GetRefillHistoryAsync(Guid patientId) => Task.FromResult(new List<PortalPrescriptionDto>());
+    // F9: yêu cầu cấp lại đơn persist THẬT (trước chỉ trả DTO, không lưu).
+    public async Task<RefillRequestDto> RequestRefillAsync(RefillRequestDto dto)
+    {
+        var entity = new RefillRequest
+        {
+            Id = Guid.NewGuid(),
+            PrescriptionId = dto.PrescriptionId,
+            DeliveryOption = string.IsNullOrWhiteSpace(dto.DeliveryOption) ? "Pickup" : dto.DeliveryOption,
+            DeliveryAddress = dto.DeliveryAddress,
+            DeliveryPhone = dto.DeliveryPhone,
+            PreferredPharmacyId = dto.PreferredPharmacyId,
+            Notes = dto.Notes,
+            Status = "Pending",
+            RequestedAt = DateTime.Now,
+            CreatedAt = DateTime.Now,
+        };
+        _context.RefillRequests.Add(entity);
+        await _context.SaveChangesAsync();
+        dto.Id = entity.Id; dto.Status = entity.Status; dto.RequestedAt = entity.RequestedAt;
+        return dto;
+    }
+
+    public async Task<List<PortalPrescriptionDto>> GetRefillHistoryAsync(Guid patientId)
+    {
+        var list = await (from r in _context.RefillRequests.Where(x => !x.IsDeleted)
+                          join p in _context.Prescriptions on r.PrescriptionId equals p.Id
+                          join mr in _context.MedicalRecords on p.MedicalRecordId equals mr.Id
+                          where mr.PatientId == patientId
+                          orderby r.RequestedAt descending
+                          select new PortalPrescriptionDto { Id = p.Id, PrescriptionDate = r.RequestedAt, Status = r.Status })
+                         .Take(50).ToListAsync();
+        return list;
+    }
 
     public async Task<List<PortalInvoiceDto>> GetInvoicesAsync(Guid patientId, bool unpaidOnly = false)
     {
@@ -433,7 +466,27 @@ th {{ background: #f0f0f0; text-align: center; }}
         return true;
     }
 
-    public Task<ServiceFeedbackDto> SubmitFeedbackAsync(Guid patientId, SubmitFeedbackDto dto) => Task.FromResult(new ServiceFeedbackDto { Id = Guid.NewGuid(), VisitId = dto.VisitId });
+    // F9: phản hồi/đánh giá dịch vụ persist THẬT (trước chỉ trả DTO rỗng).
+    public async Task<ServiceFeedbackDto> SubmitFeedbackAsync(Guid patientId, SubmitFeedbackDto dto)
+    {
+        var entity = new ServiceFeedback
+        {
+            Id = Guid.NewGuid(), PatientId = patientId, VisitId = dto.VisitId,
+            OverallRating = dto.OverallRating, DoctorRating = dto.DoctorRating, StaffRating = dto.StaffRating,
+            FacilityRating = dto.FacilityRating, WaitTimeRating = dto.WaitTimeRating,
+            Comments = dto.Comments, WouldRecommend = dto.WouldRecommend,
+            SubmittedAt = DateTime.Now, CreatedAt = DateTime.Now,
+        };
+        _context.ServiceFeedbacks.Add(entity);
+        await _context.SaveChangesAsync();
+        return new ServiceFeedbackDto
+        {
+            Id = entity.Id, VisitId = entity.VisitId, OverallRating = entity.OverallRating,
+            DoctorRating = entity.DoctorRating, StaffRating = entity.StaffRating, FacilityRating = entity.FacilityRating,
+            WaitTimeRating = entity.WaitTimeRating, Comments = entity.Comments, WouldRecommend = entity.WouldRecommend,
+            SubmittedAt = entity.SubmittedAt,
+        };
+    }
 
     public async Task<List<PortalNotificationDto>> GetNotificationsAsync(Guid accountId, bool unreadOnly = false)
     {

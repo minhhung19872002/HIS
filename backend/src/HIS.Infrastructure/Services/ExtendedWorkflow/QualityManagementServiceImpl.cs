@@ -65,8 +65,42 @@ public class QualityManagementServiceImpl : IQualityManagementService
         return true;
     }
 
-    public Task<bool> AddCorrectiveActionAsync(Guid incidentId, CorrectiveActionDto action) => Task.FromResult(true);
-    public Task<bool> UpdateCorrectiveActionStatusAsync(Guid actionId, string status, string notes) => Task.FromResult(true);
+    // F9 (audit FLOW-FINAL): corrective action persist THẬT qua CAPA (trước chỉ trả true, không lưu).
+    public async Task<bool> AddCorrectiveActionAsync(Guid incidentId, CorrectiveActionDto action)
+    {
+        var assignee = await _context.Users.Where(u => !u.IsDeleted).Select(u => u.Id).FirstOrDefaultAsync();
+        if (assignee == Guid.Empty) return false;
+        var capa = new CAPA
+        {
+            Id = Guid.NewGuid(),
+            CAPACode = $"CAPA-{DateTime.Now:yyyyMMddHHmmss}",
+            IncidentReportId = incidentId,
+            Source = "Incident",
+            Type = "Corrective",
+            ActionDescription = action.Description ?? "",
+            AssignedToId = assignee,
+            DueDate = action.DueDate == default ? DateTime.Now.AddDays(7) : action.DueDate,
+            Status = string.IsNullOrWhiteSpace(action.Status) ? "Open" : action.Status,
+            Priority = "Medium",
+            CreatedAt = DateTime.Now,
+            CreatedBy = assignee.ToString(),
+        };
+        _context.CAPAs.Add(capa);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> UpdateCorrectiveActionStatusAsync(Guid actionId, string status, string notes)
+    {
+        var capa = await _context.CAPAs.FindAsync(actionId);
+        if (capa == null) return false;
+        capa.Status = status;
+        capa.VerificationNotes = notes;
+        if (status == "Closed" || status == "Completed") { capa.CompletedDate = DateTime.Now; capa.IsEffective = true; }
+        capa.UpdatedAt = DateTime.Now;
+        await _context.SaveChangesAsync();
+        return true;
+    }
 
     public async Task<List<QualityIndicatorDto>> GetIndicatorsAsync(string? category = null)
     {

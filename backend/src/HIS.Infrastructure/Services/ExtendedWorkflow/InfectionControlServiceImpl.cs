@@ -206,11 +206,49 @@ public class InfectionControlServiceImpl : IInfectionControlService
         return true;
     }
 
+    // EnvironmentSurveillance = DEFER (cần bảng + child SurfaceSamples — thiết kế riêng, xem STATUS F9).
     public Task<List<EnvironmentSurveillanceDto>> GetEnvironmentSurveillanceAsync(DateTime fromDate, DateTime toDate, string? locationType = null) => Task.FromResult(new List<EnvironmentSurveillanceDto>());
     public Task<EnvironmentSurveillanceDto> RecordEnvironmentSurveillanceAsync(EnvironmentSurveillanceDto dto) => Task.FromResult(dto);
-    public Task<List<AntibioticStewardshipDto>> GetAntibioticsRequiringReviewAsync(Guid? departmentId = null) => Task.FromResult(new List<AntibioticStewardshipDto>());
-    public Task<AntibioticUsageReportDto> GetAntibioticUsageReportAsync(DateTime fromDate, DateTime toDate, Guid? departmentId = null) => Task.FromResult(new AntibioticUsageReportDto { FromDate = fromDate, ToDate = toDate });
-    public Task<bool> ReviewAntibioticAsync(Guid id, string outcome, string notes) => Task.FromResult(true);
+
+    // F9: quản lý kháng sinh persist THẬT qua AntibioticStewardships (entity đã có).
+    public async Task<List<AntibioticStewardshipDto>> GetAntibioticsRequiringReviewAsync(Guid? departmentId = null)
+    {
+        var list = await _context.AntibioticStewardships
+            .Include(a => a.Patient)
+            .Where(a => a.RequiresReview && a.ReviewDate == null && !a.IsDeleted)
+            .OrderByDescending(a => a.StartDate).Take(200).ToListAsync();
+        return list.Select(a => new AntibioticStewardshipDto
+        {
+            Id = a.Id, AdmissionId = a.AdmissionId,
+            PatientName = a.Patient != null ? a.Patient.FullName : "",
+            AntibioticName = a.AntibioticName, StartDate = a.StartDate, DurationDays = a.DayOfTherapy,
+        }).ToList();
+    }
+
+    public async Task<AntibioticUsageReportDto> GetAntibioticUsageReportAsync(DateTime fromDate, DateTime toDate, Guid? departmentId = null)
+    {
+        var rows = await _context.AntibioticStewardships
+            .Where(a => !a.IsDeleted && a.StartDate >= fromDate && a.StartDate <= toDate).ToListAsync();
+        var reviewed = rows.Count(a => a.ReviewDate != null);
+        var pending = rows.Count(a => a.RequiresReview && a.ReviewDate == null);
+        return new AntibioticUsageReportDto
+        {
+            FromDate = fromDate, ToDate = toDate,
+            TotalRequiringReview = reviewed + pending,
+            ReviewedCount = reviewed,
+            ReviewComplianceRate = (reviewed + pending) > 0 ? Math.Round((decimal)reviewed / (reviewed + pending) * 100, 1) : 0,
+        };
+    }
+
+    public async Task<bool> ReviewAntibioticAsync(Guid id, string outcome, string notes)
+    {
+        var a = await _context.AntibioticStewardships.FindAsync(id);
+        if (a == null) return false;
+        a.ReviewDate = DateTime.Now; a.ReviewOutcome = outcome; a.ReviewNotes = notes; a.RequiresReview = false;
+        a.UpdatedAt = DateTime.Now;
+        await _context.SaveChangesAsync();
+        return true;
+    }
 
     public async Task<ICDashboardDto> GetDashboardAsync(DateTime? date = null)
     {

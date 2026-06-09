@@ -273,10 +273,17 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<List<AntibioticStewardshipDto>>> GetAntibioticsRequiringReview([FromQuery] Guid? departmentId)
             => Ok(await _service.GetAntibioticsRequiringReviewAsync(departmentId));
 
+        // F9: duyệt kháng sinh (persist vào AntibioticStewardship).
+        [HttpPost("antibiotics/{id}/review")]
+        public async Task<ActionResult<bool>> ReviewAntibiotic(Guid id, [FromBody] ReviewAntibioticRequest req)
+            => Ok(await _service.ReviewAntibioticAsync(id, req.Outcome ?? "", req.Notes ?? ""));
+
         [HttpGet("dashboard")]
         public async Task<ActionResult<ICDashboardDto>> GetDashboard([FromQuery] DateTime? date)
             => Ok(await _service.GetDashboardAsync(date));
     }
+
+    public class ReviewAntibioticRequest { public string? Outcome { get; set; } public string? Notes { get; set; } }
 
     #endregion
 
@@ -836,7 +843,18 @@ namespace HIS.API.Controllers
         [HttpGet("dashboard")]
         public async Task<ActionResult<QMDashboardDto>> GetDashboard()
             => Ok(await _service.GetDashboardAsync());
+
+        // F9: hành động khắc phục sự cố (persist qua CAPA).
+        [HttpPost("incidents/{incidentId}/corrective-actions")]
+        public async Task<ActionResult<bool>> AddCorrectiveAction(Guid incidentId, [FromBody] CorrectiveActionDto action)
+            => Ok(await _service.AddCorrectiveActionAsync(incidentId, action));
+
+        [HttpPut("corrective-actions/{actionId}/status")]
+        public async Task<ActionResult<bool>> UpdateCorrectiveActionStatus(Guid actionId, [FromBody] UpdateCorrectiveActionRequest req)
+            => Ok(await _service.UpdateCorrectiveActionStatusAsync(actionId, req.Status ?? "", req.Notes ?? ""));
     }
+
+    public class UpdateCorrectiveActionRequest { public string? Status { get; set; } public string? Notes { get; set; } }
 
     #endregion
 
@@ -1099,6 +1117,19 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<PatientQuestionDto>> AnswerPatientQuestion(
             Guid id, [FromBody] AnswerPatientQuestionDto dto)
             => Ok(await _service.AnswerPatientQuestionAsync(id, dto));
+
+        // F9: cấp lại đơn + phản hồi dịch vụ (persist thật).
+        [HttpPost("prescriptions/refill")]
+        public async Task<ActionResult<RefillRequestDto>> RequestRefill([FromBody] RefillRequestDto dto)
+            => Ok(await _service.RequestRefillAsync(dto));
+
+        [HttpGet("prescriptions/refill-history")]
+        public async Task<ActionResult<List<PortalPrescriptionDto>>> GetRefillHistory([FromQuery] Guid patientId)
+            => Ok(await _service.GetRefillHistoryAsync(patientId));
+
+        [HttpPost("feedback")]
+        public async Task<ActionResult<ServiceFeedbackDto>> SubmitFeedback([FromQuery] Guid patientId, [FromBody] SubmitFeedbackDto dto)
+            => Ok(await _service.SubmitFeedbackAsync(patientId, dto));
     }
 
     #endregion
