@@ -195,8 +195,140 @@ public class RehabilitationServiceImpl : IRehabilitationService
         e.Status = "Completed"; e.EndTime = TimeSpan.FromHours(DateTime.Now.Hour).Add(TimeSpan.FromMinutes(DateTime.Now.Minute)); e.ProgressNotes = dto.ProgressNotes;
         var plan = await _context.RehabTreatmentPlans.FindAsync(e.TreatmentPlanId);
         if (plan != null) plan.CompletedSessions++;
+        // F7 (audit FLOW-FINAL 2026-06-06): mỗi buổi trị liệu hoàn thành → sinh 1 dịch vụ tính phí
+        // (ServiceRequest + Detail). Trước đây buổi PHCN không phát sinh viện phí (thất thu).
+        await BillRehabSessionAsync(e, plan);
         await _context.SaveChangesAsync();
         return await GetSessionAsync(dto.SessionId);
+    }
+
+    /// <summary>F7: ghi 1 dòng viện phí cho buổi PHCN đã hoàn thành. Idempotent theo RequestCode deterministic
+    /// (mỗi buổi chỉ tính phí 1 lần). Best-effort: thiếu HSBA/khoa → bỏ qua billing, KHÔNG chặn ghi buổi.</summary>
+    private async Task BillRehabSessionAsync(RehabSession session, RehabTreatmentPlan? plan)
+    {
+        var requestCode = $"PHCN-{session.Id:N}";
+        if (await _context.ServiceRequests.AnyAsync(r => r.RequestCode == requestCode)) return; // đã tính phí
+
+        plan ??= await _context.RehabTreatmentPlans.FindAsync(session.TreatmentPlanId);
+        var referral = plan != null ? await _context.RehabReferrals.FindAsync(plan.ReferralId) : null;
+        if (referral == null) return;
+
+        // Resolve HSBA + khoa: examination → admission → HSBA mới nhất của bệnh nhân.
+        Guid? medicalRecordId = null; Guid? departmentId = null;
+        if (referral.ExaminationId != null)
+        {
+            var exam = await _context.Examinations.FindAsync(referral.ExaminationId.Value);
+            if (exam != null) { medicalRecordId = exam.MedicalRecordId; departmentId = exam.DepartmentId; }
+        }
+        if (medicalRecordId == null && referral.AdmissionId != null)
+        {
+            var adm = await _context.Admissions.FindAsync(referral.AdmissionId.Value);
+            if (adm != null) { medicalRecordId = adm.MedicalRecordId; departmentId = adm.DepartmentId; }
+        }
+        if (medicalRecordId == null)
+        {
+            var mr = await _context.MedicalRecords
+                .Where(m => m.PatientId == referral.PatientId && !m.IsDeleted)
+                .OrderByDescending(m => m.AdmissionDate).FirstOrDefaultAsync();
+            if (mr != null) { medicalRecordId = mr.Id; departmentId = mr.DepartmentId; }
+        }
+        if (medicalRecordId == null) return; // không tìm được HSBA → không bill
+
+        if (departmentId == null || departmentId == Guid.Empty)
+            departmentId = (await _context.Departments.FirstOrDefaultAsync(d => !d.IsDeleted))?.Id;
+        if (departmentId == null || departmentId == Guid.Empty) return; // không có khoa hợp lệ → bỏ qua
+
+        // Resolve actor user hợp lệ cho DoctorId/CreatedBy (FK Users). KTV/BS giới thiệu có thể chưa set
+        // (Guid.Empty) → thử lần lượt rồi fallback user bất kỳ; không có user nào hợp lệ → bỏ qua billing.
+        Guid doctorId = Guid.Empty;
+        foreach (var cand in new[] { session.TherapistId, referral.ReferredById, referral.AcceptedById ?? Guid.Empty })
+        {
+            if (cand != Guid.Empty && await _context.Users.AnyAsync(u => u.Id == cand)) { doctorId = cand; break; }
+        }
+        if (doctorId == Guid.Empty)
+            doctorId = await _context.Users.Where(u => !u.IsDeleted).Select(u => u.Id).FirstOrDefaultAsync();
+        if (doctorId == Guid.Empty) return; // không có user hợp lệ → bỏ qua billing
+
+        var service = await GetOrCreateRehabServiceAsync(plan?.RehabType ?? referral.RehabType, doctorId);
+        var price = service.UnitPrice;
+        var by = doctorId.ToString();
+
+        var req = new ServiceRequest
+        {
+            Id = Guid.NewGuid(),
+            RequestCode = requestCode,
+            RequestDate = DateTime.Now,
+            MedicalRecordId = medicalRecordId.Value,
+            DoctorId = doctorId,
+            DepartmentId = departmentId.Value,
+            RequestType = 5, // Khác
+            ServiceId = service.Id,
+            Quantity = 1,
+            UnitPrice = price,
+            TotalPrice = price,
+            TotalAmount = price,
+            InsuranceAmount = 0,
+            PatientAmount = price,
+            Status = 0,
+            Notes = $"PHCN buổi {session.SessionNumber} - {service.ServiceName}",
+            CreatedAt = DateTime.Now,
+            CreatedBy = by,
+        };
+        req.Details.Add(new ServiceRequestDetail
+        {
+            Id = Guid.NewGuid(),
+            ServiceRequestId = req.Id,
+            ServiceId = service.Id,
+            Quantity = 1,
+            UnitPrice = price,
+            Amount = price,
+            InsuranceAmount = 0,
+            PatientAmount = price,
+            PatientType = 2, // Viện phí
+            Status = 0,
+            CreatedAt = DateTime.Now,
+            CreatedBy = by,
+        });
+        _context.ServiceRequests.Add(req);
+    }
+
+    /// <summary>F7: lấy (hoặc tạo) dịch vụ tính phí cho buổi PHCN theo loại (PT/OT/ST). Danh mục mặc định
+    /// idempotent theo ServiceCode `PHCN-{type}`; giá mặc định, admin chỉnh trong danh mục dịch vụ sau.</summary>
+    private async Task<Service> GetOrCreateRehabServiceAsync(string? rehabType, Guid therapistId)
+    {
+        var type = (rehabType ?? "").Trim().ToUpperInvariant();
+        if (type != "OT" && type != "ST") type = "PT";
+        var code = $"PHCN-{type}";
+        var svc = await _context.Services.FirstOrDefaultAsync(s => s.ServiceCode == code && !s.IsDeleted);
+        if (svc != null) return svc;
+
+        var group = await _context.ServiceGroups.FirstOrDefaultAsync(g => g.GroupCode == "PHCN" && !g.IsDeleted);
+        if (group == null)
+        {
+            group = new ServiceGroup
+            {
+                Id = Guid.NewGuid(), GroupCode = "PHCN", GroupName = "Phục hồi chức năng",
+                GroupType = 4, // TDCN
+                IsActive = true, CreatedAt = DateTime.Now, CreatedBy = therapistId.ToString(),
+            };
+            _context.ServiceGroups.Add(group);
+        }
+        var name = type switch
+        {
+            "OT" => "Hoạt động trị liệu (OT) - buổi",
+            "ST" => "Ngôn ngữ trị liệu (ST) - buổi",
+            _ => "Vật lý trị liệu / PHCN (PT) - buổi",
+        };
+        svc = new Service
+        {
+            Id = Guid.NewGuid(), ServiceCode = code, ServiceName = name, ServiceGroupId = group.Id,
+            UnitPrice = 100000m, ServicePrice = 100000m, InsurancePrice = 0m, Unit = "Buổi",
+            ServiceType = 4, // TDCN
+            IsInsuranceCovered = false, InsurancePaymentRate = 0,
+            IsActive = true, CreatedAt = DateTime.Now, CreatedBy = therapistId.ToString(),
+        };
+        _context.Services.Add(svc);
+        return svc;
     }
 
     public async Task<bool> CancelSessionAsync(Guid id, string reason)
