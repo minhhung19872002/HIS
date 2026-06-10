@@ -1389,7 +1389,8 @@ public class SatisfactionSurvey : BaseEntity
 /// </summary>
 public class PortalAccount : BaseEntity
 {
-    public Guid PatientId { get; set; }
+    // R2: nullable — account tự đăng ký tồn tại TRƯỚC khi link hồ sơ BN (mig 88 nới NOT NULL).
+    public Guid? PatientId { get; set; }
     public string Username { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;

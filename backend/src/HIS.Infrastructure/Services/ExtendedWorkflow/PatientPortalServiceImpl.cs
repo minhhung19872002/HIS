@@ -22,7 +22,19 @@ public class PatientPortalServiceImpl : IPatientPortalService
 
     public async Task<PortalAccountDto> RegisterAccountAsync(RegisterPortalAccountDto dto)
     {
-        var entity = new PortalAccount { Id = Guid.NewGuid(), Email = dto.Email, Phone = dto.Phone, PasswordHash = dto.Password, Status = "Pending", CreatedAt = DateTime.Now };
+        // R2: hash BCrypt (trước đây lưu plaintext — bảng 0 rows nên không cần backfill).
+        // Username = email (fallback phone) để login bằng identifier.
+        var username = !string.IsNullOrWhiteSpace(dto.Email) ? dto.Email.Trim() : dto.Phone?.Trim() ?? "";
+        var entity = new PortalAccount
+        {
+            Id = Guid.NewGuid(),
+            Username = username,
+            Email = dto.Email ?? "",
+            Phone = dto.Phone ?? "",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+            Status = "Pending",
+            CreatedAt = DateTime.Now,
+        };
         _context.PortalAccounts.Add(entity);
         await _context.SaveChangesAsync();
         return await GetAccountAsync(entity.Id);
@@ -52,6 +64,17 @@ public class PatientPortalServiceImpl : IPatientPortalService
         if (patient == null) return false;
         var account = await _context.PortalAccounts.FindAsync(accountId);
         if (account == null) return false;
+
+        // R2: BẮT BUỘC verify — verificationData phải khớp SĐT / CCCD / ngày sinh (yyyy-MM-dd) của BN.
+        // Trước đây không kiểm tra gì → ai có account đều link được bất kỳ patientCode (IDOR).
+        var v = (verificationData ?? "").Trim();
+        if (v.Length == 0) return false;
+        var matches =
+            (!string.IsNullOrWhiteSpace(patient.PhoneNumber) && string.Equals(patient.PhoneNumber.Trim(), v, StringComparison.Ordinal)) ||
+            (!string.IsNullOrWhiteSpace(patient.IdentityNumber) && string.Equals(patient.IdentityNumber.Trim(), v, StringComparison.Ordinal)) ||
+            (patient.DateOfBirth.HasValue && patient.DateOfBirth.Value.ToString("yyyy-MM-dd") == v);
+        if (!matches) return false;
+
         account.PatientId = patient.Id; account.Status = "Active";
         await _context.SaveChangesAsync();
         return true;

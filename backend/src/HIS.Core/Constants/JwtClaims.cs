@@ -18,4 +18,7 @@ public static class JwtClaims
 
     /// <summary>Loại inspector cho Cổng thanh tra BHXH (vd "bhxh").</summary>
     public const string InspectorType = "inspectorType";
+
+    /// <summary>R2 portal self-login: PatientId gắn với PortalAccount (token role PortalPatient).</summary>
+    public const string PatientId = "patientId";
 }

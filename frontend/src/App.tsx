@@ -153,6 +153,8 @@ const QualityDashboardLiveV2 = lazy(() => import('./pages-v2/QualityDashboardLiv
 const BankPaymentsV2 = lazy(() => import('./pages-v2/BankPayments'));
 const BiometricEnrollmentV2 = lazy(() => import('./pages-v2/BiometricEnrollment'));
 const InspectorPortalStandalone = lazy(() => import('./pages-v2/InspectorPortal'));
+// R2: cổng bệnh nhân TỰ đăng nhập (standalone, JWT role PortalPatient)
+const PatientPortalSelfLogin = lazy(() => import('./pages-v2/PatientPortalStandalone'));
 const PatientPortalMobileApp = lazy(() => import('./pages-mobile/PatientPortalMobile'));
 const DoctorPortalMobileApp = lazy(() => import('./pages-mobile/DoctorPortalMobile'));
 const EmrHl7ExportV2 = lazy(() => import('./pages-v2/EmrHl7Export'));
@@ -654,6 +656,7 @@ const AppRoutes: React.FC = () => {
         </Route>
         {/* Standalone routes - không thuộc layout chính */}
         <Route path="/inspector-portal" element={<InspectorPortalStandalone />} />
+        <Route path="/patient-portal" element={<PatientPortalSelfLogin />} />
         <Route path="/m/patient-portal" element={<ProtectedRoute><PatientPortalMobileApp /></ProtectedRoute>} />
         <Route path="/m/doctor-portal" element={<ProtectedRoute><DoctorPortalMobileApp /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />

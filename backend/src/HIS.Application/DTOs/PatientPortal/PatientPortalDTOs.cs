@@ -49,6 +49,22 @@ namespace HIS.Application.DTOs.PatientPortal
         public string Password { get; set; }
     }
 
+    /// <summary>R2: Bệnh nhân tự đăng nhập portal (identifier = username/email/phone).</summary>
+    public class PortalLoginDto
+    {
+        public string Identifier { get; set; }
+        public string Password { get; set; }
+    }
+
+    /// <summary>R2: Kết quả đăng nhập portal — token JWT role PortalPatient mang claim patientId.</summary>
+    public class PortalLoginResponseDto
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public string Token { get; set; }
+        public PortalAccountDto Account { get; set; }
+    }
+
     /// <summary>
     /// Xác thực eKYC
     /// </summary>
