@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Data.SqlClient;
@@ -326,37 +327,108 @@ public partial class LISCompleteService {
     {
         try
         {
+            // Handler chạy ngoài HTTP request (event từ singleton HL7ConnectionManager, fire-and-forget)
+            // → _context (scoped) đã dispose. BẮT BUỘC tạo scope DbContext riêng cho mỗi lần xử lý.
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<HISDbContext>();
+
             foreach (var result in results)
             {
                 _logger.LogInformation("Processing result: SampleId={SampleId}, TestCode={TestCode}, Value={Value}",
                     result.SampleId, result.TestCode, result.Value);
 
                 // #14b (audit luồng nghiệp vụ 2026-06-06): ghi KQ máy phân tích vào ServiceRequestDetail
-                // (model 1) — nguồn-sự-thật CHUNG với KQ nhập tay (SampleReceive) + màn khám. Khớp theo
-                // SampleBarcode + mã dịch vụ (HL7 TestCode = Service.ServiceCode). Trước đây ghi
+                // (model 1) — nguồn-sự-thật CHUNG với KQ nhập tay (SampleReceive) + màn khám. Trước đây ghi
                 // LabOrderItems (model 3 — không có creator thật) nên KQ máy không bao giờ vào hệ thống.
-                // (Cảnh báo cao/thấp/nguy-kịch per-parameter cần KQ XN cấu trúc — xem tech-debt-roadmap.)
                 if (string.IsNullOrWhiteSpace(result.SampleId)) continue;
 
-                var detail = await _context.ServiceRequestDetails
+                // Match 1: OBX TestCode = mã DỊCH VỤ (dịch vụ 1 chỉ số / analyzer gửi theo service).
+                var detail = await db.ServiceRequestDetails
                     .Include(d => d.Service)
                     .FirstOrDefaultAsync(d => d.SampleBarcode == result.SampleId
                                            && d.Service.ServiceCode == result.TestCode
                                            && d.Status != 3);
+                bool directMatch = detail != null;
+
+                // R1 (2a): Match 2 — OBX TestCode = mã CHỈ SỐ con (WBC/HGB… của dịch vụ nhiều chỉ số):
+                // tra catalog LisTestParameter (Code/Hl7Code) → ServiceId → SRD cùng barcode.
+                LisTestParameter cat = null;
+                if (detail == null)
+                {
+                    cat = await db.LisTestParameters
+                        .FirstOrDefaultAsync(p => (p.Code == result.TestCode || p.Hl7Code == result.TestCode)
+                                               && p.ServiceId != null && p.IsActive && !p.IsDeleted);
+                    if (cat != null)
+                        detail = await db.ServiceRequestDetails
+                            .FirstOrDefaultAsync(d => d.SampleBarcode == result.SampleId
+                                                   && d.ServiceId == cat.ServiceId
+                                                   && d.Status != 3);
+                }
                 if (detail == null)
                 {
                     _logger.LogWarning("No ServiceRequestDetail for SampleId={SampleId}, TestCode={TestCode}",
                         result.SampleId, result.TestCode);
                     continue;
                 }
+                cat ??= await db.LisTestParameters
+                    .FirstOrDefaultAsync(p => p.ServiceId == detail.ServiceId
+                                           && (p.Code == result.TestCode || p.Hl7Code == result.TestCode)
+                                           && p.IsActive && !p.IsDeleted);
 
-                detail.Result = result.Value ?? "";
+                // R1 (2a): upsert chỉ số con per-OBX (idempotent theo ParameterCode khi analyzer gửi lại).
+                // Cờ: ưu tiên cờ HL7 OBX-8 (N/H/L/HH/LL), thiếu/khác chuẩn → tính từ catalog.
+                var num = LabFlagEvaluator.TryParse(result.Value);
+                var min = cat?.ReferenceLow ?? cat?.NormalMinMale;
+                var max = cat?.ReferenceHigh ?? cat?.NormalMaxMale;
+                var flag = LabFlagEvaluator.NormalizeHl7Flag(result.AbnormalFlag)
+                           ?? LabFlagEvaluator.EvaluateFlag(num, min, max, cat?.CriticalLow, cat?.CriticalHigh);
+                var row = await db.ServiceRequestDetailParameters
+                    .FirstOrDefaultAsync(x => x.ServiceRequestDetailId == detail.Id
+                                           && x.ParameterCode == result.TestCode && !x.IsDeleted);
+                if (row == null)
+                {
+                    row = new ServiceRequestDetailParameter
+                    {
+                        Id = Guid.NewGuid(),
+                        ServiceRequestDetailId = detail.Id,
+                        ParameterCode = result.TestCode ?? "",
+                        SequenceNumber = await db.ServiceRequestDetailParameters
+                            .CountAsync(x => x.ServiceRequestDetailId == detail.Id && !x.IsDeleted),
+                        CreatedAt = DateTime.Now,
+                    };
+                    db.ServiceRequestDetailParameters.Add(row);
+                }
+                row.ParameterName = !string.IsNullOrWhiteSpace(result.TestName) ? result.TestName
+                                    : (cat?.Name ?? result.TestCode ?? "");
+                row.Value = result.Value;
+                row.NumericValue = num;
+                row.Unit = string.IsNullOrWhiteSpace(result.Units) ? cat?.Unit : result.Units;
+                row.ReferenceMin = min;
+                row.ReferenceMax = max;
+                row.ReferenceRange = !string.IsNullOrWhiteSpace(result.ReferenceRange)
+                    ? result.ReferenceRange : LabFlagEvaluator.BuildReferenceRange(min, max);
+                row.Flag = flag;
+                row.UpdatedAt = DateTime.Now;
+
+                if (directMatch)
+                    detail.Result = result.Value ?? ""; // dịch vụ 1 chỉ số: giữ hành vi cũ (giá trị trần)
                 detail.ResultDate = result.DateTimeOfObservation ?? DateTime.Now;
                 detail.TechnicianRunAt = DateTime.Now;
                 detail.Status = 2; // Có KQ
-                await _context.SaveChangesAsync();
+                await db.SaveChangesAsync();
 
-                _logger.LogInformation("Analyzer result -> ServiceRequestDetail {Id}: {Value}", detail.Id, result.Value);
+                // Dịch vụ nhiều chỉ số: srd.Result = tóm tắt từ các chỉ số con (rebuild → idempotent khi re-run).
+                if (!directMatch)
+                {
+                    var rows = await db.ServiceRequestDetailParameters
+                        .Where(x => x.ServiceRequestDetailId == detail.Id && !x.IsDeleted)
+                        .OrderBy(x => x.SequenceNumber).ToListAsync();
+                    detail.Result = string.Join("; ", rows.Select(r => $"{r.ParameterName} {r.Value}"));
+                    await db.SaveChangesAsync();
+                }
+
+                _logger.LogInformation("Analyzer result -> ServiceRequestDetail {Id}: {Code}={Value} [{Flag}]",
+                    detail.Id, result.TestCode, result.Value, flag);
             }
         }
         catch (Exception ex)

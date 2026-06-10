@@ -1,3 +1,5 @@
+using HIS.Application.DTOs.Examination;
+
 namespace HIS.Application.DTOs.Laboratory;
 
 #region 7.1 Kết nối máy xét nghiệm
@@ -379,6 +381,8 @@ public class EnterLabResultDto
     public Guid LabTestItemId { get; set; }
     public string Result { get; set; } = string.Empty;
     public string? Notes { get; set; }
+    /// <summary>R1: KQ per-parameter (optional — rỗng thì giữ hành vi cũ ghi 1 chuỗi).</summary>
+    public List<LabResultParameterInputDto>? Parameters { get; set; }
 }
 
 /// <summary>

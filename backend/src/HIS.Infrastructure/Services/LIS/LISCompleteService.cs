@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Data.SqlClient;
@@ -31,25 +32,36 @@ public partial class LISCompleteService : ILISCompleteService
     private readonly HL7Parser _hl7Parser;
     private readonly IConfiguration _configuration;
     private readonly IResultNotificationService _notificationService;
+    private readonly IServiceScopeFactory _scopeFactory;
+
+    // Guard: LISCompleteService là SCOPED nhưng HL7ConnectionManager là SINGLETON — nếu mỗi instance
+    // đều subscribe thì (1) handler chạy trên DbContext đã dispose, (2) leak + xử lý trùng N lần / event.
+    // Chỉ instance ĐẦU TIÊN subscribe; handler không dùng _context mà tạo scope riêng (xem ProcessLabResultsAsync).
+    private static int _hl7EventsSubscribed;
 
     public LISCompleteService(
         HISDbContext context,
         ILogger<LISCompleteService> logger,
         HL7ConnectionManager hl7Manager,
         IConfiguration configuration,
-        IResultNotificationService notificationService)
+        IResultNotificationService notificationService,
+        IServiceScopeFactory scopeFactory)
     {
         _context = context;
         _logger = logger;
         _hl7Manager = hl7Manager;
         _configuration = configuration;
         _notificationService = notificationService;
+        _scopeFactory = scopeFactory;
         _hl7Parser = new HL7Parser();
 
-        // Subscribe to HL7 events
-        _hl7Manager.MessageReceived += OnHL7MessageReceived;
-        _hl7Manager.ConnectionStatusChanged += OnHL7ConnectionStatusChanged;
-        _hl7Manager.ErrorOccurred += OnHL7Error;
+        // Subscribe to HL7 events (một lần duy nhất cho cả app — xem comment _hl7EventsSubscribed)
+        if (System.Threading.Interlocked.CompareExchange(ref _hl7EventsSubscribed, 1, 0) == 0)
+        {
+            _hl7Manager.MessageReceived += OnHL7MessageReceived;
+            _hl7Manager.ConnectionStatusChanged += OnHL7ConnectionStatusChanged;
+            _hl7Manager.ErrorOccurred += OnHL7Error;
+        }
     }
 
     #region DEV Endpoints

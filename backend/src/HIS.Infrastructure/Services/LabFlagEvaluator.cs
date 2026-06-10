@@ -39,6 +39,16 @@ public static class LabFlagEvaluator
         return $"{lo}–{hi}";
     }
 
+    /// <summary>
+    /// Chuẩn hóa cờ HL7 OBX-8 về N/H/L/HH/LL; ngoài tập đó (A, AA, &gt;, &lt;, rỗng…) trả null
+    /// để caller fallback tính từ khoảng tham chiếu catalog.
+    /// </summary>
+    public static string? NormalizeHl7Flag(string? hl7Flag) => hl7Flag?.Trim().ToUpperInvariant() switch
+    {
+        "N" or "H" or "L" or "HH" or "LL" => hl7Flag.Trim().ToUpperInvariant(),
+        _ => null,
+    };
+
     public static decimal? TryParse(string? s)
         => decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : (decimal?)null;
 }

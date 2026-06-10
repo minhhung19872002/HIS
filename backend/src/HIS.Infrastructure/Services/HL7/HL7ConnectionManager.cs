@@ -132,11 +132,14 @@ namespace HIS.Infrastructure.Services.HL7
                     var fullMessage = messageBuffer.ToString();
                     while (fullMessage.Contains("\x1C\x0D") || fullMessage.Contains("\x1C"))
                     {
-                        var endIndex = fullMessage.IndexOf("\x1C\x0D");
-                        if (endIndex == -1) endIndex = fullMessage.IndexOf("\x1C");
+                        // BẮT BUỘC Ordinal: IndexOf(string) mặc định CurrentCulture (ICU) coi \x1C là
+                        // ignorable char → needle "\x1C\x0D" match ngay \x0D đầu tiên → xé message HL7
+                        // tại mỗi CR (frame chỉ còn MSH, OBX thành frame rác). Bug CA1310.
+                        var endIndex = fullMessage.IndexOf("\x1C\x0D", StringComparison.Ordinal);
+                        if (endIndex == -1) endIndex = fullMessage.IndexOf("\x1C", StringComparison.Ordinal);
                         if (endIndex == -1) break;
 
-                        var messageEnd = fullMessage.IndexOf("\x1C\x0D") >= 0 ? endIndex + 2 : endIndex + 1;
+                        var messageEnd = fullMessage.IndexOf("\x1C\x0D", StringComparison.Ordinal) >= 0 ? endIndex + 2 : endIndex + 1;
                         var rawMessage = fullMessage.Substring(0, messageEnd);
                         messageBuffer.Remove(0, messageEnd);
                         fullMessage = messageBuffer.ToString();
@@ -184,6 +187,8 @@ namespace HIS.Infrastructure.Services.HL7
                 if (message.MessageType == "ORU")
                 {
                     eventArgs.LabResults = _parser.ParseORU(message);
+                    _logger.LogInformation("Parsed {Count} lab results from ORU ({SegmentCount} segments)",
+                        eventArgs.LabResults.Count, message.Segments.Count);
                 }
 
                 MessageReceived?.Invoke(this, eventArgs);
@@ -304,7 +309,8 @@ namespace HIS.Infrastructure.Services.HL7
                     var fullMessage = messageBuffer.ToString();
                     while (fullMessage.Contains("\x1C"))
                     {
-                        var endIndex = fullMessage.IndexOf("\x1C");
+                        // Ordinal bắt buộc — xem comment ở HandleClientAsync (bug CA1310 ICU ignorable char)
+                        var endIndex = fullMessage.IndexOf("\x1C", StringComparison.Ordinal);
                         var messageEnd = fullMessage.Length > endIndex + 1 && fullMessage[endIndex + 1] == '\x0D'
                             ? endIndex + 2
                             : endIndex + 1;

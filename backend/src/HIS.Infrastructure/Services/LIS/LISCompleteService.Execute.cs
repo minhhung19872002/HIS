@@ -525,6 +525,50 @@ public partial class LISCompleteService {
                     srd.ResultDate = DateTime.Now;
                     srd.TechnicianRunAt = DateTime.Now;
                     srd.Status = 2; // Có KQ
+
+                    // R1 (2b): KTV nhập tay LIS có per-parameter → ghi chỉ số con (giữ srd.Result tóm tắt/legacy).
+                    // Min/Max/cờ suy từ catalog LisTestParameter theo ServiceId, fallback range trong input;
+                    // đơn 1 chỉ số thì fallback thêm range của chính LabOrderItem (đã đọc ở trên).
+                    if (dto.Parameters is { Count: > 0 })
+                    {
+                        var oldParams = await _context.ServiceRequestDetailParameters
+                            .Where(x => x.ServiceRequestDetailId == srd.Id && !x.IsDeleted).ToListAsync();
+                        if (oldParams.Count > 0) _context.ServiceRequestDetailParameters.RemoveRange(oldParams); // re-run idempotent
+
+                        var catalog = await _context.LisTestParameters
+                            .Where(p => p.ServiceId == srd.ServiceId && p.IsActive && !p.IsDeleted).ToListAsync();
+                        bool single = dto.Parameters.Count == 1;
+                        int seq = 0;
+                        foreach (var p in dto.Parameters)
+                        {
+                            var cat = catalog.FirstOrDefault(c => c.Code == p.ParameterCode || c.Hl7Code == p.ParameterCode);
+                            var min = p.ReferenceMin ?? cat?.ReferenceLow ?? cat?.NormalMinMale ?? (single ? normalMin : null);
+                            var max = p.ReferenceMax ?? cat?.ReferenceHigh ?? cat?.NormalMaxMale ?? (single ? normalMax : null);
+                            var num = LabFlagEvaluator.TryParse(p.Value);
+                            var flag = LabFlagEvaluator.EvaluateFlag(num, min, max,
+                                cat?.CriticalLow ?? (single ? criticalLow : null),
+                                cat?.CriticalHigh ?? (single ? criticalHigh : null));
+                            _context.ServiceRequestDetailParameters.Add(new ServiceRequestDetailParameter
+                            {
+                                Id = Guid.NewGuid(),
+                                ServiceRequestDetailId = srd.Id,
+                                ParameterCode = p.ParameterCode,
+                                ParameterName = p.ParameterName,
+                                Value = p.Value,
+                                NumericValue = num,
+                                Unit = string.IsNullOrEmpty(p.Unit) ? cat?.Unit : p.Unit,
+                                ReferenceMin = min,
+                                ReferenceMax = max,
+                                ReferenceRange = LabFlagEvaluator.BuildReferenceRange(min, max),
+                                Flag = flag,
+                                SequenceNumber = seq++,
+                                CreatedAt = DateTime.Now,
+                            });
+                        }
+                        if (string.IsNullOrWhiteSpace(srd.Result))
+                            srd.Result = string.Join("; ", dto.Parameters.Select(p => $"{p.ParameterName} {p.Value}"));
+                    }
+
                     await _context.SaveChangesAsync();
                 }
             }
