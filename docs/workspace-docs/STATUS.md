@@ -1,6 +1,26 @@
 # STATUS — đang ở đâu · blocker · việc kế tiếp
 
-> Cập nhật cuối: **2026-06-08 ~22:30** (FLOW-4 + FLOW-FINAL bảo mật + P1/P2 bounded + F1 feature). **Mai làm tiếp.**
+> Cập nhật cuối: **2026-06-12** (đối chiếu git origin + push docling docs). Phần dưới (≤2026-06-08) là LỊCH SỬ.
+
+## ⚠️ 2026-06-12 — ĐỐI CHIẾU GIT ORIGIN (nguồn-sự-thật xuyên máy) + push docling docs
+
+> **Bài học**: workspace-docs **không push** → 2 máy phân kỳ âm thầm. **Trước khi pick việc PHẢI**
+> `git fetch` + đọc `git log origin/main` (KHÔNG tin docs local). Phiên này tôi đã lỡ làm B2 trùng vì bỏ bước đó.
+
+- **Máy khác đã push (origin, chuỗi R-series + dot):** `b9dbe17 R2 portal self-login` (đóng IDOR, role `PortalPatient`,
+  claim-scoped, fix register-500 + plaintext pw + link-no-verify) · `51318ab R3 multi-facility Tier1` (Users.BranchId,
+  JWT claim, write-path stamp, mig 89) · `50834dd R4 NFR` (backup/DR + load-test plan) · `56f4772` **unify lab models +
+  gỡ model 2/3** (đóng #14e, mig 91/92) · `c3a0da6` seed LisTestParameters · `64f6cca` infusion persist (mig 94) ·
+  `ae8d5a8` telemedicine e-prescription FE↔pharmacy · `b92ae18` TT46 EMR immutability/versioning (mig 95).
+- **B2 tôi làm phiên này = TRÙNG R2 → ĐÃ BỎ** (xóa 2 file untracked; tracked changes giữ ở `git stash` "B2-local-wip"
+  làm backup, có thể `git stash drop` khi chắc). R2 đầy đủ hơn (403 mismatch + ownership check + e2e/smoke).
+- **Push phiên này**: `cc087ca docs(requirements)` — 156 .md docling + `scripts/docling_convert.py` + gitignore artifacts
+  (workspace-docs giữ LOCAL như thường lệ). Migration mới nhất origin: **95**.
+
+### Còn tồn (chức năng mới — đã trừ trùng R-series)
+- #16 hội chẩn/nutrition/ADR persist · R-series tiếp (nếu máy kia chưa làm — **fetch trước**) · đa cơ sở R3 mở rộng Tier2+.
+
+## (LỊCH SỬ ≤2026-06-08) ────────────────────────────────────────
 
 ## ✅ PHIÊN 2026-06-08 (chiều→tối) — FLOW-4 + bảo mật + F1 (đã PUSH phần code, F1 CHƯA commit)
 

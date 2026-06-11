@@ -44,8 +44,8 @@
 - **#14d ✅ 2026-06-08 (đóng #8 đầy đủ)**: thêm `RadiologyRequest.SourceServiceRequestDetailId` (**mig 80**);
   `mark-performed` tạo `RadiologyRequest` (model 4) từ SRD nếu chưa có (idempotent qua link) + set SRD.Status=1 →
   radiologist có phiếu để tường trình KQ CĐHA. (Phiếu model 4 trước chỉ sinh qua `AddOn` cần parent + seed.)
-- **#14e ⏸️ CHECKPOINT**: sau khi không còn reader thật model 2/3 (hoàn tất #14b-remaining) → migration gỡ bảng
-  model 2/3. ⚠️ **DESTRUCTIVE — luôn hỏi user trước.** Chưa làm.
+- **#14e ✅ XONG (commit `56f4772` máy khác, 2026-06-11)**: unify lab data models — migrate mọi reader/writer về
+  ServiceRequest (model 1), **gỡ bảng model 2/3** (mig 91/92). Đã đóng checkpoint DESTRUCTIVE này.
 > ⚠️ **CHECKPOINT trước #14a**: đổi contract FE + xóa code → cần user duyệt. Đã DỪNG ở P0 (khảo sát) 2026-06-08.
 
 ### #14 — Hợp nhất 4 mô hình dữ liệu CLS (mô tả gốc)  🔴 HARD · blast-radius RẤT LỚN
@@ -105,7 +105,12 @@ PDF/FHIR/DQGVN) đọc + tô màu. Khi đó các export cấu trúc (PdfGen/FHIR
   hết hạn/đình chỉ/thu hồi (`!IsValid && LicenseExpiry.HasValue`); KHÔNG chặn BS chưa có record (tránh vỡ).
 - **B3 ✅ một phần XONG 2026-06-08**: `[Authorize(Roles="Admin,Doctor,DepartmentHead,Nurse")]` cho
   `DigitalSignatureController` + `CentralSigningController` (loại lễ tân/kế toán ký số).
-- **B2 ⏸️ DEFER → FEATURE (đã verify kỹ 2026-06-08)**: IDOR `/api/portal/*` nhận `patientId`/`accountId` từ query
+- **B2 ✅ XONG (R2 — commit `b9dbe17` máy khác, 2026-06-11)**: portal patient self-login — `POST /api/portal/login`
+  (BCrypt + lockout 5/15min) phát JWT role `PortalPatient` + claim patientId; `/api/portal/*` dual-mode (PortalPatient
+  derive id từ claim, query≠claim → **403**; staff giữ query) + ownership check by-id; `account/link-record` bắt buộc
+  verify (SĐT/CCCD/DOB); fix register-500 (PatientId nullable, mig 88) + plaintext pw + link-no-verify. FE standalone
+  `/patient-portal` (PatientPortalStandalone.tsx) + e2e + prod smoke. *(Mô tả DEFER cũ giữ bên dưới làm lịch sử.)*
+- **B2 (mô tả DEFER cũ — đã được R2 đóng)**: IDOR `/api/portal/*` nhận `patientId`/`accountId` từ query
   (ExtendedWorkflowControllers :828-992). **Kết luận sau khi đọc code**: model hiện tại là **staff-on-behalf** —
   KHÔNG có patient self-login. Cụ thể: (1) `RegisterAccountAsync` tạo PortalAccount Status=Pending, KHÔNG set PatientId;
   (2) `LinkPatientRecordAsync` CÓ link `account.PatientId = patient.Id` sau verify; (3) **KHÔNG có portal-login route**
@@ -143,5 +148,5 @@ PDF/FHIR/DQGVN) đọc + tô màu. Khi đó các export cấu trúc (PdfGen/FHIR
 ## Nguyên tắc thực thi (his-tech-debt-workflow)
 - Dễ → khó; mỗi item: build-gate 2 tầng + regression Prompt 12 trước khi báo xong.
 - **KHÔNG commit/push** khi chưa có lệnh; workspace-docs **không bao giờ push**.
-- Migration idempotent (`IF NOT EXISTS`), số kế tiếp theo thư mục `Data/Scripts/` (mới nhất: **79**).
+- Migration idempotent (`IF NOT EXISTS`), số kế tiếp theo thư mục `Data/Scripts/` (mới nhất: **95** — luôn `ls` thư mục, đừng tin số này).
 - #14 đụng data prod → backup + dry-run + verify count bắt buộc; chia pha nhỏ, dừng giữa pha để review.
