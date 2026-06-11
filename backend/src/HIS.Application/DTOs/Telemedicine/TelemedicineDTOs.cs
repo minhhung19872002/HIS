@@ -142,18 +142,20 @@ namespace HIS.Application.DTOs.Telemedicine
 
     public class TelePrescriptionItemDto
     {
+        // F8: field mô tả là OPTIONAL (string? — tránh nullable-ref implicit-required trả 400
+        // "The Route field is required" khi FE kê đơn không nhập đủ). Service đã fallback ?? "".
         public int RowNumber { get; set; }
         public Guid DrugId { get; set; }
-        public string DrugCode { get; set; }
-        public string DrugName { get; set; }
-        public string Strength { get; set; }
-        public string Unit { get; set; }
+        public string? DrugCode { get; set; }
+        public string? DrugName { get; set; }
+        public string? Strength { get; set; }
+        public string? Unit { get; set; }
         public decimal Quantity { get; set; }
-        public string Dosage { get; set; }
-        public string Frequency { get; set; }
-        public string Route { get; set; }
+        public string? Dosage { get; set; }
+        public string? Frequency { get; set; }
+        public string? Route { get; set; }
         public int DurationDays { get; set; }
-        public string Instructions { get; set; }
+        public string? Instructions { get; set; }
     }
 
     /// <summary>
@@ -161,11 +163,12 @@ namespace HIS.Application.DTOs.Telemedicine
     /// </summary>
     public class SendPrescriptionToPharmacyDto
     {
+        // F8: chỉ PrescriptionId bắt buộc — luồng nội viện không cần pharmacy/delivery (string? tránh implicit-required 400)
         public Guid PrescriptionId { get; set; }
         public Guid PharmacyId { get; set; }
-        public string DeliveryAddress { get; set; }
-        public string DeliveryPhone { get; set; }
-        public string DeliveryNote { get; set; }
+        public string? DeliveryAddress { get; set; }
+        public string? DeliveryPhone { get; set; }
+        public string? DeliveryNote { get; set; }
     }
 
     #endregion

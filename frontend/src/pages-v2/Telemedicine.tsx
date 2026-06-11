@@ -1,12 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { App as AntdApp } from 'antd';
+import { App as AntdApp, Input, InputNumber, Select } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { getAppointments, confirmAppointment, cancelAppointment } from '../api/telemedicine';
-import type { TelemedicineAppointmentDto } from '../api/telemedicine';
+import {
+  getAppointments, confirmAppointment, cancelAppointment,
+  createEPrescription, signEPrescription, sendToPharmacy,
+} from '../api/telemedicine';
+import type { TelemedicineAppointmentDto, TelePrescriptionDto, TelePrescriptionItemInput } from '../api/telemedicine';
+import { searchMedicines } from '../api/examination';
+import type { MedicineDto } from '../api/examination';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell,
+  StatusBadge, ActBtn, Btn, DrawerShell, ModalShell,
   type ColumnDef, type StatusTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -48,6 +53,7 @@ const TelemedicineV2: React.FC = () => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState<TelemedicineAppointmentDto | null>(null);
+  const [rxFor, setRxFor] = useState<TelemedicineAppointmentDto | null>(null); // F8: kê đơn từ buổi tele
   const PAGE_SIZE = 16;
 
   const reload = () => {
@@ -253,6 +259,11 @@ const TelemedicineV2: React.FC = () => {
                 <TermIcon name="x" size={12} /> Huỷ
               </Btn>
             )}
+            {detail.sessionId && ![4, 5].includes(detail.status) && (
+              <Btn variant="ok" onClick={() => setRxFor(detail)}>
+                <TermIcon name="pill" size={12} /> Kê đơn thuốc
+              </Btn>
+            )}
             {detail.videoRoomUrl && (
               <Btn variant="primary" onClick={() => onJoin(detail)}>
                 <TermIcon name="play" size={12} /> Vào phòng
@@ -263,7 +274,202 @@ const TelemedicineV2: React.FC = () => {
       >
         {detail && <TelemedicineDrawerBody r={detail} />}
       </DrawerShell>
+
+      <TeleRxModal appt={rxFor} onClose={() => setRxFor(null)} />
     </div>
+  );
+};
+
+/* ─────────── F8: Modal kê đơn tele → ký → gửi quầy phát ─────────── */
+interface RxRowDraft {
+  key: number;
+  medicine: MedicineDto | null;
+  quantity: number;
+  dosage: string;
+  frequency: string;
+  durationDays: number;
+  instructions: string;
+}
+const emptyRxRow = (key: number): RxRowDraft =>
+  ({ key, medicine: null, quantity: 1, dosage: '', frequency: '', durationDays: 1, instructions: '' });
+
+const TeleRxModal: React.FC<{ appt: TelemedicineAppointmentDto | null; onClose: () => void }> = ({ appt, onClose }) => {
+  const { message } = AntdApp.useApp();
+  const [rows, setRows] = useState<RxRowDraft[]>([emptyRxRow(1)]);
+  const [note, setNote] = useState('');
+  const [options, setOptions] = useState<MedicineDto[]>([]);
+  const [created, setCreated] = useState<TelePrescriptionDto | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!appt) return;
+    setRows([emptyRxRow(1)]); setNote(''); setCreated(null); setOptions([]);
+  }, [appt]);
+
+  const onSearchMedicine = (kw: string) => {
+    if (!kw || kw.trim().length < 2) return;
+    searchMedicines(kw.trim()).then((r) => setOptions(Array.isArray(r.data) ? r.data : [])).catch(() => setOptions([]));
+  };
+
+  const setRow = (key: number, patch: Partial<RxRowDraft>) =>
+    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+
+  const doCreate = async () => {
+    if (!appt?.sessionId) { message.warning('Buổi khám chưa có phiên video (sessionId)'); return; }
+    const items: TelePrescriptionItemInput[] = rows
+      .filter((r) => r.medicine && r.quantity > 0)
+      .map((r) => ({
+        drugId: r.medicine!.id,
+        drugCode: r.medicine!.code,
+        drugName: r.medicine!.name,
+        unit: r.medicine!.unit,
+        quantity: r.quantity,
+        dosage: r.dosage.trim() || undefined,
+        frequency: r.frequency.trim() || undefined,
+        durationDays: r.durationDays || undefined,
+        instructions: r.instructions.trim() || undefined,
+      }));
+    if (!items.length) { message.warning('Chọn ít nhất 1 thuốc'); return; }
+    setBusy(true);
+    try {
+      const r = await createEPrescription(appt.sessionId, items, note.trim() || undefined);
+      setCreated(r.data);
+      message.success(`Đã tạo đơn ${r.data?.prescriptionCode ?? ''}`);
+    } catch { message.error('Tạo đơn thất bại'); }
+    finally { setBusy(false); }
+  };
+
+  const doSign = async () => {
+    if (!created) return;
+    setBusy(true);
+    try {
+      const r = await signEPrescription(created.id);
+      setCreated((c) => (c ? { ...c, status: r.data?.status ?? 'Signed' } : c));
+      message.success('Đã ký đơn');
+    } catch { message.error('Ký đơn thất bại'); }
+    finally { setBusy(false); }
+  };
+
+  const doSend = async () => {
+    if (!created) return;
+    setBusy(true);
+    try {
+      const ok = (await sendToPharmacy(created.id)).data;
+      if (ok) {
+        setCreated((c) => (c ? { ...c, status: 'SentToPharmacy' } : c));
+        message.success('Đã gửi đơn sang quầy phát thuốc');
+      } else message.error('Gửi quầy phát thất bại');
+    } catch { message.error('Gửi quầy phát thất bại'); }
+    finally { setBusy(false); }
+  };
+
+  const medOptions = options.map((m) => ({
+    value: m.id,
+    label: `${m.code} · ${m.name}${m.unit ? ` (${m.unit})` : ''}`,
+  }));
+
+  return (
+    <ModalShell
+      open={!!appt}
+      onClose={onClose}
+      size="lg"
+      title="Kê đơn thuốc khám từ xa"
+      sub={appt ? `${appt.patientName} · ${appt.appointmentCode}` : ''}
+      footer={
+        created ? (
+          <>
+            <span style={{ fontSize: 12.5 }}>
+              Đơn <b className="mono">{created.prescriptionCode}</b> · <span className="chip info">{created.status}</span>
+            </span>
+            <span style={{ flex: 1 }} />
+            <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
+            {created.status === 'Draft' && (
+              <Btn variant="ok" disabled={busy} onClick={doSign}><TermIcon name="check" size={12} /> Ký đơn</Btn>
+            )}
+            {created.status !== 'SentToPharmacy' && (
+              <Btn variant="primary" disabled={busy} onClick={doSend}>
+                <TermIcon name="send" size={12} /> Gửi quầy phát
+              </Btn>
+            )}
+          </>
+        ) : (
+          <>
+            <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+            <span style={{ flex: 1 }} />
+            <Btn variant="ghost" onClick={() => setRows((rs) => [...rs, emptyRxRow(Math.max(0, ...rs.map((x) => x.key)) + 1)])}>
+              <TermIcon name="plus" size={12} /> Thêm dòng
+            </Btn>
+            <Btn variant="primary" disabled={busy} onClick={doCreate}>
+              {busy ? 'Đang tạo…' : 'Tạo đơn'}
+            </Btn>
+          </>
+        )
+      }
+    >
+      {created ? (
+        <div className="rec-section">
+          <h5><TermIcon name="pill" size={11} /> ĐƠN ĐÃ TẠO</h5>
+          <div className="rec-kv">
+            <span>Mã đơn</span><b className="mono">{created.prescriptionCode}</b>
+            <span>Trạng thái</span><span><span className="chip info">{created.status}</span></span>
+            <span>Số thuốc</span><span>{created.items?.length ?? 0}</span>
+          </div>
+          <div style={{ marginTop: 10, fontSize: 12.5, color: 'var(--t-2)' }}>
+            Ký đơn rồi gửi sang quầy phát — quầy sẽ thấy đơn chờ cấp phát (mã TELE-…).
+          </div>
+        </div>
+      ) : (
+        <>
+          {rows.map((r, idx) => (
+            <div key={r.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 10, flexWrap: 'wrap' }}>
+              <div style={{ flex: '2 1 260px', minWidth: 240 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>Thuốc #{idx + 1}</div>
+                <Select
+                  showSearch
+                  style={{ width: '100%' }}
+                  placeholder="Gõ ≥2 ký tự để tìm thuốc…"
+                  filterOption={false}
+                  onSearch={onSearchMedicine}
+                  options={medOptions}
+                  value={r.medicine?.id}
+                  onChange={(v) => setRow(r.key, { medicine: options.find((m) => m.id === v) ?? r.medicine })}
+                  notFoundContent="Gõ để tìm trong danh mục thuốc"
+                />
+              </div>
+              <div style={{ width: 90 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>SL</div>
+                <InputNumber min={1} style={{ width: '100%' }} value={r.quantity} onChange={(v) => setRow(r.key, { quantity: v ?? 1 })} />
+              </div>
+              <div style={{ width: 140 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>Liều dùng</div>
+                <Input value={r.dosage} onChange={(e) => setRow(r.key, { dosage: e.target.value })} placeholder="1 viên/lần" />
+              </div>
+              <div style={{ width: 130 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>Tần suất</div>
+                <Input value={r.frequency} onChange={(e) => setRow(r.key, { frequency: e.target.value })} placeholder="2 lần/ngày" />
+              </div>
+              <div style={{ width: 90 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>Số ngày</div>
+                <InputNumber min={1} style={{ width: '100%' }} value={r.durationDays} onChange={(v) => setRow(r.key, { durationDays: v ?? 1 })} />
+              </div>
+              <div style={{ flex: '1 1 160px', minWidth: 150 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>Hướng dẫn</div>
+                <Input value={r.instructions} onChange={(e) => setRow(r.key, { instructions: e.target.value })} placeholder="Sau ăn…" />
+              </div>
+              {rows.length > 1 && (
+                <Btn variant="ghost" onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))} style={{ color: 'var(--s-crit)' }}>
+                  <TermIcon name="x" size={12} />
+                </Btn>
+              )}
+            </div>
+          ))}
+          <div style={{ marginTop: 6 }}>
+            <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>Ghi chú đơn</div>
+            <Input.TextArea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Lời dặn của bác sĩ…" />
+          </div>
+        </>
+      )}
+    </ModalShell>
   );
 };
 

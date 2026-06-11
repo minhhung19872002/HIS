@@ -336,9 +336,10 @@ const Telemedicine: React.FC = () => {
         message.warning('Không có phiên khám để kê đơn');
         return;
       }
-      await createEPrescription({
-        consultationId: activeConsultation.id,
-        items: (values.medicines || []).map((m) => ({
+      // F8: BE contract thật nhận sessionId (không phải consultationId) + items TelePrescriptionItemInput
+      await createEPrescription(
+        activeConsultation.sessionId,
+        (values.medicines || []).map((m) => ({
           drugId: m.drugId,
           quantity: Number(m.quantity) || 1,
           dosage: m.dosage.trim(),
@@ -347,8 +348,8 @@ const Telemedicine: React.FC = () => {
           durationDays: Number(m.durationDays),
           instructions: m.instruction?.trim(),
         })),
-        instructions: values.advice?.trim(),
-      });
+        values.advice?.trim(),
+      );
       message.success('Đã lưu đơn thuốc');
       setIsPrescriptionModalOpen(false);
       prescriptionForm.resetFields();

@@ -218,82 +218,30 @@ export interface CompleteConsultationDto {
 // #endregion
 
 // #region E-Prescription DTOs
+// F8 (2026-06-11): viết lại khớp contract BE THẬT (/telemedicine/prescriptions — TelePrescription*Dto).
+// Bộ interface cũ (EPrescriptionDto/CreateEPrescriptionDto/SendToPharmacyDto, field consultationId/deliveryMethod)
+// là stub không khớp BE và không page nào dùng — đã gỡ.
 
-export interface EPrescriptionDto {
-  id: string;
-  prescriptionCode: string;
-  consultationId: string;
-  patientId: string;
-  patientName: string;
-  patientDob?: string;
-  patientAddress?: string;
-  doctorId: string;
-  doctorName: string;
-  doctorLicenseNumber: string;
-  facilityName: string;
-  facilityCode: string;
-  diagnosisMain?: string;
-  diagnosisMainIcd?: string;
-  items: EPrescriptionItemDto[];
-  instructions?: string;
-  totalAmount: number;
-  qrCode: string;
-  digitalSignature?: string;
-  validFrom: string;
-  validTo: string;
-  status: number;
-  statusName: string;
-  sentToPharmacy: boolean;
-  pharmacyId?: string;
-  pharmacyName?: string;
-  dispensedAt?: string;
-  createdAt: string;
-}
-
-export interface EPrescriptionItemDto {
-  id: string;
-  prescriptionId: string;
+/** Item kê đơn tele — map BE TelePrescriptionItemDto (DrugId = Medicine.Id). */
+export interface TelePrescriptionItemInput {
   drugId: string;
-  drugCode: string;
-  drugName: string;
-  activeIngredient?: string;
-  strength?: string;
-  dosageForm?: string;
+  drugCode?: string;
+  drugName?: string;
+  unit?: string;
   quantity: number;
-  unit: string;
-  dosage: string;
-  frequency: string;
-  route: string;
-  durationDays: number;
-  instructions?: string;
-  warnings?: string;
-  unitPrice: number;
-  amount: number;
-}
-
-export interface CreateEPrescriptionDto {
-  consultationId: string;
-  items: CreatePrescriptionItemDto[];
-  instructions?: string;
-  pharmacyId?: string;
-}
-
-export interface CreatePrescriptionItemDto {
-  drugId: string;
-  quantity: number;
-  dosage: string;
-  frequency: string;
+  dosage?: string;
+  frequency?: string;
   route?: string;
-  durationDays: number;
+  durationDays?: number;
   instructions?: string;
 }
 
-export interface SendToPharmacyDto {
-  prescriptionId: string;
-  pharmacyId: string;
-  patientAddress?: string;
-  deliveryMethod: number; // 1-Pickup, 2-Delivery
-  notes?: string;
+/** Đơn thuốc tele — map BE TelePrescriptionDto (Status: Draft | Signed | SentToPharmacy | Dispensed). */
+export interface TelePrescriptionDto {
+  id: string;
+  prescriptionCode?: string;
+  status?: string;
+  items?: TelePrescriptionItemInput[];
 }
 
 // #endregion
@@ -478,28 +426,19 @@ export const getPatientConsultationHistory = (patientId: string, page?: number, 
 
 // #endregion
 
-// #region E-Prescriptions
+// #region E-Prescriptions (F8 — 3 endpoint BE thật; các fn cũ trỏ endpoint không tồn tại đã gỡ)
 
-export const createEPrescription = (dto: CreateEPrescriptionDto) =>
-  apiClient.post<EPrescriptionDto>(`${BASE_URL}/prescriptions`, dto);
+/** Kê đơn từ buổi tele (persist TelePrescription + items). */
+export const createEPrescription = (sessionId: string, items: TelePrescriptionItemInput[], note?: string) =>
+  apiClient.post<TelePrescriptionDto>(`${BASE_URL}/prescriptions`, { sessionId, items, note });
 
-export const getEPrescription = (id: string) =>
-  apiClient.get<EPrescriptionDto>(`${BASE_URL}/prescriptions/${id}`);
+/** BS ký đơn (Draft → Signed). */
+export const signEPrescription = (id: string) =>
+  apiClient.post<TelePrescriptionDto>(`${BASE_URL}/prescriptions/${id}/sign`);
 
-export const getEPrescriptionByQR = (qrCode: string) =>
-  apiClient.get<EPrescriptionDto>(`${BASE_URL}/prescriptions/qr/${qrCode}`);
-
-export const sendToPharmacy = (dto: SendToPharmacyDto) =>
-  apiClient.post<EPrescriptionDto>(`${BASE_URL}/prescriptions/send-to-pharmacy`, dto);
-
-export const cancelEPrescription = (id: string, reason: string) =>
-  apiClient.post<boolean>(`${BASE_URL}/prescriptions/${id}/cancel`, { reason });
-
-export const searchPharmacies = (keyword: string, location?: string) =>
-  apiClient.get(`${BASE_URL}/pharmacies/search`, { params: { keyword, location } });
-
-export const printEPrescription = (id: string) =>
-  apiClient.get(`${BASE_URL}/prescriptions/${id}/print`, { responseType: 'blob' });
+/** Gửi đơn sang quầy phát thuốc nội viện (tạo Prescription thật, idempotent). */
+export const sendToPharmacy = (prescriptionId: string) =>
+  apiClient.post<boolean>(`${BASE_URL}/prescriptions/send-to-pharmacy`, { prescriptionId });
 
 // #endregion
 
@@ -557,14 +496,10 @@ export default {
   updateConsultation,
   completeConsultation,
   getPatientConsultationHistory,
-  // E-Prescriptions
+  // E-Prescriptions (F8)
   createEPrescription,
-  getEPrescription,
-  getEPrescriptionByQR,
+  signEPrescription,
   sendToPharmacy,
-  cancelEPrescription,
-  searchPharmacies,
-  printEPrescription,
   // Patient Account
   getPatientTelemedAccount,
   updateNotificationPreferences,
