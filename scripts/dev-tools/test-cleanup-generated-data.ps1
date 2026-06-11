@@ -19,6 +19,9 @@ DECLARE @AutoPatients TABLE (Id uniqueidentifier);
 DECLARE @AutoAdmissions TABLE (Id uniqueidentifier);
 DECLARE @AutoMedicalRecords TABLE (Id uniqueidentifier);
 
+-- E2E patient-portal.spec.ts: account portal pwauto% (BN [AUTO-REG] PWAUTO đã được nhánh AutoPatients xử lý)
+DELETE FROM PortalAccounts WHERE Email LIKE 'pwauto%';
+
 -- #14e-B: seed LIS giờ là ServiceRequests model 1 (LabOrders/LabOrderItems đã drop)
 DELETE FROM ServiceRequestDetailParameters
 WHERE ServiceRequestDetailId IN (

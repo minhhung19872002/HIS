@@ -245,7 +245,7 @@ describe('NangCap3 Modules', () => {
 
   describe('Patient Portal - News', () => {
     it('loads page and has news tab', () => {
-      visitPage('/patient-portal');
+      visitPage('/patient-portal-staff');
       cy.get('.ant-card').should('have.length.at.least', 1);
       cy.get('.ant-tabs-tab').should('have.length.at.least', 2);
       cy.get('.ant-tabs-tab').filter((_: number, el: HTMLElement) =>

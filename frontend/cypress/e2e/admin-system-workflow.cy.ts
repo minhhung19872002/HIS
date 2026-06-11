@@ -4,16 +4,16 @@
  * Admin & System Pages Workflow Tests
  *
  * Covers 10 admin/system pages without dedicated workflow specs:
- * - /admin (SystemAdmin)     - Luồng 16
- * - /reports                 - Luồng 99
- * - /bhxh-audit              - Luồng 89
- * - /patient-portal          - Luồng 38 (NangCap19)
- * - /lis-config              - Luồng 85
- * - /satisfaction-survey     - Luồng 38
- * - /doctor-portal           - Luồng 39
- * - /medical-record-archive  - Luồng 72
- * - /endpoint-security       - Luồng 78
- * - /consultation            - Luồng 71
+ * - /admin (SystemAdmin)     - Luá»“ng 16
+ * - /reports                 - Luá»“ng 99
+ * - /bhxh-audit              - Luá»“ng 89
+ * - /patient-portal          - Luá»“ng 38 (NangCap19)
+ * - /lis-config              - Luá»“ng 85
+ * - /satisfaction-survey     - Luá»“ng 38
+ * - /doctor-portal           - Luá»“ng 39
+ * - /medical-record-archive  - Luá»“ng 72
+ * - /endpoint-security       - Luá»“ng 78
+ * - /consultation            - Luá»“ng 71
  */
 
 const API_BASE = 'http://localhost:5106/api';
@@ -205,12 +205,12 @@ describe('Admin & System Pages Workflow', () => {
   // ==================== PATIENT PORTAL ====================
   describe('4. Patient Portal - Page & API', () => {
     it('loads /patient-portal page', () => {
-      cy.visit('/patient-portal', { waitForLoadState: 'domcontentloaded' });
+      cy.visit('/patient-portal-staff', { waitForLoadState: 'domcontentloaded' });
       cy.get('body').should('exist');
     });
 
     it('/patient-portal page shows content', () => {
-      cy.visit('/patient-portal', { waitForLoadState: 'domcontentloaded' });
+      cy.visit('/patient-portal-staff', { waitForLoadState: 'domcontentloaded' });
       cy.get('body').then($body => {
         expect($body.text().length).to.be.greaterThan(5);
       });
@@ -468,7 +468,7 @@ describe('Admin & System Pages Workflow', () => {
       '/admin',
       '/reports',
       '/bhxh-audit',
-      '/patient-portal',
+      '/patient-portal-staff',
       '/lis-config',
       '/satisfaction-survey',
       '/doctor-portal',

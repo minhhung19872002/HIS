@@ -51,11 +51,11 @@ const pages: PageDef[] = [
   { route: '/', name: 'Dashboard' },
   {
     route: '/reception', name: 'Reception',
-    buttons: ['Làm mới'],
+    buttons: ['LÃ m má»›i'],
   },
   {
     route: '/opd', name: 'OPD',
-    buttons: ['Làm mới'],
+    buttons: ['LÃ m má»›i'],
   },
   {
     route: '/prescription', name: 'Prescription',
@@ -63,28 +63,28 @@ const pages: PageDef[] = [
   {
     route: '/ipd', name: 'Inpatient',
     tabs: ['current', 'beds'],
-    buttons: ['Làm mới'],
-    skipButtons: ['Nhập viện'],
+    buttons: ['LÃ m má»›i'],
+    skipButtons: ['Nháº­p viá»‡n'],
   },
   {
     route: '/surgery', name: 'Surgery',
     tabs: ['requests', 'schedules', 'rooms', 'inprogress', 'records'],
-    buttons: ['Làm mới'],
-    skipButtons: ['Tạo yêu cầu', 'Hoàn thành'],
+    buttons: ['LÃ m má»›i'],
+    skipButtons: ['Táº¡o yÃªu cáº§u', 'HoÃ n thÃ nh'],
   },
   {
     route: '/pharmacy', name: 'Pharmacy',
     tabs: ['pending', 'inventory', 'transfers', 'alerts'],
-    buttons: ['Đồng bộ'],
+    buttons: ['Äá»“ng bá»™'],
   },
   {
     route: '/lab', name: 'Laboratory',
-    buttons: ['Làm mới'],
+    buttons: ['LÃ m má»›i'],
   },
   {
     route: '/radiology', name: 'Radiology',
     tabs: ['pending', 'worklist', 'inProgress', 'reporting', 'completed'],
-    buttons: ['Làm mới'],
+    buttons: ['LÃ m má»›i'],
   },
   {
     route: '/blood-bank', name: 'Blood Bank',
@@ -99,7 +99,7 @@ const pages: PageDef[] = [
   {
     route: '/insurance', name: 'Insurance',
     tabs: ['claims', 'xml'],
-    buttons: ['Đồng bộ'],
+    buttons: ['Äá»“ng bá»™'],
   },
   {
     route: '/master-data', name: 'Master Data',
@@ -132,7 +132,7 @@ const pages: PageDef[] = [
     route: '/quality', name: 'Quality',
   },
   {
-    route: '/patient-portal', name: 'Patient Portal',
+    route: '/patient-portal-staff', name: 'Patient Portal',
   },
   {
     route: '/health-exchange', name: 'Health Exchange',

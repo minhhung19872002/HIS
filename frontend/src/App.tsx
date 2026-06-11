@@ -424,7 +424,9 @@ const AppRoutes: React.FC = () => {
           <Route path="equipment" element={<Equipment />} />
           <Route path="hr" element={<HR />} />
           <Route path="quality" element={<Quality />} />
-          <Route path="patient-portal" element={<PatientPortal />} />
+          {/* R2 fix: /patient-portal thuộc về cổng BN standalone (route tuyệt đối khai báo sau bị
+              route nested này nuốt — bug E2E bắt được). Trang staff-on-behalf v1 dời sang path riêng. */}
+          <Route path="patient-portal-staff" element={<PatientPortal />} />
           <Route path="health-exchange" element={<HealthExchange />} />
           <Route path="emergency-disaster" element={<EmergencyDisaster />} />
           <Route path="emr" element={<EMR />} />

@@ -33,7 +33,7 @@ const pages = [
   { route: '/equipment', name: 'Equipment (Thiet bi)' },
   { route: '/hr', name: 'HR (Nhan su)' },
   { route: '/quality', name: 'Quality (Chat luong)' },
-  { route: '/patient-portal', name: 'Patient Portal (Cong BN)' },
+  { route: '/patient-portal-staff', name: 'Patient Portal (Cong BN)' },
   { route: '/health-exchange', name: 'Health Exchange (Lien thong)' },
   { route: '/emergency-disaster', name: 'Emergency (Cap cuu)' },
   { route: '/consultation', name: 'Consultation (Hoi chan)' },

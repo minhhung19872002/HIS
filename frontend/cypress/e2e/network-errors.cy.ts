@@ -133,7 +133,7 @@ const allPages: PageDef[] = [
   { route: '/equipment', name: 'Equipment' },
   { route: '/hr', name: 'HR' },
   { route: '/quality', name: 'Quality' },
-  { route: '/patient-portal', name: 'Patient Portal' },
+  { route: '/patient-portal-staff', name: 'Patient Portal' },
   { route: '/health-exchange', name: 'Health Exchange' },
   { route: '/emergency-disaster', name: 'Emergency' },
   { route: '/emr', name: 'EMR' },
@@ -223,7 +223,7 @@ describe('Network & Console Error Detection - All Pages', () => {
       });
 
       // ============ PHASE 2: Click safe buttons ============
-      const safeButtons = ['Làm mới', 'Tìm kiếm', 'Đồng bộ', 'Tải lại', 'Lọc', 'Xem', 'Reload', 'Refresh', 'Tải', 'Load'];
+      const safeButtons = ['LÃ m má»›i', 'TÃ¬m kiáº¿m', 'Äá»“ng bá»™', 'Táº£i láº¡i', 'Lá»c', 'Xem', 'Reload', 'Refresh', 'Táº£i', 'Load'];
       const clickSafeBtn = (idx: number) => {
         if (idx >= safeButtons.length) return;
         cy.get('body').then(($body) => {
@@ -277,7 +277,7 @@ describe('Network & Console Error Detection - All Pages', () => {
         }
       });
       cy.get('body').then(($body) => {
-        const $editBtns = $body.find('.ant-table-tbody .anticon-edit:visible, .ant-table-tbody button:contains("Sửa"):visible');
+        const $editBtns = $body.find('.ant-table-tbody .anticon-edit:visible, .ant-table-tbody button:contains("Sá»­a"):visible');
         if ($editBtns.length > 0) {
           ($editBtns[0] as HTMLElement).click();
           cy.wait(700);
@@ -308,8 +308,8 @@ describe('Network & Console Error Detection - All Pages', () => {
         }
       });
 
-      // ============ PHASE 7: Click Dropdown triggers / "Thêm mới" / "+" buttons ============
-      const addButtons = ['Thêm mới', 'Thêm', 'Tạo mới', 'Đăng ký', '+ Thêm'];
+      // ============ PHASE 7: Click Dropdown triggers / "ThÃªm má»›i" / "+" buttons ============
+      const addButtons = ['ThÃªm má»›i', 'ThÃªm', 'Táº¡o má»›i', 'ÄÄƒng kÃ½', '+ ThÃªm'];
       const clickAddBtn = (idx: number) => {
         if (idx >= addButtons.length) return;
         cy.get('body').then(($body) => {
@@ -396,7 +396,7 @@ describe('Network & Console Error Detection - All Pages', () => {
           }
           cy.task('log', report);
         } else {
-          cy.task('log', `  [${page.name}] ✓ OK`);
+          cy.task('log', `  [${page.name}] âœ“ OK`);
         }
 
         // Only FAIL on 500 errors or console errors - 4xx are warnings

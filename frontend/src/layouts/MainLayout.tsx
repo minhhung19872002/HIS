@@ -110,7 +110,7 @@ const MainLayout: React.FC = () => {
       integration: ['/health-exchange', '/emergency-disaster', '/clinical-guidance', '/national-gateways', '/de-an-06', '/zalo-notifications'],
       publicHealth: ['/health-checkup', '/immunization', '/epidemiology', '/school-health', '/occupational-health', '/methadone-treatment', '/food-safety', '/community-health', '/hiv-management'],
       medinetYtcc: ['/medical-forensics', '/traditional-medicine', '/reproductive-health', '/mental-health', '/environmental-health', '/trauma-registry', '/population-health', '/health-education', '/practice-license', '/inter-hospital'],
-      system: ['/master-data', '/report-catalogs', '/catalogs-admin', '/reports', '/workload-report', '/admin', '/digital-signature', '/signing-workflow', '/patient-portal', '/doctor-portal', '/satisfaction-survey', '/sms-management', '/help'],
+      system: ['/master-data', '/report-catalogs', '/catalogs-admin', '/reports', '/workload-report', '/admin', '/digital-signature', '/signing-workflow', '/patient-portal-staff', '/doctor-portal', '/satisfaction-survey', '/sms-management', '/help'],
     };
     for (const [group, routes] of Object.entries(groupMap)) {
       if (routes.includes(path)) return [group];
@@ -298,7 +298,7 @@ const MainLayout: React.FC = () => {
         { key: '/digital-signature', icon: <SafetyCertificateOutlined />, label: 'Chữ ký số' },
         { key: '/central-signing', icon: <SafetyCertificateOutlined />, label: 'Ký số tập trung' },
         { key: '/signing-workflow', icon: <AuditOutlined />, label: 'Trình ký' },
-        { key: '/patient-portal', icon: <MobileOutlined />, label: 'Cổng bệnh nhân' },
+        { key: '/patient-portal-staff', icon: <MobileOutlined />, label: 'Cổng bệnh nhân' },
         { key: '/doctor-portal', icon: <LaptopOutlined />, label: 'Cổng bác sĩ' },
         { key: '/satisfaction-survey', icon: <SmileOutlined />, label: 'Khảo sát hài lòng' },
         { key: '/endpoint-security', icon: <SafetyOutlined />, label: 'An toàn thông tin' },
