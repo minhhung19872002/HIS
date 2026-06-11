@@ -24,7 +24,7 @@ import dayjs from 'dayjs';
 import {
   checkPreDischarge, dischargePatient, cancelDischarge,
   printDischargeCertificate, printBillingStatement6556, printReferralCertificate,
-  getDiagnosisFromRecord,
+  getDiagnosisFromRecord, getAutoTreatmentSummary,
 } from '../../api/inpatient';
 import type {
   PreDischargeCheckDto, CompleteDischargeDto, InpatientListDto, ReferralCertificateDto,
@@ -110,6 +110,10 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
     void loadCheck();
     void getDiagnosisFromRecord(admissionId)
       .then((r) => { setDischargeDiagnosisCode(r.data?.mainDiagnosisCode ?? ''); setDischargeDiagnosis(r.data?.mainDiagnosis ?? ''); })
+      .catch(() => { /* optional */ });
+    // #15: prefill tóm tắt điều trị tự tổng hợp (SOAP + đơn thuốc + CLS + PTTT) — user vẫn sửa được
+    void getAutoTreatmentSummary(admissionId)
+      .then((r) => { const s = r.data?.summary; if (s) setTreatmentSummary(s); })
       .catch(() => { /* optional */ });
   }, [open, admissionId, loadCheck]);
 

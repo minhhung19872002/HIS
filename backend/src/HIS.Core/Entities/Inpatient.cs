@@ -126,3 +126,32 @@ public class Discharge : BaseEntity
     public Guid DischargedBy { get; set; }
     public virtual User DischargedBy_User { get; set; } = null!; // Bác sĩ ra viện
 }
+
+/// <summary>
+/// Phiếu theo dõi truyền dịch nội trú — #16 (2026-06-11): persist thật thay stub echo-fake
+/// (FE modal "Truyền dịch" báo thành công nhưng trước đây không lưu gì — patient-safety).
+/// </summary>
+public class InfusionRecord : BaseEntity
+{
+    public Guid AdmissionId { get; set; }
+    public virtual Admission Admission { get; set; } = null!;
+
+    public string FluidName { get; set; } = string.Empty; // Tên dịch truyền
+    public int Volume { get; set; }   // ml
+    public int DropRate { get; set; } // giọt/phút
+
+    public DateTime StartTime { get; set; }
+    public DateTime? EndTime { get; set; }
+    public int? DurationMinutes { get; set; }
+
+    public string? Route { get; set; } // Đường truyền
+    public string? AdditionalMedication { get; set; } // Thuốc pha thêm
+
+    public Guid StartedBy { get; set; }
+    public Guid? CompletedBy { get; set; }
+
+    public string? Observations { get; set; }  // Theo dõi trong truyền
+    public string? Complications { get; set; } // Biến chứng/phản ứng
+
+    public int Status { get; set; } // 0-Đang truyền, 1-Hoàn thành, 2-Ngừng
+}

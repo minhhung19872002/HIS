@@ -1580,6 +1580,10 @@ export const printNutritionSummary = (departmentId: string, date: string) =>
 
 // #region 3.6 Thông tin điều trị
 
+/** #15: BE tự tổng hợp tóm tắt quá trình điều trị (SOAP + đơn + CLS + PTTT) — prefill bệnh án ra viện. */
+export const getAutoTreatmentSummary = (admissionId: string) =>
+  apiClient.get<{ summary?: string }>(`${BASE_URL}/${admissionId}/auto-summary`);
+
 export const createTreatmentSheet = (dto: CreateTreatmentSheetDto) =>
   apiClient.post<TreatmentSheetDto>(`${BASE_URL}/treatment-sheets`, dto);
 

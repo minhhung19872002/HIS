@@ -646,9 +646,11 @@ public partial class InpatientCompleteService {
         return Encoding.UTF8.GetBytes(html);
     }
 
-    public Task<InfusionRecordDto> CreateInfusionRecordAsync(CreateInfusionRecordDto dto, Guid userId)
+    // #16 (2026-06-11): persist thật vào bảng InfusionRecords (mig 94) — trước đây echo-fake,
+    // FE báo "Đã ghi nhận truyền dịch" nhưng KHÔNG lưu gì (patient-safety).
+    public async Task<InfusionRecordDto> CreateInfusionRecordAsync(CreateInfusionRecordDto dto, Guid userId)
     {
-        return Task.FromResult(new InfusionRecordDto
+        var entity = new InfusionRecord
         {
             Id = Guid.NewGuid(),
             AdmissionId = dto.AdmissionId,
@@ -659,29 +661,64 @@ public partial class InpatientCompleteService {
             Route = dto.Route,
             AdditionalMedication = dto.AdditionalMedication,
             StartedBy = userId,
-            Status = 0 // Đang truyền
-        });
+            Status = 0, // Đang truyền
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId.ToString(),
+            IsDeleted = false,
+        };
+        _context.InfusionRecords.Add(entity);
+        await _context.SaveChangesAsync();
+        return await MapInfusionDtoAsync(entity);
     }
 
-    public Task<InfusionRecordDto> UpdateInfusionRecordAsync(Guid id, string observations, string? complications, Guid userId)
+    public async Task<InfusionRecordDto> UpdateInfusionRecordAsync(Guid id, string observations, string? complications, Guid userId)
     {
-        return Task.FromResult(new InfusionRecordDto
-        {
-            Id = id,
-            Observations = observations,
-            Complications = complications,
-            Status = 0 // Đang truyền
-        });
+        var entity = await _context.InfusionRecords.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted)
+            ?? throw new Exception("Không tìm thấy phiếu truyền dịch");
+        entity.Observations = observations;
+        entity.Complications = complications;
+        entity.UpdatedAt = DateTime.UtcNow;
+        entity.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+        return await MapInfusionDtoAsync(entity);
     }
 
-    public Task<InfusionRecordDto> CompleteInfusionAsync(Guid id, DateTime endTime, Guid userId)
+    public async Task<InfusionRecordDto> CompleteInfusionAsync(Guid id, DateTime endTime, Guid userId)
     {
-        return Task.FromResult(new InfusionRecordDto
+        var entity = await _context.InfusionRecords.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted)
+            ?? throw new Exception("Không tìm thấy phiếu truyền dịch");
+        entity.EndTime = endTime;
+        entity.DurationMinutes = (int)Math.Max(0, (endTime - entity.StartTime).TotalMinutes);
+        entity.CompletedBy = userId;
+        entity.Status = 1; // Hoàn thành
+        entity.UpdatedAt = DateTime.UtcNow;
+        entity.UpdatedBy = userId.ToString();
+        await _context.SaveChangesAsync();
+        return await MapInfusionDtoAsync(entity);
+    }
+
+    private async Task<InfusionRecordDto> MapInfusionDtoAsync(InfusionRecord e)
+    {
+        var starter = await _context.Users.AsNoTracking()
+            .Where(u => u.Id == e.StartedBy).Select(u => u.FullName).FirstOrDefaultAsync();
+        return new InfusionRecordDto
         {
-            Id = id,
-            EndTime = endTime,
-            Status = 2 // Hoàn thành
-        });
+            Id = e.Id,
+            AdmissionId = e.AdmissionId,
+            FluidName = e.FluidName,
+            Volume = e.Volume,
+            DropRate = e.DropRate,
+            StartTime = e.StartTime,
+            EndTime = e.EndTime,
+            DurationMinutes = e.DurationMinutes,
+            Route = e.Route,
+            AdditionalMedication = e.AdditionalMedication,
+            StartedBy = e.StartedBy,
+            StartedByName = starter ?? string.Empty,
+            Observations = e.Observations,
+            Complications = e.Complications,
+            Status = e.Status,
+        };
     }
 
     public Task<DateTime> CalculateInfusionEndTimeAsync(int volumeMl, int dropRate)
@@ -693,20 +730,68 @@ public partial class InpatientCompleteService {
         return Task.FromResult(endTime);
     }
 
-    public Task<List<InfusionRecordDto>> GetInfusionRecordsAsync(Guid admissionId)
+    public async Task<List<InfusionRecordDto>> GetInfusionRecordsAsync(Guid admissionId)
     {
-        return Task.FromResult(new List<InfusionRecordDto>());
+        // #16: đọc thật từ bảng InfusionRecords (trước trả rỗng)
+        var rows = await _context.InfusionRecords.AsNoTracking()
+            .Where(x => x.AdmissionId == admissionId && !x.IsDeleted)
+            .OrderByDescending(x => x.StartTime)
+            .ToListAsync();
+        var userIds = rows.Select(r => r.StartedBy).Distinct().ToList();
+        var names = await _context.Users.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.FullName);
+        return rows.Select(e => new InfusionRecordDto
+        {
+            Id = e.Id,
+            AdmissionId = e.AdmissionId,
+            FluidName = e.FluidName,
+            Volume = e.Volume,
+            DropRate = e.DropRate,
+            StartTime = e.StartTime,
+            EndTime = e.EndTime,
+            DurationMinutes = e.DurationMinutes,
+            Route = e.Route,
+            AdditionalMedication = e.AdditionalMedication,
+            StartedBy = e.StartedBy,
+            StartedByName = names.TryGetValue(e.StartedBy, out var n) ? n : string.Empty,
+            Observations = e.Observations,
+            Complications = e.Complications,
+            Status = e.Status,
+        }).ToList();
     }
 
     public async Task<byte[]> PrintInfusionRecordAsync(Guid id)
     {
-        // Infusion records are in-memory DTOs; build a generic form from the id
-        // In a full implementation this would query an InfusionRecords table
+        // #16: in từ dữ liệu thật bảng InfusionRecords (mig 94)
+        var e = await _context.InfusionRecords.AsNoTracking()
+            .Include(x => x.Admission).ThenInclude(a => a.Patient)
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+
         var bodyContent = new StringBuilder();
         bodyContent.AppendLine($@"<div class=""section-title"">THÔNG TIN TRUYỀN DỊCH</div>");
-        bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Mã phiếu:</span><span class=""field-value"">{id}</span></div>");
+        if (e == null)
+        {
+            bodyContent.AppendLine($@"<p class=""text-italic"">Không tìm thấy phiếu truyền dịch {id}.</p>");
+        }
+        else
+        {
+            var starter = await _context.Users.AsNoTracking()
+                .Where(u => u.Id == e.StartedBy).Select(u => u.FullName).FirstOrDefaultAsync();
+            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Bệnh nhân:</span><span class=""field-value"">{e.Admission?.Patient?.FullName} ({e.Admission?.Patient?.PatientCode})</span></div>");
+            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Dịch truyền:</span><span class=""field-value"">{e.FluidName}</span></div>");
+            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Thể tích / tốc độ:</span><span class=""field-value"">{e.Volume} ml — {e.DropRate} giọt/phút</span></div>");
+            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Đường truyền:</span><span class=""field-value"">{e.Route ?? "—"}</span></div>");
+            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Thuốc pha thêm:</span><span class=""field-value"">{e.AdditionalMedication ?? "—"}</span></div>");
+            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Bắt đầu:</span><span class=""field-value"">{e.StartTime:dd/MM/yyyy HH:mm}</span></div>");
+            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Kết thúc:</span><span class=""field-value"">{(e.EndTime.HasValue ? e.EndTime.Value.ToString("dd/MM/yyyy HH:mm") : "Đang truyền")}</span></div>");
+            bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Người thực hiện:</span><span class=""field-value"">{starter ?? "—"}</span></div>");
+            if (!string.IsNullOrEmpty(e.Observations))
+                bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Theo dõi:</span><span class=""field-value"">{e.Observations}</span></div>");
+            if (!string.IsNullOrEmpty(e.Complications))
+                bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Biến chứng:</span><span class=""field-value"">{e.Complications}</span></div>");
+        }
         bodyContent.AppendLine($@"<div class=""field""><span class=""field-label"">Ngày in:</span><span class=""field-value"">{DateTime.Now:dd/MM/yyyy HH:mm}</span></div>");
-        bodyContent.AppendLine($@"<p class=""text-italic"">Chi tiết truyền dịch sẽ được cập nhật khi có bảng InfusionRecords trong DB.</p>");
 
         var body = new StringBuilder();
         body.AppendLine(GetHospitalHeader());
@@ -715,7 +800,7 @@ public partial class InpatientCompleteService {
         body.AppendLine(GetSignatureBlock());
 
         var html = WrapHtmlPage("Phiếu theo dõi truyền dịch", body.ToString());
-        return await Task.FromResult(Encoding.UTF8.GetBytes(html));
+        return Encoding.UTF8.GetBytes(html);
     }
 
     public Task<BloodTransfusionDto> CreateBloodTransfusionAsync(CreateBloodTransfusionDto dto, Guid userId)

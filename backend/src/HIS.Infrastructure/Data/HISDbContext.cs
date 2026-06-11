@@ -304,6 +304,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<DailyProgress> DailyProgresses => Set<DailyProgress>();
     public DbSet<NursingCare> NursingCares => Set<NursingCare>();
     public DbSet<Discharge> Discharges => Set<Discharge>();
+    public DbSet<InfusionRecord> InfusionRecords => Set<InfusionRecord>(); // #16: truyền dịch persist thật
 
     // Phẫu thuật (Surgery)
     public DbSet<SurgeryRequest> SurgeryRequests => Set<SurgeryRequest>();
