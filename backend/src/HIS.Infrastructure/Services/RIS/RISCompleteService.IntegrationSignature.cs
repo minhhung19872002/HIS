@@ -16,7 +16,7 @@ using HIS.Infrastructure.Data;
 namespace HIS.Infrastructure.Services;
 
 // K3 phien 9 (2026-05-30): tach 3 region (Integration Log + Digital Signature + Statistics,
-// ~418 dong) khoi RISCompleteService.cs. ZERO runtime change — partial class.
+// ~418 dong) khoi RISCompleteService.cs. ZERO runtime change â€” partial class.
 // File goc giu (~298 dong): using + ctor + 13 DI deps + PACS config + Private Helper Methods.
 public partial class RISCompleteService
 {
@@ -166,7 +166,7 @@ public partial class RISCompleteService
 
     #endregion
 
-    #region Digital Signature - Ký số
+    #region Digital Signature - KÃ½ sá»‘
 
     public async Task<List<DigitalSignatureConfigDto>> GetSignatureConfigsAsync()
     {
@@ -270,7 +270,7 @@ public partial class RISCompleteService
                         {
                             Id = Guid.NewGuid(),
                             RadiologyExamId = firstExam.Id,
-                            RadiologistId = Guid.Parse("9e5309dc-ecf9-4d48-9a09-224cd15347b1"), // Admin user
+                            RadiologistId = GetCurrentUserIdOrAdmin(), // Admin user
                             Findings = "Ky so tu dong",
                             ReportDate = DateTime.Now,
                             Status = 1,
@@ -292,7 +292,7 @@ public partial class RISCompleteService
         {
             Id = Guid.NewGuid(),
             RadiologyReportId = report.Id,
-            SignedByUserId = Guid.Parse("9e5309dc-ecf9-4d48-9a09-224cd15347b1"), // Current user
+            SignedByUserId = GetCurrentUserIdOrAdmin(), // Current user
             SignatureType = request.SignatureType ?? "DIGITAL",
             SignedAt = DateTime.Now,
             Status = 1, // Signed

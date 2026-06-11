@@ -39,6 +39,8 @@ public partial class RISCompleteService : IRISCompleteService
     private readonly IConfiguration _configuration;
     private readonly IResultNotificationService _notificationService;
     private readonly ILogger<RISCompleteService> _logger;
+    private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor? _httpContextAccessor;
+    private Guid? _adminUserIdCache;
 
     // PACS configuration (optional - for future integration)
     private readonly string _pacsBaseUrl;
@@ -58,8 +60,10 @@ public partial class RISCompleteService : IRISCompleteService
         IUnitOfWork unitOfWork,
         IConfiguration configuration,
         IResultNotificationService notificationService,
-        ILogger<RISCompleteService> logger)
+        ILogger<RISCompleteService> logger,
+        Microsoft.AspNetCore.Http.IHttpContextAccessor? httpContextAccessor = null)
     {
+        _httpContextAccessor = httpContextAccessor;
         _context = context;
         _patientRepo = patientRepo;
         _radiologyRequestRepo = radiologyRequestRepo;
@@ -84,6 +88,24 @@ public partial class RISCompleteService : IRISCompleteService
 
 
     #region Private Helper Methods
+
+    /// <summary>
+    /// User thật từ HttpContext claim thay vì hardcode admin GUID (roadmap data-quality:
+    /// "hội chẩn organizer hardcode 9e5309dc..."). Fallback: user admin trong DB khi gọi
+    /// ngoài HTTP scope (worker/seed); last-resort = GUID admin seed cũ để không vỡ FK.
+    /// </summary>
+    private Guid GetCurrentUserIdOrAdmin()
+    {
+        var claim = _httpContextAccessor?.HttpContext?.User?
+            .FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (Guid.TryParse(claim, out var id)) return id;
+
+        _adminUserIdCache ??= _context.Users.AsNoTracking()
+            .Where(u => u.Username == "admin" && !u.IsDeleted)
+            .Select(u => (Guid?)u.Id)
+            .FirstOrDefault();
+        return _adminUserIdCache ?? Guid.Parse("9e5309dc-ecf9-4d48-9a09-224cd15347b1");
+    }
 
     private string GenerateAccessionNumber()
     {

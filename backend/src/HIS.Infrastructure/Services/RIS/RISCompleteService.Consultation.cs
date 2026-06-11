@@ -16,10 +16,10 @@ using HIS.Infrastructure.Data;
 namespace HIS.Infrastructure.Services;
 
 // K3 phien 2 (2026-05-30): tach RIS region V Consultation (Hoi chan ca chup, ~522 dong) khoi
-// RISCompleteService.cs. ZERO runtime change — partial class.
+// RISCompleteService.cs. ZERO runtime change â€” partial class.
 public partial class RISCompleteService
 {
-    #region V. Consultation - Hội chẩn ca chụp
+    #region V. Consultation - Há»™i cháº©n ca chá»¥p
 
     public async Task<ConsultationSearchResultDto> SearchConsultationsAsync(SearchConsultationDto searchDto)
     {
@@ -129,7 +129,7 @@ public partial class RISCompleteService
             {
                 Id = Guid.NewGuid(),
                 SessionCode = $"HC{DateTime.Now:yyyyMMddHHmmss}",
-                OrganizerId = Guid.Parse("9e5309dc-ecf9-4d48-9a09-224cd15347b1"),
+                OrganizerId = GetCurrentUserIdOrAdmin(),
                 CreatedAt = DateTime.Now
             };
             await _context.Set<RadiologyConsultationSession>().AddAsync(session);
@@ -323,7 +323,7 @@ public partial class RISCompleteService
             Id = Guid.NewGuid(),
             SessionId = dto.SessionId,
             CaseId = dto.CaseId,
-            ParticipantId = Guid.Parse("9e5309dc-ecf9-4d48-9a09-224cd15347b1"),
+            ParticipantId = GetCurrentUserIdOrAdmin(),
             MessageType = dto.MessageType ?? "Text",
             Content = dto.Content,
             PostedAt = DateTime.Now,
@@ -375,7 +375,7 @@ public partial class RISCompleteService
             AnnotationData = dto.AnnotationData,
             Notes = dto.Notes,
             IsShared = dto.IsShared,
-            CreatedByUserId = Guid.Parse("9e5309dc-ecf9-4d48-9a09-224cd15347b1"),
+            CreatedByUserId = GetCurrentUserIdOrAdmin(),
             CreatedAt = DateTime.Now
         };
 
@@ -426,7 +426,7 @@ public partial class RISCompleteService
             {
                 Id = Guid.NewGuid(),
                 SessionId = dto.SessionId,
-                CreatedByUserId = Guid.Parse("9e5309dc-ecf9-4d48-9a09-224cd15347b1"),
+                CreatedByUserId = GetCurrentUserIdOrAdmin(),
                 CreatedAt = DateTime.Now
             };
             await _context.Set<RadiologyConsultationMinutes>().AddAsync(minutes);
@@ -472,7 +472,7 @@ public partial class RISCompleteService
         if (minutes == null) return null;
 
         minutes.Status = 2; // Approved
-        minutes.ApprovedByUserId = Guid.Parse("9e5309dc-ecf9-4d48-9a09-224cd15347b1");
+        minutes.ApprovedByUserId = GetCurrentUserIdOrAdmin();
         minutes.ApprovedAt = DateTime.Now;
         await _unitOfWork.SaveChangesAsync();
 
@@ -495,7 +495,7 @@ public partial class RISCompleteService
             FileType = dto.FileType,
             FilePath = "", // Will be set after file upload
             FileSize = 0,
-            UploadedByUserId = Guid.Parse("9e5309dc-ecf9-4d48-9a09-224cd15347b1"),
+            UploadedByUserId = GetCurrentUserIdOrAdmin(),
             UploadedAt = DateTime.Now,
             Description = dto.Description,
             CreatedAt = DateTime.Now

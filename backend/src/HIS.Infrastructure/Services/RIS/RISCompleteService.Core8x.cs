@@ -16,7 +16,7 @@ using HIS.Infrastructure.Data;
 namespace HIS.Infrastructure.Services;
 
 // K3 phien 1 (2026-05-30): tach RIS Module 8 (5 region 8.1+8.2+8.3+8.4+8.5, ~1730 dong)
-// khoi RISCompleteService.cs god-file (5679 dong). ZERO runtime change — partial class.
+// khoi RISCompleteService.cs god-file (5679 dong). ZERO runtime change â€” partial class.
 // Ctor + 13 DI deps + PACS config o file goc.
 public partial class RISCompleteService
 {
@@ -29,7 +29,7 @@ public partial class RISCompleteService
         string status = null,
         string keyword = null)
     {
-        // RequestDate ghi bằng DateTime.Now — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
+        // RequestDate ghi báº±ng DateTime.Now â€” dÃ¹ng DayRangeUtc Ä‘á»ƒ trÃ¡nh lá»‡ch UTC 00h-07h VN.
         var (rdFromUtc, rdToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
         var query = _context.RadiologyRequests
             .Include(r => r.Patient)
@@ -954,7 +954,7 @@ public partial class RISCompleteService
             {
                 Id = Guid.NewGuid(),
                 RadiologyExamId = exam.Id,
-                RadiologistId = Guid.Parse("9e5309dc-ecf9-4d48-9a09-224cd15347b1"), // Admin user
+                RadiologistId = GetCurrentUserIdOrAdmin(), // Admin user
                 ReportDate = DateTime.Now,
                 Status = 0, // Draft
                 CreatedAt = DateTime.Now
@@ -1282,7 +1282,7 @@ public partial class RISCompleteService
 
                             var result = new List<DicomImageDto>();
                             int idx = 1;
-                            // For mammography (≤16 instances typical), fetch per-instance laterality/viewPosition.
+                            // For mammography (â‰¤16 instances typical), fetch per-instance laterality/viewPosition.
                             // For larger CT/MR series, skip the extra round-trips.
                             bool fetchExtraTags = seriesModality == "MG" || (instances?.Count ?? 0) <= 16;
 
@@ -1434,9 +1434,9 @@ public partial class RISCompleteService
         if (report == null) return false;
 
         // G-36: per-modality permission check.
-        // Chỉ áp khi ApprovingUserId có giá trị (controller điền từ JWT).
-        // Logic: nếu user có RadiologyPermission row nào cho modality của ca chụp
-        // → phải có bit DuyetKQ (0x0010). Không có row nào = không hạn chế (backward-compat).
+        // Chá»‰ Ã¡p khi ApprovingUserId cÃ³ giÃ¡ trá»‹ (controller Ä‘iá»n tá»« JWT).
+        // Logic: náº¿u user cÃ³ RadiologyPermission row nÃ o cho modality cá»§a ca chá»¥p
+        // â†’ pháº£i cÃ³ bit DuyetKQ (0x0010). KhÃ´ng cÃ³ row nÃ o = khÃ´ng háº¡n cháº¿ (backward-compat).
         if (dto.ApprovingUserId.HasValue && dto.ApprovingUserId.Value != Guid.Empty)
         {
             var examForCheck = await _context.RadiologyExams
@@ -1453,17 +1453,17 @@ public partial class RISCompleteService
                         (p.ModalityId == examForCheck.ModalityId || p.ModalityId == null))
                     .ToListAsync();
 
-                // Có row hạn chế → phải có flag DuyetKQ
+                // CÃ³ row háº¡n cháº¿ â†’ pháº£i cÃ³ flag DuyetKQ
                 if (modalityPerms.Count > 0 && !modalityPerms.Any(p => (p.Permissions & DuyetKQFlag) != 0))
                 {
                     throw new UnauthorizedAccessException(
-                        "Bạn không có quyền duyệt kết quả cho loại máy chụp này.");
+                        "Báº¡n khÃ´ng cÃ³ quyá»n duyá»‡t káº¿t quáº£ cho loáº¡i mÃ¡y chá»¥p nÃ y.");
                 }
             }
         }
 
         report.Status = 2; // Final approved
-        report.ApprovedBy = dto.ApprovingUserId ?? Guid.Parse("9e5309dc-ecf9-4d48-9a09-224cd15347b1");
+        report.ApprovedBy = dto.ApprovingUserId ?? GetCurrentUserIdOrAdmin();
         report.ApprovedAt = DateTime.Now;
         report.UpdatedAt = DateTime.Now;
 
@@ -1480,7 +1480,7 @@ public partial class RISCompleteService
         await _unitOfWork.SaveChangesAsync();
 
         // Fire-and-forget email notification
-        _ = _notificationService.NotifyRadiologyResultAsync(report.Id, "Bác sĩ duyệt");
+        _ = _notificationService.NotifyRadiologyResultAsync(report.Id, "BÃ¡c sÄ© duyá»‡t");
 
         return true;
     }
