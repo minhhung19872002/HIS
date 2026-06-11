@@ -14,6 +14,7 @@ namespace HIS.API.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/inpatient")]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // TT46: InvalidOperationException (EmrLockGuard) → 400 + message rõ
 public partial class InpatientCompleteController : ControllerBase
 {
     private readonly IInpatientCompleteService _inpatientService;

@@ -40,8 +40,10 @@ namespace HIS.Application.Services
         // Completeness Check (Kiem tra BA)
         Task<EmrCompletenessDto> GetCompletenessCheckAsync(Guid medicalRecordId);
 
-        // Finalization (Ket thuc BA)
+        // Finalization (Ket thuc BA) + TT46 reopen/lich su phien ban
         Task<FinalizeResultDto> FinalizeRecordAsync(FinalizeRecordDto dto);
+        Task<FinalizeResultDto> ReopenRecordAsync(Guid medicalRecordId, string reason);
+        Task<List<EmrAmendmentDto>> GetAmendmentsAsync(Guid medicalRecordId);
 
         // Attachments (Dinh kem)
         Task<List<EmrDocumentAttachmentDto>> GetAttachmentsAsync(Guid medicalRecordId);

@@ -59,7 +59,12 @@ public class MedicalRecord : BaseEntity
 
     // Trạng thái
     public int Status { get; set; } // See MedicalRecordStatus: 0-Chờ khám, 1-Đang khám, 2-Chờ kết luận, 3-Hoàn thành, 4-Đã thanh toán, 5-Chờ CLS, 6-Hủy
-    public bool IsClosed { get; set; } // Đã đóng bệnh án
+    public bool IsClosed { get; set; } // Đã đóng bệnh án (⚠️ billing dùng làm khóa viện phí — KHÔNG trùng dụng cho khóa EMR)
+
+    // TT46 (2026-06-12): khóa nội dung HSBA sau khi kết thúc — NULL = chưa khóa.
+    // KHÔNG dùng Status=5 (đó là PendingCLS) và KHÔNG dùng IsClosed (billing chiếm). Mig 95.
+    public DateTime? EmrFinalizedAt { get; set; }
+    public Guid? EmrFinalizedBy { get; set; }
 
     // Navigation
     public virtual ICollection<Examination> Examinations { get; set; } = new List<Examination>();

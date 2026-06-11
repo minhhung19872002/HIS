@@ -8,6 +8,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/emr-admin")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // TT46: InvalidOperationException (EmrLockGuard) → 400 + message rõ
 public class EmrAdminController : ControllerBase
 {
     private readonly IEmrAdminService _service;
@@ -100,7 +101,7 @@ public class EmrAdminController : ControllerBase
     public async Task<IActionResult> GetCompletenessCheck(Guid recordId)
         => Ok(await _service.GetCompletenessCheckAsync(recordId));
 
-    // ============ Finalization ============
+    // ============ Finalization (TT46) ============
     [HttpPost("finalize/{recordId}")]
     public async Task<IActionResult> FinalizeRecord(Guid recordId, [FromBody] FinalizeRecordDto? dto)
     {
@@ -108,6 +109,20 @@ public class EmrAdminController : ControllerBase
         request.MedicalRecordId = recordId;
         return Ok(await _service.FinalizeRecordAsync(request));
     }
+
+    /// <summary>TT46: mở lại hồ sơ đã kết thúc — quyền hạn chế + bắt buộc lý do (lưu vết EmrAmendments).</summary>
+    [HttpPost("records/{recordId}/reopen")]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin,Director,Manager,MedicalRecordManager")]
+    public async Task<IActionResult> ReopenRecord(Guid recordId, [FromBody] ReopenRecordDto dto)
+    {
+        var result = await _service.ReopenRecordAsync(recordId, dto?.Reason ?? "");
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
+
+    /// <summary>TT46: lịch sử phiên bản/tu chỉnh của hồ sơ.</summary>
+    [HttpGet("records/{recordId}/amendments")]
+    public async Task<IActionResult> GetAmendments(Guid recordId)
+        => Ok(await _service.GetAmendmentsAsync(recordId));
 
     // ============ Attachments ============
     [HttpGet("attachments/{recordId}")]

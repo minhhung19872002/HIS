@@ -16,6 +16,8 @@ public partial class InpatientCompleteService {
 
     public async Task<TreatmentSheetDto> CreateTreatmentSheetAsync(CreateTreatmentSheetDto dto, Guid userId)
     {
+        await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, dto.AdmissionId); // TT46
+
         var doctor = await _context.Users.FindAsync(userId);
 
         var dailyProgress = new DailyProgress
@@ -55,6 +57,7 @@ public partial class InpatientCompleteService {
         var dailyProgress = await _context.DailyProgresses.FindAsync(id);
         if (dailyProgress != null)
         {
+            await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, dailyProgress.AdmissionId); // TT46
             dailyProgress.SubjectiveFindings = dto.ProgressNotes;
             dailyProgress.Plan = dto.TreatmentOrders;
             dailyProgress.ActivityOrder = dto.NursingOrders;
@@ -86,6 +89,7 @@ public partial class InpatientCompleteService {
         var dailyProgress = await _context.DailyProgresses.FindAsync(id);
         if (dailyProgress != null)
         {
+            await EmrLockGuard.EnsureEditableByAdmissionAsync(_context, dailyProgress.AdmissionId); // TT46
             _context.DailyProgresses.Remove(dailyProgress);
             await _context.SaveChangesAsync();
         }

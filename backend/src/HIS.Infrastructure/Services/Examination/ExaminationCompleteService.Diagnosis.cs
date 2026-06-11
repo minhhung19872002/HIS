@@ -48,6 +48,7 @@ public partial class ExaminationCompleteService
 
     public async Task<DiagnosisFullDto> AddDiagnosisAsync(Guid examinationId, DiagnosisFullDto dto)
     {
+        await EmrLockGuard.EnsureEditableByExaminationAsync(_context, examinationId); // TT46
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
         if (examination == null) throw new Exception("Examination not found");
 
@@ -87,6 +88,7 @@ public partial class ExaminationCompleteService
 
     public async Task<List<DiagnosisFullDto>> UpdateDiagnosisListAsync(Guid examinationId, UpdateDiagnosisDto dto)
     {
+        await EmrLockGuard.EnsureEditableByExaminationAsync(_context, examinationId); // TT46
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
         if (examination == null) throw new Exception("Examination not found");
 

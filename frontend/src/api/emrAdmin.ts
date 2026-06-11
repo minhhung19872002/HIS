@@ -171,9 +171,37 @@ export const getCompletenessCheck = async (recordId: string): Promise<EmrComplet
 };
 
 // ============ Finalization ============
-export const finalizeRecord = async (recordId: string, notes?: string): Promise<{ success: boolean; message?: string } | null> => {
+export const finalizeRecord = async (recordId: string, notes?: string): Promise<{ success: boolean; message?: string; versionNo?: number } | null> => {
   try { const resp = await apiClient.post(`/emr-admin/finalize/${recordId}`, { notes }); return resp.data; }
   catch { console.warn('Failed to finalize record'); return null; }
+};
+
+// ============ TT46: Reopen + lịch sử phiên bản/tu chỉnh ============
+export interface EmrAmendmentDto {
+  id: string;
+  medicalRecordId: string;
+  action: number; // 1=Finalize, 2=Reopen, 3=AmendNote
+  actionName: string;
+  versionNo: number;
+  reason?: string;
+  snapshotJson?: string;
+  performedBy: string;
+  performedByName?: string;
+  performedAt: string;
+}
+
+export const reopenRecord = async (recordId: string, reason: string): Promise<{ success: boolean; message?: string } | null> => {
+  try { const resp = await apiClient.post(`/emr-admin/records/${recordId}/reopen`, { reason }); return resp.data; }
+  catch (err: unknown) {
+    console.warn('Failed to reopen record');
+    const data = (err as { response?: { data?: { message?: string } } })?.response?.data;
+    return data && typeof data === 'object' ? { success: false, message: data.message } : null;
+  }
+};
+
+export const getAmendments = async (recordId: string): Promise<EmrAmendmentDto[]> => {
+  try { const resp = await apiClient.get(`/emr-admin/records/${recordId}/amendments`); return Array.isArray(resp.data) ? resp.data : []; }
+  catch { console.warn('Failed to load amendments'); return []; }
 };
 
 export interface SaveAttachmentPayload {

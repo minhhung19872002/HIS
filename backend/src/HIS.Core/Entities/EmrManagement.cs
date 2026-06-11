@@ -199,3 +199,24 @@ public class EmrCloseLog : BaseEntity
     public string? ValidationErrors { get; set; } // Loi khi dong (JSON)
     public string? Note { get; set; } // Ghi chu
 }
+
+/// <summary>
+/// TT46 (2026-06-12): vết kết thúc/mở lại/tu chỉnh HSBA mức MedicalRecord + lịch sử phiên bản.
+/// Action: 1=Finalize (khóa, snapshot bản hiện hành) · 2=Reopen (mở lại có lý do) · 3=AmendNote.
+/// Mỗi chu kỳ Finalize tăng VersionNo; SnapshotJson giữ "bản cũ" (nội dung chính + chữ ký hiệu lực).
+/// Xem plan: docs/workspace-docs/20-backlog/items/plan-emr-tt46-immutability.md
+/// </summary>
+public class EmrAmendment : BaseEntity
+{
+    public Guid MedicalRecordId { get; set; }
+    public virtual MedicalRecord? MedicalRecord { get; set; }
+
+    public int Action { get; set; }      // 1=Finalize, 2=Reopen, 3=AmendNote
+    public int VersionNo { get; set; }   // phiên bản hồ sơ tại thời điểm action
+    public string? Reason { get; set; }  // bắt buộc với Reopen
+    public string? SnapshotJson { get; set; } // bản chụp nội dung khi Finalize
+
+    public Guid PerformedBy { get; set; }
+    public string? PerformedByName { get; set; }
+    public DateTime PerformedAt { get; set; }
+}

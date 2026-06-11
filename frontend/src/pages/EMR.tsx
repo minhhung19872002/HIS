@@ -12,7 +12,7 @@ import {
   FolderOpenOutlined, FormOutlined, TeamOutlined, SafetyOutlined,
   FilePdfOutlined, HistoryOutlined, CopyOutlined, CheckCircleOutlined,
   DownloadOutlined, DeleteOutlined, AlertOutlined,
-  LineChartOutlined, MedicineBoxOutlined as MedicineIcon,
+  LineChartOutlined, MedicineBoxOutlined as MedicineIcon, UnlockOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -32,8 +32,8 @@ import { printEmrForm } from '../api/pdf';
 import client from '../api/client';
 import {
   getCompletenessCheck, getAttachments, saveAttachment, deleteAttachment,
-  getPrintLogs, stampPrintLog, finalizeRecord,
-  type EmrCompletenessDto, type EmrDocumentAttachmentDto, type EmrPrintLogDto,
+  getPrintLogs, stampPrintLog, finalizeRecord, reopenRecord, getAmendments,
+  type EmrCompletenessDto, type EmrDocumentAttachmentDto, type EmrPrintLogDto, type EmrAmendmentDto,
 } from '../api/emrAdmin';
 import PatientTimeline from '../components/PatientTimeline';
 import EmrManagementTabs from '../components/EmrManagementTabs';
@@ -89,6 +89,10 @@ const EMR: React.FC = () => {
 
   // NangCap11: Completeness, attachments, print logs
   const [completeness, setCompleteness] = useState<EmrCompletenessDto | null>(null);
+  const [amendments, setAmendments] = useState<EmrAmendmentDto[]>([]); // TT46: lịch sử phiên bản
+  const [reopenModalOpen, setReopenModalOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState('');
+  const [reopenLoading, setReopenLoading] = useState(false);
   const [attachments, setAttachments] = useState<EmrDocumentAttachmentDto[]>([]);
   const [printLogs, setPrintLogs] = useState<EmrPrintLogDto[]>([]);
   const [attachmentModalOpen, setAttachmentModalOpen] = useState(false);
@@ -597,7 +601,7 @@ ${conclusion ? `<div class="section">
     setSelectedExam(exam);
     setDetailLoading(true);
     try {
-      const [recordRes, historyRes, treatmentRes, consultRes, nursingRes, completenessRes, attachRes, printLogRes] = await Promise.allSettled([
+      const [recordRes, historyRes, treatmentRes, consultRes, nursingRes, completenessRes, attachRes, printLogRes, amendmentsRes] = await Promise.allSettled([
         getMedicalRecordFull(exam.id),
         getPatientMedicalHistory(exam.patientId),
         getTreatmentSheets(exam.id),
@@ -606,6 +610,7 @@ ${conclusion ? `<div class="section">
         getCompletenessCheck(exam.medicalRecordId || exam.id),
         getAttachments(exam.medicalRecordId || exam.id),
         getPrintLogs(exam.medicalRecordId || exam.id),
+        getAmendments(exam.medicalRecordId || exam.id),
       ]);
       setMedicalRecord(recordRes.status === 'fulfilled' ? recordRes.value.data as unknown as MedicalRecordFullDto : null);
       setPatientHistory(historyRes.status === 'fulfilled' ? (historyRes.value.data as unknown as MedicalHistoryDto[]) ?? [] : []);
@@ -615,12 +620,22 @@ ${conclusion ? `<div class="section">
       setCompleteness(completenessRes.status === 'fulfilled' ? completenessRes.value as EmrCompletenessDto : null);
       setAttachments(attachRes.status === 'fulfilled' ? (attachRes.value as EmrDocumentAttachmentDto[]) ?? [] : []);
       setPrintLogs(printLogRes.status === 'fulfilled' ? (printLogRes.value as EmrPrintLogDto[]) ?? [] : []);
+      setAmendments(amendmentsRes.status === 'fulfilled' ? (amendmentsRes.value as EmrAmendmentDto[]) ?? [] : []);
     } catch {
       message.warning('Không thể tải chi tiết hồ sơ');
     } finally {
       setDetailLoading(false);
     }
   }, []);
+
+  // TT46: reload trạng thái khóa + lịch sử phiên bản sau finalize/reopen
+  const refreshTt46 = useCallback(async () => {
+    if (!selectedExam) return;
+    const rid = selectedExam.medicalRecordId || selectedExam.id;
+    const [c, a] = await Promise.all([getCompletenessCheck(rid), getAmendments(rid)]);
+    setCompleteness(c);
+    setAmendments(a);
+  }, [selectedExam]);
 
   // Treatment sheet CRUD
   const handleSaveTreatment = async () => {
@@ -1288,7 +1303,12 @@ ${conclusion ? `<div class="section">
               <div style={{ marginBottom: 12 }}>
                 <span style={{ fontWeight: 'bold', marginRight: 8 }}>Hoàn thiện:</span>
                 <Tag color={completeness.isComplete ? 'green' : 'orange'}>{completeness.completenessPercent}%</Tag>
-                {completeness.isFinalized && <Tag color="blue">Đã kết thúc BA</Tag>}
+                {completeness.isFinalized && (
+                  <Tag color="red">
+                    🔒 ĐÃ KHÓA (TT46)
+                    {(() => { const v = amendments.filter(a => a.action === 1).reduce((m, a) => Math.max(m, a.versionNo), 0); return v > 0 ? ` · v${v}` : ''; })()}
+                  </Tag>
+                )}
               </div>
               {completeness.missingDocumentNames.length > 0 && (
                 <Alert type="warning" showIcon title={`Thiếu ${completeness.missingDocumentNames.length} tài liệu bắt buộc: ${completeness.missingDocumentNames.join(', ')}`} style={{ marginBottom: 12 }} />
@@ -1304,16 +1324,59 @@ ${conclusion ? `<div class="section">
               />
               {!completeness.isFinalized && (
                 <div style={{ marginTop: 12 }}>
-                  <Popconfirm title="Kết thúc hồ sơ bệnh án?" description="Sau khi kết thúc, hồ sơ sẽ bị khóa không cho chỉnh sửa."
+                  <Popconfirm title="Kết thúc hồ sơ bệnh án?" description="Sau khi kết thúc, hồ sơ sẽ bị khóa cứng theo TT46 — mọi API sửa nội dung bị chặn."
                     onConfirm={async () => {
                       if (!selectedExam?.medicalRecordId) return;
                       const res = await finalizeRecord(selectedExam.medicalRecordId);
-                      if (res?.success) { message.success(res.message || 'Đã kết thúc BA'); } else { message.warning(res?.message || 'Không thể kết thúc'); }
+                      if (res?.success) { message.success(res.message || 'Đã kết thúc BA'); await refreshTt46(); } else { message.warning(res?.message || 'Không thể kết thúc'); }
                     }}>
                     <Button type="primary" danger icon={<SafetyOutlined />}>Kết thúc bệnh án</Button>
                   </Popconfirm>
                 </div>
               )}
+              {completeness.isFinalized && (
+                <div style={{ marginTop: 12 }}>
+                  <Alert type="error" showIcon style={{ marginBottom: 8 }}
+                    title="Hồ sơ đã kết thúc và khóa theo TT46/2018-TT-BYT — mọi thao tác sửa nội dung (tờ điều trị, chẩn đoán, kết luận, đơn thuốc, đính kèm...) đều bị chặn." />
+                  <Button danger icon={<UnlockOutlined />} onClick={() => { setReopenReason(''); setReopenModalOpen(true); }}>
+                    Mở lại hồ sơ (tu chỉnh)
+                  </Button>
+                </div>
+              )}
+              {amendments.length > 0 && (
+                <Card size="small" title="Lịch sử phiên bản / tu chỉnh (TT46)" style={{ marginTop: 12 }}>
+                  <Table size="small" dataSource={amendments} rowKey="id" pagination={false}
+                    columns={[
+                      { title: 'Phiên bản', dataIndex: 'versionNo', key: 'v', width: 90, render: (v: number) => <Tag color="blue">v{v}</Tag> },
+                      { title: 'Hành động', dataIndex: 'actionName', key: 'act', width: 120,
+                        render: (v: string, r: EmrAmendmentDto) => <Tag color={r.action === 1 ? 'green' : r.action === 2 ? 'orange' : 'default'}>{v}</Tag> },
+                      { title: 'Lý do', dataIndex: 'reason', key: 'reason', ellipsis: true, render: (v: string) => v || '-' },
+                      { title: 'Người thực hiện', dataIndex: 'performedByName', key: 'by', width: 150, render: (v: string) => v || '-' },
+                      { title: 'Thời gian', dataIndex: 'performedAt', key: 'at', width: 140, render: (v: string) => v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '-' },
+                    ]}
+                  />
+                </Card>
+              )}
+              <Modal title="Mở lại hồ sơ bệnh án (TT46)" open={reopenModalOpen} onCancel={() => setReopenModalOpen(false)}
+                okText="Mở lại hồ sơ" okButtonProps={{ danger: true, loading: reopenLoading, disabled: !reopenReason.trim() }}
+                onOk={async () => {
+                  if (!selectedExam) return;
+                  setReopenLoading(true);
+                  try {
+                    const res = await reopenRecord(selectedExam.medicalRecordId || selectedExam.id, reopenReason.trim());
+                    if (res?.success) {
+                      message.success(res.message || 'Đã mở lại hồ sơ — nhớ kết thúc lại sau khi tu chỉnh');
+                      setReopenModalOpen(false);
+                      await refreshTt46();
+                    } else {
+                      message.warning(res?.message || 'Không thể mở lại hồ sơ');
+                    }
+                  } finally { setReopenLoading(false); }
+                }}>
+                <Alert type="warning" showIcon title="Thao tác mở lại được lưu vết đầy đủ (người, thời gian, lý do) theo TT46. Sau khi tu chỉnh xong phải Kết thúc lại để tạo phiên bản mới." style={{ marginBottom: 8 }} />
+                <TextArea rows={3} value={reopenReason} onChange={e => setReopenReason(e.target.value)}
+                  placeholder="Lý do tu chỉnh hồ sơ (bắt buộc)..." maxLength={500} showCount />
+              </Modal>
             </>
           ) : (
             <Empty description="Chọn hồ sơ để kiểm tra tính hoàn thiện" />

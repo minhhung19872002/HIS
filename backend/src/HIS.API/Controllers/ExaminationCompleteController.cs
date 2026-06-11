@@ -17,6 +17,7 @@ namespace HIS.API.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/examination")]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // TT46: InvalidOperationException (EmrLockGuard) → 400 + message rõ
 public class ExaminationCompleteController : ControllerBase
 {
     private readonly IExaminationCompleteService _examinationService;

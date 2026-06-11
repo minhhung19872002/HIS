@@ -535,6 +535,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<Shortcode> Shortcodes => Set<Shortcode>();
     public DbSet<EmrAutoCheckRule> EmrAutoCheckRules => Set<EmrAutoCheckRule>();
     public DbSet<EmrCloseLog> EmrCloseLogs => Set<EmrCloseLog>();
+    public DbSet<EmrAmendment> EmrAmendments => Set<EmrAmendment>(); // TT46: vết finalize/reopen + version
 
     // Partograph + Anesthesia (Clinical Records)
     public DbSet<PartographRecord> PartographRecords => Set<PartographRecord>();

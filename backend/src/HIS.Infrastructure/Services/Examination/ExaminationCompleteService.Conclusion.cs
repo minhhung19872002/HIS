@@ -92,6 +92,8 @@ public partial class ExaminationCompleteService
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
         if (examination == null) throw new Exception("Examination not found");
+        if (examination.MedicalRecord?.EmrFinalizedAt != null)
+            throw new InvalidOperationException(EmrLockGuard.LockedMessage); // TT46
         if (examination.Status == 5) throw new Exception("Phiếu khám đã hủy, không thể sửa kết luận");
         if (examination.Status < 4) throw new Exception("Phiếu khám chưa hoàn thành, vui lòng dùng CompleteExamination");
 

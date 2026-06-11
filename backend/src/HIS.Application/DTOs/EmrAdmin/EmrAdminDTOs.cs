@@ -266,6 +266,27 @@ namespace HIS.Application.DTOs.EmrAdmin
         public bool Success { get; set; }
         public string? Message { get; set; }
         public DateTime? FinalizedAt { get; set; }
+        public int? VersionNo { get; set; } // TT46: phiên bản hồ sơ sau finalize
+    }
+
+    // ============ TT46: Reopen + lịch sử phiên bản/tu chỉnh ============
+    public class ReopenRecordDto
+    {
+        public string Reason { get; set; } = string.Empty; // bắt buộc — lưu vết TT46
+    }
+
+    public class EmrAmendmentDto
+    {
+        public Guid Id { get; set; }
+        public Guid MedicalRecordId { get; set; }
+        public int Action { get; set; }          // 1=Finalize, 2=Reopen, 3=AmendNote
+        public string ActionName { get; set; } = string.Empty;
+        public int VersionNo { get; set; }
+        public string? Reason { get; set; }
+        public string? SnapshotJson { get; set; }
+        public Guid PerformedBy { get; set; }
+        public string? PerformedByName { get; set; }
+        public DateTime PerformedAt { get; set; }
     }
 
     // ============ HL7 Import/Export ============

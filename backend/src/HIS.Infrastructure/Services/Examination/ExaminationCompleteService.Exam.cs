@@ -110,6 +110,7 @@ public partial class ExaminationCompleteService
 
     public async Task<VitalSignsFullDto> UpdateVitalSignsAsync(Guid examinationId, VitalSignsFullDto dto)
     {
+        await EmrLockGuard.EnsureEditableByExaminationAsync(_context, examinationId); // TT46
         var examination = await _examinationRepo.GetByIdAsync(examinationId);
         if (examination == null) throw new Exception("Examination not found");
 
@@ -610,6 +611,7 @@ public partial class ExaminationCompleteService
 
     public async Task<TreatmentSheetDto> CreateTreatmentSheetAsync(TreatmentSheetDto dto)
     {
+        await EmrLockGuard.EnsureEditableByExaminationAsync(_context, dto.ExaminationId); // TT46
         var sheet = new TreatmentSheet
         {
             Id = Guid.NewGuid(),
@@ -636,6 +638,7 @@ public partial class ExaminationCompleteService
     {
         var sheet = await _context.TreatmentSheets.FindAsync(id);
         if (sheet == null) throw new Exception("Treatment sheet not found");
+        await EmrLockGuard.EnsureEditableByExaminationAsync(_context, sheet.ExaminationId); // TT46
 
         sheet.TreatmentDate = dto.TreatmentDate ?? sheet.TreatmentDate;
         sheet.Day = dto.Day;
@@ -682,6 +685,7 @@ public partial class ExaminationCompleteService
 
     public async Task<ConsultationRecordDto> CreateConsultationRecordAsync(ConsultationRecordDto dto)
     {
+        await EmrLockGuard.EnsureEditableByExaminationAsync(_context, dto.ExaminationId); // TT46
         var record = new ConsultationRecord
         {
             Id = Guid.NewGuid(),
@@ -708,6 +712,7 @@ public partial class ExaminationCompleteService
     {
         var record = await _context.ConsultationRecords.FindAsync(id);
         if (record == null) throw new Exception("Consultation record not found");
+        await EmrLockGuard.EnsureEditableByExaminationAsync(_context, record.ExaminationId); // TT46
 
         record.ConsultationDate = dto.ConsultationDate ?? record.ConsultationDate;
         record.ConsultationType = dto.ConsultationType;
@@ -753,6 +758,7 @@ public partial class ExaminationCompleteService
 
     public async Task<NursingCareSheetDto> CreateNursingCareSheetAsync(NursingCareSheetDto dto)
     {
+        await EmrLockGuard.EnsureEditableByExaminationAsync(_context, dto.ExaminationId); // TT46
         var sheet = new NursingCareSheet
         {
             Id = Guid.NewGuid(),
@@ -785,6 +791,7 @@ public partial class ExaminationCompleteService
     {
         var sheet = await _context.NursingCareSheets.FindAsync(id);
         if (sheet == null) throw new Exception("Nursing care sheet not found");
+        await EmrLockGuard.EnsureEditableByExaminationAsync(_context, sheet.ExaminationId); // TT46
 
         sheet.CareDate = dto.CareDate ?? sheet.CareDate;
         sheet.CareTime = dto.CareTime;

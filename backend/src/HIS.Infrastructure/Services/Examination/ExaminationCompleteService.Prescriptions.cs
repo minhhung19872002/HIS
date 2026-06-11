@@ -53,6 +53,8 @@ public partial class ExaminationCompleteService
             .Include(e => e.MedicalRecord)
             .FirstOrDefaultAsync(e => e.Id == dto.ExaminationId);
         if (examination == null) throw new Exception("Examination not found");
+        if (examination.MedicalRecord?.EmrFinalizedAt != null)
+            throw new InvalidOperationException(EmrLockGuard.LockedMessage); // TT46
 
         // Bác sĩ kê đơn = BS đã gán cho lượt khám, nếu chưa gán thì dùng user đang đăng nhập.
         // DoctorId là FK bắt buộc tới Users → KHÔNG được để Guid.Empty (gây FK conflict → 500).
@@ -118,6 +120,7 @@ public partial class ExaminationCompleteService
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (prescription == null) throw new Exception("Prescription not found");
+        await EmrLockGuard.EnsureEditableByRecordAsync(_context, prescription.MedicalRecordId); // TT46
 
         // Remove old items
         _context.PrescriptionDetails.RemoveRange(prescription.Details);
@@ -163,6 +166,7 @@ public partial class ExaminationCompleteService
     {
         var prescription = await _context.Prescriptions.FindAsync(id);
         if (prescription == null || prescription.Status != 0) return false;
+        await EmrLockGuard.EnsureEditableByRecordAsync(_context, prescription.MedicalRecordId); // TT46
 
         _context.Prescriptions.Remove(prescription);
         await _unitOfWork.SaveChangesAsync();
