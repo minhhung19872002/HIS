@@ -215,3 +215,9 @@ scripts/test-prod/
 # ctags code map (generated symbol index for AI agents â€” large, can go stale; regenerate via scripts/gen-tags.ps1)
 /tags
 /tags.lock
+
+# Python tooling artifacts (docling PDF->md converter)
+__pycache__/
+*.pyc
+docs/requirements/_docling_progress.log
+docs/requirements/_docling_report.json

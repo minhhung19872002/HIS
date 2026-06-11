@@ -1,0 +1,33 @@
+# MQ_-_Khai_báo_CĐHA_nhập_tường_trình_PTTT.txt
+
+```
+===== PAGE 1 ===== (chars=339)
+ 
+MQ Solutions : CĐHA  Khai báo CĐHA nhậ p tường trình PTTT    
+MQ Solutions  
+Điện thoạ i: 091 449 77 46 
+Email: mqsoftvn@gmail.com  
+Website: mqsoft.vn 
+CHẨN ĐOÁN HÌNH ẢNH 
+Khai báo dịch vụ CĐHA nh ập 
+tường trình PTTT 
+Mục lục 
+Khai báo dị ch vụ CĐHA nh ập tường trình PTTT  .........................................................1  
+
+===== PAGE 2 ===== (chars=408)
+1 
+MQ Solutions : CĐHA  Khai báo CĐHA nh ập tường trình PTTT  Khai báo d ịch vụ CĐHA nhập tườ ng trình PTTT 
+1. Vào RIS – Chẩn đoán hình ảnh  “Tiện ích”   “Danh m ục”  “Danh m ục giá 
+viện phí thự c hiện chẩ n đoán hình ảnh” 
+ 
+2.  Chọn đúng loạ i CĐHA (Nội soi, Siêu âm, …)  
+3. Tìm kiế m tên d ịch vụ CĐHA ở khung tìm ki ếm 
+ 
+4. Chọn dị ch vụ CĐHA mu ốn khai báo nhậ p PTTT   Nhấn vào bi ểu tượng  
+ 
+
+===== PAGE 3 ===== (chars=112)
+2 
+MQ Solutions : CĐHA  Khai báo CĐHA nh ập tường trình PTTT  5. Tìm kiế m tên PTTT   “Enter”  
+6. Nhấn “Lưu”  
+```
