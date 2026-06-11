@@ -432,35 +432,34 @@ public class ClinicalDecisionSupportService : IClinicalDecisionSupportService
         catch (Exception ex) { _logger.LogWarning(ex, "CDS: Failed to load allergy alerts for patient {PatientId}", patientId); }
 
         // 2. Check abnormal lab results (recent 7 days)
+        // #14e: model 1 — chỉ số con Flag != N (model 2 LabResults đã gỡ)
         try
         {
-            using var connection = new SqlConnection(_context.Database.GetConnectionString());
-            await connection.OpenAsync();
-            var sql = @"SELECT TOP 10 lr.TestName, lr.NumericResult, lr.ReferenceRange, lr.AbnormalType, lr.IsCritical, lr.CreatedAt
-                FROM LabResults lr
-                INNER JOIN LabRequestItems lri ON lr.LabRequestItemId = lri.Id
-                INNER JOIN LabRequests lo ON lri.LabRequestId = lo.Id
-                WHERE lo.PatientId = @PatientId AND lr.IsAbnormal = 1 AND lr.IsDeleted = 0
-                AND lr.CreatedAt >= DATEADD(DAY, -7, GETDATE())
-                ORDER BY lr.IsCritical DESC, lr.CreatedAt DESC";
-            using var cmd = new SqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@PatientId", patientId);
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            var abnormalRows = await _context.ServiceRequestDetailParameters
+                .Where(p => !p.IsDeleted
+                    && p.ServiceRequestDetail!.ServiceRequest.MedicalRecord.PatientId == patientId
+                    && p.Flag != null && p.Flag != "N"
+                    && p.CreatedAt >= DateTime.UtcNow.AddDays(-7))
+                .OrderByDescending(p => p.Flag == "HH" || p.Flag == "LL")
+                .ThenByDescending(p => p.CreatedAt)
+                .Take(10)
+                .Select(p => new { p.ParameterName, p.Value, p.ReferenceRange, p.Flag, p.CreatedAt })
+                .ToListAsync();
+            foreach (var r in abnormalRows)
             {
-                var isCritical = !reader.IsDBNull(4) && reader.GetBoolean(4);
-                var abnormalType = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
+                var isCritical = r.Flag == "HH" || r.Flag == "LL";
+                var abnormalType = LabFlagEvaluator.FlagToAbnormalType(r.Flag) ?? 0;
                 alerts.Add(new ClinicalAlertDto
                 {
                     AlertType = "Lab",
                     Severity = isCritical ? "Critical" : "Warning",
                     SeverityColor = isCritical ? "red" : "orange",
-                    Title = $"XN bất thường: {reader.GetString(0)}",
-                    Message = $"Kết quả: {(reader.IsDBNull(1) ? "N/A" : reader.GetDecimal(1).ToString("F2"))} (GTBT: {(reader.IsDBNull(2) ? "N/A" : reader.GetString(2))})" +
+                    Title = $"XN bất thường: {r.ParameterName}",
+                    Message = $"Kết quả: {r.Value ?? "N/A"} (GTBT: {r.ReferenceRange ?? "N/A"})" +
                         (abnormalType == 1 ? " - CAO" : abnormalType == 2 ? " - THẤP" : abnormalType == 3 ? " - NGUY KỊCH" : ""),
                     ActionRecommendation = isCritical ? "Xử trí cấp cứu ngay" : "Theo dõi và đánh giá lại",
                     Source = "Xét nghiệm",
-                    Timestamp = reader.IsDBNull(5) ? null : reader.GetDateTime(5)
+                    Timestamp = r.CreatedAt
                 });
             }
         }

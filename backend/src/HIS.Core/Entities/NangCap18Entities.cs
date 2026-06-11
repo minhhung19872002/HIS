@@ -69,8 +69,7 @@ public class DrugEquivalence : BaseEntity
 /// </summary>
 public class LabResultAccessLink : BaseEntity
 {
-    public Guid LabRequestId { get; set; }
-    public virtual LabRequest LabRequest { get; set; } = null!;
+    public Guid LabRequestId { get; set; } // #14e: giờ là ServiceRequest id (model 1) — nav model 2 đã gỡ
 
     public string AccessToken { get; set; } = string.Empty; // Unique token
     public DateTime ExpiresAt { get; set; }

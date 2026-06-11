@@ -404,62 +404,82 @@ public class DqgvnService : IDqgvnService
 
     public async Task<DqgvnSubmitResult> SubmitLabResultAsync(SubmitLabResultRequest request, string userId)
     {
-        var labRequest = await _context.LabRequests
-            .Include(r => r.Patient)
-            .Include(r => r.Items)
+        // #14b: model 1 — ServiceRequest (RequestType=1) + SRD + per-parameter R1; model 2 LabRequests/LabResults chỉ seed ghi
+        var labRequest = await _context.ServiceRequests
+            .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
+            .Include(r => r.Details.Where(d => !d.IsDeleted && d.Status != 3)).ThenInclude(d => d.Service)
             .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.Id == request.LabRequestId);
+            .FirstOrDefaultAsync(r => r.Id == request.LabRequestId && r.RequestType == 1 && !r.IsDeleted);
 
         if (labRequest == null)
             return new DqgvnSubmitResult { Success = false, ErrorMessage = "Khong tim thay phieu xet nghiem" };
 
         var config = GetConfig();
 
-        // Get lab results joined with request items for test names
-        var itemIds = labRequest.Items.Select(i => i.Id).ToList();
-        var results = await _context.LabResults
-            .Where(r => itemIds.Contains(r.LabRequestItemId))
+        // Chỉ số con per-parameter (R1) — gom 1 query, group in-memory
+        var detailIds = labRequest.Details.Select(d => d.Id).ToList();
+        var paramRows = await _context.ServiceRequestDetailParameters
+            .Where(p => detailIds.Contains(p.ServiceRequestDetailId) && !p.IsDeleted)
+            .OrderBy(p => p.SequenceNumber)
             .AsNoTracking()
             .ToListAsync();
+        var paramsByDetail = paramRows.GroupBy(p => p.ServiceRequestDetailId).ToDictionary(g => g.Key, g => g.ToList());
 
-        // Map item ID to test code/name for result display
-        var itemMap = labRequest.Items.ToDictionary(i => i.Id, i => new { i.TestCode, i.TestName });
-
-        // Determine completion date from approved results
-        var completedDate = results
-            .Where(r => r.ApprovedAt.HasValue)
-            .Select(r => r.ApprovedAt)
+        // Ngày có KQ = mốc duyệt (ReviewedAt) muộn nhất, fallback ResultDate
+        var completedDate = labRequest.Details
+            .Select(d => d.ReviewedAt ?? d.ResultDate)
+            .Where(d => d.HasValue)
             .OrderByDescending(d => d)
             .FirstOrDefault();
+
+        var danhSachKetQua = new List<Dictionary<string, object?>>();
+        foreach (var d in labRequest.Details)
+        {
+            if (paramsByDetail.TryGetValue(d.Id, out var ps))
+            {
+                foreach (var p in ps)
+                    danhSachKetQua.Add(new Dictionary<string, object?>
+                    {
+                        ["maXetNghiem"] = p.ParameterCode,
+                        ["tenXetNghiem"] = p.ParameterName,
+                        ["ketQua"] = p.Value,
+                        ["donVi"] = p.Unit,
+                        ["giaTriThamChieu"] = p.ReferenceRange,
+                        ["batThuong"] = LabFlagEvaluator.IsAbnormal(p.Flag),
+                        ["ghiChu"] = null
+                    });
+            }
+            else if (d.Result != null || d.ResultDate != null)
+            {
+                // SRD legacy chưa có chỉ số con → 1 dòng theo dịch vụ (KQ chuỗi)
+                danhSachKetQua.Add(new Dictionary<string, object?>
+                {
+                    ["maXetNghiem"] = d.Service.ServiceCode,
+                    ["tenXetNghiem"] = d.Service.ServiceName,
+                    ["ketQua"] = d.Result,
+                    ["donVi"] = null,
+                    ["giaTriThamChieu"] = null,
+                    ["batThuong"] = false,
+                    ["ghiChu"] = d.Note
+                });
+            }
+        }
 
         var payload = new Dictionary<string, object?>
         {
             ["maCSKCB"] = config.FacilityCode,
-            ["maBN"] = labRequest.Patient?.PatientCode,
-            ["hoTen"] = labRequest.Patient?.FullName,
+            ["maBN"] = labRequest.MedicalRecord?.Patient?.PatientCode,
+            ["hoTen"] = labRequest.MedicalRecord?.Patient?.FullName,
             ["maPhieuXN"] = labRequest.RequestCode,
             ["ngayChiDinh"] = labRequest.RequestDate.ToString("dd/MM/yyyy HH:mm"),
             ["ngayCoKetQua"] = completedDate?.ToString("dd/MM/yyyy HH:mm"),
-            ["trangThai"] = labRequest.Status, // 0=Cho, 1=LayMau, 2=DangXL, 3=DaCoKQ, 4=DaDuyet
-            ["danhSachKetQua"] = results.Select(r =>
-            {
-                itemMap.TryGetValue(r.LabRequestItemId, out var item);
-                return new Dictionary<string, object?>
-                {
-                    ["maXetNghiem"] = item?.TestCode ?? r.ParameterCode,
-                    ["tenXetNghiem"] = item?.TestName ?? r.ParameterName,
-                    ["ketQua"] = r.ResultValue ?? r.Result,
-                    ["donVi"] = r.Unit,
-                    ["giaTriThamChieu"] = r.ReferenceRange,
-                    ["batThuong"] = r.IsAbnormal,
-                    ["ghiChu"] = r.Notes
-                };
-            }).ToList()
+            ["trangThai"] = labRequest.Status, // model 1: 0=ChoTT, 1=DaTT, 2=DangTH, 3=CoKQ, 4=Huy
+            ["danhSachKetQua"] = danhSachKetQua
         };
 
         var submission = await CreateSubmissionAsync(
             DqgvnSubmissionType.LabResult,
-            labRequest.PatientId,
+            labRequest.MedicalRecord?.PatientId ?? Guid.Empty,
             request.LabRequestId,
             payload,
             userId);

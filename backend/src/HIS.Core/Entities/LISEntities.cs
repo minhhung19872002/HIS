@@ -125,7 +125,7 @@ public class LabWorklist : BaseEntity
 
     // Navigation
     public virtual LabAnalyzer? Analyzer { get; set; }
-    public virtual LabRequestItem? LabRequestItem { get; set; }
+    // #14e: nav LabRequestItem (model 2) đã gỡ — cột id giữ nguyên giá trị lịch sử
 }
 
 /// <summary>
@@ -163,8 +163,7 @@ public class LabRawResult : BaseEntity
 
     // Navigation
     public virtual LabAnalyzer? Analyzer { get; set; }
-    [System.ComponentModel.DataAnnotations.Schema.ForeignKey("MappedToLabRequestItemId")]
-    public virtual LabRequestItem? MappedLabRequestItem { get; set; }
+    // #14e: nav MappedLabRequestItem (model 2) đã gỡ — MappedToLabRequestItemId giờ trỏ LabOrderItems (model 3, LIS module)
 }
 
 /// <summary>
@@ -201,7 +200,7 @@ public class LabCriticalValueAlert : BaseEntity
     public string? Notes { get; set; }
 
     // Navigation
-    public virtual LabResult? LabResult { get; set; }
+    // #14e: nav LabResult (model 2) đã gỡ — LabResultId giữ làm reference id
     public virtual Patient? Patient { get; set; }
     public virtual User? AcknowledgedByUser { get; set; }
 }

@@ -62,34 +62,34 @@ public partial class LISCompleteService
         string patientCode = string.Empty;
         Guid? patientId = null;
 
+        // #14b: resolve theo model 1 ServiceRequest (RequestType=1); model 2 LabRequests chết
         if (Guid.TryParse(dto.LabRequestId, out var parsedId))
         {
             labRequestId = parsedId;
-            // Try to get patient info from LabRequest
-            var labReq = await _context.LabRequests
-                .Include(r => r.Patient)
-                .FirstOrDefaultAsync(r => r.Id == parsedId);
-            if (labReq != null)
+            var sr = await _context.ServiceRequests
+                .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
+                .FirstOrDefaultAsync(r => r.Id == parsedId && r.RequestType == 1 && !r.IsDeleted);
+            if (sr != null)
             {
-                requestCode = labReq.RequestCode ?? requestCode;
-                patientId = labReq.PatientId;
-                patientName = labReq.Patient?.FullName ?? string.Empty;
-                patientCode = labReq.Patient?.PatientCode ?? string.Empty;
+                requestCode = sr.RequestCode ?? requestCode;
+                patientId = sr.MedicalRecord?.PatientId;
+                patientName = sr.MedicalRecord?.Patient?.FullName ?? string.Empty;
+                patientCode = sr.MedicalRecord?.Patient?.PatientCode ?? string.Empty;
             }
         }
         else if (!string.IsNullOrWhiteSpace(dto.LabRequestId))
         {
             // Try to find by RequestCode
-            var labReq = await _context.LabRequests
-                .Include(r => r.Patient)
-                .FirstOrDefaultAsync(r => r.RequestCode == dto.LabRequestId.Trim());
-            if (labReq != null)
+            var sr = await _context.ServiceRequests
+                .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
+                .FirstOrDefaultAsync(r => r.RequestCode == dto.LabRequestId.Trim() && r.RequestType == 1 && !r.IsDeleted);
+            if (sr != null)
             {
-                labRequestId = labReq.Id;
-                requestCode = labReq.RequestCode ?? requestCode;
-                patientId = labReq.PatientId;
-                patientName = labReq.Patient?.FullName ?? string.Empty;
-                patientCode = labReq.Patient?.PatientCode ?? string.Empty;
+                labRequestId = sr.Id;
+                requestCode = sr.RequestCode ?? requestCode;
+                patientId = sr.MedicalRecord?.PatientId;
+                patientName = sr.MedicalRecord?.Patient?.FullName ?? string.Empty;
+                patientCode = sr.MedicalRecord?.Patient?.PatientCode ?? string.Empty;
             }
         }
 

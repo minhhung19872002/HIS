@@ -41,25 +41,31 @@ public class SampleBatchController : ControllerBase
         var from = target;
         var to = target.AddDays(1).AddSeconds(-1);
 
-        var items = await _db.LabRequestItems
-            .Where(i => i.SampleCollectedAt != null && i.SampleCollectedAt >= from && i.SampleCollectedAt <= to)
-            .Include(i => i.LabRequest)
-                .ThenInclude(r => r!.MedicalRecord)
-                    .ThenInclude(m => m!.Patient)
-            .Include(i => i.CollectedByUser)
+        // #14e: model 1 SRD (RequestType=1, đã lấy mẫu trong ngày) — model 2 LabRequestItems đã gỡ
+        var items = await _db.ServiceRequestDetails
+            .Where(i => !i.IsDeleted && i.Status != 3
+                && i.ServiceRequest.RequestType == 1
+                && i.SampleCollectedAt != null && i.SampleCollectedAt >= from && i.SampleCollectedAt <= to)
+            .Include(i => i.Service).ThenInclude(s => s.ServiceGroup)
+            .Include(i => i.ServiceRequest).ThenInclude(r => r.MedicalRecord).ThenInclude(m => m.Patient)
             .ToListAsync();
+
+        var collectorIds = items.Where(i => i.CollectedByUserId.HasValue).Select(i => i.CollectedByUserId!.Value).Distinct().ToList();
+        var collectorNames = collectorIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await _db.Users.Where(u => collectorIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName);
 
         var shaped = items.Select(i => new SampleItemDto(
             i.Id,
             i.SampleBarcode,
-            i.SampleType,
-            i.TestName,
-            i.LabRequest?.MedicalRecord?.Patient?.FullName ?? "-",
-            i.LabRequest?.MedicalRecord?.Patient?.PatientCode ?? "-",
+            i.Service?.ServiceGroup?.GroupName,
+            i.Service?.ServiceName ?? "-",
+            i.ServiceRequest?.MedicalRecord?.Patient?.FullName ?? "-",
+            i.ServiceRequest?.MedicalRecord?.Patient?.PatientCode ?? "-",
             i.SampleCollectedAt!.Value,
-            i.SampleCollectedBy,
-            i.CollectedByUser?.FullName,
-            i.LabRequest?.Priority ?? 1,
+            i.CollectedByUserId,
+            i.CollectedByUserId.HasValue && collectorNames.TryGetValue(i.CollectedByUserId.Value, out var cn) ? cn : null,
+            i.ServiceRequest?.IsEmergency == true ? 3 : i.ServiceRequest?.IsPriority == true ? 2 : 1,
             i.Status)).ToList();
 
         // Partition by shift + emergency (priority 3)

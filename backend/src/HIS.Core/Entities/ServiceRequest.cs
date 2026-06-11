@@ -110,5 +110,8 @@ public class ServiceRequestDetail : BaseEntity
     public Guid? ReviewerUserId { get; set; }    // Người duyệt (phải khác KTV)
     public DateTime? ReviewedAt { get; set; }
 
+    // #14b (K5): vị trí lưu trữ mẫu sau XN (sample storage/tracking) — thay LabRequestItem.SampleLocation model 2
+    public string? SampleLocation { get; set; }
+
     public string? Note { get; set; }
 }

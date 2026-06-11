@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Data.SqlClient;
 using HIS.Application.DTOs.Laboratory;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -339,7 +338,7 @@ public partial class LISCompleteService {
 
                 // #14b (audit luồng nghiệp vụ 2026-06-06): ghi KQ máy phân tích vào ServiceRequestDetail
                 // (model 1) — nguồn-sự-thật CHUNG với KQ nhập tay (SampleReceive) + màn khám. Trước đây ghi
-                // LabOrderItems (model 3 — không có creator thật) nên KQ máy không bao giờ vào hệ thống.
+                // ServiceRequestDetailParameters (model 1) nên KQ máy không bao giờ vào hệ thống.
                 if (string.IsNullOrWhiteSpace(result.SampleId)) continue;
 
                 // Match 1: OBX TestCode = mã DỊCH VỤ (dịch vụ 1 chỉ số / analyzer gửi theo service).
@@ -453,92 +452,101 @@ public partial class LISCompleteService {
     public async Task<LabQueueDisplayDto> GetLabQueueDisplayAsync()
     {
         var today = DateTime.Today;
+        var tomorrow = today.AddDays(1);
         var now = DateTime.Now;
 
         var result = new LabQueueDisplayDto { UpdatedAt = now };
 
         try
         {
-            using var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString());
-            await connection.OpenAsync();
+            // #14e-B: EF Core model 1 — thay toàn bộ raw SQL (model 3) bằng ServiceRequests + Details
+            // ServiceRequests RequestType==1 hôm nay, include đủ nav để map shape DTO
+            var requests = await _context.ServiceRequests
+                .Where(r => !r.IsDeleted
+                         && r.RequestType == 1
+                         && r.RequestDate >= today
+                         && r.RequestDate < tomorrow)
+                .Include(r => r.MedicalRecord)
+                    .ThenInclude(m => m.Patient)
+                .Include(r => r.MedicalRecord)
+                    .ThenInclude(m => m.Department)
+                .Include(r => r.Details.Where(d => !d.IsDeleted))
+                    .ThenInclude(d => d.Service)
+                .OrderByDescending(r => r.IsEmergency)
+                .ThenByDescending(r => r.IsPriority)
+                .ThenBy(r => r.RequestDate)
+                .ToListAsync();
 
-            // Query all today's lab orders with patient + department info
-            var sql = @"
-                SELECT
-                    o.Id, o.OrderCode, o.Status, o.IsPriority, o.IsEmergency,
-                    o.SampleBarcode, o.SampleType, o.OrderedAt, o.CollectedAt,
-                    o.ProcessingStartTime, o.ProcessingEndTime,
-                    p.FullName AS PatientName, p.PatientCode,
-                    d.DepartmentName,
-                    (SELECT COUNT(*) FROM LabRequestItems ri
-                     INNER JOIN LabRequests lr ON ri.LabRequestId = lr.Id
-                     WHERE lr.LabOrderId = o.Id AND ri.IsDeleted = 0) AS TestCount,
-                    (SELECT STRING_AGG(s.ServiceName, N', ')
-                     FROM LabRequestItems ri
-                     INNER JOIN LabRequests lr ON ri.LabRequestId = lr.Id
-                     INNER JOIN Services s ON ri.TestId = s.Id
-                     WHERE lr.LabOrderId = o.Id AND ri.IsDeleted = 0) AS TestSummary
-                FROM LabOrders o
-                INNER JOIN Patients p ON o.PatientId = p.Id
-                LEFT JOIN Departments d ON o.OrderDepartmentId = d.Id
-                WHERE o.IsDeleted = 0
-                AND CAST(o.OrderedAt AS DATE) = CAST(@Today AS DATE)
-                ORDER BY o.IsEmergency DESC, o.IsPriority DESC, o.OrderedAt ASC
-            ";
-
-            using var command = new Microsoft.Data.SqlClient.SqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@Today", today);
-
-            using var reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            foreach (var r in requests)
             {
-                var status = reader.GetInt32(reader.GetOrdinal("Status"));
-                var orderedAt = reader.GetDateTime(reader.GetOrdinal("OrderedAt"));
-                DateTime? collectedAt = reader.IsDBNull(reader.GetOrdinal("CollectedAt")) ? null : reader.GetDateTime(reader.GetOrdinal("CollectedAt"));
-                DateTime? completedAt = reader.IsDBNull(reader.GetOrdinal("ProcessingEndTime")) ? null : reader.GetDateTime(reader.GetOrdinal("ProcessingEndTime"));
+                var details = r.Details?.ToList() ?? new List<ServiceRequestDetail>();
+                var activeDetails = details.Where(d => !d.IsDeleted && d.Status != 3).ToList();
+
+                var status = LisModel1Map.ComputeOrderStatus(activeDetails);
+                var collectedAt = LisModel1Map.CollectedAt(activeDetails);
+                var barcode = LisModel1Map.FirstBarcode(activeDetails);
+
+                // ProcessingStartTime = min TechnicianRunAt; ProcessingEndTime = max ResultDate
+                var processingStart = activeDetails
+                    .Where(d => d.TechnicianRunAt.HasValue)
+                    .OrderBy(d => d.TechnicianRunAt)
+                    .Select(d => d.TechnicianRunAt)
+                    .FirstOrDefault();
+                var processingEnd = activeDetails
+                    .Where(d => d.ResultDate.HasValue)
+                    .OrderByDescending(d => d.ResultDate)
+                    .Select(d => d.ResultDate)
+                    .FirstOrDefault();
+
+                var patient = r.MedicalRecord?.Patient;
+                var department = r.MedicalRecord?.Department;
 
                 var item = new LabQueueItemDto
                 {
-                    Id = reader.GetGuid(reader.GetOrdinal("Id")),
-                    OrderCode = reader.GetString(reader.GetOrdinal("OrderCode")),
-                    SampleBarcode = reader.IsDBNull(reader.GetOrdinal("SampleBarcode")) ? null : reader.GetString(reader.GetOrdinal("SampleBarcode")),
-                    PatientName = reader.GetString(reader.GetOrdinal("PatientName")),
-                    PatientCode = reader.IsDBNull(reader.GetOrdinal("PatientCode")) ? null : reader.GetString(reader.GetOrdinal("PatientCode")),
-                    SampleType = reader.IsDBNull(reader.GetOrdinal("SampleType")) ? null : reader.GetString(reader.GetOrdinal("SampleType")),
-                    TestCount = reader.GetInt32(reader.GetOrdinal("TestCount")),
-                    TestSummary = reader.IsDBNull(reader.GetOrdinal("TestSummary")) ? "" : reader.GetString(reader.GetOrdinal("TestSummary")),
-                    IsPriority = reader.GetBoolean(reader.GetOrdinal("IsPriority")),
-                    IsEmergency = reader.GetBoolean(reader.GetOrdinal("IsEmergency")),
+                    Id = r.Id,
+                    OrderCode = r.RequestCode ?? "",
+                    SampleBarcode = barcode,
+                    PatientName = patient?.FullName ?? "",
+                    PatientCode = patient?.PatientCode,
+                    SampleType = null, // không có tương đương trong model 1
+                    TestCount = activeDetails.Count,
+                    TestSummary = string.Join(", ", activeDetails
+                        .Where(d => d.Service != null)
+                        .Select(d => d.Service!.ServiceName)),
+                    IsPriority = r.IsPriority,
+                    IsEmergency = r.IsEmergency,
                     Status = status,
+                    // Map label theo status kiểu model 3 (ComputeOrderStatus): 0 chờ mẫu · 1 đã lấy mẫu ·
+                    // 2 đang XN · 3 chờ duyệt · 4 sơ duyệt (KTV) · 5 đã duyệt chính thức
                     StatusName = status switch
                     {
-                        1 => "Chờ lấy mẫu",
-                        2 => "Đã lấy mẫu",
-                        3 => "Đang xử lý",
-                        4 => "Chờ duyệt",
+                        0 => "Chờ lấy mẫu",
+                        1 => "Đã lấy mẫu",
+                        2 => "Đang xử lý",
+                        3 => "Chờ duyệt",
+                        4 => "Sơ duyệt",
                         5 => "Hoàn thành",
-                        6 => "Đã hủy",
                         _ => "Không rõ"
                     },
-                    OrderedAt = orderedAt,
+                    OrderedAt = r.RequestDate,
                     CollectedAt = collectedAt,
-                    CompletedAt = completedAt,
-                    WaitMinutes = (int)(now - orderedAt).TotalMinutes,
-                    DepartmentName = reader.IsDBNull(reader.GetOrdinal("DepartmentName")) ? null : reader.GetString(reader.GetOrdinal("DepartmentName"))
+                    CompletedAt = processingEnd,
+                    WaitMinutes = (int)(now - r.RequestDate).TotalMinutes,
+                    DepartmentName = department?.DepartmentName
                 };
 
+                // Phân bucket: 0/1 → Waiting; 2/3/4 (đang XN / chờ duyệt / sơ duyệt) → Processing; 5 → Completed
                 switch (status)
                 {
-                    case 1 or 2: // Waiting (pending collection or collected)
+                    case 0 or 1: // Chờ lấy mẫu / Đã lấy mẫu
                         result.WaitingItems.Add(item);
                         break;
-                    case 3 or 4: // Processing or awaiting approval
+                    case 2 or 3 or 4: // Đang XN / Chờ duyệt / Sơ duyệt
                         result.ProcessingItems.Add(item);
                         break;
-                    case 5: // Completed
+                    case 5: // Đã duyệt (hoàn thành)
                         result.CompletedItems.Add(item);
                         break;
-                    // Skip cancelled (6)
                 }
             }
 

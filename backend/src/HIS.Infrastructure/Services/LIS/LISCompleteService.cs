@@ -71,14 +71,13 @@ public partial class LISCompleteService : ILISCompleteService
     /// </summary>
     public async Task<int> UpdateAllOrderDatesToTodayAsync()
     {
+        // #14e: model 2 LabRequests đã gỡ — refresh ngày demo trên model 1 (SR XN)
         var today = DateTime.Today;
-        var requests = await _context.LabRequests.ToListAsync();
+        var requests = await _context.ServiceRequests.Where(r => r.RequestType == 1 && !r.IsDeleted).ToListAsync();
 
         foreach (var request in requests)
         {
-            request.RequestDate = today;
-            if (request.ApprovedAt.HasValue)
-                request.ApprovedAt = today.AddHours(request.ApprovedAt.Value.Hour).AddMinutes(request.ApprovedAt.Value.Minute);
+            request.RequestDate = today.AddHours(request.RequestDate.Hour).AddMinutes(request.RequestDate.Minute);
         }
 
         await _context.SaveChangesAsync();

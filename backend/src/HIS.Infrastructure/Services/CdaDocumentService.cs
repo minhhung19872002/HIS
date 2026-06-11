@@ -490,24 +490,33 @@ public class CdaDocumentService : ICdaDocumentService
 
     private async Task<string> BuildLabReportAsync(Patient patient, GenerateCdaRequest request, User? author)
     {
+        // #14e: model 1 ServiceRequest + SRD + chỉ số con (model 2 LabRequests/LabResults đã gỡ)
         var labRequest = request.SourceEntityId.HasValue
-            ? await _db.LabRequests.AsNoTracking()
-                .Include(r => r.Items).ThenInclude(i => i.Results)
-                .Include(r => r.RequestingDoctor)
-                .FirstOrDefaultAsync(r => r.Id == request.SourceEntityId.Value)
+            ? await _db.ServiceRequests.AsNoTracking()
+                .Include(r => r.Details.Where(d => !d.IsDeleted && d.Status != 3)).ThenInclude(d => d.Service)
+                .Include(r => r.Doctor)
+                .FirstOrDefaultAsync(r => r.Id == request.SourceEntityId.Value && r.RequestType == 1)
             : request.MedicalRecordId.HasValue
-                ? await _db.LabRequests.AsNoTracking()
-                    .Include(r => r.Items).ThenInclude(i => i.Results)
-                    .Include(r => r.RequestingDoctor)
-                    .Where(r => r.MedicalRecordId == request.MedicalRecordId.Value && !r.IsDeleted)
+                ? await _db.ServiceRequests.AsNoTracking()
+                    .Include(r => r.Details.Where(d => !d.IsDeleted && d.Status != 3)).ThenInclude(d => d.Service)
+                    .Include(r => r.Doctor)
+                    .Where(r => r.MedicalRecordId == request.MedicalRecordId.Value && !r.IsDeleted && r.RequestType == 1)
                     .OrderByDescending(r => r.RequestDate)
                     .FirstOrDefaultAsync()
                 : null;
 
         var sections = new List<XElement>();
 
-        if (labRequest != null && labRequest.Items.Any())
+        if (labRequest != null && labRequest.Details.Any())
         {
+            var detailIds = labRequest.Details.Select(d => d.Id).ToList();
+            var paramsByDetail = (await _db.ServiceRequestDetailParameters.AsNoTracking()
+                    .Where(p => detailIds.Contains(p.ServiceRequestDetailId) && !p.IsDeleted)
+                    .OrderBy(p => p.SequenceNumber)
+                    .ToListAsync())
+                .GroupBy(p => p.ServiceRequestDetailId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
             // Build lab results table
             var tableRows = new List<XElement>();
             tableRows.Add(new XElement(Hl7 + "tr",
@@ -517,16 +526,29 @@ public class CdaDocumentService : ICdaDocumentService
                 new XElement(Hl7 + "th", "Binh thuong"),
                 new XElement(Hl7 + "th", "Bat thuong")));
 
-            foreach (var item in labRequest.Items)
+            foreach (var item in labRequest.Details)
             {
-                foreach (var result in item.Results.OrderBy(r => r.SequenceNumber))
+                if (paramsByDetail.TryGetValue(item.Id, out var ps))
+                {
+                    foreach (var result in ps)
+                    {
+                        var abnormalType = LabFlagEvaluator.FlagToAbnormalType(result.Flag);
+                        tableRows.Add(new XElement(Hl7 + "tr",
+                            new XElement(Hl7 + "td", result.ParameterName),
+                            new XElement(Hl7 + "td", result.Value ?? ""),
+                            new XElement(Hl7 + "td", result.Unit ?? ""),
+                            new XElement(Hl7 + "td", result.ReferenceRange ?? FormatRefRange(result.ReferenceMin, result.ReferenceMax)),
+                            new XElement(Hl7 + "td", abnormalType.HasValue ? (abnormalType == 1 ? "Cao" : abnormalType == 2 ? "Thap" : "Nguy hiem") : "Binh thuong")));
+                    }
+                }
+                else if (item.Result != null)
                 {
                     tableRows.Add(new XElement(Hl7 + "tr",
-                        new XElement(Hl7 + "td", result.ParameterName),
-                        new XElement(Hl7 + "td", result.ResultValue ?? result.TextResult ?? ""),
-                        new XElement(Hl7 + "td", result.Unit ?? ""),
-                        new XElement(Hl7 + "td", result.ReferenceRange ?? FormatRefRange(result.ReferenceMin, result.ReferenceMax)),
-                        new XElement(Hl7 + "td", result.IsAbnormal ? (result.AbnormalType == 1 ? "Cao" : result.AbnormalType == 2 ? "Thap" : "Nguy hiem") : "Binh thuong")));
+                        new XElement(Hl7 + "td", item.Service?.ServiceName ?? ""),
+                        new XElement(Hl7 + "td", item.Result),
+                        new XElement(Hl7 + "td", ""),
+                        new XElement(Hl7 + "td", ""),
+                        new XElement(Hl7 + "td", "")));
                 }
             }
 
@@ -547,13 +569,13 @@ public class CdaDocumentService : ICdaDocumentService
             sections.Add(section);
 
             // Clinical info section
-            if (!string.IsNullOrEmpty(labRequest.ClinicalInfo))
-                sections.Add(BuildTextSection(LoincHistory, "Thong tin lam sang", labRequest.ClinicalInfo));
+            if (!string.IsNullOrEmpty(labRequest.Notes ?? labRequest.Note))
+                sections.Add(BuildTextSection(LoincHistory, "Thong tin lam sang", labRequest.Notes ?? labRequest.Note!));
 
             // Diagnosis section
-            if (!string.IsNullOrEmpty(labRequest.DiagnosisName))
+            if (!string.IsNullOrEmpty(labRequest.Diagnosis))
                 sections.Add(BuildCodedSection(LoincDiagnoses, "Chan doan",
-                    labRequest.DiagnosisName, labRequest.DiagnosisCode, labRequest.DiagnosisName));
+                    labRequest.Diagnosis, labRequest.IcdCode, labRequest.Diagnosis));
         }
         else
         {

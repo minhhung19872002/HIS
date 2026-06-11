@@ -546,37 +546,69 @@ public class FhirService : IFhirService
                 }
             }
 
-            // Lab results
+            // Lab results — #14b: model 1 (chỉ số con per-parameter R1 + SRD legacy KQ chuỗi); model 2 LabResults chết
             if (isLab)
             {
-                var labQuery = _context.LabResults
-                    .Include(r => r.LabRequestItem!)
-                        .ThenInclude(i => i.LabRequest!)
-                        .ThenInclude(lr => lr.Patient)
-                    .Where(r => !r.IsDeleted && r.Status >= 1)
+                var paramQuery = _context.ServiceRequestDetailParameters
+                    .Include(p => p.ServiceRequestDetail!)
+                        .ThenInclude(d => d.ServiceRequest)
+                        .ThenInclude(sr => sr.MedicalRecord)
+                        .ThenInclude(m => m.Patient)
+                    .Where(p => !p.IsDeleted && p.ServiceRequestDetail!.Status != 3)
                     .AsQueryable();
 
                 if (patientId.HasValue)
-                    labQuery = labQuery.Where(r => r.LabRequestItem!.LabRequest!.PatientId == patientId.Value);
+                    paramQuery = paramQuery.Where(p => p.ServiceRequestDetail!.ServiceRequest.MedicalRecord.PatientId == patientId.Value);
                 if (!string.IsNullOrEmpty(code))
-                    labQuery = labQuery.Where(r => r.ParameterCode == code);
+                    paramQuery = paramQuery.Where(p => p.ParameterCode == code);
                 if (!string.IsNullOrEmpty(dateFrom) && DateTime.TryParse(dateFrom, out var ldf))
-                    labQuery = labQuery.Where(r => r.CreatedAt >= ldf);
+                    paramQuery = paramQuery.Where(p => p.CreatedAt >= ldf);
                 if (!string.IsNullOrEmpty(dateTo) && DateTime.TryParse(dateTo, out var ldt))
-                    labQuery = labQuery.Where(r => r.CreatedAt <= ldt.AddDays(1));
+                    paramQuery = paramQuery.Where(p => p.CreatedAt <= ldt.AddDays(1));
 
-                var labTotal = await labQuery.CountAsync();
+                var labTotal = await paramQuery.CountAsync();
                 total += labTotal;
                 var remainingCount = Math.Max(0, count - entries.Count);
-                var labResults = await labQuery.OrderByDescending(r => r.CreatedAt).Take(remainingCount).ToListAsync();
+                var labParams = await paramQuery.OrderByDescending(p => p.CreatedAt).Take(remainingCount).ToListAsync();
 
-                foreach (var result in labResults)
+                foreach (var p in labParams)
                 {
-                    var obs = MapLabResultObservation(result);
                     entries.Add(new FhirBundleEntry
                     {
-                        FullUrl = $"{baseUrl}/api/fhir/Observation/lab-{result.Id}",
-                        Resource = obs,
+                        FullUrl = $"{baseUrl}/api/fhir/Observation/lab-{p.Id}",
+                        Resource = MapLabParamObservation(p),
+                        Search = new FhirBundleEntrySearch { Mode = "match" }
+                    });
+                }
+
+                // SRD legacy chỉ có KQ chuỗi (chưa có chỉ số con) — vẫn phát Observation để không mất dữ liệu cũ
+                var srdQuery = _context.ServiceRequestDetails
+                    .Include(d => d.Service)
+                    .Include(d => d.ServiceRequest).ThenInclude(sr => sr.MedicalRecord).ThenInclude(m => m.Patient)
+                    .Where(d => !d.IsDeleted && d.Status != 3 && d.ServiceRequest.RequestType == 1
+                        && d.Result != null
+                        && !_context.ServiceRequestDetailParameters.Any(p => p.ServiceRequestDetailId == d.Id && !p.IsDeleted))
+                    .AsQueryable();
+
+                if (patientId.HasValue)
+                    srdQuery = srdQuery.Where(d => d.ServiceRequest.MedicalRecord.PatientId == patientId.Value);
+                if (!string.IsNullOrEmpty(code))
+                    srdQuery = srdQuery.Where(d => d.Service.ServiceCode == code);
+                if (!string.IsNullOrEmpty(dateFrom) && DateTime.TryParse(dateFrom, out var sdf))
+                    srdQuery = srdQuery.Where(d => d.CreatedAt >= sdf);
+                if (!string.IsNullOrEmpty(dateTo) && DateTime.TryParse(dateTo, out var sdt))
+                    srdQuery = srdQuery.Where(d => d.CreatedAt <= sdt.AddDays(1));
+
+                total += await srdQuery.CountAsync();
+                var remainingSrd = Math.Max(0, count - entries.Count);
+                var legacySrds = await srdQuery.OrderByDescending(d => d.CreatedAt).Take(remainingSrd).ToListAsync();
+
+                foreach (var d in legacySrds)
+                {
+                    entries.Add(new FhirBundleEntry
+                    {
+                        FullUrl = $"{baseUrl}/api/fhir/Observation/lab-{d.Id}",
+                        Resource = MapLabSrdObservation(d),
                         Search = new FhirBundleEntrySearch { Mode = "match" }
                     });
                 }
@@ -610,12 +642,18 @@ public class FhirService : IFhirService
             }
             else if (compositeId.StartsWith("lab-") && Guid.TryParse(compositeId[4..], out var labId))
             {
-                var result = await _context.LabResults
-                    .Include(r => r.LabRequestItem!)
-                        .ThenInclude(i => i.LabRequest!)
-                        .ThenInclude(lr => lr.Patient)
-                    .FirstOrDefaultAsync(r => r.Id == labId && !r.IsDeleted);
-                return result == null ? null : MapLabResultObservation(result);
+                // #14b: thử chỉ số con per-parameter (R1) trước, fallback SRD legacy KQ chuỗi
+                var p = await _context.ServiceRequestDetailParameters
+                    .Include(x => x.ServiceRequestDetail!)
+                        .ThenInclude(d => d.ServiceRequest).ThenInclude(sr => sr.MedicalRecord).ThenInclude(m => m.Patient)
+                    .FirstOrDefaultAsync(x => x.Id == labId && !x.IsDeleted);
+                if (p != null) return MapLabParamObservation(p);
+
+                var srd = await _context.ServiceRequestDetails
+                    .Include(d => d.Service)
+                    .Include(d => d.ServiceRequest).ThenInclude(sr => sr.MedicalRecord).ThenInclude(m => m.Patient)
+                    .FirstOrDefaultAsync(d => d.Id == labId && !d.IsDeleted && d.ServiceRequest.RequestType == 1);
+                return srd == null ? null : MapLabSrdObservation(srd);
             }
             return null;
         }
@@ -707,20 +745,22 @@ public class FhirService : IFhirService
         };
     }
 
-    private static FhirObservation MapLabResultObservation(LabResult result)
+    // #14b: Observation từ chỉ số con per-parameter (model 1 — R1 ServiceRequestDetailParameter)
+    private static FhirObservation MapLabParamObservation(ServiceRequestDetailParameter p)
     {
-        var labRequest = result.LabRequestItem?.LabRequest;
-        var patient = labRequest?.Patient;
+        var detail = p.ServiceRequestDetail;
+        var patient = detail?.ServiceRequest?.MedicalRecord?.Patient;
 
         var interpretation = new List<FhirCodeableConcept>();
-        if (result.IsAbnormal)
+        var flag = (p.Flag ?? "").ToUpperInvariant();
+        if (flag is "H" or "L" or "HH" or "LL")
         {
-            var interpCode = result.AbnormalType switch
+            var interpCode = flag switch
             {
-                1 => ("H", "High"),
-                2 => ("L", "Low"),
-                3 => ("HH", "Critical high"),
-                _ => ("A", "Abnormal")
+                "H" => ("H", "High"),
+                "L" => ("L", "Low"),
+                "HH" => ("HH", "Critical high"),
+                _ => ("LL", "Critical low")
             };
             interpretation.Add(new FhirCodeableConcept
             {
@@ -732,37 +772,62 @@ public class FhirService : IFhirService
         }
 
         var referenceRanges = new List<FhirReferenceRange>();
-        if (result.ReferenceMin.HasValue || result.ReferenceMax.HasValue || !string.IsNullOrEmpty(result.ReferenceRange))
+        if (p.ReferenceMin.HasValue || p.ReferenceMax.HasValue || !string.IsNullOrEmpty(p.ReferenceRange))
         {
             referenceRanges.Add(new FhirReferenceRange
             {
-                Low = result.ReferenceMin.HasValue ? new FhirQuantity { Value = result.ReferenceMin, Unit = result.Unit } : null,
-                High = result.ReferenceMax.HasValue ? new FhirQuantity { Value = result.ReferenceMax, Unit = result.Unit } : null,
-                Text = result.ReferenceRange ?? result.ReferenceText
+                Low = p.ReferenceMin.HasValue ? new FhirQuantity { Value = p.ReferenceMin, Unit = p.Unit } : null,
+                High = p.ReferenceMax.HasValue ? new FhirQuantity { Value = p.ReferenceMax, Unit = p.Unit } : null,
+                Text = p.ReferenceRange
             });
         }
 
         return new FhirObservation
         {
-            Id = $"lab-{result.Id}",
-            Meta = new FhirMeta { LastUpdated = (result.UpdatedAt ?? result.CreatedAt).ToString("yyyy-MM-ddTHH:mm:ssZ") },
-            Status = result.Status switch { 0 => "registered", 1 => "preliminary", 2 => "final", _ => "unknown" },
+            Id = $"lab-{p.Id}",
+            Meta = new FhirMeta { LastUpdated = (p.UpdatedAt ?? p.CreatedAt).ToString("yyyy-MM-ddTHH:mm:ssZ") },
+            Status = detail?.ReviewedAt != null || detail?.Status == 2 ? "final" : "preliminary",
             Category = new List<FhirCodeableConcept>
             {
                 new() { Coding = new List<FhirCoding> { new() { System = OBSERVATION_CATEGORY_SYSTEM, Code = "laboratory", Display = "Laboratory" } } }
             },
             Code = new FhirCodeableConcept
             {
-                Coding = new List<FhirCoding> { new() { System = LOINC_SYSTEM, Code = result.ParameterCode, Display = result.ParameterName } },
-                Text = result.ParameterName
+                Coding = new List<FhirCoding> { new() { System = LOINC_SYSTEM, Code = p.ParameterCode, Display = p.ParameterName } },
+                Text = p.ParameterName
             },
             Subject = patient != null ? new FhirReference { Reference = $"Patient/{patient.Id}", Display = patient.FullName } : null,
-            EffectiveDateTime = (result.ResultedAt ?? result.CreatedAt).ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            Issued = result.ApprovedAt?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ValueQuantity = result.NumericResult.HasValue ? new FhirQuantity { Value = result.NumericResult, Unit = result.Unit } : null,
-            ValueString = result.NumericResult.HasValue ? null : (result.TextResult ?? result.Result ?? result.ResultValue),
+            EffectiveDateTime = (detail?.ResultDate ?? p.CreatedAt).ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            Issued = detail?.ReviewedAt?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ValueQuantity = p.NumericValue.HasValue ? new FhirQuantity { Value = p.NumericValue, Unit = p.Unit } : null,
+            ValueString = p.NumericValue.HasValue ? null : p.Value,
             Interpretation = interpretation.Count > 0 ? interpretation : null,
             ReferenceRange = referenceRanges.Count > 0 ? referenceRanges : null
+        };
+    }
+
+    // #14b: Observation từ SRD legacy (KQ chuỗi, chưa có chỉ số con)
+    private static FhirObservation MapLabSrdObservation(ServiceRequestDetail d)
+    {
+        var patient = d.ServiceRequest?.MedicalRecord?.Patient;
+        return new FhirObservation
+        {
+            Id = $"lab-{d.Id}",
+            Meta = new FhirMeta { LastUpdated = (d.UpdatedAt ?? d.CreatedAt).ToString("yyyy-MM-ddTHH:mm:ssZ") },
+            Status = d.ReviewedAt != null || d.Status == 2 ? "final" : "preliminary",
+            Category = new List<FhirCodeableConcept>
+            {
+                new() { Coding = new List<FhirCoding> { new() { System = OBSERVATION_CATEGORY_SYSTEM, Code = "laboratory", Display = "Laboratory" } } }
+            },
+            Code = new FhirCodeableConcept
+            {
+                Coding = new List<FhirCoding> { new() { System = LOINC_SYSTEM, Code = d.Service?.ServiceCode, Display = d.Service?.ServiceName } },
+                Text = d.Service?.ServiceName
+            },
+            Subject = patient != null ? new FhirReference { Reference = $"Patient/{patient.Id}", Display = patient.FullName } : null,
+            EffectiveDateTime = (d.ResultDate ?? d.CreatedAt).ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            Issued = d.ReviewedAt?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ValueString = d.Result
         };
     }
 
@@ -922,15 +987,17 @@ public class FhirService : IFhirService
             // Lab DiagnosticReports
             if (isLab)
             {
-                var labQuery = _context.LabRequests
-                    .Include(lr => lr.Patient)
-                    .Include(lr => lr.RequestingDoctor)
-                    .Include(lr => lr.Items)
-                    .Where(lr => !lr.IsDeleted && lr.Status >= 3) // Completed+
+                // #14b: model 1 ServiceRequests (RequestType=1, Status=3 Có KQ); model 2 LabRequests chết
+                var labQuery = _context.ServiceRequests
+                    .Include(lr => lr.MedicalRecord).ThenInclude(m => m.Patient)
+                    .Include(lr => lr.Doctor)
+                    .Include(lr => lr.Details.Where(d => !d.IsDeleted && d.Status != 3)).ThenInclude(d => d.Service)
+                    .Where(lr => !lr.IsDeleted && lr.RequestType == 1 && lr.Status != 4
+                        && (lr.Status == 3 || lr.Details.Any(d => !d.IsDeleted && d.Status != 3 && (d.Result != null || d.ResultDate != null))))
                     .AsQueryable();
 
                 if (patientId.HasValue)
-                    labQuery = labQuery.Where(lr => lr.PatientId == patientId.Value);
+                    labQuery = labQuery.Where(lr => lr.MedicalRecord.PatientId == patientId.Value);
                 if (!string.IsNullOrEmpty(dateFrom) && DateTime.TryParse(dateFrom, out var ldf))
                     labQuery = labQuery.Where(lr => lr.RequestDate >= ldf);
                 if (!string.IsNullOrEmpty(dateTo) && DateTime.TryParse(dateTo, out var ldt))
@@ -1007,11 +1074,12 @@ public class FhirService : IFhirService
             }
             else
             {
-                var lr = await _context.LabRequests
-                    .Include(r => r.Patient)
-                    .Include(r => r.RequestingDoctor)
-                    .Include(r => r.Items)
-                    .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted);
+                // #14b: model 1 ServiceRequest (RequestType=1)
+                var lr = await _context.ServiceRequests
+                    .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
+                    .Include(r => r.Doctor)
+                    .Include(r => r.Details.Where(d => !d.IsDeleted && d.Status != 3)).ThenInclude(d => d.Service)
+                    .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted && r.RequestType == 1);
                 return lr == null ? null : MapLabDiagnosticReport(lr);
             }
         }
@@ -1021,8 +1089,16 @@ public class FhirService : IFhirService
         }
     }
 
-    private static FhirDiagnosticReport MapLabDiagnosticReport(LabRequest lr)
+    // #14b: DiagnosticReport từ ServiceRequest model 1 (Result refs → Observation lab-{srdId})
+    private static FhirDiagnosticReport MapLabDiagnosticReport(ServiceRequest lr)
     {
+        var patient = lr.MedicalRecord?.Patient;
+        var issued = lr.Details?
+            .Select(d => d.ReviewedAt)
+            .Where(x => x.HasValue)
+            .OrderByDescending(x => x)
+            .FirstOrDefault();
+
         return new FhirDiagnosticReport
         {
             Id = $"lab-{lr.Id}",
@@ -1031,7 +1107,7 @@ public class FhirService : IFhirService
             {
                 new() { System = $"{HIS_SYSTEM}/lab-request", Value = lr.RequestCode }
             },
-            Status = lr.Status switch { 3 => "preliminary", 4 => "final", 5 => "cancelled", _ => "registered" },
+            Status = lr.Status switch { 2 => "preliminary", 3 => "final", 4 => "cancelled", _ => "registered" },
             Category = new List<FhirCodeableConcept>
             {
                 new() { Coding = new List<FhirCoding> { new() { System = DIAGNOSTIC_SERVICE_SYSTEM, Code = "LAB", Display = "Laboratory" } } }
@@ -1041,20 +1117,20 @@ public class FhirService : IFhirService
                 Coding = new List<FhirCoding> { new() { System = $"{HIS_SYSTEM}/lab-panel", Code = lr.RequestCode, Display = $"Lab Panel {lr.RequestCode}" } },
                 Text = $"Laboratory Panel - {lr.RequestCode}"
             },
-            Subject = new FhirReference { Reference = $"Patient/{lr.PatientId}", Display = lr.Patient?.FullName },
+            Subject = new FhirReference { Reference = $"Patient/{lr.MedicalRecord?.PatientId}", Display = patient?.FullName },
             Encounter = lr.ExaminationId.HasValue ? new FhirReference { Reference = $"Encounter/exam-{lr.ExaminationId}" } : null,
             EffectiveDateTime = lr.RequestDate.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            Issued = lr.ApprovedAt?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            Performer = lr.RequestingDoctor != null ? new List<FhirReference>
+            Issued = issued?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            Performer = lr.Doctor != null ? new List<FhirReference>
             {
-                new() { Reference = $"Practitioner/{lr.RequestingDoctorId}", Display = lr.RequestingDoctor.FullName }
+                new() { Reference = $"Practitioner/{lr.DoctorId}", Display = lr.Doctor.FullName }
             } : null,
-            Result = lr.Items?.Select(item => new FhirReference
+            Result = lr.Details?.Select(d => new FhirReference
             {
-                Reference = $"Observation/lab-{item.Id}",
-                Display = item.TestName
+                Reference = $"Observation/lab-{d.Id}",
+                Display = d.Service?.ServiceName
             }).ToList(),
-            Conclusion = lr.DiagnosisName
+            Conclusion = lr.Diagnosis
         };
     }
 

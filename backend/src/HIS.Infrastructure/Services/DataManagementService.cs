@@ -21,7 +21,7 @@ public class DataManagementService : IDataManagementService
         var prescriptions = await _db.Prescriptions.CountAsync();
 
         int labResults = 0, radiologyResults = 0;
-        try { labResults = await _db.Set<HIS.Core.Entities.LabRequest>().CountAsync(); } catch { }
+        try { labResults = await _db.ServiceRequests.CountAsync(r => r.RequestType == 1 && !r.IsDeleted); } catch { } // #14e: model 1
         try { radiologyResults = await _db.Set<HIS.Core.Entities.RadiologyRequest>().CountAsync(); } catch { }
 
         var admissions = await _db.Admissions.CountAsync();
@@ -72,7 +72,7 @@ public class DataManagementService : IDataManagementService
         // Lab
         try
         {
-            var labCount = await _db.Set<HIS.Core.Entities.LabRequest>().CountAsync();
+            var labCount = await _db.ServiceRequests.CountAsync(r => r.RequestType == 1 && !r.IsDeleted); // #14e: model 1
             modules.Add(new ModuleDataCountDto { Module = "lab", ModuleName = "Xét nghiệm", RecordCount = labCount });
         }
         catch { modules.Add(new ModuleDataCountDto { Module = "lab", ModuleName = "Xét nghiệm", RecordCount = 0 }); }

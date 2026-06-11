@@ -611,24 +611,23 @@ public class BusinessAlertService : IBusinessAlertService
         var alerts = new List<BusinessAlertDto>();
         try
         {
-            using var connection = new SqlConnection(_context.Database.GetConnectionString());
-            await connection.OpenAsync();
-            var sql = @"SELECT TOP 5 lr.TestName, lr.NumericResult, lr.ReferenceRange, lr.IsCritical, lr.CreatedAt
-                FROM LabResults lr
-                INNER JOIN LabRequestItems lri ON lr.LabRequestItemId = lri.Id
-                INNER JOIN LabRequests lo ON lri.LabRequestId = lo.Id
-                WHERE lo.PatientId = @PatientId AND lr.IsAbnormal = 1 AND lr.IsDeleted = 0
-                AND lr.CreatedAt >= DATEADD(DAY, -3, GETDATE())
-                ORDER BY lr.IsCritical DESC, lr.CreatedAt DESC";
-            using var cmd = new SqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@PatientId", patientId);
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            // #14e: model 1 — chỉ số con bất thường (Flag != N) 3 ngày gần nhất (model 2 LabResults đã gỡ)
+            var abnormalRows = await _context.ServiceRequestDetailParameters
+                .Where(p => !p.IsDeleted
+                    && p.ServiceRequestDetail!.ServiceRequest.MedicalRecord.PatientId == patientId
+                    && p.Flag != null && p.Flag != "N"
+                    && p.CreatedAt >= DateTime.UtcNow.AddDays(-3))
+                .OrderByDescending(p => p.Flag == "HH" || p.Flag == "LL")
+                .ThenByDescending(p => p.CreatedAt)
+                .Take(5)
+                .Select(p => new { p.ParameterName, p.Value, p.ReferenceRange, p.Flag })
+                .ToListAsync();
+            foreach (var r in abnormalRows)
             {
-                var isCritical = !reader.IsDBNull(3) && reader.GetBoolean(3);
+                var isCritical = r.Flag == "HH" || r.Flag == "LL";
                 alerts.Add(CreateAlert("OPD-09", "OPD", isCritical ? 1 : 2, "Lab",
                     "Ket qua xet nghiem bat thuong",
-                    $"XN {reader.GetString(0)}: ket qua {(reader.IsDBNull(1) ? "N/A" : reader.GetDecimal(1).ToString("F2"))} (GTBT: {(reader.IsDBNull(2) ? "N/A" : reader.GetString(2))})" +
+                    $"XN {r.ParameterName}: ket qua {r.Value ?? "N/A"} (GTBT: {r.ReferenceRange ?? "N/A"})" +
                     (isCritical ? " - GIA TRI NGUY KICH" : ""),
                     patientId, null, null));
             }
@@ -932,26 +931,24 @@ public class BusinessAlertService : IBusinessAlertService
         var alerts = new List<BusinessAlertDto>();
         try
         {
-            using var connection = new SqlConnection(_context.Database.GetConnectionString());
-            await connection.OpenAsync();
-            var sql = @"SELECT TOP 3 lr.TestName, lr.TextResult, lr.CreatedAt
-                FROM LabResults lr
-                INNER JOIN LabRequestItems lri ON lr.LabRequestItemId = lri.Id
-                INNER JOIN LabRequests lo ON lri.LabRequestId = lo.Id
-                WHERE lo.PatientId = @PatientId AND lr.IsDeleted = 0
-                AND lr.IsCritical = 1
-                AND (lr.TestName LIKE N'%cấy máu%' OR lr.TestName LIKE N'%cay mau%'
-                     OR lr.TestName LIKE N'%blood culture%' OR lr.TestName LIKE N'%hemoculture%')
-                AND lr.CreatedAt >= DATEADD(DAY, -7, GETDATE())
-                ORDER BY lr.CreatedAt DESC";
-            using var cmd = new SqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@PatientId", patientId);
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            // #14e: model 1 — SRD dịch vụ cấy máu có KQ dương tính 7 ngày gần nhất (model 2 LabResults đã gỡ)
+            var positiveCultures = await _context.ServiceRequestDetails
+                .Where(d => !d.IsDeleted && d.Status != 3
+                    && d.ServiceRequest.MedicalRecord.PatientId == patientId
+                    && d.Result != null
+                    && (d.Service.ServiceName.Contains("cấy máu") || d.Service.ServiceName.Contains("cay mau")
+                        || d.Service.ServiceName.Contains("blood culture") || d.Service.ServiceName.Contains("hemoculture"))
+                    && (d.Result.Contains("dương") || d.Result.Contains("duong tinh") || d.Result.ToLower().Contains("positive"))
+                    && d.CreatedAt >= DateTime.UtcNow.AddDays(-7))
+                .OrderByDescending(d => d.CreatedAt)
+                .Take(3)
+                .Select(d => new { d.Service.ServiceName, d.Result })
+                .ToListAsync();
+            foreach (var c in positiveCultures)
             {
                 alerts.Add(CreateAlert("IPD-20", "Inpatient", 1, "Lab",
                     "Cay mau duong tinh",
-                    $"Ket qua cay mau DUONG TINH ({reader.GetString(0)}). {(reader.IsDBNull(1) ? "" : reader.GetString(1))}. XU TRI NGAY.",
+                    $"Ket qua cay mau DUONG TINH ({c.ServiceName}). {c.Result}. XU TRI NGAY.",
                     patientId, null, null));
             }
         }
@@ -1217,23 +1214,21 @@ public class BusinessAlertService : IBusinessAlertService
         var alerts = new List<BusinessAlertDto>();
         try
         {
-            using var connection = new SqlConnection(_context.Database.GetConnectionString());
-            await connection.OpenAsync();
-            var sql = @"SELECT TOP 5 lr.TestName, lr.NumericResult, lr.ReferenceRange, lr.TextResult, lr.CreatedAt
-                FROM LabResults lr
-                INNER JOIN LabRequestItems lri ON lr.LabRequestItemId = lri.Id
-                INNER JOIN LabRequests lo ON lri.LabRequestId = lo.Id
-                WHERE lo.PatientId = @PatientId AND lr.IsCritical = 1 AND lr.IsDeleted = 0
-                AND lr.CreatedAt >= DATEADD(DAY, -3, GETDATE())
-                ORDER BY lr.CreatedAt DESC";
-            using var cmd = new SqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@PatientId", patientId);
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            // #14e: model 1 — chỉ số con cờ nguy kịch HH/LL 3 ngày gần nhất (model 2 LabResults đã gỡ)
+            var criticalRows = await _context.ServiceRequestDetailParameters
+                .Where(p => !p.IsDeleted
+                    && p.ServiceRequestDetail!.ServiceRequest.MedicalRecord.PatientId == patientId
+                    && (p.Flag == "HH" || p.Flag == "LL")
+                    && p.CreatedAt >= DateTime.UtcNow.AddDays(-3))
+                .OrderByDescending(p => p.CreatedAt)
+                .Take(5)
+                .Select(p => new { p.ParameterName, p.Value, p.ReferenceRange })
+                .ToListAsync();
+            foreach (var r in criticalRows)
             {
                 alerts.Add(CreateAlert("LAB-29", "Lab", 1, "Lab",
                     "Gia tri nguy hiem",
-                    $"XN {reader.GetString(0)}: ket qua {(reader.IsDBNull(1) ? (reader.IsDBNull(3) ? "N/A" : reader.GetString(3)) : reader.GetDecimal(1).ToString("F2"))} (GTBT: {(reader.IsDBNull(2) ? "N/A" : reader.GetString(2))}). GIA TRI NGUY KICH - THONG BAO BS NGAY.",
+                    $"XN {r.ParameterName}: ket qua {r.Value ?? "N/A"} (GTBT: {r.ReferenceRange ?? "N/A"}). GIA TRI NGUY KICH - THONG BAO BS NGAY.",
                     patientId, null, null));
             }
         }
@@ -1247,14 +1242,15 @@ public class BusinessAlertService : IBusinessAlertService
         var alerts = new List<BusinessAlertDto>();
         try
         {
-            var query = _context.LabRequestItems
-                .Include(lri => lri.LabRequest)
-                .Where(lri => lri.LabRequest != null && lri.LabRequest.PatientId == patientId
-                    && lri.Status == 5 // Rejected
-                    && lri.CreatedAt >= DateTime.UtcNow.AddDays(-3));
+            // #14b: model 1 — SampleReceive reject ghi SRD.ReceiveStatus=2 + RejectReason (LabRequestItems model 2 chết)
+            var query = _context.ServiceRequestDetails
+                .Include(d => d.Service)
+                .Where(d => d.ServiceRequest.MedicalRecord.PatientId == patientId
+                    && d.ReceiveStatus == 2 // mẫu bị từ chối
+                    && d.CreatedAt >= DateTime.UtcNow.AddDays(-3));
 
             if (requestId.HasValue)
-                query = query.Where(lri => lri.LabRequestId == requestId.Value);
+                query = query.Where(d => d.ServiceRequestId == requestId.Value);
 
             var rejected = await query.Take(5).ToListAsync();
 
@@ -1262,7 +1258,7 @@ public class BusinessAlertService : IBusinessAlertService
             {
                 alerts.Add(CreateAlert("LAB-30", "Lab", 2, "Lab",
                     "Mau bi tu choi",
-                    $"Mau XN {item.TestName ?? "N/A"} bi tu choi: {item.RejectionReason ?? "Van de chat luong mau"}. Can lay mau lai.",
+                    $"Mau XN {item.Service?.ServiceName ?? "N/A"} bi tu choi: {item.RejectReason ?? "Van de chat luong mau"}. Can lay mau lai.",
                     patientId, null, null));
             }
         }
@@ -1276,13 +1272,14 @@ public class BusinessAlertService : IBusinessAlertService
         var alerts = new List<BusinessAlertDto>();
         try
         {
-            var duplicates = await _context.LabRequestItems
-                .Include(lri => lri.LabRequest)
-                .Where(lri => lri.LabRequest != null && lri.LabRequest.PatientId == patientId
-                    && lri.CreatedAt >= DateTime.UtcNow.AddHours(-24))
-                .GroupBy(lri => lri.ServiceId)
+            // #14b: model 1 — SRD theo BN trong 24h, loại dòng hủy (LabRequestItems model 2 chết)
+            var duplicates = await _context.ServiceRequestDetails
+                .Where(d => d.ServiceRequest.MedicalRecord.PatientId == patientId
+                    && d.ServiceRequest.RequestType == 1 && d.Status != 3 && !d.IsDeleted
+                    && d.CreatedAt >= DateTime.UtcNow.AddHours(-24))
+                .GroupBy(d => d.ServiceId)
                 .Where(g => g.Count() > 1)
-                .Select(g => new { ServiceId = g.Key, Count = g.Count(), Name = g.First().TestName })
+                .Select(g => new { ServiceId = g.Key, Count = g.Count(), Name = g.Max(d => d.Service.ServiceName) })
                 .ToListAsync();
 
             foreach (var dup in duplicates)

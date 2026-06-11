@@ -17,12 +17,12 @@ public class LabResultEvaluationController : ControllerBase
     private readonly HISDbContext _db;
     public LabResultEvaluationController(HISDbContext db) { _db = db; }
 
-    /// <summary>Re-evaluate tất cả parameters (LabResult rows) của 1 LabRequestItem.</summary>
+    /// <summary>Re-evaluate tất cả chỉ số con (ServiceRequestDetailParameter) của 1 SRD — #14e: model 1.</summary>
     [HttpPost("request-item/{requestItemId:guid}")]
     public async Task<IActionResult> EvaluateRequestItem(Guid requestItemId)
     {
-        var rows = await _db.LabResults
-            .Where(r => r.LabRequestItemId == requestItemId)
+        var rows = await _db.ServiceRequestDetailParameters
+            .Where(r => r.ServiceRequestDetailId == requestItemId && !r.IsDeleted)
             .ToListAsync();
         if (rows.Count == 0) return NotFound(new { message = "Chưa có KQ để đánh giá" });
         int changed = 0;
@@ -33,20 +33,27 @@ public class LabResultEvaluationController : ControllerBase
             requestItemId,
             parameters = rows.Count,
             changed,
-            abnormal = rows.Count(p => p.IsAbnormal),
-            critical = rows.Count(p => p.IsCritical),
+            abnormal = rows.Count(p => HIS.Infrastructure.Services.LabFlagEvaluator.IsAbnormal(p.Flag)),
+            critical = rows.Count(p => p.Flag == "HH" || p.Flag == "LL"),
         });
     }
 
-    /// <summary>Re-evaluate 1 LabResult row cụ thể.</summary>
+    /// <summary>Re-evaluate 1 chỉ số con cụ thể — #14e: model 1.</summary>
     [HttpPost("row/{labResultId:guid}")]
     public async Task<IActionResult> EvaluateRow(Guid labResultId)
     {
-        var row = await _db.LabResults.FindAsync(labResultId);
+        var row = await _db.ServiceRequestDetailParameters.FindAsync(labResultId);
         if (row == null) return NotFound();
         var changed = EvaluateOne(row);
         if (changed) await _db.SaveChangesAsync();
-        return Ok(new { row.Id, row.IsAbnormal, row.AbnormalType, row.IsCritical, changed });
+        return Ok(new
+        {
+            row.Id,
+            isAbnormal = HIS.Infrastructure.Services.LabFlagEvaluator.IsAbnormal(row.Flag),
+            abnormalType = HIS.Infrastructure.Services.LabFlagEvaluator.FlagToAbnormalType(row.Flag),
+            isCritical = row.Flag == "HH" || row.Flag == "LL",
+            changed,
+        });
     }
 
     /// <summary>Evaluate 1 giá trị cụ thể — dùng cho preview trước khi lưu.</summary>
@@ -76,16 +83,14 @@ public class LabResultEvaluationController : ControllerBase
         return (false, null, "green");
     }
 
-    private static bool EvaluateOne(Core.Entities.LabResult p)
+    // #14e: model 1 — tính lại Flag (N/H/L/HH/LL) cho chỉ số con từ NumericValue + khoảng tham chiếu
+    private static bool EvaluateOne(Core.Entities.ServiceRequestDetailParameter p)
     {
-        if (!p.NumericResult.HasValue) return false;
-        var (isAbn, type, _) = EvaluateValue(p.NumericResult, p.ReferenceMin, p.ReferenceMax);
-        var prevAbn = p.IsAbnormal;
-        var prevType = p.AbnormalType;
-        var prevCrit = p.IsCritical;
-        p.IsAbnormal = isAbn;
-        p.AbnormalType = type;
-        p.IsCritical = type == 3;
-        return prevAbn != p.IsAbnormal || prevType != p.AbnormalType || prevCrit != p.IsCritical;
+        if (!p.NumericValue.HasValue) return false;
+        var newFlag = HIS.Infrastructure.Services.LabFlagEvaluator.EvaluateFlag(
+            p.NumericValue, p.ReferenceMin, p.ReferenceMax, null, null);
+        if (p.Flag == newFlag) return false;
+        p.Flag = newFlag;
+        return true;
     }
 }

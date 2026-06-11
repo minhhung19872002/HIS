@@ -42,31 +42,35 @@ function Invoke-SqlText {
 }
 
 function New-LisSeedOrder {
-    $patientId = (Invoke-SqlText "SET NOCOUNT ON; SELECT TOP 1 CONVERT(varchar(36), Id) FROM Patients WHERE IsDeleted = 0 ORDER BY CreatedAt DESC;") | Select-Object -First 1
+    # #14e-B: seed sang model 1 — ServiceRequests (RequestType=1) + ServiceRequestDetails (LabOrders đã drop, mig 92)
+    $mrRow = (Invoke-SqlText "SET NOCOUNT ON; SELECT TOP 1 CONVERT(varchar(36), Id) + '|' + CONVERT(varchar(36), PatientId) FROM MedicalRecords WHERE IsDeleted = 0 ORDER BY CreatedAt DESC;") | Select-Object -First 1
     $departmentId = (Invoke-SqlText "SET NOCOUNT ON; SELECT TOP 1 CONVERT(varchar(36), Id) FROM Departments WHERE IsDeleted = 0 ORDER BY CreatedAt DESC;") | Select-Object -First 1
     $doctorId = (Invoke-SqlText "SET NOCOUNT ON; SELECT TOP 1 CONVERT(varchar(36), Id) FROM Users WHERE IsDeleted = 0 ORDER BY CreatedAt DESC;") | Select-Object -First 1
+    $serviceIds = @(Invoke-SqlText "SET NOCOUNT ON; SELECT TOP 2 CONVERT(varchar(36), Id) FROM Services WHERE IsDeleted = 0 AND IsActive = 1 AND ServiceType = 2 ORDER BY CreatedAt;")
 
-    if (-not $patientId -or -not $departmentId -or -not $doctorId) {
-        Write-Host "  Seed refs => patient=$patientId dept=$departmentId doctor=$doctorId" -ForegroundColor Yellow
+    if (-not $mrRow -or -not $departmentId -or -not $doctorId -or $serviceIds.Count -lt 1) {
+        Write-Host "  Seed refs => mr=$mrRow dept=$departmentId doctor=$doctorId services=$($serviceIds.Count)" -ForegroundColor Yellow
         throw "Cannot resolve LIS seed references in database."
     }
+    $mrId = ($mrRow -split '\|')[0].Trim()
 
     $stamp = Get-Date -Format "yyyyMMddHHmmss"
     $orderId = [guid]::NewGuid().ToString()
-    $item1 = [guid]::NewGuid().ToString()
-    $item2 = [guid]::NewGuid().ToString()
     $orderCode = "LISAUTO$stamp"
     $barcode = "LIS$stamp"
+    $svc1 = $serviceIds[0].Trim()
+    $svc2 = if ($serviceIds.Count -ge 2) { $serviceIds[1].Trim() } else { $svc1 }
 
+    # SRD: IsSampleCollected=1 + SampleBarcode để flow nhập KQ/duyệt chạy được (tương đương Status=1 model 3 cũ)
     $query = @"
 SET NOCOUNT ON;
-INSERT INTO LabOrders (Id, OrderCode, PatientId, OrderDepartmentId, OrderDoctorId, Diagnosis, IcdCode, Status, IsPriority, IsEmergency, SampleBarcode, SampleType, Notes, OrderedAt, CreatedAt, IsDeleted)
-VALUES ('$orderId', N'$orderCode', '$patientId', '$departmentId', '$doctorId', N'$testMarker Test tu dong LIS', N'Z00', 1, 0, 0, N'$barcode', N'BLOOD', N'$testMarker Auto regression seed', GETDATE(), GETDATE(), 0);
+INSERT INTO ServiceRequests (Id, RequestCode, RequestDate, MedicalRecordId, DoctorId, DepartmentId, RequestType, IsEmergency, IsPriority, Diagnosis, IcdCode, Notes, Status, Quantity, UnitPrice, TotalPrice, TotalAmount, InsuranceAmount, PatientAmount, IsPaid, CreatedAt, IsDeleted)
+VALUES ('$orderId', N'$orderCode', GETDATE(), '$mrId', '$doctorId', '$departmentId', 1, 0, 0, N'$testMarker Test tu dong LIS', N'Z00', N'$testMarker Auto regression seed', 1, 2, 50000, 100000, 100000, 0, 100000, 0, GETDATE(), 0);
 
-INSERT INTO LabOrderItems (Id, LabOrderId, TestCode, TestName, TestGroupName, SampleTypeName, Unit, ReferenceRange, NormalMin, NormalMax, CriticalLow, CriticalHigh, CreatedAt)
+INSERT INTO ServiceRequestDetails (Id, ServiceRequestId, ServiceId, Quantity, UnitPrice, Amount, InsuranceAmount, PatientAmount, PatientType, InsurancePaymentRate, Status, IsSampleCollected, SampleCollectedAt, SampleBarcode, ReceiveStatus, CreatedAt, IsDeleted)
 VALUES
-('$item1', '$orderId', N'GLU', N'Glucose mau', N'Sinh hoa', N'Huyet thanh', N'mmol/L', N'3.9-6.1', 3.9, 6.1, 2.0, 25.0, GETDATE()),
-('$item2', '$orderId', N'GOT', N'GOT (AST)', N'Sinh hoa', N'Huyet thanh', N'U/L', N'0-40', 0, 40, NULL, 200, GETDATE());
+('$([guid]::NewGuid())', '$orderId', '$svc1', 1, 50000, 50000, 0, 50000, 1, 0, 1, 1, GETDATE(), N'$barcode', 1, GETDATE(), 0),
+('$([guid]::NewGuid())', '$orderId', '$svc2', 1, 50000, 50000, 0, 50000, 1, 0, 1, 1, GETDATE(), N'$barcode', 1, GETDATE(), 0);
 "@
 
     Invoke-SqlText $query | Out-Null

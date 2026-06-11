@@ -117,7 +117,6 @@ public class DailySeedController : ControllerBase
                 // Delete dependents first to honour FK constraints
                 _db.Examinations.RemoveRange(_db.Examinations.Where(e => seedRecords.Contains(e.MedicalRecordId)));
                 _db.Prescriptions.RemoveRange(_db.Prescriptions.Where(p => seedRecords.Contains(p.MedicalRecordId)));
-                _db.LabRequests.RemoveRange(_db.LabRequests.Where(l => l.MedicalRecordId != null && seedRecords.Contains(l.MedicalRecordId.Value)));
                 _db.MedicalRecordArchives.RemoveRange(_db.MedicalRecordArchives.Where(a => seedRecords.Contains(a.MedicalRecordId)));
                 _db.TeleAppointments.RemoveRange(_db.TeleAppointments.Where(t => seedPatientIds.Contains(t.PatientId)));
                 _db.IncidentReports.RemoveRange(_db.IncidentReports.Where(i => i.PatientId != null && seedPatientIds.Contains(i.PatientId.Value)));
@@ -479,54 +478,7 @@ public class DailySeedController : ControllerBase
             }
         }
 
-        // LabRequests for Laboratory page
-        var labCode = $"LAB{today:yyyyMMdd}SEED";
-        var newLab = new List<LabRequest>();
-        var labToday = await _db.LabRequests.CountAsync(l => l.RequestCode.StartsWith(labCode));
-        if (labToday < 10)
-        {
-            var docIds = await _db.Users.Where(u => u.IsActive).Select(u => u.Id).Take(10).ToListAsync();
-            var seedRecords = await _db.MedicalRecords
-                .Where(m => m.MedicalRecordCode.StartsWith($"HS{today:yyyyMMdd}SEED"))
-                .Select(m => new { m.Id, m.PatientId, m.DepartmentId, m.RoomId, m.InitialDiagnosis, m.MainIcdCode })
-                .Take(10)
-                .ToListAsync();
-            var labServiceNames = new[] { "Công thức máu", "Sinh hóa máu 12 chỉ số", "Tổng phân tích nước tiểu", "Điện giải đồ", "HbA1c", "Men gan GOT/GPT", "Cholesterol toàn phần", "Creatinin máu", "Glucose máu lúc đói", "CRP" };
-            for (int i = 0; i < Math.Min(10 - labToday, seedRecords.Count); i++)
-            {
-                var r = seedRecords[i];
-                newLab.Add(new LabRequest
-                {
-                    Id = Guid.NewGuid(),
-                    RequestCode = $"{labCode}{(labToday + i + 1):D3}",
-                    PatientId = r.PatientId,
-                    MedicalRecordId = r.Id,
-                    RequestingDoctorId = docIds.Count > 0 ? docIds[i % docIds.Count] : Guid.Empty,
-                    RoomId = r.RoomId,
-                    DepartmentId = r.DepartmentId,
-                    RequestDate = today.AddHours(8 + i % 8),
-                    Priority = i % 5 == 0 ? 2 : 1,
-                    Status = i < 4 ? 0 : (i < 7 ? 2 : 3),
-                    DiagnosisCode = r.MainIcdCode,
-                    DiagnosisName = r.InitialDiagnosis,
-                    ClinicalInfo = $"Yêu cầu {labServiceNames[i % labServiceNames.Length]}",
-                    PatientType = 1,
-                    TotalAmount = 150_000m + (i * 50_000m),
-                    InsuranceAmount = 100_000m,
-                    PatientAmount = 50_000m + (i * 50_000m),
-                    IsPaid = i >= 5,
-                    CreatedAt = now,
-                    UpdatedAt = now
-                });
-            }
-            if (newLab.Count > 0)
-            {
-                _db.LabRequests.AddRange(newLab);
-                await _db.SaveChangesAsync();
-                await _db.Database.ExecuteSqlInterpolatedAsync(
-                    $"UPDATE LabRequests SET CreatedAt = {now}, UpdatedAt = {now} WHERE RequestCode LIKE {labCode + "%"}");
-            }
-        }
+        // #14e: seed LabRequests (model 2) đã gỡ — data XN demo do block ServiceRequests (AddSvc 'L', RequestType=1) đảm nhiệm
 
         // ---- Module workflow data (Quality, Rehab, Signing, Survey, Procurement, Archive) ----
 
@@ -1319,7 +1271,7 @@ public class DailySeedController : ControllerBase
 
         _logger.LogInformation(
             "Daily seed: {P} patients + {R} records + {E} exams + {T} tele + {Rx} rx + {Lab} lab + {Staff} staff + {Eq} equip + {Inc} incidents + {Reh} rehab + {Sign} signing + {Sur} survey + {Proc} proc + {Arc} archive + {Hie} hie + {Tr} training + {Res} research + {As} assets for {Date}",
-            newPatients.Count, newRecords.Count, newExams.Count, newTele.Count, newRx.Count, newLab.Count, newStaff.Count, newEquip.Count,
+            newPatients.Count, newRecords.Count, newExams.Count, newTele.Count, newRx.Count, newSvcRequests, newStaff.Count, newEquip.Count,
             newIncidents, newRehab, newSigning, newSurvey, newProc, newArchive, newHie, newTraining, newResearch, newAssets, today);
 
         return new
@@ -1329,7 +1281,7 @@ public class DailySeedController : ControllerBase
             createdExams = newExams.Count,
             createdTeleAppointments = newTele.Count,
             createdPrescriptions = newRx.Count,
-            createdLabRequests = newLab.Count,
+            createdLabRequests = 0, // #14e: model 2 đã gỡ — XN demo nằm trong createdServiceRequests
             createdStaff = newStaff.Count,
             createdEquipment = newEquip.Count,
             createdIncidents = newIncidents,

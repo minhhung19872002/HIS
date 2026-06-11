@@ -19,15 +19,23 @@ DECLARE @AutoPatients TABLE (Id uniqueidentifier);
 DECLARE @AutoAdmissions TABLE (Id uniqueidentifier);
 DECLARE @AutoMedicalRecords TABLE (Id uniqueidentifier);
 
-DELETE FROM LabOrderItems
-OUTPUT deleted.Id INTO @DeletedLabItems(Id)
-WHERE LabOrderId IN (
-    SELECT Id FROM LabOrders WHERE OrderCode LIKE 'LISAUTO%'
+-- #14e-B: seed LIS giờ là ServiceRequests model 1 (LabOrders/LabOrderItems đã drop)
+DELETE FROM ServiceRequestDetailParameters
+WHERE ServiceRequestDetailId IN (
+    SELECT d.Id FROM ServiceRequestDetails d
+    INNER JOIN ServiceRequests r ON d.ServiceRequestId = r.Id
+    WHERE r.RequestCode LIKE 'LISAUTO%'
 );
 
-DELETE FROM LabOrders
+DELETE FROM ServiceRequestDetails
+OUTPUT deleted.Id INTO @DeletedLabItems(Id)
+WHERE ServiceRequestId IN (
+    SELECT Id FROM ServiceRequests WHERE RequestCode LIKE 'LISAUTO%'
+);
+
+DELETE FROM ServiceRequests
 OUTPUT deleted.Id INTO @DeletedLabOrders(Id)
-WHERE OrderCode LIKE 'LISAUTO%';
+WHERE RequestCode LIKE 'LISAUTO%';
 
 DELETE stm
 OUTPUT deleted.Id INTO @DeletedTeamMembers(Id)
@@ -63,9 +71,9 @@ SELECT Id FROM Admissions WHERE PatientId IN (SELECT Id FROM @AutoPatients) AND 
 INSERT INTO @AutoMedicalRecords(Id)
 SELECT Id FROM MedicalRecords WHERE PatientId IN (SELECT Id FROM @AutoPatients) AND ISNULL(IsDeleted, 0) = 0;
 
-SELECT 'LabOrderItems' AS [Entity], COUNT(*) AS [DeletedCount] FROM @DeletedLabItems
+SELECT 'LisAutoSrDetails' AS [Entity], COUNT(*) AS [DeletedCount] FROM @DeletedLabItems
 UNION ALL
-SELECT 'LabOrders', COUNT(*) FROM @DeletedLabOrders
+SELECT 'LisAutoServiceRequests', COUNT(*) FROM @DeletedLabOrders
 UNION ALL
 SELECT 'SurgeryTeamMembers', COUNT(*) FROM @DeletedTeamMembers
 UNION ALL

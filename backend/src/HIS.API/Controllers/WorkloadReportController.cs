@@ -134,9 +134,10 @@ public class WorkloadReportController : ControllerBase
             .ToList();
 
         // ===== Lab requesting doctors =====
-        var labReqCounts = await _db.LabRequests
-            .Where(l => l.CreatedAt >= from && l.CreatedAt <= to && l.RequestingDoctorId != Guid.Empty)
-            .GroupBy(l => l.RequestingDoctorId)
+        // #14e: model 1 ServiceRequests (RequestType=1) — model 2 LabRequests đã gỡ
+        var labReqCounts = await _db.ServiceRequests
+            .Where(l => l.CreatedAt >= from && l.CreatedAt <= to && l.RequestType == 1 && !l.IsDeleted && l.DoctorId != Guid.Empty)
+            .GroupBy(l => l.DoctorId)
             .Select(g => new { UserId = g.Key, Count = g.Count() })
             .ToListAsync();
 

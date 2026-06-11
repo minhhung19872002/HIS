@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Data.SqlClient; // GetQCReportAsync (QCResults) còn dùng raw SQL — ngoài scope #14e-B
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Data.SqlClient;
 using HIS.Application.DTOs.Laboratory;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -24,242 +24,246 @@ public partial class LISCompleteService {
 
     public async Task<LabRegisterReportDto> GetLabRegisterReportAsync(DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
+        // #14e-B: model 1 — ServiceRequestDetails (XN, không hủy) thay LabOrderItems JOIN LabOrders
         var result = new LabRegisterReportDto { FromDate = fromDate, ToDate = toDate, Items = new List<LabRegisterItemDto>() };
+        var toDateExcl = toDate.AddDays(1);
 
-        var sql = @"
-            SELECT ROW_NUMBER() OVER (ORDER BY o.OrderedAt) AS RowNum,
-                   o.OrderedAt, p.PatientCode, p.FullName AS PatientName,
-                   DATEDIFF(YEAR, p.DateOfBirth, GETDATE()) AS Age, p.Gender,
-                   i.TestName, i.Result, i.Unit, i.ReferenceRange, i.ResultStatus,
-                   u.FullName AS OrderDoctorName, d.DepartmentName
-            FROM LabOrderItems i
-            INNER JOIN LabOrders o ON i.LabOrderId = o.Id
-            INNER JOIN Patients p ON o.PatientId = p.Id
-            LEFT JOIN Departments d ON o.OrderDepartmentId = d.Id
-            LEFT JOIN Users u ON o.OrderDoctorId = u.Id
-            WHERE o.IsDeleted = 0 AND o.OrderedAt >= @FromDate AND o.OrderedAt < @ToDate";
+        // 1 query cho tất cả dữ liệu cần (Id để join flagDict + ServiceId cho catalog)
+        var rawRowsWithId = await _context.ServiceRequestDetails
+            .Where(d => !d.IsDeleted && d.Status != 3
+                        && d.ServiceRequest.RequestType == 1
+                        && !d.ServiceRequest.IsDeleted
+                        && d.ServiceRequest.RequestDate >= fromDate
+                        && d.ServiceRequest.RequestDate < toDateExcl
+                        && (!departmentId.HasValue || d.ServiceRequest.DepartmentId == departmentId.Value))
+            .OrderBy(d => d.ServiceRequest.RequestDate)
+            .Select(d => new
+            {
+                d.Id,
+                d.ServiceId,
+                d.Result,
+                d.ReviewedAt,
+                ServiceName = d.Service.ServiceName,
+                RequestDate = d.ServiceRequest.RequestDate,
+                PatientCode = d.ServiceRequest.MedicalRecord.Patient.PatientCode,
+                PatientName = d.ServiceRequest.MedicalRecord.Patient.FullName,
+                DateOfBirth = d.ServiceRequest.MedicalRecord.Patient.DateOfBirth,
+                Gender = d.ServiceRequest.MedicalRecord.Patient.Gender,
+                DoctorName = d.ServiceRequest.Doctor.FullName,
+                DepartmentName = d.ServiceRequest.Department.DepartmentName,
+            })
+            .ToListAsync();
 
-        if (departmentId.HasValue)
-            sql += " AND o.OrderDepartmentId = @DeptId";
+        // Catalog Unit/ReferenceRange: 1 query theo tập ServiceId (row đầu tiên mỗi ServiceId)
+        var serviceIds = rawRowsWithId.Select(r => r.ServiceId).Distinct().ToList();
+        var catalogDict = await _context.LisTestParameters
+            .Where(p => p.ServiceId != null && serviceIds.Contains(p.ServiceId!.Value) && !p.IsDeleted)
+            .GroupBy(p => p.ServiceId!.Value)
+            .Select(g => g.OrderBy(p => p.SortOrder).FirstOrDefault()!)
+            .ToDictionaryAsync(p => p.ServiceId!.Value, p => p);
 
-        sql += " ORDER BY o.OrderedAt";
+        // Flag HH/LL/H/L từ ServiceRequestDetailParameters (bulk load theo SRD ids)
+        var srdIds = rawRowsWithId.Select(r => r.Id).ToList();
+        var paramFlags = await _context.ServiceRequestDetailParameters
+            .Where(p => srdIds.Contains(p.ServiceRequestDetailId) && !p.IsDeleted && p.Flag != null)
+            .GroupBy(p => p.ServiceRequestDetailId)
+            .Select(g => new { SrdId = g.Key, Flags = g.Select(x => x.Flag!).ToList() })
+            .ToListAsync();
+        var flagDict = paramFlags.ToDictionary(x => x.SrdId, x => x.Flags);
 
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
-        using var cmd = new SqlCommand(sql, connection);
-        cmd.Parameters.AddWithValue("@FromDate", fromDate);
-        cmd.Parameters.AddWithValue("@ToDate", toDate.AddDays(1));
-        if (departmentId.HasValue) cmd.Parameters.AddWithValue("@DeptId", departmentId.Value);
-
-        using var reader = await cmd.ExecuteReaderAsync();
         int rowNumber = 0;
-        while (await reader.ReadAsync())
+        foreach (var row in rawRowsWithId)
         {
             rowNumber++;
-            var statusVal = reader.IsDBNull(reader.GetOrdinal("ResultStatus")) ? 0 : reader.GetInt32(reader.GetOrdinal("ResultStatus"));
-            var genderInt = reader.IsDBNull(reader.GetOrdinal("Gender")) ? 0 : reader.GetInt32(reader.GetOrdinal("Gender"));
+            catalogDict.TryGetValue(row.ServiceId, out var cat);
+            flagDict.TryGetValue(row.Id, out var flags);
+
+            // Tính cờ kiểu model 3: 5=duyệt, HH=4(critical high), LL=3(critical low), H=2, L=1, 0=normal
+            int statusVal;
+            if (row.ReviewedAt != null && !string.IsNullOrEmpty(row.Result)) statusVal = 5;
+            else if (flags != null && flags.Contains("HH")) statusVal = 4;
+            else if (flags != null && flags.Contains("LL")) statusVal = 3;
+            else if (flags != null && flags.Contains("H")) statusVal = 2;
+            else if (flags != null && flags.Contains("L")) statusVal = 1;
+            else statusVal = 0;
+
+            var age = row.DateOfBirth.HasValue
+                ? (int?)((DateTime.Now - row.DateOfBirth.Value).TotalDays / 365.25)
+                : null;
 
             result.Items.Add(new LabRegisterItemDto
             {
                 RowNumber = rowNumber,
-                OrderDate = reader.GetDateTime(reader.GetOrdinal("OrderedAt")),
-                PatientCode = reader.IsDBNull(reader.GetOrdinal("PatientCode")) ? "" : reader.GetString(reader.GetOrdinal("PatientCode")),
-                PatientName = reader.IsDBNull(reader.GetOrdinal("PatientName")) ? "" : reader.GetString(reader.GetOrdinal("PatientName")),
-                Age = reader.IsDBNull(reader.GetOrdinal("Age")) ? null : reader.GetInt32(reader.GetOrdinal("Age")),
-                Gender = genderInt == 1 ? "Nam" : genderInt == 2 ? "Nữ" : "",
-                TestName = reader.GetString(reader.GetOrdinal("TestName")),
-                Result = reader.IsDBNull(reader.GetOrdinal("Result")) ? "" : reader.GetString(reader.GetOrdinal("Result")),
-                Unit = reader.IsDBNull(reader.GetOrdinal("Unit")) ? "" : reader.GetString(reader.GetOrdinal("Unit")),
-                ReferenceRange = reader.IsDBNull(reader.GetOrdinal("ReferenceRange")) ? "" : reader.GetString(reader.GetOrdinal("ReferenceRange")),
-                Flag = statusVal switch { 0 => "Normal", 1 => "Low", 2 => "High", 3 => "Critical", 4 => "Critical", _ => "" },
-                OrderDoctorName = reader.IsDBNull(reader.GetOrdinal("OrderDoctorName")) ? "" : reader.GetString(reader.GetOrdinal("OrderDoctorName")),
+                OrderDate = row.RequestDate,
+                PatientCode = row.PatientCode ?? "",
+                PatientName = row.PatientName ?? "",
+                Age = age,
+                Gender = row.Gender == 1 ? "Nam" : row.Gender == 2 ? "Nữ" : "",
+                TestName = row.ServiceName ?? "",
+                Result = row.Result ?? "",
+                Unit = cat?.Unit ?? "",
+                ReferenceRange = LabFlagEvaluator.BuildReferenceRange(cat?.ReferenceLow, cat?.ReferenceHigh) ?? "",
+                Flag = statusVal switch { 5 => "Approved", 4 => "Critical", 3 => "Critical", 2 => "High", 1 => "Low", _ => "Normal" },
+                OrderDoctorName = row.DoctorName ?? "",
             });
         }
 
         result.TotalOrders = result.Items.Select(i => i.PatientCode).Distinct().Count();
         result.TotalTests = result.Items.Count;
         if (departmentId.HasValue)
-            result.DepartmentName = result.Items.FirstOrDefault()?.OrderDoctorName ?? "";
+            result.DepartmentName = rawRowsWithId.Select(r => r.DepartmentName).FirstOrDefault() ?? "";
 
         return result;
     }
 
     public async Task<LabStatisticsDto> GetLabStatisticsAsync(DateTime fromDate, DateTime toDate, string groupBy = "day")
     {
+        // #14e-B: model 1 — ServiceRequestDetails (XN, không hủy) thay LabOrderItems JOIN LabOrders
         var result = new LabStatisticsDto { FromDate = fromDate, ToDate = toDate };
+        var toDateExcl = toDate.AddDays(1);
 
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
-
-        // Summary statistics
-        var summarySql = @"
-            SELECT
-                COUNT(DISTINCT o.Id) AS TotalOrders,
-                COUNT(i.Id) AS TotalTests,
-                SUM(CASE WHEN i.ResultStatus = 5 THEN 1 ELSE 0 END) AS CompletedTests,
-                SUM(CASE WHEN i.Result IS NULL OR i.Result = '' THEN 1 ELSE 0 END) AS PendingTests,
-                SUM(CASE WHEN i.ResultStatus IN (3,4) THEN 1 ELSE 0 END) AS CriticalCount
-            FROM LabOrderItems i
-            INNER JOIN LabOrders o ON i.LabOrderId = o.Id
-            WHERE o.IsDeleted = 0 AND o.OrderedAt >= @FromDate AND o.OrderedAt < @ToDate";
-
-        using (var cmd = new SqlCommand(summarySql, connection))
-        {
-            cmd.Parameters.AddWithValue("@FromDate", fromDate);
-            cmd.Parameters.AddWithValue("@ToDate", toDate.AddDays(1));
-            using var reader = await cmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
+        // --- Site 2: Summary ---
+        // Load projection gọn (Id phiếu + ngày + KQ + flag) vào bộ nhớ, sau đó xử lý in-memory.
+        // CriticalCount: SRD có ít nhất 1 param Flag HH hoặc LL
+        var summaryRows = await _context.ServiceRequestDetails
+            .Where(d => !d.IsDeleted && d.Status != 3
+                        && d.ServiceRequest.RequestType == 1
+                        && !d.ServiceRequest.IsDeleted
+                        && d.ServiceRequest.RequestDate >= fromDate
+                        && d.ServiceRequest.RequestDate < toDateExcl)
+            .Select(d => new
             {
-                result.TotalOrders = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
-                result.TotalTests = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
-                result.CompletedTests = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
-                result.PendingTests = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
-                result.CriticalValueCount = reader.IsDBNull(4) ? 0 : reader.GetInt32(4);
-            }
-        }
+                RequestId = d.ServiceRequestId,
+                d.Result,
+                d.ReviewedAt,
+                RequestDate = d.ServiceRequest.RequestDate,
+                d.ServiceRequest.DepartmentId,
+                DepartmentName = d.ServiceRequest.Department.DepartmentName,
+                ServiceGroupName = d.Service.ServiceGroup.GroupName,
+                d.Id,
+            })
+            .ToListAsync();
 
-        // By day statistics
-        var byDaySql = @"
-            SELECT CAST(o.OrderedAt AS DATE) AS OrderDate,
-                   COUNT(DISTINCT o.Id) AS OrderCount,
-                   COUNT(i.Id) AS TestCount,
-                   SUM(CASE WHEN i.ResultStatus = 5 THEN 1 ELSE 0 END) AS CompletedCount
-            FROM LabOrderItems i
-            INNER JOIN LabOrders o ON i.LabOrderId = o.Id
-            WHERE o.IsDeleted = 0 AND o.OrderedAt >= @FromDate AND o.OrderedAt < @ToDate
-            GROUP BY CAST(o.OrderedAt AS DATE)
-            ORDER BY OrderDate";
+        // CriticalCount — SRD với param HH/LL
+        var srdIdsForStats = summaryRows.Select(r => r.Id).ToList();
+        var criticalSrdIds = await _context.ServiceRequestDetailParameters
+            .Where(p => srdIdsForStats.Contains(p.ServiceRequestDetailId)
+                        && !p.IsDeleted
+                        && (p.Flag == "HH" || p.Flag == "LL"))
+            .Select(p => p.ServiceRequestDetailId)
+            .Distinct()
+            .ToListAsync();
+        var criticalSet = criticalSrdIds.ToHashSet();
 
-        result.ByDay = new List<DailyLabStatDto>();
-        using (var cmd = new SqlCommand(byDaySql, connection))
-        {
-            cmd.Parameters.AddWithValue("@FromDate", fromDate);
-            cmd.Parameters.AddWithValue("@ToDate", toDate.AddDays(1));
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+        result.TotalOrders = summaryRows.Select(r => r.RequestId).Distinct().Count();
+        result.TotalTests = summaryRows.Count;
+        result.CompletedTests = summaryRows.Count(r => r.ReviewedAt != null && !string.IsNullOrEmpty(r.Result));
+        result.PendingTests = summaryRows.Count(r => string.IsNullOrEmpty(r.Result));
+        result.CriticalValueCount = summaryRows.Count(r => criticalSet.Contains(r.Id));
+
+        // --- Site 3: ByDay — group in-memory sau khi đã load projection ---
+        result.ByDay = summaryRows
+            .GroupBy(r => r.RequestDate.Date)
+            .OrderBy(g => g.Key)
+            .Select(g => new DailyLabStatDto
             {
-                result.ByDay.Add(new DailyLabStatDto
-                {
-                    Date = reader.GetDateTime(0),
-                    OrderCount = reader.GetInt32(1),
-                    TestCount = reader.GetInt32(2),
-                    CompletedCount = reader.GetInt32(3)
-                });
-            }
-        }
+                Date = g.Key,
+                OrderCount = g.Select(r => r.RequestId).Distinct().Count(),
+                TestCount = g.Count(),
+                CompletedCount = g.Count(r => r.ReviewedAt != null),
+            })
+            .ToList();
 
-        // By department statistics
-        var byDeptSql = @"
-            SELECT d.Id AS DepartmentId, d.DepartmentName,
-                   COUNT(DISTINCT o.Id) AS OrderCount, COUNT(i.Id) AS TestCount
-            FROM LabOrderItems i
-            INNER JOIN LabOrders o ON i.LabOrderId = o.Id
-            LEFT JOIN Departments d ON o.OrderDepartmentId = d.Id
-            WHERE o.IsDeleted = 0 AND o.OrderedAt >= @FromDate AND o.OrderedAt < @ToDate
-            GROUP BY d.Id, d.DepartmentName
-            ORDER BY TestCount DESC";
-
-        result.ByDepartment = new List<DepartmentLabStatDto>();
-        using (var cmd = new SqlCommand(byDeptSql, connection))
-        {
-            cmd.Parameters.AddWithValue("@FromDate", fromDate);
-            cmd.Parameters.AddWithValue("@ToDate", toDate.AddDays(1));
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+        // --- Site 4: ByDepartment ---
+        result.ByDepartment = summaryRows
+            .GroupBy(r => r.DepartmentId)
+            .Select(g => new DepartmentLabStatDto
             {
-                result.ByDepartment.Add(new DepartmentLabStatDto
-                {
-                    DepartmentId = reader.IsDBNull(0) ? Guid.Empty : reader.GetGuid(0),
-                    DepartmentName = reader.IsDBNull(1) ? "Chưa xác định" : reader.GetString(1),
-                    OrderCount = reader.GetInt32(2),
-                    TestCount = reader.GetInt32(3)
-                });
-            }
-        }
+                DepartmentId = g.Key,
+                DepartmentName = g.First().DepartmentName ?? "Chưa xác định",
+                OrderCount = g.Select(r => r.RequestId).Distinct().Count(),
+                TestCount = g.Count(),
+            })
+            .OrderByDescending(x => x.TestCount)
+            .ToList();
 
-        // By test type/group
-        var byTestSql = @"
-            SELECT ISNULL(i.TestGroupName, 'Khác') AS TestGroup,
-                   COUNT(i.Id) AS TestCount,
-                   SUM(CASE WHEN i.ResultStatus = 5 THEN 1 ELSE 0 END) AS CompletedCount
-            FROM LabOrderItems i
-            INNER JOIN LabOrders o ON i.LabOrderId = o.Id
-            WHERE o.IsDeleted = 0 AND o.OrderedAt >= @FromDate AND o.OrderedAt < @ToDate
-            GROUP BY ISNULL(i.TestGroupName, 'Khác')
-            ORDER BY TestCount DESC";
-
-        result.ByTestType = new List<TestTypeStatDto>();
-        using (var cmd = new SqlCommand(byTestSql, connection))
-        {
-            cmd.Parameters.AddWithValue("@FromDate", fromDate);
-            cmd.Parameters.AddWithValue("@ToDate", toDate.AddDays(1));
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+        // ByTestType — model 1: nhóm dịch vụ từ ServiceGroup.GroupName (tương đương TestGroupName model 3)
+        result.ByTestType = summaryRows
+            .GroupBy(r => string.IsNullOrEmpty(r.ServiceGroupName) ? "Khác" : r.ServiceGroupName)
+            .Select(g => new TestTypeStatDto
             {
-                result.ByTestType.Add(new TestTypeStatDto
-                {
-                    TestGroup = reader.GetString(0),
-                    TestCount = reader.GetInt32(1),
-                    CompletedCount = reader.GetInt32(2)
-                });
-            }
-        }
+                TestGroup = g.Key,
+                TestCount = g.Count(),
+                CompletedCount = g.Count(r => r.ReviewedAt != null),
+            })
+            .OrderByDescending(x => x.TestCount)
+            .ToList();
 
         return result;
     }
 
     public async Task<LabRevenueReportDto> GetLabRevenueReportAsync(DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
+        // #14e-B: model 1 — ServiceRequestDetails thay LabOrderItems JOIN LabOrders
         var result = new LabRevenueReportDto { FromDate = fromDate, ToDate = toDate, Details = new List<LabRevenueItemDto>() };
+        var toDateExcl = toDate.AddDays(1);
 
-        var sql = @"
-            SELECT i.TestCode, i.TestName, ISNULL(i.TestGroupName, 'Khác') AS TestGroup,
-                   COUNT(i.Id) AS Quantity,
-                   ISNULL(s.UnitPrice, 0) AS UnitPrice,
-                   ISNULL(s.InsurancePrice, 0) AS InsurancePrice,
-                   s.Id AS TestId
-            FROM LabOrderItems i
-            INNER JOIN LabOrders o ON i.LabOrderId = o.Id
-            LEFT JOIN Services s ON i.TestCode = s.ServiceCode AND s.IsDeleted = 0
-            WHERE o.IsDeleted = 0 AND o.OrderedAt >= @FromDate AND o.OrderedAt < @ToDate";
+        // Load projection flat (EF GroupBy server-side có giới hạn — dùng client-side grouping)
+        var flatRows = await _context.ServiceRequestDetails
+            .Where(d => !d.IsDeleted && d.Status != 3
+                        && d.ServiceRequest.RequestType == 1
+                        && !d.ServiceRequest.IsDeleted
+                        && d.ServiceRequest.RequestDate >= fromDate
+                        && d.ServiceRequest.RequestDate < toDateExcl
+                        && (!departmentId.HasValue || d.ServiceRequest.DepartmentId == departmentId.Value))
+            .Select(d => new
+            {
+                d.ServiceId,
+                ServiceCode = d.Service.ServiceCode,
+                ServiceName = d.Service.ServiceName,
+                GroupName = d.Service.ServiceGroup.GroupName,
+                d.UnitPrice,
+                d.Amount,
+                d.InsuranceAmount,
+            })
+            .ToListAsync();
 
-        if (departmentId.HasValue)
-            sql += " AND o.OrderDepartmentId = @DeptId";
+        var rows = flatRows
+            .GroupBy(d => new { d.ServiceId, d.ServiceCode, d.ServiceName, GroupName = d.GroupName ?? "Khác" })
+            .Select(g => new
+            {
+                g.Key.ServiceId,
+                g.Key.ServiceCode,
+                g.Key.ServiceName,
+                GroupName = g.Key.GroupName,
+                Quantity = g.Count(),
+                UnitPrice = g.Max(d => d.UnitPrice),
+                InsuranceAmount = g.Sum(d => d.InsuranceAmount),
+                TotalAmount = g.Sum(d => d.Amount),
+            })
+            .OrderByDescending(x => x.Quantity)
+            .ToList();
 
-        sql += @" GROUP BY i.TestCode, i.TestName, i.TestGroupName, s.UnitPrice, s.InsurancePrice, s.Id
-                  ORDER BY Quantity DESC";
-
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
-        using var cmd = new SqlCommand(sql, connection);
-        cmd.Parameters.AddWithValue("@FromDate", fromDate);
-        cmd.Parameters.AddWithValue("@ToDate", toDate.AddDays(1));
-        if (departmentId.HasValue) cmd.Parameters.AddWithValue("@DeptId", departmentId.Value);
-
-        using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        foreach (var row in rows)
         {
-            var qty = reader.GetInt32(3);
-            var unitPrice = reader.GetDecimal(4);
-            var insurancePrice = reader.GetDecimal(5);
-            var total = qty * unitPrice;
-            var insuranceAmt = qty * insurancePrice;
+            var total = row.TotalAmount > 0 ? row.TotalAmount : row.UnitPrice * row.Quantity;
+            var insuranceAmt = row.InsuranceAmount;
 
             result.Details.Add(new LabRevenueItemDto
             {
-                TestId = reader.IsDBNull(6) ? Guid.Empty : reader.GetGuid(6),
-                TestCode = reader.GetString(0),
-                TestName = reader.GetString(1),
-                TestGroup = reader.GetString(2),
-                Quantity = qty,
-                UnitPrice = unitPrice,
+                TestId = row.ServiceId,
+                TestCode = row.ServiceCode,
+                TestName = row.ServiceName,
+                TestGroup = row.GroupName,
+                Quantity = row.Quantity,
+                UnitPrice = row.UnitPrice,
                 TotalAmount = total,
                 InsuranceAmount = insuranceAmt,
                 PatientAmount = total - insuranceAmt
             });
 
             result.ActualRevenue += total;
-            result.ActualCount += qty;
+            result.ActualCount += row.Quantity;
         }
 
         result.CollectedRevenue = result.ActualRevenue; // Simplified: collected = actual
@@ -270,176 +274,198 @@ public partial class LISCompleteService {
 
     public async Task<LabTATReportDto> GetLabTATReportAsync(DateTime fromDate, DateTime toDate)
     {
+        // #14e-B: model 1 — TAT = ReviewedAt - RequestDate (thay ApprovedAt/ProcessingEndTime)
         var result = new LabTATReportDto { FromDate = fromDate, ToDate = toDate, TATByTest = new List<LabTATByTestDto>(), TATByDay = new List<LabTATByDayDto>() };
+        var toDateExcl = toDate.AddDays(1);
 
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
-
-        // Summary + by test
-        var byTestSql = @"
-            SELECT i.TestCode, i.TestName, COUNT(i.Id) AS TestCount,
-                   AVG(DATEDIFF(MINUTE, o.OrderedAt, ISNULL(o.ApprovedAt, o.ProcessingEndTime))) AS AvgTAT
-            FROM LabOrderItems i
-            INNER JOIN LabOrders o ON i.LabOrderId = o.Id
-            WHERE o.IsDeleted = 0 AND o.OrderedAt >= @FromDate AND o.OrderedAt < @ToDate
-              AND (o.ApprovedAt IS NOT NULL OR o.ProcessingEndTime IS NOT NULL)
-            GROUP BY i.TestCode, i.TestName
-            ORDER BY TestCount DESC";
-
-        using (var cmd = new SqlCommand(byTestSql, connection))
-        {
-            cmd.Parameters.AddWithValue("@FromDate", fromDate);
-            cmd.Parameters.AddWithValue("@ToDate", toDate.AddDays(1));
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+        // Load projection: chỉ các SRD đã có ReviewedAt (tương đương đã duyệt — TAT có nghĩa)
+        var rows = await _context.ServiceRequestDetails
+            .Where(d => !d.IsDeleted && d.Status != 3
+                        && d.ServiceRequest.RequestType == 1
+                        && !d.ServiceRequest.IsDeleted
+                        && d.ServiceRequest.RequestDate >= fromDate
+                        && d.ServiceRequest.RequestDate < toDateExcl
+                        && d.ReviewedAt != null)
+            .Select(d => new
             {
-                var avgTat = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
-                var count = reader.GetInt32(2);
-                var targetTat = 60; // Default 60 min target
-                result.TATByTest.Add(new LabTATByTestDto
+                ServiceCode = d.Service.ServiceCode,
+                ServiceName = d.Service.ServiceName,
+                RequestDate = d.ServiceRequest.RequestDate,
+                ReviewedAt = d.ReviewedAt!.Value,
+            })
+            .ToListAsync();
+
+        // By test — group in-memory để tính TAT trung bình
+        var targetTat = 60; // mặc định 60 phút
+        var byTest = rows
+            .GroupBy(r => new { r.ServiceCode, r.ServiceName })
+            .Select(g =>
+            {
+                var count = g.Count();
+                var avgTat = g.Count() > 0
+                    ? (int)g.Average(r => (r.ReviewedAt - r.RequestDate).TotalMinutes)
+                    : 0;
+                return new LabTATByTestDto
                 {
-                    TestCode = reader.GetString(0),
-                    TestName = reader.GetString(1),
+                    TestCode = g.Key.ServiceCode,
+                    TestName = g.Key.ServiceName,
                     TestCount = count,
                     TargetTATMinutes = targetTat,
                     AverageTATMinutes = avgTat,
                     CompliancePercent = avgTat <= targetTat ? 100m : Math.Round((decimal)targetTat / avgTat * 100, 1)
-                });
-                result.TotalTests += count;
-            }
-        }
+                };
+            })
+            .OrderByDescending(x => x.TestCount)
+            .ToList();
 
-        result.AverageTATMinutes = result.TATByTest.Any()
-            ? Math.Round((decimal)result.TATByTest.Average(t => t.AverageTATMinutes), 1)
-            : 0;
-        result.TATCompliancePercent = result.TATByTest.Any()
-            ? Math.Round(result.TATByTest.Average(t => t.CompliancePercent), 1)
-            : 0;
+        result.TATByTest = byTest;
+        result.TotalTests = byTest.Sum(t => t.TestCount);
+        result.AverageTATMinutes = byTest.Any()
+            ? Math.Round((decimal)byTest.Average(t => t.AverageTATMinutes), 1) : 0;
+        result.TATCompliancePercent = byTest.Any()
+            ? Math.Round(byTest.Average(t => t.CompliancePercent), 1) : 0;
 
         // By day
-        var byDaySql = @"
-            SELECT CAST(o.OrderedAt AS DATE) AS OrderDate, COUNT(i.Id) AS TestCount,
-                   AVG(DATEDIFF(MINUTE, o.OrderedAt, ISNULL(o.ApprovedAt, o.ProcessingEndTime))) AS AvgTAT
-            FROM LabOrderItems i
-            INNER JOIN LabOrders o ON i.LabOrderId = o.Id
-            WHERE o.IsDeleted = 0 AND o.OrderedAt >= @FromDate AND o.OrderedAt < @ToDate
-              AND (o.ApprovedAt IS NOT NULL OR o.ProcessingEndTime IS NOT NULL)
-            GROUP BY CAST(o.OrderedAt AS DATE)
-            ORDER BY OrderDate";
-
-        using (var cmd = new SqlCommand(byDaySql, connection))
-        {
-            cmd.Parameters.AddWithValue("@FromDate", fromDate);
-            cmd.Parameters.AddWithValue("@ToDate", toDate.AddDays(1));
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+        result.TATByDay = rows
+            .GroupBy(r => r.RequestDate.Date)
+            .OrderBy(g => g.Key)
+            .Select(g =>
             {
-                var avgTat = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
-                result.TATByDay.Add(new LabTATByDayDto
+                var avgTat = g.Count() > 0
+                    ? (int)g.Average(r => (r.ReviewedAt - r.RequestDate).TotalMinutes)
+                    : 0;
+                return new LabTATByDayDto
                 {
-                    Date = reader.GetDateTime(0),
-                    TestCount = reader.GetInt32(1),
+                    Date = g.Key,
+                    TestCount = g.Count(),
                     AverageTATMinutes = avgTat,
                     CompliancePercent = avgTat <= 60 ? 100m : Math.Round(60m / avgTat * 100, 1)
-                });
-            }
-        }
+                };
+            })
+            .ToList();
 
         return result;
     }
 
     public async Task<AnalyzerUtilizationReportDto> GetAnalyzerUtilizationReportAsync(DateTime fromDate, DateTime toDate, Guid? analyzerId = null)
     {
+        // #14e-B: model 1 — LabOrders không còn; đếm TotalTests từ LabRawResults.AnalyzerId
+        // (LabRawResults là điểm giao nhận giữa máy và hệ thống — thay thế hợp lý cho LabOrders.AnalyzerId)
         var result = new AnalyzerUtilizationReportDto { FromDate = fromDate, ToDate = toDate, Analyzers = new List<AnalyzerUtilizationItemDto>() };
+        var toDateExcl = toDate.AddDays(1);
 
-        var sql = @"
-            SELECT a.Id AS AnalyzerId, a.AnalyzerName, COUNT(o.Id) AS TotalTests
-            FROM LabAnalyzers a
-            LEFT JOIN LabOrders o ON o.AnalyzerId = a.Id AND o.IsDeleted = 0
-                AND o.OrderedAt >= @FromDate AND o.OrderedAt < @ToDate
-            WHERE a.IsDeleted = 0";
+        var analyzers = await _context.LabAnalyzers
+            .Where(a => !a.IsDeleted && (!analyzerId.HasValue || a.Id == analyzerId.Value))
+            .ToListAsync();
 
-        if (analyzerId.HasValue) sql += " AND a.Id = @AnalyzerId";
-        sql += " GROUP BY a.Id, a.AnalyzerName ORDER BY TotalTests DESC";
+        // Đếm raw results (matched) theo analyzerId trong khoảng ngày
+        var countByAnalyzer = await _context.LabRawResults
+            .Where(r => (!analyzerId.HasValue || r.AnalyzerId == analyzerId.Value)
+                        && r.ResultTime >= fromDate && r.ResultTime < toDateExcl)
+            .GroupBy(r => r.AnalyzerId)
+            .Select(g => new { AnalyzerId = g.Key, Count = g.Count() })
+            .ToListAsync();
+        var countDict = countByAnalyzer.ToDictionary(x => x.AnalyzerId, x => x.Count);
 
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
-        using var cmd = new SqlCommand(sql, connection);
-        cmd.Parameters.AddWithValue("@FromDate", fromDate);
-        cmd.Parameters.AddWithValue("@ToDate", toDate.AddDays(1));
-        if (analyzerId.HasValue) cmd.Parameters.AddWithValue("@AnalyzerId", analyzerId.Value);
+        var days = (toDate - fromDate).Days;
+        var dailyCapacity = 200; // Default daily capacity
+        var totalCapacity = dailyCapacity * Math.Max(days, 1);
 
-        using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
-        {
-            var totalTests = reader.GetInt32(2);
-            var days = (toDate - fromDate).Days;
-            var dailyCapacity = 200; // Default daily capacity
-            var totalCapacity = dailyCapacity * Math.Max(days, 1);
-
-            result.Analyzers.Add(new AnalyzerUtilizationItemDto
+        result.Analyzers = analyzers
+            .Select(a =>
             {
-                AnalyzerId = reader.GetGuid(0),
-                AnalyzerName = reader.GetString(1),
-                TotalTests = totalTests,
-                Capacity = totalCapacity,
-                UtilizationPercent = totalCapacity > 0 ? Math.Round((decimal)totalTests / totalCapacity * 100, 1) : 0,
-                UptimePercent = 95m, // Simplified: assume 95% uptime
-                ErrorCount = 0
-            });
-        }
+                var totalTests = countDict.TryGetValue(a.Id, out var cnt) ? cnt : 0;
+                return new AnalyzerUtilizationItemDto
+                {
+                    AnalyzerId = a.Id,
+                    AnalyzerName = a.Name,
+                    TotalTests = totalTests,
+                    Capacity = totalCapacity,
+                    UtilizationPercent = totalCapacity > 0 ? Math.Round((decimal)totalTests / totalCapacity * 100, 1) : 0,
+                    UptimePercent = 95m, // Simplified: assume 95% uptime
+                    ErrorCount = 0
+                };
+            })
+            .OrderByDescending(x => x.TotalTests)
+            .ToList();
 
         return result;
     }
 
     public async Task<AbnormalRateReportDto> GetAbnormalRateReportAsync(DateTime fromDate, DateTime toDate)
     {
+        // #14e-B: model 1 — cờ (H/L/HH/LL) lấy từ ServiceRequestDetailParameters thay ResultStatus model 3
         var result = new AbnormalRateReportDto { FromDate = fromDate, ToDate = toDate, ByTest = new List<AbnormalRateByTestDto>() };
+        var toDateExcl = toDate.AddDays(1);
 
-        var sql = @"
-            SELECT i.TestCode, i.TestName,
-                   COUNT(i.Id) AS TotalCount,
-                   SUM(CASE WHEN i.ResultStatus IN (1,2,3,4) THEN 1 ELSE 0 END) AS AbnormalCount,
-                   SUM(CASE WHEN i.ResultStatus = 2 THEN 1 ELSE 0 END) AS HighCount,
-                   SUM(CASE WHEN i.ResultStatus = 1 THEN 1 ELSE 0 END) AS LowCount,
-                   SUM(CASE WHEN i.ResultStatus IN (3,4) THEN 1 ELSE 0 END) AS CriticalCount
-            FROM LabOrderItems i
-            INNER JOIN LabOrders o ON i.LabOrderId = o.Id
-            WHERE o.IsDeleted = 0 AND o.OrderedAt >= @FromDate AND o.OrderedAt < @ToDate
-              AND i.Result IS NOT NULL AND i.Result <> ''
-            GROUP BY i.TestCode, i.TestName
-            ORDER BY AbnormalCount DESC";
-
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
-        using var cmd = new SqlCommand(sql, connection);
-        cmd.Parameters.AddWithValue("@FromDate", fromDate);
-        cmd.Parameters.AddWithValue("@ToDate", toDate.AddDays(1));
-
-        using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
-        {
-            var total = reader.GetInt32(2);
-            var abnormal = reader.GetInt32(3);
-            var critical = reader.GetInt32(6);
-
-            result.ByTest.Add(new AbnormalRateByTestDto
+        // Load SRD có kết quả trong khoảng ngày
+        var srdRows = await _context.ServiceRequestDetails
+            .Where(d => !d.IsDeleted && d.Status != 3
+                        && d.ServiceRequest.RequestType == 1
+                        && !d.ServiceRequest.IsDeleted
+                        && d.ServiceRequest.RequestDate >= fromDate
+                        && d.ServiceRequest.RequestDate < toDateExcl
+                        && !string.IsNullOrEmpty(d.Result))
+            .Select(d => new
             {
-                TestCode = reader.GetString(0),
-                TestName = reader.GetString(1),
-                TotalCount = total,
-                AbnormalCount = abnormal,
-                AbnormalPercent = total > 0 ? Math.Round((decimal)abnormal / total * 100, 1) : 0,
-                HighCount = reader.GetInt32(4),
-                LowCount = reader.GetInt32(5),
-                CriticalCount = critical
+                d.Id,
+                ServiceCode = d.Service.ServiceCode,
+                ServiceName = d.Service.ServiceName,
+            })
+            .ToListAsync();
+
+        if (!srdRows.Any()) return result;
+
+        var srdIds = srdRows.Select(r => r.Id).ToList();
+
+        // Load flags từ ServiceRequestDetailParameters (worst-flag per SRD)
+        var paramRows = await _context.ServiceRequestDetailParameters
+            .Where(p => srdIds.Contains(p.ServiceRequestDetailId) && !p.IsDeleted && p.Flag != null && p.Flag != "N")
+            .Select(p => new { p.ServiceRequestDetailId, p.Flag })
+            .ToListAsync();
+
+        // Build: per SRD Id → worst flag (HH > LL > H > L > null)
+        var worstFlagBySrd = paramRows
+            .GroupBy(p => p.ServiceRequestDetailId)
+            .ToDictionary(g => g.Key, g =>
+            {
+                var flags = g.Select(x => x.Flag!).ToList();
+                if (flags.Contains("HH")) return "HH";
+                if (flags.Contains("LL")) return "LL";
+                if (flags.Contains("H")) return "H";
+                if (flags.Contains("L")) return "L";
+                return (string?)null;
             });
 
-            result.TotalTests += total;
-            result.AbnormalCount += abnormal;
-            result.CriticalCount += critical;
-        }
+        // Group by service + compute counts
+        var byService = srdRows
+            .GroupBy(r => new { r.ServiceCode, r.ServiceName })
+            .Select(g =>
+            {
+                int total = g.Count();
+                int highCount = g.Count(r => worstFlagBySrd.TryGetValue(r.Id, out var f) && f == "H");
+                int lowCount = g.Count(r => worstFlagBySrd.TryGetValue(r.Id, out var f) && f == "L");
+                int critCount = g.Count(r => worstFlagBySrd.TryGetValue(r.Id, out var f) && (f == "HH" || f == "LL"));
+                int abnormal = highCount + lowCount + critCount;
+                return new AbnormalRateByTestDto
+                {
+                    TestCode = g.Key.ServiceCode,
+                    TestName = g.Key.ServiceName,
+                    TotalCount = total,
+                    AbnormalCount = abnormal,
+                    AbnormalPercent = total > 0 ? Math.Round((decimal)abnormal / total * 100, 1) : 0,
+                    HighCount = highCount,
+                    LowCount = lowCount,
+                    CriticalCount = critCount
+                };
+            })
+            .OrderByDescending(x => x.AbnormalCount)
+            .ToList();
 
+        result.ByTest = byService;
+        result.TotalTests = byService.Sum(x => x.TotalCount);
+        result.AbnormalCount = byService.Sum(x => x.AbnormalCount);
+        result.CriticalCount = byService.Sum(x => x.CriticalCount);
         result.AbnormalPercent = result.TotalTests > 0 ? Math.Round((decimal)result.AbnormalCount / result.TotalTests * 100, 1) : 0;
         result.CriticalPercent = result.TotalTests > 0 ? Math.Round((decimal)result.CriticalCount / result.TotalTests * 100, 1) : 0;
 
@@ -523,25 +549,30 @@ public partial class LISCompleteService {
             .ToListAsync();
         if (analyzers.Count == 0) return new List<WorklistDto>();
 
-        var pendingRequests = await _context.LabRequests
-            .Include(r => r.Patient)
-            .Include(r => r.Items)
-            .Where(r => !r.IsDeleted
-                        && r.Status >= 1 // sample collected
-                        && r.Status < 3) // not completed
+        // #14b: model 1 — SR XN có mẫu đã lấy nhưng chưa có KQ (model 2 LabRequests chết)
+        var pendingRequests = await _context.ServiceRequests
+            .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
+            .Include(r => r.Details.Where(d => !d.IsDeleted && d.Status != 3)).ThenInclude(d => d.Service)
+            .Where(r => !r.IsDeleted && r.RequestType == 1
+                        && r.Details.Any(d => !d.IsDeleted && d.Status != 3 && d.IsSampleCollected && d.Status < 2))
             .OrderBy(r => r.RequestDate)
             .Take(200)
             .ToListAsync();
 
-        var items = pendingRequests.Select(r => new WorklistItemDto
+        var items = pendingRequests.Select(r =>
         {
-            SampleId = r.RequestCode,
-            PatientId = r.Patient?.PatientCode ?? "",
-            PatientName = r.Patient?.FullName ?? "",
-            DateOfBirth = r.Patient?.DateOfBirth,
-            Gender = r.Patient?.Gender == 1 ? "Nam" : r.Patient?.Gender == 2 ? "Nữ" : null,
-            TestCodes = r.Items?.Select(i => i.TestCode).Where(c => !string.IsNullOrEmpty(c)).ToList() ?? new List<string>(),
-            IsPriority = r.Priority >= 2,
+            var patient = r.MedicalRecord?.Patient;
+            var pendingDetails = r.Details?.Where(d => d.IsSampleCollected && d.Status < 2).ToList() ?? new List<ServiceRequestDetail>();
+            return new WorklistItemDto
+            {
+                SampleId = pendingDetails.Select(d => d.SampleBarcode).FirstOrDefault(b => !string.IsNullOrEmpty(b)) ?? r.RequestCode,
+                PatientId = patient?.PatientCode ?? "",
+                PatientName = patient?.FullName ?? "",
+                DateOfBirth = patient?.DateOfBirth,
+                Gender = patient?.Gender == 1 ? "Nam" : patient?.Gender == 2 ? "Nữ" : null,
+                TestCodes = pendingDetails.Select(d => d.Service?.ServiceCode).Where(c => !string.IsNullOrEmpty(c)).Select(c => c!).ToList(),
+                IsPriority = r.IsPriority || r.IsEmergency,
+            };
         }).ToList();
 
         return analyzers.Select(a => new WorklistDto
@@ -568,150 +599,116 @@ public partial class LISCompleteService {
                 _logger.LogInformation("Processing result: SampleId={SampleId}, TestCode={TestCode}, Value={Value}",
                     result.SampleId, result.TestCode, result.Value);
 
-                // Try to match with existing lab order by SampleBarcode and TestCode using direct SQL
-                Guid? matchedItemId = null;
-                Guid? matchedOrderId = null;
-                decimal? normalMin = null, normalMax = null, criticalLow = null, criticalHigh = null;
+                // #14e-B: model 1 — match ServiceRequestDetail theo SampleBarcode + Service.ServiceCode
+                // (thay LabOrderItems JOIN LabOrders theo SampleBarcode + TestCode)
+                var srd = await _context.ServiceRequestDetails
+                    .Include(d => d.ServiceRequest)
+                    .Include(d => d.Service)
+                    .FirstOrDefaultAsync(d =>
+                        !d.IsDeleted && d.Status != 3
+                        && d.SampleBarcode == result.SampleId
+                        && d.Service.ServiceCode == result.TestCode
+                        && d.ServiceRequest.RequestType == 1
+                        && !d.ServiceRequest.IsDeleted);
 
-                using (var conn = new SqlConnection(_configuration.GetConnectionString("DefaultConnection")))
+                if (srd != null)
                 {
-                    await conn.OpenAsync();
+                    _logger.LogInformation("Matched ServiceRequestDetail: {SrdId} for barcode {Barcode}",
+                        srd.Id, result.SampleId);
 
-                    // Find matching order item
-                    var findSql = @"
-                        SELECT i.Id, i.LabOrderId, i.NormalMin, i.NormalMax, i.CriticalLow, i.CriticalHigh
-                        FROM LabOrderItems i
-                        INNER JOIN LabOrders o ON i.LabOrderId = o.Id
-                        WHERE o.SampleBarcode = @SampleBarcode AND i.TestCode = @TestCode";
+                    // Lấy khoảng tham chiếu từ catalog LisTestParameter theo ServiceId (row đầu)
+                    var cat = await _context.LisTestParameters
+                        .Where(p => p.ServiceId == srd.ServiceId && p.IsActive && !p.IsDeleted)
+                        .OrderBy(p => p.SortOrder)
+                        .FirstOrDefaultAsync();
 
-                    using (var cmd = new SqlCommand(findSql, conn))
+                    decimal? normalMin = cat?.ReferenceLow ?? cat?.NormalMinMale;
+                    decimal? normalMax = cat?.ReferenceHigh ?? cat?.NormalMaxMale;
+                    decimal? criticalLow = cat?.CriticalLow;
+                    decimal? criticalHigh = cat?.CriticalHigh;
+
+                    // Ghi KQ vào SRD (giống EnterLabResult model 1)
+                    srd.Result = result.Value ?? "";
+                    srd.ResultDate = result.ResultDateTime ?? DateTime.Now;
+                    srd.TechnicianRunAt = DateTime.Now;
+                    srd.Status = 2; // Có KQ
+
+                    // Ghi chỉ số con (parameter) để tính cờ H/L/HH/LL
+                    var num = LabFlagEvaluator.TryParse(result.Value);
+                    var flag = LabFlagEvaluator.EvaluateFlag(num, normalMin, normalMax, criticalLow, criticalHigh);
+                    // Normalise cờ HL7 nếu có; fallback tính từ range
+                    var hl7Flag = LabFlagEvaluator.NormalizeHl7Flag(result.AbnormalFlag);
+                    var resolvedFlag = hl7Flag ?? flag;
+
+                    // Xóa params cũ (re-run idempotent) rồi ghi mới
+                    var oldParams = await _context.ServiceRequestDetailParameters
+                        .Where(p => p.ServiceRequestDetailId == srd.Id && !p.IsDeleted).ToListAsync();
+                    if (oldParams.Count > 0) _context.ServiceRequestDetailParameters.RemoveRange(oldParams);
+
+                    if (!string.IsNullOrEmpty(result.Value))
                     {
-                        cmd.Parameters.AddWithValue("@SampleBarcode", result.SampleId ?? "");
-                        cmd.Parameters.AddWithValue("@TestCode", result.TestCode ?? "");
-
-                        using (var reader = await cmd.ExecuteReaderAsync())
+                        _context.ServiceRequestDetailParameters.Add(new ServiceRequestDetailParameter
                         {
-                            if (await reader.ReadAsync())
-                            {
-                                matchedItemId = reader.GetGuid(0);
-                                matchedOrderId = reader.GetGuid(1);
-                                normalMin = reader.IsDBNull(2) ? null : reader.GetDecimal(2);
-                                normalMax = reader.IsDBNull(3) ? null : reader.GetDecimal(3);
-                                criticalLow = reader.IsDBNull(4) ? null : reader.GetDecimal(4);
-                                criticalHigh = reader.IsDBNull(5) ? null : reader.GetDecimal(5);
-                            }
-                        }
+                            Id = Guid.NewGuid(),
+                            ServiceRequestDetailId = srd.Id,
+                            ParameterCode = result.TestCode ?? "",
+                            ParameterName = srd.Service?.ServiceName ?? result.TestCode ?? "",
+                            Value = result.Value,
+                            NumericValue = num,
+                            Unit = !string.IsNullOrEmpty(result.Units) ? result.Units : cat?.Unit,
+                            ReferenceMin = normalMin,
+                            ReferenceMax = normalMax,
+                            ReferenceRange = !string.IsNullOrEmpty(result.ReferenceRange)
+                                ? result.ReferenceRange
+                                : LabFlagEvaluator.BuildReferenceRange(normalMin, normalMax),
+                            Flag = resolvedFlag,
+                            SequenceNumber = 0,
+                            CreatedAt = DateTime.Now,
+                        });
                     }
 
-                    if (matchedItemId.HasValue)
+                    // Save raw result as matched — MappedToLabRequestItemId = SRD id (model 1)
+                    var rawResult = new LabRawResult
                     {
-                        _logger.LogInformation("Matched order item: {OrderItemId} for barcode {Barcode}",
-                            matchedItemId, result.SampleId);
+                        AnalyzerId = analyzerId,
+                        SampleId = result.SampleId,
+                        PatientId = result.PatientId,
+                        TestCode = result.TestCode,
+                        Result = result.Value,
+                        Unit = result.Units,
+                        Flag = result.AbnormalFlag,
+                        ResultTime = result.ResultDateTime,
+                        RawMessage = rawData,
+                        Status = 1, // Matched
+                        MappedToLabRequestItemId = srd.Id, // #14e-B: SRD id (model 1), bỏ LabOrderItems id
+                        MappedAt = DateTime.Now
+                    };
+                    _context.LabRawResults.Add(rawResult);
 
-                        // Calculate result status based on reference ranges
-                        int resultStatus = 0;
-                        if (decimal.TryParse(result.Value, out var numericValue))
-                        {
-                            if (criticalLow.HasValue && numericValue < criticalLow.Value)
-                                resultStatus = 3; // Critical Low
-                            else if (criticalHigh.HasValue && numericValue > criticalHigh.Value)
-                                resultStatus = 4; // Critical High
-                            else if (normalMin.HasValue && numericValue < normalMin.Value)
-                                resultStatus = 1; // Low
-                            else if (normalMax.HasValue && numericValue > normalMax.Value)
-                                resultStatus = 2; // High
-                        }
+                    matchedCount++;
+                }
+                else
+                {
+                    _logger.LogWarning("No matching ServiceRequestDetail found for SampleId={SampleId}, TestCode={TestCode}",
+                        result.SampleId, result.TestCode);
 
-                        // Update result in LabOrderItem (including ReferenceRange and Unit from HL7 if available)
-                        var updateItemSql = @"
-                            UPDATE LabOrderItems
-                            SET Result = @Result,
-                                ResultStatus = @ResultStatus,
-                                ResultEnteredAt = GETDATE(),
-                                ReferenceRange = CASE WHEN @ReferenceRange IS NOT NULL AND @ReferenceRange <> '' THEN @ReferenceRange ELSE ReferenceRange END,
-                                Unit = CASE WHEN @Unit IS NOT NULL AND @Unit <> '' THEN @Unit ELSE Unit END
-                            WHERE Id = @ItemId";
-
-                        using (var updateCmd = new SqlCommand(updateItemSql, conn))
-                        {
-                            updateCmd.Parameters.AddWithValue("@Result", result.Value ?? "");
-                            updateCmd.Parameters.AddWithValue("@ResultStatus", resultStatus);
-                            updateCmd.Parameters.AddWithValue("@ReferenceRange", result.ReferenceRange ?? "");
-                            updateCmd.Parameters.AddWithValue("@Unit", result.Units ?? "");
-                            updateCmd.Parameters.AddWithValue("@ItemId", matchedItemId.Value);
-                            await updateCmd.ExecuteNonQueryAsync();
-                        }
-
-                        // Check if all items have results, update order status
-                        var checkSql = @"
-                            SELECT COUNT(*) FROM LabOrderItems
-                            WHERE LabOrderId = @OrderId AND (Result IS NULL OR Result = '')";
-
-                        using (var checkCmd = new SqlCommand(checkSql, conn))
-                        {
-                            checkCmd.Parameters.AddWithValue("@OrderId", matchedOrderId.Value);
-                            var pendingCount = (int)await checkCmd.ExecuteScalarAsync();
-
-                            int newStatus = pendingCount == 0 ? 3 : 2; // 3=Chờ duyệt, 2=Đang XN
-
-                            var updateOrderSql = @"
-                                UPDATE LabOrders SET Status = @Status,
-                                ProcessingEndTime = CASE WHEN @Status = 3 THEN GETDATE() ELSE ProcessingEndTime END
-                                WHERE Id = @OrderId";
-
-                            using (var updateOrderCmd = new SqlCommand(updateOrderSql, conn))
-                            {
-                                updateOrderCmd.Parameters.AddWithValue("@Status", newStatus);
-                                updateOrderCmd.Parameters.AddWithValue("@OrderId", matchedOrderId.Value);
-                                await updateOrderCmd.ExecuteNonQueryAsync();
-                            }
-                        }
-
-                        // Save raw result as matched
-                        var rawResult = new LabRawResult
-                        {
-                            AnalyzerId = analyzerId,
-                            SampleId = result.SampleId,
-                            PatientId = result.PatientId,
-                            TestCode = result.TestCode,
-                            Result = result.Value,
-                            Unit = result.Units,
-                            Flag = result.AbnormalFlag,
-                            ResultTime = result.ResultDateTime,
-                            RawMessage = rawData,
-                            Status = 1, // Matched
-                            MappedToLabRequestItemId = matchedItemId.Value,
-                            MappedAt = DateTime.Now
-                        };
-                        _context.LabRawResults.Add(rawResult);
-
-                        matchedCount++;
-                    }
-                    else
+                    // Save as unmatched raw result
+                    var rawResult = new LabRawResult
                     {
-                        _logger.LogWarning("No matching order found for SampleId={SampleId}, TestCode={TestCode}",
-                            result.SampleId, result.TestCode);
-
-                        // Save as unmatched raw result
-                        var rawResult = new LabRawResult
-                        {
-                            AnalyzerId = analyzerId,
-                            SampleId = result.SampleId,
-                            PatientId = result.PatientId,
-                            TestCode = result.TestCode,
-                            Result = result.Value,
-                            Unit = result.Units,
-                            Flag = result.AbnormalFlag,
-                            ResultTime = result.ResultDateTime,
-                            RawMessage = rawData,
-                            Status = 0 // Pending/Unmatched
-                        };
-                        _context.LabRawResults.Add(rawResult);
-                    }
+                        AnalyzerId = analyzerId,
+                        SampleId = result.SampleId,
+                        PatientId = result.PatientId,
+                        TestCode = result.TestCode,
+                        Result = result.Value,
+                        Unit = result.Units,
+                        Flag = result.AbnormalFlag,
+                        ResultTime = result.ResultDateTime,
+                        RawMessage = rawData,
+                        Status = 0 // Pending/Unmatched
+                    };
+                    _context.LabRawResults.Add(rawResult);
                 }
             }
-
-
 
             await _context.SaveChangesAsync();
 

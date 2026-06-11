@@ -3311,60 +3311,7 @@ IF COL_LENGTH('InstalledSoftwareItems','IsDeleted') IS NULL ALTER TABLE Installe
         }
         } catch (Exception ex) { errors["RadiologyRequests"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
 
-        // LabRequests — lab today orders for /laboratory waiting list
-        try {
-        if (await _db.LabRequests.CountAsync() < 15 && ctx.PatientIds.Count > 0 && ctx.DoctorIds.Count > 0)
-        {
-            var labSvcs = await _db.Services
-                .Where(s => s.IsActive && (s.ServiceType == 2 || s.ServiceName!.Contains("máu") ||
-                            s.ServiceName!.Contains("sinh hóa") || s.ServiceName!.Contains("nước tiểu")))
-                .Select(s => new { s.Id, s.UnitPrice })
-                .Take(10).ToListAsync();
-            if (labSvcs.Count == 0)
-                labSvcs = await _db.Services.Where(s => s.IsActive).Select(s => new { s.Id, s.UnitPrice }).Take(10).ToListAsync();
-            if (labSvcs.Count > 0)
-            {
-                var diags = new (string Code, string Name)[] {
-                    ("E11.9", "Đái tháo đường type 2"),
-                    ("I10", "Tăng huyết áp vô căn"),
-                    ("J18.9", "Viêm phổi không xác định"),
-                    ("K29.7", "Viêm dạ dày"),
-                    ("N39.0", "Nhiễm trùng tiết niệu"),
-                    ("M54.5", "Đau thắt lưng"),
-                    ("B18.2", "Viêm gan C mạn"),
-                    ("Z00.0", "Khám sức khỏe tổng quát"),
-                };
-                var reqs = new List<LabRequest>();
-                int seq = 0;
-                for (int i = 0; i < 25 && i < ctx.PatientIds.Count; i++)
-                {
-                    seq++;
-                    var when = DateTime.Today.AddHours(7 + (i % 10)).AddMinutes(rng.Next(0, 59));
-                    var dx = diags[i % diags.Length];
-                    reqs.Add(new LabRequest
-                    {
-                        Id = Guid.NewGuid(),
-                        RequestCode = NextCode("LIS", seq, 5),
-                        PatientId = ctx.PatientIds[i],
-                        RequestingDoctorId = ctx.DoctorIds[i % ctx.DoctorIds.Count],
-                        DepartmentId = ctx.DepartmentIds.Count > 0 ? ctx.DepartmentIds[i % ctx.DepartmentIds.Count] : null,
-                        RequestDate = when,
-                        Priority = i % 8 == 0 ? 3 : i % 4 == 0 ? 2 : 1,
-                        Status = i % 5 switch { 0 => 0, 1 => 1, 2 => 2, 3 => 3, _ => 4 },
-                        DiagnosisCode = dx.Code,
-                        DiagnosisName = dx.Name,
-                        ClinicalInfo = "Cần XN để đánh giá " + dx.Name.ToLower(),
-                        PatientType = i % 3 == 0 ? 2 : 1,
-                        TotalAmount = 150_000m + rng.Next(0, 500) * 1000,
-                        CreatedAt = when, UpdatedAt = ctx.Now
-                    });
-                }
-                _db.LabRequests.AddRange(reqs);
-                await _db.SaveChangesAsync();
-                summary["LabRequests"] = reqs.Count;
-            }
-        }
-        } catch (Exception ex) { errors["LabRequests"] = ex.GetBaseException().Message; _db.ChangeTracker.Clear(); }
+        // #14e: populate LabRequests (model 2) đã gỡ — danh sách chờ /laboratory dùng ServiceRequests (model 1, seed ở DailySeed)
 
         // ProcurementRequests — /procurement page
         try {
@@ -3978,14 +3925,7 @@ BEGIN
           AND q.Id IN (SELECT TOP 20 Id FROM QueueTickets ORDER BY IssueDate DESC)');
 END
 
--- LabOrders: shift so LIS /orders/pending returns today's rows
-IF OBJECT_ID('LabOrders','U') IS NOT NULL AND COL_LENGTH('LabOrders','OrderedAt') IS NOT NULL
-BEGIN
-  EXEC('UPDATE o SET OrderedAt = DATEADD(minute, ABS(CHECKSUM(NEWID()) % 600), CAST(CAST(SYSDATETIME() AS date) AS datetime2))
-        FROM LabOrders o
-        WHERE CAST(OrderedAt AS date) < CAST(SYSDATETIME() AS date)
-          AND o.Id IN (SELECT TOP 30 Id FROM LabOrders ORDER BY OrderedAt DESC)');
-END
+-- #14e-B: block shift LabOrders đã gỡ (bảng model 3 drop ở mig 92; /orders/pending giờ đọc ServiceRequests)
 
 -- Receipts: shift 30 paid receipts to last 7 days so dashboard revenue-by-department lights up
 IF OBJECT_ID('Receipts','U') IS NOT NULL AND COL_LENGTH('Receipts','ReceiptDate') IS NOT NULL

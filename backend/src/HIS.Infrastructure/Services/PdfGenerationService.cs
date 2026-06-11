@@ -354,25 +354,26 @@ public class PdfGenerationService : IPdfGenerationService
     /// </summary>
     public async Task<byte[]> GenerateLabResultAsync(Guid labRequestId)
     {
-        var labRequest = await _db.LabRequests
-            .Include(r => r.Patient)
-            .Include(r => r.RequestingDoctor)
+        // #14e: model 1 \u2014 phi\u1EBFu KQ in t\u1EEB ServiceRequest + SRD + ch\u1EC9 s\u1ED1 con R1 (model 2 \u0111\u00E3 g\u1EE1; \u0111\u00F3ng lu\u00F4n defer R1 "in phi\u1EBFu t\u1EEB SRD-Items")
+        var labRequest = await _db.ServiceRequests
+            .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
+            .Include(r => r.Doctor)
             .Include(r => r.Department)
-            .Include(r => r.Items)
-            .FirstOrDefaultAsync(r => r.Id == labRequestId && !r.IsDeleted);
+            .Include(r => r.Details.Where(d => !d.IsDeleted && d.Status != 3)).ThenInclude(d => d.Service)
+            .FirstOrDefaultAsync(r => r.Id == labRequestId && !r.IsDeleted && r.RequestType == 1);
 
         if (labRequest == null)
             return Encoding.UTF8.GetBytes(WrapHtmlPage("L\u1ED7i", "<p>Kh\u00F4ng t\u00ECm th\u1EA5y phi\u1EBFu x\u00E9t nghi\u1EC7m</p>"));
 
-        var patient = labRequest.Patient;
+        var patient = labRequest.MedicalRecord?.Patient;
 
-        // Lay ket qua cho tung test item
+        // Lay ket qua cho tung SRD (ch\u1EC9 s\u1ED1 con n\u1EBFu c\u00F3, fallback KQ chu\u1ED7i)
         var resultRows = new List<LabResultRow>();
-        foreach (var item in labRequest.Items.Where(i => !i.IsDeleted).OrderBy(i => i.CreatedAt))
+        foreach (var item in labRequest.Details.OrderBy(i => i.CreatedAt))
         {
-            var results = await _db.LabResults
-                .Where(r => r.LabRequestItemId == item.Id && !r.IsDeleted)
-                .OrderBy(r => r.SequenceNumber)
+            var results = await _db.ServiceRequestDetailParameters
+                .Where(p => p.ServiceRequestDetailId == item.Id && !p.IsDeleted)
+                .OrderBy(p => p.SequenceNumber)
                 .ToListAsync();
 
             if (results.Count > 0)
@@ -382,22 +383,21 @@ public class PdfGenerationService : IPdfGenerationService
                     resultRows.Add(new LabResultRow
                     {
                         TestName = r.ParameterName,
-                        Result = r.ResultValue ?? r.Result ?? r.TextResult,
+                        Result = r.Value,
                         Unit = r.Unit,
                         ReferenceRange = r.ReferenceRange ?? (r.ReferenceMin.HasValue && r.ReferenceMax.HasValue
                             ? $"{r.ReferenceMin} - {r.ReferenceMax}"
-                            : r.ReferenceText),
-                        IsAbnormal = r.IsAbnormal
+                            : null),
+                        IsAbnormal = LabFlagEvaluator.IsAbnormal(r.Flag)
                     });
                 }
             }
             else
             {
-                // Test chua co ket qua - hien ten test
                 resultRows.Add(new LabResultRow
                 {
-                    TestName = item.TestName,
-                    Result = "(ch\u01B0a c\u00F3 KQ)",
+                    TestName = item.Service?.ServiceName ?? "",
+                    Result = item.Result ?? "(ch\u01B0a c\u00F3 KQ)",
                     Unit = "",
                     ReferenceRange = "",
                     IsAbnormal = false
@@ -405,20 +405,22 @@ public class PdfGenerationService : IPdfGenerationService
             }
         }
 
-        // Lay nguoi duyet
+        // Lay nguoi duyet (reviewer mu\u1ED9n nh\u1EA5t trong c\u00E1c SRD)
         string? approvedByName = null;
-        if (labRequest.ApprovedBy.HasValue)
+        var approvedAt = labRequest.Details.Select(d => d.ReviewedAt).Where(x => x.HasValue).OrderByDescending(x => x).FirstOrDefault();
+        var reviewerId = labRequest.Details.Where(d => d.ReviewedAt.HasValue).OrderByDescending(d => d.ReviewedAt).Select(d => d.ReviewerUserId).FirstOrDefault();
+        if (reviewerId.HasValue)
         {
-            var approver = await _db.Users.FirstOrDefaultAsync(u => u.Id == labRequest.ApprovedBy.Value);
+            var approver = await _db.Users.FirstOrDefaultAsync(u => u.Id == reviewerId.Value);
             approvedByName = approver?.FullName;
         }
 
         var html = GetLabResult(
             patient?.PatientCode, patient?.FullName, patient?.Gender ?? 0, patient?.DateOfBirth,
             patient?.Address, patient?.PhoneNumber, patient?.InsuranceNumber,
-            labRequest.DiagnosisName, labRequest.RequestingDoctor?.FullName,
+            labRequest.Diagnosis, labRequest.Doctor?.FullName,
             labRequest.Department?.DepartmentName,
-            labRequest.RequestDate, labRequest.ApprovedAt,
+            labRequest.RequestDate, approvedAt,
             resultRows, approvedByName);
 
         return Encoding.UTF8.GetBytes(html);

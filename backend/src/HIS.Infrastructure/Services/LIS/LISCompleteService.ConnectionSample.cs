@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Data.SqlClient;
 using HIS.Application.DTOs.Laboratory;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -296,14 +295,16 @@ public partial class LISCompleteService {
     public async Task<List<SampleCollectionItemDto>> GetPatientSamplesAsync(Guid patientId, Guid visitId)
     {
         // visitId is the medical record id
-        var requests = await _context.LabRequests
-            .Include(r => r.Patient)
-            .Include(r => r.MedicalRecord)
-                .ThenInclude(m => m!.Department)
-            .Where(r => r.PatientId == patientId
+        // #14b: model 1 ServiceRequests (RequestType=1, chưa có KQ đầy đủ); model 2 LabRequests chết
+        var requests = await _context.ServiceRequests
+            .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
+            .Include(r => r.MedicalRecord).ThenInclude(m => m.Department)
+            .Include(r => r.Details.Where(d => !d.IsDeleted && d.Status != 3)).ThenInclude(d => d.Service)
+            .Where(r => r.MedicalRecord.PatientId == patientId
                         && (visitId == Guid.Empty || r.MedicalRecordId == visitId)
                         && !r.IsDeleted
-                        && r.Status <= 2) // Pending / Collected / Processing
+                        && r.RequestType == 1
+                        && r.Status < 3) // chưa có KQ / chưa hủy
             .OrderByDescending(r => r.RequestDate)
             .ToListAsync();
 
@@ -311,27 +312,38 @@ public partial class LISCompleteService {
         var seq = 1;
         foreach (var r in requests)
         {
+            var details = r.Details?.ToList() ?? new List<ServiceRequestDetail>();
+            var received = details.Count > 0 && details.All(d => d.ReceiveStatus == 1);
+            var collected = details.Count > 0 && details.All(d => d.IsSampleCollected);
+            var patient = r.MedicalRecord?.Patient;
             result.Add(new SampleCollectionItemDto
             {
                 Id = r.Id,
                 LabOrderId = r.Id,
                 OrderCode = r.RequestCode,
-                PatientId = r.PatientId,
-                PatientCode = r.Patient?.PatientCode ?? "",
-                PatientName = r.Patient?.FullName ?? "",
-                DateOfBirth = r.Patient?.DateOfBirth,
-                Gender = r.Patient?.Gender == 1 ? "Nam" : r.Patient?.Gender == 2 ? "Nữ" : null,
-                MedicalRecordId = r.MedicalRecordId ?? Guid.Empty,
-                PatientType = r.MedicalRecord?.TreatmentType ?? r.PatientType,
+                PatientId = r.MedicalRecord?.PatientId ?? Guid.Empty,
+                PatientCode = patient?.PatientCode ?? "",
+                PatientName = patient?.FullName ?? "",
+                DateOfBirth = patient?.DateOfBirth,
+                Gender = patient?.Gender == 1 ? "Nam" : patient?.Gender == 2 ? "Nữ" : null,
+                MedicalRecordId = r.MedicalRecordId,
+                PatientType = r.MedicalRecord?.TreatmentType ?? 0,
                 DepartmentName = r.MedicalRecord?.Department?.DepartmentName,
                 BedCode = null,
                 QueueNumber = seq++,
-                Tests = new List<LabTestItemDto>(),
+                Tests = details.Select(d => new LabTestItemDto
+                {
+                    Id = d.Id,
+                    LabOrderId = r.Id,
+                    TestCode = d.Service?.ServiceCode ?? "",
+                    TestName = d.Service?.ServiceName ?? "",
+                    Result = d.Result,
+                }).ToList(),
                 RequiredSamples = new List<SampleTypeDto>(),
-                Status = r.Status switch { 0 => 1, 1 => 2, 2 => 3, _ => 1 },
-                StatusName = r.Status switch { 0 => "Chờ lấy mẫu", 1 => "Đã lấy mẫu", 2 => "Đã tiếp nhận", _ => "Khác" },
-                IsPriority = r.Priority >= 2,
-                IsEmergency = r.Priority >= 3,
+                Status = received ? 3 : collected ? 2 : 1,
+                StatusName = received ? "Đã tiếp nhận" : collected ? "Đã lấy mẫu" : "Chờ lấy mẫu",
+                IsPriority = r.IsPriority || r.IsEmergency,
+                IsEmergency = r.IsEmergency,
                 OrderedAt = r.RequestDate,
             });
         }
@@ -342,55 +354,41 @@ public partial class LISCompleteService {
     {
         try
         {
-            // Generate barcode: LIS + date + orderId (4 chars)
+            // Generate barcode: LIS + date + orderId (4 chars) — công thức giữ nguyên từ model 3
             var today = DateTime.Now;
             var barcode = $"LIS{today:yyMMdd}{dto.LabOrderId.ToString().Substring(0, 4).ToUpper()}";
             var collectionTime = dto.Samples.FirstOrDefault()?.CollectedAt ?? DateTime.Now;
 
-            // Update database using raw SQL
-            using (var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString()))
+            // #14e-B: EF Core model 1 — thay raw-SQL (model 3) bằng load ServiceRequest + Details
+            var sr = await _context.ServiceRequests
+                .Include(r => r.Details)
+                .FirstOrDefaultAsync(r => r.Id == dto.LabOrderId && !r.IsDeleted && r.RequestType == 1);
+
+            if (sr == null)
+                return new CollectSampleResultDto { Success = false, Message = "Order not found" };
+
+            var activeDetails = sr.Details.Where(d => !d.IsDeleted && d.Status != 3).ToList();
+
+            foreach (var d in activeDetails)
             {
-                await connection.OpenAsync();
-
-                // Update LabOrders table with barcode and collection time.
-                // CollectorId (cột uniqueidentifier có sẵn của LabOrders) set khi caller
-                // truyền CollectorUserId (từ labRoles.defaultKtvId).
-                var updateSql = dto.CollectorUserId.HasValue
-                    ? @"UPDATE LabOrders SET
-                            SampleBarcode = @Barcode,
-                            CollectedAt = @CollectionTime,
-                            CollectorId = @CollectorUserId,
-                            Status = 1
-                        WHERE Id = @OrderId"
-                    : @"UPDATE LabOrders SET
-                            SampleBarcode = @Barcode,
-                            CollectedAt = @CollectionTime,
-                            Status = 1
-                        WHERE Id = @OrderId";
-
-                using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(updateSql, connection))
-                {
-                    cmd.Parameters.AddWithValue("@Barcode", barcode);
-                    cmd.Parameters.AddWithValue("@CollectionTime", collectionTime);
-                    cmd.Parameters.AddWithValue("@OrderId", dto.LabOrderId);
-                    if (dto.CollectorUserId.HasValue)
-                        cmd.Parameters.AddWithValue("@CollectorUserId", dto.CollectorUserId.Value);
-
-                    var rowsAffected = await cmd.ExecuteNonQueryAsync();
-                    if (rowsAffected > 0)
-                    {
-                        _logger.LogInformation("Sample collected for order {OrderId}, barcode: {Barcode}", dto.LabOrderId, barcode);
-                        return new CollectSampleResultDto
-                        {
-                            Success = true,
-                            Barcode = barcode,
-                            SampleId = dto.LabOrderId
-                        };
-                    }
-                }
+                d.IsSampleCollected = true;
+                d.SampleCollectedAt = collectionTime;
+                // Chỉ set barcode nếu chưa có — không đè barcode đã tồn tại
+                if (string.IsNullOrEmpty(d.SampleBarcode))
+                    d.SampleBarcode = barcode;
+                if (dto.CollectorUserId.HasValue)
+                    d.CollectedByUserId = dto.CollectorUserId.Value;
             }
 
-            return new CollectSampleResultDto { Success = false, Message = "Order not found" };
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Sample collected for order {OrderId}, barcode: {Barcode}", dto.LabOrderId, barcode);
+            return new CollectSampleResultDto
+            {
+                Success = true,
+                Barcode = barcode,
+                SampleId = dto.LabOrderId
+            };
         }
         catch (Exception ex)
         {
@@ -452,20 +450,19 @@ public partial class LISCompleteService {
 
         try
         {
-            using var connection = new SqlConnection(_context.Database.GetConnectionString());
-            await connection.OpenAsync();
+            // #14e-B: EF Core model 1 — thay raw-SQL SELECT (model 3) bằng load ServiceRequest + Details
+            // sampleId = dto.LabOrderId = ServiceRequest.Id (theo contract CollectSampleDto)
+            var sr = await _context.ServiceRequests
+                .Include(r => r.Details)
+                .FirstOrDefaultAsync(r => r.Id == sampleId && !r.IsDeleted && r.RequestType == 1);
 
-            var sql = @"SELECT o.Status, o.CollectedAt, o.SampleBarcode, o.SampleType, o.OrderedAt
-                        FROM LabOrders o WHERE o.Id = @SampleId AND o.IsDeleted = 0";
-            using var cmd = new SqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@SampleId", sampleId);
-            using var reader = await cmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
+            if (sr != null)
             {
-                var status = reader.GetInt32(0);
-                var collectedAt = reader.IsDBNull(1) ? (DateTime?)null : reader.GetDateTime(1);
-                var barcode = reader.IsDBNull(2) ? null : reader.GetString(2);
-                var orderedAt = reader.GetDateTime(4);
+                var details = sr.Details.Where(d => !d.IsDeleted).ToList();
+                var status = LisModel1Map.ComputeOrderStatus(details);
+                var collectedAt = LisModel1Map.CollectedAt(details);
+                var barcode = LisModel1Map.FirstBarcode(details);
+                // orderedAt = r.RequestDate (sampleType không có tương đương model 1 → null)
 
                 if (string.IsNullOrEmpty(barcode))
                     result.Errors.Add("Mẫu chưa có mã barcode");

@@ -33,7 +33,7 @@ public class ProvincialHealthService : IProvincialHealthService
                 .CountAsync(a => a.AdmissionDate >= startOfMonth && a.AdmissionDate < endOfMonth);
 
             int labTests = 0, radiologyExams = 0;
-            try { labTests = await _db.Set<HIS.Core.Entities.LabRequest>().CountAsync(l => l.CreatedAt >= startOfMonth && l.CreatedAt < endOfMonth); } catch { }
+            try { labTests = await _db.ServiceRequests.CountAsync(l => l.RequestType == 1 && !l.IsDeleted && l.CreatedAt >= startOfMonth && l.CreatedAt < endOfMonth); } catch { } // #14e: model 1
             try { radiologyExams = await _db.Set<HIS.Core.Entities.RadiologyRequest>().CountAsync(r => r.CreatedAt >= startOfMonth && r.CreatedAt < endOfMonth); } catch { }
 
             var report = new ProvincialReportDto

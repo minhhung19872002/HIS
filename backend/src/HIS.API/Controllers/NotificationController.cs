@@ -162,10 +162,11 @@ public class NotificationController : ControllerBase
     public async Task<ActionResult<HIS.Application.DTOs.NangCap18.LabResultLinkResultDto>> SendLabResultLink(
         [FromBody] HIS.Application.DTOs.NangCap18.SendLabResultLinkDto dto)
     {
-        // Find lab request
-        var labRequest = await _context.LabRequests
-            .Include(r => r.Patient)
-            .FirstOrDefaultAsync(r => r.Id == dto.LabRequestId && !r.IsDeleted);
+        // Find lab request — #14b: model 1 ServiceRequest (RequestType=1 XN); LabRequests model 2 chỉ seed ghi
+        // → trước đây id thật từ FE không bao giờ khớp, luôn trả "Không tìm thấy".
+        var labRequest = await _context.ServiceRequests
+            .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
+            .FirstOrDefaultAsync(r => r.Id == dto.LabRequestId && !r.IsDeleted && r.RequestType == 1);
 
         if (labRequest == null)
             return Ok(new HIS.Application.DTOs.NangCap18.LabResultLinkResultDto
@@ -197,7 +198,7 @@ public class NotificationController : ControllerBase
         var accessUrl = $"{baseUrl}/lab-result?token={token}";
 
         // Send SMS
-        var patientName = labRequest.Patient?.FullName ?? "Quý khách";
+        var patientName = labRequest.MedicalRecord?.Patient?.FullName ?? "Quý khách";
         var smsMessage = $"BV Da Khoa: {patientName}, ket qua xet nghiem cua ban da co. Xem tai: {accessUrl} (het han sau 72h)";
         var smsSent = await _smsService.SendSmsAsync(dto.Phone, smsMessage, "LabResult", patientName, "LabRequest", dto.LabRequestId);
 

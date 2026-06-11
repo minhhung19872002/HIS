@@ -39,7 +39,7 @@ namespace HIS.API.Controllers
         #region DEV Endpoints
 
         /// <summary>
-        /// Cập nhật ngày của tất cả LabOrders thành ngày hôm nay (DEV only)
+        /// Cập nhật ngày của tất cả phiếu XN (ServiceRequests RequestType=1) thành hôm nay (DEV only)
         /// </summary>
         [HttpPost("dev/update-dates-to-today")]
         [AllowAnonymous]
@@ -307,66 +307,78 @@ namespace HIS.API.Controllers
             if (admission == null) return NotFound(new { message = "Admission not found" });
 
             var medicalRecordId = admission.MedicalRecordId;
-            var orders = await _context.LabRequests
+            // #14b: model 1 — SR XN theo HSBA + chỉ số con R1 (model 2 LabRequests chết → endpoint này trước trả rỗng)
+            var orders = await _context.ServiceRequests
                 .AsNoTracking()
-                .Where(r => r.MedicalRecordId == medicalRecordId && !r.IsDeleted)
-                .Include(r => r.Items).ThenInclude(i => i.Results)
-                .Include(r => r.RequestingDoctor)
+                .Where(r => r.MedicalRecordId == medicalRecordId && !r.IsDeleted && r.RequestType == 1)
+                .Include(r => r.Details.Where(d => !d.IsDeleted)).ThenInclude(d => d.Service)
+                .Include(r => r.Doctor)
                 .OrderByDescending(r => r.RequestDate)
                 .ToListAsync();
+
+            var allDetailIds = orders.SelectMany(r => r.Details.Select(d => d.Id)).ToList();
+            var paramsByDetail = allDetailIds.Count == 0
+                ? new Dictionary<Guid, List<HIS.Core.Entities.ServiceRequestDetailParameter>>()
+                : (await _context.ServiceRequestDetailParameters.AsNoTracking()
+                        .Where(p => allDetailIds.Contains(p.ServiceRequestDetailId) && !p.IsDeleted)
+                        .OrderBy(p => p.SequenceNumber)
+                        .ToListAsync())
+                    .GroupBy(p => p.ServiceRequestDetailId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
 
             var dtos = orders.Select(r => new LabOrderDto
             {
                 Id = r.Id,
                 OrderCode = r.RequestCode,
-                PatientId = r.PatientId,
+                PatientId = admission.PatientId,
                 PatientCode = "",
                 PatientName = "",
-                MedicalRecordId = r.MedicalRecordId ?? Guid.Empty,
+                MedicalRecordId = r.MedicalRecordId,
                 MedicalRecordCode = "",
                 OrderDepartmentId = r.DepartmentId,
-                OrderDoctorId = r.RequestingDoctorId,
-                OrderDoctorName = r.RequestingDoctor?.FullName ?? "",
-                Diagnosis = r.DiagnosisName,
-                IcdCode = r.DiagnosisCode,
-                Notes = r.Notes,
+                OrderDoctorId = r.DoctorId,
+                OrderDoctorName = r.Doctor?.FullName ?? "",
+                Diagnosis = r.Diagnosis,
+                IcdCode = r.IcdCode,
+                Notes = r.Notes ?? r.Note,
                 Status = r.Status,
                 StatusName = r.Status switch
                 {
-                    0 => "Chờ lấy mẫu",
-                    1 => "Đã lấy mẫu",
-                    2 => "Đang XN",
-                    3 => "Chờ duyệt",
-                    4 => "Đã duyệt sơ bộ",
-                    5 => "Hoàn thành",
+                    0 => "Chờ thanh toán",
+                    1 => "Đã thanh toán",
+                    2 => "Đang thực hiện",
+                    3 => "Có kết quả",
                     _ => "Đã hủy"
                 },
-                IsPriority = r.Priority >= 2,
-                IsEmergency = r.Priority >= 3,
+                IsPriority = r.IsPriority || r.IsEmergency,
+                IsEmergency = r.IsEmergency,
                 OrderedAt = r.RequestDate,
-                ApprovedAt = r.ApprovedAt,
-                Tests = r.Items.Select(i => new HIS.Application.DTOs.Laboratory.LabTestItemDto
+                ApprovedAt = r.Details.Select(d => d.ReviewedAt).Where(x => x.HasValue).OrderByDescending(x => x).FirstOrDefault(),
+                Tests = r.Details.Where(d => d.Status != 3).Select(d =>
                 {
-                    Id = i.Id,
-                    LabOrderId = r.Id,
-                    TestCode = i.TestCode,
-                    TestName = i.TestName,
-                    SampleTypeName = i.SampleType,
-                    Result = i.Results.OrderByDescending(res => res.ResultedAt).FirstOrDefault()?.ResultValue,
-                    Unit = i.Results.OrderByDescending(res => res.ResultedAt).FirstOrDefault()?.Unit,
-                    ReferenceRange = i.Results.OrderByDescending(res => res.ResultedAt).FirstOrDefault()?.ReferenceRange,
-                    AbnormalFlag = i.Results.Any(res => res.IsAbnormal) ? 1 : 0,
-                    Status = i.Status,
-                    StatusName = i.Status switch
+                    paramsByDetail.TryGetValue(d.Id, out var ps);
+                    var single = ps != null && ps.Count == 1 ? ps[0] : null;
+                    return new HIS.Application.DTOs.Laboratory.LabTestItemDto
                     {
-                        0 => "Chờ",
-                        1 => "Có mẫu",
-                        2 => "Đang XN",
-                        3 => "Có KQ",
-                        4 => "Đã duyệt",
-                        5 => "Từ chối",
-                        _ => "Không rõ"
-                    }
+                        Id = d.Id,
+                        LabOrderId = r.Id,
+                        TestCode = d.Service?.ServiceCode ?? "",
+                        TestName = d.Service?.ServiceName ?? "",
+                        SampleTypeName = null,
+                        Result = single?.Value ?? d.Result,
+                        Unit = single?.Unit,
+                        ReferenceRange = single?.ReferenceRange,
+                        AbnormalFlag = ps != null && ps.Any(p => !string.IsNullOrEmpty(p.Flag) && p.Flag != "N") ? 1 : 0,
+                        Status = d.Status,
+                        StatusName = d.ReceiveStatus == 2 ? "Từ chối" : d.Status switch
+                        {
+                            0 => "Chờ",
+                            1 => d.IsSampleCollected ? "Có mẫu" : "Đang XN",
+                            2 => d.ReviewedAt != null ? "Đã duyệt" : "Có KQ",
+                            3 => "Đã hủy",
+                            _ => "Không rõ"
+                        }
+                    };
                 }).ToList()
             }).ToList();
 
@@ -1573,10 +1585,13 @@ namespace HIS.API.Controllers
 
     #region Sample Storage/Tracking Write (K5)
 
+    // #14b: 4 endpoint K5 chuyển thao tác lên ServiceRequestDetail (model 1) — id mẫu = SRD id.
+    // Trước thao tác LabRequestItems (model 2 chết, chỉ seed) → id thật từ luồng nghiệp vụ luôn 404.
+
     [HttpPost("sample-storage/store")]
     public async Task<IActionResult> StoreSample([FromBody] StoreSampleRequest dto)
     {
-        var item = await _context.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
+        var item = await _context.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
         if (item == null) return NotFound(new { message = "Mẫu không tồn tại" });
         item.SampleLocation = dto.Location;
         item.UpdatedAt = DateTime.Now;
@@ -1588,7 +1603,7 @@ namespace HIS.API.Controllers
     [HttpPost("sample-storage/retrieve")]
     public async Task<IActionResult> RetrieveSample([FromBody] RetrieveSampleRequest dto)
     {
-        var item = await _context.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
+        var item = await _context.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
         if (item == null) return NotFound(new { message = "Mẫu không tồn tại" });
         item.SampleLocation = null;
         item.UpdatedAt = DateTime.Now;
@@ -1600,11 +1615,11 @@ namespace HIS.API.Controllers
     [HttpPost("sample-tracking/reject")]
     public async Task<IActionResult> RejectSample([FromBody] RejectSampleRequest dto)
     {
-        var item = await _context.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
+        var item = await _context.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
         if (item == null) return NotFound();
-        item.Status = 5;
-        item.RejectionReason = dto.Reason;
-        item.RejectedAt = DateTime.Now;
+        // Cùng ngữ nghĩa SampleReceiveController.Reject: ReceiveStatus=2 + lý do
+        item.ReceiveStatus = 2;
+        item.RejectReason = dto.Reason;
         item.UpdatedAt = DateTime.Now;
         item.UpdatedBy = GetUserId().ToString();
         await _context.SaveChangesAsync();
@@ -1614,11 +1629,10 @@ namespace HIS.API.Controllers
     [HttpPost("sample-tracking/undo-reject")]
     public async Task<IActionResult> UndoRejectSample([FromBody] UndoRejectRequest dto)
     {
-        var item = await _context.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
+        var item = await _context.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
         if (item == null) return NotFound();
-        item.Status = 1;
-        item.RejectionReason = null;
-        item.RejectedAt = null;
+        item.ReceiveStatus = 1; // về trạng thái đã nhận mẫu
+        item.RejectReason = null;
         item.UpdatedAt = DateTime.Now;
         item.UpdatedBy = GetUserId().ToString();
         await _context.SaveChangesAsync();

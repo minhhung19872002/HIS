@@ -17,11 +17,12 @@ public class WriteGapController : ControllerBase
     private Guid Uid() => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
 
     // ========== 1. Sample Storage (store/retrieve) ==========
+    // #14e: thao tác trên ServiceRequestDetail (model 1) — id mẫu = SRD id (model 2 LabRequestItems đã gỡ)
 
     [HttpPost("sample/sample-storage/store")]
     public async Task<IActionResult> StoreSample([FromBody] StoreSampleDto dto)
     {
-        var item = await _db.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
+        var item = await _db.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
         if (item == null) return NotFound(new { message = "Mẫu không tồn tại" });
         item.SampleLocation = dto.Location;
         item.UpdatedAt = DateTime.Now;
@@ -33,7 +34,7 @@ public class WriteGapController : ControllerBase
     [HttpPost("sample/sample-storage/retrieve")]
     public async Task<IActionResult> RetrieveSample([FromBody] RetrieveSampleDto dto)
     {
-        var item = await _db.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
+        var item = await _db.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
         if (item == null) return NotFound(new { message = "Mẫu không tồn tại" });
         item.SampleLocation = null;
         item.UpdatedAt = DateTime.Now;
@@ -47,11 +48,11 @@ public class WriteGapController : ControllerBase
     [HttpPost("sample/sample-tracking/reject")]
     public async Task<IActionResult> RejectSample([FromBody] RejectSampleDto dto)
     {
-        var item = await _db.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
+        var item = await _db.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
         if (item == null) return NotFound();
-        item.Status = 5;
-        item.RejectionReason = dto.Reason;
-        item.RejectedAt = DateTime.Now;
+        // Cùng ngữ nghĩa SampleReceiveController.Reject: ReceiveStatus=2 + lý do
+        item.ReceiveStatus = 2;
+        item.RejectReason = dto.Reason;
         item.UpdatedAt = DateTime.Now;
         item.UpdatedBy = Uid().ToString();
         await _db.SaveChangesAsync();
@@ -61,11 +62,10 @@ public class WriteGapController : ControllerBase
     [HttpPost("sample/sample-tracking/undo-reject")]
     public async Task<IActionResult> UndoRejectSample([FromBody] UndoRejectDto dto)
     {
-        var item = await _db.LabRequestItems.FirstOrDefaultAsync(i => i.Id == dto.SampleId);
+        var item = await _db.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
         if (item == null) return NotFound();
-        item.Status = 1;
-        item.RejectionReason = null;
-        item.RejectedAt = null;
+        item.ReceiveStatus = 1; // về trạng thái đã nhận mẫu
+        item.RejectReason = null;
         item.UpdatedAt = DateTime.Now;
         item.UpdatedBy = Uid().ToString();
         await _db.SaveChangesAsync();

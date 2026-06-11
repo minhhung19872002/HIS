@@ -172,8 +172,9 @@ public class PublicEmrLookupService : IPublicEmrLookupService
             .Take(MaxOwnedDocsPerType)
             .ToListAsync();
 
-        var labRequestIds = await _db.LabRequests
-            .Where(r => !r.IsDeleted && patientIds.Contains(r.PatientId))
+        // #14e: model 1 ServiceRequests (RequestType=1) — model 2 LabRequests đã gỡ
+        var labRequestIds = await _db.ServiceRequests
+            .Where(r => !r.IsDeleted && r.RequestType == 1 && medicalRecordIds.Contains(r.MedicalRecordId))
             .Select(r => r.Id)
             .Take(MaxOwnedDocsPerType)
             .ToListAsync();

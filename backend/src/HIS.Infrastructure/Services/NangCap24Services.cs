@@ -659,22 +659,23 @@ public class EmrHl7ArchiveService : IEmrHl7ArchiveService
         // 4. Lab results (ORU^R01)
         if (request.IncludeLabResults)
         {
+            // #14e: model 1 — chỉ số con per-parameter (model 2 đã gỡ)
             var labs = await (
-                from lr in _db.LabResults
-                join lri in _db.LabRequestItems on lr.LabRequestItemId equals lri.Id
-                join req in _db.LabRequests on lri.LabRequestId equals req.Id
-                where req.MedicalRecordId == record.Id
+                from p in _db.ServiceRequestDetailParameters
+                join d in _db.ServiceRequestDetails on p.ServiceRequestDetailId equals d.Id
+                join req in _db.ServiceRequests on d.ServiceRequestId equals req.Id
+                where req.MedicalRecordId == record.Id && req.RequestType == 1 && !p.IsDeleted && d.Status != 3
                 select new
                 {
-                    lr.Id,
-                    lr.ParameterCode,
-                    lr.ParameterName,
-                    lr.ResultValue,
-                    lr.Unit,
-                    lr.ReferenceRange,
-                    lr.IsAbnormal,
-                    LabRequestId = lri.LabRequestId,
-                    PerformedAt = lr.ResultedAt ?? lr.CreatedAt
+                    p.Id,
+                    p.ParameterCode,
+                    p.ParameterName,
+                    ResultValue = p.Value,
+                    p.Unit,
+                    p.ReferenceRange,
+                    IsAbnormal = p.Flag != null && p.Flag != "N",
+                    LabRequestId = d.ServiceRequestId,
+                    PerformedAt = d.ResultDate ?? p.CreatedAt
                 }).ToListAsync();
             foreach (var lab in labs)
             {

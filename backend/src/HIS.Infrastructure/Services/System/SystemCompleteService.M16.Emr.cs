@@ -860,9 +860,10 @@ public partial class SystemCompleteService
                 .Select(g => new { DeptId = g.Key, Count = g.Count() })
                 .ToListAsync();
 
-            var labCounts = await _context.LabRequests.AsNoTracking()
-                .Where(l => l.CreatedAt >= fromDate && l.CreatedAt <= toDate)
-                .GroupBy(l => l.DepartmentId)
+            // #14b: model 1 ServiceRequests (RequestType=1 XN, loại hủy) thay LabRequests (model 2 chết)
+            var labCounts = await _context.ServiceRequests.AsNoTracking()
+                .Where(l => l.CreatedAt >= fromDate && l.CreatedAt <= toDate && l.RequestType == 1 && l.Status != 4)
+                .GroupBy(l => (Guid?)l.DepartmentId)
                 .Select(g => new { DeptId = g.Key, Count = g.Count() })
                 .ToListAsync();
 

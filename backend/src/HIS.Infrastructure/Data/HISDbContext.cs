@@ -208,9 +208,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<CultureStockLog> CultureStockLogs => Set<CultureStockLog>();
 
     // Xét nghiệm (LIS)
-    public DbSet<LabRequest> LabRequests => Set<LabRequest>();
-    public DbSet<LabRequestItem> LabRequestItems => Set<LabRequestItem>();
-    public DbSet<LabResult> LabResults => Set<LabResult>();
+    // #14e: model 2 CLS (LabRequests/LabRequestItems/LabResults) đã gỡ — dùng ServiceRequests/ServiceRequestDetails
     public DbSet<LabAnalyzer> LabAnalyzers => Set<LabAnalyzer>();
     public DbSet<LabAnalyzerTestMapping> LabAnalyzerTestMappings => Set<LabAnalyzerTestMapping>();
     public DbSet<LabConnectionLog> LabConnectionLogs => Set<LabConnectionLog>();
@@ -799,50 +797,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
             .HasForeignKey(c => c.SecretaryUserId)
             .OnDelete(DeleteBehavior.NoAction);
 
-        // Fix LabRequest FKs: navigation property name doesn't match FK column convention
-        modelBuilder.Entity<LabRequest>()
-            .HasOne(r => r.ApprovedByUser)
-            .WithMany()
-            .HasForeignKey(r => r.ApprovedBy)
-            .OnDelete(DeleteBehavior.NoAction);
-        // Ignore CreatedByUser navigation - CreatedBy is string? (BaseEntity) with ValueConverter,
-        // cannot be used directly as FK to User.Id (Guid) without type conflict
-        modelBuilder.Entity<LabRequest>()
-            .Ignore(r => r.CreatedByUser);
-
-        // Fix LabRequestItem FKs
-        modelBuilder.Entity<LabRequestItem>()
-            .HasOne(i => i.CollectedByUser)
-            .WithMany()
-            .HasForeignKey(i => i.SampleCollectedBy)
-            .OnDelete(DeleteBehavior.NoAction);
-        modelBuilder.Entity<LabRequestItem>()
-            .HasOne(i => i.ProcessedByUser)
-            .WithMany()
-            .HasForeignKey(i => i.ProcessedBy)
-            .OnDelete(DeleteBehavior.NoAction);
-        modelBuilder.Entity<LabRequestItem>()
-            .HasOne(i => i.ApprovedByUser)
-            .WithMany()
-            .HasForeignKey(i => i.ApprovedBy)
-            .OnDelete(DeleteBehavior.NoAction);
-        modelBuilder.Entity<LabRequestItem>()
-            .HasOne(i => i.RejectedByUser)
-            .WithMany()
-            .HasForeignKey(i => i.RejectedBy)
-            .OnDelete(DeleteBehavior.NoAction);
-
-        // Fix LabResult FKs
-        modelBuilder.Entity<LabResult>()
-            .HasOne(r => r.ResultedByUser)
-            .WithMany()
-            .HasForeignKey(r => r.ResultedBy)
-            .OnDelete(DeleteBehavior.NoAction);
-        modelBuilder.Entity<LabResult>()
-            .HasOne(r => r.ApprovedByUser)
-            .WithMany()
-            .HasForeignKey(r => r.ApprovedBy)
-            .OnDelete(DeleteBehavior.NoAction);
+        // #14e: FK config LabRequest/LabRequestItem/LabResult đã gỡ cùng entity (model 2 CLS)
 
         // Digital Signature indexes and FK mappings
         modelBuilder.Entity<DocumentSignature>()
@@ -1025,7 +980,6 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<IvfEmbryoTransfer>().HasOne(i => i.Doctor).WithMany().HasForeignKey(i => i.DoctorId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<IvfEmbryoTransfer>().HasOne(i => i.Embryologist).WithMany().HasForeignKey(i => i.EmbryologistId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<IvfOvumPickup>().HasOne(i => i.PerformedBy).WithMany().HasForeignKey(i => i.PerformedById).OnDelete(DeleteBehavior.NoAction);
-        modelBuilder.Entity<LabRequest>().HasOne(l => l.RequestingDoctor).WithMany().HasForeignKey(l => l.RequestingDoctorId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<MaintenanceRecord>().HasOne(m => m.PerformedBy).WithMany().HasForeignKey(m => m.PerformedById).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<ManagedCertificate>().HasOne(m => m.OwnerUser).WithMany().HasForeignKey(m => m.OwnerUserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<MCIEvent>().HasOne(m => m.IncidentCommander).WithMany().HasForeignKey(m => m.IncidentCommanderId).OnDelete(DeleteBehavior.NoAction);
@@ -1202,7 +1156,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         {
             "Prescription", "PrescriptionDetail", "Medicine",
             "CAPA", "DicomStudy", "DietOrder", "ElectronicReferral",
-            "LabRequest", "LabRequestItem", "LabResult", "Notification",
+            "Notification",
             "HAICase", "HIEConnection", "IncidentReport", "InsuranceXMLSubmission",
             "IsolationOrder", "MCIEvent", "MCISituationReport", "MCIVictim",
             "MedicalEquipment", "MedicalStaff", "NutritionScreening", "Outbreak",

@@ -38,32 +38,34 @@ public class ResultNotificationService : IResultNotificationService
     {
         try
         {
-            var request = await _context.Set<HIS.Core.Entities.LabRequest>()
-                .Include(r => r.Patient)
-                .Include(r => r.Items)
-                .FirstOrDefaultAsync(r => r.Id == labRequestId && !r.IsDeleted);
+            // #14e: model 1 ServiceRequest (RequestType=1) — model 2 LabRequests đã gỡ
+            var request = await _context.ServiceRequests
+                .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
+                .Include(r => r.Details.Where(d => !d.IsDeleted && d.Status != 3)).ThenInclude(d => d.Service)
+                .FirstOrDefaultAsync(r => r.Id == labRequestId && !r.IsDeleted && r.RequestType == 1);
 
-            if (request?.Patient == null || string.IsNullOrEmpty(request.Patient.Email))
+            var patient = request?.MedicalRecord?.Patient;
+            if (patient == null || string.IsNullOrEmpty(patient.Email))
             {
                 _logger.LogInformation("No email for patient on lab request {RequestId}, skipping notification", labRequestId);
                 return;
             }
 
-            var testNames = request.Items.Any()
-                ? string.Join(", ", request.Items.Select(i => i.TestName ?? "Xét nghiệm"))
+            var testNames = request!.Details.Any()
+                ? string.Join(", ", request.Details.Select(d => d.Service?.ServiceName ?? "Xét nghiệm"))
                 : "Xét nghiệm";
 
             await _emailService.SendResultNotificationAsync(
-                request.Patient.Email,
-                request.Patient.FullName,
+                patient.Email,
+                patient.FullName,
                 "Xét nghiệm",
                 testNames,
                 approvedByName,
                 DateTime.Now);
 
             // SMS notification (fire-and-forget)
-            if (!string.IsNullOrEmpty(request.Patient.PhoneNumber))
-                _ = _smsService.SendResultNotificationSmsAsync(request.Patient.PhoneNumber, request.Patient.FullName, "Xet nghiem", testNames);
+            if (!string.IsNullOrEmpty(patient.PhoneNumber))
+                _ = _smsService.SendResultNotificationSmsAsync(patient.PhoneNumber, patient.FullName, "Xet nghiem", testNames);
         }
         catch (Exception ex)
         {
@@ -114,22 +116,24 @@ public class ResultNotificationService : IResultNotificationService
     {
         try
         {
-            var request = await _context.Set<HIS.Core.Entities.LabRequest>()
-                .Include(r => r.Patient)
-                .FirstOrDefaultAsync(r => r.Id == labRequestId && !r.IsDeleted);
+            // #14e: model 1 ServiceRequest — model 2 LabRequests đã gỡ
+            var request = await _context.ServiceRequests
+                .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
+                .FirstOrDefaultAsync(r => r.Id == labRequestId && !r.IsDeleted && r.RequestType == 1);
 
-            if (request?.Patient == null || string.IsNullOrEmpty(request.Patient.Email))
+            var patient = request?.MedicalRecord?.Patient;
+            if (patient == null || string.IsNullOrEmpty(patient.Email))
                 return;
 
             await _emailService.SendCriticalValueNotificationAsync(
-                request.Patient.Email,
-                request.Patient.FullName,
+                patient.Email,
+                patient.FullName,
                 testName,
                 value,
                 normalRange);
 
-            if (!string.IsNullOrEmpty(request.Patient.PhoneNumber))
-                _ = _smsService.SendCriticalValueSmsAsync(request.Patient.PhoneNumber, request.Patient.FullName, testName);
+            if (!string.IsNullOrEmpty(patient.PhoneNumber))
+                _ = _smsService.SendCriticalValueSmsAsync(patient.PhoneNumber, patient.FullName, testName);
         }
         catch (Exception ex)
         {

@@ -1582,8 +1582,11 @@ public class HospitalReportService : IHospitalReportService
 
     private async Task FillMicrobiologyRegister(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
-        var query = _context.LabRequests.AsNoTracking()
-            .Where(l => l.CreatedAt >= from && l.CreatedAt < to && !l.IsDeleted && l.PatientType == 2); // Microbiology filter by type
+        // #14b: model 1 — SRD XN thuộc nhóm dịch vụ vi sinh (LabRequests model 2 chết; filter PatientType==2 cũ là hack)
+        var query = _context.ServiceRequestDetails.AsNoTracking()
+            .Where(d => d.CreatedAt >= from && d.CreatedAt < to && !d.IsDeleted
+                && d.ServiceRequest.RequestType == 1 && d.Status != 3
+                && d.Service.ServiceGroup.GroupName.Contains("Vi sinh"));
         var count = await query.CountAsync();
         result.Data.Add(new Dictionary<string, object> { ["type"] = "Vi sinh", ["count"] = count });
         result.Summary["totalMicrobiologyRequests"] = count;
@@ -1591,20 +1594,20 @@ public class HospitalReportService : IHospitalReportService
 
     private async Task FillLabRegister(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
-        var query = _context.LabRequests.AsNoTracking()
-            .Where(l => l.CreatedAt >= from && l.CreatedAt < to && !l.IsDeleted);
+        // #14b: model 1 ServiceRequests (RequestType=1 XN, loại hủy) thay LabRequests (model 2 chết)
+        var query = _context.ServiceRequests.AsNoTracking()
+            .Where(l => l.CreatedAt >= from && l.CreatedAt < to && !l.IsDeleted && l.RequestType == 1 && l.Status != 4);
 
         var data = await query
-            .Include(l => l.Items)
             .OrderBy(l => l.CreatedAt)
             .Take(1000)
             .Select(l => new
             {
                 l.CreatedAt,
                 l.RequestCode,
-                SampleCode = l.RequestCode, // LabRequest doesn't have SampleCode, use RequestCode
+                SampleCode = l.RequestCode, // phiếu model 1 dùng RequestCode làm mã tham chiếu
                 l.Status,
-                TestCount = l.Items.Count
+                TestCount = l.Details.Count(d => !d.IsDeleted && d.Status != 3)
             })
             .ToListAsync();
 

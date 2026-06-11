@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Data.SqlClient;
 using HIS.Application.DTOs.Laboratory;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -19,6 +18,8 @@ using ApproveLabResultDtoService = HIS.Application.Services.ApproveLabResultDto;
 namespace HIS.Infrastructure.Services;
 
 // K11 phien 1 (2026-05-30, post-feedback Plan A): tach 7.3 Thực hiện xét nghiệm (~1008 dong) vao subfolder Services/LIS/.
+// #14e-B (2026-06-11): rewrite 12 method raw-SQL (LabOrders/LabOrderItems) → EF Core LINQ trên model 1
+//   (ServiceRequest/ServiceRequestDetail/ServiceRequestDetailParameter). LabOrders/LabOrderItems sắp DROP.
 public partial class LISCompleteService {
     #region 7.3 Thực hiện xét nghiệm
 
@@ -30,220 +31,177 @@ public partial class LISCompleteService {
             date = DateTime.Today;
         }
 
-        // Query từ database thật
-        var sql = @"
-            SELECT
-                o.Id, o.OrderCode, o.PatientId, o.Status, o.IsPriority, o.IsEmergency,
-                o.Diagnosis, o.Notes, o.ClinicalNotes, o.SampleBarcode, o.SampleType,
-                o.CollectedAt, o.ProcessingStartTime, o.ProcessingEndTime, o.OrderedAt, o.ApprovedAt,
-                o.OrderDepartmentId, o.AnalyzerId,
-                p.PatientCode, p.FullName AS PatientName, p.DateOfBirth, p.Gender,
-                d.DepartmentName AS OrderDepartmentName,
-                u.FullName AS OrderDoctorName
-            FROM LabOrders o
-            INNER JOIN Patients p ON o.PatientId = p.Id
-            LEFT JOIN Departments d ON o.OrderDepartmentId = d.Id
-            LEFT JOIN Users u ON o.OrderDoctorId = u.Id
-            WHERE o.IsDeleted = 0
-            AND CAST(o.OrderedAt AS DATE) = CAST(@Date AS DATE)
-        ";
+        // Date range filter (avoid CAST — EF translates this correctly)
+        var dateFrom = date.Date;
+        var dateTo = date.Date.AddDays(1);
 
-        var parameters = new List<Microsoft.Data.SqlClient.SqlParameter>
-        {
-            new Microsoft.Data.SqlClient.SqlParameter("@Date", date)
-        };
+        var query = _context.ServiceRequests
+            .Where(r => r.RequestType == 1 && !r.IsDeleted
+                     && r.RequestDate >= dateFrom && r.RequestDate < dateTo)
+            .Include(r => r.MedicalRecord).ThenInclude(mr => mr.Patient)
+            .Include(r => r.Doctor)
+            .Include(r => r.Department)
+            .Include(r => r.Details).ThenInclude(d => d.Service).ThenInclude(s => s.ServiceGroup)
+            .AsQueryable();
 
         if (departmentId.HasValue)
-        {
-            sql += " AND o.OrderDepartmentId = @DeptId";
-            parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@DeptId", departmentId.Value));
-        }
+            query = query.Where(r => r.DepartmentId == departmentId.Value);
 
         if (!string.IsNullOrEmpty(keyword))
         {
-            sql += " AND (p.PatientCode LIKE @Keyword OR p.FullName LIKE @Keyword OR o.OrderCode LIKE @Keyword)";
-            parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@Keyword", $"%{keyword}%"));
+            var kw = keyword.Trim();
+            query = query.Where(r =>
+                r.MedicalRecord.Patient.PatientCode.Contains(kw) ||
+                r.MedicalRecord.Patient.FullName.Contains(kw) ||
+                r.RequestCode.Contains(kw));
         }
 
-        sql += " ORDER BY o.IsEmergency DESC, o.IsPriority DESC, o.OrderedAt DESC";
+        var requests = await query
+            .OrderByDescending(r => r.IsEmergency)
+            .ThenByDescending(r => r.IsPriority)
+            .ThenByDescending(r => r.RequestDate)
+            .ToListAsync();
 
-        var result = new List<LabOrderDto>();
+        // Load all detail IDs for params batch query (avoid N+1)
+        var allDetailIds = requests.SelectMany(r => r.Details.Where(d => !d.IsDeleted && d.Status != 3).Select(d => d.Id)).ToList();
+        var paramsByDetail = await LoadParamsDictAsync(allDetailIds);
 
-        using (var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString()))
+        // Load catalog per ServiceId (1 query)
+        var serviceIds = requests.SelectMany(r => r.Details.Where(d => !d.IsDeleted && d.Status != 3).Select(d => d.ServiceId)).Distinct().ToList();
+        var catalogByService = await LoadCatalogFirstRowAsync(serviceIds);
+
+        var result = requests.Select(r =>
         {
-            await connection.OpenAsync();
-            using (var command = new Microsoft.Data.SqlClient.SqlCommand(sql, connection))
-            {
-                command.Parameters.AddRange(parameters.ToArray());
-                using (var reader = await command.ExecuteReaderAsync())
-                {
-                    while (await reader.ReadAsync())
-                    {
-                        var orderId = reader.GetGuid(reader.GetOrdinal("Id"));
-                        var dto = new LabOrderDto
-                        {
-                            Id = orderId,
-                            OrderCode = reader.GetString(reader.GetOrdinal("OrderCode")),
-                            PatientId = reader.GetGuid(reader.GetOrdinal("PatientId")),
-                            PatientCode = reader.IsDBNull(reader.GetOrdinal("PatientCode")) ? "" : reader.GetString(reader.GetOrdinal("PatientCode")),
-                            PatientName = reader.IsDBNull(reader.GetOrdinal("PatientName")) ? "" : reader.GetString(reader.GetOrdinal("PatientName")),
-                            DateOfBirth = reader.IsDBNull(reader.GetOrdinal("DateOfBirth")) ? null : reader.GetDateTime(reader.GetOrdinal("DateOfBirth")),
-                            Gender = reader.IsDBNull(reader.GetOrdinal("Gender")) ? null : reader.GetInt32(reader.GetOrdinal("Gender")) == 1 ? "Nam" : "Nữ",
-                            OrderDepartmentName = reader.IsDBNull(reader.GetOrdinal("OrderDepartmentName")) ? null : reader.GetString(reader.GetOrdinal("OrderDepartmentName")),
-                            OrderDoctorName = reader.IsDBNull(reader.GetOrdinal("OrderDoctorName")) ? "" : reader.GetString(reader.GetOrdinal("OrderDoctorName")),
-                            Status = reader.GetInt32(reader.GetOrdinal("Status")),
-                            IsPriority = reader.GetBoolean(reader.GetOrdinal("IsPriority")),
-                            IsEmergency = reader.GetBoolean(reader.GetOrdinal("IsEmergency")),
-                            Diagnosis = reader.IsDBNull(reader.GetOrdinal("Diagnosis")) ? null : reader.GetString(reader.GetOrdinal("Diagnosis")),
-                            Notes = reader.IsDBNull(reader.GetOrdinal("Notes")) ? null : reader.GetString(reader.GetOrdinal("Notes")),
-                            OrderedAt = reader.GetDateTime(reader.GetOrdinal("OrderedAt")),
-                            CollectedAt = reader.IsDBNull(reader.GetOrdinal("CollectedAt")) ? null : reader.GetDateTime(reader.GetOrdinal("CollectedAt")),
-                            CompletedAt = reader.IsDBNull(reader.GetOrdinal("ProcessingEndTime")) ? null : reader.GetDateTime(reader.GetOrdinal("ProcessingEndTime")),
-                            ApprovedAt = reader.IsDBNull(reader.GetOrdinal("ApprovedAt")) ? null : reader.GetDateTime(reader.GetOrdinal("ApprovedAt")),
-                            SampleBarcode = reader.IsDBNull(reader.GetOrdinal("SampleBarcode")) ? null : reader.GetString(reader.GetOrdinal("SampleBarcode")),
-                            SampleType = reader.IsDBNull(reader.GetOrdinal("SampleType")) ? null : reader.GetString(reader.GetOrdinal("SampleType")),
-                            Tests = new List<LabTestItemDto>()
-                        };
-                        result.Add(dto);
-                    }
-                }
-            }
+            var activeDetails = r.Details.Where(d => !d.IsDeleted && d.Status != 3).ToList();
+            var patient = r.MedicalRecord?.Patient;
 
-            // Load test items for each order
-            foreach (var order in result)
+            return new LabOrderDto
             {
-                var itemsSql = @"
-                    SELECT Id, TestCode, TestName, TestGroupName, Unit, ReferenceRange,
-                           NormalMin, NormalMax, CriticalLow, CriticalHigh, Result, ResultStatus
-                    FROM LabOrderItems
-                    WHERE LabOrderId = @OrderId";
-
-                using (var itemCmd = new Microsoft.Data.SqlClient.SqlCommand(itemsSql, connection))
+                Id = r.Id,
+                OrderCode = r.RequestCode,
+                PatientId = patient?.Id ?? Guid.Empty,
+                PatientCode = patient?.PatientCode ?? "",
+                PatientName = patient?.FullName ?? "",
+                DateOfBirth = patient?.DateOfBirth,
+                Gender = patient?.Gender == 1 ? "Nam" : patient?.Gender == 2 ? "Nữ" : null,
+                OrderDepartmentName = r.Department?.DepartmentName,
+                OrderDoctorName = r.Doctor?.FullName ?? "",
+                Status = LisModel1Map.ComputeOrderStatus(activeDetails),
+                IsPriority = r.IsPriority,
+                IsEmergency = r.IsEmergency,
+                Diagnosis = r.Diagnosis,
+                Notes = r.Notes ?? r.Note,
+                OrderedAt = r.RequestDate,
+                SampleBarcode = LisModel1Map.FirstBarcode(activeDetails),
+                SampleType = null,
+                CollectedAt = LisModel1Map.CollectedAt(activeDetails),
+                CompletedAt = activeDetails.Select(d => d.ResultDate).Where(x => x.HasValue).OrderByDescending(x => x).FirstOrDefault(),
+                ApprovedAt = LisModel1Map.ApprovedAt(activeDetails),
+                Tests = activeDetails.Select(d =>
                 {
-                    itemCmd.Parameters.AddWithValue("@OrderId", order.Id);
-                    using (var itemReader = await itemCmd.ExecuteReaderAsync())
+                    var cat = catalogByService.GetValueOrDefault(d.ServiceId);
+                    paramsByDetail.TryGetValue(d.Id, out var dParams);
+                    return new LabTestItemDto
                     {
-                        while (await itemReader.ReadAsync())
-                        {
-                            order.Tests.Add(new LabTestItemDto
-                            {
-                                Id = itemReader.GetGuid(0),
-                                TestCode = itemReader.GetString(1),
-                                TestName = itemReader.GetString(2),
-                                TestGroup = itemReader.IsDBNull(3) ? null : itemReader.GetString(3),
-                                Unit = itemReader.IsDBNull(4) ? null : itemReader.GetString(4),
-                                ReferenceRange = itemReader.IsDBNull(5) ? null : itemReader.GetString(5),
-                                NormalMin = itemReader.IsDBNull(6) ? null : itemReader.GetDecimal(6),
-                                NormalMax = itemReader.IsDBNull(7) ? null : itemReader.GetDecimal(7),
-                                CriticalLow = itemReader.IsDBNull(8) ? null : itemReader.GetDecimal(8),
-                                CriticalHigh = itemReader.IsDBNull(9) ? null : itemReader.GetDecimal(9),
-                                Result = itemReader.IsDBNull(10) ? null : itemReader.GetString(10),
-                                ResultStatus = itemReader.IsDBNull(11) ? null : itemReader.GetInt32(11)
-                            });
-                        }
-                    }
-                }
-            }
-        }
+                        Id = d.Id,
+                        TestCode = d.Service?.ServiceCode ?? "",
+                        TestName = d.Service?.ServiceName ?? "",
+                        TestGroup = d.Service?.ServiceGroup?.GroupName,
+                        Unit = cat?.Unit,
+                        NormalMin = cat?.NormalMinMale ?? cat?.ReferenceLow,
+                        NormalMax = cat?.NormalMaxMale ?? cat?.ReferenceHigh,
+                        CriticalLow = cat?.CriticalLow,
+                        CriticalHigh = cat?.CriticalHigh,
+                        ReferenceRange = LabFlagEvaluator.BuildReferenceRange(
+                            cat?.NormalMinMale ?? cat?.ReferenceLow,
+                            cat?.NormalMaxMale ?? cat?.ReferenceHigh),
+                        Result = d.Result,
+                        ResultStatus = LisModel1Map.ComputeItemResultStatus(d, dParams)
+                    };
+                }).ToList()
+            };
+        }).ToList();
 
         return result;
     }
 
     public async Task<LabOrderDetailDto> GetLabOrderDetailAsync(Guid orderId)
     {
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
+        var r = await _context.ServiceRequests
+            .Where(r => r.Id == orderId && r.RequestType == 1 && !r.IsDeleted)
+            .Include(r => r.MedicalRecord).ThenInclude(mr => mr.Patient)
+            .Include(r => r.Doctor)
+            .Include(r => r.Department)
+            .Include(r => r.Details).ThenInclude(d => d.Service).ThenInclude(s => s.ServiceGroup)
+            .FirstOrDefaultAsync();
 
-        var orderSql = @"
-            SELECT o.Id, o.OrderCode, o.PatientId, o.OrderedAt, o.Diagnosis, o.ClinicalNotes,
-                   o.SampleBarcode, o.SampleType, o.Status,
-                   p.PatientCode, p.FullName AS PatientName,
-                   d.DepartmentName, u.FullName AS OrderDoctorName
-            FROM LabOrders o
-            INNER JOIN Patients p ON o.PatientId = p.Id
-            LEFT JOIN Departments d ON o.OrderDepartmentId = d.Id
-            LEFT JOIN Users u ON o.OrderDoctorId = u.Id
-            WHERE o.Id = @OrderId AND o.IsDeleted = 0";
+        if (r == null)
+            return new LabOrderDetailDto { Id = orderId };
 
-        var result = new LabOrderDetailDto { Id = orderId };
+        var activeDetails = r.Details.Where(d => !d.IsDeleted && d.Status != 3).ToList();
+        var patient = r.MedicalRecord?.Patient;
 
-        using (var cmd = new SqlCommand(orderSql, connection))
+        var detailIds = activeDetails.Select(d => d.Id).ToList();
+        var paramsByDetail = await LoadParamsDictAsync(detailIds);
+
+        var serviceIds = activeDetails.Select(d => d.ServiceId).Distinct().ToList();
+        var catalogByService = await LoadCatalogFirstRowAsync(serviceIds);
+
+        var testItems = activeDetails.Select(d =>
         {
-            cmd.Parameters.AddWithValue("@OrderId", orderId);
-            using var reader = await cmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
-            {
-                result.OrderCode = reader.IsDBNull(reader.GetOrdinal("OrderCode")) ? "" : reader.GetString(reader.GetOrdinal("OrderCode"));
-                result.PatientId = reader.GetGuid(reader.GetOrdinal("PatientId"));
-                result.PatientCode = reader.IsDBNull(reader.GetOrdinal("PatientCode")) ? "" : reader.GetString(reader.GetOrdinal("PatientCode"));
-                result.PatientName = reader.IsDBNull(reader.GetOrdinal("PatientName")) ? "" : reader.GetString(reader.GetOrdinal("PatientName"));
-                result.OrderDate = reader.GetDateTime(reader.GetOrdinal("OrderedAt"));
-                result.OrderDoctorName = reader.IsDBNull(reader.GetOrdinal("OrderDoctorName")) ? "" : reader.GetString(reader.GetOrdinal("OrderDoctorName"));
-                result.DepartmentName = reader.IsDBNull(reader.GetOrdinal("DepartmentName")) ? "" : reader.GetString(reader.GetOrdinal("DepartmentName"));
-                result.Diagnosis = reader.IsDBNull(reader.GetOrdinal("Diagnosis")) ? "" : reader.GetString(reader.GetOrdinal("Diagnosis"));
-                result.ClinicalInfo = reader.IsDBNull(reader.GetOrdinal("ClinicalNotes")) ? "" : reader.GetString(reader.GetOrdinal("ClinicalNotes"));
-            }
-            else
-            {
-                return result; // Order not found, return empty
-            }
-        }
+            var cat = catalogByService.GetValueOrDefault(d.ServiceId);
+            paramsByDetail.TryGetValue(d.Id, out var dParams);
+            var resultStatusVal = LisModel1Map.ComputeItemResultStatus(d, dParams);
+            var hasResult = !string.IsNullOrEmpty(d.Result);
+            // item status: duyệt→5, có KQ→4, else 1
+            int itemStatus = hasResult ? (d.ReviewedAt != null ? 5 : 4) : 1;
 
-        // Load test items
-        result.TestItems = new List<LabTestItemDto>();
-        var itemsSql = @"
-            SELECT i.Id, i.LabOrderId, i.TestCode, i.TestName, i.TestGroupName,
-                   i.Unit, i.ReferenceRange, i.NormalMin, i.NormalMax, i.CriticalLow, i.CriticalHigh,
-                   i.Result, i.ResultStatus, i.ResultEnteredAt,
-                   s.Id AS TestId, s.UnitPrice AS UnitPrice, s.InsurancePrice
-            FROM LabOrderItems i
-            LEFT JOIN Services s ON i.TestCode = s.ServiceCode AND s.IsDeleted = 0
-            WHERE i.LabOrderId = @OrderId";
-
-        using (var cmd = new SqlCommand(itemsSql, connection))
-        {
-            cmd.Parameters.AddWithValue("@OrderId", orderId);
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            return new LabTestItemDto
             {
-                var statusVal = reader.IsDBNull(reader.GetOrdinal("ResultStatus")) ? 1 : reader.GetInt32(reader.GetOrdinal("ResultStatus"));
-                var hasResult = !reader.IsDBNull(reader.GetOrdinal("Result")) && reader.GetString(reader.GetOrdinal("Result")) != "";
-                int itemStatus = hasResult ? (statusVal >= 5 ? 5 : 4) : 1; // 4=Có KQ, 5=Đã duyệt, 1=Chờ
-
-                result.TestItems.Add(new LabTestItemDto
+                Id = d.Id,
+                LabOrderId = orderId,
+                TestId = d.ServiceId,
+                TestCode = d.Service?.ServiceCode ?? "",
+                TestName = d.Service?.ServiceName ?? "",
+                TestGroup = d.Service?.ServiceGroup?.GroupName,
+                Unit = cat?.Unit,
+                NormalMin = cat?.NormalMinMale ?? cat?.ReferenceLow,
+                NormalMax = cat?.NormalMaxMale ?? cat?.ReferenceHigh,
+                CriticalLow = cat?.CriticalLow,
+                CriticalHigh = cat?.CriticalHigh,
+                ReferenceRange = LabFlagEvaluator.BuildReferenceRange(
+                    cat?.NormalMinMale ?? cat?.ReferenceLow,
+                    cat?.NormalMaxMale ?? cat?.ReferenceHigh),
+                Result = d.Result,
+                ResultStatus = resultStatusVal,
+                AbnormalFlag = resultStatusVal,
+                AbnormalFlagName = resultStatusVal switch
                 {
-                    Id = reader.GetGuid(reader.GetOrdinal("Id")),
-                    LabOrderId = reader.GetGuid(reader.GetOrdinal("LabOrderId")),
-                    TestId = reader.IsDBNull(reader.GetOrdinal("TestId")) ? Guid.Empty : reader.GetGuid(reader.GetOrdinal("TestId")),
-                    TestCode = reader.GetString(reader.GetOrdinal("TestCode")),
-                    TestName = reader.GetString(reader.GetOrdinal("TestName")),
-                    TestGroup = reader.IsDBNull(reader.GetOrdinal("TestGroupName")) ? null : reader.GetString(reader.GetOrdinal("TestGroupName")),
-                    Unit = reader.IsDBNull(reader.GetOrdinal("Unit")) ? null : reader.GetString(reader.GetOrdinal("Unit")),
-                    ReferenceRange = reader.IsDBNull(reader.GetOrdinal("ReferenceRange")) ? null : reader.GetString(reader.GetOrdinal("ReferenceRange")),
-                    NormalMin = reader.IsDBNull(reader.GetOrdinal("NormalMin")) ? null : reader.GetDecimal(reader.GetOrdinal("NormalMin")),
-                    NormalMax = reader.IsDBNull(reader.GetOrdinal("NormalMax")) ? null : reader.GetDecimal(reader.GetOrdinal("NormalMax")),
-                    CriticalLow = reader.IsDBNull(reader.GetOrdinal("CriticalLow")) ? null : reader.GetDecimal(reader.GetOrdinal("CriticalLow")),
-                    CriticalHigh = reader.IsDBNull(reader.GetOrdinal("CriticalHigh")) ? null : reader.GetDecimal(reader.GetOrdinal("CriticalHigh")),
-                    Result = reader.IsDBNull(reader.GetOrdinal("Result")) ? null : reader.GetString(reader.GetOrdinal("Result")),
-                    ResultStatus = reader.IsDBNull(reader.GetOrdinal("ResultStatus")) ? null : reader.GetInt32(reader.GetOrdinal("ResultStatus")),
-                    AbnormalFlag = reader.IsDBNull(reader.GetOrdinal("ResultStatus")) ? null : reader.GetInt32(reader.GetOrdinal("ResultStatus")),
-                    AbnormalFlagName = reader.IsDBNull(reader.GetOrdinal("ResultStatus")) ? null : reader.GetInt32(reader.GetOrdinal("ResultStatus")) switch
-                    {
-                        0 => "Bình thường", 1 => "Thấp", 2 => "Cao", 3 => "Nguy hiểm thấp", 4 => "Nguy hiểm cao", _ => null
-                    },
-                    Status = itemStatus,
-                    StatusName = itemStatus switch { 1 => "Chờ mẫu", 2 => "Có mẫu", 3 => "Đang XN", 4 => "Có KQ", 5 => "Đã duyệt", _ => "Chờ" },
-                    UnitPrice = reader.IsDBNull(reader.GetOrdinal("UnitPrice")) ? 0 : reader.GetDecimal(reader.GetOrdinal("UnitPrice")),
-                    InsurancePrice = reader.IsDBNull(reader.GetOrdinal("InsurancePrice")) ? 0 : reader.GetDecimal(reader.GetOrdinal("InsurancePrice")),
-                    ResultAt = reader.IsDBNull(reader.GetOrdinal("ResultEnteredAt")) ? null : reader.GetDateTime(reader.GetOrdinal("ResultEnteredAt")),
-                });
-            }
-        }
+                    0 => "Bình thường", 1 => "Thấp", 2 => "Cao", 3 => "Nguy hiểm thấp", 4 => "Nguy hiểm cao", _ => null
+                },
+                Status = itemStatus,
+                StatusName = itemStatus switch { 1 => "Chờ mẫu", 2 => "Có mẫu", 3 => "Đang XN", 4 => "Có KQ", 5 => "Đã duyệt", _ => "Chờ" },
+                UnitPrice = d.UnitPrice,
+                InsurancePrice = d.InsuranceAmount,
+                ResultAt = d.TechnicianRunAt ?? d.ResultDate,
+            };
+        }).ToList();
 
-        // Load sample collection info
-        result.Samples = new List<SampleCollectionItemDto>();
-
-        return result;
+        return new LabOrderDetailDto
+        {
+            Id = orderId,
+            OrderCode = r.RequestCode,
+            PatientId = patient?.Id ?? Guid.Empty,
+            PatientCode = patient?.PatientCode ?? "",
+            PatientName = patient?.FullName ?? "",
+            OrderDate = r.RequestDate,
+            OrderDoctorName = r.Doctor?.FullName ?? "",
+            DepartmentName = r.Department?.DepartmentName ?? "",
+            Diagnosis = r.Diagnosis ?? "",
+            ClinicalInfo = r.Notes ?? r.Note ?? "",
+            TestItems = testItems,
+            Samples = new List<SampleCollectionItemDto>()
+        };
     }
 
     public async Task<SendWorklistResultDto> SendWorklistToAnalyzerAsync(SendWorklistDto dto)
@@ -390,7 +348,7 @@ public partial class LISCompleteService {
         if (!raw.MappedToLabRequestItemId.HasValue)
             throw new InvalidOperationException("No matched LabRequestItem — cannot transfer");
 
-        // Reuse existing EnterLabResultAsync flow to write result into LabOrderItem
+        // Reuse existing EnterLabResultAsync flow to write result into ServiceRequestDetail
         var enterDto = new EnterLabResultDto
         {
             LabTestItemId = raw.MappedToLabRequestItemId.Value,
@@ -407,7 +365,7 @@ public partial class LISCompleteService {
         raw.UpdatedAt     = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Transferred inbox result {InboxId} to LabOrderItem {ItemId}", inboxId, raw.MappedToLabRequestItemId);
+        _logger.LogInformation("Transferred inbox result {InboxId} to ServiceRequestDetail {ItemId}", inboxId, raw.MappedToLabRequestItemId);
         return true;
     }
 
@@ -449,200 +407,113 @@ public partial class LISCompleteService {
 
     public async Task<bool> EnterLabResultAsync(EnterLabResultDto dto)
     {
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
+        // dto.LabTestItemId = ServiceRequestDetail.Id
+        var d = await _context.ServiceRequestDetails
+            .Include(x => x.Service)
+            .FirstOrDefaultAsync(x => x.Id == dto.LabTestItemId && !x.IsDeleted);
 
-        // Get reference ranges for abnormal flag calculation
-        var getSql = @"SELECT NormalMin, NormalMax, CriticalLow, CriticalHigh, LabOrderId
-                       FROM LabOrderItems WHERE Id = @ItemId";
-        decimal? normalMin = null, normalMax = null, criticalLow = null, criticalHigh = null;
-        Guid? labOrderId = null;
+        if (d == null) return false;
 
-        using (var getCmd = new SqlCommand(getSql, connection))
+        // Write result directly onto SRD (model 1 is the source of truth now)
+        d.Result = dto.Result;
+        d.ResultDate = DateTime.Now;
+        d.TechnicianRunAt = DateTime.Now;
+        d.Status = 2; // Có KQ
+
+        // R1-2b: per-parameter block — catalog ranges, EvaluateFlag, fallback range from input
+        if (dto.Parameters is { Count: > 0 })
         {
-            getCmd.Parameters.AddWithValue("@ItemId", dto.LabTestItemId);
-            using var reader = await getCmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
+            var oldParams = await _context.ServiceRequestDetailParameters
+                .Where(x => x.ServiceRequestDetailId == d.Id && !x.IsDeleted).ToListAsync();
+            if (oldParams.Count > 0) _context.ServiceRequestDetailParameters.RemoveRange(oldParams); // re-run idempotent
+
+            var catalog = await _context.LisTestParameters
+                .Where(p => p.ServiceId == d.ServiceId && p.IsActive && !p.IsDeleted).ToListAsync();
+
+            // Fallback ranges: catalog row first, then input (single param case)
+            bool single = dto.Parameters.Count == 1;
+            // For single-param fallback: load first catalog entry ranges
+            decimal? singleCatCritLow = single ? catalog.FirstOrDefault()?.CriticalLow : null;
+            decimal? singleCatCritHigh = single ? catalog.FirstOrDefault()?.CriticalHigh : null;
+
+            int seq = 0;
+            foreach (var p in dto.Parameters)
             {
-                normalMin = reader.IsDBNull(0) ? null : reader.GetDecimal(0);
-                normalMax = reader.IsDBNull(1) ? null : reader.GetDecimal(1);
-                criticalLow = reader.IsDBNull(2) ? null : reader.GetDecimal(2);
-                criticalHigh = reader.IsDBNull(3) ? null : reader.GetDecimal(3);
-                labOrderId = reader.GetGuid(4);
-            }
-        }
-
-        // Calculate result status
-        int resultStatus = 0;
-        if (decimal.TryParse(dto.Result, out var numericValue))
-        {
-            if (criticalLow.HasValue && numericValue < criticalLow.Value) resultStatus = 3;
-            else if (criticalHigh.HasValue && numericValue > criticalHigh.Value) resultStatus = 4;
-            else if (normalMin.HasValue && numericValue < normalMin.Value) resultStatus = 1;
-            else if (normalMax.HasValue && numericValue > normalMax.Value) resultStatus = 2;
-        }
-
-        var updateSql = @"UPDATE LabOrderItems
-                          SET Result = @Result, ResultStatus = @ResultStatus, ResultEnteredAt = GETDATE()
-                          WHERE Id = @ItemId";
-        using (var cmd = new SqlCommand(updateSql, connection))
-        {
-            cmd.Parameters.AddWithValue("@Result", dto.Result);
-            cmd.Parameters.AddWithValue("@ResultStatus", resultStatus);
-            cmd.Parameters.AddWithValue("@ItemId", dto.LabTestItemId);
-            await cmd.ExecuteNonQueryAsync();
-        }
-
-        // #14b dual-write (audit luồng nghiệp vụ): KQ nhập tay qua màn LIS (model 3) cũng ghi vào
-        // ServiceRequestDetail (model 1) để màn khám/portal/báo cáo thấy CÙNG nguồn KQ với KQ máy +
-        // KQ qua SampleReceive. Map LabOrderItem -> SRD theo SampleBarcode + TestCode. Lỗi mirror
-        // không làm hỏng việc ghi model 3 (best-effort, có log).
-        try
-        {
-            string barcode = null, testCode = null;
-            var mapSql = @"SELECT o.SampleBarcode, i.TestCode FROM LabOrderItems i
-                           INNER JOIN LabOrders o ON i.LabOrderId = o.Id WHERE i.Id = @ItemId";
-            using (var mapCmd = new SqlCommand(mapSql, connection))
-            {
-                mapCmd.Parameters.AddWithValue("@ItemId", dto.LabTestItemId);
-                using var mr = await mapCmd.ExecuteReaderAsync();
-                if (await mr.ReadAsync())
+                var cat = catalog.FirstOrDefault(c => c.Code == p.ParameterCode || c.Hl7Code == p.ParameterCode);
+                var min = p.ReferenceMin ?? cat?.ReferenceLow ?? cat?.NormalMinMale ?? (single ? (decimal?)null : null);
+                var max = p.ReferenceMax ?? cat?.ReferenceHigh ?? cat?.NormalMaxMale ?? (single ? (decimal?)null : null);
+                var num = LabFlagEvaluator.TryParse(p.Value);
+                var flag = LabFlagEvaluator.EvaluateFlag(num, min, max,
+                    cat?.CriticalLow ?? singleCatCritLow,
+                    cat?.CriticalHigh ?? singleCatCritHigh);
+                _context.ServiceRequestDetailParameters.Add(new ServiceRequestDetailParameter
                 {
-                    barcode = mr.IsDBNull(0) ? null : mr.GetString(0);
-                    testCode = mr.IsDBNull(1) ? null : mr.GetString(1);
-                }
+                    Id = Guid.NewGuid(),
+                    ServiceRequestDetailId = d.Id,
+                    ParameterCode = p.ParameterCode,
+                    ParameterName = p.ParameterName,
+                    Value = p.Value,
+                    NumericValue = num,
+                    Unit = string.IsNullOrEmpty(p.Unit) ? cat?.Unit : p.Unit,
+                    ReferenceMin = min,
+                    ReferenceMax = max,
+                    ReferenceRange = LabFlagEvaluator.BuildReferenceRange(min, max),
+                    Flag = flag,
+                    SequenceNumber = seq++,
+                    CreatedAt = DateTime.Now,
+                });
             }
-            if (!string.IsNullOrWhiteSpace(barcode))
-            {
-                var srd = await _context.ServiceRequestDetails
-                    .Include(d => d.Service)
-                    .FirstOrDefaultAsync(d => d.SampleBarcode == barcode
-                                           && (testCode == null || d.Service.ServiceCode == testCode)
-                                           && d.Status != 3);
-                if (srd != null)
-                {
-                    srd.Result = dto.Result;
-                    srd.ResultDate = DateTime.Now;
-                    srd.TechnicianRunAt = DateTime.Now;
-                    srd.Status = 2; // Có KQ
-
-                    // R1 (2b): KTV nhập tay LIS có per-parameter → ghi chỉ số con (giữ srd.Result tóm tắt/legacy).
-                    // Min/Max/cờ suy từ catalog LisTestParameter theo ServiceId, fallback range trong input;
-                    // đơn 1 chỉ số thì fallback thêm range của chính LabOrderItem (đã đọc ở trên).
-                    if (dto.Parameters is { Count: > 0 })
-                    {
-                        var oldParams = await _context.ServiceRequestDetailParameters
-                            .Where(x => x.ServiceRequestDetailId == srd.Id && !x.IsDeleted).ToListAsync();
-                        if (oldParams.Count > 0) _context.ServiceRequestDetailParameters.RemoveRange(oldParams); // re-run idempotent
-
-                        var catalog = await _context.LisTestParameters
-                            .Where(p => p.ServiceId == srd.ServiceId && p.IsActive && !p.IsDeleted).ToListAsync();
-                        bool single = dto.Parameters.Count == 1;
-                        int seq = 0;
-                        foreach (var p in dto.Parameters)
-                        {
-                            var cat = catalog.FirstOrDefault(c => c.Code == p.ParameterCode || c.Hl7Code == p.ParameterCode);
-                            var min = p.ReferenceMin ?? cat?.ReferenceLow ?? cat?.NormalMinMale ?? (single ? normalMin : null);
-                            var max = p.ReferenceMax ?? cat?.ReferenceHigh ?? cat?.NormalMaxMale ?? (single ? normalMax : null);
-                            var num = LabFlagEvaluator.TryParse(p.Value);
-                            var flag = LabFlagEvaluator.EvaluateFlag(num, min, max,
-                                cat?.CriticalLow ?? (single ? criticalLow : null),
-                                cat?.CriticalHigh ?? (single ? criticalHigh : null));
-                            _context.ServiceRequestDetailParameters.Add(new ServiceRequestDetailParameter
-                            {
-                                Id = Guid.NewGuid(),
-                                ServiceRequestDetailId = srd.Id,
-                                ParameterCode = p.ParameterCode,
-                                ParameterName = p.ParameterName,
-                                Value = p.Value,
-                                NumericValue = num,
-                                Unit = string.IsNullOrEmpty(p.Unit) ? cat?.Unit : p.Unit,
-                                ReferenceMin = min,
-                                ReferenceMax = max,
-                                ReferenceRange = LabFlagEvaluator.BuildReferenceRange(min, max),
-                                Flag = flag,
-                                SequenceNumber = seq++,
-                                CreatedAt = DateTime.Now,
-                            });
-                        }
-                        if (string.IsNullOrWhiteSpace(srd.Result))
-                            srd.Result = string.Join("; ", dto.Parameters.Select(p => $"{p.ParameterName} {p.Value}"));
-                    }
-
-                    await _context.SaveChangesAsync();
-                }
-            }
+            if (string.IsNullOrWhiteSpace(d.Result))
+                d.Result = string.Join("; ", dto.Parameters.Select(p => $"{p.ParameterName} {p.Value}"));
         }
-        catch (Exception ex)
+
+        // Update header SR.Status: only raise (never lower); guard: don't touch if header already cancelled (Status==4)
+        var sr = await _context.ServiceRequests.FindAsync(d.ServiceRequestId);
+        if (sr != null && sr.Status != 4)
         {
-            _logger.LogWarning(ex, "EnterLabResult: mirror sang ServiceRequestDetail thất bại cho item {ItemId}", dto.LabTestItemId);
+            // Reload all active details (including the one just updated — SaveChanges not called yet, so check d directly)
+            var allActive = await _context.ServiceRequestDetails
+                .Where(x => x.ServiceRequestId == sr.Id && !x.IsDeleted && x.Status != 3)
+                .ToListAsync();
+            // Apply in-memory update for the current detail (not yet in DB)
+            var idx = allActive.FindIndex(x => x.Id == d.Id);
+            if (idx >= 0) allActive[idx] = d;
+
+            bool allHaveResult = allActive.Count > 0 && allActive.All(x => !string.IsNullOrEmpty(x.Result));
+            int newStatus = allHaveResult ? 3 : 2; // 3=Có KQ, 2=Đang XN
+            if (newStatus > sr.Status)
+                sr.Status = newStatus;
         }
 
-        // Update order status if all items have results
-        if (labOrderId.HasValue)
-        {
-            var checkSql = @"SELECT COUNT(*) FROM LabOrderItems
-                             WHERE LabOrderId = @OrderId AND (Result IS NULL OR Result = '')";
-            using var checkCmd = new SqlCommand(checkSql, connection);
-            checkCmd.Parameters.AddWithValue("@OrderId", labOrderId.Value);
-            var pending = (int)await checkCmd.ExecuteScalarAsync();
-
-            var orderStatus = pending == 0 ? 3 : 2; // 3=Chờ duyệt, 2=Đang XN
-            var updateOrderSql = @"UPDATE LabOrders SET Status = @Status,
-                                   ProcessingEndTime = CASE WHEN @Status = 3 THEN GETDATE() ELSE ProcessingEndTime END
-                                   WHERE Id = @OrderId AND Status < 3";
-            using var updateOrderCmd = new SqlCommand(updateOrderSql, connection);
-            updateOrderCmd.Parameters.AddWithValue("@Status", orderStatus);
-            updateOrderCmd.Parameters.AddWithValue("@OrderId", labOrderId.Value);
-            await updateOrderCmd.ExecuteNonQueryAsync();
-        }
-
+        await _context.SaveChangesAsync();
         return true;
     }
 
     public async Task<bool> ApproveLabResultAsync(ApproveLabResultDtoService dto)
     {
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
+        IQueryable<ServiceRequestDetail> detailQuery;
 
-        // Update specific items or all items
         if (dto.ItemIds != null && dto.ItemIds.Any())
         {
-            foreach (var itemId in dto.ItemIds)
-            {
-                var sql = @"UPDATE LabOrderItems SET ResultStatus = 5 WHERE Id = @ItemId AND Result IS NOT NULL";
-                using var cmd = new SqlCommand(sql, connection);
-                cmd.Parameters.AddWithValue("@ItemId", itemId);
-                await cmd.ExecuteNonQueryAsync();
-            }
+            var ids = dto.ItemIds;
+            detailQuery = _context.ServiceRequestDetails
+                .Where(d => ids.Contains(d.Id) && !d.IsDeleted && d.Status != 3);
         }
         else
         {
-            var sql = @"UPDATE LabOrderItems SET ResultStatus = 5 WHERE LabOrderId = @OrderId AND Result IS NOT NULL";
-            using var cmd = new SqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@OrderId", dto.OrderId);
-            await cmd.ExecuteNonQueryAsync();
+            detailQuery = _context.ServiceRequestDetails
+                .Where(d => d.ServiceRequestId == dto.OrderId && !d.IsDeleted && d.Status != 3);
         }
 
-        // Check if all items approved, update order status to 5 (Đã duyệt)
-        var checkSql = @"SELECT COUNT(*) FROM LabOrderItems
-                         WHERE LabOrderId = @OrderId AND (ResultStatus IS NULL OR ResultStatus < 5)
-                         AND Result IS NOT NULL AND Result <> ''";
-        using (var checkCmd = new SqlCommand(checkSql, connection))
+        var details = await detailQuery.ToListAsync();
+
+        foreach (var d in details.Where(x => !string.IsNullOrEmpty(x.Result)))
         {
-            checkCmd.Parameters.AddWithValue("@OrderId", dto.OrderId);
-            var pendingApproval = (int)await checkCmd.ExecuteScalarAsync();
-            if (pendingApproval == 0)
-            {
-                var updateOrderSql = @"UPDATE LabOrders SET Status = 5, ApprovedAt = GETDATE(),
-                                       ApprovedById = @ApprovedBy
-                                       WHERE Id = @OrderId";
-                using var updateCmd = new SqlCommand(updateOrderSql, connection);
-                updateCmd.Parameters.AddWithValue("@OrderId", dto.OrderId);
-                updateCmd.Parameters.AddWithValue("@ApprovedBy", dto.ApprovedByUserId.HasValue ? (object)dto.ApprovedByUserId.Value : DBNull.Value);
-                await updateCmd.ExecuteNonQueryAsync();
-            }
+            d.ReviewedAt = DateTime.Now;
+            d.ReviewerUserId = dto.ApprovedByUserId;
         }
+
+        await _context.SaveChangesAsync();
 
         _ = _notificationService.NotifyLabResultAsync(dto.OrderId, "Bác sĩ duyệt");
         return true;
@@ -650,209 +521,160 @@ public partial class LISCompleteService {
 
     public async Task<bool> PreliminaryApproveLabResultAsync(Guid orderId, string technicianNote, Guid? approvedByUserId = null)
     {
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
+        // Model 1 không có "sơ duyệt" riêng — set TechnicianUserId + TechnicianRunAt cho details có Result,
+        // append note vào SR.Notes. KHÔNG set ReviewedAt (đó là final approve).
+        var details = await _context.ServiceRequestDetails
+            .Where(d => d.ServiceRequestId == orderId && !d.IsDeleted && d.Status != 3)
+            .ToListAsync();
 
-        // Set order status to 4 (Sơ duyệt - Preliminary approved)
-        var sql = @"UPDATE LabOrders SET Status = 4, ApprovedById = @ApprovedBy,
-                    Notes = COALESCE(Notes + CHAR(10), '') + @Note
-                    WHERE Id = @OrderId AND Status >= 3";
-        using var cmd = new SqlCommand(sql, connection);
-        cmd.Parameters.AddWithValue("@OrderId", orderId);
-        cmd.Parameters.AddWithValue("@ApprovedBy", approvedByUserId.HasValue ? (object)approvedByUserId.Value : DBNull.Value);
-        cmd.Parameters.AddWithValue("@Note", $"[KTV] {technicianNote ?? ""}");
-        await cmd.ExecuteNonQueryAsync();
+        foreach (var d in details.Where(x => !string.IsNullOrEmpty(x.Result)))
+        {
+            if (approvedByUserId.HasValue)
+                d.TechnicianUserId = approvedByUserId.Value;
+            if (d.TechnicianRunAt == null)
+                d.TechnicianRunAt = DateTime.Now;
+        }
 
+        var sr = await _context.ServiceRequests.FindAsync(orderId);
+        if (sr != null)
+        {
+            var notePrefix = string.IsNullOrWhiteSpace(sr.Notes) ? "" : sr.Notes + "\n";
+            sr.Notes = notePrefix + $"[KTV] {technicianNote ?? ""}";
+        }
+
+        await _context.SaveChangesAsync();
         return true;
     }
 
     public async Task<bool> FinalApproveLabResultAsync(Guid orderId, string doctorNote, Guid? approvedByUserId = null)
     {
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
+        var details = await _context.ServiceRequestDetails
+            .Where(d => d.ServiceRequestId == orderId && !d.IsDeleted && d.Status != 3)
+            .ToListAsync();
 
-        // Approve all items
-        var approveItemsSql = @"UPDATE LabOrderItems SET ResultStatus = 5
-                                WHERE LabOrderId = @OrderId AND Result IS NOT NULL AND Result <> ''";
-        using (var cmd = new SqlCommand(approveItemsSql, connection))
+        foreach (var d in details.Where(x => !string.IsNullOrEmpty(x.Result)))
         {
-            cmd.Parameters.AddWithValue("@OrderId", orderId);
-            await cmd.ExecuteNonQueryAsync();
+            d.ReviewedAt = DateTime.Now;
+            d.ReviewerUserId = approvedByUserId;
         }
 
-        // Set order status to 5 (Đã duyệt cuối)
-        var sql = @"UPDATE LabOrders SET Status = 5, ApprovedAt = GETDATE(), ApprovedById = @ApprovedBy,
-                    Notes = COALESCE(Notes + CHAR(10), '') + @Note
-                    WHERE Id = @OrderId";
-        using (var cmd = new SqlCommand(sql, connection))
+        var sr = await _context.ServiceRequests.FindAsync(orderId);
+        if (sr != null)
         {
-            cmd.Parameters.AddWithValue("@OrderId", orderId);
-            cmd.Parameters.AddWithValue("@ApprovedBy", approvedByUserId.HasValue ? (object)approvedByUserId.Value : DBNull.Value);
-            cmd.Parameters.AddWithValue("@Note", $"[BS duyệt] {doctorNote ?? ""}");
-            await cmd.ExecuteNonQueryAsync();
+            var notePrefix = string.IsNullOrWhiteSpace(sr.Notes) ? "" : sr.Notes + "\n";
+            sr.Notes = notePrefix + $"[BS duyệt] {doctorNote ?? ""}";
         }
 
-        // Fire-and-forget email notification
+        await _context.SaveChangesAsync();
+
         _ = _notificationService.NotifyLabResultAsync(orderId, "Bác sĩ duyệt");
         return true;
     }
 
     public async Task<bool> CancelApprovalAsync(Guid orderId, string reason)
     {
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
+        // Hủy duyệt revert cả 2 bước: final (ReviewedAt) lẫn sơ duyệt (TechnicianUserId) → order về 3 "Chờ duyệt"
+        // (khớp FE: nút Hủy duyệt hiện khi status >= 4). Trade-off: mất dấu KTV sơ duyệt — chấp nhận như model 3 cũ.
+        var details = await _context.ServiceRequestDetails
+            .Where(d => d.ServiceRequestId == orderId && !d.IsDeleted && d.Status != 3
+                && (d.ReviewedAt != null || d.TechnicianUserId != null))
+            .ToListAsync();
 
-        // Revert item approval status back to 4 (Có KQ, chưa duyệt)
-        var revertItemsSql = @"UPDATE LabOrderItems SET ResultStatus = 0
-                               WHERE LabOrderId = @OrderId AND ResultStatus = 5";
-        using (var cmd = new SqlCommand(revertItemsSql, connection))
+        foreach (var d in details)
         {
-            cmd.Parameters.AddWithValue("@OrderId", orderId);
-            await cmd.ExecuteNonQueryAsync();
+            d.ReviewedAt = null;
+            d.ReviewerUserId = null;
+            d.TechnicianUserId = null;
         }
 
-        // Set order status back to 3 (Chờ duyệt)
-        var sql = @"UPDATE LabOrders SET Status = 3, ApprovedAt = NULL, ApprovedById = NULL,
-                    Notes = COALESCE(Notes + CHAR(10), '') + @Note
-                    WHERE Id = @OrderId AND Status >= 4";
-        using (var cmd = new SqlCommand(sql, connection))
+        var sr = await _context.ServiceRequests.FindAsync(orderId);
+        if (sr != null)
         {
-            cmd.Parameters.AddWithValue("@OrderId", orderId);
-            cmd.Parameters.AddWithValue("@Note", $"[Hủy duyệt] {reason ?? ""}");
-            await cmd.ExecuteNonQueryAsync();
+            var notePrefix = string.IsNullOrWhiteSpace(sr.Notes) ? "" : sr.Notes + "\n";
+            sr.Notes = notePrefix + $"[Hủy duyệt] {reason ?? ""}";
         }
 
+        await _context.SaveChangesAsync();
         return true;
     }
 
     public async Task<byte[]> PrintLabResultAsync(Guid orderId, string format = "A4")
     {
-        // Rule tài liệu: chưa duyệt KQ (Status < 4 — chưa duyệt sơ bộ/chính thức) → KHÔNG in,
-        // báo "Không có số liệu". (Màn tại giường BedLabResultSection đã enforce; đây là màn chính.)
-        var orderStatus = await _context.Database
-            .SqlQueryRaw<int>("SELECT Status AS Value FROM LabOrders WHERE Id = {0} AND IsDeleted = 0", orderId)
+        // Gate: chưa duyệt → KHÔNG in
+        var sr = await _context.ServiceRequests
+            .Where(r => r.Id == orderId && r.RequestType == 1 && !r.IsDeleted)
+            .Include(r => r.MedicalRecord).ThenInclude(mr => mr.Patient)
+            .Include(r => r.Doctor)
+            .Include(r => r.Department)
+            .Include(r => r.Details).ThenInclude(d => d.Service)
             .FirstOrDefaultAsync();
-        if (orderStatus < 4)
+
+        if (sr == null)
+            return System.Text.Encoding.UTF8.GetBytes("Order not found");
+
+        var activeDetails = sr.Details.Where(d => !d.IsDeleted && d.Status != 3).ToList();
+
+        // Gate: có KQ và tất cả KQ đều ReviewedAt != null
+        var detailsWithResult = activeDetails.Where(d => !string.IsNullOrEmpty(d.Result)).ToList();
+        if (detailsWithResult.Count == 0 || !detailsWithResult.All(d => d.ReviewedAt != null))
             throw new InvalidOperationException("Chưa duyệt kết quả — không có số liệu để in.");
 
         try
         {
-            using var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString());
-            await connection.OpenAsync();
+            var detailIds = activeDetails.Select(d => d.Id).ToList();
+            var paramsByDetail = await LoadParamsDictAsync(detailIds);
 
-            // Get order info
-            var orderSql = @"
-                SELECT o.OrderCode, o.OrderedAt, o.SampleBarcode, o.SampleType, o.Diagnosis,
-                       o.CollectedAt, o.ProcessingStartTime, o.ProcessingEndTime,
-                       p.FullName AS PatientName, p.PatientCode, p.DateOfBirth, p.Gender, p.Address,
-                       d.DepartmentName, u.FullName AS DoctorName
-                FROM LabOrders o
-                INNER JOIN Patients p ON o.PatientId = p.Id
-                LEFT JOIN Departments d ON o.OrderDepartmentId = d.Id
-                LEFT JOIN Users u ON o.OrderDoctorId = u.Id
-                WHERE o.Id = @OrderId AND o.IsDeleted = 0";
-
-            string? orderCode = null, patientName = null, patientCode = null, gender = null, address = null;
-            string? sampleBarcode = null, sampleType = null, diagnosis = null, deptName = null, doctorName = null;
-            DateTime? dob = null, orderedAt = null, collectedAt = null, completedAt = null;
-
-            using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(orderSql, connection))
-            {
-                cmd.Parameters.AddWithValue("@OrderId", orderId);
-                using var reader = await cmd.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
-                {
-                    orderCode = reader["OrderCode"]?.ToString();
-                    orderedAt = reader["OrderedAt"] as DateTime?;
-                    sampleBarcode = reader["SampleBarcode"]?.ToString();
-                    sampleType = reader["SampleType"]?.ToString();
-                    diagnosis = reader["Diagnosis"]?.ToString();
-                    collectedAt = reader["CollectedAt"] as DateTime?;
-                    completedAt = reader["ProcessingEndTime"] as DateTime?;
-                    patientName = reader["PatientName"]?.ToString();
-                    patientCode = reader["PatientCode"]?.ToString();
-                    dob = reader["DateOfBirth"] as DateTime?;
-                    gender = reader["Gender"]?.ToString();
-                    address = reader["Address"]?.ToString();
-                    deptName = reader["DepartmentName"]?.ToString();
-                    doctorName = reader["DoctorName"]?.ToString();
-                }
-            }
-
-            if (orderCode == null)
-                return System.Text.Encoding.UTF8.GetBytes("Order not found");
-
-            // Get test results
-            var resultSql = @"
-                SELECT
-                    COALESCE(s.ServiceName, i.TestName) AS TestName,
-                    i.TestCode,
-                    CAST(NULL AS nvarchar(255)) AS ParameterName,
-                    i.Result,
-                    CAST(NULL AS decimal(18,2)) AS NumericResult,
-                    COALESCE(i.Unit, s.Unit) AS Unit,
-                    i.ReferenceRange,
-                    i.NormalMin AS ReferenceMin,
-                    i.NormalMax AS ReferenceMax,
-                    CASE WHEN i.ResultStatus IN (1, 2, 3, 4) THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS IsAbnormal,
-                    i.ResultStatus AS AbnormalType,
-                    0 AS SequenceNumber,
-                    s.Id AS TestId
-                FROM LabOrderItems i
-                LEFT JOIN Services s ON i.TestCode = s.ServiceCode AND s.IsDeleted = 0
-                WHERE i.LabOrderId = @OrderId
-                ORDER BY COALESCE(s.ServiceName, i.TestName), i.TestCode";
-
-            var results = new System.Collections.Generic.List<(string testName, string paramName, string result, string unit, string refRange, bool isAbnormal, int? abnormalType)>();
-
-            using (var cmd2 = new Microsoft.Data.SqlClient.SqlCommand(resultSql, connection))
-            {
-                cmd2.Parameters.AddWithValue("@OrderId", orderId);
-                using var reader2 = await cmd2.ExecuteReaderAsync();
-                while (await reader2.ReadAsync())
-                {
-                    results.Add((
-                        reader2["TestName"]?.ToString() ?? "",
-                        reader2["ParameterName"]?.ToString() ?? "",
-                        reader2["Result"]?.ToString() ?? reader2["NumericResult"]?.ToString() ?? "",
-                        reader2["Unit"]?.ToString() ?? "",
-                        reader2["ReferenceRange"]?.ToString() ?? (reader2["ReferenceMin"] != DBNull.Value && reader2["ReferenceMax"] != DBNull.Value
-                            ? $"{reader2["ReferenceMin"]} - {reader2["ReferenceMax"]}" : ""),
-                        reader2["IsAbnormal"] is bool ab && ab,
-                        reader2["AbnormalType"] as int?
-                    ));
-                }
-            }
-
-            // Get approver
-            var approverSql = @"
-                SELECT u.FullName
-                FROM LabOrders o
-                INNER JOIN Users u ON o.ApprovedById = u.Id
-                WHERE o.Id = @OrderId AND o.IsDeleted = 0 AND o.ApprovedById IS NOT NULL";
+            // Approver lookup
+            var approverUserId = LisModel1Map.ApprovedBy(activeDetails);
             string? approverName = null;
-            using (var cmd3 = new Microsoft.Data.SqlClient.SqlCommand(approverSql, connection))
+            if (approverUserId.HasValue)
             {
-                cmd3.Parameters.AddWithValue("@OrderId", orderId);
-                approverName = (await cmd3.ExecuteScalarAsync())?.ToString();
+                var approver = await _context.Users.FindAsync(approverUserId.Value);
+                approverName = approver?.FullName;
             }
 
-            // Build HTML using existing PdfTemplateHelper
-            int genderInt = gender?.ToLower() switch { "nam" or "male" => 1, "nữ" or "nu" or "female" => 2, _ => 0 };
-            var labResults = results.Select(r => new PdfTemplateHelper.LabResultRow
+            var patient = sr.MedicalRecord?.Patient;
+            int genderInt = patient?.Gender ?? 0;
+
+            // Build LabResultRows: if SRD has params → 1 row/param, else row per SRD
+            var labResults = new List<PdfTemplateHelper.LabResultRow>();
+            foreach (var d in activeDetails.Where(x => !string.IsNullOrEmpty(x.Result)))
             {
-                TestName = string.IsNullOrEmpty(r.paramName) ? r.testName : $"{r.testName} - {r.paramName}",
-                Result = r.result,
-                Unit = r.unit,
-                ReferenceRange = r.refRange,
-                IsAbnormal = r.isAbnormal
-            }).ToList();
+                paramsByDetail.TryGetValue(d.Id, out var dParams);
+                if (dParams != null && dParams.Any())
+                {
+                    foreach (var p in dParams.OrderBy(x => x.SequenceNumber))
+                    {
+                        labResults.Add(new PdfTemplateHelper.LabResultRow
+                        {
+                            TestName = $"{d.Service?.ServiceName ?? ""} - {p.ParameterName}",
+                            Result = p.Value ?? "",
+                            Unit = p.Unit ?? "",
+                            ReferenceRange = p.ReferenceRange ?? "",
+                            IsAbnormal = LabFlagEvaluator.IsAbnormal(p.Flag)
+                        });
+                    }
+                }
+                else
+                {
+                    labResults.Add(new PdfTemplateHelper.LabResultRow
+                    {
+                        TestName = d.Service?.ServiceName ?? "",
+                        Result = d.Result ?? "",
+                        Unit = "",
+                        ReferenceRange = "",
+                        IsAbnormal = false
+                    });
+                }
+            }
+
+            var completedAt = detailsWithResult.Select(d => d.ResultDate).Where(x => x.HasValue).OrderByDescending(x => x).FirstOrDefault();
 
             var html = PdfTemplateHelper.GetLabResult(
-                patientCode, patientName, genderInt, dob,
-                address, null, null,
-                diagnosis, doctorName, deptName,
-                orderedAt ?? DateTime.Now, completedAt,
+                patient?.PatientCode, patient?.FullName, genderInt, patient?.DateOfBirth,
+                patient?.Address, null, null,
+                sr.Diagnosis, sr.Doctor?.FullName, sr.Department?.DepartmentName,
+                sr.RequestDate, completedAt,
                 labResults, approverName);
 
             return System.Text.Encoding.UTF8.GetBytes(html);
@@ -946,94 +768,112 @@ public partial class LISCompleteService {
         var months = lastNMonths ?? 12;
         var fromDate = DateTime.Now.AddMonths(-months);
 
-        var sql = @"
-            SELECT o.Id AS OrderId, o.OrderedAt AS TestDate, o.ApprovedAt,
-                   i.TestCode, i.TestName, i.Result, i.Unit, i.ReferenceRange, i.ResultStatus,
-                   u.FullName AS ApprovedBy
-            FROM LabOrderItems i
-            INNER JOIN LabOrders o ON i.LabOrderId = o.Id
-            LEFT JOIN Users u ON o.ApprovedById = u.Id
-            WHERE o.PatientId = @PatientId AND o.IsDeleted = 0
-              AND o.OrderedAt >= @FromDate
-              AND i.Result IS NOT NULL AND i.Result <> ''";
+        // Load SRDs có Result, của SR XN, theo MedicalRecord.PatientId, RequestDate >= fromDate
+        var query = _context.ServiceRequestDetails
+            .Where(d => !d.IsDeleted && d.Status != 3
+                     && !string.IsNullOrEmpty(d.Result)
+                     && d.ServiceRequest.RequestType == 1
+                     && !d.ServiceRequest.IsDeleted
+                     && d.ServiceRequest.MedicalRecord.PatientId == patientId
+                     && d.ServiceRequest.RequestDate >= fromDate)
+            .Include(d => d.ServiceRequest)
+            .Include(d => d.Service)
+            .AsQueryable();
 
         if (!string.IsNullOrEmpty(testCode))
+            query = query.Where(d => d.Service.ServiceCode == testCode);
+
+        var items = await query
+            .OrderByDescending(d => d.ServiceRequest.RequestDate)
+            .ThenBy(d => d.Service.ServiceName)
+            .ToListAsync();
+
+        if (!items.Any()) return new List<LabResultHistoryDto>();
+
+        // Catalog for unit/range
+        var svcIds = items.Select(d => d.ServiceId).Distinct().ToList();
+        var catalogByService = await LoadCatalogFirstRowAsync(svcIds);
+
+        // Approver names: collect unique ReviewerUserIds → batch lookup
+        var reviewerIds = items.Where(d => d.ReviewerUserId.HasValue).Select(d => d.ReviewerUserId!.Value).Distinct().ToList();
+        var reviewerNames = reviewerIds.Any()
+            ? (await _context.Users.Where(u => reviewerIds.Contains(u.Id)).ToListAsync())
+                .ToDictionary(u => u.Id, u => u.FullName)
+            : new Dictionary<Guid, string>();
+
+        // Detail params — for flag computation
+        var detailIds = items.Select(d => d.Id).ToList();
+        var paramsByDetail = await LoadParamsDictAsync(detailIds);
+
+        return items.Select(d =>
         {
-            sql += " AND i.TestCode = @TestCode";
-        }
+            var cat = catalogByService.GetValueOrDefault(d.ServiceId);
+            paramsByDetail.TryGetValue(d.Id, out var dParams);
 
-        sql += " ORDER BY o.OrderedAt DESC, i.TestName";
+            // Compute flag from params (ignoring ReviewedAt for history display)
+            string flag = ComputeFlagStringFromParams(dParams);
 
-        var results = new List<LabResultHistoryDto>();
-
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
-        using var cmd = new SqlCommand(sql, connection);
-        cmd.Parameters.AddWithValue("@PatientId", patientId);
-        cmd.Parameters.AddWithValue("@FromDate", fromDate);
-        if (!string.IsNullOrEmpty(testCode))
-            cmd.Parameters.AddWithValue("@TestCode", testCode);
-
-        using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
-        {
-            var resultStatus = reader.IsDBNull(reader.GetOrdinal("ResultStatus")) ? 0 : reader.GetInt32(reader.GetOrdinal("ResultStatus"));
-            results.Add(new LabResultHistoryDto
+            return new LabResultHistoryDto
             {
-                OrderId = reader.GetGuid(reader.GetOrdinal("OrderId")),
-                TestDate = reader.GetDateTime(reader.GetOrdinal("TestDate")),
-                TestCode = reader.GetString(reader.GetOrdinal("TestCode")),
-                TestName = reader.GetString(reader.GetOrdinal("TestName")),
-                Result = reader.IsDBNull(reader.GetOrdinal("Result")) ? "" : reader.GetString(reader.GetOrdinal("Result")),
-                Unit = reader.IsDBNull(reader.GetOrdinal("Unit")) ? "" : reader.GetString(reader.GetOrdinal("Unit")),
-                ReferenceRange = reader.IsDBNull(reader.GetOrdinal("ReferenceRange")) ? "" : reader.GetString(reader.GetOrdinal("ReferenceRange")),
-                Flag = resultStatus switch { 0 => "Normal", 1 => "Low", 2 => "High", 3 => "Critical", 4 => "Critical", _ => "Normal" },
-                ApprovedBy = reader.IsDBNull(reader.GetOrdinal("ApprovedBy")) ? "" : reader.GetString(reader.GetOrdinal("ApprovedBy"))
-            });
-        }
-
-        return results;
+                OrderId = d.ServiceRequestId,
+                TestDate = d.ServiceRequest.RequestDate,
+                TestCode = d.Service?.ServiceCode ?? "",
+                TestName = d.Service?.ServiceName ?? "",
+                Result = d.Result ?? "",
+                Unit = cat?.Unit ?? "",
+                ReferenceRange = LabFlagEvaluator.BuildReferenceRange(
+                    cat?.NormalMinMale ?? cat?.ReferenceLow,
+                    cat?.NormalMaxMale ?? cat?.ReferenceHigh) ?? "",
+                Flag = flag,
+                ApprovedBy = d.ReviewerUserId.HasValue
+                    ? reviewerNames.GetValueOrDefault(d.ReviewerUserId.Value, "")
+                    : ""
+            };
+        }).ToList();
     }
 
     public async Task<LabResultComparisonDto> CompareLabResultsAsync(Guid patientId, string testCode, int lastNTimes = 5)
     {
-        var sql = @"
-            SELECT TOP (@Count) o.OrderedAt AS TestDate, i.TestCode, i.TestName, i.Unit,
-                   i.Result, i.ResultStatus
-            FROM LabOrderItems i
-            INNER JOIN LabOrders o ON i.LabOrderId = o.Id
-            WHERE o.PatientId = @PatientId AND o.IsDeleted = 0
-              AND i.TestCode = @TestCode
-              AND i.Result IS NOT NULL AND i.Result <> ''
-            ORDER BY o.OrderedAt DESC";
+        var items = await _context.ServiceRequestDetails
+            .Where(d => !d.IsDeleted && d.Status != 3
+                     && !string.IsNullOrEmpty(d.Result)
+                     && d.Service.ServiceCode == testCode
+                     && d.ServiceRequest.RequestType == 1
+                     && !d.ServiceRequest.IsDeleted
+                     && d.ServiceRequest.MedicalRecord.PatientId == patientId)
+            .Include(d => d.ServiceRequest)
+            .Include(d => d.Service)
+            .OrderByDescending(d => d.ServiceRequest.RequestDate)
+            .Take(lastNTimes)
+            .ToListAsync();
 
         var result = new LabResultComparisonDto { TestCode = testCode, DataPoints = new List<LabResultPointDto>() };
+        if (!items.Any()) return result;
 
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
-        using var cmd = new SqlCommand(sql, connection);
-        cmd.Parameters.AddWithValue("@Count", lastNTimes);
-        cmd.Parameters.AddWithValue("@PatientId", patientId);
-        cmd.Parameters.AddWithValue("@TestCode", testCode);
+        result.TestName = items.First().Service?.ServiceName ?? testCode;
 
-        using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        var svcIds = items.Select(d => d.ServiceId).Distinct().ToList();
+        var catalogByService = await LoadCatalogFirstRowAsync(svcIds);
+        result.Unit = catalogByService.GetValueOrDefault(items.First().ServiceId)?.Unit ?? "";
+
+        var detailIds = items.Select(d => d.Id).ToList();
+        var paramsByDetail = await LoadParamsDictAsync(detailIds);
+
+        foreach (var d in items)
         {
-            result.TestName ??= reader.IsDBNull(reader.GetOrdinal("TestName")) ? testCode : reader.GetString(reader.GetOrdinal("TestName"));
-            result.Unit ??= reader.IsDBNull(reader.GetOrdinal("Unit")) ? "" : reader.GetString(reader.GetOrdinal("Unit"));
+            if (!decimal.TryParse(d.Result, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var numericVal))
+                continue;
 
-            var resultStr = reader.IsDBNull(reader.GetOrdinal("Result")) ? "" : reader.GetString(reader.GetOrdinal("Result"));
-            var statusVal = reader.IsDBNull(reader.GetOrdinal("ResultStatus")) ? 0 : reader.GetInt32(reader.GetOrdinal("ResultStatus"));
+            paramsByDetail.TryGetValue(d.Id, out var dParams);
+            string flag = ComputeFlagStringFromParams(dParams);
 
-            if (decimal.TryParse(resultStr, out var numericVal))
+            result.DataPoints.Add(new LabResultPointDto
             {
-                result.DataPoints.Add(new LabResultPointDto
-                {
-                    Date = reader.GetDateTime(reader.GetOrdinal("TestDate")),
-                    Value = numericVal,
-                    Flag = statusVal switch { 0 => "Normal", 1 => "Low", 2 => "High", 3 => "Critical", 4 => "Critical", _ => "Normal" }
-                });
-            }
+                Date = d.ServiceRequest.RequestDate,
+                Value = numericVal,
+                Flag = flag
+            });
         }
 
         // Reverse to chronological order and calculate trend
@@ -1056,72 +896,66 @@ public partial class LISCompleteService {
     {
         var result = new DeltaCheckResultDto { OrderId = orderId, Items = new List<DeltaCheckItemDto>() };
 
-        // Get current order items and patient
-        var sql = @"
-            SELECT i.Id AS TestId, i.TestCode, i.TestName, i.Result AS CurrentResult, o.PatientId
-            FROM LabOrderItems i
-            INNER JOIN LabOrders o ON i.LabOrderId = o.Id
-            WHERE o.Id = @OrderId AND o.IsDeleted = 0
-              AND i.Result IS NOT NULL AND i.Result <> ''";
+        // Load current order details with result
+        var sr = await _context.ServiceRequests
+            .Where(r => r.Id == orderId && !r.IsDeleted)
+            .Include(r => r.MedicalRecord)
+            .Include(r => r.Details).ThenInclude(d => d.Service)
+            .FirstOrDefaultAsync();
 
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
+        if (sr == null) return result;
 
-        var currentItems = new List<(Guid TestId, string TestCode, string TestName, string CurrentResult, Guid PatientId)>();
-        using (var cmd = new SqlCommand(sql, connection))
+        var currentDetails = sr.Details
+            .Where(d => !d.IsDeleted && !string.IsNullOrEmpty(d.Result))
+            .ToList();
+
+        if (!currentDetails.Any()) return result;
+
+        var patientId = sr.MedicalRecord?.PatientId;
+        if (!patientId.HasValue) return result;
+
+        // Load previous SRDs for each service code — batch by unique service codes
+        var serviceCodes = currentDetails.Select(d => d.Service?.ServiceCode).Where(c => !string.IsNullOrEmpty(c)).Distinct().ToList();
+
+        // Get all previous matching SRDs (different SR, same patient, same service code, has result)
+        var previousDetails = await _context.ServiceRequestDetails
+            .Where(d => !d.IsDeleted
+                     && !string.IsNullOrEmpty(d.Result)
+                     && d.ServiceRequestId != orderId
+                     && d.ServiceRequest.MedicalRecord.PatientId == patientId.Value
+                     && d.ServiceRequest.RequestType == 1
+                     && !d.ServiceRequest.IsDeleted
+                     && serviceCodes.Contains(d.Service.ServiceCode))
+            .Include(d => d.ServiceRequest)
+            .Include(d => d.Service)
+            .OrderByDescending(d => d.ServiceRequest.RequestDate)
+            .ToListAsync();
+
+        // Group previous by ServiceCode for fast lookup
+        var prevByCode = previousDetails
+            .GroupBy(d => d.Service?.ServiceCode ?? "")
+            .ToDictionary(g => g.Key, g => g.First()); // most recent per code
+
+        foreach (var d in currentDetails)
         {
-            cmd.Parameters.AddWithValue("@OrderId", orderId);
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                currentItems.Add((
-                    reader.GetGuid(0),
-                    reader.GetString(1),
-                    reader.GetString(2),
-                    reader.GetString(3),
-                    reader.GetGuid(4)
-                ));
-            }
-        }
-
-        if (!currentItems.Any()) return result;
-        var patientId = currentItems.First().PatientId;
-
-        // For each test, find previous result
-        foreach (var item in currentItems)
-        {
-            if (!decimal.TryParse(item.CurrentResult, out var currentVal)) continue;
-
-            var prevSql = @"
-                SELECT TOP 1 i2.Result, o2.OrderedAt
-                FROM LabOrderItems i2
-                INNER JOIN LabOrders o2 ON i2.LabOrderId = o2.Id
-                WHERE o2.PatientId = @PatientId AND o2.Id <> @OrderId AND o2.IsDeleted = 0
-                  AND i2.TestCode = @TestCode AND i2.Result IS NOT NULL AND i2.Result <> ''
-                ORDER BY o2.OrderedAt DESC";
-
-            using var prevCmd = new SqlCommand(prevSql, connection);
-            prevCmd.Parameters.AddWithValue("@PatientId", patientId);
-            prevCmd.Parameters.AddWithValue("@OrderId", orderId);
-            prevCmd.Parameters.AddWithValue("@TestCode", item.TestCode);
+            var code = d.Service?.ServiceCode ?? "";
+            if (!decimal.TryParse(d.Result, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var currentVal))
+                continue;
 
             decimal? prevVal = null;
             DateTime? prevDate = null;
-            using (var prevReader = await prevCmd.ExecuteReaderAsync())
+
+            if (prevByCode.TryGetValue(code, out var prev) &&
+                decimal.TryParse(prev.Result, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var pv))
             {
-                if (await prevReader.ReadAsync())
-                {
-                    var prevStr = prevReader.IsDBNull(0) ? null : prevReader.GetString(0);
-                    if (prevStr != null && decimal.TryParse(prevStr, out var pv))
-                    {
-                        prevVal = pv;
-                        prevDate = prevReader.GetDateTime(1);
-                    }
-                }
+                prevVal = pv;
+                prevDate = prev.ServiceRequest.RequestDate;
             }
 
             decimal? deltaPercent = null;
-            decimal deltaThreshold = 50m; // Default 50% threshold
+            decimal deltaThreshold = 50m;
             bool isCritical = false;
 
             if (prevVal.HasValue && prevVal.Value != 0)
@@ -1132,9 +966,9 @@ public partial class LISCompleteService {
 
             result.Items.Add(new DeltaCheckItemDto
             {
-                TestId = item.TestId,
-                TestCode = item.TestCode,
-                TestName = item.TestName,
+                TestId = d.Id,
+                TestCode = code,
+                TestName = d.Service?.ServiceName ?? "",
                 CurrentValue = currentVal,
                 PreviousValue = prevVal,
                 PreviousDate = prevDate,
@@ -1151,27 +985,33 @@ public partial class LISCompleteService {
 
     public async Task<bool> RerunLabTestAsync(Guid orderItemId, string reason)
     {
-        using var connection = new SqlConnection(_context.Database.GetConnectionString());
-        await connection.OpenAsync();
+        // orderItemId = ServiceRequestDetail.Id
+        var d = await _context.ServiceRequestDetails
+            .FindAsync(orderItemId);
 
-        // Clear previous result and reset status
-        var sql = @"UPDATE LabOrderItems
-                    SET Result = NULL, ResultStatus = NULL, ResultEnteredAt = NULL,
-                        Notes = COALESCE(Notes + CHAR(10), '') + @Note
-                    WHERE Id = @ItemId";
-        using var cmd = new SqlCommand(sql, connection);
-        cmd.Parameters.AddWithValue("@ItemId", orderItemId);
-        cmd.Parameters.AddWithValue("@Note", $"[Làm lại] {reason ?? ""}");
-        await cmd.ExecuteNonQueryAsync();
+        if (d == null) return false;
 
-        // Update order status back to processing
-        var orderSql = @"UPDATE LabOrders SET Status = 2
-                         WHERE Id = (SELECT LabOrderId FROM LabOrderItems WHERE Id = @ItemId)
-                         AND Status > 2";
-        using var orderCmd = new SqlCommand(orderSql, connection);
-        orderCmd.Parameters.AddWithValue("@ItemId", orderItemId);
-        await orderCmd.ExecuteNonQueryAsync();
+        // Clear result fields
+        d.Result = null;
+        d.ResultDate = null;
+        d.TechnicianRunAt = null;
+        d.Status = 1; // Đang thực hiện
+        var notePrefix = string.IsNullOrWhiteSpace(d.Note) ? "" : d.Note + "\n";
+        d.Note = notePrefix + $"[Làm lại] {reason ?? ""}";
 
+        // Delete associated ServiceRequestDetailParameters
+        var oldParams = await _context.ServiceRequestDetailParameters
+            .Where(p => p.ServiceRequestDetailId == orderItemId && !p.IsDeleted)
+            .ToListAsync();
+        if (oldParams.Count > 0)
+            _context.ServiceRequestDetailParameters.RemoveRange(oldParams);
+
+        // Header SR.Status: nếu đang 3 → 2 (có KQ → đang XN)
+        var sr = await _context.ServiceRequests.FindAsync(d.ServiceRequestId);
+        if (sr != null && sr.Status == 3)
+            sr.Status = 2;
+
+        await _context.SaveChangesAsync();
         return true;
     }
 
@@ -1184,13 +1024,13 @@ public partial class LISCompleteService {
 
         try
         {
-            using var connection = new SqlConnection(_context.Database.GetConnectionString());
+            using var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString());
             await connection.OpenAsync();
 
             // Find QC lot by lot number
             var lotSql = @"SELECT Id, Mean, SD FROM QCLots WHERE LotNumber = @LotNumber AND IsActive = 1";
             Guid? lotId = null;
-            using (var cmd = new SqlCommand(lotSql, connection))
+            using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(lotSql, connection))
             {
                 cmd.Parameters.AddWithValue("@LotNumber", dto.QCLotNumber ?? "");
                 using var reader = await cmd.ExecuteReaderAsync();
@@ -1215,7 +1055,7 @@ public partial class LISCompleteService {
             {
                 var insertSql = @"INSERT INTO QCResults (Id, QCLotId, AnalyzerId, TestCode, Value, IsAccepted, Violations, RunDate, CreatedAt)
                                   VALUES (NEWID(), @LotId, @AnalyzerId, @TestCode, @Value, @IsAccepted, @Violations, @RunTime, GETDATE())";
-                using (var cmd = new SqlCommand(insertSql, connection))
+                using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(insertSql, connection))
                 {
                     cmd.Parameters.AddWithValue("@LotId", lotId.Value);
                     cmd.Parameters.AddWithValue("@AnalyzerId", dto.AnalyzerId);
@@ -1228,7 +1068,7 @@ public partial class LISCompleteService {
                 }
             }
         }
-        catch (SqlException ex) when (ex.Message.Contains("Invalid object name"))
+        catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Message.Contains("Invalid object name"))
         {
             _logger.LogWarning("QC tables not found: {Message}", ex.Message);
         }
@@ -1253,14 +1093,14 @@ public partial class LISCompleteService {
 
         try
         {
-            using var connection = new SqlConnection(_context.Database.GetConnectionString());
+            using var connection = new Microsoft.Data.SqlClient.SqlConnection(_context.Database.GetConnectionString());
             await connection.OpenAsync();
 
             // Get QC lot mean/SD for chart reference lines
             var lotSql = @"SELECT TOP 1 Mean, SD FROM QCLots
                            WHERE AnalyzerId = @AnalyzerId AND IsActive = 1
                            ORDER BY CreatedAt DESC";
-            using (var cmd = new SqlCommand(lotSql, connection))
+            using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(lotSql, connection))
             {
                 cmd.Parameters.AddWithValue("@AnalyzerId", analyzerId);
                 using var reader = await cmd.ExecuteReaderAsync();
@@ -1285,7 +1125,7 @@ public partial class LISCompleteService {
                            WHERE AnalyzerId = @AnalyzerId
                              AND RunDate >= @FromDate AND RunDate < @ToDate
                            ORDER BY RunDate";
-            using (var cmd = new SqlCommand(dataSql, connection))
+            using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(dataSql, connection))
             {
                 cmd.Parameters.AddWithValue("@AnalyzerId", analyzerId);
                 cmd.Parameters.AddWithValue("@FromDate", fromDate);
@@ -1303,12 +1143,66 @@ public partial class LISCompleteService {
                 }
             }
         }
-        catch (SqlException ex) when (ex.Message.Contains("Invalid object name"))
+        catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Message.Contains("Invalid object name"))
         {
             _logger.LogWarning("QC tables not found for Levey-Jennings chart: {Message}", ex.Message);
         }
 
         return result;
+    }
+
+    #endregion
+
+    #region Private helpers (#14e-B EF LINQ)
+
+    /// <summary>
+    /// Batch load ServiceRequestDetailParameters cho danh sách detail IDs → dictionary by detailId.
+    /// Tránh N+1 query.
+    /// </summary>
+    private async Task<Dictionary<Guid, List<ServiceRequestDetailParameter>>> LoadParamsDictAsync(List<Guid> detailIds)
+    {
+        if (!detailIds.Any()) return new Dictionary<Guid, List<ServiceRequestDetailParameter>>();
+
+        var allParams = await _context.ServiceRequestDetailParameters
+            .Where(p => detailIds.Contains(p.ServiceRequestDetailId) && !p.IsDeleted)
+            .OrderBy(p => p.SequenceNumber)
+            .ToListAsync();
+
+        return allParams
+            .GroupBy(p => p.ServiceRequestDetailId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+    }
+
+    /// <summary>
+    /// Batch load LisTestParameter — 1 row đầu tiên per ServiceId (catalog cho unit/range).
+    /// </summary>
+    private async Task<Dictionary<Guid, LisTestParameter>> LoadCatalogFirstRowAsync(List<Guid> serviceIds)
+    {
+        if (!serviceIds.Any()) return new Dictionary<Guid, LisTestParameter>();
+
+        var rows = await _context.LisTestParameters
+            .Where(p => p.ServiceId.HasValue && serviceIds.Contains(p.ServiceId.Value) && p.IsActive && !p.IsDeleted)
+            .ToListAsync();
+
+        // Keep first row per ServiceId (arbitrary but deterministic — matches old model-3 behaviour)
+        return rows
+            .GroupBy(p => p.ServiceId!.Value)
+            .ToDictionary(g => g.Key, g => g.First());
+    }
+
+    /// <summary>
+    /// Compute flag string (Normal/Low/High/Critical) từ params cho history/compare display.
+    /// Tính từ Flag trực tiếp (không xét ReviewedAt — lịch sử hiển thị cờ thực tế).
+    /// HH/LL → "Critical"; H → "High"; L → "Low"; else "Normal".
+    /// </summary>
+    private static string ComputeFlagStringFromParams(List<ServiceRequestDetailParameter>? dParams)
+    {
+        if (dParams == null || !dParams.Any()) return "Normal";
+        var flags = dParams.Select(p => p.Flag).Where(f => !string.IsNullOrEmpty(f)).ToList();
+        if (flags.Contains("HH") || flags.Contains("LL")) return "Critical";
+        if (flags.Contains("H")) return "High";
+        if (flags.Contains("L")) return "Low";
+        return "Normal";
     }
 
     #endregion

@@ -232,9 +232,11 @@ public class ReportingCompleteService : IReportingCompleteService
                 BuildKPI("KPI-F02", "Doanh thu BQ/BN", avgRevPerPatient, 0, "VND", 0)
             };
 
-            // Operational KPIs
-            var totalLabTests = await _context.LabRequestItems.CountAsync(l => l.CreatedAt >= fromDate && l.CreatedAt < toDate && !l.IsDeleted);
-            var completedLabs = await _context.LabRequestItems.CountAsync(l => l.CreatedAt >= fromDate && l.CreatedAt < toDate && l.Status >= 3 && !l.IsDeleted);
+            // Operational KPIs — #14b: đọc model 1 ServiceRequestDetail (RequestType=1 XN), model 2 LabRequestItems chỉ seed ghi (rỗng/sai)
+            var totalLabTests = await _context.ServiceRequestDetails.CountAsync(d => d.CreatedAt >= fromDate && d.CreatedAt < toDate && !d.IsDeleted
+                && d.ServiceRequest.RequestType == 1 && d.Status != 3);
+            var completedLabs = await _context.ServiceRequestDetails.CountAsync(d => d.CreatedAt >= fromDate && d.CreatedAt < toDate && !d.IsDeleted
+                && d.ServiceRequest.RequestType == 1 && d.Status == 2);
 
             var operationalKPIs = new List<KPIItemDto>
             {
@@ -630,24 +632,27 @@ public class ReportingCompleteService : IReportingCompleteService
     {
         try
         {
-            var query = _context.LabRequestItems
-                .Where(l => l.CreatedAt >= fromDate && l.CreatedAt < toDate && !l.IsDeleted);
+            // #14b: đọc model 1 (SRD RequestType=1); nhóm theo nhóm dịch vụ thay SampleType (model 2 chết).
+            // Status SRD: 0/1 chờ-đang xử lý · 2 có KQ · 3 hủy.
+            var query = _context.ServiceRequestDetails
+                .Where(d => d.CreatedAt >= fromDate && d.CreatedAt < toDate && !d.IsDeleted
+                    && d.ServiceRequest.RequestType == 1 && d.Status != 3);
 
             if (!string.IsNullOrEmpty(testType))
-                query = query.Where(l => l.SampleType == testType);
+                query = query.Where(d => d.Service.ServiceGroup != null && d.Service.ServiceGroup.GroupName == testType);
 
             var total = await query.CountAsync();
-            var completed = await query.CountAsync(l => l.Status >= 3);
-            var pending = await query.CountAsync(l => l.Status < 2);
+            var completed = await query.CountAsync(d => d.Status == 2);
+            var pending = await query.CountAsync(d => d.Status < 2);
 
             var bySampleType = await query
-                .GroupBy(l => l.SampleType ?? "Khac")
+                .GroupBy(d => d.Service.ServiceGroup != null ? d.Service.ServiceGroup.GroupName : "Khac")
                 .Select(g => new { Type = g.Key, Count = g.Count() })
                 .OrderByDescending(t => t.Count)
                 .ToListAsync();
 
             var byStatus = await query
-                .GroupBy(l => l.Status)
+                .GroupBy(d => d.Status)
                 .Select(g => new { Status = g.Key, Count = g.Count() })
                 .ToListAsync();
 
@@ -2001,7 +2006,9 @@ h1 {{ text-align: center; font-size: 16px; }}
         var receiptQuery = _context.Receipts.Where(r => r.ReceiptDate >= from && r.ReceiptDate < to && r.Status == 1 && !r.IsDeleted);
         var totalRevenue = await receiptQuery.SumAsync(r => (decimal?)r.FinalAmount) ?? 0;
 
-        var labTests = await _context.LabRequestItems.CountAsync(l => l.CreatedAt >= from && l.CreatedAt < to && !l.IsDeleted);
+        // #14b: model 1 (SRD RequestType=1, loại hủy) thay LabRequestItems (model 2 chết)
+        var labTests = await _context.ServiceRequestDetails.CountAsync(d => d.CreatedAt >= from && d.CreatedAt < to && !d.IsDeleted
+            && d.ServiceRequest.RequestType == 1 && d.Status != 3);
 
         var surgeries = await _context.SurgeryRequests.CountAsync(s => s.RequestDate >= from && s.RequestDate < to && !s.IsDeleted);
 

@@ -2241,13 +2241,14 @@ public class QualityDashboardService : IQualityDashboardService
 
         var view = new LabStatusViewDto();
 
-        // LabRequest doesn't carry Category directly; aggregate via items.Service.Group
+        // #14e: model 1 SRD (RequestType=1) — aggregate theo Service.ServiceGroup (model 2 đã gỡ)
         try
         {
-            var labItems = await _db.LabRequestItems.AsNoTracking()
-                .Include(x => x.LabRequest)
-                .Include(x => x.Service)!.ThenInclude(s => s!.ServiceGroup)
-                .Where(x => x.LabRequest!.CreatedAt >= date && x.LabRequest.CreatedAt < nextDay)
+            var labItems = await _db.ServiceRequestDetails.AsNoTracking()
+                .Include(x => x.Service).ThenInclude(s => s.ServiceGroup)
+                .Where(x => !x.IsDeleted && x.Status != 3
+                    && x.ServiceRequest.RequestType == 1
+                    && x.CreatedAt >= date && x.CreatedAt < nextDay)
                 .ToListAsync();
 
             var grouped = labItems
@@ -2255,8 +2256,8 @@ public class QualityDashboardService : IQualityDashboardService
                 .Select(g => new LabCategoryStatusDto
                 {
                     CategoryName = g.Key,
-                    Pending = g.Count(x => x.Status < 3),
-                    Completed = g.Count(x => x.Status >= 3)
+                    Pending = g.Count(x => x.Status < 2),
+                    Completed = g.Count(x => x.Status == 2)
                 })
                 .ToList();
 
