@@ -15,6 +15,8 @@ import {
 
 // Department có 2 shape (id|departmentId, name|departmentName) khi đến từ catalog API khác nhau
 interface RawDepartmentLite { id?: string; departmentId?: string; name?: string; departmentName?: string }
+// Chi nhánh từ /catalog/branches (R3 đa cơ sở)
+interface RawBranchLite { id?: string; branchName?: string }
 
 type AdminTab = 'users' | 'roles' | 'audit' | 'config';
 const TABS: TopTab<AdminTab>[] = [
@@ -45,6 +47,7 @@ const SystemAdminV2: React.FC = () => {
   const [audit, setAudit] = useState<AuditLogDto[]>([]);
   const [configs, setConfigs] = useState<SystemConfigDto[]>([]);
   const [depts, setDepts] = useState<{ id: string; name: string }[]>([]);
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [selUser, setSelUser] = useState<SystemUserDto | null>(null);
 
@@ -62,8 +65,9 @@ const SystemAdminV2: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const [u, s, r, d] = await Promise.allSettled([
+        const [u, s, r, d, b] = await Promise.allSettled([
           adminApi.getUsers(), adminApi.getActiveSessions(), adminApi.getRoles(true), catalogApi.getDepartments(),
+          catalogApi.getBranches({ isActive: true }),
         ]);
         if (u.status === 'fulfilled') setUsers(Array.isArray(u.value.data) ? u.value.data : []);
         if (s.status === 'fulfilled') setSessions(Array.isArray(s.value.data) ? s.value.data : []);
@@ -73,6 +77,14 @@ const SystemAdminV2: React.FC = () => {
           setDepts(
             arr
               .map((x) => ({ id: x.id || x.departmentId, name: x.name || x.departmentName }))
+              .filter((x): x is { id: string; name: string } => !!x.id)
+          );
+        }
+        if (b.status === 'fulfilled') {
+          const arr: RawBranchLite[] = Array.isArray(b.value.data) ? b.value.data : [];
+          setBranches(
+            arr
+              .map((x) => ({ id: x.id, name: x.branchName || '' }))
               .filter((x): x is { id: string; name: string } => !!x.id)
           );
         }
@@ -97,6 +109,7 @@ const SystemAdminV2: React.FC = () => {
 
   const roleOptions = useMemo(() => roles.map((r) => ({ value: r.id || r.code, label: r.name })), [roles]);
   const deptOptions = useMemo(() => depts.map((d) => ({ value: d.id, label: d.name })), [depts]);
+  const branchOptions = useMemo(() => branches.map((b) => ({ value: b.id, label: b.name })), [branches]);
 
   // ─── User CRUD (Antd Form validate) ───
   const openNewUser = () => { setEditUserId(null); userF.resetFields(); userF.setFieldsValue({ isActive: true, roleIds: [] }); setUserModal('new'); };
@@ -108,7 +121,8 @@ const SystemAdminV2: React.FC = () => {
     setEditUserId(u.id || null);
     userF.setFieldsValue({
       username: u.username, fullName: u.fullName, email: u.email || '', phoneNumber: u.phone || u.phoneNumber || '',
-      employeeId: u.employeeCode || '', departmentId: u.departmentId || undefined, roleIds: ids, isActive: u.isActive !== false,
+      employeeId: u.employeeCode || '', departmentId: u.departmentId || undefined, branchId: u.branchId || undefined,
+      roleIds: ids, isActive: u.isActive !== false,
     });
     setUserModal('edit');
   };
@@ -122,6 +136,7 @@ const SystemAdminV2: React.FC = () => {
           username: (v.username as string).trim(), fullName: (v.fullName as string).trim(),
           email: (v.email as string) || undefined, phoneNumber: (v.phoneNumber as string) || undefined,
           employeeId: (v.employeeId as string) || undefined, departmentId: (v.departmentId as string) || undefined,
+          branchId: (v.branchId as string) || undefined,
           roleIds: v.roleIds as string[], initialPassword: (v.initialPassword as string) || undefined,
         };
         await adminApi.createUser(dto); tk('Đã tạo người dùng');
@@ -129,7 +144,8 @@ const SystemAdminV2: React.FC = () => {
         const dto: UpdateUserDto = {
           fullName: (v.fullName as string).trim(), email: (v.email as string) || undefined,
           phoneNumber: (v.phoneNumber as string) || undefined, employeeId: (v.employeeId as string) || undefined,
-          departmentId: (v.departmentId as string) || undefined, roleIds: v.roleIds as string[], isActive: v.isActive as boolean,
+          departmentId: (v.departmentId as string) || undefined, branchId: (v.branchId as string) || undefined,
+          roleIds: v.roleIds as string[], isActive: v.isActive as boolean,
         };
         await adminApi.updateUser(editUserId!, dto); tk('Đã cập nhật người dùng');
       }
@@ -316,6 +332,7 @@ const SystemAdminV2: React.FC = () => {
           <Form.Item name="phoneNumber" label="SĐT" rules={[{ pattern: /^0\d{9,10}$/, message: 'SĐT 10-11 số, bắt đầu 0' }]}><Input /></Form.Item>
           <Form.Item name="employeeId" label="Mã NV"><Input /></Form.Item>
           <Form.Item name="departmentId" label="Khoa"><Select allowClear showSearch optionFilterProp="label" options={deptOptions} placeholder="Chọn khoa" /></Form.Item>
+          <Form.Item name="branchId" label="Chi nhánh" extra="Để trống = toàn viện (không giới hạn cơ sở)"><Select allowClear showSearch optionFilterProp="label" options={branchOptions} placeholder="Chọn chi nhánh" /></Form.Item>
           <Form.Item name="roleIds" label="Vai trò" rules={[{ required: true, message: 'Chọn ít nhất 1 vai trò' }]}><Select mode="multiple" optionFilterProp="label" options={roleOptions} placeholder="Chọn vai trò" /></Form.Item>
           {userModal === 'new'
             ? <Form.Item name="initialPassword" label="Mật khẩu khởi tạo" extra="Để trống = mật khẩu mặc định hệ thống"><Input.Password /></Form.Item>

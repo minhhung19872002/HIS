@@ -21,4 +21,7 @@ public static class JwtClaims
 
     /// <summary>R2 portal self-login: PatientId gắn với PortalAccount (token role PortalPatient).</summary>
     public const string PatientId = "patientId";
+
+    /// <summary>R3 đa cơ sở: chi nhánh làm việc của user (User.BranchId). Không có claim = không giới hạn.</summary>
+    public const string BranchId = "branchId";
 }

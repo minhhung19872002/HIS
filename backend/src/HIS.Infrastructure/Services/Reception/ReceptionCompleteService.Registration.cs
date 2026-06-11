@@ -79,6 +79,7 @@ public partial class ReceptionCompleteService {
                 GuardianName = dto.NewPatient.GuardianName,
                 GuardianPhone = dto.NewPatient.GuardianPhone,
                 GuardianRelationship = dto.NewPatient.GuardianRelationship,
+                BranchId = await GetUserBranchIdAsync(userId), // R3 đa cơ sở
                 CreatedAt = DateTime.Now,
                 CreatedBy = userId.ToString(),
                 IsDeleted = false
@@ -275,6 +276,8 @@ public partial class ReceptionCompleteService {
 
         if (dto.Patients == null) return (success, failed, errors);
 
+        var importBranchId = await GetUserBranchIdAsync(userId); // R3 đa cơ sở — tính 1 lần cho cả batch
+
         foreach (var patientData in dto.Patients)
         {
             try
@@ -295,7 +298,8 @@ public partial class ReceptionCompleteService {
                         Gender = patientData.Gender,
                         IdentityNumber = patientData.IdentityNumber,
                         PhoneNumber = patientData.PhoneNumber,
-                        Address = patientData.Address
+                        Address = patientData.Address,
+                        BranchId = importBranchId // R3 đa cơ sở
                     };
                     await _patientRepo.AddAsync(existingPatient);
                 }
@@ -398,6 +402,7 @@ public partial class ReceptionCompleteService {
                 IdentityNumber = dto.IdentityNumber,
                 PhoneNumber = dto.PhoneNumber,
                 InsuranceNumber = dto.InsuranceNumber,
+                BranchId = await GetUserBranchIdAsync(userId), // R3 đa cơ sở
                 CreatedAt = DateTime.Now,
                 CreatedBy = userId.ToString(),
                 IsDeleted = false

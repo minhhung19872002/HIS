@@ -60,6 +60,7 @@ public partial class SystemCompleteService
                 Phone = u.PhoneNumber,
                 DepartmentId = u.DepartmentId,
                 DepartmentName = u.Department?.DepartmentName,
+                BranchId = u.BranchId,
                 Roles = u.UserRoles?.Select(ur => ur.Role?.RoleName).Where(r => r != null).ToList() ?? new List<string>(),
                 Permissions = new List<string>(),
                 IsActive = u.IsActive,
@@ -111,6 +112,7 @@ public partial class SystemCompleteService
                 Phone = u.PhoneNumber,
                 DepartmentId = u.DepartmentId,
                 DepartmentName = u.Department?.DepartmentName,
+                BranchId = u.BranchId,
                 Roles = u.UserRoles?.Select(ur => ur.Role?.RoleName).Where(r => r != null).ToList() ?? new List<string>(),
                 Permissions = permissions,
                 IsActive = u.IsActive,
@@ -146,6 +148,7 @@ public partial class SystemCompleteService
                 Email = dto.Email,
                 PhoneNumber = dto.PhoneNumber,
                 DepartmentId = dto.DepartmentId,
+                BranchId = dto.BranchId, // R3 đa cơ sở
                 PasswordHash = HashPassword(dto.InitialPassword ?? "123456"),
                 IsActive = true,
                 UserType = 5 // Default: Employee
@@ -187,6 +190,7 @@ public partial class SystemCompleteService
                 Phone = user.PhoneNumber,
                 DepartmentId = user.DepartmentId,
                 DepartmentName = deptName,
+                BranchId = user.BranchId,
                 IsActive = user.IsActive,
                 Roles = roleNames,
                 Permissions = new List<string>()
@@ -212,6 +216,7 @@ public partial class SystemCompleteService
             user.Email = dto.Email;
             user.PhoneNumber = dto.PhoneNumber;
             user.DepartmentId = dto.DepartmentId;
+            user.BranchId = dto.BranchId; // R3 đa cơ sở
             user.IsActive = dto.IsActive;
 
             // Sync roles if RoleIds provided

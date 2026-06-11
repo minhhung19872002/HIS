@@ -862,6 +862,7 @@ namespace HIS.Application.DTOs.System
         public string Phone { get; set; }
         public Guid? DepartmentId { get; set; }
         public string DepartmentName { get; set; }
+        public Guid? BranchId { get; set; } // R3 đa cơ sở — NULL = toàn viện
         public List<string> Roles { get; set; }
         public List<string> Permissions { get; set; }
         public bool IsActive { get; set; }

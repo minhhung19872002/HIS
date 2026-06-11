@@ -632,6 +632,7 @@ namespace HIS.Application.Services
         public string? PhoneNumber { get; set; }
         public Guid? EmployeeId { get; set; }
         public Guid? DepartmentId { get; set; }
+        public Guid? BranchId { get; set; } // R3 đa cơ sở — NULL = toàn viện
         [Required(ErrorMessage = "Chọn ít nhất 1 vai trò")]
         [MinLength(1, ErrorMessage = "Chọn ít nhất 1 vai trò")]
         public List<Guid> RoleIds { get; set; }
@@ -647,6 +648,7 @@ namespace HIS.Application.Services
         public string? PhoneNumber { get; set; }
         public Guid? EmployeeId { get; set; }
         public Guid? DepartmentId { get; set; }
+        public Guid? BranchId { get; set; } // R3 đa cơ sở — NULL = toàn viện
         [Required(ErrorMessage = "Chọn ít nhất 1 vai trò")]
         [MinLength(1, ErrorMessage = "Chọn ít nhất 1 vai trò")]
         public List<Guid> RoleIds { get; set; }

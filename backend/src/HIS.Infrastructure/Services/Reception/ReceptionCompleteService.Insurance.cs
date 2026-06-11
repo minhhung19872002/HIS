@@ -366,6 +366,7 @@ public partial class ReceptionCompleteService {
                 GuardianName = dto.NewPatient.GuardianName,
                 GuardianPhone = dto.NewPatient.GuardianPhone,
                 GuardianRelationship = dto.NewPatient.GuardianRelationship,
+                BranchId = await GetUserBranchIdAsync(userId), // R3 đa cơ sở
                 CreatedAt = DateTime.Now,
                 CreatedBy = userId.ToString(),
                 IsDeleted = false

@@ -230,6 +230,18 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
         return (int)Math.Ceiling(effectiveCount * avgMinutesPerPatient);
     }
 
+    /// <summary>
+    /// R3 đa cơ sở: chi nhánh của user thao tác (User.BranchId, fallback Department.BranchId).
+    /// Best-effort — NULL = không gắn chi nhánh (behavior cũ), không chặn nghiệp vụ.
+    /// </summary>
+    private async Task<Guid?> GetUserBranchIdAsync(Guid userId)
+    {
+        return await _context.Users.AsNoTracking()
+            .Where(u => u.Id == userId)
+            .Select(u => u.BranchId ?? (u.Department != null ? u.Department.BranchId : null))
+            .FirstOrDefaultAsync();
+    }
+
     private async Task<string> GeneratePatientCodeAsync()
     {
         var today = DateTime.Today;

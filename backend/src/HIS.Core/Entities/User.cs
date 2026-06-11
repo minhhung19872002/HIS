@@ -22,6 +22,10 @@ public class User : BaseEntity
     public Guid? DepartmentId { get; set; } // Khoa/phòng làm việc
     public virtual Department? Department { get; set; }
 
+    // Chi nhánh làm việc (R3 đa cơ sở) — NULL = toàn viện (Admin/HQ)
+    public Guid? BranchId { get; set; }
+    public virtual HospitalBranch? Branch { get; set; }
+
     public bool IsActive { get; set; } = true;
     public DateTime? LastLoginAt { get; set; }
 

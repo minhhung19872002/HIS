@@ -364,6 +364,14 @@ public partial class ReceptionCompleteService {
 
         var room = await _roomRepo.GetByIdAsync(dto.RoomId);
 
+        // R3 đa cơ sở: chi nhánh phiếu theo phòng (Room.BranchId, fallback khoa của phòng) — best-effort
+        Guid? ticketBranchId = room?.BranchId;
+        if (ticketBranchId == null && room != null)
+            ticketBranchId = await _context.Departments.AsNoTracking()
+                .Where(d => d.Id == room.DepartmentId)
+                .Select(d => d.BranchId)
+                .FirstOrDefaultAsync();
+
         // Check duplicate ticket: same patient, same room, same day
         // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để so sánh đúng ngày VN.
         var existingTicket = await _context.QueueTickets
@@ -385,6 +393,7 @@ public partial class ReceptionCompleteService {
             Status = 0, // Waiting
             PatientId = dto.PatientId,
             RoomId = dto.RoomId,
+            BranchId = ticketBranchId, // R3 đa cơ sở
             Notes = dto.Source,
             CreatedAt = DateTime.UtcNow,
             IsDeleted = false

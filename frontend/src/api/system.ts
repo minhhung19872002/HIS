@@ -1124,6 +1124,7 @@ export interface SystemUserDto {
   employeeCode?: string;
   departmentId?: string;
   departmentName?: string;
+  branchId?: string; // R3 đa cơ sở — không có = toàn viện
   roles: RoleDto[];
   isActive: boolean;
   isLocked: boolean;
@@ -1145,6 +1146,7 @@ export interface CreateUserDto {
   phoneNumber?: string;
   employeeId?: string;
   departmentId?: string;
+  branchId?: string; // R3 đa cơ sở
   roleIds: string[];
   initialPassword?: string;
 }
@@ -1155,6 +1157,7 @@ export interface UpdateUserDto {
   phoneNumber?: string;
   employeeId?: string;
   departmentId?: string;
+  branchId?: string; // R3 đa cơ sở
   roleIds: string[];
   isActive: boolean;
 }

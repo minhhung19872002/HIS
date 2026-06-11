@@ -258,6 +258,10 @@ public class AuthService : IAuthService
             new(JwtClaims.EmployeeCode, user.EmployeeCode ?? "")
         };
 
+        // R3 đa cơ sở: user gắn chi nhánh → claim branchId (không có = không giới hạn)
+        if (user.BranchId.HasValue)
+            claims.Add(new Claim(JwtClaims.BranchId, user.BranchId.Value.ToString()));
+
         foreach (var role in user.Roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
