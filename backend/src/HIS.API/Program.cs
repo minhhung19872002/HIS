@@ -216,6 +216,26 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseCors("AllowFrontend");
 
+// Safety-net toàn cục (2026-06-12, bug thu trùng prod): exception unhandled từ controller CHƯA gắn
+// DomainExceptionFilter trước đây rơi thẳng xuống Kestrel → connection abort → Cloud Run edge trả
+// 503 TRẦN không CORS → FE không đọc được lỗi ("Failed to fetch") và retry. Đặt SAU UseCors để
+// response lỗi vẫn mang Access-Control-Allow-Origin. CHỈ áp ngoài Development — dev giữ
+// DeveloperExceptionPage (exception chi tiết cho debug + test harness đọc message thật).
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler(errApp => errApp.Run(async ctx =>
+    {
+        ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        ctx.Response.ContentType = "application/json; charset=utf-8";
+        await ctx.Response.WriteAsJsonAsync(new
+        {
+            error = "INTERNAL_ERROR",
+            message = "Hệ thống đang gặp sự cố, vui lòng thử lại sau ít phút.",
+            traceId = ctx.TraceIdentifier,
+        });
+    }));
+}
+
 // Request metrics middleware (before auth so it captures all requests)
 app.UseMiddleware<RequestMetricsMiddleware>();
 

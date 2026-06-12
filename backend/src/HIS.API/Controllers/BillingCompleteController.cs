@@ -13,6 +13,9 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
+// 2026-06-12 (bug thu trùng prod): exception nghiệp vụ từng unhandled tới Kestrel → connection abort
+// → Cloud Run trả 503 TRẦN không CORS → FE tưởng fail và retry. Filter trả JSON 400/500 có CORS.
+[TypeFilter(typeof(Filters.DomainExceptionFilter))]
 public class BillingCompleteController : ControllerBase
 {
     private readonly IBillingCompleteService _billingService;

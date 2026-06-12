@@ -268,17 +268,21 @@ public partial class BillingCompleteService {
 
     public async Task<PaymentDto> CreatePaymentAsync(CreatePaymentDto dto, Guid userId)
     {
+        // Lỗi nghiệp vụ = InvalidOperationException → DomainExceptionFilter trả 400 + message rõ
+        // (trước là Exception thường → unhandled tới Kestrel → Cloud Run 503 trần không CORS
+        //  → FE tưởng mạng lỗi và retry → THU TRÙNG. Bug tài chính prod 2026-06-12).
         decimal totalOwed;
         Guid? medicalRecordId = null;
         var patientId = dto.PatientId;
+        InvoiceSummary? invoice = null;
 
         if (dto.InvoiceId.HasValue && dto.InvoiceId.Value != Guid.Empty)
         {
-            var invoice = await _context.InvoiceSummaries
+            invoice = await _context.InvoiceSummaries
                 .FirstOrDefaultAsync(i => i.Id == dto.InvoiceId.Value);
 
             if (invoice == null)
-                throw new Exception("Invoice not found");
+                throw new InvalidOperationException("Khong tim thay hoa don (invoiceId khong ton tai)");
 
             totalOwed = invoice.RemainingAmount;
             medicalRecordId = invoice.MedicalRecordId;
@@ -304,14 +308,32 @@ public partial class BillingCompleteService {
                 .ToListAsync();
 
             if (!unpaidServiceRequests.Any())
-                throw new Exception("Benh nhan khong co hoa don hoac dich vu chua thanh toan");
+                throw new InvalidOperationException("Benh nhan khong co hoa don hoac dich vu chua thanh toan");
 
             totalOwed = unpaidServiceRequests.Sum(sr => sr.PatientAmount);
             medicalRecordId = unpaidServiceRequests.Select(sr => (Guid?)sr.MedicalRecordId).FirstOrDefault();
         }
 
+        // IDEMPOTENCY chống thu trùng — PHẢI check TRƯỚC over-payment: client retry
+        // (timeout/503 edge/double-click) sau khi phiếu đầu đã trừ hết nợ thì remaining=0,
+        // nếu check over-payment trước sẽ trả 400 thay vì trả lại phiếu đã tạo.
+        // Cửa sổ 30s, cùng HSBA + số tiền + thu ngân → trả CHÍNH phiếu cũ, không tạo mới.
+        var dupWindow = DateTime.Now.AddSeconds(-30);
+        var duplicate = await _context.Receipts
+            .Where(r => r.MedicalRecordId == medicalRecordId
+                && r.CashierId == userId
+                && r.FinalAmount == dto.Amount
+                && r.ReceiptType == 2
+                && r.Status == 1
+                && r.ReceiptDate >= dupWindow)
+            .OrderByDescending(r => r.ReceiptDate)
+            .FirstOrDefaultAsync();
+        if (duplicate != null)
+            return await BuildPaymentDtoAsync(duplicate, dto.InvoiceId, patientId == Guid.Empty ? duplicate.PatientId : patientId);
+
+        // Chặn over-payment (thu vượt nợ thật sự → 400 rõ ràng)
         if (dto.Amount > totalOwed)
-            throw new Exception($"So tien thanh toan ({dto.Amount:N0}d) vuot qua so tien con no ({totalOwed:N0}d)");
+            throw new InvalidOperationException($"So tien thanh toan ({dto.Amount:N0}d) vuot qua so tien con no ({totalOwed:N0}d)");
 
         if (patientId == Guid.Empty)
             throw new InvalidOperationException("Thieu thong tin benh nhan (patientId) — khong the tao phieu thu");
@@ -340,39 +362,41 @@ public partial class BillingCompleteService {
             CreatedAt = DateTime.Now,
             CreatedBy = userId.ToString()
         };
-
         _context.Receipts.Add(receipt);
-        await _context.SaveChangesAsync();
 
-        if (dto.InvoiceId.HasValue && dto.InvoiceId.Value != Guid.Empty)
+        // ATOMIC: cập nhật hóa đơn trong CÙNG SaveChanges với phiếu thu (1 transaction) —
+        // không còn trạng thái "phiếu đã commit nhưng invoice chưa trừ nợ" khi lỗi giữa chừng.
+        if (invoice != null)
         {
-            var invoice = await _context.InvoiceSummaries.FirstOrDefaultAsync(i => i.Id == dto.InvoiceId.Value);
-            if (invoice != null)
-            {
-                invoice.PaidAmount += dto.Amount;
-                invoice.RemainingAmount = Math.Max(0, invoice.TotalAmount - invoice.DiscountAmount - invoice.PaidAmount);
-                if (invoice.RemainingAmount == 0)
-                    invoice.Status = 1;
-                invoice.UpdatedAt = DateTime.Now;
-                invoice.UpdatedBy = userId.ToString();
-                await _context.SaveChangesAsync();
-            }
+            invoice.PaidAmount += dto.Amount;
+            invoice.RemainingAmount = Math.Max(0, invoice.TotalAmount - invoice.DiscountAmount - invoice.PaidAmount);
+            if (invoice.RemainingAmount == 0)
+                invoice.Status = 1;
+            invoice.UpdatedAt = DateTime.Now;
+            invoice.UpdatedBy = userId.ToString();
         }
 
-        var patient = await _context.Patients.FindAsync(patientId);
+        await _context.SaveChangesAsync();
 
+        return await BuildPaymentDtoAsync(receipt, dto.InvoiceId, patientId);
+    }
+
+    // Mapping Receipt → PaymentDto (dùng chung cho phiếu mới + phiếu trả lại từ dedup idempotency)
+    private async Task<PaymentDto> BuildPaymentDtoAsync(Receipt receipt, Guid? invoiceId, Guid patientId)
+    {
+        var patient = await _context.Patients.FindAsync(patientId);
         return new PaymentDto
         {
             Id = receipt.Id,
             PaymentCode = receipt.ReceiptCode,
             PatientId = receipt.PatientId,
             PatientName = patient?.FullName ?? string.Empty,
-            InvoiceId = dto.InvoiceId,
+            InvoiceId = invoiceId,
             Amount = receipt.FinalAmount,
             PaymentMethod = GetPaymentMethodName(receipt.PaymentMethod),
             PaymentStatus = "Da thanh toan",
             PaymentDate = receipt.ReceiptDate,
-            ReceivedBy = userId.ToString(),
+            ReceivedBy = receipt.CashierId.ToString(),
             Note = receipt.Note ?? string.Empty,
             CreatedDate = receipt.CreatedAt
         };
@@ -394,13 +418,31 @@ public partial class BillingCompleteService {
     {
         var receipt = await _context.Receipts.FindAsync(paymentId);
         if (receipt == null)
-            throw new Exception("Payment not found");
+            throw new InvalidOperationException("Khong tim thay phieu thu");
         if (receipt.Status == 2)
-            throw new Exception("Payment already cancelled");
+            throw new InvalidOperationException("Phieu thu da huy truoc do");
 
         receipt.Status = 2; // Đã hủy
         receipt.Note = $"{receipt.Note} | Hủy: {reason}";
-        await _context.SaveChangesAsync();
+
+        // Hoàn nợ hóa đơn (2026-06-12): trước đây hủy phiếu KHÔNG trả lại PaidAmount/RemainingAmount
+        // → hóa đơn vẫn "đã thu" dù phiếu hủy. Receipt không có link InvoiceId → tìm theo HSBA (best-effort).
+        if (receipt.ReceiptType == 2 && receipt.MedicalRecordId.HasValue)
+        {
+            var invoice = await _context.InvoiceSummaries
+                .FirstOrDefaultAsync(i => i.MedicalRecordId == receipt.MedicalRecordId.Value);
+            if (invoice != null)
+            {
+                invoice.PaidAmount = Math.Max(0, invoice.PaidAmount - receipt.FinalAmount);
+                invoice.RemainingAmount = Math.Max(0, invoice.TotalAmount - invoice.DiscountAmount - invoice.PaidAmount);
+                if (invoice.RemainingAmount > 0 && invoice.Status == 1)
+                    invoice.Status = 0; // còn nợ → bỏ cờ "đã thanh toán đủ"
+                invoice.UpdatedAt = DateTime.Now;
+                invoice.UpdatedBy = userId.ToString();
+            }
+        }
+
+        await _context.SaveChangesAsync(); // atomic: hủy phiếu + hoàn nợ cùng transaction
         return true;
     }
 
