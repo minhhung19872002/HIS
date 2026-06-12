@@ -14,6 +14,7 @@ public class SpecialtyEmrDto
 {
     public Guid Id { get; set; }
     public Guid PatientId { get; set; }
+    public Guid? MedicalRecordId { get; set; }
     public string PatientCode { get; set; } = string.Empty;
     public string PatientName { get; set; } = string.Empty;
     public string SpecialtyType { get; set; } = string.Empty;
@@ -33,6 +34,9 @@ public class SpecialtyEmrSaveDto
 {
     public Guid? Id { get; set; }
     public Guid PatientId { get; set; }
+
+    /// <summary>Link HSBA (optional). Khi gửi: validate + guard TT46; khi null: giữ link hiện có (không xoá).</summary>
+    public Guid? MedicalRecordId { get; set; }
     public string PatientCode { get; set; } = string.Empty;
     public string PatientName { get; set; } = string.Empty;
     public string SpecialtyType { get; set; } = string.Empty;

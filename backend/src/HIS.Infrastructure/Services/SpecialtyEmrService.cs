@@ -64,6 +64,7 @@ public class SpecialtyEmrService : ISpecialtyEmrService
             {
                 Id = e.Id,
                 PatientId = e.PatientId,
+                MedicalRecordId = e.MedicalRecordId,
                 PatientCode = e.PatientCode,
                 PatientName = e.PatientName,
                 SpecialtyType = e.SpecialtyType,
@@ -99,6 +100,7 @@ public class SpecialtyEmrService : ISpecialtyEmrService
         {
             Id = entity.Id,
             PatientId = entity.PatientId,
+            MedicalRecordId = entity.MedicalRecordId,
             PatientCode = entity.PatientCode,
             PatientName = entity.PatientName,
             SpecialtyType = entity.SpecialtyType,
@@ -126,7 +128,14 @@ public class SpecialtyEmrService : ISpecialtyEmrService
                 .FirstOrDefaultAsync(e => e.Id == dto.Id.Value && !e.IsDeleted)
                 ?? throw new InvalidOperationException($"SpecialtyEmr with Id {dto.Id.Value} not found.");
 
+            // TT46: chặn sửa khi HSBA đã kết thúc — check link hiện có + link mới (nếu đổi)
+            await EmrLockGuard.EnsureEditableByRecordAsync(_context, entity.MedicalRecordId ?? Guid.Empty);
+            if (dto.MedicalRecordId.HasValue && dto.MedicalRecordId != entity.MedicalRecordId)
+                await EmrLockGuard.EnsureEditableByRecordAsync(_context, dto.MedicalRecordId.Value);
+
             entity.PatientId = dto.PatientId;
+            // null = caller không gửi (FE cũ) → giữ link hiện có, không xoá
+            if (dto.MedicalRecordId.HasValue) entity.MedicalRecordId = dto.MedicalRecordId;
             entity.PatientCode = dto.PatientCode;
             entity.PatientName = dto.PatientName;
             entity.SpecialtyType = dto.SpecialtyType;
@@ -141,11 +150,16 @@ public class SpecialtyEmrService : ISpecialtyEmrService
         }
         else
         {
+            // TT46: không cho tạo thêm bệnh án chuyên khoa vào HSBA đã kết thúc
+            if (dto.MedicalRecordId.HasValue)
+                await EmrLockGuard.EnsureEditableByRecordAsync(_context, dto.MedicalRecordId.Value);
+
             // Create new
             entity = new SpecialtyEmr
             {
                 Id = Guid.NewGuid(),
                 PatientId = dto.PatientId,
+                MedicalRecordId = dto.MedicalRecordId,
                 PatientCode = dto.PatientCode,
                 PatientName = dto.PatientName,
                 SpecialtyType = dto.SpecialtyType,
@@ -168,6 +182,7 @@ public class SpecialtyEmrService : ISpecialtyEmrService
         {
             Id = entity.Id,
             PatientId = entity.PatientId,
+            MedicalRecordId = entity.MedicalRecordId,
             PatientCode = entity.PatientCode,
             PatientName = entity.PatientName,
             SpecialtyType = entity.SpecialtyType,
@@ -190,6 +205,9 @@ public class SpecialtyEmrService : ISpecialtyEmrService
             .FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted);
 
         if (entity == null) return false;
+
+        // TT46: chặn xoá khi HSBA liên kết đã kết thúc
+        await EmrLockGuard.EnsureEditableByRecordAsync(_context, entity.MedicalRecordId ?? Guid.Empty);
 
         entity.IsDeleted = true;
         entity.UpdatedAt = DateTime.UtcNow;

@@ -8,6 +8,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/specialty-emr")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // TT46: InvalidOperationException (EmrLockGuard) → 400 + message rõ
 public class SpecialtyEmrController : ControllerBase
 {
     private readonly ISpecialtyEmrService _service;

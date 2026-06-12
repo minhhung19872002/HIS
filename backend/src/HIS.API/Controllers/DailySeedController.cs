@@ -123,6 +123,7 @@ public class DailySeedController : ControllerBase
                 _db.RehabReferrals.RemoveRange(_db.RehabReferrals.Where(r => seedPatientIds.Contains(r.PatientId)));
                 _db.SigningRequests.RemoveRange(_db.SigningRequests.Where(s => s.PatientId != null && seedPatientIds.Contains(s.PatientId.Value)));
                 _db.SatisfactionSurveyResults.RemoveRange(_db.SatisfactionSurveyResults.Where(s => s.PatientId != null && seedPatientIds.Contains(s.PatientId.Value)));
+                _db.ObservationStays.RemoveRange(_db.ObservationStays.Where(o => seedPatientIds.Contains(o.PatientId)));
                 await _db.SaveChangesAsync();
 
                 _db.MedicalRecords.RemoveRange(_db.MedicalRecords.Where(m => seedPatientIds.Contains(m.PatientId)));
@@ -492,7 +493,7 @@ public class DailySeedController : ControllerBase
             .Select(m => new { m.Id, m.PatientId, m.DepartmentId, m.MainIcdCode, m.InitialDiagnosis })
             .Take(30).ToListAsync();
 
-        int newIncidents = 0, newRehab = 0, newSigning = 0, newSurvey = 0, newProc = 0, newArchive = 0;
+        int newIncidents = 0, newRehab = 0, newSigning = 0, newSurvey = 0, newProc = 0, newArchive = 0, newObservation = 0;
         int newAdmissions = 0, newDischarges = 0, newReceipts = 0, newSvcRequests = 0,
             newRadRequests = 0, newSurgRequests = 0, newQueueTickets = 0;
 
@@ -905,6 +906,37 @@ public class DailySeedController : ControllerBase
             }
         }
 
+        // ObservationStay - màn Cấp cứu / phòng lưu (F3: demo trước đây luôn rỗng khi không có MCI)
+        if (await _db.ObservationStays.CountAsync(o => o.StayCode.StartsWith($"OBS{today:yyyyMMdd}SEED")) == 0
+            && todayPatientIds.Count >= 4 && docIdsAll.Count > 0)
+        {
+            var complaints = new[] { "Đau ngực trái", "Khó thở", "Sốt cao co giật", "Đau bụng cấp", "Chấn thương đầu nhẹ" };
+            var obsDiag = new[] { "TD hội chứng vành cấp", "TD hen phế quản", "Sốt cao chưa rõ nguyên nhân", "TD viêm ruột thừa", "TD chấn động não" };
+            for (int i = 0; i < 4; i++)
+            {
+                var discharged = i == 3; // 3 đang lưu + 1 đã cho về trong ngày
+                _db.ObservationStays.Add(new ObservationStay
+                {
+                    Id = Guid.NewGuid(),
+                    StayCode = $"OBS{today:yyyyMMdd}SEED{(i + 1):D3}",
+                    PatientId = todayPatientIds[i % todayPatientIds.Count],
+                    DepartmentId = deptIdsAll.Count > 0 ? deptIdsAll[i % deptIdsAll.Count] : (Guid?)null,
+                    DoctorId = docIdsAll[i % docIdsAll.Count],
+                    AdmittedAt = now.AddHours(-(i + 2)),
+                    DischargedAt = discharged ? now.AddMinutes(-30) : (DateTime?)null,
+                    ChiefComplaint = complaints[i % complaints.Length],
+                    InitialDiagnosis = obsDiag[i % obsDiag.Length],
+                    FinalDiagnosis = discharged ? "Ổn định, loại trừ nguyên nhân cấp" : null,
+                    DischargeReason = discharged ? "Theo dõi đủ giờ, sinh hiệu ổn" : null,
+                    TriageLevel = 2 + (i % 3), // 2-4
+                    EwsScore = i % 3,
+                    Status = discharged ? 2 : 1,
+                    CreatedAt = now, UpdatedAt = now
+                });
+                newObservation++;
+            }
+        }
+
         // RehabReferral
         if (await _db.RehabReferrals.CountAsync(r => r.ReferralCode.StartsWith($"REH{today:yyyyMMdd}SEED")) == 0
             && docIdsAll.Count > 0 && todayPatientIds.Count > 0)
@@ -1254,6 +1286,8 @@ public class DailySeedController : ControllerBase
         await _db.Database.ExecuteSqlInterpolatedAsync(
             $"UPDATE RehabReferrals SET CreatedAt = {now}, UpdatedAt = {now} WHERE ReferralCode LIKE {"REH" + today.ToString("yyyyMMdd") + "SEED%"}");
         await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE ObservationStays SET CreatedAt = {now}, UpdatedAt = {now} WHERE StayCode LIKE {"OBS" + today.ToString("yyyyMMdd") + "SEED%"}");
+        await _db.Database.ExecuteSqlInterpolatedAsync(
             $"UPDATE SigningRequests SET CreatedAt = {now}, UpdatedAt = {now} WHERE DocumentTitle LIKE {"%SEED-" + today.ToString("yyyyMMdd") + "%"}");
         await _db.Database.ExecuteSqlInterpolatedAsync(
             $"UPDATE SatisfactionSurveyResults SET CreatedAt = {now}, UpdatedAt = {now} WHERE PatientCode LIKE {"BN" + today.ToString("yyyyMMdd") + "SEED%"}");
@@ -1290,6 +1324,7 @@ public class DailySeedController : ControllerBase
             createdSurveys = newSurvey,
             createdProcurement = newProc,
             createdArchive = newArchive,
+            createdObservationStays = newObservation,
             createdHIE = newHie,
             createdTraining = newTraining,
             createdResearch = newResearch,

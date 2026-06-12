@@ -200,18 +200,69 @@ public class SampleCollectionController : ControllerBase
         }));
     }
 
-    /// <summary>Cập nhật trạng thái hẹn (Complete / Cancel).</summary>
+    /// <summary>
+    /// Cập nhật trạng thái hẹn (Complete / Cancel).
+    /// Recurrence: khi hẹn định kỳ chuyển sang Completed → tự sinh hẹn KẾ TIẾP
+    /// (AppointmentAt + chu kỳ); RecurrenceCount đếm lùi, hết lượt thì hẹn cuối thành None
+    /// (0 = không giới hạn → sinh mãi). Hủy hẹn = dừng chuỗi (không sinh tiếp).
+    /// </summary>
     [HttpPatch("appointments/{id:guid}")]
     public async Task<IActionResult> UpdateAppointment(Guid id, [FromBody] UpdateAppointmentDto dto)
     {
         var appt = await _db.SampleAppointments.FindAsync(id);
         if (appt == null) return NotFound();
+        var becameCompleted = dto.Status == "Completed" && appt.Status != "Completed";
         appt.Status = dto.Status;
         appt.Note = dto.Note ?? appt.Note;
         appt.UpdatedAt = DateTime.Now;
         appt.UpdatedBy = GetUserId().ToString();
+
+        object? nextInfo = null;
+        if (becameCompleted && appt.RecurrenceType != "None")
+        {
+            var next = appt.RecurrenceType switch
+            {
+                "Daily" => appt.AppointmentAt.AddDays(1),
+                "Weekly" => appt.AppointmentAt.AddDays(7),
+                "Monthly" => appt.AppointmentAt.AddMonths(1),
+                _ => (DateTime?)null,
+            };
+            if (next.HasValue)
+            {
+                var unlimited = appt.RecurrenceCount == 0;
+                var remaining = unlimited ? 0 : appt.RecurrenceCount - 1;
+                // Idempotent: không sinh trùng nếu mốc kế đã có hẹn Scheduled cùng BN + dịch vụ
+                var exists = await _db.SampleAppointments.AnyAsync(a =>
+                    a.PatientId == appt.PatientId
+                    && a.AppointmentAt == next.Value
+                    && a.Status == "Scheduled"
+                    && a.ServiceName == appt.ServiceName);
+                if (!exists)
+                {
+                    var nextAppt = new SampleAppointment
+                    {
+                        Id = Guid.NewGuid(),
+                        PatientId = appt.PatientId,
+                        ServiceRequestDetailId = appt.ServiceRequestDetailId,
+                        AppointmentAt = next.Value,
+                        // Hết lượt lặp → hẹn cuối là None (không sinh tiếp khi complete)
+                        RecurrenceType = (unlimited || remaining > 0) ? appt.RecurrenceType : "None",
+                        RecurrenceCount = unlimited ? 0 : Math.Max(0, remaining),
+                        ServiceName = appt.ServiceName,
+                        Note = appt.Note,
+                        Status = "Scheduled",
+                        CreatedByUserId = GetUserId(),
+                        CreatedAt = DateTime.Now,
+                        CreatedBy = GetUserId().ToString(),
+                    };
+                    _db.SampleAppointments.Add(nextAppt);
+                    nextInfo = new { nextAppt.Id, nextAppt.AppointmentAt, nextAppt.RecurrenceType, nextAppt.RecurrenceCount };
+                }
+            }
+        }
+
         await _db.SaveChangesAsync();
-        return Ok(new { appt.Id, appt.Status });
+        return Ok(new { appt.Id, appt.Status, nextAppointment = nextInfo });
     }
 
     public record UpdateAppointmentDto(string Status, string? Note);

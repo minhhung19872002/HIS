@@ -283,6 +283,13 @@ public class DqgvnSubmission : BaseEntity
 public class SpecialtyEmr : BaseEntity
 {
     public Guid PatientId { get; set; }
+
+    /// <summary>
+    /// Link HSBA (nullable — mig 96, TT46 follow-up): khi có, EmrLockGuard chặn sửa/xoá
+    /// nếu hồ sơ đã kết thúc (EmrFinalizedAt != null). Record cũ/caller standalone giữ NULL.
+    /// </summary>
+    public Guid? MedicalRecordId { get; set; }
+
     public string PatientCode { get; set; } = string.Empty;
     public string PatientName { get; set; } = string.Empty;
     public string SpecialtyType { get; set; } = string.Empty; // surgical, internal, obstetrics, pediatrics, dental, ent, traditional, traditional_outpatient, hematology, oncology, burns, psychiatry, dermatology, ophthalmology, infectious
