@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { getInpatientList, getWardLayout, admitFromOpd, getPendingAdmissions, type PendingAdmissionDto } from '../api/inpatient';
 import type { InpatientListDto, WardLayoutDto, BedLayoutDto } from '../api/inpatient';
 import TreatmentMonitorSection from './inpatient/TreatmentMonitorSection';
+import ConsultationSection from './inpatient/ConsultationSection';
 import { catalogApi } from '../api/system';
 import type { DepartmentCatalogDto } from '../api/system';
 import {
@@ -20,11 +21,12 @@ import TermIcon from '../layouts/terminal/Icon';
    Dữ liệu thật: getWardLayout (rooms→beds) + getInpatientList.
    ──────────────────────────────────────────────────────────── */
 
-type TopKey = 'grid' | 'list' | 'orders';
+type TopKey = 'grid' | 'list' | 'orders' | 'consult';
 const TOP_TABS: TopTab<TopKey>[] = [
-  { v: 'grid',   l: 'Sơ đồ giường', ic: 'grid' },
-  { v: 'list',   l: 'Danh sách BN', ic: 'users' },
-  { v: 'orders', l: 'Y lệnh hôm nay', ic: 'clipboard' },
+  { v: 'grid',    l: 'Sơ đồ giường', ic: 'grid' },
+  { v: 'list',    l: 'Danh sách BN', ic: 'users' },
+  { v: 'orders',  l: 'Y lệnh hôm nay', ic: 'clipboard' },
+  { v: 'consult', l: 'Hội chẩn', ic: 'message-square' },
 ];
 
 // Bed status: 1 trống · 2 có BN · 3 bảo trì (khớp BedLayoutDto.status)
@@ -207,18 +209,21 @@ const InpatientV2: React.FC = () => {
         }
       />
 
-      <div className="ab-tools">
-        <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder="Tìm tên BN, mã BN, mã giường…" />
-        <Filter value={fWard} onChange={(v) => { setFWard(v); setPage(0); }} options={wardOpts} placeholder="▾ Khoa" />
-        {tab === 'grid' && <Filter value={fStatus} onChange={setFStatus} options={BED_STATUS} placeholder="▾ Trạng thái" />}
-        <Btn variant="ghost" onClick={() => { setSearch(''); setFWard(''); setFStatus(''); setPage(0); }}>
-          <TermIcon name="refresh" size={12} /> Bỏ lọc
-        </Btn>
-        <span className="spacer" />
-        <span style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
-          {tab === 'grid' ? `${filteredBeds.length} giường` : tab === 'list' ? `${listFiltered.length} BN` : `${ordersList.length} BN có y lệnh`}
-        </span>
-      </div>
+      {/* Tab Hội chẩn có toolbar riêng trong ConsultationSection */}
+      {tab !== 'consult' && (
+        <div className="ab-tools">
+          <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder="Tìm tên BN, mã BN, mã giường…" />
+          <Filter value={fWard} onChange={(v) => { setFWard(v); setPage(0); }} options={wardOpts} placeholder="▾ Khoa" />
+          {tab === 'grid' && <Filter value={fStatus} onChange={setFStatus} options={BED_STATUS} placeholder="▾ Trạng thái" />}
+          <Btn variant="ghost" onClick={() => { setSearch(''); setFWard(''); setFStatus(''); setPage(0); }}>
+            <TermIcon name="refresh" size={12} /> Bỏ lọc
+          </Btn>
+          <span className="spacer" />
+          <span style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
+            {tab === 'grid' ? `${filteredBeds.length} giường` : tab === 'list' ? `${listFiltered.length} BN` : `${ordersList.length} BN có y lệnh`}
+          </span>
+        </div>
+      )}
 
       {/* ── Tab: Sơ đồ giường ── */}
       {tab === 'grid' && (
@@ -312,6 +317,9 @@ const InpatientV2: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ── Tab: Hội chẩn (issue #2 — list/tạo/hoàn thành/in, BE mig 99) ── */}
+      {tab === 'consult' && <ConsultationSection inpatients={inpatients} active={tab === 'consult'} />}
 
       {/* Bed drawer */}
       <DrawerShell
