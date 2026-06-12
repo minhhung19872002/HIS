@@ -92,8 +92,10 @@ const AppointmentBooking = () => {
       } else {
         message.warning(result.message || 'Không thể đặt lịch');
       }
-    } catch {
+    } catch (err) {
       message.warning('Vui lòng điền đầy đủ thông tin');
+      const fields = (err as { errorFields?: { name: (string | number)[] }[] })?.errorFields || [];
+      if (fields[0]) form.scrollToField(fields[0].name, { block: 'center' });
     } finally {
       setLoading(false);
     }
@@ -336,7 +338,12 @@ const AppointmentBooking = () => {
                         form.validateFields(['departmentId', 'appointmentDate']).then(() => {
                           if (!selectedSlot) { message.warning('Vui lòng chọn khung giờ'); return; }
                           setCurrentStep(1);
-                        }).catch(() => {});
+                        }).catch((err: { errorFields?: { name: (string | number)[]; errors: string[] }[] }) => {
+                          // KHÔNG im lặng: toast tổng + cuộn tới field lỗi đầu (Antd đã tô đỏ inline)
+                          const fields = err?.errorFields || [];
+                          message.error(fields[0]?.errors?.[0] || 'Vui lòng kiểm tra các trường bắt buộc');
+                          if (fields[0]) form.scrollToField(fields[0].name, { block: 'center' });
+                        });
                       }}
                     >
                       Tiếp theo
@@ -397,7 +404,12 @@ const AppointmentBooking = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
                     <Button onClick={() => setCurrentStep(0)}>Quay lại</Button>
                     <Button type="primary" onClick={() => {
-                      form.validateFields(['patientName', 'phoneNumber']).then(() => setCurrentStep(2)).catch(() => {});
+                      form.validateFields(['patientName', 'phoneNumber']).then(() => setCurrentStep(2))
+                        .catch((err: { errorFields?: { name: (string | number)[]; errors: string[] }[] }) => {
+                          const fields = err?.errorFields || [];
+                          message.error(fields[0]?.errors?.[0] || 'Vui lòng kiểm tra các trường bắt buộc');
+                          if (fields[0]) form.scrollToField(fields[0].name, { block: 'center' });
+                        });
                     }}>
                       Tiếp theo
                     </Button>

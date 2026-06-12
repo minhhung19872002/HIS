@@ -19,7 +19,8 @@ const VISIT_TYPES: { v: string; l: string; ic: string; fee: number; serviceType:
 ];
 
 const Lbl: React.FC<{ label?: string; required?: boolean; error?: string; full?: boolean; children: React.ReactNode }> = ({ label, required, error, full, children }) => (
-  <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
+  // data-fld-err: mốc để auto-scroll tới field lỗi đầu tiên khi validation fail
+  <div style={{ gridColumn: full ? '1 / -1' : undefined }} {...(error ? { 'data-fld-err': '' } : {})}>
     {label && (
       <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>
         {label}{required && <span style={{ color: 'var(--s-crit)' }}> *</span>}
@@ -29,6 +30,12 @@ const Lbl: React.FC<{ label?: string; required?: boolean; error?: string; full?:
     {error && <div style={{ fontSize: 10.5, color: 'var(--s-crit)', marginTop: 3 }}>{error}</div>}
   </div>
 );
+
+// Nhãn hiển thị của field — dùng cho message.error tổng khi validation fail (không để nút im lặng)
+const FIELD_LABELS: Record<string, string> = {
+  patientName: 'Họ và tên', phone: 'Số điện thoại', age: 'Tuổi', cccd: 'CCCD/CMND',
+  bhytNo: 'Số thẻ BHYT', dept: 'Khoa / phòng khám', reason: 'Lý do khám',
+};
 
 const fmtVNDw = (n: number) => (n ? n.toLocaleString('vi-VN') + ' ₫' : 'Miễn phí');
 
@@ -99,23 +106,32 @@ export const NewVisitModal: React.FC<{
 
   const visitType = VISIT_TYPES.find((t) => t.v === data.visitType);
 
-  const validate1 = () => {
+  const validate1 = (): Record<string, string> => {
     const e: Record<string, string> = {};
     if (!data.patientName.trim()) e.patientName = 'Bắt buộc';
     if (!data.phone || !/^0\d{9,10}$/.test(data.phone)) e.phone = 'SĐT 10 số';
     if (!data.age || data.age < 0 || data.age > 130) e.age = 'Tuổi không hợp lệ';
     if (!data.cccd || !/^\d{12}$/.test(data.cccd)) e.cccd = 'CCCD 12 số';
-    setErrs(e); return Object.keys(e).length === 0;
+    setErrs(e); return e;
   };
-  const validate2 = () => {
-    if (visitType?.bhyt && !bhytValid) { setErrs({ bhytNo: 'Cần xác thực BHYT hợp lệ' }); return false; }
-    setErrs({}); return true;
+  const validate2 = (): Record<string, string> => {
+    const e: Record<string, string> = (visitType?.bhyt && !bhytValid) ? { bhytNo: 'Cần xác thực BHYT hợp lệ' } : {};
+    setErrs(e); return e;
   };
-  const validate3 = () => {
+  const validate3 = (): Record<string, string> => {
     const e: Record<string, string> = {};
     if (!data.dept) e.dept = 'Chọn khoa / phòng';
     if (!data.reason.trim()) e.reason = 'Nhập lý do khám';
-    setErrs(e); return Object.keys(e).length === 0;
+    setErrs(e); return e;
+  };
+
+  /** Validation fail → KHÔNG im lặng: toast tổng + (field đã tô đỏ qua Lbl) + cuộn tới lỗi đầu tiên. */
+  const reportErrors = (e: Record<string, string>) => {
+    const labels = Object.keys(e).map((k) => FIELD_LABELS[k] || k);
+    message.error(`Vui lòng kiểm tra: ${labels.join(', ')}`);
+    requestAnimationFrame(() => {
+      document.querySelector('[data-fld-err]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
   };
 
   const verifyBhyt = async () => {
@@ -134,9 +150,8 @@ export const NewVisitModal: React.FC<{
   };
 
   const next = () => {
-    if (step === 1 && !validate1()) return;
-    if (step === 2 && !validate2()) return;
-    if (step === 3 && !validate3()) return;
+    const e = step === 1 ? validate1() : step === 2 ? validate2() : step === 3 ? validate3() : {};
+    if (Object.keys(e).length > 0) { reportErrors(e); return; }
     setStep((s) => Math.min(4, s + 1));
   };
   const prev = () => setStep((s) => Math.max(1, s - 1));
@@ -318,7 +333,7 @@ export const NewVisitModal: React.FC<{
               </div>
             ) : (
               <div style={{ marginTop: 18, padding: '12px 14px', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: 'var(--t-1)' }}>Phí khám {visitType?.l.toLowerCase()}</span>
+                <span style={{ fontSize: 12, color: 'var(--t-1)' }}>Phí {visitType?.l.toLowerCase()}</span>
                 <b style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--a-cy)' }}>{fmtVNDw(visitType?.fee || 0)}</b>
               </div>
             )}
@@ -343,7 +358,7 @@ export const NewVisitModal: React.FC<{
               ))}
               {rooms.length === 0 && <div style={{ color: 'var(--t-2)', fontSize: 12 }}>Không có phòng khám khả dụng</div>}
             </div>
-            {errs.dept && <div style={{ color: 'var(--s-crit)', fontSize: 11, marginTop: 6 }}>{errs.dept}</div>}
+            {errs.dept && <div data-fld-err="" style={{ color: 'var(--s-crit)', fontSize: 11, marginTop: 6 }}>{errs.dept}</div>}
 
             {/* Phòng khám thêm — đa chuyên khoa (chỉ thu phí/dịch vụ, KHÔNG áp dụng BHYT) */}
             {!visitType?.bhyt && (

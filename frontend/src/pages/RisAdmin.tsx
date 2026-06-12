@@ -490,8 +490,9 @@ function HospitalConfigTab() {
 
   return (
     <Form form={form} layout="vertical" style={{ maxWidth: 640 }} onFinish={async (values) => {
-      await apiClient.post('/admin/hospital-config', values).catch(() => {});
-      message.success('Đã lưu');
+      // Không nuốt lỗi rồi báo thành công giả — lỗi phải hiện rõ
+      try { await apiClient.post('/admin/hospital-config', values); message.success('Đã lưu'); }
+      catch { message.error('Lưu cấu hình thất bại'); }
     }}>
       <Form.Item name="hospitalName" label="Tên bệnh viện" rules={[{ required: true }]}><Input /></Form.Item>
       <Form.Item name="address" label="Địa chỉ"><Input /></Form.Item>
