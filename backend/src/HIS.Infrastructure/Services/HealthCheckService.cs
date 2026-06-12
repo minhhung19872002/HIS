@@ -127,12 +127,27 @@ public class HealthCheckService : IHealthCheckService
     private async Task<ComponentHealthResult> CheckRedisAsync()
     {
         var result = new ComponentHealthResult();
+
+        // Redis là optional (cache). Không cấu hình Redis:ConnectionString (vd Cloud Run prod
+        // không có Redis) → Skipped, KHÔNG tính Degraded. Local dev đã có sẵn trong
+        // appsettings.Development.json ("localhost:6379") nên behavior local không đổi.
+        var redisConn = _configuration["Redis:ConnectionString"];
+        if (string.IsNullOrWhiteSpace(redisConn))
+        {
+            result.Status = "Skipped";
+            result.Error = "Not configured (Redis:ConnectionString empty) — optional cache";
+            return result;
+        }
+        var connParts = redisConn.Split(':', 2);
+        var redisHost = connParts[0];
+        var redisPort = connParts.Length > 1 && int.TryParse(connParts[1], out var p) ? p : 6379;
+
         var sw = Stopwatch.StartNew();
         try
         {
             using var cts = new CancellationTokenSource(CheckTimeoutMs);
             using var client = new TcpClient();
-            await client.ConnectAsync("localhost", 6379, cts.Token);
+            await client.ConnectAsync(redisHost, redisPort, cts.Token);
             sw.Stop();
 
             if (client.Connected)
@@ -175,13 +190,31 @@ public class HealthCheckService : IHealthCheckService
             var client = _httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromMilliseconds(CheckTimeoutMs);
 
-            var response = await client.GetAsync($"{baseUrl}/system");
+            // Gửi Basic auth khi có cấu hình (PACS:Username/Password — prod Orthanc bắt buộc auth)
+            using var req = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/system");
+            var pacsUser = _configuration["PACS:Username"];
+            if (!string.IsNullOrEmpty(pacsUser))
+            {
+                var raw = $"{pacsUser}:{_configuration["PACS:Password"]}";
+                req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
+                    "Basic", Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(raw)));
+            }
+            var response = await client.SendAsync(req);
             sw.Stop();
 
             if (response.IsSuccessStatusCode)
             {
                 result.Status = "Healthy";
                 result.ResponseTime = $"{sw.ElapsedMilliseconds}ms";
+            }
+            // 401/403 = Orthanc ĐANG SỐNG nhưng yêu cầu auth (check không gửi credentials) —
+            // server phản hồi được = reachable, không phải sự cố (prod từng báo Degraded oan vì 401).
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                || response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                result.Status = "Healthy";
+                result.ResponseTime = $"{sw.ElapsedMilliseconds}ms";
+                result.Error = $"Reachable (HTTP {(int)response.StatusCode} — auth required)";
             }
             else
             {
@@ -211,6 +244,16 @@ public class HealthCheckService : IHealthCheckService
     private async Task<ComponentHealthResult> CheckHl7ListenerAsync()
     {
         var result = new ComponentHealthResult();
+
+        // HL7 MLLP listener là optional theo topology (Cloud Run không nhận TCP analyzer —
+        // chỉ chạy on-prem). HL7:Enabled=false → Skipped, KHÔNG tính Degraded.
+        if (!_configuration.GetValue<bool>("HL7:Enabled", false))
+        {
+            result.Status = "Skipped";
+            result.Error = "Disabled (HL7:Enabled=false)";
+            return result;
+        }
+
         var sw = Stopwatch.StartNew();
         try
         {
@@ -267,8 +310,10 @@ public class HealthCheckService : IHealthCheckService
             result.TotalGb = totalGb;
             result.UsagePercent = usagePercent;
 
-            // Warn if less than 5 GB free or > 90% usage
-            if (freeGb < 5 || usagePercent > 90)
+            // Ngưỡng theo %: container (Cloud Run) có FS ephemeral nhỏ (2GB) — ngưỡng GB tuyệt đối
+            // từng báo "low" oan dù 0% used. Chỉ cảnh báo theo usagePercent; với đĩa lớn (>=20GB,
+            // on-prem VM) thêm sàn 5GB free.
+            if (usagePercent > 90 || (totalGb >= 20 && freeGb < 5))
             {
                 result.Status = "Unhealthy";
                 result.Error = $"Low disk space: {freeGb} GB free ({usagePercent}% used)";
