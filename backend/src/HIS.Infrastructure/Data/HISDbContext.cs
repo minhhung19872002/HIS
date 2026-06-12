@@ -305,6 +305,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<NursingCare> NursingCares => Set<NursingCare>();
     public DbSet<Discharge> Discharges => Set<Discharge>();
     public DbSet<InfusionRecord> InfusionRecords => Set<InfusionRecord>(); // #16: truyền dịch persist thật
+    public DbSet<InpatientConsultation> InpatientConsultations => Set<InpatientConsultation>(); // #16: hội chẩn nội trú persist thật
+    public DbSet<InpatientConsultationMember> InpatientConsultationMembers => Set<InpatientConsultationMember>();
 
     // Phẫu thuật (Surgery)
     public DbSet<SurgeryRequest> SurgeryRequests => Set<SurgeryRequest>();
@@ -945,6 +947,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<ClinicalTemplate>().HasOne(c => c.OwnerUser).WithMany().HasForeignKey(c => c.OwnerUserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<ConsultationParticipant>().HasOne(c => c.User).WithMany().HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<ConsultationRoom>().HasOne(c => c.HostUser).WithMany().HasForeignKey(c => c.HostUserId).OnDelete(DeleteBehavior.NoAction);
+        // #16: hội chẩn nội trú — member là con của consultation (xóa cha → xóa con).
+        modelBuilder.Entity<InpatientConsultationMember>().HasOne(m => m.Consultation).WithMany(c => c.Members).HasForeignKey(m => m.ConsultationId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<Contraindication>().HasOne(c => c.RecordedBy).WithMany().HasForeignKey(c => c.RecordedByUserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<DailyProgress>().HasOne(d => d.Doctor).WithMany().HasForeignKey(d => d.DoctorId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Deposit>().HasOne(d => d.ReceivedBy).WithMany().HasForeignKey(d => d.ReceivedByUserId).OnDelete(DeleteBehavior.NoAction);
