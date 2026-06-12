@@ -98,14 +98,16 @@ If a new service/controller is added, register it there or you get 500 errors.
 - Lỗi `InvalidCastException Guid↔String`: bảng có `CreatedBy/UpdatedBy` kiểu uniqueidentifier cần whitelist
   ValueConverter trong `HISDbContext.cs`.
 
-### Tài liệu làm việc — thư mục `docs/workspace-docs/` (KHÔNG auto-nạp — đọc khi cần)
-- **Cửa vào**: `docs/workspace-docs/README.md` (bản đồ thư mục) + `STATUS.md` (đang ở đâu · blocker · việc kế tiếp).
-- Cấu trúc: `00-business/` nghiệp vụ · `10-assessment/` đánh giá v2 + `rule-compliance-audit.md` ·
-  `20-backlog/tech-debt-roadmap.md` (+`items/` plan chi tiết) · `30-conventions/` quy ước · `90-archive/` lịch sử.
-- `90-archive/work-log-archive-2026-H1.md` — **24 work log lịch sử (02→05/2026)**; Grep theo keyword
-  (`NangCap24`, `Cloud SQL`, `VietQR`…) khi cần "vì sao / đã làm gì / pitfall cũ". (local-only)
-- Cuối phiên: cập nhật `STATUS.md`; handoff chi tiết → `90-archive/handoffs/session-YYYY-MM-DD-handoff.md`.
-  **KHÔNG ghi nhật ký vào CLAUDE.md** (giữ file này slim).
+### Quản lý plan/task — GitHub Issues (từ 2026-06-13)
+- **Task board chính = GitHub Issues** repo `minhhung19872002/HIS` (`gh issue list`). Lập plan/task mới →
+  **tạo Issue** (`gh issue create`); làm xong + đã push → **`gh issue close <n>`** kèm commit sha. KHÔNG quản lý
+  backlog trong `docs/workspace-docs/` nữa.
+- **Trước khi pick task**: `git fetch origin` + đọc `git log origin/main` + `gh issue list` (nhiều máy làm
+  song song — nguồn-sự-thật là git log + Issues, KHÔNG phải docs local).
+- `docs/workspace-docs/` chỉ còn: `STATUS.md` (session-state cho hook) · `luong_nghiep_vu.md` (reference
+  nghiệp vụ) · 2 pointer roadmap/audit. **Workspace-docs commit + push bình thường** (quy tắc never-push đã
+  GỠ 2026-06-13 — hook pre-push + guard + `scripts/push-code.ps1` đã xóa).
+- Cuối phiên: cập nhật `STATUS.md`. **KHÔNG ghi nhật ký vào CLAUDE.md** (giữ file này slim).
 
 ## Trạng thái Production (cập nhật khi thật sự đổi — đừng ghi nhật ký phiên vào đây)
 
@@ -130,5 +132,5 @@ If a new service/controller is added, register it there or you get 500 errors.
   `ProductionSchemaRepairRunner` tự apply `Data/Scripts/*.sql` lúc startup.
 
 ### Secrets
-KHÔNG hardcode secret cloud (Orthanc/R2/seed-key/DB sa) vào file tracked. Lấy từ Cloud Run env hoặc
-`90-archive/work-log-archive-2026-H1.md` (local). TODO bảo mật cũ còn treo: **rotate R2 API token**.
+KHÔNG hardcode secret cloud (Orthanc/R2/seed-key/DB sa) vào file tracked. Lấy từ Cloud Run env
+(`gcloud run services describe his-api`). TODO bảo mật: **rotate R2 API token** → Issue #25.

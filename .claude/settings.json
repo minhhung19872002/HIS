@@ -13,20 +13,6 @@
         ]
       }
     ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "shell": "bash",
-            "if": "Bash(git push*)",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-no-push-workspace-docs.sh\"",
-            "statusMessage": "Guard: no-push workspace-docs"
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "hooks": [
