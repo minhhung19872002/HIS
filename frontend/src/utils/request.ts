@@ -74,7 +74,11 @@ request.interceptors.response.use(
           message.error(data?.message || 'Đã xảy ra lỗi. Vui lòng thử lại.');
       }
     } else if (error.request) {
-      message.error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.');
+      // Chỉ đổ cho "mạng" khi thật sự offline; còn lại là máy chủ không phản hồi
+      // (timeout/cold-start...) — đừng làm user tưởng mất mạng (bug prod 2026-06-12).
+      message.error(navigator.onLine
+        ? 'Máy chủ không phản hồi. Vui lòng thử lại.'
+        : 'Mất kết nối mạng. Kiểm tra mạng rồi thử lại.');
     } else {
       message.error('Đã xảy ra lỗi. Vui lòng thử lại.');
     }

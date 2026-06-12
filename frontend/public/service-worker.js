@@ -1,7 +1,7 @@
 // HIS PWA Service Worker — Sprint 5 Item 2.19
 // Network-first for API, cache-first for static assets.
 
-const CACHE_NAME = 'his-pwa-v2';
+const CACHE_NAME = 'his-pwa-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -29,12 +29,21 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Never cache API calls or WebSocket - always network
+  // Never cache API calls or WebSocket - always network.
+  // CHỈ trả 503 "Offline" khi THẬT SỰ mất mạng (navigator.onLine=false). Mọi lỗi fetch khác
+  // (timeout, cold-start, abort, CORS...) propagate nguyên bản cho page tự xử lý —
+  // trước đây mọi fetch-reject đều bị đổi thành 503 "Offline: cần kết nối mạng" giả,
+  // làm user tưởng mất mạng và các thao tác ghi sau đó trông như bị chặn (bug prod 2026-06-12).
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/hubs/')) {
-    event.respondWith(fetch(request).catch(() => new Response(
-      JSON.stringify({ message: 'Offline: cần kết nối mạng để gọi API' }),
-      { headers: { 'Content-Type': 'application/json' }, status: 503 }
-    )));
+    event.respondWith(fetch(request).catch((err) => {
+      if (!self.navigator.onLine) {
+        return new Response(
+          JSON.stringify({ message: 'Offline: cần kết nối mạng để gọi API' }),
+          { headers: { 'Content-Type': 'application/json' }, status: 503 }
+        );
+      }
+      throw err;
+    }));
     return;
   }
 
