@@ -3,9 +3,18 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-13** (phiên Claude máy D:).
+> Cập nhật cuối: **2026-06-13** (phiên Claude máy C: — đợt 24; trước đó máy D: — hội chẩn #1+#2).
 
 ## Đang ở đâu
+- **Đợt 24 (write-flow sweep) PUSHED `6b80046`, deploy GitHub Actions đang chạy**: 3 P0
+  (reception payment hỏng 100% — gỡ set shadow FK `ReceivedById`; surgery request gắn ĐẠI bệnh nhân
+  `FirstOrDefault()` → resolve bắt buộc từ MR/exam, patient-safety; vital-signs ghi rác → validate
+  admission + ≥1 chỉ số, row rác prod `1fb78254` đã xóa) + P1 chặn success giả (RIS/LIS/Surgery/
+  BHXH-mock) + 10 endpoint 500-on-empty → 400/404, DomainExceptionFilter thêm 5 controller.
+  Verify local: build 0 err · smoke 18/18 · doithu-gap 28/28 · suite 10/10.
+  **Còn lại: sau deploy xanh → re-probe các endpoint này trên prod** (theo file sweep, đã fix xong).
+- Máy C: đã reset local main = origin/main theo quy ước mới; lịch sử docs local-only cũ backup tại
+  branch `backup/local-main-2026-06-13` (local).
 - **Chuỗi hội chẩn nội trú HOÀN TẤT end-to-end**:
   - **#1 ✅ CLOSED** — BE persist (mig 99, commit `b45f0d6`), deploy Cloud Run OK, prod schema-drift
     `missingCount=0`, smoke `GET /api/inpatient/consultations` 200.
