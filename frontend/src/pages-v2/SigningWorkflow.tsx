@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   getPendingRequests, getSubmittedRequests, getHistory, getSigningStats,
+  approveSigningRequest, rejectSigningRequest, cancelSigningRequest, cancelSigningChain,
 } from '../api/signingWorkflow';
 import type { SigningRequestItem, SigningWorkflowStats } from '../api/signingWorkflow';
 import {
   KpiStrip, TopTabs, DataTable, DrawerShell, DrSec, DrField, StatusBadge, Btn, Filter, Ico,
-  type ColumnDef, type TopTab,
+  tk, te, type ColumnDef, type TopTab,
 } from './_v2kit';
 
 type Tab = 'pending' | 'submitted' | 'history';
@@ -96,6 +97,8 @@ const SigningWorkflowV2: React.FC = () => {
           )}
         </div>
       ) },
+    { key: 'stepOrder',     label: 'Cấp', mono: true,
+      render: (r) => (r.chainId ? `${r.stepOrder}/${r.totalSteps}` : '—') },
     { key: 'createdAt',     label: 'Ngày tạo', mono: true,
       render: (r) => dayjs(r.createdAt).format('DD/MM HH:mm') },
     { key: 'status',        label: 'Trạng thái',
@@ -104,6 +107,25 @@ const SigningWorkflowV2: React.FC = () => {
         return <StatusBadge tone={m.tone}>{m.label}</StatusBadge>;
       } },
   ];
+
+  const doApprove = async (id: string) => {
+    const r = await approveSigningRequest(id);
+    if (r) { tk('Đã ký duyệt'); setDetail(null); void load(); }
+    else te('Không thể ký duyệt');
+  };
+  const doReject = async (id: string) => {
+    const reason = window.prompt('Lý do từ chối:');
+    if (!reason || !reason.trim()) return;
+    const r = await rejectSigningRequest(id, reason.trim());
+    if (r) { tk('Đã từ chối yêu cầu'); setDetail(null); void load(); }
+    else te('Không thể từ chối');
+  };
+  const doCancel = async (item: SigningRequestItem) => {
+    if (!window.confirm(item.chainId ? 'Hủy cả chuỗi trình ký của tài liệu này?' : 'Hủy yêu cầu trình ký?')) return;
+    const ok = item.chainId ? await cancelSigningChain(item.chainId) : await cancelSigningRequest(item.id);
+    if (ok) { tk('Đã hủy'); setDetail(null); void load(); }
+    else te('Không thể hủy');
+  };
 
   return (
     <div className="ab">
@@ -150,6 +172,11 @@ const SigningWorkflowV2: React.FC = () => {
               {detail.departmentName && <DrField lbl="Khoa">{detail.departmentName}</DrField>}
             </DrSec>
             <DrSec title="Quy trình">
+              {detail.chainId && (
+                <DrField lbl="Cấp ký">
+                  Cấp {detail.stepOrder}/{detail.totalSteps} (chuỗi ký tuần tự — cấp sau chỉ thấy khi cấp trước đã ký)
+                </DrField>
+              )}
               <DrField lbl="Người gửi">{detail.submittedByName}</DrField>
               <DrField lbl="Người ký">
                 {detail.assignedToName}
@@ -177,6 +204,26 @@ const SigningWorkflowV2: React.FC = () => {
                 </DrField>
               )}
             </DrSec>
+            {detail.documentContent && (
+              <DrSec title="Nội dung tài liệu (snapshot lúc trình)">
+                <div
+                  style={{ maxHeight: 420, overflow: 'auto', background: '#fff', color: '#111', borderRadius: 6, padding: 10, fontSize: 12 }}
+                  // Snapshot HTML do chính PrintTemplateRenderer nội bộ sinh ra (không phải input người dùng tự do)
+                  dangerouslySetInnerHTML={{ __html: detail.documentContent }}
+                />
+              </DrSec>
+            )}
+            <div style={{ display: 'flex', gap: 8, padding: '12px 0', justifyContent: 'flex-end' }}>
+              {tab === 'pending' && detail.status === 0 && (
+                <>
+                  <Btn variant="ghost" onClick={() => void doReject(detail.id)}><Ico name="x" size={12} /> Từ chối</Btn>
+                  <Btn variant="primary" onClick={() => void doApprove(detail.id)}><Ico name="check" size={12} /> Ký duyệt</Btn>
+                </>
+              )}
+              {tab === 'submitted' && (detail.status === 0 || detail.status === 4) && (
+                <Btn variant="ghost" onClick={() => void doCancel(detail)}><Ico name="x" size={12} /> Hủy trình ký</Btn>
+              )}
+            </div>
           </>
         )}
       </DrawerShell>

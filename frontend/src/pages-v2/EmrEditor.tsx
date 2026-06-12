@@ -19,8 +19,10 @@ import apiClient from '../api/client';
 import { generateCdaDocument } from '../api/cda';
 import {
   getAttachments, uploadAttachment, downloadAttachment, deleteAttachment,
+  getCompletenessCheck,
   type EmrDocumentAttachmentDto,
 } from '../api/emrAdmin';
+import EmrSigningChainDrawer from './shared/EmrSigningChainDrawer';
 import {
   getEmrRecords, type EmrRecordDto,
   getPatientMedicalHistory, type MedicalHistoryDto,
@@ -101,6 +103,9 @@ const EmrEditorV2: React.FC = () => {
   const [printPreviewType, setPrintPreviewType] = useState('summary');
   const printPreviewRef = useRef<HTMLDivElement>(null);
   const [signOpen, setSignOpen] = useState(false);
+  // Trình ký nhiều cấp + trạng thái khóa TT46 (plan-emr-signing-chain)
+  const [chainOpen, setChainOpen] = useState(false);
+  const [finalized, setFinalized] = useState(false);
   const [modal, setModal] = useState<null | 'treatment' | 'consult' | 'nursing'>(null);
   const [form, setForm] = useState<Record<string, string>>({});
   const [printingTreatId, setPrintingTreatId] = useState<string | null>(null);
@@ -164,6 +169,14 @@ const EmrEditorV2: React.FC = () => {
     if (c.status === 'fulfilled' && Array.isArray(c.value.data)) setConsults(c.value.data);
     if (n.status === 'fulfilled' && Array.isArray(n.value.data)) setNursing(n.value.data);
   }, []);
+
+  // Trạng thái khóa TT46 của HSBA đang chọn (badge 🔒 + drawer trình ký)
+  const refreshFinalized = useCallback(async () => {
+    if (!full?.id) { setFinalized(false); return; }
+    const c = await getCompletenessCheck(full.id);
+    setFinalized(!!c?.isFinalized);
+  }, [full?.id]);
+  useEffect(() => { void refreshFinalized(); }, [refreshFinalized]);
 
   // Deep-link từ màn khác (vd LIS): /v2/emr/edit?patientId=… → auto mở hồ sơ BN đó
   useEffect(() => {
@@ -422,13 +435,17 @@ const EmrEditorV2: React.FC = () => {
           <>
             <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>{sel.patientName}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {sel.patientName}
+                  {finalized && <StatusBadge tone="crit">🔒 ĐÃ KHÓA (TT46)</StatusBadge>}
+                </div>
                 <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{sel.patientCode} · {sel.lastRoomName || '—'} · {sel.lastVisit ? fmtDMYg(sel.lastVisit) : '—'}{full?.medicalRecordCode ? ` · ${full.medicalRecordCode}` : ''}</div>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <Btn variant="ghost" onClick={exportXml}><TermIcon name="download" size={12} /> XML</Btn>
                 <Btn variant="ghost" onClick={exportPdf}><TermIcon name="download" size={12} /> PDF</Btn>
                 <Btn variant="ghost" onClick={() => setPrintOpen(true)}><TermIcon name="print" size={12} /> In biểu mẫu</Btn>
+                <Btn variant="ghost" onClick={() => setChainOpen(true)}><TermIcon name="send" size={12} /> Trình ký</Btn>
                 <Btn variant="primary" onClick={() => setSignOpen(true)}><TermIcon name="check" size={12} /> Ký số</Btn>
               </div>
             </div>
@@ -686,6 +703,22 @@ const EmrEditorV2: React.FC = () => {
           />
         </div>
       </DrawerShell>
+
+      {/* Trình ký nhiều cấp (chuỗi Trưởng khoa → Lãnh đạo) + gộp TT46 finalize */}
+      <EmrSigningChainDrawer
+        open={chainOpen}
+        onClose={() => setChainOpen(false)}
+        record={full}
+        patientId={sel?.patientId}
+        patientName={sel?.patientName}
+        patientCode={sel?.patientCode}
+        departmentName={sel?.lastRoomName || undefined}
+        treatments={treatments}
+        consultations={consults}
+        nursingSheets={nursing}
+        isFinalized={finalized}
+        onFinalized={() => { void refreshFinalized(); }}
+      />
 
       {/* Sign modal → real PKI signing via signing-workflow */}
       <ModalShell open={signOpen} onClose={() => setSignOpen(false)} title="Ký số hồ sơ bệnh án" sub="USB Token · VNPT-CA" size="sm"

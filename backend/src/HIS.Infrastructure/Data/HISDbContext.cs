@@ -1165,6 +1165,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
             "PortalAppointment", "RadiologyExam", "RadiologyModality",
             "RadiologyReport", "RadiologyRequest", "RehabReferral",
             "RehabSession", "RehabTreatmentPlan", "RepairRequest",
+            "SigningRequest", // mig 04: CreatedBy/UpdatedBy uniqueidentifier — lộ khi submit-chain set CreatedBy (2026-06-12)
             "TeleAppointment", "TeleconsultationRequest", "TeleSession",
             "AiLabelingResult"
         };

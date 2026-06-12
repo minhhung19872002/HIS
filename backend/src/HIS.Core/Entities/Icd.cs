@@ -539,6 +539,15 @@ public class SigningRequest : BaseEntity
     public string? PatientName { get; set; }
     public string? DepartmentName { get; set; }
     public string? SignerRole { get; set; } // Vai trò người ký: KTV, BacSi, TruongKhoa, etc.
+
+    // ===== Trình ký NHIỀU CẤP (mig 97, plan-emr-signing-chain) =====
+    // NULL = phiếu đơn cấp (behavior cũ). Cùng ChainId = 1 chuỗi ký; StepOrder 1..TotalSteps.
+    // Status bổ sung 4 = WaitingTurn (chờ tới lượt — chỉ step có Status=0 mới hiện "Chờ tôi ký").
+    public Guid? ChainId { get; set; }
+    public int StepOrder { get; set; } = 1;
+    public int TotalSteps { get; set; } = 1;
+    /// <summary>HSBA liên quan (để EMR hiển thị trạng thái + gợi ý finalize TT46 khi ký đủ cấp).</summary>
+    public Guid? MedicalRecordId { get; set; }
 }
 
 /// <summary>

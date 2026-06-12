@@ -121,4 +121,60 @@ public class SigningWorkflowController : ControllerBase
         var result = await _service.GetStatsAsync(GetUserId());
         return Ok(result);
     }
+
+    // ===== Trinh ky NHIEU CAP (plan-emr-signing-chain, 2026-06-12) =====
+
+    /// <summary>
+    /// Gui trinh ky nhieu cap (chuoi ky tuan tu — chi cap dang toi luot thay "Cho toi ky")
+    /// </summary>
+    [HttpPost("submit-chain")]
+    public async Task<IActionResult> SubmitChain([FromBody] SubmitSigningChainDto dto)
+    {
+        try
+        {
+            var result = await _service.SubmitChainAsync(dto, GetUserId(), GetUserName());
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Trang thai chuoi ky moi nhat cua 1 tai lieu (EMR hien badge)
+    /// </summary>
+    [HttpGet("document-chain")]
+    public async Task<IActionResult> GetDocumentChain([FromQuery] string documentType, [FromQuery] Guid documentId)
+    {
+        var result = await _service.GetDocumentChainAsync(documentType, documentId);
+        return Ok(result); // null = tai lieu chua trinh ky lan nao
+    }
+
+    /// <summary>
+    /// Chuoi ky mac dinh theo documentType (danh muc EmrSigningOperations)
+    /// </summary>
+    [HttpGet("chain-template")]
+    public async Task<IActionResult> GetChainTemplate([FromQuery] string documentType)
+    {
+        var result = await _service.GetChainTemplateAsync(documentType);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Huy ca chuoi trinh ky (nguoi gui; chi khi con cap chua xu ly)
+    /// </summary>
+    [HttpPost("chain/{chainId}/cancel")]
+    public async Task<IActionResult> CancelChain(Guid chainId)
+    {
+        try
+        {
+            await _service.CancelChainAsync(chainId, GetUserId());
+            return Ok(new { message = "Da huy chuoi trinh ky" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }
