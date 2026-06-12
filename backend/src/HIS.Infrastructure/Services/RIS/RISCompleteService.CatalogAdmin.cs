@@ -932,7 +932,7 @@ public partial class RISCompleteService
             ModalityId = request.ModalityId,
             QueueNumber = queueNumber,
             Status = 0, // Waiting
-            AssignedAt = DateTime.Now,
+            AssignedAt = DateTime.UtcNow, // dot16: chuẩn UTC — query DayRangeUtc (:924/:988/:1063)
             Notes = request.Notes,
             CreatedAt = DateTime.Now
         };

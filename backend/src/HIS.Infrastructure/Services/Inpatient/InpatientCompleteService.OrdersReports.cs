@@ -338,7 +338,7 @@ public partial class InpatientCompleteService {
         {
             Id = Guid.NewGuid(),
             RequestCode = $"CDNT{DateTime.Now:yyyyMMddHHmmss}",
-            RequestDate = DateTime.Now,
+            RequestDate = DateTime.UtcNow, // dot16: chuẩn UTC
             MedicalRecordId = admission.MedicalRecordId,
             DoctorId = userId,
             DepartmentId = admission.DepartmentId,

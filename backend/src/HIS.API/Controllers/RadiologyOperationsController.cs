@@ -45,7 +45,7 @@ public class RadiologyOperationsController : ControllerBase
             .ToListAsync();
         if (services.Count == 0) return BadRequest(new { message = "Dịch vụ không tồn tại" });
 
-        var now = DateTime.Now;
+        var now = DateTime.UtcNow; // dot16: chuẩn UTC — RequestDate bị query DayRangeUtc (RIS Core8x:40)
         var uid = GetUserId();
         var created = new List<object>();
 

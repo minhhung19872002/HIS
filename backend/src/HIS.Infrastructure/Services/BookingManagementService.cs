@@ -548,7 +548,7 @@ public class BookingManagementService : IBookingManagementService
             Id = Guid.NewGuid(),
             MedicalRecordCode = $"{prefix}{nextNum:D4}",
             PatientId = appointment.PatientId,
-            AdmissionDate = DateTime.Now,
+            AdmissionDate = DateTime.UtcNow, // dot16: chuẩn UTC
             PatientType = 2, // Viện phí
             TreatmentType = 1, // Ngoại trú
             RoomId = appointment.RoomId,

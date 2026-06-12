@@ -218,7 +218,7 @@ public partial class RISCompleteService
 
     public async Task<int> UpdateAllRequestDatesToTodayAsync()
     {
-        var today = DateTime.Today;
+        var today = DateTime.UtcNow.Date; // dot16: chuẩn UTC (00:00Z = 07:00 VN — vẫn trong cửa sổ DayRangeUtc hôm nay)
         var requests = await _context.RadiologyRequests.ToListAsync();
         foreach (var request in requests)
         {

@@ -31,9 +31,9 @@ public partial class LISCompleteService {
             date = DateTime.Today;
         }
 
-        // Date range filter (avoid CAST — EF translates this correctly)
-        var dateFrom = date.Date;
-        var dateTo = date.Date.AddDays(1);
+        // dot16: RequestDate lưu UTC — date là ngày local VN từ FE → so theo cửa sổ UTC của trọn ngày VN
+        // (trước so raw [date, date+1) → lệch biên 7h, worklist rỗng khung 00h-07h sáng VN).
+        var (dateFrom, dateTo) = HIS.Core.Common.VnTime.DayRangeUtc(date);
 
         var query = _context.ServiceRequests
             .Where(r => r.RequestType == 1 && !r.IsDeleted

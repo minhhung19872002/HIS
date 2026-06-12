@@ -121,7 +121,7 @@ public class RadiologyDispatchController : ControllerBase
                     PatientId = d.PatientId,
                     ExaminationId = sr?.ExaminationId,
                     MedicalRecordId = sr?.MedicalRecordId,
-                    RequestDate = sr?.RequestDate ?? DateTime.Now,
+                    RequestDate = sr?.RequestDate ?? DateTime.UtcNow, // dot16: chuẩn UTC
                     ServiceId = srd.ServiceId,
                     RequestingDoctorId = sr?.DoctorId ?? Guid.Empty,
                     Priority = d.Priority,

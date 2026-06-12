@@ -76,7 +76,7 @@ public class SampleReceiveController : ControllerBase
         var items = await _db.ServiceRequestDetails
             .Where(d => dto.DetailIds.Contains(d.Id) && d.ReceiveStatus == 0)
             .ToListAsync();
-        var now = DateTime.Now;
+        var now = DateTime.UtcNow; // dot16: chuẩn UTC — ReceivedAt bị query DayRangeUtc (:264)
         var uid = GetUserId();
         foreach (var d in items)
         {
@@ -109,8 +109,8 @@ public class SampleReceiveController : ControllerBase
         d.ReceiveStatus = 2;
         d.RejectReason = dto.Reason;
         d.ReceivedByUserId = GetUserId();
-        d.ReceivedAt = DateTime.Now;
-        d.UpdatedAt = DateTime.Now;
+        d.ReceivedAt = DateTime.UtcNow; // dot16: chuẩn UTC
+        d.UpdatedAt = DateTime.UtcNow;
         d.UpdatedBy = GetUserId().ToString();
         await _db.SaveChangesAsync();
         return Ok(new { d.Id, d.ReceiveStatus });

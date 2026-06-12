@@ -39,7 +39,7 @@ public class MultiSpecialtyExamService : IMultiSpecialtyExamService
             Id = Guid.NewGuid(),
             MedicalRecordCode = $"HS{DateTime.Now:yyyyMMddHHmmss}",
             PatientId = dto.PatientId,
-            AdmissionDate = DateTime.Now,
+            AdmissionDate = DateTime.UtcNow, // dot16: chuẩn UTC
             PatientType = dto.PatientType,
             TreatmentType = 1,
             InsuranceNumber = dto.InsuranceNumber,

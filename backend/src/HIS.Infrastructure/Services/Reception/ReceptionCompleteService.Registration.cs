@@ -106,14 +106,14 @@ public partial class ReceptionCompleteService {
             Id = Guid.NewGuid(),
             MedicalRecordCode = await GenerateMedicalRecordCodeAsync(),
             PatientId = patient.Id,
-            AdmissionDate = DateTime.Now,
+            AdmissionDate = DateTime.UtcNow, // dot16: chuẩn UTC — query DayRangeUtc (prod no-op, dev hết lệch +7h)
             PatientType = dto.ServiceType, // 2-Vien phi, 3-Dich vu
             TreatmentType = 1, // Ngoai tru
             RoomId = dto.RoomId,
             DoctorId = dto.DoctorId,
             DepartmentId = room?.DepartmentId,
             Status = 0, // Waiting
-            CreatedAt = DateTime.Now,
+            CreatedAt = DateTime.UtcNow, // dot16: chuẩn UTC — màn tiếp đón "hôm nay" query CreatedAt qua DayRangeUtc
             CreatedBy = userId.ToString(),
             IsDeleted = false
         };
@@ -130,7 +130,7 @@ public partial class ReceptionCompleteService {
             RoomId = dto.RoomId,
             DoctorId = dto.DoctorId,
             Status = 0, // Waiting
-            CreatedAt = DateTime.Now,
+            CreatedAt = DateTime.UtcNow, // dot16: chuẩn UTC — màn tiếp đón "hôm nay" query CreatedAt qua DayRangeUtc
             CreatedBy = userId.ToString(),
             IsDeleted = false
         };
@@ -425,7 +425,7 @@ public partial class ReceptionCompleteService {
             Id = Guid.NewGuid(),
             MedicalRecordCode = await GenerateMedicalRecordCodeAsync(),
             PatientId = patient.Id,
-            AdmissionDate = DateTime.Now,
+            AdmissionDate = DateTime.UtcNow, // dot16: chuẩn UTC
             PatientType = dto.PatientType,
             TreatmentType = 3, // Emergency
             InsuranceNumber = dto.InsuranceNumber,
@@ -433,7 +433,7 @@ public partial class ReceptionCompleteService {
             DepartmentId = emergencyRoom?.DepartmentId,
             InitialDiagnosis = dto.ChiefComplaint,
             Status = 0,
-            CreatedAt = DateTime.Now,
+            CreatedAt = DateTime.UtcNow, // dot16: chuẩn UTC — màn tiếp đón "hôm nay" query CreatedAt qua DayRangeUtc
             CreatedBy = userId.ToString(),
             IsDeleted = false
         };
@@ -450,7 +450,7 @@ public partial class ReceptionCompleteService {
             RoomId = emergencyRoom?.Id ?? Guid.Empty,
             ChiefComplaint = dto.ChiefComplaint,
             Status = 0,
-            CreatedAt = DateTime.Now,
+            CreatedAt = DateTime.UtcNow, // dot16: chuẩn UTC — màn tiếp đón "hôm nay" query CreatedAt qua DayRangeUtc
             CreatedBy = userId.ToString(),
             IsDeleted = false
         };

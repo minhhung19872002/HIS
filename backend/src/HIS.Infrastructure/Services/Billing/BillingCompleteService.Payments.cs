@@ -24,7 +24,7 @@ public partial class BillingCompleteService {
         {
             Id = Guid.NewGuid(),
             ReceiptNumber = $"TU{DateTime.Now:yyyyMMddHHmmssfff}",
-            ReceiptDate = DateTime.Now,
+            ReceiptDate = DateTime.UtcNow, // dot16: chuẩn UTC — Deposits bị query DayRangeUtc (Reception:298)
             PatientId = dto.PatientId,
             MedicalRecordId = dto.MedicalRecordId,
             Amount = dto.Amount,

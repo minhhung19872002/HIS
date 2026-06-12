@@ -199,7 +199,7 @@ public partial class RISCompleteService
             RadiologyRequestId = dto.RadiologyRequestId,
             DeviceId = dto.DeviceId,
             WorkstationId = dto.WorkstationId,
-            StartTime = DateTime.Now,
+            StartTime = DateTime.UtcNow, // dot16: chuẩn UTC — query DayRangeUtc (ClsExtended:288)
             Status = 0, // Active
             CreatedAt = DateTime.Now
         };

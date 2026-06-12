@@ -272,7 +272,7 @@ public partial class InpatientCompleteService {
             Id = Guid.NewGuid(),
             PatientId = medicalRecord.PatientId,
             MedicalRecordId = medicalRecord.Id,
-            AdmissionDate = DateTime.Now,
+            AdmissionDate = DateTime.UtcNow, // dot16: chuẩn UTC
             AdmissionType = dto.AdmissionType,
             AdmittingDoctorId = dto.AttendingDoctorId,
             DepartmentId = dto.DepartmentId,
@@ -363,7 +363,7 @@ public partial class InpatientCompleteService {
             Id = Guid.NewGuid(),
             PatientId = sourceAdmission.PatientId,
             MedicalRecordId = sourceAdmission.MedicalRecordId,
-            AdmissionDate = DateTime.Now,
+            AdmissionDate = DateTime.UtcNow, // dot16: chuẩn UTC
             AdmissionType = sourceAdmission.AdmissionType,
             AdmittingDoctorId = dto.AttendingDoctorId,
             DepartmentId = dto.TargetDepartmentId,

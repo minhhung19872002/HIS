@@ -390,7 +390,7 @@ public partial class ReceptionCompleteService {
         {
             Id = Guid.NewGuid(),
             ReceiptNumber = receiptNumber,
-            ReceiptDate = DateTime.Now,
+            ReceiptDate = DateTime.UtcNow, // dot16: chuẩn UTC — Deposits/Payments bị query DayRangeUtc
             MedicalRecordId = dto.MedicalRecordId,
             Amount = dto.Amount,
             PaymentMethod = dto.PaymentMethod,
@@ -435,7 +435,7 @@ public partial class ReceptionCompleteService {
         {
             Id = Guid.NewGuid(),
             ReceiptNumber = receiptNumber,
-            ReceiptDate = DateTime.Now,
+            ReceiptDate = DateTime.UtcNow, // dot16: chuẩn UTC
             MedicalRecordId = dto.MedicalRecordId,
             TotalAmount = dto.TotalAmount,
             InsuranceAmount = dto.InsuranceAmount,

@@ -80,7 +80,7 @@ public partial class ExaminationCompleteService
             {
                 Id = Guid.NewGuid(),
                 RequestCode = $"CD{DateTime.Now:yyyyMMddHHmmss}",
-                RequestDate = DateTime.Now,
+                RequestDate = DateTime.UtcNow, // dot16: chuẩn UTC — nguồn copy sang RadiologyRequest.RequestDate (DayRangeUtc)
                 MedicalRecordId = examination.MedicalRecordId,
                 ExaminationId = examination.Id,
                 ServiceId = item.ServiceId,
