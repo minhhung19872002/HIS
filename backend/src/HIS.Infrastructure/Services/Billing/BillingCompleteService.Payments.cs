@@ -270,6 +270,7 @@ public partial class BillingCompleteService {
     {
         decimal totalOwed;
         Guid? medicalRecordId = null;
+        var patientId = dto.PatientId;
 
         if (dto.InvoiceId.HasValue && dto.InvoiceId.Value != Guid.Empty)
         {
@@ -281,6 +282,15 @@ public partial class BillingCompleteService {
 
             totalOwed = invoice.RemainingAmount;
             medicalRecordId = invoice.MedicalRecordId;
+
+            // FE thu theo hóa đơn KHÔNG gửi patientId (CreatePaymentDto FE không có field này)
+            // → trước đây Receipt.PatientId = Guid.Empty → FK_Receipts_Patients nổ 500 (bug thu tiền prod).
+            // Resolve từ HSBA của hóa đơn.
+            if (patientId == Guid.Empty)
+                patientId = await _context.MedicalRecords
+                    .Where(m => m.Id == invoice.MedicalRecordId)
+                    .Select(m => m.PatientId)
+                    .FirstOrDefaultAsync();
         }
         else
         {
@@ -303,6 +313,9 @@ public partial class BillingCompleteService {
         if (dto.Amount > totalOwed)
             throw new Exception($"So tien thanh toan ({dto.Amount:N0}d) vuot qua so tien con no ({totalOwed:N0}d)");
 
+        if (patientId == Guid.Empty)
+            throw new InvalidOperationException("Thieu thong tin benh nhan (patientId) — khong the tao phieu thu");
+
         int paymentMethod = 1;
         if (int.TryParse(dto.PaymentMethod, out int pm))
         {
@@ -314,7 +327,7 @@ public partial class BillingCompleteService {
             Id = Guid.NewGuid(),
             ReceiptCode = $"PT{DateTime.Now:yyyyMMddHHmmssfff}",
             ReceiptDate = DateTime.Now,
-            PatientId = dto.PatientId,
+            PatientId = patientId,
             MedicalRecordId = medicalRecordId,
             ReceiptType = 2,
             PaymentMethod = paymentMethod,
@@ -346,7 +359,7 @@ public partial class BillingCompleteService {
             }
         }
 
-        var patient = await _context.Patients.FindAsync(dto.PatientId);
+        var patient = await _context.Patients.FindAsync(patientId);
 
         return new PaymentDto
         {

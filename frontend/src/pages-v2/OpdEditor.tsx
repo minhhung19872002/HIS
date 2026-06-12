@@ -316,7 +316,9 @@ const OpdEditorV2: React.FC = () => {
 
   const complete = async () => {
     if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
-    if (diagnoses.length === 0) { tw('Cần ít nhất 1 chẩn đoán'); return; }
+    if (diagnoses.length === 0) { tw('Cần ít nhất 1 chẩn đoán (tab Chẩn đoán)'); return; }
+    // TT46: không cho hoàn tất với kết luận rỗng (BE cũng chặn — đồng bộ 2 tầng)
+    if (!conclusion.trim()) { tw('Nhập kết luận khám (tab Kết luận) trước khi hoàn tất'); return; }
     setSaving(true);
     try {
       await persist();

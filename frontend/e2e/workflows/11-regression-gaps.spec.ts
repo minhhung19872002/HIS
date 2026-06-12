@@ -282,9 +282,11 @@ test.describe('Regression coverage for thin E2E modules', () => {
     await modal.getByRole('button', { name: /Lưu & Gửi/i }).click();
 
     await expect.poll(() => prescriptionPayload).not.toBeNull();
+    // Đợt 14 (F8): contract BE thật nhận sessionId + note — consultationId là contract CŨ
+    // (chính bug F8 đã fix). Spec cập nhật theo payload mới 2026-06-12.
     expect(prescriptionPayload).toMatchObject({
-      consultationId: 'consult-1',
-      instructions: 'Uống nhiều nước',
+      sessionId: 'session-1',
+      note: 'Uống nhiều nước',
     });
 
     const items = prescriptionPayload?.items as Array<Record<string, unknown>>;

@@ -1205,7 +1205,14 @@ export const cancelDeposit = (id: string, reason: string) =>
 // #region 10.1.4 Thu tiền
 
 export const createPayment = (dto: CreatePaymentDto) =>
-  apiClient.post<PaymentDto>(`${BASE_URL}/payments`, dto);
+  // Contract BE (CreatePaymentDto BE): PaymentMethod là STRING ("1"=tiền mặt...) + field ghi chú tên `note`.
+  // FE từng gửi number + `notes` → body deserialize fail → 400 "The dto field is required"
+  // (bug thu tiền prod 2026-06-12). Map tại api layer để caller giữ nguyên typed interface.
+  apiClient.post<PaymentDto>(`${BASE_URL}/payments`, {
+    ...dto,
+    paymentMethod: String(dto.paymentMethod),
+    note: dto.notes ?? '',
+  });
 
 export const cancelPayment = (id: string, reason: string) =>
   apiClient.post<boolean>(`${BASE_URL}/payments/${id}/cancel`, { reason });

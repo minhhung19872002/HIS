@@ -46,7 +46,8 @@ public partial class ExaminationCompleteService
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
         if (examination == null) throw new Exception("Examination not found");
-        if (examination.Status == 4) throw new Exception("Đã hoàn thành, cần mở khóa trước");
+        // InvalidOperationException → DomainExceptionFilter trả 400 INVALID_STATE message rõ (không 500 mask)
+        if (examination.Status == 4) throw new InvalidOperationException("Đã hoàn thành, cần mở khóa trước");
 
         examination.ConclusionType = dto.ConclusionType;
         examination.ConclusionNote = dto.ConclusionNotes;
@@ -61,7 +62,7 @@ public partial class ExaminationCompleteService
         // Validate before completing
         var validation = await ValidateExaminationForCompletionAsync(examinationId);
         if (!validation.IsValid)
-            throw new Exception($"Không thể hoàn thành: {string.Join(", ", validation.Errors)}");
+            throw new InvalidOperationException($"Không thể hoàn thành: {string.Join(", ", validation.Errors)}");
 
         examination.Status = 4; // Completed
         examination.EndTime = DateTime.Now;
@@ -476,6 +477,11 @@ public partial class ExaminationCompleteService
 
         if (!examination.ConclusionType.HasValue)
             errors.Add("Chua co ket luan");
+
+        // Siết 2026-06-12 (prod-livetest): TT46 đòi nội dung kết luận — trước đây FE hardcode
+        // ConclusionType=1 + note rỗng vẫn hoàn tất được. Suite/caller hợp lệ đều gửi notes.
+        if (string.IsNullOrWhiteSpace(examination.ConclusionNote))
+            errors.Add("Chua nhap noi dung ket luan kham");
 
         return new ExaminationValidationResult
         {

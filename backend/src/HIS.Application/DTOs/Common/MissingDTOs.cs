@@ -57,8 +57,11 @@ namespace HIS.Application.DTOs
         public Guid PatientId { get; set; }
         public Guid? InvoiceId { get; set; }
         public decimal Amount { get; set; }
-        public string PaymentMethod { get; set; }
-        public string Note { get; set; }
+        // Contract: STRING ("1"=tiền mặt…) — FE từng gửi number làm deserialize fail → dto null
+        // → 400 "The dto field is required" (bug thu tiền prod 2026-06-12; FE đã map String()).
+        // Nullable để thiếu field không chặn binding; service TryParse + default 1.
+        public string? PaymentMethod { get; set; }
+        public string? Note { get; set; }
     }
 
     public class CancelPaymentDto

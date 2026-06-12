@@ -1282,6 +1282,12 @@ const OPD: React.FC = () => {
           const values = examForm.getFieldsValue();
           const primaryDiagnosis = diagnoses.find(d => d.diagnosisType === 1);
 
+          // TT46: bắt buộc có kết luận trước khi hoàn thành (BE cũng chặn — feedback rõ, không im lặng)
+          if (!values.conclusion || !String(values.conclusion).trim()) {
+            message.error('Nhập kết luận khám trước khi hoàn thành');
+            return;
+          }
+
           // Complete the examination with conclusion
           const completeDto = {
             conclusionType: 1, // 1 = Discharge home (Ra viện về nhà)
