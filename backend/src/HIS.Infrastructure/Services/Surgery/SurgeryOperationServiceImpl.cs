@@ -72,6 +72,10 @@ public class SurgeryOperationServiceImpl : ISurgeryOperationService
             .Include(s => s.SurgeryRecord)
             .FirstOrDefaultAsync(s => s.SurgeryRequestId == dto.SurgeryId);
 
+        // Sweep 2026-06-12: id không tồn tại từng trả 200 + DTO rỗng (success giả) → 400 rõ ràng.
+        if (schedule == null)
+            throw new InvalidOperationException("Khong tim thay lich mo cua ca nay (surgeryId khong hop le hoac chua len lich)");
+
         if (schedule != null)
         {
             schedule.Status = 4; // Hoàn thành

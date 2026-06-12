@@ -70,10 +70,12 @@ public partial class WarehouseCompleteService {
             .Include(p => p.MedicalRecord)
                 .ThenInclude(m => m.Patient)
             .FirstOrDefaultAsync(p => p.Id == prescriptionId);
+        // Sweep 2026-06-12: KeyNotFound/InvalidOperation → filter trả 404/400 message rõ (trước 500)
         if (prescription == null)
-            throw new Exception("Prescription not found");
+            throw new KeyNotFoundException("Khong tim thay don thuoc (prescriptionId khong ton tai)");
 
-        var warehouseId = prescription.WarehouseId ?? throw new Exception("Prescription has no warehouse assigned");
+        var warehouseId = prescription.WarehouseId
+            ?? throw new InvalidOperationException("Don thuoc chua duoc gan kho xuat (WarehouseId trong)");
         var warehouse = await _context.Warehouses.FindAsync(warehouseId);
 
         await using var transaction = await _context.Database.BeginTransactionAsync();

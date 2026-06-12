@@ -410,9 +410,9 @@ public partial class ReceptionCompleteService {
         }
 
         await _context.Deposits.AddAsync(deposit);
-        // EF sinh shadow FK "ReceivedById" từ nav ReceivedBy (tách khỏi ReceivedByUserId) → mặc định
-        // Guid.Empty gây FK conflict. Set shadow = user đăng nhập (cột NOT NULL, FK tới Users).
-        _context.Entry(deposit).Property("ReceivedById").CurrentValue = userId;
+        // 2026-06-12 (sweep prod): KHÔNG set shadow "ReceivedById" nữa — Fluent FK đã map nav
+        // ReceivedBy → ReceivedByUserId (HISDbContext) nên shadow không tồn tại, Entry.Property("ReceivedById")
+        // nổ "property could not be found" với MỌI request. Cột DB ReceivedById cũ đã nullable (legacy).
         await _unitOfWork.SaveChangesAsync();
 
         return new DepositReceiptDto
@@ -457,8 +457,8 @@ public partial class ReceptionCompleteService {
         }
 
         await _context.Payments.AddAsync(payment);
-        // Shadow FK "ReceivedById" (từ nav ReceivedBy) mặc định Guid.Empty → FK conflict. Set = user đăng nhập.
-        _context.Entry(payment).Property("ReceivedById").CurrentValue = userId;
+        // 2026-06-12 (sweep prod): bỏ set shadow "ReceivedById" — như CreateDepositAsync ở trên,
+        // shadow không còn sau Fluent FK ReceivedByUserId → từng làm endpoint này hỏng 100% request.
         await _unitOfWork.SaveChangesAsync();
 
         return new PaymentReceiptDto

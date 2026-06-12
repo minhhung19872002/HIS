@@ -31,27 +31,32 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
     {
         try
         {
-            // Tìm hoặc tạo Patient test để lưu vào DB
-            var patient = await _context.Set<Patient>().FirstOrDefaultAsync();
-            if (patient == null)
+            // 🔴 PATIENT-SAFETY (sweep prod 2026-06-12): trước đây lấy BN ĐẦU TIÊN trong DB
+            // (FirstOrDefault / tự tạo "Bệnh nhân Test") khi thiếu context → body rỗng vẫn tạo
+            // ca mổ gắn NHẦM bệnh nhân. Resolve BẮT BUỘC từ HSBA/lần khám; thiếu → 400.
+            Patient? patient = null;
+            if (dto.MedicalRecordId != Guid.Empty)
             {
-                // Tạo patient test nếu chưa có
-                patient = new Patient
-                {
-                    Id = Guid.NewGuid(),
-                    PatientCode = $"BN{DateTime.Now:yyyyMMddHHmmss}",
-                    FullName = dto.Notes?.Contains("Bệnh nhân:") == true
-                        ? dto.Notes.Split('-').FirstOrDefault()?.Replace("Bệnh nhân:", "").Trim() ?? "Bệnh nhân Test"
-                        : "Bệnh nhân Test",
-                    DateOfBirth = new DateTime(1990, 1, 1),
-                    Gender = 1,
-                    PhoneNumber = "0901234567",
-                    Address = "Test Address",
-                    CreatedAt = DateTime.Now,
-                    CreatedBy = userId.ToString()
-                };
-                _context.Set<Patient>().Add(patient);
-                await _context.SaveChangesAsync();
+                patient = await _context.Set<MedicalRecord>()
+                    .Where(m => m.Id == dto.MedicalRecordId)
+                    .Select(m => m.Patient)
+                    .FirstOrDefaultAsync();
+                if (patient == null)
+                    throw new InvalidOperationException("Khong tim thay ho so benh an (medicalRecordId khong ton tai)");
+            }
+            else if (dto.ExaminationId.HasValue && dto.ExaminationId.Value != Guid.Empty)
+            {
+                patient = await _context.Set<Examination>()
+                    .Where(e => e.Id == dto.ExaminationId.Value)
+                    .Select(e => e.MedicalRecord.Patient)
+                    .FirstOrDefaultAsync();
+                if (patient == null)
+                    throw new InvalidOperationException("Khong tim thay lan kham (examinationId khong ton tai)");
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    "Thieu medicalRecordId hoac examinationId — khong the tao yeu cau PTTT khong gan benh nhan");
             }
 
             // Tìm User để làm RequestingDoctor (dùng user đầu tiên nếu userId không tồn tại)
@@ -126,9 +131,12 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
                 CreatedAt = DateTime.Now
             };
         }
+        catch (InvalidOperationException)
+        {
+            throw; // lỗi nghiệp vụ → DomainExceptionFilter trả 400 message rõ, không bọc thành 500
+        }
         catch (Exception ex)
         {
-            // Log và return mock data nếu có lỗi
             System.Diagnostics.Debug.WriteLine($"CreateSurgeryRequestAsync Error: {ex.Message}");
             throw new Exception($"Lỗi tạo yêu cầu phẫu thuật: {ex.Message}", ex);
         }
@@ -225,6 +233,11 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
     {
         try
         {
+            // Sweep 2026-06-12: body rỗng từng tạo schedule zero-GUID (success giả) — validate yêu cầu mổ tồn tại.
+            if (dto.SurgeryId == Guid.Empty
+                || !await _context.Set<SurgeryRequest>().AnyAsync(r => r.Id == dto.SurgeryId))
+                throw new InvalidOperationException("Khong tim thay yeu cau PTTT (surgeryId khong hop le)");
+
             var schedule = new SurgerySchedule
             {
                 Id = Guid.NewGuid(),
@@ -250,6 +263,10 @@ public class SurgerySchedulingServiceImpl : ISurgerySchedulingService
 
             await _context.SaveChangesAsync();
             return await GetSurgeryByIdAsync(dto.SurgeryId) ?? new SurgeryDto();
+        }
+        catch (InvalidOperationException)
+        {
+            throw; // sweep 2026-06-12: lỗi nghiệp vụ KHÔNG nuốt — filter trả 400 (trước trả DTO rỗng 200 = success giả)
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {

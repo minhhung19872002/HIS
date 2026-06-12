@@ -171,9 +171,10 @@ public class BhxhGatewayMockClient : IBhxhGatewayClient
 
         return new BhxhSubmitResponse
         {
-            TransactionId = $"TXN-{DateTime.Now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString()[..8].ToUpper()}",
+            TransactionId = $"TXN-MOCK-{DateTime.Now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString()[..8].ToUpper()}",
             Status = 0, // Received
-            Message = "Du lieu da duoc tiep nhan thanh cong"
+            // Sweep 2026-06-12: nói rõ là MOCK — tránh người vận hành tưởng đã gửi cổng BHXH thật
+            Message = "[MOCK] Du lieu duoc tiep nhan GIA LAP (BhxhGateway:UseMock=true — chua gui cong BHXH that)"
         };
     }
 

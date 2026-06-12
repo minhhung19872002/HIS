@@ -14,6 +14,7 @@ namespace HIS.API.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/warehouse")]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // sweep 2026-06-12: lỗi nghiệp vụ → 400/404 message rõ
 public class WarehouseCompleteController : ControllerBase
 {
     private readonly IWarehouseCompleteService _warehouseService;
@@ -42,6 +43,11 @@ public class WarehouseCompleteController : ControllerBase
     [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
     public async Task<ActionResult<StockReceiptDto>> CreateSupplierReceipt([FromBody] CreateStockReceiptDto dto)
     {
+        // Sweep 2026-06-12: body rỗng từng 500 — validate khóa bắt buộc
+        if (dto == null || dto.WarehouseId == Guid.Empty)
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu warehouseId" });
+        if (dto.Items == null || dto.Items.Count == 0)
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Phiếu nhập trống (chưa có dòng hàng)" });
         var result = await _warehouseService.CreateSupplierReceiptAsync(dto, GetCurrentUserId());
         return Ok(result);
     }

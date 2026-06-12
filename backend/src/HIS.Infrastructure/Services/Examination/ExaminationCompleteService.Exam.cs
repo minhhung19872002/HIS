@@ -87,7 +87,8 @@ public partial class ExaminationCompleteService
             .Include(e => e.Room)
             .FirstOrDefaultAsync(e => e.Id == examinationId);
 
-        if (examination == null) throw new Exception("Examination not found");
+        // Sweep 2026-06-12: KeyNotFoundException → DomainExceptionFilter trả 404 (trước Exception thường → 500)
+        if (examination == null) throw new KeyNotFoundException("Examination not found");
 
         // B1 (audit bảo mật 2026-06-06, siết edge 2026-06-09): CHẶN server-side bác sĩ CCHN KHÔNG hợp lệ —
         // hết hạn/đình chỉ/thu hồi HOẶC **chưa có CCHN** trong hệ thống (khớp NangCap18, không chỉ cảnh báo mềm).

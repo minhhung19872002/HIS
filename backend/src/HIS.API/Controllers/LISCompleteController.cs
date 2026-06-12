@@ -19,6 +19,7 @@ namespace HIS.API.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
+    [TypeFilter(typeof(Filters.DomainExceptionFilter))] // sweep 2026-06-12: lỗi nghiệp vụ → 400/404 message rõ
     public class LISCompleteController : ControllerBase
     {
         private readonly ILISCompleteService _lisService;
@@ -441,6 +442,11 @@ namespace HIS.API.Controllers
         // Authorize removed for testing
         public async Task<ActionResult> EnterLabResult([FromBody] EnterLabResultDto dto)
         {
+            // Sweep 2026-06-12: body rỗng từng trả success giả — validate tối thiểu.
+            if (dto == null || dto.LabTestItemId == Guid.Empty)
+                return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu LabTestItemId" });
+            if (string.IsNullOrWhiteSpace(dto.Result) && (dto.Parameters == null || dto.Parameters.Count == 0))
+                return BadRequest(new { error = "VALIDATION_FAILED", message = "Cần nhập kết quả (Result hoặc Parameters)" });
             await _lisService.EnterLabResultAsync(dto);
             return Ok(new { success = true });
         }

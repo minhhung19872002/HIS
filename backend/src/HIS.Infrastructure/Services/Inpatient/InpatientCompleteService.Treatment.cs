@@ -303,6 +303,16 @@ public partial class InpatientCompleteService {
     // Sinh hiệu nội trú lưu DB thật (audit luồng nghiệp vụ 2026-06-06 #3) — trước đây stub in-memory.
     public async Task<VitalSignsRecordDto> CreateVitalSignsAsync(CreateVitalSignsDto dto, Guid userId)
     {
+        // Sweep prod 2026-06-12: body rỗng từng tạo row rác (AdmissionId=Guid.Empty, mọi chỉ số null).
+        // Validate: admission phải tồn tại + có ít nhất 1 chỉ số sinh hiệu.
+        if (dto.AdmissionId == Guid.Empty
+            || !await _context.Admissions.AnyAsync(a => a.Id == dto.AdmissionId && !a.IsDeleted))
+            throw new InvalidOperationException("AdmissionId khong hop le hoac khong ton tai");
+        if (dto.Temperature == null && dto.Pulse == null && dto.RespiratoryRate == null
+            && dto.SystolicBP == null && dto.DiastolicBP == null && dto.SpO2 == null
+            && dto.Weight == null && dto.Height == null)
+            throw new InvalidOperationException("Can nhap it nhat 1 chi so sinh hieu");
+
         var entity = new InpatientVitalSign
         {
             Id = Guid.NewGuid(),

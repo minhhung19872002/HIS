@@ -15,6 +15,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // sweep 2026-06-12: lỗi nghiệp vụ → 400 message rõ
 public class SurgeryCompleteController : ControllerBase
 {
     private readonly ISurgeryCompleteService _surgeryService;

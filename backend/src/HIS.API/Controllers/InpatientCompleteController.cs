@@ -149,6 +149,11 @@ public partial class InpatientCompleteController : ControllerBase
     [HttpPost("admit-from-opd")]
     public async Task<ActionResult<AdmissionDto>> AdmitFromOpd([FromBody] AdmitFromOpdDto dto)
     {
+        // Sweep 2026-06-12: body rỗng từng 500 — validate khóa bắt buộc
+        if (dto == null || dto.MedicalRecordId == Guid.Empty)
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu medicalRecordId" });
+        if (dto.DepartmentId == Guid.Empty || dto.RoomId == Guid.Empty)
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu departmentId/roomId" });
         var result = await _inpatientService.AdmitFromOpdAsync(dto, GetCurrentUserId());
         return Ok(result);
     }
@@ -485,6 +490,11 @@ public partial class InpatientCompleteController : ControllerBase
     [HttpPost("service-orders")]
     public async Task<ActionResult<InpatientServiceOrderDto>> CreateServiceOrder([FromBody] CreateInpatientServiceOrderDto dto)
     {
+        // Sweep 2026-06-12: body rỗng từng 500 — validate khóa bắt buộc
+        if (dto == null || dto.AdmissionId == Guid.Empty)
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu admissionId" });
+        if (dto.Services == null || dto.Services.Count == 0)
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Danh sách dịch vụ trống" });
         var result = await _inpatientService.CreateServiceOrderAsync(dto, GetCurrentUserId());
         return Ok(result);
     }
@@ -665,6 +675,11 @@ public partial class InpatientCompleteController : ControllerBase
     [HttpPost("prescriptions")]
     public async Task<ActionResult<InpatientPrescriptionDto>> CreatePrescription([FromBody] CreateInpatientPrescriptionDto dto)
     {
+        // Sweep 2026-06-12: body rỗng từng 500 — validate khóa bắt buộc
+        if (dto == null || dto.AdmissionId == Guid.Empty)
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu admissionId" });
+        if (dto.Items == null || dto.Items.Count == 0)
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Đơn thuốc trống (chưa có dòng thuốc)" });
         var result = await _inpatientService.CreatePrescriptionAsync(dto, GetCurrentUserId());
         return Ok(result);
     }

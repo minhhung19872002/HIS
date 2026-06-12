@@ -680,6 +680,10 @@ public class ExaminationCompleteController : ControllerBase
     [HttpPost("{examinationId}/diagnoses")]
     public async Task<ActionResult<DiagnosisFullDto>> AddDiagnosis(Guid examinationId, [FromBody] DiagnosisFullDto dto)
     {
+        // Sweep 2026-06-12: body rỗng từng 500 — chẩn đoán phải có mã ICD hoặc tên
+        if (dto == null || (string.IsNullOrWhiteSpace(dto.IcdCode) && string.IsNullOrWhiteSpace(dto.IcdName)
+            && string.IsNullOrWhiteSpace(dto.CustomDiagnosis)))
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Chẩn đoán cần có mã ICD hoặc tên chẩn đoán" });
         dto.ExaminationId = examinationId;
         var result = await _examinationService.AddDiagnosisAsync(examinationId, dto);
         return Ok(result);
@@ -875,6 +879,11 @@ public class ExaminationCompleteController : ControllerBase
     [HttpPost("service-orders")]
     public async Task<ActionResult<List<ServiceOrderFullDto>>> CreateServiceOrders([FromBody] CreateServiceOrderDto dto)
     {
+        // Sweep 2026-06-12: body rỗng từng 500 — validate rõ ràng thay vì "Hệ thống gặp sự cố"
+        if (dto == null || dto.ExaminationId == Guid.Empty)
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu examinationId" });
+        if (dto.Services == null || dto.Services.Count == 0)
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Danh sách dịch vụ trống" });
         var result = await _examinationService.CreateServiceOrdersAsync(dto);
         return Ok(result);
     }

@@ -13,6 +13,7 @@ namespace HIS.API.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/insurance")]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))] // sweep 2026-06-12: lỗi nghiệp vụ → 400/404 message rõ
 public class InsuranceXmlController : ControllerBase
 {
     private readonly IInsuranceXmlService _insuranceService;
@@ -186,6 +187,10 @@ public class InsuranceXmlController : ControllerBase
     [HttpPost("xml/generate/xml1")]
     public async Task<ActionResult<List<Xml1MedicalRecordDto>>> GenerateXml1Data([FromBody] XmlExportConfigDto config)
     {
+        // Sweep 2026-06-12: body rỗng từng 500 — phải có kỳ quyết toán hoặc danh sách mã liên thông
+        if (config == null || (config.Month == 0 && config.Year == 0 && config.FromDate == null
+            && config.ToDate == null && (config.MaLkList == null || config.MaLkList.Count == 0)))
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu kỳ quyết toán (Month/Year hoặc FromDate/ToDate) hoặc MaLkList" });
         var result = await _insuranceService.GenerateXml1DataAsync(config);
         return Ok(result);
     }
@@ -436,6 +441,9 @@ public class InsuranceXmlController : ControllerBase
     [Authorize(Roles = "Admin,InsuranceManager")]
     public async Task<ActionResult<SubmitResultDto>> SubmitToInsurancePortal([FromBody] SubmitToInsurancePortalDto dto)
     {
+        // Sweep 2026-06-12: body rỗng từng trả TXN giả + "tiep nhan thanh cong" (mock) — chặn khi thiếu hồ sơ.
+        if (dto == null || dto.BatchId == Guid.Empty)
+            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu BatchId — chưa chọn đợt quyết toán để gửi" });
         var result = await _insuranceService.SubmitToInsurancePortalAsync(dto);
         return Ok(result);
     }

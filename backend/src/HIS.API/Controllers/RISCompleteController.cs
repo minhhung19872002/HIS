@@ -80,6 +80,7 @@ namespace HIS.API.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize] // Role-based authorization temporarily disabled for testing
+    [TypeFilter(typeof(HIS.API.Filters.DomainExceptionFilter))] // sweep 2026-06-12: lỗi nghiệp vụ → 400/404 message rõ
     public class RISCompleteController : ControllerBase
     {
         private readonly IRISCompleteService _risService;
@@ -253,7 +254,10 @@ namespace HIS.API.Controllers
         // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult> CompleteExam(Guid orderId)
         {
-            await _risService.CompleteExamAsync(orderId);
+            // Sweep 2026-06-12: service trả false khi order không tồn tại nhưng controller từng
+            // nuốt bool → success giả. Giờ 404 rõ ràng.
+            var ok = await _risService.CompleteExamAsync(orderId);
+            if (!ok) return NotFound(new { error = "NOT_FOUND", message = "Order CĐHA không tồn tại" });
             return Ok(new { success = true });
         }
 
