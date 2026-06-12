@@ -247,24 +247,21 @@ public partial class ReceptionCompleteService : IReceptionCompleteService
         var today = DateTime.Today;
         var prefix = $"BN{today:yyyyMMdd}";
 
-        // Get the max patient code with today's prefix
-        var maxCode = await _context.Patients
+        // Max NUMERIC suffix với prefix hôm nay. KHÔNG dùng string-max + TryParse một mã duy nhất:
+        // mã demo seed BN{date}SEED### lớn hơn mọi mã số theo string order ('S' > digit) → TryParse
+        // fail → luôn trả 0001 → trùng UNIQUE KEY từ BN thứ 2 trong ngày (bug bắt 2026-06-12).
+        var todayCodes = await _context.Patients
             .IgnoreQueryFilters()
             .Where(p => p.PatientCode.StartsWith(prefix))
-            .OrderByDescending(p => p.PatientCode)
             .Select(p => p.PatientCode)
-            .FirstOrDefaultAsync();
+            .ToListAsync();
 
-        int nextNumber = 1;
-        if (!string.IsNullOrEmpty(maxCode) && maxCode.Length > prefix.Length)
-        {
-            if (int.TryParse(maxCode.Substring(prefix.Length), out int currentNumber))
-            {
-                nextNumber = currentNumber + 1;
-            }
-        }
+        var maxNumber = todayCodes
+            .Select(c => int.TryParse(c.Substring(prefix.Length), out var n) ? n : 0)
+            .DefaultIfEmpty(0)
+            .Max();
 
-        return $"{prefix}{nextNumber:D4}";
+        return $"{prefix}{(maxNumber + 1):D4}";
     }
 
     private async Task<string> GenerateMedicalRecordCodeAsync()
