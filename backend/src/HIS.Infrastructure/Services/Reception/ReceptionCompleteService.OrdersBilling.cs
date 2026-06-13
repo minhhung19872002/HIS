@@ -384,6 +384,10 @@ public partial class ReceptionCompleteService {
 
     public async Task<DepositReceiptDto> CreateDepositAsync(ReceptionDepositDto dto, Guid userId)
     {
+        // 2026-06-13: HSBA phải tồn tại — không tạo phiếu mồ côi với MedicalRecordId rác
+        var medicalRecord = await _context.MedicalRecords.FindAsync(dto.MedicalRecordId)
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ bệnh án (medicalRecordId không tồn tại)");
+
         var receiptNumber = await GenerateDepositReceiptNumberAsync();
 
         var deposit = new Deposit
@@ -399,15 +403,9 @@ public partial class ReceptionCompleteService {
             ReceivedByUserId = userId,
             Status = 1, // Active
             UsedAmount = 0,
-            RemainingAmount = dto.Amount
+            RemainingAmount = dto.Amount,
+            PatientId = medicalRecord.PatientId
         };
-
-        // Get patient from medical record
-        var medicalRecord = await _context.MedicalRecords.FindAsync(dto.MedicalRecordId);
-        if (medicalRecord != null)
-        {
-            deposit.PatientId = medicalRecord.PatientId;
-        }
 
         await _context.Deposits.AddAsync(deposit);
         // 2026-06-12 (sweep prod): KHÔNG set shadow "ReceivedById" nữa — Fluent FK đã map nav
@@ -429,6 +427,10 @@ public partial class ReceptionCompleteService {
 
     public async Task<PaymentReceiptDto> CreatePaymentAsync(ReceptionPaymentDto dto, Guid userId)
     {
+        // 2026-06-13: HSBA phải tồn tại — không tạo phiếu thu mồ côi với MedicalRecordId rác
+        var medicalRecord = await _context.MedicalRecords.FindAsync(dto.MedicalRecordId)
+            ?? throw new KeyNotFoundException("Không tìm thấy hồ sơ bệnh án (medicalRecordId không tồn tại)");
+
         var receiptNumber = await GeneratePaymentReceiptNumberAsync();
 
         var payment = new Payment
@@ -446,15 +448,9 @@ public partial class ReceptionCompleteService {
             PaymentMethod = dto.PaymentMethod,
             TransactionReference = dto.TransactionReference,
             ReceivedByUserId = userId,
-            Status = 1 // Paid
+            Status = 1, // Paid
+            PatientId = medicalRecord.PatientId
         };
-
-        // Get patient from medical record
-        var medicalRecord = await _context.MedicalRecords.FindAsync(dto.MedicalRecordId);
-        if (medicalRecord != null)
-        {
-            payment.PatientId = medicalRecord.PatientId;
-        }
 
         await _context.Payments.AddAsync(payment);
         // 2026-06-12 (sweep prod): bỏ set shadow "ReceivedById" — như CreateDepositAsync ở trên,

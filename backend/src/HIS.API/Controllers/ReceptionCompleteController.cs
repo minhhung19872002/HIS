@@ -18,6 +18,7 @@ namespace HIS.API.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/reception")]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))]
 public class ReceptionCompleteController : ControllerBase
 {
     private readonly IReceptionCompleteService _receptionService;
