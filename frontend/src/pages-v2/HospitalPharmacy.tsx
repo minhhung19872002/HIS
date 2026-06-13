@@ -6,6 +6,7 @@ import {
   SimpleV2Page, StatusBadge, DrSec, DrField,
   type ColumnDef, type StatusTab, type KpiItem,
 } from './_v2kit';
+import ExpiryAlertModal from './shared/ExpiryAlertModal';
 
 const STATUS_TONE: Record<number, { label: string; tone: 'warn' | 'ok' | 'crit' }> = {
   0: { label: 'Chờ',    tone: 'warn' },
@@ -76,6 +77,8 @@ const HospitalPharmacyV2: React.FC = () => {
   };
 
   return (
+    <>
+    <ExpiryAlertModal />
     <SimpleV2Page<RetailSaleDto>
       title="Hóa đơn bán lẻ"
       load={load}
@@ -113,6 +116,7 @@ const HospitalPharmacyV2: React.FC = () => {
         </>
       )}
     />
+    </>
   );
 };
 
