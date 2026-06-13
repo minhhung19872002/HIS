@@ -452,21 +452,32 @@ public class PharmacyController : ControllerBase
 
             // Phát thuốc PHẢI trừ kho FEFO (audit luồng nghiệp vụ 2026-06-06 #6): đi qua nhánh chuẩn
             // WarehouseComplete (tạo phiếu xuất + trừ tồn + set trạng thái đơn trong transaction).
-            if (prescription.WarehouseId.HasValue && prescription.WarehouseId.Value != Guid.Empty)
+            // Test e2e prod 2026-06-13: fallback cũ "đơn chưa gán kho → chỉ đánh dấu đã phát" làm
+            // thất thoát kho (không phiếu xuất → cancel-dispensed cũng không hoàn được). Nay đơn chưa
+            // gán kho → resolve kho lẻ ngoại trú mặc định (WarehouseType=2); không có kho → 400 rõ ràng,
+            // TUYỆT ĐỐI không phát mà không trừ tồn.
+            if (!prescription.WarehouseId.HasValue || prescription.WarehouseId.Value == Guid.Empty)
             {
-                var warehouseService = HttpContext.RequestServices.GetRequiredService<HIS.Application.Services.IWarehouseCompleteService>();
-                await warehouseService.DispenseOutpatientPrescriptionAsync(prescriptionId, userId);
-                return Ok(true);
+                var defaultDispensaryId = await _context.Warehouses
+                    .Where(w => w.IsActive && !w.IsDeleted && w.WarehouseType == 2)
+                    .OrderBy(w => w.WarehouseName)
+                    .Select(w => (Guid?)w.Id)
+                    .FirstOrDefaultAsync();
+                if (defaultDispensaryId == null)
+                    return BadRequest(new
+                    {
+                        message = "Đơn thuốc chưa gán kho xuất và không có kho lẻ ngoại trú (WarehouseType=2) đang hoạt động — chọn kho trước khi phát"
+                    });
+
+                _logger.LogInformation(
+                    "CompleteDispensing: prescription {Id} chưa gán kho — dùng kho lẻ mặc định {WarehouseId}",
+                    prescriptionId, defaultDispensaryId);
+                prescription.WarehouseId = defaultDispensaryId;
+                await _context.SaveChangesAsync();
             }
 
-            // Fallback: đơn chưa gán kho → không thể trừ tồn, chỉ đánh dấu trạng thái + cảnh báo.
-            _logger.LogWarning("CompleteDispensing: prescription {Id} chưa gán kho — đánh dấu đã phát nhưng KHÔNG trừ tồn", prescriptionId);
-            prescription.Status = 2; // Đã cấp phát
-            prescription.IsDispensed = true;
-            prescription.DispensedAt = DateTime.UtcNow;
-            prescription.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
+            var warehouseService = HttpContext.RequestServices.GetRequiredService<HIS.Application.Services.IWarehouseCompleteService>();
+            await warehouseService.DispenseOutpatientPrescriptionAsync(prescriptionId, userId);
             return Ok(true);
         }
         catch (InvalidOperationException ex)

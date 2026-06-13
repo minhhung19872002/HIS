@@ -307,7 +307,33 @@ public partial class WarehouseCompleteService {
             .FirstOrDefaultAsync(e => e.PrescriptionId == prescriptionId && e.Status != 2);
 
         if (exportReceipt == null)
+        {
+            // Legacy (trước fix 2026-06-13): fallback CompleteDispensing cũ flip status "đã phát"
+            // mà KHÔNG tạo phiếu xuất/không trừ kho → không có gì để hoàn kho. Cho hoàn TRẠNG THÁI
+            // đơn (về Đã duyệt) để phát lại đúng luồng; kho không cộng vì chưa từng bị trừ.
+            var legacyRx = await _context.Prescriptions
+                .FirstOrDefaultAsync(p => p.Id == prescriptionId && !p.IsDeleted);
+            if (legacyRx != null && legacyRx.IsDispensed)
+            {
+                legacyRx.IsDispensed = false;
+                legacyRx.DispensedAt = null;
+                legacyRx.DispensedBy = null;
+                legacyRx.Status = 1; // Đã duyệt — phát lại được
+                legacyRx.UpdatedAt = DateTime.UtcNow;
+                legacyRx.UpdatedBy = userId.ToString();
+                await _context.SaveChangesAsync();
+                return new StockReceiptDto
+                {
+                    Id = Guid.Empty,
+                    ReceiptCode = "(không có phiếu xuất — đơn phát trước fix, kho chưa bị trừ; đã hoàn trạng thái đơn)",
+                    ReceiptType = 0,
+                    Status = 1,
+                    ReceiptDate = DateTime.Now,
+                    CreatedAt = DateTime.Now
+                };
+            }
             throw new InvalidOperationException("Không tìm thấy phiếu xuất cho đơn thuốc này");
+        }
 
         // Hủy phiếu xuất
         exportReceipt.Status = 2; // Cancelled
