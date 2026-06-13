@@ -27,6 +27,11 @@ import {
   type PatientLabResultsDto, type AllergyDto, type ConsultationRecordDto,
 } from '../api/examination';
 import { catalogApi, type DepartmentCatalogDto } from '../api/system';
+import {
+  getOutpatientRecordTemplates, getOutpatientRecordTemplate,
+  saveOutpatientRecordTemplate, deleteOutpatientRecordTemplate,
+  type OutpatientRecordTemplateDto,
+} from '../api/clinicalNarratives';
 import { useAbbrExpansion } from '../utils/abbrExpand';
 import { ABBREVIATION_SCOPES } from '../api/abbreviation';
 import {
@@ -85,6 +90,65 @@ const OpdEditorV2: React.FC = () => {
   const [diagnoses, setDx] = useState<DxRow[]>([]);
   const [orders, setOrd] = useState<OrderRow[]>([]);
   const expandAbbr = useAbbrExpansion(OPD_ABBR_SCOPES);
+
+  // Mẫu HSBA ngoại trú (issue #30 mục 7) — áp mẫu + lưu bản ghi hiện tại thành mẫu + quản lý
+  const [tpls, setTpls] = useState<OutpatientRecordTemplateDto[]>([]);
+  const [tplManageOpen, setTplManageOpen] = useState(false);
+  const [tplSaveOpen, setTplSaveOpen] = useState(false);
+  const [tplName, setTplName] = useState('');
+  const [tplBusy, setTplBusy] = useState(false);
+
+  const loadTpls = useCallback(() => {
+    getOutpatientRecordTemplates().then((r) => setTpls(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+  }, []);
+  useEffect(() => { loadTpls(); }, [loadTpls]);
+
+  const applyTpl = async (id: string) => {
+    if (!id) return;
+    try {
+      const { data: t } = await getOutpatientRecordTemplate(id);
+      if (!t) return;
+      const histParts = [t.chiefComplaint, t.medicalHistory].filter(Boolean);
+      if (histParts.length) setHistory(histParts.join('\n'));
+      const examParts = [
+        t.physicalExamination, t.generalExamBody,
+        t.cardiovascularExam && `Tim mạch: ${t.cardiovascularExam}`,
+        t.respiratoryExam && `Hô hấp: ${t.respiratoryExam}`,
+        t.giExam && `Tiêu hóa: ${t.giExam}`,
+        t.neuroExam && `Thần kinh: ${t.neuroExam}`,
+      ].filter(Boolean);
+      if (examParts.length) setExam(examParts.join('\n'));
+      const conclParts = [t.conclusion, t.treatmentPlan && `Hướng điều trị: ${t.treatmentPlan}`, t.followUpNotes].filter(Boolean);
+      if (conclParts.length) setConclusion(conclParts.join('\n'));
+      tk(`Đã áp mẫu "${t.templateName}"`);
+    } catch { tw('Không tải được mẫu HSBA'); }
+  };
+
+  const saveCurrentAsTpl = async () => {
+    if (!tplName.trim()) { tw('Nhập tên mẫu'); return; }
+    setTplBusy(true);
+    try {
+      await saveOutpatientRecordTemplate({
+        templateCode: `OPD-${Date.now().toString(36).toUpperCase()}`,
+        templateName: tplName.trim(),
+        diagnosisCode: diagnoses.find((d) => d.isPrimary)?.icdCode || diagnoses[0]?.icdCode,
+        diagnosisName: diagnoses.find((d) => d.isPrimary)?.icdName || diagnoses[0]?.icdName,
+        medicalHistory: history || undefined,
+        physicalExamination: exam || undefined,
+        conclusion: conclusion || undefined,
+        isPublic: true,
+      });
+      tk('Đã lưu mẫu HSBA');
+      setTplSaveOpen(false); setTplName('');
+      loadTpls();
+    } catch { te('Lưu mẫu thất bại'); } finally { setTplBusy(false); }
+  };
+
+  const removeTpl = async (id: string) => {
+    setTplBusy(true);
+    try { await deleteOutpatientRecordTemplate(id); tk('Đã xóa mẫu'); loadTpls(); }
+    catch { te('Xóa mẫu thất bại'); } finally { setTplBusy(false); }
+  };
 
   // Modal: KQ CLS tại phòng khám
   const [clsOpen, setClsOpen] = useState(false);
@@ -563,6 +627,25 @@ const OpdEditorV2: React.FC = () => {
               </div>
             </section>
 
+            {/* Mẫu HSBA ngoại trú — áp nhanh / lưu bản ghi thành mẫu / quản lý (issue #30 mục 7) */}
+            <section style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <select className="hui-inp" value="" onChange={(e) => applyTpl(e.target.value)}
+                style={{ height: 30, fontSize: 12, flex: '0 1 340px', minWidth: 220 }}>
+                <option value="">Áp mẫu HSBA{tpls.length ? ` (${tpls.length} mẫu)` : ' (chưa có mẫu)'}…</option>
+                {tpls.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.templateCode} — {t.templateName}{t.diagnosisCode ? ` (${t.diagnosisCode})` : ''}
+                  </option>
+                ))}
+              </select>
+              <Btn variant="ghost" onClick={() => { setTplName(''); setTplSaveOpen(true); }}>
+                <TermIcon name="plus" size={12} /> Lưu thành mẫu
+              </Btn>
+              <Btn variant="ghost" onClick={() => setTplManageOpen(true)}>
+                <TermIcon name="list" size={12} /> Quản lý mẫu
+              </Btn>
+            </section>
+
             {/* History + exam */}
             <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
@@ -901,6 +984,63 @@ const OpdEditorV2: React.FC = () => {
           </div>
         </section>
       </aside>
+
+      {/* ── Modal: Lưu bản ghi hiện tại thành mẫu HSBA ───────────────── */}
+      <ModalShell
+        open={tplSaveOpen}
+        onClose={() => setTplSaveOpen(false)}
+        title="Lưu thành mẫu HSBA ngoại trú"
+        sub="Lưu bệnh sử / khám lâm sàng / kết luận đang nhập thành mẫu dùng lại"
+        size="sm"
+        footer={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Btn variant="ghost" size="sm" onClick={() => setTplSaveOpen(false)}>Hủy</Btn>
+            <Btn variant="primary" size="sm" disabled={tplBusy || !tplName.trim()} onClick={saveCurrentAsTpl}>
+              {tplBusy ? 'Đang lưu…' : 'Lưu mẫu'}
+            </Btn>
+          </div>
+        }
+      >
+        <label style={{ fontSize: 11, color: 'var(--t-2)' }}>Tên mẫu</label>
+        <input className="hui-inp" value={tplName} onChange={(e) => setTplName(e.target.value)}
+          placeholder="VD: Viêm họng cấp người lớn" style={{ width: '100%', height: 32, fontSize: 12.5 }} autoFocus />
+        <div style={{ marginTop: 10, fontSize: 11.5, color: 'var(--t-2)' }}>
+          Mẫu sẽ gồm: bệnh sử ({history ? history.length : 0} ký tự) · khám LS ({exam ? exam.length : 0} ký tự) ·
+          kết luận ({conclusion ? conclusion.length : 0} ký tự)
+          {diagnoses.length > 0 && <> · ICD {diagnoses.find((d) => d.isPrimary)?.icdCode || diagnoses[0]?.icdCode}</>}
+        </div>
+      </ModalShell>
+
+      {/* ── Modal: Quản lý mẫu HSBA ──────────────────────────────────── */}
+      <ModalShell
+        open={tplManageOpen}
+        onClose={() => setTplManageOpen(false)}
+        title="Quản lý mẫu HSBA ngoại trú"
+        sub={`${tpls.length} mẫu — xóa mẫu không còn dùng`}
+        size="md"
+      >
+        {tpls.length === 0 ? (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-3)', fontSize: 12.5 }}>
+            Chưa có mẫu nào — nhập nội dung khám rồi bấm "Lưu thành mẫu".
+          </div>
+        ) : (
+          <table className="ab-tbl" style={{ width: '100%' }}>
+            <thead><tr><th>Mã</th><th>Tên mẫu</th><th>ICD</th><th style={{ width: 60 }} /></tr></thead>
+            <tbody>
+              {tpls.map((t) => (
+                <tr key={t.id}>
+                  <td className="mono">{t.templateCode}</td>
+                  <td>{t.templateName}</td>
+                  <td className="mono">{t.diagnosisCode || '—'}</td>
+                  <td className="act">
+                    <ActBtn ic="x" title="Xóa mẫu" tone="crit" onClick={() => removeTpl(t.id)} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </ModalShell>
 
       {/* ── Modal: Khám thêm CK khác ─────────────────────────────────── */}
       <ModalShell

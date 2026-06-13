@@ -64,7 +64,12 @@ test.describe.configure({ mode: 'serial' });
 for (const { g, route } of GROUPS) {
   test(`CRUD ${g} (/v2/${route})`, async ({ page, request }) => {
     const apiFails: string[] = []; const pageErrors: string[] = []; const notes: string[] = [];
-    page.on('response', (r: Response) => { if (r.status() >= 400 && r.url().includes('/api/')) apiFails.push(`${r.status()} ${r.url().split('/api/')[1]?.slice(0, 40)}`); });
+    page.on('response', (r: Response) => {
+      if (r.status() < 400 || !r.url().includes('/api/')) return;
+      // expected-404 theo contract: khong co mapping PTTT cho dich vu -> FE bat loi va an nut (ris.ts)
+      if (r.status() === 404 && r.url().includes('pttt-service-mappings/by-service')) return;
+      apiFails.push(`${r.status()} ${r.url().split('/api/')[1]?.slice(0, 40)}`);
+    });
     page.on('pageerror', (e) => pageErrors.push(e.message));
 
     const { token, user } = await getToken(request);
@@ -80,9 +85,19 @@ for (const { g, route } of GROUPS) {
     // overlay custom cua _v2kit: hui-drawer / hui-modal (KHONG phai ant-drawer)
     const overlaySel = '.hui-drawer-wrap, .hui-drawer, .hui-modal-wrap, .hui-modal, .ant-drawer-open, .ant-modal:visible';
     const closeOverlay = async () => {
-      const x = page.locator('.hui-x:visible, .hui-drawer-backdrop:visible, .hui-backdrop:visible').first();
-      if (await x.count() > 0) { await x.click({ force: true }).catch(() => {}); } else { await page.keyboard.press('Escape').catch(() => {}); }
-      await page.waitForTimeout(300);
+      // 2026-06-13: cho overlay BIEN MAT that su (retry 3 lan) — backdrop con treo lam click
+      // "Them" ke tiep bi nuot -> false fail (flaky o master-data)
+      for (let i = 0; i < 3; i++) {
+        const x = page.locator('.hui-x:visible, .hui-drawer-backdrop:visible, .hui-backdrop:visible').first();
+        if (await x.count() > 0) { await x.click({ force: true }).catch(() => {}); }
+        await page.waitForTimeout(300);
+        if (await page.locator(overlaySel).count() === 0) return;
+        // X khong an (vd modal master-data) -> Esc trong CUNG vong; con sot overlay khi sang
+        // buoc "Them" se lam click trung backdrop -> dong modal thay vi mo -> false fail
+        await page.keyboard.press('Escape').catch(() => {});
+        await page.waitForTimeout(300);
+        if (await page.locator(overlaySel).count() === 0) return;
+      }
     };
 
     // R - list rows (loai dong empty-state co td[colspan])
@@ -101,23 +116,32 @@ for (const { g, route } of GROUPS) {
       } catch (e) { readDrawer = 'fail'; notes.push(`read err: ${(e as Error).message.slice(0, 40)}`); }
     }
 
-    // C - nut Them (ab-btn primary text Them/Tao/Moi/Dang ky)
-    const createBtn = page.locator('button.ab-btn, button.ab-iconbtn, .ab-tools button, .ab-toptabs button').filter({ hasText: /Th[eê]m|T[aạ]o|M[oớ]i|Đăng k[yý]|New/i });
+    // C - nut Them (ab-btn primary text Them/Tao/Moi/Dang ky).
+    // 2026-06-13: loai "Lam moi" (refresh mac dinh cua SimpleV2Page) — regex cu match "moi"
+    // lam spec click nham nut refresh roi bao fail (false-negative o ipd/surgery/blood-bank...).
+    const createBtn = page.locator('button.ab-btn, button.ab-iconbtn, .ab-tools button, .ab-toptabs button')
+      .filter({ hasText: /Th[eê]m|T[aạ]o|M[oớ]i|Đăng k[yý]|New/i })
+      .filter({ hasNotText: /L[aà]m m[oớ]i/i });
     const hasCreate = await createBtn.count().catch(() => 0) > 0;
     let createOpens: CrudResult['createOpens'] = 'n/a';
     if (hasCreate) {
       try {
+        const urlBefore = page.url();
         await createBtn.first().click({ timeout: 5000, force: true });
-        await page.waitForTimeout(900);
+        await page.waitForTimeout(1300);
         const open = await page.locator(overlaySel).count();
-        createOpens = open > 0 ? 'pass' : 'fail';
-        if (open > 0) await closeOverlay(); else notes.push('nut Them khong mo modal/form');
+        const navigated = page.url() !== urlBefore; // mot so trang (vd ipd "Y lenh moi") mo TRANG tao — van la create-flow hop le
+        createOpens = (open > 0 || navigated) ? 'pass' : 'fail';
+        if (open > 0) await closeOverlay();
+        else if (navigated) { notes.push(`create = navigate ${page.url().split('/v2/')[1] ?? ''}`); await page.goBack().catch(() => {}); }
+        else notes.push('nut Them khong mo modal/form');
       } catch (e) { createOpens = 'fail'; notes.push(`create err: ${(e as Error).message.slice(0, 40)}`); }
     }
 
     // U/D - nut hanh dong tren row
     const actionBtns = await page.locator('table.ab-tbl tbody tr td.act button, table tbody tr .ab-actions button').count().catch(() => 0);
 
+    if (apiFails.length > 0) notes.push(...apiFails.slice(0, 5)); // luu URL api loi de chan doan
     REPORT.push({ group: g, route, loadOk, rows: rowCount, readDrawer, createBtn: hasCreate, createOpens, actionBtns, apiFails: apiFails.length, pageErrors: pageErrors.length, notes });
     const line = `${g.padEnd(20)} rows=${rowCount} read=${readDrawer} create=${hasCreate?createOpens:'no-btn'} actions=${actionBtns} apiFail=${apiFails.length} jsErr=${pageErrors.length}`;
     console.log(`  ${line}`);
