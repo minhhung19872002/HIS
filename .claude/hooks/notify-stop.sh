@@ -19,7 +19,9 @@ status="$repo/docs/workspace-docs/STATUS.md"
 # Có thay đổi code ở backend/ hoặc frontend/?  (tracked, đã sửa nhưng chưa commit)
 code_dirty=$(git -C "$repo" status --porcelain -- backend frontend 2>/dev/null | grep -v '^??' | grep -c .)
 # ... hoặc đã commit nhưng chưa push (ahead origin/main) đụng code?
-code_ahead=$(git -C "$repo" diff --name-only origin/main..HEAD -- backend frontend 2>/dev/null | grep -c .)
+# 3 chấm (origin/main...HEAD) = từ merge-base → chỉ commit local CHƯA push; tránh false-positive khi
+# local đang BEHIND origin (máy khác vừa push) — 2 chấm sẽ kể nhầm file của origin.
+code_ahead=$(git -C "$repo" diff --name-only origin/main...HEAD -- backend frontend 2>/dev/null | grep -c .)
 
 today=$(date +%Y-%m-%d)
 status_today=$(grep -c "$today" "$status" 2>/dev/null || echo 0)

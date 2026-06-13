@@ -3,6 +3,18 @@
 Bản đồ ROUTER: chọn skill nào cho yêu cầu. **Mô tả đầy đủ từng skill đã được Claude tự nạp qua
 `description`** (danh sách available skills) → map này KHÔNG lặp lại mô tả, chỉ giữ **routing + governance**.
 
+**★ CỬA VÀO DUY NHẤT (mọi input bắt đầu từ đây → đi hết 1 quy trình):**
+```
+Input ─► [MAP] SKILL-MAP.md (chọn skill) ─► workflow/workflow.md (chọn flow/pipeline + state-store)
+        ─► chạy pipeline 5 chặng (Router→Planner→Worker→Reviewer→Finalizer) ─► Output/DONE
+```
+- **SKILL-MAP** = *làm bằng skill nào* (routing). **`workflow/workflow.md`** = *chạy theo flow/pipeline nào
+  + agent ghi gì vào state-store*. Hai cái bổ trợ, KHÔNG thay nhau.
+- Task **không trivial** PHẢI đi hết pipeline ([`workflow/workflow.md`](workflow/workflow.md)) + dùng
+  state-store ([`workflow/task.md`](workflow/task.md)); chỉ `DONE` khi qua [`workflow/checklist.md`](workflow/checklist.md).
+- Quy ước branch/commit/PR/review: [`workflow/project-rules.md`](workflow/project-rules.md) · Quyết định
+  kiến trúc: [`workflow/ai-memory.md`](workflow/ai-memory.md).
+
 **Cách dùng (2 bước, tiết kiệm token):**
 1. Đọc file này (governance + index + dispatch).
 2. Theo dispatch (2) → đọc **đúng 1 map con** trong `.claude/skill-routes/` cho tầng của task. Chỉ mở

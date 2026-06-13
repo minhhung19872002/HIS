@@ -11,10 +11,12 @@ Khi nhận **bất kỳ yêu cầu làm tính năng / sửa code / viết test /
 2. **Chọn skill phù hợp** theo bảng định tuyến (mục 1+2): áp `core-*` trước → `his-*` sau, theo đúng thứ tự + path.
 3. **Nếu KHÔNG có skill phù hợp** → theo **mục (6) FALLBACK**: ưu tiên mở rộng skill cũ; chỉ đề xuất tạo
    skill mới khi task **tái dùng nhiều lần** (hỏi user duyệt); task one-off thì làm trực tiếp, không tạo skill.
-4. Mới tiến hành làm task theo skill đã chọn.
+4. **Chạy task qua PIPELINE** `.claude/workflow/workflow.md` — mọi input đi từ map → flow 5 chặng
+   (Router→Planner→Worker→Reviewer→Finalizer) → kết thúc 1 quy trình. Task không trivial dùng state-store
+   `.claude/workflow/task.md`; chỉ đánh `DONE` khi qua `.claude/workflow/checklist.md`. (Trivial/Q&A → bỏ pipeline.)
 
-Skill nằm ở `.claude/skills/` (auto-nạp description). SKILL-MAP/PROMPT-TEMPLATES là file thường — **phải chủ
-động Read** theo chỉ thị này. Bỏ qua bước routing = sai quy trình.
+Skill nằm ở `.claude/skills/` (auto-nạp description). SKILL-MAP/PROMPT-TEMPLATES + `.claude/workflow/*` là file
+thường — **phải chủ động Read** theo chỉ thị này. Bỏ qua bước routing/pipeline = sai quy trình.
 
 ## Agent routing (tự chọn — LUÔN báo đang dùng gì)
 
