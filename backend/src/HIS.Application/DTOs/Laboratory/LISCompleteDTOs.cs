@@ -371,6 +371,28 @@ public class LabTestItemDto
 
     public DateTime? ResultAt { get; set; }
     public string? Notes { get; set; }
+
+    /// <summary>R1: danh sách chỉ số con per-parameter (rỗng nếu chỉ có Result chuỗi).</summary>
+    public List<LabResultParameterDto>? Parameters { get; set; }
+}
+
+/// <summary>
+/// DTO đọc 1 chỉ số con của kết quả XN (ServiceRequestDetailParameter).
+/// Flag theo chuẩn HL7: N | H | L | HH | LL.
+/// </summary>
+public class LabResultParameterDto
+{
+    public string ParameterCode { get; set; } = string.Empty;
+    public string ParameterName { get; set; } = string.Empty;
+    public string? Value { get; set; }
+    public decimal? NumericValue { get; set; }
+    public string? Unit { get; set; }
+    public decimal? RefMin { get; set; }
+    public decimal? RefMax { get; set; }
+    public string? RefRange { get; set; }
+    /// <summary>N | H | L | HH | LL (null nếu chưa đánh giá)</summary>
+    public string? Flag { get; set; }
+    public int Sequence { get; set; }
 }
 
 /// <summary>

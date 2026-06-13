@@ -66,17 +66,27 @@ export const buildLabResultHtml = (result: TestResult): string => `
         ${result.enteredBy ? `<div class="info">Người nhập: ${result.enteredBy} - ${result.enteredTime ? dayjs(result.enteredTime).format('DD/MM/YYYY HH:mm') : ''}</div>` : ''}
         ${result.approvedBy ? `<div class="info">Người duyệt: ${result.approvedBy} - ${result.approvedTime ? dayjs(result.approvedTime).format('DD/MM/YYYY HH:mm') : ''}</div>` : ''}
         <table>
-          <thead><tr><th>Chỉ số</th><th>Giá trị</th><th>Đơn vị</th><th>Giá trị tham chiếu</th><th>Trạng thái</th></tr></thead>
+          <thead><tr><th>Chỉ số</th><th>Giá trị</th><th>Đơn vị</th><th>Giá trị tham chiếu</th><th>Trạng thái</th><th>Cờ</th></tr></thead>
           <tbody>
             ${(result.parameters || []).map(p => {
               const status = getParameterStatus(p);
               const isAbnormal = status === 'high' || status === 'low' || status === 'critical';
+              // Màu flag: H/L = cam (#d46b08), HH/LL = đỏ đậm (#cf1322), N = mặc định
+              const flagLabel = status === 'critical' ? (p.criticalHigh !== undefined && typeof p.value === 'number' && p.value > p.criticalHigh ? 'HH' : 'LL')
+                : status === 'high' ? 'H' : status === 'low' ? 'L' : status === 'normal' ? 'N' : '';
+              const flagColor = (flagLabel === 'HH' || flagLabel === 'LL') ? '#cf1322'
+                : (flagLabel === 'H' || flagLabel === 'L') ? '#d46b08' : '';
+              const flagCellStyle = flagColor
+                ? `color:#fff;background:${flagColor};font-weight:bold;padding:1px 5px;border-radius:3px;`
+                : '';
+              const valueCellStyle = flagColor ? `color:${flagColor};font-weight:bold;` : '';
               return `<tr>
                 <td>${p.name}</td>
-                <td class="${isAbnormal ? 'abnormal' : ''}">${p.value ?? '-'}</td>
+                <td style="${valueCellStyle}">${p.value ?? '-'}</td>
                 <td>${p.unit}</td>
                 <td>${p.referenceRange}</td>
                 <td class="${isAbnormal ? 'abnormal' : ''}">${status === 'normal' ? 'Bình thường' : status === 'high' ? 'Cao' : status === 'low' ? 'Thấp' : status === 'critical' ? 'Nguy hiểm' : '-'}</td>
+                <td style="text-align:center;">${flagLabel ? `<span style="${flagCellStyle}">${flagLabel}</span>` : ''}</td>
               </tr>`;
             }).join('')}
           </tbody>

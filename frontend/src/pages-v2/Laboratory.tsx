@@ -918,31 +918,73 @@ const LabDrawerBody: React.FC<{ r: LabRequest }> = ({ r }) => {
           </div>
           {(r.tests || []).map((t) => {
             const flag = flagFor(t);
-            const color = FLAG_COLOR[flag] || 'var(--t-0)';
+            const topColor = FLAG_COLOR[flag] || 'var(--t-0)';
+            const hasParams = t.parameters && t.parameters.length > 0;
             return (
-              <div key={t.id} style={{
-                display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 50px',
-                padding: '8px 0', borderBottom: '1px solid var(--line-soft)',
-                fontSize: 12.5, alignItems: 'center',
-              }}>
-                <span>{t.testName}</span>
-                <span className="mono" style={{ textAlign: 'right', color, fontWeight: 600 }}>
-                  {t.result || '—'}
-                  {t.unit && <small style={{ marginLeft: 3, color: 'var(--t-2)', fontWeight: 400 }}>{t.unit}</small>}
-                </span>
-                <span className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>
-                  {t.referenceRange || (t.normalMin !== undefined && t.normalMax !== undefined ? `${t.normalMin}–${t.normalMax}` : '—')}
-                </span>
-                <span style={{ textAlign: 'center' }}>
-                  {flag && (
-                    <span style={{
-                      padding: '1px 6px', borderRadius: 3,
-                      background: color,
-                      color: '#fff', fontSize: 10, fontWeight: 700,
-                    }}>{flag}</span>
-                  )}
-                </span>
-              </div>
+              <React.Fragment key={t.id}>
+                {/* Dòng tổng hợp của xét nghiệm */}
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 50px',
+                  padding: '8px 0', borderBottom: hasParams ? 'none' : '1px solid var(--line-soft)',
+                  fontSize: 12.5, alignItems: 'center',
+                }}>
+                  <span style={{ fontWeight: hasParams ? 600 : 400 }}>{t.testName}</span>
+                  <span className="mono" style={{ textAlign: 'right', color: topColor, fontWeight: 600 }}>
+                    {hasParams ? '' : (t.result || '—')}
+                    {!hasParams && t.unit && <small style={{ marginLeft: 3, color: 'var(--t-2)', fontWeight: 400 }}>{t.unit}</small>}
+                  </span>
+                  <span className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                    {!hasParams && (t.referenceRange || (t.normalMin !== undefined && t.normalMax !== undefined ? `${t.normalMin}–${t.normalMax}` : '—'))}
+                  </span>
+                  <span style={{ textAlign: 'center' }}>
+                    {!hasParams && flag && (
+                      <span style={{
+                        padding: '1px 6px', borderRadius: 3,
+                        background: topColor, color: '#fff', fontSize: 10, fontWeight: 700,
+                      }}>{flag}</span>
+                    )}
+                  </span>
+                </div>
+                {/* R1: Bảng per-parameter nếu có */}
+                {hasParams && (
+                  <div style={{
+                    marginLeft: 12, marginBottom: 6,
+                    borderLeft: '2px solid var(--line-soft)',
+                    paddingLeft: 8,
+                  }}>
+                    {t.parameters!.map((p, pi) => {
+                      const pFlag = p.flag ?? '';
+                      const pColor = FLAG_COLOR[pFlag] || 'var(--t-0)';
+                      const pRef = p.refRange || (p.refMin != null && p.refMax != null
+                        ? `${p.refMin}–${p.refMax}`
+                        : p.refMin != null ? `≥${p.refMin}`
+                        : p.refMax != null ? `≤${p.refMax}` : '—');
+                      return (
+                        <div key={pi} style={{
+                          display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 50px',
+                          padding: '5px 0', borderBottom: '1px solid var(--line-soft)',
+                          fontSize: 12, alignItems: 'center',
+                        }}>
+                          <span style={{ color: 'var(--t-1)' }}>{p.parameterName || p.parameterCode}</span>
+                          <span className="mono" style={{ textAlign: 'right', color: pColor, fontWeight: pFlag && pFlag !== 'N' ? 700 : 400 }}>
+                            {p.value ?? '—'}
+                            {p.unit && <small style={{ marginLeft: 3, color: 'var(--t-2)', fontWeight: 400 }}>{p.unit}</small>}
+                          </span>
+                          <span className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{pRef}</span>
+                          <span style={{ textAlign: 'center' }}>
+                            {pFlag && pFlag !== 'N' && (
+                              <span style={{
+                                padding: '1px 5px', borderRadius: 3,
+                                background: pColor, color: '#fff', fontSize: 10, fontWeight: 700,
+                              }}>{pFlag}</span>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </React.Fragment>
             );
           })}
         </div>

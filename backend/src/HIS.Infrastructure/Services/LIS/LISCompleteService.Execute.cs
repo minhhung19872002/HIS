@@ -116,7 +116,22 @@ public partial class LISCompleteService {
                             cat?.NormalMinMale ?? cat?.ReferenceLow,
                             cat?.NormalMaxMale ?? cat?.ReferenceHigh),
                         Result = d.Result,
-                        ResultStatus = LisModel1Map.ComputeItemResultStatus(d, dParams)
+                        ResultStatus = LisModel1Map.ComputeItemResultStatus(d, dParams),
+                        // R1: per-parameter details
+                        Parameters = dParams == null || dParams.Count == 0 ? null
+                            : dParams.Select(p => new HIS.Application.DTOs.Laboratory.LabResultParameterDto
+                            {
+                                ParameterCode = p.ParameterCode,
+                                ParameterName = p.ParameterName,
+                                Value = p.Value,
+                                NumericValue = p.NumericValue,
+                                Unit = p.Unit,
+                                RefMin = p.ReferenceMin,
+                                RefMax = p.ReferenceMax,
+                                RefRange = p.ReferenceRange,
+                                Flag = p.Flag,
+                                Sequence = p.SequenceNumber,
+                            }).ToList(),
                     };
                 }).ToList()
             };
@@ -184,6 +199,21 @@ public partial class LISCompleteService {
                 UnitPrice = d.UnitPrice,
                 InsurancePrice = d.InsuranceAmount,
                 ResultAt = d.TechnicianRunAt ?? d.ResultDate,
+                // R1: per-parameter details (null → FE fallback to Result string)
+                Parameters = dParams == null || dParams.Count == 0 ? null
+                    : dParams.Select(p => new HIS.Application.DTOs.Laboratory.LabResultParameterDto
+                    {
+                        ParameterCode = p.ParameterCode,
+                        ParameterName = p.ParameterName,
+                        Value = p.Value,
+                        NumericValue = p.NumericValue,
+                        Unit = p.Unit,
+                        RefMin = p.ReferenceMin,
+                        RefMax = p.ReferenceMax,
+                        RefRange = p.ReferenceRange,
+                        Flag = p.Flag,
+                        Sequence = p.SequenceNumber,
+                    }).ToList(),
             };
         }).ToList();
 

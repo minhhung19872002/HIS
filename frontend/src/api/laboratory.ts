@@ -1,5 +1,20 @@
 import { apiClient } from './client';
 
+/** R1: 1 chỉ số con của kết quả XN (từ ServiceRequestDetailParameters). */
+export interface LabResultParameter {
+  parameterCode: string;
+  parameterName: string;
+  value?: string | null;
+  numericValue?: number | null;
+  unit?: string | null;
+  refMin?: number | null;
+  refMax?: number | null;
+  refRange?: string | null;
+  /** N | H | L | HH | LL */
+  flag?: string | null;
+  sequence: number;
+}
+
 export interface LabTestItem {
   id: string;
   testCode: string;
@@ -14,6 +29,8 @@ export interface LabTestItem {
   criticalHigh?: number;
   resultStatus?: number | null;
   status: number;
+  /** R1: per-parameter breakdown. Null/empty → fallback to result string. */
+  parameters?: LabResultParameter[] | null;
 }
 
 export interface LabRequest {
