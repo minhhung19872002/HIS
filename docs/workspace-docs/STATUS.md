@@ -6,6 +6,15 @@
 > Cập nhật cuối: **2026-06-13 sáng** (phiên Claude máy C: — chiến dịch "cày hết Issues").
 
 ## Đang ở đâu
+- **Fix phát thuốc ngoại trú trừ kho (`de9b05c`, PUSHED+DEPLOYED+VERIFY PROD)**: test e2e prod
+  (`prod-e2e-flow-test-2026-06-13.md`) bắt nhánh fallback `CompleteDispensing` (đơn NULL-kho) chỉ flip
+  status mà KHÔNG tạo phiếu xuất / KHÔNG trừ kho → thất thoát kho + cancel-dispensed 400. Fix: luôn đi
+  qua `DispenseOutpatientPrescriptionAsync` (resolve kho lẻ WarehouseType=2 nếu đơn chưa gán; không có →
+  400) + cancel legacy-fallback. Smoke local 9/9 (trừ đúng 15, hoàn đúng). **Verify prod SEED005
+  `39722354`: cancel(legacy 400→200) → dispense(200) → cancel(200) — 3/3 PASS**, bản ghi về cancelled sạch.
+  ⚠️ **Còn 31 bản ghi legacy cùng lỗi trên prod (24 SEED 0-item + 7 DT có-item)** — toàn test data, stock
+  chưa từng bị trừ (không thất thoát thật); CHỜ user duyệt có reset về accepted không (không tự bulk-mutate).
+
 - **Đợt 24 đóng trọn**: 3 P0 + 15 endpoint deploy + re-probe prod 17/17 PASS; thêm fix nối tiếp:
   reception payment/deposit **404 khi HSBA không tồn tại** (`1d511ed`, verify prod 404 ✓), phiếu mồ côi
   `PT202606130001` đã xóa prod (guard kép).
