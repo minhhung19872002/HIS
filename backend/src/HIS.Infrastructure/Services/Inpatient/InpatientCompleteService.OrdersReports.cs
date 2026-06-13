@@ -705,85 +705,232 @@ public partial class InpatientCompleteService {
 
     #region 3.5 Nutrition
 
-    public Task<NutritionOrderDto> CreateNutritionOrderAsync(CreateNutritionOrderDto dto, Guid userId)
+    // Issue #4: suất ăn nội trú persist THẬT — reuse bảng DietOrders/DietTypes (Luồng 12 Clinical
+    // Nutrition) thay vì tạo bảng mới. DietOrder không có cột "bữa" nên bữa cụ thể (1-4) encode
+    // marker "[M{n}]" đầu SpecialInstructions; order không marker (đặt từ màn Clinical Nutrition,
+    // chế độ ăn cả ngày) tính vào cả 3 bữa chính khi tổng hợp.
+
+    private static int ParseMealType(string? specialInstructions)
+        => specialInstructions is { Length: >= 4 } s && s[0] == '[' && s[1] == 'M'
+           && char.IsDigit(s[2]) && s[3] == ']'
+            ? s[2] - '0'
+            : 0;
+
+    private static string? StripMealTypeMarker(string? specialInstructions)
+        => ParseMealType(specialInstructions) == 0 ? specialInstructions : specialInstructions![4..];
+
+    private static string? BuildSpecialInstructions(int mealType, string? requirements)
+        => mealType is >= 1 and <= 4 ? $"[M{mealType}]{requirements}" : requirements;
+
+    private async Task<Guid> ResolveDietTypeIdAsync(int nutritionLevel, string? menuCode)
     {
-        return Task.FromResult(new NutritionOrderDto
+        if (!string.IsNullOrWhiteSpace(menuCode))
+        {
+            var byCode = await _context.DietTypes
+                .Where(d => d.Code == menuCode)
+                .Select(d => (Guid?)d.Id)
+                .FirstOrDefaultAsync();
+            if (byCode.HasValue) return byCode.Value;
+        }
+
+        var (category, code, name) = nutritionLevel switch
+        {
+            2 => ("Therapeutic", "NL2", "Kiêng"),
+            3 => ("Special", "NL3", "Đặc biệt"),
+            _ => ("Regular", "NL1", "Bình thường"),
+        };
+        var existing = await _context.DietTypes
+            .Where(d => d.Category == category && d.IsActive)
+            .OrderBy(d => d.Code)
+            .Select(d => (Guid?)d.Id)
+            .FirstOrDefaultAsync();
+        if (existing.HasValue) return existing.Value;
+
+        var dietType = new DietType
+        {
+            Id = Guid.NewGuid(), Code = code, Name = name, Category = category,
+            IsActive = true, CreatedAt = DateTime.UtcNow,
+        };
+        _context.DietTypes.Add(dietType);
+        await _context.SaveChangesAsync();
+        return dietType.Id;
+    }
+
+    private static NutritionOrderDto MapNutritionOrder(DietOrder e) => new()
+    {
+        Id = e.Id,
+        AdmissionId = e.AdmissionId,
+        PatientName = e.Admission?.Patient?.FullName ?? string.Empty,
+        BedName = e.Admission?.Bed?.BedName ?? e.Admission?.Bed?.BedCode,
+        OrderDate = e.StartDate,
+        MealType = ParseMealType(e.SpecialInstructions),
+        NutritionLevel = e.DietType?.Category switch
+        {
+            "Therapeutic" => 2,
+            "Special" => 3,
+            _ => 1,
+        },
+        MenuCode = e.DietType?.Code,
+        MenuName = e.DietType?.Name,
+        SpecialRequirements = StripMealTypeMarker(e.SpecialInstructions),
+        Status = e.Status == "Active" ? 0 : 2,
+    };
+
+    private IQueryable<DietOrder> DietOrdersActiveOn(DateTime date)
+    {
+        var dayStart = date.Date;
+        var dayEnd = dayStart.AddDays(1);
+        return _context.DietOrders
+            .Include(o => o.Admission!).ThenInclude(a => a.Patient)
+            .Include(o => o.Admission!).ThenInclude(a => a.Bed)
+            .Include(o => o.DietType)
+            .Where(o => !o.IsDeleted && o.Status == "Active"
+                && o.StartDate < dayEnd
+                && (o.EndDate == null || o.EndDate >= dayStart));
+    }
+
+    public async Task<NutritionOrderDto> CreateNutritionOrderAsync(CreateNutritionOrderDto dto, Guid userId)
+    {
+        var admission = await _context.Admissions
+                .Include(a => a.Patient).Include(a => a.Bed)
+                .FirstOrDefaultAsync(a => a.Id == dto.AdmissionId && !a.IsDeleted)
+            ?? throw new InvalidOperationException("Không tìm thấy đợt điều trị (admissionId không tồn tại)");
+
+        var order = new DietOrder
         {
             Id = Guid.NewGuid(),
-            AdmissionId = dto.AdmissionId,
-            OrderDate = dto.OrderDate,
-            MealType = dto.MealType,
-            NutritionLevel = dto.NutritionLevel,
-            MenuCode = dto.MenuCode,
-            SpecialRequirements = dto.SpecialRequirements,
-            Status = 0
-        });
+            OrderCode = $"SA-{DateTime.UtcNow:yyyyMMddHHmmssfff}",
+            AdmissionId = admission.Id,
+            PatientId = admission.PatientId,
+            DietTypeId = await ResolveDietTypeIdAsync(dto.NutritionLevel, dto.MenuCode),
+            OrderedById = userId,
+            StartDate = dto.OrderDate.Date,
+            EndDate = dto.OrderDate.Date.AddDays(1).AddSeconds(-1), // suất ăn theo ngày
+            Status = "Active",
+            SpecialInstructions = BuildSpecialInstructions(dto.MealType, dto.SpecialRequirements),
+            CreatedAt = DateTime.UtcNow,
+        };
+        _context.DietOrders.Add(order);
+        await _context.SaveChangesAsync();
+
+        order.Admission = admission;
+        order.DietType = await _context.DietTypes.FindAsync(order.DietTypeId);
+        return MapNutritionOrder(order);
     }
 
-    public Task<NutritionOrderDto> UpdateNutritionOrderAsync(Guid id, CreateNutritionOrderDto dto, Guid userId)
+    public async Task<NutritionOrderDto> UpdateNutritionOrderAsync(Guid id, CreateNutritionOrderDto dto, Guid userId)
     {
-        return Task.FromResult(new NutritionOrderDto
+        var order = await _context.DietOrders
+                .Include(o => o.Admission!).ThenInclude(a => a.Patient)
+                .Include(o => o.Admission!).ThenInclude(a => a.Bed)
+                .FirstOrDefaultAsync(o => o.Id == id && !o.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy chỉ định suất ăn");
+
+        order.DietTypeId = await ResolveDietTypeIdAsync(dto.NutritionLevel, dto.MenuCode);
+        order.StartDate = dto.OrderDate.Date;
+        order.EndDate = dto.OrderDate.Date.AddDays(1).AddSeconds(-1);
+        order.SpecialInstructions = BuildSpecialInstructions(dto.MealType, dto.SpecialRequirements);
+        order.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        order.DietType = await _context.DietTypes.FindAsync(order.DietTypeId);
+        return MapNutritionOrder(order);
+    }
+
+    public async Task DeleteNutritionOrderAsync(Guid id, Guid userId)
+    {
+        var order = await _context.DietOrders.FirstOrDefaultAsync(o => o.Id == id && !o.IsDeleted)
+            ?? throw new KeyNotFoundException("Không tìm thấy chỉ định suất ăn");
+        order.IsDeleted = true;
+        order.Status = "Discontinued";
+        order.DiscontinuationReason = "Xóa từ màn suất ăn nội trú";
+        order.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<NutritionOrderDto>> GetNutritionOrdersAsync(Guid? admissionId, Guid? departmentId, DateTime date)
+    {
+        var query = DietOrdersActiveOn(date);
+        if (admissionId.HasValue) query = query.Where(o => o.AdmissionId == admissionId.Value);
+        if (departmentId.HasValue) query = query.Where(o => o.Admission!.DepartmentId == departmentId.Value);
+
+        var orders = await query.OrderBy(o => o.StartDate).ToListAsync();
+        return orders.Select(MapNutritionOrder).ToList();
+    }
+
+    public async Task<NutritionSummaryDto> GetNutritionSummaryAsync(Guid departmentId, DateTime date)
+    {
+        var deptName = await _context.Departments
+            .Where(d => d.Id == departmentId)
+            .Select(d => d.DepartmentName)
+            .FirstOrDefaultAsync() ?? string.Empty;
+
+        var orders = await DietOrdersActiveOn(date)
+            .Where(o => o.Admission!.DepartmentId == departmentId)
+            .ToListAsync();
+
+        var summary = new NutritionSummaryDto
         {
-            Id = id,
-            AdmissionId = dto.AdmissionId,
-            OrderDate = dto.OrderDate,
-            MealType = dto.MealType,
-            NutritionLevel = dto.NutritionLevel,
-            MenuCode = dto.MenuCode,
-            SpecialRequirements = dto.SpecialRequirements,
-            Status = 0
-        });
-    }
-
-    public Task DeleteNutritionOrderAsync(Guid id, Guid userId)
-    {
-        return Task.CompletedTask;
-    }
-
-    public Task<List<NutritionOrderDto>> GetNutritionOrdersAsync(Guid? admissionId, Guid? departmentId, DateTime date)
-    {
-        return Task.FromResult(new List<NutritionOrderDto>());
-    }
-
-    public Task<NutritionSummaryDto> GetNutritionSummaryAsync(Guid departmentId, DateTime date)
-    {
-        return Task.FromResult(new NutritionSummaryDto
-        {
-            SummaryDate = date,
+            SummaryDate = date.Date,
             DepartmentId = departmentId,
-            DepartmentName = string.Empty,
-            TotalBreakfast = 0,
-            TotalLunch = 0,
-            TotalDinner = 0,
-            TotalSnack = 0,
-            NormalCount = 0,
-            DietCount = 0,
-            SpecialCount = 0,
-            Details = new List<NutritionOrderDto>()
-        });
+            DepartmentName = deptName,
+            Details = orders.Select(MapNutritionOrder).ToList(),
+        };
+
+        foreach (var order in orders)
+        {
+            switch (order.DietType?.Category)
+            {
+                case "Therapeutic": summary.DietCount++; break;
+                case "Special": summary.SpecialCount++; break;
+                default: summary.NormalCount++; break;
+            }
+
+            // Marker bữa cụ thể → đếm đúng bữa; chế độ ăn cả ngày → cả 3 bữa chính.
+            switch (ParseMealType(order.SpecialInstructions))
+            {
+                case 1: summary.TotalBreakfast++; break;
+                case 2: summary.TotalLunch++; break;
+                case 3: summary.TotalDinner++; break;
+                case 4: summary.TotalSnack++; break;
+                default:
+                    summary.TotalBreakfast++;
+                    summary.TotalLunch++;
+                    summary.TotalDinner++;
+                    break;
+            }
+        }
+
+        return summary;
     }
 
     public async Task<byte[]> PrintNutritionSummaryAsync(Guid departmentId, DateTime date)
     {
-        var dept = await _context.Departments.FindAsync(departmentId);
-        var deptName = dept?.DepartmentName ?? "";
+        // Issue #4: in từ số liệu tổng hợp thật (DietOrders) — trước đây đếm bệnh nhân nội trú
+        // rồi gán hết vào "chế độ thường" (số liệu giả).
+        var summary = await GetNutritionSummaryAsync(departmentId, date);
 
-        // Count inpatients in department for nutrition summary
-        var patientCount = await _context.MedicalRecords
-            .CountAsync(m => m.DepartmentId == departmentId && m.TreatmentType == 2 && m.Status < 3);
+        string MealRow(int mealType) => summary.Details
+            .Count(d => d.MealType == mealType || (d.MealType == 0 && mealType <= 3)).ToString();
+        string MealRowByLevel(int mealType, int level) => summary.Details
+            .Count(d => (d.MealType == mealType || (d.MealType == 0 && mealType <= 3)) && d.NutritionLevel == level)
+            .ToString();
 
         var headers = new[] { "Bữa ăn", "Số suất", "Chế độ thường", "Chế độ kiêng", "Chế độ đặc biệt" };
-        var rows = new List<string[]>
+        var mealNames = new[] { "Sáng", "Trưa", "Chiều", "Phụ" };
+        var rows = new List<string[]>();
+        for (var meal = 1; meal <= 4; meal++)
         {
-            new[] { "Sáng", patientCount.ToString(), patientCount.ToString(), "0", "0" },
-            new[] { "Trưa", patientCount.ToString(), patientCount.ToString(), "0", "0" },
-            new[] { "Chiều", patientCount.ToString(), patientCount.ToString(), "0", "0" },
-            new[] { "Phụ", "0", "0", "0", "0" }
-        };
+            rows.Add(new[]
+            {
+                mealNames[meal - 1], MealRow(meal),
+                MealRowByLevel(meal, 1), MealRowByLevel(meal, 2), MealRowByLevel(meal, 3),
+            });
+        }
 
         var html = BuildTableReport(
             "BẢNG TỔNG HỢP SUẤT ĂN",
-            $"Khoa: {Esc(deptName)} - Ngày: {date:dd/MM/yyyy}",
+            $"Khoa: {Esc(summary.DepartmentName)} - Ngày: {date:dd/MM/yyyy}",
             date,
             headers, rows);
 

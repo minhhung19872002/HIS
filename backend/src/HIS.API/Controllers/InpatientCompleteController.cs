@@ -839,6 +839,16 @@ public partial class InpatientCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// Xóa chỉ định suất ăn (soft-delete)
+    /// </summary>
+    [HttpDelete("nutrition-orders/{id}")]
+    public async Task<ActionResult> DeleteNutritionOrder(Guid id)
+    {
+        await _inpatientService.DeleteNutritionOrderAsync(id, GetCurrentUserId());
+        return Ok(new { success = true });
+    }
+
+    /// <summary>
     /// Lấy danh sách chỉ định suất ăn
     /// </summary>
     [HttpGet("nutrition-orders")]
