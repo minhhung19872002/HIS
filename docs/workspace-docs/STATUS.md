@@ -9,7 +9,12 @@
 - **Đợt 24 đóng trọn**: 3 P0 + 15 endpoint deploy + re-probe prod 17/17 PASS; thêm fix nối tiếp:
   reception payment/deposit **404 khi HSBA không tồn tại** (`1d511ed`, verify prod 404 ✓), phiếu mồ côi
   `PT202606130001` đã xóa prod (guard kép).
-- **Chiến dịch Issues (user: "làm hết tất cả task trong Issues")** — đã xử lý **16/29**:
+- **Chiến dịch Issues (user: "làm hết tất cả task trong Issues")** — đã xử lý **20/29**:
+  - **#29 ✅** wave-ui-all.spec.ts 5 PASS + 1 skip-có-log, suite cũ 9/9 (agent test) · **#30 ✅** 10/11 mục
+    (mục 7 EMR template UI vừa làm: OpdEditor áp mẫu/lưu mẫu/quản lý — reuse /clinical-narratives; mục 11
+    → #20) · **#31 ✅** audit crud25 re-run prod SẠCH 0 fail thật (3 false-fail là bug spec đã fix: regex
+    "Làm mới", closeOverlay backdrop, navigate-as-create; 404 pttt-mapping là contract chủ đích) — commit
+    `8202090`.
   - Làm mới: **#4** nutrition persist (DietOrders reuse, `c3bab0a`) · **#26** schema-drift so CỘT EF model
     + mig 100 vá 4 cột drift thật (`aac78db`, prod missingCount=0 ✓) · **#27** bật worker nhắc hẹn prod
     (log started ✓) · **#28** popup hạn dùng thêm HospitalPharmacy (`fc1bc06`).
