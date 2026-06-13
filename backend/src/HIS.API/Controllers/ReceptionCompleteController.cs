@@ -1238,6 +1238,7 @@ public class ReceptionCompleteController : ControllerBase
             var result = await _receptionService.CreateDepositAsync(dto, userId);
             return Ok(result);
         }
+        catch (KeyNotFoundException) { throw; } // HSBA không tồn tại → DomainExceptionFilter trả 404
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating deposit");
@@ -1257,6 +1258,7 @@ public class ReceptionCompleteController : ControllerBase
             var result = await _receptionService.CreatePaymentAsync(dto, userId);
             return Ok(result);
         }
+        catch (KeyNotFoundException) { throw; } // HSBA không tồn tại → DomainExceptionFilter trả 404
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating payment");

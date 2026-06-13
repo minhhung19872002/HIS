@@ -130,38 +130,71 @@ public class HealthController : ControllerBase
         if (!context.Database.IsSqlServer())
             return Ok(new { isSqlServer = false, missing = Array.Empty<string>() });
 
-        var expected = context.Model.GetEntityTypes()
-            .Select(t => t.GetTableName())
-            .Where(n => !string.IsNullOrEmpty(n))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        // Issue #26: so EF model (bảng + CỘT) với INFORMATION_SCHEMA — checker cũ chỉ so bảng
+        // nên migration thiếu cột (vd mig 70 thiếu PaymentCategory/DrugOrderType) không bị bắt.
+        var expectedColumns = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entityType in context.Model.GetEntityTypes())
+        {
+            var tableName = entityType.GetTableName();
+            if (string.IsNullOrEmpty(tableName)) continue; // view/keyless/not mapped
+
+            if (!expectedColumns.TryGetValue(tableName, out var cols))
+                expectedColumns[tableName] = cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var storeObject = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(
+                tableName, entityType.GetSchema());
+            foreach (var property in entityType.GetProperties())
+            {
+                var columnName = property.GetColumnName(storeObject);
+                if (!string.IsNullOrEmpty(columnName)) cols.Add(columnName);
+            }
+        }
 
         var connection = context.Database.GetDbConnection();
         var shouldClose = connection.State != System.Data.ConnectionState.Open;
         if (shouldClose) await connection.OpenAsync();
 
-        var actual = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var actualColumns = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         try
         {
             await using var cmd = connection.CreateCommand();
-            cmd.CommandText = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA = 'dbo'";
+            cmd.CommandText = "SELECT TABLE_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'dbo'";
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
-                actual.Add(reader.GetString(0));
+            {
+                var table = reader.GetString(0);
+                if (!actualColumns.TryGetValue(table, out var cols))
+                    actualColumns[table] = cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                cols.Add(reader.GetString(1));
+            }
         }
         finally
         {
             if (shouldClose) await connection.CloseAsync();
         }
 
-        var missing = expected.Where(n => !actual.Contains(n!)).OrderBy(n => n).ToList();
+        var missingTables = expectedColumns.Keys
+            .Where(t => !actualColumns.ContainsKey(t))
+            .OrderBy(t => t)
+            .ToList();
+        var missingColumns = expectedColumns
+            .Where(kv => actualColumns.ContainsKey(kv.Key))
+            .SelectMany(kv => kv.Value
+                .Where(c => !actualColumns[kv.Key].Contains(c))
+                .Select(c => $"{kv.Key}.{c}"))
+            .OrderBy(s => s)
+            .ToList();
+
         return Ok(new
         {
             timestamp = DateTime.UtcNow,
-            expectedCount = expected.Count,
-            actualCount = actual.Count,
-            missingCount = missing.Count,
-            missing
+            expectedCount = expectedColumns.Count,
+            actualCount = actualColumns.Count,
+            // missingCount giữ nguyên là gate tổng (CLAUDE.md: sau migration phải = 0) — nay gồm cả cột
+            missingCount = missingTables.Count + missingColumns.Count,
+            missing = missingTables,
+            missingColumnsCount = missingColumns.Count,
+            missingColumns
         });
     }
 }
