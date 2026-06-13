@@ -16,8 +16,19 @@
 | Q&A · giải thích · tra cứu · sửa 1-2 dòng trivial | **Bỏ qua state-store.** Vẫn theo gate tối thiểu: verify-before-assert → build-gate nếu chạm code ([`checklist.md`](checklist.md) phần Completion). |
 | Feature · bug_fix · refactor · technical_debt · migration · đa-file | **Pipeline đầy đủ** 5 chặng + state-store ([`task.md`](task.md)). |
 | Đa-domain / mixed (vừa feature vừa refactor vừa doc) | Router **tách** thành nhiều workflow con, mỗi cái chạy pipeline riêng. |
+| **Bug Production KHẨN** (mất dịch vụ/sai dữ liệu/lộ bảo mật) | **Hotfix fast-path** rút gọn — xem §6. |
 
 Quy tắc vàng: **không bắt đầu IMPLEMENT trước khi xong UNDERSTAND + PLAN.** Không đánh dấu DONE trước VERIFY + REVIEW.
+
+### ★ Definition of Ready (DoR) — điều kiện được phép BẮT ĐẦU chặng [3] Worker
+KHÔNG vào IMPLEMENT khi chưa đủ **tất cả**:
+- [ ] `goal` + `scope_in`/`non_goals` rõ; **hết `open_questions` chặn** (mơ hồ → STOP hỏi, §5)
+- [ ] `classification` + `agent_sequence` đã chốt (Router xong)
+- [ ] `impact` + `file_allow_list` đã map (Planner xong); deps/tiền-đề sẵn (không BLOCKED)
+- [ ] `completion_criteria` đo được + `verification_required` đã định
+- [ ] Thay đổi prod rủi-ro (tiền/schema/contract/patient-safety) → đã có **≥3 phương án** + **rollback dự kiến** (§project-rules)
+
+Thiếu bất kỳ mục → **KHÔNG code**; quay lại Router/Planner hoặc STOP hỏi user. *(DoR = cổng vào; DoD = cổng ra.)*
 
 ---
 
@@ -111,6 +122,7 @@ Quy tắc vàng: **không bắt đầu IMPLEMENT trước khi xong UNDERSTAND + 
 - **INPUT (đọc state):** `diff` + `goal`/`scope` gốc + `build_result` + test result.
 - **OUTPUT (ghi state §5 Verify/Review):**
   - `verdict`: PASS / FAIL
+  - `review_dims`: **Code Quality · Performance · Security · Maintainability** (mỗi chiều: OK / issue — bám self-review 9 điểm `his-qa-anti-pattern` #30)
   - `issues[]` (lỗi logic · thiếu edge case · vi phạm yêu cầu · regression · security)
   - `must_fix[]` (việc phải sửa trước khi DONE)
   - `residual_risk`
@@ -161,9 +173,34 @@ KHÔNG nhét scope mới vào task đang chạy. (SKILL-MAP P0 + agent `ai-proje
 
 ---
 
-## 5. Liên kết
+## 5. ★ Escalation / STOP-and-ask — khi nào DỪNG, hỏi user (gộp 1 chỗ)
+DỪNG ngay + báo/hỏi user, **KHÔNG tự quyết**, khi:
+- Yêu cầu **mơ hồ** / ≥2 cách hiểu cho kết quả khác nhau (`core-requirement-clarify`).
+- **Scope nở** (phát sinh refactor/contract/DB/feature ngoài plan) → tạo task mới, re-plan (§4).
+- **Risk Critical** hoặc đụng **tiền · schema · contract · patient-safety · bảo mật** ngoài kế hoạch.
+- **BLOCKED**: thiếu thông tin/quyết định/phụ thuộc ngoài (vd cổng NCC) → ghi `errors`, chuyển `BLOCKED`.
+- Verify/Review có **`must_fix` không tự sửa an toàn được** (đụng vùng rủi ro).
+- Sắp **commit / push / deploy / migration / xoá** (thao tác khó đảo ngược) → xin phép (SKILL-MAP §0c).
+- Build-gate fail **không rõ nguyên nhân sau 2 lần thử** → báo, KHÔNG che lỗi, KHÔNG claim success.
+
+Cách báo: nêu **vấn đề + ≥2 lựa chọn + khuyến nghị**, để user quyết. *(Thành thật > tự tin.)*
+
+---
+
+## 6. ★ Incident / Hotfix fast-path (bug Production KHẨN)
+Bug prod nghiêm trọng (mất dịch vụ/sai dữ liệu/lộ bảo mật) → luồng **rút gọn** nhưng **GIỮ safety**:
+1. **Triage nhanh**: blast-radius + **root-cause có bằng chứng** (KHÔNG vá mù).
+2. **Fix tối thiểu** (`core-minimal-change`) — bỏ ≥3-phương-án/plan dài, NHƯNG **giữ**: verify-before-assert · build-gate · không-hardcode · audit/patient-safety.
+3. **Verify**: build xanh + smoke test đúng đường ảnh hưởng.
+4. **Xin phép push/deploy** (vẫn §0c) — ưu tiên nhanh nhưng user duyệt; biết **rollback** trước ([`project-rules.md`](project-rules.md) §6).
+5. **Post-mortem ngắn**: root-cause + cách chặn tái diễn → ghi Issue; nếu là vấn đề kiến trúc → ADR (`ai-memory.md`).
+
+> Fast-path **CHỈ** cho incident khẩn; bug thường vẫn đi pipeline đầy đủ.
+
+---
+
+## 7. Liên kết
 - Routing skill: [`../SKILL-MAP.md`](../SKILL-MAP.md) — **đọc đầu tiên** cho mọi task code.
-- State-store template: [`task.md`](task.md)
-- Checklist giao hàng: [`checklist.md`](checklist.md)
-- Convention & git rules: [`project-rules.md`](project-rules.md)
-- Sổ quyết định kiến trúc: [`ai-memory.md`](ai-memory.md)
+- State-store template: [`task.md`](task.md) · Checklist: [`checklist.md`](checklist.md)
+- Convention · git · **rollback** · **estimation**: [`project-rules.md`](project-rules.md)
+- Sổ quyết định kiến trúc: [`ai-memory.md`](ai-memory.md) · Phủ yêu cầu: [`requirement-coverage.md`](requirement-coverage.md)

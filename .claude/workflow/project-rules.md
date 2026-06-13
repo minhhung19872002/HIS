@@ -70,6 +70,29 @@
   (memory `feedback_spot-check-after-bulk`); build pass ≠ behavior preserved.
 - Review theo cổng [`checklist.md`](checklist.md); còn mục 🔴 fail → KHÔNG cho DONE.
 
+## 6. Rollback / Recovery (hệ Production — BẮT BUỘC biết cách lùi trước khi đổi)
+
+Khi thay đổi gây sự cố, chọn cách revert **nhỏ-nhất-an-toàn**. Luôn **báo user trước thao tác lùi prod**.
+
+| Tình huống | Cách lùi |
+|---|---|
+| Code chưa push | `git restore` / bỏ commit local (`git reset --soft HEAD~1`) |
+| Đã push, chưa deploy | **`git revert <sha>`** (KHÔNG `reset` nhánh chung) + push |
+| Backend deploy Cloud Run lỗi | Lùi **revision trước**: `gcloud run services update-traffic his-api --to-revisions=<rev-cũ>=100` (hoặc redeploy image cũ) |
+| Frontend Vercel lỗi | Promote lại **deployment trước** trên Vercel (hoặc revert commit → auto-deploy) |
+| Migration SQL gây hỏng | Script SQL **lùi tay** (idempotent) trong `Data/Scripts/`; KHÔNG `ef migrations` |
+| Tính năng mới hỏng | Tắt qua config/feature-flag (nếu có) **trước** khi revert code |
+
+→ Ghi `rollback_notes` ở state-store ([`task.md`](task.md)) + **verify lại sau khi lùi**. Cross-ref Hotfix fast-path ([`workflow.md`](workflow.md) §6).
+
+## 7. Estimation rubric (định nghĩa mức — dùng nhất quán cho mọi issue)
+
+- **Độ phức tạp (effort):** `XS` vài giờ/1 file · `S` ~1 ngày/ít file · `M` vài ngày/1 module · `L` ~1 tuần/đa-file-đa-tầng · `XL` >1 tuần/đa-module/blast-radius lớn (**nên tách nhỏ**).
+- **Độ ưu tiên:** `P0` thiếu → KHÔNG vận hành được (hệ đang live → rất hiếm) · `P1` quan trọng: cần cho triển khai thực / an-toàn-BN / **parity-đối-thủ** · `P2` nên có, tăng hiệu quả · `P3` làm sau, không ảnh hưởng vận hành.
+- **Risk level:** `Critical` prod-down/mất-dữ-liệu/lộ-bảo-mật · `High` blast-radius rộng/khó-rollback · `Medium` giới-hạn-trong-module · `Low` cục-bộ/cosmetic.
+
+> Phương châm parity ([[competitor-parity-philosophy]] · `requirement-coverage.md` Luật 4): đối-thủ-có→P0/P1; không-có-nhưng-cần→P2; không-có-không-cần→KHÔNG tạo.
+
 ---
 
 ## 6. Liên kết

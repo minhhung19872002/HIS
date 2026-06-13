@@ -75,6 +75,12 @@ build_result:       # FE: npm run build EXIT? | BE: dotnet build errors?
 
 # ── [4] REVIEWER — VERIFY + REVIEW ────────────────────
 verdict:            # PASS|FAIL
+review_dims:        # 4 chiều — mỗi chiều OK|issue:
+  code_quality:     #   duplicate/dead-code/naming/hàm-quá-dài (self-review 9 điểm)
+  performance:      #   query đắt/N+1/payload lớn (chỉ khi đo được)
+  security:         #   validate BE/auth/role/secret/audit-HSBA
+  maintainability:  #   tách layer/SRP/coupling
+verification:       # build:EXIT? | lint:? | test:? | manual:?
 issues:             # - lỗi logic / edge case thiếu / vi phạm yêu cầu / regression / security
 must_fix:           # - phải sửa trước DONE (còn item → KHÔNG được DONE)
 residual_risk:      # - rủi ro còn lại
