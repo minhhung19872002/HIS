@@ -3,35 +3,33 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-13** (phiên Claude máy C: — đợt 24; trước đó máy D: — hội chẩn #1+#2).
+> Cập nhật cuối: **2026-06-13 sáng** (phiên Claude máy C: — chiến dịch "cày hết Issues").
 
 ## Đang ở đâu
-- **Đợt 24 (write-flow sweep) PUSHED `6b80046` + DEPLOYED + RE-PROBE PROD 17/17 PASS — ĐÓNG file sweep**: 3 P0
-  (reception payment hỏng 100% — gỡ set shadow FK `ReceivedById`; surgery request gắn ĐẠI bệnh nhân
-  `FirstOrDefault()` → resolve bắt buộc từ MR/exam, patient-safety; vital-signs ghi rác → validate
-  admission + ≥1 chỉ số, row rác prod `1fb78254` đã xóa) + P1 chặn success giả (RIS/LIS/Surgery/
-  BHXH-mock) + 10 endpoint 500-on-empty → 400/404, DomainExceptionFilter thêm 5 controller.
-  Verify local: build 0 err · smoke 18/18 · doithu-gap 28/28 · suite 10/10. **Verify prod sau deploy:
-  16 probe body-rỗng/ID-giả → 400/404 đúng hết + reception payment hợp lệ → 200 (BN smoke + row Payment
-  đã dọn sạch bằng guard kép).**
-- Máy C: đã reset local main = origin/main theo quy ước mới; lịch sử docs local-only cũ backup tại
-  branch `backup/local-main-2026-06-13` (local).
-- **Chuỗi hội chẩn nội trú HOÀN TẤT end-to-end**:
-  - **#1 ✅ CLOSED** — BE persist (mig 99, commit `b45f0d6`), deploy Cloud Run OK, prod schema-drift
-    `missingCount=0`, smoke `GET /api/inpatient/consultations` 200.
-  - **#2 ✅ CLOSED** — FE tab "Hội chẩn" trong Inpatient v2 (commit `16153d2`, Vercel auto-deploy):
-    list/status-tabs + drawer + modal Mời hội chẩn + Hoàn thành + In biên bản. Build FE 0 err.
-- **Quy ước mới đã áp**: workspace-docs push bình thường (hook never-push đã gỡ) · task board = Issues
-  (31 issue, 2 closed) · DoD theo Operating Rules (DONE = pushed + closed trên remote).
-- Working tree sạch; local = origin/main (`16153d2`).
-- Stash backup `B2-local-wip` còn treo — drop khi user chắc.
+- **Đợt 24 đóng trọn**: 3 P0 + 15 endpoint deploy + re-probe prod 17/17 PASS; thêm fix nối tiếp:
+  reception payment/deposit **404 khi HSBA không tồn tại** (`1d511ed`, verify prod 404 ✓), phiếu mồ côi
+  `PT202606130001` đã xóa prod (guard kép).
+- **Chiến dịch Issues (user: "làm hết tất cả task trong Issues")** — đã xử lý **16/29**:
+  - Làm mới: **#4** nutrition persist (DietOrders reuse, `c3bab0a`) · **#26** schema-drift so CỘT EF model
+    + mig 100 vá 4 cột drift thật (`aac78db`, prod missingCount=0 ✓) · **#27** bật worker nhắc hẹn prod
+    (log started ✓) · **#28** popup hạn dùng thêm HospitalPharmacy (`fc1bc06`).
+  - Đóng vì đã làm từ trước (verify code + commit evidence): **#3 #7 #8 #9 #10 #11 #12 #15 #16 #18 #21**
+    (đa số từ wave flow-final 06/09 — issues tạo từ docs cũ bị stale).
+  - **#22** → label blocked (chiều nhận KQ máy XN đã thật qua HL7 TCP; gửi worklist cần máy thật).
+  - **#30**: verify 9/11 mục DONE; còn mục 7 (EMR template UI — MISSING) + mục 11 (dồn về #20).
+  - **#31 đang chạy**: audit crud25 re-run prod — fix bug spec (regex "Mới" match nhầm nút "Làm mới"
+    → false fail); đang chờ kết quả lần 2.
+- Backup branch local cũ đã xóa theo lệnh user (`git branch -D backup/local-main-2026-06-13`).
 
-## Blocker
-1. **#24 HDDT** (BLOCKED): chờ user cấp NCC (VNPT/Viettel/MISA) + endpoint + credential ENV.
-2. **#5 ADR / #6 sơ sinh**: cần user clarify scope nghiệp vụ.
-3. Máy này thiếu gcloud → không thao tác Cloud Run trực tiếp (deploy qua GitHub Actions OK).
+## Blocker / cần user quyết
+1. **#24 HDDT**: chờ user chọn NCC (VNPT/Viettel/MISA) + endpoint + credential ENV.
+2. **#25 rotate R2**: cần quyền Cloudflare (token/dashboard) — máy không có credential.
+3. **#5 ADR / #6 sơ sinh / #23 field LIS-RIS**: cần user chốt scope/danh sách field.
+4. **#14 đa cơ sở Tier2+**: user đã chốt WON'T-DO Tier 2/3 (2026-06-11) — đề nghị close not-planned?
+5. **#22 LIS analyzer**: blocked chờ máy xét nghiệm thật (driver gửi worklist).
 
 ## Việc kế tiếp
-1. Smoke tay tab Hội chẩn trên https://his-psi.vercel.app/v2/ipd (sau Vercel deploy ~2').
-2. Pick issue tiếp theo: `gh issue list` — **LUÔN fetch + git log origin trước** (máy kia push nhanh).
-   Gợi ý: #31 (re-run CRUD audit) hoặc #3 (organizer GUID, nhỏ) hoặc #4 (nutrition).
+1. Đọc kết quả audit crud25 lần 2 → fix route còn fail thật → đóng #31.
+2. #29 viết E2E bổ sung · #30 mục 7 EMR template UI · #13 KQ XN per-parameter (plan riêng) ·
+   #17 T6 controller mỏng (theo batch) · #19/#20 feature lớn (plan riêng).
+3. **LUÔN fetch + git log origin + gh issue list trước khi pick** (máy D làm song song).
