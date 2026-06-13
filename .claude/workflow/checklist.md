@@ -62,3 +62,12 @@
 - [ ] 🔴 **KHÔNG tự commit/push** — dừng `READY_FOR_PUSH`, xin phép; `DONE` chỉ sau khi push OK (SKILL-MAP §0c)
 
 > **Task chỉ được đánh `DONE` khi MỌI mục 🔴 pass + nhóm H đủ.** Còn 🔴 fail → giữ `IN_PROGRESS`/`REVIEW`.
+
+## I. Requirement coverage (CHỈ khi task = rà soát / đối chiếu tài liệu / gap analysis / "đã đủ chưa")
+> Chi tiết: [`requirement-coverage.md`](requirement-coverage.md). Áp khi lập backlog từ `docs/requirements/**`.
+- [ ] 🔴 **Source manifest 100%** — đã liệt kê + đọc HẾT mọi nguồn (`requirements/00·10·20·30·90` + `luong_nghiep_vu`); không còn ⬜/⚠️
+- [ ] 🔴 **Đọc PDF gốc** nếu `.md` trích rỗng/hụt (không tin bản trích)
+- [ ] 🔴 **Enumerate đủ** từng mục/feature/form (không tóm tắt "trọng yếu"); mỗi mục có evidence
+- [ ] 🔴 **Phương châm parity**: đối thủ-có→P0/P1 bắt buộc · không-có-nhưng-cần→P2 (ghi lý do) · không-có-không-cần→KHÔNG tạo
+- [ ] 🔴 **Dedup** vs `gh issue list` + "đã DONE trong code" trước khi tạo
+- [ ] 🔴 **Completeness critic** chạy xong + tách VERIFIED/ASSUMED → KHÔNG nói "đủ" khi manifest chưa 100%

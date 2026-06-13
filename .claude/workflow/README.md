@@ -17,6 +17,7 @@ thiếu**. Khi 2 nơi mâu thuẫn → theo nguồn-sự-thật được nêu tr
 | [`checklist.md`](checklist.md) | Checklist giao hàng — gom theo nhóm Requirement/Design/Impl/Quality/Security/Perf/Test/Done | `skills/his-qa-anti-pattern` #1-30, `SKILL-MAP.md` P0/P1/P2, self-review 9 điểm |
 | [`project-rules.md`](project-rules.md) | Convention · kiến trúc · branch/commit/PR/review | `CLAUDE.md`, `SKILL-MAP.md`, `skills/his-fe-convention`, git-ops rules |
 | [`ai-memory.md`](ai-memory.md) | **Sổ quyết định kiến trúc (ADR-lite)** + index 2 tầng memory | `memory/` (global), `agent-memory/<agent>/`, `his-docs-manager` (ADR) |
+| [`requirement-coverage.md`](requirement-coverage.md) | **Giao thức phủ yêu cầu** (chống sót khi rà tài liệu): source manifest · đọc PDF gốc · enumerate đủ · parity-đối-thủ · completeness gate | `docs/requirements/**`, `checklist.md` mục I |
 
 ## Pipeline 1 dòng
 
