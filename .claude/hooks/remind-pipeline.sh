@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 # UserPromptSubmit hook — nhac chay PIPELINE cho task khong trivial (bo tro SKILL-ROUTER).
-# Giu NGAN de khong phinh context moi prompt. Chi tiet: .claude/workflow/workflow.md
+# + nudge SPARRING khi prompt co dau hieu quyet dinh/cau hoi chien luoc (calibrated, khong always-on).
+# Giu NGAN de khong phinh context moi prompt. Chi tiet: .claude/workflow/workflow.md + skills/core-sparring-partner
+IN=$(cat 2>/dev/null)   # doc prompt (JSON) de do tu-khoa; substring-match nen khong phu thuoc format
 echo "PIPELINE: Trivial (≤5 dong·1 file·khong cham shared/contract/DB/auth/tien/patient-safety) hoac Q&A -> tra loi thang, BO pipeline+state-store+note-skill. Nguoc lai -> .claude/workflow/workflow.md (Router->Planner->Worker->Reviewer->Finalizer; state-store=GitHub Issue body; DONE chi sau khi user push). Git-ops chi tiet: project-rules.md §2-4 (KHONG nhac lai o day)."
+case "$IN" in
+  */spar*|*"phản biện"*|*"phan bien"*|*"có ổn không"*|*"co on khong"*|*"ổn không"*|*"khả thi"*|*"kha thi"*|*"quyết định"*|*"quyet dinh"*|*"đánh giá"*|*"danh gia"*|*"chốt hướng"*|*"chot huong"*|*"nên chọn"*|*"nen chon"*)
+    echo "SPARRING: prompt co dau hieu quyet dinh/cau hoi chien luoc -> ap skills/core-sparring-partner: phan bien TRUOC (gia dinh an · blind-spot · rui ro · phuong an khac — LIEU TOI THIEU, KHONG quota; khong co blind-spot dang ke thi noi thang), roi moi de xuat. Neu thuc ra la lenh thuc thi ro/trivial -> bo qua, lam thang." ;;
+esac
 exit 0
