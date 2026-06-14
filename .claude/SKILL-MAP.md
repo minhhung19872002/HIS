@@ -26,7 +26,9 @@ Input ─► [MAP] SKILL-MAP.md (chọn skill) ─► workflow/workflow.md (ch�
    `skill-routes/_reference.md` khi cần playbook end-to-end / dependency map đầy đủ.
 
 Cấu trúc **2 cấp**: **A · CORE** (`core-*`, portable, tech-agnostic) và **B · PROJECT/HIS** (`his-*`, bám stack).
-Skill nằm ở `.claude/skills/` (nạp phẳng). Tài liệu ở `docs/` (KHÔNG phải skill).
+Skill nằm ở `.claude/skills/` (**chỉ `SKILL.md` cấp 1 auto-nạp qua description**; nội dung `references/` + `scripts/` KHÔNG tự nạp — phải Read khi skill chỉ định, progressive disclosure). Tài liệu ở `docs/` (KHÔNG phải skill).
+
+> **Mục lục mục** (đọc theo logic, không theo thứ tự dòng): **(0)** đặt-tên-skill · **(0a)** vị-trí-file · **(0b)** P0/P1/P2 (rule lõi nhất) · **(0c)** git-ops · **(1)** index skill · **(2)** dispatch · **(5)** conflict-resolution+tiebreaker · **(6)** fallback · **(7)** split. **Mục (3) playbook + (4) dependency-map** nằm ở `skill-routes/_reference.md`.
 
 ---
 
@@ -84,13 +86,13 @@ User explicit 2026-05-30 (đã reprimanded 3+ lần):
 - Working tree dirty là TRẠNG THÁI BÌNH THƯỜNG khi user "continue" — KHÔNG cleanup bằng cách commit
 - Auto Mode bias toward working KHÔNG override rule này
 
-**Đặc biệt với workspace-docs:**
-- `docs/workspace-docs/**` chỉ commit LOCAL khi user explicit, TUYỆT ĐỐI KHÔNG push lên remote
-- Khi user nói "push" generic, em PHẢI tách commit code (push-able) vs commit workspace-docs (local-only)
-- Alert user trước push nếu HEAD có commit chứa workspace-docs
+**workspace-docs (CẬP NHẬT 2026-06-13 — quy tắc "never-push" ĐÃ GỠ):**
+- `docs/workspace-docs/**` commit + push **BÌNH THƯỜNG** như code (hook pre-push + guard + `scripts/push-code.ps1` đã xoá 2026-06-13). Vẫn tách commit logic để review rõ, nhưng KHÔNG còn cấm push.
 
-Cross-ref memory: `feedback_no-commit-push-without-permission.md` ·
-`feedback_workspace-docs-never-push.md` · `feedback_continue-no-git-ops.md`
+> **Nguồn chân lý git-ops = [`workflow/project-rules.md`](workflow/project-rules.md) §2-4.** Mọi nơi khác (kể cả mục này) chỉ giữ nguyên-tắc-lõi "không tự commit/push khi chưa được phép" + trỏ về đó, KHÔNG lặp bảng/ngưỡng (chống drift).
+
+Cross-ref memory: `feedback_no-commit-push-without-permission.md` · `feedback_continue-no-git-ops.md`
+*(đã gỡ `feedback_workspace-docs-never-push.md` — memory này đã xoá + rule đã đảo ngược 2026-06-13.)*
 
 ---
 
@@ -238,7 +240,12 @@ Khi generate/refactor code, áp rule theo mức. **P0 = tuyệt đối không vi
 | Migration EF vs SQL script | Luôn SQL script tay (`his-db-migration`) — dự án IGNORE pending model changes. |
 | core (portable) vs his (cụ thể) | Nguyên tắc chung ở `core-*`; `his-*` chỉ thêm phần stack-specific + nhắc lại phần liên quan. |
 | Trùng "không hardcode / không quên DI" | Nguồn chân lý chung: `his-qa-anti-pattern` (+ `core-*`). |
-| **Self-review / build-gate trùng 3 nơi** | **Nguồn chân lý = `his-qa-anti-pattern` #27 (build) + #30 (9 điểm).** `his-fe-convention` §7 = view chi tiết FE, `core-clean-code` §9 = view mức hàm. Theo cùng nội dung, KHÔNG mâu thuẫn — chỉ cần làm đủ 1 lần. |
+| **Self-review / build-gate trùng nhiều nơi** | **Nguồn chân lý = `his-qa-anti-pattern` #27 (build) + #30 (9 điểm canonical).** `his-fe-convention` §7 = view FE = "9 điểm + 2 lát-cắt (API/Data, Security)", KHÔNG đánh số lại; `core-clean-code` §9 = view mức hàm. Build-gate = `npm run build` (KHÔNG `tsc --noEmit`). |
+| **git-ops / commit / push / workspace-docs** | **Nguồn chân lý = [`workflow/project-rules.md`](workflow/project-rules.md) §2-4.** workspace-docs commit+push **bình thường** (never-push GỠ 2026-06-13). Nơi khác chỉ giữ "không tự commit/push khi chưa cho phép" + LINK, KHÔNG lặp bảng. |
+| **trivial vs pipeline** | Định nghĩa **số hoá DUY NHẤT** ở [`workflow/workflow.md`](workflow/workflow.md) §0 (≤5 dòng·1 file·không chạm shared/contract/DB/auth/tiền/patient-safety). Nơi khác trỏ tới, KHÔNG tự phát biểu khác. |
+| **DONE vs READY_FOR_PUSH** | Theo `workflow/workflow.md` DoD: READY_FOR_PUSH = xong-chờ-giao (trạng-thái-cuối AI tự đạt); DONE chỉ sau user push OK → mới `gh issue close`. AI KHÔNG close ở READY_FOR_PUSH. |
+| **Số migration / trạng-thái-biến-động** | **KHÔNG hard-code số** trong governance. Luôn `ls Data/Scripts/` lấy max(NN)+1. Cấm ghi con số cụ thể (luôn drift). |
+| **Ai sở hữu diff refactor/god-file-split** | `tech-debt-manager` = plan+điều phối (không tự sửa lớn); `code-change-controller` = THỰC THI mọi diff; `his-architecture-planner` = chỉ design. 1 god-file-split chỉ 1 owner thực thi. |
 
 ### (5b) ★ Tiebreaker khi 2 rule CĂNG NHAU (rule-tension — tránh AI over-engineer / lệch)
 

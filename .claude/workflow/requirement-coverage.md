@@ -32,6 +32,9 @@ trạng thái **theo FILE**, **không kết luận khi còn file `⬜ chưa đ�
 Trạng thái: **✅ đọc đủ** · **⚠️ trích lỗi/đọc một phần** · **⬜ chưa đọc**. Báo manifest cho user; chỉ kết
 luận "đủ" khi **100% = ✅**.
 
+> ⚠️ **Bảng trên chỉ MINH HOẠ ở mức thư mục — KHÔNG dùng làm manifest thật.** Manifest THẬT sinh **runtime mức FILE**:
+> `find docs/requirements -type f \( -name "*.md" -o -name "*.pdf" \)` → liệt kê TỪNG file (gồm README/log/json, đánh dấu bỏ-qua nếu không phải spec). Đánh ✅ cho 1 thư mục mà chưa duyệt file con = đúng lỗi 2026-06-13 (manifest folder-level).
+
 ## 2. LUẬT 2 — KHÔNG TIN BẢN TRÍCH, ĐỌC NGUỒN GỐC KHI NGHI
 Bản `.md` sinh từ PDF có thể **rỗng/hụt** (PDF scan). Nếu `.md` **ngắn bất thường** (vài dòng, chỉ
 `<!-- image -->`, "Khong chuyen doi duoc") → **đọc thẳng `.pdf` gốc** (Read tool đọc PDF được). Đánh dấu

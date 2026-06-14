@@ -2,7 +2,7 @@
 
 Câu lệnh mẫu cho developer. Điền `[...]` rồi prompt — Claude tự kích hoạt skill phù hợp theo `SKILL-MAP.md`
 (luôn áp nguyên tắc tầng **CORE** trước, rồi hiện thực bằng skill **HIS**). Càng nêu rõ route/field/role
-→ match càng chuẩn.
+→ match càng chuẩn. *(Footer dùng TÊN SKILL THẬT đúng `SKILL-MAP §0` — grep ra được.)*
 
 ## Backend feature (service + controller + bảng)
 ```
@@ -10,89 +10,89 @@ Thêm phân hệ [tên VN] (NangCap[NN]): service I[Xxx]Service + [Xxx]Service,
 controller route /api/[xxx], entity [Xxx] field [a:type, b:type], migration bảng + DI.
 Role: [Admin/Doctor/...] cho [action].
 ```
-→ core: architecture-follow, types-contract, reusable-code · his: backend-module-scaffold, sql-table-migration, anti-pattern
+→ `core-architecture-follow` · `core-types-contract` · `core-reusable-code` · `his-be-module-scaffold` · `his-db-migration` · `his-qa-anti-pattern`
 
 ## Frontend v2 page
 ```
 Tạo page v2 [tên] tại /v2/[route] (menu nhóm [clinical/finance/...]):
 gọi api [getXList], KPI [...], status tabs [...], cột [...], drawer chi tiết [...].
 ```
-→ core: reusable-code, error-loading-state · his: api-client, frontend-page-v2, antd-v6
+→ `core-reusable-code` · `core-error-loading-state` · `his-fe-api-client` · `his-fe-page-v2` · `his-fe-antd-v6` · `his-fe-convention`
 
 ## API client
 ```
 Thêm api client frontend/src/api/[module].ts cho [GET/POST /xxx] với DTO [XxxDto: field...].
 Response [paged {items,totalCount} | mảng].
 ```
-→ core: types-contract · his: api-client
+→ `core-types-contract` · `his-fe-api-client`
 
 ## Migration / bảng
 ```
 Tạo bảng [Xxx] idempotent (audit columns uniqueidentifier), FK tới [Patients/MedicalRecords/Users],
-script Data/Scripts/[NN]_[ten].sql.
+script Data/Scripts/[NN]_[ten].sql.   (NN = ls Data/Scripts/ max+1, KHÔNG hard-code)
 ```
-→ core: types-contract · his: sql-table-migration
+→ `core-types-contract` · `his-db-migration`
 
 ## Test
 ```
 Viết Cypress smoke page-load cho [routes /v2/...] + API check [endpoints].   (UI/E2E)
 Viết test-[module].ps1 gọi [POST /api/...] assert [field].                    (API backend)
 ```
-→ core: testing-architecture, testing-reuse · his: e2e-testing / api-test-powershell
+→ `core-testing-architecture` · `core-testing-reuse` · `his-test-e2e` / `his-test-api-powershell`
 
 ## Form / validate
 ```
 Thêm form [mục đích] field [...] + validate [required/range/format] (FE+BE khớp).
 ```
-→ core: validation-pattern, types-contract · his: frontend-page-v2 / backend-module-scaffold
+→ `core-validation-pattern` · `core-types-contract` · `his-fe-page-v2` / `his-be-module-scaffold`
 
 ## Fix UI Antd v6
 ```
 Fix deprecated antd props trong [page/component] → API v6, console-errors.cy.ts 0 lỗi.
 ```
-→ core: error-loading-state, localization-pattern · his: antd-v6
+→ `core-error-loading-state` · `core-localization-pattern` · `his-fe-antd-v6`
 
 ## Deploy
 ```
 Deploy backend [NangCapNN] lên Cloud Run + verify schema-drift = 0 + smoke [endpoint].
 ```
-→ his: deploy
+→ `his-ops-deploy`
 
 ## Tài liệu feature
 ```
 Viết bộ tài liệu docs/features/[feature]/ (6 file) cho phân hệ [tên], dựa source thật.
 ```
-→ his: feature-docs
+→ `his-doc-feature`
 
 ## Refactor
 ```
 Refactor [module] theo [pattern] — giữ behavior + test xanh, KHÔNG đổi architecture.
 ```
-→ core: refactor, architecture-consistency · his: anti-pattern
+→ `core-refactor` · `core-architecture-consistency` · `his-qa-anti-pattern`
 
 ## Ký sinh trắc (WebAuthn)
 ```
 Làm chức năng ký [document] bằng vân tay/FaceID cho BN: register + sign 2 pha qua /api/biometric.
 ```
-→ core: types-contract, error-loading-state · his: api-client, webauthn-biometric, anti-pattern
+→ `core-types-contract` · `core-error-loading-state` · `his-fe-api-client` · `his-fe-webauthn-biometric` · `his-qa-anti-pattern`
 
 ## Cổng standalone (user ngoài)
 ```
 Tạo cổng [tên] cho [user ngoài] đăng nhập riêng tại /[route] (ngoài layout, JWT/role riêng [Role]).
 ```
-→ core: validation-pattern · his: api-client, standalone-portal
+→ `core-validation-pattern` · `his-fe-api-client` · `his-fe-standalone-portal`
 
 ## DICOM viewer
 ```
 Thêm/sửa viewer DICOM [MPR/MIP/MinIP/cine/mammo] trong DicomViewer (Cornerstone3D).
 ```
-→ core: reusable-code, error-loading-state · his: dicom-viewer
+→ `core-reusable-code` · `core-error-loading-state` · `his-fe-dicom-viewer`
 
 ## Thanh toán / VietQR
 ```
 Làm thanh toán [VietQR/VNPay/MoMo/ZaloPay] cho [BN/viện phí]: tạo QR + confirm + link Receipt.
 ```
-→ core: types-contract, validation-pattern · his: payment-gateway (+ frontend-page-v2 cho UI), anti-pattern
+→ `core-types-contract` · `core-validation-pattern` · `his-be-payment-gateway` (+ `his-fe-page-v2` cho UI) · `his-qa-anti-pattern`
 
 ---
 **Mẹo:** prompt cụ thể (route/field/role/status) → match chuẩn, ít hỏi lại. Mọi code-gen được

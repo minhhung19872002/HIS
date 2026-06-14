@@ -41,7 +41,7 @@ và abstraction. Nguyên tắc dùng cho mọi dự án.
 - Copy-paste rồi sửa nhẹ thay vì tham số hoá / compose.
 
 ## Dependency
-- Nền cho mọi skill code-gen. Kèm `core-anti-duplication` (gộp trong skill này) + `core-refactor` khi cần
+- Nền cho mọi skill code-gen. Chống-trùng-lặp (anti-duplication) **gộp ngay trong skill này** + `core-refactor` khi cần
   extract-shared.
 
 ## When to update

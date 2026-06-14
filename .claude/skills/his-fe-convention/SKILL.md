@@ -129,7 +129,7 @@ Khi phát hiện **technical debt** → note rõ:
 
 ## 7. Code Review Rules (AI tự kiểm trước khi báo xong)
 
-Checklist tự rà mỗi diff FE:
+Checklist tự rà mỗi diff FE — **= self-review 9 điểm canonical (`his-qa-anti-pattern` #30) ở góc nhìn FE + 2 lát-cắt FE bổ sung (API/Data-transform, Security/Permission-render)**. KHÔNG phải checklist độc lập; "9 điểm" trích ở hook/checklist vẫn đúng, FE chỉ thêm chi tiết:
 - [ ] **Duplicate logic / CSS** — đã reuse `_v2kit`/`components`/helper chưa?
 - [ ] **Dead code** — import/biến/hàm không dùng (lưu ý `noUnusedLocals=false` ở `tsconfig.app` → tự dọn, đừng để rác).
 - [ ] **Hardcode data** — tên BV/URL/credential/option phải lấy từ `constants`/config/`api` (KHÔNG mock cứng).

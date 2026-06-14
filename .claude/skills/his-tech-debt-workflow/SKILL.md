@@ -77,8 +77,8 @@ Sau mỗi mục hoàn tất (vd D7 đợt 1, K1 phiên 2…) → **update ngay**
   nghĩa được commit thêm ở turn N+1 mà user chỉ nói "continue").
 - Nguy hiểm: HIS có GitHub Actions `deploy-backend.yml` auto-deploy Cloud Run khi push BE
   → push lén = deploy prod. Plus user coi commit local cũng là "đẩy" qua log.
-- Workspace-docs: chỉ commit local; KHÔNG push lên remote bao giờ. Khi user nói "push",
-  PHẢI auto-exclude commit có `docs/workspace-docs/**`.
+- Workspace-docs: commit + push **BÌNH THƯỜNG** (never-push GỠ 2026-06-13). KHÔNG auto-exclude.
+  Git-ops nguồn chân lý: `.claude/workflow/project-rules.md` §2-4.
 - Khi nghi ngờ → STOP + clear status report, KHÔNG `AskUserQuestion` (user thường trả "continue").
 
 > **Why:** User reprimanded 2026-05-30:

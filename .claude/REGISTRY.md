@@ -1,0 +1,40 @@
+# .claude/REGISTRY.md — Sổ đăng ký NGUỒN-SỰ-THẬT (single-source-of-truth index)
+
+> **ROOT-CAUSE của drift** (mọi lần tạo gì trong `.claude` lại sinh mâu thuẫn): rule cross-cutting bị **copy
+> ra nhiều file mà KHÔNG khai báo file-chủ** → N bản → sửa 1 chỗ, N-1 chỗ tụt hậu. File này khai báo **CHỦ
+> DUY NHẤT** cho mỗi rule. **Mọi nơi khác PHẢI link, KHÔNG copy nội dung.** Sửa rule → chỉ sửa file-chủ.
+
+## Bảng CHỦ (canonical owner)
+
+| Rule / chủ đề | **FILE CHỦ** | Nơi khác chỉ được |
+|---|---|---|
+| git-ops (commit/push/workspace-docs) | `workflow/project-rules.md` §2-4 | nguyên-tắc-lõi 1 dòng + link |
+| trivial threshold (số hoá) | `workflow/workflow.md` §0 | link |
+| DONE / READY_FOR_PUSH / CODE_COMPLETE | `workflow/workflow.md` DoD | link |
+| build-gate (`npm run build`, KHÔNG `tsc --noEmit`) | `his-qa-anti-pattern` #27 | link |
+| self-review 9 điểm | `his-qa-anti-pattern` #30 | link (FE: `his-fe-convention` §7 = view) |
+| số migration kế tiếp | **ĐỘNG**: `ls Data/Scripts/` max(NN)+1 | KHÔNG hard-code số bao giờ |
+| P0/P1/P2 priority | `SKILL-MAP` §0b | link |
+| conflict tiebreaker / rule-tension | `SKILL-MAP` §5 / §5b | link |
+| thứ tự ưu tiên chất lượng | `SKILL-MAP` §5c | `core-prod-change-discipline` G12 chỉ link |
+| owner-diff (refactor/god-file-split) | `SKILL-MAP` §5 (tech-debt=plan · code-change=execute · planner=design) | |
+| requirement coverage / completeness-gate | `workflow/requirement-coverage.md` | link |
+| audit / review không-nói-quá (no-quota, evidence, confidence) | `workflow/audit-protocol.md` | link |
+| drift-lint (hệ miễn dịch) | `.claude/lint.sh` (auto qua `hooks/stop-checks.sh`) | chạy sau mọi sửa .claude |
+| agent memory-spec block (~137 dòng boilerplate) | **đồng nhất 100% ở cả 7 agent** (KHÔNG dedup — subagent cần inline) | sửa 1 → sửa CẢ 7; lint [9] enforce giống nhau |
+| estimation rubric (XS-XL · P0-P3 · risk) | `workflow/project-rules.md` §7 | link |
+| rollback / recovery | `workflow/project-rules.md` §6 | link |
+| pipeline I/O contract + state-store = Issue body | `workflow/workflow.md` §2 | agent prompt chỉ link |
+| skill naming token (his-`<token>`-) | `SKILL-MAP` §0 | |
+| agent slug ↔ display-name | `agents/ai-project-orchestrator.md` (AVAILABLE...) + `workflow.md` §1 | |
+| file-placement (report→workspace-docs; backlog→GitHub Issues) | `SKILL-MAP` §0a + `CLAUDE.md` | |
+| deploy (auto via GitHub Actions) | `his-ops-deploy` + `CLAUDE.md` Deploy | |
+
+## ★ Quy tắc ghi/sửa rule trong `.claude` (BẮT BUỘC — chống tái drift)
+1. **Tra bảng trên TRƯỚC.** Rule đã có chủ → file mới chỉ **1 dòng + link**, TUYỆT ĐỐI không chép nội dung.
+2. Rule cross-cutting MỚI → **thêm 1 dòng vào bảng này** (khai báo chủ) rồi mới viết ở 1 nơi.
+3. **KHÔNG hard-code giá trị biến-động** (số migration / ngày / đếm) → dùng chỉ thị động (`ls`/`date`/`grep`).
+4. **KHÔNG ref memory bằng tên cứng** nếu không chắc tồn tại → tra MEMORY.md.
+5. Sau MỌI sửa `.claude` → chạy **`bash .claude/lint.sh`** (phải LINT OK mới coi là xong).
+
+> Nguyên lý: governance giữ nhất quán bằng **verify + enforce (lint)**, KHÔNG bằng trust/diligence (luôn trôi).

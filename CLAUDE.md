@@ -15,6 +15,11 @@ Khi nhận **bất kỳ yêu cầu làm tính năng / sửa code / viết test /
    (Router→Planner→Worker→Reviewer→Finalizer) → kết thúc 1 quy trình. Task không trivial dùng state-store
    `.claude/workflow/task.md`; chỉ đánh `DONE` khi qua `.claude/workflow/checklist.md`. (Trivial/Q&A → bỏ pipeline.)
 
+> ★ **KHI TẠO/SỬA bất kỳ file trong `.claude` (governance) — BẮT BUỘC** (chống drift, gốc mọi mâu thuẫn cũ):
+> (a) **Tra `.claude/REGISTRY.md` TRƯỚC** — rule đã có file-chủ → chỉ **1 dòng + link**, KHÔNG copy nội dung;
+> rule mới → thêm dòng vào REGISTRY rồi viết ở **1 nơi duy nhất**. (b) **KHÔNG hard-code giá trị biến-động**
+> (số migration/ngày/đếm) → chỉ thị động. (c) **Sau khi sửa → chạy `bash .claude/lint.sh`** (phải LINT OK).
+
 Skill nằm ở `.claude/skills/` (auto-nạp description). SKILL-MAP/PROMPT-TEMPLATES + `.claude/workflow/*` là file
 thường — **phải chủ động Read** theo chỉ thị này. Bỏ qua bước routing/pipeline = sai quy trình.
 
@@ -22,6 +27,8 @@ thường — **phải chủ động Read** theo chỉ thị này. Bỏ qua bư�
 
 Mặc định **trả lời inline** (rẻ nhất). Chỉ spawn subagent khi việc **độc lập / song song / nặng** đáng đánh đổi token;
 **việc nhẹ/lặp → `agy`** (free). Đầu mỗi reply nói rõ: *inline* hay *agent nào* (+ vì sao ngắn gọn).
+
+> **Hoà giải `agy` ↔ guardrail (project override global):** chỉ delegate cho `agy` phần **boilerplate cô lập KHÔNG chạm guardrail**; output `agy` PHẢI được Claude rà lại theo `his-fe-convention` + `his-qa-anti-pattern` + build-gate trước khi nhận. **KHÔNG delegate** code chạm patient-safety / DI / contract / DB / secret / tiền.
 
 | Loại việc | Chọn |
 |---|---|
@@ -95,7 +102,7 @@ If a new service/controller is added, register it there or you get 500 errors.
 ### Backend
 - Clean Architecture; DI **bắt buộc** trong `DependencyInjection.cs` (xem mục trên) → skill `his-be-module-scaffold`.
 - **Migration**: `backend/src/HIS.Infrastructure/Data/Scripts/NN_*.sql`, idempotent (IF NOT EXISTS),
-  wildcard embedded, auto-apply lúc startup. **Lấy số kế tiếp bằng cách liệt kê thư mục** (mới nhất ~`46_*`).
+  wildcard embedded, auto-apply lúc startup. **Lấy số kế tiếp bằng cách liệt kê thư mục `ls Data/Scripts/` → max(NN)+1** (KHÔNG hard-code số — đã qua `100_*`).
   → skill `his-db-migration`.
 - Lỗi `InvalidCastException Guid↔String`: bảng có `CreatedBy/UpdatedBy` kiểu uniqueidentifier cần whitelist
   ValueConverter trong `HISDbContext.cs`.

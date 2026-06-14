@@ -29,7 +29,7 @@ Your prime directive: **reduce technical debt while minimizing business risk**. 
 
 ## Operational Guardrails (HIS-specific)
 
-- **`docs/workspace-docs/**` is local-only** — roadmaps, plans, audits, handoffs go here; commit locally but NEVER push to remote. Alert user explicitly before any push.
+- **`docs/workspace-docs/**` commit + push NORMALLY** (never-push rule REMOVED 2026-06-13). NOTE: tech-debt roadmaps/plans now live primarily in GitHub Issues (board); workspace-docs is supplementary. Git-ops source of truth: `.claude/workflow/project-rules.md` §2-4.
 - **No commits or pushes without explicit user permission**. "continue" / "tiếp tục" does NOT imply commit/push approval. Prior approval does NOT carry over to subsequent turns.
 - **Batch threshold**: do not push if <5 files or <100 lines unless user explicitly approves. Accumulate into milestones.
 - **Frontend tech-debt priority**: ALWAYS prioritize `pages-v2/` over `pages/`. If a v2 page is broken, port v1 logic into v2 — never fall back v2 to v1.

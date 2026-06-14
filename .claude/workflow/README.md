@@ -18,6 +18,11 @@ thiếu**. Khi 2 nơi mâu thuẫn → theo nguồn-sự-thật được nêu tr
 | [`project-rules.md`](project-rules.md) | Convention · kiến trúc · branch/commit/PR/review | `CLAUDE.md`, `SKILL-MAP.md`, `skills/his-fe-convention`, git-ops rules |
 | [`ai-memory.md`](ai-memory.md) | **Sổ quyết định kiến trúc (ADR-lite)** + index 2 tầng memory | `memory/` (global), `agent-memory/<agent>/`, `his-docs-manager` (ADR) |
 | [`requirement-coverage.md`](requirement-coverage.md) | **Giao thức phủ yêu cầu** (chống sót khi rà tài liệu): source manifest · đọc PDF gốc · enumerate đủ · parity-đối-thủ · completeness gate | `docs/requirements/**`, `checklist.md` mục I |
+| [`audit-protocol.md`](audit-protocol.md) | **Chống audit/agent "nói quá"**: no-quota · evidence-command bắt buộc · confidence · Fact/Inference/Assumption | `core-verify-before-assert`, `../REGISTRY.md` |
+
+> ★ **Chống drift toàn hệ:** [`../REGISTRY.md`](../REGISTRY.md) = sổ NGUỒN-SỰ-THẬT (rule nào ở file nào — link-không-copy) · [`../lint.sh`](../lint.sh) = hệ miễn dịch tự phát hiện drift (auto chạy qua `stop-checks.sh` Stop hook khi `.claude` đổi).
+>
+> ⚙️ **Yêu cầu môi trường (prerequisite):** hook (`hooks/*.sh`) + `lint.sh` là script **POSIX bash** → cần **Git Bash hoặc WSL2** (đã có sẵn trên máy dev này). Windows thuần (CMD/PowerShell, không có bash) sẽ **không chạy được hook** — Claude Code vẫn hoạt động nhưng mất lớp gate DoD + drift-lint. Khuyến nghị dài hạn: **WSL2** (POSIX đầy đủ, Docker backend) ≥ **Git Bash** (đủ cho git + hook).
 
 ## Pipeline 1 dòng
 

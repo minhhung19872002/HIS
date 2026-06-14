@@ -95,7 +95,7 @@ Khi thay đổi gây sự cố, chọn cách revert **nhỏ-nhất-an-toàn**. L
 
 ---
 
-## 6. Liên kết
+## 8. Liên kết
 - Pipeline: [`workflow.md`](workflow.md) · State-store: [`task.md`](task.md) · Checklist: [`checklist.md`](checklist.md)
 - Quyết định kiến trúc: [`ai-memory.md`](ai-memory.md)
 - Routing skill (đọc đầu tiên): [`../SKILL-MAP.md`](../SKILL-MAP.md)

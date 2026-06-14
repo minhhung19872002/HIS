@@ -13,12 +13,20 @@
 
 | Loại task | Pipeline |
 |---|---|
-| Q&A · giải thích · tra cứu · sửa 1-2 dòng trivial | **Bỏ qua state-store.** Vẫn theo gate tối thiểu: verify-before-assert → build-gate nếu chạm code ([`checklist.md`](checklist.md) phần Completion). |
-| Feature · bug_fix · refactor · technical_debt · migration · đa-file | **Pipeline đầy đủ** 5 chặng + state-store ([`task.md`](task.md)). |
-| Đa-domain / mixed (vừa feature vừa refactor vừa doc) | Router **tách** thành nhiều workflow con, mỗi cái chạy pipeline riêng. |
-| **Bug Production KHẨN** (mất dịch vụ/sai dữ liệu/lộ bảo mật) | **Hotfix fast-path** rút gọn — xem §6. |
+| **TRIVIAL** (định nghĩa số hoá dưới) · Q&A · giải thích · tra cứu | **Bỏ pipeline + bỏ state-store + bỏ note-skill.** Chỉ gate tối thiểu: verify-before-assert → build-gate nếu chạm code. |
+| Feature · bug_fix · refactor · technical_debt · migration · đa-file (KHÔNG trivial) | **Pipeline** — rút gọn (bỏ state-store) nếu ≤M & 1 module & 1 pass; **đầy đủ + state-store** nếu đa-file / blast-radius ≥ MEDIUM. |
+| Đa-domain / mixed | Router **tách** thành nhiều workflow con, mỗi cái chạy pipeline riêng. |
+| **Bug Production KHẨN** (mất dịch vụ/sai dữ liệu/lộ bảo mật) | **Hotfix fast-path** §6 (ghi đè DoR). |
 
-Quy tắc vàng: **không bắt đầu IMPLEMENT trước khi xong UNDERSTAND + PLAN.** Không đánh dấu DONE trước VERIFY + REVIEW.
+### ★ Định nghĩa TRIVIAL (số hoá — NGUỒN CHÂN LÝ DUY NHẤT; SKILL-MAP/hook/CLAUDE.md chỉ TRỎ tới đây)
+**TRIVIAL = (không đổi hành vi nghiệp vụ) AND (≤5 dòng) AND (1 file) AND (KHÔNG chạm shared/contract/DB/auth/tiền/patient-safety).**
+→ Vượt **bất kỳ** điều kiện → KHÔNG trivial (vd `bug_fix` 3 dòng nhưng chạm shared service = KHÔNG trivial).
+
+### ★ Inline vs spawn agent THẬT (mặc định INLINE — rẻ nhất)
+Mặc định **1 Claude tự đóng tuần tự các pha INLINE** trong cùng context (pipeline = khung tư duy; "hợp đồng I/O §2" khi inline = tự-kỷ-luật, KHÔNG cần file riêng).
+**CHỈ spawn agent thật (Agent tool) khi ≥1:** blast-radius **HIGH** · **>5 file** · mảnh **độc lập song-song-hoá-được** · cần **review độc lập** (đổi tiền/contract/DB/patient-safety). Khi spawn → **state-store BẮT BUỘC ở GitHub Issue body** + truyền `task_id` (subagent KHÔNG chia context — xem §2/§8).
+
+Quy tắc vàng: **không IMPLEMENT trước khi xong UNDERSTAND + PLAN.** Không đánh dấu DONE trước VERIFY + REVIEW.
 
 ### ★ Definition of Ready (DoR) — điều kiện được phép BẮT ĐẦU chặng [3] Worker
 KHÔNG vào IMPLEMENT khi chưa đủ **tất cả**:
@@ -26,9 +34,10 @@ KHÔNG vào IMPLEMENT khi chưa đủ **tất cả**:
 - [ ] `classification` + `agent_sequence` đã chốt (Router xong)
 - [ ] `impact` + `file_allow_list` đã map (Planner xong); deps/tiền-đề sẵn (không BLOCKED)
 - [ ] `completion_criteria` đo được + `verification_required` đã định
-- [ ] Thay đổi prod rủi-ro (tiền/schema/contract/patient-safety) → đã có **≥3 phương án** + **rollback dự kiến** (§project-rules)
+- [ ] Thay đổi prod rủi-ro (tiền/schema/contract/patient-safety) → đã có **≥3 phương án** + **rollback dự kiến** ([`project-rules.md`](project-rules.md) §6)
 
 Thiếu bất kỳ mục → **KHÔNG code**; quay lại Router/Planner hoặc STOP hỏi user. *(DoR = cổng vào; DoD = cổng ra.)*
+> **Ngoại lệ:** **Hotfix fast-path (§6) GHI ĐÈ DoR** — KHÔNG đòi ≥3 phương án; chỉ cần root-cause có bằng chứng + rollback đã biết. DoR đầy đủ chỉ áp cho task thường.
 
 ---
 
@@ -56,10 +65,11 @@ Thiếu bất kỳ mục → **KHÔNG code**; quay lại Router/Planner hoặc S
    ▼
  Output
 
-         ┌──────────────── STATE STORE = workflow/task.md ────────────────┐
- mỗi chặng│ task_id · goal · context · assumptions · steps · results       │
- đọc/ghi  │ errors · final_decision · status                                │
-         └─────────────────────────────────────────────────────────────────┘
+         ┌──── STATE-STORE INSTANCE = GitHub Issue body (theo template task.md) ────┐
+ mỗi chặng│ task_id · goal · context · assumptions · steps · results                 │
+ đọc/ghi  │ errors · final_decision · status   (task.md = TEMPLATE read-only, KHÔNG  │
+         │ ghi state vào file tracked — tránh đua ghi đa-máy)                         │
+         └───────────────────────────────────────────────────────────────────────────┘
 ```
 
 | Chặng | Agent (file) | Tương ứng "5 agent lõi" | Skill chính áp dụng |
@@ -88,7 +98,8 @@ Thiếu bất kỳ mục → **KHÔNG code**; quay lại Router/Planner hoặc S
 ### [1] Router/Triage
 - **INPUT:** yêu cầu thô của user + trạng thái repo (`git log origin/main`, `gh issue list`).
 - **OUTPUT (ghi state §1-3, §Risks):**
-  - `classification` (1 trong 10: feature/bug_fix/refactor/technical_debt/architecture/testing/documentation/release/investigation/mixed)
+  - `classification` (1 trong 11: feature/bug_fix/refactor/technical_debt/**migration**/architecture/testing/documentation/release/investigation/mixed)
+    - *Chặng kích hoạt THEO loại (không phải task nào cũng đủ 5 chặng):* `architecture`→Planner; `testing`→Worker=test-engineer+Reviewer; `documentation`→Worker=docs-manager; `release`→Reviewer+ops(deploy-verify §6); `investigation`→`Explore`/`core-codebase-map-tooling` (KHÔNG quality-reviewer). **Finalizer luôn chạy** (sync Issue).
   - `goal`, `scope.in`, `scope.non_goals`
   - `priority`, `risk_level`
   - `agent_sequence` (luồng agent đã chọn — luồng nhỏ-nhất-an-toàn)
@@ -153,15 +164,17 @@ Thiếu bất kỳ mục → **KHÔNG code**; quay lại Router/Planner hoặc S
 | **6 · REVIEW** | Tự rà như senior: chất lượng · kiến trúc · performance · security · maintainability (self-review 9 điểm) | `his-qa-anti-pattern` #30, `core-prod-change-discipline` | Reviewer |
 | **7 · COMPLETE** | Chỉ DONE khi đủ Done-criteria + verify + review + báo cáo; ngược lại giữ IN_PROGRESS | [`checklist.md`](checklist.md) Completion | Finalizer |
 
-**Định nghĩa DONE (Definition of Done)** — task chỉ chuyển `DONE` khi **tất cả**:
-1. Yêu cầu thoả mãn (khớp `goal` + `completion_criteria`).
-2. Không còn lỗi logic / runtime đã biết.
-3. Build-gate xanh tầng đã đụng (FE và/hoặc BE).
-4. VERIFY + REVIEW hoàn tất, không còn `must_fix`.
-5. Báo cáo cuối (7-part) viết xong; state-store sync về GitHub Issue.
-6. **Đã push** (nếu user cho phép) — nếu chưa push thì dừng ở `READY_FOR_PUSH`, KHÔNG đánh `DONE`.
+**3 mốc tách bạch (chống "DONE quá sớm" VÀ "kẹt READY_FOR_PUSH"):**
 
-(Đồng bộ với memory `feedback_task-lifecycle-dod-remote` + SKILL-MAP §0c.)
+| Mốc | Điều kiện | Ai chuyển |
+|---|---|---|
+| **CODE_COMPLETE** | (1) Yêu cầu thoả `goal`+`completion_criteria` · (2) không lỗi logic/runtime đã biết · (3) build-gate xanh tầng đã đụng · (4) VERIFY+REVIEW xong, hết `must_fix` · (5) báo cáo 7-part xong + state-store sync về Issue | **AI tự đạt** |
+| **READY_FOR_PUSH** | = CODE_COMPLETE + chờ user cho push. **Đây là trạng-thái-cuối AI tự đạt — KHÔNG phải lỗi, KHÔNG phải "chưa xong"** | **AI tự đạt** |
+| **DONE** | = đã `git push` OK (+ verify deploy nếu chạm prod) | **CHỈ user explicit "push"** → rồi AI mới `gh issue close` |
+
+> 🔴 **AI TUYỆT ĐỐI KHÔNG `gh issue close` ở READY_FOR_PUSH** (= báo DONE sai sự thật, code chưa lên remote). Close chỉ trong cùng lượt user cho push + push OK. Nếu user chủ động chưa push (batch) → giữ READY_FOR_PUSH, Issue vẫn mở — **đúng**, không treo-lỗi.
+
+(Đồng bộ memory `feedback_task-lifecycle-dod-remote`. Git-ops: `project-rules.md` §2-4.)
 
 ---
 

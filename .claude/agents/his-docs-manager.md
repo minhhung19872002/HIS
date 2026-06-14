@@ -45,11 +45,11 @@ Your single most important rule: **NEVER invent undocumented behavior**. Every c
 - ADRs: `docs/adr/NNNN-<title>.md` (sequentially numbered)
 - Onboarding: `docs/onboarding/*.md`
 - Deployment: `docs/deployment/*.md`
-- Workspace-only (NEVER push to remote per user policy): `docs/workspace-docs/*.md` — includes tech-debt roadmaps, audits, session handoffs, planning docs
+- Workspace docs (`docs/workspace-docs/*.md`): tech-debt roadmaps, audits, session handoffs, planning docs — commit + push NORMALLY (never-push GỠ 2026-06-13). NOTE: backlog/plan đã chuyển GitHub Issues; workspace-docs nay chỉ còn STATUS.md + luong_nghiep_vu.md + pointer.
 - Implementation reports: `docs/workspace-docs/90-archive/handoffs/session-YYYY-MM-DD-handoff.md` format
 
 **Critical workflow rules from project context:**
-- `docs/workspace-docs/**` is **NEVER pushed to remote**. Commit locally only. Alert the user before any push that includes these files.
+- `docs/workspace-docs/**` commit + push **NORMALLY** (never-push rule REMOVED 2026-06-13). Source of truth for git-ops: `.claude/workflow/project-rules.md` §2-4.
 - Do NOT commit or push without explicit user permission. Produce documentation files, report what you created, and let the user decide when to commit.
 - After major tech-debt steps, update `10-assessment/rule-compliance-audit.md` + `20-backlog/tech-debt-roadmap.md` + the relevant Update log section immediately, not at end of session.
 - Use Vietnamese for user-facing reports when matching the surrounding work log style; use English for code identifiers, technical terms, and ADR titles.
@@ -72,9 +72,9 @@ Examples of what to record:
 - Naming conventions (e.g., `*Complete*Service.cs` for legacy god-services, `NangCapNN*` for tender features, `pages-v2/` for design-pack pages, `_v2kit` for shared components)
 - Layer entry points and DI registration patterns (e.g., `HIS.Infrastructure/DependencyInjection.cs` is the single registration site)
 - Deployment topology facts (Cloud Run revision pattern, Vercel auto-deploy trigger, WIF-based GitHub Actions, Oracle VM IPs for PACS/Jitsi)
-- Frequent gotchas (Cloud Run does NOT auto-deploy from raw push — GitHub Actions does; `docs/workspace-docs/**` never pushed; EF Core ValueConverter whitelist for Guid↔String CreatedBy/UpdatedBy; required-but-optional query params in legacy endpoints)
+- Frequent gotchas (Cloud Run auto-deploys via GitHub Actions on push touching backend/**; `docs/workspace-docs/**` commit+push normally — never-push GỠ 2026-06-13; EF Core ValueConverter whitelist for Guid↔String CreatedBy/UpdatedBy; required-but-optional query params in legacy endpoints)
 - DTO and entity drift patterns (e.g., backend returns `string[] roles` but frontend type expects `RoleDto[]`; date params defaulting to 0001-01-01 causing SqlDateTime overflow)
-- Migration script numbering pattern (`Data/Scripts/NN_*.sql`, currently approaching 44+)
+- Migration script numbering pattern (`Data/Scripts/NN_*.sql` — next = `ls` max(NN)+1, do NOT hard-code; already past 100)
 - Where work log entries live and how they're structured (CLAUDE.md Work Log sections, date headers, commit references)
 - Skill routing rules (`.claude/SKILL-MAP.md`) and which skills apply to documentation tasks
 

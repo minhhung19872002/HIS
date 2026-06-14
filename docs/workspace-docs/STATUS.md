@@ -3,9 +3,15 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-13 sáng** (phiên Claude máy C: — chiến dịch "cày hết Issues").
+> Cập nhật cuối: **2026-06-14** (phiên Claude máy D: — kiện toàn governance `.claude` drift-immune).
 
 ## Đang ở đâu
+- **Governance `.claude` lên ~9/10 (drift-immune)** — phiên này: thêm `REGISTRY.md` (sổ nguồn-sự-thật, link-không-copy)
+  + `lint.sh` (hệ miễn dịch **9 check** chống drift, auto qua Stop hook) + `audit-protocol.md` (chống agent nói-quá)
+  + gộp 2 Stop hook → `stop-checks.sh` (gate drift-lint) + 6 agent-memory dir + prerequisite môi trường (Git Bash/WSL2).
+  Lint check [9] enforce 7 block memory-spec agent đồng nhất (boilerplate trùng → an-toàn-bằng-máy-kiểm). LINT OK ✅.
+  Memory mới: `user_wsl2-first-windows-agent-stack` (định hướng WSL2-first cho hệ AI-agent).
+
 - **Fix phát thuốc ngoại trú trừ kho (`de9b05c`, PUSHED+DEPLOYED+VERIFY PROD)**: test e2e prod
   (`prod-e2e-flow-test-2026-06-13.md`) bắt nhánh fallback `CompleteDispensing` (đơn NULL-kho) chỉ flip
   status mà KHÔNG tạo phiếu xuất / KHÔNG trừ kho → thất thoát kho + cancel-dispensed 400. Fix: luôn đi

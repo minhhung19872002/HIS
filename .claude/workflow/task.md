@@ -5,10 +5,12 @@
 > **GitHub Issues** (`minhhung19872002/HIS`). Cuối task: **sync kết quả về Issue** (`gh issue ...`).
 
 ## Cách dùng
-- Task **không trivial** → copy khối "STATE" dưới đây ra nơi làm việc (scratchpad/Issue body), điền dần qua các chặng.
-- Field nào chặng nào ghi → xem hợp đồng I/O ở [`workflow.md`](workflow.md) §2.
-- KHÔNG commit/push file đã điền vào repo trừ khi user yêu cầu (state là ephemeral; nguồn lưu lâu dài = Issue).
-- Task trivial (Q&A, sửa 1 dòng) → bỏ qua, chỉ theo gate [`checklist.md`](checklist.md).
+> **File này = TEMPLATE read-only.** STATE-STORE **INSTANCE** của 1 task sống ở **GitHub Issue body** (có lịch sử + optimistic-lock + xuyên-máy/xuyên-phiên). **KHÔNG ghi state vào file `task.md` tracked** (sẽ đua ghi khi đa-máy/đa-task).
+- Task **không trivial** (xem ngưỡng [`workflow.md`](workflow.md) §0) → Router tạo Issue + copy khối "STATE" vào **Issue body** ngay, các chặng đọc/ghi qua `gh issue edit`/`comment` cùng Issue đó.
+- Khi spawn agent thật: truyền `task_id` cho mọi subagent (chúng không chia context — đọc/ghi state qua Issue body).
+- Khi làm INLINE (1 Claude): có thể giữ STATE trong context lượt, không bắt buộc Issue cho task ≤M; nhưng task ≥M hoặc đa-file → BẮT BUỘC Issue body.
+- Field nào chặng nào ghi → hợp đồng I/O [`workflow.md`](workflow.md) §2.
+- Task **trivial** (Q&A, ≤5 dòng) → bỏ qua state-store, chỉ gate [`checklist.md`](checklist.md).
 
 ## Status lifecycle (đồng bộ memory `feedback_task-lifecycle-dod-remote` + SKILL-MAP §0c)
 

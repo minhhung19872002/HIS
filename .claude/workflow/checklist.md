@@ -50,9 +50,9 @@
 
 ## G. Testing (bước 5 VERIFY)
 - [ ] 🔴 **BUILD-GATE**: build sạch tầng đã đụng MỚI báo xong — FE `npm run build` EXIT 0 · BE `dotnet build` 0 errors → his-qa #27 (P0 #3)
-- [ ] Lint / typecheck sạch
+- [ ] Lint / typecheck sạch (build-gate = `npm run build`, KHÔNG `tsc --noEmit`)
 - [ ] Chức năng cũ không bị ảnh hưởng (regression) → `core-testing-architecture`, `his-quality-reviewer`
-- [ ] Test bổ sung cho logic mới (reuse helper/fixture) → `core-testing-reuse`
+- [ ] 🔴 **Logic mới chạm tiền / thuốc / schema / contract / patient-safety → BẮT BUỘC ≥1 test (unit/integration/e2e) PASS** (ghi `verification`). Logic khác: test bổ sung khuyến nghị (`core-testing-reuse`).
 
 ## H. Completion (bước 7 COMPLETE) — cổng DONE
 - [ ] 🔴 Yêu cầu thoả mãn (khớp `goal` + `completion_criteria`)
@@ -65,6 +65,7 @@
 
 ## I. Requirement coverage (CHỈ khi task = rà soát / đối chiếu tài liệu / gap analysis / "đã đủ chưa")
 > Chi tiết: [`requirement-coverage.md`](requirement-coverage.md). Áp khi lập backlog từ `docs/requirements/**`.
+> ⚠️ **Các 🔴 dưới = P0 CÓ-ĐIỀU-KIỆN (chỉ chặn DONE KHI task thuộc loại rà-soát)** — KHÁC 🔴 P0-LUÔN-ÁP ở mục E (an-toàn-BN/secret). Task code thường KHÔNG áp mục I.
 - [ ] 🔴 **Source manifest 100%** — đã liệt kê + đọc HẾT mọi nguồn (`requirements/00·10·20·30·90` + `luong_nghiep_vu`); không còn ⬜/⚠️
 - [ ] 🔴 **Đọc PDF gốc** nếu `.md` trích rỗng/hụt (không tin bản trích)
 - [ ] 🔴 **Enumerate đủ** từng mục/feature/form (không tóm tắt "trọng yếu"); mỗi mục có evidence

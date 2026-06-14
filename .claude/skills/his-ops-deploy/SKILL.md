@@ -1,6 +1,6 @@
 ---
 name: his-ops-deploy
-description: Use this skill when deploying HIS to production — backend to Google Cloud Run (gcloud builds submit + run services update) and frontend to Vercel. Triggers include "deploy backend lên prod", "deploy NangCapNN", releasing API changes, verifying schema-drift after migration, or diagnosing "FE live nhưng API 404". Reminds that Vercel auto-deploys on push but Cloud Run does NOT — backend must be deployed manually.
+description: Use this skill when deploying HIS to production — backend to Google Cloud Run (gcloud builds submit + run services update) and frontend to Vercel. Triggers include "deploy backend lên prod", "deploy NangCapNN", releasing API changes, verifying schema-drift after migration, or diagnosing "FE live nhưng API 404". Reminds that BOTH auto-deploy on push to main: Vercel (frontend) + Cloud Run via GitHub Actions when push touches backend/** (since 2026-05-29, WIF keyless). Manual gcloud = FALLBACK only. ALWAYS verify after: gh run list --workflow=deploy-backend.yml + GET /health/schema-drift = 0.
 metadata:
   type: project
 ---
