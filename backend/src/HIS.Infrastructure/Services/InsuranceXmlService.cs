@@ -2540,9 +2540,13 @@ public class InsuranceXmlService : IInsuranceXmlService
             .Where(c => !c.IsDeleted)
             .AsQueryable();
 
+        // Chỉ suy khoảng ngày từ Month/Year khi kỳ hợp lệ — tránh dựng DateTime(0,0,..)
+        // (ArgumentOutOfRange → 400 opaque) khi caller chỉ truyền MaLkList mà không kèm kỳ quyết toán.
+        var hasValidPeriod = config.Year > 0 && config.Month is >= 1 and <= 12;
+
         if (config.FromDate.HasValue)
             query = query.Where(c => c.ServiceDate >= config.FromDate.Value);
-        else
+        else if (hasValidPeriod)
         {
             var startDate = new DateTime(config.Year, config.Month, 1);
             query = query.Where(c => c.ServiceDate >= startDate);
@@ -2550,7 +2554,7 @@ public class InsuranceXmlService : IInsuranceXmlService
 
         if (config.ToDate.HasValue)
             query = query.Where(c => c.ServiceDate <= config.ToDate.Value);
-        else
+        else if (hasValidPeriod)
         {
             var endDate = new DateTime(config.Year, config.Month, 1).AddMonths(1).AddDays(-1);
             query = query.Where(c => c.ServiceDate <= endDate);
