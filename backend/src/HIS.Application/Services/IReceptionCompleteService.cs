@@ -4,6 +4,7 @@ using QueueDailyStatisticsDto = HIS.Application.DTOs.Reception.QueueDailyStatist
 using AverageWaitingTimeDto = HIS.Application.DTOs.Reception.AverageWaitingTimeDto;
 using QueueReportRequestDto = HIS.Application.DTOs.Reception.QueueReportRequestDto;
 using QueueConfigurationDto = HIS.Application.DTOs.Reception.QueueConfigurationDto;
+using WaitingPhaseAnalysisDto = HIS.Application.DTOs.Reception.WaitingPhaseAnalysisDto;
 
 namespace HIS.Application.Services;
 
@@ -531,9 +532,16 @@ public interface IReceptionCompleteService
     Task<QueueDailyStatisticsDto> GetDailyStatisticsAsync(DateTime date, Guid? departmentId);
 
     /// <summary>
-    /// Lấy thời gian chờ trung bình
+    /// Lấy thời gian chờ trung bình (legacy — trả số hardcode, sẽ thay dần bằng GetWaitingPhaseAnalysisAsync)
     /// </summary>
     Task<AverageWaitingTimeDto> GetAverageWaitingTimeAsync(DateTime fromDate, DateTime toDate, Guid? roomId);
+
+    /// <summary>
+    /// F9.4 — Phân tích thời gian chờ theo từng khâu thực: đăng ký→khám→CLS→KQ→kê đơn.
+    /// Tính delta timestamp thực từ MedicalRecord/Examination/ServiceRequest/Prescription.
+    /// Break-down theo khoa (departmentId) và đối tượng (BHYT/viện phí/dịch vụ).
+    /// </summary>
+    Task<WaitingPhaseAnalysisDto> GetWaitingPhaseAnalysisAsync(DateTime fromDate, DateTime toDate, Guid? departmentId);
 
     /// <summary>
     /// Xuất báo cáo

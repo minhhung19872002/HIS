@@ -955,6 +955,53 @@ export const getAverageWaitingTime = (fromDate: string, toDate: string, roomId?:
     params: { fromDate, toDate, roomId }
   });
 
+// F9.4 — Phân tích thời gian chờ theo từng khâu thực
+export interface PhaseBreakdownDto {
+  visitCount: number;
+  registrationToExamMinutes: number;
+  examDurationMinutes: number;
+  overallMinutes: number;
+}
+
+export interface DepartmentWaitingDto {
+  departmentId: string;
+  departmentName: string;
+  visitCount: number;
+  registrationToExamMinutes: number;
+  overallMinutes: number;
+}
+
+export interface WaitingPhaseAnalysisDto {
+  fromDate: string;
+  toDate: string;
+  totalVisits: number;
+  // Thời gian chờ từng khâu (phút)
+  registrationToExamMinutes: number;     // Đăng ký → Bắt đầu khám
+  examDurationMinutes: number;           // Thời gian khám
+  examToClsRequestMinutes: number;       // Khám xong → Chỉ định CLS
+  clsRequestToResultMinutes: number;     // Chỉ định CLS → Có kết quả
+  clsResultToPrescriptionMinutes: number; // Có KQ CLS → Kê đơn
+  overallMinutes: number;                // Tổng (đăng ký → kết thúc khám)
+  // Break-down theo đối tượng
+  insurancePatients: PhaseBreakdownDto;
+  feePatients: PhaseBreakdownDto;
+  servicePatients: PhaseBreakdownDto;
+  // Break-down theo khoa
+  byDepartment: DepartmentWaitingDto[];
+}
+
+export async function getWaitingPhaseAnalysis(
+  fromDate: string,
+  toDate: string,
+  departmentId?: string,
+): Promise<WaitingPhaseAnalysisDto> {
+  const { data } = await api.get<WaitingPhaseAnalysisDto>(
+    '/reception/statistics/waiting-phase-analysis',
+    { params: { fromDate, toDate, departmentId } },
+  );
+  return data as WaitingPhaseAnalysisDto;
+}
+
 export interface QueueReportRequestDto {
   fromDate: string;
   toDate: string;

@@ -8,6 +8,7 @@ using QueueDailyStatisticsDto = HIS.Application.DTOs.Reception.QueueDailyStatist
 using AverageWaitingTimeDto = HIS.Application.DTOs.Reception.AverageWaitingTimeDto;
 using QueueReportRequestDto = HIS.Application.DTOs.Reception.QueueReportRequestDto;
 using QueueConfigurationDto = HIS.Application.DTOs.Reception.QueueConfigurationDto;
+using WaitingPhaseAnalysisDto = HIS.Application.DTOs.Reception.WaitingPhaseAnalysisDto;
 
 namespace HIS.API.Controllers;
 
@@ -1335,7 +1336,7 @@ public class ReceptionCompleteController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy thời gian chờ trung bình
+    /// Lấy thời gian chờ trung bình (legacy)
     /// </summary>
     [HttpGet("statistics/waiting-time")]
     public async Task<ActionResult<AverageWaitingTimeDto>> GetAverageWaitingTime(
@@ -1344,6 +1345,20 @@ public class ReceptionCompleteController : ControllerBase
         [FromQuery] Guid? roomId)
     {
         var result = await _receptionService.GetAverageWaitingTimeAsync(fromDate, toDate, roomId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// F9.4 — Phân tích thời gian chờ theo từng khâu thực (đăng ký→khám→CLS→KQ→kê đơn).
+    /// Break-down theo khoa và đối tượng (BHYT/viện phí/dịch vụ).
+    /// </summary>
+    [HttpGet("statistics/waiting-phase-analysis")]
+    public async Task<ActionResult<WaitingPhaseAnalysisDto>> GetWaitingPhaseAnalysis(
+        [FromQuery] DateTime fromDate,
+        [FromQuery] DateTime toDate,
+        [FromQuery] Guid? departmentId)
+    {
+        var result = await _receptionService.GetWaitingPhaseAnalysisAsync(fromDate, toDate, departmentId);
         return Ok(result);
     }
 

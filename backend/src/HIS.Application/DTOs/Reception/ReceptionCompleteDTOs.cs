@@ -1009,6 +1009,60 @@ public class QueueReportRequestDto
 }
 
 /// <summary>
+/// DTO thời gian chờ trung bình theo từng khâu (F9.4)
+/// Nguồn timestamp:
+///   Đăng ký   = MedicalRecord.AdmissionDate
+///   Khám       = Examination.StartTime (khi bác sĩ bắt đầu khám) / EndTime
+///   CLS        = ServiceRequest.CreatedAt (khi chỉ định) / UpdatedAt khi Status=3 (có KQ) — giả định
+///   Kê đơn     = Prescription.PrescriptionDate
+/// </summary>
+public class WaitingPhaseAnalysisDto
+{
+    public DateTime FromDate { get; set; }
+    public DateTime ToDate { get; set; }
+    public int TotalVisits { get; set; } // Tổng lượt khám trong khoảng
+
+    // Thời gian chờ trung bình từng khâu (phút)
+    public double RegistrationToExamMinutes { get; set; }  // Đăng ký → Bắt đầu khám
+    public double ExamDurationMinutes { get; set; }        // Thời gian khám (StartTime→EndTime)
+    public double ExamToClsRequestMinutes { get; set; }    // Khám xong → Chỉ định CLS (chỉ lượt có CLS)
+    public double ClsRequestToResultMinutes { get; set; }  // Chỉ định CLS → Có kết quả (UpdatedAt@Status=3)
+    public double ClsResultToPrescriptionMinutes { get; set; }  // Có KQ CLS → Kê đơn (chỉ lượt có CLS+đơn)
+    public double OverallMinutes { get; set; }             // Tổng từ đăng ký đến kết thúc khám
+
+    // Break-down theo đối tượng
+    public PhaseBreakdownDto InsurancePatients { get; set; } = new(); // PatientType=1 (BHYT)
+    public PhaseBreakdownDto FeePatients { get; set; } = new();       // PatientType=2 (Viện phí)
+    public PhaseBreakdownDto ServicePatients { get; set; } = new();   // PatientType=3 (Dịch vụ)
+
+    // Break-down theo khoa (DepartmentId → tên + số phút đăng ký→khám)
+    public List<DepartmentWaitingDto> ByDepartment { get; set; } = new();
+}
+
+/// <summary>
+/// DTO thời gian chờ trung bình từng khâu theo nhóm đối tượng
+/// </summary>
+public class PhaseBreakdownDto
+{
+    public int VisitCount { get; set; }
+    public double RegistrationToExamMinutes { get; set; }
+    public double ExamDurationMinutes { get; set; }
+    public double OverallMinutes { get; set; }
+}
+
+/// <summary>
+/// DTO thời gian chờ trung bình theo khoa
+/// </summary>
+public class DepartmentWaitingDto
+{
+    public Guid DepartmentId { get; set; }
+    public string DepartmentName { get; set; } = string.Empty;
+    public int VisitCount { get; set; }
+    public double RegistrationToExamMinutes { get; set; }
+    public double OverallMinutes { get; set; }
+}
+
+/// <summary>
 /// DTO thống kê phòng
 /// </summary>
 public class QueueRoomStatisticsDto
