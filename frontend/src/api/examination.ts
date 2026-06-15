@@ -313,12 +313,23 @@ export interface InjuryInfoDto {
   id: string;
   examinationId: string;
   injuryType: number;
-  injuryTime: string;
+  injuryDate?: string;
+  injuryTime?: string;
   injuryLocation?: string;
+  injuryCause?: string;
   injuryDescription?: string;
+  firstAid?: string;
   witness?: string;
-  hasPoliceReport: boolean;
+  isReportedToPolice?: boolean;
+  hasPoliceReport?: boolean;
   policeReportNumber?: string;
+  notes?: string;
+  // F1.6 — Truong phap ly TNGT (Bieu 14.5 SYT)
+  helmetWorn?: boolean | null;
+  alcoholLevel?: string;
+  vehicleTypeSelf?: string;
+  vehicleTypeCauser?: string;
+  vehicleTypeVictim?: string;
 }
 
 // 2.4 Chẩn đoán

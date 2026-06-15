@@ -871,6 +871,11 @@ public partial class ExaminationCompleteService
         existing.IsReportedToPolice = dto.IsReportedToPolice;
         existing.PoliceReportNumber = dto.PoliceReportNumber;
         existing.Notes = dto.Notes;
+        existing.HelmetWorn = dto.HelmetWorn;
+        existing.AlcoholLevel = dto.AlcoholLevel;
+        existing.VehicleTypeSelf = dto.VehicleTypeSelf;
+        existing.VehicleTypeCauser = dto.VehicleTypeCauser;
+        existing.VehicleTypeVictim = dto.VehicleTypeVictim;
 
         await _unitOfWork.SaveChangesAsync();
 
@@ -897,7 +902,12 @@ public partial class ExaminationCompleteService
             FirstAid = info.FirstAid,
             IsReportedToPolice = info.IsReportedToPolice,
             PoliceReportNumber = info.PoliceReportNumber,
-            Notes = info.Notes
+            Notes = info.Notes,
+            HelmetWorn = info.HelmetWorn,
+            AlcoholLevel = info.AlcoholLevel,
+            VehicleTypeSelf = info.VehicleTypeSelf,
+            VehicleTypeCauser = info.VehicleTypeCauser,
+            VehicleTypeVictim = info.VehicleTypeVictim
         };
     }
 

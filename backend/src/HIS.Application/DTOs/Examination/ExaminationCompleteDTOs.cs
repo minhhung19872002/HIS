@@ -487,6 +487,13 @@ public class InjuryInfoDto
     public bool IsReportedToPolice { get; set; }
     public bool HasPoliceReport { get; set; }
     public string? PoliceReportNumber { get; set; }
+
+    // F1.6 — Truong phap ly TNGT (Bieu 14.5 SYT)
+    public bool? HelmetWorn { get; set; }
+    public string? AlcoholLevel { get; set; }
+    public string? VehicleTypeSelf { get; set; }
+    public string? VehicleTypeCauser { get; set; }
+    public string? VehicleTypeVictim { get; set; }
 }
 
 #endregion

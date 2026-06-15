@@ -496,6 +496,13 @@ public class InjuryInfo : BaseEntity
     public bool IsReportedToPolice { get; set; }
     public string? PoliceReportNumber { get; set; }
     public string? Notes { get; set; }
+
+    // F1.6 — Truong phap ly TNGT (Bieu 14.5 SYT)
+    public bool? HelmetWorn { get; set; }         // Deo mu bao hiem: null=chua ro, true=co, false=khong
+    public string? AlcoholLevel { get; set; }     // Nong do con: "0", "<0.25", "0.25-<0.4", ">=0.4" (mg/L khi tho)
+    public string? VehicleTypeSelf { get; set; }  // Phuong tien nguoi nan nhan dang dieu khien
+    public string? VehicleTypeCauser { get; set; }// Phuong tien gay tai nan
+    public string? VehicleTypeVictim { get; set; }// Phuong tien bi tai nan (khac)
 }
 
 /// <summary>
