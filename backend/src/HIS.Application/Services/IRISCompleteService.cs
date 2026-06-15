@@ -22,7 +22,8 @@ namespace HIS.Application.Services
             string serviceType = null,
             string status = null,
             string keyword = null,
-            bool overdueOnly = false);
+            bool overdueOnly = false,
+            string examGroupName = null);
 
         /// <summary>
         /// 8.1.2 Phát loa gọi bệnh nhân vào thực hiện

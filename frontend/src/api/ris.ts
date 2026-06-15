@@ -34,6 +34,8 @@ export interface RadiologyWaitingListDto {
   tatMinutes: number;
   /** True nếu vượt ngưỡng TAT cấu hình */
   isOverdue: boolean;
+  /** F2.6 #136: Tên đoàn khám (KSK theo đoàn). Null nếu không phải KSK theo đoàn. */
+  examGroupName?: string;
 }
 
 export interface CallPatientDto {
@@ -1172,10 +1174,11 @@ export const getWaitingList = (
   serviceType?: string,
   status?: string,
   keyword?: string,
-  overdueOnly?: boolean
+  overdueOnly?: boolean,
+  examGroupName?: string
 ) =>
   apiClient.get<RadiologyWaitingListDto[]>('/RISComplete/waiting-list', {
-    params: { date, roomId, serviceType, status, keyword, overdueOnly }
+    params: { date, roomId, serviceType, status, keyword, overdueOnly, examGroupName }
   });
 
 export const callPatient = (data: CallPatientDto) =>

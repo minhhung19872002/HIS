@@ -43,6 +43,8 @@ namespace HIS.Application.DTOs.Radiology
         public int TATMinutes { get; set; }
         /// <summary>True nếu TATMinutes vượt ngưỡng RIS.TAT.DefaultThresholdMinutes trong SystemConfig.</summary>
         public bool IsOverdue { get; set; }
+        /// <summary>F2.6 #136: Tên đoàn khám (KSK theo đoàn). Null nếu không phải KSK theo đoàn.</summary>
+        public string? ExamGroupName { get; set; }
     }
 
     /// <summary>

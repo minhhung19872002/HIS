@@ -51,6 +51,9 @@ public class RadiologyRequest : BaseEntity
     // điều phối model 1. Idempotent guard tránh tạo trùng khi mark-performed nhiều lần.
     public Guid? SourceServiceRequestDetailId { get; set; }
 
+    // F2.6 #136: Tên đoàn khám (KSK theo đoàn) — dùng để lọc trên RIS worklist
+    public string? ExamGroupName { get; set; }
+
     // Navigation
     public virtual ICollection<RadiologyExam> Exams { get; set; } = new List<RadiologyExam>();
 }

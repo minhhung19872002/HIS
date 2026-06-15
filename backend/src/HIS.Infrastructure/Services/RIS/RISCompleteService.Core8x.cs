@@ -28,7 +28,8 @@ public partial class RISCompleteService
         string serviceType = null,
         string status = null,
         string keyword = null,
-        bool overdueOnly = false)
+        bool overdueOnly = false,
+        string examGroupName = null)
     {
         // RequestDate ghi báº±ng DateTime.Now â€" dÃ¹ng DayRangeUtc Ä'á»ƒ trÃ¡nh lá»‡ch UTC 00h-07h VN.
         var (rdFromUtc, rdToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
@@ -71,6 +72,12 @@ public partial class RISCompleteService
                 r.Patient.FullName.Contains(keyword) ||
                 r.Patient.PatientCode.Contains(keyword) ||
                 r.RequestCode.Contains(keyword));
+        }
+
+        // F2.6 #136: lọc theo Tên đoàn khám (KSK theo đoàn)
+        if (!string.IsNullOrEmpty(examGroupName))
+        {
+            query = query.Where(r => r.ExamGroupName != null && r.ExamGroupName.Contains(examGroupName));
         }
 
         var requests = await query.OrderBy(r => r.RequestDate).ToListAsync();
@@ -121,6 +128,7 @@ public partial class RISCompleteService
                 HasImages = r.Exams.Any(e => e.DicomStudies.Any()),
                 TATMinutes = tatMinutes,
                 IsOverdue = isOverdue,
+                ExamGroupName = r.ExamGroupName,
             };
         }).ToList();
 

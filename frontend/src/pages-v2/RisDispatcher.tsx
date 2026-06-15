@@ -29,6 +29,7 @@ const RisDispatcherV2: React.FC = () => {
   const [selectedRoom, setSelectedRoom] = useState('');
   const [loading, setLoading] = useState(false);
   const [overdueFilter, setOverdueFilter] = useState(false);
+  const [examGroupFilter, setExamGroupFilter] = useState('');
   const [dispatchModal, setDispatchModal] = useState<PendingService | null>(null);
   const [selPending, setSelPending] = useState<PendingService | null>(null);
   const [selQueue, setSelQueue] = useState<QueueItem | null>(null);
@@ -39,7 +40,12 @@ const RisDispatcherV2: React.FC = () => {
     setLoading(true);
     try {
       const [p, r] = await Promise.all([
-        apiClient.get<PendingService[]>('/radiology-dispatch/pending', { params: { overdueOnly: overdueFilter || undefined } }),
+        apiClient.get<PendingService[]>('/radiology-dispatch/pending', {
+          params: {
+            overdueOnly: overdueFilter || undefined,
+            examGroupName: examGroupFilter || undefined,
+          },
+        }),
         apiClient.get<Room[]>('/RISComplete/rooms', { params: { roomType: 'radiology' } }).catch(() => ({ data: [] as Room[] })),
       ]);
       setPending(p.data); setRooms(r.data);
@@ -49,7 +55,7 @@ const RisDispatcherV2: React.FC = () => {
       } else { setQueue([]); }
     } catch { ti('Tải dữ liệu thất bại'); }
     finally { setLoading(false); }
-  }, [selectedRoom, overdueFilter]);
+  }, [selectedRoom, overdueFilter, examGroupFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -154,6 +160,13 @@ const RisDispatcherV2: React.FC = () => {
         <>
           <Filter value={selectedRoom} onChange={setSelectedRoom}
             options={rooms.map((r) => ({ v: r.id, l: r.roomName }))} placeholder="▾ Phòng" />
+          <Input
+            placeholder="Tên đoàn khám..."
+            allowClear
+            style={{ width: 180 }}
+            value={examGroupFilter}
+            onChange={(e) => setExamGroupFilter(e.target.value)}
+          />
           <Btn
             variant={overdueFilter ? 'primary' : 'ghost'}
             icon="clock"
