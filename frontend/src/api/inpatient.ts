@@ -836,6 +836,13 @@ export interface ConsultationDto {
   conclusion?: string;
   treatment?: string;
   status: number;
+  // F1.4: approval fields (only relevant when consultationType === 3)
+  approvalStatus: number;
+  approvalStatusName: string;
+  approvedBy?: string;
+  approvedByName?: string;
+  approvedAt?: string;
+  approvalNote?: string;
 }
 
 export interface ConsultationMemberDto {
@@ -1639,6 +1646,10 @@ export const completeConsultation = (id: string, conclusion: string, treatment?:
 export const printConsultation = (id: string) =>
   apiClient.get(`${BASE_URL}/print-consultation/${id}`, { responseType: 'blob' });
 
+// F1.4: Lãnh đạo duyệt / từ chối hội chẩn thuốc dấu * — decision: 2=Duyệt, 3=Từ chối
+export const approveConsultation = (id: string, decision: number, note?: string) =>
+  apiClient.post<ConsultationDto>(`${BASE_URL}/consultations/${id}/approve`, { decision, note });
+
 export const createNursingCareSheet = (dto: CreateNursingCareSheetDto) =>
   apiClient.post<NursingCareSheetDto>(`${BASE_URL}/nursing-care-sheets`, dto);
 
@@ -1821,6 +1832,7 @@ export default {
   createConsultation,
   getConsultations,
   completeConsultation,
+  approveConsultation,
   printConsultation,
   createNursingCareSheet,
   getNursingCareSheets,

@@ -538,6 +538,29 @@ public partial class InpatientCompleteService {
         return await LoadConsultationDtoAsync(entity.Id);
     }
 
+    // F1.4: Duyệt / từ chối hội chẩn thuốc dấu * (ConsultationType=3)
+    public async Task<ConsultationDto> ApproveConsultationAsync(Guid id, int decision, string? note, Guid approverId)
+    {
+        if (decision != 2 && decision != 3)
+            throw new ArgumentException("Decision phải là 2 (Duyệt) hoặc 3 (Từ chối)");
+
+        var entity = await _context.InpatientConsultations.Include(c => c.Members)
+            .FirstOrDefaultAsync(c => c.Id == id)
+            ?? throw new InvalidOperationException("Không tìm thấy hội chẩn");
+
+        if (entity.ConsultationType != 3)
+            throw new InvalidOperationException("Chỉ hội chẩn thuốc dấu * (loại 3) mới cần duyệt lãnh đạo");
+
+        entity.ApprovalStatus = decision;
+        entity.ApprovedBy = approverId;
+        entity.ApprovedAt = DateTime.Now;
+        entity.ApprovalNote = note;
+        entity.UpdatedAt = DateTime.Now;
+        entity.UpdatedBy = approverId.ToString();
+        await _context.SaveChangesAsync();
+        return await LoadConsultationDtoAsync(entity.Id);
+    }
+
     private async Task<ConsultationDto> LoadConsultationDtoAsync(Guid id)
     {
         var entity = await _context.InpatientConsultations.Include(c => c.Members)
@@ -550,7 +573,9 @@ public partial class InpatientCompleteService {
     private async Task<Dictionary<Guid, User>> BuildConsultationUserLookupAsync(IEnumerable<InpatientConsultation> items)
     {
         var ids = items
-            .SelectMany(c => new[] { c.ChairmanId, c.SecretaryId }.Concat(c.Members.Select(m => m.DoctorId)))
+            .SelectMany(c => new[] { c.ChairmanId, c.SecretaryId }
+                .Concat(c.Members.Select(m => m.DoctorId))
+                .Concat(c.ApprovedBy.HasValue ? new[] { c.ApprovedBy.Value } : Array.Empty<Guid>()))
             .Where(g => g != Guid.Empty).Distinct().ToList();
         if (ids.Count == 0) return new Dictionary<Guid, User>();
         return await _context.Users.Where(u => ids.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u);
@@ -560,6 +585,8 @@ public partial class InpatientCompleteService {
     {
         users.TryGetValue(e.ChairmanId, out var chairman);
         users.TryGetValue(e.SecretaryId, out var secretary);
+        User? approver = null;
+        if (e.ApprovedBy.HasValue) users.TryGetValue(e.ApprovedBy.Value, out approver);
         return new ConsultationDto
         {
             Id = e.Id,
@@ -579,6 +606,12 @@ public partial class InpatientCompleteService {
             Conclusion = e.Conclusion,
             Treatment = e.Treatment,
             Status = e.Status,
+            // F1.4: approval fields
+            ApprovalStatus = e.ApprovalStatus,
+            ApprovedBy = e.ApprovedBy,
+            ApprovedByName = approver?.FullName,
+            ApprovedAt = e.ApprovedAt,
+            ApprovalNote = e.ApprovalNote,
             Members = e.Members.Select(m =>
             {
                 users.TryGetValue(m.DoctorId, out var doc);

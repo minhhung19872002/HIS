@@ -1001,6 +1001,17 @@ public partial class InpatientCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// F1.4: Lãnh đạo duyệt / từ chối hội chẩn thuốc dấu * (ConsultationType=3)
+    /// Decision: 2=Duyệt, 3=Từ chối
+    /// </summary>
+    [HttpPost("consultations/{id}/approve")]
+    public async Task<ActionResult<ConsultationDto>> ApproveConsultation(Guid id, [FromBody] ApproveConsultationRequest request)
+    {
+        var result = await _inpatientService.ApproveConsultationAsync(id, request.Decision, request.Note, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Tạo phiếu chăm sóc
     /// </summary>
     [HttpPost("nursing-care-sheets")]

@@ -8,7 +8,7 @@ import {
 } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
 import {
-  getConsultations, createConsultation, completeConsultation, printConsultation,
+  getConsultations, createConsultation, completeConsultation, approveConsultation, printConsultation,
   type ConsultationDto, type CreateConsultationDto, type InpatientListDto,
 } from '../../api/inpatient';
 import { getSigners, type EmrSignerCatalogDto } from '../../api/emrAdmin';
@@ -16,16 +16,33 @@ import { getSigners, type EmrSignerCatalogDto } from '../../api/emrAdmin';
 /* ── Issue #2: tab Hội chẩn nội trú — list / tạo / hoàn thành / in biên bản.
    Backend persist từ mig 99 (InpatientConsultations). api client đã có sẵn. ── */
 
-type CsKey = 'all' | 'waiting' | 'doing' | 'done';
+type CsKey = 'all' | 'waiting' | 'doing' | 'done' | 'pending_approval' | 'approved' | 'rejected';
 const CS_TABS: StatusTab<CsKey>[] = [
   { v: 'all', l: 'Tất cả', tone: 'info' },
   { v: 'waiting', l: 'Chờ hội chẩn', tone: 'warn' },
   { v: 'doing', l: 'Đang hội chẩn', tone: 'info' },
   { v: 'done', l: 'Hoàn thành', tone: 'ok' },
+  { v: 'pending_approval', l: 'Chờ duyệt LĐ', tone: 'warn' },
+  { v: 'approved', l: 'Đã duyệt', tone: 'ok' },
+  { v: 'rejected', l: 'Từ chối', tone: 'crit' },
 ];
 const csKey = (s: number): CsKey => (s === 2 ? 'done' : s === 1 ? 'doing' : 'waiting');
-const CS_TONE: Record<CsKey, 'ok' | 'info' | 'warn' | 'crit'> = { all: 'info', waiting: 'warn', doing: 'info', done: 'ok' };
-const CS_LABEL: Record<Exclude<CsKey, 'all'>, string> = { waiting: 'Chờ hội chẩn', doing: 'Đang hội chẩn', done: 'Hoàn thành' };
+// Map approvalStatus -> tab key (for drug consultations type=3)
+const csApprovalKey = (c: ConsultationDto): CsKey | null => {
+  if (c.consultationType !== 3) return null;
+  if (c.approvalStatus === 1) return 'pending_approval';
+  if (c.approvalStatus === 2) return 'approved';
+  if (c.approvalStatus === 3) return 'rejected';
+  return null;
+};
+const CS_TONE: Record<CsKey, 'ok' | 'info' | 'warn' | 'crit'> = {
+  all: 'info', waiting: 'warn', doing: 'info', done: 'ok',
+  pending_approval: 'warn', approved: 'ok', rejected: 'crit',
+};
+const CS_LABEL: Record<Exclude<CsKey, 'all'>, string> = {
+  waiting: 'Chờ hội chẩn', doing: 'Đang hội chẩn', done: 'Hoàn thành',
+  pending_approval: 'Chờ duyệt LĐ', approved: 'Đã duyệt', rejected: 'Từ chối',
+};
 
 const TYPE_OPTS = [
   { value: 1, label: 'Hội chẩn khoa' },
@@ -45,6 +62,7 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
   const [sel, setSel] = useState<ConsultationDto | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [completing, setCompleting] = useState<ConsultationDto | null>(null);
+  const [approving, setApproving] = useState<ConsultationDto | null>(null);
 
   const byAdmission = useMemo(
     () => new Map(inpatients.map((p) => [p.admissionId, p])),
@@ -71,15 +89,28 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
   useEffect(() => { if (active) void load(); }, [active, load]);
 
   const csCounts = useMemo<Record<string, number>>(() => {
-    const c: Record<string, number> = { all: items.length, waiting: 0, doing: 0, done: 0 };
-    items.forEach((i) => { c[csKey(i.status)] += 1; });
+    const c: Record<string, number> = { all: items.length, waiting: 0, doing: 0, done: 0, pending_approval: 0, approved: 0, rejected: 0 };
+    items.forEach((i) => {
+      c[csKey(i.status)] += 1;
+      const ak = csApprovalKey(i);
+      if (ak) c[ak] += 1;
+    });
     return c;
   }, [items]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((c) => {
-      if (status !== 'all' && csKey(c.status) !== status) return false;
+      if (status !== 'all') {
+        const approvalTab = csApprovalKey(c);
+        const statusTab = csKey(c.status);
+        // approval tabs: filter by approvalStatus
+        if (status === 'pending_approval' || status === 'approved' || status === 'rejected') {
+          if (approvalTab !== status) return false;
+        } else if (statusTab !== status) {
+          return false;
+        }
+      }
       if (!q) return true;
       const p = patientOf(c);
       return [p?.patientName, p?.patientCode, c.chairmanName, c.secretaryName, c.location, c.reason]
@@ -126,6 +157,15 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
         return <StatusBadge tone={CS_TONE[k]} dot>{CS_LABEL[k as Exclude<CsKey, 'all'>]}</StatusBadge>;
       },
     },
+    {
+      key: 'approval', label: 'Duyệt LĐ', width: 110,
+      render: (c) => {
+        if (c.consultationType !== 3) return null;
+        const ak = csApprovalKey(c);
+        if (!ak) return <StatusBadge tone="info" dot>Chưa trình</StatusBadge>;
+        return <StatusBadge tone={CS_TONE[ak]} dot>{CS_LABEL[ak as Exclude<CsKey, 'all'>]}</StatusBadge>;
+      },
+    },
   ], [patientOf]);
 
   return (
@@ -157,6 +197,10 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
                     <ActBtn ic="check" title="Hoàn thành hội chẩn"
                       onClick={() => setCompleting(c)} />
                   )}
+                  {c.consultationType === 3 && c.approvalStatus !== 2 && (
+                    <ActBtn ic="shield" title="Duyệt / Từ chối (Lãnh đạo)"
+                      onClick={() => setApproving(c)} />
+                  )}
                   <ActBtn ic="printer" title="In biên bản" onClick={() => void onPrint(c)} />
                 </>
               )}
@@ -175,6 +219,11 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
             {sel.status < 2 && (
               <Btn variant="primary" onClick={() => { setCompleting(sel); }}>
                 <TermIcon name="check" size={12} /> Hoàn thành
+              </Btn>
+            )}
+            {sel.consultationType === 3 && sel.approvalStatus !== 2 && (
+              <Btn variant="primary" onClick={() => { setApproving(sel); }}>
+                <TermIcon name="shield" size={12} /> Duyệt / Từ chối
               </Btn>
             )}
             <Btn variant="ghost" onClick={() => void onPrint(sel)}>
@@ -219,6 +268,21 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
                 <DrField lbl="Hướng điều trị">{sel.treatment || '—'}</DrField>
               </DrSec>
             )}
+            {sel.consultationType === 3 && sel.approvalStatus > 0 && (
+              <DrSec title="Duyệt lãnh đạo">
+                <div className="rec-kv">
+                  <DrField lbl="Kết quả duyệt">
+                    {(() => {
+                      const ak = csApprovalKey(sel);
+                      return ak ? <StatusBadge tone={CS_TONE[ak]} dot>{CS_LABEL[ak as Exclude<CsKey, 'all'>]}</StatusBadge> : null;
+                    })()}
+                  </DrField>
+                  {sel.approvedByName && <DrField lbl="Người duyệt">{sel.approvedByName}</DrField>}
+                  {sel.approvedAt && <DrField lbl="Thời điểm">{new Date(sel.approvedAt).toLocaleString('vi-VN')}</DrField>}
+                  {sel.approvalNote && <DrField lbl="Ghi chú">{sel.approvalNote}</DrField>}
+                </div>
+              </DrSec>
+            )}
           </>
         )}
       </DrawerShell>
@@ -235,6 +299,16 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
         onClose={() => setCompleting(null)}
         onDone={(updated) => {
           setCompleting(null);
+          setSel((s) => (s && s.id === updated.id ? updated : s));
+          void load();
+        }}
+      />
+
+      <ApproveConsultationModal
+        target={approving}
+        onClose={() => setApproving(null)}
+        onDone={(updated) => {
+          setApproving(null);
           setSel((s) => (s && s.id === updated.id ? updated : s));
           void load();
         }}
@@ -428,6 +502,75 @@ const CompleteConsultationModal: React.FC<{
         <DrField lbl="Hướng điều trị">
           <Input.TextArea value={treatment} onChange={(e) => setTreatment(e.target.value)}
             rows={3} placeholder="Kế hoạch điều trị tiếp theo" />
+        </DrField>
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ── Modal duyệt / từ chối hội chẩn thuốc dấu * (F1.4) ── */
+const ApproveConsultationModal: React.FC<{
+  target: ConsultationDto | null;
+  onClose: () => void;
+  onDone: (updated: ConsultationDto) => void;
+}> = ({ target, onClose, onDone }) => {
+  const [decision, setDecision] = useState<number>(2); // 2=Duyệt, 3=Từ chối
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (target) { setDecision(2); setNote(''); }
+  }, [target]);
+
+  const submit = async () => {
+    if (!target) return;
+    setSaving(true);
+    try {
+      const r = await approveConsultation(target.id, decision, note.trim() || undefined);
+      tk(decision === 2 ? 'Đã duyệt hội chẩn' : 'Đã từ chối hội chẩn');
+      onDone(r.data);
+    } catch {
+      te('Thao tác duyệt thất bại');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={!!target}
+      onClose={onClose}
+      title="Duyệt hội chẩn thuốc dấu *"
+      size="sm"
+      footer={
+        <>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant={decision === 3 ? 'crit' : 'primary'} onClick={() => void submit()} disabled={saving}>
+            {saving ? 'Đang lưu…' : decision === 2 ? 'Duyệt' : 'Từ chối'}
+          </Btn>
+        </>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <DrField lbl="Quyết định *">
+          <Select
+            value={decision}
+            onChange={setDecision}
+            options={[
+              { value: 2, label: 'Duyệt' },
+              { value: 3, label: 'Từ chối' },
+            ]}
+            style={{ width: '100%' }}
+            size="small"
+          />
+        </DrField>
+        <DrField lbl="Ghi chú">
+          <Input.TextArea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            placeholder={decision === 3 ? 'Lý do từ chối (bắt buộc khi từ chối)' : 'Ghi chú thêm (tùy chọn)'}
+          />
         </DrField>
       </div>
     </ModalShell>

@@ -27,6 +27,13 @@ public class InpatientConsultation : BaseEntity
 
     public int Status { get; set; } // 0-Cho hoi chan, 1-Dang hoi chan, 2-Hoan thanh
 
+    // F1.4: duyet thuoc dau * (ConsultationType=3) trinh lanh dao
+    // ApprovalStatus: 0-Chua yeu cau, 1-Cho duyet, 2-Da duyet, 3-Tu choi
+    public int ApprovalStatus { get; set; }
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? ApprovalNote { get; set; }
+
     public virtual ICollection<InpatientConsultationMember> Members { get; set; } = new List<InpatientConsultationMember>();
 }
 

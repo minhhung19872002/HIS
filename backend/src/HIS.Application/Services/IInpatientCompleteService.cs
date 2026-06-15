@@ -615,6 +615,11 @@ public interface IInpatientCompleteService
     Task<byte[]> PrintConsultationAsync(Guid id);
 
     /// <summary>
+    /// F1.4: Trình lãnh đạo duyệt / từ chối hội chẩn thuốc dấu * (ConsultationType=3)
+    /// </summary>
+    Task<ConsultationDto> ApproveConsultationAsync(Guid id, int decision, string? note, Guid approverId);
+
+    /// <summary>
     /// Tạo phiếu chăm sóc
     /// </summary>
     Task<NursingCareSheetDto> CreateNursingCareSheetAsync(CreateNursingCareSheetDto dto, Guid userId);

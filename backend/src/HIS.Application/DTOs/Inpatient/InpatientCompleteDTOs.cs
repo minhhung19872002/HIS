@@ -1354,6 +1354,21 @@ public class ConsultationDto
     public string? Treatment { get; set; }
 
     public int Status { get; set; } // 0-Chờ, 1-Đang HC, 2-Hoàn thành
+
+    // F1.4: Luồng duyệt lãnh đạo — chỉ áp dụng ConsultationType=3 (Thuốc dấu *)
+    // ApprovalStatus: 0-Chưa yêu cầu, 1-Chờ duyệt, 2-Đã duyệt, 3-Từ chối
+    public int ApprovalStatus { get; set; }
+    public string ApprovalStatusName => ApprovalStatus switch
+    {
+        1 => "Chờ duyệt",
+        2 => "Đã duyệt",
+        3 => "Từ chối",
+        _ => ""
+    };
+    public Guid? ApprovedBy { get; set; }
+    public string? ApprovedByName { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? ApprovalNote { get; set; }
 }
 
 /// <summary>
@@ -1385,6 +1400,16 @@ public class CreateConsultationDto
 
     public string? Reason { get; set; }
     public string? ClinicalFindings { get; set; }
+}
+
+/// <summary>
+/// Request duyệt / từ chối hội chẩn thuốc dấu * (F1.4)
+/// </summary>
+public class ApproveConsultationRequest
+{
+    /// <summary>2 = Duyệt, 3 = Từ chối</summary>
+    public int Decision { get; set; }
+    public string? Note { get; set; }
 }
 
 /// <summary>
