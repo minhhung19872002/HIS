@@ -3,9 +3,14 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-15** (verify-functional + CLOSED nhóm reporting #117 #153 — tổng **12 issue** đã đóng phiên này).
+> Cập nhật cuối: **2026-06-15** (verify-functional + CLOSED nhóm anti-fraud/alert #152 #101 #147 — tổng **15 issue** đã đóng phiên này).
 
 ## Đang ở đâu
+- **VERIFY FUNCTIONAL nhóm anti-fraud/alert (✅ CLOSED #152 #101 #147)** — test thật trên local:
+  **#152** book 3 OK → #4 chặn "đã đặt 3 lần hôm nay" (limit 3/SĐT) · **#101** seed 66 exam → alert OPD-40 "66 lượt > ngưỡng 65",
+  giảm 60 → không alert (boundary) · **#147** aggregate drugCounts (Cam thảo=2) + diagnosisFrequency (J18.9=2).
+  **Tổng 15 issue CLOSED phiên này: #149 #151 #150 #109 #98 #94 #95 #138 #135 #136 #117 #153 #152 #101 #147.**
+  Còn OPEN từ các sóng: **#141 #142 #110 #140** (mẫu in EMR — verify = render component FE, ít API-assertable).
 - **VERIFY FUNCTIONAL nhóm reporting (✅ CLOSED #117 #153)** — test thật:
   **#153** waiting-phase-analysis trả delta tính-thật (totalVisits=398, overallMinutes=170.5, break-down theo đối tượng),
   hết hardcode 15/20/10/8 (vài phase=0 do data thiếu mốc StartTime/EndTime — nợ cột CompletedAt). **#117** seed
