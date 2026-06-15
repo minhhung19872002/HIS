@@ -1,5 +1,6 @@
 using HIS.Application.DTOs.BusinessAlert;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
@@ -12,6 +13,10 @@ public class BusinessAlertService : IBusinessAlertService
 {
     private readonly HISDbContext _context;
     private readonly ILogger<BusinessAlertService> _logger;
+
+    /// <summary>Ngưỡng mặc định số lượt khám/ngày của 1 BS hoặc 1 phòng khám (Rule OPD-40).
+    /// Có thể override qua SystemConfig (key "ClinicOverloadThreshold") nếu cần cấu hình per-bệnh viện.</summary>
+    private const int ClinicOverloadThreshold = 65;
 
     public BusinessAlertService(HISDbContext context, ILogger<BusinessAlertService> logger)
     {
@@ -331,6 +336,24 @@ public class BusinessAlertService : IBusinessAlertService
             _logger.LogWarning(ex, "BusinessAlert: Error resolving alert {AlertId}", alertId);
             return false;
         }
+    }
+
+    // ========== CLINIC OVERLOAD (Rule OPD-40) ==========
+
+    /// <inheritdoc cref="IBusinessAlertService.CheckClinicOverloadAsync"/>
+    public async Task<AlertCheckResultDto> CheckClinicOverloadAsync(Guid? doctorId, Guid? roomId, DateTime? date)
+    {
+        var alerts = new List<BusinessAlertDto>();
+        try
+        {
+            alerts.AddRange(await CheckClinicOverloadInternalAsync(doctorId, roomId, date));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "BusinessAlert: Error checking clinic overload (doctorId={DoctorId}, roomId={RoomId})", doctorId, roomId);
+        }
+        await PersistNewAlertsAsync(alerts, null);
+        return BuildResult(alerts);
     }
 
     // ========== RULES CATALOG ==========
@@ -1764,6 +1787,59 @@ public class BusinessAlertService : IBusinessAlertService
         UpdatedAt = r.UpdatedAt,
     };
 
+    // Rule 40: Clinic overload — visits/day for a doctor or room exceeds threshold
+    private async Task<List<BusinessAlertDto>> CheckClinicOverloadInternalAsync(Guid? doctorId, Guid? roomId, DateTime? date)
+    {
+        var alerts = new List<BusinessAlertDto>();
+
+        // Resolve threshold (future: read from SystemConfig; for now use const)
+        var threshold = ClinicOverloadThreshold;
+
+        // Resolve the VN-local date to a sargable UTC range
+        var localDate = date?.Date ?? VnTime.TodayVn;
+        var (fromUtc, toUtc) = VnTime.DayRangeUtc(localDate);
+
+        // Check by doctor
+        if (doctorId.HasValue)
+        {
+            var doctorCount = await _context.Examinations
+                .Where(e => e.DoctorId == doctorId.Value
+                         && e.CreatedAt >= fromUtc
+                         && e.CreatedAt < toUtc)
+                .CountAsync();
+
+            if (doctorCount > threshold)
+            {
+                alerts.Add(CreateAlert(
+                    "OPD-40", "OPD", 2, "OPD",
+                    "Qua tai luot kham BS",
+                    $"Bac si da kham {doctorCount} luot trong ngay {localDate:dd/MM/yyyy} (nguong: {threshold}). De nghi dieu phoi them phong hoac gio lam viec.",
+                    null, null, null));
+            }
+        }
+
+        // Check by room
+        if (roomId.HasValue)
+        {
+            var roomCount = await _context.Examinations
+                .Where(e => e.RoomId == roomId.Value
+                         && e.CreatedAt >= fromUtc
+                         && e.CreatedAt < toUtc)
+                .CountAsync();
+
+            if (roomCount > threshold)
+            {
+                alerts.Add(CreateAlert(
+                    "OPD-40", "OPD", 2, "OPD",
+                    "Qua tai luot kham phong",
+                    $"Phong kham da tiep nhan {roomCount} luot trong ngay {localDate:dd/MM/yyyy} (nguong: {threshold}). De nghi mo them phong hoac phan luong.",
+                    null, null, null));
+            }
+        }
+
+        return alerts;
+    }
+
     // =====================================================================
     // HELPERS
     // =====================================================================
@@ -1936,5 +2012,8 @@ public class BusinessAlertService : IBusinessAlertService
         new() { AlertCode = "BHYT-37", Category = "BHYT", Title = "Ngoai phac do BHYT", Description = "Canh bao thuoc/dich vu ngoai phac do BHYT theo ma ICD", DefaultSeverity = 2, Module = "OPD" },
         new() { AlertCode = "REG-38", Category = "Registration", Title = "Don thuoc chua linh", Description = "Canh bao BN con don thuoc cu chua linh tai quay", DefaultSeverity = 2, Module = "Reception" },
         new() { AlertCode = "REG-39", Category = "Registration", Title = "Uoc tinh chi phi", Description = "Uoc tinh chi phi dich vu truoc khi kham", DefaultSeverity = 3, Module = "Reception" },
+
+        // OPD operational (40)
+        new() { AlertCode = "OPD-40", Category = "OPD", Title = "Qua tai luot kham", Description = $"Canh bao BS hoac phong kham vuot nguong {ClinicOverloadThreshold} luot/ngay", DefaultSeverity = 2, Module = "OPD" },
     };
 }

@@ -36,6 +36,9 @@ public interface IBusinessAlertService
     /// <summary>Rule 38: Previous unfilled prescription — called at registration</summary>
     Task<AlertCheckResultDto> CheckUnfilledPrescriptionsAsync(Guid patientId);
 
+    /// <summary>Rule 40: Clinic overload — doctor or room exceeds daily visit threshold (default 65)</summary>
+    Task<AlertCheckResultDto> CheckClinicOverloadAsync(Guid? doctorId, Guid? roomId, DateTime? date);
+
     /// <summary>Rule 39: Cost estimation at registration — not an alert, returns breakdown</summary>
     Task<CostEstimationResultDto> EstimateCostAsync(Guid patientId, List<Guid> serviceIds);
 

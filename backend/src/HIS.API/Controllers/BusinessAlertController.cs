@@ -113,7 +113,20 @@ public class BusinessAlertController : ControllerBase
     }
 
     /// <summary>
-    /// Get all 39 alert rules catalog
+    /// Rule 40: Check clinic overload — daily visit count for a doctor or room exceeds threshold (default 65)
+    /// </summary>
+    [HttpGet("check/clinic-overload")]
+    public async Task<IActionResult> CheckClinicOverload(
+        [FromQuery] Guid? doctorId,
+        [FromQuery] Guid? roomId,
+        [FromQuery] DateTime? date)
+    {
+        var result = await _alertService.CheckClinicOverloadAsync(doctorId, roomId, date);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get all 40 alert rules catalog
     /// </summary>
     [HttpGet("rules")]
     public async Task<IActionResult> GetAlertRules()
