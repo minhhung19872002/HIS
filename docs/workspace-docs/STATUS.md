@@ -6,6 +6,13 @@
 > Cập nhật cuối: **2026-06-16** (phiên Claude máy D: — feature v2 nối tiếp #145/#85/#86 (PUSHED) + #89/#87 (chờ push); governance sync-gate đã push).
 
 ## Đang ở đâu
+- **#155 F1.9 — Phiếu khám tâm lý trước mổ (code-complete, build-green FE+BE, chờ push)**: thêm field
+  `PsychologicalAssessment` xuyên stack — entity `AnesthesiaRecord` (Icd.cs) + **migration 113** (idempotent
+  ALTER ADD nullable, auto-apply startup) + 2 DTO (`AnesthesiaRecordDto`/`AnesthesiaSaveDto`) + 3 mapping service +
+  section "Khám tâm lý trước mổ" trong `PreAnesthesiaModal` (SurgeryFormModals.tsx, reuse pattern preOpAssessment)
+  + in (AnesthesiaPrintTemplates 2 chỗ). FE EXIT 0 + BE 0 errors. ⚠️ migration chưa runtime-test (DB off) → verify
+  schema-drift sau deploy. (Lưu ý: 2 anesthesia-modal khác partial-save sẵn omit preOpAssessment — pre-existing,
+  out-of-scope.) → chờ push + `Closes #155`.
 - **#87 F8.5 — EMR duyệt lưu trữ 2 cấp (buồng bệnh → KHTH) (code-complete, build-green FE+BE, chờ push)**:
   thiết kế **KHÔNG migration** — cấp 1 (khoa) = log `EmrAmendment` Action=4 (reuse), cấp 2 (KHTH) = finalize sẵn.
   BE (`EmrAdminDTOs`/`IEmrAdminService`/`EmrAdminService`/`EmrAdminController`): `DeptApproveRecordAsync` +
