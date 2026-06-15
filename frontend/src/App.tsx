@@ -55,6 +55,7 @@ const MedicalSupplyV2 = lazy(() => import('./pages-v2/MedicalSupply'));
 const TraumaRegistryV2 = lazy(() => import('./pages-v2/TraumaRegistry'));
 const WaitingTimeReportV2 = lazy(() => import('./pages-v2/WaitingTimeReport'));
 const SpecialTestRuleAdminV2 = lazy(() => import('./pages-v2/SpecialTestRuleAdmin'));
+const AdministrativeUnitsV2 = lazy(() => import('./pages-v2/AdministrativeUnits'));
 const HealthEducationV2 = lazy(() => import('./pages-v2/HealthEducation'));
 const PopulationHealthV2 = lazy(() => import('./pages-v2/PopulationHealth'));
 const EnvironmentalHealthV2 = lazy(() => import('./pages-v2/EnvironmentalHealth'));
@@ -658,6 +659,8 @@ const AppRoutes: React.FC = () => {
           {/* Wave 1: #153 waiting-time analytics · #150 special-test-rule catalog */}
           <Route path="reports/waiting-time" element={<WaitingTimeReportV2 />} />
           <Route path="cdss/special-test-rules" element={<SpecialTestRuleAdminV2 />} />
+          {/* Wave 2: #94 administrative units catalog */}
+          <Route path="administrative-units" element={<AdministrativeUnitsV2 />} />
           <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />
           </Route>
         </Route>

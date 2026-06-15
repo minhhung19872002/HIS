@@ -220,6 +220,9 @@ public static class DependencyInjection
         // NangCap22: 13 master catalogs (BV Đắk Nông tender)
         services.AddScoped<IMasterCatalogService, MasterCatalogService>();
 
+        // F10.1 #94: DM Địa danh hành chính (Tỉnh/Huyện/Xã)
+        services.AddScoped<IAdministrativeUnitService, AdministrativeUnitService>();
+
         // Medical Record Archive (Lưu trữ hồ sơ bệnh án)
         services.AddScoped<IMedicalRecordArchiveService, MedicalRecordArchiveService>();
 
