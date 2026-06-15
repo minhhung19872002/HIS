@@ -27,6 +27,18 @@ export interface HealthCheckup {
   psychiatry?: string;
   labResults?: string;
   xrayResults?: string;
+  // Driver-specific (TT36)
+  driverLicenseClass?: string;
+  driverReactionTest?: string;
+  driverColorVision?: string;
+  // Child-specific
+  ageMonths?: number;
+  developmentAssessment?: string;
+  nutritionStatus?: string;
+  vaccinationStatus?: string;
+  // VSATTP-specific (TT15)
+  foodHandlerRole?: string;
+  foodSafetyConclusion?: string;
 }
 
 export interface HealthCheckupStats {

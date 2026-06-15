@@ -139,6 +139,11 @@ async function loadTemplate(printType: string): Promise<AnyPrintComponent | null
     // F1.5 — Giấy nghỉ dưỡng thai
     case 'maternity-leave': return (await import('./EMRPrintTemplates/MaternityLeavePrint')).MaternityLeavePrint;
 
+    // F10.5 — KSK chuyên biệt (Lái xe / VSATTP / Đi học)
+    case 'ksk-driver':  return (await import('./HealthCheckupPrintTemplates')).DriverCheckupPrint;
+    case 'ksk-vsattp':  return (await import('./HealthCheckupPrintTemplates')).VsattpCheckupPrint;
+    case 'ksk-student': return (await import('./HealthCheckupPrintTemplates')).StudentCheckupPrint;
+
     // SpecialtyEMRForms2
     case 'sp-yhctngoaitru': return (await import('./SpecialtyEMRForms2')).YHCTNgoaiTruBAPrint;
     case 'sp-nhiyhct': return (await import('./SpecialtyEMRForms2')).NhiYHCTBAPrint;
@@ -289,6 +294,10 @@ export default function PrintTemplateRenderer({ printType, record, printRef, sel
   // Maternity leave — truyền record + maternityLeaveDto
   if (printType === 'maternity-leave' && record && maternityLeaveDto) {
     return <Component ref={printRef} record={record} dto={maternityLeaveDto} />;
+  }
+  // F10.5 KSK chuyen biet — component nhan `record` la HealthCheckup shape
+  if (printType.startsWith('ksk-')) {
+    return <Component ref={printRef} record={record as unknown as Record<string, unknown>} />;
   }
   // Default: record prop with ref
   return <Component ref={printRef} record={record} />;

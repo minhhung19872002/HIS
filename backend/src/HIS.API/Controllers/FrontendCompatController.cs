@@ -71,22 +71,6 @@ public class FrontendCompatController : ControllerBase
         return Ok(items);
     }
 
-    // ---- Health Checkup: /api/health-checkup root ----
-    [HttpGet("api/health-checkup")]
-    public async Task<IActionResult> HealthCheckupList([FromQuery] int pageSize = 50)
-    {
-        var items = await _db.HealthCheckups
-            .OrderByDescending(h => h.ExamDate)
-            .Take(pageSize)
-            .Select(h => new
-            {
-                h.Id, h.PatientId, h.CheckupType, h.FormCode, h.Status,
-                h.Classification, h.ExamResult, h.ExamDate, h.DoctorName
-            })
-            .ToListAsync();
-        return Ok(items);
-    }
-
     // ---- Occupational Health: /exams /hazard-types ----
     [HttpGet("api/occupational-health/exams")]
     public async Task<IActionResult> OHExams([FromQuery] int pageSize = 50)

@@ -68,6 +68,9 @@ public class HealthCheckupDetailDto : HealthCheckupDto
     public string? DevelopmentAssessment { get; set; }
     public string? NutritionStatus { get; set; }
     public string? VaccinationStatus { get; set; }
+    // VSATTP-specific
+    public string? FoodHandlerRole { get; set; }
+    public string? FoodSafetyConclusion { get; set; }
 }
 
 public class CreateHealthCheckupDto
@@ -80,6 +83,43 @@ public class CreateHealthCheckupDto
     public string? ExamDate { get; set; }
     public string? DoctorName { get; set; }
     public string? Notes { get; set; }
+    // Specialty fields
+    public string? Classification { get; set; }
+    public string? GeneralConclusion { get; set; }
+    public string? ExamResult { get; set; }
+    public float? Height { get; set; }
+    public float? Weight { get; set; }
+    public string? BloodPressure { get; set; }
+    public float? HeartRate { get; set; }
+    public string? BloodType { get; set; }
+    public string? VisionLeft { get; set; }
+    public string? VisionRight { get; set; }
+    public string? HearingLeft { get; set; }
+    public string? HearingRight { get; set; }
+    public string? InternalMedicine { get; set; }
+    public string? Surgery { get; set; }
+    public string? Ophthalmology { get; set; }
+    public string? ENT { get; set; }
+    public string? Dental { get; set; }
+    public string? Dermatology { get; set; }
+    public string? Gynecology { get; set; }
+    public string? Psychiatry { get; set; }
+    public string? LabResults { get; set; }
+    public string? XrayResult { get; set; }
+    public string? CertificateNumber { get; set; }
+    public string? CertificateDate { get; set; }
+    // Driver-specific
+    public string? DriverLicenseClass { get; set; }
+    public string? DriverReactionTest { get; set; }
+    public string? DriverColorVision { get; set; }
+    // Child-specific
+    public int? AgeMonths { get; set; }
+    public string? DevelopmentAssessment { get; set; }
+    public string? NutritionStatus { get; set; }
+    public string? VaccinationStatus { get; set; }
+    // VSATTP-specific
+    public string? FoodHandlerRole { get; set; }
+    public string? FoodSafetyConclusion { get; set; }
 }
 
 public class UpdateHealthCheckupDto
@@ -120,6 +160,9 @@ public class UpdateHealthCheckupDto
     public string? DevelopmentAssessment { get; set; }
     public string? NutritionStatus { get; set; }
     public string? VaccinationStatus { get; set; }
+    // VSATTP-specific
+    public string? FoodHandlerRole { get; set; }
+    public string? FoodSafetyConclusion { get; set; }
 }
 
 public class HealthCheckupStatsDto
@@ -142,6 +185,24 @@ public class ClassificationBreakdownDto
 {
     public string Classification { get; set; } = string.Empty;
     public int Count { get; set; }
+}
+
+// F10.5: Paged result for HealthCheckup CRUD list
+public class HealthCheckupPagedResult
+{
+    public List<HealthCheckupDto> Items { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int PageIndex { get; set; }
+    public int PageSize { get; set; }
+}
+
+// F10.5: KSK type descriptor (for /types endpoint)
+public class CheckupTypeDto
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? FormCode { get; set; }
+    public string? Description { get; set; }
 }
 
 // =====================================================================

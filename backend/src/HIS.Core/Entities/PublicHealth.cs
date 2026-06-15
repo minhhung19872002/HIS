@@ -47,6 +47,9 @@ public class HealthCheckup : BaseEntity
     public string? DevelopmentAssessment { get; set; }
     public string? NutritionStatus { get; set; }
     public string? VaccinationStatus { get; set; }
+    // VSATTP-specific (Food Safety)
+    public string? FoodHandlerRole { get; set; } // Vai tro nguoi tiep xuc thuc pham (TT15)
+    public string? FoodSafetyConclusion { get; set; } // Ket luan du/khong du dieu kien VSATTP
     public virtual Patient? Patient { get; set; }
 }
 

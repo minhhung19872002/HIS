@@ -1,3 +1,5 @@
+using HIS.Application.DTOs;
+
 namespace HIS.Application.Services;
 
 // ============================================================
@@ -67,6 +69,15 @@ public interface IHealthCheckupService
     Task<BatchImportResultDto> ImportBatchExcelAsync(Guid campaignId, Stream fileStream, string fileName);
     // Cost report
     Task<CampaignCostReportDto> GetCampaignCostReportAsync(Guid campaignId);
+
+    // F10.5 KSK chuyen biet (Lai xe / VSATTP / Di hoc / Tre em)
+    Task<HealthCheckupPagedResult> GetCheckupsAsync(HealthCheckupSearchDto filter);
+    Task<HealthCheckupDetailDto?> GetCheckupByIdAsync(Guid id);
+    Task<HealthCheckupDetailDto> CreateCheckupAsync(CreateHealthCheckupDto dto, string userId);
+    Task<HealthCheckupDetailDto> UpdateCheckupAsync(Guid id, UpdateHealthCheckupDto dto, string userId);
+    Task DeleteCheckupAsync(Guid id);
+    Task<List<CheckupTypeDto>> GetCheckupTypesAsync();
+    Task<HealthCheckupStatsDto> GetCheckupStatisticsAsync();
 }
 
 // ============================================================

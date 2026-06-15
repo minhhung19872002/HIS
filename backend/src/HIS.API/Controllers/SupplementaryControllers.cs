@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
+using HIS.Application.DTOs;
 
 namespace HIS.API.Controllers;
 
@@ -542,6 +543,103 @@ public class HealthCheckupController : ControllerBase
     {
         var result = await _service.GetCampaignCostReportAsync(campaignId);
         return Ok(result);
+    }
+
+    // ---- F10.5: KSK chuyên biệt (Lái xe / VSATTP / Đi học / Trẻ em) ----
+    // NOTE: {id:guid} constraint prevents "types"/"statistics" from being caught here.
+
+    /// <summary>
+    /// Danh sách loại KSK chuyên biệt
+    /// </summary>
+    [HttpGet("types")]
+    public async Task<IActionResult> GetCheckupTypes()
+    {
+        var result = await _service.GetCheckupTypesAsync();
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Thống kê KSK chuyên biệt
+    /// </summary>
+    [HttpGet("checkup-stats")]
+    public async Task<IActionResult> GetCheckupStats()
+    {
+        var result = await _service.GetCheckupStatisticsAsync();
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Danh sách KSK chuyên biệt (phân trang, lọc theo loại/trạng thái/keyword)
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> GetCheckups([FromQuery] HealthCheckupSearchDto filter)
+    {
+        var result = await _service.GetCheckupsAsync(filter);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy chi tiết KSK chuyên biệt theo ID
+    /// </summary>
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetCheckupById(Guid id)
+    {
+        var result = await _service.GetCheckupByIdAsync(id);
+        if (result == null) return NotFound();
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tạo mới KSK chuyên biệt
+    /// </summary>
+    [HttpPost]
+    public async Task<IActionResult> CreateCheckup([FromBody] CreateHealthCheckupDto dto)
+    {
+        try
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "system";
+            var result = await _service.CreateCheckupAsync(dto, userId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Cập nhật KSK chuyên biệt
+    /// </summary>
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> UpdateCheckup(Guid id, [FromBody] UpdateHealthCheckupDto dto)
+    {
+        try
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "system";
+            var result = await _service.UpdateCheckupAsync(id, dto, userId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Xóa mềm KSK chuyên biệt
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteCheckup(Guid id)
+    {
+        try
+        {
+            await _service.DeleteCheckupAsync(id);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }
 
