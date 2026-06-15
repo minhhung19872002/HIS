@@ -1816,4 +1816,72 @@ public partial class RISCompleteService
     }
 
     #endregion
+
+    #region F2.8 Favorite — Ca chup yeu thich
+
+    public async Task<FavoriteToggleResultDto> ToggleFavoriteAsync(Guid requestId, Guid userId)
+    {
+        var existing = await _context.RadiologyStudyFavorites
+            .FirstOrDefaultAsync(f => f.RequestId == requestId && f.UserId == userId);
+
+        if (existing != null)
+        {
+            _context.RadiologyStudyFavorites.Remove(existing);
+            await _context.SaveChangesAsync();
+            return new FavoriteToggleResultDto { IsFavorited = false, RequestId = requestId };
+        }
+
+        var favorite = new RadiologyStudyFavorite
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            RequestId = requestId,
+            CreatedAt = DateTime.UtcNow,
+        };
+        _context.RadiologyStudyFavorites.Add(favorite);
+        await _context.SaveChangesAsync();
+        return new FavoriteToggleResultDto { IsFavorited = true, RequestId = requestId };
+    }
+
+    public async Task<List<RadiologyFavoriteDto>> GetFavoritesAsync(Guid userId)
+    {
+        var favorites = await _context.RadiologyStudyFavorites
+            .Where(f => f.UserId == userId)
+            .Join(_context.RadiologyRequests,
+                f => f.RequestId,
+                r => r.Id,
+                (f, r) => new { f, r })
+            .Join(_context.Patients,
+                x => x.r.PatientId,
+                p => p.Id,
+                (x, p) => new { x.f, x.r, p })
+            .Join(_context.Services,
+                x => x.r.ServiceId,
+                s => s.Id,
+                (x, s) => new RadiologyFavoriteDto
+                {
+                    Id = x.f.Id,
+                    UserId = x.f.UserId,
+                    RequestId = x.f.RequestId,
+                    RequestCode = x.r.RequestCode,
+                    PatientName = x.p.FullName,
+                    PatientCode = x.p.PatientCode,
+                    ServiceName = s.ServiceName,
+                    RequestDate = x.r.RequestDate,
+                    Status = x.r.Status,
+                    CreatedAt = x.f.CreatedAt,
+                })
+            .OrderByDescending(dto => dto.CreatedAt)
+            .ToListAsync();
+
+        return favorites;
+    }
+
+    public async Task<bool> IsFavoritedAsync(Guid requestId, Guid userId)
+    {
+        return await _context.RadiologyStudyFavorites
+            .AnyAsync(f => f.RequestId == requestId && f.UserId == userId);
+    }
+
+    #endregion
 }

@@ -2606,6 +2606,40 @@ export const getDiagnosisHistory = (requestId: string) =>
 
 // #endregion
 
+// #region F2.8 Favorite — Ca chup yeu thich
+
+export interface RadiologyFavoriteDto {
+  id: string;
+  userId: string;
+  requestId: string;
+  requestCode: string;
+  patientName: string;
+  patientCode: string;
+  serviceName: string;
+  requestDate: string;
+  status: number;
+  createdAt: string;
+}
+
+export interface FavoriteToggleResultDto {
+  isFavorited: boolean;
+  requestId: string;
+}
+
+/** Toggle ghim / bo ghim ca chup. Tra ve { isFavorited, requestId }. */
+export const toggleFavorite = (requestId: string) =>
+  apiClient.post<FavoriteToggleResultDto>('/RISComplete/favorites/toggle', { requestId });
+
+/** Lay danh sach ca chup da ghim cua user hien tai. */
+export const getFavorites = () =>
+  apiClient.get<RadiologyFavoriteDto[]>('/RISComplete/favorites');
+
+/** Kiem tra 1 ca chup co dang duoc user hien tai ghim hay khong. */
+export const isFavorited = (requestId: string) =>
+  apiClient.get<{ isFavorited: boolean; requestId: string }>(`/RISComplete/favorites/check/${requestId}`);
+
+// #endregion
+
 export default {
   // Waiting List
   getWaitingList,
@@ -2830,4 +2864,8 @@ export default {
   getRemoteServers,
   saveRemoteServer,
   deleteRemoteServer,
+  // F2.8 Favorite
+  toggleFavorite,
+  getFavorites,
+  isFavorited,
 };

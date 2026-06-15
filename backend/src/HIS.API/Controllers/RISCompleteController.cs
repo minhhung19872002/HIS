@@ -2891,6 +2891,49 @@ namespace HIS.API.Controllers
         }
 
         #endregion
+
+        #region F2.8 Favorite — Ca chup yeu thich
+
+        /// <summary>
+        /// Toggle ghim / bo ghim ca chup yeu thich. Tra ve trang thai sau toggle.
+        /// POST /api/RISComplete/favorites/toggle
+        /// </summary>
+        [HttpPost("favorites/toggle")]
+        public async Task<IActionResult> ToggleFavorite([FromBody] HIS.Application.DTOs.Radiology.ToggleFavoriteDto dto)
+        {
+            var userId = GetUserId();
+            if (userId == Guid.Empty) return Unauthorized();
+            var result = await _risService.ToggleFavoriteAsync(dto.RequestId, userId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lay danh sach ca chup yeu thich cua user dang dang nhap.
+        /// GET /api/RISComplete/favorites
+        /// </summary>
+        [HttpGet("favorites")]
+        public async Task<IActionResult> GetFavorites()
+        {
+            var userId = GetUserId();
+            if (userId == Guid.Empty) return Unauthorized();
+            var list = await _risService.GetFavoritesAsync(userId);
+            return Ok(list);
+        }
+
+        /// <summary>
+        /// Kiem tra 1 ca chup co dang duoc user hien tai ghim hay khong.
+        /// GET /api/RISComplete/favorites/check/{requestId}
+        /// </summary>
+        [HttpGet("favorites/check/{requestId:guid}")]
+        public async Task<IActionResult> IsFavorited(Guid requestId)
+        {
+            var userId = GetUserId();
+            if (userId == Guid.Empty) return Unauthorized();
+            var isFav = await _risService.IsFavoritedAsync(requestId, userId);
+            return Ok(new { isFavorited = isFav, requestId });
+        }
+
+        #endregion
     }
 
     #region Request DTOs

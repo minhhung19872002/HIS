@@ -2546,4 +2546,42 @@ public class SkipPatientRequest
     }
 
     #endregion
+
+    #region F2.8 Favorite — Ca chup yeu thich
+
+    /// <summary>
+    /// Ca chup da ghim yeu thich (dung cho list endpoint)
+    /// </summary>
+    public class RadiologyFavoriteDto
+    {
+        public Guid Id { get; set; }
+        public Guid UserId { get; set; }
+        public Guid RequestId { get; set; }
+        public string RequestCode { get; set; }
+        public string PatientName { get; set; }
+        public string PatientCode { get; set; }
+        public string ServiceName { get; set; }
+        public DateTime RequestDate { get; set; }
+        public int Status { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Request ghim / bo ghim ca chup
+    /// </summary>
+    public class ToggleFavoriteDto
+    {
+        public Guid RequestId { get; set; }
+    }
+
+    /// <summary>
+    /// Ket qua sau khi toggle favorite
+    /// </summary>
+    public class FavoriteToggleResultDto
+    {
+        public bool IsFavorited { get; set; }
+        public Guid RequestId { get; set; }
+    }
+
+    #endregion
 }

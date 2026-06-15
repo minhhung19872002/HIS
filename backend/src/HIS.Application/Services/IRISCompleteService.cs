@@ -885,6 +885,25 @@ namespace HIS.Application.Services
     Task<bool> DeleteRemoteServerAsync(Guid id);
 
     #endregion
+
+    #region F2.8 Favorite — Ca chup yeu thich
+
+    /// <summary>
+    /// Toggle ghim / bo ghim ca chup yeu thich (per-user)
+    /// </summary>
+    Task<FavoriteToggleResultDto> ToggleFavoriteAsync(Guid requestId, Guid userId);
+
+    /// <summary>
+    /// Lay danh sach ca chup yeu thich cua user hien tai
+    /// </summary>
+    Task<List<RadiologyFavoriteDto>> GetFavoritesAsync(Guid userId);
+
+    /// <summary>
+    /// Kiem tra ca chup co dang duoc ghim boi user hay khong
+    /// </summary>
+    Task<bool> IsFavoritedAsync(Guid requestId, Guid userId);
+
+    #endregion
     }
 
     #region DICOM Export/Send DTOs (NangCap15 PACS 3/4)

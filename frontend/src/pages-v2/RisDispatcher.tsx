@@ -7,6 +7,7 @@ import {
   DrawerShell, DrSec, DrField,
   tk, ti, tw, type ColumnDef,
 } from './_v2kit';
+import { toggleFavorite, getFavorites } from '../api/ris';
 
 interface PendingService {
   serviceRequestDetailId: string; patientId: string; patientName: string; patientCode: string;
@@ -35,6 +36,18 @@ const RisDispatcherV2: React.FC = () => {
   const [selQueue, setSelQueue] = useState<QueueItem | null>(null);
   const [tab, setTab] = useState<Tab>('pending');
   const [dispatchForm] = Form.useForm<{ roomId: string; priority: number; note?: string }>();
+  // F2.8: favorite state
+  const [favFilter, setFavFilter] = useState(false);
+  const [favSet, setFavSet] = useState<Set<string>>(new Set());
+
+  const loadFavorites = useCallback(async () => {
+    try {
+      const res = await getFavorites();
+      setFavSet(new Set(res.data.map((f) => f.requestId)));
+    } catch {
+      // favorites are optional — silence error
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,7 +70,7 @@ const RisDispatcherV2: React.FC = () => {
     finally { setLoading(false); }
   }, [selectedRoom, overdueFilter, examGroupFilter]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); loadFavorites(); }, [load, loadFavorites]);
 
   const printTicket = (s: PendingService, room: Room) => {
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Phiếu điều phối</title>
@@ -87,6 +100,19 @@ const RisDispatcherV2: React.FC = () => {
       if (room) printTicket(dispatchModal, room);
       setDispatchModal(null); dispatchForm.resetFields(); load();
     } catch { tw('Điều phối thất bại'); }
+  };
+
+  const handleToggleFavorite = async (requestId: string) => {
+    try {
+      const res = await toggleFavorite(requestId);
+      const toggled = res.data;
+      setFavSet((prev) => {
+        const next = new Set(prev);
+        if (toggled.isFavorited) { next.add(requestId); } else { next.delete(requestId); }
+        return next;
+      });
+      if (toggled.isFavorited) { tk('Da ghim ca chup'); } else { ti('Da bo ghim'); }
+    } catch { tw('Loi ghim ca chup'); }
   };
 
   const markArrived = async (id: string) => {
@@ -122,6 +148,14 @@ const RisDispatcherV2: React.FC = () => {
       r.isOverdue
         ? <StatusBadge tone="crit" dot>{r.tatMinutes} phút</StatusBadge>
         : <StatusBadge tone="ok">{r.tatMinutes} phút</StatusBadge>
+    ) },
+    { key: 'fav', label: '', width: 40, render: (r) => (
+      <ActBtn
+        ic="star"
+        title={favSet.has(r.serviceRequestDetailId) ? 'Bo ghim' : 'Ghim yeu thich'}
+        tone={favSet.has(r.serviceRequestDetailId) ? 'warn' : undefined}
+        onClick={() => handleToggleFavorite(r.serviceRequestDetailId)}
+      />
     ) },
   ];
 
@@ -174,13 +208,22 @@ const RisDispatcherV2: React.FC = () => {
           >
             {overdueFilter ? 'Đang lọc: Quá hạn' : 'Quá hạn TAT'}
           </Btn>
+          <Btn
+            variant={favFilter ? 'primary' : 'ghost'}
+            icon="star"
+            onClick={() => setFavFilter((v) => !v)}
+          >
+            {favFilter ? 'Đang lọc: Yêu thích' : 'Yêu thích'}
+          </Btn>
           <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
         </>
       } />
 
       {tab === 'pending' && (
         <DataTable<PendingService>
-          columns={pendingCols} data={pending} rowKey={(r) => r.serviceRequestDetailId}
+          columns={pendingCols}
+          data={favFilter ? pending.filter((p) => favSet.has(p.serviceRequestDetailId)) : pending}
+          rowKey={(r) => r.serviceRequestDetailId}
           onRowClick={setSelPending}
           actions={(r) => (
             <div className="ab-actions">
