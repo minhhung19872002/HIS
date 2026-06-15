@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Spin } from 'antd';
-import type { MedicalRecordFullDto, ConsultationRecordDto, TreatmentSheetDto, NursingCareSheetDto } from '../api/examination';
+import type { MedicalRecordFullDto, ConsultationRecordDto, TreatmentSheetDto, NursingCareSheetDto, CreateMaternityLeaveDto } from '../api/examination';
 
 // Superset record shape — gồm MedicalRecordFullDto + các field mở rộng mà các print
 // template hậu lấy ra (examination snapshot, admissionDate, main ICD ngoài diagnoses[]).
@@ -21,6 +21,8 @@ interface PrintTemplateRendererProps {
   nursingSheets?: NursingCareSheetDto[];
   /** examinationId — cần cho các form cần fetch thêm data (vd injury-cert). */
   examinationId?: string;
+  /** maternityLeaveDto — cần cho form nghỉ dưỡng thai */
+  maternityLeaveDto?: CreateMaternityLeaveDto;
 }
 
 // Renderer dispatches props per template — declare a loose record-shape so each
@@ -134,6 +136,9 @@ async function loadTemplate(printType: string): Promise<AnyPrintComponent | null
     case 'sp-tuyenxa': return (await import('./SpecialtyEMRForms1')).TuyenXaBAPrint;
     case 'sp-yhctnoidru': return (await import('./SpecialtyEMRForms1')).YHCTNoiTruBAPrint;
 
+    // F1.5 — Giấy nghỉ dưỡng thai
+    case 'maternity-leave': return (await import('./EMRPrintTemplates/MaternityLeavePrint')).MaternityLeavePrint;
+
     // SpecialtyEMRForms2
     case 'sp-yhctngoaitru': return (await import('./SpecialtyEMRForms2')).YHCTNgoaiTruBAPrint;
     case 'sp-nhiyhct': return (await import('./SpecialtyEMRForms2')).NhiYHCTBAPrint;
@@ -155,7 +160,7 @@ async function loadTemplate(printType: string): Promise<AnyPrintComponent | null
   }
 }
 
-export default function PrintTemplateRenderer({ printType, record, printRef, selectedConsultation, treatmentSheets, nursingSheets, examinationId }: PrintTemplateRendererProps) {
+export default function PrintTemplateRenderer({ printType, record, printRef, selectedConsultation, treatmentSheets, nursingSheets, examinationId, maternityLeaveDto }: PrintTemplateRendererProps) {
   const [Component, setComponent] = useState<AnyPrintComponent | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -280,6 +285,10 @@ export default function PrintTemplateRenderer({ printType, record, printRef, sel
       examinationId={examinationId}
       admissionDate={record.admissionDate}
     />;
+  }
+  // Maternity leave — truyền record + maternityLeaveDto
+  if (printType === 'maternity-leave' && record && maternityLeaveDto) {
+    return <Component ref={printRef} record={record} dto={maternityLeaveDto} />;
   }
   // Default: record prop with ref
   return <Component ref={printRef} record={record} />;

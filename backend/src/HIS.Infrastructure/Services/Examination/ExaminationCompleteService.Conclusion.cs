@@ -433,6 +433,68 @@ public partial class ExaminationCompleteService
         catch { return Array.Empty<byte>(); }
     }
 
+    public async Task<MaternityLeaveDto> CreateMaternityLeaveAsync(Guid examinationId, CreateMaternityLeaveDto dto)
+    {
+        return new MaternityLeaveDto
+        {
+            Id = Guid.NewGuid(),
+            ExaminationId = examinationId,
+            Days = dto.Days,
+            FromDate = dto.FromDate,
+            ToDate = dto.ToDate,
+            GestationalWeeks = dto.GestationalWeeks,
+            Reason = dto.Reason,
+            IssuedAt = DateTime.Now
+        };
+    }
+
+    public async Task<byte[]> PrintMaternityLeaveAsync(Guid examinationId, CreateMaternityLeaveDto dto)
+    {
+        try
+        {
+            var examination = await _context.Examinations
+                .Include(e => e.MedicalRecord).ThenInclude(m => m.Patient)
+                .Include(e => e.Doctor)
+                .Include(e => e.Department)
+                .FirstOrDefaultAsync(e => e.Id == examinationId);
+            if (examination == null) return Array.Empty<byte>();
+
+            var patient = examination.MedicalRecord.Patient;
+
+            var labels = new[]
+            {
+                "Ho va ten", "Ngay sinh", "Gioi tinh", "Dia chi",
+                "Don vi cong tac", "So BHXH",
+                "Chan doan", "Ma ICD",
+                "Tuan thai", "Ly do nghi duong thai",
+                "So ngay nghi", "Tu ngay", "Den ngay"
+            };
+            var values = new[]
+            {
+                patient.FullName,
+                patient.DateOfBirth?.ToString("dd/MM/yyyy") ?? "",
+                patient.Gender == 1 ? "Nam" : patient.Gender == 2 ? "Nu" : "Khac",
+                patient.Address ?? "",
+                patient.Workplace ?? "",
+                patient.InsuranceNumber ?? "",
+                $"{examination.MainDiagnosis} ({examination.MainIcdCode})",
+                examination.MainIcdCode ?? "",
+                dto.GestationalWeeks.HasValue ? $"{dto.GestationalWeeks} tuan" : "...",
+                dto.Reason ?? "...",
+                dto.Days.ToString(),
+                dto.FromDate.ToString("dd/MM/yyyy"),
+                dto.ToDate.ToString("dd/MM/yyyy")
+            };
+
+            var html = BuildVoucherReport(
+                "GIAY NGHI DUONG THAI",
+                $"GDT{DateTime.Now:yyyyMMdd}-{examinationId.ToString()[..8].ToUpper()}",
+                DateTime.Now, labels, values, examination.Doctor?.FullName);
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch { return Array.Empty<byte>(); }
+    }
+
     public async Task<bool> LockExaminationAsync(Guid examinationId)
     {
         var examination = await _examinationRepo.GetByIdAsync(examinationId);

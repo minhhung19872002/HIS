@@ -1585,6 +1585,26 @@ public class ExaminationCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// Cấp giấy nghỉ dưỡng thai
+    /// </summary>
+    [HttpPost("{examinationId}/maternity-leave")]
+    public async Task<ActionResult<MaternityLeaveDto>> CreateMaternityLeave(Guid examinationId, [FromBody] CreateMaternityLeaveDto dto)
+    {
+        var result = await _examinationService.CreateMaternityLeaveAsync(examinationId, dto);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// In giấy nghỉ dưỡng thai
+    /// </summary>
+    [HttpPost("{examinationId}/maternity-leave/print")]
+    public async Task<ActionResult> PrintMaternityLeave(Guid examinationId, [FromBody] CreateMaternityLeaveDto dto)
+    {
+        var result = await _examinationService.PrintMaternityLeaveAsync(examinationId, dto);
+        return File(result, "application/pdf", $"GiayNghiDuongThai_{examinationId}.pdf");
+    }
+
+    /// <summary>
     /// Khóa hồ sơ
     /// </summary>
     [HttpPost("{examinationId}/lock")]

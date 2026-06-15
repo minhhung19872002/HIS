@@ -675,6 +675,16 @@ public interface IExaminationCompleteService
     Task<byte[]> PrintSickLeaveAsync(Guid examinationId);
 
     /// <summary>
+    /// Cấp giấy nghỉ dưỡng thai
+    /// </summary>
+    Task<MaternityLeaveDto> CreateMaternityLeaveAsync(Guid examinationId, CreateMaternityLeaveDto dto);
+
+    /// <summary>
+    /// In giấy nghỉ dưỡng thai
+    /// </summary>
+    Task<byte[]> PrintMaternityLeaveAsync(Guid examinationId, CreateMaternityLeaveDto dto);
+
+    /// <summary>
     /// Khóa hồ sơ khám bệnh
     /// </summary>
     Task<bool> LockExaminationAsync(Guid examinationId);
@@ -951,6 +961,30 @@ public class SickLeaveDto
     public int Days { get; set; }
     public DateTime FromDate { get; set; }
     public DateTime ToDate { get; set; }
+    public string? Reason { get; set; }
+    public string? DoctorName { get; set; }
+    public DateTime IssuedAt { get; set; }
+}
+
+public class CreateMaternityLeaveDto
+{
+    public int Days { get; set; }
+    public DateTime FromDate { get; set; }
+    public DateTime ToDate { get; set; }
+    /// <summary>Tuần thai (số tuần)</summary>
+    public int? GestationalWeeks { get; set; }
+    /// <summary>Lý do nghỉ dưỡng thai (VD: nguy cơ doạ sảy, tiền sản giật...)</summary>
+    public string? Reason { get; set; }
+}
+
+public class MaternityLeaveDto
+{
+    public Guid Id { get; set; }
+    public Guid ExaminationId { get; set; }
+    public int Days { get; set; }
+    public DateTime FromDate { get; set; }
+    public DateTime ToDate { get; set; }
+    public int? GestationalWeeks { get; set; }
     public string? Reason { get; set; }
     public string? DoctorName { get; set; }
     public DateTime IssuedAt { get; set; }

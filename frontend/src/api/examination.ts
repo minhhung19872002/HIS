@@ -678,6 +678,27 @@ export interface SickLeaveDto {
   issuedAt: string;
 }
 
+export interface CreateMaternityLeaveDto {
+  days: number;
+  fromDate: string;
+  toDate: string;
+  /** Tuần thai */
+  gestationalWeeks?: number;
+  reason?: string;
+}
+
+export interface MaternityLeaveDto {
+  id: string;
+  examinationId: string;
+  days: number;
+  fromDate: string;
+  toDate: string;
+  gestationalWeeks?: number;
+  reason?: string;
+  doctorName?: string;
+  issuedAt: string;
+}
+
 export interface ExaminationValidationResult {
   isValid: boolean;
   errors: string[];
@@ -1385,6 +1406,12 @@ export const createSickLeave = (examinationId: string, dto: CreateSickLeaveDto) 
 export const printSickLeave = (examinationId: string) =>
   request.get(`/examination/${examinationId}/sick-leave/print`, { responseType: 'blob' });
 
+export const createMaternityLeave = (examinationId: string, dto: CreateMaternityLeaveDto) =>
+  request.post<MaternityLeaveDto>(`/examination/${examinationId}/maternity-leave`, dto);
+
+export const printMaternityLeave = (examinationId: string, dto: CreateMaternityLeaveDto) =>
+  request.post(`/examination/${examinationId}/maternity-leave/print`, dto, { responseType: 'blob' });
+
 export const lockExamination = (examinationId: string) =>
   request.post<boolean>(`/examination/${examinationId}/lock`);
 
@@ -1617,6 +1644,8 @@ export const examinationApi = {
   createAppointment,
   createSickLeave,
   printSickLeave,
+  createMaternityLeave,
+  printMaternityLeave,
   lockExamination,
   unlockExamination,
   validateExaminationForCompletion,

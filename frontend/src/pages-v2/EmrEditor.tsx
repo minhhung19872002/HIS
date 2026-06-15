@@ -30,6 +30,7 @@ import {
   getTreatmentSheets, createTreatmentSheet, type TreatmentSheetDto,
   getConsultationRecords, createConsultationRecord, type ConsultationRecordDto,
   getNursingCareSheets, createNursingCareSheet, type NursingCareSheetDto,
+  type CreateMaternityLeaveDto,
 } from '../api/examination';
 import { printTreatmentSheet as printInpatientTreatmentSheet } from '../api/inpatient';
 import PrintTemplateRenderer from '../components/PrintTemplateRenderer';
@@ -76,6 +77,7 @@ const PRINT_FORMS: { label: string; printType: string }[] = [
   { label: 'BHYT-01 · Tổng hợp thanh toán',      printType: 'finalsummary' }, // dùng tổng kết HSBA làm proxy — chưa có template riêng BHYT-01
   { label: 'XN-01 · Giấy xác nhận đang điều trị', printType: 'treatment-confirm' },
   { label: 'CT-01 · Giấy chứng nhận thương tích', printType: 'injury-cert' },
+  { label: 'SAN-01 · Giấy nghỉ dưỡng thai',       printType: 'maternity-leave' },
 ];
 
 const EmrEditorV2: React.FC = () => {
@@ -104,6 +106,9 @@ const EmrEditorV2: React.FC = () => {
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
   const [printPreviewType, setPrintPreviewType] = useState('summary');
   const printPreviewRef = useRef<HTMLDivElement>(null);
+  // Maternity leave form input state
+  const [maternityLeaveDto, setMaternityLeaveDto] = useState<CreateMaternityLeaveDto | undefined>(undefined);
+  const [maternityLeaveModalOpen, setMaternityLeaveModalOpen] = useState(false);
   const [signOpen, setSignOpen] = useState(false);
   // Trình ký nhiều cấp + trạng thái khóa TT46 (plan-emr-signing-chain)
   const [chainOpen, setChainOpen] = useState(false);
@@ -126,6 +131,18 @@ const EmrEditorV2: React.FC = () => {
   /** Mở preview biểu mẫu in trong DrawerShell */
   const openPrintForm = (printType: string) => {
     if (!full) { tw('Chọn bệnh nhân và tải đủ dữ liệu HSBA trước khi in'); return; }
+    if (printType === 'maternity-leave') {
+      // Cần nhập thêm thông tin dưỡng thai trước khi xem trước
+      setMaternityLeaveDto({
+        days: 0,
+        fromDate: new Date().toISOString().slice(0, 10),
+        toDate: new Date().toISOString().slice(0, 10),
+        gestationalWeeks: undefined,
+        reason: '',
+      });
+      setMaternityLeaveModalOpen(true);
+      return;
+    }
     setPrintPreviewType(printType);
     setPrintPreviewOpen(true);
   };
@@ -703,9 +720,101 @@ const EmrEditorV2: React.FC = () => {
             printRef={printPreviewRef}
             treatmentSheets={treatments}
             nursingSheets={nursing}
+            maternityLeaveDto={maternityLeaveDto}
           />
         </div>
       </DrawerShell>
+
+      {/* F1.5 — Modal nhập thông tin nghỉ dưỡng thai */}
+      <ModalShell
+        open={maternityLeaveModalOpen}
+        onClose={() => setMaternityLeaveModalOpen(false)}
+        title="Giấy nghỉ dưỡng thai"
+        sub="Điền thông tin để xem trước và in giấy"
+        size="sm"
+        footer={
+          <>
+            <Btn variant="ghost" onClick={() => setMaternityLeaveModalOpen(false)}>Hủy</Btn>
+            <span style={{ flex: 1 }} />
+            <Btn
+              variant="primary"
+              onClick={() => {
+                if (!maternityLeaveDto || maternityLeaveDto.days <= 0) {
+                  tw('Vui lòng nhập số ngày nghỉ hợp lệ');
+                  return;
+                }
+                setMaternityLeaveModalOpen(false);
+                setPrintPreviewType('maternity-leave');
+                setPrintPreviewOpen(true);
+              }}
+            >
+              Xem trước & In
+            </Btn>
+          </>
+        }
+      >
+        {maternityLeaveDto && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Số ngày nghỉ <span style={{ color: 'red' }}>*</span></label>
+              <input
+                type="number"
+                min={1}
+                className="ed-fld"
+                value={maternityLeaveDto.days || ''}
+                onChange={(e) => setMaternityLeaveDto({ ...maternityLeaveDto, days: Number(e.target.value) })}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Từ ngày</label>
+                <input
+                  type="date"
+                  className="ed-fld"
+                  value={maternityLeaveDto.fromDate}
+                  onChange={(e) => setMaternityLeaveDto({ ...maternityLeaveDto, fromDate: e.target.value })}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Đến ngày</label>
+                <input
+                  type="date"
+                  className="ed-fld"
+                  value={maternityLeaveDto.toDate}
+                  onChange={(e) => setMaternityLeaveDto({ ...maternityLeaveDto, toDate: e.target.value })}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Tuần thai (tuần)</label>
+              <input
+                type="number"
+                min={1}
+                max={42}
+                className="ed-fld"
+                value={maternityLeaveDto.gestationalWeeks ?? ''}
+                onChange={(e) => setMaternityLeaveDto({ ...maternityLeaveDto, gestationalWeeks: e.target.value ? Number(e.target.value) : undefined })}
+                style={{ width: '100%' }}
+                placeholder="VD: 28"
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Lý do nghỉ dưỡng thai</label>
+              <textarea
+                className="ed-fld"
+                rows={3}
+                value={maternityLeaveDto.reason ?? ''}
+                onChange={(e) => setMaternityLeaveDto({ ...maternityLeaveDto, reason: e.target.value })}
+                style={{ width: '100%', resize: 'vertical' }}
+                placeholder="VD: Doạ sảy thai, tiền sản giật..."
+              />
+            </div>
+          </div>
+        )}
+      </ModalShell>
 
       {/* Trình ký nhiều cấp (chuỗi Trưởng khoa → Lãnh đạo) + gộp TT46 finalize */}
       <EmrSigningChainDrawer
