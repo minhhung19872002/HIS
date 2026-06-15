@@ -58,6 +58,9 @@ public class AppointmentBookingController : ControllerBase
     [HttpPost("book")]
     public async Task<ActionResult<BookingResultDto>> BookAppointment([FromBody] OnlineBookingDto dto)
     {
+        // Lấy IP server-side — KHÔNG tin bất kỳ header nào từ client body
+        // X-Forwarded-For không dùng vì có thể bị spoofed; dùng RemoteIpAddress của TCP connection
+        dto.ClientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
         var result = await _bookingService.BookAppointmentAsync(dto);
         return Ok(result);
     }

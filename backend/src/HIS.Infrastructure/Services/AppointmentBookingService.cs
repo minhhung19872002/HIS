@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
@@ -15,6 +16,14 @@ public class AppointmentBookingService : IAppointmentBookingService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
     private readonly ISmsService _smsService;
+
+    // === Anti-fraud defaults (override bằng SystemConfig) ===
+    // ConfigKey: "Booking.OnlyExistingPatient"  → "true"/"false"  (mặc định false)
+    // ConfigKey: "Booking.MaxPerPhonePerDay"     → số nguyên       (mặc định 3)
+    // ConfigKey: "Booking.MaxPerIpPerDay"        → số nguyên       (mặc định 10)
+    private const bool DefaultOnlyExistingPatient = false;
+    private const int DefaultMaxPerPhonePerDay = 3;
+    private const int DefaultMaxPerIpPerDay = 10;
 
     public AppointmentBookingService(HISDbContext context, IUnitOfWork unitOfWork, IEmailService emailService, ISmsService smsService)
     {
@@ -116,7 +125,7 @@ public class AppointmentBookingService : IAppointmentBookingService
 
     public async Task<BookingResultDto> BookAppointmentAsync(OnlineBookingDto dto)
     {
-        // Validate
+        // Validate cơ bản
         if (string.IsNullOrWhiteSpace(dto.PatientName))
             return new BookingResultDto { Success = false, Message = "Vui lòng nhập họ tên" };
         if (string.IsNullOrWhiteSpace(dto.PhoneNumber))
@@ -124,9 +133,92 @@ public class AppointmentBookingService : IAppointmentBookingService
         if (dto.AppointmentDate.Date < DateTime.Today)
             return new BookingResultDto { Success = false, Message = "Ngày hẹn không hợp lệ" };
 
+        var phone = dto.PhoneNumber.Trim();
+        var ip = dto.ClientIp?.Trim();
+
+        // === Anti-fraud: đọc cấu hình từ SystemConfig (fallback default) ===
+        var configs = await _context.SystemConfigs.AsNoTracking()
+            .Where(c => c.IsActive && !c.IsDeleted
+                && (c.ConfigKey == "Booking.OnlyExistingPatient"
+                    || c.ConfigKey == "Booking.MaxPerPhonePerDay"
+                    || c.ConfigKey == "Booking.MaxPerIpPerDay"))
+            .ToListAsync();
+
+        bool onlyExisting = DefaultOnlyExistingPatient;
+        int maxPerPhone = DefaultMaxPerPhonePerDay;
+        int maxPerIp = DefaultMaxPerIpPerDay;
+
+        var cfgOnlyExisting = configs.FirstOrDefault(c => c.ConfigKey == "Booking.OnlyExistingPatient");
+        if (cfgOnlyExisting != null)
+            onlyExisting = string.Equals(cfgOnlyExisting.ConfigValue, "true", StringComparison.OrdinalIgnoreCase);
+
+        var cfgPhone = configs.FirstOrDefault(c => c.ConfigKey == "Booking.MaxPerPhonePerDay");
+        if (cfgPhone != null && int.TryParse(cfgPhone.ConfigValue, out var parsedPhone) && parsedPhone > 0)
+            maxPerPhone = parsedPhone;
+
+        var cfgIp = configs.FirstOrDefault(c => c.ConfigKey == "Booking.MaxPerIpPerDay");
+        if (cfgIp != null && int.TryParse(cfgIp.ConfigValue, out var parsedIp) && parsedIp > 0)
+            maxPerIp = parsedIp;
+
+        // === Anti-fraud: check blacklist SĐT ===
+        var nowUtc = DateTime.UtcNow;
+        var phoneBlacklisted = await _context.Set<BookingBlacklist>()
+            .AnyAsync(b => !b.IsDeleted
+                && b.BlacklistType == "Phone"
+                && b.Value == phone
+                && (b.ExpiresAtUtc == null || b.ExpiresAtUtc > nowUtc));
+        if (phoneBlacklisted)
+        {
+            await LogAttemptAsync(phone, ip, false, null, "Blacklisted phone");
+            return new BookingResultDto { Success = false, Message = "Số điện thoại này không được phép đặt lịch. Vui lòng liên hệ bệnh viện." };
+        }
+
+        // === Anti-fraud: check blacklist IP ===
+        if (!string.IsNullOrEmpty(ip))
+        {
+            var ipBlacklisted = await _context.Set<BookingBlacklist>()
+                .AnyAsync(b => !b.IsDeleted
+                    && b.BlacklistType == "IP"
+                    && b.Value == ip
+                    && (b.ExpiresAtUtc == null || b.ExpiresAtUtc > nowUtc));
+            if (ipBlacklisted)
+            {
+                await LogAttemptAsync(phone, ip, false, null, "Blacklisted IP");
+                return new BookingResultDto { Success = false, Message = "Yêu cầu không hợp lệ. Vui lòng thử lại sau hoặc liên hệ bệnh viện." };
+            }
+        }
+
+        // === Anti-fraud: đếm số lần đặt hôm nay theo SĐT (dùng VnTime.DayRangeUtc — tránh bug ca đêm) ===
+        var (dayStart, dayEnd) = VnTime.DayRangeUtc(VnTime.TodayVn);
+        var phoneAttemptsToday = await _context.Set<BookingAttemptLog>()
+            .CountAsync(l => !l.IsDeleted
+                && l.PhoneNumber == phone
+                && l.IsSuccessful
+                && l.CreatedAt >= dayStart && l.CreatedAt < dayEnd);
+        if (phoneAttemptsToday >= maxPerPhone)
+        {
+            await LogAttemptAsync(phone, ip, false, null, $"Phone limit {maxPerPhone}/day exceeded");
+            return new BookingResultDto { Success = false, Message = $"Số điện thoại này đã đặt lịch {maxPerPhone} lần trong hôm nay. Vui lòng liên hệ trực tiếp bệnh viện." };
+        }
+
+        // === Anti-fraud: đếm số lần đặt hôm nay theo IP ===
+        if (!string.IsNullOrEmpty(ip))
+        {
+            var ipAttemptsToday = await _context.Set<BookingAttemptLog>()
+                .CountAsync(l => !l.IsDeleted
+                    && l.IpAddress == ip
+                    && l.IsSuccessful
+                    && l.CreatedAt >= dayStart && l.CreatedAt < dayEnd);
+            if (ipAttemptsToday >= maxPerIp)
+            {
+                await LogAttemptAsync(phone, ip, false, null, $"IP limit {maxPerIp}/day exceeded");
+                return new BookingResultDto { Success = false, Message = "Quá nhiều yêu cầu từ địa chỉ này. Vui lòng thử lại sau." };
+            }
+        }
+
         // Kiểm tra trùng lịch hẹn (cùng SĐT, cùng ngày)
         var existingPatient = await _context.Patients
-            .FirstOrDefaultAsync(p => !p.IsDeleted && p.PhoneNumber == dto.PhoneNumber.Trim());
+            .FirstOrDefaultAsync(p => !p.IsDeleted && p.PhoneNumber == phone);
 
         if (existingPatient != null)
         {
@@ -137,6 +229,13 @@ public class AppointmentBookingService : IAppointmentBookingService
                     && a.Status < 3);
             if (duplicate)
                 return new BookingResultDto { Success = false, Message = "Bạn đã có lịch hẹn trong ngày này" };
+        }
+
+        // === Anti-fraud: rule chỉ cho phép BN đã có hồ sơ (nếu bật) ===
+        if (onlyExisting && existingPatient == null)
+        {
+            await LogAttemptAsync(phone, ip, false, null, "OnlyExistingPatient: new patient blocked");
+            return new BookingResultDto { Success = false, Message = "Hệ thống chỉ nhận đặt lịch online cho bệnh nhân đã có hồ sơ. Vui lòng đến trực tiếp bệnh viện để đăng ký lần đầu." };
         }
 
         // Tìm hoặc tạo bệnh nhân
@@ -210,6 +309,17 @@ public class AppointmentBookingService : IAppointmentBookingService
                 });
             }
         }
+
+        // Anti-fraud: log lần đặt thành công (TRƯỚC SaveChanges để cùng transaction)
+        await _context.Set<BookingAttemptLog>().AddAsync(new BookingAttemptLog
+        {
+            Id = Guid.NewGuid(),
+            PhoneNumber = phone,
+            IpAddress = ip,
+            IsSuccessful = true,
+            AppointmentCode = code,
+            CreatedAt = DateTime.UtcNow
+        });
 
         await _unitOfWork.SaveChangesAsync();
 
@@ -408,5 +518,31 @@ public class AppointmentBookingService : IAppointmentBookingService
             Status = a.Status,
             StatusName = statusNames.GetValueOrDefault(a.Status, "Không xác định")
         };
+    }
+
+    /// <summary>
+    /// Ghi log thử đặt lịch bị chặn (không qua SaveChanges vì nên ghi ngay cả khi main transaction rollback).
+    /// Dùng SaveChangesAsync riêng để đảm bảo log được ghi dù main save thất bại.
+    /// </summary>
+    private async Task LogAttemptAsync(string phone, string? ip, bool success, string? appointmentCode, string? blockReason)
+    {
+        try
+        {
+            _context.Set<BookingAttemptLog>().Add(new BookingAttemptLog
+            {
+                Id = Guid.NewGuid(),
+                PhoneNumber = phone,
+                IpAddress = ip,
+                IsSuccessful = success,
+                AppointmentCode = appointmentCode,
+                BlockReason = blockReason,
+                CreatedAt = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            // Log thất bại không được phép block luồng chính
+        }
     }
 }

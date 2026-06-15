@@ -79,6 +79,10 @@ public class OnlineBookingDto
 
     // Dịch vụ (nếu có)
     public List<Guid>? ServiceIds { get; set; }
+
+    // Anti-fraud — điền bởi controller, KHÔNG nhận từ client body
+    /// <summary>IP của client, lấy từ HttpContext.Connection.RemoteIpAddress tại controller (server-side). Không trust field này nếu được gửi lên từ body.</summary>
+    public string? ClientIp { get; set; }
 }
 
 public class BookingResultDto

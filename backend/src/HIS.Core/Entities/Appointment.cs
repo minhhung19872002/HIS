@@ -80,6 +80,49 @@ public class DoctorSchedule : BaseEntity
 }
 
 /// <summary>
+/// Log mỗi lần thử đặt lịch online — dùng để đếm số lần/SĐT/IP/ngày.
+/// CreatedAt lưu UTC (datetime2) — query theo VnTime.DayRangeUtc.
+/// </summary>
+public class BookingAttemptLog : BaseEntity
+{
+    /// <summary>Số điện thoại người đặt (plaintext, không encrypt — chỉ dùng để đếm).</summary>
+    public string PhoneNumber { get; set; } = string.Empty;
+
+    /// <summary>IP client (IPv4 hoặc IPv6). Nullable khi không lấy được.</summary>
+    public string? IpAddress { get; set; }
+
+    /// <summary>true = đặt thành công, false = bị chặn/lỗi.</summary>
+    public bool IsSuccessful { get; set; }
+
+    /// <summary>Mã lịch hẹn được tạo (chỉ có khi IsSuccessful = true).</summary>
+    public string? AppointmentCode { get; set; }
+
+    /// <summary>Lý do bị chặn nếu IsSuccessful = false.</summary>
+    public string? BlockReason { get; set; }
+}
+
+/// <summary>
+/// Blacklist SĐT hoặc IP — chặn vĩnh viễn hoặc có thời hạn.
+/// </summary>
+public class BookingBlacklist : BaseEntity
+{
+    /// <summary>Loại: "Phone" hoặc "IP".</summary>
+    public string BlacklistType { get; set; } = string.Empty;
+
+    /// <summary>Giá trị bị blacklist (số điện thoại hoặc IP address).</summary>
+    public string Value { get; set; } = string.Empty;
+
+    /// <summary>Lý do thêm vào blacklist.</summary>
+    public string? Reason { get; set; }
+
+    /// <summary>null = vĩnh viễn; có giá trị = hết hạn sau ngày này (UTC).</summary>
+    public DateTime? ExpiresAtUtc { get; set; }
+
+    /// <summary>Người thêm blacklist (username hoặc "system").</summary>
+    public string? AddedBy { get; set; }
+}
+
+/// <summary>
 /// Hàng đợi - Queue
 /// </summary>
 public class Queue : BaseEntity
