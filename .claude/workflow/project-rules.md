@@ -31,8 +31,14 @@
 - Đặt tên branch theo loại task (khớp `classification` ở Router):
   - `feat/<scope>-<mô-tả-ngắn>` · `fix/<scope>-<mô-tả>` · `refactor/<scope>` · `debt/<scope>` ·
     `docs/<scope>` · `test/<scope>` · `chore/<scope>`
-- Nhiều máy làm song song → **`git fetch origin` + đọc `git log origin/main` + `gh issue list` TRƯỚC** khi
-  pick task (memory `feedback_fetch-origin-before-backlog`). Nguồn-sự-thật là git log + Issues, KHÔNG phải docs local.
+- 🔴 **PRE-FLIGHT PICK-TASK (parallel-safe — chống TRÙNG CODE 2 máy; BẮT BUỘC chạy TRƯỚC khi pick/viết code,
+  enforce bằng hook `session-start.sh` báo `behind=N` + `remind-pipeline.sh`):**
+  1. **Cây sạch** (commit/stash WIP) → **`git pull --ff-only`** — KHÔNG chỉ `fetch`; phải **SYNC working tree**.
+     Làm trên cây CŨ (behind>0) = **gốc gây trùng** (phiên 2026-06-15: local tụt 34 commit → làm lại #142/#101 đã có trên origin).
+  2. **Verify-against-CODE, KHÔNG tin issue-state:** `grep`/`Read` CODE **đã sync** cho symbol/route/file của tính năng.
+     **Đã có → đóng issue (already-done), KHÔNG làm lại.** Issue OPEN chỉ là chỉ báo **trễ** (đóng theo lô) — **CODE là phán quyết**.
+  3. **Claim trước khi làm:** `gh issue edit <n> --add-assignee @me` (check chưa ai nhận) → chặn 2 máy bốc cùng issue.
+  4. Nguồn-sự-thật = **git log origin + CODE đã sync + Issues** (memory `feedback_fetch-origin-before-backlog`), KHÔNG phải docs local.
 
 ## 3. Commit — quy ước (LẤP GAP)
 
@@ -45,13 +51,18 @@
   ```
 - 🔴 **KHÔNG tự `git add`/`commit`/`push`** khi user chưa explicit (SKILL-MAP §0c). "continue/tiếp tục"
   KHÔNG phải lệnh commit. Thay đổi < 5 file / < 100 dòng → **gom batch**, chưa đẩy (memory
-  `feedback_batch-changes-before-push`).
+  `feedback_batch-changes-before-push`). ⚠️ **Khi 2 máy làm song song:** ƯU TIÊN **push sớm mỗi feature DONE**
+  thay vì stack nhiều feature uncommitted — batch lâu = cửa sổ phân kỳ lớn = dễ trùng/đụng (xin phép push từng cái).
 - Commit đúng thay đổi thật: `git diff --name-only | xargs git add` — tránh churn do line-ending CRLF/LF
   (memory `feedback_windows-line-ending-sed-churn`); ưu tiên `Edit` tool hơn `sed -i`.
 
 ## 4. Pull Request / Push — quy ước (LẤP GAP)
 
 - `push` / `đẩy code` mới được `git push`; `commit` chỉ commit local. (Bảng SKILL-MAP §0c.)
+- 🔴 **Đóng issue ATOMIC với push** (chống "OPEN giả" khiến máy khác làm trùng): commit feature kèm
+  **`Closes #N`** (GitHub auto-close khi merge `main`) HOẶC `gh issue close <n>` **ngay sau push**. **KHÔNG đóng
+  issue theo lô trễ** nhiều commit sau khi code đã lên — đó là khoảng-trống khiến `gh issue list` còn hiện OPEN
+  dù tính năng đã xong (gốc gây trùng phiên 2026-06-15).
 - PR vào `main`. Body PR kết bằng:
   ```
   🤖 Generated with [Claude Code](https://claude.com/claude-code)
