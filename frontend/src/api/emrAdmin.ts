@@ -176,6 +176,32 @@ export const finalizeRecord = async (recordId: string, notes?: string): Promise<
   catch { console.warn('Failed to finalize record'); return null; }
 };
 
+// ============ F8.5: Duyệt lưu trữ 2 cấp (buồng bệnh → KHTH) ============
+export interface ArchiveApprovalStatusDto {
+  medicalRecordId: string;
+  deptApproved: boolean;          // cấp 1 (buồng bệnh/ĐD trưởng khoa)
+  deptApprovedAt?: string;
+  deptApprovedByName?: string;
+  finalized: boolean;             // cấp 2 (KHTH)
+  finalizedAt?: string;
+  finalizedByName?: string;
+  dischargeDate?: string;
+  daysSinceDischarge?: number;
+  lateDays: number;               // số ngày nộp muộn (vượt hạn)
+  deadlineDays: number;
+  level: number;                  // 0=chưa duyệt · 1=khoa duyệt · 2=KHTH lưu
+}
+
+export const deptApproveRecord = async (recordId: string, notes?: string): Promise<{ success: boolean; message?: string } | null> => {
+  try { const resp = await apiClient.post(`/emr-admin/dept-approve/${recordId}`, { notes }); return resp.data; }
+  catch { console.warn('Failed to dept-approve record'); return null; }
+};
+
+export const getArchiveApproval = async (recordId: string): Promise<ArchiveApprovalStatusDto | null> => {
+  try { const resp = await apiClient.get(`/emr-admin/archive-approval/${recordId}`); return resp.data; }
+  catch { console.warn('Failed to load archive approval'); return null; }
+};
+
 // ============ TT46: Reopen + lịch sử phiên bản/tu chỉnh ============
 export interface EmrAmendmentDto {
   id: string;

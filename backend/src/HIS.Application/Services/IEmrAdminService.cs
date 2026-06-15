@@ -45,6 +45,10 @@ namespace HIS.Application.Services
         Task<FinalizeResultDto> ReopenRecordAsync(Guid medicalRecordId, string reason);
         Task<List<EmrAmendmentDto>> GetAmendmentsAsync(Guid medicalRecordId);
 
+        // F8.5: Duyệt lưu trữ 2 cấp (buồng bệnh → KHTH) + đếm ngày nộp muộn
+        Task<FinalizeResultDto> DeptApproveRecordAsync(DeptApproveRecordDto dto);
+        Task<ArchiveApprovalStatusDto> GetArchiveApprovalAsync(Guid medicalRecordId);
+
         // Attachments (Dinh kem)
         Task<List<EmrDocumentAttachmentDto>> GetAttachmentsAsync(Guid medicalRecordId);
         Task<EmrDocumentAttachmentDto> SaveAttachmentAsync(SaveAttachmentDto dto);

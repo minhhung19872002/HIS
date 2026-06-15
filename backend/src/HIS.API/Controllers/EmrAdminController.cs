@@ -110,6 +110,21 @@ public class EmrAdminController : ControllerBase
         return Ok(await _service.FinalizeRecordAsync(request));
     }
 
+    // ============ F8.5: Duyệt lưu trữ 2 cấp (buồng bệnh → KHTH) ============
+    /// <summary>Cấp 1: buồng bệnh/ĐD trưởng khoa duyệt trước khi chuyển KHTH lưu trữ.</summary>
+    [HttpPost("dept-approve/{recordId}")]
+    public async Task<IActionResult> DeptApproveRecord(Guid recordId, [FromBody] DeptApproveRecordDto? dto)
+    {
+        var request = dto ?? new DeptApproveRecordDto();
+        request.MedicalRecordId = recordId;
+        return Ok(await _service.DeptApproveRecordAsync(request));
+    }
+
+    /// <summary>Trạng thái duyệt 2 cấp + số ngày nộp muộn của hồ sơ.</summary>
+    [HttpGet("archive-approval/{recordId}")]
+    public async Task<IActionResult> GetArchiveApproval(Guid recordId)
+        => Ok(await _service.GetArchiveApprovalAsync(recordId));
+
     /// <summary>TT46: mở lại hồ sơ đã kết thúc — quyền hạn chế + bắt buộc lý do (lưu vết EmrAmendments).</summary>
     [HttpPost("records/{recordId}/reopen")]
     [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin,Director,Manager,MedicalRecordManager")]

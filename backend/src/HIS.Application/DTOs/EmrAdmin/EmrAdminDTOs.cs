@@ -269,6 +269,29 @@ namespace HIS.Application.DTOs.EmrAdmin
         public int? VersionNo { get; set; } // TT46: phiên bản hồ sơ sau finalize
     }
 
+    // ============ F8.5: Duyệt lưu trữ 2 cấp (buồng bệnh → KHTH) ============
+    public class DeptApproveRecordDto
+    {
+        public Guid MedicalRecordId { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public class ArchiveApprovalStatusDto
+    {
+        public Guid MedicalRecordId { get; set; }
+        public bool DeptApproved { get; set; }            // cấp 1 (buồng bệnh/ĐD trưởng khoa)
+        public DateTime? DeptApprovedAt { get; set; }
+        public string? DeptApprovedByName { get; set; }
+        public bool Finalized { get; set; }               // cấp 2 (KHTH)
+        public DateTime? FinalizedAt { get; set; }
+        public string? FinalizedByName { get; set; }
+        public DateTime? DischargeDate { get; set; }
+        public int? DaysSinceDischarge { get; set; }      // ngày từ ra viện đến khi nộp duyệt
+        public int LateDays { get; set; }                 // số ngày nộp muộn (vượt hạn)
+        public int DeadlineDays { get; set; }             // hạn nộp lưu trữ (ngày)
+        public int Level { get; set; }                    // 0=chưa duyệt · 1=khoa duyệt · 2=KHTH lưu
+    }
+
     // ============ TT46: Reopen + lịch sử phiên bản/tu chỉnh ============
     public class ReopenRecordDto
     {

@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import { Form, Input } from 'antd';
 import { getArchiveList, createArchive } from '../api/medicalRecordArchive';
 import * as pdfApi from '../api/pdf';
+import { deptApproveRecord, getArchiveApproval, finalizeRecord, type ArchiveApprovalStatusDto } from '../api/emrAdmin';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   StatusTabs, DrawerShell, ModalShell, DrSec, DrField, tk, ti, tw, Ico,
@@ -48,6 +49,35 @@ const MedicalRecordArchiveV2: React.FC = () => {
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [archiveForm] = Form.useForm<{ medicalRecordId: string; storageLocation?: string }>();
+
+  // F8.5 — duyệt lưu trữ 2 cấp (buồng bệnh → KHTH)
+  const [approval, setApproval] = useState<ArchiveApprovalStatusDto | null>(null);
+  const [approvalBusy, setApprovalBusy] = useState(false);
+  const loadApproval = async (recordId: string) => {
+    setApproval(null);
+    setApproval(await getArchiveApproval(recordId));
+  };
+  useEffect(() => {
+    if (sel?.medicalRecordId) loadApproval(sel.medicalRecordId);
+    else setApproval(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel?.medicalRecordId]);
+  const doDeptApprove = async () => {
+    if (!sel?.medicalRecordId) return;
+    setApprovalBusy(true);
+    const r = await deptApproveRecord(sel.medicalRecordId);
+    setApprovalBusy(false);
+    if (r?.success) { tk(r.message || 'Đã duyệt cấp 1'); loadApproval(sel.medicalRecordId); }
+    else tw(r?.message || 'Duyệt cấp 1 thất bại');
+  };
+  const doFinalize = async () => {
+    if (!sel?.medicalRecordId) return;
+    setApprovalBusy(true);
+    const r = await finalizeRecord(sel.medicalRecordId);
+    setApprovalBusy(false);
+    if (r?.success) { tk(r.message || 'Đã lưu trữ (KHTH)'); loadApproval(sel.medicalRecordId); }
+    else tw(r?.message || 'Lưu trữ thất bại');
+  };
 
   const load = async () => {
     setLoading(true);
@@ -301,6 +331,28 @@ const MedicalRecordArchiveV2: React.FC = () => {
                 {sel.status === 1 ? 'Đã lưu trữ' : (sel.statusName || 'Chờ xử lý')}
               </StatusBadge>
             </DrField>
+          </DrSec>
+          <DrSec title="Duyệt lưu trữ 2 cấp (buồng bệnh → KHTH)">
+            <DrField lbl="Cấp 1 — Khoa">
+              {approval?.deptApproved
+                ? <StatusBadge tone="ok" dot>Đã duyệt{approval.deptApprovedByName ? ` · ${approval.deptApprovedByName}` : ''}{approval.deptApprovedAt ? ` · ${dayjs(approval.deptApprovedAt).format('DD/MM/YYYY')}` : ''}</StatusBadge>
+                : <StatusBadge tone="warn" dot>Chưa duyệt</StatusBadge>}
+            </DrField>
+            <DrField lbl="Cấp 2 — KHTH">
+              {approval?.finalized
+                ? <StatusBadge tone="ok" dot>Đã lưu trữ{approval.finalizedByName ? ` · ${approval.finalizedByName}` : ''}{approval.finalizedAt ? ` · ${dayjs(approval.finalizedAt).format('DD/MM/YYYY')}` : ''}</StatusBadge>
+                : <StatusBadge tone="warn" dot>Chưa lưu trữ</StatusBadge>}
+            </DrField>
+            <DrField lbl="Nộp muộn">
+              {approval == null ? '—'
+                : approval.lateDays > 0
+                  ? <StatusBadge tone="crit" dot>Muộn {approval.lateDays} ngày (hạn {approval.deadlineDays} ngày)</StatusBadge>
+                  : <StatusBadge tone="ok" dot>Đúng hạn{approval.daysSinceDischarge != null ? ` · ${approval.daysSinceDischarge} ngày` : ''}</StatusBadge>}
+            </DrField>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <Btn variant="primary" disabled={approvalBusy || !!approval?.deptApproved || !!approval?.finalized} onClick={doDeptApprove}>Duyệt cấp 1 (Khoa)</Btn>
+              <Btn variant="ok" disabled={approvalBusy || !approval?.deptApproved || !!approval?.finalized} onClick={doFinalize}>Duyệt lưu trữ (KHTH)</Btn>
+            </div>
           </DrSec>
         </>}
       </DrawerShell>

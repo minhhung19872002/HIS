@@ -428,6 +428,92 @@ namespace HIS.Infrastructure.Services
             };
         }
 
+        // F8.5: hạn nộp hồ sơ lưu trữ sau ra viện (ngày) — quy định nội bộ, mặc định.
+        private const int EmrArchiveDeadlineDays = 10;
+        private const int ActionDeptApprove = 4; // cấp 1: buồng bệnh/ĐD trưởng khoa duyệt
+
+        /// <summary>F8.5 cấp 1: buồng bệnh/ĐD trưởng khoa duyệt hồ sơ trước khi chuyển KHTH lưu trữ.</summary>
+        public async Task<FinalizeResultDto> DeptApproveRecordAsync(DeptApproveRecordDto dto)
+        {
+            var record = await _db.MedicalRecords.FindAsync(dto.MedicalRecordId);
+            if (record == null)
+                return new FinalizeResultDto { Success = false, Message = "Khong tim thay ho so benh an" };
+            if (record.EmrFinalizedAt != null)
+                return new FinalizeResultDto { Success = false, Message = "Ho so da luu tru (cap 2) — khong can duyet cap 1" };
+
+            var already = await _db.EmrAmendments
+                .AnyAsync(a => a.MedicalRecordId == record.Id && a.Action == ActionDeptApprove && !a.IsDeleted);
+            if (already)
+                return new FinalizeResultDto { Success = false, Message = "Ho so da duoc duyet cap 1 truoc do" };
+
+            var now = DateTime.UtcNow;
+            Guid.TryParse(GetCurrentUserId(), out var userId);
+            _db.EmrAmendments.Add(new EmrAmendment
+            {
+                Id = Guid.NewGuid(),
+                MedicalRecordId = record.Id,
+                Action = ActionDeptApprove,
+                VersionNo = 0,
+                Reason = dto.Notes,
+                PerformedBy = userId,
+                PerformedByName = GetCurrentUserName(),
+                PerformedAt = now,
+                CreatedAt = now,
+                CreatedBy = GetCurrentUserId(),
+            });
+            await _db.SaveChangesAsync();
+            return new FinalizeResultDto { Success = true, Message = "Da duyet cap 1 (buong benh/khoa) — chuyen KHTH luu tru", FinalizedAt = now };
+        }
+
+        /// <summary>F8.5: trạng thái duyệt 2 cấp + số ngày nộp muộn.</summary>
+        public async Task<ArchiveApprovalStatusDto> GetArchiveApprovalAsync(Guid medicalRecordId)
+        {
+            var record = await _db.MedicalRecords.FindAsync(medicalRecordId);
+            if (record == null)
+                return new ArchiveApprovalStatusDto { MedicalRecordId = medicalRecordId, DeadlineDays = EmrArchiveDeadlineDays };
+
+            var dept = await _db.EmrAmendments
+                .Where(a => a.MedicalRecordId == medicalRecordId && a.Action == ActionDeptApprove && !a.IsDeleted)
+                .OrderByDescending(a => a.PerformedAt)
+                .FirstOrDefaultAsync();
+            var finalize = await _db.EmrAmendments
+                .Where(a => a.MedicalRecordId == medicalRecordId && a.Action == 1 && !a.IsDeleted)
+                .OrderByDescending(a => a.PerformedAt)
+                .FirstOrDefaultAsync();
+
+            var finalized = record.EmrFinalizedAt != null;
+            var submissionAt = dept?.PerformedAt ?? record.EmrFinalizedAt;
+            int? daysSince = null;
+            var lateDays = 0;
+            if (record.DischargeDate.HasValue && submissionAt.HasValue)
+            {
+                daysSince = (int)(submissionAt.Value.Date - record.DischargeDate.Value.Date).TotalDays;
+                lateDays = Math.Max(0, daysSince.Value - EmrArchiveDeadlineDays);
+            }
+            else if (record.DischargeDate.HasValue && !finalized && dept == null)
+            {
+                // chưa nộp duyệt: đếm ngày đã trôi qua tới hiện tại để cảnh báo quá hạn
+                daysSince = (int)(DateTime.UtcNow.Date - record.DischargeDate.Value.Date).TotalDays;
+                lateDays = Math.Max(0, daysSince.Value - EmrArchiveDeadlineDays);
+            }
+
+            return new ArchiveApprovalStatusDto
+            {
+                MedicalRecordId = medicalRecordId,
+                DeptApproved = dept != null,
+                DeptApprovedAt = dept?.PerformedAt,
+                DeptApprovedByName = dept?.PerformedByName,
+                Finalized = finalized,
+                FinalizedAt = record.EmrFinalizedAt,
+                FinalizedByName = finalize?.PerformedByName,
+                DischargeDate = record.DischargeDate,
+                DaysSinceDischarge = daysSince,
+                LateDays = lateDays,
+                DeadlineDays = EmrArchiveDeadlineDays,
+                Level = finalized ? 2 : (dept != null ? 1 : 0),
+            };
+        }
+
         /// <summary>TT46: mở lại hồ sơ đã kết thúc — bắt buộc lý do, lưu vết EmrAmendments.</summary>
         public async Task<FinalizeResultDto> ReopenRecordAsync(Guid medicalRecordId, string reason)
         {
