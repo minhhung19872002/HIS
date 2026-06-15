@@ -3,10 +3,22 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-15** (Sóng 1 multi-feature: #141 #142 #149 #150 #153 build-green, CHƯA commit).
+> Cập nhật cuối: **2026-06-15** (chiến dịch multi-feature: Sóng 1 + Sóng 2 = 10 feature, build-green, đã push).
 
 ## Đang ở đâu
-- **Chiến dịch "làm tất cả feature" — SÓNG 1 (build-green, CHƯA commit/push)**: fan-out 4 agent song song,
+- **SÓNG 2 (build-green, đã push)**: fan-out 5 agent, build gate tập trung (BE 0 err · FE 0 err).
+  **#110** Giấy nghỉ dưỡng thai (printType `maternity-leave` + modal nhập tuần thai trong EmrEditor, không
+  migration — tái dùng pattern giấy nghỉ ốm) · **#152** chống giả mạo đặt khám (migration **102**
+  BookingAttemptLogs+BookingBlacklists qua partial `HISDbContext.AntiFraud.cs`, log IP server-side +
+  blacklist + giới hạn 3/SĐT·10/IP·ngày, cấu hình SystemConfig `Booking.*`) — ⚠️ Cloud Run sau LB cần
+  `UseForwardedHeaders` để lấy IP thật (deferred) · **#94** DM địa danh hành chính (migration **103**
+  Provinces/Districts/Wards — entity ĐÃ CÓ sẵn Icd.cs, seed 8 tỉnh; controller+service+page-v2+route/menu+DI)
+  — ⚠️ verify schema-drift sau deploy (entity cũ vs bảng mới) · **#135** RIS cờ/lọc quá hạn TAT (ngưỡng
+  SystemConfig `RIS.TAT.DefaultThresholdMinutes` def 60', cột IsOverdue/TATMinutes, filter overdueOnly) ·
+  **#101** cảnh báo quá tải phòng khám >65 lượt/ngày (rule OPD-40, đếm Examination theo VnTime.DayRangeUtc).
+  ⚠️ Đã sửa 2 lỗi agent ở build gate: agent #135 thay nháy thẳng→cong (42 chỗ, vỡ 200 lỗi C#); #94 dùng sai `cf`.
+- **SÓNG 1 (đã push, commit ee12b81/e160b4a/543b418/14ae299/75f97d4)**: #141 #142 #149 #150 #153 (xem dưới).
+- **Chiến dịch "làm tất cả feature" — SÓNG 1 (build-green, ĐÃ push)**: fan-out 4 agent song song,
   build gate tập trung (BE `dotnet build` 0 err · FE `tsc -b` 0 err). Đã làm:
   **#142** phiếu in Giấy xác nhận đang điều trị · **#141** Giấy chứng nhận thương tích (printType
   `treatment-confirm`/`injury-cert` + EmrEditor PRINT_FORMS + truyền examinationId) ·
