@@ -96,6 +96,7 @@ public class AnesthesiaRecordDto
     public string AnesthesiaType { get; set; } = string.Empty;
     public string? AirwayPlan { get; set; }
     public string? PreOpAssessment { get; set; }
+    public string? PsychologicalAssessment { get; set; } // F1.9: khám tâm lý trước mổ
     public string? RecoveryNotes { get; set; }
     public int Status { get; set; }
     public string? CreatedBy { get; set; }
@@ -131,6 +132,7 @@ public class AnesthesiaSaveDto
     public string AnesthesiaType { get; set; } = string.Empty;
     public string? AirwayPlan { get; set; }
     public string? PreOpAssessment { get; set; }
+    public string? PsychologicalAssessment { get; set; } // F1.9: khám tâm lý trước mổ
     public string? RecoveryNotes { get; set; }
     public int Status { get; set; }
 

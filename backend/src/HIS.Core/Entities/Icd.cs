@@ -348,6 +348,7 @@ public class AnesthesiaRecord : BaseEntity
     public string AnesthesiaType { get; set; } = string.Empty; // Gay me/Gay te/Te tai cho
     public string? AirwayPlan { get; set; }
     public string? PreOpAssessment { get; set; }
+    public string? PsychologicalAssessment { get; set; } // F1.9: khám tâm lý trước mổ
     public string? RecoveryNotes { get; set; }
     public string? PostSurgeryPlan { get; set; } // Ke hoach sau gay me – phau thuat (Prompt 6 Item 4)
     public int Status { get; set; } // 0=Draft, 1=InProgress, 2=Completed

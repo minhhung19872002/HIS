@@ -268,6 +268,7 @@ public class ClinicalRecordService : IClinicalRecordService
             record.AnesthesiaType = dto.AnesthesiaType;
             record.AirwayPlan = dto.AirwayPlan;
             record.PreOpAssessment = dto.PreOpAssessment;
+            record.PsychologicalAssessment = dto.PsychologicalAssessment;
             record.RecoveryNotes = dto.RecoveryNotes;
             record.Status = dto.Status;
             record.UpdatedAt = DateTime.UtcNow;
@@ -291,6 +292,7 @@ public class ClinicalRecordService : IClinicalRecordService
                 AnesthesiaType = dto.AnesthesiaType,
                 AirwayPlan = dto.AirwayPlan,
                 PreOpAssessment = dto.PreOpAssessment,
+                PsychologicalAssessment = dto.PsychologicalAssessment,
                 RecoveryNotes = dto.RecoveryNotes,
                 Status = dto.Status,
                 CreatedAt = DateTime.UtcNow,
@@ -446,6 +448,7 @@ public class ClinicalRecordService : IClinicalRecordService
             AnesthesiaType = r.AnesthesiaType,
             AirwayPlan = r.AirwayPlan,
             PreOpAssessment = r.PreOpAssessment,
+            PsychologicalAssessment = r.PsychologicalAssessment,
             RecoveryNotes = r.RecoveryNotes,
             Status = r.Status,
             CreatedBy = r.CreatedBy,

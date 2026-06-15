@@ -99,6 +99,7 @@ interface PreAnesthForm {
   anesthesiaType: string;
   airwayPlan: string;
   preOpAssessment: string;
+  psychologicalAssessment: string;
   recoveryNotes: string;
   status: number;
 }
@@ -111,6 +112,7 @@ const EMPTY_PREANEST: PreAnesthForm = {
   anesthesiaType: 'Gây mê toàn thân',
   airwayPlan: '',
   preOpAssessment: '',
+  psychologicalAssessment: '',
   recoveryNotes: '',
   status: 0,
 };
@@ -143,6 +145,7 @@ export const PreAnesthesiaModal: React.FC<PreAnesthesiaModalProps> = ({
           anesthesiaType: existing.anesthesiaType || 'Gây mê toàn thân',
           airwayPlan: existing.airwayPlan ?? '',
           preOpAssessment: existing.preOpAssessment ?? '',
+          psychologicalAssessment: existing.psychologicalAssessment ?? '',
           recoveryNotes: existing.recoveryNotes ?? '',
           status: existing.status ?? 0,
         });
@@ -175,6 +178,7 @@ export const PreAnesthesiaModal: React.FC<PreAnesthesiaModalProps> = ({
         anesthesiaType: form.anesthesiaType,
         airwayPlan: form.airwayPlan || undefined,
         preOpAssessment: form.preOpAssessment || undefined,
+        psychologicalAssessment: form.psychologicalAssessment || undefined,
         recoveryNotes: form.recoveryNotes || undefined,
         status: form.status,
       });
@@ -287,6 +291,14 @@ export const PreAnesthesiaModal: React.FC<PreAnesthesiaModalProps> = ({
                 value={form.preOpAssessment}
                 onChange={(e) => set('preOpAssessment', e.target.value)}
                 placeholder="Nhận xét tình trạng BN, khuyến nghị trước mổ…"
+              />
+            </Row2>
+            <Row2 label="Khám tâm lý trước mổ">
+              <Input.TextArea
+                rows={3}
+                value={form.psychologicalAssessment}
+                onChange={(e) => set('psychologicalAssessment', e.target.value)}
+                placeholder="Tâm trạng, lo âu, mức độ hợp tác, tư vấn tâm lý trước mổ…"
               />
             </Row2>
           </Section>

@@ -309,6 +309,7 @@ export const GaymRecordPrint: React.FC<{ record?: Record<string, unknown> }> = (
         <br />
         <Fld label="Kế hoạch đường thở" value={record?.airwayPlan as string} />
         <Fld label="Đánh giá tiền mê" value={record?.preOpAssessment as string} />
+        <Fld label="Khám tâm lý trước mổ" value={record?.psychologicalAssessment as string} />
       </div>
 
       {/* Bảng thuốc gây mê */}
@@ -560,6 +561,7 @@ export function printAnesthesiaRecord(record: AnesDto): void {
     </p>
     <p><span class="label">Kế hoạch đường thở:</span> ${record.airwayPlan ?? ''}</p>
     <p><span class="label">Đánh giá tiền mê:</span> ${record.preOpAssessment ?? ''}</p>
+    <p><span class="label">Khám tâm lý trước mổ:</span> ${record.psychologicalAssessment ?? ''}</p>
     <div class="section-title">I. DANH SÁCH THUỐC GÂY MÊ</div>
     <table>
       <thead><tr><th>STT</th><th>Giờ dùng</th><th>Tên thuốc</th><th>Liều dùng</th><th>Đường dùng</th></tr></thead>
