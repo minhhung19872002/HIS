@@ -6,11 +6,14 @@
 > Cập nhật cuối: **2026-06-15** (verify-functional + CLOSED nhóm mẫu in #140 #110 #141 #142 — **TẤT CẢ 19 feature phiên này đã verify + CLOSED**).
 
 ## Đang ở đâu
-- **#145 F8.12 — Picker "Diễn biến mẫu" (RE-APPLIED, code-complete, build-green, chưa commit)**: việc DUY NHẤT
-  phiên này chưa trùng origin. Đã pre-flight đúng quy trình mới (pull→sync→verify-against-CODE=0→claim @me) rồi
-  re-apply tay lên code đã sync: nút "Chọn mẫu" cạnh ô Diễn biến (`EmrEditor.tsx`, modal Phiếu điều trị, append) +
-  "Thư viện mẫu" cạnh "Mẫu nhanh" (`DoctorPortalMobile.tsx`), reuse `ClinicalTemplatePicker` (tự `incrementTemplateUsage`).
-  Build FE EXIT 0. → chờ duyệt push + `Closes #145` (atomic). Stash@{0} (dup #142/#101 + pre-existing) có thể drop.
+- **#85 F8.3 — Trích lục bệnh án chống sao chép/watermark (code-complete, build-green, CHƯA commit)**: pre-flight
+  đúng quy trình mới (synced→verify-against-CODE: page chưa có + BE/api sẵn→claim @me) rồi dựng page v2
+  `pages-v2/EmrExtract.tsx` (hand-build _v2kit: search HSBA→resolve examinationId→list/create/revoke extract +
+  Drawer xem bản trích lục có **watermark phủ chéo** + thời hạn/lượt truy cập). Reuse api `emrManagement.ts`
+  (getEmrExtracts/createEmrExtract/revokeEmrExtract). Route `/v2/emr-extract` (App.tsx) + menu (TerminalLayout).
+  Build FE EXIT 0. → chờ duyệt push + `Closes #85`.
+- **#145 F8.12 — Picker "Diễn biến mẫu" (✅ DONE, PUSHED `d6886fb`, CLOSED)** — pre-flight chuẩn (sync→verify→claim)
+  rồi re-apply tay lên code đã sync; atomic `Closes #145`. Stash đã drop.
 - **FIX TRIỆT ĐỂ trùng-code-2-máy (governance — ĐÃ PUSH `49452a9`+`eb4590f`)**: gốc = *làm trên code cũ + tin
   issue-state trễ* (phiên này local tụt 34 commit → làm lại #142/#101 đã có origin). Fix **ENFORCE bằng máy**:
   (1) `hooks/session-start.sh` thêm `git fetch`+`behind=N` → chỉ thị BẮT BUỘC pull khi behind>0; (2) `hooks/remind-pipeline.sh`
