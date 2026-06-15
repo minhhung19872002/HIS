@@ -322,6 +322,7 @@ public class SpecialtyEmrService : ISpecialtyEmrService
         "ent" => "Tai Mũi Họng",
         "traditional" => "Y học cổ truyền (nội trú)",
         "traditional_outpatient" => "Y học cổ truyền (ngoại trú)",
+        "pediatric_traditional" => "Nhi Y học cổ truyền",
         "hematology" => "Huyết học và Truyền máu",
         "oncology" => "Ung bướu",
         "burns" => "Bỏng",

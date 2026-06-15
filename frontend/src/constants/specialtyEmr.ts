@@ -15,6 +15,7 @@ export const SPECIALTY_TYPES: SpecialtyType[] = [
   { key: 'ent', label: 'Tai-Mui-Hong', code: 'TMH' },
   { key: 'traditional', label: 'YHCT & PHCN', code: 'YHCT' },
   { key: 'traditional_outpatient', label: 'YHCT ngoại trú', code: 'YHCTNT' },
+  { key: 'pediatric_traditional', label: 'Nhi YHCT', code: 'NhiYHCT' },
   { key: 'hematology', label: 'Huyết học-Truyen mau', code: 'HH' },
   { key: 'oncology', label: 'Ung bướu', code: 'UB' },
   { key: 'burns', label: 'Bong', code: 'B' },
@@ -123,6 +124,15 @@ export const SPECIALTY_FIELDS: Record<string, { title: string; fields: FieldDef[
     { name: 'thiet', label: 'Thiet chan (So bat mach)', type: 'textarea', span: 12, rows: 2, placeholder: 'Mach tay, phu tram tri sac' },
     { name: 'acupuncturePoints', label: 'Huyet vi cham cuu', type: 'textarea', span: 24, rows: 2, placeholder: 'Huyet vi sử dụng' },
     { name: 'herbalPrescription', label: 'Phuong thuoc YHCT', type: 'textarea', span: 24, rows: 2, placeholder: 'Bai thuoc, vi thuoc, lieu luong' },
+  ]},
+  pediatric_traditional: { title: 'Nhi Y học cổ truyền', fields: [
+    { name: 'weight', label: 'Can nang (kg)', type: 'number', span: 12, step: 0.1, addonAfter: 'kg' },
+    { name: 'vong', label: 'Vong chan (Nhin)', type: 'textarea', span: 12, rows: 2, placeholder: 'Sac mat, luoi, hinh the, than thai tre' },
+    { name: 'van', label: 'Van chan (Nghe/Ngui)', type: 'textarea', span: 12, rows: 2, placeholder: 'Tieng khoc, hoi tho, mui' },
+    { name: 'van2', label: 'Van chan (Hoi)', type: 'textarea', span: 12, rows: 2, placeholder: 'Benh su, an bu, dai tien, giac ngu' },
+    { name: 'thiet', label: 'Thiet chan (So bat mach)', type: 'textarea', span: 12, rows: 2, placeholder: 'Mach; chi van (tre nho)' },
+    { name: 'acupuncturePoints', label: 'Huyet vi cham cuu', type: 'textarea', span: 24, rows: 2, placeholder: 'Huyet vi phu hop tre em' },
+    { name: 'herbalPrescription', label: 'Phuong thuoc YHCT', type: 'textarea', span: 24, rows: 2, placeholder: 'Bai thuoc nhi khoa, lieu theo can nang' },
   ]},
   hematology: { title: 'Huyết học - Truyen mau', fields: [
     { name: 'bloodDisorder', label: 'Benh ly huyet hoc', type: 'tags', span: 24, options: [
