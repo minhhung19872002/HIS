@@ -91,10 +91,15 @@ export interface DocumentLockDto {
 
 export interface EmrDataTagDto {
   id: string;
+  code: string;
   name: string;
-  color: string;
   description?: string;
+  dataType: string;       // Text/Number/Date/Boolean/List
+  defaultValue?: string;
   category?: string;
+  formType?: string;      // loại tờ phiếu áp dụng (gán thẻ vào mẫu)
+  sortOrder: number;
+  isSystem: boolean;
   isActive: boolean;
 }
 
@@ -466,14 +471,18 @@ export const forceReleaseDocumentLock = (data: {
 
 // ============ Data Tags (B.1.13) ============
 export const getEmrDataTags = () =>
-  apiClient.get('/emr-management/data-tags');
+  apiClient.get<EmrDataTagDto[]>('/emr-management/data-tags');
 
 export const saveEmrDataTag = (data: {
   id?: string;
+  code?: string;
   name: string;
-  color: string;
   description?: string;
+  dataType: string;
+  defaultValue?: string;
   category?: string;
+  formType?: string;
+  sortOrder?: number;
 }) => apiClient.post('/emr-management/data-tags', data);
 
 export const deleteEmrDataTag = (id: string) =>

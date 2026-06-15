@@ -51,6 +51,7 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'specialty-emr',     path: '/v2/specialty-emr',            label: '[24] BA chuyên khoa' },
       { id: 'mr-archive',        path: '/v2/medical-record-archive',   label: '[24] Lưu trữ HSBA' },
       { id: 'emr-extract',       path: '/v2/emr-extract',              label: 'Trích lục bệnh án' },
+      { id: 'emr-data-tags',     path: '/v2/emr-data-tags',            label: 'Thẻ dữ liệu EMR' },
       { id: 'mr-planning',       path: '/v2/medical-record-planning',  label: '[24] Kế hoạch TH' },
       { id: 'follow-up',         path: '/v2/follow-up',                label: '[24] Tái khám' },
       { id: 'booking',           path: '/v2/booking-management',       label: '[24] Quản lý đặt lịch' },
