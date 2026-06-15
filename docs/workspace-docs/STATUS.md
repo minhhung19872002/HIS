@@ -6,13 +6,16 @@
 > Cập nhật cuối: **2026-06-15** (verify-functional + CLOSED nhóm mẫu in #140 #110 #141 #142 — **TẤT CẢ 19 feature phiên này đã verify + CLOSED**).
 
 ## Đang ở đâu
-- **FIX TRIỆT ĐỂ trùng-code-2-máy (governance, phiên Claude máy D: — chưa commit)**: gốc = *làm trên code cũ +
-  tin issue-state trễ* (phiên này local tụt 34 commit → làm lại #142/#101 đã có origin). Fix **ENFORCE bằng máy**
-  (rule giấy bị bỏ qua): (1) `hooks/session-start.sh` thêm `git fetch`+`behind=N` → in chỉ thị BẮT BUỘC pull khi
-  behind>0; (2) `hooks/remind-pipeline.sh` thêm SYNC-GATE per-task; (3) `project-rules.md §2-4`: fetch→`pull --ff-only`
-  + verify-against-CODE + claim issue + **đóng issue ATOMIC với push** (`Closes #N`, không đóng theo lô) + push-sớm
-  khi song song. LINT OK ✅, 2 hook smoke-test pass (đã bắt live `behind=2`). ⚠️ Local hiện **behind** — pull trước
-  khi pick task tiếp. **#145** (picker Diễn biến mẫu — chưa có origin) còn trong `stash@{0}`, re-apply merge-tay sau.
+- **#145 F8.12 — Picker "Diễn biến mẫu" (RE-APPLIED, code-complete, build-green, chưa commit)**: việc DUY NHẤT
+  phiên này chưa trùng origin. Đã pre-flight đúng quy trình mới (pull→sync→verify-against-CODE=0→claim @me) rồi
+  re-apply tay lên code đã sync: nút "Chọn mẫu" cạnh ô Diễn biến (`EmrEditor.tsx`, modal Phiếu điều trị, append) +
+  "Thư viện mẫu" cạnh "Mẫu nhanh" (`DoctorPortalMobile.tsx`), reuse `ClinicalTemplatePicker` (tự `incrementTemplateUsage`).
+  Build FE EXIT 0. → chờ duyệt push + `Closes #145` (atomic). Stash@{0} (dup #142/#101 + pre-existing) có thể drop.
+- **FIX TRIỆT ĐỂ trùng-code-2-máy (governance — ĐÃ PUSH `49452a9`+`eb4590f`)**: gốc = *làm trên code cũ + tin
+  issue-state trễ* (phiên này local tụt 34 commit → làm lại #142/#101 đã có origin). Fix **ENFORCE bằng máy**:
+  (1) `hooks/session-start.sh` thêm `git fetch`+`behind=N` → chỉ thị BẮT BUỘC pull khi behind>0; (2) `hooks/remind-pipeline.sh`
+  SYNC-GATE per-task; (3) `project-rules.md §2-4`: fetch→`pull --ff-only` + verify-against-CODE + claim issue +
+  **đóng issue ATOMIC với push** + push-sớm khi song song. LINT OK ✅, hook đã bắt live `behind` thật.
 - **VERIFY FUNCTIONAL nhóm mẫu in EMR (✅ CLOSED #140 #110 #141 #142)** — data-layer round-trip + static-audit binding:
   **#140** PUT/GET injury-info → 5 field pháp lý (helmet/alcohol/vehicle) persist · **#110** POST maternity-leave → 200 +
   MaternityLeaveDto · **#141/#142** printType injury-cert/treatment-confirm đăng ký + render branch + binding type-valid
