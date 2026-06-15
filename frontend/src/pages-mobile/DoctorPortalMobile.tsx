@@ -18,6 +18,8 @@ import {
 } from '../api/inpatient';
 import type { InpatientListDto, MedicineSearchItemDto } from '../api/inpatient';
 import { getWarehouses } from '../api/warehouse';
+import ClinicalTemplatePicker from '../components/ClinicalTemplatePicker';
+import { TEMPLATE_TYPES } from '../api/clinicalTemplate';
 import type { WarehouseDto } from '../api/warehouse';
 import './portal-mobile.css';
 
@@ -431,6 +433,7 @@ const TreatmentForm: React.FC<{ admissionId: string; onMessage: (m: string) => v
   const [diagnosis, setDiagnosis] = useState('');
   const [progress, setProgress] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
+  const [libOpen, setLibOpen] = useState(false);
   const [orders, setOrders] = useState('');
   const [nursingOrders, setNursingOrders] = useState('');
   const [saving, setSaving] = useState(false);
@@ -482,10 +485,16 @@ const TreatmentForm: React.FC<{ admissionId: string; onMessage: (m: string) => v
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <label style={{ fontSize: 12, color: '#888' }}>Diễn biến lâm sàng</label>
-        <button
-          onClick={() => setShowTemplates((v) => !v)}
-          style={{ fontSize: 11, color: '#1677ff', background: 'none', border: '1px solid #1677ff', borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}
-        >Mẫu nhanh</button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            onClick={() => setLibOpen(true)}
+            style={{ fontSize: 11, color: '#1677ff', background: 'none', border: '1px solid #1677ff', borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}
+          >Thư viện mẫu</button>
+          <button
+            onClick={() => setShowTemplates((v) => !v)}
+            style={{ fontSize: 11, color: '#1677ff', background: 'none', border: '1px solid #1677ff', borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}
+          >Mẫu nhanh</button>
+        </div>
       </div>
       {showTemplates && (
         <div style={{ marginBottom: 8, background: '#f5f5f5', borderRadius: 8, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -502,6 +511,12 @@ const TreatmentForm: React.FC<{ admissionId: string; onMessage: (m: string) => v
         rows={4} value={progress} onChange={(e) => setProgress(e.target.value)}
         placeholder="Tình trạng BN, dấu hiệu sinh tồn..."
         style={{ width: '100%', marginBottom: 8, padding: 8, borderRadius: 8, border: '1px solid #ddd', fontFamily: 'inherit', fontSize: 13 }}
+      />
+      <ClinicalTemplatePicker
+        open={libOpen}
+        onClose={() => setLibOpen(false)}
+        templateType={TEMPLATE_TYPES.DIEN_BIEN_BENH}
+        onPick={(t) => setProgress(t.content)}
       />
       <label style={{ fontSize: 12, color: '#888' }}>Y lệnh</label>
       <textarea

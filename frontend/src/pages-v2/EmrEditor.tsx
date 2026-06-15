@@ -34,6 +34,8 @@ import {
 } from '../api/examination';
 import { printTreatmentSheet as printInpatientTreatmentSheet } from '../api/inpatient';
 import PrintTemplateRenderer from '../components/PrintTemplateRenderer';
+import ClinicalTemplatePicker from '../components/ClinicalTemplatePicker';
+import { TEMPLATE_TYPES } from '../api/clinicalTemplate';
 import '../layouts/terminal/ed-responsive.css';
 
 type TabKey = 'record' | 'history' | 'treatment' | 'consult' | 'nursing' | 'reaction' | 'partograph' | 'attach';
@@ -115,6 +117,7 @@ const EmrEditorV2: React.FC = () => {
   const [finalized, setFinalized] = useState(false);
   const [modal, setModal] = useState<null | 'treatment' | 'consult' | 'nursing'>(null);
   const [form, setForm] = useState<Record<string, string>>({});
+  const [tplPickerOpen, setTplPickerOpen] = useState(false);
   const [printingTreatId, setPrintingTreatId] = useState<string | null>(null);
   const [savingForm, setSavingForm] = useState(false);
   // Multi-select in tờ điều trị
@@ -870,7 +873,12 @@ const EmrEditorV2: React.FC = () => {
             )}
           </div>
           {modal === 'treatment' && <>
-            <FormField lbl="Diễn biến"><textarea className="ed-fld" rows={3} value={form.dailyProgress || ''} onChange={(e) => fld('dailyProgress', e.target.value)} /></FormField>
+            <FormField lbl="Diễn biến">
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+                <Btn size="sm" variant="ghost" icon="file-text" onClick={() => setTplPickerOpen(true)}>Chọn mẫu</Btn>
+              </div>
+              <textarea className="ed-fld" rows={3} value={form.dailyProgress || ''} onChange={(e) => fld('dailyProgress', e.target.value)} />
+            </FormField>
             <FormField lbl="Y lệnh"><textarea className="ed-fld" rows={3} value={form.treatmentOrders || ''} onChange={(e) => fld('treatmentOrders', e.target.value)} /></FormField>
             <FormField lbl="Ghi chú BS"><textarea className="ed-fld" rows={2} value={form.doctorNotes || ''} onChange={(e) => fld('doctorNotes', e.target.value)} /></FormField>
           </>}
@@ -892,6 +900,15 @@ const EmrEditorV2: React.FC = () => {
           </>}
         </div>
       </ModalShell>
+
+      <ClinicalTemplatePicker
+        open={tplPickerOpen}
+        onClose={() => setTplPickerOpen(false)}
+        templateType={TEMPLATE_TYPES.DIEN_BIEN_BENH}
+        gender={sel?.gender}
+        ageYears={sel?.age ?? undefined}
+        onPick={(t) => fld('dailyProgress', form.dailyProgress ? `${form.dailyProgress}\n${t.content}` : t.content)}
+      />
     </div>
   );
 };
