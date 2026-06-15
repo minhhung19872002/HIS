@@ -3,9 +3,15 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-15** (VERIFY FUNCTIONAL money/safety: CLOSED #149 #151 #150 #109 — test thật trên local; #98 REVERTED).
+> Cập nhật cuối: **2026-06-15** (#98 LÀM LẠI ĐÚNG CÁCH + CLOSED; trước đó CLOSED #149 #151 #150 #109 — verify functional thật).
 
 ## Đang ở đâu
+- **#98 KSK chuyên biệt — REDONE SAFELY + CLOSED** (commit `26b2b1d`): sửa trọn 3 lỗi của bản revert —
+  (1) CRUD vào `HealthCheckupController [Authorize]`, GET không token→**401** (hết anonymous đọc dữ liệu lâm sàng);
+  (2) XÓA `HealthCheckupList` khỏi FrontendCompat → hết route trùng; (3) migration **111 additive thuần**
+  (ADD FoodHandlerRole/FoodSafetyConclusion nullable, KHÔNG đổi kiểu PatientId/CreatedBy, KHÔNG drop FK).
+  Tận dụng entity sẵn có (Driver/Child fields đã có) + 3 mẫu in TT36/TT15/TT14. Verify local (401, POST persist VSATTP)
+  + prod (schema-drift=0, types/list 200, no-token 401). **5 issue đã CLOSED tổng cộng: #149 #151 #150 #109 #98.**
 - **VERIFY FUNCTIONAL money/safety (✅ — CLOSED 4 issue)**: chạy backend local + test thật (mutate local DB, không đụng prod):
   **#149** hard-block tạm ứng — 3 scenario (OFF→tạo đơn OK · ON ngưỡng>deposit→CHẶN đúng message · ON ngưỡng<deposit→OK).
   **#151** BHYT zero-copay — end-to-end reassign: ngoài DS→PatientAmount=40k(đồng chi trả) · trong DS→PatientAmount=0.
