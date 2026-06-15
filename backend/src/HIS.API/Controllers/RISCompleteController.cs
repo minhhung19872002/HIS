@@ -141,9 +141,10 @@ namespace HIS.API.Controllers
             [FromQuery] Guid? roomId = null,
             [FromQuery] string serviceType = null,
             [FromQuery] string status = null,
-            [FromQuery] string keyword = null)
+            [FromQuery] string keyword = null,
+            [FromQuery] bool overdueOnly = false)
         {
-            var result = await _risService.GetWaitingListAsync(date, roomId, serviceType, status, keyword);
+            var result = await _risService.GetWaitingListAsync(date, roomId, serviceType, status, keyword, overdueOnly);
             return Ok(result);
         }
 

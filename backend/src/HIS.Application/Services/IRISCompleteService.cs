@@ -21,7 +21,8 @@ namespace HIS.Application.Services
             Guid? roomId = null,
             string serviceType = null,
             string status = null,
-            string keyword = null);
+            string keyword = null,
+            bool overdueOnly = false);
 
         /// <summary>
         /// 8.1.2 Phát loa gọi bệnh nhân vào thực hiện

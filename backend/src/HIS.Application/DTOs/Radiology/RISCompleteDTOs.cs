@@ -39,6 +39,10 @@ namespace HIS.Application.DTOs.Radiology
         public DateTime? StartTime { get; set; }
         public string StudyInstanceUID { get; set; } // For DICOM viewer integration
         public bool HasImages { get; set; } // True if DICOM images are available
+        /// <summary>Số phút từ lúc chỉ định (OrderTime) đến hiện tại (giờ VN).</summary>
+        public int TATMinutes { get; set; }
+        /// <summary>True nếu TATMinutes vượt ngưỡng RIS.TAT.DefaultThresholdMinutes trong SystemConfig.</summary>
+        public bool IsOverdue { get; set; }
     }
 
     /// <summary>

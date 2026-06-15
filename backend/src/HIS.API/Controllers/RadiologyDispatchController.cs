@@ -172,10 +172,19 @@ public class RadiologyDispatchController : ControllerBase
     }
 
     [HttpGet("pending")]
-    public async Task<IActionResult> PendingServices()
+    public async Task<IActionResult> PendingServices([FromQuery] bool overdueOnly = false)
     {
+        // Đọc ngưỡng TAT từ SystemConfig (key: RIS.TAT.DefaultThresholdMinutes, mặc định 60 phút)
+        var tatThresholdMinutes = 60;
+        var tatConfig = await _db.SystemConfigs.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.ConfigKey == "RIS.TAT.DefaultThresholdMinutes" && c.IsActive);
+        if (tatConfig != null && int.TryParse(tatConfig.ConfigValue, out var parsed) && parsed > 0)
+            tatThresholdMinutes = parsed;
+
+        var nowUtc = DateTime.UtcNow;
+
         // Danh sách BN có chỉ định CĐHA nhưng chưa được điều phối
-        var pending = await _db.ServiceRequestDetails
+        var rawPending = await _db.ServiceRequestDetails
             .Include(d => d.Service)
             .Include(d => d.ServiceRequest).ThenInclude(r => r.MedicalRecord).ThenInclude(m => m.Patient)
             .Where(d => d.Service.ServiceType == 3
@@ -195,7 +204,29 @@ public class RadiologyDispatchController : ControllerBase
                 d.SampleBarcode
             })
             .ToListAsync();
-        return Ok(pending);
+
+        // Tính TAT (CreatedAt lưu UTC bằng DateTime.UtcNow — SpecifyKind để tránh ToUniversalTime() convert sai khi Kind=Unspecified)
+        var pending = rawPending.Select(d =>
+        {
+            var createdAtUtc = DateTime.SpecifyKind(d.CreatedAt, DateTimeKind.Utc);
+            var tatMinutes = (int)(nowUtc - createdAtUtc).TotalMinutes;
+            if (tatMinutes < 0) tatMinutes = 0;
+            return new
+            {
+                d.ServiceRequestDetailId,
+                d.PatientId,
+                d.PatientName,
+                d.PatientCode,
+                d.ServiceName,
+                d.ServiceCode,
+                d.CreatedAt,
+                d.SampleBarcode,
+                TATMinutes = tatMinutes,
+                IsOverdue = tatMinutes > tatThresholdMinutes,
+            };
+        }).ToList();
+
+        return Ok(overdueOnly ? pending.Where(x => x.IsOverdue).ToList() : pending);
     }
 
     // ==================== Permissions ====================

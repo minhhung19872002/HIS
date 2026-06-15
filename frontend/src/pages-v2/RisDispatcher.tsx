@@ -11,6 +11,7 @@ import {
 interface PendingService {
   serviceRequestDetailId: string; patientId: string; patientName: string; patientCode: string;
   serviceName: string; serviceCode: string; createdAt: string; sampleBarcode?: string;
+  tatMinutes: number; isOverdue: boolean;
 }
 interface QueueItem {
   id: string; patientId: string; patientName: string; patientCode: string;
@@ -27,6 +28,7 @@ const RisDispatcherV2: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState('');
   const [loading, setLoading] = useState(false);
+  const [overdueFilter, setOverdueFilter] = useState(false);
   const [dispatchModal, setDispatchModal] = useState<PendingService | null>(null);
   const [selPending, setSelPending] = useState<PendingService | null>(null);
   const [selQueue, setSelQueue] = useState<QueueItem | null>(null);
@@ -37,7 +39,7 @@ const RisDispatcherV2: React.FC = () => {
     setLoading(true);
     try {
       const [p, r] = await Promise.all([
-        apiClient.get<PendingService[]>('/radiology-dispatch/pending'),
+        apiClient.get<PendingService[]>('/radiology-dispatch/pending', { params: { overdueOnly: overdueFilter || undefined } }),
         apiClient.get<Room[]>('/RISComplete/rooms', { params: { roomType: 'radiology' } }).catch(() => ({ data: [] as Room[] })),
       ]);
       setPending(p.data); setRooms(r.data);
@@ -47,7 +49,7 @@ const RisDispatcherV2: React.FC = () => {
       } else { setQueue([]); }
     } catch { ti('Tải dữ liệu thất bại'); }
     finally { setLoading(false); }
-  }, [selectedRoom]);
+  }, [selectedRoom, overdueFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -110,6 +112,11 @@ const RisDispatcherV2: React.FC = () => {
     { key: 'sc', label: 'Mã DV', code: true, render: (r) => r.serviceCode },
     { key: 'bar', label: 'Barcode', code: true, render: (r) => r.sampleBarcode || '—' },
     { key: 'time', label: 'Chỉ định lúc', mono: true, render: (r) => dayjs(r.createdAt).format('HH:mm DD/MM') },
+    { key: 'tat', label: 'Chờ', render: (r) => (
+      r.isOverdue
+        ? <StatusBadge tone="crit" dot>{r.tatMinutes} phút</StatusBadge>
+        : <StatusBadge tone="ok">{r.tatMinutes} phút</StatusBadge>
+    ) },
   ];
 
   const queueCols: ColumnDef<QueueItem>[] = [
@@ -137,6 +144,7 @@ const RisDispatcherV2: React.FC = () => {
     <div className="ab">
       <KpiStrip items={[
         { lbl: 'Chờ điều phối', val: pending.length, sub: 'tất cả phòng', tone: 'warn' },
+        { lbl: 'Quá hạn TAT', val: pending.filter((p) => p.isOverdue).length, sub: 'cần xử lý', tone: 'crit' },
         { lbl: 'Hàng đợi', val: queue.length, sub: selectedRoom ? rooms.find((r) => r.id === selectedRoom)?.roomName || '—' : 'chưa chọn phòng', tone: 'info' },
         { lbl: 'Đã đến', val: queue.filter((q) => q.isArrived).length, sub: 'sẵn sàng', tone: 'ok' },
         { lbl: 'Cấp cứu', val: queue.filter((q) => q.priority === 3).length, sub: 'ưu tiên', tone: 'crit' },
@@ -146,6 +154,13 @@ const RisDispatcherV2: React.FC = () => {
         <>
           <Filter value={selectedRoom} onChange={setSelectedRoom}
             options={rooms.map((r) => ({ v: r.id, l: r.roomName }))} placeholder="▾ Phòng" />
+          <Btn
+            variant={overdueFilter ? 'primary' : 'ghost'}
+            icon="clock"
+            onClick={() => setOverdueFilter((v) => !v)}
+          >
+            {overdueFilter ? 'Đang lọc: Quá hạn' : 'Quá hạn TAT'}
+          </Btn>
           <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
         </>
       } />
@@ -224,6 +239,11 @@ const RisDispatcherV2: React.FC = () => {
             <DrField lbl="Mã DV"><span style={{ fontFamily: 'var(--font-mono)' }}>{selPending.serviceCode}</span></DrField>
             <DrField lbl="Barcode"><span style={{ fontFamily: 'var(--font-mono)' }}>{selPending.sampleBarcode || '—'}</span></DrField>
             <DrField lbl="Chỉ định lúc"><span style={{ fontFamily: 'var(--font-mono)' }}>{dayjs(selPending.createdAt).format('HH:mm DD/MM/YYYY')}</span></DrField>
+            <DrField lbl="Thời gian chờ">
+              {selPending.isOverdue
+                ? <StatusBadge tone="crit" dot>{selPending.tatMinutes} phút — Quá hạn TAT</StatusBadge>
+                : <StatusBadge tone="ok">{selPending.tatMinutes} phút</StatusBadge>}
+            </DrField>
           </DrSec>
         </>}
       </DrawerShell>

@@ -16,7 +16,7 @@ using HIS.Infrastructure.Data;
 namespace HIS.Infrastructure.Services;
 
 // K3 phien 1 (2026-05-30): tach RIS Module 8 (5 region 8.1+8.2+8.3+8.4+8.5, ~1730 dong)
-// khoi RISCompleteService.cs god-file (5679 dong). ZERO runtime change â€” partial class.
+// khoi RISCompleteService.cs god-file (5679 dong). ZERO runtime change â€" partial class.
 // Ctor + 13 DI deps + PACS config o file goc.
 public partial class RISCompleteService
 {
@@ -27,9 +27,10 @@ public partial class RISCompleteService
         Guid? roomId = null,
         string serviceType = null,
         string status = null,
-        string keyword = null)
+        string keyword = null,
+        bool overdueOnly = false)
     {
-        // RequestDate ghi báº±ng DateTime.Now â€” dÃ¹ng DayRangeUtc Ä‘á»ƒ trÃ¡nh lá»‡ch UTC 00h-07h VN.
+        // RequestDate ghi báº±ng DateTime.Now â€" dÃ¹ng DayRangeUtc Ä'á»ƒ trÃ¡nh lá»‡ch UTC 00h-07h VN.
         var (rdFromUtc, rdToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
         var query = _context.RadiologyRequests
             .Include(r => r.Patient)
@@ -74,33 +75,56 @@ public partial class RISCompleteService
 
         var requests = await query.OrderBy(r => r.RequestDate).ToListAsync();
 
-        return requests.Select((r, index) => new RadiologyWaitingListDto
+        // Đọc ngưỡng TAT từ SystemConfig (key: RIS.TAT.DefaultThresholdMinutes, mặc định 60 phút)
+        var tatThresholdMinutes = 60;
+        var tatConfig = await _context.SystemConfigs.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.ConfigKey == "RIS.TAT.DefaultThresholdMinutes" && c.IsActive);
+        if (tatConfig != null && int.TryParse(tatConfig.ConfigValue, out var parsed) && parsed > 0)
+            tatThresholdMinutes = parsed;
+
+        var nowVn = HIS.Core.Common.VnTime.NowVn;
+
+        var result = requests.Select((r, index) =>
         {
-            PatientId = r.PatientId,
-            PatientCode = r.Patient.PatientCode,
-            PatientName = r.Patient.FullName,
-            Age = r.Patient.DateOfBirth.HasValue ? (int?)((DateTime.Now - r.Patient.DateOfBirth.Value).Days / 365) : null,
-            Gender = r.Patient.Gender == 1 ? "Nam" : "Nu",
-            VisitId = r.MedicalRecordId ?? Guid.Empty,
-            VisitCode = r.MedicalRecord?.MedicalRecordCode ?? "",
-            OrderId = r.Id,
-            OrderCode = r.RequestCode,
-            OrderTime = r.RequestDate,
-            OrderDoctorName = r.RequestingDoctor?.FullName ?? "",
-            DepartmentName = "",
-            ServiceName = r.Service?.ServiceName ?? "",
-            ServiceTypeName = GetServiceTypeName(r.Service?.ServiceType ?? 0),
-            RoomName = r.Exams.FirstOrDefault()?.Room?.RoomName ?? "",
-            QueueNumber = index + 1,
-            StatusCode = r.Status,
-            Status = GetStatusName(r.Status),
-            PatientType = r.PatientType == 1 ? "BHYT" : "Vien phi",
-            Priority = r.Priority == 3 ? "Cap cuu" : r.Priority == 2 ? "Khan" : "Binh thuong",
-            CalledTime = null,
-            StartTime = r.Exams.FirstOrDefault()?.StartTime,
-            StudyInstanceUID = r.Exams.SelectMany(e => e.DicomStudies).FirstOrDefault()?.StudyInstanceUID ?? "",
-            HasImages = r.Exams.Any(e => e.DicomStudies.Any())
+            // Mốc TAT: RequestDate lưu UTC, VnTime.NowVn = UTC+7 local.
+            // Đơn giản: diff = nowVn - (requestDate_utc + 7h) đều là local VN.
+            var orderTimeVn = DateTime.SpecifyKind(r.RequestDate, DateTimeKind.Utc).AddHours(7);
+            var tatMinutes = (int)(nowVn - orderTimeVn).TotalMinutes;
+            if (tatMinutes < 0) tatMinutes = 0;
+            var isOverdue = tatMinutes > tatThresholdMinutes;
+
+            return new RadiologyWaitingListDto
+            {
+                PatientId = r.PatientId,
+                PatientCode = r.Patient.PatientCode,
+                PatientName = r.Patient.FullName,
+                Age = r.Patient.DateOfBirth.HasValue ? (int?)((DateTime.Now - r.Patient.DateOfBirth.Value).Days / 365) : null,
+                Gender = r.Patient.Gender == 1 ? "Nam" : "Nu",
+                VisitId = r.MedicalRecordId ?? Guid.Empty,
+                VisitCode = r.MedicalRecord?.MedicalRecordCode ?? "",
+                OrderId = r.Id,
+                OrderCode = r.RequestCode,
+                OrderTime = r.RequestDate,
+                OrderDoctorName = r.RequestingDoctor?.FullName ?? "",
+                DepartmentName = "",
+                ServiceName = r.Service?.ServiceName ?? "",
+                ServiceTypeName = GetServiceTypeName(r.Service?.ServiceType ?? 0),
+                RoomName = r.Exams.FirstOrDefault()?.Room?.RoomName ?? "",
+                QueueNumber = index + 1,
+                StatusCode = r.Status,
+                Status = GetStatusName(r.Status),
+                PatientType = r.PatientType == 1 ? "BHYT" : "Vien phi",
+                Priority = r.Priority == 3 ? "Cap cuu" : r.Priority == 2 ? "Khan" : "Binh thuong",
+                CalledTime = null,
+                StartTime = r.Exams.FirstOrDefault()?.StartTime,
+                StudyInstanceUID = r.Exams.SelectMany(e => e.DicomStudies).FirstOrDefault()?.StudyInstanceUID ?? "",
+                HasImages = r.Exams.Any(e => e.DicomStudies.Any()),
+                TATMinutes = tatMinutes,
+                IsOverdue = isOverdue,
+            };
         }).ToList();
+
+        return overdueOnly ? result.Where(x => x.IsOverdue).ToList() : result;
     }
 
     public async Task<CallPatientResultDto> CallPatientAsync(CallPatientDto dto)
@@ -1434,9 +1458,9 @@ public partial class RISCompleteService
         if (report == null) return false;
 
         // G-36: per-modality permission check.
-        // Chá»‰ Ã¡p khi ApprovingUserId cÃ³ giÃ¡ trá»‹ (controller Ä‘iá»n tá»« JWT).
+        // Chá»‰ Ã¡p khi ApprovingUserId cÃ³ giÃ¡ trá»‹ (controller Ä'iá»n tá»« JWT).
         // Logic: náº¿u user cÃ³ RadiologyPermission row nÃ o cho modality cá»§a ca chá»¥p
-        // â†’ pháº£i cÃ³ bit DuyetKQ (0x0010). KhÃ´ng cÃ³ row nÃ o = khÃ´ng háº¡n cháº¿ (backward-compat).
+        // â†' pháº£i cÃ³ bit DuyetKQ (0x0010). KhÃ´ng cÃ³ row nÃ o = khÃ´ng háº¡n cháº¿ (backward-compat).
         if (dto.ApprovingUserId.HasValue && dto.ApprovingUserId.Value != Guid.Empty)
         {
             var examForCheck = await _context.RadiologyExams
@@ -1453,7 +1477,7 @@ public partial class RISCompleteService
                         (p.ModalityId == examForCheck.ModalityId || p.ModalityId == null))
                     .ToListAsync();
 
-                // CÃ³ row háº¡n cháº¿ â†’ pháº£i cÃ³ flag DuyetKQ
+                // CÃ³ row háº¡n cháº¿ â†' pháº£i cÃ³ flag DuyetKQ
                 if (modalityPerms.Count > 0 && !modalityPerms.Any(p => (p.Permissions & DuyetKQFlag) != 0))
                 {
                     throw new UnauthorizedAccessException(
