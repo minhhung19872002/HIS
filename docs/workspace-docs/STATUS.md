@@ -3,9 +3,15 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-15** (verify-functional + CLOSED nhóm master-data/RIS: #94 #95 #138 #135 #136 — tổng 10 issue đã đóng phiên này).
+> Cập nhật cuối: **2026-06-15** (verify-functional + CLOSED nhóm reporting #117 #153 — tổng **12 issue** đã đóng phiên này).
 
 ## Đang ở đâu
+- **VERIFY FUNCTIONAL nhóm reporting (✅ CLOSED #117 #153)** — test thật:
+  **#153** waiting-phase-analysis trả delta tính-thật (totalVisits=398, overallMinutes=170.5, break-down theo đối tượng),
+  hết hardcode 15/20/10/8 (vài phase=0 do data thiếu mốc StartTime/EndTime — nợ cột CompletedAt). **#117** seed
+  ClaimDetail local → bhyt-21/20/285 + c79b/c80b ra số đúng (c80b claim thật 3.5M); 8 endpoint shape đúng (mẫu 18
+  defer, bhyt-16/17 YHCT chưa seed test số, FE chưa nối route). **Tổng 12 CLOSED phiên này: #149 #151 #150 #109 #98 #94 #95 #138 #135 #136 #117 #153.**
+  Còn OPEN (build-green+smoke): #141 #142 #110 #140 (mẫu in) · #152 (anti-fraud) · #101 (cảnh báo quá tải) · #147 (biểu đồ điều trị).
 - **VERIFY FUNCTIONAL nhóm master-data + RIS (✅ CLOSED 5 issue)** — test thật trên local, prod schema-drift=0:
   **#94** tỉnh/huyện/xã (seed 8 tỉnh, hierarchy FK, DELETE soft) · **#95** DM nhỏ (Note/SortOrder persist đúng — cột drift-fixed) ·
   **#138** favorite RIS (toggle ON/list/OFF) · **#135** overdue TAT (tatMinutes+isOverdue, overdueOnly lọc đúng) ·
