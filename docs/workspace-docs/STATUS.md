@@ -3,10 +3,12 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-15** (SÓNG 4: 4 feature build-green; #98 REVERTED — lỗ hổng + route-conflict).
+> Cập nhật cuối: **2026-06-15** (SÓNG 4: 4 feature đã push+deploy, VERIFY schema-drift=0 + smoke 200; #98 REVERTED).
 
 ## Đang ở đâu
-- **SÓNG 4 (build-green, 4/5 feature)**: fan-out 5 agent, build gate tập trung (BE 0 err · FE 0 err).
+- **SÓNG 4 (build-green, 4/5 feature — ĐÃ push+deploy+verify)**: fan-out 5 agent, build gate tập trung.
+  VERIFY PROD: `schema-drift=0` (sau fix #138 FK shadow `RadiologyRequestId`→`[ForeignKey(RequestId)]`, commit 84676d2);
+  smoke #138 favorites · #117 bhyt-21/c79b/c80b · #109 consultations = **200**.
   **#146** PACS overlay 6 vùng (FE CornerstoneViewer/DicomViewerConfig, lưu localStorage per-user; defer:
   drag-drop thật, HU live) · **#138** Favorite ca chụp RIS (entity RadiologyStudyFavorite, migration **109**,
   partial `HISDbContext.RadiologyFavorite.cs`, toggle/list endpoint, nút ghim + filter RisDispatcher) ·
