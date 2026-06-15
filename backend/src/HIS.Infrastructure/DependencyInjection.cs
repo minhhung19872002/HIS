@@ -223,6 +223,9 @@ public static class DependencyInjection
         // F10.1 #94: DM Địa danh hành chính (Tỉnh/Huyện/Xã)
         services.AddScoped<IAdministrativeUnitService, AdministrativeUnitService>();
 
+        // F3.4 #151: BN BHYT chi trả 100% thuốc đặc trị
+        services.AddScoped<IBhytFullCoverageService, BhytFullCoverageService>();
+
         // Medical Record Archive (Lưu trữ hồ sơ bệnh án)
         services.AddScoped<IMedicalRecordArchiveService, MedicalRecordArchiveService>();
 

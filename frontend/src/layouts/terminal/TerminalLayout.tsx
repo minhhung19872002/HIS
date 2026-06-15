@@ -109,6 +109,7 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'billing',     path: '/v2/billing',     label: '[24] Viện phí', hot: 3 },
       { id: 'finance',     path: '/v2/finance',     label: '[24] Quản lý tài chính' },
       { id: 'insurance',   path: '/v2/insurance',   label: '[24] Giám định BHYT' },
+      { id: 'bhyt-full-coverage', path: '/v2/bhyt-full-coverage', label: 'BN BHYT chi trả 100%' },
       { id: 'bhxh-audit',  path: '/v2/bhxh-audit',  label: '[24] BHXH kiểm tra' },
       { id: 'procurement', path: '/v2/procurement', label: '[24] Đề xuất - Dự trù' },
       { id: 'finance-catalogs', path: '/v2/finance-catalogs', label: '[24] DM Tài chính' },

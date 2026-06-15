@@ -493,6 +493,13 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<ReportServiceGroupType> ReportServiceGroupTypes => Set<ReportServiceGroupType>();
     public DbSet<ReportServiceGroup> ReportServiceGroups => Set<ReportServiceGroup>();
 
+    // F10.2 #95: DM hành chính nhỏ — Occupations/Genders/Ethnics DbSet đã có sẵn (Icd.cs); chỉ thêm 2 cái mới
+    public DbSet<Nation> Nations => Set<Nation>();
+    public DbSet<InitialFacility> InitialFacilities => Set<InitialFacility>();
+
+    // F3.4 #151: BN BHYT chi trả 100% thuốc đặc trị
+    public DbSet<BhytFullCoveragePatient> BhytFullCoveragePatients => Set<BhytFullCoveragePatient>();
+
     // Luồng 19: Health Information Exchange
     public DbSet<HIEConnection> HIEConnections => Set<HIEConnection>();
     public DbSet<InsuranceXMLSubmission> InsuranceXMLSubmissions => Set<InsuranceXMLSubmission>();

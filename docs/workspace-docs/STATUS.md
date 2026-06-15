@@ -3,9 +3,20 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-15** (chiến dịch multi-feature: Sóng 1 + Sóng 2 = 10 feature, build-green, đã push).
+> Cập nhật cuối: **2026-06-15** (chiến dịch multi-feature: Sóng 1+2+3 = 15 feature build-green; S1+S2 đã push, S3 đang commit).
 
 ## Đang ở đâu
+- **SÓNG 3 (build-green)**: fan-out 5 agent, build gate tập trung (BE 0 err · FE 0 err).
+  **#140** form TNGT đủ trường pháp lý (mũ BH/rượu bia/phương tiện — thêm 5 cột InjuryInfo, migration **104**
+  ALTER, form trong OpdEditor) · **#136** RIS lọc theo Tên đoàn khám (cột `ExamGroupName`, migration **107**
+  — ⚠️ RisDispatcher dùng `/radiology-dispatch/pending`, filter `waiting-list` đã có nhưng tab pending cần
+  nối thêm; cần flow điền ExamGroupName khi tạo từ KSK #98) · **#147** EMR 2 biểu đồ quá trình điều trị
+  (endpoint aggregate drugCounts/diagnosisFrequency, recharts) · **#95** DM hành chính nhỏ (migration **105**
+  — Occupation/Gender/Ethnic ĐÃ CÓ Icd.cs nên reuse + thêm cột Note/SortOrder; chỉ Nation/InitialFacility là
+  entity mới; 5 tab CatalogsAdmin) · **#151** BN BHYT chi trả 100% thuốc đặc trị (migration **106** +
+  nhánh additive trong `ReassignObjectService.ReassignMedicinesAsync`, mặc định BN ngoài DS tính như cũ).
+  ⚠️ Đã sửa 3 lỗi agent ở gate: #95 trùng migration-số (104→105) + trùng entity Occupation/Gender/Ethnic;
+  #147 recharts formatter type. ⚠️ #151 chỉ hook ở ReassignObject — chưa hook lúc tạo đơn BHYT đầu tiên (defer).
 - **SÓNG 2 (build-green, đã push)**: fan-out 5 agent, build gate tập trung (BE 0 err · FE 0 err).
   **#110** Giấy nghỉ dưỡng thai (printType `maternity-leave` + modal nhập tuần thai trong EmrEditor, không
   migration — tái dùng pattern giấy nghỉ ốm) · **#152** chống giả mạo đặt khám (migration **102**
