@@ -19,6 +19,8 @@ interface PrintTemplateRendererProps {
   selectedConsultation?: ConsultationRecordDto | null;
   treatmentSheets?: TreatmentSheetDto[];
   nursingSheets?: NursingCareSheetDto[];
+  /** examinationId — cần cho các form cần fetch thêm data (vd injury-cert). */
+  examinationId?: string;
 }
 
 // Renderer dispatches props per template — declare a loose record-shape so each
@@ -34,6 +36,8 @@ async function loadTemplate(printType: string): Promise<AnyPrintComponent | null
     case 'consultation': return (await import('./EMRPrintTemplates')).ConsultationPrint;
     case 'nursing': return (await import('./EMRPrintTemplates')).NursingCarePrint;
     case 'discharge': return (await import('./EMRPrintTemplates')).DischargeCertificatePrint;
+    case 'treatment-confirm': return (await import('./EMRPrintTemplates')).TreatmentConfirmationPrint;
+    case 'injury-cert': return (await import('./EMRPrintTemplates')).InjuryCertificatePrintLoader;
     case 'referral': return (await import('./EMRPrintTemplates')).ReferralCertificatePrint;
     case 'preanesthetic': return (await import('./EMRPrintTemplates')).PreAnestheticExamPrint;
     case 'consent': return (await import('./EMRPrintTemplates')).SurgeryConsentPrint;
@@ -151,7 +155,7 @@ async function loadTemplate(printType: string): Promise<AnyPrintComponent | null
   }
 }
 
-export default function PrintTemplateRenderer({ printType, record, printRef, selectedConsultation, treatmentSheets, nursingSheets }: PrintTemplateRendererProps) {
+export default function PrintTemplateRenderer({ printType, record, printRef, selectedConsultation, treatmentSheets, nursingSheets, examinationId }: PrintTemplateRendererProps) {
   const [Component, setComponent] = useState<AnyPrintComponent | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -258,6 +262,23 @@ export default function PrintTemplateRenderer({ printType, record, printRef, sel
       gender={record.patient.gender ?? 1}
       age={record.patient.age ?? 0}
       address={record.patient.address}
+    />;
+  }
+  // Treatment confirmation — truyền record + optional context props
+  if (printType === 'treatment-confirm' && record) {
+    return <Component
+      ref={printRef}
+      record={record}
+      admissionDate={record.admissionDate}
+    />;
+  }
+  // Injury certificate — truyền examinationId để loader fetch InjuryInfo
+  if (printType === 'injury-cert' && record) {
+    return <Component
+      ref={printRef}
+      record={record}
+      examinationId={examinationId}
+      admissionDate={record.admissionDate}
     />;
   }
   // Default: record prop with ref

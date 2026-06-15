@@ -74,6 +74,8 @@ const PRINT_FORMS: { label: string; printType: string }[] = [
   { label: 'MS-04 · Phiếu chăm sóc ĐD',         printType: 'nursing' },
   { label: 'DD-01 · Phiếu công khai DV-Thuốc',  printType: 'dd09-meddisclosure' },
   { label: 'BHYT-01 · Tổng hợp thanh toán',      printType: 'finalsummary' }, // dùng tổng kết HSBA làm proxy — chưa có template riêng BHYT-01
+  { label: 'XN-01 · Giấy xác nhận đang điều trị', printType: 'treatment-confirm' },
+  { label: 'CT-01 · Giấy chứng nhận thương tích', printType: 'injury-cert' },
 ];
 
 const EmrEditorV2: React.FC = () => {
@@ -697,6 +699,7 @@ const EmrEditorV2: React.FC = () => {
           <PrintTemplateRenderer
             printType={printPreviewType}
             record={full}
+            examinationId={examId || undefined}
             printRef={printPreviewRef}
             treatmentSheets={treatments}
             nursingSheets={nursing}
