@@ -192,3 +192,31 @@ public class ReportServiceGroup : BaseEntity
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
 }
+
+// F10.2 — DM hanh chinh nho (#95)
+// Occupation/Gender/Ethnic ĐÃ định nghĩa sẵn trong Icd.cs (đã bổ sung Note/SortOrder) — chỉ thêm 2 catalog mới dưới.
+
+// #17 — Quoc gia
+public class Nation : BaseEntity
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Note { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+// #18 — Co so kham chua benh ban dau (CSKCB dang ky BHYT)
+public class InitialFacility : BaseEntity
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Province { get; set; }
+    /// <summary>1 = TW, 2 = tinh, 3 = huyen, 4 = xa</summary>
+    public int? Level { get; set; }
+    /// <summary>Ma CSKCB theo BHXH (dung cho XML BHYT)</summary>
+    public string? BhxhCode { get; set; }
+    public string? Note { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}

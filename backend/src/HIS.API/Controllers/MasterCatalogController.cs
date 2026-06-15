@@ -205,4 +205,71 @@ public class MasterCatalogController : ControllerBase
     [HttpDelete("report-groups/{id:guid}")]
     public async Task<IActionResult> DeleteReportServiceGroup(Guid id) =>
         await _svc.DeleteReportServiceGroupAsync(id) ? Ok() : NotFound();
+
+    // F10.2 — DM hanh chinh nho (#95)
+
+    // #14 Occupation
+    [HttpGet("occupations")]
+    public async Task<IActionResult> GetOccupations([FromQuery] string? keyword) =>
+        Ok(await _svc.GetOccupationsAsync(keyword));
+
+    [HttpPost("occupations")]
+    public async Task<IActionResult> SaveOccupation([FromBody] OccupationDto dto) =>
+        Ok(await _svc.SaveOccupationAsync(dto, UserId));
+
+    [HttpDelete("occupations/{id:guid}")]
+    public async Task<IActionResult> DeleteOccupation(Guid id) =>
+        await _svc.DeleteOccupationAsync(id) ? Ok() : NotFound();
+
+    // #15 Gender
+    [HttpGet("genders")]
+    public async Task<IActionResult> GetGenders([FromQuery] string? keyword) =>
+        Ok(await _svc.GetGendersAsync(keyword));
+
+    [HttpPost("genders")]
+    public async Task<IActionResult> SaveGender([FromBody] GenderDto dto) =>
+        Ok(await _svc.SaveGenderAsync(dto, UserId));
+
+    [HttpDelete("genders/{id:guid}")]
+    public async Task<IActionResult> DeleteGender(Guid id) =>
+        await _svc.DeleteGenderAsync(id) ? Ok() : NotFound();
+
+    // #16 Ethnic
+    [HttpGet("ethnics")]
+    public async Task<IActionResult> GetEthnics([FromQuery] string? keyword) =>
+        Ok(await _svc.GetEthnicsAsync(keyword));
+
+    [HttpPost("ethnics")]
+    public async Task<IActionResult> SaveEthnic([FromBody] EthnicDto dto) =>
+        Ok(await _svc.SaveEthnicAsync(dto, UserId));
+
+    [HttpDelete("ethnics/{id:guid}")]
+    public async Task<IActionResult> DeleteEthnicAsync(Guid id) =>
+        await _svc.DeleteEthnicAsync(id) ? Ok() : NotFound();
+
+    // #17 Nation
+    [HttpGet("nations")]
+    public async Task<IActionResult> GetNations([FromQuery] string? keyword) =>
+        Ok(await _svc.GetNationsAsync(keyword));
+
+    [HttpPost("nations")]
+    public async Task<IActionResult> SaveNation([FromBody] NationDto dto) =>
+        Ok(await _svc.SaveNationAsync(dto, UserId));
+
+    [HttpDelete("nations/{id:guid}")]
+    public async Task<IActionResult> DeleteNation(Guid id) =>
+        await _svc.DeleteNationAsync(id) ? Ok() : NotFound();
+
+    // #18 InitialFacility
+    [HttpGet("initial-facilities")]
+    public async Task<IActionResult> GetInitialFacilities([FromQuery] string? keyword) =>
+        Ok(await _svc.GetInitialFacilitiesAsync(keyword));
+
+    [HttpPost("initial-facilities")]
+    public async Task<IActionResult> SaveInitialFacility([FromBody] InitialFacilityDto dto) =>
+        Ok(await _svc.SaveInitialFacilityAsync(dto, UserId));
+
+    [HttpDelete("initial-facilities/{id:guid}")]
+    public async Task<IActionResult> DeleteInitialFacility(Guid id) =>
+        await _svc.DeleteInitialFacilityAsync(id) ? Ok() : NotFound();
 }

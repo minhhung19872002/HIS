@@ -280,3 +280,93 @@ export const saveReportServiceGroup = (dto: Partial<ReportServiceGroupDto>) =>
   apiClient.post<ReportServiceGroupDto>(`${BASE}/report-groups`, dto).then(r => unwrap<ReportServiceGroupDto>(r.data));
 export const deleteReportServiceGroup = (id: string) =>
   apiClient.delete(`${BASE}/report-groups/${id}`);
+
+// ───── F10.2 DM hanh chinh nho (#95) ─────
+
+export interface OccupationDto {
+  id: string;
+  code: string;
+  name: string;
+  note?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface GenderDto {
+  id: string;
+  code: string;
+  name: string;
+  note?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface EthnicDto {
+  id: string;
+  code: string;
+  name: string;
+  note?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface NationDto {
+  id: string;
+  code: string;
+  name: string;
+  note?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface InitialFacilityDto {
+  id: string;
+  code: string;
+  name: string;
+  province?: string;
+  level?: number;
+  bhxhCode?: string;
+  note?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+// ───── #14 Occupation ─────
+export const getOccupations = (keyword?: string) =>
+  apiClient.get<OccupationDto[]>(`${BASE}/occupations`, { params: { keyword } }).then(r => unwrap<OccupationDto[]>(r.data));
+export const saveOccupation = (dto: Partial<OccupationDto>) =>
+  apiClient.post<OccupationDto>(`${BASE}/occupations`, dto).then(r => unwrap<OccupationDto>(r.data));
+export const deleteOccupation = (id: string) =>
+  apiClient.delete(`${BASE}/occupations/${id}`);
+
+// ───── #15 Gender ─────
+export const getGenders = (keyword?: string) =>
+  apiClient.get<GenderDto[]>(`${BASE}/genders`, { params: { keyword } }).then(r => unwrap<GenderDto[]>(r.data));
+export const saveGender = (dto: Partial<GenderDto>) =>
+  apiClient.post<GenderDto>(`${BASE}/genders`, dto).then(r => unwrap<GenderDto>(r.data));
+export const deleteGender = (id: string) =>
+  apiClient.delete(`${BASE}/genders/${id}`);
+
+// ───── #16 Ethnic ─────
+export const getEthnics = (keyword?: string) =>
+  apiClient.get<EthnicDto[]>(`${BASE}/ethnics`, { params: { keyword } }).then(r => unwrap<EthnicDto[]>(r.data));
+export const saveEthnic = (dto: Partial<EthnicDto>) =>
+  apiClient.post<EthnicDto>(`${BASE}/ethnics`, dto).then(r => unwrap<EthnicDto>(r.data));
+export const deleteEthnic = (id: string) =>
+  apiClient.delete(`${BASE}/ethnics/${id}`);
+
+// ───── #17 Nation ─────
+export const getNations = (keyword?: string) =>
+  apiClient.get<NationDto[]>(`${BASE}/nations`, { params: { keyword } }).then(r => unwrap<NationDto[]>(r.data));
+export const saveNation = (dto: Partial<NationDto>) =>
+  apiClient.post<NationDto>(`${BASE}/nations`, dto).then(r => unwrap<NationDto>(r.data));
+export const deleteNation = (id: string) =>
+  apiClient.delete(`${BASE}/nations/${id}`);
+
+// ───── #18 InitialFacility ─────
+export const getInitialFacilities = (keyword?: string) =>
+  apiClient.get<InitialFacilityDto[]>(`${BASE}/initial-facilities`, { params: { keyword } }).then(r => unwrap<InitialFacilityDto[]>(r.data));
+export const saveInitialFacility = (dto: Partial<InitialFacilityDto>) =>
+  apiClient.post<InitialFacilityDto>(`${BASE}/initial-facilities`, dto).then(r => unwrap<InitialFacilityDto>(r.data));
+export const deleteInitialFacility = (id: string) =>
+  apiClient.delete(`${BASE}/initial-facilities/${id}`);

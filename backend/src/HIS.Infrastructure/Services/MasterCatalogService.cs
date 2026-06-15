@@ -537,4 +537,164 @@ public class MasterCatalogService : IMasterCatalogService
         if (e == null) return false;
         e.IsDeleted = true; await _db.SaveChangesAsync(); return true;
     }
+
+    // ─────────────── F10.2 DM hanh chinh nho (#95) ───────────────
+
+    // #14 Occupation
+    public async Task<List<OccupationDto>> GetOccupationsAsync(string? keyword)
+    {
+        var q = _db.Set<Occupation>().Where(o => !o.IsDeleted);
+        if (!string.IsNullOrWhiteSpace(keyword))
+            q = q.Where(o => o.Name.Contains(keyword) || o.Code.Contains(keyword));
+        return await q.OrderBy(o => o.SortOrder).ThenBy(o => o.Name)
+            .Select(o => new OccupationDto
+            {
+                Id = o.Id, Code = o.Code, Name = o.Name,
+                Note = o.Note, SortOrder = o.SortOrder, IsActive = o.IsActive
+            }).ToListAsync();
+    }
+
+    public async Task<OccupationDto> SaveOccupationAsync(OccupationDto dto, string? userId)
+    {
+        Occupation e;
+        if (dto.Id == Guid.Empty) { e = new(); _db.Set<Occupation>().Add(e); e.CreatedBy = Normalize(userId); }
+        else { e = await _db.Set<Occupation>().FirstAsync(o => o.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
+        e.Code = dto.Code; e.Name = dto.Name; e.Note = dto.Note;
+        e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
+        await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
+    }
+
+    public async Task<bool> DeleteOccupationAsync(Guid id)
+    {
+        var e = await _db.Set<Occupation>().FirstOrDefaultAsync(o => o.Id == id);
+        if (e == null) return false;
+        e.IsDeleted = true; await _db.SaveChangesAsync(); return true;
+    }
+
+    // #15 Gender
+    public async Task<List<GenderDto>> GetGendersAsync(string? keyword)
+    {
+        var q = _db.Set<Gender>().Where(g => !g.IsDeleted);
+        if (!string.IsNullOrWhiteSpace(keyword))
+            q = q.Where(g => g.Name.Contains(keyword) || g.Code.Contains(keyword));
+        return await q.OrderBy(g => g.SortOrder).ThenBy(g => g.Name)
+            .Select(g => new GenderDto
+            {
+                Id = g.Id, Code = g.Code, Name = g.Name,
+                Note = g.Note, SortOrder = g.SortOrder, IsActive = g.IsActive
+            }).ToListAsync();
+    }
+
+    public async Task<GenderDto> SaveGenderAsync(GenderDto dto, string? userId)
+    {
+        Gender e;
+        if (dto.Id == Guid.Empty) { e = new(); _db.Set<Gender>().Add(e); e.CreatedBy = Normalize(userId); }
+        else { e = await _db.Set<Gender>().FirstAsync(g => g.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
+        e.Code = dto.Code; e.Name = dto.Name; e.Note = dto.Note;
+        e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
+        await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
+    }
+
+    public async Task<bool> DeleteGenderAsync(Guid id)
+    {
+        var e = await _db.Set<Gender>().FirstOrDefaultAsync(g => g.Id == id);
+        if (e == null) return false;
+        e.IsDeleted = true; await _db.SaveChangesAsync(); return true;
+    }
+
+    // #16 Ethnic
+    public async Task<List<EthnicDto>> GetEthnicsAsync(string? keyword)
+    {
+        var q = _db.Set<Ethnic>().Where(e => !e.IsDeleted);
+        if (!string.IsNullOrWhiteSpace(keyword))
+            q = q.Where(e => e.Name.Contains(keyword) || e.Code.Contains(keyword));
+        return await q.OrderBy(e => e.SortOrder).ThenBy(e => e.Name)
+            .Select(e => new EthnicDto
+            {
+                Id = e.Id, Code = e.Code, Name = e.Name,
+                Note = e.Note, SortOrder = e.SortOrder, IsActive = e.IsActive
+            }).ToListAsync();
+    }
+
+    public async Task<EthnicDto> SaveEthnicAsync(EthnicDto dto, string? userId)
+    {
+        Ethnic e;
+        if (dto.Id == Guid.Empty) { e = new(); _db.Set<Ethnic>().Add(e); e.CreatedBy = Normalize(userId); }
+        else { e = await _db.Set<Ethnic>().FirstAsync(x => x.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
+        e.Code = dto.Code; e.Name = dto.Name; e.Note = dto.Note;
+        e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
+        await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
+    }
+
+    public async Task<bool> DeleteEthnicAsync(Guid id)
+    {
+        var e = await _db.Set<Ethnic>().FirstOrDefaultAsync(x => x.Id == id);
+        if (e == null) return false;
+        e.IsDeleted = true; await _db.SaveChangesAsync(); return true;
+    }
+
+    // #17 Nation
+    public async Task<List<NationDto>> GetNationsAsync(string? keyword)
+    {
+        var q = _db.Set<Nation>().Where(n => !n.IsDeleted);
+        if (!string.IsNullOrWhiteSpace(keyword))
+            q = q.Where(n => n.Name.Contains(keyword) || n.Code.Contains(keyword));
+        return await q.OrderBy(n => n.SortOrder).ThenBy(n => n.Name)
+            .Select(n => new NationDto
+            {
+                Id = n.Id, Code = n.Code, Name = n.Name,
+                Note = n.Note, SortOrder = n.SortOrder, IsActive = n.IsActive
+            }).ToListAsync();
+    }
+
+    public async Task<NationDto> SaveNationAsync(NationDto dto, string? userId)
+    {
+        Nation e;
+        if (dto.Id == Guid.Empty) { e = new(); _db.Set<Nation>().Add(e); e.CreatedBy = Normalize(userId); }
+        else { e = await _db.Set<Nation>().FirstAsync(n => n.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
+        e.Code = dto.Code; e.Name = dto.Name; e.Note = dto.Note;
+        e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
+        await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
+    }
+
+    public async Task<bool> DeleteNationAsync(Guid id)
+    {
+        var e = await _db.Set<Nation>().FirstOrDefaultAsync(n => n.Id == id);
+        if (e == null) return false;
+        e.IsDeleted = true; await _db.SaveChangesAsync(); return true;
+    }
+
+    // #18 InitialFacility
+    public async Task<List<InitialFacilityDto>> GetInitialFacilitiesAsync(string? keyword)
+    {
+        var q = _db.Set<InitialFacility>().Where(f => !f.IsDeleted);
+        if (!string.IsNullOrWhiteSpace(keyword))
+            q = q.Where(f => f.Name.Contains(keyword) || f.Code.Contains(keyword)
+                           || (f.BhxhCode ?? "").Contains(keyword));
+        return await q.OrderBy(f => f.SortOrder).ThenBy(f => f.Name)
+            .Select(f => new InitialFacilityDto
+            {
+                Id = f.Id, Code = f.Code, Name = f.Name, Province = f.Province,
+                Level = f.Level, BhxhCode = f.BhxhCode,
+                Note = f.Note, SortOrder = f.SortOrder, IsActive = f.IsActive
+            }).ToListAsync();
+    }
+
+    public async Task<InitialFacilityDto> SaveInitialFacilityAsync(InitialFacilityDto dto, string? userId)
+    {
+        InitialFacility e;
+        if (dto.Id == Guid.Empty) { e = new(); _db.Set<InitialFacility>().Add(e); e.CreatedBy = Normalize(userId); }
+        else { e = await _db.Set<InitialFacility>().FirstAsync(f => f.Id == dto.Id); e.UpdatedBy = Normalize(userId); }
+        e.Code = dto.Code; e.Name = dto.Name; e.Province = dto.Province;
+        e.Level = dto.Level; e.BhxhCode = dto.BhxhCode;
+        e.Note = dto.Note; e.SortOrder = dto.SortOrder; e.IsActive = dto.IsActive;
+        await _db.SaveChangesAsync(); dto.Id = e.Id; return dto;
+    }
+
+    public async Task<bool> DeleteInitialFacilityAsync(Guid id)
+    {
+        var e = await _db.Set<InitialFacility>().FirstOrDefaultAsync(f => f.Id == id);
+        if (e == null) return false;
+        e.IsDeleted = true; await _db.SaveChangesAsync(); return true;
+    }
 }

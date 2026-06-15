@@ -75,4 +75,30 @@ public interface IMasterCatalogService
     Task<List<ReportServiceGroupDto>> GetReportServiceGroupsAsync(Guid? typeId);
     Task<ReportServiceGroupDto> SaveReportServiceGroupAsync(ReportServiceGroupDto dto, string? userId);
     Task<bool> DeleteReportServiceGroupAsync(Guid id);
+
+    // F10.2 — DM hanh chinh nho (#95)
+    // #14 Occupation
+    Task<List<OccupationDto>> GetOccupationsAsync(string? keyword);
+    Task<OccupationDto> SaveOccupationAsync(OccupationDto dto, string? userId);
+    Task<bool> DeleteOccupationAsync(Guid id);
+
+    // #15 Gender
+    Task<List<GenderDto>> GetGendersAsync(string? keyword);
+    Task<GenderDto> SaveGenderAsync(GenderDto dto, string? userId);
+    Task<bool> DeleteGenderAsync(Guid id);
+
+    // #16 Ethnic
+    Task<List<EthnicDto>> GetEthnicsAsync(string? keyword);
+    Task<EthnicDto> SaveEthnicAsync(EthnicDto dto, string? userId);
+    Task<bool> DeleteEthnicAsync(Guid id);
+
+    // #17 Nation
+    Task<List<NationDto>> GetNationsAsync(string? keyword);
+    Task<NationDto> SaveNationAsync(NationDto dto, string? userId);
+    Task<bool> DeleteNationAsync(Guid id);
+
+    // #18 InitialFacility
+    Task<List<InitialFacilityDto>> GetInitialFacilitiesAsync(string? keyword);
+    Task<InitialFacilityDto> SaveInitialFacilityAsync(InitialFacilityDto dto, string? userId);
+    Task<bool> DeleteInitialFacilityAsync(Guid id);
 }
