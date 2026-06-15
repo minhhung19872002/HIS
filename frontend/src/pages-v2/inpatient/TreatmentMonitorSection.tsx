@@ -8,7 +8,9 @@ import React, { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input, InputNumber, Select, DatePicker, Checkbox, Tag } from 'antd';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  LineChart, Line,
+  BarChart, Bar, Cell,
+  XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import {
@@ -28,7 +30,9 @@ import {
   saveInpatientDiagnosis,
   getTreatmentSheets,
   printTreatmentSheet,
+  getTreatmentStatAggregate,
   type TreatmentSheetDto,
+  type TreatmentStatAggregateDto,
 } from '../../api/inpatient';
 import { getWarehouses } from '../../api/warehouse';
 import type { WarehouseDto } from '../../api/warehouse';
@@ -1730,6 +1734,142 @@ const TreatmentSheetsModal: React.FC<{
 };
 
 // ---------------------------------------------------------------------------
+// F8.13 — TreatmentStatSection: 2 bieu do thong ke qua trinh dieu tri
+// ---------------------------------------------------------------------------
+
+const CHART_COLORS = [
+  '#0891b2', '#d97706', '#059669', '#7c3aed', '#dc2626',
+  '#2563eb', '#65a30d', '#db2777', '#b45309', '#0369a1',
+];
+
+const TreatmentStatSection: React.FC<{ admissionId: string }> = ({ admissionId }) => {
+  const [data, setData] = useState<TreatmentStatAggregateDto | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!admissionId) return;
+    setLoading(true);
+    setError(false);
+    getTreatmentStatAggregate(admissionId)
+      .then((r) => setData(r.data ?? null))
+      .catch(() => { setError(true); setData(null); })
+      .finally(() => setLoading(false));
+  }, [admissionId]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 12, color: 'var(--t-2)' }}>
+        Dang tai bieu do thong ke…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '8px 0', fontSize: 12, color: 'var(--s-crit, #dc2626)' }}>
+        Khong tai duoc thong ke. Thu lai sau.
+      </div>
+    );
+  }
+
+  const hasDrugs = (data?.drugCounts?.length ?? 0) > 0;
+  const hasDiag = (data?.diagnosisFrequency?.length ?? 0) > 0;
+
+  if (!hasDrugs && !hasDiag) {
+    return (
+      <div style={{ padding: '8px 0', fontSize: 12, color: 'var(--t-3, #9ca3af)' }}>
+        Chua co du lieu thong ke (can it nhat 1 don thuoc noi tru duoc duyet).
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingTop: 4 }}>
+      {/* Bieu do 1: So luong tung thuoc */}
+      {hasDrugs && (
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-1)', marginBottom: 8 }}>
+            <TermIcon name="pill" size={11} /> So luong tung thuoc (tong hop don noi tru)
+          </div>
+          <div style={{ width: '100%', height: Math.max(180, (data!.drugCounts.length * 32) + 40) }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={data!.drugCounts}
+                layout="vertical"
+                margin={{ top: 4, right: 40, bottom: 4, left: 8 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--line-soft)" horizontal={false} />
+                <XAxis type="number" fontSize={10} domain={[0, 'auto']} allowDecimals={false} />
+                <YAxis
+                  type="category"
+                  dataKey="medicineName"
+                  fontSize={10}
+                  width={160}
+                  tick={{ textAnchor: 'end' }}
+                />
+                <RTooltip
+                  formatter={(val) => [val ?? 0, 'So luong']}
+                  labelFormatter={(label) => label}
+                />
+                <Bar dataKey="totalQuantity" name="So luong" radius={[0, 3, 3, 0]} isAnimationActive={false}>
+                  {data!.drugCounts.map((_entry, index) => (
+                    <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* Bieu do 2: Tan suat tung ma chan doan */}
+      {hasDiag && (
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-1)', marginBottom: 8 }}>
+            <TermIcon name="clipboard" size={11} /> Tan suat ma chan doan ICD-10 (qua cac don thuoc)
+          </div>
+          <div style={{ width: '100%', height: Math.max(150, (data!.diagnosisFrequency.length * 32) + 40) }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={data!.diagnosisFrequency}
+                layout="vertical"
+                margin={{ top: 4, right: 40, bottom: 4, left: 8 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--line-soft)" horizontal={false} />
+                <XAxis type="number" fontSize={10} domain={[0, 'auto']} allowDecimals={false} />
+                <YAxis
+                  type="category"
+                  dataKey="diagnosisCode"
+                  fontSize={10}
+                  width={80}
+                  tick={{ textAnchor: 'end' }}
+                />
+                <RTooltip
+                  formatter={(val, _name, item) => {
+                    const p = (item?.payload ?? {}) as { diagnosisCode?: string; diagnosisName?: string };
+                    const label = p.diagnosisName
+                      ? `${p.diagnosisCode} — ${p.diagnosisName}`
+                      : (p.diagnosisCode ?? '');
+                    return [val ?? 0, label];
+                  }}
+                  labelFormatter={(label) => `Ma CĐ: ${label}`}
+                />
+                <Bar dataKey="count" name="So don" radius={[0, 3, 3, 0]} isAnimationActive={false}>
+                  {data!.diagnosisFrequency.map((_entry, index) => (
+                    <Cell key={index} fill={CHART_COLORS[(index + 3) % CHART_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Main section component — rendered inside the patient detail drawer
 // ---------------------------------------------------------------------------
 
@@ -1892,6 +2032,14 @@ const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patie
 
       {/* G-01: Trả KQ XN tại giường — section riêng, không dùng modal trigger */}
       <BedLabResultSection admissionId={patient.admissionId} />
+
+      {/* F8.13: 2 bieu do thong ke qua trinh dieu tri */}
+      <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid var(--line-soft)' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-1)', marginBottom: 12 }}>
+          <TermIcon name="bar-chart-2" size={12} /> THONG KE QUA TRINH DIEU TRI
+        </div>
+        <TreatmentStatSection admissionId={patient.admissionId} />
+      </div>
 
       {/* In tờ điều trị nhiều đợt */}
       <TreatmentSheetsModal

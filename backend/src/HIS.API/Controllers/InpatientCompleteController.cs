@@ -176,6 +176,14 @@ public partial class InpatientCompleteController : ControllerBase
         return Ok(new { summary });
     }
 
+    /// <summary>F8.13: aggregate thong ke qua trinh dieu tri — so luong tung thuoc + tan suat tung ma chan doan.</summary>
+    [HttpGet("{admissionId}/treatment-stat-aggregate")]
+    public async Task<ActionResult<TreatmentStatAggregateDto>> GetTreatmentStatAggregate(Guid admissionId)
+    {
+        var result = await _inpatientService.GetTreatmentStatAggregateAsync(admissionId);
+        return Ok(result);
+    }
+
     /// <summary>
     /// Tiếp nhận bệnh nhân từ khoa khác
     /// </summary>

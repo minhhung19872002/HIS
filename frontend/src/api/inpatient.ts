@@ -798,6 +798,24 @@ export interface VitalSignsPointDto {
   value2?: number;
 }
 
+// F8.13 — aggregate thong ke qua trinh dieu tri
+export interface DrugCountItemDto {
+  medicineId: string;
+  medicineName: string;
+  totalQuantity: number;
+}
+
+export interface DiagnosisFrequencyItemDto {
+  diagnosisCode: string;
+  diagnosisName: string;
+  count: number;
+}
+
+export interface TreatmentStatAggregateDto {
+  drugCounts: DrugCountItemDto[];
+  diagnosisFrequency: DiagnosisFrequencyItemDto[];
+}
+
 export interface ConsultationDto {
   id: string;
   admissionId: string;
@@ -1583,6 +1601,10 @@ export const printNutritionSummary = (departmentId: string, date: string) =>
 /** #15: BE tự tổng hợp tóm tắt quá trình điều trị (SOAP + đơn + CLS + PTTT) — prefill bệnh án ra viện. */
 export const getAutoTreatmentSummary = (admissionId: string) =>
   apiClient.get<{ summary?: string }>(`${BASE_URL}/${admissionId}/auto-summary`);
+
+/** F8.13: aggregate thong ke qua trinh dieu tri — so luong tung thuoc + tan suat tung ma chan doan. */
+export const getTreatmentStatAggregate = (admissionId: string) =>
+  apiClient.get<TreatmentStatAggregateDto>(`${BASE_URL}/${admissionId}/treatment-stat-aggregate`);
 
 export const createTreatmentSheet = (dto: CreateTreatmentSheetDto) =>
   apiClient.post<TreatmentSheetDto>(`${BASE_URL}/treatment-sheets`, dto);

@@ -1,5 +1,39 @@
 namespace HIS.Application.DTOs.Inpatient;
 
+#region Thong ke qua trinh dieu tri
+
+/// <summary>
+/// F8.13 — aggregate thong ke qua trinh dieu tri 1 admission:
+/// (1) so luong tung thuoc, (2) tan suat tung ma chan doan
+/// </summary>
+public class TreatmentStatAggregateDto
+{
+    /// <summary>So luong tung thuoc (tu PrescriptionDetail noi tru, tru huy)</summary>
+    public List<DrugCountItemDto> DrugCounts { get; set; } = new();
+    /// <summary>Tan suat tung ma chan doan ICD-10 (tu Prescription.DiagnosisCode)</summary>
+    public List<DiagnosisFrequencyItemDto> DiagnosisFrequency { get; set; } = new();
+}
+
+/// <summary>1 dong trong bieu do so luong thuoc</summary>
+public class DrugCountItemDto
+{
+    public string MedicineId { get; set; } = string.Empty;
+    public string MedicineName { get; set; } = string.Empty;
+    /// <summary>Tong so luong (decimal giu nguyen de hien thi chinh xac)</summary>
+    public decimal TotalQuantity { get; set; }
+}
+
+/// <summary>1 dong trong bieu do tan suat chan doan</summary>
+public class DiagnosisFrequencyItemDto
+{
+    public string DiagnosisCode { get; set; } = string.Empty;
+    public string DiagnosisName { get; set; } = string.Empty;
+    /// <summary>So don thuoc chua ma chan doan nay</summary>
+    public int Count { get; set; }
+}
+
+#endregion
+
 #region Chẩn đoán nội trú
 
 /// <summary>

@@ -922,6 +922,65 @@ public partial class InpatientCompleteService {
         return sb.ToString();
     }
 
+    public async Task<TreatmentStatAggregateDto> GetTreatmentStatAggregateAsync(Guid admissionId)
+    {
+        // Lay MedicalRecordId tu admission
+        var mrId = await _context.Set<Admission>()
+            .Where(a => a.Id == admissionId)
+            .Select(a => (Guid?)a.MedicalRecordId)
+            .FirstOrDefaultAsync();
+        if (mrId == null) return new TreatmentStatAggregateDto();
+
+        // --- Drug counts: lay tu don thuoc noi tru (PrescriptionType=2), tru da huy (Status=4) ---
+        var prescriptionIds = await _context.Prescriptions
+            .Where(p => p.MedicalRecordId == mrId.Value
+                     && p.PrescriptionType == 2
+                     && p.Status != 4
+                     && !p.IsDeleted)
+            .Select(p => p.Id)
+            .ToListAsync();
+
+        // Join PrescriptionDetail + Medicine de lay ten thuoc, khong dung Include truoc GroupBy (EF Core constraint)
+        var drugCounts = await _context.Set<PrescriptionDetail>()
+            .Where(d => prescriptionIds.Contains(d.PrescriptionId))
+            .Join(_context.Set<Medicine>(),
+                d => d.MedicineId,
+                m => m.Id,
+                (d, m) => new { d.MedicineId, m.MedicineName, d.Quantity })
+            .GroupBy(x => new { x.MedicineId, x.MedicineName })
+            .Select(g => new DrugCountItemDto
+            {
+                MedicineId = g.Key.MedicineId.ToString(),
+                MedicineName = g.Key.MedicineName,
+                TotalQuantity = g.Sum(x => x.Quantity),
+            })
+            .OrderByDescending(x => x.TotalQuantity)
+            .ToListAsync();
+
+        // --- Diagnosis frequency: dem theo DiagnosisCode tu Prescription noi tru ---
+        var diagFrequency = await _context.Prescriptions
+            .Where(p => p.MedicalRecordId == mrId.Value
+                     && p.PrescriptionType == 2
+                     && p.Status != 4
+                     && !p.IsDeleted
+                     && p.DiagnosisCode != null && p.DiagnosisCode != string.Empty)
+            .GroupBy(p => new { p.DiagnosisCode, p.DiagnosisName })
+            .Select(g => new DiagnosisFrequencyItemDto
+            {
+                DiagnosisCode = g.Key.DiagnosisCode!,
+                DiagnosisName = g.Key.DiagnosisName ?? string.Empty,
+                Count = g.Count(),
+            })
+            .OrderByDescending(x => x.Count)
+            .ToListAsync();
+
+        return new TreatmentStatAggregateDto
+        {
+            DrugCounts = drugCounts,
+            DiagnosisFrequency = diagFrequency,
+        };
+    }
+
     public async Task<byte[]> PrintLabResultsAsync(Guid admissionId, List<Guid> resultIds)
     {
         var admission = await _context.Set<Admission>()

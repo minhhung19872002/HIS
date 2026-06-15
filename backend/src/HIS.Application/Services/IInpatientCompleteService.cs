@@ -173,6 +173,12 @@ public interface IInpatientCompleteService
     Task<string> GenerateTreatmentSummaryAsync(Guid admissionId);
 
     /// <summary>
+    /// F8.13: aggregate thong ke qua trinh dieu tri — dem so luong tung thuoc + tan suat tung ma chan doan
+    /// qua cac don thuoc noi tru (PrescriptionType=2) cua 1 admission.
+    /// </summary>
+    Task<TreatmentStatAggregateDto> GetTreatmentStatAggregateAsync(Guid admissionId);
+
+    /// <summary>
     /// Lấy kết quả CLS của bệnh nhân
     /// </summary>
     Task<List<LabResultItemDto>> GetLabResultsAsync(Guid admissionId, DateTime? fromDate, DateTime? toDate);
