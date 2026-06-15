@@ -3,14 +3,18 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-15** (verify-functional + CLOSED nhóm mẫu in #140 #110 #141 #142 — **TẤT CẢ 19 feature phiên này đã verify + CLOSED**).
+> Cập nhật cuối: **2026-06-16** (phiên Claude máy D: — feature v2 nối tiếp #145/#85/#86 (PUSHED) + #89/#87 (chờ push); governance sync-gate đã push).
 
 ## Đang ở đâu
-- **#89 F8.8 — BA chuyên khoa v2: thêm type Nhi YHCT (MS.20) (code-complete, build-green FE+BE, chờ push)**: gap hẹp
-  = type thiếu ở trang nhập v2 (print NhiYHCTBAPrint + renderer `sp-nhiyhct` ĐÃ wire sẵn). Thêm key
-  `pediatric_traditional` vào `SPECIALTY_TYPES` + field config (tứ chẩn nhi + cân nặng) trong `constants/specialtyEmr.ts`
-  (SPECIALTY_LABEL auto-derive; v2 print dùng report generic theo field) + nhánh `MapSpecialtyTypeName` (SpecialtyEmrService.cs).
-  FE build EXIT 0 + BE 0 errors. → chờ duyệt push + `Closes #89`.
+- **#87 F8.5 — EMR duyệt lưu trữ 2 cấp (buồng bệnh → KHTH) (code-complete, build-green FE+BE, chờ push)**:
+  thiết kế **KHÔNG migration** — cấp 1 (khoa) = log `EmrAmendment` Action=4 (reuse), cấp 2 (KHTH) = finalize sẵn.
+  BE (`EmrAdminDTOs`/`IEmrAdminService`/`EmrAdminService`/`EmrAdminController`): `DeptApproveRecordAsync` +
+  `GetArchiveApprovalAsync` (trả 2 cấp + late-days vs hạn const 10 ngày, tính runtime từ DischargeDate) + 2 endpoint
+  `dept-approve`/`archive-approval`. FE (`emrAdmin.ts` + `pages-v2/MedicalRecordArchive.tsx`): DrSec duyệt 2 cấp +
+  nút Duyệt cấp1/KHTH (UI enforce thứ tự) + cảnh báo nộp muộn. FE EXIT 0 + BE 0 errors. ⚠️ chưa runtime-test
+  (DB local off) → smoke sau deploy. → chờ duyệt push + `Closes #87`.
+- **#89 F8.8 — Nhi YHCT MS.20 (✅ committed `fa8ad08`, chờ push)** — key `pediatric_traditional` + field config
+  (`specialtyEmr.ts`) + nhánh `MapSpecialtyTypeName`; print đã wire sẵn. `Closes #89`.
 - **#85 #86 EMR config v2 (✅ DONE, PUSHED `824896b`, CLOSED)** — #85 trích lục watermark (`pages-v2/EmrExtract.tsx`),
   #86 Data Tag config (`pages-v2/EmrDataTags.tsx` + fix lệch FE/BE `EmrDataTagDto`). Atomic Closes.
 - **#145 F8.12 — Picker "Diễn biến mẫu" (✅ DONE, PUSHED `d6886fb`, CLOSED)** — pre-flight chuẩn (sync→verify→claim)
