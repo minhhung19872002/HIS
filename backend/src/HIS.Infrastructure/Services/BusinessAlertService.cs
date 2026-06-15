@@ -1314,6 +1314,8 @@ public class BusinessAlertService : IBusinessAlertService
                 .DefaultIfEmpty(0)
                 .Max();
             var lookbackHours = Math.Max(fallbackHours, maxLookbackDays * 24 + 1); // +1 to include boundary
+            // Per-episode rules need a wide lookback (an episode can span weeks) — extend to 90 days
+            if (specialRuleMap.Values.Any(r => r.WindowType == 0)) lookbackHours = 90 * 24;
             // Cap at 90 days to avoid full-table scans
             if (lookbackHours > 90 * 24) lookbackHours = 90 * 24;
 
