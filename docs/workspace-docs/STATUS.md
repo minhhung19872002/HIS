@@ -6,24 +6,17 @@
 > Cập nhật cuối: **2026-06-16** (phiên Claude máy D: — feature v2 nối tiếp #145/#85/#86 (PUSHED) + #89/#87 (chờ push); governance sync-gate đã push).
 
 ## Đang ở đâu
-- **#155 F1.9 — Phiếu khám tâm lý trước mổ (code-complete, build-green FE+BE, chờ push)**: thêm field
-  `PsychologicalAssessment` xuyên stack — entity `AnesthesiaRecord` (Icd.cs) + **migration 113** (idempotent
-  ALTER ADD nullable, auto-apply startup) + 2 DTO (`AnesthesiaRecordDto`/`AnesthesiaSaveDto`) + 3 mapping service +
-  section "Khám tâm lý trước mổ" trong `PreAnesthesiaModal` (SurgeryFormModals.tsx, reuse pattern preOpAssessment)
-  + in (AnesthesiaPrintTemplates 2 chỗ). FE EXIT 0 + BE 0 errors. ⚠️ migration chưa runtime-test (DB off) → verify
-  schema-drift sau deploy. (Lưu ý: 2 anesthesia-modal khác partial-save sẵn omit preOpAssessment — pre-existing,
-  out-of-scope.) → chờ push + `Closes #155`.
-- **#87 F8.5 — EMR duyệt lưu trữ 2 cấp (buồng bệnh → KHTH) (code-complete, build-green FE+BE, chờ push)**:
-  thiết kế **KHÔNG migration** — cấp 1 (khoa) = log `EmrAmendment` Action=4 (reuse), cấp 2 (KHTH) = finalize sẵn.
-  BE (`EmrAdminDTOs`/`IEmrAdminService`/`EmrAdminService`/`EmrAdminController`): `DeptApproveRecordAsync` +
-  `GetArchiveApprovalAsync` (trả 2 cấp + late-days vs hạn const 10 ngày, tính runtime từ DischargeDate) + 2 endpoint
-  `dept-approve`/`archive-approval`. FE (`emrAdmin.ts` + `pages-v2/MedicalRecordArchive.tsx`): DrSec duyệt 2 cấp +
-  nút Duyệt cấp1/KHTH (UI enforce thứ tự) + cảnh báo nộp muộn. FE EXIT 0 + BE 0 errors. ⚠️ chưa runtime-test
-  (DB local off) → smoke sau deploy. → chờ duyệt push + `Closes #87`.
-- **#89 F8.8 — Nhi YHCT MS.20 (✅ committed `fa8ad08`, chờ push)** — key `pediatric_traditional` + field config
-  (`specialtyEmr.ts`) + nhánh `MapSpecialtyTypeName`; print đã wire sẵn. `Closes #89`.
-- **#85 #86 EMR config v2 (✅ DONE, PUSHED `824896b`, CLOSED)** — #85 trích lục watermark (`pages-v2/EmrExtract.tsx`),
-  #86 Data Tag config (`pages-v2/EmrDataTags.tsx` + fix lệch FE/BE `EmrDataTagDto`). Atomic Closes.
+- **#100 F11.2 — Vân tay tiếp đón + checkbox không thu thập được (code-complete, build-green FE+BE, chờ push)**:
+  KHÔNG dùng WebAuthn (đúng issue). 2 cột Patient (`FingerprintData`/`FingerprintNotCollected`) + **migration 114**
+  + `SaveFingerprintAsync` (ReceptionCompleteService.PhotosDocs) + endpoint `POST reception/register/fingerprint/{patientId}`
+  + client `api/reception.saveFingerprint` + `FingerprintPanel` trong drawer Reception.tsx (checkbox + upload ảnh→base64).
+  FE EXIT 0 + BE 0 errors. ⚠️ migration chưa runtime-test (DB off) → schema-drift sau deploy. → chờ push + `Closes #100`.
+  *(#144 RIS batch: verify thấy ~70% đã có ở Radiology.tsx — multi-select + bulk DICOM + per-row print/share; gap còn
+  batch-approve(cần resultId/BE) + JPEG(BE mới); issue trỏ sai file RisDispatcher → đã unclaim, để scope lại sau.)*
+- **✅ PUSHED + CLOSED phiên này (7 việc, tất cả v2, atomic `Closes #N`):** #145 picker Diễn biến · #85 trích lục
+  watermark · #86 Data Tag (+fix lệch FE/BE) · #89 Nhi YHCT MS.20 · #87 EMR duyệt 2 cấp + late-days (no-migration) ·
+  #155 khám tâm lý trước mổ (migration 113) · governance sync-gate (chống trùng 2 máy). ⚠️ #87/#155 chạm BE+migration
+  → verify schema-drift + smoke sau auto-deploy.
 - **#145 F8.12 — Picker "Diễn biến mẫu" (✅ DONE, PUSHED `d6886fb`, CLOSED)** — pre-flight chuẩn (sync→verify→claim)
   rồi re-apply tay lên code đã sync; atomic `Closes #145`. Stash đã drop.
 - **FIX TRIỆT ĐỂ trùng-code-2-máy (governance — ĐÃ PUSH `49452a9`+`eb4590f`)**: gốc = *làm trên code cũ + tin
