@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace HIS.Core.Entities;
 
 /// <summary>
@@ -22,5 +24,6 @@ public class RadiologyStudyFavorite
 
     // Navigation (optional — lazy load off by default)
     public virtual User? User { get; set; }
+    [ForeignKey(nameof(RequestId))]
     public virtual RadiologyRequest? RadiologyRequest { get; set; }
 }
