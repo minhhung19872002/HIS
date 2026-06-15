@@ -295,6 +295,94 @@ public interface IInsuranceXmlService
     /// </summary>
     Task<byte[]> ExportReport80aToExcelAsync(int month, int year);
 
+    // -----------------------------------------------------------------------
+    // Mẫu 16-21 BHYT
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Mẫu 16/BHYT - Danh sách chế phẩm YHCT được BHYT thanh toán trong tháng
+    /// </summary>
+    Task<Report16BhytDto> GetReport16BhytAsync(int month, int year);
+
+    /// <summary>
+    /// Xuất mẫu 16/BHYT ra Excel
+    /// </summary>
+    Task<byte[]> ExportReport16BhytToExcelAsync(int month, int year);
+
+    /// <summary>
+    /// Mẫu 17/BHYT - Danh sách vị thuốc YHCT được BHYT thanh toán trong tháng
+    /// </summary>
+    Task<Report17BhytDto> GetReport17BhytAsync(int month, int year);
+
+    /// <summary>
+    /// Xuất mẫu 17/BHYT ra Excel
+    /// </summary>
+    Task<byte[]> ExportReport17BhytToExcelAsync(int month, int year);
+
+    /// <summary>
+    /// Mẫu 19/BHYT - Thống kê tổng hợp VTYT được BHYT thanh toán trong tháng
+    /// </summary>
+    Task<Report19BhytDto> GetReport19BhytAsync(int month, int year);
+
+    /// <summary>
+    /// Xuất mẫu 19/BHYT ra Excel
+    /// </summary>
+    Task<byte[]> ExportReport19BhytToExcelAsync(int month, int year);
+
+    /// <summary>
+    /// Mẫu 20/BHYT - Thống kê tổng hợp thuốc sử dụng cho bệnh nhân BHYT trong tháng
+    /// </summary>
+    Task<Report20BhytDto> GetReport20BhytAsync(int month, int year);
+
+    /// <summary>
+    /// Xuất mẫu 20/BHYT ra Excel
+    /// </summary>
+    Task<byte[]> ExportReport20BhytToExcelAsync(int month, int year);
+
+    /// <summary>
+    /// Mẫu 21/BHYT - Thống kê tổng hợp DVKT sử dụng cho bệnh nhân BHYT trong tháng
+    /// </summary>
+    Task<Report21BhytDto> GetReport21BhytAsync(int month, int year);
+
+    /// <summary>
+    /// Xuất mẫu 21/BHYT ra Excel
+    /// </summary>
+    Task<byte[]> ExportReport21BhytToExcelAsync(int month, int year);
+
+    /// <summary>
+    /// Mẫu 21/BHYT theo CV 285/BHXH-CSYT - DVKT kèm nhóm dịch vụ
+    /// </summary>
+    Task<Report285BhytDto> GetReport285BhytAsync(int month, int year);
+
+    /// <summary>
+    /// Xuất mẫu 285/BHXH ra Excel
+    /// </summary>
+    Task<byte[]> ExportReport285BhytToExcelAsync(int month, int year);
+
+    // -----------------------------------------------------------------------
+    // C79B / C80B
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Báo cáo C79B-HD - Tổng hợp chi phí KCB BHYT ngoại trú (bản B, phân theo nhóm DVKT)
+    /// </summary>
+    Task<ReportC79bDto> GetReportC79bAsync(int month, int year);
+
+    /// <summary>
+    /// Xuất C79B ra Excel
+    /// </summary>
+    Task<byte[]> ExportReportC79bToExcelAsync(int month, int year);
+
+    /// <summary>
+    /// Báo cáo C80B-HD - Tổng hợp chi phí KCB BHYT nội trú (bản B, phân theo nhóm đối tượng)
+    /// </summary>
+    Task<ReportC80bDto> GetReportC80bAsync(int month, int year);
+
+    /// <summary>
+    /// Xuất C80B ra Excel
+    /// </summary>
+    Task<byte[]> ExportReportC80bToExcelAsync(int month, int year);
+
     /// <summary>
     /// Báo cáo chi tiết theo loại KCB
     /// </summary>

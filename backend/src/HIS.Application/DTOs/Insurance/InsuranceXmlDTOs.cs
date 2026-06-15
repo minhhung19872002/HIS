@@ -774,6 +774,220 @@ public class InsurancePriceUpdateBatchDto
 #region Báo cáo theo thông tư
 
 /// <summary>
+/// DTO báo cáo mẫu 16/BHYT - Danh sách chế phẩm YHCT được BHYT thanh toán
+/// Nguồn: Medicine (MedicineType=2) + PrescriptionDetails (tháng báo cáo)
+/// </summary>
+public class Report16BhytDto
+{
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public int TotalItems { get; set; }
+    public decimal TotalAmount { get; set; }
+    public List<Report16BhytLineDto> Lines { get; set; } = new();
+}
+
+public class Report16BhytLineDto
+{
+    public int Stt { get; set; }
+    public string MaThuoc { get; set; } = string.Empty;        // Mã thuốc
+    public string TenThuoc { get; set; } = string.Empty;       // Tên chế phẩm YHCT
+    public string HoatChat { get; set; } = string.Empty;       // Hoạt chất/Thành phần
+    public string DonViTinh { get; set; } = string.Empty;      // Đơn vị tính
+    public decimal SoLuong { get; set; }                       // Số lượng sử dụng
+    public decimal DonGia { get; set; }                        // Đơn giá
+    public decimal ThanhTien { get; set; }                     // Thành tiền
+    public decimal TienBhyt { get; set; }                      // BHYT chi trả
+}
+
+/// <summary>
+/// DTO báo cáo mẫu 17/BHYT - Danh sách vị thuốc YHCT được BHYT thanh toán
+/// Nguồn: PrescriptionDetails (Prescription.PrescriptionType=4) trong tháng báo cáo
+/// Assumption: phân biệt vị thuốc = đơn YHCT (PrescriptionType=4); chế phẩm = Medicine MedicineType=2 chung
+/// </summary>
+public class Report17BhytDto
+{
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public int TotalItems { get; set; }
+    public decimal TotalAmount { get; set; }
+    public List<Report17BhytLineDto> Lines { get; set; } = new();
+}
+
+public class Report17BhytLineDto
+{
+    public int Stt { get; set; }
+    public string MaThuoc { get; set; } = string.Empty;        // Mã vị thuốc
+    public string TenViThuoc { get; set; } = string.Empty;     // Tên vị thuốc
+    public string DonViTinh { get; set; } = string.Empty;      // Đơn vị tính (thang, gói...)
+    public decimal SoLuong { get; set; }                       // Số lượng (số thang)
+    public decimal DonGia { get; set; }
+    public decimal ThanhTien { get; set; }
+    public decimal TienBhyt { get; set; }
+}
+
+/// <summary>
+/// DTO báo cáo mẫu 19/BHYT - Thống kê tổng hợp vật tư y tế được BHYT thanh toán
+/// Nguồn: InsuranceClaimDetail (ItemType=3) trong tháng báo cáo
+/// </summary>
+public class Report19BhytDto
+{
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public int TotalItems { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal TotalInsuranceAmount { get; set; }
+    public List<Report19BhytLineDto> Lines { get; set; } = new();
+}
+
+public class Report19BhytLineDto
+{
+    public int Stt { get; set; }
+    public string MaVatTu { get; set; } = string.Empty;        // Mã vật tư
+    public string TenVatTu { get; set; } = string.Empty;       // Tên vật tư
+    public string DonViTinh { get; set; } = string.Empty;
+    public decimal SoLuong { get; set; }
+    public decimal DonGia { get; set; }
+    public decimal ThanhTien { get; set; }
+    public decimal TienBhyt { get; set; }
+    public decimal TienBenhNhan { get; set; }
+}
+
+/// <summary>
+/// DTO báo cáo mẫu 20/BHYT - Thống kê tổng hợp thuốc sử dụng cho bệnh nhân BHYT
+/// Nguồn: InsuranceClaimDetail (ItemType=2) hoặc PrescriptionDetails (bệnh nhân có InsuranceNumber) trong tháng
+/// </summary>
+public class Report20BhytDto
+{
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public int TotalItems { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal TotalInsuranceAmount { get; set; }
+    public List<Report20BhytLineDto> Lines { get; set; } = new();
+}
+
+public class Report20BhytLineDto
+{
+    public int Stt { get; set; }
+    public string MaThuoc { get; set; } = string.Empty;
+    public string TenThuoc { get; set; } = string.Empty;
+    public string HoatChat { get; set; } = string.Empty;
+    public string DonViTinh { get; set; } = string.Empty;
+    public decimal SoLuong { get; set; }
+    public decimal DonGia { get; set; }
+    public decimal ThanhTien { get; set; }
+    public decimal TienBhyt { get; set; }
+    public decimal TienBenhNhan { get; set; }
+}
+
+/// <summary>
+/// DTO báo cáo mẫu 21/BHYT - Thống kê tổng hợp DVKT sử dụng cho bệnh nhân BHYT
+/// Nguồn: InsuranceClaimDetail (ItemType=1) trong tháng báo cáo
+/// </summary>
+public class Report21BhytDto
+{
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public int TotalItems { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal TotalInsuranceAmount { get; set; }
+    public List<Report21BhytLineDto> Lines { get; set; } = new();
+}
+
+public class Report21BhytLineDto
+{
+    public int Stt { get; set; }
+    public string MaDvkt { get; set; } = string.Empty;         // Mã DVKT theo BYT
+    public string TenDvkt { get; set; } = string.Empty;        // Tên dịch vụ kỹ thuật
+    public string DonViTinh { get; set; } = string.Empty;
+    public int SoLuong { get; set; }
+    public decimal DonGia { get; set; }
+    public decimal ThanhTien { get; set; }
+    public decimal TienBhyt { get; set; }
+    public decimal TienBenhNhan { get; set; }
+}
+
+/// <summary>
+/// DTO báo cáo mẫu 21/BHYT theo CV 285/BHXH-CSYT
+/// Nguồn: InsuranceClaimDetail (ItemType=1) - cùng nguồn mẫu 21 nhưng format cột thêm nhóm DVKT
+/// </summary>
+public class Report285BhytDto
+{
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public int TotalItems { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal TotalInsuranceAmount { get; set; }
+    public List<Report285BhytLineDto> Lines { get; set; } = new();
+}
+
+public class Report285BhytLineDto
+{
+    public int Stt { get; set; }
+    public string NhomDvkt { get; set; } = string.Empty;       // Nhóm DVKT (tên ServiceGroup)
+    public string MaDvkt { get; set; } = string.Empty;
+    public string TenDvkt { get; set; } = string.Empty;
+    public string DonViTinh { get; set; } = string.Empty;
+    public int SoLuong { get; set; }
+    public decimal DonGia { get; set; }
+    public decimal ThanhTien { get; set; }
+    public decimal TienBhyt { get; set; }
+    public decimal TienBenhNhan { get; set; }
+}
+
+/// <summary>
+/// DTO báo cáo C79B-HD - Tổng hợp chi phí KCB BHYT ngoại trú (bản B)
+/// Cấu trúc tương tự C79a nhưng gộp theo nhóm dịch vụ thay vì từng dòng chỉ tiêu
+/// </summary>
+public class ReportC79bDto
+{
+    public string MaCsKcb { get; set; } = string.Empty;
+    public string TenCsKcb { get; set; } = string.Empty;
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public List<ReportC79bLineDto> Lines { get; set; } = new();
+    public decimal TotalAmount { get; set; }
+    public decimal TotalInsuranceAmount { get; set; }
+    public int TotalVisits { get; set; }
+}
+
+public class ReportC79bLineDto
+{
+    public int Stt { get; set; }
+    public string NhomDvkt { get; set; } = string.Empty;       // Nhóm dịch vụ kỹ thuật
+    public int SoLuot { get; set; }                            // Số lượt sử dụng
+    public decimal TienDeNghi { get; set; }                    // Tiền đề nghị thanh toán
+    public decimal TienQuyetToan { get; set; }                 // Tiền quyết toán
+    public string GhiChu { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// DTO báo cáo C80B-HD - Tổng hợp chi phí KCB BHYT nội trú (bản B)
+/// Cấu trúc tương tự 80a nhưng phân tổ theo nhóm đối tượng BHYT
+/// </summary>
+public class ReportC80bDto
+{
+    public string MaCsKcb { get; set; } = string.Empty;
+    public string TenCsKcb { get; set; } = string.Empty;
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public List<ReportC80bLineDto> Lines { get; set; } = new();
+    public decimal TotalAmount { get; set; }
+    public decimal TotalInsuranceAmount { get; set; }
+    public int TotalPatients { get; set; }
+}
+
+public class ReportC80bLineDto
+{
+    public int Stt { get; set; }
+    public string NhomDoiTuong { get; set; } = string.Empty;   // Nhóm đối tượng BHYT (InsuranceType)
+    public int SoBenhNhan { get; set; }                        // Số bệnh nhân
+    public int SoNgayDieuTri { get; set; }                    // Tổng số ngày điều trị
+    public decimal TienDeNghi { get; set; }
+    public decimal TienQuyetToan { get; set; }
+}
+
+/// <summary>
 /// DTO báo cáo theo mẫu C79a-HD (TT39)
 /// </summary>
 public class ReportC79aDto
