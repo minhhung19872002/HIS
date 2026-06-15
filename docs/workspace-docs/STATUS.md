@@ -3,9 +3,16 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-15** (SÓNG 4: 4 feature đã push+deploy, VERIFY schema-drift=0 + smoke 200; #98 REVERTED).
+> Cập nhật cuối: **2026-06-15** (VERIFY FUNCTIONAL money/safety: CLOSED #149 #151 #150 #109 — test thật trên local; #98 REVERTED).
 
 ## Đang ở đâu
+- **VERIFY FUNCTIONAL money/safety (✅ — CLOSED 4 issue)**: chạy backend local + test thật (mutate local DB, không đụng prod):
+  **#149** hard-block tạm ứng — 3 scenario (OFF→tạo đơn OK · ON ngưỡng>deposit→CHẶN đúng message · ON ngưỡng<deposit→OK).
+  **#151** BHYT zero-copay — end-to-end reassign: ngoài DS→PatientAmount=40k(đồng chi trả) · trong DS→PatientAmount=0.
+  **#150** XN đặc biệt — 4 scenario (24h fallback · N-ngày=90 fire · per-episode fire · N-ngày=3 skip); **FIX bug**
+  per-episode chỉ lookback 24h → mở rộng 90 ngày (commit `a314aa5`). **#109** hội chẩn duyệt — approve→st=2 · reject→st=3 ·
+  guard type≠3→HTTP400. Tất cả deploy prod, schema-drift=0, prod smoke 200. Backend local đã tắt.
+  ⚠️ Các feature KHÁC (sóng 1-4) vẫn ở mức build-green+smoke, CHƯA verify chức năng sâu → vẫn OPEN.
 - **SÓNG 4 (build-green, 4/5 feature — ĐÃ push+deploy+verify)**: fan-out 5 agent, build gate tập trung.
   VERIFY PROD: `schema-drift=0` (sau fix #138 FK shadow `RadiologyRequestId`→`[ForeignKey(RequestId)]`, commit 84676d2);
   smoke #138 favorites · #117 bhyt-21/c79b/c80b · #109 consultations = **200**.
