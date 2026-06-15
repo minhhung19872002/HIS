@@ -15,11 +15,16 @@ public class ReassignObjectService : IReassignObjectService
 {
     private readonly HISDbContext _db;
     private readonly ILogger<ReassignObjectService> _logger;
+    private readonly IBhytFullCoverageService _fullCoverage;
 
-    public ReassignObjectService(HISDbContext db, ILogger<ReassignObjectService> logger)
+    public ReassignObjectService(
+        HISDbContext db,
+        ILogger<ReassignObjectService> logger,
+        IBhytFullCoverageService fullCoverage)
     {
         _db = db;
         _logger = logger;
+        _fullCoverage = fullCoverage;
     }
 
     public async Task<ReassignObjectResultDto> ReassignAsync(ReassignObjectRequestDto dto, Guid userId)
@@ -148,6 +153,10 @@ public class ReassignObjectService : IReassignObjectService
         var items = await q.ToListAsync();
         result.OldTotal = items.Sum(i => i.PatientAmount);
 
+        // F3.4: kiem tra BN co trong danh sach full-coverage khong (1 query cho ca lo)
+        var isFullCoverage = dto.ToPatientType == 1
+            && await _fullCoverage.IsFullCoverageActiveAsync(dto.PatientId, DateTime.UtcNow);
+
         foreach (var it in items)
         {
             it.PatientType = dto.ToPatientType;
@@ -157,6 +166,14 @@ public class ReassignObjectService : IReassignObjectService
                 it.InsurancePaymentRate = rate;
                 it.InsuranceAmount = Math.Round(it.Amount * rate / 100m, 0);
                 it.PatientAmount = it.Amount - it.InsuranceAmount;
+
+                // F3.4 ADDITIVE: neu BN thuoc dien 100% thuoc dac tri → phan cung chi tra = 0
+                // BN khong trong danh sach: tinh y nhu cu (khong doi)
+                if (isFullCoverage)
+                {
+                    it.InsuranceAmount = it.Amount;
+                    it.PatientAmount = 0;
+                }
             }
             else
             {
