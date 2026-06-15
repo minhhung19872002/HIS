@@ -6,12 +6,14 @@
 > Cập nhật cuối: **2026-06-15** (verify-functional + CLOSED nhóm mẫu in #140 #110 #141 #142 — **TẤT CẢ 19 feature phiên này đã verify + CLOSED**).
 
 ## Đang ở đâu
-- **#85 F8.3 — Trích lục bệnh án chống sao chép/watermark (code-complete, build-green, CHƯA commit)**: pre-flight
-  đúng quy trình mới (synced→verify-against-CODE: page chưa có + BE/api sẵn→claim @me) rồi dựng page v2
-  `pages-v2/EmrExtract.tsx` (hand-build _v2kit: search HSBA→resolve examinationId→list/create/revoke extract +
-  Drawer xem bản trích lục có **watermark phủ chéo** + thời hạn/lượt truy cập). Reuse api `emrManagement.ts`
-  (getEmrExtracts/createEmrExtract/revokeEmrExtract). Route `/v2/emr-extract` (App.tsx) + menu (TerminalLayout).
-  Build FE EXIT 0. → chờ duyệt push + `Closes #85`.
+- **#86 F8.4 — Cấu hình Thẻ dữ liệu (Data Tag) EMR (code-complete, build-green, chờ push)**: page v2
+  `pages-v2/EmrDataTags.tsx` (CRUD _v2kit: name/code/dataType/defaultValue/category + **formType=gán vào mẫu**;
+  guard thẻ hệ thống không xóa) + route `/v2/emr-data-tags` + menu. **Đồng thời fix bug lệch FE/BE thật**:
+  `api/emrManagement.ts` `EmrDataTagDto`/`saveEmrDataTag` trước dùng `color` (BE không có) → align lại theo entity
+  `EmrDataTag` (code/dataType/defaultValue/formType/sortOrder/isSystem). Impact-analysis: chỉ api file dùng → an toàn.
+- **#85 F8.3 — Trích lục bệnh án watermark (✅ code-complete, committed `681d66e`, chờ push)**: page v2
+  `pages-v2/EmrExtract.tsx` (search HSBA→examinationId→list/create/revoke + Drawer watermark phủ chéo + thời hạn).
+  Reuse api emrManagement extracts. Route `/v2/emr-extract` + menu. `Closes #85`.
 - **#145 F8.12 — Picker "Diễn biến mẫu" (✅ DONE, PUSHED `d6886fb`, CLOSED)** — pre-flight chuẩn (sync→verify→claim)
   rồi re-apply tay lên code đã sync; atomic `Closes #145`. Stash đã drop.
 - **FIX TRIỆT ĐỂ trùng-code-2-máy (governance — ĐÃ PUSH `49452a9`+`eb4590f`)**: gốc = *làm trên code cũ + tin
