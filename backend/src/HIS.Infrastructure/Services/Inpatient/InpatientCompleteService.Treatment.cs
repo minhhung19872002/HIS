@@ -1078,17 +1078,131 @@ public partial class InpatientCompleteService {
         return Task.FromResult<InjuryRecordDto?>(null);
     }
 
-    public Task<NewbornRecordDto> CreateNewbornRecordAsync(Guid motherAdmissionId, NewbornRecordDto dto, Guid userId)
+    public async Task<NewbornRecordDto> CreateNewbornRecordAsync(Guid motherAdmissionId, NewbornRecordDto dto, Guid userId)
     {
-        dto.Id = Guid.NewGuid();
-        dto.MotherAdmissionId = motherAdmissionId;
-        return Task.FromResult(dto);
+        // Validate APGAR 0-10
+        if (dto.ApgarScore1Min < 0 || dto.ApgarScore1Min > 10)
+            throw new InvalidOperationException("Diem APGAR 1 phut phai tu 0 den 10.");
+        if (dto.ApgarScore5Min < 0 || dto.ApgarScore5Min > 10)
+            throw new InvalidOperationException("Diem APGAR 5 phut phai tu 0 den 10.");
+        if (dto.ApgarScore10Min.HasValue && (dto.ApgarScore10Min.Value < 0 || dto.ApgarScore10Min.Value > 10))
+            throw new InvalidOperationException("Diem APGAR 10 phut phai tu 0 den 10.");
+        if (dto.BirthWeight <= 0)
+            throw new InvalidOperationException("Can nang phai lon hon 0.");
+
+        var entity = new NewbornRecord
+        {
+            Id                  = Guid.NewGuid(),
+            MotherAdmissionId   = motherAdmissionId,
+            BirthDate           = dto.BirthDate,
+            BirthTime           = dto.BirthTime,
+            Gender              = dto.Gender,
+            BirthWeight         = dto.BirthWeight,
+            BirthLength         = dto.BirthLength,
+            HeadCircumference   = dto.HeadCircumference,
+            ApgarScore1Min      = dto.ApgarScore1Min,
+            ApgarScore5Min      = dto.ApgarScore5Min,
+            ApgarScore10Min     = dto.ApgarScore10Min,
+            DeliveryMethod      = dto.DeliveryMethod,
+            Complications       = dto.Complications,
+            InitialExamFindings = dto.InitialExamFindings,
+            VitaminKGiven       = dto.VitaminKGiven,
+            HepBVaccine         = dto.HepBVaccine,
+            NewbornAdmissionId  = null, // mo hinh nhe: khong tao admission rieng
+            Status              = 0,
+            DischargeDate       = null,
+            CreatedAt           = DateTime.UtcNow,
+            CreatedBy           = userId.ToString(),
+        };
+
+        _context.NewbornRecords.Add(entity);
+        await _context.SaveChangesAsync();
+
+        return MapNewbornDto(entity);
     }
 
-    public Task<List<NewbornRecordDto>> GetNewbornRecordsAsync(Guid motherAdmissionId)
+    public async Task<List<NewbornRecordDto>> GetNewbornRecordsAsync(Guid motherAdmissionId)
     {
-        return Task.FromResult(new List<NewbornRecordDto>());
+        var records = await _context.NewbornRecords
+            .Where(r => r.MotherAdmissionId == motherAdmissionId && !r.IsDeleted)
+            .OrderBy(r => r.BirthDate).ThenBy(r => r.BirthTime)
+            .ToListAsync();
+
+        return records.Select(MapNewbornDto).ToList();
     }
+
+    public async Task<NewbornRecordDto> UpdateNewbornRecordAsync(Guid id, NewbornRecordDto dto, Guid userId)
+    {
+        var entity = await _context.NewbornRecords.FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted)
+            ?? throw new InvalidOperationException("Khong tim thay ho so tre so sinh.");
+
+        // Validate APGAR 0-10
+        if (dto.ApgarScore1Min < 0 || dto.ApgarScore1Min > 10)
+            throw new InvalidOperationException("Diem APGAR 1 phut phai tu 0 den 10.");
+        if (dto.ApgarScore5Min < 0 || dto.ApgarScore5Min > 10)
+            throw new InvalidOperationException("Diem APGAR 5 phut phai tu 0 den 10.");
+        if (dto.ApgarScore10Min.HasValue && (dto.ApgarScore10Min.Value < 0 || dto.ApgarScore10Min.Value > 10))
+            throw new InvalidOperationException("Diem APGAR 10 phut phai tu 0 den 10.");
+        if (dto.BirthWeight <= 0)
+            throw new InvalidOperationException("Can nang phai lon hon 0.");
+
+        entity.BirthDate           = dto.BirthDate;
+        entity.BirthTime           = dto.BirthTime;
+        entity.Gender              = dto.Gender;
+        entity.BirthWeight         = dto.BirthWeight;
+        entity.BirthLength         = dto.BirthLength;
+        entity.HeadCircumference   = dto.HeadCircumference;
+        entity.ApgarScore1Min      = dto.ApgarScore1Min;
+        entity.ApgarScore5Min      = dto.ApgarScore5Min;
+        entity.ApgarScore10Min     = dto.ApgarScore10Min;
+        entity.DeliveryMethod      = dto.DeliveryMethod;
+        entity.Complications       = dto.Complications;
+        entity.InitialExamFindings = dto.InitialExamFindings;
+        entity.VitaminKGiven       = dto.VitaminKGiven;
+        entity.HepBVaccine         = dto.HepBVaccine;
+        entity.UpdatedAt           = DateTime.UtcNow;
+        entity.UpdatedBy           = userId.ToString();
+
+        await _context.SaveChangesAsync();
+        return MapNewbornDto(entity);
+    }
+
+    public async Task<NewbornRecordDto> DischargeNewbornRecordAsync(Guid id, DateTime dischargeDate, Guid userId)
+    {
+        var entity = await _context.NewbornRecords.FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted)
+            ?? throw new InvalidOperationException("Khong tim thay ho so tre so sinh.");
+
+        entity.Status        = 2; // Da xuat
+        entity.DischargeDate = dischargeDate;
+        entity.UpdatedAt     = DateTime.UtcNow;
+        entity.UpdatedBy     = userId.ToString();
+
+        await _context.SaveChangesAsync();
+        return MapNewbornDto(entity);
+    }
+
+    private static NewbornRecordDto MapNewbornDto(NewbornRecord e) => new NewbornRecordDto
+    {
+        Id                  = e.Id,
+        MotherAdmissionId   = e.MotherAdmissionId,
+        BirthDate           = e.BirthDate,
+        BirthTime           = e.BirthTime,
+        Gender              = e.Gender,
+        BirthWeight         = e.BirthWeight,
+        BirthLength         = e.BirthLength,
+        HeadCircumference   = e.HeadCircumference,
+        ApgarScore1Min      = e.ApgarScore1Min,
+        ApgarScore5Min      = e.ApgarScore5Min,
+        ApgarScore10Min     = e.ApgarScore10Min,
+        DeliveryMethod      = e.DeliveryMethod,
+        Complications       = e.Complications,
+        InitialExamFindings = e.InitialExamFindings,
+        VitaminKGiven       = e.VitaminKGiven,
+        HepBVaccine         = e.HepBVaccine,
+        NewbornAdmissionId  = e.NewbornAdmissionId,
+        Status              = e.Status,
+        DischargeDate       = e.DischargeDate,
+    };
 
     #endregion
 }

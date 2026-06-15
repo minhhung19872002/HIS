@@ -128,6 +128,43 @@ public class Discharge : BaseEntity
 }
 
 /// <summary>
+/// Ho so tre so sinh — module 6 (#50-54)
+/// Mo hinh nhe: gac vao MotherAdmissionId, khong tao admission/MRN rieng cho be.
+/// Sinh doi = nhieu record cung MotherAdmissionId.
+/// Status: 0=Dang theo doi, 2=Da xuat.
+/// </summary>
+public class NewbornRecord : BaseEntity
+{
+    public Guid MotherAdmissionId { get; set; }
+    public virtual Admission MotherAdmission { get; set; } = null!;
+
+    public DateTime BirthDate { get; set; }
+    public TimeSpan BirthTime { get; set; }
+    public int Gender { get; set; } // 1=Nam, 2=Nu
+
+    public decimal BirthWeight { get; set; } // gram
+    public decimal BirthLength { get; set; } // cm
+    public decimal HeadCircumference { get; set; } // cm
+
+    public int ApgarScore1Min { get; set; }   // 0-10
+    public int ApgarScore5Min { get; set; }   // 0-10
+    public int? ApgarScore10Min { get; set; } // 0-10, optional
+
+    public string? DeliveryMethod { get; set; }
+    public string? Complications { get; set; }
+    public string? InitialExamFindings { get; set; }
+    public string? VitaminKGiven { get; set; }
+    public string? HepBVaccine { get; set; }
+
+    // Neu sau nay cap admission rieng cho be
+    public Guid? NewbornAdmissionId { get; set; }
+
+    // Vong doi
+    public int Status { get; set; } // 0=Dang theo doi, 2=Da xuat
+    public DateTime? DischargeDate { get; set; }
+}
+
+/// <summary>
 /// Phiếu theo dõi truyền dịch nội trú — #16 (2026-06-11): persist thật thay stub echo-fake
 /// (FE modal "Truyền dịch" báo thành công nhưng trước đây không lưu gì — patient-safety).
 /// </summary>

@@ -739,6 +739,16 @@ public interface IInpatientCompleteService
     /// </summary>
     Task<List<NewbornRecordDto>> GetNewbornRecordsAsync(Guid motherAdmissionId);
 
+    /// <summary>
+    /// Cập nhật hồ sơ trẻ sơ sinh
+    /// </summary>
+    Task<NewbornRecordDto> UpdateNewbornRecordAsync(Guid id, NewbornRecordDto dto, Guid userId);
+
+    /// <summary>
+    /// Xuất trẻ sơ sinh (set Status=2 + DischargeDate)
+    /// </summary>
+    Task<NewbornRecordDto> DischargeNewbornRecordAsync(Guid id, DateTime dischargeDate, Guid userId);
+
     #endregion
 
     #region 3.7 Kết thúc điều trị

@@ -1660,6 +1660,10 @@ public class NewbornRecordDto
     public string? HepBVaccine { get; set; }
 
     public Guid? NewbornAdmissionId { get; set; }
+
+    // Vong doi
+    public int Status { get; set; } // 0=Dang theo doi, 2=Da xuat
+    public DateTime? DischargeDate { get; set; }
 }
 
 #endregion

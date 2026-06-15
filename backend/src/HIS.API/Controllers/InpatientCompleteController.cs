@@ -1103,6 +1103,50 @@ public partial class InpatientCompleteController : ControllerBase
 
     #endregion
 
+    #region 3.6.x Sơ sinh nội trú (#50-54)
+
+    /// <summary>
+    /// Tạo hồ sơ trẻ sơ sinh
+    /// </summary>
+    [HttpPost("{motherAdmissionId:guid}/newborns")]
+    public async Task<ActionResult<NewbornRecordDto>> CreateNewbornRecord(Guid motherAdmissionId, [FromBody] NewbornRecordDto dto)
+    {
+        var result = await _inpatientService.CreateNewbornRecordAsync(motherAdmissionId, dto, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy danh sách trẻ sơ sinh theo admission mẹ
+    /// </summary>
+    [HttpGet("{motherAdmissionId:guid}/newborns")]
+    public async Task<ActionResult<List<NewbornRecordDto>>> GetNewbornRecords(Guid motherAdmissionId)
+    {
+        var result = await _inpatientService.GetNewbornRecordsAsync(motherAdmissionId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Cập nhật hồ sơ trẻ sơ sinh
+    /// </summary>
+    [HttpPut("newborns/{id:guid}")]
+    public async Task<ActionResult<NewbornRecordDto>> UpdateNewbornRecord(Guid id, [FromBody] NewbornRecordDto dto)
+    {
+        var result = await _inpatientService.UpdateNewbornRecordAsync(id, dto, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Xuất trẻ sơ sinh
+    /// </summary>
+    [HttpPut("newborns/{id:guid}/discharge")]
+    public async Task<ActionResult<NewbornRecordDto>> DischargeNewbornRecord(Guid id, [FromBody] DischargeNewbornRequest req)
+    {
+        var result = await _inpatientService.DischargeNewbornRecordAsync(id, req.DischargeDate, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    #endregion
+
     #region 3.7 Kết thúc điều trị
 
     /// <summary>
@@ -1639,4 +1683,9 @@ public class CreateShiftHandoverRequest
     public string? PendingOrders { get; set; }
     public string? SpecialNotes { get; set; }
     public string? IncidentNotes { get; set; }
+}
+
+public class DischargeNewbornRequest
+{
+    public DateTime DischargeDate { get; set; }
 }

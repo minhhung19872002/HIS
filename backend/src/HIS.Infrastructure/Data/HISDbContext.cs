@@ -304,6 +304,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<DailyProgress> DailyProgresses => Set<DailyProgress>();
     public DbSet<NursingCare> NursingCares => Set<NursingCare>();
     public DbSet<Discharge> Discharges => Set<Discharge>();
+    public DbSet<NewbornRecord> NewbornRecords => Set<NewbornRecord>(); // #50-54: hồ sơ trẻ sơ sinh
     public DbSet<InfusionRecord> InfusionRecords => Set<InfusionRecord>(); // #16: truyền dịch persist thật
     public DbSet<InpatientConsultation> InpatientConsultations => Set<InpatientConsultation>(); // #16: hội chẩn nội trú persist thật
     public DbSet<InpatientConsultationMember> InpatientConsultationMembers => Set<InpatientConsultationMember>();
@@ -1088,6 +1089,9 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<UserRole>().HasOne(u => u.User).WithMany(usr => usr.UserRoles).HasForeignKey(u => u.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<UserSession>().HasOne(u => u.User).WithMany().HasForeignKey(u => u.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<WebAuthnCredential>().HasOne(w => w.User).WithMany().HasForeignKey(w => w.UserId).OnDelete(DeleteBehavior.NoAction);
+
+        // #50-54: NewbornRecord.MotherAdmission — NoAction de tranh multiple cascade paths
+        modelBuilder.Entity<NewbornRecord>().HasOne(n => n.MotherAdmission).WithMany().HasForeignKey(n => n.MotherAdmissionId).OnDelete(DeleteBehavior.NoAction);
 
         // G-34b: RadiologyModality.DefaultResultTemplate (optional FK → RadiologyReportTemplate)
         modelBuilder.Entity<RadiologyModality>()
