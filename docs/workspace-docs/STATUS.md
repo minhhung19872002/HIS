@@ -3,9 +3,16 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-15** (verify-functional + CLOSED nhóm anti-fraud/alert #152 #101 #147 — tổng **15 issue** đã đóng phiên này).
+> Cập nhật cuối: **2026-06-15** (verify-functional + CLOSED nhóm mẫu in #140 #110 #141 #142 — **TẤT CẢ 19 feature phiên này đã verify + CLOSED**).
 
 ## Đang ở đâu
+- **VERIFY FUNCTIONAL nhóm mẫu in EMR (✅ CLOSED #140 #110 #141 #142)** — data-layer round-trip + static-audit binding:
+  **#140** PUT/GET injury-info → 5 field pháp lý (helmet/alcohol/vehicle) persist · **#110** POST maternity-leave → 200 +
+  MaternityLeaveDto · **#141/#142** printType injury-cert/treatment-confirm đăng ký + render branch + binding type-valid
+  (build-green). ⚠️ Render PDF trực quan chưa tự động hóa (cần FE+browser harness) — verify qua data + registration + type.
+  **→ CHIẾN DỊCH PHIÊN NÀY HOÀN TẤT: 19 feature shipped (4 sóng + #98 redo), 19 issue CLOSED với functional-verify thật:**
+  #149 #151 #150 #109 #98 #94 #95 #138 #135 #136 #117 #153 #152 #101 #147 #140 #110 #141 #142.
+  (Migrations 101-111 live, schema-drift=0. #98 từng revert do lỗ hổng+route-conflict → đã làm lại đúng.)
 - **VERIFY FUNCTIONAL nhóm anti-fraud/alert (✅ CLOSED #152 #101 #147)** — test thật trên local:
   **#152** book 3 OK → #4 chặn "đã đặt 3 lần hôm nay" (limit 3/SĐT) · **#101** seed 66 exam → alert OPD-40 "66 lượt > ngưỡng 65",
   giảm 60 → không alert (boundary) · **#147** aggregate drugCounts (Cam thảo=2) + diagnosisFrequency (J18.9=2).
