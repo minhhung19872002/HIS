@@ -6,6 +6,7 @@ import { getInpatientList, getWardLayout, admitFromOpd, getPendingAdmissions, ty
 import type { InpatientListDto, WardLayoutDto, BedLayoutDto } from '../api/inpatient';
 import TreatmentMonitorSection from './inpatient/TreatmentMonitorSection';
 import ConsultationSection from './inpatient/ConsultationSection';
+import NewbornSection from './inpatient/NewbornSection';
 import { catalogApi } from '../api/system';
 import type { DepartmentCatalogDto } from '../api/system';
 import {
@@ -431,6 +432,8 @@ const InpatientV2: React.FC = () => {
               </div>
             )}
             <TreatmentMonitorSection patient={detail} onRefresh={loadData} />
+            {/* Tab so sinh — hien thi khi admission la san khoa (luon hien thi, BS tu quyet dinh nhap) */}
+            <NewbornSection admissionId={detail.admissionId} />
           </div>
         )}
       </DrawerShell>

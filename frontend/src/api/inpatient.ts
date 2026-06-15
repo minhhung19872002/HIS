@@ -1738,6 +1738,46 @@ export const getMedicineSupplyUsageReport = (search: ReportSearchDto) =>
 
 // #endregion
 
+// ============================================================================
+// #region 3.6.x So sinh noi tru (#50-54)
+// ============================================================================
+
+export interface NewbornRecordDto {
+  id: string;
+  motherAdmissionId: string;
+  birthDate: string;       // ISO date
+  birthTime: string;       // "HH:MM:SS" TimeSpan
+  gender: number;          // 1=Nam, 2=Nu
+  birthWeight: number;     // gram
+  birthLength: number;     // cm
+  headCircumference: number; // cm
+  apgarScore1Min: number;
+  apgarScore5Min: number;
+  apgarScore10Min?: number;
+  deliveryMethod?: string;
+  complications?: string;
+  initialExamFindings?: string;
+  vitaminKGiven?: string;
+  hepBVaccine?: string;
+  newbornAdmissionId?: string;
+  status: number;          // 0=Dang theo doi, 2=Da xuat
+  dischargeDate?: string;
+}
+
+export const createNewborn = (motherAdmissionId: string, dto: Omit<NewbornRecordDto, 'id' | 'motherAdmissionId' | 'status' | 'dischargeDate'>) =>
+  apiClient.post<NewbornRecordDto>(`${BASE_URL}/${motherAdmissionId}/newborns`, dto);
+
+export const getNewborns = (motherAdmissionId: string) =>
+  apiClient.get<NewbornRecordDto[]>(`${BASE_URL}/${motherAdmissionId}/newborns`);
+
+export const updateNewborn = (id: string, dto: NewbornRecordDto) =>
+  apiClient.put<NewbornRecordDto>(`${BASE_URL}/newborns/${id}`, dto);
+
+export const dischargeNewborn = (id: string, dischargeDate: string) =>
+  apiClient.put<NewbornRecordDto>(`${BASE_URL}/newborns/${id}/discharge`, { dischargeDate });
+
+// #endregion
+
 // Default export for convenience
 export default {
   // Ward Layout
@@ -1866,4 +1906,10 @@ export default {
   getRegister4069,
   printRegister4069,
   getMedicineSupplyUsageReport,
+
+  // Newborn (#50-54)
+  createNewborn,
+  getNewborns,
+  updateNewborn,
+  dischargeNewborn,
 };
