@@ -96,10 +96,21 @@ const DicomViewer: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
+  // F2.12: userId for per-user localStorage config (lấy từ cached user object)
+  const currentUserId = React.useMemo(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || '{}') as { id?: string; username?: string };
+      return u.id || u.username || undefined;
+    } catch { return undefined; }
+  }, []);
+
   // GAP FIX 5: Apply viewer config từ localStorage — W/L presets + shortcuts + overlay
-  const [viewerConfig, setViewerConfig] = useState(() => loadViewerConfig());
+  const [viewerConfig, setViewerConfig] = useState(() => loadViewerConfig(currentUserId));
   const [activeWlPreset, setActiveWlPreset] = useState<string>('');
   const [showOverlay, setShowOverlay] = useState(true);
+
+  // F2.12: Live WW/WL values from Cornerstone viewport (updated on applyWlPreset or preset change)
+  const [liveWL, setLiveWL] = useState<{ ww: number; wl: number } | null>(null);
 
   // A1: Embedded OHIF iframe mode — MPR, 3D volume, MIP, Mamo sẵn có trong Orthanc plugin
   const [embedOhif, setEmbedOhif] = useState(false);
@@ -225,7 +236,9 @@ const DicomViewer: React.FC = () => {
         setActiveWlPreset(preset.key);
         // Apply W/L via Cornerstone3D viewport API
         csRef.current?.applyWlPreset(preset);
-        message.info(`Đã áp W/L preset: ${preset.name} (C=${preset.center}, W=${preset.width})`, 1);
+        // Update live WW/WL display on overlay
+        setLiveWL({ ww: preset.width, wl: preset.center });
+        message.info(`Da ap W/L preset: ${preset.name} (C=${preset.center}, W=${preset.width})`, 1);
         return;
       }
 
@@ -245,9 +258,9 @@ const DicomViewer: React.FC = () => {
   }, [viewerConfig]);
 
   const reloadConfig = useCallback(() => {
-    setViewerConfig(loadViewerConfig());
-    message.success('Đã tải lại cấu hình viewer');
-  }, []);
+    setViewerConfig(loadViewerConfig(currentUserId));
+    message.success('Da tai lai cau hinh viewer');
+  }, [currentUserId]);
 
   // Load key images for the current study (called on study load + after mark/unmark)
   const loadKeyImages = useCallback(async (studyUID: string) => {
@@ -895,7 +908,7 @@ const DicomViewer: React.FC = () => {
                         key={p.key}
                         size="small"
                         type={activeWlPreset === p.key ? 'primary' : 'default'}
-                        onClick={() => { setActiveWlPreset(p.key); csRef.current?.applyWlPreset(p); }}
+                        onClick={() => { setActiveWlPreset(p.key); csRef.current?.applyWlPreset(p); setLiveWL({ ww: p.width, wl: p.center }); }}
                       >
                         {p.key}: {p.name}
                       </Button>
@@ -1063,14 +1076,16 @@ const DicomViewer: React.FC = () => {
                           ) : null
                         }
                       />
-                      {/* Overlay DICOM tags theo config */}
+                      {/* F2.12: Overlay DICOM tags 6 vung theo config */}
                       {showOverlay && studyInfo && (
                         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-                          {(['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map(pos => {
+                          {(['top-left', 'top-right', 'center-left', 'center-right', 'bottom-left', 'bottom-right'] as const).map(pos => {
                             const fields = viewerConfig.overlayFields
                               .filter(f => f.position === pos)
                               .sort((a, b) => a.order - b.order);
                             if (fields.length === 0) return null;
+                            const isRight = pos.includes('right');
+                            const isCenter = pos.includes('center');
                             const style: React.CSSProperties = {
                               position: 'absolute',
                               color: '#fff',
@@ -1078,23 +1093,33 @@ const DicomViewer: React.FC = () => {
                               fontSize: 11,
                               textShadow: '1px 1px 2px #000',
                               padding: 8,
-                              [pos.includes('top') ? 'top' : 'bottom']: 8,
-                              [pos.includes('left') ? 'left' : 'right']: 8,
-                              textAlign: pos.includes('right') ? 'right' : 'left',
+                              [isRight ? 'right' : 'left']: 8,
+                              textAlign: isRight ? 'right' : 'left',
+                              ...(isCenter
+                                ? { top: '50%', transform: 'translateY(-50%)' }
+                                : { [pos.includes('top') ? 'top' : 'bottom']: 8 }),
                             };
+                            // Build tagMap: static DICOM metadata + live WW/WL from viewport
                             const tagMap: Record<string, string | undefined> = {
                               PatientName: studyInfo.patientName,
                               PatientID: studyInfo.patientId,
+                              PatientBirthDate: undefined, // not in StudyInfo — placeholder
                               StudyDate: studyInfo.studyDate,
                               StudyDescription: studyInfo.studyDescription,
                               Modality: studyInfo.modality,
                               SeriesDescription: selectedSeries?.seriesDescription,
+                              InstitutionName: undefined, // not in StudyInfo — placeholder
+                              // Live from viewport (updated via preset or manual W/L drag)
+                              WindowCenter: liveWL ? `WL: ${liveWL.wl}` : undefined,
+                              WindowWidth: liveWL ? `WW: ${liveWL.ww}` : undefined,
+                              // HU probe: only available when Probe tool is active; show placeholder label
+                              HU: undefined,
                             };
                             return (
                               <div key={pos} style={style}>
                                 {fields.map(f => {
                                   const val = tagMap[f.tag];
-                                  return val ? <div key={f.tag}>{f.tag}: {val}</div> : null;
+                                  return val ? <div key={f.tag}>{val}</div> : null;
                                 })}
                               </div>
                             );
@@ -1116,14 +1141,16 @@ const DicomViewer: React.FC = () => {
                         objectFit: 'contain',
                       }}
                     />
-                    {/* Overlay DICOM tags theo config */}
+                    {/* F2.12: Overlay DICOM tags 6 vung (PNG preview mode) */}
                     {showOverlay && studyInfo && (
                       <>
-                        {(['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map(pos => {
+                        {(['top-left', 'top-right', 'center-left', 'center-right', 'bottom-left', 'bottom-right'] as const).map(pos => {
                           const fields = viewerConfig.overlayFields
                             .filter(f => f.position === pos)
                             .sort((a, b) => a.order - b.order);
                           if (fields.length === 0) return null;
+                          const isRight = pos.includes('right');
+                          const isCenter = pos.includes('center');
                           const style: React.CSSProperties = {
                             position: 'absolute',
                             color: '#fff',
@@ -1131,23 +1158,30 @@ const DicomViewer: React.FC = () => {
                             fontSize: 11,
                             textShadow: '1px 1px 2px #000',
                             padding: 8,
-                            [pos.includes('top') ? 'top' : 'bottom']: 8,
-                            [pos.includes('left') ? 'left' : 'right']: 8,
-                            textAlign: pos.includes('right') ? 'right' : 'left',
+                            [isRight ? 'right' : 'left']: 8,
+                            textAlign: isRight ? 'right' : 'left',
+                            ...(isCenter
+                              ? { top: '50%', transform: 'translateY(-50%)' }
+                              : { [pos.includes('top') ? 'top' : 'bottom']: 8 }),
                           };
                           const tagMap: Record<string, string | undefined> = {
                             PatientName: studyInfo.patientName,
                             PatientID: studyInfo.patientId,
+                            PatientBirthDate: undefined,
                             StudyDate: studyInfo.studyDate,
                             StudyDescription: studyInfo.studyDescription,
                             Modality: studyInfo.modality,
                             SeriesDescription: selectedSeries?.seriesDescription,
+                            InstitutionName: undefined,
+                            WindowCenter: undefined,
+                            WindowWidth: undefined,
+                            HU: undefined,
                           };
                           return (
                             <div key={pos} style={style}>
                               {fields.map(f => {
                                 const val = tagMap[f.tag];
-                                return val ? <div key={f.tag}>{f.tag}: {val}</div> : null;
+                                return val ? <div key={f.tag}>{val}</div> : null;
                               })}
                             </div>
                           );

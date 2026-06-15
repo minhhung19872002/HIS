@@ -9,8 +9,8 @@
  */
 
 import { useEffect, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Modal, Tabs, Table, Form, Input, InputNumber, Select, Button, Tag, message, Typography, Checkbox } from 'antd';
-import { DragOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
 
@@ -61,6 +61,8 @@ const DICOM_OVERLAY_TAGS = [
 const OVERLAY_POSITIONS = [
   { value: 'top-left', label: 'Trên - Trái' },
   { value: 'top-right', label: 'Trên - Phải' },
+  { value: 'center-left', label: 'Giữa - Trái' },
+  { value: 'center-right', label: 'Giữa - Phải' },
   { value: 'bottom-left', label: 'Dưới - Trái' },
   { value: 'bottom-right', label: 'Dưới - Phải' },
 ];
@@ -80,7 +82,7 @@ interface ShortcutMapping {
 
 interface OverlayField {
   tag: string;
-  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  position: 'top-left' | 'top-right' | 'center-left' | 'center-right' | 'bottom-left' | 'bottom-right';
   order: number;
 }
 
@@ -93,18 +95,30 @@ interface ViewerConfig {
   visibleTools: string[];
 }
 
-const STORAGE_KEY = 'dicom_viewer_config';
+export { type OverlayField, type ViewerConfig };
 
-export function loadViewerConfig(): ViewerConfig {
+/** Build localStorage key per user so each clinician has independent overlay config. */
+function getStorageKey(userId?: string): string {
+  if (userId) return `dicom_viewer_config_u_${userId}`;
+  // Fallback: try to extract userId from cached user object
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const u = JSON.parse(localStorage.getItem('user') || '{}') as { id?: string; username?: string };
+    const uid = u.id || u.username;
+    if (uid) return `dicom_viewer_config_u_${uid}`;
+  } catch { /* ignore */ }
+  return 'dicom_viewer_config';
+}
+
+export function loadViewerConfig(userId?: string): ViewerConfig {
+  try {
+    const raw = localStorage.getItem(getStorageKey(userId));
     if (raw) return { ...getDefaultConfig(), ...JSON.parse(raw) };
   } catch { /* ignore */ }
   return getDefaultConfig();
 }
 
-export function saveViewerConfig(config: ViewerConfig) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+export function saveViewerConfig(config: ViewerConfig, userId?: string) {
+  localStorage.setItem(getStorageKey(userId), JSON.stringify(config));
 }
 
 function getDefaultConfig(): ViewerConfig {
@@ -112,14 +126,24 @@ function getDefaultConfig(): ViewerConfig {
     wlPresets: DEFAULT_WL_PRESETS,
     shortcuts: DEFAULT_SHORTCUTS,
     overlayFields: [
+      // Top-left: patient demographics
       { tag: 'PatientName', position: 'top-left', order: 0 },
       { tag: 'PatientID', position: 'top-left', order: 1 },
-      { tag: 'PatientAge', position: 'top-left', order: 2 },
+      { tag: 'PatientBirthDate', position: 'top-left', order: 2 },
+      // Top-right: study/acquisition info
       { tag: 'StudyDate', position: 'top-right', order: 0 },
       { tag: 'Modality', position: 'top-right', order: 1 },
+      // Center-left: window/level values (live from viewport)
+      { tag: 'WindowCenter', position: 'center-left', order: 0 },
+      { tag: 'WindowWidth', position: 'center-left', order: 1 },
+      // Center-right: HU probe value (live from viewport)
+      { tag: 'HU', position: 'center-right', order: 0 },
+      // Bottom-left: series/institution
       { tag: 'SeriesDescription', position: 'bottom-left', order: 0 },
-      { tag: 'InstitutionName', position: 'bottom-right', order: 0 },
-      { tag: 'WindowCenter', position: 'bottom-right', order: 1 },
+      { tag: 'InstitutionName', position: 'bottom-left', order: 1 },
+      // Bottom-right: technical parameters
+      { tag: 'SliceThickness', position: 'bottom-right', order: 0 },
+      { tag: 'KVP', position: 'bottom-right', order: 1 },
     ],
     defaultLayout: '1x1',
     showToolbarTop: false,
@@ -130,29 +154,31 @@ function getDefaultConfig(): ViewerConfig {
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** userId để tách localStorage config theo từng user. Nếu undefined dùng user từ localStorage. */
+  userId?: string;
 }
 
-export default function DicomViewerConfig({ open, onClose }: Props) {
-  const [config, setConfig] = useState<ViewerConfig>(loadViewerConfig);
+export default function DicomViewerConfig({ open, onClose, userId }: Props) {
+  const [config, setConfig] = useState<ViewerConfig>(() => loadViewerConfig(userId));
 
   useEffect(() => {
-    if (open) setConfig(loadViewerConfig());
-  }, [open]);
+    if (open) setConfig(loadViewerConfig(userId));
+  }, [open, userId]);
 
   const handleSave = () => {
-    saveViewerConfig(config);
-    message.success('Đã lưu cấu hình. Tải lại viewer để áp dụng.');
+    saveViewerConfig(config, userId);
+    message.success('Da luu cau hinh. Tai lai viewer de ap dung.');
     onClose();
   };
 
   const handleReset = () => {
     Modal.confirm({
-      title: 'Khôi phục cấu hình mặc định?',
+      title: 'Khoi phuc cau hinh mac dinh?',
       onOk: () => {
         const def = getDefaultConfig();
         setConfig(def);
-        saveViewerConfig(def);
-        message.success('Đã reset về mặc định');
+        saveViewerConfig(def, userId);
+        message.success('Da reset ve mac dinh');
       },
     });
   };
@@ -292,16 +318,20 @@ function ShortcutsTab({ config, setConfig }: { config: ViewerConfig; setConfig: 
   );
 }
 
+// Extended DICOM tag list including live-computed values
+const ALL_OVERLAY_TAGS = [...DICOM_OVERLAY_TAGS, 'WindowCenter', 'WindowWidth', 'HU'].filter(
+  (v, i, arr) => arr.indexOf(v) === i
+);
+
 function OverlayTab({ config, setConfig }: { config: ViewerConfig; setConfig: (c: ViewerConfig) => void }) {
-  const positions = OVERLAY_POSITIONS.map(p => p.value as OverlayField['position']);
   return (
     <>
       <Text type="secondary" style={{ marginBottom: 12, display: 'block' }}>
-        Chọn DICOM tags hiển thị ở mỗi góc màn hình viewer.
+        Chon DICOM tags hien thi o 4 goc + 2 canh trai/phai man hinh viewer. WindowCenter/WindowWidth/HU duoc lay dong tu viewport.
       </Text>
       <Select
         mode="multiple"
-        placeholder="Thêm DICOM tag..."
+        placeholder="Them DICOM tag..."
         style={{ width: '100%', marginBottom: 12 }}
         value={config.overlayFields.map(f => f.tag)}
         onChange={(tags: string[]) => {
@@ -309,7 +339,7 @@ function OverlayTab({ config, setConfig }: { config: ViewerConfig; setConfig: (c
           const fields: OverlayField[] = tags.map((t, i) => existing.get(t) ?? { tag: t, position: 'top-left', order: i });
           setConfig({ ...config, overlayFields: fields });
         }}
-        options={DICOM_OVERLAY_TAGS.map(t => ({ value: t, label: t }))}
+        options={ALL_OVERLAY_TAGS.map(t => ({ value: t, label: t }))}
       />
       <Table<OverlayField>
         dataSource={config.overlayFields}
@@ -319,9 +349,9 @@ function OverlayTab({ config, setConfig }: { config: ViewerConfig; setConfig: (c
         columns={[
           { title: 'DICOM Tag', dataIndex: 'tag', render: (v: string) => <Tag color="blue">{v}</Tag> },
           {
-            title: 'Vị trí',
+            title: 'Vi tri (6 vung)',
             dataIndex: 'position',
-            width: 180,
+            width: 200,
             render: (v: string, _, idx) => (
               <Select
                 value={v}
@@ -336,7 +366,7 @@ function OverlayTab({ config, setConfig }: { config: ViewerConfig; setConfig: (c
             ),
           },
           {
-            title: 'Thứ tự',
+            title: 'Thu tu',
             dataIndex: 'order',
             width: 80,
             render: (v: number, _, idx) => (
@@ -359,29 +389,46 @@ function OverlayTab({ config, setConfig }: { config: ViewerConfig; setConfig: (c
               <Button
                 size="small"
                 danger
-                icon={<DragOutlined />}
                 onClick={() => {
                   const arr = [...config.overlayFields];
                   arr.splice(idx, 1);
                   setConfig({ ...config, overlayFields: arr });
                 }}
-              />
+              >
+                Xoa
+              </Button>
             ),
           },
         ]}
       />
+      {/* Preview 6-zone layout */}
       <div style={{ marginTop: 12, padding: 12, background: '#fafafa', borderRadius: 4 }}>
-        <Text strong>Preview vị trí:</Text>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8, minHeight: 120, border: '1px dashed #ccc', padding: 8 }}>
-          {positions.map(pos => (
-            <div key={pos} style={{ textAlign: pos.includes('right') ? 'right' : 'left', verticalAlign: pos.includes('bottom') ? 'bottom' : 'top' }}>
-              <Text type="secondary" style={{ fontSize: 10 }}>{pos}</Text>
-              <br />
-              {config.overlayFields.filter(f => f.position === pos).sort((a, b) => a.order - b.order).map(f => (
-                <div key={f.tag} style={{ fontSize: 11, color: '#333' }}>{f.tag}</div>
-              ))}
-            </div>
-          ))}
+        <Text strong>Preview vi tri (6 vung):</Text>
+        <div style={{ position: 'relative', marginTop: 8, minHeight: 160, border: '1px dashed #ccc', background: '#111', borderRadius: 4 }}>
+          {(OVERLAY_POSITIONS as { value: OverlayField['position']; label: string }[]).map(({ value: pos, label }) => {
+            const fields = config.overlayFields.filter(f => f.position === pos).sort((a, b) => a.order - b.order);
+            const isRight = pos.includes('right');
+            const isCenter = pos.includes('center');
+            const style: CSSProperties = {
+              position: 'absolute',
+              [isRight ? 'right' : 'left']: 6,
+              textAlign: isRight ? 'right' : 'left',
+              ...(isCenter
+                ? { top: '50%', transform: 'translateY(-50%)' }
+                : pos.includes('top')
+                  ? { top: 6 }
+                  : { bottom: 6 }),
+              maxWidth: '45%',
+            };
+            return (
+              <div key={pos} style={style}>
+                <Text style={{ fontSize: 9, color: '#888', display: 'block' }}>{label}</Text>
+                {fields.map(f => (
+                  <div key={f.tag} style={{ fontSize: 10, color: '#4fc3f7', fontFamily: 'monospace' }}>{f.tag}</div>
+                ))}
+              </div>
+            );
+          })}
         </div>
       </div>
     </>
