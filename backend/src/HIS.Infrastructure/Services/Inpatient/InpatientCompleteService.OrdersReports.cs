@@ -331,6 +331,7 @@ public partial class InpatientCompleteService {
         var admission = await _context.Set<Admission>()
             .FirstOrDefaultAsync(a => a.Id == dto.AdmissionId);
         if (admission == null) throw new Exception("Admission not found");
+        await CheckDepositEnforceBlockAsync(admission.PatientId); // F3.3
 
         var doctor = await _context.Users.FindAsync(userId);
 

@@ -151,6 +151,8 @@ const Inpatient: React.FC = () => {
 
   // NangCap4: Deposit insufficient warning
   const [depositWarning, setDepositWarning] = useState<{ patientName: string; depositBalance: number; pendingCharges: number } | null>(null);
+  // F3.3: Hard-block flag — true khi cờ Billing.DepositEnforceBlock BẬT + số dư < ngưỡng
+  const [depositBlocked, setDepositBlocked] = useState(false);
 
   // BUG-015: Detail modal sub-data — typed bằng DTO của các API tương ứng
   const [detailSubData, setDetailSubData] = useState<{
@@ -257,34 +259,64 @@ const Inpatient: React.FC = () => {
     }
   };
 
-  // NangCap4: Check deposit balance vs pending charges
+  // NangCap4 + F3.3: Check deposit balance vs pending charges; detect enforce-block flag
   const checkDepositBalance = async (admission: typeof selectedAdmission) => {
     if (!admission) return;
     try {
       const apiUrl = API_URL;
       const token = localStorage.getItem('token');
-      const resp = await fetch(
-        `${apiUrl}/billing/deposit-balance?patientId=${admission.patientCode || ''}&admissionId=${admission.admissionId || ''}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (resp.ok) {
-        const data = await resp.json();
-        const balance: number = data?.balance || data?.depositBalance || 0;
-        const pending: number = data?.pendingCharges || data?.totalPending || 0;
-        if (pending > balance) {
-          setDepositWarning({
-            patientName: admission.patientName || '',
-            depositBalance: balance,
-            pendingCharges: pending,
-          });
-        } else {
-          setDepositWarning(null);
-        }
+
+      // F3.3: Đọc song song balance + config enforce-block
+      const [balanceResp, enforceResp, thresholdResp] = await Promise.allSettled([
+        fetch(
+          `${apiUrl}/billing/deposit-balance?patientId=${admission.patientCode || ''}&admissionId=${admission.admissionId || ''}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        ),
+        fetch(`${apiUrl}/admin/configs/Billing.DepositEnforceBlock`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${apiUrl}/admin/configs/Billing.DepositMinThreshold`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+
+      let balance = 0;
+      let pending = 0;
+      if (balanceResp.status === 'fulfilled' && balanceResp.value.ok) {
+        const envelope = await balanceResp.value.json();
+        // API wraps: { success, data: { ... } }; unwrap manually since using fetch directly
+        const data = envelope?.data ?? envelope;
+        balance = data?.remainingBalance || data?.balance || data?.depositBalance || 0;
+        pending = data?.pendingCharges || data?.totalPending || 0;
+      }
+
+      // F3.3: Kiểm tra cờ enforce-block và ngưỡng
+      let enforceBlock = false;
+      let minThreshold = 0;
+      if (enforceResp.status === 'fulfilled' && enforceResp.value.ok) {
+        const envelope = await enforceResp.value.json();
+        // API wraps: { success, data: { key, value, ... } }; unwrap manually since using fetch directly
+        const cfg = envelope?.data ?? envelope;
+        enforceBlock = String(cfg?.value ?? cfg?.configValue ?? '').toLowerCase() === 'true';
+      }
+      if (thresholdResp.status === 'fulfilled' && thresholdResp.value.ok) {
+        const envelope = await thresholdResp.value.json();
+        const cfg = envelope?.data ?? envelope;
+        const raw = cfg?.value ?? cfg?.configValue ?? '0';
+        minThreshold = parseFloat(raw) || 0;
+      }
+
+      const isBlocked = enforceBlock && balance < minThreshold;
+      setDepositBlocked(isBlocked);
+
+      if (pending > balance || isBlocked) {
+        setDepositWarning({
+          patientName: admission.patientName || '',
+          depositBalance: balance,
+          pendingCharges: isBlocked ? minThreshold : pending,
+        });
       } else {
         setDepositWarning(null);
       }
     } catch {
       setDepositWarning(null);
+      setDepositBlocked(false);
     }
   };
 
@@ -2024,24 +2056,35 @@ const Inpatient: React.FC = () => {
                 </Spin>
               </Col>
 
-              {/* NangCap4: Deposit insufficient warning */}
+              {/* NangCap4 + F3.3: Deposit insufficient warning / hard-block */}
               {depositWarning && (
                 <Col span={24}>
                   <Alert
-                    type="error"
+                    type={depositBlocked ? 'error' : 'warning'}
                     showIcon
-                    title="Tạm ứng không đủ"
+                    title={depositBlocked ? 'CẤM chỉ định — Tạm ứng không đủ ngưỡng tối thiểu' : 'Tạm ứng không đủ'}
                     description={
                       <span>
-                        Bệnh nhân <strong>{depositWarning.patientName}</strong> có tạm ứng{' '}
-                        <strong>{depositWarning.depositBalance.toLocaleString()} VNĐ</strong> nhưng chi phí
-                        đang chờ thanh toán là{' '}
-                        <strong style={{ color: '#ff4d4f' }}>{depositWarning.pendingCharges.toLocaleString()} VNĐ</strong>.
-                        Vui lòng yêu cầu bệnh nhân nộp thêm tạm ứng.
+                        Bệnh nhân <strong>{depositWarning.patientName}</strong> có số dư tạm ứng{' '}
+                        <strong>{depositWarning.depositBalance.toLocaleString()} VNĐ</strong>
+                        {depositBlocked ? (
+                          <>
+                            {' '}— dưới ngưỡng tối thiểu{' '}
+                            <strong style={{ color: '#ff4d4f' }}>{depositWarning.pendingCharges.toLocaleString()} VNĐ</strong>.{' '}
+                            <strong>Hệ thống đang chặn mọi chỉ định thuốc/CLS cho bệnh nhân này.</strong>{' '}
+                            Vui lòng yêu cầu bệnh nhân nộp thêm tạm ứng trước khi tiếp tục.
+                          </>
+                        ) : (
+                          <>
+                            {' '}nhưng chi phí đang chờ thanh toán là{' '}
+                            <strong style={{ color: '#fa8c16' }}>{depositWarning.pendingCharges.toLocaleString()} VNĐ</strong>.
+                            Vui lòng yêu cầu bệnh nhân nộp thêm tạm ứng.
+                          </>
+                        )}
                       </span>
                     }
-                    closable
-                    onClose={() => setDepositWarning(null)}
+                    closable={!depositBlocked}
+                    onClose={() => { setDepositWarning(null); setDepositBlocked(false); }}
                   />
                 </Col>
               )}

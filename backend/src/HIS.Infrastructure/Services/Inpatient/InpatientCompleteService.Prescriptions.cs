@@ -93,12 +93,38 @@ public partial class InpatientCompleteService {
         };
     }
 
+    // F3.3: Guard deposit enforce-block — đọc từ SystemConfig, mặc định OFF
+    // Keys: "Billing.DepositEnforceBlock" (Boolean "true"/"false"), "Billing.DepositMinThreshold" (Number, VND)
+    private async Task CheckDepositEnforceBlockAsync(Guid patientId)
+    {
+        var enforceConfig = await _context.SystemConfigs.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.ConfigKey == "Billing.DepositEnforceBlock" && c.IsActive && !c.IsDeleted);
+        if (enforceConfig == null || !string.Equals(enforceConfig.ConfigValue, "true", StringComparison.OrdinalIgnoreCase))
+            return; // cờ OFF hoặc chưa cấu hình → không chặn (mặc định OFF)
+
+        var thresholdConfig = await _context.SystemConfigs.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.ConfigKey == "Billing.DepositMinThreshold" && c.IsActive && !c.IsDeleted);
+        decimal threshold = 0;
+        if (thresholdConfig != null && decimal.TryParse(thresholdConfig.ConfigValue, out var parsed))
+            threshold = parsed;
+
+        var totalRemaining = await _context.Deposits.AsNoTracking()
+            .Where(d => d.PatientId == patientId && d.Status != 5 && !d.IsDeleted)
+            .SumAsync(d => (decimal?)d.RemainingAmount) ?? 0m;
+
+        if (totalRemaining < threshold)
+            throw new InvalidOperationException(
+                $"Số dư tạm ứng ({totalRemaining:N0} VNĐ) dưới ngưỡng tối thiểu ({threshold:N0} VNĐ). " +
+                "Vui lòng yêu cầu bệnh nhân nộp thêm tạm ứng trước khi chỉ định.");
+    }
+
     public async Task<InpatientPrescriptionDto> CreatePrescriptionAsync(CreateInpatientPrescriptionDto dto, Guid userId)
     {
         var admission = await _context.Set<Admission>().FindAsync(dto.AdmissionId);
         if (admission == null)
             throw new Exception("Admission not found");
         await EmrLockGuard.EnsureEditableByRecordAsync(_context, admission.MedicalRecordId); // TT46
+        await CheckDepositEnforceBlockAsync(admission.PatientId); // F3.3
 
         var doctor = await _context.Users.FindAsync(userId);
         var warehouse = await _context.Warehouses.FindAsync(dto.WarehouseId);
