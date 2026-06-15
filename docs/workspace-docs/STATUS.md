@@ -3,9 +3,20 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-15** (chiến dịch multi-feature 3 sóng = 15 feature, ĐÃ push+deploy; VERIFY PROD: schema-drift=0, smoke 9 endpoint mới 200).
+> Cập nhật cuối: **2026-06-15** (SÓNG 4: 4 feature build-green; #98 REVERTED — lỗ hổng + route-conflict).
 
 ## Đang ở đâu
+- **SÓNG 4 (build-green, 4/5 feature)**: fan-out 5 agent, build gate tập trung (BE 0 err · FE 0 err).
+  **#146** PACS overlay 6 vùng (FE CornerstoneViewer/DicomViewerConfig, lưu localStorage per-user; defer:
+  drag-drop thật, HU live) · **#138** Favorite ca chụp RIS (entity RadiologyStudyFavorite, migration **109**,
+  partial `HISDbContext.RadiologyFavorite.cs`, toggle/list endpoint, nút ghim + filter RisDispatcher) ·
+  **#109** Hội chẩn thuốc trình duyệt (4 cột approval InpatientConsultation, migration **110** ALTER,
+  endpoint approve, 3 tab duyệt — ⚠️ phân quyền lãnh đạo mới `[Authorize]` generic, chưa lock role) ·
+  **#117** Mẫu BHYT 16-21/C79B/C80B/285 (16 endpoint InsuranceXml; mẫu 18 defer thiếu field radiopharma;
+  ⚠️ FE bhytReports.ts dùng route khác — chưa nối FE). Sửa ở gate: #117 biến `from` trùng keyword LINQ (→`@from`).
+  ⚠️ **#98 KSK chuyên biệt — REVERTED toàn bộ (KHÔNG ship)**: agent dùng `FrontendCompatController` [AllowAnonymous]
+  → POST/PUT ghi dữ liệu lâm sàng không auth + route `api/health-checkup` TRÙNG `HealthCheckupController`
+  (AmbiguousMatchException) + migration 111 đổi kiểu cột nặng. Làm lại sau: route vào HealthCheckupController có auth.
 - **VERIFY PROD sau 3 sóng (✅)**: deploy `186ddb1` success. `/health/schema-drift` **missingCount=0**
   (vá `108_admin_catalog_missing_columns.sql` — #95 dùng CREATE-IF-NULL bỏ qua 3 bảng có sẵn prod
   → ALTER ADD Note/SortOrder). Smoke: #94 provinces · #150 special-test-rules · #151 bhyt-full-coverage ·
