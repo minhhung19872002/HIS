@@ -6,6 +6,13 @@
 > Cập nhật cuối: **2026-06-15** (verify-functional + CLOSED nhóm mẫu in #140 #110 #141 #142 — **TẤT CẢ 19 feature phiên này đã verify + CLOSED**).
 
 ## Đang ở đâu
+- **FIX TRIỆT ĐỂ trùng-code-2-máy (governance, phiên Claude máy D: — chưa commit)**: gốc = *làm trên code cũ +
+  tin issue-state trễ* (phiên này local tụt 34 commit → làm lại #142/#101 đã có origin). Fix **ENFORCE bằng máy**
+  (rule giấy bị bỏ qua): (1) `hooks/session-start.sh` thêm `git fetch`+`behind=N` → in chỉ thị BẮT BUỘC pull khi
+  behind>0; (2) `hooks/remind-pipeline.sh` thêm SYNC-GATE per-task; (3) `project-rules.md §2-4`: fetch→`pull --ff-only`
+  + verify-against-CODE + claim issue + **đóng issue ATOMIC với push** (`Closes #N`, không đóng theo lô) + push-sớm
+  khi song song. LINT OK ✅, 2 hook smoke-test pass (đã bắt live `behind=2`). ⚠️ Local hiện **behind** — pull trước
+  khi pick task tiếp. **#145** (picker Diễn biến mẫu — chưa có origin) còn trong `stash@{0}`, re-apply merge-tay sau.
 - **VERIFY FUNCTIONAL nhóm mẫu in EMR (✅ CLOSED #140 #110 #141 #142)** — data-layer round-trip + static-audit binding:
   **#140** PUT/GET injury-info → 5 field pháp lý (helmet/alcohol/vehicle) persist · **#110** POST maternity-leave → 200 +
   MaternityLeaveDto · **#141/#142** printType injury-cert/treatment-confirm đăng ký + render branch + binding type-valid
