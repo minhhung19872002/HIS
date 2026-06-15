@@ -3,9 +3,14 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-15** (#98 LÀM LẠI ĐÚNG CÁCH + CLOSED; trước đó CLOSED #149 #151 #150 #109 — verify functional thật).
+> Cập nhật cuối: **2026-06-15** (verify-functional + CLOSED nhóm master-data/RIS: #94 #95 #138 #135 #136 — tổng 10 issue đã đóng phiên này).
 
 ## Đang ở đâu
+- **VERIFY FUNCTIONAL nhóm master-data + RIS (✅ CLOSED 5 issue)** — test thật trên local, prod schema-drift=0:
+  **#94** tỉnh/huyện/xã (seed 8 tỉnh, hierarchy FK, DELETE soft) · **#95** DM nhỏ (Note/SortOrder persist đúng — cột drift-fixed) ·
+  **#138** favorite RIS (toggle ON/list/OFF) · **#135** overdue TAT (tatMinutes+isOverdue, overdueOnly lọc đúng) ·
+  **#136** lọc đoàn khám (ExamGroupName filter match/0). **Tổng 10 issue CLOSED phiên này: #149 #151 #150 #109 #98 #94 #95 #138 #135 #136.**
+  Còn OPEN (build-green+smoke, chưa verify sâu): #141 #142 #110 #153 #152 #101 #140 #147 #117.
 - **#98 KSK chuyên biệt — REDONE SAFELY + CLOSED** (commit `26b2b1d`): sửa trọn 3 lỗi của bản revert —
   (1) CRUD vào `HealthCheckupController [Authorize]`, GET không token→**401** (hết anonymous đọc dữ liệu lâm sàng);
   (2) XÓA `HealthCheckupList` khỏi FrontendCompat → hết route trùng; (3) migration **111 additive thuần**
