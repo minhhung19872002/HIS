@@ -6,14 +6,13 @@
 > Cập nhật cuối: **2026-06-15** (verify-functional + CLOSED nhóm mẫu in #140 #110 #141 #142 — **TẤT CẢ 19 feature phiên này đã verify + CLOSED**).
 
 ## Đang ở đâu
-- **#86 F8.4 — Cấu hình Thẻ dữ liệu (Data Tag) EMR (code-complete, build-green, chờ push)**: page v2
-  `pages-v2/EmrDataTags.tsx` (CRUD _v2kit: name/code/dataType/defaultValue/category + **formType=gán vào mẫu**;
-  guard thẻ hệ thống không xóa) + route `/v2/emr-data-tags` + menu. **Đồng thời fix bug lệch FE/BE thật**:
-  `api/emrManagement.ts` `EmrDataTagDto`/`saveEmrDataTag` trước dùng `color` (BE không có) → align lại theo entity
-  `EmrDataTag` (code/dataType/defaultValue/formType/sortOrder/isSystem). Impact-analysis: chỉ api file dùng → an toàn.
-- **#85 F8.3 — Trích lục bệnh án watermark (✅ code-complete, committed `681d66e`, chờ push)**: page v2
-  `pages-v2/EmrExtract.tsx` (search HSBA→examinationId→list/create/revoke + Drawer watermark phủ chéo + thời hạn).
-  Reuse api emrManagement extracts. Route `/v2/emr-extract` + menu. `Closes #85`.
+- **#89 F8.8 — BA chuyên khoa v2: thêm type Nhi YHCT (MS.20) (code-complete, build-green FE+BE, chờ push)**: gap hẹp
+  = type thiếu ở trang nhập v2 (print NhiYHCTBAPrint + renderer `sp-nhiyhct` ĐÃ wire sẵn). Thêm key
+  `pediatric_traditional` vào `SPECIALTY_TYPES` + field config (tứ chẩn nhi + cân nặng) trong `constants/specialtyEmr.ts`
+  (SPECIALTY_LABEL auto-derive; v2 print dùng report generic theo field) + nhánh `MapSpecialtyTypeName` (SpecialtyEmrService.cs).
+  FE build EXIT 0 + BE 0 errors. → chờ duyệt push + `Closes #89`.
+- **#85 #86 EMR config v2 (✅ DONE, PUSHED `824896b`, CLOSED)** — #85 trích lục watermark (`pages-v2/EmrExtract.tsx`),
+  #86 Data Tag config (`pages-v2/EmrDataTags.tsx` + fix lệch FE/BE `EmrDataTagDto`). Atomic Closes.
 - **#145 F8.12 — Picker "Diễn biến mẫu" (✅ DONE, PUSHED `d6886fb`, CLOSED)** — pre-flight chuẩn (sync→verify→claim)
   rồi re-apply tay lên code đã sync; atomic `Closes #145`. Stash đã drop.
 - **FIX TRIỆT ĐỂ trùng-code-2-máy (governance — ĐÃ PUSH `49452a9`+`eb4590f`)**: gốc = *làm trên code cũ + tin
