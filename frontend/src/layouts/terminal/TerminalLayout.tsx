@@ -75,6 +75,7 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'reagent',            path: '/v2/reagent-management', label: 'Hoá chất XN' },
       { id: 'lis-config',         path: '/v2/lis-config',         label: 'Cấu hình LIS' },
       { id: 'functional-diagnostics', path: '/v2/functional-diagnostics', label: '[24] Thăm dò chức năng' },
+      { id: 'special-test-rules', path: '/v2/cdss/special-test-rules', label: 'Cấu hình XN đặc biệt' },
       { id: 'radiology',          path: '/v2/radiology',          label: '[24] Chẩn đoán HA' },
       { id: 'dicom-viewer',       path: '/v2/radiology/viewer',   label: '[24] DICOM Viewer' },
       // NangCap24 - DICOM advanced features
@@ -144,6 +145,7 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'practice-license',  path: '/v2/practice-license',  label: 'Chứng chỉ hành nghề' },
       { id: 'endpoint-security', path: '/v2/endpoint-security', label: 'An toàn thông tin' },
       { id: 'reports',           path: '/v2/reports',           label: '[24] Báo cáo' },
+      { id: 'waiting-time',      path: '/v2/reports/waiting-time', label: 'Phân tích thời gian chờ' },
       { id: 'report-catalogs',   path: '/v2/report-catalogs',   label: '[24] DM Nhóm BC' },
       { id: 'quality-dashboard-live', path: '/v2/quality-dashboard-live', label: '[24] DB Chất lượng (live)' },
     ],

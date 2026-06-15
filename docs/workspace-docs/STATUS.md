@@ -3,15 +3,40 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-14** (phiên Claude máy D: — kiện toàn governance `.claude` drift-immune).
+> Cập nhật cuối: **2026-06-15** (Sóng 1 multi-feature: #141 #142 #149 #150 #153 build-green, CHƯA commit).
 
 ## Đang ở đâu
-- **Governance `.claude` lên ~9/10 (drift-immune)** — phiên này: thêm `REGISTRY.md` (sổ nguồn-sự-thật, link-không-copy)
+- **Chiến dịch "làm tất cả feature" — SÓNG 1 (build-green, CHƯA commit/push)**: fan-out 4 agent song song,
+  build gate tập trung (BE `dotnet build` 0 err · FE `tsc -b` 0 err). Đã làm:
+  **#142** phiếu in Giấy xác nhận đang điều trị · **#141** Giấy chứng nhận thương tích (printType
+  `treatment-confirm`/`injury-cert` + EmrEditor PRINT_FORMS + truyền examinationId) ·
+  **#153** phân tích thời gian chờ thực (bỏ hardcode 15/20/10/8 trong ReceptionCompleteService.Statistics,
+  page-v2 WaitingTimeReport + route/menu) — *nợ: cột `ServiceRequest.CompletedAt` để chính xác mốc "có KQ"* ·
+  **#150** XN đặc biệt 1-lần/đợt (migration **101** SpecialTestRules + mở rộng CheckDuplicateTestOrderAsync
+  fallback 24h + page-v2 SpecialTestRuleAdmin + route/menu) · **#149** hard-block tạm ứng (guard
+  CheckDepositEnforceBlockAsync trong CreatePrescription/CreateServiceOrder, cờ SystemConfig
+  `Billing.DepositEnforceBlock`+`Billing.DepositMinThreshold`, **mặc định OFF**, FE Inpatient.tsx).
+  ⚠️ Nợ #149: FE balance endpoint Inpatient.tsx sai sẵn từ trước (`/billing/deposit-balance` vs thực
+  `/api/billing-complete/deposits/balance/{id}`) — BE guard vẫn enforce độc lập. Verify prod cần deploy.
+  Sóng kế (chờ tiếp): #6 sơ sinh, #5 ADR, mẫu BHYT #117, kiosk #123-125, backup #128-130, RIS multi-branch #131-132.
+- **(máy D) Governance `.claude` lên ~9/10 (drift-immune)** — thêm `REGISTRY.md` (sổ nguồn-sự-thật, link-không-copy)
   + `lint.sh` (hệ miễn dịch **9 check** chống drift, auto qua Stop hook) + `audit-protocol.md` (chống agent nói-quá)
   + gộp 2 Stop hook → `stop-checks.sh` (gate drift-lint) + 6 agent-memory dir + prerequisite môi trường (Git Bash/WSL2).
-  Lint check [9] enforce 7 block memory-spec agent đồng nhất (boilerplate trùng → an-toàn-bằng-máy-kiểm). LINT OK ✅.
-  Memory mới: `user_wsl2-first-windows-agent-stack` (định hướng WSL2-first cho hệ AI-agent).
+  Memory mới: `user_wsl2-first-windows-agent-stack`.
+- **(máy C) Verify-and-close pass wave E1–E12 (~110 issue)** — fan-out 9 Explore agent quét codebase.
+  KẾT QUẢ: wave này là **backlog gap thật**, gần như tất cả MISSING/PARTIAL. ĐÓNG 4 issue DONE có evidence:
+  **#46** (META diff NangCap) · **#60** (enum 5 mức triage + mig 83) · **#62** (UI bảng cấp cứu theo triage) ·
+  **#92** (8 endpoint đối chiếu CP–định mức–DT). **#23 mơ hồ** → chờ user chốt field. Gap lớn còn lại: chạy thận
+  #148, sơ sinh #6/#50-54, kiosk #103/#123-125, backup #106/#128-130, bảo lãnh #41/#68-72.
+- **(máy C) Fix smell E2E `xml/generate/xml1`** (`ded43da`, PUSHED+DEPLOYED+VERIFY PROD 3/3 ✅):
+  `GetClaimsForExport` dựng `DateTime(0,0,1)` khi chỉ gửi `MaLkList` → 400 opaque. Fix guard `hasValidPeriod`.
+  Prod: maLkList-only→200 (data thật) · body rỗng→400 message rõ · month/year→200 (regression OK).
+  Chi tiết: VÒNG 3 trong `prod-e2e-flow-test-2026-06-13.md`.
+- **Verify #13 (per-parameter lab `b448306`)**: deploy success; contract additive + smoke local OK; CHƯA verify
+  payload sống vì prod KHÔNG còn order LIS (test data clear).
+- Quick-win batch (#145 picker · #102 worker tái khám · #61 triage-at-register) **tạm dừng** (user đổi hướng).
 
+## (cũ) Đang ở đâu
 - **Fix phát thuốc ngoại trú trừ kho (`de9b05c`, PUSHED+DEPLOYED+VERIFY PROD)**: test e2e prod
   (`prod-e2e-flow-test-2026-06-13.md`) bắt nhánh fallback `CompleteDispensing` (đơn NULL-kho) chỉ flip
   status mà KHÔNG tạo phiếu xuất / KHÔNG trừ kho → thất thoát kho + cancel-dispensed 400. Fix: luôn đi
