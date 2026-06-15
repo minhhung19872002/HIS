@@ -59,6 +59,10 @@ public class Patient : BaseEntity
     // Ảnh
     public string? PhotoPath { get; set; } // Ảnh chân dung
 
+    // F11.2: vân tay tiếp đón
+    public string? FingerprintData { get; set; } // dấu vân tay (base64), null nếu chưa/không thu thập
+    public bool FingerprintNotCollected { get; set; } // cờ "không thu thập được vân tay"
+
     // Chi nhánh đăng ký (NangCap21 - HIS đám mây 3 cấp)
     public Guid? BranchId { get; set; }
     public virtual HospitalBranch? Branch { get; set; }

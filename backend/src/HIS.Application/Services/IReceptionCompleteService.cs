@@ -299,6 +299,9 @@ public interface IReceptionCompleteService
     /// </summary>
     Task<PagedResultDto<HealthCheckContractDto>> GetHealthCheckContractsAsync(string? keyword, int? status, int page, int pageSize);
 
+    /// <summary>F11.2: lưu vân tay tiếp đón + cờ không thu thập được vào hồ sơ bệnh nhân.</summary>
+    Task<bool> SaveFingerprintAsync(Guid patientId, string? fingerprintData, bool notCollected, Guid userId);
+
     /// <summary>
     /// Import danh sách bệnh nhân khám sức khỏe
     /// </summary>

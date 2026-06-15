@@ -1,5 +1,9 @@
 import api from './client';
 
+// F11.2: lưu vân tay tiếp đón (#100)
+export const saveFingerprint = (patientId: string, data: { fingerprintData?: string; notCollected: boolean }) =>
+  api.post(`/reception/register/fingerprint/${patientId}`, data);
+
 // ========================
 // PHÂN HỆ 1: TIẾP ĐÓN - API CLIENT
 // Bao gồm tất cả 105+ chức năng theo yêu cầu

@@ -61,6 +61,19 @@ public partial class ReceptionCompleteService {
         };
     }
 
+    /// <summary>F11.2: lưu dấu vân tay tiếp đón + cờ không thu thập được vào hồ sơ bệnh nhân.</summary>
+    public async Task<bool> SaveFingerprintAsync(Guid patientId, string? fingerprintData, bool notCollected, Guid userId)
+    {
+        var patient = await _context.Patients.FindAsync(patientId);
+        if (patient == null) return false;
+        patient.FingerprintData = string.IsNullOrWhiteSpace(fingerprintData) ? null : fingerprintData;
+        patient.FingerprintNotCollected = notCollected;
+        patient.UpdatedAt = DateTime.UtcNow;
+        patient.UpdatedBy = userId.ToString();
+        await _unitOfWork.SaveChangesAsync();
+        return true;
+    }
+
     public async Task<List<PatientPhotoDto>> GetPatientPhotosAsync(Guid patientId, Guid? medicalRecordId = null)
     {
         var query = _context.PatientPhotos

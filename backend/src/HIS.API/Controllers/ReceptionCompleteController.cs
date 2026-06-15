@@ -709,6 +709,29 @@ public class ReceptionCompleteController : ControllerBase
         }
     }
 
+    /// <summary>F11.2: lưu vân tay tiếp đón (hoặc cờ không thu thập được) cho bệnh nhân.</summary>
+    [HttpPost("register/fingerprint/{patientId}")]
+    public async Task<IActionResult> SaveFingerprint(Guid patientId, [FromBody] SaveFingerprintRequest req)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var ok = await _receptionService.SaveFingerprintAsync(patientId, req?.FingerprintData, req?.NotCollected ?? false, userId);
+            return ok ? Ok(new { success = true }) : NotFound(new { message = "Khong tim thay benh nhan" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving reception fingerprint");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    public class SaveFingerprintRequest
+    {
+        public string? FingerprintData { get; set; }
+        public bool NotCollected { get; set; }
+    }
+
     /// <summary>
     /// 1.8.8: Đăng ký khám nhanh bằng SĐT
     /// </summary>

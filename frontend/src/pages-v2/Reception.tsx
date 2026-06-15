@@ -546,6 +546,7 @@ const ReceptionV2: React.FC = () => {
         ) : null}
       >
         {detail && <VisitDrawerBody v={detail} rows={rows} />}
+        {detail && <FingerprintPanel patientId={detail.patientId} />}
       </DrawerShell>
 
       {/* New registration modal */}
@@ -583,6 +584,53 @@ const ReceptionV2: React.FC = () => {
         onClose={() => setPayFor(null)}
         onDone={() => { setPayFor(null); loadData(); }}
       />
+    </div>
+  );
+};
+
+/* ────────────────────────────────────────────────────────────
+   F11.2 — Vân tay tiếp đón: lưu dấu vân tay (ảnh→base64) hoặc cờ
+   "không thu thập được" cho hồ sơ bệnh nhân (api/reception.saveFingerprint).
+   ──────────────────────────────────────────────────────────── */
+const FingerprintPanel: React.FC<{ patientId?: string }> = ({ patientId }) => {
+  const { message } = AntdApp.useApp();
+  const [notCollected, setNotCollected] = useState(false);
+  const [fpName, setFpName] = useState('');
+  const [fpData, setFpData] = useState<string | undefined>(undefined);
+  const [saving, setSaving] = useState(false);
+
+  const onFile = (file?: File) => {
+    if (!file) { setFpData(undefined); setFpName(''); return; }
+    const reader = new FileReader();
+    reader.onload = () => { setFpData(String(reader.result)); setFpName(file.name); };
+    reader.readAsDataURL(file);
+  };
+  const save = async () => {
+    if (!patientId) { message.warning('Không xác định được bệnh nhân để lưu vân tay'); return; }
+    setSaving(true);
+    try {
+      await receptionApi.saveFingerprint(patientId, { fingerprintData: notCollected ? undefined : fpData, notCollected });
+      message.success('Đã lưu vân tay tiếp đón');
+    } catch { message.error('Lưu vân tay thất bại'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{ marginTop: 14, borderTop: '1px solid var(--line-soft)', paddingTop: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-1)', marginBottom: 8 }}>
+        <TermIcon name="user" size={12} /> Vân tay tiếp đón
+      </div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, marginBottom: 8 }}>
+        <input type="checkbox" checked={notCollected} onChange={(e) => setNotCollected(e.target.checked)} />
+        Không thu thập được vân tay
+      </label>
+      {!notCollected && (
+        <div style={{ marginBottom: 8 }}>
+          <input type="file" accept="image/*" onChange={(e) => onFile(e.target.files?.[0])} style={{ fontSize: 12 }} />
+          {fpName && <span style={{ fontSize: 11.5, color: 'var(--t-2)', marginLeft: 8 }}>{fpName}</span>}
+        </div>
+      )}
+      <Btn variant="primary" icon="check" loading={saving} onClick={save}>Lưu vân tay</Btn>
     </div>
   );
 };
