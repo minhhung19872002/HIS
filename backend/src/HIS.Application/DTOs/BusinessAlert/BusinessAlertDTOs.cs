@@ -104,3 +104,44 @@ public class BusinessAlertRuleDto
     public string Module { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
 }
+
+// ===== Special Test Rule (F2.13) =====
+
+public class SpecialTestRuleDto
+{
+    public Guid Id { get; set; }
+    public Guid TestId { get; set; }
+    public string TestName { get; set; } = string.Empty;
+    /// <summary>0 = per-episode, 1 = N-ngày</summary>
+    public int WindowType { get; set; }
+    public int? WindowDays { get; set; }
+    public string? Note { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+}
+
+public class SpecialTestRuleSaveDto
+{
+    public Guid? Id { get; set; }
+    public Guid TestId { get; set; }
+    /// <summary>0 = per-episode, 1 = N-ngày</summary>
+    public int WindowType { get; set; }
+    public int? WindowDays { get; set; }
+    public string? Note { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class SpecialTestRuleSearchDto
+{
+    public string? Keyword { get; set; }
+    public bool? IsActive { get; set; }
+    public int PageIndex { get; set; } = 0;
+    public int PageSize { get; set; } = 20;
+}
+
+public class SpecialTestRulePagedResult
+{
+    public List<SpecialTestRuleDto> Items { get; set; } = new();
+    public int TotalCount { get; set; }
+}

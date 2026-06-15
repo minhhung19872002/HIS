@@ -153,3 +153,51 @@ export const resolveAlert = (id: string) =>
 
 export const getAlertRules = () =>
   apiClient.get<BusinessAlertRuleDto[]>(`${BASE_URL}/rules`);
+
+// ===== Special Test Rule CRUD (F2.13) =====
+
+/** WindowType: 0 = per-episode (1 lần/đợt), 1 = N-ngày */
+export interface SpecialTestRuleDto {
+  id: string;
+  testId: string;
+  testName: string;
+  windowType: 0 | 1;
+  windowDays?: number;
+  note?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface SpecialTestRuleSaveDto {
+  id?: string;
+  testId: string;
+  windowType: 0 | 1;
+  windowDays?: number;
+  note?: string;
+  isActive: boolean;
+}
+
+export interface SpecialTestRuleSearchDto {
+  keyword?: string;
+  isActive?: boolean;
+  pageIndex?: number;
+  pageSize?: number;
+}
+
+export interface SpecialTestRulePagedResult {
+  items: SpecialTestRuleDto[];
+  totalCount: number;
+}
+
+export const getSpecialTestRules = (params: SpecialTestRuleSearchDto) =>
+  apiClient.get<SpecialTestRulePagedResult>(`${BASE_URL}/special-test-rules`, { params });
+
+export const getSpecialTestRuleById = (id: string) =>
+  apiClient.get<SpecialTestRuleDto>(`${BASE_URL}/special-test-rules/${id}`);
+
+export const saveSpecialTestRule = (dto: SpecialTestRuleSaveDto) =>
+  apiClient.post<SpecialTestRuleDto>(`${BASE_URL}/special-test-rules`, dto);
+
+export const deleteSpecialTestRule = (id: string) =>
+  apiClient.delete(`${BASE_URL}/special-test-rules/${id}`);

@@ -38,4 +38,11 @@ public interface IBusinessAlertService
 
     /// <summary>Rule 39: Cost estimation at registration — not an alert, returns breakdown</summary>
     Task<CostEstimationResultDto> EstimateCostAsync(Guid patientId, List<Guid> serviceIds);
+
+    // ===== SPECIAL TEST RULE CRUD (F2.13) =====
+
+    Task<SpecialTestRulePagedResult> GetSpecialTestRulesAsync(SpecialTestRuleSearchDto search);
+    Task<SpecialTestRuleDto?> GetSpecialTestRuleByIdAsync(Guid id);
+    Task<SpecialTestRuleDto> SaveSpecialTestRuleAsync(SpecialTestRuleSaveDto dto, string userId);
+    Task<bool> DeleteSpecialTestRuleAsync(Guid id, string userId);
 }

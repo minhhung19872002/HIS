@@ -173,4 +173,50 @@ public class BusinessAlertController : ControllerBase
         var result = await _alertService.EstimateCostAsync(patientId, serviceIds);
         return Ok(result);
     }
+
+    // ===== SPECIAL TEST RULE CRUD (F2.13) =====
+
+    /// <summary>
+    /// List special test rules with pagination + keyword filter
+    /// </summary>
+    [HttpGet("special-test-rules")]
+    public async Task<IActionResult> GetSpecialTestRules([FromQuery] SpecialTestRuleSearchDto search)
+    {
+        var result = await _alertService.GetSpecialTestRulesAsync(search);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get a single special test rule by Id
+    /// </summary>
+    [HttpGet("special-test-rules/{id}")]
+    public async Task<IActionResult> GetSpecialTestRuleById(Guid id)
+    {
+        var result = await _alertService.GetSpecialTestRuleByIdAsync(id);
+        if (result == null) return NotFound();
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Create or update a special test rule (id == null or empty → create)
+    /// </summary>
+    [HttpPost("special-test-rules")]
+    public async Task<IActionResult> SaveSpecialTestRule([FromBody] SpecialTestRuleSaveDto dto)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+        var result = await _alertService.SaveSpecialTestRuleAsync(dto, userId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Soft-delete a special test rule
+    /// </summary>
+    [HttpDelete("special-test-rules/{id}")]
+    public async Task<IActionResult> DeleteSpecialTestRule(Guid id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+        var ok = await _alertService.DeleteSpecialTestRuleAsync(id, userId);
+        if (!ok) return NotFound();
+        return Ok(new { success = true });
+    }
 }

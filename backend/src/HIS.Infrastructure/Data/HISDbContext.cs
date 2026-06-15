@@ -700,6 +700,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<SterilizationSchedule> SterilizationSchedules => Set<SterilizationSchedule>();
     public DbSet<FunctionalDiagnosticTest> FunctionalDiagnosticTests => Set<FunctionalDiagnosticTest>();
     public DbSet<ZaloNotificationLog> ZaloNotificationLogs => Set<ZaloNotificationLog>();
+    public DbSet<SpecialTestRule> SpecialTestRules => Set<SpecialTestRule>(); // #150 F2.13: khung thời gian XN đặc biệt
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -1272,22 +1272,98 @@ public class BusinessAlertService : IBusinessAlertService
         var alerts = new List<BusinessAlertDto>();
         try
         {
-            // #14b: model 1 — SRD theo BN trong 24h, loại dòng hủy (LabRequestItems model 2 chết)
-            var duplicates = await _context.ServiceRequestDetails
+            // F2.13: Load special test rules for this patient's active services
+            var specialRules = await _context.SpecialTestRules
+                .Where(r => r.IsActive && !r.IsDeleted)
+                .Select(r => new { r.TestId, r.WindowType, r.WindowDays })
+                .ToListAsync();
+            var specialRuleMap = specialRules.ToDictionary(r => r.TestId);
+
+            // Default fallback window = 24h (Rule LAB-31 original)
+            const int fallbackHours = 24;
+
+            // Determine the widest window we need to look back (either per-rule or fallback)
+            // For per-episode we look back 90 days (covers any realistic episode), then filter in memory
+            // For N-days we look back max(WindowDays) or 90 days
+            var maxLookbackDays = specialRuleMap.Values
+                .Where(r => r.WindowType == 1)
+                .Select(r => r.WindowDays ?? fallbackHours / 24)
+                .DefaultIfEmpty(0)
+                .Max();
+            var lookbackHours = Math.Max(fallbackHours, maxLookbackDays * 24 + 1); // +1 to include boundary
+            // Cap at 90 days to avoid full-table scans
+            if (lookbackHours > 90 * 24) lookbackHours = 90 * 24;
+
+            var sinceUtc = DateTime.UtcNow.AddHours(-lookbackHours);
+
+            // #14b: model 1 — SRD theo BN, loại dòng hủy
+            var recentOrders = await _context.ServiceRequestDetails
                 .Where(d => d.ServiceRequest.MedicalRecord.PatientId == patientId
                     && d.ServiceRequest.RequestType == 1 && d.Status != 3 && !d.IsDeleted
-                    && d.CreatedAt >= DateTime.UtcNow.AddHours(-24))
-                .GroupBy(d => d.ServiceId)
-                .Where(g => g.Count() > 1)
-                .Select(g => new { ServiceId = g.Key, Count = g.Count(), Name = g.Max(d => d.Service.ServiceName) })
+                    && d.CreatedAt >= sinceUtc)
+                .Select(d => new
+                {
+                    d.ServiceId,
+                    ServiceName = d.Service.ServiceName,
+                    d.CreatedAt,
+                    MedicalRecordId = d.ServiceRequest.MedicalRecordId,
+                })
                 .ToListAsync();
 
-            foreach (var dup in duplicates)
+            // Group by ServiceId and evaluate each group against its rule
+            var grouped = recentOrders.GroupBy(d => d.ServiceId);
+            foreach (var grp in grouped)
             {
-                alerts.Add(CreateAlert("LAB-31", "Lab", 2, "Lab",
-                    "Xet nghiem trung lap",
-                    $"XN {dup.Name} da duoc chi dinh {dup.Count} lan trong 24h. Kiem tra co trung hay khong.",
-                    patientId, null, null));
+                var serviceId = grp.Key;
+                var items = grp.OrderBy(d => d.CreatedAt).ToList();
+                if (items.Count <= 1) continue;
+
+                var serviceName = items[0].ServiceName ?? serviceId.ToString();
+
+                if (specialRuleMap.TryGetValue(serviceId, out var rule))
+                {
+                    if (rule.WindowType == 0)
+                    {
+                        // Per-episode: flag if more than 1 order in the same MedicalRecord (đợt điều trị)
+                        var byEpisode = items.GroupBy(d => d.MedicalRecordId).Where(g => g.Count() > 1);
+                        foreach (var epGrp in byEpisode)
+                        {
+                            alerts.Add(CreateAlert("LAB-31", "Lab", 2, "Lab",
+                                "Xet nghiem trung lap (1 lan/dot)",
+                                $"XN {serviceName} da duoc chi dinh {epGrp.Count()} lan trong cung 1 dot dieu tri. " +
+                                "Cau hinh: 1 lan/dot. Kiem tra co trung khong.",
+                                patientId, null, null));
+                        }
+                    }
+                    else
+                    {
+                        // N-ngày
+                        var windowDays = rule.WindowDays ?? 1;
+                        var windowStart = DateTime.UtcNow.AddDays(-windowDays);
+                        var countInWindow = items.Count(d => d.CreatedAt >= windowStart);
+                        if (countInWindow > 1)
+                        {
+                            alerts.Add(CreateAlert("LAB-31", "Lab", 2, "Lab",
+                                "Xet nghiem trung lap",
+                                $"XN {serviceName} da duoc chi dinh {countInWindow} lan trong {windowDays} ngay. " +
+                                $"Cau hinh: khong lap trong {windowDays} ngay. Kiem tra co trung khong.",
+                                patientId, null, null));
+                        }
+                    }
+                }
+                else
+                {
+                    // Fallback: original 24h rule
+                    var windowStart = DateTime.UtcNow.AddHours(-fallbackHours);
+                    var countInWindow = items.Count(d => d.CreatedAt >= windowStart);
+                    if (countInWindow > 1)
+                    {
+                        alerts.Add(CreateAlert("LAB-31", "Lab", 2, "Lab",
+                            "Xet nghiem trung lap",
+                            $"XN {serviceName} da duoc chi dinh {countInWindow} lan trong 24h. Kiem tra co trung hay khong.",
+                            patientId, null, null));
+                    }
+                }
             }
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Rule LAB-31 error"); }
@@ -1585,6 +1661,108 @@ public class BusinessAlertService : IBusinessAlertService
         catch (Exception ex) { _logger.LogWarning(ex, "Rule REG-39 (cost estimation) error"); }
         return result;
     }
+
+    // =====================================================================
+    // SPECIAL TEST RULE CRUD (F2.13)
+    // =====================================================================
+
+    public async Task<SpecialTestRulePagedResult> GetSpecialTestRulesAsync(SpecialTestRuleSearchDto search)
+    {
+        var query = _context.SpecialTestRules
+            .Include(r => r.Test)
+            .Where(r => !r.IsDeleted);
+
+        if (search.IsActive.HasValue)
+            query = query.Where(r => r.IsActive == search.IsActive.Value);
+        if (!string.IsNullOrWhiteSpace(search.Keyword))
+        {
+            var kw = search.Keyword.Trim().ToLower();
+            query = query.Where(r => r.Test.ServiceName.ToLower().Contains(kw)
+                                  || (r.Note != null && r.Note.ToLower().Contains(kw)));
+        }
+
+        var total = await query.CountAsync();
+        var items = await query
+            .OrderBy(r => r.Test.ServiceName)
+            .Skip(search.PageIndex * search.PageSize)
+            .Take(search.PageSize)
+            .Select(r => MapSpecialTestRuleToDto(r))
+            .ToListAsync();
+
+        return new SpecialTestRulePagedResult { Items = items, TotalCount = total };
+    }
+
+    public async Task<SpecialTestRuleDto?> GetSpecialTestRuleByIdAsync(Guid id)
+    {
+        var entity = await _context.SpecialTestRules
+            .Include(r => r.Test)
+            .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted);
+        return entity == null ? null : MapSpecialTestRuleToDto(entity);
+    }
+
+    public async Task<SpecialTestRuleDto> SaveSpecialTestRuleAsync(SpecialTestRuleSaveDto dto, string userId)
+    {
+        HIS.Core.Entities.SpecialTestRule entity;
+        if (dto.Id.HasValue && dto.Id.Value != Guid.Empty)
+        {
+            entity = await _context.SpecialTestRules
+                .Include(r => r.Test)
+                .FirstOrDefaultAsync(r => r.Id == dto.Id.Value && !r.IsDeleted)
+                ?? throw new InvalidOperationException($"SpecialTestRule {dto.Id} not found");
+            entity.TestId = dto.TestId;
+            entity.WindowType = dto.WindowType;
+            entity.WindowDays = dto.WindowType == 1 ? dto.WindowDays : null;
+            entity.Note = dto.Note;
+            entity.IsActive = dto.IsActive;
+            entity.UpdatedAt = DateTime.UtcNow;
+            entity.UpdatedBy = userId;
+        }
+        else
+        {
+            entity = new HIS.Core.Entities.SpecialTestRule
+            {
+                Id = Guid.NewGuid(),
+                TestId = dto.TestId,
+                WindowType = dto.WindowType,
+                WindowDays = dto.WindowType == 1 ? dto.WindowDays : null,
+                Note = dto.Note,
+                IsActive = dto.IsActive,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = userId,
+            };
+            _context.SpecialTestRules.Add(entity);
+        }
+        await _context.SaveChangesAsync();
+
+        // Reload navigation for name
+        await _context.Entry(entity).Reference(r => r.Test).LoadAsync();
+        return MapSpecialTestRuleToDto(entity);
+    }
+
+    public async Task<bool> DeleteSpecialTestRuleAsync(Guid id, string userId)
+    {
+        var entity = await _context.SpecialTestRules
+            .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted);
+        if (entity == null) return false;
+        entity.IsDeleted = true;
+        entity.UpdatedAt = DateTime.UtcNow;
+        entity.UpdatedBy = userId;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    private static SpecialTestRuleDto MapSpecialTestRuleToDto(HIS.Core.Entities.SpecialTestRule r) => new()
+    {
+        Id = r.Id,
+        TestId = r.TestId,
+        TestName = r.Test?.ServiceName ?? string.Empty,
+        WindowType = r.WindowType,
+        WindowDays = r.WindowDays,
+        Note = r.Note,
+        IsActive = r.IsActive,
+        CreatedAt = r.CreatedAt,
+        UpdatedAt = r.UpdatedAt,
+    };
 
     // =====================================================================
     // HELPERS
