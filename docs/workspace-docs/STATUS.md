@@ -3,9 +3,15 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-15** (chiến dịch multi-feature: Sóng 1+2+3 = 15 feature build-green; S1+S2 đã push, S3 đang commit).
+> Cập nhật cuối: **2026-06-15** (chiến dịch multi-feature 3 sóng = 15 feature, ĐÃ push+deploy; VERIFY PROD: schema-drift=0, smoke 9 endpoint mới 200).
 
 ## Đang ở đâu
+- **VERIFY PROD sau 3 sóng (✅)**: deploy `186ddb1` success. `/health/schema-drift` **missingCount=0**
+  (vá `108_admin_catalog_missing_columns.sql` — #95 dùng CREATE-IF-NULL bỏ qua 3 bảng có sẵn prod
+  → ALTER ADD Note/SortOrder). Smoke: #94 provinces · #150 special-test-rules · #151 bhyt-full-coverage ·
+  #95 nations/initial-facilities/occupations/genders/ethnics · #153 waiting-phase-analysis = **200**.
+  CHƯA verify chức năng sâu (money #149/#151 zero-copay, block behavior, #152 IP-behind-LB) — chỉ smoke GET.
+  **CHƯA close issue nào** (15 issue: #141 #142 #149 #150 #153 #110 #152 #94 #135 #101 #140 #136 #147 #95 #151).
 - **SÓNG 3 (build-green)**: fan-out 5 agent, build gate tập trung (BE 0 err · FE 0 err).
   **#140** form TNGT đủ trường pháp lý (mũ BH/rượu bia/phương tiện — thêm 5 cột InjuryInfo, migration **104**
   ALTER, form trong OpdEditor) · **#136** RIS lọc theo Tên đoàn khám (cột `ExamGroupName`, migration **107**
