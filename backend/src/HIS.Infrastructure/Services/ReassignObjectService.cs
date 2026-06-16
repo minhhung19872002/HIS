@@ -90,14 +90,22 @@ public class ReassignObjectService : IReassignObjectService
         var items = await q.ToListAsync();
         result.OldTotal = items.Sum(i => i.PatientAmount);
 
+        // #157: mức hưởng BHYT THỰC theo hồ sơ (InsuranceCoverageRate 80/95/100) — thay default 80 cứng.
+        var coverageByRecord = await _db.MedicalRecords
+            .Where(m => recordIds.Contains(m.Id))
+            .Select(m => new { m.Id, m.InsuranceCoverageRate })
+            .ToDictionaryAsync(x => x.Id, x => x.InsuranceCoverageRate);
+
         foreach (var it in items)
         {
             it.PatientType = dto.ToPatientType;
             // Recompute split theo logic đơn giản
             if (dto.ToPatientType == 1)
             {
-                // BHYT: giữ InsurancePaymentRate hiện tại; nếu = 0 thì default 80
-                var rate = it.InsurancePaymentRate > 0 ? it.InsurancePaymentRate : 80;
+                // #157: ưu tiên rate dòng đã có > mức hưởng thực của hồ sơ (InsuranceCoverageRate) > 80 (fallback cuối).
+                var recRate = coverageByRecord.TryGetValue(it.ServiceRequest.MedicalRecordId, out var cr) ? cr : null;
+                var rate = it.InsurancePaymentRate > 0 ? it.InsurancePaymentRate
+                         : (recRate.HasValue && recRate.Value > 0 ? recRate.Value : 80);
                 it.InsurancePaymentRate = rate;
                 it.InsuranceAmount = Math.Round(it.Amount * rate / 100m, 0);
                 it.PatientAmount = it.Amount - it.InsuranceAmount;
