@@ -57,6 +57,52 @@
   --fs-xl: 20px;
 }
 
+/* =====================================================================
+ * DARK MODE — redefine token gốc cho [data-theme="dark"] (#158 ui-audit).
+ * Additive: chỉ áp khi dark; light KHÔNG đổi. Mọi component DÙNG var(--token)
+ * tự flip. (Màu hardcode/inline vẫn cần migrate — #160.)
+ * body[data-theme="dark"] (0,0,1,1) > :root (0,0,1,0) nên override token.
+ * ===================================================================== */
+body[data-theme="dark"] {
+  /* Surfaces: base -> raised (đảo so với light) */
+  --d-0: #0f172a;
+  --d-1: #131c2e;
+  --d-2: #1b2536;
+  --d-3: #243043;
+  --d-4: #2d3b51;
+  --d-5: #3a4a63;
+
+  /* Borders */
+  --line: #2d3a4d;
+  --line-soft: #243042;
+  --line-hair: #1c2636;
+
+  /* Text: sáng -> mờ (đảo thang light) */
+  --t-0: #f1f5f9;
+  --t-1: #d4dce6;
+  --t-2: #9fb0c3;
+  --t-3: #78889c;
+  --t-4: #5a6a7e;
+
+  /* Accent / primary */
+  --a-cy: #4f8cf7;
+  --a-cy-dim: #3b82f6;
+  --a-cy-bg: #16243f;
+  --a-cy-line: #2b4571;
+
+  /* Semantic states: legible trên nền tối + tint nền tối */
+  --s-crit: #f87171;
+  --s-crit-bg: #371a1a;
+  --s-warn: #fbbf24;
+  --s-warn-bg: #36280f;
+  --s-ok: #4ade80;
+  --s-ok-bg: #15301f;
+  --s-info: #38bdf8;
+  --s-info-bg: #122636;
+  --s-mag: #a78bfa;
+  --s-mag-bg: #241d39;
+}
+
 /* Scoped resets (only affect /v2/* under .his-terminal) */
 .his-terminal, .his-terminal * { box-sizing: border-box; }
 .his-terminal {
