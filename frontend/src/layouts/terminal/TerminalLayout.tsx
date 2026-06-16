@@ -155,6 +155,8 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'provincial-health', path: '/v2/provincial-health', label: 'Chỉ đạo tuyến' },
       { id: 'backup-management', path: '/v2/backup-management', label: 'Quản lý Backup' },
       { id: 'his-connections', path: '/v2/his-connections', label: 'Kết nối HIS' },
+      { id: 'kiosk', path: '/v2/kiosk', label: 'Kiosk tự phục vụ' },
+      { id: 'procurement', path: '/v2/procurement', label: 'Đề xuất mua sắm' },
       { id: 'reports',           path: '/v2/reports',           label: '[24] Báo cáo' },
       { id: 'waiting-time',      path: '/v2/reports/waiting-time', label: 'Phân tích thời gian chờ' },
       { id: 'report-catalogs',   path: '/v2/report-catalogs',   label: '[24] DM Nhóm BC' },

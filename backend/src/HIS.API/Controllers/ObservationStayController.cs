@@ -253,4 +253,21 @@ public class ObservationStayController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok(new { stay.Id, stay.Status });
     }
+
+    /// <summary>Cập nhật mức triage (nâng/hạ mức ưu tiên) cho phiên lưu — #61.</summary>
+    [HttpPut("{id:guid}/triage")]
+    public async Task<IActionResult> UpdateTriage(Guid id, [FromBody] UpdateTriageDto dto)
+    {
+        if (dto.TriageLevel < 1 || dto.TriageLevel > 5)
+            return BadRequest(new { message = "Mức triage phải từ 1 đến 5" });
+        var stay = await _db.ObservationStays.FindAsync(id);
+        if (stay == null) return NotFound();
+        stay.TriageLevel = dto.TriageLevel;
+        stay.UpdatedAt = DateTime.Now;
+        stay.UpdatedBy = GetUserId().ToString();
+        await _db.SaveChangesAsync();
+        return Ok(new { stay.Id, stay.TriageLevel });
+    }
+
+    public class UpdateTriageDto { public int TriageLevel { get; set; } }
 }

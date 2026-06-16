@@ -855,5 +855,205 @@ public partial class ExaminationCompleteService
         }).ToList();
     }
 
+    /// <summary>
+    /// Import danh sach cap tuong tac thuoc tu CSV.
+    /// Header bat buoc: ActiveIngredient1,ActiveIngredient2,Severity,InteractionType,Description,Recommendation
+    /// Upsert: tim cap thuoc theo (ActiveIngredient trim lower) — doi xung (A,B) == (B,A).
+    /// NOTE: Excel can them thu vien ClosedXML/EPPlus; hien tai chi ho tro CSV.
+    /// </summary>
+    public async Task<DrugInteractionImportResultDto> ImportDrugInteractionsAsync(byte[] csvContent)
+    {
+        var result = new DrugInteractionImportResultDto();
+        var lines = Encoding.UTF8.GetString(csvContent)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        if (lines.Length < 2)
+        {
+            result.Errors.Add(new DrugInteractionImportErrorDto
+            {
+                RowNumber = 0,
+                ErrorMessage = "File CSV rong hoac thieu header. Header bat buoc: ActiveIngredient1,ActiveIngredient2,Severity,InteractionType,Description,Recommendation"
+            });
+            return result;
+        }
+
+        // Validate header (case-insensitive)
+        var headerCols = lines[0].Trim().Split(',');
+        string[] requiredHeaders = { "activeingredient1", "activeingredient2", "severity" };
+        var headerLower = headerCols.Select(h => h.Trim().ToLowerInvariant()).ToArray();
+        foreach (var req in requiredHeaders)
+        {
+            if (!headerLower.Contains(req))
+            {
+                result.Errors.Add(new DrugInteractionImportErrorDto
+                {
+                    RowNumber = 1,
+                    ErrorMessage = $"Thieu cot bat buoc: {req}. Header hien tai: {lines[0].Trim()}"
+                });
+                return result;
+            }
+        }
+
+        int idxAI1       = Array.IndexOf(headerLower, "activeingredient1");
+        int idxAI2       = Array.IndexOf(headerLower, "activeingredient2");
+        int idxSeverity  = Array.IndexOf(headerLower, "severity");
+        int idxType      = Array.IndexOf(headerLower, "interactiontype");
+        int idxDesc      = Array.IndexOf(headerLower, "description");
+        int idxRec       = Array.IndexOf(headerLower, "recommendation");
+
+        // Load tat ca medicines de lookup theo ActiveIngredient (case-insensitive)
+        var allMedicines = await _context.Medicines
+            .Where(m => !m.IsDeleted && m.ActiveIngredient != null)
+            .Select(m => new { m.Id, m.ActiveIngredient })
+            .ToListAsync();
+
+        // Group by ActiveIngredient (lowercase) — 1 hoat chat co the co nhieu medicine
+        var aiIndex = allMedicines
+            .GroupBy(m => m.ActiveIngredient!.Trim().ToLowerInvariant())
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Id).ToList());
+
+        // Load existing interactions de upsert
+        var existingInteractions = await _context.DrugInteractions
+            .Where(d => !d.IsDeleted)
+            .ToListAsync();
+
+        result.TotalRows = lines.Length - 1;
+
+        for (int i = 1; i < lines.Length; i++)
+        {
+            var line = lines[i].Trim();
+            if (string.IsNullOrWhiteSpace(line)) { result.TotalRows--; continue; }
+
+            var cols = line.Split(',');
+            int rowNum = i + 1; // 1-based, row 1 = header
+
+            try
+            {
+                if (cols.Length <= Math.Max(idxAI1, idxAI2))
+                {
+                    result.Skipped++;
+                    result.Errors.Add(new DrugInteractionImportErrorDto
+                    {
+                        RowNumber = rowNum,
+                        ErrorMessage = "Khong du cot"
+                    });
+                    continue;
+                }
+
+                var ai1 = idxAI1 < cols.Length ? cols[idxAI1].Trim() : "";
+                var ai2 = idxAI2 < cols.Length ? cols[idxAI2].Trim() : "";
+                var severityStr = idxSeverity < cols.Length ? cols[idxSeverity].Trim() : "1";
+
+                if (string.IsNullOrWhiteSpace(ai1) || string.IsNullOrWhiteSpace(ai2))
+                {
+                    result.Skipped++;
+                    result.Errors.Add(new DrugInteractionImportErrorDto
+                    {
+                        RowNumber = rowNum, ActiveIngredient1 = ai1, ActiveIngredient2 = ai2,
+                        ErrorMessage = "Hoat chat 1 hoac hoat chat 2 trong"
+                    });
+                    continue;
+                }
+
+                if (!int.TryParse(severityStr, out var severity) || severity < 1 || severity > 4)
+                {
+                    result.Skipped++;
+                    result.Errors.Add(new DrugInteractionImportErrorDto
+                    {
+                        RowNumber = rowNum, ActiveIngredient1 = ai1, ActiveIngredient2 = ai2,
+                        ErrorMessage = $"Severity khong hop le: '{severityStr}' (phai 1-4)"
+                    });
+                    continue;
+                }
+
+                var ai1Key = ai1.ToLowerInvariant();
+                var ai2Key = ai2.ToLowerInvariant();
+
+                if (!aiIndex.TryGetValue(ai1Key, out var med1Ids) || !med1Ids.Any())
+                {
+                    result.Skipped++;
+                    result.Errors.Add(new DrugInteractionImportErrorDto
+                    {
+                        RowNumber = rowNum, ActiveIngredient1 = ai1, ActiveIngredient2 = ai2,
+                        ErrorMessage = $"Khong tim thay thuoc co hoat chat: '{ai1}'"
+                    });
+                    continue;
+                }
+
+                if (!aiIndex.TryGetValue(ai2Key, out var med2Ids) || !med2Ids.Any())
+                {
+                    result.Skipped++;
+                    result.Errors.Add(new DrugInteractionImportErrorDto
+                    {
+                        RowNumber = rowNum, ActiveIngredient1 = ai1, ActiveIngredient2 = ai2,
+                        ErrorMessage = $"Khong tim thay thuoc co hoat chat: '{ai2}'"
+                    });
+                    continue;
+                }
+
+                var interactionType = idxType >= 0 && idxType < cols.Length ? cols[idxType].Trim() : null;
+                var description     = idxDesc >= 0 && idxDesc < cols.Length ? cols[idxDesc].Trim() : null;
+                var recommendation  = idxRec  >= 0 && idxRec  < cols.Length ? cols[idxRec].Trim()  : null;
+
+                // Upsert: lap qua tung cap (med1, med2) cua (ai1, ai2)
+                bool isNewForThisPair = false;
+                foreach (var m1Id in med1Ids)
+                {
+                    foreach (var m2Id in med2Ids)
+                    {
+                        if (m1Id == m2Id) continue; // bo qua cung thuoc
+
+                        var existing = existingInteractions.FirstOrDefault(d =>
+                            (d.Medicine1Id == m1Id && d.Medicine2Id == m2Id) ||
+                            (d.Medicine1Id == m2Id && d.Medicine2Id == m1Id));
+
+                        if (existing != null)
+                        {
+                            // Update
+                            existing.Severity        = severity;
+                            existing.InteractionType = interactionType;
+                            existing.Description     = description;
+                            existing.Recommendation  = recommendation;
+                            existing.IsActive        = true;
+                            existing.UpdatedAt       = DateTime.UtcNow;
+                        }
+                        else
+                        {
+                            // Insert
+                            var newEntry = new DrugInteraction
+                            {
+                                Medicine1Id     = m1Id,
+                                Medicine2Id     = m2Id,
+                                Severity        = severity,
+                                InteractionType = interactionType,
+                                Description     = description,
+                                Recommendation  = recommendation,
+                                IsActive        = true,
+                            };
+                            _context.DrugInteractions.Add(newEntry);
+                            existingInteractions.Add(newEntry); // cap nhat cache local
+                            isNewForThisPair = true;
+                        }
+                    }
+                }
+
+                if (isNewForThisPair) result.Imported++;
+                else result.Updated++;
+            }
+            catch (Exception ex)
+            {
+                result.Skipped++;
+                result.Errors.Add(new DrugInteractionImportErrorDto
+                {
+                    RowNumber = rowNum,
+                    ErrorMessage = $"Loi xu ly dong: {ex.Message}"
+                });
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return result;
+    }
+
     #endregion
 }

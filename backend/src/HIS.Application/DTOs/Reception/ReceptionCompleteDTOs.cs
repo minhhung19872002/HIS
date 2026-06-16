@@ -611,6 +611,17 @@ public class MergePatientDto
     public string Reason { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// DTO tách bệnh án (#99): di chuyển 1 số hồ sơ từ BN nguồn sang BN đích (đã tồn tại).
+/// </summary>
+public class SplitPatientDto
+{
+    public Guid SourcePatientId { get; set; }            // BN nguồn (giữ lại các hồ sơ còn lại)
+    public Guid TargetPatientId { get; set; }            // BN đích nhận hồ sơ tách (phải tồn tại)
+    public List<Guid> MedicalRecordIds { get; set; } = new(); // hồ sơ cần tách sang đích
+    public string Reason { get; set; } = string.Empty;
+}
+
 #endregion
 
 #region 1.11 Quản lý tiếp đón khác

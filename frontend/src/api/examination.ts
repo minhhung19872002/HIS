@@ -1280,6 +1280,35 @@ export const getMedicinesByGroup = (groupId: string) =>
 export const checkDrugInteractions = (medicineIds: string[]) =>
   request.post<DrugInteractionDto[]>(`/examination/check-drug-interactions`, medicineIds);
 
+// === Import danh sach cap tuong tac thuoc theo hoat chat (Issue #96) ===
+
+export interface DrugInteractionImportResult {
+  totalRows: number;
+  imported: number;
+  updated: number;
+  skipped: number;
+  errors: Array<{
+    rowNumber: number;
+    activeIngredient1?: string;
+    activeIngredient2?: string;
+    errorMessage: string;
+  }>;
+}
+
+/**
+ * Import file CSV cap tuong tac thuoc theo hoat chat.
+ * CSV header bat buoc: ActiveIngredient1,ActiveIngredient2,Severity,InteractionType,Description,Recommendation
+ * Severity: 1=Nhe 2=TrungBinh 3=Nang 4=ChongChiDinhTuyetDoi
+ * NOTE: Excel can them thu vien backend ClosedXML/EPPlus; hien tai chi ho tro CSV.
+ */
+export const importDrugInteractionsCsv = (file: File) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  return request.post<DrugInteractionImportResult>('/clinical-pharmacy/drug-interactions/import-csv', fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
 export const checkDrugAllergies = (patientId: string, medicineIds: string[]) =>
   request.post<PrescriptionWarningDto[]>(`/examination/patient/${patientId}/check-drug-allergies`, medicineIds);
 
@@ -1628,6 +1657,7 @@ export const examinationApi = {
   getMedicineWithStock,
   getMedicinesByGroup,
   checkDrugInteractions,
+  importDrugInteractionsCsv,
   checkDrugAllergies,
   checkContraindications,
   checkDuplicateMedicines,

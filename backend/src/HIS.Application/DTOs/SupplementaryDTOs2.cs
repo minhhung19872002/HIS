@@ -482,3 +482,75 @@ public class BhxhAuditBatchSubmitResultDto
     public int Failed { get; set; }
     public List<BhxhAuditPortalSubmitResultDto> Results { get; set; } = new();
 }
+
+// === BHXH Audit Import — DTOs (Issue #97/#121/#122) ===
+
+/// <summary>
+/// Tung dong du lieu tu file CSV/Excel giam dinh BHXH (sau khi import thanh cong).
+/// TrangThaiGiamDinh: 0=ChuaDuyet, 1=DaDuyet, 2=TuChoi
+/// </summary>
+public class BhxhAuditImportRowDto
+{
+    public Guid Id { get; set; }
+    public string ImportBatchCode { get; set; } = string.Empty;
+    public DateTime ImportedAt { get; set; }
+    public string? FileName { get; set; }
+    public int RowNumber { get; set; }
+    public string MaHoSo { get; set; } = string.Empty;
+    public string? MaBenhNhan { get; set; }
+    public string? HoTen { get; set; }
+    public string? SoTheBHYT { get; set; }
+    public DateTime? NgayVao { get; set; }
+    public DateTime? NgayRa { get; set; }
+    public string? MaKhoa { get; set; }
+    public string? TenKhoa { get; set; }
+    public string? MaChanDoan { get; set; }
+    public decimal TienVienPhi { get; set; }
+    public decimal TienBHYT { get; set; }
+    public decimal TienBenhNhan { get; set; }
+    public int TrangThaiGiamDinh { get; set; }
+    public string? TrangThaiName { get; set; }
+    public string? GhiChu { get; set; }
+    public bool IsValid { get; set; }
+    public string? ValidationError { get; set; }
+}
+
+/// <summary>Ket qua sau khi import 1 file CSV giam dinh BHXH</summary>
+public class BhxhAuditImportResultDto
+{
+    public string ImportBatchCode { get; set; } = string.Empty;
+    public string? FileName { get; set; }
+    public int TotalRows { get; set; }
+    public int ImportedRows { get; set; }
+    public int SkippedRows { get; set; }
+    public List<BhxhAuditImportRowErrorDto> Errors { get; set; } = new();
+}
+
+public class BhxhAuditImportRowErrorDto
+{
+    public int RowNumber { get; set; }
+    public string MaHoSo { get; set; } = string.Empty;
+    public string ErrorMessage { get; set; } = string.Empty;
+}
+
+/// <summary>Filter danh sach hang da import</summary>
+public class BhxhAuditImportSearchDto
+{
+    public string? ImportBatchCode { get; set; }
+    public string? Keyword { get; set; }    // Ma ho so / ho ten / so the
+    public int? TrangThai { get; set; }     // 0/1/2 hoac null = tat ca
+    public int PageIndex { get; set; } = 0;
+    public int PageSize { get; set; } = 20;
+}
+
+public class BhxhAuditImportPagedResult
+{
+    public List<BhxhAuditImportRowDto> Items { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int PageIndex { get; set; }
+    public int PageSize { get; set; }
+    /// <summary>Counts per status for StatusTabs</summary>
+    public int CountChuaDuyet { get; set; }
+    public int CountDaDuyet { get; set; }
+    public int CountTuChoi { get; set; }
+}

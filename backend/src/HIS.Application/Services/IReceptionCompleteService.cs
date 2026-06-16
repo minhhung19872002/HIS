@@ -337,6 +337,11 @@ public interface IReceptionCompleteService
     Task MergePatientsAsync(MergePatientDto dto, Guid userId);
 
     /// <summary>
+    /// Tách bệnh án (#99): di chuyển hồ sơ đã chọn sang BN đích
+    /// </summary>
+    Task SplitPatientAsync(SplitPatientDto dto, Guid userId);
+
+    /// <summary>
     /// Tạo phiếu tạm ứng cho cấp cứu
     /// </summary>
     Task<DepositReceiptDto> CreateEmergencyDepositAsync(Guid medicalRecordId, decimal amount, Guid userId);

@@ -246,6 +246,10 @@ public static class DependencyInjection
         });
         services.AddScoped<IMultiHisConnectorService, MultiHisConnectorService>();
 
+        // Wave 4: kiosk (#103 #123-125), mua sắm tài sản (#108)
+        services.AddScoped<IKioskService, KioskService>();
+        services.AddScoped<IAssetProcurementService, AssetProcurementService>();
+
         // F3.4 #151: BN BHYT chi trả 100% thuốc đặc trị
         services.AddScoped<IBhytFullCoverageService, BhytFullCoverageService>();
 

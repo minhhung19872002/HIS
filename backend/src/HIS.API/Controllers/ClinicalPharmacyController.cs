@@ -1,3 +1,5 @@
+using HIS.Application.DTOs.Examination;
+using HIS.Application.Services;
 using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,7 +17,13 @@ namespace HIS.API.Controllers;
 public class ClinicalPharmacyController : ControllerBase
 {
     private readonly HISDbContext _db;
-    public ClinicalPharmacyController(HISDbContext db) { _db = db; }
+    private readonly IExaminationCompleteService _examinationService;
+
+    public ClinicalPharmacyController(HISDbContext db, IExaminationCompleteService examinationService)
+    {
+        _db = db;
+        _examinationService = examinationService;
+    }
 
     [HttpGet("patient-summary/{patientId:guid}")]
     public async Task<IActionResult> PatientSummary(Guid patientId)
@@ -128,5 +136,28 @@ public class ClinicalPharmacyController : ControllerBase
                 drugInteractionsCount = interactions.Count,
             },
         });
+    }
+
+    /// <summary>
+    /// Import danh sach cap tuong tac thuoc tu file CSV.
+    /// CSV format (header bat buoc): ActiveIngredient1,ActiveIngredient2,Severity,InteractionType,Description,Recommendation
+    /// Severity: 1=Nhe 2=TrungBinh 3=Nang 4=ChongChiDinhTuyetDoi
+    /// Upsert theo cap hoat chat (doi xung A-B == B-A).
+    /// NOTE: Excel can them thu vien ClosedXML/EPPlus; hien tai chi ho tro CSV.
+    /// </summary>
+    [HttpPost("drug-interactions/import-csv")]
+    [Authorize(Roles = "Admin,Pharmacist")]
+    public async Task<ActionResult<DrugInteractionImportResultDto>> ImportDrugInteractionsCsv(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "Chua chon file CSV" });
+
+        if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { message = "Chi ho tro file CSV. Excel can them thu vien ClosedXML/EPPlus." });
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        var result = await _examinationService.ImportDrugInteractionsAsync(ms.ToArray());
+        return Ok(result);
     }
 }

@@ -1452,4 +1452,211 @@ public class BhxhAuditService : IBhxhAuditService
         FixedDate = e.FixedDate,
         Notes = e.Notes
     };
+
+    // ============================================================
+    // Import danh sach giam dinh BHXH tu CSV (Issue #97/#121/#122)
+    // NOTE: Excel can them thu vien ClosedXML/EPPlus; hien tai chi ho tro CSV.
+    // ============================================================
+
+    private static readonly string[] TrangThaiNames = { "Chua duyet", "Da duyet", "Tu choi" };
+
+    /// <summary>
+    /// Import CSV giam dinh BHXH — moi dong 1 ho so.
+    /// Header bat buoc: MaHoSo,MaBenhNhan,HoTen,SoTheBHYT,NgayVao,NgayRa,MaKhoa,TenKhoa,MaChanDoan,TienVienPhi,TienBHYT,TienBenhNhan,TrangThaiGiamDinh,GhiChu
+    /// </summary>
+    public async Task<BhxhAuditImportResultDto> ImportAuditListAsync(byte[] csvContent, string? fileName, Guid importedByUserId)
+    {
+        var batchCode = $"IMPORT-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+        var result = new BhxhAuditImportResultDto
+        {
+            ImportBatchCode = batchCode,
+            FileName = fileName
+        };
+
+        var lines = Encoding.UTF8.GetString(csvContent)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        if (lines.Length < 2)
+        {
+            result.Errors.Add(new BhxhAuditImportRowErrorDto
+            {
+                RowNumber = 0, MaHoSo = "",
+                ErrorMessage = "File CSV rong hoac thieu header."
+            });
+            return result;
+        }
+
+        // Header index mapping (case-insensitive)
+        var headerCols = lines[0].Trim().Split(',');
+        var hdr = headerCols.Select(h => h.Trim().ToLowerInvariant()).ToArray();
+
+        int col(string name) => Array.IndexOf(hdr, name);
+        string val(string[] cols, int idx) => idx >= 0 && idx < cols.Length ? cols[idx].Trim() : "";
+
+        int iMaHoSo   = col("mahoSo");   if (iMaHoSo < 0)   iMaHoSo   = col("mahoso");
+        int iMaBN      = col("mabenhNhan"); if (iMaBN < 0)    iMaBN     = col("mabenhnhan");
+        int iHoTen     = col("hoten");
+        int iSoThe     = col("sothebhyt");
+        int iNgayVao   = col("ngayvao");
+        int iNgayRa    = col("ngayra");
+        int iMaKhoa    = col("makhoa");
+        int iTenKhoa   = col("tenkhoa");
+        int iMaCD      = col("machandoan");
+        int iTienVP    = col("tienvienPhi");    if (iTienVP < 0) iTienVP = col("tienvienphi");
+        int iTienBHYT  = col("tienbhyt");
+        int iTienBN    = col("tienbenhNhan");   if (iTienBN < 0) iTienBN = col("tienbenhnhan");
+        int iTrangThai = col("trangthaigiamdinhh"); if (iTrangThai < 0) iTrangThai = col("trangthaigiamdinh");
+        int iGhiChu    = col("ghichu");
+
+        if (iMaHoSo < 0)
+        {
+            result.Errors.Add(new BhxhAuditImportRowErrorDto
+            {
+                RowNumber = 1, MaHoSo = "",
+                ErrorMessage = $"Thieu cot 'MaHoSo'. Header hien tai: {lines[0].Trim()}"
+            });
+            return result;
+        }
+
+        result.TotalRows = lines.Length - 1;
+        var rows = new List<BhxhAuditImport>();
+
+        for (int i = 1; i < lines.Length; i++)
+        {
+            var line = lines[i].Trim();
+            if (string.IsNullOrWhiteSpace(line)) { result.TotalRows--; continue; }
+
+            var cols = line.Split(',');
+            int rowNum = i + 1;
+            var maHoSo = val(cols, iMaHoSo);
+
+            if (string.IsNullOrWhiteSpace(maHoSo))
+            {
+                result.SkippedRows++;
+                result.Errors.Add(new BhxhAuditImportRowErrorDto
+                {
+                    RowNumber = rowNum, MaHoSo = maHoSo,
+                    ErrorMessage = "MaHoSo trong"
+                });
+                continue;
+            }
+
+            // Parse so tien
+            decimal ParseMoney(string s) =>
+                decimal.TryParse(s.Replace(".", "").Replace(",", ""), out var v) ? v : 0;
+
+            // Parse trang thai: 0/1/2 hoac text
+            int trangThai = 0;
+            var ttStr = val(cols, iTrangThai);
+            if (!int.TryParse(ttStr, out trangThai))
+                trangThai = ttStr.Contains("duyet", StringComparison.OrdinalIgnoreCase) ? 1 :
+                            ttStr.Contains("choi", StringComparison.OrdinalIgnoreCase)   ? 2 : 0;
+
+            // Parse ngay
+            DateTime? ParseDate(string s) =>
+                DateTime.TryParse(s, out var d) ? (DateTime?)d : null;
+
+            rows.Add(new BhxhAuditImport
+            {
+                ImportBatchCode    = batchCode,
+                ImportedAt         = DateTime.UtcNow,
+                ImportedByUserId   = importedByUserId == Guid.Empty ? null : importedByUserId,
+                FileName           = fileName,
+                RowNumber          = rowNum,
+                MaHoSo             = maHoSo,
+                MaBenhNhan         = val(cols, iMaBN),
+                HoTen              = val(cols, iHoTen),
+                SoTheBHYT         = val(cols, iSoThe),
+                NgayVao            = ParseDate(val(cols, iNgayVao)),
+                NgayRa             = ParseDate(val(cols, iNgayRa)),
+                MaKhoa             = val(cols, iMaKhoa),
+                TenKhoa            = val(cols, iTenKhoa),
+                MaChanDoan         = val(cols, iMaCD),
+                TienVienPhi        = ParseMoney(val(cols, iTienVP)),
+                TienBHYT           = ParseMoney(val(cols, iTienBHYT)),
+                TienBenhNhan       = ParseMoney(val(cols, iTienBN)),
+                TrangThaiGiamDinh  = trangThai,
+                GhiChu             = val(cols, iGhiChu),
+                IsValid            = true,
+            });
+
+            result.ImportedRows++;
+        }
+
+        if (rows.Any())
+        {
+            _context.BhxhAuditImports.AddRange(rows);
+            await _context.SaveChangesAsync();
+        }
+
+        return result;
+    }
+
+    public async Task<BhxhAuditImportPagedResult> GetImportedRowsAsync(BhxhAuditImportSearchDto filter)
+    {
+        var q = _context.BhxhAuditImports.Where(x => !x.IsDeleted);
+
+        if (!string.IsNullOrWhiteSpace(filter.ImportBatchCode))
+            q = q.Where(x => x.ImportBatchCode == filter.ImportBatchCode);
+
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
+        {
+            var kw = filter.Keyword.Trim();
+            q = q.Where(x => x.MaHoSo.Contains(kw)
+                           || (x.HoTen != null && x.HoTen.Contains(kw))
+                           || (x.SoTheBHYT != null && x.SoTheBHYT.Contains(kw)));
+        }
+
+        if (filter.TrangThai.HasValue)
+            q = q.Where(x => x.TrangThaiGiamDinh == filter.TrangThai.Value);
+
+        var total        = await q.CountAsync();
+        var chuaDuyet    = await q.CountAsync(x => x.TrangThaiGiamDinh == 0);
+        var daDuyet      = await q.CountAsync(x => x.TrangThaiGiamDinh == 1);
+        var tuChoi       = await q.CountAsync(x => x.TrangThaiGiamDinh == 2);
+
+        var items = await q
+            .OrderByDescending(x => x.ImportedAt)
+            .ThenBy(x => x.RowNumber)
+            .Skip(filter.PageIndex * filter.PageSize)
+            .Take(filter.PageSize)
+            .Select(x => new BhxhAuditImportRowDto
+            {
+                Id                = x.Id,
+                ImportBatchCode   = x.ImportBatchCode,
+                ImportedAt        = x.ImportedAt,
+                FileName          = x.FileName,
+                RowNumber         = x.RowNumber,
+                MaHoSo            = x.MaHoSo,
+                MaBenhNhan        = x.MaBenhNhan,
+                HoTen             = x.HoTen,
+                SoTheBHYT        = x.SoTheBHYT,
+                NgayVao           = x.NgayVao,
+                NgayRa            = x.NgayRa,
+                MaKhoa            = x.MaKhoa,
+                TenKhoa           = x.TenKhoa,
+                MaChanDoan        = x.MaChanDoan,
+                TienVienPhi       = x.TienVienPhi,
+                TienBHYT          = x.TienBHYT,
+                TienBenhNhan      = x.TienBenhNhan,
+                TrangThaiGiamDinh = x.TrangThaiGiamDinh,
+                TrangThaiName     = x.TrangThaiGiamDinh == 1 ? "Da duyet"
+                                  : x.TrangThaiGiamDinh == 2 ? "Tu choi" : "Chua duyet",
+                GhiChu            = x.GhiChu,
+                IsValid           = x.IsValid,
+                ValidationError   = x.ValidationError,
+            })
+            .ToListAsync();
+
+        return new BhxhAuditImportPagedResult
+        {
+            Items         = items,
+            TotalCount    = total,
+            PageIndex     = filter.PageIndex,
+            PageSize      = filter.PageSize,
+            CountChuaDuyet = chuaDuyet,
+            CountDaDuyet  = daDuyet,
+            CountTuChoi   = tuChoi,
+        };
+    }
 }

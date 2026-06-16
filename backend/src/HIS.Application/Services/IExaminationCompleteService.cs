@@ -526,6 +526,15 @@ public interface IExaminationCompleteService
     Task<List<DrugInteractionDto>> CheckDrugInteractionsAsync(List<Guid> medicineIds);
 
     /// <summary>
+    /// Import danh sach cap tuong tac thuoc tu file CSV.
+    /// CSV format (header bat buoc): ActiveIngredient1,ActiveIngredient2,Severity,InteractionType,Description,Recommendation
+    /// Severity: 1=Nhe 2=TrungBinh 3=Nang 4=ChongChiDinhTuyetDoi
+    /// Logic: upsert theo (ActiveIngredient1, ActiveIngredient2) — cap doi xung.
+    /// NOTE: Excel can them thu vien ClosedXML/EPPlus; hien tai chi ho tro CSV.
+    /// </summary>
+    Task<DrugInteractionImportResultDto> ImportDrugInteractionsAsync(byte[] csvContent);
+
+    /// <summary>
     /// Kiểm tra dị ứng thuốc
     /// </summary>
     Task<List<PrescriptionWarningDto>> CheckDrugAllergiesAsync(Guid patientId, List<Guid> medicineIds);

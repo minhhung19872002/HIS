@@ -70,4 +70,15 @@ public interface IBhxhAuditService
     Task<byte[]> ExportBatchXmlAsync(IEnumerable<Guid> sessionIds);
     /// <summary>In phiếu giám định (HTML → trả bytes UTF-8)</summary>
     Task<byte[]> PrintAuditFormAsync(Guid sessionId);
+
+    /// <summary>
+    /// Import danh sach ho so giam dinh BHXH tu file CSV.
+    /// CSV format (header bat buoc): MaHoSo,MaBenhNhan,HoTen,SoTheBHYT,NgayVao,NgayRa,MaKhoa,TenKhoa,MaChanDoan,TienVienPhi,TienBHYT,TienBenhNhan,TrangThaiGiamDinh,GhiChu
+    /// TrangThaiGiamDinh: 0=ChuaDuyet 1=DaDuyet 2=TuChoi
+    /// NOTE: Excel can them thu vien ClosedXML/EPPlus; hien tai chi ho tro CSV.
+    /// </summary>
+    Task<BhxhAuditImportResultDto> ImportAuditListAsync(byte[] csvContent, string? fileName, Guid importedByUserId);
+
+    /// <summary>Danh sach cac hang da import, ho tro filter theo trang thai va tu khoa</summary>
+    Task<BhxhAuditImportPagedResult> GetImportedRowsAsync(BhxhAuditImportSearchDto filter);
 }

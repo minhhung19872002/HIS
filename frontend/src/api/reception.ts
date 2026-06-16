@@ -767,6 +767,14 @@ export const updateEmergencyPatientInfo = (medicalRecordId: string, dto: UpdateE
 export const mergePatients = (sourcePatientId: string, targetPatientId: string, reason: string) =>
   api.post('/reception/patients/merge', { sourcePatientId, targetPatientId, reason });
 
+// #99 Tách bệnh án: di chuyển hồ sơ đã chọn sang BN đích
+export const splitPatient = (sourcePatientId: string, targetPatientId: string, medicalRecordIds: string[], reason: string) =>
+  api.post('/reception/patients/split', { sourcePatientId, targetPatientId, medicalRecordIds, reason });
+
+// #61 Cập nhật mức triage cho phiên lưu cấp cứu
+export const updateObservationTriage = (id: string, triageLevel: number) =>
+  api.put(`/observation/${id}/triage`, { triageLevel });
+
 export const createEmergencyDeposit = (medicalRecordId: string, amount: number) =>
   api.post(`/reception/emergency/${medicalRecordId}/deposit`, { amount });
 

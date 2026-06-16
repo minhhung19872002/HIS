@@ -178,6 +178,9 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<BackupHistory> BackupHistories => Set<BackupHistory>(); // #106 #128-130: lịch sử backup
     public DbSet<RadiologyReportCoReader> RadiologyReportCoReaders => Set<RadiologyReportCoReader>(); // #139: đồng đọc RIS
     public DbSet<HisConnection> HisConnections => Set<HisConnection>(); // #90: kết nối HIS đa NCC
+    public DbSet<KioskTicket> KioskTickets => Set<KioskTicket>(); // #103 #123-125: kiosk tự phục vụ
+    public DbSet<AssetProcurementRequest> AssetProcurementRequests => Set<AssetProcurementRequest>(); // #108
+    public DbSet<AssetProcurementRequestItem> AssetProcurementRequestItems => Set<AssetProcurementRequestItem>(); // #108
     public DbSet<Supplier> Suppliers => Set<Supplier>();
 
     // Warehouse extensions (consignment, IU mapping, splitable, profit margin)
@@ -696,6 +699,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     // Supplementary Module 9: Kiểm tra BHXH (BHXH Audit)
     public DbSet<BhxhAuditSession> BhxhAuditSessions => Set<BhxhAuditSession>();
     public DbSet<BhxhAuditError> BhxhAuditErrors => Set<BhxhAuditError>();
+    // Import CSV giam dinh BHXH (Issue #97/#121/#122 — migration 129)
+    public DbSet<BhxhAuditImport> BhxhAuditImports => Set<BhxhAuditImport>();
 
     // NangCap18: New entities
     public DbSet<DiagnosisInterruption> DiagnosisInterruptions => Set<DiagnosisInterruption>();

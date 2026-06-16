@@ -11,6 +11,13 @@
   trả snippet → main áp tập trung + build gate). Triage 4 Explore agent: đóng 5 DONE-duplicate (#114 #119 #120
   #146 #93). BLOCKED (cần HW/credential): #133 #134 #113 #22 #24 #25. Defer tech-debt: #17 #42 #43 #44 #45 #35.
   WON'T-DO multi-branch: #107 #131 #132.
+- **WAVE 4 (build-green BE + FE EXIT0, chờ push)** — 5 cluster: **Kiosk #103/#123-125** (KioskTicket + service
+  cấp số/checkin CCCD-BHYT + migration **126** + page kiosk; 3 endpoint AllowAnonymous giới hạn) · **Import Excel
+  #96/#97/#121/#122** (CSV — chưa có lib Excel: import tương tác thuốc + giám định BHXH BhxhAuditImport migration
+  **129**) · **Mua sắm tài sản #108** (AssetProcurementRequest+Item workflow duyệt + migration **128** + FE; controller
+  đổi tên AssetProcurementController tránh trùng) · **Triage #39/#61/#63** (endpoint PUT observation/{id}/triage đổi
+  mức + test-triage.ps1; infra TriageLevel đã có) · **Tách bệnh án #99** (SplitPatientAsync transaction+audit, reassign
+  hồ sơ sang BN đích, không xóa data + endpoint + client). ⚠️ migration 126/128/129 verify schema-drift sau deploy.
 - **WAVE 3 (build-green BE + FE EXIT0, chờ push)** — 4 cluster RIS/PACS/connector: **RIS đồng đọc #139**
   (RadiologyReportCoReader + 6 endpoint co-reader/copy/merge + migration **124** + FE section) · **Cobb/CTR #143**
   (CornerstoneViewer thêm CobbAngleTool + panel CTR, FE-only) · **RIS batch #144** (bulk-approve endpoint +

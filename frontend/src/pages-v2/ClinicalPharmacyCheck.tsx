@@ -1,6 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
+import { importDrugInteractionsCsv, type DrugInteractionImportResult } from '../api/examination';
 import {
   KpiStrip, SearchBox, StatusBadge, Btn, Ico, tk, ti, tw,
 } from './_v2kit';
@@ -30,6 +31,29 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [data, setData] = useState<PharmacyCheckData | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // --- Import tuong tac thuoc ---
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<DrugInteractionImportResult | null>(null);
+
+  const handleImportCsv = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await importDrugInteractionsCsv(file);
+      setImportResult(res.data);
+      tk(`Import xong: ${res.data.imported} them moi, ${res.data.updated} cap nhat, ${res.data.skipped} bo qua`);
+    } catch {
+      ti('Import that bai — kiem tra lai file CSV');
+    } finally {
+      setImporting(false);
+      // reset so user co the chon lai cung file
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, []);
 
   const handleSearch = useCallback(async () => {
     if (!keyword) return;
@@ -72,7 +96,43 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
         )}
         <span className="spacer" />
         {loading && <span style={{ color: 'var(--t-2)', fontSize: 12 }}>Đang tải…</span>}
+        {/* Import CSV tuong tac thuoc */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv"
+          style={{ display: 'none' }}
+          onChange={handleImportCsv}
+        />
+        <Btn variant="ghost" icon="upload" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+          {importing ? 'Đang import…' : 'Import CSV tương tác'}
+        </Btn>
       </div>
+
+      {/* Ket qua import CSV */}
+      {importResult && (
+        <div style={{ margin: '8px 12px', padding: 12, background: 'var(--bg-1)', borderRadius: 6, border: '1px solid var(--line)' }}>
+          <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 13 }}>
+            Kết quả import: {importResult.imported} thêm mới · {importResult.updated} cập nhật · {importResult.skipped} bỏ qua / {importResult.totalRows} dòng
+          </div>
+          {importResult.errors.length > 0 && (
+            <details style={{ fontSize: 12, color: 'var(--crit)' }}>
+              <summary style={{ cursor: 'pointer' }}>{importResult.errors.length} lỗi — click để xem</summary>
+              <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                {importResult.errors.map((e, i) => (
+                  <li key={i}>Dòng {e.rowNumber} [{e.activeIngredient1} ↔ {e.activeIngredient2}]: {e.errorMessage}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+          <div style={{ marginTop: 4 }}>
+            <span style={{ fontSize: 11, color: 'var(--t-2)' }}>
+              Ghi chú: Chỉ hỗ trợ CSV. Excel cần thêm thư viện ClosedXML/EPPlus ở backend.
+            </span>
+            <Btn variant="ghost" icon="x" onClick={() => setImportResult(null)} style={{ marginLeft: 8, height: 22, fontSize: 11 }}>Đóng</Btn>
+          </div>
+        </div>
+      )}
 
       {!data && !loading && (
         <div style={{ padding: 80, textAlign: 'center', color: 'var(--t-2)' }}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import {
@@ -9,6 +9,10 @@ import {
   exportXml,
   exportBatchXml,
   printAuditForm,
+  importAuditCsv,
+  getImportedRows,
+  type BhxhAuditImportRow,
+  type BhxhAuditImportResult,
 } from '../api/bhxhAudit';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
@@ -47,6 +51,16 @@ const STATUS_TABS = [
 
 const auditKey = (n: number): AuditKey => n === 1 ? 'approved' : n === 2 ? 'rejected' : 'pending';
 
+// Import tab status tabs
+type ImportTabKey = 'all' | 'chuaDuyet' | 'daDuyet' | 'tuChoi';
+const IMPORT_STATUS_TABS: Array<{ v: ImportTabKey; l: string; tone: 'ok' | 'warn' | 'crit' | 'info' }> = [
+  { v: 'all',        l: 'Tất cả',      tone: 'info' },
+  { v: 'chuaDuyet',  l: 'Chưa duyệt',  tone: 'warn' },
+  { v: 'daDuyet',    l: 'Đã duyệt',    tone: 'ok' },
+  { v: 'tuChoi',     l: 'Từ chối',     tone: 'crit' },
+];
+const importTabToInt = (t: ImportTabKey) => t === 'chuaDuyet' ? 0 : t === 'daDuyet' ? 1 : t === 'tuChoi' ? 2 : undefined;
+
 const BhxhAuditV2: React.FC = () => {
   const { message, modal } = AntdApp.useApp();
   const [items, setItems] = useState<AuditRecord[]>([]);
@@ -57,6 +71,57 @@ const BhxhAuditV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<AuditRecord | null>(null);
   const [approveLoading, setApproveLoading] = useState<string | null>(null);
+
+  // --- Import tab state ---
+  const [activeMainTab, setActiveMainTab] = useState<'sessions' | 'import'>('sessions');
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<BhxhAuditImportResult | null>(null);
+  const [importedRows, setImportedRows] = useState<BhxhAuditImportRow[]>([]);
+  const [importTotal, setImportTotal] = useState(0);
+  const [importPage, setImportPage] = useState(0);
+  const [importTab, setImportTab] = useState<ImportTabKey>('all');
+  const [importSearch, setImportSearch] = useState('');
+  const [importCounts, setImportCounts] = useState({ all: 0, chuaDuyet: 0, daDuyet: 0, tuChoi: 0 });
+  const [importRowsLoading, setImportRowsLoading] = useState(false);
+
+  const loadImportedRows = useCallback(async (tab: ImportTabKey, pg: number, kw: string) => {
+    setImportRowsLoading(true);
+    try {
+      const res = await getImportedRows({
+        trangThai: importTabToInt(tab),
+        pageIndex: pg,
+        pageSize: 20,
+        keyword: kw || undefined,
+      });
+      const d = (res as { data: { items: BhxhAuditImportRow[]; totalCount: number; countChuaDuyet: number; countDaDuyet: number; countTuChoi: number } }).data;
+      setImportedRows(d.items ?? []);
+      setImportTotal(d.totalCount ?? 0);
+      setImportCounts({ all: d.totalCount ?? 0, chuaDuyet: d.countChuaDuyet ?? 0, daDuyet: d.countDaDuyet ?? 0, tuChoi: d.countTuChoi ?? 0 });
+    } catch { /* silent */ }
+    finally { setImportRowsLoading(false); }
+  }, []);
+
+  const handleImportCsv = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportLoading(true);
+    setImportResult(null);
+    try {
+      const res = await importAuditCsv(file);
+      const r = (res as { data: BhxhAuditImportResult }).data;
+      setImportResult(r);
+      void message.success(`Import xong: ${r.importedRows} dong / ${r.totalRows}`);
+      void loadImportedRows('all', 0, '');
+      setImportTab('all');
+      setImportPage(0);
+    } catch {
+      void message.error('Import that bai — kiem tra lai file CSV');
+    } finally {
+      setImportLoading(false);
+      if (importFileRef.current) importFileRef.current.value = '';
+    }
+  }, [message, loadImportedRows]);
   const [submitLoading, setSubmitLoading] = useState<string | null>(null);
   const [batchLoading, setBatchLoading] = useState(false);
   const [batchXmlLoading, setBatchXmlLoading] = useState(false);
@@ -309,6 +374,29 @@ const BhxhAuditV2: React.FC = () => {
         { lbl: 'Đã gửi cổng', val: sentCount, sub: `${Math.round((sentCount / Math.max(1, items.length)) * 100)}%`, tone: sentCount === items.length ? 'ok' : 'warn' },
       ]} />
 
+      {/* Main tab: Phien giam dinh vs Import CSV */}
+      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--line)', padding: '0 12px' }}>
+        {(['sessions', 'import'] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => {
+              setActiveMainTab(t);
+              if (t === 'import') void loadImportedRows(importTab, importPage, importSearch);
+            }}
+            style={{
+              padding: '8px 20px', border: 'none', background: 'none', cursor: 'pointer',
+              fontWeight: activeMainTab === t ? 600 : 400,
+              borderBottom: activeMainTab === t ? '2px solid var(--pri)' : '2px solid transparent',
+              color: activeMainTab === t ? 'var(--pri)' : 'var(--t-1)',
+              fontSize: 13,
+            }}
+          >
+            {t === 'sessions' ? 'Phiên giám định' : 'Import CSV'}
+          </button>
+        ))}
+      </div>
+
+      {activeMainTab === 'sessions' && <>
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm mã LK / BN / số BHYT…" />
         <Filter value={fDept} onChange={setFDept} options={depts} placeholder="▾ Khoa" />
@@ -420,6 +508,99 @@ const BhxhAuditV2: React.FC = () => {
           </DrSec>
         </>}
       </DrawerShell>
+      </>}
+
+      {activeMainTab === 'import' && (
+        <div>
+          {/* Toolbar import */}
+          <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
+            <SearchBox value={importSearch} onChange={v => { setImportSearch(v); setImportPage(0); void loadImportedRows(importTab, 0, v); }}
+              placeholder="Tìm mã hồ sơ / họ tên / số thẻ…" />
+            <span className="spacer" />
+            <input
+              ref={importFileRef}
+              type="file"
+              accept=".csv"
+              style={{ display: 'none' }}
+              onChange={handleImportCsv}
+            />
+            <Btn
+              variant="primary"
+              icon="upload"
+              onClick={() => importFileRef.current?.click()}
+              disabled={importLoading}
+            >
+              {importLoading ? 'Đang import…' : 'Upload CSV giám định'}
+            </Btn>
+          </div>
+
+          {/* Ket qua import vua upload */}
+          {importResult && (
+            <div style={{ margin: '8px 12px', padding: 12, background: 'var(--bg-1)', borderRadius: 6, border: '1px solid var(--line)' }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+                Batch: <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{importResult.importBatchCode}</span>
+                &nbsp;—&nbsp;{importResult.importedRows} dong / {importResult.totalRows} dong
+                {importResult.skippedRows > 0 && <span style={{ color: 'var(--a-or-text)' }}> · {importResult.skippedRows} bo qua</span>}
+              </div>
+              {importResult.errors.length > 0 && (
+                <details style={{ fontSize: 12, color: 'var(--crit)' }}>
+                  <summary style={{ cursor: 'pointer' }}>{importResult.errors.length} loi</summary>
+                  <ul style={{ margin: '4px 0 0 16px' }}>
+                    {importResult.errors.map((e, i) => (
+                      <li key={i}>Dong {e.rowNumber} [{e.maHoSo}]: {e.errorMessage}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 4 }}>
+                Chi ho tro CSV. Excel can them thu vien ClosedXML/EPPlus o backend.
+                <Btn variant="ghost" onClick={() => setImportResult(null)} style={{ marginLeft: 8, height: 20, fontSize: 11 }}>Dong</Btn>
+              </div>
+            </div>
+          )}
+
+          {/* StatusTabs + DataTable imported rows */}
+          <StatusTabs<ImportTabKey>
+            value={importTab}
+            onChange={(t) => { setImportTab(t); setImportPage(0); void loadImportedRows(t, 0, importSearch); }}
+            tabs={IMPORT_STATUS_TABS}
+            counts={{ all: importCounts.all, chuaDuyet: importCounts.chuaDuyet, daDuyet: importCounts.daDuyet, tuChoi: importCounts.tuChoi }}
+          />
+
+          <DataTable<BhxhAuditImportRow>
+            columns={[
+              { key: 'rowNumber', label: '#', width: 50, render: (r) => r.rowNumber },
+              { key: 'maHoSo', label: 'Mã hồ sơ', render: (r) => <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{r.maHoSo}</span> },
+              { key: 'hoTen', label: 'Họ tên', render: (r) => r.hoTen ?? '—' },
+              { key: 'soTheBHYT', label: 'Số thẻ BHYT', render: (r) => r.soTheBHYT ?? '—' },
+              { key: 'ngayVao', label: 'Ngày vào', render: (r) => r.ngayVao ? dayjs(r.ngayVao).format('DD/MM/YYYY') : '—' },
+              { key: 'ngayRa', label: 'Ngày ra', render: (r) => r.ngayRa ? dayjs(r.ngayRa).format('DD/MM/YYYY') : '—' },
+              { key: 'tenKhoa', label: 'Khoa', render: (r) => r.tenKhoa ?? r.maKhoa ?? '—' },
+              { key: 'tienVienPhi', label: 'Viện phí', render: (r) => fmtVNDg(r.tienVienPhi) },
+              { key: 'tienBHYT', label: 'BHYT', render: (r) => fmtVNDg(r.tienBHYT) },
+              { key: 'trangThaiGiamDinh', label: 'Trạng thái', render: (r) => {
+                const tone = r.trangThaiGiamDinh === 1 ? 'ok' : r.trangThaiGiamDinh === 2 ? 'crit' : 'warn';
+                return <StatusBadge tone={tone} dot>{r.trangThaiName ?? (r.trangThaiGiamDinh === 1 ? 'Da duyet' : r.trangThaiGiamDinh === 2 ? 'Tu choi' : 'Chua duyet')}</StatusBadge>;
+              }},
+            ] as ColumnDef<BhxhAuditImportRow>[]}
+            data={importedRows}
+            rowKey={(r) => r.id}
+            empty={importRowsLoading ? 'Dang tai...' : 'Chua co du lieu import'}
+          />
+          <Pager
+            page={importPage}
+            setPage={(next: number | ((p: number) => number)) => {
+              const p = typeof next === 'function' ? next(importPage) : next;
+              setImportPage(p);
+              void loadImportedRows(importTab, p, importSearch);
+            }}
+            totalPages={Math.ceil(importTotal / 20)}
+            total={importTotal}
+            perPage={20}
+          />
+        </div>
+      )}
+
     </div>
   );
 };

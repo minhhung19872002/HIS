@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
 
@@ -505,6 +506,46 @@ public class BhxhAuditController : ControllerBase
         {
             return NotFound(new { message = ex.Message });
         }
+    }
+
+    // ============================================================
+    // Import danh sach giam dinh BHXH tu CSV (Issue #97/#121/#122)
+    // NOTE: Excel can them thu vien ClosedXML/EPPlus; hien tai chi ho tro CSV.
+    // ============================================================
+
+    /// <summary>
+    /// Import danh sach ho so giam dinh BHXH tu file CSV.
+    /// CSV format (header bat buoc): MaHoSo,MaBenhNhan,HoTen,SoTheBHYT,NgayVao,NgayRa,MaKhoa,TenKhoa,MaChanDoan,TienVienPhi,TienBHYT,TienBenhNhan,TrangThaiGiamDinh,GhiChu
+    /// TrangThaiGiamDinh: 0=ChuaDuyet 1=DaDuyet 2=TuChoi
+    /// </summary>
+    [HttpPost("import-csv")]
+    public async Task<ActionResult<BhxhAuditImportResultDto>> ImportAuditCsv(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "Chua chon file CSV" });
+
+        if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { message = "Chi ho tro file CSV. Excel can them thu vien ClosedXML/EPPlus." });
+
+        var userId = Guid.TryParse(
+            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+            out var uid) ? uid : Guid.Empty;
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        var result = await _service.ImportAuditListAsync(ms.ToArray(), file.FileName, userId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Danh sach hang da import giam dinh BHXH, ho tro filter theo trang thai va tu khoa.
+    /// TrangThai: 0=ChuaDuyet 1=DaDuyet 2=TuChoi (null=tat ca)
+    /// </summary>
+    [HttpGet("imported-rows")]
+    public async Task<ActionResult<BhxhAuditImportPagedResult>> GetImportedRows([FromQuery] BhxhAuditImportSearchDto filter)
+    {
+        var result = await _service.GetImportedRowsAsync(filter);
+        return Ok(result);
     }
 }
 

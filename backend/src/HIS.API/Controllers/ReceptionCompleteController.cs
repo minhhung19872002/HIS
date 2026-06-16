@@ -908,6 +908,25 @@ public class ReceptionCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// 1.10.5b: Tách bệnh án (#99) — di chuyển hồ sơ đã chọn sang BN đích
+    /// </summary>
+    [HttpPost("patients/split")]
+    public async Task<IActionResult> SplitPatient([FromBody] SplitPatientDto dto)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            await _receptionService.SplitPatientAsync(dto, userId);
+            return Ok(new { message = "Patient records split successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error splitting patient");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// 1.10.6: Tạm ứng cho bệnh nhân cấp cứu
     /// </summary>
     [HttpPost("emergency/{medicalRecordId}/deposit")]

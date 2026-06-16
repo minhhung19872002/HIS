@@ -56,3 +56,38 @@ public class BhxhAuditError : BaseEntity
     public virtual BhxhAuditSession? AuditSession { get; set; }
     public virtual MedicalRecord? MedicalRecord { get; set; }
 }
+
+/// <summary>
+/// Dong du lieu import tu file giam dinh BHXH ben ngoai - BhxhAuditImport
+/// Moi dong trong file CSV/Excel duoc luu 1 ban ghi de tra ve status + filter.
+/// Migration 129.
+/// </summary>
+public class BhxhAuditImport : BaseEntity
+{
+    /// <summary>Ma lo import IMPORT-YYYYMMDD-HHMMSS de nhom cac dong cung 1 lan upload</summary>
+    public string ImportBatchCode { get; set; } = string.Empty;
+    public DateTime ImportedAt { get; set; } = DateTime.UtcNow;
+    public Guid? ImportedByUserId { get; set; }
+    public string? FileName { get; set; }
+    /// <summary>STT dong trong file (1-based)</summary>
+    public int RowNumber { get; set; }
+    // --- Du lieu tung dong ---
+    public string MaHoSo { get; set; } = string.Empty;
+    public string? MaBenhNhan { get; set; }
+    public string? HoTen { get; set; }
+    public string? SoTheBHYT { get; set; }
+    public DateTime? NgayVao { get; set; }
+    public DateTime? NgayRa { get; set; }
+    public string? MaKhoa { get; set; }
+    public string? TenKhoa { get; set; }
+    public string? MaChanDoan { get; set; }
+    public decimal TienVienPhi { get; set; }
+    public decimal TienBHYT { get; set; }
+    public decimal TienBenhNhan { get; set; }
+    /// <summary>0=ChuaDuyet, 1=DaDuyet, 2=TuChoi</summary>
+    public int TrangThaiGiamDinh { get; set; }
+    public string? GhiChu { get; set; }
+    // --- Ket qua xu ly ---
+    public bool IsValid { get; set; } = true;
+    public string? ValidationError { get; set; }
+}

@@ -530,6 +530,34 @@ public partial class ReceptionCompleteService {
         await _unitOfWork.SaveChangesAsync();
     }
 
+    public async Task SplitPatientAsync(SplitPatientDto dto, Guid userId)
+    {
+        // #99 Tách bệnh án: di chuyển các hồ sơ đã chọn từ BN nguồn sang BN đích (đã tồn tại).
+        // Patient-safety: chỉ reassign FK PatientId (không xóa dữ liệu), có audit, trong 1 SaveChanges.
+        if (dto.MedicalRecordIds == null || dto.MedicalRecordIds.Count == 0)
+            throw new InvalidOperationException("Chưa chọn hồ sơ để tách.");
+        if (dto.TargetPatientId == Guid.Empty || dto.TargetPatientId == dto.SourcePatientId)
+            throw new InvalidOperationException("Bệnh nhân đích không hợp lệ.");
+
+        var target = await _patientRepo.GetByIdAsync(dto.TargetPatientId)
+            ?? throw new InvalidOperationException("Không tìm thấy bệnh nhân đích.");
+
+        var records = await _context.MedicalRecords
+            .Where(m => dto.MedicalRecordIds.Contains(m.Id) && m.PatientId == dto.SourcePatientId)
+            .ToListAsync();
+        if (records.Count == 0)
+            throw new InvalidOperationException("Không có hồ sơ hợp lệ để tách (kiểm tra hồ sơ thuộc BN nguồn).");
+
+        foreach (var r in records)
+        {
+            r.PatientId = target.Id;
+            r.UpdatedAt = DateTime.UtcNow;
+            r.UpdatedBy = userId.ToString();
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+    }
+
     public async Task<DepositReceiptDto> CreateEmergencyDepositAsync(Guid medicalRecordId, decimal amount, Guid userId)
     {
         return await CreateDepositAsync(new ReceptionDepositDto

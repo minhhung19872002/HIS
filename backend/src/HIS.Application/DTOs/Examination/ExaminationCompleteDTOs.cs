@@ -1254,3 +1254,26 @@ public class MedicationOrderDto
 }
 
 #endregion
+
+// === Drug Interaction Import DTOs (Issue #96) ===
+
+/// <summary>
+/// Ket qua sau khi import file CSV cap tuong tac thuoc theo hoat chat.
+/// NOTE: Excel can them thu vien ClosedXML/EPPlus; hien tai chi ho tro CSV.
+/// </summary>
+public class DrugInteractionImportResultDto
+{
+    public int TotalRows { get; set; }
+    public int Imported { get; set; }    // Them moi
+    public int Updated { get; set; }     // Cap nhat (upsert)
+    public int Skipped { get; set; }     // Bo qua (du lieu loi)
+    public List<DrugInteractionImportErrorDto> Errors { get; set; } = new();
+}
+
+public class DrugInteractionImportErrorDto
+{
+    public int RowNumber { get; set; }
+    public string? ActiveIngredient1 { get; set; }
+    public string? ActiveIngredient2 { get; set; }
+    public string ErrorMessage { get; set; } = string.Empty;
+}
