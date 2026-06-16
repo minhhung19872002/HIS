@@ -12,6 +12,11 @@
   join Patient) + `SubmitInfectiousReportAsync` persist qua entity `InfectiousReportSubmission` + DbSet + **migration 132**.
   ⚠️ migration chưa runtime-test (DB off). Còn 3 finding Thấp (#156): DatabaseSizeMB hardcode · HospitalReport accounting
   placeholder · NationalPrescription mock-connection — defer (cosmetic/MockMode chủ ý).
+- **EXEC "làm tuần tự 1-2-3" (2026-06-16):** ① **CLOSED #48** (audit done) + **#43 not-planned** (6 báo cáo độc lập).
+  ② QA tiền-nhạy-cảm → **bug #157**: `ReassignObjectService` đổi→BHYT default rate **80%** có thể sai mức hưởng thực
+  (95/100%) → split BHYT/BN sai; kiosk anonymous OK (mutate đã auth) chỉ thiếu rate-limit. ③ **#44 đánh giá: tiền-đề SAI**
+  (`Lis/RisCatalogService` KHÔNG tồn tại; dup thật trong `MasterCatalogService` 700d) → generic-extract rủi-ro-prod
+  không-smoke-được → **DEFER/re-scope** (plan đã cập nhật). KHÔNG blind-refactor. #156-fix + plan-doc **chưa push**.
 - **#48 audit advanced-services (static, claim @me)** — backlog feature-mới đã CẠN (8 OPEN còn lại = blocked HW/cred
   #113/#24 · defer-cần-input #91/#105 · tech-debt-refactor-rủi-ro #42/#43/#44 cần user duyệt · audit #48). Làm #48
   static stub-audit: **5/6 service advanced persist THẬT** (SaveChanges+EF), nghi-ngờ issue đã lỗi thời. **Stub ẩn xác nhận:**

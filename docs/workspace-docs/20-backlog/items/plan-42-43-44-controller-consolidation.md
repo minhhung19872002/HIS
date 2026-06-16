@@ -22,8 +22,9 @@
 ## #43 — Báo cáo ×6 → **KHUYẾN NGHỊ KHÔNG GỘP**
 AdrReport · HospitalReport · PaymentReports · ReconciliationReport · StockReport · WorkloadReport = **6 domain báo cáo độc lập** (ADR/vận hành/thanh toán/đối soát BHYT/tồn kho/khối lượng). Không có chồng chéo thật → gộp = god-controller (ngược SRP). **Tiền-đề "×6 chồng chéo" trong issue lỗi thời.** → đề xuất **close #43 not-planned** (hoặc đổi scope thành "chuẩn hoá base-class ReportController nếu có boilerplate trùng" — cần verify thêm).
 
-## #44 — Danh mục ×3-4 → DRY ở service, giữ controller riêng
-Lis/Ris/Master/FunctionalDiagnostic Catalog: trùng **pattern CRUD** (list/create/update/delete), KHÔNG trùng data/domain. → KHÔNG gộp controller; cân nhắc **trích base `CatalogServiceBase<T>`** nếu CRUD lặp ≥3 (rule-of-three). Effort thấp, risk thấp (additive, không đổi route/contract).
+## #44 — Danh mục ×3 → ĐÃ VERIFY: tiền-đề SAI, defer
+**Verify code (2026-06-16):** `LisCatalogService`/`RisCatalogService` **KHÔNG tồn tại** (controller Lis/RisCatalog mỏng hoặc gọi service khác) → KHÔNG có "×3 service chồng chéo" để gộp. Duplication thật nằm **TRONG `MasterCatalogService` (700 dòng)**: Get/Save/Delete lặp per catalog-entity (Manufacturer/MedicationRoute/AdditionalCharge/…).
+→ Việc thật = **giảm boilerplate trong MasterCatalogService** bằng generic CRUD helper — NHƯNG: (a) mapping DTO↔entity khác nhau per-type → generic non-trivial; (b) **god-service-refactor behavior-preserve, rủi-ro-prod, KHÔNG runtime-smoke được phiên này** (DB off). → **DEFER** tới phiên có deploy+smoke; hoặc **re-scope #44** thành "trích `CatalogCrud` helper trong MasterCatalogService" (không phải gộp controller). KHÔNG blind-refactor.
 
 ## Đề xuất thứ tự thực thi (khi user duyệt + có phiên deploy)
 1. **#44** trước (risk thấp nhất: extract shared service, không đổi contract).
