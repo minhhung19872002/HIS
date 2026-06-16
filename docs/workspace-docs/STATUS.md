@@ -6,7 +6,10 @@
 > Cập nhật cuối: **2026-06-16** (phiên Claude máy D: — feature v2 nối tiếp #145/#85/#86 (PUSHED) + #89/#87 (chờ push); governance sync-gate đã push).
 
 ## Đang ở đâu
-- **#148 F1.7 — Phiếu theo dõi chạy thận nhân tạo (code-complete, build-green BE 0err + FE EXIT0, chờ push)**:
+- **#148 F1.7 — Phiếu theo dõi chạy thận nhân tạo (✅ PUSHED `05121a2` + CLOSED + VERIFY PROD)**: deploy success
+  (run 27593904185, 7m42s). Prod: schema-drift `missingCount=0` (bảng+cột live) · GET hemodialysis có-token 200 []
+  · no-token 401 · report `DialysisMachineUsage` 200 shape mới `{count,patientCount}`+summary (stub thay query thực).
+  Round-trip có-data để verify local (DB off). Chi tiết impl:
   clone pattern sơ sinh #112, **reuse `InpatientCompleteService`/`Controller`** (không DI mới). Entity
   `HemodialysisSession` (Inpatient.cs) + DbSet/FK NoAction (HISDbContext) + DTO + interface + service CRUD
   (Create/Get/Update/soft-Delete + `ValidateHemodialysis`) + 4 endpoint (`{admissionId}/hemodialysis` POST/GET,
