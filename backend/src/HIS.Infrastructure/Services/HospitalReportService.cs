@@ -1957,9 +1957,30 @@ public class HospitalReportService : IHospitalReportService
 
     private async Task FillDialysisMachineUsage(HospitalReportResult result, DateTime from, DateTime to, Guid? deptId)
     {
-        result.Data.Add(new Dictionary<string, object> { ["type"] = "Su dung may loc mau", ["count"] = 0 });
-        result.Summary["totalDialysisSessions"] = 0;
-        result.Summary["note"] = "Can cau hinh may loc mau";
+        // #148: dem so buoi chay than thuc tu HemodialysisSessions (thay stub count=0)
+        var fromDate = from.Date;
+        var toDate = to.Date;
+
+        var query = from s in _context.HemodialysisSessions.AsNoTracking()
+                    join a in _context.Admissions.AsNoTracking() on s.AdmissionId equals a.Id
+                    where !s.IsDeleted && s.SessionDate >= fromDate && s.SessionDate <= toDate
+                    select new { s.AdmissionId, a.DepartmentId };
+
+        if (deptId.HasValue)
+            query = query.Where(x => x.DepartmentId == deptId.Value);
+
+        var rows = await query.ToListAsync();
+        var totalSessions = rows.Count;
+        var totalPatients = rows.Select(x => x.AdmissionId).Distinct().Count();
+
+        result.Data.Add(new Dictionary<string, object>
+        {
+            ["type"] = "Su dung may loc mau",
+            ["count"] = totalSessions,
+            ["patientCount"] = totalPatients,
+        });
+        result.Summary["totalDialysisSessions"] = totalSessions;
+        result.Summary["totalDialysisPatients"] = totalPatients;
     }
 
     #endregion

@@ -1204,5 +1204,137 @@ public partial class InpatientCompleteService {
         DischargeDate       = e.DischargeDate,
     };
 
+    // ── Chạy thận nhân tạo (#148) ───────────────────────────────────────────
+
+    public async Task<HemodialysisSessionDto> CreateHemodialysisSessionAsync(Guid admissionId, HemodialysisSessionDto dto, Guid userId)
+    {
+        ValidateHemodialysis(dto);
+
+        var entity = new HemodialysisSession
+        {
+            Id                    = Guid.NewGuid(),
+            AdmissionId           = admissionId,
+            SessionDate           = dto.SessionDate,
+            StartTime             = dto.StartTime,
+            EndTime               = dto.EndTime,
+            SessionNumber         = dto.SessionNumber,
+            WeightPre             = dto.WeightPre,
+            WeightPost            = dto.WeightPost,
+            Pulse                 = dto.Pulse,
+            BloodPressureLying    = dto.BloodPressureLying,
+            BloodPressureStanding = dto.BloodPressureStanding,
+            Temperature           = dto.Temperature,
+            RespiratoryRate       = dto.RespiratoryRate,
+            BloodFlowRate         = dto.BloodFlowRate,
+            ArterialPressure      = dto.ArterialPressure,
+            VenousPressure        = dto.VenousPressure,
+            Tmp                   = dto.Tmp,
+            ReplacementFluid      = dto.ReplacementFluid,
+            DialyzerType          = dto.DialyzerType,
+            Medications           = dto.Medications,
+            Complications         = dto.Complications,
+            Notes                 = dto.Notes,
+            CreatedAt             = DateTime.UtcNow,
+            CreatedBy             = userId.ToString(),
+        };
+
+        _context.HemodialysisSessions.Add(entity);
+        await _context.SaveChangesAsync();
+
+        return MapHemodialysisDto(entity);
+    }
+
+    public async Task<List<HemodialysisSessionDto>> GetHemodialysisSessionsAsync(Guid admissionId)
+    {
+        var sessions = await _context.HemodialysisSessions
+            .Where(s => s.AdmissionId == admissionId && !s.IsDeleted)
+            .OrderBy(s => s.SessionDate).ThenBy(s => s.StartTime)
+            .ToListAsync();
+
+        return sessions.Select(MapHemodialysisDto).ToList();
+    }
+
+    public async Task<HemodialysisSessionDto> UpdateHemodialysisSessionAsync(Guid id, HemodialysisSessionDto dto, Guid userId)
+    {
+        var entity = await _context.HemodialysisSessions.FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted)
+            ?? throw new InvalidOperationException("Khong tim thay phieu chay than.");
+
+        ValidateHemodialysis(dto);
+
+        entity.SessionDate           = dto.SessionDate;
+        entity.StartTime             = dto.StartTime;
+        entity.EndTime               = dto.EndTime;
+        entity.SessionNumber         = dto.SessionNumber;
+        entity.WeightPre             = dto.WeightPre;
+        entity.WeightPost            = dto.WeightPost;
+        entity.Pulse                 = dto.Pulse;
+        entity.BloodPressureLying    = dto.BloodPressureLying;
+        entity.BloodPressureStanding = dto.BloodPressureStanding;
+        entity.Temperature           = dto.Temperature;
+        entity.RespiratoryRate       = dto.RespiratoryRate;
+        entity.BloodFlowRate         = dto.BloodFlowRate;
+        entity.ArterialPressure      = dto.ArterialPressure;
+        entity.VenousPressure        = dto.VenousPressure;
+        entity.Tmp                   = dto.Tmp;
+        entity.ReplacementFluid      = dto.ReplacementFluid;
+        entity.DialyzerType          = dto.DialyzerType;
+        entity.Medications           = dto.Medications;
+        entity.Complications         = dto.Complications;
+        entity.Notes                 = dto.Notes;
+        entity.UpdatedAt             = DateTime.UtcNow;
+        entity.UpdatedBy             = userId.ToString();
+
+        await _context.SaveChangesAsync();
+        return MapHemodialysisDto(entity);
+    }
+
+    public async Task DeleteHemodialysisSessionAsync(Guid id, Guid userId)
+    {
+        var entity = await _context.HemodialysisSessions.FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted)
+            ?? throw new InvalidOperationException("Khong tim thay phieu chay than.");
+
+        entity.IsDeleted = true;
+        entity.UpdatedAt = DateTime.UtcNow;
+        entity.UpdatedBy = userId.ToString();
+
+        await _context.SaveChangesAsync();
+    }
+
+    private static void ValidateHemodialysis(HemodialysisSessionDto dto)
+    {
+        if (dto.WeightPre < 0 || dto.WeightPost < 0)
+            throw new InvalidOperationException("Can nang khong duoc am.");
+        if (dto.Pulse < 0 || dto.RespiratoryRate < 0)
+            throw new InvalidOperationException("Mach / nhip tho khong duoc am.");
+        if (dto.BloodFlowRate < 0)
+            throw new InvalidOperationException("Toc do mau khong duoc am.");
+    }
+
+    private static HemodialysisSessionDto MapHemodialysisDto(HemodialysisSession e) => new HemodialysisSessionDto
+    {
+        Id                    = e.Id,
+        AdmissionId           = e.AdmissionId,
+        SessionDate           = e.SessionDate,
+        StartTime             = e.StartTime,
+        EndTime               = e.EndTime,
+        SessionNumber         = e.SessionNumber,
+        WeightPre             = e.WeightPre,
+        WeightPost            = e.WeightPost,
+        Pulse                 = e.Pulse,
+        BloodPressureLying    = e.BloodPressureLying,
+        BloodPressureStanding = e.BloodPressureStanding,
+        Temperature           = e.Temperature,
+        RespiratoryRate       = e.RespiratoryRate,
+        BloodFlowRate         = e.BloodFlowRate,
+        ArterialPressure      = e.ArterialPressure,
+        VenousPressure        = e.VenousPressure,
+        Tmp                   = e.Tmp,
+        ReplacementFluid      = e.ReplacementFluid,
+        DialyzerType          = e.DialyzerType,
+        Medications           = e.Medications,
+        Complications         = e.Complications,
+        Notes                 = e.Notes,
+    };
+
     #endregion
 }

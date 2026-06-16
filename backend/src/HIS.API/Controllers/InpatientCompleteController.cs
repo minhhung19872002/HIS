@@ -1147,6 +1147,50 @@ public partial class InpatientCompleteController : ControllerBase
 
     #endregion
 
+    #region 3.6.y Chạy thận nhân tạo (#148)
+
+    /// <summary>
+    /// Tạo phiếu theo dõi buổi chạy thận
+    /// </summary>
+    [HttpPost("{admissionId:guid}/hemodialysis")]
+    public async Task<ActionResult<HemodialysisSessionDto>> CreateHemodialysisSession(Guid admissionId, [FromBody] HemodialysisSessionDto dto)
+    {
+        var result = await _inpatientService.CreateHemodialysisSessionAsync(admissionId, dto, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy danh sách buổi chạy thận theo admission
+    /// </summary>
+    [HttpGet("{admissionId:guid}/hemodialysis")]
+    public async Task<ActionResult<List<HemodialysisSessionDto>>> GetHemodialysisSessions(Guid admissionId)
+    {
+        var result = await _inpatientService.GetHemodialysisSessionsAsync(admissionId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Cập nhật phiếu theo dõi buổi chạy thận
+    /// </summary>
+    [HttpPut("hemodialysis/{id:guid}")]
+    public async Task<ActionResult<HemodialysisSessionDto>> UpdateHemodialysisSession(Guid id, [FromBody] HemodialysisSessionDto dto)
+    {
+        var result = await _inpatientService.UpdateHemodialysisSessionAsync(id, dto, GetCurrentUserId());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Xóa phiếu theo dõi buổi chạy thận
+    /// </summary>
+    [HttpDelete("hemodialysis/{id:guid}")]
+    public async Task<IActionResult> DeleteHemodialysisSession(Guid id)
+    {
+        await _inpatientService.DeleteHemodialysisSessionAsync(id, GetCurrentUserId());
+        return NoContent();
+    }
+
+    #endregion
+
     #region 3.7 Kết thúc điều trị
 
     /// <summary>

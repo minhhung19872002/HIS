@@ -7,6 +7,7 @@ import type { InpatientListDto, WardLayoutDto, BedLayoutDto } from '../api/inpat
 import TreatmentMonitorSection from './inpatient/TreatmentMonitorSection';
 import ConsultationSection from './inpatient/ConsultationSection';
 import NewbornSection from './inpatient/NewbornSection';
+import HemodialysisSection from './inpatient/HemodialysisSection';
 import { catalogApi } from '../api/system';
 import type { DepartmentCatalogDto } from '../api/system';
 import {
@@ -434,6 +435,17 @@ const InpatientV2: React.FC = () => {
             <TreatmentMonitorSection patient={detail} onRefresh={loadData} />
             {/* Tab so sinh — hien thi khi admission la san khoa (luon hien thi, BS tu quyet dinh nhap) */}
             <NewbornSection admissionId={detail.admissionId} />
+            {/* Phieu theo doi chay than nhan tao (#148) — luon hien thi, BS khoa Than tu quyet dinh nhap */}
+            <HemodialysisSection
+              admissionId={detail.admissionId}
+              header={{
+                patientName: detail.patientName,
+                patientCode: detail.patientCode,
+                departmentName: detail.departmentName,
+                roomBed: `${detail.roomName || ''}${detail.bedName ? ' · ' + detail.bedName : ''}`,
+                diagnosis: detail.mainDiagnosis,
+              }}
+            />
           </div>
         )}
       </DrawerShell>

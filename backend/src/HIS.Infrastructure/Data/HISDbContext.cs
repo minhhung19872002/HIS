@@ -305,6 +305,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<NursingCare> NursingCares => Set<NursingCare>();
     public DbSet<Discharge> Discharges => Set<Discharge>();
     public DbSet<NewbornRecord> NewbornRecords => Set<NewbornRecord>(); // #50-54: hồ sơ trẻ sơ sinh
+    public DbSet<HemodialysisSession> HemodialysisSessions => Set<HemodialysisSession>(); // #148: phiếu theo dõi chạy thận
     public DbSet<InfusionRecord> InfusionRecords => Set<InfusionRecord>(); // #16: truyền dịch persist thật
     public DbSet<InpatientConsultation> InpatientConsultations => Set<InpatientConsultation>(); // #16: hội chẩn nội trú persist thật
     public DbSet<InpatientConsultationMember> InpatientConsultationMembers => Set<InpatientConsultationMember>();
@@ -1092,6 +1093,9 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
 
         // #50-54: NewbornRecord.MotherAdmission — NoAction de tranh multiple cascade paths
         modelBuilder.Entity<NewbornRecord>().HasOne(n => n.MotherAdmission).WithMany().HasForeignKey(n => n.MotherAdmissionId).OnDelete(DeleteBehavior.NoAction);
+
+        // #148: HemodialysisSession.Admission — NoAction de tranh multiple cascade paths
+        modelBuilder.Entity<HemodialysisSession>().HasOne(h => h.Admission).WithMany().HasForeignKey(h => h.AdmissionId).OnDelete(DeleteBehavior.NoAction);
 
         // G-34b: RadiologyModality.DefaultResultTemplate (optional FK → RadiologyReportTemplate)
         modelBuilder.Entity<RadiologyModality>()

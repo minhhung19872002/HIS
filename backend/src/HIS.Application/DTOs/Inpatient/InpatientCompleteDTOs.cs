@@ -1666,6 +1666,40 @@ public class NewbornRecordDto
     public DateTime? DischargeDate { get; set; }
 }
 
+/// <summary>
+/// DTO phiếu theo dõi buổi chạy thận nhân tạo (#148)
+/// </summary>
+public class HemodialysisSessionDto
+{
+    public Guid Id { get; set; }
+    public Guid AdmissionId { get; set; }
+
+    public DateTime SessionDate { get; set; }
+    public TimeSpan StartTime { get; set; }
+    public TimeSpan? EndTime { get; set; }
+    public int SessionNumber { get; set; }
+
+    public decimal WeightPre { get; set; }  // kg
+    public decimal WeightPost { get; set; } // kg
+
+    public int Pulse { get; set; }
+    public string? BloodPressureLying { get; set; }
+    public string? BloodPressureStanding { get; set; }
+    public decimal Temperature { get; set; }
+    public int RespiratoryRate { get; set; }
+
+    public int BloodFlowRate { get; set; }
+    public int? ArterialPressure { get; set; }
+    public int? VenousPressure { get; set; }
+    public decimal Tmp { get; set; }
+    public decimal ReplacementFluid { get; set; }
+    public string? DialyzerType { get; set; }
+
+    public string? Medications { get; set; }
+    public string? Complications { get; set; }
+    public string? Notes { get; set; }
+}
+
 #endregion
 
 #region 3.7 Kết thúc điều trị

@@ -749,6 +749,26 @@ public interface IInpatientCompleteService
     /// </summary>
     Task<NewbornRecordDto> DischargeNewbornRecordAsync(Guid id, DateTime dischargeDate, Guid userId);
 
+    /// <summary>
+    /// Tạo phiếu theo dõi buổi chạy thận (#148)
+    /// </summary>
+    Task<HemodialysisSessionDto> CreateHemodialysisSessionAsync(Guid admissionId, HemodialysisSessionDto dto, Guid userId);
+
+    /// <summary>
+    /// Lấy danh sách buổi chạy thận theo admission
+    /// </summary>
+    Task<List<HemodialysisSessionDto>> GetHemodialysisSessionsAsync(Guid admissionId);
+
+    /// <summary>
+    /// Cập nhật phiếu theo dõi buổi chạy thận
+    /// </summary>
+    Task<HemodialysisSessionDto> UpdateHemodialysisSessionAsync(Guid id, HemodialysisSessionDto dto, Guid userId);
+
+    /// <summary>
+    /// Xóa (soft) phiếu theo dõi buổi chạy thận
+    /// </summary>
+    Task DeleteHemodialysisSessionAsync(Guid id, Guid userId);
+
     #endregion
 
     #region 3.7 Kết thúc điều trị

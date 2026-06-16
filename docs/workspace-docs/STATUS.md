@@ -6,6 +6,15 @@
 > Cập nhật cuối: **2026-06-16** (phiên Claude máy D: — feature v2 nối tiếp #145/#85/#86 (PUSHED) + #89/#87 (chờ push); governance sync-gate đã push).
 
 ## Đang ở đâu
+- **#148 F1.7 — Phiếu theo dõi chạy thận nhân tạo (code-complete, build-green BE 0err + FE EXIT0, chờ push)**:
+  clone pattern sơ sinh #112, **reuse `InpatientCompleteService`/`Controller`** (không DI mới). Entity
+  `HemodialysisSession` (Inpatient.cs) + DbSet/FK NoAction (HISDbContext) + DTO + interface + service CRUD
+  (Create/Get/Update/soft-Delete + `ValidateHemodialysis`) + 4 endpoint (`{admissionId}/hemodialysis` POST/GET,
+  `hemodialysis/{id}` PUT/DELETE) + **migration 115** (idempotent, audit NVARCHAR(450), FK Admissions) +
+  **fix stub `FillDialysisMachineUsage`** đếm session thực (join Admissions, filter dept/date). FE: api client
+  4 hàm + `HemodialysisSection.tsx` (form đủ chỉ số: CN trước/sau, M/HA nằm-đứng/T°/NT, tốc độ/áp lực ĐM-TM/PTM/
+  tái dịch, thuốc/biến chứng) + `HemodialysisSheetPrint.tsx` (phiếu in A4 popup) + wire vào `Inpatient.tsx`.
+  ⚠️ migration chưa runtime-test (DB off) → verify schema-drift sau deploy. → chờ user push + `Closes #148`.
 - **#100 F11.2 — Vân tay tiếp đón + checkbox không thu thập được (code-complete, build-green FE+BE, chờ push)**:
   KHÔNG dùng WebAuthn (đúng issue). 2 cột Patient (`FingerprintData`/`FingerprintNotCollected`) + **migration 114**
   + `SaveFingerprintAsync` (ReceptionCompleteService.PhotosDocs) + endpoint `POST reception/register/fingerprint/{patientId}`

@@ -165,6 +165,45 @@ public class NewbornRecord : BaseEntity
 }
 
 /// <summary>
+/// Phiếu theo dõi từng buổi chạy thận nhân tạo (hemodialysis) — #148 (F1.7).
+/// Mỗi record = 1 buổi lọc máu gắn vào AdmissionId (nội trú khoa Thận nhân tạo).
+/// Lưu cân nặng trước/sau, dấu hiệu sinh tồn, thông số máy lọc, biến chứng, thuốc.
+/// </summary>
+public class HemodialysisSession : BaseEntity
+{
+    public Guid AdmissionId { get; set; }
+    public virtual Admission Admission { get; set; } = null!;
+
+    public DateTime SessionDate { get; set; }
+    public TimeSpan StartTime { get; set; }
+    public TimeSpan? EndTime { get; set; }
+    public int SessionNumber { get; set; } // buổi thứ mấy
+
+    // Cân nặng (kg)
+    public decimal WeightPre { get; set; }
+    public decimal WeightPost { get; set; }
+
+    // Dấu hiệu sinh tồn
+    public int Pulse { get; set; }                       // mạch lần/phút
+    public string? BloodPressureLying { get; set; }      // HA nằm "120/80"
+    public string? BloodPressureStanding { get; set; }   // HA đứng "120/80"
+    public decimal Temperature { get; set; }             // độ C
+    public int RespiratoryRate { get; set; }             // nhịp thở lần/phút
+
+    // Thông số máy lọc
+    public int BloodFlowRate { get; set; }               // tốc độ máu ml/phút
+    public int? ArterialPressure { get; set; }           // áp lực động mạch mmHg
+    public int? VenousPressure { get; set; }             // áp lực tĩnh mạch mmHg
+    public decimal Tmp { get; set; }                     // PTM (áp lực xuyên màng) mmHg
+    public decimal ReplacementFluid { get; set; }        // tái dịch (lít)
+    public string? DialyzerType { get; set; }            // loại quả lọc
+
+    public string? Medications { get; set; }             // thuốc (heparin...)
+    public string? Complications { get; set; }           // biến chứng
+    public string? Notes { get; set; }
+}
+
+/// <summary>
 /// Phiếu theo dõi truyền dịch nội trú — #16 (2026-06-11): persist thật thay stub echo-fake
 /// (FE modal "Truyền dịch" báo thành công nhưng trước đây không lưu gì — patient-safety).
 /// </summary>

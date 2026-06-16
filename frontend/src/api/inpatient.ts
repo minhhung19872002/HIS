@@ -1778,6 +1778,49 @@ export const dischargeNewborn = (id: string, dischargeDate: string) =>
 
 // #endregion
 
+// ============================================================================
+// #region 3.6.y Chay than nhan tao (#148)
+// ============================================================================
+
+export interface HemodialysisSessionDto {
+  id: string;
+  admissionId: string;
+  sessionDate: string;     // ISO date
+  startTime: string;       // "HH:MM:SS" TimeSpan
+  endTime?: string;        // "HH:MM:SS"
+  sessionNumber: number;
+  weightPre: number;       // kg
+  weightPost: number;      // kg
+  pulse: number;
+  bloodPressureLying?: string;
+  bloodPressureStanding?: string;
+  temperature: number;     // do C
+  respiratoryRate: number;
+  bloodFlowRate: number;   // ml/phut
+  arterialPressure?: number; // mmHg
+  venousPressure?: number;   // mmHg
+  tmp: number;             // PTM mmHg
+  replacementFluid: number; // tai dich lit
+  dialyzerType?: string;
+  medications?: string;
+  complications?: string;
+  notes?: string;
+}
+
+export const createHemodialysis = (admissionId: string, dto: Omit<HemodialysisSessionDto, 'id' | 'admissionId'>) =>
+  apiClient.post<HemodialysisSessionDto>(`${BASE_URL}/${admissionId}/hemodialysis`, dto);
+
+export const getHemodialysisSessions = (admissionId: string) =>
+  apiClient.get<HemodialysisSessionDto[]>(`${BASE_URL}/${admissionId}/hemodialysis`);
+
+export const updateHemodialysis = (id: string, dto: HemodialysisSessionDto) =>
+  apiClient.put<HemodialysisSessionDto>(`${BASE_URL}/hemodialysis/${id}`, dto);
+
+export const deleteHemodialysis = (id: string) =>
+  apiClient.delete(`${BASE_URL}/hemodialysis/${id}`);
+
+// #endregion
+
 // Default export for convenience
 export default {
   // Ward Layout
@@ -1912,4 +1955,10 @@ export default {
   getNewborns,
   updateNewborn,
   dischargeNewborn,
+
+  // Hemodialysis (#148)
+  createHemodialysis,
+  getHemodialysisSessions,
+  updateHemodialysis,
+  deleteHemodialysis,
 };
