@@ -1,5 +1,6 @@
 using HIS.Application.DTOs.Billing;
 using HIS.Application.Services;
+using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -127,6 +128,288 @@ public class ReassignObjectService : IReassignObjectService
         result.NewTotal = items.Sum(i => i.PatientAmount);
         if (items.Count == 0)
             result.Warnings.Add("Không có dịch vụ nào thỏa điều kiện để đổi (đã thanh toán hoặc đã có kết quả)");
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────────
+    // PER-LINE / PER-RECORD CHANGE WITH AUDIT — additive, KHÔNG đổi công thức tiền
+    // Chiến lược: reuse toàn bộ logic tính tiền trong ReassignServicesAsync /
+    //             ReassignMedicinesAsync qua ReassignAsync (mode=detail / mode=all).
+    //             Chỉ thêm ghi PayerChangeLog sau khi ReassignAsync hoàn thành.
+    // ────────────────────────────────────────────────────────────────────────────────
+
+    public async Task<ChangeObjectResultDto> ChangeObjectForRecordAsync(
+        ChangeObjectForRecordRequestDto dto, Guid userId)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Reason))
+            throw new ArgumentException("Lý do bắt buộc (audit)");
+        if (dto.ToObjectType < 1 || dto.ToObjectType > 4)
+            throw new ArgumentException("ToObjectType phải 1-4");
+
+        // Lấy medicalRecord để xác định patientId
+        var record = await _db.MedicalRecords.FirstOrDefaultAsync(m => m.Id == dto.MedicalRecordId)
+            ?? throw new InvalidOperationException("Không tìm thấy hồ sơ bệnh án");
+
+        // Snapshot trước khi đổi
+        var oldServiceTotal = await _db.ServiceRequestDetails
+            .Include(d => d.ServiceRequest)
+            .Where(d => d.ServiceRequest.MedicalRecordId == dto.MedicalRecordId
+                     && d.ServiceRequest.Status != 4 && !d.ServiceRequest.IsPaid)
+            .SumAsync(d => d.PatientAmount);
+
+        var oldDrugTotal = await _db.PrescriptionDetails
+            .Include(d => d.Prescription)
+            .Where(d => d.Prescription.MedicalRecordId == dto.MedicalRecordId
+                     && !d.Prescription.IsDispensed)
+            .SumAsync(d => d.PatientAmount);
+
+        var oldTotal = oldServiceTotal + oldDrugTotal;
+
+        // Reuse logic cũ — scope service + medicine, mode all
+        var svcReq = new ReassignObjectRequestDto
+        {
+            PatientId = record.PatientId,
+            MedicalRecordId = dto.MedicalRecordId,
+            Scope = "service",
+            Mode = "all",
+            ToPatientType = dto.ToObjectType,
+            Reason = dto.Reason,
+        };
+        var svcResult = await ReassignAsync(svcReq, userId);
+
+        var medReq = new ReassignObjectRequestDto
+        {
+            PatientId = record.PatientId,
+            MedicalRecordId = dto.MedicalRecordId,
+            Scope = "medicine",
+            Mode = "all",
+            ToPatientType = dto.ToObjectType,
+            Reason = dto.Reason,
+        };
+        var medResult = await ReassignAsync(medReq, userId);
+
+        var newTotal = svcResult.NewTotal + medResult.NewTotal;
+        var totalLines = svcResult.UpdatedCount + medResult.UpdatedCount;
+
+        // Ghi audit log
+        var log = new PayerChangeLog
+        {
+            Id = Guid.NewGuid(),
+            MedicalRecordId = dto.MedicalRecordId,
+            ChangeScope = "record",
+            FromObjectType = 0, // 0 = mixed (nhiều đối tượng), ghi chú qua Reason
+            ToObjectType = dto.ToObjectType,
+            Reason = dto.Reason,
+            ChangedBy = userId,
+            OldPatientAmount = oldTotal,
+            NewPatientAmount = newTotal,
+            AffectedLineCount = totalLines,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId.ToString(),
+        };
+        _db.Set<PayerChangeLog>().Add(log);
+        await _db.SaveChangesAsync();
+
+        _logger.LogWarning(
+            "User {UserId} ChangeObjectForRecord MedicalRecord {RecId} → type {Type}. Lines={Lines} Δ={Delta}. Reason: {Reason}",
+            userId, dto.MedicalRecordId, dto.ToObjectType, totalLines, newTotal - oldTotal, dto.Reason);
+
+        var warnings = svcResult.Warnings.Concat(medResult.Warnings).ToList();
+
+        return new ChangeObjectResultDto
+        {
+            LogId = log.Id,
+            FromObjectType = 0,
+            ToObjectType = dto.ToObjectType,
+            OldPatientAmount = oldTotal,
+            NewPatientAmount = newTotal,
+            DeltaPatientAmount = newTotal - oldTotal,
+            AffectedLineCount = totalLines,
+            Warnings = warnings,
+        };
+    }
+
+    public async Task<ChangeObjectResultDto> ChangeObjectForServiceLineAsync(
+        ChangeObjectForServiceLineRequestDto dto, Guid userId)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Reason))
+            throw new ArgumentException("Lý do bắt buộc (audit)");
+        if (dto.ToObjectType < 1 || dto.ToObjectType > 4)
+            throw new ArgumentException("ToObjectType phải 1-4");
+
+        var detail = await _db.ServiceRequestDetails
+            .Include(d => d.ServiceRequest)
+            .FirstOrDefaultAsync(d => d.Id == dto.ServiceRequestDetailId)
+            ?? throw new InvalidOperationException("Không tìm thấy dòng dịch vụ");
+
+        if (detail.ServiceRequest.Status == 4 || detail.ServiceRequest.IsPaid)
+            throw new InvalidOperationException("Dòng dịch vụ đã thanh toán hoặc đã hủy — không thể đổi đối tượng");
+
+        var oldPatientAmount = detail.PatientAmount;
+        var fromType = detail.PatientType;
+
+        var medRecord = await _db.MedicalRecords
+            .FirstOrDefaultAsync(m => m.Id == detail.ServiceRequest.MedicalRecordId)
+            ?? throw new InvalidOperationException("Không tìm thấy hồ sơ bệnh án");
+
+        // Reuse logic tính tiền: gọi ReassignAsync mode=detail, scope=service
+        var req = new ReassignObjectRequestDto
+        {
+            PatientId = medRecord.PatientId,
+            MedicalRecordId = detail.ServiceRequest.MedicalRecordId,
+            Scope = "service",
+            Mode = "detail",
+            ToPatientType = dto.ToObjectType,
+            ItemIds = new List<Guid> { dto.ServiceRequestDetailId },
+            Reason = dto.Reason,
+        };
+        var result = await ReassignAsync(req, userId);
+
+        // Reload để lấy giá mới sau khi tính lại
+        await _db.Entry(detail).ReloadAsync();
+        var newPatientAmount = detail.PatientAmount;
+
+        var log = new PayerChangeLog
+        {
+            Id = Guid.NewGuid(),
+            MedicalRecordId = detail.ServiceRequest.MedicalRecordId,
+            ServiceRequestDetailId = dto.ServiceRequestDetailId,
+            ChangeScope = "service_line",
+            FromObjectType = fromType,
+            ToObjectType = dto.ToObjectType,
+            Reason = dto.Reason,
+            ChangedBy = userId,
+            OldPatientAmount = oldPatientAmount,
+            NewPatientAmount = newPatientAmount,
+            AffectedLineCount = 1,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId.ToString(),
+        };
+        _db.Set<PayerChangeLog>().Add(log);
+        await _db.SaveChangesAsync();
+
+        _logger.LogWarning(
+            "User {UserId} ChangeObjectForServiceLine Detail {DetailId} {From}→{To} Δ={Delta}. Reason: {Reason}",
+            userId, dto.ServiceRequestDetailId, fromType, dto.ToObjectType, newPatientAmount - oldPatientAmount, dto.Reason);
+
+        return new ChangeObjectResultDto
+        {
+            LogId = log.Id,
+            FromObjectType = fromType,
+            ToObjectType = dto.ToObjectType,
+            OldPatientAmount = oldPatientAmount,
+            NewPatientAmount = newPatientAmount,
+            DeltaPatientAmount = newPatientAmount - oldPatientAmount,
+            AffectedLineCount = 1,
+            Warnings = result.Warnings,
+        };
+    }
+
+    public async Task<ChangeObjectResultDto> ChangeObjectForDrugLineAsync(
+        ChangeObjectForDrugLineRequestDto dto, Guid userId)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Reason))
+            throw new ArgumentException("Lý do bắt buộc (audit)");
+        if (dto.ToObjectType < 1 || dto.ToObjectType > 4)
+            throw new ArgumentException("ToObjectType phải 1-4");
+
+        var detail = await _db.PrescriptionDetails
+            .Include(d => d.Prescription)
+            .FirstOrDefaultAsync(d => d.Id == dto.PrescriptionDetailId)
+            ?? throw new InvalidOperationException("Không tìm thấy dòng thuốc/VTYT");
+
+        if (detail.Prescription.IsDispensed)
+            throw new InvalidOperationException("Đơn thuốc đã phát — không thể đổi đối tượng");
+
+        var oldPatientAmount = detail.PatientAmount;
+        var fromType = detail.PatientType;
+
+        var medRecord = await _db.MedicalRecords
+            .FirstOrDefaultAsync(m => m.Id == detail.Prescription.MedicalRecordId)
+            ?? throw new InvalidOperationException("Không tìm thấy hồ sơ bệnh án");
+
+        // Reuse logic tính tiền: gọi ReassignAsync mode=detail, scope=medicine
+        var req = new ReassignObjectRequestDto
+        {
+            PatientId = medRecord.PatientId,
+            MedicalRecordId = detail.Prescription.MedicalRecordId,
+            Scope = "medicine",
+            Mode = "detail",
+            ToPatientType = dto.ToObjectType,
+            ItemIds = new List<Guid> { dto.PrescriptionDetailId },
+            Reason = dto.Reason,
+        };
+        var result = await ReassignAsync(req, userId);
+
+        // Reload để lấy giá mới
+        await _db.Entry(detail).ReloadAsync();
+        var newPatientAmount = detail.PatientAmount;
+
+        var log = new PayerChangeLog
+        {
+            Id = Guid.NewGuid(),
+            MedicalRecordId = detail.Prescription.MedicalRecordId,
+            PrescriptionDetailId = dto.PrescriptionDetailId,
+            ChangeScope = "drug_line",
+            FromObjectType = fromType,
+            ToObjectType = dto.ToObjectType,
+            Reason = dto.Reason,
+            ChangedBy = userId,
+            OldPatientAmount = oldPatientAmount,
+            NewPatientAmount = newPatientAmount,
+            AffectedLineCount = 1,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId.ToString(),
+        };
+        _db.Set<PayerChangeLog>().Add(log);
+        await _db.SaveChangesAsync();
+
+        _logger.LogWarning(
+            "User {UserId} ChangeObjectForDrugLine Detail {DetailId} {From}→{To} Δ={Delta}. Reason: {Reason}",
+            userId, dto.PrescriptionDetailId, fromType, dto.ToObjectType, newPatientAmount - oldPatientAmount, dto.Reason);
+
+        return new ChangeObjectResultDto
+        {
+            LogId = log.Id,
+            FromObjectType = fromType,
+            ToObjectType = dto.ToObjectType,
+            OldPatientAmount = oldPatientAmount,
+            NewPatientAmount = newPatientAmount,
+            DeltaPatientAmount = newPatientAmount - oldPatientAmount,
+            AffectedLineCount = 1,
+            Warnings = result.Warnings,
+        };
+    }
+
+    public async Task<List<PayerChangeLogDto>> GetPayerChangeHistoryAsync(Guid medicalRecordId)
+    {
+        var logs = await _db.Set<PayerChangeLog>()
+            .Where(l => l.MedicalRecordId == medicalRecordId)
+            .OrderByDescending(l => l.CreatedAt)
+            .Take(100)
+            .ToListAsync();
+
+        // Lấy tên user từ UserId
+        var userIds = logs.Select(l => l.ChangedBy).Distinct().ToList();
+        var userNames = await _db.Users
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.FullName ?? u.Username);
+
+        return logs.Select(l => new PayerChangeLogDto
+        {
+            Id = l.Id,
+            ChangeScope = l.ChangeScope,
+            FromObjectType = l.FromObjectType,
+            ToObjectType = l.ToObjectType,
+            Reason = l.Reason,
+            ChangedBy = l.ChangedBy,
+            ChangedByName = userNames.GetValueOrDefault(l.ChangedBy),
+            OldPatientAmount = l.OldPatientAmount,
+            NewPatientAmount = l.NewPatientAmount,
+            AffectedLineCount = l.AffectedLineCount,
+            ChangedAt = l.CreatedAt,
+            ServiceRequestDetailId = l.ServiceRequestDetailId,
+            PrescriptionDetailId = l.PrescriptionDetailId,
+        }).ToList();
     }
 
     private async Task ReassignMedicinesAsync(

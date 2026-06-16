@@ -181,6 +181,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<KioskTicket> KioskTickets => Set<KioskTicket>(); // #103 #123-125: kiosk tự phục vụ
     public DbSet<AssetProcurementRequest> AssetProcurementRequests => Set<AssetProcurementRequest>(); // #108
     public DbSet<AssetProcurementRequestItem> AssetProcurementRequestItems => Set<AssetProcurementRequestItem>(); // #108
+    public DbSet<PayerChangeLog> PayerChangeLogs => Set<PayerChangeLog>(); // #104 #126-127 #137: log đổi đối tượng
     public DbSet<Supplier> Suppliers => Set<Supplier>();
 
     // Warehouse extensions (consignment, IU mapping, splitable, profit margin)
@@ -1142,6 +1143,11 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
             .HasOne(t => t.Service)
             .WithMany()
             .HasForeignKey(t => t.ServiceId)
+            .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<LisTestParameter>()
+            .HasOne(t => t.SampleType)
+            .WithMany()
+            .HasForeignKey(t => t.SampleTypeId)
             .OnDelete(DeleteBehavior.SetNull);
 
         // Column-level encryption for Patient PII (SEC-02: Data encryption at rest)

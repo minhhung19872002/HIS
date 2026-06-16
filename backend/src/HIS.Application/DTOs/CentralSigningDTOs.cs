@@ -341,3 +341,44 @@ public class SigningTotpVerifyRequest
 {
     public string OtpCode { get; set; } = string.Empty;
 }
+
+// ============ #111 — Office/Text file signing DTOs ============
+
+/// <summary>
+/// #111 — Request ký docx/xlsx/txt bằng hash-envelope + TOTP offline.
+/// File được gửi dạng base64, backend tính SHA-256 hash + ký CMS/PKCS#7 detached.
+/// </summary>
+public class SignOfficeFileRequest
+{
+    /// <summary>Base64 của file cần ký (docx / xlsx / txt)</summary>
+    public string FileBase64 { get; set; } = string.Empty;
+    /// <summary>Tên file gốc — dùng để phân loại DocumentType và hiển thị</summary>
+    public string FileName { get; set; } = string.Empty;
+    /// <summary>Mã OTP offline (TOTP) — bắt buộc khi không có USB session</summary>
+    public string? OtpCode { get; set; }
+    public string? Reason { get; set; }
+    public string? Location { get; set; }
+}
+
+/// <summary>
+/// #111 — Kết quả ký file office/text.
+/// File gốc KHÔNG bị nhúng chữ ký — SignatureBase64 là PKCS#7 detached.
+/// Để xác thực: tính SHA256(file) == FileHashBase64, rồi verify CMS.
+/// </summary>
+public class FileSigningResult
+{
+    public bool Success { get; set; }
+    public string? Message { get; set; }
+    /// <summary>Base64 SHA-256 hash của file gốc</summary>
+    public string? FileHashBase64 { get; set; }
+    /// <summary>Base64 CMS/PKCS#7 detached signature</summary>
+    public string? SignatureBase64 { get; set; }
+    /// <summary>ID bản ghi DocumentSignature đã lưu</summary>
+    public Guid? SignatureRecordId { get; set; }
+    public string? SignerName { get; set; }
+    public string? CertificateSerial { get; set; }
+    public string? CaProvider { get; set; }
+    public string? SignedAt { get; set; }
+    /// <summary>Ghi chú kỹ thuật về phương pháp ký (hash-envelope)</summary>
+    public string? Note { get; set; }
+}

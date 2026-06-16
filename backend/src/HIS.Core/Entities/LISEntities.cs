@@ -411,6 +411,17 @@ public class LisTestParameter : BaseEntity
 
     public string DataType { get; set; } = "Number"; // Number, Text, Enum
     public string? EnumValues { get; set; } // JSON array of allowed values for Enum type
+
+    /// <summary>Loại bệnh phẩm (FK → LabSampleType). Dùng khi lấy mẫu / in phiếu lấy mẫu.</summary>
+    public Guid? SampleTypeId { get; set; }
+    public virtual LabSampleType? SampleType { get; set; }
+
+    /// <summary>Đơn vị hiển thị trên phiếu in (có thể khác đơn vị tính Unit).</summary>
+    public string? PrintUnit { get; set; }
+
+    /// <summary>Mô tả / ghi chú cho kỹ thuật viên.</summary>
+    public string? Description { get; set; }
+
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
 

@@ -447,6 +447,107 @@ public class DigitalSignatureController : ControllerBase
         return Ok(new { success = true, message = "Token đã được đăng ký" });
     }
 
+    // ─── #84: Lịch sử ký theo record + ký/hủy ký per y lệnh ───
+
+    /// <summary>
+    /// #84 — List toàn bộ lịch sử ký (bao gồm đã thu hồi) cho một HSBA.
+    /// Tra theo documentType lọc tất cả DocumentId thuộc record đó.
+    /// GET /api/digital-signature/record-signatures/{medicalRecordId}?documentType=Prescription
+    /// documentType: "" = tất cả, "Prescription", "Order", "EMR", "LabResult", ...
+    /// </summary>
+    [HttpGet("record-signatures/{medicalRecordId:guid}")]
+    public async Task<ActionResult<List<DocumentSignatureHistoryDto>>> GetRecordSignatures(
+        Guid medicalRecordId, [FromQuery] string? documentType = null)
+    {
+        // Lấy danh sách examId thuộc record
+        var examIds = await _db.Examinations
+            .Where(e => e.MedicalRecordId == medicalRecordId && !e.IsDeleted)
+            .Select(e => e.Id)
+            .ToListAsync();
+
+        // Lấy prescriptionId thuộc HSBA (dùng MedicalRecordId để tránh null-nullable Guid? mismatch)
+        var rxIds = await _db.Prescriptions
+            .Where(rx => rx.MedicalRecordId == medicalRecordId && !rx.IsDeleted)
+            .Select(rx => rx.Id).ToListAsync();
+
+        // Lấy serviceRequestId thuộc HSBA
+        var srIds = await _db.ServiceRequests
+            .Where(sr => sr.MedicalRecordId == medicalRecordId && !sr.IsDeleted)
+            .Select(sr => sr.Id).ToListAsync();
+
+        var allDocIds = examIds
+            .Concat(rxIds)
+            .Concat(srIds)
+            .Concat(new[] { medicalRecordId }) // chính record
+            .ToHashSet();
+
+        var query = _db.DocumentSignatures
+            .Include(ds => ds.SignedByUser)
+            .Where(ds => allDocIds.Contains(ds.DocumentId));
+
+        if (!string.IsNullOrEmpty(documentType))
+            query = query.Where(ds => ds.DocumentType == documentType);
+
+        var list = await query
+            .OrderByDescending(ds => ds.SignedAt)
+            .Select(ds => new DocumentSignatureHistoryDto
+            {
+                Id = ds.Id,
+                DocumentId = ds.DocumentId,
+                DocumentType = ds.DocumentType,
+                DocumentCode = ds.DocumentCode,
+                SignerName = ds.SignedByUser != null ? ds.SignedByUser.FullName : ds.CertificateSubject,
+                SignedAt = ds.SignedAt.ToString("dd/MM/yyyy HH:mm:ss"),
+                CertificateSerial = ds.CertificateSerial,
+                CaProvider = ds.CaProvider,
+                TsaTimestamp = ds.TsaTimestamp,
+                OcspStatus = ds.OcspStatus,
+                Status = ds.Status,
+                RevokeReason = ds.RevokeReason,
+                RevokedAt = ds.RevokedAt.HasValue ? ds.RevokedAt.Value.ToString("dd/MM/yyyy HH:mm:ss") : null,
+                CertificateSubject = ds.CertificateSubject,
+                SignedDocumentUrl = ds.Id != Guid.Empty ? $"/api/digital-signature/download/{ds.Id}" : null,
+            })
+            .ToListAsync();
+
+        return Ok(list);
+    }
+
+    /// <summary>
+    /// #84 — Ký số per y lệnh (Prescription / Order).
+    /// Reuse SignDocument endpoint với documentType="Prescription" hoặc "Order".
+    /// Endpoint này là alias rõ ràng cho FE drawer.
+    /// POST /api/digital-signature/sign-order
+    /// Body: { documentId, documentType:"Prescription"|"Order", pin?, reason, location }
+    /// </summary>
+    [HttpPost("sign-order")]
+    public async Task<ActionResult<SignDocumentResponse>> SignOrder([FromBody] SignDocumentRequest request)
+    {
+        // Validate documentType thuộc nhóm y lệnh
+        var allowedTypes = new[] { "Prescription", "Order", "LabResult", "Radiology", "NursingOrder" };
+        if (!allowedTypes.Contains(request.DocumentType, StringComparer.OrdinalIgnoreCase))
+        {
+            return BadRequest(new SignDocumentResponse
+            {
+                Success = false,
+                Message = $"documentType '{request.DocumentType}' không thuộc nhóm y lệnh. Dùng: {string.Join(", ", allowedTypes)}"
+            });
+        }
+        // Delegate sang SignDocument — tái dùng hoàn toàn logic
+        return await SignDocument(request);
+    }
+
+    /// <summary>
+    /// #84 — Hủy ký per y lệnh (alias có body tường minh hơn).
+    /// POST /api/digital-signature/revoke-order/{signatureId}
+    /// </summary>
+    [HttpPost("revoke-order/{signatureId:guid}")]
+    public async Task<ActionResult> RevokeOrder(Guid signatureId, [FromBody] RevokeSignatureRequest request)
+    {
+        // Delegate sang RevokeSignature đã có
+        return await RevokeSignature(signatureId, request);
+    }
+
     #region Private Methods
 
     private async Task<SignDocumentResponse> SignDocumentInternal(
@@ -861,4 +962,28 @@ public class SubmitSignedRequest
     public string? CertificateSubject { get; set; }
     public string? CertificateSerial { get; set; }
     public string? CaProvider { get; set; }
+}
+
+/// <summary>
+/// #84 — Lịch sử ký đầy đủ (bao gồm đã thu hồi) cho một tài liệu hoặc toàn bộ HSBA.
+/// Status: 0 = Hiệu lực, 1 = Đã thu hồi.
+/// </summary>
+public class DocumentSignatureHistoryDto
+{
+    public Guid Id { get; set; }
+    public Guid DocumentId { get; set; }
+    public string DocumentType { get; set; } = string.Empty;
+    public string DocumentCode { get; set; } = string.Empty;
+    public string SignerName { get; set; } = string.Empty;
+    public string SignedAt { get; set; } = string.Empty;
+    public string CertificateSerial { get; set; } = string.Empty;
+    public string CaProvider { get; set; } = string.Empty;
+    public string? TsaTimestamp { get; set; }
+    public string? OcspStatus { get; set; }
+    /// <summary>0 = Hiệu lực, 1 = Đã thu hồi</summary>
+    public int Status { get; set; }
+    public string? RevokeReason { get; set; }
+    public string? RevokedAt { get; set; }
+    public string? CertificateSubject { get; set; }
+    public string? SignedDocumentUrl { get; set; }
 }

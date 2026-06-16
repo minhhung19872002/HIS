@@ -6,8 +6,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { App as AntdApp } from 'antd';
 import dayjs from 'dayjs';
-import { searchExaminations } from '../api/examination';
-import type { ExaminationDto } from '../api/examination';
+import { searchExaminations, getPhysicalExamination } from '../api/examination';
+import type { ExaminationDto, PhysicalExaminationDto } from '../api/examination';
+import { printEmrForm } from '../api/pdf';
 import {
   getInpatientList,
   createTreatmentSheet,
@@ -48,6 +49,10 @@ const Ico: React.FC<{ name: string; size?: number }> = ({ name, size = 22 }) => 
     video: <><rect x="3" y="6" width="13" height="12" rx="2" /><path d="M16 10l5-3v10l-5-3z" /></>,
     chevron: <path d="M9 6l6 6-6 6" />,
     logout: <path d="M15 17l5-5-5-5M20 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />,
+    print: <><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></>,
+    back: <path d="M19 12H5M12 5l-7 7 7 7" />,
+    pill: <><path d="m18.5 2.5-16 16" /><path d="M12 3c4.97 0 9 4.03 9 9s-4.03 9-9 9-9-4.03-9-9 4.03-9 9-9z" /></>,
+    lab: <><rect x="5" y="2" width="14" height="20" rx="2" /><path d="M9 7h6M9 11h6M9 15h4" /></>,
   };
   return <svg {...p}>{paths[name] || paths.today}</svg>;
 };
@@ -174,7 +179,7 @@ const DoctorPortalMobile: React.FC = () => {
       <div className="pp-scroll">
         {tab === 'today' && <Today doctorName={doctorName} stats={stats} next={next} queue={queue} go={setTab} onStart={() => message.info('Mở phiên khám')} />}
         {tab === 'queue' && <Queue queue={queue} onPick={() => message.info('Mở phiên khám')} />}
-        {tab === 'patients' && <Patients patients={patients} />}
+        {tab === 'patients' && <Patients patients={patients} allExams={exams} />}
         {tab === 'inpatient' && <Inpatient inpatients={inpatients} onMessage={message.info} />}
         {tab === 'me' && <Me doctorName={doctorName} stats={stats} onLogout={() => message.info('Tan ca / Đăng xuất')} />}
       </div>
@@ -295,16 +300,153 @@ const Queue: React.FC<{ queue: QRow[]; onPick: () => void }> = ({ queue, onPick 
   );
 };
 
-const Patients: React.FC<{ patients: PRow[] }> = ({ patients }) => {
+// ===================================================
+// Tab Bệnh nhân — có màn xem chi tiết HSBA + in
+// ===================================================
+
+interface PatientEmrDetail {
+  examinationId: string;
+  patientName: string;
+  patientCode: string;
+  examinationDate: string;
+  diagnosisName?: string;
+  physicalExam?: PhysicalExaminationDto;
+  loading: boolean;
+}
+
+const EmrDetailView: React.FC<{ detail: PatientEmrDetail; onBack: () => void }> = ({ detail, onBack }) => {
+  const exam = detail.physicalExam;
+  const handlePrint = () => printEmrForm(detail.examinationId, 'summary');
+
+  return (
+    <>
+      <div className="pp-page-hdr" style={{ gap: 8 }}>
+        <button className="pp-circ" onClick={onBack}><Ico name="back" size={16} /></button>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>{detail.patientName}</div>
+          <div style={{ fontSize: 11, color: '#888' }}>{detail.patientCode} · {dayjs(detail.examinationDate).format('DD/MM/YYYY')}</div>
+        </div>
+        <button
+          onClick={handlePrint}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, background: '#1677ff', color: '#fff', border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+        ><Ico name="print" size={15} />In</button>
+      </div>
+
+      {detail.loading ? (
+        <div className="pp-empty"><div style={{ color: '#888' }}>Đang tải...</div></div>
+      ) : (
+        <div style={{ padding: '0 12px 32px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+          {/* Chẩn đoán */}
+          <div style={{ background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 10, padding: '10px 14px' }}>
+            <div style={{ fontSize: 11, color: '#ad6800', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Chẩn đoán</div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>{detail.diagnosisName || '— Chưa có chẩn đoán —'}</div>
+          </div>
+
+          {/* Khám lâm sàng */}
+          {exam && (
+            <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 10, padding: '10px 14px' }}>
+              <div style={{ fontSize: 11, color: '#389e0d', fontWeight: 600, textTransform: 'uppercase', marginBottom: 8 }}>Khám lâm sàng</div>
+              <EmrSection label="Tổng trạng" value={exam.generalAppearance} />
+              <EmrSection label="Tim mạch" value={exam.cardiovascular} />
+              <EmrSection label="Hô hấp" value={exam.respiratory} />
+              <EmrSection label="Tiêu hóa" value={exam.gastrointestinal} />
+              <EmrSection label="Thần kinh" value={exam.neurological} />
+              <EmrSection label="Ghi chú khác" value={exam.otherFindings} />
+            </div>
+          )}
+
+          {/* Đơn thuốc — hướng dẫn dùng API */}
+          <EmrInfoCard icon="pill" label="Đơn thuốc / Dự trù" tone="#fff0f6" borderColor="#ffadd2" textColor="#c41d7f">
+            <div style={{ fontSize: 12, color: '#888' }}>Xem đơn thuốc đầy đủ → mở Desktop hoặc tab Nội trú</div>
+          </EmrInfoCard>
+
+          {/* CLS */}
+          <EmrInfoCard icon="lab" label="Chỉ định CLS" tone="#f0f5ff" borderColor="#adc6ff" textColor="#1d39c4">
+            <div style={{ fontSize: 12, color: '#888' }}>Xem kết quả CLS đầy đủ → mở Desktop</div>
+          </EmrInfoCard>
+
+          {/* Nút in */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+            <button
+              onClick={handlePrint}
+              style={{ padding: '12px 0', borderRadius: 10, background: '#1677ff', color: '#fff', border: 'none', fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            ><Ico name="print" size={18} />In phiếu tóm tắt (wifi)</button>
+            <button
+              onClick={() => printEmrForm(detail.examinationId, 'treatment')}
+              style={{ padding: '12px 0', borderRadius: 10, background: '#f0f0f0', color: '#333', border: 'none', fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            ><Ico name="print" size={18} />In tờ điều trị</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+const EmrSection: React.FC<{ label: string; value?: string | null }> = ({ label, value }) =>
+  value ? (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ fontSize: 11, color: '#8c8c8c', marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 13, lineHeight: 1.5 }}>{value}</div>
+    </div>
+  ) : null;
+
+const VitalChip: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div style={{ background: '#fff', border: '1px solid #d9f7be', borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>
+    <div style={{ fontSize: 10, color: '#8c8c8c' }}>{label}</div>
+    <div style={{ fontSize: 13, fontWeight: 700 }}>{value}</div>
+  </div>
+);
+
+const EmrInfoCard: React.FC<{ icon: string; label: string; tone: string; borderColor: string; textColor: string; children: React.ReactNode }> = ({ icon, label, tone, borderColor, textColor, children }) => (
+  <div style={{ background: tone, border: `1px solid ${borderColor}`, borderRadius: 10, padding: '10px 14px' }}>
+    <div style={{ fontSize: 11, color: textColor, fontWeight: 600, textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+      <Ico name={icon} size={13} />{label}
+    </div>
+    {children}
+  </div>
+);
+
+const Patients: React.FC<{ patients: PRow[]; allExams: ExaminationDto[] }> = ({ patients, allExams }) => {
   const [q, setQ] = useState('');
+  const [detail, setDetail] = useState<PatientEmrDetail | null>(null);
+
   const list = patients.filter((p) => !q || p.name.toLowerCase().includes(q.toLowerCase()) || p.pid.toLowerCase().includes(q.toLowerCase()));
+
+  const openEmr = async (p: PRow) => {
+    // Lấy lần khám gần nhất của BN
+    const lastExam = allExams
+      .filter((e) => e.patientCode === p.pid)
+      .sort((a, b) => dayjs(b.examinationDate).valueOf() - dayjs(a.examinationDate).valueOf())[0];
+    if (!lastExam) return;
+
+    const d: PatientEmrDetail = {
+      examinationId: lastExam.id,
+      patientName: p.name,
+      patientCode: p.pid,
+      examinationDate: lastExam.examinationDate,
+      diagnosisName: lastExam.diagnosisName,
+      loading: true,
+    };
+    setDetail(d);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const physExam = await getPhysicalExamination(lastExam.id) as any;
+      setDetail({ ...d, physicalExam: physExam, loading: false });
+    } catch {
+      setDetail({ ...d, loading: false });
+    }
+  };
+
+  if (detail) return <EmrDetailView detail={detail} onBack={() => setDetail(null)} />;
+
   return (
     <>
       <div className="pp-page-hdr"><h2>Bệnh nhân</h2></div>
       <div className="dp-search"><Ico name="search" size={18} /><input placeholder="Tìm tên / mã BN" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       <div className="pp-list">
         {list.map((p) => (
-          <div key={p.pid} className="pp-card dp-p-card">
+          <div key={p.pid} className="pp-card dp-p-card" onClick={() => openEmr(p)} style={{ cursor: 'pointer' }}>
             <div className="pp-avatar pp-avatar-md">{lastName(p.name).charAt(0)}</div>
             <div className="dp-p-body">
               <div className="dp-p-name">{p.name}</div>

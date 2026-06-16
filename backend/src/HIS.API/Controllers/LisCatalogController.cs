@@ -401,6 +401,7 @@ public class LisCatalogController : ControllerBase
         var q = _db.LisTestParameters
             .Include(t => t.Group)
             .Include(t => t.Service)
+            .Include(t => t.SampleType)
             .AsQueryable();
         if (isActive.HasValue) q = q.Where(t => t.IsActive == isActive.Value);
         if (groupId.HasValue) q = q.Where(t => t.GroupId == groupId.Value);
@@ -417,12 +418,15 @@ public class LisCatalogController : ControllerBase
             t.Code,
             t.Name,
             t.Unit,
+            t.PrintUnit,
             t.Hl7Code,
             t.GroupId,
             GroupName = t.Group != null ? t.Group.Name : null,
             t.ServiceId,
             ServiceCode = t.Service != null ? t.Service.ServiceCode : null,
             ServiceName = t.Service != null ? t.Service.ServiceName : null,
+            t.SampleTypeId,
+            SampleTypeName = t.SampleType != null ? t.SampleType.Name : null,
             t.NormalMinMale,
             t.NormalMaxMale,
             t.NormalMinFemale,
@@ -432,6 +436,8 @@ public class LisCatalogController : ControllerBase
             t.CriticalLow,
             t.CriticalHigh,
             t.DataType,
+            t.EnumValues,
+            t.Description,
             t.SortOrder,
             t.IsActive,
         }));
@@ -466,6 +472,10 @@ public class LisCatalogController : ControllerBase
             existing.CriticalLow = dto.CriticalLow;
             existing.CriticalHigh = dto.CriticalHigh;
             existing.DataType = dto.DataType;
+            existing.EnumValues = dto.EnumValues;
+            existing.SampleTypeId = dto.SampleTypeId;
+            existing.PrintUnit = dto.PrintUnit;
+            existing.Description = dto.Description;
             existing.SortOrder = dto.SortOrder;
             existing.IsActive = dto.IsActive;
             Stamp(existing, false);
@@ -483,5 +493,22 @@ public class LisCatalogController : ControllerBase
         e.IsDeleted = true;
         await _db.SaveChangesAsync();
         return NoContent();
+    }
+
+    // =====================
+    // 8. LabSampleType (Loại bệnh phẩm) — read-only catalog endpoint cho form tests
+    // =====================
+
+    [HttpGet("sample-types")]
+    public async Task<IActionResult> GetSampleTypes([FromQuery] string? keyword, [FromQuery] bool? isActive)
+    {
+        var q = _db.LabSampleTypes.AsQueryable();
+        if (isActive.HasValue) q = q.Where(s => s.IsActive == isActive.Value);
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim();
+            q = q.Where(s => s.Code.Contains(kw) || s.Name.Contains(kw));
+        }
+        return Ok(await q.OrderBy(s => s.Code).Select(s => new { s.Id, s.Code, s.Name, s.IsActive }).ToListAsync());
     }
 }

@@ -262,6 +262,60 @@ public class CentralSigningController : ControllerBase
         return Ok(new { success });
     }
 
+    // ============ #111 — Office/Text file signing (hash-envelope + TOTP offline) ============
+
+    /// <summary>
+    /// #111 — Ký số file .docx (hash-envelope PKCS#7 detached + TOTP offline).
+    /// File gốc KHÔNG bị nhúng chữ ký. Kết quả trả về: FileHashBase64 + SignatureBase64.
+    /// POST /api/central-signing/sign-docx
+    /// </summary>
+    [HttpPost("sign-docx")]
+    public async Task<ActionResult<FileSigningResult>> SignDocx([FromBody] SignOfficeFileRequest request)
+    {
+        if (string.IsNullOrEmpty(request.FileBase64))
+            return BadRequest(new FileSigningResult { Success = false, Message = "FileBase64 không được rỗng" });
+        var userId = GetCurrentUserId();
+        byte[] fileBytes;
+        try { fileBytes = Convert.FromBase64String(request.FileBase64); }
+        catch { return BadRequest(new FileSigningResult { Success = false, Message = "FileBase64 không hợp lệ" }); }
+        var result = await _signingService.SignDocxAsync(userId, fileBytes, request.FileName, request.OtpCode ?? "");
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// #111 — Ký số file .xlsx (hash-envelope PKCS#7 detached + TOTP offline).
+    /// POST /api/central-signing/sign-xlsx
+    /// </summary>
+    [HttpPost("sign-xlsx")]
+    public async Task<ActionResult<FileSigningResult>> SignXlsx([FromBody] SignOfficeFileRequest request)
+    {
+        if (string.IsNullOrEmpty(request.FileBase64))
+            return BadRequest(new FileSigningResult { Success = false, Message = "FileBase64 không được rỗng" });
+        var userId = GetCurrentUserId();
+        byte[] fileBytes;
+        try { fileBytes = Convert.FromBase64String(request.FileBase64); }
+        catch { return BadRequest(new FileSigningResult { Success = false, Message = "FileBase64 không hợp lệ" }); }
+        var result = await _signingService.SignXlsxAsync(userId, fileBytes, request.FileName, request.OtpCode ?? "");
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// #111 — Ký số file .txt (hash-envelope PKCS#7 detached + TOTP offline).
+    /// POST /api/central-signing/sign-txt
+    /// </summary>
+    [HttpPost("sign-txt")]
+    public async Task<ActionResult<FileSigningResult>> SignTxt([FromBody] SignOfficeFileRequest request)
+    {
+        if (string.IsNullOrEmpty(request.FileBase64))
+            return BadRequest(new FileSigningResult { Success = false, Message = "FileBase64 không được rỗng" });
+        var userId = GetCurrentUserId();
+        byte[] fileBytes;
+        try { fileBytes = Convert.FromBase64String(request.FileBase64); }
+        catch { return BadRequest(new FileSigningResult { Success = false, Message = "FileBase64 không hợp lệ" }); }
+        var result = await _signingService.SignTxtAsync(userId, fileBytes, request.FileName, request.OtpCode ?? "");
+        return Ok(result);
+    }
+
     // ============ Private ============
 
     private Guid GetCurrentUserId()

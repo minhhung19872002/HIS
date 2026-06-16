@@ -286,7 +286,11 @@ public class LisConfigService : ILisConfigService
     {
         try
         {
-            return await _context.LisTestParameters.AsNoTracking()
+            return await _context.LisTestParameters
+                .Include(t => t.Group)
+                .Include(t => t.Service)
+                .Include(t => t.SampleType)
+                .AsNoTracking()
                 .OrderBy(t => t.SortOrder).ThenBy(t => t.Code)
                 .Select(t => new LisTestParameterDto
                 {
@@ -296,8 +300,21 @@ public class LisConfigService : ILisConfigService
                     Unit = t.Unit,
                     ReferenceLow = t.ReferenceLow,
                     ReferenceHigh = t.ReferenceHigh,
+                    NormalMinMale = t.NormalMinMale,
+                    NormalMaxMale = t.NormalMaxMale,
+                    NormalMinFemale = t.NormalMinFemale,
+                    NormalMaxFemale = t.NormalMaxFemale,
                     CriticalLow = t.CriticalLow,
                     CriticalHigh = t.CriticalHigh,
+                    Hl7Code = t.Hl7Code,
+                    GroupId = t.GroupId,
+                    GroupName = t.Group != null ? t.Group.Name : null,
+                    ServiceId = t.ServiceId,
+                    ServiceName = t.Service != null ? t.Service.ServiceName : null,
+                    SampleTypeId = t.SampleTypeId,
+                    SampleTypeName = t.SampleType != null ? t.SampleType.Name : null,
+                    PrintUnit = t.PrintUnit,
+                    Description = t.Description,
                     DataType = t.DataType,
                     EnumValues = t.EnumValues,
                     SortOrder = t.SortOrder,
@@ -328,8 +345,18 @@ public class LisConfigService : ILisConfigService
                 Unit = dto.Unit,
                 ReferenceLow = dto.ReferenceLow,
                 ReferenceHigh = dto.ReferenceHigh,
+                NormalMinMale = dto.NormalMinMale,
+                NormalMaxMale = dto.NormalMaxMale,
+                NormalMinFemale = dto.NormalMinFemale,
+                NormalMaxFemale = dto.NormalMaxFemale,
                 CriticalLow = dto.CriticalLow,
                 CriticalHigh = dto.CriticalHigh,
+                Hl7Code = dto.Hl7Code,
+                GroupId = dto.GroupId,
+                ServiceId = dto.ServiceId,
+                SampleTypeId = dto.SampleTypeId,
+                PrintUnit = dto.PrintUnit,
+                Description = dto.Description,
                 DataType = dto.DataType,
                 EnumValues = dto.EnumValues,
                 SortOrder = dto.SortOrder,
@@ -348,8 +375,18 @@ public class LisConfigService : ILisConfigService
                 Unit = entity.Unit,
                 ReferenceLow = entity.ReferenceLow,
                 ReferenceHigh = entity.ReferenceHigh,
+                NormalMinMale = entity.NormalMinMale,
+                NormalMaxMale = entity.NormalMaxMale,
+                NormalMinFemale = entity.NormalMinFemale,
+                NormalMaxFemale = entity.NormalMaxFemale,
                 CriticalLow = entity.CriticalLow,
                 CriticalHigh = entity.CriticalHigh,
+                Hl7Code = entity.Hl7Code,
+                GroupId = entity.GroupId,
+                ServiceId = entity.ServiceId,
+                SampleTypeId = entity.SampleTypeId,
+                PrintUnit = entity.PrintUnit,
+                Description = entity.Description,
                 DataType = entity.DataType,
                 EnumValues = entity.EnumValues,
                 SortOrder = entity.SortOrder,
@@ -379,8 +416,18 @@ public class LisConfigService : ILisConfigService
             entity.Unit = dto.Unit;
             entity.ReferenceLow = dto.ReferenceLow;
             entity.ReferenceHigh = dto.ReferenceHigh;
+            entity.NormalMinMale = dto.NormalMinMale;
+            entity.NormalMaxMale = dto.NormalMaxMale;
+            entity.NormalMinFemale = dto.NormalMinFemale;
+            entity.NormalMaxFemale = dto.NormalMaxFemale;
             entity.CriticalLow = dto.CriticalLow;
             entity.CriticalHigh = dto.CriticalHigh;
+            entity.Hl7Code = dto.Hl7Code;
+            entity.GroupId = dto.GroupId;
+            entity.ServiceId = dto.ServiceId;
+            entity.SampleTypeId = dto.SampleTypeId;
+            entity.PrintUnit = dto.PrintUnit;
+            entity.Description = dto.Description;
             entity.DataType = dto.DataType;
             entity.EnumValues = dto.EnumValues;
             entity.SortOrder = dto.SortOrder;
@@ -397,8 +444,18 @@ public class LisConfigService : ILisConfigService
                 Unit = entity.Unit,
                 ReferenceLow = entity.ReferenceLow,
                 ReferenceHigh = entity.ReferenceHigh,
+                NormalMinMale = entity.NormalMinMale,
+                NormalMaxMale = entity.NormalMaxMale,
+                NormalMinFemale = entity.NormalMinFemale,
+                NormalMaxFemale = entity.NormalMaxFemale,
                 CriticalLow = entity.CriticalLow,
                 CriticalHigh = entity.CriticalHigh,
+                Hl7Code = entity.Hl7Code,
+                GroupId = entity.GroupId,
+                ServiceId = entity.ServiceId,
+                SampleTypeId = entity.SampleTypeId,
+                PrintUnit = entity.PrintUnit,
+                Description = entity.Description,
                 DataType = entity.DataType,
                 EnumValues = entity.EnumValues,
                 SortOrder = entity.SortOrder,

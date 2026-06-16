@@ -79,7 +79,7 @@ namespace HIS.API.Controllers
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize] // Role-based authorization temporarily disabled for testing
+    [Authorize] // JWT required; role filtering applied at method level
     [TypeFilter(typeof(HIS.API.Filters.DomainExceptionFilter))] // sweep 2026-06-12: lỗi nghiệp vụ → 400/404 message rõ
     public class RISCompleteController : ControllerBase
     {
@@ -135,7 +135,7 @@ namespace HIS.API.Controllers
         /// 8.1.1 Hiển thị danh sách bệnh nhân chờ thực hiện
         /// </summary>
         [HttpGet("waiting-list")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<List<RadiologyWaitingListDto>>> GetWaitingList(
             [FromQuery] DateTime date,
             [FromQuery] Guid? roomId = null,
@@ -153,7 +153,7 @@ namespace HIS.API.Controllers
         /// 8.1.2 Phát loa gọi bệnh nhân vào thực hiện
         /// </summary>
         [HttpPost("call-patient")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<CallPatientResultDto>> CallPatient([FromBody] CallPatientDto dto)
         {
             var result = await _risService.CallPatientAsync(dto);
@@ -164,7 +164,7 @@ namespace HIS.API.Controllers
         /// Lấy cấu hình màn hình hiển thị
         /// </summary>
         [HttpGet("rooms/{roomId}/display-config")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<WaitingDisplayConfigDto>> GetDisplayConfig(Guid roomId)
         {
             var result = await _risService.GetDisplayConfigAsync(roomId);
@@ -175,7 +175,7 @@ namespace HIS.API.Controllers
         /// Cập nhật cấu hình màn hình hiển thị
         /// </summary>
         [HttpPut("rooms/{roomId}/display-config")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult> UpdateDisplayConfig(Guid roomId, [FromBody] WaitingDisplayConfigDto config)
         {
             config.RoomId = roomId;
@@ -242,7 +242,7 @@ namespace HIS.API.Controllers
         /// Bắt đầu thực hiện
         /// </summary>
         [HttpPost("orders/{orderId}/start")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult> StartExam(Guid orderId)
         {
             await _risService.StartExamAsync(orderId);
@@ -253,7 +253,7 @@ namespace HIS.API.Controllers
         /// Kết thúc thực hiện
         /// </summary>
         [HttpPost("orders/{orderId}/complete")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult> CompleteExam(Guid orderId)
         {
             // Sweep 2026-06-12: service trả false khi order không tồn tại nhưng controller từng
@@ -271,7 +271,7 @@ namespace HIS.API.Controllers
         /// 8.2.1 Danh sách cấu hình PACS
         /// </summary>
         [HttpGet("pacs-connections")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<List<PACSConnectionDto>>> GetPACSConnections()
         {
             var result = await _risService.GetPACSConnectionsAsync();
@@ -282,7 +282,7 @@ namespace HIS.API.Controllers
         /// Thêm mới cấu hình PACS
         /// </summary>
         [HttpPost("pacs-connections")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống")]
         public async Task<ActionResult<PACSConnectionDto>> CreatePACSConnection([FromBody] CreatePACSConnectionDto dto)
         {
             var result = await _risService.CreatePACSConnectionAsync(dto);
@@ -293,7 +293,7 @@ namespace HIS.API.Controllers
         /// Cập nhật cấu hình PACS
         /// </summary>
         [HttpPut("pacs-connections/{id}")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống")]
         public async Task<ActionResult<PACSConnectionDto>> UpdatePACSConnection(Guid id, [FromBody] UpdatePACSConnectionDto dto)
         {
             var result = await _risService.UpdatePACSConnectionAsync(id, dto);
@@ -304,7 +304,7 @@ namespace HIS.API.Controllers
         /// Xóa cấu hình PACS
         /// </summary>
         [HttpDelete("pacs-connections/{id}")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống")]
         public async Task<ActionResult> DeletePACSConnection(Guid id)
         {
             await _risService.DeletePACSConnectionAsync(id);
@@ -315,7 +315,7 @@ namespace HIS.API.Controllers
         /// 8.2.2 Kiểm tra kết nối PACS
         /// </summary>
         [HttpGet("pacs-connections/{connectionId}/status")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<PACSConnectionStatusDto>> CheckPACSConnection(Guid connectionId)
         {
             var result = await _risService.CheckPACSConnectionAsync(connectionId);
@@ -326,7 +326,7 @@ namespace HIS.API.Controllers
         /// 8.2.3 Danh sách máy chẩn đoán hình ảnh
         /// </summary>
         [HttpGet("modalities")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<List<ModalityDto>>> GetModalities(
             [FromQuery] string keyword = null,
             [FromQuery] string modalityType = null)
@@ -339,7 +339,7 @@ namespace HIS.API.Controllers
         /// Thêm mới Modality
         /// </summary>
         [HttpPost("modalities")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống")]
         public async Task<ActionResult<ModalityDto>> CreateModality([FromBody] CreateModalityDto dto)
         {
             var result = await _risService.CreateModalityAsync(dto);
@@ -350,7 +350,7 @@ namespace HIS.API.Controllers
         /// Cập nhật Modality
         /// </summary>
         [HttpPut("modalities/{id}")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống")]
         public async Task<ActionResult<ModalityDto>> UpdateModality(Guid id, [FromBody] UpdateModalityDto dto)
         {
             var result = await _risService.UpdateModalityAsync(id, dto);
@@ -361,7 +361,7 @@ namespace HIS.API.Controllers
         /// Xóa Modality
         /// </summary>
         [HttpDelete("modalities/{id}")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống")]
         public async Task<ActionResult> DeleteModality(Guid id)
         {
             await _risService.DeleteModalityAsync(id);
@@ -372,7 +372,7 @@ namespace HIS.API.Controllers
         /// Gửi worklist đến máy
         /// </summary>
         [HttpPost("modalities/worklist/send")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Technician")]
         public async Task<ActionResult<SendWorklistResultDto>> SendWorklistToModality([FromBody] SendModalityWorklistDto dto)
         {
             var result = await _risService.SendWorklistToModalityAsync(dto);
@@ -383,7 +383,7 @@ namespace HIS.API.Controllers
         /// 8.2.4 Cấu hình kết nối thiết bị khác (siêu âm, nội soi)
         /// </summary>
         [HttpPut("devices/{deviceId}/connection")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống")]
         public async Task<ActionResult> ConfigureDeviceConnection(Guid deviceId, [FromBody] DeviceConnectionConfigDto config)
         {
             await _risService.ConfigureDeviceConnectionAsync(deviceId, config);
@@ -398,7 +398,7 @@ namespace HIS.API.Controllers
         /// Danh sách phiếu yêu cầu CĐHA
         /// </summary>
         [HttpGet("orders")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician,Doctor")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician,Doctor")]
         public async Task<ActionResult<List<RadiologyOrderDto>>> GetRadiologyOrders(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -415,7 +415,7 @@ namespace HIS.API.Controllers
         /// Chi tiết phiếu yêu cầu
         /// </summary>
         [HttpGet("orders/{orderId}")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician,Doctor")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician,Doctor")]
         public async Task<ActionResult<RadiologyOrderDto>> GetRadiologyOrder(Guid orderId)
         {
             var result = await _risService.GetRadiologyOrderAsync(orderId);
@@ -427,7 +427,7 @@ namespace HIS.API.Controllers
         /// 8.3.1 Lấy mẫu kết quả theo loại dịch vụ
         /// </summary>
         [HttpGet("templates/by-service-type/{serviceTypeId}")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<List<RadiologyResultTemplateDto>>> GetResultTemplatesByServiceType(Guid serviceTypeId)
         {
             var result = await _risService.GetResultTemplatesByServiceTypeAsync(serviceTypeId);
@@ -438,7 +438,7 @@ namespace HIS.API.Controllers
         /// 8.3.2 Lấy mẫu kết quả theo dịch vụ
         /// </summary>
         [HttpGet("templates/by-service/{serviceId}")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<List<RadiologyResultTemplateDto>>> GetResultTemplatesByService(Guid serviceId)
         {
             var result = await _risService.GetResultTemplatesByServiceAsync(serviceId);
@@ -449,7 +449,7 @@ namespace HIS.API.Controllers
         /// 8.3.3 Lấy mẫu kết quả theo giới tính
         /// </summary>
         [HttpGet("templates/by-gender/{gender}")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<List<RadiologyResultTemplateDto>>> GetResultTemplatesByGender(string gender)
         {
             var result = await _risService.GetResultTemplatesByGenderAsync(gender);
@@ -460,7 +460,7 @@ namespace HIS.API.Controllers
         /// Lấy tất cả mẫu kết quả
         /// </summary>
         [HttpGet("templates")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<List<RadiologyResultTemplateDto>>> GetAllResultTemplates([FromQuery] string keyword = null)
         {
             var result = await _risService.GetAllResultTemplatesAsync(keyword);
@@ -471,7 +471,7 @@ namespace HIS.API.Controllers
         /// Thêm/Sửa mẫu kết quả
         /// </summary>
         [HttpPost("templates")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<RadiologyResultTemplateDto>> SaveResultTemplate([FromBody] SaveResultTemplateDto dto)
         {
             var result = await _risService.SaveResultTemplateAsync(dto);
@@ -482,7 +482,7 @@ namespace HIS.API.Controllers
         /// Xóa mẫu kết quả
         /// </summary>
         [HttpDelete("templates/{templateId}")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult> DeleteResultTemplate(Guid templateId)
         {
             await _risService.DeleteResultTemplateAsync(templateId);
@@ -493,7 +493,7 @@ namespace HIS.API.Controllers
         /// 8.3.4 Đổi mẫu kết quả
         /// </summary>
         [HttpPost("results/change-template")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
         public async Task<ActionResult<RadiologyResultDto>> ChangeResultTemplate([FromBody] ChangeResultTemplateDto dto)
         {
             var result = await _risService.ChangeResultTemplateAsync(dto);
@@ -504,7 +504,7 @@ namespace HIS.API.Controllers
         /// 8.3.5 Nhập mô tả, kết luận và ghi chú
         /// </summary>
         [HttpPost("results/enter")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<RadiologyResultDto>> EnterRadiologyResult([FromBody] EnterRadiologyResultDto dto)
         {
             var result = await _risService.EnterRadiologyResultAsync(dto);
@@ -515,7 +515,7 @@ namespace HIS.API.Controllers
         /// Lấy kết quả CĐHA
         /// </summary>
         [HttpGet("order-items/{orderItemId}/result")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician,Doctor")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician,Doctor")]
         public async Task<ActionResult<RadiologyResultDto>> GetRadiologyResult(Guid orderItemId)
         {
             var result = await _risService.GetRadiologyResultAsync(orderItemId);
@@ -526,7 +526,7 @@ namespace HIS.API.Controllers
         /// Cập nhật kết quả CĐHA
         /// </summary>
         [HttpPut("results/{resultId}")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
         public async Task<ActionResult<RadiologyResultDto>> UpdateRadiologyResult(
             Guid resultId,
             [FromBody] UpdateRadiologyResultDto dto)
@@ -539,7 +539,7 @@ namespace HIS.API.Controllers
         /// 8.3.6 Đính kèm ảnh
         /// </summary>
         [HttpPost("results/attach-image")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<AttachedImageDto>> AttachImage([FromBody] AttachImageDto dto)
         {
             var result = await _risService.AttachImageAsync(dto);
@@ -550,7 +550,7 @@ namespace HIS.API.Controllers
         /// Xóa ảnh đính kèm
         /// </summary>
         [HttpDelete("results/images/{imageId}")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
         public async Task<ActionResult> RemoveAttachedImage(Guid imageId)
         {
             await _risService.RemoveAttachedImageAsync(imageId);
@@ -561,7 +561,7 @@ namespace HIS.API.Controllers
         /// Lấy ảnh từ PACS
         /// </summary>
         [HttpGet("pacs/studies")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<List<DicomStudyDto>>> GetStudiesFromPACS(
             [FromQuery] string patientId,
             [FromQuery] DateTime? fromDate = null,
@@ -575,7 +575,7 @@ namespace HIS.API.Controllers
         /// Lấy series trong study
         /// </summary>
         [HttpGet("pacs/studies/{studyInstanceUID}/series")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<List<DicomSeriesDto>>> GetSeries(string studyInstanceUID)
         {
             var result = await _risService.GetSeriesAsync(studyInstanceUID);
@@ -586,7 +586,7 @@ namespace HIS.API.Controllers
         /// Lấy images trong series
         /// </summary>
         [HttpGet("pacs/series/{seriesInstanceUID}/images")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<List<DicomImageDto>>> GetImages(string seriesInstanceUID)
         {
             var result = await _risService.GetImagesAsync(seriesInstanceUID);
@@ -705,7 +705,7 @@ namespace HIS.API.Controllers
         /// Link DICOM study với order
         /// </summary>
         [HttpPost("order-items/{orderItemId}/link-study")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult> LinkStudyToOrder(Guid orderItemId, [FromBody] LinkStudyRequest request)
         {
             await _risService.LinkStudyToOrderAsync(orderItemId, request.StudyInstanceUID);
@@ -716,7 +716,7 @@ namespace HIS.API.Controllers
         /// Duyệt kết quả sơ bộ (KTV)
         /// </summary>
         [HttpPost("results/{resultId}/preliminary-approve")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Technician")]
         public async Task<ActionResult> PreliminaryApproveResult(Guid resultId, [FromBody] ApproveRequest request)
         {
             await _risService.PreliminaryApproveResultAsync(resultId, request.Note);
@@ -727,7 +727,7 @@ namespace HIS.API.Controllers
         /// Duyệt kết quả chính thức (BS)
         /// </summary>
         [HttpPost("results/{resultId}/final-approve")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
         public async Task<ActionResult> FinalApproveResult(Guid resultId, [FromBody] ApproveRadiologyResultDto dto)
         {
             dto.ResultId = resultId;
@@ -741,7 +741,7 @@ namespace HIS.API.Controllers
         /// Hủy duyệt kết quả
         /// </summary>
         [HttpPost("results/{resultId}/cancel-approval")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult> CancelApproval(Guid resultId, [FromBody] RISCancelApprovalRequest request)
         {
             await _risService.CancelApprovalAsync(resultId, request.Reason);
@@ -752,7 +752,7 @@ namespace HIS.API.Controllers
         /// 8.3.7 In kết quả
         /// </summary>
         [HttpGet("results/{resultId}/print")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician,Doctor,Nurse")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician,Doctor,Nurse")]
         public async Task<ActionResult> PrintRadiologyResult(
             Guid resultId,
             [FromQuery] string format = "A4",
@@ -766,7 +766,7 @@ namespace HIS.API.Controllers
         /// In kết quả hàng loạt
         /// </summary>
         [HttpPost("results/print-batch")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult> PrintRadiologyResultsBatch(
             [FromBody] List<Guid> resultIds,
             [FromQuery] string format = "A4")
@@ -779,7 +779,7 @@ namespace HIS.API.Controllers
         /// 8.3.8 Trả kết quả qua mạng về khoa/phòng
         /// </summary>
         [HttpPost("results/send")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<SendResultResponseDto>> SendResultToDepartment([FromBody] SendResultDto dto)
         {
             var result = await _risService.SendResultToDepartmentAsync(dto);
@@ -790,7 +790,7 @@ namespace HIS.API.Controllers
         /// Lấy lịch sử kết quả của bệnh nhân
         /// </summary>
         [HttpGet("patients/{patientId}/history")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Doctor")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Doctor")]
         public async Task<ActionResult<List<RadiologyResultDto>>> GetPatientRadiologyHistory(
             Guid patientId,
             [FromQuery] string serviceType = null,
@@ -808,7 +808,7 @@ namespace HIS.API.Controllers
         /// Danh sách phiếu kê thuốc/vật tư
         /// </summary>
         [HttpGet("order-items/{orderItemId}/prescriptions")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<List<RadiologyPrescriptionDto>>> GetRadiologyPrescriptions(Guid orderItemId)
         {
             var result = await _risService.GetRadiologyPrescriptionsAsync(orderItemId);
@@ -819,7 +819,7 @@ namespace HIS.API.Controllers
         /// Tạo phiếu kê thuốc/vật tư
         /// </summary>
         [HttpPost("prescriptions")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
         public async Task<ActionResult<RadiologyPrescriptionDto>> CreateRadiologyPrescription(
             [FromBody] CreateRadiologyPrescriptionDto dto)
         {
@@ -831,7 +831,7 @@ namespace HIS.API.Controllers
         /// Cập nhật phiếu kê
         /// </summary>
         [HttpPut("prescriptions/{prescriptionId}")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
         public async Task<ActionResult<RadiologyPrescriptionDto>> UpdateRadiologyPrescription(
             Guid prescriptionId,
             [FromBody] UpdateRadiologyPrescriptionDto dto)
@@ -844,7 +844,7 @@ namespace HIS.API.Controllers
         /// Xóa phiếu kê
         /// </summary>
         [HttpDelete("prescriptions/{prescriptionId}")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult> DeleteRadiologyPrescription(Guid prescriptionId)
         {
             await _risService.DeleteRadiologyPrescriptionAsync(prescriptionId);
@@ -855,7 +855,7 @@ namespace HIS.API.Controllers
         /// Kê từ định mức
         /// </summary>
         [HttpPost("order-items/{orderItemId}/prescription-from-norm")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
         public async Task<ActionResult<RadiologyPrescriptionDto>> CreatePrescriptionFromNorm(
             Guid orderItemId,
             [FromQuery] Guid warehouseId)
@@ -868,7 +868,7 @@ namespace HIS.API.Controllers
         /// Lấy định mức của dịch vụ
         /// </summary>
         [HttpGet("services/{serviceId}/norm")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<RadiologyServiceNormDto>> GetServiceNorm(Guid serviceId)
         {
             var result = await _risService.GetServiceNormAsync(serviceId);
@@ -879,7 +879,7 @@ namespace HIS.API.Controllers
         /// Cập nhật định mức
         /// </summary>
         [HttpPut("services/{serviceId}/norm")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult> UpdateServiceNorm(Guid serviceId, [FromBody] List<UpdateNormItemDto> items)
         {
             await _risService.UpdateServiceNormAsync(serviceId, items);
@@ -890,7 +890,7 @@ namespace HIS.API.Controllers
         /// Tìm kiếm thuốc/vật tư
         /// </summary>
         [HttpGet("items/search")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<List<ItemSearchResultDto>>> SearchItems(
             [FromQuery] string keyword,
             [FromQuery] Guid warehouseId,
@@ -904,7 +904,7 @@ namespace HIS.API.Controllers
         /// Kiểm tra tồn kho
         /// </summary>
         [HttpGet("items/{itemId}/stock")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician")]
         public async Task<ActionResult<ItemStockDto>> CheckItemStock(Guid itemId, [FromQuery] Guid warehouseId)
         {
             var result = await _risService.CheckItemStockAsync(itemId, warehouseId);
@@ -919,7 +919,7 @@ namespace HIS.API.Controllers
         /// 8.5.1 Báo cáo doanh thu CĐHA
         /// </summary>
         [HttpGet("reports/revenue")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Accountant")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Accountant")]
         public async Task<ActionResult<RadiologyRevenueReportDto>> GetRevenueReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -934,7 +934,7 @@ namespace HIS.API.Controllers
         /// 8.5.2 Sổ siêu âm theo QĐ4069
         /// </summary>
         [HttpGet("reports/ultrasound-register")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<UltrasoundRegisterDto>> GetUltrasoundRegister(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate)
@@ -947,7 +947,7 @@ namespace HIS.API.Controllers
         /// 8.5.3 Sổ CĐHA phân chia theo loại dịch vụ
         /// </summary>
         [HttpGet("reports/radiology-register/by-type")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<RadiologyRegisterDto>> GetRadiologyRegisterByType(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -961,7 +961,7 @@ namespace HIS.API.Controllers
         /// 8.5.4 Sổ CĐHA theo QĐ4069
         /// </summary>
         [HttpGet("reports/radiology-register")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<RadiologyRegisterDto>> GetRadiologyRegister(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate)
@@ -974,7 +974,7 @@ namespace HIS.API.Controllers
         /// 8.5.5 Sổ thăm dò chức năng theo QĐ4069
         /// </summary>
         [HttpGet("reports/functional-test-register")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<FunctionalTestRegisterDto>> GetFunctionalTestRegister(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate)
@@ -987,7 +987,7 @@ namespace HIS.API.Controllers
         /// 8.5.6 Báo cáo định mức tiêu hao
         /// </summary>
         [HttpGet("reports/consumption-norm")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<ConsumptionNormReportDto>> GetConsumptionNormReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -1001,7 +1001,7 @@ namespace HIS.API.Controllers
         /// 8.5.7 Báo cáo doanh thu theo chi phí gốc
         /// </summary>
         [HttpGet("reports/revenue-by-base-cost")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Accountant")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Accountant")]
         public async Task<ActionResult<RadiologyRevenueReportDto>> GetRevenueByBaseCostReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -1015,7 +1015,7 @@ namespace HIS.API.Controllers
         /// 8.5.8 Đồng bộ kết quả với Sở Y tế
         /// </summary>
         [HttpPost("results/{resultId}/sync-doh")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<SyncResultToDoHDto>> SyncResultToDoH(Guid resultId)
         {
             var result = await _risService.SyncResultToDoHAsync(resultId);
@@ -1026,7 +1026,7 @@ namespace HIS.API.Controllers
         /// Thống kê CĐHA
         /// </summary>
         [HttpGet("reports/statistics")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<RadiologyStatisticsDto>> GetStatistics(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -1040,7 +1040,7 @@ namespace HIS.API.Controllers
         /// Xuất báo cáo Excel
         /// </summary>
         [HttpGet("reports/export")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult> ExportReportToExcel(
             [FromQuery] string reportType,
             [FromQuery] DateTime fromDate,
@@ -1059,7 +1059,7 @@ namespace HIS.API.Controllers
         /// Lấy URL mở DICOM Viewer
         /// </summary>
         [HttpGet("viewer/url")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician,Doctor")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician,Doctor")]
         public async Task<ActionResult<ViewerUrlDto>> GetViewerUrl([FromQuery] string studyInstanceUID)
         {
             var result = await _risService.GetViewerUrlAsync(studyInstanceUID);
@@ -1070,7 +1070,7 @@ namespace HIS.API.Controllers
         /// Lấy cấu hình DICOM Viewer
         /// </summary>
         [HttpGet("viewer/config")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<DicomViewerConfigDto>> GetViewerConfig()
         {
             var result = await _risService.GetViewerConfigAsync();
@@ -1081,7 +1081,7 @@ namespace HIS.API.Controllers
         /// Lưu annotation
         /// </summary>
         [HttpPost("annotations")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
         public async Task<ActionResult<ImageAnnotationDto>> SaveAnnotation([FromBody] ImageAnnotationDto annotation)
         {
             var result = await _risService.SaveAnnotationAsync(annotation);
@@ -1092,7 +1092,7 @@ namespace HIS.API.Controllers
         /// Lấy annotations của ảnh
         /// </summary>
         [HttpGet("annotations")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician,Doctor")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician,Doctor")]
         public async Task<ActionResult<List<ImageAnnotationDto>>> GetAnnotations([FromQuery] string sopInstanceUID)
         {
             var result = await _risService.GetAnnotationsAsync(sopInstanceUID);
@@ -1103,7 +1103,7 @@ namespace HIS.API.Controllers
         /// Đánh dấu key image
         /// </summary>
         [HttpPost("key-images")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
         public async Task<ActionResult<KeyImageDto>> MarkKeyImage([FromBody] MarkKeyImageDto dto)
         {
             var result = await _risService.MarkKeyImageAsync(dto);
@@ -1114,7 +1114,7 @@ namespace HIS.API.Controllers
         /// Lấy danh sách key images
         /// </summary>
         [HttpGet("key-images")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician,Doctor")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician,Doctor")]
         public async Task<ActionResult<List<KeyImageDto>>> GetKeyImages([FromQuery] string studyInstanceUID)
         {
             var result = await _risService.GetKeyImagesAsync(studyInstanceUID);
@@ -1125,7 +1125,7 @@ namespace HIS.API.Controllers
         /// Chỉnh sửa ảnh
         /// </summary>
         [HttpPost("images/edit")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist")]
         public async Task<ActionResult> EditImage([FromBody] ImageEditDto dto)
         {
             var result = await _risService.EditImageAsync(dto);
@@ -1140,7 +1140,7 @@ namespace HIS.API.Controllers
         /// Danh sách phòng CĐHA
         /// </summary>
         [HttpGet("rooms")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<List<RadiologyRoomDto>>> GetRooms(
             [FromQuery] string keyword = null,
             [FromQuery] string roomType = null)
@@ -1153,7 +1153,7 @@ namespace HIS.API.Controllers
         /// Thêm/Sửa phòng
         /// </summary>
         [HttpPost("rooms")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống")]
         public async Task<ActionResult<RadiologyRoomDto>> SaveRoom([FromBody] SaveRadiologyRoomDto dto)
         {
             var result = await _risService.SaveRoomAsync(dto);
@@ -1164,7 +1164,7 @@ namespace HIS.API.Controllers
         /// Lịch làm việc phòng
         /// </summary>
         [HttpGet("rooms/{roomId}/schedule")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<List<RadiologyScheduleDto>>> GetRoomSchedule(
             Guid roomId,
             [FromQuery] DateTime fromDate,
@@ -1178,7 +1178,7 @@ namespace HIS.API.Controllers
         /// Cập nhật lịch làm việc
         /// </summary>
         [HttpPost("rooms/schedule")]
-        // [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
+        [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager")]
         public async Task<ActionResult<RadiologyScheduleDto>> SaveSchedule([FromBody] SaveRadiologyScheduleDto dto)
         {
             var result = await _risService.SaveScheduleAsync(dto);

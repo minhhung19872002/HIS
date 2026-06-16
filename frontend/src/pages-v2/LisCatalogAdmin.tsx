@@ -40,6 +40,7 @@ const LisCatalogAdminV2: React.FC = () => {
   const [services, setServices] = useState<Row[]>([]);
   const [supplies, setSupplies] = useState<Row[]>([]);
   const [testGroups, setTestGroups] = useState<Row[]>([]);
+  const [sampleTypes, setSampleTypes] = useState<Row[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,6 +70,8 @@ const LisCatalogAdminV2: React.FC = () => {
         setSupplies(normalizeArrayResponse<Row>(sp)); } catch { /* empty */ }
       try { const { data: tg } = await apiClient.get('/lis-catalog/groups', { params: { isActive: true } });
         setTestGroups(normalizeArrayResponse<Row>(tg)); } catch { /* empty */ }
+      try { const { data: st } = await apiClient.get('/lis-catalog/sample-types', { params: { isActive: true } });
+        setSampleTypes(normalizeArrayResponse<Row>(st)); } catch { /* empty */ }
     })();
   }, []);
 
@@ -108,6 +111,7 @@ const LisCatalogAdminV2: React.FC = () => {
       { key: 'unit', label: 'Đơn vị', mono: true, render: (r) => r.unit || '—' },
       { key: 'hl7', label: 'HL7', code: true, render: (r) => r.hl7Code || '—' },
       { key: 'group', label: 'Nhóm', render: (r) => r.groupName || '—' },
+      { key: 'sample', label: 'Bệnh phẩm', render: (r) => r.sampleTypeName || '—' },
       { key: 'svc', label: 'Dịch vụ giá', render: (r) => r.serviceName || '—' },
       { key: 'refM', label: 'TK Nam', mono: true, render: (r) => r.normalMinMale != null ? `${r.normalMinMale}–${r.normalMaxMale}` : '—' },
       { key: 'refF', label: 'TK Nữ', mono: true, render: (r) => r.normalMinFemale != null ? `${r.normalMinFemale}–${r.normalMaxFemale}` : '—' },
@@ -180,8 +184,8 @@ const LisCatalogAdminV2: React.FC = () => {
       </div>
       <Form.Item label="Tên chỉ số" name="name" rules={[{ required: true }]}><Input /></Form.Item>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <Form.Item label="Đơn vị" name="unit"><Input placeholder="g/dL, mmol/L…" /></Form.Item>
         <Form.Item label="Kiểu kết quả" name="dataType" initialValue="Number"><Select options={DATA_TYPE_OPTIONS} /></Form.Item>
+        <Form.Item label="STT" name="sortOrder"><InputNumber min={0} /></Form.Item>
       </div>
       <Form.Item label="Nhóm XN" name="groupId">
         <Select allowClear showSearch optionFilterProp="label"
@@ -191,6 +195,15 @@ const LisCatalogAdminV2: React.FC = () => {
         <Select allowClear showSearch optionFilterProp="label"
           options={services.map((s) => ({ label: `${s.serviceCode} — ${s.serviceName}`, value: s.id }))} />
       </Form.Item>
+      <Form.Item label="Loại bệnh phẩm" name="sampleTypeId">
+        <Select allowClear showSearch optionFilterProp="label"
+          options={sampleTypes.map((st) => ({ label: `${st.code} — ${st.name}`, value: st.id }))} />
+      </Form.Item>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Form.Item label="Đơn vị tính" name="unit"><Input placeholder="g/dL, mmol/L…" /></Form.Item>
+        <Form.Item label="Đơn vị in phiếu" name="printUnit"><Input placeholder="Để trống = dùng đơn vị tính" /></Form.Item>
+      </div>
+      <Form.Item label="Mô tả / Ghi chú KTV" name="description"><Input.TextArea rows={2} placeholder="Ghi chú dành cho kỹ thuật viên…" /></Form.Item>
       <div style={{ marginBottom: 8, fontWeight: 500, color: '#595959' }}>Dải tham chiếu theo giới</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
         <Form.Item label="Nam Min" name="normalMinMale"><InputNumber style={{ width: '100%' }} /></Form.Item>
@@ -203,7 +216,6 @@ const LisCatalogAdminV2: React.FC = () => {
         <Form.Item label="Critical Low" name="criticalLow"><InputNumber style={{ width: '100%' }} /></Form.Item>
         <Form.Item label="Critical High" name="criticalHigh"><InputNumber style={{ width: '100%' }} /></Form.Item>
       </div>
-      <Form.Item label="STT" name="sortOrder"><InputNumber min={0} /></Form.Item>
       <Form.Item label="Hoạt động" name="isActive" valuePropName="checked" initialValue={true}><Switch /></Form.Item>
     </>,
     books: <>

@@ -11,6 +11,15 @@
   trả snippet → main áp tập trung + build gate). Triage 4 Explore agent: đóng 5 DONE-duplicate (#114 #119 #120
   #146 #93). BLOCKED (cần HW/credential): #133 #134 #113 #22 #24 #25. Defer tech-debt: #17 #42 #43 #44 #45 #35.
   WON'T-DO multi-branch: #107 #131 #132.
+- **WAVE 5 (build-green BE + FE EXIT0, chờ push)** — nhạy cảm tiền/pháp lý + bảo mật: **Đổi đối tượng
+  #104/#126/#127/#137** (reuse ReassignObjectService — KHÔNG đổi công thức tiền; +PayerChangeLog audit migration
+  **130** + endpoint record/line-level + FE drawer/nút; ⚠️ chưa wire vào page billing cụ thể) · **Ký số
+  #83/#84/#111** (PDF gộp HSBA ký invisible iText7 PdfMerger; ký per-y-lệnh + lịch sử/hủy ký reuse DocumentSignatures;
+  docx/xlsx/txt = hash-envelope PKCS#7 detached — native OOXML defer; FE SignatureHistoryDrawer chưa mount) ·
+  **RBAC #49** (khôi phục 72 role-guard RISCompleteController bị comment; secret scan = chỉ dev-cred appsettings,
+  prod dùng env) · **Mobile #20** (DoctorPortalMobile +màn xem HSBA read-only +in PDF) · **LIS catalog #23**
+  (LisTestParameter +SampleTypeId/PrintUnit/Description +migration **131**). ⚠️ #48 audit GIỮ OPEN (entity
+  Community/Public/Forensic Health thiếu cột CreatedBy — cần migration riêng, defer). migration 130/131 verify drift sau deploy.
 - **WAVE 4 (build-green BE + FE EXIT0, chờ push)** — 5 cluster: **Kiosk #103/#123-125** (KioskTicket + service
   cấp số/checkin CCCD-BHYT + migration **126** + page kiosk; 3 endpoint AllowAnonymous giới hạn) · **Import Excel
   #96/#97/#121/#122** (CSV — chưa có lib Excel: import tương tác thuốc + giám định BHXH BhxhAuditImport migration

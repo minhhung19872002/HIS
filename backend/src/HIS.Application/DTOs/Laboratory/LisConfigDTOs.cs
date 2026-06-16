@@ -53,8 +53,37 @@ public class LisTestParameterDto
     public string Unit { get; set; } = string.Empty;
     public decimal? ReferenceLow { get; set; }
     public decimal? ReferenceHigh { get; set; }
+
+    /// <summary>Giá trị tham chiếu theo giới — Nam</summary>
+    public decimal? NormalMinMale { get; set; }
+    public decimal? NormalMaxMale { get; set; }
+
+    /// <summary>Giá trị tham chiếu theo giới — Nữ</summary>
+    public decimal? NormalMinFemale { get; set; }
+    public decimal? NormalMaxFemale { get; set; }
+
     public decimal? CriticalLow { get; set; }
     public decimal? CriticalHigh { get; set; }
+
+    /// <summary>Mã HL7 trao đổi với máy LIS</summary>
+    public string? Hl7Code { get; set; }
+
+    /// <summary>Nhóm XN (FK → LabTestGroup)</summary>
+    public Guid? GroupId { get; set; }
+    public string? GroupName { get; set; }
+
+    /// <summary>Dịch vụ viện phí liên kết (FK → Service)</summary>
+    public Guid? ServiceId { get; set; }
+    public string? ServiceName { get; set; }
+
+    /// <summary>Loại bệnh phẩm (FK → LabSampleType)</summary>
+    public Guid? SampleTypeId { get; set; }
+    public string? SampleTypeName { get; set; }
+
+    /// <summary>Đơn vị hiển thị trên phiếu in</summary>
+    public string? PrintUnit { get; set; }
+
+    public string? Description { get; set; }
     public string DataType { get; set; } = "Number"; // Number, Text, Enum
     public string? EnumValues { get; set; }
     public int SortOrder { get; set; }
@@ -71,8 +100,18 @@ public class CreateLisTestParameterDto
     public string Unit { get; set; } = string.Empty;
     public decimal? ReferenceLow { get; set; }
     public decimal? ReferenceHigh { get; set; }
+    public decimal? NormalMinMale { get; set; }
+    public decimal? NormalMaxMale { get; set; }
+    public decimal? NormalMinFemale { get; set; }
+    public decimal? NormalMaxFemale { get; set; }
     public decimal? CriticalLow { get; set; }
     public decimal? CriticalHigh { get; set; }
+    public string? Hl7Code { get; set; }
+    public Guid? GroupId { get; set; }
+    public Guid? ServiceId { get; set; }
+    public Guid? SampleTypeId { get; set; }
+    public string? PrintUnit { get; set; }
+    public string? Description { get; set; }
     public string DataType { get; set; } = "Number";
     public string? EnumValues { get; set; }
     public int SortOrder { get; set; }
