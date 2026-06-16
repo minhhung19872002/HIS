@@ -110,8 +110,7 @@ public class AssetProcurementController : ControllerBase
     }
 
     // ── APPROVE ───────────────────────────────────────────────────────────────
-    // TODO: [Authorize(Roles = "Admin,Director,Procurement")] khi role được cấu hình
-
+    [Authorize(Roles = "Admin,Director,WarehouseManager")] // #156: duyệt mua sắm = tiền/quyền → siết role
     [HttpPost("requests/approve")]
     public async Task<ActionResult<AssetProcurementRequestDto>> Approve([FromBody] ApproveRejectAssetProcurementDto dto)
     {
@@ -126,8 +125,7 @@ public class AssetProcurementController : ControllerBase
     }
 
     // ── REJECT ────────────────────────────────────────────────────────────────
-    // TODO: [Authorize(Roles = "Admin,Director,Procurement")] khi role được cấu hình
-
+    [Authorize(Roles = "Admin,Director,WarehouseManager")] // #156: từ chối mua sắm = quyền duyệt
     [HttpPost("requests/reject")]
     public async Task<ActionResult<AssetProcurementRequestDto>> Reject([FromBody] ApproveRejectAssetProcurementDto dto)
     {

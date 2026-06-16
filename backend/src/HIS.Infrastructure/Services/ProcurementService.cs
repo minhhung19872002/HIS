@@ -226,7 +226,7 @@ public class AssetProcurementService : IAssetProcurementService
             .FirstAsync(r => r.Id == dto.RequestId && !r.IsDeleted);
         if (e.Status != 1)
             throw new InvalidOperationException("Chỉ duyệt phiếu ở trạng thái Chờ xét duyệt.");
-        // TODO: kiểm tra role duyệt (Admin / Giám đốc / BPVT) khi có role claim
+        // #156: role duyệt (Admin/Director/WarehouseManager) enforce ở controller [Authorize(Roles)] AssetProcurementController.Approve
         e.Status      = 2; // DaDuyet
         e.ApproverId  = userId != null && Guid.TryParse(userId, out var uid) ? uid : null;
         e.ApproverName = userId;

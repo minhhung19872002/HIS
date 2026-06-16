@@ -6,6 +6,12 @@
 > Cập nhật cuối: **2026-06-16** (phiên Claude máy D: — feature v2 nối tiếp #145/#85/#86 (PUSHED) + #89/#87 (chờ push); governance sync-gate đã push).
 
 ## Đang ở đâu
+- **FIX bug #156 (2 finding Cao, BE build 0err, chờ push):** ① **Procurement role-guard** — `[Authorize(Roles="Admin,Director,WarehouseManager")]`
+  lên `AssetProcurementController.Approve/Reject` (siết quyền duyệt mua sắm; xoá TODO). ② **Infectious-report hết stub** —
+  `ProvincialHealthService.GetInfectiousDiseaseReportsAsync` = aggregate THẬT (Examination MainIcdCode ∈ ICD IsNotifiable →
+  join Patient) + `SubmitInfectiousReportAsync` persist qua entity `InfectiousReportSubmission` + DbSet + **migration 132**.
+  ⚠️ migration chưa runtime-test (DB off). Còn 3 finding Thấp (#156): DatabaseSizeMB hardcode · HospitalReport accounting
+  placeholder · NationalPrescription mock-connection — defer (cosmetic/MockMode chủ ý).
 - **#48 audit advanced-services (static, claim @me)** — backlog feature-mới đã CẠN (8 OPEN còn lại = blocked HW/cred
   #113/#24 · defer-cần-input #91/#105 · tech-debt-refactor-rủi-ro #42/#43/#44 cần user duyệt · audit #48). Làm #48
   static stub-audit: **5/6 service advanced persist THẬT** (SaveChanges+EF), nghi-ngờ issue đã lỗi thời. **Stub ẩn xác nhận:**

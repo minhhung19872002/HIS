@@ -30,3 +30,16 @@ public class ProvincialDirective : BaseEntity
     /// <summary>Ghi chú thêm</summary>
     public string? Notes { get; set; }
 }
+
+/// <summary>
+/// #156: theo dõi ca bệnh truyền nhiễm ĐÃ gửi báo cáo Sở Y tế (per-Examination).
+/// CreatedBy NVARCHAR(450) (tránh ValueConverter Guid/String).
+/// </summary>
+public class InfectiousReportSubmission : BaseEntity
+{
+    /// <summary>Id phiên khám (ca bệnh) đã gửi báo cáo</summary>
+    public Guid ExaminationId { get; set; }
+
+    /// <summary>Thời điểm gửi báo cáo lên Sở Y tế</summary>
+    public DateTime SubmittedAt { get; set; }
+}

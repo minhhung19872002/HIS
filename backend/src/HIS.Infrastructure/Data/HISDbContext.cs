@@ -175,6 +175,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<FunctionalDiagnosticTestType> FunctionalDiagnosticTestTypes => Set<FunctionalDiagnosticTestType>(); // #40 #64-67
     public DbSet<FunctionalDiagnosticTemplate> FunctionalDiagnosticTemplates => Set<FunctionalDiagnosticTemplate>(); // #40 #64-67
     public DbSet<ProvincialDirective> ProvincialDirectives => Set<ProvincialDirective>(); // #47: chỉ đạo tuyến
+    public DbSet<InfectiousReportSubmission> InfectiousReportSubmissions => Set<InfectiousReportSubmission>(); // #156: ca BTN đã gửi báo cáo
     public DbSet<BackupHistory> BackupHistories => Set<BackupHistory>(); // #106 #128-130: lịch sử backup
     public DbSet<RadiologyReportCoReader> RadiologyReportCoReaders => Set<RadiologyReportCoReader>(); // #139: đồng đọc RIS
     public DbSet<HisConnection> HisConnections => Set<HisConnection>(); // #90: kết nối HIS đa NCC

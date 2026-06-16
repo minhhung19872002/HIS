@@ -155,18 +155,73 @@ public class ProvincialHealthService : IProvincialHealthService
 
     public async Task<List<InfectiousDiseaseReportDto>> GetInfectiousDiseaseReportsAsync(string? dateFrom, string? dateTo)
     {
-        // Placeholder: bảng InfectiousDiseaseReports chưa có migration — trả rỗng an toàn
-        await Task.CompletedTask;
-        return new List<InfectiousDiseaseReportDto>();
+        // #156: aggregate THẬT ca có ICD bệnh truyền nhiễm phải báo cáo (IcdCode.IsNotifiable) — không còn stub rỗng.
+        var from = DateTime.TryParse(dateFrom, out var f) ? f.Date : DateTime.UtcNow.Date.AddMonths(-1);
+        var to = DateTime.TryParse(dateTo, out var t) ? t.Date.AddDays(1) : DateTime.UtcNow.Date.AddDays(1);
+
+        var notifiable = await _db.IcdCodes.Where(i => i.IsNotifiable && i.IsActive)
+            .ToDictionaryAsync(i => i.Code, i => i.Name);
+        if (notifiable.Count == 0) return new List<InfectiousDiseaseReportDto>();
+        var codes = notifiable.Keys.ToList();
+
+        var rows = await _db.Examinations
+            .Where(e => e.MainIcdCode != null && codes.Contains(e.MainIcdCode)
+                && e.CreatedAt >= from && e.CreatedAt < to)
+            .Select(e => new
+            {
+                e.Id,
+                e.MainIcdCode,
+                e.MainDiagnosis,
+                e.StartTime,
+                e.CreatedAt,
+                FullName = e.MedicalRecord.Patient.FullName,
+                Dob = e.MedicalRecord.Patient.DateOfBirth,
+                Gender = e.MedicalRecord.Patient.Gender,
+                Address = e.MedicalRecord.Patient.Address,
+            })
+            .ToListAsync();
+
+        var submittedSet = (await _db.Set<InfectiousReportSubmission>()
+            .Where(s => !s.IsDeleted).Select(s => s.ExaminationId).ToListAsync()).ToHashSet();
+
+        return rows.Select(r => new InfectiousDiseaseReportDto
+        {
+            Id            = r.Id,
+            DiseaseCode   = r.MainIcdCode ?? string.Empty,
+            DiseaseName   = notifiable.TryGetValue(r.MainIcdCode ?? string.Empty, out var n) ? n : (r.MainDiagnosis ?? string.Empty),
+            PatientName   = r.FullName,
+            PatientAge    = r.Dob.HasValue ? Math.Max(0, (int)((DateTime.UtcNow - r.Dob.Value).TotalDays / 365)) : 0,
+            PatientGender = r.Gender == 1 ? "Nam" : r.Gender == 2 ? "Nữ" : "Khác",
+            PatientAddress = r.Address ?? string.Empty,
+            OnsetDate     = r.StartTime ?? r.CreatedAt,
+            DiagnosisDate = r.CreatedAt,
+            ReportDate    = r.CreatedAt,
+            Severity      = string.Empty,
+            Outcome       = string.Empty,
+            Status        = submittedSet.Contains(r.Id) ? 1 : 0,
+        }).OrderByDescending(x => x.DiagnosisDate).ToList();
     }
 
-    public Task<object> SubmitInfectiousReportAsync(Guid id, string userId)
+    public async Task<object> SubmitInfectiousReportAsync(Guid id, string userId)
     {
-        return Task.FromResult<object>(new
+        // #156: id = ExaminationId của ca bệnh; persist THẬT việc đã gửi báo cáo Sở Y tế (không còn fake success).
+        var exists = await _db.Examinations.AnyAsync(e => e.Id == id);
+        if (!exists) return new { success = false, message = "Không tìm thấy ca bệnh để gửi báo cáo" };
+
+        var already = await _db.Set<InfectiousReportSubmission>().AnyAsync(s => s.ExaminationId == id && !s.IsDeleted);
+        if (!already)
         {
-            success = true,
-            message = "Đã gửi báo cáo bệnh truyền nhiễm thành công"
-        });
+            _db.Set<InfectiousReportSubmission>().Add(new InfectiousReportSubmission
+            {
+                Id = Guid.NewGuid(),
+                ExaminationId = id,
+                SubmittedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = userId,
+            });
+            await _db.SaveChangesAsync();
+        }
+        return new { success = true, message = "Đã ghi nhận gửi báo cáo bệnh truyền nhiễm lên Sở Y tế" };
     }
 
     // ─── Chỉ đạo tuyến (Provincial Directives) — persist thật ─────────────────
