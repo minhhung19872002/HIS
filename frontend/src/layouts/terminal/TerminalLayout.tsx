@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { ConfigProvider, Popover, Dropdown, message } from 'antd';
 import type { MenuProps } from 'antd';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
   CommandProvider, useCommandCtx, COMMANDS, type CmdId,
 } from '../../contexts/CommandContext';
@@ -352,6 +353,7 @@ const Topbar: React.FC<{ crumb: string[]; onCmdK: () => void; onSwitchLayout: ()
   const now = useClock();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
   const dd = String(now.getDate()).padStart(2, '0');
@@ -416,6 +418,9 @@ const Topbar: React.FC<{ crumb: string[]; onCmdK: () => void; onSwitchLayout: ()
       </button>
       <div className="his-tb-right">
         <div className="his-chip-shift"><span className="dot" />CA SÁNG · {hh}:{mm}</div>
+        <button type="button" className="his-tb-btn" title={isDark ? 'Chế độ Sáng' : 'Chế độ Tối'} aria-label="Đổi giao diện Sáng/Tối" onClick={toggleTheme}>
+          <TermIcon name={isDark ? 'sun' : 'moon'} size={15} />
+        </button>
         <button type="button" className="his-tb-btn" title="Giao ca / Làm mới" onClick={() => window.location.reload()}>
           <TermIcon name="refresh" size={15} />
         </button>
