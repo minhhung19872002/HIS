@@ -188,6 +188,7 @@ Khi generate/refactor code, áp rule theo mức. **P0 = tuyệt đối không vi
 | | `core-error-loading-state` | UI có fetch/submit (loading/empty/error/success) |
 | | `core-accessibility-pattern` | UI cần a11y/WCAG (keyboard, focus, ARIA, tương phản, nhãn) |
 | | `core-ui-aesthetics` | UI cần **có gu thẩm mỹ / bớt generic / pro hơn** (spacing/typo/màu/phân cấp/tiết chế) — KHÔNG hại UX; portable mọi dự án |
+| | `core-ui-ux-audit` | **AUDIT UX/UI toàn hệ thống** (light↔dark, đồng bộ, lạc-hệ, hardcode-vs-token, reuse/scale) → **plan + task TRƯỚC**, fix root-first SAU; audit-first, KHÔNG sửa khi chưa audit xong. Scope-able (1 module/full), token-heavy |
 | | `core-localization-pattern` | thêm text hiển thị / đa ngôn ngữ |
 | A3 testing | `core-testing-architecture` | chọn level unit/integration/e2e/contract |
 | | `core-testing-reuse` | reuse helper/fixture/mock + regression |

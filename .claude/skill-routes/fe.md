@@ -46,6 +46,7 @@
 | "tối ưu hiệu năng / giảm bundle / trang lag [X]" | `core-minimal-change` → `his-fe-performance` (đo trước, chỉ tối ưu điểm nóng) | `vite.config.ts` (manualChunks/worker.format), `App.tsx` (lazy), `components/*Viewer.tsx` (dynamic import), `pages-v2/*` |
 | "làm UI dễ tiếp cận / a11y / WCAG [X]" | `core-accessibility-pattern` → `his-fe-page-v2` → `his-qa-anti-pattern` | `pages-v2/*.tsx`, `layouts/terminal/*` |
 | "làm UI đẹp hơn / có gu / bớt generic / pro hơn [X]" | `core-ui-aesthetics` (gu + tiết chế, chống slop) → `core-accessibility-pattern` (giữ UX/contrast) → `his-fe-page-v2`/`his-fe-convention` | `pages-v2/*.tsx`, `_v2kit.tsx`, `layouts/terminal/ab-module.css` |
+| "**rà soát/audit UX-UI toàn hệ thống · đồng bộ light/dark · lập plan sửa UI**" | `core-ui-ux-audit` (AUDIT-FIRST → plan + task TRƯỚC → fix root-first SAU; KHÔNG sửa khi chưa audit xong) → bind `his-fe-page-v2`/`his-fe-convention` + `core-ui-aesthetics`/`core-accessibility-pattern` | `pages-v2/_v2kit.tsx`, `layouts/terminal/ab-module.css` (token light/dark), `pages-v2/*.tsx` toàn bộ |
 
 ## Conflict (FE)
 - Page v1 (Antd) vs v2 (`_v2kit`): v1 → `his-fe-antd-v6`; v2 → `his-fe-page-v2`. Mặc định feature mới = **v2**. KHÔNG trộn.
