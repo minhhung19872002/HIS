@@ -145,7 +145,7 @@ const EmrExtractV2 = () => {
                   onClick={() => pickRecord(r)}
                   style={{
                     textAlign: 'left', border: '1px solid var(--line-soft)', borderRadius: 8,
-                    background: '#fff', padding: '8px 12px', cursor: 'pointer', display: 'flex',
+                    background: 'var(--d-2)', padding: '8px 12px', cursor: 'pointer', display: 'flex',
                     alignItems: 'center', gap: 12,
                   }}
                 >
@@ -259,7 +259,7 @@ const WatermarkedPreview = ({ extract, patientName, patientCode }: { extract: Em
   const mark = `${HOSPITAL_NAME} • TRÍCH LỤC • ${patientCode}`;
   const expired = extract.status !== 'Active';
   return (
-    <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid var(--line)', borderRadius: 8, background: '#fff', minHeight: 420 }}>
+    <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid var(--line)', borderRadius: 8, background: 'var(--d-2)', minHeight: 420 }}>
       {/* Watermark overlay phủ chéo, không chặn tương tác */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden',
@@ -267,7 +267,7 @@ const WatermarkedPreview = ({ extract, patientName, patientCode }: { extract: Em
         transform: 'rotate(-24deg) scale(1.4)', opacity: expired ? 0.18 : 0.1, zIndex: 1,
       }}>
         {Array.from({ length: 30 }).map((_, i) => (
-          <span key={i} style={{ whiteSpace: 'nowrap', fontSize: 15, fontWeight: 700, color: expired ? '#b91c1c' : '#1d4ed8' }}>{mark}</span>
+          <span key={i} style={{ whiteSpace: 'nowrap', fontSize: 15, fontWeight: 700, color: expired ? '#b91c1c' : 'var(--a-cy-dim)' }}>{mark}</span>
         ))}
       </div>
 
@@ -282,7 +282,7 @@ const WatermarkedPreview = ({ extract, patientName, patientCode }: { extract: Em
         <div><b>Hạn dùng:</b> {extract.expiresAt ? fmtDMYg(extract.expiresAt) : 'Không giới hạn'}</div>
         <div><b>Trạng thái:</b> <StatusBadge tone={STATUS_TONE[extract.status] ?? 'info'} dot>{STATUS_LABEL[extract.status] ?? extract.status}</StatusBadge></div>
         {expired && (
-          <div style={{ marginTop: 14, padding: 10, border: '1px solid #fca5a5', background: '#fef2f2', borderRadius: 8, color: '#b91c1c', fontSize: 12 }}>
+          <div style={{ marginTop: 14, padding: 10, border: '1px solid #fca5a5', background: 'var(--s-crit-bg)', borderRadius: 8, color: '#b91c1c', fontSize: 12 }}>
             Bản trích lục đã {extract.status === 'Revoked' ? 'bị thu hồi' : 'hết hạn'} — không còn giá trị sử dụng.
           </div>
         )}

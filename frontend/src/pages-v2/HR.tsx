@@ -48,7 +48,7 @@ type SwapRequest = {
 const SHIFT_TYPES: ShiftMeta[] = [
   { value: 'morning', label: 'Sáng', time: '07:00-15:00', soft: '#e6f6fb', border: '#b9e5f3', text: '#0f766e' },
   { value: 'evening', label: 'Chiều', time: '15:00-23:00', soft: '#fff4e8', border: '#fed7aa', text: '#c05621' },
-  { value: 'night', label: 'Đêm', time: '23:00-07:00', soft: '#f5f3ff', border: '#ddd6fe', text: '#6d28d9' },
+  { value: 'night', label: 'Đêm', time: '23:00-07:00', soft: 'var(--s-mag-bg)', border: '#ddd6fe', text: 'var(--s-mag-tx)' },
   { value: 'off', label: 'Nghỉ', time: '—', soft: 'var(--d-1)', border: 'var(--line)', text: 'var(--t-3)' },
 ];
 

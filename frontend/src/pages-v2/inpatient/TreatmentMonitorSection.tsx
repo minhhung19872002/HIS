@@ -332,7 +332,7 @@ const VitalSignsModal: React.FC<{
                     <RTooltip />
                     <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
                     <Line type="monotone" dataKey="sys" name="Tâm thu" stroke="#0891b2" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
-                    <Line type="monotone" dataKey="dia" name="Tâm trương" stroke="#d97706" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+                    <Line type="monotone" dataKey="dia" name="Tâm trương" stroke="var(--s-warn)" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
                   </LineChart>
                 ) : (
                   <LineChart data={chartData} margin={{ top: 8, right: 20, bottom: 4, left: 0 }}>
@@ -1738,8 +1738,8 @@ const TreatmentSheetsModal: React.FC<{
 // ---------------------------------------------------------------------------
 
 const CHART_COLORS = [
-  '#0891b2', '#d97706', '#059669', '#7c3aed', '#dc2626',
-  '#2563eb', '#65a30d', '#db2777', '#b45309', '#0369a1',
+  '#0891b2', 'var(--s-warn)', '#059669', 'var(--s-mag)', 'var(--s-crit)',
+  'var(--a-cy)', '#65a30d', '#db2777', '#b45309', '#0369a1',
 ];
 
 const TreatmentStatSection: React.FC<{ admissionId: string }> = ({ admissionId }) => {

@@ -79,7 +79,7 @@ const flagFor = (test: LabTestItem): '' | 'H' | 'L' | 'HH' | 'LL' => {
 
 // Màu cờ theo tài liệu nghiệp vụ: cao → ĐỎ (HH đậm hơn), thấp → XANH (LL đậm hơn).
 const FLAG_COLOR: Record<string, string> = {
-  HH: '#991b1b', H: '#dc2626', LL: '#1e40af', L: '#2563eb',
+  HH: 'var(--s-crit-tx)', H: 'var(--s-crit)', LL: '#1e40af', L: 'var(--a-cy)',
 };
 const abnormalCount = (tests?: LabTestItem[]): number =>
   (tests || []).filter((t) => flagFor(t) !== '').length;
@@ -641,12 +641,12 @@ const LaboratoryV2: React.FC = () => {
                       <span className="mono" style={{ textAlign: 'right' }}>{s.quantity} {s.unit}</span>
                       <span className="mono" style={{
                         textAlign: 'right',
-                        color: s.availableQuantity <= 0 ? 'var(--s-crit)' : s.availableQuantity < 10 ? '#d97706' : 'inherit',
+                        color: s.availableQuantity <= 0 ? 'var(--s-crit)' : s.availableQuantity < 10 ? 'var(--s-warn)' : 'inherit',
                         fontWeight: s.availableQuantity <= 0 ? 700 : 400,
                       }}>
                         {s.availableQuantity}
                       </span>
-                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? '#d97706' : 'var(--t-2)' }}>
+                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? 'var(--s-warn)' : 'var(--t-2)' }}>
                         {s.expiryDate ? dayjs(s.expiryDate).format('MM/YYYY') : '—'}
                         {s.daysToExpiry !== undefined && s.daysToExpiry < 30 && (
                           <span style={{ marginLeft: 4, color: 'var(--s-crit)', fontSize: 10 }}>({s.daysToExpiry}d)</span>
@@ -690,12 +690,12 @@ const LaboratoryV2: React.FC = () => {
                       <span className="mono" style={{ textAlign: 'right' }}>{s.quantity} {s.unit}</span>
                       <span className="mono" style={{
                         textAlign: 'right',
-                        color: s.availableQuantity <= 0 ? 'var(--s-crit)' : s.availableQuantity < 10 ? '#d97706' : 'inherit',
+                        color: s.availableQuantity <= 0 ? 'var(--s-crit)' : s.availableQuantity < 10 ? 'var(--s-warn)' : 'inherit',
                         fontWeight: s.availableQuantity <= 0 ? 700 : 400,
                       }}>
                         {s.availableQuantity}
                       </span>
-                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? '#d97706' : 'var(--t-2)' }}>
+                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? 'var(--s-warn)' : 'var(--t-2)' }}>
                         {s.expiryDate ? dayjs(s.expiryDate).format('MM/YYYY') : '—'}
                         {s.daysToExpiry !== undefined && s.daysToExpiry < 30 && (
                           <span style={{ marginLeft: 4, color: 'var(--s-crit)', fontSize: 10 }}>({s.daysToExpiry}d)</span>
@@ -738,7 +738,7 @@ const LaboratoryV2: React.FC = () => {
                       <span className="mono" style={{ textAlign: 'right' }}>{c.quantityPerTest} {c.unit || ''}</span>
                       <span style={{
                         fontSize: 11,
-                        color: c.objectType === 'ThuPhi' ? '#d97706' : 'var(--t-2)',
+                        color: c.objectType === 'ThuPhi' ? 'var(--s-warn)' : 'var(--t-2)',
                       }}>
                         {c.objectType === 'ThuPhi' ? 'Thu phí' : 'Hao phí'}
                       </span>

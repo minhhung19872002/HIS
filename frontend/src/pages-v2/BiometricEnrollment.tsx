@@ -225,8 +225,8 @@ const BiometricEnrollment: React.FC = () => {
 
       {!webAuthnOk && (
         <div style={{
-          padding: '10px 14px', background: '#fffbeb', borderTop: '1px solid var(--line)',
-          borderBottom: '1px solid #fde68a', color: '#92400e', fontSize: 12.5,
+          padding: '10px 14px', background: 'var(--s-warn-bg)', borderTop: '1px solid var(--line)',
+          borderBottom: '1px solid #fde68a', color: 'var(--s-warn-tx)', fontSize: 12.5,
         }}>
           <TermIcon name="alert" size={13} /> <b>WebAuthn / FIDO2</b> · Cần HTTPS + Chrome/Edge/Safari mới. Trình duyệt hiện không hỗ trợ.
         </div>
@@ -234,8 +234,8 @@ const BiometricEnrollment: React.FC = () => {
 
       {webAuthnOk && (
         <div style={{
-          padding: '10px 14px', background: '#fffbeb', borderTop: '1px solid var(--line)',
-          borderBottom: '1px solid #fde68a', color: '#92400e', fontSize: 12.5,
+          padding: '10px 14px', background: 'var(--s-warn-bg)', borderTop: '1px solid var(--line)',
+          borderBottom: '1px solid #fde68a', color: 'var(--s-warn-tx)', fontSize: 12.5,
         }}>
           <TermIcon name="alert" size={13} /> <b>WebAuthn / FIDO2</b> · Hệ thống sẽ dùng <b>Touch ID</b> · <b>Windows Hello</b> · <b>USB Fingerprint Reader</b>. Khoá riêng tư không rời thiết bị.
         </div>
@@ -352,7 +352,7 @@ const BiometricEnrollment: React.FC = () => {
         )}
       >
         <div style={{ padding: 18 }}>
-          <div style={{ padding: 12, background: '#eff6ff', color: '#1d4ed8', borderRadius: 6, marginBottom: 16, fontSize: 12.5 }}>
+          <div style={{ padding: 12, background: '#eff6ff', color: 'var(--a-cy-dim)', borderRadius: 6, marginBottom: 16, fontSize: 12.5 }}>
             <TermIcon name="info" size={13} /> Khi bấm "Bắt đầu", trình duyệt sẽ yêu cầu Touch ID / Windows Hello / vân tay. Khoá riêng tư <b>không rời khỏi thiết bị</b>.
           </div>
           <Form form={enrollForm} layout="vertical" initialValues={{ ownerType: 'patient', ownerName: sel?.fullName ?? '' }}>

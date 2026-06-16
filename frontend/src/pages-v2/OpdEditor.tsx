@@ -632,7 +632,7 @@ const OpdEditorV2: React.FC = () => {
                 ))}
               </div>
               <div style={{ marginTop: 8, padding: 6, background: 'var(--d-1)', borderRadius: 4, fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--t-2)' }}>
-                BMI = <b style={{ color: bmi == null ? 'var(--t-2)' : bmi < 18.5 ? '#0284c7' : bmi > 25 ? '#dc2626' : '#16a34a' }}>{bmiStr}</b>
+                BMI = <b style={{ color: bmi == null ? 'var(--t-2)' : bmi < 18.5 ? 'var(--s-info)' : bmi > 25 ? 'var(--s-crit)' : 'var(--s-ok)' }}>{bmiStr}</b>
                 {bmi != null && <> ({bmi < 18.5 ? 'Gầy' : bmi > 25 ? 'Thừa cân' : 'Bình thường'})</>}
               </div>
             </section>

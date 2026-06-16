@@ -86,7 +86,7 @@ const QCResultPanel: React.FC<{ result: QCResultDto }> = ({ result }) => (
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const renderLJDot = (props: any): React.ReactElement => {
   const { cx, cy, payload, index } = props;
-  return <circle key={index} cx={cx} cy={cy} r={4} fill={payload?.rejected ? '#dc2626' : '#0891b2'} stroke="#fff" strokeWidth={1.2} />;
+  return <circle key={index} cx={cx} cy={cy} r={4} fill={payload?.rejected ? 'var(--s-crit)' : '#0891b2'} stroke="#fff" strokeWidth={1.2} />;
 };
 
 const LJChart: React.FC<{ chart: LeveyJenningsChartDto }> = ({ chart }) => {
@@ -110,13 +110,13 @@ const LJChart: React.FC<{ chart: LeveyJenningsChartDto }> = ({ chart }) => {
             <XAxis dataKey="date" fontSize={11} />
             <YAxis fontSize={11} domain={['auto', 'auto']} width={48} />
             <RTooltip />
-            <ReferenceLine y={chart.plus3SD} stroke="#dc2626" strokeDasharray="4 4" label={{ value: '+3SD', fontSize: 10, fill: '#dc2626' }} />
-            <ReferenceLine y={chart.plus2SD} stroke="#d97706" strokeDasharray="4 4" label={{ value: '+2SD', fontSize: 10, fill: '#d97706' }} />
+            <ReferenceLine y={chart.plus3SD} stroke="var(--s-crit)" strokeDasharray="4 4" label={{ value: '+3SD', fontSize: 10, fill: 'var(--s-crit)' }} />
+            <ReferenceLine y={chart.plus2SD} stroke="var(--s-warn)" strokeDasharray="4 4" label={{ value: '+2SD', fontSize: 10, fill: 'var(--s-warn)' }} />
             <ReferenceLine y={chart.plus1SD} stroke="#9ca3af" strokeDasharray="4 4" />
-            <ReferenceLine y={chart.mean} stroke="#16a34a" strokeWidth={1.5} label={{ value: 'Mean', fontSize: 10, fill: '#16a34a' }} />
+            <ReferenceLine y={chart.mean} stroke="var(--s-ok)" strokeWidth={1.5} label={{ value: 'Mean', fontSize: 10, fill: 'var(--s-ok)' }} />
             <ReferenceLine y={chart.minus1SD} stroke="#9ca3af" strokeDasharray="4 4" />
-            <ReferenceLine y={chart.minus2SD} stroke="#d97706" strokeDasharray="4 4" label={{ value: '-2SD', fontSize: 10, fill: '#d97706' }} />
-            <ReferenceLine y={chart.minus3SD} stroke="#dc2626" strokeDasharray="4 4" label={{ value: '-3SD', fontSize: 10, fill: '#dc2626' }} />
+            <ReferenceLine y={chart.minus2SD} stroke="var(--s-warn)" strokeDasharray="4 4" label={{ value: '-2SD', fontSize: 10, fill: 'var(--s-warn)' }} />
+            <ReferenceLine y={chart.minus3SD} stroke="var(--s-crit)" strokeDasharray="4 4" label={{ value: '-3SD', fontSize: 10, fill: 'var(--s-crit)' }} />
             <Line type="monotone" dataKey="value" stroke="#0891b2" strokeWidth={2} dot={renderLJDot} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>

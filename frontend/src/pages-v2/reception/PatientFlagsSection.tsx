@@ -25,7 +25,7 @@ const FLAG_COLOR_OPTIONS = [
 
 // Map tên màu antd → hex để tô chip trong giao diện terminal v2.
 const FLAG_COLOR_HEX: Record<string, string> = {
-  red: '#dc2626', volcano: '#ea580c', gold: '#d97706', blue: '#2563eb', purple: '#7c3aed',
+  red: 'var(--s-crit)', volcano: '#ea580c', gold: 'var(--s-warn)', blue: 'var(--a-cy)', purple: 'var(--s-mag)',
 };
 
 interface FlagFormState {
@@ -138,12 +138,12 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
               style={{
                 display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 8px',
                 border: '1px solid var(--line)', borderRadius: 6,
-                borderLeft: `3px solid ${FLAG_COLOR_HEX[f.color] || '#dc2626'}`,
+                borderLeft: `3px solid ${FLAG_COLOR_HEX[f.color] || 'var(--s-crit)'}`,
               }}
             >
               <span
                 style={{
-                  fontSize: 11, fontWeight: 700, color: FLAG_COLOR_HEX[f.color] || '#dc2626',
+                  fontSize: 11, fontWeight: 700, color: FLAG_COLOR_HEX[f.color] || 'var(--s-crit)',
                   whiteSpace: 'nowrap',
                 }}
               >

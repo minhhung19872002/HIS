@@ -80,7 +80,7 @@ const EmrHl7Export: React.FC = () => {
       <div style={{
         padding: '12px 14px', background: '#eff6ff',
         borderTop: '1px solid var(--line)', borderBottom: '1px solid #bfdbfe',
-        color: '#1d4ed8', fontSize: 12.5,
+        color: 'var(--a-cy-dim)', fontSize: 12.5,
       }}>
         <TermIcon name="info" size={13} /> <b>HL7 v2.5 Archive Export</b> — Xuất toàn bộ HSBA dưới dạng các message HL7 chuẩn lưu trữ:
         ADT^A04 (nhập viện), ORM^O01 (chỉ định DV), RDE^O11 (kê đơn),

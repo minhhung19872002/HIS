@@ -411,10 +411,10 @@ const SampleReceiveV2: React.FC = () => {
                       <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{s.quantity} {s.unit}</span>
                       <span style={{
                         textAlign: 'right', fontFamily: 'var(--font-mono)',
-                        color: s.availableQuantity <= 0 ? 'var(--s-crit)' : s.availableQuantity < 10 ? '#d97706' : 'inherit',
+                        color: s.availableQuantity <= 0 ? 'var(--s-crit)' : s.availableQuantity < 10 ? 'var(--s-warn)' : 'inherit',
                         fontWeight: s.availableQuantity <= 0 ? 700 : 400,
                       }}>{s.availableQuantity}</span>
-                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? '#d97706' : 'var(--t-2)' }}>
+                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? 'var(--s-warn)' : 'var(--t-2)' }}>
                         {s.expiryDate ? dayjs(s.expiryDate).format('MM/YYYY') : '—'}
                       </span>
                     </div>
@@ -440,10 +440,10 @@ const SampleReceiveV2: React.FC = () => {
                       <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{s.quantity} {s.unit}</span>
                       <span style={{
                         textAlign: 'right', fontFamily: 'var(--font-mono)',
-                        color: s.availableQuantity <= 0 ? 'var(--s-crit)' : s.availableQuantity < 10 ? '#d97706' : 'inherit',
+                        color: s.availableQuantity <= 0 ? 'var(--s-crit)' : s.availableQuantity < 10 ? 'var(--s-warn)' : 'inherit',
                         fontWeight: s.availableQuantity <= 0 ? 700 : 400,
                       }}>{s.availableQuantity}</span>
-                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? '#d97706' : 'var(--t-2)' }}>
+                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? 'var(--s-warn)' : 'var(--t-2)' }}>
                         {s.expiryDate ? dayjs(s.expiryDate).format('MM/YYYY') : '—'}
                       </span>
                     </div>

@@ -367,9 +367,9 @@ const DashboardV2: React.FC = () => {
 const KpiCard: React.FC<{ k: Kpi }> = ({ k }) => {
   const upish = k.delta.startsWith('+');
   const downish = k.delta.startsWith('-');
-  const color = (upish && !k.negSpark) || (downish && k.negSpark) ? '#16a34a'
-              : (downish && !k.negSpark) || (upish && k.negSpark) ? '#dc2626'
-              : '#64748b';
+  const color = (upish && !k.negSpark) || (downish && k.negSpark) ? 'var(--s-ok)'
+              : (downish && !k.negSpark) || (upish && k.negSpark) ? 'var(--s-crit)'
+              : 'var(--t-2)';
   const max = Math.max(...k.spark);
   const min = Math.min(...k.spark);
   const w = 100, h = 28;
@@ -449,11 +449,11 @@ const ErSnapshot: React.FC<{
                       <td><span className={'chip ' + chipCls}>{ess}</span></td>
                       <td>
                         <b style={{ fontWeight: 600 }}>{r.patientName}</b>
-                        <div style={{ color: '#64748b', fontSize: 10, fontFamily: 'var(--font-mono)' }}>
+                        <div style={{ color: 'var(--t-2)', fontSize: 10, fontFamily: 'var(--font-mono)' }}>
                           #{r.queueNumber} · {r.patientCode}
                         </div>
                       </td>
-                      <td style={{ whiteSpace: 'normal', color: '#334155', fontSize: 12 }}>
+                      <td style={{ whiteSpace: 'normal', color: 'var(--t-1)', fontSize: 12 }}>
                         {r.chiefComplaint || r.priorityName || '—'}
                       </td>
                       <td className="mono">{r.roomName || '—'}</td>
@@ -511,7 +511,7 @@ const OpdFlow: React.FC<{
                 <div key={d.departmentId} className="dept-row">
                   <span className="dept-n" title={d.departmentName}>{d.departmentName}</span>
                   <div className="dept-bar">
-                    <div className="dept-bar-fill" style={{ width: `${pct}%`, background: '#2563eb' }} />
+                    <div className="dept-bar-fill" style={{ width: `${pct}%`, background: 'var(--a-cy)' }} />
                   </div>
                   <span className="dept-v">{d.count}</span>
                   <span className="dept-w">—</span>
@@ -623,9 +623,9 @@ const OrBoard: React.FC<{
                     const width  = ((Math.min(totalM, endM) - Math.max(0, startM)) / totalM) * 100;
                     // status: 0=Scheduled, 1=InProgress, 2=Completed, 3=Cancelled
                     const st = it.status;
-                    const stColor  = st === 2 ? '#f1f5f9' : st === 1 ? '#eff5ff' : st === 3 ? '#fef2f2' : '#fffbeb';
-                    const stBorder = st === 2 ? '#e4e9f0' : st === 1 ? '#bfd3fa' : st === 3 ? '#fecaca' : '#fde68a';
-                    const stText   = st === 2 ? '#64748b' : st === 1 ? '#1d4ed8' : st === 3 ? '#991b1b' : '#a16207';
+                    const stColor  = st === 2 ? 'var(--d-3)' : st === 1 ? 'var(--a-cy-bg)' : st === 3 ? 'var(--s-crit-bg)' : 'var(--s-warn-bg)';
+                    const stBorder = st === 2 ? 'var(--line)' : st === 1 ? 'var(--a-cy-line)' : st === 3 ? '#fecaca' : '#fde68a';
+                    const stText   = st === 2 ? 'var(--t-2)' : st === 1 ? 'var(--a-cy-dim)' : st === 3 ? 'var(--s-crit-tx)' : '#a16207';
                     return (
                       <div
                         key={it.surgeryId}
@@ -671,7 +671,7 @@ const PharmacyAlerts: React.FC<{
       </div>
     </div>
     <div className="panel-body" style={{ padding: '8px 14px 10px' }}>
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#64748b', margin: '4px 0', letterSpacing: '0.06em' }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--t-2)', margin: '4px 0', letterSpacing: '0.06em' }}>
         CẢNH BÁO HẠN DÙNG
       </div>
       {items.length === 0 ? (
@@ -680,7 +680,7 @@ const PharmacyAlerts: React.FC<{
         </div>
       ) : (
         items.map((i) => {
-          const color = i.daysToExpiry < 30 ? '#dc2626' : i.daysToExpiry < 60 ? '#d97706' : '#0284c7';
+          const color = i.daysToExpiry < 30 ? 'var(--s-crit)' : i.daysToExpiry < 60 ? 'var(--s-warn)' : 'var(--s-info)';
           return (
             <div
               key={i.stockId}
@@ -823,8 +823,8 @@ const BhytCard: React.FC<{ revenue: number; revenueChange: number }> = ({ revenu
       <div className="panel-body pad">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
           <div>
-            <div style={{ fontSize: 10, color: '#64748b', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>TỔNG THU</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
+            <div style={{ fontSize: 10, color: 'var(--t-2)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>TỔNG THU</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--t-0)', fontVariantNumeric: 'tabular-nums' }}>
               {revM >= 1000 ? (revM / 1000).toFixed(1) + 'B' : revM.toFixed(1) + 'M'}
             </div>
             <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>
@@ -832,10 +832,10 @@ const BhytCard: React.FC<{ revenue: number; revenueChange: number }> = ({ revenu
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: '#64748b', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>SO HÔM QUA</div>
+            <div style={{ fontSize: 10, color: 'var(--t-2)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>SO HÔM QUA</div>
             <div style={{
               fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
-              color: revenueChange > 0 ? '#16a34a' : revenueChange < 0 ? '#dc2626' : '#64748b',
+              color: revenueChange > 0 ? 'var(--s-ok)' : revenueChange < 0 ? 'var(--s-crit)' : 'var(--t-2)',
             }}>
               {fmtDelta(revenueChange, '%')}
             </div>
@@ -843,10 +843,10 @@ const BhytCard: React.FC<{ revenue: number; revenueChange: number }> = ({ revenu
         </div>
         <div style={{
           marginTop: 6, padding: '10px 12px',
-          background: '#eff5ff', border: '1px solid #bfd3fa', borderRadius: 6,
-          fontSize: 12, color: '#1d4ed8',
+          background: 'var(--a-cy-bg)', border: '1px solid var(--a-cy-line)', borderRadius: 6,
+          fontSize: 12, color: 'var(--a-cy-dim)',
         }}>
-          <b>Chi tiết giám định BHYT</b> · xem trong <Link to="/v2/bhxh-audit" style={{ color: '#1d4ed8', textDecoration: 'underline' }}>BHXH Audit</Link>
+          <b>Chi tiết giám định BHYT</b> · xem trong <Link to="/v2/bhxh-audit" style={{ color: 'var(--a-cy-dim)', textDecoration: 'underline' }}>BHXH Audit</Link>
         </div>
       </div>
     </div>
@@ -894,7 +894,7 @@ const ErPatientDrawer: React.FC<{
       title={
         <div>
           <div style={{ fontSize: 14, fontWeight: 600 }}>{row.patientName}</div>
-          <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-mono)' }}>
+          <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
             {row.patientCode} · {ess} · {row.roomName || '—'}
           </div>
         </div>
@@ -908,38 +908,38 @@ const ErPatientDrawer: React.FC<{
       }
     >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
-        <div style={{ padding: '8px 10px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6 }}>
-          <div style={{ fontSize: 10, color: '#991b1b', fontFamily: 'var(--font-mono)' }}>HA</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#dc2626', fontVariantNumeric: 'tabular-nums' }}>{v.bp}</div>
+        <div style={{ padding: '8px 10px', background: 'var(--s-crit-bg)', border: '1px solid #fecaca', borderRadius: 6 }}>
+          <div style={{ fontSize: 10, color: 'var(--s-crit-tx)', fontFamily: 'var(--font-mono)' }}>HA</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--s-crit)', fontVariantNumeric: 'tabular-nums' }}>{v.bp}</div>
         </div>
-        <div style={{ padding: '8px 10px', background: v.spo2 < 95 ? '#fef2f2' : '#f0fdf4', border: `1px solid ${v.spo2 < 95 ? '#fecaca' : '#bbf7d0'}`, borderRadius: 6 }}>
+        <div style={{ padding: '8px 10px', background: v.spo2 < 95 ? 'var(--s-crit-bg)' : 'var(--s-ok-bg)', border: `1px solid ${v.spo2 < 95 ? '#fecaca' : '#bbf7d0'}`, borderRadius: 6 }}>
           <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)' }}>SpO₂</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: v.spo2 < 95 ? '#dc2626' : '#16a34a', fontVariantNumeric: 'tabular-nums' }}>{v.spo2}%</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: v.spo2 < 95 ? 'var(--s-crit)' : 'var(--s-ok)', fontVariantNumeric: 'tabular-nums' }}>{v.spo2}%</div>
         </div>
-        <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid #e4e9f0', borderRadius: 6 }}>
-          <div style={{ fontSize: 10, color: '#64748b', fontFamily: 'var(--font-mono)' }}>MẠCH</div>
+        <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid var(--line)', borderRadius: 6 }}>
+          <div style={{ fontSize: 10, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>MẠCH</div>
           <div style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{v.hr}</div>
         </div>
-        <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid #e4e9f0', borderRadius: 6 }}>
-          <div style={{ fontSize: 10, color: '#64748b', fontFamily: 'var(--font-mono)' }}>SỐT</div>
+        <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid var(--line)', borderRadius: 6 }}>
+          <div style={{ fontSize: 10, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>SỐT</div>
           <div style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{v.temp}°</div>
         </div>
       </div>
-      <div style={{ fontSize: 10, color: '#64748b', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', marginBottom: 6 }}>TRIỆU CHỨNG</div>
+      <div style={{ fontSize: 10, color: 'var(--t-2)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', marginBottom: 6 }}>TRIỆU CHỨNG</div>
       <div style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: 6, fontSize: 13, marginBottom: 14 }}>
         {row.chiefComplaint || row.priorityName || '—'}
       </div>
-      <div style={{ fontSize: 10, color: '#64748b', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', marginBottom: 6 }}>THỜI GIAN</div>
-      <div style={{ fontSize: 12, color: '#334155' }}>
+      <div style={{ fontSize: 10, color: 'var(--t-2)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', marginBottom: 6 }}>THỜI GIAN</div>
+      <div style={{ fontSize: 12, color: 'var(--t-1)' }}>
         Tiếp nhận {fmtTime(row.admissionDate)} · Đối tượng {row.patientTypeName}
       </div>
       {row.insuranceNumber && (
         <>
-          <div style={{ fontSize: 10, color: '#64748b', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', margin: '14px 0 6px' }}>BHYT</div>
-          <div style={{ fontSize: 12, color: '#334155', fontFamily: 'var(--font-mono)' }}>
+          <div style={{ fontSize: 10, color: 'var(--t-2)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', margin: '14px 0 6px' }}>BHYT</div>
+          <div style={{ fontSize: 12, color: 'var(--t-1)', fontFamily: 'var(--font-mono)' }}>
             {row.insuranceNumber}
-            {row.isInsuranceValid ? <span style={{ marginLeft: 6, color: '#16a34a' }}>✓ Hợp lệ</span>
-                                   : <span style={{ marginLeft: 6, color: '#d97706' }}>⚠ Hết hạn</span>}
+            {row.isInsuranceValid ? <span style={{ marginLeft: 6, color: 'var(--s-ok)' }}>✓ Hợp lệ</span>
+                                   : <span style={{ marginLeft: 6, color: 'var(--s-warn)' }}>⚠ Hết hạn</span>}
           </div>
         </>
       )}
@@ -970,13 +970,13 @@ const BedDetailModal: React.FC<{
       ]}
     >
       <div style={{ display: 'grid', gap: 8, fontSize: 13 }}>
-        <div><span style={{ color: '#64748b' }}>Mã giường:</span> <b className="mono">{bed.bedName}</b></div>
-        <div><span style={{ color: '#64748b' }}>Trạng thái:</span> <b>{statusVi}</b></div>
+        <div><span style={{ color: 'var(--t-2)' }}>Mã giường:</span> <b className="mono">{bed.bedName}</b></div>
+        <div><span style={{ color: 'var(--t-2)' }}>Trạng thái:</span> <b>{statusVi}</b></div>
         {bed.patientName && (
-          <div><span style={{ color: '#64748b' }}>Bệnh nhân:</span> <b>{bed.patientName}</b></div>
+          <div><span style={{ color: 'var(--t-2)' }}>Bệnh nhân:</span> <b>{bed.patientName}</b></div>
         )}
         {bed.bedCode && (
-          <div><span style={{ color: '#64748b' }}>Vị trí:</span> <span className="mono">{bed.bedCode}</span></div>
+          <div><span style={{ color: 'var(--t-2)' }}>Vị trí:</span> <span className="mono">{bed.bedCode}</span></div>
         )}
       </div>
     </Modal>
@@ -1001,7 +1001,7 @@ const OrCaseModal: React.FC<{
       title={
         <div>
           <div style={{ fontSize: 14, fontWeight: 600 }}>{it.surgeryServiceName}</div>
-          <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-mono)' }}>
+          <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
             {orName} · {start ? start.format('HH:mm') : '—'} – {end ? end.format('HH:mm') : '—'} · {it.patientName}
           </div>
         </div>
@@ -1026,8 +1026,8 @@ const OrCaseModal: React.FC<{
 
 const Fld: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
   <div>
-    <div style={{ fontSize: 10, color: '#64748b', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', marginBottom: 3 }}>{label.toUpperCase()}</div>
-    <div style={{ padding: '6px 10px', background: '#f8fafc', border: '1px solid #e4e9f0', borderRadius: 4, fontSize: 13 }}>{value}</div>
+    <div style={{ fontSize: 10, color: 'var(--t-2)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', marginBottom: 3 }}>{label.toUpperCase()}</div>
+    <div style={{ padding: '6px 10px', background: '#f8fafc', border: '1px solid var(--line)', borderRadius: 4, fontSize: 13 }}>{value}</div>
   </div>
 );
 
@@ -1053,7 +1053,7 @@ const StockReorderModal: React.FC<{
       title={
         <div>
           <div style={{ fontSize: 14, fontWeight: 600 }}>Đặt hàng: {item.itemName}</div>
-          <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-mono)' }}>
+          <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
             Tồn hiện tại: {item.quantity.toLocaleString('vi-VN')} {item.unit} · Còn {item.daysToExpiry}d
           </div>
         </div>
@@ -1097,7 +1097,7 @@ const AlertDetailModal: React.FC<{
           <div style={{ fontSize: 14, fontWeight: 600 }}>
             {alert.patientName ? `${alert.patientName} · ` : ''}{alert.module?.toUpperCase() || alert.title}
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-mono)' }}>{fmtRelShort(alert.createdAt)}</div>
+          <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{fmtRelShort(alert.createdAt)}</div>
         </div>
       }
       footer={[
@@ -1105,7 +1105,7 @@ const AlertDetailModal: React.FC<{
         <button key="ack" type="button" className="btn primary" onClick={onAck}>Xác nhận (ACK)</button>,
       ]}
     >
-      <div style={{ padding: '4px 0 8px', fontSize: 13, color: '#334155', lineHeight: 1.5 }}>{alert.message}</div>
+      <div style={{ padding: '4px 0 8px', fontSize: 13, color: 'var(--t-1)', lineHeight: 1.5 }}>{alert.message}</div>
     </Modal>
   );
 };
@@ -1124,7 +1124,7 @@ const AllAlertsDrawer: React.FC<{
     title={
       <div>
         <div style={{ fontSize: 14, fontWeight: 600 }}>Tất cả cảnh báo</div>
-        <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-mono)' }}>Hôm nay · {alerts.length} cảnh báo</div>
+        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>Hôm nay · {alerts.length} cảnh báo</div>
       </div>
     }
     footer={
@@ -1135,7 +1135,7 @@ const AllAlertsDrawer: React.FC<{
   >
     <div style={{ padding: '0 4px' }}>
       {alerts.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '28px 0', fontSize: 12, color: '#64748b' }}>
+        <div style={{ textAlign: 'center', padding: '28px 0', fontSize: 12, color: 'var(--t-2)' }}>
           Không có cảnh báo
         </div>
       ) : (

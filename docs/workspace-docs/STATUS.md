@@ -3,7 +3,7 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-16** (phiên Claude máy D: — feature v2 nối tiếp #145/#85/#86 (PUSHED) + #89/#87 (chờ push); governance sync-gate đã push).
+> Cập nhật cuối: **2026-06-17** (UX/UI audit `/core-ui-ux-audit` → fix dark-mode: #158 token foundation + #159 ab-* + toggle v2 topbar + #160 tokenize 124 hex an toàn — TẤT CẢ đã push; prod Vercel block billing → user verify local OK).
 
 ## Đang ở đâu
 - **★ UX/UI AUDIT (`/core-ui-ux-audit`) + FIX dark-mode foundation (2026-06-16):** audit systemic → báo cáo
@@ -13,7 +13,14 @@
   dùng-token tự flip. **#159** — `ab-module.css`: panel `background:#fff`→`var(--d-2)` + banner bg→token + badge text
   `--s-*-tx` (light=đậm/dark=sáng), print-paper giữ #fff; build EXIT 0, light KHÔNG đổi. **CÒN:** #160 (578 hex/61
   page v2 → token, batched/subagent) · #161 lint-guard · #162 inline · #163 dual-system v1/v2 · #164 states.
-  ⚠️ visual smoke dark cần chạy app (chưa verify render). #158/#159 **chưa push**.
+  ⚠️ visual smoke dark cần chạy app. **#158/#159 + toggle v2 + #160 ĐÃ push** (prod Vercel đang block
+  billing — xem [[reference_vercel-his-psi-other-account]]; user verify LOCAL OK A/B/C).
+  - **#160 DONE (safe subset):** 4 subagent map **124 hex→token / 30 file pages-v2** + `_v2kit` footer, **chỉ thay khi
+    hex === token light-value** ⇒ light byte-identical, dark mới flip; 2 luật role (`#fff` text giữ trắng, `#0f172a`
+    bg giữ tối). Build EXIT 0 (tsc+vite). **Residual ~270 hex off-palette** (chart series, bootstrap-alert,
+    `#15803d`/`#fecaca`/`#475569`… không có token tương đương — remap sẽ đổi light) → **follow-up #165** (palette
+    consolidation). Toggle dark/light nay ở topbar v2 (icon moon/sun, cạnh chip CA).
+  - CÒN audit: #161 lint-guard · #162 inline-style · #163 dual-system v1/v2 · #164 states.
   lên `AssetProcurementController.Approve/Reject` (siết quyền duyệt mua sắm; xoá TODO). ② **Infectious-report hết stub** —
   `ProvincialHealthService.GetInfectiousDiseaseReportsAsync` = aggregate THẬT (Examination MainIcdCode ∈ ICD IsNotifiable →
   join Patient) + `SubmitInfectiousReportAsync` persist qua entity `InfectiousReportSubmission` + DbSet + **migration 132**.

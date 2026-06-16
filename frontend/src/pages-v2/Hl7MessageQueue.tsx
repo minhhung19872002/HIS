@@ -247,7 +247,7 @@ const Hl7MessageQueue: React.FC = () => {
               </DrSec>
               {detail.errorMessage && (
                 <DrSec title="Lỗi">
-                  <div style={{ padding: 10, background: '#fef2f2', color: '#dc2626', fontFamily: 'var(--font-mono)', fontSize: 11, borderRadius: 4 }}>
+                  <div style={{ padding: 10, background: 'var(--s-crit-bg)', color: 'var(--s-crit)', fontFamily: 'var(--font-mono)', fontSize: 11, borderRadius: 4 }}>
                     {detail.errorMessage}
                   </div>
                 </DrSec>

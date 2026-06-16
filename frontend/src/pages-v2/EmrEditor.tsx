@@ -430,7 +430,7 @@ const EmrEditorV2: React.FC = () => {
           {filtered.map((r) => {
             const isSel = r.patientId === sel?.patientId;
             return (
-              <div key={r.patientId} onClick={() => selectRecord(r)} style={{ padding: '10px 12px', borderBottom: '1px solid var(--line-soft)', background: isSel ? 'var(--c-pri-bg, rgba(37,99,235,.12))' : 'transparent', borderLeft: isSel ? '3px solid var(--c-pri, #2563eb)' : '3px solid transparent', cursor: 'pointer' }}>
+              <div key={r.patientId} onClick={() => selectRecord(r)} style={{ padding: '10px 12px', borderBottom: '1px solid var(--line-soft)', background: isSel ? 'var(--c-pri-bg, rgba(37,99,235,.12))' : 'transparent', borderLeft: isSel ? '3px solid var(--c-pri, var(--a-cy))' : '3px solid transparent', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span className="mono" style={{ fontSize: 11, fontWeight: 700 }}>{r.patientCode}</span>
                   {r.visitCount > 0 && <StatusBadge tone="info">{r.visitCount} lần</StatusBadge>}
@@ -517,8 +517,8 @@ const EmrEditorV2: React.FC = () => {
                   {timeline.length === 0 && <div style={{ color: 'var(--t-3)', fontSize: 12 }}>Chưa có lịch sử khám</div>}
                   {timeline.map((e, i) => (
                     <div key={i} style={{ position: 'relative', paddingBottom: 18 }}>
-                      <div style={{ position: 'absolute', left: -25, top: 6, width: 12, height: 12, borderRadius: 6, background: '#0284c7', border: '2px solid var(--d-0)', boxShadow: '0 0 0 3px #0284c733' }} />
-                      <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 6, padding: 12, borderLeft: '3px solid #0284c7', cursor: 'pointer' }}
+                      <div style={{ position: 'absolute', left: -25, top: 6, width: 12, height: 12, borderRadius: 6, background: 'var(--s-info)', border: '2px solid var(--d-0)', boxShadow: '0 0 0 3px #0284c733' }} />
+                      <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 6, padding: 12, borderLeft: '3px solid var(--s-info)', cursor: 'pointer' }}
                         onClick={() => navigate(`/v2/opd/edit`)}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                           <span style={{ fontWeight: 700, fontSize: 12.5 }}>{e.diagnosisName || e.conclusionTypeName || 'Lần khám'}</span>
@@ -614,7 +614,7 @@ const EmrEditorV2: React.FC = () => {
                   {(full?.allergies?.length ?? 0) === 0
                     ? <div style={{ color: 'var(--t-3)', fontSize: 12 }}>Không có dị ứng ghi nhận</div>
                     : (
-                      <div style={{ padding: 10, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, color: '#7f1d1d', fontSize: 12, lineHeight: 1.8 }}>
+                      <div style={{ padding: 10, background: 'var(--s-crit-bg)', border: '1px solid #fecaca', borderRadius: 6, color: '#7f1d1d', fontSize: 12, lineHeight: 1.8 }}>
                         {full!.allergies.map((a) => (
                           <div key={a.id}><b>{a.allergenName}</b>{a.reaction ? ` — ${a.reaction}` : ''} · Mức độ: {a.severity === 3 ? 'Nặng' : a.severity === 2 ? 'Vừa' : 'Nhẹ'}</div>
                         ))}

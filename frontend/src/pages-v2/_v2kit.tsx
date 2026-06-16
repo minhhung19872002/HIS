@@ -243,7 +243,7 @@ export const Pager: React.FC<{
     <div style={{
       display: 'flex', alignItems: 'center', gap: 8,
       padding: '10px 14px', borderTop: '1px solid var(--line)',
-      background: '#fff', fontSize: 12, color: 'var(--t-2)', flexShrink: 0,
+      background: 'var(--d-2)', fontSize: 12, color: 'var(--t-2)', flexShrink: 0,
     }}>
       <span>
         Hiển thị <b style={{ color: 'var(--t-0)' }}>

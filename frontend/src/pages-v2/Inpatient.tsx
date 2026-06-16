@@ -40,7 +40,7 @@ const BED_STATUS = [
 const bedTone = (s: number): { bg: string; line: string } => {
   if (s === 2) return { bg: 'var(--a-cy-bg, #ecfeff)', line: 'var(--a-cy-line, #a5f3fc)' };
   if (s === 3) return { bg: 'var(--a-or-bg, #fff7ed)', line: 'var(--a-or-line, #fed7aa)' };
-  return { bg: '#fff', line: 'var(--line)' };
+  return { bg: 'var(--d-2)', line: 'var(--line)' };
 };
 
 const fmtDMY = (iso?: string) => (iso ? dayjs(iso).format('DD/MM/YYYY') : '—');
@@ -302,7 +302,7 @@ const InpatientV2: React.FC = () => {
       {/* ── Tab: Y lệnh hôm nay ── */}
       {tab === 'orders' && (
         <div style={{ flex: 1, overflow: 'auto', padding: 18, background: 'var(--d-1)' }}>
-          <div style={{ background: '#fff', border: '1px solid var(--line)', borderRadius: 6 }}>
+          <div style={{ background: 'var(--d-2)', border: '1px solid var(--line)', borderRadius: 6 }}>
             {ordersList.length === 0 && <div style={{ padding: 28, textAlign: 'center', color: 'var(--t-2)', fontSize: 12 }}>Không có bệnh nhân cần xử lý y lệnh</div>}
             {ordersList.map((r) => (
               <div key={r.admissionId} style={{ padding: '14px 18px', borderBottom: '1px solid var(--line-soft)', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setDetail(r)}>

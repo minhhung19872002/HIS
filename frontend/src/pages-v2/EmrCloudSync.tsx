@@ -25,9 +25,9 @@ const CS_STATUS = [
 type CSStatusKey = (typeof CS_STATUS)[number]['v'];
 
 const CS_DESTS: Record<string, { label: string; color: string; icon: string }> = {
-  r2_primary:   { label: 'R2 Primary',   color: '#16a34a', icon: 'cloud' },
+  r2_primary:   { label: 'R2 Primary',   color: 'var(--s-ok)', icon: 'cloud' },
   r2_dr:        { label: 'R2 DR',        color: '#0ea5e9', icon: 'cloud' },
-  local_backup: { label: 'Local Backup', color: '#64748b', icon: 'shield' },
+  local_backup: { label: 'Local Backup', color: 'var(--t-2)', icon: 'shield' },
 };
 
 const PER = 18;
@@ -144,7 +144,7 @@ const EmrCloudSync: React.FC = () => {
     {
       key: 'dest', label: 'Đích', width: 150,
       render: r => {
-        const d = CS_DESTS[r.destination] ?? { label: r.destination, color: '#64748b', icon: 'cloud' };
+        const d = CS_DESTS[r.destination] ?? { label: r.destination, color: 'var(--t-2)', icon: 'cloud' };
         return <span style={{ color: d.color, fontWeight: 600, fontSize: 12 }}>
           <TermIcon name={d.icon} size={11} /> {d.label}
         </span>;
@@ -221,7 +221,7 @@ const EmrCloudSync: React.FC = () => {
         )}
       >
         {detail && (() => {
-          const d = CS_DESTS[detail.destination] ?? { label: detail.destination, color: '#64748b', icon: 'cloud' };
+          const d = CS_DESTS[detail.destination] ?? { label: detail.destination, color: 'var(--t-2)', icon: 'cloud' };
           const s = CS_STATUS.find(x => x.v === detail.status);
           return (
             <>
@@ -242,8 +242,8 @@ const EmrCloudSync: React.FC = () => {
               {detail.errorMessage && (
                 <DrSec title="Lỗi">
                   <div style={{
-                    padding: 12, background: '#fef2f2', border: '1px solid #fecaca',
-                    borderRadius: 6, color: '#991b1b', fontSize: 12.5, fontFamily: 'var(--font-mono)',
+                    padding: 12, background: 'var(--s-crit-bg)', border: '1px solid #fecaca',
+                    borderRadius: 6, color: 'var(--s-crit-tx)', fontSize: 12.5, fontFamily: 'var(--font-mono)',
                   }}>
                     <TermIcon name="alert" size={12} /> {detail.errorMessage}
                   </div>

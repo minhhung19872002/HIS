@@ -53,10 +53,10 @@ type DashboardPayload = Partial<HospitalDashboardDto> & Record<string, unknown>;
 type DashboardTrendPoint = Record<string, unknown>;
 
 const REPORT_CATEGORIES: ReportCategory[] = [
-  { id: 'operational', label: 'Vận hành', icon: 'chart', color: '#2563eb', softColor: '#eff6ff' },
+  { id: 'operational', label: 'Vận hành', icon: 'chart', color: 'var(--a-cy)', softColor: '#eff6ff' },
   { id: 'clinical', label: 'Lâm sàng', icon: 'stethoscope', color: '#0f766e', softColor: '#ecfeff' },
-  { id: 'financial', label: 'Tài chính', icon: 'receipt', color: '#d97706', softColor: '#fff7ed' },
-  { id: 'regulatory', label: 'Báo cáo BYT', icon: 'shield', color: '#7c3aed', softColor: '#f5f3ff' },
+  { id: 'financial', label: 'Tài chính', icon: 'receipt', color: 'var(--s-warn)', softColor: '#fff7ed' },
+  { id: 'regulatory', label: 'Báo cáo BYT', icon: 'shield', color: 'var(--s-mag)', softColor: 'var(--s-mag-bg)' },
 ];
 
 const REPORTS: ReportDefinition[] = [

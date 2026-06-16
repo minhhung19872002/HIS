@@ -25,7 +25,7 @@ export const NowServingTab: React.FC<{ rooms: RoomOverviewDto[]; rows: RawRow[] 
           const next = rows.find((x) => x.roomId === r.roomId && statusKey(x) === 'waiting');
           return (
             <div key={r.roomId} style={{
-              background: '#fff', border: '1px solid var(--line)',
+              background: 'var(--d-2)', border: '1px solid var(--line)',
               borderRadius: 8, overflow: 'hidden',
             }}>
               <div style={{

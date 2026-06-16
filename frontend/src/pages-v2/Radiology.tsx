@@ -46,17 +46,17 @@ const STATUS_TABS: StatusTab<StatusKey>[] = [
 
 const MODALITIES: { v: string; l: string; color: string }[] = [
   { v: 'XR',  l: 'X-Quang',       color: '#0891b2' },
-  { v: 'CT',  l: 'CT-Scanner',    color: '#7c3aed' },
+  { v: 'CT',  l: 'CT-Scanner',    color: 'var(--s-mag)' },
   { v: 'MRI', l: 'Cộng hưởng từ', color: '#db2777' },
-  { v: 'US',  l: 'Siêu âm',       color: '#16a34a' },
+  { v: 'US',  l: 'Siêu âm',       color: 'var(--s-ok)' },
   { v: 'MAM', l: 'Nhũ ảnh',       color: '#ea580c' },
 ];
 
 const detectModality = (item?: RadiologyOrderItemDto): { v: string; color: string } => {
   const t = (item?.serviceType || item?.serviceCode || '').toUpperCase();
-  if (t.includes('CT'))   return { v: 'CT',  color: '#7c3aed' };
+  if (t.includes('CT'))   return { v: 'CT',  color: 'var(--s-mag)' };
   if (t.includes('MRI'))  return { v: 'MRI', color: '#db2777' };
-  if (t.includes('US') || t.includes('SIEU') || t.includes('SIÊU')) return { v: 'US', color: '#16a34a' };
+  if (t.includes('US') || t.includes('SIEU') || t.includes('SIÊU')) return { v: 'US', color: 'var(--s-ok)' };
   if (t.includes('MAM')) return { v: 'MAM', color: '#ea580c' };
   return { v: 'XR', color: '#0891b2' };
 };

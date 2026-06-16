@@ -129,7 +129,7 @@ const StatCell: React.FC<{ label: string; value: number; tone?: 'ok' | 'warn' }>
 
 const ChartCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div style={{
-    background: '#fff', border: '1px solid var(--line)',
+    background: 'var(--d-2)', border: '1px solid var(--line)',
     borderRadius: 8, padding: '14px 16px',
   }}>
     <div style={{

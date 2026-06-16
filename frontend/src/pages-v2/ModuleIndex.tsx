@@ -221,7 +221,7 @@ export default function ModuleIndex() {
         <div className="idx-intro">
           <div className="badge">ℹ</div>
           <div>
-            <b style={{ color: '#0f172a' }}>Chỉ mục các mô-đun.</b> Mỗi thẻ mở một
+            <b style={{ color: 'var(--t-0)' }}>Chỉ mục các mô-đun.</b> Mỗi thẻ mở một
             mô-đun độc lập trong giao diện chung (sidebar trái + thanh lệnh trên).
             Hệ thống dùng context bệnh nhân chung — chọn BN ở một module sẽ ghim
             trên thanh ticker khi sang module khác. Dữ liệu demo đồng bộ qua{' '}

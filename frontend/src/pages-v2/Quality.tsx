@@ -382,7 +382,7 @@ const KpiTab: React.FC<{ indicators: QualityIndicatorDto[]; loading: boolean }> 
       {groups.map(([groupName, items]) => (
         <div key={groupName} style={{
           marginTop: 14, border: '1px solid var(--line)',
-          background: '#fff', borderRadius: 8, overflow: 'hidden',
+          background: 'var(--d-2)', borderRadius: 8, overflow: 'hidden',
         }}>
           <div style={{
             padding: '10px 14px', background: 'var(--d-1)',
@@ -405,7 +405,7 @@ const KpiTab: React.FC<{ indicators: QualityIndicatorDto[]; loading: boolean }> 
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t-2)' }}>{ind.indicatorCode}</div>
                   <div style={{ fontWeight: 500, color: 'var(--t-0)' }}>{ind.name}</div>
                   <div style={{
-                    position: 'relative', height: 8, background: 'var(--d-2, #f1f5f9)',
+                    position: 'relative', height: 8, background: 'var(--d-2, var(--d-3))',
                     borderRadius: 4, overflow: 'hidden',
                   }}>
                     <div style={{
@@ -440,7 +440,7 @@ const AuditTab: React.FC = () => (
       { title: 'Audit hồ sơ BA',           date: 'T12/2025', score: 'Đang thực hiện', status: 'Đang triển khai', tone: 'warn' as const },
     ].map((a, i) => (
       <div key={i} style={{
-        border: '1px solid var(--line)', background: '#fff',
+        border: '1px solid var(--line)', background: 'var(--d-2)',
         borderRadius: 8, padding: 14,
       }}>
         <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{a.title}</div>

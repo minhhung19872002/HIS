@@ -303,10 +303,10 @@ const PrescriptionEditorV2: React.FC = () => {
             </div>
 
             {allergyNames.length > 0 && (
-              <div style={{ marginTop: 12, padding: 10, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6 }}>
-                <div style={{ fontSize: 11, color: '#991b1b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}><TermIcon name="alert" size={11} /> Dị ứng</div>
+              <div style={{ marginTop: 12, padding: 10, background: 'var(--s-crit-bg)', border: '1px solid #fecaca', borderRadius: 6 }}>
+                <div style={{ fontSize: 11, color: 'var(--s-crit-tx)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}><TermIcon name="alert" size={11} /> Dị ứng</div>
                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                  {allergyNames.map((a) => <span key={a} style={{ background: '#dc2626', color: '#fff', padding: '2px 8px', borderRadius: 3, fontSize: 11, fontWeight: 600 }}>{a}</span>)}
+                  {allergyNames.map((a) => <span key={a} style={{ background: 'var(--s-crit)', color: '#fff', padding: '2px 8px', borderRadius: 3, fontSize: 11, fontWeight: 600 }}>{a}</span>)}
                 </div>
               </div>
             )}
@@ -433,10 +433,10 @@ const PrescriptionEditorV2: React.FC = () => {
       {/* Right panel: warnings & tools */}
       <aside className={'ed-right-panel ' + (rightOpen ? 'is-open' : '')} style={{ borderLeft: '1px solid var(--line)', overflow: 'auto', padding: 12, background: 'var(--d-1)', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {intCount > 0 && (
-          <div onClick={() => setInterOpen(true)} style={{ padding: 12, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, cursor: 'pointer' }}>
+          <div onClick={() => setInterOpen(true)} style={{ padding: 12, background: 'var(--s-crit-bg)', border: '1px solid #fecaca', borderRadius: 8, cursor: 'pointer' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: '#991b1b', fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.05em' }}><TermIcon name="alert" size={12} /> Tương tác thuốc</span>
-              <span style={{ background: '#dc2626', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{intCount}</span>
+              <span style={{ color: 'var(--s-crit-tx)', fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.05em' }}><TermIcon name="alert" size={12} /> Tương tác thuốc</span>
+              <span style={{ background: 'var(--s-crit)', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{intCount}</span>
             </div>
             <div style={{ fontSize: 11, color: '#7f1d1d', marginTop: 6 }}>{(interactions[0]?.description || interactions[0]?.recommendation || '').slice(0, 80)}…</div>
           </div>
@@ -480,7 +480,7 @@ const PrescriptionEditorV2: React.FC = () => {
       <DrawerShell open={interOpen} onClose={() => setInterOpen(false)} title="Tương tác thuốc" sub={`${intCount} cảnh báo`} size="lg">
         {interactions.map((it, i) => {
           const tone = it.severity >= 3 ? 'crit' : it.severity === 2 ? 'warn' : 'info';
-          const bg = it.severity >= 3 ? '#fef2f2' : it.severity === 2 ? '#fff7ed' : '#fefce8';
+          const bg = it.severity >= 3 ? 'var(--s-crit-bg)' : it.severity === 2 ? '#fff7ed' : '#fefce8';
           const border = it.severity >= 3 ? '#fecaca' : it.severity === 2 ? '#fed7aa' : '#fde68a';
           return (
             <div key={i} style={{ margin: 14, padding: 14, background: bg, border: `1px solid ${border}`, borderRadius: 8 }}>

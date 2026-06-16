@@ -70,9 +70,9 @@ type IntakePayload = {
 };
 
 const TRIAGE_LEVELS: TriageMeta[] = [
-  { level: 1, label: 'Mức 1 · Hồi sức', description: 'Đe doạ tính mạng, xử trí ngay', color: '#c62828', soft: '#fef2f2', border: '#fecaca' },
+  { level: 1, label: 'Mức 1 · Hồi sức', description: 'Đe doạ tính mạng, xử trí ngay', color: '#c62828', soft: 'var(--s-crit-bg)', border: '#fecaca' },
   { level: 2, label: 'Mức 2 · Khẩn cấp', description: 'Cần tiếp cận trong 10 phút', color: '#dd6b20', soft: '#fff7ed', border: '#fed7aa' },
-  { level: 3, label: 'Mức 3 · Cấp', description: 'Theo dõi sát và cận lâm sàng sớm', color: '#b7791f', soft: '#fffbeb', border: '#fde68a' },
+  { level: 3, label: 'Mức 3 · Cấp', description: 'Theo dõi sát và cận lâm sàng sớm', color: '#b7791f', soft: 'var(--s-warn-bg)', border: '#fde68a' },
   { level: 4, label: 'Mức 4 · Bán cấp', description: 'Có thể chờ ngắn hạn', color: '#0f766e', soft: '#ecfeff', border: '#99f6e4' },
   { level: 5, label: 'Mức 5 · Không cấp', description: 'Điều trị ngoại trú hoặc chờ khám', color: '#2f855a', soft: '#ecfdf5', border: '#bbf7d0' },
 ];

@@ -130,7 +130,7 @@ const BankPayments: React.FC = () => {
     { lbl: 'Lỗi · hết hạn',         val: (counts.failed || 0) + (counts.expired || 0), tone: 'crit' as const },
   ];
 
-  const bankOf = (r: PaymentTxn) => BANK_META[r.provider] ?? { short: r.provider.toUpperCase(), name: r.provider, color: '#64748b', bin: '' };
+  const bankOf = (r: PaymentTxn) => BANK_META[r.provider] ?? { short: r.provider.toUpperCase(), name: r.provider, color: 'var(--t-2)', bin: '' };
 
   const cols: ColumnDef<PaymentTxn>[] = [
     { key: 'txnRef', label: 'Mã GD', mono: true, code: true, width: 170 },
@@ -352,7 +352,7 @@ const BankPayments: React.FC = () => {
             <div style={{ padding: 20, textAlign: 'center' }}>
               <div style={{
                 width: 220, height: 220, margin: '0 auto', border: '1px solid var(--line)', borderRadius: 8,
-                background: 'repeating-conic-gradient(#000 0% 25%, #fff 0% 50%) 50%/12px 12px',
+                background: 'repeating-conic-gradient(#000 0% 25%, var(--d-2) 0% 50%) 50%/12px 12px',
               }} />
               <div style={{ marginTop: 14, fontSize: 12.5, color: 'var(--t-1)' }}>
                 Quét mã VietQR · <b>{b.short}</b> · BIN {b.bin}
