@@ -226,6 +226,12 @@ public static class DependencyInjection
         // F1.8 #154: Sổ sinh đẻ + Sổ theo dõi nạo phá thai (register khoa Sản)
         services.AddScoped<IObstetricRegisterService, ObstetricRegisterService>();
 
+        // ADR báo cáo phản ứng có hại thuốc (#5 #55-59)
+        services.AddScoped<IAdrReportService, AdrReportService>();
+
+        // Bảo lãnh viện phí (#41 #68-72)
+        services.AddScoped<IBillingGuarantorService, BillingGuarantorService>();
+
         // F3.4 #151: BN BHYT chi trả 100% thuốc đặc trị
         services.AddScoped<IBhytFullCoverageService, BhytFullCoverageService>();
 

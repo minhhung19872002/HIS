@@ -191,13 +191,25 @@ public class AdminModulesService : IAdminModulesService
 
     // ─── G-42: HR Decisions ───────────────────────────────────────────────
 
-    public async Task<List<HrDecisionDto>> GetHrDecisionsAsync(int? decisionType = null, int? status = null, string? staffId = null)
+    public async Task<List<HrDecisionDto>> GetHrDecisionsAsync(int? decisionType = null, int? status = null, string? staffId = null, DateTime? from = null, DateTime? to = null, string? keyword = null)
     {
         var q = _db.HrDecisions.AsNoTracking();
         if (decisionType.HasValue) q = q.Where(d => d.DecisionType == decisionType.Value);
         if (status.HasValue) q = q.Where(d => d.Status == status.Value);
         if (!string.IsNullOrWhiteSpace(staffId)) q = q.Where(d => d.StaffId == staffId);
+        if (from.HasValue) q = q.Where(d => d.EffectiveDate >= from.Value);
+        if (to.HasValue) q = q.Where(d => d.EffectiveDate <= to.Value);
         var list = await q.OrderByDescending(d => d.EffectiveDate).Take(500).ToListAsync();
+        // keyword filter in-memory (tránh EF không dịch được Contains với nvarchar đặc biệt)
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim().ToLowerInvariant();
+            list = list.Where(d =>
+                d.DecisionNumber.ToLowerInvariant().Contains(kw) ||
+                (d.StaffName != null && d.StaffName.ToLowerInvariant().Contains(kw)) ||
+                (d.StaffCode != null && d.StaffCode.ToLowerInvariant().Contains(kw))
+            ).ToList();
+        }
         return list.Select(MapDecision).ToList();
     }
 
@@ -229,6 +241,10 @@ public class AdminModulesService : IAdminModulesService
         dec.Summary = dto.Summary;
         dec.Content = dto.Content;
         dec.Status = dto.Status;
+        dec.Department = dto.Department;
+        dec.Position = dto.Position;
+        dec.SignerName = dto.SignerName;
+        dec.Notes = dto.Notes;
         dec.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return MapDecision(dec);
@@ -252,6 +268,10 @@ public class AdminModulesService : IAdminModulesService
         Summary = d.Summary,
         Content = d.Content,
         Status = d.Status,
+        Department = d.Department,
+        Position = d.Position,
+        SignerName = d.SignerName,
+        Notes = d.Notes,
         CreatedAt = d.CreatedAt,
     };
 

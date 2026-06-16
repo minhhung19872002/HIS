@@ -65,6 +65,14 @@ public class HrDecision
     public string? Content { get; set; }               // Nội dung đầy đủ
     /// <summary>0=Dự thảo, 1=Hiệu lực, 2=Hủy</summary>
     public int Status { get; set; } = 0;
+    /// <summary>Đơn vị/phòng ban liên quan đến quyết định.</summary>
+    public string? Department { get; set; }
+    /// <summary>Chức vụ bổ nhiệm/điều động (nếu có).</summary>
+    public string? Position { get; set; }
+    /// <summary>Người ký quyết định.</summary>
+    public string? SignerName { get; set; }
+    /// <summary>Ghi chú bổ sung.</summary>
+    public string? Notes { get; set; }
     public Guid? CreatedBy { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }

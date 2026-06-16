@@ -3,7 +3,8 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DatePicker, Form, Input, Modal, Select } from 'antd';
-import dayjs from 'dayjs';
+import type { RangePickerProps } from 'antd/es/date-picker';
+import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
@@ -24,6 +25,10 @@ interface HrDecision {
   content?: string;
   status: number;
   statusName: string;
+  department?: string;
+  position?: string;
+  signerName?: string;
+  notes?: string;
   createdAt: string;
 }
 
@@ -72,6 +77,7 @@ const HrDecisionsV2: React.FC = () => {
   const [stab, setStab] = useState<SKey | 'all'>('all');
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([null, null]);
 
   const [form] = Form.useForm();
   const [modalOpen, setModalOpen] = useState(false);
@@ -83,12 +89,17 @@ const HrDecisionsV2: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await apiClient.get<HrDecision[]>('/admin-modules/hr-decisions');
+      const params: Record<string, string> = {};
+      if (dateRange[0]) params['from'] = dateRange[0].startOf('day').toISOString();
+      if (dateRange[1]) params['to'] = dateRange[1].endOf('day').toISOString();
+      if (search.trim()) params['keyword'] = search.trim();
+      const { data } = await apiClient.get<HrDecision[]>('/admin-modules/hr-decisions', { params });
       setRows(data || []);
     } catch { ti('Tải danh sách thất bại'); }
     finally { setLoading(false); }
-  }, []);
+  }, [dateRange, search]);
 
+  // Reload khi dateRange thay đổi; search debounce-free (load() phụ thuộc search qua useCallback)
   useEffect(() => { load(); }, [load]);
 
   // ── Actions ──────────────────────────────────────────────────────────────
@@ -111,6 +122,10 @@ const HrDecisionsV2: React.FC = () => {
       summary:        r.summary,
       content:        r.content,
       status:         r.status,
+      department:     r.department,
+      position:       r.position,
+      signerName:     r.signerName,
+      notes:          r.notes,
     });
     setModalOpen(true);
   };
@@ -136,15 +151,12 @@ const HrDecisionsV2: React.FC = () => {
 
   // ── Derived ──────────────────────────────────────────────────────────────
 
+  // keyword + dateRange đã filter server-side qua load(); chỉ filter tab status + loại QĐ ở client
   const filtered = useMemo(() => rows.filter((r) => {
     if (stab !== 'all' && sKey(r.status) !== stab) return false;
     if (filterType && String(r.decisionType) !== filterType) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (![r.decisionNumber, r.staffName || '', r.staffCode || '', r.summary].some((s) => s.toLowerCase().includes(q))) return false;
-    }
     return true;
-  }), [rows, stab, filterType, search]);
+  }), [rows, stab, filterType]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: rows.length };
@@ -189,7 +201,16 @@ const HrDecisionsV2: React.FC = () => {
           placeholder="Tìm số QĐ, tên nhân viên…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') load(); }}
           style={{ flex: '1 1 200px', minWidth: 180, padding: '4px 8px', border: '1px solid var(--line)', borderRadius: 4 }}
+        />
+        <DatePicker.RangePicker
+          style={{ minWidth: 240 }}
+          format="DD/MM/YYYY"
+          value={dateRange as RangePickerProps['value']}
+          onChange={(v) => setDateRange(v ? [v[0] ?? null, v[1] ?? null] : [null, null])}
+          placeholder={['Từ ngày', 'Đến ngày']}
+          allowClear
         />
         <Select
           style={{ width: 160 }}
@@ -255,6 +276,18 @@ const HrDecisionsV2: React.FC = () => {
           </Form.Item>
           <Form.Item name="content" label="Nội dung đầy đủ">
             <Input.TextArea rows={4} />
+          </Form.Item>
+          <Form.Item name="department" label="Đơn vị / Phòng ban">
+            <Input placeholder="VD: Phòng Hành chính" />
+          </Form.Item>
+          <Form.Item name="position" label="Chức vụ">
+            <Input placeholder="VD: Trưởng phòng" />
+          </Form.Item>
+          <Form.Item name="signerName" label="Người ký">
+            <Input placeholder="Họ tên người ký quyết định" />
+          </Form.Item>
+          <Form.Item name="notes" label="Ghi chú">
+            <Input.TextArea rows={2} placeholder="Ghi chú bổ sung (nếu có)" />
           </Form.Item>
           <Form.Item name="status" label="Trạng thái">
             <Select options={[

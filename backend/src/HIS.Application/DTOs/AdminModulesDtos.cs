@@ -89,6 +89,10 @@ public class HrDecisionDto
     /// <summary>0=Dự thảo, 1=Hiệu lực, 2=Hủy</summary>
     public int Status { get; set; }
     public string StatusName => Status == 0 ? "Dự thảo" : Status == 1 ? "Hiệu lực" : "Hủy";
+    public string? Department { get; set; }
+    public string? Position { get; set; }
+    public string? SignerName { get; set; }
+    public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
@@ -104,6 +108,10 @@ public class SaveHrDecisionDto
     public string Summary { get; set; } = string.Empty;
     public string? Content { get; set; }
     public int Status { get; set; } = 0;
+    public string? Department { get; set; }
+    public string? Position { get; set; }
+    public string? SignerName { get; set; }
+    public string? Notes { get; set; }
 }
 
 // ─── G-44: Official Documents ────────────────────────────────────────────────

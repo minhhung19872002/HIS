@@ -6,6 +6,17 @@
 > Cập nhật cuối: **2026-06-16** (phiên Claude máy D: — feature v2 nối tiếp #145/#85/#86 (PUSHED) + #89/#87 (chờ push); governance sync-gate đã push).
 
 ## Đang ở đâu
+- **CHIẾN DỊCH "làm hết issue actionable" (user 2026-06-16: "còn bao nhiêu làm hết, khỏi hỏi lại")**: fan-out
+  agent build module mới (mỗi agent chỉ tạo file mới + migration pre-assign, KHÔNG build/KHÔNG sửa 4 file shared,
+  trả snippet → main áp tập trung + build gate). Triage 4 Explore agent: đóng 5 DONE-duplicate (#114 #119 #120
+  #146 #93). BLOCKED (cần HW/credential): #133 #134 #113 #22 #24 #25. Defer tech-debt: #17 #42 #43 #44 #45 #35.
+  WON'T-DO multi-branch: #107 #131 #132.
+- **WAVE 1 (build-green BE 0err + FE EXIT0, chờ push)** — 3 module: **ADR #5/#55-59** (entity AdrReport + service
+  + controller `api/adr-report` + migration **117** + FE AdrReports v2 + báo cáo severity) · **Bảo lãnh viện phí
+  #41/#68-72** (SponsorOrg+BillingGuarantor + `api/billing-guarantor` + migration **118** + FE 3 tab + công nợ
+  theo đơn vị) · **HR #19** (mở rộng HrDecision có sẵn: +Department/Position/SignerName/Notes + date filter +
+  migration **119**; biểu mẫu BHXH 01A-TS defer). ⚠️ migration 117-119 chưa runtime-test (DB off) → verify
+  schema-drift sau deploy.
 - **#154 F1.8 — Sổ sinh đẻ + Sổ theo dõi nạo phá thai (code-complete, build-green BE 0err + FE EXIT0, chờ push)**:
   module mới `ObstetricRegister` (clone pattern #94 DM hành chính). BE: entity `BirthRegister`+`AbortionRegister`
   + DTO + interface + service (CRUD soft-delete + report aggregate) + controller `/api/obstetric-register`

@@ -80,8 +80,11 @@ public class AdminModulesController : ControllerBase
     public async Task<IActionResult> GetDecisions(
         [FromQuery] int? decisionType,
         [FromQuery] int? status,
-        [FromQuery] string? staffId)
-        => Ok(await _svc.GetHrDecisionsAsync(decisionType, status, staffId));
+        [FromQuery] string? staffId,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] string? keyword)
+        => Ok(await _svc.GetHrDecisionsAsync(decisionType, status, staffId, from, to, keyword));
 
     [HttpGet("hr-decisions/{id:guid}")]
     public async Task<IActionResult> GetDecision(Guid id)

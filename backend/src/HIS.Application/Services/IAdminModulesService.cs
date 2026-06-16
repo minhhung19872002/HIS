@@ -21,7 +21,7 @@ public interface IAdminModulesService
 
     // ── G-42: HR Decisions ─────────────────────────────────────────────────
 
-    Task<List<HrDecisionDto>> GetHrDecisionsAsync(int? decisionType = null, int? status = null, string? staffId = null);
+    Task<List<HrDecisionDto>> GetHrDecisionsAsync(int? decisionType = null, int? status = null, string? staffId = null, DateTime? from = null, DateTime? to = null, string? keyword = null);
     Task<HrDecisionDto?> GetHrDecisionAsync(Guid id);
     Task<HrDecisionDto> SaveHrDecisionAsync(SaveHrDecisionDto dto, Guid userId);
     Task DeleteHrDecisionAsync(Guid id);

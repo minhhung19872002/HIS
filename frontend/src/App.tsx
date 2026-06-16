@@ -59,6 +59,8 @@ const WaitingTimeReportV2 = lazy(() => import('./pages-v2/WaitingTimeReport'));
 const SpecialTestRuleAdminV2 = lazy(() => import('./pages-v2/SpecialTestRuleAdmin'));
 const AdministrativeUnitsV2 = lazy(() => import('./pages-v2/AdministrativeUnits'));
 const ObstetricRegistersV2 = lazy(() => import('./pages-v2/ObstetricRegisters'));
+const AdrReportsV2 = lazy(() => import('./pages-v2/AdrReports'));
+const BillingGuarantorsV2 = lazy(() => import('./pages-v2/BillingGuarantors'));
 const BhytFullCoverageV2 = lazy(() => import('./pages-v2/BhytFullCoverage'));
 const HealthEducationV2 = lazy(() => import('./pages-v2/HealthEducation'));
 const PopulationHealthV2 = lazy(() => import('./pages-v2/PopulationHealth'));
@@ -669,6 +671,10 @@ const AppRoutes: React.FC = () => {
           <Route path="administrative-units" element={<AdministrativeUnitsV2 />} />
           {/* #154 obstetric registers (birth + abortion) */}
           <Route path="obstetric-registers" element={<ObstetricRegistersV2 />} />
+          {/* #5 #55-59: ADR — báo cáo phản ứng có hại thuốc */}
+          <Route path="adr-reports" element={<AdrReportsV2 />} />
+          {/* #41 #68-72: bảo lãnh viện phí */}
+          <Route path="billing-guarantors" element={<BillingGuarantorsV2 />} />
           {/* Wave 3: #151 BHYT full-coverage patient list */}
           <Route path="bhyt-full-coverage" element={<BhytFullCoverageV2 />} />
           <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />
