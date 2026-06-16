@@ -904,6 +904,41 @@ namespace HIS.Application.Services
     Task<bool> IsFavoritedAsync(Guid requestId, Guid userId);
 
     #endregion
+
+    #region Co-Reader / Dong doc ket qua CDHA (#139)
+
+    /// <summary>
+    /// Them BS dong doc vao mot report.
+    /// </summary>
+    Task<CoReaderDto> AddCoReaderAsync(AddCoReaderDto dto, Guid currentUserId);
+
+    /// <summary>
+    /// Lay danh sach dong doc theo reportId.
+    /// </summary>
+    Task<List<CoReaderDto>> GetCoReadersAsync(Guid reportId);
+
+    /// <summary>
+    /// Cap nhat y kien cua dong doc.
+    /// </summary>
+    Task<bool> UpdateCoReaderOpinionAsync(UpdateCoReaderOpinionDto dto, Guid currentUserId);
+
+    /// <summary>
+    /// Xoa dong doc (soft-delete).
+    /// </summary>
+    Task<bool> RemoveCoReaderAsync(Guid coReaderId, Guid currentUserId);
+
+    /// <summary>
+    /// Copy Findings / Impression / Recommendations tu report nguon sang report dich.
+    /// Tuy chon TrackAsCoReader = true se them ban ghi CoReader tu radiologist cua report nguon.
+    /// </summary>
+    Task<bool> CopyReportResultAsync(CopyReportResultDto dto, Guid currentUserId);
+
+    /// <summary>
+    /// Gop (merge) y kien tat ca dong doc vao Impression cua report.
+    /// </summary>
+    Task<MergeResultDto> MergeCoReaderOpinionsAsync(MergeCoReaderOpinionsDto dto, Guid currentUserId);
+
+    #endregion
     }
 
     #region DICOM Export/Send DTOs (NangCap15 PACS 3/4)

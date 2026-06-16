@@ -2584,4 +2584,84 @@ public class SkipPatientRequest
     }
 
     #endregion
+
+    #region Co-Reader / Dong doc ket qua CDHA (#139)
+
+    /// <summary>
+    /// Them BS dong doc vao mot RadiologyReport
+    /// </summary>
+    public class AddCoReaderDto
+    {
+        public Guid RadiologyReportId { get; set; }
+        public Guid ReaderId { get; set; }
+        /// <summary>Snapshot ten — optional, tu dong lay tu User neu null.</summary>
+        public string? ReaderName { get; set; }
+        /// <summary>CoReader | Consultant | Supervisor</summary>
+        public string? Role { get; set; }
+        /// <summary>Y kien ban dau (co the null, cap nhat sau).</summary>
+        public string? Opinion { get; set; }
+    }
+
+    /// <summary>
+    /// Cap nhat y kien cua 1 dong doc
+    /// </summary>
+    public class UpdateCoReaderOpinionDto
+    {
+        public Guid CoReaderId { get; set; }
+        public string? Opinion { get; set; }
+        public string? Role { get; set; }
+    }
+
+    /// <summary>
+    /// Xem thong tin 1 dong doc
+    /// </summary>
+    public class CoReaderDto
+    {
+        public Guid Id { get; set; }
+        public Guid RadiologyReportId { get; set; }
+        public Guid ReaderId { get; set; }
+        public string? ReaderName { get; set; }
+        public string? Role { get; set; }
+        public string? Opinion { get; set; }
+        public Guid? CopiedFromReportId { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Copy ket qua (Findings / Impression / Recommendations) tu report nguon sang report dich
+    /// </summary>
+    public class CopyReportResultDto
+    {
+        public Guid SourceReportId { get; set; }
+        public Guid TargetReportId { get; set; }
+        /// <summary>
+        /// Them ban ghi co-reader tu BS doc nguon vao report dich hay khong.
+        /// Mac dinh true.
+        /// </summary>
+        public bool TrackAsCoReader { get; set; } = true;
+    }
+
+    /// <summary>
+    /// Gop y kien cua tat ca dong doc vao truong Impression cua report (merge workflow)
+    /// </summary>
+    public class MergeCoReaderOpinionsDto
+    {
+        public Guid RadiologyReportId { get; set; }
+        /// <summary>
+        /// Neu true, append y kien co-reader vao cuoi Impression hien tai.
+        /// Neu false, ghi de Impression bang y kien da gop.
+        /// </summary>
+        public bool AppendMode { get; set; } = true;
+    }
+
+    /// <summary>
+    /// Ket qua sau khi merge
+    /// </summary>
+    public class MergeResultDto
+    {
+        public string MergedImpression { get; set; } = string.Empty;
+        public int CoReaderCount { get; set; }
+    }
+
+    #endregion
 }

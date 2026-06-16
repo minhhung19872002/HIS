@@ -2571,6 +2571,13 @@ export const bulkExportDicom = (data: { studyIds: string[]; anonymize: boolean }
     timeout: 300_000, // 5 phút cho nhiều study
   });
 
+// Bulk approve — duyệt hàng loạt kết quả CĐHA (Issue #144)
+export const bulkApproveResults = (data: { resultIds: string[]; note?: string }) =>
+  apiClient.post<{ approvedCount: number; skippedCount: number; skipped: string[] }>(
+    '/RISComplete/results/bulk-approve',
+    data,
+  );
+
 // DICOM Send to remote PACS
 export const sendDicomToRemote = (data: { studyId: string; remoteServerId: string }) =>
   apiClient.post('/riscomplete/dicom/send', data);
@@ -2637,6 +2644,78 @@ export const getFavorites = () =>
 /** Kiem tra 1 ca chup co dang duoc user hien tai ghim hay khong. */
 export const isFavorited = (requestId: string) =>
   apiClient.get<{ isFavorited: boolean; requestId: string }>(`/RISComplete/favorites/check/${requestId}`);
+
+// #endregion
+
+// #region Co-Reader / Dong doc ket qua CDHA (#139)
+
+export interface CoReaderDto {
+  id: string;
+  radiologyReportId: string;
+  readerId: string;
+  readerName?: string;
+  role?: string;
+  opinion?: string;
+  copiedFromReportId?: string;
+  createdAt: string;
+}
+
+export interface AddCoReaderDto {
+  radiologyReportId: string;
+  readerId: string;
+  readerName?: string;
+  /** CoReader | Consultant | Supervisor */
+  role?: string;
+  opinion?: string;
+}
+
+export interface UpdateCoReaderOpinionDto {
+  coReaderId: string;
+  opinion?: string;
+  role?: string;
+}
+
+export interface CopyReportResultDto {
+  sourceReportId: string;
+  targetReportId: string;
+  /** Them ban ghi co-reader tu BS doc nguon vao report dich. Mac dinh true. */
+  trackAsCoReader?: boolean;
+}
+
+export interface MergeCoReaderOpinionsDto {
+  radiologyReportId: string;
+  /** Neu true: append vao cuoi Impression. Neu false: ghi de. */
+  appendMode?: boolean;
+}
+
+export interface MergeResultDto {
+  mergedImpression: string;
+  coReaderCount: number;
+}
+
+/** Them BS dong doc vao report. */
+export const addCoReader = (dto: AddCoReaderDto) =>
+  apiClient.post<CoReaderDto>('/RISComplete/coreaders', dto);
+
+/** Lay danh sach dong doc theo reportId. */
+export const getCoReaders = (reportId: string) =>
+  apiClient.get<CoReaderDto[]>(`/RISComplete/coreaders/${reportId}`);
+
+/** Cap nhat y kien cua dong doc. */
+export const updateCoReaderOpinion = (dto: UpdateCoReaderOpinionDto) =>
+  apiClient.put<{ success: boolean }>('/RISComplete/coreaders', dto);
+
+/** Xoa dong doc (soft-delete). */
+export const removeCoReader = (coReaderId: string) =>
+  apiClient.delete<{ success: boolean }>(`/RISComplete/coreaders/${coReaderId}`);
+
+/** Copy Findings/Impression/Recommendations tu report nguon sang report dich. */
+export const copyReportResult = (dto: CopyReportResultDto) =>
+  apiClient.post<{ success: boolean }>('/RISComplete/coreaders/copy-from', dto);
+
+/** Gop y kien tat ca dong doc vao Impression cua report. */
+export const mergeCoReaderOpinions = (dto: MergeCoReaderOpinionsDto) =>
+  apiClient.post<MergeResultDto>('/RISComplete/coreaders/merge', dto);
 
 // #endregion
 
@@ -2868,4 +2947,11 @@ export default {
   toggleFavorite,
   getFavorites,
   isFavorited,
+  // #139 Co-Reader
+  addCoReader,
+  getCoReaders,
+  updateCoReaderOpinion,
+  removeCoReader,
+  copyReportResult,
+  mergeCoReaderOpinions,
 };

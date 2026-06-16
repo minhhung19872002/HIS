@@ -2892,6 +2892,59 @@ namespace HIS.API.Controllers
 
         #endregion
 
+        #region Bulk Approve (Issue #144)
+
+        /// <summary>
+        /// Duyệt hàng loạt kết quả CĐHA theo danh sách resultId.
+        /// Mỗi entry được duyệt độc lập; lỗi 1 entry không fail cả batch.
+        /// Trả về số duyệt thành công và danh sách entry bị bỏ qua.
+        /// POST /api/RISComplete/results/bulk-approve
+        /// </summary>
+        [HttpPost("results/bulk-approve")]
+        public async Task<IActionResult> BulkApproveResults([FromBody] BulkApproveRequest request)
+        {
+            if (request.ResultIds == null || request.ResultIds.Count == 0)
+                return BadRequest(new { message = "Cần ít nhất 1 resultId" });
+            if (request.ResultIds.Count > 100)
+                return BadRequest(new { message = "Tối đa 100 kết quả mỗi lần duyệt" });
+
+            var userId = GetUserId();
+            var approved = new List<Guid>();
+            var skipped = new List<string>();
+
+            foreach (var resultId in request.ResultIds)
+            {
+                try
+                {
+                    var dto = new HIS.Application.DTOs.Radiology.ApproveRadiologyResultDto
+                    {
+                        ResultId = resultId,
+                        Note = request.Note,
+                        IsFinalApproval = true,
+                        ApprovingUserId = userId == Guid.Empty ? (Guid?)null : userId,
+                    };
+                    await _risService.FinalApproveResultAsync(dto);
+                    approved.Add(resultId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "BulkApproveResults: skipping resultId {ResultId}: {Message}",
+                        resultId, ex.Message);
+                    skipped.Add(resultId.ToString());
+                }
+            }
+
+            return Ok(new
+            {
+                approvedCount = approved.Count,
+                skippedCount = skipped.Count,
+                skipped,
+            });
+        }
+
+        #endregion
+
         #region F2.8 Favorite — Ca chup yeu thich
 
         /// <summary>
@@ -2934,6 +2987,86 @@ namespace HIS.API.Controllers
         }
 
         #endregion
+
+        #region Co-Reader / Dong doc ket qua CDHA (#139)
+
+        /// <summary>
+        /// Them BS dong doc vao mot report.
+        /// POST /api/RISComplete/coreaders
+        /// </summary>
+        [HttpPost("coreaders")]
+        public async Task<IActionResult> AddCoReader([FromBody] AddCoReaderDto dto)
+        {
+            var userId = GetUserId();
+            if (userId == Guid.Empty) return Unauthorized();
+            var result = await _risService.AddCoReaderAsync(dto, userId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lay danh sach dong doc theo reportId.
+        /// GET /api/RISComplete/coreaders/{reportId}
+        /// </summary>
+        [HttpGet("coreaders/{reportId:guid}")]
+        public async Task<IActionResult> GetCoReaders(Guid reportId)
+        {
+            var list = await _risService.GetCoReadersAsync(reportId);
+            return Ok(list);
+        }
+
+        /// <summary>
+        /// Cap nhat y kien cua dong doc.
+        /// PUT /api/RISComplete/coreaders
+        /// </summary>
+        [HttpPut("coreaders")]
+        public async Task<IActionResult> UpdateCoReaderOpinion([FromBody] UpdateCoReaderOpinionDto dto)
+        {
+            var userId = GetUserId();
+            if (userId == Guid.Empty) return Unauthorized();
+            var ok = await _risService.UpdateCoReaderOpinionAsync(dto, userId);
+            return Ok(new { success = ok });
+        }
+
+        /// <summary>
+        /// Xoa dong doc (soft-delete).
+        /// DELETE /api/RISComplete/coreaders/{coReaderId}
+        /// </summary>
+        [HttpDelete("coreaders/{coReaderId:guid}")]
+        public async Task<IActionResult> RemoveCoReader(Guid coReaderId)
+        {
+            var userId = GetUserId();
+            if (userId == Guid.Empty) return Unauthorized();
+            var ok = await _risService.RemoveCoReaderAsync(coReaderId, userId);
+            return Ok(new { success = ok });
+        }
+
+        /// <summary>
+        /// Copy ket qua tu report nguon sang report dich.
+        /// POST /api/RISComplete/coreaders/copy-from
+        /// </summary>
+        [HttpPost("coreaders/copy-from")]
+        public async Task<IActionResult> CopyReportResult([FromBody] CopyReportResultDto dto)
+        {
+            var userId = GetUserId();
+            if (userId == Guid.Empty) return Unauthorized();
+            var ok = await _risService.CopyReportResultAsync(dto, userId);
+            return Ok(new { success = ok });
+        }
+
+        /// <summary>
+        /// Gop (merge) y kien tat ca dong doc vao Impression cua report.
+        /// POST /api/RISComplete/coreaders/merge
+        /// </summary>
+        [HttpPost("coreaders/merge")]
+        public async Task<IActionResult> MergeCoReaderOpinions([FromBody] MergeCoReaderOpinionsDto dto)
+        {
+            var userId = GetUserId();
+            if (userId == Guid.Empty) return Unauthorized();
+            var result = await _risService.MergeCoReaderOpinionsAsync(dto, userId);
+            return Ok(result);
+        }
+
+        #endregion
     }
 
     #region Request DTOs
@@ -2963,6 +3096,16 @@ namespace HIS.API.Controllers
         /// archive bản đã ẩn danh, rồi DELETE bản copy tạm. PACS phải khả dụng; study không anonymize được sẽ bị skip.
         /// </summary>
         public bool Anonymize { get; set; }
+    }
+
+    /// <summary>Request duyệt hàng loạt kết quả CĐHA (Issue #144)</summary>
+    public class BulkApproveRequest
+    {
+        /// <summary>Danh sách resultId cần duyệt (tối đa 100)</summary>
+        public List<Guid> ResultIds { get; set; } = new();
+
+        /// <summary>Ghi chú duyệt (tuỳ chọn — áp cho tất cả entry)</summary>
+        public string? Note { get; set; }
     }
 
     #endregion

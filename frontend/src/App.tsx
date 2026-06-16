@@ -64,6 +64,7 @@ const BillingGuarantorsV2 = lazy(() => import('./pages-v2/BillingGuarantors'));
 const FunctionalDiagnosticCatalogV2 = lazy(() => import('./pages-v2/FunctionalDiagnosticCatalog'));
 const ProvincialHealthV2 = lazy(() => import('./pages-v2/ProvincialHealth'));
 const BackupManagementV2 = lazy(() => import('./pages-v2/BackupManagement'));
+const HisConnectionsV2 = lazy(() => import('./pages-v2/HisConnections'));
 const BhytFullCoverageV2 = lazy(() => import('./pages-v2/BhytFullCoverage'));
 const HealthEducationV2 = lazy(() => import('./pages-v2/HealthEducation'));
 const PopulationHealthV2 = lazy(() => import('./pages-v2/PopulationHealth'));
@@ -682,6 +683,7 @@ const AppRoutes: React.FC = () => {
           <Route path="functional-diagnostic-catalog" element={<FunctionalDiagnosticCatalogV2 />} />
           <Route path="provincial-health" element={<ProvincialHealthV2 />} />
           <Route path="backup-management" element={<BackupManagementV2 />} />
+          <Route path="his-connections" element={<HisConnectionsV2 />} />
           {/* Wave 3: #151 BHYT full-coverage patient list */}
           <Route path="bhyt-full-coverage" element={<BhytFullCoverageV2 />} />
           <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />

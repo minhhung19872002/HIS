@@ -11,6 +11,11 @@
   trả snippet → main áp tập trung + build gate). Triage 4 Explore agent: đóng 5 DONE-duplicate (#114 #119 #120
   #146 #93). BLOCKED (cần HW/credential): #133 #134 #113 #22 #24 #25. Defer tech-debt: #17 #42 #43 #44 #45 #35.
   WON'T-DO multi-branch: #107 #131 #132.
+- **WAVE 3 (build-green BE + FE EXIT0, chờ push)** — 4 cluster RIS/PACS/connector: **RIS đồng đọc #139**
+  (RadiologyReportCoReader + 6 endpoint co-reader/copy/merge + migration **124** + FE section) · **Cobb/CTR #143**
+  (CornerstoneViewer thêm CobbAngleTool + panel CTR, FE-only) · **RIS batch #144** (bulk-approve endpoint +
+  multi-select + duyệt/in/tải hàng loạt; defer: bulk JPEG) · **Kết nối HIS đa NCC #90** (HisConnection + service
+  MockMode + test + check-missing-forms + migration **125** + FE). ⚠️ migration 124-125 verify schema-drift sau deploy.
 - **WAVE 2 (build-green BE + FE EXIT0, chờ push)** — 4 cluster: **Catalog CLS DB-driven #40/#64-67**
   (FunctionalDiagnosticTestType+Template + service + controller + migration **120** + seed 9 loại + bỏ hardcode
   GetTestTypes trong NangCap23Controllers + FE page) · **Chỉ đạo tuyến #47** (entity ProvincialDirective persist

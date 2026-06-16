@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
-import { Button, Space, Tooltip, message } from 'antd';
+import { Button, Space, Tooltip, message, InputNumber } from 'antd';
 import {
   ZoomInOutlined,
   DragOutlined,
@@ -16,6 +16,8 @@ import {
   BorderOutlined,
   ExpandAltOutlined,
   EditOutlined,
+  LineChartOutlined,
+  CalculatorOutlined,
 } from '@ant-design/icons';
 
 // Cornerstone3D singleton init flag — bootstrap engine only once per page load
@@ -44,7 +46,7 @@ async function ensureCornerstoneInit() {
 
 export type CsToolName =
   | 'WindowLevel' | 'Pan' | 'Zoom' | 'StackScroll'
-  | 'Length' | 'Angle' | 'Probe' | 'Magnify'
+  | 'Length' | 'Angle' | 'CobbAngle' | 'Probe' | 'Magnify'
   | 'EllipticalROI' | 'RectangleROI' | 'Bidirectional' | 'PlanarFreehandROI';
 
 export interface WlPreset {
@@ -185,6 +187,14 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
   const frameCountRef = useRef(0);
   const currentIdxRef = useRef(initialIndex);
 
+  // CTR panel state — user enters 2 Length measurements (mm) and sees ratio
+  const [showCtrPanel, setShowCtrPanel] = useState(false);
+  const [ctrCardiac, setCtrCardiac] = useState<number | null>(null);
+  const [ctrThoracic, setCtrThoracic] = useState<number | null>(null);
+  // Track how many Length annotations have been placed in CTR mode (auto-fill)
+  const ctrModeRef = useRef(false);
+  const ctrFillCountRef = useRef(0);
+
   // Track viewport CSS size so overlay can match. ResizeObserver fires on
   // window resize, fullscreen toggle, and on container reflows.
   useEffect(() => {
@@ -217,7 +227,7 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
         const {
           ToolGroupManager,
           WindowLevelTool, PanTool, ZoomTool, StackScrollTool,
-          LengthTool, AngleTool, ProbeTool, MagnifyTool,
+          LengthTool, AngleTool, CobbAngleTool, ProbeTool, MagnifyTool,
           EllipticalROITool, RectangleROITool, BidirectionalTool, PlanarFreehandROITool,
           addTool, Enums: tEnums,
         } = csTools;
@@ -225,6 +235,7 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
         // Register tools globally (no-op if already registered)
         addTool(WindowLevelTool); addTool(PanTool); addTool(ZoomTool);
         addTool(StackScrollTool); addTool(LengthTool); addTool(AngleTool);
+        addTool(CobbAngleTool);
         addTool(ProbeTool); addTool(MagnifyTool);
         addTool(EllipticalROITool); addTool(RectangleROITool);
         addTool(BidirectionalTool); addTool(PlanarFreehandROITool);
@@ -249,6 +260,7 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
         tg.addTool(StackScrollTool.toolName);
         tg.addTool(LengthTool.toolName);
         tg.addTool(AngleTool.toolName);
+        tg.addTool(CobbAngleTool.toolName);
         tg.addTool(ProbeTool.toolName);
         tg.addTool(MagnifyTool.toolName);
         tg.addTool(EllipticalROITool.toolName);
@@ -391,6 +403,50 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
     })();
   }, [ready, viewportSize.width, viewportSize.height]);
 
+  // Auto-fill CTR fields when a Length annotation is completed in CTR mode.
+  // Reads cachedStats[targetId].length (mm) from the most-recently completed annotation.
+  useEffect(() => {
+    if (!ready) return;
+    const el = elementRef.current;
+    if (!el) return;
+
+    const handleAnnotationCompleted = async (evt: Event) => {
+      if (!ctrModeRef.current) return;
+      try {
+        const csTools = await import('@cornerstonejs/tools');
+        // annotation.state.getAnnotations(toolName, element)
+        const annotations = csTools.annotation.state.getAnnotations(
+          csTools.LengthTool.toolName,
+          el,
+        );
+        if (!annotations || annotations.length === 0) return;
+        // Pick the last completed annotation's length value
+        const last = annotations[annotations.length - 1] as {
+          data?: { cachedStats?: Record<string, { length?: number }> };
+        };
+        const stats = last?.data?.cachedStats;
+        if (!stats) return;
+        const lengthMm = Object.values(stats)[0]?.length ?? null;
+        if (lengthMm === null) return;
+
+        const count = ctrFillCountRef.current;
+        if (count === 0) {
+          // First measurement → cardiac diameter
+          setCtrCardiac(parseFloat(lengthMm.toFixed(1)));
+          ctrFillCountRef.current = 1;
+        } else if (count === 1) {
+          // Second measurement → thoracic diameter
+          setCtrThoracic(parseFloat(lengthMm.toFixed(1)));
+          ctrFillCountRef.current = 2;
+        }
+      } catch { /* ignore */ }
+    };
+
+    // CORNERSTONE_ANNOTATION_COMPLETED fires after user finishes drawing an annotation
+    el.addEventListener('CORNERSTONE_ANNOTATION_COMPLETED', handleAnnotationCompleted);
+    return () => el.removeEventListener('CORNERSTONE_ANNOTATION_COMPLETED', handleAnnotationCompleted);
+  }, [ready]);
+
   useImperativeHandle(ref, () => ({
     applyWlPreset: (p) => {
       void (async () => {
@@ -459,7 +515,7 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
       if (!tg) return;
       // Disable all left-mouse tools, then activate the selected one
       const ALL_TOOLS: CsToolName[] = [
-        'WindowLevel', 'Pan', 'Zoom', 'Length', 'Angle', 'Probe', 'Magnify',
+        'WindowLevel', 'Pan', 'Zoom', 'Length', 'Angle', 'CobbAngle', 'Probe', 'Magnify',
         'EllipticalROI', 'RectangleROI', 'Bidirectional', 'PlanarFreehandROI',
       ];
       ALL_TOOLS.forEach((name) => {
@@ -472,6 +528,28 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
     } catch (err) { console.warn('switchTool failed:', err); }
   };
 
+  // CTR: derived ratio (normal < 0.5 for adults on PA CXR)
+  const ctrRatio = ctrCardiac !== null && ctrThoracic !== null && ctrThoracic > 0
+    ? ctrCardiac / ctrThoracic
+    : null;
+  const ctrAbnormal = ctrRatio !== null && ctrRatio > 0.5;
+
+  const startCtrMode = () => {
+    // Reset previous CTR measurements and switch to Length tool
+    setCtrCardiac(null);
+    setCtrThoracic(null);
+    ctrFillCountRef.current = 0;
+    ctrModeRef.current = true;
+    setShowCtrPanel(true);
+    switchTool('Length');
+  };
+
+  const closeCtrPanel = () => {
+    setShowCtrPanel(false);
+    ctrModeRef.current = false;
+    ctrFillCountRef.current = 0;
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <Space wrap size={4}>
@@ -480,12 +558,23 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
         <ToolBtn icon={<ZoomInOutlined />}          label="Zoom"       active={activeTool === 'Zoom'}             onClick={() => switchTool('Zoom')} />
         <ToolBtn icon={<HighlightOutlined />}       label="Đo DT"      active={activeTool === 'Length'}           onClick={() => switchTool('Length')} />
         <ToolBtn icon={<RadiusBottomleftOutlined />} label="Đo góc"   active={activeTool === 'Angle'}            onClick={() => switchTool('Angle')} />
+        <ToolBtn icon={<LineChartOutlined />}       label="Góc Cobb"   active={activeTool === 'CobbAngle'}        onClick={() => switchTool('CobbAngle')} />
         <ToolBtn icon={<ExpandAltOutlined />}       label="2 trục"     active={activeTool === 'Bidirectional'}    onClick={() => switchTool('Bidirectional')} />
         <ToolBtn icon={<RadiusUpleftOutlined />}    label="ROI Elip"   active={activeTool === 'EllipticalROI'}    onClick={() => switchTool('EllipticalROI')} />
         <ToolBtn icon={<BorderOutlined />}          label="ROI Rect"   active={activeTool === 'RectangleROI'}     onClick={() => switchTool('RectangleROI')} />
         <ToolBtn icon={<EditOutlined />}            label="ROI Tự do"  active={activeTool === 'PlanarFreehandROI'} onClick={() => switchTool('PlanarFreehandROI')} />
         <ToolBtn icon={<AimOutlined />}             label="Probe"      active={activeTool === 'Probe'}            onClick={() => switchTool('Probe')} />
         <ToolBtn icon={<RetweetOutlined />}         label="Magnify"    active={activeTool === 'Magnify'}          onClick={() => switchTool('Magnify')} />
+        <Tooltip title="CTR — Chỉ số tim-ngực (đo 2 khoảng rồi tính tỉ lệ)">
+          <Button
+            size="small"
+            type={showCtrPanel ? 'primary' : 'default'}
+            icon={<CalculatorOutlined />}
+            onClick={showCtrPanel ? closeCtrPanel : startCtrMode}
+          >
+            CTR
+          </Button>
+        </Tooltip>
         <Tooltip title="Đảo màu (Invert)"><Button size="small" icon={<BgColorsOutlined />} onClick={() => (ref as React.RefObject<CornerstoneViewerHandle>)?.current?.invert()} /></Tooltip>
         <Tooltip title="Reset"><Button size="small" icon={<ReloadOutlined />} onClick={() => (ref as React.RefObject<CornerstoneViewerHandle>)?.current?.reset()} /></Tooltip>
         {onToggleKeyImage && (
@@ -505,6 +594,57 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
           {imageIds.length > 0 ? `${currentIdx + 1} / ${imageIds.length}` : '—'}
         </span>
       </Space>
+
+      {/* CTR Panel — shown when user activates CTR mode */}
+      {showCtrPanel && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+          padding: '6px 10px', background: '#1a1a2e', borderRadius: 4,
+          border: '1px solid #333', fontSize: 12,
+        }}>
+          <span style={{ color: '#aaa', fontWeight: 600 }}>CTR:</span>
+          <span style={{ color: '#ccc' }}>Tim (Cd):</span>
+          <InputNumber
+            size="small"
+            min={0}
+            max={999}
+            step={0.1}
+            value={ctrCardiac ?? undefined}
+            onChange={(v) => setCtrCardiac(v ?? null)}
+            placeholder="mm"
+            style={{ width: 72 }}
+            addonAfter="mm"
+          />
+          <span style={{ color: '#ccc' }}>Ngực (Td):</span>
+          <InputNumber
+            size="small"
+            min={0}
+            max={999}
+            step={0.1}
+            value={ctrThoracic ?? undefined}
+            onChange={(v) => setCtrThoracic(v ?? null)}
+            placeholder="mm"
+            style={{ width: 72 }}
+            addonAfter="mm"
+          />
+          {ctrRatio !== null ? (
+            <span style={{
+              fontWeight: 700, fontSize: 13,
+              color: ctrAbnormal ? '#ff4d4f' : '#52c41a',
+              minWidth: 110,
+            }}>
+              = {ctrRatio.toFixed(3)}{ctrAbnormal ? ' ⚠ Giãn tim' : ' OK'}
+            </span>
+          ) : (
+            <span style={{ color: '#666', fontStyle: 'italic' }}>
+              {activeTool === 'Length'
+                ? 'Vẽ đoạn thẳng 1 (tim), rồi đoạn 2 (ngực)'
+                : 'Nhập mm hoặc dùng công cụ Đo DT'}
+            </span>
+          )}
+          <Button size="small" onClick={closeCtrPanel} style={{ marginLeft: 'auto' }}>Đóng</Button>
+        </div>
+      )}
       <div
         ref={elementRef}
         style={{

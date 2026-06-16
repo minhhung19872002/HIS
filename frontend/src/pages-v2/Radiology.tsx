@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input, Select } from 'antd';
 import * as risApi from '../api/ris';
-import type { RadiologyOrderDto, RadiologyResultDto, RadiologyOrderItemDto, RadiologyResultTemplateDto, PtttServiceMappingDto } from '../api/ris';
+import type { RadiologyOrderDto, RadiologyResultDto, RadiologyOrderItemDto, RadiologyResultTemplateDto, PtttServiceMappingDto, CoReaderDto } from '../api/ris';
 import * as pathologyApi from '../api/pathology';
 import type { SpecimenType } from '../api/pathology';
 import {
@@ -668,9 +668,13 @@ const RadiologyV2: React.FC = () => {
   const [ptttMapByRow, setPtttMapByRow] = useState<Record<string, { hasMapping: boolean; templateId?: string }>>({});
   // Quick-open PTTT từ row action (không cần mở drawer)
   const [ptttRowTarget, setPtttRowTarget] = useState<RadiologyOrderDto | null>(null);
-  // Bulk download (Prompt 8 Đợt 2)
+  // Bulk selection (Issue #144)
   const [bulkSelected, setBulkSelected] = useState<string[]>([]);
   const [bulkDownloading, setBulkDownloading] = useState(false);
+  const [bulkApproving, setBulkApproving] = useState(false);
+  const [bulkPrinting, setBulkPrinting] = useState(false);
+  // orderId → resultId map; populated lazily when a row with hasResult is selected
+  const bulkResultIdMapRef = useRef<Record<string, string>>({});
   const PAGE_SIZE = 18;
 
   const reload = () => {
@@ -871,14 +875,73 @@ const RadiologyV2: React.FC = () => {
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
       message.success(`Đã tải ${bulkSelected.length} study`);
       setBulkSelected([]);
+      bulkResultIdMapRef.current = {};
     } catch { message.error('Tải xuống thất bại'); }
     finally { setBulkDownloading(false); }
   };
 
-  const toggleBulkSelect = (id: string) => {
-    setBulkSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+  const toggleBulkSelect = (r: RadiologyOrderDto) => {
+    const id = r.id;
+    setBulkSelected((prev) => {
+      if (prev.includes(id)) {
+        delete bulkResultIdMapRef.current[id];
+        return prev.filter((x) => x !== id);
+      }
+      // Resolve resultId lazily for rows that have a result
+      const item = r.items?.[0];
+      if (item?.hasResult) {
+        risApi.getRadiologyResult(item.id)
+          .then((res) => {
+            if (res.data?.id) bulkResultIdMapRef.current[id] = res.data.id;
+          })
+          .catch(() => { /* no result yet — skip */ });
+      }
+      return [...prev, id];
+    });
+  };
+
+  const onBulkApprove = async () => {
+    const resultIds = bulkSelected
+      .map((id) => bulkResultIdMapRef.current[id])
+      .filter(Boolean);
+    if (resultIds.length === 0) {
+      message.warning('Không có ca nào đã có kết quả để duyệt. Hãy đợi load xong hoặc chọn ca có KQ.');
+      return;
+    }
+    setBulkApproving(true);
+    try {
+      const res = await risApi.bulkApproveResults({ resultIds });
+      const { approvedCount, skippedCount } = res.data;
+      if (approvedCount > 0) {
+        message.success(`Đã duyệt ${approvedCount} kết quả${skippedCount > 0 ? ` (bỏ qua ${skippedCount})` : ''}`);
+        setBulkSelected([]);
+        bulkResultIdMapRef.current = {};
+        reload();
+      } else {
+        message.warning(`Không duyệt được ca nào (${skippedCount} bị bỏ qua — kiểm tra trạng thái hoặc quyền)`);
+      }
+    } catch { message.error('Duyệt hàng loạt thất bại'); }
+    finally { setBulkApproving(false); }
+  };
+
+  const onBulkPrint = async () => {
+    const resultIds = bulkSelected
+      .map((id) => bulkResultIdMapRef.current[id])
+      .filter(Boolean);
+    if (resultIds.length === 0) {
+      message.warning('Không có ca nào đã có kết quả để in. Hãy đợi load xong hoặc chọn ca có KQ.');
+      return;
+    }
+    setBulkPrinting(true);
+    try {
+      const resp = await risApi.printRadiologyResultsBatch(resultIds);
+      const blob = new Blob([resp.data as BlobPart], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      message.success(`Đã mở PDF gộp ${resultIds.length} kết quả`);
+    } catch { message.error('In hàng loạt thất bại'); }
+    finally { setBulkPrinting(false); }
   };
 
   return (
@@ -925,13 +988,19 @@ const RadiologyV2: React.FC = () => {
             <span style={{ fontSize: 12, color: 'var(--t-2)' }}>
               {bulkSelected.length} đã chọn
             </span>
-            <Btn variant="ghost" onClick={() => void onBulkDownload(false)} loading={bulkDownloading}>
-              <TermIcon name="download" size={12} /> Tải ZIP
+            <Btn variant="ghost" onClick={() => void onBulkApprove()} loading={bulkApproving} disabled={bulkPrinting || bulkDownloading}>
+              <TermIcon name="check" size={12} /> Duyệt đã chọn
             </Btn>
-            <Btn variant="ghost" onClick={() => void onBulkDownload(true)} loading={bulkDownloading}>
+            <Btn variant="ghost" onClick={() => void onBulkPrint()} loading={bulkPrinting} disabled={bulkApproving || bulkDownloading}>
+              <TermIcon name="print" size={12} /> In đã chọn
+            </Btn>
+            <Btn variant="ghost" onClick={() => void onBulkDownload(false)} loading={bulkDownloading} disabled={bulkApproving || bulkPrinting}>
+              <TermIcon name="download" size={12} /> Tải DICOM
+            </Btn>
+            <Btn variant="ghost" onClick={() => void onBulkDownload(true)} loading={bulkDownloading} disabled={bulkApproving || bulkPrinting}>
               <TermIcon name="shield" size={12} /> Tải ẩn danh
             </Btn>
-            <Btn variant="ghost" onClick={() => setBulkSelected([])}>
+            <Btn variant="ghost" onClick={() => { setBulkSelected([]); bulkResultIdMapRef.current = {}; }}>
               <TermIcon name="x" size={12} /> Bỏ chọn
             </Btn>
           </>
@@ -979,8 +1048,8 @@ const RadiologyV2: React.FC = () => {
               <ActBtn ic="share" title="Chia sẻ ca chụp (ẩn danh tùy chọn)" onClick={() => onShare(r)} />
               <ActBtn
                 ic={bulkSelected.includes(r.id) ? 'check' : 'download'}
-                title={bulkSelected.includes(r.id) ? 'Đã chọn tải hàng loạt' : 'Chọn tải hàng loạt'}
-                onClick={() => toggleBulkSelect(r.id)}
+                title={bulkSelected.includes(r.id) ? 'Đã chọn (bỏ chọn)' : 'Chọn cho thao tác hàng loạt'}
+                onClick={() => toggleBulkSelect(r)}
               />
               <ActBtn ic="print" title="In phiếu" onClick={() => onPrintRow(r)} />
               {/* Nút PTTT: chỉ hiện khi serviceId có mapping (từ batch-check) */}
@@ -1101,6 +1170,211 @@ const RadiologyV2: React.FC = () => {
   );
 };
 
+// ─────────────── Co-Reader Section (#139) ───────────────
+
+/**
+ * Section "Dong doc" hien thi trong detail drawer cua mot ca CDHA.
+ * reportId = RadiologyResultDto.id (= RadiologyReport.Id tren backend).
+ */
+const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) => {
+  const { message } = AntdApp.useApp();
+  const [readers, setReaders] = useState<CoReaderDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [newReaderId, setNewReaderId] = useState('');
+  const [newReaderName, setNewReaderName] = useState('');
+  const [newRole, setNewRole] = useState<string>('CoReader');
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editOpinion, setEditOpinion] = useState('');
+  const [merging, setMerging] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await risApi.getCoReaders(reportId);
+      setReaders(res.data);
+    } catch {
+      // silence — optional feature
+    } finally {
+      setLoading(false);
+    }
+  }, [reportId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleAdd = async () => {
+    if (!newReaderId.trim()) { message.warning('Nhap Id BS dong doc'); return; }
+    try {
+      await risApi.addCoReader({
+        radiologyReportId: reportId,
+        readerId: newReaderId.trim(),
+        readerName: newReaderName.trim() || undefined,
+        role: newRole,
+      });
+      message.success('Da them BS dong doc');
+      setAddOpen(false);
+      setNewReaderId(''); setNewReaderName(''); setNewRole('CoReader');
+      load();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      message.error(err?.response?.data?.message || 'Loi them dong doc');
+    }
+  };
+
+  const handleSaveOpinion = async (cr: CoReaderDto) => {
+    try {
+      await risApi.updateCoReaderOpinion({ coReaderId: cr.id, opinion: editOpinion });
+      message.success('Da cap nhat y kien');
+      setEditId(null);
+      load();
+    } catch {
+      message.error('Loi cap nhat y kien');
+    }
+  };
+
+  const handleRemove = async (coReaderId: string) => {
+    try {
+      await risApi.removeCoReader(coReaderId);
+      message.success('Da xoa dong doc');
+      load();
+    } catch {
+      message.error('Loi xoa dong doc');
+    }
+  };
+
+  const handleMerge = async () => {
+    setMerging(true);
+    try {
+      const res = await risApi.mergeCoReaderOpinions({ radiologyReportId: reportId, appendMode: true });
+      message.success(`Da gop ${res.data.coReaderCount} y kien vao Impression`);
+    } catch {
+      message.error('Loi gop y kien');
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  const roleLabel = (r?: string) => {
+    if (r === 'Consultant') return 'Hoi chan';
+    if (r === 'Supervisor') return 'Giam sat';
+    if (r === 'CopiedFrom') return 'Copy tu';
+    return 'Dong doc';
+  };
+
+  return (
+    <div className="rec-section" style={{ marginTop: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <h5 style={{ margin: 0 }}>
+          <TermIcon name="users" size={11} /> DONG DOC ({readers.length})
+        </h5>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {readers.length > 0 && (
+            <Btn size="sm" icon="git-merge" loading={merging} onClick={handleMerge}>
+              Gop y kien
+            </Btn>
+          )}
+          <Btn size="sm" icon="plus" onClick={() => setAddOpen(v => !v)}>
+            Them BS
+          </Btn>
+        </div>
+      </div>
+
+      {/* Form them dong doc */}
+      {addOpen && (
+        <div style={{
+          padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)',
+          borderRadius: 6, marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 6,
+        }}>
+          <Input
+            size="small"
+            placeholder="User Id BS dong doc (Guid)"
+            value={newReaderId}
+            onChange={e => setNewReaderId(e.target.value)}
+          />
+          <Input
+            size="small"
+            placeholder="Ten BS (tuy chon — backend tu lay neu bo trong)"
+            value={newReaderName}
+            onChange={e => setNewReaderName(e.target.value)}
+          />
+          <Select
+            size="small"
+            value={newRole}
+            onChange={v => setNewRole(v)}
+            options={[
+              { value: 'CoReader',   label: 'Dong doc' },
+              { value: 'Consultant', label: 'Hoi chan' },
+              { value: 'Supervisor', label: 'Giam sat' },
+            ]}
+          />
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <Btn size="sm" variant="ok" icon="check" onClick={handleAdd}>Luu</Btn>
+            <Btn size="sm" variant="ghost" onClick={() => setAddOpen(false)}>Huy</Btn>
+          </div>
+        </div>
+      )}
+
+      {/* Danh sach dong doc */}
+      {loading && <div style={{ color: 'var(--t-3)', fontSize: 12 }}>Dang tai...</div>}
+      {!loading && readers.length === 0 && (
+        <div style={{ color: 'var(--t-3)', fontSize: 12 }}>Chua co BS dong doc nao.</div>
+      )}
+      {readers.map(cr => (
+        <div key={cr.id} style={{
+          padding: '8px 0', borderBottom: '1px solid var(--line-soft)',
+          fontSize: 12.5,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <b style={{ color: 'var(--t-0)' }}>{cr.readerName || cr.readerId}</b>
+              <span style={{
+                marginLeft: 6, fontSize: 10.5, padding: '1px 6px',
+                background: 'var(--d-2)', borderRadius: 3, color: 'var(--t-2)',
+              }}>{roleLabel(cr.role)}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <ActBtn ic="edit" title="Sua y kien" onClick={() => {
+                setEditId(cr.id);
+                setEditOpinion(cr.opinion || '');
+              }} />
+              <ActBtn ic="trash-2" title="Xoa dong doc" tone="crit" onClick={() => handleRemove(cr.id)} />
+            </div>
+          </div>
+
+          {/* Y kien */}
+          {editId === cr.id ? (
+            <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <Input.TextArea
+                size="small"
+                rows={3}
+                value={editOpinion}
+                onChange={e => setEditOpinion(e.target.value)}
+                placeholder="Y kien / nhan xet..."
+              />
+              <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                <Btn size="sm" variant="ok" icon="check" onClick={() => handleSaveOpinion(cr)}>Luu</Btn>
+                <Btn size="sm" variant="ghost" onClick={() => setEditId(null)}>Huy</Btn>
+              </div>
+            </div>
+          ) : cr.opinion ? (
+            <div style={{ marginTop: 4, color: 'var(--t-1)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+              {cr.opinion}
+            </div>
+          ) : (
+            <div style={{ marginTop: 4, color: 'var(--t-3)', fontStyle: 'italic' }}>Chua co y kien</div>
+          )}
+
+          {cr.copiedFromReportId && (
+            <div style={{ marginTop: 3, fontSize: 11, color: 'var(--t-3)' }}>
+              Copy tu report: <span className="mono">{cr.copiedFromReportId.slice(0, 8)}...</span>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const RadiologyDrawerBody: React.FC<{ r: RadiologyOrderDto; result: RadiologyResultDto | null }> = ({ r, result }) => {
   const sk = statusKey(r.status);
   const tone = statusTone(sk);
@@ -1177,6 +1451,9 @@ const RadiologyDrawerBody: React.FC<{ r: RadiologyOrderDto; result: RadiologyRes
           )}
         </div>
       )}
+
+      {/* #139 Co-Reader Section — hien thi neu co report */}
+      {result && <CoReaderSection reportId={result.id} />}
     </>
   );
 };

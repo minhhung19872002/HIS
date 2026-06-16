@@ -238,6 +238,14 @@ public static class DependencyInjection
         services.AddHostedService<HIS.Infrastructure.Services.Workers.BackupSchedulerWorker>(); // #128
         services.AddHostedService<HIS.Infrastructure.Services.Workers.AppointmentReminderWorker>(); // #102
 
+        // Wave 3: kết nối HIS đa NCC (#90)
+        services.AddHttpClient("MultiHisConnector", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+            client.DefaultRequestHeaders.Add("User-Agent", "HIS-MultiConnector/1.0");
+        });
+        services.AddScoped<IMultiHisConnectorService, MultiHisConnectorService>();
+
         // F3.4 #151: BN BHYT chi trả 100% thuốc đặc trị
         services.AddScoped<IBhytFullCoverageService, BhytFullCoverageService>();
 

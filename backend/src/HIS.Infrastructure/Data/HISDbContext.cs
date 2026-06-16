@@ -176,6 +176,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<FunctionalDiagnosticTemplate> FunctionalDiagnosticTemplates => Set<FunctionalDiagnosticTemplate>(); // #40 #64-67
     public DbSet<ProvincialDirective> ProvincialDirectives => Set<ProvincialDirective>(); // #47: chỉ đạo tuyến
     public DbSet<BackupHistory> BackupHistories => Set<BackupHistory>(); // #106 #128-130: lịch sử backup
+    public DbSet<RadiologyReportCoReader> RadiologyReportCoReaders => Set<RadiologyReportCoReader>(); // #139: đồng đọc RIS
+    public DbSet<HisConnection> HisConnections => Set<HisConnection>(); // #90: kết nối HIS đa NCC
     public DbSet<Supplier> Suppliers => Set<Supplier>();
 
     // Warehouse extensions (consignment, IU mapping, splitable, profit margin)
