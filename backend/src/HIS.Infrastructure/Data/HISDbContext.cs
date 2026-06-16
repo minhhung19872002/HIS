@@ -167,6 +167,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<Province> Provinces => Set<Province>();
     public DbSet<District> Districts => Set<District>();
     public DbSet<Ward> Wards => Set<Ward>();
+    public DbSet<BirthRegister> BirthRegisters => Set<BirthRegister>(); // #154: sổ sinh đẻ
+    public DbSet<AbortionRegister> AbortionRegisters => Set<AbortionRegister>(); // #154: sổ nạo phá thai
     public DbSet<Supplier> Suppliers => Set<Supplier>();
 
     // Warehouse extensions (consignment, IU mapping, splitable, profit margin)

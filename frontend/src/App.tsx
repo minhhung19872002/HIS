@@ -58,6 +58,7 @@ const TraumaRegistryV2 = lazy(() => import('./pages-v2/TraumaRegistry'));
 const WaitingTimeReportV2 = lazy(() => import('./pages-v2/WaitingTimeReport'));
 const SpecialTestRuleAdminV2 = lazy(() => import('./pages-v2/SpecialTestRuleAdmin'));
 const AdministrativeUnitsV2 = lazy(() => import('./pages-v2/AdministrativeUnits'));
+const ObstetricRegistersV2 = lazy(() => import('./pages-v2/ObstetricRegisters'));
 const BhytFullCoverageV2 = lazy(() => import('./pages-v2/BhytFullCoverage'));
 const HealthEducationV2 = lazy(() => import('./pages-v2/HealthEducation'));
 const PopulationHealthV2 = lazy(() => import('./pages-v2/PopulationHealth'));
@@ -666,6 +667,8 @@ const AppRoutes: React.FC = () => {
           <Route path="cdss/special-test-rules" element={<SpecialTestRuleAdminV2 />} />
           {/* Wave 2: #94 administrative units catalog */}
           <Route path="administrative-units" element={<AdministrativeUnitsV2 />} />
+          {/* #154 obstetric registers (birth + abortion) */}
+          <Route path="obstetric-registers" element={<ObstetricRegistersV2 />} />
           {/* Wave 3: #151 BHYT full-coverage patient list */}
           <Route path="bhyt-full-coverage" element={<BhytFullCoverageV2 />} />
           <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />

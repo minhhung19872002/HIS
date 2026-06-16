@@ -6,6 +6,13 @@
 > Cập nhật cuối: **2026-06-16** (phiên Claude máy D: — feature v2 nối tiếp #145/#85/#86 (PUSHED) + #89/#87 (chờ push); governance sync-gate đã push).
 
 ## Đang ở đâu
+- **#154 F1.8 — Sổ sinh đẻ + Sổ theo dõi nạo phá thai (code-complete, build-green BE 0err + FE EXIT0, chờ push)**:
+  module mới `ObstetricRegister` (clone pattern #94 DM hành chính). BE: entity `BirthRegister`+`AbortionRegister`
+  + DTO + interface + service (CRUD soft-delete + report aggregate) + controller `/api/obstetric-register`
+  (births/abortions/report) + DI + 2 DbSet + **migration 116** (2 bảng standalone, audit NVARCHAR(450)).
+  FE: api client + page v2 `ObstetricRegisters.tsx` (3 tab: Sổ sinh đẻ / Sổ nạo phá thai / Báo cáo BYT) +
+  route `/v2/obstetric-registers` + menu "Sổ sản khoa". ⚠️ migration chưa runtime-test (DB off) → verify
+  schema-drift sau deploy. → chờ user push + `Closes #154`.
 - **#148 F1.7 — Phiếu theo dõi chạy thận nhân tạo (✅ PUSHED `05121a2` + CLOSED + VERIFY PROD)**: deploy success
   (run 27593904185, 7m42s). Prod: schema-drift `missingCount=0` (bảng+cột live) · GET hemodialysis có-token 200 []
   · no-token 401 · report `DialysisMachineUsage` 200 shape mới `{count,patientCount}`+summary (stub thay query thực).

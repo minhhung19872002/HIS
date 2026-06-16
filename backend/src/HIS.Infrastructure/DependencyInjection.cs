@@ -223,6 +223,9 @@ public static class DependencyInjection
         // F10.1 #94: DM Địa danh hành chính (Tỉnh/Huyện/Xã)
         services.AddScoped<IAdministrativeUnitService, AdministrativeUnitService>();
 
+        // F1.8 #154: Sổ sinh đẻ + Sổ theo dõi nạo phá thai (register khoa Sản)
+        services.AddScoped<IObstetricRegisterService, ObstetricRegisterService>();
+
         // F3.4 #151: BN BHYT chi trả 100% thuốc đặc trị
         services.AddScoped<IBhytFullCoverageService, BhytFullCoverageService>();
 

@@ -148,6 +148,7 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'practice-license',  path: '/v2/practice-license',  label: 'Chứng chỉ hành nghề' },
       { id: 'endpoint-security', path: '/v2/endpoint-security', label: 'An toàn thông tin' },
       { id: 'administrative-units', path: '/v2/administrative-units', label: 'DM Địa danh HC' },
+      { id: 'obstetric-registers', path: '/v2/obstetric-registers', label: 'Sổ sản khoa' },
       { id: 'reports',           path: '/v2/reports',           label: '[24] Báo cáo' },
       { id: 'waiting-time',      path: '/v2/reports/waiting-time', label: 'Phân tích thời gian chờ' },
       { id: 'report-catalogs',   path: '/v2/report-catalogs',   label: '[24] DM Nhóm BC' },
