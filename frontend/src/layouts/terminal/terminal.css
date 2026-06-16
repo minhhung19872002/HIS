@@ -41,6 +41,8 @@
   --s-info-bg: #f0f9ff;
   --s-mag:  #7c3aed;
   --s-mag-bg: #f5f3ff;
+  /* text-on-tint: chữ đậm đọc trên nền tint sáng (#159) */
+  --s-crit-tx: #991b1b;  --s-warn-tx: #92400e;  --s-ok-tx: #166534;  --s-mag-tx: #6d28d9;
 
   --r-1: 3px;
   --r-2: 6px;
@@ -101,6 +103,8 @@ body[data-theme="dark"] {
   --s-info-bg: #122636;
   --s-mag: #a78bfa;
   --s-mag-bg: #241d39;
+  /* text-on-tint dark: chữ sáng đọc trên nền tint tối */
+  --s-crit-tx: #fca5a5;  --s-warn-tx: #fcd34d;  --s-ok-tx: #86efac;  --s-mag-tx: #c4b5fd;
 }
 
 /* Scoped resets (only affect /v2/* under .his-terminal) */
