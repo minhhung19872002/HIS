@@ -6,7 +6,15 @@
 > Cập nhật cuối: **2026-06-16** (phiên Claude máy D: — feature v2 nối tiếp #145/#85/#86 (PUSHED) + #89/#87 (chờ push); governance sync-gate đã push).
 
 ## Đang ở đâu
-- **CHIẾN DỊCH "làm hết issue actionable" (user 2026-06-16: "còn bao nhiêu làm hết, khỏi hỏi lại")**: fan-out
+- **CHIẾN DỊCH "làm hết" (2026-06-16) — KẾT QUẢ: backlog 89→21 OPEN (đóng 68 issue).** 5 wave fan-out feature
+  (W1 ADR/bảo lãnh/HR · W2 CLS-catalog/chỉ-đạo-tuyến/backup/nhắc-lịch/CV365 · W3 RIS co-reader/Cobb-CTR/batch/multi-HIS ·
+  W4 kiosk/import/asset/triage/split · W5 đổi-đối-tượng/ký-số/RBAC/mobile/LIS-fields) + #148 chạy thận + #154 sổ sản.
+  Migration 115-131 (idempotent, schema-drift=0 verify từng wave). Doc #112 ma trận controller. **CÒN 21 OPEN, KHÔNG
+  auto-làm — lý do rõ:** (a) BLOCKED phần cứng: #22 #113 #133 #134; (b) BLOCKED credential: #24 (HDDT NCC) #25 (R2 token);
+  (c) TECH-DEBT refactor rủi-ro-prod (cần user duyệt explicit, "không vỡ cái đang chạy"): #17 #35 #42 #43 #44;
+  (d) DEFER lớn: #91 (~140 mẫu BC, cần danh sách gói thầu) #105 (tool migration HIS cũ, cần schema nguồn) #48 (audit
+  cột CreatedBy đa-module — additive được, chưa làm); (e) EPIC còn con blocked/defer: #33 #34 #36 #38 #78 #79 #82.
+- **CHIẾN DỊCH cũ "làm hết issue actionable" (fan-out)**: fan-out
   agent build module mới (mỗi agent chỉ tạo file mới + migration pre-assign, KHÔNG build/KHÔNG sửa 4 file shared,
   trả snippet → main áp tập trung + build gate). Triage 4 Explore agent: đóng 5 DONE-duplicate (#114 #119 #120
   #146 #93). BLOCKED (cần HW/credential): #133 #134 #113 #22 #24 #25. Defer tech-debt: #17 #42 #43 #44 #45 #35.
