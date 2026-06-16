@@ -6,6 +6,17 @@
 > Cập nhật cuối: **2026-06-16** (phiên Claude máy D: — feature v2 nối tiếp #145/#85/#86 (PUSHED) + #89/#87 (chờ push); governance sync-gate đã push).
 
 ## Đang ở đâu
+- **#48 audit advanced-services (static, claim @me)** — backlog feature-mới đã CẠN (8 OPEN còn lại = blocked HW/cred
+  #113/#24 · defer-cần-input #91/#105 · tech-debt-refactor-rủi-ro #42/#43/#44 cần user duyệt · audit #48). Làm #48
+  static stub-audit: **5/6 service advanced persist THẬT** (SaveChanges+EF), nghi-ngờ issue đã lỗi thời. **Stub ẩn xác nhận:**
+  `ProvincialHealthService.GetInfectiousDiseaseReportsAsync`/`SubmitInfectiousReportAsync` (placeholder, chưa bảng/migration).
+  Báo cáo: `docs/workspace-docs/10-assessment/audit-advanced-services-48.md`. Runtime PowerShell-test defer (DB off).
+- **User duyệt "làm tuần tự 1→3" (2026-06-16):** ① audit + **tạo bug #156** (gộp 5 finding: ProvincialHealth infectious-stub +
+  **ProcurementService.ApproveRequestAsync thiếu role-check #108** + 3 placeholder). ② **verify prod: schema-drift `missingCount=0`**
+  (migration 113–131 apply sạch, deploy wave3/4/5 success). ③ **plan #42/#43/#44**: `docs/workspace-docs/20-backlog/items/plan-42-43-44-controller-consolidation.md`
+  — #42 chỉ gộp Enhancement→Pharmacy (sau #17) · **#43 KHÔNG gộp** (6 domain báo cáo độc lập, tiền-đề sai → đề xuất close) ·
+  #44 DRY base service giữ controller riêng. **Chưa thực thi refactor** (rủi-ro-prod, cần phiên deploy+smoke + user duyệt từng nhóm).
+  Tất cả doc/STATUS + bug #156 đã tạo; audit doc/plan **chưa commit** (chờ lệnh).
 - **CHIẾN DỊCH "làm hết" (2026-06-16) — KẾT QUẢ: backlog 89→21 OPEN (đóng 68 issue).** 5 wave fan-out feature
   (W1 ADR/bảo lãnh/HR · W2 CLS-catalog/chỉ-đạo-tuyến/backup/nhắc-lịch/CV365 · W3 RIS co-reader/Cobb-CTR/batch/multi-HIS ·
   W4 kiosk/import/asset/triage/split · W5 đổi-đối-tượng/ký-số/RBAC/mobile/LIS-fields) + #148 chạy thận + #154 sổ sản.
