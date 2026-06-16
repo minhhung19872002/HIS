@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs.ProvincialHealth;
 using HIS.Application.Services;
+using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 
 namespace HIS.Infrastructure.Services;
@@ -154,7 +155,8 @@ public class ProvincialHealthService : IProvincialHealthService
 
     public async Task<List<InfectiousDiseaseReportDto>> GetInfectiousDiseaseReportsAsync(string? dateFrom, string? dateTo)
     {
-        // Return empty list - no infectious disease reports yet
+        // Placeholder: bảng InfectiousDiseaseReports chưa có migration — trả rỗng an toàn
+        await Task.CompletedTask;
         return new List<InfectiousDiseaseReportDto>();
     }
 
@@ -165,5 +167,142 @@ public class ProvincialHealthService : IProvincialHealthService
             success = true,
             message = "Đã gửi báo cáo bệnh truyền nhiễm thành công"
         });
+    }
+
+    // ─── Chỉ đạo tuyến (Provincial Directives) — persist thật ─────────────────
+
+    public async Task<ProvincialDirectivePagedResult> GetDirectivesAsync(ProvincialDirectiveSearchDto search)
+    {
+        var q = _db.ProvincialDirectives.Where(d => !d.IsDeleted);
+
+        if (search.Status.HasValue)
+            q = q.Where(d => d.Status == search.Status.Value);
+
+        if (!string.IsNullOrWhiteSpace(search.Keyword))
+        {
+            var kw = search.Keyword.Trim();
+            q = q.Where(d =>
+                d.Title.Contains(kw) ||
+                (d.DirectiveNo != null && d.DirectiveNo.Contains(kw)) ||
+                (d.FromLevel != null && d.FromLevel.Contains(kw)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(search.DateFrom) &&
+            DateTime.TryParse(search.DateFrom, out var dtFrom))
+            q = q.Where(d => d.IssueDate >= dtFrom);
+
+        if (!string.IsNullOrWhiteSpace(search.DateTo) &&
+            DateTime.TryParse(search.DateTo, out var dtTo))
+            q = q.Where(d => d.IssueDate <= dtTo.AddDays(1));
+
+        var totalCount = await q.CountAsync();
+        var items = await q
+            .OrderByDescending(d => d.IssueDate)
+            .ThenByDescending(d => d.CreatedAt)
+            .Skip(search.PageIndex * search.PageSize)
+            .Take(search.PageSize)
+            .Select(d => new ProvincialDirectiveDto
+            {
+                Id          = d.Id,
+                Title       = d.Title,
+                DirectiveNo = d.DirectiveNo,
+                Content     = d.Content,
+                IssueDate   = d.IssueDate,
+                FromLevel   = d.FromLevel,
+                ToLevel     = d.ToLevel,
+                Status      = d.Status,
+                Notes       = d.Notes,
+                CreatedAt   = d.CreatedAt,
+                CreatedBy   = d.CreatedBy,
+            })
+            .ToListAsync();
+
+        return new ProvincialDirectivePagedResult
+        {
+            Items      = items,
+            TotalCount = totalCount,
+            PageIndex  = search.PageIndex,
+            PageSize   = search.PageSize,
+        };
+    }
+
+    public async Task<ProvincialDirectiveDto?> GetDirectiveByIdAsync(Guid id)
+    {
+        var d = await _db.ProvincialDirectives
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+        if (d == null) return null;
+        return new ProvincialDirectiveDto
+        {
+            Id          = d.Id,
+            Title       = d.Title,
+            DirectiveNo = d.DirectiveNo,
+            Content     = d.Content,
+            IssueDate   = d.IssueDate,
+            FromLevel   = d.FromLevel,
+            ToLevel     = d.ToLevel,
+            Status      = d.Status,
+            Notes       = d.Notes,
+            CreatedAt   = d.CreatedAt,
+            CreatedBy   = d.CreatedBy,
+        };
+    }
+
+    public async Task<ProvincialDirectiveDto> SaveDirectiveAsync(SaveProvincialDirectiveRequest req, string userId)
+    {
+        ProvincialDirective entity;
+        if (req.Id.HasValue && req.Id.Value != Guid.Empty)
+        {
+            entity = await _db.ProvincialDirectives.FirstAsync(d => d.Id == req.Id.Value && !d.IsDeleted);
+            entity.UpdatedAt  = DateTime.UtcNow;
+            entity.UpdatedBy  = userId;
+        }
+        else
+        {
+            entity = new ProvincialDirective
+            {
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = userId,
+            };
+            _db.ProvincialDirectives.Add(entity);
+        }
+
+        entity.Title       = req.Title;
+        entity.DirectiveNo = req.DirectiveNo;
+        entity.Content     = req.Content;
+        entity.IssueDate   = req.IssueDate;
+        entity.FromLevel   = req.FromLevel;
+        entity.ToLevel     = req.ToLevel;
+        entity.Status      = req.Status;
+        entity.Notes       = req.Notes;
+
+        await _db.SaveChangesAsync();
+
+        return new ProvincialDirectiveDto
+        {
+            Id          = entity.Id,
+            Title       = entity.Title,
+            DirectiveNo = entity.DirectiveNo,
+            Content     = entity.Content,
+            IssueDate   = entity.IssueDate,
+            FromLevel   = entity.FromLevel,
+            ToLevel     = entity.ToLevel,
+            Status      = entity.Status,
+            Notes       = entity.Notes,
+            CreatedAt   = entity.CreatedAt,
+            CreatedBy   = entity.CreatedBy,
+        };
+    }
+
+    public async Task<bool> DeleteDirectiveAsync(Guid id, string userId)
+    {
+        var entity = await _db.ProvincialDirectives
+            .FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted);
+        if (entity == null) return false;
+
+        entity.IsDeleted  = true;
+        entity.UpdatedAt  = DateTime.UtcNow;
+        entity.UpdatedBy  = userId;
+        await _db.SaveChangesAsync();
+        return true;
     }
 }

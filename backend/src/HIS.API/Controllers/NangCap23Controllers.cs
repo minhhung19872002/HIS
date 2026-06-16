@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using HIS.API.Filters;
+using HIS.Application.DTOs.FunctionalDiagnostic;
 using HIS.Application.DTOs.NangCap23;
+using HIS.Application.Interfaces;
 using HIS.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -323,7 +325,15 @@ public class LinenManagementController : ControllerBase
 public class FunctionalDiagnosticsController : ControllerBase
 {
     private readonly IFunctionalDiagnosticsService _svc;
-    public FunctionalDiagnosticsController(IFunctionalDiagnosticsService svc) { _svc = svc; }
+    private readonly IFunctionalDiagnosticCatalogService _catalog;
+
+    public FunctionalDiagnosticsController(
+        IFunctionalDiagnosticsService svc,
+        IFunctionalDiagnosticCatalogService catalog)
+    {
+        _svc = svc;
+        _catalog = catalog;
+    }
 
     private string? UserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -364,19 +374,13 @@ public class FunctionalDiagnosticsController : ControllerBase
     public async Task<ActionResult<object>> Delete(Guid id)
         => Ok(new { success = await _svc.DeleteAsync(id, UserId()) });
 
+    /// <summary>
+    /// Trả danh sách loại TDCN từ DB (thay thế hardcode cũ — #40 #64 #65 #66 #67).
+    /// Shape backward-compat: mỗi item có { id, code, name, description, isActive }.
+    /// </summary>
     [HttpGet("test-types")]
-    [AllowAnonymous]
-    public ActionResult<List<object>> GetTestTypes() => Ok(new List<object>
-    {
-        new { code = "ECG", name = "Điện tim thường quy" },
-        new { code = "ECGStress", name = "Điện tim gắng sức" },
-        new { code = "Endoscopy", name = "Nội soi" },
-        new { code = "BoneDensity", name = "Đo loãng xương" },
-        new { code = "EEG", name = "Điện não" },
-        new { code = "EMG", name = "Điện cơ" },
-        new { code = "Spirometry", name = "Đo chức năng hô hấp" },
-        new { code = "Audiometry", name = "Đo thính lực" }
-    });
+    public async Task<ActionResult<List<FunctionalDiagnosticTestTypeDto>>> GetTestTypes()
+        => Ok(await _catalog.GetTestTypesAsync(null));
 }
 
 // ============================================================================

@@ -39,18 +39,69 @@ public class DataManagementController : ControllerBase
         => Ok(await _service.GetModuleCountsAsync());
 
     /// <summary>
-    /// Lịch sử backup
+    /// Lịch sử backup (legacy — trả BackupInfoDto từ bảng BackupHistories)
     /// </summary>
     [HttpGet("backups")]
     public async Task<ActionResult<List<BackupInfoDto>>> GetBackups()
         => Ok(await _service.GetBackupsAsync());
 
     /// <summary>
-    /// Tạo backup mới
+    /// Tạo backup mới (legacy endpoint, delegate sang CreateBackupWithHistory)
     /// </summary>
     [HttpPost("backups")]
     public async Task<IActionResult> CreateBackup([FromBody] CreateBackupRequest request)
         => Ok(await _service.CreateBackupAsync(request.BackupType, request.Modules, GetUserId()));
+
+    // ── Backup History (mới) ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Lịch sử backup chi tiết từ bảng BackupHistories
+    /// </summary>
+    [HttpGet("backup-history")]
+    public async Task<ActionResult<List<BackupHistoryDto>>> GetBackupHistory()
+        => Ok(await _service.GetBackupHistoryAsync());
+
+    /// <summary>
+    /// Tạo backup thủ công với ghi lịch sử đầy đủ
+    /// </summary>
+    [HttpPost("backup-history")]
+    public async Task<ActionResult<BackupHistoryDto>> CreateBackupWithHistory([FromBody] CreateBackupHistoryRequest request)
+        => Ok(await _service.CreateBackupWithHistoryAsync(request, GetUserId()));
+
+    /// <summary>
+    /// Yêu cầu restore từ một bản backup.
+    ///
+    /// QUAN TRỌNG: Endpoint này KHÔNG tự động chạy RESTORE DATABASE trên production.
+    /// Nó ghi nhận yêu cầu, kiểm tra tính hợp lệ, và trả về script T-SQL để admin
+    /// chạy thủ công trong môi trường kiểm soát (SSMS / sqlcmd).
+    /// Cần ConfirmRisk=true và Reason không rỗng.
+    /// </summary>
+    [HttpPost("backup-history/{id}/restore-request")]
+    public async Task<ActionResult<RestoreBackupResultDto>> RequestRestore(
+        Guid id, [FromBody] RestoreBackupRequest request)
+    {
+        request.BackupHistoryId = id;
+        var result = await _service.RequestRestoreAsync(request, GetUserId());
+        if (result.Status == "Rejected")
+            return BadRequest(result);
+        return Ok(result);
+    }
+
+    // ── Backup Config ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Lấy cấu hình đích và lịch backup tự động
+    /// </summary>
+    [HttpGet("backup-config")]
+    public async Task<ActionResult<BackupConfigDto>> GetBackupConfig()
+        => Ok(await _service.GetBackupConfigAsync());
+
+    /// <summary>
+    /// Cập nhật cấu hình đích và lịch backup tự động
+    /// </summary>
+    [HttpPut("backup-config")]
+    public async Task<ActionResult<BackupConfigDto>> SaveBackupConfig([FromBody] BackupConfigDto config)
+        => Ok(await _service.SaveBackupConfigAsync(config, GetUserId()));
 
     /// <summary>
     /// Lịch sử xuất dữ liệu

@@ -232,6 +232,12 @@ public static class DependencyInjection
         // Bảo lãnh viện phí (#41 #68-72)
         services.AddScoped<IBillingGuarantorService, BillingGuarantorService>();
 
+        // Wave 2: catalog CLS DB-driven (#40 #64-67), CV365 XML (#88), worker nền
+        services.AddScoped<IFunctionalDiagnosticCatalogService, FunctionalDiagnosticCatalogService>();
+        services.AddScoped<ICv365XmlService, Cv365XmlService>();
+        services.AddHostedService<HIS.Infrastructure.Services.Workers.BackupSchedulerWorker>(); // #128
+        services.AddHostedService<HIS.Infrastructure.Services.Workers.AppointmentReminderWorker>(); // #102
+
         // F3.4 #151: BN BHYT chi trả 100% thuốc đặc trị
         services.AddScoped<IBhytFullCoverageService, BhytFullCoverageService>();
 

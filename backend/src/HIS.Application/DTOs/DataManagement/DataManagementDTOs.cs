@@ -100,3 +100,95 @@ public class CreateHandoverRequest
     public List<string>? Modules { get; set; }
     public string? Remarks { get; set; }
 }
+
+// ==================== Backup History ====================
+
+/// <summary>
+/// DTO trả về lịch sử backup từ bảng BackupHistories.
+/// Status: 0=Running, 1=Success, 2=Failed.
+/// BackupType: 0=Manual, 1=Scheduled.
+/// </summary>
+public class BackupHistoryDto
+{
+    public Guid Id { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string? FilePath { get; set; }
+    public long SizeBytes { get; set; }
+    public int BackupType { get; set; }
+    public string BackupTypeName => BackupType switch { 0 => "Thủ công", 1 => "Tự động", _ => "Không xác định" };
+    public string? Destination { get; set; }
+    public int Status { get; set; }
+    public string StatusName => Status switch { 0 => "Đang chạy", 1 => "Thành công", 2 => "Thất bại", _ => "Không xác định" };
+    public DateTime StartedAt { get; set; }
+    public DateTime? CompletedAt { get; set; }
+    public string? ErrorMessage { get; set; }
+    public string? CreatedBy { get; set; }
+}
+
+/// <summary>
+/// Request tạo backup thủ công.
+/// </summary>
+public class CreateBackupHistoryRequest
+{
+    /// <summary>"Full" | "Differential" | "TransactionLog"</summary>
+    public string BackupLabel { get; set; } = "Full";
+    public List<string>? Modules { get; set; }
+    /// <summary>Đích lưu: "Local" | "NAS" | "Cloud". Null = dùng cấu hình hệ thống.</summary>
+    public string? Destination { get; set; }
+}
+
+/// <summary>
+/// Request restore từ một bản backup cụ thể.
+/// QUAN TRỌNG: endpoint restore chỉ ghi nhận yêu cầu (Status=Pending) và trả
+/// thông tin xác nhận — KHÔNG tự động thực thi RESTORE DATABASE lên production.
+/// Admin phải xác nhận qua endpoint /confirm sau khi tắt các kết nối.
+/// </summary>
+public class RestoreBackupRequest
+{
+    public Guid BackupHistoryId { get; set; }
+    /// <summary>Ghi chú lý do restore (bắt buộc để audit)</summary>
+    public string Reason { get; set; } = string.Empty;
+    /// <summary>
+    /// Xác nhận hiểu rủi ro: admin phải gửi true.
+    /// Nếu false → API trả 400, không ghi nhận yêu cầu.
+    /// </summary>
+    public bool ConfirmRisk { get; set; }
+}
+
+public class RestoreBackupResultDto
+{
+    public Guid RequestId { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string? FilePath { get; set; }
+    /// <summary>"Pending" = đã ghi nhận, chờ admin chạy thủ công; "Rejected" = điều kiện không hợp lệ</summary>
+    public string Status { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    /// <summary>Hướng dẫn thực thi restore thủ công (câu lệnh T-SQL để admin chạy)</summary>
+    public string? ManualRestoreScript { get; set; }
+    public DateTime RequestedAt { get; set; }
+}
+
+// ==================== Backup Config ====================
+
+/// <summary>
+/// Cấu hình backup đích và lịch tự động.
+/// Lưu vào SystemConfig với các key: Backup.Destination, Backup.NasPath,
+/// Backup.CloudBucket, Backup.ScheduleCron, Backup.ScheduleEnabled.
+/// </summary>
+public class BackupConfigDto
+{
+    /// <summary>"Local" | "NAS" | "Cloud"</summary>
+    public string Destination { get; set; } = "Local";
+    /// <summary>Thư mục NAS (UNC path hoặc mount point)</summary>
+    public string? NasPath { get; set; }
+    /// <summary>Cloud bucket/container name (R2 / GCS / S3)</summary>
+    public string? CloudBucket { get; set; }
+    /// <summary>Cron expression (VD: "0 2 * * *" = 2 giờ sáng mỗi ngày). Null = dùng IntervalHours.</summary>
+    public string? ScheduleCron { get; set; }
+    /// <summary>Khoảng cách giờ giữa các lần backup tự động (nếu không dùng cron)</summary>
+    public int? ScheduleIntervalHours { get; set; }
+    /// <summary>Bật/tắt backup tự động</summary>
+    public bool ScheduleEnabled { get; set; }
+    /// <summary>Giữ tối đa N bản backup (cũ hơn sẽ bị xoá metadata)</summary>
+    public int RetentionCount { get; set; } = 30;
+}

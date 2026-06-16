@@ -90,4 +90,42 @@ public class ProvincialHealthController : ControllerBase
     [HttpPost("infectious-diseases/submit/{id}")]
     public async Task<IActionResult> SubmitInfectious(Guid id)
         => Ok(await _service.SubmitInfectiousReportAsync(id, GetUserId()));
+
+    // ─── Chỉ đạo tuyến (Provincial Directives) ────────────────────────────────
+
+    /// <summary>
+    /// Danh sách chỉ đạo tuyến (có phân trang, tìm kiếm)
+    /// </summary>
+    [HttpPost("directives/search")]
+    public async Task<ActionResult<ProvincialDirectivePagedResult>> SearchDirectives(
+        [FromBody] ProvincialDirectiveSearchDto search)
+        => Ok(await _service.GetDirectivesAsync(search));
+
+    /// <summary>
+    /// Chi tiết một chỉ đạo tuyến
+    /// </summary>
+    [HttpGet("directives/{id}")]
+    public async Task<IActionResult> GetDirective(Guid id)
+    {
+        var result = await _service.GetDirectiveByIdAsync(id);
+        return result == null ? NotFound() : Ok(result);
+    }
+
+    /// <summary>
+    /// Tạo mới / cập nhật chỉ đạo tuyến
+    /// </summary>
+    [HttpPost("directives")]
+    public async Task<ActionResult<ProvincialDirectiveDto>> SaveDirective(
+        [FromBody] SaveProvincialDirectiveRequest req)
+        => Ok(await _service.SaveDirectiveAsync(req, GetUserId()));
+
+    /// <summary>
+    /// Xóa mềm chỉ đạo tuyến
+    /// </summary>
+    [HttpDelete("directives/{id}")]
+    public async Task<IActionResult> DeleteDirective(Guid id)
+    {
+        var ok = await _service.DeleteDirectiveAsync(id, GetUserId());
+        return ok ? NoContent() : NotFound();
+    }
 }

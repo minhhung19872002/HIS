@@ -114,3 +114,61 @@ public class GenerateReportRequest
     public int ReportType { get; set; }
     public string Period { get; set; } = string.Empty;
 }
+
+// ─── Provincial Directive DTOs ────────────────────────────────────────────────
+
+public class ProvincialDirectiveDto
+{
+    public Guid Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? DirectiveNo { get; set; }
+    public string? Content { get; set; }
+    public DateTime IssueDate { get; set; }
+    public string? FromLevel { get; set; }
+    public string? ToLevel { get; set; }
+
+    /// <summary>0=Mới, 1=Đang thực hiện, 2=Hoàn thành, 3=Hết hiệu lực</summary>
+    public int Status { get; set; }
+    public string StatusName => Status switch
+    {
+        0 => "Mới",
+        1 => "Đang thực hiện",
+        2 => "Hoàn thành",
+        3 => "Hết hiệu lực",
+        _ => "Không xác định"
+    };
+    public string? Notes { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string? CreatedBy { get; set; }
+}
+
+public class SaveProvincialDirectiveRequest
+{
+    public Guid? Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? DirectiveNo { get; set; }
+    public string? Content { get; set; }
+    public DateTime IssueDate { get; set; }
+    public string? FromLevel { get; set; }
+    public string? ToLevel { get; set; }
+    public int Status { get; set; } = 0;
+    public string? Notes { get; set; }
+}
+
+public class ProvincialDirectiveSearchDto
+{
+    public int? Status { get; set; }
+    public string? Keyword { get; set; }
+    public string? DateFrom { get; set; }
+    public string? DateTo { get; set; }
+    public int PageIndex { get; set; } = 0;
+    public int PageSize { get; set; } = 20;
+}
+
+public class ProvincialDirectivePagedResult
+{
+    public List<ProvincialDirectiveDto> Items { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int PageIndex { get; set; }
+    public int PageSize { get; set; }
+}

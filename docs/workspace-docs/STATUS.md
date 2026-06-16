@@ -11,6 +11,14 @@
   trả snippet → main áp tập trung + build gate). Triage 4 Explore agent: đóng 5 DONE-duplicate (#114 #119 #120
   #146 #93). BLOCKED (cần HW/credential): #133 #134 #113 #22 #24 #25. Defer tech-debt: #17 #42 #43 #44 #45 #35.
   WON'T-DO multi-branch: #107 #131 #132.
+- **WAVE 2 (build-green BE + FE EXIT0, chờ push)** — 4 cluster: **Catalog CLS DB-driven #40/#64-67**
+  (FunctionalDiagnosticTestType+Template + service + controller + migration **120** + seed 9 loại + bỏ hardcode
+  GetTestTypes trong NangCap23Controllers + FE page) · **Chỉ đạo tuyến #47** (entity ProvincialDirective persist
+  thật + CRUD + migration **121** + FE; defer: ProvincialReports/GetStats vẫn in-memory) · **Backup #106/#128-130**
+  (BackupHistory + BackupSchedulerWorker + restore AN TOÀN manual-script + config NAS/Cloud SystemConfig +
+  migration **122** + FE; defer: cloud upload SDK + cron parse) · **Nhắc lịch #102** (AppointmentReminderWorker
+  MockMode SMS/Zalo + migration **123** cột reminder) · **CV365 XML #88** (Cv365XmlService export HSBA 6 nhóm +
+  endpoint; defer: import). ⚠️ migration 120-123 chưa runtime-test → verify schema-drift sau deploy.
 - **WAVE 1 (build-green BE 0err + FE EXIT0, chờ push)** — 3 module: **ADR #5/#55-59** (entity AdrReport + service
   + controller `api/adr-report` + migration **117** + FE AdrReports v2 + báo cáo severity) · **Bảo lãnh viện phí
   #41/#68-72** (SponsorOrg+BillingGuarantor + `api/billing-guarantor` + migration **118** + FE 3 tab + công nợ

@@ -122,3 +122,66 @@ export const getInfectiousDiseaseReports = (dateFrom?: string, dateTo?: string) 
 
 export const submitInfectiousReport = (id: string) =>
   apiClient.post<{ success: boolean; message: string }>(`/provincial-health/infectious-diseases/submit/${id}`).then(r => r.data);
+
+// ─── Chỉ đạo tuyến (Provincial Directives) — persist thật ────────────────────
+
+export interface ProvincialDirectiveDto {
+  id: string;
+  title: string;
+  directiveNo?: string;
+  content?: string;
+  issueDate: string;
+  fromLevel?: string;
+  toLevel?: string;
+  /** 0=Mới, 1=Đang thực hiện, 2=Hoàn thành, 3=Hết hiệu lực */
+  status: number;
+  statusName: string;
+  notes?: string;
+  createdAt: string;
+  createdBy?: string;
+}
+
+export interface SaveProvincialDirectiveRequest {
+  id?: string;
+  title: string;
+  directiveNo?: string;
+  content?: string;
+  /** ISO date string */
+  issueDate: string;
+  fromLevel?: string;
+  toLevel?: string;
+  status: number;
+  notes?: string;
+}
+
+export interface ProvincialDirectiveSearchDto {
+  status?: number;
+  keyword?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  pageIndex?: number;
+  pageSize?: number;
+}
+
+export interface ProvincialDirectivePagedResult {
+  items: ProvincialDirectiveDto[];
+  totalCount: number;
+  pageIndex: number;
+  pageSize: number;
+}
+
+export const searchDirectives = (search: ProvincialDirectiveSearchDto = {}) =>
+  apiClient.post<ProvincialDirectivePagedResult>('/provincial-health/directives/search', {
+    pageIndex: 0,
+    pageSize: 20,
+    ...search,
+  }).then(r => r.data);
+
+export const getDirectiveById = (id: string) =>
+  apiClient.get<ProvincialDirectiveDto>(`/provincial-health/directives/${id}`).then(r => r.data);
+
+export const saveDirective = (req: SaveProvincialDirectiveRequest) =>
+  apiClient.post<ProvincialDirectiveDto>('/provincial-health/directives', req).then(r => r.data);
+
+export const deleteDirective = (id: string) =>
+  apiClient.delete<void>(`/provincial-health/directives/${id}`).then(r => r.data);

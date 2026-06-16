@@ -172,6 +172,10 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<AdrReport> AdrReports => Set<AdrReport>(); // #5 #55-59: báo cáo ADR
     public DbSet<SponsorOrg> SponsorOrgs => Set<SponsorOrg>(); // #41 #68-72: đơn vị bảo lãnh
     public DbSet<BillingGuarantor> BillingGuarantors => Set<BillingGuarantor>(); // #41 #68-72: gán bảo lãnh
+    public DbSet<FunctionalDiagnosticTestType> FunctionalDiagnosticTestTypes => Set<FunctionalDiagnosticTestType>(); // #40 #64-67
+    public DbSet<FunctionalDiagnosticTemplate> FunctionalDiagnosticTemplates => Set<FunctionalDiagnosticTemplate>(); // #40 #64-67
+    public DbSet<ProvincialDirective> ProvincialDirectives => Set<ProvincialDirective>(); // #47: chỉ đạo tuyến
+    public DbSet<BackupHistory> BackupHistories => Set<BackupHistory>(); // #106 #128-130: lịch sử backup
     public DbSet<Supplier> Suppliers => Set<Supplier>();
 
     // Warehouse extensions (consignment, IU mapping, splitable, profit margin)
