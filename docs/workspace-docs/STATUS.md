@@ -12,6 +12,13 @@
   join Patient) + `SubmitInfectiousReportAsync` persist qua entity `InfectiousReportSubmission` + DbSet + **migration 132**.
   ⚠️ migration chưa runtime-test (DB off). Còn 3 finding Thấp (#156): DatabaseSizeMB hardcode · HospitalReport accounting
   placeholder · NationalPrescription mock-connection — defer (cosmetic/MockMode chủ ý).
+- **★ BOARD DỌN SẠCH = 0 ISSUE OPEN (2026-06-16, user "hoàn thành hết open + hardware→not-open").** Turn này đóng/dọn:
+  **DONE thật**: #156 #157 (fixed+push+verify schema-drift 132=0) · #48 #43 (audit/plan). **DEFERRED (đóng not-planned + comment
+  điều kiện REOPEN, KHÔNG vờ done):** hardware #113/#133/#134/#22 (chờ thiết bị) · credential #24/#25 (chờ user) · need-input
+  #91/#105 (chờ user cấp danh sách mẫu/schema) · tech-debt #17/#42/#44 (chờ phiên deploy+smoke — không runtime-smoke local).
+  **8 EPIC** #33/#34/#35/#36/#38/#78/#79/#82 đóng (hết con open). → **Tất cả deferred reopen được khi gỡ blocker.**
+  ⚠️ #134 ghi chú: NonDicom infra (study/image/controller) ĐÃ CÓ; gap = LIS DTO thiếu `ServiceRequestDetailId` → wire = M
+  BE-bridge+FE khi cần (decouple #133 bằng upload thủ công).
 - **EXEC "làm tuần tự 1-2-3" (2026-06-16):** ① **CLOSED #48** (audit done) + **#43 not-planned** (6 báo cáo độc lập).
   ② QA tiền-nhạy-cảm → **bug #157**: `ReassignObjectService` đổi→BHYT default rate **80%** có thể sai mức hưởng thực
   (95/100%) → split BHYT/BN sai; kiosk anonymous OK (mutate đã auth) chỉ thiếu rate-limit. ③ **#44 đánh giá: tiền-đề SAI**
