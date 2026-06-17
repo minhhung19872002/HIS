@@ -3,13 +3,16 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-17** (TECH-DEBT 36 Issue #180-215 + SAFETY-PROTOCOL · **TEST-PLAN** khung 10-lớp + 16 layer-epic #216-231 + module-tasks #232-255 (4/10 group: TC/LS/CLS/HTĐT) — CÒN 6 group, làm tiếp khi user "tiếp tục"; doc `test-plan-2026-06-17.md` · **RULE cross-machine: fix-trước-test-sau** (CLAUDE.md)).
+> Cập nhật cuối: **2026-06-17** (TECH-DEBT 36 Issue #180-215 + SAFETY-PROTOCOL · **TEST-PLAN XONG** khung 10-lớp + 56 issue #216-271 (16 layer-epic + 40 module-task phủ đủ 10 group/126 màn); doc `test-plan-2026-06-17.md` · **RULE cross-machine: fix-trước-test-sau** (CLAUDE.md)).
 
-## Test program (đang dở — fix-first)
+## Test program (PLAN XONG — fix-first, chạy SAU #180-215)
 - **Rule (CLAUDE.md, mọi máy): GIẢI QUYẾT VẤN ĐỀ trước → TEST sau** (ngoại lệ harness #191/#212/#213 làm sớm).
 - Khung: `docs/workspace-docs/10-assessment/test-plan-2026-06-17.md` (10 lớp + checklist 12 loại màn + thứ tự Permission→Workflow→State→API-error→Form→Responsive→Dark→Performance).
-- Layer-epic **#216-231** (T1-T16). Module-tasks **#232-255** đã xong group: **Tài chính/Lâm sàng/Cận-lâm-sàng/Dược**.
-- **CÒN tạo module-tasks cho 6 group:** Hồ sơ&Ký số(5 màn) · Quản trị&Vận hành(28) · Liên thông(11) · Y tế công cộng(16) · Cổng&Dịch vụ(3) · Tổng quan/Dashboard(3). → user nói "tiếp tục" để tạo lô tiếp.
+- **56 test issue #216-271** (label `test`): **16 layer-epic #216-231** (T1-T16) + **40 module-task #232-271**
+  phủ ĐỦ 10 module-group (126 màn v2): Tài chính #232-238 · Lâm sàng #239-245 · Cận-lâm-sàng #246-250 · Dược
+  #251-255 · Tổng quan #256-257 · Hồ sơ&Ký số #258-259 · Quản trị #260-264 · Liên thông #265-266 · YTCC
+  #267-269 · Cổng #270-271. Mỗi task: màn thật + checklist + tooling + acceptance + parent-epic + priority.
+- Bắt đầu khi xong fix: harness #191/#212/#213 → P0 module-task (tiền/lâm-sàng/an-ninh: #232/#239/#251/#258/#260/#265/#270).
 
 ## Đang ở đâu
 - **★ TECH-DEBT TOÀN HỆ THỐNG — PLAN + 36 TASK chi tiết, CHƯA fix (2026-06-17):** audit 7-agent (BE-service/API/data ·
