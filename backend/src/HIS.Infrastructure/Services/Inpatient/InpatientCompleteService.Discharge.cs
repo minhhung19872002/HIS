@@ -76,14 +76,16 @@ public partial class InpatientCompleteService {
         if (admission == null)
             throw new Exception("Admission not found");
         if (admission.Status != 0)
-            throw new Exception("Bệnh nhân không trong trạng thái đang điều trị, không thể xuất viện");
+            // Business guard → InvalidOperationException để DomainExceptionFilter trả 400 (INVALID_STATE) thay vì 500.
+            throw new InvalidOperationException("Bệnh nhân không trong trạng thái đang điều trị, không thể xuất viện");
 
         // Enforce pre-discharge checks
         var preCheck = await CheckPreDischargeAsync(dto.AdmissionId);
         if (!preCheck.CanDischarge)
         {
             var issues = preCheck.Warnings.Any() ? string.Join("; ", preCheck.Warnings) : "Chưa đủ điều kiện xuất viện";
-            throw new Exception($"Không thể xuất viện: {issues}");
+            // Business guard (nợ phí / chỉ định chưa KQ...) → 400 message rõ, KHÔNG 500.
+            throw new InvalidOperationException($"Không thể xuất viện: {issues}");
         }
 
         // Create discharge record

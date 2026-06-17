@@ -1006,29 +1006,33 @@ public class SurgeryOperationServiceImpl : ISurgeryOperationService
         return Task.FromResult(codes);
     }
 
-    public Task<List<SurgeryServiceDto>> SearchServicesAsync(string keyword, int? serviceType)
+    public async Task<List<SurgeryServiceDto>> SearchServicesAsync(string? keyword, int? serviceType)
     {
-        var services = new List<SurgeryServiceDto>
-        {
-            new() { Id = Guid.NewGuid(), Code = "PT001", Name = "Cắt ruột thừa nội soi", ServiceType = 1, UnitPrice = 5000000 },
-            new() { Id = Guid.NewGuid(), Code = "PT002", Name = "Mổ sỏi thận qua da", ServiceType = 1, UnitPrice = 15000000 },
-            new() { Id = Guid.NewGuid(), Code = "TT001", Name = "Nội soi dạ dày", ServiceType = 2, UnitPrice = 800000 },
-            new() { Id = Guid.NewGuid(), Code = "TT002", Name = "Nội soi đại tràng", ServiceType = 2, UnitPrice = 1200000 }
-        };
-
-        if (!string.IsNullOrEmpty(keyword))
-        {
-            services = services.Where(s =>
-                s.Code.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-                s.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)).ToList();
-        }
-
+        // E2E fix (prod-e2e 2026-06-17): trước đây trả mock hardcode với GUID random mỗi call → không
+        // drive được surgery lifecycle (serviceId không tồn tại trong DB → FK-fail khi tạo yêu cầu PTTT).
+        // Nay query bảng Services THẬT. PTTT = ServiceType 5 (theo comment entity Service); caller lọc qua serviceType.
+        var query = _context.Set<Service>().Where(s => s.IsActive && !s.IsDeleted);
         if (serviceType.HasValue)
+            query = query.Where(s => s.ServiceType == serviceType.Value);
+        if (!string.IsNullOrWhiteSpace(keyword))
         {
-            services = services.Where(s => s.ServiceType == serviceType.Value).ToList();
+            var k = keyword.Trim();
+            query = query.Where(s => s.ServiceCode.Contains(k) || s.ServiceName.Contains(k));
         }
-
-        return Task.FromResult(services);
+        return await query
+            .OrderBy(s => s.ServiceName)
+            .Take(100)
+            .Select(s => new SurgeryServiceDto
+            {
+                Id = s.Id,
+                Code = s.ServiceCode,
+                Name = s.ServiceName,
+                ServiceType = s.ServiceType,
+                UnitPrice = s.UnitPrice,
+                InsurancePrice = s.InsurancePrice,
+                IsActive = s.IsActive,
+            })
+            .ToListAsync();
     }
 
     public Task<SurgeryServiceOrderDto> OrderServiceAsync(CreateSurgeryServiceOrderDto dto, Guid userId)

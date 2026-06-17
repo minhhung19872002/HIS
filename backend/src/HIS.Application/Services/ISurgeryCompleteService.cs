@@ -278,7 +278,7 @@ public interface ISurgeryCompleteService
     /// <summary>
     /// Tìm kiếm dịch vụ
     /// </summary>
-    Task<List<SurgeryServiceDto>> SearchServicesAsync(string keyword, int? serviceType);
+    Task<List<SurgeryServiceDto>> SearchServicesAsync(string? keyword, int? serviceType);
 
     /// <summary>
     /// Chỉ định dịch vụ trong PTTT

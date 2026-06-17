@@ -661,11 +661,34 @@ public partial class InpatientCompleteService {
         if (bed == null)
             throw new Exception("Bed not found");
 
-        // Check if bed is already occupied
-        var existingAssignment = await _context.Set<BedAssignment>()
-            .AnyAsync(ba => ba.BedId == dto.BedId && ba.Status == 0);
-        if (existingAssignment)
-            throw new Exception("Bed is already occupied");
+        // E2E fix (prod-e2e 2026-06-17): idempotent. Nếu giường đã gán ACTIVE cho CHÍNH admission này
+        // (vd admit-from-opd đã tự gán giường đầu trống trong phòng) → trả assignment hiện có thay vì ném
+        // Exception thô (gây 500) ở luồng admit→bed. Giường bị admission KHÁC chiếm → vẫn báo lỗi.
+        var existingActive = await _context.Set<BedAssignment>()
+            .FirstOrDefaultAsync(ba => ba.BedId == dto.BedId && ba.Status == 0);
+        if (existingActive != null)
+        {
+            if (existingActive.AdmissionId != dto.AdmissionId)
+                throw new InvalidOperationException("Giường đã có bệnh nhân khác sử dụng");
+            admission.BedId = dto.BedId;
+            admission.RoomId = bed.RoomId;
+            await _context.SaveChangesAsync();
+            return new BedAssignmentDto
+            {
+                Id = existingActive.Id,
+                AdmissionId = dto.AdmissionId,
+                BedId = dto.BedId,
+                BedCode = bed.BedCode,
+                BedName = bed.BedName,
+                RoomId = bed.RoomId,
+                RoomName = bed.Room.RoomName,
+                DepartmentId = bed.Room.DepartmentId,
+                DepartmentName = bed.Room.Department.DepartmentName,
+                AssignedDate = existingActive.AssignedAt,
+                Status = "Đang sử dụng",
+                AssignedBy = userId.ToString()
+            };
+        }
 
         var assignment = new BedAssignment
         {

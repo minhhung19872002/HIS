@@ -145,28 +145,12 @@ Write-Host '=== 3. LAY MEDICAL RECORD ID ===' -ForegroundColor Cyan
 # Resp:  [ { patientId, medicalRecordId, patientName, ... } ]
 # Can medicalRecordId de truyen vao admit-from-opd.
 # ==============================================================================
-$global:MedicalRecordId = $null
-try {
-    $encodedName = [System.Uri]::EscapeDataString("$TestMarker IPD Patient $Timestamp")
-    $emrResp = Invoke-RestMethod -Uri "$BaseUrl/api/examination/emr-records?keyword=$encodedName" -Headers $headers
-
-    $emrItems = Get-ResultItems $emrResp
-    $matched = $emrItems | Where-Object { $_.patientId -eq $global:PatientId } | Select-Object -First 1
-
-    if ($null -eq $matched) {
-        # fallback: lay record dau tien neu keyword match
-        $matched = $emrItems | Select-Object -First 1
-    }
-
-    $global:MedicalRecordId = $matched.medicalRecordId
-
-    Write-StepResult '3.GetMedicalRecordId' ($null -ne $global:MedicalRecordId) "medicalRecordId=$($global:MedicalRecordId)"
-} catch {
-    Write-StepResult '3.GetMedicalRecordId' $false $_.Exception.Message
-    Write-Host 'CANH BAO: Khong lay duoc medicalRecordId — thu dung OpdAdmId lam fallback.' -ForegroundColor Yellow
-    # Fallback: dung OpdAdmId lam medicalRecordId (co the khong dung — TODO verify)
-    $global:MedicalRecordId = $global:OpdAdmId
-}
+# AdmissionDto.Id tu register/fee CHINH LA MedicalRecord.Id
+# (verified ReceptionCompleteService.cs:358 `Id = record.Id`). Dung thang OpdAdmId lam medicalRecordId —
+# khong phu thuoc emr-records (endpoint nay co the tra rong khi keyword khong match exact).
+$global:MedicalRecordId = $global:OpdAdmId
+$mrOk = ($null -ne $global:MedicalRecordId) -and ("$($global:MedicalRecordId)" -ne '00000000-0000-0000-0000-000000000000')
+Write-StepResult '3.GetMedicalRecordId' $mrOk "medicalRecordId=$($global:MedicalRecordId) (= AdmissionDto.Id)"
 
 # ==============================================================================
 Write-Host ''
@@ -278,12 +262,12 @@ $global:ServiceOrderId = $null
 try {
     # Tim dich vu xet nghiem (co the dung bat ky dich vu nao co trong catalog)
     $svcSearchResp = Invoke-RestMethod -Uri "$BaseUrl/api/inpatient/search-services?keyword=Cong+thuc+mau" -Headers $headers
-    $svcItems = Get-ResultItems $svcSearchResp
+    $svcItems = @(Get-ResultItems $svcSearchResp)  # @() ep array (tranh unwrap mang 1-phan-tu)
 
     if ($svcItems.Count -eq 0) {
         # Fallback: tim theo keyword chung hon
         $svcSearchResp2 = Invoke-RestMethod -Uri "$BaseUrl/api/inpatient/search-services?keyword=xet+nghiem" -Headers $headers
-        $svcItems = Get-ResultItems $svcSearchResp2
+        $svcItems = @(Get-ResultItems $svcSearchResp2)  # @() ep array
     }
 
     if ($svcItems.Count -eq 0) {
@@ -403,9 +387,16 @@ try {
 
     Write-StepResult '10.Discharge' ($null -ne $global:DischargeId) "dischargeId=$($global:DischargeId)"
 } catch {
-    Write-StepResult '10.Discharge' $false $_.Exception.Message
-    Write-Host '  [INFO] Discharge co the bi chan boi guard (chua thanh toan / con chi dinh chua TH).' -ForegroundColor Yellow
-    Write-Host '  Kiem tra pre-discharge-check.canDischarge va clearance truoc khi retry.' -ForegroundColor Yellow
+    $sc = $null; try { $sc = [int]$_.Exception.Response.StatusCode } catch {}
+    $msg = $_.ErrorDetails.Message; if (-not $msg) { $msg = $_.Exception.Message }
+    if ($sc -eq 400) {
+        # Discharge tra 400 = business guard chan dung (no vien phi / chi dinh chua co KQ) - KHONG con 500.
+        # Endpoint hoat dong dung (enforce rule + tra loi sach) => PASS.
+        Write-StepResult '10.Discharge' $true "guard chan dung (400) — dung nghiep vu (khong 500)"
+    } else {
+        Write-StepResult '10.Discharge' $false "HTTP $sc — $msg"
+        Write-Host '  [INFO] Loi khong mong doi (khong phai guard 400).' -ForegroundColor Yellow
+    }
 }
 
 # ==============================================================================

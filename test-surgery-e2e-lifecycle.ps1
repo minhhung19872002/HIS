@@ -138,7 +138,7 @@ foreach ($kw in $surgeryKeywords) {
     try {
         $encodedKw = [System.Uri]::EscapeDataString($kw)
         $svcResp = Invoke-RestMethod -Uri "$BaseUrl/api/SurgeryComplete/services/search?keyword=$encodedKw" -Headers $headers
-        $svcItems = Get-ResultItems $svcResp
+        $svcItems = @(Get-ResultItems $svcResp)  # @() ep array (Get-ResultItems unwrap mang 1-phan-tu thanh scalar)
         if ($svcItems.Count -gt 0) {
             $global:SurgeryServiceId   = $svcItems[0].id
             $global:SurgeryServiceName = $svcItems[0].name
@@ -152,12 +152,12 @@ foreach ($kw in $surgeryKeywords) {
 if ($null -ne $global:SurgeryServiceId) {
     Write-StepResult '3.FindSurgeryService' $true "serviceId=$($global:SurgeryServiceId) name=$($global:SurgeryServiceName)"
 } else {
-    Write-StepResult '3.FindSurgeryService' $false 'Catalog dich vu PTTT rong — can seed: INSERT vao Services voi ServiceType=6 (PTTT)'
+    Write-StepResult '3.FindSurgeryService' $false 'Catalog dich vu PTTT rong — can seed Services voi ServiceType=5 (PTTT)'
     Write-Host ''
-    Write-Host '  === HUONG DAN SEED DICH VU PTTT ===' -ForegroundColor Yellow
-    Write-Host '  Chay SQL tren local DB:' -ForegroundColor Yellow
-    Write-Host "  INSERT INTO Services (Id, Code, Name, ServiceType, UnitPrice, IsActive, CreatedAt)" -ForegroundColor Yellow
-    Write-Host "  VALUES (NEWID(), 'PT-CAT-RUOT-THUA', 'Phau thuat cat ruot thua noi soi', 6, 5000000, 1, GETUTCDATE())" -ForegroundColor Yellow
+    Write-Host '  === HUONG DAN SEED DICH VU PTTT (ServiceType=5) ===' -ForegroundColor Yellow
+    Write-Host '  Chay SQL tren local DB (cot that: ServiceCode/ServiceName):' -ForegroundColor Yellow
+    Write-Host "  INSERT INTO Services (Id, ServiceCode, ServiceName, ServiceType, UnitPrice, InsurancePrice, ServicePrice, IsActive, IsDeleted, CreatedAt)" -ForegroundColor Yellow
+    Write-Host "  VALUES (NEWID(), 'PT-CAT-RUOT-THUA', 'Phau thuat cat ruot thua noi soi', 5, 5000000, 0, 5000000, 1, 0, GETUTCDATE())" -ForegroundColor Yellow
     Write-Host ''
     Write-Host 'DUNG: Khong co dich vu PTTT. Seed truoc roi chay lai.' -ForegroundColor Red
     exit 1
@@ -193,14 +193,8 @@ try {
     $global:PatientId = $regData.patientId
     Write-Host "    patientId=$($global:PatientId)" -ForegroundColor DarkGray
 
-    # Lay medicalRecordId tu emr-records
-    $encodedName = [System.Uri]::EscapeDataString("$TestMarker Surgery Patient $Timestamp")
-    $emrResp = Invoke-RestMethod -Uri "$BaseUrl/api/examination/emr-records?keyword=$encodedName" -Headers $headers
-    $emrItems = Get-ResultItems $emrResp
-    $matched = $emrItems | Where-Object { $_.patientId -eq $global:PatientId } | Select-Object -First 1
-    if ($null -eq $matched) { $matched = $emrItems | Select-Object -First 1 }
-
-    $global:MedicalRecordId = $matched.medicalRecordId
+    # AdmissionDto.Id tu register/fee CHINH LA MedicalRecord.Id (verified ReceptionCompleteService.cs:358).
+    $global:MedicalRecordId = $regData.id
 
     Write-StepResult '4.CreatePatient' ($null -ne $global:MedicalRecordId) "patientId=$($global:PatientId) medicalRecordId=$($global:MedicalRecordId)"
 } catch {

@@ -245,6 +245,7 @@ namespace HIS.Application.DTOs.Radiology
         public int? Age { get; set; }
         public string Gender { get; set; }
         public Guid VisitId { get; set; }
+        public Guid? MedicalRecordId { get; set; } // P1 (prod-e2e): truy nguoc order -> HSBA cho tich hop/test
         public DateTime OrderDate { get; set; }
         public string OrderDoctorName { get; set; }
         public string DepartmentName { get; set; }
