@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sơ đồ cơ chế hoạt động &amp; cấu trúc dữ liệu — HIS</title>
+<!-- Tách lớp: style ở his-data-structure.css, logic+data ở his-data-structure.js (không phụ thuộc thư viện ngoài) -->
+<link rel="stylesheet" href="his-data-structure.css" />
+</head>
+<body>
+<header class="hero">
+  <h1>🏥 SƠ ĐỒ CƠ CHẾ HOẠT ĐỘNG &amp; CẤU TRÚC DỮ LIỆU — HỆ THỐNG HIS</h1>
+  <p>Bản đồ kiểu <b>roadmap</b>: trục chính = các giai đoạn vận hành của hệ thống (cơ chế hoạt động),
+    các nhánh = phân hệ + bảng dữ liệu + vai trò phụ trách. Dữ liệu sinh từ mã nguồn thật
+    (<code>HISDbContext.cs</code> — 485 DbSet, <code>HIS.Core/Entities</code>). Click một nhánh để xem sơ đồ con chi tiết.</p>
+  <div class="stats" id="stats"></div>
+  <div class="legend" id="legend"></div>
+</header>
+
+<nav class="toc" id="toc">
+  <input id="q" placeholder="🔎 Tìm bảng / phân hệ…" autocomplete="off" />
+  <span class="sp"></span>
+</nav>
+
+<div class="wrap">
+
+  <!-- 1) ROADMAP — cơ chế hoạt động: trục chính + nhánh + vai trò -->
+  <h2 class="secthead">🗺️ Cơ chế hoạt động của HIS (sơ đồ roadmap)</h2>
+  <div class="rm-legend">
+    <span><i class="ln-spine-d"></i> Trục chính: giai đoạn vận hành (theo thứ tự)</span>
+    <span><i class="box-solid"></i> Node chính</span>
+    <span><i class="box-child"></i> Nhánh = phân hệ/bảng (bấm để xem chi tiết)</span>
+    <span><i class="box-dash"></i> Nhánh nét đứt = tùy chọn/bổ trợ</span>
+    <span><i class="rb-d"></i> Badge = vai trò phụ trách</span>
+  </div>
+  <section id="roadmap"></section>
+
+  <!-- 2) LUỒNG XƯƠNG SỐNG (tóm tắt 1 dòng) -->
+  <section class="flowstrip">
+    <h3>Luồng tổng quát — hành trình bệnh nhân (trục dữ liệu: Patient → MedicalRecord)</h3>
+    <div class="flow" id="flow"></div>
+  </section>
+
+  <!-- 2b) LUỒNG NGHIỆP VỤ THEO VAI TRÒ -->
+  <h2 class="secthead">👥 Luồng nghiệp vụ theo từng vai trò</h2>
+  <p class="secsub">Mỗi vai trò có chuỗi công việc riêng đi qua các phân hệ. Bấm một bước để mở chi tiết phân hệ tương ứng (không cuộn trang).</p>
+  <section class="roleflows" id="roleflows"></section>
+
+  <!-- 3) BẢN ĐỒ PHÂN HỆ (toàn bộ bảng) -->
+  <h2 class="secthead">🗂️ Bản đồ phân hệ — toàn bộ 485 bảng theo 5 lớp</h2>
+  <p class="secsub">Bấm vào một thẻ phân hệ để nhảy tới sơ đồ con chi tiết của nó ở dưới.</p>
+  <div id="master"></div>
+
+  <!-- 4) SƠ ĐỒ CON từng phân hệ -->
+  <h2 class="secthead">🔍 Sơ đồ con — chi tiết từng phân hệ</h2>
+  <p class="secsub">Mỗi phân hệ liệt kê toàn bộ bảng của nó + quan hệ chính.</p>
+  <div id="details"></div>
+</div>
+
+<footer>
+  Nguồn dữ liệu: mã nguồn HIS (backend Clean Architecture · SQL Server) — <b>không lấy từ tài liệu nghiệp vụ</b>
+  (có thể đã cũ). Sơ đồ phản ánh <span id="fcount"></span> bảng thực tế đang khai báo trong DbContext.<br/>
+  Nhãn tiếng Việt do mô tả khái quát; tên bảng (mã xanh) là tên thật bất biến để tra cứu trong code/DB.
+</footer>
+
+<!-- Drawer chi tiết (mở khi click node/nhánh — KHÔNG cuộn trang, kiểu roadmap.sh) -->
+<div class="dw-backdrop" id="dwBack" hidden></div>
+<aside class="dw" id="dw" aria-hidden="true" aria-label="Chi tiết phân hệ">
+  <header class="dw-h"><div class="dw-t" id="dwTitle"></div><button class="dw-x" id="dwClose" title="Đóng (Esc)">✕</button></header>
+  <div class="dw-b" id="dwBody"></div>
+</aside>
+
+<script src="his-data-structure.js"></script>
+</body>
+</html>
