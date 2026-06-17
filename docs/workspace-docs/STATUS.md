@@ -12,6 +12,10 @@
   phủ ĐỦ 10 module-group (126 màn v2): Tài chính #232-238 · Lâm sàng #239-245 · Cận-lâm-sàng #246-250 · Dược
   #251-255 · Tổng quan #256-257 · Hồ sơ&Ký số #258-259 · Quản trị #260-264 · Liên thông #265-266 · YTCC
   #267-269 · Cổng #270-271. Mỗi task: màn thật + checklist + tooling + acceptance + parent-epic + priority.
+- **18 epic nâng cao #272-289** (T17-T34): visual-regression·a11y·contract·property-based·mutation·golden-file·chaos·
+  security-scan·load-soak/spike·reconciliation·audit-verify·backup-DR·synthetic-monitor·test-data·risk-based·i18n·exploratory·usability.
+- **★ RULE (CLAUDE.md, mọi máy): TEST gặp bug → tạo NGAY task `fix` (rõ lỗi gì + màn/nghiệp vụ + evidence) liên kết 2
+  chiều với task test; task test CHỈ DONE sau khi fix-task tạo XONG đầy đủ** (test-plan §9). UI test phải chụp evidence (§7).
 - Bắt đầu khi xong fix: harness #191/#212/#213 → P0 module-task (tiền/lâm-sàng/an-ninh: #232/#239/#251/#258/#260/#265/#270).
 
 ## Đang ở đâu

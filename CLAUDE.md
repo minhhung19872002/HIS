@@ -118,6 +118,12 @@ If a new service/controller is added, register it there or you get 500 errors.
   (label `test`) chạy SAU**. *Ngoại lệ:* harness test tối thiểu (#191 xUnit+CI-gate · #212 vitest · #213 e2e
   functional) làm SỚM làm **lưới an toàn** cho việc fix (đúng SAFETY-PROTOCOL). Test-program đầy đủ → xem doc
   `docs/workspace-docs/10-assessment/test-plan-2026-06-17.md` + Issues label `test`.
+- **★ TEST PHÁT HIỆN BUG → TẠO TASK FIX LIÊN KẾT (mọi phiên/mọi máy):** khi chạy 1 task test mà gặp **bug/lỗi/vỡ
+  UI**, PHẢI tạo NGAY 1 Issue fix mới: tiêu đề nêu **rõ lỗi gì + màn/nghiệp vụ**; body = mô tả bug + bước tái hiện
+  + evidence (ảnh) + kỳ vọng-vs-thực-tế; **liên kết 2 chiều với task test nguồn** (fix ghi "Phát hiện từ #<test>";
+  comment ngược lại task test "Bug → #<fix>"). Label `bug` + module. Để lúc làm fix biết sửa gì + truy ngược test.
+  **★ DoD task test (BẮT BUỘC):** task test CHỈ được đánh **DONE** sau khi **MỌI bug nó phát hiện đã có task fix
+  tương ứng tạo XONG (đầy đủ thông tin) + liên kết 2 chiều**. Còn bug chưa có fix-task đầy đủ → **KHÔNG được done** task test.
 - `docs/workspace-docs/` chỉ còn: `STATUS.md` (session-state cho hook) · `luong_nghiep_vu.md` (reference
   nghiệp vụ) · 2 pointer roadmap/audit. **Workspace-docs commit + push bình thường** (quy tắc never-push đã
   GỠ 2026-06-13 — hook pre-push + guard + `scripts/push-code.ps1` đã xóa).
