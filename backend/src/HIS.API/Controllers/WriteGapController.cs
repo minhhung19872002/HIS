@@ -78,6 +78,7 @@ public class WriteGapController : ControllerBase
     public async Task<IActionResult> CreateDiseaseReport([FromBody] DiseaseReport dto)
     {
         dto.Id = Guid.NewGuid();
+        dto.IsDeleted = false;
         dto.ReportDate = DateTime.Now;
         dto.CreatedAt = DateTime.Now;
         dto.CreatedBy = Uid().ToString();

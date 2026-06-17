@@ -125,6 +125,7 @@ public class PharmacyEnhancementController : ControllerBase
             InfusionRate = dto.InfusionRate,
             StabilityNotes = dto.StabilityNotes,
             Status = 0,
+            IsDeleted = false,
             CreatedAt = DateTime.Now,
             CreatedBy = GetUserId().ToString(),
         };

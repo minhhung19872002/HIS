@@ -27,7 +27,8 @@ public class LisCatalogController : ControllerBase
         var uid = GetUserId().ToString();
         if (isNew)
         {
-            if (e.Id == Guid.Empty) e.Id = Guid.NewGuid();
+            e.Id = Guid.NewGuid();
+            e.IsDeleted = false;
             e.CreatedAt = DateTime.Now;
             e.CreatedBy = uid;
         }

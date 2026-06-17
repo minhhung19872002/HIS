@@ -3,7 +3,10 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-17** (TECH-DEBT 36 Issue #180-215 + SAFETY-PROTOCOL · **TEST-PLAN XONG** khung 10-lớp + 56 issue #216-271 (16 layer-epic + 40 module-task phủ đủ 10 group/126 màn); doc `test-plan-2026-06-17.md` · **RULE cross-machine: fix-trước-test-sau** (CLAUDE.md)).
+> Cập nhật cuối: **2026-06-18** (THỰC THI tech-debt theo ưu tiên: ✅ #208 token-scale · #207 async-state · **P0 security #180+#181 CLOSED**
+> (deploy) · #182-safe (gỡ publish/ local) · quyết-định v1-abandon (#205/#209-rawfetch MOOT) · 6 rule quy-trình mới. **ĐANG:** #184
+> over-posting: **CLOSED** (ép server-Id+IsDeleted=false mọi create-path 6 ctrl; Workflow 6-agent + 6 adversarial-verify bắt 6 gap EmployeeProfile→hoàn thiện; build OK). **HOÃN chờ user:** tiền/safety #185-190
+> (rủi ro không test-net) · #182-rotate · #183-role-canonical (DB-confirm). | Cũ: 36 Issue #180-215 + 56 test-issue #216-289 (test làm CUỐI).
 
 ## Test program (PLAN XONG — chạy CUỐI CÙNG, sau khi 100% fix/tech-debt DONE)
 - **★ RULE CỨNG (CLAUDE.md + hook session-start/remind-pipeline, mọi máy): TEST là BẮT BUỘC nhưng LUÔN LÀM CUỐI CÙNG.**

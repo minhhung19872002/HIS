@@ -76,6 +76,7 @@ public class ReceiptBookController : ControllerBase
         if (existing == null)
         {
             dto.Id = Guid.NewGuid();
+            dto.IsDeleted = false;
             if (dto.CurrentNumber <= 0) dto.CurrentNumber = dto.StartNumber;
             dto.CreatedAt = DateTime.Now;
             dto.CreatedBy = uid.ToString();

@@ -34,7 +34,7 @@ public class EmployeeProfileController : ControllerBase
         dto.UserId = userId;
         if (await _db.EmployeeAssets.AnyAsync(a => a.Id == dto.Id))
             _db.EmployeeAssets.Update(dto);
-        else _db.EmployeeAssets.Add(dto);
+        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeAssets.Add(dto); }
         await _db.SaveChangesAsync();
         return Ok(dto);
     }
@@ -58,7 +58,7 @@ public class EmployeeProfileController : ControllerBase
         dto.UserId = userId;
         if (await _db.EmployeeAllowances.AnyAsync(a => a.Id == dto.Id))
             _db.EmployeeAllowances.Update(dto);
-        else _db.EmployeeAllowances.Add(dto);
+        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeAllowances.Add(dto); }
         await _db.SaveChangesAsync();
         return Ok(dto);
     }
@@ -84,7 +84,7 @@ public class EmployeeProfileController : ControllerBase
         dto.UserId = userId;
         if (await _db.EmployeeCareerHistories.AnyAsync(a => a.Id == dto.Id))
             _db.EmployeeCareerHistories.Update(dto);
-        else _db.EmployeeCareerHistories.Add(dto);
+        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeCareerHistories.Add(dto); }
         await _db.SaveChangesAsync();
         return Ok(dto);
     }
@@ -108,7 +108,7 @@ public class EmployeeProfileController : ControllerBase
         dto.UserId = userId;
         if (await _db.EmployeeEducations.AnyAsync(a => a.Id == dto.Id))
             _db.EmployeeEducations.Update(dto);
-        else _db.EmployeeEducations.Add(dto);
+        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeEducations.Add(dto); }
         await _db.SaveChangesAsync();
         return Ok(dto);
     }
@@ -132,7 +132,7 @@ public class EmployeeProfileController : ControllerBase
         dto.UserId = userId;
         if (await _db.EmployeeFamilies.AnyAsync(a => a.Id == dto.Id))
             _db.EmployeeFamilies.Update(dto);
-        else _db.EmployeeFamilies.Add(dto);
+        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeFamilies.Add(dto); }
         await _db.SaveChangesAsync();
         return Ok(dto);
     }
@@ -158,7 +158,7 @@ public class EmployeeProfileController : ControllerBase
         dto.UserId = userId;
         if (await _db.EmployeeRewardDisciplines.AnyAsync(a => a.Id == dto.Id))
             _db.EmployeeRewardDisciplines.Update(dto);
-        else _db.EmployeeRewardDisciplines.Add(dto);
+        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeRewardDisciplines.Add(dto); }
         await _db.SaveChangesAsync();
         return Ok(dto);
     }
@@ -182,7 +182,7 @@ public class EmployeeProfileController : ControllerBase
         dto.UserId = userId;
         if (await _db.EmployeeBankAccounts.AnyAsync(a => a.Id == dto.Id))
             _db.EmployeeBankAccounts.Update(dto);
-        else _db.EmployeeBankAccounts.Add(dto);
+        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeBankAccounts.Add(dto); }
         await _db.SaveChangesAsync();
         return Ok(dto);
     }
@@ -208,7 +208,7 @@ public class EmployeeProfileController : ControllerBase
         dto.UserId = userId;
         if (await _db.EmployeeContracts.AnyAsync(a => a.Id == dto.Id))
             _db.EmployeeContracts.Update(dto);
-        else _db.EmployeeContracts.Add(dto);
+        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeContracts.Add(dto); }
         await _db.SaveChangesAsync();
         return Ok(dto);
     }
@@ -232,7 +232,7 @@ public class EmployeeProfileController : ControllerBase
         dto.UserId = userId;
         if (await _db.EmployeeUnionMemberships.AnyAsync(a => a.Id == dto.Id))
             _db.EmployeeUnionMemberships.Update(dto);
-        else _db.EmployeeUnionMemberships.Add(dto);
+        else { dto.Id = Guid.NewGuid(); dto.IsDeleted = false; _db.EmployeeUnionMemberships.Add(dto); }
         await _db.SaveChangesAsync();
         return Ok(dto);
     }
@@ -273,6 +273,7 @@ public class EmployeeProfileController : ControllerBase
         else
         {
             dto.Id = Guid.NewGuid();
+            dto.IsDeleted = false;
             dto.UserId = userId;
             dto.CreatedAt = DateTime.UtcNow;
             _db.EmployeeInsuranceInfos.Add(dto);
