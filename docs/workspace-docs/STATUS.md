@@ -5,8 +5,9 @@
 
 > Cập nhật cuối: **2026-06-17** (TECH-DEBT 36 Issue #180-215 + SAFETY-PROTOCOL · **TEST-PLAN XONG** khung 10-lớp + 56 issue #216-271 (16 layer-epic + 40 module-task phủ đủ 10 group/126 màn); doc `test-plan-2026-06-17.md` · **RULE cross-machine: fix-trước-test-sau** (CLAUDE.md)).
 
-## Test program (PLAN XONG — fix-first, chạy SAU #180-215)
-- **Rule (CLAUDE.md, mọi máy): GIẢI QUYẾT VẤN ĐỀ trước → TEST sau** (ngoại lệ harness #191/#212/#213 làm sớm).
+## Test program (PLAN XONG — chạy CUỐI CÙNG, sau khi 100% fix/tech-debt DONE)
+- **★ RULE CỨNG (CLAUDE.md + hook session-start/remind-pipeline, mọi máy): TEST là BẮT BUỘC nhưng LUÔN LÀM CUỐI CÙNG.**
+  Xong HẾT fix/feature/tech-debt rồi mới test. **KHÔNG ngoại lệ — kể cả harness #191/#212/#213** (đã REVERT lần làm sớm, reopen #191).
 - Khung: `docs/workspace-docs/10-assessment/test-plan-2026-06-17.md` (10 lớp + checklist 12 loại màn + thứ tự Permission→Workflow→State→API-error→Form→Responsive→Dark→Performance).
 - **56 test issue #216-271** (label `test`): **16 layer-epic #216-231** (T1-T16) + **40 module-task #232-271**
   phủ ĐỦ 10 module-group (126 màn v2): Tài chính #232-238 · Lâm sàng #239-245 · Cận-lâm-sàng #246-250 · Dược
@@ -16,7 +17,7 @@
   security-scan·load-soak/spike·reconciliation·audit-verify·backup-DR·synthetic-monitor·test-data·risk-based·i18n·exploratory·usability.
 - **★ RULE (CLAUDE.md, mọi máy): TEST gặp bug → tạo NGAY task `fix` (rõ lỗi gì + màn/nghiệp vụ + evidence) liên kết 2
   chiều với task test; task test CHỈ DONE sau khi fix-task tạo XONG đầy đủ** (test-plan §9). UI test phải chụp evidence (§7).
-- Bắt đầu khi xong fix: harness #191/#212/#213 → P0 module-task (tiền/lâm-sàng/an-ninh: #232/#239/#251/#258/#260/#265/#270).
+- Test chạy **CUỐI CÙNG** (chỉ sau khi 100% fix DONE) — khi đó mới dựng harness #191/#212/#213 rồi P0 module-task (#232/#239/#251/#258/#260/#265/#270).
 
 ## Đang ở đâu
 - **★ TECH-DEBT TOÀN HỆ THỐNG — PLAN + 36 TASK chi tiết, CHƯA fix (2026-06-17):** audit 7-agent (BE-service/API/data ·
@@ -24,13 +25,13 @@
   `docs/workspace-docs/10-assessment/tech-debt-audit-2026-06-17.md`. Mỗi Issue có evidence file:line + pre-flight +
   behavior-preservation + verify + rollback.
   - **P0 (làm trước)**: SEC #180-184 (secret hardcode/anonymous-seed-prod/path-traversal/role-drift/mass-assign) ·
-    SAFE #185-186 (allergy+interaction KHÔNG enforce lúc kê) · DATA #187-190 (transaction/RowVersion/amount<=0/nuốt-exception)
-    · **TEST #191 (xUnit+CI gate — LÀM SỚM làm lưới an toàn)**.
+    SAFE #185-186 (allergy+interaction KHÔNG enforce lúc kê) · DATA #187-190 (transaction/RowVersion/amount<=0/nuốt-exception).
+    (#191 test-harness KHÔNG thuộc P0 fix — là TEST, làm CUỐI CÙNG; đã revert+reopen.)
   - **P1 #192-199** (validation/envelope/leak-catch/AsNoTracking+N+1/unbounded/DbContext-harden/audit-diff/migration).
   - **P2 #200-209** (shared-infra/BE god-split/thin-controller/DTO-hygiene · FE v1-sunset/god-component/design-adoption/
     async-state/token-scale/raw-fetch). **P3 #210-215** (lint/hygiene/vitest/e2e-functional/dose-range/antd-leftover).
   - Còn **#171** (tách FE api client god-file) — giữ, chưa gộp.
-  - Thứ tự: P0-security → TEST-1 → P0-safety → P0-data → P1 → P2 (sau khi có characterization-test vùng tiền/kho/safety) → P3.
+  - Thứ tự: P0-security → P0-safety → P0-data → P1 → P2 → P3 → **(CUỐI CÙNG, sau khi 100% fix DONE) toàn bộ TEST** #191/#212/#213 + #216-289.
 - **UX/UI audit #158-#165: DONE** (dark token foundation + ab-* + toggle v2 topbar + tokenize + lint-guard +
   states + dual-system inventory + soft-severity). Prod Vercel vẫn block billing (account khác) — local OK.
   ⚠️ visual smoke dark cần chạy app. **#158/#159 + toggle v2 + #160 ĐÃ push** (prod Vercel đang block

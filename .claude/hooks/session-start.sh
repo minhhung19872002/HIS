@@ -13,6 +13,8 @@ sync=""
 if [ "$behind" != "0" ] && [ "$behind" != "?" ]; then
   sync=" >> LOCAL ĐANG BEHIND origin ${behind} commit. BẮT BUỘC: chạy git pull --ff-only + grep CODE đã sync để đối chiếu (tính năng/route/issue đã có chưa) TRƯỚC khi pick task/viết code. KHÔNG lao vào code trên cây cũ — đây là nguồn gây TRÙNG CODE khi 2 máy làm song song."
 fi
-msg="[HIS session] branch=${branch} · dirty=${dirty} file · unpushed=${ahead} · behind=${behind} commit.${sync} Đọc docs/workspace-docs/STATUS.md trước khi bắt đầu."
+# ★ RULE CỨNG quy trình SDLC của user (mọi phiên/mọi máy): TEST luôn làm CUỐI CÙNG.
+rule=" ★ QUY TRÌNH BẮT BUỘC (mọi yêu cầu/phiên/máy): TEST là việc BẮT BUỘC nhưng LUÔN LÀM CUỐI CÙNG — phải hoàn thành HẾT fix/feature/tech-debt TRƯỚC; TUYỆT ĐỐI KHÔNG bắt đầu BẤT KỲ task test nào (kể cả harness/CI-gate) khi còn BẤT KỲ task fix nào OPEN. KHÔNG có ngoại lệ."
+msg="[HIS session] branch=${branch} · dirty=${dirty} file · unpushed=${ahead} · behind=${behind} commit.${sync}${rule} Đọc docs/workspace-docs/STATUS.md trước khi bắt đầu."
 printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$msg"
 exit 0

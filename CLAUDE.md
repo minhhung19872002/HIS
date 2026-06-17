@@ -113,11 +113,12 @@ If a new service/controller is added, register it there or you get 500 errors.
   backlog trong `docs/workspace-docs/` nữa.
 - **Trước khi pick task**: `git fetch origin` + đọc `git log origin/main` + `gh issue list` (nhiều máy làm
   song song — nguồn-sự-thật là git log + Issues, KHÔNG phải docs local).
-- **★ THỨ TỰ ƯU TIÊN THỰC THI (mọi phiên/mọi máy): GIẢI QUYẾT VẤN ĐỀ TRƯỚC → TEST SAU.** Ưu tiên fix bug /
-  feature / tech-debt / security / patient-safety (vd #180-215) cho xong trước; **các nhiệm vụ TEST hệ thống
-  (label `test`) chạy SAU**. *Ngoại lệ:* harness test tối thiểu (#191 xUnit+CI-gate · #212 vitest · #213 e2e
-  functional) làm SỚM làm **lưới an toàn** cho việc fix (đúng SAFETY-PROTOCOL). Test-program đầy đủ → xem doc
-  `docs/workspace-docs/10-assessment/test-plan-2026-06-17.md` + Issues label `test`.
+- **★★ RULE CỨNG (mọi yêu cầu/phiên/máy) — TEST LÀ BẮT BUỘC NHƯNG LUÔN LÀM CUỐI CÙNG:** với BẤT KỲ yêu cầu nào,
+  hoàn thành HẾT fix / feature / tech-debt / security / patient-safety (vd #180-215 TRỪ test) cho xong TRƯỚC; **mọi
+  nhiệm vụ TEST (label `test`, KỂ CẢ harness/CI-gate #191/#212/#213) làm SAU CÙNG — chỉ bắt đầu khi 100% task fix đã
+  DONE. TUYỆT ĐỐI KHÔNG có ngoại lệ "harness sớm".** Ép buộc qua hook `session-start.sh` + `remind-pipeline.sh`.
+  Bù thiếu test-net: mọi fix bám chặt SAFETY-PROTOCOL (pre-flight · build-gate · smoke thủ công · minimal-change).
+  Test-program đầy đủ → `docs/workspace-docs/10-assessment/test-plan-2026-06-17.md` + Issues label `test`.
 - **★ TEST PHÁT HIỆN BUG → TẠO TASK FIX LIÊN KẾT (mọi phiên/mọi máy):** khi chạy 1 task test mà gặp **bug/lỗi/vỡ
   UI**, PHẢI tạo NGAY 1 Issue fix mới: tiêu đề nêu **rõ lỗi gì + màn/nghiệp vụ**; body = mô tả bug + bước tái hiện
   + evidence (ảnh) + kỳ vọng-vs-thực-tế; **liên kết 2 chiều với task test nguồn** (fix ghi "Phát hiện từ #<test>";

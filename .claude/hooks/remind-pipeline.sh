@@ -4,6 +4,7 @@
 # Giu NGAN de khong phinh context moi prompt. Chi tiet: .claude/workflow/workflow.md + skills/core-sparring-partner
 IN=$(cat 2>/dev/null)   # doc prompt (JSON) de do tu-khoa; substring-match nen khong phu thuoc format
 echo "PIPELINE: Trivial (≤5 dong·1 file·khong cham shared/contract/DB/auth/tien/patient-safety) hoac Q&A -> tra loi thang, BO pipeline+state-store+note-skill. Nguoc lai -> .claude/workflow/workflow.md (Router->Planner->Worker->Reviewer->Finalizer; state-store=GitHub Issue body; DONE chi sau khi user push). Git-ops chi tiet: project-rules.md §2-4 (KHONG nhac lai o day)."
+echo "QUY-TRINH SDLC (moi yeu cau/phien/may): TEST la BAT BUOC nhung LUON LAM CUOI CUNG. Hoan thanh HET fix/feature/tech-debt TRUOC; TUYET DOI KHONG bat dau task test (ke ca harness/CI-gate #191/#212/#213) khi con BAT KY task fix nao OPEN. Khong co ngoai le. Chi tiet: CLAUDE.md muc Quan ly plan/task."
 case "$IN" in
   *làm*|*lam*|*task*|*"tính năng"*|*"tinh nang"*|*feature*|*thêm*|*them*|*sửa*|*sua*|*fix*|*pick*|*issue*|*code*|*refactor*|*implement*|*migration*)
     echo "SYNC-GATE (chong TRUNG CODE 2 may): neu CHUA pull trong phien -> cay sach + git pull --ff-only (KHONG chi fetch) + grep CODE da sync xac minh tinh nang/route/issue CHUA ton tai roi MOI viet (issue OPEN la chi bao TRE, code moi la phan quyet). Xong -> dong issue ATOMIC khi push (Closes #N), KHONG dong theo lo. Chi tiet: project-rules.md §2." ;;
