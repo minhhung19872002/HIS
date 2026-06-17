@@ -118,6 +118,9 @@ If a new service/controller is added, register it there or you get 500 errors.
   commit **LOCAL** từng chặng để checkpoint, NHƯNG **CHỈ `git push` khi đã hoàn thành TẤT CẢ các phần theo đúng quy trình**
   (build-gate + verify mỗi chặng) → push 1 lần kèm **`Closes #N`**. **KHÔNG push partial.** (Pull `--rebase` trước push cuối
   để đồng bộ máy khác; task ngắn/atomic vẫn push-ngay-khi-xong như thường.)
+- **★ SCOPE CHỒNG LẤN giữa task (làm cái nào RA cái đó rõ ràng):** khi đang làm task A mà phát hiện 1 phần việc thuộc/trùng
+  task B → **chuyển ĐỦ thông tin + context sang task B (comment/body) TRƯỚC**, kiểm tra B không thiếu gì, RỒI mới đóng phần
+  đó ở A / đóng A. KHÔNG làm trùng 2 task, KHÔNG đóng A khi B còn thiếu info, KHÔNG để mất context khi bàn giao.
 - **Trước khi pick task**: `git fetch origin` + đọc `git log origin/main` + `gh issue list` (nhiều máy làm
   song song — nguồn-sự-thật là git log + Issues, KHÔNG phải docs local).
 - **★★ RULE CỨNG (mọi yêu cầu/phiên/máy) — TEST LÀ BẮT BUỘC NHƯNG LUÔN LÀM CUỐI CÙNG:** với BẤT KỲ yêu cầu nào,
