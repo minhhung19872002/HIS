@@ -69,38 +69,38 @@ export const ReceptionPayModal: React.FC<{
       {row && (
         <div style={{ padding: 0 }}>
           <div style={{
-            padding: 12, background: 'var(--d-1)', borderRadius: 'var(--r-2)', marginBottom: 14,
-            display: 'grid', gridTemplateColumns: '1fr auto', gap: 6,
+            padding: 'var(--space-12)', background: 'var(--d-1)', borderRadius: 'var(--r-2)', marginBottom: 'var(--space-14)',
+            display: 'grid', gridTemplateColumns: '1fr auto', gap: 'var(--space-6)',
           }}>
             <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>{row.patientName} · {row.patientCode}</span>
             <span className="mono" style={{ fontSize: 'var(--fs-sm)' }}>{row.queueCode || `#${row.queueNumber}`}</span>
             <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Hình thức</span>
             <span>{treatmentLabel(row)}</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
             <div>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Số tiền thu *</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Số tiền thu *</div>
               <InputNumber value={amount} onChange={(v) => setAmount(Number(v) || 0)} min={0} style={{ width: '100%' }} formatter={fmtMoney} />
             </div>
             <div>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Phương thức</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Phương thức</div>
               <Select value={method} onChange={setMethod} options={PAY_METHOD_OPTS} style={{ width: '100%' }} />
             </div>
             {method === 1 && (
               <div>
-                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Tiền khách đưa</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Tiền khách đưa</div>
                 <InputNumber value={received} onChange={(v) => setReceived(Number(v) || 0)} min={0} style={{ width: '100%' }} formatter={fmtMoney} />
               </div>
             )}
             {method !== 1 && (
               <div>
-                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Mã giao dịch</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Mã giao dịch</div>
                 <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Mã ref NH / thẻ" />
               </div>
             )}
           </div>
           {method === 1 && received > amount && (
-            <div style={{ marginTop: 10, fontSize: 'var(--fs-md)' }}>
+            <div style={{ marginTop: 'var(--space-10)', fontSize: 'var(--fs-md)' }}>
               Tiền thối: <b className="mono" style={{ color: '#15803d' }}>{(received - amount).toLocaleString('vi-VN')} ₫</b>
             </div>
           )}

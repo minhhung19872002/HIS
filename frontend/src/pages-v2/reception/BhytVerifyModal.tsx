@@ -44,22 +44,22 @@ export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> =
       )}
     >
       <div style={{ padding: 0 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
           <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Số thẻ BHYT *</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Số thẻ BHYT *</div>
             <Input value={num} onChange={(e) => setNum(e.target.value)} placeholder="VD: HC4010112345678" onPressEnter={verify} />
           </div>
           <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Họ tên (tùy chọn)</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Họ tên (tùy chọn)</div>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Đối chiếu tên" />
           </div>
         </div>
 
         {result && (
-          <div className="rec-section" style={{ marginTop: 16 }}>
+          <div className="rec-section" style={{ marginTop: 'var(--space-16)' }}>
             <h5>
               <TermIcon name={result.isValid ? 'check' : 'x'} size={11} /> KẾT QUẢ
-              <span style={{ marginLeft: 8 }}>
+              <span style={{ marginLeft: 'var(--space-8)' }}>
                 <StatusBadge tone={result.isValid && !result.isExpired ? 'ok' : 'crit'} dot>
                   {result.isBlacklisted ? 'Thẻ bị khóa' : result.isExpired ? 'Hết hạn' : result.isValid ? 'Hợp lệ' : 'Không hợp lệ'}
                 </StatusBadge>
@@ -74,12 +74,12 @@ export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> =
               <span>Mức hưởng</span><b>{result.paymentRate || 0}%</b>
             </div>
             {result.warnings?.length > 0 && (
-              <div style={{ marginTop: 8, fontSize: 'var(--fs-sm)', color: 'var(--s-warn)' }}>
+              <div style={{ marginTop: 'var(--space-8)', fontSize: 'var(--fs-sm)', color: 'var(--s-warn)' }}>
                 {result.warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}
               </div>
             )}
             {result.errorMessage && (
-              <div style={{ marginTop: 8, fontSize: 'var(--fs-sm)', color: 'var(--s-crit)' }}>{result.errorMessage}</div>
+              <div style={{ marginTop: 'var(--space-8)', fontSize: 'var(--fs-sm)', color: 'var(--s-crit)' }}>{result.errorMessage}</div>
             )}
           </div>
         )}

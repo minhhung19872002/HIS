@@ -467,22 +467,22 @@ const InsuranceTab: React.FC<{ userId: string }> = ({ userId }) => {
   };
 
   return (
-    <div style={{ padding: 24, maxWidth: 800 }}>
+    <div style={{ padding: 'var(--space-24)', maxWidth: 800 }}>
       <div className="panel" style={{ padding: 0 }}>
         <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
           <span>BHXH / BHYT</span>
         </div>
-        <div style={{ padding: 20 }}>
+        <div style={{ padding: 'var(--space-20)' }}>
           <Form form={form} layout="vertical">
             <Form.Item name="socialInsuranceNumber" label="Số sổ BHXH"><Input maxLength={10} placeholder="10 chữ số" /></Form.Item>
             <Form.Item name="socialInsuranceStartDate" label="Ngày tham gia BHXH"><DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" /></Form.Item>
             <Form.Item name="healthInsuranceNumber" label="Số thẻ BHYT"><Input maxLength={15} /></Form.Item>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
               <Form.Item name="healthInsuranceStartDate" label="BHYT từ"><DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" /></Form.Item>
               <Form.Item name="healthInsuranceEndDate" label="BHYT đến"><DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" /></Form.Item>
             </div>
             <Form.Item name="healthInsuranceFacilityCode" label="Mã CSKCB ban đầu"><Input maxLength={10} /></Form.Item>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
               <Form.Item name="monthlyEmployeeContribution" label="NV đóng / tháng">
                 <InputNumber style={{ width: '100%' }} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
               </Form.Item>

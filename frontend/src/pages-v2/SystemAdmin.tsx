@@ -311,7 +311,7 @@ const SystemAdminV2: React.FC = () => {
             <DrField lbl="IP">{selUser.lastLoginIP || '—'}</DrField>
             <DrField lbl="Trạng thái">{selUser.isLocked ? 'Khoá' : selUser.isActive ? 'Hoạt động' : 'Tạm dừng'}</DrField>
           </DrSec>
-          <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-6)', marginTop: 'var(--space-12)' }}>
             <Btn variant="primary" onClick={() => { setSelUser(null); openEditUser(selUser); }}>Sửa</Btn>
             <Btn onClick={() => lockToggle(selUser)}>{selUser.isLocked ? 'Mở khoá' : 'Khoá'}</Btn>
             <Btn onClick={() => resetPw(selUser)}>Reset mật khẩu</Btn>
@@ -356,7 +356,7 @@ const SystemAdminV2: React.FC = () => {
       <ModalShell open={!!cfgModal} onClose={() => setCfgModal(null)} title="Sửa cấu hình" sub={cfgModal?.configKey} size="sm"
         footer={<><Btn onClick={() => setCfgModal(null)}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submitCfg}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn></>}>
         <Form form={cfgF} layout="vertical" scrollToFirstError>
-          <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)', marginBottom: 8 }}>{cfgModal?.description || cfgModal?.category}</div>
+          <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)', marginBottom: 'var(--space-8)' }}>{cfgModal?.description || cfgModal?.category}</div>
           <Form.Item name="configValue" label="Giá trị" rules={[{ required: true, message: 'Nhập giá trị' }]}><Input.TextArea rows={3} /></Form.Item>
         </Form>
       </ModalShell>

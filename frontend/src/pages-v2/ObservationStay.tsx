@@ -226,11 +226,11 @@ const ObservationStayV2: React.FC = () => {
             {vitals.length === 0 ? (
               <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Chưa có bản ghi sinh hiệu</div>
             ) : vitals.map((v) => (
-              <div key={v.id} style={{ marginBottom: 8, padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
+              <div key={v.id} style={{ marginBottom: 'var(--space-8)', padding: 'var(--space-10)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 'var(--fs-sm)' }}>
                   {dayjs(v.recordedAt).format('DD/MM HH:mm')}
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-6)', marginTop: 'var(--space-6)' }}>
                   {v.temperature != null && <StatusBadge tone="info">T° {v.temperature}</StatusBadge>}
                   {v.heartRate != null && <StatusBadge tone="info">HR {v.heartRate}</StatusBadge>}
                   {v.respirationRate != null && <StatusBadge tone="info">RR {v.respirationRate}</StatusBadge>}
@@ -238,7 +238,7 @@ const ObservationStayV2: React.FC = () => {
                   {v.spO2 != null && <StatusBadge tone="info">SpO₂ {v.spO2}%</StatusBadge>}
                   {v.consciousness != null && <StatusBadge tone="info">GCS {v.consciousness}</StatusBadge>}
                 </div>
-                {v.nurseNote && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 4 }}>ĐD: {v.nurseNote}</div>}
+                {v.nurseNote && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-4)' }}>ĐD: {v.nurseNote}</div>}
                 {v.doctorNote && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>BS: {v.doctorNote}</div>}
               </div>
             ))}
@@ -260,7 +260,7 @@ const ObservationStayV2: React.FC = () => {
             <Select showSearch filterOption={false} placeholder="Tìm theo mã BN, họ tên, CCCD, SĐT…"
               options={patientOptions} onSearch={searchPatient} />
           </Form.Item>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
             <Form.Item label="Khoa" name="departmentId">
               <Select allowClear showSearch optionFilterProp="label"
                 options={departments.map((d) => ({ label: d.departmentName, value: d.id }))} />
@@ -291,7 +291,7 @@ const ObservationStayV2: React.FC = () => {
         </>}
       >
         <Form form={vitalForm} layout="vertical">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-12)' }}>
             <Form.Item label="Nhiệt độ (°C)" name="temperature"><InputNumber step={0.1} style={{ width: '100%' }} /></Form.Item>
             <Form.Item label="Mạch (l/p)" name="heartRate"><InputNumber style={{ width: '100%' }} /></Form.Item>
             <Form.Item label="Thở (l/p)" name="respirationRate"><InputNumber style={{ width: '100%' }} /></Form.Item>

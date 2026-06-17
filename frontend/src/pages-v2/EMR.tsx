@@ -85,7 +85,7 @@ const ClinicalTemplateManager: React.FC<{ open: boolean; onClose: () => void }> 
     {
       title: '', width: 120,
       render: (_: unknown, r: ClinicalTemplateDto) => (
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 'var(--space-6)' }}>
           <Button size="small" onClick={() => openEdit(r)}>Sửa</Button>
           <Popconfirm title="Xóa mẫu này?" onConfirm={() => handleDelete(r.id)} okText="Xóa" cancelText="Hủy" okButtonProps={{ danger: true }}>
             <Button size="small" danger>Xóa</Button>
@@ -104,7 +104,7 @@ const ClinicalTemplateManager: React.FC<{ open: boolean; onClose: () => void }> 
       footer={null}
       destroyOnHidden
     >
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-8)', marginBottom: 'var(--space-12)', alignItems: 'center' }}>
         <Select
           allowClear placeholder="Lọc theo loại" style={{ width: 220 }}
           options={TEMPLATE_TYPES.map((t) => ({ value: t.value, label: t.label }))}
@@ -135,7 +135,7 @@ const ClinicalTemplateManager: React.FC<{ open: boolean; onClose: () => void }> 
         destroyOnHidden
         width={700}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
+        <Form form={form} layout="vertical" style={{ marginTop: 'var(--space-8)' }}>
           <Form.Item name="templateName" label="Tên mẫu" rules={[{ required: true }]}>
             <Input placeholder="VD: Mẫu HSBA ngoại trú nội khoa" />
           </Form.Item>
@@ -189,7 +189,7 @@ const EMRV2: React.FC = () => {
     {
       key: 'chronic', label: 'Bệnh nền',
       render: (r) => (r.chronicDiseases?.length ? (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
           {r.chronicDiseases.slice(0, 2).map((c) => <span key={c} className="chip info" style={{ fontSize: 'var(--fs-xxs)' }}>{c}</span>)}
           {r.chronicDiseases.length > 2 && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>+{r.chronicDiseases.length - 2}</span>}
         </div>
@@ -250,7 +250,7 @@ const EMRV2: React.FC = () => {
         </div>
       )}
       drawer={(r) => (
-        <div style={{ padding: 18 }}>
+        <div style={{ padding: 'var(--space-18)' }}>
           <div className="rec-section">
             <h5><TermIcon name="user" size={11} /> BỆNH NHÂN</h5>
             <div className="rec-kv">
@@ -262,18 +262,18 @@ const EMRV2: React.FC = () => {
           </div>
           <div className="rec-section">
             <h5><TermIcon name="heart" size={11} /> BỆNH NỀN · DỊ ỨNG</h5>
-            <div style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4 }}>Bệnh nền</div>
+            <div style={{ marginBottom: 'var(--space-8)' }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Bệnh nền</div>
               {r.chronicDiseases?.length ? (
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
                   {r.chronicDiseases.map((c) => <span key={c} className="chip info">{c}</span>)}
                 </div>
               ) : <span style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Không ghi nhận</span>}
             </div>
             <div>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4 }}>Dị ứng</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Dị ứng</div>
               {r.allergies?.length ? (
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
                   {r.allergies.map((a) => <span key={a} className="chip crit">⚠ {a}</span>)}
                 </div>
               ) : <span style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Không ghi nhận</span>}
@@ -290,7 +290,7 @@ const EMRV2: React.FC = () => {
           </div>
           <div className="rec-section">
             <h5><TermIcon name="info" size={11} /> THAO TÁC</h5>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
               <Btn variant="primary" onClick={() => navigate('/v2/emr/edit')}>
                 <TermIcon name="eye" size={12} /> Mở HS chi tiết
               </Btn>
@@ -311,7 +311,7 @@ const EMRV2: React.FC = () => {
         </div>
       )}
       drawerTitle={(r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.patientCode}</span>
           <span style={{ fontSize: 14 }}>{r.patientName}</span>
         </span>

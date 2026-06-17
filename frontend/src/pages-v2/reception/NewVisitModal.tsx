@@ -22,12 +22,12 @@ const Lbl: React.FC<{ label?: string; required?: boolean; error?: string; full?:
   // data-fld-err: mốc để auto-scroll tới field lỗi đầu tiên khi validation fail
   <div style={{ gridColumn: full ? '1 / -1' : undefined }} {...(error ? { 'data-fld-err': '' } : {})}>
     {label && (
-      <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>
+      <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>
         {label}{required && <span style={{ color: 'var(--s-crit)' }}> *</span>}
       </div>
     )}
     {children}
-    {error && <div style={{ fontSize: 10.5, color: 'var(--s-crit)', marginTop: 3 }}>{error}</div>}
+    {error && <div style={{ fontSize: 10.5, color: 'var(--s-crit)', marginTop: 'var(--space-3)' }}>{error}</div>}
   </div>
 );
 
@@ -247,7 +247,7 @@ export const NewVisitModal: React.FC<{
         {/* Step 1 — Bệnh nhân */}
         {step === 1 && (
           <div>
-            <div style={{ padding: '12px 14px', background: 'var(--s-info-soft)', border: '1px solid #bfdbfe', borderRadius: 'var(--r-3)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, fontSize: 'var(--fs-sm)' }}>
+            <div style={{ padding: '12px 14px', background: 'var(--s-info-soft)', border: '1px solid #bfdbfe', borderRadius: 'var(--r-3)', marginBottom: 'var(--space-14)', display: 'flex', alignItems: 'center', gap: 'var(--space-10)', fontSize: 'var(--fs-sm)' }}>
               <TermIcon name="search" size={14} />
               <span style={{ flex: 1 }}>Tìm BN cũ bằng SĐT để tự động điền · hoặc nhập mới bên dưới</span>
               <button type="button" className="ab-btn ghost sm" onClick={() => setPickerOpen(true)}>
@@ -262,7 +262,7 @@ export const NewVisitModal: React.FC<{
                 <Input value={data.phone} onChange={(e) => set('phone', e.target.value)} placeholder="0912 345 678" />
               </Lbl>
             </div>
-            <div className="rec-grid-3" style={{ marginTop: 10 }}>
+            <div className="rec-grid-3" style={{ marginTop: 'var(--space-10)' }}>
               <Lbl label="Tuổi" required error={errs.age}>
                 <InputNumber value={data.age} onChange={(v) => set('age', v)} min={0} max={130} style={{ width: '100%' }} />
               </Lbl>
@@ -273,7 +273,7 @@ export const NewVisitModal: React.FC<{
                 <Input value={data.cccd} onChange={(e) => set('cccd', e.target.value)} placeholder="012345678901" />
               </Lbl>
             </div>
-            <div style={{ marginTop: 10 }}>
+            <div style={{ marginTop: 'var(--space-10)' }}>
               <Lbl label="Địa chỉ thường trú">
                 <Input value={data.address} onChange={(e) => set('address', e.target.value)} placeholder="P. Lê Hồng Phong, TP. Hưng Yên" />
               </Lbl>
@@ -284,7 +284,7 @@ export const NewVisitModal: React.FC<{
         {/* Step 2 — BHYT & hình thức */}
         {step === 2 && (
           <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>HÌNH THỨC KHÁM</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 'var(--space-8)' }}>HÌNH THỨC KHÁM</div>
             <div className="rec-vtype">
               {VISIT_TYPES.map((t) => (
                 <label key={t.v} className={data.visitType === t.v ? 'on' : ''}>
@@ -295,9 +295,9 @@ export const NewVisitModal: React.FC<{
               ))}
             </div>
             {visitType?.bhyt ? (
-              <div style={{ marginTop: 18 }}>
-                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>THẺ BHYT</div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+              <div style={{ marginTop: 'var(--space-18)' }}>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 'var(--space-8)' }}>THẺ BHYT</div>
+                <div style={{ display: 'flex', gap: 'var(--space-8)', alignItems: 'flex-end' }}>
                   <div style={{ flex: 1 }}>
                     <Lbl label="Số thẻ BHYT" required error={errs.bhytNo}>
                       <Input value={data.bhytNo} onChange={(e) => { set('bhytNo', e.target.value); setBhytChecked(false); setBhytValid(false); }} placeholder="HN4 5 08 1234567" />
@@ -308,7 +308,7 @@ export const NewVisitModal: React.FC<{
                   </button>
                 </div>
                 {bhytChecked && bhytValid && (
-                  <div className="rec-bhyt-card" style={{ marginTop: 10 }}>
+                  <div className="rec-bhyt-card" style={{ marginTop: 'var(--space-10)' }}>
                     <div className="rec-bhyt-icon"><TermIcon name="check" size={18} /></div>
                     <div>
                       <div className="rec-bhyt-num">{data.bhytNo}</div>
@@ -321,18 +321,18 @@ export const NewVisitModal: React.FC<{
                   </div>
                 )}
                 {bhytChecked && !bhytValid && (
-                  <div className="rec-bhyt-card invalid" style={{ marginTop: 10 }}>
+                  <div className="rec-bhyt-card invalid" style={{ marginTop: 'var(--space-10)' }}>
                     <div className="rec-bhyt-icon"><TermIcon name="x" size={18} /></div>
                     <div>
                       <div style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--s-crit)' }}>Thẻ không hợp lệ hoặc đã hết hạn</div>
-                      <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>Đổi sang hình thức khám khác hoặc kiểm tra lại số thẻ</div>
+                      <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)' }}>Đổi sang hình thức khám khác hoặc kiểm tra lại số thẻ</div>
                     </div>
                     <span className="chip crit">Lỗi</span>
                   </div>
                 )}
               </div>
             ) : (
-              <div style={{ marginTop: 18, padding: '12px 14px', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ marginTop: 'var(--space-18)', padding: '12px 14px', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>Phí {visitType?.l.toLowerCase()}</span>
                 <b style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-lg)', color: 'var(--a-cy)' }}>{fmtVNDw(visitType?.fee || 0)}</b>
               </div>
@@ -343,7 +343,7 @@ export const NewVisitModal: React.FC<{
         {/* Step 3 — Khoa & lý do */}
         {step === 3 && (
           <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>CHỌN KHOA · PHÒNG KHÁM</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 'var(--space-8)' }}>CHỌN KHOA · PHÒNG KHÁM</div>
             <div className="rec-deptgrid">
               {rooms.map((r) => (
                 <label key={r.roomId} className={data.dept === r.roomId ? 'on' : ''}>
@@ -358,12 +358,12 @@ export const NewVisitModal: React.FC<{
               ))}
               {rooms.length === 0 && <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Không có phòng khám khả dụng</div>}
             </div>
-            {errs.dept && <div data-fld-err="" style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-xs)', marginTop: 6 }}>{errs.dept}</div>}
+            {errs.dept && <div data-fld-err="" style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-xs)', marginTop: 'var(--space-6)' }}>{errs.dept}</div>}
 
             {/* Phòng khám thêm — đa chuyên khoa (chỉ thu phí/dịch vụ, KHÔNG áp dụng BHYT) */}
             {!visitType?.bhyt && (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>
+              <div style={{ marginTop: 'var(--space-16)' }}>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 'var(--space-8)' }}>
                   PHÒNG KHÁM THÊM <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(đồng thời · tùy chọn)</span>
                 </div>
                 <div className="rec-deptgrid">
@@ -391,18 +391,18 @@ export const NewVisitModal: React.FC<{
                     );
                   })}
                 </div>
-                <div style={{ fontSize: 10.5, color: 'var(--t-2)', marginTop: 6 }}>
+                <div style={{ fontSize: 10.5, color: 'var(--t-2)', marginTop: 'var(--space-6)' }}>
                   BN được cấp số ở <b>tất cả</b> phòng đã chọn (khám đa chuyên khoa). Không áp dụng cho khám BHYT.
                 </div>
               </div>
             )}
 
-            <div style={{ marginTop: 14 }}>
+            <div style={{ marginTop: 'var(--space-14)' }}>
               <Lbl label="Lý do khám" required error={errs.reason}>
                 <Input.TextArea rows={3} value={data.reason} onChange={(e) => set('reason', e.target.value)} placeholder="Triệu chứng chính, thời gian khởi phát…" />
               </Lbl>
             </div>
-            <div style={{ marginTop: 12 }}>
+            <div style={{ marginTop: 'var(--space-12)' }}>
               <Lbl label="Mức ưu tiên">
                 <Radio.Group
                   value={data.priority}
@@ -418,22 +418,22 @@ export const NewVisitModal: React.FC<{
         {/* Step 4 — Xác nhận */}
         {step === 4 && (
           <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 }}>XÁC NHẬN ĐĂNG KÝ</div>
-            <div style={{ background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 14 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', rowGap: 8, fontSize: 12.5 }}>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 'var(--space-10)' }}>XÁC NHẬN ĐĂNG KÝ</div>
+            <div style={{ background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-14)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', rowGap: 'var(--space-8)', fontSize: 12.5 }}>
                 <span style={{ color: 'var(--t-2)' }}>Bệnh nhân</span><b>{data.patientName} · {data.gender === 'F' ? 'Nữ' : 'Nam'} · {data.age}t</b>
                 <span style={{ color: 'var(--t-2)' }}>SĐT</span><span className="mono">{data.phone}</span>
                 <span style={{ color: 'var(--t-2)' }}>CCCD</span><span className="mono">{data.cccd}</span>
                 {data.address && <><span style={{ color: 'var(--t-2)' }}>Địa chỉ</span><span>{data.address}</span></>}
                 <span style={{ color: 'var(--t-2)' }}>Hình thức</span><span>{visitType?.l}</span>
-                {data.bhytNo && <><span style={{ color: 'var(--t-2)' }}>Thẻ BHYT</span><span className="mono">{data.bhytNo} {bhytValid && <span className="chip ok" style={{ marginLeft: 6 }}>Hợp lệ</span>}</span></>}
+                {data.bhytNo && <><span style={{ color: 'var(--t-2)' }}>Thẻ BHYT</span><span className="mono">{data.bhytNo} {bhytValid && <span className="chip ok" style={{ marginLeft: 'var(--space-6)' }}>Hợp lệ</span>}</span></>}
                 <span style={{ color: 'var(--t-2)' }}>Khoa khám</span><b>{selRoom?.departmentName} · <span className="mono">{selRoom?.roomName}</span></b>
                 {!visitType?.bhyt && data.extraRooms.length > 0 && (
                   <>
                     <span style={{ color: 'var(--t-2)' }}>Phòng thêm</span>
                     <span>
                       {data.extraRooms.map((id) => rooms.find((r) => r.roomId === id)?.roomName || id).join(', ')}
-                      <span className="chip info" style={{ marginLeft: 6 }}>+{data.extraRooms.length} phòng</span>
+                      <span className="chip info" style={{ marginLeft: 'var(--space-6)' }}>+{data.extraRooms.length} phòng</span>
                     </span>
                   </>
                 )}
@@ -442,7 +442,7 @@ export const NewVisitModal: React.FC<{
                 <span style={{ color: 'var(--t-2)' }}>Phí khám</span><b style={{ color: 'var(--a-cy)', fontFamily: 'var(--font-mono)' }}>{fmtVNDw(visitType?.bhyt && bhytValid ? 0 : (visitType?.fee || 0))}</b>
               </div>
             </div>
-            <div style={{ marginTop: 12, padding: '10px 12px', background: '#fefce8', border: '1px solid var(--s-warn-bd)', borderRadius: 'var(--r-2)', fontSize: 11.5, color: '#854d0e' }}>
+            <div style={{ marginTop: 'var(--space-12)', padding: '10px 12px', background: '#fefce8', border: '1px solid var(--s-warn-bd)', borderRadius: 'var(--r-2)', fontSize: 11.5, color: '#854d0e' }}>
               <TermIcon name="alert" size={12} /> Sau khi đăng ký, hệ thống cấp số thứ tự và in phiếu hẹn. BN xuất trình phiếu tại phòng khám.
             </div>
           </div>

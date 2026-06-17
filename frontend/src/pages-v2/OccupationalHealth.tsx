@@ -32,7 +32,7 @@ const OccupationalHealthV2: React.FC = () => {
       <span className="chip info">{TYPE_LABEL[r.examType] || r.examType}</span>
     },
     { key: 'hazards', label: 'Yếu tố nguy cơ', width: 180, render: (r) => (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
         {(r.hazardTypes || []).slice(0, 3).map((h) => <span key={h} className="chip warn">{h}</span>)}
         {(r.hazardTypes || []).length > 3 && <span style={{ color: 'var(--t-3)' }}>+{r.hazardTypes.length - 3}</span>}
       </div>
@@ -99,7 +99,7 @@ const OccupationalHealthV2: React.FC = () => {
           </div>
           <div className="rec-section">
             <h5><TermIcon name="alert" size={11} /> YẾU TỐ NGUY CƠ</h5>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
               {(r.hazardTypes || []).map((h) => <span key={h} className="chip warn">{h}</span>)}
               {(r.hazardTypes || []).length === 0 && <span style={{ color: 'var(--t-3)' }}>Không có</span>}
             </div>
@@ -126,7 +126,7 @@ const OccupationalHealthV2: React.FC = () => {
         </>
       )}
       drawerTitle={(r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.examCode}</span>
           <span style={{ fontSize: 14 }}>{r.patientName}</span>
         </span>

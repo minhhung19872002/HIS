@@ -57,7 +57,7 @@ const ActionModal: React.FC<{
           <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : label}
         </Btn>
       </>}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
         <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Lý do *</span>
         <Input.TextArea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Nhập lý do…" />
       </div>
@@ -117,27 +117,27 @@ const StoreSampleModal: React.FC<{
           <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Lưu mẫu'}
         </Btn>
       </>}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
         <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Barcode mẫu *</div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Barcode mẫu *</div>
           <Input value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Quét hoặc nhập barcode" />
         </div>
         <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Vị trí lưu * (vd: Freezer-A/Rack-2/Box-5/Pos-12)</div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Vị trí lưu * (vd: Freezer-A/Rack-2/Box-5/Pos-12)</div>
           <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Freezer/Rack/Box/Position" />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
           <div>
-            <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Điều kiện bảo quản *</div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Điều kiện bảo quản *</div>
             <Select style={{ width: '100%' }} value={condition} onChange={setCondition} placeholder="Chọn điều kiện" options={STORAGE_COND_OPTS} />
           </div>
           <div>
-            <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Nhiệt độ (°C)</div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Nhiệt độ (°C)</div>
             <Input value={temp} onChange={(e) => setTemp(e.target.value)} placeholder="Vd: -20" type="number" />
           </div>
         </div>
         <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Ghi chú</div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Ghi chú</div>
           <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
         {err && <div style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-sm)' }}>{err}</div>}
@@ -180,7 +180,7 @@ const ScanModal: React.FC<{
           <Ico name="search" size={12} /> {loading ? 'Đang tìm…' : 'Tìm mẫu'}
         </Btn>
       </>}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
         <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Barcode *</span>
         <Input
           value={barcode}

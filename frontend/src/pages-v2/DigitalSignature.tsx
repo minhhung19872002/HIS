@@ -422,13 +422,13 @@ const DigitalSignatureV2: React.FC = () => {
       >
         {batchResult && (
           <div>
-            <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 'var(--space-12)', marginBottom: 'var(--space-12)' }}>
               <StatusBadge tone="info">Tổng: {batchResult.total}</StatusBadge>
               <StatusBadge tone="ok">Thành công: {batchResult.succeeded}</StatusBadge>
               {batchResult.failed > 0 && <StatusBadge tone="crit">Lỗi: {batchResult.failed}</StatusBadge>}
             </div>
             {batchResult.results.filter((r) => !r.success).map((r) => (
-              <div key={r.documentId} style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-rd-text)', marginBottom: 4 }}>
+              <div key={r.documentId} style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-rd-text)', marginBottom: 'var(--space-4)' }}>
                 {r.documentId}: {r.error}
               </div>
             ))}

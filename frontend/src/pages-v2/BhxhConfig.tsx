@@ -117,7 +117,7 @@ const BhxhConfigV2: React.FC = () => {
       } />
 
       {tab === 'config' && (
-        <div style={{ padding: 24, maxWidth: 800 }}>
+        <div style={{ padding: 'var(--space-24)', maxWidth: 800 }}>
           <Form form={form} layout="vertical">
             <Form.Item label="Gateway URL" name="gatewayUrl" rules={[{ required: true, type: 'url' }]}>
               <Input placeholder="https://gdbhyt.baohiemxahoi.gov.vn/api" />
@@ -125,7 +125,7 @@ const BhxhConfigV2: React.FC = () => {
             <Form.Item label="Token / Auth URL" name="tokenUrl" rules={[{ type: 'url' }]}>
               <Input placeholder="https://gdbhyt.baohiemxahoi.gov.vn/api/token" />
             </Form.Item>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
               <Form.Item label="Username" name="username"><Input /></Form.Item>
               <Form.Item label={`Password${data?.hasPassword ? ` (${data.passwordMasked})` : ''}`} name="password">
                 <Input.Password placeholder={data?.hasPassword ? 'Để trống = giữ nguyên' : 'Nhập password'} />
@@ -147,19 +147,19 @@ const BhxhConfigV2: React.FC = () => {
       )}
 
       {tab === 'test' && (
-        <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ padding: 'var(--space-24)', display: 'flex', flexDirection: 'column', gap: 'var(--space-20)' }}>
           <div className="panel" style={{ padding: 0 }}>
             <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
               <span>1. Test kết nối gateway</span>
             </div>
-            <div style={{ padding: 14 }}>
+            <div style={{ padding: 'var(--space-14)' }}>
               <Btn variant="primary" icon="activity" onClick={testConn} disabled={testing === 'conn'}>Ping Gateway URL</Btn>
               {connResult && (
-                <div style={{ marginTop: 12, padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
+                <div style={{ marginTop: 'var(--space-12)', padding: 'var(--space-10)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
                   <StatusBadge tone={connResult.reachable ? 'ok' : 'crit'} dot>
                     {connResult.reachable ? `✓ Kết nối OK · HTTP ${connResult.statusCode} · ${connResult.latencyMs}ms` : '✗ Không kết nối được'}
                   </StatusBadge>
-                  {connResult.error && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-rd-text)', marginTop: 6 }}>{connResult.error}</div>}
+                  {connResult.error && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-rd-text)', marginTop: 'var(--space-6)' }}>{connResult.error}</div>}
                 </div>
               )}
             </div>
@@ -169,20 +169,20 @@ const BhxhConfigV2: React.FC = () => {
             <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
               <span>2. Test authenticate</span>
             </div>
-            <div style={{ padding: 14 }}>
-              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 8 }}>
+            <div style={{ padding: 'var(--space-14)' }}>
+              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-8)' }}>
                 Gửi POST {'{username, password, grant_type: "password"}'} tới Token URL, xem có trả access_token không.
               </div>
               <Btn variant="primary" icon="lock" onClick={testAuth} disabled={testing === 'auth'}>Lấy access_token</Btn>
               {authResult && (
-                <div style={{ marginTop: 12, padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
+                <div style={{ marginTop: 'var(--space-12)', padding: 'var(--space-10)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
                   <StatusBadge tone={authResult.authenticated ? 'ok' : 'crit'} dot>
                     {authResult.authenticated ? '✓ Đăng nhập thành công' : '✗ Xác thực thất bại'}
                   </StatusBadge>
-                  {authResult.tokenMasked && <div style={{ fontSize: 'var(--fs-sm)', marginTop: 6, fontFamily: 'var(--font-mono)' }}>Token: {authResult.tokenMasked}</div>}
+                  {authResult.tokenMasked && <div style={{ fontSize: 'var(--fs-sm)', marginTop: 'var(--space-6)', fontFamily: 'var(--font-mono)' }}>Token: {authResult.tokenMasked}</div>}
                   {authResult.statusCode && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>HTTP {authResult.statusCode}</div>}
-                  {authResult.body && <pre style={{ maxHeight: 200, overflow: 'auto', fontSize: 'var(--fs-xs)', marginTop: 6, background: 'var(--bg-1)', padding: 8 }}>{authResult.body}</pre>}
-                  {authResult.error && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-rd-text)', marginTop: 6 }}>{authResult.error}</div>}
+                  {authResult.body && <pre style={{ maxHeight: 200, overflow: 'auto', fontSize: 'var(--fs-xs)', marginTop: 'var(--space-6)', background: 'var(--bg-1)', padding: 'var(--space-8)' }}>{authResult.body}</pre>}
+                  {authResult.error && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-rd-text)', marginTop: 'var(--space-6)' }}>{authResult.error}</div>}
                 </div>
               )}
             </div>
@@ -192,25 +192,25 @@ const BhxhConfigV2: React.FC = () => {
             <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
               <span>3. Test submit XML (dry-run)</span>
             </div>
-            <div style={{ padding: 14 }}>
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>
+            <div style={{ padding: 'var(--space-14)' }}>
+              <div style={{ marginBottom: 'var(--space-12)' }}>
+                <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>
                   Endpoint (vd: /api/bhxh/submitXml). Để trống = gửi tới Gateway URL gốc.
                 </div>
                 <Input value={testEndpoint} onChange={(e) => setTestEndpoint(e.target.value)} placeholder="/api/bhxh/submitXml" />
               </div>
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>XML payload</div>
+              <div style={{ marginBottom: 'var(--space-12)' }}>
+                <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>XML payload</div>
                 <Input.TextArea rows={10} value={testXml} onChange={(e) => setTestXml(e.target.value)} style={{ fontFamily: 'monospace' }} />
               </div>
               <Btn variant="primary" icon="send" onClick={testSubmit} disabled={testing === 'submit'}>Gửi thử</Btn>
               {submitResult && (
-                <div style={{ marginTop: 12, padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
+                <div style={{ marginTop: 'var(--space-12)', padding: 'var(--space-10)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
                   <StatusBadge tone={submitResult.success ? 'ok' : 'crit'} dot>
                     {submitResult.success ? `✓ HTTP ${submitResult.statusCode} · ${submitResult.latencyMs}ms` : '✗ Submit failed'}
                   </StatusBadge>
-                  {submitResult.body && <pre style={{ maxHeight: 260, overflow: 'auto', fontSize: 'var(--fs-xs)', marginTop: 6, background: 'var(--bg-1)', padding: 8 }}>{submitResult.body}</pre>}
-                  {submitResult.error && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-rd-text)', marginTop: 6 }}>{submitResult.error}</div>}
+                  {submitResult.body && <pre style={{ maxHeight: 260, overflow: 'auto', fontSize: 'var(--fs-xs)', marginTop: 'var(--space-6)', background: 'var(--bg-1)', padding: 'var(--space-8)' }}>{submitResult.body}</pre>}
+                  {submitResult.error && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-rd-text)', marginTop: 'var(--space-6)' }}>{submitResult.error}</div>}
                 </div>
               )}
             </div>

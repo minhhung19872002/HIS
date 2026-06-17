@@ -111,7 +111,7 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
 
   return (
     <div className="rec-section">
-      <h5 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <h5 style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)' }}>
         <TermIcon name="alert" size={11} /> CỜ CẢNH BÁO BỆNH NHÂN
         {flags.length > 0 && <i>{flags.length}</i>}
         <button
@@ -131,12 +131,12 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
       )}
 
       {!loading && flags.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
           {flags.map((f) => (
             <div
               key={f.id}
               style={{
-                display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 8px',
+                display: 'flex', alignItems: 'flex-start', gap: 'var(--space-8)', padding: '6px 8px',
                 border: '1px solid var(--line)', borderRadius: 'var(--r-2)',
                 borderLeft: `3px solid ${FLAG_COLOR_HEX[f.color] || 'var(--s-crit)'}`,
               }}
@@ -152,7 +152,7 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
               <span style={{ flex: 1, fontSize: 11.5, color: 'var(--t-1)' }}>
                 {f.note}
                 {f.expiresAt && (
-                  <i style={{ color: 'var(--t-2)', marginLeft: 6 }}>
+                  <i style={{ color: 'var(--t-2)', marginLeft: 'var(--space-6)' }}>
                     · đến {dayjs(f.expiresAt).format('DD/MM/YYYY')}
                   </i>
                 )}
@@ -187,9 +187,9 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
           <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Loại cảnh báo</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Loại cảnh báo</div>
             <Select
               style={{ width: '100%' }}
               value={form.flagType}
@@ -198,7 +198,7 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
             />
           </div>
           <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Mức độ (màu)</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Mức độ (màu)</div>
             <Select
               style={{ width: '100%' }}
               value={form.color}
@@ -207,7 +207,7 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
             />
           </div>
           <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>
               Ghi chú <span style={{ color: 'var(--s-crit)' }}>*</span>
             </div>
             <Input.TextArea
@@ -218,7 +218,7 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
             />
           </div>
           <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Hết hiệu lực (tùy chọn)</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Hết hiệu lực (tùy chọn)</div>
             <DatePicker
               style={{ width: '100%' }}
               format="DD/MM/YYYY"

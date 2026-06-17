@@ -96,7 +96,7 @@ const PatientWarnings: React.FC<{ patientId?: string }> = ({ patientId }) => {
   if (warnings.length === 0) {
     return (
       <div className="rec-section">
-        <div className="rec-status-banner ok" style={{ gap: 8 }}>
+        <div className="rec-status-banner ok" style={{ gap: 'var(--space-8)' }}>
           <TermIcon name="check" size={14} />
           <span style={{ fontSize: 11.5, color: 'var(--t-2)' }}>Không có cảnh báo an toàn cho bệnh nhân này.</span>
         </div>
@@ -114,16 +114,16 @@ const PatientWarnings: React.FC<{ patientId?: string }> = ({ patientId }) => {
         <TermIcon name="alert" size={11} /> CẢNH BÁO AN TOÀN
         {blockingCount > 0 && <i style={{ color: 'var(--s-crit)' }}>{blockingCount} chặn</i>}
       </h5>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
         {sorted.map((w, i) => {
           const tone = w.isBlocking ? 'crit' : 'warn';
           return (
             <div
               key={i}
               className={`rec-status-banner ${tone}`}
-              style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 3, padding: '8px 10px' }}
+              style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 'var(--space-3)', padding: '8px 10px' }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', width: '100%' }}>
                 <TermIcon name="alert" size={12} />
                 <b style={{ fontSize: 'var(--fs-sm)' }}>{w.warningTypeName || 'Cảnh báo'}</b>
                 <span className={`chip ${w.isBlocking ? 'crit' : 'warn'}`} style={{ marginLeft: 'auto' }}>
@@ -132,7 +132,7 @@ const PatientWarnings: React.FC<{ patientId?: string }> = ({ patientId }) => {
               </div>
               <div style={{ fontSize: 11.5, color: 'var(--t-1)' }}>{w.message}</div>
               {(w.amount != null || w.date) && (
-                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'flex', gap: 12 }}>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'flex', gap: 'var(--space-12)' }}>
                   {w.amount != null && <span>Số tiền: <b>{fmtWarnMoney(w.amount)}</b></span>}
                   {w.date && <span>Ngày: <b>{dayjs(w.date).format('DD/MM/YYYY')}</b></span>}
                 </div>
@@ -166,7 +166,7 @@ const DrawerInfoTab: React.FC<{ v: RawRow }> = ({ v }) => {
       {/* Action buttons strip */}
       <div className="rec-section">
         <h5><TermIcon name="plus" size={11} /> THAO TÁC NHANH</h5>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-6)' }}>
           <button
             type="button" className="ab-btn ghost sm"
             disabled={!hasPat}
@@ -251,7 +251,7 @@ const DrawerInfoTab: React.FC<{ v: RawRow }> = ({ v }) => {
           <StatusBadge tone={tone} dot>{lbl}</StatusBadge>
           <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
             STT&nbsp;
-            <span className={`rec-token ${pk}`} style={{ marginLeft: 4 }}>
+            <span className={`rec-token ${pk}`} style={{ marginLeft: 'var(--space-4)' }}>
               {v.queueCode || `#${v.queueNumber}`}
             </span>
           </span>
@@ -320,7 +320,7 @@ const DrawerInfoTab: React.FC<{ v: RawRow }> = ({ v }) => {
               <div style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--s-crit)' }}>
                 Không có thẻ BHYT
               </div>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)' }}>
                 Bệnh nhân khám viện phí hoặc dịch vụ
               </div>
             </div>
@@ -402,7 +402,7 @@ const EditAdmissionModal: React.FC<EditAdmissionProps> = ({ open, onClose, admis
       destroyOnHidden
       width={460}
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
+      <Form form={form} layout="vertical" style={{ marginTop: 'var(--space-8)' }}>
         <Form.Item name="chiefComplaint" label="Lý do khám">
           <Input.TextArea rows={2} placeholder="Nhập lý do / triệu chứng chính" />
         </Form.Item>
@@ -507,7 +507,7 @@ const DrawerRelatedTab: React.FC<{ list: RawRow[] }> = ({ list }) => (
       return (
         <div key={r.id} style={{
           padding: '10px 14px', borderBottom: '1px solid var(--line-soft)',
-          display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 10, alignItems: 'center',
+          display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 'var(--space-10)', alignItems: 'center',
         }}>
           <span className={`rec-token ${pk} ${sk === 'completed' ? 'done' : ''}`}>
             {r.queueCode || `#${r.queueNumber}`}

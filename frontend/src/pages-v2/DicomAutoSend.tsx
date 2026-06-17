@@ -212,7 +212,7 @@ const DicomAutoSend: React.FC = () => {
       )}
 
       {tab === 'stats' && stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-14)', padding: 'var(--space-14)' }}>
           <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', fontWeight: 600, fontSize: 'var(--fs-md)' }}>
               Theo server đích
@@ -230,7 +230,7 @@ const DicomAutoSend: React.FC = () => {
                   </tr>
                 ))}
                 {stats.byDestination.length === 0 && (
-                  <tr><td colSpan={3} style={{ padding: 24, textAlign: 'center', color: 'var(--t-3)' }}>Không có dữ liệu</td></tr>
+                  <tr><td colSpan={3} style={{ padding: 'var(--space-24)', textAlign: 'center', color: 'var(--t-3)' }}>Không có dữ liệu</td></tr>
                 )}
               </tbody>
             </table>
@@ -239,11 +239,11 @@ const DicomAutoSend: React.FC = () => {
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', fontWeight: 600, fontSize: 'var(--fs-md)' }}>
               14 ngày gần nhất
             </div>
-            <div style={{ padding: 14, display: 'flex', gap: 4, alignItems: 'flex-end', height: 200 }}>
+            <div style={{ padding: 'var(--space-14)', display: 'flex', gap: 'var(--space-4)', alignItems: 'flex-end', height: 200 }}>
               {stats.byDay.map((d, i) => {
                 const h = maxDay > 0 ? (d.count / maxDay * 170) : 4;
                 return (
-                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }} title={`${fmtDMYg(d.date)}: ${d.count} ca`}>
+                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-4)' }} title={`${fmtDMYg(d.date)}: ${d.count} ca`}>
                     <div style={{
                       width: '100%', height: Math.max(4, h),
                       background: 'linear-gradient(180deg, var(--a-cy), var(--c-pri-dim))',
@@ -285,7 +285,7 @@ const DicomAutoSend: React.FC = () => {
             </DrSec>
             {txnDetail.errorMessage && (
               <DrSec title="Lỗi">
-                <div style={{ padding: 10, background: 'var(--s-crit-bg)', color: 'var(--s-crit)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', borderRadius: 4 }}>
+                <div style={{ padding: 'var(--space-10)', background: 'var(--s-crit-bg)', color: 'var(--s-crit)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', borderRadius: 4 }}>
                   {txnDetail.errorMessage}
                 </div>
               </DrSec>
@@ -310,12 +310,12 @@ const DicomAutoSend: React.FC = () => {
           </>
         )}
       >
-        <div style={{ padding: 18 }}>
+        <div style={{ padding: 'var(--space-18)' }}>
           <Form form={form} layout="vertical">
             <Form.Item name="ruleName" label="Tên quy tắc" rules={[{ required: true }]}>
               <Input placeholder="VD: Auto gửi CT từ Toshiba sang Cloud-PACS" />
             </Form.Item>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
               <Form.Item name="modality" label="Modality">
                 <Select allowClear options={['CT', 'MR', 'CR', 'DX', 'US', 'XA', 'MG', 'NM', 'PT'].map(m => ({ value: m, label: m }))} />
               </Form.Item>

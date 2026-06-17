@@ -98,7 +98,7 @@ const ReproductiveHealthV2: React.FC = () => {
         </>
       )}
       drawerTitle={(r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.recordCode}</span>
           <span style={{ fontSize: 14 }}>{r.patientName}</span>
         </span>

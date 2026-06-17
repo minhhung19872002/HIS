@@ -346,7 +346,7 @@ const LaboratoryV2: React.FC = () => {
           <span className="mono">{r.requestCode}</span>
           {r.priority === 2 && (
             <span style={{
-              marginLeft: 6, padding: '1px 5px',
+              marginLeft: 'var(--space-6)', padding: '1px 5px',
               background: 'var(--s-crit-bg)', border: '1px solid #fca5a5',
               color: 'var(--s-crit)', borderRadius: 'var(--r-1)',
               fontSize: 9, fontWeight: 700,
@@ -459,7 +459,7 @@ const LaboratoryV2: React.FC = () => {
         }}>
           <TermIcon name="user" size={12} /> Vai trò
           {labRoles.defaultKtvName && (
-            <span style={{ marginLeft: 4, fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>
+            <span style={{ marginLeft: 'var(--space-4)', fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>
               {labRoles.defaultKtvName.split(' ').slice(-1)[0]}
             </span>
           )}
@@ -520,7 +520,7 @@ const LaboratoryV2: React.FC = () => {
         open={!!detail}
         onClose={() => setDetail(null)}
         title={detail
-          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
               <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detail.requestCode}</span>
               <span style={{ fontSize: 14 }}>{detail.patientName}</span>
             </span>
@@ -579,13 +579,13 @@ const LaboratoryV2: React.FC = () => {
         size="lg"
       >
         {utilLoading ? (
-          <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
+          <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
         ) : (
           <>
             {/* ── Filter chung ── */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-8)', marginBottom: 'var(--space-12)', flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', marginBottom: 2 }}>Tháng/Năm HSD</div>
+                <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', marginBottom: 'var(--space-2)' }}>Tháng/Năm HSD</div>
                 <input
                   type="month"
                   value={utilFilterMonth}
@@ -617,7 +617,7 @@ const LaboratoryV2: React.FC = () => {
                   {utilCabinetStock.length === 0 ? 'Không có dữ liệu tủ trực' : 'Không có mục nào khớp filter'}
                 </div>
               ) : (
-                <div style={{ display: 'grid', gap: 4 }}>
+                <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
                   <div style={{
                     display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr',
                     fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', textTransform: 'uppercase',
@@ -649,7 +649,7 @@ const LaboratoryV2: React.FC = () => {
                       <span style={{ fontSize: 'var(--fs-xs)', color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? 'var(--s-warn)' : 'var(--t-2)' }}>
                         {s.expiryDate ? dayjs(s.expiryDate).format('MM/YYYY') : '—'}
                         {s.daysToExpiry !== undefined && s.daysToExpiry < 30 && (
-                          <span style={{ marginLeft: 4, color: 'var(--s-crit)', fontSize: 'var(--fs-xxs)' }}>({s.daysToExpiry}d)</span>
+                          <span style={{ marginLeft: 'var(--space-4)', color: 'var(--s-crit)', fontSize: 'var(--fs-xxs)' }}>({s.daysToExpiry}d)</span>
                         )}
                       </span>
                     </div>
@@ -659,14 +659,14 @@ const LaboratoryV2: React.FC = () => {
             </div>
 
             {/* ── Section 2: Tồn kho hóa chất (ngoài tủ trực) ── */}
-            <div className="rec-section" style={{ marginTop: 16 }}>
+            <div className="rec-section" style={{ marginTop: 'var(--space-16)' }}>
               <h5><TermIcon name="flask" size={11} /> TỒN KHO HÓA CHẤT (Kho XN — không kể tủ trực)</h5>
               {applyUtilFilters(utilChemStock).length === 0 ? (
                 <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)', padding: '8px 0' }}>
                   {utilChemStock.length === 0 ? 'Không có dữ liệu tồn kho hóa chất' : 'Không có mục nào khớp filter'}
                 </div>
               ) : (
-                <div style={{ display: 'grid', gap: 4 }}>
+                <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
                   <div style={{
                     display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr',
                     fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', textTransform: 'uppercase',
@@ -698,7 +698,7 @@ const LaboratoryV2: React.FC = () => {
                       <span style={{ fontSize: 'var(--fs-xs)', color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? 'var(--s-warn)' : 'var(--t-2)' }}>
                         {s.expiryDate ? dayjs(s.expiryDate).format('MM/YYYY') : '—'}
                         {s.daysToExpiry !== undefined && s.daysToExpiry < 30 && (
-                          <span style={{ marginLeft: 4, color: 'var(--s-crit)', fontSize: 'var(--fs-xxs)' }}>({s.daysToExpiry}d)</span>
+                          <span style={{ marginLeft: 'var(--space-4)', color: 'var(--s-crit)', fontSize: 'var(--fs-xxs)' }}>({s.daysToExpiry}d)</span>
                         )}
                       </span>
                     </div>
@@ -708,12 +708,12 @@ const LaboratoryV2: React.FC = () => {
             </div>
 
             {/* ── Section 3: Định mức hóa chất theo XN ── */}
-            <div className="rec-section" style={{ marginTop: 16 }}>
+            <div className="rec-section" style={{ marginTop: 'var(--space-16)' }}>
               <h5><TermIcon name="activity" size={11} /> ĐỊNH MỨC HÓA CHẤT THEO XN (LIS Catalog)</h5>
               {utilChemicals.length === 0 ? (
                 <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)', padding: '8px 0' }}>Chưa khai báo định mức hóa chất</div>
               ) : (
-                <div style={{ display: 'grid', gap: 4 }}>
+                <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
                   <div style={{
                     display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr',
                     fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', textTransform: 'uppercase',
@@ -733,7 +733,7 @@ const LaboratoryV2: React.FC = () => {
                       <span>{c.serviceName || '—'}</span>
                       <span>
                         <span style={{ fontWeight: 500 }}>{c.supplyName || '—'}</span>
-                        {c.supplyCode && <span style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', marginLeft: 4 }}>({c.supplyCode})</span>}
+                        {c.supplyCode && <span style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', marginLeft: 'var(--space-4)' }}>({c.supplyCode})</span>}
                       </span>
                       <span className="mono" style={{ textAlign: 'right' }}>{c.quantityPerTest} {c.unit || ''}</span>
                       <span style={{
@@ -759,7 +759,7 @@ const LaboratoryV2: React.FC = () => {
         sub="Auto-fill KTV và Người duyệt khi thao tác trên phiếu XN"
         size="sm"
         footer={
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
             <Btn variant="ghost" size="sm" disabled={rolesSaving} onClick={() => setRolesOpen(false)}>Hủy</Btn>
             <Btn variant="primary" size="sm" disabled={rolesSaving} onClick={async () => {
               setRolesSaving(true);
@@ -779,9 +779,9 @@ const LaboratoryV2: React.FC = () => {
           </div>
         }
       >
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gap: 'var(--space-14)' }}>
           <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>
               Tên KTV mặc định (auto-fill khi nhận mẫu)
             </label>
             <input
@@ -793,7 +793,7 @@ const LaboratoryV2: React.FC = () => {
             />
           </div>
           <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>
               Tên Người duyệt mặc định (auto-fill khi duyệt chính thức)
             </label>
             <input
@@ -819,7 +819,7 @@ const LaboratoryV2: React.FC = () => {
         size="sm"
         tone="danger"
         footer={
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
             <Btn variant="ghost" size="sm" disabled={chainBusy} onClick={() => setChainOpen(false)}>Hủy bỏ</Btn>
             <Btn variant="crit" size="sm" disabled={chainBusy || !chainReason.trim()} onClick={runChainCancel}>
               <TermIcon name="refresh" size={11} /> {chainBusy ? 'Đang xử lý…' : 'Thực hiện hủy'}
@@ -827,16 +827,16 @@ const LaboratoryV2: React.FC = () => {
           </div>
         }
       >
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div style={{ display: 'grid', gap: 'var(--space-10)' }}>
           <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 6 }}>Mức hủy (áp cho mọi chỉ số của phiếu, chạy tuần tự theo bước)</label>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-6)' }}>Mức hủy (áp cho mọi chỉ số của phiếu, chạy tuần tự theo bước)</label>
             {([
               { v: 1 as const, l: 'Hủy duyệt kết quả', d: 'Đã duyệt → Đã có KQ' },
               { v: 2 as const, l: 'Hủy KQ + hủy nhận mẫu', d: 'Đã có KQ / Đang xử lý → Đã lấy mẫu (xóa kết quả)' },
               { v: 3 as const, l: 'Hủy lấy mẫu', d: 'Đã lấy mẫu → Chờ lấy mẫu (hủy toàn bộ về đầu)' },
             ]).map((o) => (
-              <label key={o.v} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 4, cursor: 'pointer', background: chainLevel === o.v ? 'var(--d-1)' : 'transparent' }}>
-                <input type="radio" name="chain-level" checked={chainLevel === o.v} onChange={() => setChainLevel(o.v)} style={{ marginTop: 2 }} />
+              <label key={o.v} style={{ display: 'flex', gap: 'var(--space-8)', alignItems: 'flex-start', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 'var(--space-4)', cursor: 'pointer', background: chainLevel === o.v ? 'var(--d-1)' : 'transparent' }}>
+                <input type="radio" name="chain-level" checked={chainLevel === o.v} onChange={() => setChainLevel(o.v)} style={{ marginTop: 'var(--space-2)' }} />
                 <span>
                   <b style={{ fontSize: 'var(--fs-sm)' }}>{o.l}</b>
                   <span style={{ display: 'block', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{o.d}</span>
@@ -845,7 +845,7 @@ const LaboratoryV2: React.FC = () => {
             ))}
           </div>
           <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do hủy <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Lý do hủy <span style={{ color: 'var(--s-err)' }}>*</span></label>
             <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={chainReason} onChange={(e) => setChainReason(e.target.value)} placeholder="Bắt buộc — ghi vào ghi chú KTV của từng chỉ số…" />
           </div>
           {chainLevel >= 2 && (
@@ -905,7 +905,7 @@ const LabDrawerBody: React.FC<{ r: LabRequest }> = ({ r }) => {
 
       {(r.tests || []).length > 0 && (
         <div className="rec-section">
-          <h5><TermIcon name="activity" size={11} /> KẾT QUẢ {ab > 0 && <span className="chip warn" style={{ marginLeft: 6 }}>{ab} bất thường</span>}</h5>
+          <h5><TermIcon name="activity" size={11} /> KẾT QUẢ {ab > 0 && <span className="chip warn" style={{ marginLeft: 'var(--space-6)' }}>{ab} bất thường</span>}</h5>
           <div style={{
             display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 50px',
             fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', fontWeight: 600,
@@ -931,7 +931,7 @@ const LabDrawerBody: React.FC<{ r: LabRequest }> = ({ r }) => {
                   <span style={{ fontWeight: hasParams ? 600 : 400 }}>{t.testName}</span>
                   <span className="mono" style={{ textAlign: 'right', color: topColor, fontWeight: 600 }}>
                     {hasParams ? '' : (t.result || '—')}
-                    {!hasParams && t.unit && <small style={{ marginLeft: 3, color: 'var(--t-2)', fontWeight: 400 }}>{t.unit}</small>}
+                    {!hasParams && t.unit && <small style={{ marginLeft: 'var(--space-3)', color: 'var(--t-2)', fontWeight: 400 }}>{t.unit}</small>}
                   </span>
                   <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                     {!hasParams && (t.referenceRange || (t.normalMin !== undefined && t.normalMax !== undefined ? `${t.normalMin}–${t.normalMax}` : '—'))}
@@ -948,9 +948,9 @@ const LabDrawerBody: React.FC<{ r: LabRequest }> = ({ r }) => {
                 {/* R1: Bảng per-parameter nếu có */}
                 {hasParams && (
                   <div style={{
-                    marginLeft: 12, marginBottom: 6,
+                    marginLeft: 'var(--space-12)', marginBottom: 'var(--space-6)',
                     borderLeft: '2px solid var(--line-soft)',
-                    paddingLeft: 8,
+                    paddingLeft: 'var(--space-8)',
                   }}>
                     {t.parameters!.map((p, pi) => {
                       const pFlag = p.flag ?? '';
@@ -968,7 +968,7 @@ const LabDrawerBody: React.FC<{ r: LabRequest }> = ({ r }) => {
                           <span style={{ color: 'var(--t-1)' }}>{p.parameterName || p.parameterCode}</span>
                           <span className="mono" style={{ textAlign: 'right', color: pColor, fontWeight: pFlag && pFlag !== 'N' ? 700 : 400 }}>
                             {p.value ?? '—'}
-                            {p.unit && <small style={{ marginLeft: 3, color: 'var(--t-2)', fontWeight: 400 }}>{p.unit}</small>}
+                            {p.unit && <small style={{ marginLeft: 'var(--space-3)', color: 'var(--t-2)', fontWeight: 400 }}>{p.unit}</small>}
                           </span>
                           <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{pRef}</span>
                           <span style={{ textAlign: 'center' }}>

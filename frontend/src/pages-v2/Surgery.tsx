@@ -157,7 +157,7 @@ const SurgeryV2: React.FC = () => {
       )}
       drawer={(r) => <SurgeryDrawerBody r={r} />}
       drawerTitle={(r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.surgeryCode}</span>
           <span style={{ fontSize: 14 }}>{r.patientName}</span>
         </span>
@@ -177,7 +177,7 @@ const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => {
   return (
   <>
     {/* G-10c: Xuất tủ trực phòng mổ — SurgeryCabinetIssueModal phân đối tượng (Prompt 8 Đợt 2) */}
-    <div className="rec-section" style={{ paddingBottom: 8 }}>
+    <div className="rec-section" style={{ paddingBottom: 'var(--space-8)' }}>
       <Btn variant="ghost" size="sm" onClick={() => setCabinetOpen(true)}>
         <TermIcon name="package" size={12} /> Xuất tủ trực (phân đối tượng BHYT/VP/HP)
       </Btn>
@@ -191,9 +191,9 @@ const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => {
     </div>
 
     {/* G-04: Phiếu phòng mổ */}
-    <div className="rec-section" style={{ paddingBottom: 8 }}>
-      <h5 style={{ marginBottom: 6 }}><TermIcon name="file-text" size={11} /> PHIẾU PHÒNG MỔ</h5>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+    <div className="rec-section" style={{ paddingBottom: 'var(--space-8)' }}>
+      <h5 style={{ marginBottom: 'var(--space-6)' }}><TermIcon name="file-text" size={11} /> PHIẾU PHÒNG MỔ</h5>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-6)' }}>
         <Btn variant="ghost" size="sm" onClick={() => setPreAnesthOpen(true)}>
           <TermIcon name="activity" size={11} /> Khám tiền mê
         </Btn>
@@ -273,7 +273,7 @@ const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => {
     {r.teamMembers && r.teamMembers.length > 0 && (
       <div className="rec-section">
         <h5><TermIcon name="users" size={11} /> EKIP PHẪU THUẬT ({r.teamMembers.length})</h5>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-6)' }}>
           {/* SDK type là SurgeryTeamMemberDto (có staffName); BE legacy có thể trả fullName/userName
               → giữ fallback. Widen type minimal để vẫn type-safe. */}
           {r.teamMembers.map((m: SurgeryTeamMemberDto & { fullName?: string; userName?: string }, i) =>
@@ -300,7 +300,7 @@ const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => {
     {(r.description || r.conclusion) && (
       <div className="rec-section">
         <h5><TermIcon name="file-text" size={11} /> NỘI DUNG / KẾT LUẬN</h5>
-        {r.description && (<div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap', marginBottom: 8 }}><b>Mô tả:</b> {r.description}</div>)}
+        {r.description && (<div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap', marginBottom: 'var(--space-8)' }}><b>Mô tả:</b> {r.description}</div>)}
         {r.conclusion && (<div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}><b>Kết luận:</b> {r.conclusion}</div>)}
       </div>
     )}

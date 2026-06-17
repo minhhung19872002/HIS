@@ -163,10 +163,10 @@ const DicomStudyAuditLog: React.FC = () => {
         size="xl"
       >
         {studyDetail && (
-          <div style={{ padding: 20 }}>
+          <div style={{ padding: 'var(--space-20)' }}>
             <div style={{
-              padding: 12, background: 'var(--d-1)', borderRadius: 'var(--r-2)',
-              marginBottom: 16, fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', wordBreak: 'break-all',
+              padding: 'var(--space-12)', background: 'var(--d-1)', borderRadius: 'var(--r-2)',
+              marginBottom: 'var(--space-16)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', wordBreak: 'break-all',
             }}>
               <span style={{ color: 'var(--t-2)' }}>Study UID:</span> {studyDetail.uid}
             </div>
@@ -192,7 +192,7 @@ const DicomStudyAuditLog: React.FC = () => {
                       background: 'var(--d-0)', border: '1px solid var(--line)',
                       borderRadius: 'var(--r-2)', padding: '10px 14px', borderLeft: `3px solid ${dotColor}`,
                     }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
                         <StatusBadge tone={tone} dot>{a?.label ?? t.actionLabel ?? t.action}</StatusBadge>
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{fmtDTg(t.performedAt)}</span>
                       </div>
@@ -203,7 +203,7 @@ const DicomStudyAuditLog: React.FC = () => {
                       </div>
                       {t.actionDetails && (
                         <div style={{
-                          fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 4, padding: 6,
+                          fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-4)', padding: 'var(--space-6)',
                           background: 'var(--d-1)', borderRadius: 4, fontFamily: 'var(--font-mono)',
                         }}>
                           {t.actionDetails}
@@ -214,7 +214,7 @@ const DicomStudyAuditLog: React.FC = () => {
                 );
               })}
               {studyDetail.timeline.length === 0 && (
-                <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-2)' }}>Chưa có log nào</div>
+                <div style={{ padding: 'var(--space-40)', textAlign: 'center', color: 'var(--t-2)' }}>Chưa có log nào</div>
               )}
             </div>
           </div>

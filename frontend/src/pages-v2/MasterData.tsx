@@ -178,7 +178,7 @@ const MasterDataV2: React.FC = () => {
             const cnt = dataMap[c.v]?.length ?? 0; const on = active === c.v;
             return (
               <button key={c.v} type="button" onClick={() => { setActive(c.v); setKeyword(''); }}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', marginBottom: 2, borderRadius: 'var(--r-2)', cursor: 'pointer',
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 'var(--space-8)', padding: '9px 10px', marginBottom: 'var(--space-2)', borderRadius: 'var(--r-2)', cursor: 'pointer',
                   border: on ? '1px solid var(--a-cy-line)' : '1px solid transparent', background: on ? 'var(--a-cy-bg)' : 'transparent',
                   color: on ? 'var(--a-cy)' : 'var(--t-1)', fontSize: 12.5, fontWeight: on ? 600 : 500, textAlign: 'left' }}>
                 <TermIcon name={c.ic} size={14} />

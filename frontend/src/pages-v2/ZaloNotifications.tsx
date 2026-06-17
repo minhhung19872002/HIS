@@ -133,7 +133,7 @@ const ZnsLogsPanel: React.FC = () => {
               )}
             </DrSec>
             <DrSec title="PAYLOAD">
-              <pre style={{ fontSize: 'var(--fs-xs)', padding: 8, background: 'var(--d-1)', borderRadius: 4, maxHeight: 200, overflow: 'auto', fontFamily: 'var(--font-mono)' }}>
+              <pre style={{ fontSize: 'var(--fs-xs)', padding: 'var(--space-8)', background: 'var(--d-1)', borderRadius: 4, maxHeight: 200, overflow: 'auto', fontFamily: 'var(--font-mono)' }}>
                 {(() => { try { return JSON.stringify(JSON.parse(detail.payloadJson || '{}'), null, 2); } catch { return detail.payloadJson; } })()}
               </pre>
             </DrSec>
@@ -177,7 +177,7 @@ const ZnsSendModal: React.FC<{ open: boolean; onClose: () => void; onSent: () =>
           <TermIcon name="external" size={12} /> Gửi
         </Btn>
       </>}>
-      <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 10, padding: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 'var(--space-10)', padding: 'var(--space-14)' }}>
         <span style={{ fontSize: 'var(--fs-md)' }}>Mẫu tin</span>
         <AbSelect value={tplId} onChange={setTplId} options={templates} fieldNames={{ value: 'id', label: 'name' }} />
         <span style={{ fontSize: 'var(--fs-md)' }}>SĐT</span>
@@ -220,12 +220,12 @@ const ZnsConfigPanel: React.FC = () => {
     } catch { setTested(false); te('Mất kết nối'); }
   };
 
-  if (!cfg) return <div style={{ padding: 20 }}>Đang tải cấu hình…</div>;
+  if (!cfg) return <div style={{ padding: 'var(--space-20)' }}>Đang tải cấu hình…</div>;
 
   return (
-    <div style={{ padding: 20, maxWidth: 760 }} data-testid="zalo-config-panel">
-      <div className="hui-section-t" style={{ marginBottom: 14 }}>ZALO OFFICIAL ACCOUNT</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 10, fontSize: 'var(--fs-md)' }}>
+    <div style={{ padding: 'var(--space-20)', maxWidth: 760 }} data-testid="zalo-config-panel">
+      <div className="hui-section-t" style={{ marginBottom: 'var(--space-14)' }}>ZALO OFFICIAL ACCOUNT</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 'var(--space-10)', fontSize: 'var(--fs-md)' }}>
         <span>Access Token</span>
         <input className="ab-sel" value={cfg.accessToken}
           onChange={(e) => set('accessToken', e.target.value)} />
@@ -246,7 +246,7 @@ const ZnsConfigPanel: React.FC = () => {
             onChange={(e) => set('isEnabled', e.target.checked)} /> Bật gửi Zalo
         </label>
       </div>
-      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+      <div style={{ display: 'flex', gap: 'var(--space-8)', marginTop: 'var(--space-16)' }}>
         <Btn variant="primary" onClick={save}>
           <TermIcon name="check" size={12} /> Lưu cấu hình
         </Btn>

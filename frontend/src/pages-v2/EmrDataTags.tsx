@@ -94,7 +94,7 @@ const EmrDataTagsV2 = () => {
 
   const columns: ColumnDef<EmrDataTagDto>[] = [
     { key: 'name', label: 'Tên thẻ', render: (t) => (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-8)' }}>
         <b>{t.name}</b>
         {t.isSystem && <StatusBadge tone="info">Hệ thống</StatusBadge>}
       </span>
@@ -147,41 +147,41 @@ const EmrDataTagsV2 = () => {
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-10)' }}>
             <label style={{ fontSize: 12.5, flex: 2 }}>
-              <div style={{ marginBottom: 4, color: 'var(--t-1)' }}>Tên thẻ *</div>
+              <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Tên thẻ *</div>
               <input className="ed-fld" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={{ width: '100%' }} />
             </label>
             <label style={{ fontSize: 12.5, flex: 1 }}>
-              <div style={{ marginBottom: 4, color: 'var(--t-1)' }}>Mã thẻ</div>
+              <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Mã thẻ</div>
               <input className="ed-fld" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="VD: DX_MAIN" style={{ width: '100%' }} />
             </label>
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-10)' }}>
             <label style={{ fontSize: 12.5, flex: 1 }}>
-              <div style={{ marginBottom: 4, color: 'var(--t-1)' }}>Kiểu dữ liệu</div>
+              <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Kiểu dữ liệu</div>
               <select className="ed-fld" value={form.dataType} onChange={(e) => setForm({ ...form, dataType: e.target.value })} style={{ width: '100%' }}>
                 {DATA_TYPES.map((d) => <option key={d.v} value={d.v}>{d.l}</option>)}
               </select>
             </label>
             <label style={{ fontSize: 12.5, flex: 1 }}>
-              <div style={{ marginBottom: 4, color: 'var(--t-1)' }}>Giá trị mặc định</div>
+              <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Giá trị mặc định</div>
               <input className="ed-fld" value={form.defaultValue} onChange={(e) => setForm({ ...form, defaultValue: e.target.value })} style={{ width: '100%' }} />
             </label>
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-10)' }}>
             <label style={{ fontSize: 12.5, flex: 1 }}>
-              <div style={{ marginBottom: 4, color: 'var(--t-1)' }}>Phân loại</div>
+              <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Phân loại</div>
               <input className="ed-fld" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="VD: Chẩn đoán, Hành chính…" style={{ width: '100%' }} />
             </label>
             <label style={{ fontSize: 12.5, flex: 1 }}>
-              <div style={{ marginBottom: 4, color: 'var(--t-1)' }}>Gán vào mẫu (loại tờ phiếu)</div>
+              <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Gán vào mẫu (loại tờ phiếu)</div>
               <input className="ed-fld" value={form.formType} onChange={(e) => setForm({ ...form, formType: e.target.value })} placeholder="Để trống = mọi mẫu" style={{ width: '100%' }} />
             </label>
           </div>
           <label style={{ fontSize: 12.5, width: 140 }}>
-            <div style={{ marginBottom: 4, color: 'var(--t-1)' }}>Thứ tự sắp xếp</div>
+            <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Thứ tự sắp xếp</div>
             <input type="number" className="ed-fld" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })} style={{ width: '100%' }} />
           </label>
         </div>

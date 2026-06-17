@@ -230,13 +230,13 @@ const BloodBankV2: React.FC = () => {
       {tab === 'stock' && (
         <>
           {/* Group-count chip bar */}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '8px 14px', borderBottom: '1px solid var(--line-soft)', background: 'var(--d-1)' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap', padding: '8px 14px', borderBottom: '1px solid var(--line-soft)', background: 'var(--d-1)' }}>
             {ALL_TYPES.map((t) => {
               const a = byType[t]?.available || 0;
               return (
                 <button key={t} type="button" onClick={() => { setFilterType(filterType === t ? '' : t); setPage(0); }}
                   style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 14,
+                    display: 'inline-flex', alignItems: 'center', gap: 'var(--space-6)', padding: '4px 10px', borderRadius: 14,
                     border: filterType === t ? '1px solid var(--a-cy)' : '1px solid var(--line)',
                     background: filterType === t ? 'var(--a-cy-bg)' : 'var(--d-2)', cursor: 'pointer', fontSize: 11.5,
                   }}>
@@ -393,7 +393,7 @@ const BloodIssueModal: React.FC<{
         </>
       )}
     >
-      <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
         <BbFld label="Khoa yêu cầu *" full>
           <Select
             value={deptId} onChange={setDeptId} showSearch optionFilterProp="label"
@@ -431,7 +431,7 @@ const BloodIssueModal: React.FC<{
 
 const BbFld: React.FC<{ label?: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
   <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
-    {label && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>}
+    {label && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>{label}</div>}
     {children}
   </div>
 );
@@ -564,8 +564,8 @@ const ExpiringTab: React.FC<{
       </>}
     >
       {actionBag?.type === 'discard' && (
-        <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Lý do tiêu huỷ *</div>
+        <div style={{ marginTop: 'var(--space-8)' }}>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Lý do tiêu huỷ *</div>
           <Input.TextArea
             rows={2}
             value={discardReason}
@@ -680,7 +680,7 @@ const BloodTypeDetail: React.FC<{ type: string; stock: BloodStockDto[] }> = ({ t
         {items.map((s) => (
           <div key={`${s.productTypeId}`} style={{
             padding: '10px 0', borderBottom: '1px solid var(--line-soft)',
-            display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 10, fontSize: 12.5, alignItems: 'center',
+            display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 'var(--space-10)', fontSize: 12.5, alignItems: 'center',
           }}>
             <b>{s.productTypeName}</b>
             <span className="chip ok">{s.availableBags}</span>
@@ -786,7 +786,7 @@ const BloodReceiveModal: React.FC<{
         </>
       )}
     >
-      <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
         <BbFld label="Nhà cung cấp *" full>
           <Select
             value={supplierId} onChange={setSupplierId} showSearch optionFilterProp="label"

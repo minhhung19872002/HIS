@@ -95,7 +95,7 @@ const FormModal: React.FC<FormModalProps> = ({ open, initial, onClose, onSaved }
       afterOpenChange={(vis) => { if (vis) handleOpen(); }}
       destroyOnHidden
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
+      <Form form={form} layout="vertical" style={{ marginTop: 'var(--space-8)' }}>
         <Form.Item
           name="patientId"
           label="ID Benh nhan (GUID)"

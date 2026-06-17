@@ -197,10 +197,10 @@ const LineItemsTable: React.FC<LineItemsTableProps> = ({ rows, warehouseId, onCh
   const add = () => onChange([...rows, emptyLine()]);
 
   return (
-    <div style={{ marginTop: 8 }}>
+    <div style={{ marginTop: 'var(--space-8)' }}>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 6, fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)',
+        marginBottom: 'var(--space-6)', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)',
         textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--t-2)',
       }}>
         <span>Danh sách thuốc / vật tư ({rows.length} dòng)</span>
@@ -593,7 +593,7 @@ const PharmacyStockIssue: React.FC = () => {
         sub={detail ? `${detail.warehouseName} · ${fmtDate(detail.issueDate)}` : ''}
         size="xl"
         footer={detail && (
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
             <Btn variant="ghost" icon="printer" onClick={() => void onPrint(detail)}>In phiếu</Btn>
           </div>
         )}
@@ -601,7 +601,7 @@ const PharmacyStockIssue: React.FC = () => {
         {detail && (
           <>
             {detailLoading && (
-              <div style={{ padding: 20, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
+              <div style={{ padding: 'var(--space-20)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
             )}
             {!detailLoading && (
               <>
@@ -642,7 +642,7 @@ const PharmacyStockIssue: React.FC = () => {
                 </DrSec>
 
                 <DrSec title={`Chi tiết dòng hàng (${detail.items?.length ?? 0} dòng)`}>
-                  <div style={{ overflowX: 'auto', marginTop: 4 }}>
+                  <div style={{ overflowX: 'auto', marginTop: 'var(--space-4)' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
                       <thead>
                         <tr style={{ background: 'var(--bg-2)', borderBottom: '1px solid var(--line)' }}>

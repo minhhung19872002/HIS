@@ -51,7 +51,7 @@ const HivManagementV2: React.FC = () => {
     {
       key: 'coinfection', label: 'Đồng nhiễm', width: 130,
       render: (r) => (
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
           {r.tbCoinfection && <span className="chip warn">TB</span>}
           {r.hbvCoinfection && <span className="chip warn">HBV</span>}
           {r.hcvCoinfection && <span className="chip warn">HCV</span>}
@@ -111,7 +111,7 @@ const HivManagementV2: React.FC = () => {
       }}
       drawer={(r) => <HivPatientDrawerBody r={r} />}
       drawerTitle={(r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.hivCode || r.patientCode}</span>
           <span style={{ fontSize: 14 }}>{r.fullName}</span>
         </span>
@@ -160,7 +160,7 @@ const HivPatientDrawerBody: React.FC<{ r: HivPatient }> = ({ r }) => (
     {(r.tbCoinfection || r.hbvCoinfection || r.hcvCoinfection || r.isPregnant) && (
       <div className="rec-section">
         <h5><TermIcon name="alert" size={11} /> ĐỒNG NHIỄM / ĐẶC BIỆT</h5>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
           {r.tbCoinfection && <span className="chip warn">Đồng nhiễm TB</span>}
           {r.hbvCoinfection && <span className="chip warn">Đồng nhiễm HBV</span>}
           {r.hcvCoinfection && <span className="chip warn">Đồng nhiễm HCV</span>}

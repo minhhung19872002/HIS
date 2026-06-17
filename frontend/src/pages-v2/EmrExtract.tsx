@@ -137,7 +137,7 @@ const EmrExtractV2 = () => {
           {records.length === 0 ? (
             <div className="ab-empty"><TermIconHint /> <div>Không tìm thấy bệnh nhân phù hợp</div></div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
               {records.map((r) => (
                 <button
                   key={r.patientId}
@@ -146,7 +146,7 @@ const EmrExtractV2 = () => {
                   style={{
                     textAlign: 'left', border: '1px solid var(--line-soft)', borderRadius: 'var(--r-3)',
                     background: 'var(--d-2)', padding: '8px 12px', cursor: 'pointer', display: 'flex',
-                    alignItems: 'center', gap: 12,
+                    alignItems: 'center', gap: 'var(--space-12)',
                   }}
                 >
                   <span style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</span>
@@ -201,9 +201,9 @@ const EmrExtractV2 = () => {
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
           <label style={{ fontSize: 12.5 }}>
-            <div style={{ marginBottom: 4, color: 'var(--t-1)' }}>Loại trích lục</div>
+            <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Loại trích lục</div>
             <select className="ed-fld" value={form.extractType}
               onChange={(e) => setForm({ ...form, extractType: e.target.value as 'Full' | 'Partial' })}
               style={{ width: '100%' }}>
@@ -213,20 +213,20 @@ const EmrExtractV2 = () => {
           </label>
           {form.extractType === 'Partial' && (
             <label style={{ fontSize: 12.5 }}>
-              <div style={{ marginBottom: 4, color: 'var(--t-1)' }}>Phạm vi (mã tờ phiếu, cách nhau dấu phẩy)</div>
+              <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Phạm vi (mã tờ phiếu, cách nhau dấu phẩy)</div>
               <input className="ed-fld" value={form.formTypes}
                 onChange={(e) => setForm({ ...form, formTypes: e.target.value })}
                 placeholder="VD: summary, treatment, discharge" style={{ width: '100%' }} />
             </label>
           )}
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-10)' }}>
             <label style={{ fontSize: 12.5, flex: 1 }}>
-              <div style={{ marginBottom: 4, color: 'var(--t-1)' }}>Giới hạn lượt truy cập</div>
+              <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Giới hạn lượt truy cập</div>
               <input type="number" min={1} className="ed-fld" value={form.maxAccessCount}
                 onChange={(e) => setForm({ ...form, maxAccessCount: Number(e.target.value) })} style={{ width: '100%' }} />
             </label>
             <label style={{ fontSize: 12.5, flex: 1 }}>
-              <div style={{ marginBottom: 4, color: 'var(--t-1)' }}>Hạn dùng (để trống = không giới hạn)</div>
+              <div style={{ marginBottom: 'var(--space-4)', color: 'var(--t-1)' }}>Hạn dùng (để trống = không giới hạn)</div>
               <input type="date" className="ed-fld" value={form.expiresAt}
                 onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} style={{ width: '100%' }} />
             </label>
@@ -272,9 +272,9 @@ const WatermarkedPreview = ({ extract, patientName, patientCode }: { extract: Em
       </div>
 
       {/* Nội dung trích lục */}
-      <div style={{ position: 'relative', zIndex: 2, padding: 20, fontSize: 'var(--fs-md)', lineHeight: 1.7 }}>
+      <div style={{ position: 'relative', zIndex: 2, padding: 'var(--space-20)', fontSize: 'var(--fs-md)', lineHeight: 1.7 }}>
         <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 'var(--fs-lg)' }}>BẢN TRÍCH LỤC BỆNH ÁN</div>
-        <div style={{ textAlign: 'center', fontStyle: 'italic', color: 'var(--t-2)', marginBottom: 16 }}>{HOSPITAL_NAME}</div>
+        <div style={{ textAlign: 'center', fontStyle: 'italic', color: 'var(--t-2)', marginBottom: 'var(--space-16)' }}>{HOSPITAL_NAME}</div>
         <div><b>Người bệnh:</b> {patientName} <span className="mono">({patientCode})</span></div>
         <div><b>Loại:</b> {extract.extractType === 'Partial' ? 'Một phần' : 'Toàn bộ hồ sơ'}{extract.formTypes ? ` — ${extract.formTypes}` : ''}</div>
         <div><b>Mã truy cập:</b> <span className="mono">{extract.accessCode || '—'}</span></div>
@@ -282,11 +282,11 @@ const WatermarkedPreview = ({ extract, patientName, patientCode }: { extract: Em
         <div><b>Hạn dùng:</b> {extract.expiresAt ? fmtDMYg(extract.expiresAt) : 'Không giới hạn'}</div>
         <div><b>Trạng thái:</b> <StatusBadge tone={STATUS_TONE[extract.status] ?? 'info'} dot>{STATUS_LABEL[extract.status] ?? extract.status}</StatusBadge></div>
         {expired && (
-          <div style={{ marginTop: 14, padding: 10, border: '1px solid #fca5a5', background: 'var(--s-crit-bg)', borderRadius: 'var(--r-3)', color: '#b91c1c', fontSize: 'var(--fs-sm)' }}>
+          <div style={{ marginTop: 'var(--space-14)', padding: 'var(--space-10)', border: '1px solid #fca5a5', background: 'var(--s-crit-bg)', borderRadius: 'var(--r-3)', color: '#b91c1c', fontSize: 'var(--fs-sm)' }}>
             Bản trích lục đã {extract.status === 'Revoked' ? 'bị thu hồi' : 'hết hạn'} — không còn giá trị sử dụng.
           </div>
         )}
-        <div style={{ marginTop: 20, fontSize: 11.5, color: 'var(--t-2)' }}>
+        <div style={{ marginTop: 'var(--space-20)', fontSize: 11.5, color: 'var(--t-2)' }}>
           * Bản trích lục có watermark chống sao chép. Mọi hành vi sao chép, chỉnh sửa, phát tán trái phép đều vi phạm quy định bảo mật hồ sơ bệnh án.
         </div>
       </div>

@@ -182,12 +182,12 @@ const StockReportV2: React.FC = () => {
           <SearchBox value={keyword} onChange={setKeyword} placeholder="Tên thuốc / mã / số lô…" />
         )}
         {tab === 'expiring' && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-sm)' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', fontSize: 'var(--fs-sm)' }}>
             Hết hạn trong <InputNumber min={1} max={365} value={days} onChange={(v) => setDays(Number(v) || 90)} size="small" /> ngày
           </span>
         )}
         {tab === 'low-stock' && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-sm)' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', fontSize: 'var(--fs-sm)' }}>
             Ngưỡng tồn <InputNumber min={1} value={threshold} onChange={(v) => setThreshold(Number(v) || 10)} size="small" />
           </span>
         )}

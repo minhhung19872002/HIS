@@ -179,7 +179,7 @@ const SampleTrackingV2: React.FC = () => {
           </Btn>
         </>}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
           <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Lý do hủy từ chối *</span>
           <Input.TextArea rows={3} value={undoReason} onChange={(e) => setUndoReason(e.target.value)} placeholder="Nhập lý do…" />
         </div>
@@ -195,19 +195,19 @@ const SampleTrackingV2: React.FC = () => {
         footer={<Btn variant="ghost" onClick={() => setReportOpen(false)}>Đóng</Btn>}
       >
         <div style={{ padding: '8px 0' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 'var(--space-12)', marginBottom: 'var(--space-16)' }}>
             {[
               { lbl: 'Tổng từ chối', val: items.length, color: 'var(--t-0)' },
               { lbl: 'Chưa xử lý', val: counts.pending || 0, color: 'var(--a-or-text)' },
               { lbl: 'Đã lấy lại', val: counts.recollected || 0, color: 'var(--a-em-text)' },
             ].map((k) => (
-              <div key={k.lbl} style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', textAlign: 'center' }}>
+              <div key={k.lbl} style={{ padding: 'var(--space-12)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', textAlign: 'center' }}>
                 <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono)', color: k.color }}>{k.val}</div>
-                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 4 }}>{k.lbl}</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-4)' }}>{k.lbl}</div>
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--t-2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-8)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Lý do từ chối phổ biến
           </div>
           {Array.from(new Set(items.map((r) => r.rejectionReason))).slice(0, 10).map((reason) => {
@@ -220,7 +220,7 @@ const SampleTrackingV2: React.FC = () => {
               </div>
             );
           })}
-          {items.length === 0 && <div style={{ textAlign: 'center', color: 'var(--t-2)', padding: 32 }}>Không có dữ liệu</div>}
+          {items.length === 0 && <div style={{ textAlign: 'center', color: 'var(--t-2)', padding: 'var(--space-32)' }}>Không có dữ liệu</div>}
         </div>
       </DrawerShell>
 

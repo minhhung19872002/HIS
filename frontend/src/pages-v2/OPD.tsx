@@ -162,7 +162,7 @@ const OPDV2: React.FC = () => {
           )}
           <div className="rec-section">
             <h5><TermIcon name="info" size={11} /> THAO TÁC</h5>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
               <Btn variant="primary" onClick={() => navigate('/v2/opd/edit')}>
                 <TermIcon name="stethoscope" size={12} /> Mở phòng khám
               </Btn>
@@ -186,7 +186,7 @@ const OPDV2: React.FC = () => {
         </>
       )}
       drawerTitle={(r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.queueCode || `#${r.queueNumber}`}</span>
           <span style={{ fontSize: 14 }}>{r.patientName}</span>
         </span>

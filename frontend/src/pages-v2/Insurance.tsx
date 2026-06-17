@@ -215,7 +215,7 @@ const InsuranceV2: React.FC = () => {
         open={!!detail}
         onClose={() => setDetail(null)}
         title={detail
-          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
               <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detail.maLk}</span>
               <span style={{ fontSize: 14 }}>{detail.patientName}</span>
             </span>

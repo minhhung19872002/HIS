@@ -157,7 +157,7 @@ const ReceiptBookAdminV2: React.FC = () => {
       return (
         <div>
           <div style={{ color: tone, fontWeight: 600 }}>{fmt(r.used)}/{fmt(total)}</div>
-          <div style={{ height: 4, background: 'var(--line)', borderRadius: 2, marginTop: 2 }}>
+          <div style={{ height: 4, background: 'var(--line)', borderRadius: 2, marginTop: 'var(--space-2)' }}>
             <div style={{ height: '100%', width: `${pct}%`, background: tone || 'var(--a-em-text)', borderRadius: 2 }} />
           </div>
         </div>
@@ -215,7 +215,7 @@ const ReceiptBookAdminV2: React.FC = () => {
         width={720}
       >
         <Form form={form} layout="vertical">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-12)' }}>
             <Form.Item label="Mã sổ" name="bookCode" rules={[{ required: true }]}><Input /></Form.Item>
             <Form.Item label="Tên sổ" name="bookName" rules={[{ required: true }]} style={{ gridColumn: 'span 2' }}><Input /></Form.Item>
             <Form.Item label="Loại" name="receiptType" rules={[{ required: true }]}>

@@ -47,7 +47,7 @@ const fmtDate = (iso?: string) =>
 
 const IpFld: React.FC<{ label: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
   <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
-    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>
+    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>{label}</div>
     {children}
   </div>
 );
@@ -144,18 +144,18 @@ const EnterResultModal: React.FC<{
         </>
       }
     >
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: 'var(--space-16)' }}>
         {/* Order header */}
-        <div style={{ marginBottom: 12, fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
+        <div style={{ marginBottom: 'var(--space-12)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
           <span>BS chỉ định: <b style={{ color: 'var(--t-1)' }}>{order.orderDoctorName || '—'}</b></span>
           {order.diagnosis && (
-            <span style={{ marginLeft: 16 }}>CĐ: <b style={{ color: 'var(--t-1)' }}>{order.icdCode ? `${order.icdCode} - ` : ''}{order.diagnosis}</b></span>
+            <span style={{ marginLeft: 'var(--space-16)' }}>CĐ: <b style={{ color: 'var(--t-1)' }}>{order.icdCode ? `${order.icdCode} - ` : ''}{order.diagnosis}</b></span>
           )}
-          <span style={{ marginLeft: 16 }}>Ngày: {fmtDate(order.orderedAt)}</span>
+          <span style={{ marginLeft: 'var(--space-16)' }}>Ngày: {fmtDate(order.orderedAt)}</span>
         </div>
 
         {/* Test items grid */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
           {order.tests.map((test, idx) => (
             <div
               key={test.id}
@@ -167,7 +167,7 @@ const EnterResultModal: React.FC<{
               }}
             >
               {/* Test header row */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
                 <span style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--t-1)' }}>{test.testName}</span>
                 <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{test.testCode}</span>
                 {test.referenceRange && (
@@ -181,7 +181,7 @@ const EnterResultModal: React.FC<{
               </div>
 
               {/* Input row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 1fr', gap: 10, alignItems: 'flex-start' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 1fr', gap: 'var(--space-10)', alignItems: 'flex-start' }}>
                 <IpFld label={`Kết quả${test.unit ? ` (${test.unit})` : ''} *`}>
                   <Input
                     value={entries[idx]?.value ?? ''}
@@ -194,7 +194,7 @@ const EnterResultModal: React.FC<{
                     }}
                   />
                 </IpFld>
-                <div style={{ paddingTop: 20, fontSize: 'var(--fs-xs)', color: 'var(--t-2)', textAlign: 'center' }}>
+                <div style={{ paddingTop: 'var(--space-20)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)', textAlign: 'center' }}>
                   {test.unit || ''}
                 </div>
                 <IpFld label="Ghi chú (bung viết tắt: gõ + space)">
@@ -214,7 +214,7 @@ const EnterResultModal: React.FC<{
           ))}
 
           {order.tests.length === 0 && (
-            <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
+            <div style={{ padding: 'var(--space-24)', textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
               Phiếu XN không có chỉ số nào.
             </div>
           )}
@@ -316,7 +316,7 @@ const ApproveModal: React.FC<{
         </>
       }
     >
-      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ padding: 'var(--space-16)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
         <IpFld label="Người duyệt *" full>
           <Select
             style={{ width: '100%' }}
@@ -420,7 +420,7 @@ const BedLabResultSection: React.FC<BedLabResultSectionProps> = ({ admissionId }
 
   return (
     <div className="rec-section">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-10)' }}>
         <h5 style={{ margin: 0 }}>
           <TermIcon name="flask" size={11} /> TRA KQ XET NGHIEM TAI GIUONG
         </h5>
@@ -430,19 +430,19 @@ const BedLabResultSection: React.FC<BedLabResultSectionProps> = ({ admissionId }
       </div>
 
       {loading && (
-        <div style={{ padding: 20, textAlign: 'center' }}>
+        <div style={{ padding: 'var(--space-20)', textAlign: 'center' }}>
           <Spin size="small" />
         </div>
       )}
 
       {!loading && orders.length === 0 && (
-        <div style={{ padding: 12, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', border: '1px dashed var(--line-soft)', borderRadius: 'var(--r-2)' }}>
+        <div style={{ padding: 'var(--space-12)', textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', border: '1px dashed var(--line-soft)', borderRadius: 'var(--r-2)' }}>
           Chưa có phiếu XN nào trong lượt nhập viện này.
         </div>
       )}
 
       {!loading && orders.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
           {orders.map((order) => (
             <div
               key={order.id}
@@ -454,7 +454,7 @@ const BedLabResultSection: React.FC<BedLabResultSectionProps> = ({ admissionId }
               }}
             >
               {/* Order header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-8)', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--t-1)' }}>
                   <TermIcon name="file-text" size={11} /> {order.orderCode}
                 </span>
@@ -472,14 +472,14 @@ const BedLabResultSection: React.FC<BedLabResultSectionProps> = ({ admissionId }
               </div>
 
               {/* Test items summary */}
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 8 }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-8)' }}>
                 {order.tests.map((t) => (
                   <span
                     key={t.id}
                     style={{
                       display: 'inline-block',
-                      marginRight: 6,
-                      marginBottom: 4,
+                      marginRight: 'var(--space-6)',
+                      marginBottom: 'var(--space-4)',
                       padding: '1px 6px',
                       borderRadius: 4,
                       border: '1px solid var(--line-soft)',
@@ -494,7 +494,7 @@ const BedLabResultSection: React.FC<BedLabResultSectionProps> = ({ admissionId }
               </div>
 
               {/* Action buttons */}
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
                 {canEnter(order) && (
                   <Btn variant="ghost" onClick={() => setEnterTarget(order)}>
                     <TermIcon name="edit" size={11} /> Nhap KQ
@@ -518,7 +518,7 @@ const BedLabResultSection: React.FC<BedLabResultSectionProps> = ({ admissionId }
                 >
                   <TermIcon name="printer" size={11} />
                   {printing === order.id ? ' Dang in...' : ' In KQ'}
-                  {!canPrint(order) && <span style={{ fontSize: 'var(--fs-xxs)', marginLeft: 4 }}>(can duyet)</span>}
+                  {!canPrint(order) && <span style={{ fontSize: 'var(--fs-xxs)', marginLeft: 'var(--space-4)' }}>(can duyet)</span>}
                 </Btn>
               </div>
             </div>

@@ -123,7 +123,7 @@ const InpatientDispensingV2: React.FC = () => {
     const w = window.open('', '_blank');
     if (!w) return;
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${printData.receiptCode}</title>
-<style>body{font-family:"Times New Roman",serif;padding:24px}h2{text-align:center}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #333;padding:4px 8px;font-size:13px}th{background:#eee}</style></head><body>
+<style>body{font-family:"Times New Roman",serif;padding:'var(--space-24)'px}h2{text-align:center}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #333;padding:'var(--space-4)'px 8px;font-size:13px}th{background:#eee}</style></head><body>
 <h2>PHIẾU LĨNH THUỐC NỘI TRÚ</h2>
 <p>Số: <b>${printData.receiptCode}</b> &nbsp; Ngày: ${dayjs(printData.receiptDate).format('DD/MM/YYYY HH:mm')}</p>
 <p>Kho xuất: <b>${printData.warehouseName || ''}</b> &nbsp; Khoa nhận: <b>${printData.departmentName || ''}</b></p>
@@ -164,13 +164,13 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicine
         </div>
       )}
 
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: 'var(--space-16)' }}>
         {groups.map((g) => {
           const sel = selectedIds[g.departmentId] || new Set();
           const expanded = expandedDepts.has(g.departmentId);
           return (
-            <div key={g.departmentId} className="panel" style={{ padding: 0, marginBottom: 12 }}>
-              <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div key={g.departmentId} className="panel" style={{ padding: 0, marginBottom: 'var(--space-12)' }}>
+              <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 'var(--space-8)' }}>
                 <button className="ab-iconbtn" type="button" onClick={() => {
                   const n = new Set(expandedDepts);
                   if (n.has(g.departmentId)) n.delete(g.departmentId); else n.add(g.departmentId);
@@ -189,7 +189,7 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicine
                   icon="check"
                   disabled={!warehouseId || sel.size === 0 || submitting}
                   onClick={() => submitBatch(g)}
-                  style={{ marginLeft: 8 }}
+                  style={{ marginLeft: 'var(--space-8)' }}
                 >Xuất ({sel.size})</Btn>
               </div>
               {expanded && (
@@ -236,7 +236,7 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicine
         onCancel={() => setPrintData(null)}
         width={800}
         footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-8)' }}>
             <Btn variant="ghost" onClick={() => setPrintData(null)}>Đóng</Btn>
             <Btn variant="primary" icon="print" onClick={handlePrint}>In phiếu</Btn>
           </div>
@@ -244,12 +244,12 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicine
       >
         {printData && (
           <div>
-            <div style={{ marginBottom: 8 }}><b style={{ fontFamily: 'var(--font-mono)' }}>{printData.receiptCode}</b></div>
+            <div style={{ marginBottom: 'var(--space-8)' }}><b style={{ fontFamily: 'var(--font-mono)' }}>{printData.receiptCode}</b></div>
             <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
               Kho xuất: {printData.warehouseName} → Khoa nhận: {printData.departmentName}
             </div>
-            {printData.note && <div style={{ fontSize: 'var(--fs-sm)', marginTop: 4 }}>{printData.note}</div>}
-            <table className="ab-tbl" style={{ marginTop: 12 }}>
+            {printData.note && <div style={{ fontSize: 'var(--fs-sm)', marginTop: 'var(--space-4)' }}>{printData.note}</div>}
+            <table className="ab-tbl" style={{ marginTop: 'var(--space-12)' }}>
               <thead><tr><th>Thuốc</th><th>Lô</th><th>HSD</th><th>SL</th><th>ĐV</th><th>Thành tiền</th></tr></thead>
               <tbody>
                 {(printData.items || []).map((it) => (
@@ -264,7 +264,7 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicine
                 ))}
               </tbody>
             </table>
-            <div style={{ textAlign: 'right', marginTop: 12, fontWeight: 600 }}>
+            <div style={{ textAlign: 'right', marginTop: 'var(--space-12)', fontWeight: 600 }}>
               Tổng: <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(printData.totalAmount || 0)} đ</span>
             </div>
           </div>

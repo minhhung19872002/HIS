@@ -160,13 +160,13 @@ const NgRxPanel: React.FC = () => {
               <DrField lbl="Loại đơn">{detail.prescriptionType}</DrField>
             </DrSec>
             <DrSec title="PAYLOAD">
-              <pre style={{ fontSize: 'var(--fs-xs)', padding: 8, background: 'var(--d-1)', borderRadius: 4, maxHeight: 280, overflow: 'auto', fontFamily: 'var(--font-mono)' }}>
+              <pre style={{ fontSize: 'var(--fs-xs)', padding: 'var(--space-8)', background: 'var(--d-1)', borderRadius: 4, maxHeight: 280, overflow: 'auto', fontFamily: 'var(--font-mono)' }}>
                 {detail.payloadJson ? (() => { try { return JSON.stringify(JSON.parse(detail.payloadJson || ''), null, 2); } catch { return detail.payloadJson; } })() : '—'}
               </pre>
             </DrSec>
             {detail.responseJson && (
               <DrSec title="PHẢN HỒI TỪ CỔNG">
-                <pre style={{ fontSize: 'var(--fs-xs)', padding: 8, background: 'var(--d-1)', borderRadius: 4, maxHeight: 200, overflow: 'auto', fontFamily: 'var(--font-mono)' }}>
+                <pre style={{ fontSize: 'var(--fs-xs)', padding: 'var(--space-8)', background: 'var(--d-1)', borderRadius: 4, maxHeight: 200, overflow: 'auto', fontFamily: 'var(--font-mono)' }}>
                   {(() => { try { return JSON.stringify(JSON.parse(detail.responseJson || ''), null, 2); } catch { return detail.responseJson; } })()}
                 </pre>
               </DrSec>
@@ -271,12 +271,12 @@ const NgConfigPanel: React.FC = () => {
     catch { setTested(false); te('Mất kết nối'); }
   };
 
-  if (!cfg) return <div style={{ padding: 20 }}>Đang tải cấu hình…</div>;
+  if (!cfg) return <div style={{ padding: 'var(--space-20)' }}>Đang tải cấu hình…</div>;
 
   return (
-    <div style={{ padding: 20, maxWidth: 760 }} data-testid="gateway-config-panel">
-      <div className="hui-section-t" style={{ marginBottom: 14 }}>CỔNG QUỐC GIA — CẤU HÌNH</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 10, fontSize: 'var(--fs-md)' }}>
+    <div style={{ padding: 'var(--space-20)', maxWidth: 760 }} data-testid="gateway-config-panel">
+      <div className="hui-section-t" style={{ marginBottom: 'var(--space-14)' }}>CỔNG QUỐC GIA — CẤU HÌNH</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 'var(--space-10)', fontSize: 'var(--fs-md)' }}>
         <span>URL Đơn thuốc QG</span>
         <input className="ab-sel" value={cfg.nationalPrescriptionBaseUrl}
           onChange={(e) => set('nationalPrescriptionBaseUrl', e.target.value)} />
@@ -306,7 +306,7 @@ const NgConfigPanel: React.FC = () => {
         <input className="ab-sel" type="number" value={cfg.timeoutSeconds}
           onChange={(e) => set('timeoutSeconds', Number(e.target.value))} />
       </div>
-      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+      <div style={{ display: 'flex', gap: 'var(--space-8)', marginTop: 'var(--space-16)' }}>
         <Btn variant="primary" onClick={save}>
           <TermIcon name="check" size={12} /> Lưu cấu hình
         </Btn>

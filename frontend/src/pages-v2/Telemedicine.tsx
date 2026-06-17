@@ -238,7 +238,7 @@ const TelemedicineV2: React.FC = () => {
         open={!!detail}
         onClose={() => setDetail(null)}
         title={detail
-          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
               <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detail.appointmentCode}</span>
               <span style={{ fontSize: 14 }}>{detail.patientName}</span>
             </span>
@@ -414,16 +414,16 @@ const TeleRxModal: React.FC<{ appt: TelemedicineAppointmentDto | null; onClose: 
             <span>Trạng thái</span><span><span className="chip info">{created.status}</span></span>
             <span>Số thuốc</span><span>{created.items?.length ?? 0}</span>
           </div>
-          <div style={{ marginTop: 10, fontSize: 12.5, color: 'var(--t-2)' }}>
+          <div style={{ marginTop: 'var(--space-10)', fontSize: 12.5, color: 'var(--t-2)' }}>
             Ký đơn rồi gửi sang quầy phát — quầy sẽ thấy đơn chờ cấp phát (mã TELE-…).
           </div>
         </div>
       ) : (
         <>
           {rows.map((r, idx) => (
-            <div key={r.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 10, flexWrap: 'wrap' }}>
+            <div key={r.key} style={{ display: 'flex', gap: 'var(--space-8)', alignItems: 'flex-end', marginBottom: 'var(--space-10)', flexWrap: 'wrap' }}>
               <div style={{ flex: '2 1 260px', minWidth: 240 }}>
-                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>Thuốc #{idx + 1}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Thuốc #{idx + 1}</div>
                 <Select
                   showSearch
                   style={{ width: '100%' }}
@@ -437,23 +437,23 @@ const TeleRxModal: React.FC<{ appt: TelemedicineAppointmentDto | null; onClose: 
                 />
               </div>
               <div style={{ width: 90 }}>
-                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>SL</div>
+                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>SL</div>
                 <InputNumber min={1} style={{ width: '100%' }} value={r.quantity} onChange={(v) => setRow(r.key, { quantity: v ?? 1 })} />
               </div>
               <div style={{ width: 140 }}>
-                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>Liều dùng</div>
+                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Liều dùng</div>
                 <Input value={r.dosage} onChange={(e) => setRow(r.key, { dosage: e.target.value })} placeholder="1 viên/lần" />
               </div>
               <div style={{ width: 130 }}>
-                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>Tần suất</div>
+                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Tần suất</div>
                 <Input value={r.frequency} onChange={(e) => setRow(r.key, { frequency: e.target.value })} placeholder="2 lần/ngày" />
               </div>
               <div style={{ width: 90 }}>
-                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>Số ngày</div>
+                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Số ngày</div>
                 <InputNumber min={1} style={{ width: '100%' }} value={r.durationDays} onChange={(v) => setRow(r.key, { durationDays: v ?? 1 })} />
               </div>
               <div style={{ flex: '1 1 160px', minWidth: 150 }}>
-                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>Hướng dẫn</div>
+                <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Hướng dẫn</div>
                 <Input value={r.instructions} onChange={(e) => setRow(r.key, { instructions: e.target.value })} placeholder="Sau ăn…" />
               </div>
               {rows.length > 1 && (
@@ -463,8 +463,8 @@ const TeleRxModal: React.FC<{ appt: TelemedicineAppointmentDto | null; onClose: 
               )}
             </div>
           ))}
-          <div style={{ marginTop: 6 }}>
-            <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>Ghi chú đơn</div>
+          <div style={{ marginTop: 'var(--space-6)' }}>
+            <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Ghi chú đơn</div>
             <Input.TextArea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Lời dặn của bác sĩ…" />
           </div>
         </>

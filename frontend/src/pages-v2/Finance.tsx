@@ -242,14 +242,14 @@ const FinanceV2: React.FC = () => {
         size="lg"
         footer={<Btn variant="ghost" onClick={() => setReportOpen(false)}>Đóng</Btn>}
       >
-        {reportLoading && <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải báo cáo…</div>}
+        {reportLoading && <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải báo cáo…</div>}
         {!reportLoading && reportData && (
           <div style={{ fontSize: 'var(--fs-md)' }}>
             {Object.entries(reportData.summary).map(([k, v]) => (
               <DrField key={k} lbl={k}>{String(v)}</DrField>
             ))}
             {reportData.data.length > 0 && (
-              <div style={{ marginTop: 12, overflowX: 'auto' }}>
+              <div style={{ marginTop: 'var(--space-12)', overflowX: 'auto' }}>
                 <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>
                   <thead>
                     <tr>{reportData.columns.map((c) => <th key={c}>{c}</th>)}</tr>
@@ -263,7 +263,7 @@ const FinanceV2: React.FC = () => {
                   </tbody>
                 </table>
                 {reportData.data.length > 50 && (
-                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 6 }}>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-6)' }}>
                     Hiển thị 50 / {reportData.data.length} dòng
                   </div>
                 )}
@@ -288,7 +288,7 @@ const FinanceV2: React.FC = () => {
         </>}
       >
         <div style={{ padding: '8px 0' }}>
-          <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)', marginBottom: 8 }}>Địa chỉ email nhận báo cáo</div>
+          <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)', marginBottom: 'var(--space-8)' }}>Địa chỉ email nhận báo cáo</div>
           <Input
             type="email"
             placeholder="example@hospital.vn"
@@ -332,7 +332,7 @@ const FinanceV2: React.FC = () => {
             <DrField lbl="Đơn giá">{fmtVNDg(sel.unitPrice)}</DrField>
           </DrSec>
           <DrSec title="Doanh thu chi tiết">
-            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
+            <div style={{ padding: 'var(--space-14)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
               <Row label="Tổng doanh thu" value={fmtVNDg(sel.totalRevenue)} />
               <Row label="BHYT chi trả" value={`−${fmtVNDg(sel.insuranceRevenue)}`} tone="info" />
               <Row label="Người bệnh chi trả" value={fmtVNDg(sel.patientRevenue)} />

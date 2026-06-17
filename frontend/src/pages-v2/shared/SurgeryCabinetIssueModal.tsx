@@ -231,14 +231,14 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
       onClose={onClose}
       size="lg"
       title={
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-8)' }}>
           <TermIcon name="package" size={14} />
           <span>Xuất thuốc/VTYT phòng mổ</span>
         </span>
       }
       sub={subtitle}
       footer={
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
           {lastIssue && (
             <Btn variant="ghost" size="sm" loading={printing} onClick={() => { void handlePrint(); }}>
               <TermIcon name="print" size={12} /> In phiếu
@@ -370,7 +370,7 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
 
         {/* Summary totals by payment source */}
         {summaryBySource.length > 0 && (
-          <div style={{ marginTop: 10, display: 'flex', gap: 16, justifyContent: 'flex-end', fontSize: 'var(--fs-sm)' }}>
+          <div style={{ marginTop: 'var(--space-10)', display: 'flex', gap: 'var(--space-16)', justifyContent: 'flex-end', fontSize: 'var(--fs-sm)' }}>
             {summaryBySource.map(({ value, label, total }) => (
               <span key={value} style={{ color: PAYMENT_SOURCE_COLORS[value] }}>
                 <b>{label}:</b> {total.toLocaleString('vi-VN')} ₫
@@ -389,7 +389,7 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
           style={{
             width: '100%',
             minHeight: 48,
-            padding: 6,
+            padding: 'var(--space-6)',
             border: '1px solid var(--line)',
             borderRadius: 4,
             fontSize: 'var(--fs-sm)',

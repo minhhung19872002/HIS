@@ -220,7 +220,7 @@ const PayrollAdminV2: React.FC = () => {
         rowKey={(r) => r.id}
         onRowClick={(r) => { setSelectedPeriod(r); loadItems(r.id); }}
         actions={(r) => (
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
             <ActBtn ic="eye" title="Xem dòng lương" onClick={(e) => { e.stopPropagation(); setSelectedPeriod(r); loadItems(r.id); }} />
             {r.status === 0 && (
               <>
@@ -234,9 +234,9 @@ const PayrollAdminV2: React.FC = () => {
       />
 
       {selectedPeriod && (
-        <div style={{ marginTop: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontWeight: 600, fontSize: 'var(--fs-lg)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ marginTop: 'var(--space-24)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-8)' }}>
+            <span style={{ fontWeight: 600, fontSize: 'var(--fs-lg)', display: 'flex', alignItems: 'center', gap: 'var(--space-8)' }}>
               Dòng lương — Kỳ {selectedPeriod.periodCode}
               <StatusBadge tone={selectedPeriod.status === 1 ? 'ok' : 'warn'}>
                 {selectedPeriod.statusName}

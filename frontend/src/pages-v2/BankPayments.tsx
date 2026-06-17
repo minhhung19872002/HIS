@@ -138,7 +138,7 @@ const BankPayments: React.FC = () => {
       key: 'bank', label: 'Ngân hàng', width: 180, render: r => {
         const b = bankOf(r);
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)' }}>
             <div style={{ width: 28, height: 28, borderRadius: 4, background: b.color, color: '#fff', display: 'grid', placeItems: 'center', fontSize: 'var(--fs-xxs)', fontWeight: 800 }}>
               {b.short.slice(0, 3).toUpperCase()}
             </div>
@@ -349,18 +349,18 @@ const BankPayments: React.FC = () => {
         {qrFor && (() => {
           const b = bankOf(qrFor);
           return (
-            <div style={{ padding: 20, textAlign: 'center' }}>
+            <div style={{ padding: 'var(--space-20)', textAlign: 'center' }}>
               <div style={{
                 width: 220, height: 220, margin: '0 auto', border: '1px solid var(--line)', borderRadius: 'var(--r-3)',
                 background: 'repeating-conic-gradient(#000 0% 25%, var(--d-2) 0% 50%) 50%/12px 12px',
               }} />
-              <div style={{ marginTop: 14, fontSize: 12.5, color: 'var(--t-1)' }}>
+              <div style={{ marginTop: 'var(--space-14)', fontSize: 12.5, color: 'var(--t-1)' }}>
                 Quét mã VietQR · <b>{b.short}</b> · BIN {b.bin}
               </div>
-              <div style={{ marginTop: 6, fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+              <div style={{ marginTop: 'var(--space-6)', fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                 {fmtVNDg(qrFor.amount)}
               </div>
-              <div style={{ marginTop: 4, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
+              <div style={{ marginTop: 'var(--space-4)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                 Nội dung: <span className="mono">{qrFor.txnRef}</span>
               </div>
             </div>
@@ -386,10 +386,10 @@ const BankPayments: React.FC = () => {
         {confirming && (() => {
           const b = bankOf(confirming);
           return (
-            <div style={{ padding: 16 }}>
+            <div style={{ padding: 'var(--space-16)' }}>
               <div style={{
-                padding: 12, background: 'var(--d-1)', borderRadius: 'var(--r-2)', marginBottom: 14,
-                display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: 10, alignItems: 'center',
+                padding: 'var(--space-12)', background: 'var(--d-1)', borderRadius: 'var(--r-2)', marginBottom: 'var(--space-14)',
+                display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: 'var(--space-10)', alignItems: 'center',
               }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: 'var(--r-2)', background: b.color, color: '#fff',

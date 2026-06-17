@@ -34,12 +34,12 @@ export const StatsTab: React.FC<{ rows: RawRow[]; rooms: RoomOverviewDto[] }> = 
   }, [rows]);
 
   return (
-    <div className="ab-stack" style={{ padding: '16px 14px', gap: 14, overflow: 'auto' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+    <div className="ab-stack" style={{ padding: '16px 14px', gap: 'var(--space-14)', overflow: 'auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-14)' }}>
         <ChartCard title="LƯỢT TIẾP ĐÓN THEO GIỜ">
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 160, padding: '0 10px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 'var(--space-6)', height: 160, padding: '0 10px' }}>
             {Object.entries(byHour).map(([h, n]) => (
-              <div key={h} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <div key={h} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-4)' }}>
                 <span style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{n}</span>
                 <div style={{
                   width: '100%',
@@ -55,13 +55,13 @@ export const StatsTab: React.FC<{ rows: RawRow[]; rooms: RoomOverviewDto[] }> = 
         </ChartCard>
 
         <ChartCard title="THEO LOẠI BỆNH NHÂN">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 6px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)', padding: '0 6px' }}>
             {byPatientType.length === 0 && <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Chưa có dữ liệu</span>}
             {byPatientType.map((d) => {
               const pct = rows.length ? Math.round(d.v / rows.length * 100) : 0;
               return (
                 <div key={d.k}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-xs)', marginBottom: 3 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-xs)', marginBottom: 'var(--space-3)' }}>
                     <span>{d.k}</span>
                     <span className="mono"><b>{d.v}</b> · {pct}%</span>
                   </div>
@@ -82,7 +82,7 @@ export const StatsTab: React.FC<{ rows: RawRow[]; rooms: RoomOverviewDto[] }> = 
             const pct = (d.v / maxD) * 100;
             return (
               <div key={d.k}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-xs)', marginBottom: 3 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-xs)', marginBottom: 'var(--space-3)' }}>
                   <span>{d.k}</span>
                   <span className="mono"><b>{d.v}</b></span>
                 </div>
@@ -99,7 +99,7 @@ export const StatsTab: React.FC<{ rows: RawRow[]; rooms: RoomOverviewDto[] }> = 
       </ChartCard>
 
       <ChartCard title="TỔNG QUAN PHÒNG KHÁM">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-12)' }}>
           <StatCell label="Tổng phòng" value={rooms.length} />
           <StatCell label="Tổng BN/ngày" value={rooms.reduce((s, r) => s + r.totalPatientsToday, 0)} />
           <StatCell label="Tổng đang chờ" value={rooms.reduce((s, r) => s + r.waitingCount, 0)} tone="warn" />
@@ -122,7 +122,7 @@ const StatCell: React.FC<{ label: string; value: number; tone?: 'ok' | 'warn' }>
     <div style={{
       fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono)',
       color: tone === 'warn' ? 'var(--s-warn)' : tone === 'ok' ? '#15803d' : 'var(--t-0)',
-      lineHeight: 1.2, marginTop: 4,
+      lineHeight: 1.2, marginTop: 'var(--space-4)',
     }}>{value}</div>
   </div>
 );
@@ -134,7 +134,7 @@ const ChartCard: React.FC<{ title: string; children: React.ReactNode }> = ({ tit
   }}>
     <div style={{
       fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 600,
-      letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 14,
+      letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 'var(--space-14)',
     }}>{title}</div>
     {children}
   </div>

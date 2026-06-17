@@ -67,7 +67,7 @@ const ConsultationRegisterV2: React.FC = () => {
     if (!w) return;
     const list = Array.isArray(d.participants) ? d.participants.map((p) => `<li>${p}</li>`).join('') : '';
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>BBHC</title>
-<style>body{font-family:"Times New Roman",serif;padding:32px;font-size:13.5pt}h1{text-align:center;font-size:18pt;margin:20px 0 6px}.subtitle{text-align:center;font-style:italic;margin-bottom:24px}.row{margin:4px 0}.section{margin:16px 0}.section-title{font-weight:bold;margin-top:12px}.sig{display:flex;justify-content:space-around;margin-top:40px}.sig>div{text-align:center;width:30%}ul{margin:4px 0 4px 16px;padding:0}</style></head>
+<style>body{font-family:"Times New Roman",serif;padding:'var(--space-32)'px;font-size:13.5pt}h1{text-align:center;font-size:18pt;margin:'var(--space-20)'px 0 6px}.subtitle{text-align:center;font-style:italic;margin-bottom:24px}.row{margin:'var(--space-4)'px 0}.section{margin:'var(--space-16)'px 0}.section-title{font-weight:bold;margin-top:12px}.sig{display:flex;justify-content:space-around;margin-top:40px}.sig>div{text-align:center;width:30%}ul{margin:'var(--space-4)'px 0 4px 16px;padding:0}</style></head>
 <body><div style="text-align:center"><div>BỘ Y TẾ</div><div style="font-weight:bold">${HOSPITAL_NAME}</div><div style="margin-top:6px">Mẫu số: MS. 03/BV</div></div>
 <h1>BIÊN BẢN HỘI CHẨN</h1>
 <div class="subtitle">(${d.consultationTypeName})</div>
@@ -169,7 +169,7 @@ const ConsultationRegisterV2: React.FC = () => {
             <DrField lbl="Thư ký">{detail.secretary || '—'}</DrField>
             {detail.participants && Array.isArray(detail.participants) && (
               <DrField lbl="Tham dự">
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
                   {detail.participants.map((p, i) => <StatusBadge key={i} tone="info">{p}</StatusBadge>)}
                 </div>
               </DrField>

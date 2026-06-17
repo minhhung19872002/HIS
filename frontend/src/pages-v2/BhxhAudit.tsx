@@ -175,11 +175,11 @@ const BhxhAuditV2: React.FC = () => {
       title: `Duyệt hồ sơ giám định · ${r.maLk}`,
       content: (
         <div>
-          <p style={{ marginBottom: 8 }}>Bệnh nhân: <b>{r.patientName}</b></p>
+          <p style={{ marginBottom: 'var(--space-8)' }}>Bệnh nhân: <b>{r.patientName}</b></p>
           <textarea
             placeholder="Ghi chú (tùy chọn)"
             rows={3}
-            style={{ width: '100%', resize: 'vertical', padding: 6, borderRadius: 4, border: '1px solid #d9d9d9' }}
+            style={{ width: '100%', resize: 'vertical', padding: 'var(--space-6)', borderRadius: 4, border: '1px solid #d9d9d9' }}
             onChange={(e) => { notes = e.target.value; }}
           />
         </div>
@@ -485,7 +485,7 @@ const BhxhAuditV2: React.FC = () => {
             <DrField lbl="Tên bệnh">{sel.diagnosisName}</DrField>
           </DrSec>
           <DrSec title="Tài chính">
-            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
+            <div style={{ padding: 'var(--space-14)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
               <Line label="Tổng tiền" value={fmtVNDg(sel.totalAmount)} />
               <Line label="BHYT chi trả" value={`−${fmtVNDg(sel.insuranceAmount)}`} tone="info" />
               <Line label="Người bệnh trả" value={fmtVNDg(sel.patientAmount)} />
@@ -536,8 +536,8 @@ const BhxhAuditV2: React.FC = () => {
 
           {/* Ket qua import vua upload */}
           {importResult && (
-            <div style={{ margin: '8px 12px', padding: 12, background: 'var(--bg-1)', borderRadius: 'var(--r-2)', border: '1px solid var(--line)' }}>
-              <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)', marginBottom: 4 }}>
+            <div style={{ margin: '8px 12px', padding: 'var(--space-12)', background: 'var(--bg-1)', borderRadius: 'var(--r-2)', border: '1px solid var(--line)' }}>
+              <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)', marginBottom: 'var(--space-4)' }}>
                 Batch: <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)' }}>{importResult.importBatchCode}</span>
                 &nbsp;—&nbsp;{importResult.importedRows} dong / {importResult.totalRows} dong
                 {importResult.skippedRows > 0 && <span style={{ color: 'var(--a-or-text)' }}> · {importResult.skippedRows} bo qua</span>}
@@ -552,9 +552,9 @@ const BhxhAuditV2: React.FC = () => {
                   </ul>
                 </details>
               )}
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 4 }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-4)' }}>
                 Chi ho tro CSV. Excel can them thu vien ClosedXML/EPPlus o backend.
-                <Btn variant="ghost" onClick={() => setImportResult(null)} style={{ marginLeft: 8, height: 20, fontSize: 'var(--fs-xs)' }}>Dong</Btn>
+                <Btn variant="ghost" onClick={() => setImportResult(null)} style={{ marginLeft: 'var(--space-8)', height: 20, fontSize: 'var(--fs-xs)' }}>Dong</Btn>
               </div>
             </div>
           )}

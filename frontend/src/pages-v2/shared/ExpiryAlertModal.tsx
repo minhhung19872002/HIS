@@ -96,7 +96,7 @@ const ExpiryAlertModal: React.FC = () => {
       ]}
       onCancel={() => setOpen(false)}
     >
-      <p style={{ marginBottom: 12, color: '#595959' }}>
+      <p style={{ marginBottom: 'var(--space-12)', color: '#595959' }}>
         Các mặt hàng dưới đây sắp hoặc đã hết hạn. Vui lòng xử lý xuất/hủy hoặc trả NCC.
       </p>
       <Table

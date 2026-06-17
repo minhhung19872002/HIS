@@ -240,12 +240,12 @@ const Dashboard3CapV2: React.FC = () => {
       )}
 
       {!loading && tab === 'dashboard' && dashboard && (
-        <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+        <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-12)' }}>
           <div className="panel" style={{ padding: 0 }}>
             <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
               <span>Xu hướng 7 ngày</span>
             </div>
-            <div style={{ padding: 14, height: 300 }}>
+            <div style={{ padding: 'var(--space-14)', height: 300 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trends}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
@@ -262,7 +262,7 @@ const Dashboard3CapV2: React.FC = () => {
             <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
               <span>Phân loại bệnh nhân</span>
             </div>
-            <div style={{ padding: 14, height: 300 }}>
+            <div style={{ padding: 'var(--space-14)', height: 300 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={patientPie} cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={2} dataKey="value" label={(d) => d.name}>
@@ -277,7 +277,7 @@ const Dashboard3CapV2: React.FC = () => {
             <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
               <span>Theo khoa</span>
             </div>
-            <div style={{ padding: 14, height: 280 }}>
+            <div style={{ padding: 'var(--space-14)', height: 280 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={deptData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
@@ -313,7 +313,7 @@ const Dashboard3CapV2: React.FC = () => {
       )}
 
       {!loading && tab === 'consolidated' && report && (
-        <div style={{ padding: 16 }}>
+        <div style={{ padding: 'var(--space-16)' }}>
           <div className="panel" style={{ padding: 0 }}>
             <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
               <span>Báo cáo theo chi nhánh</span>
@@ -340,7 +340,7 @@ const Dashboard3CapV2: React.FC = () => {
       )}
 
       {!loading && tab === 'duty' && duty && (
-        <div style={{ padding: 16 }}>
+        <div style={{ padding: 'var(--space-16)' }}>
           <div className="panel" style={{ padding: 0 }}>
             <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
               <span>Tổng hợp ca trực — {duty.staffCount} NV</span>

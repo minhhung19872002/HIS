@@ -178,12 +178,12 @@ const LisCatalogAdminV2: React.FC = () => {
 
   const formFieldsByTab: Record<TabKey, React.ReactElement> = {
     tests: <>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
         <Form.Item label="Mã chỉ số" name="code" rules={[{ required: true }]}><Input placeholder="vd: Hb, WBC…" /></Form.Item>
         <Form.Item label="Mã HL7" name="hl7Code"><Input placeholder="Mã trao đổi HL7" /></Form.Item>
       </div>
       <Form.Item label="Tên chỉ số" name="name" rules={[{ required: true }]}><Input /></Form.Item>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
         <Form.Item label="Kiểu kết quả" name="dataType" initialValue="Number"><Select options={DATA_TYPE_OPTIONS} /></Form.Item>
         <Form.Item label="STT" name="sortOrder"><InputNumber min={0} /></Form.Item>
       </div>
@@ -199,20 +199,20 @@ const LisCatalogAdminV2: React.FC = () => {
         <Select allowClear showSearch optionFilterProp="label"
           options={sampleTypes.map((st) => ({ label: `${st.code} — ${st.name}`, value: st.id }))} />
       </Form.Item>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
         <Form.Item label="Đơn vị tính" name="unit"><Input placeholder="g/dL, mmol/L…" /></Form.Item>
         <Form.Item label="Đơn vị in phiếu" name="printUnit"><Input placeholder="Để trống = dùng đơn vị tính" /></Form.Item>
       </div>
       <Form.Item label="Mô tả / Ghi chú KTV" name="description"><Input.TextArea rows={2} placeholder="Ghi chú dành cho kỹ thuật viên…" /></Form.Item>
-      <div style={{ marginBottom: 8, fontWeight: 500, color: '#595959' }}>Dải tham chiếu theo giới</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
+      <div style={{ marginBottom: 'var(--space-8)', fontWeight: 500, color: '#595959' }}>Dải tham chiếu theo giới</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 'var(--space-12)' }}>
         <Form.Item label="Nam Min" name="normalMinMale"><InputNumber style={{ width: '100%' }} /></Form.Item>
         <Form.Item label="Nam Max" name="normalMaxMale"><InputNumber style={{ width: '100%' }} /></Form.Item>
         <Form.Item label="Nữ Min" name="normalMinFemale"><InputNumber style={{ width: '100%' }} /></Form.Item>
         <Form.Item label="Nữ Max" name="normalMaxFemale"><InputNumber style={{ width: '100%' }} /></Form.Item>
       </div>
-      <div style={{ marginBottom: 8, fontWeight: 500, color: '#d4380d' }}>Ngưỡng cảnh báo nguy hiểm</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ marginBottom: 'var(--space-8)', fontWeight: 500, color: '#d4380d' }}>Ngưỡng cảnh báo nguy hiểm</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
         <Form.Item label="Critical Low" name="criticalLow"><InputNumber style={{ width: '100%' }} /></Form.Item>
         <Form.Item label="Critical High" name="criticalHigh"><InputNumber style={{ width: '100%' }} /></Form.Item>
       </div>

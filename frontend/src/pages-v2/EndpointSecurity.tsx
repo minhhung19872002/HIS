@@ -252,9 +252,9 @@ const EndpointSecurityV2: React.FC = () => {
         sub={incidentLoading ? 'Đang tải…' : `${incidents.length} sự cố`}
         footer={<Btn variant="ghost" onClick={() => setIncidentOpen(false)}>Đóng</Btn>}
       >
-        {incidentLoading && <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải danh sách sự cố…</div>}
+        {incidentLoading && <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải danh sách sự cố…</div>}
         {!incidentLoading && incidents.length === 0 && (
-          <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Không có sự cố ATTT nào</div>
+          <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Không có sự cố ATTT nào</div>
         )}
         {!incidentLoading && incidents.length > 0 && (
           <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>

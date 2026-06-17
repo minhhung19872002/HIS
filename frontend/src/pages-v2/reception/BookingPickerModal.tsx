@@ -91,7 +91,7 @@ export const BookingPickerModal: React.FC<{
       sub="Chọn bệnh nhân đã đặt lịch để tiếp đón nhanh"
       footer={<button type="button" className="ab-btn" onClick={onClose}>Đóng</button>}
     >
-      <div style={{ marginBottom: 10 }}>
+      <div style={{ marginBottom: 'var(--space-10)' }}>
         <Input
           value={kw}
           onChange={(e) => setKw(e.target.value)}
@@ -106,26 +106,26 @@ export const BookingPickerModal: React.FC<{
         </div>
       )}
       {!loading && filtered.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 420, overflow: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', maxHeight: 420, overflow: 'auto' }}>
           {filtered.map((b) => (
             <div
               key={b._key}
               style={{
-                display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center',
+                display: 'grid', gridTemplateColumns: '1fr auto', gap: 'var(--space-8)', alignItems: 'center',
                 padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-2)',
               }}
             >
               <div>
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--t-0)' }}>
                   {b.patientName}
-                  <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-xs)', marginLeft: 8 }}>{b.appointmentCode}</span>
+                  <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-xs)', marginLeft: 'var(--space-8)' }}>{b.appointmentCode}</span>
                 </div>
                 <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                   {b.appointmentTime ? `${b.appointmentTime} · ` : ''}
                   {b.departmentName || '—'}{b.doctorName ? ` · ${b.doctorName}` : ''}
                   {b.phoneNumber ? ` · ${b.phoneNumber}` : ''}
                 </div>
-                <div style={{ fontSize: 10.5, color: 'var(--t-2)', marginTop: 2 }}>
+                <div style={{ fontSize: 10.5, color: 'var(--t-2)', marginTop: 'var(--space-2)' }}>
                   {BOOKING_STATUS_LABEL[b.status] || b.statusName}
                   {b.reason ? ` · ${b.reason}` : ''}
                 </div>

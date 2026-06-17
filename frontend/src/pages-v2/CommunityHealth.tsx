@@ -27,7 +27,7 @@ const CommunityHealthV2: React.FC = () => {
       <span className={`chip ${RISK_TONE[r.riskLevel] || 'info'}`}>{RISK_LABEL[r.riskLevel] || r.riskLevel}</span>
     },
     { key: 'flags', label: 'Đối tượng', width: 200, render: (r) => (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
         {r.hasElderlyMember && <span className="chip warn">NCT</span>}
         {r.hasChildUnder5 && <span className="chip warn">Trẻ &lt;5</span>}
         {r.hasPregnant && <span className="chip warn">Thai</span>}
@@ -86,7 +86,7 @@ const CommunityHealthV2: React.FC = () => {
           </div>
           <div className="rec-section">
             <h5><TermIcon name="alert" size={11} /> ĐỐI TƯỢNG ĐẶC BIỆT</h5>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
               {r.hasElderlyMember && <span className="chip warn">Người cao tuổi</span>}
               {r.hasChildUnder5 && <span className="chip warn">Trẻ dưới 5 tuổi</span>}
               {r.hasPregnant && <span className="chip warn">Phụ nữ mang thai</span>}
@@ -112,7 +112,7 @@ const CommunityHealthV2: React.FC = () => {
         </>
       )}
       drawerTitle={(r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.householdCode}</span>
           <span style={{ fontSize: 14 }}>{r.headName}</span>
         </span>

@@ -285,9 +285,9 @@ const EpidemiologyV2: React.FC = () => {
         footer={<Btn variant="ghost" onClick={() => setOutbreakOpen(false)}>Đóng</Btn>}
       >
         {outbreakLoading ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
+          <div style={{ padding: 'var(--space-24)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
         ) : outbreaks.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)' }}>Chưa có ổ dịch nào</div>
+          <div style={{ padding: 'var(--space-24)', textAlign: 'center', color: 'var(--t-2)' }}>Chưa có ổ dịch nào</div>
         ) : outbreaks.map((ob) => {
           const riskTone = ob.riskLevel >= 3 ? 'crit' : ob.riskLevel === 2 ? 'warn' : 'info';
           const stTone = ob.status === 0 ? 'warn' : ob.status === 1 ? 'crit' : 'ok';

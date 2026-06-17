@@ -253,7 +253,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
         </>}
       >
         <div style={{ padding: '8px 0' }}>
-          <div style={{ padding: 10, marginBottom: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
+          <div style={{ padding: 'var(--space-10)', marginBottom: 'var(--space-14)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
             Gán bệnh nhân (qua ExaminationId) cho mã BA{' '}
             <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--t-0)' }}>{assignTarget?.recordCode}</span>.
           </div>
@@ -284,9 +284,9 @@ const MedicalRecordPlanningV2: React.FC = () => {
       >
         {bulkResult ? (
           <div style={{ padding: '8px 0' }}>
-            <div style={{ marginBottom: 12, padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
-              <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--t-0)' }}>{bulkResult.message}</div>
-              <div style={{ display: 'flex', gap: 16, fontSize: 'var(--fs-md)' }}>
+            <div style={{ marginBottom: 'var(--space-12)', padding: 'var(--space-12)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
+              <div style={{ fontWeight: 600, marginBottom: 'var(--space-6)', color: 'var(--t-0)' }}>{bulkResult.message}</div>
+              <div style={{ display: 'flex', gap: 'var(--space-16)', fontSize: 'var(--fs-md)' }}>
                 <span>Yêu cầu: <b>{bulkResult.requested}</b></span>
                 <span style={{ color: 'var(--a-gn-text)' }}>Cấp: <b>{bulkResult.allocated}</b></span>
                 <span style={{ color: 'var(--a-or-text)' }}>Bỏ qua: <b>{bulkResult.skipped}</b></span>
@@ -303,7 +303,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
             {bulkResult.errors.length > 0 && (
               <DrSec title="Lỗi">
                 {bulkResult.errors.map((e, i) => (
-                  <div key={i} style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-rd-text)', marginBottom: 2 }}>{e}</div>
+                  <div key={i} style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-rd-text)', marginBottom: 'var(--space-2)' }}>{e}</div>
                 ))}
               </DrSec>
             )}
@@ -316,8 +316,8 @@ const MedicalRecordPlanningV2: React.FC = () => {
             <Divider style={{ margin: '8px 0', borderColor: 'var(--line)' }}>
               <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Chọn 1 trong 2 cách cấp mã</span>
             </Divider>
-            <div style={{ marginBottom: 8, fontSize: 'var(--fs-sm)', color: 'var(--t-2)', fontWeight: 600 }}>Cách 1: Prefix + Số lượng</div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ marginBottom: 'var(--space-8)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)', fontWeight: 600 }}>Cách 1: Prefix + Số lượng</div>
+            <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
               <Form.Item name="prefix" label="Prefix" style={{ flex: 1 }}>
                 <Input placeholder="VD: HS" />
               </Form.Item>
@@ -325,8 +325,8 @@ const MedicalRecordPlanningV2: React.FC = () => {
                 <InputNumber min={1} max={1000} style={{ width: '100%' }} placeholder="VD: 100" />
               </Form.Item>
             </div>
-            <div style={{ marginBottom: 8, fontSize: 'var(--fs-sm)', color: 'var(--t-2)', fontWeight: 600 }}>Cách 2: Dải từ — đến</div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ marginBottom: 'var(--space-8)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)', fontWeight: 600 }}>Cách 2: Dải từ — đến</div>
+            <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
               <Form.Item name="fromCode" label="Từ mã" style={{ flex: 1 }}>
                 <Input placeholder="VD: HS0001" style={{ fontFamily: 'var(--font-mono)' }} />
               </Form.Item>

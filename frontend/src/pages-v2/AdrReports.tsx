@@ -288,7 +288,7 @@ const AdrReportsV2: React.FC = () => {
   // ── Summary tab content ────────────────────────────────────────────────────
   const renderSummary = () => (
     <div style={{ padding: '16px 0' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--space-12)', marginBottom: 'var(--space-24)' }}>
         {[
           { label: 'Tổng số báo cáo',        val: summary?.totalReports ?? 0,    color: 'var(--clr-info)' },
           { label: 'Mức độ nhẹ (1)',          val: summary?.severityMild ?? 0,    color: 'var(--clr-ok)' },
@@ -305,7 +305,7 @@ const AdrReportsV2: React.FC = () => {
               padding: '14px 18px',
             }}
           >
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 6 }}>{item.label}</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-6)' }}>{item.label}</div>
             <div style={{ fontSize: 28, fontWeight: 700, color: item.color }}>{item.val}</div>
           </div>
         ))}

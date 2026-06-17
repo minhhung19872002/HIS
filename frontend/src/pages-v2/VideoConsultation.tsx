@@ -123,7 +123,7 @@ const VideoConsultationV2: React.FC = () => {
     { key: 'host', label: 'Host', render: (r) => r.hostName || '—' },
     { key: 'sched', label: 'Lịch', mono: true, render: (r) => r.scheduledAt ? dayjs(r.scheduledAt).format('DD/MM HH:mm') : '—' },
     { key: 'opts', label: 'Tùy chọn', render: (r) => (
-      <div style={{ display: 'flex', gap: 4 }}>
+      <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
         {r.hasPassword && <StatusBadge tone="warn">🔒 PWD</StatusBadge>}
         {r.isRecorded && <StatusBadge tone="crit">REC</StatusBadge>}
       </div>
@@ -234,13 +234,13 @@ const VideoConsultationV2: React.FC = () => {
         footer={<Btn variant="ghost" onClick={() => setCurrentRoom(null)}>Đóng</Btn>}>
         {currentRoom && (
           <div>
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>Tên phòng:</div>
+            <div style={{ marginBottom: 'var(--space-12)' }}>
+              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Tên phòng:</div>
               <b>{currentRoom.title}</b>
             </div>
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>Jitsi URL:</div>
-              <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ marginBottom: 'var(--space-12)' }}>
+              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Jitsi URL:</div>
+              <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
                 <Input value={currentRoom.jitsiUrl} readOnly style={{ flex: 1 }} />
                 <Btn variant="ghost" onClick={() => {
                   navigator.clipboard.writeText(currentRoom.jitsiUrl); tk('Đã copy');
@@ -250,9 +250,9 @@ const VideoConsultationV2: React.FC = () => {
               </div>
             </div>
             {currentRoom.hasPassword && <StatusBadge tone="warn" dot>🔒 Có mật khẩu</StatusBadge>}
-            <div style={{ textAlign: 'center', marginTop: 16, padding: 16, background: 'var(--d-1)', borderRadius: 4 }}>
+            <div style={{ textAlign: 'center', marginTop: 'var(--space-16)', padding: 'var(--space-16)', background: 'var(--d-1)', borderRadius: 4 }}>
               <QRCodeCanvas value={currentRoom.jitsiUrl} size={200} level="M" />
-              <div style={{ marginTop: 8, color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>
+              <div style={{ marginTop: 'var(--space-8)', color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>
                 Quét QR bằng điện thoại để tham gia qua Jitsi mobile
               </div>
             </div>
@@ -298,7 +298,7 @@ const VideoConsultationV2: React.FC = () => {
               <StatusBadge tone={STATUS_TABS.find((x) => x.v === sKey(sel.status))?.tone || 'info'} dot>{STATUS_LABELS[sel.status]}</StatusBadge>
             </DrField>
             <DrField lbl="Tùy chọn">
-              <span style={{ display: 'flex', gap: 4 }}>
+              <span style={{ display: 'flex', gap: 'var(--space-4)' }}>
                 {sel.hasPassword ? <StatusBadge tone="warn">🔒 Mật khẩu</StatusBadge> : null}
                 {sel.isRecorded ? <StatusBadge tone="crit">REC</StatusBadge> : null}
                 {!sel.hasPassword && !sel.isRecorded ? <span style={{ color: 'var(--t-2)' }}>—</span> : null}
@@ -315,7 +315,7 @@ const VideoConsultationV2: React.FC = () => {
 
       <DrawerShell open={!!participantsDrawer} onClose={() => setParticipantsDrawer(null)}
         size="md" title={`Người tham gia: ${participantsDrawer?.title || ''}`}>
-        <div style={{ padding: 16 }}>
+        <div style={{ padding: 'var(--space-16)' }}>
           <table className="ab-tbl">
             <thead><tr><th>Tên hiển thị</th><th>User</th><th>Email</th><th>Role</th><th>Tham gia</th></tr></thead>
             <tbody>

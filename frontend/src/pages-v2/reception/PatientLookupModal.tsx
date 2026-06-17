@@ -60,7 +60,7 @@ export const PatientLookupModal: React.FC<{
       footer={<button type="button" className="ab-btn ghost" onClick={onClose}>Đóng</button>}
     >
       <div style={{ padding: 0 }}>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
           <Input
             value={kw}
             onChange={(e) => setKw(e.target.value)}
@@ -73,7 +73,7 @@ export const PatientLookupModal: React.FC<{
           </button>
         </div>
 
-        <div style={{ marginTop: 14, maxHeight: 360, overflow: 'auto' }}>
+        <div style={{ marginTop: 'var(--space-14)', maxHeight: 360, overflow: 'auto' }}>
           {list.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
               {busy ? 'Đang tìm…' : 'Nhập từ khóa rồi bấm Tìm'}
@@ -87,7 +87,7 @@ export const PatientLookupModal: React.FC<{
               <div
                 style={{
                   padding: '10px 12px', borderBottom: open2 ? 'none' : '1px solid var(--line-soft)',
-                  display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 10, alignItems: 'center', cursor: 'pointer',
+                  display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 'var(--space-10)', alignItems: 'center', cursor: 'pointer',
                 }}
                 onClick={() => onPick(p)}
               >
@@ -116,7 +116,7 @@ export const PatientLookupModal: React.FC<{
                     <div style={{ fontSize: 11.5, color: 'var(--t-2)' }}>Chưa có lần khám nào</div>
                   ) : (
                     hist.map((v) => (
-                      <div key={v.medicalRecordId} style={{ display: 'grid', gridTemplateColumns: '92px 1fr auto', gap: 8, padding: '4px 0', fontSize: 'var(--fs-sm)', borderTop: '1px dashed var(--line-soft)' }}>
+                      <div key={v.medicalRecordId} style={{ display: 'grid', gridTemplateColumns: '92px 1fr auto', gap: 'var(--space-8)', padding: '4px 0', fontSize: 'var(--fs-sm)', borderTop: '1px dashed var(--line-soft)' }}>
                         <span className="mono" style={{ color: 'var(--a-cy)' }}>{dayjs(v.visitDate).format('DD/MM/YYYY')}</span>
                         <span>
                           <b>{v.diagnosisName || v.diagnosisCode || '—'}</b>

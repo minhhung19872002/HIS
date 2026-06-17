@@ -530,9 +530,9 @@ const CatalogsAdminV2: React.FC = () => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', zIndex: 1000 }}
           onClick={() => setTplDrawer(false)}>
           <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 680,
-            background: 'var(--bg-card)', padding: 24, overflowY: 'auto' }}
+            background: 'var(--bg-card)', padding: 'var(--space-24)', overflowY: 'auto' }}
             onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-16)' }}>
               <b style={{ fontSize: 16 }}>{tplEditing ? 'Sua template' : 'Them template moi'}</b>
               <Btn variant="ghost" onClick={() => setTplDrawer(false)}><Ico name="x" size={14} /></Btn>
             </div>
@@ -543,11 +543,11 @@ const CatalogsAdminV2: React.FC = () => {
               <Form.Item name="templateType" label="Loai" rules={[{ required: true }]}>
                 <Select options={Object.entries(TEMPLATE_TYPE_LABELS).map(([k, v]) => ({ value: Number(k), label: v }))} />
               </Form.Item>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--space-12)' }}>
                 <Form.Item name="icdCode" label="Ma ICD-10"><Input placeholder="VD: J18.9" maxLength={20} /></Form.Item>
                 <Form.Item name="icdName" label="Ten chan doan"><Input placeholder="Viem phoi khong xac dinh" /></Form.Item>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '140px 120px 120px 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '140px 120px 120px 1fr', gap: 'var(--space-12)' }}>
                 <Form.Item name="gender" label="Gioi tinh">
                   <Select options={[{ value: 0, label: 'Tat ca' }, { value: 1, label: 'Nam' }, { value: 2, label: 'Nu' }]} />
                 </Form.Item>
@@ -562,7 +562,7 @@ const CatalogsAdminV2: React.FC = () => {
               </Form.Item>
               <Form.Item name="sortOrder" label="Thu tu sap xep"><InputNumber min={0} /></Form.Item>
             </Form>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+            <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end', marginTop: 'var(--space-16)' }}>
               <Btn variant="ghost" onClick={() => setTplDrawer(false)}>Huy</Btn>
               <Btn variant="primary" onClick={submitTpl}><Ico name="check" size={12} /> Luu</Btn>
             </div>
@@ -648,12 +648,12 @@ const CatalogsAdminV2: React.FC = () => {
           </Btn>
         </>}>
         <Form form={facForm} layout="vertical">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
             <Form.Item name="code" label="Ma CSKCB" rules={[{ required: true }]}><Input maxLength={20} /></Form.Item>
             <Form.Item name="bhxhCode" label="Ma BHXH"><Input maxLength={20} /></Form.Item>
           </div>
           <Form.Item name="name" label="Ten co so" rules={[{ required: true }]}><Input maxLength={500} /></Form.Item>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
             <Form.Item name="province" label="Tinh/Thanh pho"><Input maxLength={100} /></Form.Item>
             <Form.Item name="level" label="Tuyen kham">
               <Select allowClear options={LEVEL_OPTIONS} placeholder="Chon tuyen" />

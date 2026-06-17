@@ -126,7 +126,7 @@ const VppStockCardV2: React.FC = () => {
       ]} />
 
       <div className="ab-toolbar">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-8)', flexWrap: 'wrap', alignItems: 'center' }}>
           <Select
             style={{ width: 220 }}
             placeholder="Chọn kho VPP"
@@ -136,7 +136,7 @@ const VppStockCardV2: React.FC = () => {
           />
           <SearchBox value={keyword} onChange={setKeyword} placeholder="Tìm tên VPP, mã…" />
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
           <DatePicker.RangePicker
             value={dateRange}
             onChange={(v) => v && setDateRange(v as [dayjs.Dayjs, dayjs.Dayjs])}
@@ -164,15 +164,15 @@ const VppStockCardV2: React.FC = () => {
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)',
           zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center',
         }} onClick={(e) => { if (e.target === e.currentTarget) setCardOpen(false); }}>
-          <div style={{ background: 'var(--d-2)', borderRadius: 'var(--r-3)', padding: 24, width: 780, maxHeight: '80vh', overflow: 'auto' }}>
+          <div style={{ background: 'var(--d-2)', borderRadius: 'var(--r-3)', padding: 'var(--space-24)', width: 780, maxHeight: '80vh', overflow: 'auto' }}>
             {cardLoading ? (
-              <div style={{ textAlign: 'center', padding: 40 }}>Đang tải thẻ kho…</div>
+              <div style={{ textAlign: 'center', padding: 'var(--space-40)' }}>Đang tải thẻ kho…</div>
             ) : card ? (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 'var(--space-16)' }}>
                   <div>
                     <h3 style={{ margin: 0 }}>Thẻ kho — {card.supplyName}</h3>
-                    <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginTop: 4 }}>
+                    <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginTop: 'var(--space-4)' }}>
                       Kho: {card.warehouseName} · ĐVT: {card.unit} ·
                       Tồn đầu: <strong>{fmt(card.openingBalance)}</strong> ·
                       Tồn cuối: <strong>{fmt(card.closingBalance)}</strong>

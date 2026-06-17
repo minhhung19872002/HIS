@@ -46,7 +46,7 @@ export const KpiStrip: React.FC<{ items: KpiItem[] }> = ({ items }) => (
         <div className="lbl">{k.lbl}</div>
         <div className="val">
           {k.val}
-          {k.unit && <small style={{ fontSize: 'var(--fs-md)', color: 'var(--t-2)', marginLeft: 3 }}>{k.unit}</small>}
+          {k.unit && <small style={{ fontSize: 'var(--fs-md)', color: 'var(--t-2)', marginLeft: 'var(--space-3)' }}>{k.unit}</small>}
         </div>
         {k.sub && <div className="sub">{k.sub}</div>}
       </div>
@@ -241,7 +241,7 @@ export const Pager: React.FC<{
   if (totalPages <= 1) return null;
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 8,
+      display: 'flex', alignItems: 'center', gap: 'var(--space-8)',
       padding: '10px 14px', borderTop: '1px solid var(--line)',
       background: 'var(--d-2)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)', flexShrink: 0,
     }}>
@@ -489,7 +489,7 @@ export const DrSec: React.FC<{
   children: React.ReactNode;
 }> = ({ title, action, children }) => (
   <section style={{ padding: '14px 20px', borderBottom: '1px solid var(--line-soft)' }}>
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-10)' }}>
       <h4 style={{
         margin: 0, fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)',
         textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--t-2)',
@@ -504,7 +504,7 @@ export const DrField: React.FC<{
   lbl: string;
   children: React.ReactNode;
 }> = ({ lbl, children }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 10, padding: '4px 0', fontSize: 12.5 }}>
+  <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 'var(--space-10)', padding: '4px 0', fontSize: 12.5 }}>
     <div style={{ color: 'var(--t-2)' }}>{lbl}</div>
     <div style={{ color: 'var(--t-0)' }}>{children}</div>
   </div>

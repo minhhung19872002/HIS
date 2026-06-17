@@ -210,14 +210,14 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
       onClose={onClose}
       size="xl"
       title={
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-8)' }}>
           <TermIcon name="plus" size={14} />
           <span>Tạo chỉ định CLS nội trú</span>
         </span>
       }
       sub={patientName}
       footer={
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
           <Btn variant="ghost" size="sm" onClick={onClose}>Đóng</Btn>
           <Btn variant="primary" size="sm" loading={saving} disabled={!lines.length} onClick={() => { void submit(); }}>
             <TermIcon name="check" size={12} /> Lưu chỉ định
@@ -239,7 +239,7 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
 
       {/* Chọn dịch vụ */}
       <DrSec title="Chọn dịch vụ" action={
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
           <Btn variant={mode === 'search' ? 'primary' : 'ghost'} size="sm" onClick={() => setMode('search')}>
             <TermIcon name="search" size={11} /> Tìm
           </Btn>
@@ -251,9 +251,9 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
         {mode === 'search' && <ServicePicker onPick={(s) => addService(s.id, s.name, s.code ?? '', s.unitPrice ?? 0)} />}
         {mode === 'tree' && (
           <div>
-            <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 8, maxHeight: 240, overflow: 'auto', background: 'var(--d-0)' }}>
+            <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 'var(--space-8)', maxHeight: 240, overflow: 'auto', background: 'var(--d-0)' }}>
               {treeData.length === 0
-                ? <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 12 }}>Không có danh mục dịch vụ</div>
+                ? <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 'var(--space-12)' }}>Không có danh mục dịch vụ</div>
                 : (
                   <Tree
                     checkable
@@ -269,7 +269,7 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
                   />
                 )}
             </div>
-            <div style={{ marginTop: 8, textAlign: 'right' }}>
+            <div style={{ marginTop: 'var(--space-8)', textAlign: 'right' }}>
               <Btn variant="ghost" size="sm" disabled={!treeChecked.length} onClick={addCheckedFromTree}>
                 <TermIcon name="plus" size={11} /> Thêm {treeChecked.length ? `(${treeChecked.length})` : ''} dịch vụ đã tick
               </Btn>
@@ -281,7 +281,7 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
       {/* Dịch vụ đã chọn */}
       <DrSec title={`Dịch vụ đã chọn (${lines.length})`}>
         {lines.length === 0
-          ? <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 12 }}>Chưa có dịch vụ nào — tìm hoặc tick từ cây danh mục.</div>
+          ? <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 'var(--space-12)' }}>Chưa có dịch vụ nào — tìm hoặc tick từ cây danh mục.</div>
           : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)', minWidth: 720 }}>

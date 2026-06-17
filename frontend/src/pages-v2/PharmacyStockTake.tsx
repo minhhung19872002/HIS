@@ -460,7 +460,7 @@ const PharmacyStockTake: React.FC = () => {
       {/* ── Header info row — shown after stock-take created ── */}
       {stockTake && (
         <div style={{
-          display: 'flex', gap: 24, padding: '8px 14px',
+          display: 'flex', gap: 'var(--space-24)', padding: '8px 14px',
           borderBottom: '1px solid var(--line-soft)',
           background: 'var(--bg-1)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)',
           flexWrap: 'wrap',
@@ -479,7 +479,7 @@ const PharmacyStockTake: React.FC = () => {
         <div style={{
           flex: 1, display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
-          color: 'var(--t-2)', padding: 48, gap: 12,
+          color: 'var(--t-2)', padding: 48, gap: 'var(--space-12)',
         }}>
           <div style={{ fontSize: 40 }}>🗂️</div>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-1)' }}>
@@ -527,7 +527,7 @@ const PharmacyStockTake: React.FC = () => {
           {/* Summary row */}
           {displayItems.length > 0 && (
             <div style={{
-              display: 'flex', gap: 20, padding: '8px 14px',
+              display: 'flex', gap: 'var(--space-20)', padding: '8px 14px',
               borderTop: '1px solid var(--line)',
               background: 'var(--bg-1)', fontSize: 'var(--fs-sm)', flexWrap: 'wrap',
             }}>

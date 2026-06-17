@@ -376,14 +376,14 @@ const CentralSigningV2: React.FC = () => {
       </>}
 
       {tab === 'config' && (
-        <div style={{ padding: 24 }}>
+        <div style={{ padding: 'var(--space-24)' }}>
           <div className="panel" style={{ padding: 0 }}>
             <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
               <span>Cấu hình hiển thị chữ ký</span>
             </div>
-            <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>
-              <div style={{ marginBottom: 8 }}>Cấu hình appearance · TOTP · CSR · HSM cho ký số tập trung.</div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
+            <div style={{ padding: 'var(--space-24)', color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>
+              <div style={{ marginBottom: 'var(--space-8)' }}>Cấu hình appearance · TOTP · CSR · HSM cho ký số tập trung.</div>
+              <div style={{ display: 'flex', gap: 'var(--space-10)', flexWrap: 'wrap', marginTop: 'var(--space-16)' }}>
                 <Btn onClick={openAppearance}>
                   <Ico name="edit" size={12} /> Cấu hình appearance
                 </Btn>
@@ -518,9 +518,9 @@ const CentralSigningV2: React.FC = () => {
         </>}
       >
         {appearLoading ? (
-          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Đang tải cấu hình…</div>
+          <div style={{ padding: 'var(--space-24)', color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Đang tải cấu hình…</div>
         ) : appearData === null && !appearLoading ? (
-          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Không tải được cấu hình.</div>
+          <div style={{ padding: 'var(--space-24)', color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Không tải được cấu hình.</div>
         ) : (
           <Form form={appearForm} layout="vertical" style={{ padding: '8px 0' }}>
             <DrSec title="Vị trí chữ ký">
@@ -533,7 +533,7 @@ const CentralSigningV2: React.FC = () => {
                   { value: 'custom', label: 'Tuỳ chỉnh' },
                 ]} />
               </Form.Item>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
                 <Form.Item name="x" label="X" style={{ flex: 1 }}><InputNumber style={{ width: '100%' }} /></Form.Item>
                 <Form.Item name="y" label="Y" style={{ flex: 1 }}><InputNumber style={{ width: '100%' }} /></Form.Item>
                 <Form.Item name="width" label="Rộng" style={{ flex: 1 }}><InputNumber style={{ width: '100%' }} /></Form.Item>
@@ -544,7 +544,7 @@ const CentralSigningV2: React.FC = () => {
               <Form.Item name="fontFamily" label="Font">
                 <Input placeholder="VD: Arial" />
               </Form.Item>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
                 <Form.Item name="fontSize" label="Cỡ chữ" style={{ flex: 1 }}><InputNumber min={6} max={72} style={{ width: '100%' }} /></Form.Item>
                 <Form.Item name="fontColor" label="Màu chữ" style={{ flex: 1 }}><Input type="color" /></Form.Item>
               </div>
@@ -568,9 +568,9 @@ const CentralSigningV2: React.FC = () => {
         sub="Thông tin Hardware Security Module"
       >
         {hsmLoading ? (
-          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Đang tải HSM info…</div>
+          <div style={{ padding: 'var(--space-24)', color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Đang tải HSM info…</div>
         ) : !hsmData ? (
-          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Không có dữ liệu HSM.</div>
+          <div style={{ padding: 'var(--space-24)', color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Không có dữ liệu HSM.</div>
         ) : (
           <DrSec title="Thông tin HSM">
             {Object.entries(hsmData).map(([k, v]) => (
@@ -603,7 +603,7 @@ const CentralSigningV2: React.FC = () => {
       >
         {csrResult ? (
           <div style={{ padding: '8px 0' }}>
-            <div style={{ marginBottom: 8, fontWeight: 600, color: 'var(--t-1)' }}>CSR đã tạo — sao chép gửi CA:</div>
+            <div style={{ marginBottom: 'var(--space-8)', fontWeight: 600, color: 'var(--t-1)' }}>CSR đã tạo — sao chép gửi CA:</div>
             <textarea
               readOnly
               value={csrResult}
@@ -611,10 +611,10 @@ const CentralSigningV2: React.FC = () => {
               style={{
                 width: '100%', minHeight: 220, fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)',
                 background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4,
-                padding: 8, resize: 'vertical', color: 'var(--t-0)',
+                padding: 'var(--space-8)', resize: 'vertical', color: 'var(--t-0)',
               }}
             />
-            <Btn variant="ghost" style={{ marginTop: 8 }} onClick={() => { navigator.clipboard.writeText(csrResult); tk('Đã copy CSR vào clipboard'); }}>
+            <Btn variant="ghost" style={{ marginTop: 'var(--space-8)' }} onClick={() => { navigator.clipboard.writeText(csrResult); tk('Đã copy CSR vào clipboard'); }}>
               <Ico name="download" size={12} /> Copy CSR
             </Btn>
           </div>
@@ -629,7 +629,7 @@ const CentralSigningV2: React.FC = () => {
             <Form.Item name="organizationUnit" label="Đơn vị (OU)" rules={[{ required: true, message: 'Nhập đơn vị' }]}>
               <Input placeholder="VD: Khoa Noi" />
             </Form.Item>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
               <Form.Item name="country" label="Quốc gia (C)" style={{ flex: 1 }} initialValue="VN">
                 <Input placeholder="VN" maxLength={2} />
               </Form.Item>

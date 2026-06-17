@@ -256,9 +256,9 @@ const EnvironmentalHealthV2: React.FC = () => {
         </>}
       >
         {monitorLoading ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
+          <div style={{ padding: 'var(--space-24)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
         ) : monitorings.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)' }}>Chưa có bản ghi quan trắc</div>
+          <div style={{ padding: 'var(--space-24)', textAlign: 'center', color: 'var(--t-2)' }}>Chưa có bản ghi quan trắc</div>
         ) : monitorings.map((m) => (
           <DrSec key={m.id} title={`${MONITOR_TYPE_LABEL[m.monitoringType] || m.monitoringType} · ${m.location}`}>
             <DrField lbl="Ngày">{dayjs(m.monitoringDate).format('DD/MM/YYYY')}</DrField>

@@ -172,7 +172,7 @@ const WaitingTimeReport: React.FC = () => {
           {/* Bảng từng khâu */}
           {data ? (
             <div style={{ padding: '0 16px 16px' }}>
-              <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--c-label)' }}>
+              <div style={{ fontWeight: 600, marginBottom: 'var(--space-8)', color: 'var(--c-label)' }}>
                 Thời gian chờ trung bình từng khâu (phút)
               </div>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-md)' }}>
@@ -234,7 +234,7 @@ const WaitingTimeReport: React.FC = () => {
               </ResponsiveContainer>
 
               {/* Ghi chú giả định */}
-              <div style={{ marginTop: 12, fontSize: 'var(--fs-xs)', color: 'var(--c-muted)', lineHeight: 1.6 }}>
+              <div style={{ marginTop: 'var(--space-12)', fontSize: 'var(--fs-xs)', color: 'var(--c-muted)', lineHeight: 1.6 }}>
                 * Mốc &quot;Có kết quả CLS&quot; sử dụng UpdatedAt của ServiceRequest khi Status=3.
                 Nếu bản ghi được cập nhật vì lý do khác (sửa giá, hủy...) số liệu có thể lệch.
                 Để chính xác hơn, cần thêm cột CompletedAt vào ServiceRequest.

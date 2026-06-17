@@ -267,7 +267,7 @@ const NutritionV2: React.FC = () => {
             {sel.mealFrequency && <DrField lbl="Số bữa"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.mealFrequency}</span></DrField>}
           </DrSec>
           <DrSec title="Định lượng">
-            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
+            <div style={{ padding: 'var(--space-14)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
               <Line label="Năng lượng" value={`${kcal(sel)} kcal`} />
               <Line label="Protein" value={`${protein(sel)} g`} />
               {sel.fluidMl && <Line label="Dịch" value={`${sel.fluidMl} ml`} />}

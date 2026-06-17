@@ -181,7 +181,7 @@ const SigningWorkflowV2: React.FC = () => {
               <DrField lbl="Người ký">
                 {detail.assignedToName}
                 {detail.signerRole && (
-                  <span style={{ marginLeft: 6, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
+                  <span style={{ marginLeft: 'var(--space-6)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                     ({SIGNER_ROLE_OPTIONS.find((o) => o.v === detail.signerRole)?.l || detail.signerRole})
                   </span>
                 )}
@@ -207,13 +207,13 @@ const SigningWorkflowV2: React.FC = () => {
             {detail.documentContent && (
               <DrSec title="Nội dung tài liệu (snapshot lúc trình)">
                 <div
-                  style={{ maxHeight: 420, overflow: 'auto', background: 'var(--d-2)', color: '#111', borderRadius: 'var(--r-2)', padding: 10, fontSize: 'var(--fs-sm)' }}
+                  style={{ maxHeight: 420, overflow: 'auto', background: 'var(--d-2)', color: '#111', borderRadius: 'var(--r-2)', padding: 'var(--space-10)', fontSize: 'var(--fs-sm)' }}
                   // Snapshot HTML do chính PrintTemplateRenderer nội bộ sinh ra (không phải input người dùng tự do)
                   dangerouslySetInnerHTML={{ __html: detail.documentContent }}
                 />
               </DrSec>
             )}
-            <div style={{ display: 'flex', gap: 8, padding: '12px 0', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-8)', padding: '12px 0', justifyContent: 'flex-end' }}>
               {tab === 'pending' && detail.status === 0 && (
                 <>
                   <Btn variant="ghost" onClick={() => void doReject(detail.id)}><Ico name="x" size={12} /> Từ chối</Btn>

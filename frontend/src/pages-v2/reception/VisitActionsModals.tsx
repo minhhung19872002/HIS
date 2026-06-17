@@ -20,10 +20,10 @@ import TermIcon from '../../layouts/terminal/Icon';
 // ─── Shared helpers ──────────────────────────────────────────────────────────
 
 const FIELD_LABEL: React.CSSProperties = {
-  fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600,
+  fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600,
 };
 
-const FIELD_WRAP: React.CSSProperties = { marginBottom: 12 };
+const FIELD_WRAP: React.CSSProperties = { marginBottom: 'var(--space-12)' };
 
 interface FieldProps { label: string; children: React.ReactNode; }
 const Field: React.FC<FieldProps> = ({ label, children }) => (
@@ -121,11 +121,11 @@ export const TempInsuranceModal: React.FC<TempInsuranceModalProps> = ({
       )}
     >
       <div style={{ padding: 0 }}>
-        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-warn)', marginBottom: 12, padding: '8px 10px', background: 'var(--d-1)', borderRadius: 5 }}>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-warn)', marginBottom: 'var(--space-12)', padding: '8px 10px', background: 'var(--d-1)', borderRadius: 5 }}>
           Dùng cho trẻ em chưa có thẻ BHYT — thẻ tạm được cấp dựa trên BHYT của người giám hộ.
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 'var(--space-12)' }}>
           <Field label="Họ tên bệnh nhân *">
             <Input value={patientName} onChange={(e) => setPatientName(e.target.value)} placeholder="Tên trẻ em" />
           </Field>
@@ -135,7 +135,7 @@ export const TempInsuranceModal: React.FC<TempInsuranceModalProps> = ({
           </Field>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
           <Field label="Ngày sinh *">
             <DatePicker
               value={dob} onChange={setDob} format="DD/MM/YYYY"
@@ -151,7 +151,7 @@ export const TempInsuranceModal: React.FC<TempInsuranceModalProps> = ({
           Thông tin người giám hộ
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
           <Field label="Họ tên giám hộ *">
             <Input value={guardianName} onChange={(e) => setGuardianName(e.target.value)} placeholder="Họ tên cha/mẹ" />
           </Field>
@@ -297,7 +297,7 @@ export const DocumentHoldModal: React.FC<DocumentHoldModalProps> = ({
     >
       <div style={{ padding: 0 }}>
         {/* Sub-tabs */}
-        <div className="rec-drawer-tabs" style={{ marginBottom: 14 }}>
+        <div className="rec-drawer-tabs" style={{ marginBottom: 'var(--space-14)' }}>
           <button type="button" className={tab === 'hold' ? 'on' : ''} onClick={() => setTab('hold')}>Giữ mới</button>
           <button type="button" className={tab === 'list' ? 'on' : ''} onClick={() => { setTab('list'); loadHeld(); }}>
             Đang giữ <i>{heldDocs.length}</i>
@@ -306,7 +306,7 @@ export const DocumentHoldModal: React.FC<DocumentHoldModalProps> = ({
 
         {tab === 'hold' && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
               <Field label="Loại giấy tờ *">
                 <Select value={docType} onChange={setDocType} style={{ width: '100%' }} options={DOCUMENT_TYPES} />
               </Field>
@@ -334,22 +334,22 @@ export const DocumentHoldModal: React.FC<DocumentHoldModalProps> = ({
             {heldDocs.map((d) => (
               <div key={d.id} style={{
                 padding: '10px 12px', border: '1px solid var(--line-soft)', borderRadius: 'var(--r-2)',
-                marginBottom: 8,
+                marginBottom: 'var(--space-8)',
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-6)' }}>
                   <div>
-                    <span className="chip info" style={{ fontSize: 'var(--fs-xs)', marginRight: 6 }}>{d.documentTypeName}</span>
+                    <span className="chip info" style={{ fontSize: 'var(--fs-xs)', marginRight: 'var(--space-6)' }}>{d.documentTypeName}</span>
                     <span className="mono" style={{ fontSize: 'var(--fs-sm)' }}>{d.documentNumber}</span>
                   </div>
                   <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{d.holdDurationDays}d</span>
                 </div>
                 {d.documentDescription && (
-                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 6 }}>{d.documentDescription}</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-6)' }}>{d.documentDescription}</div>
                 )}
 
                 {returningId === d.id ? (
-                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--line-soft)' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                  <div style={{ marginTop: 'var(--space-8)', paddingTop: 'var(--space-8)', borderTop: '1px solid var(--line-soft)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
                       <div>
                         <div style={FIELD_LABEL}>Trả cho</div>
                         <Input size="small" value={returnToName} onChange={(e) => setReturnToName(e.target.value)} placeholder="Tên người nhận" />
@@ -359,7 +359,7 @@ export const DocumentHoldModal: React.FC<DocumentHoldModalProps> = ({
                         <Input size="small" value={returnNotes} onChange={(e) => setReturnNotes(e.target.value)} placeholder="Tùy chọn" />
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
                       <button type="button" className="ab-btn ghost sm" onClick={() => setReturningId(null)}>Hủy</button>
                       <button type="button" className="ab-btn ok sm" disabled={busy} onClick={() => submitReturn(d.id)}>
                         <TermIcon name="check" size={11} /> Xác nhận trả
@@ -499,7 +499,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     >
       <div style={{ padding: 0 }}>
         {/* Upload section */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)', marginBottom: 'var(--space-14)' }}>
           <Field label="Loại ảnh">
             <Select value={photoType} onChange={setPhotoType} style={{ width: '100%' }} options={PHOTO_TYPES} />
           </Field>
@@ -508,7 +508,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
           </Field>
         </div>
 
-        <div style={{ marginBottom: 14 }}>
+        <div style={{ marginBottom: 'var(--space-14)' }}>
           <div style={FIELD_LABEL}>Chọn ảnh *</div>
           <label style={{
             display: 'block', border: '1.5px dashed var(--line)', borderRadius: 'var(--r-2)',
@@ -534,13 +534,13 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
         </div>
 
         {/* Existing photos */}
-        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, marginBottom: 'var(--space-8)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Ảnh đã lưu {loadingPhotos ? '…' : `(${photos.length})`}
         </div>
         {photos.length === 0 && !loadingPhotos && (
           <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: '12px 0' }}>Chưa có ảnh</div>
         )}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 'var(--space-8)' }}>
           {photos.map((p) => (
             <div key={p.id} style={{ position: 'relative', borderRadius: 'var(--r-2)', overflow: 'hidden', border: '1px solid var(--line-soft)' }}>
               <img
@@ -700,9 +700,9 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
         {rows.map((row, idx) => (
           <div key={row.key} style={{
             padding: '10px 12px', border: '1px solid var(--line-soft)', borderRadius: 'var(--r-2)',
-            marginBottom: 8, position: 'relative',
+            marginBottom: 'var(--space-8)', position: 'relative',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
               <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 600, minWidth: 18 }}>{idx + 1}.</span>
               <div style={{ flex: 1, position: 'relative' }}>
                 <Input
@@ -737,7 +737,7 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
                         onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--d-1)'; }}
                         onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = ''; }}
                       >
-                        <span className="mono" style={{ color: 'var(--a-cy)', marginRight: 8 }}>{svc.code}</span>
+                        <span className="mono" style={{ color: 'var(--a-cy)', marginRight: 'var(--space-8)' }}>{svc.code}</span>
                         {svc.name}
                         <span style={{ float: 'right', color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>
                           {svc.unitPrice?.toLocaleString('vi-VN')}₫
@@ -771,11 +771,11 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
           </div>
         ))}
 
-        <button type="button" className="ab-btn ghost sm" onClick={addRow} style={{ marginTop: 4 }}>
+        <button type="button" className="ab-btn ghost sm" onClick={addRow} style={{ marginTop: 'var(--space-4)' }}>
           <TermIcon name="plus" size={11} /> Thêm dịch vụ
         </button>
 
-        <div style={{ marginTop: 14, padding: '8px 10px', background: 'var(--d-1)', borderRadius: 5, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
+        <div style={{ marginTop: 'var(--space-14)', padding: '8px 10px', background: 'var(--d-1)', borderRadius: 5, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
           Tìm dịch vụ bằng từ khoá (mã hoặc tên). Phòng thực hiện sẽ được tự động chọn.
           Hình thức thanh toán mặc định: Viện phí.
         </div>

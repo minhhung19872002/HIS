@@ -87,9 +87,9 @@ const EmrHl7Export: React.FC = () => {
         ORU^R01 (KQ CLS + đọc phim), MDM^T02 (giấy ra viện). Theo TT 54/2017/TT-BYT.
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-14)', padding: 'var(--space-14)' }}>
         {/* Form panel */}
-        <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 18 }}>
+        <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-18)' }}>
           <h3 style={{
             margin: '0 0 14px', fontSize: 'var(--fs-md)', fontFamily: 'var(--font-mono)',
             textTransform: 'uppercase', color: 'var(--t-2)', letterSpacing: '0.06em',
@@ -108,16 +108,16 @@ const EmrHl7Export: React.FC = () => {
               />
             </Form.Item>
 
-            <div style={{ marginTop: 12 }}>
-              <label style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 8, display: 'block' }}>Bao gồm các segment:</label>
-              <div style={{ display: 'grid', gap: 6 }}>
+            <div style={{ marginTop: 'var(--space-12)' }}>
+              <label style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-8)', display: 'block' }}>Bao gồm các segment:</label>
+              <div style={{ display: 'grid', gap: 'var(--space-6)' }}>
                 {SEGMENT_OPTIONS.map(o => {
                   const on = opts[o.k as keyof typeof opts];
                   return (
                     <label
                       key={o.k}
                       style={{
-                        display: 'grid', gridTemplateColumns: '20px 1fr', gap: 8, padding: 8,
+                        display: 'grid', gridTemplateColumns: '20px 1fr', gap: 'var(--space-8)', padding: 'var(--space-8)',
                         background: on ? 'var(--c-pri-bg)' : 'var(--d-1)',
                         borderRadius: 'var(--r-2)', cursor: 'pointer',
                         border: on ? '1px solid var(--a-cy)' : '1px solid transparent',
@@ -126,7 +126,7 @@ const EmrHl7Export: React.FC = () => {
                       <Checkbox checked={on} onChange={e => setOpts(s => ({ ...s, [o.k]: e.target.checked }))} />
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 12.5, fontFamily: 'var(--font-mono)' }}>{o.l}</div>
-                        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>{o.desc}</div>
+                        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)' }}>{o.desc}</div>
                       </div>
                     </label>
                   );
@@ -139,7 +139,7 @@ const EmrHl7Export: React.FC = () => {
               data-testid="hl7-export-btn"
               loading={running}
               onClick={doExport}
-              style={{ marginTop: 16, width: '100%', height: 38 }}
+              style={{ marginTop: 'var(--space-16)', width: '100%', height: 38 }}
             >
               <TermIcon name="download" size={13} /> {running ? 'Đang xuất…' : 'Xuất HL7'}
             </Button>
@@ -147,7 +147,7 @@ const EmrHl7Export: React.FC = () => {
         </div>
 
         {/* Result panel */}
-        <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 18, minHeight: 360 }}>
+        <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-18)', minHeight: 360 }}>
           <h3 style={{
             margin: '0 0 14px', fontSize: 'var(--fs-md)', fontFamily: 'var(--font-mono)',
             textTransform: 'uppercase', color: 'var(--t-2)', letterSpacing: '0.06em',
@@ -155,7 +155,7 @@ const EmrHl7Export: React.FC = () => {
           {!result ? (
             <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--t-3)' }}>
               <TermIcon name="folder" size={32} />
-              <div style={{ marginTop: 8, fontSize: 'var(--fs-md)' }}>Nhập HSBA ID rồi bấm "Xuất HL7" để bắt đầu.</div>
+              <div style={{ marginTop: 'var(--space-8)', fontSize: 'var(--fs-md)' }}>Nhập HSBA ID rồi bấm "Xuất HL7" để bắt đầu.</div>
             </div>
           ) : (
             <>
@@ -169,7 +169,7 @@ const EmrHl7Export: React.FC = () => {
                   <tr><td style={{ color: 'var(--t-2)', padding: '6px 0' }}>Trạng thái</td><td><StatusBadge tone="ok" dot>Hoàn tất</StatusBadge></td></tr>
                 </tbody>
               </table>
-              <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+              <div style={{ marginTop: 'var(--space-14)', display: 'flex', gap: 'var(--space-8)' }}>
                 <Button style={{ flex: 1 }} onClick={() => setPreview(true)} data-testid="hl7-preview-btn">
                   <TermIcon name="eye" size={12} /> Xem preview HL7
                 </Button>
@@ -198,7 +198,7 @@ const EmrHl7Export: React.FC = () => {
       >
         {result && (
           <pre style={{
-            background: '#0b1220', color: '#86efac', padding: 16, margin: 0,
+            background: '#0b1220', color: '#86efac', padding: 'var(--space-16)', margin: 0,
             fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', lineHeight: 1.6,
             whiteSpace: 'pre-wrap', wordBreak: 'break-all', minHeight: 400,
           }}>

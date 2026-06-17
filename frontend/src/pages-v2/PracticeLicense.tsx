@@ -263,9 +263,9 @@ const PracticeLicenseV2: React.FC = () => {
         sub={expiringList.length > 0 ? `${expiringList.length} CCHN cần chú ý` : 'Không có CCHN sắp hết hạn'}
       >
         {expiringLoading ? (
-          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Đang tải…</div>
+          <div style={{ padding: 'var(--space-24)', color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Đang tải…</div>
         ) : expiringList.length === 0 ? (
-          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Không có CCHN sắp hết hạn trong thời gian tới.</div>
+          <div style={{ padding: 'var(--space-24)', color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Không có CCHN sắp hết hạn trong thời gian tới.</div>
         ) : (
           <DrSec title="Danh sách CCHN sắp hết hạn">
             {expiringList.map((lic) => {
@@ -273,13 +273,13 @@ const PracticeLicenseV2: React.FC = () => {
               const isExpired = daysLeft < 0;
               return (
                 <div key={lic.id} style={{
-                  padding: '10px 12px', marginBottom: 8,
+                  padding: '10px 12px', marginBottom: 'var(--space-8)',
                   background: 'var(--d-1)', border: `1px solid ${isExpired ? 'var(--a-rd)' : 'var(--a-or)'}`,
                   borderRadius: 4,
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
-                      <div style={{ fontWeight: 600, color: 'var(--t-0)', marginBottom: 2 }}>{lic.staffName}</div>
+                      <div style={{ fontWeight: 600, color: 'var(--t-0)', marginBottom: 'var(--space-2)' }}>{lic.staffName}</div>
                       <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                         {lic.staffCode} · {TYPE_LABEL[lic.licenseType] || lic.licenseType}
                         {lic.specialty ? ` · ${lic.specialty}` : ''}
@@ -297,7 +297,7 @@ const PracticeLicenseV2: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <div style={{ marginTop: 6, display: 'flex', gap: 8 }}>
+                  <div style={{ marginTop: 'var(--space-6)', display: 'flex', gap: 'var(--space-8)' }}>
                     <ActBtn ic="edit" title="Gia hạn / Sửa" onClick={() => { setExpiringOpen(false); openEdit(lic); }} />
                   </div>
                 </div>

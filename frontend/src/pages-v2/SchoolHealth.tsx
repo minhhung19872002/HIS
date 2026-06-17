@@ -40,7 +40,7 @@ const SchoolHealthV2: React.FC = () => {
       <span className={`chip ${NUTRITION_TONE[r.nutritionStatus] || 'info'}`}>{NUTRITION_LABEL[r.nutritionStatus] || r.nutritionStatus}</span>
     },
     { key: 'flags', label: 'Phát hiện', width: 200, render: (r) => (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
         {r.visionFlag && <span className="chip warn">Mắt</span>}
         {r.hearingFlag && <span className="chip warn">Tai</span>}
         {r.dentalFlag && <span className="chip warn">Răng</span>}
@@ -120,7 +120,7 @@ const SchoolHealthV2: React.FC = () => {
         </>
       )}
       drawerTitle={(r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.studentCode}</span>
           <span style={{ fontSize: 14 }}>{r.studentName}</span>
         </span>

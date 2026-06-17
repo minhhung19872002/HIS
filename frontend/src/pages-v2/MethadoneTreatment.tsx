@@ -341,8 +341,8 @@ const MethadoneTreatmentV2: React.FC = () => {
           </Btn>
         </>}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Liều (mg) <span style={{ color: 'var(--s-crit)' }}>*</span></span>
             <input
               type="number" min={1} step={0.5}
@@ -351,7 +351,7 @@ const MethadoneTreatmentV2: React.FC = () => {
               style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 14 }}
             />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Hình thức</span>
             <select
               value={doseType}
@@ -407,9 +407,9 @@ const MethadoneTreatmentV2: React.FC = () => {
         sub={histTarget ? histTarget.patientCode : ''}
         footer={<Btn variant="ghost" onClick={() => { setHistTarget(null); setHistRows([]); }}>Đóng</Btn>}
       >
-        {histLoading && <div style={{ padding: 16, color: 'var(--t-2)' }}>Đang tải…</div>}
+        {histLoading && <div style={{ padding: 'var(--space-16)', color: 'var(--t-2)' }}>Đang tải…</div>}
         {!histLoading && histRows.length === 0 && (
-          <div style={{ padding: 16, color: 'var(--t-2)' }}>Chưa có lịch sử cấp liều</div>
+          <div style={{ padding: 'var(--space-16)', color: 'var(--t-2)' }}>Chưa có lịch sử cấp liều</div>
         )}
         {!histLoading && histRows.length > 0 && (
           <table className="ab-tbl">

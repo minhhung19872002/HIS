@@ -238,15 +238,15 @@ const ReagentManagementV2: React.FC = () => {
             <DrField lbl="XN dùng">{sel.testNames?.join(', ') || '—'}</DrField>
           </DrSec>
           <DrSec title="Kho">
-            <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <div style={{ padding: 'var(--space-12)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 'var(--space-10)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-6)' }}>
                 <span style={{ color: 'var(--t-2)' }}>Còn lại</span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600,
                   color: sel.isLowStock ? 'var(--a-or-text)' : 'var(--a-em-text)' }}>
                   {sel.remainingQuantity} / {sel.quantity} {sel.unit}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-6)' }}>
                 <span style={{ color: 'var(--t-2)' }}>Đã dùng</span>
                 <span style={{ fontFamily: 'var(--font-mono)' }}>{sel.usedQuantity} {sel.unit}</span>
               </div>
@@ -283,19 +283,19 @@ const ReagentManagementV2: React.FC = () => {
         footer={<Btn variant="ghost" onClick={() => setAlertsOpen(false)}>Đóng</Btn>}
       >
         {alertsLoading
-          ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--t-2)' }}>Đang tải…</div>
+          ? <div style={{ textAlign: 'center', padding: 'var(--space-40)', color: 'var(--t-2)' }}>Đang tải…</div>
           : alerts.length === 0
-            ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--t-2)' }}>Không có cảnh báo</div>
+            ? <div style={{ textAlign: 'center', padding: 'var(--space-40)', color: 'var(--t-2)' }}>Không có cảnh báo</div>
             : alerts.map((a) => (
               <div key={a.id} style={{
-                display: 'flex', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--line)', alignItems: 'flex-start',
+                display: 'flex', gap: 'var(--space-12)', padding: '10px 0', borderBottom: '1px solid var(--line)', alignItems: 'flex-start',
               }}>
                 <StatusBadge tone={a.severity === 'critical' ? 'crit' : 'warn'}>
                   {a.type === 'expired' ? 'Hết hạn' : a.type === 'expiringSoon' ? 'Sắp hết hạn' : 'Tồn thấp'}
                 </StatusBadge>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)', color: 'var(--t-0)' }}>{a.reagentName}</div>
-                  <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)', marginTop: 2 }}>{a.message}</div>
+                  <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)', marginTop: 'var(--space-2)' }}>{a.message}</div>
                   <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>Lô: {a.lotNumber}</div>
                 </div>
                 <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
@@ -316,11 +316,11 @@ const ReagentManagementV2: React.FC = () => {
         footer={<Btn variant="ghost" onClick={() => { setHistoryOpen(false); setHistoryReagent(null); setUsageHistory([]); }}>Đóng</Btn>}
       >
         {historyLoading
-          ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--t-2)' }}>Đang tải…</div>
+          ? <div style={{ textAlign: 'center', padding: 'var(--space-40)', color: 'var(--t-2)' }}>Đang tải…</div>
           : usageHistory.length === 0
-            ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--t-2)' }}>Chưa có lịch sử dùng</div>
+            ? <div style={{ textAlign: 'center', padding: 'var(--space-40)', color: 'var(--t-2)' }}>Chưa có lịch sử dùng</div>
             : usageHistory.map((u) => (
-              <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--line)', gap: 12 }}>
+              <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--line)', gap: 'var(--space-12)' }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)', color: 'var(--t-0)' }}>{u.testName}</div>
                   <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>{u.analyzerName} · {u.operatorName}</div>

@@ -229,7 +229,7 @@ const HealthExchangeV2: React.FC = () => {
             <DrField lbl="Lỗi gần nhất">{sel.lastError || '—'}</DrField>
           </DrSec>
           <DrSec title="Hoạt động hỗ trợ">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-6)' }}>
               {(sel.supportedOperations || []).map((op, i) => (
                 <span key={i} className="ab-stat info" style={{ height: 22, padding: '0 8px', fontSize: 'var(--fs-xs)' }}>{op}</span>
               ))}

@@ -151,9 +151,9 @@ const AnalyzerInboxPage: React.FC = () => {
       key: 'result', label: 'Kết quả', render: (r) => (
         <div>
           <span style={{ fontWeight: 600 }}>{r.result}</span>
-          {r.unit && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginLeft: 4 }}>{r.unit}</span>}
+          {r.unit && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginLeft: 'var(--space-4)' }}>{r.unit}</span>}
           {r.flag && r.flag.toUpperCase() !== 'N' && (
-            <span style={{ marginLeft: 4 }}>
+            <span style={{ marginLeft: 'var(--space-4)' }}>
               <StatusBadge tone={FLAG_TONE[r.flag.toUpperCase()] || 'warn'}>{r.flag}</StatusBadge>
             </span>
           )}
@@ -252,7 +252,7 @@ const AnalyzerInboxPage: React.FC = () => {
               <DrField lbl="Xét nghiệm"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.testCode}</span></DrField>
               <DrField lbl="Kết quả">
                 <span style={{ fontWeight: 700, fontSize: 16 }}>{sel.result}</span>
-                {sel.unit && <span style={{ color: 'var(--t-2)', marginLeft: 6 }}>{sel.unit}</span>}
+                {sel.unit && <span style={{ color: 'var(--t-2)', marginLeft: 'var(--space-6)' }}>{sel.unit}</span>}
               </DrField>
               {sel.flag && (
                 <DrField lbl="Flag">
@@ -299,7 +299,7 @@ const AnalyzerInboxPage: React.FC = () => {
           onChange={(e) => setRejectReason(e.target.value)}
           placeholder="Lý do từ chối (tùy chọn)…"
           rows={3}
-          style={{ marginTop: 8 }}
+          style={{ marginTop: 'var(--space-8)' }}
         />
       </Modal>
     </div>

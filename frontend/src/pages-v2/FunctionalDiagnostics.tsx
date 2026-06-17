@@ -158,15 +158,15 @@ const FunctionalDiagnosticsV2: React.FC = () => {
             </DrSec>
             {detail.findings && (
               <DrSec title="KẾT QUẢ">
-                <div style={{ marginBottom: 8 }}><b>Mô tả:</b></div>
-                <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap', marginBottom: 12 }}>
+                <div style={{ marginBottom: 'var(--space-8)' }}><b>Mô tả:</b></div>
+                <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap', marginBottom: 'var(--space-12)' }}>
                   {detail.findings}
                 </div>
-                <div style={{ marginBottom: 8 }}><b>Kết luận:</b></div>
-                <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap', marginBottom: 12 }}>
+                <div style={{ marginBottom: 'var(--space-8)' }}><b>Kết luận:</b></div>
+                <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap', marginBottom: 'var(--space-12)' }}>
                   {detail.conclusion || '—'}
                 </div>
-                <div style={{ marginBottom: 8 }}><b>Khuyến nghị:</b></div>
+                <div style={{ marginBottom: 'var(--space-8)' }}><b>Khuyến nghị:</b></div>
                 <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>
                   {detail.recommendation || '—'}
                 </div>
@@ -174,7 +174,7 @@ const FunctionalDiagnosticsV2: React.FC = () => {
             )}
             {detail.measurementsJson && detail.measurementsJson !== '{}' && (
               <DrSec title="THÔNG SỐ">
-                <pre style={{ fontSize: 'var(--fs-xs)', padding: 8, background: 'var(--d-1)', borderRadius: 4, fontFamily: 'var(--font-mono)' }}>
+                <pre style={{ fontSize: 'var(--fs-xs)', padding: 'var(--space-8)', background: 'var(--d-1)', borderRadius: 4, fontFamily: 'var(--font-mono)' }}>
                   {(() => { try { return JSON.stringify(JSON.parse(detail.measurementsJson), null, 2); } catch { return detail.measurementsJson; } })()}
                 </pre>
               </DrSec>

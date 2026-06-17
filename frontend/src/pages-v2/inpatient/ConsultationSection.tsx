@@ -184,7 +184,7 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
 
       <div style={{ flex: 1, overflow: 'auto' }}>
         {loading
-          ? <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', padding: 24 }}>Đang tải hội chẩn…</div>
+          ? <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', padding: 'var(--space-24)' }}>Đang tải hội chẩn…</div>
           : (
             <DataTable<ConsultationDto>
               columns={columns}
@@ -257,7 +257,7 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
             <DrSec title={`Thành viên (${sel.members?.length ?? 0})`}>
               {(sel.members?.length ?? 0) === 0 && <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Chưa có thành viên</div>}
               {sel.members?.map((m) => (
-                <div key={m.doctorId} className="rec-kv" style={{ marginBottom: 4 }}>
+                <div key={m.doctorId} className="rec-kv" style={{ marginBottom: 'var(--space-4)' }}>
                   <DrField lbl={m.doctorName || 'BS'}>{m.opinion || 'Chưa có ý kiến'}</DrField>
                 </div>
               ))}
@@ -399,13 +399,13 @@ const CreateConsultationModal: React.FC<{
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
         <DrField lbl="Bệnh nhân *">
           <Select showSearch value={admissionId || undefined} onChange={setAdmissionId}
             options={patientOpts} optionFilterProp="label" placeholder="Chọn BN nội trú"
             style={{ width: '100%' }} size="small" />
         </DrField>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-8)' }}>
           <DrField lbl="Loại hội chẩn *">
             <Select value={type} onChange={setType} options={TYPE_OPTS} style={{ width: '100%' }} size="small" />
           </DrField>
@@ -420,7 +420,7 @@ const CreateConsultationModal: React.FC<{
           <Input value={location} onChange={(e) => setLocation(e.target.value)}
             placeholder="VD: Phòng giao ban khoa" size="small" />
         </DrField>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-8)' }}>
           <DrField lbl="Chủ trì *">
             <Select showSearch value={chairmanId || undefined} onChange={setChairmanId}
               options={signerOpts} optionFilterProp="label" placeholder="Chọn BS chủ trì"
@@ -494,7 +494,7 @@ const CompleteConsultationModal: React.FC<{
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
         <DrField lbl="Kết luận hội chẩn *">
           <Input.TextArea value={conclusion} onChange={(e) => setConclusion(e.target.value)}
             rows={3} placeholder="Kết luận thống nhất của hội đồng" />
@@ -551,7 +551,7 @@ const ApproveConsultationModal: React.FC<{
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
         <DrField lbl="Quyết định *">
           <Select
             value={decision}

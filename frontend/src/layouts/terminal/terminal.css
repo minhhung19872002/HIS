@@ -66,6 +66,14 @@
   --fs-md: 13px;
   --fs-lg: 15px;
   --fs-xl: 20px;
+
+  /* spacing scale (px-named, theme-independent) — #208 token-scale */
+  --space-2: 2px;   --space-3: 3px;   --space-4: 4px;   --space-6: 6px;
+  --space-8: 8px;   --space-10: 10px; --space-12: 12px; --space-14: 14px;
+  --space-16: 16px; --space-18: 18px; --space-20: 20px; --space-24: 24px;
+  --space-32: 32px; --space-40: 40px;
+  /* z-index scale (stacking layers) — #208 */
+  --z-base: 1;  --z-dropdown: 100;  --z-sticky: 200;  --z-drawer: 900;  --z-modal: 1000;  --z-toast: 1100;
 }
 
 /* =====================================================================

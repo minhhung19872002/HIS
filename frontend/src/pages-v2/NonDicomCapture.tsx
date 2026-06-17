@@ -176,7 +176,7 @@ const NonDicomCaptureV2: React.FC = () => {
     { key: 'dev', label: 'Thiết bị', render: (r) => (
       <div>
         <StatusBadge tone="info">{deviceTypeLabel(r.deviceType)}</StatusBadge>
-        {r.deviceName && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>{r.deviceName}</div>}
+        {r.deviceName && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)' }}>{r.deviceName}</div>}
       </div>
     ) },
     { key: 'cnt', label: 'SL ảnh/video', mono: true, render: (r) => r.imageCount },
@@ -247,7 +247,7 @@ const NonDicomCaptureV2: React.FC = () => {
         title="Chụp ảnh / Quay video"
         width={1000}
         footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-8)' }}>
             <Btn variant="ghost" onClick={closeCapture}>Hủy</Btn>
             <Btn variant="primary" onClick={uploadAll} disabled={captures.length === 0}>
               <Ico name="send" size={12} /> Upload {captures.length > 0 ? `(${captures.length})` : ''}
@@ -255,12 +255,12 @@ const NonDicomCaptureV2: React.FC = () => {
           </div>
         }
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '14fr 10fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '14fr 10fr', gap: 'var(--space-16)' }}>
           <div>
             {cameraError ? (
-              <div style={{ padding: 40, textAlign: 'center', background: 'var(--d-1)', border: '1px solid var(--a-rd-text)', borderRadius: 4, color: 'var(--a-rd-text)' }}>
+              <div style={{ padding: 'var(--space-40)', textAlign: 'center', background: 'var(--d-1)', border: '1px solid var(--a-rd-text)', borderRadius: 4, color: 'var(--a-rd-text)' }}>
                 <div>{cameraError}</div>
-                <Btn variant="ghost" style={{ marginTop: 12 }} onClick={startCamera}>
+                <Btn variant="ghost" style={{ marginTop: 'var(--space-12)' }} onClick={startCamera}>
                   <Ico name="refresh" size={12} /> Thử lại
                 </Btn>
               </div>
@@ -270,7 +270,7 @@ const NonDicomCaptureV2: React.FC = () => {
                   <video ref={videoRef} style={{ width: '100%', display: 'block', maxHeight: 480 }} playsInline />
                 </div>
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
-                <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 'var(--space-8)', marginTop: 'var(--space-12)', flexWrap: 'wrap' }}>
                   <Btn variant="primary" onClick={snapshot} disabled={!streamRef.current}>
                     <Ico name="qr" size={12} /> Chụp (Space)
                   </Btn>
@@ -301,8 +301,8 @@ const NonDicomCaptureV2: React.FC = () => {
             )}
           </div>
           <div>
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>Đã chụp: {captures.length}</div>
-            <div style={{ maxHeight: 480, overflow: 'auto', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+            <div style={{ fontWeight: 600, marginBottom: 'var(--space-8)' }}>Đã chụp: {captures.length}</div>
+            <div style={{ maxHeight: 480, overflow: 'auto', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-8)' }}>
               {captures.map((c) => (
                 <div key={c.id} style={{ position: 'relative', border: '1px solid var(--line)', borderRadius: 4, overflow: 'hidden' }}>
                   {c.type === 'image'
@@ -316,7 +316,7 @@ const NonDicomCaptureV2: React.FC = () => {
                 </div>
               ))}
               {captures.length === 0 && (
-                <div style={{ gridColumn: 'span 2', textAlign: 'center', color: 'var(--t-2)', padding: 24 }}>
+                <div style={{ gridColumn: 'span 2', textAlign: 'center', color: 'var(--t-2)', padding: 'var(--space-24)' }}>
                   Chưa có ảnh/video
                 </div>
               )}
@@ -333,15 +333,15 @@ const NonDicomCaptureV2: React.FC = () => {
         sub={detailStudy ? `${deviceTypeLabel(detailStudy.deviceType)} · ${detailStudy.imageCount} file` : ''}
       >
         {detailStudy && (
-          <div style={{ padding: 20 }}>
-            <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+          <div style={{ padding: 'var(--space-20)' }}>
+            <div style={{ marginBottom: 'var(--space-16)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-6)', alignItems: 'center' }}>
               <StatusBadge tone="info">{deviceTypeLabel(detailStudy.deviceType)}</StatusBadge>
               <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
                 Chụp lúc: {dayjs(detailStudy.capturedAt).format('DD/MM/YYYY HH:mm')}
               </span>
               <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>· {detailStudy.imageCount} file</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-8)' }}>
               {detailImages.map((img) => (
                 <div key={img.id} style={{ border: '1px solid var(--line)', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
                   {img.mediaType === 'image' ? (
@@ -364,7 +364,7 @@ const NonDicomCaptureV2: React.FC = () => {
                 </div>
               ))}
               {detailImages.length === 0 && (
-                <div style={{ gridColumn: 'span 3', textAlign: 'center', color: 'var(--t-2)', padding: 24 }}>
+                <div style={{ gridColumn: 'span 3', textAlign: 'center', color: 'var(--t-2)', padding: 'var(--space-24)' }}>
                   Chưa có ảnh/video trong study
                 </div>
               )}

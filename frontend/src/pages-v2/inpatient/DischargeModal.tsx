@@ -153,8 +153,8 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
     modal.confirm({
       title: 'Hủy ra viện?',
       content: (
-        <div style={{ marginTop: 8 }}>
-          <div style={{ marginBottom: 6, fontSize: 'var(--fs-sm)' }}>Lý do hủy:</div>
+        <div style={{ marginTop: 'var(--space-8)' }}>
+          <div style={{ marginBottom: 'var(--space-6)', fontSize: 'var(--fs-sm)' }}>Lý do hủy:</div>
           <Input placeholder="Nhập lý do…" onChange={(e) => { reason = e.target.value; }} />
         </div>
       ),
@@ -212,7 +212,7 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
 
   // Row hiển thị 1 mục kiểm tra
   const checkRow = (ok: boolean, label: string, detail?: string) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', fontSize: 'var(--fs-sm)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', padding: '3px 0', fontSize: 'var(--fs-sm)' }}>
       <TermIcon name={ok ? 'check' : 'alert'} size={12} />
       <span style={{ color: ok ? 'var(--t-1)' : 'var(--s-warn)' }}>{label}</span>
       {detail && <span style={{ color: 'var(--t-2)', marginLeft: 'auto' }}>{detail}</span>}
@@ -225,14 +225,14 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
       onClose={onClose}
       size="xl"
       title={
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-8)' }}>
           <TermIcon name="home" size={14} />
           <span>Ra viện · Tổng kết bệnh án</span>
         </span>
       }
       sub={`${patient.patientName} · ${patient.patientCode}`}
       footer={
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <Btn variant="ghost" size="sm" loading={cancelling} onClick={doCancel}>
             <TermIcon name="rotate-ccw" size={12} /> Hủy ra viện
           </Btn>
@@ -265,11 +265,11 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
             {checkRow(!check.hasPendingResults, 'Đã có đủ kết quả CLS', check.hasPendingResults ? `${check.pendingResultCount} KQ chờ` : undefined)}
             {checkRow(check.isMedicalRecordComplete, 'Hồ sơ bệnh án đầy đủ', check.missingDocuments?.length ? check.missingDocuments.join(', ') : undefined)}
             {(check.warnings?.length ?? 0) > 0 && (
-              <div style={{ marginTop: 6, padding: '6px 10px', borderRadius: 'var(--r-2)', background: 'var(--warn-soft)', border: '1px solid var(--warn)', fontSize: 'var(--fs-xs)', color: 'var(--t-1)' }}>
+              <div style={{ marginTop: 'var(--space-6)', padding: '6px 10px', borderRadius: 'var(--r-2)', background: 'var(--warn-soft)', border: '1px solid var(--warn)', fontSize: 'var(--fs-xs)', color: 'var(--t-1)' }}>
                 {check.warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}
               </div>
             )}
-            <div style={{ marginTop: 8, fontSize: 'var(--fs-sm)', fontWeight: 600, color: check.canDischarge ? 'var(--s-ok)' : 'var(--s-warn)' }}>
+            <div style={{ marginTop: 'var(--space-8)', fontSize: 'var(--fs-sm)', fontWeight: 600, color: check.canDischarge ? 'var(--s-ok)' : 'var(--s-warn)' }}>
               {check.canDischarge ? '✓ Đủ điều kiện ra viện' : '⚠ Chưa đủ điều kiện — vẫn có thể ra viện nếu được duyệt'}
             </div>
           </div>
@@ -303,7 +303,7 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
         </div>
 
         {dischargeType === 2 && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 16px', marginTop: 4 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 16px', marginTop: 'var(--space-4)' }}>
             <DrField lbl="Chuyển đến *">
               <Input value={transferToHospital} onChange={(e) => setTransferToHospital(e.target.value)} placeholder="Tên cơ sở chuyển đến" />
             </DrField>
@@ -313,7 +313,7 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
           </div>
         )}
 
-        <div style={{ marginTop: 6 }}>
+        <div style={{ marginTop: 'var(--space-6)' }}>
           <DrField lbl="Tóm tắt điều trị">
             <Input.TextArea value={treatmentSummary} onChange={(e) => setTreatmentSummary(e.target.value)} rows={2} placeholder="Tóm tắt quá trình điều trị…" />
           </DrField>

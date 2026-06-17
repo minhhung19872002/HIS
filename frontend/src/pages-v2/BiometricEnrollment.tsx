@@ -244,7 +244,7 @@ const BiometricEnrollment: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 0, flex: 1, minHeight: 0 }}>
         {/* Patient list */}
         <div style={{ borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div style={{ padding: 10, borderBottom: '1px solid var(--line)' }}>
+          <div style={{ padding: 'var(--space-10)', borderBottom: '1px solid var(--line)' }}>
             <SearchBox value={search} onChange={setSearch} placeholder="Tìm tên / mã BN / SĐT" minWidth="100%" />
           </div>
           <div style={{ flex: 1, overflow: 'auto' }}>
@@ -260,7 +260,7 @@ const BiometricEnrollment: React.FC = () => {
                     padding: '10px 14px', borderBottom: '1px solid var(--line-soft)',
                     background: isSel ? 'var(--c-pri-bg)' : 'transparent',
                     borderLeft: isSel ? '3px solid var(--a-cy)' : '3px solid transparent',
-                    cursor: 'pointer', display: 'grid', gridTemplateColumns: '1fr auto', gap: 6,
+                    cursor: 'pointer', display: 'grid', gridTemplateColumns: '1fr auto', gap: 'var(--space-6)',
                   }}
                 >
                   <div>
@@ -277,7 +277,7 @@ const BiometricEnrollment: React.FC = () => {
               );
             })}
             {filteredPts.length === 0 && (
-              <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
+              <div style={{ padding: 'var(--space-40)', textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
                 Không có bệnh nhân
               </div>
             )}
@@ -302,7 +302,7 @@ const BiometricEnrollment: React.FC = () => {
                     {sel.patientCode} · {sel.phoneNumber ?? ''}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 'var(--space-6)' }}>
                   <Button size="small" disabled={activeCount === 0 || !webAuthnOk} onClick={() => { signForm.resetFields(); setSignModal(true); }}>
                     <TermIcon name="check" size={12} /> Test ký
                   </Button>
@@ -316,8 +316,8 @@ const BiometricEnrollment: React.FC = () => {
                 {myCreds.length === 0 ? (
                   <div style={{ padding: 60, textAlign: 'center', color: 'var(--t-2)' }}>
                     <TermIcon name="shield" size={32} />
-                    <div style={{ marginTop: 8, fontWeight: 600, fontSize: 14 }}>Chưa có credential</div>
-                    <div style={{ marginTop: 4, fontSize: 'var(--fs-sm)' }}>Bấm "Đăng ký vân tay" để bắt đầu quét.</div>
+                    <div style={{ marginTop: 'var(--space-8)', fontWeight: 600, fontSize: 14 }}>Chưa có credential</div>
+                    <div style={{ marginTop: 'var(--space-4)', fontSize: 'var(--fs-sm)' }}>Bấm "Đăng ký vân tay" để bắt đầu quét.</div>
                   </div>
                 ) : (
                   <DataTable
@@ -351,14 +351,14 @@ const BiometricEnrollment: React.FC = () => {
           </>
         )}
       >
-        <div style={{ padding: 18 }}>
-          <div style={{ padding: 12, background: 'var(--s-info-soft)', color: 'var(--a-cy-dim)', borderRadius: 'var(--r-2)', marginBottom: 16, fontSize: 12.5 }}>
+        <div style={{ padding: 'var(--space-18)' }}>
+          <div style={{ padding: 'var(--space-12)', background: 'var(--s-info-soft)', color: 'var(--a-cy-dim)', borderRadius: 'var(--r-2)', marginBottom: 'var(--space-16)', fontSize: 12.5 }}>
             <TermIcon name="info" size={13} /> Khi bấm "Bắt đầu", trình duyệt sẽ yêu cầu Touch ID / Windows Hello / vân tay. Khoá riêng tư <b>không rời khỏi thiết bị</b>.
           </div>
           <Form form={enrollForm} layout="vertical" initialValues={{ ownerType: 'patient', ownerName: sel?.fullName ?? '' }}>
             <Form.Item name="ownerType" label="Loại người ký" rules={[{ required: true }]}>
               <Radio.Group>
-                <Radio value="patient" style={{ display: 'block', marginBottom: 6 }}>
+                <Radio value="patient" style={{ display: 'block', marginBottom: 'var(--space-6)' }}>
                   <b>Bệnh nhân</b> <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}> · Tự ký bằng vân tay</span>
                 </Radio>
                 <Radio value="family" style={{ display: 'block' }}>
@@ -374,12 +374,12 @@ const BiometricEnrollment: React.FC = () => {
             </Form.Item>
             {scanning && (
               <div style={{
-                padding: 24, textAlign: 'center', border: '2px dashed var(--a-cy)',
-                borderRadius: 'var(--r-3)', marginTop: 14, background: 'var(--c-pri-bg)',
+                padding: 'var(--space-24)', textAlign: 'center', border: '2px dashed var(--a-cy)',
+                borderRadius: 'var(--r-3)', marginTop: 'var(--space-14)', background: 'var(--c-pri-bg)',
               }}>
                 <div style={{ fontSize: 32 }}>👆</div>
-                <div style={{ marginTop: 8, fontWeight: 600, color: 'var(--a-cy)' }}>Đặt ngón tay lên cảm biến…</div>
-                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 4 }}>WebAuthn challenge đang xử lý</div>
+                <div style={{ marginTop: 'var(--space-8)', fontWeight: 600, color: 'var(--a-cy)' }}>Đặt ngón tay lên cảm biến…</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-4)' }}>WebAuthn challenge đang xử lý</div>
               </div>
             )}
           </Form>
@@ -401,7 +401,7 @@ const BiometricEnrollment: React.FC = () => {
           </>
         )}
       >
-        <div style={{ padding: 18 }}>
+        <div style={{ padding: 'var(--space-18)' }}>
           <Form form={signForm} layout="vertical" initialValues={{ documentType: 'cam_ket_pt', documentRef: 'DEMO-001' }}>
             <Form.Item name="documentType" label="Loại tài liệu">
               <Select options={Object.entries(DOC_TYPES).map(([value, label]) => ({ value, label }))} />
@@ -410,8 +410,8 @@ const BiometricEnrollment: React.FC = () => {
               <Input />
             </Form.Item>
           </Form>
-          <div style={{ marginTop: 10, padding: 10, background: 'var(--d-1)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)' }}>
-            <div style={{ fontWeight: 600, marginBottom: 6 }}>Credential khả dụng:</div>
+          <div style={{ marginTop: 'var(--space-10)', padding: 'var(--space-10)', background: 'var(--d-1)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)' }}>
+            <div style={{ fontWeight: 600, marginBottom: 'var(--space-6)' }}>Credential khả dụng:</div>
             {myCreds.filter(c => c.status === 'active').map(c => (
               <div key={c.id} style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>• {c.ownerName ?? '—'} — {c.deviceName ?? '—'}</div>
             ))}

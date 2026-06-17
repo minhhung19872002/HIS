@@ -419,14 +419,14 @@ const EmrEditorV2: React.FC = () => {
 
       {/* List */}
       <aside className={'ed-left-panel ' + (leftOpen ? 'is-open' : '')} style={{ borderRight: '1px solid var(--line)', background: 'var(--d-1)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ padding: 10, borderBottom: '1px solid var(--line)' }}>
+        <div style={{ padding: 'var(--space-10)', borderBottom: '1px solid var(--line)' }}>
           <div className="ab-search ab-u-wfull">
             <TermIcon name="search" size={13} />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm mã BN / tên / chẩn đoán…" />
           </div>
         </div>
         <div style={{ overflow: 'auto', flex: 1 }}>
-          {filtered.length === 0 && <div style={{ padding: 16, color: 'var(--t-3)', fontSize: 11.5, textAlign: 'center' }}>Không có hồ sơ</div>}
+          {filtered.length === 0 && <div style={{ padding: 'var(--space-16)', color: 'var(--t-3)', fontSize: 11.5, textAlign: 'center' }}>Không có hồ sơ</div>}
           {filtered.map((r) => {
             const isSel = r.patientId === sel?.patientId;
             return (
@@ -435,9 +435,9 @@ const EmrEditorV2: React.FC = () => {
                   <span className="mono" style={{ fontSize: 'var(--fs-xs)', fontWeight: 700 }}>{r.patientCode}</span>
                   {r.visitCount > 0 && <StatusBadge tone="info">{r.visitCount} lần</StatusBadge>}
                 </div>
-                <div style={{ fontSize: 12.5, fontWeight: 600, marginTop: 4 }}>{r.patientName}</div>
-                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>{r.lastRoomName || '—'} · {r.lastVisit ? fmtDMYg(r.lastVisit) : '—'}</div>
-                {r.lastDiagnosisName && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-1)', marginTop: 3, fontFamily: 'var(--font-mono)' }}>{r.lastDiagnosisCode ? `${r.lastDiagnosisCode} · ` : ''}{r.lastDiagnosisName}</div>}
+                <div style={{ fontSize: 12.5, fontWeight: 600, marginTop: 'var(--space-4)' }}>{r.patientName}</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)' }}>{r.lastRoomName || '—'} · {r.lastVisit ? fmtDMYg(r.lastVisit) : '—'}</div>
+                {r.lastDiagnosisName && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-1)', marginTop: 'var(--space-3)', fontFamily: 'var(--font-mono)' }}>{r.lastDiagnosisCode ? `${r.lastDiagnosisCode} · ` : ''}{r.lastDiagnosisName}</div>}
               </div>
             );
           })}
@@ -450,20 +450,20 @@ const EmrEditorV2: React.FC = () => {
           <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: 'var(--t-3)' }}>
             <div style={{ textAlign: 'center' }}>
               <TermIcon name="folder" size={32} />
-              <div style={{ marginTop: 12, fontWeight: 600, color: 'var(--t-2)' }}>Chọn HSBA ở bảng trái để xem</div>
+              <div style={{ marginTop: 'var(--space-12)', fontWeight: 600, color: 'var(--t-2)' }}>Chọn HSBA ở bảng trái để xem</div>
             </div>
           </div>
         ) : (
           <>
-            <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-8)' }}>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 'var(--space-8)' }}>
                   {sel.patientName}
                   {finalized && <StatusBadge tone="crit">🔒 ĐÃ KHÓA (TT46)</StatusBadge>}
                 </div>
                 <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{sel.patientCode} · {sel.lastRoomName || '—'} · {sel.lastVisit ? fmtDMYg(sel.lastVisit) : '—'}{full?.medicalRecordCode ? ` · ${full.medicalRecordCode}` : ''}</div>
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 'var(--space-6)' }}>
                 <Btn variant="ghost" onClick={exportXml}><TermIcon name="download" size={12} /> XML</Btn>
                 <Btn variant="ghost" onClick={exportPdf}><TermIcon name="download" size={12} /> PDF</Btn>
                 <Btn variant="ghost" onClick={() => setPrintOpen(true)}><TermIcon name="print" size={12} /> In biểu mẫu</Btn>
@@ -474,10 +474,10 @@ const EmrEditorV2: React.FC = () => {
 
             <TopTabs tab={tab} setTab={setTab} tabs={TABS} />
 
-            <div style={{ overflow: 'auto', flex: 1, padding: 16 }}>
+            <div style={{ overflow: 'auto', flex: 1, padding: 'var(--space-16)' }}>
               {tab === 'record' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                  <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-14)' }}>
+                  <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-14)' }}>
                     <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Thông tin BN</h4>
                     <Field lbl="Họ tên">{full?.patient?.fullName || sel.patientName}</Field>
                     <Field lbl="Mã BN"><span className="mono">{sel.patientCode}</span></Field>
@@ -486,12 +486,12 @@ const EmrEditorV2: React.FC = () => {
                     <Field lbl="BHYT"><span className="mono">{sel.insuranceNumber || '—'}</span></Field>
                     {(sel.chronicDiseases?.length ?? 0) > 0 && <Field lbl="Bệnh mạn">{sel.chronicDiseases.join(', ')}</Field>}
                   </section>
-                  <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 14 }}>
+                  <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-14)' }}>
                     <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Sinh hiệu</h4>
                     {v ? (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, fontSize: 'var(--fs-sm)' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-8)', fontSize: 'var(--fs-sm)' }}>
                         {[['Mạch', v.pulse, 'l/p'], ['Nhiệt', v.temperature, '°C'], ['HA', v.systolicBP && v.diastolicBP ? `${v.systolicBP}/${v.diastolicBP}` : undefined, ''], ['Nhịp thở', v.respiratoryRate, 'l/p'], ['SpO₂', v.spO2, '%'], ['Cân', v.weight, 'kg'], ['Cao', v.height, 'cm'], ['BMI', v.bmi, '']].map((x, i) => (
-                          <div key={i} style={{ padding: 8, background: 'var(--d-1)', borderRadius: 4 }}>
+                          <div key={i} style={{ padding: 'var(--space-8)', background: 'var(--d-1)', borderRadius: 4 }}>
                             <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{x[0] as string}</div>
                             <div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{x[1] ?? '—'} <span style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-3)' }}>{x[2] as string}</span></div>
                           </div>
@@ -499,7 +499,7 @@ const EmrEditorV2: React.FC = () => {
                       </div>
                     ) : <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Chưa có dữ liệu sinh hiệu</div>}
                   </section>
-                  <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 14, gridColumn: '1 / -1' }}>
+                  <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-14)', gridColumn: '1 / -1' }}>
                     <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Bệnh sử · Khám lâm sàng · Chẩn đoán</h4>
                     <div style={{ fontSize: 12.5, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                       {full?.interview?.historyOfPresentIllness && <p><b>Bệnh sử:</b> {full.interview.historyOfPresentIllness}</p>}
@@ -516,11 +516,11 @@ const EmrEditorV2: React.FC = () => {
                   <div style={{ position: 'absolute', left: 9, top: 6, bottom: 6, width: 2, background: 'var(--line)' }} />
                   {timeline.length === 0 && <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Chưa có lịch sử khám</div>}
                   {timeline.map((e, i) => (
-                    <div key={i} style={{ position: 'relative', paddingBottom: 18 }}>
+                    <div key={i} style={{ position: 'relative', paddingBottom: 'var(--space-18)' }}>
                       <div style={{ position: 'absolute', left: -25, top: 6, width: 12, height: 12, borderRadius: 'var(--r-2)', background: 'var(--s-info)', border: '2px solid var(--d-0)', boxShadow: '0 0 0 3px #0284c733' }} />
-                      <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 12, borderLeft: '3px solid var(--s-info)', cursor: 'pointer' }}
+                      <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 'var(--space-12)', borderLeft: '3px solid var(--s-info)', cursor: 'pointer' }}
                         onClick={() => navigate(`/v2/opd/edit`)}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
                           <span style={{ fontWeight: 700, fontSize: 12.5 }}>{e.diagnosisName || e.conclusionTypeName || 'Lần khám'}</span>
                           <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{fmtDTg(e.examinationDate)}</span>
                         </div>
@@ -533,11 +533,11 @@ const EmrEditorV2: React.FC = () => {
 
               {tab === 'treatment' && (
                 <div>
-                  <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ marginBottom: 'var(--space-12)', display: 'flex', gap: 'var(--space-8)', alignItems: 'center', flexWrap: 'wrap' }}>
                     <Btn variant="primary" onClick={() => openCreate('treatment')}><TermIcon name="plus" size={12} /> Tạo phiếu điều trị</Btn>
                     {treatments.length > 0 && (
                       <>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-sm)', cursor: 'pointer' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', fontSize: 'var(--fs-sm)', cursor: 'pointer' }}>
                           <input
                             type="checkbox"
                             checked={selectedTreatIds.size === treatments.length && treatments.length > 0}
@@ -567,7 +567,7 @@ const EmrEditorV2: React.FC = () => {
                     rowKey={(r) => r.id}
                     empty="Chưa có phiếu điều trị"
                     actions={(r) => (
-                      <div className="ab-actions" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div className="ab-actions" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)' }}>
                         <input
                           type="checkbox"
                           checked={selectedTreatIds.has(r.id)}
@@ -591,17 +591,17 @@ const EmrEditorV2: React.FC = () => {
 
               {tab === 'consult' && (
                 <div>
-                  <div style={{ marginBottom: 12 }}><Btn variant="primary" onClick={() => openCreate('consult')}><TermIcon name="plus" size={12} /> Đề xuất hội chẩn</Btn></div>
+                  <div style={{ marginBottom: 'var(--space-12)' }}><Btn variant="primary" onClick={() => openCreate('consult')}><TermIcon name="plus" size={12} /> Đề xuất hội chẩn</Btn></div>
                   <DataTable<ConsultationRecordDto> columns={consultCols} data={consults} rowKey={(r) => r.id} empty="Chưa có biên bản hội chẩn" />
                 </div>
               )}
 
               {tab === 'nursing' && (
                 <div>
-                  <div style={{ marginBottom: 12 }}><Btn variant="primary" onClick={() => openCreate('nursing')}><TermIcon name="plus" size={12} /> Phiếu chăm sóc</Btn></div>
+                  <div style={{ marginBottom: 'var(--space-12)' }}><Btn variant="primary" onClick={() => openCreate('nursing')}><TermIcon name="plus" size={12} /> Phiếu chăm sóc</Btn></div>
                   <DataTable<NursingCareSheetDto> columns={nursingCols} data={nursing} rowKey={(r) => r.id} empty="Chưa có phiếu chăm sóc" />
                   {nursing.length > 0 && (
-                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 6 }}>
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-6)' }}>
                       In phiếu chăm sóc: chọn <b>In biểu mẫu</b> → Phiếu chăm sóc Cấp 1 hoặc Cấp 2 tương ứng.
                     </div>
                   )}
@@ -609,12 +609,12 @@ const EmrEditorV2: React.FC = () => {
               )}
 
               {tab === 'reaction' && (
-                <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 14 }}>
+                <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-14)' }}>
                   <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-sm)' }}>Phản ứng thuốc / Dị ứng đã ghi nhận</h4>
                   {(full?.allergies?.length ?? 0) === 0
                     ? <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Không có dị ứng ghi nhận</div>
                     : (
-                      <div style={{ padding: 10, background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 'var(--r-2)', color: '#7f1d1d', fontSize: 'var(--fs-sm)', lineHeight: 1.8 }}>
+                      <div style={{ padding: 'var(--space-10)', background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 'var(--r-2)', color: '#7f1d1d', fontSize: 'var(--fs-sm)', lineHeight: 1.8 }}>
                         {full!.allergies.map((a) => (
                           <div key={a.id}><b>{a.allergenName}</b>{a.reaction ? ` — ${a.reaction}` : ''} · Mức độ: {a.severity === 3 ? 'Nặng' : a.severity === 2 ? 'Vừa' : 'Nhẹ'}</div>
                         ))}
@@ -624,9 +624,9 @@ const EmrEditorV2: React.FC = () => {
               )}
 
               {tab === 'partograph' && (
-                <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 14 }}>
+                <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-14)' }}>
                   <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-sm)' }}>Biểu đồ chuyển dạ (Partograph)</h4>
-                  <div style={{ height: 320, background: 'var(--d-1)', borderRadius: 'var(--r-2)', display: 'grid', placeItems: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 16 }}>
+                  <div style={{ height: 320, background: 'var(--d-1)', borderRadius: 'var(--r-2)', display: 'grid', placeItems: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 'var(--space-16)' }}>
                     Biểu đồ partograph (độ mở CTC · ngôi · tim thai · cơn co) — chỉ áp dụng HSBA sản khoa.
                   </div>
                 </div>
@@ -634,7 +634,7 @@ const EmrEditorV2: React.FC = () => {
 
               {tab === 'attach' && (
                 <div>
-                  <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ marginBottom: 'var(--space-12)', display: 'flex', gap: 'var(--space-8)', alignItems: 'center', flexWrap: 'wrap' }}>
                     <select className="ed-fld" style={{ width: 220 }} value={attachCat} onChange={(e) => setAttachCat(e.target.value)}>
                       <option value="">— Phân loại (tùy chọn) —</option>
                       {ATTACH_CATS.map((c) => <option key={c.v} value={c.v}>{c.l}</option>)}
@@ -651,7 +651,7 @@ const EmrEditorV2: React.FC = () => {
                     </Btn>
                     <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Tối đa 10MB · ảnh / PDF / Office</span>
                   </div>
-                  {!full?.id && <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)', marginBottom: 10 }}>Chọn HSBA có hồ sơ bệnh án để đính kèm tài liệu.</div>}
+                  {!full?.id && <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)', marginBottom: 'var(--space-10)' }}>Chọn HSBA có hồ sơ bệnh án để đính kèm tài liệu.</div>}
                   <DataTable<EmrDocumentAttachmentDto>
                     columns={attachCols}
                     data={attachments}
@@ -682,14 +682,14 @@ const EmrEditorV2: React.FC = () => {
 
       {/* Print drawer — danh sách biểu mẫu */}
       <DrawerShell open={printOpen} onClose={() => setPrintOpen(false)} title="In biểu mẫu HSBA" size="md">
-        <div style={{ padding: 14 }}>
+        <div style={{ padding: 'var(--space-14)' }}>
           {!full && (
-            <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
+            <div style={{ marginBottom: 'var(--space-10)', padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
               Chọn một bệnh nhân để xem trước và in biểu mẫu.
             </div>
           )}
           {PRINT_FORMS.map((m) => (
-            <div key={m.printType + m.label} style={{ padding: 10, border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div key={m.printType + m.label} style={{ padding: 'var(--space-10)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 'var(--space-6)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 12.5 }}>{m.label}</span>
               <Btn variant="ghost" size="sm" disabled={!full} onClick={() => { setPrintOpen(false); openPrintForm(m.printType); }}>
                 <TermIcon name="print" size={11} /> In
@@ -715,7 +715,7 @@ const EmrEditorV2: React.FC = () => {
           </>
         }
       >
-        <div ref={printPreviewRef} style={{ padding: 8 }}>
+        <div ref={printPreviewRef} style={{ padding: 'var(--space-8)' }}>
           <PrintTemplateRenderer
             printType={printPreviewType}
             record={full}
@@ -757,9 +757,9 @@ const EmrEditorV2: React.FC = () => {
         }
       >
         {maternityLeaveDto && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Số ngày nghỉ <span style={{ color: 'red' }}>*</span></label>
+              <label style={{ display: 'block', marginBottom: 'var(--space-4)', fontWeight: 500 }}>Số ngày nghỉ <span style={{ color: 'red' }}>*</span></label>
               <input
                 type="number"
                 min={1}
@@ -769,9 +769,9 @@ const EmrEditorV2: React.FC = () => {
                 style={{ width: '100%' }}
               />
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
               <div className="ab-u-flex1">
-                <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Từ ngày</label>
+                <label style={{ display: 'block', marginBottom: 'var(--space-4)', fontWeight: 500 }}>Từ ngày</label>
                 <input
                   type="date"
                   className="ed-fld"
@@ -781,7 +781,7 @@ const EmrEditorV2: React.FC = () => {
                 />
               </div>
               <div className="ab-u-flex1">
-                <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Đến ngày</label>
+                <label style={{ display: 'block', marginBottom: 'var(--space-4)', fontWeight: 500 }}>Đến ngày</label>
                 <input
                   type="date"
                   className="ed-fld"
@@ -792,7 +792,7 @@ const EmrEditorV2: React.FC = () => {
               </div>
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Tuần thai (tuần)</label>
+              <label style={{ display: 'block', marginBottom: 'var(--space-4)', fontWeight: 500 }}>Tuần thai (tuần)</label>
               <input
                 type="number"
                 min={1}
@@ -805,7 +805,7 @@ const EmrEditorV2: React.FC = () => {
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Lý do nghỉ dưỡng thai</label>
+              <label style={{ display: 'block', marginBottom: 'var(--space-4)', fontWeight: 500 }}>Lý do nghỉ dưỡng thai</label>
               <textarea
                 className="ed-fld"
                 rows={3}
@@ -841,9 +841,9 @@ const EmrEditorV2: React.FC = () => {
           <Btn variant="ghost" onClick={() => setSignOpen(false)}>Hủy</Btn>
           <Btn variant="primary" onClick={() => { setSignOpen(false); navigate('/v2/signing-workflow'); }}><TermIcon name="check" size={12} /> Tới luồng ký số</Btn>
         </>}>
-        <div style={{ padding: 18, fontSize: 12.5, color: 'var(--t-1)' }}>
+        <div style={{ padding: 'var(--space-18)', fontSize: 12.5, color: 'var(--t-1)' }}>
           Ký số HSBA <b>{sel?.patientName}</b> ({sel?.patientCode}) — {treatments.length} phiếu điều trị, {consults.length} hội chẩn.
-          <div style={{ marginTop: 10, fontSize: 11.5, color: 'var(--t-2)' }}>Ký PKI đầy đủ (USB Token / HSM) thực hiện ở Luồng ký số tập trung.</div>
+          <div style={{ marginTop: 'var(--space-10)', fontSize: 11.5, color: 'var(--t-2)' }}>Ký PKI đầy đủ (USB Token / HSM) thực hiện ở Luồng ký số tập trung.</div>
         </div>
       </ModalShell>
 
@@ -855,8 +855,8 @@ const EmrEditorV2: React.FC = () => {
           <Btn variant="ghost" onClick={() => setModal(null)}>Hủy</Btn>
           <Btn variant="primary" disabled={savingForm} onClick={saveSheet}><TermIcon name="check" size={12} /> Lưu</Btn>
         </>}>
-        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{ padding: 'var(--space-16)', display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)' }}>
             <FormField lbl="Ngày"><input type="date" className="ed-fld" value={form.date || ''} onChange={(e) => fld('date', e.target.value)} /></FormField>
             {modal === 'treatment' && <FormField lbl="Ngày thứ"><input type="number" className="ed-fld" value={form.dayNumber || ''} onChange={(e) => fld('dayNumber', e.target.value)} /></FormField>}
             {modal === 'nursing' && (
@@ -874,7 +874,7 @@ const EmrEditorV2: React.FC = () => {
           </div>
           {modal === 'treatment' && <>
             <FormField lbl="Diễn biến">
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-4)' }}>
                 <Btn size="sm" variant="ghost" icon="file-text" onClick={() => setTplPickerOpen(true)}>Chọn mẫu</Btn>
               </div>
               <textarea className="ed-fld" rows={3} value={form.dailyProgress || ''} onChange={(e) => fld('dailyProgress', e.target.value)} />
@@ -887,7 +887,7 @@ const EmrEditorV2: React.FC = () => {
             <FormField lbl="Tóm tắt"><textarea className="ed-fld" rows={2} value={form.summary || ''} onChange={(e) => fld('summary', e.target.value)} /></FormField>
             <FormField lbl="Kết luận"><textarea className="ed-fld" rows={2} value={form.conclusion || ''} onChange={(e) => fld('conclusion', e.target.value)} /></FormField>
             <FormField lbl="Khuyến nghị"><textarea className="ed-fld" rows={2} value={form.recommendations || ''} onChange={(e) => fld('recommendations', e.target.value)} /></FormField>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)' }}>
               <FormField lbl="Chủ tọa"><input className="ed-fld" value={form.chairman || ''} onChange={(e) => fld('chairman', e.target.value)} /></FormField>
               <FormField lbl="Thư ký"><input className="ed-fld" value={form.secretary || ''} onChange={(e) => fld('secretary', e.target.value)} /></FormField>
             </div>
@@ -914,7 +914,7 @@ const EmrEditorV2: React.FC = () => {
 };
 
 const Field: React.FC<{ lbl: string; children: React.ReactNode }> = ({ lbl, children }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 10, padding: '4px 0', fontSize: 12.5 }}>
+  <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 'var(--space-10)', padding: '4px 0', fontSize: 12.5 }}>
     <div className="ab-u-muted">{lbl}</div>
     <div className="ab-u-fg">{children}</div>
   </div>
@@ -922,7 +922,7 @@ const Field: React.FC<{ lbl: string; children: React.ReactNode }> = ({ lbl, chil
 
 const FormField: React.FC<{ lbl: string; children: React.ReactNode }> = ({ lbl, children }) => (
   <label style={{ display: 'block', fontSize: 11.5 }}>
-    <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 3 }}>{lbl}</span>
+    <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>{lbl}</span>
     {children}
   </label>
 );

@@ -262,9 +262,9 @@ const ClinicalGuidanceV2: React.FC = () => {
           }}>Thêm hoạt động</Btn>
         </>}
       >
-        {actLoading && <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>}
+        {actLoading && <div style={{ padding: 'var(--space-24)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>}
         {!actLoading && activities.length === 0 && (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-3)' }}>Chưa có hoạt động nào</div>
+          <div style={{ padding: 'var(--space-24)', textAlign: 'center', color: 'var(--t-3)' }}>Chưa có hoạt động nào</div>
         )}
         {!actLoading && activities.map((act) => (
           <DrSec key={act.id} title={`${ACT_TYPE_LABEL[act.activityType] || '—'} · ${dayjs(act.activityDate).format('DD/MM/YYYY')}`}>

@@ -25,8 +25,10 @@
   ✅ **hex==token map**: subagent map 3 hex an toàn; phần lớn residual GIỮ đúng (standalone-portal terminal.css-không-load,
   #fff-text, ${c}33-alpha, chart/brand off-palette). ✅ **fontSize**: 976 literal (10/11/12/13/15/20)→`--fs-*` / 158 file
   (theme-independent, no-op thị giác), build EXIT 0.
-  **CÒN trong #208:** spacing/padding/gap → --space-* (định nghĩa scale) · width/zIndex → --col-w/--z · ab-u-* phổ biến hơn ·
-  off-palette còn lại (define nếu cần). → làm tiếp tới hết rồi `Closes #208`. (#208 đang `in-progress`.)
+  ✅ **borderRadius** 3/6/8/12→`--r-*` (156). ✅ **spacing** gap/margin/padding→`--space-*` (1278, off-scale giữ) + define
+  scale `--space-2..40`/`--z-*` trong terminal.css. ✅ width KHÔNG token (130/110… là độ-rộng-cột riêng, không phải scale).
+  **CÒN:** "ab-u-* phổ biến hơn" = migrate inline-style→utility — **giao thoa #170** (inline-style reduction). → cân nhắc đóng
+  #208 (token-scale XONG) + chuyển migrate-utility sang #170. **TẤT CẢ commit LOCAL (chưa push — rule task-dài-xong-mới-push).**
 - Kế tiếp FE sau #208: #207 async-state(.catch) · #209 raw-fetch→apiClient · #206 design-adoption · #205 god-split · #204 v1-sunset.
 
 ## Đang ở đâu

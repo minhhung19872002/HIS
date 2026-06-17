@@ -126,7 +126,7 @@ const EquipmentV2: React.FC = () => {
       )}
       drawer={(r) => <EquipmentDrawerBody r={r} />}
       drawerTitle={(r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.equipmentCode}</span>
           <span style={{ fontSize: 14 }}>{r.name}</span>
         </span>
@@ -192,7 +192,7 @@ const EquipmentV2: React.FC = () => {
       onClose={() => setDetailEq(null)}
       size="md"
       title={detailEq ? (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detailEq.equipmentCode}</span>
           <span style={{ fontSize: 14 }}>{detailEq.name}</span>
         </span>
@@ -252,7 +252,7 @@ const EquipmentDrawerBody: React.FC<{ r: EquipmentDto }> = ({ r }) => (
     </div>
     <div className="rec-section">
       <h5><TermIcon name="info" size={11} /> CHỨNG NHẬN</h5>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
         {r.fdaClearance && <span className="chip ok">FDA: {r.fdaClearance}</span>}
         {r.ceMarking && <span className="chip ok">CE Marking</span>}
         {!r.fdaClearance && !r.ceMarking && <span style={{ color: 'var(--t-3)' }}>Chưa có chứng nhận</span>}

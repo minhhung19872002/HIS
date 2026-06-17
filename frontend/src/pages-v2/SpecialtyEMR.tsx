@@ -366,8 +366,8 @@ const SpecialtyEMRV2: React.FC = () => {
 
       {bySpecialty.length > 0 && (
         <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)', background: 'var(--d-1)' }}>
-          <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>TOP 5 CHUYÊN KHOA</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+          <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 'var(--space-8)' }}>TOP 5 CHUYÊN KHOA</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 'var(--space-8)' }}>
             {bySpecialty.map((s) => (
               <div key={s.l} style={{ padding: '8px 10px', background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
                 <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{s.l}</div>

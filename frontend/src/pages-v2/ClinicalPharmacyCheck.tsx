@@ -111,8 +111,8 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
 
       {/* Ket qua import CSV */}
       {importResult && (
-        <div style={{ margin: '8px 12px', padding: 12, background: 'var(--bg-1)', borderRadius: 'var(--r-2)', border: '1px solid var(--line)' }}>
-          <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 'var(--fs-md)' }}>
+        <div style={{ margin: '8px 12px', padding: 'var(--space-12)', background: 'var(--bg-1)', borderRadius: 'var(--r-2)', border: '1px solid var(--line)' }}>
+          <div style={{ fontWeight: 600, marginBottom: 'var(--space-6)', fontSize: 'var(--fs-md)' }}>
             Kết quả import: {importResult.imported} thêm mới · {importResult.updated} cập nhật · {importResult.skipped} bỏ qua / {importResult.totalRows} dòng
           </div>
           {importResult.errors.length > 0 && (
@@ -125,11 +125,11 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
               </ul>
             </details>
           )}
-          <div style={{ marginTop: 4 }}>
+          <div style={{ marginTop: 'var(--space-4)' }}>
             <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
               Ghi chú: Chỉ hỗ trợ CSV. Excel cần thêm thư viện ClosedXML/EPPlus ở backend.
             </span>
-            <Btn variant="ghost" icon="x" onClick={() => setImportResult(null)} style={{ marginLeft: 8, height: 22, fontSize: 'var(--fs-xs)' }}>Đóng</Btn>
+            <Btn variant="ghost" icon="x" onClick={() => setImportResult(null)} style={{ marginLeft: 'var(--space-8)', height: 22, fontSize: 'var(--fs-xs)' }}>Đóng</Btn>
           </div>
         </div>
       )}
@@ -137,18 +137,18 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
       {!data && !loading && (
         <div style={{ padding: 80, textAlign: 'center', color: 'var(--t-2)' }}>
           <Ico name="medicine" size={48} />
-          <div style={{ fontSize: 14, marginTop: 16 }}>Nhập thông tin bệnh nhân để kiểm tra dược lâm sàng</div>
-          <div style={{ fontSize: 'var(--fs-sm)', marginTop: 8 }}>Hệ thống sẽ hiển thị thuốc đang dùng, tương tác và cảnh báo</div>
+          <div style={{ fontSize: 14, marginTop: 'var(--space-16)' }}>Nhập thông tin bệnh nhân để kiểm tra dược lâm sàng</div>
+          <div style={{ fontSize: 'var(--fs-sm)', marginTop: 'var(--space-8)' }}>Hệ thống sẽ hiển thị thuốc đang dùng, tương tác và cảnh báo</div>
         </div>
       )}
 
       {data && (
-        <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+        <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-12)' }}>
           <div className="panel" style={{ padding: 0 }}>
             <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
               <span>Thông tin bệnh nhân</span>
             </div>
-            <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12.5 }}>
+            <div style={{ padding: 'var(--space-14)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-8)', fontSize: 12.5 }}>
               <Field label="Mã BN" value={<span style={{ fontFamily: 'var(--font-mono)' }}>{data.patient.patientCode}</span>} />
               <Field label="Họ tên" value={<b>{data.patient.fullName}</b>} />
               <Field label="Giới tính" value={data.patient.gender === 1 ? 'Nam' : data.patient.gender === 2 ? 'Nữ' : '—'} />
@@ -162,14 +162,14 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
             <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
               <span>Cảnh báo</span>
             </div>
-            <div style={{ padding: 14 }}>
+            <div style={{ padding: 'var(--space-14)' }}>
               {data.flags.length === 0 && data.interactions.length === 0 && (
                 <div style={{ color: 'var(--a-em-text)', fontSize: 'var(--fs-md)' }}>
                   <Ico name="check" /> Không có cảnh báo
                 </div>
               )}
               {data.flags.map((f) => (
-                <div key={f.id} style={{ marginBottom: 6, padding: 8, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)' }}>
+                <div key={f.id} style={{ marginBottom: 'var(--space-6)', padding: 'var(--space-8)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)' }}>
                   <StatusBadge tone="warn" dot>{f.note}</StatusBadge>
                 </div>
               ))}
@@ -222,10 +222,10 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
               <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
                 <span>Đơn thuốc gần đây ({data.prescriptions.length})</span>
               </div>
-              <div style={{ padding: 14 }}>
+              <div style={{ padding: 'var(--space-14)' }}>
                 {data.prescriptions.map((p) => (
-                  <div key={p.id} style={{ marginBottom: 12, padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <div key={p.id} style={{ marginBottom: 'var(--space-12)', padding: 'var(--space-10)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-6)' }}>
                       <b style={{ fontFamily: 'var(--font-mono)' }}>{p.prescriptionCode}</b>
                       <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{dayjs(p.prescriptionDate).format('DD/MM/YYYY')}</span>
                       {p.isDispensed
@@ -282,7 +282,7 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
 
 const Field: React.FC<{ label: string; value: React.ReactNode; colSpan?: number }> = ({ label, value, colSpan }) => (
   <div style={{ gridColumn: colSpan ? `span ${colSpan}` : undefined }}>
-    <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)', marginBottom: 2 }}>{label}</div>
+    <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)', marginBottom: 'var(--space-2)' }}>{label}</div>
     <div style={{ color: 'var(--t-0)' }}>{value}</div>
   </div>
 );

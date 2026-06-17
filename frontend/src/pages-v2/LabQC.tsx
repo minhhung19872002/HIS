@@ -54,19 +54,19 @@ const FormRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label
   <div>
     <div style={{
       fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
-      letterSpacing: '0.05em', color: 'var(--t-2)', marginBottom: 6,
+      letterSpacing: '0.05em', color: 'var(--t-2)', marginBottom: 'var(--space-6)',
     }}>{label}</div>
     {children}
   </div>
 );
 
 const QCResultPanel: React.FC<{ result: QCResultDto }> = ({ result }) => (
-  <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+  <div style={{ padding: 'var(--space-14)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-10)', marginBottom: 'var(--space-10)' }}>
       <StatusBadge tone={result.isAccepted ? 'ok' : 'crit'} dot>{result.isAccepted ? 'QC ĐẠT' : 'QC VI PHẠM'}</StatusBadge>
       {result.westgardRule && <span className="chip crit">{result.westgardRule}</span>}
     </div>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, fontFamily: 'var(--font-mono)', fontSize: 12.5 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-10)', fontFamily: 'var(--font-mono)', fontSize: 12.5 }}>
       <div><div style={{ color: 'var(--t-2)', fontSize: 10.5 }}>Giá trị</div><b>{result.value}</b></div>
       <div><div style={{ color: 'var(--t-2)', fontSize: 10.5 }}>Mean ± SD</div><b>{result.mean} ± {result.sd}</b></div>
       <div><div style={{ color: 'var(--t-2)', fontSize: 10.5 }}>CV%</div><b>{result.cv}</b></div>
@@ -77,7 +77,7 @@ const QCResultPanel: React.FC<{ result: QCResultDto }> = ({ result }) => (
       </div>
     </div>
     {result.violations?.length > 0 && (
-      <div style={{ marginTop: 10, fontSize: 'var(--fs-sm)', color: 'var(--a-rd-text)' }}>Vi phạm: {result.violations.join(' · ')}</div>
+      <div style={{ marginTop: 'var(--space-10)', fontSize: 'var(--fs-sm)', color: 'var(--a-rd-text)' }}>Vi phạm: {result.violations.join(' · ')}</div>
     )}
   </div>
 );
@@ -98,7 +98,7 @@ const LJChart: React.FC<{ chart: LeveyJenningsChartDto }> = ({ chart }) => {
   }));
   return (
     <div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 10 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-12)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-10)' }}>
         <span><b style={{ color: 'var(--t-0)' }}>{chart.testName}</b></span>
         <span>Máy: {chart.analyzerName}</span>
         <span style={{ fontFamily: 'var(--font-mono)' }}>Mean {chart.mean} · SD {chart.sd} · n={data.length}</span>
@@ -186,21 +186,21 @@ const RunQCModal: React.FC<{
   if (!open) return null;
   return (
     <ModalShell open={open} onClose={onClose} size="lg"
-      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}><Ico name="activity" size={14} /> Chạy QC</span>}
+      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}><Ico name="activity" size={14} /> Chạy QC</span>}
       sub={lot ? `Lô ${lot.lotNumber} · ${lot.testName}` : 'Nhập kết quả nội kiểm để đánh giá Westgard'}
       footer={<>
         <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
         <span style={{ flex: 1 }} />
         <Btn variant="primary" onClick={submit} loading={saving} icon="check">Chạy QC</Btn>
       </>}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
         <FormRow label="Máy xét nghiệm">
           <AbSelect options={analyzers} fieldNames={{ value: 'id', label: 'name' }} value={analyzerId} onChange={setAnalyzerId} placeholder="— Chọn máy —" />
         </FormRow>
         <FormRow label="Xét nghiệm">
           <AbSelect options={tests} fieldNames={{ value: 'id', label: 'name' }} value={testId} onChange={setTestId} placeholder="— Chọn xét nghiệm —" />
         </FormRow>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
           <FormRow label="Mức QC">
             <AbSelect options={QC_LEVELS} fieldNames={{ value: 'value', label: 'label' }} value={level} onChange={setLevel} />
           </FormRow>
@@ -208,7 +208,7 @@ const RunQCModal: React.FC<{
             <Input value={lotNumber} onChange={(e) => setLotNumber(e.target.value)} placeholder="Số lô…" />
           </FormRow>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
           <FormRow label="Giá trị đo">
             <InputNumber style={{ width: '100%' }} value={value} onChange={(v) => setValue(v)} placeholder="Giá trị…" />
           </FormRow>
@@ -269,21 +269,21 @@ const LJModal: React.FC<{
   if (!open) return null;
   return (
     <ModalShell open={open} onClose={onClose} size="xl"
-      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}><Ico name="activity" size={14} /> Biểu đồ Levey-Jennings</span>}
+      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}><Ico name="activity" size={14} /> Biểu đồ Levey-Jennings</span>}
       sub="Theo dõi nội kiểm QC theo thời gian (Mean ± 1/2/3 SD)"
       footer={<>
         <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
         <span style={{ flex: 1 }} />
         <Btn variant="primary" onClick={load} loading={loading} icon="activity">Vẽ biểu đồ</Btn>
       </>}>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-10)', marginBottom: 'var(--space-14)', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 180px' }}><FormRow label="Xét nghiệm"><AbSelect options={tests} fieldNames={{ value: 'id', label: 'name' }} value={testId} onChange={setTestId} placeholder="— Chọn —" /></FormRow></div>
         <div style={{ flex: '1 1 180px' }}><FormRow label="Máy xét nghiệm"><AbSelect options={analyzers} fieldNames={{ value: 'id', label: 'name' }} value={analyzerId} onChange={setAnalyzerId} placeholder="— Chọn —" /></FormRow></div>
         <div style={{ flex: '1 1 230px' }}><FormRow label="Khoảng thời gian"><DatePicker.RangePicker style={{ width: '100%' }} value={range} onChange={(v) => { if (v && v[0] && v[1]) setRange([v[0], v[1]]); }} format="DD/MM/YYYY" /></FormRow></div>
       </div>
       {chart
         ? <LJChart chart={chart} />
-        : <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>{loading ? 'Đang tải…' : 'Chọn xét nghiệm + máy XN rồi bấm "Vẽ biểu đồ"'}</div>}
+        : <div style={{ padding: 'var(--space-40)', textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>{loading ? 'Đang tải…' : 'Chọn xét nghiệm + máy XN rồi bấm "Vẽ biểu đồ"'}</div>}
     </ModalShell>
   );
 };

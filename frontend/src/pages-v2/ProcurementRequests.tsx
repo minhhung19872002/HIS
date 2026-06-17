@@ -355,7 +355,7 @@ const ProcurementRequestsV2: React.FC = () => {
             <DrSec title={`Danh sách hàng mục (${detail.items.length})`}>
               <div style={{ fontSize: 12.5 }}>
                 <div style={{
-                  display: 'grid', gridTemplateColumns: '1fr 80px 60px 130px', gap: 4,
+                  display: 'grid', gridTemplateColumns: '1fr 80px 60px 130px', gap: 'var(--space-4)',
                   fontWeight: 600, color: 'var(--t-2)', padding: '0 0 6px',
                   borderBottom: '1px solid var(--line)',
                 }}>
@@ -363,7 +363,7 @@ const ProcurementRequestsV2: React.FC = () => {
                 </div>
                 {detail.items.map(it => (
                   <div key={it.id} style={{
-                    display: 'grid', gridTemplateColumns: '1fr 80px 60px 130px', gap: 4,
+                    display: 'grid', gridTemplateColumns: '1fr 80px 60px 130px', gap: 'var(--space-4)',
                     borderBottom: '1px solid var(--line-soft)', padding: '7px 0', alignItems: 'start',
                   }}>
                     <div>
@@ -443,11 +443,11 @@ const ProcurementRequestsV2: React.FC = () => {
           {editForm.items.map((it, idx) => (
             <div key={idx} style={{
               border: '1px solid var(--line)', borderRadius: 'var(--r-2)',
-              padding: '10px 12px', marginBottom: 8, position: 'relative',
+              padding: '10px 12px', marginBottom: 'var(--space-8)', position: 'relative',
             }}>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+              <div style={{ display: 'flex', gap: 'var(--space-8)', marginBottom: 'var(--space-6)' }}>
                 <div style={{ flex: 2 }}>
-                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 2 }}>Tên hàng mục *</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-2)' }}>Tên hàng mục *</div>
                   <Input
                     value={it.itemName}
                     onChange={e => updateItem(idx, { itemName: e.target.value })}
@@ -455,7 +455,7 @@ const ProcurementRequestsV2: React.FC = () => {
                   />
                 </div>
                 <div style={{ flex: '0 0 85px' }}>
-                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 2 }}>ĐVT</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-2)' }}>ĐVT</div>
                   <Input
                     value={it.unit ?? ''}
                     onChange={e => updateItem(idx, { unit: e.target.value })}
@@ -463,9 +463,9 @@ const ProcurementRequestsV2: React.FC = () => {
                   />
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+              <div style={{ display: 'flex', gap: 'var(--space-8)', marginBottom: 'var(--space-6)' }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 2 }}>Số lượng *</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-2)' }}>Số lượng *</div>
                   <InputNumber
                     min={0.001}
                     value={it.quantity}
@@ -474,7 +474,7 @@ const ProcurementRequestsV2: React.FC = () => {
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 2 }}>Đơn giá (đ)</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-2)' }}>Đơn giá (đ)</div>
                   <InputNumber
                     min={0}
                     value={it.unitPrice}
@@ -484,14 +484,14 @@ const ProcurementRequestsV2: React.FC = () => {
                     placeholder="Tùy chọn"
                   />
                 </div>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', paddingBottom: 'var(--space-2)' }}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>
                     = {fmtMoney(it.unitPrice && it.quantity ? it.quantity * it.unitPrice : undefined)}
                   </span>
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 2 }}>Quy cách / đặc tính kỹ thuật</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-2)' }}>Quy cách / đặc tính kỹ thuật</div>
                 <Input
                   value={it.specification ?? ''}
                   onChange={e => updateItem(idx, { specification: e.target.value })}
@@ -530,7 +530,7 @@ const ProcurementRequestsV2: React.FC = () => {
         onCancel={() => setRejectTarget(null)}
         destroyOnHidden
       >
-        <p style={{ marginBottom: 8 }}>
+        <p style={{ marginBottom: 'var(--space-8)' }}>
           Từ chối phiếu <b>{rejectTarget?.requestNo}</b>?
         </p>
         <Input.TextArea

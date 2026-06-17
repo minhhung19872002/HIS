@@ -662,9 +662,9 @@ const HRV2: React.FC = () => {
           }
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-14)', marginTop: 'var(--space-8)' }}>
           <div>
-            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>Tuần nguồn (ISO date đầu tuần, T2)</div>
+            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Tuần nguồn (ISO date đầu tuần, T2)</div>
             <input
               type="date"
               value={copySource}
@@ -673,7 +673,7 @@ const HRV2: React.FC = () => {
             />
           </div>
           <div>
-            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>Tuần đích (ISO date đầu tuần, T2)</div>
+            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Tuần đích (ISO date đầu tuần, T2)</div>
             <input
               type="date"
               value={copyTarget}

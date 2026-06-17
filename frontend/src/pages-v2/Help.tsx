@@ -251,7 +251,7 @@ const HelpV2: React.FC = () => {
           </DrSec>
           {selArt.tags && (
             <DrSec title="Tags">
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-6)' }}>
                 {selArt.tags.split(',').map((t, i) => (
                   <StatusBadge key={i} tone="info">{t.trim()}</StatusBadge>
                 ))}

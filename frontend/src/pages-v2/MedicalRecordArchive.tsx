@@ -259,7 +259,7 @@ const MedicalRecordArchiveV2: React.FC = () => {
       >
         <div style={{ padding: '8px 0' }}>
           <div style={{
-            padding: 10, marginBottom: 14, background: 'var(--d-1)',
+            padding: 'var(--space-10)', marginBottom: 'var(--space-14)', background: 'var(--d-1)',
             border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', color: 'var(--t-2)',
           }}>
             Lưu trữ ngay hồ sơ bệnh án đã hoàn thành. Hệ thống sẽ kiểm tra điều kiện và tạo bản lưu trữ.
@@ -349,7 +349,7 @@ const MedicalRecordArchiveV2: React.FC = () => {
                   ? <StatusBadge tone="crit" dot>Muộn {approval.lateDays} ngày (hạn {approval.deadlineDays} ngày)</StatusBadge>
                   : <StatusBadge tone="ok" dot>Đúng hạn{approval.daysSinceDischarge != null ? ` · ${approval.daysSinceDischarge} ngày` : ''}</StatusBadge>}
             </DrField>
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <div style={{ display: 'flex', gap: 'var(--space-8)', marginTop: 'var(--space-8)' }}>
               <Btn variant="primary" disabled={approvalBusy || !!approval?.deptApproved || !!approval?.finalized} onClick={doDeptApprove}>Duyệt cấp 1 (Khoa)</Btn>
               <Btn variant="ok" disabled={approvalBusy || !approval?.deptApproved || !!approval?.finalized} onClick={doFinalize}>Duyệt lưu trữ (KHTH)</Btn>
             </div>

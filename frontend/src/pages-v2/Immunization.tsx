@@ -123,7 +123,7 @@ const ImmunizationV2: React.FC = () => {
         </>
       )}
       drawerTitle={(r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.vaccineCode}</span>
           <span style={{ fontSize: 14 }}>{r.patientName}</span>
         </span>
@@ -237,7 +237,7 @@ const VaccinationRecordModal: React.FC<{
         </>
       )}
     >
-      <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
         <ImFld label="Họ tên bệnh nhân *">
           <Input value={patientName} onChange={(e) => setPatientName(e.target.value)} placeholder="Họ và tên" />
         </ImFld>
@@ -251,7 +251,7 @@ const VaccinationRecordModal: React.FC<{
           <Input value={lotNumber} onChange={(e) => setLotNumber(e.target.value)} placeholder="Số lô" />
         </ImFld>
         <ImFld label="Liều thứ / Tổng liều">
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-6)', alignItems: 'center' }}>
             <InputNumber value={doseNumber} onChange={(v) => setDoseNumber(Number(v) || 1)} min={1} style={{ flex: 1 }} />
             <span style={{ color: 'var(--t-2)' }}>/</span>
             <InputNumber value={totalDoses} onChange={(v) => setTotalDoses(Number(v) || 1)} min={1} style={{ flex: 1 }} />
@@ -285,7 +285,7 @@ const VaccinationRecordModal: React.FC<{
 
 const ImFld: React.FC<{ label?: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
   <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
-    {label && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>}
+    {label && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>{label}</div>}
     {children}
   </div>
 );

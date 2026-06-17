@@ -56,7 +56,7 @@ function printDecision(d: HrDecision) {
   const w = window.open('', '_blank', 'width=800,height=600');
   if (!w) return;
   w.document.write(`<html><head><title>QĐ ${d.decisionNumber}</title>
-    <style>body{font-family:serif;padding:40px}h2,h3{text-align:center}.meta{margin:12px 0}
+    <style>body{font-family:serif;padding:'var(--space-40)'px}h2,h3{text-align:center}.meta{margin:'var(--space-12)'px 0}
     .content{margin-top:24px;white-space:pre-wrap}@media print{button{display:none}}</style></head>
     <body><h2>QUYẾT ĐỊNH NHÂN SỰ</h2><h3>Số: ${d.decisionNumber}</h3>
     <div class="meta"><b>Loại:</b> ${d.decisionTypeName} &nbsp;|&nbsp; <b>Ngày hiệu lực:</b> ${new Date(d.effectiveDate).toLocaleDateString('vi-VN')}</div>
@@ -64,7 +64,7 @@ function printDecision(d: HrDecision) {
     <div class="meta"><b>Trích yếu:</b> ${d.summary}</div>
     <div class="content">${d.content || ''}</div>
     <div style="margin-top:60px;text-align:right"><p>............, ngày ${new Date().toLocaleDateString('vi-VN')}</p><p><b>GIÁM ĐỐC</b></p></div>
-    <button onclick="window.print()" style="margin-top:20px;padding:8px 20px">In</button>
+    <button onclick="window.print()" style="margin-top:20px;padding:'var(--space-8)'px 20px">In</button>
     </body></html>`);
   w.document.close();
 }
@@ -195,7 +195,7 @@ const HrDecisionsV2: React.FC = () => {
         { lbl: 'Kỷ luật',   val: rows.filter((r) => r.decisionType === 4).length, sub: 'kỷ luật', tone: 'crit' },
       ]} />
 
-      <div className="ab-tools" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '8px 0' }}>
+      <div className="ab-tools" style={{ display: 'flex', gap: 'var(--space-8)', flexWrap: 'wrap', alignItems: 'center', padding: '8px 0' }}>
         <input
           className="ab-search-input"
           placeholder="Tìm số QĐ, tên nhân viên…"
@@ -233,7 +233,7 @@ const HrDecisionsV2: React.FC = () => {
         rowKey={(r) => r.id}
         onRowClick={(r) => openEdit(r)}
         actions={(r) => (
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
             <ActBtn ic="printer" title="In quyết định" onClick={(e) => { e.stopPropagation(); printDecision(r); }} />
             <ActBtn ic="trash" title="Xóa" tone="crit" onClick={(e) => { e.stopPropagation(); del(r); }} />
           </div>

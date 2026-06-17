@@ -155,7 +155,7 @@ const DispensingCounterV2: React.FC = () => {
 
   const printLabels = (row: DispenseRow) => {
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Tem thuốc ${row.patientCode}</title>
-<style>body{font-family:Arial;margin:0;padding:10px}.label{border:1px solid #000;padding:8px 12px;margin-bottom:8px;width:260px}.label h3{margin:0 0 4px;font-size:13px}.label p{margin:2px 0;font-size:11px}.barcode{font-family:'Libre Barcode 128',monospace;font-size:32px;text-align:center}@media print{.no-print{display:none}}</style></head>
+<style>body{font-family:Arial;margin:0;padding:'var(--space-10)'px}.label{border:1px solid #000;padding:'var(--space-8)'px 12px;margin-bottom:8px;width:260px}.label h3{margin:0 0 4px;font-size:13px}.label p{margin:'var(--space-2)'px 0;font-size:11px}.barcode{font-family:'Libre Barcode 128',monospace;font-size:32px;text-align:center}@media print{.no-print{display:none}}</style></head>
 <body><div class="no-print" style="margin-bottom:12px"><button onclick="window.print()">In</button> <button onclick="window.close()">Đóng</button></div>
 ${row.items.map((it) => `<div class="label"><h3>${it.medicineName}</h3><p><strong>BN:</strong> ${row.patientName} (${row.patientCode})</p><p><strong>SL:</strong> ${it.quantity} ${it.unit || ''} × ${it.days || 1} ngày</p><p><strong>Cách dùng:</strong> ${it.dosage || '-'}</p><p class="barcode">*${row.prescriptionCode}*</p></div>`).join('')}
 </body></html>`;
@@ -251,7 +251,7 @@ ${row.items.map((it) => `<div class="label"><h3>${it.medicineName}</h3><p><stron
         destroyOnHidden
         width={400}
       >
-        <p style={{ fontSize: 'var(--fs-md)', color: 'var(--t-2)', marginBottom: 12 }}>
+        <p style={{ fontSize: 'var(--fs-md)', color: 'var(--t-2)', marginBottom: 'var(--space-12)' }}>
           Nhập mã đơn thuốc hoặc để máy quét barcode tự điền vào ô bên dưới.
         </p>
         <Input

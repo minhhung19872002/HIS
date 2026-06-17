@@ -369,7 +369,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
             {(fields, { add, remove }) => (
               <>
                 {fields.map((f) => (
-                  <div key={f.key} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <div key={f.key} style={{ display: 'flex', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
                     <Form.Item name={[f.name, 'supplyId']} rules={[{ required: true }]} style={{ flex: 2, marginBottom: 0 }}>
                       <Select showSearch placeholder="Vật tư" optionFilterProp="label"
                         options={supplies.map((s) => ({ value: s.id, label: `${s.supplyName} (${s.supplyCode})` }))} />
@@ -420,7 +420,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
             {(fields, { add, remove }) => (
               <>
                 {fields.map((f) => (
-                  <div key={f.key} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <div key={f.key} style={{ display: 'flex', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
                     <Form.Item name={[f.name, 'supplyId']} rules={[{ required: true }]} style={{ flex: 2, marginBottom: 0 }}>
                       <Select showSearch placeholder="Vật tư hoàn trả" optionFilterProp="label"
                         options={supplies.map((s) => ({ value: s.id, label: `${s.supplyName} (${s.supplyCode})` }))} />

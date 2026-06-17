@@ -209,7 +209,7 @@ const OfficialDocumentsV2: React.FC = () => {
         { lbl: 'CV đến',      val: rows.filter((r) => r.documentType === 0).length, sub: 'nhận được' },
       ]} />
 
-      <div className="ab-tools" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '8px 0' }}>
+      <div className="ab-tools" style={{ display: 'flex', gap: 'var(--space-8)', flexWrap: 'wrap', alignItems: 'center', padding: '8px 0' }}>
         <input
           className="ab-search-input"
           placeholder="Tìm số CV, trích yếu, nơi gửi…"
@@ -241,7 +241,7 @@ const OfficialDocumentsV2: React.FC = () => {
         rowKey={(r) => r.id}
         onRowClick={(r) => openDetail(r)}
         actions={(r) => (
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
             <ActBtn ic="edit" title="Sửa" onClick={(e) => { e.stopPropagation(); openEdit(r); }} />
             <ActBtn ic="trash" title="Xóa" tone="crit" onClick={(e) => { e.stopPropagation(); del(r); }} />
           </div>
@@ -264,7 +264,7 @@ const OfficialDocumentsV2: React.FC = () => {
         size="large"
         destroyOnHidden
         footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-8)' }}>
             {!editMode && drawerDoc?.attachmentPath && (
               <Tooltip title="Mở file đính kèm">
                 <Btn variant="ghost" icon="file-text" onClick={() => openAttachment(drawerDoc.attachmentPath!)}>

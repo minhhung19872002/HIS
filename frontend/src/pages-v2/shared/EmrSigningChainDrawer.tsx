@@ -195,19 +195,19 @@ const EmrSigningChainDrawer: React.FC<Props> = ({
   return (
     <>
       <DrawerShell open={open} onClose={onClose} title="Trình ký tài liệu HSBA" size="md">
-        <div style={{ padding: 14 }}>
+        <div style={{ padding: 'var(--space-14)' }}>
           {!record && (
-            <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
+            <div style={{ marginBottom: 'var(--space-10)', padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
               Chọn một bệnh nhân để trình ký tài liệu.
             </div>
           )}
           {isFinalized && (
-            <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)' }}>
+            <div style={{ marginBottom: 'var(--space-10)', padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)' }}>
               🔒 HSBA đã kết thúc & khóa (TT46) — nội dung không thể sửa; vẫn xem được lịch sử ký.
             </div>
           )}
           {dischargeChainDone && !isFinalized && (
-            <div style={{ marginBottom: 10, padding: '10px 12px', border: '1px solid var(--s-ok)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+            <div style={{ marginBottom: 'var(--space-10)', padding: '10px 12px', border: '1px solid var(--s-ok)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-8)' }}>
               <span>Giấy ra viện / tóm tắt BA đã ký đủ cấp — có thể kết thúc &amp; khóa hồ sơ theo TT46.</span>
               <Btn variant="primary" size="sm" onClick={() => setFinalizeOpen(true)}>
                 <TermIcon name="check" size={11} /> Kết thúc &amp; khóa
@@ -218,10 +218,10 @@ const EmrSigningChainDrawer: React.FC<Props> = ({
             const chain = chains[f.printType] ?? null;
             const active = chain && (chain.chainStatus === 'Pending' || chain.chainStatus === 'InProgress');
             return (
-              <div key={f.printType} style={{ padding: 10, border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <div key={f.printType} style={{ padding: 'var(--space-10)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 'var(--space-6)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-8)' }}>
                   <span style={{ fontSize: 12.5, fontWeight: 600 }}>{f.label}</span>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 'var(--space-6)', alignItems: 'center' }}>
                     {loading ? <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-3)' }}>…</span> : chainChip(chain)}
                     {active ? (
                       <Btn variant="ghost" size="sm" onClick={() => doCancelChain(chain!)}>Hủy trình</Btn>
@@ -233,7 +233,7 @@ const EmrSigningChainDrawer: React.FC<Props> = ({
                   </div>
                 </div>
                 {chain && (
-                  <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
+                  <div style={{ marginTop: 'var(--space-6)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-6)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                     {chain.steps.map((s) => (
                       <span key={s.id} style={{ padding: '2px 8px', border: '1px solid var(--line-soft)', borderRadius: 10 }}>
                         Cấp {s.stepOrder}: {s.assignedToName}
@@ -262,12 +262,12 @@ const EmrSigningChainDrawer: React.FC<Props> = ({
           </Btn>
         </>}
       >
-        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ padding: 'var(--space-16)', display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
           <div style={{ fontSize: 11.5, color: 'var(--t-2)' }}>
             Ký tuần tự từ cấp 1 — mỗi cấp chỉ thấy yêu cầu khi cấp trước đã ký. Nội dung trình = biểu mẫu tại thời điểm gửi.
           </div>
           {steps.map((s, idx) => (
-            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 1fr 28px', gap: 8, alignItems: 'center' }}>
+            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 1fr 28px', gap: 'var(--space-8)', alignItems: 'center' }}>
               <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>Cấp {idx + 1}</span>
               <select
                 className="ed-fld"
@@ -333,7 +333,7 @@ const EmrSigningChainDrawer: React.FC<Props> = ({
           </Btn>
         </>}
       >
-        <div style={{ padding: 18, fontSize: 12.5, color: 'var(--t-1)' }}>
+        <div style={{ padding: 'var(--space-18)', fontSize: 12.5, color: 'var(--t-1)' }}>
           Hồ sơ sẽ bị <b>khóa nội dung theo TT46/2018-TT-BYT</b> (snapshot phiên bản + chặn mọi sửa đổi).
           Muốn tu chỉnh sau này phải dùng &quot;Mở lại hồ sơ&quot; (quyền hạn chế, bắt buộc lý do, lưu vết).
         </div>

@@ -514,7 +514,7 @@ const ReceptionV2: React.FC = () => {
         open={!!detail}
         onClose={() => setDetail(null)}
         title={detail
-          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
               <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>
                 {detail.queueCode || `#${detail.queueNumber}`}
               </span>
@@ -616,18 +616,18 @@ const FingerprintPanel: React.FC<{ patientId?: string }> = ({ patientId }) => {
   };
 
   return (
-    <div style={{ marginTop: 14, borderTop: '1px solid var(--line-soft)', paddingTop: 12 }}>
-      <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--t-1)', marginBottom: 8 }}>
+    <div style={{ marginTop: 'var(--space-14)', borderTop: '1px solid var(--line-soft)', paddingTop: 'var(--space-12)' }}>
+      <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--t-1)', marginBottom: 'var(--space-8)' }}>
         <TermIcon name="user" size={12} /> Vân tay tiếp đón
       </div>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, marginBottom: 8 }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', fontSize: 12.5, marginBottom: 'var(--space-8)' }}>
         <input type="checkbox" checked={notCollected} onChange={(e) => setNotCollected(e.target.checked)} />
         Không thu thập được vân tay
       </label>
       {!notCollected && (
-        <div style={{ marginBottom: 8 }}>
+        <div style={{ marginBottom: 'var(--space-8)' }}>
           <input type="file" accept="image/*" onChange={(e) => onFile(e.target.files?.[0])} style={{ fontSize: 'var(--fs-sm)' }} />
-          {fpName && <span style={{ fontSize: 11.5, color: 'var(--t-2)', marginLeft: 8 }}>{fpName}</span>}
+          {fpName && <span style={{ fontSize: 11.5, color: 'var(--t-2)', marginLeft: 'var(--space-8)' }}>{fpName}</span>}
         </div>
       )}
       <Btn variant="primary" icon="check" loading={saving} onClick={save}>Lưu vân tay</Btn>

@@ -171,7 +171,7 @@ const InpatientV2: React.FC = () => {
     { key: 'doctor', label: 'BS điều trị', width: 170, render: (r) => r.attendingDoctorName || '—' },
     { key: 'los', label: 'Ngày nằm', mono: true, width: 90, render: (r) => `${r.daysOfStay} ngày` },
     { key: 'flags', label: 'Cảnh báo', width: 180, render: (r) => (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
         {r.hasPendingOrders && <span className="chip warn">Y lệnh</span>}
         {r.hasPendingLabResults && <span className="chip warn">CLS</span>}
         {r.hasUnclaimedMedicine && <span className="chip warn">Thuốc</span>}
@@ -229,37 +229,37 @@ const InpatientV2: React.FC = () => {
 
       {/* ── Tab: Sơ đồ giường ── */}
       {tab === 'grid' && (
-        <div style={{ flex: 1, overflow: 'auto', padding: 18, background: 'var(--d-1)' }}>
-          {loading && <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', padding: 20 }}>Đang tải sơ đồ giường…</div>}
+        <div style={{ flex: 1, overflow: 'auto', padding: 'var(--space-18)', background: 'var(--d-1)' }}>
+          {loading && <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', padding: 'var(--space-20)' }}>Đang tải sơ đồ giường…</div>}
           {!loading && filteredBeds.length === 0 && (
-            <div className="ab-empty" style={{ padding: 40 }}><TermIcon name="grid" size={20} /><div>Không có giường phù hợp</div></div>
+            <div className="ab-empty" style={{ padding: 'var(--space-40)' }}><TermIcon name="grid" size={20} /><div>Không có giường phù hợp</div></div>
           )}
           {wards.map((w) => {
             const wardBeds = filteredBeds.filter((b) => b.wardId === w.departmentId);
             if (wardBeds.length === 0) return null;
             const occ = wardBeds.filter((b) => b.status === 2).length;
             return (
-              <div key={w.departmentId} style={{ marginBottom: 24 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <div key={w.departmentId} style={{ marginBottom: 'var(--space-24)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-10)', marginBottom: 'var(--space-10)' }}>
                   <h3 style={{ margin: 0, fontSize: 14 }}>{w.departmentName}</h3>
                   <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{occ}/{wardBeds.length}</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 'var(--space-8)' }}>
                   {wardBeds.map((b) => {
                     const t = bedTone(b.status);
                     return (
                       <div
                         key={b.bedId}
                         onClick={() => setBed(b)}
-                        style={{ padding: 10, background: t.bg, border: `1px solid ${t.line}`, borderRadius: 'var(--r-2)', cursor: 'pointer' }}
+                        style={{ padding: 'var(--space-10)', background: t.bg, border: `1px solid ${t.line}`, borderRadius: 'var(--r-2)', cursor: 'pointer' }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 6 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 'var(--space-6)' }}>
                           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--t-0)' }}>{b.bedName || b.bedCode}</span>
                         </div>
                         {b.patientName ? (
                           <>
-                            <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--t-0)', lineHeight: 1.2, marginBottom: 2 }}>{b.patientName}</div>
-                            <div style={{ fontSize: 10.5, color: 'var(--t-2)', marginBottom: 4 }}>{b.age || '—'}T · {genderLabel(b.gender)}{b.daysOfStay != null ? ` · ${b.daysOfStay} ngày` : ''}</div>
+                            <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--t-0)', lineHeight: 1.2, marginBottom: 'var(--space-2)' }}>{b.patientName}</div>
+                            <div style={{ fontSize: 10.5, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>{b.age || '—'}T · {genderLabel(b.gender)}{b.daysOfStay != null ? ` · ${b.daysOfStay} ngày` : ''}</div>
                             <div style={{ fontSize: 10.5, color: 'var(--t-1)', lineHeight: 1.3 }}>{b.mainDiagnosis || '—'}</div>
                           </>
                         ) : (
@@ -301,11 +301,11 @@ const InpatientV2: React.FC = () => {
 
       {/* ── Tab: Y lệnh hôm nay ── */}
       {tab === 'orders' && (
-        <div style={{ flex: 1, overflow: 'auto', padding: 18, background: 'var(--d-1)' }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: 'var(--space-18)', background: 'var(--d-1)' }}>
           <div style={{ background: 'var(--d-2)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
             {ordersList.length === 0 && <div style={{ padding: 28, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Không có bệnh nhân cần xử lý y lệnh</div>}
             {ordersList.map((r) => (
-              <div key={r.admissionId} style={{ padding: '14px 18px', borderBottom: '1px solid var(--line-soft)', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setDetail(r)}>
+              <div key={r.admissionId} style={{ padding: '14px 18px', borderBottom: '1px solid var(--line-soft)', display: 'flex', alignItems: 'center', gap: 'var(--space-10)', cursor: 'pointer' }} onClick={() => setDetail(r)}>
                 <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--t-0)', minWidth: 90 }}>{r.bedName || r.roomName}</span>
                 <span style={{ fontWeight: 600 }}>{r.patientName}</span>
                 <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.mainDiagnosis || '—'}</span>
@@ -347,7 +347,7 @@ const InpatientV2: React.FC = () => {
         ) : null}
       >
         {bed && (bed.patientName ? (
-          <div style={{ padding: 18 }}>
+          <div style={{ padding: 'var(--space-18)' }}>
             <div className="rec-section">
               <h5><TermIcon name="user" size={11} /> BỆNH NHÂN</h5>
               <div className="rec-kv">
@@ -370,8 +370,8 @@ const InpatientV2: React.FC = () => {
           </div>
         ) : (
           <div style={{ padding: '40px 0', textAlign: 'center' }}>
-            <div style={{ color: 'var(--t-3)', marginBottom: 8 }}><TermIcon name="grid" size={40} /></div>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Giường trống</div>
+            <div style={{ color: 'var(--t-3)', marginBottom: 'var(--space-8)' }}><TermIcon name="grid" size={40} /></div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 'var(--space-4)' }}>Giường trống</div>
             <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Trạng thái: {bed.statusName || BED_STATUS.find((s) => s.v === String(bed.status))?.l}</div>
           </div>
         ))}
@@ -383,7 +383,7 @@ const InpatientV2: React.FC = () => {
         onClose={() => setDetail(null)}
         size="lg"
         title={detail ? (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
             <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detail.medicalRecordCode}</span>
             <span style={{ fontSize: 14 }}>{detail.patientName}</span>
           </span>
@@ -399,7 +399,7 @@ const InpatientV2: React.FC = () => {
         ) : null}
       >
         {detail && (
-          <div style={{ padding: 18 }}>
+          <div style={{ padding: 'var(--space-18)' }}>
             <div className="rec-section">
               <h5><TermIcon name="user" size={11} /> BỆNH NHÂN</h5>
               <div className="rec-kv">
@@ -423,7 +423,7 @@ const InpatientV2: React.FC = () => {
             {(detail.hasPendingOrders || detail.hasPendingLabResults || detail.hasUnclaimedMedicine || detail.isDebtWarning || detail.isInsuranceExpiring) && (
               <div className="rec-section">
                 <h5><TermIcon name="alert" size={11} /> CẢNH BÁO</h5>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
                   {detail.hasPendingOrders && <span className="chip warn">Y lệnh đang chờ</span>}
                   {detail.hasPendingLabResults && <span className="chip warn">Kết quả CLS chưa về</span>}
                   {detail.hasUnclaimedMedicine && <span className="chip warn">Thuốc chưa lấy</span>}
@@ -557,7 +557,7 @@ const AdmitModal: React.FC<{
         </>
       )}
     >
-      <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
         <IpFld label="Chọn BN chờ nhập viện (từ phòng khám)" full>
           <Select
             value={pendingId}
@@ -619,7 +619,7 @@ const AdmitModal: React.FC<{
 
 const IpFld: React.FC<{ label?: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
   <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
-    {label && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>}
+    {label && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>{label}</div>}
     {children}
   </div>
 );

@@ -126,7 +126,7 @@ const LISConfigV2: React.FC = () => {
     { key: 'proto', label: 'Protocol', render: (r) => (
       <div>
         <StatusBadge tone="info">{r.connectionType}</StatusBadge>
-        {r.protocolVersion && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>v{r.protocolVersion}</div>}
+        {r.protocolVersion && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)' }}>v{r.protocolVersion}</div>}
       </div>
     ) },
     { key: 'addr', label: 'Địa chỉ', mono: true, render: (r) =>

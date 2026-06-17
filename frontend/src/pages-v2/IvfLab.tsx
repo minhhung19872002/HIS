@@ -193,9 +193,9 @@ const IvfLabV2: React.FC = () => {
           sub={`${embryos.length} phôi đông`}
           footer={<Btn variant="ghost" onClick={() => { setEmbryoTarget(null); setEmbryos([]); }}>Đóng</Btn>}
         >
-          {embryoLoading && <div style={{ padding: 16, color: 'var(--t-2)' }}>Đang tải…</div>}
+          {embryoLoading && <div style={{ padding: 'var(--space-16)', color: 'var(--t-2)' }}>Đang tải…</div>}
           {!embryoLoading && embryos.length === 0 && (
-            <div style={{ padding: 16, color: 'var(--t-2)' }}>Không có phôi đông nào</div>
+            <div style={{ padding: 'var(--space-16)', color: 'var(--t-2)' }}>Không có phôi đông nào</div>
           )}
           {!embryoLoading && embryos.length > 0 && (
             <table className="ab-tbl">
@@ -278,7 +278,7 @@ const PatientPicker: React.FC<{
 };
 
 const Fld: React.FC<{ lbl: string; req?: boolean; children: React.ReactNode }> = ({ lbl, req, children }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
     <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>
       {lbl}{req && <span style={{ color: 'var(--s-crit)' }}> *</span>}
     </span>
@@ -333,7 +333,7 @@ const CoupleModal: React.FC<{ couple: IvfCouple | null; onClose: () => void; onD
         </Btn>
       </>}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
         <Fld lbl="Vợ (bệnh nhân)" req>
           <PatientPicker value={wifeId} seedLabel={couple ? `${couple.wifeName || ''} · ${couple.wifeCode || ''}` : undefined}
             placeholder="Tìm bệnh nhân nữ…" onChange={setWifeId} />
@@ -342,7 +342,7 @@ const CoupleModal: React.FC<{ couple: IvfCouple | null; onClose: () => void; onD
           <PatientPicker value={husbandId} seedLabel={couple ? `${couple.husbandName || ''} · ${couple.husbandCode || ''}` : undefined}
             placeholder="Tìm bệnh nhân nam…" onChange={setHusbandId} />
         </Fld>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
           <Fld lbl="Thời gian vô sinh (tháng)">
             <InputNumber style={{ width: '100%' }} min={0} value={duration} onChange={(v) => setDuration(v ?? 0)} />
           </Fld>

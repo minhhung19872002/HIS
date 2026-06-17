@@ -252,9 +252,9 @@ const TrainingResearchV2: React.FC = () => {
         sub={studentsClass ? `${studentsClass.classCode} · ${studentsLoading ? 'Đang tải…' : `${students.length} học viên`}` : ''}
         footer={<Btn variant="ghost" onClick={() => setStudentsOpen(false)}>Đóng</Btn>}
       >
-        {studentsLoading && <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải danh sách học viên…</div>}
+        {studentsLoading && <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải danh sách học viên…</div>}
         {!studentsLoading && students.length === 0 && (
-          <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Chưa có học viên đăng ký</div>
+          <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Chưa có học viên đăng ký</div>
         )}
         {!studentsLoading && students.length > 0 && (
           <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>

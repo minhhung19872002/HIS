@@ -84,7 +84,7 @@ const PatientPortalV2: React.FC = () => {
               <h5><TermIcon name="info" size={11} /> LÝ DO KHÁM</h5>
               <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{r.chiefComplaint}</div>
               {r.symptoms && r.symptoms.length > 0 && (
-                <div style={{ marginTop: 8, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                <div style={{ marginTop: 'var(--space-8)', display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
                   {r.symptoms.map((s, i) => <span key={i} className="chip warn">{s}</span>)}
                 </div>
               )}
@@ -101,7 +101,7 @@ const PatientPortalV2: React.FC = () => {
         </>
       )}
       drawerTitle={(r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.appointmentCode}</span>
           <span style={{ fontSize: 14 }}>{r.patientName}</span>
         </span>

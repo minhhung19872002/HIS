@@ -247,7 +247,7 @@ const Hl7MessageQueue: React.FC = () => {
               </DrSec>
               {detail.errorMessage && (
                 <DrSec title="Lỗi">
-                  <div style={{ padding: 10, background: 'var(--s-crit-bg)', color: 'var(--s-crit)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', borderRadius: 4 }}>
+                  <div style={{ padding: 'var(--space-10)', background: 'var(--s-crit-bg)', color: 'var(--s-crit)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', borderRadius: 4 }}>
                     {detail.errorMessage}
                   </div>
                 </DrSec>
@@ -255,7 +255,7 @@ const Hl7MessageQueue: React.FC = () => {
               {detail.payload && (
                 <DrSec title="Payload HL7">
                   <pre style={{
-                    background: '#0b1220', color: '#86efac', padding: 12, margin: 0,
+                    background: '#0b1220', color: '#86efac', padding: 'var(--space-12)', margin: 0,
                     fontSize: 10.5, fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap',
                     wordBreak: 'break-all', maxHeight: 320, overflow: 'auto', borderRadius: 4,
                   }}>{detail.payload}</pre>
@@ -279,13 +279,13 @@ const Hl7MessageQueue: React.FC = () => {
           </>
         )}
       >
-        <div style={{ padding: 18 }}>
+        <div style={{ padding: 'var(--space-18)' }}>
           <Form
             form={form}
             layout="vertical"
             initialValues={{ direction: 'outbound', source: 'HIS', target: 'RIS', messageType: 'ORM^O01', payload: DEMO_PAYLOAD, endpoint: 'tcp://ris.bvhungyen:2575' }}
           >
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
               <Form.Item name="direction" label="Hướng">
                 <Select options={[{ value: 'outbound', label: 'Outbound' }, { value: 'inbound', label: 'Inbound' }]} />
               </Form.Item>

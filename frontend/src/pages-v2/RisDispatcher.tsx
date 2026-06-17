@@ -74,7 +74,7 @@ const RisDispatcherV2: React.FC = () => {
 
   const printTicket = (s: PendingService, room: Room) => {
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Phiếu điều phối</title>
-<style>body{font-family:Arial;padding:20px}h2{text-align:center}.info{margin:8px 0}.info strong{display:inline-block;width:140px}.room{border:2px solid #000;padding:20px;text-align:center;margin:20px 0;font-size:32px;font-weight:bold}@media print{button{display:none}}</style></head>
+<style>body{font-family:Arial;padding:'var(--space-20)'px}h2{text-align:center}.info{margin:'var(--space-8)'px 0}.info strong{display:inline-block;width:140px}.room{border:2px solid #000;padding:'var(--space-20)'px;text-align:center;margin:'var(--space-20)'px 0;font-size:32px;font-weight:bold}@media print{button{display:none}}</style></head>
 <body><button onclick="window.print()">In</button>
 <h2>PHIẾU ĐIỀU PHỐI CHẨN ĐOÁN HÌNH ẢNH</h2>
 <div class="info"><strong>Bệnh nhân:</strong> ${s.patientName} (${s.patientCode})</div>

@@ -435,7 +435,7 @@ const EmergencyDisasterV2: React.FC = () => {
   return (
     <div className="er-v2-page">
       {source === 'mci' && (
-        <div style={{ background: '#fff1f0', border: '1px solid #ffccc7', borderRadius: 4, padding: '6px 12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-md)' }}>
+        <div style={{ background: '#fff1f0', border: '1px solid #ffccc7', borderRadius: 4, padding: '6px 12px', marginBottom: 'var(--space-8)', display: 'flex', alignItems: 'center', gap: 'var(--space-8)', fontSize: 'var(--fs-md)' }}>
           <Tag color="red">MCI ĐANG HOẠT ĐỘNG</Tag>
           Đang hiển thị nạn nhân của sự kiện thảm họa hàng loạt (mass casualty) trên hệ thống thật.
         </div>
@@ -470,7 +470,7 @@ const EmergencyDisasterV2: React.FC = () => {
                 title: 'Kích hoạt Code Blue — Báo động đỏ cấp cứu',
                 content: (
                   <div>
-                    <Tag color="red" style={{ marginBottom: 8 }}>CẢNH BÁO — Hành động thật, không thể hoàn tác</Tag>
+                    <Tag color="red" style={{ marginBottom: 'var(--space-8)' }}>CẢNH BÁO — Hành động thật, không thể hoàn tác</Tag>
                     <p>Sự kiện Code Blue sẽ được ghi vào hệ thống ngay lập tức.</p>
                     <p>Xác nhận chỉ khi đây là tình huống cấp cứu thật sự.</p>
                   </div>
@@ -900,7 +900,7 @@ const IntakeDrawerContent: React.FC<IntakeDrawerContentProps> = ({ submitting, i
             <Input value={injuryMechanism} onChange={(e) => setInjuryMechanism(e.target.value)} placeholder="VD: TNGT, ngã cao, bỏng…" />
           </label>
         </div>
-        {err && <div style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-sm)', marginTop: 6 }}>{err}</div>}
+        {err && <div style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-sm)', marginTop: 'var(--space-6)' }}>{err}</div>}
       </section>
 
       {!isMci && (

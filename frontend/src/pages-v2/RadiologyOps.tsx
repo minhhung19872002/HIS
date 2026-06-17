@@ -173,9 +173,9 @@ const RadiologyOpsV2: React.FC = () => {
 
       {selected && (
         <>
-          <div style={{ padding: 16, background: 'var(--d-1)', border: '1px solid var(--line)', margin: 12, borderRadius: 4 }}>
+          <div style={{ padding: 'var(--space-16)', background: 'var(--d-1)', border: '1px solid var(--line)', margin: 'var(--space-12)', borderRadius: 4 }}>
             <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Phiếu đang chọn:</div>
-            <div style={{ marginTop: 4, fontSize: 14 }}>
+            <div style={{ marginTop: 'var(--space-4)', fontSize: 14 }}>
               <b style={{ fontFamily: 'var(--font-mono)' }}>{selected.requestCode}</b> ·{' '}
               <b>{selected.patientName}</b> · {selected.serviceName}
             </div>
@@ -184,7 +184,7 @@ const RadiologyOpsV2: React.FC = () => {
           <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} />
 
           {tab === 'add-on' && (
-            <div style={{ padding: 24, maxWidth: 720 }}>
+            <div style={{ padding: 'var(--space-24)', maxWidth: 720 }}>
               <Form form={addOnForm} layout="vertical">
                 <Form.Item label="Dịch vụ chỉ định thêm" name="serviceIds" rules={[{ required: true }]}>
                   <Select mode="multiple" showSearch optionFilterProp="label"
@@ -207,7 +207,7 @@ const RadiologyOpsV2: React.FC = () => {
           )}
 
           {tab === 'dispense' && (
-            <div style={{ padding: 24, maxWidth: 820 }}>
+            <div style={{ padding: 'var(--space-24)', maxWidth: 820 }}>
               <Form form={dispenseForm} layout="vertical">
                 <Form.Item label="Kho xuất" name="warehouseId" rules={[{ required: true }]}>
                   <Select showSearch optionFilterProp="label"
@@ -218,7 +218,7 @@ const RadiologyOpsV2: React.FC = () => {
                   {(fields, { add, remove }) => (
                     <>
                       {fields.map((f) => (
-                        <div key={f.key} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                        <div key={f.key} style={{ display: 'flex', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
                           <Form.Item name={[f.name, 'itemId']} rules={[{ required: true }]} style={{ flex: 2, marginBottom: 0 }}>
                             <Select showSearch optionFilterProp="label" placeholder="Thuốc hoặc vật tư"
                               options={[
@@ -243,7 +243,7 @@ const RadiologyOpsV2: React.FC = () => {
                     </>
                   )}
                 </Form.List>
-                <Form.Item label="Ghi chú phiếu" name="note" style={{ marginTop: 16 }}>
+                <Form.Item label="Ghi chú phiếu" name="note" style={{ marginTop: 'var(--space-16)' }}>
                   <Input.TextArea rows={2} />
                 </Form.Item>
                 <Btn variant="primary" onClick={submitDispense}>

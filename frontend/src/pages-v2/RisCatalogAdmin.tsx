@@ -141,13 +141,13 @@ const RisCatalogAdminV2: React.FC = () => {
 
   const formFieldsByTab: Record<TabKey, React.ReactElement> = {
     modalities: <>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
         <Form.Item label="Mã modality" name="modalityCode" rules={[{ required: true }]}><Input placeholder="XR, CT, MR, US…" /></Form.Item>
         <Form.Item label="Loại" name="modalityType" rules={[{ required: true }]}><Select options={MODALITY_TYPE_OPTIONS} /></Form.Item>
       </div>
       <Form.Item label="Tên modality" name="modalityName" rules={[{ required: true }]}><Input /></Form.Item>
-      <div style={{ marginBottom: 8, fontWeight: 500, color: '#595959' }}>Cấu hình ảnh (G-34a)</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ marginBottom: 'var(--space-8)', fontWeight: 500, color: '#595959' }}>Cấu hình ảnh (G-34a)</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
         <Form.Item label="Số ảnh tối đa in report" name="maxImagesPerReport" initialValue={4}><InputNumber min={1} max={50} style={{ width: '100%' }} /></Form.Item>
         <Form.Item label="Số ảnh tối đa lưu trữ" name="maxImagesToStore" initialValue={100}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>
       </div>
@@ -158,7 +158,7 @@ const RisCatalogAdminV2: React.FC = () => {
       <Form.Item label="Hoạt động" name="isActive" valuePropName="checked" initialValue={true}><Switch /></Form.Item>
     </>,
     'icd-templates': <>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
         <Form.Item label="Mã ICD-10" name="icdCode" rules={[{ required: true }]}><Input placeholder="vd A00, J18.9" /></Form.Item>
         <Form.Item label="Tên bệnh" name="icdName"><Input placeholder="Cache tên bệnh để hiển thị" /></Form.Item>
       </div>
@@ -197,7 +197,7 @@ const RisCatalogAdminV2: React.FC = () => {
       <Form.Item label="Có thuốc cản quang" name="useContrast" valuePropName="checked"><Switch /></Form.Item>
       <Form.Item label="Chất cản quang" name="contrastAgent"><Input /></Form.Item>
       <Form.Item label="Liều cản quang" name="contrastDose"><Input /></Form.Item>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-12)' }}>
         <Form.Item label="kVp" name="kvp"><InputNumber min={0} step={0.1} style={{ width: '100%' }} /></Form.Item>
         <Form.Item label="mAs" name="mas"><InputNumber min={0} step={0.1} style={{ width: '100%' }} /></Form.Item>
         <Form.Item label="Slice (mm)" name="sliceThickness"><InputNumber min={0} step={0.1} style={{ width: '100%' }} /></Form.Item>

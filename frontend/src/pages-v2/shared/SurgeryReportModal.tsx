@@ -68,7 +68,7 @@ interface FormRow {
 
 /** Local layout helper — same pattern as in Radiology.tsx */
 const FormRow: React.FC<FormRow> = ({ label, extra, children }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'start', gap: 8, marginBottom: 4 }}>
+  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'start', gap: 'var(--space-8)', marginBottom: 'var(--space-4)' }}>
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', paddingTop: 5 }}>{label}</span>
       {extra && <span style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-3)' }}>{extra}</span>}
@@ -278,7 +278,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
       onClose={onClose}
       size="lg"
       title={
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           <TermIcon name="scissors" size={14} />
           <span>Tường trình PTTT</span>
         </span>
@@ -298,23 +298,23 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-14)' }}>
 
         {/* ── Danh sách tường trình đã lập ── */}
         {existingList.length > 0 && (
           <section>
             <div style={{
               fontSize: 10.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
-              color: 'var(--t-2)', marginBottom: 6, letterSpacing: '.05em',
+              color: 'var(--t-2)', marginBottom: 'var(--space-6)', letterSpacing: '.05em',
             }}>
               Tường trình đã lập ({existingList.length})
             </div>
             {existingList.map((s) => (
               <div key={s.id} style={{
                 border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: '8px 10px',
-                marginBottom: 6, fontSize: 'var(--fs-sm)',
+                marginBottom: 'var(--space-6)', fontSize: 'var(--fs-sm)',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-4)' }}>
                   <b style={{ fontSize: 12.5 }}>{s.surgeryServiceName || s.surgeryCode}</b>
                   <span style={{ color: 'var(--t-3)', fontSize: 'var(--fs-xs)' }}>
                     {fmtDTg(s.createdAt)}
@@ -349,14 +349,14 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
         <section>
           <div style={{
             fontSize: 10.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
-            color: 'var(--t-2)', marginBottom: 8, letterSpacing: '.05em',
+            color: 'var(--t-2)', marginBottom: 'var(--space-8)', letterSpacing: '.05em',
           }}>
             Lập tường trình mới
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
             <div>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 3 }}>Loại PT/TT</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Loại PT/TT</div>
               <AbSelect
                 options={SURGERY_TYPE_OPTIONS}
                 value={form.surgeryType}
@@ -364,7 +364,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
               />
             </div>
             <div>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 3 }}>Phân loại</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Phân loại</div>
               <AbSelect
                 options={SURGERY_CLASS_OPTIONS}
                 value={form.surgeryClass}
@@ -383,9 +383,9 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
             />
           </FormRow>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
             <div>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 3 }}>Phương pháp vô cảm</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Phương pháp vô cảm</div>
               <AbSelect
                 options={ANESTHESIA_OPTIONS}
                 value={form.anesthesiaType}
@@ -393,7 +393,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
               />
             </div>
             <div>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 3 }}>Chi tiết vô cảm</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Chi tiết vô cảm</div>
               <input
                 className="hui-inp"
                 style={{ width: '100%', height: 28 }}

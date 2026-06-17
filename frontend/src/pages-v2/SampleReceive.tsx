@@ -278,7 +278,7 @@ const SampleReceiveV2: React.FC = () => {
         title={detail?.sampleBarcode || 'Chi tiết mẫu'}
         sub={detail ? `${detail.serviceName} · ${detail.patientName}` : ''}
         footer={detail && detail.receiveStatus === 1 ? (
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
             <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             <Btn
               variant="crit"
@@ -350,7 +350,7 @@ const SampleReceiveV2: React.FC = () => {
           </Btn>
         </>}
       >
-        <div style={{ marginBottom: 12 }}><StatusBadge tone="warn">Chỉ ghi KQ — chờ người khác duyệt</StatusBadge></div>
+        <div style={{ marginBottom: 'var(--space-12)' }}><StatusBadge tone="warn">Chỉ ghi KQ — chờ người khác duyệt</StatusBadge></div>
         <Form form={runForm} layout="vertical">
           <Form.Item label="Kết quả" name="result" rules={[{ required: true }]}>
             <Input.TextArea rows={3} placeholder="Giá trị kết quả" />
@@ -373,7 +373,7 @@ const SampleReceiveV2: React.FC = () => {
           </Btn>
         </>}
       >
-        <div style={{ marginBottom: 12 }}><StatusBadge tone="crit">Người duyệt phải khác KTV ghi KQ (4-eyes principle)</StatusBadge></div>
+        <div style={{ marginBottom: 'var(--space-12)' }}><StatusBadge tone="crit">Người duyệt phải khác KTV ghi KQ (4-eyes principle)</StatusBadge></div>
         <Form form={reviewForm} layout="vertical">
           <Form.Item label="Kết luận (nếu cần sửa)" name="conclusion">
             <Input.TextArea rows={3} />
@@ -390,7 +390,7 @@ const SampleReceiveV2: React.FC = () => {
         size="lg"
       >
         {utilLoading ? (
-          <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
+          <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
         ) : (
           <>
             <div className="rec-section">
@@ -398,7 +398,7 @@ const SampleReceiveV2: React.FC = () => {
               {utilCabinetStock.length === 0 ? (
                 <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)', padding: '8px 0' }}>Không có dữ liệu tủ trực</div>
               ) : (
-                <div style={{ display: 'grid', gap: 4 }}>
+                <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
                   {utilCabinetStock.slice(0, 50).map((s) => (
                     <div key={s.id} style={{
                       display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr',
@@ -422,12 +422,12 @@ const SampleReceiveV2: React.FC = () => {
                 </div>
               )}
             </div>
-            <div className="rec-section" style={{ marginTop: 16 }}>
+            <div className="rec-section" style={{ marginTop: 'var(--space-16)' }}>
               <h5><TermIcon name="flask" size={11} /> TỒN KHO HÓA CHẤT</h5>
               {utilChemStock.length === 0 ? (
                 <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)', padding: '8px 0' }}>Không có dữ liệu tồn kho hóa chất</div>
               ) : (
-                <div style={{ display: 'grid', gap: 4 }}>
+                <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
                   {utilChemStock.slice(0, 50).map((s) => (
                     <div key={s.id} style={{
                       display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr',
@@ -461,16 +461,16 @@ const SampleReceiveV2: React.FC = () => {
 const Timeline: React.FC<{ items: { ok?: boolean; fail?: boolean; label: string; time?: string; by?: string; extra?: string }[] }> = ({ items }) => (
   <div>
     {items.map((it, i) => (
-      <div key={i} style={{ display: 'flex', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--line-soft)' }}>
+      <div key={i} style={{ display: 'flex', gap: 'var(--space-12)', padding: '8px 0', borderBottom: '1px solid var(--line-soft)' }}>
         <div style={{
-          width: 12, height: 12, borderRadius: '50%', marginTop: 4,
+          width: 12, height: 12, borderRadius: '50%', marginTop: 'var(--space-4)',
           background: it.fail ? 'var(--a-rd-text)' : it.ok ? 'var(--a-em-text)' : 'var(--t-2)',
         }} />
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 600 }}>{it.label}</div>
           {it.time && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{dayjs(it.time).format('DD/MM/YYYY HH:mm')}</div>}
           {it.by && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Người thực hiện: {it.by}</div>}
-          {it.extra && <div style={{ fontSize: 'var(--fs-sm)', marginTop: 4, color: it.fail ? 'var(--a-rd-text)' : 'var(--t-1)' }}>{it.extra}</div>}
+          {it.extra && <div style={{ fontSize: 'var(--fs-sm)', marginTop: 'var(--space-4)', color: it.fail ? 'var(--a-rd-text)' : 'var(--t-1)' }}>{it.extra}</div>}
         </div>
       </div>
     ))}

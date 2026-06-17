@@ -141,7 +141,7 @@ const ObstetricRegistersV2: React.FC = () => {
 
   // ── Render report ────────────────────────────────────────────────────────────
   const renderReport = () => {
-    if (!report) return <div style={{ padding: 20, color: 'var(--t-2)' }}>Chọn khoảng thời gian để xem báo cáo.</div>;
+    if (!report) return <div style={{ padding: 'var(--space-20)', color: 'var(--t-2)' }}>Chọn khoảng thời gian để xem báo cáo.</div>;
     const card = (title: string, kv: [string, React.ReactNode][]) => (
       <div className="rec-section" style={{ flex: 1, minWidth: 280 }}>
         <h5>{title}</h5>
@@ -151,7 +151,7 @@ const ObstetricRegistersV2: React.FC = () => {
       </div>
     );
     return (
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 12 }}>
+      <div style={{ display: 'flex', gap: 'var(--space-16)', flexWrap: 'wrap', marginTop: 'var(--space-12)' }}>
         {card('Sổ sinh đẻ', [
           ['Tổng ca sinh', report.totalDeliveries],
           ['Tổng số trẻ', report.totalBabies],

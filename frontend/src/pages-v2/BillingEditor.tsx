@@ -293,27 +293,27 @@ const BillingEditorV2: React.FC = () => {
       </div>
 
       {/* Patient panel */}
-      <aside className={'ed-left-panel ' + (leftOpen ? 'is-open' : '')} style={{ borderRight: '1px solid var(--line)', padding: 12, background: 'var(--d-1)', overflow: 'auto' }}>
-        <Btn variant="ghost" size="sm" style={{ width: '100%', marginBottom: 10, justifyContent: 'center' }} onClick={() => setSearchOpen(true)}><TermIcon name="search" size={11} /> Tìm bệnh nhân</Btn>
+      <aside className={'ed-left-panel ' + (leftOpen ? 'is-open' : '')} style={{ borderRight: '1px solid var(--line)', padding: 'var(--space-12)', background: 'var(--d-1)', overflow: 'auto' }}>
+        <Btn variant="ghost" size="sm" style={{ width: '100%', marginBottom: 'var(--space-10)', justifyContent: 'center' }} onClick={() => setSearchOpen(true)}><TermIcon name="search" size={11} /> Tìm bệnh nhân</Btn>
         {!pt ? (
           <div style={{ padding: '40px 12px', textAlign: 'center', color: 'var(--t-3)' }}>
             <TermIcon name="user" size={28} />
-            <div style={{ marginTop: 10, fontSize: 11.5 }}>Tìm BN để bắt đầu thu</div>
+            <div style={{ marginTop: 'var(--space-10)', fontSize: 11.5 }}>Tìm BN để bắt đầu thu</div>
           </div>
         ) : (
           <>
-            <div style={{ padding: 12, background: 'var(--d-0)', borderRadius: 'var(--r-3)', border: '1px solid var(--line)' }}>
+            <div style={{ padding: 'var(--space-12)', background: 'var(--d-0)', borderRadius: 'var(--r-3)', border: '1px solid var(--line)' }}>
               <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 700 }}>{pt.patientName}</div>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{pt.patientCode} · {pt.medicalRecordCode}</div>
-              <div style={{ marginTop: 8, padding: 8, background: 'var(--d-1)', borderRadius: 4, fontSize: 'var(--fs-xs)' }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)', marginTop: 'var(--space-4)' }}>{pt.patientCode} · {pt.medicalRecordCode}</div>
+              <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-8)', background: 'var(--d-1)', borderRadius: 4, fontSize: 'var(--fs-xs)' }}>
                 <div><span className="ab-u-muted">Trạng thái: </span>{pt.paymentStatusName}</div>
-                <div style={{ marginTop: 4 }}><span className="ab-u-muted">Số dư tạm ứng: </span><b className="mono" style={{ color: 'var(--s-ok)' }}>{fmtVNDg(advBalance)}</b></div>
-                <div style={{ marginTop: 4 }}><span className="ab-u-muted">Tổng viện phí: </span><b className="mono">{fmtVNDg(pt.totalAmount)}</b></div>
+                <div style={{ marginTop: 'var(--space-4)' }}><span className="ab-u-muted">Số dư tạm ứng: </span><b className="mono" style={{ color: 'var(--s-ok)' }}>{fmtVNDg(advBalance)}</b></div>
+                <div style={{ marginTop: 'var(--space-4)' }}><span className="ab-u-muted">Tổng viện phí: </span><b className="mono">{fmtVNDg(pt.totalAmount)}</b></div>
               </div>
             </div>
             {deposits.length > 0 && (
-              <div style={{ marginTop: 12, padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
-                <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 6 }}>Tạm ứng</div>
+              <div style={{ marginTop: 'var(--space-12)', padding: 'var(--space-12)', background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
+                <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 'var(--space-6)' }}>Tạm ứng</div>
                 {deposits.slice(0, 5).map((d) => (
                   <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid var(--line-soft)', fontSize: 11.5 }}>
                     <span className="mono ab-u-muted">{d.receiptCode}</span>
@@ -329,8 +329,8 @@ const BillingEditorV2: React.FC = () => {
       {/* Main */}
       <main style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <TopTabs tab={tab} setTab={(t) => ensureTab(t)} tabs={TABS} />
-        <div style={{ overflow: 'auto', flex: 1, padding: 14 }}>
-          {!pt && tab === 'pay' && <div style={{ color: 'var(--t-3)', textAlign: 'center', padding: 40 }}>Chọn bệnh nhân để xem các mục chờ thu</div>}
+        <div style={{ overflow: 'auto', flex: 1, padding: 'var(--space-14)' }}>
+          {!pt && tab === 'pay' && <div style={{ color: 'var(--t-3)', textAlign: 'center', padding: 'var(--space-40)' }}>Chọn bệnh nhân để xem các mục chờ thu</div>}
 
           {tab === 'pay' && pt && (
             <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', overflow: 'hidden' }}>
@@ -364,13 +364,13 @@ const BillingEditorV2: React.FC = () => {
 
           {tab === 'advance' && (
             <div>
-              <div style={{ marginBottom: 12 }}><Btn variant="primary" onClick={() => openCreate('deposit')}><TermIcon name="plus" size={12} /> Tạo tạm ứng</Btn></div>
+              <div style={{ marginBottom: 'var(--space-12)' }}><Btn variant="primary" onClick={() => openCreate('deposit')}><TermIcon name="plus" size={12} /> Tạo tạm ứng</Btn></div>
               <DataTable<DepositDto> columns={depositCols} data={deposits} rowKey={(r) => r.id} empty={pt ? 'Chưa có tạm ứng' : 'Chọn bệnh nhân'} />
             </div>
           )}
           {tab === 'refund' && (
             <div>
-              <div style={{ marginBottom: 12 }}><Btn variant="primary" onClick={() => openCreate('refund')}><TermIcon name="plus" size={12} /> Lập phiếu hoàn tiền</Btn></div>
+              <div style={{ marginBottom: 'var(--space-12)' }}><Btn variant="primary" onClick={() => openCreate('refund')}><TermIcon name="plus" size={12} /> Lập phiếu hoàn tiền</Btn></div>
               <DataTable<RefundDto> columns={refundCols} data={refunds} rowKey={(r) => r.id} empty="Chưa có phiếu hoàn tiền" />
             </div>
           )}
@@ -379,7 +379,7 @@ const BillingEditorV2: React.FC = () => {
           )}
           {tab === 'einv' && (
             <div>
-              <div style={{ marginBottom: 12 }}><Btn variant="primary" onClick={openEinv}><TermIcon name="plus" size={12} /> Phát hành HĐĐT</Btn></div>
+              <div style={{ marginBottom: 'var(--space-12)' }}><Btn variant="primary" onClick={openEinv}><TermIcon name="plus" size={12} /> Phát hành HĐĐT</Btn></div>
               <DataTable<ElectronicInvoiceDto> columns={einvCols} data={einvoices} rowKey={(r) => r.id} empty="Chưa có hoá đơn điện tử"
                 actions={(r) => <><ActBtn ic="send" title="Gửi email" onClick={() => openSendEmail(r)} /><ActBtn ic="print" title="In" onClick={() => doPrintInvoice(r)} /></>} />
             </div>
@@ -389,33 +389,33 @@ const BillingEditorV2: React.FC = () => {
 
       {/* Payment panel (pay tab only) */}
       {tab === 'pay' && (
-        <aside className={'ed-right-panel ' + (rightOpen ? 'is-open' : '')} style={{ borderLeft: '1px solid var(--line)', padding: 14, background: 'var(--d-1)', display: 'flex', flexDirection: 'column', gap: 12, overflow: 'auto' }}>
-          <div style={{ padding: 14, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
+        <aside className={'ed-right-panel ' + (rightOpen ? 'is-open' : '')} style={{ borderLeft: '1px solid var(--line)', padding: 'var(--space-14)', background: 'var(--d-1)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)', overflow: 'auto' }}>
+          <div style={{ padding: 'var(--space-14)', background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
             <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Tóm tắt thanh toán</h4>
-            <div style={{ display: 'grid', gap: 6, fontSize: 12.5 }}>
+            <div style={{ display: 'grid', gap: 'var(--space-6)', fontSize: 12.5 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">Tổng tiền chọn</span><b className="mono">{fmtVNDg(subtotal)}</b></div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">BHYT chi trả</span><b className="mono" style={{ color: 'var(--s-ok)' }}>−{fmtVNDg(bhytCovered)}</b></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, borderTop: '1px dashed var(--line)', marginTop: 4 }}><span className="ab-u-muted">BN đồng chi trả</span><b className="mono">{fmtVNDg(coPay)}</b></div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', fontSize: 11.5, color: 'var(--t-2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 'var(--space-6)', borderTop: '1px dashed var(--line)', marginTop: 'var(--space-4)' }}><span className="ab-u-muted">BN đồng chi trả</span><b className="mono">{fmtVNDg(coPay)}</b></div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', padding: '6px 0', fontSize: 11.5, color: 'var(--t-2)' }}>
                 <input type="checkbox" checked={useAdvance} onChange={(e) => setUseAdvance(e.target.checked)} disabled={advBalance <= 0} />
                 Dùng tạm ứng <span className="mono ab-u-fg">−{fmtVNDg(advUsed)}</span>
               </label>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '2px solid var(--line)', marginTop: 4 }}><b style={{ fontSize: 'var(--fs-md)' }}>BN phải trả</b><b className="mono" style={{ fontSize: 'var(--fs-lg)', color: 'var(--a-cy)' }}>{fmtVNDg(finalAmount)}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 'var(--space-10)', borderTop: '2px solid var(--line)', marginTop: 'var(--space-4)' }}><b style={{ fontSize: 'var(--fs-md)' }}>BN phải trả</b><b className="mono" style={{ fontSize: 'var(--fs-lg)', color: 'var(--a-cy)' }}>{fmtVNDg(finalAmount)}</b></div>
             </div>
           </div>
 
           <div>
-            <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 6 }}>Phương thức TT</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
+            <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 'var(--space-6)' }}>Phương thức TT</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-4)' }}>
               {METHODS.map((m) => (
-                <button key={m.v} onClick={() => setMethod(m.v)} style={{ padding: '10px 6px', background: method === m.v ? 'var(--a-cy)' : 'var(--d-0)', color: method === m.v ? '#fff' : 'var(--t-1)', border: method === m.v ? '1px solid var(--a-cy)' : '1px solid var(--line)', borderRadius: 'var(--r-2)', cursor: 'pointer', fontSize: 11.5, fontWeight: method === m.v ? 700 : 400, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <button key={m.v} onClick={() => setMethod(m.v)} style={{ padding: '10px 6px', background: method === m.v ? 'var(--a-cy)' : 'var(--d-0)', color: method === m.v ? '#fff' : 'var(--t-1)', border: method === m.v ? '1px solid var(--a-cy)' : '1px solid var(--line)', borderRadius: 'var(--r-2)', cursor: 'pointer', fontSize: 11.5, fontWeight: method === m.v ? 700 : 400, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-4)' }}>
                   <TermIcon name={m.ic} size={16} />{m.l}
                 </button>
               ))}
             </div>
           </div>
 
-          <div style={{ display: 'grid', gap: 6 }}>
+          <div style={{ display: 'grid', gap: 'var(--space-6)' }}>
             <Btn variant="primary" style={{ height: 40, fontSize: 'var(--fs-md)' }} onClick={() => setConfirmOpen(true)} disabled={selectedItems.length === 0 || busy}>
               <TermIcon name="check" size={13} /> Thu tiền · {fmtVNDg(finalAmount)}
             </Btn>
@@ -440,11 +440,11 @@ const BillingEditorV2: React.FC = () => {
           <Btn variant="ghost" onClick={() => setConfirmOpen(false)}>Hủy</Btn>
           <Btn variant="primary" disabled={busy} onClick={doPayment}><TermIcon name="check" size={12} /> Xác nhận đã thu</Btn>
         </>}>
-        <div style={{ padding: 24, textAlign: 'center' }}>
-          <div style={{ fontSize: 14, color: 'var(--t-2)', marginBottom: 6 }}>BN cần trả</div>
-          <div style={{ fontSize: 30, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--a-cy)', marginBottom: 14 }}>{fmtVNDg(finalAmount)}</div>
+        <div style={{ padding: 'var(--space-24)', textAlign: 'center' }}>
+          <div style={{ fontSize: 14, color: 'var(--t-2)', marginBottom: 'var(--space-6)' }}>BN cần trả</div>
+          <div style={{ fontSize: 30, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--a-cy)', marginBottom: 'var(--space-14)' }}>{fmtVNDg(finalAmount)}</div>
           {method === 3 && <div style={{ width: 160, height: 160, margin: '0 auto', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', background: 'repeating-conic-gradient(#000 0% 25%, var(--d-2) 0% 50%) 50%/12px 12px' }} />}
-          <div style={{ marginTop: 14, padding: 10, background: 'var(--d-1)', borderRadius: 4, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
+          <div style={{ marginTop: 'var(--space-14)', padding: 'var(--space-10)', background: 'var(--d-1)', borderRadius: 4, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
             {selectedItems.length} mục · {METHODS.find((m) => m.v === method)?.l}{advUsed > 0 ? ` · dùng tạm ứng ${fmtVNDg(advUsed)}` : ''}
           </div>
         </div>
@@ -457,21 +457,21 @@ const BillingEditorV2: React.FC = () => {
           <Btn variant="ghost" onClick={() => setCreateModal(null)}>Hủy</Btn>
           <Btn variant="primary" disabled={savingC} onClick={saveCreate}><TermIcon name="check" size={12} /> Lưu</Btn>
         </>}>
-        <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ padding: 'var(--space-18)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
           <label style={{ display: 'block', fontSize: 11.5 }}>
-            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 3 }}>Số tiền</span>
+            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Số tiền</span>
             <input type="number" className="ed-fld mono" style={{ textAlign: 'right', fontSize: 16 }} value={cform.amount} onChange={(e) => setCform((p) => ({ ...p, amount: e.target.value }))} placeholder="0" autoFocus />
           </label>
           <div>
-            <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>{createModal === 'deposit' ? 'Phương thức nộp' : 'Phương thức hoàn'}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
+            <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>{createModal === 'deposit' ? 'Phương thức nộp' : 'Phương thức hoàn'}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-4)' }}>
               {METHODS.map((m) => (
                 <button key={m.v} onClick={() => setCform((p) => ({ ...p, method: m.v }))} style={{ padding: '8px 6px', background: cform.method === m.v ? 'var(--a-cy)' : 'var(--d-0)', color: cform.method === m.v ? '#fff' : 'var(--t-1)', border: cform.method === m.v ? '1px solid var(--a-cy)' : '1px solid var(--line)', borderRadius: 'var(--r-2)', cursor: 'pointer', fontSize: 11.5 }}>{m.l}</button>
               ))}
             </div>
           </div>
           <label style={{ display: 'block', fontSize: 11.5 }}>
-            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 3 }}>{createModal === 'refund' ? 'Lý do hoàn (bắt buộc)' : 'Ghi chú'}</span>
+            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>{createModal === 'refund' ? 'Lý do hoàn (bắt buộc)' : 'Ghi chú'}</span>
             <textarea className="ed-fld" rows={2} value={cform.reason} onChange={(e) => setCform((p) => ({ ...p, reason: e.target.value }))} />
           </label>
         </div>
@@ -483,9 +483,9 @@ const BillingEditorV2: React.FC = () => {
           <Btn variant="ghost" onClick={() => setEmailModalOpen(false)}>Hủy</Btn>
           <Btn variant="primary" disabled={sendingEmail} onClick={doSendEmail}><TermIcon name="send" size={12} /> Gửi</Btn>
         </>}>
-        <div style={{ padding: 18 }}>
+        <div style={{ padding: 'var(--space-18)' }}>
           <label style={{ display: 'block', fontSize: 11.5 }}>
-            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 3 }}>Địa chỉ email nhận</span>
+            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Địa chỉ email nhận</span>
             <input
               type="email"
               className="ed-fld"
@@ -504,16 +504,16 @@ const BillingEditorV2: React.FC = () => {
           <Btn variant="ghost" onClick={() => setEinvOpen(false)}>Hủy</Btn>
           <Btn variant="primary" disabled={savingEinv} onClick={issueEinv}><TermIcon name="check" size={12} /> Phát hành</Btn>
         </>}>
-        <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ padding: 'var(--space-18)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
           <label style={{ display: 'block', fontSize: 11.5 }}>
-            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 3 }}>Tên người mua</span>
+            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Tên người mua</span>
             <input className="ed-fld" value={einvForm.buyerName} onChange={(e) => setEinvForm((p) => ({ ...p, buyerName: e.target.value }))} />
           </label>
           <label style={{ display: 'block', fontSize: 11.5 }}>
-            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 3 }}>Email nhận hoá đơn</span>
+            <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 'var(--space-3)' }}>Email nhận hoá đơn</span>
             <input type="email" className="ed-fld" value={einvForm.buyerEmail} onChange={(e) => setEinvForm((p) => ({ ...p, buyerEmail: e.target.value }))} placeholder="vd: benhnhan@email.com" />
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-sm)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', fontSize: 'var(--fs-sm)' }}>
             <input type="checkbox" checked={einvForm.sendEmail} onChange={(e) => setEinvForm((p) => ({ ...p, sendEmail: e.target.checked }))} />
             Gửi hoá đơn qua email sau khi phát hành
           </label>
@@ -543,21 +543,21 @@ const BillingPatientSearch: React.FC<{ open: boolean; onClose: () => void; onPic
   return (
     <ModalShell open={open} onClose={onClose} title="Tìm bệnh nhân" sub="Tên · Mã · Mã hồ sơ" size="md"
       footer={<Btn variant="ghost" onClick={onClose}>Đóng</Btn>}>
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: 'var(--space-16)' }}>
         <div className="ab-search ab-u-wfull">
           <TermIcon name="search" size={13} />
           <input value={q} onChange={(e) => run(e.target.value)} placeholder="Gõ ≥2 ký tự…" autoFocus />
         </div>
-        <div style={{ marginTop: 12, maxHeight: 360, overflow: 'auto' }}>
-          {loading && <div style={{ textAlign: 'center', padding: 16, color: 'var(--t-3)' }}>Đang tìm…</div>}
-          {!loading && q.length >= 2 && list.length === 0 && <div style={{ textAlign: 'center', padding: 16, color: 'var(--t-3)' }}>Không tìm thấy</div>}
+        <div style={{ marginTop: 'var(--space-12)', maxHeight: 360, overflow: 'auto' }}>
+          {loading && <div style={{ textAlign: 'center', padding: 'var(--space-16)', color: 'var(--t-3)' }}>Đang tìm…</div>}
+          {!loading && q.length >= 2 && list.length === 0 && <div style={{ textAlign: 'center', padding: 'var(--space-16)', color: 'var(--t-3)' }}>Không tìm thấy</div>}
           {list.map((p) => (
-            <div key={p.medicalRecordId} onClick={() => onPick(p)} style={{ padding: 10, border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 6, cursor: 'pointer' }}>
+            <div key={p.medicalRecordId} onClick={() => onPick(p)} style={{ padding: 'var(--space-10)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 'var(--space-6)', cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <b>{p.patientName}</b>
                 <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{p.patientCode}</span>
               </div>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>{p.medicalRecordCode} · {p.paymentStatusName} · {fmtVNDg(p.totalAmount)}</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)' }}>{p.medicalRecordCode} · {p.paymentStatusName} · {fmtVNDg(p.totalAmount)}</div>
             </div>
           ))}
         </div>

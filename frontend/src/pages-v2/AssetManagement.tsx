@@ -200,7 +200,7 @@ const AssetManagementV2: React.FC = () => {
       </div>
 
       {moduleTab === 'assets' && <>
-        <div style={{ display: 'flex', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--line)' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-8)', padding: '8px 16px', borderBottom: '1px solid var(--line)' }}>
           <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
             placeholder="Tìm mã TS / tên / serial…" />
           <Filter value={fDept} onChange={setFDept} options={depts} placeholder="▾ Khoa" />
@@ -280,7 +280,7 @@ const AssetManagementV2: React.FC = () => {
             </DrField>
           </DrSec>
           <DrSec title="Tài chính">
-            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
+            <div style={{ padding: 'var(--space-14)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
               <Line label="Nguyên giá" value={`${fmt(sel.originalValue)} đ`} bold />
               <Line label="Hao mòn lũy kế" value={`−${fmt(sel.accumulatedDepreciation)} đ`} tone="warn" />
               <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '8px 0' }} />
@@ -320,7 +320,7 @@ const AssetManagementV2: React.FC = () => {
         title={stocktakeDetail ? `Phiếu ${stocktakeDetail.stocktakeCode}` : ''}
         sub={stocktakeDetail ? `${stocktakeDetail.title} · ${stocktakeDetail.departmentName || 'Toàn viện'}` : ''}
         footer={
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
             <Btn variant="ghost" onClick={() => { setStocktakeDetail(null); setEditingItemId(null); }}>Đóng</Btn>
             {stocktakeDetail && (
               <Btn icon="printer" onClick={async () => {
@@ -396,7 +396,7 @@ const AssetManagementV2: React.FC = () => {
                           />
                         </td>
                         <td>
-                          <div style={{ display: 'flex', gap: 4 }}>
+                          <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
                             <Btn
                               variant="primary"
                               style={{ padding: '2px 8px', fontSize: 'var(--fs-sm)' }}
@@ -517,9 +517,9 @@ const AssetManagementV2: React.FC = () => {
         sub={deprLoading ? 'Đang tải…' : `${deprItems.length} tài sản`}
         footer={<Btn variant="ghost" onClick={() => setDeprOpen(false)}>Đóng</Btn>}
       >
-        {deprLoading && <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải báo cáo khấu hao…</div>}
+        {deprLoading && <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải báo cáo khấu hao…</div>}
         {!deprLoading && deprItems.length === 0 && (
-          <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Không có dữ liệu khấu hao tháng này</div>
+          <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Không có dữ liệu khấu hao tháng này</div>
         )}
         {!deprLoading && deprItems.length > 0 && (
           <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>
@@ -566,14 +566,14 @@ const AssetManagementV2: React.FC = () => {
         footer={<Btn variant="ghost" onClick={() => setQrData(null)}>Đóng</Btn>}
       >
         {qrData && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
             <DrField lbl="Mã TS"><span style={{ fontFamily: 'var(--font-mono)' }}>{qrData.assetCode}</span></DrField>
             <DrField lbl="Tên">{qrData.assetName}</DrField>
             {qrData.departmentName && <DrField lbl="Khoa">{qrData.departmentName}</DrField>}
             {qrData.serialNumber && <DrField lbl="Serial"><span style={{ fontFamily: 'var(--font-mono)' }}>{qrData.serialNumber}</span></DrField>}
             <DrField lbl="Nội dung QR">
               <code style={{ display: 'block', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 'var(--fs-sm)',
-                padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
+                padding: 'var(--space-10)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
                 {qrData.qrContent}
               </code>
             </DrField>

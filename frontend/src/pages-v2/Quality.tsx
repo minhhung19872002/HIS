@@ -205,7 +205,7 @@ const QualityV2: React.FC = () => {
         open={!!detail}
         onClose={() => setDetail(null)}
         title={detail
-          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
               <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detail.incidentCode}</span>
               <span style={{ fontSize: 14 }}>{detail.incidentTypeName || detail.incidentType}</span>
             </span>
@@ -310,7 +310,7 @@ const IncidentReportModal: React.FC<{
         </>
       )}
     >
-      <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
         <Fld label="Thời điểm xảy ra">
           <DatePicker showTime value={when} onChange={(v) => v && setWhen(v)} format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} />
         </Fld>
@@ -351,7 +351,7 @@ const IncidentReportModal: React.FC<{
 
 const Fld: React.FC<{ label?: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
   <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
-    {label && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>}
+    {label && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>{label}</div>}
     {children}
   </div>
 );
@@ -367,10 +367,10 @@ const KpiTab: React.FC<{ indicators: QualityIndicatorDto[]; loading: boolean }> 
     return Array.from(map.entries());
   }, [indicators]);
 
-  if (loading) return <div style={{ padding: 20, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>;
+  if (loading) return <div style={{ padding: 'var(--space-20)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>;
   if (indicators.length === 0) {
     return (
-      <div className="ab-empty" style={{ padding: 40 }}>
+      <div className="ab-empty" style={{ padding: 'var(--space-40)' }}>
         <TermIcon name="chart" size={20} />
         <div>Chưa có chỉ số chất lượng</div>
       </div>
@@ -381,7 +381,7 @@ const KpiTab: React.FC<{ indicators: QualityIndicatorDto[]; loading: boolean }> 
     <div style={{ padding: '0 18px 16px', overflow: 'auto' }}>
       {groups.map(([groupName, items]) => (
         <div key={groupName} style={{
-          marginTop: 14, border: '1px solid var(--line)',
+          marginTop: 'var(--space-14)', border: '1px solid var(--line)',
           background: 'var(--d-2)', borderRadius: 'var(--r-3)', overflow: 'hidden',
         }}>
           <div style={{
@@ -399,7 +399,7 @@ const KpiTab: React.FC<{ indicators: QualityIndicatorDto[]; loading: boolean }> 
               return (
                 <div key={ind.id} style={{
                   display: 'grid', gridTemplateColumns: '110px 1fr 220px 140px 90px',
-                  gap: 14, padding: '12px 14px', borderBottom: '1px solid var(--line-soft)',
+                  gap: 'var(--space-14)', padding: '12px 14px', borderBottom: '1px solid var(--line-soft)',
                   alignItems: 'center', fontSize: 'var(--fs-md)',
                 }}>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{ind.indicatorCode}</div>
@@ -432,7 +432,7 @@ const KpiTab: React.FC<{ indicators: QualityIndicatorDto[]; loading: boolean }> 
 };
 
 const AuditTab: React.FC = () => (
-  <div style={{ padding: '14px 18px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+  <div style={{ padding: '14px 18px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-14)' }}>
     {[
       { title: 'Đánh giá CL BV theo BYT', date: 'Q4/2025', score: '4.2/5', status: 'Hoàn tất', tone: 'ok' as const },
       { title: 'Audit kiểm soát NK',       date: 'T11/2025', score: '92%',   status: 'Hoàn tất', tone: 'ok' as const },
@@ -441,16 +441,16 @@ const AuditTab: React.FC = () => (
     ].map((a, i) => (
       <div key={i} style={{
         border: '1px solid var(--line)', background: 'var(--d-2)',
-        borderRadius: 'var(--r-3)', padding: 14,
+        borderRadius: 'var(--r-3)', padding: 'var(--space-14)',
       }}>
-        <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)', marginBottom: 8 }}>{a.title}</div>
+        <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)', marginBottom: 'var(--space-8)' }}>{a.title}</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
           <span>Kỳ {a.date}</span>
           <StatusBadge tone={a.tone} dot>{a.status}</StatusBadge>
         </div>
         <div style={{
           fontFamily: 'var(--font-mono)', fontSize: 24, fontWeight: 600,
-          color: 'var(--a-cy)', marginTop: 10,
+          color: 'var(--a-cy)', marginTop: 'var(--space-10)',
         }}>{a.score}</div>
       </div>
     ))}
@@ -496,7 +496,7 @@ const IncidentDrawerBody: React.FC<{ r: IncidentReportDto }> = ({ r }) => (
           {r.rcaMethod && (<><span>PP RCA</span><span>{r.rcaMethod}</span></>)}
         </div>
         {r.rootCauseAnalysis && (
-          <div style={{ fontSize: 12.5, color: 'var(--t-1)', marginTop: 8, whiteSpace: 'pre-wrap' }}>
+          <div style={{ fontSize: 12.5, color: 'var(--t-1)', marginTop: 'var(--space-8)', whiteSpace: 'pre-wrap' }}>
             {r.rootCauseAnalysis}
           </div>
         )}

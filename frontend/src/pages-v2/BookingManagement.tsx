@@ -298,10 +298,10 @@ const BookingManagementV2: React.FC = () => {
           </Btn>
         </>}
       >
-        <p style={{ marginBottom: 12, color: 'var(--t-1)' }}>
+        <p style={{ marginBottom: 'var(--space-12)', color: 'var(--t-1)' }}>
           Lịch hẹn sẽ chuyển sang trạng thái <strong>Đã hủy</strong> và không thể khôi phục.
         </p>
-        <label style={{ display: 'block', marginBottom: 4, fontSize: 'var(--fs-md)', color: 'var(--t-2)' }}>
+        <label style={{ display: 'block', marginBottom: 'var(--space-4)', fontSize: 'var(--fs-md)', color: 'var(--t-2)' }}>
           Lý do hủy (tùy chọn)
         </label>
         <Input
@@ -429,7 +429,7 @@ const BookingModal: React.FC<{
     }
   };
 
-  const lblStyle: React.CSSProperties = { fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 };
+  const lblStyle: React.CSSProperties = { fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 };
 
   return (
     <ModalShell
@@ -447,8 +447,8 @@ const BookingModal: React.FC<{
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
           <div>
             <div style={lblStyle}>Họ và tên <span style={{ color: 'var(--s-crit)' }}>*</span></div>
             <Input value={form.patientName} onChange={(e) => setField('patientName', e.target.value)} placeholder="Nguyễn Văn A" />
@@ -458,7 +458,7 @@ const BookingModal: React.FC<{
             <Input value={form.phoneNumber} onChange={(e) => setField('phoneNumber', e.target.value)} placeholder="0912345678" />
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
           <div>
             <div style={lblStyle}>Ngày hẹn <span style={{ color: 'var(--s-crit)' }}>*</span></div>
             <DatePicker

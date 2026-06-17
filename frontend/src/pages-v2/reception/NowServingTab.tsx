@@ -10,13 +10,13 @@ export const NowServingTab: React.FC<{ rooms: RoomOverviewDto[]; rows: RawRow[] 
     <div className="ab-stack" style={{ padding: '16px 14px', overflow: 'auto' }}>
       <div style={{
         fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 600,
-        letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 10,
+        letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 'var(--space-10)',
       }}>
         BẢNG GỌI SỐ THEO PHÒNG · {hm} · {rooms.length} phòng đang hoạt động
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-14)' }}>
         {rooms.length === 0 && (
-          <div style={{ gridColumn: 'span 3', padding: 20, textAlign: 'center', color: 'var(--t-2)' }}>
+          <div style={{ gridColumn: 'span 3', padding: 'var(--space-20)', textAlign: 'center', color: 'var(--t-2)' }}>
             Chưa có phòng nào
           </div>
         )}
@@ -36,7 +36,7 @@ export const NowServingTab: React.FC<{ rooms: RoomOverviewDto[]; rows: RawRow[] 
                 <div>
                   <b style={{ fontSize: 'var(--fs-md)', color: 'var(--t-0)' }}>{r.departmentName}</b>
                   <span style={{
-                    fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginLeft: 6,
+                    fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginLeft: 'var(--space-6)',
                     fontFamily: 'var(--font-mono)',
                   }}>
                     {r.roomCode} · {r.roomName}
@@ -69,7 +69,7 @@ export const NowServingTab: React.FC<{ rooms: RoomOverviewDto[]; rows: RawRow[] 
               </div>
               <div style={{
                 padding: '10px 16px', borderTop: '1px solid var(--line-soft)',
-                background: 'var(--d-1)', display: 'flex', gap: 14, fontSize: 11.5,
+                background: 'var(--d-1)', display: 'flex', gap: 'var(--space-14)', fontSize: 11.5,
               }}>
                 <span><b style={{ color: 'var(--t-0)' }}>{r.waitingCount}</b> chờ</span>
                 <span><b style={{ color: 'var(--t-0)' }}>{r.completedCount}</b> đã khám</span>

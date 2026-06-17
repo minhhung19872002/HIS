@@ -92,17 +92,17 @@ const RetrieveAliquotModal: React.FC<{
           <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Lấy ống'}
         </Btn>
       </>}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
         <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Số ống cần lấy *</div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Số ống cần lấy *</div>
           <InputNumber style={{ width: '100%' }} value={count} onChange={(v) => setCount(v)} min={1} max={stock?.remainingAliquots || 1} />
         </div>
         <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Mục đích</div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Mục đích</div>
           <Input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Vd: Cấy subculture / Kháng sinh đồ…" />
         </div>
         <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Ghi chú</div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Ghi chú</div>
           <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
       </div>
@@ -146,17 +146,17 @@ const SubcultureModal: React.FC<{
           <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Xác nhận cấy'}
         </Btn>
       </>}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
         <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Vị trí chủng mới *</div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Vị trí chủng mới *</div>
           <Input value={targetLocation} onChange={(e) => setTargetLocation(e.target.value)} placeholder="Vd: Freezer-B/Rack-1/Box-3/Pos-4" />
         </div>
         <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Mục đích</div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Mục đích</div>
           <Input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Vd: Subculture lần 2 / Nhân giống…" />
         </div>
         <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Ghi chú</div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Ghi chú</div>
           <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
       </div>
@@ -199,20 +199,20 @@ const ViabilityModal: React.FC<{
           <Ico name="check" size={12} /> {submitting ? 'Đang lưu…' : 'Ghi kết quả'}
         </Btn>
       </>}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
         <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Kết quả *</div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Kết quả *</div>
           <Select style={{ width: '100%' }} value={isViable} onChange={setIsViable} options={[
             { value: 'true', label: 'Sống (Viable)' },
             { value: 'false', label: 'Chết (Non-viable)' },
           ]} />
         </div>
         <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Phương pháp</div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Phương pháp</div>
           <Input value={method} onChange={(e) => setMethod(e.target.value)} placeholder="Vd: Cấy thạch / Nhuộm Gram…" />
         </div>
         <div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Ghi chú</div>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Ghi chú</div>
           <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
       </div>
@@ -402,7 +402,7 @@ const CultureCollectionV2: React.FC = () => {
             <DrField lbl="Nhiệt độ">{sel.storageTemperature || '—'}</DrField>
           </DrSec>
           <DrSec title="Số lượng & passage">
-            <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 10 }}>
+            <div style={{ padding: 'var(--space-12)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 'var(--space-10)' }}>
               <Line label="Ống còn / tổng" value={`${sel.remainingAliquots}/${sel.aliquotCount}`} bold />
               <Line label="Passage" value={`P${sel.passageNumber}`} />
             </div>
@@ -457,11 +457,11 @@ const CultureCollectionV2: React.FC = () => {
         footer={<Btn variant="ghost" onClick={() => { setLogStock(null); setLogs([]); }}>Đóng</Btn>}
       >
         {logsLoading
-          ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--t-2)' }}>Đang tải…</div>
+          ? <div style={{ textAlign: 'center', padding: 'var(--space-40)', color: 'var(--t-2)' }}>Đang tải…</div>
           : logs.length === 0
-            ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--t-2)' }}>Chưa có lịch sử</div>
+            ? <div style={{ textAlign: 'center', padding: 'var(--space-40)', color: 'var(--t-2)' }}>Chưa có lịch sử</div>
             : logs.map((log) => (
-              <div key={log.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+              <div key={log.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-12)' }}>
                 <div>
                   <div style={{ fontWeight: 600, color: 'var(--t-0)', fontSize: 'var(--fs-md)' }}>{log.action}</div>
                   {log.purpose && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>{log.purpose}</div>}

@@ -88,7 +88,7 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({ open, initial, onClose,
       title={isEdit ? `Sửa kết nối — ${initial?.name}` : 'Thêm kết nối HIS mới'}
       size="md"
       footer={
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
           <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
           <Btn variant="primary" loading={saving} onClick={handleOk}>
             {isEdit ? 'Lưu thay đổi' : 'Tạo kết nối'}
@@ -163,15 +163,15 @@ const MissingFormsModal: React.FC<MissingFormsModalProps> = ({ open, onClose }) 
       title="Kiểm thiếu tờ phiếu bắt buộc"
       size="lg"
       footer={
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
           <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
           <Btn variant="primary" loading={loading} onClick={run}>Kiểm tra</Btn>
         </div>
       }
     >
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 'var(--space-12)', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 'var(--space-16)' }}>
         <div>
-          <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>Từ ngày</div>
+          <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Từ ngày</div>
           <input
             type="date"
             value={fromDate}
@@ -180,7 +180,7 @@ const MissingFormsModal: React.FC<MissingFormsModalProps> = ({ open, onClose }) 
           />
         </div>
         <div>
-          <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>Đến ngày</div>
+          <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Đến ngày</div>
           <input
             type="date"
             value={toDate}
@@ -189,7 +189,7 @@ const MissingFormsModal: React.FC<MissingFormsModalProps> = ({ open, onClose }) 
           />
         </div>
         <div>
-          <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>Loại đợt</div>
+          <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>Loại đợt</div>
           <Select
             value={encType}
             onChange={setEncType}
@@ -205,7 +205,7 @@ const MissingFormsModal: React.FC<MissingFormsModalProps> = ({ open, onClose }) 
 
       {result && (
         <>
-          <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-16)', marginBottom: 'var(--space-12)' }}>
             <div className="ab-kpi info">
               <div className="lbl">Đã kiểm</div>
               <div className="val">{result.totalEncountersChecked}</div>
@@ -251,7 +251,7 @@ const MissingFormsModal: React.FC<MissingFormsModalProps> = ({ open, onClose }) 
             </table>
           )}
 
-          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-3)', marginTop: 8 }}>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-3)', marginTop: 'var(--space-8)' }}>
             Rule: {result.ruleDescription}
           </div>
         </>
@@ -338,7 +338,7 @@ const HisConnectionsPage: React.FC = () => {
     {
       key: '_actions', label: '',
       render: (c) => (
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
           <ActBtn
             ic="link"
             title="Test kết nối"
@@ -385,7 +385,7 @@ const HisConnectionsPage: React.FC = () => {
         pageSize={20}
         emptyMessage="Chưa có kết nối nào — nhấn + để thêm"
         toolbarRight={
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
             <Btn
               variant="ghost"
               icon="check-circle"

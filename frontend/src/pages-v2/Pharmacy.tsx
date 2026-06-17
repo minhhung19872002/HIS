@@ -88,7 +88,7 @@ const PharmacyV2: React.FC = () => {
           {r.prescriptionCode}
           {r.priority === 'urgent' && (
             <span style={{
-              marginLeft: 6, padding: '1px 5px',
+              marginLeft: 'var(--space-6)', padding: '1px 5px',
               background: 'var(--s-crit-bg)', color: 'var(--s-crit)',
               border: '1px solid #fca5a5', borderRadius: 'var(--r-1)',
               fontSize: 9, fontWeight: 700,
@@ -174,7 +174,7 @@ const PharmacyV2: React.FC = () => {
       )}
       drawer={(r) => <RxDrawerBody r={r} />}
       drawerTitle={(r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.prescriptionCode}</span>
           <span style={{ fontSize: 14 }}>{r.patientName}</span>
         </span>
@@ -224,21 +224,21 @@ const RxDrawerBody: React.FC<{ r: PendingPrescription }> = ({ r }) => {
       </div>
       <div className="rec-section">
         <h5><TermIcon name="flask" size={11} /> DANH MỤC THUỐC</h5>
-        {loading && <div style={{ textAlign: 'center', padding: 16, color: 'var(--t-2)' }}>Đang tải…</div>}
+        {loading && <div style={{ textAlign: 'center', padding: 'var(--space-16)', color: 'var(--t-2)' }}>Đang tải…</div>}
         {!loading && items.length === 0 && <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Chưa có thuốc</div>}
         {!loading && items.length > 0 && (
           <div style={{ fontSize: 12.5 }}>
             {items.map((it) => (
               <div key={it.id} style={{
                 padding: '10px 0', borderBottom: '1px solid var(--line-soft)',
-                display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 10, alignItems: 'center',
+                display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 'var(--space-10)', alignItems: 'center',
               }}>
                 <div>
                   <b style={{ color: 'var(--t-0)' }}>{it.medicationName}</b>
                   <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                     <span className="mono">{it.medicationCode}</span> · {it.dosage}
                   </div>
-                  {it.instruction && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>{it.instruction}</div>}
+                  {it.instruction && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)' }}>{it.instruction}</div>}
                 </div>
                 <span className="mono" style={{ fontWeight: 600 }}>{it.quantity} {it.unit}</span>
                 {it.dispensedQuantity > 0 && (

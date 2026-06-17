@@ -82,7 +82,7 @@ const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM HH:mm') : '—';
 
 const FormRow: React.FC<{ label: string; extra?: React.ReactNode; children: React.ReactNode }> = ({ label, extra, children }) => (
   <div>
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, minHeight: 18 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-6)', minHeight: 18 }}>
       <span style={{
         fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
         letterSpacing: '0.05em', color: 'var(--t-2)',
@@ -139,7 +139,7 @@ const CallPatientModal: React.FC<{
       open={open}
       onClose={onClose}
       size="sm"
-      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
         <TermIcon name="user" size={14} /><span>Gọi bệnh nhân vào phòng</span>
       </span>}
       sub={order ? `${order.patientName} · ${order.orderCode}` : ''}
@@ -148,7 +148,7 @@ const CallPatientModal: React.FC<{
         <Btn variant="primary" onClick={submit} loading={busy} icon="check">Gọi</Btn>
       </>}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
         <FormRow label="Phòng chụp">
           <AbSelect
             options={rooms}
@@ -224,7 +224,7 @@ const SignResultModal: React.FC<{
       open={open}
       onClose={onClose}
       size="sm"
-      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
         <TermIcon name="shield" size={14} /><span>Ký số báo cáo CĐHA</span>
       </span>}
       footer={<>
@@ -232,7 +232,7 @@ const SignResultModal: React.FC<{
         <Btn variant="primary" onClick={submit} loading={busy} icon="check">Ký số</Btn>
       </>}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
         <FormRow label="Hình thức ký">
           <AbSelect
             options={SIGN_TYPES}
@@ -253,7 +253,7 @@ const SignResultModal: React.FC<{
           </FormRow>
         )}
         {history.length > 0 && (
-          <div className="rec-section" style={{ marginTop: 4 }}>
+          <div className="rec-section" style={{ marginTop: 'var(--space-4)' }}>
             <h5><TermIcon name="check" size={11} /> ĐÃ KÝ ({history.length})</h5>
             {history.map((h) => (
               <div key={h.id} style={{ fontSize: 11.5, color: 'var(--t-2)', padding: '3px 0' }}>
@@ -390,7 +390,7 @@ const ResultEntryModal: React.FC<{
       open={open}
       onClose={onClose}
       size="lg"
-      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
         <TermIcon name="file-text" size={14} />
         <span>Nhập kết quả CĐHA</span>
       </span>}
@@ -424,7 +424,7 @@ const ResultEntryModal: React.FC<{
         <Btn variant="primary" onClick={handleSaveApprove} loading={approving} disabled={saving} icon="check">Lưu &amp; Duyệt</Btn>
       </>}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
         <FormRow label="Mẫu kết quả">
           <AbSelect
             options={templates}
@@ -572,7 +572,7 @@ const BiopsyModal: React.FC<{
       open={open}
       onClose={onClose}
       size="lg"
-      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
         <TermIcon name="scissors" size={14} /><span>Nhập sinh thiết / GPB</span>
       </span>}
       sub={`${order.patientName} · ${order.orderCode}`}
@@ -585,7 +585,7 @@ const BiopsyModal: React.FC<{
         <Btn variant="primary" onClick={handleSave} loading={saving} icon="check">Lưu kết quả</Btn>
       </>}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
         <FormRow label="Loại mẫu">
           <Select
             value={specimenType}
@@ -1077,7 +1077,7 @@ const RadiologyV2: React.FC = () => {
         open={!!detail}
         onClose={() => setDetail(null)}
         title={detail
-          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
               <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detail.orderCode}</span>
               <span style={{ fontSize: 14 }}>{detail.patientName}</span>
             </span>
@@ -1262,12 +1262,12 @@ const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) => {
   };
 
   return (
-    <div className="rec-section" style={{ marginTop: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+    <div className="rec-section" style={{ marginTop: 'var(--space-12)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-8)' }}>
         <h5 style={{ margin: 0 }}>
           <TermIcon name="users" size={11} /> DONG DOC ({readers.length})
         </h5>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 'var(--space-6)' }}>
           {readers.length > 0 && (
             <Btn size="sm" icon="git-merge" loading={merging} onClick={handleMerge}>
               Gop y kien
@@ -1282,8 +1282,8 @@ const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) => {
       {/* Form them dong doc */}
       {addOpen && (
         <div style={{
-          padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)',
-          borderRadius: 'var(--r-2)', marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 6,
+          padding: 'var(--space-10)', background: 'var(--d-1)', border: '1px solid var(--line)',
+          borderRadius: 'var(--r-2)', marginBottom: 'var(--space-8)', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)',
         }}>
           <Input
             size="small"
@@ -1307,7 +1307,7 @@ const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) => {
               { value: 'Supervisor', label: 'Giam sat' },
             ]}
           />
-          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-6)', justifyContent: 'flex-end' }}>
             <Btn size="sm" variant="ok" icon="check" onClick={handleAdd}>Luu</Btn>
             <Btn size="sm" variant="ghost" onClick={() => setAddOpen(false)}>Huy</Btn>
           </div>
@@ -1328,11 +1328,11 @@ const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) => {
             <div>
               <b style={{ color: 'var(--t-0)' }}>{cr.readerName || cr.readerId}</b>
               <span style={{
-                marginLeft: 6, fontSize: 10.5, padding: '1px 6px',
+                marginLeft: 'var(--space-6)', fontSize: 10.5, padding: '1px 6px',
                 background: 'var(--d-2)', borderRadius: 'var(--r-1)', color: 'var(--t-2)',
               }}>{roleLabel(cr.role)}</span>
             </div>
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
               <ActBtn ic="edit" title="Sua y kien" onClick={() => {
                 setEditId(cr.id);
                 setEditOpinion(cr.opinion || '');
@@ -1343,7 +1343,7 @@ const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) => {
 
           {/* Y kien */}
           {editId === cr.id ? (
-            <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ marginTop: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
               <Input.TextArea
                 size="small"
                 rows={3}
@@ -1351,21 +1351,21 @@ const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) => {
                 onChange={e => setEditOpinion(e.target.value)}
                 placeholder="Y kien / nhan xet..."
               />
-              <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: 'var(--space-4)', justifyContent: 'flex-end' }}>
                 <Btn size="sm" variant="ok" icon="check" onClick={() => handleSaveOpinion(cr)}>Luu</Btn>
                 <Btn size="sm" variant="ghost" onClick={() => setEditId(null)}>Huy</Btn>
               </div>
             </div>
           ) : cr.opinion ? (
-            <div style={{ marginTop: 4, color: 'var(--t-1)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+            <div style={{ marginTop: 'var(--space-4)', color: 'var(--t-1)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
               {cr.opinion}
             </div>
           ) : (
-            <div style={{ marginTop: 4, color: 'var(--t-3)', fontStyle: 'italic' }}>Chua co y kien</div>
+            <div style={{ marginTop: 'var(--space-4)', color: 'var(--t-3)', fontStyle: 'italic' }}>Chua co y kien</div>
           )}
 
           {cr.copiedFromReportId && (
-            <div style={{ marginTop: 3, fontSize: 'var(--fs-xs)', color: 'var(--t-3)' }}>
+            <div style={{ marginTop: 'var(--space-3)', fontSize: 'var(--fs-xs)', color: 'var(--t-3)' }}>
               Copy tu report: <span className="mono">{cr.copiedFromReportId.slice(0, 8)}...</span>
             </div>
           )}
@@ -1412,18 +1412,18 @@ const RadiologyDrawerBody: React.FC<{ r: RadiologyOrderDto; result: RadiologyRes
         {(r.items || []).map((it) => (
           <div key={it.id} style={{
             padding: '10px 0', borderBottom: '1px solid var(--line-soft)',
-            display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, fontSize: 12.5,
+            display: 'grid', gridTemplateColumns: '1fr auto', gap: 'var(--space-10)', fontSize: 12.5,
           }}>
             <div>
               <b style={{ color: 'var(--t-0)' }}>{it.serviceName}</b>
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)' }}>
                 <span className="mono">{it.serviceCode}</span>
                 {it.startTime && <> · Bắt đầu {fmtHM(it.startTime)}</>}
                 {it.endTime && <> · Xong {fmtHM(it.endTime)}</>}
                 {it.technicianName && <> · KTV {it.technicianName}</>}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
               {it.hasResult && <span className="chip ok">KQ</span>}
               {it.hasImages && <span className="chip info">DICOM</span>}
             </div>
@@ -1435,7 +1435,7 @@ const RadiologyDrawerBody: React.FC<{ r: RadiologyOrderDto; result: RadiologyRes
         <div className="rec-section">
           <h5><TermIcon name="file-text" size={11} /> BÁO CÁO ĐỌC PHIM</h5>
           <div style={{
-            padding: 14, background: 'var(--d-1)',
+            padding: 'var(--space-14)', background: 'var(--d-1)',
             border: '1px solid var(--line)', borderRadius: 'var(--r-2)',
             fontSize: 'var(--fs-md)', lineHeight: 1.6, color: 'var(--t-1)',
             whiteSpace: 'pre-wrap',
@@ -1445,7 +1445,7 @@ const RadiologyDrawerBody: React.FC<{ r: RadiologyOrderDto; result: RadiologyRes
             {!result.description && !result.conclusion && <span style={{ color: 'var(--t-3)' }}>Chưa có nội dung báo cáo</span>}
           </div>
           {result.approvedBy && (
-            <div style={{ marginTop: 8, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
+            <div style={{ marginTop: 'var(--space-8)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
               {result.approvedBy} · {fmtDT(result.approvedTime)}
             </div>
           )}

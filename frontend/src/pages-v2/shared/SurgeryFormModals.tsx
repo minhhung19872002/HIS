@@ -34,17 +34,17 @@ import {
 // ---------------------------------------------------------------------------
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div style={{ marginBottom: 14 }}>
+  <div style={{ marginBottom: 'var(--space-14)' }}>
     <div style={{
       fontSize: 10.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
-      color: 'var(--t-2)', marginBottom: 8, letterSpacing: '.05em',
+      color: 'var(--t-2)', marginBottom: 'var(--space-8)', letterSpacing: '.05em',
     }}>{title}</div>
     {children}
   </div>
 );
 
 const Row2: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', alignItems: 'start', gap: 8, marginBottom: 6 }}>
+  <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', alignItems: 'start', gap: 'var(--space-8)', marginBottom: 'var(--space-6)' }}>
     <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', paddingTop: 5 }}>{label}</span>
     <div>{children}</div>
   </div>
@@ -212,7 +212,7 @@ export const PreAnesthesiaModal: React.FC<PreAnesthesiaModalProps> = ({
       onClose={onClose}
       size="lg"
       title={
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-8)' }}>
           <TermIcon name="activity" size={14} />
           <span>Phiếu khám tiền mê</span>
         </span>
@@ -234,9 +234,9 @@ export const PreAnesthesiaModal: React.FC<PreAnesthesiaModalProps> = ({
       }
     >
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 32 }}><Spin /></div>
+        <div style={{ textAlign: 'center', padding: 'var(--space-32)' }}><Spin /></div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <Section title="Đánh giá tiền phẫu">
             <Row2 label="Phân loại ASA">
               <AbSelect
@@ -494,7 +494,7 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
       onClose={onClose}
       size="lg"
       title={
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-8)' }}>
           <TermIcon name="chart" size={14} />
           <span>Theo dõi gây mê</span>
         </span>
@@ -521,9 +521,9 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
       }
     >
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 32 }}><Spin /></div>
+        <div style={{ textAlign: 'center', padding: 'var(--space-32)' }}><Spin /></div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <Section title={`Theo dõi sinh tồn (${monitors.length} lần)`}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5 }}>
@@ -586,14 +586,14 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
                 </tbody>
               </table>
             </div>
-            <Btn variant="ghost" size="sm" onClick={addMonitor} style={{ marginTop: 6 }}>
+            <Btn variant="ghost" size="sm" onClick={addMonitor} style={{ marginTop: 'var(--space-6)' }}>
               <TermIcon name="plus" size={11} /> Thêm lần theo dõi
             </Btn>
           </Section>
 
           <Section title={`Thuốc gây mê (${drugs.length})`}>
             {drugs.map((d, i) => (
-              <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+              <div key={i} style={{ display: 'flex', gap: 'var(--space-6)', marginBottom: 'var(--space-6)', alignItems: 'center' }}>
                 <input
                   type="time"
                   className="hui-inp"
@@ -780,7 +780,7 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
       onClose={onClose}
       size="lg"
       title={
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-8)' }}>
           <TermIcon name="check" size={14} />
           <span>Cam đoan PTTT</span>
         </span>
@@ -800,9 +800,9 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
       }
     >
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 32 }}><Spin /></div>
+        <div style={{ textAlign: 'center', padding: 'var(--space-32)' }}><Spin /></div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           {/* Existing consents list */}
           {consents.length > 0 && (
             <Section title={`Cam đoan đã lập (${consents.length})`}>
@@ -811,7 +811,7 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
                   key={c.id}
                   style={{
                     border: `1px solid ${selectedId === c.id ? 'var(--a-cy)' : 'var(--line)'}`,
-                    borderRadius: 'var(--r-2)', padding: '8px 10px', marginBottom: 6, fontSize: 'var(--fs-sm)',
+                    borderRadius: 'var(--r-2)', padding: '8px 10px', marginBottom: 'var(--space-6)', fontSize: 'var(--fs-sm)',
                     cursor: 'pointer',
                   }}
                   onClick={() => {
@@ -828,7 +828,7 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
                     });
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)' }}>
                     <b>{CONSENT_TYPE_OPTIONS.find((o) => o.value === c.consentType)?.label ?? `Loại ${c.consentType}`}</b>
                     {c.isSigned && (
                       <span className="chip ok" style={{ fontSize: 'var(--fs-xxs)' }}>
@@ -1051,7 +1051,7 @@ export const PostAnesthesiaPlanModal: React.FC<PostAnesthesiaPlanModalProps> = (
       onClose={onClose}
       size="md"
       title={
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-8)' }}>
           <TermIcon name="clipboard" size={14} />
           <span>Kế hoạch sau gây mê – phẫu thuật</span>
         </span>
@@ -1071,9 +1071,9 @@ export const PostAnesthesiaPlanModal: React.FC<PostAnesthesiaPlanModalProps> = (
       }
     >
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 32 }}><Spin /></div>
+        <div style={{ textAlign: 'center', padding: 'var(--space-32)' }}><Spin /></div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <Section title="Hồi tỉnh sau mổ">
             <Row2 label="Diễn biến hồi tỉnh">
               <Input.TextArea

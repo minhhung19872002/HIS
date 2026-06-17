@@ -241,14 +241,14 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
       onClose={onClose}
       size="lg"
       title={
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-8)' }}>
           <TermIcon name="package" size={14} />
           <span>Xuất tủ trực</span>
         </span>
       }
       sub={subtitle}
       footer={
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
           {lastIssue && (
             <Btn variant="ghost" size="sm" loading={printing} onClick={() => { void handlePrint(); }}>
               <TermIcon name="print" size={12} /> In phiếu
@@ -341,7 +341,7 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
           </table>
         </div>
         {totalEst > 0 && (
-          <div style={{ textAlign: 'right', fontSize: 'var(--fs-sm)', marginTop: 6, color: 'var(--t-1)' }}>
+          <div style={{ textAlign: 'right', fontSize: 'var(--fs-sm)', marginTop: 'var(--space-6)', color: 'var(--t-1)' }}>
             Tổng dự tính: <b>{totalEst.toLocaleString('vi-VN')} ₫</b>
           </div>
         )}
@@ -353,7 +353,7 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Ghi chú thêm…"
-          style={{ width: '100%', minHeight: 48, padding: 6, border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }}
+          style={{ width: '100%', minHeight: 48, padding: 'var(--space-6)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }}
         />
       </DrSec>
 

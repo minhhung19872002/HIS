@@ -134,7 +134,7 @@ const PermissionsTab: React.FC = () => {
     { key: 'mod', label: 'Loại', render: (r) => r.modalityType || '—' },
     { key: 'role', label: 'Role', render: (r) => r.roleTemplate ? <StatusBadge tone="info">{r.roleTemplate}</StatusBadge> : '—' },
     { key: 'flags', label: 'Quyền', render: (r) => (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
         {PERMISSION_FLAGS.filter((f) => (r.permissions & f.flag) !== 0).map((f) => (
           <StatusBadge key={f.flag} tone="info">{f.label}</StatusBadge>
         ))}
@@ -182,7 +182,7 @@ const PermissionsTab: React.FC = () => {
             <DrField lbl="Role">{sel.roleTemplate ? <StatusBadge tone="info">{sel.roleTemplate}</StatusBadge> : '—'}</DrField>
           </DrSec>
           <DrSec title="Quyền chi tiết">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
               {PERMISSION_FLAGS.filter((f) => (sel.permissions & f.flag) !== 0).map((f) => (
                 <StatusBadge key={f.flag} tone="info">{f.label}</StatusBadge>
               ))}
@@ -216,7 +216,7 @@ const PermissionsTab: React.FC = () => {
           </Form.Item>
           <Form.Item name="permissions" label="Quyền chi tiết">
             <Checkbox.Group options={PERMISSION_FLAGS.map((f) => ({ value: f.flag, label: f.label }))}
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }} />
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-4)' }} />
           </Form.Item>
         </Form>
       </ModalShell>
@@ -345,7 +345,7 @@ const FoldersTab: React.FC = () => {
 
   return (
     <>
-      <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, margin: 12, fontSize: 'var(--fs-sm)' }}>
+      <div style={{ padding: 'var(--space-12)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, margin: 'var(--space-12)', fontSize: 'var(--fs-sm)' }}>
         <Ico name="info" size={12} /> <b>Thư mục cấp 2</b> — Normal (STT bình thường), Share (STT=900), Upload (STT=950)
       </div>
       <div className="ab-toolbar" style={{ borderTop: 'none' }}>
@@ -399,16 +399,16 @@ const FoldersTab: React.FC = () => {
 };
 
 const IcdMapTab: React.FC = () => (
-  <div style={{ padding: 24 }}>
+  <div style={{ padding: 'var(--space-24)' }}>
     <div className="panel" style={{ padding: 0 }}>
       <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
         <span>ICD ↔ Mẫu kết quả</span>
       </div>
-      <div style={{ padding: 16 }}>
-        <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)', marginBottom: 12 }}>
+      <div style={{ padding: 'var(--space-16)' }}>
+        <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)', marginBottom: 'var(--space-12)' }}>
           Khi BS đọc KQ CĐHA, hệ thống tự tìm mẫu phù hợp với ICD chỉ định.
         </div>
-        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 16 }}>
+        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 'var(--space-16)' }}>
           Để quản lý mẫu, vào <b>Danh mục → Viết tắt + Template</b> → Tab "Template lâm sàng" → Filter loại "Kết luận khám mẫu"
         </div>
         <Btn variant="primary" onClick={() => window.open('/v2/catalogs-admin', '_blank')}>
@@ -416,7 +416,7 @@ const IcdMapTab: React.FC = () => (
         </Btn>
       </div>
     </div>
-    <div className="panel" style={{ padding: 0, marginTop: 16 }}>
+    <div className="panel" style={{ padding: 0, marginTop: 'var(--space-16)' }}>
       <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
         <span>Mapping mẫu (demo)</span>
       </div>
@@ -448,7 +448,7 @@ const MachinesTab: React.FC = () => {
 
   return (
     <>
-      <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, margin: 12, fontSize: 'var(--fs-sm)' }}>
+      <div style={{ padding: 'var(--space-12)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, margin: 'var(--space-12)', fontSize: 'var(--fs-sm)' }}>
         <Ico name="info" size={12} /> <b>Cấu hình máy chụp + gán mẫu kết quả</b> — Mỗi máy chụp có thể gán với 1 hoặc nhiều mẫu kết quả đặc trưng.
       </div>
       <DataTable<Room> columns={cols} data={rooms} rowKey={(r) => r.id}
@@ -485,13 +485,13 @@ const MachinesTab: React.FC = () => {
 };
 
 const SuppliesTab: React.FC = () => (
-  <div style={{ padding: 24 }}>
+  <div style={{ padding: 'var(--space-24)' }}>
     <div className="panel" style={{ padding: 0 }}>
       <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
         <span>Vật tư y tế cho CĐHA</span>
       </div>
-      <div style={{ padding: 16 }}>
-        <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)', marginBottom: 12 }}>
+      <div style={{ padding: 'var(--space-16)' }}>
+        <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)', marginBottom: 'var(--space-12)' }}>
           Vật tư chuyên dụng cho CĐHA: thuốc cản quang, gel siêu âm, phim X-quang…
         </div>
         <Btn variant="primary" onClick={() => window.open('/v2/medical-supply?type=radiology', '_blank')}>
@@ -516,16 +516,16 @@ const HospitalConfigTab: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: 24, maxWidth: 720 }}>
+    <div style={{ padding: 'var(--space-24)', maxWidth: 720 }}>
       <div className="panel" style={{ padding: 0 }}>
         <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
           <span>Cấu hình bệnh viện</span>
         </div>
-        <div style={{ padding: 20 }}>
+        <div style={{ padding: 'var(--space-20)' }}>
           <Form form={form} layout="vertical" onFinish={submit}>
             <Form.Item name="hospitalName" label="Tên bệnh viện" rules={[{ required: true }]}><Input /></Form.Item>
             <Form.Item name="address" label="Địa chỉ"><Input /></Form.Item>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
               <Form.Item name="phone" label="Điện thoại"><Input /></Form.Item>
               <Form.Item name="email" label="Email"><Input /></Form.Item>
             </div>
@@ -694,7 +694,7 @@ const ModalityPermTab: React.FC = () => {
           placeholder="▾ Chọn BS / KTV"
         />
         {selectedUserId && (
-          <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginLeft: 8 }}>
+          <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginLeft: 'var(--space-8)' }}>
             Tick checkbox để bật/tắt quyền — lưu tức thì. Không tick = không hạn chế (quyền mặc định đầy đủ).
           </span>
         )}

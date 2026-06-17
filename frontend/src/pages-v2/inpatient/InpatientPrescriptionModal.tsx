@@ -258,14 +258,14 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
       onClose={onClose}
       size="xl"
       title={
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-8)' }}>
           <TermIcon name="pill" size={14} />
           <span>{isDischargeRx ? 'Đơn thuốc xuất viện (toa về)' : 'Kê y lệnh thuốc nội trú'}</span>
         </span>
       }
       sub={patientName}
       footer={
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
           <Btn variant="ghost" size="sm" onClick={onClose}>Đóng</Btn>
           <Btn variant="primary" size="sm" loading={saving} disabled={!warehouseId} onClick={() => { void submit(); }}>
             <TermIcon name="check" size={12} /> Lưu y lệnh
@@ -306,7 +306,7 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
 
       {/* Đơn mẫu */}
       <DrSec title="Đơn mẫu">
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-8)', alignItems: 'center', flexWrap: 'wrap' }}>
           <Select
             value={templateId}
             onChange={setTemplateId}
@@ -396,7 +396,7 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
           </table>
         </div>
         {totalEst > 0 && (
-          <div style={{ textAlign: 'right', fontSize: 'var(--fs-sm)', marginTop: 6, color: 'var(--t-1)' }}>
+          <div style={{ textAlign: 'right', fontSize: 'var(--fs-sm)', marginTop: 'var(--space-6)', color: 'var(--t-1)' }}>
             Tổng dự tính: <b>{totalEst.toLocaleString('vi-VN')} ₫</b>
           </div>
         )}

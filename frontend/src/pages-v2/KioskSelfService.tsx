@@ -64,25 +64,25 @@ const TicketResult: React.FC<TicketResultProps> = ({ result, onClose }) => {
         {ticket.ticketNumber}
       </div>
 
-      <div style={{ fontSize: 'var(--fs-xl)', color: '#555', marginBottom: 4 }}>
+      <div style={{ fontSize: 'var(--fs-xl)', color: '#555', marginBottom: 'var(--space-4)' }}>
         {ticket.departmentName || 'Tiếp đón chung'}
         {ticket.roomName && <> — {ticket.roomName}</>}
       </div>
 
       {ticket.patientName && (
-        <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>
+        <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 'var(--space-4)' }}>
           {checkinResult?.maskedPatientName ?? ticket.patientName}
         </div>
       )}
 
       {checkinResult?.patientFound && (
-        <span style={{ marginBottom: 8, display: 'inline-block' }}>
+        <span style={{ marginBottom: 'var(--space-8)', display: 'inline-block' }}>
           <StatusBadge tone="ok" dot>Đã nhận dạng BN trong hệ thống</StatusBadge>
         </span>
       )}
 
       {checkinResult?.insuranceWarning && (
-        <Alert title={checkinResult.insuranceWarning} type="warning" showIcon style={{ marginBottom: 12, textAlign: 'left' }} />
+        <Alert title={checkinResult.insuranceWarning} type="warning" showIcon style={{ marginBottom: 'var(--space-12)', textAlign: 'left' }} />
       )}
 
       {typeof ticket.peopleAheadInQueue === 'number' && (
@@ -91,7 +91,7 @@ const TicketResult: React.FC<TicketResultProps> = ({ result, onClose }) => {
         </div>
       )}
 
-      <div style={{ fontSize: 'var(--fs-md)', color: '#aaa', marginBottom: 20 }}>
+      <div style={{ fontSize: 'var(--fs-md)', color: '#aaa', marginBottom: 'var(--space-20)' }}>
         Phát lúc {new Date(ticket.issuedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
       </div>
 
@@ -99,7 +99,7 @@ const TicketResult: React.FC<TicketResultProps> = ({ result, onClose }) => {
       {ticket.serviceType && ticket.serviceType !== 'PHARMACY' && (
         <>
           <Divider>Thanh toán trước (tuỳ chọn)</Divider>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'var(--space-12)' }}>
             {/* VietQR deeplink: BN quét bằng app ngân hàng.
                 PaymentGatewayService (api/payment/create-url) cần access token — không dùng được từ
                 kiosk AllowAnonymous. Hiển thị QR tĩnh hướng dẫn đến quầy thu ngân thay thế.
@@ -116,7 +116,7 @@ const TicketResult: React.FC<TicketResultProps> = ({ result, onClose }) => {
         </>
       )}
 
-      <div style={{ marginTop: 24 }}>
+      <div style={{ marginTop: 'var(--space-24)' }}>
         <ActBtn ic="check" title="Xác nhận — Đóng" onClick={onClose} />
       </div>
     </div>
@@ -263,7 +263,7 @@ const KioskSelfService: React.FC = () => {
             </DrField>
           </DrSec>
 
-          <div style={{ marginTop: 32, textAlign: 'center' }}>
+          <div style={{ marginTop: 'var(--space-32)', textAlign: 'center' }}>
             <Btn
               variant="primary"
               icon="ticket"
@@ -322,7 +322,7 @@ const KioskSelfService: React.FC = () => {
             </div>
           )}
 
-          <div style={{ marginTop: 32, textAlign: 'center' }}>
+          <div style={{ marginTop: 'var(--space-32)', textAlign: 'center' }}>
             <Btn
               variant="primary"
               icon="id-card"
@@ -332,7 +332,7 @@ const KioskSelfService: React.FC = () => {
             >CHECKIN</Btn>
           </div>
 
-          <div style={{ marginTop: 16, textAlign: 'center', color: '#aaa', fontSize: 'var(--fs-md)' }}>
+          <div style={{ marginTop: 'var(--space-16)', textAlign: 'center', color: '#aaa', fontSize: 'var(--fs-md)' }}>
             Nếu không có thẻ, hãy chuyển sang tab <strong>Lấy số thứ tự</strong>
           </div>
         </div>
@@ -347,10 +347,10 @@ const KioskSelfService: React.FC = () => {
               border: '1px solid #b7eb8f',
               borderRadius: 'var(--r-3)',
               padding: '16px 24px',
-              marginBottom: 16,
+              marginBottom: 'var(--space-16)',
               textAlign: 'center',
             }}>
-              <div style={{ fontSize: 14, color: '#52c41a', marginBottom: 4 }}>Đang gọi số</div>
+              <div style={{ fontSize: 14, color: '#52c41a', marginBottom: 'var(--space-4)' }}>Đang gọi số</div>
               <div style={{ fontSize: 56, fontWeight: 900, color: '#389e0d', letterSpacing: 4 }}>
                 {queue.currentCalledTicket}
               </div>
@@ -364,12 +364,12 @@ const KioskSelfService: React.FC = () => {
           />
 
           {queue?.waitingCount === 0 && (
-            <div style={{ textAlign: 'center', color: '#bbb', padding: 32, fontSize: 18 }}>
+            <div style={{ textAlign: 'center', color: '#bbb', padding: 'var(--space-32)', fontSize: 18 }}>
               Hàng chờ rỗng
             </div>
           )}
 
-          <div style={{ marginTop: 16, display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <div style={{ marginTop: 'var(--space-16)', display: 'flex', gap: 'var(--space-12)', justifyContent: 'flex-end' }}>
             <ActBtn ic="phone" title="Gọi số tiếp theo" onClick={async () => {
               try {
                 const r = await callNext({});

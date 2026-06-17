@@ -277,7 +277,7 @@ const BackupManagement: React.FC = () => {
       {/* ── Tab: Cấu hình & Lịch ── */}
       {tab === 'config' && (
         <div style={{ padding: '20px 24px', maxWidth: 600 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-18)' }}>
             <div>
               <label className="ab-label">Đích lưu trữ mặc định</label>
               <Select
@@ -310,7 +310,7 @@ const BackupManagement: React.FC = () => {
               </div>
             )}
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-10)' }}>
               <Switch
                 checked={cfgForm.scheduleEnabled}
                 onChange={v => setCfgForm(f => ({ ...f, scheduleEnabled: v }))}
@@ -353,7 +353,7 @@ const BackupManagement: React.FC = () => {
               />
             </div>
 
-            <div style={{ paddingTop: 8 }}>
+            <div style={{ paddingTop: 'var(--space-8)' }}>
               <Btn variant="primary" loading={configSaving} onClick={handleSaveConfig}>
                 Lưu cấu hình
               </Btn>
@@ -361,7 +361,7 @@ const BackupManagement: React.FC = () => {
 
             <div
               style={{
-                marginTop: 8, padding: '10px 14px',
+                marginTop: 'var(--space-8)', padding: '10px 14px',
                 background: 'var(--bg-2)', borderRadius: 'var(--r-2)',
                 fontSize: 'var(--fs-sm)', color: 'var(--t-2)', lineHeight: 1.6,
               }}
@@ -411,7 +411,7 @@ const BackupManagement: React.FC = () => {
                 >
                   Yêu cầu Restore
                 </Btn>
-                <div style={{ marginTop: 8, fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
+                <div style={{ marginTop: 'var(--space-8)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
                   Restore sẽ GHI DE toan bo du lieu. Chi admin co quyen moi thuc thi.
                 </div>
               </div>
@@ -434,7 +434,7 @@ const BackupManagement: React.FC = () => {
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
           <div>
             <label className="ab-label">Đích lưu trữ (để trống = dùng cấu hình hệ thống)</label>
             <Select
@@ -476,7 +476,7 @@ const BackupManagement: React.FC = () => {
         destroyOnHidden
       >
         {!restoreResult ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-14)' }}>
             <div
               style={{
                 padding: '10px 14px', borderRadius: 'var(--r-2)',
@@ -508,7 +508,7 @@ const BackupManagement: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-14)' }}>
             <div
               style={{
                 padding: '10px 14px', borderRadius: 'var(--r-2)',
@@ -523,13 +523,13 @@ const BackupManagement: React.FC = () => {
 
             {restoreResult.manualRestoreScript && (
               <div>
-                <div style={{ marginBottom: 6, fontWeight: 600, fontSize: 'var(--fs-md)' }}>
+                <div style={{ marginBottom: 'var(--space-6)', fontWeight: 600, fontSize: 'var(--fs-md)' }}>
                   Script T-SQL de admin chay (SSMS / sqlcmd):
                 </div>
                 <pre
                   style={{
                     background: '#1e1e1e', color: '#d4d4d4',
-                    padding: 12, borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)',
+                    padding: 'var(--space-12)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)',
                     overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
                     maxHeight: 300, overflowY: 'auto',
                   }}
@@ -543,7 +543,7 @@ const BackupManagement: React.FC = () => {
                     navigator.clipboard.writeText(restoreResult.manualRestoreScript ?? '');
                     message.success('Da copy script');
                   }}
-                  style={{ marginTop: 6 }}
+                  style={{ marginTop: 'var(--space-6)' }}
                 >
                   Copy script
                 </Btn>

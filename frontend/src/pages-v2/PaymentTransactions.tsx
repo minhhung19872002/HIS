@@ -188,10 +188,10 @@ const PaymentTransactionsV2: React.FC = () => {
         </>}
       >
         {refundOpen && (
-          <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, marginBottom: 12, fontSize: 'var(--fs-sm)' }}>
+          <div style={{ padding: 'var(--space-12)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, marginBottom: 'var(--space-12)', fontSize: 'var(--fs-sm)' }}>
             <div><b>{refundOpen.txnRef}</b> · {refundOpen.provider?.toUpperCase()}</div>
             <div>BN: {refundOpen.patientName || '—'}</div>
-            <div style={{ marginTop: 4 }}>
+            <div style={{ marginTop: 'var(--space-4)' }}>
               Đã thanh toán: <b style={{ fontFamily: 'var(--font-mono)' }}>{fmt(refundOpen.amount)} đ</b>
               · Đã hoàn: <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(refundOpen.refundedAmount)} đ</span>
             </div>

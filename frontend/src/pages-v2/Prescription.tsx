@@ -130,15 +130,15 @@ const PrescriptionV2: React.FC = () => {
               {r.items.map((it, i) => (
                 <div key={i} style={{
                   padding: '10px 0', borderBottom: '1px solid var(--line-soft)',
-                  display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, fontSize: 12.5,
+                  display: 'grid', gridTemplateColumns: '1fr auto', gap: 'var(--space-10)', fontSize: 12.5,
                 }}>
                   <div>
                     <b style={{ color: 'var(--t-0)' }}>{it.drugName}</b>
                     {it.genericName && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{it.genericName}</div>}
-                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)' }}>
                       {it.dosage} · {it.frequency}
                     </div>
-                    {it.instructions && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>{it.instructions}</div>}
+                    {it.instructions && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)' }}>{it.instructions}</div>}
                   </div>
                   <span className="mono" style={{ fontWeight: 600 }}>{it.quantity}</span>
                 </div>
@@ -156,7 +156,7 @@ const PrescriptionV2: React.FC = () => {
           )}
           <div className="rec-section">
             <h5><TermIcon name="info" size={11} /> THAO TÁC</h5>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
               <Btn variant="primary" onClick={() => navigate('/v2/prescription/edit')}>
                 <TermIcon name="edit" size={12} /> Mở editor kê đơn
               </Btn>
@@ -176,7 +176,7 @@ const PrescriptionV2: React.FC = () => {
         </>
       )}
       drawerTitle={(r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
           <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.prescriptionCode}</span>
           <span style={{ fontSize: 14 }}>{r.patientName || '—'}</span>
         </span>

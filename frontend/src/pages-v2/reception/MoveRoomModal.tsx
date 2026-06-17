@@ -60,23 +60,23 @@ export const MoveRoomModal: React.FC<{
       {row && (
         <div style={{ padding: 0 }}>
           <div style={{
-            padding: 12, background: 'var(--d-1)', borderRadius: 'var(--r-2)', marginBottom: 14,
-            display: 'grid', gridTemplateColumns: '1fr auto', gap: 6,
+            padding: 'var(--space-12)', background: 'var(--d-1)', borderRadius: 'var(--r-2)', marginBottom: 'var(--space-14)',
+            display: 'grid', gridTemplateColumns: '1fr auto', gap: 'var(--space-6)',
           }}>
             <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>{row.patientName} · {row.patientCode}</span>
             <span className="mono" style={{ fontSize: 'var(--fs-sm)' }}>{row.queueCode || `#${row.queueNumber}`}</span>
             <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Phòng hiện tại</span>
             <b>{row.departmentName || '—'} · {row.roomName || '—'}</b>
           </div>
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Phòng mới *</div>
+          <div style={{ marginBottom: 'var(--space-12)' }}>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Phòng mới *</div>
             <Select
               value={newRoomId} onChange={setNewRoomId} showSearch optionFilterProp="label"
               placeholder="Chọn phòng khám" style={{ width: '100%' }} options={roomOpts}
             />
           </div>
           <div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Lý do</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-4)', fontWeight: 600 }}>Lý do</div>
             <Input.TextArea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Lý do đổi phòng (tùy chọn)…" />
           </div>
         </div>

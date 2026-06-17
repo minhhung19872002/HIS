@@ -194,17 +194,17 @@ const MicrobiologyV2: React.FC = () => {
             <DrSec title={`Vi sinh vật phát hiện (${sel.organisms.length})`}>
               {sel.organisms.map((o) => (
                 <div key={o.id} style={{
-                  padding: 12, marginBottom: 10, background: 'var(--d-1)',
+                  padding: 'var(--space-12)', marginBottom: 'var(--space-10)', background: 'var(--d-1)',
                   border: '1px solid var(--line)', borderRadius: 'var(--r-2)',
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-6)' }}>
                     <b style={{ color: 'var(--t-0)' }}>{o.organismName}</b>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{o.organismCode}</span>
                   </div>
                   {o.colonyCount && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>Khuẩn lạc: {o.colonyCount}</div>}
                   {o.gramStain && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>Gram: {o.gramStain}</div>}
                   {o.antibiogram && o.antibiogram.length > 0 && (
-                    <div style={{ marginTop: 6, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
+                    <div style={{ marginTop: 'var(--space-6)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                       Antibiogram: {o.antibiogram.length} kháng sinh
                     </div>
                   )}
@@ -244,7 +244,7 @@ const MicrobiologyV2: React.FC = () => {
    ──────────────────────────────────────────────────────────── */
 
 const Fld: React.FC<{ lbl: string; req?: boolean; children: React.ReactNode }> = ({ lbl, req, children }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
     <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>
       {lbl}{req && <span style={{ color: 'var(--s-crit)' }}> *</span>}
     </span>
@@ -298,11 +298,11 @@ const CreateCultureModal: React.FC<{ onClose: () => void; onDone: () => void }> 
         </Btn>
       </>}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
         <Fld lbl="Mã yêu cầu xét nghiệm" req>
           <Input value={labRequestId} onChange={(e) => setLabRequestId(e.target.value)} placeholder="Nhập / quét mã YC xét nghiệm" />
         </Fld>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
           <Fld lbl="Loại mẫu" req>
             <Select style={{ width: '100%' }} value={sampleType} onChange={setSampleType} placeholder="Chọn loại mẫu" options={SAMPLE_OPTS} />
           </Fld>
@@ -358,7 +358,7 @@ const UpdateStatusModal: React.FC<{ culture: MicrobiologyCulture; onClose: () =>
         </Btn>
       </>}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
         <Fld lbl="Trạng thái" req>
           <Select style={{ width: '100%' }} value={status} onChange={setStatus} options={STATUS_OPTS} />
         </Fld>
