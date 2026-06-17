@@ -3,16 +3,23 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-17** (UX/UI audit `/core-ui-ux-audit` → fix dark-mode: #158 token foundation + #159 ab-* + toggle v2 topbar + #160 tokenize 124 hex an toàn — TẤT CẢ đã push; prod Vercel block billing → user verify local OK).
+> Cập nhật cuối: **2026-06-17** (TECH-DEBT audit SÂU 7-agent → 36 Issue chi tiết **#180-215** + báo cáo + SAFETY-PROTOCOL; đóng 13 Issue nông #166-179 (superseded, giữ #171); ràng buộc: xóa-nợ KHÔNG vỡ hệ thống).
 
 ## Đang ở đâu
-- **★ UX/UI AUDIT (`/core-ui-ux-audit`) + FIX dark-mode foundation (2026-06-16):** audit systemic → báo cáo
-  `docs/workspace-docs/10-assessment/ux-ui-audit-2026-06-16.md` + 7 task **#158-#164**. Gốc: dark mode VỠ (CSS v2
-  không có `[data-theme=dark]`; 578 hex hardcode + 4091 inline). **ĐÃ FIX:** **#158** (commit `4544ed8`-ish, BE... FE)
-  — 1 block `body[data-theme=dark]` redefine toàn token (additive, light byte-identical, build EXIT 0) → mọi component
-  dùng-token tự flip. **#159** — `ab-module.css`: panel `background:#fff`→`var(--d-2)` + banner bg→token + badge text
-  `--s-*-tx` (light=đậm/dark=sáng), print-paper giữ #fff; build EXIT 0, light KHÔNG đổi. **CÒN:** #160 (578 hex/61
-  page v2 → token, batched/subagent) · #161 lint-guard · #162 inline · #163 dual-system v1/v2 · #164 states.
+- **★ TECH-DEBT TOÀN HỆ THỐNG — PLAN + 36 TASK chi tiết, CHƯA fix (2026-06-17):** audit 7-agent (BE-service/API/data ·
+  FE-v1/v2 · cross-cutting · test+security+patient-safety). Báo cáo + **SAFETY-PROTOCOL §0** (10 luật chống-vỡ-hệ-thống):
+  `docs/workspace-docs/10-assessment/tech-debt-audit-2026-06-17.md`. Mỗi Issue có evidence file:line + pre-flight +
+  behavior-preservation + verify + rollback.
+  - **P0 (làm trước)**: SEC #180-184 (secret hardcode/anonymous-seed-prod/path-traversal/role-drift/mass-assign) ·
+    SAFE #185-186 (allergy+interaction KHÔNG enforce lúc kê) · DATA #187-190 (transaction/RowVersion/amount<=0/nuốt-exception)
+    · **TEST #191 (xUnit+CI gate — LÀM SỚM làm lưới an toàn)**.
+  - **P1 #192-199** (validation/envelope/leak-catch/AsNoTracking+N+1/unbounded/DbContext-harden/audit-diff/migration).
+  - **P2 #200-209** (shared-infra/BE god-split/thin-controller/DTO-hygiene · FE v1-sunset/god-component/design-adoption/
+    async-state/token-scale/raw-fetch). **P3 #210-215** (lint/hygiene/vitest/e2e-functional/dose-range/antd-leftover).
+  - Còn **#171** (tách FE api client god-file) — giữ, chưa gộp.
+  - Thứ tự: P0-security → TEST-1 → P0-safety → P0-data → P1 → P2 (sau khi có characterization-test vùng tiền/kho/safety) → P3.
+- **UX/UI audit #158-#165: DONE** (dark token foundation + ab-* + toggle v2 topbar + tokenize + lint-guard +
+  states + dual-system inventory + soft-severity). Prod Vercel vẫn block billing (account khác) — local OK.
   ⚠️ visual smoke dark cần chạy app. **#158/#159 + toggle v2 + #160 ĐÃ push** (prod Vercel đang block
   billing — xem [[reference_vercel-his-psi-other-account]]; user verify LOCAL OK A/B/C).
   - **#160 DONE (safe subset):** 4 subagent map **124 hex→token / 30 file pages-v2** + `_v2kit` footer, **chỉ thay khi
