@@ -1027,7 +1027,7 @@ const OpdEditorV2: React.FC = () => {
                   <span>Hoàn tất: <b style={{ color: completion.isCompleted ? 'var(--s-ok)' : 'var(--t-2)' }}>{completion.isCompleted ? '✓' : '✗'}</b></span>
                   <span>Đã in BK: <b style={{ color: completion.isBillPrinted ? 'var(--s-ok)' : 'var(--t-2)' }}>{completion.isBillPrinted ? '✓' : '✗'}</b></span>
                   {completion.totalExamsInChain > 1 && (
-                    <span style={{ color: 'var(--t-2)' }}>{completion.completedExamsInChain}/{completion.totalExamsInChain} CK</span>
+                    <span className="ab-u-muted">{completion.completedExamsInChain}/{completion.totalExamsInChain} CK</span>
                   )}
                 </div>
                 {completion.blockReason && (
@@ -1167,7 +1167,7 @@ const OpdEditorV2: React.FC = () => {
             Chưa có mẫu nào — nhập nội dung khám rồi bấm "Lưu thành mẫu".
           </div>
         ) : (
-          <table className="ab-tbl" style={{ width: '100%' }}>
+          <table className="ab-tbl ab-u-wfull">
             <thead><tr><th>Mã</th><th>Tên mẫu</th><th>ICD</th><th style={{ width: 60 }} /></tr></thead>
             <tbody>
               {tpls.map((t) => (

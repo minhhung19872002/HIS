@@ -403,7 +403,7 @@ const LaboratoryV2: React.FC = () => {
         return ab > 0 ? (
           <span className="chip warn mono">{ab}</span>
         ) : (
-          <span style={{ color: 'var(--t-3)' }}>0</span>
+          <span className="ab-u-faint">0</span>
         );
       },
     },
@@ -535,7 +535,7 @@ const LaboratoryV2: React.FC = () => {
             <Btn variant="ghost" onClick={() => navigate(`/v2/emr/edit?patientId=${encodeURIComponent(detail.patientId)}`)}>
               <TermIcon name="folder" size={12} /> Xem HSBA
             </Btn>
-            <span style={{ flex: 1 }} />
+            <span className="ab-u-flex1" />
             {detail.status >= 1 && (
               <Btn onClick={() => openChainCancel(detail)}>
                 <TermIcon name="refresh" size={12} /> Hủy ngược chuỗi
@@ -882,7 +882,7 @@ const LabDrawerBody: React.FC<{ r: LabRequest }> = ({ r }) => {
         <h5><TermIcon name="user" size={11} /> BỆNH NHÂN</h5>
         <div className="rec-kv">
           <span>Họ tên</span><b>{r.patientName}</b>
-          <span>Mã BN</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.patientCode}</span>
+          <span>Mã BN</span><span className="mono ab-u-accent">{r.patientCode}</span>
           <span>Ngày sinh</span>
           <span>{r.dateOfBirth ? dayjs(r.dateOfBirth).format('DD/MM/YYYY') : '—'}{r.dateOfBirth && ` · ${dayjs().diff(dayjs(r.dateOfBirth), 'year')}t`}</span>
           <span>Giới tính</span><span>{r.gender === 1 ? 'Nam' : r.gender === 2 ? 'Nữ' : '—'}</span>

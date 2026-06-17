@@ -794,7 +794,7 @@ const BillingStatementModal: React.FC<{
 
   const sum = ([label, value, strong]: [string, number | undefined, boolean?]) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: 12, fontWeight: strong ? 700 : 400 }}>
-      <span style={{ color: 'var(--t-2)' }}>{label}</span>
+      <span className="ab-u-muted">{label}</span>
       <span style={{ color: strong ? 'var(--accent, #0891b2)' : 'var(--t-1)' }}>{fmtMoney(value)}</span>
     </div>
   );
@@ -820,10 +820,10 @@ const BillingStatementModal: React.FC<{
         {!loading && data && (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', fontSize: 12, marginBottom: 14 }}>
-              <div><span style={{ color: 'var(--t-2)' }}>Bệnh nhân: </span><b>{data.patientName}</b> ({data.patientCode})</div>
-              <div><span style={{ color: 'var(--t-2)' }}>Số thẻ BHYT: </span>{data.insuranceNumber || '—'}</div>
-              <div><span style={{ color: 'var(--t-2)' }}>Chẩn đoán: </span>{data.diagnosisCode ? `${data.diagnosisCode} - ` : ''}{data.diagnosis || '—'}</div>
-              <div><span style={{ color: 'var(--t-2)' }}>Số ngày điều trị: </span>{data.daysOfStay}</div>
+              <div><span className="ab-u-muted">Bệnh nhân: </span><b>{data.patientName}</b> ({data.patientCode})</div>
+              <div><span className="ab-u-muted">Số thẻ BHYT: </span>{data.insuranceNumber || '—'}</div>
+              <div><span className="ab-u-muted">Chẩn đoán: </span>{data.diagnosisCode ? `${data.diagnosisCode} - ` : ''}{data.diagnosis || '—'}</div>
+              <div><span className="ab-u-muted">Số ngày điều trị: </span>{data.daysOfStay}</div>
             </div>
 
             <div style={{ maxHeight: 280, overflow: 'auto', border: '1px solid var(--line-soft)', borderRadius: 6 }}>
@@ -843,7 +843,7 @@ const BillingStatementModal: React.FC<{
                   {(data.items || []).map((it) => (
                     <tr key={it.orderNo} style={{ borderTop: '1px solid var(--line-soft)' }}>
                       <td style={{ padding: '5px 8px' }}>{it.orderNo}</td>
-                      <td style={{ padding: '5px 8px' }}>{it.itemName}<span style={{ color: 'var(--t-2)' }}> · {it.unit}</span></td>
+                      <td style={{ padding: '5px 8px' }}>{it.itemName}<span className="ab-u-muted"> · {it.unit}</span></td>
                       <td style={{ padding: '5px 8px', textAlign: 'right' }}>{it.quantity}</td>
                       <td style={{ padding: '5px 8px', textAlign: 'right' }}>{fmtMoney(it.unitPrice)}</td>
                       <td style={{ padding: '5px 8px', textAlign: 'right' }}>{fmtMoney(it.amount)}</td>

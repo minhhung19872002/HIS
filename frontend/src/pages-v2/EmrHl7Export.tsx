@@ -78,7 +78,7 @@ const EmrHl7Export: React.FC = () => {
       <KpiStrip items={kpis} />
 
       <div style={{
-        padding: '12px 14px', background: '#eff6ff',
+        padding: '12px 14px', background: 'var(--s-info-soft)',
         borderTop: '1px solid var(--line)', borderBottom: '1px solid #bfdbfe',
         color: 'var(--a-cy-dim)', fontSize: 12.5,
       }}>

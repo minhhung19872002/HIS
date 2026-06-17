@@ -247,7 +247,7 @@ export const NewVisitModal: React.FC<{
         {/* Step 1 — Bệnh nhân */}
         {step === 1 && (
           <div>
-            <div style={{ padding: '12px 14px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
+            <div style={{ padding: '12px 14px', background: 'var(--s-info-soft)', border: '1px solid #bfdbfe', borderRadius: 8, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
               <TermIcon name="search" size={14} />
               <span style={{ flex: 1 }}>Tìm BN cũ bằng SĐT để tự động điền · hoặc nhập mới bên dưới</span>
               <button type="button" className="ab-btn ghost sm" onClick={() => setPickerOpen(true)}>
@@ -442,7 +442,7 @@ export const NewVisitModal: React.FC<{
                 <span style={{ color: 'var(--t-2)' }}>Phí khám</span><b style={{ color: 'var(--a-cy)', fontFamily: 'var(--font-mono)' }}>{fmtVNDw(visitType?.bhyt && bhytValid ? 0 : (visitType?.fee || 0))}</b>
               </div>
             </div>
-            <div style={{ marginTop: 12, padding: '10px 12px', background: '#fefce8', border: '1px solid #fde68a', borderRadius: 6, fontSize: 11.5, color: '#854d0e' }}>
+            <div style={{ marginTop: 12, padding: '10px 12px', background: '#fefce8', border: '1px solid var(--s-warn-bd)', borderRadius: 6, fontSize: 11.5, color: '#854d0e' }}>
               <TermIcon name="alert" size={12} /> Sau khi đăng ký, hệ thống cấp số thứ tự và in phiếu hẹn. BN xuất trình phiếu tại phòng khám.
             </div>
           </div>

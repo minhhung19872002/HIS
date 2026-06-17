@@ -448,7 +448,7 @@ const ErSnapshot: React.FC<{
                     >
                       <td><span className={'chip ' + chipCls}>{ess}</span></td>
                       <td>
-                        <b style={{ fontWeight: 600 }}>{r.patientName}</b>
+                        <b className="ab-u-b">{r.patientName}</b>
                         <div style={{ color: 'var(--t-2)', fontSize: 10, fontFamily: 'var(--font-mono)' }}>
                           #{r.queueNumber} · {r.patientCode}
                         </div>
@@ -624,7 +624,7 @@ const OrBoard: React.FC<{
                     // status: 0=Scheduled, 1=InProgress, 2=Completed, 3=Cancelled
                     const st = it.status;
                     const stColor  = st === 2 ? 'var(--d-3)' : st === 1 ? 'var(--a-cy-bg)' : st === 3 ? 'var(--s-crit-bg)' : 'var(--s-warn-bg)';
-                    const stBorder = st === 2 ? 'var(--line)' : st === 1 ? 'var(--a-cy-line)' : st === 3 ? '#fecaca' : '#fde68a';
+                    const stBorder = st === 2 ? 'var(--line)' : st === 1 ? 'var(--a-cy-line)' : st === 3 ? 'var(--s-crit-bd)' : 'var(--s-warn-bd)';
                     const stText   = st === 2 ? 'var(--t-2)' : st === 1 ? 'var(--a-cy-dim)' : st === 3 ? 'var(--s-crit-tx)' : '#a16207';
                     return (
                       <div
@@ -749,7 +749,7 @@ const ShiftBoard: React.FC<{ hr: MedicalHRDashboardDto | null }> = ({ hr }) => {
       <div className="panel-body" style={{ padding: '4px 0' }}>
         {items.map((it, i) => (
           <div key={i} className="staff-row">
-            <div className="staff-nm" style={{ flex: 1 }}>
+            <div className="staff-nm ab-u-flex1">
               <div className="staff-n" style={{ fontSize: 12 }}>{it.label}</div>
             </div>
             <span className={'chip ' + (it.tone || '')} style={{ fontFamily: 'var(--font-mono)' }}>{it.value}</span>
@@ -908,11 +908,11 @@ const ErPatientDrawer: React.FC<{
       }
     >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
-        <div style={{ padding: '8px 10px', background: 'var(--s-crit-bg)', border: '1px solid #fecaca', borderRadius: 6 }}>
+        <div style={{ padding: '8px 10px', background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 6 }}>
           <div style={{ fontSize: 10, color: 'var(--s-crit-tx)', fontFamily: 'var(--font-mono)' }}>HA</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--s-crit)', fontVariantNumeric: 'tabular-nums' }}>{v.bp}</div>
         </div>
-        <div style={{ padding: '8px 10px', background: v.spo2 < 95 ? 'var(--s-crit-bg)' : 'var(--s-ok-bg)', border: `1px solid ${v.spo2 < 95 ? '#fecaca' : '#bbf7d0'}`, borderRadius: 6 }}>
+        <div style={{ padding: '8px 10px', background: v.spo2 < 95 ? 'var(--s-crit-bg)' : 'var(--s-ok-bg)', border: `1px solid ${v.spo2 < 95 ? 'var(--s-crit-bd)' : 'var(--s-ok-bd)'}`, borderRadius: 6 }}>
           <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)' }}>SpO₂</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: v.spo2 < 95 ? 'var(--s-crit)' : 'var(--s-ok)', fontVariantNumeric: 'tabular-nums' }}>{v.spo2}%</div>
         </div>
@@ -970,13 +970,13 @@ const BedDetailModal: React.FC<{
       ]}
     >
       <div style={{ display: 'grid', gap: 8, fontSize: 13 }}>
-        <div><span style={{ color: 'var(--t-2)' }}>Mã giường:</span> <b className="mono">{bed.bedName}</b></div>
-        <div><span style={{ color: 'var(--t-2)' }}>Trạng thái:</span> <b>{statusVi}</b></div>
+        <div><span className="ab-u-muted">Mã giường:</span> <b className="mono">{bed.bedName}</b></div>
+        <div><span className="ab-u-muted">Trạng thái:</span> <b>{statusVi}</b></div>
         {bed.patientName && (
-          <div><span style={{ color: 'var(--t-2)' }}>Bệnh nhân:</span> <b>{bed.patientName}</b></div>
+          <div><span className="ab-u-muted">Bệnh nhân:</span> <b>{bed.patientName}</b></div>
         )}
         {bed.bedCode && (
-          <div><span style={{ color: 'var(--t-2)' }}>Vị trí:</span> <span className="mono">{bed.bedCode}</span></div>
+          <div><span className="ab-u-muted">Vị trí:</span> <span className="mono">{bed.bedCode}</span></div>
         )}
       </div>
     </Modal>

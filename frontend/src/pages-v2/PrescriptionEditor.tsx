@@ -296,14 +296,14 @@ const PrescriptionEditorV2: React.FC = () => {
               <div style={{ fontSize: 15, fontWeight: 700 }}>{pt.fullName}</div>
               <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{pt.patientCode} · {ageOf(pt)}T · {pt.gender === 1 ? 'Nam' : 'Nữ'}</div>
               <div style={{ marginTop: 8, fontSize: 11.5 }}>
-                <div><span style={{ color: 'var(--t-2)' }}>BHYT: </span>{pt.insuranceNumber ? <><span className="mono">{pt.insuranceNumber}</span> <StatusBadge tone="ok">Hợp lệ</StatusBadge></> : <StatusBadge tone="warn">Không có</StatusBadge>}</div>
-                {pt.identityNumber && <div style={{ marginTop: 4 }}><span style={{ color: 'var(--t-2)' }}>CCCD: </span><span className="mono">{pt.identityNumber}</span></div>}
-                {pt.phoneNumber && <div style={{ marginTop: 4 }}><span style={{ color: 'var(--t-2)' }}>SĐT: </span><span className="mono">{pt.phoneNumber}</span></div>}
+                <div><span className="ab-u-muted">BHYT: </span>{pt.insuranceNumber ? <><span className="mono">{pt.insuranceNumber}</span> <StatusBadge tone="ok">Hợp lệ</StatusBadge></> : <StatusBadge tone="warn">Không có</StatusBadge>}</div>
+                {pt.identityNumber && <div style={{ marginTop: 4 }}><span className="ab-u-muted">CCCD: </span><span className="mono">{pt.identityNumber}</span></div>}
+                {pt.phoneNumber && <div style={{ marginTop: 4 }}><span className="ab-u-muted">SĐT: </span><span className="mono">{pt.phoneNumber}</span></div>}
               </div>
             </div>
 
             {allergyNames.length > 0 && (
-              <div style={{ marginTop: 12, padding: 10, background: 'var(--s-crit-bg)', border: '1px solid #fecaca', borderRadius: 6 }}>
+              <div style={{ marginTop: 12, padding: 10, background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 6 }}>
                 <div style={{ fontSize: 11, color: 'var(--s-crit-tx)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}><TermIcon name="alert" size={11} /> Dị ứng</div>
                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                   {allergyNames.map((a) => <span key={a} style={{ background: 'var(--s-crit)', color: '#fff', padding: '2px 8px', borderRadius: 3, fontSize: 11, fontWeight: 600 }}>{a}</span>)}
@@ -353,7 +353,7 @@ const PrescriptionEditorV2: React.FC = () => {
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: external ? 'var(--s-warn)' : 'var(--t-2)', fontWeight: external ? 700 : 400, cursor: 'pointer', whiteSpace: 'nowrap' }} title="Toa mua ngoài / nhà thuốc — tách khỏi toa BHYT">
             <input type="checkbox" checked={external} onChange={(e) => setExternal(e.target.checked)} /> Toa ngoài (nhà thuốc)
           </label>
-          <span className="spacer" style={{ flex: 1 }} />
+          <span className="spacer ab-u-flex1" />
           <Btn variant="ghost" onClick={() => setTplOpen(true)}><TermIcon name="folder" size={12} /> Đơn mẫu</Btn>
           <Btn variant="ghost" disabled={saving} onClick={saveDraft}><TermIcon name="folder" size={12} /> Lưu nháp</Btn>
           <Btn variant="ghost" disabled={printingExt} onClick={printExternalRx}><TermIcon name="print" size={12} /> In toa nhà thuốc</Btn>
@@ -362,7 +362,7 @@ const PrescriptionEditorV2: React.FC = () => {
 
         {/* Drug search */}
         <div style={{ position: 'relative' }}>
-          <div className="ab-search" style={{ width: '100%' }}>
+          <div className="ab-search ab-u-wfull">
             <TermIcon name="search" size={13} />
             <input value={drugQuery} onChange={(e) => searchDrugs(e.target.value)} placeholder="Tìm thuốc theo tên thương mại / hoạt chất / mã (≥2 ký tự)…" />
           </div>
@@ -433,7 +433,7 @@ const PrescriptionEditorV2: React.FC = () => {
       {/* Right panel: warnings & tools */}
       <aside className={'ed-right-panel ' + (rightOpen ? 'is-open' : '')} style={{ borderLeft: '1px solid var(--line)', overflow: 'auto', padding: 12, background: 'var(--d-1)', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {intCount > 0 && (
-          <div onClick={() => setInterOpen(true)} style={{ padding: 12, background: 'var(--s-crit-bg)', border: '1px solid #fecaca', borderRadius: 8, cursor: 'pointer' }}>
+          <div onClick={() => setInterOpen(true)} style={{ padding: 12, background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 8, cursor: 'pointer' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: 'var(--s-crit-tx)', fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.05em' }}><TermIcon name="alert" size={12} /> Tương tác thuốc</span>
               <span style={{ background: 'var(--s-crit)', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{intCount}</span>
@@ -445,11 +445,11 @@ const PrescriptionEditorV2: React.FC = () => {
         <div style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
           <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 8 }}>Tóm tắt đơn</div>
           <div style={{ display: 'grid', gap: 6, fontSize: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--t-2)' }}>Số dòng</span><b>{items.length}</b></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--t-2)' }}>Tổng viên/gói</span><b className="mono">{items.reduce((s, x) => s + x.qty, 0)}</b></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--t-2)' }}>Ngày dùng dài nhất</span><b className="mono">{Math.max(0, ...items.map((x) => x.days))} ngày</b></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, paddingTop: 6, borderTop: '1px solid var(--line)' }}><span style={{ color: 'var(--t-2)' }}>BHYT chi trả (≈80%)</span><b className="mono" style={{ color: 'var(--s-ok)' }}>{fmtVNDg(Math.round(total * 0.8))}</b></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--t-2)' }}>BN đồng chi trả</span><b className="mono">{fmtVNDg(Math.round(total * 0.2))}</b></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">Số dòng</span><b>{items.length}</b></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">Tổng viên/gói</span><b className="mono">{items.reduce((s, x) => s + x.qty, 0)}</b></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">Ngày dùng dài nhất</span><b className="mono">{Math.max(0, ...items.map((x) => x.days))} ngày</b></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, paddingTop: 6, borderTop: '1px solid var(--line)' }}><span className="ab-u-muted">BHYT chi trả (≈80%)</span><b className="mono" style={{ color: 'var(--s-ok)' }}>{fmtVNDg(Math.round(total * 0.8))}</b></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">BN đồng chi trả</span><b className="mono">{fmtVNDg(Math.round(total * 0.2))}</b></div>
           </div>
         </div>
 
@@ -481,7 +481,7 @@ const PrescriptionEditorV2: React.FC = () => {
         {interactions.map((it, i) => {
           const tone = it.severity >= 3 ? 'crit' : it.severity === 2 ? 'warn' : 'info';
           const bg = it.severity >= 3 ? 'var(--s-crit-bg)' : it.severity === 2 ? '#fff7ed' : '#fefce8';
-          const border = it.severity >= 3 ? '#fecaca' : it.severity === 2 ? '#fed7aa' : '#fde68a';
+          const border = it.severity >= 3 ? 'var(--s-crit-bd)' : it.severity === 2 ? 'var(--s-warn-bd2)' : 'var(--s-warn-bd)';
           return (
             <div key={i} style={{ margin: 14, padding: 14, background: bg, border: `1px solid ${border}`, borderRadius: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -558,7 +558,7 @@ const PatientSearchModal: React.FC<{ open: boolean; onClose: () => void; onPick:
     <ModalShell open={open} onClose={onClose} title="Tìm bệnh nhân" sub="Tên · Mã · CCCD · Thẻ BHYT" size="md"
       footer={<Btn variant="ghost" onClick={onClose}>Đóng</Btn>}>
       <div style={{ padding: 16 }}>
-        <div className="ab-search" style={{ width: '100%' }}>
+        <div className="ab-search ab-u-wfull">
           <TermIcon name="search" size={13} />
           <input value={q} onChange={(e) => run(e.target.value)} placeholder="Gõ ≥2 ký tự để tìm…" autoFocus />
         </div>

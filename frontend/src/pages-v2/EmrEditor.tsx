@@ -420,7 +420,7 @@ const EmrEditorV2: React.FC = () => {
       {/* List */}
       <aside className={'ed-left-panel ' + (leftOpen ? 'is-open' : '')} style={{ borderRight: '1px solid var(--line)', background: 'var(--d-1)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div style={{ padding: 10, borderBottom: '1px solid var(--line)' }}>
-          <div className="ab-search" style={{ width: '100%' }}>
+          <div className="ab-search ab-u-wfull">
             <TermIcon name="search" size={13} />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm mã BN / tên / chẩn đoán…" />
           </div>
@@ -505,7 +505,7 @@ const EmrEditorV2: React.FC = () => {
                       {full?.interview?.historyOfPresentIllness && <p><b>Bệnh sử:</b> {full.interview.historyOfPresentIllness}</p>}
                       {full?.physicalExam?.generalAppearance && <p><b>Khám:</b> {full.physicalExam.generalAppearance}</p>}
                       {(full?.diagnoses?.length ?? 0) > 0 && <p><b>Chẩn đoán:</b> {full!.diagnoses.map((d) => `${d.icdCode} · ${d.icdName}${d.isPrimary ? ' (chính)' : ''}`).join('; ')}</p>}
-                      {!full?.interview?.historyOfPresentIllness && !full?.physicalExam?.generalAppearance && (full?.diagnoses?.length ?? 0) === 0 && <span style={{ color: 'var(--t-3)' }}>Chưa có nội dung bệnh án</span>}
+                      {!full?.interview?.historyOfPresentIllness && !full?.physicalExam?.generalAppearance && (full?.diagnoses?.length ?? 0) === 0 && <span className="ab-u-faint">Chưa có nội dung bệnh án</span>}
                     </div>
                   </section>
                 </div>
@@ -614,7 +614,7 @@ const EmrEditorV2: React.FC = () => {
                   {(full?.allergies?.length ?? 0) === 0
                     ? <div style={{ color: 'var(--t-3)', fontSize: 12 }}>Không có dị ứng ghi nhận</div>
                     : (
-                      <div style={{ padding: 10, background: 'var(--s-crit-bg)', border: '1px solid #fecaca', borderRadius: 6, color: '#7f1d1d', fontSize: 12, lineHeight: 1.8 }}>
+                      <div style={{ padding: 10, background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 6, color: '#7f1d1d', fontSize: 12, lineHeight: 1.8 }}>
                         {full!.allergies.map((a) => (
                           <div key={a.id}><b>{a.allergenName}</b>{a.reaction ? ` — ${a.reaction}` : ''} · Mức độ: {a.severity === 3 ? 'Nặng' : a.severity === 2 ? 'Vừa' : 'Nhẹ'}</div>
                         ))}
@@ -708,7 +708,7 @@ const EmrEditorV2: React.FC = () => {
         footer={
           <>
             <Btn variant="ghost" onClick={() => setPrintPreviewOpen(false)}>Đóng</Btn>
-            <span style={{ flex: 1 }} />
+            <span className="ab-u-flex1" />
             <Btn variant="primary" onClick={handleDoPrint}>
               <TermIcon name="print" size={12} /> In
             </Btn>
@@ -738,7 +738,7 @@ const EmrEditorV2: React.FC = () => {
         footer={
           <>
             <Btn variant="ghost" onClick={() => setMaternityLeaveModalOpen(false)}>Hủy</Btn>
-            <span style={{ flex: 1 }} />
+            <span className="ab-u-flex1" />
             <Btn
               variant="primary"
               onClick={() => {
@@ -770,7 +770,7 @@ const EmrEditorV2: React.FC = () => {
               />
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <div style={{ flex: 1 }}>
+              <div className="ab-u-flex1">
                 <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Từ ngày</label>
                 <input
                   type="date"
@@ -780,7 +780,7 @@ const EmrEditorV2: React.FC = () => {
                   style={{ width: '100%' }}
                 />
               </div>
-              <div style={{ flex: 1 }}>
+              <div className="ab-u-flex1">
                 <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Đến ngày</label>
                 <input
                   type="date"
@@ -915,8 +915,8 @@ const EmrEditorV2: React.FC = () => {
 
 const Field: React.FC<{ lbl: string; children: React.ReactNode }> = ({ lbl, children }) => (
   <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 10, padding: '4px 0', fontSize: 12.5 }}>
-    <div style={{ color: 'var(--t-2)' }}>{lbl}</div>
-    <div style={{ color: 'var(--t-0)' }}>{children}</div>
+    <div className="ab-u-muted">{lbl}</div>
+    <div className="ab-u-fg">{children}</div>
   </div>
 );
 

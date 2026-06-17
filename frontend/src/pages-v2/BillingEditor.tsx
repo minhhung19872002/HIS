@@ -306,9 +306,9 @@ const BillingEditorV2: React.FC = () => {
               <div style={{ fontSize: 15, fontWeight: 700 }}>{pt.patientName}</div>
               <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{pt.patientCode} · {pt.medicalRecordCode}</div>
               <div style={{ marginTop: 8, padding: 8, background: 'var(--d-1)', borderRadius: 4, fontSize: 11 }}>
-                <div><span style={{ color: 'var(--t-2)' }}>Trạng thái: </span>{pt.paymentStatusName}</div>
-                <div style={{ marginTop: 4 }}><span style={{ color: 'var(--t-2)' }}>Số dư tạm ứng: </span><b className="mono" style={{ color: 'var(--s-ok)' }}>{fmtVNDg(advBalance)}</b></div>
-                <div style={{ marginTop: 4 }}><span style={{ color: 'var(--t-2)' }}>Tổng viện phí: </span><b className="mono">{fmtVNDg(pt.totalAmount)}</b></div>
+                <div><span className="ab-u-muted">Trạng thái: </span>{pt.paymentStatusName}</div>
+                <div style={{ marginTop: 4 }}><span className="ab-u-muted">Số dư tạm ứng: </span><b className="mono" style={{ color: 'var(--s-ok)' }}>{fmtVNDg(advBalance)}</b></div>
+                <div style={{ marginTop: 4 }}><span className="ab-u-muted">Tổng viện phí: </span><b className="mono">{fmtVNDg(pt.totalAmount)}</b></div>
               </div>
             </div>
             {deposits.length > 0 && (
@@ -316,7 +316,7 @@ const BillingEditorV2: React.FC = () => {
                 <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 6 }}>Tạm ứng</div>
                 {deposits.slice(0, 5).map((d) => (
                   <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid var(--line-soft)', fontSize: 11.5 }}>
-                    <span className="mono" style={{ color: 'var(--t-2)' }}>{d.receiptCode}</span>
+                    <span className="mono ab-u-muted">{d.receiptCode}</span>
                     <b className="mono">{fmtVNDg(d.remainingAmount)}</b>
                   </div>
                 ))}
@@ -393,12 +393,12 @@ const BillingEditorV2: React.FC = () => {
           <div style={{ padding: 14, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
             <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Tóm tắt thanh toán</h4>
             <div style={{ display: 'grid', gap: 6, fontSize: 12.5 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--t-2)' }}>Tổng tiền chọn</span><b className="mono">{fmtVNDg(subtotal)}</b></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--t-2)' }}>BHYT chi trả</span><b className="mono" style={{ color: 'var(--s-ok)' }}>−{fmtVNDg(bhytCovered)}</b></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, borderTop: '1px dashed var(--line)', marginTop: 4 }}><span style={{ color: 'var(--t-2)' }}>BN đồng chi trả</span><b className="mono">{fmtVNDg(coPay)}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">Tổng tiền chọn</span><b className="mono">{fmtVNDg(subtotal)}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">BHYT chi trả</span><b className="mono" style={{ color: 'var(--s-ok)' }}>−{fmtVNDg(bhytCovered)}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, borderTop: '1px dashed var(--line)', marginTop: 4 }}><span className="ab-u-muted">BN đồng chi trả</span><b className="mono">{fmtVNDg(coPay)}</b></div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', fontSize: 11.5, color: 'var(--t-2)' }}>
                 <input type="checkbox" checked={useAdvance} onChange={(e) => setUseAdvance(e.target.checked)} disabled={advBalance <= 0} />
-                Dùng tạm ứng <span className="mono" style={{ color: 'var(--t-0)' }}>−{fmtVNDg(advUsed)}</span>
+                Dùng tạm ứng <span className="mono ab-u-fg">−{fmtVNDg(advUsed)}</span>
               </label>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '2px solid var(--line)', marginTop: 4 }}><b style={{ fontSize: 13 }}>BN phải trả</b><b className="mono" style={{ fontSize: 15, color: 'var(--c-pri, #2563eb)' }}>{fmtVNDg(finalAmount)}</b></div>
             </div>
@@ -544,7 +544,7 @@ const BillingPatientSearch: React.FC<{ open: boolean; onClose: () => void; onPic
     <ModalShell open={open} onClose={onClose} title="Tìm bệnh nhân" sub="Tên · Mã · Mã hồ sơ" size="md"
       footer={<Btn variant="ghost" onClick={onClose}>Đóng</Btn>}>
       <div style={{ padding: 16 }}>
-        <div className="ab-search" style={{ width: '100%' }}>
+        <div className="ab-search ab-u-wfull">
           <TermIcon name="search" size={13} />
           <input value={q} onChange={(e) => run(e.target.value)} placeholder="Gõ ≥2 ký tự…" autoFocus />
         </div>
