@@ -37,8 +37,11 @@
 - **★ PIVOT theo THỨ TỰ ƯU TIÊN → P0 backend** (cao hơn P2-FE; lỗ hổng khai-thác-được; build-gate BE chạy local OK).
   ✅ **#180 DONE** (security): attribute `[DevelopmentOnly]` (Filters/) gate PopulateData + DevLinkRadiology + 5 RIS dev/*
   → **404 ở prod, giữ dev** (DailySeed đã X-Seed-Key). Additive, build EXIT 0.
-- **Kế tiếp P0:** #181 path-traversal ảnh BN · #182 secret hardcode (cần user rotate) · #183 role-drift · #184 mass-assign ·
-  #185/#186 safety · #187-190 data (money — cẩn thận, không test-net). FE P2 (#209-formatter/#206/#170) resume sau.
+  ✅ **#181 DONE** (security): path-traversal `NonDicomController.GetImage` chặn (validate fileName==GetFileName + path-trong-study-dir);
+  bỏ cred mặc định PACS proxy (`?? "admin"/"orthanc"`→`""`, 3 chỗ). Anonymous GIỮ (studyId/instanceId GUID = capability cho img-tag;
+  lỗ-hổng-khai-thác đã đóng; signed-token auth = hardening tuỳ chọn sau). Build EXIT 0.
+- **Kế tiếp P0:** **#182** secret hardcode appsettings + `publish/` (⚠️ **rotate cần user** trên Cloud Run) · #183 role-drift ·
+  #184 mass-assign · #185/#186 safety · #187-190 data (money — cẩn thận, không test-net). FE P2 (#209-formatter/#206/#170) resume sau.
 - Kế tiếp FE sau #208: #207 async-state(.catch) · #209 raw-fetch→apiClient · #206 design-adoption · #205 god-split · #204 v1-sunset.
 
 ## Đang ở đâu

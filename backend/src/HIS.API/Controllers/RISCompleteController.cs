@@ -607,8 +607,8 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> GetInstancePreview(string instanceId)
         {
             var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:8042";
-            var pacsUser = _configuration["PACS:Username"] ?? "admin";
-            var pacsPass = _configuration["PACS:Password"] ?? "orthanc";
+            var pacsUser = _configuration["PACS:Username"] ?? "";
+            var pacsPass = _configuration["PACS:Password"] ?? "";
 
             try
             {
@@ -641,8 +641,8 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> GetInstanceRendered(string instanceId, [FromQuery] int width = 1024)
         {
             var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:8042";
-            var pacsUser = _configuration["PACS:Username"] ?? "admin";
-            var pacsPass = _configuration["PACS:Password"] ?? "orthanc";
+            var pacsUser = _configuration["PACS:Username"] ?? "";
+            var pacsPass = _configuration["PACS:Password"] ?? "";
             if (width <= 0 || width > 4096) width = 1024;
 
             try
@@ -683,8 +683,8 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> GetInstanceFile(string instanceId)
         {
             var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:8042";
-            var pacsUser = _configuration["PACS:Username"] ?? "admin";
-            var pacsPass = _configuration["PACS:Password"] ?? "orthanc";
+            var pacsUser = _configuration["PACS:Username"] ?? "";
+            var pacsPass = _configuration["PACS:Password"] ?? "";
 
             try
             {
