@@ -98,6 +98,9 @@ If a new service/controller is added, register it there or you get 500 errors.
   **KHÔNG check `response.success`/`.data` sau khi gọi `apiClient`** — mismatch này từng làm hỏng login prod
   (fix tolerant 2 shape trong `AuthContext.tsx`, commit `92d35a2`). Code mới: đọc payload đã-unwrap trực tiếp.
 - Khi xóa nợ kỹ thuật FE: **ưu tiên `pages-v2/` trước `pages/`**.
+- **★ v1 BỎ DẦN (quyết định #204, 2026-06-17): v2 ra thị trường, KHÔNG phát triển/sửa nợ v1 (`pages/`) tại chỗ** (phí công —
+  v1 sắp retire). Nếu v1 có feature CHƯA có ở v2 → **port sang v2**; **nếu phần port có nợ kỹ thuật → XÓA NỢ TRƯỚC rồi mới
+  port (v2 nhận code SẠCH, không kế thừa nợ v1)**. Mọi tech-debt FE dồn cho `pages-v2`. (#205 v1-god-split, #209 raw-fetch-v1 = MOOT.)
 
 ### Backend
 - Clean Architecture; DI **bắt buộc** trong `DependencyInjection.cs` (xem mục trên) → skill `his-be-module-scaffold`.
