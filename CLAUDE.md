@@ -114,6 +114,10 @@ If a new service/controller is added, register it there or you get 500 errors.
 - **★ TRẠNG THÁI "IN PROGRESS" (BẮT BUỘC, mọi phiên/máy):** khi **BẮT ĐẦU** làm 1 task (kể cả làm-dở nhiều phiên) →
   `gh issue edit <n> --add-label in-progress --add-assignee @me` để báo **đang làm**; giữ nhãn suốt lúc làm dở; **xong →
   `gh issue close`** (đóng tự gỡ nghĩa in-progress); **dừng/blocked → `--remove-label in-progress`**. Tránh 2 máy đụng cùng task.
+- **★ TASK DÀI / NHIỀU PHẦN — làm XONG HẾT rồi mới push + done (BẮT BUỘC, mọi phiên/máy):** với task lớn nhiều phần,
+  commit **LOCAL** từng chặng để checkpoint, NHƯNG **CHỈ `git push` khi đã hoàn thành TẤT CẢ các phần theo đúng quy trình**
+  (build-gate + verify mỗi chặng) → push 1 lần kèm **`Closes #N`**. **KHÔNG push partial.** (Pull `--rebase` trước push cuối
+  để đồng bộ máy khác; task ngắn/atomic vẫn push-ngay-khi-xong như thường.)
 - **Trước khi pick task**: `git fetch origin` + đọc `git log origin/main` + `gh issue list` (nhiều máy làm
   song song — nguồn-sự-thật là git log + Issues, KHÔNG phải docs local).
 - **★★ RULE CỨNG (mọi yêu cầu/phiên/máy) — TEST LÀ BẮT BUỘC NHƯNG LUÔN LÀM CUỐI CÙNG:** với BẤT KỲ yêu cầu nào,
