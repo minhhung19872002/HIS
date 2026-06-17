@@ -466,7 +466,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Tìm kiếm dịch vụ
     /// </summary>
     [HttpGet("services/search")]
-    public async Task<ActionResult<List<ServiceDto>>> SearchServices([FromQuery] string keyword, [FromQuery] int? serviceType)
+    public async Task<ActionResult<List<ServiceDto>>> SearchServices([FromQuery] string? keyword = null, [FromQuery] int? serviceType = null)
     {
         var result = await _surgeryService.SearchServicesAsync(keyword, serviceType);
         return Ok(result);

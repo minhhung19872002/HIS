@@ -136,8 +136,59 @@ public partial class BillingCompleteService {
 
     public async Task<InvoiceDto?> GetInvoiceByIdAsync(Guid invoiceId)
     {
-        return null;
+        // P0 (prod-e2e 2026-06-17): mở chi tiết 1 hóa đơn từ danh sách. Trước đây stub return null →
+        // mọi id trả 404 dù search liệt kê. Tra ĐÚNG id-space của search (InvoiceSummaries.Id) +
+        // dùng chung mapping để list↔detail đồng nhất.
+        var summary = await _context.InvoiceSummaries
+            .Include(x => x.MedicalRecord).ThenInclude(m => m.Patient)
+            .Include(x => x.MedicalRecord).ThenInclude(m => m.Department)
+            .FirstOrDefaultAsync(x => x.Id == invoiceId && !x.IsDeleted);
+        return summary == null ? null : MapSummaryToInvoiceDto(summary);
     }
+
+    /// <summary>Map InvoiceSummary → InvoiceDto dùng chung cho search + detail (chạy in-memory sau ToListAsync).</summary>
+    private static InvoiceDto MapSummaryToInvoiceDto(InvoiceSummary i) => new InvoiceDto
+    {
+        Id = i.Id,
+        InvoiceCode = i.InvoiceCode,
+        PatientId = i.MedicalRecord?.PatientId ?? Guid.Empty,
+        PatientCode = i.MedicalRecord?.Patient?.PatientCode ?? "",
+        PatientName = i.MedicalRecord?.Patient?.FullName ?? "",
+        PhoneNumber = i.MedicalRecord?.Patient?.PhoneNumber,
+        Address = i.MedicalRecord?.Patient?.Address,
+        InsuranceCardNumber = i.MedicalRecord?.Patient?.InsuranceNumber,
+        MedicalRecordId = i.MedicalRecordId,
+        MedicalRecordCode = i.MedicalRecord?.MedicalRecordCode ?? "",
+        PatientType = i.MedicalRecord?.TreatmentType ?? 1,
+        PatientTypeName = (i.MedicalRecord?.TreatmentType ?? 1) == 2 ? "Nội trú" : "Ngoại trú",
+        DepartmentId = i.MedicalRecord?.DepartmentId,
+        DepartmentName = i.MedicalRecord?.Department?.DepartmentName,
+        ServiceItems = new List<InvoiceServiceItemDto>(),
+        MedicineItems = new List<InvoiceMedicineItemDto>(),
+        SupplyItems = new List<InvoiceSupplyItemDto>(),
+        BedItems = new List<InvoiceBedItemDto>(),
+        ServiceTotal = i.TotalServiceAmount,
+        MedicineTotal = i.TotalMedicineAmount,
+        SupplyTotal = i.TotalSupplyAmount,
+        BedTotal = i.TotalBedAmount,
+        SubTotal = i.TotalAmount,
+        InsuranceAmount = i.InsuranceAmount,
+        DiscountAmount = i.DiscountAmount,
+        DiscountReason = i.DiscountReason,
+        SurchargeAmount = 0,
+        TotalAmount = i.TotalAmount,
+        PaidAmount = i.PaidAmount,
+        RemainingAmount = i.RemainingAmount,
+        PaymentStatus = i.Status,
+        PaymentStatusName = i.Status switch { 0 => "Chưa thanh toán", 1 => "Đã thanh toán", 2 => "Đã quyết toán", _ => "Khác" },
+        ApprovalStatus = i.IsApprovedByAccountant ? 1 : 0,
+        ApprovalStatusName = i.IsApprovedByAccountant ? "Đã duyệt KT" : "Chưa duyệt",
+        ApprovedAt = i.ApprovedAt,
+        ApprovedBy = i.ApprovedBy,
+        IsLocked = false,
+        CreatedAt = i.CreatedAt,
+        UpdatedAt = i.UpdatedAt,
+    };
 
     public async Task<InvoiceDto?> GetPatientInvoiceAsync(Guid medicalRecordId)
     {
@@ -183,48 +234,7 @@ public partial class BillingCompleteService {
             .Take(pageSize)
             .ToListAsync();
 
-        var items = rows.Select(i => new InvoiceDto
-        {
-            Id = i.Id,
-            InvoiceCode = i.InvoiceCode,
-            PatientId = i.MedicalRecord?.PatientId ?? Guid.Empty,
-            PatientCode = i.MedicalRecord?.Patient?.PatientCode ?? "",
-            PatientName = i.MedicalRecord?.Patient?.FullName ?? "",
-            PhoneNumber = i.MedicalRecord?.Patient?.PhoneNumber,
-            Address = i.MedicalRecord?.Patient?.Address,
-            InsuranceCardNumber = i.MedicalRecord?.Patient?.InsuranceNumber,
-            MedicalRecordId = i.MedicalRecordId,
-            MedicalRecordCode = i.MedicalRecord?.MedicalRecordCode ?? "",
-            PatientType = i.MedicalRecord?.TreatmentType ?? 1,
-            PatientTypeName = (i.MedicalRecord?.TreatmentType ?? 1) == 2 ? "Nội trú" : "Ngoại trú",
-            DepartmentId = i.MedicalRecord?.DepartmentId,
-            DepartmentName = i.MedicalRecord?.Department?.DepartmentName,
-            ServiceItems = new List<InvoiceServiceItemDto>(),
-            MedicineItems = new List<InvoiceMedicineItemDto>(),
-            SupplyItems = new List<InvoiceSupplyItemDto>(),
-            BedItems = new List<InvoiceBedItemDto>(),
-            ServiceTotal = i.TotalServiceAmount,
-            MedicineTotal = i.TotalMedicineAmount,
-            SupplyTotal = i.TotalSupplyAmount,
-            BedTotal = i.TotalBedAmount,
-            SubTotal = i.TotalAmount,
-            InsuranceAmount = i.InsuranceAmount,
-            DiscountAmount = i.DiscountAmount,
-            DiscountReason = i.DiscountReason,
-            SurchargeAmount = 0,
-            TotalAmount = i.TotalAmount,
-            PaidAmount = i.PaidAmount,
-            RemainingAmount = i.RemainingAmount,
-            PaymentStatus = i.Status,
-            PaymentStatusName = i.Status switch { 0 => "Chưa thanh toán", 1 => "Đã thanh toán", 2 => "Đã quyết toán", _ => "Khác" },
-            ApprovalStatus = i.IsApprovedByAccountant ? 1 : 0,
-            ApprovalStatusName = i.IsApprovedByAccountant ? "Đã duyệt KT" : "Chưa duyệt",
-            ApprovedAt = i.ApprovedAt,
-            ApprovedBy = i.ApprovedBy,
-            IsLocked = false,
-            CreatedAt = i.CreatedAt,
-            UpdatedAt = i.UpdatedAt,
-        }).ToList();
+        var items = rows.Select(MapSummaryToInvoiceDto).ToList();
 
         return new PagedResultDto<InvoiceDto>
         {
