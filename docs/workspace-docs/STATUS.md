@@ -25,10 +25,13 @@
   ✅ **hex==token map**: subagent map 3 hex an toàn; phần lớn residual GIỮ đúng (standalone-portal terminal.css-không-load,
   #fff-text, ${c}33-alpha, chart/brand off-palette). ✅ **fontSize**: 976 literal (10/11/12/13/15/20)→`--fs-*` / 158 file
   (theme-independent, no-op thị giác), build EXIT 0.
-  ✅ **borderRadius** 3/6/8/12→`--r-*` (156). ✅ **spacing** gap/margin/padding→`--space-*` (1278, off-scale giữ) + define
-  scale `--space-2..40`/`--z-*` trong terminal.css. ✅ width KHÔNG token (130/110… là độ-rộng-cột riêng, không phải scale).
-  **CÒN:** "ab-u-* phổ biến hơn" = migrate inline-style→utility — **giao thoa #170** (inline-style reduction). → cân nhắc đóng
-  #208 (token-scale XONG) + chuyển migrate-utility sang #170. **TẤT CẢ commit LOCAL (chưa push — rule task-dài-xong-mới-push).**
+  ✅ borderRadius→`--r-*` (156) · spacing→`--space-*` (1278) + define scale `--space/--z` · width giữ literal (không phải scale).
+  **#208 = CLOSED (pushed `007d40d`)** — token-scale XONG hết, light byte-identical, build EXIT 0. Phần "ab-u-* phổ biến hơn"
+  (migrate inline→utility) đã chuyển ĐỦ info sang **#170** (comment) trước khi đóng (rule scope-overlap).
+- **Rule mới (CLAUDE.md, cross-machine):** ① task dài/nhiều-phần → làm xong HẾT mới push+close (commit local checkpoint, không
+  push partial) · ② scope chồng-lấn → chuyển đủ info sang task nhận trước rồi mới đóng (làm cái nào ra cái đó rõ ràng) · ③ task
+  đang làm → gắn label `in-progress`+assign.
+- **Kế tiếp FE tech-debt:** #207 async-state(.catch nuốt lỗi) · #209 raw-fetch→apiClient · #206 design-adoption · #170 ab-u · #205 god-split · #204 v1-sunset.
 - Kế tiếp FE sau #208: #207 async-state(.catch) · #209 raw-fetch→apiClient · #206 design-adoption · #205 god-split · #204 v1-sunset.
 
 ## Đang ở đâu
