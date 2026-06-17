@@ -3,7 +3,13 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-17** (TECH-DEBT audit SÂU 7-agent → 36 Issue chi tiết **#180-215** + báo cáo + SAFETY-PROTOCOL; đóng 13 Issue nông #166-179 (superseded, giữ #171); ràng buộc: xóa-nợ KHÔNG vỡ hệ thống).
+> Cập nhật cuối: **2026-06-17** (TECH-DEBT 36 Issue #180-215 + SAFETY-PROTOCOL · **TEST-PLAN** khung 10-lớp + 16 layer-epic #216-231 + module-tasks #232-255 (4/10 group: TC/LS/CLS/HTĐT) — CÒN 6 group, làm tiếp khi user "tiếp tục"; doc `test-plan-2026-06-17.md` · **RULE cross-machine: fix-trước-test-sau** (CLAUDE.md)).
+
+## Test program (đang dở — fix-first)
+- **Rule (CLAUDE.md, mọi máy): GIẢI QUYẾT VẤN ĐỀ trước → TEST sau** (ngoại lệ harness #191/#212/#213 làm sớm).
+- Khung: `docs/workspace-docs/10-assessment/test-plan-2026-06-17.md` (10 lớp + checklist 12 loại màn + thứ tự Permission→Workflow→State→API-error→Form→Responsive→Dark→Performance).
+- Layer-epic **#216-231** (T1-T16). Module-tasks **#232-255** đã xong group: **Tài chính/Lâm sàng/Cận-lâm-sàng/Dược**.
+- **CÒN tạo module-tasks cho 6 group:** Hồ sơ&Ký số(5 màn) · Quản trị&Vận hành(28) · Liên thông(11) · Y tế công cộng(16) · Cổng&Dịch vụ(3) · Tổng quan/Dashboard(3). → user nói "tiếp tục" để tạo lô tiếp.
 
 ## Đang ở đâu
 - **★ TECH-DEBT TOÀN HỆ THỐNG — PLAN + 36 TASK chi tiết, CHƯA fix (2026-06-17):** audit 7-agent (BE-service/API/data ·

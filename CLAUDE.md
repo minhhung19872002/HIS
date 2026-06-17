@@ -113,6 +113,11 @@ If a new service/controller is added, register it there or you get 500 errors.
   backlog trong `docs/workspace-docs/` nữa.
 - **Trước khi pick task**: `git fetch origin` + đọc `git log origin/main` + `gh issue list` (nhiều máy làm
   song song — nguồn-sự-thật là git log + Issues, KHÔNG phải docs local).
+- **★ THỨ TỰ ƯU TIÊN THỰC THI (mọi phiên/mọi máy): GIẢI QUYẾT VẤN ĐỀ TRƯỚC → TEST SAU.** Ưu tiên fix bug /
+  feature / tech-debt / security / patient-safety (vd #180-215) cho xong trước; **các nhiệm vụ TEST hệ thống
+  (label `test`) chạy SAU**. *Ngoại lệ:* harness test tối thiểu (#191 xUnit+CI-gate · #212 vitest · #213 e2e
+  functional) làm SỚM làm **lưới an toàn** cho việc fix (đúng SAFETY-PROTOCOL). Test-program đầy đủ → xem doc
+  `docs/workspace-docs/10-assessment/test-plan-2026-06-17.md` + Issues label `test`.
 - `docs/workspace-docs/` chỉ còn: `STATUS.md` (session-state cho hook) · `luong_nghiep_vu.md` (reference
   nghiệp vụ) · 2 pointer roadmap/audit. **Workspace-docs commit + push bình thường** (quy tắc never-push đã
   GỠ 2026-06-13 — hook pre-push + guard + `scripts/push-code.ps1` đã xóa).
