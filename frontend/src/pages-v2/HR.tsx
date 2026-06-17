@@ -387,7 +387,7 @@ const HRV2: React.FC = () => {
               className={'hr-v2-btn'}
               style={{
                 cursor: 'default',
-                background: usingMock ? 'var(--a-or-bg, #fff7ed)' : 'var(--a-cy-bg, #ecfeff)',
+                background: usingMock ? 'var(--a-or-bg, #fff7ed)' : 'var(--a-cy-bg)',
                 color:      usingMock ? 'var(--a-or-text, #c05621)' : 'var(--a-cy-text, #0f766e)',
               }}
               title={usingMock ? 'Backend HR rỗng — đang dùng dữ liệu mẫu' : 'Đang hiển thị nhân sự thật từ backend'}

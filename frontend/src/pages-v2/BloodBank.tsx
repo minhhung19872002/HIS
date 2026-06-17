@@ -238,7 +238,7 @@ const BloodBankV2: React.FC = () => {
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 14,
                     border: filterType === t ? '1px solid var(--a-cy)' : '1px solid var(--line)',
-                    background: filterType === t ? 'var(--a-cy-bg, #ecfeff)' : 'var(--d-2)', cursor: 'pointer', fontSize: 11.5,
+                    background: filterType === t ? 'var(--a-cy-bg)' : 'var(--d-2)', cursor: 'pointer', fontSize: 11.5,
                   }}>
                   <b style={{ color: a < 5 ? 'var(--s-crit)' : 'var(--t-0)' }}>{t}</b>
                   <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--t-2)' }}>{a}đv</span>

@@ -595,7 +595,7 @@ const OpdEditorV2: React.FC = () => {
           return (
             <div key={q.examinationId} onClick={() => selectPatient(q)} style={{ padding: 10, marginBottom: 5, background: sel ? 'var(--c-pri-bg, rgba(37,99,235,.12))' : 'var(--d-0)', border: sel ? '1px solid var(--c-pri)' : '1px solid var(--line)', borderRadius: 6, cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className="mono" style={{ fontWeight: 700, fontSize: 14, color: 'var(--c-pri, #2563eb)' }}>{q.queueNumber}</span>
+                <span className="mono" style={{ fontWeight: 700, fontSize: 14, color: 'var(--a-cy)' }}>{q.queueNumber}</span>
                 {(q.isEmergency || q.isPriority) && <StatusBadge tone="crit">{q.isEmergency ? 'Cấp cứu' : 'Ưu tiên'}</StatusBadge>}
               </div>
               <div style={{ fontWeight: 600, fontSize: 12.5, marginTop: 3 }}>{q.patientName}</div>
@@ -708,7 +708,7 @@ const OpdEditorV2: React.FC = () => {
                   <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 6, marginTop: 4, maxHeight: 220, overflow: 'auto', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,.15)' }}>
                     {icdResults.map((i) => (
                       <div key={i.code} onClick={() => addIcd(i)} style={{ padding: '6px 12px', borderBottom: '1px solid var(--line-soft)', cursor: 'pointer', display: 'flex', gap: 10 }}>
-                        <span className="mono" style={{ fontWeight: 700, color: 'var(--c-pri, #2563eb)', width: 70 }}>{i.code}</span>
+                        <span className="mono" style={{ fontWeight: 700, color: 'var(--a-cy)', width: 70 }}>{i.code}</span>
                         <span style={{ fontSize: 12 }}>{i.name}</span>
                       </div>
                     ))}
@@ -718,7 +718,7 @@ const OpdEditorV2: React.FC = () => {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {diagnoses.length === 0 && <span style={{ color: 'var(--t-3)', fontSize: 11.5 }}>Chưa có chẩn đoán</span>}
                 {diagnoses.map((d, i) => (
-                  <span key={d.icdCode} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: d.isPrimary ? 'var(--c-pri, #2563eb)' : 'var(--d-1)', color: d.isPrimary ? '#fff' : 'var(--t-0)', borderRadius: 4, fontSize: 11.5 }}>
+                  <span key={d.icdCode} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: d.isPrimary ? 'var(--a-cy)' : 'var(--d-1)', color: d.isPrimary ? '#fff' : 'var(--t-0)', borderRadius: 4, fontSize: 11.5 }}>
                     <span className="mono" style={{ fontWeight: 700 }}>{d.icdCode}</span>
                     <span>{d.icdName}</span>
                     {d.isPrimary ? <span style={{ fontSize: 9, fontWeight: 700, opacity: .8 }}>CHÍNH</span>
@@ -741,7 +741,7 @@ const OpdEditorV2: React.FC = () => {
                   <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 6, marginTop: 4, maxHeight: 220, overflow: 'auto', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,.15)' }}>
                     {svcResults.map((s) => (
                       <div key={s.id} onClick={() => addSvc(s)} style={{ padding: '6px 12px', borderBottom: '1px solid var(--line-soft)', cursor: 'pointer', display: 'grid', gridTemplateColumns: '110px 1fr 110px', gap: 10 }}>
-                        <span className="mono" style={{ color: 'var(--c-pri, #2563eb)' }}>{s.code}</span>
+                        <span className="mono" style={{ color: 'var(--a-cy)' }}>{s.code}</span>
                         <span style={{ fontSize: 12 }}>{s.name}</span>
                         <span className="mono" style={{ textAlign: 'right' }}>{fmtVNDg(s.unitPrice)}</span>
                       </div>

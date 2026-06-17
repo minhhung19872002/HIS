@@ -179,7 +179,7 @@ const MasterDataV2: React.FC = () => {
             return (
               <button key={c.v} type="button" onClick={() => { setActive(c.v); setKeyword(''); }}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', marginBottom: 2, borderRadius: 6, cursor: 'pointer',
-                  border: on ? '1px solid var(--a-cy-line, #a5f3fc)' : '1px solid transparent', background: on ? 'var(--a-cy-bg, #ecfeff)' : 'transparent',
+                  border: on ? '1px solid var(--a-cy-line)' : '1px solid transparent', background: on ? 'var(--a-cy-bg)' : 'transparent',
                   color: on ? 'var(--a-cy)' : 'var(--t-1)', fontSize: 12.5, fontWeight: on ? 600 : 500, textAlign: 'left' }}>
                 <TermIcon name={c.ic} size={14} />
                 <span style={{ flex: 1 }}>{c.l}</span>

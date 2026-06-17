@@ -347,8 +347,8 @@ const LaboratoryV2: React.FC = () => {
           {r.priority === 2 && (
             <span style={{
               marginLeft: 6, padding: '1px 5px',
-              background: 'var(--s-crit-bg, #fee2e2)', border: '1px solid #fca5a5',
-              color: 'var(--s-crit, #b91c1c)', borderRadius: 3,
+              background: 'var(--s-crit-bg)', border: '1px solid #fca5a5',
+              color: 'var(--s-crit)', borderRadius: 3,
               fontSize: 9, fontWeight: 700,
             }}>STAT</span>
           )}

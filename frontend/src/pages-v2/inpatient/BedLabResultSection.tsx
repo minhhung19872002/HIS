@@ -163,7 +163,7 @@ const EnterResultModal: React.FC<{
                 padding: '10px 12px',
                 borderRadius: 6,
                 border: '1px solid var(--line-soft)',
-                background: 'var(--d-1, #f7f9fc)',
+                background: 'var(--d-1)',
               }}
             >
               {/* Test header row */}
@@ -450,7 +450,7 @@ const BedLabResultSection: React.FC<BedLabResultSectionProps> = ({ admissionId }
                 padding: '10px 12px',
                 borderRadius: 6,
                 border: '1px solid var(--line-soft)',
-                background: 'var(--surface, #fff)',
+                background: 'var(--d-2)',
               }}
             >
               {/* Order header */}
@@ -483,7 +483,7 @@ const BedLabResultSection: React.FC<BedLabResultSectionProps> = ({ admissionId }
                       padding: '1px 6px',
                       borderRadius: 4,
                       border: '1px solid var(--line-soft)',
-                      background: t.result ? 'var(--ok-soft, #f0fdf4)' : 'transparent',
+                      background: t.result ? 'var(--s-ok-bg)' : 'transparent',
                       color: t.result ? 'var(--t-1)' : 'var(--t-2)',
                     }}
                   >

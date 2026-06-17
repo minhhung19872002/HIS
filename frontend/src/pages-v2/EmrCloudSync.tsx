@@ -153,7 +153,7 @@ const EmrCloudSync: React.FC = () => {
     {
       key: 'retry', label: 'Retry', mono: true, width: 70,
       render: r => r.retryCount > 0
-        ? <span style={{ color: 'var(--s-warn, #d97706)' }}>×{r.retryCount}</span>
+        ? <span style={{ color: 'var(--s-warn)' }}>×{r.retryCount}</span>
         : '—'
     },
     {

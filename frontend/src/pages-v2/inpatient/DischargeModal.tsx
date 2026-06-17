@@ -214,7 +214,7 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
   const checkRow = (ok: boolean, label: string, detail?: string) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', fontSize: 12 }}>
       <TermIcon name={ok ? 'check' : 'alert'} size={12} />
-      <span style={{ color: ok ? 'var(--t-1)' : 'var(--s-warn, #d97706)' }}>{label}</span>
+      <span style={{ color: ok ? 'var(--t-1)' : 'var(--s-warn)' }}>{label}</span>
       {detail && <span style={{ color: 'var(--t-2)', marginLeft: 'auto' }}>{detail}</span>}
     </div>
   );
@@ -269,7 +269,7 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
                 {check.warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}
               </div>
             )}
-            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: check.canDischarge ? 'var(--s-ok, #16a34a)' : 'var(--s-warn, #d97706)' }}>
+            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: check.canDischarge ? 'var(--s-ok)' : 'var(--s-warn)' }}>
               {check.canDischarge ? '✓ Đủ điều kiện ra viện' : '⚠ Chưa đủ điều kiện — vẫn có thể ra viện nếu được duyệt'}
             </div>
           </div>

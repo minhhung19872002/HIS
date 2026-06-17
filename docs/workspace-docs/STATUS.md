@@ -19,6 +19,12 @@
   chiều với task test; task test CHỈ DONE sau khi fix-task tạo XONG đầy đủ** (test-plan §9). UI test phải chụp evidence (§7).
 - Test chạy **CUỐI CÙNG** (chỉ sau khi 100% fix DONE) — khi đó mới dựng harness #191/#212/#213 rồi P0 module-task (#232/#239/#251/#258/#260/#265/#270).
 
+## ★ THỰC THI TECH-DEBT FE (fix-first, đang chạy 2026-06-17)
+- **#208 (slice 1) progress:** gỡ/map **60 `var(--x,#hex)` fallback / 22 file pages-v2** — DEFINED token gỡ fallback
+  (no-op) + legacy→terminal (--c-pri→--a-cy ×16, --c-ok→--s-ok, --surface→--d-2, --*-soft→--s-*-bg) khi hex==light-value
+  ⇒ **light byte-identical, dark flip thêm**. Build EXIT 0. CHƯA close #208 (còn token-scale + 18 off-palette).
+- Kế tiếp FE: #208 token-scale/off-palette · #207 async-state(.catch) · #209 raw-fetch→apiClient · #206 design-adoption · #205 god-split · #204 v1-sunset.
+
 ## Đang ở đâu
 - **★ TECH-DEBT TOÀN HỆ THỐNG — PLAN + 36 TASK chi tiết, CHƯA fix (2026-06-17):** audit 7-agent (BE-service/API/data ·
   FE-v1/v2 · cross-cutting · test+security+patient-safety). Báo cáo + **SAFETY-PROTOCOL §0** (10 luật chống-vỡ-hệ-thống):

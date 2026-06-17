@@ -50,7 +50,7 @@ const BillingV2: React.FC = () => {
           {r.insuranceCardNumber && (
             <span style={{
               marginLeft: 6, padding: '1px 5px',
-              background: 'var(--a-cy-bg, #cffafe)', color: 'var(--a-cy, #0e7490)',
+              background: 'var(--a-cy-bg)', color: 'var(--a-cy)',
               border: '1px solid #67e8f9', borderRadius: 3,
               fontSize: 9, fontWeight: 700,
             }}>BHYT {r.insuranceRate || 0}%</span>

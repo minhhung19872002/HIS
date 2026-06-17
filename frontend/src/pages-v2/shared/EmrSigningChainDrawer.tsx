@@ -207,7 +207,7 @@ const EmrSigningChainDrawer: React.FC<Props> = ({
             </div>
           )}
           {dischargeChainDone && !isFinalized && (
-            <div style={{ marginBottom: 10, padding: '10px 12px', border: '1px solid var(--c-ok, #16a34a)', borderRadius: 6, fontSize: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+            <div style={{ marginBottom: 10, padding: '10px 12px', border: '1px solid var(--s-ok)', borderRadius: 6, fontSize: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <span>Giấy ra viện / tóm tắt BA đã ký đủ cấp — có thể kết thúc &amp; khóa hồ sơ theo TT46.</span>
               <Btn variant="primary" size="sm" onClick={() => setFinalizeOpen(true)}>
                 <TermIcon name="check" size={11} /> Kết thúc &amp; khóa

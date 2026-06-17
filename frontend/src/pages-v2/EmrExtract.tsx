@@ -252,7 +252,7 @@ const EmrExtractV2 = () => {
 };
 
 /** Empty-state icon (tránh import lặp TermIcon trong nhiều chỗ). */
-const TermIconHint = () => <span style={{ fontSize: 20, color: 'var(--t-3, #aaa)' }}>🔎</span>;
+const TermIconHint = () => <span style={{ fontSize: 20, color: 'var(--t-3)' }}>🔎</span>;
 
 /** Khung xem trích lục có watermark chống sao chép phủ chéo + thời hạn. */
 const WatermarkedPreview = ({ extract, patientName, patientCode }: { extract: EmrExtractDto; patientName: string; patientCode: string }) => {

@@ -257,7 +257,7 @@ const SignResultModal: React.FC<{
             <h5><TermIcon name="check" size={11} /> ĐÃ KÝ ({history.length})</h5>
             {history.map((h) => (
               <div key={h.id} style={{ fontSize: 11.5, color: 'var(--t-2)', padding: '3px 0' }}>
-                <b style={{ color: h.isValid ? 'var(--s-ok, #16a34a)' : 'var(--s-crit)' }}>{h.signedByName}</b>
+                <b style={{ color: h.isValid ? 'var(--s-ok)' : 'var(--s-crit)' }}>{h.signedByName}</b>
                 {' · '}{h.signatureType}{' · '}{fmtDT(h.signedTime)}
                 {!h.isValid && <span style={{ color: 'var(--s-crit)' }}> · không hợp lệ</span>}
               </div>

@@ -259,7 +259,7 @@ const BiometricEnrollment: React.FC = () => {
                   style={{
                     padding: '10px 14px', borderBottom: '1px solid var(--line-soft)',
                     background: isSel ? 'var(--c-pri-bg, #eff6ff)' : 'transparent',
-                    borderLeft: isSel ? '3px solid var(--c-pri, #2563eb)' : '3px solid transparent',
+                    borderLeft: isSel ? '3px solid var(--a-cy)' : '3px solid transparent',
                     cursor: 'pointer', display: 'grid', gridTemplateColumns: '1fr auto', gap: 6,
                   }}
                 >
@@ -374,11 +374,11 @@ const BiometricEnrollment: React.FC = () => {
             </Form.Item>
             {scanning && (
               <div style={{
-                padding: 24, textAlign: 'center', border: '2px dashed var(--c-pri, #2563eb)',
+                padding: 24, textAlign: 'center', border: '2px dashed var(--a-cy)',
                 borderRadius: 8, marginTop: 14, background: 'var(--c-pri-bg, #eff6ff)',
               }}>
                 <div style={{ fontSize: 32 }}>👆</div>
-                <div style={{ marginTop: 8, fontWeight: 600, color: 'var(--c-pri, #2563eb)' }}>Đặt ngón tay lên cảm biến…</div>
+                <div style={{ marginTop: 8, fontWeight: 600, color: 'var(--a-cy)' }}>Đặt ngón tay lên cảm biến…</div>
                 <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 4 }}>WebAuthn challenge đang xử lý</div>
               </div>
             )}

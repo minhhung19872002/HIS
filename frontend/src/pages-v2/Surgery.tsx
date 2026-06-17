@@ -85,7 +85,7 @@ const SurgeryV2: React.FC = () => {
       render: (r) => (
         <span style={{
           display: 'inline-block', padding: '2px 6px',
-          background: r.surgeryClass === 1 ? 'var(--s-crit-bg, #fee2e2)' : 'var(--d-1)',
+          background: r.surgeryClass === 1 ? 'var(--s-crit-bg)' : 'var(--d-1)',
           border: '1px solid var(--line)', borderRadius: 3,
           fontSize: 11, fontWeight: 600,
         }}>{r.surgeryClassName || `L${r.surgeryClass}`}</span>

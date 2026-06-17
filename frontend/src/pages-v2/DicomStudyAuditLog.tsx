@@ -97,7 +97,7 @@ const DicomStudyAuditLog: React.FC = () => {
       render: r => (
         <a
           onClick={(e) => { e.stopPropagation(); openTimeline(r.studyInstanceUid); }}
-          style={{ color: 'var(--c-pri, #2563eb)', cursor: 'pointer', fontSize: 11 }}
+          style={{ color: 'var(--a-cy)', cursor: 'pointer', fontSize: 11 }}
         >…{r.studyInstanceUid.slice(-30)}</a>
       )
     },
@@ -165,7 +165,7 @@ const DicomStudyAuditLog: React.FC = () => {
         {studyDetail && (
           <div style={{ padding: 20 }}>
             <div style={{
-              padding: 12, background: 'var(--d-1, #f8fafc)', borderRadius: 6,
+              padding: 12, background: 'var(--d-1)', borderRadius: 6,
               marginBottom: 16, fontFamily: 'var(--font-mono)', fontSize: 11, wordBreak: 'break-all',
             }}>
               <span style={{ color: 'var(--t-2)' }}>Study UID:</span> {studyDetail.uid}
@@ -175,7 +175,7 @@ const DicomStudyAuditLog: React.FC = () => {
             <div style={{ position: 'relative', paddingLeft: 30 }}>
               <div style={{
                 position: 'absolute', left: 9, top: 6, bottom: 6, width: 2,
-                background: 'var(--line, #e5e7eb)',
+                background: 'var(--line)',
               }} />
               {studyDetail.timeline.map((t, i) => {
                 const a = DSL_ACTIONS[t.action];
@@ -185,11 +185,11 @@ const DicomStudyAuditLog: React.FC = () => {
                   <div key={t.id} style={{ position: 'relative', paddingBottom: i === studyDetail.timeline.length - 1 ? 0 : 18 }}>
                     <div style={{
                       position: 'absolute', left: -25, top: 4, width: 12, height: 12, borderRadius: 6,
-                      background: dotColor, border: '2px solid var(--d-0, #fff)',
+                      background: dotColor, border: '2px solid var(--d-0)',
                       boxShadow: `0 0 0 3px ${dotColor}33`,
                     }} />
                     <div style={{
-                      background: 'var(--d-0, #fff)', border: '1px solid var(--line, #e5e7eb)',
+                      background: 'var(--d-0)', border: '1px solid var(--line)',
                       borderRadius: 6, padding: '10px 14px', borderLeft: `3px solid ${dotColor}`,
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
@@ -204,7 +204,7 @@ const DicomStudyAuditLog: React.FC = () => {
                       {t.actionDetails && (
                         <div style={{
                           fontSize: 11, color: 'var(--t-2)', marginTop: 4, padding: 6,
-                          background: 'var(--d-1, #f8fafc)', borderRadius: 4, fontFamily: 'var(--font-mono)',
+                          background: 'var(--d-1)', borderRadius: 4, fontFamily: 'var(--font-mono)',
                         }}>
                           {t.actionDetails}
                         </div>

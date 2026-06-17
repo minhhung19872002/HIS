@@ -213,12 +213,12 @@ const DicomAutoSend: React.FC = () => {
 
       {tab === 'stats' && stats && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: 14 }}>
-          <div style={{ background: 'var(--d-0, #fff)', border: '1px solid var(--line)', borderRadius: 8 }}>
+          <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', fontWeight: 600, fontSize: 13 }}>
               Theo server đích
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead style={{ background: 'var(--d-1, #f8fafc)' }}>
+              <thead style={{ background: 'var(--d-1)' }}>
                 <tr><th style={{ textAlign: 'left', padding: '8px 16px' }}>Đích</th><th style={{ textAlign: 'right', padding: '8px 16px' }}>Số ca</th><th style={{ textAlign: 'right', padding: '8px 16px' }}>Dung lượng</th></tr>
               </thead>
               <tbody>
@@ -235,7 +235,7 @@ const DicomAutoSend: React.FC = () => {
               </tbody>
             </table>
           </div>
-          <div style={{ background: 'var(--d-0, #fff)', border: '1px solid var(--line)', borderRadius: 8 }}>
+          <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', fontWeight: 600, fontSize: 13 }}>
               14 ngày gần nhất
             </div>
@@ -246,7 +246,7 @@ const DicomAutoSend: React.FC = () => {
                   <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }} title={`${fmtDMYg(d.date)}: ${d.count} ca`}>
                     <div style={{
                       width: '100%', height: Math.max(4, h),
-                      background: 'linear-gradient(180deg, var(--c-pri, #2563eb), var(--c-pri-dim, #93c5fd))',
+                      background: 'linear-gradient(180deg, var(--a-cy), var(--c-pri-dim, #93c5fd))',
                       borderRadius: '2px 2px 0 0',
                     }} />
                     <div style={{ fontSize: 9, color: 'var(--t-3)', fontFamily: 'var(--font-mono)' }}>

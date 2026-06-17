@@ -89,7 +89,7 @@ const EmrHl7Export: React.FC = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: 14 }}>
         {/* Form panel */}
-        <div style={{ background: 'var(--d-0, #fff)', border: '1px solid var(--line)', borderRadius: 8, padding: 18 }}>
+        <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 18 }}>
           <h3 style={{
             margin: '0 0 14px', fontSize: 13, fontFamily: 'var(--font-mono)',
             textTransform: 'uppercase', color: 'var(--t-2)', letterSpacing: '0.06em',
@@ -118,9 +118,9 @@ const EmrHl7Export: React.FC = () => {
                       key={o.k}
                       style={{
                         display: 'grid', gridTemplateColumns: '20px 1fr', gap: 8, padding: 8,
-                        background: on ? 'var(--c-pri-bg, #eff6ff)' : 'var(--d-1, #f8fafc)',
+                        background: on ? 'var(--c-pri-bg, #eff6ff)' : 'var(--d-1)',
                         borderRadius: 6, cursor: 'pointer',
-                        border: on ? '1px solid var(--c-pri, #2563eb)' : '1px solid transparent',
+                        border: on ? '1px solid var(--a-cy)' : '1px solid transparent',
                       }}
                     >
                       <Checkbox checked={on} onChange={e => setOpts(s => ({ ...s, [o.k]: e.target.checked }))} />
@@ -147,7 +147,7 @@ const EmrHl7Export: React.FC = () => {
         </div>
 
         {/* Result panel */}
-        <div style={{ background: 'var(--d-0, #fff)', border: '1px solid var(--line)', borderRadius: 8, padding: 18, minHeight: 360 }}>
+        <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 18, minHeight: 360 }}>
           <h3 style={{
             margin: '0 0 14px', fontSize: 13, fontFamily: 'var(--font-mono)',
             textTransform: 'uppercase', color: 'var(--t-2)', letterSpacing: '0.06em',

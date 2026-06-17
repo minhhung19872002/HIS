@@ -829,7 +829,7 @@ const BillingStatementModal: React.FC<{
             <div style={{ maxHeight: 280, overflow: 'auto', border: '1px solid var(--line-soft)', borderRadius: 6 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                 <thead>
-                  <tr style={{ background: 'var(--d-1, #f7f9fc)', position: 'sticky', top: 0 }}>
+                  <tr style={{ background: 'var(--d-1)', position: 'sticky', top: 0 }}>
                     <th style={{ textAlign: 'left', padding: '6px 8px' }}>TT</th>
                     <th style={{ textAlign: 'left', padding: '6px 8px' }}>Nội dung</th>
                     <th style={{ textAlign: 'right', padding: '6px 8px' }}>SL</th>
@@ -1003,7 +1003,7 @@ const DrugReturnModal: React.FC<{
           <div style={{ border: '1px solid var(--line-soft)', borderRadius: 6, overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ background: 'var(--d-1, #f7f9fc)' }}>
+                <tr style={{ background: 'var(--d-1)' }}>
                   <th style={{ padding: '6px 10px', textAlign: 'left', width: 36 }}></th>
                   <th style={{ padding: '6px 10px', textAlign: 'left' }}>Tên thuốc</th>
                   <th style={{ padding: '6px 10px', textAlign: 'right', width: 60 }}>Đã lĩnh</th>
@@ -1012,7 +1012,7 @@ const DrugReturnModal: React.FC<{
               </thead>
               <tbody>
                 {items.map((it, idx) => (
-                  <tr key={it.medicineId} style={{ borderTop: '1px solid var(--line-soft)', background: it.selected ? 'var(--accent-soft, #f0f9ff)' : undefined }}>
+                  <tr key={it.medicineId} style={{ borderTop: '1px solid var(--line-soft)', background: it.selected ? 'var(--s-info-bg)' : undefined }}>
                     <td style={{ padding: '5px 10px', textAlign: 'center' }}>
                       <Checkbox checked={it.selected} onChange={() => toggleItem(idx)} />
                     </td>
@@ -1148,7 +1148,7 @@ const DischargePrescriptionModal: React.FC<{
       }
     >
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ padding: '8px 12px', borderRadius: 6, background: 'var(--info-soft, #f0f9ff)', border: '1px solid var(--info, #0891b2)', fontSize: 11, color: 'var(--t-1)' }}>
+        <div style={{ padding: '8px 12px', borderRadius: 6, background: 'var(--s-info-bg)', border: '1px solid var(--info, #0891b2)', fontSize: 11, color: 'var(--t-1)' }}>
           Đơn loại <b>toa về (DrugOrderType=4)</b> — thuốc BN mang về sau xuất viện, lấy từ kho thuốc đã chọn.
         </div>
         <IpFld label="Kho thuốc *">
@@ -1352,7 +1352,7 @@ const ClsOrdersModal: React.FC<{
           <div style={{ border: '1px solid var(--line-soft)', borderRadius: 6, overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ background: 'var(--d-1, #f7f9fc)' }}>
+                <tr style={{ background: 'var(--d-1)' }}>
                   <th style={{ padding: '6px 8px', width: 36 }}>
                     <Checkbox
                       checked={selectedIds.length === activeOrders.filter(o => o.status < 3).length && activeOrders.filter(o => o.status < 3).length > 0}
@@ -1379,7 +1379,7 @@ const ClsOrdersModal: React.FC<{
                       key={o.id}
                       style={{
                         borderTop: '1px solid var(--line-soft)',
-                        background: selectedIds.includes(o.id) ? 'var(--accent-soft, #f0f9ff)' : undefined,
+                        background: selectedIds.includes(o.id) ? 'var(--s-info-bg)' : undefined,
                         opacity: !isCancellable ? 0.6 : 1,
                       }}
                     >
@@ -1767,7 +1767,7 @@ const TreatmentStatSection: React.FC<{ admissionId: string }> = ({ admissionId }
 
   if (error) {
     return (
-      <div style={{ padding: '8px 0', fontSize: 12, color: 'var(--s-crit, #dc2626)' }}>
+      <div style={{ padding: '8px 0', fontSize: 12, color: 'var(--s-crit)' }}>
         Khong tai duoc thong ke. Thu lai sau.
       </div>
     );
@@ -1778,7 +1778,7 @@ const TreatmentStatSection: React.FC<{ admissionId: string }> = ({ admissionId }
 
   if (!hasDrugs && !hasDiag) {
     return (
-      <div style={{ padding: '8px 0', fontSize: 12, color: 'var(--t-3, #9ca3af)' }}>
+      <div style={{ padding: '8px 0', fontSize: 12, color: 'var(--t-3)' }}>
         Chua co du lieu thong ke (can it nhat 1 don thuoc noi tru duoc duyet).
       </div>
     );

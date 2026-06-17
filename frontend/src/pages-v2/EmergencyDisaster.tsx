@@ -900,7 +900,7 @@ const IntakeDrawerContent: React.FC<IntakeDrawerContentProps> = ({ submitting, i
             <Input value={injuryMechanism} onChange={(e) => setInjuryMechanism(e.target.value)} placeholder="VD: TNGT, ngã cao, bỏng…" />
           </label>
         </div>
-        {err && <div style={{ color: 'var(--s-crit, #c62828)', fontSize: 12, marginTop: 6 }}>{err}</div>}
+        {err && <div style={{ color: 'var(--s-crit)', fontSize: 12, marginTop: 6 }}>{err}</div>}
       </section>
 
       {!isMci && (

@@ -89,7 +89,7 @@ const PharmacyV2: React.FC = () => {
           {r.priority === 'urgent' && (
             <span style={{
               marginLeft: 6, padding: '1px 5px',
-              background: 'var(--s-crit-bg, #fee2e2)', color: 'var(--s-crit, #b91c1c)',
+              background: 'var(--s-crit-bg)', color: 'var(--s-crit)',
               border: '1px solid #fca5a5', borderRadius: 3,
               fontSize: 9, fontWeight: 700,
             }}>STAT</span>

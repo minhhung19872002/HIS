@@ -400,7 +400,7 @@ const BillingEditorV2: React.FC = () => {
                 <input type="checkbox" checked={useAdvance} onChange={(e) => setUseAdvance(e.target.checked)} disabled={advBalance <= 0} />
                 Dùng tạm ứng <span className="mono ab-u-fg">−{fmtVNDg(advUsed)}</span>
               </label>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '2px solid var(--line)', marginTop: 4 }}><b style={{ fontSize: 13 }}>BN phải trả</b><b className="mono" style={{ fontSize: 15, color: 'var(--c-pri, #2563eb)' }}>{fmtVNDg(finalAmount)}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '2px solid var(--line)', marginTop: 4 }}><b style={{ fontSize: 13 }}>BN phải trả</b><b className="mono" style={{ fontSize: 15, color: 'var(--a-cy)' }}>{fmtVNDg(finalAmount)}</b></div>
             </div>
           </div>
 
@@ -408,7 +408,7 @@ const BillingEditorV2: React.FC = () => {
             <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 6 }}>Phương thức TT</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
               {METHODS.map((m) => (
-                <button key={m.v} onClick={() => setMethod(m.v)} style={{ padding: '10px 6px', background: method === m.v ? 'var(--c-pri, #2563eb)' : 'var(--d-0)', color: method === m.v ? '#fff' : 'var(--t-1)', border: method === m.v ? '1px solid var(--c-pri, #2563eb)' : '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontSize: 11.5, fontWeight: method === m.v ? 700 : 400, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <button key={m.v} onClick={() => setMethod(m.v)} style={{ padding: '10px 6px', background: method === m.v ? 'var(--a-cy)' : 'var(--d-0)', color: method === m.v ? '#fff' : 'var(--t-1)', border: method === m.v ? '1px solid var(--a-cy)' : '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontSize: 11.5, fontWeight: method === m.v ? 700 : 400, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                   <TermIcon name={m.ic} size={16} />{m.l}
                 </button>
               ))}
@@ -442,7 +442,7 @@ const BillingEditorV2: React.FC = () => {
         </>}>
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div style={{ fontSize: 14, color: 'var(--t-2)', marginBottom: 6 }}>BN cần trả</div>
-          <div style={{ fontSize: 30, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--c-pri, #2563eb)', marginBottom: 14 }}>{fmtVNDg(finalAmount)}</div>
+          <div style={{ fontSize: 30, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--a-cy)', marginBottom: 14 }}>{fmtVNDg(finalAmount)}</div>
           {method === 3 && <div style={{ width: 160, height: 160, margin: '0 auto', border: '1px solid var(--line)', borderRadius: 6, background: 'repeating-conic-gradient(#000 0% 25%, var(--d-2) 0% 50%) 50%/12px 12px' }} />}
           <div style={{ marginTop: 14, padding: 10, background: 'var(--d-1)', borderRadius: 4, fontSize: 11, color: 'var(--t-2)' }}>
             {selectedItems.length} mục · {METHODS.find((m) => m.v === method)?.l}{advUsed > 0 ? ` · dùng tạm ứng ${fmtVNDg(advUsed)}` : ''}
@@ -466,7 +466,7 @@ const BillingEditorV2: React.FC = () => {
             <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>{createModal === 'deposit' ? 'Phương thức nộp' : 'Phương thức hoàn'}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
               {METHODS.map((m) => (
-                <button key={m.v} onClick={() => setCform((p) => ({ ...p, method: m.v }))} style={{ padding: '8px 6px', background: cform.method === m.v ? 'var(--c-pri, #2563eb)' : 'var(--d-0)', color: cform.method === m.v ? '#fff' : 'var(--t-1)', border: cform.method === m.v ? '1px solid var(--c-pri, #2563eb)' : '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontSize: 11.5 }}>{m.l}</button>
+                <button key={m.v} onClick={() => setCform((p) => ({ ...p, method: m.v }))} style={{ padding: '8px 6px', background: cform.method === m.v ? 'var(--a-cy)' : 'var(--d-0)', color: cform.method === m.v ? '#fff' : 'var(--t-1)', border: cform.method === m.v ? '1px solid var(--a-cy)' : '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontSize: 11.5 }}>{m.l}</button>
               ))}
             </div>
           </div>
