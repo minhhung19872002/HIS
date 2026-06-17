@@ -236,7 +236,7 @@ const PayrollAdminV2: React.FC = () => {
       {selectedPeriod && (
         <div style={{ marginTop: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontWeight: 600, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontWeight: 600, fontSize: 'var(--fs-lg)', display: 'flex', alignItems: 'center', gap: 8 }}>
               Dòng lương — Kỳ {selectedPeriod.periodCode}
               <StatusBadge tone={selectedPeriod.status === 1 ? 'ok' : 'warn'}>
                 {selectedPeriod.statusName}

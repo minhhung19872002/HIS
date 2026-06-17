@@ -298,11 +298,11 @@ const SpecialtyEMRV2: React.FC = () => {
     { key: 'pat', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'spec', label: 'Chuyên khoa', render: (r) => (
-      <span className="ab-stat info" style={{ height: 22, padding: '0 8px', fontSize: 11 }}>{specialtyLabel(r)}</span>
+      <span className="ab-stat info" style={{ height: 22, padding: '0 8px', fontSize: 'var(--fs-xs)' }}>{specialtyLabel(r)}</span>
     ) },
     { key: 'dept', label: 'Khoa', render: (r) => r.departmentName || '—' },
     { key: 'icd', label: 'ICD', mono: true, render: (r) => r.icdCode || '—' },
@@ -366,11 +366,11 @@ const SpecialtyEMRV2: React.FC = () => {
 
       {bySpecialty.length > 0 && (
         <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)', background: 'var(--d-1)' }}>
-          <div style={{ fontSize: 10, color: 'var(--t-2)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>TOP 5 CHUYÊN KHOA</div>
+          <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>TOP 5 CHUYÊN KHOA</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
             {bySpecialty.map((s) => (
               <div key={s.l} style={{ padding: '8px 10px', background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
-                <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{s.l}</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{s.l}</div>
                 <div style={{ fontSize: 18, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--t-0)' }}>{s.n}</div>
               </div>
             ))}
@@ -408,7 +408,7 @@ const SpecialtyEMRV2: React.FC = () => {
           </DrSec>
           <DrSec title="HSBA chuyên khoa">
             <DrField lbl="Chuyên khoa">
-              <span className="ab-stat info" style={{ height: 22, padding: '0 8px', fontSize: 11 }}>{specialtyLabel(sel)}</span>
+              <span className="ab-stat info" style={{ height: 22, padding: '0 8px', fontSize: 'var(--fs-xs)' }}>{specialtyLabel(sel)}</span>
             </DrField>
             <DrField lbl="Khoa">{sel.departmentName || '—'}</DrField>
             <DrField lbl="Bác sĩ">{sel.doctorName || '—'}</DrField>

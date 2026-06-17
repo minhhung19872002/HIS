@@ -359,7 +359,7 @@ const CatalogsAdminV2: React.FC = () => {
             <Ico name="x" size={12} /> Bo loc
           </Btn>
           <span className="spacer" />
-          <span style={{ fontSize: 11, color: 'var(--t-2)' }}>Go code trong textarea roi bam F2 de tu dong thay the</span>
+          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Go code trong textarea roi bam F2 de tu dong thay the</span>
         </div>
         <DataTable<AbbreviationDto>
           columns={abbrCols} data={abbrs} rowKey={(r) => r.id}

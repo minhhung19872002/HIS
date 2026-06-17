@@ -218,7 +218,7 @@ const DigitalSignatureV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'dept', label: 'Khoa', render: (r) => r.department || '—' },
@@ -242,7 +242,7 @@ const DigitalSignatureV2: React.FC = () => {
     { key: 'subj', label: 'Chủ thể', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.subjectName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.providerName}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.providerName}</div>
       </div>
     ) },
     { key: 'iss', label: 'Tổ chức cấp', render: (r) => r.issuerName },
@@ -428,7 +428,7 @@ const DigitalSignatureV2: React.FC = () => {
               {batchResult.failed > 0 && <StatusBadge tone="crit">Lỗi: {batchResult.failed}</StatusBadge>}
             </div>
             {batchResult.results.filter((r) => !r.success).map((r) => (
-              <div key={r.documentId} style={{ fontSize: 12, color: 'var(--a-rd-text)', marginBottom: 4 }}>
+              <div key={r.documentId} style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-rd-text)', marginBottom: 4 }}>
                 {r.documentId}: {r.error}
               </div>
             ))}

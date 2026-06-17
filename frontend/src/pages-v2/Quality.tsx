@@ -174,7 +174,7 @@ const QualityV2: React.FC = () => {
               <TermIcon name="refresh" size={12} /> Bỏ lọc
             </Btn>
             <span className="spacer" />
-            <span style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{incFiltered.length} sự cố</span>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{incFiltered.length} sự cố</span>
           </div>
           <StatusTabs<IncStatusKey> value={stab} onChange={setStab} tabs={INC_TABS} counts={incCounts} />
           <DataTable<IncidentReportDto>
@@ -206,7 +206,7 @@ const QualityV2: React.FC = () => {
         onClose={() => setDetail(null)}
         title={detail
           ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{detail.incidentCode}</span>
+              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detail.incidentCode}</span>
               <span style={{ fontSize: 14 }}>{detail.incidentTypeName || detail.incidentType}</span>
             </span>
           : ''}
@@ -351,7 +351,7 @@ const IncidentReportModal: React.FC<{
 
 const Fld: React.FC<{ label?: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
   <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
-    {label && <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>}
+    {label && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>}
     {children}
   </div>
 );
@@ -386,7 +386,7 @@ const KpiTab: React.FC<{ indicators: QualityIndicatorDto[]; loading: boolean }> 
         }}>
           <div style={{
             padding: '10px 14px', background: 'var(--d-1)',
-            fontSize: 11, fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)',
             textTransform: 'uppercase', letterSpacing: '.06em',
             color: 'var(--t-1)', fontWeight: 600,
             borderBottom: '1px solid var(--line)',
@@ -400,9 +400,9 @@ const KpiTab: React.FC<{ indicators: QualityIndicatorDto[]; loading: boolean }> 
                 <div key={ind.id} style={{
                   display: 'grid', gridTemplateColumns: '110px 1fr 220px 140px 90px',
                   gap: 14, padding: '12px 14px', borderBottom: '1px solid var(--line-soft)',
-                  alignItems: 'center', fontSize: 13,
+                  alignItems: 'center', fontSize: 'var(--fs-md)',
                 }}>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t-2)' }}>{ind.indicatorCode}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{ind.indicatorCode}</div>
                   <div style={{ fontWeight: 500, color: 'var(--t-0)' }}>{ind.name}</div>
                   <div style={{
                     position: 'relative', height: 8, background: 'var(--d-2, var(--d-3))',
@@ -443,8 +443,8 @@ const AuditTab: React.FC = () => (
         border: '1px solid var(--line)', background: 'var(--d-2)',
         borderRadius: 8, padding: 14,
       }}>
-        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{a.title}</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--t-2)' }}>
+        <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)', marginBottom: 8 }}>{a.title}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
           <span>Kỳ {a.date}</span>
           <StatusBadge tone={a.tone} dot>{a.status}</StatusBadge>
         </div>

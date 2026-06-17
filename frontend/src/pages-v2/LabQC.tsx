@@ -53,7 +53,7 @@ const QC_LEVELS = [
 const FormRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div>
     <div style={{
-      fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+      fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
       letterSpacing: '0.05em', color: 'var(--t-2)', marginBottom: 6,
     }}>{label}</div>
     {children}
@@ -77,7 +77,7 @@ const QCResultPanel: React.FC<{ result: QCResultDto }> = ({ result }) => (
       </div>
     </div>
     {result.violations?.length > 0 && (
-      <div style={{ marginTop: 10, fontSize: 12, color: 'var(--a-rd-text)' }}>Vi phạm: {result.violations.join(' · ')}</div>
+      <div style={{ marginTop: 10, fontSize: 'var(--fs-sm)', color: 'var(--a-rd-text)' }}>Vi phạm: {result.violations.join(' · ')}</div>
     )}
   </div>
 );
@@ -98,7 +98,7 @@ const LJChart: React.FC<{ chart: LeveyJenningsChartDto }> = ({ chart }) => {
   }));
   return (
     <div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 12, color: 'var(--t-2)', marginBottom: 10 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 10 }}>
         <span><b style={{ color: 'var(--t-0)' }}>{chart.testName}</b></span>
         <span>Máy: {chart.analyzerName}</span>
         <span style={{ fontFamily: 'var(--font-mono)' }}>Mean {chart.mean} · SD {chart.sd} · n={data.length}</span>
@@ -110,13 +110,13 @@ const LJChart: React.FC<{ chart: LeveyJenningsChartDto }> = ({ chart }) => {
             <XAxis dataKey="date" fontSize={11} />
             <YAxis fontSize={11} domain={['auto', 'auto']} width={48} />
             <RTooltip />
-            <ReferenceLine y={chart.plus3SD} stroke="var(--s-crit)" strokeDasharray="4 4" label={{ value: '+3SD', fontSize: 10, fill: 'var(--s-crit)' }} />
-            <ReferenceLine y={chart.plus2SD} stroke="var(--s-warn)" strokeDasharray="4 4" label={{ value: '+2SD', fontSize: 10, fill: 'var(--s-warn)' }} />
+            <ReferenceLine y={chart.plus3SD} stroke="var(--s-crit)" strokeDasharray="4 4" label={{ value: '+3SD', fontSize: 'var(--fs-xxs)', fill: 'var(--s-crit)' }} />
+            <ReferenceLine y={chart.plus2SD} stroke="var(--s-warn)" strokeDasharray="4 4" label={{ value: '+2SD', fontSize: 'var(--fs-xxs)', fill: 'var(--s-warn)' }} />
             <ReferenceLine y={chart.plus1SD} stroke="#9ca3af" strokeDasharray="4 4" />
-            <ReferenceLine y={chart.mean} stroke="var(--s-ok)" strokeWidth={1.5} label={{ value: 'Mean', fontSize: 10, fill: 'var(--s-ok)' }} />
+            <ReferenceLine y={chart.mean} stroke="var(--s-ok)" strokeWidth={1.5} label={{ value: 'Mean', fontSize: 'var(--fs-xxs)', fill: 'var(--s-ok)' }} />
             <ReferenceLine y={chart.minus1SD} stroke="#9ca3af" strokeDasharray="4 4" />
-            <ReferenceLine y={chart.minus2SD} stroke="var(--s-warn)" strokeDasharray="4 4" label={{ value: '-2SD', fontSize: 10, fill: 'var(--s-warn)' }} />
-            <ReferenceLine y={chart.minus3SD} stroke="var(--s-crit)" strokeDasharray="4 4" label={{ value: '-3SD', fontSize: 10, fill: 'var(--s-crit)' }} />
+            <ReferenceLine y={chart.minus2SD} stroke="var(--s-warn)" strokeDasharray="4 4" label={{ value: '-2SD', fontSize: 'var(--fs-xxs)', fill: 'var(--s-warn)' }} />
+            <ReferenceLine y={chart.minus3SD} stroke="var(--s-crit)" strokeDasharray="4 4" label={{ value: '-3SD', fontSize: 'var(--fs-xxs)', fill: 'var(--s-crit)' }} />
             <Line type="monotone" dataKey="value" stroke="#0891b2" strokeWidth={2} dot={renderLJDot} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -283,7 +283,7 @@ const LJModal: React.FC<{
       </div>
       {chart
         ? <LJChart chart={chart} />
-        : <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-2)', fontSize: 13 }}>{loading ? 'Đang tải…' : 'Chọn xét nghiệm + máy XN rồi bấm "Vẽ biểu đồ"'}</div>}
+        : <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>{loading ? 'Đang tải…' : 'Chọn xét nghiệm + máy XN rồi bấm "Vẽ biểu đồ"'}</div>}
     </ModalShell>
   );
 };
@@ -386,7 +386,7 @@ const LabQCV2: React.FC = () => {
     { key: 'test', label: 'Xét nghiệm', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.testName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.testCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.testCode}</div>
       </div>
     ) },
     { key: 'level', label: 'Mức', render: (r) => <StatusBadge tone="info">{LEVEL_LABEL[r.level] || '—'}</StatusBadge> },
@@ -411,7 +411,7 @@ const LabQCV2: React.FC = () => {
     { key: 'test', label: 'Xét nghiệm', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.testName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.testCode} · Lô {r.lotNumber}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.testCode} · Lô {r.lotNumber}</div>
       </div>
     ) },
     { key: 'level', label: 'Mức', render: (r) => LEVEL_LABEL[r.level] || '—' },

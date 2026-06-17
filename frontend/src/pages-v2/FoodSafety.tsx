@@ -103,7 +103,7 @@ const FoodSafetyV2: React.FC = () => {
     { key: 'loc', label: 'Địa điểm', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.location}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.locationType}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.locationType}</div>
       </div>
     ) },
     { key: 'aff', label: 'Người AH', mono: true, render: (r) => (

@@ -95,13 +95,13 @@ const TraumaRegistryV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'mech', label: 'Cơ chế', render: (r) => (
       <div>
         <div style={{ fontWeight: 500 }}>{r.injuryMechanism}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.injuryType}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.injuryType}</div>
       </div>
     ) },
     { key: 'triage', label: 'Triage', render: (r) => (
@@ -311,7 +311,7 @@ const Line: React.FC<{ label: string; value: React.ReactNode; tone?: 'ok' | 'cri
     : tone === 'warn' ? 'var(--a-or-text)'
     : 'var(--t-0)';
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13, color }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 'var(--fs-md)', color }}>
       <span>{label}</span><span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{value}</span>
     </div>
   );

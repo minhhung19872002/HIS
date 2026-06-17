@@ -150,8 +150,8 @@ const EmrExtractV2 = () => {
                   }}
                 >
                   <span style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</span>
-                  <span className="mono" style={{ fontSize: 12, color: 'var(--t-2)' }}>{r.patientCode}</span>
-                  <span style={{ fontSize: 12, color: 'var(--t-2)' }}>
+                  <span className="mono" style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>{r.patientCode}</span>
+                  <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
                     {r.gender === 1 ? 'Nam' : 'Nữ'}{r.age != null ? ` · ${r.age}T` : ''} · {r.lastRoomName || '—'} · {r.visitCount} lần khám
                   </span>
                 </button>
@@ -252,7 +252,7 @@ const EmrExtractV2 = () => {
 };
 
 /** Empty-state icon (tránh import lặp TermIcon trong nhiều chỗ). */
-const TermIconHint = () => <span style={{ fontSize: 20, color: 'var(--t-3)' }}>🔎</span>;
+const TermIconHint = () => <span style={{ fontSize: 'var(--fs-xl)', color: 'var(--t-3)' }}>🔎</span>;
 
 /** Khung xem trích lục có watermark chống sao chép phủ chéo + thời hạn. */
 const WatermarkedPreview = ({ extract, patientName, patientCode }: { extract: EmrExtractDto; patientName: string; patientCode: string }) => {
@@ -267,13 +267,13 @@ const WatermarkedPreview = ({ extract, patientName, patientCode }: { extract: Em
         transform: 'rotate(-24deg) scale(1.4)', opacity: expired ? 0.18 : 0.1, zIndex: 1,
       }}>
         {Array.from({ length: 30 }).map((_, i) => (
-          <span key={i} style={{ whiteSpace: 'nowrap', fontSize: 15, fontWeight: 700, color: expired ? '#b91c1c' : 'var(--a-cy-dim)' }}>{mark}</span>
+          <span key={i} style={{ whiteSpace: 'nowrap', fontSize: 'var(--fs-lg)', fontWeight: 700, color: expired ? '#b91c1c' : 'var(--a-cy-dim)' }}>{mark}</span>
         ))}
       </div>
 
       {/* Nội dung trích lục */}
-      <div style={{ position: 'relative', zIndex: 2, padding: 20, fontSize: 13, lineHeight: 1.7 }}>
-        <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 15 }}>BẢN TRÍCH LỤC BỆNH ÁN</div>
+      <div style={{ position: 'relative', zIndex: 2, padding: 20, fontSize: 'var(--fs-md)', lineHeight: 1.7 }}>
+        <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 'var(--fs-lg)' }}>BẢN TRÍCH LỤC BỆNH ÁN</div>
         <div style={{ textAlign: 'center', fontStyle: 'italic', color: 'var(--t-2)', marginBottom: 16 }}>{HOSPITAL_NAME}</div>
         <div><b>Người bệnh:</b> {patientName} <span className="mono">({patientCode})</span></div>
         <div><b>Loại:</b> {extract.extractType === 'Partial' ? 'Một phần' : 'Toàn bộ hồ sơ'}{extract.formTypes ? ` — ${extract.formTypes}` : ''}</div>
@@ -282,7 +282,7 @@ const WatermarkedPreview = ({ extract, patientName, patientCode }: { extract: Em
         <div><b>Hạn dùng:</b> {extract.expiresAt ? fmtDMYg(extract.expiresAt) : 'Không giới hạn'}</div>
         <div><b>Trạng thái:</b> <StatusBadge tone={STATUS_TONE[extract.status] ?? 'info'} dot>{STATUS_LABEL[extract.status] ?? extract.status}</StatusBadge></div>
         {expired && (
-          <div style={{ marginTop: 14, padding: 10, border: '1px solid #fca5a5', background: 'var(--s-crit-bg)', borderRadius: 8, color: '#b91c1c', fontSize: 12 }}>
+          <div style={{ marginTop: 14, padding: 10, border: '1px solid #fca5a5', background: 'var(--s-crit-bg)', borderRadius: 8, color: '#b91c1c', fontSize: 'var(--fs-sm)' }}>
             Bản trích lục đã {extract.status === 'Revoked' ? 'bị thu hồi' : 'hết hạn'} — không còn giá trị sử dụng.
           </div>
         )}

@@ -96,7 +96,7 @@ const ClinicalGuidanceV2: React.FC = () => {
     { key: 'title', label: 'Nội dung', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.title}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>→ {r.targetFacility}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>→ {r.targetFacility}</div>
       </div>
     ) },
     { key: 'type', label: 'Loại', render: (r) => (
@@ -105,7 +105,7 @@ const ClinicalGuidanceV2: React.FC = () => {
     { key: 'date', label: 'Thời gian', mono: true, render: (r) => (
       <div>
         <div>{dayjs(r.startDate).format('DD/MM')}–{dayjs(r.endDate).format('DD/MM/YY')}</div>
-        <div style={{ fontSize: 10, color: 'var(--t-2)' }}>{dayjs(r.endDate).diff(dayjs(r.startDate), 'day') + 1} ngày</div>
+        <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{dayjs(r.endDate).diff(dayjs(r.startDate), 'day') + 1} ngày</div>
       </div>
     ) },
     { key: 'budget', label: 'Ngân sách', mono: true, render: (r) => r.budget ? `${fmt(r.budget)} đ` : '—' },
@@ -225,7 +225,7 @@ const ClinicalGuidanceV2: React.FC = () => {
           </DrSec>
           {sel.notes && (
             <DrSec title="Ghi chú">
-              <div style={{ fontSize: 13, color: 'var(--t-1)' }}>{sel.notes}</div>
+              <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)' }}>{sel.notes}</div>
             </DrSec>
           )}
         </>}

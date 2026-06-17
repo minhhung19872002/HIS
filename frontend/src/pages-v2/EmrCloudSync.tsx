@@ -145,7 +145,7 @@ const EmrCloudSync: React.FC = () => {
       key: 'dest', label: 'Đích', width: 150,
       render: r => {
         const d = CS_DESTS[r.destination] ?? { label: r.destination, color: 'var(--t-2)', icon: 'cloud' };
-        return <span style={{ color: d.color, fontWeight: 600, fontSize: 12 }}>
+        return <span style={{ color: d.color, fontWeight: 600, fontSize: 'var(--fs-sm)' }}>
           <TermIcon name={d.icon} size={11} /> {d.label}
         </span>;
       }
@@ -233,8 +233,8 @@ const EmrCloudSync: React.FC = () => {
               <DrSec title="File">
                 <DrField lbl="Loại">{detail.fileType}</DrField>
                 <DrField lbl="Kích thước"><span className="mono">{(detail.fileSizeBytes / 1024).toFixed(1)} KB</span></DrField>
-                <DrField lbl="SHA-256"><span className="mono" style={{ fontSize: 10, wordBreak: 'break-all' }}>{detail.fileHash ?? '—'}</span></DrField>
-                <DrField lbl="Remote path"><span className="mono" style={{ fontSize: 11 }}>{detail.remotePath ?? '—'}</span></DrField>
+                <DrField lbl="SHA-256"><span className="mono" style={{ fontSize: 'var(--fs-xxs)', wordBreak: 'break-all' }}>{detail.fileHash ?? '—'}</span></DrField>
+                <DrField lbl="Remote path"><span className="mono" style={{ fontSize: 'var(--fs-xs)' }}>{detail.remotePath ?? '—'}</span></DrField>
               </DrSec>
               <DrSec title="Thời gian">
                 <DrField lbl="Hoàn tất">{detail.completedAt ? fmtDTg(detail.completedAt) : <span style={{ color: 'var(--t-3)' }}>—</span>}</DrField>

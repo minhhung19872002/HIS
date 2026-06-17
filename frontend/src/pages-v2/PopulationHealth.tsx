@@ -102,13 +102,13 @@ const PopulationHealthV2: React.FC = () => {
     { key: 'name', label: 'Họ tên', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.fullName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.gender === 1 ? 'Nam' : 'Nữ'} · {dayjs(r.dateOfBirth).format('DD/MM/YYYY')}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.gender === 1 ? 'Nam' : 'Nữ'} · {dayjs(r.dateOfBirth).format('DD/MM/YYYY')}</div>
       </div>
     ) },
     { key: 'type', label: 'Loại HS', render: (r) => (
       <StatusBadge tone="info">{TYPE_LABEL[r.recordType] || r.recordType}</StatusBadge>
     ) },
-    { key: 'addr', label: 'Địa chỉ', render: (r) => <span style={{ fontSize: 12 }}>{r.address}</span> },
+    { key: 'addr', label: 'Địa chỉ', render: (r) => <span style={{ fontSize: 'var(--fs-sm)' }}>{r.address}</span> },
     { key: 'fam', label: 'Mã hộ', code: true, render: (r) => r.familyCode || '—' },
     { key: 'unit', label: 'Đơn vị QL', render: (r) => r.managingUnit },
     { key: 'last', label: 'Khám gần', mono: true, render: (r) => r.lastVisitDate ? dayjs(r.lastVisitDate).format('DD/MM/YYYY') : '—' },

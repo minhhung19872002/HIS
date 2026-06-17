@@ -174,7 +174,7 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm BN, chủ trì, địa điểm, lý do…" />
         <StatusTabs<CsKey> value={status} onChange={setStatus} tabs={CS_TABS} counts={csCounts} />
         <span className="spacer" />
-        <span style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
+        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
           {filtered.length} cuộc hội chẩn
         </span>
         <Btn variant="primary" onClick={() => setCreateOpen(true)}>
@@ -184,7 +184,7 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
 
       <div style={{ flex: 1, overflow: 'auto' }}>
         {loading
-          ? <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 12, padding: 24 }}>Đang tải hội chẩn…</div>
+          ? <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', padding: 24 }}>Đang tải hội chẩn…</div>
           : (
             <DataTable<ConsultationDto>
               columns={columns}
@@ -255,7 +255,7 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
               {sel.imageResults && <DrField lbl="KQ CĐHA">{sel.imageResults}</DrField>}
             </DrSec>
             <DrSec title={`Thành viên (${sel.members?.length ?? 0})`}>
-              {(sel.members?.length ?? 0) === 0 && <div style={{ color: 'var(--t-2)', fontSize: 12 }}>Chưa có thành viên</div>}
+              {(sel.members?.length ?? 0) === 0 && <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Chưa có thành viên</div>}
               {sel.members?.map((m) => (
                 <div key={m.doctorId} className="rec-kv" style={{ marginBottom: 4 }}>
                   <DrField lbl={m.doctorName || 'BS'}>{m.opinion || 'Chưa có ý kiến'}</DrField>

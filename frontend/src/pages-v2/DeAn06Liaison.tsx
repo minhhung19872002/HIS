@@ -75,7 +75,7 @@ const BirthTab: React.FC = () => {
       render: (r) => (
         <div>
           <b>{r.motherFullName || '—'}</b>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.motherIdNumber}</div>
+          <div className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.motherIdNumber}</div>
         </div>
       ) },
     { key: 'birthDateTime', label: 'Ngày sinh', mono: true,
@@ -172,7 +172,7 @@ const DeathTab: React.FC = () => {
       render: (r) => (
         <div>
           <b>{r.patientName || '—'}</b>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
+          <div className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode}</div>
         </div>
       ) },
     { key: 'deathDateTime', label: 'Tử vong lúc', mono: true,
@@ -181,7 +181,7 @@ const DeathTab: React.FC = () => {
       render: (r) => (
         <div>
           <span className="mono">{r.primaryCauseIcd || '—'}</span>
-          <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.primaryCauseDescription || '—'}</div>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.primaryCauseDescription || '—'}</div>
         </div>
       ) },
     { key: 'mannerOfDeath', label: 'Kiểu', width: 110 },
@@ -276,7 +276,7 @@ const DlhcTab: React.FC = () => {
       render: (r) => (
         <div>
           <b>{r.patientName || '—'}</b>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
+          <div className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode}</div>
         </div>
       ) },
     { key: 'licenseClass', label: 'Hạng GPLX', width: 90,

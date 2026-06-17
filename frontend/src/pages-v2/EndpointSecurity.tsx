@@ -112,14 +112,14 @@ const EndpointSecurityV2: React.FC = () => {
     { key: 'net', label: 'IP · MAC', mono: true, render: (r) => (
       <div>
         <div>{r.ipAddress || '—'}</div>
-        <div style={{ fontSize: 10, color: 'var(--t-2)' }}>{r.macAddress || '—'}</div>
+        <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{r.macAddress || '—'}</div>
       </div>
     ) },
     { key: 'os', label: 'OS', render: (r) => `${r.operatingSystem || '—'} ${r.osVersion || ''}`.trim() },
     { key: 'av', label: 'AV', render: (r) => (
       <div>
-        <div style={{ fontSize: 12 }}>{r.antivirusName || '—'}</div>
-        {r.antivirusLastUpdate && <div style={{ fontSize: 10, color: 'var(--t-2)' }}>upd {dayjs(r.antivirusLastUpdate).format('DD/MM')}</div>}
+        <div style={{ fontSize: 'var(--fs-sm)' }}>{r.antivirusName || '—'}</div>
+        {r.antivirusLastUpdate && <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>upd {dayjs(r.antivirusLastUpdate).format('DD/MM')}</div>}
       </div>
     ) },
     { key: 'dept', label: 'Khoa', render: (r) => r.departmentName || '—' },
@@ -257,7 +257,7 @@ const EndpointSecurityV2: React.FC = () => {
           <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Không có sự cố ATTT nào</div>
         )}
         {!incidentLoading && incidents.length > 0 && (
-          <table className="ab-tbl" style={{ width: '100%', fontSize: 12 }}>
+          <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>
             <thead>
               <tr>
                 <th>Mã SC</th><th>Tiêu đề</th><th>Mức độ</th>

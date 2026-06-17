@@ -266,7 +266,7 @@ const EnvironmentalHealthV2: React.FC = () => {
             <DrField lbl="Kết quả">
               <span style={{ fontFamily: 'var(--font-mono)' }}>{m.value} {m.unit}</span>
               {' / '}
-              <span style={{ color: 'var(--t-2)', fontSize: 11 }}>giới hạn {m.standardLimit} {m.unit}</span>
+              <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>giới hạn {m.standardLimit} {m.unit}</span>
             </DrField>
             <DrField lbl="Kết luận">
               {m.isCompliant

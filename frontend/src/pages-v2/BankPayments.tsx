@@ -139,7 +139,7 @@ const BankPayments: React.FC = () => {
         const b = bankOf(r);
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 4, background: b.color, color: '#fff', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 800 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 4, background: b.color, color: '#fff', display: 'grid', placeItems: 'center', fontSize: 'var(--fs-xxs)', fontWeight: 800 }}>
               {b.short.slice(0, 3).toUpperCase()}
             </div>
             <div>
@@ -154,7 +154,7 @@ const BankPayments: React.FC = () => {
       key: 'patient', label: 'Bệnh nhân', render: r => (
         <div>
           <div style={{ fontWeight: 600 }}>{r.patientName ?? '—'}</div>
-          {r.patientCode && <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>}
+          {r.patientCode && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode}</div>}
         </div>
       )
     },
@@ -360,7 +360,7 @@ const BankPayments: React.FC = () => {
               <div style={{ marginTop: 6, fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                 {fmtVNDg(qrFor.amount)}
               </div>
-              <div style={{ marginTop: 4, fontSize: 11, color: 'var(--t-2)' }}>
+              <div style={{ marginTop: 4, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                 Nội dung: <span className="mono">{qrFor.txnRef}</span>
               </div>
             </div>
@@ -393,11 +393,11 @@ const BankPayments: React.FC = () => {
               }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: 6, background: b.color, color: '#fff',
-                  display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 11,
+                  display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 'var(--fs-xs)',
                 }}>{b.short.slice(0, 3).toUpperCase()}</div>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{b.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--t-2)' }}>BIN {b.bin} · GD {confirming.txnRef}</div>
+                  <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)' }}>{b.name}</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>BIN {b.bin} · GD {confirming.txnRef}</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{fmtVNDg(confirming.amount)}</div>
               </div>

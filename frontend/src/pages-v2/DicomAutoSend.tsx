@@ -168,7 +168,7 @@ const DicomAutoSend: React.FC = () => {
       {tab === 'rules' && (
         <>
           <div className="ab-toolbar">
-            <span style={{ fontSize: 11, color: 'var(--t-2)' }}>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
               🔁 Quy tắc auto-send · {rules.filter(r => r.isActive).length} active · {rules.filter(r => r.triggerType === 'scheduled').length} cron
             </span>
             <span className="spacer" style={{ flex: 1 }} />
@@ -196,7 +196,7 @@ const DicomAutoSend: React.FC = () => {
       {tab === 'transmissions' && (
         <>
           <div className="ab-toolbar">
-            <span style={{ fontSize: 11, color: 'var(--t-2)' }}>📡 {txns.length} giao dịch gần nhất · sort theo thời gian</span>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>📡 {txns.length} giao dịch gần nhất · sort theo thời gian</span>
             <span className="spacer" style={{ flex: 1 }} />
             <Button size="small" onClick={load} loading={loading}>
               <TermIcon name="refresh" size={12} /> Tải lại
@@ -214,10 +214,10 @@ const DicomAutoSend: React.FC = () => {
       {tab === 'stats' && stats && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: 14 }}>
           <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', fontWeight: 600, fontSize: 13 }}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', fontWeight: 600, fontSize: 'var(--fs-md)' }}>
               Theo server đích
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
               <thead style={{ background: 'var(--d-1)' }}>
                 <tr><th style={{ textAlign: 'left', padding: '8px 16px' }}>Đích</th><th style={{ textAlign: 'right', padding: '8px 16px' }}>Số ca</th><th style={{ textAlign: 'right', padding: '8px 16px' }}>Dung lượng</th></tr>
               </thead>
@@ -236,7 +236,7 @@ const DicomAutoSend: React.FC = () => {
             </table>
           </div>
           <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', fontWeight: 600, fontSize: 13 }}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', fontWeight: 600, fontSize: 'var(--fs-md)' }}>
               14 ngày gần nhất
             </div>
             <div style={{ padding: 14, display: 'flex', gap: 4, alignItems: 'flex-end', height: 200 }}>
@@ -285,7 +285,7 @@ const DicomAutoSend: React.FC = () => {
             </DrSec>
             {txnDetail.errorMessage && (
               <DrSec title="Lỗi">
-                <div style={{ padding: 10, background: 'var(--s-crit-bg)', color: 'var(--s-crit)', fontFamily: 'var(--font-mono)', fontSize: 11, borderRadius: 4 }}>
+                <div style={{ padding: 10, background: 'var(--s-crit-bg)', color: 'var(--s-crit)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', borderRadius: 4 }}>
                   {txnDetail.errorMessage}
                 </div>
               </DrSec>

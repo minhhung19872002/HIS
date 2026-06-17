@@ -73,7 +73,7 @@ const IvfLabV2: React.FC = () => {
     { key: 'wife', label: 'Vợ', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.wifeName || '—'}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
           {r.wifeCode || '—'}{calcAge(r.wifeDob) !== null && ` · ${calcAge(r.wifeDob)}t`}
         </div>
       </div>
@@ -81,7 +81,7 @@ const IvfLabV2: React.FC = () => {
     { key: 'hus', label: 'Chồng', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.husbandName || '—'}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
           {r.husbandCode || '—'}{calcAge(r.husbandDob) !== null && ` · ${calcAge(r.husbandDob)}t`}
         </div>
       </div>
@@ -214,7 +214,7 @@ const IvfLabV2: React.FC = () => {
                     <td className="mono">{e.embryoCode}</td>
                     <td>{e.day5Grade || e.day3Grade || e.day2Grade || '—'}</td>
                     <td className="mono">{e.freezeDate ? dayjs(e.freezeDate).format('DD/MM/YYYY') : '—'}</td>
-                    <td style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                    <td style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                       {[e.strawCode, e.boxCode, e.tankCode].filter(Boolean).join(' / ') || '—'}
                     </td>
                     <td>{e.statusName || e.status}</td>
@@ -356,7 +356,7 @@ const CoupleModal: React.FC<{ couple: IvfCouple | null; onClose: () => void; onD
         <Fld lbl="Ghi chú">
           <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Fld>
-        {err && <div style={{ color: 'var(--s-crit)', fontSize: 12 }}>{err}</div>}
+        {err && <div style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-sm)' }}>{err}</div>}
       </div>
     </ModalShell>
   );

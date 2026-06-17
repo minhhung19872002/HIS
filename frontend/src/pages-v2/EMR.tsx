@@ -184,21 +184,21 @@ const EMRV2: React.FC = () => {
     },
     {
       key: 'bhyt', label: 'BHYT', mono: true, width: 130,
-      render: (r) => r.insuranceNumber ? <span style={{ fontSize: 11 }}>{r.insuranceNumber}</span> : <span style={{ color: 'var(--t-3)' }}>—</span>,
+      render: (r) => r.insuranceNumber ? <span style={{ fontSize: 'var(--fs-xs)' }}>{r.insuranceNumber}</span> : <span style={{ color: 'var(--t-3)' }}>—</span>,
     },
     {
       key: 'chronic', label: 'Bệnh nền',
       render: (r) => (r.chronicDiseases?.length ? (
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {r.chronicDiseases.slice(0, 2).map((c) => <span key={c} className="chip info" style={{ fontSize: 10 }}>{c}</span>)}
-          {r.chronicDiseases.length > 2 && <span style={{ fontSize: 11, color: 'var(--t-2)' }}>+{r.chronicDiseases.length - 2}</span>}
+          {r.chronicDiseases.slice(0, 2).map((c) => <span key={c} className="chip info" style={{ fontSize: 'var(--fs-xxs)' }}>{c}</span>)}
+          {r.chronicDiseases.length > 2 && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>+{r.chronicDiseases.length - 2}</span>}
         </div>
       ) : <span style={{ color: 'var(--t-3)' }}>—</span>),
     },
     {
       key: 'allergies', label: 'Dị ứng',
       render: (r) => (r.allergies?.length
-        ? <span className="chip crit" style={{ fontSize: 10 }}>⚠ {r.allergies.join(', ')}</span>
+        ? <span className="chip crit" style={{ fontSize: 'var(--fs-xxs)' }}>⚠ {r.allergies.join(', ')}</span>
         : <span style={{ color: 'var(--t-3)' }}>—</span>),
     },
     { key: 'visits', label: 'Lượt KB', mono: true, width: 90, render: (r) => r.visitCount },
@@ -263,20 +263,20 @@ const EMRV2: React.FC = () => {
           <div className="rec-section">
             <h5><TermIcon name="heart" size={11} /> BỆNH NỀN · DỊ ỨNG</h5>
             <div style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4 }}>Bệnh nền</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4 }}>Bệnh nền</div>
               {r.chronicDiseases?.length ? (
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {r.chronicDiseases.map((c) => <span key={c} className="chip info">{c}</span>)}
                 </div>
-              ) : <span style={{ color: 'var(--t-3)', fontSize: 12 }}>Không ghi nhận</span>}
+              ) : <span style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Không ghi nhận</span>}
             </div>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4 }}>Dị ứng</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4 }}>Dị ứng</div>
               {r.allergies?.length ? (
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {r.allergies.map((a) => <span key={a} className="chip crit">⚠ {a}</span>)}
                 </div>
-              ) : <span style={{ color: 'var(--t-3)', fontSize: 12 }}>Không ghi nhận</span>}
+              ) : <span style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Không ghi nhận</span>}
             </div>
           </div>
           <div className="rec-section">
@@ -312,7 +312,7 @@ const EMRV2: React.FC = () => {
       )}
       drawerTitle={(r) => (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.patientCode}</span>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.patientCode}</span>
           <span style={{ fontSize: 14 }}>{r.patientName}</span>
         </span>
       )}

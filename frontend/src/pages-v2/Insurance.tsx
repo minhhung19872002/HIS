@@ -216,7 +216,7 @@ const InsuranceV2: React.FC = () => {
         onClose={() => setDetail(null)}
         title={detail
           ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{detail.maLk}</span>
+              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detail.maLk}</span>
               <span style={{ fontSize: 14 }}>{detail.patientName}</span>
             </span>
           : ''}
@@ -239,7 +239,7 @@ const InsuranceDrawerBody: React.FC<{ r: InsuranceClaimSummaryDto }> = ({ r }) =
         <h5><TermIcon name="check" size={11} /> TRẠNG THÁI</h5>
         <div className={`rec-status-banner ${tone}`}>
           <StatusBadge tone={tone} dot>{lbl}</StatusBadge>
-          {r.submitDate && <span style={{ fontSize: 11, color: 'var(--t-2)' }}>Gửi {fmtDMY(r.submitDate)}</span>}
+          {r.submitDate && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Gửi {fmtDMY(r.submitDate)}</span>}
         </div>
       </div>
 

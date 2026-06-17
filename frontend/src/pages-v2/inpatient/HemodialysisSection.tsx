@@ -80,7 +80,7 @@ function validateForm(f: FormState): string | null {
 
 const IpFld: React.FC<{ label: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
   <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
-    <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>
+    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>
     {children}
   </div>
 );
@@ -218,7 +218,7 @@ const HemodialysisSection: React.FC<HemodialysisSectionProps> = ({ admissionId, 
   return (
     <div style={{ marginTop: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <h5 style={{ margin: 0, fontSize: 12, fontWeight: 700, letterSpacing: 0.5, color: 'var(--t-1)' }}>
+        <h5 style={{ margin: 0, fontSize: 'var(--fs-sm)', fontWeight: 700, letterSpacing: 0.5, color: 'var(--t-1)' }}>
           <TermIcon name="activity" size={11} /> CHAY THAN NHAN TAO ({records.length})
         </h5>
         <Btn variant="primary" onClick={openCreate}>

@@ -324,7 +324,7 @@ const BhxhAuditV2: React.FC = () => {
     { key: 'pat', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'bhyt', label: 'Số BHYT', mono: true, render: (r) => r.insuranceNumber },
@@ -388,7 +388,7 @@ const BhxhAuditV2: React.FC = () => {
               fontWeight: activeMainTab === t ? 600 : 400,
               borderBottom: activeMainTab === t ? '2px solid var(--pri)' : '2px solid transparent',
               color: activeMainTab === t ? 'var(--pri)' : 'var(--t-1)',
-              fontSize: 13,
+              fontSize: 'var(--fs-md)',
             }}
           >
             {t === 'sessions' ? 'Phiên giám định' : 'Import CSV'}
@@ -537,13 +537,13 @@ const BhxhAuditV2: React.FC = () => {
           {/* Ket qua import vua upload */}
           {importResult && (
             <div style={{ margin: '8px 12px', padding: 12, background: 'var(--bg-1)', borderRadius: 6, border: '1px solid var(--line)' }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
-                Batch: <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{importResult.importBatchCode}</span>
+              <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)', marginBottom: 4 }}>
+                Batch: <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)' }}>{importResult.importBatchCode}</span>
                 &nbsp;—&nbsp;{importResult.importedRows} dong / {importResult.totalRows} dong
                 {importResult.skippedRows > 0 && <span style={{ color: 'var(--a-or-text)' }}> · {importResult.skippedRows} bo qua</span>}
               </div>
               {importResult.errors.length > 0 && (
-                <details style={{ fontSize: 12, color: 'var(--crit)' }}>
+                <details style={{ fontSize: 'var(--fs-sm)', color: 'var(--crit)' }}>
                   <summary style={{ cursor: 'pointer' }}>{importResult.errors.length} loi</summary>
                   <ul style={{ margin: '4px 0 0 16px' }}>
                     {importResult.errors.map((e, i) => (
@@ -552,9 +552,9 @@ const BhxhAuditV2: React.FC = () => {
                   </ul>
                 </details>
               )}
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 4 }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 4 }}>
                 Chi ho tro CSV. Excel can them thu vien ClosedXML/EPPlus o backend.
-                <Btn variant="ghost" onClick={() => setImportResult(null)} style={{ marginLeft: 8, height: 20, fontSize: 11 }}>Dong</Btn>
+                <Btn variant="ghost" onClick={() => setImportResult(null)} style={{ marginLeft: 8, height: 20, fontSize: 'var(--fs-xs)' }}>Dong</Btn>
               </div>
             </div>
           )}
@@ -570,7 +570,7 @@ const BhxhAuditV2: React.FC = () => {
           <DataTable<BhxhAuditImportRow>
             columns={[
               { key: 'rowNumber', label: '#', width: 50, render: (r) => r.rowNumber },
-              { key: 'maHoSo', label: 'Mã hồ sơ', render: (r) => <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{r.maHoSo}</span> },
+              { key: 'maHoSo', label: 'Mã hồ sơ', render: (r) => <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)' }}>{r.maHoSo}</span> },
               { key: 'hoTen', label: 'Họ tên', render: (r) => r.hoTen ?? '—' },
               { key: 'soTheBHYT', label: 'Số thẻ BHYT', render: (r) => r.soTheBHYT ?? '—' },
               { key: 'ngayVao', label: 'Ngày vào', render: (r) => r.ngayVao ? dayjs(r.ngayVao).format('DD/MM/YYYY') : '—' },
@@ -612,7 +612,7 @@ const Line: React.FC<{ label: string; value: React.ReactNode; tone?: 'ok' | 'cri
     : tone === 'warn' ? 'var(--a-or-text)'
     : 'var(--t-0)';
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13, color }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 'var(--fs-md)', color }}>
       <span>{label}</span><span style={{ fontFamily: 'var(--font-mono)' }}>{value}</span>
     </div>
   );

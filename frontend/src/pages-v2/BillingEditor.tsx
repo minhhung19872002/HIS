@@ -303,9 +303,9 @@ const BillingEditorV2: React.FC = () => {
         ) : (
           <>
             <div style={{ padding: 12, background: 'var(--d-0)', borderRadius: 8, border: '1px solid var(--line)' }}>
-              <div style={{ fontSize: 15, fontWeight: 700 }}>{pt.patientName}</div>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{pt.patientCode} · {pt.medicalRecordCode}</div>
-              <div style={{ marginTop: 8, padding: 8, background: 'var(--d-1)', borderRadius: 4, fontSize: 11 }}>
+              <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 700 }}>{pt.patientName}</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{pt.patientCode} · {pt.medicalRecordCode}</div>
+              <div style={{ marginTop: 8, padding: 8, background: 'var(--d-1)', borderRadius: 4, fontSize: 'var(--fs-xs)' }}>
                 <div><span className="ab-u-muted">Trạng thái: </span>{pt.paymentStatusName}</div>
                 <div style={{ marginTop: 4 }}><span className="ab-u-muted">Số dư tạm ứng: </span><b className="mono" style={{ color: 'var(--s-ok)' }}>{fmtVNDg(advBalance)}</b></div>
                 <div style={{ marginTop: 4 }}><span className="ab-u-muted">Tổng viện phí: </span><b className="mono">{fmtVNDg(pt.totalAmount)}</b></div>
@@ -334,7 +334,7 @@ const BillingEditorV2: React.FC = () => {
 
           {tab === 'pay' && pt && (
             <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, overflow: 'hidden' }}>
-              <table className="ab-tbl" style={{ fontSize: 12 }}>
+              <table className="ab-tbl" style={{ fontSize: 'var(--fs-sm)' }}>
                 <thead><tr>
                   <th style={{ width: 36 }}><input type="checkbox" checked={sel.size === items.length && items.length > 0} onChange={toggleAll} /></th>
                   <th style={{ width: 90 }}>Loại</th>
@@ -400,7 +400,7 @@ const BillingEditorV2: React.FC = () => {
                 <input type="checkbox" checked={useAdvance} onChange={(e) => setUseAdvance(e.target.checked)} disabled={advBalance <= 0} />
                 Dùng tạm ứng <span className="mono ab-u-fg">−{fmtVNDg(advUsed)}</span>
               </label>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '2px solid var(--line)', marginTop: 4 }}><b style={{ fontSize: 13 }}>BN phải trả</b><b className="mono" style={{ fontSize: 15, color: 'var(--a-cy)' }}>{fmtVNDg(finalAmount)}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '2px solid var(--line)', marginTop: 4 }}><b style={{ fontSize: 'var(--fs-md)' }}>BN phải trả</b><b className="mono" style={{ fontSize: 'var(--fs-lg)', color: 'var(--a-cy)' }}>{fmtVNDg(finalAmount)}</b></div>
             </div>
           </div>
 
@@ -416,7 +416,7 @@ const BillingEditorV2: React.FC = () => {
           </div>
 
           <div style={{ display: 'grid', gap: 6 }}>
-            <Btn variant="primary" style={{ height: 40, fontSize: 13 }} onClick={() => setConfirmOpen(true)} disabled={selectedItems.length === 0 || busy}>
+            <Btn variant="primary" style={{ height: 40, fontSize: 'var(--fs-md)' }} onClick={() => setConfirmOpen(true)} disabled={selectedItems.length === 0 || busy}>
               <TermIcon name="check" size={13} /> Thu tiền · {fmtVNDg(finalAmount)}
             </Btn>
             <Btn variant="ghost" onClick={doPrintReceipt} disabled={printingReceipt || !lastPaymentId}><TermIcon name="print" size={12} /> In biên lai</Btn>
@@ -444,7 +444,7 @@ const BillingEditorV2: React.FC = () => {
           <div style={{ fontSize: 14, color: 'var(--t-2)', marginBottom: 6 }}>BN cần trả</div>
           <div style={{ fontSize: 30, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--a-cy)', marginBottom: 14 }}>{fmtVNDg(finalAmount)}</div>
           {method === 3 && <div style={{ width: 160, height: 160, margin: '0 auto', border: '1px solid var(--line)', borderRadius: 6, background: 'repeating-conic-gradient(#000 0% 25%, var(--d-2) 0% 50%) 50%/12px 12px' }} />}
-          <div style={{ marginTop: 14, padding: 10, background: 'var(--d-1)', borderRadius: 4, fontSize: 11, color: 'var(--t-2)' }}>
+          <div style={{ marginTop: 14, padding: 10, background: 'var(--d-1)', borderRadius: 4, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
             {selectedItems.length} mục · {METHODS.find((m) => m.v === method)?.l}{advUsed > 0 ? ` · dùng tạm ứng ${fmtVNDg(advUsed)}` : ''}
           </div>
         </div>
@@ -513,7 +513,7 @@ const BillingEditorV2: React.FC = () => {
             <span style={{ display: 'block', color: 'var(--t-2)', marginBottom: 3 }}>Email nhận hoá đơn</span>
             <input type="email" className="ed-fld" value={einvForm.buyerEmail} onChange={(e) => setEinvForm((p) => ({ ...p, buyerEmail: e.target.value }))} placeholder="vd: benhnhan@email.com" />
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-sm)' }}>
             <input type="checkbox" checked={einvForm.sendEmail} onChange={(e) => setEinvForm((p) => ({ ...p, sendEmail: e.target.checked }))} />
             Gửi hoá đơn qua email sau khi phát hành
           </label>
@@ -555,9 +555,9 @@ const BillingPatientSearch: React.FC<{ open: boolean; onClose: () => void; onPic
             <div key={p.medicalRecordId} onClick={() => onPick(p)} style={{ padding: 10, border: '1px solid var(--line)', borderRadius: 6, marginBottom: 6, cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <b>{p.patientName}</b>
-                <span className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{p.patientCode}</span>
+                <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{p.patientCode}</span>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>{p.medicalRecordCode} · {p.paymentStatusName} · {fmtVNDg(p.totalAmount)}</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>{p.medicalRecordCode} · {p.paymentStatusName} · {fmtVNDg(p.totalAmount)}</div>
             </div>
           ))}
         </div>

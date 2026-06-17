@@ -144,18 +144,18 @@ const BookingManagementV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        {r.phoneNumber && <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>📞 {r.phoneNumber}</div>}
+        {r.phoneNumber && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>📞 {r.phoneNumber}</div>}
       </div>
     ) },
     { key: 'date', label: 'Ngày · Giờ', mono: true, render: (r) => (
       <div>
         <div>{dayjs(r.appointmentDate).format('DD/MM/YYYY')}</div>
-        {r.appointmentTime && <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.appointmentTime}</div>}
+        {r.appointmentTime && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.appointmentTime}</div>}
       </div>
     ) },
     { key: 'dept', label: 'Khoa', render: (r) => r.departmentName || '—' },
     { key: 'doc', label: 'BS', render: (r) => r.doctorName || '—' },
-    { key: 'reason', label: 'Lý do', render: (r) => <span style={{ fontSize: 12 }}>{r.reason || '—'}</span> },
+    { key: 'reason', label: 'Lý do', render: (r) => <span style={{ fontSize: 'var(--fs-sm)' }}>{r.reason || '—'}</span> },
     { key: 'st', label: 'Trạng thái', render: (r) => {
       const t = STATUS_TABS.find((x) => x.v === sKey(r.status));
       return <StatusBadge tone={t?.tone || 'info'} dot>{STATUS_LABEL[r.status] || '—'}</StatusBadge>;
@@ -301,7 +301,7 @@ const BookingManagementV2: React.FC = () => {
         <p style={{ marginBottom: 12, color: 'var(--t-1)' }}>
           Lịch hẹn sẽ chuyển sang trạng thái <strong>Đã hủy</strong> và không thể khôi phục.
         </p>
-        <label style={{ display: 'block', marginBottom: 4, fontSize: 13, color: 'var(--t-2)' }}>
+        <label style={{ display: 'block', marginBottom: 4, fontSize: 'var(--fs-md)', color: 'var(--t-2)' }}>
           Lý do hủy (tùy chọn)
         </label>
         <Input
@@ -429,7 +429,7 @@ const BookingModal: React.FC<{
     }
   };
 
-  const lblStyle: React.CSSProperties = { fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 };
+  const lblStyle: React.CSSProperties = { fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 };
 
   return (
     <ModalShell

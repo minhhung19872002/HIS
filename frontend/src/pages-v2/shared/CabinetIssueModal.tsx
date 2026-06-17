@@ -286,11 +286,11 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
         </Btn>
       }>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
             <thead>
               <tr style={{ background: 'var(--d-1)', borderBottom: '1px solid var(--line)' }}>
                 {['Thuốc / Vật tư', 'ĐVT', 'Số lượng', 'Đ.giá (TK)', ''].map((h) => (
-                  <th key={h} style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap', fontSize: 11 }}>{h}</th>
+                  <th key={h} style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap', fontSize: 'var(--fs-xs)' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -314,7 +314,7 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
                       }}
                     />
                   </td>
-                  <td style={{ padding: '4px 4px', width: 60, color: 'var(--t-2)', fontSize: 11 }}>{l.unit || '—'}</td>
+                  <td style={{ padding: '4px 4px', width: 60, color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>{l.unit || '—'}</td>
                   <td style={{ padding: '4px 4px', width: 90 }}>
                     <InputNumber
                       value={l.quantity}
@@ -325,7 +325,7 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
                       onChange={(v) => updateLine(l._key, { quantity: v ?? 1 })}
                     />
                   </td>
-                  <td style={{ padding: '4px 4px', width: 110, color: 'var(--t-2)', fontSize: 11, textAlign: 'right' }}>
+                  <td style={{ padding: '4px 4px', width: 110, color: 'var(--t-2)', fontSize: 'var(--fs-xs)', textAlign: 'right' }}>
                     {l.unitPrice > 0 ? l.unitPrice.toLocaleString('vi-VN') : '—'}
                   </td>
                   <td style={{ padding: '4px 4px', width: 32 }}>
@@ -341,7 +341,7 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
           </table>
         </div>
         {totalEst > 0 && (
-          <div style={{ textAlign: 'right', fontSize: 12, marginTop: 6, color: 'var(--t-1)' }}>
+          <div style={{ textAlign: 'right', fontSize: 'var(--fs-sm)', marginTop: 6, color: 'var(--t-1)' }}>
             Tổng dự tính: <b>{totalEst.toLocaleString('vi-VN')} ₫</b>
           </div>
         )}
@@ -353,14 +353,14 @@ export const CabinetIssueModal: React.FC<CabinetIssueModalProps> = ({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Ghi chú thêm…"
-          style={{ width: '100%', minHeight: 48, padding: 6, border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, background: 'var(--d-0)', color: 'var(--t-0)' }}
+          style={{ width: '100%', minHeight: 48, padding: 6, border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }}
         />
       </DrSec>
 
       {/* Last created issue summary */}
       {lastIssue && (
         <DrSec title="Phiếu xuất vừa tạo">
-          <div style={{ fontSize: 12, display: 'grid', gridTemplateColumns: '120px 1fr', gap: '2px 8px' }}>
+          <div style={{ fontSize: 'var(--fs-sm)', display: 'grid', gridTemplateColumns: '120px 1fr', gap: '2px 8px' }}>
             <span style={{ color: 'var(--t-2)' }}>Mã phiếu</span>
             <span className="mono" style={{ color: 'var(--a-cy)' }}>{lastIssue.issueCode}</span>
             <span style={{ color: 'var(--t-2)' }}>Thời gian</span>

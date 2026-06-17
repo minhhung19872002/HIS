@@ -583,7 +583,7 @@ const OpdEditorV2: React.FC = () => {
         </div>
         <div style={{ display: 'inline-flex', background: 'var(--d-0)', borderRadius: 4, padding: 2, marginBottom: 10, width: '100%' }}>
           {([{ v: 'general', l: 'Ngoại trú' }, { v: 'yhct', l: 'YHCT' }] as const).map((t) => (
-            <button key={t.v} onClick={() => setType(t.v)} style={{ flex: 1, background: type === t.v ? 'var(--c-pri)' : 'transparent', color: type === t.v ? '#fff' : 'var(--t-1)', border: 0, padding: '4px 8px', borderRadius: 3, cursor: 'pointer', fontSize: 11, fontWeight: type === t.v ? 700 : 400 }}>{t.l}</button>
+            <button key={t.v} onClick={() => setType(t.v)} style={{ flex: 1, background: type === t.v ? 'var(--c-pri)' : 'transparent', color: type === t.v ? '#fff' : 'var(--t-1)', border: 0, padding: '4px 8px', borderRadius: 3, cursor: 'pointer', fontSize: 'var(--fs-xs)', fontWeight: type === t.v ? 700 : 400 }}>{t.l}</button>
           ))}
         </div>
 
@@ -600,7 +600,7 @@ const OpdEditorV2: React.FC = () => {
               </div>
               <div style={{ fontWeight: 600, fontSize: 12.5, marginTop: 3 }}>{q.patientName}</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
-                <span style={{ fontSize: 11, color: 'var(--t-2)' }}>{q.age}T · {q.gender === 1 ? 'Nam' : 'Nữ'}</span>
+                <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{q.age}T · {q.gender === 1 ? 'Nam' : 'Nữ'}</span>
                 <StatusBadge tone={tone}>{q.statusName || (q.status === 2 ? 'Đang khám' : q.status === 1 ? 'Gọi' : 'Chờ')}</StatusBadge>
               </div>
             </div>
@@ -623,15 +623,15 @@ const OpdEditorV2: React.FC = () => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 8 }}>
                 {VITAL_FIELDS.map((v) => (
                   <div key={v.k}>
-                    <label style={{ fontSize: 10, color: 'var(--t-2)' }}>{v.l}</label>
+                    <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{v.l}</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <input className="hui-inp mono" type="number" value={vitals[v.k] ?? ''} onChange={(e) => setVitals((s) => ({ ...s, [v.k]: e.target.value === '' ? undefined : +e.target.value }))} style={{ width: '100%', height: 28, fontSize: 12 }} />
-                      <span style={{ fontSize: 10, color: 'var(--t-3)' }}>{v.unit}</span>
+                      <input className="hui-inp mono" type="number" value={vitals[v.k] ?? ''} onChange={(e) => setVitals((s) => ({ ...s, [v.k]: e.target.value === '' ? undefined : +e.target.value }))} style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }} />
+                      <span style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-3)' }}>{v.unit}</span>
                     </div>
                   </div>
                 ))}
               </div>
-              <div style={{ marginTop: 8, padding: 6, background: 'var(--d-1)', borderRadius: 4, fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--t-2)' }}>
+              <div style={{ marginTop: 8, padding: 6, background: 'var(--d-1)', borderRadius: 4, fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', color: 'var(--t-2)' }}>
                 BMI = <b style={{ color: bmi == null ? 'var(--t-2)' : bmi < 18.5 ? 'var(--s-info)' : bmi > 25 ? 'var(--s-crit)' : 'var(--s-ok)' }}>{bmiStr}</b>
                 {bmi != null && <> ({bmi < 18.5 ? 'Gầy' : bmi > 25 ? 'Thừa cân' : 'Bình thường'})</>}
               </div>
@@ -640,7 +640,7 @@ const OpdEditorV2: React.FC = () => {
             {/* Mẫu HSBA ngoại trú — áp nhanh / lưu bản ghi thành mẫu / quản lý (issue #30 mục 7) */}
             <section style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <select className="hui-inp" value="" onChange={(e) => applyTpl(e.target.value)}
-                style={{ height: 30, fontSize: 12, flex: '0 1 340px', minWidth: 220 }}>
+                style={{ height: 30, fontSize: 'var(--fs-sm)', flex: '0 1 340px', minWidth: 220 }}>
                 <option value="">Áp mẫu HSBA{tpls.length ? ` (${tpls.length} mẫu)` : ' (chưa có mẫu)'}…</option>
                 {tpls.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -660,11 +660,11 @@ const OpdEditorV2: React.FC = () => {
             <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
                 <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Bệnh sử · Lý do khám</h4>
-                <textarea value={history} onChange={(e) => setHistory(expandAbbr(e.target.value))} placeholder="Lý do đến khám, diễn biến bệnh… (gõ từ viết tắt + space để bung)" style={{ width: '100%', minHeight: 80, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, background: 'var(--d-0)', color: 'var(--t-0)' }} />
+                <textarea value={history} onChange={(e) => setHistory(expandAbbr(e.target.value))} placeholder="Lý do đến khám, diễn biến bệnh… (gõ từ viết tắt + space để bung)" style={{ width: '100%', minHeight: 80, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
               </div>
               <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
                 <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Khám lâm sàng</h4>
-                <textarea value={exam} onChange={(e) => setExam(expandAbbr(e.target.value))} placeholder="Toàn thân, tim, phổi, bụng…" style={{ width: '100%', minHeight: 80, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, background: 'var(--d-0)', color: 'var(--t-0)' }} />
+                <textarea value={exam} onChange={(e) => setExam(expandAbbr(e.target.value))} placeholder="Toàn thân, tim, phổi, bụng…" style={{ width: '100%', minHeight: 80, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
               </div>
             </section>
 
@@ -682,16 +682,16 @@ const OpdEditorV2: React.FC = () => {
               )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                 <div>
-                  <label style={{ fontSize: 10, color: 'var(--t-2)' }}>Tiền sử bệnh bản thân</label>
-                  <textarea value={pastHist} onChange={(e) => setPastHist(expandAbbr(e.target.value))} placeholder="Bệnh nền, phẫu thuật cũ…" style={{ width: '100%', minHeight: 56, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, background: 'var(--d-0)', color: 'var(--t-0)' }} />
+                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Tiền sử bệnh bản thân</label>
+                  <textarea value={pastHist} onChange={(e) => setPastHist(expandAbbr(e.target.value))} placeholder="Bệnh nền, phẫu thuật cũ…" style={{ width: '100%', minHeight: 56, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, color: 'var(--t-2)' }}>Tiền sử gia đình</label>
-                  <textarea value={familyHist} onChange={(e) => setFamilyHist(expandAbbr(e.target.value))} placeholder="Bệnh di truyền, dịch tễ gia đình…" style={{ width: '100%', minHeight: 56, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, background: 'var(--d-0)', color: 'var(--t-0)' }} />
+                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Tiền sử gia đình</label>
+                  <textarea value={familyHist} onChange={(e) => setFamilyHist(expandAbbr(e.target.value))} placeholder="Bệnh di truyền, dịch tễ gia đình…" style={{ width: '100%', minHeight: 56, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, color: 'var(--t-2)' }}>Dị ứng (thuốc / thức ăn)</label>
-                  <textarea value={allergyHist} onChange={(e) => setAllergyHist(expandAbbr(e.target.value))} placeholder="Thuốc, thức ăn, tác nhân dị ứng…" style={{ width: '100%', minHeight: 56, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, background: 'var(--d-0)', color: 'var(--t-0)' }} />
+                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Dị ứng (thuốc / thức ăn)</label>
+                  <textarea value={allergyHist} onChange={(e) => setAllergyHist(expandAbbr(e.target.value))} placeholder="Thuốc, thức ăn, tác nhân dị ứng…" style={{ width: '100%', minHeight: 56, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
                 </div>
               </div>
             </section>
@@ -709,7 +709,7 @@ const OpdEditorV2: React.FC = () => {
                     {icdResults.map((i) => (
                       <div key={i.code} onClick={() => addIcd(i)} style={{ padding: '6px 12px', borderBottom: '1px solid var(--line-soft)', cursor: 'pointer', display: 'flex', gap: 10 }}>
                         <span className="mono" style={{ fontWeight: 700, color: 'var(--a-cy)', width: 70 }}>{i.code}</span>
-                        <span style={{ fontSize: 12 }}>{i.name}</span>
+                        <span style={{ fontSize: 'var(--fs-sm)' }}>{i.name}</span>
                       </div>
                     ))}
                   </div>
@@ -722,7 +722,7 @@ const OpdEditorV2: React.FC = () => {
                     <span className="mono" style={{ fontWeight: 700 }}>{d.icdCode}</span>
                     <span>{d.icdName}</span>
                     {d.isPrimary ? <span style={{ fontSize: 9, fontWeight: 700, opacity: .8 }}>CHÍNH</span>
-                      : <button onClick={() => setPrimary(i)} style={{ background: 'transparent', border: 0, color: 'inherit', cursor: 'pointer', fontSize: 10 }} title="Đặt làm chính">★</button>}
+                      : <button onClick={() => setPrimary(i)} style={{ background: 'transparent', border: 0, color: 'inherit', cursor: 'pointer', fontSize: 'var(--fs-xxs)' }} title="Đặt làm chính">★</button>}
                     <button onClick={() => removeIcd(i)} style={{ background: 'transparent', border: 0, color: 'inherit', cursor: 'pointer' }}>×</button>
                   </span>
                 ))}
@@ -742,21 +742,21 @@ const OpdEditorV2: React.FC = () => {
                     {svcResults.map((s) => (
                       <div key={s.id} onClick={() => addSvc(s)} style={{ padding: '6px 12px', borderBottom: '1px solid var(--line-soft)', cursor: 'pointer', display: 'grid', gridTemplateColumns: '110px 1fr 110px', gap: 10 }}>
                         <span className="mono" style={{ color: 'var(--a-cy)' }}>{s.code}</span>
-                        <span style={{ fontSize: 12 }}>{s.name}</span>
+                        <span style={{ fontSize: 'var(--fs-sm)' }}>{s.name}</span>
                         <span className="mono" style={{ textAlign: 'right' }}>{fmtVNDg(s.unitPrice)}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-              <table className="ab-tbl" style={{ fontSize: 12 }}>
+              <table className="ab-tbl" style={{ fontSize: 'var(--fs-sm)' }}>
                 <thead><tr><th style={{ width: 32 }}>#</th><th>Dịch vụ</th><th style={{ width: 80 }}>SL</th><th style={{ width: 120, textAlign: 'right' }}>Đơn giá</th><th style={{ width: 120, textAlign: 'right' }}>Thành tiền</th><th style={{ width: 40 }}></th></tr></thead>
                 <tbody>
                   {orders.length === 0 && <tr><td colSpan={6} style={{ padding: 20, textAlign: 'center', color: 'var(--t-3)' }}>Chưa có chỉ định</td></tr>}
                   {orders.map((o, i) => (
                     <tr key={o.serviceId}>
                       <td className="mono">{i + 1}</td>
-                      <td><div style={{ fontWeight: 600 }}>{o.name}</div><div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{o.code}</div></td>
+                      <td><div style={{ fontWeight: 600 }}>{o.name}</div><div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{o.code}</div></td>
                       <td><input type="number" className="hui-inp" style={{ width: '100%', height: 26 }} value={o.qty} onChange={(e) => updateQty(i, +e.target.value)} /></td>
                       <td className="mono" style={{ textAlign: 'right' }}>{fmtVNDg(o.unitPrice)}</td>
                       <td className="mono" style={{ textAlign: 'right', fontWeight: 600 }}>{fmtVNDg(o.unitPrice * o.qty)}</td>
@@ -773,8 +773,8 @@ const OpdEditorV2: React.FC = () => {
               <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Khai báo thương tích / TNGT (Biểu 14.5)</h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 10, color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Loại tai nạn</label>
-                  <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 12 }}
+                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Loại tai nạn</label>
+                  <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
                     value={injuryInfo.injuryType ?? ''}
                     onChange={(e) => setInjuryInfo((s) => ({ ...s, injuryType: e.target.value ? +e.target.value : undefined }))}>
                     <option value="">-- Chọn --</option>
@@ -785,14 +785,14 @@ const OpdEditorV2: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Ngày xảy ra</label>
-                  <input type="date" className="hui-inp" style={{ width: '100%', height: 28, fontSize: 12 }}
+                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Ngày xảy ra</label>
+                  <input type="date" className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
                     value={injuryInfo.injuryDate ? injuryInfo.injuryDate.slice(0, 10) : ''}
                     onChange={(e) => setInjuryInfo((s) => ({ ...s, injuryDate: e.target.value || undefined }))} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Nơi xảy ra</label>
-                  <input type="text" className="hui-inp" style={{ width: '100%', height: 28, fontSize: 12 }}
+                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Nơi xảy ra</label>
+                  <input type="text" className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
                     placeholder="Địa điểm tai nạn"
                     value={injuryInfo.injuryLocation ?? ''}
                     onChange={(e) => setInjuryInfo((s) => ({ ...s, injuryLocation: e.target.value || undefined }))} />
@@ -802,8 +802,8 @@ const OpdEditorV2: React.FC = () => {
                 <>
                   <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                     <div>
-                      <label style={{ fontSize: 10, color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Đội mũ bảo hiểm</label>
-                      <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 12 }}
+                      <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Đội mũ bảo hiểm</label>
+                      <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
                         value={injuryInfo.helmetWorn == null ? '' : injuryInfo.helmetWorn ? '1' : '0'}
                         onChange={(e) => setInjuryInfo((s) => ({ ...s, helmetWorn: e.target.value === '' ? null : e.target.value === '1' }))}>
                         <option value="">-- Chưa rõ --</option>
@@ -812,8 +812,8 @@ const OpdEditorV2: React.FC = () => {
                       </select>
                     </div>
                     <div>
-                      <label style={{ fontSize: 10, color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Nồng độ cồn (mg/L khí thở)</label>
-                      <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 12 }}
+                      <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Nồng độ cồn (mg/L khí thở)</label>
+                      <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
                         value={injuryInfo.alcoholLevel ?? ''}
                         onChange={(e) => setInjuryInfo((s) => ({ ...s, alcoholLevel: e.target.value || undefined }))}>
                         <option value="">-- Chưa đo --</option>
@@ -824,8 +824,8 @@ const OpdEditorV2: React.FC = () => {
                       </select>
                     </div>
                     <div>
-                      <label style={{ fontSize: 10, color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Phương tiện nạn nhân điều khiển</label>
-                      <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 12 }}
+                      <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Phương tiện nạn nhân điều khiển</label>
+                      <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
                         value={injuryInfo.vehicleTypeSelf ?? ''}
                         onChange={(e) => setInjuryInfo((s) => ({ ...s, vehicleTypeSelf: e.target.value || undefined }))}>
                         <option value="">-- Chọn --</option>
@@ -840,8 +840,8 @@ const OpdEditorV2: React.FC = () => {
                   </div>
                   <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <div>
-                      <label style={{ fontSize: 10, color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Phương tiện gây tai nạn</label>
-                      <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 12 }}
+                      <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Phương tiện gây tai nạn</label>
+                      <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
                         value={injuryInfo.vehicleTypeCauser ?? ''}
                         onChange={(e) => setInjuryInfo((s) => ({ ...s, vehicleTypeCauser: e.target.value || undefined }))}>
                         <option value="">-- Chọn --</option>
@@ -854,8 +854,8 @@ const OpdEditorV2: React.FC = () => {
                       </select>
                     </div>
                     <div>
-                      <label style={{ fontSize: 10, color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Phương tiện khác liên quan</label>
-                      <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 12 }}
+                      <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Phương tiện khác liên quan</label>
+                      <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
                         value={injuryInfo.vehicleTypeVictim ?? ''}
                         onChange={(e) => setInjuryInfo((s) => ({ ...s, vehicleTypeVictim: e.target.value || undefined }))}>
                         <option value="">-- Không có / Không rõ --</option>
@@ -871,15 +871,15 @@ const OpdEditorV2: React.FC = () => {
               )}
               <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 10, color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Nguyên nhân / Hoàn cảnh</label>
-                  <input type="text" className="hui-inp" style={{ width: '100%', height: 28, fontSize: 12 }}
+                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Nguyên nhân / Hoàn cảnh</label>
+                  <input type="text" className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
                     placeholder="Mô tả nguyên nhân"
                     value={injuryInfo.injuryCause ?? ''}
                     onChange={(e) => setInjuryInfo((s) => ({ ...s, injuryCause: e.target.value || undefined }))} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Sơ cứu ban đầu</label>
-                  <input type="text" className="hui-inp" style={{ width: '100%', height: 28, fontSize: 12 }}
+                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 3 }}>Sơ cứu ban đầu</label>
+                  <input type="text" className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
                     placeholder="Đã xử trí gì trước khi đến viện"
                     value={injuryInfo.firstAid ?? ''}
                     onChange={(e) => setInjuryInfo((s) => ({ ...s, firstAid: e.target.value || undefined }))} />
@@ -893,7 +893,7 @@ const OpdEditorV2: React.FC = () => {
                   Đã báo cáo công an
                 </label>
                 {injuryInfo.isReportedToPolice && (
-                  <input type="text" className="hui-inp" style={{ height: 26, fontSize: 12, flex: 1 }}
+                  <input type="text" className="hui-inp" style={{ height: 26, fontSize: 'var(--fs-sm)', flex: 1 }}
                     placeholder="Số biên bản công an"
                     value={injuryInfo.policeReportNumber ?? ''}
                     onChange={(e) => setInjuryInfo((s) => ({ ...s, policeReportNumber: e.target.value || undefined }))} />
@@ -907,15 +907,15 @@ const OpdEditorV2: React.FC = () => {
       {/* Right tools */}
       <aside className={'ed-right-panel ' + (rightOpen ? 'is-open' : '')} style={{ borderLeft: '1px solid var(--line)', padding: 12, background: 'var(--d-1)', display: 'flex', flexDirection: 'column', gap: 10, overflow: 'auto' }}>
         <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
-          <h4 style={{ margin: '0 0 8px', fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Kết luận</h4>
+          <h4 style={{ margin: '0 0 8px', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Kết luận</h4>
           <textarea value={conclusion} onChange={(e) => setConclusion(expandAbbr(e.target.value))} placeholder="Kết luận khám, hướng xử trí, hẹn tái khám…" style={{ width: '100%', minHeight: 80, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 11.5, background: 'var(--d-0)', color: 'var(--t-0)' }} />
         </section>
 
         <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
-          <h4 style={{ margin: '0 0 8px', fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Giấy nghỉ ốm</h4>
+          <h4 style={{ margin: '0 0 8px', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Giấy nghỉ ốm</h4>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-            <div><label style={{ fontSize: 10, color: 'var(--t-2)' }}>Từ ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} value={sickFrom} onChange={(e) => setSickFrom(e.target.value)} /></div>
-            <div><label style={{ fontSize: 10, color: 'var(--t-2)' }}>Đến ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} value={sickTo} onChange={(e) => setSickTo(e.target.value)} /></div>
+            <div><label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Từ ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} value={sickFrom} onChange={(e) => setSickFrom(e.target.value)} /></div>
+            <div><label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Đến ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} value={sickTo} onChange={(e) => setSickTo(e.target.value)} /></div>
           </div>
           <Btn variant="ghost" size="sm" style={{ width: '100%', marginTop: 8, justifyContent: 'center' }} disabled={!sickFrom || !sickTo} onClick={saveSickLeave}>
             <TermIcon name="file-text" size={11} /> Lưu giấy nghỉ
@@ -941,7 +941,7 @@ const OpdEditorV2: React.FC = () => {
 
         {/* ── XỬ TRÍ ─────────────────────────────────────────── */}
         <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Xử trí</h4>
+          <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Xử trí</h4>
           <div style={{ display: 'grid', gap: 6 }}>
             <Btn
               variant="ghost"
@@ -981,7 +981,7 @@ const OpdEditorV2: React.FC = () => {
 
         {/* ── ĐA CHUYÊN KHOA ─────────────────────────────────── */}
         <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Đa chuyên khoa</h4>
+          <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Đa chuyên khoa</h4>
 
           {/* 1. Khám thêm CK khác */}
           <div style={{ display: 'grid', gap: 6, marginBottom: 10 }}>
@@ -1020,10 +1020,10 @@ const OpdEditorV2: React.FC = () => {
 
           {/* 3. Bảng kê chi phí — completion status */}
           <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, marginBottom: 8 }}>
-            <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)', marginBottom: 6 }}>Bảng kê chi phí</div>
+            <div style={{ fontSize: 'var(--fs-xxs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)', marginBottom: 6 }}>Bảng kê chi phí</div>
             {completion ? (
               <>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6, fontSize: 11 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6, fontSize: 'var(--fs-xs)' }}>
                   <span>Hoàn tất: <b style={{ color: completion.isCompleted ? 'var(--s-ok)' : 'var(--t-2)' }}>{completion.isCompleted ? '✓' : '✗'}</b></span>
                   <span>Đã in BK: <b style={{ color: completion.isBillPrinted ? 'var(--s-ok)' : 'var(--t-2)' }}>{completion.isBillPrinted ? '✓' : '✗'}</b></span>
                   {completion.totalExamsInChain > 1 && (
@@ -1031,7 +1031,7 @@ const OpdEditorV2: React.FC = () => {
                   )}
                 </div>
                 {completion.blockReason && (
-                  <div style={{ fontSize: 11, color: 'var(--s-warn)', marginBottom: 6, padding: '4px 6px', background: 'var(--d-1)', borderRadius: 4, borderLeft: '3px solid var(--s-warn)' }}>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-warn)', marginBottom: 6, padding: '4px 6px', background: 'var(--d-1)', borderRadius: 4, borderLeft: '3px solid var(--s-warn)' }}>
                     {completion.blockReason}
                   </div>
                 )}
@@ -1106,7 +1106,7 @@ const OpdEditorV2: React.FC = () => {
                 </div>
               </>
             ) : (
-              <div style={{ fontSize: 11, color: 'var(--t-3)' }}>{examId ? 'Đang tải…' : 'Chọn bệnh nhân để xem trạng thái'}</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-3)' }}>{examId ? 'Đang tải…' : 'Chọn bệnh nhân để xem trạng thái'}</div>
             )}
           </div>
 
@@ -1144,7 +1144,7 @@ const OpdEditorV2: React.FC = () => {
           </div>
         }
       >
-        <label style={{ fontSize: 11, color: 'var(--t-2)' }}>Tên mẫu</label>
+        <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Tên mẫu</label>
         <input className="hui-inp" value={tplName} onChange={(e) => setTplName(e.target.value)}
           placeholder="VD: Viêm họng cấp người lớn" style={{ width: '100%', height: 32, fontSize: 12.5 }} autoFocus />
         <div style={{ marginTop: 10, fontSize: 11.5, color: 'var(--t-2)' }}>
@@ -1226,7 +1226,7 @@ const OpdEditorV2: React.FC = () => {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Phòng chuyên khoa <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Phòng chuyên khoa <span style={{ color: 'var(--s-err)' }}>*</span></label>
             <select
               className="hui-inp hui-sel"
               value={followUpRoomId}
@@ -1240,7 +1240,7 @@ const OpdEditorV2: React.FC = () => {
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do (tùy chọn)</label>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do (tùy chọn)</label>
             <textarea
               className="hui-inp"
               value={followUpReason}
@@ -1295,7 +1295,7 @@ const OpdEditorV2: React.FC = () => {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Phòng mới <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Phòng mới <span style={{ color: 'var(--s-err)' }}>*</span></label>
             <select
               className="hui-inp hui-sel"
               value={changeRoomNewId}
@@ -1309,7 +1309,7 @@ const OpdEditorV2: React.FC = () => {
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do (tùy chọn)</label>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do (tùy chọn)</label>
             <textarea
               className="hui-inp"
               value={changeRoomReason}
@@ -1361,10 +1361,10 @@ const OpdEditorV2: React.FC = () => {
         }
       >
         <div>
-          <div style={{ marginBottom: 10, fontSize: 12, color: 'var(--t-1)' }}>
+          <div style={{ marginBottom: 10, fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>
             Xóa đăng ký khám của <b>{selPt?.patientName}</b> (STT {selPt?.queueNumber})?
           </div>
-          <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>
+          <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>
             Lý do xóa <span style={{ color: 'var(--s-err)' }}>*</span>
           </label>
           <textarea
@@ -1376,7 +1376,7 @@ const OpdEditorV2: React.FC = () => {
             style={{ width: '100%', resize: 'vertical', borderColor: !deleteReason.trim() ? 'var(--s-err)' : undefined }}
           />
           {!deleteReason.trim() && (
-            <div style={{ fontSize: 11, color: 'var(--s-err)', marginTop: 4 }}>Lý do không được để trống</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-err)', marginTop: 4 }}>Lý do không được để trống</div>
           )}
         </div>
       </ModalShell>
@@ -1399,7 +1399,7 @@ const OpdEditorV2: React.FC = () => {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Khoa nhập viện <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Khoa nhập viện <span style={{ color: 'var(--s-err)' }}>*</span></label>
             <select className="hui-inp hui-sel" value={hospDeptId} onChange={(e) => setHospDeptId(e.target.value)} style={{ width: '100%', height: 30 }}>
               <option value="">(Chọn khoa)</option>
               {departments.filter((d) => d.id).map((d) => (
@@ -1408,10 +1408,10 @@ const OpdEditorV2: React.FC = () => {
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do nhập viện <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do nhập viện <span style={{ color: 'var(--s-err)' }}>*</span></label>
             <textarea className="hui-inp" value={hospReason} onChange={(e) => setHospReason(e.target.value)} placeholder="Lý do nhập viện…" rows={3} style={{ width: '100%', resize: 'vertical' }} />
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t-1)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>
             <input type="checkbox" checked={hospEmergency} onChange={(e) => setHospEmergency(e.target.checked)} /> Nhập viện cấp cứu
           </label>
         </div>
@@ -1435,15 +1435,15 @@ const OpdEditorV2: React.FC = () => {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Cơ sở chuyển đến <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Cơ sở chuyển đến <span style={{ color: 'var(--s-err)' }}>*</span></label>
             <input className="hui-inp" value={transferFacility} onChange={(e) => setTransferFacility(e.target.value)} placeholder="Tên bệnh viện / cơ sở y tế…" style={{ width: '100%', height: 30 }} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do chuyển viện <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do chuyển viện <span style={{ color: 'var(--s-err)' }}>*</span></label>
             <textarea className="hui-inp" value={transferReason} onChange={(e) => setTransferReason(e.target.value)} placeholder="Lý do chuyển viện…" rows={3} style={{ width: '100%', resize: 'vertical' }} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Phương tiện vận chuyển</label>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Phương tiện vận chuyển</label>
             <input className="hui-inp" value={transferTransport} onChange={(e) => setTransferTransport(e.target.value)} placeholder="Xe cứu thương, tự túc…" style={{ width: '100%', height: 30 }} />
           </div>
         </div>
@@ -1467,11 +1467,11 @@ const OpdEditorV2: React.FC = () => {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Ngày hẹn tái khám <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Ngày hẹn tái khám <span style={{ color: 'var(--s-err)' }}>*</span></label>
             <input type="date" className="hui-inp" value={apptDate} onChange={(e) => setApptDate(e.target.value)} style={{ width: '100%', height: 30 }} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do / ghi chú</label>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do / ghi chú</label>
             <textarea className="hui-inp" value={apptNotes} onChange={(e) => setApptNotes(e.target.value)} placeholder="Lý do hẹn tái khám, dặn dò…" rows={3} style={{ width: '100%', resize: 'vertical' }} />
           </div>
         </div>
@@ -1498,27 +1498,27 @@ const OpdEditorV2: React.FC = () => {
         size="lg"
         footer={<div style={{ display: 'flex', justifyContent: 'flex-end' }}><Btn variant="ghost" size="sm" onClick={() => setClsOpen(false)}>Đóng</Btn></div>}
       >
-        {clsLoading && <div style={{ padding: 20, textAlign: 'center', color: 'var(--t-3)', fontSize: 12 }}>Đang tải…</div>}
+        {clsLoading && <div style={{ padding: 20, textAlign: 'center', color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Đang tải…</div>}
         {!clsLoading && clsData && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Xét nghiệm ({clsData.labResults?.length ?? 0})</h4>
-              {(clsData.labResults || []).length === 0 && <div style={{ fontSize: 12, color: 'var(--t-3)' }}>Chưa có kết quả xét nghiệm</div>}
+              {(clsData.labResults || []).length === 0 && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-3)' }}>Chưa có kết quả xét nghiệm</div>}
               {(clsData.labResults || []).map((lr) => (
                 <div key={lr.orderId} style={{ border: '1px solid var(--line)', borderRadius: 6, padding: 10, marginBottom: 8 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
                     <b style={{ fontSize: 12.5 }}>{lr.serviceName}</b>
-                    <span className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{lr.serviceCode}</span>
+                    <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{lr.serviceCode}</span>
                     <span className="spacer" />
-                    <span style={{ fontSize: 11, color: 'var(--t-2)' }}>{lr.resultDate ? new Date(lr.resultDate).toLocaleString('vi-VN') : 'Chưa có KQ'}</span>
+                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{lr.resultDate ? new Date(lr.resultDate).toLocaleString('vi-VN') : 'Chưa có KQ'}</span>
                   </div>
                   {(lr.items || []).map((it, idx) => (
-                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: 8, fontSize: 12, padding: '3px 0', borderBottom: '1px solid var(--line-soft)' }}>
+                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: 8, fontSize: 'var(--fs-sm)', padding: '3px 0', borderBottom: '1px solid var(--line-soft)' }}>
                       <span>{it.testName}</span>
                       <span className="mono" style={{ textAlign: 'right', fontWeight: 600, color: it.isAbnormal ? 'var(--s-crit)' : 'var(--t-0)' }}>
                         {it.result || '—'}{it.unit ? ` ${it.unit}` : ''}{it.isAbnormal ? ' ⚠' : ''}
                       </span>
-                      <span className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{it.referenceRange || '—'}</span>
+                      <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{it.referenceRange || '—'}</span>
                     </div>
                   ))}
                 </div>
@@ -1526,21 +1526,21 @@ const OpdEditorV2: React.FC = () => {
             </div>
             <div>
               <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>CĐHA · TDCN ({clsData.imagingResults?.length ?? 0})</h4>
-              {(clsData.imagingResults || []).length === 0 && <div style={{ fontSize: 12, color: 'var(--t-3)' }}>Chưa có kết quả CĐHA</div>}
+              {(clsData.imagingResults || []).length === 0 && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-3)' }}>Chưa có kết quả CĐHA</div>}
               {(clsData.imagingResults || []).map((ir) => (
                 <div key={ir.orderId} style={{ border: '1px solid var(--line)', borderRadius: 6, padding: 10, marginBottom: 8 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <b style={{ fontSize: 12.5 }}>{ir.serviceName}</b>
-                    <span className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{ir.serviceCode}</span>
+                    <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{ir.serviceCode}</span>
                     <span className="spacer" />
-                    <span style={{ fontSize: 11, color: 'var(--t-2)' }}>{ir.resultDate ? new Date(ir.resultDate).toLocaleString('vi-VN') : 'Chưa có KQ'}</span>
+                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{ir.resultDate ? new Date(ir.resultDate).toLocaleString('vi-VN') : 'Chưa có KQ'}</span>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         )}
-        {!clsLoading && !clsData && <div style={{ padding: 20, textAlign: 'center', color: 'var(--t-3)', fontSize: 12 }}>Không có dữ liệu</div>}
+        {!clsLoading && !clsData && <div style={{ padding: 20, textAlign: 'center', color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Không có dữ liệu</div>}
       </ModalShell>
 
       {/* ── Modal: Sổ hội chẩn ───────────────────────────────────────── */}
@@ -1564,11 +1564,11 @@ const OpdEditorV2: React.FC = () => {
             <div>
               <h4 style={{ margin: '0 0 6px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Biên bản đã lập ({consults.length})</h4>
               {consults.map((c) => (
-                <div key={c.id} style={{ border: '1px solid var(--line)', borderRadius: 6, padding: 10, marginBottom: 6, fontSize: 12 }}>
+                <div key={c.id} style={{ border: '1px solid var(--line)', borderRadius: 6, padding: 10, marginBottom: 6, fontSize: 'var(--fs-sm)' }}>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
                     <b>{c.reason}</b>
                     <span className="spacer" />
-                    <span style={{ color: 'var(--t-2)', fontSize: 11 }}>{c.consultationDate ? new Date(c.consultationDate).toLocaleString('vi-VN') : ''}</span>
+                    <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>{c.consultationDate ? new Date(c.consultationDate).toLocaleString('vi-VN') : ''}</span>
                   </div>
                   {c.conclusion && <div style={{ color: 'var(--t-1)' }}>KL: {c.conclusion}</div>}
                   {c.recommendations && <div style={{ color: 'var(--t-2)', fontSize: 11.5 }}>Đề nghị: {c.recommendations}</div>}
@@ -1580,20 +1580,20 @@ const OpdEditorV2: React.FC = () => {
             <h4 style={{ margin: '0 0 6px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Lập biên bản mới</h4>
             <div style={{ display: 'grid', gap: 8 }}>
               <div>
-                <label style={{ fontSize: 11, color: 'var(--t-2)' }}>Lý do hội chẩn <span style={{ color: 'var(--s-err)' }}>*</span></label>
+                <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Lý do hội chẩn <span style={{ color: 'var(--s-err)' }}>*</span></label>
                 <input className="hui-inp" style={{ width: '100%', height: 28 }} value={consultForm.reason} onChange={(e) => setConsultForm((f) => ({ ...f, reason: e.target.value }))} placeholder="Ca khó, đa bệnh lý…" />
               </div>
               <div>
-                <label style={{ fontSize: 11, color: 'var(--t-2)' }}>Tóm tắt diễn biến</label>
+                <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Tóm tắt diễn biến</label>
                 <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={consultForm.summary} onChange={(e) => setConsultForm((f) => ({ ...f, summary: e.target.value }))} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div>
-                  <label style={{ fontSize: 11, color: 'var(--t-2)' }}>Kết luận</label>
+                  <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Kết luận</label>
                   <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={consultForm.conclusion} onChange={(e) => setConsultForm((f) => ({ ...f, conclusion: e.target.value }))} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, color: 'var(--t-2)' }}>Đề nghị</label>
+                  <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Đề nghị</label>
                   <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={consultForm.recommendations} onChange={(e) => setConsultForm((f) => ({ ...f, recommendations: e.target.value }))} />
                 </div>
               </div>

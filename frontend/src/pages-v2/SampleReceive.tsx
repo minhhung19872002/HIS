@@ -171,7 +171,7 @@ const SampleReceiveV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600 }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'svc', label: 'Dịch vụ XN', render: (r) => r.serviceName },
@@ -195,7 +195,7 @@ const SampleReceiveV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600 }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'svc', label: 'Dịch vụ XN', render: (r) => r.serviceName },
@@ -396,7 +396,7 @@ const SampleReceiveV2: React.FC = () => {
             <div className="rec-section">
               <h5><TermIcon name="package" size={11} /> TỒN TỦ TRỰC</h5>
               {utilCabinetStock.length === 0 ? (
-                <div style={{ color: 'var(--t-3)', fontSize: 12, padding: '8px 0' }}>Không có dữ liệu tủ trực</div>
+                <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)', padding: '8px 0' }}>Không có dữ liệu tủ trực</div>
               ) : (
                 <div style={{ display: 'grid', gap: 4 }}>
                   {utilCabinetStock.slice(0, 50).map((s) => (
@@ -406,7 +406,7 @@ const SampleReceiveV2: React.FC = () => {
                     }}>
                       <div>
                         <div style={{ fontWeight: 500 }}>{s.itemName}</div>
-                        <div style={{ fontSize: 10, color: 'var(--t-2)' }}>{s.warehouseName}</div>
+                        <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{s.warehouseName}</div>
                       </div>
                       <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{s.quantity} {s.unit}</span>
                       <span style={{
@@ -414,7 +414,7 @@ const SampleReceiveV2: React.FC = () => {
                         color: s.availableQuantity <= 0 ? 'var(--s-crit)' : s.availableQuantity < 10 ? 'var(--s-warn)' : 'inherit',
                         fontWeight: s.availableQuantity <= 0 ? 700 : 400,
                       }}>{s.availableQuantity}</span>
-                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? 'var(--s-warn)' : 'var(--t-2)' }}>
+                      <span style={{ fontSize: 'var(--fs-xs)', color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? 'var(--s-warn)' : 'var(--t-2)' }}>
                         {s.expiryDate ? dayjs(s.expiryDate).format('MM/YYYY') : '—'}
                       </span>
                     </div>
@@ -425,7 +425,7 @@ const SampleReceiveV2: React.FC = () => {
             <div className="rec-section" style={{ marginTop: 16 }}>
               <h5><TermIcon name="flask" size={11} /> TỒN KHO HÓA CHẤT</h5>
               {utilChemStock.length === 0 ? (
-                <div style={{ color: 'var(--t-3)', fontSize: 12, padding: '8px 0' }}>Không có dữ liệu tồn kho hóa chất</div>
+                <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)', padding: '8px 0' }}>Không có dữ liệu tồn kho hóa chất</div>
               ) : (
                 <div style={{ display: 'grid', gap: 4 }}>
                   {utilChemStock.slice(0, 50).map((s) => (
@@ -435,7 +435,7 @@ const SampleReceiveV2: React.FC = () => {
                     }}>
                       <div>
                         <div style={{ fontWeight: 500 }}>{s.itemName}</div>
-                        <div style={{ fontSize: 10, color: 'var(--t-2)' }}>{s.warehouseName}</div>
+                        <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{s.warehouseName}</div>
                       </div>
                       <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{s.quantity} {s.unit}</span>
                       <span style={{
@@ -443,7 +443,7 @@ const SampleReceiveV2: React.FC = () => {
                         color: s.availableQuantity <= 0 ? 'var(--s-crit)' : s.availableQuantity < 10 ? 'var(--s-warn)' : 'inherit',
                         fontWeight: s.availableQuantity <= 0 ? 700 : 400,
                       }}>{s.availableQuantity}</span>
-                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? 'var(--s-warn)' : 'var(--t-2)' }}>
+                      <span style={{ fontSize: 'var(--fs-xs)', color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? 'var(--s-warn)' : 'var(--t-2)' }}>
                         {s.expiryDate ? dayjs(s.expiryDate).format('MM/YYYY') : '—'}
                       </span>
                     </div>
@@ -468,9 +468,9 @@ const Timeline: React.FC<{ items: { ok?: boolean; fail?: boolean; label: string;
         }} />
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 600 }}>{it.label}</div>
-          {it.time && <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{dayjs(it.time).format('DD/MM/YYYY HH:mm')}</div>}
-          {it.by && <div style={{ fontSize: 11, color: 'var(--t-2)' }}>Người thực hiện: {it.by}</div>}
-          {it.extra && <div style={{ fontSize: 12, marginTop: 4, color: it.fail ? 'var(--a-rd-text)' : 'var(--t-1)' }}>{it.extra}</div>}
+          {it.time && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{dayjs(it.time).format('DD/MM/YYYY HH:mm')}</div>}
+          {it.by && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Người thực hiện: {it.by}</div>}
+          {it.extra && <div style={{ fontSize: 'var(--fs-sm)', marginTop: 4, color: it.fail ? 'var(--a-rd-text)' : 'var(--t-1)' }}>{it.extra}</div>}
         </div>
       </div>
     ))}

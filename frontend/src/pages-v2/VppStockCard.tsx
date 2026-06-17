@@ -172,7 +172,7 @@ const VppStockCardV2: React.FC = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 16 }}>
                   <div>
                     <h3 style={{ margin: 0 }}>Thẻ kho — {card.supplyName}</h3>
-                    <div style={{ fontSize: 12, color: 'var(--t-2)', marginTop: 4 }}>
+                    <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginTop: 4 }}>
                       Kho: {card.warehouseName} · ĐVT: {card.unit} ·
                       Tồn đầu: <strong>{fmt(card.openingBalance)}</strong> ·
                       Tồn cuối: <strong>{fmt(card.closingBalance)}</strong>

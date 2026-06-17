@@ -97,7 +97,7 @@ const DicomStudyAuditLog: React.FC = () => {
       render: r => (
         <a
           onClick={(e) => { e.stopPropagation(); openTimeline(r.studyInstanceUid); }}
-          style={{ color: 'var(--a-cy)', cursor: 'pointer', fontSize: 11 }}
+          style={{ color: 'var(--a-cy)', cursor: 'pointer', fontSize: 'var(--fs-xs)' }}
         >…{r.studyInstanceUid.slice(-30)}</a>
       )
     },
@@ -136,9 +136,9 @@ const DicomStudyAuditLog: React.FC = () => {
           placeholder="▾ Hành động"
         />
         <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
-          style={{ height: 30, padding: '0 8px', border: '1px solid var(--line)', borderRadius: 4, fontSize: 12 }} />
+          style={{ height: 30, padding: '0 8px', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)' }} />
         <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
-          style={{ height: 30, padding: '0 8px', border: '1px solid var(--line)', borderRadius: 4, fontSize: 12 }} />
+          style={{ height: 30, padding: '0 8px', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)' }} />
         <Button type="primary" size="small" onClick={load} loading={loading} data-testid="dsl-filter-btn">
           <TermIcon name="search" size={12} /> Lọc
         </Button>
@@ -166,7 +166,7 @@ const DicomStudyAuditLog: React.FC = () => {
           <div style={{ padding: 20 }}>
             <div style={{
               padding: 12, background: 'var(--d-1)', borderRadius: 6,
-              marginBottom: 16, fontFamily: 'var(--font-mono)', fontSize: 11, wordBreak: 'break-all',
+              marginBottom: 16, fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', wordBreak: 'break-all',
             }}>
               <span style={{ color: 'var(--t-2)' }}>Study UID:</span> {studyDetail.uid}
             </div>
@@ -194,7 +194,7 @@ const DicomStudyAuditLog: React.FC = () => {
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                         <StatusBadge tone={tone} dot>{a?.label ?? t.actionLabel ?? t.action}</StatusBadge>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t-2)' }}>{fmtDTg(t.performedAt)}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{fmtDTg(t.performedAt)}</span>
                       </div>
                       <div style={{ fontSize: 12.5, color: 'var(--t-1)' }}>
                         <b>{t.performedByName ?? '(System)'}</b>
@@ -203,7 +203,7 @@ const DicomStudyAuditLog: React.FC = () => {
                       </div>
                       {t.actionDetails && (
                         <div style={{
-                          fontSize: 11, color: 'var(--t-2)', marginTop: 4, padding: 6,
+                          fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 4, padding: 6,
                           background: 'var(--d-1)', borderRadius: 4, fontFamily: 'var(--font-mono)',
                         }}>
                           {t.actionDetails}

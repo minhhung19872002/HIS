@@ -125,14 +125,14 @@ const PatientWarnings: React.FC<{ patientId?: string }> = ({ patientId }) => {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
                 <TermIcon name="alert" size={12} />
-                <b style={{ fontSize: 12 }}>{w.warningTypeName || 'Cảnh báo'}</b>
+                <b style={{ fontSize: 'var(--fs-sm)' }}>{w.warningTypeName || 'Cảnh báo'}</b>
                 <span className={`chip ${w.isBlocking ? 'crit' : 'warn'}`} style={{ marginLeft: 'auto' }}>
                   {w.isBlocking ? 'Chặn tiếp nhận' : 'Lưu ý'}
                 </span>
               </div>
               <div style={{ fontSize: 11.5, color: 'var(--t-1)' }}>{w.message}</div>
               {(w.amount != null || w.date) && (
-                <div style={{ fontSize: 11, color: 'var(--t-2)', display: 'flex', gap: 12 }}>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'flex', gap: 12 }}>
                   {w.amount != null && <span>Số tiền: <b>{fmtWarnMoney(w.amount)}</b></span>}
                   {w.date && <span>Ngày: <b>{dayjs(w.date).format('DD/MM/YYYY')}</b></span>}
                 </div>
@@ -249,7 +249,7 @@ const DrawerInfoTab: React.FC<{ v: RawRow }> = ({ v }) => {
         <h5><TermIcon name="check" size={11} /> TRẠNG THÁI</h5>
         <div className={`rec-status-banner ${tone}`}>
           <StatusBadge tone={tone} dot>{lbl}</StatusBadge>
-          <span style={{ fontSize: 11, color: 'var(--t-2)' }}>
+          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
             STT&nbsp;
             <span className={`rec-token ${pk}`} style={{ marginLeft: 4 }}>
               {v.queueCode || `#${v.queueNumber}`}
@@ -317,10 +317,10 @@ const DrawerInfoTab: React.FC<{ v: RawRow }> = ({ v }) => {
           <div className="rec-bhyt-card invalid">
             <div className="rec-bhyt-icon"><TermIcon name="x" size={18} /></div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--s-crit)' }}>
+              <div style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--s-crit)' }}>
                 Không có thẻ BHYT
               </div>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>
                 Bệnh nhân khám viện phí hoặc dịch vụ
               </div>
             </div>
@@ -513,11 +513,11 @@ const DrawerRelatedTab: React.FC<{ list: RawRow[] }> = ({ list }) => (
             {r.queueCode || `#${r.queueNumber}`}
           </span>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600 }}>
+            <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>
               {r.departmentName || '—'} ·&nbsp;
               <span className="mono" style={{ color: 'var(--t-2)' }}>{r.roomName || '—'}</span>
             </div>
-            <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
               {fmtHM(r.admissionDate)} · {treatmentLabel(r)}
             </div>
           </div>

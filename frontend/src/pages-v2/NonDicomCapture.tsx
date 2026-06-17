@@ -170,13 +170,13 @@ const NonDicomCaptureV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600 }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode || '—'}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode || '—'}</div>
       </div>
     ) },
     { key: 'dev', label: 'Thiết bị', render: (r) => (
       <div>
         <StatusBadge tone="info">{deviceTypeLabel(r.deviceType)}</StatusBadge>
-        {r.deviceName && <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>{r.deviceName}</div>}
+        {r.deviceName && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>{r.deviceName}</div>}
       </div>
     ) },
     { key: 'cnt', label: 'SL ảnh/video', mono: true, render: (r) => r.imageCount },
@@ -336,10 +336,10 @@ const NonDicomCaptureV2: React.FC = () => {
           <div style={{ padding: 20 }}>
             <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
               <StatusBadge tone="info">{deviceTypeLabel(detailStudy.deviceType)}</StatusBadge>
-              <span style={{ fontSize: 12, color: 'var(--t-2)' }}>
+              <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
                 Chụp lúc: {dayjs(detailStudy.capturedAt).format('DD/MM/YYYY HH:mm')}
               </span>
-              <span style={{ fontSize: 12, color: 'var(--t-2)' }}>· {detailStudy.imageCount} file</span>
+              <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>· {detailStudy.imageCount} file</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
               {detailImages.map((img) => (

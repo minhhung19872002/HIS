@@ -79,14 +79,14 @@ const SampleTrackingV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'req', label: 'Mã YC', code: true, render: (r) => r.requestCode },
     { key: 'reason', label: 'Lý do', render: (r) => (
       <div>
         <div style={{ fontWeight: 500 }}>{r.rejectionReason}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.rejectionCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.rejectionCode}</div>
       </div>
     ) },
     { key: 'by', label: 'TC bởi', render: (r) => r.rejectedBy },
@@ -203,11 +203,11 @@ const SampleTrackingV2: React.FC = () => {
             ].map((k) => (
               <div key={k.lbl} style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6, textAlign: 'center' }}>
                 <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono)', color: k.color }}>{k.val}</div>
-                <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 4 }}>{k.lbl}</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 4 }}>{k.lbl}</div>
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--t-2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Lý do từ chối phổ biến
           </div>
           {Array.from(new Set(items.map((r) => r.rejectionReason))).slice(0, 10).map((reason) => {
@@ -215,8 +215,8 @@ const SampleTrackingV2: React.FC = () => {
             const pct = Math.round((cnt / Math.max(1, items.length)) * 100);
             return (
               <div key={reason} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
-                <span style={{ fontSize: 13, color: 'var(--t-1)' }}>{reason}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 13 }}>{cnt} <span style={{ color: 'var(--t-2)', fontWeight: 400 }}>({pct}%)</span></span>
+                <span style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)' }}>{reason}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 'var(--fs-md)' }}>{cnt} <span style={{ color: 'var(--t-2)', fontWeight: 400 }}>({pct}%)</span></span>
               </div>
             );
           })}
@@ -267,7 +267,7 @@ const SampleTrackingV2: React.FC = () => {
           )}
           {sel.notes && (
             <DrSec title="Ghi chú">
-              <div style={{ fontSize: 13, color: 'var(--t-1)' }}>{sel.notes}</div>
+              <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)' }}>{sel.notes}</div>
             </DrSec>
           )}
         </>}

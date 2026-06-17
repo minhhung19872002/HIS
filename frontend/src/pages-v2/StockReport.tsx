@@ -182,12 +182,12 @@ const StockReportV2: React.FC = () => {
           <SearchBox value={keyword} onChange={setKeyword} placeholder="Tên thuốc / mã / số lô…" />
         )}
         {tab === 'expiring' && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-sm)' }}>
             Hết hạn trong <InputNumber min={1} max={365} value={days} onChange={(v) => setDays(Number(v) || 90)} size="small" /> ngày
           </span>
         )}
         {tab === 'low-stock' && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-sm)' }}>
             Ngưỡng tồn <InputNumber min={1} value={threshold} onChange={(v) => setThreshold(Number(v) || 10)} size="small" />
           </span>
         )}
@@ -211,7 +211,7 @@ const StockReportV2: React.FC = () => {
           empty={loading ? 'Đang tải…' : 'Không có thuốc tồn thấp'} />
       )}
 
-      <div style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t-2)', borderTop: '1px solid var(--line)' }}>
+      <div style={{ padding: '10px 14px', fontSize: 'var(--fs-xs)', color: 'var(--t-2)', borderTop: '1px solid var(--line)' }}>
         Hiển thị {currentRows.length.toLocaleString('vi-VN')} dòng
       </div>
     </div>

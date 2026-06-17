@@ -88,14 +88,14 @@ const HelpV2: React.FC = () => {
     { key: 'title', label: 'Tiêu đề', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.title}</div>
-        {r.summary && <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.summary}</div>}
+        {r.summary && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.summary}</div>}
       </div>
     ) },
     { key: 'cat', label: 'Danh mục', render: (r) => (
       <StatusBadge tone="info">{r.categoryName || '—'}</StatusBadge>
     ) },
     { key: 'tags', label: 'Tags', render: (r) => r.tags
-      ? <span style={{ fontSize: 11, color: 'var(--a-cy-text)' }}>{r.tags}</span>
+      ? <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--a-cy-text)' }}>{r.tags}</span>
       : <span style={{ color: 'var(--t-2)' }}>—</span>
     },
     { key: 'video', label: 'Video', render: (r) => r.videoUrl
@@ -114,7 +114,7 @@ const HelpV2: React.FC = () => {
     { key: 'name', label: 'Tên danh mục', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.name}</div>
-        {r.description && <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.description}</div>}
+        {r.description && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.description}</div>}
       </div>
     ) },
     { key: 'order', label: 'Thứ tự', mono: true, render: (r) => r.sortOrder },
@@ -131,7 +131,7 @@ const HelpV2: React.FC = () => {
       <div style={{ fontWeight: 500 }}>{r.problem}</div>
     ) },
     { key: 'sol', label: 'Giải pháp', render: (r) => (
-      <span style={{ fontSize: 12, color: 'var(--t-1)' }}>
+      <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>
         {r.solution.length > 80 ? r.solution.slice(0, 80) + '…' : r.solution}
       </span>
     ) },
@@ -241,11 +241,11 @@ const HelpV2: React.FC = () => {
         {selArt && <>
           {selArt.summary && (
             <DrSec title="Tóm tắt">
-              <div style={{ fontSize: 13, color: 'var(--t-1)', fontStyle: 'italic' }}>{selArt.summary}</div>
+              <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)', fontStyle: 'italic' }}>{selArt.summary}</div>
             </DrSec>
           )}
           <DrSec title="Nội dung">
-            <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.6, color: 'var(--t-0)' }}>
+            <div style={{ whiteSpace: 'pre-wrap', fontSize: 'var(--fs-md)', lineHeight: 1.6, color: 'var(--t-0)' }}>
               {selArt.content || 'Chưa có nội dung'}
             </div>
           </DrSec>
@@ -276,16 +276,16 @@ const HelpV2: React.FC = () => {
       >
         {selTrouble && <>
           <DrSec title="Vấn đề">
-            <div style={{ fontSize: 13, color: 'var(--t-0)', fontWeight: 500 }}>{selTrouble.problem}</div>
+            <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-0)', fontWeight: 500 }}>{selTrouble.problem}</div>
           </DrSec>
           <DrSec title="Giải pháp">
-            <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.6, color: 'var(--t-1)' }}>
+            <div style={{ whiteSpace: 'pre-wrap', fontSize: 'var(--fs-md)', lineHeight: 1.6, color: 'var(--t-1)' }}>
               {selTrouble.solution}
             </div>
           </DrSec>
           {selTrouble.steps && (
             <DrSec title="Các bước">
-              <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.6, color: 'var(--t-1)' }}>
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: 'var(--fs-md)', lineHeight: 1.6, color: 'var(--t-1)' }}>
                 {selTrouble.steps}
               </div>
             </DrSec>

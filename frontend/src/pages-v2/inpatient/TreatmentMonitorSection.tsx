@@ -66,7 +66,7 @@ import DischargeModal from './DischargeModal';
 
 const IpFld: React.FC<{ label: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
   <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
-    <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>
+    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>
     {children}
   </div>
 );
@@ -300,7 +300,7 @@ const VitalSignsModal: React.FC<{
         {/* Trend chart */}
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-1)' }}>
+            <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--t-1)' }}>
               <TermIcon name="activity" size={11} /> Xu hướng 7 ngày qua
             </span>
             <Select<MetricKey>
@@ -312,12 +312,12 @@ const VitalSignsModal: React.FC<{
             />
           </div>
           {chartLoading && (
-            <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-2)', fontSize: 12 }}>
+            <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
               Đang tải biểu đồ…
             </div>
           )}
           {!chartLoading && !hasChartData && (
-            <div style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-2)', fontSize: 12 }}>
+            <div style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
               Chưa có dữ liệu sinh hiệu
             </div>
           )}
@@ -330,7 +330,7 @@ const VitalSignsModal: React.FC<{
                     <XAxis dataKey="t" fontSize={10} />
                     <YAxis fontSize={10} domain={['auto', 'auto']} width={36} />
                     <RTooltip />
-                    <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
+                    <Legend iconSize={10} wrapperStyle={{ fontSize: 'var(--fs-xs)' }} />
                     <Line type="monotone" dataKey="sys" name="Tâm thu" stroke="#0891b2" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
                     <Line type="monotone" dataKey="dia" name="Tâm trương" stroke="var(--s-warn)" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
                   </LineChart>
@@ -647,7 +647,7 @@ const InfusionModal: React.FC<{
           <Input value={additionalMedication} onChange={(e) => setAdditionalMedication(e.target.value)} placeholder="VD: KCl 10mEq (tùy chọn)" />
         </IpFld>
         {estMinutes != null && (
-          <div style={{ gridColumn: '1 / -1', fontSize: 11, color: 'var(--t-2)' }}>
+          <div style={{ gridColumn: '1 / -1', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
             ⏱ Thời gian truyền ước tính (bộ dây 20 giọt/ml): <b>{estMinutes} phút</b> (~{(estMinutes / 60).toFixed(1)} giờ)
           </div>
         )}
@@ -727,7 +727,7 @@ const BloodTransfusionModal: React.FC<{
         <div style={{
           marginBottom: 12, padding: '8px 12px', borderRadius: 6,
           background: 'var(--warn-soft)', border: '1px solid var(--warn)',
-          fontSize: 11, color: 'var(--t-1)',
+          fontSize: 'var(--fs-xs)', color: 'var(--t-1)',
         }}>
           ⚠ Đảm bảo đã định nhóm máu tại giường &amp; phản ứng chéo trước khi truyền.
         </div>
@@ -793,7 +793,7 @@ const BillingStatementModal: React.FC<{
   };
 
   const sum = ([label, value, strong]: [string, number | undefined, boolean?]) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: 12, fontWeight: strong ? 700 : 400 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: 'var(--fs-sm)', fontWeight: strong ? 700 : 400 }}>
       <span className="ab-u-muted">{label}</span>
       <span style={{ color: strong ? 'var(--accent)' : 'var(--t-1)' }}>{fmtMoney(value)}</span>
     </div>
@@ -815,11 +815,11 @@ const BillingStatementModal: React.FC<{
       }
     >
       <div style={{ padding: 16 }}>
-        {loading && <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)', fontSize: 12 }}>Đang tải bảng kê…</div>}
-        {!loading && !data && <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)', fontSize: 12 }}>Chưa có bảng kê (cần xuất viện trước).</div>}
+        {loading && <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Đang tải bảng kê…</div>}
+        {!loading && !data && <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Chưa có bảng kê (cần xuất viện trước).</div>}
         {!loading && data && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', fontSize: 12, marginBottom: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', fontSize: 'var(--fs-sm)', marginBottom: 14 }}>
               <div><span className="ab-u-muted">Bệnh nhân: </span><b>{data.patientName}</b> ({data.patientCode})</div>
               <div><span className="ab-u-muted">Số thẻ BHYT: </span>{data.insuranceNumber || '—'}</div>
               <div><span className="ab-u-muted">Chẩn đoán: </span>{data.diagnosisCode ? `${data.diagnosisCode} - ` : ''}{data.diagnosis || '—'}</div>
@@ -827,7 +827,7 @@ const BillingStatementModal: React.FC<{
             </div>
 
             <div style={{ maxHeight: 280, overflow: 'auto', border: '1px solid var(--line-soft)', borderRadius: 6 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-xs)' }}>
                 <thead>
                   <tr style={{ background: 'var(--d-1)', position: 'sticky', top: 0 }}>
                     <th style={{ textAlign: 'left', padding: '6px 8px' }}>TT</th>
@@ -993,15 +993,15 @@ const DrugReturnModal: React.FC<{
       }
     >
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {loading && <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 12 }}>Đang tải danh sách thuốc…</div>}
+        {loading && <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Đang tải danh sách thuốc…</div>}
         {!loading && items.length === 0 && (
-          <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 12 }}>
+          <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
             Không có thuốc nào đã lĩnh trong đợt nằm viện này.
           </div>
         )}
         {!loading && items.length > 0 && (
           <div style={{ border: '1px solid var(--line-soft)', borderRadius: 6, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
               <thead>
                 <tr style={{ background: 'var(--d-1)' }}>
                   <th style={{ padding: '6px 10px', textAlign: 'left', width: 36 }}></th>
@@ -1148,7 +1148,7 @@ const DischargePrescriptionModal: React.FC<{
       }
     >
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ padding: '8px 12px', borderRadius: 6, background: 'var(--s-info-bg)', border: '1px solid var(--info)', fontSize: 11, color: 'var(--t-1)' }}>
+        <div style={{ padding: '8px 12px', borderRadius: 6, background: 'var(--s-info-bg)', border: '1px solid var(--info)', fontSize: 'var(--fs-xs)', color: 'var(--t-1)' }}>
           Đơn loại <b>toa về (DrugOrderType=4)</b> — thuốc BN mang về sau xuất viện, lấy từ kho thuốc đã chọn.
         </div>
         <IpFld label="Kho thuốc *">
@@ -1165,11 +1165,11 @@ const DischargePrescriptionModal: React.FC<{
         </IpFld>
 
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
             <thead>
               <tr style={{ background: 'var(--d-1)', borderBottom: '1px solid var(--line)' }}>
                 {['Thuốc', 'SL', 'Liều dùng', 'Cách dùng', ''].map((h) => (
-                  <th key={h} style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }}>{h}</th>
+                  <th key={h} style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 600, fontSize: 'var(--fs-xs)', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -1276,7 +1276,7 @@ const ClsOrdersModal: React.FC<{
       title: `Hủy ${selectedIds.length} chỉ định CLS?`,
       content: (
         <div style={{ marginTop: 8 }}>
-          <div style={{ marginBottom: 6, fontSize: 12 }}>Lý do hủy:</div>
+          <div style={{ marginBottom: 6, fontSize: 'var(--fs-sm)' }}>Lý do hủy:</div>
           <Input
             placeholder="Nhập lý do…"
             onChange={(e) => { cancelReasonRef.current = e.target.value; setCancelReason(e.target.value); }}
@@ -1342,15 +1342,15 @@ const ClsOrdersModal: React.FC<{
       }
     >
       <div style={{ padding: 16 }}>
-        {loading && <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 12, padding: 16 }}>Đang tải…</div>}
+        {loading && <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', padding: 16 }}>Đang tải…</div>}
         {!loading && activeOrders.length === 0 && (
-          <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 12, padding: 16 }}>
+          <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', padding: 16 }}>
             Không có chỉ định CLS nào trong đợt điều trị này.
           </div>
         )}
         {!loading && activeOrders.length > 0 && (
           <div style={{ border: '1px solid var(--line-soft)', borderRadius: 6, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
               <thead>
                 <tr style={{ background: 'var(--d-1)' }}>
                   <th style={{ padding: '6px 8px', width: 36 }}>
@@ -1393,7 +1393,7 @@ const ClsOrdersModal: React.FC<{
                       </td>
                       <td style={{ padding: '5px 8px' }}>
                         {o.serviceName ?? o.requestCode}
-                        {o.isEmergency && <Tag color="red" style={{ marginLeft: 4, fontSize: 10 }}>CẤP CỨU</Tag>}
+                        {o.isEmergency && <Tag color="red" style={{ marginLeft: 4, fontSize: 'var(--fs-xxs)' }}>CẤP CỨU</Tag>}
                       </td>
                       <td style={{ padding: '5px 8px', textAlign: 'center' }}>
                         <Tag>{o.requestTypeName ?? o.requestType}</Tag>
@@ -1446,7 +1446,7 @@ const ClsOrdersModal: React.FC<{
           </div>
         )}
         {!loading && activeOrders.length > 0 && (
-          <div style={{ marginTop: 8, fontSize: 11, color: 'var(--t-2)' }}>
+          <div style={{ marginTop: 8, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
             Nhấn vào tag đối tượng thanh toán để đổi BHYT↔Viện phí. Tick checkbox + nút Hủy để hủy nhiều chỉ định.
             Chỉ định đã có kết quả (status=3) không thể hủy.
           </div>
@@ -1544,7 +1544,7 @@ const InpatientDiagnosisModal: React.FC<{
     >
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {loading && (
-          <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 12 }}>
+          <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
             Đang tải chẩn đoán hiện tại…
           </div>
         )}
@@ -1552,7 +1552,7 @@ const InpatientDiagnosisModal: React.FC<{
           <>
             {/* Chẩn đoán chính */}
             <div>
-              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--t-1)' }}>
+              <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, marginBottom: 8, color: 'var(--t-1)' }}>
                 Chẩn đoán chính
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 8 }}>
@@ -1578,7 +1578,7 @@ const InpatientDiagnosisModal: React.FC<{
             {/* Chẩn đoán kèm theo */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-1)' }}>
+                <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--t-1)' }}>
                   Chẩn đoán kèm theo ({secondaries.length})
                 </div>
                 <Btn variant="ghost" onClick={addSecondary}>
@@ -1586,7 +1586,7 @@ const InpatientDiagnosisModal: React.FC<{
                 </Btn>
               </div>
               {secondaries.length === 0 && (
-                <div style={{ fontSize: 12, color: 'var(--t-3)', fontStyle: 'italic', textAlign: 'center', padding: '8px 0' }}>
+                <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-3)', fontStyle: 'italic', textAlign: 'center', padding: '8px 0' }}>
                   Chưa có chẩn đoán kèm theo
                 </div>
               )}
@@ -1703,7 +1703,7 @@ const TreatmentSheetsModal: React.FC<{
         ) : (
           <>
             <div style={{ marginBottom: 8 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-sm)', cursor: 'pointer', fontWeight: 600 }}>
                 <input type="checkbox" checked={selectedIds.size === sheets.length} onChange={toggleAll} />
                 Chọn tất cả ({sheets.length} phiếu)
               </label>
@@ -1720,8 +1720,8 @@ const TreatmentSheetsModal: React.FC<{
                   <input type="checkbox" checked={selectedIds.has(s.id)} onChange={() => toggle(s.id)} style={{ marginTop: 2 }} />
                   <div>
                     <div style={{ fontWeight: 500 }}>{dayjs(s.treatmentDate).format('DD/MM/YYYY')}</div>
-                    <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{s.doctorName || '—'}</div>
-                    {s.progressNotes && <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2, whiteSpace: 'pre-line', maxWidth: 400 }}>{s.progressNotes.slice(0, 80)}{s.progressNotes.length > 80 ? '…' : ''}</div>}
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{s.doctorName || '—'}</div>
+                    {s.progressNotes && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2, whiteSpace: 'pre-line', maxWidth: 400 }}>{s.progressNotes.slice(0, 80)}{s.progressNotes.length > 80 ? '…' : ''}</div>}
                   </div>
                 </label>
               ))}
@@ -1759,7 +1759,7 @@ const TreatmentStatSection: React.FC<{ admissionId: string }> = ({ admissionId }
 
   if (loading) {
     return (
-      <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 12, color: 'var(--t-2)' }}>
+      <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
         Dang tai bieu do thong ke…
       </div>
     );
@@ -1767,7 +1767,7 @@ const TreatmentStatSection: React.FC<{ admissionId: string }> = ({ admissionId }
 
   if (error) {
     return (
-      <div style={{ padding: '8px 0', fontSize: 12, color: 'var(--s-crit)' }}>
+      <div style={{ padding: '8px 0', fontSize: 'var(--fs-sm)', color: 'var(--s-crit)' }}>
         Khong tai duoc thong ke. Thu lai sau.
       </div>
     );
@@ -1778,7 +1778,7 @@ const TreatmentStatSection: React.FC<{ admissionId: string }> = ({ admissionId }
 
   if (!hasDrugs && !hasDiag) {
     return (
-      <div style={{ padding: '8px 0', fontSize: 12, color: 'var(--t-3)' }}>
+      <div style={{ padding: '8px 0', fontSize: 'var(--fs-sm)', color: 'var(--t-3)' }}>
         Chua co du lieu thong ke (can it nhat 1 don thuoc noi tru duoc duyet).
       </div>
     );
@@ -1789,7 +1789,7 @@ const TreatmentStatSection: React.FC<{ admissionId: string }> = ({ admissionId }
       {/* Bieu do 1: So luong tung thuoc */}
       {hasDrugs && (
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-1)', marginBottom: 8 }}>
+          <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--t-1)', marginBottom: 8 }}>
             <TermIcon name="pill" size={11} /> So luong tung thuoc (tong hop don noi tru)
           </div>
           <div style={{ width: '100%', height: Math.max(180, (data!.drugCounts.length * 32) + 40) }}>
@@ -1826,7 +1826,7 @@ const TreatmentStatSection: React.FC<{ admissionId: string }> = ({ admissionId }
       {/* Bieu do 2: Tan suat tung ma chan doan */}
       {hasDiag && (
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-1)', marginBottom: 8 }}>
+          <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--t-1)', marginBottom: 8 }}>
             <TermIcon name="clipboard" size={11} /> Tan suat ma chan doan ICD-10 (qua cac don thuoc)
           </div>
           <div style={{ width: '100%', height: Math.max(150, (data!.diagnosisFrequency.length * 32) + 40) }}>
@@ -2035,7 +2035,7 @@ const TreatmentMonitorSection: React.FC<TreatmentMonitorSectionProps> = ({ patie
 
       {/* F8.13: 2 bieu do thong ke qua trinh dieu tri */}
       <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid var(--line-soft)' }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-1)', marginBottom: 12 }}>
+        <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--t-1)', marginBottom: 12 }}>
           <TermIcon name="bar-chart-2" size={12} /> THONG KE QUA TRINH DIEU TRI
         </div>
         <TreatmentStatSection admissionId={patient.admissionId} />

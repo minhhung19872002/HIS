@@ -114,7 +114,7 @@ const HealthExchangeV2: React.FC = () => {
     { key: 'name', label: 'Tên kết nối', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.connectionName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.partnerName}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.partnerName}</div>
       </div>
     ) },
     { key: 'type', label: 'Loại', render: (r) => r.connectionTypeName || r.connectionType },
@@ -213,7 +213,7 @@ const HealthExchangeV2: React.FC = () => {
             <DrField lbl="Tên">{sel.connectionName}</DrField>
             <DrField lbl="Loại">{sel.connectionTypeName || sel.connectionType}</DrField>
             <DrField lbl="Đối tác">{sel.partnerCode} — {sel.partnerName}</DrField>
-            <DrField lbl="Endpoint"><span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{sel.endpoint}</span></DrField>
+            <DrField lbl="Endpoint"><span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)' }}>{sel.endpoint}</span></DrField>
             <DrField lbl="Protocol"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.protocol} · {sel.dataExchangeFormat}</span></DrField>
             <DrField lbl="Auth">{sel.authType}</DrField>
           </DrSec>
@@ -231,10 +231,10 @@ const HealthExchangeV2: React.FC = () => {
           <DrSec title="Hoạt động hỗ trợ">
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {(sel.supportedOperations || []).map((op, i) => (
-                <span key={i} className="ab-stat info" style={{ height: 22, padding: '0 8px', fontSize: 11 }}>{op}</span>
+                <span key={i} className="ab-stat info" style={{ height: 22, padding: '0 8px', fontSize: 'var(--fs-xs)' }}>{op}</span>
               ))}
               {(!sel.supportedOperations || sel.supportedOperations.length === 0) && (
-                <span style={{ color: 'var(--t-3)', fontSize: 12 }}>—</span>
+                <span style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>—</span>
               )}
             </div>
           </DrSec>

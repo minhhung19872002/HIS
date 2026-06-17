@@ -127,7 +127,7 @@ const AssetManagementV2: React.FC = () => {
     { key: 'name', label: 'Tên tài sản', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.assetName}</div>
-        {r.serialNumber && <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>SN: {r.serialNumber}</div>}
+        {r.serialNumber && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>SN: {r.serialNumber}</div>}
       </div>
     ) },
     { key: 'dept', label: 'Khoa', render: (r) => r.departmentName || '—' },
@@ -399,7 +399,7 @@ const AssetManagementV2: React.FC = () => {
                           <div style={{ display: 'flex', gap: 4 }}>
                             <Btn
                               variant="primary"
-                              style={{ padding: '2px 8px', fontSize: 12 }}
+                              style={{ padding: '2px 8px', fontSize: 'var(--fs-sm)' }}
                               disabled={itemSaving}
                               onClick={async () => {
                                 setItemSaving(true);
@@ -426,7 +426,7 @@ const AssetManagementV2: React.FC = () => {
                                 finally { setItemSaving(false); }
                               }}
                             >Lưu</Btn>
-                            <Btn variant="ghost" style={{ padding: '2px 8px', fontSize: 12 }} onClick={() => setEditingItemId(null)}>Hủy</Btn>
+                            <Btn variant="ghost" style={{ padding: '2px 8px', fontSize: 'var(--fs-sm)' }} onClick={() => setEditingItemId(null)}>Hủy</Btn>
                           </div>
                         </td>
                       </tr>
@@ -450,7 +450,7 @@ const AssetManagementV2: React.FC = () => {
                       <td>{it.isFound ? <span style={{ color: 'var(--s-ok)' }}>Có</span> : <span style={{ color: 'var(--s-crit)' }}>Thiếu</span>}</td>
                       <td>{it.conditionStatus === 1 ? 'Tốt' : it.conditionStatus === 2 ? 'Xuống cấp' : 'Hỏng'}</td>
                       <td>{it.remark || '—'}</td>
-                      {stocktakeDetail.status < 4 && <td style={{ color: 'var(--t-2)', fontSize: 11 }}>Sửa</td>}
+                      {stocktakeDetail.status < 4 && <td style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>Sửa</td>}
                     </tr>
                   );
                 })}
@@ -502,7 +502,7 @@ const AssetManagementV2: React.FC = () => {
           <Form.Item name="notes" label="Ghi chú">
             <Input.TextArea rows={2} />
           </Form.Item>
-          <p style={{ fontSize: 12, color: 'var(--t-2)' }}>
+          <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
             Hệ thống sẽ tự động nạp toàn bộ tài sản cố định hiện có vào phiếu kiểm kê. Sau khi tạo, bạn có thể cập nhật trạng thái từng tài sản.
           </p>
         </Form>
@@ -522,7 +522,7 @@ const AssetManagementV2: React.FC = () => {
           <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Không có dữ liệu khấu hao tháng này</div>
         )}
         {!deprLoading && deprItems.length > 0 && (
-          <table className="ab-tbl" style={{ width: '100%', fontSize: 12 }}>
+          <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>
             <thead>
               <tr>
                 <th>Mã TS</th><th>Tên tài sản</th><th>Khoa</th>
@@ -572,7 +572,7 @@ const AssetManagementV2: React.FC = () => {
             {qrData.departmentName && <DrField lbl="Khoa">{qrData.departmentName}</DrField>}
             {qrData.serialNumber && <DrField lbl="Serial"><span style={{ fontFamily: 'var(--font-mono)' }}>{qrData.serialNumber}</span></DrField>}
             <DrField lbl="Nội dung QR">
-              <code style={{ display: 'block', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 12,
+              <code style={{ display: 'block', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 'var(--fs-sm)',
                 padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6 }}>
                 {qrData.qrContent}
               </code>

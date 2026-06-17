@@ -177,7 +177,7 @@ const HealthCheckupV2: React.FC = () => {
     { key: 'pt', label: 'Doi tuong', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.gender === 1 ? 'Nam' : 'Nu'} · {r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.gender === 1 ? 'Nam' : 'Nu'} · {r.patientCode}</div>
       </div>
     ) },
     { key: 'date', label: 'Ngay', mono: true, render: (r) => dayjs(r.checkupDate).format('DD/MM/YYYY') },

@@ -45,7 +45,7 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 
 const Row2: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', alignItems: 'start', gap: 8, marginBottom: 6 }}>
-    <span style={{ fontSize: 11, color: 'var(--t-2)', paddingTop: 5 }}>{label}</span>
+    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', paddingTop: 5 }}>{label}</span>
     <div>{children}</div>
   </div>
 );
@@ -541,7 +541,7 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
                         <input
                           type="time"
                           className="hui-inp"
-                          style={{ width: 80, height: 26, fontSize: 11 }}
+                          style={{ width: 80, height: 26, fontSize: 'var(--fs-xs)' }}
                           value={m.monitorTime}
                           onChange={(e) => setMonitorField(i, 'monitorTime', e.target.value)}
                         />
@@ -570,7 +570,7 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
                       <td style={{ padding: '3px 4px' }}>
                         <input
                           className="hui-inp"
-                          style={{ width: 90, height: 26, fontSize: 11 }}
+                          style={{ width: 90, height: 26, fontSize: 'var(--fs-xs)' }}
                           value={m.notes ?? ''}
                           onChange={(e) => setMonitorField(i, 'notes', e.target.value)}
                           placeholder="Ghi chú…"
@@ -597,27 +597,27 @@ export const AnesthesiaMonitorModal: React.FC<AnesthesiaMonitorModalProps> = ({
                 <input
                   type="time"
                   className="hui-inp"
-                  style={{ width: 80, height: 28, fontSize: 11 }}
+                  style={{ width: 80, height: 28, fontSize: 'var(--fs-xs)' }}
                   value={d.givenTime}
                   onChange={(e) => setDrugField(i, 'givenTime', e.target.value)}
                 />
                 <input
                   className="hui-inp"
-                  style={{ flex: 2, height: 28, fontSize: 11 }}
+                  style={{ flex: 2, height: 28, fontSize: 'var(--fs-xs)' }}
                   value={d.drugName}
                   onChange={(e) => setDrugField(i, 'drugName', e.target.value)}
                   placeholder="Tên thuốc…"
                 />
                 <input
                   className="hui-inp"
-                  style={{ flex: 1, height: 28, fontSize: 11 }}
+                  style={{ flex: 1, height: 28, fontSize: 'var(--fs-xs)' }}
                   value={d.dose ?? ''}
                   onChange={(e) => setDrugField(i, 'dose', e.target.value)}
                   placeholder="Liều…"
                 />
                 <input
                   className="hui-inp"
-                  style={{ width: 80, height: 28, fontSize: 11 }}
+                  style={{ width: 80, height: 28, fontSize: 'var(--fs-xs)' }}
                   value={d.route ?? ''}
                   onChange={(e) => setDrugField(i, 'route', e.target.value)}
                   placeholder="Đường dùng"
@@ -811,7 +811,7 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
                   key={c.id}
                   style={{
                     border: `1px solid ${selectedId === c.id ? 'var(--a-cy)' : 'var(--line)'}`,
-                    borderRadius: 6, padding: '8px 10px', marginBottom: 6, fontSize: 12,
+                    borderRadius: 6, padding: '8px 10px', marginBottom: 6, fontSize: 'var(--fs-sm)',
                     cursor: 'pointer',
                   }}
                   onClick={() => {
@@ -831,11 +831,11 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <b>{CONSENT_TYPE_OPTIONS.find((o) => o.value === c.consentType)?.label ?? `Loại ${c.consentType}`}</b>
                     {c.isSigned && (
-                      <span className="chip ok" style={{ fontSize: 10 }}>
+                      <span className="chip ok" style={{ fontSize: 'var(--fs-xxs)' }}>
                         <TermIcon name="check" size={9} /> Đã ký — {c.signerName}
                       </span>
                     )}
-                    {!c.isSigned && <span className="chip warn" style={{ fontSize: 10 }}>Chờ ký</span>}
+                    {!c.isSigned && <span className="chip warn" style={{ fontSize: 'var(--fs-xxs)' }}>Chờ ký</span>}
                   </div>
                 </div>
               ))}
@@ -921,7 +921,7 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
           )}
 
           {activeConsent?.isSigned && (
-            <div style={{ color: 'var(--s-ok)', fontSize: 12, padding: '8px 10px', background: 'var(--s-ok-bg)', borderRadius: 6 }}>
+            <div style={{ color: 'var(--s-ok)', fontSize: 'var(--fs-sm)', padding: '8px 10px', background: 'var(--s-ok-bg)', borderRadius: 6 }}>
               <TermIcon name="check" size={12} /> Cam đoan đã được ký bởi {activeConsent.signerName} ({activeConsent.signerRelationship})
               {activeConsent.signedAt && ` — ${new Date(activeConsent.signedAt).toLocaleString('vi-VN')}`}
             </div>

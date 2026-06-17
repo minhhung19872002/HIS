@@ -183,7 +183,7 @@ const MasterDataV2: React.FC = () => {
                   color: on ? 'var(--a-cy)' : 'var(--t-1)', fontSize: 12.5, fontWeight: on ? 600 : 500, textAlign: 'left' }}>
                 <TermIcon name={c.ic} size={14} />
                 <span style={{ flex: 1 }}>{c.l}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: on ? 'var(--a-cy)' : 'var(--t-2)' }}>{cnt}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: on ? 'var(--a-cy)' : 'var(--t-2)' }}>{cnt}</span>
               </button>
             );
           })}
@@ -195,7 +195,7 @@ const MasterDataV2: React.FC = () => {
             <Btn variant="ghost" onClick={loadAll}><TermIcon name="refresh" size={12} /> Làm mới</Btn>
             <span className="spacer" />
             {writable ? <Btn variant="primary" onClick={openNew}>+ Thêm mới</Btn>
-              : <span style={{ fontSize: 11, color: 'var(--t-2)' }}>Danh mục chỉ đọc (chưa có API ghi)</span>}
+              : <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Danh mục chỉ đọc (chưa có API ghi)</span>}
           </div>
           <DataTable<CatalogRow>
             columns={columns} data={filtered} rowKey={(r) => r.id || r.code}

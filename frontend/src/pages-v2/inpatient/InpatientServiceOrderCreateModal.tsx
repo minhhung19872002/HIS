@@ -253,7 +253,7 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
           <div>
             <div style={{ border: '1px solid var(--line)', borderRadius: 6, padding: 8, maxHeight: 240, overflow: 'auto', background: 'var(--d-0)' }}>
               {treeData.length === 0
-                ? <div style={{ color: 'var(--t-2)', fontSize: 12, textAlign: 'center', padding: 12 }}>Không có danh mục dịch vụ</div>
+                ? <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 12 }}>Không có danh mục dịch vụ</div>
                 : (
                   <Tree
                     checkable
@@ -281,14 +281,14 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
       {/* Dịch vụ đã chọn */}
       <DrSec title={`Dịch vụ đã chọn (${lines.length})`}>
         {lines.length === 0
-          ? <div style={{ color: 'var(--t-2)', fontSize: 12, textAlign: 'center', padding: 12 }}>Chưa có dịch vụ nào — tìm hoặc tick từ cây danh mục.</div>
+          ? <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 12 }}>Chưa có dịch vụ nào — tìm hoặc tick từ cây danh mục.</div>
           : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 720 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)', minWidth: 720 }}>
                 <thead>
                   <tr style={{ background: 'var(--d-1)', borderBottom: '1px solid var(--line)' }}>
                     {['Dịch vụ', 'SL', 'Đối tượng', 'Cấp cứu', 'Khẩn', 'Ghi chú', ''].map((h) => (
-                      <th key={h} style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap', fontSize: 11 }}>{h}</th>
+                      <th key={h} style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap', fontSize: 'var(--fs-xs)' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>

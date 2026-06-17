@@ -85,7 +85,7 @@ const FunctionalDiagnosticsV2: React.FC = () => {
       render: (r) => (
         <div>
           <b>{r.patientName || '—'}</b>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
+          <div className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode}</div>
         </div>
       ) },
     { key: 'testTypeName', label: 'Loại TDCN', width: 200 },
@@ -174,7 +174,7 @@ const FunctionalDiagnosticsV2: React.FC = () => {
             )}
             {detail.measurementsJson && detail.measurementsJson !== '{}' && (
               <DrSec title="THÔNG SỐ">
-                <pre style={{ fontSize: 11, padding: 8, background: 'var(--d-1)', borderRadius: 4, fontFamily: 'var(--font-mono)' }}>
+                <pre style={{ fontSize: 'var(--fs-xs)', padding: 8, background: 'var(--d-1)', borderRadius: 4, fontFamily: 'var(--font-mono)' }}>
                   {(() => { try { return JSON.stringify(JSON.parse(detail.measurementsJson), null, 2); } catch { return detail.measurementsJson; } })()}
                 </pre>
               </DrSec>

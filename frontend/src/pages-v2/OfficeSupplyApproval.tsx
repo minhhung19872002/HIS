@@ -326,7 +326,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
             <tbody>
               {approveReq.items.map((it) => (
                 <tr key={it.id}>
-                  <td>{it.supplyName} <span style={{ fontSize: 11, color: 'var(--t-2)' }}>({it.supplyCode})</span></td>
+                  <td>{it.supplyName} <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>({it.supplyCode})</span></td>
                   <td className="mono">{it.requestedQuantity}</td>
                   <td>
                     <InputNumber
@@ -464,7 +464,7 @@ const OfficeSupplyApprovalV2: React.FC = () => {
             <tbody>
               {approveReturn.items.map((it) => (
                 <tr key={it.id}>
-                  <td>{it.supplyName} <span style={{ fontSize: 11, color: 'var(--t-2)' }}>({it.supplyCode})</span></td>
+                  <td>{it.supplyName} <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>({it.supplyCode})</span></td>
                   <td className="mono">{it.requestedQuantity}</td>
                   <td>
                     <InputNumber

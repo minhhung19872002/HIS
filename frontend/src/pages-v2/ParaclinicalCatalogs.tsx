@@ -126,7 +126,7 @@ const ParaclinicalCatalogsV2: React.FC = () => {
         { key: 'name', label: 'Tên máy' },
         { key: 'manufacturer', label: 'Hãng / Model', width: 220, render: (r) => {
           const m = r as api.MachineCodeDto;
-          return <span style={{ fontSize: 12 }}>{m.manufacturer || '—'} {m.model ? `· ${m.model}` : ''}</span>;
+          return <span style={{ fontSize: 'var(--fs-sm)' }}>{m.manufacturer || '—'} {m.model ? `· ${m.model}` : ''}</span>;
         } },
         { key: 'serialNumber', label: 'Số sê-ri', mono: true, width: 160, render: (r) => (r as api.MachineCodeDto).serialNumber || '—' },
         { key: 'isLocked', label: 'Khoá', width: 70, render: (r) => (
@@ -145,11 +145,11 @@ const ParaclinicalCatalogsV2: React.FC = () => {
       return [
         { key: 'machineName', label: 'Máy', render: (r) => {
           const s = r as api.MachineServiceDto;
-          return <span style={{ fontSize: 12 }}>{s.machineName || s.machineCodeId}</span>;
+          return <span style={{ fontSize: 'var(--fs-sm)' }}>{s.machineName || s.machineCodeId}</span>;
         } },
         { key: 'serviceName', label: 'Dịch vụ', render: (r) => {
           const s = r as api.MachineServiceDto;
-          return <span style={{ fontSize: 12 }}>{s.serviceName || s.serviceId}</span>;
+          return <span style={{ fontSize: 'var(--fs-sm)' }}>{s.serviceName || s.serviceId}</span>;
         } },
         { key: 'isDefault', label: 'Mặc định', width: 110, render: (r) => (
           (r as api.MachineServiceDto).isDefault
@@ -157,7 +157,7 @@ const ParaclinicalCatalogsV2: React.FC = () => {
             : <StatusBadge tone="info" dot>—</StatusBadge>
         ) },
         { key: 'note', label: 'Ghi chú', render: (r) => (
-          <span style={{ color: 'var(--t-2)', fontSize: 12 }}>{(r as api.MachineServiceDto).note || '—'}</span>
+          <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>{(r as api.MachineServiceDto).note || '—'}</span>
         ) },
       ];
     }
@@ -171,7 +171,7 @@ const ParaclinicalCatalogsV2: React.FC = () => {
       { key: 'roomName', label: 'Phòng', width: 200, render: (r) => (r as api.ParaclinicalRoomPriorityDto).roomName || '—' },
       { key: 'departmentName', label: 'Khoa', width: 160, render: (r) => (r as api.ParaclinicalRoomPriorityDto).departmentName || '—' },
       { key: 'note', label: 'Ghi chú', render: (r) => (
-        <span style={{ color: 'var(--t-2)', fontSize: 12 }}>{(r as api.ParaclinicalRoomPriorityDto).note || '—'}</span>
+        <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>{(r as api.ParaclinicalRoomPriorityDto).note || '—'}</span>
       ) },
     ];
   }, [tab]);

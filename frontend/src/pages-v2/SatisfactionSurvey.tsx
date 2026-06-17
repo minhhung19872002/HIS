@@ -194,7 +194,7 @@ const SatisfactionSurveyV2: React.FC = () => {
     { key: 'pat', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'tmpl', label: 'Mẫu khảo sát', render: (r) => r.templateName },
@@ -249,10 +249,10 @@ const SatisfactionSurveyV2: React.FC = () => {
       {/* Top dept performance bars (compact, before table) */}
       {byDept.length > 0 && (
         <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)', background: 'var(--d-1)' }}>
-          <div style={{ fontSize: 10, color: 'var(--t-2)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>TOP 5 KHOA THEO SỐ PHẢN HỒI</div>
+          <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>TOP 5 KHOA THEO SỐ PHẢN HỒI</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {byDept.map((d) => (
-              <div key={d.d} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
+              <div key={d.d} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 'var(--fs-sm)' }}>
                 <span style={{ width: 160, color: 'var(--t-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.d}</span>
                 <div style={{ flex: 1, height: 12, background: 'var(--bg-1)', borderRadius: 2, overflow: 'hidden', border: '1px solid var(--line-soft)' }}>
                   <div style={{
@@ -310,7 +310,7 @@ const SatisfactionSurveyV2: React.FC = () => {
               <div style={{ fontSize: 36, fontWeight: 700, fontFamily: 'var(--font-mono)', color: `var(--a-${toneFor(sel.score) === 'ok' ? 'em' : toneFor(sel.score) === 'warn' ? 'or' : toneFor(sel.score) === 'crit' ? 'rd' : 'cy'}-text)` }}>
                 {sel.score?.toFixed(1) || '—'}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 4 }}>trên 5 sao</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 4 }}>trên 5 sao</div>
               <div style={{ marginTop: 12 }}>
                 <StatusBadge tone={toneFor(sel.score)} dot>
                   {toneFor(sel.score) === 'ok' ? 'Rất hài lòng'

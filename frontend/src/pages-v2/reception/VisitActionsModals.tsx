@@ -20,7 +20,7 @@ import TermIcon from '../../layouts/terminal/Icon';
 // ─── Shared helpers ──────────────────────────────────────────────────────────
 
 const FIELD_LABEL: React.CSSProperties = {
-  fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600,
+  fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600,
 };
 
 const FIELD_WRAP: React.CSSProperties = { marginBottom: 12 };
@@ -121,7 +121,7 @@ export const TempInsuranceModal: React.FC<TempInsuranceModalProps> = ({
       )}
     >
       <div style={{ padding: 0 }}>
-        <div style={{ fontSize: 11, color: 'var(--s-warn)', marginBottom: 12, padding: '8px 10px', background: 'var(--d-1)', borderRadius: 5 }}>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-warn)', marginBottom: 12, padding: '8px 10px', background: 'var(--d-1)', borderRadius: 5 }}>
           Dùng cho trẻ em chưa có thẻ BHYT — thẻ tạm được cấp dựa trên BHYT của người giám hộ.
         </div>
 
@@ -147,7 +147,7 @@ export const TempInsuranceModal: React.FC<TempInsuranceModalProps> = ({
           </Field>
         </div>
 
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontWeight: 700, margin: '8px 0 10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, margin: '8px 0 10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Thông tin người giám hộ
         </div>
 
@@ -325,9 +325,9 @@ export const DocumentHoldModal: React.FC<DocumentHoldModalProps> = ({
 
         {tab === 'list' && (
           <div>
-            {loadingDocs && <div style={{ textAlign: 'center', color: 'var(--t-2)', padding: '20px 0', fontSize: 12 }}>Đang tải…</div>}
+            {loadingDocs && <div style={{ textAlign: 'center', color: 'var(--t-2)', padding: '20px 0', fontSize: 'var(--fs-sm)' }}>Đang tải…</div>}
             {!loadingDocs && heldDocs.length === 0 && (
-              <div style={{ textAlign: 'center', color: 'var(--t-2)', padding: '24px 0', fontSize: 12 }}>
+              <div style={{ textAlign: 'center', color: 'var(--t-2)', padding: '24px 0', fontSize: 'var(--fs-sm)' }}>
                 Không có giấy tờ đang được giữ
               </div>
             )}
@@ -338,13 +338,13 @@ export const DocumentHoldModal: React.FC<DocumentHoldModalProps> = ({
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                   <div>
-                    <span className="chip info" style={{ fontSize: 11, marginRight: 6 }}>{d.documentTypeName}</span>
-                    <span className="mono" style={{ fontSize: 12 }}>{d.documentNumber}</span>
+                    <span className="chip info" style={{ fontSize: 'var(--fs-xs)', marginRight: 6 }}>{d.documentTypeName}</span>
+                    <span className="mono" style={{ fontSize: 'var(--fs-sm)' }}>{d.documentNumber}</span>
                   </div>
-                  <span style={{ fontSize: 11, color: 'var(--t-2)' }}>{d.holdDurationDays}d</span>
+                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{d.holdDurationDays}d</span>
                 </div>
                 {d.documentDescription && (
-                  <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 6 }}>{d.documentDescription}</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 6 }}>{d.documentDescription}</div>
                 )}
 
                 {returningId === d.id ? (
@@ -525,7 +525,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
                 style={{ maxWidth: '100%', maxHeight: 180, objectFit: 'contain', display: 'block' }}
               />
             ) : (
-              <span style={{ color: 'var(--t-2)', fontSize: 12 }}>
+              <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
                 <TermIcon name="upload" size={14} />
                 {' '}Nhấn để chọn ảnh (JPG/PNG, tối đa 5MB)
               </span>
@@ -534,11 +534,11 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
         </div>
 
         {/* Existing photos */}
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Ảnh đã lưu {loadingPhotos ? '…' : `(${photos.length})`}
         </div>
         {photos.length === 0 && !loadingPhotos && (
-          <div style={{ color: 'var(--t-3)', fontSize: 12, textAlign: 'center', padding: '12px 0' }}>Chưa có ảnh</div>
+          <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: '12px 0' }}>Chưa có ảnh</div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8 }}>
           {photos.map((p) => (
@@ -549,7 +549,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
               />
               <div style={{
                 position: 'absolute', bottom: 0, left: 0, right: 0,
-                background: 'rgba(0,0,0,0.5)', padding: '2px 4px', fontSize: 10, color: '#fff',
+                background: 'rgba(0,0,0,0.5)', padding: '2px 4px', fontSize: 'var(--fs-xxs)', color: '#fff',
               }}>
                 {p.photoTypeName}
               </div>
@@ -703,7 +703,7 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
             marginBottom: 8, position: 'relative',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 11, color: 'var(--t-2)', fontWeight: 600, minWidth: 18 }}>{idx + 1}.</span>
+              <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 600, minWidth: 18 }}>{idx + 1}.</span>
               <div style={{ flex: 1, position: 'relative' }}>
                 <Input
                   size="small"
@@ -732,14 +732,14 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
                     {searchResults.map((svc) => (
                       <div
                         key={svc.id}
-                        style={{ padding: '7px 10px', cursor: 'pointer', fontSize: 12 }}
+                        style={{ padding: '7px 10px', cursor: 'pointer', fontSize: 'var(--fs-sm)' }}
                         onMouseDown={(e) => { e.preventDefault(); pickService(row.key, svc); }}
                         onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--d-1)'; }}
                         onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = ''; }}
                       >
                         <span className="mono" style={{ color: 'var(--a-cy)', marginRight: 8 }}>{svc.code}</span>
                         {svc.name}
-                        <span style={{ float: 'right', color: 'var(--t-2)', fontSize: 11 }}>
+                        <span style={{ float: 'right', color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>
                           {svc.unitPrice?.toLocaleString('vi-VN')}₫
                         </span>
                       </div>
@@ -755,7 +755,7 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
               <input
                 type="number" min={1} max={99} value={row.quantity}
                 onChange={(e) => updateRow(row.key, { quantity: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-                style={{ width: 48, padding: '3px 6px', border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, textAlign: 'center' }}
+                style={{ width: 48, padding: '3px 6px', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', textAlign: 'center' }}
               />
               {rows.length > 1 && (
                 <button type="button" className="ab-iconbtn" style={{ color: 'var(--s-crit)' }} onClick={() => removeRow(row.key)}>
@@ -775,7 +775,7 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
           <TermIcon name="plus" size={11} /> Thêm dịch vụ
         </button>
 
-        <div style={{ marginTop: 14, padding: '8px 10px', background: 'var(--d-1)', borderRadius: 5, fontSize: 11, color: 'var(--t-2)' }}>
+        <div style={{ marginTop: 14, padding: '8px 10px', background: 'var(--d-1)', borderRadius: 5, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
           Tìm dịch vụ bằng từ khoá (mã hoặc tên). Phòng thực hiện sẽ được tự động chọn.
           Hình thức thanh toán mặc định: Viện phí.
         </div>

@@ -96,7 +96,7 @@ const MethadoneTreatmentV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
           {r.patientCode} · {r.gender === 1 ? 'Nam' : 'Nữ'}
         </div>
       </div>
@@ -385,11 +385,11 @@ const MethadoneTreatmentV2: React.FC = () => {
           ['THC (cần sa)', thc, setThc],
         ] as [string, string, (v: string) => void][]).map(([lbl, val, setter]) => (
           <div key={lbl} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
-            <span style={{ fontSize: 13, color: 'var(--t-1)' }}>{lbl}</span>
+            <span style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)' }}>{lbl}</span>
             <select
               value={val}
               onChange={(e) => setter(e.target.value)}
-              style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '4px 8px', fontSize: 13 }}
+              style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '4px 8px', fontSize: 'var(--fs-md)' }}
             >
               <option value="negative">Âm tính</option>
               <option value="positive">Dương tính</option>

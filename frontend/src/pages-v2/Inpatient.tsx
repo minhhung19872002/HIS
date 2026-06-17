@@ -221,7 +221,7 @@ const InpatientV2: React.FC = () => {
             <TermIcon name="refresh" size={12} /> Bỏ lọc
           </Btn>
           <span className="spacer" />
-          <span style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
+          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
             {tab === 'grid' ? `${filteredBeds.length} giường` : tab === 'list' ? `${listFiltered.length} BN` : `${ordersList.length} BN có y lệnh`}
           </span>
         </div>
@@ -230,7 +230,7 @@ const InpatientV2: React.FC = () => {
       {/* ── Tab: Sơ đồ giường ── */}
       {tab === 'grid' && (
         <div style={{ flex: 1, overflow: 'auto', padding: 18, background: 'var(--d-1)' }}>
-          {loading && <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 12, padding: 20 }}>Đang tải sơ đồ giường…</div>}
+          {loading && <div style={{ textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', padding: 20 }}>Đang tải sơ đồ giường…</div>}
           {!loading && filteredBeds.length === 0 && (
             <div className="ab-empty" style={{ padding: 40 }}><TermIcon name="grid" size={20} /><div>Không có giường phù hợp</div></div>
           )}
@@ -242,7 +242,7 @@ const InpatientV2: React.FC = () => {
               <div key={w.departmentId} style={{ marginBottom: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                   <h3 style={{ margin: 0, fontSize: 14 }}>{w.departmentName}</h3>
-                  <span style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{occ}/{wardBeds.length}</span>
+                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{occ}/{wardBeds.length}</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 8 }}>
                   {wardBeds.map((b) => {
@@ -254,16 +254,16 @@ const InpatientV2: React.FC = () => {
                         style={{ padding: 10, background: t.bg, border: `1px solid ${t.line}`, borderRadius: 6, cursor: 'pointer' }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 6 }}>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, color: 'var(--t-0)' }}>{b.bedName || b.bedCode}</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--t-0)' }}>{b.bedName || b.bedCode}</span>
                         </div>
                         {b.patientName ? (
                           <>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-0)', lineHeight: 1.2, marginBottom: 2 }}>{b.patientName}</div>
+                            <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--t-0)', lineHeight: 1.2, marginBottom: 2 }}>{b.patientName}</div>
                             <div style={{ fontSize: 10.5, color: 'var(--t-2)', marginBottom: 4 }}>{b.age || '—'}T · {genderLabel(b.gender)}{b.daysOfStay != null ? ` · ${b.daysOfStay} ngày` : ''}</div>
                             <div style={{ fontSize: 10.5, color: 'var(--t-1)', lineHeight: 1.3 }}>{b.mainDiagnosis || '—'}</div>
                           </>
                         ) : (
-                          <div style={{ fontSize: 11, color: 'var(--t-2)', padding: '14px 0', textAlign: 'center' }}>{b.statusName || BED_STATUS.find((s) => s.v === String(b.status))?.l}</div>
+                          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', padding: '14px 0', textAlign: 'center' }}>{b.statusName || BED_STATUS.find((s) => s.v === String(b.status))?.l}</div>
                         )}
                       </div>
                     );
@@ -303,17 +303,17 @@ const InpatientV2: React.FC = () => {
       {tab === 'orders' && (
         <div style={{ flex: 1, overflow: 'auto', padding: 18, background: 'var(--d-1)' }}>
           <div style={{ background: 'var(--d-2)', border: '1px solid var(--line)', borderRadius: 6 }}>
-            {ordersList.length === 0 && <div style={{ padding: 28, textAlign: 'center', color: 'var(--t-2)', fontSize: 12 }}>Không có bệnh nhân cần xử lý y lệnh</div>}
+            {ordersList.length === 0 && <div style={{ padding: 28, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Không có bệnh nhân cần xử lý y lệnh</div>}
             {ordersList.map((r) => (
               <div key={r.admissionId} style={{ padding: '14px 18px', borderBottom: '1px solid var(--line-soft)', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setDetail(r)}>
                 <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--t-0)', minWidth: 90 }}>{r.bedName || r.roomName}</span>
                 <span style={{ fontWeight: 600 }}>{r.patientName}</span>
-                <span style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.mainDiagnosis || '—'}</span>
+                <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.mainDiagnosis || '—'}</span>
                 <span className="spacer" />
                 {r.hasPendingOrders && <span className="chip warn">Y lệnh chờ</span>}
                 {r.hasPendingLabResults && <span className="chip warn">CLS</span>}
                 {r.hasUnclaimedMedicine && <span className="chip warn">Thuốc</span>}
-                <span style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.attendingDoctorName || ''}</span>
+                <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.attendingDoctorName || ''}</span>
               </div>
             ))}
           </div>
@@ -372,7 +372,7 @@ const InpatientV2: React.FC = () => {
           <div style={{ padding: '40px 0', textAlign: 'center' }}>
             <div style={{ color: 'var(--t-3)', marginBottom: 8 }}><TermIcon name="grid" size={40} /></div>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Giường trống</div>
-            <div style={{ fontSize: 12, color: 'var(--t-2)' }}>Trạng thái: {bed.statusName || BED_STATUS.find((s) => s.v === String(bed.status))?.l}</div>
+            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Trạng thái: {bed.statusName || BED_STATUS.find((s) => s.v === String(bed.status))?.l}</div>
           </div>
         ))}
       </DrawerShell>
@@ -384,7 +384,7 @@ const InpatientV2: React.FC = () => {
         size="lg"
         title={detail ? (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-            <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{detail.medicalRecordCode}</span>
+            <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detail.medicalRecordCode}</span>
             <span style={{ fontSize: 14 }}>{detail.patientName}</span>
           </span>
         ) : ''}
@@ -619,7 +619,7 @@ const AdmitModal: React.FC<{
 
 const IpFld: React.FC<{ label?: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
   <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
-    {label && <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>}
+    {label && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>}
     {children}
   </div>
 );

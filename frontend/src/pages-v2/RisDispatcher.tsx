@@ -137,7 +137,7 @@ const RisDispatcherV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600 }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'svc', label: 'Dịch vụ', render: (r) => r.serviceName },
@@ -163,7 +163,7 @@ const RisDispatcherV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600 }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'svc', label: 'Dịch vụ', render: (r) => r.serviceName },

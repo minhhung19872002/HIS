@@ -200,7 +200,7 @@ const LineItemsTable: React.FC<LineItemsTableProps> = ({ rows, warehouseId, onCh
     <div style={{ marginTop: 8 }}>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 6, fontSize: 11, fontFamily: 'var(--font-mono)',
+        marginBottom: 6, fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)',
         textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--t-2)',
       }}>
         <span>Danh sách thuốc / vật tư ({rows.length} dòng)</span>
@@ -208,7 +208,7 @@ const LineItemsTable: React.FC<LineItemsTableProps> = ({ rows, warehouseId, onCh
       </div>
 
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
           <thead>
             <tr style={{ background: 'var(--bg-2)', borderBottom: '1px solid var(--line)' }}>
               {['Thuốc / Vật tư', 'ĐVT', 'SL', 'Đơn giá (tham khảo)', 'Thành tiền (dự tính)', 'Ghi chú', ''].map((h) => (
@@ -219,7 +219,7 @@ const LineItemsTable: React.FC<LineItemsTableProps> = ({ rows, warehouseId, onCh
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ padding: '20px', textAlign: 'center', color: 'var(--t-3)', fontSize: 12 }}>
+                <td colSpan={7} style={{ padding: '20px', textAlign: 'center', color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>
                   Chưa có dòng — bấm "Thêm dòng"
                 </td>
               </tr>
@@ -240,7 +240,7 @@ const LineItemsTable: React.FC<LineItemsTableProps> = ({ rows, warehouseId, onCh
                     })}
                   />
                 </td>
-                <td style={{ padding: '3px 4px', minWidth: 60, color: 'var(--t-2)', fontSize: 11 }}>
+                <td style={{ padding: '3px 4px', minWidth: 60, color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>
                   {row.unit || '—'}
                 </td>
                 <td style={{ padding: '3px 4px', minWidth: 70 }}>
@@ -252,10 +252,10 @@ const LineItemsTable: React.FC<LineItemsTableProps> = ({ rows, warehouseId, onCh
                     style={{ width: '100%' }}
                   />
                 </td>
-                <td style={{ padding: '3px 4px', minWidth: 120, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t-2)' }}>
+                <td style={{ padding: '3px 4px', minWidth: 120, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                   {row.unitPrice > 0 ? fmtVND(row.unitPrice) : '—'}
                 </td>
-                <td style={{ padding: '3px 4px', minWidth: 120, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                <td style={{ padding: '3px 4px', minWidth: 120, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)' }}>
                   {row.unitPrice > 0 ? (row.quantity * row.unitPrice).toLocaleString('vi-VN') + ' ₫' : '—'}
                 </td>
                 <td style={{ padding: '3px 4px', minWidth: 140 }}>
@@ -273,8 +273,8 @@ const LineItemsTable: React.FC<LineItemsTableProps> = ({ rows, warehouseId, onCh
             ))}
             {rows.length > 0 && (
               <tr style={{ borderTop: '1px solid var(--line)', fontWeight: 600 }}>
-                <td colSpan={4} style={{ padding: '4px 6px', textAlign: 'right', fontSize: 12 }}>Tổng cộng (dự tính):</td>
-                <td style={{ padding: '4px 6px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                <td colSpan={4} style={{ padding: '4px 6px', textAlign: 'right', fontSize: 'var(--fs-sm)' }}>Tổng cộng (dự tính):</td>
+                <td style={{ padding: '4px 6px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)' }}>
                   {rows.reduce((s, r) => s + r.quantity * r.unitPrice, 0).toLocaleString('vi-VN')} ₫
                 </td>
                 <td colSpan={2} />
@@ -643,7 +643,7 @@ const PharmacyStockIssue: React.FC = () => {
 
                 <DrSec title={`Chi tiết dòng hàng (${detail.items?.length ?? 0} dòng)`}>
                   <div style={{ overflowX: 'auto', marginTop: 4 }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
                       <thead>
                         <tr style={{ background: 'var(--bg-2)', borderBottom: '1px solid var(--line)' }}>
                           {['Mã', 'Tên', 'ĐVT', 'Lô', 'HSD', 'SL', 'Đơn giá', 'Thành tiền'].map((h) => (
@@ -654,11 +654,11 @@ const PharmacyStockIssue: React.FC = () => {
                       <tbody>
                         {(detail.items || []).map((item: StockIssueItemDto) => (
                           <tr key={item.id} style={{ borderBottom: '1px solid var(--line-soft)' }}>
-                            <td style={{ padding: '3px 6px', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{item.itemCode}</td>
+                            <td style={{ padding: '3px 6px', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)' }}>{item.itemCode}</td>
                             <td style={{ padding: '3px 6px' }}>{item.itemName}</td>
                             <td style={{ padding: '3px 6px' }}>{item.unit}</td>
-                            <td style={{ padding: '3px 6px', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{item.batchNumber || '—'}</td>
-                            <td style={{ padding: '3px 6px', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{fmtDate(item.expiryDate)}</td>
+                            <td style={{ padding: '3px 6px', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)' }}>{item.batchNumber || '—'}</td>
+                            <td style={{ padding: '3px 6px', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)' }}>{fmtDate(item.expiryDate)}</td>
                             <td style={{ padding: '3px 6px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{item.quantity.toLocaleString('vi-VN')}</td>
                             <td style={{ padding: '3px 6px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{fmtVND(item.unitPrice)}</td>
                             <td style={{ padding: '3px 6px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{fmtVND(item.amount)}</td>
@@ -666,8 +666,8 @@ const PharmacyStockIssue: React.FC = () => {
                         ))}
                         {(detail.items?.length ?? 0) > 0 && (
                           <tr style={{ borderTop: '1px solid var(--line)', fontWeight: 600 }}>
-                            <td colSpan={7} style={{ padding: '4px 6px', textAlign: 'right', fontSize: 12 }}>Tổng tiền:</td>
-                            <td style={{ padding: '4px 6px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                            <td colSpan={7} style={{ padding: '4px 6px', textAlign: 'right', fontSize: 'var(--fs-sm)' }}>Tổng tiền:</td>
+                            <td style={{ padding: '4px 6px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)' }}>
                               {fmtVND(detail.totalAmount)}
                             </td>
                           </tr>

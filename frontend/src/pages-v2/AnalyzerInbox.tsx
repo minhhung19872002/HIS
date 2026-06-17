@@ -141,8 +141,8 @@ const AnalyzerInboxPage: React.FC = () => {
     {
       key: 'sample', label: 'Barcode / Máy', render: (r) => (
         <div>
-          <div style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: 13 }}>{r.sampleBarcode || '—'}</div>
-          <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.analyzerName}</div>
+          <div style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-md)' }}>{r.sampleBarcode || '—'}</div>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.analyzerName}</div>
         </div>
       ),
     },
@@ -151,7 +151,7 @@ const AnalyzerInboxPage: React.FC = () => {
       key: 'result', label: 'Kết quả', render: (r) => (
         <div>
           <span style={{ fontWeight: 600 }}>{r.result}</span>
-          {r.unit && <span style={{ fontSize: 11, color: 'var(--t-2)', marginLeft: 4 }}>{r.unit}</span>}
+          {r.unit && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginLeft: 4 }}>{r.unit}</span>}
           {r.flag && r.flag.toUpperCase() !== 'N' && (
             <span style={{ marginLeft: 4 }}>
               <StatusBadge tone={FLAG_TONE[r.flag.toUpperCase()] || 'warn'}>{r.flag}</StatusBadge>
@@ -268,7 +268,7 @@ const AnalyzerInboxPage: React.FC = () => {
               <DrField lbl="Nhận lúc">{dayjs(sel.receivedAt).format('DD/MM/YYYY HH:mm:ss')}</DrField>
               {sel.matchedLabRequestItemId && (
                 <DrField lbl="Phiếu XN khớp">
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{sel.matchedLabRequestItemId}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)' }}>{sel.matchedLabRequestItemId}</span>
                 </DrField>
               )}
               {sel.rejectedReason && <DrField lbl="Lý do từ chối">{sel.rejectedReason}</DrField>}

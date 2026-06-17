@@ -92,7 +92,7 @@ const TbHivManagementV2: React.FC = () => {
       drawer={(r) => <TbHivDrawerBody r={r} />}
       drawerTitle={(r) => (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.registrationCode}</span>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.registrationCode}</span>
           <span style={{ fontSize: 14 }}>{r.patientName}</span>
         </span>
       )}

@@ -176,13 +176,13 @@ const OfficialDocumentsV2: React.FC = () => {
     { key: 'num',     label: 'Số CV',        code: true, render: (r) => (
       <div>
         <div style={{ fontWeight: 600 }}>{r.documentNumber}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.documentTypeName}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.documentTypeName}</div>
       </div>
     ) },
     { key: 'date',    label: 'Ngày',         mono: true, render: (r) => new Date(r.documentDate).toLocaleDateString('vi-VN') },
     { key: 'party',   label: 'Nơi gửi/nhận',             render: (r) => r.sender || r.receiver || '—' },
     { key: 'sum',     label: 'Trích yếu',               render: (r) => (
-      <span style={{ fontSize: 12 }}>{r.summary}</span>
+      <span style={{ fontSize: 'var(--fs-sm)' }}>{r.summary}</span>
     ) },
     { key: 'handler', label: 'Người XL',                render: (r) => r.handler || '—' },
     { key: 'dead',    label: 'Hạn XL',       mono: true, render: (r) => (

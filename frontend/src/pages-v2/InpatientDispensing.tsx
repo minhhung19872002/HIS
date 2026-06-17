@@ -245,10 +245,10 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicine
         {printData && (
           <div>
             <div style={{ marginBottom: 8 }}><b style={{ fontFamily: 'var(--font-mono)' }}>{printData.receiptCode}</b></div>
-            <div style={{ fontSize: 12, color: 'var(--t-2)' }}>
+            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
               Kho xuất: {printData.warehouseName} → Khoa nhận: {printData.departmentName}
             </div>
-            {printData.note && <div style={{ fontSize: 12, marginTop: 4 }}>{printData.note}</div>}
+            {printData.note && <div style={{ fontSize: 'var(--fs-sm)', marginTop: 4 }}>{printData.note}</div>}
             <table className="ab-tbl" style={{ marginTop: 12 }}>
               <thead><tr><th>Thuốc</th><th>Lô</th><th>HSD</th><th>SL</th><th>ĐV</th><th>Thành tiền</th></tr></thead>
               <tbody>

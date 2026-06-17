@@ -168,7 +168,7 @@ ${row.items.map((it) => `<div class="label"><h3>${it.medicineName}</h3><p><stron
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
           {r.patientCode} {r.gender !== undefined && `· ${r.gender === 1 ? 'Nam' : 'Nữ'}`}
         </div>
       </div>
@@ -251,7 +251,7 @@ ${row.items.map((it) => `<div class="label"><h3>${it.medicineName}</h3><p><stron
         destroyOnHidden
         width={400}
       >
-        <p style={{ fontSize: 13, color: 'var(--t-2)', marginBottom: 12 }}>
+        <p style={{ fontSize: 'var(--fs-md)', color: 'var(--t-2)', marginBottom: 12 }}>
           Nhập mã đơn thuốc hoặc để máy quét barcode tự điền vào ô bên dưới.
         </p>
         <Input

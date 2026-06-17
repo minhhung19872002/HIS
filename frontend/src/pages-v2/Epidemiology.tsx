@@ -91,19 +91,19 @@ const EpidemiologyV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.gender === 1 ? 'Nam' : 'Nữ'} · {r.age}t</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.gender === 1 ? 'Nam' : 'Nữ'} · {r.age}t</div>
       </div>
     ) },
     { key: 'dis', label: 'Bệnh', render: (r) => (
       <div>
         <div style={{ fontWeight: 500 }}>{r.diseaseName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.diseaseCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.diseaseCode}</div>
       </div>
     ) },
     { key: 'grp', label: 'Nhóm', render: (r) => (
       <StatusBadge tone={GROUP_TONE[r.diseaseGroup] || 'info'} dot>{r.diseaseGroup}</StatusBadge>
     ) },
-    { key: 'addr', label: 'Địa chỉ', render: (r) => <span style={{ fontSize: 12 }}>{r.address}</span> },
+    { key: 'addr', label: 'Địa chỉ', render: (r) => <span style={{ fontSize: 'var(--fs-sm)' }}>{r.address}</span> },
     { key: 'date', label: 'Báo cáo', mono: true, render: (r) => dayjs(r.reportDate).format('DD/MM/YYYY') },
     { key: 'lab', label: 'XN', render: (r) => r.labConfirmed
       ? <StatusBadge tone="ok" dot>Khẳng định</StatusBadge>

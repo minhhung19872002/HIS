@@ -220,7 +220,7 @@ const BloodBankV2: React.FC = () => {
           <TermIcon name="refresh" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <span style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
+        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
           {tab === 'stock' ? `${unitsFiltered.length} đơn vị` :
            tab === 'expiring' ? `${expiringFiltered.length} túi` :
            `${requestsFiltered.length} yêu cầu`}
@@ -431,7 +431,7 @@ const BloodIssueModal: React.FC<{
 
 const BbFld: React.FC<{ label?: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
   <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
-    {label && <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>}
+    {label && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>}
     {children}
   </div>
 );
@@ -565,7 +565,7 @@ const ExpiringTab: React.FC<{
     >
       {actionBag?.type === 'discard' && (
         <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Lý do tiêu huỷ *</div>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Lý do tiêu huỷ *</div>
           <Input.TextArea
             rows={2}
             value={discardReason}
@@ -575,7 +575,7 @@ const ExpiringTab: React.FC<{
         </div>
       )}
       {actionBag?.type === 'dispense' && (
-        <div style={{ color: 'var(--t-2)', fontSize: 13 }}>
+        <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>
           Xác nhận cấp phát túi máu <b>{actionBag.bag.bagCode}</b> ({actionBag.bag.bloodType}{actionBag.bag.rhFactor}) ra khỏi kho?
         </div>
       )}
@@ -676,7 +676,7 @@ const BloodTypeDetail: React.FC<{ type: string; stock: BloodStockDto[] }> = ({ t
 
       <div className="rec-section">
         <h5><TermIcon name="activity" size={11} /> THEO CHẾ PHẨM ({items.length})</h5>
-        {items.length === 0 && <span style={{ color: 'var(--t-3)', fontSize: 12 }}>Không có chế phẩm nào trong nhóm này</span>}
+        {items.length === 0 && <span style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Không có chế phẩm nào trong nhóm này</span>}
         {items.map((s) => (
           <div key={`${s.productTypeId}`} style={{
             padding: '10px 0', borderBottom: '1px solid var(--line-soft)',

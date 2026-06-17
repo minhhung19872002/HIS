@@ -78,7 +78,7 @@ const ZnsLogsPanel: React.FC = () => {
       render: (r) => (
         <div>
           <b>{r.templateName}</b>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.templateId}</div>
+          <div className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.templateId}</div>
         </div>
       ) },
     { key: 'targetPhone', label: 'SĐT', mono: true, width: 130 },
@@ -133,7 +133,7 @@ const ZnsLogsPanel: React.FC = () => {
               )}
             </DrSec>
             <DrSec title="PAYLOAD">
-              <pre style={{ fontSize: 11, padding: 8, background: 'var(--d-1)', borderRadius: 4, maxHeight: 200, overflow: 'auto', fontFamily: 'var(--font-mono)' }}>
+              <pre style={{ fontSize: 'var(--fs-xs)', padding: 8, background: 'var(--d-1)', borderRadius: 4, maxHeight: 200, overflow: 'auto', fontFamily: 'var(--font-mono)' }}>
                 {(() => { try { return JSON.stringify(JSON.parse(detail.payloadJson || '{}'), null, 2); } catch { return detail.payloadJson; } })()}
               </pre>
             </DrSec>
@@ -178,13 +178,13 @@ const ZnsSendModal: React.FC<{ open: boolean; onClose: () => void; onSent: () =>
         </Btn>
       </>}>
       <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 10, padding: 14 }}>
-        <span style={{ fontSize: 13 }}>Mẫu tin</span>
+        <span style={{ fontSize: 'var(--fs-md)' }}>Mẫu tin</span>
         <AbSelect value={tplId} onChange={setTplId} options={templates} fieldNames={{ value: 'id', label: 'name' }} />
-        <span style={{ fontSize: 13 }}>SĐT</span>
+        <span style={{ fontSize: 'var(--fs-md)' }}>SĐT</span>
         <input className="ab-sel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0901234567" />
         {tpl?.params_.map((p) => (
           <React.Fragment key={p}>
-            <span style={{ fontSize: 13, color: 'var(--t-2)' }}>{p}</span>
+            <span style={{ fontSize: 'var(--fs-md)', color: 'var(--t-2)' }}>{p}</span>
             <input className="ab-sel" value={params[p] || ''}
               onChange={(e) => setParams((s) => ({ ...s, [p]: e.target.value }))} />
           </React.Fragment>
@@ -225,7 +225,7 @@ const ZnsConfigPanel: React.FC = () => {
   return (
     <div style={{ padding: 20, maxWidth: 760 }} data-testid="zalo-config-panel">
       <div className="hui-section-t" style={{ marginBottom: 14 }}>ZALO OFFICIAL ACCOUNT</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 10, fontSize: 13 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 10, fontSize: 'var(--fs-md)' }}>
         <span>Access Token</span>
         <input className="ab-sel" value={cfg.accessToken}
           onChange={(e) => set('accessToken', e.target.value)} />

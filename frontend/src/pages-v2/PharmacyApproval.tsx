@@ -294,7 +294,7 @@ const PharmacyApprovalV2: React.FC = () => {
     { key: 'pt', label: 'BN', render: (r) => r.patientName ? (
       <div>
         <div style={{ fontWeight: 500 }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
       </div>
     ) : <span style={{ color: 'var(--t-2)' }}>—</span> },
     { key: 'amt', label: 'Tổng tiền', mono: true, render: (r) => fmt(r.totalAmount) },
@@ -414,7 +414,7 @@ const PharmacyApprovalV2: React.FC = () => {
             )}
             {detail.linkedExportReceiptId && (
               <DrField lbl="Phiếu xuất chuyển kho">
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t-2)' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                   {detail.linkedExportReceiptId}
                 </span>
               </DrField>
@@ -466,11 +466,11 @@ const PharmacyApprovalV2: React.FC = () => {
         </>}
       >
         {detail?.approvalType === 1 && (
-          <div style={{ fontSize: 12, color: 'var(--a-gn-text)', marginBottom: 12 }}>
+          <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-gn-text)', marginBottom: 12 }}>
             Duyệt cấp theo dự trù — hệ thống sẽ tự sinh phiếu xuất chuyển kho sau khi duyệt.
           </div>
         )}
-        <div style={{ fontSize: 12, color: 'var(--a-cy-text)', marginBottom: 12 }}>
+        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-cy-text)', marginBottom: 12 }}>
           Có thể chỉnh số lượng duyệt hoặc tick "Bỏ" để loại khỏi phiếu
         </div>
         <Form form={approveForm} layout="vertical">
@@ -528,7 +528,7 @@ const PharmacyApprovalV2: React.FC = () => {
           </Btn>
         </>}
       >
-        <div style={{ fontSize: 12, color: 'var(--a-or-text)', marginBottom: 12 }}>
+        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-or-text)', marginBottom: 12 }}>
           Thu hồi sẽ hoàn lại số lượng đã trừ vào kho.
         </div>
         <Form form={revokeForm} layout="vertical">
@@ -551,7 +551,7 @@ const PharmacyApprovalV2: React.FC = () => {
           </Btn>
         </>}
       >
-        <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 12 }}>
+        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 12 }}>
           Sau khi tạo nháp, nhấn "Gửi xuống kho" để kho chính xem xét duyệt.
           Khi duyệt, hệ thống tự sinh phiếu xuất chuyển kho.
         </div>
@@ -559,7 +559,7 @@ const PharmacyApprovalV2: React.FC = () => {
         {/* Kho nguồn / kho nhận */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Kho xuất (nguồn) *</div>
+            <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, marginBottom: 4 }}>Kho xuất (nguồn) *</div>
             <Select
               style={{ width: '100%' }}
               placeholder="Chọn kho xuất…"
@@ -574,7 +574,7 @@ const PharmacyApprovalV2: React.FC = () => {
             </Select>
           </div>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Kho nhận (đích) *</div>
+            <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, marginBottom: 4 }}>Kho nhận (đích) *</div>
             <Select
               style={{ width: '100%' }}
               placeholder="Chọn kho nhận…"
@@ -593,7 +593,7 @@ const PharmacyApprovalV2: React.FC = () => {
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Ghi chú</div>
+          <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, marginBottom: 4 }}>Ghi chú</div>
           <Input.TextArea
             rows={2}
             placeholder="Lý do dự trù, ghi chú…"
@@ -603,7 +603,7 @@ const PharmacyApprovalV2: React.FC = () => {
         </div>
 
         {/* Item table */}
-        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+        <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, marginBottom: 6 }}>
           Danh sách mặt hàng dự trù *
         </div>
         <table className="ab-tbl" style={{ marginBottom: 8 }}>
@@ -676,7 +676,7 @@ const PharmacyApprovalV2: React.FC = () => {
             ))}
           </tbody>
         </table>
-        <Btn variant="ghost" onClick={addItem} style={{ fontSize: 12 }}>
+        <Btn variant="ghost" onClick={addItem} style={{ fontSize: 'var(--fs-sm)' }}>
           <Ico name="plus" size={12} /> Thêm dòng
         </Btn>
       </ModalShell>

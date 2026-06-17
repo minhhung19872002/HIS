@@ -99,9 +99,9 @@ export const BookingPickerModal: React.FC<{
           allowClear
         />
       </div>
-      {loading && <div style={{ fontSize: 12, color: 'var(--t-2)', padding: '20px 0', textAlign: 'center' }}>Đang tải…</div>}
+      {loading && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', padding: '20px 0', textAlign: 'center' }}>Đang tải…</div>}
       {!loading && filtered.length === 0 && (
-        <div style={{ fontSize: 12, color: 'var(--t-2)', padding: '24px 0', textAlign: 'center' }}>
+        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', padding: '24px 0', textAlign: 'center' }}>
           Không có lịch đặt khám chờ tiếp đón hôm nay.
         </div>
       )}
@@ -118,9 +118,9 @@ export const BookingPickerModal: React.FC<{
               <div>
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--t-0)' }}>
                   {b.patientName}
-                  <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 11, marginLeft: 8 }}>{b.appointmentCode}</span>
+                  <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-xs)', marginLeft: 8 }}>{b.appointmentCode}</span>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                   {b.appointmentTime ? `${b.appointmentTime} · ` : ''}
                   {b.departmentName || '—'}{b.doctorName ? ` · ${b.doctorName}` : ''}
                   {b.phoneNumber ? ` · ${b.phoneNumber}` : ''}

@@ -100,7 +100,7 @@ const ReportCatalogsV2: React.FC = () => {
         { key: 'code', label: 'Mã', mono: true, code: true, width: 130 },
         { key: 'name', label: 'Tên loại nhóm' },
         { key: 'reportLabel', label: 'Nhãn BC', width: 200, render: (r) => (
-          <span style={{ color: 'var(--t-2)', fontSize: 12 }}>{(r as api.ReportServiceGroupTypeDto).reportLabel || '—'}</span>
+          <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>{(r as api.ReportServiceGroupTypeDto).reportLabel || '—'}</span>
         ) },
         { key: 'groupCount', label: 'Số nhóm BC', mono: true, width: 110, render: (r) => {
           const t = r as api.ReportServiceGroupTypeDto;
@@ -125,7 +125,7 @@ const ReportCatalogsV2: React.FC = () => {
           : <span style={{ fontFamily: 'var(--font-mono)' }}>{g.groupTypeName || g.groupTypeId}</span>;
       } },
       { key: 'note', label: 'Ghi chú', render: (r) => (
-        <span style={{ color: 'var(--t-2)', fontSize: 12 }}>{(r as api.ReportServiceGroupDto).note || '—'}</span>
+        <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>{(r as api.ReportServiceGroupDto).note || '—'}</span>
       ) },
       { key: 'sortOrder', label: 'TT', mono: true, width: 60 },
       { key: 'isActive', label: 'Trạng thái', width: 120, render: (r) => (

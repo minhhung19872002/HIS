@@ -46,7 +46,7 @@ export const KpiStrip: React.FC<{ items: KpiItem[] }> = ({ items }) => (
         <div className="lbl">{k.lbl}</div>
         <div className="val">
           {k.val}
-          {k.unit && <small style={{ fontSize: 13, color: 'var(--t-2)', marginLeft: 3 }}>{k.unit}</small>}
+          {k.unit && <small style={{ fontSize: 'var(--fs-md)', color: 'var(--t-2)', marginLeft: 3 }}>{k.unit}</small>}
         </div>
         {k.sub && <div className="sub">{k.sub}</div>}
       </div>
@@ -243,7 +243,7 @@ export const Pager: React.FC<{
     <div style={{
       display: 'flex', alignItems: 'center', gap: 8,
       padding: '10px 14px', borderTop: '1px solid var(--line)',
-      background: 'var(--d-2)', fontSize: 12, color: 'var(--t-2)', flexShrink: 0,
+      background: 'var(--d-2)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)', flexShrink: 0,
     }}>
       <span>
         Hiển thị <b style={{ color: 'var(--t-0)' }}>
@@ -491,7 +491,7 @@ export const DrSec: React.FC<{
   <section style={{ padding: '14px 20px', borderBottom: '1px solid var(--line-soft)' }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
       <h4 style={{
-        margin: 0, fontSize: 11, fontFamily: 'var(--font-mono)',
+        margin: 0, fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)',
         textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--t-2)',
       }}>{title}</h4>
       {action}

@@ -70,8 +70,8 @@ interface FormRow {
 const FormRow: React.FC<FormRow> = ({ label, extra, children }) => (
   <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', alignItems: 'start', gap: 8, marginBottom: 4 }}>
     <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <span style={{ fontSize: 11, color: 'var(--t-2)', paddingTop: 5 }}>{label}</span>
-      {extra && <span style={{ fontSize: 10, color: 'var(--t-3)' }}>{extra}</span>}
+      <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', paddingTop: 5 }}>{label}</span>
+      {extra && <span style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-3)' }}>{extra}</span>}
     </div>
     <div>{children}</div>
   </div>
@@ -312,11 +312,11 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
             {existingList.map((s) => (
               <div key={s.id} style={{
                 border: '1px solid var(--line)', borderRadius: 6, padding: '8px 10px',
-                marginBottom: 6, fontSize: 12,
+                marginBottom: 6, fontSize: 'var(--fs-sm)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <b style={{ fontSize: 12.5 }}>{s.surgeryServiceName || s.surgeryCode}</b>
-                  <span style={{ color: 'var(--t-3)', fontSize: 11 }}>
+                  <span style={{ color: 'var(--t-3)', fontSize: 'var(--fs-xs)' }}>
                     {fmtDTg(s.createdAt)}
                   </span>
                   <span style={{ flex: 1 }} />
@@ -340,7 +340,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
         )}
 
         {loading && (
-          <div style={{ textAlign: 'center', color: 'var(--t-3)', fontSize: 12 }}>
+          <div style={{ textAlign: 'center', color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>
             Đang tải…
           </div>
         )}
@@ -356,7 +356,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 3 }}>Loại PT/TT</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 3 }}>Loại PT/TT</div>
               <AbSelect
                 options={SURGERY_TYPE_OPTIONS}
                 value={form.surgeryType}
@@ -364,7 +364,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
               />
             </div>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 3 }}>Phân loại</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 3 }}>Phân loại</div>
               <AbSelect
                 options={SURGERY_CLASS_OPTIONS}
                 value={form.surgeryClass}
@@ -385,7 +385,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 3 }}>Phương pháp vô cảm</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 3 }}>Phương pháp vô cảm</div>
               <AbSelect
                 options={ANESTHESIA_OPTIONS}
                 value={form.anesthesiaType}
@@ -393,7 +393,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
               />
             </div>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 3 }}>Chi tiết vô cảm</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 3 }}>Chi tiết vô cảm</div>
               <input
                 className="hui-inp"
                 style={{ width: '100%', height: 28 }}
@@ -417,7 +417,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
           <FormRow
             label="Tường trình *"
             extra={
-              <span style={{ fontSize: 10, color: 'var(--t-3)', fontFamily: 'var(--font-mono)' }}>
+              <span style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-3)', fontFamily: 'var(--font-mono)' }}>
                 <TermIcon name="zap" size={9} /> viết tắt + Space
               </span>
             }
@@ -433,7 +433,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
           <FormRow
             label="Kết luận"
             extra={
-              <span style={{ fontSize: 10, color: 'var(--t-3)', fontFamily: 'var(--font-mono)' }}>
+              <span style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-3)', fontFamily: 'var(--font-mono)' }}>
                 <TermIcon name="zap" size={9} /> viết tắt + Space
               </span>
             }
@@ -471,7 +471,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
                   onRemove={() => setMainPhoto([])}
                 >
                   {mainPhoto.length === 0 && (
-                    <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                       <TermIcon name="upload" size={14} />
                       <div>Chọn ảnh</div>
                     </div>
@@ -495,7 +495,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
                   onRemove={(file) => setExtraPhotos((prev) => prev.filter((f) => f.uid !== file.uid))}
                 >
                   {extraPhotos.length < 5 && (
-                    <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                       <TermIcon name="image" size={14} />
                       <div>Thêm ảnh</div>
                     </div>
@@ -503,7 +503,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
                 </Upload>
               </FormRow>
               {uploadingPhotos && (
-                <div style={{ fontSize: 11, color: 'var(--t-2)', fontStyle: 'italic' }}>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontStyle: 'italic' }}>
                   Đang tải ảnh lên…
                 </div>
               )}

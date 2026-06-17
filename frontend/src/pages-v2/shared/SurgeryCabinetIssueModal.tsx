@@ -279,7 +279,7 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
         }
       >
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
             <thead>
               <tr style={{ background: 'var(--d-1)', borderBottom: '1px solid var(--line)' }}>
                 {['Thuốc / Vật tư', 'ĐVT', 'SL', 'Đ.giá', 'Đối tượng TT', ''].map((h) => (
@@ -290,7 +290,7 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
                       textAlign: 'left',
                       fontWeight: 600,
                       whiteSpace: 'nowrap',
-                      fontSize: 11,
+                      fontSize: 'var(--fs-xs)',
                     }}
                   >
                     {h}
@@ -318,7 +318,7 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
                       }}
                     />
                   </td>
-                  <td style={{ padding: '4px 4px', width: 55, color: 'var(--t-2)', fontSize: 11 }}>
+                  <td style={{ padding: '4px 4px', width: 55, color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>
                     {l.unit || '—'}
                   </td>
                   <td style={{ padding: '4px 4px', width: 80 }}>
@@ -331,7 +331,7 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
                       onChange={(v) => updateLine(l._key, { quantity: v ?? 1 })}
                     />
                   </td>
-                  <td style={{ padding: '4px 4px', width: 100, color: 'var(--t-2)', fontSize: 11, textAlign: 'right' }}>
+                  <td style={{ padding: '4px 4px', width: 100, color: 'var(--t-2)', fontSize: 'var(--fs-xs)', textAlign: 'right' }}>
                     {l.unitPrice > 0 ? l.unitPrice.toLocaleString('vi-VN') : '—'}
                   </td>
                   <td style={{ padding: '4px 4px', width: 120 }}>
@@ -370,7 +370,7 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
 
         {/* Summary totals by payment source */}
         {summaryBySource.length > 0 && (
-          <div style={{ marginTop: 10, display: 'flex', gap: 16, justifyContent: 'flex-end', fontSize: 12 }}>
+          <div style={{ marginTop: 10, display: 'flex', gap: 16, justifyContent: 'flex-end', fontSize: 'var(--fs-sm)' }}>
             {summaryBySource.map(({ value, label, total }) => (
               <span key={value} style={{ color: PAYMENT_SOURCE_COLORS[value] }}>
                 <b>{label}:</b> {total.toLocaleString('vi-VN')} ₫
@@ -392,7 +392,7 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
             padding: 6,
             border: '1px solid var(--line)',
             borderRadius: 4,
-            fontSize: 12,
+            fontSize: 'var(--fs-sm)',
             background: 'var(--d-0)',
             color: 'var(--t-0)',
           }}
@@ -402,7 +402,7 @@ export const SurgeryCabinetIssueModal: React.FC<SurgeryCabinetIssueModalProps> =
       {/* Last created issue summary */}
       {lastIssue && (
         <DrSec title="Phiếu xuất vừa tạo">
-          <div style={{ fontSize: 12, display: 'grid', gridTemplateColumns: '120px 1fr', gap: '2px 8px' }}>
+          <div style={{ fontSize: 'var(--fs-sm)', display: 'grid', gridTemplateColumns: '120px 1fr', gap: '2px 8px' }}>
             <span style={{ color: 'var(--t-2)' }}>Mã phiếu</span>
             <span className="mono" style={{ color: 'var(--a-cy)' }}>{lastIssue.issueCode}</span>
             <span style={{ color: 'var(--t-2)' }}>Thời gian</span>

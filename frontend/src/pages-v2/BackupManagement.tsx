@@ -363,7 +363,7 @@ const BackupManagement: React.FC = () => {
               style={{
                 marginTop: 8, padding: '10px 14px',
                 background: 'var(--bg-2)', borderRadius: 6,
-                fontSize: 12, color: 'var(--t-2)', lineHeight: 1.6,
+                fontSize: 'var(--fs-sm)', color: 'var(--t-2)', lineHeight: 1.6,
               }}
             >
               <b>Lưu ý về backup Cloud:</b> Hiện tại BackupSchedulerWorker thực hiện BACKUP TO DISK (local/NAS).
@@ -411,7 +411,7 @@ const BackupManagement: React.FC = () => {
                 >
                   Yêu cầu Restore
                 </Btn>
-                <div style={{ marginTop: 8, fontSize: 12, color: 'var(--t-2)' }}>
+                <div style={{ marginTop: 8, fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
                   Restore sẽ GHI DE toan bo du lieu. Chi admin co quyen moi thuc thi.
                 </div>
               </div>
@@ -446,7 +446,7 @@ const BackupManagement: React.FC = () => {
               style={{ width: '100%' }}
             />
           </div>
-          <div style={{ fontSize: 12, color: 'var(--t-2)' }}>
+          <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
             Backup Full Database sẽ được chạy bất đồng bộ. Kết quả hiển thị trong lịch sử sau khi hoàn thành.
           </div>
         </div>
@@ -481,7 +481,7 @@ const BackupManagement: React.FC = () => {
               style={{
                 padding: '10px 14px', borderRadius: 6,
                 background: '#fff3cd', border: '1px solid #ffc107',
-                fontSize: 13,
+                fontSize: 'var(--fs-md)',
               }}
             >
               <b>Canh bao:</b> Restore se GHI DE toan bo du lieu hien tai cua database.
@@ -492,7 +492,7 @@ const BackupManagement: React.FC = () => {
             </div>
 
             {selRow && (
-              <div style={{ fontSize: 13, color: 'var(--t-1)' }}>
+              <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)' }}>
                 File: <b>{selRow.fileName}</b> ({fmtSize(selRow.sizeBytes)}) — {fmtDT(selRow.startedAt)}
               </div>
             )}
@@ -514,7 +514,7 @@ const BackupManagement: React.FC = () => {
                 padding: '10px 14px', borderRadius: 6,
                 background: restoreResult.status === 'Pending' ? '#d4edda' : '#f8d7da',
                 border: `1px solid ${restoreResult.status === 'Pending' ? '#28a745' : '#dc3545'}`,
-                fontSize: 13,
+                fontSize: 'var(--fs-md)',
               }}
             >
               <b>{restoreResult.status === 'Pending' ? 'Yeu cau da duoc ghi nhan' : 'Yeu cau bi tu choi'}</b>
@@ -523,13 +523,13 @@ const BackupManagement: React.FC = () => {
 
             {restoreResult.manualRestoreScript && (
               <div>
-                <div style={{ marginBottom: 6, fontWeight: 600, fontSize: 13 }}>
+                <div style={{ marginBottom: 6, fontWeight: 600, fontSize: 'var(--fs-md)' }}>
                   Script T-SQL de admin chay (SSMS / sqlcmd):
                 </div>
                 <pre
                   style={{
                     background: '#1e1e1e', color: '#d4d4d4',
-                    padding: 12, borderRadius: 6, fontSize: 12,
+                    padding: 12, borderRadius: 6, fontSize: 'var(--fs-sm)',
                     overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
                     maxHeight: 300, overflowY: 'auto',
                   }}

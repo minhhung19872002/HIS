@@ -252,7 +252,7 @@ const FollowUpV2: React.FC = () => {
         onClose={() => setDetail(null)}
         title={detail
           ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{detail.appointmentCode}</span>
+              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detail.appointmentCode}</span>
               <span style={{ fontSize: 14 }}>{detail.patientName}</span>
             </span>
           : ''}

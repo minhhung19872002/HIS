@@ -237,7 +237,7 @@ const Hl7MessageQueue: React.FC = () => {
               <DrSec title="Endpoint">
                 <DrField lbl="Source">{detail.sourceSystem}</DrField>
                 <DrField lbl="Target">{detail.targetSystem}</DrField>
-                <DrField lbl="Endpoint"><span className="mono" style={{ fontSize: 11 }}>{detail.endpoint ?? '—'}</span></DrField>
+                <DrField lbl="Endpoint"><span className="mono" style={{ fontSize: 'var(--fs-xs)' }}>{detail.endpoint ?? '—'}</span></DrField>
               </DrSec>
               <DrSec title="Thời gian">
                 <DrField lbl="Tạo lúc">{fmtDTg(detail.createdAt)}</DrField>
@@ -247,7 +247,7 @@ const Hl7MessageQueue: React.FC = () => {
               </DrSec>
               {detail.errorMessage && (
                 <DrSec title="Lỗi">
-                  <div style={{ padding: 10, background: 'var(--s-crit-bg)', color: 'var(--s-crit)', fontFamily: 'var(--font-mono)', fontSize: 11, borderRadius: 4 }}>
+                  <div style={{ padding: 10, background: 'var(--s-crit-bg)', color: 'var(--s-crit)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', borderRadius: 4 }}>
                     {detail.errorMessage}
                   </div>
                 </DrSec>
@@ -303,7 +303,7 @@ const Hl7MessageQueue: React.FC = () => {
               <Input />
             </Form.Item>
             <Form.Item name="payload" label="HL7 Payload">
-              <Input.TextArea rows={6} style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }} />
+              <Input.TextArea rows={6} style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)' }} />
             </Form.Item>
           </Form>
         </div>

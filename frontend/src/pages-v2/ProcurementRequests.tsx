@@ -447,7 +447,7 @@ const ProcurementRequestsV2: React.FC = () => {
             }}>
               <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
                 <div style={{ flex: 2 }}>
-                  <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 2 }}>Tên hàng mục *</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 2 }}>Tên hàng mục *</div>
                   <Input
                     value={it.itemName}
                     onChange={e => updateItem(idx, { itemName: e.target.value })}
@@ -455,7 +455,7 @@ const ProcurementRequestsV2: React.FC = () => {
                   />
                 </div>
                 <div style={{ flex: '0 0 85px' }}>
-                  <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 2 }}>ĐVT</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 2 }}>ĐVT</div>
                   <Input
                     value={it.unit ?? ''}
                     onChange={e => updateItem(idx, { unit: e.target.value })}
@@ -465,7 +465,7 @@ const ProcurementRequestsV2: React.FC = () => {
               </div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 2 }}>Số lượng *</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 2 }}>Số lượng *</div>
                   <InputNumber
                     min={0.001}
                     value={it.quantity}
@@ -474,7 +474,7 @@ const ProcurementRequestsV2: React.FC = () => {
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 2 }}>Đơn giá (đ)</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 2 }}>Đơn giá (đ)</div>
                   <InputNumber
                     min={0}
                     value={it.unitPrice}
@@ -485,13 +485,13 @@ const ProcurementRequestsV2: React.FC = () => {
                   />
                 </div>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--t-1)' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>
                     = {fmtMoney(it.unitPrice && it.quantity ? it.quantity * it.unitPrice : undefined)}
                   </span>
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 2 }}>Quy cách / đặc tính kỹ thuật</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 2 }}>Quy cách / đặc tính kỹ thuật</div>
                 <Input
                   value={it.specification ?? ''}
                   onChange={e => updateItem(idx, { specification: e.target.value })}

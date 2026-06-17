@@ -99,13 +99,13 @@ const TreatmentProtocolV2: React.FC = () => {
     { key: 'name', label: 'Tên phác đồ', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.name}</div>
-        {r.diseaseGroup && <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.diseaseGroup}</div>}
+        {r.diseaseGroup && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.diseaseGroup}</div>}
       </div>
     ) },
     { key: 'icd', label: 'ICD', render: (r) => r.icdCode ? (
       <div>
         <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{r.icdCode}</div>
-        {r.icdName && <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.icdName}</div>}
+        {r.icdName && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.icdName}</div>}
       </div>
     ) : <span style={{ color: 'var(--t-2)' }}>—</span> },
     { key: 'dept', label: 'Khoa', render: (r) => r.department || '—' },

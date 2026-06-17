@@ -91,7 +91,7 @@ const EmrHl7Export: React.FC = () => {
         {/* Form panel */}
         <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 18 }}>
           <h3 style={{
-            margin: '0 0 14px', fontSize: 13, fontFamily: 'var(--font-mono)',
+            margin: '0 0 14px', fontSize: 'var(--fs-md)', fontFamily: 'var(--font-mono)',
             textTransform: 'uppercase', color: 'var(--t-2)', letterSpacing: '0.06em',
           }}>Tham số xuất HL7</h3>
 
@@ -109,7 +109,7 @@ const EmrHl7Export: React.FC = () => {
             </Form.Item>
 
             <div style={{ marginTop: 12 }}>
-              <label style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 8, display: 'block' }}>Bao gồm các segment:</label>
+              <label style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 8, display: 'block' }}>Bao gồm các segment:</label>
               <div style={{ display: 'grid', gap: 6 }}>
                 {SEGMENT_OPTIONS.map(o => {
                   const on = opts[o.k as keyof typeof opts];
@@ -126,7 +126,7 @@ const EmrHl7Export: React.FC = () => {
                       <Checkbox checked={on} onChange={e => setOpts(s => ({ ...s, [o.k]: e.target.checked }))} />
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 12.5, fontFamily: 'var(--font-mono)' }}>{o.l}</div>
-                        <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>{o.desc}</div>
+                        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>{o.desc}</div>
                       </div>
                     </label>
                   );
@@ -149,20 +149,20 @@ const EmrHl7Export: React.FC = () => {
         {/* Result panel */}
         <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 18, minHeight: 360 }}>
           <h3 style={{
-            margin: '0 0 14px', fontSize: 13, fontFamily: 'var(--font-mono)',
+            margin: '0 0 14px', fontSize: 'var(--fs-md)', fontFamily: 'var(--font-mono)',
             textTransform: 'uppercase', color: 'var(--t-2)', letterSpacing: '0.06em',
           }}>Kết quả</h3>
           {!result ? (
             <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--t-3)' }}>
               <TermIcon name="folder" size={32} />
-              <div style={{ marginTop: 8, fontSize: 13 }}>Nhập HSBA ID rồi bấm "Xuất HL7" để bắt đầu.</div>
+              <div style={{ marginTop: 8, fontSize: 'var(--fs-md)' }}>Nhập HSBA ID rồi bấm "Xuất HL7" để bắt đầu.</div>
             </div>
           ) : (
             <>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
                 <tbody>
                   <tr style={{ borderBottom: '1px solid var(--line-soft)' }}><td style={{ color: 'var(--t-2)', width: 130, padding: '6px 0' }}>Mã HSBA</td><td className="mono">{result.medicalRecordCode}</td></tr>
-                  <tr style={{ borderBottom: '1px solid var(--line-soft)' }}><td style={{ color: 'var(--t-2)', padding: '6px 0' }}>Tên file</td><td className="mono" style={{ fontSize: 11 }}>{result.fileName}</td></tr>
+                  <tr style={{ borderBottom: '1px solid var(--line-soft)' }}><td style={{ color: 'var(--t-2)', padding: '6px 0' }}>Tên file</td><td className="mono" style={{ fontSize: 'var(--fs-xs)' }}>{result.fileName}</td></tr>
                   <tr style={{ borderBottom: '1px solid var(--line-soft)' }}><td style={{ color: 'var(--t-2)', padding: '6px 0' }}>Số HL7 message</td><td className="mono" style={{ fontWeight: 700 }}>{result.messageCount}</td></tr>
                   <tr style={{ borderBottom: '1px solid var(--line-soft)' }}><td style={{ color: 'var(--t-2)', padding: '6px 0' }}>Dung lượng</td><td className="mono">{result.contentSizeBytes.toLocaleString('vi-VN')} bytes ({(result.contentSizeBytes / 1024).toFixed(1)} KB)</td></tr>
                   <tr style={{ borderBottom: '1px solid var(--line-soft)' }}><td style={{ color: 'var(--t-2)', padding: '6px 0' }}>Tạo lúc</td><td className="mono">{fmtDTg(result.generatedAt)}</td></tr>
@@ -199,7 +199,7 @@ const EmrHl7Export: React.FC = () => {
         {result && (
           <pre style={{
             background: '#0b1220', color: '#86efac', padding: 16, margin: 0,
-            fontSize: 11, fontFamily: 'var(--font-mono)', lineHeight: 1.6,
+            fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', lineHeight: 1.6,
             whiteSpace: 'pre-wrap', wordBreak: 'break-all', minHeight: 400,
           }}>
             {result.hl7Content}

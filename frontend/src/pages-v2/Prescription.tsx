@@ -134,11 +134,11 @@ const PrescriptionV2: React.FC = () => {
                 }}>
                   <div>
                     <b style={{ color: 'var(--t-0)' }}>{it.drugName}</b>
-                    {it.genericName && <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{it.genericName}</div>}
-                    <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>
+                    {it.genericName && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{it.genericName}</div>}
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>
                       {it.dosage} · {it.frequency}
                     </div>
-                    {it.instructions && <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>{it.instructions}</div>}
+                    {it.instructions && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>{it.instructions}</div>}
                   </div>
                   <span className="mono" style={{ fontWeight: 600 }}>{it.quantity}</span>
                 </div>
@@ -177,7 +177,7 @@ const PrescriptionV2: React.FC = () => {
       )}
       drawerTitle={(r) => (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.prescriptionCode}</span>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.prescriptionCode}</span>
           <span style={{ fontSize: 14 }}>{r.patientName || '—'}</span>
         </span>
       )}

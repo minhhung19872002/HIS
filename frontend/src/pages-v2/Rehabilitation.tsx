@@ -133,7 +133,7 @@ const RehabilitationV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName || '—'}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
           {r.patientCode || '—'}
           {r.patientAge !== undefined && r.patientAge > 0 && ` · ${r.patientAge}t`}
         </div>
@@ -144,8 +144,8 @@ const RehabilitationV2: React.FC = () => {
     ) },
     { key: 'dx', label: 'Chẩn đoán', render: (r) => (
       <div>
-        <div style={{ fontSize: 12 }}>{dx(r) || '—'}</div>
-        {dxIcd(r) && <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{dxIcd(r)}</div>}
+        <div style={{ fontSize: 'var(--fs-sm)' }}>{dx(r) || '—'}</div>
+        {dxIcd(r) && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{dxIcd(r)}</div>}
       </div>
     ) },
     { key: 'dept', label: 'Khoa GT', render: (r) => dept(r) || '—' },

@@ -71,7 +71,7 @@ type IntakePayload = {
 
 const TRIAGE_LEVELS: TriageMeta[] = [
   { level: 1, label: 'Mức 1 · Hồi sức', description: 'Đe doạ tính mạng, xử trí ngay', color: '#c62828', soft: 'var(--s-crit-bg)', border: 'var(--s-crit-bd)' },
-  { level: 2, label: 'Mức 2 · Khẩn cấp', description: 'Cần tiếp cận trong 10 phút', color: '#dd6b20', soft: '#fff7ed', border: 'var(--s-warn-bd2)' },
+  { level: 2, label: 'Mức 2 · Khẩn cấp', description: 'Cần tiếp cận trong 10 phút', color: '#dd6b20', soft: 'var(--a-or-bg)', border: 'var(--s-warn-bd2)' },
   { level: 3, label: 'Mức 3 · Cấp', description: 'Theo dõi sát và cận lâm sàng sớm', color: '#b7791f', soft: 'var(--s-warn-bg)', border: 'var(--s-warn-bd)' },
   { level: 4, label: 'Mức 4 · Bán cấp', description: 'Có thể chờ ngắn hạn', color: '#0f766e', soft: '#ecfeff', border: '#99f6e4' },
   { level: 5, label: 'Mức 5 · Không cấp', description: 'Điều trị ngoại trú hoặc chờ khám', color: '#2f855a', soft: '#ecfdf5', border: 'var(--s-ok-bd)' },
@@ -435,7 +435,7 @@ const EmergencyDisasterV2: React.FC = () => {
   return (
     <div className="er-v2-page">
       {source === 'mci' && (
-        <div style={{ background: '#fff1f0', border: '1px solid #ffccc7', borderRadius: 4, padding: '6px 12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+        <div style={{ background: '#fff1f0', border: '1px solid #ffccc7', borderRadius: 4, padding: '6px 12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-md)' }}>
           <Tag color="red">MCI ĐANG HOẠT ĐỘNG</Tag>
           Đang hiển thị nạn nhân của sự kiện thảm họa hàng loạt (mass casualty) trên hệ thống thật.
         </div>
@@ -900,13 +900,13 @@ const IntakeDrawerContent: React.FC<IntakeDrawerContentProps> = ({ submitting, i
             <Input value={injuryMechanism} onChange={(e) => setInjuryMechanism(e.target.value)} placeholder="VD: TNGT, ngã cao, bỏng…" />
           </label>
         </div>
-        {err && <div style={{ color: 'var(--s-crit)', fontSize: 12, marginTop: 6 }}>{err}</div>}
+        {err && <div style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-sm)', marginTop: 6 }}>{err}</div>}
       </section>
 
       {!isMci && (
         <div style={{
           margin: '0 0 10px', padding: '10px 12px', background: '#ecfdf5',
-          border: '1px solid #a7f3d0', borderRadius: 6, fontSize: 12, color: '#065f46',
+          border: '1px solid #a7f3d0', borderRadius: 6, fontSize: 'var(--fs-sm)', color: '#065f46',
         }}>
           Cấp cứu thường — hệ thống sẽ tạo hồ sơ tiếp nhận cấp cứu thật + phiên phòng lưu theo dõi (lưu xuống hệ thống).
         </div>

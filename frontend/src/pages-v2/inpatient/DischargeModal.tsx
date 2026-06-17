@@ -154,7 +154,7 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
       title: 'Hủy ra viện?',
       content: (
         <div style={{ marginTop: 8 }}>
-          <div style={{ marginBottom: 6, fontSize: 12 }}>Lý do hủy:</div>
+          <div style={{ marginBottom: 6, fontSize: 'var(--fs-sm)' }}>Lý do hủy:</div>
           <Input placeholder="Nhập lý do…" onChange={(e) => { reason = e.target.value; }} />
         </div>
       ),
@@ -212,7 +212,7 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
 
   // Row hiển thị 1 mục kiểm tra
   const checkRow = (ok: boolean, label: string, detail?: string) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', fontSize: 12 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', fontSize: 'var(--fs-sm)' }}>
       <TermIcon name={ok ? 'check' : 'alert'} size={12} />
       <span style={{ color: ok ? 'var(--t-1)' : 'var(--s-warn)' }}>{label}</span>
       {detail && <span style={{ color: 'var(--t-2)', marginLeft: 'auto' }}>{detail}</span>}
@@ -255,8 +255,8 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
     >
       {/* Kiểm tra trước ra viện */}
       <DrSec title="Kiểm tra điều kiện ra viện">
-        {loadingCheck && <div style={{ color: 'var(--t-2)', fontSize: 12 }}>Đang kiểm tra…</div>}
-        {!loadingCheck && !check && <div style={{ color: 'var(--t-2)', fontSize: 12 }}>Không có dữ liệu kiểm tra.</div>}
+        {loadingCheck && <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Đang kiểm tra…</div>}
+        {!loadingCheck && !check && <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Không có dữ liệu kiểm tra.</div>}
         {!loadingCheck && check && (
           <div>
             {checkRow(check.isInsuranceValid, 'Thẻ BHYT hợp lệ', check.insuranceCheckMessage)}
@@ -265,11 +265,11 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
             {checkRow(!check.hasPendingResults, 'Đã có đủ kết quả CLS', check.hasPendingResults ? `${check.pendingResultCount} KQ chờ` : undefined)}
             {checkRow(check.isMedicalRecordComplete, 'Hồ sơ bệnh án đầy đủ', check.missingDocuments?.length ? check.missingDocuments.join(', ') : undefined)}
             {(check.warnings?.length ?? 0) > 0 && (
-              <div style={{ marginTop: 6, padding: '6px 10px', borderRadius: 6, background: 'var(--warn-soft)', border: '1px solid var(--warn)', fontSize: 11, color: 'var(--t-1)' }}>
+              <div style={{ marginTop: 6, padding: '6px 10px', borderRadius: 6, background: 'var(--warn-soft)', border: '1px solid var(--warn)', fontSize: 'var(--fs-xs)', color: 'var(--t-1)' }}>
                 {check.warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}
               </div>
             )}
-            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: check.canDischarge ? 'var(--s-ok)' : 'var(--s-warn)' }}>
+            <div style={{ marginTop: 8, fontSize: 'var(--fs-sm)', fontWeight: 600, color: check.canDischarge ? 'var(--s-ok)' : 'var(--s-warn)' }}>
               {check.canDischarge ? '✓ Đủ điều kiện ra viện' : '⚠ Chưa đủ điều kiện — vẫn có thể ra viện nếu được duyệt'}
             </div>
           </div>

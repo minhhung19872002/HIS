@@ -145,7 +145,7 @@ const PermissionsTab: React.FC = () => {
   return (
     <>
       <div className="ab-toolbar" style={{ borderTop: 'none' }}>
-        <span style={{ fontSize: 12, color: 'var(--t-2)' }}>Người dùng:</span>
+        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Người dùng:</span>
         <Filter value={selectedUserId} onChange={setSelectedUserId}
           options={users.map((u) => ({ v: u.id, l: `${u.fullName} (${u.username})` }))}
           placeholder="▾ Chọn BS / KTV" />
@@ -345,7 +345,7 @@ const FoldersTab: React.FC = () => {
 
   return (
     <>
-      <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, margin: 12, fontSize: 12 }}>
+      <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, margin: 12, fontSize: 'var(--fs-sm)' }}>
         <Ico name="info" size={12} /> <b>Thư mục cấp 2</b> — Normal (STT bình thường), Share (STT=900), Upload (STT=950)
       </div>
       <div className="ab-toolbar" style={{ borderTop: 'none' }}>
@@ -405,10 +405,10 @@ const IcdMapTab: React.FC = () => (
         <span>ICD ↔ Mẫu kết quả</span>
       </div>
       <div style={{ padding: 16 }}>
-        <div style={{ fontSize: 13, color: 'var(--t-1)', marginBottom: 12 }}>
+        <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)', marginBottom: 12 }}>
           Khi BS đọc KQ CĐHA, hệ thống tự tìm mẫu phù hợp với ICD chỉ định.
         </div>
-        <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 16 }}>
+        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 16 }}>
           Để quản lý mẫu, vào <b>Danh mục → Viết tắt + Template</b> → Tab "Template lâm sàng" → Filter loại "Kết luận khám mẫu"
         </div>
         <Btn variant="primary" onClick={() => window.open('/v2/catalogs-admin', '_blank')}>
@@ -448,7 +448,7 @@ const MachinesTab: React.FC = () => {
 
   return (
     <>
-      <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, margin: 12, fontSize: 12 }}>
+      <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, margin: 12, fontSize: 'var(--fs-sm)' }}>
         <Ico name="info" size={12} /> <b>Cấu hình máy chụp + gán mẫu kết quả</b> — Mỗi máy chụp có thể gán với 1 hoặc nhiều mẫu kết quả đặc trưng.
       </div>
       <DataTable<Room> columns={cols} data={rooms} rowKey={(r) => r.id}
@@ -491,7 +491,7 @@ const SuppliesTab: React.FC = () => (
         <span>Vật tư y tế cho CĐHA</span>
       </div>
       <div style={{ padding: 16 }}>
-        <div style={{ fontSize: 13, color: 'var(--t-1)', marginBottom: 12 }}>
+        <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)', marginBottom: 12 }}>
           Vật tư chuyên dụng cho CĐHA: thuốc cản quang, gel siêu âm, phim X-quang…
         </div>
         <Btn variant="primary" onClick={() => window.open('/v2/medical-supply?type=radiology', '_blank')}>
@@ -572,7 +572,7 @@ const StatsTab: React.FC = () => {
   return (
     <>
       <div className="ab-toolbar" style={{ borderTop: 'none' }}>
-        <span style={{ fontSize: 12, color: 'var(--t-2)' }}>Khoảng thời gian:</span>
+        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Khoảng thời gian:</span>
         <RangePicker value={range} onChange={(v) => setRange(v as [Dayjs, Dayjs] | null)} />
         <Btn variant="ghost" onClick={() => setRange([dayjs().subtract(7, 'day'), dayjs()])}>
           <Ico name="x" size={12} /> 7 ngày
@@ -686,7 +686,7 @@ const ModalityPermTab: React.FC = () => {
   return (
     <>
       <div className="ab-toolbar" style={{ borderTop: 'none' }}>
-        <span style={{ fontSize: 12, color: 'var(--t-2)' }}>Người dùng:</span>
+        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Người dùng:</span>
         <Filter
           value={selectedUserId}
           onChange={setSelectedUserId}
@@ -694,7 +694,7 @@ const ModalityPermTab: React.FC = () => {
           placeholder="▾ Chọn BS / KTV"
         />
         {selectedUserId && (
-          <span style={{ fontSize: 12, color: 'var(--t-2)', marginLeft: 8 }}>
+          <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginLeft: 8 }}>
             Tick checkbox để bật/tắt quyền — lưu tức thì. Không tick = không hạn chế (quyền mặc định đầy đủ).
           </span>
         )}

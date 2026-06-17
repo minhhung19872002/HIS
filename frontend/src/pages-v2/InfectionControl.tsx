@@ -182,19 +182,19 @@ const InfectionControlV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName || '—'}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode || '—'}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode || '—'}</div>
       </div>
     ) },
     { key: 'loc', label: 'Khoa · Giường', render: (r) => (
       <div>
         <div>{r.departmentName || '—'}</div>
-        {r.bedNumber && <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>G {r.bedNumber}</div>}
+        {r.bedNumber && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>G {r.bedNumber}</div>}
       </div>
     ) },
     { key: 'inf', label: 'Loại NK', render: (r) => r.infectionTypeName || r.infectionType || '—' },
     { key: 'org', label: 'Mầm bệnh', render: (r) => (
       <div>
-        <div style={{ fontSize: 12 }}>{r.organism || '—'}</div>
+        <div style={{ fontSize: 'var(--fs-sm)' }}>{r.organism || '—'}</div>
         {r.isMDRO && <StatusBadge tone="crit" dot>MDRO</StatusBadge>}
       </div>
     ) },

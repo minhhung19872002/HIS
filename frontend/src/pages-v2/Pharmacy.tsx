@@ -175,7 +175,7 @@ const PharmacyV2: React.FC = () => {
       drawer={(r) => <RxDrawerBody r={r} />}
       drawerTitle={(r) => (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.prescriptionCode}</span>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.prescriptionCode}</span>
           <span style={{ fontSize: 14 }}>{r.patientName}</span>
         </span>
       )}
@@ -225,7 +225,7 @@ const RxDrawerBody: React.FC<{ r: PendingPrescription }> = ({ r }) => {
       <div className="rec-section">
         <h5><TermIcon name="flask" size={11} /> DANH MỤC THUỐC</h5>
         {loading && <div style={{ textAlign: 'center', padding: 16, color: 'var(--t-2)' }}>Đang tải…</div>}
-        {!loading && items.length === 0 && <div style={{ color: 'var(--t-3)', fontSize: 12 }}>Chưa có thuốc</div>}
+        {!loading && items.length === 0 && <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Chưa có thuốc</div>}
         {!loading && items.length > 0 && (
           <div style={{ fontSize: 12.5 }}>
             {items.map((it) => (
@@ -235,10 +235,10 @@ const RxDrawerBody: React.FC<{ r: PendingPrescription }> = ({ r }) => {
               }}>
                 <div>
                   <b style={{ color: 'var(--t-0)' }}>{it.medicationName}</b>
-                  <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                     <span className="mono">{it.medicationCode}</span> · {it.dosage}
                   </div>
-                  {it.instruction && <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>{it.instruction}</div>}
+                  {it.instruction && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>{it.instruction}</div>}
                 </div>
                 <span className="mono" style={{ fontWeight: 600 }}>{it.quantity} {it.unit}</span>
                 {it.dispensedQuantity > 0 && (

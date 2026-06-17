@@ -144,7 +144,7 @@ const ReceiptBookAdminV2: React.FC = () => {
     { key: 'name', label: 'Tên sổ', render: (r) => (
       <div>
         <div style={{ fontWeight: 600 }}>{r.bookName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{RECEIPT_TYPES.find((t) => Number(t.v) === r.receiptType)?.l || '—'}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{RECEIPT_TYPES.find((t) => Number(t.v) === r.receiptType)?.l || '—'}</div>
       </div>
     ) },
     { key: 'series', label: 'Ký hiệu', code: true, render: (r) => r.series || '—' },

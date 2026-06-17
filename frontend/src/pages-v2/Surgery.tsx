@@ -87,7 +87,7 @@ const SurgeryV2: React.FC = () => {
           display: 'inline-block', padding: '2px 6px',
           background: r.surgeryClass === 1 ? 'var(--s-crit-bg)' : 'var(--d-1)',
           border: '1px solid var(--line)', borderRadius: 3,
-          fontSize: 11, fontWeight: 600,
+          fontSize: 'var(--fs-xs)', fontWeight: 600,
         }}>{r.surgeryClassName || `L${r.surgeryClass}`}</span>
       ),
     },
@@ -158,7 +158,7 @@ const SurgeryV2: React.FC = () => {
       drawer={(r) => <SurgeryDrawerBody r={r} />}
       drawerTitle={(r) => (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.surgeryCode}</span>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.surgeryCode}</span>
           <span style={{ fontSize: 14 }}>{r.patientName}</span>
         </span>
       )}

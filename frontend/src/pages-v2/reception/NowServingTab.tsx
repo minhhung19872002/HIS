@@ -9,7 +9,7 @@ export const NowServingTab: React.FC<{ rooms: RoomOverviewDto[]; rows: RawRow[] 
   return (
     <div className="ab-stack" style={{ padding: '16px 14px', overflow: 'auto' }}>
       <div style={{
-        fontSize: 11, color: 'var(--t-2)', fontWeight: 600,
+        fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 600,
         letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 10,
       }}>
         BẢNG GỌI SỐ THEO PHÒNG · {hm} · {rooms.length} phòng đang hoạt động
@@ -34,9 +34,9 @@ export const NowServingTab: React.FC<{ rooms: RoomOverviewDto[]; rows: RawRow[] 
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               }}>
                 <div>
-                  <b style={{ fontSize: 13, color: 'var(--t-0)' }}>{r.departmentName}</b>
+                  <b style={{ fontSize: 'var(--fs-md)', color: 'var(--t-0)' }}>{r.departmentName}</b>
                   <span style={{
-                    fontSize: 11, color: 'var(--t-2)', marginLeft: 6,
+                    fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginLeft: 6,
                     fontFamily: 'var(--font-mono)',
                   }}>
                     {r.roomCode} · {r.roomName}
@@ -55,8 +55,8 @@ export const NowServingTab: React.FC<{ rooms: RoomOverviewDto[]; rows: RawRow[] 
                       fontFamily: 'var(--font-mono)', fontSize: 36, fontWeight: 700,
                       color: 'var(--a-cy)', lineHeight: 1, margin: '4px 0',
                     }}>{current.queueCode || `#${current.queueNumber}`}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-0)' }}>{current.patientName}</div>
-                    <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                    <div style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--t-0)' }}>{current.patientName}</div>
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                       {genderLabel(current)} · {ageOf(current)}t · {current.chiefComplaint || ''}
                     </div>
                   </>

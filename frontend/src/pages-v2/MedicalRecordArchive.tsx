@@ -158,7 +158,7 @@ const MedicalRecordArchiveV2: React.FC = () => {
     { key: 'pat',  label: 'Bệnh nhân',  render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'dept', label: 'Khoa', render: (r) => r.departmentName || '—' },
@@ -260,7 +260,7 @@ const MedicalRecordArchiveV2: React.FC = () => {
         <div style={{ padding: '8px 0' }}>
           <div style={{
             padding: 10, marginBottom: 14, background: 'var(--d-1)',
-            border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, color: 'var(--t-2)',
+            border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', color: 'var(--t-2)',
           }}>
             Lưu trữ ngay hồ sơ bệnh án đã hoàn thành. Hệ thống sẽ kiểm tra điều kiện và tạo bản lưu trữ.
           </div>

@@ -87,7 +87,7 @@ const NumCell: React.FC<NumCellProps> = ({ value, readOnly, onChange }) => {
 
   if (readOnly) {
     return (
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)' }}>
         {value.toLocaleString('vi-VN')}
       </span>
     );
@@ -101,7 +101,7 @@ const NumCell: React.FC<NumCellProps> = ({ value, readOnly, onChange }) => {
       value={local}
       style={{
         width: 80, padding: '2px 6px', border: '1px solid var(--line)',
-        borderRadius: 4, fontSize: 12, fontFamily: 'var(--font-mono)',
+        borderRadius: 4, fontSize: 'var(--fs-sm)', fontFamily: 'var(--font-mono)',
         background: 'var(--bg-0)', color: 'var(--t-0)',
       }}
       onChange={(e) => setLocal(e.target.value)}
@@ -317,7 +317,7 @@ const PharmacyStockTake: React.FC = () => {
         const diff = r.differenceQuantity;
         const color = diff === 0 ? 'var(--t-2)' : diff < 0 ? 'var(--s-crit)' : 'var(--s-ok)';
         return (
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color, fontWeight: diff !== 0 ? 600 : 400 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)', color, fontWeight: diff !== 0 ? 600 : 400 }}>
             {diff > 0 ? '+' : ''}{diff.toLocaleString('vi-VN')}
           </span>
         );
@@ -329,7 +329,7 @@ const PharmacyStockTake: React.FC = () => {
         const v = r.differenceValue;
         const color = v === 0 ? 'var(--t-2)' : 'var(--s-warn)';
         return (
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color }}>
             {v !== 0 ? fmtVND(Math.abs(v)) : '—'}
           </span>
         );
@@ -385,7 +385,7 @@ const PharmacyStockTake: React.FC = () => {
         {/* Action buttons — only after stock-take is created */}
         {stockTake && (
           <>
-            <span style={{ fontSize: 12, color: 'var(--t-2)' }}>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
               Phiếu:{' '}
               <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--t-0)' }}>
                 {stockTake.stockTakeCode}
@@ -462,7 +462,7 @@ const PharmacyStockTake: React.FC = () => {
         <div style={{
           display: 'flex', gap: 24, padding: '8px 14px',
           borderBottom: '1px solid var(--line-soft)',
-          background: 'var(--bg-1)', fontSize: 12, color: 'var(--t-2)',
+          background: 'var(--bg-1)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)',
           flexWrap: 'wrap',
         }}>
           <span>Kho: <strong style={{ color: 'var(--t-0)' }}>{stockTake.warehouseName}</strong></span>
@@ -485,7 +485,7 @@ const PharmacyStockTake: React.FC = () => {
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t-1)' }}>
             Chưa có phiếu kiểm kê
           </div>
-          <div style={{ fontSize: 12, textAlign: 'center', maxWidth: 360 }}>
+          <div style={{ fontSize: 'var(--fs-sm)', textAlign: 'center', maxWidth: 360 }}>
             Chọn kho và kỳ kiểm kê, sau đó bấm{' '}
             <strong>"Tạo phiếu kiểm kê"</strong> để bắt đầu.
             Hệ thống sẽ tự động nạp danh sách tồn kho theo sổ sách.
@@ -497,7 +497,7 @@ const PharmacyStockTake: React.FC = () => {
       {stockTake && (
         <>
           {displayItems.length === 0 && (
-            <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--t-2)', fontSize: 13 }}>
+            <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>
               Phiếu kiểm kê chưa có mặt hàng nào (kho có thể đang trống)
             </div>
           )}
@@ -529,7 +529,7 @@ const PharmacyStockTake: React.FC = () => {
             <div style={{
               display: 'flex', gap: 20, padding: '8px 14px',
               borderTop: '1px solid var(--line)',
-              background: 'var(--bg-1)', fontSize: 12, flexWrap: 'wrap',
+              background: 'var(--bg-1)', fontSize: 'var(--fs-sm)', flexWrap: 'wrap',
             }}>
               <span>
                 Tổng: <strong style={{ fontFamily: 'var(--font-mono)' }}>{totalItems}</strong> dòng

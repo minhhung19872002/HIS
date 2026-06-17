@@ -101,7 +101,7 @@ const PracticeLicenseV2: React.FC = () => {
     { key: 'staff', label: 'Nhân viên', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.staffName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.staffCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.staffCode}</div>
       </div>
     ) },
     { key: 'type', label: 'Loại', render: (r) => (
@@ -116,7 +116,7 @@ const PracticeLicenseV2: React.FC = () => {
       return (
         <div>
           <div style={{ color: tone, fontWeight: days < 30 ? 600 : 400 }}>{d.format('DD/MM/YYYY')}</div>
-          <div style={{ fontSize: 10, color: 'var(--t-2)' }}>
+          <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>
             {days < 0 ? `quá ${-days}d` : days < 30 ? `còn ${days}d` : `${Math.round(days / 30)} tháng`}
           </div>
         </div>
@@ -263,9 +263,9 @@ const PracticeLicenseV2: React.FC = () => {
         sub={expiringList.length > 0 ? `${expiringList.length} CCHN cần chú ý` : 'Không có CCHN sắp hết hạn'}
       >
         {expiringLoading ? (
-          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 13 }}>Đang tải…</div>
+          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Đang tải…</div>
         ) : expiringList.length === 0 ? (
-          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 13 }}>Không có CCHN sắp hết hạn trong thời gian tới.</div>
+          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Không có CCHN sắp hết hạn trong thời gian tới.</div>
         ) : (
           <DrSec title="Danh sách CCHN sắp hết hạn">
             {expiringList.map((lic) => {
@@ -280,19 +280,19 @@ const PracticeLicenseV2: React.FC = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <div style={{ fontWeight: 600, color: 'var(--t-0)', marginBottom: 2 }}>{lic.staffName}</div>
-                      <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                      <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                         {lic.staffCode} · {TYPE_LABEL[lic.licenseType] || lic.licenseType}
                         {lic.specialty ? ` · ${lic.specialty}` : ''}
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{
-                        fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600,
+                        fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)', fontWeight: 600,
                         color: isExpired ? 'var(--a-rd-text)' : 'var(--a-or-text)',
                       }}>
                         {dayjs(lic.expiryDate).format('DD/MM/YYYY')}
                       </div>
-                      <div style={{ fontSize: 11, color: isExpired ? 'var(--a-rd-text)' : 'var(--a-or-text)' }}>
+                      <div style={{ fontSize: 'var(--fs-xs)', color: isExpired ? 'var(--a-rd-text)' : 'var(--a-or-text)' }}>
                         {isExpired ? `Quá hạn ${-daysLeft} ngày` : `Còn ${daysLeft} ngày`}
                       </div>
                     </div>

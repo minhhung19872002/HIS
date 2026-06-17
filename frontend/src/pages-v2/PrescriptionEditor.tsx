@@ -281,7 +281,7 @@ const PrescriptionEditorV2: React.FC = () => {
       {/* Patient panel */}
       <aside className={'ed-left-panel ' + (leftOpen ? 'is-open' : '')} style={{ borderRight: '1px solid var(--line)', overflow: 'auto', padding: 12, background: 'var(--d-1)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <h4 style={{ margin: 0, fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)', letterSpacing: '.06em' }}>Bệnh nhân</h4>
+          <h4 style={{ margin: 0, fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)', letterSpacing: '.06em' }}>Bệnh nhân</h4>
           <Btn variant="ghost" size="sm" onClick={() => setSearchOpen(true)}><TermIcon name="search" size={11} /> Tìm BN</Btn>
         </div>
         {!pt ? (
@@ -293,8 +293,8 @@ const PrescriptionEditorV2: React.FC = () => {
         ) : (
           <>
             <div style={{ padding: 12, background: 'var(--d-0)', borderRadius: 8, border: '1px solid var(--line)' }}>
-              <div style={{ fontSize: 15, fontWeight: 700 }}>{pt.fullName}</div>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{pt.patientCode} · {ageOf(pt)}T · {pt.gender === 1 ? 'Nam' : 'Nữ'}</div>
+              <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 700 }}>{pt.fullName}</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{pt.patientCode} · {ageOf(pt)}T · {pt.gender === 1 ? 'Nam' : 'Nữ'}</div>
               <div style={{ marginTop: 8, fontSize: 11.5 }}>
                 <div><span className="ab-u-muted">BHYT: </span>{pt.insuranceNumber ? <><span className="mono">{pt.insuranceNumber}</span> <StatusBadge tone="ok">Hợp lệ</StatusBadge></> : <StatusBadge tone="warn">Không có</StatusBadge>}</div>
                 {pt.identityNumber && <div style={{ marginTop: 4 }}><span className="ab-u-muted">CCCD: </span><span className="mono">{pt.identityNumber}</span></div>}
@@ -304,9 +304,9 @@ const PrescriptionEditorV2: React.FC = () => {
 
             {allergyNames.length > 0 && (
               <div style={{ marginTop: 12, padding: 10, background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 6 }}>
-                <div style={{ fontSize: 11, color: 'var(--s-crit-tx)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}><TermIcon name="alert" size={11} /> Dị ứng</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-crit-tx)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}><TermIcon name="alert" size={11} /> Dị ứng</div>
                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                  {allergyNames.map((a) => <span key={a} style={{ background: 'var(--s-crit)', color: '#fff', padding: '2px 8px', borderRadius: 3, fontSize: 11, fontWeight: 600 }}>{a}</span>)}
+                  {allergyNames.map((a) => <span key={a} style={{ background: 'var(--s-crit)', color: '#fff', padding: '2px 8px', borderRadius: 3, fontSize: 'var(--fs-xs)', fontWeight: 600 }}>{a}</span>)}
                 </div>
               </div>
             )}
@@ -314,8 +314,8 @@ const PrescriptionEditorV2: React.FC = () => {
             {(ctx?.mainDiagnosis || vitalsStr(ctx)) && (
               <div style={{ marginTop: 12, padding: 12, background: 'var(--d-0)', borderRadius: 8, border: '1px solid var(--line)' }}>
                 <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 6 }}>Từ phiếu khám OPD</div>
-                {ctx?.mainDiagnosis && <div style={{ fontSize: 12, marginBottom: 4 }}><b>CĐ:</b> {ctx.mainIcdCode ? `${ctx.mainIcdCode} · ` : ''}{ctx.mainDiagnosis}</div>}
-                {vitalsStr(ctx) && <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{vitalsStr(ctx)}</div>}
+                {ctx?.mainDiagnosis && <div style={{ fontSize: 'var(--fs-sm)', marginBottom: 4 }}><b>CĐ:</b> {ctx.mainIcdCode ? `${ctx.mainIcdCode} · ` : ''}{ctx.mainDiagnosis}</div>}
+                {vitalsStr(ctx) && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{vitalsStr(ctx)}</div>}
               </div>
             )}
 
@@ -372,10 +372,10 @@ const PrescriptionEditorV2: React.FC = () => {
                 <div key={d.id} onClick={() => addDrug(d)} style={{ padding: '8px 12px', borderBottom: '1px solid var(--line-soft)', cursor: 'pointer', display: 'grid', gridTemplateColumns: '1fr 90px 90px 100px', gap: 10, alignItems: 'center' }}>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 12.5 }}>{d.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{d.activeIngredient || ''}</div>
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{d.activeIngredient || ''}</div>
                   </div>
-                  <span className="mono" style={{ fontSize: 11 }}>{d.code}</span>
-                  <span style={{ fontSize: 11, color: d.availableQuantity < 1000 ? 'var(--s-warn)' : 'var(--t-2)' }}>Tồn: {d.availableQuantity?.toLocaleString() ?? 0}</span>
+                  <span className="mono" style={{ fontSize: 'var(--fs-xs)' }}>{d.code}</span>
+                  <span style={{ fontSize: 'var(--fs-xs)', color: d.availableQuantity < 1000 ? 'var(--s-warn)' : 'var(--t-2)' }}>Tồn: {d.availableQuantity?.toLocaleString() ?? 0}</span>
                   <span className="mono" style={{ textAlign: 'right' }}>{fmtVNDg(d.unitPrice)}</span>
                 </div>
               ))}
@@ -385,7 +385,7 @@ const PrescriptionEditorV2: React.FC = () => {
 
         {/* Drug table */}
         <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, overflow: 'hidden' }}>
-          <table className="ab-tbl" style={{ fontSize: 12 }}>
+          <table className="ab-tbl" style={{ fontSize: 'var(--fs-sm)' }}>
             <thead>
               <tr>
                 <th style={{ width: 32 }}>#</th>
@@ -421,7 +421,7 @@ const PrescriptionEditorV2: React.FC = () => {
               <tfoot>
                 <tr style={{ background: 'var(--d-1)', fontWeight: 700 }}>
                   <td colSpan={8} style={{ textAlign: 'right' }}>Tổng cộng:</td>
-                  <td className="mono" style={{ textAlign: 'right', color: 'var(--s-ok)', fontSize: 13 }}>{fmtVNDg(total)}</td>
+                  <td className="mono" style={{ textAlign: 'right', color: 'var(--s-ok)', fontSize: 'var(--fs-md)' }}>{fmtVNDg(total)}</td>
                   <td></td>
                 </tr>
               </tfoot>
@@ -435,16 +435,16 @@ const PrescriptionEditorV2: React.FC = () => {
         {intCount > 0 && (
           <div onClick={() => setInterOpen(true)} style={{ padding: 12, background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 8, cursor: 'pointer' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: 'var(--s-crit-tx)', fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.05em' }}><TermIcon name="alert" size={12} /> Tương tác thuốc</span>
-              <span style={{ background: 'var(--s-crit)', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{intCount}</span>
+              <span style={{ color: 'var(--s-crit-tx)', fontWeight: 700, fontSize: 'var(--fs-sm)', textTransform: 'uppercase', letterSpacing: '.05em' }}><TermIcon name="alert" size={12} /> Tương tác thuốc</span>
+              <span style={{ background: 'var(--s-crit)', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 'var(--fs-xs)', fontWeight: 700 }}>{intCount}</span>
             </div>
-            <div style={{ fontSize: 11, color: '#7f1d1d', marginTop: 6 }}>{(interactions[0]?.description || interactions[0]?.recommendation || '').slice(0, 80)}…</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: '#7f1d1d', marginTop: 6 }}>{(interactions[0]?.description || interactions[0]?.recommendation || '').slice(0, 80)}…</div>
           </div>
         )}
 
         <div style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
           <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 8 }}>Tóm tắt đơn</div>
-          <div style={{ display: 'grid', gap: 6, fontSize: 12 }}>
+          <div style={{ display: 'grid', gap: 6, fontSize: 'var(--fs-sm)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">Số dòng</span><b>{items.length}</b></div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">Tổng viên/gói</span><b className="mono">{items.reduce((s, x) => s + x.qty, 0)}</b></div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">Ngày dùng dài nhất</span><b className="mono">{Math.max(0, ...items.map((x) => x.days))} ngày</b></div>
@@ -480,15 +480,15 @@ const PrescriptionEditorV2: React.FC = () => {
       <DrawerShell open={interOpen} onClose={() => setInterOpen(false)} title="Tương tác thuốc" sub={`${intCount} cảnh báo`} size="lg">
         {interactions.map((it, i) => {
           const tone = it.severity >= 3 ? 'crit' : it.severity === 2 ? 'warn' : 'info';
-          const bg = it.severity >= 3 ? 'var(--s-crit-bg)' : it.severity === 2 ? '#fff7ed' : '#fefce8';
+          const bg = it.severity >= 3 ? 'var(--s-crit-bg)' : it.severity === 2 ? 'var(--a-or-bg)' : '#fefce8';
           const border = it.severity >= 3 ? 'var(--s-crit-bd)' : it.severity === 2 ? 'var(--s-warn-bd2)' : 'var(--s-warn-bd)';
           return (
             <div key={i} style={{ margin: 14, padding: 14, background: bg, border: `1px solid ${border}`, borderRadius: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontWeight: 700, fontSize: 13 }}>{it.drug1Name} × {it.drug2Name}</span>
+                <span style={{ fontWeight: 700, fontSize: 'var(--fs-md)' }}>{it.drug1Name} × {it.drug2Name}</span>
                 <StatusBadge tone={tone}>{it.severityName || (it.severity >= 3 ? 'Nặng' : it.severity === 2 ? 'Vừa' : 'Nhẹ')}</StatusBadge>
               </div>
-              {it.description && <div style={{ fontSize: 12, color: 'var(--t-1)', marginBottom: 6 }}>{it.description}</div>}
+              {it.description && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)', marginBottom: 6 }}>{it.description}</div>}
               {it.recommendation && <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 10 }}>Khuyến nghị: {it.recommendation}</div>}
               <textarea placeholder="Lý do override (bắt buộc nếu vẫn kê)…" style={{ width: '100%', minHeight: 60, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 11.5 }} />
             </div>
@@ -504,7 +504,7 @@ const PrescriptionEditorV2: React.FC = () => {
             <div key={t.id} style={{ padding: 12, border: '1px solid var(--line)', borderRadius: 6, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <b>{t.templateName}</b>
-                <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 3 }}>{t.items?.length || 0} thuốc{t.description ? ` · ${t.description}` : ''}</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 3 }}>{t.items?.length || 0} thuốc{t.description ? ` · ${t.description}` : ''}</div>
               </div>
               <Btn variant="primary" size="sm" onClick={() => applyTemplate(t)}>Áp dụng</Btn>
             </div>
@@ -519,7 +519,7 @@ const PrescriptionEditorV2: React.FC = () => {
           <Btn variant="primary" disabled={saving} onClick={completeWithSign}><TermIcon name="check" size={12} /> Xác nhận</Btn>
         </>}>
         <div style={{ padding: 18 }}>
-          <div style={{ padding: 12, background: 'var(--d-1)', borderRadius: 6, marginBottom: 14, fontSize: 12 }}>
+          <div style={{ padding: 12, background: 'var(--d-1)', borderRadius: 6, marginBottom: 14, fontSize: 'var(--fs-sm)' }}>
             <div><b>{pt?.fullName || '—'}</b> · {items.length} thuốc · {fmtVNDg(total)}</div>
             <div style={{ color: 'var(--t-2)', marginTop: 3 }}>{ctx?.mainDiagnosis || 'Chưa có chẩn đoán'}</div>
           </div>
@@ -569,9 +569,9 @@ const PatientSearchModal: React.FC<{ open: boolean; onClose: () => void; onPick:
             <div key={p.id} onClick={() => onPick(p)} style={{ padding: 10, border: '1px solid var(--line)', borderRadius: 6, marginBottom: 6, cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <b>{p.fullName}</b>
-                <span className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{p.patientCode}</span>
+                <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{p.patientCode}</span>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>{ageOf(p)}T · {p.gender === 1 ? 'Nam' : 'Nữ'} · BHYT {p.insuranceNumber || 'Không'}</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>{ageOf(p)}T · {p.gender === 1 ? 'Nam' : 'Nữ'} · BHYT {p.insuranceNumber || 'Không'}</div>
             </div>
           ))}
         </div>

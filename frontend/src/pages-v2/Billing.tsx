@@ -152,7 +152,7 @@ const BillingV2: React.FC = () => {
       drawer={(r) => <BillingDrawerBody r={r} />}
       drawerTitle={(r) => (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{r.invoiceCode}</span>
+          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.invoiceCode}</span>
           <span style={{ fontSize: 14 }}>{r.patientName}</span>
         </span>
       )}
@@ -247,20 +247,20 @@ const PayModal: React.FC<{
             padding: 12, background: 'var(--d-1)', borderRadius: 6, marginBottom: 14,
             display: 'grid', gridTemplateColumns: '1fr auto', gap: 6,
           }}>
-            <span style={{ fontSize: 12, color: 'var(--t-2)' }}>{invoice.patientName} · {invoice.patientCode}</span>
-            <span className="mono" style={{ fontSize: 12 }}>{invoice.invoiceCode}</span>
-            <span style={{ fontSize: 12, color: 'var(--t-2)' }}>BN phải trả</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>{invoice.patientName} · {invoice.patientCode}</span>
+            <span className="mono" style={{ fontSize: 'var(--fs-sm)' }}>{invoice.invoiceCode}</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>BN phải trả</span>
             <b className="mono">{fmtVND(invoice.totalAmount)}</b>
-            <span style={{ fontSize: 12, color: 'var(--t-2)' }}>Còn lại</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Còn lại</span>
             <b className="mono" style={{ color: 'var(--s-warn)' }}>{fmtVND(due)}</b>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Phương thức</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Phương thức</div>
               <Select value={method} onChange={setMethod} options={PAY_METHODS} style={{ width: '100%' }} />
             </div>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Số tiền thu</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Số tiền thu</div>
               <InputNumber
                 value={amount}
                 onChange={(v) => setAmount(Number(v) || 0)}
@@ -271,7 +271,7 @@ const PayModal: React.FC<{
             </div>
             {method === 1 && (
               <div>
-                <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Tiền khách đưa</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Tiền khách đưa</div>
                 <InputNumber
                   value={received}
                   onChange={(v) => setReceived(Number(v) || 0)}
@@ -283,17 +283,17 @@ const PayModal: React.FC<{
             )}
             {method !== 1 && (
               <div>
-                <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Mã giao dịch</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Mã giao dịch</div>
                 <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Mã ref NH / thẻ" />
               </div>
             )}
             <div style={{ gridColumn: '1 / -1' }}>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Ghi chú</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Ghi chú</div>
               <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ghi chú (tùy chọn)" />
             </div>
           </div>
           {method === 1 && received > amount && (
-            <div style={{ marginTop: 10, fontSize: 13 }}>
+            <div style={{ marginTop: 10, fontSize: 'var(--fs-md)' }}>
               Tiền thối: <b className="mono" style={{ color: '#15803d' }}>{fmtVND(received - amount)}</b>
             </div>
           )}
@@ -366,7 +366,7 @@ const BillingDrawerBody: React.FC<{ r: InvoiceDto }> = ({ r }) => (
             }}>
               <div>
                 <b style={{ color: 'var(--t-0)' }}>{it.serviceName}</b>
-                <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                   <span className="mono">{it.serviceCode}</span>
                   {it.serviceGroup && ` · ${it.serviceGroup}`}
                 </div>

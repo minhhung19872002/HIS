@@ -113,14 +113,14 @@ const ServiceRequeueV2: React.FC = () => {
       {!mr && !loading && (
         <div style={{ padding: 80, textAlign: 'center', color: 'var(--t-2)' }}>
           <div style={{ fontSize: 14 }}>Tìm hồ sơ bệnh án để xem các CLS đã hủy</div>
-          <div style={{ fontSize: 12, marginTop: 6 }}>Có thể cho lại các CLS sau khi hoàn hóa đơn</div>
+          <div style={{ fontSize: 'var(--fs-sm)', marginTop: 6 }}>Có thể cho lại các CLS sau khi hoàn hóa đơn</div>
         </div>
       )}
 
       {mr && services.length === 0 && !loading && (
         <div style={{ padding: 60, textAlign: 'center', color: 'var(--t-2)' }}>
           <StatusBadge tone="ok" dot>Không có CLS đã hủy</StatusBadge>
-          <div style={{ fontSize: 12, marginTop: 8 }}>Hồ sơ {mr.code} không có dịch vụ nào bị hủy</div>
+          <div style={{ fontSize: 'var(--fs-sm)', marginTop: 8 }}>Hồ sơ {mr.code} không có dịch vụ nào bị hủy</div>
         </div>
       )}
 
@@ -143,10 +143,10 @@ const ServiceRequeueV2: React.FC = () => {
         </>}
       >
         <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, marginBottom: 12 }}>
-          <div style={{ color: 'var(--a-or-text)', fontSize: 12, fontWeight: 600 }}>
+          <div style={{ color: 'var(--a-or-text)', fontSize: 'var(--fs-sm)', fontWeight: 600 }}>
             Dịch vụ sẽ được kích hoạt lại, trạng thái chuyển về "Chờ"
           </div>
-          <div style={{ fontSize: 12, marginTop: 4 }}>
+          <div style={{ fontSize: 'var(--fs-sm)', marginTop: 4 }}>
             <b>{selected.size}</b> dịch vụ · <b style={{ fontFamily: 'var(--font-mono)' }}>{fmt(totalSelected)} đ</b>
           </div>
         </div>

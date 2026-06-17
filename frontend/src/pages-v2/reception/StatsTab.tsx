@@ -40,7 +40,7 @@ export const StatsTab: React.FC<{ rows: RawRow[]; rooms: RoomOverviewDto[] }> = 
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 160, padding: '0 10px' }}>
             {Object.entries(byHour).map(([h, n]) => (
               <div key={h} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontSize: 10, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{n}</span>
+                <span style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{n}</span>
                 <div style={{
                   width: '100%',
                   height: `${(n / maxH) * 120}px`,
@@ -48,7 +48,7 @@ export const StatsTab: React.FC<{ rows: RawRow[]; rooms: RoomOverviewDto[] }> = 
                   borderRadius: '3px 3px 0 0',
                   minHeight: 2,
                 }} />
-                <span style={{ fontSize: 10, color: 'var(--t-3)', fontFamily: 'var(--font-mono)' }}>{h}h</span>
+                <span style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-3)', fontFamily: 'var(--font-mono)' }}>{h}h</span>
               </div>
             ))}
           </div>
@@ -56,12 +56,12 @@ export const StatsTab: React.FC<{ rows: RawRow[]; rooms: RoomOverviewDto[] }> = 
 
         <ChartCard title="THEO LOẠI BỆNH NHÂN">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 6px' }}>
-            {byPatientType.length === 0 && <span style={{ color: 'var(--t-2)', fontSize: 12 }}>Chưa có dữ liệu</span>}
+            {byPatientType.length === 0 && <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Chưa có dữ liệu</span>}
             {byPatientType.map((d) => {
               const pct = rows.length ? Math.round(d.v / rows.length * 100) : 0;
               return (
                 <div key={d.k}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-xs)', marginBottom: 3 }}>
                     <span>{d.k}</span>
                     <span className="mono"><b>{d.v}</b> · {pct}%</span>
                   </div>
@@ -77,12 +77,12 @@ export const StatsTab: React.FC<{ rows: RawRow[]; rooms: RoomOverviewDto[] }> = 
 
       <ChartCard title={`THEO KHOA · ${byDept.length} KHOA`}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 24px', padding: '0 6px' }}>
-          {byDept.length === 0 && <span style={{ color: 'var(--t-2)', fontSize: 12 }}>Chưa có dữ liệu</span>}
+          {byDept.length === 0 && <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Chưa có dữ liệu</span>}
           {byDept.map((d) => {
             const pct = (d.v / maxD) * 100;
             return (
               <div key={d.k}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-xs)', marginBottom: 3 }}>
                   <span>{d.k}</span>
                   <span className="mono"><b>{d.v}</b></span>
                 </div>
@@ -133,7 +133,7 @@ const ChartCard: React.FC<{ title: string; children: React.ReactNode }> = ({ tit
     borderRadius: 8, padding: '14px 16px',
   }}>
     <div style={{
-      fontSize: 11, color: 'var(--t-2)', fontWeight: 600,
+      fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 600,
       letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 14,
     }}>{title}</div>
     {children}

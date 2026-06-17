@@ -78,7 +78,7 @@ const SpecialTestRuleAdmin: React.FC = () => {
       key: 'note',
       label: 'Ghi chú',
       render: (r) => (
-        <span style={{ color: 'var(--t-2)', fontSize: 12 }}>
+        <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
           {r.note ? r.note.slice(0, 80) + (r.note.length > 80 ? '…' : '') : '—'}
         </span>
       ),
@@ -98,7 +98,7 @@ const SpecialTestRuleAdmin: React.FC = () => {
       label: 'Ngày tạo',
       width: 110,
       render: (r) => (
-        <span style={{ fontSize: 12, color: 'var(--t-2)' }}>
+        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
           {dayjs(r.createdAt).format('DD/MM/YYYY')}
         </span>
       ),
@@ -275,7 +275,7 @@ const SpecialTestRuleAdmin: React.FC = () => {
 
             {edit.windowType === 0 && (
               <DrField lbl="">
-                <span style={{ color: 'var(--t-2)', fontSize: 12 }}>
+                <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
                   <Ico name="info" size={13} /> XN này chỉ được chỉ định 1 lần trong cùng 1 đợt điều trị (MedicalRecord).
                   Cảnh báo sẽ hiện nếu chỉ định lần 2 trong cùng hồ sơ bệnh án.
                 </span>

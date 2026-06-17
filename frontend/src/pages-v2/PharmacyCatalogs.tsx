@@ -133,7 +133,7 @@ const PharmacyCatalogsV2: React.FC = () => {
           return c ? <StatusBadge tone={vn ? 'ok' : 'info'} dot>{c}</StatusBadge> : '—';
         } },
         { key: 'address', label: 'Địa chỉ', render: (r) => (
-          <span style={{ color: 'var(--t-2)', fontSize: 12 }}>{(r as api.ManufacturerDto).address || '—'}</span>
+          <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>{(r as api.ManufacturerDto).address || '—'}</span>
         ) },
         { key: 'sortOrder', label: 'TT', mono: true, width: 50 },
         { key: 'isActive', label: 'Trạng thái', width: 120, render: (r) => (
@@ -152,7 +152,7 @@ const PharmacyCatalogsV2: React.FC = () => {
           return v ? <code>{v}</code> : <span style={{ color: 'var(--t-3)' }}>—</span>;
         } },
         { key: 'note', label: 'Ghi chú', render: (r) => (
-          <span style={{ color: 'var(--t-2)', fontSize: 12 }}>{(r as api.MedicationRouteDto).note || '—'}</span>
+          <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>{(r as api.MedicationRouteDto).note || '—'}</span>
         ) },
         { key: 'sortOrder', label: 'TT', mono: true, width: 50 },
         { key: 'isActive', label: 'Trạng thái', width: 120, render: (r) => (
@@ -400,7 +400,7 @@ const EditForm: React.FC<{ tab: TabKey; edit: EditState; setEdit: (e: EditState)
             Chưa có thành viên — bấm "Thêm" để bắt đầu.
           </div>
         ) : (
-          <table className="ab-tbl" style={{ fontSize: 12 }}>
+          <table className="ab-tbl" style={{ fontSize: 'var(--fs-sm)' }}>
             <thead>
               <tr>
                 <th style={{ width: 36 }}>STT</th>

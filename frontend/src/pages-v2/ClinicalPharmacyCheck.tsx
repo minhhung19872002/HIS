@@ -95,7 +95,7 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
           <Btn variant="ghost" icon="x" onClick={() => { setData(null); setKeyword(''); }}>Tìm BN khác</Btn>
         )}
         <span className="spacer" />
-        {loading && <span style={{ color: 'var(--t-2)', fontSize: 12 }}>Đang tải…</span>}
+        {loading && <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Đang tải…</span>}
         {/* Import CSV tuong tac thuoc */}
         <input
           ref={fileInputRef}
@@ -112,11 +112,11 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
       {/* Ket qua import CSV */}
       {importResult && (
         <div style={{ margin: '8px 12px', padding: 12, background: 'var(--bg-1)', borderRadius: 6, border: '1px solid var(--line)' }}>
-          <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 13 }}>
+          <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 'var(--fs-md)' }}>
             Kết quả import: {importResult.imported} thêm mới · {importResult.updated} cập nhật · {importResult.skipped} bỏ qua / {importResult.totalRows} dòng
           </div>
           {importResult.errors.length > 0 && (
-            <details style={{ fontSize: 12, color: 'var(--crit)' }}>
+            <details style={{ fontSize: 'var(--fs-sm)', color: 'var(--crit)' }}>
               <summary style={{ cursor: 'pointer' }}>{importResult.errors.length} lỗi — click để xem</summary>
               <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
                 {importResult.errors.map((e, i) => (
@@ -126,10 +126,10 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
             </details>
           )}
           <div style={{ marginTop: 4 }}>
-            <span style={{ fontSize: 11, color: 'var(--t-2)' }}>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
               Ghi chú: Chỉ hỗ trợ CSV. Excel cần thêm thư viện ClosedXML/EPPlus ở backend.
             </span>
-            <Btn variant="ghost" icon="x" onClick={() => setImportResult(null)} style={{ marginLeft: 8, height: 22, fontSize: 11 }}>Đóng</Btn>
+            <Btn variant="ghost" icon="x" onClick={() => setImportResult(null)} style={{ marginLeft: 8, height: 22, fontSize: 'var(--fs-xs)' }}>Đóng</Btn>
           </div>
         </div>
       )}
@@ -138,7 +138,7 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
         <div style={{ padding: 80, textAlign: 'center', color: 'var(--t-2)' }}>
           <Ico name="medicine" size={48} />
           <div style={{ fontSize: 14, marginTop: 16 }}>Nhập thông tin bệnh nhân để kiểm tra dược lâm sàng</div>
-          <div style={{ fontSize: 12, marginTop: 8 }}>Hệ thống sẽ hiển thị thuốc đang dùng, tương tác và cảnh báo</div>
+          <div style={{ fontSize: 'var(--fs-sm)', marginTop: 8 }}>Hệ thống sẽ hiển thị thuốc đang dùng, tương tác và cảnh báo</div>
         </div>
       )}
 
@@ -164,12 +164,12 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
             </div>
             <div style={{ padding: 14 }}>
               {data.flags.length === 0 && data.interactions.length === 0 && (
-                <div style={{ color: 'var(--a-em-text)', fontSize: 13 }}>
+                <div style={{ color: 'var(--a-em-text)', fontSize: 'var(--fs-md)' }}>
                   <Ico name="check" /> Không có cảnh báo
                 </div>
               )}
               {data.flags.map((f) => (
-                <div key={f.id} style={{ marginBottom: 6, padding: 8, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 12 }}>
+                <div key={f.id} style={{ marginBottom: 6, padding: 8, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)' }}>
                   <StatusBadge tone="warn" dot>{f.note}</StatusBadge>
                 </div>
               ))}
@@ -227,13 +227,13 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
                   <div key={p.id} style={{ marginBottom: 12, padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                       <b style={{ fontFamily: 'var(--font-mono)' }}>{p.prescriptionCode}</b>
-                      <span style={{ fontSize: 11, color: 'var(--t-2)' }}>{dayjs(p.prescriptionDate).format('DD/MM/YYYY')}</span>
+                      <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{dayjs(p.prescriptionDate).format('DD/MM/YYYY')}</span>
                       {p.isDispensed
                         ? <StatusBadge tone="ok" dot>Đã phát</StatusBadge>
                         : <StatusBadge tone="warn" dot>Chưa phát</StatusBadge>}
-                      <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--a-em-text)' }}>{fmt(p.totalAmount)} đ</span>
+                      <span style={{ marginLeft: 'auto', fontSize: 'var(--fs-sm)', color: 'var(--a-em-text)' }}>{fmt(p.totalAmount)} đ</span>
                     </div>
-                    <table className="ab-tbl" style={{ fontSize: 11 }}>
+                    <table className="ab-tbl" style={{ fontSize: 'var(--fs-xs)' }}>
                       <thead><tr><th>Mã</th><th>Thuốc</th><th>SL</th><th>Liều</th><th>Ngày</th><th>Cách dùng</th></tr></thead>
                       <tbody>
                         {p.items.map((it) => (
@@ -282,7 +282,7 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
 
 const Field: React.FC<{ label: string; value: React.ReactNode; colSpan?: number }> = ({ label, value, colSpan }) => (
   <div style={{ gridColumn: colSpan ? `span ${colSpan}` : undefined }}>
-    <div style={{ color: 'var(--t-2)', fontSize: 11, marginBottom: 2 }}>{label}</div>
+    <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)', marginBottom: 2 }}>{label}</div>
     <div style={{ color: 'var(--t-0)' }}>{value}</div>
   </div>
 );

@@ -79,7 +79,7 @@ const FinanceV2: React.FC = () => {
     { key: 'name', label: 'Tên dịch vụ', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.serviceName || '—'}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.serviceGroupName || '—'}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.serviceGroupName || '—'}</div>
       </div>
     ) },
     { key: 'qty', label: 'SL', mono: true, render: (r) => r.quantity || 0 },
@@ -244,13 +244,13 @@ const FinanceV2: React.FC = () => {
       >
         {reportLoading && <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải báo cáo…</div>}
         {!reportLoading && reportData && (
-          <div style={{ fontSize: 13 }}>
+          <div style={{ fontSize: 'var(--fs-md)' }}>
             {Object.entries(reportData.summary).map(([k, v]) => (
               <DrField key={k} lbl={k}>{String(v)}</DrField>
             ))}
             {reportData.data.length > 0 && (
               <div style={{ marginTop: 12, overflowX: 'auto' }}>
-                <table className="ab-tbl" style={{ width: '100%', fontSize: 12 }}>
+                <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>
                   <thead>
                     <tr>{reportData.columns.map((c) => <th key={c}>{c}</th>)}</tr>
                   </thead>
@@ -263,7 +263,7 @@ const FinanceV2: React.FC = () => {
                   </tbody>
                 </table>
                 {reportData.data.length > 50 && (
-                  <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 6 }}>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 6 }}>
                     Hiển thị 50 / {reportData.data.length} dòng
                   </div>
                 )}
@@ -288,7 +288,7 @@ const FinanceV2: React.FC = () => {
         </>}
       >
         <div style={{ padding: '8px 0' }}>
-          <div style={{ fontSize: 13, color: 'var(--t-1)', marginBottom: 8 }}>Địa chỉ email nhận báo cáo</div>
+          <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)', marginBottom: 8 }}>Địa chỉ email nhận báo cáo</div>
           <Input
             type="email"
             placeholder="example@hospital.vn"

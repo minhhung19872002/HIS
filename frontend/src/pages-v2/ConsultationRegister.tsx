@@ -98,11 +98,11 @@ const ConsultationRegisterV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600 }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'dept', label: 'Khoa', render: (r) => r.departmentName || '—' },
-    { key: 'reason', label: 'Lý do', render: (r) => <span style={{ fontSize: 12 }}>{r.reason || '—'}</span> },
+    { key: 'reason', label: 'Lý do', render: (r) => <span style={{ fontSize: 'var(--fs-sm)' }}>{r.reason || '—'}</span> },
     { key: 'pres', label: 'Chủ trì', render: (r) => r.presidedBy || '—' },
   ];
 
@@ -176,16 +176,16 @@ const ConsultationRegisterV2: React.FC = () => {
             )}
           </DrSec>
           <DrSec title="I. Lý do hội chẩn">
-            <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, color: 'var(--t-1)' }}>{detail.reason || '—'}</div>
+            <div style={{ whiteSpace: 'pre-wrap', fontSize: 'var(--fs-md)', color: 'var(--t-1)' }}>{detail.reason || '—'}</div>
           </DrSec>
           <DrSec title="II. Tóm tắt bệnh án">
-            <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, color: 'var(--t-1)' }}>{detail.summary || '—'}</div>
+            <div style={{ whiteSpace: 'pre-wrap', fontSize: 'var(--fs-md)', color: 'var(--t-1)' }}>{detail.summary || '—'}</div>
           </DrSec>
           <DrSec title="III. Kết luận">
-            <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, color: 'var(--t-0)', fontWeight: 500 }}>{detail.conclusion || '—'}</div>
+            <div style={{ whiteSpace: 'pre-wrap', fontSize: 'var(--fs-md)', color: 'var(--t-0)', fontWeight: 500 }}>{detail.conclusion || '—'}</div>
           </DrSec>
           <DrSec title="IV. Hướng điều trị">
-            <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, color: 'var(--t-1)' }}>{detail.treatmentPlan || '—'}</div>
+            <div style={{ whiteSpace: 'pre-wrap', fontSize: 'var(--fs-md)', color: 'var(--t-1)' }}>{detail.treatmentPlan || '—'}</div>
           </DrSec>
         </>}
       </DrawerShell>

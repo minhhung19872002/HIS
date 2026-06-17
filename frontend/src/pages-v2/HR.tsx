@@ -664,7 +664,7 @@ const HRV2: React.FC = () => {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8 }}>
           <div>
-            <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 4 }}>Tuần nguồn (ISO date đầu tuần, T2)</div>
+            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>Tuần nguồn (ISO date đầu tuần, T2)</div>
             <input
               type="date"
               value={copySource}
@@ -673,7 +673,7 @@ const HRV2: React.FC = () => {
             />
           </div>
           <div>
-            <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 4 }}>Tuần đích (ISO date đầu tuần, T2)</div>
+            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>Tuần đích (ISO date đầu tuần, T2)</div>
             <input
               type="date"
               value={copyTarget}
@@ -681,7 +681,7 @@ const HRV2: React.FC = () => {
               onChange={(e) => setCopyTarget(e.target.value)}
             />
           </div>
-          <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
             Lịch tuần đích sẽ bị ghi đè. Nhập ngày T2 (thứ Hai) của mỗi tuần.
           </div>
         </div>

@@ -386,7 +386,7 @@ const EmrEditorV2: React.FC = () => {
   const treatCols: ColumnDef<TreatmentSheetDto>[] = [
     { key: 'date', label: 'Ngày', mono: true, width: 110, render: (r) => fmtDMYg(r.treatmentDate) },
     { key: 'day', label: 'Ngày thứ', mono: true, width: 80, render: (r) => r.dayNumber },
-    { key: 'orders', label: 'Y lệnh / diễn biến', render: (r) => <span style={{ fontSize: 12 }}>{r.treatmentOrders || r.dailyProgress || '—'}</span> },
+    { key: 'orders', label: 'Y lệnh / diễn biến', render: (r) => <span style={{ fontSize: 'var(--fs-sm)' }}>{r.treatmentOrders || r.dailyProgress || '—'}</span> },
     { key: 'doctor', label: 'BS điều trị', width: 140, render: (r) => r.doctorName || '—' },
   ];
   const consultCols: ColumnDef<ConsultationRecordDto>[] = [
@@ -432,12 +432,12 @@ const EmrEditorV2: React.FC = () => {
             return (
               <div key={r.patientId} onClick={() => selectRecord(r)} style={{ padding: '10px 12px', borderBottom: '1px solid var(--line-soft)', background: isSel ? 'var(--c-pri-bg, rgba(37,99,235,.12))' : 'transparent', borderLeft: isSel ? '3px solid var(--c-pri, var(--a-cy))' : '3px solid transparent', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className="mono" style={{ fontSize: 11, fontWeight: 700 }}>{r.patientCode}</span>
+                  <span className="mono" style={{ fontSize: 'var(--fs-xs)', fontWeight: 700 }}>{r.patientCode}</span>
                   {r.visitCount > 0 && <StatusBadge tone="info">{r.visitCount} lần</StatusBadge>}
                 </div>
                 <div style={{ fontSize: 12.5, fontWeight: 600, marginTop: 4 }}>{r.patientName}</div>
-                <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>{r.lastRoomName || '—'} · {r.lastVisit ? fmtDMYg(r.lastVisit) : '—'}</div>
-                {r.lastDiagnosisName && <div style={{ fontSize: 11, color: 'var(--t-1)', marginTop: 3, fontFamily: 'var(--font-mono)' }}>{r.lastDiagnosisCode ? `${r.lastDiagnosisCode} · ` : ''}{r.lastDiagnosisName}</div>}
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>{r.lastRoomName || '—'} · {r.lastVisit ? fmtDMYg(r.lastVisit) : '—'}</div>
+                {r.lastDiagnosisName && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-1)', marginTop: 3, fontFamily: 'var(--font-mono)' }}>{r.lastDiagnosisCode ? `${r.lastDiagnosisCode} · ` : ''}{r.lastDiagnosisName}</div>}
               </div>
             );
           })}
@@ -461,7 +461,7 @@ const EmrEditorV2: React.FC = () => {
                   {sel.patientName}
                   {finalized && <StatusBadge tone="crit">🔒 ĐÃ KHÓA (TT46)</StatusBadge>}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{sel.patientCode} · {sel.lastRoomName || '—'} · {sel.lastVisit ? fmtDMYg(sel.lastVisit) : '—'}{full?.medicalRecordCode ? ` · ${full.medicalRecordCode}` : ''}</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{sel.patientCode} · {sel.lastRoomName || '—'} · {sel.lastVisit ? fmtDMYg(sel.lastVisit) : '—'}{full?.medicalRecordCode ? ` · ${full.medicalRecordCode}` : ''}</div>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <Btn variant="ghost" onClick={exportXml}><TermIcon name="download" size={12} /> XML</Btn>
@@ -489,15 +489,15 @@ const EmrEditorV2: React.FC = () => {
                   <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
                     <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Sinh hiệu</h4>
                     {v ? (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, fontSize: 12 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, fontSize: 'var(--fs-sm)' }}>
                         {[['Mạch', v.pulse, 'l/p'], ['Nhiệt', v.temperature, '°C'], ['HA', v.systolicBP && v.diastolicBP ? `${v.systolicBP}/${v.diastolicBP}` : undefined, ''], ['Nhịp thở', v.respiratoryRate, 'l/p'], ['SpO₂', v.spO2, '%'], ['Cân', v.weight, 'kg'], ['Cao', v.height, 'cm'], ['BMI', v.bmi, '']].map((x, i) => (
                           <div key={i} style={{ padding: 8, background: 'var(--d-1)', borderRadius: 4 }}>
-                            <div style={{ fontSize: 10, color: 'var(--t-2)' }}>{x[0] as string}</div>
-                            <div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{x[1] ?? '—'} <span style={{ fontSize: 10, color: 'var(--t-3)' }}>{x[2] as string}</span></div>
+                            <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{x[0] as string}</div>
+                            <div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{x[1] ?? '—'} <span style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-3)' }}>{x[2] as string}</span></div>
                           </div>
                         ))}
                       </div>
-                    ) : <div style={{ color: 'var(--t-3)', fontSize: 12 }}>Chưa có dữ liệu sinh hiệu</div>}
+                    ) : <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Chưa có dữ liệu sinh hiệu</div>}
                   </section>
                   <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 14, gridColumn: '1 / -1' }}>
                     <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Bệnh sử · Khám lâm sàng · Chẩn đoán</h4>
@@ -514,7 +514,7 @@ const EmrEditorV2: React.FC = () => {
               {tab === 'history' && (
                 <div style={{ position: 'relative', paddingLeft: 30, maxWidth: 900 }}>
                   <div style={{ position: 'absolute', left: 9, top: 6, bottom: 6, width: 2, background: 'var(--line)' }} />
-                  {timeline.length === 0 && <div style={{ color: 'var(--t-3)', fontSize: 12 }}>Chưa có lịch sử khám</div>}
+                  {timeline.length === 0 && <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Chưa có lịch sử khám</div>}
                   {timeline.map((e, i) => (
                     <div key={i} style={{ position: 'relative', paddingBottom: 18 }}>
                       <div style={{ position: 'absolute', left: -25, top: 6, width: 12, height: 12, borderRadius: 6, background: 'var(--s-info)', border: '2px solid var(--d-0)', boxShadow: '0 0 0 3px #0284c733' }} />
@@ -522,9 +522,9 @@ const EmrEditorV2: React.FC = () => {
                         onClick={() => navigate(`/v2/opd/edit`)}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                           <span style={{ fontWeight: 700, fontSize: 12.5 }}>{e.diagnosisName || e.conclusionTypeName || 'Lần khám'}</span>
-                          <span style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{fmtDTg(e.examinationDate)}</span>
+                          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{fmtDTg(e.examinationDate)}</span>
                         </div>
-                        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{e.roomName || ''}{e.doctorName ? ` · ${e.doctorName}` : ''}{e.diagnosisCode ? ` · ${e.diagnosisCode}` : ''}</div>
+                        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{e.roomName || ''}{e.doctorName ? ` · ${e.doctorName}` : ''}{e.diagnosisCode ? ` · ${e.diagnosisCode}` : ''}</div>
                       </div>
                     </div>
                   ))}
@@ -537,7 +537,7 @@ const EmrEditorV2: React.FC = () => {
                     <Btn variant="primary" onClick={() => openCreate('treatment')}><TermIcon name="plus" size={12} /> Tạo phiếu điều trị</Btn>
                     {treatments.length > 0 && (
                       <>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-sm)', cursor: 'pointer' }}>
                           <input
                             type="checkbox"
                             checked={selectedTreatIds.size === treatments.length && treatments.length > 0}
@@ -601,7 +601,7 @@ const EmrEditorV2: React.FC = () => {
                   <div style={{ marginBottom: 12 }}><Btn variant="primary" onClick={() => openCreate('nursing')}><TermIcon name="plus" size={12} /> Phiếu chăm sóc</Btn></div>
                   <DataTable<NursingCareSheetDto> columns={nursingCols} data={nursing} rowKey={(r) => r.id} empty="Chưa có phiếu chăm sóc" />
                   {nursing.length > 0 && (
-                    <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 6 }}>
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 6 }}>
                       In phiếu chăm sóc: chọn <b>In biểu mẫu</b> → Phiếu chăm sóc Cấp 1 hoặc Cấp 2 tương ứng.
                     </div>
                   )}
@@ -610,11 +610,11 @@ const EmrEditorV2: React.FC = () => {
 
               {tab === 'reaction' && (
                 <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
-                  <h4 style={{ margin: '0 0 10px', fontSize: 12 }}>Phản ứng thuốc / Dị ứng đã ghi nhận</h4>
+                  <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-sm)' }}>Phản ứng thuốc / Dị ứng đã ghi nhận</h4>
                   {(full?.allergies?.length ?? 0) === 0
-                    ? <div style={{ color: 'var(--t-3)', fontSize: 12 }}>Không có dị ứng ghi nhận</div>
+                    ? <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Không có dị ứng ghi nhận</div>
                     : (
-                      <div style={{ padding: 10, background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 6, color: '#7f1d1d', fontSize: 12, lineHeight: 1.8 }}>
+                      <div style={{ padding: 10, background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 6, color: '#7f1d1d', fontSize: 'var(--fs-sm)', lineHeight: 1.8 }}>
                         {full!.allergies.map((a) => (
                           <div key={a.id}><b>{a.allergenName}</b>{a.reaction ? ` — ${a.reaction}` : ''} · Mức độ: {a.severity === 3 ? 'Nặng' : a.severity === 2 ? 'Vừa' : 'Nhẹ'}</div>
                         ))}
@@ -625,8 +625,8 @@ const EmrEditorV2: React.FC = () => {
 
               {tab === 'partograph' && (
                 <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
-                  <h4 style={{ margin: '0 0 10px', fontSize: 12 }}>Biểu đồ chuyển dạ (Partograph)</h4>
-                  <div style={{ height: 320, background: 'var(--d-1)', borderRadius: 6, display: 'grid', placeItems: 'center', color: 'var(--t-2)', fontSize: 12, textAlign: 'center', padding: 16 }}>
+                  <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-sm)' }}>Biểu đồ chuyển dạ (Partograph)</h4>
+                  <div style={{ height: 320, background: 'var(--d-1)', borderRadius: 6, display: 'grid', placeItems: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 16 }}>
                     Biểu đồ partograph (độ mở CTC · ngôi · tim thai · cơn co) — chỉ áp dụng HSBA sản khoa.
                   </div>
                 </div>
@@ -649,9 +649,9 @@ const EmrEditorV2: React.FC = () => {
                     <Btn variant="primary" disabled={!full?.id || attachBusy} onClick={() => fileInputRef.current?.click()}>
                       <TermIcon name="upload" size={12} /> {attachBusy ? 'Đang tải lên…' : 'Quét / Chọn tệp đính kèm'}
                     </Btn>
-                    <span style={{ fontSize: 11, color: 'var(--t-2)' }}>Tối đa 10MB · ảnh / PDF / Office</span>
+                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Tối đa 10MB · ảnh / PDF / Office</span>
                   </div>
-                  {!full?.id && <div style={{ color: 'var(--t-3)', fontSize: 12, marginBottom: 10 }}>Chọn HSBA có hồ sơ bệnh án để đính kèm tài liệu.</div>}
+                  {!full?.id && <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)', marginBottom: 10 }}>Chọn HSBA có hồ sơ bệnh án để đính kèm tài liệu.</div>}
                   <DataTable<EmrDocumentAttachmentDto>
                     columns={attachCols}
                     data={attachments}
@@ -684,7 +684,7 @@ const EmrEditorV2: React.FC = () => {
       <DrawerShell open={printOpen} onClose={() => setPrintOpen(false)} title="In biểu mẫu HSBA" size="md">
         <div style={{ padding: 14 }}>
           {!full && (
-            <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 6, fontSize: 12, color: 'var(--t-2)' }}>
+            <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 6, fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
               Chọn một bệnh nhân để xem trước và in biểu mẫu.
             </div>
           )}

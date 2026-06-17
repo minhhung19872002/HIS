@@ -332,11 +332,11 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
         <Btn variant="ghost" size="sm" onClick={addLine}><TermIcon name="plus" size={11} /> Thêm</Btn>
       }>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 760 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)', minWidth: 760 }}>
             <thead>
               <tr style={{ background: 'var(--d-1)', borderBottom: '1px solid var(--line)' }}>
                 {['Thuốc', 'Liều', 'Đường dùng', 'Số ngày', 'Lần/ngày', 'SL/lần', 'SL', 'Đối tượng', ''].map((h) => (
-                  <th key={h} style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap', fontSize: 11 }}>{h}</th>
+                  <th key={h} style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap', fontSize: 'var(--fs-xs)' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -396,7 +396,7 @@ export const InpatientPrescriptionModal: React.FC<InpatientPrescriptionModalProp
           </table>
         </div>
         {totalEst > 0 && (
-          <div style={{ textAlign: 'right', fontSize: 12, marginTop: 6, color: 'var(--t-1)' }}>
+          <div style={{ textAlign: 'right', fontSize: 'var(--fs-sm)', marginTop: 6, color: 'var(--t-1)' }}>
             Tổng dự tính: <b>{totalEst.toLocaleString('vi-VN')} ₫</b>
           </div>
         )}

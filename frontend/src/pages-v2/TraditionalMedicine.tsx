@@ -93,13 +93,13 @@ const TraditionalMedicineV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'type', label: 'Phương pháp', render: (r) => (
       <StatusBadge tone="info">{TYPE_LABEL[r.treatmentType] || r.treatmentType}</StatusBadge>
     ) },
-    { key: 'dx', label: 'Chẩn đoán', render: (r) => <span style={{ fontSize: 12 }}>{r.diagnosis}</span> },
+    { key: 'dx', label: 'Chẩn đoán', render: (r) => <span style={{ fontSize: 'var(--fs-sm)' }}>{r.diagnosis}</span> },
     { key: 'sess', label: 'Tiến độ', mono: true, render: (r) => {
       const total = r.totalSessions || 0;
       const done = r.completedSessions || 0;
@@ -107,7 +107,7 @@ const TraditionalMedicineV2: React.FC = () => {
       return (
         <div>
           <div>{done}/{total || '?'}</div>
-          {total > 0 && <div style={{ fontSize: 10, color: 'var(--t-2)' }}>{pct}%</div>}
+          {total > 0 && <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{pct}%</div>}
         </div>
       );
     } },
@@ -311,7 +311,7 @@ const TraditionalMedicineV2: React.FC = () => {
         {!rxLoading && rxList.map((rx) => (
           <DrSec key={rx.id} title={`Đơn ${rx.prescriptionCode || rx.id.slice(0, 8)}`}>
             <DrField lbl="Ngày kê">{dayjs(rx.prescriptionDate).format('DD/MM/YYYY')}</DrField>
-            <DrField lbl="Thành phần"><span style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{rx.ingredients}</span></DrField>
+            <DrField lbl="Thành phần"><span style={{ whiteSpace: 'pre-wrap', fontSize: 'var(--fs-sm)' }}>{rx.ingredients}</span></DrField>
             {rx.dosage && <DrField lbl="Liều dùng">{rx.dosage}</DrField>}
             {rx.preparation && <DrField lbl="Cách bào chế">{rx.preparation}</DrField>}
             <DrField lbl="Thời gian"><span style={{ fontFamily: 'var(--font-mono)' }}>{rx.duration} {rx.durationUnit}</span></DrField>
@@ -342,14 +342,14 @@ const TraditionalMedicineV2: React.FC = () => {
               <Btn variant="ghost" onClick={addRxRow}><Ico name="plus" size={11} /> Thêm vị</Btn>
             </div>
             {rxRows.length === 0 && (
-              <div style={{ fontSize: 12, color: 'var(--t-3)', padding: '6px 0' }}>Chưa có vị thuốc — bấm “Thêm vị”.</div>
+              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-3)', padding: '6px 0' }}>Chưa có vị thuốc — bấm “Thêm vị”.</div>
             )}
             {rxRows.map((row, idx) => {
               const herb = herbCatalog.find((x) => x.id === row.medicineId);
               return (
                 <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <select value={row.medicineId} onChange={(e) => pickHerb(idx, e.target.value)}
-                    style={{ flex: 1, border: '1px solid var(--line)', borderRadius: 4, padding: '6px 8px', fontSize: 13 }}>
+                    style={{ flex: 1, border: '1px solid var(--line)', borderRadius: 4, padding: '6px 8px', fontSize: 'var(--fs-md)' }}>
                     <option value="">— Chọn vị thuốc —</option>
                     {herbCatalog.map((h) => (
                       <option key={h.id} value={h.id}>{h.name} ({h.unitPrice.toLocaleString('vi-VN')}đ/{h.unit}, tồn {h.stock})</option>
@@ -357,8 +357,8 @@ const TraditionalMedicineV2: React.FC = () => {
                   </select>
                   <input type="number" min={0} value={row.quantity || ''} placeholder="g/thang"
                     onChange={(e) => updateRxRow(idx, { quantity: parseFloat(e.target.value) || 0 })}
-                    style={{ width: 90, border: '1px solid var(--line)', borderRadius: 4, padding: '6px 8px', fontSize: 13 }} />
-                  <span style={{ width: 70, fontSize: 12, color: 'var(--t-2)', textAlign: 'right' }}>
+                    style={{ width: 90, border: '1px solid var(--line)', borderRadius: 4, padding: '6px 8px', fontSize: 'var(--fs-md)' }} />
+                  <span style={{ width: 70, fontSize: 'var(--fs-sm)', color: 'var(--t-2)', textAlign: 'right' }}>
                     {herb ? (herb.unitPrice * row.quantity).toLocaleString('vi-VN') + 'đ' : ''}
                   </span>
                   <ActBtn ic="trash" title="Xoá vị" tone="crit" onClick={() => removeRxRow(idx)} />
@@ -370,22 +370,22 @@ const TraditionalMedicineV2: React.FC = () => {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Số thang *</span>
               <input type="number" min={1} value={rxThang} onChange={(e) => setRxThang(e.target.value)}
-                style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 13 }} />
+                style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 'var(--fs-md)' }} />
             </div>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Số ngày dùng</span>
               <input type="number" min={1} value={rxDuration} onChange={(e) => setRxDuration(e.target.value)}
-                style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 13 }} />
+                style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 'var(--fs-md)' }} />
             </div>
           </div>
           {([['Liều dùng', rxDosage, setRxDosage], ['Cách bào chế', rxPrep, setRxPrep]] as [string, string, (v: string) => void][]).map(([lbl, val, setter]) => (
             <div key={lbl} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>{lbl}</span>
               <input value={val} onChange={(e) => setter(e.target.value)}
-                style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 13 }} />
+                style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 'var(--fs-md)' }} />
             </div>
           ))}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 13, fontWeight: 700, color: 'var(--t-1)' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 'var(--fs-md)', fontWeight: 700, color: 'var(--t-1)' }}>
             Tạm tính: {rxTotal.toLocaleString('vi-VN')}đ <span style={{ fontWeight: 400, color: 'var(--t-3)', marginLeft: 6 }}>({rxThangNum} thang)</span>
           </div>
         </div>

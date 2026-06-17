@@ -204,7 +204,7 @@ const BiometricEnrollment: React.FC = () => {
     },
     {
       key: 'device', label: 'Thiết bị',
-      render: c => <span style={{ fontSize: 12 }}><TermIcon name="shield" size={11} /> {c.deviceName ?? '—'}</span>
+      render: c => <span style={{ fontSize: 'var(--fs-sm)' }}><TermIcon name="shield" size={11} /> {c.deviceName ?? '—'}</span>
     },
     { key: 'enrolled', label: 'Đăng ký lúc', mono: true, render: c => fmtDTg(c.enrolledAt) },
     {
@@ -264,9 +264,9 @@ const BiometricEnrollment: React.FC = () => {
                   }}
                 >
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{p.fullName}</div>
-                    <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{p.patientCode}</div>
-                    <div style={{ fontSize: 11, color: 'var(--t-3)' }}>{p.phoneNumber ?? ''}</div>
+                    <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)' }}>{p.fullName}</div>
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{p.patientCode}</div>
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-3)' }}>{p.phoneNumber ?? ''}</div>
                   </div>
                   <div style={{ alignSelf: 'center' }}>
                     {credCount > 0
@@ -277,7 +277,7 @@ const BiometricEnrollment: React.FC = () => {
               );
             })}
             {filteredPts.length === 0 && (
-              <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-2)', fontSize: 12 }}>
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
                 Không có bệnh nhân
               </div>
             )}
@@ -287,7 +287,7 @@ const BiometricEnrollment: React.FC = () => {
         {/* Credentials panel */}
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {!sel ? (
-            <div style={{ padding: 60, textAlign: 'center', color: 'var(--t-2)', fontSize: 13 }}>
+            <div style={{ padding: 60, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>
               <TermIcon name="user" size={32} /><br />Chọn 1 bệnh nhân ở danh sách trái để quản lý vân tay
             </div>
           ) : (
@@ -298,7 +298,7 @@ const BiometricEnrollment: React.FC = () => {
               }}>
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 700 }}>{sel.fullName}</div>
-                  <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
                     {sel.patientCode} · {sel.phoneNumber ?? ''}
                   </div>
                 </div>
@@ -317,7 +317,7 @@ const BiometricEnrollment: React.FC = () => {
                   <div style={{ padding: 60, textAlign: 'center', color: 'var(--t-2)' }}>
                     <TermIcon name="shield" size={32} />
                     <div style={{ marginTop: 8, fontWeight: 600, fontSize: 14 }}>Chưa có credential</div>
-                    <div style={{ marginTop: 4, fontSize: 12 }}>Bấm "Đăng ký vân tay" để bắt đầu quét.</div>
+                    <div style={{ marginTop: 4, fontSize: 'var(--fs-sm)' }}>Bấm "Đăng ký vân tay" để bắt đầu quét.</div>
                   </div>
                 ) : (
                   <DataTable
@@ -359,10 +359,10 @@ const BiometricEnrollment: React.FC = () => {
             <Form.Item name="ownerType" label="Loại người ký" rules={[{ required: true }]}>
               <Radio.Group>
                 <Radio value="patient" style={{ display: 'block', marginBottom: 6 }}>
-                  <b>Bệnh nhân</b> <span style={{ color: 'var(--t-2)', fontSize: 11 }}> · Tự ký bằng vân tay</span>
+                  <b>Bệnh nhân</b> <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}> · Tự ký bằng vân tay</span>
                 </Radio>
                 <Radio value="family" style={{ display: 'block' }}>
-                  <b>Người nhà</b> <span style={{ color: 'var(--t-2)', fontSize: 11 }}> · Cho cam kết PT/truyền máu khi BN không tự ký được</span>
+                  <b>Người nhà</b> <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}> · Cho cam kết PT/truyền máu khi BN không tự ký được</span>
                 </Radio>
               </Radio.Group>
             </Form.Item>
@@ -379,7 +379,7 @@ const BiometricEnrollment: React.FC = () => {
               }}>
                 <div style={{ fontSize: 32 }}>👆</div>
                 <div style={{ marginTop: 8, fontWeight: 600, color: 'var(--a-cy)' }}>Đặt ngón tay lên cảm biến…</div>
-                <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 4 }}>WebAuthn challenge đang xử lý</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 4 }}>WebAuthn challenge đang xử lý</div>
               </div>
             )}
           </Form>
@@ -410,10 +410,10 @@ const BiometricEnrollment: React.FC = () => {
               <Input />
             </Form.Item>
           </Form>
-          <div style={{ marginTop: 10, padding: 10, background: 'var(--d-1)', borderRadius: 6, fontSize: 12 }}>
+          <div style={{ marginTop: 10, padding: 10, background: 'var(--d-1)', borderRadius: 6, fontSize: 'var(--fs-sm)' }}>
             <div style={{ fontWeight: 600, marginBottom: 6 }}>Credential khả dụng:</div>
             {myCreds.filter(c => c.status === 'active').map(c => (
-              <div key={c.id} style={{ fontSize: 11, color: 'var(--t-2)' }}>• {c.ownerName ?? '—'} — {c.deviceName ?? '—'}</div>
+              <div key={c.id} style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>• {c.ownerName ?? '—'} — {c.deviceName ?? '—'}</div>
             ))}
           </div>
         </div>
@@ -439,7 +439,7 @@ const BiometricEnrollment: React.FC = () => {
           </DrSec>
           <DrSec title="Thiết bị">
             <DrField lbl="Thiết bị">{selCred.deviceName ?? '—'}</DrField>
-            <DrField lbl="Mã credential"><span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, wordBreak: 'break-all' }}>{selCred.id}</span></DrField>
+            <DrField lbl="Mã credential"><span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', wordBreak: 'break-all' }}>{selCred.id}</span></DrField>
           </DrSec>
           <DrSec title="Sử dụng">
             <DrField lbl="Đăng ký lúc"><span style={{ fontFamily: 'var(--font-mono)' }}>{fmtDTg(selCred.enrolledAt)}</span></DrField>

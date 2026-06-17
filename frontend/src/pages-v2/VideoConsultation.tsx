@@ -116,7 +116,7 @@ const VideoConsultationV2: React.FC = () => {
     { key: 'title', label: 'Tên phòng', render: (r) => (
       <div>
         <div style={{ fontWeight: 600 }}>{r.title}</div>
-        {r.patientName && <div style={{ fontSize: 11, color: 'var(--t-2)' }}>BN: {r.patientName}</div>}
+        {r.patientName && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>BN: {r.patientName}</div>}
       </div>
     ) },
     { key: 'type', label: 'Loại', render: (r) => <StatusBadge tone="info">{ROOM_TYPES[r.roomType]}</StatusBadge> },
@@ -144,7 +144,7 @@ const VideoConsultationV2: React.FC = () => {
       ]} />
 
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
-        <span style={{ fontSize: 12, color: 'var(--t-2)' }}>Hội chẩn video conference (Jitsi self-host)</span>
+        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Hội chẩn video conference (Jitsi self-host)</span>
         <span className="spacer" />
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
@@ -235,11 +235,11 @@ const VideoConsultationV2: React.FC = () => {
         {currentRoom && (
           <div>
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 4 }}>Tên phòng:</div>
+              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>Tên phòng:</div>
               <b>{currentRoom.title}</b>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 4 }}>Jitsi URL:</div>
+              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>Jitsi URL:</div>
               <div style={{ display: 'flex', gap: 4 }}>
                 <Input value={currentRoom.jitsiUrl} readOnly style={{ flex: 1 }} />
                 <Btn variant="ghost" onClick={() => {
@@ -252,7 +252,7 @@ const VideoConsultationV2: React.FC = () => {
             {currentRoom.hasPassword && <StatusBadge tone="warn" dot>🔒 Có mật khẩu</StatusBadge>}
             <div style={{ textAlign: 'center', marginTop: 16, padding: 16, background: 'var(--d-1)', borderRadius: 4 }}>
               <QRCodeCanvas value={currentRoom.jitsiUrl} size={200} level="M" />
-              <div style={{ marginTop: 8, color: 'var(--t-2)', fontSize: 11 }}>
+              <div style={{ marginTop: 8, color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>
                 Quét QR bằng điện thoại để tham gia qua Jitsi mobile
               </div>
             </div>
@@ -307,7 +307,7 @@ const VideoConsultationV2: React.FC = () => {
           </DrSec>
           {sel.jitsiUrl && (
             <DrSec title="Liên kết">
-              <DrField lbl="Jitsi URL"><span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, wordBreak: 'break-all' }}>{sel.jitsiUrl}</span></DrField>
+              <DrField lbl="Jitsi URL"><span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', wordBreak: 'break-all' }}>{sel.jitsiUrl}</span></DrField>
             </DrSec>
           )}
         </>}

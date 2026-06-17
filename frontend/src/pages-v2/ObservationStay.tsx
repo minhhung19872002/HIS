@@ -132,7 +132,7 @@ const ObservationStayV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600 }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'reason', label: 'Lý do', render: (r) => r.chiefComplaint || '—' },
@@ -163,7 +163,7 @@ const ObservationStayV2: React.FC = () => {
       ]} />
 
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
-        <span style={{ fontSize: 12, color: 'var(--t-2)' }}>Phòng lưu / Observation ngắn hạn (≤24h)</span>
+        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Phòng lưu / Observation ngắn hạn (≤24h)</span>
         <span className="spacer" />
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
@@ -224,10 +224,10 @@ const ObservationStayV2: React.FC = () => {
           </DrSec>
           <DrSec title={`Sinh hiệu (${vitals.length} lần)`}>
             {vitals.length === 0 ? (
-              <div style={{ color: 'var(--t-2)', fontSize: 12 }}>Chưa có bản ghi sinh hiệu</div>
+              <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Chưa có bản ghi sinh hiệu</div>
             ) : vitals.map((v) => (
               <div key={v.id} style={{ marginBottom: 8, padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 12 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 'var(--fs-sm)' }}>
                   {dayjs(v.recordedAt).format('DD/MM HH:mm')}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
@@ -238,8 +238,8 @@ const ObservationStayV2: React.FC = () => {
                   {v.spO2 != null && <StatusBadge tone="info">SpO₂ {v.spO2}%</StatusBadge>}
                   {v.consciousness != null && <StatusBadge tone="info">GCS {v.consciousness}</StatusBadge>}
                 </div>
-                {v.nurseNote && <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 4 }}>ĐD: {v.nurseNote}</div>}
-                {v.doctorNote && <div style={{ fontSize: 11, color: 'var(--t-2)' }}>BS: {v.doctorNote}</div>}
+                {v.nurseNote && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 4 }}>ĐD: {v.nurseNote}</div>}
+                {v.doctorNote && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>BS: {v.doctorNote}</div>}
               </div>
             ))}
           </DrSec>

@@ -93,14 +93,14 @@ const NgRxPanel: React.FC = () => {
       render: (r) => (
         <div>
           <b>{r.prescriptionCode || '—'}</b>
-          <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientName || '—'}</div>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientName || '—'}</div>
         </div>
       ) },
     { key: 'doctor', label: 'BS / CCHN', width: 200,
       render: (r) => (
         <div>
           <b>{r.doctorIdNumber}</b>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.doctorLicenseNumber}</div>
+          <div className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.doctorLicenseNumber}</div>
         </div>
       ) },
     { key: 'prescriptionType', label: 'Loại đơn', width: 120 },
@@ -160,13 +160,13 @@ const NgRxPanel: React.FC = () => {
               <DrField lbl="Loại đơn">{detail.prescriptionType}</DrField>
             </DrSec>
             <DrSec title="PAYLOAD">
-              <pre style={{ fontSize: 11, padding: 8, background: 'var(--d-1)', borderRadius: 4, maxHeight: 280, overflow: 'auto', fontFamily: 'var(--font-mono)' }}>
+              <pre style={{ fontSize: 'var(--fs-xs)', padding: 8, background: 'var(--d-1)', borderRadius: 4, maxHeight: 280, overflow: 'auto', fontFamily: 'var(--font-mono)' }}>
                 {detail.payloadJson ? (() => { try { return JSON.stringify(JSON.parse(detail.payloadJson || ''), null, 2); } catch { return detail.payloadJson; } })() : '—'}
               </pre>
             </DrSec>
             {detail.responseJson && (
               <DrSec title="PHẢN HỒI TỪ CỔNG">
-                <pre style={{ fontSize: 11, padding: 8, background: 'var(--d-1)', borderRadius: 4, maxHeight: 200, overflow: 'auto', fontFamily: 'var(--font-mono)' }}>
+                <pre style={{ fontSize: 'var(--fs-xs)', padding: 8, background: 'var(--d-1)', borderRadius: 4, maxHeight: 200, overflow: 'auto', fontFamily: 'var(--font-mono)' }}>
                   {(() => { try { return JSON.stringify(JSON.parse(detail.responseJson || ''), null, 2); } catch { return detail.responseJson; } })()}
                 </pre>
               </DrSec>
@@ -276,7 +276,7 @@ const NgConfigPanel: React.FC = () => {
   return (
     <div style={{ padding: 20, maxWidth: 760 }} data-testid="gateway-config-panel">
       <div className="hui-section-t" style={{ marginBottom: 14 }}>CỔNG QUỐC GIA — CẤU HÌNH</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 10, fontSize: 13 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 10, fontSize: 'var(--fs-md)' }}>
         <span>URL Đơn thuốc QG</span>
         <input className="ab-sel" value={cfg.nationalPrescriptionBaseUrl}
           onChange={(e) => set('nationalPrescriptionBaseUrl', e.target.value)} />
@@ -290,12 +290,12 @@ const NgConfigPanel: React.FC = () => {
         <input className="ab-sel" value={cfg.facilityName}
           onChange={(e) => set('facilityName', e.target.value)} />
         <span>Chế độ Mock</span>
-        <label style={{ fontSize: 13 }}>
+        <label style={{ fontSize: 'var(--fs-md)' }}>
           <input type="checkbox" checked={cfg.mockMode}
             onChange={(e) => set('mockMode', e.target.checked)} /> Bật mock (đề xuất khi demo)
         </label>
         <span>Tự động gửi</span>
-        <label style={{ fontSize: 13 }}>
+        <label style={{ fontSize: 'var(--fs-md)' }}>
           <input type="checkbox" checked={cfg.autoSubmit}
             onChange={(e) => set('autoSubmit', e.target.checked)} /> Tự động gửi mỗi đơn thuốc
         </label>

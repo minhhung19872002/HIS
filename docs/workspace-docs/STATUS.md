@@ -22,8 +22,11 @@
 ## ★ THỰC THI TECH-DEBT FE (fix-first, đang chạy 2026-06-17)
 - **#208 ĐANG LÀM (làm tới hết mới đóng — KHÔNG tách):** ✅ **var-fallback pages-v2 = 0** (slice1 map 60 hex==light-value
   + slice2 define 12 legacy-token light+dark, gỡ nốt fallback). Light byte-identical, dark flip thêm; build EXIT 0.
-  **CÒN trong #208:** token-scale (typography đã có --fs-*; thêm --space/--z/--col-w + migrate literal exact-value) ·
-  402 hex off-palette · ab-u-* phổ biến hơn. → làm tiếp tới hết rồi `Closes #208`.
+  ✅ **hex==token map**: subagent map 3 hex an toàn; phần lớn residual GIỮ đúng (standalone-portal terminal.css-không-load,
+  #fff-text, ${c}33-alpha, chart/brand off-palette). ✅ **fontSize**: 976 literal (10/11/12/13/15/20)→`--fs-*` / 158 file
+  (theme-independent, no-op thị giác), build EXIT 0.
+  **CÒN trong #208:** spacing/padding/gap → --space-* (định nghĩa scale) · width/zIndex → --col-w/--z · ab-u-* phổ biến hơn ·
+  off-palette còn lại (define nếu cần). → làm tiếp tới hết rồi `Closes #208`. (#208 đang `in-progress`.)
 - Kế tiếp FE sau #208: #207 async-state(.catch) · #209 raw-fetch→apiClient · #206 design-adoption · #205 god-split · #204 v1-sunset.
 
 ## Đang ở đâu

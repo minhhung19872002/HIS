@@ -156,7 +156,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => r.patientName ? (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode}</div>
       </div>
     ) : <span style={{ color: 'var(--t-2)' }}>Chưa gán</span> },
     { key: 'dept', label: 'Khoa', render: (r) => r.departmentName || '—' },
@@ -253,7 +253,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
         </>}
       >
         <div style={{ padding: '8px 0' }}>
-          <div style={{ padding: 10, marginBottom: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 12, color: 'var(--t-2)' }}>
+          <div style={{ padding: 10, marginBottom: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
             Gán bệnh nhân (qua ExaminationId) cho mã BA{' '}
             <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--t-0)' }}>{assignTarget?.recordCode}</span>.
           </div>
@@ -286,7 +286,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
           <div style={{ padding: '8px 0' }}>
             <div style={{ marginBottom: 12, padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4 }}>
               <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--t-0)' }}>{bulkResult.message}</div>
-              <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
+              <div style={{ display: 'flex', gap: 16, fontSize: 'var(--fs-md)' }}>
                 <span>Yêu cầu: <b>{bulkResult.requested}</b></span>
                 <span style={{ color: 'var(--a-gn-text)' }}>Cấp: <b>{bulkResult.allocated}</b></span>
                 <span style={{ color: 'var(--a-or-text)' }}>Bỏ qua: <b>{bulkResult.skipped}</b></span>
@@ -295,7 +295,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
             </div>
             {bulkResult.allocatedCodes.length > 0 && (
               <DrSec title={`Mã đã cấp (${bulkResult.allocatedCodes.length})`}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, lineHeight: '22px', color: 'var(--t-1)' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)', lineHeight: '22px', color: 'var(--t-1)' }}>
                   {bulkResult.allocatedCodes.join(' · ')}
                 </div>
               </DrSec>
@@ -303,7 +303,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
             {bulkResult.errors.length > 0 && (
               <DrSec title="Lỗi">
                 {bulkResult.errors.map((e, i) => (
-                  <div key={i} style={{ fontSize: 12, color: 'var(--a-rd-text)', marginBottom: 2 }}>{e}</div>
+                  <div key={i} style={{ fontSize: 'var(--fs-sm)', color: 'var(--a-rd-text)', marginBottom: 2 }}>{e}</div>
                 ))}
               </DrSec>
             )}
@@ -314,9 +314,9 @@ const MedicalRecordPlanningV2: React.FC = () => {
               <Input placeholder="UUID khoa (để trống nếu không cần)" style={{ fontFamily: 'var(--font-mono)' }} />
             </Form.Item>
             <Divider style={{ margin: '8px 0', borderColor: 'var(--line)' }}>
-              <span style={{ fontSize: 11, color: 'var(--t-2)' }}>Chọn 1 trong 2 cách cấp mã</span>
+              <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Chọn 1 trong 2 cách cấp mã</span>
             </Divider>
-            <div style={{ marginBottom: 8, fontSize: 12, color: 'var(--t-2)', fontWeight: 600 }}>Cách 1: Prefix + Số lượng</div>
+            <div style={{ marginBottom: 8, fontSize: 'var(--fs-sm)', color: 'var(--t-2)', fontWeight: 600 }}>Cách 1: Prefix + Số lượng</div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Form.Item name="prefix" label="Prefix" style={{ flex: 1 }}>
                 <Input placeholder="VD: HS" />
@@ -325,7 +325,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
                 <InputNumber min={1} max={1000} style={{ width: '100%' }} placeholder="VD: 100" />
               </Form.Item>
             </div>
-            <div style={{ marginBottom: 8, fontSize: 12, color: 'var(--t-2)', fontWeight: 600 }}>Cách 2: Dải từ — đến</div>
+            <div style={{ marginBottom: 8, fontSize: 'var(--fs-sm)', color: 'var(--t-2)', fontWeight: 600 }}>Cách 2: Dải từ — đến</div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Form.Item name="fromCode" label="Từ mã" style={{ flex: 1 }}>
                 <Input placeholder="VD: HS0001" style={{ fontFamily: 'var(--font-mono)' }} />

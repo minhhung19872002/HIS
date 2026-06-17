@@ -92,7 +92,7 @@ function validateForm(f: FormState): string | null {
 
 const IpFld: React.FC<{ label: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
   <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
-    <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>
+    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>
     {children}
   </div>
 );
@@ -222,7 +222,7 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
     <div style={{ marginTop: 18 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <h5 style={{ margin: 0, fontSize: 12, fontWeight: 700, letterSpacing: 0.5, color: 'var(--t-1)' }}>
+        <h5 style={{ margin: 0, fontSize: 'var(--fs-sm)', fontWeight: 700, letterSpacing: 0.5, color: 'var(--t-1)' }}>
           <TermIcon name="user" size={11} /> TRE SO SINH ({records.length})
         </h5>
         <Btn variant="primary" onClick={openCreate}>
@@ -426,7 +426,7 @@ const NewbornSection: React.FC<NewbornSectionProps> = ({ admissionId }) => {
             />
           </IpFld>
           {dcTarget && (
-            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--t-2)' }}>
+            <div style={{ marginTop: 12, fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
               Tre sinh ngay: {fmtDate(dcTarget.birthDate)} &bull; Can nang: {dcTarget.birthWeight}g
             </div>
           )}

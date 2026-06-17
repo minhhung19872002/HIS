@@ -186,14 +186,14 @@ const FinanceCatalogsV2: React.FC = () => {
     return [
       { key: 'fuelType',      label: 'Loại nhiên liệu', render: (r) => <b>{(r as api.GasolinePriceDto).fuelType}</b> },
       { key: 'pricePerLitre', label: 'Giá / lít', width: 160, render: (r) => (
-        <span className="mono" style={{ fontWeight: 600, fontSize: 13 }}>{fmtVNDg((r as api.GasolinePriceDto).pricePerLitre)}</span>
+        <span className="mono" style={{ fontWeight: 600, fontSize: 'var(--fs-md)' }}>{fmtVNDg((r as api.GasolinePriceDto).pricePerLitre)}</span>
       ) },
       { key: 'issuedBy',      label: 'Nguồn', width: 130, render: (r) => (r as api.GasolinePriceDto).issuedBy || '—' },
       { key: 'effectiveFrom', label: 'Hiệu lực từ', mono: true, width: 130, render: (r) => (
         (r as api.GasolinePriceDto).effectiveFrom ? dayjs((r as api.GasolinePriceDto).effectiveFrom).format('DD/MM/YYYY') : '—'
       ) },
       { key: 'note', label: 'Ghi chú', render: (r) => (
-        <span style={{ color: 'var(--t-2)', fontSize: 12 }}>{(r as api.GasolinePriceDto).note || '—'}</span>
+        <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>{(r as api.GasolinePriceDto).note || '—'}</span>
       ) },
     ];
   }, [tab]);

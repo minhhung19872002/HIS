@@ -55,7 +55,7 @@ type DashboardTrendPoint = Record<string, unknown>;
 const REPORT_CATEGORIES: ReportCategory[] = [
   { id: 'operational', label: 'Vận hành', icon: 'chart', color: 'var(--a-cy)', softColor: 'var(--s-info-soft)' },
   { id: 'clinical', label: 'Lâm sàng', icon: 'stethoscope', color: '#0f766e', softColor: '#ecfeff' },
-  { id: 'financial', label: 'Tài chính', icon: 'receipt', color: 'var(--s-warn)', softColor: '#fff7ed' },
+  { id: 'financial', label: 'Tài chính', icon: 'receipt', color: 'var(--s-warn)', softColor: 'var(--a-or-bg)' },
   { id: 'regulatory', label: 'Báo cáo BYT', icon: 'shield', color: 'var(--s-mag)', softColor: 'var(--s-mag-bg)' },
 ];
 

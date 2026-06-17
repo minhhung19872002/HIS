@@ -172,12 +172,12 @@ const HrDecisionsV2: React.FC = () => {
     { key: 'staff',  label: 'Nhân viên',                  render: (r) => (
       <div>
         <div style={{ fontWeight: 600 }}>{r.staffName || '—'}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.staffCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.staffCode}</div>
       </div>
     ) },
     { key: 'date',   label: 'Ngày hiệu lực',  mono: true, render: (r) => new Date(r.effectiveDate).toLocaleDateString('vi-VN') },
     { key: 'sum',    label: 'Trích yếu',                  render: (r) => (
-      <span style={{ fontSize: 12, color: 'var(--t-2)' }}>{r.summary}</span>
+      <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>{r.summary}</span>
     ) },
     { key: 'status', label: 'Trạng thái',                render: (r) => (
       <StatusBadge tone={STATUS_TONE[r.status] || 'info'}>{r.statusName}</StatusBadge>

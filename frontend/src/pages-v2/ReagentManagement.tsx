@@ -104,7 +104,7 @@ const ReagentManagementV2: React.FC = () => {
     { key: 'name', label: 'Tên hóa chất', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.name}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.manufacturer}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.manufacturer}</div>
       </div>
     ) },
     { key: 'lot', label: 'Lô', code: true, render: (r) => r.lotNumber },
@@ -115,7 +115,7 @@ const ReagentManagementV2: React.FC = () => {
       return (
         <div>
           <div style={{ color: tone, fontWeight: 600 }}>{r.remainingQuantity}/{r.quantity}</div>
-          <div style={{ fontSize: 10, color: 'var(--t-2)' }}>{r.unit}</div>
+          <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{r.unit}</div>
         </div>
       );
     } },
@@ -294,11 +294,11 @@ const ReagentManagementV2: React.FC = () => {
                   {a.type === 'expired' ? 'Hết hạn' : a.type === 'expiringSoon' ? 'Sắp hết hạn' : 'Tồn thấp'}
                 </StatusBadge>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--t-0)' }}>{a.reagentName}</div>
-                  <div style={{ fontSize: 12, color: 'var(--t-1)', marginTop: 2 }}>{a.message}</div>
-                  <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>Lô: {a.lotNumber}</div>
+                  <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)', color: 'var(--t-0)' }}>{a.reagentName}</div>
+                  <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)', marginTop: 2 }}>{a.message}</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>Lô: {a.lotNumber}</div>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
                   {dayjs(a.createdAt).format('DD/MM HH:mm')}
                 </div>
               </div>
@@ -322,13 +322,13 @@ const ReagentManagementV2: React.FC = () => {
             : usageHistory.map((u) => (
               <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--line)', gap: 12 }}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--t-0)' }}>{u.testName}</div>
-                  <div style={{ fontSize: 12, color: 'var(--t-2)' }}>{u.analyzerName} · {u.operatorName}</div>
-                  <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{u.testCode}</div>
+                  <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)', color: 'var(--t-0)' }}>{u.testName}</div>
+                  <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>{u.analyzerName} · {u.operatorName}</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{u.testCode}</div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 13 }}>−{u.quantityUsed}</div>
-                  <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 'var(--fs-md)' }}>−{u.quantityUsed}</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
                     {dayjs(u.usageDate).format('DD/MM/YYYY HH:mm')}
                   </div>
                 </div>

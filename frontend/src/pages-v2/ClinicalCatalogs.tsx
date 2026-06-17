@@ -108,7 +108,7 @@ const ClinicalCatalogsV2: React.FC = () => {
         { key: 'level', label: 'Cấp', width: 200, render: (r) => <NursingLevelChip level={(r as api.NursingCareLevelDto).level} /> },
         { key: 'description', label: 'Mô tả ngắn', render: (r) => {
           const d = (r as api.NursingCareLevelDto).description || '';
-          return <span style={{ color: 'var(--t-2)', fontSize: 12 }}>{d.slice(0, 90)}{d.length > 90 ? '…' : ''}</span>;
+          return <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>{d.slice(0, 90)}{d.length > 90 ? '…' : ''}</span>;
         } },
         { key: 'sortOrder', label: 'TT', mono: true, width: 60 },
         { key: 'isActive', label: 'Trạng thái', width: 120, render: (r) => (
@@ -126,7 +126,7 @@ const ClinicalCatalogsV2: React.FC = () => {
         return c ? <StatusBadge tone={c.tone} dot>{c.label}</StatusBadge> : '—';
       } },
       { key: 'note', label: 'Ghi chú', render: (r) => (
-        <span style={{ color: 'var(--t-2)', fontSize: 12 }}>{(r as api.MedicalRecordTypeDto).note || '—'}</span>
+        <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>{(r as api.MedicalRecordTypeDto).note || '—'}</span>
       ) },
       { key: 'isLocked', label: 'Khoá', width: 80, render: (r) => (
         (r as api.MedicalRecordTypeDto).isLocked

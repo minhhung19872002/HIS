@@ -138,7 +138,7 @@ const Dashboard3CapV2: React.FC = () => {
     { key: 'name', label: 'Tên', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.branchName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.branchLevel}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.branchLevel}</div>
       </div>
     ) },
     { key: 'out', label: 'Ngoại trú', mono: true, render: (r) => r.outpatients },
@@ -230,7 +230,7 @@ const Dashboard3CapV2: React.FC = () => {
         <Filter value={branchId} onChange={setBranchId} options={branchOpts} placeholder="▾ Toàn hệ thống" />
         <Btn variant="ghost" icon="x" onClick={() => setBranchId('')}>Xem tất cả</Btn>
         <span className="spacer" />
-        <span style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
+        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
           {dayjs().format('dddd · DD/MM/YYYY')}
         </span>
       </div>
@@ -249,8 +249,8 @@ const Dashboard3CapV2: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trends}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
-                  <XAxis dataKey="date" style={{ fontSize: 11 }} />
-                  <YAxis style={{ fontSize: 11 }} />
+                  <XAxis dataKey="date" style={{ fontSize: 'var(--fs-xs)' }} />
+                  <YAxis style={{ fontSize: 'var(--fs-xs)' }} />
                   <RechartsTooltip />
                   <Area type="monotone" dataKey="Ngoại trú" stroke={CHART_COLORS[0]} fill={CHART_COLORS[0]} fillOpacity={0.3} />
                   <Area type="monotone" dataKey="Nội trú" stroke={CHART_COLORS[1]} fill={CHART_COLORS[1]} fillOpacity={0.3} />
@@ -281,8 +281,8 @@ const Dashboard3CapV2: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={deptData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
-                  <XAxis dataKey="name" style={{ fontSize: 11 }} angle={-15} textAnchor="end" height={60} />
-                  <YAxis style={{ fontSize: 11 }} />
+                  <XAxis dataKey="name" style={{ fontSize: 'var(--fs-xs)' }} angle={-15} textAnchor="end" height={60} />
+                  <YAxis style={{ fontSize: 'var(--fs-xs)' }} />
                   <RechartsTooltip />
                   <Bar dataKey="Khám" fill={CHART_COLORS[0]} />
                   <Bar dataKey="Nhập" fill={CHART_COLORS[1]} />
@@ -324,7 +324,7 @@ const Dashboard3CapV2: React.FC = () => {
                 { key: 'name', label: 'Chi nhánh', render: (r) => (
                   <div>
                     <div style={{ fontWeight: 600 }}>{r.branchName}</div>
-                    <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.branchLevel}</div>
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.branchLevel}</div>
                   </div>
                 ) },
                 { key: 'pat', label: 'BN', mono: true, render: (r) => r.patientCount.toLocaleString('vi-VN') },
@@ -350,7 +350,7 @@ const Dashboard3CapV2: React.FC = () => {
                 { key: 'name', label: 'Nhân viên', render: (r) => (
                   <div>
                     <div style={{ fontWeight: 600 }}>{r.staffName}</div>
-                    <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.title || '—'} · {r.departmentName}</div>
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.title || '—'} · {r.departmentName}</div>
                   </div>
                 ) },
                 { key: 'morn', label: 'Sáng', mono: true, render: (r) => r.morningShifts },

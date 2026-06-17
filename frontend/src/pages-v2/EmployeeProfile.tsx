@@ -63,7 +63,7 @@ const EmployeeProfileV2: React.FC = () => {
       ]} />
 
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
-        <span style={{ fontSize: 12, color: 'var(--t-2)' }}>Nhân viên:</span>
+        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Nhân viên:</span>
         <Filter value={userId} onChange={setUserId}
           options={users.map((u) => ({ v: u.id, l: `${u.fullName}${u.username ? ` (${u.username})` : ''}` }))}
           placeholder="▾ Chọn nhân viên" />

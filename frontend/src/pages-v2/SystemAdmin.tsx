@@ -356,7 +356,7 @@ const SystemAdminV2: React.FC = () => {
       <ModalShell open={!!cfgModal} onClose={() => setCfgModal(null)} title="Sửa cấu hình" sub={cfgModal?.configKey} size="sm"
         footer={<><Btn onClick={() => setCfgModal(null)}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submitCfg}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn></>}>
         <Form form={cfgF} layout="vertical" scrollToFirstError>
-          <div style={{ color: 'var(--t-2)', fontSize: 12, marginBottom: 8 }}>{cfgModal?.description || cfgModal?.category}</div>
+          <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)', marginBottom: 8 }}>{cfgModal?.description || cfgModal?.category}</div>
           <Form.Item name="configValue" label="Giá trị" rules={[{ required: true, message: 'Nhập giá trị' }]}><Input.TextArea rows={3} /></Form.Item>
         </Form>
       </ModalShell>

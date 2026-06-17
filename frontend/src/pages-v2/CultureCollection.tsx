@@ -277,7 +277,7 @@ const CultureCollectionV2: React.FC = () => {
     { key: 'org', label: 'Vi sinh vật', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.organismName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.organismCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.organismCode}</div>
       </div>
     ) },
     { key: 'loc', label: 'Vị trí', code: true, render: (r) => r.locationDisplay },
@@ -463,17 +463,17 @@ const CultureCollectionV2: React.FC = () => {
             : logs.map((log) => (
               <div key={log.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                 <div>
-                  <div style={{ fontWeight: 600, color: 'var(--t-0)', fontSize: 13 }}>{log.action}</div>
-                  {log.purpose && <div style={{ fontSize: 12, color: 'var(--t-1)' }}>{log.purpose}</div>}
-                  {log.result && <div style={{ fontSize: 12, color: 'var(--t-2)' }}>KQ: {log.result}</div>}
-                  {log.notes && <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{log.notes}</div>}
+                  <div style={{ fontWeight: 600, color: 'var(--t-0)', fontSize: 'var(--fs-md)' }}>{log.action}</div>
+                  {log.purpose && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>{log.purpose}</div>}
+                  {log.result && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>KQ: {log.result}</div>}
+                  {log.notes && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{log.notes}</div>}
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   {log.aliquotsTaken !== undefined && log.aliquotsTaken !== null && (
-                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 13, color: 'var(--a-or-text)' }}>−{log.aliquotsTaken} ống</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 'var(--fs-md)', color: 'var(--a-or-text)' }}>−{log.aliquotsTaken} ống</div>
                   )}
-                  <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{dayjs(log.performedAt).format('DD/MM/YYYY HH:mm')}</div>
-                  <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{log.performedBy}</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{dayjs(log.performedAt).format('DD/MM/YYYY HH:mm')}</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{log.performedBy}</div>
                 </div>
               </div>
             ))

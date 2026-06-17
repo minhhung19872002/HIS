@@ -85,14 +85,14 @@ const HealthEducationV2: React.FC = () => {
     { key: 'title', label: 'Chiến dịch', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.title}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>📍 {r.location}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>📍 {r.location}</div>
       </div>
     ) },
     { key: 'audience', label: 'Đối tượng', render: (r) => r.targetAudience },
     { key: 'period', label: 'Thời gian', mono: true, render: (r) => (
       <div>
         <div>{dayjs(r.startDate).format('DD/MM')} – {dayjs(r.endDate).format('DD/MM/YY')}</div>
-        <div style={{ fontSize: 10, color: 'var(--t-2)' }}>{dayjs(r.endDate).diff(dayjs(r.startDate), 'day') + 1} ngày</div>
+        <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{dayjs(r.endDate).diff(dayjs(r.startDate), 'day') + 1} ngày</div>
       </div>
     ) },
     { key: 'count', label: 'Người TG', mono: true, render: (r) => r.participantCount.toLocaleString('vi-VN') },

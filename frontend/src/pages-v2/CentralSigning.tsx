@@ -240,7 +240,7 @@ const CentralSigningV2: React.FC = () => {
     { key: 'subj', label: 'Chủ thể', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.subjectName}</div>
-        {r.ownerFullName && <div style={{ fontSize: 11, color: 'var(--t-2)' }}>👤 {r.ownerFullName}</div>}
+        {r.ownerFullName && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>👤 {r.ownerFullName}</div>}
       </div>
     ) },
     { key: 'ca', label: 'CA', render: (r) => r.caProvider },
@@ -257,7 +257,7 @@ const CentralSigningV2: React.FC = () => {
       return (
         <div>
           <div style={{ color: tone, fontWeight: days < 30 ? 600 : 400 }}>{to.format('DD/MM/YYYY')}</div>
-          <div style={{ fontSize: 10, color: 'var(--t-2)' }}>
+          <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>
             {days < 0 ? `quá ${-days}d` : days < 30 ? `còn ${days}d` : `${Math.round(days / 30)}t`}
           </div>
         </div>
@@ -381,7 +381,7 @@ const CentralSigningV2: React.FC = () => {
             <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
               <span>Cấu hình hiển thị chữ ký</span>
             </div>
-            <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 13 }}>
+            <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>
               <div style={{ marginBottom: 8 }}>Cấu hình appearance · TOTP · CSR · HSM cho ký số tập trung.</div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
                 <Btn onClick={openAppearance}>
@@ -518,9 +518,9 @@ const CentralSigningV2: React.FC = () => {
         </>}
       >
         {appearLoading ? (
-          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 13 }}>Đang tải cấu hình…</div>
+          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Đang tải cấu hình…</div>
         ) : appearData === null && !appearLoading ? (
-          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 13 }}>Không tải được cấu hình.</div>
+          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Không tải được cấu hình.</div>
         ) : (
           <Form form={appearForm} layout="vertical" style={{ padding: '8px 0' }}>
             <DrSec title="Vị trí chữ ký">
@@ -568,14 +568,14 @@ const CentralSigningV2: React.FC = () => {
         sub="Thông tin Hardware Security Module"
       >
         {hsmLoading ? (
-          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 13 }}>Đang tải HSM info…</div>
+          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Đang tải HSM info…</div>
         ) : !hsmData ? (
-          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 13 }}>Không có dữ liệu HSM.</div>
+          <div style={{ padding: 24, color: 'var(--t-2)', fontSize: 'var(--fs-md)' }}>Không có dữ liệu HSM.</div>
         ) : (
           <DrSec title="Thông tin HSM">
             {Object.entries(hsmData).map(([k, v]) => (
               <DrField key={k} lbl={k}>
-                <span style={{ fontFamily: typeof v === 'string' && v.length > 20 ? 'var(--font-mono)' : undefined, fontSize: 12 }}>
+                <span style={{ fontFamily: typeof v === 'string' && v.length > 20 ? 'var(--font-mono)' : undefined, fontSize: 'var(--fs-sm)' }}>
                   {String(v ?? '—')}
                 </span>
               </DrField>
@@ -609,7 +609,7 @@ const CentralSigningV2: React.FC = () => {
               value={csrResult}
               onClick={(e) => (e.target as HTMLTextAreaElement).select()}
               style={{
-                width: '100%', minHeight: 220, fontFamily: 'var(--font-mono)', fontSize: 11,
+                width: '100%', minHeight: 220, fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)',
                 background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4,
                 padding: 8, resize: 'vertical', color: 'var(--t-0)',
               }}
@@ -677,7 +677,7 @@ const CentralSigningV2: React.FC = () => {
             </DrField>
             {selTx.errorMessage && (
               <DrField lbl="Lỗi">
-                <span style={{ color: 'var(--a-rd-text)', fontSize: 12 }}>{selTx.errorMessage}</span>
+                <span style={{ color: 'var(--a-rd-text)', fontSize: 'var(--fs-sm)' }}>{selTx.errorMessage}</span>
               </DrField>
             )}
           </DrSec>

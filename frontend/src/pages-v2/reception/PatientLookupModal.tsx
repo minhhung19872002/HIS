@@ -75,7 +75,7 @@ export const PatientLookupModal: React.FC<{
 
         <div style={{ marginTop: 14, maxHeight: 360, overflow: 'auto' }}>
           {list.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--t-2)', fontSize: 12 }}>
+            <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
               {busy ? 'Đang tìm…' : 'Nhập từ khóa rồi bấm Tìm'}
             </div>
           ) : (
@@ -93,7 +93,7 @@ export const PatientLookupModal: React.FC<{
               >
                 <div>
                   <b>{p.fullName || p.patientName || '—'}</b>
-                  <div style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                     <span className="mono">{p.patientCode || '—'}</span>
                     {p.phoneNumber ? ` · ${p.phoneNumber}` : ''}
                     {p.dateOfBirth ? ` · ${dayjs(p.dateOfBirth).format('DD/MM/YYYY')}` : (p.yearOfBirth ? ` · ${p.yearOfBirth}` : '')}
@@ -116,7 +116,7 @@ export const PatientLookupModal: React.FC<{
                     <div style={{ fontSize: 11.5, color: 'var(--t-2)' }}>Chưa có lần khám nào</div>
                   ) : (
                     hist.map((v) => (
-                      <div key={v.medicalRecordId} style={{ display: 'grid', gridTemplateColumns: '92px 1fr auto', gap: 8, padding: '4px 0', fontSize: 12, borderTop: '1px dashed var(--line-soft)' }}>
+                      <div key={v.medicalRecordId} style={{ display: 'grid', gridTemplateColumns: '92px 1fr auto', gap: 8, padding: '4px 0', fontSize: 'var(--fs-sm)', borderTop: '1px dashed var(--line-soft)' }}>
                         <span className="mono" style={{ color: 'var(--a-cy)' }}>{dayjs(v.visitDate).format('DD/MM/YYYY')}</span>
                         <span>
                           <b>{v.diagnosisName || v.diagnosisCode || '—'}</b>

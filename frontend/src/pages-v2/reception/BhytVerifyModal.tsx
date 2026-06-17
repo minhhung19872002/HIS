@@ -46,11 +46,11 @@ export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> =
       <div style={{ padding: 0 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
-            <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Số thẻ BHYT *</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Số thẻ BHYT *</div>
             <Input value={num} onChange={(e) => setNum(e.target.value)} placeholder="VD: HC4010112345678" onPressEnter={verify} />
           </div>
           <div>
-            <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Họ tên (tùy chọn)</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Họ tên (tùy chọn)</div>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Đối chiếu tên" />
           </div>
         </div>
@@ -74,12 +74,12 @@ export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> =
               <span>Mức hưởng</span><b>{result.paymentRate || 0}%</b>
             </div>
             {result.warnings?.length > 0 && (
-              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--s-warn)' }}>
+              <div style={{ marginTop: 8, fontSize: 'var(--fs-sm)', color: 'var(--s-warn)' }}>
                 {result.warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}
               </div>
             )}
             {result.errorMessage && (
-              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--s-crit)' }}>{result.errorMessage}</div>
+              <div style={{ marginTop: 8, fontSize: 'var(--fs-sm)', color: 'var(--s-crit)' }}>{result.errorMessage}</div>
             )}
           </div>
         )}

@@ -123,7 +123,7 @@ const TrainingResearchV2: React.FC = () => {
     { key: 'name', label: 'Tên lớp', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.className}</div>
-        {r.location && <div style={{ fontSize: 11, color: 'var(--t-2)' }}>📍 {r.location}</div>}
+        {r.location && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>📍 {r.location}</div>}
       </div>
     ) },
     { key: 'type', label: 'Loại', render: (r) => (
@@ -133,7 +133,7 @@ const TrainingResearchV2: React.FC = () => {
     { key: 'date', label: 'Thời gian', mono: true, render: (r) => r.startDate ? (
       <div>
         <div>{dayjs(r.startDate).format('DD/MM/YY')}</div>
-        {r.endDate && <div style={{ fontSize: 10, color: 'var(--t-2)' }}>→ {dayjs(r.endDate).format('DD/MM')}</div>}
+        {r.endDate && <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>→ {dayjs(r.endDate).format('DD/MM')}</div>}
       </div>
     ) : '—' },
     { key: 'enr', label: 'Học viên', mono: true, render: (r) => {
@@ -223,7 +223,7 @@ const TrainingResearchV2: React.FC = () => {
           </DrSec>
           {sel.description && (
             <DrSec title="Mô tả">
-              <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, color: 'var(--t-1)' }}>{sel.description}</div>
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: 'var(--fs-md)', color: 'var(--t-1)' }}>{sel.description}</div>
             </DrSec>
           )}
         </>}
@@ -257,7 +257,7 @@ const TrainingResearchV2: React.FC = () => {
           <div style={{ padding: 32, textAlign: 'center', color: 'var(--t-2)' }}>Chưa có học viên đăng ký</div>
         )}
         {!studentsLoading && students.length > 0 && (
-          <table className="ab-tbl" style={{ width: '100%', fontSize: 12 }}>
+          <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>
             <thead>
               <tr>
                 <th>#</th><th>Tên học viên</th><th>Loại</th>

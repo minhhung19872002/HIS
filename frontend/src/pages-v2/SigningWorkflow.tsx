@@ -91,7 +91,7 @@ const SigningWorkflowV2: React.FC = () => {
         <div>
           <div>{r.assignedToName}</div>
           {r.signerRole && (
-            <div style={{ fontSize: 10, color: 'var(--t-2)' }}>
+            <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>
               {SIGNER_ROLE_OPTIONS.find((o) => o.v === r.signerRole)?.l || r.signerRole}
             </div>
           )}
@@ -181,7 +181,7 @@ const SigningWorkflowV2: React.FC = () => {
               <DrField lbl="Người ký">
                 {detail.assignedToName}
                 {detail.signerRole && (
-                  <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--t-2)' }}>
+                  <span style={{ marginLeft: 6, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                     ({SIGNER_ROLE_OPTIONS.find((o) => o.v === detail.signerRole)?.l || detail.signerRole})
                   </span>
                 )}
@@ -207,7 +207,7 @@ const SigningWorkflowV2: React.FC = () => {
             {detail.documentContent && (
               <DrSec title="Nội dung tài liệu (snapshot lúc trình)">
                 <div
-                  style={{ maxHeight: 420, overflow: 'auto', background: 'var(--d-2)', color: '#111', borderRadius: 6, padding: 10, fontSize: 12 }}
+                  style={{ maxHeight: 420, overflow: 'auto', background: 'var(--d-2)', color: '#111', borderRadius: 6, padding: 10, fontSize: 'var(--fs-sm)' }}
                   // Snapshot HTML do chính PrintTemplateRenderer nội bộ sinh ra (không phải input người dùng tự do)
                   dangerouslySetInnerHTML={{ __html: detail.documentContent }}
                 />

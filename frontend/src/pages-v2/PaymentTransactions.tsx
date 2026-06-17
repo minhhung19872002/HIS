@@ -94,10 +94,10 @@ const PaymentTransactionsV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => r.patientName ? (
       <div>
         <div style={{ fontWeight: 500 }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
       </div>
     ) : '—' },
-    { key: 'order', label: 'Nội dung', render: (r) => <span style={{ fontSize: 12 }}>{r.orderInfo || '—'}</span> },
+    { key: 'order', label: 'Nội dung', render: (r) => <span style={{ fontSize: 'var(--fs-sm)' }}>{r.orderInfo || '—'}</span> },
     { key: 'amt', label: 'Số tiền', mono: true, render: (r) => <b>{fmt(r.amount)}</b> },
     { key: 'bank', label: 'Ngân hàng', mono: true, render: (r) => r.bankCode || '—' },
     { key: 'time', label: 'Thời gian', mono: true, render: (r) => dayjs(r.createdAt).format('DD/MM HH:mm') },
@@ -188,7 +188,7 @@ const PaymentTransactionsV2: React.FC = () => {
         </>}
       >
         {refundOpen && (
-          <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, marginBottom: 12, fontSize: 12 }}>
+          <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, marginBottom: 12, fontSize: 'var(--fs-sm)' }}>
             <div><b>{refundOpen.txnRef}</b> · {refundOpen.provider?.toUpperCase()}</div>
             <div>BN: {refundOpen.patientName || '—'}</div>
             <div style={{ marginTop: 4 }}>

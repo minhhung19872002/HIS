@@ -132,7 +132,7 @@ const RadiologyOpsV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600 }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'svc', label: 'DV CĐHA', render: (r) => r.serviceName },
@@ -174,7 +174,7 @@ const RadiologyOpsV2: React.FC = () => {
       {selected && (
         <>
           <div style={{ padding: 16, background: 'var(--d-1)', border: '1px solid var(--line)', margin: 12, borderRadius: 4 }}>
-            <div style={{ fontSize: 12, color: 'var(--t-2)' }}>Phiếu đang chọn:</div>
+            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Phiếu đang chọn:</div>
             <div style={{ marginTop: 4, fontSize: 14 }}>
               <b style={{ fontFamily: 'var(--font-mono)' }}>{selected.requestCode}</b> ·{' '}
               <b>{selected.patientName}</b> · {selected.serviceName}
@@ -213,7 +213,7 @@ const RadiologyOpsV2: React.FC = () => {
                   <Select showSearch optionFilterProp="label"
                     options={warehouses.map((w) => ({ label: w.warehouseName, value: w.id }))} />
                 </Form.Item>
-                <div style={{ fontSize: 12, color: 'var(--t-2)', margin: '12px 0 6px' }}>Thuốc / vật tư</div>
+                <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', margin: '12px 0 6px' }}>Thuốc / vật tư</div>
                 <Form.List name="items">
                   {(fields, { add, remove }) => (
                     <>

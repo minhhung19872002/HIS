@@ -175,7 +175,7 @@ const WaitingTimeReport: React.FC = () => {
               <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--c-label)' }}>
                 Thời gian chờ trung bình từng khâu (phút)
               </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-md)' }}>
                 <thead>
                   <tr style={{ background: 'var(--c-row-alt)' }}>
                     <th style={{ padding: '6px 12px', textAlign: 'left', border: '1px solid var(--c-border)' }}>Khâu</th>
@@ -223,8 +223,8 @@ const WaitingTimeReport: React.FC = () => {
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={phaseChartData} margin={{ top: 5, right: 16, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--c-border)" />
-                  <XAxis dataKey="phase" style={{ fontSize: 11 }} />
-                  <YAxis style={{ fontSize: 11 }} unit=" ph" />
+                  <XAxis dataKey="phase" style={{ fontSize: 'var(--fs-xs)' }} />
+                  <YAxis style={{ fontSize: 'var(--fs-xs)' }} unit=" ph" />
                   <RechartsTooltip formatter={(v) => [`${Number(v ?? 0).toFixed(1)} phút`]} />
                   <Legend />
                   <Bar dataKey="BHYT"      fill={OBJECT_COLORS.insurance} />
@@ -234,7 +234,7 @@ const WaitingTimeReport: React.FC = () => {
               </ResponsiveContainer>
 
               {/* Ghi chú giả định */}
-              <div style={{ marginTop: 12, fontSize: 11, color: 'var(--c-muted)', lineHeight: 1.6 }}>
+              <div style={{ marginTop: 12, fontSize: 'var(--fs-xs)', color: 'var(--c-muted)', lineHeight: 1.6 }}>
                 * Mốc &quot;Có kết quả CLS&quot; sử dụng UpdatedAt của ServiceRequest khi Status=3.
                 Nếu bản ghi được cập nhật vì lý do khác (sửa giá, hủy...) số liệu có thể lệch.
                 Để chính xác hơn, cần thêm cột CompletedAt vào ServiceRequest.

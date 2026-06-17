@@ -324,7 +324,7 @@ const ReceptionV2: React.FC = () => {
     {
       key: 'bhyt', label: 'BHYT', width: 130,
       render: (r) => hasValidInsurance(r) && r.insuranceNumber
-        ? <span className="chip ok mono" style={{ fontSize: 11 }}>{r.insuranceNumber.slice(0, 10)}…</span>
+        ? <span className="chip ok mono" style={{ fontSize: 'var(--fs-xs)' }}>{r.insuranceNumber.slice(0, 10)}…</span>
         : <span style={{ color: 'var(--t-3)' }}>—</span>,
     },
     {
@@ -515,7 +515,7 @@ const ReceptionV2: React.FC = () => {
         onClose={() => setDetail(null)}
         title={detail
           ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>
+              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>
                 {detail.queueCode || `#${detail.queueNumber}`}
               </span>
               <span style={{ fontSize: 14 }}>{detail.patientName}</span>
@@ -617,7 +617,7 @@ const FingerprintPanel: React.FC<{ patientId?: string }> = ({ patientId }) => {
 
   return (
     <div style={{ marginTop: 14, borderTop: '1px solid var(--line-soft)', paddingTop: 12 }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-1)', marginBottom: 8 }}>
+      <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--t-1)', marginBottom: 8 }}>
         <TermIcon name="user" size={12} /> Vân tay tiếp đón
       </div>
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, marginBottom: 8 }}>
@@ -626,7 +626,7 @@ const FingerprintPanel: React.FC<{ patientId?: string }> = ({ patientId }) => {
       </label>
       {!notCollected && (
         <div style={{ marginBottom: 8 }}>
-          <input type="file" accept="image/*" onChange={(e) => onFile(e.target.files?.[0])} style={{ fontSize: 12 }} />
+          <input type="file" accept="image/*" onChange={(e) => onFile(e.target.files?.[0])} style={{ fontSize: 'var(--fs-sm)' }} />
           {fpName && <span style={{ fontSize: 11.5, color: 'var(--t-2)', marginLeft: 8 }}>{fpName}</span>}
         </div>
       )}

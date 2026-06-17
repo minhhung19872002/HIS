@@ -91,7 +91,7 @@ const MicrobiologyV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode}</div>
       </div>
     ) },
     { key: 'sample', label: 'Loại mẫu', render: (r) => r.sampleType },
@@ -199,12 +199,12 @@ const MicrobiologyV2: React.FC = () => {
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <b style={{ color: 'var(--t-0)' }}>{o.organismName}</b>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t-2)' }}>{o.organismCode}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{o.organismCode}</span>
                   </div>
-                  {o.colonyCount && <div style={{ fontSize: 12, color: 'var(--t-1)' }}>Khuẩn lạc: {o.colonyCount}</div>}
-                  {o.gramStain && <div style={{ fontSize: 12, color: 'var(--t-1)' }}>Gram: {o.gramStain}</div>}
+                  {o.colonyCount && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>Khuẩn lạc: {o.colonyCount}</div>}
+                  {o.gramStain && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>Gram: {o.gramStain}</div>}
                   {o.antibiogram && o.antibiogram.length > 0 && (
-                    <div style={{ marginTop: 6, fontSize: 11, color: 'var(--t-2)' }}>
+                    <div style={{ marginTop: 6, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                       Antibiogram: {o.antibiogram.length} kháng sinh
                     </div>
                   )}
@@ -214,7 +214,7 @@ const MicrobiologyV2: React.FC = () => {
           )}
           {sel.notes && (
             <DrSec title="Ghi chú">
-              <div style={{ fontSize: 13, color: 'var(--t-1)' }}>{sel.notes}</div>
+              <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)' }}>{sel.notes}</div>
             </DrSec>
           )}
         </>}
@@ -316,7 +316,7 @@ const CreateCultureModal: React.FC<{ onClose: () => void; onDone: () => void }> 
         <Fld lbl="Ghi chú">
           <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Fld>
-        {err && <div style={{ color: 'var(--s-crit)', fontSize: 12 }}>{err}</div>}
+        {err && <div style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-sm)' }}>{err}</div>}
       </div>
     </ModalShell>
   );

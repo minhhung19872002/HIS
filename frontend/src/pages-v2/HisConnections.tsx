@@ -171,7 +171,7 @@ const MissingFormsModal: React.FC<MissingFormsModalProps> = ({ open, onClose }) 
     >
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 16 }}>
         <div>
-          <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 4 }}>Từ ngày</div>
+          <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>Từ ngày</div>
           <input
             type="date"
             value={fromDate}
@@ -180,7 +180,7 @@ const MissingFormsModal: React.FC<MissingFormsModalProps> = ({ open, onClose }) 
           />
         </div>
         <div>
-          <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 4 }}>Đến ngày</div>
+          <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>Đến ngày</div>
           <input
             type="date"
             value={toDate}
@@ -189,7 +189,7 @@ const MissingFormsModal: React.FC<MissingFormsModalProps> = ({ open, onClose }) 
           />
         </div>
         <div>
-          <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 4 }}>Loại đợt</div>
+          <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)', marginBottom: 4 }}>Loại đợt</div>
           <Select
             value={encType}
             onChange={setEncType}
@@ -219,7 +219,7 @@ const MissingFormsModal: React.FC<MissingFormsModalProps> = ({ open, onClose }) 
           {result.items.length === 0 ? (
             <Alert title="Không có đợt nào thiếu tờ phiếu bắt buộc" type="success" showIcon />
           ) : (
-            <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', fontSize: 'var(--fs-md)', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--bg-2)', color: 'var(--t-2)', textAlign: 'left' }}>
                   <th style={{ padding: '6px 8px' }}>Loại</th>
@@ -239,7 +239,7 @@ const MissingFormsModal: React.FC<MissingFormsModalProps> = ({ open, onClose }) 
                     </td>
                     <td style={{ padding: '5px 8px', fontFamily: 'monospace' }}>{item.patientCode || '—'}</td>
                     <td style={{ padding: '5px 8px' }}>{item.patientName || '—'}</td>
-                    <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontSize: 12 }}>
+                    <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontSize: 'var(--fs-sm)' }}>
                       {item.encounterDate ? dayjs(item.encounterDate).format('DD/MM/YYYY') : '—'}
                     </td>
                     <td style={{ padding: '5px 8px', color: 'var(--s-crit)' }}>
@@ -251,7 +251,7 @@ const MissingFormsModal: React.FC<MissingFormsModalProps> = ({ open, onClose }) 
             </table>
           )}
 
-          <div style={{ fontSize: 11, color: 'var(--t-3)', marginTop: 8 }}>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-3)', marginTop: 8 }}>
             Rule: {result.ruleDescription}
           </div>
         </>
@@ -312,7 +312,7 @@ const HisConnectionsPage: React.FC = () => {
     {
       key: 'baseUrl', label: 'Base URL', mono: true,
       render: (c) => (
-        <span style={{ fontSize: 12, maxWidth: 220, display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 'var(--fs-sm)', maxWidth: 220, display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {c.baseUrl}
         </span>
       ),
@@ -410,7 +410,7 @@ const HisConnectionsPage: React.FC = () => {
               <DrField lbl="Tên">{c.name}</DrField>
               <DrField lbl="NCC">{c.provider || '—'}</DrField>
               <DrField lbl="Base URL">
-                <span style={{ fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all' }}>
+                <span style={{ fontFamily: 'monospace', fontSize: 'var(--fs-sm)', wordBreak: 'break-all' }}>
                   {c.baseUrl}
                 </span>
               </DrField>

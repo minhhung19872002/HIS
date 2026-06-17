@@ -47,7 +47,7 @@ const fmtDate = (iso?: string) =>
 
 const IpFld: React.FC<{ label: string; full?: boolean; children: React.ReactNode }> = ({ label, full, children }) => (
   <div style={{ gridColumn: full ? '1 / -1' : undefined }}>
-    <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>
+    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>{label}</div>
     {children}
   </div>
 );
@@ -146,7 +146,7 @@ const EnterResultModal: React.FC<{
     >
       <div style={{ padding: 16 }}>
         {/* Order header */}
-        <div style={{ marginBottom: 12, fontSize: 12, color: 'var(--t-2)' }}>
+        <div style={{ marginBottom: 12, fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
           <span>BS chỉ định: <b style={{ color: 'var(--t-1)' }}>{order.orderDoctorName || '—'}</b></span>
           {order.diagnosis && (
             <span style={{ marginLeft: 16 }}>CĐ: <b style={{ color: 'var(--t-1)' }}>{order.icdCode ? `${order.icdCode} - ` : ''}{order.diagnosis}</b></span>
@@ -168,14 +168,14 @@ const EnterResultModal: React.FC<{
             >
               {/* Test header row */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t-1)' }}>{test.testName}</span>
-                <span style={{ fontSize: 11, color: 'var(--t-2)' }}>{test.testCode}</span>
+                <span style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--t-1)' }}>{test.testName}</span>
+                <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{test.testCode}</span>
                 {test.referenceRange && (
-                  <span style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                     Tham chiếu: {test.referenceRange} {test.unit}
                   </span>
                 )}
-                <Tag color={STATUS_COLOR[test.status] ?? 'default'} style={{ marginLeft: 'auto', fontSize: 10 }}>
+                <Tag color={STATUS_COLOR[test.status] ?? 'default'} style={{ marginLeft: 'auto', fontSize: 'var(--fs-xxs)' }}>
                   {test.statusName}
                 </Tag>
               </div>
@@ -194,7 +194,7 @@ const EnterResultModal: React.FC<{
                     }}
                   />
                 </IpFld>
-                <div style={{ paddingTop: 20, fontSize: 11, color: 'var(--t-2)', textAlign: 'center' }}>
+                <div style={{ paddingTop: 20, fontSize: 'var(--fs-xs)', color: 'var(--t-2)', textAlign: 'center' }}>
                   {test.unit || ''}
                 </div>
                 <IpFld label="Ghi chú (bung viết tắt: gõ + space)">
@@ -214,7 +214,7 @@ const EnterResultModal: React.FC<{
           ))}
 
           {order.tests.length === 0 && (
-            <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)', fontSize: 12 }}>
+            <div style={{ padding: 24, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
               Phiếu XN không có chỉ số nào.
             </div>
           )}
@@ -436,7 +436,7 @@ const BedLabResultSection: React.FC<BedLabResultSectionProps> = ({ admissionId }
       )}
 
       {!loading && orders.length === 0 && (
-        <div style={{ padding: 12, textAlign: 'center', color: 'var(--t-2)', fontSize: 12, border: '1px dashed var(--line-soft)', borderRadius: 6 }}>
+        <div style={{ padding: 12, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', border: '1px dashed var(--line-soft)', borderRadius: 6 }}>
           Chưa có phiếu XN nào trong lượt nhập viện này.
         </div>
       )}
@@ -455,24 +455,24 @@ const BedLabResultSection: React.FC<BedLabResultSectionProps> = ({ admissionId }
             >
               {/* Order header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t-1)' }}>
+                <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--t-1)' }}>
                   <TermIcon name="file-text" size={11} /> {order.orderCode}
                 </span>
-                <Tag color={STATUS_COLOR[order.status] ?? 'default'} style={{ fontSize: 10 }}>
+                <Tag color={STATUS_COLOR[order.status] ?? 'default'} style={{ fontSize: 'var(--fs-xxs)' }}>
                   {order.statusName}
                 </Tag>
-                <span style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                   {order.orderDoctorName || '—'} · {fmtDate(order.orderedAt)}
                 </span>
                 {order.approvedAt && (
-                  <span style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                     · Duyệt: {fmtDate(order.approvedAt)}
                   </span>
                 )}
               </div>
 
               {/* Test items summary */}
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 8 }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 8 }}>
                 {order.tests.map((t) => (
                   <span
                     key={t.id}
@@ -518,7 +518,7 @@ const BedLabResultSection: React.FC<BedLabResultSectionProps> = ({ admissionId }
                 >
                   <TermIcon name="printer" size={11} />
                   {printing === order.id ? ' Dang in...' : ' In KQ'}
-                  {!canPrint(order) && <span style={{ fontSize: 10, marginLeft: 4 }}>(can duyet)</span>}
+                  {!canPrint(order) && <span style={{ fontSize: 'var(--fs-xxs)', marginLeft: 4 }}>(can duyet)</span>}
                 </Btn>
               </div>
             </div>

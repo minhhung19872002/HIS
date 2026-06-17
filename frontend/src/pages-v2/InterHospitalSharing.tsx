@@ -113,7 +113,7 @@ const InterHospitalSharingV2: React.FC = () => {
     { key: 'subj', label: 'Chủ đề', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.subject}</div>
-        {r.patientName && <div style={{ fontSize: 11, color: 'var(--t-2)' }}>BN: {r.patientName}</div>}
+        {r.patientName && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>BN: {r.patientName}</div>}
       </div>
     ) },
     { key: 'hosp', label: 'BV đối tác', render: (r) => r.direction === 'incoming' ? r.requestingHospital : r.respondingHospital },
@@ -229,7 +229,7 @@ const InterHospitalSharingV2: React.FC = () => {
             <DrField lbl="Chiều">{sel.direction === 'incoming' ? '← Đi vào' : '→ Đi ra'}</DrField>
             <DrField lbl="Chủ đề">{sel.subject}</DrField>
             <DrField lbl="Chi tiết">
-              <div style={{ whiteSpace: 'pre-wrap', fontSize: 13 }}>{sel.details}</div>
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: 'var(--fs-md)' }}>{sel.details}</div>
             </DrField>
             <DrField lbl="Ưu tiên">
               <StatusBadge tone={URGENCY_TONE[sel.urgency] || 'info'} dot>{URGENCY_LABEL[sel.urgency] || sel.urgency}</StatusBadge>

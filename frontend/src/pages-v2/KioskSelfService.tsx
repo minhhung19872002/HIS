@@ -64,7 +64,7 @@ const TicketResult: React.FC<TicketResultProps> = ({ result, onClose }) => {
         {ticket.ticketNumber}
       </div>
 
-      <div style={{ fontSize: 20, color: '#555', marginBottom: 4 }}>
+      <div style={{ fontSize: 'var(--fs-xl)', color: '#555', marginBottom: 4 }}>
         {ticket.departmentName || 'Tiếp đón chung'}
         {ticket.roomName && <> — {ticket.roomName}</>}
       </div>
@@ -91,7 +91,7 @@ const TicketResult: React.FC<TicketResultProps> = ({ result, onClose }) => {
         </div>
       )}
 
-      <div style={{ fontSize: 13, color: '#aaa', marginBottom: 20 }}>
+      <div style={{ fontSize: 'var(--fs-md)', color: '#aaa', marginBottom: 20 }}>
         Phát lúc {new Date(ticket.issuedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
       </div>
 
@@ -110,7 +110,7 @@ const TicketResult: React.FC<TicketResultProps> = ({ result, onClose }) => {
               errorLevel="M"
             />
           </div>
-          <div style={{ fontSize: 13, color: '#aaa' }}>
+          <div style={{ fontSize: 'var(--fs-md)', color: '#aaa' }}>
             Quét mã để thanh toán tại quầy hoặc qua app ngân hàng
           </div>
         </>
@@ -332,7 +332,7 @@ const KioskSelfService: React.FC = () => {
             >CHECKIN</Btn>
           </div>
 
-          <div style={{ marginTop: 16, textAlign: 'center', color: '#aaa', fontSize: 13 }}>
+          <div style={{ marginTop: 16, textAlign: 'center', color: '#aaa', fontSize: 'var(--fs-md)' }}>
             Nếu không có thẻ, hãy chuyển sang tab <strong>Lấy số thứ tự</strong>
           </div>
         </div>

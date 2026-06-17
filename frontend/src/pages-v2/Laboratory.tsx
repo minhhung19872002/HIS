@@ -459,7 +459,7 @@ const LaboratoryV2: React.FC = () => {
         }}>
           <TermIcon name="user" size={12} /> Vai trò
           {labRoles.defaultKtvName && (
-            <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--t-2)' }}>
+            <span style={{ marginLeft: 4, fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>
               {labRoles.defaultKtvName.split(' ').slice(-1)[0]}
             </span>
           )}
@@ -521,7 +521,7 @@ const LaboratoryV2: React.FC = () => {
         onClose={() => setDetail(null)}
         title={detail
           ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{detail.requestCode}</span>
+              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detail.requestCode}</span>
               <span style={{ fontSize: 14 }}>{detail.patientName}</span>
             </span>
           : ''}
@@ -585,14 +585,14 @@ const LaboratoryV2: React.FC = () => {
             {/* ── Filter chung ── */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontSize: 10, color: 'var(--t-2)', marginBottom: 2 }}>Tháng/Năm HSD</div>
+                <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', marginBottom: 2 }}>Tháng/Năm HSD</div>
                 <input
                   type="month"
                   value={utilFilterMonth}
                   onChange={(e) => setUtilFilterMonth(e.target.value)}
                   style={{
                     padding: '4px 8px', border: '1px solid var(--line)', borderRadius: 4,
-                    fontSize: 12, background: 'var(--d-1)', color: 'inherit',
+                    fontSize: 'var(--fs-sm)', background: 'var(--d-1)', color: 'inherit',
                   }}
                 />
               </div>
@@ -600,7 +600,7 @@ const LaboratoryV2: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'flex-end' }}>
                   <button
                     onClick={() => setUtilFilterMonth('')}
-                    style={{ padding: '4px 8px', fontSize: 11, cursor: 'pointer',
+                    style={{ padding: '4px 8px', fontSize: 'var(--fs-xs)', cursor: 'pointer',
                       border: '1px solid var(--line)', borderRadius: 4, background: 'var(--d-0)', color: 'var(--t-2)' }}
                   >
                     Xóa lọc
@@ -613,14 +613,14 @@ const LaboratoryV2: React.FC = () => {
             <div className="rec-section">
               <h5><TermIcon name="package" size={11} /> TỒN TỦ TRỰC (Kho hóa chất nội bộ khoa)</h5>
               {applyUtilFilters(utilCabinetStock).length === 0 ? (
-                <div style={{ color: 'var(--t-3)', fontSize: 12, padding: '8px 0' }}>
+                <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)', padding: '8px 0' }}>
                   {utilCabinetStock.length === 0 ? 'Không có dữ liệu tủ trực' : 'Không có mục nào khớp filter'}
                 </div>
               ) : (
                 <div style={{ display: 'grid', gap: 4 }}>
                   <div style={{
                     display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr',
-                    fontSize: 10, color: 'var(--t-2)', textTransform: 'uppercase',
+                    fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', textTransform: 'uppercase',
                     fontWeight: 600, padding: '4px 0', borderBottom: '1px solid var(--line-soft)',
                   }}>
                     <span>Tên hóa chất / Kho</span>
@@ -636,7 +636,7 @@ const LaboratoryV2: React.FC = () => {
                     }}>
                       <div>
                         <div style={{ fontWeight: 500 }}>{s.itemName}</div>
-                        <div style={{ fontSize: 10, color: 'var(--t-2)' }}>{s.warehouseName}</div>
+                        <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{s.warehouseName}</div>
                       </div>
                       <span className="mono" style={{ textAlign: 'right' }}>{s.quantity} {s.unit}</span>
                       <span className="mono" style={{
@@ -646,10 +646,10 @@ const LaboratoryV2: React.FC = () => {
                       }}>
                         {s.availableQuantity}
                       </span>
-                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? 'var(--s-warn)' : 'var(--t-2)' }}>
+                      <span style={{ fontSize: 'var(--fs-xs)', color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? 'var(--s-warn)' : 'var(--t-2)' }}>
                         {s.expiryDate ? dayjs(s.expiryDate).format('MM/YYYY') : '—'}
                         {s.daysToExpiry !== undefined && s.daysToExpiry < 30 && (
-                          <span style={{ marginLeft: 4, color: 'var(--s-crit)', fontSize: 10 }}>({s.daysToExpiry}d)</span>
+                          <span style={{ marginLeft: 4, color: 'var(--s-crit)', fontSize: 'var(--fs-xxs)' }}>({s.daysToExpiry}d)</span>
                         )}
                       </span>
                     </div>
@@ -662,14 +662,14 @@ const LaboratoryV2: React.FC = () => {
             <div className="rec-section" style={{ marginTop: 16 }}>
               <h5><TermIcon name="flask" size={11} /> TỒN KHO HÓA CHẤT (Kho XN — không kể tủ trực)</h5>
               {applyUtilFilters(utilChemStock).length === 0 ? (
-                <div style={{ color: 'var(--t-3)', fontSize: 12, padding: '8px 0' }}>
+                <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)', padding: '8px 0' }}>
                   {utilChemStock.length === 0 ? 'Không có dữ liệu tồn kho hóa chất' : 'Không có mục nào khớp filter'}
                 </div>
               ) : (
                 <div style={{ display: 'grid', gap: 4 }}>
                   <div style={{
                     display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr',
-                    fontSize: 10, color: 'var(--t-2)', textTransform: 'uppercase',
+                    fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', textTransform: 'uppercase',
                     fontWeight: 600, padding: '4px 0', borderBottom: '1px solid var(--line-soft)',
                   }}>
                     <span>Tên hóa chất / Kho</span>
@@ -685,7 +685,7 @@ const LaboratoryV2: React.FC = () => {
                     }}>
                       <div>
                         <div style={{ fontWeight: 500 }}>{s.itemName}</div>
-                        <div style={{ fontSize: 10, color: 'var(--t-2)' }}>{s.warehouseName}</div>
+                        <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{s.warehouseName}</div>
                       </div>
                       <span className="mono" style={{ textAlign: 'right' }}>{s.quantity} {s.unit}</span>
                       <span className="mono" style={{
@@ -695,10 +695,10 @@ const LaboratoryV2: React.FC = () => {
                       }}>
                         {s.availableQuantity}
                       </span>
-                      <span style={{ fontSize: 11, color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? 'var(--s-warn)' : 'var(--t-2)' }}>
+                      <span style={{ fontSize: 'var(--fs-xs)', color: s.daysToExpiry !== undefined && s.daysToExpiry < 30 ? 'var(--s-warn)' : 'var(--t-2)' }}>
                         {s.expiryDate ? dayjs(s.expiryDate).format('MM/YYYY') : '—'}
                         {s.daysToExpiry !== undefined && s.daysToExpiry < 30 && (
-                          <span style={{ marginLeft: 4, color: 'var(--s-crit)', fontSize: 10 }}>({s.daysToExpiry}d)</span>
+                          <span style={{ marginLeft: 4, color: 'var(--s-crit)', fontSize: 'var(--fs-xxs)' }}>({s.daysToExpiry}d)</span>
                         )}
                       </span>
                     </div>
@@ -711,12 +711,12 @@ const LaboratoryV2: React.FC = () => {
             <div className="rec-section" style={{ marginTop: 16 }}>
               <h5><TermIcon name="activity" size={11} /> ĐỊNH MỨC HÓA CHẤT THEO XN (LIS Catalog)</h5>
               {utilChemicals.length === 0 ? (
-                <div style={{ color: 'var(--t-3)', fontSize: 12, padding: '8px 0' }}>Chưa khai báo định mức hóa chất</div>
+                <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)', padding: '8px 0' }}>Chưa khai báo định mức hóa chất</div>
               ) : (
                 <div style={{ display: 'grid', gap: 4 }}>
                   <div style={{
                     display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr',
-                    fontSize: 10, color: 'var(--t-2)', textTransform: 'uppercase',
+                    fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', textTransform: 'uppercase',
                     fontWeight: 600, padding: '4px 0', borderBottom: '1px solid var(--line-soft)',
                   }}>
                     <span>Dịch vụ XN</span>
@@ -733,11 +733,11 @@ const LaboratoryV2: React.FC = () => {
                       <span>{c.serviceName || '—'}</span>
                       <span>
                         <span style={{ fontWeight: 500 }}>{c.supplyName || '—'}</span>
-                        {c.supplyCode && <span style={{ fontSize: 10, color: 'var(--t-2)', marginLeft: 4 }}>({c.supplyCode})</span>}
+                        {c.supplyCode && <span style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', marginLeft: 4 }}>({c.supplyCode})</span>}
                       </span>
                       <span className="mono" style={{ textAlign: 'right' }}>{c.quantityPerTest} {c.unit || ''}</span>
                       <span style={{
-                        fontSize: 11,
+                        fontSize: 'var(--fs-xs)',
                         color: c.objectType === 'ThuPhi' ? 'var(--s-warn)' : 'var(--t-2)',
                       }}>
                         {c.objectType === 'ThuPhi' ? 'Thu phí' : 'Hao phí'}
@@ -781,7 +781,7 @@ const LaboratoryV2: React.FC = () => {
       >
         <div style={{ display: 'grid', gap: 14 }}>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>
               Tên KTV mặc định (auto-fill khi nhận mẫu)
             </label>
             <input
@@ -793,7 +793,7 @@ const LaboratoryV2: React.FC = () => {
             />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>
               Tên Người duyệt mặc định (auto-fill khi duyệt chính thức)
             </label>
             <input
@@ -829,7 +829,7 @@ const LaboratoryV2: React.FC = () => {
       >
         <div style={{ display: 'grid', gap: 10 }}>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 6 }}>Mức hủy (áp cho mọi chỉ số của phiếu, chạy tuần tự theo bước)</label>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 6 }}>Mức hủy (áp cho mọi chỉ số của phiếu, chạy tuần tự theo bước)</label>
             {([
               { v: 1 as const, l: 'Hủy duyệt kết quả', d: 'Đã duyệt → Đã có KQ' },
               { v: 2 as const, l: 'Hủy KQ + hủy nhận mẫu', d: 'Đã có KQ / Đang xử lý → Đã lấy mẫu (xóa kết quả)' },
@@ -838,14 +838,14 @@ const LaboratoryV2: React.FC = () => {
               <label key={o.v} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 6, marginBottom: 4, cursor: 'pointer', background: chainLevel === o.v ? 'var(--d-1)' : 'transparent' }}>
                 <input type="radio" name="chain-level" checked={chainLevel === o.v} onChange={() => setChainLevel(o.v)} style={{ marginTop: 2 }} />
                 <span>
-                  <b style={{ fontSize: 12 }}>{o.l}</b>
-                  <span style={{ display: 'block', fontSize: 11, color: 'var(--t-2)' }}>{o.d}</span>
+                  <b style={{ fontSize: 'var(--fs-sm)' }}>{o.l}</b>
+                  <span style={{ display: 'block', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{o.d}</span>
                 </span>
               </label>
             ))}
           </div>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do hủy <span style={{ color: 'var(--s-err)' }}>*</span></label>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Lý do hủy <span style={{ color: 'var(--s-err)' }}>*</span></label>
             <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={chainReason} onChange={(e) => setChainReason(e.target.value)} placeholder="Bắt buộc — ghi vào ghi chú KTV của từng chỉ số…" />
           </div>
           {chainLevel >= 2 && (
@@ -871,7 +871,7 @@ const LabDrawerBody: React.FC<{ r: LabRequest }> = ({ r }) => {
         <h5><TermIcon name="check" size={11} /> TRẠNG THÁI</h5>
         <div className={`rec-status-banner ${tone}`}>
           <StatusBadge tone={tone} dot>{lbl}</StatusBadge>
-          <span style={{ fontSize: 11, color: 'var(--t-2)' }}>
+          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
             Ưu tiên&nbsp;
             <span className={`chip ${PRIO_TONE[r.priority] || 'info'}`}>{PRIO_LABEL[r.priority] || 'ROUTINE'}</span>
           </span>
@@ -933,14 +933,14 @@ const LabDrawerBody: React.FC<{ r: LabRequest }> = ({ r }) => {
                     {hasParams ? '' : (t.result || '—')}
                     {!hasParams && t.unit && <small style={{ marginLeft: 3, color: 'var(--t-2)', fontWeight: 400 }}>{t.unit}</small>}
                   </span>
-                  <span className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>
+                  <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
                     {!hasParams && (t.referenceRange || (t.normalMin !== undefined && t.normalMax !== undefined ? `${t.normalMin}–${t.normalMax}` : '—'))}
                   </span>
                   <span style={{ textAlign: 'center' }}>
                     {!hasParams && flag && (
                       <span style={{
                         padding: '1px 6px', borderRadius: 3,
-                        background: topColor, color: '#fff', fontSize: 10, fontWeight: 700,
+                        background: topColor, color: '#fff', fontSize: 'var(--fs-xxs)', fontWeight: 700,
                       }}>{flag}</span>
                     )}
                   </span>
@@ -963,19 +963,19 @@ const LabDrawerBody: React.FC<{ r: LabRequest }> = ({ r }) => {
                         <div key={pi} style={{
                           display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 50px',
                           padding: '5px 0', borderBottom: '1px solid var(--line-soft)',
-                          fontSize: 12, alignItems: 'center',
+                          fontSize: 'var(--fs-sm)', alignItems: 'center',
                         }}>
                           <span style={{ color: 'var(--t-1)' }}>{p.parameterName || p.parameterCode}</span>
                           <span className="mono" style={{ textAlign: 'right', color: pColor, fontWeight: pFlag && pFlag !== 'N' ? 700 : 400 }}>
                             {p.value ?? '—'}
                             {p.unit && <small style={{ marginLeft: 3, color: 'var(--t-2)', fontWeight: 400 }}>{p.unit}</small>}
                           </span>
-                          <span className="mono" style={{ fontSize: 11, color: 'var(--t-2)' }}>{pRef}</span>
+                          <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{pRef}</span>
                           <span style={{ textAlign: 'center' }}>
                             {pFlag && pFlag !== 'N' && (
                               <span style={{
                                 padding: '1px 5px', borderRadius: 3,
-                                background: pColor, color: '#fff', fontSize: 10, fontWeight: 700,
+                                background: pColor, color: '#fff', fontSize: 'var(--fs-xxs)', fontWeight: 700,
                               }}>{pFlag}</span>
                             )}
                           </span>

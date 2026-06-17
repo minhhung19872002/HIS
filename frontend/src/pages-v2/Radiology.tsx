@@ -84,7 +84,7 @@ const FormRow: React.FC<{ label: string; extra?: React.ReactNode; children: Reac
   <div>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, minHeight: 18 }}>
       <span style={{
-        fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
+        fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase',
         letterSpacing: '0.05em', color: 'var(--t-2)',
       }}>{label}</span>
       {extra}
@@ -794,7 +794,7 @@ const RadiologyV2: React.FC = () => {
           <span style={{
             display: 'inline-block', padding: '2px 8px',
             background: m.color, color: '#fff', borderRadius: 3,
-            fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--fs-xs)', fontWeight: 700, fontFamily: 'var(--font-mono)',
           }}>{m.v}</span>
         );
       },
@@ -985,7 +985,7 @@ const RadiologyV2: React.FC = () => {
         <span className="spacer" />
         {bulkSelected.length > 0 && (
           <>
-            <span style={{ fontSize: 12, color: 'var(--t-2)' }}>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
               {bulkSelected.length} đã chọn
             </span>
             <Btn variant="ghost" onClick={() => void onBulkApprove()} loading={bulkApproving} disabled={bulkPrinting || bulkDownloading}>
@@ -1078,7 +1078,7 @@ const RadiologyV2: React.FC = () => {
         onClose={() => setDetail(null)}
         title={detail
           ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{detail.orderCode}</span>
+              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detail.orderCode}</span>
               <span style={{ fontSize: 14 }}>{detail.patientName}</span>
             </span>
           : ''}
@@ -1315,9 +1315,9 @@ const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) => {
       )}
 
       {/* Danh sach dong doc */}
-      {loading && <div style={{ color: 'var(--t-3)', fontSize: 12 }}>Dang tai...</div>}
+      {loading && <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Dang tai...</div>}
       {!loading && readers.length === 0 && (
-        <div style={{ color: 'var(--t-3)', fontSize: 12 }}>Chua co BS dong doc nao.</div>
+        <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Chua co BS dong doc nao.</div>
       )}
       {readers.map(cr => (
         <div key={cr.id} style={{
@@ -1365,7 +1365,7 @@ const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) => {
           )}
 
           {cr.copiedFromReportId && (
-            <div style={{ marginTop: 3, fontSize: 11, color: 'var(--t-3)' }}>
+            <div style={{ marginTop: 3, fontSize: 'var(--fs-xs)', color: 'var(--t-3)' }}>
               Copy tu report: <span className="mono">{cr.copiedFromReportId.slice(0, 8)}...</span>
             </div>
           )}
@@ -1389,7 +1389,7 @@ const RadiologyDrawerBody: React.FC<{ r: RadiologyOrderDto; result: RadiologyRes
           <StatusBadge tone={tone} dot>{lbl}</StatusBadge>
           <span style={{
             padding: '2px 8px', background: m.color, color: '#fff',
-            borderRadius: 3, fontSize: 11, fontWeight: 700,
+            borderRadius: 3, fontSize: 'var(--fs-xs)', fontWeight: 700,
             fontFamily: 'var(--font-mono)',
           }}>{m.v}</span>
         </div>
@@ -1416,7 +1416,7 @@ const RadiologyDrawerBody: React.FC<{ r: RadiologyOrderDto; result: RadiologyRes
           }}>
             <div>
               <b style={{ color: 'var(--t-0)' }}>{it.serviceName}</b>
-              <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>
                 <span className="mono">{it.serviceCode}</span>
                 {it.startTime && <> · Bắt đầu {fmtHM(it.startTime)}</>}
                 {it.endTime && <> · Xong {fmtHM(it.endTime)}</>}
@@ -1437,7 +1437,7 @@ const RadiologyDrawerBody: React.FC<{ r: RadiologyOrderDto; result: RadiologyRes
           <div style={{
             padding: 14, background: 'var(--d-1)',
             border: '1px solid var(--line)', borderRadius: 6,
-            fontSize: 13, lineHeight: 1.6, color: 'var(--t-1)',
+            fontSize: 'var(--fs-md)', lineHeight: 1.6, color: 'var(--t-1)',
             whiteSpace: 'pre-wrap',
           }}>
             {result.description && (<><b>Mô tả:</b> {result.description}<br /><br /></>)}
@@ -1445,7 +1445,7 @@ const RadiologyDrawerBody: React.FC<{ r: RadiologyOrderDto; result: RadiologyRes
             {!result.description && !result.conclusion && <span style={{ color: 'var(--t-3)' }}>Chưa có nội dung báo cáo</span>}
           </div>
           {result.approvedBy && (
-            <div style={{ marginTop: 8, fontSize: 11, color: 'var(--t-2)' }}>
+            <div style={{ marginTop: 8, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
               {result.approvedBy} · {fmtDT(result.approvedTime)}
             </div>
           )}

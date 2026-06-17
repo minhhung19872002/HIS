@@ -214,7 +214,7 @@ const ConsultationV2: React.FC = () => {
         onClose={() => setDetail(null)}
         title={detail
           ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 13 }}>{detail.sessionCode}</span>
+              <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{detail.sessionCode}</span>
               <span style={{ fontSize: 14 }}>{detail.title}</span>
             </span>
           : ''}
@@ -252,7 +252,7 @@ const ConsultationDrawerBody: React.FC<{ r: ConsultationSessionDto }> = ({ r }) 
         <h5><TermIcon name="check" size={11} /> TRẠNG THÁI</h5>
         <div className={`rec-status-banner ${tone}`}>
           <StatusBadge tone={tone} dot>{lbl}</StatusBadge>
-          <span style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.caseCount || 0} ca · {r.participants?.length || 0} thành viên</span>
+          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.caseCount || 0} ca · {r.participants?.length || 0} thành viên</span>
         </div>
       </div>
 

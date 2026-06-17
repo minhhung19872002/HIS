@@ -305,14 +305,14 @@ const AdrReportsV2: React.FC = () => {
               padding: '14px 18px',
             }}
           >
-            <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 6 }}>{item.label}</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 6 }}>{item.label}</div>
             <div style={{ fontSize: 28, fontWeight: 700, color: item.color }}>{item.val}</div>
           </div>
         ))}
       </div>
 
       {summary && (
-        <div style={{ fontSize: 12, color: 'var(--t-3)' }}>
+        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-3)' }}>
           Khoảng thời gian:{' '}
           {summary.fromDate ? fmtDate(summary.fromDate) : 'Tất cả'} –{' '}
           {summary.toDate   ? fmtDate(summary.toDate)   : 'Tất cả'}
@@ -567,7 +567,7 @@ const AdrReportsV2: React.FC = () => {
             {edit.id && (
               <DrSec title="Thông tin hệ thống">
                 <DrField lbl="ID phiếu">
-                  <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--t-3)' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: 'var(--fs-xs)', color: 'var(--t-3)' }}>
                     {edit.id}
                   </span>
                 </DrField>

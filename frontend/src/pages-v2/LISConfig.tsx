@@ -119,14 +119,14 @@ const LISConfigV2: React.FC = () => {
     { key: 'name', label: 'Máy XN', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.name}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.manufacturer}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.manufacturer}</div>
       </div>
     ) },
     { key: 'model', label: 'Model', code: true, render: (r) => r.model },
     { key: 'proto', label: 'Protocol', render: (r) => (
       <div>
         <StatusBadge tone="info">{r.connectionType}</StatusBadge>
-        {r.protocolVersion && <div style={{ fontSize: 11, color: 'var(--t-2)', marginTop: 2 }}>v{r.protocolVersion}</div>}
+        {r.protocolVersion && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>v{r.protocolVersion}</div>}
       </div>
     ) },
     { key: 'addr', label: 'Địa chỉ', mono: true, render: (r) =>

@@ -140,7 +140,7 @@ const StoreSampleModal: React.FC<{
           <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)', marginBottom: 4 }}>Ghi chú</div>
           <Input.TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
-        {err && <div style={{ color: 'var(--s-crit)', fontSize: 12 }}>{err}</div>}
+        {err && <div style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-sm)' }}>{err}</div>}
       </div>
     </ModalShell>
   );
@@ -189,7 +189,7 @@ const ScanModal: React.FC<{
           placeholder="Quét hoặc nhập barcode mẫu"
           autoFocus
         />
-        {err && <div style={{ color: 'var(--s-crit)', fontSize: 12 }}>{err}</div>}
+        {err && <div style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-sm)' }}>{err}</div>}
       </div>
     </ModalShell>
   );
@@ -249,7 +249,7 @@ const SampleStorageV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => r.patientName ? (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode}</div>
       </div>
     ) : '—' },
     { key: 'type', label: 'Loại mẫu', render: (r) => r.sampleType },
@@ -257,7 +257,7 @@ const SampleStorageV2: React.FC = () => {
     { key: 'loc', label: 'Vị trí', code: true, render: (r) => r.storageLocation },
     { key: 'cond', label: 'Bảo quản', render: (r) => (
       <span>{r.storageCondition}
-        {r.temperature !== undefined && <span style={{ color: 'var(--t-2)', fontSize: 11 }}> ({r.temperature}°C)</span>}
+        {r.temperature !== undefined && <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}> ({r.temperature}°C)</span>}
       </span>
     ) },
     { key: 'stored', label: 'Lưu lúc', mono: true, render: (r) => dayjs(r.storedAt).format('DD/MM HH:mm') },

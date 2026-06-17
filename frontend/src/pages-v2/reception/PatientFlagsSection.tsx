@@ -143,7 +143,7 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
             >
               <span
                 style={{
-                  fontSize: 11, fontWeight: 700, color: FLAG_COLOR_HEX[f.color] || 'var(--s-crit)',
+                  fontSize: 'var(--fs-xs)', fontWeight: 700, color: FLAG_COLOR_HEX[f.color] || 'var(--s-crit)',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -189,7 +189,7 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Loại cảnh báo</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Loại cảnh báo</div>
             <Select
               style={{ width: '100%' }}
               value={form.flagType}
@@ -198,7 +198,7 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
             />
           </div>
           <div>
-            <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Mức độ (màu)</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Mức độ (màu)</div>
             <Select
               style={{ width: '100%' }}
               value={form.color}
@@ -207,7 +207,7 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
             />
           </div>
           <div>
-            <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>
               Ghi chú <span style={{ color: 'var(--s-crit)' }}>*</span>
             </div>
             <Input.TextArea
@@ -218,7 +218,7 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
             />
           </div>
           <div>
-            <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Hết hiệu lực (tùy chọn)</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4, fontWeight: 600 }}>Hết hiệu lực (tùy chọn)</div>
             <DatePicker
               style={{ width: '100%' }}
               format="DD/MM/YYYY"

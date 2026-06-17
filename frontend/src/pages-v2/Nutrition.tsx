@@ -173,13 +173,13 @@ const NutritionV2: React.FC = () => {
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
       <div>
         <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.patientName || '—'}</div>
-        <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{r.patientCode || r.medicalRecordCode || ''}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.patientCode || r.medicalRecordCode || ''}</div>
       </div>
     ) },
     { key: 'loc', label: 'Khoa · Giường', render: (r) => (
       <div>
         <div>{r.departmentName || '—'}</div>
-        {r.bedNumber && <div style={{ fontSize: 11, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>G {r.bedNumber}</div>}
+        {r.bedNumber && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>G {r.bedNumber}</div>}
       </div>
     ) },
     { key: 'diet', label: 'Chế độ ăn', render: (r) => (
@@ -191,7 +191,7 @@ const NutritionV2: React.FC = () => {
     { key: 'allerg', label: 'Dị ứng', render: (r) => {
       const t = allergyText(r);
       return t === '—' ? <span style={{ color: 'var(--t-2)' }}>—</span>
-        : <span style={{ fontSize: 11, color: 'var(--a-or-text)' }}>{t}</span>;
+        : <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--a-or-text)' }}>{t}</span>;
     } },
     { key: 'st', label: 'Trạng thái', render: (r) => (
       <StatusBadge tone={isActive(r.status) ? 'ok' : 'warn'} dot>{r.statusName || (isActive(r.status) ? 'Đang dùng' : 'Đã ngưng')}</StatusBadge>
@@ -326,7 +326,7 @@ const NutritionV2: React.FC = () => {
 };
 
 const Line: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 'var(--fs-md)' }}>
     <span style={{ color: 'var(--t-2)' }}>{label}</span>
     <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--t-0)' }}>{value}</span>
   </div>
