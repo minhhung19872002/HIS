@@ -31,9 +31,14 @@
 - **Rule mới (CLAUDE.md, cross-machine):** ① task dài/nhiều-phần → làm xong HẾT mới push+close (commit local checkpoint, không
   push partial) · ② scope chồng-lấn → chuyển đủ info sang task nhận trước rồi mới đóng (làm cái nào ra cái đó rõ ràng) · ③ task
   đang làm → gắn label `in-progress`+assign.
-- ✅ **#207 CLOSED** (async-state): fix 14 swallowed `.catch(()=>{})`→log (0 empty còn, build EXIT 0). Phần "list spinner+empty+error+retry"
-  (101 file raw 'Đang tải') = cơ chế #206 (SimpleV2Page 3-state) → bàn giao ĐỦ info sang #206 trước khi đóng (rule scope-overlap).
-- **Kế tiếp FE tech-debt:** **#209** raw-fetch→apiClient · #206 design-adoption (gánh luôn error-state #207) · #170 ab-u · #205 god-split · #204 v1-sunset.
+- ✅ **#207 CLOSED** (async-state): swallowed-catch→log; error-state UI bàn giao #206 (scope-overlap rule).
+- **★ QUYẾT ĐỊNH v1 (#204):** v2 ra thị trường, KHÔNG phát triển/sửa nợ v1; port feature v1-only→v2 (xóa nợ TRƯỚC khi port);
+  **#205 v1-god-split + #209 raw-fetch-v1 = MOOT**. Tech-debt FE dồn pages-v2. (CLAUDE.md FE + memory v2-only.)
+- **★ PIVOT theo THỨ TỰ ƯU TIÊN → P0 backend** (cao hơn P2-FE; lỗ hổng khai-thác-được; build-gate BE chạy local OK).
+  ✅ **#180 DONE** (security): attribute `[DevelopmentOnly]` (Filters/) gate PopulateData + DevLinkRadiology + 5 RIS dev/*
+  → **404 ở prod, giữ dev** (DailySeed đã X-Seed-Key). Additive, build EXIT 0.
+- **Kế tiếp P0:** #181 path-traversal ảnh BN · #182 secret hardcode (cần user rotate) · #183 role-drift · #184 mass-assign ·
+  #185/#186 safety · #187-190 data (money — cẩn thận, không test-net). FE P2 (#209-formatter/#206/#170) resume sau.
 - Kế tiếp FE sau #208: #207 async-state(.catch) · #209 raw-fetch→apiClient · #206 design-adoption · #205 god-split · #204 v1-sunset.
 
 ## Đang ở đâu

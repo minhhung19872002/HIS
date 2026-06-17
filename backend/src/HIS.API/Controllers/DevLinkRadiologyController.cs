@@ -3,6 +3,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Filters;
 
 namespace HIS.API.Controllers;
 
@@ -14,6 +15,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/dev/link-radiology")]
 [AllowAnonymous]
+[DevelopmentOnly] // #180: dev-only linker — 404 in prod
 public class DevLinkRadiologyController : ControllerBase
 {
     private readonly HISDbContext _db;

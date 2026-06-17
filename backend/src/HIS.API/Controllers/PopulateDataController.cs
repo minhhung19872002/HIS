@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.API.Filters;
 
 namespace HIS.API.Controllers;
 
@@ -15,6 +16,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/admin/populate")]
 [AllowAnonymous]
+[DevelopmentOnly] // #180: dev-only seed tool — 404 in prod (was anonymously writable on prod)
 public class PopulateDataController : ControllerBase
 {
     private readonly HISDbContext _db;

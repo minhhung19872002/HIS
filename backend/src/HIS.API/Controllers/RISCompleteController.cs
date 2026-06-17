@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using HIS.API.Filters;
 using HIS.Application.Services;
 using HIS.Application.DTOs.Radiology;
 using HIS.Infrastructure.Services;
@@ -188,6 +189,7 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpPost("dev/update-dates-to-today")]
         [AllowAnonymous]
+        [DevelopmentOnly]
         public async Task<ActionResult> UpdateDatesToToday()
         {
             var count = await _risService.UpdateAllRequestDatesToTodayAsync();
@@ -199,6 +201,7 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpPost("dev/add-test-dicom-studies")]
         [AllowAnonymous]
+        [DevelopmentOnly]
         public async Task<ActionResult> AddTestDicomStudies()
         {
             var count = await _risService.AddTestDicomStudiesForCompletedRequestsAsync();
@@ -210,6 +213,7 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpPost("dev/fix-dicom-uids")]
         [AllowAnonymous]
+        [DevelopmentOnly]
         public async Task<ActionResult> FixDicomUIDs()
         {
             var count = await _risService.FixDicomStudyUIDsAsync();
@@ -221,6 +225,7 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpPost("dev/cleanup-incomplete-dicom-studies")]
         [AllowAnonymous]
+        [DevelopmentOnly]
         public async Task<ActionResult> CleanupIncompleteDicomStudies()
         {
             var count = await _risService.CleanupDicomStudiesForIncompleteRequestsAsync();
@@ -232,6 +237,7 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpPost("dev/sync-request-status")]
         [AllowAnonymous]
+        [DevelopmentOnly]
         public async Task<ActionResult> SyncRequestStatus()
         {
             var count = await _risService.SyncRequestStatusWithExamsAsync();
