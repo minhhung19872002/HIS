@@ -260,6 +260,43 @@ export const Pager: React.FC<{
   );
 };
 
+// ─────────────────────────── Async UI states (loading / empty / error) ───────────────────────────
+// UI-AUDIT #164 — primitive CHUNG cho 4 state data-driven. Dựng trên `.ab-empty` (token-based →
+// tự flip dark-mode). Dùng được cả trong ô bảng (`DataTable.empty`) lẫn block độc lập.
+// Khi viết page v2 mới: success = data; rỗng = <EmptyState>; đang tải = <LoadingState>;
+// lỗi = <ErrorState onRetry={reload}> (ĐỪNG nuốt lỗi thành "rỗng"). Toast (tk/ti/tw/te) = feedback hành động.
+
+export const LoadingState: React.FC<{ message?: string }> = ({ message = 'Đang tải…' }) => (
+  <div className="ab-empty">
+    <span className="ab-btn-spin"><TermIcon name="refresh" size={20} /></span>
+    <div>{message}</div>
+  </div>
+);
+
+export const EmptyState: React.FC<{ message?: string; icon?: string; action?: React.ReactNode }> = ({
+  message = 'Không có dữ liệu', icon = 'search', action,
+}) => (
+  <div className="ab-empty">
+    <TermIcon name={icon} size={20} />
+    <div>{message}</div>
+    {action}
+  </div>
+);
+
+export const ErrorState: React.FC<{ message?: string; onRetry?: () => void }> = ({
+  message = 'Không tải được dữ liệu', onRetry,
+}) => (
+  <div className="ab-empty">
+    <span style={{ color: 'var(--s-crit)' }}><TermIcon name="alert" size={20} /></span>
+    <div>{message}</div>
+    {onRetry && (
+      <button type="button" className="ab-btn ghost sm" onClick={onRetry}>
+        <TermIcon name="refresh" size={12} /> Thử lại
+      </button>
+    )}
+  </div>
+);
+
 // ─────────────────────────── Status badge ───────────────────────────
 
 export const StatusBadge: React.FC<{
@@ -674,6 +711,7 @@ export function SimpleV2Page<T>({
 }: SimpleV2PageProps<T>) {
   const [rows, setRows] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [stab, setStab] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
@@ -681,9 +719,10 @@ export function SimpleV2Page<T>({
   const [detail, setDetail] = useState<T | null>(null);
 
   const reload = useCallback(() => {
-    setLoading(true);
+    setLoading(true); setError(false);
     load().then((data) => setRows(Array.isArray(data) ? data : []))
-      .catch(() => setRows([])).finally(() => setLoading(false));
+      .catch(() => { setRows([]); setError(true); })  // UI-AUDIT #164: surface lỗi, đừng nuốt thành "rỗng"
+      .finally(() => setLoading(false));
   }, [load]);
   useEffect(() => { reload(); }, [reload]);
 
@@ -755,12 +794,9 @@ export function SimpleV2Page<T>({
         rowKey={rowKey}
         onRowClick={drawer ? (r) => setDetail(r) : undefined}
         actions={rowActions ? (r) => rowActions(r, reload) : undefined}
-        empty={loading ? 'Đang tải…' : (
-          <div className="ab-empty">
-            <TermIconCmp name="search" size={20} />
-            <div>{emptyMessage || `Không có ${title.toLowerCase()} nào`}</div>
-          </div>
-        )}
+        empty={loading ? <LoadingState />
+          : error ? <ErrorState onRetry={reload} />
+          : <EmptyState message={emptyMessage || `Không có ${title.toLowerCase()} nào`} />}
       />
 
       <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={pageSize} />
