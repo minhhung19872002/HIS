@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HIS.Application.DTOs;
 
 // ========================
@@ -34,6 +36,7 @@ public class HealthCampaignDto
 
 public class CreateHealthCampaignDto
 {
+    [Required]
     public string? Title { get; set; }
     public string? Description { get; set; }
     public string? CampaignType { get; set; }
@@ -70,6 +73,7 @@ public class HealthEducationMaterialDto
 
 public class CreateHealthEducationMaterialDto
 {
+    [Required]
     public string? Title { get; set; }
     public string? MaterialType { get; set; }
     public string? Topic { get; set; }

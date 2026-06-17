@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HIS.Application.DTOs.Procurement;
 
 // ── List / search ────────────────────────────────────────────────────────────
@@ -58,6 +60,7 @@ public class AssetProcurementItemDto
 public class SaveAssetProcurementRequestDto
 {
     public Guid? Id { get; set; }
+    [Required(ErrorMessage = "Tiêu đề yêu cầu mua sắm là bắt buộc")]
     public string Title { get; set; } = string.Empty;
     public int RequestType { get; set; } = 1;
     public Guid? DepartmentId { get; set; }

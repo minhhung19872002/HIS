@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HIS.Application.DTOs;
 
 // ==================== HivPatient DTOs ====================
@@ -39,6 +41,7 @@ public class HivPatientCreateDto
 {
     public Guid PatientId { get; set; }
     public string? HivCode { get; set; }
+    [Required]
     public string DiagnosisDate { get; set; } = string.Empty;
     public string DiagnosisType { get; set; } = "VCT";
     public string? ConfirmationDate { get; set; }

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HIS.Application.DTOs;
 
 // ========================
@@ -41,7 +43,9 @@ public class PracticeLicenseDetailDto : PracticeLicenseDto
 
 public class CreatePracticeLicenseDto
 {
+    [Required]
     public string? LicenseType { get; set; }
+    [Required]
     public string? HolderName { get; set; }
     public string? DateOfBirth { get; set; }
     public string? Cccd { get; set; }

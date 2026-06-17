@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HIS.Application.DTOs;
 
 // ========================
@@ -36,6 +38,7 @@ public class InterHospitalRequestDto
 
 public class CreateInterHospitalRequestDto
 {
+    [Required]
     public string? RequestType { get; set; }
     public string? RequestingFacility { get; set; }
     public string? ReceivingFacility { get; set; }

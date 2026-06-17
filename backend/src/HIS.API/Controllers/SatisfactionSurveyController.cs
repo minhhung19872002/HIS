@@ -3,6 +3,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 
 namespace HIS.API.Controllers;
 
@@ -410,6 +411,7 @@ public class SatisfactionSurveyController : ControllerBase
 
 public class CreateSurveyCampaignDto
 {
+    [Required]
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? TargetGroup { get; set; }
@@ -440,6 +442,7 @@ public class AcknowledgeDto
 
 public class SurveyTemplateDto
 {
+    [Required]
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? Category { get; set; }

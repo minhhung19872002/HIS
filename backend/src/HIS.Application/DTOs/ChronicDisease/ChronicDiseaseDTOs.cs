@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HIS.Application.DTOs;
 
 public class ChronicDiseaseSearchDto
@@ -49,7 +51,9 @@ public class ChronicDiseaseDetailDto : ChronicDiseaseListDto
 public class CreateChronicDiseaseDto
 {
     public Guid PatientId { get; set; }
+    [Required]
     public string IcdCode { get; set; } = string.Empty;
+    [Required]
     public string IcdName { get; set; } = string.Empty;
     public string? DiagnosisDate { get; set; }
     public Guid DoctorId { get; set; }

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HIS.Application.DTOs;
 
 // ==================== HouseholdHealthRecord DTOs ====================
@@ -30,6 +32,7 @@ public class HouseholdListDto
 
 public class HouseholdCreateDto
 {
+    [Required]
     public string HouseholdCode { get; set; } = string.Empty;
     public string? Address { get; set; }
     public string? WardName { get; set; }
@@ -94,6 +97,7 @@ public class NcdScreeningListDto
 public class NcdScreeningCreateDto
 {
     public Guid PatientId { get; set; }
+    [Required]
     public string ScreeningDate { get; set; } = string.Empty;
     public string ScreeningType { get; set; } = "Combined";
     public int? SystolicBP { get; set; }
@@ -181,7 +185,9 @@ public class TeamListDto
 
 public class TeamCreateDto
 {
+    [Required]
     public string TeamCode { get; set; } = string.Empty;
+    [Required]
     public string TeamName { get; set; } = string.Empty;
     public string? LeaderName { get; set; }
     public Guid? LeaderId { get; set; }

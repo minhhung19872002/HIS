@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HIS.Application.DTOs;
 
 // ========================
@@ -35,6 +37,7 @@ public class PopulationRecordDto
 
 public class CreatePopulationRecordDto
 {
+    [Required]
     public string? RecordType { get; set; }
     public Guid? PatientId { get; set; }
     public string? PatientName { get; set; }

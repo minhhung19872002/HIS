@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HIS.Application.DTOs.ObstetricRegister;
 
 public class BirthRegisterDto
@@ -6,6 +8,7 @@ public class BirthRegisterDto
     public int RegisterNo { get; set; }
     public DateTime DeliveryDate { get; set; }
 
+    [Required]
     public string MotherName { get; set; } = string.Empty;
     public int MotherAge { get; set; }
     public string? MotherIdNumber { get; set; }
@@ -30,6 +33,7 @@ public class AbortionRegisterDto
     public int RegisterNo { get; set; }
     public DateTime ProcedureDate { get; set; }
 
+    [Required]
     public string PatientName { get; set; } = string.Empty;
     public int PatientAge { get; set; }
     public string? PatientIdNumber { get; set; }

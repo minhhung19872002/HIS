@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HIS.Application.DTOs.Asset;
 
 // ---- Tender DTOs ----
@@ -35,7 +37,9 @@ public class TenderDto
 public class SaveTenderDto
 {
     public Guid? Id { get; set; }
+    [Required]
     public string TenderCode { get; set; } = string.Empty;
+    [Required]
     public string TenderName { get; set; } = string.Empty;
     public int TenderType { get; set; }
     public DateTime? PublishDate { get; set; }
@@ -118,7 +122,9 @@ public class FixedAssetDto
 public class SaveFixedAssetDto
 {
     public Guid? Id { get; set; }
+    [Required]
     public string AssetCode { get; set; } = string.Empty;
+    [Required]
     public string AssetName { get; set; } = string.Empty;
     public string? AssetGroupId { get; set; }
     public decimal OriginalValue { get; set; }
@@ -356,6 +362,7 @@ public class AssetStocktakeItemDto
 
 public class CreateAssetStocktakeDto
 {
+    [Required]
     public string Title { get; set; } = string.Empty;
     public DateTime StocktakeDate { get; set; }
     public Guid? DepartmentId { get; set; }
