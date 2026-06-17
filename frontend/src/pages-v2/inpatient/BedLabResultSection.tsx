@@ -189,7 +189,7 @@ const EnterResultModal: React.FC<{
                     placeholder="Nhập giá trị…"
                     style={{
                       borderColor: entries[idx]?.value
-                        ? ((test.abnormalFlag ?? 0) > 0 ? 'var(--warn, #fb923c)' : undefined)
+                        ? ((test.abnormalFlag ?? 0) > 0 ? 'var(--warn)' : undefined)
                         : undefined,
                     }}
                   />

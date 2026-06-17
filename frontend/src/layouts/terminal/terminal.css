@@ -47,6 +47,11 @@
   --s-crit-soft: #fee2e2;  --s-crit-bd: #fecaca;
   --s-warn-bd: #fde68a;    --s-warn-bd2: #fed7aa;
   --s-ok-bd: #bbf7d0;      --s-info-soft: #eff6ff;
+  /* legacy/aux token (light = giá trị đang dùng → light BẤT BIẾN) — #208 var-fallback cleanup */
+  --warn: #fb923c;  --warn-soft: #fff7ed;  --info: #0891b2;  --accent: #0891b2;
+  --c-pri-bg: #eff6ff;  --c-pri-dim: #93c5fd;  --a-cy-text: #0f766e;
+  --a-or-bg: #fff7ed;  --a-or-text: #c05621;  --a-or-line: #fed7aa;
+  --a-em-bg: #eff6ff;  --a-em-bd: #93c5fd;
 
   --r-1: 3px;
   --r-2: 6px;
@@ -113,6 +118,11 @@ body[data-theme="dark"] {
   --s-crit-soft: #401b1b;  --s-crit-bd: #7f1d1d;
   --s-warn-bd: #854d0e;    --s-warn-bd2: #7c2d12;
   --s-ok-bd: #14532d;      --s-info-soft: #122636;
+  /* legacy/aux token dark (#208) — flip cho 18 chỗ off-palette */
+  --warn: #fbbf24;  --warn-soft: #36280f;  --info: #38bdf8;  --accent: #38bdf8;
+  --c-pri-bg: #16243f;  --c-pri-dim: #3b82f6;  --a-cy-text: #5eead4;
+  --a-or-bg: #2a1d0f;  --a-or-text: #fdba74;  --a-or-line: #7c2d12;
+  --a-em-bg: #16243f;  --a-em-bd: #2b4571;
 }
 
 /* Scoped resets (only affect /v2/* under .his-terminal) */

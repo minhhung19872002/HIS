@@ -39,7 +39,7 @@ const BED_STATUS = [
 ];
 const bedTone = (s: number): { bg: string; line: string } => {
   if (s === 2) return { bg: 'var(--a-cy-bg)', line: 'var(--a-cy-line)' };
-  if (s === 3) return { bg: 'var(--a-or-bg, #fff7ed)', line: 'var(--a-or-line, #fed7aa)' };
+  if (s === 3) return { bg: 'var(--a-or-bg)', line: 'var(--a-or-line)' };
   return { bg: 'var(--d-2)', line: 'var(--line)' };
 };
 

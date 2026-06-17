@@ -726,7 +726,7 @@ const BloodTransfusionModal: React.FC<{
       <div style={{ padding: 16 }}>
         <div style={{
           marginBottom: 12, padding: '8px 12px', borderRadius: 6,
-          background: 'var(--warn-soft, #fff7ed)', border: '1px solid var(--warn, #fb923c)',
+          background: 'var(--warn-soft)', border: '1px solid var(--warn)',
           fontSize: 11, color: 'var(--t-1)',
         }}>
           ⚠ Đảm bảo đã định nhóm máu tại giường &amp; phản ứng chéo trước khi truyền.
@@ -795,7 +795,7 @@ const BillingStatementModal: React.FC<{
   const sum = ([label, value, strong]: [string, number | undefined, boolean?]) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: 12, fontWeight: strong ? 700 : 400 }}>
       <span className="ab-u-muted">{label}</span>
-      <span style={{ color: strong ? 'var(--accent, #0891b2)' : 'var(--t-1)' }}>{fmtMoney(value)}</span>
+      <span style={{ color: strong ? 'var(--accent)' : 'var(--t-1)' }}>{fmtMoney(value)}</span>
     </div>
   );
 
@@ -1148,7 +1148,7 @@ const DischargePrescriptionModal: React.FC<{
       }
     >
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ padding: '8px 12px', borderRadius: 6, background: 'var(--s-info-bg)', border: '1px solid var(--info, #0891b2)', fontSize: 11, color: 'var(--t-1)' }}>
+        <div style={{ padding: '8px 12px', borderRadius: 6, background: 'var(--s-info-bg)', border: '1px solid var(--info)', fontSize: 11, color: 'var(--t-1)' }}>
           Đơn loại <b>toa về (DrugOrderType=4)</b> — thuốc BN mang về sau xuất viện, lấy từ kho thuốc đã chọn.
         </div>
         <IpFld label="Kho thuốc *">
@@ -1713,8 +1713,8 @@ const TreatmentSheetsModal: React.FC<{
                 <label key={s.id} style={{
                   display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer',
                   padding: '8px 10px', borderRadius: 6,
-                  background: selectedIds.has(s.id) ? 'var(--a-em-bg, #eff6ff)' : 'var(--d-1)',
-                  border: `1px solid ${selectedIds.has(s.id) ? 'var(--a-em-bd, #93c5fd)' : 'var(--line)'}`,
+                  background: selectedIds.has(s.id) ? 'var(--a-em-bg)' : 'var(--d-1)',
+                  border: `1px solid ${selectedIds.has(s.id) ? 'var(--a-em-bd)' : 'var(--line)'}`,
                   fontSize: 12.5,
                 }}>
                   <input type="checkbox" checked={selectedIds.has(s.id)} onChange={() => toggle(s.id)} style={{ marginTop: 2 }} />
