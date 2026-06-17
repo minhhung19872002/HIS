@@ -310,9 +310,11 @@ namespace HIS.Application.DTOs.Radiology
         public Guid? TemplateId { get; set; }
         public string Description { get; set; }
         public string Conclusion { get; set; }
-        public string Note { get; set; }
-        public List<AttachedImageDto> AttachedImages { get; set; }
-        public string TechnicianNote { get; set; }
+        // E2E #1: KQ CĐHA text-only — 3 field này KHÔNG bắt buộc (nullable) để KTV nhập KQ chữ (không ảnh)
+        // không bị NRT-validation chặn 400. Chỉ Description/Conclusion là bắt buộc theo nghiệp vụ.
+        public string? Note { get; set; }
+        public List<AttachedImageDto>? AttachedImages { get; set; }
+        public string? TechnicianNote { get; set; }
     }
 
     /// <summary>

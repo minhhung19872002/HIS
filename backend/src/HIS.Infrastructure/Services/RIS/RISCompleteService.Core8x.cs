@@ -753,20 +753,33 @@ public partial class RISCompleteService
     #region 8.3 Radiology Orders & Results
 
     public async Task<List<RadiologyOrderDto>> GetRadiologyOrdersAsync(
-        DateTime fromDate,
-        DateTime toDate,
+        DateTime? fromDate,
+        DateTime? toDate,
         Guid? departmentId = null,
         string serviceType = null,
         string status = null,
         string keyword = null)
     {
+        // E2E #2: thiếu fromDate/toDate → mặc định lấy ca trong NGÀY HÔM NAY (giờ VN; RequestDate lưu UTC)
+        // thay vì trả rỗng. Có truyền date thì giữ hành vi cũ (toDate bao trọn ngày qua khoảng nửa-mở).
+        DateTime fromUtc, toUtc;
+        if (fromDate is null && toDate is null)
+        {
+            (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.NowVn);
+        }
+        else
+        {
+            fromUtc = fromDate ?? DateTime.MinValue;
+            toUtc = (toDate ?? HIS.Core.Common.VnTime.NowVn).AddDays(1);
+        }
+
         var query = _context.RadiologyRequests
             .Include(r => r.Patient)
             .Include(r => r.Service)
             .Include(r => r.RequestingDoctor)
             .Include(r => r.Exams)
                 .ThenInclude(e => e.DicomStudies)
-            .Where(r => r.RequestDate >= fromDate && r.RequestDate <= toDate.AddDays(1));
+            .Where(r => r.RequestDate >= fromUtc && r.RequestDate < toUtc);
 
         if (!string.IsNullOrEmpty(status))
         {

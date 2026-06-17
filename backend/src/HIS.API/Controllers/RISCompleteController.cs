@@ -400,8 +400,8 @@ namespace HIS.API.Controllers
         [HttpGet("orders")]
         [Authorize(Roles = "Admin,Quản trị hệ thống,RadiologistManager,Radiologist,Technician,Doctor")]
         public async Task<ActionResult<List<RadiologyOrderDto>>> GetRadiologyOrders(
-            [FromQuery] DateTime fromDate,
-            [FromQuery] DateTime toDate,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
             [FromQuery] Guid? departmentId = null,
             [FromQuery] string serviceType = null,
             [FromQuery] string status = null,

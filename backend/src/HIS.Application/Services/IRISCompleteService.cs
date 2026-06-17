@@ -147,8 +147,8 @@ namespace HIS.Application.Services
         /// Danh sách phiếu yêu cầu CĐHA
         /// </summary>
         Task<List<RadiologyOrderDto>> GetRadiologyOrdersAsync(
-            DateTime fromDate,
-            DateTime toDate,
+            DateTime? fromDate,
+            DateTime? toDate,
             Guid? departmentId = null,
             string serviceType = null,
             string status = null,
