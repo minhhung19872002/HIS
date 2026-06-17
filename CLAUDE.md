@@ -111,6 +111,9 @@ If a new service/controller is added, register it there or you get 500 errors.
 - **Task board chính = GitHub Issues** repo `minhhung19872002/HIS` (`gh issue list`). Lập plan/task mới →
   **tạo Issue** (`gh issue create`); làm xong + đã push → **`gh issue close <n>`** kèm commit sha. KHÔNG quản lý
   backlog trong `docs/workspace-docs/` nữa.
+- **★ TRẠNG THÁI "IN PROGRESS" (BẮT BUỘC, mọi phiên/máy):** khi **BẮT ĐẦU** làm 1 task (kể cả làm-dở nhiều phiên) →
+  `gh issue edit <n> --add-label in-progress --add-assignee @me` để báo **đang làm**; giữ nhãn suốt lúc làm dở; **xong →
+  `gh issue close`** (đóng tự gỡ nghĩa in-progress); **dừng/blocked → `--remove-label in-progress`**. Tránh 2 máy đụng cùng task.
 - **Trước khi pick task**: `git fetch origin` + đọc `git log origin/main` + `gh issue list` (nhiều máy làm
   song song — nguồn-sự-thật là git log + Issues, KHÔNG phải docs local).
 - **★★ RULE CỨNG (mọi yêu cầu/phiên/máy) — TEST LÀ BẮT BUỘC NHƯNG LUÔN LÀM CUỐI CÙNG:** với BẤT KỲ yêu cầu nào,
