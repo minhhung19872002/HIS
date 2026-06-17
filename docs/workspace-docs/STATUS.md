@@ -18,6 +18,12 @@
   chiều với task test; task test CHỈ DONE sau khi fix-task tạo XONG đầy đủ** (test-plan §9). UI test phải chụp evidence (§7).
 - Bắt đầu khi xong fix: harness #191/#212/#213 → P0 module-task (tiền/lâm-sàng/an-ninh: #232/#239/#251/#258/#260/#265/#270).
 
+## ★ THỰC THI TECH-DEBT (fix-first, đang chạy 2026-06-17)
+- ✅ **#191 DONE** (test harness): `backend/tests/HIS.Tests` xUnit (9 JWT characterization test pass + 4 skip-placeholder
+  billing DB-coupled → follow-up) + CI gate `test`→`deploy needs:test` (đỏ chặn deploy). Additive-only, build+test xanh. Pushed.
+- **Kế tiếp (P0):** #189 (guard amount<=0, test-driven dùng harness) → #180/#181 (gate anonymous/path-traversal) →
+  #182 (secret — cần user rotate) → #185/#186 (safety) → #187/#188/#190 (data). Mỗi cái theo SAFETY-PROTOCOL.
+
 ## Đang ở đâu
 - **★ TECH-DEBT TOÀN HỆ THỐNG — PLAN + 36 TASK chi tiết, CHƯA fix (2026-06-17):** audit 7-agent (BE-service/API/data ·
   FE-v1/v2 · cross-cutting · test+security+patient-safety). Báo cáo + **SAFETY-PROTOCOL §0** (10 luật chống-vỡ-hệ-thống):

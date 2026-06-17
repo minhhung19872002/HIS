@@ -31,9 +31,42 @@ env:
   DEPLOY_SA: github-deploy@project-4d4a3f8e-d582-4536-97f.iam.gserviceaccount.com
 
 jobs:
+  # -------------------------------------------------------------------------
+  # [TEST GATE] Run xUnit tests — must pass before deploy is allowed.
+  # Added 2026-06-17 (Issue #191): safety net for JWT/billing regressions.
+  # -------------------------------------------------------------------------
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore
+        run: dotnet restore backend/HIS.sln
+
+      - name: Build
+        run: dotnet build backend/HIS.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test backend/HIS.sln -c Release --no-build --logger "trx;LogFileName=test-results.trx" --results-directory ./test-results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
+
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: test   # deploy is blocked until test job passes
     steps:
       - name: Checkout
         uses: actions/checkout@v6
