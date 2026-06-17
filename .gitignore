@@ -221,3 +221,4 @@ __pycache__/
 *.pyc
 docs/requirements/_docling_progress.log
 docs/requirements/_docling_report.json
+publish/
