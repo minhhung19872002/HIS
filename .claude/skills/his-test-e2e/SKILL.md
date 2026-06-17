@@ -76,6 +76,18 @@ Bắt `console.error` qua `cy.stub(win.console,'error')`, lọc IGNORE_PATTERNS,
 - `cy.visit(path, { timeout: 30000 })` + `cy.wait(2500)` cho page nặng.
 - Block radiology/ris-pacs: `{ retries: { runMode: 2 } }`.
 
+### 6. Evidence & Traceability — BẮT BUỘC cho MỌI test UI
+Mỗi test case UI PHẢI: (a) **chụp screenshot evidence**, (b) **ghi rõ MÀN HÌNH + NGHIỆP VỤ** để dễ theo dõi/truy vết.
+- **Tên test = màn + nghiệp vụ + case**: `describe('[Reception] Tiếp đón BN', …)` + `it('TC01 - đăng ký BN BHYT → tạo lượt khám', …)`.
+  Tên phải nói RÕ màn nào · nghiệp vụ/case nào (không đặt tên mơ hồ kiểu "test 1").
+- **Screenshot mỗi case** (chụp cả khi PASS tại mốc chính: sau submit / khi hiện kết quả):
+  - Cypress: `cy.screenshot('Reception/TC01-dang-ky-bhyt', { capture:'viewport' })` → lưu `cypress/screenshots/`. (Cypress auto-chụp khi fail; thêm chụp mốc chính thủ công.)
+  - Playwright: `await page.screenshot({ path:'test-results/Reception/TC01-dang-ky-bhyt.png', fullPage:true })`; bật trong config `screenshot:'on'` + `trace:'on'` + `video:'retain-on-failure'`.
+- **Tên file evidence**: `<Module>/<TCxx>-<nghiệp-vụ-kebab>[-<state>].png` (vd `Billing/TC03-refund-amount-am-reject.png`). Responsive/theme thêm hậu tố `-mobile375` / `-dark`.
+- **Responsive (T6)/Dark (T7):** chụp evidence MỖI breakpoint (320/375/414/768/1366/1920) và MỖI theme (light+dark).
+- **Báo cáo** (trong Issue/PR khi đóng task): bảng `Màn hình · Nghiệp vụ · Case · Evidence(ảnh/link) · Pass/Fail`.
+- Lưu evidence tập trung: `frontend/cypress/screenshots/` · `frontend/test-results/`. Cân nhắc **visual-regression** `toHaveScreenshot()` để auto-diff pixel (baseline) — đỡ soi tay.
+
 ## Quy trình viết 1 smoke spec (Cypress)
 
 1. Tạo `frontend/cypress/e2e/<feature>-pages.cy.ts`.

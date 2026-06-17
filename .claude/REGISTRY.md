@@ -20,6 +20,7 @@
 | owner-diff (refactor/god-file-split) | `SKILL-MAP` §5 (tech-debt=plan · code-change=execute · planner=design) | |
 | requirement coverage / completeness-gate | `workflow/requirement-coverage.md` | link |
 | audit / review không-nói-quá (no-quota, evidence, confidence) | `workflow/audit-protocol.md` | link |
+| UI-test evidence + traceability (screenshot mỗi case · tên test=màn+nghiệp vụ · báo cáo) | `skills/his-test-e2e` §6 | link; test-plan doc + Issues `test` chỉ link |
 | sparring / phản biện chống-nịnh (giao thức 4 bước, calibrated, no-quota) | `skills/core-sparring-partner` | link; global `~/.claude/CLAUDE.md` mang 1 pointer cho project khác |
 | drift-lint (hệ miễn dịch) | `.claude/lint.sh` (auto qua `hooks/stop-checks.sh`) | chạy sau mọi sửa .claude |
 | agent memory-spec block (~137 dòng boilerplate) | **đồng nhất 100% ở cả 7 agent** (KHÔNG dedup — subagent cần inline) | sửa 1 → sửa CẢ 7; lint [9] enforce giống nhau |
