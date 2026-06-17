@@ -102,7 +102,7 @@ const OpdEditorV2: React.FC = () => {
   const [tplBusy, setTplBusy] = useState(false);
 
   const loadTpls = useCallback(() => {
-    getOutpatientRecordTemplates().then((r) => setTpls(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    getOutpatientRecordTemplates().then((r) => setTpls(Array.isArray(r.data) ? r.data : [])).catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
   }, []);
   useEffect(() => { loadTpls(); }, [loadTpls]);
 

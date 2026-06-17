@@ -324,13 +324,13 @@ const PharmacyStockIssue: React.FC = () => {
   useEffect(() => {
     wh.getWarehouses()
       .then((r) => setWarehouses((r.data as WarehouseDto[]) || []))
-      .catch(() => {});
+      .catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
     systemApi.catalog.getSuppliers()
       .then((r) => setSuppliers((r.data as SupplierCatalogDto[]) || []))
-      .catch(() => {});
+      .catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
     systemApi.catalog.getDepartments(undefined, undefined, true)
       .then((r) => setDepartments((r.data as DepartmentCatalogDto[]) || []))
-      .catch(() => {});
+      .catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
   }, []);
 
   // ── Data loader ───────────────────────────────────────────────────────────

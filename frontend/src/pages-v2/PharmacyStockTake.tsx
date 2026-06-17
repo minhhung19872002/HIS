@@ -126,7 +126,7 @@ const PharmacyStockTake: React.FC = () => {
   React.useEffect(() => {
     wh.getWarehouses()
       .then((r) => setWarehouses((r.data as WarehouseDto[]) || []))
-      .catch(() => {})
+      .catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); })
       .finally(() => setWarehousesLoaded(true));
   }, []);
 

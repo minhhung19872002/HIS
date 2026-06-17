@@ -507,7 +507,7 @@ const HospitalConfigTab: React.FC = () => {
   useEffect(() => {
     apiClient.get('/admin/hospital-config').then(({ data }) => {
       form.setFieldsValue(data as Record<string, unknown>);
-    }).catch(() => {});
+    }).catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
   }, [form]);
 
   const submit = async (values: Record<string, unknown>) => {

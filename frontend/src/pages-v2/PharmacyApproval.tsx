@@ -146,9 +146,9 @@ const PharmacyApprovalV2: React.FC = () => {
 
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
-    getExpiringMedicines(60).then(setExpiring).catch(() => {});
+    getExpiringMedicines(60).then(setExpiring).catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
     // Load warehouses for create form
-    wh.getWarehouses().then((r) => setWarehouses((r.data as WarehouseDto[]) || [])).catch(() => {});
+    wh.getWarehouses().then((r) => setWarehouses((r.data as WarehouseDto[]) || [])).catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
   }, []);
 
   const expiredCount = useMemo(() => expiring.filter((e) => e.severity === 'expired').length, [expiring]);

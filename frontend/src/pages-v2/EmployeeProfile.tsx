@@ -448,7 +448,7 @@ const InsuranceTab: React.FC<{ userId: string }> = ({ userId }) => {
           });
         }
       })
-      .catch(() => {});
+      .catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
   }, [userId, form]);
 
   const submit = async () => {

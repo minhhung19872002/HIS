@@ -31,7 +31,9 @@
 - **Rule mới (CLAUDE.md, cross-machine):** ① task dài/nhiều-phần → làm xong HẾT mới push+close (commit local checkpoint, không
   push partial) · ② scope chồng-lấn → chuyển đủ info sang task nhận trước rồi mới đóng (làm cái nào ra cái đó rõ ràng) · ③ task
   đang làm → gắn label `in-progress`+assign.
-- **Kế tiếp FE tech-debt:** #207 async-state(.catch nuốt lỗi) · #209 raw-fetch→apiClient · #206 design-adoption · #170 ab-u · #205 god-split · #204 v1-sunset.
+- ✅ **#207 CLOSED** (async-state): fix 14 swallowed `.catch(()=>{})`→log (0 empty còn, build EXIT 0). Phần "list spinner+empty+error+retry"
+  (101 file raw 'Đang tải') = cơ chế #206 (SimpleV2Page 3-state) → bàn giao ĐỦ info sang #206 trước khi đóng (rule scope-overlap).
+- **Kế tiếp FE tech-debt:** **#209** raw-fetch→apiClient · #206 design-adoption (gánh luôn error-state #207) · #170 ab-u · #205 god-split · #204 v1-sunset.
 - Kế tiếp FE sau #208: #207 async-state(.catch) · #209 raw-fetch→apiClient · #206 design-adoption · #205 god-split · #204 v1-sunset.
 
 ## Đang ở đâu

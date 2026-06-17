@@ -103,7 +103,7 @@ const BillingEditorV2: React.FC = () => {
     setSel(new Set(rows.map((r) => r.id)));
     if (bal.status === 'fulfilled' && bal.value.data) setBalance(bal.value.data);
     // lazy-load other tabs
-    getPatientDeposits(p.patientId).then((r) => setDeposits(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    getPatientDeposits(p.patientId).then((r) => setDeposits(Array.isArray(r.data) ? r.data : [])).catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
   }, []);
 
   // ── Tab data (lazy) ──────────────────────────────────────────────

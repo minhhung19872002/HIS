@@ -46,7 +46,7 @@ const StockReportV2: React.FC = () => {
         const body = (r as { data?: MaybePaged<Warehouse> }).data;
         setWarehouses(unwrapList<Warehouse>(body));
       })
-      .catch(() => {});
+      .catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
   }, []);
 
   const load = useCallback(async () => {

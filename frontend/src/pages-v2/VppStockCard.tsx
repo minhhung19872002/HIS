@@ -52,7 +52,7 @@ const VppStockCardV2: React.FC = () => {
 
   useEffect(() => {
     apiClient.get<WarehouseDto[]>('/warehouse/warehouses', { params: { warehouseType: 2 } })
-      .then(({ data }) => setWarehouses(data || [])).catch(() => {});
+      .then(({ data }) => setWarehouses(data || [])).catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
   }, []);
 
   const loadStock = useCallback(async () => {
