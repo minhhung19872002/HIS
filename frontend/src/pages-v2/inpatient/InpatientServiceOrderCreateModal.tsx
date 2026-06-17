@@ -251,7 +251,7 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
         {mode === 'search' && <ServicePicker onPick={(s) => addService(s.id, s.name, s.code ?? '', s.unitPrice ?? 0)} />}
         {mode === 'tree' && (
           <div>
-            <div style={{ border: '1px solid var(--line)', borderRadius: 6, padding: 8, maxHeight: 240, overflow: 'auto', background: 'var(--d-0)' }}>
+            <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 8, maxHeight: 240, overflow: 'auto', background: 'var(--d-0)' }}>
               {treeData.length === 0
                 ? <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 12 }}>Không có danh mục dịch vụ</div>
                 : (

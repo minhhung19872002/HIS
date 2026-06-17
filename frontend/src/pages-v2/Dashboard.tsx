@@ -843,7 +843,7 @@ const BhytCard: React.FC<{ revenue: number; revenueChange: number }> = ({ revenu
         </div>
         <div style={{
           marginTop: 6, padding: '10px 12px',
-          background: 'var(--a-cy-bg)', border: '1px solid var(--a-cy-line)', borderRadius: 6,
+          background: 'var(--a-cy-bg)', border: '1px solid var(--a-cy-line)', borderRadius: 'var(--r-2)',
           fontSize: 'var(--fs-sm)', color: 'var(--a-cy-dim)',
         }}>
           <b>Chi tiết giám định BHYT</b> · xem trong <Link to="/v2/bhxh-audit" style={{ color: 'var(--a-cy-dim)', textDecoration: 'underline' }}>BHXH Audit</Link>
@@ -908,25 +908,25 @@ const ErPatientDrawer: React.FC<{
       }
     >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
-        <div style={{ padding: '8px 10px', background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 6 }}>
+        <div style={{ padding: '8px 10px', background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 'var(--r-2)' }}>
           <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--s-crit-tx)', fontFamily: 'var(--font-mono)' }}>HA</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--s-crit)', fontVariantNumeric: 'tabular-nums' }}>{v.bp}</div>
         </div>
-        <div style={{ padding: '8px 10px', background: v.spo2 < 95 ? 'var(--s-crit-bg)' : 'var(--s-ok-bg)', border: `1px solid ${v.spo2 < 95 ? 'var(--s-crit-bd)' : 'var(--s-ok-bd)'}`, borderRadius: 6 }}>
+        <div style={{ padding: '8px 10px', background: v.spo2 < 95 ? 'var(--s-crit-bg)' : 'var(--s-ok-bg)', border: `1px solid ${v.spo2 < 95 ? 'var(--s-crit-bd)' : 'var(--s-ok-bd)'}`, borderRadius: 'var(--r-2)' }}>
           <div style={{ fontSize: 'var(--fs-xxs)', fontFamily: 'var(--font-mono)' }}>SpO₂</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: v.spo2 < 95 ? 'var(--s-crit)' : 'var(--s-ok)', fontVariantNumeric: 'tabular-nums' }}>{v.spo2}%</div>
         </div>
-        <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid var(--line)', borderRadius: 6 }}>
+        <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
           <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>MẠCH</div>
           <div style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{v.hr}</div>
         </div>
-        <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid var(--line)', borderRadius: 6 }}>
+        <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
           <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>SỐT</div>
           <div style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{v.temp}°</div>
         </div>
       </div>
       <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', marginBottom: 6 }}>TRIỆU CHỨNG</div>
-      <div style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: 6, fontSize: 'var(--fs-md)', marginBottom: 14 }}>
+      <div style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-md)', marginBottom: 14 }}>
         {row.chiefComplaint || row.priorityName || '—'}
       </div>
       <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', marginBottom: 6 }}>THỜI GIAN</div>

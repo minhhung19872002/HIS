@@ -280,7 +280,7 @@ const AssetManagementV2: React.FC = () => {
             </DrField>
           </DrSec>
           <DrSec title="Tài chính">
-            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6 }}>
+            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
               <Line label="Nguyên giá" value={`${fmt(sel.originalValue)} đ`} bold />
               <Line label="Hao mòn lũy kế" value={`−${fmt(sel.accumulatedDepreciation)} đ`} tone="warn" />
               <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '8px 0' }} />
@@ -573,7 +573,7 @@ const AssetManagementV2: React.FC = () => {
             {qrData.serialNumber && <DrField lbl="Serial"><span style={{ fontFamily: 'var(--font-mono)' }}>{qrData.serialNumber}</span></DrField>}
             <DrField lbl="Nội dung QR">
               <code style={{ display: 'block', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 'var(--fs-sm)',
-                padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6 }}>
+                padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
                 {qrData.qrContent}
               </code>
             </DrField>

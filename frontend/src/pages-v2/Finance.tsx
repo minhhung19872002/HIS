@@ -295,7 +295,7 @@ const FinanceV2: React.FC = () => {
             autoFocus
             onChange={(e) => { emailInputRef.current = e.target.value; }}
             onPressEnter={handleSendReport}
-            style={{ borderRadius: 6 }}
+            style={{ borderRadius: 'var(--r-2)' }}
           />
         </div>
       </ModalShell>
@@ -332,7 +332,7 @@ const FinanceV2: React.FC = () => {
             <DrField lbl="Đơn giá">{fmtVNDg(sel.unitPrice)}</DrField>
           </DrSec>
           <DrSec title="Doanh thu chi tiết">
-            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6 }}>
+            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
               <Row label="Tổng doanh thu" value={fmtVNDg(sel.totalRevenue)} />
               <Row label="BHYT chi trả" value={`−${fmtVNDg(sel.insuranceRevenue)}`} tone="info" />
               <Row label="Người bệnh chi trả" value={fmtVNDg(sel.patientRevenue)} />

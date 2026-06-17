@@ -301,7 +301,7 @@ const AdrReportsV2: React.FC = () => {
             style={{
               background: 'var(--surface-1)',
               border: '1px solid var(--border)',
-              borderRadius: 8,
+              borderRadius: 'var(--r-3)',
               padding: '14px 18px',
             }}
           >

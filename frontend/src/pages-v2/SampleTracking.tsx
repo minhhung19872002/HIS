@@ -201,7 +201,7 @@ const SampleTrackingV2: React.FC = () => {
               { lbl: 'Chưa xử lý', val: counts.pending || 0, color: 'var(--a-or-text)' },
               { lbl: 'Đã lấy lại', val: counts.recollected || 0, color: 'var(--a-em-text)' },
             ].map((k) => (
-              <div key={k.lbl} style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6, textAlign: 'center' }}>
+              <div key={k.lbl} style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', textAlign: 'center' }}>
                 <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-mono)', color: k.color }}>{k.val}</div>
                 <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 4 }}>{k.lbl}</div>
               </div>

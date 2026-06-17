@@ -89,7 +89,7 @@ const EmrHl7Export: React.FC = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: 14 }}>
         {/* Form panel */}
-        <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 18 }}>
+        <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 18 }}>
           <h3 style={{
             margin: '0 0 14px', fontSize: 'var(--fs-md)', fontFamily: 'var(--font-mono)',
             textTransform: 'uppercase', color: 'var(--t-2)', letterSpacing: '0.06em',
@@ -119,7 +119,7 @@ const EmrHl7Export: React.FC = () => {
                       style={{
                         display: 'grid', gridTemplateColumns: '20px 1fr', gap: 8, padding: 8,
                         background: on ? 'var(--c-pri-bg)' : 'var(--d-1)',
-                        borderRadius: 6, cursor: 'pointer',
+                        borderRadius: 'var(--r-2)', cursor: 'pointer',
                         border: on ? '1px solid var(--a-cy)' : '1px solid transparent',
                       }}
                     >
@@ -147,7 +147,7 @@ const EmrHl7Export: React.FC = () => {
         </div>
 
         {/* Result panel */}
-        <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 18, minHeight: 360 }}>
+        <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 18, minHeight: 360 }}>
           <h3 style={{
             margin: '0 0 14px', fontSize: 'var(--fs-md)', fontFamily: 'var(--font-mono)',
             textTransform: 'uppercase', color: 'var(--t-2)', letterSpacing: '0.06em',

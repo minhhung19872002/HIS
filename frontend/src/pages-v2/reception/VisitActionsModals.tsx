@@ -333,7 +333,7 @@ export const DocumentHoldModal: React.FC<DocumentHoldModalProps> = ({
             )}
             {heldDocs.map((d) => (
               <div key={d.id} style={{
-                padding: '10px 12px', border: '1px solid var(--line-soft)', borderRadius: 6,
+                padding: '10px 12px', border: '1px solid var(--line-soft)', borderRadius: 'var(--r-2)',
                 marginBottom: 8,
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
@@ -511,7 +511,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
         <div style={{ marginBottom: 14 }}>
           <div style={FIELD_LABEL}>Chọn ảnh *</div>
           <label style={{
-            display: 'block', border: '1.5px dashed var(--line)', borderRadius: 6,
+            display: 'block', border: '1.5px dashed var(--line)', borderRadius: 'var(--r-2)',
             padding: preview ? 0 : '20px 0', textAlign: 'center',
             cursor: 'pointer', overflow: 'hidden',
           }}>
@@ -542,7 +542,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8 }}>
           {photos.map((p) => (
-            <div key={p.id} style={{ position: 'relative', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--line-soft)' }}>
+            <div key={p.id} style={{ position: 'relative', borderRadius: 'var(--r-2)', overflow: 'hidden', border: '1px solid var(--line-soft)' }}>
               <img
                 src={p.thumbnailPath || p.filePath} alt={p.photoTypeName}
                 style={{ width: '100%', height: 80, objectFit: 'cover', display: 'block' }}
@@ -558,7 +558,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
                 onClick={() => deletePhoto(p.id)}
                 style={{
                   position: 'absolute', top: 3, right: 3,
-                  background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: 3,
+                  background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: 'var(--r-1)',
                   padding: '2px 3px', cursor: 'pointer', color: '#fff', lineHeight: 1,
                 }}
                 title="Xóa ảnh"
@@ -699,7 +699,7 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
       <div style={{ padding: 0 }}>
         {rows.map((row, idx) => (
           <div key={row.key} style={{
-            padding: '10px 12px', border: '1px solid var(--line-soft)', borderRadius: 6,
+            padding: '10px 12px', border: '1px solid var(--line-soft)', borderRadius: 'var(--r-2)',
             marginBottom: 8, position: 'relative',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>

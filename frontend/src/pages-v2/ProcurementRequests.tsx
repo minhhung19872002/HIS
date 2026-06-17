@@ -442,7 +442,7 @@ const ProcurementRequestsV2: React.FC = () => {
         <DrSec title="Danh sách hàng mục">
           {editForm.items.map((it, idx) => (
             <div key={idx} style={{
-              border: '1px solid var(--line)', borderRadius: 6,
+              border: '1px solid var(--line)', borderRadius: 'var(--r-2)',
               padding: '10px 12px', marginBottom: 8, position: 'relative',
             }}>
               <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>

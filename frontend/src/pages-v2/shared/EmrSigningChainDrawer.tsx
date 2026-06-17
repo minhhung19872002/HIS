@@ -197,17 +197,17 @@ const EmrSigningChainDrawer: React.FC<Props> = ({
       <DrawerShell open={open} onClose={onClose} title="Trình ký tài liệu HSBA" size="md">
         <div style={{ padding: 14 }}>
           {!record && (
-            <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 6, fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
+            <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
               Chọn một bệnh nhân để trình ký tài liệu.
             </div>
           )}
           {isFinalized && (
-            <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 6, fontSize: 'var(--fs-sm)' }}>
+            <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)' }}>
               🔒 HSBA đã kết thúc & khóa (TT46) — nội dung không thể sửa; vẫn xem được lịch sử ký.
             </div>
           )}
           {dischargeChainDone && !isFinalized && (
-            <div style={{ marginBottom: 10, padding: '10px 12px', border: '1px solid var(--s-ok)', borderRadius: 6, fontSize: 'var(--fs-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+            <div style={{ marginBottom: 10, padding: '10px 12px', border: '1px solid var(--s-ok)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <span>Giấy ra viện / tóm tắt BA đã ký đủ cấp — có thể kết thúc &amp; khóa hồ sơ theo TT46.</span>
               <Btn variant="primary" size="sm" onClick={() => setFinalizeOpen(true)}>
                 <TermIcon name="check" size={11} /> Kết thúc &amp; khóa
@@ -218,7 +218,7 @@ const EmrSigningChainDrawer: React.FC<Props> = ({
             const chain = chains[f.printType] ?? null;
             const active = chain && (chain.chainStatus === 'Pending' || chain.chainStatus === 'InProgress');
             return (
-              <div key={f.printType} style={{ padding: 10, border: '1px solid var(--line)', borderRadius: 6, marginBottom: 6 }}>
+              <div key={f.printType} style={{ padding: 10, border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 6 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 12.5, fontWeight: 600 }}>{f.label}</span>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>

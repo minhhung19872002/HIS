@@ -348,7 +348,7 @@ const LaboratoryV2: React.FC = () => {
             <span style={{
               marginLeft: 6, padding: '1px 5px',
               background: 'var(--s-crit-bg)', border: '1px solid #fca5a5',
-              color: 'var(--s-crit)', borderRadius: 3,
+              color: 'var(--s-crit)', borderRadius: 'var(--r-1)',
               fontSize: 9, fontWeight: 700,
             }}>STAT</span>
           )}
@@ -835,7 +835,7 @@ const LaboratoryV2: React.FC = () => {
               { v: 2 as const, l: 'Hủy KQ + hủy nhận mẫu', d: 'Đã có KQ / Đang xử lý → Đã lấy mẫu (xóa kết quả)' },
               { v: 3 as const, l: 'Hủy lấy mẫu', d: 'Đã lấy mẫu → Chờ lấy mẫu (hủy toàn bộ về đầu)' },
             ]).map((o) => (
-              <label key={o.v} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 6, marginBottom: 4, cursor: 'pointer', background: chainLevel === o.v ? 'var(--d-1)' : 'transparent' }}>
+              <label key={o.v} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 4, cursor: 'pointer', background: chainLevel === o.v ? 'var(--d-1)' : 'transparent' }}>
                 <input type="radio" name="chain-level" checked={chainLevel === o.v} onChange={() => setChainLevel(o.v)} style={{ marginTop: 2 }} />
                 <span>
                   <b style={{ fontSize: 'var(--fs-sm)' }}>{o.l}</b>
@@ -939,7 +939,7 @@ const LabDrawerBody: React.FC<{ r: LabRequest }> = ({ r }) => {
                   <span style={{ textAlign: 'center' }}>
                     {!hasParams && flag && (
                       <span style={{
-                        padding: '1px 6px', borderRadius: 3,
+                        padding: '1px 6px', borderRadius: 'var(--r-1)',
                         background: topColor, color: '#fff', fontSize: 'var(--fs-xxs)', fontWeight: 700,
                       }}>{flag}</span>
                     )}
@@ -974,7 +974,7 @@ const LabDrawerBody: React.FC<{ r: LabRequest }> = ({ r }) => {
                           <span style={{ textAlign: 'center' }}>
                             {pFlag && pFlag !== 'N' && (
                               <span style={{
-                                padding: '1px 5px', borderRadius: 3,
+                                padding: '1px 5px', borderRadius: 'var(--r-1)',
                                 background: pColor, color: '#fff', fontSize: 'var(--fs-xxs)', fontWeight: 700,
                               }}>{pFlag}</span>
                             )}

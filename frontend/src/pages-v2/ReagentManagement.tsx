@@ -238,7 +238,7 @@ const ReagentManagementV2: React.FC = () => {
             <DrField lbl="XN dùng">{sel.testNames?.join(', ') || '—'}</DrField>
           </DrSec>
           <DrSec title="Kho">
-            <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6, marginBottom: 10 }}>
+            <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                 <span style={{ color: 'var(--t-2)' }}>Còn lại</span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600,

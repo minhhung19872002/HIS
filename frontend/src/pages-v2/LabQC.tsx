@@ -61,7 +61,7 @@ const FormRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label
 );
 
 const QCResultPanel: React.FC<{ result: QCResultDto }> = ({ result }) => (
-  <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6 }}>
+  <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
       <StatusBadge tone={result.isAccepted ? 'ok' : 'crit'} dot>{result.isAccepted ? 'QC ĐẠT' : 'QC VI PHẠM'}</StatusBadge>
       {result.westgardRule && <span className="chip crit">{result.westgardRule}</span>}

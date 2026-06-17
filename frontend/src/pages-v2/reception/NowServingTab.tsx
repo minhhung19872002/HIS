@@ -26,7 +26,7 @@ export const NowServingTab: React.FC<{ rooms: RoomOverviewDto[]; rows: RawRow[] 
           return (
             <div key={r.roomId} style={{
               background: 'var(--d-2)', border: '1px solid var(--line)',
-              borderRadius: 8, overflow: 'hidden',
+              borderRadius: 'var(--r-3)', overflow: 'hidden',
             }}>
               <div style={{
                 padding: '10px 14px', background: 'var(--d-1)',

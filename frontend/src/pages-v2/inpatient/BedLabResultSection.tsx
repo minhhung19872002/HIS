@@ -161,7 +161,7 @@ const EnterResultModal: React.FC<{
               key={test.id}
               style={{
                 padding: '10px 12px',
-                borderRadius: 6,
+                borderRadius: 'var(--r-2)',
                 border: '1px solid var(--line-soft)',
                 background: 'var(--d-1)',
               }}
@@ -436,7 +436,7 @@ const BedLabResultSection: React.FC<BedLabResultSectionProps> = ({ admissionId }
       )}
 
       {!loading && orders.length === 0 && (
-        <div style={{ padding: 12, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', border: '1px dashed var(--line-soft)', borderRadius: 6 }}>
+        <div style={{ padding: 12, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', border: '1px dashed var(--line-soft)', borderRadius: 'var(--r-2)' }}>
           Chưa có phiếu XN nào trong lượt nhập viện này.
         </div>
       )}
@@ -448,7 +448,7 @@ const BedLabResultSection: React.FC<BedLabResultSectionProps> = ({ admissionId }
               key={order.id}
               style={{
                 padding: '10px 12px',
-                borderRadius: 6,
+                borderRadius: 'var(--r-2)',
                 border: '1px solid var(--line-soft)',
                 background: 'var(--d-2)',
               }}

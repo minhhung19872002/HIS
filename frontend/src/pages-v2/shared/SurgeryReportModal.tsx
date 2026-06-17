@@ -311,7 +311,7 @@ export const SurgeryReportModal: React.FC<SurgeryReportModalProps> = ({
             </div>
             {existingList.map((s) => (
               <div key={s.id} style={{
-                border: '1px solid var(--line)', borderRadius: 6, padding: '8px 10px',
+                border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: '8px 10px',
                 marginBottom: 6, fontSize: 'var(--fs-sm)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>

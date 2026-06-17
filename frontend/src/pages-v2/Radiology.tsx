@@ -793,7 +793,7 @@ const RadiologyV2: React.FC = () => {
         return (
           <span style={{
             display: 'inline-block', padding: '2px 8px',
-            background: m.color, color: '#fff', borderRadius: 3,
+            background: m.color, color: '#fff', borderRadius: 'var(--r-1)',
             fontSize: 'var(--fs-xs)', fontWeight: 700, fontFamily: 'var(--font-mono)',
           }}>{m.v}</span>
         );
@@ -1283,7 +1283,7 @@ const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) => {
       {addOpen && (
         <div style={{
           padding: 10, background: 'var(--d-1)', border: '1px solid var(--line)',
-          borderRadius: 6, marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 6,
+          borderRadius: 'var(--r-2)', marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 6,
         }}>
           <Input
             size="small"
@@ -1329,7 +1329,7 @@ const CoReaderSection: React.FC<{ reportId: string }> = ({ reportId }) => {
               <b style={{ color: 'var(--t-0)' }}>{cr.readerName || cr.readerId}</b>
               <span style={{
                 marginLeft: 6, fontSize: 10.5, padding: '1px 6px',
-                background: 'var(--d-2)', borderRadius: 3, color: 'var(--t-2)',
+                background: 'var(--d-2)', borderRadius: 'var(--r-1)', color: 'var(--t-2)',
               }}>{roleLabel(cr.role)}</span>
             </div>
             <div style={{ display: 'flex', gap: 4 }}>
@@ -1389,7 +1389,7 @@ const RadiologyDrawerBody: React.FC<{ r: RadiologyOrderDto; result: RadiologyRes
           <StatusBadge tone={tone} dot>{lbl}</StatusBadge>
           <span style={{
             padding: '2px 8px', background: m.color, color: '#fff',
-            borderRadius: 3, fontSize: 'var(--fs-xs)', fontWeight: 700,
+            borderRadius: 'var(--r-1)', fontSize: 'var(--fs-xs)', fontWeight: 700,
             fontFamily: 'var(--font-mono)',
           }}>{m.v}</span>
         </div>
@@ -1436,7 +1436,7 @@ const RadiologyDrawerBody: React.FC<{ r: RadiologyOrderDto; result: RadiologyRes
           <h5><TermIcon name="file-text" size={11} /> BÁO CÁO ĐỌC PHIM</h5>
           <div style={{
             padding: 14, background: 'var(--d-1)',
-            border: '1px solid var(--line)', borderRadius: 6,
+            border: '1px solid var(--line)', borderRadius: 'var(--r-2)',
             fontSize: 'var(--fs-md)', lineHeight: 1.6, color: 'var(--t-1)',
             whiteSpace: 'pre-wrap',
           }}>

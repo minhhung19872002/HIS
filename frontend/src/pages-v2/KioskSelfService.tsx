@@ -269,7 +269,7 @@ const KioskSelfService: React.FC = () => {
               icon="ticket"
               onClick={handleIssue}
               loading={loading}
-              style={{ height: 72, fontSize: 22, padding: '0 60px', borderRadius: 12 }}
+              style={{ height: 72, fontSize: 22, padding: '0 60px', borderRadius: 'var(--r-4)' }}
             >LẤY SỐ THỨ TỰ</Btn>
           </div>
         </div>
@@ -328,7 +328,7 @@ const KioskSelfService: React.FC = () => {
               icon="id-card"
               onClick={handleCheckin}
               loading={loading}
-              style={{ height: 72, fontSize: 22, padding: '0 60px', borderRadius: 12 }}
+              style={{ height: 72, fontSize: 22, padding: '0 60px', borderRadius: 'var(--r-4)' }}
             >CHECKIN</Btn>
           </div>
 
@@ -345,7 +345,7 @@ const KioskSelfService: React.FC = () => {
             <div style={{
               background: '#f6ffed',
               border: '1px solid #b7eb8f',
-              borderRadius: 8,
+              borderRadius: 'var(--r-3)',
               padding: '16px 24px',
               marginBottom: 16,
               textAlign: 'center',

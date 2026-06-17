@@ -137,7 +137,7 @@ export const PatientFlagsSection: React.FC<{ patientId?: string }> = ({ patientI
               key={f.id}
               style={{
                 display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 8px',
-                border: '1px solid var(--line)', borderRadius: 6,
+                border: '1px solid var(--line)', borderRadius: 'var(--r-2)',
                 borderLeft: `3px solid ${FLAG_COLOR_HEX[f.color] || 'var(--s-crit)'}`,
               }}
             >

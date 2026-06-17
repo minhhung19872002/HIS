@@ -195,7 +195,7 @@ const MicrobiologyV2: React.FC = () => {
               {sel.organisms.map((o) => (
                 <div key={o.id} style={{
                   padding: 12, marginBottom: 10, background: 'var(--d-1)',
-                  border: '1px solid var(--line)', borderRadius: 6,
+                  border: '1px solid var(--line)', borderRadius: 'var(--r-2)',
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <b style={{ color: 'var(--t-0)' }}>{o.organismName}</b>

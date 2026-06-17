@@ -811,7 +811,7 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
                   key={c.id}
                   style={{
                     border: `1px solid ${selectedId === c.id ? 'var(--a-cy)' : 'var(--line)'}`,
-                    borderRadius: 6, padding: '8px 10px', marginBottom: 6, fontSize: 'var(--fs-sm)',
+                    borderRadius: 'var(--r-2)', padding: '8px 10px', marginBottom: 6, fontSize: 'var(--fs-sm)',
                     cursor: 'pointer',
                   }}
                   onClick={() => {
@@ -921,7 +921,7 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({
           )}
 
           {activeConsent?.isSigned && (
-            <div style={{ color: 'var(--s-ok)', fontSize: 'var(--fs-sm)', padding: '8px 10px', background: 'var(--s-ok-bg)', borderRadius: 6 }}>
+            <div style={{ color: 'var(--s-ok)', fontSize: 'var(--fs-sm)', padding: '8px 10px', background: 'var(--s-ok-bg)', borderRadius: 'var(--r-2)' }}>
               <TermIcon name="check" size={12} /> Cam đoan đã được ký bởi {activeConsent.signerName} ({activeConsent.signerRelationship})
               {activeConsent.signedAt && ` — ${new Date(activeConsent.signedAt).toLocaleString('vi-VN')}`}
             </div>

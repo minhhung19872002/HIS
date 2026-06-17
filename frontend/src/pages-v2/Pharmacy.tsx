@@ -90,7 +90,7 @@ const PharmacyV2: React.FC = () => {
             <span style={{
               marginLeft: 6, padding: '1px 5px',
               background: 'var(--s-crit-bg)', color: 'var(--s-crit)',
-              border: '1px solid #fca5a5', borderRadius: 3,
+              border: '1px solid #fca5a5', borderRadius: 'var(--r-1)',
               fontSize: 9, fontWeight: 700,
             }}>STAT</span>
           )}

@@ -485,7 +485,7 @@ const BhxhAuditV2: React.FC = () => {
             <DrField lbl="Tên bệnh">{sel.diagnosisName}</DrField>
           </DrSec>
           <DrSec title="Tài chính">
-            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6 }}>
+            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
               <Line label="Tổng tiền" value={fmtVNDg(sel.totalAmount)} />
               <Line label="BHYT chi trả" value={`−${fmtVNDg(sel.insuranceAmount)}`} tone="info" />
               <Line label="Người bệnh trả" value={fmtVNDg(sel.patientAmount)} />
@@ -536,7 +536,7 @@ const BhxhAuditV2: React.FC = () => {
 
           {/* Ket qua import vua upload */}
           {importResult && (
-            <div style={{ margin: '8px 12px', padding: 12, background: 'var(--bg-1)', borderRadius: 6, border: '1px solid var(--line)' }}>
+            <div style={{ margin: '8px 12px', padding: 12, background: 'var(--bg-1)', borderRadius: 'var(--r-2)', border: '1px solid var(--line)' }}>
               <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)', marginBottom: 4 }}>
                 Batch: <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)' }}>{importResult.importBatchCode}</span>
                 &nbsp;—&nbsp;{importResult.importedRows} dong / {importResult.totalRows} dong

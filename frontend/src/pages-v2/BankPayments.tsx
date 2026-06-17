@@ -351,7 +351,7 @@ const BankPayments: React.FC = () => {
           return (
             <div style={{ padding: 20, textAlign: 'center' }}>
               <div style={{
-                width: 220, height: 220, margin: '0 auto', border: '1px solid var(--line)', borderRadius: 8,
+                width: 220, height: 220, margin: '0 auto', border: '1px solid var(--line)', borderRadius: 'var(--r-3)',
                 background: 'repeating-conic-gradient(#000 0% 25%, var(--d-2) 0% 50%) 50%/12px 12px',
               }} />
               <div style={{ marginTop: 14, fontSize: 12.5, color: 'var(--t-1)' }}>
@@ -388,11 +388,11 @@ const BankPayments: React.FC = () => {
           return (
             <div style={{ padding: 16 }}>
               <div style={{
-                padding: 12, background: 'var(--d-1)', borderRadius: 6, marginBottom: 14,
+                padding: 12, background: 'var(--d-1)', borderRadius: 'var(--r-2)', marginBottom: 14,
                 display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: 10, alignItems: 'center',
               }}>
                 <div style={{
-                  width: 36, height: 36, borderRadius: 6, background: b.color, color: '#fff',
+                  width: 36, height: 36, borderRadius: 'var(--r-2)', background: b.color, color: '#fff',
                   display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 'var(--fs-xs)',
                 }}>{b.short.slice(0, 3).toUpperCase()}</div>
                 <div>

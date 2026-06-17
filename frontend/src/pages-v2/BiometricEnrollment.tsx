@@ -352,7 +352,7 @@ const BiometricEnrollment: React.FC = () => {
         )}
       >
         <div style={{ padding: 18 }}>
-          <div style={{ padding: 12, background: 'var(--s-info-soft)', color: 'var(--a-cy-dim)', borderRadius: 6, marginBottom: 16, fontSize: 12.5 }}>
+          <div style={{ padding: 12, background: 'var(--s-info-soft)', color: 'var(--a-cy-dim)', borderRadius: 'var(--r-2)', marginBottom: 16, fontSize: 12.5 }}>
             <TermIcon name="info" size={13} /> Khi bấm "Bắt đầu", trình duyệt sẽ yêu cầu Touch ID / Windows Hello / vân tay. Khoá riêng tư <b>không rời khỏi thiết bị</b>.
           </div>
           <Form form={enrollForm} layout="vertical" initialValues={{ ownerType: 'patient', ownerName: sel?.fullName ?? '' }}>
@@ -375,7 +375,7 @@ const BiometricEnrollment: React.FC = () => {
             {scanning && (
               <div style={{
                 padding: 24, textAlign: 'center', border: '2px dashed var(--a-cy)',
-                borderRadius: 8, marginTop: 14, background: 'var(--c-pri-bg)',
+                borderRadius: 'var(--r-3)', marginTop: 14, background: 'var(--c-pri-bg)',
               }}>
                 <div style={{ fontSize: 32 }}>👆</div>
                 <div style={{ marginTop: 8, fontWeight: 600, color: 'var(--a-cy)' }}>Đặt ngón tay lên cảm biến…</div>
@@ -410,7 +410,7 @@ const BiometricEnrollment: React.FC = () => {
               <Input />
             </Form.Item>
           </Form>
-          <div style={{ marginTop: 10, padding: 10, background: 'var(--d-1)', borderRadius: 6, fontSize: 'var(--fs-sm)' }}>
+          <div style={{ marginTop: 10, padding: 10, background: 'var(--d-1)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)' }}>
             <div style={{ fontWeight: 600, marginBottom: 6 }}>Credential khả dụng:</div>
             {myCreds.filter(c => c.status === 'active').map(c => (
               <div key={c.id} style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>• {c.ownerName ?? '—'} — {c.deviceName ?? '—'}</div>

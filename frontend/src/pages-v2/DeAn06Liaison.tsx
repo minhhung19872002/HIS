@@ -280,7 +280,7 @@ const DlhcTab: React.FC = () => {
         </div>
       ) },
     { key: 'licenseClass', label: 'Hạng GPLX', width: 90,
-      render: (r) => <code style={{ padding: '1px 6px', background: 'var(--d-2)', borderRadius: 3 }}>{r.licenseClass}</code> },
+      render: (r) => <code style={{ padding: '1px 6px', background: 'var(--d-2)', borderRadius: 'var(--r-1)' }}>{r.licenseClass}</code> },
     { key: 'examDate', label: 'Ngày khám', mono: true,
       render: (r) => fmtDMYg(r.examDate) },
     { key: 'eligibleToDrive', label: 'Đủ ĐK', width: 110,

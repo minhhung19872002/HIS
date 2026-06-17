@@ -362,7 +362,7 @@ const BackupManagement: React.FC = () => {
             <div
               style={{
                 marginTop: 8, padding: '10px 14px',
-                background: 'var(--bg-2)', borderRadius: 6,
+                background: 'var(--bg-2)', borderRadius: 'var(--r-2)',
                 fontSize: 'var(--fs-sm)', color: 'var(--t-2)', lineHeight: 1.6,
               }}
             >
@@ -479,7 +479,7 @@ const BackupManagement: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div
               style={{
-                padding: '10px 14px', borderRadius: 6,
+                padding: '10px 14px', borderRadius: 'var(--r-2)',
                 background: '#fff3cd', border: '1px solid #ffc107',
                 fontSize: 'var(--fs-md)',
               }}
@@ -511,7 +511,7 @@ const BackupManagement: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div
               style={{
-                padding: '10px 14px', borderRadius: 6,
+                padding: '10px 14px', borderRadius: 'var(--r-2)',
                 background: restoreResult.status === 'Pending' ? '#d4edda' : '#f8d7da',
                 border: `1px solid ${restoreResult.status === 'Pending' ? '#28a745' : '#dc3545'}`,
                 fontSize: 'var(--fs-md)',
@@ -529,7 +529,7 @@ const BackupManagement: React.FC = () => {
                 <pre
                   style={{
                     background: '#1e1e1e', color: '#d4d4d4',
-                    padding: 12, borderRadius: 6, fontSize: 'var(--fs-sm)',
+                    padding: 12, borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)',
                     overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
                     maxHeight: 300, overflowY: 'auto',
                   }}

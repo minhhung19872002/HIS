@@ -213,7 +213,7 @@ const DicomAutoSend: React.FC = () => {
 
       {tab === 'stats' && stats && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: 14 }}>
-          <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
+          <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', fontWeight: 600, fontSize: 'var(--fs-md)' }}>
               Theo server đích
             </div>
@@ -235,7 +235,7 @@ const DicomAutoSend: React.FC = () => {
               </tbody>
             </table>
           </div>
-          <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
+          <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', fontWeight: 600, fontSize: 'var(--fs-md)' }}>
               14 ngày gần nhất
             </div>

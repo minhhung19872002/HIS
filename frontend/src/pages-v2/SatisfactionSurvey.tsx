@@ -306,7 +306,7 @@ const SatisfactionSurveyV2: React.FC = () => {
             <DrField lbl="Trạng thái">{sel.status || '—'}</DrField>
           </DrSec>
           <DrSec title="Đánh giá">
-            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6, textAlign: 'center' }}>
+            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', textAlign: 'center' }}>
               <div style={{ fontSize: 36, fontWeight: 700, fontFamily: 'var(--font-mono)', color: `var(--a-${toneFor(sel.score) === 'ok' ? 'em' : toneFor(sel.score) === 'warn' ? 'or' : toneFor(sel.score) === 'crit' ? 'rd' : 'cy'}-text)` }}>
                 {sel.score?.toFixed(1) || '—'}
               </div>

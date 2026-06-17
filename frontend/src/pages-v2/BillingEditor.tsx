@@ -302,7 +302,7 @@ const BillingEditorV2: React.FC = () => {
           </div>
         ) : (
           <>
-            <div style={{ padding: 12, background: 'var(--d-0)', borderRadius: 8, border: '1px solid var(--line)' }}>
+            <div style={{ padding: 12, background: 'var(--d-0)', borderRadius: 'var(--r-3)', border: '1px solid var(--line)' }}>
               <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 700 }}>{pt.patientName}</div>
               <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{pt.patientCode} · {pt.medicalRecordCode}</div>
               <div style={{ marginTop: 8, padding: 8, background: 'var(--d-1)', borderRadius: 4, fontSize: 'var(--fs-xs)' }}>
@@ -312,7 +312,7 @@ const BillingEditorV2: React.FC = () => {
               </div>
             </div>
             {deposits.length > 0 && (
-              <div style={{ marginTop: 12, padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
+              <div style={{ marginTop: 12, padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
                 <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 6 }}>Tạm ứng</div>
                 {deposits.slice(0, 5).map((d) => (
                   <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid var(--line-soft)', fontSize: 11.5 }}>
@@ -333,7 +333,7 @@ const BillingEditorV2: React.FC = () => {
           {!pt && tab === 'pay' && <div style={{ color: 'var(--t-3)', textAlign: 'center', padding: 40 }}>Chọn bệnh nhân để xem các mục chờ thu</div>}
 
           {tab === 'pay' && pt && (
-            <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, overflow: 'hidden' }}>
+            <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', overflow: 'hidden' }}>
               <table className="ab-tbl" style={{ fontSize: 'var(--fs-sm)' }}>
                 <thead><tr>
                   <th style={{ width: 36 }}><input type="checkbox" checked={sel.size === items.length && items.length > 0} onChange={toggleAll} /></th>
@@ -390,7 +390,7 @@ const BillingEditorV2: React.FC = () => {
       {/* Payment panel (pay tab only) */}
       {tab === 'pay' && (
         <aside className={'ed-right-panel ' + (rightOpen ? 'is-open' : '')} style={{ borderLeft: '1px solid var(--line)', padding: 14, background: 'var(--d-1)', display: 'flex', flexDirection: 'column', gap: 12, overflow: 'auto' }}>
-          <div style={{ padding: 14, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
+          <div style={{ padding: 14, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
             <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Tóm tắt thanh toán</h4>
             <div style={{ display: 'grid', gap: 6, fontSize: 12.5 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">Tổng tiền chọn</span><b className="mono">{fmtVNDg(subtotal)}</b></div>
@@ -408,7 +408,7 @@ const BillingEditorV2: React.FC = () => {
             <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 6 }}>Phương thức TT</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
               {METHODS.map((m) => (
-                <button key={m.v} onClick={() => setMethod(m.v)} style={{ padding: '10px 6px', background: method === m.v ? 'var(--a-cy)' : 'var(--d-0)', color: method === m.v ? '#fff' : 'var(--t-1)', border: method === m.v ? '1px solid var(--a-cy)' : '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontSize: 11.5, fontWeight: method === m.v ? 700 : 400, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <button key={m.v} onClick={() => setMethod(m.v)} style={{ padding: '10px 6px', background: method === m.v ? 'var(--a-cy)' : 'var(--d-0)', color: method === m.v ? '#fff' : 'var(--t-1)', border: method === m.v ? '1px solid var(--a-cy)' : '1px solid var(--line)', borderRadius: 'var(--r-2)', cursor: 'pointer', fontSize: 11.5, fontWeight: method === m.v ? 700 : 400, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                   <TermIcon name={m.ic} size={16} />{m.l}
                 </button>
               ))}
@@ -443,7 +443,7 @@ const BillingEditorV2: React.FC = () => {
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div style={{ fontSize: 14, color: 'var(--t-2)', marginBottom: 6 }}>BN cần trả</div>
           <div style={{ fontSize: 30, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--a-cy)', marginBottom: 14 }}>{fmtVNDg(finalAmount)}</div>
-          {method === 3 && <div style={{ width: 160, height: 160, margin: '0 auto', border: '1px solid var(--line)', borderRadius: 6, background: 'repeating-conic-gradient(#000 0% 25%, var(--d-2) 0% 50%) 50%/12px 12px' }} />}
+          {method === 3 && <div style={{ width: 160, height: 160, margin: '0 auto', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', background: 'repeating-conic-gradient(#000 0% 25%, var(--d-2) 0% 50%) 50%/12px 12px' }} />}
           <div style={{ marginTop: 14, padding: 10, background: 'var(--d-1)', borderRadius: 4, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
             {selectedItems.length} mục · {METHODS.find((m) => m.v === method)?.l}{advUsed > 0 ? ` · dùng tạm ứng ${fmtVNDg(advUsed)}` : ''}
           </div>
@@ -466,7 +466,7 @@ const BillingEditorV2: React.FC = () => {
             <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 4 }}>{createModal === 'deposit' ? 'Phương thức nộp' : 'Phương thức hoàn'}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
               {METHODS.map((m) => (
-                <button key={m.v} onClick={() => setCform((p) => ({ ...p, method: m.v }))} style={{ padding: '8px 6px', background: cform.method === m.v ? 'var(--a-cy)' : 'var(--d-0)', color: cform.method === m.v ? '#fff' : 'var(--t-1)', border: cform.method === m.v ? '1px solid var(--a-cy)' : '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontSize: 11.5 }}>{m.l}</button>
+                <button key={m.v} onClick={() => setCform((p) => ({ ...p, method: m.v }))} style={{ padding: '8px 6px', background: cform.method === m.v ? 'var(--a-cy)' : 'var(--d-0)', color: cform.method === m.v ? '#fff' : 'var(--t-1)', border: cform.method === m.v ? '1px solid var(--a-cy)' : '1px solid var(--line)', borderRadius: 'var(--r-2)', cursor: 'pointer', fontSize: 11.5 }}>{m.l}</button>
               ))}
             </div>
           </div>
@@ -552,7 +552,7 @@ const BillingPatientSearch: React.FC<{ open: boolean; onClose: () => void; onPic
           {loading && <div style={{ textAlign: 'center', padding: 16, color: 'var(--t-3)' }}>Đang tìm…</div>}
           {!loading && q.length >= 2 && list.length === 0 && <div style={{ textAlign: 'center', padding: 16, color: 'var(--t-3)' }}>Không tìm thấy</div>}
           {list.map((p) => (
-            <div key={p.medicalRecordId} onClick={() => onPick(p)} style={{ padding: 10, border: '1px solid var(--line)', borderRadius: 6, marginBottom: 6, cursor: 'pointer' }}>
+            <div key={p.medicalRecordId} onClick={() => onPick(p)} style={{ padding: 10, border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 6, cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <b>{p.patientName}</b>
                 <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{p.patientCode}</span>

@@ -477,7 +477,7 @@ const EmrEditorV2: React.FC = () => {
             <div style={{ overflow: 'auto', flex: 1, padding: 16 }}>
               {tab === 'record' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                  <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
+                  <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 14 }}>
                     <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Thông tin BN</h4>
                     <Field lbl="Họ tên">{full?.patient?.fullName || sel.patientName}</Field>
                     <Field lbl="Mã BN"><span className="mono">{sel.patientCode}</span></Field>
@@ -486,7 +486,7 @@ const EmrEditorV2: React.FC = () => {
                     <Field lbl="BHYT"><span className="mono">{sel.insuranceNumber || '—'}</span></Field>
                     {(sel.chronicDiseases?.length ?? 0) > 0 && <Field lbl="Bệnh mạn">{sel.chronicDiseases.join(', ')}</Field>}
                   </section>
-                  <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
+                  <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 14 }}>
                     <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Sinh hiệu</h4>
                     {v ? (
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, fontSize: 'var(--fs-sm)' }}>
@@ -499,7 +499,7 @@ const EmrEditorV2: React.FC = () => {
                       </div>
                     ) : <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Chưa có dữ liệu sinh hiệu</div>}
                   </section>
-                  <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 14, gridColumn: '1 / -1' }}>
+                  <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 14, gridColumn: '1 / -1' }}>
                     <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Bệnh sử · Khám lâm sàng · Chẩn đoán</h4>
                     <div style={{ fontSize: 12.5, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                       {full?.interview?.historyOfPresentIllness && <p><b>Bệnh sử:</b> {full.interview.historyOfPresentIllness}</p>}
@@ -517,8 +517,8 @@ const EmrEditorV2: React.FC = () => {
                   {timeline.length === 0 && <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Chưa có lịch sử khám</div>}
                   {timeline.map((e, i) => (
                     <div key={i} style={{ position: 'relative', paddingBottom: 18 }}>
-                      <div style={{ position: 'absolute', left: -25, top: 6, width: 12, height: 12, borderRadius: 6, background: 'var(--s-info)', border: '2px solid var(--d-0)', boxShadow: '0 0 0 3px #0284c733' }} />
-                      <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 6, padding: 12, borderLeft: '3px solid var(--s-info)', cursor: 'pointer' }}
+                      <div style={{ position: 'absolute', left: -25, top: 6, width: 12, height: 12, borderRadius: 'var(--r-2)', background: 'var(--s-info)', border: '2px solid var(--d-0)', boxShadow: '0 0 0 3px #0284c733' }} />
+                      <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 12, borderLeft: '3px solid var(--s-info)', cursor: 'pointer' }}
                         onClick={() => navigate(`/v2/opd/edit`)}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                           <span style={{ fontWeight: 700, fontSize: 12.5 }}>{e.diagnosisName || e.conclusionTypeName || 'Lần khám'}</span>
@@ -609,12 +609,12 @@ const EmrEditorV2: React.FC = () => {
               )}
 
               {tab === 'reaction' && (
-                <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
+                <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 14 }}>
                   <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-sm)' }}>Phản ứng thuốc / Dị ứng đã ghi nhận</h4>
                   {(full?.allergies?.length ?? 0) === 0
                     ? <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Không có dị ứng ghi nhận</div>
                     : (
-                      <div style={{ padding: 10, background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 6, color: '#7f1d1d', fontSize: 'var(--fs-sm)', lineHeight: 1.8 }}>
+                      <div style={{ padding: 10, background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)', borderRadius: 'var(--r-2)', color: '#7f1d1d', fontSize: 'var(--fs-sm)', lineHeight: 1.8 }}>
                         {full!.allergies.map((a) => (
                           <div key={a.id}><b>{a.allergenName}</b>{a.reaction ? ` — ${a.reaction}` : ''} · Mức độ: {a.severity === 3 ? 'Nặng' : a.severity === 2 ? 'Vừa' : 'Nhẹ'}</div>
                         ))}
@@ -624,9 +624,9 @@ const EmrEditorV2: React.FC = () => {
               )}
 
               {tab === 'partograph' && (
-                <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 14 }}>
+                <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 14 }}>
                   <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-sm)' }}>Biểu đồ chuyển dạ (Partograph)</h4>
-                  <div style={{ height: 320, background: 'var(--d-1)', borderRadius: 6, display: 'grid', placeItems: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 16 }}>
+                  <div style={{ height: 320, background: 'var(--d-1)', borderRadius: 'var(--r-2)', display: 'grid', placeItems: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 16 }}>
                     Biểu đồ partograph (độ mở CTC · ngôi · tim thai · cơn co) — chỉ áp dụng HSBA sản khoa.
                   </div>
                 </div>
@@ -684,12 +684,12 @@ const EmrEditorV2: React.FC = () => {
       <DrawerShell open={printOpen} onClose={() => setPrintOpen(false)} title="In biểu mẫu HSBA" size="md">
         <div style={{ padding: 14 }}>
           {!full && (
-            <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 6, fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
+            <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
               Chọn một bệnh nhân để xem trước và in biểu mẫu.
             </div>
           )}
           {PRINT_FORMS.map((m) => (
-            <div key={m.printType + m.label} style={{ padding: 10, border: '1px solid var(--line)', borderRadius: 6, marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div key={m.printType + m.label} style={{ padding: 10, border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 12.5 }}>{m.label}</span>
               <Btn variant="ghost" size="sm" disabled={!full} onClick={() => { setPrintOpen(false); openPrintForm(m.printType); }}>
                 <TermIcon name="print" size={11} /> In

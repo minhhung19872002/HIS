@@ -382,7 +382,7 @@ const KpiTab: React.FC<{ indicators: QualityIndicatorDto[]; loading: boolean }> 
       {groups.map(([groupName, items]) => (
         <div key={groupName} style={{
           marginTop: 14, border: '1px solid var(--line)',
-          background: 'var(--d-2)', borderRadius: 8, overflow: 'hidden',
+          background: 'var(--d-2)', borderRadius: 'var(--r-3)', overflow: 'hidden',
         }}>
           <div style={{
             padding: '10px 14px', background: 'var(--d-1)',
@@ -441,7 +441,7 @@ const AuditTab: React.FC = () => (
     ].map((a, i) => (
       <div key={i} style={{
         border: '1px solid var(--line)', background: 'var(--d-2)',
-        borderRadius: 8, padding: 14,
+        borderRadius: 'var(--r-3)', padding: 14,
       }}>
         <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)', marginBottom: 8 }}>{a.title}</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>

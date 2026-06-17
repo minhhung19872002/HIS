@@ -113,7 +113,7 @@ export const StatsTab: React.FC<{ rows: RawRow[]; rooms: RoomOverviewDto[] }> = 
 const StatCell: React.FC<{ label: string; value: number; tone?: 'ok' | 'warn' }> = ({ label, value, tone }) => (
   <div style={{
     background: 'var(--d-1)', border: '1px solid var(--line-soft)',
-    borderRadius: 6, padding: '10px 12px',
+    borderRadius: 'var(--r-2)', padding: '10px 12px',
   }}>
     <div style={{
       fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase',
@@ -130,7 +130,7 @@ const StatCell: React.FC<{ label: string; value: number; tone?: 'ok' | 'warn' }>
 const ChartCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div style={{
     background: 'var(--d-2)', border: '1px solid var(--line)',
-    borderRadius: 8, padding: '14px 16px',
+    borderRadius: 'var(--r-3)', padding: '14px 16px',
   }}>
     <div style={{
       fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 600,

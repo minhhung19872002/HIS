@@ -402,7 +402,7 @@ const CultureCollectionV2: React.FC = () => {
             <DrField lbl="Nhiệt độ">{sel.storageTemperature || '—'}</DrField>
           </DrSec>
           <DrSec title="Số lượng & passage">
-            <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6, marginBottom: 10 }}>
+            <div style={{ padding: 12, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 10 }}>
               <Line label="Ống còn / tổng" value={`${sel.remainingAliquots}/${sel.aliquotCount}`} bold />
               <Line label="Passage" value={`P${sel.passageNumber}`} />
             </div>

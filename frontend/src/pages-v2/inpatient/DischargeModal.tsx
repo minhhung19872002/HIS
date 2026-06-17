@@ -265,7 +265,7 @@ const DischargeModal: React.FC<DischargeModalProps> = ({ open, patient, onClose,
             {checkRow(!check.hasPendingResults, 'Đã có đủ kết quả CLS', check.hasPendingResults ? `${check.pendingResultCount} KQ chờ` : undefined)}
             {checkRow(check.isMedicalRecordComplete, 'Hồ sơ bệnh án đầy đủ', check.missingDocuments?.length ? check.missingDocuments.join(', ') : undefined)}
             {(check.warnings?.length ?? 0) > 0 && (
-              <div style={{ marginTop: 6, padding: '6px 10px', borderRadius: 6, background: 'var(--warn-soft)', border: '1px solid var(--warn)', fontSize: 'var(--fs-xs)', color: 'var(--t-1)' }}>
+              <div style={{ marginTop: 6, padding: '6px 10px', borderRadius: 'var(--r-2)', background: 'var(--warn-soft)', border: '1px solid var(--warn)', fontSize: 'var(--fs-xs)', color: 'var(--t-1)' }}>
                 {check.warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}
               </div>
             )}

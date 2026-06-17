@@ -195,7 +195,7 @@ const FoodSafetyV2: React.FC = () => {
             {sel.suspectedCause && <DrField lbl="Nguyên nhân nghi">{sel.suspectedCause}</DrField>}
           </DrSec>
           <DrSec title="Thiệt hại">
-            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6 }}>
+            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
               <Line label="Tổng người ảnh hưởng" value={sel.totalAffected} />
               <Line label="Nhập viện" value={sel.hospitalized} tone="warn" />
               <Line label="Tử vong" value={sel.deaths} tone={sel.deaths > 0 ? 'crit' : undefined} />

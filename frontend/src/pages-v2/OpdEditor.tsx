@@ -583,7 +583,7 @@ const OpdEditorV2: React.FC = () => {
         </div>
         <div style={{ display: 'inline-flex', background: 'var(--d-0)', borderRadius: 4, padding: 2, marginBottom: 10, width: '100%' }}>
           {([{ v: 'general', l: 'Ngoại trú' }, { v: 'yhct', l: 'YHCT' }] as const).map((t) => (
-            <button key={t.v} onClick={() => setType(t.v)} style={{ flex: 1, background: type === t.v ? 'var(--c-pri)' : 'transparent', color: type === t.v ? '#fff' : 'var(--t-1)', border: 0, padding: '4px 8px', borderRadius: 3, cursor: 'pointer', fontSize: 'var(--fs-xs)', fontWeight: type === t.v ? 700 : 400 }}>{t.l}</button>
+            <button key={t.v} onClick={() => setType(t.v)} style={{ flex: 1, background: type === t.v ? 'var(--c-pri)' : 'transparent', color: type === t.v ? '#fff' : 'var(--t-1)', border: 0, padding: '4px 8px', borderRadius: 'var(--r-1)', cursor: 'pointer', fontSize: 'var(--fs-xs)', fontWeight: type === t.v ? 700 : 400 }}>{t.l}</button>
           ))}
         </div>
 
@@ -593,7 +593,7 @@ const OpdEditorV2: React.FC = () => {
           const sel = q.examinationId === selPt?.examinationId;
           const tone = q.status === 2 ? 'info' : q.status === 1 ? 'warn' : 'info';
           return (
-            <div key={q.examinationId} onClick={() => selectPatient(q)} style={{ padding: 10, marginBottom: 5, background: sel ? 'var(--c-pri-bg, rgba(37,99,235,.12))' : 'var(--d-0)', border: sel ? '1px solid var(--c-pri)' : '1px solid var(--line)', borderRadius: 6, cursor: 'pointer' }}>
+            <div key={q.examinationId} onClick={() => selectPatient(q)} style={{ padding: 10, marginBottom: 5, background: sel ? 'var(--c-pri-bg, rgba(37,99,235,.12))' : 'var(--d-0)', border: sel ? '1px solid var(--c-pri)' : '1px solid var(--line)', borderRadius: 'var(--r-2)', cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="mono" style={{ fontWeight: 700, fontSize: 14, color: 'var(--a-cy)' }}>{q.queueNumber}</span>
                 {(q.isEmergency || q.isPriority) && <StatusBadge tone="crit">{q.isEmergency ? 'Cấp cứu' : 'Ưu tiên'}</StatusBadge>}
@@ -618,7 +618,7 @@ const OpdEditorV2: React.FC = () => {
         ) : (
           <>
             {/* Vitals */}
-            <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
+            <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 12 }}>
               <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Sinh hiệu</h4>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 8 }}>
                 {VITAL_FIELDS.map((v) => (
@@ -658,18 +658,18 @@ const OpdEditorV2: React.FC = () => {
 
             {/* History + exam */}
             <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
+              <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 12 }}>
                 <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Bệnh sử · Lý do khám</h4>
                 <textarea value={history} onChange={(e) => setHistory(expandAbbr(e.target.value))} placeholder="Lý do đến khám, diễn biến bệnh… (gõ từ viết tắt + space để bung)" style={{ width: '100%', minHeight: 80, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
               </div>
-              <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
+              <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 12 }}>
                 <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Khám lâm sàng</h4>
                 <textarea value={exam} onChange={(e) => setExam(expandAbbr(e.target.value))} placeholder="Toàn thân, tim, phổi, bụng…" style={{ width: '100%', minHeight: 80, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
               </div>
             </section>
 
             {/* Tiền sử · Dị ứng (MedicalInterview + hồ sơ dị ứng cấu trúc) */}
-            <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
+            <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 12 }}>
               <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Tiền sử · Dị ứng</h4>
               {allergies.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
@@ -697,7 +697,7 @@ const OpdEditorV2: React.FC = () => {
             </section>
 
             {/* Diagnosis */}
-            <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
+            <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 12 }}>
               <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Chẩn đoán (ICD-10)</h4>
               <div style={{ position: 'relative', marginBottom: 8 }}>
                 <div className="ab-search">
@@ -705,7 +705,7 @@ const OpdEditorV2: React.FC = () => {
                   <input value={icdQ} onChange={(e) => searchIcd(e.target.value)} placeholder="Tìm mã ICD-10 hoặc tên bệnh (≥2 ký tự)…" />
                 </div>
                 {icdResults.length > 0 && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 6, marginTop: 4, maxHeight: 220, overflow: 'auto', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,.15)' }}>
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginTop: 4, maxHeight: 220, overflow: 'auto', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,.15)' }}>
                     {icdResults.map((i) => (
                       <div key={i.code} onClick={() => addIcd(i)} style={{ padding: '6px 12px', borderBottom: '1px solid var(--line-soft)', cursor: 'pointer', display: 'flex', gap: 10 }}>
                         <span className="mono" style={{ fontWeight: 700, color: 'var(--a-cy)', width: 70 }}>{i.code}</span>
@@ -730,7 +730,7 @@ const OpdEditorV2: React.FC = () => {
             </section>
 
             {/* Orders */}
-            <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
+            <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 12 }}>
               <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Chỉ định CLS · Dịch vụ</h4>
               <div style={{ position: 'relative', marginBottom: 10 }}>
                 <div className="ab-search">
@@ -738,7 +738,7 @@ const OpdEditorV2: React.FC = () => {
                   <input value={svcQ} onChange={(e) => searchSvc(e.target.value)} placeholder="Tìm XN / CĐHA / thủ thuật (≥2 ký tự)…" />
                 </div>
                 {svcResults.length > 0 && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 6, marginTop: 4, maxHeight: 220, overflow: 'auto', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,.15)' }}>
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginTop: 4, maxHeight: 220, overflow: 'auto', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,.15)' }}>
                     {svcResults.map((s) => (
                       <div key={s.id} onClick={() => addSvc(s)} style={{ padding: '6px 12px', borderBottom: '1px solid var(--line-soft)', cursor: 'pointer', display: 'grid', gridTemplateColumns: '110px 1fr 110px', gap: 10 }}>
                         <span className="mono" style={{ color: 'var(--a-cy)' }}>{s.code}</span>
@@ -769,7 +769,7 @@ const OpdEditorV2: React.FC = () => {
             </section>
 
             {/* Khai báo tai nạn giao thông — F1.6 (Biểu 14.5 SYT) */}
-            <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
+            <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 12 }}>
               <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Khai báo thương tích / TNGT (Biểu 14.5)</h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                 <div>
@@ -906,12 +906,12 @@ const OpdEditorV2: React.FC = () => {
 
       {/* Right tools */}
       <aside className={'ed-right-panel ' + (rightOpen ? 'is-open' : '')} style={{ borderLeft: '1px solid var(--line)', padding: 12, background: 'var(--d-1)', display: 'flex', flexDirection: 'column', gap: 10, overflow: 'auto' }}>
-        <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
+        <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
           <h4 style={{ margin: '0 0 8px', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Kết luận</h4>
           <textarea value={conclusion} onChange={(e) => setConclusion(expandAbbr(e.target.value))} placeholder="Kết luận khám, hướng xử trí, hẹn tái khám…" style={{ width: '100%', minHeight: 80, padding: 8, border: '1px solid var(--line)', borderRadius: 4, fontSize: 11.5, background: 'var(--d-0)', color: 'var(--t-0)' }} />
         </section>
 
-        <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
+        <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
           <h4 style={{ margin: '0 0 8px', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Giấy nghỉ ốm</h4>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
             <div><label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Từ ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} value={sickFrom} onChange={(e) => setSickFrom(e.target.value)} /></div>
@@ -940,7 +940,7 @@ const OpdEditorV2: React.FC = () => {
         </div>
 
         {/* ── XỬ TRÍ ─────────────────────────────────────────── */}
-        <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
+        <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
           <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Xử trí</h4>
           <div style={{ display: 'grid', gap: 6 }}>
             <Btn
@@ -980,7 +980,7 @@ const OpdEditorV2: React.FC = () => {
         </section>
 
         {/* ── ĐA CHUYÊN KHOA ─────────────────────────────────── */}
-        <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 8 }}>
+        <section style={{ padding: 12, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
           <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Đa chuyên khoa</h4>
 
           {/* 1. Khám thêm CK khác */}
@@ -1505,7 +1505,7 @@ const OpdEditorV2: React.FC = () => {
               <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Xét nghiệm ({clsData.labResults?.length ?? 0})</h4>
               {(clsData.labResults || []).length === 0 && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-3)' }}>Chưa có kết quả xét nghiệm</div>}
               {(clsData.labResults || []).map((lr) => (
-                <div key={lr.orderId} style={{ border: '1px solid var(--line)', borderRadius: 6, padding: 10, marginBottom: 8 }}>
+                <div key={lr.orderId} style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 10, marginBottom: 8 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
                     <b style={{ fontSize: 12.5 }}>{lr.serviceName}</b>
                     <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{lr.serviceCode}</span>
@@ -1528,7 +1528,7 @@ const OpdEditorV2: React.FC = () => {
               <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>CĐHA · TDCN ({clsData.imagingResults?.length ?? 0})</h4>
               {(clsData.imagingResults || []).length === 0 && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-3)' }}>Chưa có kết quả CĐHA</div>}
               {(clsData.imagingResults || []).map((ir) => (
-                <div key={ir.orderId} style={{ border: '1px solid var(--line)', borderRadius: 6, padding: 10, marginBottom: 8 }}>
+                <div key={ir.orderId} style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 10, marginBottom: 8 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <b style={{ fontSize: 12.5 }}>{ir.serviceName}</b>
                     <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{ir.serviceCode}</span>
@@ -1564,7 +1564,7 @@ const OpdEditorV2: React.FC = () => {
             <div>
               <h4 style={{ margin: '0 0 6px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Biên bản đã lập ({consults.length})</h4>
               {consults.map((c) => (
-                <div key={c.id} style={{ border: '1px solid var(--line)', borderRadius: 6, padding: 10, marginBottom: 6, fontSize: 'var(--fs-sm)' }}>
+                <div key={c.id} style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 10, marginBottom: 6, fontSize: 'var(--fs-sm)' }}>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
                     <b>{c.reason}</b>
                     <span className="spacer" />

@@ -725,7 +725,7 @@ const BloodTransfusionModal: React.FC<{
     >
       <div style={{ padding: 16 }}>
         <div style={{
-          marginBottom: 12, padding: '8px 12px', borderRadius: 6,
+          marginBottom: 12, padding: '8px 12px', borderRadius: 'var(--r-2)',
           background: 'var(--warn-soft)', border: '1px solid var(--warn)',
           fontSize: 'var(--fs-xs)', color: 'var(--t-1)',
         }}>
@@ -826,7 +826,7 @@ const BillingStatementModal: React.FC<{
               <div><span className="ab-u-muted">Số ngày điều trị: </span>{data.daysOfStay}</div>
             </div>
 
-            <div style={{ maxHeight: 280, overflow: 'auto', border: '1px solid var(--line-soft)', borderRadius: 6 }}>
+            <div style={{ maxHeight: 280, overflow: 'auto', border: '1px solid var(--line-soft)', borderRadius: 'var(--r-2)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-xs)' }}>
                 <thead>
                   <tr style={{ background: 'var(--d-1)', position: 'sticky', top: 0 }}>
@@ -1000,7 +1000,7 @@ const DrugReturnModal: React.FC<{
           </div>
         )}
         {!loading && items.length > 0 && (
-          <div style={{ border: '1px solid var(--line-soft)', borderRadius: 6, overflow: 'hidden' }}>
+          <div style={{ border: '1px solid var(--line-soft)', borderRadius: 'var(--r-2)', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
               <thead>
                 <tr style={{ background: 'var(--d-1)' }}>
@@ -1148,7 +1148,7 @@ const DischargePrescriptionModal: React.FC<{
       }
     >
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ padding: '8px 12px', borderRadius: 6, background: 'var(--s-info-bg)', border: '1px solid var(--info)', fontSize: 'var(--fs-xs)', color: 'var(--t-1)' }}>
+        <div style={{ padding: '8px 12px', borderRadius: 'var(--r-2)', background: 'var(--s-info-bg)', border: '1px solid var(--info)', fontSize: 'var(--fs-xs)', color: 'var(--t-1)' }}>
           Đơn loại <b>toa về (DrugOrderType=4)</b> — thuốc BN mang về sau xuất viện, lấy từ kho thuốc đã chọn.
         </div>
         <IpFld label="Kho thuốc *">
@@ -1349,7 +1349,7 @@ const ClsOrdersModal: React.FC<{
           </div>
         )}
         {!loading && activeOrders.length > 0 && (
-          <div style={{ border: '1px solid var(--line-soft)', borderRadius: 6, overflow: 'hidden' }}>
+          <div style={{ border: '1px solid var(--line-soft)', borderRadius: 'var(--r-2)', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
               <thead>
                 <tr style={{ background: 'var(--d-1)' }}>
@@ -1712,7 +1712,7 @@ const TreatmentSheetsModal: React.FC<{
               {sheets.map((s) => (
                 <label key={s.id} style={{
                   display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer',
-                  padding: '8px 10px', borderRadius: 6,
+                  padding: '8px 10px', borderRadius: 'var(--r-2)',
                   background: selectedIds.has(s.id) ? 'var(--a-em-bg)' : 'var(--d-1)',
                   border: `1px solid ${selectedIds.has(s.id) ? 'var(--a-em-bd)' : 'var(--line)'}`,
                   fontSize: 12.5,

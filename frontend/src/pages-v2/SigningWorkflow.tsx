@@ -207,7 +207,7 @@ const SigningWorkflowV2: React.FC = () => {
             {detail.documentContent && (
               <DrSec title="Nội dung tài liệu (snapshot lúc trình)">
                 <div
-                  style={{ maxHeight: 420, overflow: 'auto', background: 'var(--d-2)', color: '#111', borderRadius: 6, padding: 10, fontSize: 'var(--fs-sm)' }}
+                  style={{ maxHeight: 420, overflow: 'auto', background: 'var(--d-2)', color: '#111', borderRadius: 'var(--r-2)', padding: 10, fontSize: 'var(--fs-sm)' }}
                   // Snapshot HTML do chính PrintTemplateRenderer nội bộ sinh ra (không phải input người dùng tự do)
                   dangerouslySetInnerHTML={{ __html: detail.documentContent }}
                 />

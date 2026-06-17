@@ -144,7 +144,7 @@ const EmrExtractV2 = () => {
                   type="button"
                   onClick={() => pickRecord(r)}
                   style={{
-                    textAlign: 'left', border: '1px solid var(--line-soft)', borderRadius: 8,
+                    textAlign: 'left', border: '1px solid var(--line-soft)', borderRadius: 'var(--r-3)',
                     background: 'var(--d-2)', padding: '8px 12px', cursor: 'pointer', display: 'flex',
                     alignItems: 'center', gap: 12,
                   }}
@@ -259,7 +259,7 @@ const WatermarkedPreview = ({ extract, patientName, patientCode }: { extract: Em
   const mark = `${HOSPITAL_NAME} • TRÍCH LỤC • ${patientCode}`;
   const expired = extract.status !== 'Active';
   return (
-    <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid var(--line)', borderRadius: 8, background: 'var(--d-2)', minHeight: 420 }}>
+    <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', background: 'var(--d-2)', minHeight: 420 }}>
       {/* Watermark overlay phủ chéo, không chặn tương tác */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden',
@@ -282,7 +282,7 @@ const WatermarkedPreview = ({ extract, patientName, patientCode }: { extract: Em
         <div><b>Hạn dùng:</b> {extract.expiresAt ? fmtDMYg(extract.expiresAt) : 'Không giới hạn'}</div>
         <div><b>Trạng thái:</b> <StatusBadge tone={STATUS_TONE[extract.status] ?? 'info'} dot>{STATUS_LABEL[extract.status] ?? extract.status}</StatusBadge></div>
         {expired && (
-          <div style={{ marginTop: 14, padding: 10, border: '1px solid #fca5a5', background: 'var(--s-crit-bg)', borderRadius: 8, color: '#b91c1c', fontSize: 'var(--fs-sm)' }}>
+          <div style={{ marginTop: 14, padding: 10, border: '1px solid #fca5a5', background: 'var(--s-crit-bg)', borderRadius: 'var(--r-3)', color: '#b91c1c', fontSize: 'var(--fs-sm)' }}>
             Bản trích lục đã {extract.status === 'Revoked' ? 'bị thu hồi' : 'hết hạn'} — không còn giá trị sử dụng.
           </div>
         )}

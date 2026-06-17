@@ -906,7 +906,7 @@ const IntakeDrawerContent: React.FC<IntakeDrawerContentProps> = ({ submitting, i
       {!isMci && (
         <div style={{
           margin: '0 0 10px', padding: '10px 12px', background: '#ecfdf5',
-          border: '1px solid #a7f3d0', borderRadius: 6, fontSize: 'var(--fs-sm)', color: '#065f46',
+          border: '1px solid #a7f3d0', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)', color: '#065f46',
         }}>
           Cấp cứu thường — hệ thống sẽ tạo hồ sơ tiếp nhận cấp cứu thật + phiên phòng lưu theo dõi (lưu xuống hệ thống).
         </div>

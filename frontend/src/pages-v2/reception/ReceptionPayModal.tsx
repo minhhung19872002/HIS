@@ -69,7 +69,7 @@ export const ReceptionPayModal: React.FC<{
       {row && (
         <div style={{ padding: 0 }}>
           <div style={{
-            padding: 12, background: 'var(--d-1)', borderRadius: 6, marginBottom: 14,
+            padding: 12, background: 'var(--d-1)', borderRadius: 'var(--r-2)', marginBottom: 14,
             display: 'grid', gridTemplateColumns: '1fr auto', gap: 6,
           }}>
             <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>{row.patientName} · {row.patientCode}</span>

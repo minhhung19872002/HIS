@@ -251,7 +251,7 @@ const InpatientV2: React.FC = () => {
                       <div
                         key={b.bedId}
                         onClick={() => setBed(b)}
-                        style={{ padding: 10, background: t.bg, border: `1px solid ${t.line}`, borderRadius: 6, cursor: 'pointer' }}
+                        style={{ padding: 10, background: t.bg, border: `1px solid ${t.line}`, borderRadius: 'var(--r-2)', cursor: 'pointer' }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 6 }}>
                           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--t-0)' }}>{b.bedName || b.bedCode}</span>
@@ -302,7 +302,7 @@ const InpatientV2: React.FC = () => {
       {/* ── Tab: Y lệnh hôm nay ── */}
       {tab === 'orders' && (
         <div style={{ flex: 1, overflow: 'auto', padding: 18, background: 'var(--d-1)' }}>
-          <div style={{ background: 'var(--d-2)', border: '1px solid var(--line)', borderRadius: 6 }}>
+          <div style={{ background: 'var(--d-2)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
             {ordersList.length === 0 && <div style={{ padding: 28, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Không có bệnh nhân cần xử lý y lệnh</div>}
             {ordersList.map((r) => (
               <div key={r.admissionId} style={{ padding: '14px 18px', borderBottom: '1px solid var(--line-soft)', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setDetail(r)}>

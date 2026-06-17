@@ -164,7 +164,7 @@ const VppStockCardV2: React.FC = () => {
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)',
           zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center',
         }} onClick={(e) => { if (e.target === e.currentTarget) setCardOpen(false); }}>
-          <div style={{ background: 'var(--d-2)', borderRadius: 8, padding: 24, width: 780, maxHeight: '80vh', overflow: 'auto' }}>
+          <div style={{ background: 'var(--d-2)', borderRadius: 'var(--r-3)', padding: 24, width: 780, maxHeight: '80vh', overflow: 'auto' }}>
             {cardLoading ? (
               <div style={{ textAlign: 'center', padding: 40 }}>Đang tải thẻ kho…</div>
             ) : card ? (

@@ -51,7 +51,7 @@ const BillingV2: React.FC = () => {
             <span style={{
               marginLeft: 6, padding: '1px 5px',
               background: 'var(--a-cy-bg)', color: 'var(--a-cy)',
-              border: '1px solid #67e8f9', borderRadius: 3,
+              border: '1px solid #67e8f9', borderRadius: 'var(--r-1)',
               fontSize: 9, fontWeight: 700,
             }}>BHYT {r.insuranceRate || 0}%</span>
           )}
@@ -244,7 +244,7 @@ const PayModal: React.FC<{
       {invoice && (
         <div style={{ padding: 16 }}>
           <div style={{
-            padding: 12, background: 'var(--d-1)', borderRadius: 6, marginBottom: 14,
+            padding: 12, background: 'var(--d-1)', borderRadius: 'var(--r-2)', marginBottom: 14,
             display: 'grid', gridTemplateColumns: '1fr auto', gap: 6,
           }}>
             <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>{invoice.patientName} · {invoice.patientCode}</span>

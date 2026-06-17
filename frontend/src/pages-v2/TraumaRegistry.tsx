@@ -221,7 +221,7 @@ const TraumaRegistryV2: React.FC = () => {
             </DrField>
           </DrSec>
           <DrSec title="Điểm đánh giá">
-            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 6 }}>
+            <div style={{ padding: 14, background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
               <Line label="ISS · Injury Severity" value={sel.issScore} tone={sel.issScore >= 25 ? 'crit' : sel.issScore >= 16 ? 'warn' : 'ok'} />
               <Line label="RTS · Revised Trauma" value={sel.rtsScore} />
               <Line label="GCS · Glasgow Coma" value={sel.gcsScore} tone={sel.gcsScore <= 8 ? 'crit' : sel.gcsScore <= 12 ? 'warn' : 'ok'} />

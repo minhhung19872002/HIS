@@ -111,7 +111,7 @@ const ClinicalPharmacyCheckV2: React.FC = () => {
 
       {/* Ket qua import CSV */}
       {importResult && (
-        <div style={{ margin: '8px 12px', padding: 12, background: 'var(--bg-1)', borderRadius: 6, border: '1px solid var(--line)' }}>
+        <div style={{ margin: '8px 12px', padding: 12, background: 'var(--bg-1)', borderRadius: 'var(--r-2)', border: '1px solid var(--line)' }}>
           <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 'var(--fs-md)' }}>
             Kết quả import: {importResult.imported} thêm mới · {importResult.updated} cập nhật · {importResult.skipped} bỏ qua / {importResult.totalRows} dòng
           </div>

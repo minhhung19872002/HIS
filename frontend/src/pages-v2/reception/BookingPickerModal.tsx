@@ -112,7 +112,7 @@ export const BookingPickerModal: React.FC<{
               key={b._key}
               style={{
                 display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center',
-                padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 6,
+                padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-2)',
               }}
             >
               <div>

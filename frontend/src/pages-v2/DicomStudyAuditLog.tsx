@@ -165,7 +165,7 @@ const DicomStudyAuditLog: React.FC = () => {
         {studyDetail && (
           <div style={{ padding: 20 }}>
             <div style={{
-              padding: 12, background: 'var(--d-1)', borderRadius: 6,
+              padding: 12, background: 'var(--d-1)', borderRadius: 'var(--r-2)',
               marginBottom: 16, fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', wordBreak: 'break-all',
             }}>
               <span style={{ color: 'var(--t-2)' }}>Study UID:</span> {studyDetail.uid}
@@ -184,13 +184,13 @@ const DicomStudyAuditLog: React.FC = () => {
                 return (
                   <div key={t.id} style={{ position: 'relative', paddingBottom: i === studyDetail.timeline.length - 1 ? 0 : 18 }}>
                     <div style={{
-                      position: 'absolute', left: -25, top: 4, width: 12, height: 12, borderRadius: 6,
+                      position: 'absolute', left: -25, top: 4, width: 12, height: 12, borderRadius: 'var(--r-2)',
                       background: dotColor, border: '2px solid var(--d-0)',
                       boxShadow: `0 0 0 3px ${dotColor}33`,
                     }} />
                     <div style={{
                       background: 'var(--d-0)', border: '1px solid var(--line)',
-                      borderRadius: 6, padding: '10px 14px', borderLeft: `3px solid ${dotColor}`,
+                      borderRadius: 'var(--r-2)', padding: '10px 14px', borderLeft: `3px solid ${dotColor}`,
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                         <StatusBadge tone={tone} dot>{a?.label ?? t.actionLabel ?? t.action}</StatusBadge>

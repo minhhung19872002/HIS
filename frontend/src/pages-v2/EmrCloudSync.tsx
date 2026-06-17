@@ -243,7 +243,7 @@ const EmrCloudSync: React.FC = () => {
                 <DrSec title="Lỗi">
                   <div style={{
                     padding: 12, background: 'var(--s-crit-bg)', border: '1px solid var(--s-crit-bd)',
-                    borderRadius: 6, color: 'var(--s-crit-tx)', fontSize: 12.5, fontFamily: 'var(--font-mono)',
+                    borderRadius: 'var(--r-2)', color: 'var(--s-crit-tx)', fontSize: 12.5, fontFamily: 'var(--font-mono)',
                   }}>
                     <TermIcon name="alert" size={12} /> {detail.errorMessage}
                   </div>
