@@ -153,6 +153,16 @@ namespace HIS.Application.Services
         Task<SendWorklistResultDto> SendWorklistToAnalyzerAsync(SendWorklistDto dto);
 
         /// <summary>
+        /// 7.3.3a Gửi worklist HL7 ORM^O01 cho một phiếu XN cụ thể.
+        /// </summary>
+        Task<SendWorklistResultDto> SendWorklistForOrderAsync(Guid orderId);
+
+        /// <summary>
+        /// 7.3.3b Trạng thái gửi worklist của một phiếu XN.
+        /// </summary>
+        Task<WorklistStatusDto> GetWorklistStatusAsync(Guid orderId);
+
+        /// <summary>
         /// 7.3.4 Nhận kết quả từ máy xét nghiệm
         /// </summary>
         Task<ReceiveResultDto> ReceiveResultFromAnalyzerAsync(Guid analyzerId);
@@ -564,6 +574,7 @@ namespace HIS.Application.Services
         public Guid Id { get; set; }
         public string OrderCode { get; set; }
         public Guid PatientId { get; set; }
+        public Guid MedicalRecordId { get; set; } // P1 (prod-e2e): truy nguoc order -> HSBA
         public string PatientCode { get; set; }
         public string PatientName { get; set; }
         public DateTime OrderDate { get; set; }
@@ -579,6 +590,18 @@ namespace HIS.Application.Services
     {
         public Guid AnalyzerId { get; set; }
         public List<Guid> OrderIds { get; set; }
+    }
+
+    /// <summary>
+    /// Trạng thái gửi worklist của 1 phiếu (dùng bởi GetWorklistStatusAsync — WIP LIS worklist).
+    /// </summary>
+    public class WorklistStatusDto
+    {
+        public Guid OrderId { get; set; }
+        public string OrderCode { get; set; }
+        public bool IsSent { get; set; }
+        public DateTime? SentAt { get; set; }
+        public bool MockMode { get; set; }
     }
 
     public class SendWorklistResultDto

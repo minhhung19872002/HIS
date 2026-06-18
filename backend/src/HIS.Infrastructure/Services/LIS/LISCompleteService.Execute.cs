@@ -222,6 +222,7 @@ public partial class LISCompleteService {
             Id = orderId,
             OrderCode = r.RequestCode,
             PatientId = patient?.Id ?? Guid.Empty,
+            MedicalRecordId = r.MedicalRecordId,
             PatientCode = patient?.PatientCode ?? "",
             PatientName = patient?.FullName ?? "",
             OrderDate = r.RequestDate,
@@ -236,39 +237,208 @@ public partial class LISCompleteService {
 
     public async Task<SendWorklistResultDto> SendWorklistToAnalyzerAsync(SendWorklistDto dto)
     {
-        // MockMode: log the order list and return real count from DB — no socket sent.
-        // TODO(real): when analyzer driver is available, open TCP/serial and send HL7 ORM.
-        bool mockMode = _configuration.GetValue<bool>("LIS:MockMode", true);
+        // Config: Lis:Worklist:MockMode (default true) — khi false gửi TCP thật tới máy.
+        // Fallback: Lis:MockMode để tương thích config cũ.
+        bool mockMode = _configuration.GetValue<bool>("Lis:Worklist:MockMode",
+                            _configuration.GetValue<bool>("LIS:MockMode", true));
 
-        // Count real pending orders for the analyzer
-        int realCount = 0;
+        var errors = new List<string>();
+        int sentCount = 0;
+        int failedCount = 0;
+
+        // 1. Load ServiceRequests cần gửi
+        List<ServiceRequest> requests;
         if (dto.OrderIds != null && dto.OrderIds.Count > 0)
         {
-            realCount = dto.OrderIds.Count;
+            requests = await _context.ServiceRequests
+                .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
+                .Include(r => r.Doctor)
+                .Include(r => r.Details.Where(d => !d.IsDeleted && d.Status != 3)).ThenInclude(d => d.Service)
+                .Where(r => dto.OrderIds.Contains(r.Id) && !r.IsDeleted && r.RequestType == 1)
+                .ToListAsync();
         }
         else
         {
-            // Count all pending worklist items for this analyzer from DB
-            realCount = await _context.LabWorklists
-                .CountAsync(w => w.AnalyzerId == dto.AnalyzerId && w.Status == 0);
+            // Tất cả XN chưa gửi worklist hôm nay
+            var today = DateTime.Today;
+            requests = await _context.ServiceRequests
+                .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
+                .Include(r => r.Doctor)
+                .Include(r => r.Details.Where(d => !d.IsDeleted && d.Status != 3)).ThenInclude(d => d.Service)
+                .Where(r => !r.IsDeleted && r.RequestType == 1
+                         && r.WorklistSentAt == null
+                         && r.RequestDate >= today && r.RequestDate < today.AddDays(1))
+                .ToListAsync();
         }
 
         _logger.LogInformation(
             "[MockMode={MockMode}] SendWorklistToAnalyzer: analyzerId={AnalyzerId}, orderCount={Count}",
-            mockMode, dto.AnalyzerId, realCount);
+            mockMode, dto.AnalyzerId, requests.Count);
 
+        // 2. Chuẩn bị gửi TCP nếu không MockMode
+        Guid? connectionId = null;
         if (!mockMode)
         {
-            // TODO: real driver — open connection and send HL7 ORM^O01 per order
-            _logger.LogWarning("SendWorklistToAnalyzer real driver not yet implemented — falling back to MockMode");
+            // Lấy host/port từ LisAnalyzer (config ưu tiên) hoặc SystemConfig
+            var analyzer = await _context.LisAnalyzers.FirstOrDefaultAsync(a => a.Id == dto.AnalyzerId);
+            var host = analyzer?.IpAddress
+                       ?? _configuration["Lis:Worklist:Host"]
+                       ?? _configuration["LIS:WorklistHost"];
+            var portStr = analyzer?.Port?.ToString()
+                          ?? _configuration["Lis:Worklist:Port"]
+                          ?? _configuration["LIS:WorklistPort"];
+
+            if (string.IsNullOrEmpty(host) || !int.TryParse(portStr, out var port))
+            {
+                _logger.LogWarning("SendWorklistToAnalyzer: no host/port config — falling back to MockMode");
+                mockMode = true;
+            }
+            else
+            {
+                try
+                {
+                    connectionId = await _hl7Manager.ConnectAsClientAsync(dto.AnalyzerId, host, port);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "SendWorklistToAnalyzer: TCP connect failed to {Host}:{Port}", host, portStr);
+                    mockMode = true;
+                    errors.Add($"TCP connect failed: {ex.Message} — switched to MockMode");
+                }
+            }
         }
+
+        // 3. Build HL7 ORM^O01 và gửi từng order
+        var now = DateTime.Now;
+        foreach (var req in requests)
+        {
+            try
+            {
+                var patient = req.MedicalRecord?.Patient;
+                var tests = req.Details
+                    .Where(d => !d.IsDeleted && d.Status != 3)
+                    .Select(d => new HL7TestRequest
+                    {
+                        TestCode = d.Service?.ServiceCode ?? d.ServiceId.ToString(),
+                        TestName = d.Service?.ServiceName ?? "",
+                        FillerOrderNumber = d.SampleBarcode ?? d.Id.ToString("N")[..12]
+                    }).ToList();
+
+                if (tests.Count == 0)
+                {
+                    _logger.LogWarning("SendWorklistToAnalyzer: order {OrderId} has no active details — skipped", req.Id);
+                    continue;
+                }
+
+                var worklistReq = new HL7WorklistRequest
+                {
+                    MessageControlId  = req.Id.ToString("N")[..20],
+                    SendingApplication = "HIS",
+                    SendingFacility   = _configuration["Lis:Worklist:SendingFacility"] ?? "HOSPITAL",
+                    ReceivingApplication = "LIS",
+                    ReceivingFacility = _configuration["Lis:Worklist:ReceivingFacility"] ?? "LAB",
+                    PatientId         = patient?.PatientCode ?? req.Id.ToString("N")[..10],
+                    PatientFamilyName = patient?.FullName ?? "",
+                    PatientGivenName  = "",
+                    DateOfBirth       = patient?.DateOfBirth,
+                    Gender            = patient?.Gender == 1 ? "M" : patient?.Gender == 2 ? "F" : "U",
+                    PatientClass      = "O", // O=Outpatient
+                    SampleId          = req.RequestCode,
+                    PlacerOrderNumber = req.RequestCode,
+                    OrderingProvider  = req.Doctor?.FullName ?? "",
+                    RequestedDateTime = req.RequestDate,
+                    CollectionDateTime = req.RequestDate,
+                    IsPriority        = req.IsPriority || req.IsEmergency,
+                    Tests             = tests
+                };
+
+                var hl7Message = _hl7Parser.BuildORM(worklistReq);
+
+                if (mockMode)
+                {
+                    // MockMode: log message, không gửi socket
+                    _logger.LogInformation(
+                        "[MockMode] Worklist ORM^O01 built for order {OrderCode}:\n{Message}",
+                        req.RequestCode, hl7Message);
+                }
+                else if (connectionId.HasValue)
+                {
+                    // Real mode: gửi qua TCP, chờ ACK
+                    var ack = await _hl7Manager.SendWorklistAsync(connectionId.Value, worklistReq);
+                    _logger.LogInformation(
+                        "Worklist sent for order {OrderCode}, ACK={AckCode}",
+                        req.RequestCode, ack?.MessageType);
+                }
+
+                // Đánh dấu đã gửi
+                req.WorklistSentAt = now;
+                sentCount++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "SendWorklistToAnalyzer: failed for order {OrderId}", req.Id);
+                errors.Add($"Order {req.RequestCode}: {ex.Message}");
+                failedCount++;
+            }
+        }
+
+        // 4. Lưu WorklistSentAt
+        if (sentCount > 0)
+            await _context.SaveChangesAsync();
+
+        // 5. Ngắt kết nối TCP nếu đã mở
+        if (connectionId.HasValue)
+            _hl7Manager.Disconnect(connectionId.Value);
+
+        if (mockMode)
+            errors.Add($"[MockMode] {sentCount} worklist(s) logged — not sent via hardware");
 
         return new SendWorklistResultDto
         {
-            Success = true,
-            SentCount = realCount,
-            FailedCount = 0,
-            Errors = mockMode ? new List<string> { "[MockMode] Worklist logged, not sent via hardware" } : new List<string>()
+            Success    = failedCount == 0,
+            SentCount  = sentCount,
+            FailedCount = failedCount,
+            Errors     = errors
+        };
+    }
+
+    /// <summary>
+    /// Gửi worklist HL7 ORM^O01 cho một phiếu XN cụ thể.
+    /// MockMode (config Lis:Worklist:MockMode=true): build message + log, không mở socket.
+    /// Real mode: gửi TCP tới LisAnalyzer.IpAddress/Port cấu hình trong bảng.
+    /// </summary>
+    public async Task<SendWorklistResultDto> SendWorklistForOrderAsync(Guid orderId)
+    {
+        return await SendWorklistToAnalyzerAsync(new SendWorklistDto
+        {
+            AnalyzerId = Guid.Empty, // không cần AnalyzerId khi gửi theo orderId
+            OrderIds   = new List<Guid> { orderId }
+        });
+    }
+
+    /// <summary>
+    /// Trả về trạng thái gửi worklist của một phiếu XN.
+    /// </summary>
+    public async Task<WorklistStatusDto> GetWorklistStatusAsync(Guid orderId)
+    {
+        var req = await _context.ServiceRequests
+            .Where(r => r.Id == orderId && !r.IsDeleted)
+            .Select(r => new { r.Id, r.RequestCode, r.WorklistSentAt })
+            .FirstOrDefaultAsync();
+
+        if (req == null)
+            return new WorklistStatusDto { OrderId = orderId, IsSent = false };
+
+        bool mockMode = _configuration.GetValue<bool>("Lis:Worklist:MockMode",
+                            _configuration.GetValue<bool>("LIS:MockMode", true));
+
+        return new WorklistStatusDto
+        {
+            OrderId      = req.Id,
+            OrderCode    = req.RequestCode,
+            IsSent       = req.WorklistSentAt.HasValue,
+            SentAt       = req.WorklistSentAt,
+            MockMode     = mockMode
         };
     }
 

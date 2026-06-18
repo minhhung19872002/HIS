@@ -425,6 +425,26 @@ namespace HIS.API.Controllers
         }
 
         /// <summary>
+        /// 7.3.3a Gửi worklist HL7 ORM^O01 cho một phiếu XN cụ thể.
+        /// </summary>
+        [HttpPost("worklist/order/{orderId}/send")]
+        public async Task<ActionResult<SendWorklistResultDto>> SendWorklistForOrder(Guid orderId)
+        {
+            var result = await _lisService.SendWorklistForOrderAsync(orderId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// 7.3.3b Trạng thái gửi worklist của một phiếu XN.
+        /// </summary>
+        [HttpGet("worklist/order/{orderId}/status")]
+        public async Task<ActionResult<WorklistStatusDto>> GetWorklistStatus(Guid orderId)
+        {
+            var result = await _lisService.GetWorklistStatusAsync(orderId);
+            return Ok(result);
+        }
+
+        /// <summary>
         /// 7.3.4 Nhận kết quả từ máy xét nghiệm
         /// </summary>
         [HttpPost("analyzers/{analyzerId}/receive-results")]

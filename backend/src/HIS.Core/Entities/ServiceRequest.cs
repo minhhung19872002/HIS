@@ -60,6 +60,9 @@ public class ServiceRequest : BaseEntity
     public decimal PatientAmount { get; set; }
     public bool IsPaid { get; set; }
 
+    // LIS Worklist tracking: thời điểm gửi HL7 ORM^O01 tới máy xét nghiệm (NULL = chưa gửi)
+    public DateTime? WorklistSentAt { get; set; }
+
     // Navigation
     public virtual ICollection<ServiceRequestDetail> Details { get; set; } = new List<ServiceRequestDetail>();
 }
