@@ -7,6 +7,21 @@
 > (deploy) · #182-safe (gỡ publish/ local) · quyết-định v1-abandon (#205/#209-rawfetch MOOT) · 6 rule quy-trình mới. **ĐANG:** #184
 > over-posting: **CLOSED** (ép server-Id+IsDeleted=false mọi create-path 6 ctrl; Workflow 6-agent + 6 adversarial-verify bắt 6 gap EmployeeProfile→hoàn thiện; build OK). **HOÃN chờ user:** tiền/safety #185-190
 > (rủi ro không test-net) · #182-rotate · #183-role-canonical (DB-confirm). | Cũ: 36 Issue #180-215 + 56 test-issue #216-289 (test làm CUỐI).
+>
+> **(máy khác cùng ngày — prod-e2e/sweep, ĐÃ PUSH + VERIFY PROD):**
+> ① seed catalog nhân khẩu (mig 137: Genders 3/Ethnics 54/Occupations 20) · ② RIS #1 nhập KQ text-only + #2 GET orders default-hôm-nay (`ef91177`) ·
+> ③ **inpatient+surgery**: invoice detail 404→200 + services/search 400→list + **surgery SearchServices mock→query Services thật (PTTT=ServiceType 5)** + assign-bed idempotent + discharge raw-Exception→`InvalidOperationException`→400 + RIS `medicalRecordId` (`5dc9935`); **E2E local: IPD 10/10 + Surgery 11/11 PASS** (script `test-ipd/surgery-e2e-lifecycle.ps1`) ·
+> ④ **prod-sweep validation**: 18 create-DTO/11 file +`[Required]` chống tạo-rác/NRE-500 (`2bf8336`, verify prod {}→400 cho 10 endpoint).
+>
+> **Việc kế tiếp:** (a) nhóm endpoint còn lại cần fix sâu — key `Guid` value-type hoặc DTO toàn-optional (TbHiv/IvfLab/HospitalPharmacy/Notification + P1-NRE: MentalHealth/Pathology/TraditionalMedicine/Trauma/PharmacyApproval/Forensic) → đổi `Guid`→`Guid?`+`[Required]` hoặc guard service ném `InvalidOperationException`; (b) **P2 dọn data rác prod** (probe 2026-06-17, CreatedAt + field rỗng) — cần migration guarded, chờ user duyệt WHERE từng bảng; (c) LIS P1#2 (`medicalRecordId` LabOrderDetailDto) — đang giữ local vì tangled WIP LIS-worklist.
+>
+> **WIP 2026-06-18 — 3 luồng ĐÃ HOÀN THIỆN + COMMIT LOCAL (chưa push; build full BE 0err + FE tsc EXIT0):**
+> ① **LIS worklist** #22 (commit `4212eef`): `SendWorklistToAnalyzerAsync` rewrite (load ServiceRequests RequestType=1 chưa gửi/hôm-nay → ORM^O01 qua `HL7Parser.BuildORM` → MockMode log / real-mode TCP `HL7ConnectionManager` → set `WorklistSentAt`+SaveChanges) + `SendWorklistForOrderAsync`/`GetWorklistStatusAsync` vào interface + 2 endpoint `POST worklist/order/{id}/send` & `GET worklist/order/{id}/status` + mig 136 + `LabOrderDetailDto.MedicalRecordId`. Config `Lis:Worklist:MockMode` default true.
+> ② **EInvoice HĐĐT** #24 + ③ **SpecimenImage** #134 (commit `07e7af1`): EInvoice entity+`IEInvoiceService`/`EInvoiceService` (list/detail/issue/cancel/sync/config, MockMode sinh số giả từ `Receipt.FinalAmount`; real-mode ghi Status=4 lỗi-rõ vì adapter NCC chưa làm) + mig 135 + DbSet + DI + FE route `/v2/einvoices`+menu; **DTO đổi tên `IssueEInvoiceRequestDto`** tránh trùng `DTOs.Billing.IssueEInvoiceDto` cũ. SpecimenImage entity+controller (upload file/base64, list, serve-file chống traversal, soft-delete) + mig 134 + DbSet + FE `SpecimenImageGallery` (**chưa embed vào result drawer lâm sàng → follow-up**).
+> ⚠️ #24/#134 vẫn blocked (credential NCC / phần cứng) → MockMode dùng được, **chưa push/deploy**. Còn header mig 134/135/136 đã sửa (132→đúng số).
+> ④ **Audit-cols advanced** → **#290 CLOSED** (commit `435e7d5`, PUSHED+DEPLOY success+VERIFY PROD): mig 133 idempotent ADD CreatedAt/By/UpdatedAt/By cho 16 bảng Community/Public/Forensic (entity extend BaseEntity → vá schema-drift) + set `CreatedAt` lúc create 3 service. **Verify prod `/health/schema-drift` missingCount=0, missingColumnsCount=0**; smoke einvoice/config·list·specimen·lis-worklist=200. `CreatedBy` (luồn userId, ~16 method) → tách **follow-up #291**. GH #48 closed/là task-test → đã tách #290.
+>
+> **TỔNG 4 luồng prod-deploy 2026-06-18:** #22 LIS worklist (`4212eef`) · #24 EInvoice + #134 SpecimenImage (`07e7af1`) · #290 audit-cols (`435e7d5`) — **đều schema-drift=0 + smoke 200 prod**. #22/#24/#134 OPEN (MockMode, chờ máy XN/credential/phần cứng); #290 CLOSED.
 
 ## Test program (PLAN XONG — chạy CUỐI CÙNG, sau khi 100% fix/tech-debt DONE)
 - **★ RULE CỨNG (CLAUDE.md + hook session-start/remind-pipeline, mọi máy): TEST là BẮT BUỘC nhưng LUÔN LÀM CUỐI CÙNG.**
