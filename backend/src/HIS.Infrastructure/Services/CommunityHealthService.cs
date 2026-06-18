@@ -120,6 +120,8 @@ public class CommunityHealthService : ICommunityHealthService
             AssignedTeamId = dto.AssignedTeamId,
             NextVisitDate = DateTime.TryParse(dto.NextVisitDate, out var nvd) ? nvd : null,
             Notes = dto.Notes,
+            CreatedAt = DateTime.UtcNow,
+            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
         };
 
         _context.HouseholdHealthRecords.Add(entity);
@@ -351,6 +353,8 @@ public class CommunityHealthService : ICommunityHealthService
             ReferredToFacility = dto.ReferredToFacility,
             FollowUpDate = DateTime.TryParse(dto.FollowUpDate, out var fud) ? fud : null,
             ScreenedBy = dto.ScreenedBy,
+            CreatedAt = DateTime.UtcNow,
+            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
         };
 
         _context.NcdScreenings.Add(entity);
@@ -549,6 +553,8 @@ public class CommunityHealthService : ICommunityHealthService
             ActiveHouseholds = 0,
             Status = 0, // Active
             EstablishedDate = DateTime.TryParse(dto.EstablishedDate, out var ed) ? ed : DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
         };
 
         _context.CommunityHealthTeams.Add(entity);

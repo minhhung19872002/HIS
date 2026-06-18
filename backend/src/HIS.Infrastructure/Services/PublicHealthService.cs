@@ -154,6 +154,7 @@ public class PublicHealthService : IPublicHealthService
             DoctorName = dto.DoctorName,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
+            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
         };
         _context.HealthCheckups.Add(entity);
         await _context.SaveChangesAsync();
@@ -338,6 +339,7 @@ public class PublicHealthService : IPublicHealthService
             IsEPI = dto.IsEPI,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
+            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
         };
         _context.VaccinationRecords.Add(entity);
 
@@ -439,6 +441,7 @@ public class PublicHealthService : IPublicHealthService
             Description = dto.Description,
             Areas = dto.Areas,
             CreatedAt = DateTime.UtcNow,
+            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
         };
         _context.VaccinationCampaigns.Add(entity);
         await _context.SaveChangesAsync();
@@ -599,6 +602,7 @@ public class PublicHealthService : IPublicHealthService
             Status = 0, // Reported
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
+            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
         };
         _context.DiseaseReports.Add(entity);
         await _context.SaveChangesAsync();
@@ -700,6 +704,7 @@ public class PublicHealthService : IPublicHealthService
             Status = 0, // Detected
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
+            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
         };
         _context.OutbreakEvents.Add(entity);
         await _context.SaveChangesAsync();
@@ -838,6 +843,7 @@ public class PublicHealthService : IPublicHealthService
             Notes = dto.Notes,
             Status = 0, // Pending
             CreatedAt = DateTime.UtcNow,
+            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
         };
         _context.SchoolHealthExams.Add(entity);
         await _context.SaveChangesAsync();
@@ -973,6 +979,7 @@ public class PublicHealthService : IPublicHealthService
             Status = 0, // Pending
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
+            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
         };
         _context.OccupationalHealthExams.Add(entity);
         await _context.SaveChangesAsync();
@@ -1134,6 +1141,7 @@ public class PublicHealthService : IPublicHealthService
             TransferredFrom = dto.TransferredFrom,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
+            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
         };
         _context.MethadonePatients.Add(entity);
         await _context.SaveChangesAsync();
@@ -1216,6 +1224,7 @@ public class PublicHealthService : IPublicHealthService
             Status = dto.Status,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
+            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
         };
         _context.MethadoneDosingRecords.Add(entity);
 
@@ -1285,6 +1294,7 @@ public class PublicHealthService : IPublicHealthService
             OverallResult = dto.OverallResult,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
+            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
         };
         _context.MethadoneUrineTests.Add(entity);
         await _context.SaveChangesAsync();

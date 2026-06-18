@@ -133,6 +133,7 @@ public class ForensicService : IForensicService
             Notes = dto.Notes,
             Status = 0,
             CreatedAt = DateTime.UtcNow,
+            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
         };
 
         _context.ForensicCases.Add(entity);
@@ -212,6 +213,7 @@ public class ForensicService : IForensicService
             ExaminerName = dto.ExaminerName,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
+            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
         };
 
         _context.ForensicExaminations.Add(entity);
