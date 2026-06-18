@@ -393,6 +393,7 @@ public static class DependencyInjection
         services.AddScoped<IDicomAutoSendService, DicomAutoSendService>();
         services.AddScoped<IHl7QueueService, Hl7QueueService>();
         services.AddScoped<IDicomStudyActivityService, DicomStudyActivityService>();
+        services.AddScoped<IEInvoiceService, EInvoiceService>(); // #24: HĐĐT đa NCC (MockMode mặc định)
 
         // NangCap23 external gateway clients — production-first registration:
         //   * MockMode=false (default) → typed HttpClient hitting real cổng QG sandbox

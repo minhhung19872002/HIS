@@ -60,6 +60,7 @@ const SpecialTestRuleAdminV2 = lazy(() => import('./pages-v2/SpecialTestRuleAdmi
 const AdministrativeUnitsV2 = lazy(() => import('./pages-v2/AdministrativeUnits'));
 const ObstetricRegistersV2 = lazy(() => import('./pages-v2/ObstetricRegisters'));
 const AdrReportsV2 = lazy(() => import('./pages-v2/AdrReports'));
+const EInvoicesV2 = lazy(() => import('./pages-v2/EInvoices')); // #24 HĐĐT đa NCC
 const BillingGuarantorsV2 = lazy(() => import('./pages-v2/BillingGuarantors'));
 const FunctionalDiagnosticCatalogV2 = lazy(() => import('./pages-v2/FunctionalDiagnosticCatalog'));
 const ProvincialHealthV2 = lazy(() => import('./pages-v2/ProvincialHealth'));
@@ -677,6 +678,8 @@ const AppRoutes: React.FC = () => {
           <Route path="administrative-units" element={<AdministrativeUnitsV2 />} />
           {/* #154 obstetric registers (birth + abortion) */}
           <Route path="obstetric-registers" element={<ObstetricRegistersV2 />} />
+          {/* #24 HĐĐT — hóa đơn điện tử đa NCC */}
+          <Route path="einvoices" element={<EInvoicesV2 />} />
           {/* #5 #55-59: ADR — báo cáo phản ứng có hại thuốc */}
           <Route path="adr-reports" element={<AdrReportsV2 />} />
           {/* #41 #68-72: bảo lãnh viện phí */}

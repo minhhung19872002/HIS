@@ -118,6 +118,7 @@ const HIS_GROUPS: NavGroup[] = [
       { id: 'finance-catalogs', path: '/v2/finance-catalogs', label: '[24] DM Tài chính' },
       // NangCap24
       { id: 'bank-payments', path: '/v2/bank-payments', label: '[24] TT Ngân hàng (BIDV/VCB/...)' },
+      { id: 'einvoices', path: '/v2/einvoices', label: '[24] Hóa đơn điện tử (HĐĐT)' },
     ],
   },
   {

@@ -183,6 +183,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<AssetProcurementRequest> AssetProcurementRequests => Set<AssetProcurementRequest>(); // #108
     public DbSet<AssetProcurementRequestItem> AssetProcurementRequestItems => Set<AssetProcurementRequestItem>(); // #108
     public DbSet<PayerChangeLog> PayerChangeLogs => Set<PayerChangeLog>(); // #104 #126-127 #137: log đổi đối tượng
+    public DbSet<SpecimenImage> SpecimenImages => Set<SpecimenImage>(); // #134 #133: ảnh bệnh phẩm gắn KQ XN/GPB
+    public DbSet<EInvoice> EInvoices => Set<EInvoice>(); // #24: hóa đơn điện tử HĐĐT đa NCC
     public DbSet<Supplier> Suppliers => Set<Supplier>();
 
     // Warehouse extensions (consignment, IU mapping, splitable, profit margin)
