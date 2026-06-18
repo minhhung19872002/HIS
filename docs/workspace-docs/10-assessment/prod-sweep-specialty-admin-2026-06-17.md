@@ -6,11 +6,15 @@
 >   mental-health/cases · traditional-medicine/treatments · trauma-registry/cases · forensic/cases ·
 >   pathology/results · pharmacy-approval/submit). `{}` → 400 message rõ, không tạo rác / không NRE-500.
 >   `Notification/test` = no-body dev-test → bỏ qua (không có input để validate). Build BE 0 error.
-> - **P2 dọn data rác = CHƯA chạy (blocker kỹ thuật + an toàn).** `CreatedAt` KHÔNG có trong response list API
->   → không nhận diện rác qua API. Query theo `CreatedAt` cần SQL trực tiếp prod (whitelist IP Cloud SQL +
->   sa-secret = side-effect bảo mật) + đây là bản ghi QA-probe (không phải Claude tạo) → "nhìn trước khi xóa".
->   Rác = test-data vô hại (STATUS: stock chưa từng bị trừ). **Khuyến nghị:** chạy SELECT-count trước rồi
->   guarded DELETE qua DB tool / `gcloud sql connect` khi có phiên DB; hoặc defer (giá trị cosmetic).
+> - **P2 dọn data rác = ✅ DONE (prod, 2026-06-18).** Connect prod SQL (sqlcmd) → SELECT-count → look-before-delete
+>   → guarded DELETE. **Xóa 7 record rác** (1/bảng: Tenders, PracticeLicenses, AssetProcurementRequests,
+>   SatisfactionSurveyTemplates, HealthCampaigns, HouseholdHealthRecords, ChronicDiseaseRecords) + **1 child
+>   ChronicDiseaseFollowUps** (FK). Tất cả tạo cùng loạt 2026-06-17 16:39, core-field rỗng. **Verify: REMAINING=0.**
+>   5 bảng còn lại (InterHospital/Ivf/Population/Procurement/TbHiv) = 0 rác (probe 204/echo không persist);
+>   Notifications "Thông báo test" KHÔNG coi rác. Script: `scripts/cleanup_qa_garbage_2026-06-17.sql`.
+> - 🔴 **FINDING BẢO MẬT (phát sinh khi dọn):** Cloud SQL `his-sql` authorizedNetworks = **`0.0.0.0/0`**
+>   (prod DB mở cho toàn internet, chỉ chặn bằng password). → issue #292 siết IP. KHÔNG tự sửa (Cloud Run
+>   connect qua public IP → siết sai có thể vỡ prod, cần phiên có kiểm chứng).
 
 
 > Probe 1 write-endpoint chính của 29 module chưa test (body `{}`), phân loại. **Phát hiện hệ thống: rất nhiều endpoint TẠO không validate input** (cùng anti-pattern surgery-requests đã fix nhưng còn rải rác).
