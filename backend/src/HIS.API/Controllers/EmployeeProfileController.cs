@@ -13,7 +13,7 @@ namespace HIS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/employee-profile")]
-[Authorize]
+[Authorize(Roles = "Admin,Manager,Director,Quản trị hệ thống")] // B3 RBAC: hồ sơ nhân sự/tài sản NV chỉ admin/HR
 public class EmployeeProfileController : ControllerBase
 {
     private readonly HISDbContext _db;

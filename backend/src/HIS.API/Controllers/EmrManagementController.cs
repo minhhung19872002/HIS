@@ -8,7 +8,7 @@ namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/emr-management")]
-[Authorize]
+[Authorize(Roles = "Admin,Manager,Director,Quản trị hệ thống,Doctor,Bác sĩ,Nurse,Điều dưỡng")] // B3 RBAC: thao tác/chia sẻ EMR chỉ admin+lâm sàng (Doctor 5u/Nurse 2u), KHÔNG lễ tân/kế toán
 public class EmrManagementController : ControllerBase
 {
     private readonly IEmrManagementService _service;

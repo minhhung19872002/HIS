@@ -11,7 +11,7 @@ namespace HIS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/audit")]
-[Authorize]
+[Authorize(Roles = "Admin,Manager,Director,Quản trị hệ thống")] // B3 RBAC: nhật ký hệ thống chỉ admin
 public class AuditController : ControllerBase
 {
     private readonly IAuditLogService _auditLogService;

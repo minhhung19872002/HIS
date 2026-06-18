@@ -13,7 +13,7 @@ namespace HIS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/admin-modules")]
-[Authorize]
+[Authorize(Roles = "Admin,Manager,Director,Quản trị hệ thống")] // B3 RBAC: quản trị/payroll chỉ system-admin (ADMIN→Admin/Manager/Director)
 public class AdminModulesController : ControllerBase
 {
     private readonly IAdminModulesService _svc;

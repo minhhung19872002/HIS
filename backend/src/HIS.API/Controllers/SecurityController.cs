@@ -12,7 +12,7 @@ namespace HIS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/security")]
-[Authorize]
+[Authorize(Roles = "Admin,Manager,Director,Quản trị hệ thống")] // B3 RBAC: cấu hình bảo mật/access-matrix chỉ system-admin
 public class SecurityController : ControllerBase
 {
     private readonly ISecurityService _securityService;

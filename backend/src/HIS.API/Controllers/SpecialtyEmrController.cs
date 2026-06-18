@@ -7,7 +7,7 @@ namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/specialty-emr")]
-[Authorize]
+[Authorize(Roles = "Admin,Manager,Director,Quản trị hệ thống,Doctor,Bác sĩ,Nurse,Điều dưỡng")] // B3 RBAC: EMR chuyên khoa chỉ admin+lâm sàng
 [TypeFilter(typeof(Filters.DomainExceptionFilter))] // TT46: InvalidOperationException (EmrLockGuard) → 400 + message rõ
 public class SpecialtyEmrController : ControllerBase
 {

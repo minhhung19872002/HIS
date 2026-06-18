@@ -11,7 +11,7 @@ namespace HIS.API.Controllers
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = "Admin,Manager,Director,Quản trị hệ thống,Accountant,Cashier,Thu ngân")] // B3 RBAC: báo cáo/tài chính chỉ admin/kế toán (CASHIER→Cashier/Accountant)
     public class ReportingController : ControllerBase
     {
         private readonly IReportingCompleteService _reportingService;

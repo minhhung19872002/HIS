@@ -8,7 +8,7 @@ namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/signing-workflow")]
-[Authorize]
+[Authorize(Roles = "Admin,Manager,Director,Quản trị hệ thống,Doctor,Bác sĩ")] // B3 RBAC: luồng ký chỉ admin+bác sĩ ký/duyệt
 public class SigningWorkflowController : ControllerBase
 {
     private readonly ISigningWorkflowService _service;
