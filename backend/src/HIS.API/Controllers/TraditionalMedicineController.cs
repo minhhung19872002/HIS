@@ -37,6 +37,8 @@ public class TraditionalMedicineController : ControllerBase
     [HttpPost("treatments")]
     public async Task<ActionResult<TraditionalMedicineTreatmentDto>> CreateTreatment([FromBody] CreateTraditionalMedicineTreatmentDto dto)
     {
+        if (dto == null || ((dto.PatientId == null || dto.PatientId == Guid.Empty) && string.IsNullOrWhiteSpace(dto.PatientName)))
+            return BadRequest(new { message = "Thiếu thông tin bệnh nhân (PatientId hoặc PatientName)" });
         return Ok(await _service.CreateTreatmentAsync(dto));
     }
 

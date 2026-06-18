@@ -58,6 +58,8 @@ public class TbHivController : ControllerBase
     [HttpPost("records")]
     public async Task<ActionResult<TbHivRecordDetailDto>> CreateRecord([FromBody] CreateTbHivRecordDto dto)
     {
+        if (dto == null || dto.PatientId == Guid.Empty)
+            return BadRequest(new { message = "Thiếu PatientId" });
         var result = await _tbHivService.CreateRecordAsync(dto);
         return Ok(result);
     }

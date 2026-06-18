@@ -40,6 +40,8 @@ public class IvfLabController : ControllerBase
     [HttpPost("couples")]
     public async Task<ActionResult<IvfCoupleDto>> SaveCouple([FromBody] SaveIvfCoupleDto dto)
     {
+        if (dto == null || dto.WifePatientId == Guid.Empty || dto.HusbandPatientId == Guid.Empty)
+            return BadRequest(new { message = "Thiếu thông tin vợ/chồng (WifePatientId, HusbandPatientId)" });
         return Ok(await _ivfLabService.SaveCoupleAsync(dto));
     }
 

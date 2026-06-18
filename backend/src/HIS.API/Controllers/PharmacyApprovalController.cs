@@ -43,7 +43,11 @@ public class PharmacyApprovalController : ControllerBase
 
     [HttpPost("submit")]
     public async Task<ActionResult<PharmacyApprovalDto>> Submit([FromBody] SubmitApprovalDto dto)
-        => Ok(await _service.SubmitAsync(dto, GetUserId()));
+    {
+        if (dto == null || dto.ApprovalId == Guid.Empty)
+            return BadRequest(new { message = "Thiếu ApprovalId" });
+        return Ok(await _service.SubmitAsync(dto, GetUserId()));
+    }
 
     [HttpPost("approve")]
     [Authorize(Roles = "Admin,Pharmacist,PharmacyHead")]

@@ -54,6 +54,8 @@ public class HospitalPharmacyController : ControllerBase
     [HttpPost("sales")]
     public async Task<ActionResult<RetailSaleDetailDto>> CreateSale([FromBody] CreateRetailSaleDto dto)
     {
+        if (dto == null || dto.Items == null || dto.Items.Count == 0)
+            return BadRequest(new { message = "Phiếu bán lẻ phải có ít nhất 1 mặt hàng" });
         var result = await _hospitalPharmacyService.CreateSaleAsync(dto);
         return Ok(result);
     }

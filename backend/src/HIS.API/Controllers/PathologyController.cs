@@ -48,6 +48,8 @@ public class PathologyController : ControllerBase
     [HttpPost("results")]
     public async Task<ActionResult<PathologyResultDto>> CreatePathologyResult([FromBody] CreatePathologyResultDto dto)
     {
+        if (dto == null || dto.RequestId == null || dto.RequestId == Guid.Empty)
+            return BadRequest(new { message = "Thiếu RequestId (phiếu GPB)" });
         var result = await _pathologyService.CreatePathologyResultAsync(dto);
         return Ok(result);
     }
