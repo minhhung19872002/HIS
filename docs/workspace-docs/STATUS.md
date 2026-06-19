@@ -3,8 +3,10 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-19** — **DOCS RESTRUCTURE = ✅ READY_FOR_PUSH** (chưa commit/push, chờ duyệt): tái cấu trúc `docs/` về **5 bucket SoT**
-> (architecture/requirements/ui-design/features/workspace-docs) — 11→6 mục top-level. Audit 7-mục: `workspace-docs/10-assessment/docs-restructure-audit-2026-06-19.md`.
+> Cập nhật cuối: **2026-06-19** — **PROJECT_STRUCTURE.md accuracy pass = ✅ READY_FOR_PUSH** (chưa commit, chờ duyệt): đồng bộ mọi số liệu/cây với repo thật
+> (Services 95→108 · DbSets 439→509 · Scripts 43→137 · controllers→134 · api→133 · pages v1 124/v2 156 · .claude skills 3→48); gỡ root `design-system*` (đã ở docs/ui-design); section 5.1 NangCap-PDF
+> & 5.5 test-*.ps1 & section 6 cập nhật; + `.github/` + note local-only. ⚠️ Sibling drift còn (ngoài scope file này): `scripts/README.md`+`scripts/archive/README.md` count legacy-sql 83→86/89→92.
+> | **DOCS RESTRUCTURE = ✅ DONE+PUSHED** (commit `77ca49d`): tái cấu trúc `docs/` về **5 bucket SoT** (architecture/requirements/ui-design/features/workspace-docs) — 11→6 mục top-level. Audit: `workspace-docs/10-assessment/docs-restructure-audit-2026-06-19.md`.
 > Thực thi (user duyệt 3 quyết-định = giữ features · tạo `architecture/operations/` · ARCHIVE stale): **26 `git mv`** (3 req-doc→requirements; 8 ops/setup→architecture/operations;
 > 7 stale→workspace-docs/90-archive; 3 dead-SQL→scripts/archive; rule-compliance-audit→10-assessment; 4 ảnh→90-archive/images) + xoá 5 dir rỗng + gitignore `_docling_*` +
 > sửa link 3 file (README rewrite, PROJECT_STRUCTURE, req/20 README). **Validation:** 0 stale-ref · 0 internal-link gãy · KHÔNG đụng STATUS.md-path/evidence/his-roadmap viewer/.claude.

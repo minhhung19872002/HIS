@@ -8,7 +8,7 @@
 
 | Folder | Số file | Mục đích |
 |---|---|---|
-| [`archive/`](./archive/) | 89 | **SQL di sản CHẾT** (`legacy-sql/` 83 + `migrations/` 6) — không bao giờ được runner load. Chỉ tham khảo lịch sử. Xem [`archive/README.md`](./archive/README.md). |
+| [`archive/`](./archive/) | 92 | **SQL di sản CHẾT** (`legacy-sql/` 86 + `migrations/` 6) — không bao giờ được runner load. Chỉ tham khảo lịch sử. Xem [`archive/README.md`](./archive/README.md). |
 | [`dev-tools/`](./dev-tools/) | 17 | PowerShell helper: docker start, deploy GCP, restore data, regression test, test cleanup, etc. |
 | [`ai-model/`](./ai-model/) | 3 | Python script convert PyTorch → ONNX cho AI diagnostic imaging (X-quang, CT, US). Cần Python env + checkpoint. |
 | [`legacy-py/`](./legacy-py/) | 2 | Python ad-hoc cũ (LIS parsing fix, Orthanc seed). Không còn dùng. |

@@ -1,9 +1,8 @@
 # HIS – Project Structure
 
 > **Mục đích:** Bản đồ folder/file của repo + responsibility từng folder + naming convention.
-> Sau cleanup 2026-05-16: root sạch còn ~5 entry chính (cộng 22 NangCap PDF tạm).
 > **Module liên quan:** Tất cả.
-> **Last updated:** 2026-05-16
+> **Last updated:** 2026-06-19 (đồng bộ số liệu thật + sau tái cấu trúc docs/ — xem `../workspace-docs/10-assessment/docs-restructure-audit-2026-06-19.md`)
 
 ---
 
@@ -14,7 +13,7 @@
 - [3. Naming conventions](#3-naming-conventions)
 - [4. Quy tắc thêm file mới](#4-quy-tắc-thêm-file-mới)
 - [5. Known leftover (cần dọn tiếp sau)](#5-known-leftover-cần-dọn-tiếp-sau)
-- [6. So sánh trước/sau cleanup](#6-so-sánh-trướcsau-cleanup)
+- [6. Lịch sử dọn dẹp cấu trúc](#6-lịch-sử-dọn-dẹp-cấu-trúc)
 
 ---
 
@@ -22,9 +21,11 @@
 
 ```
 HIS/
-├── .claude/                  Claude Code config + skills
-│   ├── skills/               3 skills: api-test, backend-scaffold, sql-migration
+├── .claude/                  Claude Code config + governance
+│   ├── skills/               48 skills (core-* portable + his-* project)
+│   ├── agents/ hooks/ skill-routes/ workflow/   SKILL-MAP.md · REGISTRY.md · lint.sh
 │   └── .skill-scan-done
+├── .github/                  GitHub Actions (deploy-backend.yml → Cloud Run, WIF keyless)
 ├── .git/                     Git internals
 ├── .gitignore                Git ignore (đã có /*.png, *.bak, design-system/scraps, ...)
 │
@@ -35,16 +36,16 @@ HIS/
 │       ├── HIS.Core/         Domain layer (entities, BaseEntity, IRepository)
 │       ├── HIS.Application/  Use case layer (IService interfaces, DTOs)
 │       ├── HIS.Infrastructure/   Impl layer (services, DbContext, EF Core, adapters)
-│       │   ├── Services/         95 service impl
+│       │   ├── Services/         108 service impl
 │       │   ├── Data/
-│       │   │   ├── HISDbContext.cs       439 DbSets
+│       │   │   ├── HISDbContext.cs       509 DbSets (+ partial class files)
 │       │   │   ├── DatabaseSeeder.cs     Master data seed
 │       │   │   ├── ProductionSchemaRepairRunner.cs
-│       │   │   └── Scripts/              43 SQL migration (embedded)
+│       │   │   └── Scripts/              137 SQL migration idempotent (embedded; xem Scripts/README.md)
 │       │   └── DependencyInjection.cs    Composition Root
 │       └── HIS.API/          Presentation layer
 │           ├── Program.cs    Pipeline
-│           ├── Controllers/  100+ controllers
+│           ├── Controllers/  134 controllers
 │           ├── Middleware/   AuditLog, RequestMetrics, ProductionReadFallback
 │           ├── Hubs/         NotificationHub, RisChatHub (SignalR)
 │           ├── Dockerfile
@@ -59,16 +60,16 @@ HIS/
 │   ├── cypress.config.ts
 │   ├── vercel.json                    ✅ Active Vercel config
 │   ├── src/
-│   │   ├── App.tsx                    Route table (121 v1 + 121 v2)
-│   │   ├── api/                       100+ axios clients
-│   │   ├── contexts/                  4 contexts (Auth, Notification, Signing, Theme)
-│   │   ├── components/                41 reusable components
-│   │   ├── hooks/                     2 hooks
+│   │   ├── App.tsx                    Route table (v1 pages/ + v2 pages-v2/)
+│   │   ├── api/                       133 axios clients
+│   │   ├── contexts/                  5 contexts (Auth, Notification, Signing, Theme, …)
+│   │   ├── components/                43 components (+ 5 subdir)
+│   │   ├── hooks/                     3 hooks
 │   │   ├── layouts/
 │   │   │   ├── MainLayout.tsx         v1 layout (Antd Pro)
 │   │   │   └── terminal/              v2 layout (ab-* design pack)
-│   │   ├── pages/                     121 v1 pages
-│   │   ├── pages-v2/                  121 v2 pages + _v2kit.tsx helper
+│   │   ├── pages/                     124 v1 pages
+│   │   ├── pages-v2/                  156 v2 pages + _v2kit.tsx helper
 │   │   ├── services/                  Cornerstone3D + AI labeling
 │   │   ├── constants/                 hospital.ts, etc.
 │   │   ├── config/api.ts              env-driven API_URL
@@ -86,19 +87,10 @@ HIS/
 ├── docker/                   Docker dev compose subassets
 │   └── sqlserver/            SQL Server Docker init scripts
 │
-├── design-system/            ⚠️  Design pack v1 (Reports v2.html, mod-v2-kit.jsx)
-│   ├── README.md
-│   └── project/              Source HTML/JSX prototypes
-│
-├── design-system-v2/         ⚠️  Design pack v2 (đang chuyển dần qua đây)
-│   └── his/
-│       ├── README.md
-│       └── project/
-│
 ├── scripts/                  Ad-hoc dev/ops scripts (KHÔNG phải migration system)
 │   ├── README.md             Quy ước
-│   ├── archive/              89 SQL di sản CHẾT (legacy-sql 83 + migrations 6 — runner KHÔNG load)
-│   ├── dev-tools/            17 PowerShell helpers (deploy, restore, test)
+│   ├── archive/              92 SQL di sản CHẾT (legacy-sql 86 + migrations 6 — runner KHÔNG load) + README
+│   ├── dev-tools/            30 PowerShell helpers (deploy, restore, test)
 │   ├── ai-model/             3 Python convert PyTorch → ONNX
 │   ├── legacy-py/            2 Python legacy
 │   └── misc-js/              4 JS one-off
@@ -127,7 +119,10 @@ HIS/
 ├── CLAUDE.md                 Claude Code memory (BẮT BUỘC ở root)
 ├── cloudbuild.yaml           ✅ Active build config Cloud Run
 ├── docker-compose.yml        ✅ Dev compose (SQL + Redis + Orthanc local)
-├── vercel.json               ⚠️  CÓ THỂ DUPLICATE — xem §5
+├── vercel.json               ⚠️  CÓ THỂ DUPLICATE — xem §5.2
+│
+│   # Local-only (gitignored, không tracked): tags · publish/ · backup/ · .local-dotnet-sdks/ · .vscode/
+│   # Leftover tracked ở root: test-*.ps1 ×4 (→ §5.5)
 ```
 
 ---
@@ -140,8 +135,6 @@ HIS/
 | `frontend/` | React source + build config + test | Mock data hardcoded (dùng API) |
 | `deploy/` | Infrastructure-as-code (PACS VM, Jitsi VM) | Scripts dev (đưa vào `scripts/`) |
 | `docker/` | Docker dev assets (sqlserver init, etc.) | Production compose (deploy riêng) |
-| `design-system/` | Design pack v1 (legacy) | Code logic |
-| `design-system-v2/` | Design pack v2 (active, đang dùng) | Code logic |
 | `scripts/archive/` | SQL di sản đã apply (CHẾT, runner không load) | SQL mới (vào `Data/Scripts/NN_*.sql`) |
 | `scripts/dev-tools/` | PowerShell/script dev | Source code |
 | `scripts/ai-model/` | Python convert PyTorch → ONNX | (nothing else) |
@@ -170,7 +163,7 @@ HIS/
 **Lưu ý đặc biệt**:
 - File `CLAUDE.md` ở root: **PHẢI** giữ tên + vị trí (Claude Code yêu cầu)
 - `.gitignore` đã có `/*.png` pattern — đừng commit screenshot vào root
-- `bieu_mau` đã rename thành `bieu-mau-chuyen-khoa` để consistent kebab-case
+- Biểu mẫu nghiệp vụ ở `docs/requirements/30-bieu-mau-nghiep-vu/` (kebab-case)
 
 ---
 
@@ -219,10 +212,9 @@ HIS/
 
 ## 5. Known leftover (cần dọn tiếp sau)
 
-### 5.1 22 file NangCap*.pdf ở root
+### 5.1 ~~22 file NangCap*.pdf ở root~~ ✅ Đã dọn
 
-User quyết định "giữ root tạm thời, để sau" — đợi user duyệt lại. Đề xuất move
-vào `docs/requirements/nangcap-hsmt/` (đã chuẩn bị folder, có README index).
+PDF gói thầu đã chuyển vào `docs/requirements/` (10-tham-chieu-mqsoft / 20-yeu-cau-nang-cap / 90-phan-tich-doi-thu). Root hiện **0** file PDF.
 
 ### 5.2 `vercel.json` ở root vs `frontend/vercel.json`
 
@@ -248,29 +240,20 @@ Root vercel.json có thể **OBSOLETE**.
 
 Đã thêm comment header "OBSOLETE". User verify không dùng nữa → có thể xóa.
 
-### 5.5 `.gitignore` update đề xuất
+### 5.5 4 file `test-*.ps1` ở root (tracked) — leftover
 
-Sau cleanup, đề xuất thêm pattern:
-```
-# Test scripts ad-hoc tại root (đã move vào scripts/dev-tools/)
-/test-*.ps1
-/test-*.js
-```
+Còn `test-doithu-gap.ps1`, `test-ipd-e2e-lifecycle.ps1`, `test-newborn.ps1`,
+`test-surgery-e2e-lifecycle.ps1` ở root (đang tracked). Đề xuất move vào
+`scripts/dev-tools/` rồi gitignore `/test-*.ps1`. (Chưa thực hiện — ngoài scope dọn doc này.)
 
 ---
 
-## 6. So sánh trước/sau cleanup
+## 6. Lịch sử dọn dẹp cấu trúc
 
-| Metric | Trước | Sau |
-|---|---|---|
-| File ở root (không kể folder) | **70+** | 28 (22 NangCap PDF tạm + 6 chính thức) |
-| File MD lạc root | 9 | 0 ✅ |
-| File ad-hoc .ps1 root | 20 | 0 ✅ |
-| File ad-hoc .sql/.py/.js root | 5 | 0 ✅ |
-| Screenshot root | 1 (tracked) | 1 (untracked, local-only) |
-| Folder lạc root | 2 (database/, bieu_mau/) | 0 ✅ |
-| Doc subfolder organization | 1 cấp (chỉ docs/*.md) | 7 cấp con đúng category ✅ |
-| Cleanup tiếp theo (Cần user decide) | – | 22 NangCap PDF + 2 vercel.json |
+- **2026-05-16** — cleanup root (70+ entry → gọn): gom MD lạc vào `docs/`, move script ad-hoc, rename biểu mẫu kebab-case.
+- **2026-06-19** — tái cấu trúc `docs/` về **5 bucket** (architecture · requirements · ui-design · features · workspace-docs), 11→6 mục top-level; #199 gom SQL chết về `scripts/archive/`; đồng bộ mọi số liệu trong file này với cây thật. Chi tiết: [`docs-restructure-audit-2026-06-19.md`](../workspace-docs/10-assessment/docs-restructure-audit-2026-06-19.md).
+
+> **Leftover còn lại** (xem §5): 2 `vercel.json` (root vs frontend) · 2 `cloudbuild.yaml` (root active vs backend obsolete) · 4 `test-*.ps1` ở root.
 
 ---
 

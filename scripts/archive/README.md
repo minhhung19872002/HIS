@@ -19,7 +19,7 @@ một nguồn schema song song → rủi ro sửa nhầm vào đây mà không c
 
 | Thư mục | Số file | Mô tả |
 |---|---|---|
-| [`legacy-sql/`](./legacy-sql/) | 83 | SQL fix-up một-lần đã apply qua `docker exec sqlcmd` thời kỳ chưa có migration runner. |
+| [`legacy-sql/`](./legacy-sql/) | 86 | SQL fix-up một-lần đã apply qua `docker exec sqlcmd` thời kỳ chưa có migration runner (gồm 3 SQL gom từ `docs/dev-notes/legacy` + `_dev-notes-origin.md`). |
 | [`migrations/`](./migrations/) | 6 | Các batch `phase2_*` / `phase5_*` / `phase_k5_*` thủ công (đã hợp nhất vào embedded `Data/Scripts`). |
 
 ## Quy tắc
@@ -29,4 +29,5 @@ một nguồn schema song song → rủi ro sửa nhầm vào đây mà không c
 - ✅ Migration mới → `backend/src/HIS.Infrastructure/Data/Scripts/NN_*.sql` (idempotent, embedded, auto-apply).
 - ✅ Cần xoá hẳn? Lịch sử git đã giữ — có thể `git rm` trong một phiên dọn riêng nếu chắc chắn không cần tra cứu.
 
-> Di chuyển từ `scripts/legacy-sql` + `scripts/migrations` sang đây trong #199 (DATA-6, migration hygiene).
+> Di chuyển từ `scripts/legacy-sql` + `scripts/migrations` sang đây trong #199 (DATA-6, migration hygiene);
+> bổ sung 3 SQL chết từ `docs/dev-notes/legacy` trong đợt tái cấu trúc docs/ 2026-06-19.
