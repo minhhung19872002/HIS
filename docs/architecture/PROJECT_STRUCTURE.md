@@ -103,42 +103,26 @@ HIS/
 │   ├── legacy-py/            2 Python legacy
 │   └── misc-js/              4 JS one-off
 │
-├── docs/                     Tài liệu chính thức (5 doc core + subfolders)
-│   ├── README.md             ← TODO tạo
-│   ├── ARCHITECTURE.md       Kiến trúc tổng thể
-│   ├── PROJECT_STATUS.md     Trạng thái triển khai
-│   ├── PROJECT_STRUCTURE.md  ← file này
-│   ├── MODULE_MAP.md         Module boundaries + dependencies
-│   ├── ROADMAP.md
-│   ├── TECH_DEBT.md
-│   ├── API_FLOW.md
-│   ├── access-control-matrix.md
-│   ├── backup-procedures.md
-│   ├── incident-response-plan.md
-│   ├── LIS-HL7Spy-Setup.md
-│   ├── requirements.md
+├── docs/                     Tài liệu chính thức — 5 nhóm (index: docs/README.md)
+│   ├── README.md             Index tài liệu (authoritative)
 │   │
-│   ├── architecture/         Tài liệu kiến trúc sâu
-│   │   ├── business-logic-complete.md   (← HIS_Business_Logic_Complete.md)
-│   │   └── data-flow.md                 (← HIS_DataFlow_Architecture.md)
-│   ├── features/             Tài liệu feature specific
-│   │   ├── ris-pacs-2026.md             (← CHUC_NANG_RIS_PACS_2026.md)
-│   │   ├── opd-code-examples.md         (← OPD_CODE_EXAMPLES.md)
-│   │   └── opd-visual-guide.md          (← OPD_VISUAL_GUIDE.md)
-│   ├── setup/                Tài liệu setup + deploy
-│   │   ├── docker-setup.md              (← DOCKER_SETUP.md)
-│   │   ├── deploy-google-cloud-run-cloud-sql.md
-│   │   └── deploy-azure-container-apps.md
-│   ├── roadmap/              Roadmap + analysis
-│   │   ├── implementation-summary.md    (← IMPLEMENTATION_SUMMARY.md)
-│   │   ├── nangcap-doi-thu.md           (← NangCap_DoiThu.md)
-│   │   └── nangcap-phan-tich.md         (← NangCap_PhanTich.md)
-│   ├── requirements/         Source-of-truth HSMT + biểu mẫu
-│   │   └── bieu-mau-chuyen-khoa/        32 PDF + README index
-│   ├── dev-notes/            Note dev + legacy archive
-│   │   └── legacy/                      3 SQL legacy + README
-│   ├── api/                  (cho OpenAPI export tương lai)
-│   └── database/             (cho ERD/schema doc tương lai)
+│   ├── architecture/         Kiến trúc + business logic + vận hành
+│   │   ├── ARCHITECTURE.md · PROJECT_STRUCTURE.md (file này) · MODULE_MAP.md · API_FLOW.md
+│   │   ├── business-logic-complete.md · data-flow.md · codebase-map.md
+│   │   ├── diagrams/         Mermaid + SVG
+│   │   ├── evidence/         Evidence viewer + manifest test
+│   │   ├── his-roadmap/      Roadmap kiến trúc tương tác (HTML)
+│   │   └── operations/       Vận hành + deploy (ACM/backup/incident/load-test + deploy GCP/Azure/docker + LIS-HL7Spy)
+│   ├── requirements/         Yêu cầu + Source-of-truth (HSMT, biểu mẫu, đối thủ)
+│   │   ├── 00-san-pham-cua-ta/ · 10-tham-chieu-mqsoft/ · 20-yeu-cau-nang-cap/ (+nangcap-phan-tich.md)
+│   │   ├── 30-bieu-mau-nghiep-vu/ · 90-phan-tich-doi-thu/ (+nangcap-doi-thu.md)
+│   │   └── ris-pacs-2026.md
+│   ├── ui-design/            Design system: design-system/ (v1) · design-system-v2/ (active)
+│   ├── features/             Bộ tài liệu phân hệ/gói (his-doc-feature): nangcap23/ · nangcap24/
+│   └── workspace-docs/       Session-state + assessment + backlog + archive
+│       ├── STATUS.md · luong_nghiep_vu.md · security-secret-rotation-runbook-182.md
+│       ├── 10-assessment/ · 20-backlog/
+│       └── 90-archive/       Tài liệu cũ/stale (roadmap 2026-05, work-log, ảnh scratch)
 │
 ├── CLAUDE.md                 Claude Code memory (BẮT BUỘC ở root)
 ├── cloudbuild.yaml           ✅ Active build config Cloud Run
@@ -163,13 +147,12 @@ HIS/
 | `scripts/ai-model/` | Python convert PyTorch → ONNX | (nothing else) |
 | `scripts/legacy-py/` | Python legacy archive | (nothing else) |
 | `scripts/misc-js/` | JS one-off (encoding, pdf parse) | (nothing else) |
-| `docs/` | Tất cả tài liệu MD | Source code, script chạy |
-| `docs/architecture/` | Tài liệu kiến trúc/business logic | UI mockup |
-| `docs/features/` | Tài liệu chi tiết feature | Roadmap chung |
-| `docs/setup/` | Setup + deploy guide | Architecture doc |
-| `docs/roadmap/` | Roadmap, analysis, planning | Tài liệu kiến trúc |
-| `docs/requirements/` | Source-of-truth PDF (HSMT, biểu mẫu) | Doc derived (đưa vào `features/`) |
-| `docs/dev-notes/` | Note dev ad-hoc + archive legacy | Tài liệu chính thức |
+| `docs/` | Tất cả tài liệu MD (5 nhóm) | Source code, script chạy |
+| `docs/architecture/` | Kiến trúc/business logic + `operations/` (vận hành/deploy) | UI mockup |
+| `docs/requirements/` | Yêu cầu + Source-of-truth (HSMT, biểu mẫu, đối thủ) | Doc kiến trúc |
+| `docs/ui-design/` | Design system v1/v2 | Code logic |
+| `docs/features/` | Bộ tài liệu phân hệ/gói (his-doc-feature) | Roadmap/status (→ GitHub Issues) |
+| `docs/workspace-docs/` | Session-state, audit, backlog, archive | Tài liệu chính thức bền vững |
 
 ---
 
@@ -182,7 +165,7 @@ HIS/
 | `PascalCase.tsx` | React component | `MainLayout.tsx`, `Reception.tsx` |
 | `camelCase.ts` | TS module / API client | `frontend/src/api/reception.ts` |
 | `kebab-case.sql` | SQL migration trong embedded scripts | `42_nangcap22_catalogs.sql` |
-| `UPPER_CASE.md` | Doc core ở root `docs/` | `ARCHITECTURE.md`, `ROADMAP.md` |
+| `UPPER_CASE.md` | Doc core trong `docs/architecture/` | `ARCHITECTURE.md`, `MODULE_MAP.md` |
 
 **Lưu ý đặc biệt**:
 - File `CLAUDE.md` ở root: **PHẢI** giữ tên + vị trí (Claude Code yêu cầu)
@@ -198,12 +181,12 @@ HIS/
 | Loại | Đặt ở | Ví dụ |
 |---|---|---|
 | Architecture deep-dive | `docs/architecture/` | `event-sourcing-pattern.md` |
-| Feature spec | `docs/features/` | `voice-dictation.md` |
-| Setup guide | `docs/setup/` | `setup-fingerprint-reader.md` |
-| Roadmap/planning | `docs/roadmap/` | `q3-2026-plan.md` |
-| Source-of-truth PDF | `docs/requirements/` | `nangcap-hsmt/nangcap24.pdf` |
-| Ad-hoc dev note | `docs/dev-notes/` | `2026-06-debug-session.md` |
-| Core (audit by all dev) | `docs/` root | (chỉ 5 file ARCHITECTURE/PROJECT_STATUS/ROADMAP/TECH_DEBT/API_FLOW + 2 thêm) |
+| Vận hành / deploy / runbook | `docs/architecture/operations/` | `setup-fingerprint-reader.md` |
+| Bộ tài liệu phân hệ/gói | `docs/features/<feature>/` | `nangcap25/` (6 file his-doc-feature) |
+| Roadmap / status / tech-debt | **GitHub Issues** (KHÔNG tạo file) | `gh issue create` |
+| Yêu cầu / Source-of-truth | `docs/requirements/<NN-category>/` | `20-yeu-cau-nang-cap/nangcap25.md` |
+| UI / design | `docs/ui-design/` | `design-system-v2/token.md` |
+| Audit / báo cáo / handoff | `docs/workspace-docs/` (`10-assessment`·`20-backlog`·`90-archive`) | `10-assessment/danh-gia-x.md` |
 
 ### Code mới
 
@@ -257,9 +240,9 @@ Root vercel.json có thể **OBSOLETE**.
    Nếu Root Directory = `.` → root `/vercel.json` ACTIVE, ngược lại `frontend/vercel.json` lạc chỗ.
 2. Đồng nhất 1 file, xóa file kia.
 
-### 5.3 `Screenshot 2026-01-31 210019.png` (untracked nhưng file local còn)
+### 5.3 `Screenshot 2026-01-31 210019.png` + ảnh scratch
 
-Đã `git rm --cached`. File còn ở local cho user quyết định xóa hoặc move.
+Đã archive sang `docs/workspace-docs/90-archive/images/` (cùng 3 ảnh crop mồ côi) trong đợt tái cấu trúc docs 2026-06-19.
 
 ### 5.4 `backend/cloudbuild.yaml` (obsolete)
 
@@ -295,8 +278,7 @@ Sau cleanup, đề xuất thêm pattern:
 
 - **ARCHITECTURE.md** — kiến trúc tổng thể
 - **MODULE_MAP.md** — module boundaries + dependencies
-- **PROJECT_STATUS.md** — trạng thái triển khai
-- **TECH_DEBT.md** — TD-10 đã đóng sau cleanup này
-- `scripts/README.md` — quy ước scripts/
-- `docs/requirements/bieu-mau-chuyen-khoa/README.md` — index 32 PDF biểu mẫu
-- `docs/dev-notes/legacy/README.md` — index file legacy
+- [`docs/README.md`](../README.md) — index tài liệu (authoritative, 5 nhóm)
+- Trạng thái / roadmap / tech-debt → **GitHub Issues** (`gh issue list`); bản cũ 2026-05 ở `workspace-docs/90-archive/roadmap/`
+- `scripts/README.md` + `scripts/archive/README.md` — quy ước scripts/ + SQL di sản
+- `docs/requirements/30-bieu-mau-nghiep-vu/` — biểu mẫu nghiệp vụ

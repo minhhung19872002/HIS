@@ -11,7 +11,7 @@ Khi triển khai một gói: đọc PDF → liệt kê gap so với codebase →
 ## Bảng tra gói NangCap
 
 > Trạng thái: **✅ Đã xong** (có doc/đối chiếu chi tiết) · **🟢 Đã tích hợp** (module/entity có trong codebase theo `MODULE_MAP §2.4`, chưa đối chiếu từng hạng mục).
-> Nguồn: `docs/roadmap/nangcap-phan-tich.md` (gói 1–4) · `docs/architecture/MODULE_MAP.md §2.4` (gói 5–23) · `docs/features/nangcap23|24/` · menu `[NN]`.
+> Nguồn: [`nangcap-phan-tich.md`](./nangcap-phan-tich.md) (gói 1–4, cùng thư mục) · `docs/architecture/MODULE_MAP.md §2.4` (gói 5–23) · `docs/features/nangcap23|24/` · menu `[NN]`.
 
 | Gói | Phân hệ / chủ đề | Khách hàng | Trạng thái | Nguồn / ghi chú |
 |---|---|---|---|---|

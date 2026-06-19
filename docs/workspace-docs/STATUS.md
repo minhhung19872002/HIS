@@ -3,7 +3,13 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-19** — TECH-DEBT **#199 (DATA-6) migration hygiene = ✅ READY_FOR_PUSH** (chưa push, chờ user duyệt): ① archive 89 SQL chết
+> Cập nhật cuối: **2026-06-19** — **DOCS RESTRUCTURE = ✅ READY_FOR_PUSH** (chưa commit/push, chờ duyệt): tái cấu trúc `docs/` về **5 bucket SoT**
+> (architecture/requirements/ui-design/features/workspace-docs) — 11→6 mục top-level. Audit 7-mục: `workspace-docs/10-assessment/docs-restructure-audit-2026-06-19.md`.
+> Thực thi (user duyệt 3 quyết-định = giữ features · tạo `architecture/operations/` · ARCHIVE stale): **26 `git mv`** (3 req-doc→requirements; 8 ops/setup→architecture/operations;
+> 7 stale→workspace-docs/90-archive; 3 dead-SQL→scripts/archive; rule-compliance-audit→10-assessment; 4 ảnh→90-archive/images) + xoá 5 dir rỗng + gitignore `_docling_*` +
+> sửa link 3 file (README rewrite, PROJECT_STRUCTURE, req/20 README). **Validation:** 0 stale-ref · 0 internal-link gãy · KHÔNG đụng STATUS.md-path/evidence/his-roadmap viewer/.claude.
+> ⚠️ LOẠI khỏi commit: cruft pre-existing `his-data-structure.*` (di sản dở phiên trước). | #199 đã DONE bên dưới.
+> Cập nhật cuối: **2026-06-19** — TECH-DEBT **#199 (DATA-6) migration hygiene = ✅ DONE+PUSHED** (commit `72ca319`, Closes #199, deploy Cloud Run SUCCESS): ① archive 89 SQL chết
 > `scripts/legacy-sql`(83)+`scripts/migrations`(6) → `scripts/archive/` + README (runner KHÔNG load chúng — verified 0 ref code/CI/docker) · ② resolve trùng prefix `44`:
 > `git mv 44_nangcap24.sql → 140_nangcap24.sql` (giữ `44_nangcap23_dedupe_idx` ở 44 vì phụ thuộc script 43; nangcap24 tự-chứa, order-safe — verified 0 cross-ref) ·
 > ③ doc nguồn-sự-thật `Data/Scripts/README.md` (single-source + **caveat sort Ordinal: khối 100+ sort TRƯỚC 44-99, vô hại nhờ idempotent+Phase2-backfill, đề xuất hardening riêng** + gap 64/71/127 + rule idempotent) + cập nhật `scripts/README.md`/`PROJECT_STRUCTURE.md` + 5 ref nangcap24-docs.
