@@ -3,7 +3,9 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-19** — **PROJECT_STRUCTURE.md accuracy pass = ✅ READY_FOR_PUSH** (chưa commit, chờ duyệt): đồng bộ mọi số liệu/cây với repo thật
+> Cập nhật cuối: **2026-06-20** — **LOOSE-ENDS cleanup = ✅ READY_FOR_PUSH**: ① `git mv` 4 `test-*.ps1` root → `scripts/dev-tools/` + gitignore `/test-*.ps1` ·
+> ② gộp cloudbuild: xoá `backend/cloudbuild.yaml` (OBSOLETE) + repoint dev-tool `deploy-google-cloud.ps1` → root `cloudbuild.yaml` (mirror CI: `submit . --config cloudbuild.yaml --substitutions=_IMAGE`) + sửa doc + PROJECT_STRUCTURE §5.4/§5.5/§6 · ③ vercel.json: **user quyết GIỮ CẢ 2** (không xác định Root Directory từ máy này). ⚠️ Dev-tool deploy chưa test (thiếu gcloud) nhưng mirror CI đã chứng minh. | (trước đó cùng phiên, đã PUSHED:)
+> **PROJECT_STRUCTURE.md accuracy pass = ✅ DONE+PUSHED** (`7752848`): đồng bộ mọi số liệu/cây với repo thật
 > (Services 95→108 · DbSets 439→509 · Scripts 43→137 · controllers→134 · api→133 · pages v1 124/v2 156 · .claude skills 3→48); gỡ root `design-system*` (đã ở docs/ui-design); section 5.1 NangCap-PDF
 > & 5.5 test-*.ps1 & section 6 cập nhật; + `.github/` + note local-only. ⚠️ Sibling drift còn (ngoài scope file này): `scripts/README.md`+`scripts/archive/README.md` count legacy-sql 83→86/89→92.
 > | **DOCS RESTRUCTURE = ✅ DONE+PUSHED** (commit `77ca49d`): tái cấu trúc `docs/` về **5 bucket SoT** (architecture/requirements/ui-design/features/workspace-docs) — 11→6 mục top-level. Audit: `workspace-docs/10-assessment/docs-restructure-audit-2026-06-19.md`.

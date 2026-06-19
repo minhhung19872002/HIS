@@ -233,10 +233,10 @@ function Build-Image {
     $imageUri = "$Region-docker.pkg.dev/$ProjectId/$ArtifactRepository/${ServiceName}:$ImageTag"
     Push-Location $RepoRoot
     try {
-        $null = Invoke-GCloud builds submit backend `
+        $null = Invoke-GCloud builds submit . `
             --project=$ProjectId `
-            --config=backend/cloudbuild.yaml `
-            --substitutions="_IMAGE_URI=$imageUri"
+            --config=cloudbuild.yaml `
+            --substitutions="_IMAGE=$imageUri"
     }
     finally {
         Pop-Location

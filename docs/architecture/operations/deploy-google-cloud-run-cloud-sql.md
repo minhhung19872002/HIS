@@ -16,7 +16,7 @@ This repo is now prepared for the practical topology below:
 
 ## What was added
 
-- `backend/cloudbuild.yaml`: builds the backend image in Cloud Build from the existing Dockerfile.
+- `cloudbuild.yaml` (root): builds the backend image in Cloud Build from `backend/src/HIS.API/Dockerfile` (context `backend`). Dùng chung cho cả CI (`deploy-backend.yml`) và manual deploy.
 - `backend/.gcloudignore`: trims uploaded build context.
 - `scripts/deploy-google-cloud.ps1`: creates the main GCP resources and deploys the API.
 

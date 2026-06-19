@@ -31,7 +31,6 @@ HIS/
 │
 ├── backend/                  ASP.NET Core 9 backend (Clean Architecture)
 │   ├── HIS.sln               Solution file
-│   ├── cloudbuild.yaml       ⚠️  OBSOLETE — see header comment in file
 │   └── src/
 │       ├── HIS.Core/         Domain layer (entities, BaseEntity, IRepository)
 │       ├── HIS.Application/  Use case layer (IService interfaces, DTOs)
@@ -232,19 +231,20 @@ Root vercel.json có thể **OBSOLETE**.
    Nếu Root Directory = `.` → root `/vercel.json` ACTIVE, ngược lại `frontend/vercel.json` lạc chỗ.
 2. Đồng nhất 1 file, xóa file kia.
 
+> **Quyết định 2026-06-20:** GIỮ CẢ 2 (không xác định được Root Directory từ máy này — tài khoản Vercel khác; deploy FE đang chạy ổn). Không xoá để tránh rủi ro vỡ deploy prod. Xem lại khi truy cập được dashboard.
+
 ### 5.3 `Screenshot 2026-01-31 210019.png` + ảnh scratch
 
 Đã archive sang `docs/workspace-docs/90-archive/images/` (cùng 3 ảnh crop mồ côi) trong đợt tái cấu trúc docs 2026-06-19.
 
-### 5.4 `backend/cloudbuild.yaml` (obsolete)
+### 5.4 ~~`backend/cloudbuild.yaml` (obsolete)~~ ✅ Đã xoá
 
-Đã thêm comment header "OBSOLETE". User verify không dùng nữa → có thể xóa.
+Đã `git rm`; consumer duy nhất (`scripts/dev-tools/deploy-google-cloud.ps1`) repoint sang root `cloudbuild.yaml` (mirror invocation CI). Còn **1 nguồn build config duy nhất** (root). ⚠️ Manual deploy chưa test lại tại máy này (thiếu gcloud) — verify lần deploy thủ công kế tiếp.
 
-### 5.5 4 file `test-*.ps1` ở root (tracked) — leftover
+### 5.5 ~~4 file `test-*.ps1` ở root~~ ✅ Đã move
 
-Còn `test-doithu-gap.ps1`, `test-ipd-e2e-lifecycle.ps1`, `test-newborn.ps1`,
-`test-surgery-e2e-lifecycle.ps1` ở root (đang tracked). Đề xuất move vào
-`scripts/dev-tools/` rồi gitignore `/test-*.ps1`. (Chưa thực hiện — ngoài scope dọn doc này.)
+Đã `git mv` 4 file (`test-doithu-gap`, `test-ipd-e2e-lifecycle`, `test-newborn`,
+`test-surgery-e2e-lifecycle`) → `scripts/dev-tools/` + gitignore `/test-*.ps1` (chặn tái xuất ở root).
 
 ---
 
@@ -253,7 +253,7 @@ Còn `test-doithu-gap.ps1`, `test-ipd-e2e-lifecycle.ps1`, `test-newborn.ps1`,
 - **2026-05-16** — cleanup root (70+ entry → gọn): gom MD lạc vào `docs/`, move script ad-hoc, rename biểu mẫu kebab-case.
 - **2026-06-19** — tái cấu trúc `docs/` về **5 bucket** (architecture · requirements · ui-design · features · workspace-docs), 11→6 mục top-level; #199 gom SQL chết về `scripts/archive/`; đồng bộ mọi số liệu trong file này với cây thật. Chi tiết: [`docs-restructure-audit-2026-06-19.md`](../workspace-docs/10-assessment/docs-restructure-audit-2026-06-19.md).
 
-> **Leftover còn lại** (xem §5): 2 `vercel.json` (root vs frontend) · 2 `cloudbuild.yaml` (root active vs backend obsolete) · 4 `test-*.ps1` ở root.
+> **Leftover:** `cloudbuild.yaml` + `test-*.ps1` + ảnh scratch đã xử lý ✅. Còn 2 `vercel.json` — **user quyết giữ cả 2** (2026-06-20, không xác định active từ máy này, §5.2).
 
 ---
 

@@ -223,3 +223,6 @@ docs/requirements/_docling_progress.log
 docs/requirements/_docling_report.json
 publish/
 ghinho.txt
+
+# Test scripts thuộc scripts/dev-tools — chặn tái xuất ở root
+/test-*.ps1
