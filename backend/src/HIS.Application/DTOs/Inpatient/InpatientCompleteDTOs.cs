@@ -896,6 +896,9 @@ public class CreateInpatientPrescriptionDto
     public int DrugOrderType { get; set; } = 1;
 
     public List<CreateInpatientMedicineItemDto> Items { get; set; } = new();
+
+    // #185/#186: lý do bác sĩ bỏ qua cảnh báo dị-ứng/tương-tác nghiêm trọng (vẫn lưu đơn). Bỏ trống + có cảnh báo → CHẶN (400).
+    public string? OverrideReason { get; set; }
 }
 
 /// <summary>

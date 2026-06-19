@@ -107,6 +107,14 @@ public partial class ExaminationCompleteService
 
         prescription.TotalAmount = prescription.Details.Sum(i => i.TotalPrice);
 
+        // #185/#186: enforce dị-ứng + tương-tác thuốc TRƯỚC khi lưu (trước đây chỉ advisory, không chặn).
+        await EnforcePrescriptionSafetyAsync(
+            examination.MedicalRecord.PatientId,
+            prescription.Details.Select(d => d.MedicineId).ToList(),
+            dto.OverrideReason);
+        if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
+            prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
+
         await _context.Prescriptions.AddAsync(prescription);
         await _unitOfWork.SaveChangesAsync();
 
@@ -156,6 +164,18 @@ public partial class ExaminationCompleteService
         }
 
         prescription.TotalAmount = prescription.Details.Sum(i => i.TotalPrice);
+
+        // #185/#186: enforce dị-ứng + tương-tác khi CẬP NHẬT đơn
+        var updPatientId = await _context.MedicalRecords
+            .Where(m => m.Id == prescription.MedicalRecordId)
+            .Select(m => m.PatientId)
+            .FirstOrDefaultAsync();
+        await EnforcePrescriptionSafetyAsync(
+            updPatientId,
+            prescription.Details.Select(d => d.MedicineId).ToList(),
+            dto.OverrideReason);
+        if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
+            prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
 
         await _unitOfWork.SaveChangesAsync();
 
@@ -338,6 +358,16 @@ public partial class ExaminationCompleteService
 
         return warnings;
     }
+
+    /// <summary>
+    /// #185/#186: enforce an toàn kê đơn khi LƯU — chặn đơn nếu có cảnh báo NGHIÊM TRỌNG mà BS không nêu lý do bỏ qua.
+    /// Tái dùng CheckDrugAllergiesAsync (#185) + CheckDrugInteractionsAsync (#186) đã có (advisory) → nâng thành enforce.
+    /// Ngưỡng chặn: dị ứng Severity >= 2 (moderate/severe) · tương tác Severity >= 3 (severe/chống chỉ định).
+    /// KB tương tác rỗng → không chặn tới khi seed (migration). Có OverrideReason → cho qua (caller ghi Instructions để audit).
+    /// </summary>
+    // #185/#186: delegate sang guard dùng chung (single-source outpatient + inpatient) — xem PrescriptionSafetyGuard.
+    private Task EnforcePrescriptionSafetyAsync(Guid patientId, List<Guid> medicineIds, string? overrideReason)
+        => PrescriptionSafetyGuard.EnsureSafeAsync(_context, patientId, medicineIds, overrideReason);
 
     public async Task<List<PrescriptionWarningDto>> CheckContraindicationsAsync(Guid patientId, List<Guid> medicineIds)
     {

@@ -19,6 +19,9 @@ public partial class BillingCompleteService {
         var patient = await _context.Patients.FindAsync(dto.PatientId);
         if (patient == null)
             throw new Exception("Patient not found");
+        // #189: chặn số tiền <= 0 (chống bản ghi tài chính rác/âm)
+        if (dto.Amount <= 0)
+            throw new InvalidOperationException("Số tiền tạm ứng phải lớn hơn 0");
 
         var deposit = new Deposit
         {
@@ -165,6 +168,9 @@ public partial class BillingCompleteService {
         var deposit = await _context.Deposits.FindAsync(dto.DepositId);
         if (deposit == null)
             throw new Exception("Deposit not found");
+        // #189: chặn số tiền <= 0 trước khi so số dư
+        if (dto.Amount <= 0)
+            throw new InvalidOperationException("Số tiền sử dụng phải lớn hơn 0");
         if (deposit.RemainingAmount < dto.Amount)
             throw new Exception("Insufficient deposit balance");
 
@@ -271,6 +277,9 @@ public partial class BillingCompleteService {
         // Lỗi nghiệp vụ = InvalidOperationException → DomainExceptionFilter trả 400 + message rõ
         // (trước là Exception thường → unhandled tới Kestrel → Cloud Run 503 trần không CORS
         //  → FE tưởng mạng lỗi và retry → THU TRÙNG. Bug tài chính prod 2026-06-12).
+        // #189: chặn số tiền <= 0 (chống phiếu thu rác/âm làm hỏng PaidAmount hóa đơn)
+        if (dto.Amount <= 0)
+            throw new InvalidOperationException("Số tiền thanh toán phải lớn hơn 0");
         decimal totalOwed;
         Guid? medicalRecordId = null;
         var patientId = dto.PatientId;
@@ -523,6 +532,9 @@ public partial class BillingCompleteService {
         var patient = await _context.Patients.FindAsync(dto.PatientId);
         if (patient == null)
             throw new Exception("Patient not found");
+        // #189: chặn số tiền hoàn <= 0 (chống "hoàn âm" = rút tiền bệnh nhân)
+        if (dto.RefundAmount <= 0)
+            throw new InvalidOperationException("Số tiền hoàn phải lớn hơn 0");
 
         // Verify original payment/deposit exists and has sufficient amount
         if (dto.RefundType == 1 && dto.OriginalDepositId.HasValue)

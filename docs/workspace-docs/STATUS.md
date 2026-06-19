@@ -51,7 +51,15 @@
   **#186 seed KB**: migration `138_seed_drug_interactions_severe.sql` (8 cặp nặng/CCĐ phổ biến, resolve hoạt-chất→medicine, idempotent — verified insert khi khớp + rollback). Build API+test 14/14 xanh.
 - **#183 — AUDIT-ONLY DONE** (user 2026-06-18 chốt: chỉ lưu audit, KHÔNG sửa auth, dừng). Audit role-model lưu ở **comment issue #183**:
   `[Authorize]` dùng 38 token nhưng `AuthService` chỉ emit 12 → **28 role MỒ CÔI** (Radiologist/BloodBankManager/WarehouseManager…) + 1 role tiếng-Việt `"Quản trị hệ thống"`(72). Auth-nhạy-cảm → cần review role-taxonomy trước khi đụng. Phương án A (hằng Roles + sửa bug VN) / B (map đủ) ghi trong comment.
-- **CÒN trong a+b (chưa làm):** **#188 RowVersion** (lớn nhất: BaseEntity+config+migration+retry) · **(a)** #182 runbook rotate+env-prep · #211 phần an toàn · #183-fix (chờ duyệt thiết kế role).
+- **✅ #188 DONE + verified** — RowVersion optimistic-concurrency cho **InventoryItems + Deposits + InvoiceSummaries** (kho+tiền): byte[] RowVersion + `IsRowVersion()` config + migration `139_add_rowversion_inventory_deposit.sql`
+  (applied+idempotent docker) + `DbUpdateConcurrencyException→409` ở DomainExceptionFilter. **SQL proof**: stale-update bị từ chối 0-row (chặn oversell/lost-update). Build API + test 14/14 xanh. (Targeted 3 entity, KHÔNG đụng BaseEntity → blast-radius nhỏ.)
+- **✅ #182 runbook DONE** (code-side) — verify mọi secret đọc qua `IConfiguration` (env-overridable: `Jwt__Key`/`ConnectionStrings__DefaultConnection`/`PACS__Password`); runbook rotate `docs/workspace-docs/security-secret-rotation-runbook-182.md` + comment #182. **Rotation thật = USER trên Cloud Run** (máy này không quyền cloud) → #182 GIỮ OPEN tới khi user rotate.
+- **#211** — safe-parts (scratch/login-cred) đã xong đợt trước; phần CORS-clutter + localhost-URL cần **prod-CORS-confirm** → defer, #211 giữ open.
+
+## ★★ a+b — READY_FOR_PUSH (chờ user cho phép push; long-task: 1 push kèm Closes)
+**Đóng được khi push:** #185 #186 #187 #188 #189 (đều DONE+tested, build API + test 14/14 xanh, #188 SQL-proof).
+**Giữ open (user-action/defer):** #182 (rotate=user) · #183 (audit-only, fix chờ duyệt role) · #190 (user hoãn) · #211 (CORS prod-confirm).
+**Đã đụng (chưa commit/push):** BE services (Billing.Payments/AdminReports, Warehouse.AdminCancel, Examination.Prescriptions, Inpatient.Prescriptions, AuthService?ko) + entities (Warehouse/ClinicalEntities/Billing +RowVersion) + HISDbContext + DomainExceptionFilter + 2 DTO + `PrescriptionSafetyGuard.cs`(mới) + migration `138`,`139`(mới) + `backend/tests/HIS.Tests/*`(mới) + STATUS + runbook doc.
 - **#190 HOÃN** (user: "phần này tạm cho qua" — gồm insurance fail-open/closed).
 - **Working tree DIRTY — chưa commit/push.** Đã sửa BE: `BillingCompleteService.Payments/AdminReports`, `WarehouseCompleteService.AdminCancel`,
   `ExaminationCompleteService.Prescriptions`, `InpatientCompleteService.Prescriptions`, 2 DTO + `PrescriptionSafetyGuard.cs` (mới) + migration `138_*.sql` (mới) + `backend/tests/HIS.Tests/*` (mới). Build API+test 14/14 xanh. Long-task: push 1 lần khi xong a+b (xin phép).

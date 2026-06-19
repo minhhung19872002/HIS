@@ -232,6 +232,9 @@ public class Deposit : BaseEntity
     public int Status { get; set; } // 1-Active, 2-Used, 3-Refunded
     public decimal UsedAmount { get; set; }
     public decimal RemainingAmount { get; set; }
+
+    // #188: optimistic concurrency token — chống double-use số dư tạm ứng khi 2 thao tác trừ đồng thời.
+    public byte[]? RowVersion { get; set; }
 }
 
 /// <summary>

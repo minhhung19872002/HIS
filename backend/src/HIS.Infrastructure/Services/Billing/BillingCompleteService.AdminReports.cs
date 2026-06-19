@@ -838,14 +838,14 @@ public partial class BillingCompleteService {
             if (invoice.TotalServiceAmount < 0) invoice.TotalServiceAmount = 0;
             if (invoice.TotalAmount < 0) invoice.TotalAmount = 0;
             invoice.UpdatedAt = DateTime.Now;
-            await _context.SaveChangesAsync();
+            // #187: KHÔNG SaveChanges riêng — gộp với cập nhật ServiceRequest bên dưới (1 transaction atomic)
         }
 
         // Hủy ServiceRequest
         serviceRequest.Status = 4; // Cancelled
         serviceRequest.UpdatedAt = DateTime.Now;
         serviceRequest.UpdatedBy = userId.ToString();
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(); // #187: invoice + serviceRequest atomic trong 1 SaveChanges
 
         var user = await _context.Users.FindAsync(userId);
 

@@ -373,16 +373,17 @@ public partial class WarehouseCompleteService {
         }
 
         _context.ImportReceipts.Add(importReceipt);
-        await _context.SaveChangesAsync();
 
-        // Cập nhật trạng thái đơn thuốc
+        // #187: cập nhật trạng thái đơn TRƯỚC SaveChanges → gộp 1 transaction atomic
+        // (hủy phiếu xuất + nhập hoàn + trừ kho + cập nhật đơn). Tránh trạng thái nửa-vời nếu lỗi giữa chừng.
         var prescription = await _context.Prescriptions.FindAsync(prescriptionId);
         if (prescription != null)
         {
             prescription.IsDispensed = false;
             prescription.Status = 4; // Cancelled
-            await _context.SaveChangesAsync();
         }
+
+        await _context.SaveChangesAsync();
 
         return new StockReceiptDto
         {

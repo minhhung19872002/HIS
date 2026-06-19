@@ -65,6 +65,16 @@ public sealed class DomainExceptionFilter : IExceptionFilter
                 context.ExceptionHandled = true;
                 _logger.LogInformation("Domain invalid JSON: {Msg}", jsEx.Message);
                 break;
+            case DbUpdateConcurrencyException:
+                // #188: xung đột optimistic-concurrency (tồn kho/số dư bị sửa đồng thời) → 409, KHÔNG ghi đè mù (chống oversell/lost-update).
+                context.Result = new ConflictObjectResult(new
+                {
+                    error = "CONCURRENCY_CONFLICT",
+                    message = "Dữ liệu (tồn kho/số dư) vừa bị thay đổi bởi thao tác khác. Vui lòng tải lại và thử lại."
+                });
+                context.ExceptionHandled = true;
+                _logger.LogWarning("Concurrency conflict: {Msg}", context.Exception.Message);
+                break;
             case DbUpdateException dbEx when IsUniqueViolation(dbEx):
                 context.Result = new ConflictObjectResult(new
                 {

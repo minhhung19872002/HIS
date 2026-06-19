@@ -64,6 +64,10 @@ public class InventoryItem : BaseEntity
     // Nguồn nhập
     public string? SourceType { get; set; } // NCC, Chuyển kho, Viện trợ...
     public string? SourceCode { get; set; }
+
+    // #188: optimistic concurrency token — chống oversell/lost-update khi 2 phiếu xuất cùng trừ 1 lô đồng thời.
+    // SQL Server tự quản (rowversion); EF tự thêm vào WHERE khi UPDATE → xung đột ném DbUpdateConcurrencyException → 409.
+    public byte[]? RowVersion { get; set; }
 }
 
 /// <summary>

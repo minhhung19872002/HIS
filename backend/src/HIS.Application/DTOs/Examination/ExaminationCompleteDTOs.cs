@@ -893,6 +893,10 @@ public class CreatePrescriptionDto
 
     // Lời dặn
     public string? Instructions { get; set; }
+
+    // #185/#186: lý do bác sĩ CỐ TÌNH bỏ qua cảnh báo dị-ứng/tương-tác nghiêm trọng (vẫn lưu đơn).
+    // Bỏ trống + có cảnh báo nghiêm trọng → đơn bị CHẶN (400). Có lý do → lưu được + ghi audit vào Instructions.
+    public string? OverrideReason { get; set; }
 }
 
 public class CreatePrescriptionItemDto

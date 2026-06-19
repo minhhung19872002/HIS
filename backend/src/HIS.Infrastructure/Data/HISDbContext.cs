@@ -983,6 +983,12 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<DailyProgress>().HasOne(d => d.Doctor).WithMany().HasForeignKey(d => d.DoctorId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Deposit>().HasOne(d => d.ReceivedBy).WithMany().HasForeignKey(d => d.ReceivedByUserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<DietOrder>().HasOne(d => d.OrderedBy).WithMany().HasForeignKey(d => d.OrderedById).OnDelete(DeleteBehavior.NoAction);
+
+        // #188: optimistic concurrency token (chống oversell tồn kho + double-use số dư). SQL Server rowversion auto-managed,
+        // EF tự đưa vào WHERE khi UPDATE → 2 ghi đồng thời lên cùng 1 dòng → DbUpdateConcurrencyException (map 409 ở DomainExceptionFilter).
+        modelBuilder.Entity<InventoryItem>().Property(e => e.RowVersion).IsRowVersion();
+        modelBuilder.Entity<Deposit>().Property(e => e.RowVersion).IsRowVersion();
+        modelBuilder.Entity<InvoiceSummary>().Property(e => e.RowVersion).IsRowVersion();
         modelBuilder.Entity<DiseaseCase>().HasOne(d => d.Investigator).WithMany().HasForeignKey(d => d.InvestigatorId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<DoctorSchedule>().HasOne(d => d.Doctor).WithMany().HasForeignKey(d => d.DoctorId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<DutyRoster>().HasOne(d => d.CreatedBy).WithMany().HasForeignKey(d => d.CreatedById).OnDelete(DeleteBehavior.NoAction);

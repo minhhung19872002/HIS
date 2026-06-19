@@ -116,6 +116,9 @@ public class InvoiceSummary : BaseEntity
     public bool IsApprovedByAccountant { get; set; } // Đã duyệt kế toán
     public DateTime? ApprovedAt { get; set; }
     public Guid? ApprovedBy { get; set; }
+
+    // #188: optimistic concurrency token — chống lost-update PaidAmount/RemainingAmount khi 2 thanh toán cùng 1 hóa đơn đồng thời.
+    public byte[]? RowVersion { get; set; }
 }
 
 /// <summary>

@@ -193,6 +193,14 @@ public partial class InpatientCompleteService {
             });
         }
 
+        // #185/#186: enforce dị-ứng + tương-tác trước khi lưu đơn nội trú
+        await PrescriptionSafetyGuard.EnsureSafeAsync(
+            _context, admission.PatientId,
+            dto.Items.Select(i => i.MedicineId).ToList(),
+            dto.OverrideReason);
+        if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
+            prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
+
         prescription.TotalAmount = totalAmount;
         prescription.PatientAmount = totalAmount;
         _context.Prescriptions.Add(prescription);
@@ -279,6 +287,17 @@ public partial class InpatientCompleteService {
                 Status = 0
             });
         }
+
+        // #185/#186: enforce dị-ứng + tương-tác khi cập nhật đơn nội trú
+        var updPatientId = await _context.MedicalRecords
+            .Where(m => m.Id == prescription.MedicalRecordId)
+            .Select(m => m.PatientId).FirstOrDefaultAsync();
+        await PrescriptionSafetyGuard.EnsureSafeAsync(
+            _context, updPatientId,
+            dto.Items.Select(i => i.MedicineId).ToList(),
+            dto.OverrideReason);
+        if (!string.IsNullOrWhiteSpace(dto.OverrideReason))
+            prescription.Instructions = $"{prescription.Instructions} [BS bỏ qua cảnh báo an toàn: {dto.OverrideReason}]".Trim();
 
         prescription.TotalAmount = totalAmount;
         prescription.PatientAmount = totalAmount;
