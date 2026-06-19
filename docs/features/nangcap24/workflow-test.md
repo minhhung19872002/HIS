@@ -6,7 +6,7 @@
 > + workflow HIS hiện có mà NangCap24 chạm vào.
 > **Nguồn dữ liệu:** Đọc trực tiếp source BE/FE/SQL: `NangCap24Controllers.cs`,
 > `NangCap24Services.cs`, `PaymentGatewayService.VietQR.cs`, `App.tsx`,
-> `TerminalLayout.tsx`, `44_nangcap24.sql`. **Không suy đoán nghiệp vụ.**
+> `TerminalLayout.tsx`, `140_nangcap24.sql`. **Không suy đoán nghiệp vụ.**
 > **Tài liệu liên quan:** [README.md](./README.md) · [analysis.md](./analysis.md)
 > · [test-plan.md](./test-plan.md) · [test-guide.md](./test-guide.md) · [summary.md](./summary.md).
 > **Last updated:** 2026-05-25

@@ -4,7 +4,7 @@
 > Dùng cho Dev review + Audit + QA hiểu cấu trúc trước khi viết test.
 > **Nguồn:** Đọc trực tiếp `NangCap24Entities.cs`, `NangCap24DTOs.cs`,
 > `INangCap24Services.cs`, `NangCap24Services.cs`, `NangCap24Controllers.cs`,
-> `PaymentGatewayService.VietQR.cs`, `44_nangcap24.sql`, `App.tsx`,
+> `PaymentGatewayService.VietQR.cs`, `140_nangcap24.sql`, `App.tsx`,
 > `TerminalLayout.tsx`. **Không suy đoán.**
 > **Tài liệu liên quan:** [README.md](./README.md) · [test-plan.md](./test-plan.md)
 > · [test-guide.md](./test-guide.md) · [workflow-test.md](./workflow-test.md) · [summary.md](./summary.md).
@@ -61,7 +61,7 @@ NangCap24 đóng 10 gap HSMT BV Đa khoa, chia 3 nhóm:
 | `HIS.Infrastructure` | `Services/PaymentGatewayService.VietQR.cs` | NEW — partial class (~217 LOC) |
 | `HIS.Infrastructure` | `Data/HISDbContext.cs` | MODIFIED — +9 DbSet + Fluent API |
 | `HIS.Infrastructure` | `DependencyInjection.cs` | MODIFIED — +7 service registration |
-| `HIS.Infrastructure` | `Data/Scripts/44_nangcap24.sql` | NEW — 9 bảng + seed inspector |
+| `HIS.Infrastructure` | `Data/Scripts/140_nangcap24.sql` | NEW — 9 bảng + seed inspector |
 | `HIS.API` | `Controllers/NangCap24Controllers.cs` | NEW — 7 controller |
 | `HIS.API` | `Controllers/PaymentGatewayController.cs` | MODIFIED — +`bank/list`, `bank/confirm` |
 
@@ -100,7 +100,7 @@ Hl7MessageQueue.Status:      "pending" | "sending" | "sent" | "failed" | "acked"
 
 ### 3.3 Migration script
 
-- `44_nangcap24.sql` — 9 `CREATE TABLE IF NOT EXISTS` + index + **seed tài khoản inspector** (`inspector` / `Inspector@123`, BCrypt `$2a$11$Lp3w...`).
+- `140_nangcap24.sql` — 9 `CREATE TABLE IF NOT EXISTS` + index + **seed tài khoản inspector** (`inspector` / `Inspector@123`, BCrypt `$2a$11$Lp3w...`).
 - Idempotent: `IF NOT EXISTS (SELECT 1 FROM sys.tables ...)` cho table, `IF NOT EXISTS (SELECT 1 FROM BhxhInspectorAccounts WHERE Username='inspector')` cho seed.
 - Auto-apply qua `ProductionSchemaRepairRunner` lúc Cloud Run cold start.
 - Unique index: `UX_BhxhInspectorAccounts_Username`.

@@ -97,7 +97,7 @@ HIS/
 │
 ├── scripts/                  Ad-hoc dev/ops scripts (KHÔNG phải migration system)
 │   ├── README.md             Quy ước
-│   ├── legacy-sql/           83 SQL legacy (read-only archive)
+│   ├── archive/              89 SQL di sản CHẾT (legacy-sql 83 + migrations 6 — runner KHÔNG load)
 │   ├── dev-tools/            17 PowerShell helpers (deploy, restore, test)
 │   ├── ai-model/             3 Python convert PyTorch → ONNX
 │   ├── legacy-py/            2 Python legacy
@@ -158,7 +158,7 @@ HIS/
 | `docker/` | Docker dev assets (sqlserver init, etc.) | Production compose (deploy riêng) |
 | `design-system/` | Design pack v1 (legacy) | Code logic |
 | `design-system-v2/` | Design pack v2 (active, đang dùng) | Code logic |
-| `scripts/legacy-sql/` | SQL fix đã apply (archive) | SQL mới (vào backend migration) |
+| `scripts/archive/` | SQL di sản đã apply (CHẾT, runner không load) | SQL mới (vào `Data/Scripts/NN_*.sql`) |
 | `scripts/dev-tools/` | PowerShell/script dev | Source code |
 | `scripts/ai-model/` | Python convert PyTorch → ONNX | (nothing else) |
 | `scripts/legacy-py/` | Python legacy archive | (nothing else) |
@@ -226,7 +226,7 @@ HIS/
 
 | Loại | Đặt ở |
 |---|---|
-| SQL fix one-off | `scripts/legacy-sql/` (sau khi apply) |
+| SQL fix / migration | `backend/src/HIS.Infrastructure/Data/Scripts/NN_*.sql` (idempotent, embedded, auto-apply) |
 | PowerShell dev tool | `scripts/dev-tools/` |
 | Python AI model | `scripts/ai-model/` |
 | Production test | `frontend/e2e-prod/` (không phải `scripts/`) |

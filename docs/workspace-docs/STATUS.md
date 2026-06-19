@@ -3,6 +3,11 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
+> Cập nhật cuối: **2026-06-19** — TECH-DEBT **#199 (DATA-6) migration hygiene = ✅ READY_FOR_PUSH** (chưa push, chờ user duyệt): ① archive 89 SQL chết
+> `scripts/legacy-sql`(83)+`scripts/migrations`(6) → `scripts/archive/` + README (runner KHÔNG load chúng — verified 0 ref code/CI/docker) · ② resolve trùng prefix `44`:
+> `git mv 44_nangcap24.sql → 140_nangcap24.sql` (giữ `44_nangcap23_dedupe_idx` ở 44 vì phụ thuộc script 43; nangcap24 tự-chứa, order-safe — verified 0 cross-ref) ·
+> ③ doc nguồn-sự-thật `Data/Scripts/README.md` (single-source + **caveat sort Ordinal: khối 100+ sort TRƯỚC 44-99, vô hại nhờ idempotent+Phase2-backfill, đề xuất hardening riêng** + gap 64/71/127 + rule idempotent) + cập nhật `scripts/README.md`/`PROJECT_STRUCTURE.md` + 5 ref nangcap24-docs.
+> **Build full BE = 0 Error**; DLL embed verified (137 resource, tên mới in/tên cũ out). KHÔNG đổi runner/SQL-content (rename byte-identical) → fresh-DB behavior bất biến. | (cũ bên dưới)
 > Cập nhật cuối: **2026-06-19** — VỪA LÀM: bộ test-task roadmap (38 phân hệ/12 luồng/4 cross = **1415 task**) + Evidence Viewer
 > `docs/architecture/evidence/` + **KẾ HOẠCH gom 54 issue** (issue-plan.json + ISSUE-PLAN.md + script idempotent, dry-run OK 50 tạo+4 cập nhật) +
 > 4 issue gap #294-297. **ĐÃ TẠO 54 issue evidence: 50 mới #298-347 ([TEST-EV]) + append checklist #294-297** → tổng 128 test-issue (label test).

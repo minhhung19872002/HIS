@@ -148,7 +148,7 @@ gcloud run services update his-api --update-env-vars="
 - `backend/src/HIS.Infrastructure/Services/PaymentGatewayService.VietQR.cs` — VietQR + confirm (~217 LOC)
 - `backend/src/HIS.API/Controllers/NangCap24Controllers.cs` — 7 controller (~344 LOC)
 - `backend/src/HIS.API/Controllers/PaymentGatewayController.cs` — +`bank/list`, `bank/confirm`
-- `backend/src/HIS.Infrastructure/Data/Scripts/44_nangcap24.sql` — 9 table + seed inspector
+- `backend/src/HIS.Infrastructure/Data/Scripts/140_nangcap24.sql` — 9 table + seed inspector
 
 ### Frontend (v2-only)
 - `frontend/src/api/nangcap24.ts` — API client (~480 LOC)
@@ -189,7 +189,7 @@ cần lưu ý khi go-live (chi tiết [analysis.md §17](./analysis.md)):
 |---|---|
 | Cloud Run | `his-api-00029-khb` (image `his-api:20260525-...`, đã fix FK payment confirm) |
 | Vercel | NangCap24 FE live (push `185ccd5` → `0eb70c1`) |
-| DB migration `44_nangcap24.sql` | ✅ 9 bảng, `schema-drift` = `missingCount: 0` |
+| DB migration `140_nangcap24.sql` | ✅ 9 bảng, `schema-drift` = `missingCount: 0` |
 
 ## Commit / Release reference
 

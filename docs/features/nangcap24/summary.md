@@ -150,7 +150,7 @@ HIS.Infrastructure/Services/
 
 HIS.Infrastructure/Data/
   ├─ HISDbContext.cs                        (MODIFIED, +9 DbSet + Fluent API)
-  └─ Scripts/44_nangcap24.sql               (NEW, ~281 LOC, 9 table + seed inspector)
+  └─ Scripts/140_nangcap24.sql               (NEW, ~281 LOC, 9 table + seed inspector)
 
 HIS.Infrastructure/
   └─ DependencyInjection.cs                 (MODIFIED, +7 service)
