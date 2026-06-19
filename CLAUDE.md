@@ -132,6 +132,10 @@ If a new service/controller is added, register it there or you get 500 errors.
   DONE. TUYỆT ĐỐI KHÔNG có ngoại lệ "harness sớm".** Ép buộc qua hook `session-start.sh` + `remind-pipeline.sh`.
   Bù thiếu test-net: mọi fix bám chặt SAFETY-PROTOCOL (pre-flight · build-gate · smoke thủ công · minimal-change).
   Test-program đầy đủ → `docs/workspace-docs/10-assessment/test-plan-2026-06-17.md` + Issues label `test`.
+  **★ EVIDENCE + VIEWER (mọi phiên/mọi máy):** mọi task test có UI PHẢI chụp evidence đủ mọi trạng thái + xem qua
+  trình xem evidence. Quy ước đặt tên · bố cục viewer · cách chụp/regen · DEDUP vs GitHub (#216-289) = nguồn-sự-thật
+  duy nhất ở `docs/architecture/evidence/README.md` (KHÔNG copy nội dung sang đây). Coverage bám roadmap
+  `docs/architecture/his-roadmap/` + `his-data-structure.js` (38 phân hệ/485 bảng/12 luồng).
 - **★ TEST PHÁT HIỆN BUG → TẠO TASK FIX LIÊN KẾT (mọi phiên/mọi máy):** khi chạy 1 task test mà gặp **bug/lỗi/vỡ
   UI**, PHẢI tạo NGAY 1 Issue fix mới: tiêu đề nêu **rõ lỗi gì + màn/nghiệp vụ**; body = mô tả bug + bước tái hiện
   + evidence (ảnh) + kỳ vọng-vs-thực-tế; **liên kết 2 chiều với task test nguồn** (fix ghi "Phát hiện từ #<test>";

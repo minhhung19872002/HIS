@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HIS — Trình xem Evidence kiểm thử</title>
+<link rel="stylesheet" href="assets/viewer.css" />
+</head>
+<body data-theme="light">
+
+<!-- HEADER -->
+<header class="hero">
+  <div class="hero-l">
+    <h1>🧪 HIS — Trình xem Evidence kiểm thử</h1>
+    <p>Bản đồ test-task bám sát roadmap (38 phân hệ · 485 bảng · 12 luồng · 9+ vai trò). Mỗi task có UI đều kèm evidence theo
+       quy ước <code>TC-&lt;CODE&gt;-&lt;NNN&gt;__s&lt;NN&gt;__&lt;state&gt;.png</code>. Bấm thumbnail để xem lớn (next/prev).</p>
+  </div>
+  <div class="hero-r">
+    <button id="themeBtn" class="ghost" title="Đổi sáng/tối">🌙</button>
+    <div class="kpis" id="kpis"></div>
+  </div>
+</header>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="side" id="side">
+    <div class="side-tools">
+      <input id="q" type="search" placeholder="🔎 Tìm task / phân hệ / bảng…" autocomplete="off" />
+      <div class="filters">
+        <select id="fCat" title="Lọc theo loại test">
+          <option value="">Mọi loại</option>
+          <option value="happy">happy</option><option value="negative">negative</option>
+          <option value="edge">edge</option><option value="validation">validation</option>
+          <option value="permission">permission</option><option value="state">state</option>
+          <option value="data-consistency">data-consistency</option><option value="ui">ui</option>
+          <option value="integration">integration</option><option value="security">security</option>
+        </select>
+        <select id="fPri" title="Lọc theo ưu tiên">
+          <option value="">Mọi ưu tiên</option><option>P0</option><option>P1</option><option>P2</option>
+        </select>
+        <select id="fEv" title="Lọc theo evidence">
+          <option value="">Mọi evidence</option>
+          <option value="has">Đã có ảnh</option>
+          <option value="none">Chưa chụp</option>
+        </select>
+      </div>
+    </div>
+    <nav id="nav"></nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main" id="main">
+    <div class="loading-note" id="bootNote">Đang nạp dữ liệu test-plan…</div>
+  </main>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lb" id="lb" hidden>
+  <button class="lb-x" id="lbX" title="Đóng (Esc)">✕</button>
+  <button class="lb-nav lb-prev" id="lbPrev" title="Trước (←)">‹</button>
+  <figure class="lb-fig">
+    <img id="lbImg" alt="" />
+    <figcaption id="lbCap"></figcaption>
+  </figure>
+  <button class="lb-nav lb-next" id="lbNext" title="Sau (→)">›</button>
+  <div class="lb-count" id="lbCount"></div>
+</div>
+
+<!-- DATA (data-driven; sinh bởi workflow his-testplan-evidence) -->
+<script src="data/00-bootstrap.js"></script>
+<script src="data/10-found.js"></script>
+<script src="data/11-clin.js"></script>
+<script src="data/12-oper.js"></script>
+<script src="data/13-fin.js"></script>
+<script src="data/14-spec.js"></script>
+<script src="data/20-flows.js"></script>
+<script src="data/30-cross.js"></script>
+<!-- Manifest ảnh thật (tái sinh bằng gen-manifest.ps1 / gen-manifest.mjs) -->
+<script src="manifest.js"></script>
+<script src="assets/viewer.js"></script>
+</body>
+</html>

@@ -3,6 +3,11 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
+> Cập nhật cuối: **2026-06-19** — VỪA LÀM: bộ test-task roadmap (38 phân hệ/12 luồng/4 cross = **1415 task**) + Evidence Viewer
+> `docs/architecture/evidence/` + **KẾ HOẠCH gom 54 issue** (issue-plan.json + ISSUE-PLAN.md + script idempotent, dry-run OK 50 tạo+4 cập nhật) +
+> 4 issue gap #294-297. **ĐÃ TẠO 54 issue evidence: 50 mới #298-347 ([TEST-EV]) + append checklist #294-297** → tổng 128 test-issue (label test).
+> KHÔNG chạy test/chụp evidence (chỉ kế hoạch+công cụ). KẾ TIẾP: commit/push `evidence/**`+`CLAUDE.md` (user đang chọn CHƯA push);
+> chạy test + chụp evidence làm CUỐI (sau khi đóng hết task fix). Chi tiết: `evidence/HANDOFF.md` + `evidence/ISSUE-PLAN.md`. | (cũ 2026-06-18 bên dưới)
 > Cập nhật cuối: **2026-06-18** (THỰC THI tech-debt theo ưu tiên: ✅ #208 token-scale · #207 async-state · **P0 security #180+#181 CLOSED**
 > (deploy) · #182-safe (gỡ publish/ local) · quyết-định v1-abandon (#205/#209-rawfetch MOOT) · 6 rule quy-trình mới. **ĐANG:** #184
 > over-posting: **CLOSED** (ép server-Id+IsDeleted=false mọi create-path 6 ctrl; Workflow 6-agent + 6 adversarial-verify bắt 6 gap EmployeeProfile→hoàn thiện; build OK). **HOÃN chờ user:** tiền/safety #185-190
@@ -22,6 +27,34 @@
 > ④ **Audit-cols advanced** → **#290 CLOSED** (commit `435e7d5`, PUSHED+DEPLOY success+VERIFY PROD): mig 133 idempotent ADD CreatedAt/By/UpdatedAt/By cho 16 bảng Community/Public/Forensic (entity extend BaseEntity → vá schema-drift) + set `CreatedAt` lúc create 3 service. **Verify prod `/health/schema-drift` missingCount=0, missingColumnsCount=0**; smoke einvoice/config·list·specimen·lis-worklist=200. `CreatedBy` (luồn userId, ~16 method) → tách **follow-up #291**. GH #48 closed/là task-test → đã tách #290.
 >
 > **TỔNG 4 luồng prod-deploy 2026-06-18:** #22 LIS worklist (`4212eef`) · #24 EInvoice + #134 SpecimenImage (`07e7af1`) · #290 audit-cols (`435e7d5`) — **đều schema-drift=0 + smoke 200 prod**. #22/#24/#134 OPEN (MockMode, chờ máy XN/credential/phần cứng); #290 CLOSED.
+> **★ PHIÊN 2026-06-18 — DATA HOÀN TẤT (KHÔNG chạy test, chỉ lập kế hoạch+công cụ):** bộ **test-task theo roadmap + Evidence
+> Viewer** ở `docs/architecture/evidence/` XONG: **38 phân hệ · 12 luồng · 4 cross · 1415 task · 2868 evidence-slot · 4 candidate-issue**
+> (verify sạch: 0 trùng ID/sai category/thiếu evidence). Viewer (index.html+assets, lightbox/filter/status/dark) + README protocol +
+> gen-manifest ps1/mjs + pointer `CLAUDE.md` mục test. Data sinh bằng 2 workflow rồi **harvest từ journal** (writer truncate/limit →
+> harvest cứu data, KHÔNG mất). Map issue cha #216-289 (KHÔNG tạo trùng); **4 phân hệ chưa phủ → ĐÃ TẠO 4 test-issue mới
+> #294 (Khảo sát) · #295 (Chuyên khoa IVF/Pháp y/YHCT) · #296 (MCI) · #297 (Đào tạo/NCKH)** (user duyệt) → 38/38 phân hệ có issue.
+> Bàn giao: `docs/architecture/evidence/HANDOFF.md`. **User chọn CHƯA commit/push** (`docs/architecture/evidence/**` + `CLAUDE.md` còn dirty).
+> **★ GOM ISSUE — ĐÃ TẠO XONG (2026-06-19):** 1415 task gom **54 issue** (38 phân hệ+12 luồng+4 cross = partition sạch) →
+> **50 mới #298-347 + cập nhật #294-297** (script idempotent `evidence/create-issues-from-plan.mjs`, skip=0). Kế hoạch máy-đọc:
+> `evidence/data/issue-plan.json` · chiến lược `evidence/ISSUE-PLAN.md`. Tổng 128 test-issue. Đóng hết = mọi task có evidence.
+
+## ★ ĐANG LÀM (user duyệt a+b 2026-06-18): patient-safety/tiền #185-190 + lưới-test-khu-trú (NGOẠI LỆ test-last CÓ CHỦ ĐÍCH, user duyệt) + (a) #182/#183/#211
+- **Lưới test khu trú** (chỉ #185-190, chạy LOCAL `dotnet test`, KHÔNG wire CI-gate #191/#212): dựng `backend/tests/HIS.Tests/`
+  (xUnit + EFCore.InMemory + Moq + Sqlite; `RollForward=LatestMajor` vì máy thiếu net9 runtime). InMemory dựng model 503-entity OK.
+- **✅ #189 DONE+tested** (4 guard `amount<=0`: CreateDeposit/UseDeposit/CreatePayment/CreateRefund → `InvalidOperationException`→400; 9 test xanh).
+- **✅ #187 DONE+build-gate** — **verify-before-assert hạ scope agent "9 method"→2 genuine**: `ReverseServiceChargeAsync` + `CancelDispensedPrescriptionAsync`
+  (gộp 2-3 SaveChanges→1 atomic; 7 method kia + Payments đều single-SaveChanges=đã atomic). Oversell là #188 (lost-update), KHÔNG phải #187.
+- **✅ #185 DONE+tested** (enforce dị-ứng khi LƯU đơn — `ExaminationCompleteService.Prescriptions` Create+Update; reuse `CheckDrugAllergiesAsync`;
+  chặn Severity≥2 + `OverrideReason` valve + audit vào Instructions; 3 test). **#186 framework DONE** (wire `CheckDrugInteractionsAsync`, chặn Severity≥3 — **KB rỗng → chưa chặn tới khi seed**).
+- **Tổng test: 14/14 xanh.** (2 smoke + 9 #189 + 3 #185/#186)
+- **✅ #185/#186 FULLY DONE** — outpatient (Examination) + **inpatient** (Inpatient) enforce qua **guard chung `PrescriptionSafetyGuard`** (DRY single-source);
+  **#186 seed KB**: migration `138_seed_drug_interactions_severe.sql` (8 cặp nặng/CCĐ phổ biến, resolve hoạt-chất→medicine, idempotent — verified insert khi khớp + rollback). Build API+test 14/14 xanh.
+- **#183 — AUDIT-ONLY DONE** (user 2026-06-18 chốt: chỉ lưu audit, KHÔNG sửa auth, dừng). Audit role-model lưu ở **comment issue #183**:
+  `[Authorize]` dùng 38 token nhưng `AuthService` chỉ emit 12 → **28 role MỒ CÔI** (Radiologist/BloodBankManager/WarehouseManager…) + 1 role tiếng-Việt `"Quản trị hệ thống"`(72). Auth-nhạy-cảm → cần review role-taxonomy trước khi đụng. Phương án A (hằng Roles + sửa bug VN) / B (map đủ) ghi trong comment.
+- **CÒN trong a+b (chưa làm):** **#188 RowVersion** (lớn nhất: BaseEntity+config+migration+retry) · **(a)** #182 runbook rotate+env-prep · #211 phần an toàn · #183-fix (chờ duyệt thiết kế role).
+- **#190 HOÃN** (user: "phần này tạm cho qua" — gồm insurance fail-open/closed).
+- **Working tree DIRTY — chưa commit/push.** Đã sửa BE: `BillingCompleteService.Payments/AdminReports`, `WarehouseCompleteService.AdminCancel`,
+  `ExaminationCompleteService.Prescriptions`, `InpatientCompleteService.Prescriptions`, 2 DTO + `PrescriptionSafetyGuard.cs` (mới) + migration `138_*.sql` (mới) + `backend/tests/HIS.Tests/*` (mới). Build API+test 14/14 xanh. Long-task: push 1 lần khi xong a+b (xin phép).
 
 ## Test program (PLAN XONG — chạy CUỐI CÙNG, sau khi 100% fix/tech-debt DONE)
 - **★ RULE CỨNG (CLAUDE.md + hook session-start/remind-pipeline, mọi máy): TEST là BẮT BUỘC nhưng LUÔN LÀM CUỐI CÙNG.**
