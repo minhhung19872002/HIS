@@ -56,8 +56,10 @@
 - **✅ #182 runbook DONE** (code-side) — verify mọi secret đọc qua `IConfiguration` (env-overridable: `Jwt__Key`/`ConnectionStrings__DefaultConnection`/`PACS__Password`); runbook rotate `docs/workspace-docs/security-secret-rotation-runbook-182.md` + comment #182. **Rotation thật = USER trên Cloud Run** (máy này không quyền cloud) → #182 GIỮ OPEN tới khi user rotate.
 - **#211** — safe-parts (scratch/login-cred) đã xong đợt trước; phần CORS-clutter + localhost-URL cần **prod-CORS-confirm** → defer, #211 giữ open.
 
-## ★★ a+b — READY_FOR_PUSH (chờ user cho phép push; long-task: 1 push kèm Closes)
-**Đóng được khi push:** #185 #186 #187 #188 #189 (đều DONE+tested, build API + test 14/14 xanh, #188 SQL-proof).
+## ★★ a+b — ✅ PUSHED + DONE (commit `1c1de82`, 2026-06-18)
+**ĐÃ ĐÓNG (push main → deploy-backend chạy):** #185 #186 #187 #188 #189 (build API + test 14/14 xanh, #188 SQL-proof oversell). Migration 138(seed KB)+139(RowVersion) auto-apply lúc startup prod.
+**Post-deploy USER verify:** `gh run list --workflow=deploy-backend.yml` xanh · `GET /health/schema-drift` missingCount=0 · login prod OK · (ALTER ADD rowversion nhanh vì 3 bảng nhỏ).
+**Cũ (trước push):**
 **Giữ open (user-action/defer):** #182 (rotate=user) · #183 (audit-only, fix chờ duyệt role) · #190 (user hoãn) · #211 (CORS prod-confirm).
 **Đã đụng (chưa commit/push):** BE services (Billing.Payments/AdminReports, Warehouse.AdminCancel, Examination.Prescriptions, Inpatient.Prescriptions, AuthService?ko) + entities (Warehouse/ClinicalEntities/Billing +RowVersion) + HISDbContext + DomainExceptionFilter + 2 DTO + `PrescriptionSafetyGuard.cs`(mới) + migration `138`,`139`(mới) + `backend/tests/HIS.Tests/*`(mới) + STATUS + runbook doc.
 - **#190 HOÃN** (user: "phần này tạm cho qua" — gồm insurance fail-open/closed).
