@@ -3,6 +3,13 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
+> Cập nhật cuối: **2026-06-21** — **#190 [DATA-4] ngừng nuốt exception tài chính/insurance/signing = ✅ READY_FOR_PUSH** (chưa commit/push — chờ lệnh user):
+> sửa **41 catch nuốt-lỗi** trong **9 file** (Billing DTOs + Billing services + InsuranceXml + CentralSigning), behavior-preserving happy-path. Quyết-định user:
+> ① **A1 = typed-failure giữ 200** cho 14 method trả DTO-đơn: thêm `bool IsError`+`string? ErrorMessage` (additive, FE bỏ qua field lạ) vào **14 DTO** (3 MissingDTOs + 11 BillingCompleteDTOs) → catch `LogError(ex,…)` + set cờ thay vì trả DTO rỗng câm.
+> ② **A2+A3 = log + rethrow→500** cho **23 site** không-gắn-cờ-được (22 `byte[]` file-download + 1 `List`): AdminReports(3 Print + 1 List) · Printing.cs(8) · InsuranceXml(11 BHYT Excel/report) — `LogError(ex,…); throw;` (stack-trace giữ tên method).
+> ③ **Nhóm B = log giữ fallback** 4 site (AdminReports 2 BillingReversals bảng-có-thể-chưa-tồn-tại + Xml4210 typed + CentralSigning config-JSON-hỏng) — thêm log, GIỮ fallback chủ ý.
+> **Build-gate:** `dotnet build HIS.Infrastructure` (kéo theo Application+Core) = **0 Error** (4615 warning pre-existing nullable, KHÔNG từ thay đổi này). Spot-check: 0 swallow `Array.Empty<byte>` còn lại trong Billing · 14 cờ IsError · diff additive/catch-branch-only. **KHÔNG runtime fault-injection** (cần app chạy — defer theo rule test-last). #190 GIỮ OPEN + `in-progress` tới khi push.
+>
 > Cập nhật cuối: **2026-06-21** — TECH-DEBT **#171 (tách fat FE API client) = ✅ DONE + PUSHED** (`a210684`, **#171 CLOSED**):
 > tách 3 god-file `frontend/src/api/{ris,inpatient,system}.ts` theo domain qua **barrel re-export** (behavior-preserving, public API bất biến):
 > ① `ris.ts` → barrel 481 + `ris/`×11 (export **364=364**) · ② `inpatient.ts` → barrel 293 + `inpatient/`×7 (export **224=224**) ·

@@ -397,7 +397,11 @@ public partial class BillingCompleteService {
 
             return result;
         }
-        catch { return new InsuranceCheckDto { CheckedAt = DateTime.Now }; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "CheckInsuranceCardAsync failed for card {Card}", dto.InsuranceCardNumber);
+            return new InsuranceCheckDto { CheckedAt = DateTime.Now, IsError = true, ErrorMessage = ex.Message };
+        }
     }
 
     #endregion

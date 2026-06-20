@@ -666,6 +666,8 @@ public class RefundSearchDto
 /// </summary>
 public class RecordLockDto
 {
+    public bool IsError { get; set; }          // #190
+    public string? ErrorMessage { get; set; }  // #190: phân biệt "rỗng thật" vs exception bị nuốt
     public Guid MedicalRecordId { get; set; }
     public string MedicalRecordCode { get; set; } = string.Empty;
     public string PatientName { get; set; } = string.Empty;
@@ -756,6 +758,8 @@ public class PendingApprovalSearchDto
 /// </summary>
 public class InsuranceCheckDto
 {
+    public bool IsError { get; set; }          // #190
+    public string? ErrorMessage { get; set; }  // #190: phân biệt "rỗng thật" vs exception bị nuốt
     public string InsuranceCardNumber { get; set; } = string.Empty;
     public string PatientName { get; set; } = string.Empty;
     public DateTime? DateOfBirth { get; set; }
@@ -954,6 +958,8 @@ public class PrintByServiceRequestDto
 /// </summary>
 public class OutpatientRevenueReportDto
 {
+    public bool IsError { get; set; }          // #190
+    public string? ErrorMessage { get; set; }  // #190: phân biệt "rỗng thật" vs exception bị nuốt
     public DateTime FromDate { get; set; }
     public DateTime ToDate { get; set; }
 
@@ -979,6 +985,8 @@ public class OutpatientRevenueReportDto
 /// </summary>
 public class InpatientRevenueReportDto
 {
+    public bool IsError { get; set; }          // #190
+    public string? ErrorMessage { get; set; }  // #190: phân biệt "rỗng thật" vs exception bị nuốt
     public DateTime FromDate { get; set; }
     public DateTime ToDate { get; set; }
 
@@ -1070,6 +1078,8 @@ public class BedRevenueItemDto
 /// </summary>
 public class DepositRevenueReportDto
 {
+    public bool IsError { get; set; }          // #190
+    public string? ErrorMessage { get; set; }  // #190: phân biệt "rỗng thật" vs exception bị nuốt
     public DateTime FromDate { get; set; }
     public DateTime ToDate { get; set; }
 
@@ -1114,6 +1124,8 @@ public class DepositTypeItemDto
 /// </summary>
 public class CashBookUsageReportDto
 {
+    public bool IsError { get; set; }          // #190
+    public string? ErrorMessage { get; set; }  // #190: phân biệt "rỗng thật" vs exception bị nuốt
     public Guid CashBookId { get; set; }
     public string CashBookCode { get; set; } = string.Empty;
     public string CashBookName { get; set; } = string.Empty;
@@ -1290,6 +1302,8 @@ public class UnpaidMedicineItemDto
 /// </summary>
 public class BillingStatisticsDto
 {
+    public bool IsError { get; set; }          // #190
+    public string? ErrorMessage { get; set; }  // #190: phân biệt "rỗng thật" vs exception bị nuốt
     public DateTime FromDate { get; set; }
     public DateTime ToDate { get; set; }
 
@@ -1341,6 +1355,8 @@ public class BillingStatisticsRequestDto
 /// </summary>
 public class DailyRevenueReportDto
 {
+    public bool IsError { get; set; }          // #190
+    public string? ErrorMessage { get; set; }  // #190: phân biệt "rỗng thật" vs exception bị nuốt
     public DateTime Date { get; set; }
 
     // Ngoại trú
@@ -1379,6 +1395,8 @@ public class DepartmentRevenueRequestDto
 /// </summary>
 public class DebtStatisticsDto
 {
+    public bool IsError { get; set; }          // #190
+    public string? ErrorMessage { get; set; }  // #190: phân biệt "rỗng thật" vs exception bị nuốt
     public DateTime AsOfDate { get; set; }
 
     public int TotalDebtors { get; set; }
@@ -1417,6 +1435,8 @@ public class DebtorDto
 /// </summary>
 public class InsuranceClaimDto
 {
+    public bool IsError { get; set; }          // #190
+    public string? ErrorMessage { get; set; }  // #190: phân biệt "rỗng thật" vs exception bị nuốt
     public Guid Id { get; set; }
     public Guid MedicalRecordId { get; set; }
     public string MedicalRecordCode { get; set; } = string.Empty;
@@ -1473,6 +1493,8 @@ public class GenerateXml4210RequestDto
 /// </summary>
 public class InsuranceClaimStatisticsDto
 {
+    public bool IsError { get; set; }          // #190
+    public string? ErrorMessage { get; set; }  // #190: phân biệt "rỗng thật" vs exception bị nuốt
     public DateTime FromDate { get; set; }
     public DateTime ToDate { get; set; }
 

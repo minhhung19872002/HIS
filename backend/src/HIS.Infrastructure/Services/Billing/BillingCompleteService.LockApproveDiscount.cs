@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Billing;
 using HIS.Application.Services;
@@ -105,7 +106,11 @@ public partial class BillingCompleteService {
                 LockedAt = isLocked ? record.DischargeDate : null
             };
         }
-        catch { return new RecordLockDto(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetRecordLockStatusAsync failed for record {MedicalRecordId}", medicalRecordId);
+            return new RecordLockDto { IsError = true, ErrorMessage = ex.Message };
+        }
     }
 
     #endregion

@@ -976,7 +976,10 @@ public class CentralSigningService : ICentralSigningService
                 return System.Text.Json.JsonSerializer.Deserialize<SignatureAppearanceDto>(config.ConfigValue)
                     ?? new SignatureAppearanceDto();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "#190 SignatureAppearance config JSON hỏng → dùng cấu hình mặc định");
+            }
         }
         return new SignatureAppearanceDto();
     }

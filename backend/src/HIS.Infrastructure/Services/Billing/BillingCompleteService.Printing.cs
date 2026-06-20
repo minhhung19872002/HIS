@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Billing;
 using HIS.Application.Services;
@@ -78,7 +79,11 @@ public partial class BillingCompleteService {
             var html = BuildTableReport("BANG KE CHI PHI KHAM CHUA BENH", subtitle, DateTime.Now, headers, rows, "Thu ngan");
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Print6556StatementAsync failed for record {MedicalRecordId}", dto.MedicalRecordId);
+            throw;
+        }
     }
 
     /// <summary>
@@ -153,7 +158,11 @@ public partial class BillingCompleteService {
             var html = WrapHtmlPage("Bang ke chi phi - Tach doi tuong", sb.ToString());
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Print6556ByObjectAsync failed for record {MedicalRecordId}", dto.MedicalRecordId);
+            throw;
+        }
     }
 
     /// <summary>
@@ -240,7 +249,11 @@ public partial class BillingCompleteService {
             var html = WrapHtmlPage("Bang ke chi phi - Tach theo khoa", sb.ToString());
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Print6556ByDepartmentAsync failed for record {MedicalRecordId}", dto.MedicalRecordId);
+            throw;
+        }
     }
 
     /// <summary>
@@ -301,7 +314,11 @@ public partial class BillingCompleteService {
             var html = WrapHtmlPage("Phieu tam ung theo dich vu", sb.ToString());
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PrintDepositByServiceAsync failed for patient {PatientId}", dto.PatientId);
+            throw;
+        }
     }
 
     /// <summary>
@@ -341,7 +358,11 @@ public partial class BillingCompleteService {
             var html = BuildVoucherReport("PHIEU TAM UNG", deposit.ReceiptNumber, deposit.ReceiptDate, labels, values, deposit.ReceivedBy?.FullName);
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PrintDepositReceiptAsync failed for deposit {DepositId}", depositId);
+            throw;
+        }
     }
 
     /// <summary>
@@ -412,7 +433,11 @@ public partial class BillingCompleteService {
                 return Encoding.UTF8.GetBytes(html);
             }
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PrintPaymentReceiptAsync failed for payment {PaymentId}", paymentId);
+            throw;
+        }
     }
 
     /// <summary>
@@ -484,7 +509,11 @@ public partial class BillingCompleteService {
             var html = WrapHtmlPage("Bang ke vien phi", sb.ToString());
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PrintInvoiceAsync failed for invoice {InvoiceId}", invoiceId);
+            throw;
+        }
     }
 
     /// <summary>
@@ -524,7 +553,11 @@ public partial class BillingCompleteService {
             var html = BuildVoucherReport("PHIEU HOAN TIEN", receipt.ReceiptCode, receipt.ReceiptDate, labels, values, receipt.Cashier?.FullName);
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PrintRefundReceiptAsync failed for refund {RefundId}", refundId);
+            throw;
+        }
     }
 
     #endregion

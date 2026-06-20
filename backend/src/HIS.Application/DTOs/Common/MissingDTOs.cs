@@ -73,6 +73,8 @@ namespace HIS.Application.DTOs
 
     public class PaymentHistoryDto
     {
+        public bool IsError { get; set; }          // #190
+        public string? ErrorMessage { get; set; }  // #190: phân biệt "rỗng thật" vs exception bị nuốt
         public Guid Id { get; set; }
         public Guid PaymentId { get; set; }
         public string Action { get; set; }
@@ -85,6 +87,8 @@ namespace HIS.Application.DTOs
 
     public class PaymentStatusDto
     {
+        public bool IsError { get; set; }          // #190
+        public string? ErrorMessage { get; set; }  // #190: phân biệt "rỗng thật" vs exception bị nuốt
         public Guid PatientId { get; set; }
         public string PatientName { get; set; }
         public decimal TotalAmount { get; set; }
@@ -103,6 +107,8 @@ namespace HIS.Application.DTOs
 
     public class CashierReportDto
     {
+        public bool IsError { get; set; }          // #190
+        public string? ErrorMessage { get; set; }  // #190: phân biệt "rỗng thật" vs exception bị nuốt
         public Guid CashierId { get; set; }
         public string CashierName { get; set; }
         public DateTime FromDate { get; set; }

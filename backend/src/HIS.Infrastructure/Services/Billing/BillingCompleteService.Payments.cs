@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Billing;
 using HIS.Application.Services;
@@ -487,7 +488,11 @@ public partial class BillingCompleteService {
                 Note = $"Tong {receipts.Count} phieu. So tien: {latest.FinalAmount:N0} VND. {latest.Note}"
             };
         }
-        catch { return new PaymentHistoryDto(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetPaymentHistoryAsync failed for patient {PatientId}", patientId);
+            return new PaymentHistoryDto { IsError = true, ErrorMessage = ex.Message };
+        }
     }
 
     public async Task<PaymentStatusDto> CheckPaymentStatusAsync(Guid medicalRecordId)
@@ -520,7 +525,11 @@ public partial class BillingCompleteService {
                 Status = status
             };
         }
-        catch { return new PaymentStatusDto(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "CheckPaymentStatusAsync failed for record {MedicalRecordId}", medicalRecordId);
+            return new PaymentStatusDto { IsError = true, ErrorMessage = ex.Message };
+        }
     }
 
     #endregion

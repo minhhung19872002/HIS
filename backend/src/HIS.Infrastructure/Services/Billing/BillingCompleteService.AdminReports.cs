@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Billing;
 using HIS.Application.Services;
@@ -53,7 +54,11 @@ public partial class BillingCompleteService {
                 IsClosed = cashBook?.IsClosed ?? false
             };
         }
-        catch { return new CashierReportDto(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetCashierReportAsync failed for cashier {CashierId}", dto.CashierId);
+            return new CashierReportDto { IsError = true, ErrorMessage = ex.Message };
+        }
     }
 
     public async Task<CashierReportDto> CloseCashBookAsync(CloseCashBookDto dto, Guid userId)
@@ -143,7 +148,11 @@ public partial class BillingCompleteService {
                 DailyDetails = dailyDetails
             };
         }
-        catch { return new OutpatientRevenueReportDto { FromDate = dto.FromDate, ToDate = dto.ToDate }; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetOutpatientRevenueReportAsync failed {From}-{To}", dto.FromDate, dto.ToDate);
+            return new OutpatientRevenueReportDto { FromDate = dto.FromDate, ToDate = dto.ToDate, IsError = true, ErrorMessage = ex.Message };
+        }
     }
 
     public async Task<InpatientRevenueReportDto> GetInpatientRevenueReportAsync(RevenueReportRequestDto dto)
@@ -188,7 +197,11 @@ public partial class BillingCompleteService {
                 DepartmentDetails = deptDetails
             };
         }
-        catch { return new InpatientRevenueReportDto { FromDate = dto.FromDate, ToDate = dto.ToDate }; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetInpatientRevenueReportAsync failed {From}-{To}", dto.FromDate, dto.ToDate);
+            return new InpatientRevenueReportDto { FromDate = dto.FromDate, ToDate = dto.ToDate, IsError = true, ErrorMessage = ex.Message };
+        }
     }
 
     public async Task<DepositRevenueReportDto> GetDepositRevenueReportAsync(RevenueReportRequestDto dto)
@@ -227,7 +240,11 @@ public partial class BillingCompleteService {
                 DailyDetails = dailyDetails
             };
         }
-        catch { return new DepositRevenueReportDto { FromDate = dto.FromDate, ToDate = dto.ToDate }; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetDepositRevenueReportAsync failed {From}-{To}", dto.FromDate, dto.ToDate);
+            return new DepositRevenueReportDto { FromDate = dto.FromDate, ToDate = dto.ToDate, IsError = true, ErrorMessage = ex.Message };
+        }
     }
 
     public async Task<CashBookUsageReportDto> GetCashBookUsageReportAsync(Guid cashBookId, DateTime fromDate, DateTime toDate)
@@ -273,7 +290,11 @@ public partial class BillingCompleteService {
                 UserUsages = userUsages
             };
         }
-        catch { return new CashBookUsageReportDto(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetCashBookUsageReportAsync failed cashBook={CashBookId} {From}-{To}", cashBookId, fromDate, toDate);
+            return new CashBookUsageReportDto { IsError = true, ErrorMessage = ex.Message };
+        }
     }
 
     /// <summary>
@@ -329,7 +350,11 @@ public partial class BillingCompleteService {
             var html = BuildTableReport("BAO CAO THU TIEN NGOAI TRU", subtitle, DateTime.Now, headers, rows, "Ke toan");
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PrintOutpatientRevenueReportAsync failed {From}-{To}", dto.FromDate, dto.ToDate);
+            throw;
+        }
     }
 
     /// <summary>
@@ -384,7 +409,11 @@ public partial class BillingCompleteService {
             var html = BuildTableReport("BAO CAO THU TIEN NOI TRU", subtitle, DateTime.Now, headers, rows, "Ke toan");
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PrintInpatientRevenueReportAsync failed {From}-{To}", dto.FromDate, dto.ToDate);
+            throw;
+        }
     }
 
     /// <summary>
@@ -430,7 +459,11 @@ public partial class BillingCompleteService {
             var html = BuildTableReport("BAO CAO TAM UNG", subtitle, DateTime.Now, headers, rows, "Ke toan");
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PrintDepositRevenueReportAsync failed {From}-{To}", dto.FromDate, dto.ToDate);
+            throw;
+        }
     }
 
     #endregion
@@ -498,7 +531,11 @@ public partial class BillingCompleteService {
 
             return result;
         }
-        catch { return new BillingStatisticsDto { FromDate = dto.FromDate, ToDate = dto.ToDate }; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetBillingStatisticsAsync failed {From}-{To}", dto.FromDate, dto.ToDate);
+            return new BillingStatisticsDto { FromDate = dto.FromDate, ToDate = dto.ToDate, IsError = true, ErrorMessage = ex.Message };
+        }
     }
 
     public async Task<DailyRevenueReportDto> GetDailyRevenueAsync(DateTime date)
@@ -537,7 +574,11 @@ public partial class BillingCompleteService {
                              - receipts.Where(r => r.ReceiptType == 3).Sum(r => r.FinalAmount)
             };
         }
-        catch { return new DailyRevenueReportDto { Date = date.Date }; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetDailyRevenueAsync failed for {Date}", date.Date);
+            return new DailyRevenueReportDto { Date = date.Date, IsError = true, ErrorMessage = ex.Message };
+        }
     }
 
     public async Task<List<DepartmentRevenueDto>> GetRevenueByDepartmentAsync(DepartmentRevenueRequestDto dto)
@@ -585,7 +626,11 @@ public partial class BillingCompleteService {
                 .OrderByDescending(d => d.TotalRevenue)
                 .ToList();
         }
-        catch { return new List<DepartmentRevenueDto>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetRevenueByDepartmentAsync failed {From}-{To}", dto.FromDate, dto.ToDate);
+            throw;
+        }
     }
 
     public async Task<DebtStatisticsDto> GetDebtStatisticsAsync(DateTime? asOfDate)
@@ -645,7 +690,11 @@ public partial class BillingCompleteService {
                     .ToList()
             };
         }
-        catch { return new DebtStatisticsDto { AsOfDate = asOfDate ?? DateTime.Now }; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetDebtStatisticsAsync failed asOf={AsOf}", asOfDate);
+            return new DebtStatisticsDto { AsOfDate = asOfDate ?? DateTime.Now, IsError = true, ErrorMessage = ex.Message };
+        }
     }
 
     public async Task<InsuranceClaimDto> GenerateInsuranceClaimAsync(Guid medicalRecordId)
@@ -680,7 +729,11 @@ public partial class BillingCompleteService {
                 CreatedAt = DateTime.Now
             };
         }
-        catch { return new InsuranceClaimDto(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GenerateInsuranceClaimAsync failed for record {MedicalRecordId}", medicalRecordId);
+            return new InsuranceClaimDto { IsError = true, ErrorMessage = ex.Message };
+        }
     }
 
     public async Task<Xml4210ResultDto> GenerateXml4210Async(GenerateXml4210RequestDto dto)
@@ -753,6 +806,7 @@ public partial class BillingCompleteService {
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "GenerateXml4210Async failed {From}-{To}", dto.FromDate, dto.ToDate);
             return new Xml4210ResultDto { Errors = new List<string> { ex.Message } };
         }
     }
@@ -785,7 +839,11 @@ public partial class BillingCompleteService {
                 InpatientAmount = inpatient.Sum(i => i.InsuranceAmount)
             };
         }
-        catch { return new InsuranceClaimStatisticsDto { FromDate = fromDate, ToDate = toDate }; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetInsuranceClaimStatisticsAsync failed {From}-{To}", fromDate, toDate);
+            return new InsuranceClaimStatisticsDto { FromDate = fromDate, ToDate = toDate, IsError = true, ErrorMessage = ex.Message };
+        }
     }
 
     #endregion
@@ -822,8 +880,9 @@ public partial class BillingCompleteService {
                 reversalId, dto.MedicalRecordId, dto.ServiceRequestId, serviceName,
                 amount, amount, dto.Reason, userId, userId.ToString());
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "ReverseServiceChargeAsync: ghi BillingReversals thất bại (bảng có thể chưa tồn tại) — bỏ qua audit, vẫn tiếp tục đảo bút toán");
             // Table may not exist - return stub
         }
 
@@ -891,8 +950,9 @@ public partial class BillingCompleteService {
                   WHERE br.IsDeleted = 0 AND br.ReversedAt BETWEEN {0} AND {1}
                   ORDER BY br.ReversedAt DESC", from, to).ToListAsync();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "GetReversalHistoryAsync: truy vấn BillingReversals thất bại (bảng có thể chưa tồn tại) — trả danh sách rỗng");
             // Table may not exist
             return new List<BillingReversalDto>();
         }

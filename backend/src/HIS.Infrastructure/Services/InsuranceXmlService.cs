@@ -1160,7 +1160,11 @@ public class InsuranceXmlService : IInsuranceXmlService
                 new[] { "Ma HSBA", "Ho ten", "So the", "Ngay vao", "Ngay ra", "Ma ICD", "Chan doan" }, rows);
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "#190 BHYT report/Excel export failed (see stack for method)");
+            throw;
+        }
     }
 
     public async Task<byte[]> DownloadXmlFileAsync(Guid batchId)
@@ -2053,7 +2057,11 @@ public class InsuranceXmlService : IInsuranceXmlService
                 new[] { "STT", "Ten chi tieu", "So luot", "Tien tam ung", "Tien de nghi", "Tien quyet toan" }, rows);
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "#190 BHYT report/Excel export failed (see stack for method)");
+            throw;
+        }
     }
 
     public async Task<byte[]> ExportReport80aToExcelAsync(int month, int year)
@@ -2071,7 +2079,11 @@ public class InsuranceXmlService : IInsuranceXmlService
                 new[] { "STT", "Loai the", "So luot KCB", "So nguoi", "Tien de nghi", "Tien quyet toan" }, rows);
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "#190 BHYT report/Excel export failed (see stack for method)");
+            throw;
+        }
     }
 
     // =========================================================================
@@ -2154,7 +2166,11 @@ public class InsuranceXmlService : IInsuranceXmlService
                          "So luong", "Don gia", "Thanh tien", "Tien BHYT" }, rows);
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "#190 BHYT report/Excel export failed (see stack for method)");
+            throw;
+        }
     }
 
     // =========================================================================
@@ -2235,7 +2251,11 @@ public class InsuranceXmlService : IInsuranceXmlService
                          "So luong", "Don gia", "Thanh tien", "Tien BHYT" }, rows);
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "#190 BHYT report/Excel export failed (see stack for method)");
+            throw;
+        }
     }
 
     // =========================================================================
@@ -2307,7 +2327,11 @@ public class InsuranceXmlService : IInsuranceXmlService
                          "So luong", "Don gia", "Thanh tien", "Tien BHYT", "BN tra" }, rows);
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "#190 BHYT report/Excel export failed (see stack for method)");
+            throw;
+        }
     }
 
     // =========================================================================
@@ -2384,7 +2408,11 @@ public class InsuranceXmlService : IInsuranceXmlService
                          "So luong", "Don gia", "Thanh tien", "Tien BHYT", "BN tra" }, rows);
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "#190 BHYT report/Excel export failed (see stack for method)");
+            throw;
+        }
     }
 
     // =========================================================================
@@ -2457,7 +2485,11 @@ public class InsuranceXmlService : IInsuranceXmlService
                          "So luong", "Don gia", "Thanh tien", "Tien BHYT", "BN tra" }, rows);
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "#190 BHYT report/Excel export failed (see stack for method)");
+            throw;
+        }
     }
 
     // =========================================================================
@@ -2536,7 +2568,11 @@ public class InsuranceXmlService : IInsuranceXmlService
                          "So luong", "Don gia", "Thanh tien", "Tien BHYT", "BN tra" }, rows);
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "#190 BHYT report/Excel export failed (see stack for method)");
+            throw;
+        }
     }
 
     // =========================================================================
@@ -2612,7 +2648,11 @@ public class InsuranceXmlService : IInsuranceXmlService
                 new[] { "STT", "Nhom DVKT", "So luot", "Tien de nghi", "Tien quyet toan", "Ghi chu" }, rows);
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "#190 BHYT report/Excel export failed (see stack for method)");
+            throw;
+        }
     }
 
     // =========================================================================
@@ -2690,7 +2730,11 @@ public class InsuranceXmlService : IInsuranceXmlService
                 new[] { "STT", "Nhom doi tuong", "So BN", "So ngay DT", "Tien de nghi", "Tien quyet toan" }, rows);
             return Encoding.UTF8.GetBytes(html);
         }
-        catch { return Array.Empty<byte>(); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "#190 BHYT report/Excel export failed (see stack for method)");
+            throw;
+        }
     }
 
     public async Task<List<TreatmentTypeReportDto>> GetTreatmentTypeReportAsync(int month, int year)
