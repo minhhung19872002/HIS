@@ -3,7 +3,7 @@
 > 🔗 **TASK/PLAN quản lý trên GitHub Issues** (repo `minhhung19872002/HIS`): `gh issue list`.
 > File này CHỈ giữ **session-state** cho hook — KHÔNG ghi backlog/plan/lịch sử dài vào đây.
 
-> Cập nhật cuối: **2026-06-21** — TECH-DEBT **#171 (tách fat FE API client) = ✅ DONE local, chờ push** (issue đặt `in-progress`):
+> Cập nhật cuối: **2026-06-21** — TECH-DEBT **#171 (tách fat FE API client) = ✅ DONE + PUSHED** (`a210684`, **#171 CLOSED**):
 > tách 3 god-file `frontend/src/api/{ris,inpatient,system}.ts` theo domain qua **barrel re-export** (behavior-preserving, public API bất biến):
 > ① `ris.ts` → barrel 481 + `ris/`×11 (export **364=364**) · ② `inpatient.ts` → barrel 293 + `inpatient/`×7 (export **224=224**) ·
 > ③ `system.ts` → barrel 30 + `system/`×6 (finance/catalog/pharmacy-report/medical-record/statistics/admin; export **104=104**, default `{finance,catalog,pharmacyReport,medicalRecord,statistics,admin}` byte-identical, named-import khớp HEAD).
@@ -11,7 +11,7 @@
 > **GOVERNANCE (model-tier routing — tiết kiệm túi Opus, mọi phiên/máy):** thêm rule vào `CLAUDE.md §Agent routing` (soft nudge) + **banner cứng** `.claude/hooks/session-start.sh`
 > (đánh giá tính chất phiên ngay yêu cầu đầu → gợi ý `/model` đúng tầng: Q&A/boilerplate/bulk cô lập→Sonnet, cơ học/Q&A thuần→Haiku, refactor/migration/DI/contract/DB/safety/tiền→Opus) — LINT OK.
 > **TOOLING (máy-local D:, không ảnh hưởng repo):** cài 9router (proxy self-host, KHÔNG route HIS/PHI) + Usage Monitor for Claude (tray, audited api.anthropic.com-only). Memory `reference_local-ai-tooling-stack`.
-> **Working tree DIRTY** (split + governance chưa commit). **KẾ TIẾP:** commit LOCAL tách 4 (governance · ris · inpatient · system+STATUS) → **chờ user duyệt `push`** (#171 close khi push, kèm `Closes #171`).
+> **ĐÃ PUSH 4 commit** (8c17e32 governance · f4bad2c ris · 6e9c8d2 inpatient · a210684 system+STATUS, `Closes #171`) → origin/main; #171 auto-CLOSED + gỡ `in-progress`. Vercel auto-deploy FE (refactor thuần, không đụng backend → không trigger Cloud Run).
 >
 > Cập nhật cuối: **2026-06-20** — **LOOSE-ENDS cleanup = ✅ READY_FOR_PUSH**: ① `git mv` 4 `test-*.ps1` root → `scripts/dev-tools/` + gitignore `/test-*.ps1` ·
 > ② gộp cloudbuild: xoá `backend/cloudbuild.yaml` (OBSOLETE) + repoint dev-tool `deploy-google-cloud.ps1` → root `cloudbuild.yaml` (mirror CI: `submit . --config cloudbuild.yaml --substitutions=_IMAGE`) + sửa doc + PROJECT_STRUCTURE §5.4/§5.5/§6 · ③ vercel.json: **user quyết GIỮ CẢ 2** (không xác định Root Directory từ máy này). ⚠️ Dev-tool deploy chưa test (thiếu gcloud) nhưng mirror CI đã chứng minh. | (trước đó cùng phiên, đã PUSHED:)
