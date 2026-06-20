@@ -15,6 +15,8 @@ if [ "$behind" != "0" ] && [ "$behind" != "?" ]; then
 fi
 # ★ RULE CỨNG quy trình SDLC của user (mọi phiên/mọi máy): TEST luôn làm CUỐI CÙNG.
 rule=" ★ QUY TRÌNH BẮT BUỘC (mọi yêu cầu/phiên/máy): TEST là việc BẮT BUỘC nhưng LUÔN LÀM CUỐI CÙNG — phải hoàn thành HẾT fix/feature/tech-debt TRƯỚC; TUYỆT ĐỐI KHÔNG bắt đầu BẤT KỲ task test nào (kể cả harness/CI-gate) khi còn BẤT KỲ task fix nào OPEN. KHÔNG có ngoại lệ."
-msg="[HIS session] branch=${branch} · dirty=${dirty} file · unpushed=${ahead} · behind=${behind} commit.${sync}${rule} Đọc docs/workspace-docs/STATUS.md trước khi bắt đầu."
+# ★ Model-tier routing (tiết kiệm túi Opus) — nhắc CỨNG ngay đầu MỖI cửa sổ chat mới. KHÔNG dùng dấu nháy kép/backtick/$ (vỡ JSON).
+model=" ★ TẦNG MODEL (mọi phiên/cửa sổ chat mới/máy): đánh giá tính chất phiên NGAY yêu cầu đầu → nếu model hiện tại lệch tầng thì GỢI Ý user /model đúng tầng TRƯỚC khi làm. Q&A/boilerplate/bulk cô lập → Sonnet (việc cơ học verify-được/Q&A thuần → Haiku). Refactor/migration/DI/contract/DB/patient-safety/tiền → Opus. Việc nhẹ/bulk cô lập KHÔNG chạm guardrail có thể đẩy subagent Haiku/Sonnet hoặc agy. Nudge mềm, không auto-switch."
+msg="[HIS session] branch=${branch} · dirty=${dirty} file · unpushed=${ahead} · behind=${behind} commit.${sync}${rule}${model} Đọc docs/workspace-docs/STATUS.md trước khi bắt đầu."
 printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$msg"
 exit 0

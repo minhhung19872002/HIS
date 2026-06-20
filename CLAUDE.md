@@ -43,6 +43,8 @@ Mặc định **trả lời inline** (rẻ nhất). Chỉ spawn subagent khi vi�
 | Task lớn đa-domain (phân loại + điều phối) | `ai-project-orchestrator` |
 | Nhiều mảnh độc lập | fan-out **song song** (báo chi phí token trước) |
 
+**Tầng model (tiết kiệm túi Opus — mọi phiên/máy):** model luồng chính do user `/model` chọn; tôi **KHÔNG tự đổi giữa phiên**. Việc nhẹ/lặp/bulk **cô lập** (như trên) — ngoài `agy` — có thể đẩy **subagent `model: haiku/sonnet`** để khỏi tốn túi Opus; việc **nặng / cần thông minh / đụng HIS patient-safety·DI·contract·DB·secret·tiền** → **giữ Opus** luồng chính (theo "Hoà giải agy↔guardrail" trên — KHÔNG delegate code guardrail). Phiên toàn việc nhẹ → nên `/model` **Sonnet**; phiên nặng/refactor/migration → **Opus**. **★ ĐẦU MỖI phiên / cửa sổ chat mới (mọi phiên·mọi máy):** đánh giá tính chất phiên ngay từ yêu cầu đầu → nếu model hiện tại **lệch tầng** thì **gợi ý user `/model` đúng tầng TRƯỚC khi bắt tay** (vd phiên toàn hỏi đáp/boilerplate mà đang Opus → đề xuất hạ **Sonnet**; sắp refactor/migration/patient-safety mà đang Sonnet → đề xuất **Opus**); model khớp rồi thì im, vào việc luôn. *(Nudge mềm — không phải auto-switch harness.)*
+
 ## Project Structure
 - **Backend**: ASP.NET Core Clean Architecture (HIS.Core → HIS.Application → HIS.Infrastructure → HIS.API)
 - **Frontend**: React 19 + TypeScript + Ant Design v6 + Vite
