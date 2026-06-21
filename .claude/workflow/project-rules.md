@@ -49,8 +49,12 @@
   ```
   Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
   ```
-- 🔴 **KHÔNG tự `git add`/`commit`/`push`** khi user chưa explicit (SKILL-MAP §0c). "continue/tiếp tục"
-  KHÔNG phải lệnh commit. Thay đổi < 5 file / < 100 dòng → **gom batch**, chưa đẩy (memory
+- 🔴 **KHÔNG tự `git add`/`commit`/`push` khi user chưa explicit lượt-hiện-tại** (★ nguồn chân lý — SKILL-MAP §0c chỉ giữ tóm tắt + trỏ về đây). 3 mức mở khoá theo keyword:
+  - "continue / tiếp tục / làm tiếp" / "mọi việc còn lại giao cho bạn" → CHỈ code-change + build-verify + report; KHÔNG `git add`/`commit`/`push`.
+  - "commit / lưu commit / ghi commit" → `git add` + `git commit` **LOCAL**; KHÔNG push.
+  - "push / đẩy code / git push" → mới `git push` origin/main.
+  - **Edge-case:** "xong hết X mới review/push" KHÔNG implicit-OK (phải explicit "push") · working-tree dirty là BÌNH THƯỜNG khi "continue" (KHÔNG commit để cleanup) · Auto-Mode KHÔNG override · lượt-trước-cho-phép KHÔNG nới sang lượt-sau.
+  - Thay đổi < 5 file / < 100 dòng → **gom batch**, chưa đẩy (memory
   `feedback_batch-changes-before-push`). ⚠️ **Khi 2 máy làm song song:** ƯU TIÊN **push sớm mỗi feature DONE**
   thay vì stack nhiều feature uncommitted — batch lâu = cửa sổ phân kỳ lớn = dễ trùng/đụng (xin phép push từng cái).
 - Commit đúng thay đổi thật: `git diff --name-only | xargs git add` — tránh churn do line-ending CRLF/LF
@@ -58,7 +62,7 @@
 
 ## 4. Pull Request / Push — quy ước (LẤP GAP)
 
-- `push` / `đẩy code` mới được `git push`; `commit` chỉ commit local. (Bảng SKILL-MAP §0c.)
+- `push` / `đẩy code` mới được `git push`; `commit` chỉ commit local. (Mức mở khoá đầy đủ: §3.)
 - 🔴 **Đóng issue ATOMIC với push** (chống "OPEN giả" khiến máy khác làm trùng): commit feature kèm
   **`Closes #N`** (GitHub auto-close khi merge `main`) HOẶC `gh issue close <n>` **ngay sau push**. **KHÔNG đóng
   issue theo lô trễ** nhiều commit sau khi code đã lên — đó là khoảng-trống khiến `gh issue list` còn hiện OPEN

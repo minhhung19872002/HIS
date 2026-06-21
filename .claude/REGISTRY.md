@@ -31,6 +31,11 @@
 | agent slug ↔ display-name | `agents/ai-project-orchestrator.md` (AVAILABLE...) + `workflow.md` §1 | |
 | file-placement (report→workspace-docs; backlog→GitHub Issues) | `SKILL-MAP` §0a + `CLAUDE.md` | |
 | deploy (auto via GitHub Actions) | `his-ops-deploy` + `CLAUDE.md` Deploy | |
+| test-làm-cuối (fix/feature/tech-debt xong HẾT rồi mới test; không ngoại lệ harness) | `CLAUDE.md` §"Quản lý plan/task" | hook `session-start.sh`/`remind-pipeline.sh` inline-enforce + STATUS chỉ link |
+| model-tier routing (Opus/Sonnet/Haiku theo tính chất phiên; nudge mềm) | `CLAUDE.md` §"Agent routing" | hook `session-start.sh` nudge inline; nơi khác link |
+| task-lifecycle (in-progress label · scope-overlap · task-dài→push-1-lần) | `CLAUDE.md` §"Quản lý plan/task" | git-ops mechanics ở `workflow/project-rules.md` §2-4; nơi khác link |
+| SYNC-GATE chống-trùng-code-2-máy (pull --ff-only + verify-against-CODE + claim) | `workflow/project-rules.md` §2 | hook `session-start.sh`/`remind-pipeline.sh` inline-enforce |
+| evidence viewer / file-layout / naming / regen / dedup-GitHub | `docs/architecture/evidence/README.md` | `CLAUDE.md` §test + `his-test-e2e` §6 (convention đặt-tên-test) chỉ link |
 
 ## ★ Quy tắc ghi/sửa rule trong `.claude` (BẮT BUỘC — chống tái drift)
 1. **Tra bảng trên TRƯỚC.** Rule đã có chủ → file mới chỉ **1 dòng + link**, TUYỆT ĐỐI không chép nội dung.

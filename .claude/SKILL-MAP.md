@@ -72,24 +72,10 @@ User explicit 2026-05-30 (đã reprimanded 3+ lần):
 
 > "tuyệt đối không đẩy code và đặc biệt là không đẩy code trong thư mục worspace-doc"
 
-**Rule áp dụng cho MỌI session:**
-
-| User nói | Em CHỈ làm | Em KHÔNG làm |
-|---|---|---|
-| "continue" / "tiếp tục" / "làm tiếp" | Code change theo lịch roadmap + build verify + report | KHÔNG `git add` · KHÔNG `git commit` · KHÔNG `git push` |
-| "commit" / "lưu commit" / "ghi commit" | `git add` + `git commit` LOCAL | KHÔNG push |
-| "push" / "đẩy code" / "git push" | `git push` lên origin/main | — |
-
-**Edge cases:**
-- "Khi xong hết X mới review/push" — KHÔNG implicit OK; user phải explicit "push" sau review
-- "Mọi việc còn lại giao cho bạn" — bao gồm code change + build verify, KHÔNG bao gồm git ops
-- Working tree dirty là TRẠNG THÁI BÌNH THƯỜNG khi user "continue" — KHÔNG cleanup bằng cách commit
-- Auto Mode bias toward working KHÔNG override rule này
-
-**workspace-docs (CẬP NHẬT 2026-06-13 — quy tắc "never-push" ĐÃ GỠ):**
-- `docs/workspace-docs/**` commit + push **BÌNH THƯỜNG** như code (hook pre-push + guard + `scripts/push-code.ps1` đã xoá 2026-06-13). Vẫn tách commit logic để review rõ, nhưng KHÔNG còn cấm push.
-
-> **Nguồn chân lý git-ops = [`workflow/project-rules.md`](workflow/project-rules.md) §2-4.** Mọi nơi khác (kể cả mục này) chỉ giữ nguyên-tắc-lõi "không tự commit/push khi chưa được phép" + trỏ về đó, KHÔNG lặp bảng/ngưỡng (chống drift).
+**Nguyên-tắc-lõi** (★ **bảng đầy đủ + edge-case + ngưỡng = nguồn chân lý** [`workflow/project-rules.md`](workflow/project-rules.md) §2-4 — KHÔNG lặp ở đây, chống drift):
+- "continue / tiếp tục / làm tiếp" / "mọi việc còn lại giao cho bạn" = **CHỈ** code-change + build-verify + report → **KHÔNG** `git add`/`commit`/`push`.
+- Chỉ keyword explicit **lượt-hiện-tại** mới mở khoá: "commit" → commit LOCAL (KHÔNG push); "push / đẩy code" → mới `git push`. Lượt-trước-cho-phép KHÔNG nới sang lượt-sau.
+- workspace-docs commit + push **bình thường** (quy tắc never-push đã **GỠ** 2026-06-13).
 
 Cross-ref memory: `feedback_no-commit-push-without-permission.md` · `feedback_continue-no-git-ops.md`
 *(đã gỡ `feedback_workspace-docs-never-push.md` — memory này đã xoá + rule đã đảo ngược 2026-06-13.)*
@@ -227,8 +213,8 @@ Khi generate/refactor code, áp rule theo mức. **P0 = tuyệt đối không vi
 | **PRE-FLIGHT — MỌI task code (chạy TRƯỚC khi viết)** | `core-requirement-clarify` (mơ hồ → hỏi gộp; rõ → ghi giả định) → `core-verify-before-assert` (verify, KHÔNG bịa file/symbol/field) → `core-impact-analysis` (bản đồ tác động nếu sửa code dùng chung) → viết theo `core-minimal-change`. **Khi user nói "thêm/sửa/xóa code", "fix bug", "refactor", "delete file/function", hoặc bất kỳ task code-gen scope cụ thể** → bổ sung `core-code-change-workflow` (workflow tổng add/modify/delete với pre-flight, file-allow-list, fail criteria, rollback). **Thay đổi hệ Production (rủi ro/khó rollback/auth·tiền·schema·contract) hoặc "fix lỗi prod"** → bọc cả vòng đời bằng `core-prod-change-discipline` (root-cause+bằng chứng · **≥3 phương án** ưu/nhược/phức-tạp/rủi-ro/chi-phí · self-critique · **gate lint+typecheck+build+test** · **báo cáo 7 phần** · thứ tự ưu tiên) |
 | **BẤT KỲ code-gen / refactor** | luôn kèm `core-reusable-code` + `core-clean-code` + `his-qa-anti-pattern`; **code FE** kèm thêm `his-fe-convention` + `his-fe-library-policy` (cân nhắc + giải thích chọn thư viện cho từng nhóm form/data/state/test… — default stack HIS, lib mới chỉ khi tối ưu rõ + user duyệt); **dựng/sửa UI** kèm `core-ui-aesthetics` (gu thẩm mỹ + tiết chế, chống "AI-slop", KHÔNG hại UX). **(1) REUSE-FIRST (FE+BE):** trước khi tạo file/hàm/component/thư mục → **tìm xem code/thư mục liên quan đã tồn tại chưa** (grep `_v2kit`/`components`/`hooks`/`utils`/`api`/`constants` ở FE; `Services`/`Controllers`/`Entities`/`DTOs` ở BE) → đã có thì **dùng lại / mở rộng**, KHÔNG tạo trùng. **(2) FE ANTD-FIRST:** ưu tiên Antd v6 / `_v2kit`, **KHÔNG viết HTML/CSS thuần khi không cần**. **(3) ĐẶT FILE ĐÚNG THƯ MỤC:** file mới TUYỆT ĐỐI KHÔNG ở root → vào thư mục đúng loại (FE `frontend/src/...`, BE `backend/src/...`, test/docs/script tương ứng); thiếu thư mục phù hợp → **đề xuất user tạo thư mục rồi mới tạo file** (xem `his-qa-anti-pattern` #28-29). **(4)** Skill quy tắc (convention/guardrail) PHẢI áp NGAY trong lúc viết/sửa code — không đứng riêng, không "đọc rồi bỏ qua". Thứ tự: **core-* trước → his-* sau** |
 | **BÁO CÁO kết quả chạy lệnh (mọi task)** | `core-execution-output`: ngắn gọn mặc định · tự bung root-cause khi lỗi · luôn nêu thao tác phá huỷ/bảo mật · không claim success khi chưa verify |
-| **HOÀN THÀNH thêm/sửa/XOÁ code → BUILD-GATE trước khi báo** | **BẮT BUỘC build sạch tầng đã đụng rồi mới báo "xong"** (áp cho cả thêm·sửa·xoá) — FE: `cd frontend && npm run build` (tsc -b + vite, EXIT 0, KHÔNG chỉ `tsc --noEmit`); BE: `cd backend && dotnet build HIS.sln` (0 errors); đụng cả 2 → build cả 2; chỉ `.claude/`/docs → không cần build. Còn lỗi build = chưa xong. Chi tiết: `his-qa-anti-pattern` #27 |
-| **SELF-REVIEW trước khi báo (BE+FE)** | AI **tự rà 9 điểm** (duplicate logic · dead code · hard-code · anti-pattern · component/service quá lớn · function quá dài · import cycle · naming · state management) cho **cả BE lẫn FE** rồi mới báo — không chờ user nhắc, vi phạm thì sửa trước. Chi tiết: `his-qa-anti-pattern` #30 (FE: `his-fe-convention` §7) |
+| **BUILD-GATE trước khi báo xong** (thêm/sửa/XOÁ code) | Build sạch tầng đã đụng rồi mới báo "xong" (FE `npm run build` EXIT 0 · BE `dotnet build` 0 err · đụng cả 2 → build cả 2 · chỉ `.claude`/docs → khỏi build). Còn lỗi = chưa xong. **Chi tiết (nguồn chân lý):** `his-qa-anti-pattern` #27 |
+| **SELF-REVIEW 9 điểm trước khi báo (BE+FE)** | AI tự rà 9 điểm (duplicate · dead-code · hard-code · anti-pattern · god-unit · hàm-dài · import-cycle · naming · state) rồi mới báo, không chờ nhắc. **Chi tiết (nguồn chân lý):** `his-qa-anti-pattern` #30 (FE view: `his-fe-convention` §7) |
 
 ---
 
