@@ -22,7 +22,7 @@ public partial class BillingCompleteService {
     {
         try
         {
-            var record = await _context.MedicalRecords
+            var record = await _context.MedicalRecords.AsNoTracking()
                 .Include(r => r.Patient)
                 .FirstOrDefaultAsync(r => r.Id == dto.MedicalRecordId);
             if (record == null) return Array.Empty<byte>();
@@ -30,14 +30,14 @@ public partial class BillingCompleteService {
             var patient = record.Patient;
 
             // Query service requests for this medical record
-            var serviceDetails = await _context.ServiceRequestDetails
+            var serviceDetails = await _context.ServiceRequestDetails.AsNoTracking()
                 .Include(d => d.Service)
                 .Include(d => d.ServiceRequest)
                 .Where(d => d.ServiceRequest.MedicalRecordId == dto.MedicalRecordId && d.ServiceRequest.Status != 4)
                 .ToListAsync();
 
             // Query prescription details for this medical record
-            var rxDetails = await _context.PrescriptionDetails
+            var rxDetails = await _context.PrescriptionDetails.AsNoTracking()
                 .Include(d => d.Medicine)
                 .Include(d => d.Prescription)
                 .Where(d => d.Prescription.MedicalRecordId == dto.MedicalRecordId && d.Prescription.Status != 4)
@@ -93,20 +93,20 @@ public partial class BillingCompleteService {
     {
         try
         {
-            var record = await _context.MedicalRecords
+            var record = await _context.MedicalRecords.AsNoTracking()
                 .Include(r => r.Patient)
                 .FirstOrDefaultAsync(r => r.Id == dto.MedicalRecordId);
             if (record == null) return Array.Empty<byte>();
 
             var patient = record.Patient;
 
-            var serviceDetails = await _context.ServiceRequestDetails
+            var serviceDetails = await _context.ServiceRequestDetails.AsNoTracking()
                 .Include(d => d.Service)
                 .Include(d => d.ServiceRequest)
                 .Where(d => d.ServiceRequest.MedicalRecordId == dto.MedicalRecordId && d.ServiceRequest.Status != 4)
                 .ToListAsync();
 
-            var rxDetails = await _context.PrescriptionDetails
+            var rxDetails = await _context.PrescriptionDetails.AsNoTracking()
                 .Include(d => d.Medicine)
                 .Include(d => d.Prescription)
                 .Where(d => d.Prescription.MedicalRecordId == dto.MedicalRecordId && d.Prescription.Status != 4)
@@ -172,20 +172,20 @@ public partial class BillingCompleteService {
     {
         try
         {
-            var record = await _context.MedicalRecords
+            var record = await _context.MedicalRecords.AsNoTracking()
                 .Include(r => r.Patient)
                 .FirstOrDefaultAsync(r => r.Id == dto.MedicalRecordId);
             if (record == null) return Array.Empty<byte>();
 
             var patient = record.Patient;
 
-            var serviceRequests = await _context.ServiceRequests
+            var serviceRequests = await _context.ServiceRequests.AsNoTracking()
                 .Include(r => r.Department)
                 .Include(r => r.Details).ThenInclude(d => d.Service)
                 .Where(r => r.MedicalRecordId == dto.MedicalRecordId && r.Status != 4)
                 .ToListAsync();
 
-            var prescriptions = await _context.Prescriptions
+            var prescriptions = await _context.Prescriptions.AsNoTracking()
                 .Include(p => p.Department)
                 .Include(p => p.Details).ThenInclude(d => d.Medicine)
                 .Where(p => p.MedicalRecordId == dto.MedicalRecordId && p.Status != 4)
@@ -266,7 +266,7 @@ public partial class BillingCompleteService {
             var patient = await _context.Patients.FindAsync(dto.PatientId);
             if (patient == null) return Array.Empty<byte>();
 
-            var query = _context.ServiceRequestDetails
+            var query = _context.ServiceRequestDetails.AsNoTracking()
                 .Include(d => d.Service)
                 .Include(d => d.ServiceRequest)
                 .Where(d => d.ServiceRequest.MedicalRecord.PatientId == dto.PatientId && d.ServiceRequest.Status != 4);
@@ -280,7 +280,7 @@ public partial class BillingCompleteService {
 
             var details = await query.ToListAsync();
 
-            var deposits = await _context.Deposits
+            var deposits = await _context.Deposits.AsNoTracking()
                 .Where(d => d.PatientId == dto.PatientId && d.Status == 1)
                 .OrderByDescending(d => d.ReceiptDate)
                 .ToListAsync();
@@ -328,7 +328,7 @@ public partial class BillingCompleteService {
     {
         try
         {
-            var deposit = await _context.Deposits
+            var deposit = await _context.Deposits.AsNoTracking()
                 .Include(d => d.Patient)
                 .Include(d => d.ReceivedBy)
                 .FirstOrDefaultAsync(d => d.Id == depositId);
@@ -372,7 +372,7 @@ public partial class BillingCompleteService {
     {
         try
         {
-            var receipt = await _context.Receipts
+            var receipt = await _context.Receipts.AsNoTracking()
                 .Include(r => r.Patient)
                 .Include(r => r.Cashier)
                 .Include(r => r.Details)
@@ -447,7 +447,7 @@ public partial class BillingCompleteService {
     {
         try
         {
-            var invoice = await _context.InvoiceSummaries
+            var invoice = await _context.InvoiceSummaries.AsNoTracking()
                 .Include(i => i.MedicalRecord).ThenInclude(r => r.Patient)
                 .FirstOrDefaultAsync(i => i.Id == invoiceId);
             if (invoice == null) return Array.Empty<byte>();
@@ -456,7 +456,7 @@ public partial class BillingCompleteService {
             var record = invoice.MedicalRecord;
 
             // Get receipt details associated with this medical record
-            var receiptDetails = await _context.ReceiptDetails
+            var receiptDetails = await _context.ReceiptDetails.AsNoTracking()
                 .Include(d => d.Receipt)
                 .Where(d => d.Receipt.MedicalRecordId == invoice.MedicalRecordId && d.Receipt.Status == 1)
                 .ToListAsync();
@@ -524,7 +524,7 @@ public partial class BillingCompleteService {
         try
         {
             // Refunds are stored as receipts with ReceiptType=3
-            var receipt = await _context.Receipts
+            var receipt = await _context.Receipts.AsNoTracking()
                 .Include(r => r.Patient)
                 .Include(r => r.Cashier)
                 .FirstOrDefaultAsync(r => r.Id == refundId);

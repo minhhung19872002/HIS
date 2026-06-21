@@ -39,7 +39,7 @@ public class ResultNotificationService : IResultNotificationService
         try
         {
             // #14e: model 1 ServiceRequest (RequestType=1) — model 2 LabRequests đã gỡ
-            var request = await _context.ServiceRequests
+            var request = await _context.ServiceRequests.AsNoTracking()
                 .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
                 .Include(r => r.Details.Where(d => !d.IsDeleted && d.Status != 3)).ThenInclude(d => d.Service)
                 .FirstOrDefaultAsync(r => r.Id == labRequestId && !r.IsDeleted && r.RequestType == 1);
@@ -77,7 +77,7 @@ public class ResultNotificationService : IResultNotificationService
     {
         try
         {
-            var report = await _context.RadiologyReports
+            var report = await _context.RadiologyReports.AsNoTracking()
                 .Include(r => r.RadiologyExam)
                     .ThenInclude(e => e!.RadiologyRequest)
                         .ThenInclude(req => req!.Patient)
@@ -117,7 +117,7 @@ public class ResultNotificationService : IResultNotificationService
         try
         {
             // #14e: model 1 ServiceRequest — model 2 LabRequests đã gỡ
-            var request = await _context.ServiceRequests
+            var request = await _context.ServiceRequests.AsNoTracking()
                 .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
                 .FirstOrDefaultAsync(r => r.Id == labRequestId && !r.IsDeleted && r.RequestType == 1);
 

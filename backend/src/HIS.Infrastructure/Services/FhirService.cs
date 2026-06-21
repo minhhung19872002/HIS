@@ -103,7 +103,7 @@ public class FhirService : IFhirService
     {
         try
         {
-            var query = _context.Patients.Where(p => !p.IsDeleted).AsQueryable();
+            var query = _context.Patients.AsNoTracking().Where(p => !p.IsDeleted).AsQueryable();
 
             if (!string.IsNullOrEmpty(name))
                 query = query.Where(p => p.FullName.Contains(name));
@@ -141,7 +141,7 @@ public class FhirService : IFhirService
     {
         try
         {
-            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+            var patient = await _context.Patients.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
             return patient == null ? null : MapPatient(patient);
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
@@ -246,7 +246,7 @@ public class FhirService : IFhirService
             var total = 0;
 
             // Search Examinations (outpatient encounters)
-            var examQuery = _context.Examinations
+            var examQuery = _context.Examinations.AsNoTracking()
                 .Include(e => e.MedicalRecord).ThenInclude(m => m.Patient)
                 .Include(e => e.Department)
                 .Include(e => e.Room)
@@ -273,7 +273,7 @@ public class FhirService : IFhirService
             }));
 
             // Search Admissions (inpatient encounters)
-            var admQuery = _context.Admissions
+            var admQuery = _context.Admissions.AsNoTracking()
                 .Include(a => a.Patient)
                 .Include(a => a.Department)
                 .Include(a => a.Room)
@@ -324,7 +324,7 @@ public class FhirService : IFhirService
         {
             if (type == "admission")
             {
-                var admission = await _context.Admissions
+                var admission = await _context.Admissions.AsNoTracking()
                     .Include(a => a.Patient)
                     .Include(a => a.Department)
                     .Include(a => a.Room)
@@ -334,7 +334,7 @@ public class FhirService : IFhirService
             }
             else
             {
-                var exam = await _context.Examinations
+                var exam = await _context.Examinations.AsNoTracking()
                     .Include(e => e.MedicalRecord).ThenInclude(m => m.Patient)
                     .Include(e => e.Department)
                     .Include(e => e.Room)
@@ -517,7 +517,7 @@ public class FhirService : IFhirService
             // Vital signs from Examinations
             if (isVitalSigns)
             {
-                var vsQuery = _context.Examinations
+                var vsQuery = _context.Examinations.AsNoTracking()
                     .Include(e => e.MedicalRecord).ThenInclude(m => m.Patient)
                     .Include(e => e.Doctor)
                     .Where(e => !e.IsDeleted && (e.Temperature != null || e.Pulse != null || e.BloodPressureSystolic != null))
@@ -550,6 +550,7 @@ public class FhirService : IFhirService
             if (isLab)
             {
                 var paramQuery = _context.ServiceRequestDetailParameters
+                    .AsNoTracking()
                     .Include(p => p.ServiceRequestDetail!)
                         .ThenInclude(d => d.ServiceRequest)
                         .ThenInclude(sr => sr.MedicalRecord)
@@ -582,7 +583,7 @@ public class FhirService : IFhirService
                 }
 
                 // SRD legacy chỉ có KQ chuỗi (chưa có chỉ số con) — vẫn phát Observation để không mất dữ liệu cũ
-                var srdQuery = _context.ServiceRequestDetails
+                var srdQuery = _context.ServiceRequestDetails.AsNoTracking()
                     .Include(d => d.Service)
                     .Include(d => d.ServiceRequest).ThenInclude(sr => sr.MedicalRecord).ThenInclude(m => m.Patient)
                     .Where(d => !d.IsDeleted && d.Status != 3 && d.ServiceRequest.RequestType == 1
@@ -634,7 +635,7 @@ public class FhirService : IFhirService
         {
             if (compositeId.StartsWith("vs-") && Guid.TryParse(compositeId[3..], out var vsId))
             {
-                var exam = await _context.Examinations
+                var exam = await _context.Examinations.AsNoTracking()
                     .Include(e => e.MedicalRecord).ThenInclude(m => m.Patient)
                     .Include(e => e.Doctor)
                     .FirstOrDefaultAsync(e => e.Id == vsId && !e.IsDeleted);
@@ -644,12 +645,13 @@ public class FhirService : IFhirService
             {
                 // #14b: thử chỉ số con per-parameter (R1) trước, fallback SRD legacy KQ chuỗi
                 var p = await _context.ServiceRequestDetailParameters
+                    .AsNoTracking()
                     .Include(x => x.ServiceRequestDetail!)
                         .ThenInclude(d => d.ServiceRequest).ThenInclude(sr => sr.MedicalRecord).ThenInclude(m => m.Patient)
                     .FirstOrDefaultAsync(x => x.Id == labId && !x.IsDeleted);
                 if (p != null) return MapLabParamObservation(p);
 
-                var srd = await _context.ServiceRequestDetails
+                var srd = await _context.ServiceRequestDetails.AsNoTracking()
                     .Include(d => d.Service)
                     .Include(d => d.ServiceRequest).ThenInclude(sr => sr.MedicalRecord).ThenInclude(m => m.Patient)
                     .FirstOrDefaultAsync(d => d.Id == labId && !d.IsDeleted && d.ServiceRequest.RequestType == 1);
@@ -837,7 +839,7 @@ public class FhirService : IFhirService
     {
         try
         {
-            var query = _context.PrescriptionDetails
+            var query = _context.PrescriptionDetails.AsNoTracking()
                 .Include(d => d.Prescription)
                     .ThenInclude(p => p.MedicalRecord)
                     .ThenInclude(m => m.Patient)
@@ -882,7 +884,7 @@ public class FhirService : IFhirService
     {
         try
         {
-            var detail = await _context.PrescriptionDetails
+            var detail = await _context.PrescriptionDetails.AsNoTracking()
                 .Include(d => d.Prescription)
                     .ThenInclude(p => p.MedicalRecord)
                     .ThenInclude(m => m.Patient)
@@ -988,7 +990,7 @@ public class FhirService : IFhirService
             if (isLab)
             {
                 // #14b: model 1 ServiceRequests (RequestType=1, Status=3 Có KQ); model 2 LabRequests chết
-                var labQuery = _context.ServiceRequests
+                var labQuery = _context.ServiceRequests.AsNoTracking()
                     .Include(lr => lr.MedicalRecord).ThenInclude(m => m.Patient)
                     .Include(lr => lr.Doctor)
                     .Include(lr => lr.Details.Where(d => !d.IsDeleted && d.Status != 3)).ThenInclude(d => d.Service)
@@ -1018,7 +1020,7 @@ public class FhirService : IFhirService
             // Radiology DiagnosticReports
             if (isRad)
             {
-                var radQuery = _context.RadiologyRequests
+                var radQuery = _context.RadiologyRequests.AsNoTracking()
                     .Include(rr => rr.Patient)
                     .Include(rr => rr.RequestingDoctor)
                     .Include(rr => rr.Service)
@@ -1065,7 +1067,7 @@ public class FhirService : IFhirService
         {
             if (type == "rad")
             {
-                var rr = await _context.RadiologyRequests
+                var rr = await _context.RadiologyRequests.AsNoTracking()
                     .Include(r => r.Patient)
                     .Include(r => r.RequestingDoctor)
                     .Include(r => r.Service)
@@ -1075,7 +1077,7 @@ public class FhirService : IFhirService
             else
             {
                 // #14b: model 1 ServiceRequest (RequestType=1)
-                var lr = await _context.ServiceRequests
+                var lr = await _context.ServiceRequests.AsNoTracking()
                     .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
                     .Include(r => r.Doctor)
                     .Include(r => r.Details.Where(d => !d.IsDeleted && d.Status != 3)).ThenInclude(d => d.Service)
@@ -1174,7 +1176,7 @@ public class FhirService : IFhirService
     {
         try
         {
-            var query = _context.Examinations
+            var query = _context.Examinations.AsNoTracking()
                 .Include(e => e.MedicalRecord).ThenInclude(m => m.Patient)
                 .Include(e => e.Doctor)
                 .Where(e => !e.IsDeleted && !string.IsNullOrEmpty(e.MainIcdCode))
@@ -1213,7 +1215,7 @@ public class FhirService : IFhirService
         {
             if (compositeId.StartsWith("exam-") && Guid.TryParse(compositeId[5..], out var examId))
             {
-                var exam = await _context.Examinations
+                var exam = await _context.Examinations.AsNoTracking()
                     .Include(e => e.MedicalRecord).ThenInclude(m => m.Patient)
                     .Include(e => e.Doctor)
                     .FirstOrDefaultAsync(e => e.Id == examId && !e.IsDeleted);
@@ -1274,7 +1276,7 @@ public class FhirService : IFhirService
     {
         try
         {
-            var query = _context.Allergies
+            var query = _context.Allergies.AsNoTracking()
                 .Include(a => a.Patient)
                 .Include(a => a.RecordedBy)
                 .Where(a => !a.IsDeleted && a.IsActive)
@@ -1309,7 +1311,7 @@ public class FhirService : IFhirService
     {
         try
         {
-            var allergy = await _context.Allergies
+            var allergy = await _context.Allergies.AsNoTracking()
                 .Include(a => a.Patient)
                 .Include(a => a.RecordedBy)
                 .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted);
@@ -1369,7 +1371,7 @@ public class FhirService : IFhirService
     {
         try
         {
-            var query = _context.SurgeryRecords
+            var query = _context.SurgeryRecords.AsNoTracking()
                 .Include(sr => sr.SurgerySchedule)
                     .ThenInclude(ss => ss.SurgeryRequest)
                     .ThenInclude(req => req.Patient)
@@ -1413,7 +1415,7 @@ public class FhirService : IFhirService
     {
         try
         {
-            var record = await _context.SurgeryRecords
+            var record = await _context.SurgeryRecords.AsNoTracking()
                 .Include(sr => sr.SurgerySchedule)
                     .ThenInclude(ss => ss.SurgeryRequest)
                     .ThenInclude(req => req.Patient)

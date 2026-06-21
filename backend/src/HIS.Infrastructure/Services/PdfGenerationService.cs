@@ -25,6 +25,7 @@ public class PdfGenerationService : IPdfGenerationService
     public async Task<byte[]> GenerateEmrPdfAsync(Guid examinationId, string formType)
     {
         var exam = await _db.Examinations
+            .AsNoTracking()
             .Include(e => e.MedicalRecord)
                 .ThenInclude(m => m.Patient)
             .Include(e => e.MedicalRecord)
@@ -60,16 +61,22 @@ public class PdfGenerationService : IPdfGenerationService
 
             case "treatment":
                 var sheets = await _db.TreatmentSheets
+                    .AsNoTracking()
                     .Where(t => t.ExaminationId == examinationId && !t.IsDeleted)
                     .OrderBy(t => t.TreatmentDate)
                     .ToListAsync();
 
+                // Batch-load bac si (tranh N+1: tra cuu Users theo tung sheet)
+                var sheetDoctorIds = sheets.Where(s => s.DoctorId.HasValue).Select(s => s.DoctorId!.Value).Distinct().ToList();
+                var sheetDoctors = await _db.Users
+                    .AsNoTracking()
+                    .Where(u => sheetDoctorIds.Contains(u.Id))
+                    .ToDictionaryAsync(u => u.Id);
+
                 var treatmentRows = new List<TreatmentSheetRow>();
                 foreach (var s in sheets)
                 {
-                    var doctor = s.DoctorId.HasValue
-                        ? await _db.Users.FirstOrDefaultAsync(u => u.Id == s.DoctorId.Value)
-                        : null;
+                    var doctor = s.DoctorId.HasValue && sheetDoctors.TryGetValue(s.DoctorId.Value, out var sd) ? sd : null;
                     treatmentRows.Add(new TreatmentSheetRow
                     {
                         Date = s.TreatmentDate,
@@ -90,6 +97,7 @@ public class PdfGenerationService : IPdfGenerationService
 
             case "consultation":
                 var consultations = await _db.ConsultationRecords
+                    .AsNoTracking()
                     .Where(c => c.ExaminationId == examinationId && !c.IsDeleted)
                     .OrderByDescending(c => c.ConsultationDate)
                     .FirstOrDefaultAsync();
@@ -105,10 +113,10 @@ public class PdfGenerationService : IPdfGenerationService
                 else
                 {
                     var chairman = consultations.PresidedByUserId.HasValue
-                        ? await _db.Users.FirstOrDefaultAsync(u => u.Id == consultations.PresidedByUserId.Value)
+                        ? await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == consultations.PresidedByUserId.Value)
                         : null;
                     var secretary = consultations.SecretaryUserId.HasValue
-                        ? await _db.Users.FirstOrDefaultAsync(u => u.Id == consultations.SecretaryUserId.Value)
+                        ? await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == consultations.SecretaryUserId.Value)
                         : null;
 
                     html = GetConsultationMinutes(
@@ -124,16 +132,22 @@ public class PdfGenerationService : IPdfGenerationService
 
             case "nursing":
                 var nursingSheets = await _db.NursingCareSheets
+                    .AsNoTracking()
                     .Where(n => n.ExaminationId == examinationId && !n.IsDeleted)
                     .OrderBy(n => n.CareDate)
                     .ToListAsync();
 
+                // Batch-load dieu duong (tranh N+1: tra cuu Users theo tung sheet)
+                var nurseIds = nursingSheets.Where(n => n.NurseId.HasValue).Select(n => n.NurseId!.Value).Distinct().ToList();
+                var nurses = await _db.Users
+                    .AsNoTracking()
+                    .Where(u => nurseIds.Contains(u.Id))
+                    .ToDictionaryAsync(u => u.Id);
+
                 var nursingRows = new List<NursingCareRow>();
                 foreach (var n in nursingSheets)
                 {
-                    var nurse = n.NurseId.HasValue
-                        ? await _db.Users.FirstOrDefaultAsync(u => u.Id == n.NurseId.Value)
-                        : null;
+                    var nurse = n.NurseId.HasValue && nurses.TryGetValue(n.NurseId.Value, out var nu) ? nu : null;
                     nursingRows.Add(new NursingCareRow
                     {
                         Date = n.CareDate,
@@ -181,6 +195,7 @@ public class PdfGenerationService : IPdfGenerationService
     public async Task<byte[]> GenerateMedicalRecordSummaryAsync(Guid medicalRecordId)
     {
         var mr = await _db.MedicalRecords
+            .AsNoTracking()
             .Include(m => m.Patient)
             .Include(m => m.Department)
             .Include(m => m.Doctor)
@@ -191,6 +206,7 @@ public class PdfGenerationService : IPdfGenerationService
 
         // Lay luot kham gan nhat
         var exam = await _db.Examinations
+            .AsNoTracking()
             .Where(e => e.MedicalRecordId == medicalRecordId && !e.IsDeleted)
             .OrderByDescending(e => e.StartTime)
             .FirstOrDefaultAsync();
@@ -217,6 +233,7 @@ public class PdfGenerationService : IPdfGenerationService
     public async Task<byte[]> GenerateTreatmentSheetAsync(Guid admissionId)
     {
         var admission = await _db.Admissions
+            .AsNoTracking()
             .Include(a => a.Patient)
             .Include(a => a.MedicalRecord)
                 .ThenInclude(m => m.Department)
@@ -228,15 +245,23 @@ public class PdfGenerationService : IPdfGenerationService
 
         // Lay dien bien hang ngay
         var progresses = await _db.DailyProgresses
+            .AsNoTracking()
             .Where(p => p.AdmissionId == admissionId && !p.IsDeleted)
             .OrderBy(p => p.ProgressDate)
             .ToListAsync();
+
+        // Batch-load bac si (tranh N+1: tra cuu Users theo tung dien bien)
+        var progressDoctorIds = progresses.Select(p => p.DoctorId).Distinct().ToList();
+        var progressDoctors = await _db.Users
+            .AsNoTracking()
+            .Where(u => progressDoctorIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id);
 
         var rows = new List<TreatmentSheetRow>();
         int dayNum = 1;
         foreach (var p in progresses)
         {
-            var doctor = await _db.Users.FirstOrDefaultAsync(u => u.Id == p.DoctorId);
+            progressDoctors.TryGetValue(p.DoctorId, out var doctor);
             var soapText = new StringBuilder();
             if (!string.IsNullOrEmpty(p.SubjectiveFindings)) soapText.Append(p.SubjectiveFindings);
             if (!string.IsNullOrEmpty(p.ObjectiveFindings)) soapText.Append($" | {p.ObjectiveFindings}");
@@ -270,6 +295,7 @@ public class PdfGenerationService : IPdfGenerationService
     public async Task<byte[]> GenerateDischargeLetterAsync(Guid admissionId)
     {
         var admission = await _db.Admissions
+            .AsNoTracking()
             .Include(a => a.Patient)
             .Include(a => a.MedicalRecord)
                 .ThenInclude(m => m.Department)
@@ -288,7 +314,7 @@ public class PdfGenerationService : IPdfGenerationService
         string? dischargeDocName = null;
         if (discharge != null)
         {
-            var dischargeDoc = await _db.Users.FirstOrDefaultAsync(u => u.Id == discharge.DischargedBy);
+            var dischargeDoc = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == discharge.DischargedBy);
             dischargeDocName = dischargeDoc?.FullName;
         }
 
@@ -311,6 +337,7 @@ public class PdfGenerationService : IPdfGenerationService
     public async Task<byte[]> GeneratePrescriptionAsync(Guid prescriptionId)
     {
         var prescription = await _db.Prescriptions
+            .AsNoTracking()
             .Include(p => p.MedicalRecord)
                 .ThenInclude(m => m.Patient)
             .Include(p => p.Doctor)
@@ -356,6 +383,7 @@ public class PdfGenerationService : IPdfGenerationService
     {
         // #14e: model 1 \u2014 phi\u1EBFu KQ in t\u1EEB ServiceRequest + SRD + ch\u1EC9 s\u1ED1 con R1 (model 2 \u0111\u00E3 g\u1EE1; \u0111\u00F3ng lu\u00F4n defer R1 "in phi\u1EBFu t\u1EEB SRD-Items")
         var labRequest = await _db.ServiceRequests
+            .AsNoTracking()
             .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
             .Include(r => r.Doctor)
             .Include(r => r.Department)
@@ -368,15 +396,22 @@ public class PdfGenerationService : IPdfGenerationService
         var patient = labRequest.MedicalRecord?.Patient;
 
         // Lay ket qua cho tung SRD (ch\u1EC9 s\u1ED1 con n\u1EBFu c\u00F3, fallback KQ chu\u1ED7i)
+        // Batch-load chi so con cho tat ca SRD (tranh N+1: tra cuu tham so theo tung detail)
+        var detailIds = labRequest.Details.Select(d => d.Id).ToList();
+        var allParams = await _db.ServiceRequestDetailParameters
+            .AsNoTracking()
+            .Where(p => detailIds.Contains(p.ServiceRequestDetailId) && !p.IsDeleted)
+            .ToListAsync();
+        var paramsByDetail = allParams
+            .GroupBy(p => p.ServiceRequestDetailId)
+            .ToDictionary(g => g.Key, g => g.OrderBy(p => p.SequenceNumber).ToList());
+
         var resultRows = new List<LabResultRow>();
         foreach (var item in labRequest.Details.OrderBy(i => i.CreatedAt))
         {
-            var results = await _db.ServiceRequestDetailParameters
-                .Where(p => p.ServiceRequestDetailId == item.Id && !p.IsDeleted)
-                .OrderBy(p => p.SequenceNumber)
-                .ToListAsync();
+            var results = paramsByDetail.TryGetValue(item.Id, out var prm) ? prm : null;
 
-            if (results.Count > 0)
+            if (results != null && results.Count > 0)
             {
                 foreach (var r in results)
                 {
@@ -411,7 +446,7 @@ public class PdfGenerationService : IPdfGenerationService
         var reviewerId = labRequest.Details.Where(d => d.ReviewedAt.HasValue).OrderByDescending(d => d.ReviewedAt).Select(d => d.ReviewerUserId).FirstOrDefault();
         if (reviewerId.HasValue)
         {
-            var approver = await _db.Users.FirstOrDefaultAsync(u => u.Id == reviewerId.Value);
+            var approver = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == reviewerId.Value);
             approvedByName = approver?.FullName;
         }
 
@@ -661,6 +696,7 @@ public class PdfGenerationService : IPdfGenerationService
     public async Task<byte[]> GenerateSurgeryCertificateAsync(Guid surgeryRecordId)
     {
         var record = await _db.SurgeryRecords
+            .AsNoTracking()
             .Include(r => r.SurgerySchedule)
                 .ThenInclude(s => s.SurgeryRequest)
                     .ThenInclude(req => req.Patient)
@@ -725,6 +761,7 @@ public class PdfGenerationService : IPdfGenerationService
     public async Task<byte[]> GenerateDeathReviewAsync(Guid medicalRecordId)
     {
         var mr = await _db.MedicalRecords
+            .AsNoTracking()
             .Include(m => m.Patient)
             .Include(m => m.Department)
             .Include(m => m.Doctor)
@@ -785,6 +822,7 @@ public class PdfGenerationService : IPdfGenerationService
     public async Task<byte[]> GenerateTriageAssessmentAsync(Guid examinationId)
     {
         var exam = await _db.Examinations
+            .AsNoTracking()
             .Include(e => e.MedicalRecord)
                 .ThenInclude(m => m.Patient)
             .Include(e => e.MedicalRecord)
@@ -852,6 +890,7 @@ public class PdfGenerationService : IPdfGenerationService
     public async Task<byte[]> GenerateDeptTransferDocAsync(Guid admissionId)
     {
         var admission = await _db.Admissions
+            .AsNoTracking()
             .Include(a => a.Patient)
             .Include(a => a.MedicalRecord)
                 .ThenInclude(m => m.Department)
@@ -911,6 +950,7 @@ public class PdfGenerationService : IPdfGenerationService
     public async Task<byte[]> GenerateDeptTransferNurseAsync(Guid admissionId)
     {
         var admission = await _db.Admissions
+            .AsNoTracking()
             .Include(a => a.Patient)
             .Include(a => a.MedicalRecord)
                 .ThenInclude(m => m.Department)

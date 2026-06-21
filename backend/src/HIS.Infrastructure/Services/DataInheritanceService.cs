@@ -28,7 +28,7 @@ public class DataInheritanceService : IDataInheritanceService
     {
         try
         {
-            var exam = await _context.Examinations
+            var exam = await _context.Examinations.AsNoTracking()
                 .Include(e => e.MedicalRecord)
                     .ThenInclude(mr => mr.Patient)
                 .Include(e => e.Room)
@@ -44,7 +44,7 @@ public class DataInheritanceService : IDataInheritanceService
             // Get queue ticket for this examination
             // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.
             var (diFromUtc, diToUtc) = HIS.Core.Common.VnTime.DayRangeUtc(HIS.Core.Common.VnTime.TodayVn);
-            var queueTicket = await _context.QueueTickets
+            var queueTicket = await _context.QueueTickets.AsNoTracking()
                 .Where(qt => qt.PatientId == patient.Id
                     && qt.RoomId == exam.RoomId
                     && qt.IssueDate >= diFromUtc && qt.IssueDate < diToUtc
@@ -119,7 +119,7 @@ public class DataInheritanceService : IDataInheritanceService
     {
         try
         {
-            var exam = await _context.Examinations
+            var exam = await _context.Examinations.AsNoTracking()
                 .Include(e => e.MedicalRecord)
                     .ThenInclude(mr => mr.Patient)
                 .Include(e => e.Doctor)
@@ -226,7 +226,7 @@ public class DataInheritanceService : IDataInheritanceService
     {
         try
         {
-            var mr = await _context.MedicalRecords
+            var mr = await _context.MedicalRecords.AsNoTracking()
                 .Include(m => m.Patient)
                 .Where(m => m.Id == medicalRecordId && !m.IsDeleted)
                 .FirstOrDefaultAsync();
@@ -374,6 +374,7 @@ public class DataInheritanceService : IDataInheritanceService
         try
         {
             var prescription = await _context.Prescriptions
+                .AsNoTracking()
                 .Include(p => p.MedicalRecord)
                     .ThenInclude(mr => mr.Patient)
                 .Include(p => p.Doctor)
@@ -509,7 +510,7 @@ public class DataInheritanceService : IDataInheritanceService
     {
         try
         {
-            var exam = await _context.Examinations
+            var exam = await _context.Examinations.AsNoTracking()
                 .Include(e => e.MedicalRecord)
                     .ThenInclude(mr => mr.Patient)
                 .Include(e => e.Doctor)

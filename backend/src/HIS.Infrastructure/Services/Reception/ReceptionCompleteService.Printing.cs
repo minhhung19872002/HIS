@@ -50,7 +50,7 @@ public partial class ReceptionCompleteService {
 
     public async Task<byte[]> PrintInsuranceCardHoldSlipAsync(Guid documentHoldId)
     {
-        var hold = await _context.DocumentHolds
+        var hold = await _context.DocumentHolds.AsNoTracking()
             .Include(x => x.Patient)
             .Include(x => x.MedicalRecord)
             .FirstOrDefaultAsync(x => x.Id == documentHoldId);
@@ -76,11 +76,11 @@ public partial class ReceptionCompleteService {
 
     public async Task<byte[]> PrintPatientCardAsync(Guid patientId)
     {
-        var patient = await _context.Patients.FirstOrDefaultAsync(x => x.Id == patientId);
+        var patient = await _context.Patients.AsNoTracking().FirstOrDefaultAsync(x => x.Id == patientId);
         if (patient == null)
             throw new Exception("Patient not found");
 
-        var latestRecord = await _context.MedicalRecords
+        var latestRecord = await _context.MedicalRecords.AsNoTracking()
             .Include(x => x.Room)
             .Where(x => x.PatientId == patientId)
             .OrderByDescending(x => x.AdmissionDate)
@@ -104,7 +104,7 @@ public partial class ReceptionCompleteService {
 
     public async Task<byte[]> PrintServiceOrderSlipAsync(Guid medicalRecordId)
     {
-        var medicalRecord = await _context.MedicalRecords
+        var medicalRecord = await _context.MedicalRecords.AsNoTracking()
             .Include(x => x.Patient)
             .FirstOrDefaultAsync(x => x.Id == medicalRecordId);
 
@@ -114,7 +114,7 @@ public partial class ReceptionCompleteService {
         List<ServiceRequest> serviceRequests;
         try
         {
-            serviceRequests = await _context.ServiceRequests
+            serviceRequests = await _context.ServiceRequests.AsNoTracking()
                 .Include(x => x.Service)
                 .Where(x => x.MedicalRecordId == medicalRecordId)
                 .OrderByDescending(x => x.RequestDate)
@@ -144,7 +144,7 @@ public partial class ReceptionCompleteService {
 
     public async Task<ExaminationSlipDto> GetExaminationSlipDataAsync(Guid medicalRecordId)
     {
-        var record = await _context.MedicalRecords
+        var record = await _context.MedicalRecords.AsNoTracking()
             .Include(m => m.Patient)
             .Include(m => m.Room)
             .Include(m => m.Doctor)
@@ -152,7 +152,7 @@ public partial class ReceptionCompleteService {
 
         if (record == null) throw new Exception("Medical record not found");
 
-        var examination = await _context.Examinations
+        var examination = await _context.Examinations.AsNoTracking()
             .FirstOrDefaultAsync(e => e.MedicalRecordId == medicalRecordId);
 
         return new ExaminationSlipDto
@@ -179,7 +179,7 @@ public partial class ReceptionCompleteService {
 
     public async Task<byte[]> PrintQueueTicketAsync(Guid ticketId)
     {
-        var ticket = await _context.QueueTickets
+        var ticket = await _context.QueueTickets.AsNoTracking()
             .Include(t => t.Patient)
             .Include(t => t.Room)
                 .ThenInclude(r => r!.Department)
@@ -196,7 +196,7 @@ public partial class ReceptionCompleteService {
         var clsLocationLines = new List<string>();
         if (ticket.MedicalRecordId.HasValue)
         {
-            var serviceRequests = await _context.ServiceRequests
+            var serviceRequests = await _context.ServiceRequests.AsNoTracking()
                 .Include(sr => sr.Room)
                 .Where(sr => sr.MedicalRecordId == ticket.MedicalRecordId && sr.Status < 2)
                 .OrderBy(sr => sr.RequestDate)
@@ -285,14 +285,14 @@ public partial class ReceptionCompleteService {
     {
         // Accept either a MedicalRecord ID, or an Examination ID and resolve
         // to its parent MR — caller pages sometimes only have one or the other.
-        var mr = await _context.MedicalRecords
+        var mr = await _context.MedicalRecords.AsNoTracking()
             .Include(m => m.Patient)
             .Include(m => m.Department)
             .FirstOrDefaultAsync(m => m.Id == medicalRecordId);
 
         if (mr == null)
         {
-            var exam = await _context.Examinations
+            var exam = await _context.Examinations.AsNoTracking()
                 .Include(e => e.MedicalRecord!).ThenInclude(m => m.Patient)
                 .Include(e => e.MedicalRecord!).ThenInclude(m => m.Department)
                 .FirstOrDefaultAsync(e => e.Id == medicalRecordId);

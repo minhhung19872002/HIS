@@ -25,7 +25,7 @@ public partial class ExaminationCompleteService
 
     public async Task<PagedResultDto<Application.DTOs.ExaminationDto>> SearchExaminationsAsync(Application.DTOs.ExaminationSearchDto dto)
     {
-        var query = _context.Examinations
+        var query = _context.Examinations.AsNoTracking()
             .Include(e => e.MedicalRecord)
             .ThenInclude(m => m.Patient)
             .Include(e => e.Room)
@@ -72,7 +72,7 @@ public partial class ExaminationCompleteService
 
     public async Task<ExaminationStatisticsDto> GetExaminationStatisticsAsync(DateTime fromDate, DateTime toDate, Guid? departmentId = null, Guid? roomId = null)
     {
-        var query = _context.Examinations
+        var query = _context.Examinations.AsNoTracking()
             .Include(e => e.MedicalRecord)
             .Where(e => e.MedicalRecord.AdmissionDate >= fromDate && e.MedicalRecord.AdmissionDate <= toDate);
 
@@ -100,7 +100,7 @@ public partial class ExaminationCompleteService
 
     public async Task<List<ExaminationRegisterDto>> GetExaminationRegisterAsync(DateTime fromDate, DateTime toDate, Guid? roomId = null)
     {
-        var query = _context.Examinations
+        var query = _context.Examinations.AsNoTracking()
             .Include(e => e.MedicalRecord)
             .ThenInclude(m => m.Patient)
             .Include(e => e.Doctor)
@@ -208,7 +208,7 @@ public partial class ExaminationCompleteService
 
     public async Task<List<DoctorExaminationStatDto>> GetDoctorStatisticsAsync(DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
-        var query = _context.Examinations
+        var query = _context.Examinations.AsNoTracking()
             .Include(e => e.MedicalRecord)
             .Include(e => e.Doctor)
             .Where(e => e.MedicalRecord.AdmissionDate >= fromDate && e.MedicalRecord.AdmissionDate <= toDate && e.DoctorId.HasValue);
@@ -238,7 +238,7 @@ public partial class ExaminationCompleteService
 
     public async Task<Dictionary<string, int>> GetDiagnosisStatisticsAsync(DateTime fromDate, DateTime toDate)
     {
-        var examinations = await _context.Examinations
+        var examinations = await _context.Examinations.AsNoTracking()
             .Include(e => e.MedicalRecord)
             .Where(e => e.MedicalRecord.AdmissionDate >= fromDate &&
                        e.MedicalRecord.AdmissionDate <= toDate &&
@@ -255,7 +255,7 @@ public partial class ExaminationCompleteService
     public async Task<List<CommunicableDiseaseReportDto>> GetCommunicableDiseaseReportAsync(DateTime fromDate, DateTime toDate)
     {
         // Get examinations with ICD codes starting with A or B (infectious diseases)
-        var examinations = await _context.Examinations
+        var examinations = await _context.Examinations.AsNoTracking()
             .Include(e => e.MedicalRecord)
             .ThenInclude(m => m.Patient)
             .Where(e => e.MedicalRecord.AdmissionDate >= fromDate &&
@@ -283,7 +283,7 @@ public partial class ExaminationCompleteService
     {
         try
         {
-            var examination = await _context.Examinations
+            var examination = await _context.Examinations.AsNoTracking()
                 .Include(e => e.MedicalRecord).ThenInclude(m => m.Patient)
                 .Include(e => e.Doctor)
                 .Include(e => e.Department)
@@ -363,7 +363,7 @@ public partial class ExaminationCompleteService
     {
         try
         {
-            var examination = await _context.Examinations
+            var examination = await _context.Examinations.AsNoTracking()
                 .Include(e => e.MedicalRecord).ThenInclude(m => m.Patient)
                 .Include(e => e.Doctor)
                 .Include(e => e.Department)
@@ -374,13 +374,13 @@ public partial class ExaminationCompleteService
             var mr = examination.MedicalRecord;
 
             // Get prescriptions for this examination
-            var prescriptions = await _context.Prescriptions
+            var prescriptions = await _context.Prescriptions.AsNoTracking()
                 .Include(p => p.Details).ThenInclude(d => d.Medicine)
                 .Where(p => p.ExaminationId == examinationId || p.MedicalRecordId == mr.Id)
                 .ToListAsync();
 
             // Get service requests
-            var serviceRequests = await _context.ServiceRequests
+            var serviceRequests = await _context.ServiceRequests.AsNoTracking()
                 .Include(sr => sr.Details).ThenInclude(d => d.Service)
                 .Where(sr => sr.ExaminationId == examinationId)
                 .ToListAsync();
@@ -481,7 +481,7 @@ public partial class ExaminationCompleteService
     {
         try
         {
-            var appointment = await _context.Appointments
+            var appointment = await _context.Appointments.AsNoTracking()
                 .Include(a => a.Patient)
                 .Include(a => a.Doctor)
                 .Include(a => a.Room)
@@ -528,7 +528,7 @@ public partial class ExaminationCompleteService
     {
         try
         {
-            var examination = await _context.Examinations
+            var examination = await _context.Examinations.AsNoTracking()
                 .Include(e => e.MedicalRecord).ThenInclude(m => m.Patient)
                 .Include(e => e.Doctor)
                 .Include(e => e.Department)
@@ -579,7 +579,7 @@ public partial class ExaminationCompleteService
     {
         try
         {
-            var examination = await _context.Examinations
+            var examination = await _context.Examinations.AsNoTracking()
                 .Include(e => e.MedicalRecord).ThenInclude(m => m.Patient)
                 .Include(e => e.Doctor)
                 .Include(e => e.Department)

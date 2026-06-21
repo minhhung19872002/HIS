@@ -202,6 +202,7 @@ public class PublicEmrLookupService : IPublicEmrLookupService
 
         // Chỉ tài liệu ĐÃ KÝ SỐ còn hiệu lực (Status == 0), lấy chữ ký mới nhất mỗi tài liệu.
         var signatures = await _db.DocumentSignatures
+            .AsNoTracking()
             .Where(ds => ds.Status == 0 && ownedList.Contains(ds.DocumentId))
             .GroupBy(ds => ds.DocumentId)
             .Select(g => g.OrderByDescending(x => x.SignedAt).First())
@@ -288,6 +289,7 @@ public class PublicEmrLookupService : IPublicEmrLookupService
         }
 
         var signature = await _db.DocumentSignatures
+            .AsNoTracking()
             .Where(ds => ds.DocumentId == documentId && ds.Status == 0)
             .OrderByDescending(ds => ds.SignedAt)
             .FirstOrDefaultAsync();
