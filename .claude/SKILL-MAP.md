@@ -14,6 +14,8 @@ Input ─► [MAP] SKILL-MAP.md (chọn skill) ─► workflow/workflow.md (ch�
   state-store ([`workflow/task.md`](workflow/task.md)); chỉ `DONE` khi qua [`workflow/checklist.md`](workflow/checklist.md).
 - Quy ước branch/commit/PR/review: [`workflow/project-rules.md`](workflow/project-rules.md) · Quyết định
   kiến trúc: [`workflow/ai-memory.md`](workflow/ai-memory.md).
+- **Vận hành phiên** (đọc gì đầu phiên · chọn model · khi-nào plan-mode · dọn context `/compact`·`/clear`·`/rewind`·`/context` ·
+  handoff giữ STATUS ngắn): [`workflow/session-ops.md`](workflow/session-ops.md).
 - **Task "rà soát / đối chiếu tài liệu / gap analysis / đã-đủ-chưa / backlog từ `docs/requirements/**`"**
   → BẮT BUỘC theo [`workflow/requirement-coverage.md`](workflow/requirement-coverage.md): source-manifest
   trước · đọc PDF gốc nếu `.md` hụt · enumerate đủ (không tóm tắt) · phương châm **parity-đối-thủ**

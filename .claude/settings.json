@@ -67,5 +67,66 @@
         ]
       }
     ]
+  },
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(rm -fr *)",
+      "Bash(sudo *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -fd*)",
+      "Bash(git clean -xfd*)",
+      "Bash(git clean -fdx*)",
+      "Bash(*DROP DATABASE*)",
+      "Bash(*DROP TABLE*)",
+      "PowerShell(Remove-Item * -Recurse -Force*)",
+      "PowerShell(git push --force*)",
+      "PowerShell(git reset --hard*)",
+      "PowerShell(*DROP DATABASE*)",
+      "PowerShell(*DROP TABLE*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/secrets/**)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/*.pfx)",
+      "Read(**/appsettings.Production.json)"
+    ],
+    "ask": [
+      "Bash(git commit*)",
+      "Bash(git push*)",
+      "Bash(git reset*)",
+      "Bash(git rebase*)",
+      "Bash(npm install*)",
+      "Bash(npm i *)",
+      "Bash(npm ci*)",
+      "Bash(pnpm add*)",
+      "Bash(yarn add*)",
+      "Bash(gcloud run *)",
+      "Bash(gcloud builds *)",
+      "PowerShell(git commit*)",
+      "PowerShell(git push*)",
+      "PowerShell(gcloud *)"
+    ],
+    "allow": [
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git fetch*)",
+      "Bash(git pull --ff-only*)",
+      "Bash(npm run build*)",
+      "Bash(npm run lint*)",
+      "Bash(npm test*)",
+      "Bash(dotnet build *)",
+      "Bash(npx cypress *)",
+      "Bash(npx playwright test*)",
+      "Bash(gh issue *)"
+    ]
   }
 }
