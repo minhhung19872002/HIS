@@ -31,6 +31,8 @@
 
 > B5 domain: biểu mẫu in (`his-fe-emr-print-form`) đã tách riêng. Tạo thêm skill domain khi 1 module HIS có nghiệp vụ đặc thù lặp lại (xem (6) Fallback trong SKILL-MAP).
 
+> ★ **Live debug/verify trang ĐANG CHẠY** (KHÔNG phải viết code) → **plugin MCP**: **chrome-devtools** (console · network · perf/LCP · a11y · memory-leak) + **playwright** (lái browser, snapshot/screenshot). **Bổ trợ**, KHÔNG thay `his-fe-performance` / `core-accessibility-pattern` (viết code). Routing đầy đủ + ranh giới: `../plugins.md`.
+
 ## Prompt → chuỗi skill (FE) + PATH
 
 | Khi developer prompt | Skills (core → his, đúng thứ tự) | File/đường dẫn chạm tới |

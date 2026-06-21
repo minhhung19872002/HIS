@@ -7,12 +7,15 @@
 >
 > Cập nhật cuối: **2026-06-22**.
 
-## Đang dở (uncommitted — chờ xin push)
-- **Cơ chế "Session Ops"** (phiên 2026-06-22): thêm `.claude/workflow/session-ops.md` (mở phiên · model-nudge ·
-  plan-mode · bảng dọn context `/compact`-`/clear`-`/rewind`-`/context` · handoff) + đăng ký owner trong `REGISTRY.md`
-  + pointer `SKILL-MAP.md` & `workflow/README.md` + **siết STATUS.md này về bản ngắn** (lịch sử → archive). Chờ `lint.sh` OK → xin push.
+## Đang dở (uncommitted — READY_FOR_PUSH)
+- **Plugin-routing** (2026-06-22): `.claude/plugins.md` (bản đồ 6 plugin — USE chrome-devtools/playwright MCP ·
+  DEFER-to-HIS frontend-design/code-review/github · meta recommender) + touchpoint `skill-routes/fe.md`+`test.md`
+  + REGISTRY owner + pointer SKILL-MAP. LINT OK. Chờ push.
 
 ## Đã xong gần đây (DONE + PUSHED, origin/main)
+- **Cơ chế "Session Ops" + permission rules** (`f6f2682`, 2026-06-22): `session-ops.md` (mở phiên/model/plan-mode/dọn-context/handoff
+  + cheat-sheet 4 permission mode + rule allow/ask/deny) · siết STATUS 447→31 dòng (lịch sử → `90-archive/handoffs/`) ·
+  `settings.json` baseline deny/ask/allow (**git commit·push → ASK**, deny đọc secrets) · pointer REGISTRY/SKILL-MAP/README. LINT OK.
 - **#195 [PERF-1] AsNoTracking + N+1** — batch 1-4 SAFE (8 file read-only BE), build Infra EXIT 0 (`0d6ba69`/`7198bda`).
   **#195 GIỮ OPEN**: phần còn lại = **N+1 write-path tiền/kho/patient-safety** (Warehouse · BloodBank · PharmacyApproval ·
   Examination/Inpatient Prescriptions · Reception OrdersBilling · Billing) → **DEFER** (cần characterization-test + deploy/smoke).

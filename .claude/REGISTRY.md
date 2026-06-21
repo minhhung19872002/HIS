@@ -37,6 +37,7 @@
 | SYNC-GATE chống-trùng-code-2-máy (pull --ff-only + verify-against-CODE + claim) | `workflow/project-rules.md` §2 | hook `session-start.sh`/`remind-pipeline.sh` inline-enforce |
 | evidence viewer / file-layout / naming / regen / dedup-GitHub | `docs/architecture/evidence/README.md` | `CLAUDE.md` §test + `his-test-e2e` §6 (convention đặt-tên-test) chỉ link |
 | session-ops (đọc-gì-đầu-phiên · plan-mode timing · dọn-context `/compact`-`/clear`-`/rewind`-`/context` · handoff giữ STATUS ngắn) | `workflow/session-ops.md` | link; KHÔNG sở hữu model (→`CLAUDE.md §Agent routing`) · git-sync (→`project-rules.md` §2) · pipeline/DONE (→`workflow.md`) · file-placement (→`SKILL-MAP` §0a) |
+| plugin-routing (USE net-new · DEFER-to-HIS overlap · COMPLEMENT) | `plugins.md` | link; review→`his-quality-reviewer` · UI→`core-ui-aesthetics`+`his-fe-page-v2` · skill-routing→`SKILL-MAP` · enabledPlugins→`~/.claude/settings.json` |
 
 ## ★ Quy tắc ghi/sửa rule trong `.claude` (BẮT BUỘC — chống tái drift)
 1. **Tra bảng trên TRƯỚC.** Rule đã có chủ → file mới chỉ **1 dòng + link**, TUYỆT ĐỐI không chép nội dung.

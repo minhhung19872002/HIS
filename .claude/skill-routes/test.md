@@ -10,6 +10,8 @@
 | `his-test-api-powershell` | test API PowerShell `localhost:5106` | test API backend |
 | `his-test-e2e` | Cypress + Playwright (convention HIS) | test UI/E2E |
 
+> ★ **Lái browser tương tác + chụp evidence** (CHỈ giai đoạn TEST cuối, sau khi fix DONE) → **plugin MCP playwright** (navigate/click/snapshot/screenshot) + **chrome-devtools** (a11y/perf/console). `his-test-e2e` VẪN sở hữu **file test bền** (Cypress/Playwright spec). Evidence theo `docs/architecture/evidence/README.md` · routing `../plugins.md`. ⚠️ KHÔNG chạy test sớm (rule test-cuối).
+
 ## Prompt → chuỗi skill (TEST) + PATH
 
 | Khi developer prompt | Skills (core → his, đúng thứ tự) | File/đường dẫn chạm tới |
