@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using HIS.Application.Common;
 
 namespace HIS.Application.DTOs.Reception;
 
@@ -893,6 +894,7 @@ public class ExaminationSlipDto
 /// </summary>
 public class ReceptionDepositDto
 {
+    [NotEmptyGuid]
     public Guid MedicalRecordId { get; set; }
     [Range(0, double.MaxValue, ErrorMessage = "Số tiền tạm ứng không được âm")]
     public decimal Amount { get; set; }

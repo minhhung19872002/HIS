@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using HIS.Application.Common;
 
 namespace HIS.Application.DTOs.Prescription;
 
@@ -8,6 +9,7 @@ namespace HIS.Application.DTOs.Prescription;
 public class CreatePrescriptionDto
 {
     // Liên kết
+    [NotEmptyGuid]
     public Guid MedicalRecordId { get; set; }
     public Guid? ExaminationId { get; set; }
 
@@ -104,7 +106,9 @@ public class PrescriptionSearchDto
 /// </summary>
 public class DispensePrescriptionDto
 {
+    [NotEmptyGuid]
     public Guid PrescriptionId { get; set; }
+    [NotEmptyGuid]
     public Guid WarehouseId { get; set; }
     public List<DispensePrescriptionItemDto> Items { get; set; } = new();
     public string? Note { get; set; }
@@ -115,6 +119,7 @@ public class DispensePrescriptionDto
 /// </summary>
 public class DispensePrescriptionItemDto
 {
+    [NotEmptyGuid]
     public Guid PrescriptionItemId { get; set; }
     [Range(0, double.MaxValue, ErrorMessage = "Số lượng cấp phát không được âm")]
     public decimal DispensedQuantity { get; set; }
@@ -128,6 +133,7 @@ public class DispensePrescriptionItemDto
 /// </summary>
 public class CancelPrescriptionDto
 {
+    [NotEmptyGuid]
     public Guid PrescriptionId { get; set; }
     public string Reason { get; set; } = string.Empty;
 }

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using HIS.Application.Common;
 using HIS.Application.DTOs;
 
 namespace HIS.Application.DTOs.Billing;
@@ -162,6 +163,7 @@ public class DepositDto
 /// </summary>
 public class CreateDepositDto
 {
+    [NotEmptyGuid]
     public Guid PatientId { get; set; }
     public Guid? MedicalRecordId { get; set; }
     public int DepositType { get; set; }
@@ -595,6 +597,7 @@ public class RefundDto
 /// </summary>
 public class CreateRefundDto
 {
+    [NotEmptyGuid]
     public Guid PatientId { get; set; }
     public int RefundType { get; set; }
     public Guid? OriginalDepositId { get; set; }
@@ -616,6 +619,7 @@ public class CreateRefundDto
 public class RefundItemDto
 {
     /// <summary>ReceiptDetail.Id hoặc ServiceRequestDetail.Id hoặc PrescriptionDetail.Id</summary>
+    [NotEmptyGuid]
     public Guid ItemId { get; set; }
 
     /// <summary>"service" | "medicine" | "receipt-detail"</summary>

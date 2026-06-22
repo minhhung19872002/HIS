@@ -1,10 +1,12 @@
 using System.ComponentModel.DataAnnotations;
+using HIS.Application.Common;
 
 namespace HIS.Application.DTOs.Payment;
 
 public class CreatePaymentUrlDto
 {
     public string Provider { get; set; } = "vnpay";
+    [NotEmptyGuid]
     public Guid PatientId { get; set; }
     public Guid? MedicalRecordId { get; set; }
     public Guid? InvoiceSummaryId { get; set; }
@@ -84,6 +86,7 @@ public class VnPayIpnResultDto
 
 public class PaymentRefundDto
 {
+    [NotEmptyGuid]
     public Guid TransactionId { get; set; }
     [Range(0, double.MaxValue, ErrorMessage = "Số tiền hoàn không được âm")]
     public decimal Amount { get; set; }

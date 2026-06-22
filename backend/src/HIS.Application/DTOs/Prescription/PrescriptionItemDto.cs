@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using HIS.Application.Common;
 
 namespace HIS.Application.DTOs.Prescription;
 
@@ -95,6 +96,7 @@ public class PrescriptionItemDto
 /// </summary>
 public class CreatePrescriptionItemDto
 {
+    [NotEmptyGuid]
     public Guid MedicineId { get; set; }
 
     // Số lượng và đơn vị
