@@ -163,7 +163,7 @@ export default function PaymentQRModal({
             <QRCodeCanvas value={payment.paymentUrl} size={240} level="M" includeMargin />
           </div>
           <div style={{ marginTop: 16 }}>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
               <div>
                 <Tag color="blue">Provider: {payment.provider.toUpperCase()}</Tag>
                 <Tag>Mã giao dịch: {payment.txnRef}</Tag>
@@ -190,7 +190,7 @@ export default function PaymentQRModal({
           style={{ marginBottom: 16 }}
         />
         <Radio.Group value={provider} onChange={(e) => setProvider(e.target.value)}>
-          <Space direction="vertical" size="middle">
+          <Space orientation="vertical" size="middle">
             <Radio value="vnpay">
               <strong>VNPay QR</strong> — VCB, TCB, BIDV, VietinBank, MB, VPBank, ACB...
             </Radio>

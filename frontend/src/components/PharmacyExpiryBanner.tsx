@@ -67,7 +67,7 @@ export function PharmacyExpiryBanner({
         <Alert
           title={`Cảnh báo: ${criticalCount} mặt hàng sắp hoặc đã hết hạn`}
           description={
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               <div>
                 {expired.length > 0 && <Tag color="red">{expired.length} đã hết hạn</Tag>}
                 {critical.length > 0 && <Tag color="volcano">{critical.length} ≤7 ngày</Tag>}

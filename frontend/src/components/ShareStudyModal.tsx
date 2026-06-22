@@ -99,14 +99,14 @@ export default function ShareStudyModal({
             </Input.Group>
           </div>
           <Divider />
-          <Space direction="vertical" align="center" style={{ width: '100%' }}>
+          <Space orientation="vertical" align="center" style={{ width: '100%' }}>
             <Text strong><QrcodeOutlined /> Mã QR cho điện thoại/tablet:</Text>
             <div style={{ padding: 16, background: '#fff', border: '1px solid #eee' }}>
               <QRCodeCanvas value={link.url} size={220} level="M" includeMargin />
             </div>
           </Space>
           <Divider />
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space orientation="vertical" style={{ width: '100%' }}>
             {link.hasPassword && <Tag color="volcano">Có mật khẩu</Tag>}
             {link.hideDemographics && <Tag color="gold">Ẩn thông tin BN</Tag>}
             {link.expiresAt && (

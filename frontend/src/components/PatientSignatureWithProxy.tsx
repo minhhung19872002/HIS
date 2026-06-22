@@ -67,7 +67,7 @@ export default function PatientSignatureWithProxy({ onSave, title = 'Chữ ký',
 
   return (
     <Card title={title} size="small" data-testid="patient-signature-with-proxy">
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Checkbox
           checked={isProxy}
           onChange={(e) => setIsProxy(e.target.checked)}
