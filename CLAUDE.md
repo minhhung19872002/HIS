@@ -116,9 +116,12 @@ If a new service/controller is added, register it there or you get 500 errors.
 - **Task board chính = GitHub Issues** repo `minhhung19872002/HIS` (`gh issue list`). Lập plan/task mới →
   **tạo Issue** (`gh issue create`); làm xong + đã push → **`gh issue close <n>`** kèm commit sha. KHÔNG quản lý
   backlog trong `docs/workspace-docs/` nữa.
-- **★ TRẠNG THÁI "IN PROGRESS" (BẮT BUỘC, mọi phiên/máy):** khi **BẮT ĐẦU** làm 1 task (kể cả làm-dở nhiều phiên) →
-  `gh issue edit <n> --add-label in-progress --add-assignee @me` để báo **đang làm**; giữ nhãn suốt lúc làm dở; **xong →
-  `gh issue close`** (đóng tự gỡ nghĩa in-progress); **dừng/blocked → `--remove-label in-progress`**. Tránh 2 máy đụng cùng task.
+- **★ IN-PROGRESS = CLAIM-FIRST (BẮT BUỘC, mọi phiên/máy):** **ngay khi CHỐT chọn 1 task** (đã loại ứng viên khác),
+  **hành động ĐẦU TIÊN — TRƯỚC mọi pre-flight đo-scope/đọc-file/impact-analysis và TRƯỚC khi viết/sửa code** →
+  `gh issue edit <n> --add-label in-progress --add-assignee @me`. Chỉ được claim SAU bước **sync+existence-check nhẹ**
+  của SYNC-GATE (`workflow/project-rules.md` §2); còn **so-sánh nhiều ứng viên để CHỌN** thì CHƯA claim (chưa chốt).
+  Giữ nhãn suốt lúc làm dở; **xong → `gh issue close`** (tự gỡ in-progress); **dừng/blocked/đổi-task → `--remove-label
+  in-progress` NGAY** (nhãn stale = máy khác tưởng đang làm → trùng). Tránh 2 máy đụng cùng task.
 - **★ TASK DÀI / NHIỀU PHẦN — làm XONG HẾT rồi mới push + done (BẮT BUỘC, mọi phiên/máy):** với task lớn nhiều phần,
   commit **LOCAL** từng chặng để checkpoint, NHƯNG **CHỈ `git push` khi đã hoàn thành TẤT CẢ các phần theo đúng quy trình**
   (build-gate + verify mỗi chặng) → push 1 lần kèm **`Closes #N`**. **KHÔNG push partial.** (Pull `--rebase` trước push cuối

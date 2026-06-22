@@ -37,7 +37,10 @@
      Làm trên cây CŨ (behind>0) = **gốc gây trùng** (phiên 2026-06-15: local tụt 34 commit → làm lại #142/#101 đã có trên origin).
   2. **Verify-against-CODE, KHÔNG tin issue-state:** `grep`/`Read` CODE **đã sync** cho symbol/route/file của tính năng.
      **Đã có → đóng issue (already-done), KHÔNG làm lại.** Issue OPEN chỉ là chỉ báo **trễ** (đóng theo lô) — **CODE là phán quyết**.
-  3. **Claim trước khi làm:** `gh issue edit <n> --add-assignee @me` (check chưa ai nhận) → chặn 2 máy bốc cùng issue.
+  3. **CLAIM-FIRST (GATE — hành động ĐẦU TIÊN ngay khi chốt task):** `gh issue edit <n> --add-label in-progress --add-assignee @me`.
+     Bước 1-2 (sync + existence-check) là kiểm-tra-NHẸ để CHỌN, ĐƯỢC làm trước claim; **mọi việc "làm task" — đo-scope ·
+     đọc-file · impact-analysis · viết code — chỉ SAU claim.** Issue đã in-progress + assignee KHÁC mình → **DỪNG, không pick**.
+     Label mechanics (giữ/gỡ khi blocked/đổi-task/close) = nguồn-chủ `CLAUDE.md` §"Quản lý plan/task".
   4. Nguồn-sự-thật = **git log origin + CODE đã sync + Issues** (memory `feedback_fetch-origin-before-backlog`), KHÔNG phải docs local.
 
 ## 3. Commit — quy ước (LẤP GAP)
