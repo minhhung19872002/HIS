@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { openPrintWindow } from '../utils/printWindow';
 
 // ---- Types ----
 
@@ -318,11 +319,7 @@ export const generateAssetReport = async (reportType: number, filter?: Record<st
       responseType: 'text',
     });
     const html = response.data as string;
-    const win = window.open('', '_blank');
-    if (win) {
-      win.document.write(html);
-      win.document.close();
-    }
+    openPrintWindow(html, {});
   } catch {
     console.warn('Failed to generate report');
   }
@@ -433,11 +430,7 @@ export const updateStocktakeItem = async (
 export const printStocktake = async (id: string): Promise<void> => {
   const r = await apiClient.get(`/asset-management/stocktakes/${id}/print`, { responseType: 'text' });
   const html = r.data as string;
-  const win = window.open('', '_blank');
-  if (win) {
-    win.document.write(html);
-    win.document.close();
-  }
+  openPrintWindow(html, {});
 };
 
 // Dashboard

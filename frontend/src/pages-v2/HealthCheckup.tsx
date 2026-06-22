@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import { searchHealthCheckups, getHealthCheckupStats, createHealthCheckup, updateHealthCheckup, getCheckupTypes } from '../api/healthCheckup';
+import { openPrintWindow } from '../utils/printWindow';
 import type { HealthCheckup, HealthCheckupStats, CheckupType } from '../api/healthCheckup';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
@@ -99,13 +100,8 @@ const HealthCheckupV2: React.FC = () => {
 
   const handlePrintKsk = () => {
     if (!printRef.current) return;
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write('<html><head><title>Giay KSK</title></head><body>');
-    win.document.write(printRef.current.innerHTML);
-    win.document.write('</body></html>');
-    win.document.close();
-    win.print();
+    const html = `<html><head><title>Giay KSK</title></head><body>${printRef.current.innerHTML}</body></html>`;
+    openPrintWindow(html, { print: 'immediate' });
   };
 
   const openCreate = () => { setSelectedType(''); setCrudInit({}); setCrudOpen(true); };

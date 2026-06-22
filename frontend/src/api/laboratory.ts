@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { openPrintWindow } from '../utils/printWindow';
 
 /** R1: 1 chỉ số con của kết quả XN (từ ServiceRequestDetailParameters). */
 export interface LabResultParameter {
@@ -354,12 +355,7 @@ export const printBarcode = async (orderId: string, sampleBarcode?: string) => {
     '<div class="barcode">||||| ' + code + ' |||||</div>' +
     '<div class="code">' + code + '</div>' +
     '</body></html>';
-  const printWindow = window.open('', '_blank');
-  if (printWindow) {
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    printWindow.onload = () => printWindow.print();
-  }
+  openPrintWindow(printContent, { print: 'onload' });
 };
 
 export const printTestResultReport = async (resultId: string) => {

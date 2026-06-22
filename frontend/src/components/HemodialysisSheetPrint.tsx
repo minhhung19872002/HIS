@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
+import { openPrintWindow } from '../utils/printWindow';
 import type { HemodialysisSessionDto } from '../api/inpatient';
 
 export interface HemodialysisPrintHeader {
@@ -19,9 +20,6 @@ const num = (n?: number) => (n == null ? '' : String(n));
  * Same print-in-popup pattern as BirthCertificatePrint.tsx (#148).
  */
 export const printHemodialysisSheet = (s: HemodialysisSessionDto, h: HemodialysisPrintHeader): boolean => {
-  const w = window.open('', '_blank');
-  if (!w) return false;
-
   const sessionDate = s.sessionDate ? dayjs(s.sessionDate) : dayjs();
   const pressure = [
     s.arterialPressure != null ? `ĐM: ${s.arterialPressure}` : null,
@@ -31,7 +29,7 @@ export const printHemodialysisSheet = (s: HemodialysisSessionDto, h: Hemodialysi
   const row = (label: string, value: string) => `
     <tr><td class="lbl">${label}</td><td class="val">${value || '..........'}</td></tr>`;
 
-  w.document.write(`
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -129,10 +127,8 @@ export const printHemodialysisSheet = (s: HemodialysisSessionDto, h: Hemodialysi
       </div>
     </body>
     </html>
-  `);
+  `;
 
-  w.document.close();
-  w.focus();
-  setTimeout(() => w.print(), 500);
-  return true;
+  const w = openPrintWindow(html, { focus: true, print: { delayMs: 500 } });
+  return w !== null;
 };

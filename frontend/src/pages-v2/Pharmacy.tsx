@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { App as AntdApp, Modal } from 'antd';
 import * as pharmacyApi from '../api/pharmacy';
+import { openPrintWindow } from '../utils/printWindow';
 import type { PendingPrescription } from '../api/pharmacy';
 import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -32,10 +33,7 @@ const PharmacyV2: React.FC = () => {
     setPrintLabelLoading(r.id);
     try {
       const { data: html } = await pharmacyApi.printDrugLabel(r.id);
-      const win = window.open('', '_blank');
-      if (!win) { message.error('Trình duyệt chặn popup — cho phép popup để in'); return; }
-      win.document.write(html as unknown as string);
-      win.document.close();
+      openPrintWindow(html as unknown as string, { onBlocked: () => message.error('Trình duyệt chặn popup — cho phép popup để in') });
     } catch {
       message.error('In nhãn thất bại — vui lòng thử lại');
     } finally {

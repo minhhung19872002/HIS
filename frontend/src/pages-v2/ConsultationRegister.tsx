@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { HOSPITAL_NAME } from '../constants/hospital';
+import { openPrintWindow } from '../utils/printWindow';
 import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
@@ -63,8 +64,6 @@ const ConsultationRegisterV2: React.FC = () => {
   };
 
   const printMinutes = (d: Detail) => {
-    const w = window.open('', '_blank');
-    if (!w) return;
     const list = Array.isArray(d.participants) ? d.participants.map((p) => `<li>${p}</li>`).join('') : '';
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>BBHC</title>
 <style>body{font-family:"Times New Roman",serif;padding:'var(--space-32)'px;font-size:13.5pt}h1{text-align:center;font-size:18pt;margin:'var(--space-20)'px 0 6px}.subtitle{text-align:center;font-style:italic;margin-bottom:24px}.row{margin:'var(--space-4)'px 0}.section{margin:'var(--space-16)'px 0}.section-title{font-weight:bold;margin-top:12px}.sig{display:flex;justify-content:space-around;margin-top:40px}.sig>div{text-align:center;width:30%}ul{margin:'var(--space-4)'px 0 4px 16px;padding:0}</style></head>
@@ -85,7 +84,7 @@ const ConsultationRegisterV2: React.FC = () => {
 <div class="section"><div class="section-title">IV. HƯỚNG ĐIỀU TRỊ</div><div>${(d.treatmentPlan ?? '').replace(/\n/g, '<br/>') || '...'}</div></div>
 <div class="sig"><div><b>THƯ KÝ</b><br/><br/><br/>${d.secretary ?? ''}</div><div><b>CHỦ TRÌ</b><br/><br/><br/>${d.presidedBy ?? ''}</div></div>
 </body></html>`;
-    w.document.write(html); w.document.close(); w.focus(); w.print();
+    openPrintWindow(html, { focus: true, print: 'immediate' });
   };
 
   const cols: ColumnDef<RegisterEntry>[] = [

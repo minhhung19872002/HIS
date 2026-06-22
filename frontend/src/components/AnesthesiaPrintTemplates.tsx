@@ -12,6 +12,7 @@
 
 import React from 'react';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
+import { openPrintWindow } from '../utils/printWindow';
 
 // ---------------------------------------------------------------------------
 // Local shared helpers (không re-export để tránh circular dep với ClinicalFormPrintTemplates)
@@ -410,12 +411,10 @@ const PRINT_BASE_CSS = `
 `;
 
 function openHtmlPrint(title: string, body: string): void {
-  const w = window.open('', '_blank', 'width=900,height=700');
-  if (!w) { return; }
-  w.document.write(`<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><title>${title}</title><style>${PRINT_BASE_CSS}</style></head><body>${body}</body></html>`);
-  w.document.close();
-  w.focus();
-  setTimeout(() => w.print(), 300);
+  openPrintWindow(
+    `<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><title>${title}</title><style>${PRINT_BASE_CSS}</style></head><body>${body}</body></html>`,
+    { features: 'width=900,height=700', focus: true, print: { delayMs: 300 } },
+  );
 }
 
 function monitorTableRows(monitors: MonitorRow[]): string {

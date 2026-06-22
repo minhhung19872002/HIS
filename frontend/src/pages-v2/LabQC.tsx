@@ -83,8 +83,8 @@ const QCResultPanel: React.FC<{ result: QCResultDto }> = ({ result }) => (
 );
 
 // recharts dot — đỏ nếu điểm bị reject (vi phạm Westgard)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const renderLJDot = (props: any): React.ReactElement => {
+interface LJDotProps { cx?: number; cy?: number; index?: number; payload?: { rejected?: boolean } }
+const renderLJDot = (props: LJDotProps): React.ReactElement => {
   const { cx, cy, payload, index } = props;
   return <circle key={index} cx={cx} cy={cy} r={4} fill={payload?.rejected ? 'var(--s-crit)' : '#0891b2'} stroke="#fff" strokeWidth={1.2} />;
 };

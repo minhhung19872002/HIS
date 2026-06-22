@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DatePicker, Input, Modal, type InputRef } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
+import { openPrintWindow } from '../utils/printWindow';
 import { searchPrescriptionByCode, type DispensePrescriptionLookupDto } from '../api/examination';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
@@ -124,9 +125,8 @@ const DispensingCounterV2: React.FC = () => {
     if (!code) { tw('Nhập mã đơn hoặc quét barcode'); return; }
     setBarcodeLoading(true);
     try {
-      // request wrapper (examination.ts dùng @/utils/request) trả { success, data }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res = await searchPrescriptionByCode(code) as any;
+      // request wrapper (examination.ts dùng @/utils/request) trả { success, data } — chấp nhận cả 2 shape
+      const res = (await searchPrescriptionByCode(code)) as unknown as DispensePrescriptionLookupDto & { data?: DispensePrescriptionLookupDto };
       const p: DispensePrescriptionLookupDto = res?.data ?? res;
       const row: DispenseRow = {
         prescriptionId: p.id,
@@ -159,8 +159,7 @@ const DispensingCounterV2: React.FC = () => {
 <body><div class="no-print" style="margin-bottom:12px"><button onclick="window.print()">In</button> <button onclick="window.close()">Đóng</button></div>
 ${row.items.map((it) => `<div class="label"><h3>${it.medicineName}</h3><p><strong>BN:</strong> ${row.patientName} (${row.patientCode})</p><p><strong>SL:</strong> ${it.quantity} ${it.unit || ''} × ${it.days || 1} ngày</p><p><strong>Cách dùng:</strong> ${it.dosage || '-'}</p><p class="barcode">*${row.prescriptionCode}*</p></div>`).join('')}
 </body></html>`;
-    const win = window.open('', '_blank', 'width=400,height=600');
-    win?.document.write(html); win?.document.close();
+    openPrintWindow(html, { features: 'width=400,height=600' });
   };
 
   const cols: ColumnDef<DispenseRow>[] = [

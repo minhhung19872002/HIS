@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Input, Modal } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
+import { openPrintWindow } from '../utils/printWindow';
 import systemApi from '../api/system';
 import { getWarehouses } from '../api/warehouse';
 import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
@@ -120,8 +121,6 @@ const InpatientDispensingV2: React.FC = () => {
 
   const handlePrint = () => {
     if (!printData) return;
-    const w = window.open('', '_blank');
-    if (!w) return;
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${printData.receiptCode}</title>
 <style>body{font-family:"Times New Roman",serif;padding:'var(--space-24)'px}h2{text-align:center}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #333;padding:'var(--space-4)'px 8px;font-size:13px}th{background:#eee}</style></head><body>
 <h2>PHIẾU LĨNH THUỐC NỘI TRÚ</h2>
@@ -134,7 +133,7 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicine
 <p style="text-align:right;margin-top:12px"><b>Tổng cộng: ${fmt(printData.totalAmount || 0)}đ</b></p>
 <div style="display:flex;justify-content:space-around;margin-top:60px"><div>Người lập</div><div>Trưởng khoa</div><div>Thủ kho</div><div>Người nhận</div></div>
 </body></html>`;
-    w.document.write(html); w.document.close(); w.focus(); w.print();
+    openPrintWindow(html, { focus: true, print: 'immediate' });
   };
 
   const deptOpts = departments.map((d) => ({ v: d.id, l: d.departmentName }));

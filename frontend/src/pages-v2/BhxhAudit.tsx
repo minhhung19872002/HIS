@@ -15,6 +15,7 @@ import {
   type BhxhAuditImportResult,
 } from '../api/bhxhAudit';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
+import { openPrintWindow } from '../utils/printWindow';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   StatusTabs, DrawerShell, DrSec, DrField, fmtVNDg, tk, ti, Ico,
@@ -280,10 +281,7 @@ const BhxhAuditV2: React.FC = () => {
     setPrintLoading(sessionId);
     try {
       const { data: html } = await printAuditForm(sessionId);
-      const win = window.open('', '_blank');
-      if (!win) { message.error('Trình duyệt chặn popup — cho phép popup để in'); return; }
-      win.document.write(html as unknown as string);
-      win.document.close();
+      openPrintWindow(html as unknown as string, { onBlocked: () => message.error('Trình duyệt chặn popup — cho phép popup để in') });
     } catch {
       message.error('In phiếu thất bại');
     } finally {

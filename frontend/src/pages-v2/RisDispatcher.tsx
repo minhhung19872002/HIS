@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
+import { openPrintWindow } from '../utils/printWindow';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn, ModalShell,
   DrawerShell, DrSec, DrField,
@@ -83,8 +84,7 @@ const RisDispatcherV2: React.FC = () => {
 <div class="room">Phòng: ${room.roomName}${room.departmentName ? `<br/><small>${room.departmentName}</small>` : ''}</div>
 <div style="text-align:center;margin-top:20px"><em>Vui lòng đến đúng phòng theo hướng dẫn</em></div>
 </body></html>`;
-    const w = window.open('', '_blank', 'width=600,height=700');
-    w?.document.write(html); w?.document.close();
+    openPrintWindow(html, { features: 'width=600,height=700' });
   };
 
   const handleDispatch = async () => {

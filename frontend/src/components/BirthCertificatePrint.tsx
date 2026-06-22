@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
+import { openPrintWindow } from '../utils/printWindow';
 
 export interface BirthCertificateData {
   // Certificate info
@@ -55,11 +56,6 @@ void deliveryMethodLabels;
  * Uses the same print-in-popup pattern as Inpatient.tsx medical records.
  */
 export const printBirthCertificate = (data: BirthCertificateData) => {
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) {
-    return false;
-  }
-
   const birthDate = data.dateOfBirth ? dayjs(data.dateOfBirth) : null;
   const issueDate = data.issueDate ? dayjs(data.issueDate) : dayjs();
   const motherDob = data.motherDateOfBirth ? dayjs(data.motherDateOfBirth) : null;
@@ -71,7 +67,7 @@ export const printBirthCertificate = (data: BirthCertificateData) => {
     data.apgar10 != null ? `10 phút: ${data.apgar10}` : null,
   ].filter(Boolean).join(', ') || '..........';
 
-  printWindow.document.write(`
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -387,14 +383,8 @@ export const printBirthCertificate = (data: BirthCertificateData) => {
       </div>
     </body>
     </html>
-  `);
+  `;
 
-  printWindow.document.close();
-  printWindow.focus();
-
-  setTimeout(() => {
-    printWindow.print();
-  }, 500);
-
-  return true;
+  const printWindow = openPrintWindow(html, { focus: true, print: { delayMs: 500 } });
+  return printWindow !== null;
 };
