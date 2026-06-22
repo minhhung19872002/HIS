@@ -80,6 +80,7 @@ public class CreateCashBookDto
     public string? ReceiptPrefix { get; set; }
     public int StartNumber { get; set; } = 1;
     public int? MaxNumber { get; set; }
+    [Range(0, double.MaxValue, ErrorMessage = "Số dư đầu kỳ không được âm")]
     public decimal OpeningBalance { get; set; }
 }
 
@@ -437,6 +438,7 @@ public class InvoiceBedItemDto
 /// </summary>
 public class CreateInvoiceDto
 {
+    [NotEmptyGuid]
     public Guid MedicalRecordId { get; set; }
     public List<Guid>? ServiceItemIds { get; set; }
     public List<Guid>? MedicineItemIds { get; set; }
@@ -469,6 +471,7 @@ public class InvoiceSearchDto
 /// </summary>
 public class ApplyDiscountDto
 {
+    [NotEmptyGuid]
     public Guid InvoiceId { get; set; }
 
     // Loại miễn giảm: 1-Theo hóa đơn, 2-Theo dịch vụ
@@ -476,7 +479,9 @@ public class ApplyDiscountDto
 
     // Miễn giảm theo hóa đơn
     public int? DiscountType { get; set; } // 1-Theo %, 2-Theo số tiền
+    [Range(0, 100, ErrorMessage = "Phần trăm miễn giảm phải trong khoảng 0-100")]
     public decimal? DiscountPercent { get; set; }
+    [Range(0, double.MaxValue, ErrorMessage = "Số tiền miễn giảm không được âm")]
     public decimal? DiscountAmount { get; set; }
     public string? DiscountReason { get; set; }
 
@@ -501,10 +506,13 @@ public class ApplyDiscountDto
 /// </summary>
 public class ServiceDiscountDto
 {
+    [NotEmptyGuid]
     public Guid ItemId { get; set; }
     public int ItemType { get; set; } // 1-Dịch vụ, 2-Thuốc, 3-Vật tư, 4-Giường
     public int DiscountType { get; set; }
+    [Range(0, 100, ErrorMessage = "Phần trăm miễn giảm phải trong khoảng 0-100")]
     public decimal? DiscountPercent { get; set; }
+    [Range(0, double.MaxValue, ErrorMessage = "Số tiền miễn giảm không được âm")]
     public decimal? DiscountAmount { get; set; }
     public string? Reason { get; set; }
 }
@@ -645,6 +653,7 @@ public class ApproveRefundDto
 /// </summary>
 public class ConfirmRefundDto
 {
+    [NotEmptyGuid]
     public Guid RefundId { get; set; }
     public string? TransactionNumber { get; set; }
     public string? Notes { get; set; }

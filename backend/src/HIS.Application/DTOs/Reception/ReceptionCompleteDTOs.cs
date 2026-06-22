@@ -594,6 +594,7 @@ public class EmergencyRegistrationDto
 /// </summary>
 public class UpdateEmergencyPatientDto
 {
+    [NotEmptyGuid]
     public Guid MedicalRecordId { get; set; }
     public string FullName { get; set; } = string.Empty;
     public DateTime? DateOfBirth { get; set; }
@@ -610,7 +611,9 @@ public class UpdateEmergencyPatientDto
 /// </summary>
 public class MergePatientDto
 {
+    [NotEmptyGuid]
     public Guid SourcePatientId { get; set; } // BN cần ghép (sẽ xóa)
+    [NotEmptyGuid]
     public Guid TargetPatientId { get; set; } // BN đích (giữ lại)
     public string Reason { get; set; } = string.Empty;
 }
