@@ -139,7 +139,7 @@ public class PublicHealthService : IPublicHealthService
         };
     }
 
-    public async Task<HealthCheckupDto> CreateHealthCheckupAsync(CreateHealthCheckupDto dto)
+    public async Task<HealthCheckupDto> CreateHealthCheckupAsync(CreateHealthCheckupDto dto, string? userId)
     {
         var entity = new HealthCheckup
         {
@@ -154,7 +154,7 @@ public class PublicHealthService : IPublicHealthService
             DoctorName = dto.DoctorName,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
-            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
+            CreatedBy = userId,
         };
         _context.HealthCheckups.Add(entity);
         await _context.SaveChangesAsync();
@@ -316,7 +316,7 @@ public class PublicHealthService : IPublicHealthService
         return v == null ? null : MapVaccinationDto(v);
     }
 
-    public async Task<VaccinationRecordDto> RecordVaccinationAsync(CreateVaccinationRecordDto dto)
+    public async Task<VaccinationRecordDto> RecordVaccinationAsync(CreateVaccinationRecordDto dto, string? userId)
     {
         var entity = new VaccinationRecord
         {
@@ -339,7 +339,7 @@ public class PublicHealthService : IPublicHealthService
             IsEPI = dto.IsEPI,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
-            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
+            CreatedBy = userId,
         };
         _context.VaccinationRecords.Add(entity);
 
@@ -424,7 +424,7 @@ public class PublicHealthService : IPublicHealthService
             .ToListAsync();
     }
 
-    public async Task<VaccinationCampaignDto> CreateVaccinationCampaignAsync(CreateVaccinationCampaignDto dto)
+    public async Task<VaccinationCampaignDto> CreateVaccinationCampaignAsync(CreateVaccinationCampaignDto dto, string? userId)
     {
         var entity = new VaccinationCampaign
         {
@@ -441,7 +441,7 @@ public class PublicHealthService : IPublicHealthService
             Description = dto.Description,
             Areas = dto.Areas,
             CreatedAt = DateTime.UtcNow,
-            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
+            CreatedBy = userId,
         };
         _context.VaccinationCampaigns.Add(entity);
         await _context.SaveChangesAsync();
@@ -581,7 +581,7 @@ public class PublicHealthService : IPublicHealthService
         };
     }
 
-    public async Task<DiseaseReportDto> ReportDiseaseAsync(CreateDiseaseReportDto dto)
+    public async Task<DiseaseReportDto> ReportDiseaseAsync(CreateDiseaseReportDto dto, string? userId)
     {
         var entity = new DiseaseReport
         {
@@ -602,7 +602,7 @@ public class PublicHealthService : IPublicHealthService
             Status = 0, // Reported
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
-            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
+            CreatedBy = userId,
         };
         _context.DiseaseReports.Add(entity);
         await _context.SaveChangesAsync();
@@ -689,7 +689,7 @@ public class PublicHealthService : IPublicHealthService
             .ToListAsync();
     }
 
-    public async Task<OutbreakEventDto> CreateOutbreakEventAsync(CreateOutbreakEventDto dto)
+    public async Task<OutbreakEventDto> CreateOutbreakEventAsync(CreateOutbreakEventDto dto, string? userId)
     {
         var entity = new OutbreakEvent
         {
@@ -704,7 +704,7 @@ public class PublicHealthService : IPublicHealthService
             Status = 0, // Detected
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
-            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
+            CreatedBy = userId,
         };
         _context.OutbreakEvents.Add(entity);
         await _context.SaveChangesAsync();
@@ -825,7 +825,7 @@ public class PublicHealthService : IPublicHealthService
         return s == null ? null : MapSchoolHealthDto(s);
     }
 
-    public async Task<SchoolHealthExamDto> CreateSchoolHealthExamAsync(CreateSchoolHealthExamDto dto)
+    public async Task<SchoolHealthExamDto> CreateSchoolHealthExamAsync(CreateSchoolHealthExamDto dto, string? userId)
     {
         var entity = new SchoolHealthExam
         {
@@ -843,7 +843,7 @@ public class PublicHealthService : IPublicHealthService
             Notes = dto.Notes,
             Status = 0, // Pending
             CreatedAt = DateTime.UtcNow,
-            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
+            CreatedBy = userId,
         };
         _context.SchoolHealthExams.Add(entity);
         await _context.SaveChangesAsync();
@@ -959,7 +959,7 @@ public class PublicHealthService : IPublicHealthService
         return o == null ? null : MapOccupationalHealthDto(o);
     }
 
-    public async Task<OccupationalHealthExamDto> CreateOccupationalHealthExamAsync(CreateOccupationalHealthExamDto dto)
+    public async Task<OccupationalHealthExamDto> CreateOccupationalHealthExamAsync(CreateOccupationalHealthExamDto dto, string? userId)
     {
         var entity = new OccupationalHealthExam
         {
@@ -979,7 +979,7 @@ public class PublicHealthService : IPublicHealthService
             Status = 0, // Pending
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
-            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
+            CreatedBy = userId,
         };
         _context.OccupationalHealthExams.Add(entity);
         await _context.SaveChangesAsync();
@@ -1127,7 +1127,7 @@ public class PublicHealthService : IPublicHealthService
         };
     }
 
-    public async Task<MethadonePatientDto> CreateMethadonePatientAsync(CreateMethadonePatientDto dto)
+    public async Task<MethadonePatientDto> CreateMethadonePatientAsync(CreateMethadonePatientDto dto, string? userId)
     {
         var entity = new MethadonePatient
         {
@@ -1141,7 +1141,7 @@ public class PublicHealthService : IPublicHealthService
             TransferredFrom = dto.TransferredFrom,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
-            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
+            CreatedBy = userId,
         };
         _context.MethadonePatients.Add(entity);
         await _context.SaveChangesAsync();
@@ -1207,7 +1207,7 @@ public class PublicHealthService : IPublicHealthService
             .ToListAsync();
     }
 
-    public async Task<MethadoneDosingRecordDto> RecordDoseAsync(CreateMethadoneDosingDto dto)
+    public async Task<MethadoneDosingRecordDto> RecordDoseAsync(CreateMethadoneDosingDto dto, string? userId)
     {
         var patient = await _context.MethadonePatients.FindAsync(dto.MethadonePatientId)
             ?? throw new InvalidOperationException("Methadone patient not found");
@@ -1224,7 +1224,7 @@ public class PublicHealthService : IPublicHealthService
             Status = dto.Status,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
-            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
+            CreatedBy = userId,
         };
         _context.MethadoneDosingRecords.Add(entity);
 
@@ -1274,7 +1274,7 @@ public class PublicHealthService : IPublicHealthService
             .ToListAsync();
     }
 
-    public async Task<MethadoneUrineTestDto> RecordUrineTestAsync(CreateMethadoneUrineTestDto dto)
+    public async Task<MethadoneUrineTestDto> RecordUrineTestAsync(CreateMethadoneUrineTestDto dto, string? userId)
     {
         _ = await _context.MethadonePatients.FindAsync(dto.MethadonePatientId)
             ?? throw new InvalidOperationException("Methadone patient not found");
@@ -1294,7 +1294,7 @@ public class PublicHealthService : IPublicHealthService
             OverallResult = dto.OverallResult,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
-            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
+            CreatedBy = userId,
         };
         _context.MethadoneUrineTests.Add(entity);
         await _context.SaveChangesAsync();

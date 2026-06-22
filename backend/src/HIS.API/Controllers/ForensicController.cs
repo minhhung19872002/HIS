@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
@@ -16,6 +17,8 @@ public class ForensicController : ControllerBase
     {
         _forensicService = forensicService;
     }
+
+    private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
     [HttpGet("cases")]
     public async Task<ActionResult<List<ForensicCaseDto>>> SearchCases(
@@ -39,7 +42,7 @@ public class ForensicController : ControllerBase
     {
         if (dto == null || ((dto.PatientId == null || dto.PatientId == Guid.Empty) && string.IsNullOrWhiteSpace(dto.PatientName)))
             return BadRequest(new { message = "Thiếu thông tin đối tượng (PatientId hoặc PatientName)" });
-        return Ok(await _forensicService.CreateCaseAsync(dto));
+        return Ok(await _forensicService.CreateCaseAsync(dto, GetUserId()));
     }
 
     [HttpPut("cases/{id}")]
@@ -57,7 +60,7 @@ public class ForensicController : ControllerBase
     [HttpPost("examinations")]
     public async Task<ActionResult<ForensicExaminationDto>> AddExamination([FromBody] CreateForensicExaminationDto dto)
     {
-        return Ok(await _forensicService.AddExaminationAsync(dto));
+        return Ok(await _forensicService.AddExaminationAsync(dto, GetUserId()));
     }
 
     [HttpPut("cases/{id}/approve")]

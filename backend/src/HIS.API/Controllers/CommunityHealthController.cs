@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
@@ -16,6 +17,8 @@ public class CommunityHealthController : ControllerBase
     {
         _communityHealthService = communityHealthService;
     }
+
+    private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
     // ==================== Households ====================
 
@@ -50,7 +53,7 @@ public class CommunityHealthController : ControllerBase
     [HttpPost("households")]
     public async Task<ActionResult<HouseholdListDto>> CreateHousehold([FromBody] HouseholdCreateDto dto)
     {
-        var result = await _communityHealthService.CreateHouseholdAsync(dto);
+        var result = await _communityHealthService.CreateHouseholdAsync(dto, GetUserId());
         return Ok(result);
     }
 
@@ -119,7 +122,7 @@ public class CommunityHealthController : ControllerBase
     [HttpPost("ncd-screenings")]
     public async Task<ActionResult<NcdScreeningListDto>> CreateNcdScreening([FromBody] NcdScreeningCreateDto dto)
     {
-        var result = await _communityHealthService.CreateNcdScreeningAsync(dto);
+        var result = await _communityHealthService.CreateNcdScreeningAsync(dto, GetUserId());
         return Ok(result);
     }
 
@@ -166,7 +169,7 @@ public class CommunityHealthController : ControllerBase
     [HttpPost("teams")]
     public async Task<ActionResult<TeamListDto>> CreateTeam([FromBody] TeamCreateDto dto)
     {
-        var result = await _communityHealthService.CreateTeamAsync(dto);
+        var result = await _communityHealthService.CreateTeamAsync(dto, GetUserId());
         return Ok(result);
     }
 

@@ -111,7 +111,7 @@ public class ForensicService : IForensicService
         catch (Exception ex) { _logger.LogWarning(ex, "ForensicService thao tác thất bại, trả giá trị mặc định"); return null; }
     }
 
-    public async Task<ForensicCaseDto> CreateCaseAsync(CreateForensicCaseDto dto)
+    public async Task<ForensicCaseDto> CreateCaseAsync(CreateForensicCaseDto dto, string? userId)
     {
         var year = DateTime.UtcNow.Year;
         var count = await _context.ForensicCases.CountAsync(c => c.CreatedAt.Year == year) + 1;
@@ -133,7 +133,7 @@ public class ForensicService : IForensicService
             Notes = dto.Notes,
             Status = 0,
             CreatedAt = DateTime.UtcNow,
-            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
+            CreatedBy = userId,
         };
 
         _context.ForensicCases.Add(entity);
@@ -200,7 +200,7 @@ public class ForensicService : IForensicService
         catch (Exception ex) { _logger.LogWarning(ex, "ForensicService thao tác thất bại, trả giá trị mặc định"); return new List<ForensicExaminationDto>(); }
     }
 
-    public async Task<ForensicExaminationDto> AddExaminationAsync(CreateForensicExaminationDto dto)
+    public async Task<ForensicExaminationDto> AddExaminationAsync(CreateForensicExaminationDto dto, string? userId)
     {
         var entity = new ForensicExamination
         {
@@ -213,7 +213,7 @@ public class ForensicService : IForensicService
             ExaminerName = dto.ExaminerName,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
-            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
+            CreatedBy = userId,
         };
 
         _context.ForensicExaminations.Add(entity);

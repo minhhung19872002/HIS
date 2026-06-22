@@ -104,7 +104,7 @@ public class CommunityHealthService : ICommunityHealthService
         };
     }
 
-    public async Task<HouseholdListDto> CreateHouseholdAsync(HouseholdCreateDto dto)
+    public async Task<HouseholdListDto> CreateHouseholdAsync(HouseholdCreateDto dto, string? userId)
     {
         var entity = new HouseholdHealthRecord
         {
@@ -121,7 +121,7 @@ public class CommunityHealthService : ICommunityHealthService
             NextVisitDate = DateTime.TryParse(dto.NextVisitDate, out var nvd) ? nvd : null,
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow,
-            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
+            CreatedBy = userId,
         };
 
         _context.HouseholdHealthRecords.Add(entity);
@@ -324,7 +324,7 @@ public class CommunityHealthService : ICommunityHealthService
         };
     }
 
-    public async Task<NcdScreeningListDto> CreateNcdScreeningAsync(NcdScreeningCreateDto dto)
+    public async Task<NcdScreeningListDto> CreateNcdScreeningAsync(NcdScreeningCreateDto dto, string? userId)
     {
         // Calculate CVD risk score based on WHO/ISH risk charts (simplified)
         var riskScore = CalculateCVDRiskScore(dto);
@@ -354,7 +354,7 @@ public class CommunityHealthService : ICommunityHealthService
             FollowUpDate = DateTime.TryParse(dto.FollowUpDate, out var fud) ? fud : null,
             ScreenedBy = dto.ScreenedBy,
             CreatedAt = DateTime.UtcNow,
-            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
+            CreatedBy = userId,
         };
 
         _context.NcdScreenings.Add(entity);
@@ -539,7 +539,7 @@ public class CommunityHealthService : ICommunityHealthService
         };
     }
 
-    public async Task<TeamListDto> CreateTeamAsync(TeamCreateDto dto)
+    public async Task<TeamListDto> CreateTeamAsync(TeamCreateDto dto, string? userId)
     {
         var entity = new CommunityHealthTeam
         {
@@ -554,7 +554,7 @@ public class CommunityHealthService : ICommunityHealthService
             Status = 0, // Active
             EstablishedDate = DateTime.TryParse(dto.EstablishedDate, out var ed) ? ed : DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow,
-            // TODO: set CreatedBy = userId (defer — cần thêm param userId vào signature + interface + controller)
+            CreatedBy = userId,
         };
 
         _context.CommunityHealthTeams.Add(entity);

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
@@ -16,6 +17,8 @@ public class PublicHealthController : ControllerBase
     {
         _service = service;
     }
+
+    private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
     // =====================================================================
     // HEALTH CHECKUP (Khám sức khỏe)
@@ -39,7 +42,7 @@ public class PublicHealthController : ControllerBase
     [HttpPost("checkups")]
     public async Task<IActionResult> CreateHealthCheckup([FromBody] CreateHealthCheckupDto dto)
     {
-        var result = await _service.CreateHealthCheckupAsync(dto);
+        var result = await _service.CreateHealthCheckupAsync(dto, GetUserId());
         return Ok(result);
     }
 
@@ -100,7 +103,7 @@ public class PublicHealthController : ControllerBase
     [HttpPost("vaccinations")]
     public async Task<IActionResult> RecordVaccination([FromBody] CreateVaccinationRecordDto dto)
     {
-        var result = await _service.RecordVaccinationAsync(dto);
+        var result = await _service.RecordVaccinationAsync(dto, GetUserId());
         return Ok(result);
     }
 
@@ -149,7 +152,7 @@ public class PublicHealthController : ControllerBase
     [HttpPost("vaccinations/campaigns")]
     public async Task<IActionResult> CreateVaccinationCampaign([FromBody] CreateVaccinationCampaignDto dto)
     {
-        var result = await _service.CreateVaccinationCampaignAsync(dto);
+        var result = await _service.CreateVaccinationCampaignAsync(dto, GetUserId());
         return Ok(result);
     }
 
@@ -182,7 +185,7 @@ public class PublicHealthController : ControllerBase
     [HttpPost("diseases")]
     public async Task<IActionResult> ReportDisease([FromBody] CreateDiseaseReportDto dto)
     {
-        var result = await _service.ReportDiseaseAsync(dto);
+        var result = await _service.ReportDiseaseAsync(dto, GetUserId());
         return Ok(result);
     }
 
@@ -224,7 +227,7 @@ public class PublicHealthController : ControllerBase
     [HttpPost("outbreaks")]
     public async Task<IActionResult> CreateOutbreakEvent([FromBody] CreateOutbreakEventDto dto)
     {
-        var result = await _service.CreateOutbreakEventAsync(dto);
+        var result = await _service.CreateOutbreakEventAsync(dto, GetUserId());
         return Ok(result);
     }
 
@@ -271,7 +274,7 @@ public class PublicHealthController : ControllerBase
     [HttpPost("school-health")]
     public async Task<IActionResult> CreateSchoolHealthExam([FromBody] CreateSchoolHealthExamDto dto)
     {
-        var result = await _service.CreateSchoolHealthExamAsync(dto);
+        var result = await _service.CreateSchoolHealthExamAsync(dto, GetUserId());
         return Ok(result);
     }
 
@@ -332,7 +335,7 @@ public class PublicHealthController : ControllerBase
     [HttpPost("occupational-health")]
     public async Task<IActionResult> CreateOccupationalHealthExam([FromBody] CreateOccupationalHealthExamDto dto)
     {
-        var result = await _service.CreateOccupationalHealthExamAsync(dto);
+        var result = await _service.CreateOccupationalHealthExamAsync(dto, GetUserId());
         return Ok(result);
     }
 
@@ -393,7 +396,7 @@ public class PublicHealthController : ControllerBase
     [HttpPost("methadone/patients")]
     public async Task<IActionResult> CreateMethadonePatient([FromBody] CreateMethadonePatientDto dto)
     {
-        var result = await _service.CreateMethadonePatientAsync(dto);
+        var result = await _service.CreateMethadonePatientAsync(dto, GetUserId());
         return Ok(result);
     }
 
@@ -423,7 +426,7 @@ public class PublicHealthController : ControllerBase
     {
         try
         {
-            var result = await _service.RecordDoseAsync(dto);
+            var result = await _service.RecordDoseAsync(dto, GetUserId());
             return Ok(result);
         }
         catch (InvalidOperationException ex)
@@ -444,7 +447,7 @@ public class PublicHealthController : ControllerBase
     {
         try
         {
-            var result = await _service.RecordUrineTestAsync(dto);
+            var result = await _service.RecordUrineTestAsync(dto, GetUserId());
             return Ok(result);
         }
         catch (InvalidOperationException ex)
