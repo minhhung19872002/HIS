@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using HIS.Application.Common;
 using HIS.Application.DTOs;
 using HIS.Application.Interfaces;
 using HIS.Core.Constants;
@@ -15,18 +16,18 @@ public class EmrManagementService : IEmrManagementService
 {
     private readonly HISDbContext _context;
     private readonly IHttpContextAccessor _http;
+    private readonly ICurrentUserAccessor _currentUser;
 
-    public EmrManagementService(HISDbContext context, IHttpContextAccessor httpContextAccessor)
+    public EmrManagementService(HISDbContext context, IHttpContextAccessor httpContextAccessor, ICurrentUserAccessor currentUser)
     {
         _context = context;
         _http = httpContextAccessor;
+        _currentUser = currentUser;
     }
 
-    private string? GetCurrentUserId() =>
-        _http.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-    private string? GetCurrentUserName() =>
-        _http.HttpContext?.User?.FindFirst(ClaimTypes.Name)?.Value
-        ?? _http.HttpContext?.User?.FindFirst(JwtClaims.FullName)?.Value;
+    // Đọc người dùng hiện tại qua ICurrentUserAccessor (canonical claim) — #200 REFAC-1
+    private string? GetCurrentUserId() => _currentUser.UserId;
+    private string? GetCurrentUserName() => _currentUser.UserName;
 
     // ============================================================
     // Sharing (B.1.2)

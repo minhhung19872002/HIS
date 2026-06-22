@@ -5,6 +5,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using HIS.Application.Common;
 using HIS.Application.DTOs.EmrAdmin;
 using HIS.Application.Services;
 using HIS.Core.Constants;
@@ -16,19 +17,17 @@ namespace HIS.Infrastructure.Services
     public class EmrAdminService : IEmrAdminService
     {
         private readonly HISDbContext _db;
-        private readonly IHttpContextAccessor _http;
+        private readonly ICurrentUserAccessor _currentUser;
 
-        public EmrAdminService(HISDbContext db, IHttpContextAccessor httpContextAccessor)
+        public EmrAdminService(HISDbContext db, ICurrentUserAccessor currentUser)
         {
             _db = db;
-            _http = httpContextAccessor;
+            _currentUser = currentUser;
         }
 
-        private string? GetCurrentUserId() =>
-            _http.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        private string? GetCurrentUserName() =>
-            _http.HttpContext?.User?.FindFirst(ClaimTypes.Name)?.Value
-            ?? _http.HttpContext?.User?.FindFirst(JwtClaims.FullName)?.Value;
+        // Đọc người dùng hiện tại qua ICurrentUserAccessor (canonical claim) — #200 REFAC-1
+        private string? GetCurrentUserId() => _currentUser.UserId;
+        private string? GetCurrentUserName() => _currentUser.UserName;
 
         // ============ Cover Types ============
         public async Task<List<EmrCoverTypeDto>> GetCoverTypesAsync(string? keyword = null, string? category = null)

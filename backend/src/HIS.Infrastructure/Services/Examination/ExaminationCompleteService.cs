@@ -2,6 +2,7 @@ using System.Text;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
+using HIS.Application.Common;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Examination;
 using HIS.Application.Services;
@@ -33,7 +34,7 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
     private readonly IRepository<Room> _roomRepo;
     private readonly IRepository<User> _userRepo;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ICurrentUserAccessor _currentUser;
 
     public ExaminationCompleteService(
         HISDbContext context,
@@ -43,7 +44,7 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
         IRepository<Room> roomRepo,
         IRepository<User> userRepo,
         IUnitOfWork unitOfWork,
-        IHttpContextAccessor httpContextAccessor)
+        ICurrentUserAccessor currentUser)
     {
         _context = context;
         _patientRepo = patientRepo;
@@ -52,17 +53,12 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
         _roomRepo = roomRepo;
         _userRepo = userRepo;
         _unitOfWork = unitOfWork;
-        _httpContextAccessor = httpContextAccessor;
+        _currentUser = currentUser;
     }
 
-    private Guid? GetCurrentUserId()
-    {
-        var claim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)
-            ?? _httpContextAccessor.HttpContext?.User?.FindFirst("sub")
-            ?? _httpContextAccessor.HttpContext?.User?.FindFirst("id");
-
-        return Guid.TryParse(claim?.Value, out var userId) ? userId : null;
-    }
+    // Đọc người dùng hiện tại qua ICurrentUserAccessor (canonical claim) — #200 REFAC-1.
+    // Behavior giữ nguyên: "sub"/"id" trước đây luôn null (AuthService không phát) → chỉ NameIdentifier có tác dụng.
+    private Guid? GetCurrentUserId() => _currentUser.UserGuid;
 
 
 

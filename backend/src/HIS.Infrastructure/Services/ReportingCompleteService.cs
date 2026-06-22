@@ -1,4 +1,5 @@
 using System.Text.Json;
+using HIS.Application.Common;
 using HIS.Application.DTOs.Reporting;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -13,25 +14,23 @@ namespace HIS.Infrastructure.Services;
 public class ReportingCompleteService : IReportingCompleteService
 {
     private readonly HISDbContext _context;
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ICurrentUserAccessor _currentUser;
     private readonly ILogger<ReportingCompleteService> _logger;
 
     public ReportingCompleteService(
         HISDbContext context,
-        IHttpContextAccessor httpContextAccessor,
+        ICurrentUserAccessor currentUser,
         ILogger<ReportingCompleteService> logger)
     {
         _context = context;
-        _httpContextAccessor = httpContextAccessor;
+        _currentUser = currentUser;
         _logger = logger;
     }
 
-    private string GetCurrentUserId()
-    {
-        return _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
-            ?? _httpContextAccessor.HttpContext?.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-            ?? "system";
-    }
+    // Đọc người dùng hiện tại qua ICurrentUserAccessor (canonical claim) — #200 REFAC-1.
+    // Behavior giữ nguyên: claim "sub" trước đây luôn null (AuthService không phát) nên
+    // kết quả thực tế = NameIdentifier ?? "system".
+    private string GetCurrentUserId() => _currentUser.UserId ?? "system";
 
     private record ReportRow(string Code, string Name, string Value, string Date, string Note);
 

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Extensions.Http;
 using HIS.Core.Interfaces;
+using HIS.Application.Common;
 using HIS.Application.Interfaces;
 using HIS.Application.Services;
 using HIS.Infrastructure.Configuration;
@@ -30,6 +31,9 @@ public static class DependencyInjection
         // Repositories
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // Cross-cutting: người dùng hiện tại từ HTTP context (claim canonical) — #200 REFAC-1
+        services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
 
         // Services
         services.AddScoped<IEmailService, EmailService>();
