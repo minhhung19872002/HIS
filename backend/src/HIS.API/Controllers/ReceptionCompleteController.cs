@@ -125,16 +125,8 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("queue/issue")]
     public async Task<ActionResult<QueueTicketDto>> IssueQueueTicket([FromBody] IssueQueueTicketDto dto)
     {
-        try
-        {
-            var result = await _receptionService.IssueQueueTicketAsync(dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error issuing queue ticket");
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _receptionService.IssueQueueTicketAsync(dto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -144,16 +136,8 @@ public class ReceptionCompleteController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<QueueTicketDto>> IssueQueueTicketMobile([FromBody] MobileQueueTicketDto dto)
     {
-        try
-        {
-            var result = await _receptionService.IssueQueueTicketMobileAsync(dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error issuing mobile queue ticket");
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _receptionService.IssueQueueTicketMobileAsync(dto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -162,17 +146,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("queue/call-next")]
     public async Task<ActionResult<QueueTicketDto>> CallNext([FromBody] CallNextRequestDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.CallNextAsync(dto.RoomId, dto.QueueType, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error calling next number");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.CallNextAsync(dto.RoomId, dto.QueueType, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -181,17 +157,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("queue/{ticketId}/call")]
     public async Task<ActionResult<QueueTicketDto>> CallSpecific(Guid ticketId)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.CallSpecificAsync(ticketId, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error calling specific number");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.CallSpecificAsync(ticketId, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -200,17 +168,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("queue/{ticketId}/recall")]
     public async Task<ActionResult<QueueTicketDto>> Recall(Guid ticketId)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.RecallAsync(ticketId, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error recalling number");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.RecallAsync(ticketId, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -219,17 +179,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("queue/{ticketId}/skip")]
     public async Task<ActionResult<QueueTicketDto>> Skip(Guid ticketId, [FromBody] SkipReasonDto? dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.SkipAsync(ticketId, userId, dto?.Reason);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error skipping number");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.SkipAsync(ticketId, userId, dto?.Reason);
+        return Ok(result);
     }
 
     /// <summary>
@@ -238,17 +190,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("queue/{ticketId}/start-serving")]
     public async Task<ActionResult<QueueTicketDto>> StartServing(Guid ticketId)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.StartServingAsync(ticketId, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error starting serving");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.StartServingAsync(ticketId, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -257,16 +201,8 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("queue/{ticketId}/complete")]
     public async Task<ActionResult<QueueTicketDto>> CompleteServing(Guid ticketId)
     {
-        try
-        {
-            var result = await _receptionService.CompleteServingAsync(ticketId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error completing serving");
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _receptionService.CompleteServingAsync(ticketId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -315,16 +251,8 @@ public class ReceptionCompleteController : ControllerBase
     public async Task<ActionResult<InsuranceVerificationResultDto>> VerifyInsurance(
         [FromBody] InsuranceVerificationRequestDto dto)
     {
-        try
-        {
-            var result = await _receptionService.VerifyInsuranceAsync(dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error verifying insurance");
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _receptionService.VerifyInsuranceAsync(dto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -333,16 +261,8 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("insurance/verify-qr")]
     public async Task<ActionResult<InsuranceVerificationResultDto>> VerifyInsuranceByQR([FromBody] QRCodeDto dto)
     {
-        try
-        {
-            var result = await _receptionService.VerifyInsuranceByQRAsync(dto.QRData);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error verifying insurance by QR");
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _receptionService.VerifyInsuranceByQRAsync(dto.QRData);
+        return Ok(result);
     }
 
     /// <summary>
@@ -364,18 +284,10 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("insurance/block")]
     public async Task<ActionResult<BlockedInsuranceDto>> BlockInsurance([FromBody] BlockInsuranceRequestDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.BlockInsuranceAsync(
-                dto.InsuranceNumber, dto.Reason, dto.Notes, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error blocking insurance");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.BlockInsuranceAsync(
+            dto.InsuranceNumber, dto.Reason, dto.Notes, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -384,17 +296,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("insurance/{id}/unblock")]
     public async Task<IActionResult> UnblockInsurance(Guid id)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            await _receptionService.UnblockInsuranceAsync(id, userId);
-            return Ok(new { message = "Unblocked successfully" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error unblocking insurance");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        await _receptionService.UnblockInsuranceAsync(id, userId);
+        return Ok(new { message = "Unblocked successfully" });
     }
 
     #endregion
@@ -418,17 +322,9 @@ public class ReceptionCompleteController : ControllerBase
     public async Task<ActionResult<TemporaryInsuranceCardDto>> CreateTemporaryInsurance(
         [FromBody] CreateTemporaryInsuranceDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.CreateTemporaryInsuranceAsync(dto, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating temporary insurance");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.CreateTemporaryInsuranceAsync(dto, userId);
+        return Ok(result);
     }
 
     #endregion
@@ -441,17 +337,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("photos")]
     public async Task<ActionResult<PatientPhotoDto>> UploadPhoto([FromBody] UploadPhotoDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.SavePhotoAsync(dto, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error uploading photo");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.SavePhotoAsync(dto, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -472,17 +360,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpDelete("photos/{photoId}")]
     public async Task<IActionResult> DeletePhoto(Guid photoId)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            await _receptionService.DeletePhotoAsync(photoId, userId);
-            return Ok(new { message = "Deleted successfully" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error deleting photo");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        await _receptionService.DeletePhotoAsync(photoId, userId);
+        return Ok(new { message = "Deleted successfully" });
     }
 
     /// <summary>
@@ -505,17 +385,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("documents/hold")]
     public async Task<ActionResult<DocumentHoldDto>> CreateDocumentHold([FromBody] CreateDocumentHoldDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.CreateDocumentHoldAsync(dto, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating document hold");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.CreateDocumentHoldAsync(dto, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -524,17 +396,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("documents/return")]
     public async Task<ActionResult<DocumentHoldDto>> ReturnDocument([FromBody] ReturnDocumentDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.ReturnDocumentAsync(dto, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error returning document");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.ReturnDocumentAsync(dto, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -578,17 +442,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("register/insurance")]
     public async Task<ActionResult<AdmissionDto>> RegisterInsurancePatient([FromBody] InsuranceRegistrationDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.RegisterInsurancePatientAsync(dto, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error registering insurance patient");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.RegisterInsurancePatientAsync(dto, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -597,17 +453,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("register/quick/patient-code")]
     public async Task<ActionResult<AdmissionDto>> QuickRegisterByPatientCode([FromBody] QuickRegisterByCodeDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.QuickRegisterByPatientCodeAsync(dto.PatientCode, dto.RoomId, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error in quick register by patient code");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.QuickRegisterByPatientCodeAsync(dto.PatientCode, dto.RoomId, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -616,17 +464,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("register/quick/appointment")]
     public async Task<ActionResult<AdmissionDto>> QuickRegisterByAppointment([FromBody] QuickRegisterByAppointmentDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.QuickRegisterByAppointmentAsync(dto.AppointmentCode, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error in quick register by appointment");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.QuickRegisterByAppointmentAsync(dto.AppointmentCode, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -635,17 +475,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("register/quick/identity")]
     public async Task<ActionResult<AdmissionDto>> QuickRegisterByIdentity([FromBody] QuickRegisterByIdentityDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.QuickRegisterByIdentityAsync(dto.IdentityNumber, dto.RoomId, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error in quick register by identity");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.QuickRegisterByIdentityAsync(dto.IdentityNumber, dto.RoomId, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -654,17 +486,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("register/quick/treatment-code")]
     public async Task<ActionResult<AdmissionDto>> RegisterByTreatmentCode([FromBody] QuickRegisterByCodeDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.RegisterByTreatmentCodeAsync(dto.PatientCode, dto.RoomId, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error registering by treatment code");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.RegisterByTreatmentCodeAsync(dto.PatientCode, dto.RoomId, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -673,17 +497,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("register/smart-card")]
     public async Task<ActionResult<AdmissionDto>> RegisterBySmartCard([FromBody] SmartCardRegistrationDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.RegisterBySmartCardAsync(dto.CardData, dto.RoomId, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error registering by smart card");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.RegisterBySmartCardAsync(dto.CardData, dto.RoomId, userId);
+        return Ok(result);
     }
 
     #endregion
@@ -696,34 +512,18 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("register/fee")]
     public async Task<ActionResult<AdmissionDto>> RegisterFeePatient([FromBody] FeeRegistrationDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.RegisterFeePatientAsync(dto, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error registering fee patient");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.RegisterFeePatientAsync(dto, userId);
+        return Ok(result);
     }
 
     /// <summary>F11.2: lưu vân tay tiếp đón (hoặc cờ không thu thập được) cho bệnh nhân.</summary>
     [HttpPost("register/fingerprint/{patientId}")]
     public async Task<IActionResult> SaveFingerprint(Guid patientId, [FromBody] SaveFingerprintRequest req)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var ok = await _receptionService.SaveFingerprintAsync(patientId, req?.FingerprintData, req?.NotCollected ?? false, userId);
-            return ok ? Ok(new { success = true }) : NotFound(new { message = "Khong tim thay benh nhan" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error saving reception fingerprint");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var ok = await _receptionService.SaveFingerprintAsync(patientId, req?.FingerprintData, req?.NotCollected ?? false, userId);
+        return ok ? Ok(new { success = true }) : NotFound(new { message = "Khong tim thay benh nhan" });
     }
 
     public class SaveFingerprintRequest
@@ -738,18 +538,10 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("register/quick/phone")]
     public async Task<ActionResult<AdmissionDto>> QuickRegisterByPhone([FromBody] QuickRegisterByPhoneDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.QuickRegisterByPhoneAsync(
-                dto.PhoneNumber, dto.RoomId, dto.ServiceType, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error in quick register by phone");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.QuickRegisterByPhoneAsync(
+            dto.PhoneNumber, dto.RoomId, dto.ServiceType, userId);
+        return Ok(result);
     }
 
     #endregion
@@ -763,17 +555,9 @@ public class ReceptionCompleteController : ControllerBase
     public async Task<ActionResult<HealthCheckContractDto>> CreateHealthCheckContract(
         [FromBody] HealthCheckContractDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.CreateHealthCheckContractAsync(dto, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating health check contract");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.CreateHealthCheckContractAsync(dto, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -798,18 +582,10 @@ public class ReceptionCompleteController : ControllerBase
         Guid contractId,
         [FromBody] List<HealthCheckPatientImportDto> patients)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var dto = new HealthCheckImportDto { ContractId = contractId, Patients = patients };
-            var (success, failed, errors) = await _receptionService.ImportHealthCheckPatientsAsync(dto, userId);
-            return Ok(new { success, failed, errors });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error importing health check patients");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var dto = new HealthCheckImportDto { ContractId = contractId, Patients = patients };
+        var (success, failed, errors) = await _receptionService.ImportHealthCheckPatientsAsync(dto, userId);
+        return Ok(new { success, failed, errors });
     }
 
     /// <summary>
@@ -818,17 +594,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("register/health-check")]
     public async Task<ActionResult<AdmissionDto>> RegisterHealthCheckPatient([FromBody] HealthCheckRegistrationDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.RegisterHealthCheckPatientAsync(dto, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error registering health check patient");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.RegisterHealthCheckPatientAsync(dto, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -853,17 +621,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("register/emergency")]
     public async Task<ActionResult<AdmissionDto>> RegisterEmergencyPatient([FromBody] EmergencyRegistrationDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.RegisterEmergencyPatientAsync(dto, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error registering emergency patient");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.RegisterEmergencyPatientAsync(dto, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -874,18 +634,10 @@ public class ReceptionCompleteController : ControllerBase
         Guid medicalRecordId,
         [FromBody] UpdateEmergencyPatientDto dto)
     {
-        try
-        {
-            dto.MedicalRecordId = medicalRecordId;
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.UpdateEmergencyPatientInfoAsync(dto, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating emergency patient info");
-            return BadRequest(new { message = ex.Message });
-        }
+        dto.MedicalRecordId = medicalRecordId;
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.UpdateEmergencyPatientInfoAsync(dto, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -894,17 +646,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("patients/merge")]
     public async Task<IActionResult> MergePatients([FromBody] MergePatientDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            await _receptionService.MergePatientsAsync(dto, userId);
-            return Ok(new { message = "Patients merged successfully" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error merging patients");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        await _receptionService.MergePatientsAsync(dto, userId);
+        return Ok(new { message = "Patients merged successfully" });
     }
 
     /// <summary>
@@ -913,17 +657,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("patients/split")]
     public async Task<IActionResult> SplitPatient([FromBody] SplitPatientDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            await _receptionService.SplitPatientAsync(dto, userId);
-            return Ok(new { message = "Patient records split successfully" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error splitting patient");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        await _receptionService.SplitPatientAsync(dto, userId);
+        return Ok(new { message = "Patient records split successfully" });
     }
 
     /// <summary>
@@ -934,17 +670,9 @@ public class ReceptionCompleteController : ControllerBase
         Guid medicalRecordId,
         [FromBody] EmergencyDepositDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.CreateEmergencyDepositAsync(medicalRecordId, dto.Amount, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating emergency deposit");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.CreateEmergencyDepositAsync(medicalRecordId, dto.Amount, userId);
+        return Ok(result);
     }
 
     #endregion
@@ -967,24 +695,16 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("admissions/{medicalRecordId}/change-room")]
     public async Task<ActionResult<AdmissionDto>> ChangeRoom(Guid medicalRecordId, [FromBody] ChangeRoomRequestDto dto)
     {
-        try
+        var userId = GetCurrentUserId();
+        var changeDto = new ChangeRoomDto
         {
-            var userId = GetCurrentUserId();
-            var changeDto = new ChangeRoomDto
-            {
-                MedicalRecordId = medicalRecordId,
-                NewRoomId = dto.NewRoomId,
-                NewDoctorId = dto.NewDoctorId,
-                Reason = dto.Reason
-            };
-            var result = await _receptionService.ChangeRoomAsync(changeDto, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error changing room");
-            return BadRequest(new { message = ex.Message });
-        }
+            MedicalRecordId = medicalRecordId,
+            NewRoomId = dto.NewRoomId,
+            NewDoctorId = dto.NewDoctorId,
+            Reason = dto.Reason
+        };
+        var result = await _receptionService.ChangeRoomAsync(changeDto, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -993,17 +713,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPut("admissions/{id}")]
     public async Task<ActionResult<AdmissionDto>> UpdateAdmission(Guid id, [FromBody] UpdateAdmissionDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.UpdateAdmissionAsync(id, dto, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating admission");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.UpdateAdmissionAsync(id, dto, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -1022,17 +734,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("patients/{patientId}/guardian")]
     public async Task<IActionResult> SaveGuardianInfo(Guid patientId, [FromBody] GuardianInfoDto guardian)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            await _receptionService.SaveGuardianInfoAsync(patientId, guardian, userId);
-            return Ok(new { message = "Guardian info saved successfully" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error saving guardian info");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        await _receptionService.SaveGuardianInfoAsync(patientId, guardian, userId);
+        return Ok(new { message = "Guardian info saved successfully" });
     }
 
     #endregion
@@ -1085,18 +789,10 @@ public class ReceptionCompleteController : ControllerBase
         Guid medicalRecordId,
         [FromBody] ReceptionServiceOrderDto dto)
     {
-        try
-        {
-            dto.MedicalRecordId = medicalRecordId;
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.OrderServicesAtReceptionAsync(dto, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error ordering services at reception");
-            return BadRequest(new { message = ex.Message });
-        }
+        dto.MedicalRecordId = medicalRecordId;
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.OrderServicesAtReceptionAsync(dto, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -1107,17 +803,9 @@ public class ReceptionCompleteController : ControllerBase
         Guid medicalRecordId,
         Guid groupId)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.OrderServicesByGroupAsync(medicalRecordId, groupId, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error ordering services by group");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.OrderServicesByGroupAsync(medicalRecordId, groupId, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -1151,16 +839,8 @@ public class ReceptionCompleteController : ControllerBase
     [HttpGet("print/examination-slip/{medicalRecordId}")]
     public async Task<IActionResult> PrintExaminationSlip(Guid medicalRecordId)
     {
-        try
-        {
-            var data = await _receptionService.PrintExaminationSlipAsync(medicalRecordId);
-            return File(data, "application/pdf", $"PhieuKham_{medicalRecordId}.pdf");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error printing examination slip");
-            return BadRequest(new { message = ex.Message });
-        }
+        var data = await _receptionService.PrintExaminationSlipAsync(medicalRecordId);
+        return File(data, "application/pdf", $"PhieuKham_{medicalRecordId}.pdf");
     }
 
     /// <summary>
@@ -1169,16 +849,8 @@ public class ReceptionCompleteController : ControllerBase
     [HttpGet("print/insurance-hold-slip/{documentHoldId}")]
     public async Task<IActionResult> PrintInsuranceCardHoldSlip(Guid documentHoldId)
     {
-        try
-        {
-            var data = await _receptionService.PrintInsuranceCardHoldSlipAsync(documentHoldId);
-            return File(data, "application/pdf", $"PhieuGiuThe_{documentHoldId}.pdf");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error printing insurance card hold slip");
-            return BadRequest(new { message = ex.Message });
-        }
+        var data = await _receptionService.PrintInsuranceCardHoldSlipAsync(documentHoldId);
+        return File(data, "application/pdf", $"PhieuGiuThe_{documentHoldId}.pdf");
     }
 
     /// <summary>
@@ -1187,16 +859,8 @@ public class ReceptionCompleteController : ControllerBase
     [HttpGet("print/patient-card/{patientId}")]
     public async Task<IActionResult> PrintPatientCard(Guid patientId)
     {
-        try
-        {
-            var data = await _receptionService.PrintPatientCardAsync(patientId);
-            return File(data, "application/pdf", $"TheBenhNhan_{patientId}.pdf");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error printing patient card");
-            return BadRequest(new { message = ex.Message });
-        }
+        var data = await _receptionService.PrintPatientCardAsync(patientId);
+        return File(data, "application/pdf", $"TheBenhNhan_{patientId}.pdf");
     }
 
     /// <summary>
@@ -1205,16 +869,8 @@ public class ReceptionCompleteController : ControllerBase
     [HttpGet("print/service-order-slip/{medicalRecordId}")]
     public async Task<IActionResult> PrintServiceOrderSlip(Guid medicalRecordId)
     {
-        try
-        {
-            var data = await _receptionService.PrintServiceOrderSlipAsync(medicalRecordId);
-            return File(data, "application/pdf", $"PhieuChiDinh_{medicalRecordId}.pdf");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error printing service order slip");
-            return BadRequest(new { message = ex.Message });
-        }
+        var data = await _receptionService.PrintServiceOrderSlipAsync(medicalRecordId);
+        return File(data, "application/pdf", $"PhieuChiDinh_{medicalRecordId}.pdf");
     }
 
     /// <summary>
@@ -1233,16 +889,8 @@ public class ReceptionCompleteController : ControllerBase
     [HttpGet("print/queue-ticket/{ticketId}")]
     public async Task<IActionResult> PrintQueueTicket(Guid ticketId)
     {
-        try
-        {
-            var data = await _receptionService.PrintQueueTicketAsync(ticketId);
-            return File(data, "application/pdf", $"PhieuSTT_{ticketId}.pdf");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error printing queue ticket");
-            return BadRequest(new { message = ex.Message });
-        }
+        var data = await _receptionService.PrintQueueTicketAsync(ticketId);
+        return File(data, "application/pdf", $"PhieuSTT_{ticketId}.pdf");
     }
 
     /// <summary>
@@ -1251,18 +899,10 @@ public class ReceptionCompleteController : ControllerBase
     [HttpGet("print/medical-record-barcode/{medicalRecordId}")]
     public async Task<IActionResult> PrintMedicalRecordBarcode(Guid medicalRecordId)
     {
-        try
-        {
-            var data = await _receptionService.PrintMedicalRecordBarcodeAsync(medicalRecordId);
-            if (data.Length == 0)
-                return NotFound(new { message = "Không tìm thấy hồ sơ bệnh án" });
-            return File(data, "application/pdf", $"BarcodeHSBA_{medicalRecordId}.pdf");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error printing MR barcode label");
-            return BadRequest(new { message = ex.Message });
-        }
+        var data = await _receptionService.PrintMedicalRecordBarcodeAsync(medicalRecordId);
+        if (data.Length == 0)
+            return NotFound(new { message = "Không tìm thấy hồ sơ bệnh án" });
+        return File(data, "application/pdf", $"BarcodeHSBA_{medicalRecordId}.pdf");
     }
 
     #endregion
@@ -1329,16 +969,8 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("smart-card/read")]
     public async Task<ActionResult<SmartCardDataDto>> ReadSmartCard([FromBody] SmartCardReadDto dto)
     {
-        try
-        {
-            var result = await _receptionService.ReadSmartCardAsync(dto.CardData);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error reading smart card");
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _receptionService.ReadSmartCardAsync(dto.CardData);
+        return Ok(result);
     }
 
     /// <summary>
@@ -1410,19 +1042,11 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("reports/export")]
     public async Task<IActionResult> ExportReport([FromBody] QueueReportRequestDto dto)
     {
-        try
-        {
-            var data = await _receptionService.ExportQueueReportAsync(dto);
-            var contentType = dto.ExportFormat == "PDF" ? "application/pdf" :
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-            var ext = dto.ExportFormat == "PDF" ? "pdf" : "xlsx";
-            return File(data, contentType, $"BaoCaoHangDoi_{dto.FromDate:yyyyMMdd}_{dto.ToDate:yyyyMMdd}.{ext}");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error exporting report");
-            return BadRequest(new { message = ex.Message });
-        }
+        var data = await _receptionService.ExportQueueReportAsync(dto);
+        var contentType = dto.ExportFormat == "PDF" ? "application/pdf" :
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        var ext = dto.ExportFormat == "PDF" ? "pdf" : "xlsx";
+        return File(data, contentType, $"BaoCaoHangDoi_{dto.FromDate:yyyyMMdd}_{dto.ToDate:yyyyMMdd}.{ext}");
     }
 
     /// <summary>
@@ -1442,16 +1066,8 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("queue/config")]
     public async Task<ActionResult<QueueConfigurationDto>> SaveQueueConfiguration([FromBody] QueueConfigurationDto dto)
     {
-        try
-        {
-            var result = await _receptionService.SaveQueueConfigurationAsync(dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error saving queue configuration");
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _receptionService.SaveQueueConfigurationAsync(dto);
+        return Ok(result);
     }
 
     #endregion
