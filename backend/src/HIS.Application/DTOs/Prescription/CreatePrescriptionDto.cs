@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HIS.Application.DTOs.Prescription;
 
 /// <summary>
@@ -33,7 +35,9 @@ public class CreatePrescriptionDto
 
     // Loại đơn
     public int PrescriptionType { get; set; } = 1; // 1-Ngoại trú, 2-Nội trú, 3-Nhà thuốc, 4-YHCT
+    [Range(0, int.MaxValue, ErrorMessage = "Số ngày không được âm")]
     public int TotalDays { get; set; } = 1; // Số ngày đơn thuốc
+    [Range(0, int.MaxValue, ErrorMessage = "Số thang không được âm")]
     public int TotalTangs { get; set; } = 0; // Số thang (YHCT)
 
     // Lời dặn
@@ -112,6 +116,7 @@ public class DispensePrescriptionDto
 public class DispensePrescriptionItemDto
 {
     public Guid PrescriptionItemId { get; set; }
+    [Range(0, double.MaxValue, ErrorMessage = "Số lượng cấp phát không được âm")]
     public decimal DispensedQuantity { get; set; }
     public Guid? BatchId { get; set; }
     public string? BatchNumber { get; set; }

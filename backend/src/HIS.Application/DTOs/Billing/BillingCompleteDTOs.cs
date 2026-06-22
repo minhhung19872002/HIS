@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using HIS.Application.DTOs;
 
 namespace HIS.Application.DTOs.Billing;
@@ -166,6 +167,7 @@ public class CreateDepositDto
     public int DepositType { get; set; }
     public int DepositSource { get; set; }
     public Guid? DepartmentId { get; set; }
+    [Range(0, double.MaxValue, ErrorMessage = "Số tiền tạm ứng không được âm")]
     public decimal Amount { get; set; }
     public int PaymentMethod { get; set; }
     public string? TransactionNumber { get; set; }
@@ -597,6 +599,7 @@ public class CreateRefundDto
     public int RefundType { get; set; }
     public Guid? OriginalDepositId { get; set; }
     public Guid? OriginalPaymentId { get; set; }
+    [Range(0, double.MaxValue, ErrorMessage = "Số tiền hoàn không được âm")]
     public decimal RefundAmount { get; set; }
     public int RefundMethod { get; set; }
     public string? BankAccount { get; set; }
@@ -618,6 +621,7 @@ public class RefundItemDto
     /// <summary>"service" | "medicine" | "receipt-detail"</summary>
     public string ItemType { get; set; } = "service";
 
+    [Range(0, double.MaxValue, ErrorMessage = "Số tiền hoàn không được âm")]
     public decimal RefundAmount { get; set; }
     public string? Reason { get; set; }
 }

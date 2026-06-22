@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HIS.Application.DTOs.Reception;
 
 #region 1.1 Điều phối bệnh nhân vào các phòng khám
@@ -582,6 +584,7 @@ public class EmergencyRegistrationDto
 
     // Cho phép nợ viện phí
     public bool AllowDebt { get; set; }
+    [Range(0, double.MaxValue, ErrorMessage = "Số tiền tạm ứng không được âm")]
     public decimal? DepositAmount { get; set; }
 }
 
@@ -891,6 +894,7 @@ public class ExaminationSlipDto
 public class ReceptionDepositDto
 {
     public Guid MedicalRecordId { get; set; }
+    [Range(0, double.MaxValue, ErrorMessage = "Số tiền tạm ứng không được âm")]
     public decimal Amount { get; set; }
     public int PaymentMethod { get; set; } // 1-Tiền mặt, 2-Chuyển khoản, 3-Thẻ
     public string? TransactionReference { get; set; }

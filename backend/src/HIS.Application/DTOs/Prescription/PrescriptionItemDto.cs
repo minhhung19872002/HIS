@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HIS.Application.DTOs.Prescription;
 
 /// <summary>
@@ -96,20 +98,27 @@ public class CreatePrescriptionItemDto
     public Guid MedicineId { get; set; }
 
     // Số lượng và đơn vị
+    [Range(0, double.MaxValue, ErrorMessage = "Số lượng không được âm")]
     public decimal Quantity { get; set; }
     public string? Unit { get; set; }
 
     // Giá (tự động tính nếu không truyền)
+    [Range(0, double.MaxValue, ErrorMessage = "Đơn giá không được âm")]
     public decimal? UnitPrice { get; set; }
     public int PatientType { get; set; } = 1; // 1-BHYT, 2-Viện phí, 3-Dịch vụ
 
     // Liều dùng
+    [Range(0, double.MaxValue, ErrorMessage = "Liều dùng không được âm")]
     public decimal? MorningDose { get; set; }
+    [Range(0, double.MaxValue, ErrorMessage = "Liều dùng không được âm")]
     public decimal? NoonDose { get; set; }
+    [Range(0, double.MaxValue, ErrorMessage = "Liều dùng không được âm")]
     public decimal? EveningDose { get; set; }
+    [Range(0, double.MaxValue, ErrorMessage = "Liều dùng không được âm")]
     public decimal? NightDose { get; set; }
 
     // Hướng dẫn
+    [Range(0, int.MaxValue, ErrorMessage = "Số ngày dùng không được âm")]
     public int DaysSupply { get; set; } = 1; // Số ngày dùng
     public string? Instructions { get; set; } // Cách dùng
     public string? Route { get; set; } // Đường dùng
