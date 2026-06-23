@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Insurance;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
@@ -254,7 +255,7 @@ public class InsuranceXmlService : IInsuranceXmlService
         var claim = new InsuranceClaim
         {
             Id = Guid.NewGuid(),
-            ClaimCode = $"BHYT-{DateTime.Now:yyyyMMddHHmmss}",
+            ClaimCode = CodeGenerator.Timestamp("BHYT"),
             PatientId = exam.MedicalRecord?.PatientId ?? Guid.Empty,
             ServiceDate = exam.StartTime ?? exam.CreatedAt,
             TreatmentType = 1, // Outpatient
@@ -1423,7 +1424,7 @@ public class InsuranceXmlService : IInsuranceXmlService
             var request = new BhxhSubmitRequest
             {
                 XmlBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes($"<batch>{dto.BatchId}</batch>")),
-                BatchCode = $"XML-{DateTime.Now:yyyyMMddHHmmss}",
+                BatchCode = CodeGenerator.Timestamp("XML"),
                 FacilityCode = "" // Will use gateway options internally
             };
 
@@ -1547,7 +1548,7 @@ public class InsuranceXmlService : IInsuranceXmlService
             var request = new BhxhSubmitRequest
             {
                 XmlBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(xmlContent)),
-                BatchCode = $"RESUB-{DateTime.Now:yyyyMMddHHmmss}",
+                BatchCode = CodeGenerator.Timestamp("RESUB"),
                 FacilityCode = ""
             };
 

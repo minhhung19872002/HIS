@@ -1,5 +1,6 @@
 using HIS.Application.DTOs.Telemedicine;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
@@ -32,7 +33,7 @@ public class TelemedicineServiceImpl : ITelemedicineService
     {
         var entity = new TeleAppointment
         {
-            Id = Guid.NewGuid(), AppointmentCode = $"TELE-{DateTime.Now:yyyyMMddHHmmss}",
+            Id = Guid.NewGuid(), AppointmentCode = CodeGenerator.Timestamp("TELE"),
             PatientId = dto.PatientId, DoctorId = dto.DoctorId, SpecialityId = dto.SpecialityId,
             AppointmentDate = dto.AppointmentDate, StartTime = dto.StartTime, ChiefComplaint = dto.ChiefComplaint,
             Status = "Pending", CreatedAt = DateTime.Now
@@ -76,7 +77,7 @@ public class TelemedicineServiceImpl : ITelemedicineService
     {
         var entity = new TeleSession
         {
-            Id = Guid.NewGuid(), AppointmentId = dto.AppointmentId, SessionCode = $"SES-{DateTime.Now:yyyyMMddHHmmss}",
+            Id = Guid.NewGuid(), AppointmentId = dto.AppointmentId, SessionCode = CodeGenerator.Timestamp("SES"),
             StartTime = DateTime.Now, Status = "InProgress", RoomId = Guid.NewGuid().ToString()
         };
         _context.TeleSessions.Add(entity);
@@ -138,7 +139,7 @@ public class TelemedicineServiceImpl : ITelemedicineService
     {
         var entity = new TelePrescription
         {
-            Id = Guid.NewGuid(), SessionId = sessionId, PrescriptionCode = $"RX-{DateTime.Now:yyyyMMddHHmmss}",
+            Id = Guid.NewGuid(), SessionId = sessionId, PrescriptionCode = CodeGenerator.Timestamp("RX"),
             Status = "Draft", Note = note, PrescriptionDate = DateTime.Now, CreatedAt = DateTime.Now
         };
         _context.TelePrescriptions.Add(entity);

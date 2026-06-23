@@ -1,5 +1,6 @@
 using HIS.Application.DTOs.InfectionControl;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
@@ -48,7 +49,7 @@ public class InfectionControlServiceImpl : IInfectionControlService
     {
         var entity = new HAICase
         {
-            Id = Guid.NewGuid(), CaseCode = $"HAI-{DateTime.Now:yyyyMMddHHmmss}",
+            Id = Guid.NewGuid(), CaseCode = CodeGenerator.Timestamp("HAI"),
             AdmissionId = dto.AdmissionId, InfectionType = dto.InfectionType, InfectionSite = dto.InfectionSite ?? "",
             OnsetDate = dto.OnsetDate, Status = "Suspected", CreatedAt = DateTime.Now
         };
@@ -101,7 +102,7 @@ public class InfectionControlServiceImpl : IInfectionControlService
     {
         var entity = new IsolationOrder
         {
-            Id = Guid.NewGuid(), OrderCode = $"ISO-{DateTime.Now:yyyyMMddHHmmss}",
+            Id = Guid.NewGuid(), OrderCode = CodeGenerator.Timestamp("ISO"),
             AdmissionId = dto.AdmissionId, IsolationType = dto.IsolationType, Reason = dto.Reason ?? "",
             StartDate = dto.StartDate, Status = "Active", CreatedAt = DateTime.Now
         };
@@ -170,7 +171,7 @@ public class InfectionControlServiceImpl : IInfectionControlService
     {
         var entity = new Outbreak
         {
-            Id = Guid.NewGuid(), OutbreakCode = $"OB-{DateTime.Now:yyyyMMddHHmmss}",
+            Id = Guid.NewGuid(), OutbreakCode = CodeGenerator.Timestamp("OB"),
             Organism = dto.Organism ?? "", AffectedAreas = string.Join(",", dto.AffectedDepartments ?? new List<string>()),
             DetectionDate = dto.IdentifiedDate, Status = "Active", TotalCases = dto.InitialCases?.Count ?? 0, CreatedAt = DateTime.Now
         };

@@ -1,5 +1,6 @@
 using HIS.Application.DTOs.Nutrition;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
@@ -145,7 +146,7 @@ public class ClinicalNutritionServiceImpl : IClinicalNutritionService
     {
         var entity = new DietOrder
         {
-            Id = Guid.NewGuid(), OrderCode = $"DIET-{DateTime.Now:yyyyMMddHHmmss}", AdmissionId = dto.AdmissionId, DietTypeId = dto.DietTypeId,
+            Id = Guid.NewGuid(), OrderCode = CodeGenerator.Timestamp("DIET"), AdmissionId = dto.AdmissionId, DietTypeId = dto.DietTypeId,
             TargetCalories = dto.CalorieLevel, TargetProtein = dto.ProteinLevel, Status = "Active", StartDate = dto.StartDate, CreatedAt = DateTime.Now
         };
         _context.DietOrders.Add(entity);

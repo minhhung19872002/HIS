@@ -1,5 +1,6 @@
 using HIS.Application.DTOs.QualityManagement;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
@@ -32,7 +33,7 @@ public class QualityManagementServiceImpl : IQualityManagementService
 
     public async Task<IncidentReportDto> CreateIncidentReportAsync(CreateIncidentReportDto dto)
     {
-        var entity = new IncidentReport { Id = Guid.NewGuid(), ReportCode = $"INC-{DateTime.Now:yyyyMMddHHmmss}", IncidentDate = dto.IncidentDate, ReportDate = DateTime.Now, IncidentType = dto.IncidentType ?? "Other", Severity = dto.SeverityLevel ?? "Minor", Description = dto.Description ?? "", Status = "Reported", CreatedAt = DateTime.Now };
+        var entity = new IncidentReport { Id = Guid.NewGuid(), ReportCode = CodeGenerator.Timestamp("INC"), IncidentDate = dto.IncidentDate, ReportDate = DateTime.Now, IncidentType = dto.IncidentType ?? "Other", Severity = dto.SeverityLevel ?? "Minor", Description = dto.Description ?? "", Status = "Reported", CreatedAt = DateTime.Now };
         _context.IncidentReports.Add(entity);
         await _context.SaveChangesAsync();
         return await GetIncidentReportAsync(entity.Id);
@@ -73,7 +74,7 @@ public class QualityManagementServiceImpl : IQualityManagementService
         var capa = new CAPA
         {
             Id = Guid.NewGuid(),
-            CAPACode = $"CAPA-{DateTime.Now:yyyyMMddHHmmss}",
+            CAPACode = CodeGenerator.Timestamp("CAPA"),
             IncidentReportId = incidentId,
             Source = "Incident",
             Type = "Corrective",
@@ -118,7 +119,7 @@ public class QualityManagementServiceImpl : IQualityManagementService
 
     public async Task<QualityIndicatorDto> CreateIndicatorAsync(QualityIndicatorDto dto)
     {
-        var entity = new QualityIndicator { Id = Guid.NewGuid(), IndicatorCode = dto.IndicatorCode ?? $"QI-{DateTime.Now:yyyyMMddHHmmss}", Name = dto.Name ?? "", Category = dto.Category ?? "Clinical", Description = dto.Description, TargetValue = dto.TargetValue, IsActive = true, CreatedAt = DateTime.Now };
+        var entity = new QualityIndicator { Id = Guid.NewGuid(), IndicatorCode = dto.IndicatorCode ?? CodeGenerator.Timestamp("QI"), Name = dto.Name ?? "", Category = dto.Category ?? "Clinical", Description = dto.Description, TargetValue = dto.TargetValue, IsActive = true, CreatedAt = DateTime.Now };
         _context.QualityIndicators.Add(entity);
         await _context.SaveChangesAsync();
         return await GetIndicatorAsync(entity.Id);
@@ -152,7 +153,7 @@ public class QualityManagementServiceImpl : IQualityManagementService
 
     public async Task<AuditPlanDto> CreateAuditPlanAsync(AuditPlanDto dto)
     {
-        var entity = new AuditPlan { Id = Guid.NewGuid(), AuditCode = dto.PlanCode ?? $"AUD-{DateTime.Now:yyyyMMddHHmmss}", AuditName = dto.PlanCode ?? "", Year = dto.Year, AuditType = dto.AuditType ?? "Scheduled", Standard = dto.Standard ?? "Internal", PlannedStartDate = DateTime.Now, PlannedEndDate = DateTime.Now.AddDays(7), Status = "Planned", LeadAuditorId = Guid.Empty, CreatedAt = DateTime.Now };
+        var entity = new AuditPlan { Id = Guid.NewGuid(), AuditCode = dto.PlanCode ?? CodeGenerator.Timestamp("AUD"), AuditName = dto.PlanCode ?? "", Year = dto.Year, AuditType = dto.AuditType ?? "Scheduled", Standard = dto.Standard ?? "Internal", PlannedStartDate = DateTime.Now, PlannedEndDate = DateTime.Now.AddDays(7), Status = "Planned", LeadAuditorId = Guid.Empty, CreatedAt = DateTime.Now };
         _context.AuditPlans.Add(entity);
         await _context.SaveChangesAsync();
         return new AuditPlanDto { Id = entity.Id, PlanCode = entity.AuditCode, Year = entity.Year, AuditType = entity.AuditType, Status = entity.Status };
@@ -247,7 +248,7 @@ public class QualityManagementServiceImpl : IQualityManagementService
 
     public async Task<CAPADto> CreateCAPAAsync(CAPADto dto)
     {
-        var entity = new CAPA { Id = Guid.NewGuid(), CAPACode = $"CAPA-{DateTime.Now:yyyyMMddHHmmss}", ActionDescription = dto.Title ?? "", Source = dto.Source ?? "Other", ExpectedOutcome = dto.ProblemDescription, Status = "Open", DueDate = dto.TargetCompletionDate, AssignedToId = Guid.Empty, CreatedAt = DateTime.Now };
+        var entity = new CAPA { Id = Guid.NewGuid(), CAPACode = CodeGenerator.Timestamp("CAPA"), ActionDescription = dto.Title ?? "", Source = dto.Source ?? "Other", ExpectedOutcome = dto.ProblemDescription, Status = "Open", DueDate = dto.TargetCompletionDate, AssignedToId = Guid.Empty, CreatedAt = DateTime.Now };
         _context.CAPAs.Add(entity);
         await _context.SaveChangesAsync();
         return await GetCAPAAsync(entity.Id);

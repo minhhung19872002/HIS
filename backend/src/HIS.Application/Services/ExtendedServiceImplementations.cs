@@ -13,6 +13,7 @@ using HIS.Application.DTOs.QualityManagement;
 using HIS.Application.DTOs.PatientPortal;
 using HIS.Application.DTOs.HealthExchange;
 using HIS.Application.DTOs.MassCasualty;
+using HIS.Core.Common;
 
 namespace HIS.Application.Services
 {
@@ -49,7 +50,7 @@ namespace HIS.Application.Services
             return new TeleAppointmentDto
             {
                 Id = Guid.NewGuid(),
-                AppointmentCode = $"TELE-{DateTime.Now:yyyyMMddHHmmss}",
+                AppointmentCode = CodeGenerator.Timestamp("TELE"),
                 PatientId = dto.PatientId,
                 DoctorId = dto.DoctorId,
                 AppointmentDate = dto.AppointmentDate,
@@ -297,7 +298,7 @@ namespace HIS.Application.Services
             return new DietOrderDto
             {
                 Id = Guid.NewGuid(),
-                OrderCode = $"DIET-{DateTime.Now:yyyyMMddHHmmss}",
+                OrderCode = CodeGenerator.Timestamp("DIET"),
                 AdmissionId = dto.AdmissionId,
                 DietTypeId = dto.DietTypeId,
                 Status = "Active",
@@ -390,7 +391,7 @@ namespace HIS.Application.Services
         {
             _logger.LogInformation("Creating TPN order for admission {AdmissionId}", dto.AdmissionId);
             dto.Id = Guid.NewGuid();
-            dto.OrderCode = $"TPN-{DateTime.Now:yyyyMMddHHmmss}";
+            dto.OrderCode = CodeGenerator.Timestamp("TPN");
             dto.OrderDate = DateTime.Now;
             return dto;
         }
@@ -445,7 +446,7 @@ namespace HIS.Application.Services
             return new HAIDto
             {
                 Id = Guid.NewGuid(),
-                CaseCode = $"HAI-{DateTime.Now:yyyyMMddHHmmss}",
+                CaseCode = CodeGenerator.Timestamp("HAI"),
                 AdmissionId = dto.AdmissionId,
                 InfectionType = dto.InfectionType,
                 OnsetDate = dto.OnsetDate,
@@ -493,7 +494,7 @@ namespace HIS.Application.Services
             return new IsolationOrderDto
             {
                 Id = Guid.NewGuid(),
-                OrderCode = $"ISO-{DateTime.Now:yyyyMMddHHmmss}",
+                OrderCode = CodeGenerator.Timestamp("ISO"),
                 AdmissionId = dto.AdmissionId,
                 IsolationType = dto.IsolationType,
                 Precautions = dto.Precautions,
@@ -556,7 +557,7 @@ namespace HIS.Application.Services
             return new OutbreakDto
             {
                 Id = Guid.NewGuid(),
-                OutbreakCode = $"OB-{DateTime.Now:yyyyMMddHHmmss}",
+                OutbreakCode = CodeGenerator.Timestamp("OB"),
                 Name = dto.Name,
                 Organism = dto.Organism,
                 InfectionType = dto.InfectionType,
@@ -683,7 +684,7 @@ namespace HIS.Application.Services
             return new RehabReferralDto
             {
                 Id = Guid.NewGuid(),
-                ReferralCode = $"REHAB-{DateTime.Now:yyyyMMddHHmmss}",
+                ReferralCode = CodeGenerator.Timestamp("REHAB"),
                 PatientId = dto.PatientId,
                 RehabType = dto.RehabType,
                 Status = "Pending",
@@ -740,7 +741,7 @@ namespace HIS.Application.Services
             return new RehabTreatmentPlanDto
             {
                 Id = Guid.NewGuid(),
-                PlanCode = $"PLAN-{DateTime.Now:yyyyMMddHHmmss}",
+                PlanCode = CodeGenerator.Timestamp("PLAN"),
                 ReferralId = dto.ReferralId,
                 Status = "Active",
                 CreatedAt = DateTime.Now
@@ -784,7 +785,7 @@ namespace HIS.Application.Services
             return new RehabSessionDto
             {
                 Id = Guid.NewGuid(),
-                SessionCode = $"SES-{DateTime.Now:yyyyMMddHHmmss}",
+                SessionCode = CodeGenerator.Timestamp("SES"),
                 TreatmentPlanId = planId,
                 ScheduledDate = date,
                 ScheduledTime = time,
@@ -890,7 +891,7 @@ namespace HIS.Application.Services
             return new MedicalEquipmentDto
             {
                 Id = Guid.NewGuid(),
-                EquipmentCode = $"EQ-{DateTime.Now:yyyyMMddHHmmss}",
+                EquipmentCode = CodeGenerator.Timestamp("EQ"),
                 Status = "Active",
                 RegisteredAt = DateTime.Now
             };
@@ -1000,7 +1001,7 @@ namespace HIS.Application.Services
             return new RepairRequestDto
             {
                 Id = Guid.NewGuid(),
-                RequestCode = $"REP-{DateTime.Now:yyyyMMddHHmmss}",
+                RequestCode = CodeGenerator.Timestamp("REP"),
                 EquipmentId = dto.EquipmentId,
                 Status = "Pending",
                 RequestedAt = DateTime.Now
@@ -1123,7 +1124,7 @@ namespace HIS.Application.Services
             return new MedicalStaffDto
             {
                 Id = dto.Id ?? Guid.NewGuid(),
-                StaffCode = $"STAFF-{DateTime.Now:yyyyMMddHHmmss}",
+                StaffCode = CodeGenerator.Timestamp("STAFF"),
                 Status = "Active"
             };
         }
@@ -1411,7 +1412,7 @@ namespace HIS.Application.Services
             return new IncidentReportDto
             {
                 Id = Guid.NewGuid(),
-                IncidentCode = $"INC-{DateTime.Now:yyyyMMddHHmmss}",
+                IncidentCode = CodeGenerator.Timestamp("INC"),
                 Status = "Open",
                 ReportedAt = DateTime.Now
             };
@@ -1582,7 +1583,7 @@ namespace HIS.Application.Services
         {
             _logger.LogInformation("Creating CAPA");
             dto.Id = Guid.NewGuid();
-            dto.CAPACode = $"CAPA-{DateTime.Now:yyyyMMddHHmmss}";
+            dto.CAPACode = CodeGenerator.Timestamp("CAPA");
             return dto;
         }
 
@@ -1704,7 +1705,7 @@ namespace HIS.Application.Services
             return new PortalAppointmentDto
             {
                 Id = Guid.NewGuid(),
-                AppointmentCode = $"APT-{DateTime.Now:yyyyMMddHHmmss}",
+                AppointmentCode = CodeGenerator.Timestamp("APT"),
                 Status = "Confirmed"
             };
         }
@@ -2067,7 +2068,7 @@ namespace HIS.Application.Services
             return new ElectronicReferralDto
             {
                 Id = Guid.NewGuid(),
-                ReferralCode = $"EREF-{DateTime.Now:yyyyMMddHHmmss}",
+                ReferralCode = CodeGenerator.Timestamp("EREF"),
                 Status = "Draft",
                 CreatedAt = DateTime.Now
             };
@@ -2110,7 +2111,7 @@ namespace HIS.Application.Services
             return new TeleconsultationRequestDto
             {
                 Id = Guid.NewGuid(),
-                RequestCode = $"TCON-{DateTime.Now:yyyyMMddHHmmss}",
+                RequestCode = CodeGenerator.Timestamp("TCON"),
                 Status = "Pending",
                 CreatedAt = DateTime.Now
             };

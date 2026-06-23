@@ -1,5 +1,6 @@
 using HIS.Application.DTOs.PatientPortal;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
@@ -468,7 +469,7 @@ th {{ background: #f0f0f0; text-align: center; }}
         var invoiceId = dto.InvoiceIds?.FirstOrDefault() ?? Guid.Empty;
         var invoice = await _context.Receipts.FindAsync(invoiceId);
         var amount = invoice?.FinalAmount ?? 0;
-        var entity = new OnlinePayment { Id = Guid.NewGuid(), PatientId = patientId, ReferenceId = invoiceId, PaymentType = "Invoice", Amount = amount, PaymentMethod = dto.PaymentMethod ?? "VNPay", Status = "Pending", TransactionCode = $"PAY-{DateTime.Now:yyyyMMddHHmmss}", CreatedAt = DateTime.Now };
+        var entity = new OnlinePayment { Id = Guid.NewGuid(), PatientId = patientId, ReferenceId = invoiceId, PaymentType = "Invoice", Amount = amount, PaymentMethod = dto.PaymentMethod ?? "VNPay", Status = "Pending", TransactionCode = CodeGenerator.Timestamp("PAY"), CreatedAt = DateTime.Now };
         _context.OnlinePayments.Add(entity);
         await _context.SaveChangesAsync();
         return new OnlinePaymentDto { Id = entity.Id, Amount = entity.Amount, PaymentMethod = entity.PaymentMethod, Status = entity.Status };

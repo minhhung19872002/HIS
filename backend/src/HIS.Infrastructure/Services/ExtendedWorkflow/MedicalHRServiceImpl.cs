@@ -1,5 +1,6 @@
 using HIS.Application.DTOs.MedicalHR;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
@@ -34,7 +35,7 @@ public class MedicalHRServiceImpl : IMedicalHRService
     public async Task<MedicalStaffDto> SaveStaffAsync(SaveMedicalStaffDto dto)
     {
         var entity = dto.Id.HasValue ? await _context.MedicalStaffs.FindAsync(dto.Id.Value) : null;
-        if (entity == null) { entity = new MedicalStaff { Id = Guid.NewGuid(), StaffCode = $"STF-{DateTime.Now:yyyyMMddHHmmss}", CreatedAt = DateTime.Now }; _context.MedicalStaffs.Add(entity); }
+        if (entity == null) { entity = new MedicalStaff { Id = Guid.NewGuid(), StaffCode = CodeGenerator.Timestamp("STF"), CreatedAt = DateTime.Now }; _context.MedicalStaffs.Add(entity); }
         entity.FullName = dto.FullName; entity.StaffType = dto.StaffType ?? "Other"; entity.PrimaryDepartmentId = dto.DepartmentId; entity.LicenseNumber = dto.PracticeLicenseNumber; entity.Specialty = dto.Specialty; entity.Status = "Active";
         await _context.SaveChangesAsync();
         return await GetStaffAsync(entity.Id);

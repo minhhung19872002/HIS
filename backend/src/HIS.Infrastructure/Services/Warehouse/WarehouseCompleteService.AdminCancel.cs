@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Warehouse;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
@@ -345,7 +346,7 @@ public partial class WarehouseCompleteService {
         var importReceipt = new ImportReceipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"HT-{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptCode = CodeGenerator.Timestamp("HT"),
             ImportType = 3, // Hoàn trả khoa
             WarehouseId = exportReceipt.WarehouseId,
             Note = $"Hoàn trả từ hủy đơn thuốc: {reason}",
@@ -440,7 +441,7 @@ public partial class WarehouseCompleteService {
             invoice = new InvoiceSummary
             {
                 Id = Guid.NewGuid(),
-                InvoiceCode = $"INV-{DateTime.Now:yyyyMMddHHmmss}",
+                InvoiceCode = CodeGenerator.Timestamp("INV"),
                 InvoiceDate = DateTime.Now,
                 MedicalRecordId = medicalRecordId.Value,
                 TotalMedicineAmount = total,
@@ -579,7 +580,7 @@ public partial class WarehouseCompleteService {
         var mergedReceipt = new ExportReceipt
         {
             Id = Guid.NewGuid(),
-            ReceiptCode = $"MRG-{DateTime.Now:yyyyMMddHHmmss}",
+            ReceiptCode = CodeGenerator.Timestamp("MRG"),
             ReceiptDate = DateTime.Now,
             WarehouseId = firstVoucher.WarehouseId,
             ExportType = firstVoucher.ExportType,

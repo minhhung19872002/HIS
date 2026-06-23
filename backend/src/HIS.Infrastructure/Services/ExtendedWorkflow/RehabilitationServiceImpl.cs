@@ -1,5 +1,6 @@
 using HIS.Application.DTOs.Rehabilitation;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
@@ -77,7 +78,7 @@ public class RehabilitationServiceImpl : IRehabilitationService
 
     public async Task<RehabReferralDto> CreateReferralAsync(CreateRehabReferralDto dto)
     {
-        var entity = new RehabReferral { Id = Guid.NewGuid(), ReferralCode = $"REH-{DateTime.Now:yyyyMMddHHmmss}", PatientId = dto.PatientId, RehabType = dto.RehabType ?? "PT", Diagnosis = dto.PrimaryDiagnosis ?? "", Reason = dto.RehabGoals ?? "", Status = "Pending", CreatedAt = DateTime.Now };
+        var entity = new RehabReferral { Id = Guid.NewGuid(), ReferralCode = CodeGenerator.Timestamp("REH"), PatientId = dto.PatientId, RehabType = dto.RehabType ?? "PT", Diagnosis = dto.PrimaryDiagnosis ?? "", Reason = dto.RehabGoals ?? "", Status = "Pending", CreatedAt = DateTime.Now };
         _context.RehabReferrals.Add(entity);
         await _context.SaveChangesAsync();
         return await GetReferralAsync(entity.Id);
@@ -132,7 +133,7 @@ public class RehabilitationServiceImpl : IRehabilitationService
 
     public async Task<RehabTreatmentPlanDto> CreateTreatmentPlanAsync(CreateTreatmentPlanDto dto)
     {
-        var entity = new RehabTreatmentPlan { Id = Guid.NewGuid(), PlanCode = $"RTP-{DateTime.Now:yyyyMMddHHmmss}", ReferralId = dto.ReferralId, RehabType = "PT", PlannedSessions = dto.PlannedTotalSessions, Frequency = $"{dto.SessionsPerWeek}x/week", DurationMinutesPerSession = dto.MinutesPerSession, StartDate = dto.StartDate, Status = "Active", CreatedAt = DateTime.Now };
+        var entity = new RehabTreatmentPlan { Id = Guid.NewGuid(), PlanCode = CodeGenerator.Timestamp("RTP"), ReferralId = dto.ReferralId, RehabType = "PT", PlannedSessions = dto.PlannedTotalSessions, Frequency = $"{dto.SessionsPerWeek}x/week", DurationMinutesPerSession = dto.MinutesPerSession, StartDate = dto.StartDate, Status = "Active", CreatedAt = DateTime.Now };
         _context.RehabTreatmentPlans.Add(entity);
         await _context.SaveChangesAsync();
         return await GetTreatmentPlanAsync(entity.Id);

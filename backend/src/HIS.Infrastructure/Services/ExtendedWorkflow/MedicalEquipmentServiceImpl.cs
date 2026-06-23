@@ -1,5 +1,6 @@
 using HIS.Application.DTOs.Equipment;
 using HIS.Application.Services;
+using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
@@ -32,7 +33,7 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
 
     public async Task<MedicalEquipmentDto> RegisterEquipmentAsync(RegisterEquipmentDto dto)
     {
-        var entity = new MedicalEquipment { Id = Guid.NewGuid(), EquipmentCode = $"EQ-{DateTime.Now:yyyyMMddHHmmss}", EquipmentName = dto.Name, Category = dto.Category ?? "General", SerialNumber = dto.SerialNumber, Manufacturer = dto.Manufacturer, DepartmentId = dto.DepartmentId, Status = "Active", PurchaseDate = dto.PurchaseDate, CreatedAt = DateTime.Now };
+        var entity = new MedicalEquipment { Id = Guid.NewGuid(), EquipmentCode = CodeGenerator.Timestamp("EQ"), EquipmentName = dto.Name, Category = dto.Category ?? "General", SerialNumber = dto.SerialNumber, Manufacturer = dto.Manufacturer, DepartmentId = dto.DepartmentId, Status = "Active", PurchaseDate = dto.PurchaseDate, CreatedAt = DateTime.Now };
         _context.MedicalEquipments.Add(entity);
         await _context.SaveChangesAsync();
         return await GetEquipmentAsync(entity.Id);
@@ -153,7 +154,7 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
 
     public async Task<RepairRequestDto> CreateRepairRequestAsync(CreateRepairRequestDto dto)
     {
-        var entity = new RepairRequest { Id = Guid.NewGuid(), RequestCode = $"REP-{DateTime.Now:yyyyMMddHHmmss}", EquipmentId = dto.EquipmentId, RequestDate = DateTime.Now, ProblemDescription = dto.ProblemDescription ?? "", Priority = dto.Severity ?? "Normal", Status = "Pending", CreatedAt = DateTime.Now };
+        var entity = new RepairRequest { Id = Guid.NewGuid(), RequestCode = CodeGenerator.Timestamp("REP"), EquipmentId = dto.EquipmentId, RequestDate = DateTime.Now, ProblemDescription = dto.ProblemDescription ?? "", Priority = dto.Severity ?? "Normal", Status = "Pending", CreatedAt = DateTime.Now };
         _context.RepairRequests.Add(entity);
         var eq = await _context.MedicalEquipments.FindAsync(dto.EquipmentId);
         if (eq != null) eq.Status = "InMaintenance";
