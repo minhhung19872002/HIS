@@ -12,6 +12,9 @@
 - **DEDUP GitHub (bắt buộc):** TRƯỚC khi tạo task test mới → `gh issue list --label test`. Board đã có **74 test
   issue #216–289**. Mỗi phân hệ ở đây **map vào issue cha** (xem cột "GitHub" trong viewer), KHÔNG tạo issue trùng.
   Chỉ phân hệ THỰC SỰ chưa phủ → đánh dấu **"đề xuất issue mới"** (mục candidate), hỏi user duyệt, **không tự tạo**.
+- **Chạy test bằng NHIỀU cửa sổ chat song song:** chia 4 cửa cụ thể (38 phân hệ + 12 luồng + cross) =
+  [`docs/workspace-docs/20-backlog/test-4window-allocation.md`](../../workspace-docs/20-backlog/test-4window-allocation.md);
+  cơ chế (fail→fix-issue · manifest mutex · model-tier · read-only side-effect) = `.claude/workflow/parallel-windows.md` §7.
 
 ## 1. Cấu trúc thư mục
 ```

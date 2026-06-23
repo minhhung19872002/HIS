@@ -45,6 +45,10 @@ export default defineConfig({
   },
   server: {
     port: 3001,
+    // strictPort: fail loudly if 3001 is taken instead of silently moving to 3002
+    // (a 2nd dev server on 3002 would still proxy to the runner's 5106 → wrong-window testing).
+    // See .claude/workflow/parallel-windows.md case #4.
+    strictPort: true,
     proxy: {
       '/api': {
         target: 'http://localhost:5106',

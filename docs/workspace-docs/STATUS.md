@@ -5,9 +5,14 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-06-23**.
+> Cập nhật cuối: **2026-06-24**.
 
 ## Đang dở (uncommitted)
+- **Governance: mô hình 4 cửa sổ song song** (2026-06-24, phiên Claude này): tạo `.claude/workflow/parallel-windows.md`
+  (4 cửa SOẠN + 1 RUNNER · role×registry · §2b skill-routing theo tầng model · §7 **chế độ TEST** prod+MCP song song,
+  fail→fix-issue, manifest mutex, case T1-T6) + 1 dòng `REGISTRY.md` + `vite.config.ts` (`strictPort`) + mở rộng memory
+  `feedback_antigravity-parallel-same-tree` (Antigravity→bất kỳ tác nhân local). **LINT OK**, CHƯA commit. ⏳ Chờ user: (a) duyệt
+  commit; (b) **T5** — luồng prod side-effect (HĐĐT/payment/BHXH/SMS) giữ read-only hay chỉ định luồng kích thật.
 - **#192 NotEmptyGuid (phần required-id)** (2026-06-23): tạo `Common/NotEmptyGuidAttribute.cs` + 12 `[NotEmptyGuid]` trên
   required-id non-nullable ở 5 DTO (Payment/Billing/Prescription×2/Reception). Build BE EXIT 0, additive sạch (12 attr+5 using,
   0 dòng logic). An toàn: chỉ reject `Guid.Empty` (đã chắc fail hôm nay → nâng 500/not-found thành 400). **CHỜ user quyết push**
