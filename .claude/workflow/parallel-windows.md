@@ -162,3 +162,43 @@ không phân hệ/luồng nào bị bỏ sót.
 | T4 | **Thiếu bước fail→fix-issue** (decay khi 4 cửa) | 🔴 | **DoD gate**: fail chưa có fix-issue link 2 chiều = chưa DONE; integrator audit |
 | T5 | Luồng prod **bắn side-effect thật** (HĐĐT/payment/BHXH/SMS/Zalo) | 🔴 | Mặc định **chỉ chụp read-only**; kích hành động thật CHỈ khi xác nhận mock-mode + **user duyệt từng luồng** |
 | T6 | Sửa tay `data/*.js` đụng nhau | 🟡 | **READ-ONLY** lúc chạy; đổi plan qua workflow sinh-plan |
+| T7 | **A — 4 cửa CHUNG 1 browser/profile** (cửa A điều hướng khi B đang chụp; lock `user-data-dir`) | 🔴 | Mỗi cửa **1 browser context + profile/`user-data-dir` RIÊNG** (Playwright: context riêng; chrome-devtools: `--remote-debugging-port` riêng/cửa). KHÔNG share 1 Chrome |
+| T8 | **B — cùng `admin` + thiếu account role** (single-session đá nhau; PERM-001..012 cần DOCTOR/NURSE/CASHIER…) | 🔴 | Mỗi cửa **session/cookie-jar riêng** (profile riêng); **verify tồn tại account role** trên môi trường test; thiếu → đánh "blocked: cần seed account role", KHÔNG login admin rồi giả định role khác |
+| T9 | **D — prod là mục tiêu DI ĐỘNG** (Vercel auto-deploy mỗi push; data prod drift) → ảnh không nhất quán, fail giả | 🟠 | **Đóng băng version** lúc test (không để máy nào push→deploy); ghi **commit-sha + thời điểm + data-context** vào evidence/issue; re-test cùng version/data |
+| T10 | **E — PNG vào git** (ignore chỉ ở root) → repo bloat + push-race binary không merge | 🔴 | **Gitignore** ảnh evidence (local-only); viewer đọc local; chia sẻ qua artifact/storage (hoặc git-lfs nếu cần in-repo). `flows/`·`cross/` là folder chung → **integrator gom**, cửa khác không commit ảnh ở đó |
+| T11 | **F — state không chụp tất định** (loading thoáng qua; error-500/empty khó ép trên prod read-only) | 🟠 | MCP **ép state** (network throttle/offline→loading; block route→error; filter→empty) khi được; prod read-only không ép được → đánh **"N/A: cần staging"** có lý do — KHÔNG fake, KHÔNG gap câm |
+| T12 | **G — 4 browser MCP ăn RAM** trên 16GB | 🟠 | **Headless** + cap **2-3 browser đồng thời** (không 4); đóng page/snapshot sau mỗi capture |
+| T13 | **H — nhiễu hạ tầng → bug giả** (Cloud Run cold-start/timeout/429/WAF chụp ra "error") | 🟠 | Phân biệt **infra vs app**: chỉ tạo bug-issue khi **tái hiện ≥2 lần** + xem network status/timing; retry trước khi kết luận |
+| T14 | **I — MCP rớt giữa chừng** → evidence dở, gap câm | 🟡 | Item dở = **KHÔNG done**; integrator audit (mục DoD) bắt gap; capture lại |
+| T15 | **N1 — Plan ≠ thực tế** (route/màn là GUESS `route_guess`) → MCP vào route đoán → **404 hàng loạt = fail giả + bug-issue sai** | 🔴 | **Cổng reconciliation TRƯỚC khi chụp**: verify từng route/màn với `App.tsx` thật → sửa plan (workflow sinh-plan) → mới chụp. KHÔNG chụp route đoán |
+| T16 | **N2 — PHI nhạy cảm vào ảnh** (HIV/Lao/Pháp y/Tâm thần) = lưu dữ liệu sức khỏe được luật bảo vệ đặc biệt | 🔴 **P0** | **CHỈ data tổng hợp/giả** (staging); prod → **loại module nhạy cảm HOẶC mask PII**; ảnh đã gitignore + giữ trên D:, KHÔNG gửi ra ngoài |
+| T17 | **N3 — Thiếu test-id → MCP giòn** (bám text/Antd-class) → flaky, fail giả | 🟠 | **Screenshot-first** cho state tĩnh (không cần selector); luồng tương tác → thêm `data-testid` vào `_v2kit` (task fix tiền đề) hoặc làm tay |
+| T18 | **N4 — LLM tự hành GHI prod không giám sát** (người chỉ kèm 1-2 cửa) → lỡ xoá/submit/bắn side-effect trên bệnh viện LIVE | 🔴 | **Khoá BỘ CÔNG CỤ MCP của cửa prod về READ-ONLY** (navigate/snapshot/screenshot/đọc console-network); **CHẶN** click-submit/fill/upload/accept-dialog/`evaluate`/`run_code`; ghi chỉ ở staging bật rõ |
+| T19 | **N5 — Hỏng sequence DÙNG CHUNG** (mã BN/số biên lai/số hàng đợi qua `ICodeGenerator`) → race counter trên prod thật | 🔴 | Read-only prod loại bỏ; ghi chỉ **staging** |
+| T20 | **N6 — JWT hết hạn giữa run dài** (401=error giả) + **GitHub API rate-limit** (4 cửa+máy-2 spam `gh`) → claim/dedup im lặng fail | 🟠 | Re-auth check/cửa; **throttle `gh`** + batch; coi 401/429 là **infra** (như T13), KHÔNG tạo bug |
+| T21 | **N7 — Cạn ĐĨA C:** (máy này C: gần đầy) — profile/cache/download/ảnh 4 browser default về C: | 🟠 | Trỏ `user-data-dir` + downloads + output evidence **sang D:** |
+| T22 | **N8 — Done-metric (% evidence) GAMEABLE** (khớp tên↔slot) → % cao mà ảnh sai / thấp dù đã chụp = "done" giả | 🟠 | Integrator **validate tên-file theo schema + bind đúng slot** trước khi tin %; **% đơn lẻ KHÔNG phải DoD** |
+| T23 | **N9 — Cửa test "tiện tay fix"** bug nó tìm → phá test-last + trộn scope + cửa test không có build-env | 🔴 | Cửa test **CHỈ log fix-issue, KHÔNG fix**; fix ở cửa fix-phase riêng (có build-env) |
+| T24 | **N10 — Máy-2 push BE migration giữa test** → Cloud Run deploy → **prod SCHEMA đổi giữa run** | 🔴 | **Đóng băng cửa sổ deploy** lúc test (không push backend/migration); chốt qua GitHub board |
+| T25 | **R1 — UTF-16 BOM nuốt data**: lỡ dùng **PowerShell ghi** `data/*.js`/evidence (default UTF-16 BOM) → hỏng file → viewer vỡ | 🔴 | Ghi data/text **chỉ bằng Edit/Write (UTF-8)** hoặc `-Encoding utf8`; CẤM `Set-Content` default |
+| T26 | **R2 — `manifest.js` committed nhưng ảnh gitignore** → máy khác mở viewer = **vỡ ảnh** (manifest trỏ path local-only) | 🟠 | **Gitignore luôn `manifest.js`** (regen/máy) + untrack; chia sẻ ảnh+manifest qua artifact |
+| T27 | **R3 — Flake animation/lazy-load** (Antd transition · recharts · Cornerstone DICOM) → screenshot giữa render = mờ/thiếu | 🟠 | MCP **wait-for-stable** (network-idle + element visible + delay) trước mỗi capture |
+| T28 | **R4 — Viewport/DPI lệch giữa 4 cửa** → layout khác → reviewer tưởng vỡ | 🟡 | **Pin viewport** (vd 1920×1080) + DPI đồng nhất mọi cửa |
+| T29 | **R5 — Data giả logic-nhất-quán là task LỚN** (seed bừa → flow fail vì data = fail giả) | 🟠 | **Seed-generator tôn trọng FK + business-state** (đưa vào kế hoạch staging, không freebie) |
+| T30 | **R6 — Đốt quota** 4 cửa MCP screenshot+reason hàng giờ | 🟠 | Cửa **capture chạy Sonnet/Haiku** (§2b); batch; giảm số cửa khi cần |
+| T31 | **R7 — DICOM/RIS + Telemedicine(Jitsi)** khó evidence read-only (cần ảnh DICOM/phiên video thật) | 🟡 | Đánh **"blocked: cần staging + data DICOM giả"**; không fake-done |
+| T32 | **R8 — Integrator single-point-of-failure** (chết → manifest không regen + audit không chạy) | 🟡 | Fallback: **bất kỳ cửa nào regen được** + checklist audit commit sẵn |
+
+### 7c. MÔI TRƯỜNG test theo LOẠI (giải mâu thuẫn read-only ⊥ E2E — góc C)
+12 luồng là **data-consistency/E2E → bản chất phải GHI + kiểm soát data**. KHÔNG chọn 1 môi trường cho tất cả:
+- **State per-màn TĨNH** (list · form · detail · validation · permission-view) → **PROD read-only NGAY** (an toàn, phủ phần lớn checklist 38 phân hệ).
+- **12 luồng E2E + state ÉP (error/empty/loading) + module NHẠY CẢM (HIV/Lao/Pháp y/Tâm thần)** → cần GHI + kiểm soát data + KHÔNG đụng PHI thật → **STAGING (ĐÃ DUYỆT 2026-06-24)**: 1 Cloud SQL `HIS_staging` + 1 Cloud Run staging revision · **data giả LOGIC-NHẤT-QUÁN** (referential-integrity + business-state hợp lệ để flow chạy) · reset/seed được → **tái hiện** · ép được error/empty · **đóng băng version** (sửa T9/T24). Trước khi staging xong → flows + module nhạy cảm đánh **"blocked: cần staging"** — KHÔNG fake-done.
+- **Prod write-sandbox** = phương án CHÓT (KHÔNG khuyến nghị) cho vài luồng **phi-tài-chính**, `ZZTEST_` + cleanup + tránh cổng tiền — đã có staging thì BỎ.
+> Vì sao tách: static-only-mãi = **ảo giác phủ** (thiếu integration = làm THIẾU); prod-write = **bug giả do drift + PHI thật vào ảnh** (làm SAI + rò rỉ). Staging + data giả xoá cả hai.
+
+## 8. BA TRỤ root-fix (khắc phục TRIỆT ĐỂ — giải 1 trụ tắt nhiều nguy)
+Bảng case T1-T24 là *vá lẻ*; 3 trụ dưới mới là *gốc* — ưu tiên dựng:
+1. **STAGING + DATA GIẢ logic-nhất-quán** (đã duyệt) → tắt **N2(PHI) · N5(sequence) · N10(schema) · F(ép state) · D(version)** cùng lúc. Đây là khắc phục triệt để nhất; prod-test chỉ là chắp vá.
+2. **MCP allow-list READ-ONLY cho cửa prod** (không grant tool ghi: click-submit/fill/upload/`evaluate`/`run_code`) → tắt **N4(LLM rogue) · T5(side-effect)** ở tầng *kỹ thuật*, không dựa kỷ luật.
+3. **Cổng reconciliation route/selector + screenshot-first** → tắt **N1(404 giả) · N3(giòn)** trước khi tốn công chụp.
+> 2 rủi ro KHÔNG vá được bằng quy trình — **PHI thật vào ảnh (N2)** + **LLM tự hành ghi prod (N4)** — BẮT BUỘC giải bằng Trụ 1 + Trụ 2. Chưa có 2 trụ → chỉ chạy **read-only state tĩnh, loại module nhạy cảm, bỏ 12 luồng E2E**.

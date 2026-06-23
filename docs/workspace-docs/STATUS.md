@@ -8,11 +8,15 @@
 > Cập nhật cuối: **2026-06-24**.
 
 ## Đang dở (uncommitted)
-- **Governance: mô hình 4 cửa sổ song song** (2026-06-24, phiên Claude này): tạo `.claude/workflow/parallel-windows.md`
-  (4 cửa SOẠN + 1 RUNNER · role×registry · §2b skill-routing theo tầng model · §7 **chế độ TEST** prod+MCP song song,
-  fail→fix-issue, manifest mutex, case T1-T6) + 1 dòng `REGISTRY.md` + `vite.config.ts` (`strictPort`) + mở rộng memory
-  `feedback_antigravity-parallel-same-tree` (Antigravity→bất kỳ tác nhân local). **LINT OK**, CHƯA commit. ⏳ Chờ user: (a) duyệt
-  commit; (b) **T5** — luồng prod side-effect (HĐĐT/payment/BHXH/SMS) giữ read-only hay chỉ định luồng kích thật.
+- **Governance: mô hình 4 cửa sổ song song** (2026-06-24): `3b1c57b` PUSHED — `.claude/workflow/parallel-windows.md`
+  (4 SOẠN + 1 RUNNER · §2b skill-routing theo tầng · §7 TEST mode) + allocation `20-backlog/test-4window-allocation.md`
+  (38 phân hệ+12 luồng+cross→C1-C4) + `session-start.sh` cross-identify (chống nhầm Antigravity, mọi máy) + REGISTRY + vite strictPort.
+- **Governance: hoàn thiện cơ chế test 4 cửa** (2026-06-24, đang commit batch): §7 **case T7-T32** (A-I + N1-N10 + R1-R8:
+  browser/auth/moving-target/PNG-git/uncapturable/RAM/infra-noise/MCP-drop · plan-drift/PHI/test-id/LLM-rogue-prod/sequence/JWT/disk-C/
+  done-metric/test≠fix/migration-mid-test · BOM/manifest-vs-image/animation-flake/viewport/seed-effort/quota/DICOM/integrator-SPOF)
+  + **§8 BA TRỤ root-fix** + **§7c STAGING DUYỆT** (data giả logic-nhất-quán, module nhạy cảm→staging) + **gitignore ảnh+`manifest.js`**
+  (untrack) + **kế hoạch staging** `20-backlog/staging-plan.md` (Cloud SQL `HIS_staging` + Cloud Run revision + seed-generator + MCP read-only).
+  **LINT OK.** Kế tiếp: thực thi staging P1-P5 khi lên lịch (test gated sau fix).
 - **#192 NotEmptyGuid (phần required-id)** (2026-06-23): tạo `Common/NotEmptyGuidAttribute.cs` + 12 `[NotEmptyGuid]` trên
   required-id non-nullable ở 5 DTO (Payment/Billing/Prescription×2/Reception). Build BE EXIT 0, additive sạch (12 attr+5 using,
   0 dòng logic). An toàn: chỉ reject `Guid.Empty` (đã chắc fail hôm nay → nâng 500/not-found thành 400). **CHỜ user quyết push**

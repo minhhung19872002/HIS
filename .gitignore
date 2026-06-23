@@ -199,6 +199,15 @@ design-system/bundle-*
 design-system-v2/his/chats/
 design-system-v2/his/project/scraps/
 design-system-v2/his/project/screenshots/
+
+# Evidence screenshots (giai doan TEST) — artifact local-only, KHONG commit (binary bloat + push-race khong merge duoc).
+# Viewer doc anh local; chia se qua artifact/storage hoac git-lfs neu can in-repo. Xem .claude/workflow/parallel-windows.md §7 (T10).
+docs/architecture/evidence/**/*.png
+docs/architecture/evidence/**/*.jpg
+docs/architecture/evidence/**/*.jpeg
+docs/architecture/evidence/**/*.webp
+# manifest.js liet ke anh local-only -> regen moi may (R2 / parallel-windows.md §7 T26); khong commit ke o cross-machine vo anh.
+docs/architecture/evidence/manifest.js
 design-system-v2/his/project/uploads/
 
 # Rider / JetBrains build cache
