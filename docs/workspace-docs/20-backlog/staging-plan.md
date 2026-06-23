@@ -5,8 +5,17 @@
 > Hai rủi ro KHÔNG vá được bằng quy trình (PHI + LLM tự-ghi-prod) **bắt buộc** cần staging. Đây là **kế hoạch** (chưa thực thi).
 > ⚠️ Test làm CUỐI; staging là **hạ tầng chuẩn bị** — dựng được sớm, nhưng **chạy test** vẫn gated sau khi mọi fix DONE.
 
+## 0. ⚠️ ĐỊNH VỊ LẠI (red-team vòng-4, 2026-06-24)
+Repo **ĐÃ CÓ ~127 test Playwright/Cypress** (`e2e/workflows/00-13` = 12 luồng · `e2e-prod/*` prod read-only · `clinical-safety-checks` assert patient-safety) + CI `e2e-prod-smoke.yml`. → **Staging KHÔNG phải để chạy 4-cửa-MCP thủ công**, mà để **chạy bộ Playwright E2E workflow SẴN CÓ (có ghi) trên DB seed an-toàn** + sinh evidence-screenshot bằng Playwright. 4-cửa-MCP demote → optional (parallel-windows.md §9).
+> **TRƯỚC khi dựng:** chốt **"test để LÀM GÌ"** (compliance/correctness/regression). Nếu chỉ cần correctness → có thể chỉ cần **chạy suite sẵn có trong CI**, chưa chắc cần staging riêng.
+
 ## 1. Mục tiêu
-Một môi trường **giống prod nhưng ghi thoải mái + data GIẢ logic-nhất-quán + reset được**, để chạy **12 luồng E2E + state ép + module nhạy cảm** mà KHÔNG đụng prod/PHI thật. 4 cửa test ghi song song an toàn (mỗi cửa 1 domain data).
+Môi trường **giống prod, ghi thoải mái, data GIẢ logic-nhất-quán, reset được** để **chạy các Playwright E2E workflow có-ghi (00-13) + module nhạy cảm** mà KHÔNG đụng prod/PHI thật.
+
+## 1b. ⚠️ Blocker thực thi (máy này)
+**Máy hiện tại THIẾU `gcloud`/auth** (memory `reference_local-dev-env`) → **KHÔNG provision được Cloud SQL/Cloud Run từ đây**. Phần `gcloud create/deploy` phải chạy trên **máy có gcloud auth**. Spike MCP (đề xuất cũ) **MOOT** — Playwright đã chứng minh automation chạy được trên app này.
+> **▶ Runbook thực thi từng bước (gcloud + seed-qua-API + chạy Playwright) = [`staging-runbook.md`](staging-runbook.md)** — bạn execute ở máy có gcloud.
+> **Seed = QUA APP, không SQL thô:** Users/Roles seed bằng `DatabaseSeeder.cs` + hashing `AuthService.cs` → SQL tay sai hash/FK. Seed logic-nhất-quán = **chạy create-flow E2E sẵn có** (app tự enforce) + tạo account role `ZZTEST_*` qua admin API (runbook §4).
 
 ## 2. Kiến trúc (tái dùng hạ tầng sẵn — rẻ, KHÔNG tốn RAM local)
 | Thành phần | Cách dựng | Ghi chú |

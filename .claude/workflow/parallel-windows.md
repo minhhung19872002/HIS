@@ -202,3 +202,15 @@ Bảng case T1-T24 là *vá lẻ*; 3 trụ dưới mới là *gốc* — ưu ti�
 2. **MCP allow-list READ-ONLY cho cửa prod** (không grant tool ghi: click-submit/fill/upload/`evaluate`/`run_code`) → tắt **N4(LLM rogue) · T5(side-effect)** ở tầng *kỹ thuật*, không dựa kỷ luật.
 3. **Cổng reconciliation route/selector + screenshot-first** → tắt **N1(404 giả) · N3(giòn)** trước khi tốn công chụp.
 > 2 rủi ro KHÔNG vá được bằng quy trình — **PHI thật vào ảnh (N2)** + **LLM tự hành ghi prod (N4)** — BẮT BUỘC giải bằng Trụ 1 + Trụ 2. Chưa có 2 trụ → chỉ chạy **read-only state tĩnh, loại module nhạy cảm, bỏ 12 luồng E2E**.
+
+## 9. ⚠️ ĐỊNH VỊ LẠI (red-team vòng-4 — ĐỌC TRƯỚC KHI DÙNG §1-§8)
+**Phát hiện 2026-06-24 (verify):** repo **ĐÃ CÓ ~127 test Playwright/Cypress** — `frontend/e2e/workflows/00-13` = **đúng 12 luồng E2E** · `frontend/e2e-prod/*` chạy **PROD read-only** · `e2e/clinical-safety-checks.spec.ts` **assert patient-safety rule thật** · CI `.github/workflows/e2e-prod-smoke.yml` tự chạy sau deploy trên **GitHub runner** (KHÔNG đụng 16GB local).
+- **Correctness** → dùng/mở rộng **SUITE SẴN CÓ** (deterministic · CI · assert thật · KHÔNG collision 4-cửa). **KHÔNG dựng lại bằng 4-cửa-MCP thủ công.**
+- **Evidence-screenshot (compliance/tender)** → sinh bằng **Playwright script** (headless · CI · auto-name), KHÔNG cần 4 cửa MCP người.
+- **Mô hình 4-cửa-MCP (§1-§8) DEMOTE → chỉ OPTIONAL** cho phần Playwright không tới được. **Screenshot ≠ correctness (M2)**: "% evidence" KHÔNG phải "đã test".
+- **Cảnh báo tầng-móng (red-team vòng-4):** M1 trùng-suite-sẵn-có · M2 false-confidence · M3 test-last ⊥ test-đẻ-fix (mâu thuẫn logic) · M4 phức-tạp-là-an-toàn tự-bại (32 case) · M5 người=SPOF · M6 "prod chưa bán" hết-hạn-ngầm · M7 doc≠enforce · M8 4-cửa-MCP chưa-verify (Playwright đã chạy thật) · M9 vài 🔴 cũ chưa verify/over-state · M10 priority-inversion (fix đang mở mới gate mọi thứ).
+> **Hướng đúng:** ưu tiên **chạy/mở rộng suite Playwright sẵn có** (CI hoặc trên staging); 4-cửa-MCP là phụ. Trước khi đầu tư gì thêm → chốt **"test để LÀM GÌ"** (compliance vs correctness vs regression).
+
+**Red-team vòng-5 (verify 2026-06-24 — HẠ tin-cậy "suite sẵn có = đủ" xuống THẤP):** suite có **hard-skip rot** (`'selector stale… route changed'`, `'No reception rows (seed failed'`, `'No inpatient rows'`) · **27 `test.skip`** phần lớn skip-if-no-data → **xanh-giả-do-skip** · **69 file trỏ localhost** (bulk cần backend, CI chỉ chạy subset prod) · Cypress baseUrl `3003`≠dev`3001` · workflow read-dominant → **seed-via-test CIRCULAR**.
+- **NR1** suite rot → xanh giả · **NR2** skip-on-no-data trên staging → false-green · **NR3** seed phải CHUYÊN DỤNG (không "chạy test để seed") · **NR4** fresh-DB schema thiếu cột câm (runner ordinal+nuốt-lỗi) → validate data-layer, KHÔNG chỉ schema-drift · **NR5** sửa-suite = backlog fix ẩn · **NR6** *analysis-paralysis*: 5 vòng red-team rồi → **DỪNG lý thuyết, chạy 1 workflow thật để đo** (thực nghiệm bác/xác nhận).
+- Quy tắc cứng: **SKIP ≠ PASS**; skip cao = seed/suite hỏng, KHÔNG báo "đã test". Khắc phục chi tiết → `../../docs/workspace-docs/20-backlog/staging-runbook.md` §3-§5.
