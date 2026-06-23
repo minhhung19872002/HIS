@@ -9,6 +9,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/asset-management")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))]
 public class AssetManagementController : ControllerBase
 {
     private readonly IAssetManagementService _service;
@@ -244,16 +245,14 @@ public class AssetManagementController : ControllerBase
     [HttpPut("stocktakes/{id}/complete")]
     public async Task<ActionResult<AssetStocktakeDto>> CompleteStocktake(Guid id)
     {
-        try { return Ok(await _service.CompleteStocktakeAsync(id, GetUserId())); }
-        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        return Ok(await _service.CompleteStocktakeAsync(id, GetUserId()));
     }
 
     [HttpPut("stocktakes/{id}/approve")]
     [Authorize(Roles = "Admin,AssetManager")]
     public async Task<ActionResult<AssetStocktakeDto>> ApproveStocktake(Guid id)
     {
-        try { return Ok(await _service.ApproveStocktakeAsync(id, GetUserId())); }
-        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        return Ok(await _service.ApproveStocktakeAsync(id, GetUserId()));
     }
 
     /// <summary>Cập nhật 1 dòng tài sản trong phiếu kiểm kê (IsFound/ConditionStatus/Remark). Chỉ khi phiếu chưa duyệt.</summary>

@@ -13,6 +13,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/einvoice")]
 [Authorize]
+[TypeFilter(typeof(HIS.API.Filters.DomainExceptionFilter))]
 public sealed class EInvoiceController : ControllerBase
 {
     private readonly IEInvoiceService _svc;
@@ -65,15 +66,8 @@ public sealed class EInvoiceController : ControllerBase
         CancellationToken ct = default)
     {
         var issuedBy = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
-        try
-        {
-            var result = await _svc.IssueAsync(dto, issuedBy, ct);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _svc.IssueAsync(dto, issuedBy, ct);
+        return Ok(result);
     }
 
     // ── Cancel ───────────────────────────────────────────────────────────────

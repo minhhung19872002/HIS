@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs.Laboratory;
 using HIS.Application.Services;
+using HIS.API.Filters;
 
 namespace HIS.API.Controllers;
 
@@ -12,6 +13,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/lis")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))]
 public class LisConfigController : ControllerBase
 {
     private readonly ILisConfigService _service;
@@ -50,15 +52,8 @@ public class LisConfigController : ControllerBase
     [HttpPost("analyzers")]
     public async Task<IActionResult> CreateAnalyzer([FromBody] CreateLisAnalyzerDto dto)
     {
-        try
-        {
-            var result = await _service.CreateAnalyzerAsync(dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _service.CreateAnalyzerAsync(dto);
+        return Ok(result);
     }
 
     /// <summary>

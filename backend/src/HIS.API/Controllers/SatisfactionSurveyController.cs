@@ -4,12 +4,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
+using HIS.API.Filters;
 
 namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/satisfaction-survey")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))]
 public class SatisfactionSurveyController : ControllerBase
 {
     private readonly HISDbContext _db;
@@ -379,31 +381,24 @@ public class SatisfactionSurveyController : ControllerBase
     [HttpGet("export")]
     public async Task<IActionResult> ExportSurveys([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] Guid? campaignId)
     {
-        try
+        var fromDate = from ?? DateTime.UtcNow.AddDays(-30);
+        var toDate = to ?? DateTime.UtcNow;
+
+        var results = await _db.SatisfactionSurveyResults
+            .Where(r => r.CreatedAt >= fromDate && r.CreatedAt <= toDate.AddDays(1))
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+
+        var csv = new System.Text.StringBuilder();
+        csv.AppendLine("STT,MaBenhNhan,TenBenhNhan,Khoa,DiemTongQuat,BinhLuan,NgayKhaoSat");
+        int i = 1;
+        foreach (var r in results)
         {
-            var fromDate = from ?? DateTime.UtcNow.AddDays(-30);
-            var toDate = to ?? DateTime.UtcNow;
-
-            var results = await _db.SatisfactionSurveyResults
-                .Where(r => r.CreatedAt >= fromDate && r.CreatedAt <= toDate.AddDays(1))
-                .OrderByDescending(r => r.CreatedAt)
-                .ToListAsync();
-
-            var csv = new System.Text.StringBuilder();
-            csv.AppendLine("STT,MaBenhNhan,TenBenhNhan,Khoa,DiemTongQuat,BinhLuan,NgayKhaoSat");
-            int i = 1;
-            foreach (var r in results)
-            {
-                csv.AppendLine($"{i++},{Escape(r.PatientCode)},{Escape(r.PatientName)},{Escape(r.DepartmentName)},{r.OverallScore:F1},{Escape(r.Comment)},{r.CreatedAt:yyyy-MM-dd}");
-            }
-
-            var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
-            return File(bytes, "text/csv; charset=utf-8", $"survey-export-{DateTime.Today:yyyyMMdd}.csv");
+            csv.AppendLine($"{i++},{Escape(r.PatientCode)},{Escape(r.PatientName)},{Escape(r.DepartmentName)},{r.OverallScore:F1},{Escape(r.Comment)},{r.CreatedAt:yyyy-MM-dd}");
         }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+
+        var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
+        return File(bytes, "text/csv; charset=utf-8", $"survey-export-{DateTime.Today:yyyyMMdd}.csv");
 
         static string Escape(string? s) => s == null ? "" : $"\"{s.Replace("\"", "\"\"")}\"";
     }

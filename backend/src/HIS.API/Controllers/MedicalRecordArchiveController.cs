@@ -8,6 +8,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/archives")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))]
 public class MedicalRecordArchiveController : ControllerBase
 {
     private readonly IMedicalRecordArchiveService _archiveService;
@@ -165,15 +166,8 @@ public class MedicalRecordArchiveController : ControllerBase
     [HttpPost("generate")]
     public async Task<ActionResult<ArchiveDto>> GenerateArchive([FromBody] GenerateArchiveDto dto)
     {
-        try
-        {
-            var result = await _archiveService.GenerateArchiveAsync(dto, GetUserId());
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _archiveService.GenerateArchiveAsync(dto, GetUserId());
+        return Ok(result);
     }
 
     /// <summary>

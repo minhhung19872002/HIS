@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
 using HIS.Application.DTOs;
+using HIS.API.Filters;
 
 namespace HIS.API.Controllers;
 
@@ -12,6 +13,7 @@ namespace HIS.API.Controllers;
 [ApiController]
 [Route("api/follow-up")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))]
 public class FollowUpController : ControllerBase
 {
     private readonly IFollowUpService _service;
@@ -57,15 +59,8 @@ public class FollowUpController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<FollowUpListDto>> CreateFollowUp([FromBody] CreateFollowUpDto dto)
     {
-        try
-        {
-            var result = await _service.CreateFollowUpAsync(dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _service.CreateFollowUpAsync(dto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -74,15 +69,8 @@ public class FollowUpController : ControllerBase
     [HttpPut("{id}/status")]
     public async Task<ActionResult<FollowUpListDto>> UpdateStatus(Guid id, [FromBody] UpdateFollowUpDto dto)
     {
-        try
-        {
-            var result = await _service.UpdateStatusAsync(id, dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _service.UpdateStatusAsync(id, dto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -91,15 +79,8 @@ public class FollowUpController : ControllerBase
     [HttpPost("{id}/send-reminder")]
     public async Task<ActionResult> SendReminder(Guid id)
     {
-        try
-        {
-            await _service.SendReminderAsync(id);
-            return Ok(new { message = "Đã gửi nhắc nhở thành công" });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        await _service.SendReminderAsync(id);
+        return Ok(new { message = "Đã gửi nhắc nhở thành công" });
     }
 }
 
@@ -110,6 +91,7 @@ public class FollowUpController : ControllerBase
 [ApiController]
 [Route("api/procurement")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))]
 public class ProcurementController : ControllerBase
 {
     private readonly IProcurementService _service;
@@ -146,15 +128,8 @@ public class ProcurementController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ProcurementDetailDto>> Create([FromBody] CreateProcurementDto dto)
     {
-        try
-        {
-            var result = await _service.CreateAsync(dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _service.CreateAsync(dto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -163,15 +138,8 @@ public class ProcurementController : ControllerBase
     [HttpPut("approve/{id}")]
     public async Task<ActionResult<ProcurementListDto>> Approve(Guid id)
     {
-        try
-        {
-            var result = await _service.ApproveAsync(id);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _service.ApproveAsync(id);
+        return Ok(result);
     }
 
     /// <summary>
@@ -180,15 +148,8 @@ public class ProcurementController : ControllerBase
     [HttpPut("reject/{id}")]
     public async Task<ActionResult<ProcurementListDto>> Reject(Guid id, [FromBody] RejectProcurementRequest request)
     {
-        try
-        {
-            var result = await _service.RejectAsync(id, request.Reason);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _service.RejectAsync(id, request.Reason);
+        return Ok(result);
     }
 
     /// <summary>
@@ -227,6 +188,7 @@ public class RejectProcurementRequest
 [ApiController]
 [Route("api/immunization")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))]
 public class ImmunizationController : ControllerBase
 {
     private readonly IImmunizationService _service;
@@ -262,15 +224,8 @@ public class ImmunizationController : ControllerBase
     [HttpPost("administer")]
     public async Task<ActionResult<ImmunizationListDto>> Administer([FromBody] CreateImmunizationDto dto)
     {
-        try
-        {
-            var result = await _service.AdministerAsync(dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _service.AdministerAsync(dto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -279,15 +234,8 @@ public class ImmunizationController : ControllerBase
     [HttpPut("{id}/reaction")]
     public async Task<ActionResult<ImmunizationListDto>> RecordReaction(Guid id, [FromBody] RecordReactionDto dto)
     {
-        try
-        {
-            var result = await _service.RecordReactionAsync(id, dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _service.RecordReactionAsync(id, dto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -318,6 +266,7 @@ public class ImmunizationController : ControllerBase
 [ApiController]
 [Route("api/health-checkup")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))]
 public class HealthCheckupController : ControllerBase
 {
     private readonly IHealthCheckupService _service;
@@ -343,15 +292,8 @@ public class HealthCheckupController : ControllerBase
     [HttpPost("campaign")]
     public async Task<ActionResult<CampaignListDto>> CreateCampaign([FromBody] CreateCampaignDto dto)
     {
-        try
-        {
-            var result = await _service.CreateCampaignAsync(dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _service.CreateCampaignAsync(dto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -370,15 +312,8 @@ public class HealthCheckupController : ControllerBase
     [HttpPost("record")]
     public async Task<ActionResult<CheckupRecordDto>> CreateRecord([FromBody] CreateCheckupRecordDto dto)
     {
-        try
-        {
-            var result = await _service.CreateRecordAsync(dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _service.CreateRecordAsync(dto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -387,15 +322,8 @@ public class HealthCheckupController : ControllerBase
     [HttpPut("record/{id}/certificate")]
     public async Task<ActionResult<CheckupRecordDto>> IssueCertificate(Guid id)
     {
-        try
-        {
-            var result = await _service.IssueCertificateAsync(id);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _service.IssueCertificateAsync(id);
+        return Ok(result);
     }
 
     /// <summary>
@@ -424,15 +352,8 @@ public class HealthCheckupController : ControllerBase
     [HttpPut("campaigns/{id}")]
     public async Task<IActionResult> UpdateCampaign(Guid id, [FromBody] CreateCampaignDto dto)
     {
-        try
-        {
-            var result = await _service.UpdateCampaignAsync(id, dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _service.UpdateCampaignAsync(id, dto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -441,15 +362,8 @@ public class HealthCheckupController : ControllerBase
     [HttpDelete("campaigns/{id}")]
     public async Task<IActionResult> DeleteCampaign(Guid id)
     {
-        try
-        {
-            await _service.DeleteCampaignAsync(id);
-            return Ok(new { success = true });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        await _service.DeleteCampaignAsync(id);
+        return Ok(new { success = true });
     }
 
     /// <summary>
@@ -485,16 +399,9 @@ public class HealthCheckupController : ControllerBase
     [HttpPost("campaigns/{campaignId}/groups")]
     public async Task<IActionResult> CreateCampaignGroup(Guid campaignId, [FromBody] CreateCampaignGroupDto dto)
     {
-        try
-        {
-            dto.CampaignId = campaignId;
-            var result = await _service.CreateCampaignGroupAsync(dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        dto.CampaignId = campaignId;
+        var result = await _service.CreateCampaignGroupAsync(dto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -503,15 +410,8 @@ public class HealthCheckupController : ControllerBase
     [HttpDelete("campaigns/{campaignId}/groups/{groupId}")]
     public async Task<IActionResult> DeleteCampaignGroup(Guid campaignId, Guid groupId)
     {
-        try
-        {
-            await _service.DeleteCampaignGroupAsync(campaignId, groupId);
-            return Ok(new { success = true });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        await _service.DeleteCampaignGroupAsync(campaignId, groupId);
+        return Ok(new { success = true });
     }
 
     /// <summary>
@@ -523,16 +423,9 @@ public class HealthCheckupController : ControllerBase
         if (file == null || file.Length == 0)
             return BadRequest(new { message = "Vui lòng chọn file Excel" });
 
-        try
-        {
-            using var stream = file.OpenReadStream();
-            var result = await _service.ImportBatchExcelAsync(campaignId, stream, file.FileName);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        using var stream = file.OpenReadStream();
+        var result = await _service.ImportBatchExcelAsync(campaignId, stream, file.FileName);
+        return Ok(result);
     }
 
     /// <summary>
@@ -595,16 +488,9 @@ public class HealthCheckupController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateCheckup([FromBody] CreateHealthCheckupDto dto)
     {
-        try
-        {
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "system";
-            var result = await _service.CreateCheckupAsync(dto, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "system";
+        var result = await _service.CreateCheckupAsync(dto, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -613,16 +499,9 @@ public class HealthCheckupController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateCheckup(Guid id, [FromBody] UpdateHealthCheckupDto dto)
     {
-        try
-        {
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "system";
-            var result = await _service.UpdateCheckupAsync(id, dto, userId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "system";
+        var result = await _service.UpdateCheckupAsync(id, dto, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -631,15 +510,8 @@ public class HealthCheckupController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteCheckup(Guid id)
     {
-        try
-        {
-            await _service.DeleteCheckupAsync(id);
-            return Ok(new { success = true });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        await _service.DeleteCheckupAsync(id);
+        return Ok(new { success = true });
     }
 }
 
@@ -650,6 +522,7 @@ public class HealthCheckupController : ControllerBase
 [ApiController]
 [Route("api/epidemiology")]
 [Authorize]
+[TypeFilter(typeof(Filters.DomainExceptionFilter))]
 public class EpidemiologyController : ControllerBase
 {
     private readonly IEpidemiologyService _service;
@@ -675,15 +548,8 @@ public class EpidemiologyController : ControllerBase
     [HttpPost("case")]
     public async Task<ActionResult<DiseaseCaseListDto>> CreateCase([FromBody] CreateDiseaseCaseDto dto)
     {
-        try
-        {
-            var result = await _service.CreateCaseAsync(dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _service.CreateCaseAsync(dto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -692,15 +558,8 @@ public class EpidemiologyController : ControllerBase
     [HttpPut("case/{id}")]
     public async Task<ActionResult<DiseaseCaseListDto>> UpdateCase(Guid id, [FromBody] UpdateDiseaseCaseDto dto)
     {
-        try
-        {
-            var result = await _service.UpdateCaseAsync(id, dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _service.UpdateCaseAsync(id, dto);
+        return Ok(result);
     }
 
     /// <summary>
@@ -709,15 +568,8 @@ public class EpidemiologyController : ControllerBase
     [HttpPost("case/{id}/contacts")]
     public async Task<ActionResult<List<ContactTraceDto>>> AddContactTrace(Guid id, [FromBody] CreateContactTraceDto dto)
     {
-        try
-        {
-            var result = await _service.AddContactTraceAsync(id, dto);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _service.AddContactTraceAsync(id, dto);
+        return Ok(result);
     }
 
     /// <summary>

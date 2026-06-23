@@ -915,18 +915,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("billing/deposit")]
     public async Task<ActionResult<DepositReceiptDto>> CreateDeposit([FromBody] ReceptionDepositDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.CreateDepositAsync(dto, userId);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException) { throw; } // HSBA không tồn tại → DomainExceptionFilter trả 404
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating deposit");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.CreateDepositAsync(dto, userId);
+        return Ok(result);
     }
 
     /// <summary>
@@ -935,18 +926,9 @@ public class ReceptionCompleteController : ControllerBase
     [HttpPost("billing/payment")]
     public async Task<ActionResult<PaymentReceiptDto>> CreatePayment([FromBody] ReceptionPaymentDto dto)
     {
-        try
-        {
-            var userId = GetCurrentUserId();
-            var result = await _receptionService.CreatePaymentAsync(dto, userId);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException) { throw; } // HSBA không tồn tại → DomainExceptionFilter trả 404
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating payment");
-            return BadRequest(new { message = ex.Message });
-        }
+        var userId = GetCurrentUserId();
+        var result = await _receptionService.CreatePaymentAsync(dto, userId);
+        return Ok(result);
     }
 
     /// <summary>
