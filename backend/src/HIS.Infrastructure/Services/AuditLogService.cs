@@ -77,6 +77,36 @@ public class AuditLogService : IAuditLogService
         }
     }
 
+    public async Task WriteAsync(AuditLog entry)
+    {
+        try
+        {
+            _context.AuditLogs.Add(entry);
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            // Never let audit logging fail the main request
+            _logger.LogWarning(ex, "Failed to write audit log entry: {Action} {EntityType}", entry.Action, entry.EntityType ?? entry.TableName);
+        }
+    }
+
+    public async Task WriteManyAsync(IEnumerable<AuditLog> entries)
+    {
+        var list = entries as ICollection<AuditLog> ?? entries.ToList();
+        if (list.Count == 0) return;
+        try
+        {
+            _context.AuditLogs.AddRange(list);
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            // Never let audit logging fail the main request
+            _logger.LogWarning(ex, "Failed to write {Count} audit log entries", list.Count);
+        }
+    }
+
     public async Task<AuditPagedResult> GetLogsAsync(AuditSearchDto dto)
     {
         try

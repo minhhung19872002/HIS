@@ -1,3 +1,5 @@
+using HIS.Core.Entities;
+
 namespace HIS.Application.Services;
 
 /// <summary>
@@ -22,6 +24,18 @@ public interface IAuditLogService
         string? requestPath = null,
         string? requestMethod = null,
         int? responseStatusCode = null);
+
+    /// <summary>
+    /// Ghi 1 bản ghi audit đã dựng sẵn (fire-and-forget safe): Add + SaveChanges, nuốt lỗi.
+    /// Dùng cho call-site tự build entity với field đặc thù (TableName/RecordId/EntityType...
+    /// khác chuẩn <see cref="LogAsync"/>) — gom plumbing write nhưng KHÔNG đổi nội dung audit. (#350)
+    /// </summary>
+    Task WriteAsync(AuditLog entry);
+
+    /// <summary>
+    /// Ghi NHIỀU bản ghi audit trong 1 lần SaveChanges (giữ batch-save), fire-and-forget safe. (#350)
+    /// </summary>
+    Task WriteManyAsync(IEnumerable<AuditLog> entries);
 
     /// <summary>
     /// Search audit logs with filters and pagination.

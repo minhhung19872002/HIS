@@ -18,11 +18,13 @@ namespace HIS.Infrastructure.Services
     {
         private readonly HISDbContext _db;
         private readonly ICurrentUserAccessor _currentUser;
+        private readonly IAuditLogService _auditLog;
 
-        public EmrAdminService(HISDbContext db, ICurrentUserAccessor currentUser)
+        public EmrAdminService(HISDbContext db, ICurrentUserAccessor currentUser, IAuditLogService auditLog)
         {
             _db = db;
             _currentUser = currentUser;
+            _auditLog = auditLog;
         }
 
         // Đọc người dùng hiện tại qua ICurrentUserAccessor (canonical claim) — #200 REFAC-1
@@ -817,6 +819,7 @@ namespace HIS.Infrastructure.Services
             var pidSegments = segments.Where(s => s.StartsWith("PID")).ToList();
             var imported = 0;
 
+            var auditEntries = new List<AuditLog>();
             foreach (var pid in pidSegments)
             {
                 var pidFields = pid.Split('|');
@@ -825,20 +828,19 @@ namespace HIS.Infrastructure.Services
                 var patientDob = pidFields.Length > 7 ? pidFields[7] : null;
                 var gender = pidFields.Length > 8 ? pidFields[8] : null;
 
-                // Log import as audit
-                var auditLog = new AuditLog
+                // Log import as audit (#350: gom qua write canonical, giữ NGUYÊN field + batch-save 1 lần)
+                auditEntries.Add(new AuditLog
                 {
                     TableName = "HL7Import", RecordId = Guid.NewGuid(),
                     Action = "Import", Module = "EMR",
                     Details = $"HL7 import from {sendingFacility}: {patientName}",
                     Timestamp = DateTime.UtcNow, UserId = Guid.TryParse(GetCurrentUserId(), out var uid) ? uid : null,
                     Username = GetCurrentUserName()
-                };
-                _db.AuditLogs.Add(auditLog);
+                });
                 imported++;
             }
 
-            await _db.SaveChangesAsync();
+            await _auditLog.WriteManyAsync(auditEntries);
             return new Hl7ImportResultDto { Success = true, Message = $"Da import {imported} ban ghi tu {sendingFacility}", ImportedRecords = imported };
         }
 

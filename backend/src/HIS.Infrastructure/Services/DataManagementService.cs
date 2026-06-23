@@ -13,12 +13,14 @@ public class DataManagementService : IDataManagementService
     private readonly HISDbContext _db;
     private readonly IConfiguration _config;
     private readonly ILogger<DataManagementService> _logger;
+    private readonly IAuditLogService _auditLog;
 
-    public DataManagementService(HISDbContext db, IConfiguration config, ILogger<DataManagementService> logger)
+    public DataManagementService(HISDbContext db, IConfiguration config, ILogger<DataManagementService> logger, IAuditLogService auditLog)
     {
         _db = db;
         _config = config;
         _logger = logger;
+        _auditLog = auditLog;
     }
 
     public async Task<DataStatsDto> GetStatsAsync()
@@ -340,31 +342,23 @@ public class DataManagementService : IDataManagementService
             $"  WITH FILE = 1, NOUNLOAD, REPLACE, STATS = 5;\n" +
             $"ALTER DATABASE [{dbName}] SET MULTI_USER;";
 
-        // Ghi audit vào AuditLog nếu có thể
-        try
+        // Ghi audit qua write canonical (#350) — giữ NGUYÊN field; WriteAsync tự nuốt lỗi (fire-and-forget)
+        await _auditLog.WriteAsync(new AuditLog
         {
-            _db.Set<AuditLog>().Add(new AuditLog
-            {
-                Id = Guid.NewGuid(),
-                UserId = Guid.TryParse(userId, out var uid) ? uid : (Guid?)null,
-                Username = userId,
-                Action = "RequestRestore",
-                EntityType = "BackupHistory",
-                EntityId = request.BackupHistoryId.ToString(),
-                TableName = "BackupHistories",
-                RecordId = request.BackupHistoryId,
-                Details = $"Yêu cầu restore: {backup.FileName}. Lý do: {request.Reason}",
-                Timestamp = DateTime.UtcNow,
-                Module = "DataManagement",
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = userId,
-            });
-            await _db.SaveChangesAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "RequestRestoreAsync: không thể ghi AuditLog");
-        }
+            Id = Guid.NewGuid(),
+            UserId = Guid.TryParse(userId, out var uid) ? uid : (Guid?)null,
+            Username = userId,
+            Action = "RequestRestore",
+            EntityType = "BackupHistory",
+            EntityId = request.BackupHistoryId.ToString(),
+            TableName = "BackupHistories",
+            RecordId = request.BackupHistoryId,
+            Details = $"Yêu cầu restore: {backup.FileName}. Lý do: {request.Reason}",
+            Timestamp = DateTime.UtcNow,
+            Module = "DataManagement",
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId,
+        });
 
         var requestId = Guid.NewGuid();
         return new RestoreBackupResultDto
