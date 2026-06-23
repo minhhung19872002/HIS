@@ -22,6 +22,8 @@
 | audit / review không-nói-quá (no-quota, evidence, confidence) | `workflow/audit-protocol.md` | link |
 | UI-test evidence + traceability (screenshot mỗi case · tên test=màn+nghiệp vụ · báo cáo) | `skills/his-test-e2e` §6 | link; test-plan doc + Issues `test` chỉ link |
 | sparring / phản biện chống-nịnh (giao thức 4 bước, calibrated, no-quota) | `skills/core-sparring-partner` | link; global `~/.claude/CLAUDE.md` mang 1 pointer cho project khác |
+| thinking-modes (open/inversion/critic/synthesis): vai-trò + ranh-giới + orchestration (dùng 1/2/3/4 · thứ tự Open→Inversion→Critic→Synthesis) | `skills/core-synthesis-decision` §Orchestration | mỗi skill thinking chỉ LINK; critic-vs-sparring → `skills/core-sparring-partner` (chủ phản-biện-chống-nịnh, đối-tượng là Ý/QUYẾT-ĐỊNH-của-USER ≠ artifact) |
+| meta-reasoning: phân-loại-bài-toán (11 loại) → impact LOW/MED/HIGH → dispatch cách-nghĩ (calibrated) | `skills/core-meta-reasoning-orchestrator` | LINK; thứ-tự-4-mode KHÔNG lặp ở đây (→ `core-synthesis-decision` §Orchestration); compose-not-replace `SKILL-MAP` (skill-cho-code) + `workflow/workflow.md` (flow) |
 | drift-lint (hệ miễn dịch) | `.claude/lint.sh` (auto qua `hooks/stop-checks.sh`) | chạy sau mọi sửa .claude |
 | agent memory-spec block (~137 dòng boilerplate) | **đồng nhất 100% ở cả 7 agent** (KHÔNG dedup — subagent cần inline) | sửa 1 → sửa CẢ 7; lint [9] enforce giống nhau |
 | estimation rubric (XS-XL · P0-P3 · risk) | `workflow/project-rules.md` §7 | link |
