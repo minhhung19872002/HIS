@@ -1,5 +1,7 @@
 # Kế hoạch dựng STAGING — khắc phục TRIỆT ĐỂ cho test 4 cửa (Trụ #1)
 
+> 🛑 **STATUS 2026-06-24: DEPRIORITIZED — KHÔNG dựng lúc này.** Prod = no-real-data + đang xây + schema chín → **test THẲNG trên prod** bằng **Playwright serial/CI** (đã đo: `crud-25groups` 22/23 pass), bỏ staging. **Giữ doc này cho lúc GO-LIVE:** ngay khi có BN thật/pilot/bán → dựng lại staging (TRIPWIRE). Lý do + empirical: `../../../.claude/workflow/parallel-windows.md` §9 (vòng-6).
+
 > **Vì sao:** [`.claude/workflow/parallel-windows.md`](../../../.claude/workflow/parallel-windows.md) §8 — staging + data giả là root-fix tắt cùng lúc
 > **N2** (PHI thật vào ảnh) · **N5** (hỏng sequence prod) · **N10** (schema đổi giữa run) · **F** (ép error/empty) · **D** (đóng băng version) · **R5/R7**.
 > Hai rủi ro KHÔNG vá được bằng quy trình (PHI + LLM tự-ghi-prod) **bắt buộc** cần staging. Đây là **kế hoạch** (chưa thực thi).
