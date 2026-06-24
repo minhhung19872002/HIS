@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Warehouse;
@@ -40,7 +41,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Tạo phiếu nhập NCC
     /// </summary>
     [HttpPost("receipts/supplier")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff)]
     public async Task<ActionResult<StockReceiptDto>> CreateSupplierReceipt([FromBody] CreateStockReceiptDto dto)
     {
         // Sweep 2026-06-12: body rỗng từng 500 — validate khóa bắt buộc
@@ -56,7 +57,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Tạo phiếu nhập từ nguồn khác
     /// </summary>
     [HttpPost("receipts/other-source")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff)]
     public async Task<ActionResult<StockReceiptDto>> CreateOtherSourceReceipt([FromBody] CreateStockReceiptDto dto)
     {
         var result = await _warehouseService.CreateOtherSourceReceiptAsync(dto, GetCurrentUserId());
@@ -67,7 +68,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Tạo phiếu nhập chuyển kho
     /// </summary>
     [HttpPost("receipts/transfer")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff)]
     public async Task<ActionResult<StockReceiptDto>> CreateTransferReceipt([FromBody] CreateStockReceiptDto dto)
     {
         var result = await _warehouseService.CreateTransferReceiptAsync(dto, GetCurrentUserId());
@@ -78,7 +79,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Tạo phiếu nhập hoàn trả khoa
     /// </summary>
     [HttpPost("receipts/department-return")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff)]
     public async Task<ActionResult<StockReceiptDto>> CreateDepartmentReturnReceipt([FromBody] CreateStockReceiptDto dto)
     {
         var result = await _warehouseService.CreateDepartmentReturnReceiptAsync(dto, GetCurrentUserId());
@@ -89,7 +90,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Cập nhật phiếu nhập
     /// </summary>
     [HttpPut("receipts/{id}")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff)]
     public async Task<ActionResult<StockReceiptDto>> UpdateStockReceipt(Guid id, [FromBody] CreateStockReceiptDto dto)
     {
         var result = await _warehouseService.UpdateStockReceiptAsync(id, dto, GetCurrentUserId());
@@ -100,7 +101,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Duyệt phiếu nhập
     /// </summary>
     [HttpPost("receipts/{id}/approve")]
-    [Authorize(Roles = "Admin,WarehouseManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager)]
     public async Task<ActionResult<StockReceiptDto>> ApproveStockReceipt(Guid id)
     {
         var result = await _warehouseService.ApproveStockReceiptAsync(id, GetCurrentUserId());
@@ -111,7 +112,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Hủy phiếu nhập
     /// </summary>
     [HttpPost("receipts/{id}/cancel")]
-    [Authorize(Roles = "Admin,WarehouseManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager)]
     public async Task<ActionResult<bool>> CancelStockReceipt(Guid id, [FromBody] string reason)
     {
         var result = await _warehouseService.CancelStockReceiptAsync(id, reason, GetCurrentUserId());
@@ -142,7 +143,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Lấy công nợ NCC
     /// </summary>
     [HttpGet("supplier-payables")]
-    [Authorize(Roles = "Admin,WarehouseManager,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.Accountant)]
     public async Task<ActionResult<List<SupplierPayableDto>>> GetSupplierPayables([FromQuery] Guid? supplierId)
     {
         var result = await _warehouseService.GetSupplierPayablesAsync(supplierId);
@@ -153,7 +154,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Thanh toán NCC
     /// </summary>
     [HttpPost("supplier-payments")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<SupplierPaymentDto>> CreateSupplierPayment([FromBody] SupplierPaymentDto dto)
     {
         var result = await _warehouseService.CreateSupplierPaymentAsync(dto, GetCurrentUserId());
@@ -198,7 +199,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Xuất đơn thuốc ngoại trú
     /// </summary>
     [HttpPost("issues/dispense-outpatient/{prescriptionId}")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff,Pharmacist")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff + "," + RoleNames.Pharmacist)]
     public async Task<ActionResult<StockIssueDto>> DispenseOutpatientPrescription(Guid prescriptionId)
     {
         var result = await _warehouseService.DispenseOutpatientPrescriptionAsync(prescriptionId, GetCurrentUserId());
@@ -209,7 +210,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Xuất phiếu lĩnh nội trú
     /// </summary>
     [HttpPost("issues/dispense-inpatient/{orderSummaryId}")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff,Pharmacist")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff + "," + RoleNames.Pharmacist)]
     public async Task<ActionResult<StockIssueDto>> DispenseInpatientOrder(Guid orderSummaryId)
     {
         var result = await _warehouseService.DispenseInpatientOrderAsync(orderSummaryId, GetCurrentUserId());
@@ -220,7 +221,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Xuất khoa/phòng
     /// </summary>
     [HttpPost("issues/department")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff)]
     public async Task<ActionResult<StockIssueDto>> IssueToDepartment([FromBody] CreateStockIssueDto dto)
     {
         var result = await _warehouseService.IssueToDepartmentAsync(dto, GetCurrentUserId());
@@ -231,7 +232,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Xuất chuyển kho
     /// </summary>
     [HttpPost("issues/transfer")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff)]
     public async Task<ActionResult<StockIssueDto>> CreateTransferIssue([FromBody] CreateStockIssueDto dto)
     {
         var result = await _warehouseService.CreateTransferIssueAsync(dto, GetCurrentUserId());
@@ -242,7 +243,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Xuất trả NCC
     /// </summary>
     [HttpPost("issues/supplier-return")]
-    [Authorize(Roles = "Admin,WarehouseManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager)]
     public async Task<ActionResult<StockIssueDto>> CreateSupplierReturn([FromBody] CreateStockIssueDto dto)
     {
         var result = await _warehouseService.CreateSupplierReturnAsync(dto, GetCurrentUserId());
@@ -253,7 +254,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Xuất hủy
     /// </summary>
     [HttpPost("issues/destruction")]
-    [Authorize(Roles = "Admin,WarehouseManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager)]
     public async Task<ActionResult<StockIssueDto>> CreateDestructionIssue([FromBody] CreateStockIssueDto dto)
     {
         var result = await _warehouseService.CreateDestructionIssueAsync(dto, GetCurrentUserId());
@@ -265,7 +266,7 @@ public class WarehouseCompleteController : ControllerBase
     /// IssueType forced to 12 server-side. Warehouse must have WarehouseType=4 or IsCabinet=true.
     /// </summary>
     [HttpPost("issues/cabinet-issue")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff,Pharmacist,Doctor,Nurse")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff + "," + RoleNames.Pharmacist + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]
     public async Task<ActionResult<StockIssueDto>> CreateCabinetIssue([FromBody] CreateCabinetIssueDto dto)
     {
         var result = await _warehouseService.CreateCabinetIssueAsync(dto, GetCurrentUserId());
@@ -276,7 +277,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Bán thuốc nhà thuốc theo đơn
     /// </summary>
     [HttpPost("pharmacy-sales/by-prescription/{prescriptionId}")]
-    [Authorize(Roles = "Admin,WarehouseManager,Pharmacist")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.Pharmacist)]
     public async Task<ActionResult<PharmacySaleDto>> CreatePharmacySaleByPrescription(Guid prescriptionId)
     {
         var result = await _warehouseService.CreatePharmacySaleByPrescriptionAsync(prescriptionId, GetCurrentUserId());
@@ -287,7 +288,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Bán lẻ nhà thuốc
     /// </summary>
     [HttpPost("pharmacy-sales/retail")]
-    [Authorize(Roles = "Admin,WarehouseManager,Pharmacist")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.Pharmacist)]
     public async Task<ActionResult<PharmacySaleDto>> CreateRetailSale([FromBody] PharmacySaleDto dto)
     {
         var result = await _warehouseService.CreateRetailSaleAsync(dto, GetCurrentUserId());
@@ -362,7 +363,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Tạo dự trù
     /// </summary>
     [HttpPost("procurement-requests")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff)]
     public async Task<ActionResult<ProcurementRequestDto>> CreateProcurementRequest([FromBody] CreateProcurementRequestDto dto)
     {
         var result = await _warehouseService.CreateProcurementRequestAsync(dto, GetCurrentUserId());
@@ -383,7 +384,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Duyệt dự trù
     /// </summary>
     [HttpPost("procurement-requests/{id}/approve")]
-    [Authorize(Roles = "Admin,WarehouseManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager)]
     public async Task<ActionResult<ProcurementRequestDto>> ApproveProcurementRequest(Guid id)
     {
         var result = await _warehouseService.ApproveProcurementRequestAsync(id, GetCurrentUserId());
@@ -454,7 +455,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Hủy đơn không lĩnh
     /// </summary>
     [HttpPost("unclaimed-prescriptions/{prescriptionId}/cancel")]
-    [Authorize(Roles = "Admin,WarehouseManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager)]
     public async Task<ActionResult<bool>> CancelUnclaimedPrescription(Guid prescriptionId)
     {
         var result = await _warehouseService.CancelUnclaimedPrescriptionAsync(prescriptionId, GetCurrentUserId());
@@ -465,7 +466,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Tạo kỳ kiểm kê
     /// </summary>
     [HttpPost("stock-takes")]
-    [Authorize(Roles = "Admin,WarehouseManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager)]
     public async Task<ActionResult<StockTakeDto>> CreateStockTake([FromBody] CreateStockTakeRequest request)
     {
         var result = await _warehouseService.CreateStockTakeAsync(request.WarehouseId, request.PeriodFrom, request.PeriodTo, GetCurrentUserId());
@@ -476,7 +477,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Cập nhật kết quả kiểm kê
     /// </summary>
     [HttpPut("stock-takes/{id}/results")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff)]
     public async Task<ActionResult<StockTakeDto>> UpdateStockTakeResults(Guid id, [FromBody] List<StockTakeItemDto> items)
     {
         var result = await _warehouseService.UpdateStockTakeResultsAsync(id, items, GetCurrentUserId());
@@ -487,7 +488,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Hoàn thành kiểm kê
     /// </summary>
     [HttpPost("stock-takes/{id}/complete")]
-    [Authorize(Roles = "Admin,WarehouseManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager)]
     public async Task<ActionResult<StockTakeDto>> CompleteStockTake(Guid id)
     {
         var result = await _warehouseService.CompleteStockTakeAsync(id, GetCurrentUserId());
@@ -498,7 +499,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Điều chỉnh sau kiểm kê
     /// </summary>
     [HttpPost("stock-takes/{id}/adjust")]
-    [Authorize(Roles = "Admin,WarehouseManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager)]
     public async Task<ActionResult<bool>> AdjustStockAfterTake(Guid id)
     {
         var result = await _warehouseService.AdjustStockAfterTakeAsync(id, GetCurrentUserId());
@@ -603,7 +604,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Ghi nhận tiệt khuẩn
     /// </summary>
     [HttpPost("reusable-supplies/{id}/sterilize")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff)]
     public async Task<ActionResult<ReusableSupplyDto>> RecordSterilization(Guid id, [FromBody] DateTime sterilizationDate)
     {
         var result = await _warehouseService.RecordSterilizationAsync(id, sterilizationDate, GetCurrentUserId());
@@ -654,7 +655,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Tách lẻ
     /// </summary>
     [HttpPost("split-package")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff)]
     public async Task<ActionResult<bool>> SplitPackage([FromBody] SplitPackageRequest request)
     {
         var result = await _warehouseService.SplitPackageAsync(request.WarehouseId, request.ItemId, request.PackageQuantity, GetCurrentUserId());
@@ -675,7 +676,7 @@ public class WarehouseCompleteController : ControllerBase
     /// Cập nhật cấu hình giá
     /// </summary>
     [HttpPut("profit-margin-configs")]
-    [Authorize(Roles = "Admin,WarehouseManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager)]
     public async Task<ActionResult<ProfitMarginConfigDto>> UpdateProfitMarginConfig([FromBody] ProfitMarginConfigDto dto)
     {
         var result = await _warehouseService.UpdateProfitMarginConfigAsync(dto, GetCurrentUserId());

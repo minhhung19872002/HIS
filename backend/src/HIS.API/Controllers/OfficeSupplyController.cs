@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -205,7 +206,7 @@ public class OfficeSupplyController : ControllerBase
 
     /// <summary>Duyệt phiếu VPP — trừ tồn + tạo ExportReceipt.</summary>
     [HttpPost("requests/approve")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff)]
     public async Task<IActionResult> Approve([FromBody] ApproveOfficeDto dto)
     {
         var approval = await _db.Set<PharmacyApproval>()
@@ -425,7 +426,7 @@ public class OfficeSupplyController : ControllerBase
 
     /// <summary>Duyệt phiếu hoàn trả — nhập lại tồn kho.</summary>
     [HttpPost("returns/approve")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff)]
     public async Task<IActionResult> ApproveReturn([FromBody] ApproveReturnDto dto)
     {
         var approval = await _db.Set<PharmacyApproval>()

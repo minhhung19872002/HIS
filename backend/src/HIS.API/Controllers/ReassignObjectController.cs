@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.Application.DTOs.Billing;
 using HIS.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -13,7 +14,7 @@ namespace HIS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/billing/reassign-object")]
-[Authorize(Roles = "Admin,Accountant,DepartmentHead")]
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.DepartmentHead)]
 public class ReassignObjectController : ControllerBase
 {
     private readonly IReassignObjectService _service;

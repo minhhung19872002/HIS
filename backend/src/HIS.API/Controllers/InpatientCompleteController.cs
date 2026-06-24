@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.DTOs;
@@ -93,7 +94,7 @@ public partial class InpatientCompleteController : ControllerBase
     /// Cập nhật cấu hình màu hiển thị
     /// </summary>
     [HttpPut("ward-color-config")]
-    [Authorize(Roles = "Admin,DepartmentHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DepartmentHead)]
     public async Task<ActionResult> UpdateWardColorConfig([FromQuery] Guid? departmentId, [FromBody] WardColorConfigDto config)
     {
         await _inpatientService.UpdateWardColorConfigAsync(departmentId, config);
@@ -1291,7 +1292,7 @@ public partial class InpatientCompleteController : ControllerBase
     /// Báo cáo doanh thu khoa
     /// </summary>
     [HttpGet("reports/department-revenue")]
-    [Authorize(Roles = "Admin,DepartmentHead,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DepartmentHead + "," + RoleNames.Accountant)]
     public async Task<ActionResult<DepartmentRevenueReportDto>> GetDepartmentRevenueReport([FromQuery] ReportSearchDto searchDto)
     {
         var result = await _inpatientService.GetDepartmentRevenueReportAsync(searchDto);
@@ -1302,7 +1303,7 @@ public partial class InpatientCompleteController : ControllerBase
     /// Báo cáo hoạt động điều trị
     /// </summary>
     [HttpGet("reports/treatment-activity")]
-    [Authorize(Roles = "Admin,DepartmentHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DepartmentHead)]
     public async Task<ActionResult<TreatmentActivityReportDto>> GetTreatmentActivityReport([FromQuery] ReportSearchDto searchDto)
     {
         var result = await _inpatientService.GetTreatmentActivityReportAsync(searchDto);
@@ -1313,7 +1314,7 @@ public partial class InpatientCompleteController : ControllerBase
     /// Sổ theo QĐ 4069
     /// </summary>
     [HttpGet("reports/register-4069")]
-    [Authorize(Roles = "Admin,DepartmentHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DepartmentHead)]
     public async Task<ActionResult<Register4069Dto>> GetRegister4069([FromQuery] DateTime fromDate, [FromQuery] DateTime toDate, [FromQuery] Guid? departmentId)
     {
         var result = await _inpatientService.GetRegister4069Async(fromDate, toDate, departmentId);
@@ -1324,7 +1325,7 @@ public partial class InpatientCompleteController : ControllerBase
     /// In sổ 4069
     /// </summary>
     [HttpGet("reports/print-register-4069")]
-    [Authorize(Roles = "Admin,DepartmentHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DepartmentHead)]
     public async Task<ActionResult> PrintRegister4069([FromQuery] DateTime fromDate, [FromQuery] DateTime toDate, [FromQuery] Guid? departmentId)
     {
         var pdfBytes = await _inpatientService.PrintRegister4069Async(fromDate, toDate, departmentId);
@@ -1335,7 +1336,7 @@ public partial class InpatientCompleteController : ControllerBase
     /// Báo cáo thuốc vật tư sử dụng
     /// </summary>
     [HttpGet("reports/medicine-supply-usage")]
-    [Authorize(Roles = "Admin,DepartmentHead,Pharmacist")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DepartmentHead + "," + RoleNames.Pharmacist)]
     public async Task<ActionResult<MedicineSupplyUsageReportDto>> GetMedicineSupplyUsageReport([FromQuery] ReportSearchDto searchDto)
     {
         var result = await _inpatientService.GetMedicineSupplyUsageReportAsync(searchDto);

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.Application.DTOs;
 using HIS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -14,7 +15,7 @@ namespace HIS.API.Controllers;
 [Route("api/central-signing")]
 // B3 (audit bảo mật 2026-06-06): ký số tập trung là hành vi lâm sàng/pháp lý — chỉ vai trò lâm sàng,
 // loại lễ tân/kế toán/thu ngân (trước đây [Authorize] trơn cho bất kỳ user đăng nhập).
-[Authorize(Roles = "Admin,Doctor,DepartmentHead,Nurse")]
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.DepartmentHead + "," + RoleNames.Nurse)]
 public class CentralSigningController : ControllerBase
 {
     private readonly ICentralSigningService _signingService;

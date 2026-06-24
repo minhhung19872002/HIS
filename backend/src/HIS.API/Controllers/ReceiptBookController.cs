@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -63,7 +64,7 @@ public class ReceiptBookController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<IActionResult> Save([FromBody] ReceiptBook dto)
     {
         if (string.IsNullOrWhiteSpace(dto.BookCode) || string.IsNullOrWhiteSpace(dto.BookName))
@@ -112,7 +113,7 @@ public class ReceiptBookController : ControllerBase
     }
 
     [HttpPost("{id:guid}/close")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<IActionResult> Close(Guid id, [FromBody] CloseDto dto)
     {
         var b = await _db.ReceiptBooks.FindAsync(id);
@@ -127,7 +128,7 @@ public class ReceiptBookController : ControllerBase
     }
 
     [HttpPost("{id:guid}/activate")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<IActionResult> Activate(Guid id)
     {
         var b = await _db.ReceiptBooks.FindAsync(id);
@@ -140,7 +141,7 @@ public class ReceiptBookController : ControllerBase
     }
 
     [HttpPost("{id:guid}/next-number")]
-    [Authorize(Roles = "Admin,Accountant,Cashier")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.Cashier)]
     public async Task<IActionResult> NextNumber(Guid id)
     {
         await using var tx = await _db.Database.BeginTransactionAsync();
@@ -179,7 +180,7 @@ public class ReceiptBookController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<IActionResult> Delete(Guid id)
     {
         var b = await _db.ReceiptBooks.FindAsync(id);

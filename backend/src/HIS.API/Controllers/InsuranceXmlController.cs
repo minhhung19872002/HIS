@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
 using HIS.Application.DTOs;
@@ -170,7 +171,7 @@ public class InsuranceXmlController : ControllerBase
     /// Mở khóa hồ sơ BHYT
     /// </summary>
     [HttpPost("claims/{maLk}/unlock")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager)]
     public async Task<ActionResult<bool>> UnlockInsuranceClaim(string maLk, [FromBody] UnlockRequest request)
     {
         var result = await _insuranceService.UnlockInsuranceClaimAsync(maLk, request.Reason);
@@ -438,7 +439,7 @@ public class InsuranceXmlController : ControllerBase
     /// Gửi XML lên cổng BHXH
     /// </summary>
     [HttpPost("submit")]
-    [Authorize(Roles = "Admin,InsuranceManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.InsuranceManager)]
     public async Task<ActionResult<SubmitResultDto>> SubmitToInsurancePortal([FromBody] SubmitToInsurancePortalDto dto)
     {
         // Sweep 2026-06-12: body rỗng từng trả TXN giả + "tiep nhan thanh cong" (mock) — chặn khi thiếu hồ sơ.
@@ -472,7 +473,7 @@ public class InsuranceXmlController : ControllerBase
     /// Tái gửi hồ sơ bị từ chối
     /// </summary>
     [HttpPost("resubmit")]
-    [Authorize(Roles = "Admin,InsuranceManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.InsuranceManager)]
     public async Task<ActionResult<SubmitResultDto>> ResubmitRejectedClaims([FromBody] List<string> maLkList)
     {
         var result = await _insuranceService.ResubmitRejectedClaimsAsync(maLkList);
@@ -956,7 +957,7 @@ public class InsuranceXmlController : ControllerBase
     /// Import danh mục thuốc BHYT từ file
     /// </summary>
     [HttpPost("catalog/import-medicines")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<ImportResultDto>> ImportMedicineCatalog(IFormFile file)
     {
         using var stream = new MemoryStream();
@@ -969,7 +970,7 @@ public class InsuranceXmlController : ControllerBase
     /// Import danh mục dịch vụ BHYT từ file
     /// </summary>
     [HttpPost("catalog/import-services")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<ImportResultDto>> ImportServiceCatalog(IFormFile file)
     {
         using var stream = new MemoryStream();
@@ -982,7 +983,7 @@ public class InsuranceXmlController : ControllerBase
     /// Cập nhật giá BHYT theo đợt
     /// </summary>
     [HttpPost("catalog/update-prices")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<InsurancePriceUpdateBatchDto>> UpdateInsurancePrices([FromBody] InsurancePriceUpdateBatchDto dto)
     {
         var result = await _insuranceService.UpdateInsurancePricesAsync(dto);
@@ -1007,7 +1008,7 @@ public class InsuranceXmlController : ControllerBase
     /// Lấy cấu hình kết nối cổng BHXH
     /// </summary>
     [HttpGet("config/portal")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<InsurancePortalConfigDto>> GetPortalConfig()
     {
         var result = await _insuranceService.GetPortalConfigAsync();
@@ -1018,7 +1019,7 @@ public class InsuranceXmlController : ControllerBase
     /// Cập nhật cấu hình kết nối cổng BHXH
     /// </summary>
     [HttpPut("config/portal")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<InsurancePortalConfigDto>> UpdatePortalConfig([FromBody] InsurancePortalConfigDto config)
     {
         var result = await _insuranceService.UpdatePortalConfigAsync(config);
@@ -1049,7 +1050,7 @@ public class InsuranceXmlController : ControllerBase
     /// Cập nhật thông tin cơ sở KCB
     /// </summary>
     [HttpPut("config/facility")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<FacilityInfoDto>> UpdateFacilityInfo([FromBody] FacilityInfoDto dto)
     {
         var result = await _insuranceService.UpdateFacilityInfoAsync(dto);

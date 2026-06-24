@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs.SpecialtyEmr;
 using HIS.Application.Services;
@@ -7,7 +8,7 @@ namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/specialty-emr")]
-[Authorize(Roles = "Admin,Manager,Director,Quản trị hệ thống,Doctor,Bác sĩ,Nurse,Điều dưỡng")] // B3 RBAC: EMR chuyên khoa chỉ admin+lâm sàng
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.QuanTriHeThong + "," + RoleNames.Doctor + "," + RoleNames.BacSi + "," + RoleNames.Nurse + "," + RoleNames.DieuDuong)] // B3 RBAC: EMR chuyên khoa chỉ admin+lâm sàng
 [TypeFilter(typeof(Filters.DomainExceptionFilter))] // TT46: InvalidOperationException (EmrLockGuard) → 400 + message rõ
 public class SpecialtyEmrController : ControllerBase
 {

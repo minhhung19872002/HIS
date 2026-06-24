@@ -1,4 +1,5 @@
 using HIS.Core.Entities;
+using HIS.Core.Constants;
 using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -107,7 +108,7 @@ public class PharmacyEnhancementController : ControllerBase
     }
 
     [HttpPost("compounding")]
-    [Authorize(Roles = "Admin,Pharmacist,PharmacyHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Pharmacist + "," + RoleNames.PharmacyHead)]
     public async Task<IActionResult> CreateCompoundingOrder([FromBody] CompoundingOrder dto)
     {
         var entity = new CompoundingOrder
@@ -152,7 +153,7 @@ public class PharmacyEnhancementController : ControllerBase
     }
 
     [HttpPut("compounding/{id:guid}/start")]
-    [Authorize(Roles = "Admin,Pharmacist,PharmacyHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Pharmacist + "," + RoleNames.PharmacyHead)]
     public async Task<IActionResult> StartCompounding(Guid id)
     {
         var c = await _db.CompoundingOrders.FindAsync(id);
@@ -167,7 +168,7 @@ public class PharmacyEnhancementController : ControllerBase
     }
 
     [HttpPut("compounding/{id:guid}/complete")]
-    [Authorize(Roles = "Admin,Pharmacist,PharmacyHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Pharmacist + "," + RoleNames.PharmacyHead)]
     public async Task<IActionResult> CompleteCompounding(Guid id)
     {
         var c = await _db.CompoundingOrders.FindAsync(id);
@@ -182,7 +183,7 @@ public class PharmacyEnhancementController : ControllerBase
     }
 
     [HttpPut("compounding/{id:guid}/cancel")]
-    [Authorize(Roles = "Admin,Pharmacist,PharmacyHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Pharmacist + "," + RoleNames.PharmacyHead)]
     public async Task<IActionResult> CancelCompounding(Guid id, [FromBody] CancelReasonDto dto)
     {
         var c = await _db.CompoundingOrders.FindAsync(id);

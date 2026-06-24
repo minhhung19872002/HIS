@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Surgery;
@@ -54,7 +55,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Từ chối duyệt mổ
     /// </summary>
     [HttpPost("{id}/reject")]
-    [Authorize(Roles = "Admin,SurgeryManager,DepartmentHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.SurgeryManager + "," + RoleNames.DepartmentHead)]
     public async Task<ActionResult<SurgeryDto>> RejectSurgery(Guid id, [FromBody] RejectRequest request)
     {
         var result = await _surgeryService.RejectSurgeryAsync(id, request.Reason, GetUserId());
@@ -117,7 +118,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Hủy PTTT
     /// </summary>
     [HttpPost("{id}/cancel")]
-    [Authorize(Roles = "Admin,SurgeryManager,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.SurgeryManager + "," + RoleNames.Doctor)]
     public async Task<ActionResult<bool>> CancelSurgery(Guid id, [FromBody] SurgeryCancelRequest request)
     {
         var result = await _surgeryService.CancelSurgeryAsync(id, request.Reason, GetUserId());
@@ -128,7 +129,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Khai báo tiền công ekip
     /// </summary>
     [HttpPost("{id}/team-fees")]
-    [Authorize(Roles = "Admin,SurgeryManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.SurgeryManager)]
     public async Task<ActionResult<SurgeryDto>> SetTeamFees(Guid id, [FromBody] List<SurgeryTeamMemberRequestDto> teamMembers)
     {
         var result = await _surgeryService.SetTeamFeesAsync(id, teamMembers, GetUserId());
@@ -149,7 +150,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Tính lợi nhuận PTTT
     /// </summary>
     [HttpGet("{id}/profit")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<SurgeryProfitDto>> CalculateProfit(Guid id)
     {
         var result = await _surgeryService.CalculateProfitAsync(id);
@@ -170,7 +171,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Báo cáo thống kê PTTT
     /// </summary>
     [HttpGet("statistics")]
-    [Authorize(Roles = "Admin,SurgeryManager,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.SurgeryManager + "," + RoleNames.Accountant)]
     public async Task<ActionResult<SurgeryStatisticsDto>> GetStatistics(
         [FromQuery] DateTime fromDate,
         [FromQuery] DateTime toDate,
@@ -209,7 +210,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Tạo/Cập nhật gói PTTT
     /// </summary>
     [HttpPost("packages")]
-    [Authorize(Roles = "Admin,SurgeryManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.SurgeryManager)]
     public async Task<ActionResult<SurgeryPackageDto>> SaveSurgeryPackage([FromBody] SurgeryPackageDto dto)
     {
         var result = await _surgeryService.SaveSurgeryPackageAsync(dto, GetUserId());
@@ -220,7 +221,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Xóa gói PTTT
     /// </summary>
     [HttpDelete("packages/{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<bool>> DeleteSurgeryPackage(Guid id)
     {
         var result = await _surgeryService.DeleteSurgeryPackageAsync(id, GetUserId());
@@ -265,7 +266,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Cập nhật trạng thái phòng mổ
     /// </summary>
     [HttpPut("operating-rooms/{id}/status")]
-    [Authorize(Roles = "Admin,SurgeryManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.SurgeryManager)]
     public async Task<ActionResult<OperatingRoomDto>> UpdateOperatingRoomStatus(Guid id, [FromBody] SurgeryUpdateStatusRequest request)
     {
         var result = await _surgeryService.UpdateOperatingRoomStatusAsync(id, request.Status, GetUserId());
@@ -300,7 +301,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Cập nhật thông tin thực hiện
     /// </summary>
     [HttpPut("{id}/execution")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<SurgeryDto>> UpdateExecutionInfo(Guid id, [FromBody] SurgeryExecutionDto dto)
     {
         dto.SurgeryId = id;
@@ -312,7 +313,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Cập nhật chẩn đoán trước mổ
     /// </summary>
     [HttpPut("{id}/pre-diagnosis")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<SurgeryDto>> UpdatePreOperativeDiagnosis(Guid id, [FromBody] DiagnosisRequest request)
     {
         var result = await _surgeryService.UpdatePreOperativeDiagnosisAsync(id, request.Diagnosis, request.IcdCode, GetUserId());
@@ -323,7 +324,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Cập nhật chẩn đoán sau mổ
     /// </summary>
     [HttpPut("{id}/post-diagnosis")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<SurgeryDto>> UpdatePostOperativeDiagnosis(Guid id, [FromBody] DiagnosisRequest request)
     {
         var result = await _surgeryService.UpdatePostOperativeDiagnosisAsync(id, request.Diagnosis, request.IcdCode, GetUserId());
@@ -334,7 +335,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Khai báo thông tin theo TT50
     /// </summary>
     [HttpPut("{id}/tt50-info")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<SurgeryDto>> UpdateTT50Info(Guid id, [FromBody] SurgeryTT50InfoDto dto)
     {
         dto.SurgeryId = id;
@@ -346,7 +347,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Cập nhật ekip mổ
     /// </summary>
     [HttpPut("{id}/team")]
-    [Authorize(Roles = "Admin,Doctor,SurgeryManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.SurgeryManager)]
     public async Task<ActionResult<SurgeryDto>> UpdateTeamMembers(Guid id, [FromBody] List<SurgeryTeamMemberRequestDto> members)
     {
         var result = await _surgeryService.UpdateTeamMembersAsync(id, members, GetUserId());
@@ -357,7 +358,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Thay đổi thành viên ekip giữa chừng
     /// </summary>
     [HttpPost("{id}/team/change")]
-    [Authorize(Roles = "Admin,Doctor,SurgeryManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.SurgeryManager)]
     public async Task<ActionResult<SurgeryDto>> ChangeTeamMember(Guid id, [FromBody] ChangeTeamMemberRequest request)
     {
         var result = await _surgeryService.ChangeTeamMemberAsync(id, request.OldMemberId, request.NewMember, request.ChangeTime, GetUserId());
@@ -476,7 +477,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Chỉ định dịch vụ
     /// </summary>
     [HttpPost("{surgeryId}/service-orders")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<SurgeryServiceOrderDto>> OrderService(Guid surgeryId, [FromBody] CreateSurgeryServiceOrderDto dto)
     {
         dto.SurgeryId = surgeryId;
@@ -488,7 +489,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Chỉ định nhiều dịch vụ
     /// </summary>
     [HttpPost("{surgeryId}/service-orders/batch")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<List<SurgeryServiceOrderDto>>> OrderServices(Guid surgeryId, [FromBody] List<CreateSurgeryServiceOrderDto> dtos)
     {
         var result = await _surgeryService.OrderServicesAsync(surgeryId, dtos, GetUserId());
@@ -499,7 +500,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Chỉ định theo gói
     /// </summary>
     [HttpPost("{surgeryId}/service-orders/package/{packageId}")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<SurgeryPackageOrderDto>> OrderPackage(Guid surgeryId, Guid packageId)
     {
         var result = await _surgeryService.OrderPackageAsync(surgeryId, packageId, GetUserId());
@@ -520,7 +521,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Cập nhật chỉ định dịch vụ
     /// </summary>
     [HttpPut("service-orders/{orderId}")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<SurgeryServiceOrderDto>> UpdateServiceOrder(Guid orderId, [FromBody] CreateSurgeryServiceOrderDto dto)
     {
         var result = await _surgeryService.UpdateServiceOrderAsync(orderId, dto, GetUserId());
@@ -531,7 +532,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Xóa chỉ định dịch vụ
     /// </summary>
     [HttpDelete("service-orders/{orderId}")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<bool>> DeleteServiceOrder(Guid orderId)
     {
         var result = await _surgeryService.DeleteServiceOrderAsync(orderId, GetUserId());
@@ -586,7 +587,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Chỉ định theo nhóm
     /// </summary>
     [HttpPost("{surgeryId}/service-orders/group/{groupId}")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<List<SurgeryServiceOrderDto>>> OrderByGroup(Guid surgeryId, Guid groupId)
     {
         var result = await _surgeryService.OrderByGroupAsync(surgeryId, groupId, GetUserId());
@@ -611,7 +612,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Thêm thuốc
     /// </summary>
     [HttpPost("{surgeryId}/medicines")]
-    [Authorize(Roles = "Admin,Doctor,Nurse")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]
     public async Task<ActionResult<SurgeryMedicineDto>> AddMedicine(Guid surgeryId, [FromBody] AddSurgeryMedicineDto dto)
     {
         dto.SurgeryId = surgeryId;
@@ -623,7 +624,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Thêm vật tư
     /// </summary>
     [HttpPost("{surgeryId}/supplies")]
-    [Authorize(Roles = "Admin,Doctor,Nurse")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]
     public async Task<ActionResult<SurgerySupplyDto>> AddSupply(Guid surgeryId, [FromBody] AddSurgerySupplyDto dto)
     {
         dto.SurgeryId = surgeryId;
@@ -635,7 +636,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Cập nhật thuốc
     /// </summary>
     [HttpPut("medicines/{itemId}")]
-    [Authorize(Roles = "Admin,Doctor,Nurse")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]
     public async Task<ActionResult<SurgeryMedicineDto>> UpdateMedicine(Guid itemId, [FromBody] AddSurgeryMedicineDto dto)
     {
         var result = await _surgeryService.UpdateMedicineAsync(itemId, dto, GetUserId());
@@ -646,7 +647,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Xóa thuốc
     /// </summary>
     [HttpDelete("medicines/{itemId}")]
-    [Authorize(Roles = "Admin,Doctor,Nurse")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]
     public async Task<ActionResult<bool>> RemoveMedicine(Guid itemId)
     {
         var result = await _surgeryService.RemoveMedicineAsync(itemId, GetUserId());
@@ -657,7 +658,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Xóa vật tư
     /// </summary>
     [HttpDelete("supplies/{itemId}")]
-    [Authorize(Roles = "Admin,Doctor,Nurse")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]
     public async Task<ActionResult<bool>> RemoveSupply(Guid itemId)
     {
         var result = await _surgeryService.RemoveSupplyAsync(itemId, GetUserId());
@@ -668,7 +669,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Áp dụng gói thuốc/VT
     /// </summary>
     [HttpPost("{surgeryId}/prescription/apply-package/{packageId}")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<SurgeryPrescriptionDto>> ApplyPackage(Guid surgeryId, Guid packageId)
     {
         var result = await _surgeryService.ApplyPackageAsync(surgeryId, packageId, GetUserId());
@@ -734,7 +735,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Áp dụng mẫu đơn thuốc
     /// </summary>
     [HttpPost("{surgeryId}/prescription/apply-template/{templateId}")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<SurgeryPrescriptionDto>> ApplyPrescriptionTemplate(Guid surgeryId, Guid templateId)
     {
         var result = await _surgeryService.ApplyPrescriptionTemplateAsync(surgeryId, templateId, GetUserId());
@@ -745,7 +746,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Sao chép đơn thuốc cũ
     /// </summary>
     [HttpPost("{surgeryId}/prescription/copy/{sourceSurgeryId}")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<SurgeryPrescriptionDto>> CopyPrescription(Guid surgeryId, Guid sourceSurgeryId)
     {
         var result = await _surgeryService.CopyPrescriptionAsync(surgeryId, sourceSurgeryId, GetUserId());
@@ -771,7 +772,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Tạo kê đơn máu
     /// </summary>
     [HttpPost("{surgeryId}/blood-order")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<SurgeryBloodOrderDto>> CreateBloodOrder(Guid surgeryId, [FromBody] CreateBloodOrderDto dto)
     {
         dto.SurgeryId = surgeryId;
@@ -783,7 +784,7 @@ public class SurgeryCompleteController : ControllerBase
     /// Cập nhật kê đơn máu
     /// </summary>
     [HttpPut("blood-orders/{orderId}")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<SurgeryBloodOrderDto>> UpdateBloodOrder(Guid orderId, [FromBody] CreateBloodOrderDto dto)
     {
         var result = await _surgeryService.UpdateBloodOrderAsync(orderId, dto, GetUserId());

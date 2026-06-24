@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Application.DTOs.Examination;
@@ -69,7 +70,7 @@ public class SampleReceiveController : ControllerBase
 
     /// <summary>Nhận mẫu — đánh dấu ReceiveStatus=1.</summary>
     [HttpPost("accept")]
-    [Authorize(Roles = "Admin,LabReceptionist,LabManager,Technician")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabReceptionist + "," + RoleNames.LabManager + "," + RoleNames.Technician)]
     public async Task<IActionResult> Accept([FromBody] ReceiveDto dto)
     {
         if (dto.DetailIds.Count == 0) return BadRequest(new { message = "Chưa chọn mẫu" });
@@ -99,7 +100,7 @@ public class SampleReceiveController : ControllerBase
 
     /// <summary>Từ chối mẫu (mẫu không đạt).</summary>
     [HttpPost("reject")]
-    [Authorize(Roles = "Admin,LabReceptionist,LabManager,Technician")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabReceptionist + "," + RoleNames.LabManager + "," + RoleNames.Technician)]
     public async Task<IActionResult> Reject([FromBody] RejectDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Reason))
@@ -126,7 +127,7 @@ public class SampleReceiveController : ControllerBase
 
     /// <summary>KTV nhập kết quả (chưa duyệt).</summary>
     [HttpPost("technician-run")]
-    [Authorize(Roles = "Admin,Technician,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Technician + "," + RoleNames.LabManager)]
     public async Task<IActionResult> TechnicianRun([FromBody] RunDto dto)
     {
         var d = await _db.ServiceRequestDetails.FindAsync(dto.DetailId);
@@ -195,7 +196,7 @@ public class SampleReceiveController : ControllerBase
 
     /// <summary>Reviewer duyệt kết quả. Bắt buộc ReviewerUserId ≠ TechnicianUserId.</summary>
     [HttpPost("review")]
-    [Authorize(Roles = "Admin,LabReviewer,LabManager,Radiologist")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabReviewer + "," + RoleNames.LabManager + "," + RoleNames.Radiologist)]
     public async Task<IActionResult> Review([FromBody] ReviewDto dto)
     {
         var d = await _db.ServiceRequestDetails.FindAsync(dto.DetailId);
@@ -221,7 +222,7 @@ public class SampleReceiveController : ControllerBase
 
     /// <summary>Hủy nhận mẫu — đảo ReceiveStatus 1→0, clear ReceivedByUserId/At, Status về 0.</summary>
     [HttpPost("cancel-receive")]
-    [Authorize(Roles = "Admin,LabReceptionist,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabReceptionist + "," + RoleNames.LabManager)]
     public async Task<IActionResult> CancelReceive([FromBody] CancelReceiveDto dto)
     {
         if (dto.DetailIds.Count == 0) return BadRequest(new { message = "Chưa chọn mẫu cần hủy nhận" });

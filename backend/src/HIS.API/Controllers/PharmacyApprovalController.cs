@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.Application.DTOs.Pharmacy;
 using HIS.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -50,12 +51,12 @@ public class PharmacyApprovalController : ControllerBase
     }
 
     [HttpPost("approve")]
-    [Authorize(Roles = "Admin,Pharmacist,PharmacyHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Pharmacist + "," + RoleNames.PharmacyHead)]
     public async Task<ActionResult<PharmacyApprovalDto>> Approve([FromBody] ApproveDto dto)
         => Ok(await _service.ApproveAsync(dto, GetUserId()));
 
     [HttpPost("revoke")]
-    [Authorize(Roles = "Admin,Pharmacist,PharmacyHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Pharmacist + "," + RoleNames.PharmacyHead)]
     public async Task<ActionResult<PharmacyApprovalDto>> Revoke([FromBody] RevokeApprovalDto dto)
         => Ok(await _service.RevokeAsync(dto, GetUserId()));
 

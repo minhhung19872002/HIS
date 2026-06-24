@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.API.Filters;
 using HIS.Application.DTOs.FunctionalDiagnostic;
 using HIS.Application.DTOs.NangCap23;
@@ -40,12 +41,12 @@ public class NationalPrescriptionGatewayController : ControllerBase
 
     // Submit/Retry/Cancel — chỉ BS/Dược sĩ/Admin được gửi cổng QG (theo TT 04/2022)
     [HttpPost("submit")]
-    [Authorize(Roles = "Admin,Doctor,Pharmacist")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.Pharmacist)]
     public async Task<ActionResult<NationalPrescriptionSubmissionDto>> Submit([FromBody] SubmitNationalPrescriptionDto dto, CancellationToken ct)
         => Ok(await _svc.SubmitAsync(dto, UserId(), ct));
 
     [HttpPost("{id:guid}/retry")]
-    [Authorize(Roles = "Admin,Doctor,Pharmacist")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.Pharmacist)]
     public async Task<ActionResult<NationalPrescriptionSubmissionDto>> Retry(Guid id)
     {
         var r = await _svc.RetryAsync(id, UserId());
@@ -53,7 +54,7 @@ public class NationalPrescriptionGatewayController : ControllerBase
     }
 
     [HttpPost("{id:guid}/cancel")]
-    [Authorize(Roles = "Admin,Doctor,Pharmacist")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.Pharmacist)]
     public async Task<ActionResult<NationalPrescriptionSubmissionDto>> Cancel(Guid id)
     {
         var r = await _svc.CancelAsync(id, UserId());
@@ -61,12 +62,12 @@ public class NationalPrescriptionGatewayController : ControllerBase
     }
 
     [HttpGet("config")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<NationalGatewayConfigDto>> GetConfig()
         => Ok(await _svc.GetConfigAsync());
 
     [HttpPost("config")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<object>> SaveConfig([FromBody] NationalGatewayConfigDto dto)
         => Ok(new { success = await _svc.SaveConfigAsync(dto, UserId()) });
 
@@ -105,12 +106,12 @@ public class NationalPharmacyController : ControllerBase
     }
 
     [HttpPost("generate")]
-    [Authorize(Roles = "Admin,Pharmacist,PharmacyHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Pharmacist + "," + RoleNames.PharmacyHead)]
     public async Task<ActionResult<NationalPharmacyOutboundReportDto>> Generate([FromBody] GeneratePharmacyReportDto dto)
         => Ok(await _svc.GenerateAndSubmitAsync(dto, UserId()));
 
     [HttpPost("{id:guid}/retry")]
-    [Authorize(Roles = "Admin,Pharmacist,PharmacyHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Pharmacist + "," + RoleNames.PharmacyHead)]
     public async Task<ActionResult<NationalPharmacyOutboundReportDto>> Retry(Guid id)
     {
         var r = await _svc.RetryAsync(id, UserId());
@@ -158,7 +159,7 @@ public class DeAn06Controller : ControllerBase
         => Ok(await _svc.SaveBirthCertificateAsync(dto, UserId()));
 
     [HttpPost("birth-certificates/{id:guid}/submit")]
-    [Authorize(Roles = "Admin,Doctor,Midwife")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.Midwife)]
     public async Task<ActionResult<BirthCertificateDto>> SubmitBirth(Guid id)
     {
         var r = await _svc.SubmitBirthCertificateToDa06Async(id, UserId());
@@ -186,7 +187,7 @@ public class DeAn06Controller : ControllerBase
         => Ok(await _svc.SaveDeathCertificateAsync(dto, UserId()));
 
     [HttpPost("death-certificates/{id:guid}/submit")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<DeathCertificateDto>> SubmitDeath(Guid id)
     {
         var r = await _svc.SubmitDeathCertificateToDa06Async(id, UserId());
@@ -214,7 +215,7 @@ public class DeAn06Controller : ControllerBase
         => Ok(await _svc.SaveDrivingLicenseCheckAsync(dto, UserId()));
 
     [HttpPost("driving-license-checks/{id:guid}/submit")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<DrivingLicenseHealthCheckDto>> SubmitDlhc(Guid id)
     {
         var r = await _svc.SubmitDrivingLicenseCheckToDa06Async(id, UserId());
@@ -363,7 +364,7 @@ public class FunctionalDiagnosticsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/verify")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<ActionResult<FunctionalDiagnosticTestDto>> Verify(Guid id)
     {
         var r = await _svc.VerifyAsync(id, UserId());
@@ -424,12 +425,12 @@ public class ZaloNotificationController : ControllerBase
     }
 
     [HttpGet("config")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<ZaloConfigDto>> GetConfig()
         => Ok(await _svc.GetConfigAsync());
 
     [HttpPost("config")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<object>> SaveConfig([FromBody] ZaloConfigDto dto)
         => Ok(new { success = await _svc.SaveConfigAsync(dto, UserId()) });
 

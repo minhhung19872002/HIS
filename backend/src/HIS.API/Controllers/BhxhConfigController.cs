@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using HIS.Core.Constants;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
@@ -55,7 +56,7 @@ public class BhxhConfigController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin,Accountant,InsuranceManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.InsuranceManager)]
     public async Task<IActionResult> Get()
     {
         var entries = await _db.Set<SystemConfig>()
@@ -78,7 +79,7 @@ public class BhxhConfigController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,InsuranceManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.InsuranceManager)]
     public async Task<IActionResult> Save([FromBody] BhxhConfigDto dto)
     {
         var now = DateTime.Now;
@@ -126,7 +127,7 @@ public class BhxhConfigController : ControllerBase
 
     /// <summary>Test ping GatewayUrl — không cần auth với BHXH, chỉ kiểm tra reachable.</summary>
     [HttpPost("test-connection")]
-    [Authorize(Roles = "Admin,InsuranceManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.InsuranceManager)]
     public async Task<IActionResult> TestConnection()
     {
         var cfg = await LoadDictAsync();
@@ -158,7 +159,7 @@ public class BhxhConfigController : ControllerBase
 
     /// <summary>Test authenticate — lấy access_token từ TokenUrl.</summary>
     [HttpPost("test-auth")]
-    [Authorize(Roles = "Admin,InsuranceManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.InsuranceManager)]
     public async Task<IActionResult> TestAuth()
     {
         var cfg = await LoadDictAsync();
@@ -215,7 +216,7 @@ public class BhxhConfigController : ControllerBase
 
     /// <summary>Test submit XML thô tới gateway — dry-run.</summary>
     [HttpPost("test-submit-xml")]
-    [Authorize(Roles = "Admin,InsuranceManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.InsuranceManager)]
     public async Task<IActionResult> TestSubmitXml([FromBody] TestSubmitXmlDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Xml))

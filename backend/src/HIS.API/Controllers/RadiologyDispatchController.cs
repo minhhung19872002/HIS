@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -241,7 +242,7 @@ public class RadiologyDispatchController : ControllerBase
         string? RoleTemplate);
 
     [HttpPost("permissions")]
-    [Authorize(Roles = "Admin,DepartmentHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DepartmentHead)]
     public async Task<IActionResult> SavePermission([FromBody] SavePermissionDto dto)
     {
         // G-36: unique key = (UserId, RoomId, ModalityId) — phân biệt quyền theo máy cụ thể
@@ -278,7 +279,7 @@ public class RadiologyDispatchController : ControllerBase
     }
 
     [HttpPost("permissions/copy")]
-    [Authorize(Roles = "Admin,DepartmentHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DepartmentHead)]
     public async Task<IActionResult> CopyPermissions([FromQuery] Guid fromUserId, [FromQuery] Guid toUserId)
     {
         var sourcePerms = await _db.RadiologyPermissions
@@ -330,7 +331,7 @@ public class RadiologyDispatchController : ControllerBase
     }
 
     [HttpDelete("permissions/{id:guid}")]
-    [Authorize(Roles = "Admin,DepartmentHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DepartmentHead)]
     public async Task<IActionResult> DeletePermission(Guid id)
     {
         var p = await _db.RadiologyPermissions.FirstOrDefaultAsync(x => x.Id == id)

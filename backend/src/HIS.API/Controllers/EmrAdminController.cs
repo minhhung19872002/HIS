@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs.EmrAdmin;
 using HIS.Application.Services;
@@ -127,7 +128,7 @@ public class EmrAdminController : ControllerBase
 
     /// <summary>TT46: mở lại hồ sơ đã kết thúc — quyền hạn chế + bắt buộc lý do (lưu vết EmrAmendments).</summary>
     [HttpPost("records/{recordId}/reopen")]
-    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin,Director,Manager,MedicalRecordManager")]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = RoleNames.Admin + "," + RoleNames.Director + "," + RoleNames.Manager + "," + RoleNames.MedicalRecordManager)]
     public async Task<IActionResult> ReopenRecord(Guid recordId, [FromBody] ReopenRecordDto dto)
     {
         var result = await _service.ReopenRecordAsync(recordId, dto?.Reason ?? "");

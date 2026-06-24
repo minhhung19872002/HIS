@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -57,7 +58,7 @@ public class LisCatalogController : ControllerBase
     }
 
     [HttpPost("books")]
-    [Authorize(Roles = "Admin,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> SaveBook([FromBody] LabBook dto)
     {
         if (string.IsNullOrWhiteSpace(dto.BookCode) || string.IsNullOrWhiteSpace(dto.BookName))
@@ -83,7 +84,7 @@ public class LisCatalogController : ControllerBase
     }
 
     [HttpDelete("books/{id:guid}")]
-    [Authorize(Roles = "Admin,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> DeleteBook(Guid id)
     {
         var e = await _db.LabBooks.FindAsync(id);
@@ -111,7 +112,7 @@ public class LisCatalogController : ControllerBase
     }
 
     [HttpPost("groups")]
-    [Authorize(Roles = "Admin,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> SaveGroup([FromBody] LabBookGroup dto)
     {
         if (string.IsNullOrWhiteSpace(dto.GroupCode) || string.IsNullOrWhiteSpace(dto.GroupName))
@@ -137,7 +138,7 @@ public class LisCatalogController : ControllerBase
     }
 
     [HttpDelete("groups/{id:guid}")]
-    [Authorize(Roles = "Admin,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> DeleteGroup(Guid id)
     {
         var e = await _db.Set<LabBookGroup>().FindAsync(id);
@@ -166,7 +167,7 @@ public class LisCatalogController : ControllerBase
     }
 
     [HttpPost("units")]
-    [Authorize(Roles = "Admin,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> SaveUnit([FromBody] LabMeasurementUnit dto)
     {
         if (string.IsNullOrWhiteSpace(dto.UnitCode) || string.IsNullOrWhiteSpace(dto.UnitName))
@@ -192,7 +193,7 @@ public class LisCatalogController : ControllerBase
     }
 
     [HttpDelete("units/{id:guid}")]
-    [Authorize(Roles = "Admin,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> DeleteUnit(Guid id)
     {
         var e = await _db.LabMeasurementUnits.FindAsync(id);
@@ -221,7 +222,7 @@ public class LisCatalogController : ControllerBase
     }
 
     [HttpPost("organisms")]
-    [Authorize(Roles = "Admin,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> SaveOrganism([FromBody] LabOrganism dto)
     {
         if (string.IsNullOrWhiteSpace(dto.OrganismCode) || string.IsNullOrWhiteSpace(dto.OrganismName))
@@ -250,7 +251,7 @@ public class LisCatalogController : ControllerBase
     }
 
     [HttpDelete("organisms/{id:guid}")]
-    [Authorize(Roles = "Admin,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> DeleteOrganism(Guid id)
     {
         var e = await _db.LabOrganisms.FindAsync(id);
@@ -280,7 +281,7 @@ public class LisCatalogController : ControllerBase
     }
 
     [HttpPost("antibiotics")]
-    [Authorize(Roles = "Admin,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> SaveAntibiotic([FromBody] LabAntibiotic dto)
     {
         if (string.IsNullOrWhiteSpace(dto.AntibioticCode) || string.IsNullOrWhiteSpace(dto.AntibioticName))
@@ -310,7 +311,7 @@ public class LisCatalogController : ControllerBase
     }
 
     [HttpDelete("antibiotics/{id:guid}")]
-    [Authorize(Roles = "Admin,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> DeleteAntibiotic(Guid id)
     {
         var e = await _db.LabAntibiotics.FindAsync(id);
@@ -352,7 +353,7 @@ public class LisCatalogController : ControllerBase
     }
 
     [HttpPost("chemicals")]
-    [Authorize(Roles = "Admin,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> SaveChemical([FromBody] LabChemical dto)
     {
         if (dto.ServiceId == Guid.Empty || dto.MedicalSupplyId == Guid.Empty)
@@ -379,7 +380,7 @@ public class LisCatalogController : ControllerBase
     }
 
     [HttpDelete("chemicals/{id:guid}")]
-    [Authorize(Roles = "Admin,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> DeleteChemical(Guid id)
     {
         var e = await _db.Set<LabChemical>().FindAsync(id);
@@ -445,7 +446,7 @@ public class LisCatalogController : ControllerBase
     }
 
     [HttpPost("tests")]
-    [Authorize(Roles = "Admin,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> SaveTest([FromBody] LisTestParameter dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.Name))
@@ -486,7 +487,7 @@ public class LisCatalogController : ControllerBase
     }
 
     [HttpDelete("tests/{id:guid}")]
-    [Authorize(Roles = "Admin,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> DeleteTest(Guid id)
     {
         var e = await _db.LisTestParameters.FindAsync(id);

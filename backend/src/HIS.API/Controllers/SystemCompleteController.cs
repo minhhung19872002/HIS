@@ -1,4 +1,5 @@
 using System;
+using HIS.Core.Constants;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -29,7 +30,7 @@ namespace HIS.API.Controllers
         /// 11.1 Báo cáo doanh thu theo khoa chỉ định
         /// </summary>
         [HttpGet("api/finance/revenue/ordering-dept")]
-        [Authorize(Roles = "Admin,Accountant,Manager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.Manager)]
         public async Task<ActionResult<List<RevenueByOrderingDeptDto>>> GetRevenueByOrderingDept(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -44,7 +45,7 @@ namespace HIS.API.Controllers
         /// 11.2 Báo cáo doanh thu theo khoa thực hiện
         /// </summary>
         [HttpGet("api/finance/revenue/executing-dept")]
-        [Authorize(Roles = "Admin,Accountant,Manager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.Manager)]
         public async Task<ActionResult<List<RevenueByExecutingDeptDto>>> GetRevenueByExecutingDept(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -59,7 +60,7 @@ namespace HIS.API.Controllers
         /// 11.3 Báo cáo doanh thu theo dịch vụ
         /// </summary>
         [HttpGet("api/finance/revenue/service")]
-        [Authorize(Roles = "Admin,Accountant,Manager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.Manager)]
         public async Task<ActionResult<List<RevenueByServiceDto>>> GetRevenueByService(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -74,7 +75,7 @@ namespace HIS.API.Controllers
         /// 11.4 Báo cáo lợi nhuận phẫu thuật/thủ thuật
         /// </summary>
         [HttpGet("api/finance/profit/surgery")]
-        [Authorize(Roles = "Admin,Accountant,Manager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.Manager)]
         public async Task<ActionResult<List<SurgeryProfitReportDto>>> GetSurgeryProfitReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -89,7 +90,7 @@ namespace HIS.API.Controllers
         /// 11.5 Báo cáo chi phí theo khoa phòng
         /// </summary>
         [HttpGet("api/finance/cost/department")]
-        [Authorize(Roles = "Admin,Accountant,Manager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.Manager)]
         public async Task<ActionResult<List<CostByDepartmentDto>>> GetCostByDepartment(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -104,7 +105,7 @@ namespace HIS.API.Controllers
         /// 11.6 Báo cáo thu chi tổng hợp
         /// </summary>
         [HttpGet("api/finance/summary")]
-        [Authorize(Roles = "Admin,Accountant,Manager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.Manager)]
         public async Task<ActionResult<FinancialSummaryReportDto>> GetFinancialSummary(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate)
@@ -117,7 +118,7 @@ namespace HIS.API.Controllers
         /// 11.7 Báo cáo công nợ bệnh nhân
         /// </summary>
         [HttpGet("api/finance/debt/patient")]
-        [Authorize(Roles = "Admin,Accountant,Cashier")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.Cashier)]
         public async Task<ActionResult<List<PatientDebtReportDto>>> GetPatientDebtReport(
             [FromQuery] DateTime? fromDate = null,
             [FromQuery] DateTime? toDate = null,
@@ -131,7 +132,7 @@ namespace HIS.API.Controllers
         /// 11.8 Báo cáo công nợ BHYT
         /// </summary>
         [HttpGet("api/finance/debt/insurance")]
-        [Authorize(Roles = "Admin,Accountant,InsuranceOfficer")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.InsuranceOfficer)]
         public async Task<ActionResult<List<InsuranceDebtReportDto>>> GetInsuranceDebtReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -145,7 +146,7 @@ namespace HIS.API.Controllers
         /// 11.9 Báo cáo đối soát BHYT
         /// </summary>
         [HttpGet("api/finance/insurance/reconciliation")]
-        [Authorize(Roles = "Admin,Accountant,InsuranceOfficer")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.InsuranceOfficer)]
         public async Task<ActionResult<InsuranceReconciliationDto>> GetInsuranceReconciliation(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -159,7 +160,7 @@ namespace HIS.API.Controllers
         /// In báo cáo tài chính
         /// </summary>
         [HttpPost("api/finance/reports/print")]
-        [Authorize(Roles = "Admin,Accountant,Manager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.Manager)]
         public async Task<IActionResult> PrintFinancialReport([FromBody] FinancialReportRequest request)
         {
             var result = await _service.PrintFinancialReportAsync(request);
@@ -170,7 +171,7 @@ namespace HIS.API.Controllers
         /// Xuất Excel báo cáo tài chính
         /// </summary>
         [HttpPost("api/finance/reports/export")]
-        [Authorize(Roles = "Admin,Accountant,Manager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.Manager)]
         public async Task<IActionResult> ExportFinancialReport([FromBody] FinancialReportRequest request)
         {
             var result = await _service.ExportFinancialReportToExcelAsync(request);
@@ -199,7 +200,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/examination-services")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<ExaminationServiceCatalogDto>> SaveExaminationService([FromBody] ExaminationServiceCatalogDto dto)
         {
             var result = await _service.SaveExaminationServiceAsync(dto);
@@ -207,7 +208,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/examination-services/{serviceId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteExaminationService(Guid serviceId)
         {
             var result = await _service.DeleteExaminationServiceAsync(serviceId);
@@ -233,7 +234,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/paraclinical-services")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<ParaclinicalServiceCatalogDto>> SaveParaclinicalService([FromBody] ParaclinicalServiceCatalogDto dto)
         {
             var result = await _service.SaveParaclinicalServiceAsync(dto);
@@ -241,7 +242,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/paraclinical-services/{serviceId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteParaclinicalService(Guid serviceId)
         {
             var result = await _service.DeleteParaclinicalServiceAsync(serviceId);
@@ -264,7 +265,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/medicines")]
-        [Authorize(Roles = "Admin,CatalogManager,PharmacyManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager + "," + RoleNames.PharmacyManager)]
         public async Task<ActionResult<MedicineCatalogDto>> SaveMedicine([FromBody] MedicineCatalogDto dto)
         {
             var result = await _service.SaveMedicineAsync(dto);
@@ -272,7 +273,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/medicines/{medicineId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteMedicine(Guid medicineId)
         {
             var result = await _service.DeleteMedicineAsync(medicineId);
@@ -280,7 +281,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/medicines/import")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<bool>> ImportMedicines([FromBody] byte[] fileData)
         {
             var result = await _service.ImportMedicinesFromExcelAsync(fileData);
@@ -288,7 +289,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/medicines/export")]
-        [Authorize(Roles = "Admin,CatalogManager,PharmacyManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager + "," + RoleNames.PharmacyManager)]
         public async Task<IActionResult> ExportMedicines([FromBody] MedicineCatalogSearchDto search)
         {
             var result = await _service.ExportMedicinesToExcelAsync(search);
@@ -314,7 +315,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/medical-supplies")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<MedicalSupplyCatalogDto>> SaveMedicalSupply([FromBody] MedicalSupplyCatalogDto dto)
         {
             var result = await _service.SaveMedicalSupplyAsync(dto);
@@ -322,7 +323,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/medical-supplies/{supplyId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteMedicalSupply(Guid supplyId)
         {
             var result = await _service.DeleteMedicalSupplyAsync(supplyId);
@@ -348,7 +349,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/icd10")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<ICD10CatalogDto>> SaveICD10Code([FromBody] ICD10CatalogDto dto)
         {
             var result = await _service.SaveICD10CodeAsync(dto);
@@ -356,7 +357,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/icd10/{icd10Id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteICD10Code(Guid icd10Id)
         {
             var result = await _service.DeleteICD10CodeAsync(icd10Id);
@@ -364,7 +365,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/icd10/import")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> ImportICD10([FromBody] byte[] fileData)
         {
             var result = await _service.ImportICD10FromExcelAsync(fileData);
@@ -372,7 +373,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("api/catalog/icd10/export")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<IActionResult> ExportICD10([FromQuery] string chapterCode = null)
         {
             var result = await _service.ExportICD10ToExcelAsync(chapterCode);
@@ -398,7 +399,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/departments")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<DepartmentCatalogDto>> SaveDepartment([FromBody] DepartmentCatalogDto dto)
         {
             var result = await _service.SaveDepartmentAsync(dto);
@@ -406,7 +407,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/departments/{departmentId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteDepartment(Guid departmentId)
         {
             var result = await _service.DeleteDepartmentAsync(departmentId);
@@ -432,7 +433,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/rooms")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<RoomCatalogDto>> SaveRoom([FromBody] RoomCatalogDto dto)
         {
             var result = await _service.SaveRoomAsync(dto);
@@ -440,7 +441,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/rooms/{roomId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteRoom(Guid roomId)
         {
             var result = await _service.DeleteRoomAsync(roomId);
@@ -464,7 +465,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/beds")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<BedCatalogDto>> SaveBed([FromBody] BedCatalogDto dto)
         {
             var result = await _service.SaveBedAsync(dto);
@@ -472,7 +473,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/beds/{bedId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteBed(Guid bedId)
         {
             var result = await _service.DeleteBedAsync(bedId);
@@ -499,7 +500,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/employees")]
-        [Authorize(Roles = "Admin,HRManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.HRManager)]
         public async Task<ActionResult<EmployeeCatalogDto>> SaveEmployee([FromBody] EmployeeCatalogDto dto)
         {
             var result = await _service.SaveEmployeeAsync(dto);
@@ -507,7 +508,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/employees/{employeeId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteEmployee(Guid employeeId)
         {
             var result = await _service.DeleteEmployeeAsync(employeeId);
@@ -533,7 +534,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/suppliers")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<SupplierCatalogDto>> SaveSupplier([FromBody] SupplierCatalogDto dto)
         {
             var result = await _service.SaveSupplierAsync(dto);
@@ -541,7 +542,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/suppliers/{supplierId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteSupplier(Guid supplierId)
         {
             var result = await _service.DeleteSupplierAsync(supplierId);
@@ -567,7 +568,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/service-prices")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<ServicePriceCatalogDto>> SaveServicePrice([FromBody] ServicePriceCatalogDto dto)
         {
             var result = await _service.SaveServicePriceAsync(dto);
@@ -575,7 +576,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/service-prices/{priceId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteServicePrice(Guid priceId)
         {
             var result = await _service.DeleteServicePriceAsync(priceId);
@@ -591,7 +592,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/patient-types")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<PatientTypeCatalogDto>> SavePatientType([FromBody] PatientTypeCatalogDto dto)
         {
             var result = await _service.SavePatientTypeAsync(dto);
@@ -606,7 +607,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/admission-sources")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<AdmissionSourceCatalogDto>> SaveAdmissionSource([FromBody] AdmissionSourceCatalogDto dto)
         {
             var result = await _service.SaveAdmissionSourceAsync(dto);
@@ -624,7 +625,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/print-templates")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<PrintTemplateCatalogDto>> SavePrintTemplate([FromBody] PrintTemplateCatalogDto dto)
         {
             var result = await _service.SavePrintTemplateAsync(dto);
@@ -641,7 +642,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/medical-record-templates")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<MedicalRecordTemplateCatalogDto>> SaveMedicalRecordTemplate([FromBody] MedicalRecordTemplateCatalogDto dto)
         {
             var result = await _service.SaveMedicalRecordTemplateAsync(dto);
@@ -658,7 +659,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/service-groups")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<ServiceGroupCatalogDto>> SaveServiceGroup([FromBody] ServiceGroupCatalogDto dto)
         {
             var result = await _service.SaveServiceGroupAsync(dto);
@@ -673,7 +674,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/medicine-groups")]
-        [Authorize(Roles = "Admin,CatalogManager,PharmacyManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager + "," + RoleNames.PharmacyManager)]
         public async Task<ActionResult<MedicineGroupCatalogDto>> SaveMedicineGroup([FromBody] MedicineGroupCatalogDto dto)
         {
             var result = await _service.SaveMedicineGroupAsync(dto);
@@ -699,7 +700,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/clinical-terms")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<ClinicalTermCatalogDto>> SaveClinicalTerm([FromBody] ClinicalTermCatalogDto dto)
         {
             var result = await _service.SaveClinicalTermAsync(dto);
@@ -707,7 +708,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/clinical-terms/{termId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteClinicalTerm(Guid termId)
         {
             var result = await _service.DeleteClinicalTermAsync(termId);
@@ -724,7 +725,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/snomed-mappings")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<SnomedIcdMappingDto>> SaveSnomedMapping([FromBody] SnomedIcdMappingDto dto)
         {
             var result = await _service.SaveSnomedMappingAsync(dto);
@@ -732,7 +733,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/snomed-mappings/{mappingId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteSnomedMapping(Guid mappingId)
         {
             var result = await _service.DeleteSnomedMappingAsync(mappingId);
@@ -762,7 +763,7 @@ namespace HIS.API.Controllers
         /// Thêm mới / Cập nhật chi nhánh bệnh viện
         /// </summary>
         [HttpPost("api/catalog/branches")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<HospitalBranchDto>> SaveBranch([FromBody] HospitalBranchDto dto)
         {
             var result = await _service.SaveBranchAsync(dto);
@@ -773,7 +774,7 @@ namespace HIS.API.Controllers
         /// Xóa chi nhánh bệnh viện
         /// </summary>
         [HttpDelete("api/catalog/branches/{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteBranch(Guid id)
         {
             var result = await _service.DeleteBranchAsync(id);
@@ -782,7 +783,7 @@ namespace HIS.API.Controllers
 
         // 13.18 Đồng bộ BHXH
         [HttpPost("api/catalog/sync/bhxh/medicines")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<SyncResultDto>> SyncBHXHMedicines()
         {
             var result = await _service.SyncBHXHMedicinesAsync();
@@ -790,7 +791,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/sync/bhxh/services")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<SyncResultDto>> SyncBHXHServices()
         {
             var result = await _service.SyncBHXHServicesAsync();
@@ -798,7 +799,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/sync/bhxh/icd10")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<SyncResultDto>> SyncBHXHICD10()
         {
             var result = await _service.SyncBHXHICD10Async();
@@ -820,7 +821,7 @@ namespace HIS.API.Controllers
         /// 15.1 Sổ theo dõi thuốc gây nghiện
         /// </summary>
         [HttpGet("api/pharmacy/reports/narcotic-drugs")]
-        [Authorize(Roles = "Admin,PharmacyManager,Pharmacist")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager + "," + RoleNames.Pharmacist)]
         public async Task<ActionResult<List<NarcoticDrugRegisterDto>>> GetNarcoticDrugRegister(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -834,7 +835,7 @@ namespace HIS.API.Controllers
         /// 15.2 Sổ theo dõi thuốc hướng thần
         /// </summary>
         [HttpGet("api/pharmacy/reports/psychotropic-drugs")]
-        [Authorize(Roles = "Admin,PharmacyManager,Pharmacist")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager + "," + RoleNames.Pharmacist)]
         public async Task<ActionResult<List<PsychotropicDrugRegisterDto>>> GetPsychotropicDrugRegister(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -848,7 +849,7 @@ namespace HIS.API.Controllers
         /// 15.3 Sổ theo dõi thuốc tiền chất
         /// </summary>
         [HttpGet("api/pharmacy/reports/precursor-drugs")]
-        [Authorize(Roles = "Admin,PharmacyManager,Pharmacist")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager + "," + RoleNames.Pharmacist)]
         public async Task<ActionResult<List<PrecursorDrugRegisterDto>>> GetPrecursorDrugRegister(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -862,7 +863,7 @@ namespace HIS.API.Controllers
         /// 15.4 Báo cáo sử dụng thuốc theo TT20/2017
         /// </summary>
         [HttpGet("api/pharmacy/reports/medicine-usage")]
-        [Authorize(Roles = "Admin,PharmacyManager,Pharmacist")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager + "," + RoleNames.Pharmacist)]
         public async Task<ActionResult<List<MedicineUsageReportDto>>> GetMedicineUsageReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -877,7 +878,7 @@ namespace HIS.API.Controllers
         /// 15.5 Báo cáo sử dụng kháng sinh
         /// </summary>
         [HttpGet("api/pharmacy/reports/antibiotic-usage")]
-        [Authorize(Roles = "Admin,PharmacyManager,Pharmacist,InfectionControl")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager + "," + RoleNames.Pharmacist + "," + RoleNames.InfectionControl)]
         public async Task<ActionResult<List<AntibioticUsageReportDto>>> GetAntibioticUsageReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -892,7 +893,7 @@ namespace HIS.API.Controllers
         /// 15.6 Sổ kiểm kê thuốc (TT22)
         /// </summary>
         [HttpGet("api/pharmacy/reports/inventory-record")]
-        [Authorize(Roles = "Admin,PharmacyManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager)]
         public async Task<ActionResult<List<InventoryRecordDto>>> GetDrugInventoryRecord(
             [FromQuery] DateTime inventoryDate,
             [FromQuery] Guid warehouseId)
@@ -905,7 +906,7 @@ namespace HIS.API.Controllers
         /// 15.7 Báo cáo xuất nhập tồn kho thuốc
         /// </summary>
         [HttpGet("api/pharmacy/reports/stock-movement")]
-        [Authorize(Roles = "Admin,PharmacyManager,Pharmacist")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager + "," + RoleNames.Pharmacist)]
         public async Task<ActionResult<List<DrugStockMovementReportDto>>> GetDrugStockMovementReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -920,7 +921,7 @@ namespace HIS.API.Controllers
         /// 15.8 Báo cáo thuốc sắp hết hạn
         /// </summary>
         [HttpGet("api/pharmacy/reports/expiring-drugs")]
-        [Authorize(Roles = "Admin,PharmacyManager,Pharmacist")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager + "," + RoleNames.Pharmacist)]
         public async Task<ActionResult<List<ExpiringDrugReportDto>>> GetExpiringDrugReport(
             [FromQuery] int daysUntilExpiry = 90,
             [FromQuery] Guid? warehouseId = null)
@@ -933,7 +934,7 @@ namespace HIS.API.Controllers
         /// 15.9 Báo cáo thuốc đã hết hạn
         /// </summary>
         [HttpGet("api/pharmacy/reports/expired-drugs")]
-        [Authorize(Roles = "Admin,PharmacyManager,Pharmacist")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager + "," + RoleNames.Pharmacist)]
         public async Task<ActionResult<List<ExpiredDrugReportDto>>> GetExpiredDrugReport([FromQuery] Guid? warehouseId = null)
         {
             var result = await _service.GetExpiredDrugReportAsync(warehouseId);
@@ -944,7 +945,7 @@ namespace HIS.API.Controllers
         /// 15.10 Báo cáo thuốc tồn kho dưới mức tối thiểu
         /// </summary>
         [HttpGet("api/pharmacy/reports/low-stock-drugs")]
-        [Authorize(Roles = "Admin,PharmacyManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager)]
         public async Task<ActionResult<List<LowStockDrugReportDto>>> GetLowStockDrugReport([FromQuery] Guid? warehouseId = null)
         {
             var result = await _service.GetLowStockDrugReportAsync(warehouseId);
@@ -955,7 +956,7 @@ namespace HIS.API.Controllers
         /// 15.11 Báo cáo chi phí thuốc theo khoa
         /// </summary>
         [HttpGet("api/pharmacy/reports/drug-cost-by-dept")]
-        [Authorize(Roles = "Admin,PharmacyManager,Accountant")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager + "," + RoleNames.Accountant)]
         public async Task<ActionResult<List<DrugCostByDeptReportDto>>> GetDrugCostByDeptReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -969,7 +970,7 @@ namespace HIS.API.Controllers
         /// 15.12 Báo cáo chi phí thuốc theo bệnh nhân
         /// </summary>
         [HttpGet("api/pharmacy/reports/drug-cost-by-patient")]
-        [Authorize(Roles = "Admin,PharmacyManager,Accountant")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager + "," + RoleNames.Accountant)]
         public async Task<ActionResult<List<DrugCostByPatientReportDto>>> GetDrugCostByPatientReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -984,7 +985,7 @@ namespace HIS.API.Controllers
         /// 15.13 Báo cáo thuốc BHYT/Viện phí
         /// </summary>
         [HttpGet("api/pharmacy/reports/drug-by-payment-type")]
-        [Authorize(Roles = "Admin,PharmacyManager,Accountant")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager + "," + RoleNames.Accountant)]
         public async Task<ActionResult<List<DrugByPaymentTypeReportDto>>> GetDrugByPaymentTypeReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -998,7 +999,7 @@ namespace HIS.API.Controllers
         /// 15.14 Thống kê đơn thuốc ngoại trú
         /// </summary>
         [HttpGet("api/pharmacy/reports/outpatient-prescription-stat")]
-        [Authorize(Roles = "Admin,PharmacyManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager)]
         public async Task<ActionResult<List<OutpatientPrescriptionStatDto>>> GetOutpatientPrescriptionStat(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -1013,7 +1014,7 @@ namespace HIS.API.Controllers
         /// 15.15 Thống kê đơn thuốc nội trú
         /// </summary>
         [HttpGet("api/pharmacy/reports/inpatient-prescription-stat")]
-        [Authorize(Roles = "Admin,PharmacyManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager)]
         public async Task<ActionResult<List<InpatientPrescriptionStatDto>>> GetInpatientPrescriptionStat(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -1027,7 +1028,7 @@ namespace HIS.API.Controllers
         /// 15.16 Báo cáo ABC/VEN
         /// </summary>
         [HttpGet("api/pharmacy/reports/abc-ven")]
-        [Authorize(Roles = "Admin,PharmacyManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager)]
         public async Task<ActionResult<ABCVENReportDto>> GetABCVENReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -1041,7 +1042,7 @@ namespace HIS.API.Controllers
         /// 15.17 Báo cáo DDD
         /// </summary>
         [HttpGet("api/pharmacy/reports/ddd")]
-        [Authorize(Roles = "Admin,PharmacyManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager)]
         public async Task<ActionResult<List<DDDReportDto>>> GetDDDReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -1055,7 +1056,7 @@ namespace HIS.API.Controllers
         /// In báo cáo dược
         /// </summary>
         [HttpPost("api/pharmacy/reports/print")]
-        [Authorize(Roles = "Admin,PharmacyManager,Pharmacist")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager + "," + RoleNames.Pharmacist)]
         public async Task<IActionResult> PrintPharmacyReport([FromBody] PharmacyReportRequest request)
         {
             var result = await _service.PrintPharmacyReportAsync(request);
@@ -1066,7 +1067,7 @@ namespace HIS.API.Controllers
         /// Xuất Excel báo cáo dược
         /// </summary>
         [HttpPost("api/pharmacy/reports/export")]
-        [Authorize(Roles = "Admin,PharmacyManager,Pharmacist")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.PharmacyManager + "," + RoleNames.Pharmacist)]
         public async Task<IActionResult> ExportPharmacyReport([FromBody] PharmacyReportRequest request)
         {
             var result = await _service.ExportPharmacyReportToExcelAsync(request);
@@ -1079,7 +1080,7 @@ namespace HIS.API.Controllers
 
         // 16.1 Quản lý lưu trữ hồ sơ bệnh án
         [HttpGet("api/medical-records/archives")]
-        [Authorize(Roles = "Admin,MedicalRecordManager,Doctor")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.MedicalRecordManager + "," + RoleNames.Doctor)]
         public async Task<ActionResult<List<MedicalRecordArchiveDto>>> GetMedicalRecordArchives(
             [FromQuery] string keyword = null,
             [FromQuery] int? year = null,
@@ -1091,7 +1092,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("api/medical-records/archives/{archiveId}")]
-        [Authorize(Roles = "Admin,MedicalRecordManager,Doctor")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.MedicalRecordManager + "," + RoleNames.Doctor)]
         public async Task<ActionResult<MedicalRecordArchiveDto>> GetMedicalRecordArchive(Guid archiveId)
         {
             var result = await _service.GetMedicalRecordArchiveAsync(archiveId);
@@ -1099,7 +1100,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/medical-records/archives")]
-        [Authorize(Roles = "Admin,MedicalRecordManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.MedicalRecordManager)]
         public async Task<ActionResult<MedicalRecordArchiveDto>> SaveMedicalRecordArchive([FromBody] MedicalRecordArchiveDto dto)
         {
             var result = await _service.SaveMedicalRecordArchiveAsync(dto);
@@ -1107,7 +1108,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPut("api/medical-records/archives/{archiveId}/location")]
-        [Authorize(Roles = "Admin,MedicalRecordManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.MedicalRecordManager)]
         public async Task<ActionResult<bool>> UpdateArchiveLocation(Guid archiveId, [FromBody] string location)
         {
             var result = await _service.UpdateArchiveLocationAsync(archiveId, location);
@@ -1116,7 +1117,7 @@ namespace HIS.API.Controllers
 
         // 16.2 Quản lý mượn trả hồ sơ
         [HttpGet("api/medical-records/borrow-requests")]
-        [Authorize(Roles = "Admin,MedicalRecordManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.MedicalRecordManager)]
         public async Task<ActionResult<List<MedicalRecordBorrowRequestDto>>> GetBorrowRequests(
             [FromQuery] DateTime? fromDate = null,
             [FromQuery] DateTime? toDate = null,
@@ -1128,7 +1129,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("api/medical-records/borrow-requests/{requestId}")]
-        [Authorize(Roles = "Admin,MedicalRecordManager,Doctor")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.MedicalRecordManager + "," + RoleNames.Doctor)]
         public async Task<ActionResult<MedicalRecordBorrowRequestDto>> GetBorrowRequest(Guid requestId)
         {
             var result = await _service.GetBorrowRequestAsync(requestId);
@@ -1136,7 +1137,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/medical-records/borrow-requests")]
-        [Authorize(Roles = "Admin,MedicalRecordManager,Doctor")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.MedicalRecordManager + "," + RoleNames.Doctor)]
         public async Task<ActionResult<MedicalRecordBorrowRequestDto>> CreateBorrowRequest([FromBody] CreateBorrowRequestDto dto)
         {
             var result = await _service.CreateBorrowRequestAsync(dto);
@@ -1144,7 +1145,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPut("api/medical-records/borrow-requests/{requestId}/approve")]
-        [Authorize(Roles = "Admin,MedicalRecordManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.MedicalRecordManager)]
         public async Task<ActionResult<bool>> ApproveBorrowRequest(Guid requestId)
         {
             var result = await _service.ApproveBorrowRequestAsync(requestId);
@@ -1152,7 +1153,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPut("api/medical-records/borrow-requests/{requestId}/reject")]
-        [Authorize(Roles = "Admin,MedicalRecordManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.MedicalRecordManager)]
         public async Task<ActionResult<bool>> RejectBorrowRequest(Guid requestId, [FromBody] string reason)
         {
             var result = await _service.RejectBorrowRequestAsync(requestId, reason);
@@ -1160,7 +1161,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPut("api/medical-records/borrow-requests/{requestId}/process")]
-        [Authorize(Roles = "Admin,MedicalRecordManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.MedicalRecordManager)]
         public async Task<ActionResult<bool>> ProcessBorrow(Guid requestId)
         {
             var result = await _service.ProcessBorrowAsync(requestId);
@@ -1168,7 +1169,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPut("api/medical-records/borrow-requests/{requestId}/return")]
-        [Authorize(Roles = "Admin,MedicalRecordManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.MedicalRecordManager)]
         public async Task<ActionResult<bool>> ReturnMedicalRecord(Guid requestId, [FromBody] string note)
         {
             var result = await _service.ReturnMedicalRecordAsync(requestId, note);
@@ -1177,7 +1178,7 @@ namespace HIS.API.Controllers
 
         // 16.3 Dashboard thống kê
         [HttpGet("api/statistics/dashboard")]
-        [Authorize(Roles = "Admin,Manager,Director")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director)]
         public async Task<ActionResult<HospitalDashboardDto>> GetHospitalDashboard([FromQuery] DateTime? date = null)
         {
             var result = await _service.GetHospitalDashboardAsync(date);
@@ -1185,7 +1186,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("api/statistics/departments")]
-        [Authorize(Roles = "Admin,Manager,Director")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director)]
         public async Task<ActionResult<List<DepartmentStatisticsDto>>> GetDepartmentStatistics(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate)
@@ -1196,7 +1197,7 @@ namespace HIS.API.Controllers
 
         // 16.4 Báo cáo khám bệnh
         [HttpGet("api/statistics/examination")]
-        [Authorize(Roles = "Admin,Manager,Director,StatisticsOfficer")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.StatisticsOfficer)]
         public async Task<ActionResult<List<ExaminationStatisticsDto>>> GetExaminationStatistics(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -1209,7 +1210,7 @@ namespace HIS.API.Controllers
 
         // 16.5 Báo cáo nhập viện
         [HttpGet("api/statistics/admission")]
-        [Authorize(Roles = "Admin,Manager,Director,StatisticsOfficer")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.StatisticsOfficer)]
         public async Task<ActionResult<List<AdmissionStatisticsDto>>> GetAdmissionStatistics(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -1222,7 +1223,7 @@ namespace HIS.API.Controllers
 
         // 16.6 Báo cáo xuất viện
         [HttpGet("api/statistics/discharge")]
-        [Authorize(Roles = "Admin,Manager,Director,StatisticsOfficer")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.StatisticsOfficer)]
         public async Task<ActionResult<List<DischargeStatisticsDto>>> GetDischargeStatistics(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -1235,7 +1236,7 @@ namespace HIS.API.Controllers
 
         // 16.7 Báo cáo tử vong
         [HttpGet("api/statistics/mortality")]
-        [Authorize(Roles = "Admin,Manager,Director,StatisticsOfficer")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.StatisticsOfficer)]
         public async Task<ActionResult<List<MortalityStatisticsDto>>> GetMortalityStatistics(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -1247,7 +1248,7 @@ namespace HIS.API.Controllers
 
         // 16.8 Báo cáo bệnh theo ICD-10
         [HttpGet("api/statistics/disease")]
-        [Authorize(Roles = "Admin,Manager,Director,StatisticsOfficer")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.StatisticsOfficer)]
         public async Task<ActionResult<List<DiseaseStatisticsDto>>> GetDiseaseStatistics(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -1260,7 +1261,7 @@ namespace HIS.API.Controllers
 
         // 16.9 Báo cáo hoạt động khoa
         [HttpGet("api/statistics/department-activity")]
-        [Authorize(Roles = "Admin,Manager,Director,StatisticsOfficer")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.StatisticsOfficer)]
         public async Task<ActionResult<List<DepartmentActivityReportDto>>> GetDepartmentActivityReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -1272,7 +1273,7 @@ namespace HIS.API.Controllers
 
         // 16.10 Báo cáo công suất giường
         [HttpGet("api/statistics/bed-occupancy")]
-        [Authorize(Roles = "Admin,Manager,Director,StatisticsOfficer")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.StatisticsOfficer)]
         public async Task<ActionResult<List<BedOccupancyReportDto>>> GetBedOccupancyReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -1284,7 +1285,7 @@ namespace HIS.API.Controllers
 
         // 16.11 Báo cáo A1-A2-A3 (BYT)
         [HttpGet("api/statistics/byt-report")]
-        [Authorize(Roles = "Admin,Manager,Director,StatisticsOfficer")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.StatisticsOfficer)]
         public async Task<ActionResult<BYTReportDto>> GetBYTReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate)
@@ -1295,7 +1296,7 @@ namespace HIS.API.Controllers
 
         // 16.12 Báo cáo KPI
         [HttpGet("api/statistics/kpi")]
-        [Authorize(Roles = "Admin,Manager,Director")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director)]
         public async Task<ActionResult<List<HospitalKPIDto>>> GetHospitalKPIs(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate)
@@ -1306,7 +1307,7 @@ namespace HIS.API.Controllers
 
         // In báo cáo thống kê
         [HttpPost("api/statistics/reports/print")]
-        [Authorize(Roles = "Admin,Manager,Director,StatisticsOfficer")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.StatisticsOfficer)]
         public async Task<IActionResult> PrintStatisticsReport([FromBody] StatisticsReportRequest request)
         {
             var result = await _service.PrintStatisticsReportAsync(request);
@@ -1314,7 +1315,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/statistics/reports/export")]
-        [Authorize(Roles = "Admin,Manager,Director,StatisticsOfficer")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.StatisticsOfficer)]
         public async Task<IActionResult> ExportStatisticsReport([FromBody] StatisticsReportRequest request)
         {
             var result = await _service.ExportStatisticsReportToExcelAsync(request);
@@ -1327,7 +1328,7 @@ namespace HIS.API.Controllers
 
         // 17.1 Quản lý người dùng
         [HttpGet("api/admin/users")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<List<SystemUserDto>>> GetUsers(
             [FromQuery] string keyword = null,
             [FromQuery] Guid? departmentId = null,
@@ -1338,7 +1339,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("api/admin/users/{userId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<SystemUserDto>> GetUser(Guid userId)
         {
             var result = await _service.GetUserAsync(userId);
@@ -1346,7 +1347,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/admin/users")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<SystemUserDto>> CreateUser([FromBody] CreateUserDto dto)
         {
             // [ApiController] tự validate DataAnnotations (Required/Email/MinLength) -> 400 field-level.
@@ -1358,7 +1359,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPut("api/admin/users/{userId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<SystemUserDto>> UpdateUser(Guid userId, [FromBody] UpdateUserDto dto)
         {
             var result = await _service.UpdateUserAsync(userId, dto);
@@ -1366,7 +1367,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/admin/users/{userId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteUser(Guid userId)
         {
             var result = await _service.DeleteUserAsync(userId);
@@ -1374,7 +1375,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/admin/users/{userId}/reset-password")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> ResetPassword(Guid userId)
         {
             var result = await _service.ResetPasswordAsync(userId);
@@ -1390,7 +1391,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/admin/users/{userId}/lock")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> LockUser(Guid userId, [FromBody] string reason)
         {
             var result = await _service.LockUserAsync(userId, reason);
@@ -1398,7 +1399,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/admin/users/{userId}/unlock")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> UnlockUser(Guid userId)
         {
             var result = await _service.UnlockUserAsync(userId);
@@ -1407,7 +1408,7 @@ namespace HIS.API.Controllers
 
         // 17.2 Quản lý vai trò
         [HttpGet("api/admin/roles")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<List<RoleDto>>> GetRoles([FromQuery] bool? isActive = null)
         {
             var result = await _service.GetRolesAsync(isActive);
@@ -1415,7 +1416,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("api/admin/roles/{roleId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<RoleDto>> GetRole(Guid roleId)
         {
             var result = await _service.GetRoleAsync(roleId);
@@ -1423,7 +1424,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/admin/roles")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<RoleDto>> SaveRole([FromBody] RoleDto dto)
         {
             var result = await _service.SaveRoleAsync(dto);
@@ -1431,7 +1432,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/admin/roles/{roleId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteRole(Guid roleId)
         {
             var result = await _service.DeleteRoleAsync(roleId);
@@ -1440,7 +1441,7 @@ namespace HIS.API.Controllers
 
         // 17.3 Quản lý quyền
         [HttpGet("api/admin/permissions")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<List<PermissionDto>>> GetPermissions([FromQuery] string module = null)
         {
             var result = await _service.GetPermissionsAsync(module);
@@ -1448,7 +1449,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("api/admin/roles/{roleId}/permissions")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<List<PermissionDto>>> GetRolePermissions(Guid roleId)
         {
             var result = await _service.GetRolePermissionsAsync(roleId);
@@ -1456,7 +1457,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPut("api/admin/roles/{roleId}/permissions")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> UpdateRolePermissions(Guid roleId, [FromBody] List<Guid> permissionIds)
         {
             var result = await _service.UpdateRolePermissionsAsync(roleId, permissionIds);
@@ -1464,7 +1465,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("api/admin/users/{userId}/permissions")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<List<PermissionDto>>> GetUserPermissions(Guid userId)
         {
             var result = await _service.GetUserPermissionsAsync(userId);
@@ -1472,7 +1473,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPut("api/admin/users/{userId}/permissions")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> UpdateUserPermissions(Guid userId, [FromBody] List<Guid> permissionIds)
         {
             var result = await _service.UpdateUserPermissionsAsync(userId, permissionIds);
@@ -1481,7 +1482,7 @@ namespace HIS.API.Controllers
 
         // 17.4 Nhật ký hệ thống
         [HttpGet("api/admin/audit-logs")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<List<AuditLogDto>>> GetAuditLogs([FromQuery] AuditLogSearchDto search)
         {
             var result = await _service.GetAuditLogsAsync(search);
@@ -1489,7 +1490,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("api/admin/audit-logs/{logId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<AuditLogDto>> GetAuditLog(Guid logId)
         {
             var result = await _service.GetAuditLogAsync(logId);
@@ -1497,7 +1498,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/admin/audit-logs/export")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<IActionResult> ExportAuditLogs([FromBody] AuditLogSearchDto search)
         {
             var result = await _service.ExportAuditLogsToExcelAsync(search);
@@ -1506,7 +1507,7 @@ namespace HIS.API.Controllers
 
         // 17.5 Cấu hình hệ thống
         [HttpGet("api/admin/configs")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<List<SystemConfigDto>>> GetSystemConfigs([FromQuery] string category = null)
         {
             var result = await _service.GetSystemConfigsAsync(category);
@@ -1514,7 +1515,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("api/admin/configs/{configKey}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<SystemConfigDto>> GetSystemConfig(string configKey)
         {
             var result = await _service.GetSystemConfigAsync(configKey);
@@ -1522,7 +1523,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/admin/configs")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<SystemConfigDto>> SaveSystemConfig([FromBody] SystemConfigDto dto)
         {
             var result = await _service.SaveSystemConfigAsync(dto);
@@ -1530,7 +1531,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/admin/configs/{configKey}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteSystemConfig(string configKey)
         {
             var result = await _service.DeleteSystemConfigAsync(configKey);
@@ -1539,7 +1540,7 @@ namespace HIS.API.Controllers
 
         // 17.6 Quản lý phiên đăng nhập
         [HttpGet("api/admin/sessions")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<List<UserSessionDto>>> GetActiveSessions([FromQuery] Guid? userId = null)
         {
             var result = await _service.GetActiveSessionsAsync(userId);
@@ -1547,7 +1548,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/admin/sessions/{sessionId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> TerminateSession(Guid sessionId)
         {
             var result = await _service.TerminateSessionAsync(sessionId);
@@ -1555,7 +1556,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/admin/users/{userId}/sessions")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> TerminateAllSessions(Guid userId)
         {
             var result = await _service.TerminateAllSessionsAsync(userId);
@@ -1564,7 +1565,7 @@ namespace HIS.API.Controllers
 
         // 17.7 Quản lý thông báo hệ thống
         [HttpGet("api/admin/notifications")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<List<SystemNotificationDto>>> GetSystemNotifications([FromQuery] bool? isActive = null)
         {
             var result = await _service.GetSystemNotificationsAsync(isActive);
@@ -1572,7 +1573,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("api/admin/notifications/{notificationId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<SystemNotificationDto>> GetSystemNotification(Guid notificationId)
         {
             var result = await _service.GetSystemNotificationAsync(notificationId);
@@ -1580,7 +1581,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/admin/notifications")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<SystemNotificationDto>> SaveSystemNotification([FromBody] SystemNotificationDto dto)
         {
             var result = await _service.SaveSystemNotificationAsync(dto);
@@ -1588,7 +1589,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/admin/notifications/{notificationId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteSystemNotification(Guid notificationId)
         {
             var result = await _service.DeleteSystemNotificationAsync(notificationId);
@@ -1597,7 +1598,7 @@ namespace HIS.API.Controllers
 
         // 17.8 Sao lưu dữ liệu
         [HttpGet("api/admin/backups")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<List<BackupHistoryDto>>> GetBackupHistory(
             [FromQuery] DateTime? fromDate = null,
             [FromQuery] DateTime? toDate = null)
@@ -1607,7 +1608,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/admin/backups")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<BackupHistoryDto>> CreateBackup([FromBody] CreateBackupDto dto)
         {
             var result = await _service.CreateBackupAsync(dto);
@@ -1615,7 +1616,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/admin/backups/{backupId}/restore")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> RestoreBackup(Guid backupId)
         {
             var result = await _service.RestoreBackupAsync(backupId);
@@ -1623,7 +1624,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/admin/backups/{backupId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteBackup(Guid backupId)
         {
             var result = await _service.DeleteBackupAsync(backupId);
@@ -1632,7 +1633,7 @@ namespace HIS.API.Controllers
 
         // 17.9 Giám sát hệ thống
         [HttpGet("api/admin/health")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<SystemHealthDto>> GetSystemHealth()
         {
             var result = await _service.GetSystemHealthAsync();
@@ -1640,7 +1641,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("api/admin/resources")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<List<SystemResourceDto>>> GetSystemResources()
         {
             var result = await _service.GetSystemResourcesAsync();
@@ -1648,7 +1649,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("api/admin/database-statistics")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<List<DatabaseStatisticsDto>>> GetDatabaseStatistics()
         {
             var result = await _service.GetDatabaseStatisticsAsync();
@@ -1657,7 +1658,7 @@ namespace HIS.API.Controllers
 
         // 17.10 Quản lý tích hợp
         [HttpGet("api/admin/integrations")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<List<IntegrationConfigDto>>> GetIntegrationConfigs([FromQuery] bool? isActive = null)
         {
             var result = await _service.GetIntegrationConfigsAsync(isActive);
@@ -1665,7 +1666,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("api/admin/integrations/{integrationId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<IntegrationConfigDto>> GetIntegrationConfig(Guid integrationId)
         {
             var result = await _service.GetIntegrationConfigAsync(integrationId);
@@ -1673,7 +1674,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/admin/integrations")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<IntegrationConfigDto>> SaveIntegrationConfig([FromBody] IntegrationConfigDto dto)
         {
             var result = await _service.SaveIntegrationConfigAsync(dto);
@@ -1681,7 +1682,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/admin/integrations/{integrationId}/test")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> TestIntegrationConnection(Guid integrationId)
         {
             var result = await _service.TestIntegrationConnectionAsync(integrationId);
@@ -1689,7 +1690,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpGet("api/admin/integrations/{integrationId}/logs")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<List<IntegrationLogDto>>> GetIntegrationLogs(
             Guid integrationId,
             [FromQuery] DateTime? fromDate = null,
@@ -1709,7 +1710,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/occupations")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<OccupationCatalogDto>> SaveOccupation([FromBody] OccupationCatalogDto dto)
         {
             var result = await _service.SaveOccupationAsync(dto);
@@ -1717,7 +1718,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/occupations/{occupationId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteOccupation(Guid occupationId)
         {
             var result = await _service.DeleteOccupationAsync(occupationId);
@@ -1734,7 +1735,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/genders")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<GenderCatalogDto>> SaveGender([FromBody] GenderCatalogDto dto)
         {
             var result = await _service.SaveGenderAsync(dto);
@@ -1742,7 +1743,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/genders/{genderId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteGender(Guid genderId)
         {
             var result = await _service.DeleteGenderAsync(genderId);
@@ -1760,7 +1761,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/administrative-divisions")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<AdministrativeDivisionCatalogDto>> SaveAdministrativeDivision([FromBody] AdministrativeDivisionCatalogDto dto)
         {
             var result = await _service.SaveAdministrativeDivisionAsync(dto);
@@ -1768,7 +1769,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/administrative-divisions/{divisionId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteAdministrativeDivision(Guid divisionId)
         {
             var result = await _service.DeleteAdministrativeDivisionAsync(divisionId);
@@ -1785,7 +1786,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/countries")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<CountryCatalogDto>> SaveCountry([FromBody] CountryCatalogDto dto)
         {
             var result = await _service.SaveCountryAsync(dto);
@@ -1793,7 +1794,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/countries/{countryId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteCountry(Guid countryId)
         {
             var result = await _service.DeleteCountryAsync(countryId);
@@ -1811,7 +1812,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpPost("api/catalog/healthcare-facilities")]
-        [Authorize(Roles = "Admin,CatalogManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.CatalogManager)]
         public async Task<ActionResult<HealthcareFacilityCatalogDto>> SaveHealthcareFacility([FromBody] HealthcareFacilityCatalogDto dto)
         {
             var result = await _service.SaveHealthcareFacilityAsync(dto);
@@ -1819,7 +1820,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/catalog/healthcare-facilities/{facilityId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> DeleteHealthcareFacility(Guid facilityId)
         {
             var result = await _service.DeleteHealthcareFacilityAsync(facilityId);
@@ -1834,7 +1835,7 @@ namespace HIS.API.Controllers
         /// Danh sách dịch vụ bị khóa
         /// </summary>
         [HttpGet("api/admin/locked-services")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<List<LockedServiceDto>>> GetLockedServices()
         {
             var result = await _service.GetLockedServicesAsync();
@@ -1845,7 +1846,7 @@ namespace HIS.API.Controllers
         /// Khóa dịch vụ
         /// </summary>
         [HttpPost("api/admin/lock-service")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<LockedServiceDto>> LockService([FromBody] LockServiceRequestDto dto)
         {
             try
@@ -1865,7 +1866,7 @@ namespace HIS.API.Controllers
         /// Mở khóa dịch vụ
         /// </summary>
         [HttpPost("api/admin/unlock-service")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<bool>> UnlockService([FromBody] UnlockServiceRequestDto dto)
         {
             var result = await _service.UnlockServiceAsync(dto);
@@ -1903,7 +1904,7 @@ namespace HIS.API.Controllers
         /// IT phản hồi yêu cầu
         /// </summary>
         [HttpPut("api/system/it-tickets/{id}/respond")]
-        [Authorize(Roles = "Admin,IT")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.IT)]
         public async Task<ActionResult<ItTicketDto>> RespondToItTicket(Guid id, [FromBody] RespondItTicketDto dto)
         {
             var userName = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? User.Identity?.Name ?? "";
@@ -1915,7 +1916,7 @@ namespace HIS.API.Controllers
         /// Đóng yêu cầu CNTT
         /// </summary>
         [HttpPut("api/system/it-tickets/{id}/close")]
-        [Authorize(Roles = "Admin,IT")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.IT)]
         public async Task<ActionResult<bool>> CloseItTicket(Guid id)
         {
             var result = await _service.CloseItTicketAsync(id);

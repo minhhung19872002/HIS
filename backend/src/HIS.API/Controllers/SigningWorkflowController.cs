@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
@@ -8,7 +9,7 @@ namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/signing-workflow")]
-[Authorize(Roles = "Admin,Manager,Director,Quản trị hệ thống,Doctor,Bác sĩ")] // B3 RBAC: luồng ký chỉ admin+bác sĩ ký/duyệt
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.QuanTriHeThong + "," + RoleNames.Doctor + "," + RoleNames.BacSi)] // B3 RBAC: luồng ký chỉ admin+bác sĩ ký/duyệt
 public class SigningWorkflowController : ControllerBase
 {
     private readonly ISigningWorkflowService _service;

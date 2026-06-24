@@ -1,4 +1,5 @@
 using System;
+using HIS.Core.Constants;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -31,7 +32,7 @@ namespace HIS.API.Controllers
         /// 1. Danh sách phiếu nhập máu
         /// </summary>
         [HttpGet("import-receipts")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<List<BloodImportReceiptDto>>> GetImportReceipts(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -49,7 +50,7 @@ namespace HIS.API.Controllers
         /// Chi tiết phiếu nhập
         /// </summary>
         [HttpGet("import-receipts/{receiptId}")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<BloodImportReceiptDto>> GetImportReceipt(Guid receiptId)
         {
             var result = await _bloodBankService.GetImportReceiptAsync(receiptId);
@@ -60,7 +61,7 @@ namespace HIS.API.Controllers
         /// Tạo phiếu nhập máu
         /// </summary>
         [HttpPost("import-receipts")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<BloodImportReceiptDto>> CreateImportReceipt([FromBody] CreateBloodImportDto dto)
         {
             var result = await _bloodBankService.CreateImportReceiptAsync(dto);
@@ -71,7 +72,7 @@ namespace HIS.API.Controllers
         /// Cập nhật phiếu nhập
         /// </summary>
         [HttpPut("import-receipts/{receiptId}")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<BloodImportReceiptDto>> UpdateImportReceipt(
             Guid receiptId,
             [FromBody] CreateBloodImportDto dto)
@@ -84,7 +85,7 @@ namespace HIS.API.Controllers
         /// Xác nhận phiếu nhập
         /// </summary>
         [HttpPost("import-receipts/{receiptId}/confirm")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult> ConfirmImportReceipt(Guid receiptId)
         {
             await _bloodBankService.ConfirmImportReceiptAsync(receiptId);
@@ -95,7 +96,7 @@ namespace HIS.API.Controllers
         /// Hủy phiếu nhập
         /// </summary>
         [HttpPost("import-receipts/{receiptId}/cancel")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult> CancelImportReceipt(Guid receiptId, [FromBody] BloodBankCancelRequest request)
         {
             await _bloodBankService.CancelImportReceiptAsync(receiptId, request.Reason);
@@ -106,7 +107,7 @@ namespace HIS.API.Controllers
         /// 2. In phiếu nhập máu
         /// </summary>
         [HttpGet("import-receipts/{receiptId}/print")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult> PrintImportReceipt(Guid receiptId)
         {
             var result = await _bloodBankService.PrintImportReceiptAsync(receiptId);
@@ -121,7 +122,7 @@ namespace HIS.API.Controllers
         /// Danh sách yêu cầu xuất
         /// </summary>
         [HttpGet("issue-requests")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff,Doctor,Nurse")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]
         public async Task<ActionResult<List<BloodIssueRequestDto>>> GetIssueRequests(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -138,7 +139,7 @@ namespace HIS.API.Controllers
         /// Chi tiết yêu cầu xuất
         /// </summary>
         [HttpGet("issue-requests/{requestId}")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff,Doctor,Nurse")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]
         public async Task<ActionResult<BloodIssueRequestDto>> GetIssueRequest(Guid requestId)
         {
             var result = await _bloodBankService.GetIssueRequestAsync(requestId);
@@ -149,7 +150,7 @@ namespace HIS.API.Controllers
         /// 3. Tạo yêu cầu xuất kho
         /// </summary>
         [HttpPost("issue-requests")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff,Doctor")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff + "," + RoleNames.Doctor)]
         public async Task<ActionResult<BloodIssueRequestDto>> CreateIssueRequest([FromBody] CreateBloodIssueRequestDto dto)
         {
             var result = await _bloodBankService.CreateIssueRequestAsync(dto);
@@ -160,7 +161,7 @@ namespace HIS.API.Controllers
         /// Duyệt yêu cầu xuất
         /// </summary>
         [HttpPost("issue-requests/{requestId}/approve")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult> ApproveIssueRequest(Guid requestId)
         {
             await _bloodBankService.ApproveIssueRequestAsync(requestId);
@@ -171,7 +172,7 @@ namespace HIS.API.Controllers
         /// Từ chối yêu cầu xuất
         /// </summary>
         [HttpPost("issue-requests/{requestId}/reject")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult> RejectIssueRequest(Guid requestId, [FromBody] BloodBankCancelRequest request)
         {
             await _bloodBankService.RejectIssueRequestAsync(requestId, request.Reason);
@@ -182,7 +183,7 @@ namespace HIS.API.Controllers
         /// Thực hiện xuất máu
         /// </summary>
         [HttpPost("issue")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<BloodIssueReceiptDto>> IssueBlood([FromBody] IssueBloodDto dto)
         {
             var result = await _bloodBankService.IssueBloodAsync(dto);
@@ -193,7 +194,7 @@ namespace HIS.API.Controllers
         /// Danh sách phiếu xuất
         /// </summary>
         [HttpGet("issue-receipts")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<List<BloodIssueReceiptDto>>> GetIssueReceipts(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -209,7 +210,7 @@ namespace HIS.API.Controllers
         /// In phiếu xuất
         /// </summary>
         [HttpGet("issue-receipts/{receiptId}/print")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult> PrintIssueReceipt(Guid receiptId)
         {
             var result = await _bloodBankService.PrintIssueReceiptAsync(receiptId);
@@ -224,7 +225,7 @@ namespace HIS.API.Controllers
         /// 4. Tồn kho tổng hợp
         /// </summary>
         [HttpGet("stock")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<List<BloodStockDto>>> GetBloodStock(
             [FromQuery] string bloodType = null,
             [FromQuery] string rhFactor = null,
@@ -238,7 +239,7 @@ namespace HIS.API.Controllers
         /// Chi tiết tồn kho theo túi
         /// </summary>
         [HttpGet("stock/detail")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<List<BloodStockDetailDto>>> GetBloodStockDetail(
             [FromQuery] string bloodType = null,
             [FromQuery] string rhFactor = null,
@@ -253,7 +254,7 @@ namespace HIS.API.Controllers
         /// Thông tin túi máu
         /// </summary>
         [HttpGet("blood-bags/{bloodBagId}")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<BloodBagDto>> GetBloodBag(Guid bloodBagId)
         {
             var result = await _bloodBankService.GetBloodBagAsync(bloodBagId);
@@ -264,7 +265,7 @@ namespace HIS.API.Controllers
         /// Cập nhật trạng thái túi máu
         /// </summary>
         [HttpPut("blood-bags/{bloodBagId}/status")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult> UpdateBloodBagStatus(Guid bloodBagId, [FromBody] BloodBankUpdateStatusRequest request)
         {
             await _bloodBankService.UpdateBloodBagStatusAsync(bloodBagId, request.Status, request.Reason);
@@ -275,7 +276,7 @@ namespace HIS.API.Controllers
         /// Tồn kho theo nhóm máu (alias)
         /// </summary>
         [HttpGet("by-blood-group")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<List<BloodStockDto>>> GetByBloodGroup(
             [FromQuery] string bloodType = null,
             [FromQuery] string rhFactor = null)
@@ -288,7 +289,7 @@ namespace HIS.API.Controllers
         /// Túi máu sắp hết hạn (alias)
         /// </summary>
         [HttpGet("expiring")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<List<BloodStockDetailDto>>> GetExpiringAlias([FromQuery] int daysUntilExpiry = 7)
         {
             var result = await _bloodBankService.GetExpiringBloodBagsAsync(daysUntilExpiry);
@@ -299,7 +300,7 @@ namespace HIS.API.Controllers
         /// Túi máu sắp hết hạn
         /// </summary>
         [HttpGet("stock/expiring")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<List<BloodStockDetailDto>>> GetExpiringBloodBags([FromQuery] int daysUntilExpiry = 7)
         {
             var result = await _bloodBankService.GetExpiringBloodBagsAsync(daysUntilExpiry);
@@ -310,7 +311,7 @@ namespace HIS.API.Controllers
         /// Túi máu đã hết hạn
         /// </summary>
         [HttpGet("stock/expired")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<List<BloodStockDetailDto>>> GetExpiredBloodBags()
         {
             var result = await _bloodBankService.GetExpiredBloodBagsAsync();
@@ -321,7 +322,7 @@ namespace HIS.API.Controllers
         /// Hủy túi máu hết hạn
         /// </summary>
         [HttpPost("blood-bags/destroy")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult> DestroyExpiredBloodBags([FromBody] DestroyBloodBagsRequest request)
         {
             await _bloodBankService.DestroyExpiredBloodBagsAsync(request.BloodBagIds, request.Reason);
@@ -336,7 +337,7 @@ namespace HIS.API.Controllers
         /// 5. Danh sách phiếu kiểm kê
         /// </summary>
         [HttpGet("inventories")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<List<BloodInventoryDto>>> GetInventories(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -352,7 +353,7 @@ namespace HIS.API.Controllers
         /// Chi tiết phiếu kiểm kê
         /// </summary>
         [HttpGet("inventories/{inventoryId}")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<BloodInventoryDto>> GetInventory(Guid inventoryId)
         {
             var result = await _bloodBankService.GetInventoryAsync(inventoryId);
@@ -363,7 +364,7 @@ namespace HIS.API.Controllers
         /// Tạo phiếu kiểm kê
         /// </summary>
         [HttpPost("inventories")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<BloodInventoryDto>> CreateInventory([FromBody] CreateBloodInventoryDto dto)
         {
             var result = await _bloodBankService.CreateInventoryAsync(dto);
@@ -374,7 +375,7 @@ namespace HIS.API.Controllers
         /// Cập nhật phiếu kiểm kê
         /// </summary>
         [HttpPut("inventories/{inventoryId}")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<BloodInventoryDto>> UpdateInventory(
             Guid inventoryId,
             [FromBody] CreateBloodInventoryDto dto)
@@ -387,7 +388,7 @@ namespace HIS.API.Controllers
         /// Hoàn thành kiểm kê
         /// </summary>
         [HttpPost("inventories/{inventoryId}/complete")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult> CompleteInventory(Guid inventoryId)
         {
             await _bloodBankService.CompleteInventoryAsync(inventoryId);
@@ -398,7 +399,7 @@ namespace HIS.API.Controllers
         /// Duyệt kiểm kê
         /// </summary>
         [HttpPost("inventories/{inventoryId}/approve")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult> ApproveInventory(Guid inventoryId)
         {
             await _bloodBankService.ApproveInventoryAsync(inventoryId);
@@ -413,7 +414,7 @@ namespace HIS.API.Controllers
         /// 6. Thẻ kho máu
         /// </summary>
         [HttpGet("reports/stock-card")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult<BloodStockCardDto>> GetStockCard(
             [FromQuery] string bloodType,
             [FromQuery] string rhFactor,
@@ -429,7 +430,7 @@ namespace HIS.API.Controllers
         /// Báo cáo nhập xuất tồn kho
         /// </summary>
         [HttpGet("reports/inventory")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult<BloodInventoryReportDto>> GetInventoryReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate)
@@ -442,7 +443,7 @@ namespace HIS.API.Controllers
         /// In phiếu nhập
         /// </summary>
         [HttpGet("reports/import/print")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult> PrintImportReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -456,7 +457,7 @@ namespace HIS.API.Controllers
         /// In phiếu xuất
         /// </summary>
         [HttpGet("reports/export/print")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult> PrintExportReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -470,7 +471,7 @@ namespace HIS.API.Controllers
         /// In biên bản kiểm kê
         /// </summary>
         [HttpGet("inventories/{inventoryId}/print")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult> PrintInventoryReport(Guid inventoryId)
         {
             var result = await _bloodBankService.PrintInventoryReportAsync(inventoryId);
@@ -481,7 +482,7 @@ namespace HIS.API.Controllers
         /// In báo cáo nhập xuất tồn
         /// </summary>
         [HttpGet("reports/stock/print")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult> PrintStockReport(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate)
@@ -498,7 +499,7 @@ namespace HIS.API.Controllers
         /// 7. Danh sách chỉ định máu
         /// </summary>
         [HttpGet("orders")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff,Doctor,Nurse")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]
         public async Task<ActionResult<List<BloodOrderDto>>> GetBloodOrders(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -525,7 +526,7 @@ namespace HIS.API.Controllers
         /// Chi tiết chỉ định máu
         /// </summary>
         [HttpGet("orders/{orderId}")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff,Doctor,Nurse")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]
         public async Task<ActionResult<BloodOrderDto>> GetBloodOrder(Guid orderId)
         {
             var result = await _bloodBankService.GetBloodOrderAsync(orderId);
@@ -536,7 +537,7 @@ namespace HIS.API.Controllers
         /// Tạo yêu cầu máu (alias)
         /// </summary>
         [HttpPost("requests")]
-        [Authorize(Roles = "Admin,Doctor")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
         public async Task<ActionResult<BloodOrderDto>> CreateBloodRequest([FromBody] CreateBloodOrderDto dto)
         {
             var result = await _bloodBankService.CreateBloodOrderAsync(dto);
@@ -547,7 +548,7 @@ namespace HIS.API.Controllers
         /// Tạo chỉ định máu
         /// </summary>
         [HttpPost("orders")]
-        [Authorize(Roles = "Admin,Doctor")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
         public async Task<ActionResult<BloodOrderDto>> CreateBloodOrder([FromBody] CreateBloodOrderDto dto)
         {
             var result = await _bloodBankService.CreateBloodOrderAsync(dto);
@@ -558,7 +559,7 @@ namespace HIS.API.Controllers
         /// Hủy chỉ định máu
         /// </summary>
         [HttpPost("orders/{orderId}/cancel")]
-        [Authorize(Roles = "Admin,Doctor")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
         public async Task<ActionResult> CancelBloodOrder(Guid orderId, [FromBody] BloodBankCancelRequest request)
         {
             await _bloodBankService.CancelBloodOrderAsync(orderId, request.Reason);
@@ -569,7 +570,7 @@ namespace HIS.API.Controllers
         /// Gán túi máu cho bệnh nhân
         /// </summary>
         [HttpPost("orders/items/{orderItemId}/assign")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult> AssignBloodBag(Guid orderItemId, [FromBody] AssignBloodBagRequest request)
         {
             await _bloodBankService.AssignBloodBagToPatientAsync(orderItemId, request.BloodBagId);
@@ -580,7 +581,7 @@ namespace HIS.API.Controllers
         /// Hủy gán túi máu
         /// </summary>
         [HttpPost("orders/items/{orderItemId}/unassign")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult> UnassignBloodBag(Guid orderItemId, [FromBody] UnassignBloodBagRequest request)
         {
             await _bloodBankService.UnassignBloodBagAsync(orderItemId, request.BloodBagId, request.Reason);
@@ -591,7 +592,7 @@ namespace HIS.API.Controllers
         /// Ghi nhận kết quả phản ứng chéo
         /// </summary>
         [HttpPost("orders/items/{orderItemId}/cross-match")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult> RecordCrossMatchResult(
             Guid orderItemId,
             [FromBody] CrossMatchResultRequest request)
@@ -604,7 +605,7 @@ namespace HIS.API.Controllers
         /// Bắt đầu truyền máu
         /// </summary>
         [HttpPost("orders/items/{orderItemId}/start-transfusion")]
-        [Authorize(Roles = "Admin,Doctor,Nurse")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]
         public async Task<ActionResult> StartTransfusion(Guid orderItemId, [FromBody] TransfusionRequest request)
         {
             await _bloodBankService.StartTransfusionAsync(orderItemId, request.BloodBagId);
@@ -615,7 +616,7 @@ namespace HIS.API.Controllers
         /// Kết thúc truyền máu
         /// </summary>
         [HttpPost("orders/items/{orderItemId}/complete-transfusion")]
-        [Authorize(Roles = "Admin,Doctor,Nurse")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]
         public async Task<ActionResult> CompleteTransfusion(
             Guid orderItemId,
             [FromBody] CompleteTransfusionRequest request)
@@ -628,7 +629,7 @@ namespace HIS.API.Controllers
         /// Ghi nhận phản ứng truyền máu
         /// </summary>
         [HttpPost("orders/items/{orderItemId}/reaction")]
-        [Authorize(Roles = "Admin,Doctor,Nurse")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]
         public async Task<ActionResult> RecordTransfusionReaction(
             Guid orderItemId,
             [FromBody] TransfusionReactionRequest request)
@@ -645,7 +646,7 @@ namespace HIS.API.Controllers
         /// 8. In phiếu lĩnh máu tổng hợp
         /// </summary>
         [HttpGet("reports/issue-summary/print")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult> PrintBloodIssueSummary(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -659,7 +660,7 @@ namespace HIS.API.Controllers
         /// Báo cáo phiếu lĩnh máu tổng hợp
         /// </summary>
         [HttpGet("reports/issue-summary")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult<BloodIssueSummaryDto>> GetBloodIssueSummary(
             [FromQuery] DateTime fromDate,
             [FromQuery] DateTime toDate,
@@ -673,7 +674,7 @@ namespace HIS.API.Controllers
         /// 9. In phiếu lĩnh máu theo bệnh nhân
         /// </summary>
         [HttpGet("patients/{patientId}/blood-issue/print")]
-        [Authorize(Roles = "Admin,BloodBankManager,Doctor,Nurse")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]
         public async Task<ActionResult> PrintBloodIssueByPatient(
             Guid patientId,
             [FromQuery] DateTime fromDate,
@@ -687,7 +688,7 @@ namespace HIS.API.Controllers
         /// Báo cáo máu theo bệnh nhân
         /// </summary>
         [HttpGet("patients/{patientId}/blood-issue")]
-        [Authorize(Roles = "Admin,BloodBankManager,Doctor,Nurse")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.Doctor + "," + RoleNames.Nurse)]
         public async Task<ActionResult<BloodIssueByPatientDto>> GetBloodIssueByPatient(
             Guid patientId,
             [FromQuery] DateTime fromDate,
@@ -705,7 +706,7 @@ namespace HIS.API.Controllers
         /// 10. Đọc mã vạch/QR code túi máu
         /// </summary>
         [HttpPost("blood-bags/scan")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<ScanBloodBagResultDto>> ScanBloodBag([FromBody] ScanBloodBagDto dto)
         {
             var result = await _bloodBankService.ScanBloodBagAsync(dto);
@@ -716,7 +717,7 @@ namespace HIS.API.Controllers
         /// In mã vạch túi máu
         /// </summary>
         [HttpPost("blood-bags/print-barcodes")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult> PrintBloodBagBarcodes([FromBody] PrintBloodBagBarcodeDto dto)
         {
             var result = await _bloodBankService.PrintBloodBagBarcodesAsync(dto);
@@ -727,7 +728,7 @@ namespace HIS.API.Controllers
         /// Tra cứu túi máu theo mã vạch
         /// </summary>
         [HttpGet("blood-bags/by-barcode/{barcode}")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<BloodBagDto>> GetBloodBagByBarcode(string barcode)
         {
             var result = await _bloodBankService.GetBloodBagByBarcodeAsync(barcode);
@@ -752,7 +753,7 @@ namespace HIS.API.Controllers
         /// Thêm/Sửa loại chế phẩm
         /// </summary>
         [HttpPost("product-types")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult<BloodProductTypeDto>> SaveProductType([FromBody] BloodProductTypeDto dto)
         {
             var result = await _bloodBankService.SaveProductTypeAsync(dto);
@@ -763,7 +764,7 @@ namespace HIS.API.Controllers
         /// Danh sách nhà cung cấp
         /// </summary>
         [HttpGet("suppliers")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult<List<BloodSupplierDto>>> GetSuppliers([FromQuery] string keyword = null)
         {
             var result = await _bloodBankService.GetSuppliersAsync(keyword);
@@ -774,7 +775,7 @@ namespace HIS.API.Controllers
         /// Thêm/Sửa nhà cung cấp
         /// </summary>
         [HttpPost("suppliers")]
-        [Authorize(Roles = "Admin,BloodBankManager")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager)]
         public async Task<ActionResult<BloodSupplierDto>> SaveSupplier([FromBody] BloodSupplierDto dto)
         {
             var result = await _bloodBankService.SaveSupplierAsync(dto);
@@ -785,7 +786,7 @@ namespace HIS.API.Controllers
         /// Danh sách kết quả Gelcard test
         /// </summary>
         [HttpGet("gelcard-tests")]
-        [Authorize(Roles = "Admin,BloodBankManager,BloodBankStaff")]
+        [Authorize(Roles = RoleNames.Admin + "," + RoleNames.BloodBankManager + "," + RoleNames.BloodBankStaff)]
         public async Task<ActionResult> GetGelcardTests(
             [FromQuery] DateTime? fromDate = null,
             [FromQuery] DateTime? toDate = null)

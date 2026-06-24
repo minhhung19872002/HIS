@@ -1,4 +1,5 @@
 using System;
+using HIS.Core.Constants;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
@@ -1042,7 +1043,7 @@ namespace HIS.API.Controllers
         /// Mock-receive: POST danh sách kết quả giả để test (Admin only)
         /// </summary>
         [HttpPost("mock-receive/{analyzerId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = RoleNames.Admin)]
         public async Task<ActionResult<ProcessAnalyzerResultDto>> MockReceiveResults(
             Guid analyzerId,
             [FromBody] List<MockLabResultDto> results)

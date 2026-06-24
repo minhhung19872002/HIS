@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Billing;
@@ -33,7 +34,7 @@ public class BillingCompleteController : ControllerBase
     /// Tạo sổ thu tiền
     /// </summary>
     [HttpPost("cash-books")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<CashBookDto>> CreateCashBook([FromBody] CreateCashBookDto dto)
     {
         var result = await _billingService.CreateCashBookAsync(dto, GetUserId());
@@ -44,7 +45,7 @@ public class BillingCompleteController : ControllerBase
     /// Tạo sổ tạm ứng
     /// </summary>
     [HttpPost("deposit-books")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<CashBookDto>> CreateDepositBook([FromBody] CreateCashBookDto dto)
     {
         var result = await _billingService.CreateDepositBookAsync(dto, GetUserId());
@@ -76,7 +77,7 @@ public class BillingCompleteController : ControllerBase
     /// Khóa sổ thu
     /// </summary>
     [HttpPost("cash-books/{id}/lock")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<CashBookDto>> LockCashBook(Guid id)
     {
         var result = await _billingService.LockCashBookAsync(id, GetUserId());
@@ -87,7 +88,7 @@ public class BillingCompleteController : ControllerBase
     /// Mở khóa sổ thu
     /// </summary>
     [HttpPost("cash-books/{id}/unlock")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<CashBookDto>> UnlockCashBook(Guid id)
     {
         var result = await _billingService.UnlockCashBookAsync(id, GetUserId());
@@ -98,7 +99,7 @@ public class BillingCompleteController : ControllerBase
     /// Phân quyền sổ
     /// </summary>
     [HttpPost("cash-books/permissions")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<bool>> AssignCashBookPermission([FromBody] AssignCashBookPermissionDto dto)
     {
         var result = await _billingService.AssignCashBookPermissionAsync(dto, GetUserId());
@@ -109,7 +110,7 @@ public class BillingCompleteController : ControllerBase
     /// Xóa quyền sổ
     /// </summary>
     [HttpDelete("cash-books/{cashBookId}/permissions/{userId}")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<bool>> RemoveCashBookPermission(Guid cashBookId, Guid userId)
     {
         var result = await _billingService.RemoveCashBookPermissionAsync(cashBookId, userId, GetUserId());
@@ -168,7 +169,7 @@ public class BillingCompleteController : ControllerBase
     /// Tạo phiếu tạm ứng
     /// </summary>
     [HttpPost("deposits")]
-    [Authorize(Roles = "Admin,Cashier,Nurse")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Cashier + "," + RoleNames.Nurse)]
     public async Task<ActionResult<DepositDto>> CreateDeposit([FromBody] CreateDepositDto dto)
     {
         var result = await _billingService.CreateDepositAsync(dto, GetUserId());
@@ -179,7 +180,7 @@ public class BillingCompleteController : ControllerBase
     /// Tạo phiếu thu tạm ứng từ khoa lâm sàng
     /// </summary>
     [HttpPost("deposits/department")]
-    [Authorize(Roles = "Admin,Cashier")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Cashier)]
     public async Task<ActionResult<DepartmentDepositDto>> CreateDepartmentDeposit([FromBody] CreateDepartmentDepositRequest request)
     {
         var result = await _billingService.CreateDepartmentDepositAsync(request.DepartmentId, request.DepositIds, GetUserId());
@@ -190,7 +191,7 @@ public class BillingCompleteController : ControllerBase
     /// Tiếp nhận phiếu tạm ứng từ khoa
     /// </summary>
     [HttpPost("deposits/department/{id}/receive")]
-    [Authorize(Roles = "Admin,Cashier")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Cashier)]
     public async Task<ActionResult<DepartmentDepositDto>> ReceiveDepartmentDeposit(Guid id)
     {
         var result = await _billingService.ReceiveDepartmentDepositAsync(id, GetUserId());
@@ -211,7 +212,7 @@ public class BillingCompleteController : ControllerBase
     /// Sử dụng tiền tạm ứng để thanh toán
     /// </summary>
     [HttpPost("deposits/use-for-payment")]
-    [Authorize(Roles = "Admin,Cashier")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Cashier)]
     public async Task<ActionResult<PaymentDto>> UseDepositForPayment([FromBody] UseDepositForPaymentDto dto)
     {
         var result = await _billingService.UseDepositForPaymentAsync(dto, GetUserId());
@@ -232,7 +233,7 @@ public class BillingCompleteController : ControllerBase
     /// Hủy phiếu tạm ứng
     /// </summary>
     [HttpPost("deposits/{id}/cancel")]
-    [Authorize(Roles = "Admin,Cashier")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Cashier)]
     public async Task<ActionResult<bool>> CancelDeposit(Guid id, [FromBody] BillingCancelRequest request)
     {
         var result = await _billingService.CancelDepositAsync(id, request.Reason, GetUserId());
@@ -258,7 +259,7 @@ public class BillingCompleteController : ControllerBase
     /// Hủy phiếu thu tiền
     /// </summary>
     [HttpPost("payments/{id}/cancel")]
-    [Authorize(Roles = "Admin,Cashier")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Cashier)]
     public async Task<ActionResult<bool>> CancelPayment(Guid id, [FromBody] BillingCancelRequest request)
     {
         var result = await _billingService.CancelPaymentAsync(id, request.Reason, GetUserId());
@@ -293,7 +294,7 @@ public class BillingCompleteController : ControllerBase
     /// Tạo phiếu hoàn ứng
     /// </summary>
     [HttpPost("refunds")]
-    [Authorize(Roles = "Admin,Cashier")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Cashier)]
     public async Task<ActionResult<RefundDto>> CreateRefund([FromBody] CreateRefundDto dto)
     {
         var result = await _billingService.CreateRefundAsync(dto, GetUserId());
@@ -304,7 +305,7 @@ public class BillingCompleteController : ControllerBase
     /// Phê duyệt phiếu hoàn ứng
     /// </summary>
     [HttpPost("refunds/approve")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<RefundDto>> ApproveRefund([FromBody] ApproveRefundDto dto)
     {
         var result = await _billingService.ApproveRefundAsync(dto, GetUserId());
@@ -315,7 +316,7 @@ public class BillingCompleteController : ControllerBase
     /// Xác nhận đã hoàn tiền
     /// </summary>
     [HttpPost("refunds/confirm")]
-    [Authorize(Roles = "Admin,Cashier")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Cashier)]
     public async Task<ActionResult<RefundDto>> ConfirmRefund([FromBody] ConfirmRefundDto dto)
     {
         var result = await _billingService.ConfirmRefundAsync(dto, GetUserId());
@@ -337,7 +338,7 @@ public class BillingCompleteController : ControllerBase
     /// Hủy phiếu hoàn ứng
     /// </summary>
     [HttpPost("refunds/{id}/cancel")]
-    [Authorize(Roles = "Admin,Cashier")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Cashier)]
     public async Task<ActionResult<bool>> CancelRefund(Guid id, [FromBody] BillingCancelRequest request)
     {
         var result = await _billingService.CancelRefundAsync(id, request.Reason, GetUserId());
@@ -352,7 +353,7 @@ public class BillingCompleteController : ControllerBase
     /// Tạm khóa hồ sơ bệnh án
     /// </summary>
     [HttpPost("records/lock")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<RecordLockDto>> LockMedicalRecord([FromBody] LockRecordDto dto)
     {
         var result = await _billingService.LockMedicalRecordAsync(dto, GetUserId());
@@ -363,7 +364,7 @@ public class BillingCompleteController : ControllerBase
     /// Mở khóa hồ sơ bệnh án
     /// </summary>
     [HttpPost("records/{medicalRecordId}/unlock")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<RecordLockDto>> UnlockMedicalRecord(Guid medicalRecordId)
     {
         var result = await _billingService.UnlockMedicalRecordAsync(medicalRecordId, GetUserId());
@@ -388,7 +389,7 @@ public class BillingCompleteController : ControllerBase
     /// Duyệt kế toán cho hóa đơn
     /// </summary>
     [HttpPost("accounting/approve")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<List<AccountingApprovalDto>>> ApproveAccounting([FromBody] ApproveAccountingDto dto)
     {
         var result = await _billingService.ApproveAccountingAsync(dto, GetUserId());
@@ -399,7 +400,7 @@ public class BillingCompleteController : ControllerBase
     /// Lấy danh sách hóa đơn chờ duyệt kế toán
     /// </summary>
     [HttpGet("accounting/pending")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<PagedResultDto<AccountingApprovalDto>>> GetPendingApprovals([FromQuery] PendingApprovalSearchDto dto)
     {
         var result = await _billingService.GetPendingApprovalsAsync(dto);
@@ -425,7 +426,7 @@ public class BillingCompleteController : ControllerBase
     /// Áp dụng miễn giảm theo hóa đơn
     /// </summary>
     [HttpPost("discounts/invoice")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<InvoiceDto>> ApplyInvoiceDiscount([FromBody] ApplyDiscountDto dto)
     {
         var result = await _billingService.ApplyInvoiceDiscountAsync(dto, GetUserId());
@@ -436,7 +437,7 @@ public class BillingCompleteController : ControllerBase
     /// Áp dụng miễn giảm theo từng dịch vụ
     /// </summary>
     [HttpPost("discounts/services")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<InvoiceDto>> ApplyServiceDiscount([FromBody] ApplyDiscountDto dto)
     {
         var result = await _billingService.ApplyServiceDiscountAsync(dto, GetUserId());
@@ -457,7 +458,7 @@ public class BillingCompleteController : ControllerBase
     /// Hủy miễn giảm
     /// </summary>
     [HttpPost("discounts/{id}/cancel")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<bool>> CancelDiscount(Guid id, [FromBody] BillingCancelRequest request)
     {
         var result = await _billingService.CancelDiscountAsync(id, request.Reason, GetUserId());
@@ -482,7 +483,7 @@ public class BillingCompleteController : ControllerBase
     /// Tạo hoặc cập nhật hóa đơn
     /// </summary>
     [HttpPost("invoices")]
-    [Authorize(Roles = "Admin,Cashier")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Cashier)]
     public async Task<ActionResult<InvoiceDto>> CreateOrUpdateInvoice([FromBody] CreateInvoiceDto dto)
     {
         var result = await _billingService.CreateOrUpdateInvoiceAsync(dto, GetUserId());
@@ -633,7 +634,7 @@ public class BillingCompleteController : ControllerBase
     /// Tạo/Phát hành hóa đơn điện tử
     /// </summary>
     [HttpPost("e-invoices")]
-    [Authorize(Roles = "Admin,Accountant,Cashier")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.Cashier)]
     public async Task<ActionResult<ElectronicInvoiceDto>> IssueElectronicInvoice([FromBody] IssueEInvoiceDto dto)
     {
         var result = await _billingService.IssueElectronicInvoiceAsync(dto, GetUserId());
@@ -644,7 +645,7 @@ public class BillingCompleteController : ControllerBase
     /// Hủy hóa đơn điện tử
     /// </summary>
     [HttpPost("e-invoices/{id}/cancel")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<bool>> CancelElectronicInvoice(Guid id, [FromBody] BillingCancelRequest request)
     {
         var result = await _billingService.CancelElectronicInvoiceAsync(id, request.Reason, GetUserId());
@@ -709,7 +710,7 @@ public class BillingCompleteController : ControllerBase
     /// Xuất hóa đơn lên nhà cung cấp (VNInvoice/Misa)
     /// </summary>
     [HttpPut("e-invoices/{id}/export")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<ElectronicInvoiceDto>> ExportElectronicInvoice(Guid id)
     {
         var result = await _billingService.ExportElectronicInvoiceAsync(id, GetUserId());
@@ -747,7 +748,7 @@ public class BillingCompleteController : ControllerBase
     /// Lấy báo cáo thu ngân theo ngày
     /// </summary>
     [HttpGet("reports/cashier")]
-    [Authorize(Roles = "Admin,Cashier,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Cashier + "," + RoleNames.Accountant)]
     public async Task<ActionResult<CashierReportDto>> GetCashierReport([FromQuery] CashierReportRequestDto dto)
     {
         var result = await _billingService.GetCashierReportAsync(dto);
@@ -758,7 +759,7 @@ public class BillingCompleteController : ControllerBase
     /// Đóng sổ thu ngân
     /// </summary>
     [HttpPost("cash-books/close")]
-    [Authorize(Roles = "Admin,Cashier")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Cashier)]
     public async Task<ActionResult<CashierReportDto>> CloseCashBook([FromBody] CloseCashBookDto dto)
     {
         var result = await _billingService.CloseCashBookAsync(dto, GetUserId());
@@ -769,7 +770,7 @@ public class BillingCompleteController : ControllerBase
     /// Báo cáo thu tiền ngoại trú
     /// </summary>
     [HttpGet("reports/outpatient-revenue")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<OutpatientRevenueReportDto>> GetOutpatientRevenueReport([FromQuery] RevenueReportRequestDto dto)
     {
         var result = await _billingService.GetOutpatientRevenueReportAsync(dto);
@@ -780,7 +781,7 @@ public class BillingCompleteController : ControllerBase
     /// Báo cáo thu tiền nội trú
     /// </summary>
     [HttpGet("reports/inpatient-revenue")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<InpatientRevenueReportDto>> GetInpatientRevenueReport([FromQuery] RevenueReportRequestDto dto)
     {
         var result = await _billingService.GetInpatientRevenueReportAsync(dto);
@@ -791,7 +792,7 @@ public class BillingCompleteController : ControllerBase
     /// Báo cáo thu tiền tạm ứng
     /// </summary>
     [HttpGet("reports/deposit-revenue")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<DepositRevenueReportDto>> GetDepositRevenueReport([FromQuery] RevenueReportRequestDto dto)
     {
         var result = await _billingService.GetDepositRevenueReportAsync(dto);
@@ -802,7 +803,7 @@ public class BillingCompleteController : ControllerBase
     /// Báo cáo sử dụng sổ thu chi
     /// </summary>
     [HttpGet("reports/cash-book-usage/{cashBookId}")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<CashBookUsageReportDto>> GetCashBookUsageReport(
         Guid cashBookId,
         [FromQuery] DateTime fromDate,
@@ -816,7 +817,7 @@ public class BillingCompleteController : ControllerBase
     /// In báo cáo thu tiền ngoại trú
     /// </summary>
     [HttpPost("reports/outpatient-revenue/print")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<IActionResult> PrintOutpatientRevenueReport([FromBody] RevenueReportRequestDto dto)
     {
         var result = await _billingService.PrintOutpatientRevenueReportAsync(dto);
@@ -827,7 +828,7 @@ public class BillingCompleteController : ControllerBase
     /// In báo cáo thu tiền nội trú
     /// </summary>
     [HttpPost("reports/inpatient-revenue/print")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<IActionResult> PrintInpatientRevenueReport([FromBody] RevenueReportRequestDto dto)
     {
         var result = await _billingService.PrintInpatientRevenueReportAsync(dto);
@@ -838,7 +839,7 @@ public class BillingCompleteController : ControllerBase
     /// In báo cáo thu tiền tạm ứng
     /// </summary>
     [HttpPost("reports/deposit-revenue/print")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<IActionResult> PrintDepositRevenueReport([FromBody] RevenueReportRequestDto dto)
     {
         var result = await _billingService.PrintDepositRevenueReportAsync(dto);
@@ -853,7 +854,7 @@ public class BillingCompleteController : ControllerBase
     /// Thống kê viện phí tổng hợp
     /// </summary>
     [HttpGet("statistics")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<BillingStatisticsDto>> GetBillingStatistics([FromQuery] BillingStatisticsRequestDto dto)
     {
         var result = await _billingService.GetBillingStatisticsAsync(dto);
@@ -864,7 +865,7 @@ public class BillingCompleteController : ControllerBase
     /// Báo cáo doanh thu theo ngày
     /// </summary>
     [HttpGet("statistics/daily/{date}")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<DailyRevenueReportDto>> GetDailyRevenue(DateTime date)
     {
         var result = await _billingService.GetDailyRevenueAsync(date);
@@ -875,7 +876,7 @@ public class BillingCompleteController : ControllerBase
     /// Báo cáo doanh thu theo khoa/phòng
     /// </summary>
     [HttpGet("statistics/by-department")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<List<DepartmentRevenueDto>>> GetRevenueByDepartment([FromQuery] DepartmentRevenueRequestDto dto)
     {
         var result = await _billingService.GetRevenueByDepartmentAsync(dto);
@@ -886,7 +887,7 @@ public class BillingCompleteController : ControllerBase
     /// Thống kê công nợ
     /// </summary>
     [HttpGet("statistics/debt")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<DebtStatisticsDto>> GetDebtStatistics([FromQuery] DateTime? asOfDate)
     {
         var result = await _billingService.GetDebtStatisticsAsync(asOfDate);
@@ -897,7 +898,7 @@ public class BillingCompleteController : ControllerBase
     /// Tạo dữ liệu giám định BHYT
     /// </summary>
     [HttpPost("insurance-claims/{medicalRecordId}")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<InsuranceClaimDto>> GenerateInsuranceClaim(Guid medicalRecordId)
     {
         var result = await _billingService.GenerateInsuranceClaimAsync(medicalRecordId);
@@ -908,7 +909,7 @@ public class BillingCompleteController : ControllerBase
     /// Tạo file XML 4210
     /// </summary>
     [HttpPost("insurance-claims/xml-4210")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<Xml4210ResultDto>> GenerateXml4210([FromBody] GenerateXml4210RequestDto dto)
     {
         var result = await _billingService.GenerateXml4210Async(dto);
@@ -919,7 +920,7 @@ public class BillingCompleteController : ControllerBase
     /// Thống kê giám định BHYT
     /// </summary>
     [HttpGet("insurance-claims/statistics")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<InsuranceClaimStatisticsDto>> GetInsuranceClaimStatistics(
         [FromQuery] DateTime fromDate,
         [FromQuery] DateTime toDate)

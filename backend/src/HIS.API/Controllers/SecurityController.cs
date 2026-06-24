@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
 using HIS.Application.DTOs.Security;
@@ -12,7 +13,7 @@ namespace HIS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/security")]
-[Authorize(Roles = "Admin,Manager,Director,Quản trị hệ thống")] // B3 RBAC: cấu hình bảo mật/access-matrix chỉ system-admin
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.QuanTriHeThong)] // B3 RBAC: cấu hình bảo mật/access-matrix chỉ system-admin
 public class SecurityController : ControllerBase
 {
     private readonly ISecurityService _securityService;

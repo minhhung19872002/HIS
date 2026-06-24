@@ -1,4 +1,5 @@
 using HIS.Core.Entities;
+using HIS.Core.Constants;
 using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -70,7 +71,7 @@ public class ClinicalNarrativeController : ControllerBase
     }
 
     [HttpPost("surgery")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<IActionResult> SaveSurgeryNarrative([FromBody] SurgeryNarrativeTemplate dto)
     {
         SurgeryNarrativeTemplate entity;
@@ -126,7 +127,7 @@ public class ClinicalNarrativeController : ControllerBase
     }
 
     [HttpDelete("surgery/{id:guid}")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<IActionResult> DeleteSurgeryNarrative(Guid id)
     {
         var entity = await _db.SurgeryNarrativeTemplates.FindAsync(id);
@@ -188,7 +189,7 @@ public class ClinicalNarrativeController : ControllerBase
     }
 
     [HttpPost("outpatient-records")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<IActionResult> SaveOutpatientRecord([FromBody] OutpatientRecordTemplate dto)
     {
         OutpatientRecordTemplate entity;
@@ -254,7 +255,7 @@ public class ClinicalNarrativeController : ControllerBase
     }
 
     [HttpDelete("outpatient-records/{id:guid}")]
-    [Authorize(Roles = "Admin,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor)]
     public async Task<IActionResult> DeleteOutpatientRecord(Guid id)
     {
         var entity = await _db.OutpatientRecordTemplates.FindAsync(id);

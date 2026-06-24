@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs.Asset;
 using HIS.Application.Services;
@@ -249,7 +250,7 @@ public class AssetManagementController : ControllerBase
     }
 
     [HttpPut("stocktakes/{id}/approve")]
-    [Authorize(Roles = "Admin,AssetManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.AssetManager)]
     public async Task<ActionResult<AssetStocktakeDto>> ApproveStocktake(Guid id)
     {
         return Ok(await _service.ApproveStocktakeAsync(id, GetUserId()));

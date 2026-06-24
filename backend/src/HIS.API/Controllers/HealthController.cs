@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.Services;
@@ -124,7 +125,7 @@ public class HealthController : ControllerBase
     /// because an exception (e.g. "Invalid object name") is being caught upstream.
     /// </summary>
     [HttpGet("/health/schema-drift")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<IActionResult> GetSchemaDrift([FromServices] HIS.Infrastructure.Data.HISDbContext context)
     {
         if (!context.Database.IsSqlServer())

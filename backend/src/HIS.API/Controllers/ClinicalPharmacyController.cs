@@ -1,4 +1,5 @@
 using HIS.Application.DTOs.Examination;
+using HIS.Core.Constants;
 using HIS.Application.Services;
 using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -146,7 +147,7 @@ public class ClinicalPharmacyController : ControllerBase
     /// NOTE: Excel can them thu vien ClosedXML/EPPlus; hien tai chi ho tro CSV.
     /// </summary>
     [HttpPost("drug-interactions/import-csv")]
-    [Authorize(Roles = "Admin,Pharmacist")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Pharmacist)]
     public async Task<ActionResult<DrugInteractionImportResultDto>> ImportDrugInteractionsCsv(IFormFile file)
     {
         if (file == null || file.Length == 0)

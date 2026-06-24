@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -61,7 +62,7 @@ public class ServiceRefundController : ControllerBase
 
     /// <summary>Cho lại các chỉ định — chuyển status về Chờ, log lý do.</summary>
     [HttpPost("requeue")]
-    [Authorize(Roles = "Admin,Doctor,Cashier,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.Cashier + "," + RoleNames.Accountant)]
     public async Task<IActionResult> Requeue([FromBody] RequeueDto dto)
     {
         if (dto.ServiceRequestDetailIds.Count == 0)

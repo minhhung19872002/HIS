@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.Application.DTOs.Examination;
 using HIS.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -66,7 +67,7 @@ public class MultiSpecialtyExamController : ControllerBase
 
     /// <summary>Hủy in chi phí — để chỉnh sửa phiên khám</summary>
     [HttpPost("cancel-print-bill/{examinationId:guid}")]
-    [Authorize(Roles = "Admin,DepartmentHead,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DepartmentHead + "," + RoleNames.Accountant)]
     public async Task<ActionResult<ExamCompletionStatusDto>> CancelPrintBill(Guid examinationId)
     {
         var s = await _service.CancelPrintBillAsync(examinationId, GetUserId());
@@ -75,7 +76,7 @@ public class MultiSpecialtyExamController : ControllerBase
 
     /// <summary>Hủy hoàn tất — trả phiên khám về trạng thái đang khám</summary>
     [HttpPost("cancel-completion/{examinationId:guid}")]
-    [Authorize(Roles = "Admin,DepartmentHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DepartmentHead)]
     public async Task<ActionResult<ExamCompletionStatusDto>> CancelCompletion(Guid examinationId)
     {
         var s = await _service.CancelCompletionAsync(examinationId, GetUserId());
@@ -84,7 +85,7 @@ public class MultiSpecialtyExamController : ControllerBase
 
     /// <summary>Xóa đăng ký nhập sai (BN chưa vào phòng)</summary>
     [HttpPost("delete-registration")]
-    [Authorize(Roles = "Admin,Receptionist,DepartmentHead")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Receptionist + "," + RoleNames.DepartmentHead)]
     public async Task<IActionResult> DeleteRegistration([FromBody] DeleteRegistrationDto dto)
     {
         var ok = await _service.DeleteRegistrationAsync(dto, GetUserId());

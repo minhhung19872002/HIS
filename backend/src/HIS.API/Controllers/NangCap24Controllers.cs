@@ -74,12 +74,12 @@ public class BhxhInspectorPortalController : ControllerBase
         => Ok(await _service.LoginAsync(dto, GetClientIp() ?? "127.0.0.1"));
 
     [HttpGet("records")]
-    [Authorize(Roles = "BhxhInspector")]
+    [Authorize(Roles = RoleNames.BhxhInspector)]
     public async Task<ActionResult<InspectorRecordSearchResultDto>> SearchRecords([FromQuery] InspectorSearchRecordDto dto)
         => Ok(await _service.SearchRecordsAsync(dto, GetInspectorId(), GetClientIp()));
 
     [HttpGet("records/{id:guid}")]
-    [Authorize(Roles = "BhxhInspector")]
+    [Authorize(Roles = RoleNames.BhxhInspector)]
     public async Task<ActionResult<InspectorRecordDetailDto>> GetRecord(Guid id)
     {
         var detail = await _service.GetRecordDetailAsync(id, GetInspectorId(), GetClientIp());
@@ -87,7 +87,7 @@ public class BhxhInspectorPortalController : ControllerBase
     }
 
     [HttpGet("records/{id:guid}/signed-xml")]
-    [Authorize(Roles = "BhxhInspector")]
+    [Authorize(Roles = RoleNames.BhxhInspector)]
     public async Task<IActionResult> DownloadSignedXml(Guid id)
     {
         var bytes = await _service.DownloadSignedXmlAsync(id, GetInspectorId(), GetClientIp());
@@ -97,17 +97,17 @@ public class BhxhInspectorPortalController : ControllerBase
 
     // Admin: quản lý tài khoản inspector
     [HttpGet("accounts")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<List<InspectorAccountDto>>> ListAccounts()
         => Ok(await _service.ListAccountsAsync());
 
     [HttpPost("accounts")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<InspectorAccountDto>> CreateAccount([FromBody] InspectorCreateDto dto)
         => Ok(await _service.CreateAccountAsync(dto, GetUserId()));
 
     [HttpPut("accounts/{id:guid}/active")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<IActionResult> SetActive(Guid id, [FromBody] bool isActive)
     {
         await _service.UpdateAccountActiveAsync(id, isActive, GetUserId());
@@ -115,7 +115,7 @@ public class BhxhInspectorPortalController : ControllerBase
     }
 
     [HttpPost("accounts/{id:guid}/reset-password")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<IActionResult> ResetPassword(Guid id, [FromBody] ResetPwDto dto)
     {
         await _service.ResetPasswordAsync(id, dto.NewPassword, GetUserId());
@@ -179,7 +179,7 @@ public class EmrCloudSyncController : ControllerBase
         => Ok(await _service.GetStatusAsync());
 
     [HttpPost("retry-failed")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<IActionResult> RetryFailed()
     {
         var count = await _service.RetryFailedAsync(GetUserId());
@@ -207,17 +207,17 @@ public class DicomAutoSendController : ControllerBase
         => Ok(await _service.ListRulesAsync());
 
     [HttpPost("rules")]
-    [Authorize(Roles = "Admin,Radiologist,RadiologyManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.RadiologyManager)]
     public async Task<ActionResult<DicomAutoSendRuleDto>> CreateRule([FromBody] DicomAutoSendRuleCreateDto dto)
         => Ok(await _service.CreateRuleAsync(dto, GetUserId()));
 
     [HttpPut("rules/{id:guid}")]
-    [Authorize(Roles = "Admin,Radiologist,RadiologyManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.RadiologyManager)]
     public async Task<ActionResult<DicomAutoSendRuleDto>> UpdateRule(Guid id, [FromBody] DicomAutoSendRuleCreateDto dto)
         => Ok(await _service.UpdateRuleAsync(id, dto, GetUserId()));
 
     [HttpDelete("rules/{id:guid}")]
-    [Authorize(Roles = "Admin,Radiologist,RadiologyManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.RadiologyManager)]
     public async Task<IActionResult> DeleteRule(Guid id)
     {
         await _service.DeleteRuleAsync(id, GetUserId());
@@ -240,7 +240,7 @@ public class DicomAutoSendController : ControllerBase
         => Ok(await _service.GetStatsAsync(from, to));
 
     [HttpPost("trigger-check")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<IActionResult> TriggerCheck()
     {
         var n = await _service.TriggerAutoSendCheckAsync();
@@ -275,18 +275,18 @@ public class Hl7QueueController : ControllerBase
     }
 
     [HttpPost("{id:guid}/retry")]
-    [Authorize(Roles = "Admin,Radiologist,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.LabManager)]
     public async Task<ActionResult<Hl7MessageQueueDto>> Retry(Guid id)
         => Ok(await _service.RetryAsync(id, GetUserId()));
 
     [HttpPost("retry-all-failed")]
-    [Authorize(Roles = "Admin,Radiologist,LabManager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.LabManager)]
     public async Task<ActionResult<Hl7RetryResultDto>> RetryAllFailed()
         => Ok(await _service.RetryAllFailedAsync(GetUserId()));
 
     // Demo enqueue endpoint cho test
     [HttpPost("demo-enqueue")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<Hl7MessageQueueDto>> DemoEnqueue([FromBody] DemoEnqueueDto dto)
     {
         var msg = await _service.EnqueueAsync(

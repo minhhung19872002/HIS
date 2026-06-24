@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Reporting;
@@ -11,7 +12,7 @@ namespace HIS.API.Controllers
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin,Manager,Director,Quản trị hệ thống,Accountant,Cashier,Thu ngân")] // B3 RBAC: báo cáo/tài chính chỉ admin/kế toán (CASHIER→Cashier/Accountant)
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.QuanTriHeThong + "," + RoleNames.Accountant + "," + RoleNames.Cashier + "," + RoleNames.ThuNgan)] // B3 RBAC: báo cáo/tài chính chỉ admin/kế toán (CASHIER→Cashier/Accountant)
     public class ReportingController : ControllerBase
     {
         private readonly IReportingCompleteService _reportingService;

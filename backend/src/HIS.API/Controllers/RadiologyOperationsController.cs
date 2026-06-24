@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -31,7 +32,7 @@ public class RadiologyOperationsController : ControllerBase
 
     /// <summary>N1.14 — thêm chỉ định CĐHA mới liên kết cùng HSBA/examination.</summary>
     [HttpPost("add-on")]
-    [Authorize(Roles = "Admin,Radiologist,Technician,Doctor")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.Technician + "," + RoleNames.Doctor)]
     public async Task<IActionResult> AddOn([FromBody] AddOnDto dto)
     {
         var parent = await _db.Set<RadiologyRequest>()
@@ -106,7 +107,7 @@ public class RadiologyOperationsController : ControllerBase
 
     /// <summary>N1.15 — xuất thuốc/vật tư tiêu hao tại phòng CĐHA cho BN.</summary>
     [HttpPost("dispense")]
-    [Authorize(Roles = "Admin,Radiologist,Technician,Nurse,Pharmacist")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.Technician + "," + RoleNames.Nurse + "," + RoleNames.Pharmacist)]
     public async Task<IActionResult> Dispense([FromBody] RoomDispenseDto dto)
     {
         if (dto.Items.Count == 0) return BadRequest(new { message = "Chưa chọn thuốc/vật tư" });

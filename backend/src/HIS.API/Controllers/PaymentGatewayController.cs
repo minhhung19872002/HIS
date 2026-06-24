@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.Application.DTOs.Payment;
 using HIS.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -103,7 +104,7 @@ public class PaymentGatewayController : ControllerBase
     }
 
     [HttpPost("refund")]
-    [Authorize(Roles = "Admin,Accountant")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<ActionResult<PaymentTransactionDto>> Refund([FromBody] PaymentRefundDto dto)
     {
         var t = await _service.RefundAsync(dto, GetUserId());
@@ -122,7 +123,7 @@ public class PaymentGatewayController : ControllerBase
     }
 
     [HttpPost("mark-expired")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = RoleNames.Admin)]
     public async Task<IActionResult> MarkExpired()
     {
         var changed = await _service.MarkExpiredAsync();
@@ -134,7 +135,7 @@ public class PaymentGatewayController : ControllerBase
     /// Khi BV chưa có merchant API, kế toán đối soát sao kê và confirm.
     /// </summary>
     [HttpPost("bank/confirm")]
-    [Authorize(Roles = "Admin,Accountant,Cashier")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.Cashier)]
     public async Task<ActionResult<PaymentTransactionDto>> ConfirmBankTransfer([FromBody] BankConfirmDto dto)
     {
         var result = await _service.ConfirmBankTransferAsync(dto, GetUserId());

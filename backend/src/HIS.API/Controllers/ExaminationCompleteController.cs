@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HIS.Application.Services;
@@ -1618,7 +1619,7 @@ public class ExaminationCompleteController : ControllerBase
     /// Mở khóa hồ sơ
     /// </summary>
     [HttpPost("{examinationId}/unlock")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager)]
     public async Task<ActionResult<bool>> UnlockExamination(Guid examinationId, [FromBody] UnlockReasonRequest request)
     {
         var result = await _examinationService.UnlockExaminationAsync(examinationId, request.Reason);
@@ -1649,7 +1650,7 @@ public class ExaminationCompleteController : ControllerBase
     /// Hoàn tác hoàn thành
     /// </summary>
     [HttpPost("{examinationId}/revert-completion")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager)]
     public async Task<ActionResult<ExaminationDto>> RevertCompletion(Guid examinationId, [FromBody] RevertReasonRequest request)
     {
         var result = await _examinationService.RevertCompletionAsync(examinationId, request.Reason);

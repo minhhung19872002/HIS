@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs.Procurement;
 using HIS.Application.Interfaces;
@@ -9,7 +10,7 @@ namespace HIS.API.Controllers;
 /// <summary>
 /// Workflow đề xuất – dự trù – tờ trình – duyệt mua sắm tài sản / vật tư (#108)
 /// Route: api/procurement
-/// Role duyệt: TODO — khi có role claim bổ sung [Authorize(Roles = "Admin,Director,Procurement")]
+/// Role duyệt: TODO — khi có role claim bổ sung [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Director + "," + RoleNames.Procurement)]
 /// </summary>
 [ApiController]
 [Route("api/asset-procurement")]
@@ -110,7 +111,7 @@ public class AssetProcurementController : ControllerBase
     }
 
     // ── APPROVE ───────────────────────────────────────────────────────────────
-    [Authorize(Roles = "Admin,Director,WarehouseManager")] // #156: duyệt mua sắm = tiền/quyền → siết role
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Director + "," + RoleNames.WarehouseManager)] // #156: duyệt mua sắm = tiền/quyền → siết role
     [HttpPost("requests/approve")]
     public async Task<ActionResult<AssetProcurementRequestDto>> Approve([FromBody] ApproveRejectAssetProcurementDto dto)
     {
@@ -125,7 +126,7 @@ public class AssetProcurementController : ControllerBase
     }
 
     // ── REJECT ────────────────────────────────────────────────────────────────
-    [Authorize(Roles = "Admin,Director,WarehouseManager")] // #156: từ chối mua sắm = quyền duyệt
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Director + "," + RoleNames.WarehouseManager)] // #156: từ chối mua sắm = quyền duyệt
     [HttpPost("requests/reject")]
     public async Task<ActionResult<AssetProcurementRequestDto>> Reject([FromBody] ApproveRejectAssetProcurementDto dto)
     {

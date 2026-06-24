@@ -1,4 +1,5 @@
 using HIS.Application.DTOs.Billing;
+using HIS.Core.Constants;
 using HIS.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ namespace HIS.API.Controllers;
 
 /// <summary>
 /// Bảo lãnh viện phí: CRUD đơn vị bảo lãnh (SponsorOrg) + gán bảo lãnh + báo cáo công nợ.
-/// TODO role-guard: thêm [Authorize(Roles="Accountant,Cashier")] khi role enum ổn định.
+/// TODO role-guard: thêm [Authorize(Roles=RoleNames.Accountant + "," + RoleNames.Cashier)] khi role enum ổn định.
 /// </summary>
 [ApiController]
 [Route("api/billing-guarantor")]

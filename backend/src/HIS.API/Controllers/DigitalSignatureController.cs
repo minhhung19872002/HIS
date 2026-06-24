@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -18,7 +19,7 @@ namespace HIS.API.Controllers;
 [Route("api/digital-signature")]
 // B3 (audit bảo mật 2026-06-06): ký số HSBA/tài liệu là hành vi lâm sàng/pháp lý — chỉ vai trò lâm sàng,
 // loại lễ tân/kế toán/thu ngân (trước đây [Authorize] trơn cho bất kỳ user đăng nhập).
-[Authorize(Roles = "Admin,Doctor,DepartmentHead,Nurse")]
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Doctor + "," + RoleNames.DepartmentHead + "," + RoleNames.Nurse)]
 public class DigitalSignatureController : ControllerBase
 {
     private readonly Pkcs11SessionManager _sessionManager;

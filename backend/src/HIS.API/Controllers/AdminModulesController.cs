@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -13,7 +14,7 @@ namespace HIS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/admin-modules")]
-[Authorize(Roles = "Admin,Manager,Director,Quản trị hệ thống")] // B3 RBAC: quản trị/payroll chỉ system-admin (ADMIN→Admin/Manager/Director)
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.QuanTriHeThong)] // B3 RBAC: quản trị/payroll chỉ system-admin (ADMIN→Admin/Manager/Director)
 public class AdminModulesController : ControllerBase
 {
     private readonly IAdminModulesService _svc;

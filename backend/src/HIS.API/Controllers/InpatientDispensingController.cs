@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -85,7 +86,7 @@ public class InpatientDispensingController : ControllerBase
     /// Gộp thuốc theo MedicineId, trừ tồn FEFO, đánh dấu IsDispensed.
     /// </summary>
     [HttpPost("batch")]
-    [Authorize(Roles = "Admin,WarehouseManager,WarehouseStaff,Pharmacist")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.WarehouseManager + "," + RoleNames.WarehouseStaff + "," + RoleNames.Pharmacist)]
     public async Task<IActionResult> Batch([FromBody] BatchDispenseDto dto)
     {
         if (dto.PrescriptionIds == null || dto.PrescriptionIds.Count == 0)

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
 using HIS.Application.Interfaces;
@@ -8,7 +9,7 @@ namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/emr-management")]
-[Authorize(Roles = "Admin,Manager,Director,Quản trị hệ thống,Doctor,Bác sĩ,Nurse,Điều dưỡng")] // B3 RBAC: thao tác/chia sẻ EMR chỉ admin+lâm sàng (Doctor 5u/Nurse 2u), KHÔNG lễ tân/kế toán
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.QuanTriHeThong + "," + RoleNames.Doctor + "," + RoleNames.BacSi + "," + RoleNames.Nurse + "," + RoleNames.DieuDuong)] // B3 RBAC: thao tác/chia sẻ EMR chỉ admin+lâm sàng (Doctor 5u/Nurse 2u), KHÔNG lễ tân/kế toán
 public class EmrManagementController : ControllerBase
 {
     private readonly IEmrManagementService _service;
