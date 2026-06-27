@@ -3,6 +3,7 @@ using HIS.Application.Services;
 using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -87,7 +88,7 @@ public class InfectionControlServiceImpl : IInfectionControlService
 
     public async Task<List<IsolationOrderDto>> GetActiveIsolationsAsync(Guid? departmentId = null)
     {
-        var list = await _context.IsolationOrders.Include(x => x.Admission).ThenInclude(x => x!.Patient).Where(x => x.Status == "Active").ToListAsync();
+        var list = await _context.IsolationOrders.Include(x => x.Admission).ThenInclude(x => x!.Patient).Where(x => x.Status == "Active").ToBoundedListAsync("InfectionControl.ActiveIsolations");
         return list.Select(e => new IsolationOrderDto { Id = e.Id, PatientName = e.Admission?.Patient?.FullName ?? "", IsolationType = e.IsolationType, Status = e.Status }).ToList();
     }
 
@@ -122,7 +123,7 @@ public class InfectionControlServiceImpl : IInfectionControlService
 
     public async Task<List<HandHygieneObservationDto>> GetHandHygieneObservationsAsync(DateTime fromDate, DateTime toDate, Guid? departmentId = null)
     {
-        var list = await _context.HandHygieneObservations.Where(x => x.ObservationDate >= fromDate && x.ObservationDate <= toDate).ToListAsync();
+        var list = await _context.HandHygieneObservations.Where(x => x.ObservationDate >= fromDate && x.ObservationDate <= toDate).ToBoundedListAsync("InfectionControl.HandHygieneObservations");
         return list.Select(e => new HandHygieneObservationDto { Id = e.Id, ObservationDate = e.ObservationDate, TotalOpportunities = e.TotalOpportunities, CompliantActions = e.ComplianceCount, ComplianceRate = e.ComplianceRate }).ToList();
     }
 
@@ -151,7 +152,7 @@ public class InfectionControlServiceImpl : IInfectionControlService
     {
         try
         {
-            var list = await _context.Outbreaks.Where(x => x.Status != "Closed").ToListAsync();
+            var list = await _context.Outbreaks.Where(x => x.Status != "Closed").ToBoundedListAsync("InfectionControl.ActiveOutbreaks");
             return list.Select(e => new OutbreakDto { Id = e.Id, OutbreakCode = e.OutbreakCode, Name = e.OutbreakCode, Status = e.Status, TotalCases = e.TotalCases }).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))

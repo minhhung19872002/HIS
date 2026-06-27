@@ -12,6 +12,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -80,7 +81,7 @@ public partial class RISCompleteService
             query = query.Where(r => r.ExamGroupName != null && r.ExamGroupName.Contains(examGroupName));
         }
 
-        var requests = await query.OrderBy(r => r.RequestDate).ToListAsync();
+        var requests = await query.OrderBy(r => r.RequestDate).ToBoundedListAsync("RIS.GetWaitingList");
 
         // Đọc ngưỡng TAT từ SystemConfig (key: RIS.TAT.DefaultThresholdMinutes, mặc định 60 phút)
         var tatThresholdMinutes = 60;
@@ -809,7 +810,7 @@ public partial class RISCompleteService
                 r.RequestCode.Contains(keyword));
         }
 
-        var requests = await query.OrderByDescending(r => r.RequestDate).ToListAsync();
+        var requests = await query.OrderByDescending(r => r.RequestDate).ToBoundedListAsync("RIS.GetRadiologyOrders");
 
         return requests.Select(r => new RadiologyOrderDto
         {
@@ -1577,7 +1578,7 @@ public partial class RISCompleteService
                 .ThenInclude(e => e.Report)
             .Where(r => r.PatientId == patientId && r.RequestDate >= fromDate);
 
-        var requests = await query.OrderByDescending(r => r.RequestDate).ToListAsync();
+        var requests = await query.OrderByDescending(r => r.RequestDate).ToBoundedListAsync("RIS.GetPatientRadiologyHistory");
 
         return requests.Select(r =>
         {
@@ -1887,7 +1888,7 @@ public partial class RISCompleteService
                     CreatedAt = x.f.CreatedAt,
                 })
             .OrderByDescending(dto => dto.CreatedAt)
-            .ToListAsync();
+            .ToBoundedListAsync("RIS.GetFavorites");
 
         return favorites;
     }

@@ -2,6 +2,7 @@ using HIS.Application.DTOs.MassCasualty;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,7 +26,7 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
         var query = _context.MCIEvents.Include(x => x.Victims).AsQueryable();
         if (fromDate.HasValue) query = query.Where(x => x.ActivatedAt >= fromDate.Value);
         if (toDate.HasValue) query = query.Where(x => x.ActivatedAt <= toDate.Value);
-        var list = await query.OrderByDescending(x => x.ActivatedAt).ToListAsync();
+        var list = await query.OrderByDescending(x => x.ActivatedAt).ToBoundedListAsync("MassCasualty.GetEvents");
         return list.Select(MapToEventDto).ToList();
     }
 
@@ -129,7 +130,7 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
         var query = _context.MCIVictims.Where(x => x.MCIEventId == eventId);
         if (!string.IsNullOrEmpty(triageCategory)) query = query.Where(x => x.TriageCategory == triageCategory);
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
-        var list = await query.OrderByDescending(x => x.ArrivalTime).ToListAsync();
+        var list = await query.OrderByDescending(x => x.ArrivalTime).ToBoundedListAsync("MassCasualty.GetVictims");
         return list.Select(MapToVictimDto).ToList();
     }
 
@@ -339,7 +340,7 @@ public class MassCasualtyServiceImpl : IMassCasualtyService
 
     public async Task<List<FamilyNotificationDto>> GetFamilyNotificationsAsync(Guid eventId)
     {
-        var victims = await _context.MCIVictims.Where(x => x.MCIEventId == eventId && x.FamilyNotified).ToListAsync();
+        var victims = await _context.MCIVictims.Where(x => x.MCIEventId == eventId && x.FamilyNotified).ToBoundedListAsync("MassCasualty.FamilyNotifications");
         return victims.Select(v => new FamilyNotificationDto
         {
             Id = Guid.NewGuid(),

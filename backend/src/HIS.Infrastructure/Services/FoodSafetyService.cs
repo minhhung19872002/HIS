@@ -4,6 +4,7 @@ using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -317,7 +318,7 @@ public class FoodSafetyService : IFoodSafetyService
                     PathogensFound = s.PathogensFound,
                     IsPositive = s.IsPositive,
                 })
-                .ToListAsync();
+                .ToBoundedListAsync("FoodSafety.GetSamplesByIncident");
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {

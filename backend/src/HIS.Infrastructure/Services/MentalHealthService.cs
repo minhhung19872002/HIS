@@ -4,6 +4,7 @@ using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -240,7 +241,7 @@ public class MentalHealthService : IMentalHealthService
                     AssessorName = a.AssessorName,
                     Notes = a.Notes,
                 })
-                .ToListAsync();
+                .ToBoundedListAsync("MentalHealth.GetAssessments");
         }
         catch (Exception ex) { _logger.LogWarning(ex, "MentalHealthService thao tác thất bại, trả giá trị mặc định"); return new List<PsychiatricAssessmentDto>(); }
     }

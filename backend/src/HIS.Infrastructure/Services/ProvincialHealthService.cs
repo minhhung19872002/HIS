@@ -3,6 +3,7 @@ using HIS.Application.DTOs.ProvincialHealth;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -179,7 +180,7 @@ public class ProvincialHealthService : IProvincialHealthService
                 Gender = e.MedicalRecord.Patient.Gender,
                 Address = e.MedicalRecord.Patient.Address,
             })
-            .ToListAsync();
+            .ToBoundedListAsync("ProvincialHealth.GetInfectiousDiseaseReports");
 
         var submittedSet = (await _db.Set<InfectiousReportSubmission>()
             .Where(s => !s.IsDeleted).Select(s => s.ExaminationId).ToListAsync()).ToHashSet();

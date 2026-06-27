@@ -4,6 +4,7 @@ using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -196,7 +197,7 @@ public class IvfLabService : IIvfLabService
                     Notes = c.Notes,
                     EmbryoCount = c.Embryos.Count(e => !e.IsDeleted),
                     TransferCount = c.Transfers.Count(t => !t.IsDeleted)
-                }).ToListAsync();
+                }).ToBoundedListAsync("IvfLab.GetCycles");
         }
         catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new List<IvfCycleDto>(); }
     }
@@ -417,7 +418,7 @@ public class IvfLabService : IIvfLabService
                     StrawCode = e.StrawCode, StrawColor = e.StrawColor,
                     BoxCode = e.BoxCode, TankCode = e.TankCode, RackPosition = e.RackPosition,
                     Notes = e.Notes, ImageUrl = e.ImageUrl
-                }).ToListAsync();
+                }).ToBoundedListAsync("IvfLab.GetEmbryos");
         }
         catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new List<IvfEmbryoDto>(); }
     }
@@ -573,7 +574,7 @@ public class IvfLabService : IIvfLabService
                     EmbryologistId = t.EmbryologistId, EmbryologistName = t.Embryologist != null ? t.Embryologist.FullName : null,
                     Notes = t.Notes, ResultStatus = t.ResultStatus,
                     ResultStatusName = ResultStatusNames.GetValueOrDefault(t.ResultStatus, "")
-                }).ToListAsync();
+                }).ToBoundedListAsync("IvfLab.GetTransfers");
         }
         catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new List<IvfTransferDto>(); }
     }
@@ -718,7 +719,7 @@ public class IvfLabService : IIvfLabService
                     StatusName = SpermStatusNames.GetValueOrDefault(s.Status, ""),
                     ExpiryDate = s.ExpiryDate.HasValue ? s.ExpiryDate.Value.ToString("yyyy-MM-dd") : null,
                     StorageFee = s.StorageFee
-                }).ToListAsync();
+                }).ToBoundedListAsync("IvfLab.GetExpiringStorage");
         }
         catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new List<IvfSpermSampleDto>(); }
     }
@@ -746,7 +747,7 @@ public class IvfLabService : IIvfLabService
                     SentDate = b.SentDate.HasValue ? b.SentDate.Value.ToString("yyyy-MM-dd") : null,
                     ResultDate = b.ResultDate.HasValue ? b.ResultDate.Value.ToString("yyyy-MM-dd") : null,
                     Result = b.Result, Notes = b.Notes
-                }).ToListAsync();
+                }).ToBoundedListAsync("IvfLab.GetBiopsies");
         }
         catch (Exception ex) { _logger.LogWarning(ex, "IvfLabService thao tác thất bại, trả giá trị mặc định"); return new List<IvfBiopsyDto>(); }
     }

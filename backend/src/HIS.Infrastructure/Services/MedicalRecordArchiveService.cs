@@ -5,6 +5,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -266,7 +267,7 @@ public class MedicalRecordArchiveService : IMedicalRecordArchiveService
             .Include(r => r.RequestedBy)
             .Where(r => !r.IsDeleted && r.Status == 3 && r.ExpectedReturnDate < today)
             .OrderBy(r => r.ExpectedReturnDate)
-            .ToListAsync();
+            .ToBoundedListAsync("MedicalRecordArchive.GetOverdueBorrows");
 
         return overdue.Select(MapToBorrowDto).ToList();
     }

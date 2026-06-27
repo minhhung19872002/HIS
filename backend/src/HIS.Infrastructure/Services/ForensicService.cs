@@ -4,6 +4,7 @@ using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -195,7 +196,7 @@ public class ForensicService : IForensicService
                     ExaminerName = e.ExaminerName,
                     Notes = e.Notes,
                 })
-                .ToListAsync();
+                .ToBoundedListAsync("Forensic.GetExaminations");
         }
         catch (Exception ex) { _logger.LogWarning(ex, "ForensicService thao tác thất bại, trả giá trị mặc định"); return new List<ForensicExaminationDto>(); }
     }

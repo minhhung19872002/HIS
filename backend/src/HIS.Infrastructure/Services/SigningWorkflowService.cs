@@ -3,6 +3,7 @@ using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -23,7 +24,7 @@ public class SigningWorkflowService : ISigningWorkflowService
 
         query = ApplyFilter(query, filter);
 
-        var results = await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
+        var results = await query.OrderByDescending(r => r.CreatedAt).ToBoundedListAsync("SigningWorkflow.GetPendingRequests");
         return results.Select(MapToDto).ToList();
     }
 
@@ -35,7 +36,7 @@ public class SigningWorkflowService : ISigningWorkflowService
 
         query = ApplyFilter(query, filter);
 
-        var results = await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
+        var results = await query.OrderByDescending(r => r.CreatedAt).ToBoundedListAsync("SigningWorkflow.GetSubmittedRequests");
         return results.Select(MapToDto).ToList();
     }
 
@@ -48,7 +49,7 @@ public class SigningWorkflowService : ISigningWorkflowService
 
         query = ApplyFilter(query, filter);
 
-        var results = await query.OrderByDescending(r => r.SignedAt ?? r.UpdatedAt ?? r.CreatedAt).ToListAsync();
+        var results = await query.OrderByDescending(r => r.SignedAt ?? r.UpdatedAt ?? r.CreatedAt).ToBoundedListAsync("SigningWorkflow.GetHistory");
         return results.Select(MapToDto).ToList();
     }
 

@@ -12,6 +12,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -770,7 +771,7 @@ public partial class RISCompleteService
         if (roomId.HasValue)
             query = query.Where(s => s.RoomId == roomId);
 
-        var schedules = await query.OrderBy(s => s.DutyDate).ThenBy(s => s.ShiftType).ToListAsync();
+        var schedules = await query.OrderBy(s => s.DutyDate).ThenBy(s => s.ShiftType).ToBoundedListAsync("RIS.GetDutySchedules");
 
         return schedules.Select(s => new DutyScheduleDto
         {
@@ -987,7 +988,7 @@ public partial class RISCompleteService
             .Include(a => a.Modality)
             .Where(a => a.RoomId == roomId && a.AssignedAt >= rqFromUtc && a.AssignedAt < rqToUtc && a.Status < 3)
             .OrderBy(a => a.QueueNumber)
-            .ToListAsync();
+            .ToBoundedListAsync("RIS.GetRoomQueue");
 
         return assignments.Select(a => new RoomAssignmentDto
         {
@@ -1226,7 +1227,7 @@ public partial class RISCompleteService
         if (toDate.HasValue)
             query = query.Where(rt => rt.RadiologyRequest.RequestDate <= toDate);
 
-        var requestTags = await query.OrderByDescending(rt => rt.CreatedAt).ToListAsync();
+        var requestTags = await query.OrderByDescending(rt => rt.CreatedAt).ToBoundedListAsync("RIS.GetRequestsByTag");
 
         return requestTags.Select(rt => new TaggedRequestDto
         {

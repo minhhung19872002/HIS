@@ -2,6 +2,7 @@ using HIS.Application.DTOs.Adr;
 using HIS.Application.Interfaces;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace HIS.Infrastructure.Services;
@@ -66,7 +67,7 @@ public class AdrReportService : IAdrReportService
         // Materialize trước, map in-memory (tránh lỗi EF translation với custom method)
         var entities = await q
             .OrderByDescending(r => r.ReportDate)
-            .ToListAsync();
+            .ToBoundedListAsync("AdrReport.GetAdrReports");
 
         return entities.Select(MapToDto).ToList();
     }

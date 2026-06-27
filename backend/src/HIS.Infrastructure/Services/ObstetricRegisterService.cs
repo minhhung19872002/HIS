@@ -2,6 +2,7 @@ using HIS.Application.DTOs.ObstetricRegister;
 using HIS.Application.Interfaces;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace HIS.Infrastructure.Services;
@@ -26,7 +27,7 @@ public class ObstetricRegisterService : IObstetricRegisterService
         if (!string.IsNullOrWhiteSpace(keyword))
             q = q.Where(b => b.MotherName.Contains(keyword) || (b.MotherIdNumber != null && b.MotherIdNumber.Contains(keyword)));
 
-        var list = await q.OrderByDescending(b => b.DeliveryDate).ThenByDescending(b => b.RegisterNo).ToListAsync();
+        var list = await q.OrderByDescending(b => b.DeliveryDate).ThenByDescending(b => b.RegisterNo).ToBoundedListAsync("ObstetricRegister.GetBirthRegisters");
         return list.Select(MapBirth).ToList();
     }
 
@@ -90,7 +91,7 @@ public class ObstetricRegisterService : IObstetricRegisterService
         if (!string.IsNullOrWhiteSpace(keyword))
             q = q.Where(a => a.PatientName.Contains(keyword) || (a.PatientIdNumber != null && a.PatientIdNumber.Contains(keyword)));
 
-        var list = await q.OrderByDescending(a => a.ProcedureDate).ThenByDescending(a => a.RegisterNo).ToListAsync();
+        var list = await q.OrderByDescending(a => a.ProcedureDate).ThenByDescending(a => a.RegisterNo).ToBoundedListAsync("ObstetricRegister.GetAbortionRegisters");
         return list.Select(MapAbortion).ToList();
     }
 

@@ -3,6 +3,7 @@ using HIS.Application.Services;
 using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,7 +22,7 @@ public class QualityManagementServiceImpl : IQualityManagementService
         if (toDate.HasValue) query = query.Where(x => x.IncidentDate <= toDate);
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
         if (!string.IsNullOrEmpty(type)) query = query.Where(x => x.IncidentType == type);
-        var list = await query.OrderByDescending(x => x.IncidentDate).ToListAsync();
+        var list = await query.OrderByDescending(x => x.IncidentDate).ToBoundedListAsync("QualityManagement.GetIncidentReports");
         return list.Select(MapToIncidentDto).ToList();
     }
 
@@ -127,7 +128,7 @@ public class QualityManagementServiceImpl : IQualityManagementService
 
     public async Task<List<QualityIndicatorValueDto>> GetIndicatorValuesAsync(Guid indicatorId, DateTime fromDate, DateTime toDate)
     {
-        var list = await _context.QualityIndicatorValues.Where(x => x.IndicatorId == indicatorId && x.PeriodEnd >= fromDate && x.PeriodEnd <= toDate).OrderBy(x => x.PeriodEnd).ToListAsync();
+        var list = await _context.QualityIndicatorValues.Where(x => x.IndicatorId == indicatorId && x.PeriodEnd >= fromDate && x.PeriodEnd <= toDate).OrderBy(x => x.PeriodEnd).ToBoundedListAsync("QualityManagement.IndicatorValues");
         return list.Select(e => new QualityIndicatorValueDto { Id = e.Id, IndicatorId = e.IndicatorId, PeriodEnd = e.PeriodEnd, Numerator = e.Numerator ?? 0, Denominator = e.Denominator ?? 0, Value = e.Value }).ToList();
     }
 
@@ -179,7 +180,7 @@ public class QualityManagementServiceImpl : IQualityManagementService
     {
         var query = _context.SatisfactionSurveyResults.Where(x => !x.IsDeleted && x.CreatedAt >= fromDate && x.CreatedAt <= toDate);
         if (!string.IsNullOrEmpty(surveyType)) query = query.Where(x => x.TemplateName == surveyType);
-        var list = await query.OrderByDescending(x => x.CreatedAt).ToListAsync();
+        var list = await query.OrderByDescending(x => x.CreatedAt).ToBoundedListAsync("QualityManagement.GetSurveys");
         return list.Select(e => new PatientSatisfactionSurveyDto
         {
             Id = e.Id, SurveyDate = e.CreatedAt, SurveyType = e.TemplateName ?? "General",
@@ -236,7 +237,7 @@ public class QualityManagementServiceImpl : IQualityManagementService
         var query = _context.CAPAs.AsQueryable();
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
         if (!string.IsNullOrEmpty(source)) query = query.Where(x => x.Source == source);
-        var list = await query.ToListAsync();
+        var list = await query.ToBoundedListAsync("QualityManagement.GetCAPAs");
         return list.Select(e => new CAPADto { Id = e.Id, CAPACode = e.CAPACode, Title = e.ActionDescription, Source = e.Source, Status = e.Status, TargetCompletionDate = e.DueDate }).ToList();
     }
 

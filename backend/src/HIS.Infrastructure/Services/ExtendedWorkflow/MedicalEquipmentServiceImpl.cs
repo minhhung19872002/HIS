@@ -3,6 +3,7 @@ using HIS.Application.Services;
 using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -92,7 +93,7 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
 
     public async Task<List<MaintenanceRecordDto>> GetMaintenanceHistoryAsync(Guid equipmentId)
     {
-        var list = await _context.MaintenanceRecords.Include(x => x.PerformedBy).Where(x => x.EquipmentId == equipmentId).OrderByDescending(x => x.PerformedDate ?? x.ScheduledDate).ToListAsync();
+        var list = await _context.MaintenanceRecords.Include(x => x.PerformedBy).Where(x => x.EquipmentId == equipmentId).OrderByDescending(x => x.PerformedDate ?? x.ScheduledDate).ToBoundedListAsync("MedicalEquipment.MaintenanceHistory");
         return list.Select(e => new MaintenanceRecordDto { Id = e.Id, EquipmentId = e.EquipmentId, MaintenanceType = e.MaintenanceType, MaintenanceDate = e.ScheduledDate, PerformedAt = e.PerformedDate, Result = e.Status, Description = e.WorkDescription, TotalCost = e.TotalCost }).ToList();
     }
 
@@ -109,7 +110,7 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
     public async Task<List<CalibrationRecordDto>> GetCalibrationsDueAsync(int daysAhead = 30)
     {
         var dueDate = DateTime.Today.AddDays(daysAhead);
-        var list = await _context.CalibrationRecords.Include(x => x.Equipment).Where(x => x.Status == "Scheduled" && x.ScheduledDate <= dueDate).ToListAsync();
+        var list = await _context.CalibrationRecords.Include(x => x.Equipment).Where(x => x.Status == "Scheduled" && x.ScheduledDate <= dueDate).ToBoundedListAsync("MedicalEquipment.CalibrationsDue");
         return list.Select(e => new CalibrationRecordDto { Id = e.Id, EquipmentId = e.EquipmentId, EquipmentName = e.Equipment?.EquipmentName ?? "", CalibrationDate = e.ScheduledDate, Status = e.Status }).ToList();
     }
 
@@ -132,7 +133,7 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
 
     public async Task<List<CalibrationRecordDto>> GetCalibrationHistoryAsync(Guid equipmentId)
     {
-        var list = await _context.CalibrationRecords.Where(x => x.EquipmentId == equipmentId).OrderByDescending(x => x.PerformedDate ?? x.ScheduledDate).ToListAsync();
+        var list = await _context.CalibrationRecords.Where(x => x.EquipmentId == equipmentId).OrderByDescending(x => x.PerformedDate ?? x.ScheduledDate).ToBoundedListAsync("MedicalEquipment.CalibrationHistory");
         return list.Select(e => new CalibrationRecordDto { Id = e.Id, EquipmentId = e.EquipmentId, CalibrationDate = e.PerformedDate ?? e.ScheduledDate, NextCalibrationDate = e.NextCalibrationDate ?? e.ScheduledDate.AddYears(1), Status = e.Status, CertificateNumber = e.CertificateNumber, Result = e.PassedCalibration ? "Pass" : "Fail" }).ToList();
     }
 
@@ -141,7 +142,7 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
         var query = _context.RepairRequests.Include(x => x.Equipment).Include(x => x.RequestedBy).AsQueryable();
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
         if (departmentId.HasValue) query = query.Where(x => x.DepartmentId == departmentId);
-        var list = await query.OrderByDescending(x => x.RequestDate).ToListAsync();
+        var list = await query.OrderByDescending(x => x.RequestDate).ToBoundedListAsync("MedicalEquipment.RepairRequests");
         return list.Select(e => new RepairRequestDto { Id = e.Id, RequestCode = e.RequestCode, EquipmentId = e.EquipmentId, EquipmentName = e.Equipment?.EquipmentName ?? "", ProblemDescription = e.ProblemDescription, Severity = e.Priority, Status = e.Status, ReportedDate = e.RequestDate, RequestedAt = e.RequestDate }).ToList();
     }
 

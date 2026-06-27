@@ -3,6 +3,7 @@ using HIS.Application.Services;
 using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -120,7 +121,7 @@ public class RehabilitationServiceImpl : IRehabilitationService
 
     public async Task<List<FunctionalAssessmentDto>> GetAssessmentHistoryAsync(Guid referralId)
     {
-        var list = await _context.FunctionalAssessments.Where(x => x.ReferralId == referralId).OrderByDescending(x => x.AssessmentDate).ToListAsync();
+        var list = await _context.FunctionalAssessments.Where(x => x.ReferralId == referralId).OrderByDescending(x => x.AssessmentDate).ToBoundedListAsync("Rehabilitation.AssessmentHistory");
         return list.Select(e => new FunctionalAssessmentDto { Id = e.Id, ReferralId = e.ReferralId, AssessmentDate = e.AssessmentDate, BarthelIndex = e.BarthelIndex }).ToList();
     }
 
@@ -161,7 +162,7 @@ public class RehabilitationServiceImpl : IRehabilitationService
     {
         var query = _context.RehabSessions.Include(x => x.TreatmentPlan).ThenInclude(x => x!.Referral).ThenInclude(x => x!.Patient).Include(x => x.Therapist).Where(x => x.SessionDate >= fromDate && x.SessionDate <= toDate);
         if (therapistId.HasValue) query = query.Where(x => x.TherapistId == therapistId);
-        var list = await query.ToListAsync();
+        var list = await query.ToBoundedListAsync("Rehabilitation.GetSessions");
         return list.Select(MapToRehabSessionDto).ToList();
     }
 
@@ -169,7 +170,7 @@ public class RehabilitationServiceImpl : IRehabilitationService
     {
         var plan = await _context.RehabTreatmentPlans.FirstOrDefaultAsync(x => x.ReferralId == referralId);
         if (plan == null) return new List<RehabSessionDto>();
-        var list = await _context.RehabSessions.Include(x => x.Therapist).Where(x => x.TreatmentPlanId == plan.Id).OrderByDescending(x => x.SessionDate).ToListAsync();
+        var list = await _context.RehabSessions.Include(x => x.Therapist).Where(x => x.TreatmentPlanId == plan.Id).OrderByDescending(x => x.SessionDate).ToBoundedListAsync("Rehabilitation.PatientSessions");
         return list.Select(MapToRehabSessionDto).ToList();
     }
 

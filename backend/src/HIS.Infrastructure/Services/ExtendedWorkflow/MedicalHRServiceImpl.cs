@@ -3,6 +3,7 @@ using HIS.Application.Services;
 using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,7 +23,7 @@ public class MedicalHRServiceImpl : IMedicalHRService
         if (departmentId.HasValue) query = query.Where(x => x.PrimaryDepartmentId == departmentId);
         if (!string.IsNullOrEmpty(staffType)) query = query.Where(x => x.StaffType == staffType);
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
-        var list = await query.ToListAsync();
+        var list = await query.ToBoundedListAsync("MedicalHR.GetStaffList");
         return list.Select(MapToStaffDto).ToList();
     }
 
@@ -53,7 +54,7 @@ public class MedicalHRServiceImpl : IMedicalHRService
     public async Task<List<MedicalStaffDto>> GetStaffWithExpiringLicensesAsync(int daysAhead = 90)
     {
         var expiryDate = DateTime.Today.AddDays(daysAhead);
-        var list = await _context.MedicalStaffs.Where(x => x.LicenseExpiryDate != null && x.LicenseExpiryDate <= expiryDate && x.Status == "Active").ToListAsync();
+        var list = await _context.MedicalStaffs.Where(x => x.LicenseExpiryDate != null && x.LicenseExpiryDate <= expiryDate && x.Status == "Active").ToBoundedListAsync("MedicalHR.ExpiringLicenses");
         return list.Select(MapToStaffDto).ToList();
     }
 
@@ -229,7 +230,7 @@ public class MedicalHRServiceImpl : IMedicalHRService
     {
         var query = _context.ClinicAssignments.Include(x => x.Staff).Include(x => x.Room).Where(x => x.AssignmentDate.Date == date.Date);
         if (departmentId.HasValue) query = query.Where(x => x.Room != null && x.Room.DepartmentId == departmentId);
-        var list = await query.ToListAsync();
+        var list = await query.ToBoundedListAsync("MedicalHR.ClinicAssignments");
         return list.Select(e => new ClinicAssignmentDto { Id = e.Id, DoctorId = e.StaffId, DoctorName = e.Staff?.FullName ?? "", RoomId = e.RoomId, RoomName = e.Room?.RoomCode ?? "", Date = e.AssignmentDate, Session = e.ShiftType, Status = e.Status }).ToList();
     }
 
@@ -271,7 +272,7 @@ public class MedicalHRServiceImpl : IMedicalHRService
         try
         {
             var staffIds = await _context.CMERecords.GroupBy(x => x.StaffId).Where(g => g.Sum(x => x.CreditHours) < 24).Select(g => g.Key).ToListAsync();
-            var list = await _context.MedicalStaffs.Where(x => staffIds.Contains(x.Id) && x.Status == "Active").ToListAsync();
+            var list = await _context.MedicalStaffs.Where(x => staffIds.Contains(x.Id) && x.Status == "Active").ToBoundedListAsync("MedicalHR.CMENonCompliantStaff");
             return list.Select(MapToStaffDto).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))

@@ -3,6 +3,7 @@ using HIS.Application.Services;
 using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +20,7 @@ public class TelemedicineServiceImpl : ITelemedicineService
         if (fromDate.HasValue) query = query.Where(x => x.AppointmentDate >= fromDate.Value);
         if (toDate.HasValue) query = query.Where(x => x.AppointmentDate <= toDate.Value);
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
-        var list = await query.OrderBy(x => x.AppointmentDate).ThenBy(x => x.StartTime).ToListAsync();
+        var list = await query.OrderBy(x => x.AppointmentDate).ThenBy(x => x.StartTime).ToBoundedListAsync("Telemedicine.GetAppointments");
         return list.Select(MapToTeleAppointmentDto).ToList();
     }
 

@@ -2,6 +2,7 @@ using HIS.Application.DTOs.HealthExchange;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -114,7 +115,7 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
     {
         var query = _context.InsuranceXMLSubmissions.Where(x => x.GeneratedAt >= fromDate && x.GeneratedAt <= toDate);
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
-        var list = await query.OrderByDescending(x => x.GeneratedAt).ToListAsync();
+        var list = await query.OrderByDescending(x => x.GeneratedAt).ToBoundedListAsync("HealthExchange.GetSubmissions");
         return list.Select(e => new InsuranceXMLSubmissionDto { Id = e.Id, SubmissionCode = e.SubmissionCode, XMLType = e.XMLType, FromDate = e.PeriodFrom, ToDate = e.PeriodTo, Status = e.Status, RecordCount = e.TotalRecords, TotalAmount = e.TotalAmount, GeneratedAt = e.GeneratedAt }).ToList();
     }
 
@@ -150,7 +151,7 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
     {
         var query = _context.ElectronicReferrals.Include(x => x.Patient).Where(x => x.SentAt >= fromDate && x.SentAt <= toDate);
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
-        var list = await query.OrderByDescending(x => x.SentAt).ToListAsync();
+        var list = await query.OrderByDescending(x => x.SentAt).ToBoundedListAsync("HealthExchange.OutgoingReferrals");
         return list.Select(e => new ElectronicReferralDto
         {
             Id = e.Id,
@@ -173,7 +174,7 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
     {
         var query = _context.ElectronicReferrals.Include(x => x.Patient).Where(x => x.ReceivedAt >= fromDate && x.ReceivedAt <= toDate);
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
-        var list = await query.OrderByDescending(x => x.ReceivedAt).ToListAsync();
+        var list = await query.OrderByDescending(x => x.ReceivedAt).ToBoundedListAsync("HealthExchange.IncomingReferrals");
         return list.Select(e => new ElectronicReferralDto
         {
             Id = e.Id,
@@ -280,7 +281,7 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
     {
         var query = _context.TeleconsultationRequests.Include(x => x.Patient).AsQueryable();
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
-        var list = await query.OrderByDescending(x => x.CreatedAt).ToListAsync();
+        var list = await query.OrderByDescending(x => x.CreatedAt).ToBoundedListAsync("HealthExchange.TeleconsultationRequests");
         return list.Select(e => new TeleconsultationRequestDto
         {
             Id = e.Id,

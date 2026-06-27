@@ -9,8 +9,11 @@ using Microsoft.OpenApi.Models;
 using HIS.Application;
 using HIS.Infrastructure;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using HIS.API.Middleware;
 using HIS.API.Hubs;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -193,6 +196,9 @@ builder.Services.AddDataProtection()
     .SetApplicationName("HIS");
 
 var app = builder.Build();
+
+// #196: cau hinh static logger cho ToBoundedListAsync (log "cham tran" = no silent cap)
+QueryBoundExtensions.Configure(app.Services.GetRequiredService<ILoggerFactory>());
 
 // Seed database
 await DatabaseSeeder.SeedAsync(app.Services);

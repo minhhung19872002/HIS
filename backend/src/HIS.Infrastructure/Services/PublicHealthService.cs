@@ -3,6 +3,7 @@ using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -421,7 +422,7 @@ public class PublicHealthService : IPublicHealthService
                 Description = c.Description,
                 Areas = c.Areas,
             })
-            .ToListAsync();
+            .ToBoundedListAsync("PublicHealth.GetVaccinationCampaigns");
     }
 
     public async Task<VaccinationCampaignDto> CreateVaccinationCampaignAsync(CreateVaccinationCampaignDto dto, string? userId)
@@ -686,7 +687,7 @@ public class PublicHealthService : IPublicHealthService
                 RiskLevel = o.RiskLevel,
                 Notes = o.Notes,
             })
-            .ToListAsync();
+            .ToBoundedListAsync("PublicHealth.GetOutbreakEvents");
     }
 
     public async Task<OutbreakEventDto> CreateOutbreakEventAsync(CreateOutbreakEventDto dto, string? userId)

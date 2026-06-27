@@ -9,6 +9,7 @@ using HIS.Application.Interfaces;
 using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -60,7 +61,7 @@ public class EmrManagementService : IEmrManagementService
                     IsRevoked = s.IsRevoked,
                     Note = s.Note,
                     CreatedAt = s.CreatedAt
-                }).ToListAsync();
+                }).ToBoundedListAsync("EmrManagement.GetShares");
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -224,7 +225,7 @@ public class EmrManagementService : IEmrManagementService
                     IsRevoked = e.IsRevoked,
                     Note = e.Note,
                     CreatedAt = e.CreatedAt
-                }).ToListAsync();
+                }).ToBoundedListAsync("EmrManagement.GetExtracts");
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -531,7 +532,7 @@ public class EmrManagementService : IEmrManagementService
                     VerificationCode = s.VerificationCode,
                     IsVerified = s.IsVerified,
                     CreatedAt = s.CreatedAt
-                }).ToListAsync();
+                }).ToBoundedListAsync("EmrManagement.GetSignatures");
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -988,7 +989,7 @@ public class EmrManagementService : IEmrManagementService
                     IsShared = i.IsShared,
                     IsActive = i.IsActive,
                     CreatedAt = i.CreatedAt
-                }).ToListAsync();
+                }).ToBoundedListAsync("EmrManagement.GetImages");
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {
@@ -1636,7 +1637,7 @@ public class EmrManagementService : IEmrManagementService
                     Status = l.Status,
                     ValidationErrors = l.ValidationErrors,
                     Note = l.Note
-                }).ToListAsync();
+                }).ToBoundedListAsync("EmrManagement.GetCloseLogs");
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {

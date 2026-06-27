@@ -2,6 +2,7 @@ using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace HIS.Infrastructure.Services;
@@ -56,7 +57,7 @@ public class AdminModulesService : IAdminModulesService
         var items = await _db.PayrollItems.AsNoTracking()
             .Where(i => i.PeriodId == periodId)
             .OrderBy(i => i.StaffCode)
-            .ToListAsync();
+            .ToBoundedListAsync("AdminModules.PayrollItems");
         return items.Select(MapItem).ToList();
     }
 

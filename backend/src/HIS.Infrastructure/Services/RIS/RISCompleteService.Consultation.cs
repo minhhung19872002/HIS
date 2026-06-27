@@ -12,6 +12,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -348,7 +349,7 @@ public partial class RISCompleteService
             .Include(d => d.Participant)
             .Where(d => d.CaseId == caseId)
             .OrderBy(d => d.PostedAt)
-            .ToListAsync();
+            .ToBoundedListAsync("RIS.GetDiscussions");
 
         return discussions.Select(d => new ConsultationDiscussionDto
         {

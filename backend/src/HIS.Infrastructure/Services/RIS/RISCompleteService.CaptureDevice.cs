@@ -12,6 +12,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -267,7 +268,7 @@ public partial class RISCompleteService
         var media = await _context.Set<RadiologyCapturedMedia>()
             .Where(m => m.SessionId == sessionId)
             .OrderBy(m => m.SequenceNumber)
-            .ToListAsync();
+            .ToBoundedListAsync("RIS.GetCapturedMedia");
 
         return media.Select(m => new CapturedMediaDto
         {

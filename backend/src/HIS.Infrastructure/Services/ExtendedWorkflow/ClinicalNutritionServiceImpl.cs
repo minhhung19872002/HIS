@@ -3,6 +3,7 @@ using HIS.Application.Services;
 using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,7 +47,7 @@ public class ClinicalNutritionServiceImpl : IClinicalNutritionService
 
     public async Task<List<NutritionScreeningDto>> GetHighRiskPatientsAsync(Guid? departmentId = null)
     {
-        var list = await _context.NutritionScreenings.Include(x => x.Admission).ThenInclude(x => x!.Patient).Where(x => x.RiskLevel == "High").ToListAsync();
+        var list = await _context.NutritionScreenings.Include(x => x.Admission).ThenInclude(x => x!.Patient).Where(x => x.RiskLevel == "High").ToBoundedListAsync("ClinicalNutrition.HighRiskPatients");
         return list.Select(MapToNutritionScreeningDto).ToList();
     }
 
@@ -201,7 +202,7 @@ public class ClinicalNutritionServiceImpl : IClinicalNutritionService
             .Include(p => p.Items!).ThenInclude(i => i.DietOrder).ThenInclude(o => o!.DietType)
             .Where(p => !p.IsDeleted && p.Date.Date == date.Date);
         if (departmentId.HasValue) query = query.Where(p => p.DepartmentId == departmentId.Value);
-        var plans = await query.OrderBy(p => p.MealType).ToListAsync();
+        var plans = await query.OrderBy(p => p.MealType).ToBoundedListAsync("ClinicalNutrition.GetMealPlans");
         return plans.Select(MapMealPlanDto).ToList();
     }
 
@@ -297,7 +298,7 @@ public class ClinicalNutritionServiceImpl : IClinicalNutritionService
 
     public async Task<List<NutritionMonitoringDto>> GetMonitoringHistoryAsync(Guid admissionId)
     {
-        var list = await _context.NutritionMonitorings.Where(x => x.AdmissionId == admissionId).OrderByDescending(x => x.Date).ToListAsync();
+        var list = await _context.NutritionMonitorings.Where(x => x.AdmissionId == admissionId).OrderByDescending(x => x.Date).ToBoundedListAsync("ClinicalNutrition.MonitoringHistory");
         return list.Select(e => new NutritionMonitoringDto { Id = e.Id, AdmissionId = e.AdmissionId, Date = e.Date }).ToList();
     }
 

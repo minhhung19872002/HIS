@@ -3,6 +3,7 @@ using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -26,7 +27,7 @@ public class EndpointSecurityService : IEndpointSecurityService
             DepartmentName = d.DepartmentName, AssignedUser = d.AssignedUser, Status = d.Status,
             LastSeenAt = d.LastSeenAt, AgentVersion = d.AgentVersion, IsCompliant = d.IsCompliant,
             ComplianceNotes = d.ComplianceNotes, CreatedAt = d.CreatedAt
-        }).ToListAsync();
+        }).ToBoundedListAsync("EndpointSecurity.GetDevices");
     }
 
     public async Task<EndpointDeviceDto?> GetDeviceByIdAsync(Guid id)
@@ -98,7 +99,7 @@ public class EndpointSecurityService : IEndpointSecurityService
             ReportedByName = i.ReportedByName, AssignedToName = i.AssignedToName,
             Resolution = i.Resolution, ResolvedAt = i.ResolvedAt, RootCause = i.RootCause,
             CorrectiveAction = i.CorrectiveAction, CreatedAt = i.CreatedAt
-        }).ToListAsync();
+        }).ToBoundedListAsync("EndpointSecurity.GetIncidents");
     }
 
     public async Task<SecurityIncidentDto?> GetIncidentByIdAsync(Guid id)
@@ -174,7 +175,7 @@ public class EndpointSecurityService : IEndpointSecurityService
             Id = s.Id, DeviceId = s.DeviceId, SoftwareName = s.SoftwareName, Version = s.Version,
             Publisher = s.Publisher, InstallDate = s.InstallDate, IsAuthorized = s.IsAuthorized,
             Category = s.Category, Notes = s.Notes
-        }).ToListAsync();
+        }).ToBoundedListAsync("EndpointSecurity.GetSoftwareInventory");
     }
 
     public async Task<bool> FlagUnauthorizedSoftwareAsync(Guid softwareId, string? notes = null)
