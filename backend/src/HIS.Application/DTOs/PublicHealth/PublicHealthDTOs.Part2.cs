@@ -1,0 +1,404 @@
+namespace HIS.Application.DTOs;
+
+public class OutbreakEventDto
+{
+    public Guid Id { get; set; }
+    public string OutbreakCode { get; set; } = string.Empty;
+    public string DiseaseName { get; set; } = string.Empty;
+    public string? DiseaseCode { get; set; }
+    public string DetectedDate { get; set; } = string.Empty;
+    public string? ResolvedDate { get; set; }
+    public string? Location { get; set; }
+    public string? AffectedArea { get; set; }
+    public int CaseCount { get; set; }
+    public int DeathCount { get; set; }
+    public int Status { get; set; }
+    public string? ResponseActions { get; set; }
+    public string? RiskLevel { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class CreateOutbreakEventDto
+{
+    public string OutbreakCode { get; set; } = string.Empty;
+    public string DiseaseName { get; set; } = string.Empty;
+    public string? DiseaseCode { get; set; }
+    public string? DetectedDate { get; set; }
+    public string? Location { get; set; }
+    public string? AffectedArea { get; set; }
+    public string? RiskLevel { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class UpdateOutbreakEventDto
+{
+    public int? Status { get; set; }
+    public int? CaseCount { get; set; }
+    public int? DeathCount { get; set; }
+    public string? ResponseActions { get; set; }
+    public string? RiskLevel { get; set; }
+    public string? ResolvedDate { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class DiseaseStatsDto
+{
+    public int TotalReports { get; set; }
+    public int ActiveInvestigations { get; set; }
+    public int ConfirmedCases { get; set; }
+    public int NotifiableCases { get; set; }
+    public int ActiveOutbreaks { get; set; }
+    public int TotalDeaths { get; set; }
+    public List<DiseaseGroupBreakdownDto> GroupBreakdown { get; set; } = new();
+}
+
+public class DiseaseGroupBreakdownDto
+{
+    public string Group { get; set; } = string.Empty;
+    public int Count { get; set; }
+}
+
+// =====================================================================
+// SCHOOL HEALTH (Y tế trường học)
+// =====================================================================
+
+public class SchoolHealthSearchDto
+{
+    public string? Keyword { get; set; }
+    public string? SchoolName { get; set; }
+    public string? AcademicYear { get; set; }
+    public string? GradeLevel { get; set; }
+    public int? Status { get; set; }
+    public string? FromDate { get; set; }
+    public string? ToDate { get; set; }
+    public int PageIndex { get; set; }
+    public int PageSize { get; set; } = 20;
+}
+
+public class SchoolHealthExamDto
+{
+    public Guid Id { get; set; }
+    public string SchoolName { get; set; } = string.Empty;
+    public string? SchoolCode { get; set; }
+    public string AcademicYear { get; set; } = string.Empty;
+    public string? GradeLevel { get; set; }
+    public string StudentName { get; set; } = string.Empty;
+    public string? StudentCode { get; set; }
+    public string? DateOfBirth { get; set; }
+    public string? Gender { get; set; }
+    public string ExamDate { get; set; } = string.Empty;
+    public double? Height { get; set; }
+    public double? Weight { get; set; }
+    public double? BMI { get; set; }
+    public string? NutritionStatus { get; set; }
+    public string? VisionLeft { get; set; }
+    public string? VisionRight { get; set; }
+    public bool? HasVisionProblem { get; set; }
+    public string? HearingResult { get; set; }
+    public string? DentalResult { get; set; }
+    public int? DentalCavityCount { get; set; }
+    public string? SpineResult { get; set; }
+    public string? SkinResult { get; set; }
+    public string? HeartLungResult { get; set; }
+    public string? MentalHealthResult { get; set; }
+    public string? OverallResult { get; set; }
+    public string? Recommendations { get; set; }
+    public string? DoctorName { get; set; }
+    public string? Notes { get; set; }
+    public int Status { get; set; }
+}
+
+public class CreateSchoolHealthExamDto
+{
+    public string SchoolName { get; set; } = string.Empty;
+    public string? SchoolCode { get; set; }
+    public string AcademicYear { get; set; } = string.Empty;
+    public string? GradeLevel { get; set; }
+    public string StudentName { get; set; } = string.Empty;
+    public string? StudentCode { get; set; }
+    public string? DateOfBirth { get; set; }
+    public string? Gender { get; set; }
+    public string? ExamDate { get; set; }
+    public string? DoctorName { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class UpdateSchoolHealthExamDto
+{
+    public int? Status { get; set; }
+    public double? Height { get; set; }
+    public double? Weight { get; set; }
+    public string? NutritionStatus { get; set; }
+    public string? VisionLeft { get; set; }
+    public string? VisionRight { get; set; }
+    public bool? HasVisionProblem { get; set; }
+    public string? HearingResult { get; set; }
+    public string? DentalResult { get; set; }
+    public int? DentalCavityCount { get; set; }
+    public string? SpineResult { get; set; }
+    public string? SkinResult { get; set; }
+    public string? HeartLungResult { get; set; }
+    public string? MentalHealthResult { get; set; }
+    public string? OverallResult { get; set; }
+    public string? Recommendations { get; set; }
+    public string? DoctorName { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class SchoolHealthStatsDto
+{
+    public int TotalExams { get; set; }
+    public int PendingCount { get; set; }
+    public int CompletedCount { get; set; }
+    public int VisionProblemCount { get; set; }
+    public int DentalProblemCount { get; set; }
+    public int MalnutritionCount { get; set; }
+    public int OverweightCount { get; set; }
+    public List<SchoolBreakdownDto> SchoolBreakdown { get; set; } = new();
+}
+
+public class SchoolBreakdownDto
+{
+    public string SchoolName { get; set; } = string.Empty;
+    public int ExamCount { get; set; }
+    public int CompletedCount { get; set; }
+}
+
+// =====================================================================
+// OCCUPATIONAL HEALTH (Sức khỏe nghề nghiệp)
+// =====================================================================
+
+public class OccupationalHealthSearchDto
+{
+    public string? Keyword { get; set; }
+    public string? CompanyName { get; set; }
+    public string? ExamType { get; set; }
+    public int? Status { get; set; }
+    public string? HazardExposure { get; set; }
+    public string? FromDate { get; set; }
+    public string? ToDate { get; set; }
+    public int PageIndex { get; set; }
+    public int PageSize { get; set; } = 20;
+}
+
+public class OccupationalHealthExamDto
+{
+    public Guid Id { get; set; }
+    public Guid? PatientId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string? EmployeeCode { get; set; }
+    public string CompanyName { get; set; } = string.Empty;
+    public string? CompanyTaxCode { get; set; }
+    public string? Department { get; set; }
+    public string? JobTitle { get; set; }
+    public string? HazardExposure { get; set; }
+    public int ExposureYears { get; set; }
+    public string ExamDate { get; set; } = string.Empty;
+    public string ExamType { get; set; } = string.Empty;
+    public string? GeneralHealth { get; set; }
+    public string? RespiratoryResult { get; set; }
+    public string? HearingResult { get; set; }
+    public string? VisionResult { get; set; }
+    public string? SkinResult { get; set; }
+    public string? LabResults { get; set; }
+    public string? XrayResult { get; set; }
+    public string? OccupationalDisease { get; set; }
+    public string? DiseaseCode { get; set; }
+    public string? Classification { get; set; }
+    public string? Recommendations { get; set; }
+    public string? DoctorName { get; set; }
+    public int Status { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class CreateOccupationalHealthExamDto
+{
+    public Guid? PatientId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string? EmployeeCode { get; set; }
+    public string CompanyName { get; set; } = string.Empty;
+    public string? CompanyTaxCode { get; set; }
+    public string? Department { get; set; }
+    public string? JobTitle { get; set; }
+    public string? HazardExposure { get; set; }
+    public int ExposureYears { get; set; }
+    public string ExamType { get; set; } = string.Empty;
+    public string? ExamDate { get; set; }
+    public string? DoctorName { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class UpdateOccupationalHealthExamDto
+{
+    public int? Status { get; set; }
+    public string? GeneralHealth { get; set; }
+    public string? RespiratoryResult { get; set; }
+    public string? HearingResult { get; set; }
+    public string? VisionResult { get; set; }
+    public string? SkinResult { get; set; }
+    public string? LabResults { get; set; }
+    public string? XrayResult { get; set; }
+    public string? OccupationalDisease { get; set; }
+    public string? DiseaseCode { get; set; }
+    public string? Classification { get; set; }
+    public string? Recommendations { get; set; }
+    public string? DoctorName { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class OccupationalHealthStatsDto
+{
+    public int TotalExams { get; set; }
+    public int PendingCount { get; set; }
+    public int CompletedCount { get; set; }
+    public int OccupationalDiseaseCount { get; set; }
+    public int NeedFollowUpCount { get; set; }
+    public List<CompanyBreakdownDto> CompanyBreakdown { get; set; } = new();
+    public List<HazardBreakdownDto> HazardBreakdown { get; set; } = new();
+}
+
+public class CompanyBreakdownDto
+{
+    public string CompanyName { get; set; } = string.Empty;
+    public int ExamCount { get; set; }
+}
+
+public class HazardBreakdownDto
+{
+    public string Hazard { get; set; } = string.Empty;
+    public int Count { get; set; }
+}
+
+// =====================================================================
+// METHADONE TREATMENT (Điều trị Methadone)
+// =====================================================================
+
+public class MethadonePatientSearchDto
+{
+    public string? Keyword { get; set; }
+    public string? Phase { get; set; }
+    public int? Status { get; set; }
+    public string? FromDate { get; set; }
+    public string? ToDate { get; set; }
+    public int PageIndex { get; set; }
+    public int PageSize { get; set; } = 20;
+}
+
+public class MethadonePatientDto
+{
+    public Guid Id { get; set; }
+    public Guid PatientId { get; set; }
+    public string? PatientName { get; set; }
+    public string? PatientCodeHIS { get; set; }
+    public string PatientCode { get; set; } = string.Empty;
+    public string EnrollmentDate { get; set; } = string.Empty;
+    public string? DischargeDate { get; set; }
+    public string? DischargeReason { get; set; }
+    public double CurrentDoseMg { get; set; }
+    public string Phase { get; set; } = string.Empty;
+    public int Status { get; set; }
+    public string? TransferredFrom { get; set; }
+    public string? TransferredTo { get; set; }
+    public int MissedDoseCount { get; set; }
+    public string? LastDosingDate { get; set; }
+    public string? Notes { get; set; }
+    public int DosingRecordCount { get; set; }
+    public int UrineTestCount { get; set; }
+}
+
+public class CreateMethadonePatientDto
+{
+    public Guid PatientId { get; set; }
+    public string PatientCode { get; set; } = string.Empty;
+    public string? EnrollmentDate { get; set; }
+    public double CurrentDoseMg { get; set; }
+    public string Phase { get; set; } = "Induction";
+    public string? TransferredFrom { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class UpdateMethadonePatientDto
+{
+    public int? Status { get; set; }
+    public double? CurrentDoseMg { get; set; }
+    public string? Phase { get; set; }
+    public string? DischargeDate { get; set; }
+    public string? DischargeReason { get; set; }
+    public string? TransferredTo { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class MethadoneDosingRecordDto
+{
+    public Guid Id { get; set; }
+    public Guid MethadonePatientId { get; set; }
+    public string DosingDate { get; set; } = string.Empty;
+    public double DoseMg { get; set; }
+    public bool Witnessed { get; set; }
+    public bool TakeHome { get; set; }
+    public string? AdministeredBy { get; set; }
+    public string? Notes { get; set; }
+    public int Status { get; set; }
+}
+
+public class CreateMethadoneDosingDto
+{
+    public Guid MethadonePatientId { get; set; }
+    public string? DosingDate { get; set; }
+    public double DoseMg { get; set; }
+    public bool Witnessed { get; set; } = true;
+    public bool TakeHome { get; set; }
+    public string? AdministeredBy { get; set; }
+    public int Status { get; set; } // 0=Given, 1=Missed, 2=Refused, 3=Holiday
+    public string? Notes { get; set; }
+}
+
+public class MethadoneUrineTestDto
+{
+    public Guid Id { get; set; }
+    public Guid MethadonePatientId { get; set; }
+    public string TestDate { get; set; } = string.Empty;
+    public bool IsRandom { get; set; }
+    public string? Morphine { get; set; }
+    public string? Amphetamine { get; set; }
+    public string? Methamphetamine { get; set; }
+    public string? THC { get; set; }
+    public string? Benzodiazepine { get; set; }
+    public string? Methadone { get; set; }
+    public string? OverallResult { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class CreateMethadoneUrineTestDto
+{
+    public Guid MethadonePatientId { get; set; }
+    public string? TestDate { get; set; }
+    public bool IsRandom { get; set; }
+    public string? Morphine { get; set; }
+    public string? Amphetamine { get; set; }
+    public string? Methamphetamine { get; set; }
+    public string? THC { get; set; }
+    public string? Benzodiazepine { get; set; }
+    public string? Methadone { get; set; }
+    public string? OverallResult { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class MethadoneStatsDto
+{
+    public int TotalPatients { get; set; }
+    public int ActiveCount { get; set; }
+    public int SuspendedCount { get; set; }
+    public int DischargedCount { get; set; }
+    public int TransferredCount { get; set; }
+    public double AverageDoseMg { get; set; }
+    public int MissedDosesToday { get; set; }
+    public int PositiveUrineTests { get; set; }
+    public List<PhaseBreakdownDto> PhaseBreakdown { get; set; } = new();
+}
+
+public class PhaseBreakdownDto
+{
+    public string Phase { get; set; } = string.Empty;
+    public int Count { get; set; }
+}
