@@ -10,6 +10,7 @@ using HIS.Application.DTOs.Laboratory;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using HIS.Infrastructure.Services.HL7;
 
 // Alias to avoid ambiguity
@@ -767,7 +768,7 @@ public partial class LISCompleteService {
 
     public async Task<List<AnalyzerRealtimeStatusDto>> GetAnalyzersRealtimeStatusAsync()
     {
-        var analyzers = await _context.LabAnalyzers.Where(a => a.IsActive).ToListAsync();
+        var analyzers = await _context.LabAnalyzers.Where(a => a.IsActive).ToBoundedListAsync("LISCompleteService.GetAnalyzersRealtimeStatusAsync");
         return analyzers.Select(a =>
         {
             var status = _hl7Manager.GetConnectionStatus(a.Id);

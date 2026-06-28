@@ -7,6 +7,7 @@ using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using iText.IO.Font.Constants;
@@ -373,7 +374,7 @@ public partial class ReceptionCompleteService {
                     IsMandatory = s.IsMandatory
                 }).ToList()
             })
-            .ToListAsync();
+            .ToBoundedListAsync("ReceptionCompleteService.GetHealthCheckPackagesAsync");
     }
 
     #endregion
@@ -706,7 +707,7 @@ public partial class ReceptionCompleteService {
                 CurrentDebt = p.CurrentDebt,
                 IsActive = p.IsActive
             })
-            .ToListAsync();
+            .ToBoundedListAsync("ReceptionCompleteService.GetOtherPayersAsync");
     }
 
     public async Task SaveGuardianInfoAsync(Guid patientId, GuardianInfoDto guardian, Guid userId)

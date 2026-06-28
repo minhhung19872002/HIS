@@ -365,7 +365,7 @@ public class MedicalHRServiceImpl : IMedicalHRService
             var query = _context.StaffContracts.Include(x => x.Staff).AsQueryable();
             if (staffId.HasValue) query = query.Where(x => x.StaffId == staffId);
             if (!string.IsNullOrEmpty(contractType)) query = query.Where(x => x.ContractType == contractType);
-            var list = await query.OrderByDescending(x => x.StartDate).ToListAsync();
+            var list = await query.OrderByDescending(x => x.StartDate).ToBoundedListAsync("MedicalHR.GetStaffContracts");
             return list.Select(MapToContractDto).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
@@ -397,7 +397,7 @@ public class MedicalHRServiceImpl : IMedicalHRService
             var expiryDate = DateTime.Today.AddDays(daysAhead);
             var list = await _context.StaffContracts.Include(x => x.Staff)
                 .Where(x => x.Status == 0 && x.EndDate != null && x.EndDate <= expiryDate && x.EndDate >= DateTime.Today)
-                .OrderBy(x => x.EndDate).ToListAsync();
+                .OrderBy(x => x.EndDate).ToBoundedListAsync("MedicalHR.GetExpiringContracts");
             return list.Select(MapToContractDto).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
@@ -471,7 +471,7 @@ public class MedicalHRServiceImpl : IMedicalHRService
             if (status.HasValue) query = query.Where(x => x.Status == status);
             if (fromDate.HasValue) query = query.Where(x => x.StartDate >= fromDate);
             if (toDate.HasValue) query = query.Where(x => x.EndDate <= toDate);
-            var list = await query.OrderByDescending(x => x.CreatedAt).ToListAsync();
+            var list = await query.OrderByDescending(x => x.CreatedAt).ToBoundedListAsync("MedicalHR.GetLeaveRequests");
             return list.Select(MapToLeaveDto).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
@@ -622,7 +622,7 @@ public class MedicalHRServiceImpl : IMedicalHRService
             if (status.HasValue) query = query.Where(x => x.Status == status);
             if (fromDate.HasValue) query = query.Where(x => x.OvertimeDate >= fromDate);
             if (toDate.HasValue) query = query.Where(x => x.OvertimeDate <= toDate);
-            var list = await query.OrderByDescending(x => x.OvertimeDate).ToListAsync();
+            var list = await query.OrderByDescending(x => x.OvertimeDate).ToBoundedListAsync("MedicalHR.GetOvertimeRequests");
             return list.Select(MapToOvertimeDto).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
@@ -676,7 +676,7 @@ public class MedicalHRServiceImpl : IMedicalHRService
         {
             var query = _context.StaffAwards.Include(x => x.Staff).AsQueryable();
             if (staffId.HasValue) query = query.Where(x => x.StaffId == staffId);
-            var list = await query.OrderByDescending(x => x.AwardDate).ToListAsync();
+            var list = await query.OrderByDescending(x => x.AwardDate).ToBoundedListAsync("MedicalHR.GetStaffAwards");
             return list.Select(e => new StaffAwardDto
             {
                 Id = e.Id, StaffId = e.StaffId, StaffName = e.Staff?.FullName ?? "", StaffCode = e.Staff?.StaffCode ?? "",
@@ -716,7 +716,7 @@ public class MedicalHRServiceImpl : IMedicalHRService
         {
             var query = _context.StaffDisciplines.Include(x => x.Staff).AsQueryable();
             if (staffId.HasValue) query = query.Where(x => x.StaffId == staffId);
-            var list = await query.OrderByDescending(x => x.DisciplineDate).ToListAsync();
+            var list = await query.OrderByDescending(x => x.DisciplineDate).ToBoundedListAsync("MedicalHR.GetStaffDisciplines");
             return list.Select(e => new StaffDisciplineDto
             {
                 Id = e.Id, StaffId = e.StaffId, StaffName = e.Staff?.FullName ?? "", StaffCode = e.Staff?.StaffCode ?? "",

@@ -2,6 +2,7 @@ using HIS.Application.DTOs.FunctionalDiagnostic;
 using HIS.Application.Interfaces;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace HIS.Infrastructure.Services;
@@ -23,7 +24,7 @@ public class FunctionalDiagnosticCatalogService : IFunctionalDiagnosticCatalogSe
         var q = _db.Set<FunctionalDiagnosticTestType>().Where(t => !t.IsDeleted);
         if (!string.IsNullOrWhiteSpace(keyword))
             q = q.Where(t => t.Name.Contains(keyword) || t.Code.Contains(keyword));
-        var list = await q.OrderBy(t => t.Code).ToListAsync();
+        var list = await q.OrderBy(t => t.Code).ToBoundedListAsync("FunctionalDiagnosticCatalogService.GetTestTypesAsync");
         return list.Select(t => new FunctionalDiagnosticTestTypeDto
         {
             Id = t.Id, Code = t.Code, Name = t.Name,
@@ -86,7 +87,7 @@ public class FunctionalDiagnosticCatalogService : IFunctionalDiagnosticCatalogSe
             q = q.Where(t => t.TestTypeId == testTypeId.Value);
         if (!string.IsNullOrWhiteSpace(keyword))
             q = q.Where(t => t.Name.Contains(keyword) || t.Code.Contains(keyword));
-        var list = await q.OrderBy(t => t.Code).ToListAsync();
+        var list = await q.OrderBy(t => t.Code).ToBoundedListAsync("FunctionalDiagnosticCatalogService.GetTemplatesAsync");
         return list.Select(t => new FunctionalDiagnosticTemplateDto
         {
             Id = t.Id, Code = t.Code, Name = t.Name,

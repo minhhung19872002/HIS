@@ -11,6 +11,7 @@ using HIS.Application.Services;
 using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services
 {
@@ -45,7 +46,7 @@ namespace HIS.Infrastructure.Services
                     Id = x.Id, Code = x.Code, Name = x.Name, Category = x.Category,
                     DepartmentId = x.DepartmentId, DepartmentName = x.DepartmentName,
                     Description = x.Description, SortOrder = x.SortOrder, IsActive = x.IsActive
-                }).ToListAsync();
+                }).ToBoundedListAsync("EmrAdminService.GetCoverTypesAsync");
         }
 
         public async Task<EmrCoverTypeDto> SaveCoverTypeAsync(SaveEmrCoverTypeDto dto)
@@ -103,7 +104,7 @@ namespace HIS.Infrastructure.Services
                     Title = x.Title, DepartmentId = x.DepartmentId, DepartmentName = x.DepartmentName,
                     CertificateInfo = x.CertificateInfo, SignatureImagePath = x.SignatureImagePath,
                     IsActive = x.IsActive
-                }).ToListAsync();
+                }).ToBoundedListAsync("EmrAdminService.GetSignersAsync");
         }
 
         public async Task<EmrSignerCatalogDto> SaveSignerAsync(SaveEmrSignerDto dto)
@@ -157,7 +158,7 @@ namespace HIS.Infrastructure.Services
                 {
                     Id = x.Id, Code = x.Code, Name = x.Name, Description = x.Description,
                     SortOrder = x.SortOrder, IsActive = x.IsActive
-                }).ToListAsync();
+                }).ToBoundedListAsync("EmrAdminService.GetSigningRolesAsync");
         }
 
         public async Task<EmrSigningRoleDto> SaveSigningRoleAsync(SaveEmrSigningRoleDto dto)
@@ -199,7 +200,7 @@ namespace HIS.Infrastructure.Services
                 {
                     Id = x.Id, Code = x.Code, Name = x.Name, RoleId = x.RoleId, RoleName = x.RoleName,
                     DocumentType = x.DocumentType, IsRequired = x.IsRequired, SortOrder = x.SortOrder, IsActive = x.IsActive
-                }).ToListAsync();
+                }).ToBoundedListAsync("EmrAdminService.GetSigningOperationsAsync");
         }
 
         public async Task<EmrSigningOperationDto> SaveSigningOperationAsync(SaveEmrSigningOperationDto dto)
@@ -248,7 +249,7 @@ namespace HIS.Infrastructure.Services
                 {
                     Id = x.Id, Code = x.Code, Name = x.Name, Category = x.Category,
                     SortOrder = x.SortOrder, IsActive = x.IsActive
-                }).ToListAsync();
+                }).ToBoundedListAsync("EmrAdminService.GetDocumentGroupsAsync");
         }
 
         public async Task<EmrDocumentGroupDto> SaveDocumentGroupAsync(SaveEmrDocumentGroupDto dto)
@@ -290,7 +291,7 @@ namespace HIS.Infrastructure.Services
                 {
                     Id = x.Id, Code = x.Code, Name = x.Name, GroupId = x.GroupId, GroupName = x.GroupName,
                     FormTemplateKey = x.FormTemplateKey, IsRequired = x.IsRequired, SortOrder = x.SortOrder, IsActive = x.IsActive
-                }).ToListAsync();
+                }).ToBoundedListAsync("EmrAdminService.GetDocumentTypesAsync");
         }
 
         public async Task<EmrDocumentTypeDto> SaveDocumentTypeAsync(SaveEmrDocumentTypeDto dto)
@@ -574,7 +575,7 @@ namespace HIS.Infrastructure.Services
                     PerformedBy = a.PerformedBy,
                     PerformedByName = a.PerformedByName,
                     PerformedAt = a.PerformedAt,
-                }).ToListAsync();
+                }).ToBoundedListAsync("EmrAdminService.GetAmendmentsAsync");
         }
 
         /// <summary>
@@ -643,7 +644,7 @@ namespace HIS.Infrastructure.Services
                     DocumentCategory = a.DocumentCategory, Description = a.Description,
                     UploadedByName = a.UploadedByName, UploadedAt = a.UploadedAt,
                     HasContent = a.FileContent != null
-                }).ToListAsync();
+                }).ToBoundedListAsync("EmrAdminService.GetAttachmentsAsync");
         }
 
         public async Task<EmrDocumentAttachmentDto> SaveAttachmentAsync(SaveAttachmentDto dto)
@@ -726,7 +727,7 @@ namespace HIS.Infrastructure.Services
                     DocumentTitle = p.DocumentTitle, PrintedByName = p.PrintedByName,
                     PrintedAt = p.PrintedAt, IsStamped = p.IsStamped, StampedAt = p.StampedAt,
                     StampedByName = p.StampedByName, PrintCount = p.PrintCount
-                }).ToListAsync();
+                }).ToBoundedListAsync("EmrAdminService.GetPrintLogsAsync");
         }
 
         public async Task<EmrPrintLogDto> LogPrintAsync(LogPrintDto dto)

@@ -2,6 +2,7 @@ using HIS.Application.DTOs.AdministrativeUnit;
 using HIS.Application.Interfaces;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace HIS.Infrastructure.Services;
@@ -27,7 +28,7 @@ public class AdministrativeUnitService : IAdministrativeUnitService
             .Select(p => new ProvinceDto
             {
                 Id = p.Id, Code = p.Code, Name = p.Name, IsActive = p.IsActive
-            }).ToListAsync();
+            }).ToBoundedListAsync("AdministrativeUnitService.GetProvincesAsync");
     }
 
     public async Task<ProvinceDto> SaveProvinceAsync(ProvinceDto dto, string? userId)
@@ -77,7 +78,7 @@ public class AdministrativeUnitService : IAdministrativeUnitService
                 Id = d.Id, Code = d.Code, Name = d.Name,
                 ProvinceId = d.ProvinceId, ProvinceName = d.Province.Name,
                 IsActive = d.IsActive
-            }).ToListAsync();
+            }).ToBoundedListAsync("AdministrativeUnitService.GetDistrictsAsync");
     }
 
     public async Task<DistrictDto> SaveDistrictAsync(DistrictDto dto, string? userId)
@@ -128,7 +129,7 @@ public class AdministrativeUnitService : IAdministrativeUnitService
                 Id = w.Id, Code = w.Code, Name = w.Name,
                 DistrictId = w.DistrictId, DistrictName = w.District.Name,
                 IsActive = w.IsActive
-            }).ToListAsync();
+            }).ToBoundedListAsync("AdministrativeUnitService.GetWardsAsync");
     }
 
     public async Task<WardDto> SaveWardAsync(WardDto dto, string? userId)

@@ -108,7 +108,7 @@ public class QualityManagementServiceImpl : IQualityManagementService
     {
         var query = _context.QualityIndicators.AsQueryable();
         if (!string.IsNullOrEmpty(category)) query = query.Where(x => x.Category == category);
-        var list = await query.Where(x => x.IsActive).ToListAsync();
+        var list = await query.Where(x => x.IsActive).ToBoundedListAsync("QualityManagementServiceImpl.GetIndicators");
         return list.Select(e => new QualityIndicatorDto { Id = e.Id, IndicatorCode = e.IndicatorCode, IndicatorName = e.Name, Name = e.Name, Category = e.Category, TargetValue = e.TargetValue ?? 0 }).ToList();
     }
 
@@ -148,7 +148,7 @@ public class QualityManagementServiceImpl : IQualityManagementService
 
     public async Task<List<AuditPlanDto>> GetAuditPlansAsync(int year)
     {
-        var list = await _context.AuditPlans.Where(x => x.Year == year).ToListAsync();
+        var list = await _context.AuditPlans.Where(x => x.Year == year).ToBoundedListAsync("QualityManagementServiceImpl.GetAuditPlans");
         return list.Select(e => new AuditPlanDto { Id = e.Id, PlanCode = e.AuditCode, Year = e.Year, AuditType = e.AuditType, Standard = e.Standard, Status = e.Status }).ToList();
     }
 

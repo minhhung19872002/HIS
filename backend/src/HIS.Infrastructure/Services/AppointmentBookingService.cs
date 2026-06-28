@@ -4,6 +4,7 @@ using HIS.Core.Common;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -48,7 +49,7 @@ public class AppointmentBookingService : IAppointmentBookingService
                 AvailableRooms = _context.Rooms.Count(r => !r.IsDeleted && r.IsActive && r.DepartmentId == d.Id),
                 AvailableDoctors = _context.Users.Count(u => !u.IsDeleted && u.IsActive && u.DepartmentId == d.Id && u.UserType == 2) // Type 2 = Bác sĩ
             })
-            .ToListAsync();
+            .ToBoundedListAsync("AppointmentBookingService.GetBookingDepartmentsAsync");
 
         return departments;
     }
@@ -74,7 +75,7 @@ public class AppointmentBookingService : IAppointmentBookingService
                 DepartmentName = u.Department != null ? u.Department.DepartmentName : null,
                 PhotoUrl = null // User entity không có PhotoUrl
             })
-            .ToListAsync();
+            .ToBoundedListAsync("AppointmentBookingService.GetBookingDoctorsAsync");
 
         return doctors;
     }

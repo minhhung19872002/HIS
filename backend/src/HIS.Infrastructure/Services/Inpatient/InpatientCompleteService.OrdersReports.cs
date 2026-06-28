@@ -5,6 +5,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using System.Text;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
@@ -473,7 +474,7 @@ public partial class InpatientCompleteService {
         if (fromDate.HasValue) query = query.Where(r => r.RequestDate >= fromDate.Value);
         if (toDate.HasValue) query = query.Where(r => r.RequestDate <= toDate.Value);
 
-        var requests = await query.OrderByDescending(r => r.RequestDate).ToListAsync();
+        var requests = await query.OrderByDescending(r => r.RequestDate).ToBoundedListAsync("InpatientCompleteService.GetServiceOrdersAsync");
         return requests.Select(r => MapToInpatientOrder(r, admissionId)).ToList();
     }
 
@@ -1081,7 +1082,7 @@ public partial class InpatientCompleteService {
             .Include(r => r.Details).ThenInclude(d => d.Service)
             .Where(r => r.MedicalRecordId == admission.MedicalRecordId && r.Status != 4)
             .OrderByDescending(r => r.RequestDate)
-            .ToListAsync();
+            .ToBoundedListAsync("InpatientCompleteService.GetAdmissionServiceRequestsAsync");
 
         return requests.Select(r => new InpatientServiceRequestItemDto
         {

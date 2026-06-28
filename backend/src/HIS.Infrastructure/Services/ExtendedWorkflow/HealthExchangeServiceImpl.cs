@@ -16,7 +16,7 @@ public class HealthExchangeServiceImpl : IHealthExchangeService
 
     public async Task<List<HIEConnectionDto>> GetConnectionsAsync()
     {
-        var list = await _context.HIEConnections.ToListAsync();
+        var list = await _context.HIEConnections.ToBoundedListAsync("HealthExchangeServiceImpl.GetConnections");
         return list.Select(e => new HIEConnectionDto
         {
             Id = e.Id,

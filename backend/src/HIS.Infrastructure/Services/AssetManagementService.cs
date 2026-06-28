@@ -4,6 +4,7 @@ using HIS.Application.DTOs.Asset;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -135,7 +136,7 @@ public class AssetManagementService : IAssetManagementService
                 Id = i.Id, TenderId = i.TenderId, ItemName = i.ItemName, ItemType = i.ItemType,
                 Quantity = i.Quantity, UnitPrice = i.UnitPrice, Specification = i.Specification, SupplierId = i.SupplierId,
             })
-            .ToListAsync();
+            .ToBoundedListAsync("AssetManagementService.GetTenderItemsAsync");
 
         var supplierIds = items.Where(i => i.SupplierId.HasValue).Select(i => i.SupplierId!.Value).Distinct().ToList();
         if (supplierIds.Any())

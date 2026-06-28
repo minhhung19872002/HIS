@@ -7,6 +7,7 @@ using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using iText.IO.Font.Constants;
@@ -94,7 +95,7 @@ public partial class ReceptionCompleteService {
                 FilePath = p.FilePath,
                 CapturedAt = p.CapturedAt
             })
-            .ToListAsync();
+            .ToBoundedListAsync("ReceptionCompleteService.GetPatientPhotosAsync");
     }
 
     public async Task DeletePhotoAsync(Guid photoId, Guid userId)
@@ -248,7 +249,7 @@ public partial class ReceptionCompleteService {
 
         var holds = await _context.DocumentHolds
             .Where(d => d.MedicalRecordId.HasValue && mrIds.Contains(d.MedicalRecordId.Value) && d.Status == 1)
-            .ToListAsync();
+            .ToBoundedListAsync("ReceptionCompleteService.GetPatientDocumentHoldsAsync");
 
         var result = new List<DocumentHoldDto>();
         foreach (var hold in holds)

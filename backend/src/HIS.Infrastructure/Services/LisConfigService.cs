@@ -5,6 +5,7 @@ using HIS.Application.DTOs.Laboratory;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -49,7 +50,7 @@ public class LisConfigService : ILisConfigService
                     Description = a.Description,
                     CreatedAt = a.CreatedAt
                 })
-                .ToListAsync();
+                .ToBoundedListAsync("LisConfigService.GetAnalyzersAsync");
         }
         catch (Exception ex)
         {
@@ -320,7 +321,7 @@ public class LisConfigService : ILisConfigService
                     SortOrder = t.SortOrder,
                     IsActive = t.IsActive
                 })
-                .ToListAsync();
+                .ToBoundedListAsync("LisConfigService.GetTestParametersAsync");
         }
         catch (Exception ex)
         {
@@ -576,7 +577,7 @@ public class LisConfigService : ILisConfigService
                     CriticalHigh = r.CriticalHigh,
                     Unit = r.Unit
                 })
-                .ToListAsync();
+                .ToBoundedListAsync("LisConfigService.GetReferenceRangesAsync");
         }
         catch (Exception ex)
         {
@@ -724,7 +725,7 @@ public class LisConfigService : ILisConfigService
                     HisTestName = m.TestParameter != null ? m.TestParameter.Name : m.HisTestName,
                     IsActive = m.IsActive
                 })
-                .ToListAsync();
+                .ToBoundedListAsync("LisConfigService.GetAnalyzerMappingsAsync");
         }
         catch (Exception ex)
         {

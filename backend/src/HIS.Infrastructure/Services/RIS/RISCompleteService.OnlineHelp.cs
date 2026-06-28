@@ -12,6 +12,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -31,7 +32,7 @@ public partial class RISCompleteService
         else
             query = query.Where(c => c.ParentId == null);
 
-        var categories = await query.OrderBy(c => c.SortOrder).ToListAsync();
+        var categories = await query.OrderBy(c => c.SortOrder).ToBoundedListAsync("RISCompleteService.GetHelpCategoriesAsync");
 
         return categories.Select(c => new HelpCategoryDto
         {
@@ -195,7 +196,7 @@ public partial class RISCompleteService
         if (!string.IsNullOrEmpty(keyword))
             query = query.Where(t => t.ErrorTitle.Contains(keyword) || t.Solution.Contains(keyword));
 
-        var items = await query.OrderBy(t => t.SortOrder).ToListAsync();
+        var items = await query.OrderBy(t => t.SortOrder).ToBoundedListAsync("RISCompleteService.GetTroubleshootingListAsync");
 
         return items.Select(t => new TroubleshootingDto
         {
@@ -280,7 +281,7 @@ public partial class RISCompleteService
         if (severity.HasValue)
             query = query.Where(t => t.Severity == severity);
 
-        var items = await query.OrderBy(t => t.SortOrder).ToListAsync();
+        var items = await query.OrderBy(t => t.SortOrder).ToBoundedListAsync("RISCompleteService.GetTroubleshootingListAsync");
 
         return items.Select(t => new TroubleshootingDto
         {

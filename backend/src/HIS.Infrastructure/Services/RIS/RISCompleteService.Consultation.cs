@@ -519,7 +519,7 @@ public partial class RISCompleteService
     {
         var attachments = await _context.Set<RadiologyConsultationAttachment>()
             .Where(a => a.CaseId == caseId)
-            .ToListAsync();
+            .ToBoundedListAsync("RISCompleteService.GetAttachments");
 
         return attachments.Select(a => new ConsultationAttachmentDto
         {

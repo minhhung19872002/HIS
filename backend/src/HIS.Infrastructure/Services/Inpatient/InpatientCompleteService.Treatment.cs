@@ -5,6 +5,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using System.Text;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
@@ -359,7 +360,7 @@ public partial class InpatientCompleteService {
             .Where(v => v.AdmissionId == admissionId && !v.IsDeleted);
         if (fromDate.HasValue) query = query.Where(v => v.RecordTime >= fromDate.Value);
         if (toDate.HasValue) query = query.Where(v => v.RecordTime <= toDate.Value);
-        var list = await query.OrderBy(v => v.RecordTime).ToListAsync();
+        var list = await query.OrderBy(v => v.RecordTime).ToBoundedListAsync("InpatientCompleteService.GetVitalSignsListAsync");
         return list.Select(MapVitalSign).ToList();
     }
 

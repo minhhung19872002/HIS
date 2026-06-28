@@ -399,7 +399,7 @@ public class PublicHealthService : IPublicHealthService
                 ScheduledDate = v.NextDoseDate!.Value.ToString("yyyy-MM-dd"),
                 Status = v.NextDoseDate.Value < DateTime.UtcNow ? 2 : 0,
             })
-            .ToListAsync();
+            .ToBoundedListAsync("PublicHealthService.GetVaccinationSchedule");
     }
 
     public async Task<List<VaccinationCampaignDto>> GetVaccinationCampaignsAsync()

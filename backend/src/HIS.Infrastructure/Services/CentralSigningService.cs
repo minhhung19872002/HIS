@@ -11,6 +11,8 @@ using HIS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
+using HIS.Infrastructure.Extensions;
+
 namespace HIS.Infrastructure.Services;
 
 /// <summary>
@@ -546,7 +548,7 @@ public class CentralSigningService : ICentralSigningService
             OwnerFullName = c.OwnerUser != null ? c.OwnerUser.FullName : null,
             Cccd = c.Cccd, SignatureImagePath = c.SignatureImagePath,
             StorageType = c.StorageType, CreatedAt = c.CreatedAt
-        }).ToListAsync();
+        }).ToBoundedListAsync("CentralSigningService.GetManagedCertificatesAsync");
     }
 
     public async Task<ManagedCertificateDto?> SaveManagedCertificateAsync(SaveManagedCertificateRequest request)

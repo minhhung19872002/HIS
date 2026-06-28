@@ -5,6 +5,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using System.Text;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
@@ -848,7 +849,7 @@ public partial class InpatientCompleteService {
         if (fromDate.HasValue) query = query.Where(d => d.ResultDate >= fromDate.Value);
         if (toDate.HasValue) query = query.Where(d => d.ResultDate <= toDate.Value);
 
-        var details = await query.OrderByDescending(d => d.ResultDate).ToListAsync();
+        var details = await query.OrderByDescending(d => d.ResultDate).ToBoundedListAsync("InpatientCompleteService.GetLabResultsAsync");
         return details.Select(d => new LabResultItemDto
         {
             Id = d.Id,

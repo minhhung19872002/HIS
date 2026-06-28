@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using HIS.Application.Services.Surgery;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services.Surgery;
 
@@ -83,7 +84,7 @@ public class SurgerySpecialServiceImpl : ISurgerySpecialService
                 DoseGiven = e.DoseGiven,
                 Notes = e.Notes
             })
-            .ToListAsync();
+            .ToBoundedListAsync("SurgerySpecialServiceImpl.GetAnesthesiaChartAsync");
 
         return new HIS.Application.DTOs.NangCap18.AnesthesiaChartDto
         {

@@ -14,6 +14,7 @@ using RoomDto = HIS.Application.Services.RoomDto;
 using MedicineDto = HIS.Application.Services.MedicineDto;
 using DoctorDto = HIS.Application.Services.DoctorDto;
 using ExamWarehouseDto = HIS.Application.Services.ExamWarehouseDto;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -109,7 +110,7 @@ public partial class ExaminationCompleteService
         if (roomId.HasValue)
             query = query.Where(e => e.RoomId == roomId.Value);
 
-        var examinations = await query.OrderBy(e => e.MedicalRecord.AdmissionDate).ToListAsync();
+        var examinations = await query.OrderBy(e => e.MedicalRecord.AdmissionDate).ToBoundedListAsync("ExaminationCompleteService.GetExaminationRegisterAsync");
 
         return examinations.Select((e, i) => new ExaminationRegisterDto
         {
@@ -262,7 +263,7 @@ public partial class ExaminationCompleteService
                        e.MedicalRecord.AdmissionDate <= toDate &&
                        !string.IsNullOrEmpty(e.MainIcdCode) &&
                        (e.MainIcdCode.StartsWith("A") || e.MainIcdCode.StartsWith("B")))
-            .ToListAsync();
+            .ToBoundedListAsync("ExaminationCompleteService.GetCommunicableDiseaseReportAsync");
 
         return examinations.Select(e => new CommunicableDiseaseReportDto
         {

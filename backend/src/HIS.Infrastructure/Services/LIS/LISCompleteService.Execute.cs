@@ -9,6 +9,7 @@ using HIS.Application.DTOs.Laboratory;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using HIS.Infrastructure.Services.HL7;
 
 // Alias to avoid ambiguity
@@ -60,7 +61,7 @@ public partial class LISCompleteService {
             .OrderByDescending(r => r.IsEmergency)
             .ThenByDescending(r => r.IsPriority)
             .ThenByDescending(r => r.RequestDate)
-            .ToListAsync();
+            .ToBoundedListAsync("LISCompleteService.GetPendingLabOrdersAsync");
 
         // Load all detail IDs for params batch query (avoid N+1)
         var allDetailIds = requests.SelectMany(r => r.Details.Where(d => !d.IsDeleted && d.Status != 3).Select(d => d.Id)).ToList();
@@ -918,7 +919,7 @@ public partial class LISCompleteService {
             if (acknowledged.HasValue)
                 query = query.Where(a => a.IsAcknowledged == acknowledged.Value);
 
-            var alerts = await query.OrderByDescending(a => a.AlertTime).ToListAsync();
+            var alerts = await query.OrderByDescending(a => a.AlertTime).ToBoundedListAsync("LISCompleteService.GetCriticalValueAlertsAsync");
 
             return alerts.Select(a => new CriticalValueAlertDto
             {
@@ -986,7 +987,7 @@ public partial class LISCompleteService {
         var items = await query
             .OrderByDescending(d => d.ServiceRequest.RequestDate)
             .ThenBy(d => d.Service.ServiceName)
-            .ToListAsync();
+            .ToBoundedListAsync("LISCompleteService.GetLabResultHistoryAsync");
 
         if (!items.Any()) return new List<LabResultHistoryDto>();
 

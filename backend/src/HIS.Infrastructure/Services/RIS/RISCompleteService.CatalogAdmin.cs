@@ -212,7 +212,7 @@ public partial class RISCompleteService
             query = query.Where(r => r.RoomName.Contains(keyword) || r.RoomCode.Contains(keyword));
         }
 
-        var rooms = await query.ToListAsync();
+        var rooms = await query.ToBoundedListAsync("RISCompleteService.GetRooms");
 
         return rooms.Select(r => new RadiologyRoomDto
         {
@@ -450,7 +450,7 @@ public partial class RISCompleteService
         if (!string.IsNullOrEmpty(keyword))
             query = query.Where(t => t.Name.Contains(keyword) || t.Code.Contains(keyword));
 
-        var templates = await query.OrderBy(t => t.SortOrder).ToListAsync();
+        var templates = await query.OrderBy(t => t.SortOrder).ToBoundedListAsync("RISCompleteService.GetDiagnosisTemplates");
 
         return templates.Select(t => new DiagnosisTemplateDto
         {
@@ -548,7 +548,7 @@ public partial class RISCompleteService
         if (!string.IsNullOrEmpty(keyword))
             query = query.Where(a => a.Abbreviation.Contains(keyword) || a.FullText.Contains(keyword));
 
-        var abbreviations = await query.OrderBy(a => a.SortOrder).ToListAsync();
+        var abbreviations = await query.OrderBy(a => a.SortOrder).ToBoundedListAsync("RISCompleteService.GetAbbreviations");
 
         return abbreviations.Select(a => new AbbreviationDto
         {

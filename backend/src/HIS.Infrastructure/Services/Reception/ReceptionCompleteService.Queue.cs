@@ -7,6 +7,7 @@ using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Configuration;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using iText.IO.Font.Constants;
@@ -156,7 +157,7 @@ public partial class ReceptionCompleteService {
             query = query.Where(m => m.RoomId == roomId.Value);
         }
 
-        var records = await query.OrderByDescending(m => m.CreatedAt).ToListAsync();
+        var records = await query.OrderByDescending(m => m.CreatedAt).ToBoundedListAsync("Reception.GetTodayAdmissions");
 
         // Load today's queue tickets to map actual queue numbers
         // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để so sánh đúng ngày VN.
@@ -570,7 +571,7 @@ public partial class ReceptionCompleteService {
                        t.QueueType == queueType &&
                        t.IssueDate >= slFromUtc && t.IssueDate < slToUtc &&
                        t.Status == 2)
-            .ToListAsync();
+            .ToBoundedListAsync("Reception.GetServingList");
 
         return tickets.Select(MapToQueueTicketDto).ToList();
     }

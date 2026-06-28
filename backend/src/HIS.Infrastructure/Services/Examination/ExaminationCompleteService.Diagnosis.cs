@@ -14,6 +14,7 @@ using RoomDto = HIS.Application.Services.RoomDto;
 using MedicineDto = HIS.Application.Services.MedicineDto;
 using DoctorDto = HIS.Application.Services.DoctorDto;
 using ExamWarehouseDto = HIS.Application.Services.ExamWarehouseDto;
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -314,7 +315,7 @@ public partial class ExaminationCompleteService
             .ThenInclude(m => m.Patient)
             .Include(e => e.Room)
             .Where(e => e.MedicalRecordId == primaryExam.MedicalRecordId && e.ExaminationType == 2)
-            .ToListAsync();
+            .ToBoundedListAsync("ExaminationCompleteService.GetAdditionalExaminationsAsync");
 
         return additionalExams.Select(MapToExaminationDto).ToList();
     }

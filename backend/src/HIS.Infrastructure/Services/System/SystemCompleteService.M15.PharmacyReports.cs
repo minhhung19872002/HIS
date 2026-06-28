@@ -5,6 +5,7 @@ using HIS.Application.DTOs.System;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
 namespace HIS.Infrastructure.Services;
@@ -455,7 +456,7 @@ public partial class SystemCompleteService
 
             var items = await query
                 .OrderBy(ii => ii.ExpiryDate)
-                .ToListAsync();
+                .ToBoundedListAsync("SystemCompleteService.GetExpiringDrugReport");
 
             return items.Select(ii => new ExpiringDrugReportDto
             {
@@ -496,7 +497,7 @@ public partial class SystemCompleteService
 
             var items = await query
                 .OrderBy(ii => ii.ExpiryDate)
-                .ToListAsync();
+                .ToBoundedListAsync("SystemCompleteService.GetExpiredDrugReport");
 
             return items.Select(ii => new ExpiredDrugReportDto
             {

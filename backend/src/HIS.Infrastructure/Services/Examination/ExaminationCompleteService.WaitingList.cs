@@ -8,6 +8,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
 using ServiceDto = HIS.Application.Services.ServiceDto;
 using RoomDto = HIS.Application.Services.RoomDto;
@@ -191,7 +192,7 @@ public partial class ExaminationCompleteService
         if (status.HasValue)
             query = query.Where(e => e.Status == status.Value);
 
-        var examinations = await query.OrderBy(e => e.QueueNumber).ToListAsync();
+        var examinations = await query.OrderBy(e => e.QueueNumber).ToBoundedListAsync("Examination.GetRoomPatientList");
 
         return examinations.Select(e => MapToRoomPatientListDto(e)).ToList();
     }

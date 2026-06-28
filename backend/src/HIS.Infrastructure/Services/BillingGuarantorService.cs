@@ -2,6 +2,7 @@ using HIS.Application.DTOs.Billing;
 using HIS.Application.Interfaces;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace HIS.Infrastructure.Services;
@@ -25,7 +26,7 @@ public class BillingGuarantorService : IBillingGuarantorService
         if (!string.IsNullOrWhiteSpace(keyword))
             q = q.Where(o => o.Name.Contains(keyword) || o.Code.Contains(keyword));
 
-        var list = await q.OrderBy(o => o.Code).ToListAsync();
+        var list = await q.OrderBy(o => o.Code).ToBoundedListAsync("BillingGuarantorService.GetSponsorOrgsAsync");
         return list.Select(o => new SponsorOrgDto
         {
             Id            = o.Id,
@@ -86,7 +87,7 @@ public class BillingGuarantorService : IBillingGuarantorService
         if (patientId.HasValue)       q = q.Where(g => g.PatientId == patientId.Value);
         if (medicalRecordId.HasValue) q = q.Where(g => g.MedicalRecordId == medicalRecordId.Value);
 
-        var list  = await q.OrderByDescending(g => g.CreatedAt).ToListAsync();
+        var list  = await q.OrderByDescending(g => g.CreatedAt).ToBoundedListAsync("BillingGuarantorService.GetGuarantorsAsync");
         var orgIds = list.Select(g => g.SponsorOrgId).Distinct().ToList();
         var orgs  = await _db.SponsorOrgs
             .Where(o => orgIds.Contains(o.Id))

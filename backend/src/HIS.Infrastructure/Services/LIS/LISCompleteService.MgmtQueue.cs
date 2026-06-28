@@ -14,6 +14,7 @@ using HIS.Infrastructure.Services.HL7;
 
 // Alias to avoid ambiguity
 using ApproveLabResultDtoService = HIS.Application.Services.ApproveLabResultDto;
+using HIS.Infrastructure.Extensions;
 
 
 namespace HIS.Infrastructure.Services;
@@ -39,7 +40,7 @@ public partial class LISCompleteService {
                 .Include(s => s.ServiceGroup)
                 .OrderBy(s => s.DisplayOrder)
                 .ThenBy(s => s.ServiceCode)
-                .ToListAsync();
+                .ToBoundedListAsync("LISCompleteService.GetLabTestCatalogAsync");
 
             return services.Select(s => new LabTestCatalogDto
             {
@@ -74,7 +75,7 @@ public partial class LISCompleteService {
             var groups = await _context.LabTestGroups
                 .Where(g => !g.IsDeleted && g.IsActive)
                 .OrderBy(g => g.SortOrder)
-                .ToListAsync();
+                .ToBoundedListAsync("LISCompleteService.GetLabTestGroupsAsync");
             return groups.Select(g => new LabTestGroupDto
             {
                 Id = g.Id,
@@ -104,7 +105,7 @@ public partial class LISCompleteService {
                 .Where(r => !r.IsDeleted && r.IsActive && r.ServiceId == testId)
                 .OrderBy(r => r.Gender)
                 .ThenBy(r => r.AgeFromDays)
-                .ToListAsync();
+                .ToBoundedListAsync("LISCompleteService.GetReferenceRangesAsync");
 
             return ranges.Select(r => new ReferenceRangeDto
             {
@@ -279,7 +280,7 @@ public partial class LISCompleteService {
             var templates = await query
                 .Include(t => t.Service)
                 .OrderBy(t => t.SortOrder)
-                .ToListAsync();
+                .ToBoundedListAsync("LISCompleteService.GetConclusionTemplatesAsync");
 
             return templates.Select(t => new LabConclusionTemplateDto
             {

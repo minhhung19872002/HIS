@@ -8,6 +8,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
 using ServiceDto = HIS.Application.Services.ServiceDto;
 using RoomDto = HIS.Application.Services.RoomDto;
@@ -32,7 +33,7 @@ public partial class ExaminationCompleteService
             .Include(p => p.Details)
             .ThenInclude(i => i.Medicine)
             .Where(p => p.MedicalRecordId == examination.MedicalRecordId)
-            .ToListAsync();
+            .ToBoundedListAsync("ExaminationCompleteService.GetPrescriptionsAsync");
 
         return prescriptions.Select(MapToPrescriptionFullDto).ToList();
     }
@@ -519,7 +520,7 @@ public partial class ExaminationCompleteService
                     UsageInstructions = i.UsageInstructions
                 }).ToList()
             })
-            .ToListAsync();
+            .ToBoundedListAsync("ExaminationCompleteService.GetPrescriptionTemplatesAsync");
     }
 
     public async Task<PrescriptionTemplateDto> CreatePrescriptionTemplateAsync(PrescriptionTemplateDto dto)
@@ -696,7 +697,7 @@ public partial class ExaminationCompleteService
                 Description = i.Description,
                 SortOrder = i.SortOrder
             })
-            .ToListAsync();
+            .ToBoundedListAsync("ExaminationCompleteService.GetInstructionLibraryAsync");
     }
 
     public async Task<InstructionLibraryDto> AddInstructionAsync(InstructionLibraryDto dto)
@@ -873,7 +874,7 @@ public partial class ExaminationCompleteService
     {
         var warehouses = await _context.Warehouses
             .Where(w => w.IsActive && w.WarehouseType == 2) // Dispensary type
-            .ToListAsync();
+            .ToBoundedListAsync("ExaminationCompleteService.GetDispensaryWarehousesAsync");
 
         return warehouses.Select(w => new ExamWarehouseDto
         {

@@ -22,7 +22,7 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
         if (departmentId.HasValue) query = query.Where(x => x.DepartmentId == departmentId);
         if (!string.IsNullOrEmpty(category)) query = query.Where(x => x.Category == category);
         if (!string.IsNullOrEmpty(status)) query = query.Where(x => x.Status == status);
-        var list = await query.ToListAsync();
+        var list = await query.ToBoundedListAsync("MedicalEquipment.GetEquipmentList");
         return list.Select(MapToEquipmentDto).ToList();
     }
 
@@ -74,7 +74,7 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
             var query = _context.MaintenanceRecords.Include(x => x.Equipment).Where(x => x.Status == "Scheduled");
             if (dueDate.HasValue) query = query.Where(x => x.ScheduledDate <= dueDate);
             if (overdue == true) query = query.Where(x => x.ScheduledDate < DateTime.Today);
-            var list = await query.ToListAsync();
+            var list = await query.ToBoundedListAsync("MedicalEquipment.GetMaintenanceSchedules");
             return list.Select(e => new MaintenanceScheduleDto { Id = e.Id, EquipmentId = e.EquipmentId, EquipmentName = e.Equipment?.EquipmentName ?? "", MaintenanceType = e.MaintenanceType, NextDueDate = e.ScheduledDate, Status = e.Status }).ToList();
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
@@ -186,7 +186,7 @@ public class MedicalEquipmentServiceImpl : IMedicalEquipmentService
     public async Task<List<EquipmentDisposalDto>> GetDisposalRequestsAsync(string? status = null)
     {
         var query = _context.MedicalEquipments.Where(x => x.Status == "Decommissioned" || x.DecommissionDate != null);
-        var list = await query.ToListAsync();
+        var list = await query.ToBoundedListAsync("MedicalEquipment.GetDisposalRequests");
         return list.Select(e => new EquipmentDisposalDto { Id = e.Id, EquipmentId = e.Id, EquipmentName = e.EquipmentName, Status = e.Status, DisposalDate = e.DecommissionDate, DisposalReason = e.DecommissionReason }).ToList();
     }
 

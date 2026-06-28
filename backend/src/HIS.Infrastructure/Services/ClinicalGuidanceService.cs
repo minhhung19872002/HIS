@@ -4,6 +4,9 @@ using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
+
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
@@ -243,7 +246,7 @@ public class ClinicalGuidanceService : IClinicalGuidanceService
                     PatientCount = a.PatientCount,
                     TraineeCount = a.TraineeCount,
                 })
-                .ToListAsync();
+                .ToBoundedListAsync("ClinicalGuidanceService.GetActivitiesAsync");
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))
         {

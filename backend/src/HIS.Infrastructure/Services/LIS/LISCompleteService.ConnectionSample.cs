@@ -13,6 +13,7 @@ using HIS.Infrastructure.Services.HL7;
 
 // Alias to avoid ambiguity
 using ApproveLabResultDtoService = HIS.Application.Services.ApproveLabResultDto;
+using HIS.Infrastructure.Extensions;
 
 
 namespace HIS.Infrastructure.Services;
@@ -31,7 +32,7 @@ public partial class LISCompleteService {
         if (isActive.HasValue)
             query = query.Where(a => a.IsActive == isActive.Value);
 
-        var analyzers = await query.Include(a => a.Department).OrderBy(a => a.Name).ToListAsync();
+        var analyzers = await query.Include(a => a.Department).OrderBy(a => a.Name).ToBoundedListAsync("LISCompleteService.GetAnalyzersAsync");
 
         return analyzers.Select(a => new LabAnalyzerDto
         {
@@ -122,7 +123,7 @@ public partial class LISCompleteService {
         var mappings = await _context.LabAnalyzerTestMappings
             .Where(m => m.AnalyzerId == analyzerId && !m.IsDeleted)
             .Include(m => m.Service)
-            .ToListAsync();
+            .ToBoundedListAsync("LISCompleteService.GetAnalyzerTestMappingsAsync");
 
         return mappings.Select(m => new AnalyzerTestMappingDto
         {
@@ -306,7 +307,7 @@ public partial class LISCompleteService {
                         && r.RequestType == 1
                         && r.Status < 3) // chưa có KQ / chưa hủy
             .OrderByDescending(r => r.RequestDate)
-            .ToListAsync();
+            .ToBoundedListAsync("LISCompleteService.GetPatientSamplesAsync");
 
         var result = new List<SampleCollectionItemDto>();
         var seq = 1;
@@ -414,7 +415,7 @@ public partial class LISCompleteService {
 
     public async Task<List<SampleTypeDto>> GetSampleTypesAsync()
     {
-        var types = await _context.LabSampleTypes.Where(t => t.IsActive).ToListAsync();
+        var types = await _context.LabSampleTypes.Where(t => t.IsActive).ToBoundedListAsync("LISCompleteService.GetSampleTypesAsync");
         return types.Select(t => new SampleTypeDto
         {
             Id = t.Id,
@@ -425,7 +426,7 @@ public partial class LISCompleteService {
 
     public async Task<List<TubeTypeDto>> GetTubeTypesAsync()
     {
-        var types = await _context.LabTubeTypes.Where(t => t.IsActive).ToListAsync();
+        var types = await _context.LabTubeTypes.Where(t => t.IsActive).ToBoundedListAsync("LISCompleteService.GetTubeTypesAsync");
         return types.Select(t => new TubeTypeDto
         {
             Id = t.Id,

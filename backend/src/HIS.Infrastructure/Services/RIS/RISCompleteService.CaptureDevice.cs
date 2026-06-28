@@ -39,7 +39,7 @@ public partial class RISCompleteService
         if (isActive.HasValue)
             query = query.Where(d => d.IsActive == isActive.Value);
 
-        var devices = await query.OrderBy(d => d.DeviceName).ToListAsync();
+        var devices = await query.OrderBy(d => d.DeviceName).ToBoundedListAsync("RISCompleteService.GetCaptureDevices");
 
         return devices.Select(d => new CaptureDeviceDto
         {
@@ -142,7 +142,7 @@ public partial class RISCompleteService
         if (roomId.HasValue)
             query = query.Where(w => w.RoomId == roomId);
 
-        var workstations = await query.ToListAsync();
+        var workstations = await query.ToBoundedListAsync("RISCompleteService.GetWorkstations");
 
         return workstations.Select(w => new WorkstationDto
         {

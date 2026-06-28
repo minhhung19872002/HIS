@@ -5,6 +5,7 @@ using HIS.Application.DTOs.System;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
 namespace HIS.Infrastructure.Services;
@@ -30,7 +31,7 @@ public partial class SystemCompleteService
             if (isActive.HasValue)
                 query = query.Where(s => s.IsActive == isActive.Value);
 
-            var items = await query.OrderBy(s => s.DisplayOrder).ThenBy(s => s.ServiceCode).ToListAsync();
+            var items = await query.OrderBy(s => s.DisplayOrder).ThenBy(s => s.ServiceCode).ToBoundedListAsync("SystemCompleteService.GetExaminationServicesAsync");
             return items.Select(s => new ExaminationServiceCatalogDto
             {
                 Id = s.Id,
@@ -146,7 +147,7 @@ public partial class SystemCompleteService
             if (isActive.HasValue)
                 query = query.Where(s => s.IsActive == isActive.Value);
 
-            var items = await query.OrderBy(s => s.DisplayOrder).ThenBy(s => s.ServiceCode).ToListAsync();
+            var items = await query.OrderBy(s => s.DisplayOrder).ThenBy(s => s.ServiceCode).ToBoundedListAsync("SystemCompleteService.GetParaclinicalServicesAsync");
             return items.Select(s => new ParaclinicalServiceCatalogDto
             {
                 Id = s.Id,
@@ -830,7 +831,7 @@ public partial class SystemCompleteService
             if (isActive.HasValue)
                 query = query.Where(d => d.IsActive == isActive.Value);
 
-            var items = await query.OrderBy(d => d.DisplayOrder).ThenBy(d => d.DepartmentCode).ToListAsync();
+            var items = await query.OrderBy(d => d.DisplayOrder).ThenBy(d => d.DepartmentCode).ToBoundedListAsync("SystemCompleteService.GetDepartmentsAsync");
             return items.Select(d => new DepartmentCatalogDto
             {
                 Id = d.Id,
@@ -938,7 +939,7 @@ public partial class SystemCompleteService
             if (isActive.HasValue)
                 query = query.Where(r => r.IsActive == isActive.Value);
 
-            var items = await query.OrderBy(r => r.DisplayOrder).ThenBy(r => r.RoomCode).ToListAsync();
+            var items = await query.OrderBy(r => r.DisplayOrder).ThenBy(r => r.RoomCode).ToBoundedListAsync("SystemCompleteService.GetRoomsAsync");
             return items.Select(r => new RoomCatalogDto
             {
                 Id = r.Id,
@@ -1042,7 +1043,7 @@ public partial class SystemCompleteService
             if (isActive.HasValue)
                 query = query.Where(b => b.IsActive == isActive.Value);
 
-            var items = await query.OrderBy(b => b.BedCode).ToListAsync();
+            var items = await query.OrderBy(b => b.BedCode).ToBoundedListAsync("SystemCompleteService.GetBedsAsync");
             return items.Select(b => new BedCatalogDto
             {
                 Id = b.Id,
@@ -1246,7 +1247,7 @@ public partial class SystemCompleteService
             if (isActive.HasValue)
                 query = query.Where(s => s.IsActive == isActive.Value);
 
-            var items = await query.OrderBy(s => s.SupplierCode).ToListAsync();
+            var items = await query.OrderBy(s => s.SupplierCode).ToBoundedListAsync("SystemCompleteService.GetSuppliersAsync");
             return items.Select(s => new SupplierCatalogDto
             {
                 Id = s.Id,
@@ -1618,7 +1619,7 @@ public partial class SystemCompleteService
             if (isActive.HasValue)
                 query = query.Where(t => t.IsActive == isActive.Value);
 
-            var items = await query.OrderBy(t => t.ReportName).ToListAsync();
+            var items = await query.OrderBy(t => t.ReportName).ToBoundedListAsync("SystemCompleteService.GetPrintTemplatesAsync");
             return items.Select(t => new PrintTemplateCatalogDto
             {
                 Id = t.Id,
@@ -1710,7 +1711,7 @@ public partial class SystemCompleteService
         {
             var query = _context.ExaminationTemplates.AsNoTracking().AsQueryable();
 
-            var items = await query.ToListAsync();
+            var items = await query.ToBoundedListAsync("SystemCompleteService.GetMedicalRecordTemplatesAsync");
             return items.Select(t => new MedicalRecordTemplateCatalogDto
             {
                 Id = t.Id,
@@ -1809,7 +1810,7 @@ public partial class SystemCompleteService
             if (isActive.HasValue)
                 query = query.Where(g => g.IsActive == isActive.Value);
 
-            var items = await query.OrderBy(g => g.DisplayOrder).ThenBy(g => g.GroupCode).ToListAsync();
+            var items = await query.OrderBy(g => g.DisplayOrder).ThenBy(g => g.GroupCode).ToBoundedListAsync("SystemCompleteService.GetServiceGroupsAsync");
             return items.Select(g => new ServiceGroupCatalogDto
             {
                 Id = g.Id,
@@ -1948,7 +1949,7 @@ public partial class SystemCompleteService
                 Description = t.Description,
                 SortOrder = t.SortOrder,
                 IsActive = t.IsActive,
-            }).ToListAsync();
+            }).ToBoundedListAsync("SystemCompleteService.GetClinicalTermsAsync");
     }
 
     public async Task<ClinicalTermCatalogDto> GetClinicalTermAsync(Guid termId)
@@ -2054,7 +2055,7 @@ public partial class SystemCompleteService
                 Id = m.Id, IcdCode = m.IcdCode, IcdName = m.IcdName,
                 SnomedCtCode = m.SnomedCtCode, SnomedCtDisplay = m.SnomedCtDisplay,
                 MapGroup = m.MapGroup, MapPriority = m.MapPriority, MapRule = m.MapRule, IsActive = m.IsActive
-            }).ToListAsync();
+            }).ToBoundedListAsync("SystemCompleteService.SearchSnomedByIcdAsync");
     }
 
     // 13.18 Dong bo danh muc BHXH
@@ -2125,7 +2126,7 @@ public partial class SystemCompleteService
                 Name = o.Name,
                 SortOrder = o.SortOrder,
                 IsActive = o.IsActive,
-            }).ToListAsync();
+            }).ToBoundedListAsync("SystemCompleteService.GetOccupationsAsync");
     }
 
     public async Task<OccupationCatalogDto> SaveOccupationAsync(OccupationCatalogDto dto)
@@ -2176,7 +2177,7 @@ public partial class SystemCompleteService
                 Name = g.Name,
                 SortOrder = g.SortOrder,
                 IsActive = g.IsActive,
-            }).ToListAsync();
+            }).ToBoundedListAsync("SystemCompleteService.GetGendersAsync");
     }
 
     public async Task<GenderCatalogDto> SaveGenderAsync(GenderCatalogDto dto)
@@ -2295,7 +2296,7 @@ public partial class SystemCompleteService
                 NationalityName = c.NationalityName,
                 SortOrder = c.SortOrder,
                 IsActive = c.IsActive,
-            }).ToListAsync();
+            }).ToBoundedListAsync("SystemCompleteService.GetCountriesAsync");
     }
 
     public async Task<CountryCatalogDto> SaveCountryAsync(CountryCatalogDto dto)
@@ -2354,7 +2355,7 @@ public partial class SystemCompleteService
                 ProvinceCode = f.ProvinceCode,
                 SortOrder = f.SortOrder,
                 IsActive = f.IsActive,
-            }).ToListAsync();
+            }).ToBoundedListAsync("SystemCompleteService.GetHealthcareFacilitiesAsync");
     }
 
     public async Task<HealthcareFacilityCatalogDto> SaveHealthcareFacilityAsync(HealthcareFacilityCatalogDto dto)

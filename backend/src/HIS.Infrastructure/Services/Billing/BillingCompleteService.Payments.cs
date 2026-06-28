@@ -7,6 +7,7 @@ using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
 using HIS.Infrastructure.Data;
+using HIS.Infrastructure.Extensions;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
 
 namespace HIS.Infrastructure.Services;
@@ -230,7 +231,7 @@ public partial class BillingCompleteService {
             .Where(d => d.PatientId == patientId && !d.IsDeleted);
         if (status.HasValue) query = query.Where(d => d.Status == status.Value);
 
-        var rows = await query.OrderByDescending(d => d.ReceiptDate).ToListAsync();
+        var rows = await query.OrderByDescending(d => d.ReceiptDate).ToBoundedListAsync("BillingCompleteService.GetPatientDepositsAsync");
         return rows.Select(d => new DepositDto
         {
             Id = d.Id,
