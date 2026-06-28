@@ -680,14 +680,14 @@ public class CreateServiceOrderDto
     public string? DiagnosisName { get; set; }
 
     // Danh sách dịch vụ
-    public List<ServiceOrderItemDto> Services { get; set; } = new();
+    public List<ExaminationServiceOrderItemDto> Services { get; set; } = new();
 
     // Cấu hình
     public bool AutoSelectRoom { get; set; } = true;
     public bool CalculateOptimalPath { get; set; } = false;
 }
 
-public class ServiceOrderItemDto
+public class ExaminationServiceOrderItemDto
 {
     public Guid ServiceId { get; set; }
     public int Quantity { get; set; } = 1;
@@ -872,7 +872,7 @@ public class PrescriptionItemFullDto
 /// <summary>
 /// DTO tạo đơn thuốc
 /// </summary>
-public class CreatePrescriptionDto
+public class CreateExaminationPrescriptionDto
 {
     public Guid ExaminationId { get; set; }
     public int PrescriptionType { get; set; }
@@ -914,7 +914,7 @@ public class CreatePrescriptionItemDto
 /// <summary>
 /// DTO mẫu đơn thuốc
 /// </summary>
-public class PrescriptionTemplateDto
+public class ExaminationPrescriptionTemplateDto
 {
     public Guid Id { get; set; }
     public string? TemplateCode { get; set; }
@@ -928,12 +928,12 @@ public class PrescriptionTemplateDto
     public bool IsPublic { get; set; }
 
     public List<CreatePrescriptionItemDto> Items { get; set; } = new();
-    public List<PrescriptionTemplateItemDto> TemplateItems { get; set; } = new();
+    public List<ExaminationPrescriptionTemplateItemDto> TemplateItems { get; set; } = new();
     public string? Instructions { get; set; }
     public bool IsShared { get; set; }
 }
 
-public class PrescriptionTemplateItemDto
+public class ExaminationPrescriptionTemplateItemDto
 {
     public Guid MedicineId { get; set; }
     public string MedicineCode { get; set; } = string.Empty;

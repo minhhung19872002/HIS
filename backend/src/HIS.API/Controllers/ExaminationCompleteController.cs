@@ -1219,7 +1219,7 @@ public class ExaminationCompleteController : ControllerBase
     /// Tạo đơn thuốc
     /// </summary>
     [HttpPost("prescriptions")]
-    public async Task<ActionResult<PrescriptionFullDto>> CreatePrescription([FromBody] CreatePrescriptionDto dto)
+    public async Task<ActionResult<PrescriptionFullDto>> CreatePrescription([FromBody] CreateExaminationPrescriptionDto dto)
     {
         var result = await _examinationService.CreatePrescriptionAsync(dto, GetCurrentUserId());
         return Ok(result);
@@ -1229,7 +1229,7 @@ public class ExaminationCompleteController : ControllerBase
     /// Cập nhật đơn thuốc
     /// </summary>
     [HttpPut("prescriptions/{id}")]
-    public async Task<ActionResult<PrescriptionFullDto>> UpdatePrescription(Guid id, [FromBody] CreatePrescriptionDto dto)
+    public async Task<ActionResult<PrescriptionFullDto>> UpdatePrescription(Guid id, [FromBody] CreateExaminationPrescriptionDto dto)
     {
         var result = await _examinationService.UpdatePrescriptionAsync(id, dto);
         return Ok(result);
@@ -1325,7 +1325,7 @@ public class ExaminationCompleteController : ControllerBase
     /// Kiểm tra quy định BHYT
     /// </summary>
     [HttpPost("{examinationId}/validate-bhyt-prescription")]
-    public async Task<ActionResult<List<PrescriptionWarningDto>>> ValidateBhytPrescription(Guid examinationId, [FromBody] CreatePrescriptionDto dto)
+    public async Task<ActionResult<List<PrescriptionWarningDto>>> ValidateBhytPrescription(Guid examinationId, [FromBody] CreateExaminationPrescriptionDto dto)
     {
         var result = await _examinationService.ValidateBhytPrescriptionAsync(examinationId, dto);
         return Ok(result);
@@ -1335,7 +1335,7 @@ public class ExaminationCompleteController : ControllerBase
     /// Lấy danh sách mẫu đơn thuốc
     /// </summary>
     [HttpGet("templates/prescription")]
-    public async Task<ActionResult<List<PrescriptionTemplateDto>>> GetPrescriptionTemplates([FromQuery] Guid? departmentId = null)
+    public async Task<ActionResult<List<ExaminationPrescriptionTemplateDto>>> GetPrescriptionTemplates([FromQuery] Guid? departmentId = null)
     {
         var result = await _examinationService.GetPrescriptionTemplatesAsync(departmentId);
         return Ok(result);
@@ -1345,7 +1345,7 @@ public class ExaminationCompleteController : ControllerBase
     /// Tạo mẫu đơn thuốc
     /// </summary>
     [HttpPost("templates/prescription")]
-    public async Task<ActionResult<PrescriptionTemplateDto>> CreatePrescriptionTemplate([FromBody] PrescriptionTemplateDto dto)
+    public async Task<ActionResult<ExaminationPrescriptionTemplateDto>> CreatePrescriptionTemplate([FromBody] ExaminationPrescriptionTemplateDto dto)
     {
         var result = await _examinationService.CreatePrescriptionTemplateAsync(dto);
         return Ok(result);
@@ -1355,7 +1355,7 @@ public class ExaminationCompleteController : ControllerBase
     /// Cập nhật mẫu đơn thuốc
     /// </summary>
     [HttpPut("templates/prescription/{id}")]
-    public async Task<ActionResult<PrescriptionTemplateDto>> UpdatePrescriptionTemplate(Guid id, [FromBody] PrescriptionTemplateDto dto)
+    public async Task<ActionResult<ExaminationPrescriptionTemplateDto>> UpdatePrescriptionTemplate(Guid id, [FromBody] ExaminationPrescriptionTemplateDto dto)
     {
         var result = await _examinationService.UpdatePrescriptionTemplateAsync(id, dto);
         return Ok(result);
@@ -1385,7 +1385,7 @@ public class ExaminationCompleteController : ControllerBase
     /// Lưu đơn thuốc thành mẫu
     /// </summary>
     [HttpPost("prescriptions/{prescriptionId}/save-as-template")]
-    public async Task<ActionResult<PrescriptionTemplateDto>> SaveAsPrescriptionTemplate(Guid prescriptionId, [FromBody] SaveAsTemplateRequest request)
+    public async Task<ActionResult<ExaminationPrescriptionTemplateDto>> SaveAsPrescriptionTemplate(Guid prescriptionId, [FromBody] SaveAsTemplateRequest request)
     {
         var result = await _examinationService.SaveAsPrescriptionTemplateAsync(prescriptionId, request.TemplateName);
         return Ok(result);

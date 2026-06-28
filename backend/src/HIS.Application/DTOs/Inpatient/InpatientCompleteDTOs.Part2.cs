@@ -427,7 +427,7 @@ public class DrugInteractionDto
 /// <summary>
 /// DTO đơn thuốc mẫu
 /// </summary>
-public class PrescriptionTemplateDto
+public class InpatientPrescriptionTemplateDto
 {
     public Guid Id { get; set; }
     public string TemplateCode { get; set; } = string.Empty;
@@ -439,13 +439,13 @@ public class PrescriptionTemplateDto
     public string? CreatedByName { get; set; }
     public bool IsShared { get; set; }
 
-    public List<PrescriptionTemplateItemDto> Items { get; set; } = new();
+    public List<InpatientPrescriptionTemplateItemDto> Items { get; set; } = new();
 }
 
 /// <summary>
 /// DTO item đơn thuốc mẫu
 /// </summary>
-public class PrescriptionTemplateItemDto
+public class InpatientPrescriptionTemplateItemDto
 {
     public Guid MedicineId { get; set; }
     public string MedicineCode { get; set; } = string.Empty;

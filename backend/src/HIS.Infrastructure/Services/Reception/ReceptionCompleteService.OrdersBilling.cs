@@ -218,7 +218,7 @@ public partial class ReceptionCompleteService {
         return results;
     }
 
-    public async Task<ServiceOrderResultDto> UpdateServiceOrderAsync(Guid orderId, ServiceOrderItemDto dto, Guid userId)
+    public async Task<ServiceOrderResultDto> UpdateServiceOrderAsync(Guid orderId, ReceptionServiceOrderItemDto dto, Guid userId)
     {
         var request = await _context.ServiceRequests.FindAsync(orderId);
         if (request == null) throw new Exception("Service order not found");

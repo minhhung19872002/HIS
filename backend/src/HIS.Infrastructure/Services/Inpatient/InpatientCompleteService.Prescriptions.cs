@@ -502,16 +502,16 @@ public partial class InpatientCompleteService {
         });
     }
 
-    public Task<PrescriptionTemplateDto> CreatePrescriptionTemplateAsync(PrescriptionTemplateDto dto, Guid userId)
+    public Task<InpatientPrescriptionTemplateDto> CreatePrescriptionTemplateAsync(InpatientPrescriptionTemplateDto dto, Guid userId)
     {
         dto.Id = Guid.NewGuid();
         dto.CreatedBy = userId;
         return Task.FromResult(dto);
     }
 
-    public Task<List<PrescriptionTemplateDto>> GetPrescriptionTemplatesAsync(Guid? departmentId, Guid? userId)
+    public Task<List<InpatientPrescriptionTemplateDto>> GetPrescriptionTemplatesAsync(Guid? departmentId, Guid? userId)
     {
-        return Task.FromResult(new List<PrescriptionTemplateDto>());
+        return Task.FromResult(new List<InpatientPrescriptionTemplateDto>());
     }
 
     public Task<InpatientPrescriptionDto> PrescribeByTemplateAsync(Guid admissionId, Guid templateId, Guid userId)

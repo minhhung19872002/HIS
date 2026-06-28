@@ -419,12 +419,12 @@ public interface IInpatientCompleteService
     /// <summary>
     /// Tạo đơn thuốc mẫu
     /// </summary>
-    Task<PrescriptionTemplateDto> CreatePrescriptionTemplateAsync(PrescriptionTemplateDto dto, Guid userId);
+    Task<InpatientPrescriptionTemplateDto> CreatePrescriptionTemplateAsync(InpatientPrescriptionTemplateDto dto, Guid userId);
 
     /// <summary>
     /// Lấy danh sách đơn thuốc mẫu
     /// </summary>
-    Task<List<PrescriptionTemplateDto>> GetPrescriptionTemplatesAsync(Guid? departmentId, Guid? userId);
+    Task<List<InpatientPrescriptionTemplateDto>> GetPrescriptionTemplatesAsync(Guid? departmentId, Guid? userId);
 
     /// <summary>
     /// Kê theo mẫu

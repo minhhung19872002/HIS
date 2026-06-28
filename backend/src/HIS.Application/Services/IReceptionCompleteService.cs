@@ -421,7 +421,7 @@ public interface IReceptionCompleteService
     /// <summary>
     /// Sửa chỉ định dịch vụ
     /// </summary>
-    Task<ServiceOrderResultDto> UpdateServiceOrderAsync(Guid orderId, ServiceOrderItemDto dto, Guid userId);
+    Task<ServiceOrderResultDto> UpdateServiceOrderAsync(Guid orderId, ReceptionServiceOrderItemDto dto, Guid userId);
 
     /// <summary>
     /// Xóa chỉ định dịch vụ

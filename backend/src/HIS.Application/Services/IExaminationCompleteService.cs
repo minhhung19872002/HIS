@@ -493,12 +493,12 @@ public interface IExaminationCompleteService
     /// <summary>
     /// Tạo đơn thuốc mới
     /// </summary>
-    Task<PrescriptionFullDto> CreatePrescriptionAsync(CreatePrescriptionDto dto, Guid prescribingUserId = default);
+    Task<PrescriptionFullDto> CreatePrescriptionAsync(CreateExaminationPrescriptionDto dto, Guid prescribingUserId = default);
 
     /// <summary>
     /// Cập nhật đơn thuốc
     /// </summary>
-    Task<PrescriptionFullDto> UpdatePrescriptionAsync(Guid id, CreatePrescriptionDto dto);
+    Task<PrescriptionFullDto> UpdatePrescriptionAsync(Guid id, CreateExaminationPrescriptionDto dto);
 
     /// <summary>
     /// Xóa đơn thuốc
@@ -552,22 +552,22 @@ public interface IExaminationCompleteService
     /// <summary>
     /// Kiểm tra quy định kê đơn BHYT
     /// </summary>
-    Task<List<PrescriptionWarningDto>> ValidateBhytPrescriptionAsync(Guid examinationId, CreatePrescriptionDto dto);
+    Task<List<PrescriptionWarningDto>> ValidateBhytPrescriptionAsync(Guid examinationId, CreateExaminationPrescriptionDto dto);
 
     /// <summary>
     /// Lấy danh sách mẫu đơn thuốc
     /// </summary>
-    Task<List<PrescriptionTemplateDto>> GetPrescriptionTemplatesAsync(Guid? departmentId = null);
+    Task<List<ExaminationPrescriptionTemplateDto>> GetPrescriptionTemplatesAsync(Guid? departmentId = null);
 
     /// <summary>
     /// Tạo mẫu đơn thuốc
     /// </summary>
-    Task<PrescriptionTemplateDto> CreatePrescriptionTemplateAsync(PrescriptionTemplateDto dto);
+    Task<ExaminationPrescriptionTemplateDto> CreatePrescriptionTemplateAsync(ExaminationPrescriptionTemplateDto dto);
 
     /// <summary>
     /// Cập nhật mẫu đơn thuốc
     /// </summary>
-    Task<PrescriptionTemplateDto> UpdatePrescriptionTemplateAsync(Guid id, PrescriptionTemplateDto dto);
+    Task<ExaminationPrescriptionTemplateDto> UpdatePrescriptionTemplateAsync(Guid id, ExaminationPrescriptionTemplateDto dto);
 
     /// <summary>
     /// Xóa mẫu đơn thuốc
@@ -582,7 +582,7 @@ public interface IExaminationCompleteService
     /// <summary>
     /// Lưu đơn thuốc hiện tại thành mẫu
     /// </summary>
-    Task<PrescriptionTemplateDto> SaveAsPrescriptionTemplateAsync(Guid prescriptionId, string templateName);
+    Task<ExaminationPrescriptionTemplateDto> SaveAsPrescriptionTemplateAsync(Guid prescriptionId, string templateName);
 
     /// <summary>
     /// Lấy thư viện lời dặn

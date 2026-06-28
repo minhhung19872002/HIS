@@ -1,3 +1,4 @@
+using HIS.Application.Common;
 using HIS.Application.DTOs.Examination;
 using HIS.Core.Entities;
 using HIS.Core.Interfaces;
@@ -26,7 +27,7 @@ public class PrescriptionSafetyTests
             new Mock<IRepository<Room>>().Object,
             new Mock<IRepository<User>>().Object,
             new UnitOfWork(ctx),
-            new Mock<IHttpContextAccessor>().Object);
+            new Mock<ICurrentUserAccessor>().Object);
 
     private static (Guid examId, Guid medId) SeedScenario(HISDbContext ctx, bool withSevereAllergy)
     {
@@ -57,8 +58,8 @@ public class PrescriptionSafetyTests
         return (examId, medId);
     }
 
-    private static CreatePrescriptionDto Dto(Guid examId, Guid medId, string? overrideReason = null) =>
-        new CreatePrescriptionDto
+    private static CreateExaminationPrescriptionDto Dto(Guid examId, Guid medId, string? overrideReason = null) =>
+        new CreateExaminationPrescriptionDto
         {
             ExaminationId = examId,
             PrescriptionType = 1,

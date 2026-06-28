@@ -493,7 +493,7 @@ public class DailyOrderSummaryDto
     public int LabPendingCount { get; set; }
 
     public List<MedicineOrderItemDto> MedicineOrders { get; set; } = new();
-    public List<ServiceOrderItemDto> ServiceOrders { get; set; } = new();
+    public List<InpatientServiceOrderItemDto> ServiceOrders { get; set; } = new();
     public List<LabResultItemDto> LabResults { get; set; } = new();
 }
 
@@ -516,7 +516,7 @@ public class MedicineOrderItemDto
 /// <summary>
 /// DTO item dịch vụ y lệnh
 /// </summary>
-public class ServiceOrderItemDto
+public class InpatientServiceOrderItemDto
 {
     public Guid Id { get; set; }
     public string ServiceCode { get; set; } = string.Empty;

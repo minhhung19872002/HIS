@@ -768,7 +768,7 @@ public partial class InpatientCompleteController : ControllerBase
     /// Lấy danh sách đơn thuốc mẫu
     /// </summary>
     [HttpGet("prescription-templates")]
-    public async Task<ActionResult<List<PrescriptionTemplateDto>>> GetPrescriptionTemplates([FromQuery] Guid? departmentId)
+    public async Task<ActionResult<List<InpatientPrescriptionTemplateDto>>> GetPrescriptionTemplates([FromQuery] Guid? departmentId)
     {
         var result = await _inpatientService.GetPrescriptionTemplatesAsync(departmentId, GetCurrentUserId());
         return Ok(result);
@@ -778,7 +778,7 @@ public partial class InpatientCompleteController : ControllerBase
     /// Tạo đơn thuốc mẫu
     /// </summary>
     [HttpPost("prescription-templates")]
-    public async Task<ActionResult<PrescriptionTemplateDto>> CreatePrescriptionTemplate([FromBody] PrescriptionTemplateDto dto)
+    public async Task<ActionResult<InpatientPrescriptionTemplateDto>> CreatePrescriptionTemplate([FromBody] InpatientPrescriptionTemplateDto dto)
     {
         var result = await _inpatientService.CreatePrescriptionTemplateAsync(dto, GetCurrentUserId());
         return Ok(result);

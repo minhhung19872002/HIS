@@ -48,7 +48,7 @@ public partial class ExaminationCompleteService
         return prescription != null ? MapToPrescriptionFullDto(prescription) : null;
     }
 
-    public async Task<PrescriptionFullDto> CreatePrescriptionAsync(Application.DTOs.Examination.CreatePrescriptionDto dto, Guid prescribingUserId = default)
+    public async Task<PrescriptionFullDto> CreatePrescriptionAsync(Application.DTOs.Examination.CreateExaminationPrescriptionDto dto, Guid prescribingUserId = default)
     {
         var examination = await _context.Examinations
             .Include(e => e.MedicalRecord)
@@ -122,7 +122,7 @@ public partial class ExaminationCompleteService
         return MapToPrescriptionFullDto(prescription);
     }
 
-    public async Task<PrescriptionFullDto> UpdatePrescriptionAsync(Guid id, Application.DTOs.Examination.CreatePrescriptionDto dto)
+    public async Task<PrescriptionFullDto> UpdatePrescriptionAsync(Guid id, Application.DTOs.Examination.CreateExaminationPrescriptionDto dto)
     {
         var prescription = await _context.Prescriptions
             .Include(p => p.Details)
@@ -439,7 +439,7 @@ public partial class ExaminationCompleteService
         return warnings;
     }
 
-    public async Task<List<PrescriptionWarningDto>> ValidateBhytPrescriptionAsync(Guid examinationId, Application.DTOs.Examination.CreatePrescriptionDto dto)
+    public async Task<List<PrescriptionWarningDto>> ValidateBhytPrescriptionAsync(Guid examinationId, Application.DTOs.Examination.CreateExaminationPrescriptionDto dto)
     {
         var warnings = new List<PrescriptionWarningDto>();
 
@@ -486,7 +486,7 @@ public partial class ExaminationCompleteService
         return warnings;
     }
 
-    public async Task<List<PrescriptionTemplateDto>> GetPrescriptionTemplatesAsync(Guid? departmentId = null)
+    public async Task<List<ExaminationPrescriptionTemplateDto>> GetPrescriptionTemplatesAsync(Guid? departmentId = null)
     {
         var query = _context.PrescriptionTemplates
             .Include(t => t.Items)
@@ -498,7 +498,7 @@ public partial class ExaminationCompleteService
 
         return await query
             .OrderBy(t => t.TemplateName)
-            .Select(t => new PrescriptionTemplateDto
+            .Select(t => new ExaminationPrescriptionTemplateDto
             {
                 Id = t.Id,
                 TemplateCode = t.TemplateCode,
@@ -507,7 +507,7 @@ public partial class ExaminationCompleteService
                 DiagnosisCode = t.DiagnosisCode,
                 DiagnosisName = t.DiagnosisName,
                 IsPublic = t.IsPublic,
-                TemplateItems = t.Items.Select(i => new PrescriptionTemplateItemDto
+                TemplateItems = t.Items.Select(i => new ExaminationPrescriptionTemplateItemDto
                 {
                     MedicineId = i.MedicineId,
                     MedicineCode = i.Medicine.MedicineCode,
@@ -523,7 +523,7 @@ public partial class ExaminationCompleteService
             .ToBoundedListAsync("ExaminationCompleteService.GetPrescriptionTemplatesAsync");
     }
 
-    public async Task<PrescriptionTemplateDto> CreatePrescriptionTemplateAsync(PrescriptionTemplateDto dto)
+    public async Task<ExaminationPrescriptionTemplateDto> CreatePrescriptionTemplateAsync(ExaminationPrescriptionTemplateDto dto)
     {
         var template = new PrescriptionTemplate
         {
@@ -564,7 +564,7 @@ public partial class ExaminationCompleteService
         return dto;
     }
 
-    public async Task<PrescriptionTemplateDto> UpdatePrescriptionTemplateAsync(Guid id, PrescriptionTemplateDto dto)
+    public async Task<ExaminationPrescriptionTemplateDto> UpdatePrescriptionTemplateAsync(Guid id, ExaminationPrescriptionTemplateDto dto)
     {
         var template = await _context.PrescriptionTemplates
             .Include(t => t.Items)
@@ -627,7 +627,7 @@ public partial class ExaminationCompleteService
 
         if (template == null) throw new Exception("Template not found");
 
-        var createDto = new Application.DTOs.Examination.CreatePrescriptionDto
+        var createDto = new Application.DTOs.Examination.CreateExaminationPrescriptionDto
         {
             ExaminationId = examinationId,
             PrescriptionType = 1,
@@ -648,7 +648,7 @@ public partial class ExaminationCompleteService
         return await CreatePrescriptionAsync(createDto);
     }
 
-    public async Task<PrescriptionTemplateDto> SaveAsPrescriptionTemplateAsync(Guid prescriptionId, string templateName)
+    public async Task<ExaminationPrescriptionTemplateDto> SaveAsPrescriptionTemplateAsync(Guid prescriptionId, string templateName)
     {
         var prescription = await _context.Prescriptions
             .Include(p => p.Details)
@@ -656,13 +656,13 @@ public partial class ExaminationCompleteService
 
         if (prescription == null) throw new Exception("Prescription not found");
 
-        var dto = new PrescriptionTemplateDto
+        var dto = new ExaminationPrescriptionTemplateDto
         {
             TemplateName = templateName,
             DiagnosisCode = prescription.DiagnosisCode,
             DiagnosisName = prescription.DiagnosisName,
             IsPublic = false,
-            TemplateItems = prescription.Details.Select(d => new PrescriptionTemplateItemDto
+            TemplateItems = prescription.Details.Select(d => new ExaminationPrescriptionTemplateItemDto
             {
                 MedicineId = d.MedicineId,
                 Quantity = d.Quantity,

@@ -768,12 +768,12 @@ public class HistoryDisplayConfigDto
 public class ReceptionServiceOrderDto
 {
     public Guid MedicalRecordId { get; set; }
-    public List<ServiceOrderItemDto> Services { get; set; } = new();
+    public List<ReceptionServiceOrderItemDto> Services { get; set; } = new();
     public bool AutoSelectRoom { get; set; } = true;
     public bool CalculateOptimalPath { get; set; } // Tính đường đi ngắn nhất (TT54)
 }
 
-public class ServiceOrderItemDto
+public class ReceptionServiceOrderItemDto
 {
     public Guid ServiceId { get; set; }
     public string? ServiceCode { get; set; }
