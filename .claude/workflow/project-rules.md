@@ -37,11 +37,27 @@
      Làm trên cây CŨ (behind>0) = **gốc gây trùng** (phiên 2026-06-15: local tụt 34 commit → làm lại #142/#101 đã có trên origin).
   2. **Verify-against-CODE, KHÔNG tin issue-state:** `grep`/`Read` CODE **đã sync** cho symbol/route/file của tính năng.
      **Đã có → đóng issue (already-done), KHÔNG làm lại.** Issue OPEN chỉ là chỉ báo **trễ** (đóng theo lô) — **CODE là phán quyết**.
-  3. **CLAIM-FIRST (GATE — hành động ĐẦU TIÊN ngay khi chốt task):** `gh issue edit <n> --add-label in-progress --add-assignee @me`.
-     Bước 1-2 (sync + existence-check) là kiểm-tra-NHẸ để CHỌN, ĐƯỢC làm trước claim; **mọi việc "làm task" — đo-scope ·
-     đọc-file · impact-analysis · viết code — chỉ SAU claim.** Issue đã in-progress + assignee KHÁC mình → **DỪNG, không pick**.
-     Label mechanics (giữ/gỡ khi blocked/đổi-task/close) = nguồn-chủ `CLAUDE.md` §"Quản lý plan/task".
-  4. Nguồn-sự-thật = **git log origin + CODE đã sync + Issues** (memory `feedback_fetch-origin-before-backlog`), KHÔNG phải docs local.
+  3. 🔴 **WORKING-TREE FOREIGN-EDIT SCAN (chống 2 cửa CÙNG MÁY pick TRÙNG issue — gốc lỗi 2026-06-28):** ngay TRƯỚC claim
+     **VÀ** ngay trước Edit đầu tiên → **`git status --short`**. File dirty mà **mình CHƯA sửa** = **cửa Claude/`agy` khác
+     đang làm DỞ** (uncommitted + chưa kịp claim) → **4 check kia KHÔNG thấy** (chúng chỉ thấy state đã-commit/đã-push/đã-label;
+     working-tree là tín hiệu cùng-máy SỚM NHẤT). → Map file lạ về module/issue: **trùng vùng/file của candidate → cửa khác
+     đã ôm → ĐỔI candidate khác**, KHÔNG claim chồng. KHÔNG đụng/stage file lạ (R4 `parallel-windows.md`).
+     ⚠️ **Issue decompose theo LOẠI** (vd #354/#355/#356 con #196 — chia theo *type-site*, KHÔNG theo *file* → **cùng file**)
+     = **SINGLE-OWNER**: 1 cửa ôm CẢ cụm sibling; cửa khác KHÔNG pick sibling (claim 1 con KHÔNG đủ tách vùng).
+  4. **CLAIM-FIRST (GATE — hành động ĐẦU TIÊN ngay khi chốt task):** `bash .claude/window-lock.sh claim <issue|slug> [model]`
+     (⚠️ cửa **PowerShell**: `powershell -File .claude/window-lock.ps1 claim ...` — ĐỪNG gõ `bash` trực tiếp = WSL rỗng → lock câm)
+     — 1 lệnh lo CẢ HAI trục (ma trận `parallel-windows.md` §2 STEP-0); PreToolUse gate `hooks/pre-edit-lock-gate.sh` **ép** khi ≥2 cửa:
+     - 🔴 **same-machine (4 cửa/1 máy):** `mkdir .claude/locks/<key>` **ATOMIC** = mutex thật → đúng 1 cửa thắng dù pick đồng
+       thời; cửa khác `[BUSY]` → **ĐỔI task**. ⚠️ **Đây là tầng DUY NHẤT chặn trùng-cửa same-machine** — vì 4 cửa = **CÙNG 1
+       tài khoản GitHub**, `gh` assignee/in-progress **MÙ** (cả 4 đều `@me`). **KHÔNG dựa gh cho same-machine.**
+     - **cross-machine (máy-2):** script kèm `gh issue edit --add-label in-progress --add-assignee @me`, rồi **VERIFY-AFTER-CLAIM**
+       đọc lại `gh issue view <n> --json assignees`; **có tài khoản KHÁC bạn** = máy-2 giành → **ĐỔI task** (verify-after-claim
+       CHỈ phát hiện được khi KHÁC tài khoản — same-machine vô hiệu, đã có lock lo).
+     Bước 1-3 (sync + existence-check + foreign-scan) là kiểm-tra-NHẸ để CHỌN; **mọi việc "làm task" — đo-scope · đọc-file ·
+     impact-analysis · viết code — chỉ SAU claim.** Issue đã in-progress + assignee KHÁC mình → **DỪNG, không pick**.
+     Lock theo ISSUE; **file-overlap 2 issue khác nhau cùng đụng 1 file** vẫn cần foreign-scan (bước 3) / single-owner / `git worktree`.
+     Release (`window-lock.sh release <key>` khi xong/blocked/đổi-task) + label mechanics = nguồn-chủ `CLAUDE.md` §"Quản lý plan/task".
+  5. Nguồn-sự-thật = **git log origin + CODE đã sync + working-tree + Issues** (memory `feedback_fetch-origin-before-backlog`), KHÔNG phải docs local.
 
 ## 3. Commit — quy ước (LẤP GAP)
 

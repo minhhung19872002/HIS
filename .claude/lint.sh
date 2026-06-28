@@ -74,6 +74,14 @@ for f in "$CL"/agents/*.md; do
   elif [ "$h" != "$ref" ]; then err "memory-spec block agent '$b' LỆCH so với '$refn' — sửa cho đồng bộ (boilerplate phải giống 100%)"; fi
 done
 
+echo "== [10] Script .claude chưa track (referenced mechanism untracked → dangling ref khi commit) =="
+find "$CL" -type f \( -name '*.sh' -o -name '*.ps1' \) 2>/dev/null | while read -r f; do
+  rp=$(echo "$f" | rel)
+  git -C "$ROOT" ls-files --error-unmatch "$rp" >/dev/null 2>&1 && continue   # đã track
+  git -C "$ROOT" check-ignore "$rp" >/dev/null 2>&1 && continue               # cố ý ignore
+  wrn "script chưa track: $rp (nhớ git add khi commit, kẻo lệnh tham chiếu thành command-not-found)"
+done
+
 E=$(wc -l <"$ERRF" 2>/dev/null | tr -d ' '); W=$(wc -l <"$WRNF" 2>/dev/null | tr -d ' '); rm -f "$ERRF" "$WRNF"
 echo
 if [ "${E:-0}" -gt 0 ]; then echo "LINT FAIL: $E lỗi, $W cảnh báo."; exit 1; else echo "LINT OK ✅ ($W cảnh báo)."; exit 0; fi

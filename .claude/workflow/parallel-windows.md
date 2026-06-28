@@ -14,7 +14,8 @@ chỉ cô lập *file*, KHÔNG cô lập *runtime* — đã nghiên cứu, kết
 
 **Trần phần cứng (đo trên máy 16GB này — tùy máy):** WSL2/Docker bị cap RAM nhỏ (xem `~/.wslconfig`), SQL Server idle
 đã ăn >1GB; máy thường trực ở mức commit cao → **chỉ chứa nổi 1 stack HIS + 1 phiên dev đang chạy**. Vì vậy:
-- Tối đa **4 cửa SOẠN + 1 RUNNER** chạy app. KHÔNG dựng stack/DB thứ 2.
+- **MẶC ĐỊNH 2 cửa SOẠN** (an toàn nhất); **tối đa 4 SOẠN + 1 RUNNER**. Số cửa KHÔNG phải mục tiêu — **đếm số LÀN
+  file-rời-nhau backlog THỰC có** rồi mở đúng bấy nhiêu cửa (xem §2 STEP-0). Không đủ làn rời → **ít cửa hơn**. KHÔNG dựng stack/DB thứ 2.
 - **Build TUẦN TỰ** — không bao giờ build nặng ở cả 4 cửa cùng lúc (nguy cơ OOM/swap).
 - **Không đạt được** "mỗi cửa tự chạy/test app riêng" — đó là giới hạn phần cứng, không phải thiếu kỹ thuật.
 
@@ -32,6 +33,9 @@ God-file (append-magnet) là điểm đụng chính. Chia mỗi cửa giữ mộ
 > W3/W4=file cô lập khác. **Miễn 2 cửa KHÔNG cùng chạm 1 registry/god-file/contract dùng chung.**
 > Shared/contract "committee file" (`client.ts`, `MappingProfile.cs`, `HISDbContext.cs`, core DTO, `_v2kit`) = cùng luật
 > mutex như god-file: **chỉ 1 cửa sửa/lúc**.
+> **★ Phân vùng theo CỤM-ISSUE (không chỉ god-file):** issue **decompose theo *type-site*** (vd #354/#355/#356 con #196 — bound
+> type-a / aggregate / write-bulk) chia theo *loại site* nên **cùng-file** → 2 cửa pick 2 issue-con khác nhau VẪN đụng file.
+> → 1 cửa **ôm CẢ cụm sibling** (single-owner); cửa khác KHÔNG pick sibling. Coordinator gán cụm-issue **không chồng** cho mỗi cửa.
 
 **Model gợi ý / cửa** (model là PER-CỬA; tiêu chí đầy đủ → `../../CLAUDE.md` §"Agent routing"): cửa chạm
 **DI / contract / DB / migration / refactor-rủi-ro** (thường = RUNNER) → **Opus** · cửa **refactor cơ học verify-được /
@@ -39,13 +43,43 @@ FE page / sweep import / siết `:any`** → **Sonnet** · cửa **docs / Q&A th
 **Haiku** hoặc đẩy `agy`. Đặt `/model` **một lần** khi gán vai cửa; task lệch tầng thì nudge đổi.
 
 ## 2. Nghi thức ĐẦU mỗi cửa sổ (mỗi phiên)
+**★ STEP-0 — CLAIM ATOMIC TRƯỚC KHI SỬA (an-toàn-MẶC-ĐỊNH, KHÔNG cần coordinator):** ngay khi chốt 1 task, chạy
+**`bash .claude/window-lock.sh claim <issue|slug> [model]`** TRƯỚC mọi Edit (⚠️ **M2** — từ cửa **PowerShell** phải dùng
+**`powershell -File .claude/window-lock.ps1 claim ...`**; ĐỪNG gõ `bash` trực tiếp vì `bash` trên PATH PowerShell là **WSL rỗng**
+→ exit 1, lock KHÔNG tạo **CÂM**). `mkdir` **atomic ở tầng OS** → dù N cửa cùng-máy pick cùng issue ĐỒNG THỜI, **đúng 1 cửa
+thắng lock**; cửa khác `[BUSY]` → **ĐỔI task**. Diệt gốc "2 cửa cùng máy trùng task" bằng **mutex**. Xong/đổi/blocked →
+**`window-lock.sh release <key>`** (release **kiểm session-owner** — cửa khác KHÔNG cướp được lock SỐNG; crash → `release <key> --force`).
+**★ ÉP tự động (PreToolUse gate `hooks/pre-edit-lock-gate.sh`):** chặn Edit file `backend/`/`frontend/` khi **≥2 cửa active** mà
+cửa đó **CHƯA claim lock nào** (phiên **1-cửa KHÔNG bị chặn** → 0 ma sát) — biến claim từ "nhắc" thành "ép" cho ca quên-claim.
+
+**Vì sao lock LOCAL chứ không phải GitHub:** 4 cửa cùng máy = **CÙNG 1 tài khoản GitHub** → `gh` thấy là MỘT danh tính →
+`in-progress`+assignee+verify-after-claim **MÙ với trùng-cửa same-machine** (cả 4 đều `@me`). Cần CẢ HAI trục:
+
+| trục | **same-machine** (4 cửa/1 máy) | **cross-machine** (máy-2) |
+|---|---|---|
+| **prevention** | `window-lock.sh claim` = **mkdir mutex** (nguồn-sự-thật) | `gh in-progress` + **verify-after-claim** (assignee tài khoản KHÁC = phát hiện) |
+| **attribution** | `.claude/locks/<key>/meta` (window·model·time) | `gh` assignee |
+
+**COORDINATOR = TÙY CHỌN (tối ưu, KHÔNG bắt buộc):** lock đã chặn trùng-issue nên coordinator chỉ để **chia làn tốt hơn**
+(giảm file-overlap, gán cụm sibling). Không coordinator vẫn AN TOÀN nhờ lock; có thì hiệu quả hơn. Cửa **KHÔNG cần tự đánh số**
+— `window-lock.sh` tự sinh window-tag. Đếm **làn file-rời-nhau**, mở đúng số cửa (§0).
+
+**⚠️ GIỚI HẠN lock (không nói quá):** lock theo **ISSUE** → chặn 2 cửa cùng issue. **2 issue KHÁC nhau đụng CÙNG file**
+(vd #354/#355 cùng service file) lock KHÔNG thấy → vẫn cần **foreign-scan (bước 1) + single-owner cụm**; fix triệt để
+file-overlap = **`git worktree` cho cửa edit-only** (cô lập file vật lý, gộp bằng git merge thay vì last-write-wins câm).
+Cụm decompose-theo-type (vd #196 con) = **1 làn single-owner**. Cửa **solo (1 cửa)**: vẫn nên claim (rẻ) nhưng không bắt buộc.
+
+Các bước 0-4 dưới là **PER-cửa**:
 0. **MODEL-TIER CHECK TRƯỚC TIÊN** (trước khi vào task): đánh giá tính chất task của cửa này; nếu `/model` hiện tại
    **lệch tầng** (vd Opus cho việc cơ học / Q&A) → **GỢI Ý user `/model` đúng tầng RỒI mới làm**, đừng vào việc luôn
    (tầng = bảng "Model gợi ý / cửa" §1; tiêu chí chủ: `../../CLAUDE.md` §"Agent routing"; hook `session-start.sh` đã nudge).
    Nudge **mềm** — KHÔNG tự đổi model giữa phiên.
-1. **SYNC-GATE** trước khi pick (cây sạch + `git pull --ff-only` + verify-against-CODE) — chủ: `project-rules.md` §2.
-2. **CLAIM-FIRST** ngay khi chốt task: `gh issue edit <n> --add-label in-progress --add-assignee @me` (GitHub là kênh
-   DUY NHẤT máy-2 thấy) — chủ: `project-rules.md` §2 + `../../CLAUDE.md`.
+1. **SYNC-GATE** trước khi pick (cây sạch + `git pull --ff-only` + verify-against-CODE + **`git status` foreign-edit scan
+   TRƯỚC claim**: file dirty của mình-chưa-sửa = cửa khác đã ôm vùng đó → **ĐỔI candidate**; issue **decompose-theo-type**
+   = **single-owner cả cụm sibling**) — chủ: `project-rules.md` §2 (bước 3).
+2. **CLAIM-FIRST = lock (same-machine) + gh (cross-machine):** chạy `bash .claude/window-lock.sh claim <issue|slug> [model]`
+   — với key là **số issue** nó tự làm CẢ HAI: `mkdir` mutex local (chống trùng-cửa cùng máy) **và** `gh issue edit --add-label
+   in-progress --add-assignee @me` + **verify-after-claim** (assignee tài khoản KHÁC = máy-2 giành → ĐỔI task). Chủ: `project-rules.md` §2 (bước 4) + `../../CLAUDE.md`.
 3. **Khai báo allow-list**: nêu rõ *cửa này = issue/module nào + sẽ chạm file/thư mục nào*. Chỉ sửa trong allow-list.
 4. **Quy tắc nhận diện chéo:** thấy `git status` có file dirty **ngoài allow-list của mình** → đó là **cửa Claude khác
    HOẶC `agy`** (không phải "Antigravity" mặc định) → **KHÔNG đụng, KHÔNG stage, KHÔNG nhận là việc của mình.**
@@ -99,6 +133,8 @@ FE page / sweep import / siết `:any`** → **Sonnet** · cửa **docs / Q&A th
 | 12 | **STATUS.md Stop-hook** chặn nhầm (thấy file cửa khác) | 🟡 | R6: không commit file lạ; runner giữ STATUS |
 | 13 | **CRLF churn** (autocrlf=true) phình diff/giả conflict | 🟡 | R4: Edit không Write/sed; soi `git diff` trước add (`feedback_windows-line-ending-sed-churn`) |
 | 14 | **DROP/seed phá DB chung** (runner chạy mọi script mỗi startup) | 🔴 | R3 idempotent + không DROP mù; mọi script destructive review tay; (tùy) DB riêng/cửa |
+| 15 | **2 cửa CÙNG MÁY pick TRÙNG issue** (gh assignee MÙ vì cùng tài khoản; cửa khác **edit-before-claim** → `gh issue list` chưa thấy; HOẶC **decompose-theo-type** share file) | 🔴 | **FIX CHÍNH = STEP-0 atomic lock** `bash .claude/window-lock.sh claim <key>` (`mkdir` mutex — đúng 1 cửa thắng dù pick đồng thời). Bổ trợ: **foreign-edit scan** `git status` trước Edit; decompose-theo-type = **single-owner cả cụm** — chủ `project-rules.md` §2 bước 3-4 (gốc lỗi 2026-06-28) |
+| 16 | **Lock treo sau crash** (cửa giữ `.claude/locks/<key>` chết → cửa mới `[BUSY]`/gate chặn) | 🟡 | `session-start` **LIỆT KÊ** lock đang giữ + ghi active-marker (KHÔNG tự sweep); **`window-lock.sh sweep`** (chạy TAY) cảnh báo nghi-treo (**session không-active** / >12h / issue CLOSED); release **kiểm session-owner** → cửa chết thật: `window-lock.sh release <key> --force`; **lock còn sống → ĐỂ NGUYÊN**. KHÔNG auto-xoá |
 
 ## 5. An toàn đạt được & giới hạn
 - **Sau mitigation ≈ 90-93% trơn tru** (model authoring song song). ~10% còn lại đa số **hồi phục được** (git-conflict /

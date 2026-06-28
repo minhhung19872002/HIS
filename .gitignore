@@ -130,6 +130,8 @@ App_Data/
 # =========================
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+# Khoa da-cua song song (mkdir-atomic mutex same-machine, .claude/window-lock.sh) — local-may, KHONG commit (xuyen-may dung in-progress+assignee tren GitHub). Xem parallel-windows.md §2.
+.claude/locks/
 .playwright-mcp/
 
 # Prod diagnostic artifacts (ad-hoc probes, log exports, playwright reports)

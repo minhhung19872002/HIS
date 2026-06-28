@@ -19,6 +19,19 @@ rule=" ★ QUY TRÌNH BẮT BUỘC (mọi yêu cầu/phiên/máy): TEST là vi�
 model=" ★ TẦNG MODEL (mọi phiên/cửa sổ chat mới/máy): đánh giá tính chất phiên NGAY yêu cầu đầu → nếu model hiện tại lệch tầng thì GỢI Ý user /model đúng tầng TRƯỚC khi làm. Q&A/boilerplate/bulk cô lập → Sonnet (việc cơ học verify-được/Q&A thuần → Haiku). Refactor/migration/DI/contract/DB/patient-safety/tiền → Opus. Việc nhẹ/bulk cô lập KHÔNG chạm guardrail có thể đẩy subagent Haiku/Sonnet hoặc agy. Nudge mềm, không auto-switch."
 # ★ Cross-identify đa-cửa-sổ (chống nhầm 'Antigravity'): tác nhân local song song có thể là CỬA CLAUDE KHÁC. KHÔNG dùng nháy kép/backtick/$ (vỡ JSON).
 par=" ★ ĐA CỬA SỔ SONG SONG (mọi phiên/máy): thấy file dirty NGOÀI việc mình đang làm → có thể là CỬA CHAT CLAUDE KHÁC chạy song song, KHÔNG mặc định gán Antigravity/agy. Không đụng/không stage file ngoài phạm vi mình; chỉ git add tường minh file của mình. Mô hình điều phối 4 cửa: .claude/workflow/parallel-windows.md."
-msg="[HIS session] branch=${branch} · dirty=${dirty} file · unpushed=${ahead} · behind=${behind} commit.${sync}${rule}${model}${par} Đọc docs/workspace-docs/STATUS.md trước khi bắt đầu."
+# ★ Khoa da-cua same-machine (mkdir-atomic mutex .claude/locks/*). Ghi active-marker (de PreToolUse gate dem so cua) + nhac claim. KHONG dung nhay kep/backtick/$ (vo JSON).
+lockdir="${repo}/.claude/locks"
+sid="${CLAUDE_CODE_SESSION_ID:-}"
+mkdir -p "$lockdir/.active" 2>/dev/null
+[ -n "$sid" ] && touch "$lockdir/.active/$sid" 2>/dev/null
+locks=" ★ KHOA DA-CUA same-machine: neu CO THE co cua khac dang chay, claim TRUOC khi sua code de chong trung task -> bash .claude/window-lock.sh claim <issue|slug> [model] (mkdir-atomic mutex; PreToolUse gate TU EP khi >=2 cua active; phien 1-cua KHONG bi chan). Tu cua PowerShell: powershell -File .claude/window-lock.ps1 claim ... (KHONG go bash truc tiep -> WSL rong, lock cam)."
+if [ -d "$lockdir" ]; then
+  ln=$(for d in "$lockdir"/*/; do [ -d "$d" ] && echo x; done 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$ln" != "0" ]; then
+    names=$(for d in "$lockdir"/*/; do [ -d "$d" ] && basename "$d"; done 2>/dev/null | tr '\n' ' ' | tr -cd 'A-Za-z0-9 _-')
+    locks="$locks  Lock dang giu: ${ln} [ ${names}] (cua DA CHET -> release --force; con song -> DE NGUYEN; xem window-lock.sh list/sweep)."
+  fi
+fi
+msg="[HIS session] branch=${branch} · dirty=${dirty} file · unpushed=${ahead} · behind=${behind} commit.${sync}${rule}${model}${par}${locks} Đọc docs/workspace-docs/STATUS.md trước khi bắt đầu."
 printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$msg"
 exit 0
