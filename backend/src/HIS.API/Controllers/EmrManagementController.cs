@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
 using HIS.Application.Interfaces;
 using System.Security.Claims;
+using HIS.API.Dtos.EmrManagement;
 
 namespace HIS.API.Controllers;
 
@@ -205,23 +206,6 @@ public class EmrManagementController : ControllerBase
 // Small request DTOs used only by the controller to receive body parameters
 // where the service interface expects different parameter shapes
 
-public class ValidateExtractAccessRequestDto
-{
-    public string AccessCode { get; set; } = string.Empty;
-}
 
-public class ReleaseLockRequestDto
-{
-    public Guid LockId { get; set; }
-}
 
-public class ForceReleaseLockRequestDto
-{
-    public Guid LockId { get; set; }
-}
 
-public class ReopenEmrRequestDto
-{
-    public Guid ExaminationId { get; set; }
-    public string? Note { get; set; }
-}

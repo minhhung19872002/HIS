@@ -4,6 +4,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.PatientFlag;
 
 namespace HIS.API.Controllers;
 
@@ -19,13 +20,7 @@ public class PatientFlagController : ControllerBase
     private Guid GetUserId() =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
 
-    public record PatientFlagDto(
-        Guid Id, Guid PatientId, int FlagType, string FlagTypeName,
-        string Color, string Note, bool IsActive, DateTime? ExpiresAt,
-        DateTime CreatedAt, string? CreatedByName);
 
-    public record SavePatientFlagDto(
-        Guid? Id, Guid PatientId, int FlagType, string Color, string Note, DateTime? ExpiresAt);
 
     private static string MapTypeName(int t) => t switch
     {

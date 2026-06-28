@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Insurance;
+using HIS.API.Dtos.InsuranceXml;
 
 namespace HIS.API.Controllers;
 
@@ -1138,22 +1139,7 @@ public class InsuranceXmlController : ControllerBase
 
 #region Request DTOs
 
-public class VerifyCardRequest
-{
-    public string InsuranceNumber { get; set; } = string.Empty;
-    public string PatientName { get; set; } = string.Empty;
-    public DateTime DateOfBirth { get; set; }
-}
 
-public class UnlockRequest
-{
-    public string Reason { get; set; } = string.Empty;
-}
 
-public class CreateSettlementBatchRequest
-{
-    public int Month { get; set; }
-    public int Year { get; set; }
-}
 
 #endregion

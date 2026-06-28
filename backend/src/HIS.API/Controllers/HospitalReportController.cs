@@ -6,6 +6,7 @@ using HIS.Application.Services;
 using HIS.Infrastructure.Services;
 using System.Text;
 using System.Text.Json;
+using HIS.API.Dtos.HospitalReport;
 
 namespace HIS.API.Controllers
 {
@@ -121,13 +122,3 @@ namespace HIS.API.Controllers
     }
 }
 
-/// <summary>Request DTO for sending a report by email.</summary>
-public class SendReportEmailDto
-{
-    /// <summary>Địa chỉ email nhận báo cáo (bắt buộc).</summary>
-    public string ToEmail { get; set; } = string.Empty;
-    /// <summary>Ngày bắt đầu kỳ báo cáo (ghi đè query param).</summary>
-    public DateTime? From { get; set; }
-    /// <summary>Ngày kết thúc kỳ báo cáo (ghi đè query param).</summary>
-    public DateTime? To { get; set; }
-}

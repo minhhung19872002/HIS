@@ -8,6 +8,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.BhxhConfig;
 
 namespace HIS.API.Controllers;
 
@@ -43,17 +44,6 @@ public class BhxhConfigController : ControllerBase
         "BHXH.Environment", // "sandbox" | "production"
     };
 
-    public class BhxhConfigDto
-    {
-        public string? GatewayUrl { get; set; }
-        public string? TokenUrl { get; set; }
-        public string? Username { get; set; }
-        public string? Password { get; set; }
-        public string? MaCSKCB { get; set; }
-        public string? MaDVI { get; set; }
-        public int Timeout { get; set; } = 30;
-        public string? Environment { get; set; } = "sandbox";
-    }
 
     [HttpGet]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.InsuranceManager)]
@@ -208,11 +198,6 @@ public class BhxhConfigController : ControllerBase
         }
     }
 
-    public class TestSubmitXmlDto
-    {
-        public string Xml { get; set; } = string.Empty;
-        public string? Endpoint { get; set; } // phần path vd "/api/bhxh/xml"
-    }
 
     /// <summary>Test submit XML thô tới gateway — dry-run.</summary>
     [HttpPost("test-submit-xml")]

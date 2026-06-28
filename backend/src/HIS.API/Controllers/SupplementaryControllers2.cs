@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
+using HIS.API.Dtos.SupplementaryControllers2;
 
 namespace HIS.API.Controllers;
 
@@ -551,17 +552,5 @@ public class BhxhAuditController : ControllerBase
 
 // === Request DTOs ===
 
-public class ApproveAuditSessionDto
-{
-    public string? Notes { get; set; }
-}
 
-public class BatchSubmitAuditDto
-{
-    public List<Guid> SessionIds { get; set; } = new();
-}
 
-public class BatchExportXmlDto
-{
-    public List<Guid> SessionIds { get; set; } = new();
-}

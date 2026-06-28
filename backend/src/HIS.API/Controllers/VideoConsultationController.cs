@@ -5,6 +5,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.VideoConsultation;
 
 namespace HIS.API.Controllers;
 
@@ -38,39 +39,7 @@ public class VideoConsultationController : ControllerBase
         return $"his-{DateTime.Now:yyMMdd}-{Convert.ToHexString(bytes).ToLowerInvariant()}";
     }
 
-    public record CreateRoomDto(
-        string Title,
-        int RoomType,
-        string? Description,
-        string? StudyInstanceUID,
-        Guid? PatientId,
-        Guid? MedicalRecordId,
-        DateTime? ScheduledAt,
-        bool IsRecorded,
-        string? Password,
-        string[]? InviteEmails);
 
-    public record RoomDto(
-        Guid Id,
-        string RoomName,
-        string Title,
-        int RoomType,
-        string? StudyInstanceUID,
-        Guid? PatientId,
-        string? PatientName,
-        Guid HostUserId,
-        string? HostName,
-        DateTime ScheduledAt,
-        DateTime? StartedAt,
-        DateTime? EndedAt,
-        int Status,
-        string StatusText,
-        bool IsRecorded,
-        string? RecordingUrl,
-        bool HasPassword,
-        string JitsiUrl,
-        string? ConclusionNote,
-        DateTime CreatedAt);
 
     private string BuildJitsiUrl(string roomName) => $"{JitsiBaseUrl}/{roomName}";
 
@@ -183,9 +152,7 @@ public class VideoConsultationController : ControllerBase
         return Ok(ToDto(r));
     }
 
-    public record EndRoomDto(string? ConclusionNote);
 
-    public record JoinDto(string DisplayName, string? Email, string? Role);
 
     [HttpPost("{id:guid}/join")]
     public async Task<IActionResult> Join(Guid id, [FromBody] JoinDto dto)
@@ -244,5 +211,4 @@ public class VideoConsultationController : ControllerBase
         return Ok(new { success = true });
     }
 
-    public record CancelDto(string? Reason);
 }

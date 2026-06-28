@@ -6,6 +6,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.StudyShare;
 
 namespace HIS.API.Controllers;
 
@@ -33,27 +34,7 @@ public class StudyShareController : ControllerBase
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
-    public record CreateShareDto(
-        string StudyInstanceUID,
-        string? OrthancStudyId,
-        Guid? PatientId,
-        string? Password,
-        bool HideDemographics,
-        int? ExpiresInMinutes,
-        int? MaxViews);
 
-    public record ShareLinkDto(
-        Guid Id,
-        string Token,
-        string Url,
-        string StudyInstanceUID,
-        bool HasPassword,
-        bool HideDemographics,
-        DateTime? ExpiresAt,
-        int? MaxViews,
-        int ViewCount,
-        DateTime CreatedAt,
-        bool IsRevoked);
 
     [HttpPost]
     [Authorize]
@@ -134,17 +115,7 @@ public class StudyShareController : ControllerBase
         return Ok(new { success = true });
     }
 
-    public record RevokeDto(string? Reason);
 
-    public record AccessDto(string? Password);
-    public record AccessResultDto(
-        string StudyInstanceUID,
-        string? OrthancStudyId,
-        bool HideDemographics,
-        string? PatientName,
-        string? PatientCode,
-        DateTime? ExpiresAt,
-        bool RequiresPassword);
 
     /// <summary>
     /// Public access endpoint. Không yêu cầu authentication — chỉ cần token + password.

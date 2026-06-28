@@ -5,6 +5,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.InpatientDispensing;
 
 namespace HIS.API.Controllers;
 
@@ -73,13 +74,6 @@ public class InpatientDispensingController : ControllerBase
         return Ok(groups);
     }
 
-    public class BatchDispenseDto
-    {
-        public Guid WarehouseId { get; set; }
-        public Guid DepartmentId { get; set; }
-        public List<Guid> PrescriptionIds { get; set; } = new();
-        public string? Note { get; set; }
-    }
 
     /// <summary>
     /// Tạo 1 phiếu xuất tổng hợp cho nhiều đơn thuốc cùng 1 khoa.

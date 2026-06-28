@@ -2,6 +2,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.SampleBatch;
 
 namespace HIS.API.Controllers;
 
@@ -18,21 +19,7 @@ public class SampleBatchController : ControllerBase
 
     public SampleBatchController(HISDbContext db) { _db = db; }
 
-    public record SampleItemDto(
-        Guid Id,
-        string? SampleBarcode,
-        string? SampleType,
-        string TestName,
-        string PatientName,
-        string PatientCode,
-        DateTime CollectedAt,
-        Guid? CollectedBy,
-        string? CollectorName,
-        int Priority,
-        int Status);
 
-    public record BatchDto(string BatchName, int Count, IReadOnlyList<SampleItemDto> Items);
-    public record BatchReportDto(DateTime Date, IReadOnlyList<BatchDto> Batches, int Total);
 
     [HttpGet]
     public async Task<ActionResult<BatchReportDto>> GetBatches([FromQuery] DateTime? date)

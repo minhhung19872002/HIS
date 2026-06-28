@@ -5,6 +5,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.OfficeSupply;
 
 namespace HIS.API.Controllers;
 
@@ -77,22 +78,7 @@ public class OfficeSupplyController : ControllerBase
         }));
     }
 
-    public class OfficeRequestItemDto
-    {
-        public Guid SupplyId { get; set; }
-        public decimal RequestedQuantity { get; set; }
-        public string? Unit { get; set; }
-        public decimal UnitPrice { get; set; }
-        public string? Note { get; set; }
-    }
 
-    public class CreateOfficeRequestDto
-    {
-        public Guid DepartmentId { get; set; }
-        public Guid WarehouseId { get; set; }
-        public List<OfficeRequestItemDto> Items { get; set; } = new();
-        public string? Note { get; set; }
-    }
 
     /// <summary>Tạo phiếu yêu cầu VPP (status = 2 Đã chuyển).</summary>
     [HttpPost("requests")]
@@ -196,13 +182,6 @@ public class OfficeSupplyController : ControllerBase
         return Ok(new { id, status = 1 });
     }
 
-    public class ApproveOfficeDto
-    {
-        public Guid Id { get; set; }
-        /// <summary>SupplyApprovalItemId → quantity approved; if omitted, approves RequestedQuantity</summary>
-        public Dictionary<Guid, decimal>? ApprovedQuantities { get; set; }
-        public string? Note { get; set; }
-    }
 
     /// <summary>Duyệt phiếu VPP — trừ tồn + tạo ExportReceipt.</summary>
     [HttpPost("requests/approve")]
@@ -345,13 +324,6 @@ public class OfficeSupplyController : ControllerBase
         }));
     }
 
-    public class CreateReturnDto
-    {
-        public Guid DepartmentId { get; set; }
-        public Guid WarehouseId { get; set; }
-        public List<OfficeRequestItemDto> Items { get; set; } = new();
-        public string? Note { get; set; }
-    }
 
     /// <summary>Tạo phiếu yêu cầu hoàn trả VPP.</summary>
     [HttpPost("returns")]
@@ -417,12 +389,6 @@ public class OfficeSupplyController : ControllerBase
         return Ok(new { approval.Id, approval.ApprovalCode });
     }
 
-    public class ApproveReturnDto
-    {
-        public Guid Id { get; set; }
-        public Dictionary<Guid, decimal>? ApprovedQuantities { get; set; }
-        public string? Note { get; set; }
-    }
 
     /// <summary>Duyệt phiếu hoàn trả — nhập lại tồn kho.</summary>
     [HttpPost("returns/approve")]

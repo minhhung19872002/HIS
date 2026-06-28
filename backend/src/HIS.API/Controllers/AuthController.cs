@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.API.Filters;
+using HIS.API.Dtos.Auth;
 
 namespace HIS.API.Controllers;
 
@@ -212,7 +213,3 @@ public class AuthController : ControllerBase
     }
 }
 
-public class ResendOtpRequest
-{
-    public Guid UserId { get; set; }
-}

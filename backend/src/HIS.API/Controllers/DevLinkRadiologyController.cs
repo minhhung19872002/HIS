@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HIS.API.Filters;
+using HIS.API.Dtos.DevLinkRadiology;
 
 namespace HIS.API.Controllers;
 
@@ -27,7 +28,6 @@ public class DevLinkRadiologyController : ControllerBase
         _config = config;
     }
 
-    public record LinkResult(int RequestsUpdated, int ExamsCreated, int StudiesCreated, List<string> OrthancUIDs);
 
     [HttpPost("today")]
     public async Task<ActionResult<LinkResult>> LinkToday()

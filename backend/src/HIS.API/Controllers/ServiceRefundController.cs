@@ -4,6 +4,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.ServiceRefund;
 
 namespace HIS.API.Controllers;
 
@@ -53,12 +54,6 @@ public class ServiceRefundController : ControllerBase
         }));
     }
 
-    public class RequeueDto
-    {
-        public List<Guid> ServiceRequestDetailIds { get; set; } = new();
-        public string Reason { get; set; } = string.Empty;
-        public bool KeepAsPaid { get; set; } = true; // true = kế thừa đã TT, false = chờ TT lại
-    }
 
     /// <summary>Cho lại các chỉ định — chuyển status về Chờ, log lý do.</summary>
     [HttpPost("requeue")]

@@ -5,6 +5,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.SampleCollection;
 
 namespace HIS.API.Controllers;
 
@@ -24,8 +25,6 @@ public class SampleCollectionController : ControllerBase
     private Guid GetUserId() =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
 
-    public record AssignSequenceDto(Guid ServiceRequestDetailId, string? PreferredPrefix);
-    public record AssignSequenceResultDto(string SampleBarcode, int SequenceNumber);
 
     /// <summary>
     /// Cấp STT tuần tự theo ngày cho mẫu bệnh phẩm.
@@ -65,8 +64,6 @@ public class SampleCollectionController : ControllerBase
         return Ok(new AssignSequenceResultDto(barcode, seq));
     }
 
-    public record AddTestsToSampleDto(string ExistingBarcode, List<Guid> AdditionalDetailIds);
-    public record AddTestsResultDto(int Added, string Barcode);
 
     /// <summary>
     /// Thêm XN bổ sung trên cùng 1 mẫu bệnh phẩm đã lấy — MQ Solutions "Thêm XN cùng mẫu".
@@ -103,7 +100,6 @@ public class SampleCollectionController : ControllerBase
         return Ok(new AddTestsResultDto(added, dto.ExistingBarcode));
     }
 
-    public record UpdateSequenceDto(Guid ServiceRequestDetailId, int NewSequenceNumber, string? Prefix);
 
     /// <summary>
     /// Sửa STT mẫu — đổi số thứ tự trong ngày (MQ Solutions "Sửa STT").
@@ -130,14 +126,6 @@ public class SampleCollectionController : ControllerBase
 
     // ─── Hẹn lấy mẫu / tái XN định kỳ ───────────────────────────────────────
 
-    public record CreateAppointmentDto(
-        Guid PatientId,
-        DateTime AppointmentAt,
-        string RecurrenceType,   // None / Daily / Weekly / Monthly
-        int RecurrenceCount,
-        string? ServiceName,
-        string? Note,
-        Guid? ServiceRequestDetailId);
 
     /// <summary>Tạo hẹn lấy mẫu / tái XN định kỳ.</summary>
     [HttpPost("appointments")]
@@ -265,7 +253,6 @@ public class SampleCollectionController : ControllerBase
         return Ok(new { appt.Id, appt.Status, nextAppointment = nextInfo });
     }
 
-    public record UpdateAppointmentDto(string Status, string? Note);
 
     /// <summary>Lịch sử lấy mẫu của BN, group theo ngày/đợt</summary>
     [HttpGet("history/{patientId:guid}")]

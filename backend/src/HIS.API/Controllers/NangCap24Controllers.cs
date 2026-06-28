@@ -5,6 +5,7 @@ using HIS.Application.Services;
 using HIS.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using HIS.API.Dtos.NangCap24;
 
 namespace HIS.API.Controllers;
 
@@ -122,7 +123,6 @@ public class BhxhInspectorPortalController : ControllerBase
         return NoContent();
     }
 
-    public class ResetPwDto { public string NewPassword { get; set; } = string.Empty; }
 }
 
 // ============================================================
@@ -297,15 +297,6 @@ public class Hl7QueueController : ControllerBase
         return Ok(msg);
     }
 
-    public class DemoEnqueueDto
-    {
-        public string? Direction { get; set; }
-        public string? Source { get; set; }
-        public string? Target { get; set; }
-        public string? MessageType { get; set; }
-        public string? Payload { get; set; }
-        public string? Endpoint { get; set; }
-    }
 }
 
 // ============================================================
@@ -341,13 +332,4 @@ public class DicomStudyActivityController : ControllerBase
         return NoContent();
     }
 
-    public class LogDto
-    {
-        public string StudyInstanceUid { get; set; } = string.Empty;
-        public string Action { get; set; } = string.Empty;
-        public Guid? RadiologyRequestId { get; set; }
-        public string? ActionDetails { get; set; }
-        public string? MachineName { get; set; }
-        public string? RelatedReportId { get; set; }
-    }
 }

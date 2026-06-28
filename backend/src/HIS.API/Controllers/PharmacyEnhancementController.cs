@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using HIS.API.Dtos.PharmacyEnhancement;
 
 namespace HIS.API.Controllers;
 
@@ -197,7 +198,3 @@ public class PharmacyEnhancementController : ControllerBase
     }
 }
 
-public class CancelReasonDto
-{
-    public string? Reason { get; set; }
-}

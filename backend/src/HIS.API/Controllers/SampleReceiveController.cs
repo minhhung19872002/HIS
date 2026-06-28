@@ -8,6 +8,7 @@ using HIS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.SampleReceive;
 
 namespace HIS.API.Controllers;
 
@@ -62,11 +63,6 @@ public class SampleReceiveController : ControllerBase
         }));
     }
 
-    public class ReceiveDto
-    {
-        public List<Guid> DetailIds { get; set; } = new();
-        public string? Note { get; set; }
-    }
 
     /// <summary>Nhận mẫu — đánh dấu ReceiveStatus=1.</summary>
     [HttpPost("accept")]
@@ -92,11 +88,6 @@ public class SampleReceiveController : ControllerBase
         return Ok(new { received = items.Count });
     }
 
-    public class RejectDto
-    {
-        public Guid DetailId { get; set; }
-        public string Reason { get; set; } = string.Empty;
-    }
 
     /// <summary>Từ chối mẫu (mẫu không đạt).</summary>
     [HttpPost("reject")]
@@ -117,13 +108,6 @@ public class SampleReceiveController : ControllerBase
         return Ok(new { d.Id, d.ReceiveStatus });
     }
 
-    public class RunDto
-    {
-        public Guid DetailId { get; set; }
-        public string? Result { get; set; }
-        public string? ResultDescription { get; set; }
-        public List<LabResultParameterInputDto>? Parameters { get; set; } // R1: KQ per-parameter (optional)
-    }
 
     /// <summary>KTV nhập kết quả (chưa duyệt).</summary>
     [HttpPost("technician-run")]
@@ -188,11 +172,6 @@ public class SampleReceiveController : ControllerBase
         return Ok(new { d.Id, d.TechnicianUserId, d.TechnicianRunAt });
     }
 
-    public class ReviewDto
-    {
-        public Guid DetailId { get; set; }
-        public string? Conclusion { get; set; }
-    }
 
     /// <summary>Reviewer duyệt kết quả. Bắt buộc ReviewerUserId ≠ TechnicianUserId.</summary>
     [HttpPost("review")]
@@ -214,11 +193,6 @@ public class SampleReceiveController : ControllerBase
         return Ok(new { d.Id, d.ReviewerUserId, d.ReviewedAt });
     }
 
-    public class CancelReceiveDto
-    {
-        public List<Guid> DetailIds { get; set; } = new();
-        public string? Reason { get; set; }
-    }
 
     /// <summary>Hủy nhận mẫu — đảo ReceiveStatus 1→0, clear ReceivedByUserId/At, Status về 0.</summary>
     [HttpPost("cancel-receive")]

@@ -5,6 +5,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.ReceiptBook;
 
 namespace HIS.API.Controllers;
 
@@ -192,8 +193,4 @@ public class ReceiptBookController : ControllerBase
         return NoContent();
     }
 
-    public class CloseDto
-    {
-        public string? Reason { get; set; }
-    }
 }

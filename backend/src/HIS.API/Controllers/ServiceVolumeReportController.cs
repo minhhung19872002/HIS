@@ -2,6 +2,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.ServiceVolumeReport;
 
 namespace HIS.API.Controllers;
 
@@ -18,12 +19,6 @@ public class ServiceVolumeReportController : ControllerBase
 
     public ServiceVolumeReportController(HISDbContext db) { _db = db; }
 
-    public record RoomServiceVolumeDto(
-        Guid RoomId,
-        string RoomCode,
-        string RoomName,
-        int RoomType,
-        int ServiceCount);
 
     /// <summary>Gom số phiếu chỉ định theo phòng thực hiện (ExecuteRoomId) trong [fromDate, toDate].</summary>
     [HttpGet]

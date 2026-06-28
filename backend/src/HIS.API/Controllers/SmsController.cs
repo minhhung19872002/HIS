@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Infrastructure.Services;
+using HIS.API.Dtos.Sms;
 
 namespace HIS.API.Controllers;
 
@@ -58,8 +59,3 @@ public class SmsController : ControllerBase
     }
 }
 
-public class SendTestSmsDto
-{
-    public string PhoneNumber { get; set; } = string.Empty;
-    public string? Message { get; set; }
-}

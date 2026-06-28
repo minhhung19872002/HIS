@@ -4,6 +4,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.NonDicom;
 
 namespace HIS.API.Controllers;
 
@@ -31,13 +32,6 @@ public class NonDicomController : ControllerBase
         return root;
     }
 
-    public record CreateStudyDto(
-        Guid ServiceRequestDetailId,
-        Guid PatientId,
-        string DeviceType,
-        string? DeviceName,
-        Guid? RoomId,
-        string? Description);
 
     [HttpPost("studies")]
     public async Task<IActionResult> CreateStudy([FromBody] CreateStudyDto dto)
@@ -176,7 +170,6 @@ public class NonDicomController : ControllerBase
         });
     }
 
-    public record UpdateStudyDto(string? Description, string? Findings, string? Conclusion, int? Status);
 
     [HttpPut("studies/{studyId:guid}")]
     public async Task<IActionResult> UpdateStudy(Guid studyId, [FromBody] UpdateStudyDto dto)

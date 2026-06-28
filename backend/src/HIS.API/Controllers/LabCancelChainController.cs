@@ -4,6 +4,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.LabCancelChain;
 
 namespace HIS.API.Controllers;
 
@@ -35,9 +36,6 @@ public class LabCancelChainController : ControllerBase
     private Guid GetUserId() =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
 
-    // Giữ tên field cũ cho tương thích, NHƯNG nay là id của ServiceRequestDetail/ServiceRequest (model 1).
-    public record CancelRequest(Guid ServiceRequestDetailId, string Reason);
-    public record CancelResponse(bool Success, int NewStatus, string NewStatusLabel, string Message);
 
     private static string StatusLabel(int s) => s switch
     {

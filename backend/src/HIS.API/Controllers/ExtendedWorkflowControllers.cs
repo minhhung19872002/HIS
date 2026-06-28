@@ -13,6 +13,7 @@ using HIS.Application.DTOs.QualityManagement;
 using HIS.Application.DTOs.PatientPortal;
 using HIS.Application.DTOs.HealthExchange;
 using HIS.Application.DTOs.MassCasualty;
+using HIS.API.Dtos.ExtendedWorkflow;
 
 namespace HIS.API.Controllers
 {
@@ -102,12 +103,6 @@ namespace HIS.API.Controllers
             => Ok(await _service.SendPrescriptionToPharmacyAsync(dto));
     }
 
-    public class CreateTelePrescriptionRequest
-    {
-        public Guid SessionId { get; set; }
-        public List<TelePrescriptionItemDto>? Items { get; set; }
-        public string? Note { get; set; }
-    }
 
     #endregion
 
@@ -189,8 +184,6 @@ namespace HIS.API.Controllers
             => Ok(await _service.GetDashboardAsync(date));
     }
 
-    public class GenerateMealPlanRequest { public DateTime Date { get; set; } public string? MealType { get; set; } public Guid? DepartmentId { get; set; } }
-    public class MarkMealDeliveredRequest { public Guid DietOrderId { get; set; } public DateTime Date { get; set; } public string? MealType { get; set; } }
 
     #endregion
 
@@ -296,7 +289,6 @@ namespace HIS.API.Controllers
             => Ok(await _service.GetDashboardAsync(date));
     }
 
-    public class ReviewAntibioticRequest { public string? Outcome { get; set; } public string? Notes { get; set; } }
 
     #endregion
 
@@ -446,11 +438,6 @@ namespace HIS.API.Controllers
         }
     }
 
-    // NangCap12 request DTOs for Rehabilitation
-    public class RejectReferralRequest { public string Reason { get; set; } = string.Empty; }
-    public class GoalProgressRequest { public decimal ProgressPercent { get; set; } public string Notes { get; set; } = string.Empty; }
-    public class ScheduleSessionRequest { public Guid PlanId { get; set; } public DateTime Date { get; set; } public TimeSpan Time { get; set; } public string Location { get; set; } = string.Empty; }
-    public class CancelSessionRequest { public string Reason { get; set; } = string.Empty; }
 
     #endregion
 
@@ -872,7 +859,6 @@ namespace HIS.API.Controllers
             => Ok(await _service.UpdateCorrectiveActionStatusAsync(actionId, req.Status ?? "", req.Notes ?? ""));
     }
 
-    public class UpdateCorrectiveActionRequest { public string? Status { get; set; } public string? Notes { get; set; } }
 
     #endregion
 
@@ -1023,12 +1009,6 @@ namespace HIS.API.Controllers
             return Ok(new { success = ok, message = ok ? "Liên kết thành công" : "Thông tin xác minh không khớp" });
         }
 
-        public class LinkPatientRecordRequestDto
-        {
-            public Guid AccountId { get; set; }
-            public string? PatientCode { get; set; }
-            public string? VerificationData { get; set; }
-        }
 
         [HttpGet("account")]
         [Authorize]

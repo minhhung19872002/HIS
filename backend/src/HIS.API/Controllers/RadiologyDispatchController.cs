@@ -5,6 +5,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.RadiologyDispatch;
 
 namespace HIS.API.Controllers;
 
@@ -21,11 +22,6 @@ public class RadiologyDispatchController : ControllerBase
 
     // ==================== Dispatch ====================
 
-    public record CreateDispatchDto(
-        Guid ServiceRequestDetailId,
-        Guid RoomId,
-        int? Priority,
-        string? Note);
 
     [HttpPost]
     public async Task<IActionResult> Dispatch([FromBody] CreateDispatchDto dto)
@@ -232,14 +228,6 @@ public class RadiologyDispatchController : ControllerBase
 
     // ==================== Permissions ====================
 
-    public record SavePermissionDto(
-        Guid UserId,
-        Guid? RoomId,
-        /// <summary>G-36: FK sang RadiologyModalities.Id — null = áp dụng mọi loại máy</summary>
-        Guid? ModalityId,
-        string? ModalityType,
-        int Permissions,
-        string? RoleTemplate);
 
     [HttpPost("permissions")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.DepartmentHead)]

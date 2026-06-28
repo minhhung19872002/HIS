@@ -6,6 +6,7 @@ using HIS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.AiLabeling;
 
 namespace HIS.API.Controllers;
 
@@ -41,62 +42,10 @@ public class AiLabelingController : ControllerBase
     private Guid GetUserId() =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
 
-    public record SaveAiResultDto(
-        string StudyInstanceUID,
-        Guid? PatientId,
-        Guid? RadiologyRequestId,
-        string ModelName,
-        string? ModelVersion,
-        string? ModelUrl,
-        int DurationMs,
-        string LabelsJson,
-        string? InputImageHash,
-        int? InputWidth,
-        int? InputHeight,
-        string? ErrorMessage);
 
-    public record ReviewDto(
-        int ReviewStatus,          // 1=accept all, 2=accept partial, 3=reject
-        string? AcceptedLabelsJson,
-        string? ReviewNote);
 
-    public record AiResultDto(
-        Guid Id,
-        string StudyInstanceUID,
-        string ModelName,
-        string? ModelVersion,
-        int DurationMs,
-        string LabelsJson,
-        int ReviewStatus,
-        string ReviewStatusLabel,
-        string? AcceptedLabelsJson,
-        Guid? ReviewedBy,
-        string? ReviewedByName,
-        DateTime? ReviewedAt,
-        string? ReviewNote,
-        string? CreatedBy,
-        string? CreatedByName,
-        DateTime CreatedAt,
-        string? ErrorMessage);
 
-    public record ModelConfigDto(
-        string ModelUrl,
-        string ModelName,
-        string ModelVersion,
-        IReadOnlyList<string> Labels,
-        IReadOnlyList<string> LabelsVi,
-        int InputWidth,
-        int InputHeight,
-        string Modality,
-        bool Available);
 
-    public record ModalitySummaryDto(
-        string Modality,
-        IReadOnlyList<string> Aliases,
-        string ModelName,
-        string ModelVersion,
-        bool Available,
-        string? Note);
 
     /// <summary>
     /// Phase 1 multi-modality: pick the ONNX model whose `Modalities[]` list
@@ -456,16 +405,6 @@ public class AiLabelingController : ControllerBase
     // Phase 4 — Worklist + Vendor adapter
     // =========================================================================
 
-    public record QueueItemDto(
-        Guid Id,
-        string StudyInstanceUID,
-        Guid? PatientId,
-        string? PatientName,
-        Guid? RadiologyRequestId,
-        string? RequestCode,
-        string? Modality,
-        DateTime QueuedAt,
-        bool AutoQueued);
 
     /// <summary>
     /// Danh sách ca AI đang chờ BS xem xét. Bao gồm:
@@ -523,10 +462,6 @@ public class AiLabelingController : ControllerBase
         return Ok(dtos);
     }
 
-    public record ProviderDto(
-        string Id,
-        string Name,
-        IReadOnlyList<string> SupportedModalities);
 
     /// <summary>
     /// List các AI vendor đã cấu hình trong appsettings.AiLabeling.Providers[].
@@ -548,13 +483,6 @@ public class AiLabelingController : ControllerBase
         return Ok(result);
     }
 
-    public record RunViaProviderDto(
-        string ProviderId,
-        string StudyInstanceUID,
-        string Modality,
-        string? ImageUrl,
-        Guid? PatientId,
-        Guid? RadiologyRequestId);
 
     /// <summary>
     /// Trigger server-side inference qua 1 vendor cụ thể. Vendor nhận ImageUrl

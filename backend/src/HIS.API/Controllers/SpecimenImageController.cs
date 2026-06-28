@@ -4,6 +4,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.SpecimenImage;
 
 namespace HIS.API.Controllers;
 
@@ -41,14 +42,6 @@ public class SpecimenImageController : ControllerBase
 
     // ─── Upload ──────────────────────────────────────────────────────
 
-    public record UploadResultDto(
-        Guid? PathologyResultId,
-        Guid? ServiceRequestDetailId,
-        Guid? ServiceRequestId,
-        string? Caption,
-        string? Magnification,
-        /// <summary>manual | webcam | microscope</summary>
-        string Source = "manual");
 
     /// <summary>
     /// Upload ảnh (file) đính kèm vào KQ XN / GPB.
@@ -124,15 +117,6 @@ public class SpecimenImageController : ControllerBase
 
     // ─── Upload base64 (từ webcam getUserMedia) ──────────────────────
 
-    public record UploadBase64Dto(
-        string Base64Data,
-        string MimeType,
-        Guid? PathologyResultId,
-        Guid? ServiceRequestDetailId,
-        Guid? ServiceRequestId,
-        string? Caption,
-        string? Magnification,
-        string Source = "webcam");
 
     /// <summary>
     /// Upload ảnh dưới dạng base64 (từ webcam getUserMedia canvas.toDataURL).
@@ -323,7 +307,6 @@ public class SpecimenImageController : ControllerBase
 
     // ─── Update metadata ──────────────────────────────────────────────
 
-    public record UpdateImageDto(string? Caption, string? Magnification, bool? IncludeInReport, int? SortOrder);
 
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateImageDto dto)

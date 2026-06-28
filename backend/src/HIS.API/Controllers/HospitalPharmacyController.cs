@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
+using HIS.API.Dtos.HospitalPharmacy;
 
 namespace HIS.API.Controllers;
 
@@ -212,7 +213,3 @@ public class HospitalPharmacyController : ControllerBase
     }
 }
 
-public class CancelSaleDto
-{
-    public string Reason { get; set; } = string.Empty;
-}

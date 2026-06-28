@@ -5,6 +5,7 @@ using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.API.Dtos.RadiologyOperations;
 
 namespace HIS.API.Controllers;
 
@@ -22,13 +23,6 @@ public class RadiologyOperationsController : ControllerBase
     private Guid GetUserId() =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
 
-    public class AddOnDto
-    {
-        public Guid ParentRequestId { get; set; }
-        public List<Guid> ServiceIds { get; set; } = new();
-        public string? Reason { get; set; }
-        public bool WithContrast { get; set; }
-    }
 
     /// <summary>N1.14 — thêm chỉ định CĐHA mới liên kết cùng HSBA/examination.</summary>
     [HttpPost("add-on")]
@@ -86,24 +80,7 @@ public class RadiologyOperationsController : ControllerBase
         return Ok(new { parentRequestId = parent.Id, created });
     }
 
-    public class RoomDispenseItemDto
-    {
-        public Guid? MedicineId { get; set; }
-        public Guid? SupplyId { get; set; }
-        public decimal Quantity { get; set; }
-        public string? Unit { get; set; }
-        public string? Note { get; set; }
-    }
 
-    public class RoomDispenseDto
-    {
-        public Guid WarehouseId { get; set; }
-        public Guid PatientId { get; set; }
-        public Guid? RadiologyRequestId { get; set; }
-        public Guid? MedicalRecordId { get; set; }
-        public List<RoomDispenseItemDto> Items { get; set; } = new();
-        public string? Note { get; set; }
-    }
 
     /// <summary>N1.15 — xuất thuốc/vật tư tiêu hao tại phòng CĐHA cho BN.</summary>
     [HttpPost("dispense")]

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
 using HIS.Application.DTOs;
 using HIS.API.Filters;
+using HIS.API.Dtos.Supplementary;
 
 namespace HIS.API.Controllers;
 
@@ -173,13 +174,6 @@ public class ProcurementController : ControllerBase
     }
 }
 
-/// <summary>
-/// Request body for rejecting procurement
-/// </summary>
-public class RejectProcurementRequest
-{
-    public string? Reason { get; set; }
-}
 
 // ============================================================
 // Module 3: ImmunizationController (Tiêm chủng)
