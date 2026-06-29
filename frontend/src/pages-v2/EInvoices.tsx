@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   KpiStrip, TopTabs, DataTable, SearchBox, Filter, StatusBadge, AbSelect, Btn,
-  DrawerShell, ModalShell, DrSec, DrField,
+  DrawerShell, ModalShell, DrSec, DrField, useListData,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
   tk, te, fmtDTg
 } from './_v2kit';
@@ -49,19 +49,15 @@ const EInvoicesPage: React.FC = () => {
 // ── List Panel ─────────────────────────────────────────────────────────────
 
 const EInvoiceListPanel: React.FC = () => {
-  const [rows, setRows]       = useState<EInvoiceDto[]>([]);
+  const { rows, reload } = useListData<EInvoiceDto>(
+    useCallback(() => einvoice.getList({ pageSize: 200 }), []),
+    useCallback(() => te('Không tải được danh sách HĐĐT'), []),
+  );
   const [search, setSearch]   = useState('');
   const [fStatus, setFStatus] = useState('');
   const [detail, setDetail]   = useState<EInvoiceDetailDto | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [issueOpen, setIssueOpen] = useState(false);
-
-  const load = useCallback(async () => {
-    try { setRows(await einvoice.getList({ pageSize: 200 })); }
-    catch { te('Không tải được danh sách HĐĐT'); }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const openDetail = async (row: EInvoiceDto) => {
     setDetailLoading(true);
@@ -78,7 +74,7 @@ const EInvoiceListPanel: React.FC = () => {
       await einvoice.cancel(id);
       tk('Đã hủy hóa đơn');
       setDetail(null);
-      load();
+      reload();
     } catch (err: unknown) {
       te((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Hủy thất bại');
     }
@@ -89,7 +85,7 @@ const EInvoiceListPanel: React.FC = () => {
       const updated = await einvoice.syncStatus(id);
       tk(`Trạng thái: ${updated.statusName}`);
       setDetail((d) => d ? { ...d, ...updated } : d);
-      load();
+      reload();
     } catch { te('Không đồng bộ được'); }
   };
 
@@ -149,7 +145,7 @@ const EInvoiceListPanel: React.FC = () => {
       <IssueModal
         open={issueOpen}
         onClose={() => setIssueOpen(false)}
-        onIssued={() => { setIssueOpen(false); load(); }}
+        onIssued={() => { setIssueOpen(false); reload(); }}
       />
 
       {/* Detail drawer */}

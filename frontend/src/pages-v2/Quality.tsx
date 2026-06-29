@@ -7,7 +7,7 @@ import { catalogApi } from '../api/system';
 import type { DepartmentCatalogDto } from '../api/system';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell, ModalShell,
+  StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, useTabCounts,
   type ColumnDef, type StatusTab, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -69,11 +69,7 @@ const QualityV2: React.FC = () => {
   };
   useEffect(reload, []);
 
-  const incCounts = useMemo(() => {
-    const c: Record<string, number> = { all: incidents.length };
-    INC_TABS.forEach((s) => { c[s.v] = incidents.filter((x) => incStatusKey(x.status) === s.v).length; });
-    return c;
-  }, [incidents]);
+  const incCounts = useTabCounts(incidents, INC_TABS, (x) => incStatusKey(x.status));
 
   const incFiltered = useMemo(() => {
     return incidents.filter((r) => {

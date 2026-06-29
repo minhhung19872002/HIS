@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   KpiStrip, TopTabs, DataTable, StatusBadge,
-  DrawerShell, ActBtn, Btn, DrSec, DrField,
+  DrawerShell, ActBtn, Btn, DrSec, DrField, useListData,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
   tk, te, fmtDTg, fmtDMYg
 } from './_v2kit';
@@ -44,20 +44,17 @@ const DeAn06LiaisonV2: React.FC = () => {
 // ────────────────────────── Birth ──────────────────────────
 
 const BirthTab: React.FC = () => {
-  const [rows, setRows] = useState<BirthCertificateDto[]>([]);
+  const { rows, reload } = useListData<BirthCertificateDto>(
+    useCallback(() => deAn06.searchBirths({ pageSize: 200 }), []),
+    useCallback(() => te('Không tải được'), []),
+  );
   const [detail, setDetail] = useState<BirthCertificateDto | null>(null);
-
-  const load = useCallback(async () => {
-    try { setRows(await deAn06.searchBirths({ pageSize: 200 }) || []); }
-    catch { te('Không tải được'); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
 
   const submit = async (r: BirthCertificateDto) => {
     try {
       await deAn06.submitBirth(r.id);
       tk(`Đã gửi lên cổng Đề án 06 — ${r.certificateNumber}`);
-      load();
+      reload();
       setDetail(null);
     } catch { te('Gửi cổng thất bại'); }
   };
@@ -145,17 +142,14 @@ const BirthTab: React.FC = () => {
 // ────────────────────────── Death ──────────────────────────
 
 const DeathTab: React.FC = () => {
-  const [rows, setRows] = useState<DeathCertificateDto[]>([]);
+  const { rows, reload } = useListData<DeathCertificateDto>(
+    useCallback(() => deAn06.searchDeaths({ pageSize: 200 }), []),
+    useCallback(() => te('Không tải được'), []),
+  );
   const [detail, setDetail] = useState<DeathCertificateDto | null>(null);
 
-  const load = useCallback(async () => {
-    try { setRows(await deAn06.searchDeaths({ pageSize: 200 }) || []); }
-    catch { te('Không tải được'); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
-
   const submit = async (r: DeathCertificateDto) => {
-    try { await deAn06.submitDeath(r.id); tk(`Đã gửi lên cổng Đề án 06 — ${r.certificateNumber}`); load(); setDetail(null); }
+    try { await deAn06.submitDeath(r.id); tk(`Đã gửi lên cổng Đề án 06 — ${r.certificateNumber}`); reload(); setDetail(null); }
     catch { te('Gửi cổng thất bại'); }
   };
 
@@ -249,17 +243,14 @@ const DeathTab: React.FC = () => {
 // ────────────────────────── Dlhc (KSK lái xe) ──────────────────────────
 
 const DlhcTab: React.FC = () => {
-  const [rows, setRows] = useState<DrivingLicenseHealthCheckDto[]>([]);
+  const { rows, reload } = useListData<DrivingLicenseHealthCheckDto>(
+    useCallback(() => deAn06.searchDlhc({ pageSize: 200 }), []),
+    useCallback(() => te('Không tải được'), []),
+  );
   const [detail, setDetail] = useState<DrivingLicenseHealthCheckDto | null>(null);
 
-  const load = useCallback(async () => {
-    try { setRows(await deAn06.searchDlhc({ pageSize: 200 }) || []); }
-    catch { te('Không tải được'); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
-
   const submit = async (r: DrivingLicenseHealthCheckDto) => {
-    try { await deAn06.submitDlhc(r.id); tk(`Đã gửi lên cổng Đề án 06 — ${r.certificateNumber}`); load(); setDetail(null); }
+    try { await deAn06.submitDlhc(r.id); tk(`Đã gửi lên cổng Đề án 06 — ${r.certificateNumber}`); reload(); setDetail(null); }
     catch { te('Gửi cổng thất bại'); }
   };
 

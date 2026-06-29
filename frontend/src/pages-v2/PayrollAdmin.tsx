@@ -1,13 +1,13 @@
 /**
  * G-41 Payroll Admin — quản lý kỳ lương + dòng lương nhân viên (MVP).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Form, Input, InputNumber, Modal, Select } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
-  tk, ti, tw, cf, type ColumnDef, type StatusTab,
+  useListData, useTabCounts, tk, ti, tw, cf, type ColumnDef, type StatusTab,
 } from './_v2kit';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -55,8 +55,10 @@ const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 // ── Component ───────────────────────────────────────────────────────────────
 
 const PayrollAdminV2: React.FC = () => {
-  const [periods, setPeriods] = useState<PayrollPeriod[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { rows: periods, loading, reload } = useListData<PayrollPeriod>(
+    useCallback(() => apiClient.get<PayrollPeriod[]>('/admin-modules/payroll/periods').then((r) => r.data), []),
+    useCallback(() => ti('Tải danh sách kỳ lương thất bại'), []),
+  );
   const [stab, setStab] = useState<SKey | 'all'>('all');
 
   const [periodModal, setPeriodModal] = useState(false);
@@ -71,16 +73,6 @@ const PayrollAdminV2: React.FC = () => {
 
   // ── Data loading ────────────────────────────────────────────────────────
 
-  const loadPeriods = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await apiClient.get<PayrollPeriod[]>('/admin-modules/payroll/periods');
-      setPeriods(data || []);
-    } catch { ti('Tải danh sách kỳ lương thất bại'); }
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { loadPeriods(); }, [loadPeriods]);
 
   const loadItems = useCallback(async (periodId: string) => {
     setItemsLoading(true);
@@ -103,7 +95,7 @@ const PayrollAdminV2: React.FC = () => {
     const v = await periodForm.validateFields();
     try {
       await apiClient.post('/admin-modules/payroll/periods', v);
-      tk('Đã tạo kỳ lương'); setPeriodModal(false); loadPeriods();
+      tk('Đã tạo kỳ lương'); setPeriodModal(false); reload();
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } };
       tw(err?.response?.data?.message || 'Tạo kỳ lương thất bại');
@@ -112,7 +104,7 @@ const PayrollAdminV2: React.FC = () => {
 
   const approvePeriod = (p: PayrollPeriod) =>
     cf(`Duyệt kỳ lương ${p.periodCode}?`, async () => {
-      try { await apiClient.post(`/admin-modules/payroll/periods/${p.id}/approve`); tk('Đã duyệt'); loadPeriods(); }
+      try { await apiClient.post(`/admin-modules/payroll/periods/${p.id}/approve`); tk('Đã duyệt'); reload(); }
       catch { tw('Duyệt thất bại'); }
     }, { confirm: 'Duyệt' });
 
@@ -162,11 +154,7 @@ const PayrollAdminV2: React.FC = () => {
     [periods, stab],
   );
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: periods.length };
-    STATUS_TABS.forEach((s) => { c[s.v] = periods.filter((p) => sKey(p.status) === s.v).length; });
-    return c;
-  }, [periods]);
+  const counts = useTabCounts(periods, STATUS_TABS, (p) => sKey(p.status));
 
   // ── Columns ──────────────────────────────────────────────────────────────
 

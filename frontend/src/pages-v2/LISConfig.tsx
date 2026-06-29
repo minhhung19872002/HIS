@@ -8,7 +8,7 @@ import {
 import type { AnalyzerDto, LabconnectStatusDto, CreateAnalyzerDto } from '../api/lisConfig';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
-  DrawerShell, DrSec, DrField, tk, ti, tw, te, cf,
+  DrawerShell, DrSec, DrField, tk, ti, tw, te, cf, useTabCounts,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
@@ -95,11 +95,7 @@ const LISConfigV2: React.FC = () => {
     return Array.from(set).map((v) => ({ v, l: v }));
   }, [items]);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: items.length };
-    STATUS_TABS.forEach((s) => { c[s.v] = items.filter((r) => sKey(r) === s.v).length; });
-    return c;
-  }, [items]);
+  const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r));
 
   const filtered = useMemo(() => {
     const k = search.trim().toLowerCase();

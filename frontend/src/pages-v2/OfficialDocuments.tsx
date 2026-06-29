@@ -1,13 +1,13 @@
 /**
  * G-44 Official Documents — quản lý công văn đến/đi (MVP).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { DatePicker, Descriptions, Drawer, Form, Input, Modal, Select, Space, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
-  tk, tw, cf, type ColumnDef, type StatusTab,
+  useListData, useTabCounts, tk, tw, cf, type ColumnDef, type StatusTab,
 } from './_v2kit';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -49,8 +49,10 @@ const STATUS_TONE: Record<number, 'ok' | 'warn' | 'crit' | 'info'> = {
 // ── Component ───────────────────────────────────────────────────────────────
 
 const OfficialDocumentsV2: React.FC = () => {
-  const [rows, setRows] = useState<OfficialDocument[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { rows, loading, reload } = useListData<OfficialDocument>(
+    useCallback(() => apiClient.get<OfficialDocument[]>('/admin-modules/official-documents').then((r) => r.data), []),
+    useCallback(() => tw('Tải danh sách thất bại'), []),
+  );
   const [stab, setStab] = useState<SKey | 'all'>('all');
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
@@ -68,16 +70,6 @@ const OfficialDocumentsV2: React.FC = () => {
 
   // ── Load ────────────────────────────────────────────────────────────────
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await apiClient.get<OfficialDocument[]>('/admin-modules/official-documents');
-      setRows(data || []);
-    } catch { tw('Tải danh sách thất bại'); }
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
@@ -96,14 +88,14 @@ const OfficialDocumentsV2: React.FC = () => {
         documentDate: v.documentDate?.toISOString?.() ?? v.documentDate,
         deadline: v.deadline?.toISOString?.() ?? v.deadline,
       });
-      tk('Đã lưu'); setModalOpen(false); load();
+      tk('Đã lưu'); setModalOpen(false); reload();
     } catch { tw('Lưu thất bại'); }
     finally { setSaving(false); }
   };
 
   const del = (r: OfficialDocument) =>
     cf(`Xóa công văn ${r.documentNumber}?`, async () => {
-      try { await apiClient.delete(`/admin-modules/official-documents/${r.id}`); tk('Đã xóa'); load(); }
+      try { await apiClient.delete(`/admin-modules/official-documents/${r.id}`); tk('Đã xóa'); reload(); }
       catch { tw('Xóa thất bại'); }
     }, { tone: 'crit', confirm: 'Xóa' });
 
@@ -136,7 +128,7 @@ const OfficialDocumentsV2: React.FC = () => {
         documentDate: v.documentDate?.toISOString?.() ?? v.documentDate,
         deadline: v.deadline?.toISOString?.() ?? v.deadline,
       });
-      tk('Đã cập nhật'); setDrawerOpen(false); load();
+      tk('Đã cập nhật'); setDrawerOpen(false); reload();
     } catch { tw('Lưu thất bại'); }
     finally { setEditSaving(false); }
   };
@@ -164,11 +156,7 @@ const OfficialDocumentsV2: React.FC = () => {
     return true;
   }), [rows, stab, filterType, search]);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: rows.length };
-    STATUS_TABS.forEach((s) => { c[s.v] = rows.filter((r) => sKey(r.status) === s.v).length; });
-    return c;
-  }, [rows]);
+  const counts = useTabCounts(rows, STATUS_TABS, (r) => sKey(r.status));
 
   // ── Columns ──────────────────────────────────────────────────────────────
 
@@ -229,7 +217,7 @@ const OfficialDocumentsV2: React.FC = () => {
           ]}
         />
         <div style={{ flex: 1 }} />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn variant="ghost" icon="refresh" onClick={reload}>Làm mới</Btn>
         <Btn variant="primary" icon="plus" onClick={openAdd}>Thêm công văn</Btn>
       </div>
 

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   KpiStrip, TopTabs, DataTable, SearchBox, Filter, StatusBadge,
-  DrawerShell, ActBtn, Btn, DrSec, DrField,
+  DrawerShell, ActBtn, Btn, DrSec, DrField, useListData,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
   tk, tw, te, cf, fmtDTg, fmtDMYg
 } from './_v2kit';
@@ -47,18 +47,13 @@ const NationalGatewaysV2: React.FC = () => {
 // ────────────────────────── Đơn thuốc QG ──────────────────────────
 
 const NgRxPanel: React.FC = () => {
-  const [rows, setRows] = useState<NationalPrescriptionSubmissionDto[]>([]);
+  const { rows, reload } = useListData<NationalPrescriptionSubmissionDto>(
+    useCallback(() => npGateway.search({ pageSize: 200 }), []),
+    useCallback(() => te('Không tải được danh sách'), []),
+  );
   const [search, setSearch] = useState('');
   const [fStatus, setFStatus] = useState('');
   const [detail, setDetail] = useState<NationalPrescriptionSubmissionDetailDto | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      const data = await npGateway.search({ pageSize: 200 });
-      setRows(data || []);
-    } catch { te('Không tải được danh sách'); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
 
   const filtered = rows.filter((r) => {
     if (fStatus !== '' && r.status !== Number(fStatus)) return false;
@@ -71,12 +66,12 @@ const NgRxPanel: React.FC = () => {
   });
 
   const retry = async (r: NationalPrescriptionSubmissionDto) => {
-    try { await npGateway.retry(r.id); tk('Đã gửi lại lên cổng QG'); load(); }
+    try { await npGateway.retry(r.id); tk('Đã gửi lại lên cổng QG'); reload(); }
     catch { te('Gửi lại thất bại'); }
   };
   const cancel = (r: NationalPrescriptionSubmissionDto) =>
     cf(`Hủy giao dịch ${r.submissionCode}?`, async () => {
-      try { await npGateway.cancel(r.id); tw('Đã hủy giao dịch'); load(); }
+      try { await npGateway.cancel(r.id); tw('Đã hủy giao dịch'); reload(); }
       catch { te('Hủy thất bại'); }
     });
 
@@ -181,18 +176,13 @@ const NgRxPanel: React.FC = () => {
 // ────────────────────────── Dược QG ──────────────────────────
 
 const NgPharmPanel: React.FC = () => {
-  const [rows, setRows] = useState<NationalPharmacyOutboundReportDto[]>([]);
-
-  const load = useCallback(async () => {
-    try {
-      const data = await nphGateway.search({ pageSize: 200 });
-      setRows(data || []);
-    } catch { te('Không tải được'); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
+  const { rows, reload } = useListData<NationalPharmacyOutboundReportDto>(
+    useCallback(() => nphGateway.search({ pageSize: 200 }), []),
+    useCallback(() => te('Không tải được'), []),
+  );
 
   const retry = async (r: NationalPharmacyOutboundReportDto) => {
-    try { await nphGateway.retry(r.id); tk('Đã gửi lại'); load(); }
+    try { await nphGateway.retry(r.id); tk('Đã gửi lại'); reload(); }
     catch { te('Gửi lại thất bại'); }
   };
 
@@ -202,7 +192,7 @@ const NgPharmPanel: React.FC = () => {
       const periodTo = dayjs().toISOString();
       await nphGateway.generate({ reportType: 'DailySale', periodFrom, periodTo });
       tk('Đã tạo & gửi báo cáo');
-      load();
+      reload();
     } catch { te('Tạo báo cáo thất bại'); }
   };
 

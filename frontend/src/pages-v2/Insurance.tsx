@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import { useNavigate } from 'react-router-dom';
@@ -6,7 +6,7 @@ import { searchInsuranceClaims } from '../api/insurance';
 import type { InsuranceClaimSummaryDto } from '../api/insurance';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell,
+  StatusBadge, ActBtn, Btn, DrawerShell, useListData, useTabCounts,
   type ColumnDef, type StatusTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -50,30 +50,20 @@ const fmtVND = (n: number) => `${(n || 0).toLocaleString('vi-VN')} ₫`;
 const InsuranceV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   const navigate = useNavigate();
-  const [rows, setRows] = useState<InsuranceClaimSummaryDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { rows, loading, reload } = useListData<InsuranceClaimSummaryDto>(
+    useCallback(() => searchInsuranceClaims({
+      fromDate: dayjs().subtract(60, 'day').format('YYYY-MM-DD'),
+      toDate:   dayjs().format('YYYY-MM-DD'),
+      pageNumber: 1, pageSize: 200,
+    }).then((r) => Array.isArray(r.data?.items) ? r.data.items : []), []),
+  );
   const [stab, setStab] = useState<StatusKey | 'all'>('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState<InsuranceClaimSummaryDto | null>(null);
   const PAGE_SIZE = 16;
 
-  const reload = () => {
-    setLoading(true);
-    searchInsuranceClaims({
-      fromDate: dayjs().subtract(60, 'day').format('YYYY-MM-DD'),
-      toDate:   dayjs().format('YYYY-MM-DD'),
-      pageNumber: 1, pageSize: 200,
-    }).then((r) => setRows(Array.isArray(r.data?.items) ? r.data.items : []))
-      .catch(() => setRows([])).finally(() => setLoading(false));
-  };
-  useEffect(reload, []);
-
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: rows.length };
-    STATUS_TABS.forEach((s) => { c[s.v] = rows.filter((r) => statusKey(r.status) === s.v).length; });
-    return c;
-  }, [rows]);
+  const counts = useTabCounts(rows, STATUS_TABS, (r) => statusKey(r.status));
 
   const filtered = useMemo(() => rows.filter((r) => {
     if (stab !== 'all' && statusKey(r.status) !== stab) return false;

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   getConnections, createConnection, updateConnection, testConnection, activateConnection, deactivateConnection,
@@ -8,7 +8,7 @@ import {
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
-  StatusTabs, DrawerShell, DrSec, DrField, tk, ti, tw, te, Ico,
+  StatusTabs, DrawerShell, DrSec, DrField, tk, ti, tw, te, Ico, useListData, useTabCounts,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
@@ -43,8 +43,10 @@ const STATUS_TABS = [
 const statusKey = (n: number): StatusKey => n === 1 ? 'active' : n === 3 ? 'error' : 'inactive';
 
 const HealthExchangeV2: React.FC = () => {
-  const [items, setItems] = useState<HIEConnectionDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { rows: items, loading, reload } = useListData<HIEConnectionDto>(
+    useCallback(() => getConnections().then((r) => normalizeArrayResponse<HIEConnectionDto>(r)), []),
+    useCallback(() => ti('Không tải được kết nối HIE'), []),
+  );
   const [search, setSearch] = useState('');
   const [stab, setStab] = useState<StatusKey | 'all'>('all');
   const [fType, setFType] = useState('');
@@ -62,37 +64,24 @@ const HealthExchangeV2: React.FC = () => {
       const d = res.data as { success?: boolean; message?: string } | undefined;
       const ok = d?.success !== false;
       (ok ? tk : tw)(d?.message || (ok ? `Kết nối ${r.connectionName} OK` : 'Kết nối thất bại'));
-      load();
+      reload();
     } catch { te('Test kết nối thất bại'); }
   };
   const toggleActive = async (r: HIEConnectionDto) => {
     try {
       if (r.status === 1) { await deactivateConnection(r.id); tk('Đã tạm dừng kết nối'); }
       else { await activateConnection(r.id); tk('Đã kích hoạt kết nối'); }
-      load();
+      reload();
     } catch { te('Đổi trạng thái thất bại'); }
   };
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const r = await getConnections();
-      setItems(normalizeArrayResponse<HIEConnectionDto>(r));
-    } catch { setItems([]); ti('Không tải được kết nối HIE'); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
   const types = useMemo(() => {
     const set = new Set(items.map((r) => r.connectionType).filter(Boolean));
     return Array.from(set).map((t) => ({ v: t, l: t }));
   }, [items]);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: items.length };
-    STATUS_TABS.forEach((s) => { c[s.v] = items.filter((r) => statusKey(r.status) === s.v).length; });
-    return c;
-  }, [items]);
+  const counts = useTabCounts(items, STATUS_TABS, (r) => statusKey(r.status));
 
   const filtered = useMemo(() => {
     const k = search.trim().toLowerCase();
@@ -158,7 +147,7 @@ const HealthExchangeV2: React.FC = () => {
           <Ico name="refresh" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
+        <Btn variant="ghost" onClick={reload}>
           <Ico name="refresh" size={12} /> Làm mới
         </Btn>
         <Btn variant="ghost" disabled={syncing} onClick={async () => {
@@ -171,7 +160,7 @@ const HealthExchangeV2: React.FC = () => {
             } else {
               tk(d?.message || `Đồng bộ hoàn tất${d?.synced != null ? ` (${d.synced} kết nối)` : ''}`);
             }
-            load();
+            reload();
           } catch { te('Đồng bộ thất bại'); }
           finally { setSyncing(false); }
         }}>
@@ -258,7 +247,7 @@ const HealthExchangeV2: React.FC = () => {
           if (editing && crudInit?.id) await updateConnection(crudInit.id as string, dto);
           else await createConnection(dto);
           tk(editing ? 'Đã cập nhật kết nối' : 'Đã thêm kết nối');
-          load();
+          reload();
         }}
       />
     </div>

@@ -9,7 +9,7 @@ import { Form, Input, Checkbox, Button } from 'antd';
 import {
   KpiStrip, DataTable, StatusTabs, SearchBox, DrawerShell, ModalShell,
   Filter, Pager, ActBtn, StatusBadge, DrSec, DrField,
-  tk, te, fmtDTg, fmtHMg,
+  tk, te, fmtDTg, fmtHMg, useTabCounts,
 } from './_v2kit';
 import type { ColumnDef } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
@@ -59,8 +59,7 @@ const EmrCloudSync: React.FC = () => {
 
   useEffect(() => { load(); }, []);
 
-  const counts: Record<string, number> = { all: rows.length };
-  CS_STATUS.forEach(s => { counts[s.v] = rows.filter(r => r.status === s.v).length; });
+  const counts = useTabCounts(rows, CS_STATUS, (r) => r.status);
 
   const filtered = rows.filter(r => {
     if (stab !== 'all' && r.status !== stab) return false;

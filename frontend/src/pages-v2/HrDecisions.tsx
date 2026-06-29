@@ -9,7 +9,7 @@ import apiClient from '../api/client';
 import { openPrintWindow } from '../utils/printWindow';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
-  tk, ti, tw, cf, type ColumnDef, type StatusTab,
+  tk, ti, tw, cf, useTabCounts, type ColumnDef, type StatusTab,
 } from './_v2kit';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -157,11 +157,7 @@ const HrDecisionsV2: React.FC = () => {
     return true;
   }), [rows, stab, filterType]);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: rows.length };
-    STATUS_TABS.forEach((s) => { c[s.v] = rows.filter((r) => sKey(r.status) === s.v).length; });
-    return c;
-  }, [rows]);
+  const counts = useTabCounts(rows, STATUS_TABS, (r) => sKey(r.status));
 
   // ── Columns ──────────────────────────────────────────────────────────────
 

@@ -15,7 +15,7 @@ import {
 } from '../api/billingGuarantor';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, tk, te, cf,
+  DrawerShell, DrSec, DrField, useListData, tk, te, cf,
   type ColumnDef,
 } from './_v2kit';
 
@@ -78,8 +78,14 @@ const BillingGuarantorsV2: React.FC = () => {
   const [tab, setTab] = useState<TabKey>('orgs');
 
   // data
-  const [orgs, setOrgs]               = useState<SponsorOrgDto[]>([]);
-  const [guarantors, setGuarantors]   = useState<BillingGuarantorDto[]>([]);
+  const { rows: orgs, reload: reloadOrgs } = useListData<SponsorOrgDto>(
+    useCallback(() => getSponsorOrgs(), []),
+    useCallback(() => te('Không tải được đơn vị bảo lãnh'), []),
+  );
+  const { rows: guarantors, reload: reloadGuarantors } = useListData<BillingGuarantorDto>(
+    useCallback(() => getGuarantors(), []),
+    useCallback(() => te('Không tải được danh sách bảo lãnh'), []),
+  );
   const [report, setReport]           = useState<GuarantorDebtReportDto[]>([]);
 
   // ui
@@ -94,16 +100,6 @@ const BillingGuarantorsV2: React.FC = () => {
   const [reportTo, setReportTo]     = useState<Dayjs | null>(null);
 
   // ── Load data ──────────────────────────────────────────────────────────────
-  const loadOrgs = useCallback(async () => {
-    try { setOrgs(await getSponsorOrgs()); }
-    catch { te('Không tải được đơn vị bảo lãnh'); }
-  }, []);
-
-  const loadGuarantors = useCallback(async () => {
-    try { setGuarantors(await getGuarantors()); }
-    catch { te('Không tải được danh sách bảo lãnh'); }
-  }, []);
-
   const loadReport = useCallback(async () => {
     try {
       setReport(await getDebtReport(
@@ -112,11 +108,6 @@ const BillingGuarantorsV2: React.FC = () => {
       ));
     } catch { te('Không tải được báo cáo công nợ'); }
   }, [reportFrom, reportTo]);
-
-  useEffect(() => {
-    void loadOrgs();
-    void loadGuarantors();
-  }, [loadOrgs, loadGuarantors]);
 
   useEffect(() => {
     if (tab === 'report') void loadReport();
@@ -187,7 +178,7 @@ const BillingGuarantorsV2: React.FC = () => {
 
   const onOrgDelete = (id: string) => {
     cf('Xóa đơn vị bảo lãnh này?', async () => {
-      try { await deleteSponsorOrg(id); tk('Đã xóa'); void loadOrgs(); }
+      try { await deleteSponsorOrg(id); tk('Đã xóa'); void reloadOrgs(); }
       catch { te('Xóa thất bại'); }
     }, { tone: 'crit' });
   };
@@ -210,7 +201,7 @@ const BillingGuarantorsV2: React.FC = () => {
 
   const onGuarantorDelete = (id: string) => {
     cf('Hủy bảo lãnh này?', async () => {
-      try { await deleteGuarantor(id); tk('Đã hủy'); void loadGuarantors(); }
+      try { await deleteGuarantor(id); tk('Đã hủy'); void reloadGuarantors(); }
       catch { te('Hủy thất bại'); }
     }, { tone: 'crit' });
   };
@@ -224,7 +215,7 @@ const BillingGuarantorsV2: React.FC = () => {
       await saveSponsorOrg({ id: orgEdit.id ?? EMPTY_GUID, ...orgEdit });
       tk(orgEdit.id ? 'Đã cập nhật' : 'Đã thêm mới');
       setOrgEdit(null);
-      void loadOrgs();
+      void reloadOrgs();
     } catch { te('Lưu thất bại'); }
     finally { setSaving(false); }
   };
@@ -241,7 +232,7 @@ const BillingGuarantorsV2: React.FC = () => {
       await saveGuarantor({ id: guarantorEdit.id ?? EMPTY_GUID, ...guarantorEdit });
       tk(guarantorEdit.id ? 'Đã cập nhật' : 'Đã thêm mới');
       setGuarantorEdit(null);
-      void loadGuarantors();
+      void reloadGuarantors();
     } catch { te('Lưu thất bại'); }
     finally { setSaving(false); }
   };

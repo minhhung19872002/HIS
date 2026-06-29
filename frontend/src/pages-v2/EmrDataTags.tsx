@@ -3,10 +3,10 @@
  * Quản trị danh mục thẻ dữ liệu: tên/kiểu/mặc định/phân loại + gán vào
  * loại tờ phiếu (FormType). Backend sẵn: EmrManagementController data-tags.
  * ===================================================================== */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   KpiStrip, DataTable, StatusBadge, ActBtn, Btn, ModalShell, SearchBox,
-  tk, te, cf, type ColumnDef,
+  useListData, tk, te, cf, type ColumnDef,
 } from './_v2kit';
 import { getEmrDataTags, saveEmrDataTag, deleteEmrDataTag, type EmrDataTagDto } from '../api/emrManagement';
 
@@ -27,22 +27,14 @@ interface TagForm {
 const EMPTY_FORM: TagForm = { code: '', name: '', dataType: 'Text', defaultValue: '', category: '', formType: '', sortOrder: 0 };
 
 const EmrDataTagsV2 = () => {
-  const [tags, setTags] = useState<EmrDataTagDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { rows: tags, loading, reload } = useListData<EmrDataTagDto>(
+    useCallback(() => getEmrDataTags().then((r) => Array.isArray(r.data) ? r.data : []), []),
+    useCallback(() => te('Không tải được danh mục thẻ dữ liệu'), []),
+  );
   const [kw, setKw] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<TagForm>(EMPTY_FORM);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const r = await getEmrDataTags();
-      setTags(Array.isArray(r.data) ? r.data : []);
-    } catch { setTags([]); te('Không tải được danh mục thẻ dữ liệu'); }
-    finally { setLoading(false); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
 
   const openCreate = () => { setForm(EMPTY_FORM); setModalOpen(true); };
   const openEdit = (t: EmrDataTagDto) => {
@@ -70,7 +62,7 @@ const EmrDataTagsV2 = () => {
       });
       tk(form.id ? 'Đã cập nhật thẻ dữ liệu' : 'Đã thêm thẻ dữ liệu');
       setModalOpen(false);
-      load();
+      reload();
     } catch { te('Lưu thẻ thất bại'); }
     finally { setSaving(false); }
   };
@@ -78,7 +70,7 @@ const EmrDataTagsV2 = () => {
   const doDelete = (t: EmrDataTagDto) => {
     if (t.isSystem) { te('Thẻ hệ thống không thể xóa'); return; }
     cf(`Xóa thẻ dữ liệu "${t.name}"?`, async () => {
-      try { await deleteEmrDataTag(t.id); tk('Đã xóa thẻ'); load(); }
+      try { await deleteEmrDataTag(t.id); tk('Đã xóa thẻ'); reload(); }
       catch { te('Xóa thất bại'); }
     }, { tone: 'crit', confirm: 'Xóa' });
   };
@@ -114,7 +106,7 @@ const EmrDataTagsV2 = () => {
       <div className="ab-tools">
         <SearchBox value={kw} onChange={setKw} placeholder="Tìm thẻ theo tên / mã / mẫu…" />
         <span className="spacer" />
-        <Btn icon="refresh" onClick={load}>Làm mới</Btn>
+        <Btn icon="refresh" onClick={reload}>Làm mới</Btn>
         <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm thẻ</Btn>
       </div>
 
