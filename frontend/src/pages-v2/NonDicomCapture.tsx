@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Form, Input, Select, Modal, Upload } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
+import { API_URL } from '../config/api';
 import {
   KpiStrip, Filter, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, Ico, tk, tw, cf,
@@ -346,13 +347,13 @@ const NonDicomCaptureV2: React.FC = () => {
                 <div key={img.id} style={{ border: '1px solid var(--line)', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
                   {img.mediaType === 'image' ? (
                     <img
-                      src={`${import.meta.env.VITE_API_URL || 'http://localhost:5106/api'}${img.filePath.replace('/api', '')}`}
+                      src={`${API_URL}${img.filePath.replace('/api', '')}`}
                       alt={img.fileName}
                       style={{ width: '100%', display: 'block', cursor: 'zoom-in' }}
                     />
                   ) : (
                     <video
-                      src={`${import.meta.env.VITE_API_URL || 'http://localhost:5106/api'}${img.filePath.replace('/api', '')}`}
+                      src={`${API_URL}${img.filePath.replace('/api', '')}`}
                       controls style={{ width: '100%', display: 'block' }}
                     />
                   )}
