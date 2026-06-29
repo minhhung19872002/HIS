@@ -17,6 +17,8 @@ import TermIcon from '../layouts/terminal/Icon';
 import { examinationApi, printExternalPrescription, type MedicineDto, type DrugInteractionDto, type CreatePrescriptionDto, type PrescriptionTemplateDto, type WarehouseDto } from '../api/examination';
 import { patientApi, type Patient } from '../api/patient';
 import { getPrescriptionContext, type PrescriptionContextDto } from '../api/dataInheritance';
+import PatientFlagBanner from '../components/PatientFlagBanner';
+import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import '../layouts/terminal/ed-responsive.css';
 
 const RX_FREQ = ['1 lần/ngày', '2 lần/ngày', '3 lần/ngày', 'Cách 6h', 'Khi cần', 'Trước ăn', 'Sau ăn'];
@@ -300,6 +302,12 @@ const PrescriptionEditorV2: React.FC = () => {
                 {pt.identityNumber && <div style={{ marginTop: 'var(--space-4)' }}><span className="ab-u-muted">CCCD: </span><span className="mono">{pt.identityNumber}</span></div>}
                 {pt.phoneNumber && <div style={{ marginTop: 'var(--space-4)' }}><span className="ab-u-muted">SĐT: </span><span className="mono">{pt.phoneNumber}</span></div>}
               </div>
+            </div>
+
+            {/* #357 patient-safety: khôi phục cờ cảnh báo BN + cảnh báo nghiệp vụ (parity v1 Prescription) */}
+            <div style={{ marginTop: 'var(--space-12)' }}>
+              <PatientFlagBanner patientId={pt.id} patientName={pt.fullName} />
+              <BusinessAlertPanel patientId={pt.id} examinationId={examinationId ?? undefined} module="Prescription" />
             </div>
 
             {allergyNames.length > 0 && (

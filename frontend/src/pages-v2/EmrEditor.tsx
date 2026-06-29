@@ -23,6 +23,7 @@ import {
   type EmrDocumentAttachmentDto,
 } from '../api/emrAdmin';
 import EmrSigningChainDrawer from './shared/EmrSigningChainDrawer';
+import PatientFlagBanner from '../components/PatientFlagBanner';
 import {
   getEmrRecords, type EmrRecordDto,
   getPatientMedicalHistory, type MedicalHistoryDto,
@@ -471,6 +472,9 @@ const EmrEditorV2: React.FC = () => {
                 <Btn variant="primary" onClick={() => setSignOpen(true)}><TermIcon name="check" size={12} /> Ký số</Btn>
               </div>
             </div>
+
+            {/* #357 patient-safety: khôi phục cờ cảnh báo BN (parity v1 EMR) */}
+            <PatientFlagBanner patientId={sel.patientId} patientName={sel.patientName} />
 
             <TopTabs tab={tab} setTab={setTab} tabs={TABS} />
 

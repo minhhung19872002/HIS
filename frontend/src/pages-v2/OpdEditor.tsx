@@ -36,6 +36,8 @@ import {
 } from '../api/clinicalNarratives';
 import { useAbbrExpansion } from '../utils/abbrExpand';
 import { ABBREVIATION_SCOPES } from '../api/abbreviation';
+import PatientFlagBanner from '../components/PatientFlagBanner';
+import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import {
   addFollowUpSpecialty,
   changeRoomBeforeExam,
@@ -617,6 +619,9 @@ const OpdEditorV2: React.FC = () => {
           </div>
         ) : (
           <>
+            {/* #357 patient-safety: khôi phục cờ cảnh báo BN + cảnh báo nghiệp vụ (parity v1 OPD) */}
+            <PatientFlagBanner patientId={selPt.patientId} patientName={selPt.patientName} />
+            <BusinessAlertPanel patientId={selPt.patientId} examinationId={examId ?? undefined} module="OPD" />
             {/* Vitals */}
             <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-12)' }}>
               <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Sinh hiệu</h4>

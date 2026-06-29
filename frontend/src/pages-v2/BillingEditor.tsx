@@ -16,6 +16,8 @@ import {
   fmtVNDg, fmtDTg, tk, tw, te, type ColumnDef, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+import PatientFlagBanner from '../components/PatientFlagBanner';
+import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import {
   searchPatients, type PatientBillingStatusDto,
   getUnpaidServices, type UnpaidServiceItemDto,
@@ -311,6 +313,13 @@ const BillingEditorV2: React.FC = () => {
                 <div style={{ marginTop: 'var(--space-4)' }}><span className="ab-u-muted">Tổng viện phí: </span><b className="mono">{fmtVNDg(pt.totalAmount)}</b></div>
               </div>
             </div>
+
+            {/* #357 patient-safety: khôi phục cờ cảnh báo BN + cảnh báo nghiệp vụ (parity v1 Billing) */}
+            <div style={{ marginTop: 'var(--space-12)' }}>
+              <PatientFlagBanner patientId={pt.patientId} patientName={pt.patientName} />
+              <BusinessAlertPanel patientId={pt.patientId} module="Billing" />
+            </div>
+
             {deposits.length > 0 && (
               <div style={{ marginTop: 'var(--space-12)', padding: 'var(--space-12)', background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
                 <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 'var(--space-6)' }}>Tạm ứng</div>

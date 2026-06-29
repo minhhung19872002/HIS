@@ -8,6 +8,8 @@ import TreatmentMonitorSection from './inpatient/TreatmentMonitorSection';
 import ConsultationSection from './inpatient/ConsultationSection';
 import NewbornSection from './inpatient/NewbornSection';
 import HemodialysisSection from './inpatient/HemodialysisSection';
+import PatientFlagBanner from '../components/PatientFlagBanner';
+import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import { catalogApi } from '../api/system';
 import type { DepartmentCatalogDto } from '../api/system';
 import {
@@ -399,6 +401,9 @@ const InpatientV2: React.FC = () => {
       >
         {detail && (
           <div style={{ padding: 'var(--space-18)' }}>
+            {/* #357 patient-safety: khôi phục cờ cảnh báo BN + cảnh báo nghiệp vụ (parity v1 Inpatient) */}
+            <PatientFlagBanner patientId={detail.patientId} patientName={detail.patientName} />
+            <BusinessAlertPanel patientId={detail.patientId} admissionId={detail.admissionId} module="Inpatient" />
             <div className="rec-section">
               <h5><TermIcon name="user" size={11} /> BỆNH NHÂN</h5>
               <div className="rec-kv">
