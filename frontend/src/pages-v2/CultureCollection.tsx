@@ -8,7 +8,7 @@ import {
 import type { CultureStock, CultureStockStats, CultureStockLog } from '../api/cultureStock';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, ModalShell, DrSec, DrField, CrudModal, tk, ti, te, Ico,
+  DrawerShell, ModalShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, te, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
@@ -252,11 +252,7 @@ const CultureCollectionV2: React.FC = () => {
     return Array.from(set).map((v) => ({ v, l: v }));
   }, [items]);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: items.length };
-    STATUS_TABS.forEach((s) => { c[s.v] = items.filter((r) => sKey(r.status) === s.v).length; });
-    return c;
-  }, [items]);
+  const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r.status));
 
   const filtered = useMemo(() => {
     const k = search.trim().toLowerCase();

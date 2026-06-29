@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   KpiStrip, DataTable, SearchBox, Filter, StatusBadge,
-  DrawerShell, ActBtn, Btn, DrSec, DrField, Pager,
+  DrawerShell, ActBtn, Btn, DrSec, DrField, Pager, useListData,
   type ColumnDef, type KpiItem, type StatusTone,
   tk, te, fmtDTg
 } from './_v2kit';
@@ -35,18 +35,15 @@ const fdtLabel = (s: number): string => FDT_STATUS[s]?.l || '—';
 const PER = 20;
 
 const FunctionalDiagnosticsV2: React.FC = () => {
-  const [rows, setRows] = useState<FunctionalDiagnosticTestDto[]>([]);
+  const { rows, reload } = useListData<FunctionalDiagnosticTestDto>(
+    useCallback(() => fdt.search({ pageSize: 500 }), []),
+    useCallback(() => te('Không tải được'), []),
+  );
   const [search, setSearch] = useState('');
   const [fType, setFType] = useState('');
   const [fStatus, setFStatus] = useState('');
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState<FunctionalDiagnosticTestDto | null>(null);
-
-  const load = useCallback(async () => {
-    try { setRows(await fdt.search({ pageSize: 500 })); }
-    catch { te('Không tải được'); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
 
   const filtered = useMemo(() => rows.filter((r) => {
     if (fType && r.testType !== fType) return false;
@@ -64,11 +61,11 @@ const FunctionalDiagnosticsV2: React.FC = () => {
   useEffect(() => { setPage(0); }, [search, fType, fStatus]);
 
   const complete = async (r: FunctionalDiagnosticTestDto) => {
-    try { await fdt.complete(r.id); tk('Đã hoàn thành thăm dò'); load(); setDetail(null); }
+    try { await fdt.complete(r.id); tk('Đã hoàn thành thăm dò'); reload(); setDetail(null); }
     catch { te('Cập nhật thất bại'); }
   };
   const verify = async (r: FunctionalDiagnosticTestDto) => {
-    try { await fdt.verify(r.id); tk('Đã duyệt kết quả'); load(); setDetail(null); }
+    try { await fdt.verify(r.id); tk('Đã duyệt kết quả'); reload(); setDetail(null); }
     catch { te('Duyệt thất bại'); }
   };
 

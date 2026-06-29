@@ -6,7 +6,7 @@ import type { MicrobiologyCulture } from '../api/microbiology';
 import { printLabResult } from '../api/pdf';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, ModalShell, DrSec, DrField, tk, ti, te, Ico,
+  DrawerShell, ModalShell, DrSec, DrField, useTabCounts, tk, ti, te, Ico,
   type ColumnDef,
 } from './_v2kit';
 
@@ -66,11 +66,7 @@ const MicrobiologyV2: React.FC = () => {
     return Array.from(set).map((v) => ({ v, l: v }));
   }, [items]);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: items.length };
-    STATUS_TABS.forEach((s) => { c[s.v] = items.filter((r) => sKey(r.status) === s.v).length; });
-    return c;
-  }, [items]);
+  const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r.status));
 
   const filtered = useMemo(() => {
     const k = search.trim().toLowerCase();

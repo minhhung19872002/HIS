@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   KpiStrip, TopTabs, DataTable, StatusBadge, ActBtn,
-  DrawerShell, DrSec, DrField,
+  DrawerShell, DrSec, DrField, useListData,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
   tk, te, fmtDTg
 } from './_v2kit';
@@ -54,14 +54,11 @@ const LinenManagementV2: React.FC = () => {
 // ────────────────────────── Items ──────────────────────────
 
 const LinenItemsPanel: React.FC = () => {
-  const [items, setItems] = useState<LinenItemDto[]>([]);
+  const { rows: items } = useListData<LinenItemDto>(
+    useCallback(() => linen.listItems({}), []),
+    useCallback(() => te('Không tải được'), []),
+  );
   const [sel, setSel] = useState<LinenItemDto | null>(null);
-
-  const load = useCallback(async () => {
-    try { setItems(await linen.listItems({})); }
-    catch { te('Không tải được'); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
 
   const kpis: KpiItem[] = [
     { lbl: 'Tổng danh mục', val: items.length },
@@ -133,17 +130,14 @@ const LinenItemsPanel: React.FC = () => {
 // ────────────────────────── Transactions ──────────────────────────
 
 const LinenTxPanel: React.FC = () => {
-  const [rows, setRows] = useState<LinenTransactionDto[]>([]);
+  const { rows, reload } = useListData<LinenTransactionDto>(
+    useCallback(() => linen.searchTransactions({ pageSize: 200 }), []),
+    useCallback(() => te('Không tải được'), []),
+  );
   const [sel, setSel] = useState<LinenTransactionDto | null>(null);
 
-  const load = useCallback(async () => {
-    try { setRows(await linen.searchTransactions({ pageSize: 200 })); }
-    catch { te('Không tải được'); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
-
   const advance = async (r: LinenTransactionDto, ns: number) => {
-    try { await linen.updateTransactionStatus(r.id, ns); tk('Đã cập nhật trạng thái giao dịch'); load(); }
+    try { await linen.updateTransactionStatus(r.id, ns); tk('Đã cập nhật trạng thái giao dịch'); reload(); }
     catch { te('Cập nhật thất bại'); }
   };
 
@@ -217,17 +211,14 @@ const LinenTxPanel: React.FC = () => {
 // ────────────────────────── Sterilization ──────────────────────────
 
 const LinenSterPanel: React.FC = () => {
-  const [rows, setRows] = useState<SterilizationScheduleDto[]>([]);
+  const { rows, reload } = useListData<SterilizationScheduleDto>(
+    useCallback(() => linen.searchSchedules({}), []),
+    useCallback(() => te('Không tải được'), []),
+  );
   const [sel, setSel] = useState<SterilizationScheduleDto | null>(null);
 
-  const load = useCallback(async () => {
-    try { setRows(await linen.searchSchedules({})); }
-    catch { te('Không tải được'); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
-
   const advance = async (r: SterilizationScheduleDto, ns: number, cult?: string) => {
-    try { await linen.updateScheduleStatus(r.id, ns, cult); tk('Đã cập nhật'); load(); }
+    try { await linen.updateScheduleStatus(r.id, ns, cult); tk('Đã cập nhật'); reload(); }
     catch { te('Cập nhật thất bại'); }
   };
 

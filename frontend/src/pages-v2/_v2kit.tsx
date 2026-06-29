@@ -677,6 +677,86 @@ export { default as Ico } from '../layouts/terminal/Icon';
 import TermIconCmp from '../layouts/terminal/Icon';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+// ─────────────────────────── List-data hooks (shared boilerplate) ───────────────────────────
+// #206 (REFAC FE-3): ~95% các page list v2 hand-roll lặp cùng một khối state quản lý dữ liệu
+// (rows + loading + error + load() + useEffect) và một useMemo đếm tab. Hai hook dưới trích
+// đúng khối đó để page custom dùng lại MÀ KHÔNG phải ép vào SimpleV2Page (vốn hạn chế: drawer
+// read-only, không footer, không CRUD). Hành vi y hệt code inline → adopt 1:1 behavior-preserving.
+
+/**
+ * Vòng đời tải danh sách: rows + loading + error + reload. Tương đương đúng khối hand-roll
+ * `const [rows]=useState([]); const [loading]=useState(true); ... load(); useEffect(()=>load(),[])`
+ * — cùng pattern reload `useCallback`/`useEffect` mà SimpleV2Page đã dùng. `loader`/`onError` PHẢI
+ * ổn định (memo hoá bằng useCallback, hoặc hàm module-level) để tránh refetch-loop; tải lúc mount
+ * và khi gọi reload(). Tự bọc mảng rỗng nếu API trả non-array (defensive, giống SimpleV2Page).
+ */
+export function useListData<T>(
+  loader: () => Promise<T[]>,
+  onError?: () => void,
+): {
+  rows: T[];
+  setRows: React.Dispatch<React.SetStateAction<T[]>>;
+  loading: boolean;
+  error: boolean;
+  reload: () => void;
+} {
+  const [rows, setRows] = useState<T[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const reload = useCallback(() => {
+    setLoading(true); setError(false);
+    loader()
+      .then((data) => setRows(Array.isArray(data) ? data : []))
+      .catch(() => { setRows([]); setError(true); onError?.(); })
+      .finally(() => setLoading(false));
+  }, [loader, onError]);
+  useEffect(() => { reload(); }, [reload]);
+  return { rows, setRows, loading, error, reload };
+}
+
+/**
+ * Đếm số dòng theo từng status tab: `{ all, [tab.v]: count, ... }`. Tương đương useMemo đếm tab
+ * lặp ở mọi page có StatusTabs. `tabs` chỉ cần field `v` (tab key); `statusOf` map row → tab key.
+ */
+export function useTabCounts<T>(
+  rows: T[],
+  tabs: { v: string }[],
+  statusOf: (row: T) => string,
+): Record<string, number> {
+  return useMemo(() => {
+    const c: Record<string, number> = { all: rows.length };
+    tabs.forEach((t) => { c[t.v] = rows.filter((r) => statusOf(r) === t.v).length; });
+    return c;
+  }, [rows, tabs, statusOf]);
+}
+
+// ─────────────────────────── statusConfigs (gom config status-tab lặp ~50 page) ───────────────────────────
+// #206: mỗi page khai báo lặp bộ-ba `STATUS_TABS[{v,l,tone}]` + `toneOf(n)` + `labelOf(n)` + `keyOf(n)`
+// cho 1 enum status. `makeStatus` gom về 1 khai báo nguồn, suy ra cả 4 — behavior-preserving khi adopt 1:1.
+export interface StatusDef<K extends string> {
+  value: number;        // mã status số từ API
+  key: K;               // tab key (client-side tab filter / statusOf)
+  tab: string;          // nhãn ngắn trên StatusTabs
+  label?: string;       // nhãn đầy đủ (badge/chi tiết) — mặc định = tab
+  tone: StatusTone;
+}
+export function makeStatus<K extends string>(defs: StatusDef<K>[]): {
+  defs: StatusDef<K>[];
+  tabs: StatusTab<K>[];
+  keyOf: (value: number) => string;
+  toneOf: (value: number) => StatusTone;
+  labelOf: (value: number) => string;
+} {
+  const byValue = new Map<number, StatusDef<K>>(defs.map((d) => [d.value, d]));
+  return {
+    defs,
+    tabs: defs.map((d) => ({ v: d.key, l: d.tab, tone: d.tone })),
+    keyOf: (value) => byValue.get(value)?.key ?? '',
+    toneOf: (value) => byValue.get(value)?.tone ?? 'info',
+    labelOf: (value) => { const d = byValue.get(value); return d ? (d.label ?? d.tab) : '—'; },
+  };
+}
+
 export interface SimpleV2PageProps<T> {
   title: string;                                                   // Page title (for plus button)
   load: () => Promise<T[]>;                                        // Async data loader

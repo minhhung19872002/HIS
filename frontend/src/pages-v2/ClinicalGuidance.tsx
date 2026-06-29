@@ -7,7 +7,7 @@ import {
 import type { GuidanceBatchDto, CreateGuidanceBatchDto, GuidanceActivityDto, CreateGuidanceActivityDto } from '../api/clinicalGuidance';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf,
+  DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, te, cf,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
@@ -71,11 +71,7 @@ const ClinicalGuidanceV2: React.FC = () => {
 
   const types = useMemo(() => Object.entries(TYPE_LABEL).map(([v, l]) => ({ v, l })), []);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: items.length };
-    STATUS_TABS.forEach((s) => { c[s.v] = items.filter((r) => sKey(r.status) === s.v).length; });
-    return c;
-  }, [items]);
+  const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r.status));
 
   const filtered = useMemo(() => {
     const k = search.trim().toLowerCase();

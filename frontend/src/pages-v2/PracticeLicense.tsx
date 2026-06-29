@@ -5,7 +5,7 @@ import type { PracticeLicense } from '../api/practiceLicense';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, tw, Ico,
+  DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, tw, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
@@ -76,11 +76,7 @@ const PracticeLicenseV2: React.FC = () => {
   const today = dayjs();
   const types = useMemo(() => Object.entries(TYPE_LABEL).map(([v, l]) => ({ v, l })), []);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: items.length };
-    STATUS_TABS.forEach((s) => { c[s.v] = items.filter((r) => sKey(r.status) === s.v).length; });
-    return c;
-  }, [items]);
+  const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r.status));
 
   const filtered = useMemo(() => {
     const k = search.trim().toLowerCase();

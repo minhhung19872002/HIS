@@ -5,7 +5,7 @@ import type { HealthCampaign } from '../api/healthEducation';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
@@ -61,11 +61,7 @@ const HealthEducationV2: React.FC = () => {
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: items.length };
-    STATUS_TABS.forEach((s) => { c[s.v] = items.filter((r) => sKey(r.status) === s.v).length; });
-    return c;
-  }, [items]);
+  const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r.status));
 
   const filtered = useMemo(() => {
     const k = search.trim().toLowerCase();

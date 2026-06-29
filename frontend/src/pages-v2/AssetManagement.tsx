@@ -5,7 +5,7 @@ import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode, getStocktakes,
 import type { FixedAssetDto, AssetDashboardDto, AssetQrCodeDto, AssetStocktakeDto, AssetStocktakeItemDto, DepreciationReportDto } from '../api/assetManagement';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal, ModalShell,
-  DrawerShell, DrSec, DrField, tk, ti, te,
+  DrawerShell, DrSec, DrField, useTabCounts, tk, ti, te,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 
@@ -102,11 +102,7 @@ const AssetManagementV2: React.FC = () => {
     return Array.from(set).map((v) => ({ v, l: v }));
   }, [items]);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: items.length };
-    STATUS_TABS.forEach((s) => { c[s.v] = items.filter((r) => sKey(r.status) === s.v).length; });
-    return c;
-  }, [items]);
+  const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r.status));
 
   const filtered = useMemo(() => {
     const k = search.trim().toLowerCase();
