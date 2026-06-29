@@ -410,7 +410,7 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
     const el = elementRef.current;
     if (!el) return;
 
-    const handleAnnotationCompleted = async (evt: Event) => {
+    const handleAnnotationCompleted = async (_evt: Event) => {
       if (!ctrModeRef.current) return;
       try {
         const csTools = await import('@cornerstonejs/tools');

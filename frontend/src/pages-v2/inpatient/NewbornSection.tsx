@@ -33,7 +33,6 @@ const DELIVERY_OPTS = [
   { value: 'Giac hut', label: 'Giac hut' },
 ];
 
-const statusLabel = (s: number) => (s === 2 ? 'Da xuat' : 'Dang theo doi');
 const statusChip  = (s: number) => (s === 2 ? <span className="chip ok">Da xuat</span> : <span className="chip">Dang theo doi</span>);
 const fmtDate     = (iso?: string) => (iso ? dayjs(iso).format('DD/MM/YYYY') : '-');
 const fmtTime     = (t?: string)   => (t ? t.slice(0, 5) : '-');

@@ -52,7 +52,6 @@ const ipStatusKey = (s: number): IpStatusKey => (s === 1 ? 'transferred' : s ===
 const IP_STATUS_LABEL: Record<IpStatusKey, string> = { admitted: 'Đang điều trị', transferred: 'Đã chuyển', discharged: 'Đã xuất viện' };
 
 const InpatientV2: React.FC = () => {
-  const { message } = AntdApp.useApp();
   const navigate = useNavigate();
 
   const [tab, setTab] = useState<TopKey>('grid');

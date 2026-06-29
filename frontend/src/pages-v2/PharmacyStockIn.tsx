@@ -72,12 +72,6 @@ const STATUS_TABS: StatusTab<StatusKey>[] = [
   { v: 'cancelled', l: 'Đã hủy',    tone: 'crit' },
 ];
 
-function statusKey(s: number): StatusKey {
-  if (s === STATUS_APPROVED) return 'approved';
-  if (s === STATUS_CANCELLED) return 'cancelled';
-  return 'draft';
-}
-
 const fmtVND = (n: number | null | undefined) =>
   n != null ? `${n.toLocaleString('vi-VN')} ₫` : '—';
 

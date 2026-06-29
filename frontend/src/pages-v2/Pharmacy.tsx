@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { App as AntdApp, Modal } from 'antd';
+import { App as AntdApp } from 'antd';
 import * as pharmacyApi from '../api/pharmacy';
 import { openPrintWindow } from '../utils/printWindow';
 import type { PendingPrescription } from '../api/pharmacy';

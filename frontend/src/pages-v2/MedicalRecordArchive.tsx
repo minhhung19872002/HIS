@@ -5,7 +5,7 @@ import { getArchiveList, createArchive } from '../api/medicalRecordArchive';
 import * as pdfApi from '../api/pdf';
 import { deptApproveRecord, getArchiveApproval, finalizeRecord, type ArchiveApprovalStatusDto } from '../api/emrAdmin';
 import {
-  KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
+  KpiStrip, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   StatusTabs, DrawerShell, ModalShell, DrSec, DrField, tk, ti, tw, Ico,
   type ColumnDef,
 } from './_v2kit';

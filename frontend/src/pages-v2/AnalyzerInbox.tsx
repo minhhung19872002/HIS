@@ -8,9 +8,9 @@ import {
   type ColumnDef, type StatusTab,
 } from './_v2kit';
 import {
-  getAnalyzerInbox, transferInboxResult, rejectInboxResult, mockReceiveResults,
+  getAnalyzerInbox, transferInboxResult, rejectInboxResult,
   getAnalyzers,
-  type AnalyzerInboxItemDto, type MockLabResultDto,
+  type AnalyzerInboxItemDto,
 } from '../api/lis';
 import type { LabAnalyzerDto } from '../api/lis';
 

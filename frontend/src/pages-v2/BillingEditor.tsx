@@ -13,7 +13,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   KpiStrip, StatusBadge, ActBtn, Btn, DataTable, TopTabs, ModalShell,
-  fmtVNDg, fmtDTg, tk, tw, te, ti, type ColumnDef, type TopTab,
+  fmtVNDg, fmtDTg, tk, tw, te, type ColumnDef, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 import {

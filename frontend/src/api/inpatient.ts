@@ -99,8 +99,6 @@ import {
 } from './inpatient/prescription-nutrition';
 
 import {
-  getAutoTreatmentSummary,
-  getTreatmentStatAggregate,
   createTreatmentSheet,
   updateTreatmentSheet,
   getTreatmentSheets,

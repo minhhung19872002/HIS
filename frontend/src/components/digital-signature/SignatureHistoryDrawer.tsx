@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Drawer, Table, Tag, Button, Popconfirm, Modal, Input, Space, Typography, Tooltip, message } from 'antd';
+import { Drawer, Table, Tag, Button, Modal, Input, Space, Typography, Tooltip, message } from 'antd';
 import {
   SafetyCertificateOutlined,
   StopOutlined,

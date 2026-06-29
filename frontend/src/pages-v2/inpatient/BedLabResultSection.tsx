@@ -6,7 +6,7 @@
  * - abbrExpand scope LAB (3) trong ô ghi chú
  */
 import React, { useEffect, useState, useCallback } from 'react';
-import { App as AntdApp, Input, InputNumber, Select, Spin, Tag } from 'antd';
+import { App as AntdApp, Input, Select, Spin, Tag } from 'antd';
 import {
   getLabOrdersByAdmission,
   saveTestResults,
@@ -14,7 +14,6 @@ import {
   finalApprove,
   printTestResultReport,
   type BedLabOrder,
-  type BedLabTestItem,
 } from '../../api/laboratory';
 import { adminApi } from '../../api/system';
 import apiClient from '../../api/client';

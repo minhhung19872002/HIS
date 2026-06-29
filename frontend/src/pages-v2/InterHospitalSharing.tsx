@@ -5,7 +5,7 @@ import type { InterHospitalRequest } from '../api/interHospitalSharing';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te,
+  DrawerShell, DrSec, DrField, CrudModal, tk, ti,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
 

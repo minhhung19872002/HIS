@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Link, useNavigate } from 'react-router-dom';
-import { Modal, Drawer, InputNumber, Select as AntdSelect, App as AntdApp, DatePicker, Tooltip } from 'antd';
+import { Modal, Drawer, InputNumber, Select as AntdSelect, App as AntdApp, DatePicker } from 'antd';
 import { statisticsApi } from '../api/system';
 import type { HospitalDashboardDto, DepartmentStatisticsDto } from '../api/system';
 import * as receptionApi from '../api/reception';

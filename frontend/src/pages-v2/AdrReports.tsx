@@ -74,11 +74,7 @@ const SEVERITY_TONE: Record<number, 'ok' | 'warn' | 'crit' | 'info'> = {
 const severityLabel = (s: number) =>
   SEVERITY_OPTS.find(o => o.value === s)?.label ?? String(s);
 
-const genderLabel = (g: number) =>
-  GENDER_OPTS.find(o => o.value === g)?.label ?? '-';
-
 const fmtDate = (iso?: string) => (iso ? dayjs(iso).format('DD/MM/YYYY') : '-');
-const fmtDateTime = (iso?: string) => (iso ? dayjs(iso).format('DD/MM/YYYY HH:mm') : '-');
 
 // ─── Edit form state ─────────────────────────────────────────────────────────
 

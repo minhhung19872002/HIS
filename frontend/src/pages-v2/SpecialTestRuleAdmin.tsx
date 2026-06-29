@@ -22,9 +22,6 @@ const WINDOW_TYPE_OPTIONS = [
   { value: 1, label: 'Cách nhau N ngày' },
 ];
 
-const windowTypeLabel = (t: number) =>
-  t === 0 ? '1 lần/đợt' : `N-ngày`;
-
 type EditState = Partial<api.SpecialTestRuleSaveDto> & { _testName?: string };
 
 const SpecialTestRuleAdmin: React.FC = () => {

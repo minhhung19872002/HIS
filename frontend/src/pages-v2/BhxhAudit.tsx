@@ -18,7 +18,7 @@ import { normalizeArrayResponse } from '../utils/apiNormalize';
 import { openPrintWindow } from '../utils/printWindow';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  StatusTabs, DrawerShell, DrSec, DrField, fmtVNDg, tk, ti, Ico,
+  StatusTabs, DrawerShell, DrSec, DrField, fmtVNDg, ti, Ico,
   type ColumnDef,
 } from './_v2kit';
 

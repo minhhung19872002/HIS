@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Input, Select, Spin, Alert, QRCode, Divider } from 'antd';
 import {
-  issueTicket, checkinByCard, getQueueStatus, callNext, cancelTicket,
+  issueTicket, checkinByCard, getQueueStatus, callNext,
   type KioskTicketDto, type CheckinResultDto, type QueueStatusDto,
 } from '../api/kiosk';
 import {
@@ -131,14 +131,14 @@ const KioskSelfService: React.FC = () => {
   const [queue, setQueue]     = useState<QueueStatusDto | null>(null);
 
   // Issue form
-  const [deptId, setDeptId]   = useState<string | undefined>();
+  const [deptId] = useState<string | undefined>();
   const [svcType, setSvcType] = useState<string>('OPD');
   const [pName, setPName]     = useState('');
 
   // Checkin form
   const [citizenId, setCitizenId]       = useState('');
   const [insCard, setInsCard]           = useState('');
-  const [checkinDept, setCheckinDept]   = useState<string | undefined>();
+  const [checkinDept] = useState<string | undefined>();
   const [checkinSvc, setCheckinSvc]     = useState<string>('OPD');
 
   // Result modal

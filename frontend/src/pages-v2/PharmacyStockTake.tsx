@@ -36,7 +36,6 @@ import {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const STATUS_NEW = 0;       // after createStockTake
 const STATUS_SAVED = 1;     // after updateStockTakeResults
 const STATUS_COMPLETED = 2; // after completeStockTake
 

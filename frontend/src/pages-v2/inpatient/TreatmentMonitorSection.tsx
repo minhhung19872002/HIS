@@ -1241,7 +1241,7 @@ const ClsOrdersModal: React.FC<{
   const [orders, setOrders] = useState<InpatientServiceRequestItemDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [cancelReason, setCancelReason] = useState('');
+  const [, setCancelReason] = useState('');
   const cancelReasonRef = React.useRef('');
   const [cancelling, setCancelling] = useState(false);
   // G-15 payment type change
