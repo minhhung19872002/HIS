@@ -36,8 +36,8 @@
 > Parity: **Full** = v2 phủ mọi capability lớn của v1 · **Partial** = thiếu ≥1 feature đáng kể (liệt kê) · **Stub** = placeholder mỏng (list-only, không CRUD) · **None** = v2 rỗng/redirect/không route.
 > `Conf` = mức tin (High đọc đủ / Med / Low). DELETE-candidate CHỈ lấy `Full` + `Conf High` (đã adversarial spot-check).
 
-**Verdict batch (sơ bộ):** 64 Full · 40 Partial · 13 Stub. **Sau adversarial verify 21 Full rủi-ro-cao (7 verifier, refute-lens) → 15 bị HẠ** (§2b-2/§2d).
-**→ TỔNG CUỐI: `49 Full · 54 Partial · 14 Stub · 0 None`** (đọc thực tế 117 cặp + vệ tinh). Trong 49 Full: **32 DELETE-safe** (verify-confirmed/v2-superset) · **16 chưa-verify** (cần soi trước khi xóa) · **1 KEEP** (DicomViewer=dependency).
+**Verdict batch (sơ bộ):** 64 Full · 40 Partial · 13 Stub. **Sau adversarial verify 33 Full (2 vòng refute-lens) → 19 bị HẠ** (15 §2b-2 + 4 §2b-3; RadiologyOps nghi-bug nhưng verify = false-alarm, giữ Full).
+**→ TỔNG CUỐI (đã verify đủ nhóm rủi-ro): `45 Full · 58 Partial · 14 Stub · 0 None`** (đọc thực tế 117 cặp + vệ tinh). Trong 45 Full: **44 DELETE-safe** (14 adversarial-verified + 30 v2-superset) · **1 KEEP** (DicomViewer=dependency). Không còn nhóm 'chưa-verify' — Tier-2 đã soi xong (§2b-3/§2d).
 
 ### 2a. STUB (14) — v2 mới list/drawer read-only, CHƯA có CRUD → **PORT ưu tiên cao nhất**
 
@@ -125,23 +125,36 @@
 | PaymentReports | Full→**Partial** | Excel export (→CSV only), per-tab Statistic cards — *minor; v2 +BC8 pharmacy* |
 | Immunization | Full→**Stub** (→§2a) | 3/4 tab: Campaigns/AEFI/Statistics + lịch TCMR |
 
-### 2c. FULL (49) — v2 phủ đủ capability lớn → **DELETE-candidate** (theo tier)
+### 2b-3. Tier-2 verify (vòng-2, 2026-06-30) — 4 trang batch-Full HẠ Partial
 
-**Tier-1 — DELETE-safe (32):** verify-confirmed (`ClinicalGuidance`, `PharmacyApproval`*chỉ thiếu Excel export) HOẶC **v2-superset (v2 ≥ v1 dòng** → rewrite lớn hơn khó rớt feature; chưa đọc sâu từng trang):
+> 16 trang Tier-2 (batch-Full, v2<v1) đã soi đối-chứng: **12 giữ Full** (vào §2c-A) · **4 HẠ Partial** dưới đây. (RadiologyOps ban đầu nghi-bug → verify ra FALSE ALARM, giữ Full — ghi-chú dưới.)
+
+| Page | Verdict | v1 có, v2 THIẾU |
+|---|---|---|
+| HealthEducation | Full→Partial | tab Tài-liệu (HealthMaterial CRUD), date-range filter |
+| SampleTracking | Full→Partial | tab Theo-đợt (batches), tab Thống-kê, barcode scanner, timeline modal, createRejection |
+| StockReport | Full→Partial | cột reservedQuantity + importPrice (detail+summary) — *minor* |
+| DispensingCounter | Full→Partial | mất `PharmacyExpiryBanner` (cảnh báo HSD thuốc) — *minor safety-notice* (cũng thiếu ở InpatientDispensing nhưng trang đó vẫn Full) |
+
+> ✅ **RadiologyOps — VERIFY: FALSE ALARM, giữ Full (§2c-A):** verifier nghi "endpoint mismatch → dropdown rỗng". Đối chiếu BE: v2 gọi `/catalog/paraclinical-services?serviceType=3` + `/catalog/medical-supplies` — **cả hai TỒN TẠI** (`SystemCompleteController.Catalog.cs`); convention numeric **2=LIS, 3=Radiology** (seed `93_seed_lis_test_parameters.sql`: `Services.ServiceType=2`=LIS; `LisCatalogAdmin` dùng `serviceType=2`). v1's `/catalog/services` **KHÔNG còn ở BE** → v1 mới là bản endpoint-chết; v2 ĐÚNG (đang chạy prod). Chỉ còn UX-nit minor (re-pick request cần bấm "Bỏ chọn"). → **không phải bug, không cần fix-issue.**
+
+### 2c. FULL (45) — v2 phủ đủ capability lớn → **DELETE-candidate** (đã verify đủ nhóm rủi-ro)
+
+**A · DELETE-safe — adversarial-verified (14):** đọc đối-chứng xác nhận v2 phủ đủ:
+`ClinicalGuidance`, `PharmacyApproval`*(thiếu Excel export), `ConsultationRegister`, `ServiceRequeue`, `ReceiptBookAdmin`, `PaymentTransactions`, `BhxhConfig`, `ObservationStay`, `DigitalSignature`, `VideoConsultation`, `InpatientDispensing`, `NonDicomCapture`, `EmployeeProfile`, `RadiologyOps`*(endpoint v2 đúng — verify §2b-3; còn UX-nit re-pick minor).
+
+**B · DELETE-safe — v2-superset (30):** v2 ≥ v1 dòng (rewrite lớn hơn, rủi ro rớt feature thấp; **smoke trước khi xóa**, chưa đọc sâu từng trang):
 FinanceCatalogs, ClinicalCatalogs, PharmacyCatalogs, ParaclinicalCatalogs, ReportCatalogs, CatalogsAdmin, SpecialtyEMR, RisAdmin, RisCatalogAdmin, LisCatalogAdmin, SampleReceive, SampleStorage, ReagentManagement, CultureCollection, CentralSigning, Dashboard, TraditionalMedicine, PopulationHealth, InterHospitalSharing, LinenManagement, DeAn06Liaison, TraumaRegistry, NationalGateways, PracticeLicense, RisDispatcher, ClinicalPharmacyCheck, QualityDashboardLive, FunctionalDiagnostics, ZaloNotifications, OfficeSupplyApproval.
-
-**Tier-2 — DELETE-after-verify (16):** batch gắn Full nhưng **v2 < v1 dòng & CHƯA adversarial-verify** (verifier D/E fail do account session-limit). Tỉ lệ false-Full đo được = **15/21 → coi là CHƯA chắc, soi từng trang trước khi xóa**:
-StockReport, ConsultationRegister, ServiceRequeue, ReceiptBookAdmin, PaymentTransactions, BhxhConfig, DispensingCounter, ObservationStay, HealthEducation, DigitalSignature, VideoConsultation, SampleTracking, InpatientDispensing, NonDicomCapture, EmployeeProfile, RadiologyOps.
 
 **KEEP (1):** `DicomViewer` — Full nhưng v2 = wrap v1 19 dòng → **v1 LÀ DEPENDENCY, KHÔNG xóa**.
 
 ### 2d. Adversarial verification (7 verifier agent, refute-lens) — kết quả
 
 Batch-agent (Sonnet) **gắn Full quá rộng** (Full cho mọi trang có list+vài action dù thiếu tab thứ cấp). Re-check refute-lens trên Full rủi-ro-cao (v2 nhỏ hơn v1 / phụ thuộc vệ tinh):
-- **Verify 21 Full** (A: 7 low-ratio · C: 4 · B: 6 decomposed — B đọc **2 lần độc lập**, consensus FACTS, khác ngưỡng → chọn diễn giải bảo thủ). **15/21 bị HẠ** (§2b-2) ⇒ line-count + batch-verdict KHÔNG đáng tin một mình.
-- **2 verify-confirmed Full:** ClinicalGuidance, PharmacyApproval (chỉ thiếu Excel export).
-- **16 Full shrunk-band CHƯA verify** (verifier D/E fail — account hit session-limit, reset 21:30 Bangkok) → Tier-2.
-- **30 Full v2-superset (v2 ≥ v1)** → Tier-1 (chưa đọc sâu từng trang; rủi ro thấp).
+- **Vòng-1 — 17 Full rủi-ro-cao** (A: 7 low-ratio · C: 4 · B: 6 decomposed — B đọc **2 lần độc lập**, consensus FACTS, khác ngưỡng → chọn diễn giải bảo thủ): **15/17 bị HẠ** (§2b-2).
+- **Vòng-2 — 16 Full shrunk-band** (v2<v1, verifier D2/E2 ngày 2026-06-30): **4/16 bị HẠ** (§2b-3), 12 confirmed (RadiologyOps nghi-bug → verify FALSE ALARM, giữ Full).
+- **Tổng: 33 Full verified → 19 HẠ · 14 confirmed** (§2c-A) ⇒ line-count + batch-verdict KHÔNG đáng tin một mình; refute-lens là cần thiết (false-Full ~58%).
+- **30 Full v2-superset (v2 ≥ v1)** chưa đọc sâu từng trang nhưng rủi ro thấp (rewrite lớn hơn) → §2c-B, smoke trước khi xóa.
 
 > 🔴 **PATIENT-SAFETY REGRESSION — ĐÃ XÁC MINH bằng grep → đã mở issue fix #357 (P0):**
 > `PatientFlagBanner` + `BusinessAlertPanel` **chỉ** được import ở **v1** (`pages/OPD,Prescription,EMR,Inpatient,Billing`) — **KHÔNG xuất hiện ở bất kỳ `pages-v2/*` NÀO, cũng KHÔNG ở `layouts/terminal/` shell**. Nghĩa là luồng **khám / kê-đơn / nội-trú / viện-phí v2 MẤT** banner cờ bệnh nhân (dị ứng/cảnh báo) + panel cảnh báo nghiệp vụ so với v1. Cộng thêm OpdEditor/PrescriptionEditor thiếu AI-CDS/NEWS2 · cảnh báo thuốc-đang-dùng · **liều theo cữ S/T/C/Tối** · in phiếu công khai thuốc MSS-01.
@@ -158,17 +171,17 @@ Batch-agent (Sonnet) **gắn Full quá rộng** (Full cho mọi trang có list+v
 | `PublicEmrLookup.tsx` | `/tra-cuu-benh-an` | standalone-giữ (public) | **KEEP** |
 | `QueueDisplay.tsx` | `/queue-display` | standalone-giữ (màn hình hàng đợi công khai) | **KEEP** |
 | `AppointmentBooking.tsx` | `/dat-lich` | standalone-giữ (đặt lịch public) | **KEEP** (xác minh: có v2 `BookingManagement` khác mục đích — staff vs public) |
-| `MobileHome.tsx` | `/mobile` (trong MainLayout) | port-or-drop | **VERIFY** (đã có `pages-mobile/PatientPortalMobile` + `DoctorPortalMobile` → có thể MOOT) |
-| `_CrudTab.tsx` | — (helper) | helper-not-page | **DROP-candidate** (verify không còn import) |
+| `MobileHome.tsx` | `/mobile` (trong MainLayout) | standalone v1 | **KEEP / quyết-định-sản-phẩm** (grep: chỉ self-route ở App.tsx; route `/mobile` còn active; `pages-mobile/*` là app riêng khác mục đích) |
+| `_CrudTab.tsx` | — (helper) | helper-not-page | **DROP cùng v1** (grep: vẫn được 5 v1 catalog page import — Clinical/Finance/Paraclinical/Pharmacy/ReportCatalogs) |
 
 ### 3b. Subdir (25) — tab/helper
 
-| Nhóm | File | Số | Quyết định (chờ agent xác nhận map v2) |
+| Nhóm | File | Số | Quyết định (đã grep xác nhận importer) |
 |---|---|---|---|
 | `opd/tabs/Tab*` | Allergies, Comorbidities, MedicalHistory, PhysicalExam, VitalSigns | 5 | **composed-in-v2 `OpdEditor`** (verify: OpdEditor có vital/history/exam/ICD) → **DROP** sau khi gỡ import v1 |
 | `system-admin/*Tab` | AccessMatrix, Audit, Backup, Branches, Compliance, Configs, DataManagement, EmrAdmin, Health, Integration, ItTickets, LockedServices, Notifications, Roles, Sessions, Users | 16 | v2 `SystemAdmin` gộp **4** (users/roles/audit/config); tách standalone v2: Backup→`BackupManagement`, Integration→`HisConnections`; **còn ~10 tab (ITTickets/Sessions/AccessMatrix/Compliance/DataManagement/LockedServices/Notifications/Health/EmrAdmin/Branches) CHƯA có page v2 → PORT** (khớp SystemAdmin=Partial) |
 | `reports/*Tab` | Nc10ReportTab, ReportBuilderTab | 2 | v2 `Reports`=Partial, **CHƯA** có ReportBuilder/NC10 → **PORT** (chưa DROP) |
-| `*/statusTags` | inpatient, radiology | 2 | helper-not-page → **DROP-candidate** (verify import) |
+| `*/statusTags` | inpatient, radiology | 2 | helper → grep: chỉ `pages/Inpatient`+`pages/Radiology` v1 import → **DROP cùng v1 parent** |
 
 ## 4. v2-only (39) — phân loại
 
@@ -181,15 +194,15 @@ Batch-agent (Sonnet) **gắn Full quá rộng** (Full cho mọi trang có list+v
 
 ## 5. Bốn danh sách hành động (kết quả Phase 0)
 
-- **PORT — 68 trang** (v2 CHƯA đủ parity → bổ sung TRƯỚC khi sunset v1): **14 Stub** (§2a — chưa có CRUD) + **54 Partial** (§2b + §2b-2). Thứ tự ưu tiên:
-  1. ⚠ **Patient-safety / clinical** trước: OPD, Prescription, EMR (banner an-toàn + liều theo cữ), MedicalRecordPlanning (5 tab), HospitalPharmacy, Inpatient, Pharmacy, Insurance.
+- **PORT — 72 trang** (v2 CHƯA đủ parity → bổ sung TRƯỚC khi sunset v1): **14 Stub** (§2a) + **58 Partial** (§2b + §2b-2 + §2b-3). Thứ tự ưu tiên:
+  1. ⚠ **Patient-safety / clinical** trước: OPD, Prescription, EMR (banner an-toàn đã có #357; còn liều-theo-cữ/AI-CDS/print), MedicalRecordPlanning (5 tab), HospitalPharmacy, Inpatient, Pharmacy, Insurance.
   2. **Stub lâm sàng no-CRUD**: HivManagement, TbHivManagement, ChronicDisease, MentalHealth, Screening, OccupationalHealth, SchoolHealth, MedicalForensics, CommunityHealth, Immunization…
-  3. **Minor** sau cùng: WorkloadReport, PaymentReports (Excel), Help.
-- **DELETE-candidate — feed #204** (chỉ sau khi smoke từng trang): **Tier-1 (32)** verify-confirmed/v2-superset (an toàn nhất) · **Tier-2 (16)** batch-Full **chưa-verify — PHẢI soi từng trang trước**. ⛔ KHÔNG xóa `DicomViewer` (v1=dependency); KHÔNG xóa bất kỳ Partial/Stub.
-- **KEEP-standalone**: v1 — Login, PublicStudyViewer, PublicEmrLookup, QueueDisplay, AppointmentBooking, **DicomViewer (dependency)**; v2 — InspectorPortal, PatientPortalStandalone. **MobileHome → VERIFY** (pages-mobile có thay thế?).
-- **DROP — helper/dead** (sau khi grep xác nhận hết import): `_CrudTab`, `inpatient/statusTags`, `radiology/statusTags`, `opd/tabs/*` (5, composed-in-OpdEditor). ⛔ CHƯA drop `reports/*Tab` + ~10 `system-admin/*Tab` (chưa port v2).
+  3. **Minor** sau cùng: WorkloadReport, PaymentReports (Excel), StockReport, DispensingCounter (PharmacyExpiryBanner), HealthEducation, SampleTracking, Help.
+- **DELETE-candidate — feed #204** (44, chỉ sau khi smoke từng trang): **A · 14 adversarial-verified** + **B · 30 v2-superset** (smoke trước). ⛔ KHÔNG xóa `DicomViewer` (v1=dependency); KHÔNG xóa bất kỳ Partial/Stub.
+- **KEEP-standalone**: v1 — Login, PublicStudyViewer, PublicEmrLookup, QueueDisplay, AppointmentBooking, **DicomViewer (dependency)**, **MobileHome** (route `/mobile` còn active — quyết-định-sản-phẩm); v2 — InspectorPortal, PatientPortalStandalone.
+- **DROP — RỖNG lúc này:** mọi helper v1 (`_CrudTab`, `*/statusTags`, `opd/tabs/*`, `reports/*Tab`, `system-admin/*Tab`) **đều còn được v1-parent page import** (grep xác nhận) → chỉ DROP được KÈM khi sunset v1 parent. KHÔNG có file drop độc-lập-an-toàn-ngay.
 
 ---
-**Kết luận #353:** v2 parity **rộng nhưng NÔNG** — chỉ **~32/117** v1 page xóa-an-toàn ngay; **68** cần PORT (rớt tab thứ cấp / print / banner an-toàn); **16** cần verify. **#204 KHÔNG thể xóa hàng loạt v1** — phải PORT 68 + verify 16 trước. ⚠ Nghi **regression patient-safety** ở OPD/Prescription editor (§2d) — ưu tiên xác minh.
-**Cross-ref:** epic #352 · sunset #204 · roadmap `docs/architecture/his-roadmap/`.
-**Trạng thái:** Phase 0 **DONE** (read-only inventory: 117 cặp đọc thực tế + adversarial verify 21 Full). Build: không cần (chỉ doc).
+**Kết luận #353:** v2 parity **rộng nhưng NÔNG** — chỉ **44/117** v1 page xóa-an-toàn (14 verified + 30 superset); **72** cần PORT (rớt tab thứ cấp / print / banner an-toàn); **DROP-list rỗng** (helper buộc vào v1 parent). **#204 KHÔNG thể xóa hàng loạt v1.** Patient-safety regression đã xử lý qua **#357** (khôi phục banner 5 editor v2); residual feature-PORT (liều-theo-cữ / AI-CDS / print MSS-01) track ở §2b-2 + PORT. RadiologyOps endpoint-mismatch đã **VERIFY = false-alarm** (v2 đúng convention 2=LIS/3=Radiology, §2b-3).
+**Cross-ref:** epic #352 · sunset #204 · fix #357 · roadmap `docs/architecture/his-roadmap/`.
+**Trạng thái:** Phase 0 **DONE** (117 cặp đọc thực tế + adversarial verify 33 Full / 2 vòng). Build: không cần (chỉ doc).

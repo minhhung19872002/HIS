@@ -5,9 +5,53 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-06-27**.
+> Cập nhật cuối: **2026-06-30**.
 
-## Phiên 2026-06-25→27 (mới nhất)
+## Phien 2026-06-28..29 (cua OPUS - #354/#201/#203/#202 SHIPPED prod, deploy success)
+- **#354** [PERF-2a]: bound 99 list-endpoint type-(a) + verify doi-khang 43 agent bat 8 site bound-nham -> revert. PUSHED cf8962f.
+- **#201** [REFAC-2]: tach 7 BE god-file -> 36 file <800 (byte-identical; encoding-fix [IO.File]::ReadAllLines UTF-8). PUSHED a50123a.
+- **#203** [REFAC-4] DTO hygiene TRON VEN -> CLOSED (721316d): 11 god-DTO split <800 + 198 inline-DTO ra khoi 48 controller (Dtos/) + dedupe 8 DTO divergent rename role-specific + grab-bag rename. Du 4 acceptance.
+- **#202** [REFAC-3]: tach 13 prod god-controller -> partial <800 (route-attr GLOBAL 2919==2919 + string-literal Vietnamese 6764==6764 bao toan; mojibake=0). PUSHED 8ab3a52 + 8602ed6. **OPEN**: thin/bo-DbContext + 2 dev-tool (PopulateData/DailySeed atomic method) = can smoke.
+- **Viec ke:** BE tech-debt con lai (#193/#195/#197/#198/#355/#356/#202-thin/#214) deu CAN deploy+smoke -> phien smoke-capable. FE (#206/#210/fe-unused) dang do cua khac giu lock. TEST lam CUOI cung. *(#211+#353 da CLOSED+pushed e628b96/4afcf98 — boi cua nay.)*
+- **#357** [bug/P0 patient-safety] **CLOSED+pushed `cd4f583`** (cua nay): khoi phuc co an-toan-BN vao **5 editor v2** (OPD/Prescription/EMR/Billing/Inpatient = dung 5 trang v1 co banner); `EmrEditor` chi `PatientFlagBanner` (parity v1). Reuse `components/PatientFlagBanner`+`BusinessAlertPanel`, behavior-preserving (tu-an khi khong co flag/alert), build FE EXIT 0, 31 insertions/5 file. Residual feature-PORT (lieu-theo-cu S/T/C/Toi · AI-CDS/NEWS2 · in MSS-01) track o #353 §2b-2 + §5 PORT + #352.
+
+## Phiên 2026-06-28→30 (cửa này — #211 + #353 CLOSED+pushed; #357 đã xử lý; #353 Tier-2 verify done)
+- **#211** dedup URL `NonDicomCapture` → **CLOSED+pushed `e628b96`**. **#353** inventory v1↔v2 → **CLOSED+pushed `4afcf98`**.
+- **#357** [P0 patient-safety] (phát hiện từ #353: v2 mất `PatientFlagBanner`+`BusinessAlertPanel`) → **CLOSED+pushed `cd4f583`** (khôi phục banner vào 5 editor v2).
+- **#353 Tier-2 verify HOÀN TẤT (2026-06-30, cửa này):** soi nốt 16 trang batch-Full chưa-verify (D2/E2) → **12 giữ Full, 4 HẠ Partial** (StockReport/DispensingCounter/HealthEducation/SampleTracking). RadiologyOps nghi endpoint-mismatch → **VERIFY = false-alarm** (BE có `paraclinical-services`+`medical-supplies`; convention 2=LIS/3=Radiology; v1 `/catalog/services` mới là endpoint-chết) → giữ Full, KHÔNG cần fix. Inventory doc: **TỔNG CUỐI 45 Full · 58 Partial · 14 Stub**; DELETE-safe **44** (14 verified + 30 superset); DROP-list RỖNG. Đã giải quyết hết vấn đề task → commit+push enrichment cho #353.
+- Lock cửa này: `353-tier2`. (Cửa khác: #355/#356, fe-unused-cleanup, 202/206.)
+
+## Phiên 2026-06-28 (#354 wave-2 — XONG-local, build-green, CHƯA push, chờ user duyệt)
+- **#354 [PERF-2a][P1] CLAIMED** (in-progress + assignee me): bound type-(a) list endpoint còn lại (~158 file/1130 site `.ToListAsync`
+  chưa quét). Nối tiếp #196 wave-1 (foundation `QueryBoundExtensions.ToBoundedListAsync`). **Calibrate rule**: type-(a) =
+  `.ToListAsync()` trả rows về client, KHÔNG Skip/Take, KHÔNG aggregate(.Count/.Sum/GroupBy)/write-loop theo sau (kể cả FK-scoped);
+  CHỈ bound **bảng tăng-trưởng** (bỏ catalog tham chiếu cố định nhỏ: Genders/Ethnics/Nations…).
+- **Phát hiện density THẤP**: nhiều "list service" đã `.Take(200)` sẵn (Chronic/Community/Environmental/HealthEdu/Reproductive ≈0 type-(a)).
+- **Cach lam**: gop 2 cua lam-trung ve 1 cua (user dung cua kia). 5 subagent Sonnet quet Set A (124 file raw ToListAsync chua bound) + Set B (26 file wave-1 con gap). Rule conservative skip-when-uncertain (bound nham aggregate = SAI so lieu; bo sot = lanh). KET QUA: 99 site bound o 45 service file + 39 using. Catalog lon (SNOMED/ClinicalTerms/Countries) DUOC bound; vai FK-scoped (caseId/chainId) bound an toan.
+- **Kế**: consolidate 3 báo cáo → review từng site (cổng correctness: soi SecurityService:96 report-take, MasterCatalog reference vs growth,
+  CheckMissingForms iterated-build) → áp wave-2 type-(a) rõ ràng + build BE EXIT 0 → cập nhật STATUS. **KHÔNG push** (đợi user duyệt; #354 OPEN tới khi hết wave).
+- ⚠️ **Điều phối 4 cửa**: #355/#356 (cùng cha #196) **chồng file** với #354 (khác loại site, cùng service file) → liệt kê file đã đụng khi push, tuần tự merge.
+- ⚠️ **TRÙNG #354 GIỮA 2 CỬA (2026-06-28):** cửa-thứ-2 cũng bound 3 site type-(a) sạch TRƯỚC khi thấy section wave-2 này (UNCOMMITTED, build Infrastructure EXIT 0):
+  `Reception/...Queue.cs` `GetTodayAdmissions`(MedicalRecords toàn-viện/ngày)+`GetServingList`(QueueTickets) · `Examination/...WaitingList.cs` `GetRoomPatientList`(Examinations).
+  Defer aggregate-contaminated→#355 (LIS `GetLabQueueDisplay`, Reception `GetWaitingList`=count-derive). **3 site này nằm trong scan 'subdirs' của cửa wave-2** →
+  đề xuất **1 cửa OWN #354, cửa kia đổi task** để khỏi lặp; nếu giữ, gộp 3 site này vào wave-2, tránh sửa lại 2 file đó. State-store: comment trên #354.
+
+## Phiên 2026-06-29..30 (#206 [FE-3] adoption design-system — DONE, build-green, push Closes #206)
+- **Hướng B (user chốt):** trích hook thay vì ép SimpleV2Page (premise issue "95% giống" chỉ đúng phần vỏ; ép migrate vi phạm
+  behavior-preserving — mất drawer-footer-action / thêm pager / vướng server-filter/CRUD). Thêm `useListData<T>` + `useTabCounts<T>`
+  + `makeStatus()` (statusConfigs) vào `_v2kit.tsx` (additive export). **Acceptance đủ:** hook + statusConfigs tồn tại; pilot ≥10 page.
+- **Adopt 25 page (behavior-preserving, tsc -b EXIT 0):** 1:1 thay boilerplate `[rows]+load+useEffect`→useListData (loader bọc useCallback,
+  ổn-định; call-site load()→reload()) và `counts` useMemo→useTabCounts. Pilot+self: FunctionalDiagnostics·LinenManagement·HealthEducation·
+  Asset·Booking·ClinicalGuidance·Culture·MRPlanning·Methadone·Micro·PracticeLicense·Consultation·Insurance·HealthExchange·OfficialDocuments·
+  PayrollAdmin. Subagent (Opus, verify lại): EInvoices·EmrDataTags·NationalGateways·DeAn06Liaison·BillingGuarantors·HrDecisions·LISConfig·Quality·EmrCloudSync.
+- **Cách làm:** classify 111 page (workflow fan-out, rule stable-loader nghiêm) → adopt MỌI page eligible-an-toàn. Bỏ page **server-side-filter**
+  (loader đọc search/date → ép adopt = vỡ behavior) + page **cửa khác đang giữ** (fe-unused-cleanup: AnalyzerInbox/BhxhAudit/InfectionControl/
+  InterHospitalSharing/MedicalRecordArchive) + **41 page chưa classify** (agent fail vì rate-limit). → **follow-up** khi cửa kia xong + quota hồi.
+- **Verify:** tsc -b EXIT 0 (toàn project); eslint KHÔNG lớp-lỗi-mới (set-state-in-effect/only-export-components = pre-existing _v2kit,
+  thuộc #210; `no-irregular-whitespace` Consultation:16/Insurance:18 = pre-existing ngoài diff). Spot-check 7 file (gồm multi-panel) behavior-preserving.
+- **4 cửa:** chỉ `git add` file của tôi (25 page + `_v2kit.tsx`); KHÔNG đụng NonDicomCapture(#211)/file cửa khác. Push `Closes #206`.
+
+## Phiên 2026-06-25→27
 - **#183 Phase-1 SHIPPED** (`fa4e998`, deploy Cloud Run SUCCESS, live prod): gom **518** `[Authorize(Roles="...")]`
   literal ở **45 controller** → `RoleNames` const (`backend/src/HIS.Core/Constants/RoleNames.cs`), **byte-identical**
   (verify độc lập 45 file/518 attr/0 lệch + build 0 err). Acceptance #1+#3 ✅. **Phase-2 DEFER** (gộp chính tả role +
