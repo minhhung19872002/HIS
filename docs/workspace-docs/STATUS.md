@@ -7,6 +7,25 @@
 >
 > Cập nhật cuối: **2026-07-03**.
 
+## Phiên 2026-07-03 (cửa Opus/Fable — #358 NangCap25 QR động VCB CLOSED+pushed+deployed+verified prod)
+- **#358 [NangCap25] QR động Vietcombank kết nối viện phí (BV VN-Thụy Điển Uông Bí) → CLOSED** (`840dac9` feat + `a3a0e09` e2e).
+  Trọn 22 mục (I-VI): QR động 5 nguồn (chỉ định CLS/đơn thuốc/quầy thuốc/tạm ứng/ra viện) + kiosk · paid-hook V.1
+  (IsPaid+Status 0→1 mở gate LIS/PACS, tạo Deposit, RetailSale.PaidAmount) · chi hộ hoàn tiền IV (MockMode) · báo cáo
+  VI.1 người-tạo-QR + VI.2 đối soát NH · nhúng QR 4 phiếu in. Mở rộng `PaymentGatewayService` (KHÔNG dựng cổng mới).
+  Migration **141** (`ReferenceType/Id/Data` + bảng `RefundDisbursements`). FE: `QrPaymentCenter` `[25]` route `/v2/qr-payment-center`.
+- **2 bug thật phát hiện qua test → fixed + regression-guard:** (1) business guard 500→400 (thiếu `[TypeFilter(DomainExceptionFilter)]`
+  trên `PaymentGatewayController`). (2) **ROOT-CAUSE tiềm ẩn:** `PaymentTransaction.Patient` required-nav + BN xóa mềm → filtered
+  `.Include(Patient)` ẩn luôn giao dịch (confirm 500 / getById 404 / rớt khỏi đối soát) → fix 1 dòng `HISDbContext`:
+  `.Navigation(t=>t.Patient).IsRequired(false)`. Ảnh hưởng MỌI query payment, không riêng NangCap25.
+- **Test 2 tầng:** BE `scripts/test-nangcap25.ps1` **30/30** (API + paid-hook + reports + chi hộ + print + regression 3 cổng cũ
+  + BN-xóa-mềm + guards 400). FE `frontend/e2e/nangcap25-ui.spec.ts` **4/4** Playwright UI-drive (đối soát+submit chi hộ ·
+  kiosk sinh QR canvas · VietQR method · render sạch) + 10 evidence `test-results/NangCap25/`.
+- **Deploy verify prod:** GitHub Actions run 28644306427 **success 6m17s** · `/health/schema-drift` **missingCount=0** ·
+  endpoint VI.2/IV/query-cột-mới trả 200 (migration 141 áp, bảng `RefundDisbursements` tồn tại). LIVE trên prod.
+- **Vận hành còn lại (không chặn nghiệm thu):** chi hộ IV chạy MockMode (cần merchant contract VCB) · confirm bank thủ công
+  (VCB chưa cấp webhook IPN) · điền số TK VCB thật qua env `PaymentGateway:Bank:vietcombank:*`.
+- Cũng đã push đầu phiên: `8e46244` envelope-standardize 12 controller · `7ade374`/`f7b8784` agent-memory+docs+gitignore dọn.
+
 ## Phiên 2026-07-03 (goal: hoàn thành TẤT CẢ issue — fix trước, test cuối)
 - **CLOSED hôm nay:** **#292** (Cloud SQL private-IP `10.10.0.3` + gỡ 0.0.0.0/0 + rotate pwd sqlserver; public 1433 BLOCKED; prod healthy) · **#182** (rotate Jwt__Key + PACS Orthanc pwd [VM .env + Cloud Run] + scrub seed-script + fail-fast guard default-key prod, `7bcae24`) · **#293** (shortlist 6 controller gate RBAC, `e0057d5`, smoke admin 14/14=200; test-403 bàn giao #344) · **#183** Phase-2 (verify prod 8 role; gộp RadiologyManager→RadiologistManager orphan-neutral, `52af969`) · **#209** (MOOT theo v1-retire; phần sống → #352).
 - ⚠️ Máy này CÓ gcloud (owner) + SSH PACS VM — các defer "thiếu gcloud" trước đây làm được tại đây. DB prod truy cập qua cloud-sql-proxy.

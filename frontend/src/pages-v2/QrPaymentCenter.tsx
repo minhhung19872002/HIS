@@ -165,7 +165,7 @@ const QrPaymentCenter: React.FC = () => {
   return (
     <div className="ab-module">
       <div className="ab-header">
-        <h1 className="ab-title">[25] QR động &amp; Đối soát VCB</h1>
+        <h1 className="ab-title">QR động &amp; Đối soát VCB</h1>
         <div className="ab-actions">
           <input type="date" className="ed-fld" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
           <input type="date" className="ed-fld" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
