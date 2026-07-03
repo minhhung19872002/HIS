@@ -104,7 +104,7 @@ public partial class ReceptionCompleteController
     {
         var userId = GetCurrentUserId();
         var ok = await _receptionService.SaveFingerprintAsync(patientId, req?.FingerprintData, req?.NotCollected ?? false, userId);
-        return ok ? Ok(new { success = true }) : NotFound(new { message = "Khong tim thay benh nhan" });
+        return ok ? Ok() : NotFound(HIS.Application.DTOs.Common.ApiResponse<object>.Fail("Khong tim thay benh nhan"));
     }
 
 

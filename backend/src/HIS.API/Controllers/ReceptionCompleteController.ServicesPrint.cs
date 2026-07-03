@@ -175,7 +175,7 @@ public partial class ReceptionCompleteController
     {
         var data = await _receptionService.PrintMedicalRecordBarcodeAsync(medicalRecordId);
         if (data.Length == 0)
-            return NotFound(new { message = "Không tìm thấy hồ sơ bệnh án" });
+            return NotFound(HIS.Application.DTOs.Common.ApiResponse<object>.Fail("Không tìm thấy hồ sơ bệnh án"));
         return File(data, "application/pdf", $"BarcodeHSBA_{medicalRecordId}.pdf");
     }
 

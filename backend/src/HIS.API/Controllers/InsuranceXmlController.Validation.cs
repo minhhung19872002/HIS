@@ -83,7 +83,7 @@ public partial class InsuranceXmlController
     {
         // Sweep 2026-06-12: body rỗng từng trả TXN giả + "tiep nhan thanh cong" (mock) — chặn khi thiếu hồ sơ.
         if (dto == null || dto.BatchId == Guid.Empty)
-            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu BatchId — chưa chọn đợt quyết toán để gửi" });
+            return BadRequest(HIS.Application.DTOs.Common.ApiResponse<object>.Fail("Thiếu BatchId — chưa chọn đợt quyết toán để gửi"));
         var result = await _insuranceService.SubmitToInsurancePortalAsync(dto);
         return Ok(result);
     }
@@ -158,7 +158,7 @@ public partial class InsuranceXmlController
     public async Task<ActionResult<InsuranceReconciliationDto>> ImportReconciliationResult(Guid batchId, IFormFile file)
     {
         if (file == null || file.Length == 0)
-            return BadRequest(new { message = "Chưa chọn file kết quả đối soát" });
+            return BadRequest(HIS.Application.DTOs.Common.ApiResponse<object>.Fail("Chưa chọn file kết quả đối soát"));
         using var stream = new MemoryStream();
         await file.CopyToAsync(stream);
         var result = await _insuranceService.ImportReconciliationResultAsync(batchId, stream.ToArray(), GetUserId());

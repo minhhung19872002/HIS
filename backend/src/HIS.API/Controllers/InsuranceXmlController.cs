@@ -39,7 +39,7 @@ public partial class InsuranceXmlController : ControllerBase
     [HttpPost("sync")]
     public ActionResult SyncInsurance()
     {
-        return Ok(new { success = true, message = "Đồng bộ BHYT thành công", syncedAt = DateTime.Now });
+        return Ok(new { message = "Đồng bộ BHYT thành công", syncedAt = DateTime.Now });
     }
 
     /// <summary>
@@ -48,7 +48,7 @@ public partial class InsuranceXmlController : ControllerBase
     [HttpGet("export-xml")]
     public ActionResult ExportXmlGet([FromQuery] int? year = null, [FromQuery] int? month = null)
     {
-        return Ok(new { success = true, message = "Sử dụng POST /api/insurance/xml/export để tạo file", year, month });
+        return Ok(new { message = "Sử dụng POST /api/insurance/xml/export để tạo file", year, month });
     }
 
     [HttpPost("verify-card")]
@@ -195,7 +195,7 @@ public partial class InsuranceXmlController : ControllerBase
         // Sweep 2026-06-12: body rỗng từng 500 — phải có kỳ quyết toán hoặc danh sách mã liên thông
         if (config == null || (config.Month == 0 && config.Year == 0 && config.FromDate == null
             && config.ToDate == null && (config.MaLkList == null || config.MaLkList.Count == 0)))
-            return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu kỳ quyết toán (Month/Year hoặc FromDate/ToDate) hoặc MaLkList" });
+            return BadRequest(HIS.Application.DTOs.Common.ApiResponse<object>.Fail("Thiếu kỳ quyết toán (Month/Year hoặc FromDate/ToDate) hoặc MaLkList"));
         var result = await _insuranceService.GenerateXml1DataAsync(config);
         return Ok(result);
     }
