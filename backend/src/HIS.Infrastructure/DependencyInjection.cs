@@ -20,13 +20,18 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        // Cross-cutting: field-level audit diff interceptor (Issue #198 AUDIT-1). Scoped so it can
+        // resolve ICurrentUserAccessor from the SAME request scope as the HISDbContext it attaches to.
+        services.AddScoped<AuditFieldDiffInterceptor>();
+
         // Database
-        services.AddDbContext<HISDbContext>(options =>
+        services.AddDbContext<HISDbContext>((sp, options) =>
             options
                 .UseSqlServer(
                     configuration.GetConnectionString("DefaultConnection"),
                     b => b.MigrationsAssembly(typeof(HISDbContext).Assembly.FullName))
-                .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning)));
+                .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning))
+                .AddInterceptors(sp.GetRequiredService<AuditFieldDiffInterceptor>()));
 
         // Repositories
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
