@@ -39,7 +39,7 @@ public class PharmacyApprovalController : ControllerBase
     public async Task<IActionResult> DeleteDraft(Guid id)
     {
         var ok = await _service.DeleteDraftAsync(id, GetUserId());
-        return Ok(new { success = ok });
+        return Ok(ok);
     }
 
     [HttpPost("submit")]

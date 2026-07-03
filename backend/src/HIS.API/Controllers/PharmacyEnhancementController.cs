@@ -52,7 +52,7 @@ public class PharmacyEnhancementController : ControllerBase
         alert.AcknowledgedAt = DateTime.Now;
         alert.AcknowledgedBy = GetUserId();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ========== Compounding Orders (Pha chế trung tâm) ==========
@@ -165,7 +165,7 @@ public class PharmacyEnhancementController : ControllerBase
         c.UpdatedAt = DateTime.Now;
         c.UpdatedBy = GetUserId().ToString();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     [HttpPut("compounding/{id:guid}/complete")]
@@ -180,7 +180,7 @@ public class PharmacyEnhancementController : ControllerBase
         c.UpdatedAt = DateTime.Now;
         c.UpdatedBy = GetUserId().ToString();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     [HttpPut("compounding/{id:guid}/cancel")]
@@ -194,7 +194,7 @@ public class PharmacyEnhancementController : ControllerBase
         c.UpdatedAt = DateTime.Now;
         c.UpdatedBy = GetUserId().ToString();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 }
 
