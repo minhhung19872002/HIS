@@ -139,8 +139,17 @@ prod-error-logs*.json
 frontend/prod-endpoint-probe.json
 frontend/prod-route-audit.json
 frontend/playwright-prod-report.json
+frontend/playwright-prod-*.json
 frontend/playwright-report/
 frontend/test-results/
+
+# Local git worktrees (multi-window parallel work)
+.claude/worktrees/
+
+# VM SSH keys — SECRET, never commit
+deploy/pacs/oracle/*.zip
+deploy/pacs/oracle/*.pem
+deploy/pacs/oracle/*.key
 
 # XML exports
 backend/src/HIS.API/exports/

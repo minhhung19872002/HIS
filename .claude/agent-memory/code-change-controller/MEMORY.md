@@ -4,3 +4,4 @@
 - [B1.6 inpatient lab entry needs backend](project_b16-inpatient-lab-backend-gap.md) — B1.6 (bedside lab enter/approve for inpatient) blocked: inpatient.ts getLabResults returns LabResultItemDto[] with no LISComplete orderId
 - [DocumentHoldSearchDto has no medicalRecordId](reference_reception-dto-quirks.md) — DocumentHoldSearchDto in reception.ts has no medicalRecordId field; filter by patientId only; medicalRecordId not in search shape
 - [B1.5 inpatient treatment monitor section](reference_inpatient-treatment-monitor.md) — B1.5 first slice done: TreatmentMonitorSection in pages-v2/inpatient/; VitalSigns chart uses VitalSignsChartDto (temperatureData/pulseData/bpData/spO2Data arrays of {time,value,value2})
+- [Migration numbering drift risk](feedback_migration-numbering-drift.md) — Scripts dir has gaps + multiple files with same prefix; always `ls Data/Scripts/` and parse max NN before assigning — 120/121/122 were taken when 119 was expected max

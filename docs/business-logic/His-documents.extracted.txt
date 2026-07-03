@@ -1,0 +1,229 @@
+﻿
+TÀI LIỆU MÔ TẢ CHI TIẾT NGHIỆP VỤ VNP-HIS
+Áp dụng cho phân tích, thiết kế và triển khai hệ thống HIS đa nền tảng
+
+Mục
+Nội dung
+Mục đích tài liệu
+Mô tả các nhóm nghiệp vụ chính trong bệnh viện để làm cơ sở xây dựng yêu cầu phần mềm HIS, phân rã module, thiết kế dữ liệu, thiết kế luồng xử lý và nghiệm thu triển khai.
+Phạm vi
+Bao gồm các nghiệp vụ hành chính người bệnh, khám ngoại trú, cấp cứu, nội trú, cận lâm sàng, dược - vật tư, viện phí, BHYT, phẫu thuật thủ thuật, phòng mổ, báo cáo, tích hợp và quản trị hệ thống.
+Nguyên tắc
+HIS là hệ thống lõi điều phối quy trình bệnh viện. Các hệ thống như LIS, RIS/PACS, EMR, hóa đơn điện tử, cổng BHXH, đơn thuốc điện tử và thanh toán điện tử có thể là module tích hợp hoặc hệ thống vệ tinh kết nối với HIS.
+
+1. Tổng quan hệ thống HIS trong bệnh viện
+Hệ thống HIS (Hospital Information System) là hệ thống thông tin bệnh viện trung tâm, quản lý dữ liệu và quy trình từ lúc người bệnh đăng ký khám, tiếp nhận cấp cứu, nhập viện, chỉ định dịch vụ, nhận kết quả cận lâm sàng, kê đơn, cấp phát thuốc, tính viện phí, thanh toán BHYT, ra viện và báo cáo quản trị.
+HIS phải liên thông dữ liệu giữa khối hành chính, khối lâm sàng, cận lâm sàng, dược, tài chính, bảo hiểm và ban giám đốc. Mục tiêu là giảm nhập liệu lặp, giảm sai sót, tăng tốc độ phục vụ người bệnh và tạo nguồn dữ liệu thống nhất cho quản lý.
+HIS giữ vai trò lõi nghiệp vụ. Các hệ thống LIS, RIS/PACS, EMR, hóa đơn điện tử, đơn thuốc điện tử, cổng BHXH, kho thuốc, thanh toán điện tử, SMS/Zalo, thiết bị y tế hoặc cổng dữ liệu y tế là các module tích hợp theo dạng SAAS.
+2. Tác nhân tham gia hệ thống
+Tác nhân
+Vai trò nghiệp vụ
+Người bệnh / thân nhân
+Đăng ký khám, cung cấp thông tin, thanh toán, nhận kết quả, nhận đơn thuốc, nhận lịch tái khám.
+Nhân viên tiếp nhận
+Tạo hồ sơ người bệnh, kiểm tra BHYT, phân phòng khám, in phiếu, điều phối ban đầu.
+Bác sĩ khám bệnh
+Khám lâm sàng, chẩn đoán, chỉ định dịch vụ, kê đơn, cho nhập viện, hẹn tái khám, chuyển viện.
+Điều dưỡng
+Đo sinh hiệu, thực hiện y lệnh, chăm sóc, theo dõi, bàn giao ca, quản lý phiếu chăm sóc.
+Kỹ thuật viên xét nghiệm
+Nhận chỉ định, lấy mẫu, chạy máy, nhập/duyệt/trả kết quả xét nghiệm.
+Kỹ thuật viên CĐHA/TDCN
+Thực hiện chẩn đoán hình ảnh, nội soi, siêu âm, điện tim, trả kết quả và hình ảnh.
+Dược sĩ / thủ kho
+Quản lý danh mục thuốc, nhập xuất tồn, cấp phát thuốc, kiểm kê, cảnh báo tồn và hạn dùng.
+Nhân viên viện phí
+Tạm ứng, thu tiền, hoàn tiền, quyết toán, in bảng kê, xuất hóa đơn, đối soát thanh toán.
+Nhân viên BHYT
+Kiểm tra quyền lợi, xuất XML, gửi hồ sơ, nhận lỗi, đối soát quyết toán BHYT.
+Quản trị hệ thống
+Tạo tài khoản, phân quyền, cấu hình danh mục, cấu hình luồng, kiểm tra nhật ký và bảo mật.
+Ban giám đốc / phòng kế hoạch
+Theo dõi dashboard, báo cáo hoạt động, doanh thu, công suất giường, thuốc, BHYT và chất lượng dịch vụ.
+3. Bản đồ module HIS
+Module
+Phạm vi nghiệp vụ
+Quản trị hệ thống
+Tài khoản, vai trò, khoa phòng, phân quyền menu/dữ liệu, nhật ký thao tác, cấu hình hệ thống.
+Danh mục dùng chung
+ICD, dịch vụ kỹ thuật, giá, thuốc, vật tư, kho, phòng, nhân viên, mẫu phiếu, đối tượng BHYT.
+Tiếp nhận
+Tạo hồ sơ, kiểm tra thẻ, phân luồng, cấp số, in phiếu khám, quản lý lịch hẹn.
+Khám ngoại trú
+Ghi nhận khám lâm sàng, chẩn đoán, chỉ định, kê đơn, kết luận, hẹn tái khám, chuyển viện/nhập viện.
+Cấp cứu
+Tiếp nhận khẩn, phân loại mức độ, xử trí ban đầu, theo dõi, chuyển khoa/nhập viện/ra viện.
+Điều trị nội trú
+Nhập viện, phân giường, bệnh án, y lệnh, điều dưỡng, chuyển khoa, ra viện, tóm tắt bệnh án.
+Cận lâm sàng
+Chỉ định, tiếp nhận, thực hiện, trả kết quả xét nghiệm, CĐHA, TDCN, phẫu thuật thủ thuật.
+Dược - vật tư
+Danh mục, nhập xuất tồn, cấp phát, hoàn trả, kiểm kê, hạn dùng, số lô, tủ trực, vật tư tiêu hao.
+Viện phí
+Tạm ứng, thu phí, hoàn tiền, quyết toán, bảng kê, hóa đơn điện tử, công nợ, thanh toán không tiền mặt.
+BHYT
+Kiểm tra quyền lợi, tính mức hưởng, xuất XML, gửi cổng giám định, nhận lỗi, đối soát quyết toán.
+Phòng mổ
+Lịch mổ, ê-kíp, phòng mổ, vật tư, thuốc, biên bản mổ, gây mê hồi sức, chi phí mổ.
+Báo cáo điều hành
+Báo cáo khám chữa bệnh, tài chính, BHYT, dược, cận lâm sàng, công suất giường, dashboard.
+4. Nghiệp vụ danh mục nền
+
+Nhóm danh mục
+Nội dung quản lý
+Danh mục tổ chức
+Khoa, phòng, buồng, giường, kho, quầy viện phí, phòng khám, phòng cận lâm sàng, phòng mổ.
+Danh mục nhân sự
+Bác sĩ, điều dưỡng, kỹ thuật viên, dược sĩ, thu ngân, quản trị viên, chức danh, chứng chỉ hành nghề.
+Danh mục người bệnh
+Đối tượng khám chữa bệnh, loại hình điều trị, tuyến, đối tượng BHYT, nhóm miễn giảm, hợp đồng.
+Danh mục chuyên môn
+ICD, bệnh án, dịch vụ khám, xét nghiệm, chẩn đoán hình ảnh, phẫu thuật thủ thuật, ngày giường.
+Danh mục tài chính
+Bảng giá, nhóm BHYT, phụ thu, thu khác, suất ăn, vận chuyển, chính sách miễn giảm, loại hóa đơn.
+Danh mục dược
+Thuốc, hoạt chất, biệt dược, đường dùng, hàm lượng, đơn vị tính, nhà sản xuất, nước sản xuất, nhà cung cấp.
+Danh mục vật tư
+Vật tư y tế, hóa chất, sinh phẩm, vật tư tiêu hao, vật tư tính theo lần, vật tư phòng mổ.
+Danh mục tích hợp
+Mã máy, mã dịch vụ dùng chung, mã BHXH, mã hóa đơn, mã thiết bị, mapping LIS/RIS/PACS.
+5. Quy trình tiếp nhận và đăng ký khám
+Bước 1: Người bệnh đến quầy tiếp nhận hoặc đặt lịch trước qua kênh online/call center.
+Bước 2: Nhân viên tiếp nhận tìm hồ sơ cũ bằng mã người bệnh, CCCD, số điện thoại hoặc mã BHYT. Nếu chưa có thì tạo hồ sơ mới.
+Bước 3: Hệ thống kiểm tra thông tin hành chính, đối tượng, quyền lợi BHYT, nơi đăng ký ban đầu, tuyến điều trị và giấy chuyển tuyến nếu có.
+Bước 4: Nhân viên chọn chuyên khoa, phòng khám, đối tượng thanh toán, lý do khám và cấp số thứ tự.
+Bước 5: Hệ thống sinh lượt khám, in phiếu khám, đẩy người bệnh vào hàng đợi phòng khám và tạo dữ liệu ban đầu cho viện phí/BHYT.
+6. Quy trình khám ngoại trú
+Bước 1: Bác sĩ mở danh sách hàng đợi, gọi người bệnh vào khám.
+Bước 2: Bác sĩ xem lịch sử khám, dị ứng, bệnh nền, đơn thuốc cũ, kết quả cận lâm sàng trước đó nếu có.
+Bước 3: Bác sĩ ghi nhận triệu chứng, khám lâm sàng, chẩn đoán sơ bộ, chỉ định xét nghiệm/CĐHA/TDCN hoặc kê đơn trực tiếp.
+Bước 4: Khi có chỉ định, hệ thống chuyển dữ liệu sang viện phí để thu tiền hoặc ghi nhận BHYT, đồng thời gửi chỉ định đến bộ phận thực hiện.
+Bước 5: Sau khi có kết quả, bác sĩ đọc kết quả, chẩn đoán xác định, kê đơn, tư vấn, hẹn tái khám, chuyển viện hoặc chỉ định nhập viện.
+Bước 6: Hệ thống kết thúc lượt khám khi hồ sơ đủ dữ liệu chuyên môn và tài chính.
+7. Quy trình cấp cứu
+Bước 1: Người bệnh được tiếp nhận tại khu cấp cứu, có thể tạo hồ sơ nhanh với thông tin tối thiểu trong tình huống khẩn.
+Bước 2: Điều dưỡng/nhân viên cấp cứu phân loại mức độ ưu tiên, đo dấu hiệu sinh tồn, ghi nhận lý do vào viện.
+Bước 3: Bác sĩ cấp cứu xử trí ban đầu, chỉ định thuốc, dịch truyền, xét nghiệm, chẩn đoán hình ảnh hoặc thủ thuật khẩn.
+Bước 4: Hệ thống cho phép thực hiện trước - hoàn thiện hành chính và viện phí sau, tùy quy định bệnh viện.
+Bước 5: Kết quả xử trí có thể là: theo dõi cấp cứu, chuyển khoa, nhập viện, chuyển viện, tử vong hoặc ra viện.
+8. Quy trình điều trị nội trú
+Bước 1: Bác sĩ ngoại trú/cấp cứu lập chỉ định nhập viện, chọn khoa điều trị và chẩn đoán vào viện.
+Bước 2: Khoa điều trị tiếp nhận người bệnh, phân buồng giường, tạo bệnh án nội trú và hồ sơ hành chính nội trú.
+Bước 3: Bác sĩ điều trị lập y lệnh thuốc, dịch truyền, xét nghiệm, CĐHA, phẫu thuật thủ thuật, chăm sóc và chế độ ăn nếu có.
+Bước 4: Điều dưỡng thực hiện y lệnh, ghi phiếu chăm sóc, dấu hiệu sinh tồn, theo dõi thuốc/vật tư đã sử dụng.
+Bước 5: Dược cấp phát thuốc/vật tư theo y lệnh hoặc tủ trực khoa, dữ liệu tự động ghi nhận chi phí.
+Bước 6: Trong quá trình điều trị có thể chuyển khoa, hội chẩn, phẫu thuật, thay đổi chẩn đoán, thay đổi giường hoặc tạm ứng thêm.
+Bước 7: Khi ra viện, hệ thống tổng hợp chi phí, hồ sơ chuyên môn, tóm tắt bệnh án, giấy ra viện, đơn thuốc ra viện và quyết toán.
+9. Quy trình chỉ định và trả kết quả cận lâm sàng
+Bước 1: Bác sĩ tạo chỉ định xét nghiệm, CĐHA, TDCN, thủ thuật hoặc dịch vụ kỹ thuật từ màn hình khám/điều trị.
+Bước 2: Hệ thống kiểm tra quyền thực hiện, giá, BHYT, phòng thực hiện, trạng thái thanh toán và điều kiện chỉ định.
+Bước 3: Bộ phận cận lâm sàng tiếp nhận chỉ định, lấy mẫu hoặc gọi người bệnh thực hiện dịch vụ.
+Bước 4: Với xét nghiệm, mẫu được in barcode, chạy máy và nhận kết quả từ LIS/máy xét nghiệm nếu tích hợp.
+Bước 5: Với CĐHA, kết quả gồm mô tả, kết luận, hình ảnh hoặc liên kết PACS nếu có.
+Bước 6: Kỹ thuật viên/bác sĩ duyệt kết quả, hệ thống trả kết quả về màn hình bác sĩ chỉ định và lưu lịch sử.
+10. Quy trình dược - kho thuốc - vật tư
+Bước 1: Khoa dược quản lý danh mục thuốc/vật tư, thông tin thầu, số lô, hạn dùng, nhà cung cấp và kho sử dụng.
+Bước 2: Khi nhập kho, hệ thống ghi nhận nhà cung cấp, hóa đơn/chứng từ, số lượng, đơn giá, số lô, hạn dùng, hội đồng kiểm nhập nếu cần.
+Bước 3: Khi bác sĩ kê đơn hoặc lập y lệnh, hệ thống kiểm tra tồn kho, cảnh báo tương tác, dị ứng, trùng hoạt chất, vượt liều, thuốc ngoài danh mục.
+Bước 4: Dược ngoại trú cấp phát thuốc theo đơn đã thanh toán hoặc được duyệt BHYT.
+Bước 5: Dược nội trú xuất thuốc/vật tư cho khoa điều trị theo y lệnh, phiếu lĩnh hoặc cơ số tủ trực.
+Bước 6: Hệ thống quản lý hoàn trả, hủy, điều chuyển kho, kiểm kê, cảnh báo hết hạn và báo cáo nhập xuất tồn.
+11. Quy trình viện phí và thanh toán
+Bước 1: Hệ thống tự động nhận chi phí từ đăng ký khám, chỉ định dịch vụ, thuốc, vật tư, ngày giường, phẫu thuật thủ thuật, suất ăn, vận chuyển và các khoản phụ thu.
+Bước 2: Nhân viên viện phí thu tạm ứng, thu dịch vụ ngoại trú, hoàn tiền, miễn giảm hoặc điều chỉnh theo quy trình được phân quyền.
+Bước 3: Với nội trú, hệ thống theo dõi chi phí phát sinh theo thời gian, số dư tạm ứng, cảnh báo vượt mức và lập bảng kê khi ra viện.
+Bước 4: Hệ thống phân tách nguồn thanh toán: người bệnh tự trả, BHYT, bảo lãnh, hợp đồng, miễn giảm hoặc nguồn khác.
+Bước 5: Sau khi quyết toán, hệ thống in bảng kê, phiếu thu, biên lai hoặc phát hành hóa đơn điện tử nếu tích hợp.
+12. Quy trình BHYT và dữ liệu XML
+Bước 1: Hệ thống kiểm tra thông tin thẻ BHYT, mức hưởng, tuyến, giấy chuyển tuyến, ngày đủ điều kiện, nơi đăng ký khám chữa bệnh ban đầu.
+Bước 2: Trong quá trình khám chữa bệnh, hệ thống tự động gắn mã dịch vụ, mã thuốc, mã vật tư, mã ICD, mã khoa, mã máy và các trường dữ liệu cần thiết cho hồ sơ BHYT.
+Bước 3: Khi kết thúc điều trị, hệ thống sinh dữ liệu XML theo quy định, cho phép kiểm tra lỗi, bổ sung thông tin thiếu và gửi cổng giám định.
+Bước 4: Nhân viên BHYT nhận phản hồi, xử lý lỗi, gửi lại hồ sơ, đối soát số liệu và lập báo cáo quyết toán.
+13. Quy trình phẫu thuật thủ thuật và phòng mổ
+Bước 1: Bác sĩ lập chỉ định phẫu thuật/thủ thuật, chẩn đoán trước mổ, phương pháp dự kiến và mức độ ưu tiên.
+Bước 2: Bộ phận phòng mổ xếp lịch, chọn phòng mổ, ê-kíp, bác sĩ phẫu thuật, gây mê, điều dưỡng dụng cụ và thời gian thực hiện.
+Bước 3: Trong ca mổ, hệ thống ghi nhận thuốc, vật tư, máu, dịch truyền, vật tư đặc biệt và các dịch vụ đi kèm.
+Bước 4: Sau ca mổ, bác sĩ lập biên bản phẫu thuật, phiếu gây mê hồi sức, chẩn đoán sau mổ, diễn biến và chỉ định sau mổ.
+Bước 5: Chi phí phẫu thuật/thủ thuật được chuyển sang viện phí, đồng thời dữ liệu chuyên môn được lưu trong hồ sơ bệnh án.
+14. Quy trình báo cáo và điều hành
+Bước 1: HIS tổng hợp dữ liệu hoạt động khám chữa bệnh theo ngày, tháng, quý, năm và theo từng khoa/phòng.
+Bước 2: Báo cáo điều hành gồm số lượt khám, số nhập viện, ra viện, chuyển viện, công suất giường, số ca phẫu thuật, doanh thu, BHYT, tồn kho, sử dụng thuốc/vật tư.
+Bước 3: Hệ thống cần hỗ trợ dashboard thời gian gần thực, báo cáo chi tiết, xuất Excel/PDF và phân quyền xem báo cáo.
+Bước 4: Dữ liệu báo cáo phải truy vết được về chứng từ, hồ sơ, chỉ định hoặc lượt điều trị gốc để đối chiếu.
+15. Trạng thái nghiệp vụ quan trọng
+Đối tượng nghiệp vụ
+Trạng thái tham khảo
+Lượt khám
+Đã đăng ký, đang chờ khám, đang khám, chờ cận lâm sàng, chờ kết luận, đã kê đơn, hoàn tất, hủy.
+Chỉ định dịch vụ
+Mới tạo, chờ thanh toán/duyệt BHYT, đã tiếp nhận, đang thực hiện, có kết quả, đã duyệt, đã trả, hủy.
+Đơn thuốc
+Mới kê, chờ thanh toán, chờ cấp phát, đã cấp phát, cấp phát một phần, hoàn trả, hủy.
+Hồ sơ nội trú
+Chờ nhập khoa, đang điều trị, chuyển khoa, chờ ra viện, đã ra viện, đã quyết toán, khóa hồ sơ.
+Phiếu thu/tạm ứng
+Tạo mới, đã thu, đã hoàn, đã hủy, đã xuất hóa đơn, đã đối soát.
+Hồ sơ BHYT
+Chưa kiểm tra, hợp lệ, thiếu thông tin, đã sinh XML, đã gửi, lỗi, đã duyệt, bị từ chối, đã quyết toán.
+16. Dữ liệu lõi cần quản lý
+Nhóm dữ liệu
+Thông tin chính
+Hồ sơ người bệnh
+Mã người bệnh, họ tên, ngày sinh, giới tính, CCCD, địa chỉ, điện thoại, thông tin BHYT, người liên hệ.
+Lượt khám/đợt điều trị
+Mã lượt, ngày giờ, khoa/phòng, bác sĩ, đối tượng, loại điều trị, chẩn đoán, trạng thái.
+Bệnh án
+Loại bệnh án, thông tin hành chính, tiền sử, diễn biến, y lệnh, chăm sóc, kết quả, ra viện.
+Chỉ định
+Dịch vụ, người chỉ định, phòng thực hiện, thời gian, trạng thái, giá, nguồn thanh toán, kết quả.
+Đơn thuốc/y lệnh thuốc
+Thuốc, hoạt chất, liều dùng, đường dùng, số lượng, kho, trạng thái cấp phát, chi phí.
+Giao dịch tài chính
+Tạm ứng, thu tiền, hoàn tiền, miễn giảm, hóa đơn, bảng kê, công nợ, phương thức thanh toán.
+Kho dược/vật tư
+Phiếu nhập, phiếu xuất, tồn kho, số lô, hạn dùng, nhà cung cấp, điều chuyển, kiểm kê.
+Hồ sơ BHYT
+Thông tin thẻ, mức hưởng, XML, phản hồi giám định, lỗi, trạng thái gửi, số quyết toán.
+Nhật ký hệ thống
+Người thao tác, thời gian, màn hình, hành động, dữ liệu trước/sau, địa chỉ IP/thiết bị nếu có.
+17. Tích hợp hệ thống
+Hệ thống tích hợp
+Mục tiêu tích hợp
+Cổng BHXH/BHYT
+Kiểm tra thẻ, gửi hồ sơ XML, nhận phản hồi giám định, đối soát quyết toán.
+Hóa đơn điện tử
+Phát hành, điều chỉnh, hủy hóa đơn, tra cứu trạng thái hóa đơn.
+LIS/máy xét nghiệm
+Gửi chỉ định, nhận kết quả, đồng bộ mã xét nghiệm, barcode mẫu.
+RIS/PACS
+Gửi chỉ định CĐHA, nhận kết luận, mở liên kết hình ảnh, lưu trữ ảnh y khoa.
+Đơn thuốc điện tử
+Gửi đơn thuốc, tra cứu trạng thái, đồng bộ mã thuốc và thông tin người kê đơn.
+Thanh toán điện tử
+QR, POS, chuyển khoản, ví điện tử, đối soát giao dịch.
+SMS/Zalo/Email
+Nhắc lịch hẹn, thông báo kết quả, thông báo thanh toán, chăm sóc sau khám.
+Thiết bị định danh
+Đọc CCCD, thẻ BHYT, chữ ký số, thiết bị gọi số, màn hình hàng đợi.
+Cổng dữ liệu y tế
+Báo cáo Sở/Bộ Y tế, hồ sơ sức khỏe, cổng dược, dữ liệu điều hành nếu có.
+18. Yêu cầu phi chức năng
+Yêu cầu
+Mô tả
+Bảo mật
+Xác thực, phân quyền theo vai trò và dữ liệu, kiểm soát truy cập thông tin bệnh nhân, chính sách mật khẩu, đăng xuất phiên.
+Lưu vết
+Ghi log đầy đủ hành động thêm/sửa/xóa/xem/in/xuất dữ liệu; có khả năng truy vết và không thể chối bỏ.
+Toàn vẹn dữ liệu
+Dữ liệu nhập vào và sinh ra trong quá trình xử lý không bị mất, sai lệch hoặc thay đổi ngoài quy trình.
+Hiệu năng
+Đáp ứng số lượng người dùng đồng thời, số lượt khám/ngày, số giao dịch cận lâm sàng, thuốc, viện phí.
+Sẵn sàng
+Có phương án sao lưu, khôi phục, dự phòng, giám sát lỗi, cảnh báo sự cố và kế hoạch phục hồi sau thảm họa.
+Khả năng mở rộng
+Thiết kế module hóa, hỗ trợ thêm khoa phòng, kho, dịch vụ, tích hợp mới và nhiều cơ sở nếu cần.
+Tuân thủ
+Đáp ứng quy định Bộ Y tế, BHXH, an toàn thông tin, lưu trữ hồ sơ, chữ ký số, hóa đơn điện tử.
+Vận hành
+Có tài liệu hướng dẫn, tài liệu kỹ thuật, quy trình hỗ trợ, SLA, đào tạo người dùng và quy trình nâng cấp.
+
