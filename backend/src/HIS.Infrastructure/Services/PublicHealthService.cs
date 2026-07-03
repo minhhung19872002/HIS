@@ -1319,7 +1319,8 @@ public class PublicHealthService : IPublicHealthService
 
     public async Task<MethadoneStatsDto> GetMethadoneStatsAsync()
     {
-        var patients = await _context.MethadonePatients.Where(m => !m.IsDeleted).ToListAsync();
+        // #355: đẩy aggregate xuống SQL (KHÔNG load nguyên bảng rồi count/group/avg trên RAM).
+        var baseQ = _context.MethadonePatients.Where(m => !m.IsDeleted);
         // DosingDate là ngày user chọn (giờ VN) → "hôm nay" phải theo ngày VN, không phải UTC.
         var today = HIS.Core.Common.VnTime.TodayVn;
         var missedToday = await _context.MethadoneDosingRecords
@@ -1329,19 +1330,22 @@ public class PublicHealthService : IPublicHealthService
             .Where(u => !u.IsDeleted && u.OverallResult == "Positive")
             .CountAsync();
 
-        var activePatients = patients.Where(m => m.Status == 0).ToList();
+        var activeQ = baseQ.Where(m => m.Status == 0);
+        var hasActive = await activeQ.AnyAsync();
 
         return new MethadoneStatsDto
         {
-            TotalPatients = patients.Count,
-            ActiveCount = patients.Count(m => m.Status == 0),
-            SuspendedCount = patients.Count(m => m.Status == 1),
-            DischargedCount = patients.Count(m => m.Status == 2),
-            TransferredCount = patients.Count(m => m.Status == 3),
-            AverageDoseMg = activePatients.Count > 0 ? (float)Math.Round(activePatients.Average(m => m.CurrentDoseMg), 1) : 0,
+            TotalPatients = await baseQ.CountAsync(),
+            ActiveCount = await baseQ.CountAsync(m => m.Status == 0),
+            SuspendedCount = await baseQ.CountAsync(m => m.Status == 1),
+            DischargedCount = await baseQ.CountAsync(m => m.Status == 2),
+            TransferredCount = await baseQ.CountAsync(m => m.Status == 3),
+            // AverageAsync ném khi tập rỗng → guard AnyAsync (giữ đúng hành vi cũ: rỗng = 0).
+            AverageDoseMg = hasActive ? (float)Math.Round(await activeQ.AverageAsync(m => m.CurrentDoseMg), 1) : 0,
             MissedDosesToday = missedToday,
             PositiveUrineTests = positiveTests,
-            PhaseBreakdown = activePatients.GroupBy(m => m.Phase).Select(g => new PhaseBreakdownDto { Phase = g.Key, Count = g.Count() }).ToList(),
+            PhaseBreakdown = await activeQ.GroupBy(m => m.Phase)
+                .Select(g => new PhaseBreakdownDto { Phase = g.Key, Count = g.Count() }).ToListAsync(),
         };
     }
 
