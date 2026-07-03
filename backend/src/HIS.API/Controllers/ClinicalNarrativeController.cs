@@ -137,7 +137,7 @@ public class ClinicalNarrativeController : ControllerBase
         entity.UpdatedAt = DateTime.Now;
         entity.UpdatedBy = GetUserId().ToString();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ========== Outpatient Record Templates ==========
@@ -265,6 +265,6 @@ public class ClinicalNarrativeController : ControllerBase
         entity.UpdatedAt = DateTime.Now;
         entity.UpdatedBy = GetUserId().ToString();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 }

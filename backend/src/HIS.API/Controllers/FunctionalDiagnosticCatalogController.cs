@@ -38,7 +38,7 @@ public class FunctionalDiagnosticCatalogController : ControllerBase
 
     [HttpDelete("test-types/{id:guid}")]
     public async Task<ActionResult<object>> DeleteTestType(Guid id)
-        => Ok(new { success = await _svc.DeleteTestTypeAsync(id) });
+        => Ok(await _svc.DeleteTestTypeAsync(id));
 
     // ─── Templates ────────────────────────────────────────────────────────────
 
@@ -54,5 +54,5 @@ public class FunctionalDiagnosticCatalogController : ControllerBase
 
     [HttpDelete("templates/{id:guid}")]
     public async Task<ActionResult<object>> DeleteTemplate(Guid id)
-        => Ok(new { success = await _svc.DeleteTemplateAsync(id) });
+        => Ok(await _svc.DeleteTemplateAsync(id));
 }

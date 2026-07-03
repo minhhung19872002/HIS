@@ -357,7 +357,7 @@ public class HealthCheckupController : ControllerBase
     public async Task<IActionResult> DeleteCampaign(Guid id)
     {
         await _service.DeleteCampaignAsync(id);
-        return Ok(new { success = true });
+        return Ok();
     }
 
     /// <summary>
@@ -405,7 +405,7 @@ public class HealthCheckupController : ControllerBase
     public async Task<IActionResult> DeleteCampaignGroup(Guid campaignId, Guid groupId)
     {
         await _service.DeleteCampaignGroupAsync(campaignId, groupId);
-        return Ok(new { success = true });
+        return Ok();
     }
 
     /// <summary>
@@ -505,7 +505,7 @@ public class HealthCheckupController : ControllerBase
     public async Task<IActionResult> DeleteCheckup(Guid id)
     {
         await _service.DeleteCheckupAsync(id);
-        return Ok(new { success = true });
+        return Ok();
     }
 }
 

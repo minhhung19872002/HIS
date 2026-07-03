@@ -29,7 +29,7 @@ public class ClinicalTemplateController : ControllerBase
     public async Task<IActionResult> Delete(Guid id)
     {
         await _service.DeleteAsync(id, GetUserId());
-        return Ok(new { success = true });
+        return Ok();
     }
 
     [HttpGet("{id:guid}")]

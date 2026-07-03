@@ -44,7 +44,7 @@ public class EmployeeProfileController : ControllerBase
     {
         var e = await _db.EmployeeAssets.FindAsync(id);
         if (e != null) { e.IsDeleted = true; await _db.SaveChangesAsync(); }
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ===== Allowances =====
@@ -68,7 +68,7 @@ public class EmployeeProfileController : ControllerBase
     {
         var e = await _db.EmployeeAllowances.FindAsync(id);
         if (e != null) { e.IsDeleted = true; await _db.SaveChangesAsync(); }
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ===== Career History =====
@@ -94,7 +94,7 @@ public class EmployeeProfileController : ControllerBase
     {
         var e = await _db.EmployeeCareerHistories.FindAsync(id);
         if (e != null) { e.IsDeleted = true; await _db.SaveChangesAsync(); }
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ===== Education =====
@@ -118,7 +118,7 @@ public class EmployeeProfileController : ControllerBase
     {
         var e = await _db.EmployeeEducations.FindAsync(id);
         if (e != null) { e.IsDeleted = true; await _db.SaveChangesAsync(); }
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ===== Family =====
@@ -142,7 +142,7 @@ public class EmployeeProfileController : ControllerBase
     {
         var e = await _db.EmployeeFamilies.FindAsync(id);
         if (e != null) { e.IsDeleted = true; await _db.SaveChangesAsync(); }
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ===== Rewards / Discipline =====
@@ -168,7 +168,7 @@ public class EmployeeProfileController : ControllerBase
     {
         var e = await _db.EmployeeRewardDisciplines.FindAsync(id);
         if (e != null) { e.IsDeleted = true; await _db.SaveChangesAsync(); }
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ===== Bank Accounts =====
@@ -192,7 +192,7 @@ public class EmployeeProfileController : ControllerBase
     {
         var e = await _db.EmployeeBankAccounts.FindAsync(id);
         if (e != null) { e.IsDeleted = true; await _db.SaveChangesAsync(); }
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ===== Contracts =====
@@ -218,7 +218,7 @@ public class EmployeeProfileController : ControllerBase
     {
         var e = await _db.EmployeeContracts.FindAsync(id);
         if (e != null) { e.IsDeleted = true; await _db.SaveChangesAsync(); }
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ===== Union Membership (Đoàn thể) =====
@@ -243,7 +243,7 @@ public class EmployeeProfileController : ControllerBase
     {
         var e = await _db.EmployeeUnionMemberships.FindAsync(id);
         if (e != null) { e.IsDeleted = true; await _db.SaveChangesAsync(); }
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ===== Insurance =====
@@ -280,6 +280,6 @@ public class EmployeeProfileController : ControllerBase
             _db.EmployeeInsuranceInfos.Add(dto);
         }
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 }

@@ -51,7 +51,7 @@ public class ClinicalRecordController : ControllerBase
     {
         var success = await _service.DeletePartographRecordAsync(id);
         if (!success) return NotFound();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ========== Anesthesia ==========
@@ -100,6 +100,6 @@ public class ClinicalRecordController : ControllerBase
     {
         var success = await _service.DeleteAnesthesiaRecordAsync(id);
         if (!success) return NotFound();
-        return Ok(new { success = true });
+        return Ok();
     }
 }

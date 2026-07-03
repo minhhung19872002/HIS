@@ -108,7 +108,7 @@ public class CultureStockController : ControllerBase
         try
         {
             await _service.DiscardStockAsync(id, reason);
-            return Ok(new { success = true });
+            return Ok();
         }
         catch (InvalidOperationException ex)
         {

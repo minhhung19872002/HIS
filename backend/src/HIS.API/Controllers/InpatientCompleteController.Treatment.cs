@@ -41,7 +41,7 @@ public partial class InpatientCompleteController
     public async Task<ActionResult> DeleteNutritionOrder(Guid id)
     {
         await _inpatientService.DeleteNutritionOrderAsync(id, GetCurrentUserId());
-        return Ok(new { success = true });
+        return Ok();
     }
 
     /// <summary>

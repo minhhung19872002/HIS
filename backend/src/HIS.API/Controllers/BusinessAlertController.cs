@@ -109,7 +109,7 @@ public class BusinessAlertController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         var result = await _alertService.ResolveAlertAsync(id, userId);
         if (!result) return NotFound();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     /// <summary>
@@ -230,6 +230,6 @@ public class BusinessAlertController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
         var ok = await _alertService.DeleteSpecialTestRuleAsync(id, userId);
         if (!ok) return NotFound();
-        return Ok(new { success = true });
+        return Ok();
     }
 }

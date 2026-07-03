@@ -112,7 +112,7 @@ public class BhxhConfigController : ControllerBase
         await Upsert("BHXH.Environment", dto.Environment ?? "sandbox");
 
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     /// <summary>Test ping GatewayUrl — không cần auth với BHXH, chỉ kiểm tra reachable.</summary>
