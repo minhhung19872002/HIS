@@ -28,7 +28,7 @@ public class SmsController : ControllerBase
     public async Task<IActionResult> TestConnection()
     {
         var result = await _smsService.TestConnectionAsync();
-        return Ok(new { success = result });
+        return Ok(result);
     }
 
     [HttpPost("send-test")]
@@ -41,7 +41,7 @@ public class SmsController : ControllerBase
             dto.PhoneNumber,
             dto.Message ?? "Tin nhan thu nghiem tu HIS. Neu nhan duoc tin nay, SMS Gateway da hoat dong thanh cong.",
             "Test");
-        return Ok(new { success = result, phone = dto.PhoneNumber });
+        return Ok(result);
     }
 
     [HttpGet("logs")]

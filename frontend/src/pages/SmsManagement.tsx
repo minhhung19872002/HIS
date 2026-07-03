@@ -112,9 +112,9 @@ const SmsManagement = () => {
     setLoading(true);
     try {
       const res = await testSmsConnection();
-      setConnectionOk(res.data.success);
-      message[res.data.success ? 'success' : 'warning'](
-        res.data.success ? 'Kết nối SMS Gateway thành công!' : 'Không thể kết nối SMS Gateway'
+      setConnectionOk(res.data);
+      message[res.data ? 'success' : 'warning'](
+        res.data ? 'Kết nối SMS Gateway thành công!' : 'Không thể kết nối SMS Gateway'
       );
     } catch {
       setConnectionOk(false);
@@ -128,7 +128,7 @@ const SmsManagement = () => {
     setSendingTest(true);
     try {
       const res = await sendTestSms(values.phoneNumber, values.message);
-      if (res.data.success) {
+      if (res.data) {
         message.success(`Đã gửi SMS thử nghiệm đến ${values.phoneNumber}`);
         testForm.resetFields();
         fetchStats();

@@ -65,10 +65,10 @@ export const getSmsBalance = () =>
   apiClient.get<SmsBalanceDto>('/sms/balance');
 
 export const testSmsConnection = () =>
-  apiClient.post<{ success: boolean }>('/sms/test');
+  apiClient.post<boolean>('/sms/test');
 
 export const sendTestSms = (phoneNumber: string, message?: string) =>
-  apiClient.post<{ success: boolean; phone: string }>('/sms/send-test', { phoneNumber, message });
+  apiClient.post<boolean>('/sms/send-test', { phoneNumber, message });
 
 export const getSmsLogs = (params: SmsLogSearchDto) =>
   apiClient.get<SmsLogPagedResult>('/sms/logs', { params });
