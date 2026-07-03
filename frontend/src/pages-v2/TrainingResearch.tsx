@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import dayjs from 'dayjs';
 import { getTrainingClasses, getTrainingDashboard, saveTrainingClass, getClassStudents } from '../api/trainingResearch';
 import type { TrainingClassDto, TrainingDashboardDto, TrainingStudentDto } from '../api/trainingResearch';
@@ -40,7 +41,6 @@ const STATUS_TABS = [
 const sKey = (n: number): SKey =>
   n === 0 ? 'planning' : n === 1 ? 'active' : n === 2 ? 'completed' : n === 3 ? 'paused' : 'cancelled';
 
-const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 const PER = 18;
 
 const TrainingResearchV2: React.FC = () => {

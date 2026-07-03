@@ -6,6 +6,7 @@
  * - Tồn kho: /api/warehouse/stock?warehouseId=
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import { DatePicker, Select } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
@@ -30,7 +31,6 @@ interface StockCardDto {
   closingBalance: number;
 }
 
-const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 
 // ── Component ───────────────────────────────────────────────────────────────
 

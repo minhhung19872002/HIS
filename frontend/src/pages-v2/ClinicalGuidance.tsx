@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import dayjs from 'dayjs';
 import {
   getGuidanceBatches, createGuidanceBatch, updateGuidanceBatch, deleteGuidanceBatch,
@@ -42,7 +43,6 @@ const STATUS_TABS = [
 const sKey = (n: number): SKey =>
   n === 0 ? 'planning' : n === 1 ? 'inprogress' : n === 2 ? 'completed' : 'cancelled';
 
-const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 const PER = 18;
 
 const ACT_TYPE_LABEL: Record<number, string> = {

@@ -18,6 +18,7 @@
  * Cảnh báo HSD: getExpiringMedicines(60) → ExpiringMedicineDto[]
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import { AutoComplete, Checkbox, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
@@ -59,7 +60,6 @@ const sKey = (n: number): SKey =>
 const sStatusFromTab = (s: SKey): number =>
   s === 'pending' ? 2 : s === 'approved' ? 3 : s === 'revoked' ? 4 : 0;
 
-const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 
 // ─── Requisition item (local state in create modal) ────────────────────────────
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import { Form, Input, InputNumber, DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { exportToExcel, formatDateTime, formatVnd, type ExcelColumn } from '../utils/excelExport';
@@ -36,7 +37,6 @@ const tabToStatus = (t: SKey | 'all'): number | undefined =>
 
 const STATUS_LABEL: Record<number, string> = { 0: 'Chờ TT', 1: 'Đã TT', 2: 'Thất bại', 3: 'Đã hoàn', 4: 'Hết hạn' };
 
-const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 
 const PaymentTransactionsV2: React.FC = () => {
   const [items, setItems] = useState<PaymentTransactionDto[]>([]);

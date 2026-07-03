@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import { Form, Input, InputNumber, Select, DatePicker, Modal } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
@@ -47,7 +48,6 @@ const sKey = (n: number): SKey =>
 
 const STATUS_LABEL: Record<number, string> = { 0: 'Đã khai', 1: 'Đang dùng', 2: 'Đã đóng', 3: 'Mất/Hủy' };
 
-const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 
 const ReceiptBookAdminV2: React.FC = () => {
   const [stab, setStab] = useState<SKey | 'all'>('all');

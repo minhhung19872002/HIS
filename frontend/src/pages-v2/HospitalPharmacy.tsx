@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import dayjs from 'dayjs';
+import { fmtNum as fmt } from '../utils/format';
 import { getRetailSales, getPharmacyDashboard } from '../api/hospitalPharmacy';
 import type { RetailSaleDto } from '../api/hospitalPharmacy';
 import {
@@ -25,7 +26,6 @@ const STATUS_TABS: StatusTab<SKey>[] = [
 const statusKey = (s: RetailSaleDto): SKey =>
   s.status === 1 ? 'completed' : s.status === 2 ? 'cancelled' : 'pending';
 
-const fmt = (n: number | undefined) => (n ?? 0).toLocaleString('vi-VN');
 
 const HospitalPharmacyV2: React.FC = () => {
   // NangCap25 I.7 — QR động thanh toán tại quầy thuốc

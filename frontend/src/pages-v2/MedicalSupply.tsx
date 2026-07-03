@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import dayjs from 'dayjs';
+import { fmtNum as fmt } from '../utils/format';
 import { getStock } from '../api/warehouse';
 import type { StockDto } from '../api/warehouse';
 import {
@@ -15,7 +16,6 @@ const STATUS_TABS: StatusTab<SKey>[] = [
   { v: 'out',      l: 'Hết',         tone: 'crit' },
 ];
 
-const fmt = (n: number | undefined | null) => (n ?? 0).toLocaleString('vi-VN');
 
 const MedicalSupplyV2: React.FC = () => {
   const today = dayjs();

@@ -2,6 +2,7 @@
  * G-41 Payroll Admin — quản lý kỳ lương + dòng lương nhân viên (MVP).
  */
 import React, { useCallback, useMemo, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import { Form, Input, InputNumber, Modal, Select } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
@@ -50,7 +51,6 @@ const STATUS_TABS: StatusTab<SKey>[] = [
   { v: 'approved', l: 'Đã duyệt',  tone: 'ok' },
 ];
 const sKey = (n: number): SKey => (n === 0 ? 'draft' : 'approved');
-const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 
 // ── Component ───────────────────────────────────────────────────────────────
 

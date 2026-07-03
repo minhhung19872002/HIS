@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import { InputNumber } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
@@ -25,7 +26,6 @@ const TABS = [
   { v: 'low-stock' as Tab, l: 'Tồn thấp',         ic: 'activity' },
 ];
 
-const fmt = (n?: number) => (n || 0).toLocaleString('vi-VN');
 
 const StockReportV2: React.FC = () => {
   const [tab, setTab] = useState<Tab>('detail');

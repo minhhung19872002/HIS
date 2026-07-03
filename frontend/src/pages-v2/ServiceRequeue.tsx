@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import { Form, Input, Checkbox } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
@@ -16,7 +17,6 @@ interface CancelledService {
 
 interface MedicalRecord { id: string; code: string; patientName: string }
 
-const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 
 const ServiceRequeueV2: React.FC = () => {
   const [keyword, setKeyword] = useState('');

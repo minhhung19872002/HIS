@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import { DatePicker, Input, Modal, type InputRef } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
@@ -41,7 +42,6 @@ const STATUS_TABS = [
   { v: 'dispensed' as SKey, l: 'Đã phát',    tone: 'ok' as const },
 ];
 
-const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 
 const DispensingCounterV2: React.FC = () => {
   const [date, setDate] = useState<Dayjs>(dayjs());

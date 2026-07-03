@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import dayjs from 'dayjs';
 import { Form, Input, DatePicker, Tabs, Select, Checkbox } from 'antd';
 import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode, getStocktakes, createStocktake, completeStocktake, approveStocktake, updateStocktakeItem, printStocktake, getDepreciationReport } from '../api/assetManagement';
@@ -42,7 +43,6 @@ const STATUS_TABS = [
 const sKey = (n: number): SKey =>
   n === 0 ? 'inuse' : n === 1 ? 'broken' : n === 2 ? 'repair' : n === 3 ? 'pending' : 'disposed';
 
-const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 const PER = 18;
 
 const STOCKTAKE_STATUS: Record<number, string> = { 1: 'Nháp', 2: 'Đang kiểm', 3: 'Đã kiểm', 4: 'Đã duyệt' };

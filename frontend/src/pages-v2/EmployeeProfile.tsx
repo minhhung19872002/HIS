@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import { Form, Input, InputNumber, DatePicker, Select, Checkbox } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
@@ -38,7 +39,6 @@ const TABS = [
   { v: 'union' as Tab,      l: 'Đoàn thể',    ic: 'users' },
 ];
 
-const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 
 const EmployeeProfileV2: React.FC = () => {
   const [tab, setTab] = useState<Tab>('assets');

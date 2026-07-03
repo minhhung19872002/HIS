@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import { importDrugInteractionsCsv, type DrugInteractionImportResult } from '../api/examination';
@@ -25,7 +26,6 @@ interface PharmacyCheckData {
 const SEVERITY_LABEL: Record<number, string> = { 1: 'Nhẹ', 2: 'Trung bình', 3: 'Nặng', 4: 'Chống chỉ định' };
 const SEVERITY_TONE: Record<number, 'ok' | 'warn' | 'crit'> = { 1: 'warn', 2: 'warn', 3: 'crit', 4: 'crit' };
 
-const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 
 const ClinicalPharmacyCheckV2: React.FC = () => {
   const [keyword, setKeyword] = useState('');

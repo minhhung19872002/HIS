@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import { Input, Modal } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
@@ -41,7 +42,6 @@ interface PrintData {
     expiryDate?: string; quantity: number; unit?: string; unitPrice?: number; amount?: number }>;
 }
 
-const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 
 const InpatientDispensingV2: React.FC = () => {
   const [groups, setGroups] = useState<PendingGroup[]>([]);

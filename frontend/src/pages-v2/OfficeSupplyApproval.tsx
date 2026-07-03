@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import { Form, Input, InputNumber, Modal, Select, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
@@ -47,7 +48,6 @@ const STATUS_TABS = [
 
 const tabToStatus = (s: SKey | 'all') => s === 'draft' ? 1 : s === 'pending' ? 2 : s === 'approved' ? 3 : s === 'revoked' ? 4 : 0;
 
-const fmt = (n: number) => (n || 0).toLocaleString('vi-VN');
 
 const OfficeSupplyApprovalV2: React.FC = () => {
   const [moduleTab, setModuleTab] = useState<'requests' | 'returns'>('requests');

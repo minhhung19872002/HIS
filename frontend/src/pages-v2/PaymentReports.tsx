@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { fmtNum as fmt } from '../utils/format';
 import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
@@ -45,7 +46,6 @@ type BillingDetailRow = Record<string, any>;
 type RefundRow = Record<string, any>;
 interface PharmacyRetailRow { saleCode: string; saleDate: string; patientName: string; phoneNumber?: string; totalAmount: number; discountAmount: number; paidAmount: number; paymentMethod: string; cashierName?: string; itemCount: number }
 
-const fmt = (n?: number) => (n || 0).toLocaleString('vi-VN');
 
 const PaymentReportsV2: React.FC = () => {
   const [tab, setTab] = useState<Tab>('bc1');
