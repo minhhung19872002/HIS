@@ -66,7 +66,7 @@ public class PublicHealthController : ControllerBase
         try
         {
             await _service.DeleteHealthCheckupAsync(id);
-            return Ok(new { success = true });
+            return Ok();
         }
         catch (InvalidOperationException ex)
         {
@@ -127,7 +127,7 @@ public class PublicHealthController : ControllerBase
         try
         {
             await _service.DeleteVaccinationRecordAsync(id);
-            return Ok(new { success = true });
+            return Ok();
         }
         catch (InvalidOperationException ex)
         {
@@ -209,7 +209,7 @@ public class PublicHealthController : ControllerBase
         try
         {
             await _service.DeleteDiseaseReportAsync(id);
-            return Ok(new { success = true });
+            return Ok();
         }
         catch (InvalidOperationException ex)
         {
@@ -298,7 +298,7 @@ public class PublicHealthController : ControllerBase
         try
         {
             await _service.DeleteSchoolHealthExamAsync(id);
-            return Ok(new { success = true });
+            return Ok();
         }
         catch (InvalidOperationException ex)
         {
@@ -359,7 +359,7 @@ public class PublicHealthController : ControllerBase
         try
         {
             await _service.DeleteOccupationalHealthExamAsync(id);
-            return Ok(new { success = true });
+            return Ok();
         }
         catch (InvalidOperationException ex)
         {
