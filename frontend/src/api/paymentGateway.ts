@@ -5,7 +5,15 @@
 
 import apiClient from './client';
 
-export type PaymentProvider = 'vnpay' | 'momo' | 'zalopay';
+export type PaymentProvider =
+  | 'vnpay' | 'momo' | 'zalopay'
+  // Bank VietQR (NangCap24/25) — không có IPN, kế toán/thu ngân confirm thủ công
+  | 'vcb' | 'vietcombank' | 'bidv' | 'agribank' | 'vietinbank' | 'msb';
+
+/** Provider là ngân hàng VietQR (render QR EMVCo local, confirm thủ công) */
+export function isBankProvider(p: string): boolean {
+  return ['vcb', 'vietcombank', 'bidv', 'agribank', 'vietinbank', 'msb'].includes(p.toLowerCase());
+}
 
 export interface CreatePaymentUrlRequest {
   provider: PaymentProvider;
@@ -24,6 +32,8 @@ export interface PaymentUrlResponse {
   txnRef: string;
   paymentUrl: string;
   qrCodeDataUrl: string;
+  /** Nội dung QR render local: bank = chuỗi EMVCo VietQR; cổng ví = payment URL */
+  qrCodeContent?: string;
   expiresAt: string;
   provider: string;
   amount: number;
@@ -53,6 +63,9 @@ export interface PaymentTransactionDto {
   completedAt?: string;
   createdAt: string;
   refundedAmount: number;
+  qrCodeContent?: string;
+  referenceType?: string;
+  referenceId?: string;
 }
 
 export interface PaymentSearchRequest {

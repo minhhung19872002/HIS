@@ -167,6 +167,8 @@ const QualityDashboardLiveV2 = lazy(() => import('./pages-v2/QualityDashboardLiv
 
 // NangCap24: 10 gap mới (HSMT BV Đa khoa)
 const BankPaymentsV2 = lazy(() => import('./pages-v2/BankPayments'));
+// NangCap25: QR động Vietcombank — đối soát + báo cáo người tạo QR + chi hộ hoàn tiền
+const QrPaymentCenterV2 = lazy(() => import('./pages-v2/QrPaymentCenter'));
 const BiometricEnrollmentV2 = lazy(() => import('./pages-v2/BiometricEnrollment'));
 const InspectorPortalStandalone = lazy(() => import('./pages-v2/InspectorPortal'));
 // R2: cổng bệnh nhân TỰ đăng nhập (standalone, JWT role PortalPatient)
@@ -660,6 +662,8 @@ const AppRoutes: React.FC = () => {
           <Route path="quality-dashboard-live" element={<QualityDashboardLiveV2 />} />
           {/* NangCap24: HSMT BV Đa khoa - 10 gap mới */}
           <Route path="bank-payments" element={<BankPaymentsV2 />} />
+          {/* NangCap25: QR động Vietcombank */}
+          <Route path="qr-payment-center" element={<QrPaymentCenterV2 />} />
           <Route path="biometric-enrollment" element={<BiometricEnrollmentV2 />} />
           <Route path="emr-hl7-export" element={<EmrHl7ExportV2 />} />
           <Route path="emr-cloud-sync" element={<EmrCloudSyncV2 />} />

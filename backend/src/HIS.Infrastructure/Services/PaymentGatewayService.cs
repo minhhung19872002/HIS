@@ -78,7 +78,10 @@ public partial class PaymentGatewayService : IPaymentGatewayService
         };
 
         txn.PaymentUrl = paymentUrl;
-        txn.QrCodeData = paymentUrl;
+        // Bank VietQR: BuildBankVietQrUrl đã set QrCodeData = chuỗi EMVCo — KHÔNG ghi đè
+        // (trước đây bị clobber bằng image URL → FE không render QR offline được)
+        if (string.IsNullOrEmpty(txn.QrCodeData))
+            txn.QrCodeData = paymentUrl;
 
         _db.PaymentTransactions.Add(txn);
         await _db.SaveChangesAsync();
@@ -89,6 +92,7 @@ public partial class PaymentGatewayService : IPaymentGatewayService
             TxnRef = txn.TxnRef,
             PaymentUrl = paymentUrl,
             QrCodeDataUrl = paymentUrl,
+            QrCodeContent = txn.QrCodeData,
             ExpiresAt = txn.ExpiresAt,
             Provider = provider,
             Amount = txn.Amount
@@ -680,6 +684,9 @@ public partial class PaymentGatewayService : IPaymentGatewayService
 
         // N1.01 — Auto-issue E-invoice (HDDT) sau payment success
         await AutoIssueElectronicInvoiceAsync(txn, receipt);
+
+        // NangCap25 — cập nhật ngược bản ghi nguồn của QR động (chỉ định/tạm ứng/kiosk...)
+        await ApplyPaidReferenceAsync(txn, validCashierId);
     }
 
     private async Task AutoIssueElectronicInvoiceAsync(PaymentTransaction txn, Receipt receipt)
@@ -848,7 +855,10 @@ public partial class PaymentGatewayService : IPaymentGatewayService
         ExpiresAt = t.ExpiresAt,
         CompletedAt = t.CompletedAt,
         CreatedAt = t.CreatedAt,
-        RefundedAmount = t.RefundedAmount
+        RefundedAmount = t.RefundedAmount,
+        QrCodeContent = t.QrCodeData,
+        ReferenceType = t.ReferenceType,
+        ReferenceId = t.ReferenceId
     };
 
     #endregion

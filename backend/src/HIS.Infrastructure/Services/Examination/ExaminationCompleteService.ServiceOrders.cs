@@ -553,6 +553,15 @@ public partial class ExaminationCompleteService
             if (!string.IsNullOrEmpty(order.Note))
                 body.AppendLine($@"<div class=""field"" style=""margin-top:10px""><span class=""field-label"">Ghi chu:</span><span class=""field-value"">{Esc(order.Note)}</span></div>");
 
+            // NangCap25 I.4 — phiếu chưa thanh toán → nhúng QR động (helper tự bỏ qua nếu đã TT / miễn phí)
+            if (!order.IsPaid)
+                body.AppendLine(await _paymentGateway.BuildPrintQrBlockHtmlAsync(
+                    new HIS.Application.DTOs.Payment.DynamicQrRequestDto
+                    {
+                        ReferenceType = "service-request",
+                        ReferenceId = order.Id
+                    }, Guid.Empty));
+
             body.AppendLine(GetSignatureBlock(order.Doctor?.FullName));
 
             var html = WrapHtmlPage("Phieu chi dinh dich vu", body.ToString());

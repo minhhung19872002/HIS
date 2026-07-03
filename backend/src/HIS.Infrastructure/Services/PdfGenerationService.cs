@@ -13,10 +13,12 @@ namespace HIS.Infrastructure.Services;
 public class PdfGenerationService : IPdfGenerationService
 {
     private readonly HISDbContext _db;
+    private readonly IPaymentGatewayService _paymentGateway;
 
-    public PdfGenerationService(HISDbContext db)
+    public PdfGenerationService(HISDbContext db, IPaymentGatewayService paymentGateway)
     {
         _db = db;
+        _paymentGateway = paymentGateway;
     }
 
     /// <summary>
@@ -372,6 +374,18 @@ public class PdfGenerationService : IPdfGenerationService
             prescription.PrescriptionDate, prescription.TotalDays,
             items, prescription.Note,
             prescription.Doctor?.FullName, prescription.Department?.DepartmentName);
+
+        // NangCap25 I.3 — đơn có khoản BN phải trả → nhúng QR thanh toán (helper tự bỏ qua nếu đã TT/lỗi)
+        if (prescription.PatientAmount > 0 || prescription.TotalAmount > 0)
+        {
+            var qrBlock = await _paymentGateway.BuildPrintQrBlockHtmlAsync(new Application.DTOs.Payment.DynamicQrRequestDto
+            {
+                ReferenceType = "prescription",
+                ReferenceId = prescription.Id
+            }, Guid.Empty);
+            if (!string.IsNullOrEmpty(qrBlock))
+                html = html.Replace("</body>", qrBlock + "</body>");
+        }
 
         return Encoding.UTF8.GetBytes(html);
     }

@@ -1,12 +1,13 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import dayjs from 'dayjs';
 import { getRetailSales, getPharmacyDashboard } from '../api/hospitalPharmacy';
 import type { RetailSaleDto } from '../api/hospitalPharmacy';
 import {
-  SimpleV2Page, StatusBadge, DrSec, DrField,
+  SimpleV2Page, StatusBadge, DrSec, DrField, Btn, tk,
   type ColumnDef, type StatusTab, type KpiItem,
 } from './_v2kit';
 import ExpiryAlertModal from './shared/ExpiryAlertModal';
+import PaymentQRModal from '../components/PaymentQRModal';
 
 const STATUS_TONE: Record<number, { label: string; tone: 'warn' | 'ok' | 'crit' }> = {
   0: { label: 'Chờ',    tone: 'warn' },
@@ -27,6 +28,9 @@ const statusKey = (s: RetailSaleDto): SKey =>
 const fmt = (n: number | undefined) => (n ?? 0).toLocaleString('vi-VN');
 
 const HospitalPharmacyV2: React.FC = () => {
+  // NangCap25 I.7 — QR động thanh toán tại quầy thuốc
+  const [qrSale, setQrSale] = useState<RetailSaleDto | null>(null);
+
   const load = useCallback(async () => {
     const [r, dash] = await Promise.allSettled([
       getRetailSales({
@@ -113,9 +117,29 @@ const HospitalPharmacyV2: React.FC = () => {
             <DrField lbl="Người bán">{r.createdByName || '—'}</DrField>
             <DrField lbl="Ngày">{dayjs(r.saleDate).format('DD/MM/YYYY HH:mm')}</DrField>
           </DrSec>
+          {r.status === 0 && (r.finalAmount ?? 0) > 0 && (
+            <DrSec title="Thanh toán QR (NangCap25)">
+              <div style={{ padding: '4px 0' }}>
+                <Btn variant="primary" onClick={() => setQrSale(r)}>Sinh mã QR VietQR — {fmt(r.finalAmount)}đ</Btn>
+              </div>
+            </DrSec>
+          )}
         </>
       )}
     />
+    {qrSale && (
+      <PaymentQRModal
+        open={!!qrSale}
+        onClose={() => setQrSale(null)}
+        onSuccess={() => { tk('✓ Đã thu qua QR'); setQrSale(null); }}
+        patientId=""
+        patientName={qrSale.customerName || 'Khách lẻ'}
+        amount={qrSale.finalAmount ?? 0}
+        referenceType="retail-sale"
+        referenceId={qrSale.id}
+        orderInfo={`TT quay thuoc ${qrSale.saleCode}`}
+      />
+    )}
     </>
   );
 };

@@ -72,6 +72,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<CashBook> CashBooks => Set<CashBook>();
     public DbSet<ElectronicInvoice> ElectronicInvoices => Set<ElectronicInvoice>();
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
+    public DbSet<RefundDisbursement> RefundDisbursements => Set<RefundDisbursement>();
     public DbSet<PharmacyApproval> PharmacyApprovals => Set<PharmacyApproval>();
     public DbSet<PharmacyApprovalItem> PharmacyApprovalItems => Set<PharmacyApprovalItem>();
     public DbSet<PharmacyApprovalLog> PharmacyApprovalLogs => Set<PharmacyApprovalLog>();
@@ -1253,6 +1254,14 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
                 }
             }
         }
+
+        // NangCap25 fix: PaymentTransaction.Patient là required-navigation; khi Patient bị
+        // soft-delete, filtered Include biến txn "biến mất" (EF required-end + query filter →
+        // INNER JOIN) → confirm 500 / getById 404 / txn rớt khỏi báo cáo đối soát. Cấu hình
+        // navigation optional → LEFT JOIN đúng, txn luôn tìm thấy dù BN đã xóa mềm.
+        modelBuilder.Entity<PaymentTransaction>()
+            .Navigation(t => t.Patient)
+            .IsRequired(false);
 
         // Global FK cascade override: ALL Cascade FKs -> NoAction to avoid SQL Server
         // "multiple cascade paths" errors on entities with 2+ FKs to the same target

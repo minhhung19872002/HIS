@@ -9,6 +9,7 @@ import {
   issueTicket, checkinByCard, getQueueStatus, callNext,
   type KioskTicketDto, type CheckinResultDto, type QueueStatusDto,
 } from '../api/kiosk';
+import { createKioskQr, getKioskQrStatus, type KioskQrResponse } from '../api/nangcap25';
 import {
   KpiStrip, TopTabs, ActBtn, Btn, ModalShell, DrSec, DrField,
   StatusBadge, DataTable, tk, te,
@@ -17,12 +18,13 @@ import {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-type TabKey = 'issue' | 'checkin' | 'queue';
+type TabKey = 'issue' | 'checkin' | 'queue' | 'payment';
 
 const TABS: { v: TabKey; l: string; ic: string }[] = [
   { v: 'issue',   l: 'Lấy số thứ tự', ic: 'ticket'  },
   { v: 'checkin', l: 'Checkin thẻ',   ic: 'id-card' },
   { v: 'queue',   l: 'Hàng chờ',      ic: 'clock'   },
+  { v: 'payment', l: 'Thanh toán QR', ic: 'qr'      },
 ];
 
 const SERVICE_OPTIONS = [
@@ -143,6 +145,44 @@ const KioskSelfService: React.FC = () => {
 
   // Result modal
   const [ticketResult, setTicketResult] = useState<KioskTicketDto | CheckinResultDto | null>(null);
+
+  // NangCap25 — Thanh toán QR tại kiosk
+  const [payCode, setPayCode] = useState('');
+  const [payDob, setPayDob] = useState('');
+  const [payResult, setPayResult] = useState<KioskQrResponse | null>(null);
+  const [payPaid, setPayPaid] = useState(false);
+  const payTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPayPoll = () => { if (payTimer.current) { clearInterval(payTimer.current); payTimer.current = null; } };
+
+  const handlePayLookup = async () => {
+    if (!payCode.trim() || !payDob) { te('Nhập mã bệnh nhân và ngày sinh.'); return; }
+    setLoading(true);
+    setPayPaid(false);
+    stopPayPoll();
+    try {
+      const r = await createKioskQr(payCode.trim(), payDob);
+      setPayResult(r);
+      if (r.qr) {
+        const txnId = r.qr.transactionId;
+        payTimer.current = setInterval(async () => {
+          try {
+            const s = await getKioskQrStatus(txnId);
+            if (s.status === 1) { setPayPaid(true); stopPayPoll(); tk('Thanh toán thành công!'); }
+            if (s.status === 2 || s.status === 4) stopPayPoll();
+          } catch { /* poll tolerant */ }
+        }, 4000);
+      }
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      te(e?.response?.data?.message || 'Không tra cứu được — kiểm tra mã BN và ngày sinh.');
+      setPayResult(null);
+    } finally { setLoading(false); }
+  };
+
+  const resetPayment = () => { stopPayPoll(); setPayResult(null); setPayPaid(false); setPayCode(''); setPayDob(''); };
+
+  useEffect(() => stopPayPoll, []);
 
   // Queue refresh
   const queueTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -382,6 +422,96 @@ const KioskSelfService: React.FC = () => {
               } catch { te('Không thể gọi số.'); }
             }} />
           </div>
+        </div>
+      )}
+
+      {/* ── Tab: Thanh toán QR (NangCap25) ─────────────────────────────── */}
+      {tab === 'payment' && (
+        <div style={{ padding: '32px 24px' }}>
+          {!payResult && (
+            <>
+              <DrSec title="Tra cứu khoản chờ thanh toán">
+                <DrField lbl="Mã bệnh nhân">
+                  <Input
+                    value={payCode}
+                    onChange={e => setPayCode(e.target.value)}
+                    placeholder="VD: BN000123..."
+                    size="large"
+                    style={{ height: 52, fontSize: 18, letterSpacing: 1 }}
+                    allowClear
+                  />
+                </DrField>
+                <DrField lbl="Ngày sinh">
+                  <Input
+                    type="date"
+                    value={payDob}
+                    onChange={e => setPayDob(e.target.value)}
+                    size="large"
+                    style={{ height: 52, fontSize: 18 }}
+                    onPressEnter={handlePayLookup}
+                  />
+                </DrField>
+              </DrSec>
+              <div style={{ marginTop: 'var(--space-32)', textAlign: 'center' }}>
+                <Btn variant="primary" icon="qr" onClick={handlePayLookup} loading={loading}
+                  style={{ height: 72, fontSize: 22, padding: '0 60px', borderRadius: 'var(--r-4)' }}>
+                  TRA CỨU & TẠO MÃ QR
+                </Btn>
+              </div>
+            </>
+          )}
+
+          {payResult && (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 'var(--space-4)' }}>{payResult.patientName}</div>
+              <div style={{ color: '#888', marginBottom: 'var(--space-12)' }}>Mã BN: {payResult.patientCode}</div>
+
+              {payPaid ? (
+                <>
+                  <div style={{ fontSize: 64 }}>✅</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#389e0d', margin: '8px 0 16px' }}>THANH TOÁN THÀNH CÔNG</div>
+                  <div style={{ color: '#888', marginBottom: 'var(--space-16)' }}>Mời bạn đến phòng thực hiện dịch vụ.</div>
+                </>
+              ) : payResult.totalAmount <= 0 ? (
+                <Alert title="Bạn không có khoản nào chờ thanh toán." type="success" showIcon style={{ margin: '16px 0' }} />
+              ) : (
+                <>
+                  <div style={{ fontSize: 15, color: '#888' }}>Tổng cần thanh toán ({payResult.pendingCount} chỉ định)</div>
+                  <div style={{ fontSize: 40, fontWeight: 900, color: '#1677ff', margin: '4px 0 12px' }}>
+                    {payResult.totalAmount.toLocaleString('vi-VN')} đ
+                  </div>
+                  {payResult.qr && (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'var(--space-8)' }}>
+                        <QRCode value={payResult.qr.qrCodeContent || payResult.qr.paymentUrl} size={220} errorLevel="M" />
+                      </div>
+                      <div style={{ color: '#888', fontSize: 15, marginBottom: 'var(--space-8)' }}>
+                        Quét mã bằng app ngân hàng bất kỳ · Mã GD: {payResult.qr.txnRef}
+                      </div>
+                      <div style={{ color: '#aaa', fontSize: 13 }}>
+                        <Spin size="small" /> Đang chờ thanh toán — màn hình tự cập nhật
+                      </div>
+                    </>
+                  )}
+                  <Divider />
+                  <div style={{ maxHeight: 180, overflow: 'auto', textAlign: 'left', margin: '0 auto', maxWidth: 480 }}>
+                    {payResult.items.map(it => (
+                      <div key={it.serviceRequestId} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 4px', borderBottom: '1px solid #f0f0f0', fontSize: 14 }}>
+                        <span>{it.requestCode} · {new Date(it.requestDate).toLocaleDateString('vi-VN')}</span>
+                        <b>{it.amount.toLocaleString('vi-VN')} đ</b>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div style={{ marginTop: 'var(--space-24)' }}>
+                <Btn variant="ghost" icon="refresh" onClick={resetPayment} style={{ height: 48, fontSize: 16, padding: '0 32px' }}>
+                  Tra cứu bệnh nhân khác
+                </Btn>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

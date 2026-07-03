@@ -18,6 +18,7 @@ import {
 import TermIcon from '../layouts/terminal/Icon';
 import PatientFlagBanner from '../components/PatientFlagBanner';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
+import PaymentQRModal from '../components/PaymentQRModal';
 import {
   searchPatients, type PatientBillingStatusDto,
   getUnpaidServices, type UnpaidServiceItemDto,
@@ -79,6 +80,11 @@ const BillingEditorV2: React.FC = () => {
   const [einvOpen, setEinvOpen] = useState(false);
   const [einvForm, setEinvForm] = useState<{ buyerName: string; buyerEmail: string; sendEmail: boolean }>({ buyerName: '', buyerEmail: '', sendEmail: false });
   const [savingEinv, setSavingEinv] = useState(false);
+  // NangCap25: QR động VietQR — thanh toán (invoice) + tạm ứng (deposit)
+  const [qrPayOpen, setQrPayOpen] = useState(false);
+  const [qrInvoiceId, setQrInvoiceId] = useState<string | undefined>(undefined);
+  const [qrDepositOpen, setQrDepositOpen] = useState(false);
+  const [qrDepositAmount, setQrDepositAmount] = useState(0);
   const [cashbooks, setCashbooks] = useState<CashBookDto[]>([]);
   const [einvoices, setEinvoices] = useState<ElectronicInvoiceDto[]>([]);
 
@@ -133,7 +139,8 @@ const BillingEditorV2: React.FC = () => {
   const coPay = selectedItems.reduce((s, it) => s + it.patientAmount, 0);
   const bhytCovered = subtotal - coPay;
   const advBalance = balance?.remainingBalance ?? 0;
-  const advUsed = useAdvance ? Math.min(advBalance, coPay) : 0;
+  // QR VietQR (method 3) không kết hợp trừ tạm ứng tự động — tiền QR ghi nhận nguyên vẹn qua gateway
+  const advUsed = useAdvance && method !== 3 ? Math.min(advBalance, coPay) : 0;
   const finalAmount = Math.max(0, coPay - advUsed);
 
   const doPayment = async () => {
@@ -143,6 +150,15 @@ const BillingEditorV2: React.FC = () => {
       const inv = await getPatientInvoice(pt.medicalRecordId);
       const invoiceId = inv.data?.id;
       if (!invoiceId) { tw('Bệnh nhân chưa có hoá đơn — tạo hoá đơn ở bản v1 (P2)'); setBusy(false); return; }
+      if (method === 3) {
+        // VietQR: mở modal QR động — backend tự tạo Receipt + HĐĐT khi giao dịch paid,
+        // KHÔNG gọi createPayment (tránh ghi nhận tiền 2 lần)
+        setQrInvoiceId(invoiceId);
+        setConfirmOpen(false);
+        setQrPayOpen(true);
+        setBusy(false);
+        return;
+      }
       const payRes = await createPayment({
         invoiceId,
         paymentMethod: method,
@@ -170,6 +186,13 @@ const BillingEditorV2: React.FC = () => {
     if (!pt) return;
     const amt = Number(cform.amount);
     if (!amt || amt <= 0) { tw('Nhập số tiền hợp lệ'); return; }
+    if (createModal === 'deposit' && cform.method === 3) {
+      // NangCap25 II — tạm ứng bằng QR động: paid-hook backend tự tạo phiếu tạm ứng đã xác nhận
+      setQrDepositAmount(amt);
+      setCreateModal(null);
+      setQrDepositOpen(true);
+      return;
+    }
     setSavingC(true);
     try {
       if (createModal === 'deposit') {
@@ -406,8 +429,8 @@ const BillingEditorV2: React.FC = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="ab-u-muted">BHYT chi trả</span><b className="mono" style={{ color: 'var(--s-ok)' }}>−{fmtVNDg(bhytCovered)}</b></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 'var(--space-6)', borderTop: '1px dashed var(--line)', marginTop: 'var(--space-4)' }}><span className="ab-u-muted">BN đồng chi trả</span><b className="mono">{fmtVNDg(coPay)}</b></div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', padding: '6px 0', fontSize: 11.5, color: 'var(--t-2)' }}>
-                <input type="checkbox" checked={useAdvance} onChange={(e) => setUseAdvance(e.target.checked)} disabled={advBalance <= 0} />
-                Dùng tạm ứng <span className="mono ab-u-fg">−{fmtVNDg(advUsed)}</span>
+                <input type="checkbox" checked={useAdvance && method !== 3} onChange={(e) => setUseAdvance(e.target.checked)} disabled={advBalance <= 0 || method === 3} />
+                Dùng tạm ứng <span className="mono ab-u-fg">−{fmtVNDg(advUsed)}</span>{method === 3 && <span style={{ fontSize: 10, color: 'var(--t-3)' }}> (không áp dụng với QR)</span>}
               </label>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 'var(--space-10)', borderTop: '2px solid var(--line)', marginTop: 'var(--space-4)' }}><b style={{ fontSize: 'var(--fs-md)' }}>BN phải trả</b><b className="mono" style={{ fontSize: 'var(--fs-lg)', color: 'var(--a-cy)' }}>{fmtVNDg(finalAmount)}</b></div>
             </div>
@@ -447,17 +470,55 @@ const BillingEditorV2: React.FC = () => {
       <ModalShell open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Xác nhận thu tiền" sub={METHODS.find((m) => m.v === method)?.l} size="sm"
         footer={<>
           <Btn variant="ghost" onClick={() => setConfirmOpen(false)}>Hủy</Btn>
-          <Btn variant="primary" disabled={busy} onClick={doPayment}><TermIcon name="check" size={12} /> Xác nhận đã thu</Btn>
+          <Btn variant="primary" disabled={busy} onClick={doPayment}><TermIcon name={method === 3 ? 'qr' : 'check'} size={12} /> {method === 3 ? 'Mở mã QR VietQR' : 'Xác nhận đã thu'}</Btn>
         </>}>
         <div style={{ padding: 'var(--space-24)', textAlign: 'center' }}>
           <div style={{ fontSize: 14, color: 'var(--t-2)', marginBottom: 'var(--space-6)' }}>BN cần trả</div>
           <div style={{ fontSize: 30, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--a-cy)', marginBottom: 'var(--space-14)' }}>{fmtVNDg(finalAmount)}</div>
-          {method === 3 && <div style={{ width: 160, height: 160, margin: '0 auto', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', background: 'repeating-conic-gradient(#000 0% 25%, var(--d-2) 0% 50%) 50%/12px 12px' }} />}
+          {method === 3 && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Bấm "Mở mã QR VietQR" để sinh QR động Vietcombank — BN quét bằng app ngân hàng bất kỳ.</div>}
           <div style={{ marginTop: 'var(--space-14)', padding: 'var(--space-10)', background: 'var(--d-1)', borderRadius: 4, fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
             {selectedItems.length} mục · {METHODS.find((m) => m.v === method)?.l}{advUsed > 0 ? ` · dùng tạm ứng ${fmtVNDg(advUsed)}` : ''}
           </div>
         </div>
       </ModalShell>
+
+      {/* NangCap25 — QR động thanh toán viện phí (invoice) */}
+      {pt && (
+        <PaymentQRModal
+          open={qrPayOpen}
+          onClose={() => setQrPayOpen(false)}
+          onSuccess={() => { tk('✓ Đã thu qua QR — Receipt + HĐĐT tạo tự động'); setQrPayOpen(false); selectPatient(pt); }}
+          patientId={pt.patientId}
+          patientName={pt.patientName}
+          medicalRecordId={pt.medicalRecordId}
+          invoiceSummaryId={qrInvoiceId}
+          amount={finalAmount}
+          orderType="billing"
+          orderInfo={`TT vien phi ${pt.patientCode}`}
+        />
+      )}
+
+      {/* NangCap25 II — QR động đóng tạm ứng nội trú */}
+      {pt && (
+        <PaymentQRModal
+          open={qrDepositOpen}
+          onClose={() => setQrDepositOpen(false)}
+          onSuccess={async () => {
+            tk('✓ Đã nhận tạm ứng qua QR');
+            setQrDepositOpen(false);
+            const [d, b] = await Promise.allSettled([getPatientDeposits(pt.patientId), getDepositBalance(pt.patientId)]);
+            if (d.status === 'fulfilled') setDeposits(Array.isArray(d.value.data) ? d.value.data : []);
+            if (b.status === 'fulfilled' && b.value.data) setBalance(b.value.data);
+          }}
+          patientId={pt.patientId}
+          patientName={pt.patientName}
+          amount={qrDepositAmount}
+          referenceType="deposit"
+          referenceId={pt.medicalRecordId}
+          referenceAmount={qrDepositAmount}
+          orderInfo={`Tam ung noi tru ${pt.patientCode}`}
+        />
+      )}
 
       {/* Create deposit / refund modal */}
       <ModalShell open={createModal !== null} onClose={() => setCreateModal(null)}

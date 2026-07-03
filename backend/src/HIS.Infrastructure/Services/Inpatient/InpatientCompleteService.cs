@@ -28,6 +28,7 @@ public partial class InpatientCompleteService : IInpatientCompleteService
     private readonly IRepository<BedAssignment> _bedAssignmentRepo;
     private readonly IRepository<User> _userRepo;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPaymentGatewayService _paymentGateway;
 
     public InpatientCompleteService(
         HISDbContext context,
@@ -39,7 +40,8 @@ public partial class InpatientCompleteService : IInpatientCompleteService
         IRepository<Bed> bedRepo,
         IRepository<BedAssignment> bedAssignmentRepo,
         IRepository<User> userRepo,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IPaymentGatewayService paymentGateway)
     {
         _context = context;
         _patientRepo = patientRepo;
@@ -51,6 +53,7 @@ public partial class InpatientCompleteService : IInpatientCompleteService
         _bedAssignmentRepo = bedAssignmentRepo;
         _userRepo = userRepo;
         _unitOfWork = unitOfWork;
+        _paymentGateway = paymentGateway;
     }
 
 

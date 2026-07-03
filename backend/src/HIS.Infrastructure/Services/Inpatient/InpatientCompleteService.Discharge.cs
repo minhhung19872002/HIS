@@ -415,6 +415,17 @@ public partial class InpatientCompleteService {
             null,
             headers, rows);
 
+        // NangCap25 III.2 — còn nợ viện phí → nhúng QR động thanh toán ra viện
+        // (helper tự bỏ qua khi BN không còn nợ / lỗi — phiếu vẫn in bình thường)
+        var qrBlock = await _paymentGateway.BuildPrintQrBlockHtmlAsync(
+            new HIS.Application.DTOs.Payment.DynamicQrRequestDto
+            {
+                ReferenceType = "discharge",
+                ReferenceId = admissionId
+            }, Guid.Empty);
+        if (!string.IsNullOrEmpty(qrBlock))
+            html = html.Replace("</body>", qrBlock + "</body>");
+
         return Encoding.UTF8.GetBytes(html);
     }
 

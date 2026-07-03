@@ -22,17 +22,20 @@ public partial class BillingCompleteService : IBillingCompleteService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IElectronicInvoiceProvider _eInvoiceProvider;
     private readonly ILogger<BillingCompleteService> _logger;
+    private readonly IPaymentGatewayService _paymentGateway;
 
     public BillingCompleteService(
         HISDbContext context,
         IUnitOfWork unitOfWork,
         IElectronicInvoiceProvider eInvoiceProvider,
-        ILogger<BillingCompleteService> logger)
+        ILogger<BillingCompleteService> logger,
+        IPaymentGatewayService paymentGateway)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _eInvoiceProvider = eInvoiceProvider;
         _logger = logger;
+        _paymentGateway = paymentGateway;
     }
 
 

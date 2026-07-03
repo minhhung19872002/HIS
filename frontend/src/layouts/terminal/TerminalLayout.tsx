@@ -119,6 +119,8 @@ const HIS_GROUPS: NavGroup[] = [
       // NangCap24
       { id: 'bank-payments', path: '/v2/bank-payments', label: '[24] TT Ngân hàng (BIDV/VCB/...)' },
       { id: 'einvoices', path: '/v2/einvoices', label: '[24] Hóa đơn điện tử (HĐĐT)' },
+      // NangCap25: QR động Vietcombank (BV VN-Thụy Điển Uông Bí)
+      { id: 'qr-payment-center', path: '/v2/qr-payment-center', label: '[25] QR động & Đối soát VCB' },
     ],
   },
   {

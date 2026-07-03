@@ -62,6 +62,7 @@ public static class DependencyInjection
         // Phân hệ 10: Thu ngân (Billing)
         services.AddScoped<IBillingCompleteService, BillingCompleteService>();
         services.AddScoped<IPaymentGatewayService, PaymentGatewayService>();
+        services.AddScoped<IRefundDisbursementService, RefundDisbursementService>(); // NangCap25 IV: chi hộ hoàn tiền
         services.AddScoped<IMultiSpecialtyExamService, MultiSpecialtyExamService>();
         services.AddScoped<IPharmacyApprovalService, PharmacyApprovalService>();
         services.AddScoped<IReassignObjectService, ReassignObjectService>();

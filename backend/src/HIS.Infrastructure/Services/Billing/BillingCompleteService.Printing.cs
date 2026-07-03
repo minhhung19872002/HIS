@@ -309,6 +309,25 @@ public partial class BillingCompleteService {
             sb.AppendLine($"<tr><td colspan=\"4\" class=\"text-right\"><b>Con phai nop:</b></td><td class=\"text-right\"><b>{(remaining > 0 ? remaining : 0):#,##0}</b></td></tr>");
             sb.AppendLine("</tbody></table>");
 
+            // NangCap25 II.2 — còn phải nộp → nhúng QR động đóng tạm ứng (gắn hồ sơ mới nhất của BN)
+            if (remaining > 0)
+            {
+                var latestMrId = await _context.MedicalRecords.AsNoTracking()
+                    .Where(m => m.PatientId == dto.PatientId && !m.IsDeleted)
+                    .OrderByDescending(m => m.CreatedAt)
+                    .Select(m => (Guid?)m.Id)
+                    .FirstOrDefaultAsync();
+                if (latestMrId.HasValue)
+                    sb.AppendLine(await _paymentGateway.BuildPrintQrBlockHtmlAsync(
+                        new HIS.Application.DTOs.Payment.DynamicQrRequestDto
+                        {
+                            ReferenceType = "deposit",
+                            ReferenceId = latestMrId.Value,
+                            Amount = remaining,
+                            OrderInfo = "Tam ung theo phieu dich vu"
+                        }, Guid.Empty));
+            }
+
             sb.AppendLine(GetSignatureBlock("Thu ngan"));
 
             var html = WrapHtmlPage("Phieu tam ung theo dich vu", sb.ToString());
