@@ -11,6 +11,7 @@ using HIS.Application.Services;
 using HIS.Application.DTOs.Laboratory;
 using ApproveLabResultDto = HIS.Application.Services.ApproveLabResultDto;
 using HIS.API.Dtos.LISComplete;
+using ApiResponse = HIS.Application.DTOs.Common.ApiResponse<object>;
 
 namespace HIS.API.Controllers
 {
@@ -371,24 +372,24 @@ namespace HIS.API.Controllers
     public async Task<IActionResult> StoreSample([FromBody] StoreSampleRequest dto)
     {
         var item = await _context.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
-        if (item == null) return NotFound(new { message = "Mẫu không tồn tại" });
+        if (item == null) return NotFound(ApiResponse.Fail("Mẫu không tồn tại"));
         item.SampleLocation = dto.Location;
         item.UpdatedAt = DateTime.Now;
         item.UpdatedBy = GetUserId().ToString();
         await _context.SaveChangesAsync();
-        return Ok(new { success = true, message = $"Đã lưu trữ mẫu tại {dto.Location}" });
+        return Ok(new { message = $"Đã lưu trữ mẫu tại {dto.Location}" });
     }
 
     [HttpPost("sample-storage/retrieve")]
     public async Task<IActionResult> RetrieveSample([FromBody] RetrieveSampleRequest dto)
     {
         var item = await _context.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
-        if (item == null) return NotFound(new { message = "Mẫu không tồn tại" });
+        if (item == null) return NotFound(ApiResponse.Fail("Mẫu không tồn tại"));
         item.SampleLocation = null;
         item.UpdatedAt = DateTime.Now;
         item.UpdatedBy = GetUserId().ToString();
         await _context.SaveChangesAsync();
-        return Ok(new { success = true, message = "Đã lấy mẫu ra khỏi kho" });
+        return Ok(new { message = "Đã lấy mẫu ra khỏi kho" });
     }
 
     [HttpPost("sample-tracking/reject")]
@@ -402,7 +403,7 @@ namespace HIS.API.Controllers
         item.UpdatedAt = DateTime.Now;
         item.UpdatedBy = GetUserId().ToString();
         await _context.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     [HttpPost("sample-tracking/undo-reject")]
@@ -415,7 +416,7 @@ namespace HIS.API.Controllers
         item.UpdatedAt = DateTime.Now;
         item.UpdatedBy = GetUserId().ToString();
         await _context.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     /// <summary>

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs.Laboratory;
 using HIS.Application.Services;
 using HIS.API.Filters;
+using ApiResponse = HIS.Application.DTOs.Common.ApiResponse<object>;
 
 namespace HIS.API.Controllers;
 
@@ -69,7 +70,7 @@ public class LisConfigController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(ApiResponse.Fail(ex.Message));
         }
     }
 
@@ -81,7 +82,7 @@ public class LisConfigController : ControllerBase
     {
         var result = await _service.DeleteAnalyzerAsync(id);
         if (!result) return NotFound();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     /// <summary>
@@ -121,7 +122,7 @@ public class LisConfigController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(ApiResponse.Fail(ex.Message));
         }
     }
 
@@ -138,7 +139,7 @@ public class LisConfigController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(ApiResponse.Fail(ex.Message));
         }
     }
 
@@ -150,7 +151,7 @@ public class LisConfigController : ControllerBase
     {
         var result = await _service.DeleteTestParameterAsync(id);
         if (!result) return NotFound();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     /// <summary>
@@ -160,11 +161,11 @@ public class LisConfigController : ControllerBase
     public async Task<IActionResult> ImportTestParametersCsv(IFormFile file)
     {
         if (file == null || file.Length == 0)
-            return BadRequest(new { message = "Vui lòng chọn file CSV" });
+            return BadRequest(ApiResponse.Fail("Vui lòng chọn file CSV"));
 
         using var stream = file.OpenReadStream();
         var count = await _service.ImportTestParametersCsvAsync(stream);
-        return Ok(new { success = true, importedCount = count, message = $"Đã import {count} thông số" });
+        return Ok(new { importedCount = count, message = $"Đã import {count} thông số" });
     }
 
     #endregion
@@ -194,7 +195,7 @@ public class LisConfigController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(ApiResponse.Fail(ex.Message));
         }
     }
 
@@ -211,7 +212,7 @@ public class LisConfigController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(ApiResponse.Fail(ex.Message));
         }
     }
 
@@ -223,7 +224,7 @@ public class LisConfigController : ControllerBase
     {
         var result = await _service.DeleteReferenceRangeAsync(id);
         if (!result) return NotFound();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     #endregion
@@ -253,7 +254,7 @@ public class LisConfigController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(ApiResponse.Fail(ex.Message));
         }
     }
 
@@ -270,7 +271,7 @@ public class LisConfigController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(ApiResponse.Fail(ex.Message));
         }
     }
 
@@ -282,7 +283,7 @@ public class LisConfigController : ControllerBase
     {
         var result = await _service.DeleteAnalyzerMappingAsync(id);
         if (!result) return NotFound();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     /// <summary>

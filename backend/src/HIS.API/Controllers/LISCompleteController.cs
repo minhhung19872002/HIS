@@ -11,6 +11,7 @@ using HIS.Application.Services;
 using HIS.Application.DTOs.Laboratory;
 using ApproveLabResultDto = HIS.Application.Services.ApproveLabResultDto;
 using HIS.API.Dtos.LISComplete;
+using ApiResponse = HIS.Application.DTOs.Common.ApiResponse<object>;
 
 namespace HIS.API.Controllers
 {
@@ -49,7 +50,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> UpdateDatesToToday()
         {
             var count = await _lisService.UpdateAllOrderDatesToTodayAsync();
-            return Ok(new { success = true, updatedCount = count });
+            return Ok(new { updatedCount = count });
         }
 
         #endregion
@@ -123,7 +124,7 @@ namespace HIS.API.Controllers
             [FromBody] List<UpdateAnalyzerTestMappingDto> mappings)
         {
             await _lisService.UpdateAnalyzerTestMappingsAsync(analyzerId, mappings);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -145,7 +146,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> ToggleAnalyzerConnection(Guid analyzerId, [FromQuery] bool connect)
         {
             await _lisService.ToggleAnalyzerConnectionAsync(analyzerId, connect);
-            return Ok(new { success = true, connected = connect });
+            return Ok(new { connected = connect });
         }
 
         /// <summary>
@@ -259,7 +260,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> CancelSample(Guid sampleId, [FromBody] CancelSampleRequest request)
         {
             await _lisService.CancelSampleAsync(sampleId, request.Reason);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -307,7 +308,7 @@ namespace HIS.API.Controllers
             var admission = await _context.Set<HIS.Core.Entities.Admission>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(a => a.Id == admissionId && !a.IsDeleted);
-            if (admission == null) return NotFound(new { message = "Admission not found" });
+            if (admission == null) return NotFound(ApiResponse.Fail("Admission not found"));
 
             var medicalRecordId = admission.MedicalRecordId;
             // #14b: model 1 — SR XN theo HSBA + chỉ số con R1 (model 2 LabRequests chết → endpoint này trước trả rỗng)
@@ -466,11 +467,11 @@ namespace HIS.API.Controllers
         {
             // Sweep 2026-06-12: body rỗng từng trả success giả — validate tối thiểu.
             if (dto == null || dto.LabTestItemId == Guid.Empty)
-                return BadRequest(new { error = "VALIDATION_FAILED", message = "Thiếu LabTestItemId" });
+                return BadRequest(ApiResponse.Fail("Thiếu LabTestItemId"));
             if (string.IsNullOrWhiteSpace(dto.Result) && (dto.Parameters == null || dto.Parameters.Count == 0))
-                return BadRequest(new { error = "VALIDATION_FAILED", message = "Cần nhập kết quả (Result hoặc Parameters)" });
+                return BadRequest(ApiResponse.Fail("Cần nhập kết quả (Result hoặc Parameters)"));
             await _lisService.EnterLabResultAsync(dto);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -483,7 +484,7 @@ namespace HIS.API.Controllers
         {
             dto.ApprovedByUserId ??= GetUserId();
             await _lisService.ApproveLabResultAsync(dto);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -496,7 +497,7 @@ namespace HIS.API.Controllers
             [FromBody] PreliminaryApproveRequest request)
         {
             await _lisService.PreliminaryApproveLabResultAsync(orderId, request.TechnicianNote, GetUserId());
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -509,7 +510,7 @@ namespace HIS.API.Controllers
             [FromBody] FinalApproveRequest request)
         {
             await _lisService.FinalApproveLabResultAsync(orderId, request.DoctorNote, GetUserId());
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -520,7 +521,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> CancelApproval(Guid orderId, [FromBody] LISCancelApprovalRequest request)
         {
             await _lisService.CancelApprovalAsync(orderId, request.Reason);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -538,7 +539,7 @@ namespace HIS.API.Controllers
             catch (InvalidOperationException ex)
             {
                 // Chưa duyệt KQ → "Không có số liệu" (rule tài liệu) — 400 message rõ, không in.
-                return BadRequest(new { success = false, message = ex.Message });
+                return BadRequest(ApiResponse.Fail(ex.Message));
             }
         }
 
@@ -550,7 +551,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> ProcessCriticalValue([FromBody] ProcessCriticalValueDto dto)
         {
             await _lisService.ProcessCriticalValueAsync(dto);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -577,7 +578,7 @@ namespace HIS.API.Controllers
             [FromBody] AcknowledgeCriticalValueDto dto)
         {
             await _lisService.AcknowledgeCriticalValueAsync(alertId, dto);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -627,7 +628,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> RerunLabTest(Guid orderItemId, [FromBody] RerunRequest request)
         {
             await _lisService.RerunLabTestAsync(orderItemId, request.Reason);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         #endregion

@@ -70,7 +70,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> ManualMapResult([FromBody] ManualMapResultDto dto)
         {
             await _lisService.ManualMapResultAsync(dto);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -81,7 +81,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> RetryWorklist(Guid worklistId)
         {
             await _lisService.RetryWorklistAsync(worklistId);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -117,7 +117,7 @@ namespace HIS.API.Controllers
         {
             var userId = GetUserId();
             await _lisService.TransferInboxResultAsync(inboxId, userId);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -127,7 +127,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> RejectInboxResult(Guid inboxId, [FromBody] RejectInboxRequest request)
         {
             await _lisService.RejectInboxResultAsync(inboxId, request.Reason ?? "");
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -162,7 +162,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> EnterPOCTResult([FromBody] EnterPOCTResultDto dto)
         {
             await _lisService.EnterPOCTResultAsync(dto);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -198,7 +198,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> EnterCultureResult([FromBody] EnterCultureResultDto dto)
         {
             await _lisService.EnterCultureResultAsync(dto);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -209,7 +209,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> EnterAntibioticSensitivity([FromBody] EnterAntibioticSensitivityDto dto)
         {
             await _lisService.EnterAntibioticSensitivityAsync(dto);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -282,7 +282,7 @@ namespace HIS.API.Controllers
             [FromBody] UpdateCultureStatusDto dto)
         {
             await _lisService.UpdateMicrobiologyCultureStatusAsync(id, dto);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>Thêm vi sinh vật vào nuôi cấy</summary>
@@ -302,7 +302,7 @@ namespace HIS.API.Controllers
             [FromBody] List<SaveAntibioticResultDto> results)
         {
             await _lisService.SaveAntibiogramAsync(organismId, results);
-            return Ok(new { success = true });
+            return Ok();
         }
     }
 }

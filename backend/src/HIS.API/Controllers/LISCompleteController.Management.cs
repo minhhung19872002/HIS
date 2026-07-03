@@ -123,7 +123,7 @@ namespace HIS.API.Controllers
             [FromBody] List<UpdateReferenceRangeDto> ranges)
         {
             await _lisService.UpdateReferenceRangesAsync(testId, ranges);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -147,7 +147,7 @@ namespace HIS.API.Controllers
             [FromBody] UpdateCriticalValueConfigDto dto)
         {
             await _lisService.UpdateCriticalValueConfigAsync(testId, dto);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -171,7 +171,7 @@ namespace HIS.API.Controllers
             [FromBody] List<UpdateLabTestNormDto> norms)
         {
             await _lisService.UpdateLabTestNormsAsync(testId, norms);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
