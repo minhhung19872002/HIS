@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HIS.Application.Common;
 using HIS.Application.Services;
 using HIS.Infrastructure.Services;
 
@@ -196,6 +197,23 @@ public class HealthController : ControllerBase
             missing = missingTables,
             missingColumnsCount = missingColumns.Count,
             missingColumns
+        });
+    }
+
+    /// <summary>
+    /// Audit-log write reliability counters (Issue #198 AUDIT-1 §c). Audit writes are
+    /// fire-and-forget across the codebase (AuditLogMiddleware, AuditLogService,
+    /// AuditFieldDiffInterceptor) — this surfaces failures instead of only logging them, so a
+    /// spike under load is observable without grepping application logs. Admin-only.
+    /// </summary>
+    [HttpGet("/health/audit-metrics")]
+    [Authorize(Roles = RoleNames.Admin)]
+    public IActionResult GetAuditMetrics()
+    {
+        return Ok(new
+        {
+            timestamp = DateTime.UtcNow,
+            metrics = AuditWriteMetrics.GetSnapshot()
         });
     }
 }
