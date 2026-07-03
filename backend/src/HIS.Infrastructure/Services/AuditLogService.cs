@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using HIS.Application.Common;
 using HIS.Application.DTOs.Audit;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -69,10 +70,12 @@ public class AuditLogService : IAuditLogService
 
             _context.AuditLogs.Add(auditLog);
             await _context.SaveChangesAsync();
+            AuditWriteMetrics.RecordSuccess();
         }
         catch (Exception ex)
         {
             // Never let audit logging fail the main request
+            AuditWriteMetrics.RecordFailure(ex);
             _logger.LogWarning(ex, "Failed to write audit log: {Action} {EntityType} {EntityId}", action, entityType, entityId);
         }
     }
@@ -83,10 +86,12 @@ public class AuditLogService : IAuditLogService
         {
             _context.AuditLogs.Add(entry);
             await _context.SaveChangesAsync();
+            AuditWriteMetrics.RecordSuccess();
         }
         catch (Exception ex)
         {
             // Never let audit logging fail the main request
+            AuditWriteMetrics.RecordFailure(ex);
             _logger.LogWarning(ex, "Failed to write audit log entry: {Action} {EntityType}", entry.Action, entry.EntityType ?? entry.TableName);
         }
     }
@@ -99,10 +104,12 @@ public class AuditLogService : IAuditLogService
         {
             _context.AuditLogs.AddRange(list);
             await _context.SaveChangesAsync();
+            AuditWriteMetrics.RecordSuccess(list.Count);
         }
         catch (Exception ex)
         {
             // Never let audit logging fail the main request
+            AuditWriteMetrics.RecordFailure(ex);
             _logger.LogWarning(ex, "Failed to write {Count} audit log entries", list.Count);
         }
     }
