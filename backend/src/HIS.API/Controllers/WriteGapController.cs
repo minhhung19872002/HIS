@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using HIS.API.Dtos.WriteGap;
+using ApiResponse = HIS.Application.DTOs.Common.ApiResponse<object>;
 
 namespace HIS.API.Controllers;
 
@@ -24,24 +25,24 @@ public class WriteGapController : ControllerBase
     public async Task<IActionResult> StoreSample([FromBody] StoreSampleDto dto)
     {
         var item = await _db.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
-        if (item == null) return NotFound(new { message = "Mẫu không tồn tại" });
+        if (item == null) return NotFound(ApiResponse.Fail("Mẫu không tồn tại"));
         item.SampleLocation = dto.Location;
         item.UpdatedAt = DateTime.Now;
         item.UpdatedBy = Uid().ToString();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true, message = $"Đã lưu trữ mẫu tại {dto.Location}" });
+        return Ok(new { message = $"Đã lưu trữ mẫu tại {dto.Location}" });
     }
 
     [HttpPost("sample/sample-storage/retrieve")]
     public async Task<IActionResult> RetrieveSample([FromBody] RetrieveSampleDto dto)
     {
         var item = await _db.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
-        if (item == null) return NotFound(new { message = "Mẫu không tồn tại" });
+        if (item == null) return NotFound(ApiResponse.Fail("Mẫu không tồn tại"));
         item.SampleLocation = null;
         item.UpdatedAt = DateTime.Now;
         item.UpdatedBy = Uid().ToString();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true, message = "Đã lấy mẫu ra khỏi kho" });
+        return Ok(new { message = "Đã lấy mẫu ra khỏi kho" });
     }
 
     // ========== 2. Sample Tracking (reject/undo) ==========
@@ -57,7 +58,7 @@ public class WriteGapController : ControllerBase
         item.UpdatedAt = DateTime.Now;
         item.UpdatedBy = Uid().ToString();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     [HttpPost("sample/sample-tracking/undo-reject")]
@@ -70,7 +71,7 @@ public class WriteGapController : ControllerBase
         item.UpdatedAt = DateTime.Now;
         item.UpdatedBy = Uid().ToString();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ========== 3. Epidemiology (create disease report) ==========
@@ -102,7 +103,7 @@ public class WriteGapController : ControllerBase
         hai.UpdatedAt = DateTime.Now;
         hai.UpdatedBy = Uid().ToString();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     [HttpPut("hai/hai-reports/{id:guid}/close")]
@@ -117,7 +118,7 @@ public class WriteGapController : ControllerBase
         hai.UpdatedAt = DateTime.Now;
         hai.UpdatedBy = Uid().ToString();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ========== 5. Medical Record Archive (save) ==========
@@ -155,7 +156,7 @@ public class WriteGapController : ControllerBase
             _db.MedicalRecordArchives.Add(archive);
         }
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ========== 6. Inter-Hospital Sharing (create) ==========
@@ -197,7 +198,7 @@ public class WriteGapController : ControllerBase
         archive.UpdatedAt = DateTime.Now;
         archive.UpdatedBy = Uid().ToString();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     [HttpPost("record-planning/return")]
@@ -211,7 +212,7 @@ public class WriteGapController : ControllerBase
         archive.UpdatedAt = DateTime.Now;
         archive.UpdatedBy = Uid().ToString();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ========== 8. Booking Management (doctor schedule) ==========
@@ -245,7 +246,7 @@ public class WriteGapController : ControllerBase
             });
         }
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     [HttpGet("booking/doctor-schedule")]

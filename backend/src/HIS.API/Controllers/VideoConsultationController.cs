@@ -208,7 +208,7 @@ public class VideoConsultationController : ControllerBase
         r.UpdatedAt = DateTime.UtcNow;
         r.ConclusionNote = dto.Reason;
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
 }
