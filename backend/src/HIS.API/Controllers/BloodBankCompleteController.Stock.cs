@@ -61,7 +61,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> UpdateBloodBagStatus(Guid bloodBagId, [FromBody] BloodBankUpdateStatusRequest request)
         {
             await _bloodBankService.UpdateBloodBagStatusAsync(bloodBagId, request.Status, request.Reason);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> DestroyExpiredBloodBags([FromBody] DestroyBloodBagsRequest request)
         {
             await _bloodBankService.DestroyExpiredBloodBagsAsync(request.BloodBagIds, request.Reason);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -180,7 +180,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> CompleteInventory(Guid inventoryId)
         {
             await _bloodBankService.CompleteInventoryAsync(inventoryId);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -191,7 +191,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> ApproveInventory(Guid inventoryId)
         {
             await _bloodBankService.ApproveInventoryAsync(inventoryId);
-            return Ok(new { success = true });
+            return Ok();
         }
     }
 }

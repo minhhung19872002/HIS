@@ -90,7 +90,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> ConfirmImportReceipt(Guid receiptId)
         {
             await _bloodBankService.ConfirmImportReceiptAsync(receiptId);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> CancelImportReceipt(Guid receiptId, [FromBody] BloodBankCancelRequest request)
         {
             await _bloodBankService.CancelImportReceiptAsync(receiptId, request.Reason);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -166,7 +166,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> ApproveIssueRequest(Guid requestId)
         {
             await _bloodBankService.ApproveIssueRequestAsync(requestId);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -177,7 +177,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> RejectIssueRequest(Guid requestId, [FromBody] BloodBankCancelRequest request)
         {
             await _bloodBankService.RejectIssueRequestAsync(requestId, request.Reason);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>

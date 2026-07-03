@@ -81,7 +81,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> CancelBloodOrder(Guid orderId, [FromBody] BloodBankCancelRequest request)
         {
             await _bloodBankService.CancelBloodOrderAsync(orderId, request.Reason);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -92,7 +92,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> AssignBloodBag(Guid orderItemId, [FromBody] AssignBloodBagRequest request)
         {
             await _bloodBankService.AssignBloodBagToPatientAsync(orderItemId, request.BloodBagId);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -103,7 +103,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> UnassignBloodBag(Guid orderItemId, [FromBody] UnassignBloodBagRequest request)
         {
             await _bloodBankService.UnassignBloodBagAsync(orderItemId, request.BloodBagId, request.Reason);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -116,7 +116,7 @@ namespace HIS.API.Controllers
             [FromBody] CrossMatchResultRequest request)
         {
             await _bloodBankService.RecordCrossMatchResultAsync(orderItemId, request.BloodBagId, request.Result, request.Note);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -127,7 +127,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> StartTransfusion(Guid orderItemId, [FromBody] TransfusionRequest request)
         {
             await _bloodBankService.StartTransfusionAsync(orderItemId, request.BloodBagId);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -140,7 +140,7 @@ namespace HIS.API.Controllers
             [FromBody] CompleteTransfusionRequest request)
         {
             await _bloodBankService.CompleteTransfusionAsync(orderItemId, request.BloodBagId, request.Note);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -153,7 +153,7 @@ namespace HIS.API.Controllers
             [FromBody] TransfusionReactionRequest request)
         {
             await _bloodBankService.RecordTransfusionReactionAsync(orderItemId, request.BloodBagId, request.Reaction, request.Action);
-            return Ok(new { success = true });
+            return Ok();
         }
     }
 }
