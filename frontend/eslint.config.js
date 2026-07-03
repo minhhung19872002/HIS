@@ -19,6 +19,14 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    // #210 [QA-1] Bật guardrail chất lượng ở mức `warn` (KHÔNG phá `npm run lint` = eslint .,
+    // không có --max-warnings). Dùng logger util (src/utils/logger.ts) thay console.log;
+    // console.warn/error được phép (kênh cảnh báo/lỗi API-expected có chủ đích).
+    rules: {
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    },
   },
   // UI-AUDIT #161 — lint-guard: chặn TÁI PHÁT hardcode mã màu hex trong v2 UI.
   // Ép dùng CSS token (var(--token)) đã định nghĩa ở terminal.css / ab-module.css,

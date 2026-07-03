@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Form, Input, InputNumber, Select, Switch } from 'antd';
 import * as api from '../api/centralSigning';
+import { logger } from '../utils/logger';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, tk, ti, tw, Ico,
@@ -334,7 +335,7 @@ const CentralSigningV2: React.FC = () => {
         <span className="spacer" />
         {tab === 'transactions' && (
           <Btn variant="ghost" onClick={async () => {
-            try { const r = await api.exportSerials(); tk('Đã xuất serials'); console.log(r); }
+            try { const r = await api.exportSerials(); tk('Đã xuất serials'); logger.debug('exportSerials', r); }
             catch { tw('Lỗi khi xuất'); }
           }}>
             <Ico name="download" size={12} /> Xuất serials
