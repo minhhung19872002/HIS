@@ -527,10 +527,15 @@ public partial class ExaminationCompleteService
 
         if (examination?.MedicalRecord?.PatientType != 1) return warnings; // Not BHYT
 
+        // perf(#195): batch-load medicines instead of FindAsync per item (N+1)
+        var bhytMedicineIds = dto.Items.Select(i => i.MedicineId).Distinct().ToList();
+        var bhytMedicinesMap = await _context.Medicines
+            .Where(m => bhytMedicineIds.Contains(m.Id))
+            .ToDictionaryAsync(m => m.Id);
+
         foreach (var item in dto.Items)
         {
-            var medicine = await _context.Medicines.FindAsync(item.MedicineId);
-            if (medicine == null) continue;
+            if (!bhytMedicinesMap.TryGetValue(item.MedicineId, out var medicine)) continue;
 
             // Check if medicine is in BHYT list
             if (!medicine.IsBhytCovered)

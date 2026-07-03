@@ -71,10 +71,15 @@ public partial class ExaminationCompleteService
 
         var results = new List<ServiceOrderFullDto>();
 
+        // perf(#195): batch-load services instead of FindAsync per item (N+1)
+        var serviceIds = dto.Services.Select(s => s.ServiceId).Distinct().ToList();
+        var servicesMap = await _context.Services
+            .Where(s => serviceIds.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id);
+
         foreach (var item in dto.Services)
         {
-            var service = await _context.Services.FindAsync(item.ServiceId);
-            if (service == null) continue;
+            if (!servicesMap.TryGetValue(item.ServiceId, out var service)) continue;
 
             var request = new ServiceRequest
             {
@@ -457,30 +462,40 @@ public partial class ExaminationCompleteService
 
         var result = new List<RoomDto>();
 
+        // perf(#195): batch-load services + active rooms once instead of per-serviceId queries (N+1).
+        // Read-only computation (no writes); filtering moves to in-memory LINQ over the same
+        // pre-loaded room set, preserving the original per-service two-tier fallback logic.
+        var pathServicesMap = await _context.Services
+            .Where(s => serviceIds.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id);
+        var pathActiveRooms = await _context.Rooms
+            .Include(r => r.Department)
+            .Where(r => r.IsActive)
+            .ToListAsync();
+
         // Get services and their available rooms
         foreach (var serviceId in serviceIds)
         {
-            var service = await _context.Services.FindAsync(serviceId);
-            if (service == null) continue;
+            if (!pathServicesMap.TryGetValue(serviceId, out var service)) continue;
 
             // Find room that can perform this service with least waiting
-            var availableRooms = await _context.Rooms
-                .Include(r => r.Department)
-                .Where(r => r.IsActive && r.ServiceTypes != null && r.ServiceTypes.Contains(service.ServiceType.ToString()))
-                .ToListAsync();
+            var availableRooms = pathActiveRooms
+                .Where(r => r.ServiceTypes != null && r.ServiceTypes.Contains(service.ServiceType.ToString()))
+                .ToList();
 
             if (!availableRooms.Any())
             {
                 // Fall back to any active room that can perform this service.
                 // RoomType và ServiceType là hai bảng mã khác nhau — phải ánh xạ, không so trực tiếp
                 // (xem HIS.Core.Common.RoomTypes).
+                // perf(#195): lọc trên tập phòng đã nạp sẵn thay vì query Rooms lại mỗi serviceId
+                // (pathActiveRooms dùng đúng cùng điều kiện: IsActive + Include(Department)).
                 var roomTypes = HIS.Core.Common.RoomTypes.ForServiceType(service.ServiceType);
                 availableRooms = roomTypes.Length == 0
                     ? new List<Room>()
-                    : await _context.Rooms
-                        .Include(r => r.Department)
-                        .Where(r => r.IsActive && roomTypes.Contains(r.RoomType))
-                        .ToListAsync();
+                    : pathActiveRooms
+                        .Where(r => roomTypes.Contains(r.RoomType))
+                        .ToList();
             }
 
             var optimalRoom = availableRooms.FirstOrDefault();
