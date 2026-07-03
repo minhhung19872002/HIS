@@ -130,10 +130,15 @@ public partial class ReceptionCompleteService {
         var ctx = await LoadOrderContextAsync(dto.MedicalRecordId, userId);
         var results = new List<ServiceOrderResultDto>();
 
+        // perf(#195): batch-load services instead of FindAsync per item (N+1)
+        var serviceIds = dto.Services.Select(s => s.ServiceId).Distinct().ToList();
+        var servicesMap = await _context.Services
+            .Where(s => serviceIds.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id);
+
         foreach (var item in dto.Services)
         {
-            var service = await _context.Services.FindAsync(item.ServiceId);
-            if (service == null) continue;
+            if (!servicesMap.TryGetValue(item.ServiceId, out var service)) continue;
 
             var roomId = item.RoomId;
             if (roomId == null && dto.AutoSelectRoom)
