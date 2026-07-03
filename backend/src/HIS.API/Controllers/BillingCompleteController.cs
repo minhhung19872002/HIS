@@ -14,7 +14,7 @@ namespace HIS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.QuanTriHeThong + "," + RoleNames.Cashier + "," + RoleNames.Accountant + "," + RoleNames.ThuNgan + "," + RoleNames.Receptionist + "," + RoleNames.Doctor + "," + RoleNames.BacSi + "," + RoleNames.Nurse + "," + RoleNames.DieuDuong)] // B3 RBAC shortlist (#293): thu ngân → admin+tài chính+lễ tân+lâm sàng (surgery.ts gọi reverse-charge), chặn LabTech/ImagingTech/Pharmacist
 // 2026-06-12 (bug thu trùng prod): exception nghiệp vụ từng unhandled tới Kestrel → connection abort
 // → Cloud Run trả 503 TRẦN không CORS → FE tưởng fail và retry. Filter trả JSON 400/500 có CORS.
 [TypeFilter(typeof(Filters.DomainExceptionFilter))]

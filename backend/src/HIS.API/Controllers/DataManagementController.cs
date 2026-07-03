@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs.DataManagement;
 using HIS.Application.Services;
@@ -11,7 +12,7 @@ namespace HIS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/data-management")]
-[Authorize]
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.QuanTriHeThong)] // B3 RBAC shortlist (#293): chuyển giao/xuất dữ liệu hệ thống chỉ system-admin
 public class DataManagementController : ControllerBase
 {
     private readonly IDataManagementService _service;

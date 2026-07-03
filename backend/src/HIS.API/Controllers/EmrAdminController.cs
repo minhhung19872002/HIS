@@ -8,7 +8,7 @@ namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/emr-admin")]
-[Authorize]
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.QuanTriHeThong + "," + RoleNames.Doctor + "," + RoleNames.BacSi + "," + RoleNames.Nurse + "," + RoleNames.DieuDuong)] // B3 RBAC shortlist (#293): cấu hình EMR đọc bởi UI lâm sàng (EMR/EmrEditor/Consultation) → admin+lâm sàng
 [TypeFilter(typeof(Filters.DomainExceptionFilter))] // TT46: InvalidOperationException (EmrLockGuard) → 400 + message rõ
 public class EmrAdminController : ControllerBase
 {

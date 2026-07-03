@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
 using System.Security.Claims;
@@ -7,7 +8,7 @@ namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/archives")]
-[Authorize]
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.QuanTriHeThong + "," + RoleNames.Doctor + "," + RoleNames.BacSi + "," + RoleNames.Nurse + "," + RoleNames.DieuDuong)] // B3 RBAC shortlist (#293): kho lưu trữ bệnh án → admin+lâm sàng, KHÔNG lễ tân/kế toán
 [TypeFilter(typeof(Filters.DomainExceptionFilter))]
 public class MedicalRecordArchiveController : ControllerBase
 {

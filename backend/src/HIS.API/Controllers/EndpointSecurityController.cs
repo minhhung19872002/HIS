@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
@@ -8,7 +9,7 @@ namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/endpoint-security")]
-[Authorize]
+[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.QuanTriHeThong)] // B3 RBAC shortlist (#293): quản lý thiết bị/bảo mật endpoint chỉ system-admin
 public class EndpointSecurityController : ControllerBase
 {
     private readonly IEndpointSecurityService _service;
