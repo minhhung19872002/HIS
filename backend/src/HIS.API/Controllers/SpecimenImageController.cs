@@ -322,7 +322,7 @@ public class SpecimenImageController : ControllerBase
         img.UpdatedBy = GetUserId().ToString();
 
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ─── Delete ───────────────────────────────────────────────────────
@@ -339,6 +339,6 @@ public class SpecimenImageController : ControllerBase
         await _db.SaveChangesAsync();
 
         // File vật lý: soft-delete chỉ ẩn record. GC task dọn sau.
-        return Ok(new { success = true });
+        return Ok();
     }
 }

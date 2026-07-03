@@ -73,7 +73,7 @@ public class RadiologyDispatchController : ControllerBase
         dispatch.IsDeleted = true;
         dispatch.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     [HttpPost("{id:guid}/mark-arrived")]
@@ -84,7 +84,7 @@ public class RadiologyDispatchController : ControllerBase
         d.IsArrived = true;
         d.ArrivedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     [HttpPost("{id:guid}/mark-performed")]
@@ -139,7 +139,7 @@ public class RadiologyDispatchController : ControllerBase
         }
 
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     [HttpGet("queue/{roomId:guid}")]
@@ -263,7 +263,7 @@ public class RadiologyDispatchController : ControllerBase
             });
         }
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     [HttpPost("permissions/copy")]
@@ -327,6 +327,6 @@ public class RadiologyDispatchController : ControllerBase
         p.IsActive = false;
         p.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 }

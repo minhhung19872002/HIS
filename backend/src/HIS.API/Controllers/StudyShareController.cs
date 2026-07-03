@@ -112,7 +112,7 @@ public class StudyShareController : ControllerBase
         link.UpdatedAt = DateTime.UtcNow;
         link.UpdatedBy = GetUserId().ToString();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
 

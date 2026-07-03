@@ -183,7 +183,7 @@ public class NonDicomController : ControllerBase
         study.UpdatedAt = DateTime.UtcNow;
         study.UpdatedBy = GetUserId().ToString();
         await _db.SaveChangesAsync();
-        return Ok(new { success = true });
+        return Ok();
     }
 
     [HttpDelete("image/{imageId:guid}")]
@@ -194,7 +194,7 @@ public class NonDicomController : ControllerBase
         _db.NonDicomImages.Remove(img);
         await _db.SaveChangesAsync();
         // File thực để lại (tránh mất khi rollback), GC background task sẽ dọn sau
-        return Ok(new { success = true });
+        return Ok();
     }
 
     [HttpGet("worklist")]

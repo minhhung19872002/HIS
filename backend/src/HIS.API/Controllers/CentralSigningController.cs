@@ -163,7 +163,7 @@ public class CentralSigningController : ControllerBase
     public async Task<ActionResult> DeleteCertificate(Guid id)
     {
         var success = await _signingService.DeleteManagedCertificateAsync(id);
-        return success ? Ok(new { success = true }) : NotFound();
+        return success ? Ok() : NotFound();
     }
 
     /// <summary>Get signing transactions</summary>
@@ -196,7 +196,7 @@ public class CentralSigningController : ControllerBase
     public async Task<ActionResult> SaveAppearance([FromBody] SignatureAppearanceDto config)
     {
         await _signingService.SaveAppearanceConfigAsync(config);
-        return Ok(new { success = true });
+        return Ok();
     }
 
     // ============ HSM APIs ============
@@ -223,7 +223,7 @@ public class CentralSigningController : ControllerBase
     {
         var imageBytes = Convert.FromBase64String(request.ImageBase64);
         var success = await _signingService.UploadSignatureImageAsync(request.Cccd, imageBytes);
-        return success ? Ok(new { success = true }) : NotFound(new { message = "Không tìm thấy chứng thư số với CCCD này" });
+        return success ? Ok() : NotFound(new { message = "Không tìm thấy chứng thư số với CCCD này" });
     }
 
     /// <summary>Export serial number list</summary>
