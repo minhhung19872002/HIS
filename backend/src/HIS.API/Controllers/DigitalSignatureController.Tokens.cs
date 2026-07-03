@@ -52,6 +52,6 @@ public partial class DigitalSignatureController
     {
         var userId = GetCurrentUserId();
         await _tokenRegistry.RegisterTokenAsync(userId, request.TokenSerial, "", "");
-        return Ok(new { success = true, message = "Token đã được đăng ký" });
+        return Ok(new { message = "Token đã được đăng ký" });
     }
 }

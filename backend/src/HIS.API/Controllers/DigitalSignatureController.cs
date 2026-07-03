@@ -131,7 +131,7 @@ public partial class DigitalSignatureController : ControllerBase
     {
         var userId = GetCurrentUserId();
         _sessionManager.InvalidateSession(userId.ToString());
-        return Ok(new { success = true, message = "Phiên ký số đã đóng" });
+        return Ok(new { message = "Phiên ký số đã đóng" });
     }
 
     /// <summary>

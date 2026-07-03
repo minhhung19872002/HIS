@@ -86,7 +86,7 @@ public partial class DigitalSignatureController
         await _db.SaveChangesAsync();
 
         _logger.LogInformation("Signature {SignatureId} revoked by user {UserId}", signatureId, userId);
-        return Ok(new { success = true, message = "Đã thu hồi chữ ký" });
+        return Ok(new { message = "Đã thu hồi chữ ký" });
     }
 
     /// <summary>

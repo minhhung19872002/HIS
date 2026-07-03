@@ -69,7 +69,7 @@ public class NationalPrescriptionGatewayController : ControllerBase
     [HttpPost("config")]
     [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<object>> SaveConfig([FromBody] NationalGatewayConfigDto dto)
-        => Ok(new { success = await _svc.SaveConfigAsync(dto, UserId()) });
+        => Ok(await _svc.SaveConfigAsync(dto, UserId()));
 
     [HttpGet("test-connection")]
     public async Task<ActionResult<object>> TestConnection()
@@ -258,7 +258,7 @@ public class LinenManagementController : ControllerBase
 
     [HttpDelete("items/{id:guid}")]
     public async Task<ActionResult<object>> DeleteItem(Guid id)
-        => Ok(new { success = await _svc.DeleteLinenItemAsync(id, UserId()) });
+        => Ok(await _svc.DeleteLinenItemAsync(id, UserId()));
 
     // ---- Transactions ----
 
@@ -373,7 +373,7 @@ public class FunctionalDiagnosticsController : ControllerBase
 
     [HttpDelete("{id:guid}")]
     public async Task<ActionResult<object>> Delete(Guid id)
-        => Ok(new { success = await _svc.DeleteAsync(id, UserId()) });
+        => Ok(await _svc.DeleteAsync(id, UserId()));
 
     /// <summary>
     /// Trả danh sách loại TDCN từ DB (thay thế hardcode cũ — #40 #64 #65 #66 #67).
@@ -432,7 +432,7 @@ public class ZaloNotificationController : ControllerBase
     [HttpPost("config")]
     [Authorize(Roles = RoleNames.Admin)]
     public async Task<ActionResult<object>> SaveConfig([FromBody] ZaloConfigDto dto)
-        => Ok(new { success = await _svc.SaveConfigAsync(dto, UserId()) });
+        => Ok(await _svc.SaveConfigAsync(dto, UserId()));
 
     [HttpGet("test-connection")]
     public async Task<ActionResult<object>> TestConnection()
