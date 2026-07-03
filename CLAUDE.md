@@ -159,7 +159,7 @@ If a new service/controller is added, register it there or you get 500 errors.
 | Backend (Cloud Run) | service `his-api` · project `project-4d4a3f8e-d582-4536-97f` · region `asia-southeast1` |
 | API URL prod | https://his-api-694913628964.asia-southeast1.run.app |
 | Frontend (Vercel) | https://his-psi.vercel.app |
-| Cloud SQL DB | `HIS` |
+| Cloud SQL DB | `HIS` · instance `his-sql` **CHỈ private IP `10.10.0.3`** (VPC `default`, #292 2026-07-03) — public 1433 đã chặn; truy cập dev qua `cloud-sql-proxy` (IAM); Cloud Run nối qua Direct VPC egress |
 | Admin login (mọi env) | `admin` / `Admin@123` |
 | Local Docker | container `his-sqlserver` · DB `HIS` · sqlcmd `/opt/mssql-tools18/bin/sqlcmd` |
 | PACS prod | Orthanc @ https://168-110-52-7.nip.io (Oracle VM `168.110.52.7`) · storage Cloudflare R2 `his-pacs-dicom` |

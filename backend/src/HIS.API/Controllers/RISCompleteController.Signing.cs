@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.API.Filters;
 using HIS.Application.Services;
+using HIS.Application.DTOs.Common;
 using HIS.Application.DTOs.Radiology;
 using HIS.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
@@ -82,7 +83,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> CancelSignedResult([FromBody] CancelSignedResultDto dto)
         {
             await _risService.CancelSignedResultAsync(dto);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -119,7 +120,7 @@ namespace HIS.API.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(new { success = false, message = $"Lỗi đọc chứng thư số: {ex.Message}" });
+                return BadRequest(ApiResponse<object>.Fail($"Lỗi đọc chứng thư số: {ex.Message}"));
             }
         }
 
@@ -212,7 +213,7 @@ namespace HIS.API.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(new { available = false, message = $"Lỗi kiểm tra USB Token: {ex.Message}" });
+                return BadRequest(ApiResponse<object>.Fail($"Lỗi kiểm tra USB Token: {ex.Message}"));
             }
         }
 
@@ -316,7 +317,7 @@ namespace HIS.API.Controllers
                 var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Radiology", fileName);
                 if (!System.IO.File.Exists(filePath))
                 {
-                    return NotFound(new { message = "File không tồn tại" });
+                    return NotFound(ApiResponse<object>.Fail("File không tồn tại"));
                 }
 
                 var fileBytes = System.IO.File.ReadAllBytes(filePath);
@@ -324,7 +325,7 @@ namespace HIS.API.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = $"Lỗi tải file: {ex.Message}" });
+                return BadRequest(ApiResponse<object>.Fail($"Lỗi tải file: {ex.Message}"));
             }
         }
 
@@ -375,20 +376,18 @@ namespace HIS.API.Controllers
 
                 if (!result.Success)
                 {
-                    return BadRequest(new { success = false, message = result.Message });
+                    return BadRequest(ApiResponse<object>.Fail(result.Message));
                 }
 
                 return Ok(new
                 {
-                    success = true,
-                    message = "Tạo PDF preview thành công",
                     filePath = result.FilePath,
                     pdfBase64 = result.PdfBytes != null ? Convert.ToBase64String(result.PdfBytes) : null
                 });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { success = false, message = $"Lỗi tạo PDF: {ex.Message}" });
+                return BadRequest(ApiResponse<object>.Fail($"Lỗi tạo PDF: {ex.Message}"));
             }
         }
 

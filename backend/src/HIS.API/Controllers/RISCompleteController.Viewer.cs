@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.API.Filters;
 using HIS.Application.Services;
+using HIS.Application.DTOs.Common;
 using HIS.Application.DTOs.Radiology;
 using HIS.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
@@ -268,7 +269,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<QRCodeResultDto>> GenerateQRCode([FromBody] GenerateQRCodeRequestDto request)
         {
             var result = await _risService.GenerateQRCodeAsync(request);
-            if (result == null) return NotFound(new { message = "Order not found" });
+            if (result == null) return NotFound(ApiResponse<object>.Fail("Order not found"));
             return Ok(result);
         }
 
@@ -354,7 +355,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> ApproveDutySchedule(Guid scheduleId)
         {
             await _risService.ApproveDutyScheduleAsync(scheduleId);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -404,7 +405,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> SkipPatient(Guid assignmentId, [FromBody] SkipPatientRequest request)
         {
             await _risService.SkipPatientAsync(assignmentId, request.Reason);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -456,7 +457,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> AssignTagsToRequest([FromBody] AssignTagRequestDto request)
         {
             await _risService.AssignTagsToRequestAsync(request);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -466,7 +467,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> RemoveTagFromRequest(Guid requestId, Guid tagId)
         {
             await _risService.RemoveTagFromRequestAsync(requestId, tagId);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -531,7 +532,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> RetryIntegration(Guid logId)
         {
             await _risService.RetryIntegrationAsync(logId);
-            return Ok(new { success = true });
+            return Ok();
         }
     }
 }

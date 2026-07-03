@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.API.Filters;
 using HIS.Application.Services;
+using HIS.Application.DTOs.Common;
 using HIS.Application.DTOs.Radiology;
 using HIS.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
@@ -71,8 +72,8 @@ namespace HIS.API.Controllers
         {
             dto.ApprovingUserId = GetUserId(); // G-36: per-modality permission check
             try { await _risService.FinalApproveResultAsync(dto); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(403, new { success = false, message = ex.Message }); }
-            return Ok(new { success = true });
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ApiResponse<object>.Fail(ex.Message)); }
+            return Ok();
         }
 
         #region 8.1 Màn hình chờ thực hiện
@@ -126,7 +127,7 @@ namespace HIS.API.Controllers
         {
             config.RoomId = roomId;
             await _risService.UpdateDisplayConfigAsync(config);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -138,7 +139,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> UpdateDatesToToday()
         {
             var count = await _risService.UpdateAllRequestDatesToTodayAsync();
-            return Ok(new { success = true, updatedCount = count });
+            return Ok(new { updatedCount = count });
         }
 
         /// <summary>
@@ -150,7 +151,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> AddTestDicomStudies()
         {
             var count = await _risService.AddTestDicomStudiesForCompletedRequestsAsync();
-            return Ok(new { success = true, addedCount = count });
+            return Ok(new { addedCount = count });
         }
 
         /// <summary>
@@ -162,7 +163,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> FixDicomUIDs()
         {
             var count = await _risService.FixDicomStudyUIDsAsync();
-            return Ok(new { success = true, fixedCount = count });
+            return Ok(new { fixedCount = count });
         }
 
         /// <summary>
@@ -174,7 +175,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> CleanupIncompleteDicomStudies()
         {
             var count = await _risService.CleanupDicomStudiesForIncompleteRequestsAsync();
-            return Ok(new { success = true, removedCount = count });
+            return Ok(new { removedCount = count });
         }
 
         /// <summary>
@@ -186,7 +187,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> SyncRequestStatus()
         {
             var count = await _risService.SyncRequestStatusWithExamsAsync();
-            return Ok(new { success = true, updatedCount = count });
+            return Ok(new { updatedCount = count });
         }
 
         /// <summary>
@@ -197,7 +198,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> StartExam(Guid orderId)
         {
             await _risService.StartExamAsync(orderId);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -210,8 +211,8 @@ namespace HIS.API.Controllers
             // Sweep 2026-06-12: service trả false khi order không tồn tại nhưng controller từng
             // nuốt bool → success giả. Giờ 404 rõ ràng.
             var ok = await _risService.CompleteExamAsync(orderId);
-            if (!ok) return NotFound(new { error = "NOT_FOUND", message = "Order CĐHA không tồn tại" });
-            return Ok(new { success = true });
+            if (!ok) return NotFound(ApiResponse<object>.Fail("Order CĐHA không tồn tại"));
+            return Ok();
         }
 
         #endregion
@@ -338,7 +339,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> ConfigureDeviceConnection(Guid deviceId, [FromBody] DeviceConnectionConfigDto config)
         {
             await _risService.ConfigureDeviceConnectionAsync(deviceId, config);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         #endregion

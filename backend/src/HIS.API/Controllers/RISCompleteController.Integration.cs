@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.API.Filters;
 using HIS.Application.Services;
+using HIS.Application.DTOs.Common;
 using HIS.Application.DTOs.Radiology;
 using HIS.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
@@ -104,7 +105,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> RetryHL7Message(Guid messageId)
         {
             await _risService.RetryHL7MessageAsync(messageId);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -134,7 +135,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> SendCDADocument([FromBody] SendCDADocumentDto dto)
         {
             await _risService.SendCDADocumentAsync(dto);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -144,7 +145,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> ReceiveHL7Order([FromBody] ReceiveHL7OrderRequest request)
         {
             var orderId = await _risService.ReceiveHL7OrderAsync(request.HL7Message);
-            return Ok(new { success = true, orderId });
+            return Ok(new { orderId });
         }
 
         /// <summary>
@@ -164,7 +165,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> CancelHL7Result(Guid reportId, [FromBody] CancelHL7ResultRequest request)
         {
             await _risService.CancelHL7ResultAsync(reportId, request.Reason);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -352,7 +353,7 @@ namespace HIS.API.Controllers
         {
             var data = await _risService.ExportDicomStudyAsync(studyId, format);
             if (data == null || data.Length == 0)
-                return NotFound(new { message = "Study not found or export failed" });
+                return NotFound(ApiResponse<object>.Fail("Study not found or export failed"));
 
             var contentType = format == "dicomdir" ? "application/dicom" : "application/zip";
             var fileName = $"study_{studyId}.{(format == "dicomdir" ? "dcm" : "zip")}";
@@ -414,9 +415,9 @@ namespace HIS.API.Controllers
         public async Task<IActionResult> BulkExportDicom([FromBody] BulkDicomExportRequest request)
         {
             if (request.StudyIds == null || request.StudyIds.Count == 0)
-                return BadRequest(new { message = "Cần ít nhất 1 studyId" });
+                return BadRequest(ApiResponse<object>.Fail("Cần ít nhất 1 studyId"));
             if (request.StudyIds.Count > 50)
-                return BadRequest(new { message = "Tối đa 50 study mỗi lần tải" });
+                return BadRequest(ApiResponse<object>.Fail("Tối đa 50 study mỗi lần tải"));
 
             var skipped = new List<string>();
 
@@ -469,11 +470,9 @@ namespace HIS.API.Controllers
 
             // Nếu không có study nào thành công → báo lỗi rõ thay vì trả ZIP rỗng
             if (zipBytes.Length < 22) // ZIP end-of-central-directory record tối thiểu 22 bytes
-                return StatusCode(422, new
-                {
-                    message = "Không tải được dữ liệu DICOM cho bất kỳ study nào. PACS có thể không khả dụng.",
-                    skipped
-                });
+                return StatusCode(422, ApiResponse<object>.Fail(
+                    "Không tải được dữ liệu DICOM cho bất kỳ study nào. PACS có thể không khả dụng.",
+                    new Dictionary<string, string[]> { ["skipped"] = skipped.ToArray() }));
 
             var fileName = request.Anonymize ? "bulk_anon_export.zip" : "bulk_export.zip";
             // Đính kèm danh sách study bị bỏ qua vào header để caller biết
@@ -493,9 +492,9 @@ namespace HIS.API.Controllers
         public async Task<IActionResult> BulkApproveResults([FromBody] BulkApproveRequest request)
         {
             if (request.ResultIds == null || request.ResultIds.Count == 0)
-                return BadRequest(new { message = "Cần ít nhất 1 resultId" });
+                return BadRequest(ApiResponse<object>.Fail("Cần ít nhất 1 resultId"));
             if (request.ResultIds.Count > 100)
-                return BadRequest(new { message = "Tối đa 100 kết quả mỗi lần duyệt" });
+                return BadRequest(ApiResponse<object>.Fail("Tối đa 100 kết quả mỗi lần duyệt"));
 
             var userId = GetUserId();
             var approved = new List<Guid>();
@@ -605,7 +604,7 @@ namespace HIS.API.Controllers
             var userId = GetUserId();
             if (userId == Guid.Empty) return Unauthorized();
             var ok = await _risService.UpdateCoReaderOpinionAsync(dto, userId);
-            return Ok(new { success = ok });
+            return Ok(ok);
         }
 
         /// <summary>
@@ -618,7 +617,7 @@ namespace HIS.API.Controllers
             var userId = GetUserId();
             if (userId == Guid.Empty) return Unauthorized();
             var ok = await _risService.RemoveCoReaderAsync(coReaderId, userId);
-            return Ok(new { success = ok });
+            return Ok(ok);
         }
 
         /// <summary>
@@ -631,7 +630,7 @@ namespace HIS.API.Controllers
             var userId = GetUserId();
             if (userId == Guid.Empty) return Unauthorized();
             var ok = await _risService.CopyReportResultAsync(dto, userId);
-            return Ok(new { success = ok });
+            return Ok(ok);
         }
 
         /// <summary>

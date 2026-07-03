@@ -5,7 +5,12 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-06-30**.
+> Cập nhật cuối: **2026-07-03**.
+
+## Phiên 2026-07-03 (goal: hoàn thành TẤT CẢ issue — fix trước, test cuối)
+- **CLOSED hôm nay:** **#292** (Cloud SQL private-IP `10.10.0.3` + gỡ 0.0.0.0/0 + rotate pwd sqlserver; public 1433 BLOCKED; prod healthy) · **#182** (rotate Jwt__Key + PACS Orthanc pwd [VM .env + Cloud Run] + scrub seed-script + fail-fast guard default-key prod, `7bcae24`) · **#293** (shortlist 6 controller gate RBAC, `e0057d5`, smoke admin 14/14=200; test-403 bàn giao #344) · **#183** Phase-2 (verify prod 8 role; gộp RadiologyManager→RadiologistManager orphan-neutral, `52af969`) · **#209** (MOOT theo v1-retire; phần sống → #352).
+- ⚠️ Máy này CÓ gcloud (owner) + SSH PACS VM — các defer "thiếu gcloud" trước đây làm được tại đây. DB prod truy cập qua cloud-sql-proxy.
+- **Đang chạy (agent nền):** #193 envelope (cây chính) · #195 N+1 write-path (worktree) · #198 audit-log (worktree). Sau đó: #197(4 phần) → #202-thin → #348(+đóng #200) → #355/#356+#201-threshold → #205 → #210 → #214 → epic #352/#204 → TEST (#191/#212/#213 rồi #216-347).
 
 ## Phien 2026-06-28..29 (cua OPUS - #354/#201/#203/#202 SHIPPED prod, deploy success)
 - **#354** [PERF-2a]: bound 99 list-endpoint type-(a) + verify doi-khang 43 agent bat 8 site bound-nham -> revert. PUSHED cf8962f.

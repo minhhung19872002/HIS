@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.API.Filters;
 using HIS.Application.Services;
+using HIS.Application.DTOs.Common;
 using HIS.Application.DTOs.Radiology;
 using HIS.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
@@ -45,7 +46,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<RadiologyOrderDto>> GetRadiologyOrder(Guid orderId)
         {
             var result = await _risService.GetRadiologyOrderAsync(orderId);
-            if (result == null) return NotFound(new { message = "Order not found" });
+            if (result == null) return NotFound(ApiResponse<object>.Fail("Order not found"));
             return Ok(result);
         }
 
@@ -335,7 +336,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> LinkStudyToOrder(Guid orderItemId, [FromBody] LinkStudyRequest request)
         {
             await _risService.LinkStudyToOrderAsync(orderItemId, request.StudyInstanceUID);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -346,7 +347,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> PreliminaryApproveResult(Guid resultId, [FromBody] ApproveRequest request)
         {
             await _risService.PreliminaryApproveResultAsync(resultId, request.Note);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -359,8 +360,8 @@ namespace HIS.API.Controllers
             dto.ResultId = resultId;
             dto.ApprovingUserId = GetUserId(); // G-36: per-modality permission check
             try { await _risService.FinalApproveResultAsync(dto); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(403, new { success = false, message = ex.Message }); }
-            return Ok(new { success = true });
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ApiResponse<object>.Fail(ex.Message)); }
+            return Ok();
         }
 
         /// <summary>
@@ -371,7 +372,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> CancelApproval(Guid resultId, [FromBody] RISCancelApprovalRequest request)
         {
             await _risService.CancelApprovalAsync(resultId, request.Reason);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -509,7 +510,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> UpdateServiceNorm(Guid serviceId, [FromBody] List<UpdateNormItemDto> items)
         {
             await _risService.UpdateServiceNormAsync(serviceId, items);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>

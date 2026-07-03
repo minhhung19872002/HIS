@@ -147,7 +147,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> SetThumbnailImage(Guid sessionId, Guid mediaId)
         {
             await _risService.SetThumbnailImageAsync(sessionId, mediaId);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -207,7 +207,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> CancelConsultationSession(Guid sessionId, [FromBody] CancelConsultationRequest request)
         {
             await _risService.CancelConsultationSessionAsync(sessionId, request.Reason);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -277,7 +277,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> RespondInvitation([FromBody] RespondInvitationDto dto)
         {
             await _risService.RespondInvitationAsync(dto.SessionId, dto.UserId, dto.Accept);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -297,7 +297,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> LeaveSession(Guid sessionId)
         {
             await _risService.LeaveSessionAsync(sessionId);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -387,7 +387,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> ApproveMinutes(Guid minutesId)
         {
             await _risService.ApproveMinutesAsync(minutesId);
-            return Ok(new { success = true });
+            return Ok();
         }
 
         /// <summary>
@@ -407,7 +407,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult> ToggleRecording(Guid sessionId, [FromQuery] bool startRecording)
         {
             await _risService.ToggleRecordingAsync(sessionId, startRecording);
-            return Ok(new { success = true, isRecording = startRecording });
+            return Ok(new { isRecording = startRecording });
         }
     }
 }
