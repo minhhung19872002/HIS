@@ -1270,7 +1270,7 @@ END
             summary["ShiftedToToday"] = 125;
         } catch (Exception ex) { errors["ShiftToToday"] = ex.GetBaseException().Message; }
 
-        return Ok(new { success = true, module = "finishing", inserted = summary, errors });
+        return Ok(new { module = "finishing", inserted = summary, errors });
     }
 
 }

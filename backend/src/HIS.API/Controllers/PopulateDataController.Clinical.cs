@@ -22,7 +22,7 @@ public partial class PopulateDataController
         if (!await _db.RehabSessions.AnyAsync())
         {
             var plans = await _db.RehabTreatmentPlans.Take(20).Select(p => new { p.Id, TherapistId = p.CreatedById }).ToListAsync();
-            if (plans.Count == 0) return Ok(new { success = false, error = "no treatment plans" });
+            if (plans.Count == 0) return Ok(new { error = "no treatment plans" });
 
             var interventions = new[] {
                 "Kéo giãn cột sống, xoa bóp cơ cạnh sống",
@@ -74,7 +74,7 @@ public partial class PopulateDataController
             summary["RehabSessions"] = sessions.Count;
         }
 
-        return Ok(new { success = true, module = "rehab-sessions", inserted = summary });
+        return Ok(new { module = "rehab-sessions", inserted = summary });
     }
 
     // ==========================================================================
@@ -91,7 +91,7 @@ public partial class PopulateDataController
         {
             var appts = await _db.TeleAppointments.Take(30)
                 .Select(a => new { a.Id, a.AppointmentDate, a.StartTime }).ToListAsync();
-            if (appts.Count == 0) return Ok(new { success = false, error = "no tele appointments" });
+            if (appts.Count == 0) return Ok(new { error = "no tele appointments" });
 
             var sessions = new List<TeleSession>();
             foreach (var a in appts)
@@ -121,7 +121,7 @@ public partial class PopulateDataController
             summary["TeleSessions"] = sessions.Count;
         }
 
-        return Ok(new { success = true, module = "tele-sessions", inserted = summary });
+        return Ok(new { module = "tele-sessions", inserted = summary });
     }
 
     // ==========================================================================
@@ -137,7 +137,7 @@ public partial class PopulateDataController
         if (!await _db.DietOrders.AnyAsync() && ctx.AdmissionIds.Count > 0)
         {
             var dietTypes = await _db.DietTypes.Take(10).Select(d => d.Id).ToListAsync();
-            if (dietTypes.Count == 0) return Ok(new { success = false, error = "no diet types" });
+            if (dietTypes.Count == 0) return Ok(new { error = "no diet types" });
 
             var orders = new List<DietOrder>();
             int seq = 0;
@@ -172,7 +172,7 @@ public partial class PopulateDataController
             summary["DietOrders"] = orders.Count;
         }
 
-        return Ok(new { success = true, module = "diet-orders", inserted = summary });
+        return Ok(new { module = "diet-orders", inserted = summary });
     }
 
     // ==========================================================================
@@ -475,7 +475,7 @@ public partial class PopulateDataController
             }
         }
 
-        return Ok(new { success = true, module = "prereqs", inserted = summary });
+        return Ok(new { module = "prereqs", inserted = summary });
     }
 
 }

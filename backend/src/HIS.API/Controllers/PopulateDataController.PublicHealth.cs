@@ -18,7 +18,7 @@ public partial class PopulateDataController
         var ctx = await LoadCtxAsync();
         var summary = new Dictionary<string, int>();
         var rng = new Random(59);
-        if (ctx.PatientIds.Count == 0) return Ok(new { success = false, error = "no patients" });
+        if (ctx.PatientIds.Count == 0) return Ok(new { error = "no patients" });
 
         if (!await _db.VaccinationCampaigns.AnyAsync())
         {
@@ -287,7 +287,7 @@ public partial class PopulateDataController
             summary["HealthCheckups"] = list.Count;
         }
 
-        return Ok(new { success = true, module = "public-health", inserted = summary });
+        return Ok(new { module = "public-health", inserted = summary });
     }
 
     // ==========================================================================
@@ -299,7 +299,7 @@ public partial class PopulateDataController
         var ctx = await LoadCtxAsync();
         var summary = new Dictionary<string, int>();
         var rng = new Random(61);
-        if (ctx.PatientIds.Count == 0) return Ok(new { success = false, error = "no patients" });
+        if (ctx.PatientIds.Count == 0) return Ok(new { error = "no patients" });
 
         if (!await _db.MethadonePatients.AnyAsync())
         {
@@ -379,7 +379,7 @@ public partial class PopulateDataController
             summary["MethadoneUrineTests"] = urine.Count;
         }
 
-        return Ok(new { success = true, module = "methadone", inserted = summary });
+        return Ok(new { module = "methadone", inserted = summary });
     }
 
     // ==========================================================================
@@ -433,7 +433,7 @@ public partial class PopulateDataController
             summary["MCIEvents"] = list.Count;
         }
 
-        return Ok(new { success = true, module = "mci", inserted = summary });
+        return Ok(new { module = "mci", inserted = summary });
     }
 
     // ==========================================================================
@@ -449,7 +449,7 @@ public partial class PopulateDataController
         if (!await _db.CMERecords.AnyAsync())
         {
             var staff = await _db.MedicalStaffs.Take(30).Select(s => s.Id).ToListAsync();
-            if (staff.Count == 0) return Ok(new { success = false, error = "no staff" });
+            if (staff.Count == 0) return Ok(new { error = "no staff" });
 
             var activities = new[] {
                 ("Hội nghị Tim mạch toàn quốc 2025","Conference","Hội Tim mạch VN",12),
@@ -487,7 +487,7 @@ public partial class PopulateDataController
             summary["CMERecords"] = records.Count;
         }
 
-        return Ok(new { success = true, module = "cme", inserted = summary });
+        return Ok(new { module = "cme", inserted = summary });
     }
 
 }

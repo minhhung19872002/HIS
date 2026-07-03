@@ -20,7 +20,7 @@ public partial class PopulateDataController
         var ctx = await LoadCtxAsync();
         var summary = new Dictionary<string, int>();
         var rng = new Random(79);
-        if (ctx.PatientIds.Count == 0) return Ok(new { success = false, error = "no patients" });
+        if (ctx.PatientIds.Count == 0) return Ok(new { error = "no patients" });
 
         // HIV patients + lab results
         if (!await _db.HivPatients.AnyAsync())
@@ -633,7 +633,7 @@ public partial class PopulateDataController
             summary["SatisfactionSurveyTemplates"] = list.Count;
         }
 
-        return Ok(new { success = true, module = "medinet-extras", inserted = summary });
+        return Ok(new { module = "medinet-extras", inserted = summary });
     }
 
 }

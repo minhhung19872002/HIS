@@ -53,6 +53,6 @@ public partial class PopulateDataController
             // by the previous module's unpersisted inserts.
             _db.ChangeTracker.Clear();
         }
-        return Ok(new { success = true, modules = all });
+        return Ok(new { modules = all });
     }
 }

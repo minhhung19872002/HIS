@@ -261,7 +261,7 @@ public partial class PopulateDataController : ControllerBase
             summary["Outbreaks"] = outbreaks.Count;
         }
 
-        return Ok(new { success = true, module = "infection-control", inserted = summary });
+        return Ok(new { module = "infection-control", inserted = summary });
     }
 
     // ==========================================================================
@@ -274,7 +274,7 @@ public partial class PopulateDataController : ControllerBase
         var summary = new Dictionary<string, int>();
         var rng = new Random(7);
         if (ctx.PatientIds.Count == 0)
-            return Ok(new { success = false, error = "no patients" });
+            return Ok(new { error = "no patients" });
 
         // Treat first 20 patients as portal account holders
         var accounts = ctx.PatientIds.Take(20).ToList();
@@ -496,7 +496,7 @@ public partial class PopulateDataController : ControllerBase
             summary["PortalAppointments"] = appts.Count;
         }
 
-        return Ok(new { success = true, module = "patient-portal", inserted = summary });
+        return Ok(new { module = "patient-portal", inserted = summary });
     }
 
     // ==========================================================================
@@ -509,7 +509,7 @@ public partial class PopulateDataController : ControllerBase
         var summary = new Dictionary<string, int>();
         var rng = new Random(11);
         if (ctx.EquipmentIds.Count == 0)
-            return Ok(new { success = false, error = "no equipment" });
+            return Ok(new { error = "no equipment" });
 
         if (!await _db.MaintenanceRecords.AnyAsync())
         {
@@ -593,7 +593,7 @@ public partial class PopulateDataController : ControllerBase
             summary["CalibrationRecords"] = recs.Count;
         }
 
-        return Ok(new { success = true, module = "equipment", inserted = summary });
+        return Ok(new { module = "equipment", inserted = summary });
     }
 
     // ==========================================================================
@@ -606,7 +606,7 @@ public partial class PopulateDataController : ControllerBase
         var summary = new Dictionary<string, int>();
         var rng = new Random(17);
         if (ctx.PatientIds.Count == 0)
-            return Ok(new { success = false, error = "no patients" });
+            return Ok(new { error = "no patients" });
 
         if (!await _db.PathologyRequests.AnyAsync())
         {
@@ -689,7 +689,7 @@ public partial class PopulateDataController : ControllerBase
             summary["PathologyResults"] = results.Count;
         }
 
-        return Ok(new { success = true, module = "pathology", inserted = summary });
+        return Ok(new { module = "pathology", inserted = summary });
     }
 
     // ==========================================================================
@@ -781,7 +781,7 @@ public partial class PopulateDataController : ControllerBase
             summary["QualityIndicatorValues"] = values.Count;
         }
 
-        return Ok(new { success = true, module = "quality", inserted = summary });
+        return Ok(new { module = "quality", inserted = summary });
     }
 
 }

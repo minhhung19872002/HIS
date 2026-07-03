@@ -160,7 +160,7 @@ public partial class PopulateDataController
             }
         }
 
-        return Ok(new { success = true, module = "blood-bank", inserted = summary });
+        return Ok(new { module = "blood-bank", inserted = summary });
     }
 
     // ==========================================================================
@@ -264,7 +264,7 @@ public partial class PopulateDataController
             summary["CultureStockLogs"] = logs.Count;
         }
 
-        return Ok(new { success = true, module = "culture-stock", inserted = summary });
+        return Ok(new { module = "culture-stock", inserted = summary });
     }
 
     // ==========================================================================
@@ -282,7 +282,7 @@ public partial class PopulateDataController
             var analyzers = await _db.LabAnalyzers.Take(5).Select(a => a.Id).ToListAsync();
             var services = await _db.Services.Where(s => s.ServiceType == 2).Take(10).Select(s => new { s.Id, s.ServiceCode }).ToListAsync();
             if (analyzers.Count == 0 || services.Count == 0)
-                return Ok(new { success = false, error = "no analyzers or lab services" });
+                return Ok(new { error = "no analyzers or lab services" });
 
             var results = new List<LabQCResult>();
             foreach (var aId in analyzers)
@@ -327,7 +327,7 @@ public partial class PopulateDataController
             summary["LabQCResults"] = results.Count;
         }
 
-        return Ok(new { success = true, module = "lab-qc", inserted = summary });
+        return Ok(new { module = "lab-qc", inserted = summary });
     }
 
 }
