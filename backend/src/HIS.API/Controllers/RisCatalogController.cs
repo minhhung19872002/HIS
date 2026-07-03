@@ -73,7 +73,7 @@ public class RisCatalogController : ControllerBase
     }
 
     [HttpPost("modalities")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologyManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager)]
     public async Task<IActionResult> SaveModality([FromBody] RadiologyModality dto)
     {
         if (string.IsNullOrWhiteSpace(dto.ModalityCode) || string.IsNullOrWhiteSpace(dto.ModalityName))
@@ -101,7 +101,7 @@ public class RisCatalogController : ControllerBase
     }
 
     [HttpDelete("modalities/{id:guid}")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologyManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager)]
     public async Task<IActionResult> DeleteModality(Guid id)
     {
         var e = await _db.Set<RadiologyModality>().FindAsync(id);
@@ -131,7 +131,7 @@ public class RisCatalogController : ControllerBase
     }
 
     [HttpPost("body-parts")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologyManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager)]
     public async Task<IActionResult> SaveBodyPart([FromBody] RadiologyBodyPart dto)
     {
         if (string.IsNullOrWhiteSpace(dto.BodyPartCode) || string.IsNullOrWhiteSpace(dto.BodyPartName))
@@ -159,7 +159,7 @@ public class RisCatalogController : ControllerBase
     }
 
     [HttpDelete("body-parts/{id:guid}")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologyManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager)]
     public async Task<IActionResult> DeleteBodyPart(Guid id)
     {
         var e = await _db.RadiologyBodyParts.FindAsync(id);
@@ -201,7 +201,7 @@ public class RisCatalogController : ControllerBase
     }
 
     [HttpPost("protocols")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologyManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager)]
     public async Task<IActionResult> SaveProtocol([FromBody] RadiologyProtocol dto)
     {
         if (string.IsNullOrWhiteSpace(dto.ProtocolCode) || string.IsNullOrWhiteSpace(dto.ProtocolName))
@@ -236,7 +236,7 @@ public class RisCatalogController : ControllerBase
     }
 
     [HttpDelete("protocols/{id:guid}")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologyManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager)]
     public async Task<IActionResult> DeleteProtocol(Guid id)
     {
         var e = await _db.RadiologyProtocols.FindAsync(id);
@@ -277,7 +277,7 @@ public class RisCatalogController : ControllerBase
     }
 
     [HttpPost("report-templates")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologyManager + "," + RoleNames.Radiologist)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager + "," + RoleNames.Radiologist)]
     public async Task<IActionResult> SaveReportTemplate([FromBody] RadiologyReportTemplate dto)
     {
         if (string.IsNullOrWhiteSpace(dto.TemplateCode) || string.IsNullOrWhiteSpace(dto.TemplateName))
@@ -307,7 +307,7 @@ public class RisCatalogController : ControllerBase
     }
 
     [HttpDelete("report-templates/{id:guid}")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologyManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager)]
     public async Task<IActionResult> DeleteReportTemplate(Guid id)
     {
         var e = await _db.RadiologyReportTemplates.FindAsync(id);
@@ -354,7 +354,7 @@ public class RisCatalogController : ControllerBase
     }
 
     [HttpPost("icd-templates")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologyManager + "," + RoleNames.Radiologist)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager + "," + RoleNames.Radiologist)]
     public async Task<IActionResult> SaveIcdTemplateMapping([FromBody] RisIcdTemplateMapping dto)
     {
         if (string.IsNullOrWhiteSpace(dto.IcdCode) || dto.TemplateId == Guid.Empty)
@@ -380,7 +380,7 @@ public class RisCatalogController : ControllerBase
     }
 
     [HttpDelete("icd-templates/{id:guid}")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologyManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager)]
     public async Task<IActionResult> DeleteIcdTemplateMapping(Guid id)
     {
         var e = await _db.RisIcdTemplateMappings.FindAsync(id);
@@ -523,7 +523,7 @@ public class RisCatalogController : ControllerBase
     }
 
     [HttpPost("pttt-service-mappings")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologyManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager)]
     public async Task<IActionResult> SavePtttServiceMapping([FromBody] RisSurgeryServiceMapping dto)
     {
         if (dto.RadiologyServiceId == Guid.Empty || string.IsNullOrWhiteSpace(dto.RadiologyServiceName))
@@ -554,7 +554,7 @@ public class RisCatalogController : ControllerBase
     }
 
     [HttpDelete("pttt-service-mappings/{id:guid}")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologyManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.RadiologistManager)]
     public async Task<IActionResult> DeletePtttServiceMapping(Guid id)
     {
         var e = await _db.RisSurgeryServiceMappings.FindAsync(id);

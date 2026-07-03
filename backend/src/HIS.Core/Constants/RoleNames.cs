@@ -28,16 +28,18 @@ public static class RoleNames
     public const string Cashier = "Cashier";             // CASHIER
     public const string Accountant = "Accountant";       // CASHIER
 
-    // ── LIVE: RoleName tiếng Việt (DatabaseSeeder) — dùng trực tiếp trong vài [Authorize] ──
-    public const string QuanTriHeThong = "Quản trị hệ thống"; // ⚠ Description của ADMIN ≠ RoleName "Quản trị viên"; Phase-2 rà khớp data
+    // ── LIVE: RoleName tiếng Việt — VERIFIED vs prod /api/admin/roles 2026-07-03 (#183 Phase-2):
+    // ADMIN="Quản trị hệ thống" · DOCTOR="Bác sĩ" · NURSE="Điều dưỡng" · CASHIER="Thu ngân"
+    // (prod còn: "Tiếp đón"/"Dược sĩ"/"Kỹ thuật viên XN"/"Kỹ thuật viên CĐHA" — emit vào claim nhưng chưa cần hằng)
+    public const string QuanTriHeThong = "Quản trị hệ thống"; // ✅ KHỚP RoleName prod (không phải "Quản trị viên")
     public const string BacSi = "Bác sĩ";
     public const string DieuDuong = "Điều dưỡng";
     public const string ThuNgan = "Thu ngân";
 
-    // ── Nghi "chết" (không nằm trong pipeline claim hiện tại) — Phase-2 verify vs prod ──
-    // Cặp biến thể CẦN GỘP ở Phase-2: RadiologistManager (x66) vs RadiologyManager (x15)
+    // ── Orphan (VERIFIED 2026-07-03: prod Roles chỉ có 8 RoleCode → JWT KHÔNG bao giờ emit nhóm dưới;
+    //    gate chứa chúng chỉ mở được nhờ role LIVE đi kèm). Muốn kích hoạt → Phương án B (#183 comment audit).
+    // Phase-2 ĐÃ GỘP biến thể RadiologyManager (x15) → RadiologistManager (2026-07-03, behavior-neutral vì cả 2 orphan).
     public const string RadiologistManager = "RadiologistManager";
-    public const string RadiologyManager = "RadiologyManager";
     public const string Radiologist = "Radiologist";
     public const string BloodBankManager = "BloodBankManager";
     public const string BloodBankStaff = "BloodBankStaff";

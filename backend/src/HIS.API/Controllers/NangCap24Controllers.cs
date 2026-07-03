@@ -207,17 +207,17 @@ public class DicomAutoSendController : ControllerBase
         => Ok(await _service.ListRulesAsync());
 
     [HttpPost("rules")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.RadiologyManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.RadiologistManager)]
     public async Task<ActionResult<DicomAutoSendRuleDto>> CreateRule([FromBody] DicomAutoSendRuleCreateDto dto)
         => Ok(await _service.CreateRuleAsync(dto, GetUserId()));
 
     [HttpPut("rules/{id:guid}")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.RadiologyManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.RadiologistManager)]
     public async Task<ActionResult<DicomAutoSendRuleDto>> UpdateRule(Guid id, [FromBody] DicomAutoSendRuleCreateDto dto)
         => Ok(await _service.UpdateRuleAsync(id, dto, GetUserId()));
 
     [HttpDelete("rules/{id:guid}")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.RadiologyManager)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Radiologist + "," + RoleNames.RadiologistManager)]
     public async Task<IActionResult> DeleteRule(Guid id)
     {
         await _service.DeleteRuleAsync(id, GetUserId());
