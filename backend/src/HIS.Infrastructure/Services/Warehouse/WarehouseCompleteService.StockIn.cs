@@ -43,9 +43,15 @@ public partial class WarehouseCompleteService {
         decimal totalAmount = 0;
         var items = new List<StockReceiptItemDto>();
 
+        // perf(#195): batch-load medicines used in this receipt instead of FindAsync per item (N+1)
+        var medicineIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+        var medicinesMap = await _context.Medicines
+            .Where(m => medicineIds.Contains(m.Id))
+            .ToDictionaryAsync(m => m.Id);
+
         foreach (var item in dto.Items)
         {
-            var medicine = await _context.Medicines.FindAsync(item.ItemId);
+            medicinesMap.TryGetValue(item.ItemId, out var medicine);
             var amount = item.Quantity * item.UnitPrice;
             totalAmount += amount;
 
@@ -165,9 +171,15 @@ public partial class WarehouseCompleteService {
         decimal totalAmount = 0;
         var items = new List<StockReceiptItemDto>();
 
+        // perf(#195): batch-load medicines used in this receipt instead of FindAsync per item (N+1)
+        var medicineIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+        var medicinesMap = await _context.Medicines
+            .Where(m => medicineIds.Contains(m.Id))
+            .ToDictionaryAsync(m => m.Id);
+
         foreach (var item in dto.Items)
         {
-            var medicine = await _context.Medicines.FindAsync(item.ItemId);
+            medicinesMap.TryGetValue(item.ItemId, out var medicine);
             var amount = item.Quantity * item.UnitPrice;
             totalAmount += amount;
 
@@ -269,9 +281,15 @@ public partial class WarehouseCompleteService {
         decimal totalAmount = 0;
         var items = new List<StockReceiptItemDto>();
 
+        // perf(#195): batch-load medicines used in this receipt instead of FindAsync per item (N+1)
+        var medicineIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+        var medicinesMap = await _context.Medicines
+            .Where(m => medicineIds.Contains(m.Id))
+            .ToDictionaryAsync(m => m.Id);
+
         foreach (var item in dto.Items)
         {
-            var medicine = await _context.Medicines.FindAsync(item.ItemId);
+            medicinesMap.TryGetValue(item.ItemId, out var medicine);
             var amount = item.Quantity * item.UnitPrice;
             totalAmount += amount;
 

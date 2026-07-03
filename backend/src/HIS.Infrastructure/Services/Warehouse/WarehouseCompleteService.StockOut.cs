@@ -382,6 +382,15 @@ public partial class WarehouseCompleteService {
         decimal totalAmount = 0;
         var issueItems = new List<StockIssueItemDto>();
 
+        // perf(#195): batch-load medicine reference data (read-only, no accumulator dependency).
+        // NOTE: InventoryItems (stock) lookup below is intentionally NOT batched — it depends on
+        // in-loop decrements (FEFO oversell-guard `Quantity - ReservedQuantity >= item.Quantity`),
+        // so pre-loading a static snapshot would change oversell behavior. Left as per-iteration query.
+        var medicineIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+        var medicinesMap = await _context.Medicines
+            .Where(m => medicineIds.Contains(m.Id))
+            .ToDictionaryAsync(m => m.Id);
+
         foreach (var item in dto.Items)
         {
             var stock = item.StockId.HasValue
@@ -400,7 +409,7 @@ public partial class WarehouseCompleteService {
 
             stock.Quantity -= item.Quantity;
 
-            var medicine = await _context.Medicines.FindAsync(item.ItemId);
+            medicinesMap.TryGetValue(item.ItemId, out var medicine);
             var amount = item.Quantity * stock.UnitPrice;
             totalAmount += amount;
 
@@ -624,6 +633,15 @@ public partial class WarehouseCompleteService {
         decimal totalAmount = 0;
         var issueItems = new List<StockIssueItemDto>();
 
+        // perf(#195): batch-load medicine reference data (read-only, no accumulator dependency).
+        // NOTE: InventoryItems (stock) lookup below is intentionally NOT batched — it depends on
+        // in-loop decrements (FEFO oversell-guard `Quantity - ReservedQuantity >= item.Quantity`),
+        // so pre-loading a static snapshot would change oversell behavior. Left as per-iteration query.
+        var medicineIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+        var medicinesMap = await _context.Medicines
+            .Where(m => medicineIds.Contains(m.Id))
+            .ToDictionaryAsync(m => m.Id);
+
         foreach (var item in dto.Items)
         {
             var stock = item.StockId.HasValue
@@ -642,7 +660,7 @@ public partial class WarehouseCompleteService {
 
             stock.Quantity -= item.Quantity;
 
-            var medicine = await _context.Medicines.FindAsync(item.ItemId);
+            medicinesMap.TryGetValue(item.ItemId, out var medicine);
             var amount = item.Quantity * stock.UnitPrice;
             totalAmount += amount;
 

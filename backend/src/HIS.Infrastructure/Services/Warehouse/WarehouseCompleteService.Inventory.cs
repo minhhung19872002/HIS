@@ -23,12 +23,21 @@ public partial class WarehouseCompleteService {
         var user = await _context.Users.FindAsync(userId);
         var items = new List<ProcurementItemDto>();
 
+        // perf(#195): batch-load medicine + current-stock (read-only, no writes in this loop)
+        var medicineIds = dto.Items.Select(i => i.ItemId).Distinct().ToList();
+        var medicinesMap = await _context.Medicines
+            .Where(m => medicineIds.Contains(m.Id))
+            .ToDictionaryAsync(m => m.Id);
+        var stockMap = await _context.InventoryItems
+            .Where(i => i.WarehouseId == dto.WarehouseId && i.MedicineId.HasValue && medicineIds.Contains(i.MedicineId.Value))
+            .GroupBy(i => i.MedicineId!.Value)
+            .Select(g => new { MedicineId = g.Key, Total = g.Sum(x => x.Quantity - x.ReservedQuantity) })
+            .ToDictionaryAsync(x => x.MedicineId, x => x.Total);
+
         foreach (var item in dto.Items)
         {
-            var medicine = await _context.Medicines.FindAsync(item.ItemId);
-            var currentStock = await _context.InventoryItems
-                .Where(i => i.WarehouseId == dto.WarehouseId && i.MedicineId == item.ItemId)
-                .SumAsync(i => i.Quantity - i.ReservedQuantity);
+            medicinesMap.TryGetValue(item.ItemId, out var medicine);
+            var currentStock = stockMap.TryGetValue(item.ItemId, out var stockTotal) ? stockTotal : 0;
 
             items.Add(new ProcurementItemDto
             {
@@ -477,10 +486,17 @@ public partial class WarehouseCompleteService {
             .ToListAsync();
 
         var items = new List<StockTakeItemDto>();
+
+        // perf(#195): batch-load medicines instead of FindAsync per stock row (N+1)
+        var medicineIds = stocks.Where(s => s.MedicineId.HasValue).Select(s => s.MedicineId!.Value).Distinct().ToList();
+        var medicinesMap = await _context.Medicines
+            .Where(m => medicineIds.Contains(m.Id))
+            .ToDictionaryAsync(m => m.Id);
+
         foreach (var stock in stocks)
         {
-            var medicine = stock.MedicineId.HasValue
-                ? await _context.Medicines.FindAsync(stock.MedicineId.Value)
+            Medicine? medicine = stock.MedicineId.HasValue && medicinesMap.TryGetValue(stock.MedicineId.Value, out var m)
+                ? m
                 : null;
 
             items.Add(new StockTakeItemDto
