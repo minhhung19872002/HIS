@@ -11,7 +11,9 @@ rel(){ sed "s|$ROOT/||g"; }
 err(){ printf '  ❌ %s\n' "$1"; echo x >>"$ERRF"; }
 wrn(){ printf '  ⚠️  %s\n' "$1"; echo x >>"$WRNF"; }
 # grep loại trừ chính lint.sh (nếu không, nó match pattern của chính mình → false-positive).
-GEX="--exclude=lint.sh"
+# + loại .claude/worktrees/ (sandbox git-worktree transient của agent nền — quét vào là nhân đôi
+#   mọi lỗi + báo lỗi giả trên bản sao docs nằm ngoài scope lint).
+GEX="--exclude=lint.sh --exclude-dir=worktrees"
 
 echo "== [1] Dead memory refs (chỉ flag slug trích-dẫn backtick, missing khỏi MỌI project memory) =="
 ALLMEM=$(ls "$HOME"/.claude/projects/*/memory/*.md 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/\.md$//' | sort -u)
@@ -32,7 +34,7 @@ grep -rniE $GEX 'never push|local-only|local only' "$CL" "$ROOT/CLAUDE.md" 2>/de
   | grep -iE 'workspace' | grep -viE 'GỠ|REMOVED|bình thường|normally|đã xoá|đã gỡ' | rel | while read -r l; do err "workspace-docs never-push tồn dư: $l"; done
 
 echo "== [4] Heading-number trùng trong cùng file (## N. lặp; bỏ references/) =="
-find "$CL" -name '*.md' -not -path '*/references/*' 2>/dev/null | while read -r f; do
+find "$CL" -name '*.md' -not -path '*/references/*' -not -path '*/worktrees/*' 2>/dev/null | while read -r f; do
   dups=$(grep -oE '^## [0-9]+\.' "$f" 2>/dev/null | sort | uniq -d)
   [ -n "$dups" ] && err "trùng heading số trong $(echo "$f"|rel): $(echo $dups|tr '\n' ' ')"
 done
@@ -75,7 +77,7 @@ for f in "$CL"/agents/*.md; do
 done
 
 echo "== [10] Script .claude chưa track (referenced mechanism untracked → dangling ref khi commit) =="
-find "$CL" -type f \( -name '*.sh' -o -name '*.ps1' \) 2>/dev/null | while read -r f; do
+find "$CL" -type f \( -name '*.sh' -o -name '*.ps1' \) -not -path '*/worktrees/*' 2>/dev/null | while read -r f; do
   rp=$(echo "$f" | rel)
   git -C "$ROOT" ls-files --error-unmatch "$rp" >/dev/null 2>&1 && continue   # đã track
   git -C "$ROOT" check-ignore "$rp" >/dev/null 2>&1 && continue               # cố ý ignore
