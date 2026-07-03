@@ -241,9 +241,16 @@ public partial class InpatientCompleteService {
             .ToListAsync();
 
         var rows = new List<TreatmentSheetRow>();
+
+        // perf(#195): batch-load doctors instead of FindAsync per row (N+1); read-only print/report data
+        var doctorIds = dailyProgresses.Select(dp => dp.DoctorId).Distinct().ToList();
+        var doctorsMap = await _context.Users
+            .Where(u => doctorIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id);
+
         foreach (var dp in dailyProgresses)
         {
-            var doctor = await _context.Users.FindAsync(dp.DoctorId);
+            doctorsMap.TryGetValue(dp.DoctorId, out var doctor);
             var dayNumber = (int)(dp.ProgressDate - admission.AdmissionDate).TotalDays + 1;
             rows.Add(new TreatmentSheetRow
             {
