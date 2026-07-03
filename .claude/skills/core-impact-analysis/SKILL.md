@@ -7,67 +7,67 @@ metadata:
 
 # Core — Impact Analysis (portable)
 
-> TẦNG: **A · CORE** (discipline, tech-agnostic). Guardrail **pre-flight #3** — trước khi Edit code có người phụ thuộc.
+> TIER: **A · CORE** (discipline, tech-agnostic). Guardrail **pre-flight #3** — before editing code that has dependents.
 
-## (2) Vấn đề skill giải quyết
-Sửa một chỗ dùng chung mà không biết ai phụ thuộc → gãy nơi khác, lỗi runtime/build, vỡ contract FE↔BE.
-Skill buộc **lập bản đồ tác động** trước khi sửa và **chọn thay đổi an toàn nhỏ nhất**.
+## (2) The problem this skill solves
+Editing a shared place without knowing who depends on it → breaks elsewhere, runtime/build errors, an FE↔BE contract mismatch.
+This skill forces **mapping the impact** before editing and **picking the smallest safe change**.
 
-## (3) Vì sao AI hay fail ở đây
-- Sửa cục bộ theo "ổ đang nhìn", quên callers/consumer khác.
-- Đổi DTO/contract một phía (BE) mà quên phía kia (FE) hoặc ngược lại.
-- Đổi tên/chữ ký/bỏ field → các nơi gọi gãy lặng lẽ.
-- Quên DI/migration/test đi kèm → 500 hoặc đỏ test.
+## (3) Why AI fails here
+- Edits locally "for the spot I'm looking at", forgetting other callers/consumers.
+- Changes a DTO/contract on one side (BE) and forgets the other (FE) or vice versa.
+- Renames/changes-signature/removes-field → call sites break silently.
+- Forgets the accompanying DI/migration/test → a 500 or a red test.
 
-## (4) Khi nào dùng (kích hoạt)
-- Sửa **component/hook/util/service/DTO/interface dùng chung**.
-- Đổi **API contract / DB schema / cột / enum / config key**.
-- **Rename / remove / đổi signature / đổi kiểu** một ký hiệu công khai.
-- Thay đổi hành vi có thể lan ra module khác.
+## (4) When to use (triggers)
+- Editing a **shared component/hook/util/service/DTO/interface**.
+- Changing an **API contract / DB schema / column / enum / config key**.
+- **Rename / remove / change signature / change type** of a public symbol.
+- A behavior change that could spread to another module.
 
-## (5) Khi nào KHÔNG dùng
-- Tạo file mới **độc lập**, chưa ai import.
-- Thêm code **leaf thuần additive** (không đổi hành vi cái đang có).
-- Đổi text/style nội bộ 1 component không export.
-- Vấn đề phạm vi/over-engineer → `core-minimal-change`.
+## (5) When NOT to use
+- Creating a new **isolated** file nobody imports yet.
+- Adding **pure additive leaf** code (doesn't change existing behavior).
+- Changing internal text/style of a non-exported component.
+- A scope/over-engineering issue → `core-minimal-change`.
 
 ## (6) Workflow
-1. **Xác định ký hiệu/contract sắp đổi** (verify tồn tại qua `core-verify-before-assert`).
-2. **Tìm dependents:** `Grep` tên ký hiệu/route/field khắp repo (cả FE lẫn BE nếu là contract xuyên tầng).
-3. **Liệt kê thứ ăn theo:** callers, consumer khác layer, **test**, **migration/seed**, **DI registration**, config/env, doc.
-4. **Đánh giá blast radius:** rộng/hẹp; có đổi không tương thích (breaking) không.
-5. **Chọn chiến lược:** ưu tiên *additive / backward-compatible*; nếu buộc breaking → cập nhật ĐỒNG THỜI mọi dependent trong cùng thay đổi.
-6. **Ghi tóm tắt tác động** (các file/nơi sẽ đụng) trước khi sửa; sửa xong build/test đúng phạm vi đó.
+1. **Identify the symbol/contract about to change** (verify it exists via `core-verify-before-assert`).
+2. **Find dependents:** `Grep` the symbol name/route/field across the repo (both FE and BE if it's a cross-tier contract).
+3. **List what hangs off it:** callers, consumers in another layer, **tests**, **migration/seed**, **DI registration**, config/env, docs.
+4. **Assess blast radius:** wide/narrow; is there an incompatible (breaking) change.
+5. **Choose a strategy:** prefer *additive / backward-compatible*; if a breaking change is forced → update ALL dependents SIMULTANEOUSLY in the same change.
+6. **Write an impact summary** (the files/places to be touched) before editing; after editing, build/test that exact scope.
 
-## (7) Quy tắc & giới hạn an toàn
-- KHÔNG đổi contract một phía rồi để phía kia gãy — đồng bộ cả hai (hoặc giữ tương thích ngược).
-- Đổi public symbol → phải cập nhật **tất cả** call-site trong cùng commit.
-- Luôn soi kèm: test, migration, DI, config liên quan.
-- Đụng patient-safety/audit/tiền/schema → nâng mức cẩn trọng, cân nhắc hỏi (`core-requirement-clarify`).
-- Phân tích đủ để an toàn, không "phân tích tê liệt" cho thay đổi leaf nhỏ.
+## (7) Safety rules & limits
+- Do NOT change a contract on one side and leave the other broken — sync both (or keep backward-compatible).
+- Changing a public symbol → must update **all** call sites in the same commit.
+- Always inspect alongside: tests, migration, DI, related config.
+- Touching patient-safety/audit/money/schema → raise the caution level, consider asking (`core-requirement-clarify`).
+- Analyze enough to be safe, no "analysis paralysis" for a small leaf change.
 
-## (8) Input kỳ vọng
-Ký hiệu/contract/schema sắp sửa + quyền Grep/Read toàn repo.
+## (8) Expected input
+The symbol/contract/schema about to change + Grep/Read access across the repo.
 
-## (9) Output kỳ vọng
-Bản đồ tác động ngắn: **dependents + test + migration + DI + config bị ảnh hưởng** + chiến lược (additive vs breaking-đồng-bộ). Sau đó mới sửa.
+## (9) Expected output
+A short impact map: **dependents + tests + migration + DI + config affected** + a strategy (additive vs synchronized-breaking). Then edit.
 
-## (10) Ví dụ (HIS)
-- Đổi field DTO backend (`SpecialtyEmrDto`) → Grep FE dùng `specialty-emr` → cập nhật `api/*.ts` + page map field cùng lúc (tránh dữ liệu rỗng).
-- Thêm service mới → nhớ **đăng ký DI** trong `DependencyInjection.cs` (quên = 500 — pitfall #1).
-- Thêm/đổi bảng → cần SQL script tay (`his-db-migration`) + chỗ đọc/ghi + seed; project IGNORE EF pending changes.
-- Đổi `_v2kit` (component dùng chung) → Grep mọi `pages-v2/*` đang dùng prop đó trước khi đổi chữ ký.
+## (10) Examples (HIS)
+- Changing a backend DTO field (`SpecialtyEmrDto`) → Grep the FE using `specialty-emr` → update `api/*.ts` + the page field-map at the same time (avoid empty data).
+- Adding a new service → remember to **register DI** in `DependencyInjection.cs` (forgetting = 500 — pitfall #1).
+- Adding/changing a table → needs a hand-written SQL script (`his-db-migration`) + read/write sites + seed; the project IGNOREs EF pending changes.
+- Changing `_v2kit` (a shared component) → Grep every `pages-v2/*` using that prop before changing the signature.
 
-## (11) Anti-pattern / lỗi điển hình
-- "Đổi cho khớp chỗ này" rồi 10 nơi khác gãy.
-- Sửa BE quên FE (hoặc ngược) → lệch contract.
-- Quên DI/migration/test đi kèm.
-- Rename không Grep hết call-site.
+## (11) Anti-pattern / typical mistakes
+- "Change to match this spot" and then 10 other places break.
+- Editing BE forgetting FE (or vice versa) → contract mismatch.
+- Forgetting the accompanying DI/migration/test.
+- Renaming without Grepping all call sites.
 
-## (12) Tích hợp + cấu trúc tệp
-- **Pipeline pre-flight:** sau `core-requirement-clarify` (#1) + `core-verify-before-assert` (#2) → skill này (#3) → sửa theo `core-minimal-change`.
-- Bổ trợ `core-architecture-follow` (đúng layer) + `core-types-contract` (đồng bộ contract) + `his-qa-anti-pattern` (DI/audit).
-- `references/impact-checklist.md` — danh mục "thứ ăn theo" cần soi.
+## (12) Integration + file structure
+- **Pre-flight pipeline:** after `core-requirement-clarify` (#1) + `core-verify-before-assert` (#2) → this skill (#3) → edit per `core-minimal-change`.
+- Complements `core-architecture-follow` (right layer) + `core-types-contract` (sync the contract) + `his-qa-anti-pattern` (DI/audit).
+- `references/impact-checklist.md` — the catalog of "what hangs off it" to inspect.
 
 ## When to update
-- Khi có loại dependent mới hay quên (vd hàng đợi/feature-flag/cache) cần thêm vào checklist.
+- When there's a new kind of often-forgotten dependent (e.g. queue/feature-flag/cache) to add to the checklist.

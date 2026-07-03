@@ -1,49 +1,48 @@
 # HIS - Hospital Information System
 
-## ⚠️ SKILL ROUTING — BẮT BUỘC TRƯỚC MỌI TASK CODE
+> **★ RESPONSE LANGUAGE (all sessions):** reply to the user in the language of their message — a Vietnamese prompt gets a Vietnamese reply, an English prompt gets an English reply. These governance files being written in English is for token efficiency only; it does NOT change the response language. (The `UserPromptSubmit` hook in `.claude/settings.json` still requires the one-line skill note in Vietnamese.)
 
-> Áp dụng cho **mọi phiên, mọi máy** làm việc trên dự án này.
+## ⚠️ SKILL ROUTING — MUST BE INCLUDED BEFORE EVERY TASK CODE
 
-Khi nhận **bất kỳ yêu cầu làm tính năng / sửa code / viết test / migration / deploy / tài liệu**
-(kể cả prompt ngắn KHÔNG nhắc skill), **TRƯỚC KHI bắt tay làm phải:**
+> Applies to **all sessions and all machines** working on this project.
 
-1. **Đọc `.claude/SKILL-MAP.md`** — bản đồ skill 2 tầng (CORE `core-*` portable + PROJECT `his-*` riêng HIS).
-2. **Chọn skill phù hợp** theo bảng định tuyến (mục 1+2): áp `core-*` trước → `his-*` sau, theo đúng thứ tự + path.
-3. **Nếu KHÔNG có skill phù hợp** → theo **mục (6) FALLBACK**: ưu tiên mở rộng skill cũ; chỉ đề xuất tạo
-   skill mới khi task **tái dùng nhiều lần** (hỏi user duyệt); task one-off thì làm trực tiếp, không tạo skill.
-4. **Chạy task qua PIPELINE** `.claude/workflow/workflow.md` — mọi input đi từ map → flow 5 chặng
-   (Router→Planner→Worker→Reviewer→Finalizer) → kết thúc 1 quy trình. Task không trivial dùng state-store
-   `.claude/workflow/task.md`; chỉ đánh `DONE` khi qua `.claude/workflow/checklist.md`. (Trivial/Q&A → bỏ pipeline.)
+When you receive **any request for feature development, code fixes, test writing, migration, deployment, or documentation** (including short prompts that do NOT mention specific skills), **BEFORE you start working on it, you must:**
 
-> ★ **KHI TẠO/SỬA bất kỳ file trong `.claude` (governance) — BẮT BUỘC** (chống drift, gốc mọi mâu thuẫn cũ):
-> (a) **Tra `.claude/REGISTRY.md` TRƯỚC** — rule đã có file-chủ → chỉ **1 dòng + link**, KHÔNG copy nội dung;
-> rule mới → thêm dòng vào REGISTRY rồi viết ở **1 nơi duy nhất**. (b) **KHÔNG hard-code giá trị biến-động**
-> (số migration/ngày/đếm) → chỉ thị động. (c) **Sau khi sửa → chạy `bash .claude/lint.sh`** (phải LINT OK).
+1. **Read `.claude/SKILL-MAP.md`** — the 2-tier skill map (CORE `core-*` portable + PROJECT `his-*` HIS-specific).
+2. **Pick the right skill** per the routing table (sections 1+2): apply `core-*` first → `his-*` after, in the correct order + path.
+3. **If NO skill fits** → follow **section (6) FALLBACK**: prefer extending an existing skill; only propose creating a
+   new skill when the task is **reused many times** (ask the user to approve); a one-off task is done directly, no skill created.
+4. **Run the task through the PIPELINE** `.claude/workflow/workflow.md` — every input goes from the map → the 5-stage flow
+   (Router→Planner→Worker→Reviewer→Finalizer) → completes one process. A non-trivial task uses the state-store
+   `.claude/workflow/task.md`; mark `DONE` only after passing `.claude/workflow/checklist.md`. (Trivial/Q&A → skip the pipeline.)
 
-Skill nằm ở `.claude/skills/` (auto-nạp description). SKILL-MAP/PROMPT-TEMPLATES + `.claude/workflow/*` là file
-thường — **phải chủ động Read** theo chỉ thị này. Bỏ qua bước routing/pipeline = sai quy trình.
+> ★ **WHEN CREATING/EDITING any file in `.claude` (governance) — MANDATORY** (anti-drift, the root of all past contradictions):
+> (a) **Check `.claude/REGISTRY.md` FIRST** — a rule that already has an owner file → only **1 line + a link**, do NOT copy the content;
+> a new rule → add a row to REGISTRY then write it in **one single place**. (b) **Do NOT hard-code changing values**
+> (migration number/date/count) → use a dynamic directive. (c) **After editing → run `bash .claude/lint.sh`** (must be LINT OK).
 
-## Agent routing (tự chọn — LUÔN báo đang dùng gì)
+Skills live in `.claude/skills/` (their description auto-loads). SKILL-MAP/PROMPT-TEMPLATES + `.claude/workflow/*` are normal files — you **must proactively Read** them per this instruction. Skipping the routing/pipeline step = wrong process.
 
-Mặc định **trả lời inline** (rẻ nhất). Chỉ spawn subagent khi việc **độc lập / song song / nặng** đáng đánh đổi token;
-**việc nhẹ/lặp → `agy`** (free). Đầu mỗi reply nói rõ: *inline* hay *agent nào* (+ vì sao ngắn gọn).
+## Agent routing (self-selected — ALWAYS state what you're using)
 
-> **Hoà giải `agy` ↔ guardrail (project override global):** chỉ delegate cho `agy` phần **boilerplate cô lập KHÔNG chạm guardrail**; output `agy` PHẢI được Claude rà lại theo `his-fe-convention` + `his-qa-anti-pattern` + build-gate trước khi nhận. **KHÔNG delegate** code chạm patient-safety / DI / contract / DB / secret / tiền.
+Default to **replying inline** (cheapest). Only spawn a subagent when the work is **independent / parallel / heavy** enough to justify the token cost; **light/repetitive work → `agy`** (free). At the start of every reply, state clearly: *inline* or *which agent* (+ a brief why).
 
-| Loại việc | Chọn |
+> **Reconcile `agy` ↔ guardrail (project overrides global):** only delegate to `agy` the **isolated boilerplate that does NOT touch the guardrail**; the `agy` output MUST be re-reviewed by Claude against `his-fe-convention` + `his-qa-anti-pattern` + the build-gate before acceptance. Do **NOT delegate** code touching patient-safety / DI / contract / DB / secret / money.
+
+| Kind of work | Choose |
 |---|---|
-| Q&A · giải thích · tra cứu · sửa rất nhỏ | **inline** |
-| Tìm kiếm rộng nhiều file (chỉ cần kết luận) | `Explore` |
-| Thêm/sửa/refactor code thật (có blast radius) | `code-change-controller` |
-| Thiết kế · plan · module mới · migration lớn | `his-architecture-planner` |
-| Tài liệu (README/API/handoff/ADR) | `his-docs-manager` |
-| Review · audit chất lượng · regression | `his-quality-reviewer` |
-| Viết/sửa test | `his-test-engineer` |
-| Tech-debt lớn (god-file split, siết `:any`) | `tech-debt-manager` |
-| Task lớn đa-domain (phân loại + điều phối) | `ai-project-orchestrator` |
-| Nhiều mảnh độc lập | fan-out **song song** (báo chi phí token trước) |
+| Q&A · explanation · lookup · a very small edit | **inline** |
+| Broad search across many files (only need the conclusion) | `Explore` |
+| Add/edit/refactor real code (has blast radius) | `code-change-controller` |
+| Design · plan · a new module · a large migration | `his-architecture-planner` |
+| Documentation (README/API/handoff/ADR) | `his-docs-manager` |
+| Review · quality audit · regression | `his-quality-reviewer` |
+| Write/edit tests | `his-test-engineer` |
+| Large tech-debt (god-file split, tightening `:any`) | `tech-debt-manager` |
+| A large multi-domain task (classify + orchestrate) | `ai-project-orchestrator` |
+| Many independent pieces | fan-out **in parallel** (warn about the token cost first) |
 
-**Tầng model (tiết kiệm túi Opus — mọi phiên/máy):** model luồng chính do user `/model` chọn; tôi **KHÔNG tự đổi giữa phiên**. Việc nhẹ/lặp/bulk **cô lập** (như trên) — ngoài `agy` — có thể đẩy **subagent `model: haiku/sonnet`** để khỏi tốn túi Opus; việc **nặng / cần thông minh / đụng HIS patient-safety·DI·contract·DB·secret·tiền** → **giữ Opus** luồng chính (theo "Hoà giải agy↔guardrail" trên — KHÔNG delegate code guardrail). Phiên toàn việc nhẹ → nên `/model` **Sonnet**; phiên nặng/refactor/migration → **Opus**. **★ ĐẦU MỖI phiên / cửa sổ chat mới (mọi phiên·mọi máy):** đánh giá tính chất phiên ngay từ yêu cầu đầu → nếu model hiện tại **lệch tầng** thì **gợi ý user `/model` đúng tầng TRƯỚC khi bắt tay** (vd phiên toàn hỏi đáp/boilerplate mà đang Opus → đề xuất hạ **Sonnet**; sắp refactor/migration/patient-safety mà đang Sonnet → đề xuất **Opus**); model khớp rồi thì im, vào việc luôn. *(Nudge mềm — không phải auto-switch harness.)*
+**Model tier (save the Opus budget — every session/machine):** the main-loop model is chosen by the user via `/model`; I do **NOT change it mid-session**. Light/repeated/bulk **isolated** work (as above) — besides `agy` — can be pushed to a **subagent `model: haiku/sonnet`** to avoid spending the Opus budget; **heavy / needs-intelligence / touches HIS patient-safety·DI·contract·DB·secret·money** work → **keep Opus** on the main loop (per "Reconcile agy↔guardrail" above — do NOT delegate guardrail code). A session of all light work → prefer `/model` **Sonnet**; a heavy/refactor/migration session → **Opus**. **★ AT THE START OF EVERY session / new chat window (every session·every machine):** assess the session's nature right from the first request → if the current model is in the **wrong tier**, **nudge the user to `/model` the right tier BEFORE starting** (e.g. an all-Q&A/boilerplate session on Opus → suggest dropping to **Sonnet**; about to refactor/migrate/patient-safety on Sonnet → suggest **Opus**); if the model already matches, stay quiet and get to work. *(A soft nudge — not a harness auto-switch.)*
 
 ## Project Structure
 - **Backend**: ASP.NET Core Clean Architecture (HIS.Core → HIS.Application → HIS.Infrastructure → HIS.API)
@@ -82,98 +81,69 @@ Mặc định **trả lời inline** (rẻ nhất). Chỉ spawn subagent khi vi�
 - API error logging changed from `console.error` to `console.warn` for expected failures
 
 ## Backend DI Registration
-All services must be registered in `backend/src/HIS.Infrastructure/DependencyInjection.cs`.
-If a new service/controller is added, register it there or you get 500 errors.
+All services must be registered in `backend/src/HIS.Infrastructure/DependencyInjection.cs`. If a new service/controller is added, register it there or you get 500 errors.
 
 ---
 
-## Kiến trúc & quy ước (ổn định)
+## Architecture & conventions (stable)
 
-### Frontend 2 lớp
-- **v2 (chính)** — route `/v2/*`, `TerminalLayout`, design pack `_v2kit`
-  (`KpiStrip/TopTabs/StatusTabs/DataTable/DrawerShell/ModalShell` trong `frontend/src/pages-v2/_v2kit.tsx`)
-  + CSS `ab-*` (`frontend/src/layouts/terminal/ab-module.css`). Helper list page: `SimpleV2Page<T>`.
+### Frontend 2-tier
+- **v2 (main)** — route `/v2/*`, `TerminalLayout`, design pack `_v2kit`
+  (`KpiStrip/TopTabs/StatusTabs/DataTable/DrawerShell/ModalShell` in `frontend/src/pages-v2/_v2kit.tsx`)
+  + CSS `ab-*` (`frontend/src/layouts/terminal/ab-module.css`). List-page helper: `SimpleV2Page<T>`.
   → skill `his-fe-page-v2`.
-- **v1 (cũ)** — `frontend/src/pages/`, `MainLayout`, Antd v6 → skill `his-fe-antd-v6`.
-- **API client** — `frontend/src/api/*.ts` qua axios `apiClient`; login trả `{data:{token}}` → skill `his-fe-api-client`.
-  ⚠️ Interceptor (`client.ts`) **auto-unwrap envelope** `{success,data}` → caller nhận thẳng `data` bên trong.
-  **KHÔNG check `response.success`/`.data` sau khi gọi `apiClient`** — mismatch này từng làm hỏng login prod
-  (fix tolerant 2 shape trong `AuthContext.tsx`, commit `92d35a2`). Code mới: đọc payload đã-unwrap trực tiếp.
-- Khi xóa nợ kỹ thuật FE: **ưu tiên `pages-v2/` trước `pages/`**.
-- **★ v1 BỎ DẦN (quyết định #204, 2026-06-17): v2 ra thị trường, KHÔNG phát triển/sửa nợ v1 (`pages/`) tại chỗ** (phí công —
-  v1 sắp retire). Nếu v1 có feature CHƯA có ở v2 → **port sang v2**; **nếu phần port có nợ kỹ thuật → XÓA NỢ TRƯỚC rồi mới
-  port (v2 nhận code SẠCH, không kế thừa nợ v1)**. Mọi tech-debt FE dồn cho `pages-v2`. (#205 v1-god-split, #209 raw-fetch-v1 = MOOT.)
+- **v1 (old)** — `frontend/src/pages/`, `MainLayout`, Antd v6 → skill `his-fe-antd-v6`.
+- **API client** — `frontend/src/api/*.ts` via the axios `apiClient`; login returns `{data:{token}}` → skill `his-fe-api-client`. ⚠️ The interceptor (`client.ts`) **auto-unwraps the envelope** `{success,data}` → the caller receives the inner `data` directly. **Do NOT check `response.success`/`.data` after calling `apiClient`** — this mismatch once broke prod login (fixed to tolerate both shapes in `AuthContext.tsx`, commit `92d35a2`). New code: read the already-unwrapped payload directly.
+- When paying down FE tech debt: **prioritize `pages-v2/` before `pages/`**.
+- **★ v1 IS BEING PHASED OUT (decision #204, 2026-06-17): v2 is going to market, do NOT develop/fix v1 debt (`pages/`) in place** (wasted effort — v1 is about to retire). If v1 has a feature NOT yet in v2 → **port it to v2**; **if the ported part has tech debt → CLEAN THE DEBT FIRST then port (v2 receives CLEAN code, does not inherit v1 debt)**. All FE tech-debt goes to `pages-v2`. (#205 v1-god-split, #209 raw-fetch-v1 = MOOT.)
 
 ### Backend
-- Clean Architecture; DI **bắt buộc** trong `DependencyInjection.cs` (xem mục trên) → skill `his-be-module-scaffold`.
-- **Migration**: `backend/src/HIS.Infrastructure/Data/Scripts/NN_*.sql`, idempotent (IF NOT EXISTS),
-  wildcard embedded, auto-apply lúc startup. **Lấy số kế tiếp bằng cách liệt kê thư mục `ls Data/Scripts/` → max(NN)+1** (KHÔNG hard-code số — đã qua `100_*`).
-  → skill `his-db-migration`.
-- Lỗi `InvalidCastException Guid↔String`: bảng có `CreatedBy/UpdatedBy` kiểu uniqueidentifier cần whitelist
-  ValueConverter trong `HISDbContext.cs`.
+- Clean Architecture; DI is **mandatory** in `DependencyInjection.cs` (see above) → skill `his-be-module-scaffold`.
+- **Migration**: `backend/src/HIS.Infrastructure/Data/Scripts/NN_*.sql`, idempotent (IF NOT EXISTS), wildcard embedded, auto-applied at startup. **Get the next number by listing the folder `ls Data/Scripts/` → max(NN)+1** (do NOT hard-code the number — already past `100_*`). → skill `his-db-migration`.
+- The `InvalidCastException Guid↔String` bug: a table with `CreatedBy/UpdatedBy` of type uniqueidentifier needs a whitelist
+  ValueConverter in `HISDbContext.cs`.
 
-### Quản lý plan/task — GitHub Issues (từ 2026-06-13)
-- **Task board chính = GitHub Issues** repo `minhhung19872002/HIS` (`gh issue list`). Lập plan/task mới →
-  **tạo Issue** (`gh issue create`); làm xong + đã push → **`gh issue close <n>`** kèm commit sha. KHÔNG quản lý
-  backlog trong `docs/workspace-docs/` nữa.
-- **★ IN-PROGRESS = CLAIM-FIRST (BẮT BUỘC, mọi phiên/máy):** **ngay khi CHỐT chọn 1 task** (đã loại ứng viên khác),
-  **hành động ĐẦU TIÊN — TRƯỚC mọi pre-flight đo-scope/đọc-file/impact-analysis và TRƯỚC khi viết/sửa code** →
-  `gh issue edit <n> --add-label in-progress --add-assignee @me`. Chỉ được claim SAU bước **sync+existence-check nhẹ**
-  của SYNC-GATE (`workflow/project-rules.md` §2); còn **so-sánh nhiều ứng viên để CHỌN** thì CHƯA claim (chưa chốt).
-  Giữ nhãn suốt lúc làm dở; **xong → `gh issue close`** (tự gỡ in-progress); **dừng/blocked/đổi-task → `--remove-label
-  in-progress` NGAY** (nhãn stale = máy khác tưởng đang làm → trùng). Tránh 2 máy đụng cùng task.
-- **★ TASK DÀI / NHIỀU PHẦN — làm XONG HẾT rồi mới push + done (BẮT BUỘC, mọi phiên/máy):** với task lớn nhiều phần,
-  commit **LOCAL** từng chặng để checkpoint, NHƯNG **CHỈ `git push` khi đã hoàn thành TẤT CẢ các phần theo đúng quy trình**
-  (build-gate + verify mỗi chặng) → push 1 lần kèm **`Closes #N`**. **KHÔNG push partial.** (Pull `--rebase` trước push cuối
-  để đồng bộ máy khác; task ngắn/atomic vẫn push-ngay-khi-xong như thường.)
-- **★ SCOPE CHỒNG LẤN giữa task (làm cái nào RA cái đó rõ ràng):** khi đang làm task A mà phát hiện 1 phần việc thuộc/trùng
-  task B → **chuyển ĐỦ thông tin + context sang task B (comment/body) TRƯỚC**, kiểm tra B không thiếu gì, RỒI mới đóng phần
-  đó ở A / đóng A. KHÔNG làm trùng 2 task, KHÔNG đóng A khi B còn thiếu info, KHÔNG để mất context khi bàn giao.
-- **Trước khi pick task**: `git fetch origin` + đọc `git log origin/main` + `gh issue list` (nhiều máy làm
-  song song — nguồn-sự-thật là git log + Issues, KHÔNG phải docs local).
-- **★★ RULE CỨNG (mọi yêu cầu/phiên/máy) — TEST LÀ BẮT BUỘC NHƯNG LUÔN LÀM CUỐI CÙNG:** với BẤT KỲ yêu cầu nào,
-  hoàn thành HẾT fix / feature / tech-debt / security / patient-safety (vd #180-215 TRỪ test) cho xong TRƯỚC; **mọi
-  nhiệm vụ TEST (label `test`, KỂ CẢ harness/CI-gate #191/#212/#213) làm SAU CÙNG — chỉ bắt đầu khi 100% task fix đã
-  DONE. TUYỆT ĐỐI KHÔNG có ngoại lệ "harness sớm".** Ép buộc qua hook `session-start.sh` + `remind-pipeline.sh`.
-  Bù thiếu test-net: mọi fix bám chặt SAFETY-PROTOCOL (pre-flight · build-gate · smoke thủ công · minimal-change).
-  Test-program đầy đủ → `docs/workspace-docs/10-assessment/test-plan-2026-06-17.md` + Issues label `test`.
-  **★ EVIDENCE + VIEWER (mọi phiên/mọi máy):** mọi task test có UI PHẢI chụp evidence đủ mọi trạng thái + xem qua
-  trình xem evidence. Quy ước đặt tên · bố cục viewer · cách chụp/regen · DEDUP vs GitHub (#216-289) = nguồn-sự-thật
-  duy nhất ở `docs/architecture/evidence/README.md` (KHÔNG copy nội dung sang đây). Coverage bám roadmap
-  `docs/architecture/his-roadmap/` + `his-data-structure.js` (38 phân hệ/485 bảng/12 luồng).
-- **★ TEST PHÁT HIỆN BUG → TẠO TASK FIX LIÊN KẾT (mọi phiên/mọi máy):** khi chạy 1 task test mà gặp **bug/lỗi/vỡ
-  UI**, PHẢI tạo NGAY 1 Issue fix mới: tiêu đề nêu **rõ lỗi gì + màn/nghiệp vụ**; body = mô tả bug + bước tái hiện
-  + evidence (ảnh) + kỳ vọng-vs-thực-tế; **liên kết 2 chiều với task test nguồn** (fix ghi "Phát hiện từ #<test>";
-  comment ngược lại task test "Bug → #<fix>"). Label `bug` + module. Để lúc làm fix biết sửa gì + truy ngược test.
-  **★ DoD task test (BẮT BUỘC):** task test CHỈ được đánh **DONE** sau khi **MỌI bug nó phát hiện đã có task fix
-  tương ứng tạo XONG (đầy đủ thông tin) + liên kết 2 chiều**. Còn bug chưa có fix-task đầy đủ → **KHÔNG được done** task test.
-- `docs/workspace-docs/` chỉ còn: `STATUS.md` (session-state cho hook) · `luong_nghiep_vu.md` (reference
-  nghiệp vụ) · 2 pointer roadmap/audit. **Workspace-docs commit + push bình thường** (quy tắc never-push đã
-  GỠ 2026-06-13 — hook pre-push + guard + `scripts/push-code.ps1` đã xóa).
-- Cuối phiên: cập nhật `STATUS.md`. **KHÔNG ghi nhật ký vào CLAUDE.md** (giữ file này slim).
+### Plan/task management — GitHub Issues (since 2026-06-13)
+- **The main task board = GitHub Issues** in the repo `minhhung19872002/HIS` (`gh issue list`). Creating a new plan/task →
+  **create an Issue** (`gh issue create`); done + pushed → **`gh issue close <n>`** with the commit sha. Do NOT manage the
+  backlog in `docs/workspace-docs/` anymore.
+- **★ IN-PROGRESS = CLAIM-FIRST (MANDATORY, every session/machine):** **the moment you SETTLE on a task** (having ruled out the other candidates),
+  **the FIRST action — BEFORE any scope-measuring/file-reading/impact-analysis pre-flight and BEFORE writing/editing code** → `gh issue edit <n> --add-label in-progress --add-assignee @me`. You may only claim AFTER the **light sync+existence-check**
+  step of the SYNC-GATE (`workflow/project-rules.md` §2); while **comparing several candidates to CHOOSE**, you have NOT claimed yet (not settled). Keep the label the whole time it's in progress; **done → `gh issue close`** (auto-removes in-progress); **stop/blocked/switch-task → `--remove-label in-progress` IMMEDIATELY** (a stale label = another machine thinks it's in progress → duplication). Avoid 2 machines hitting the same task.
+- **★ LONG / MULTI-PART TASK — finish EVERYTHING then push + done (MANDATORY, every session/machine):** for a large multi-part task,
+  commit **LOCALLY** per stage to checkpoint, BUT **only `git push` when ALL parts are done per the process** (build-gate + verify each stage) → push once with **`Closes #N`**. **Do NOT push partial.** (Pull `--rebase` before the final push to sync with other machines; a short/atomic task still pushes-as-soon-as-done as usual.)
+- **★ SCOPE OVERLAP between tasks (make each task produce its own clear result):** while doing task A, if you find a piece of work belonging to/overlapping
+  task B → **transfer ENOUGH info + context to task B (comment/body) FIRST**, verify B is missing nothing, THEN close that part in A / close A. Do NOT duplicate 2 tasks, do NOT close A while B is missing info, do NOT lose context on handoff.
+- **Before picking a task**: `git fetch origin` + read `git log origin/main` + `gh issue list` (many machines work in parallel — the source of truth is the git log + Issues, NOT local docs).
+- **★★ HARD RULE (every request/session/machine) — TEST IS MANDATORY BUT ALWAYS GOES LAST:** for ANY request,
+  finish ALL fix / feature / tech-debt / security / patient-safety (e.g. #180-215 EXCEPT test) FIRST; **every TEST task (label `test`, INCLUDING harness/CI-gate #191/#212/#213) goes LAST — only start when 100% of fix tasks are DONE. ABSOLUTELY no "early harness" exception.** Enforced via the `session-start.sh` + `remind-pipeline.sh` hooks. To compensate for the missing test-net: every fix sticks tightly to the SAFETY-PROTOCOL (pre-flight · build-gate · manual smoke · minimal-change). The full test program → `docs/workspace-docs/10-assessment/test-plan-2026-06-17.md` + `test`-labeled Issues.
+  **★ EVIDENCE + VIEWER (every session/every machine):** every test task with UI MUST capture evidence of all states + view it through the evidence viewer. The naming convention · viewer layout · capture/regen method · DEDUP vs GitHub (#216-289) = the single source of truth in `docs/architecture/evidence/README.md` (do NOT copy the content here). Coverage follows the roadmap `docs/architecture/his-roadmap/` + `his-data-structure.js` (38 modules/485 tables/12 flows).
+- **★ A TEST FINDS A BUG → CREATE A LINKED FIX TASK (every session/every machine):** when running a test task and you hit a **bug/error/broken
+  UI**, you MUST immediately create a new fix Issue: the title states **what bug + which screen/business**; the body = description + repro steps + evidence (image) + expected-vs-actual; **two-way link with the source test task** (the fix notes "Found from #<test>"; comment back on the test task "Bug → #<fix>"). Label `bug` + module. So the fix knows what to change + can trace back to the test. **★ Test-task DoD (MANDATORY):** a test task may only be marked **DONE** after **EVERY bug it found has a corresponding fix-task fully created (complete info) + a two-way link**. Any bug without a complete fix-task → the test task is **NOT done**.
+- `docs/workspace-docs/` now only has: `STATUS.md` (session-state for the hook) · `luong_nghiep_vu.md` (business reference) · 2 roadmap/audit pointers. **Workspace-docs commit + push is normal** (the never-push rule was REMOVED 2026-06-13 — the pre-push hook + guard + `scripts/push-code.ps1` have been deleted).
+- End of session: update `STATUS.md`. **Do NOT write a session log into CLAUDE.md** (keep this file slim).
 
-## Trạng thái Production (cập nhật khi thật sự đổi — đừng ghi nhật ký phiên vào đây)
+## Production status (update only when it really changes — don't write a session log here)
 
-| Hạng mục | Giá trị |
+| Item | Value |
 |---|---|
 | Backend (Cloud Run) | service `his-api` · project `project-4d4a3f8e-d582-4536-97f` · region `asia-southeast1` |
 | API URL prod | https://his-api-694913628964.asia-southeast1.run.app |
 | Frontend (Vercel) | https://his-psi.vercel.app |
-| Cloud SQL DB | `HIS` · instance `his-sql` **CHỈ private IP `10.10.0.3`** (VPC `default`, #292 2026-07-03) — public 1433 đã chặn; truy cập dev qua `cloud-sql-proxy` (IAM); Cloud Run nối qua Direct VPC egress |
-| Admin login (mọi env) | `admin` / `Admin@123` |
+| Cloud SQL DB | `HIS` · instance `his-sql` **private IP ONLY `10.10.0.3`** (VPC `default`, #292 2026-07-03) — public 1433 is blocked; dev access via `cloud-sql-proxy` (IAM); Cloud Run connects via Direct VPC egress |
+| Admin login (all envs) | `admin` / `Admin@123` |
 | Local Docker | container `his-sqlserver` · DB `HIS` · sqlcmd `/opt/mssql-tools18/bin/sqlcmd` |
 | PACS prod | Orthanc @ https://168-110-52-7.nip.io (Oracle VM `168.110.52.7`) · storage Cloudflare R2 `his-pacs-dicom` |
 | Jitsi prod | https://161-33-180-17.nip.io (Oracle VM `161.33.180.17`) |
 
 ### Deploy (→ skill `his-ops-deploy`)
-- **Frontend Vercel**: tự deploy mỗi khi push `main`.
-- **Backend Cloud Run**: **tự deploy qua GitHub Actions** (`.github/workflows/deploy-backend.yml`) khi push
-  đụng `backend/**` (từ 2026-05-29, auth WIF keyless). Kiểm tra: `gh run list --workflow=deploy-backend.yml`.
-  Fallback thủ công: `gcloud builds submit --config cloudbuild.yaml --substitutions=_IMAGE=...`
-  rồi `gcloud run services update his-api --image=...`.
-- Sau migration: `GET /health/schema-drift` (Admin) → `missingCount` phải = 0.
-  `ProductionSchemaRepairRunner` tự apply `Data/Scripts/*.sql` lúc startup.
+- **Frontend Vercel**: auto-deploys on every push to `main`.
+- **Backend Cloud Run**: **auto-deploys via GitHub Actions** (`.github/workflows/deploy-backend.yml`) when a push
+  touches `backend/**` (since 2026-05-29, WIF keyless auth). Check: `gh run list --workflow=deploy-backend.yml`.
+  Manual fallback: `gcloud builds submit --config cloudbuild.yaml --substitutions=_IMAGE=...`
+  then `gcloud run services update his-api --image=...`.
+- After a migration: `GET /health/schema-drift` (Admin) → `missingCount` must be 0.
+  `ProductionSchemaRepairRunner` auto-applies `Data/Scripts/*.sql` at startup.
 
 ### Secrets
-KHÔNG hardcode secret cloud (Orthanc/R2/seed-key/DB sa) vào file tracked. Lấy từ Cloud Run env
-(`gcloud run services describe his-api`). TODO bảo mật: **rotate R2 API token** → Issue #25.
+Do NOT hardcode cloud secrets (Orthanc/R2/seed-key/DB sa) into a tracked file. Get them from the Cloud Run env (`gcloud run services describe his-api`). Security TODO: **rotate the R2 API token** → Issue #25.

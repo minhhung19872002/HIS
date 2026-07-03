@@ -1,80 +1,80 @@
 ---
 name: core-critic
-description: Use this skill (portable, tech-agnostic) to run a STRUCTURED ADVERSARIAL AUDIT of ONE concrete EXISTING artifact — a plan, design, decision, answer, claim, or code diff — surfacing logic errors, weak points, wrong/hidden assumptions, risks & failure-surface, missing evidence, inconsistencies, and unhandled edge cases, then emitting severity-ranked findings + a SHIP / FIX-THEN-SHIP / BLOCK verdict with confidence. Triggers include "review giúp", "đúng chưa / ổn chưa / có rủi ro gì", "before we ship/merge/deploy", a conclusion presented as settled, a PR/design to audit, or any irreversible change about to commit. Do NOT use to challenge the USER's live in-conversation idea (core-sparring-partner), to reverse the problem framing (core-inversion-thinking), to generate new alternatives (core-open-thinking), or to pick/merge a winner (core-synthesis-decision).
+description: Use this skill (portable, tech-agnostic) to run a STRUCTURED ADVERSARIAL AUDIT of ONE concrete EXISTING artifact — a plan, design, decision, answer, claim, or code diff — surfacing logic errors, weak points, wrong/hidden assumptions, risks & failure-surface, missing evidence, inconsistencies, and unhandled edge cases, then emitting severity-ranked findings + a SHIP / FIX-THEN-SHIP / BLOCK verdict with confidence. Triggers include "review this", "is this right / OK / any risks", "before we ship/merge/deploy", a conclusion presented as settled, a PR/design to audit, or any irreversible change about to commit. Do NOT use to challenge the USER's live in-conversation idea (core-sparring-partner), to reverse the problem framing (core-inversion-thinking), to generate new alternatives (core-open-thinking), or to pick/merge a winner (core-synthesis-decision).
 metadata:
   type: project
 ---
 
-# Core — Critic (kiểm định artifact / adversarial auditor)
+# Core — Critic (artifact auditor / adversarial auditor)
 
-> TẦNG: **A · CORE** (portable, tech-agnostic). Một trong 4 chế độ tư duy hệ thống — orchestration
-> (dùng 1/2/3/4 + thứ tự) là **chủ ở `core-synthesis-decision` §Orchestration**; ở đây chỉ link.
+> TIER: **A · CORE** (portable, tech-agnostic). One of the 4 systematic thinking modes — orchestration
+> (using 1/2/3/4 + order) is **owned by `core-synthesis-decision` §Orchestration**; here it only links.
 
-## Mục đích
-Cho một artifact **đã tồn tại**, hạ **độ-tin-cậy-sai-lệch** về đúng mức: tìm lỗi logic, điểm yếu, giả định
-sai/ngầm, rủi ro & failure-surface, chỗ **thiếu chứng cứ**, bất nhất, edge-case bị bỏ. KHÔNG sáng tạo
-phương án mới (đó là `core-open-thinking`); chỉ **đánh giá cái đang có** và phán quyết đi/sửa/dừng.
+## Purpose
+For an **existing** artifact, lower **miscalibrated confidence** to the right level: find logic errors, weak points, wrong/hidden
+assumptions, risks & failure-surface, **missing evidence**, inconsistencies, dropped edge-cases. Do NOT invent
+new options (that's `core-open-thinking`); only **assess what exists** and rule ship/fix/block.
 
-## Khi nào dùng
-- Có **artifact cụ thể** (plan/design/diff/claim/câu trả lời) **AND** sắp có hành động dựa trên nó.
-- Trước khi ship/merge/deploy/commit; review PR; risk assessment; kiểm chứng "code làm X" / "cách này tốt nhất".
-- **Bắt buộc như gate** khi thay đổi khó-đảo-ngược / chạm tiền · patient-safety · schema · security.
+## When to use
+- There's a **concrete artifact** (plan/design/diff/claim/answer) **AND** an action is about to follow it.
+- Before ship/merge/deploy/commit; PR review; risk assessment; verifying "the code does X" / "this is the best way".
+- **Mandatory as a gate** for a hard-to-reverse change / touching money · patient-safety · schema · security.
 
-## Khi nào KHÔNG dùng
-- Chưa có artifact, mới là ý phôi thai → `core-open-thinking` (critique sẽ giết ý non).
-- Cần phản biện **quyết định/ý của USER trong hội thoại** (calibrated, anti-sycophancy) → `core-sparring-partner`.
-- Cần **xoay khung** bài toán ("điều gì làm hỏng") → `core-inversion-thinking`.
-- Cần **tạo phương án mới** hoặc **chọn người thắng** → `core-open-thinking` / `core-synthesis-decision`.
-- Việc trivial / đảo-ngược-được → làm thẳng.
+## When NOT to use
+- No artifact yet, just an embryonic idea → `core-open-thinking` (critique would kill an immature idea).
+- Need to challenge the **USER's decision/idea in conversation** (calibrated, anti-sycophancy) → `core-sparring-partner`.
+- Need to **reframe** the problem ("what would break it") → `core-inversion-thinking`.
+- Need to **create new options** or **pick a winner** → `core-open-thinking` / `core-synthesis-decision`.
+- Trivial / reversible work → just do it.
 
-## Input cần có
-- **Bắt buộc:** artifact cụ thể + mục tiêu nó phục vụ.
-- **Nên có:** tiêu chí thành công / DoD, ràng buộc cứng-mềm, chứng cứ/giả định tác giả dựa vào.
-- Thiếu "mục tiêu + tiêu chí thành công" → hỏi 1 câu rồi mới phản biện (nếu không sẽ trượt thành bikeshedding).
+## Required input
+- **Mandatory:** a concrete artifact + the goal it serves.
+- **Should have:** success criteria / DoD, hard-soft constraints, the evidence/assumptions the author relied on.
+- Missing "goal + success criteria" → ask 1 question before critiquing (else it slides into bikeshedding).
 
-## Quy trình nội bộ
-1. **Tóm tắt 1 dòng** artifact đang khẳng định/đề xuất gì (ép hiểu đúng trước khi chê).
-2. **Bóc giả định** (hiện + ngầm); gắn nhãn `Fact / Assumption / Speculation`.
-3. Với giả định **chịu lực**: chứng cứ gì? nếu SAI thì sập tới đâu?
-4. **Quét 7 trục:** đúng đắn · đầy đủ (thiếu gì) · nhất quán · chất lượng chứng cứ · rủi ro/failure · edge-case · hệ quả bậc 2.
-5. **Tự công kích phát hiện của mình** (chống nitpick): finding này sống nổi trước phản biện của tác giả không? → loại điểm yếu giả.
-6. **Xếp hạng:** `Blocker / Major / Minor` × khả-năng × tác-động.
-7. Mỗi finding còn lại: ghi **chứng cứ sẽ giải quyết nó** + **hướng sửa tối thiểu** (không tự redesign).
+## Internal process
+1. **1-line summary** of what the artifact claims/proposes (force a correct understanding before criticizing).
+2. **Extract assumptions** (explicit + implicit); label `Fact / Assumption / Speculation`.
+3. For **load-bearing** assumptions: what evidence? if WRONG, how far does it collapse?
+4. **Scan 7 axes:** correctness · completeness (what's missing) · consistency · evidence quality · risk/failure · edge-cases · second-order effects.
+5. **Attack your own findings** (anti-nitpick): does this finding survive the author's rebuttal? → drop fake weaknesses.
+6. **Rank:** `Blocker / Major / Minor` × likelihood × impact.
+7. Each remaining finding: note the **evidence that would resolve it** + the **minimal fix direction** (don't redesign).
 
-## Output bắt buộc
-- **Bảng findings:** vị trí · vấn đề · `Fact/Assumption/Speculation` · severity · chứng-cứ-còn-thiếu · hướng-sửa-tối-thiểu.
-- **Verdict tổng:** `SHIP` / `FIX-THEN-SHIP` / `BLOCK` + **confidence %**.
-- **Top-1 giả định nguy hiểm nhất** (nếu sai sẽ lật toàn bộ).
-- Nếu **không có lỗi đáng kể** → nói thẳng "artifact vững ở trục X, rủi ro còn lại Y" (TUYỆT ĐỐI không bịa lỗi cho đủ).
+## Required output
+- **Findings table:** location · issue · `Fact/Assumption/Speculation` · severity · missing-evidence · minimal-fix-direction.
+- **Overall verdict:** `SHIP` / `FIX-THEN-SHIP` / `BLOCK` + **confidence %**.
+- **The single most dangerous assumption** (if wrong, the whole thing flips).
+- If **no significant error** → say plainly "the artifact is solid on axis X, the remaining risk is Y" (ABSOLUTELY no fabricating errors to fill a quota).
 
-## Failure modes (anti-patterns — đừng làm)
-- **Nihilism phá hoại:** chê tất cả, không xếp hạng, không hướng sửa → chặn tiến độ.
-- **Chê không chứng cứ / theo khẩu vị** (bikeshedding); **đánh strawman** (chê bản méo của artifact).
-- **Vô hạn nghi ngờ** (đòi chứng minh cả tiên đề); **chê đều severity** (blocker lẫn typo).
-- **Dùng quá sớm** → giết ý chưa thành hình. **Trượt vai:** nhảy sang đề xuất phương án mới (việc của Open) thay vì kiểm định.
+## Failure modes (anti-patterns — don't do)
+- **Destructive nihilism:** criticize everything, no ranking, no fix direction → blocks progress.
+- **Criticism with no evidence / by taste** (bikeshedding); **strawman attacks** (criticize a distorted version of the artifact).
+- **Infinite doubt** (demanding proof of axioms); **flat severity** (mixing a blocker with a typo).
+- **Used too early** → kills an idea before it forms. **Role drift:** jumping to propose new options (Open's job) instead of auditing.
 
-## Định vị workflow
-| Thuộc tính | Giá trị |
+## Workflow positioning
+| Attribute | Value |
 |---|---|
-| Tầng | **Hội tụ / Gate** — sau khi có candidate, trước khi commit |
-| Ưu tiên | **CAO & BLOCKING** khi khó-đảo-ngược / tiền · patient-safety · schema · security |
-| Bài toán hợp | review proposal/PR, risk assessment, kiểm chứng claim, design review |
-| Dấu hiệu bật | một kết luận trình bày **như đã chốt** + hành động sắp xảy ra |
+| Tier | **Converge / Gate** — after there's a candidate, before commit |
+| Priority | **HIGH & BLOCKING** when hard-to-reverse / money · patient-safety · schema · security |
+| Fits problems | review a proposal/PR, risk assessment, verify a claim, design review |
+| Trigger signal | a conclusion presented **as settled** + an action about to happen |
 
-## Ví dụ
-> Plan: "Cache toàn bộ danh sách bệnh nhân vào Redis 24h để giảm tải DB."
-> Critic: ① giả định ngầm "BN ít đổi trong 24h" (`Assumption`, chịu lực) — thực tế nhập/xuất viện đổi liên tục →
-> **Blocker (stale → sai lâm sàng)**; ② thiếu chứng cứ "DB đang là bottleneck" (`Speculation`) — giải quyết bằng p95 + slow-log;
-> ③ edge: invalidation khi update? (Major). **Verdict BLOCK (conf 80%)**. Giả định nguy hiểm nhất = "24h an toàn".
+## Example
+> Plan: "Cache the entire patient list in Redis for 24h to reduce DB load."
+> Critic: ① implicit assumption "patients change little in 24h" (`Assumption`, load-bearing) — in reality admissions/discharges change constantly →
+> **Blocker (stale → clinical error)**; ② missing evidence "the DB is the bottleneck" (`Speculation`) — resolve with p95 + slow-log;
+> ③ edge: invalidation on update? (Major). **Verdict BLOCK (conf 80%)**. The most dangerous assumption = "24h is safe".
 
-## Phản ví dụ (anti-pattern)
-> ❌ "Plan tạm ổn nhưng tên biến xấu, Redis nghe over-engineering, sao không Postgres luôn…" → không xếp hạng,
-> không chứng cứ, lẫn khẩu vị (tên biến = Minor) với rủi ro thật (stale = Blocker), và **nhảy sang đề xuất phương án mới** → Critic bị trượt vai.
+## Counter-example (anti-pattern)
+> ❌ "The plan's OK-ish but variable names are bad, Redis sounds over-engineering, why not just Postgres…" → no ranking,
+> no evidence, mixing taste (variable names = Minor) with real risk (stale = Blocker), and **jumping to propose new options** → the Critic drifts out of role.
 
-## Phối hợp (LINK — không copy)
-- Khi dùng 1/nhiều chế độ + thứ tự Open→Inversion→Critic→Synthesis → `core-synthesis-decision` §Orchestration.
-- Phản biện ý/quyết-định của USER trong hội thoại (calibrated, no-quota) → `core-sparring-partner` (chủ phản-biện-chống-nịnh).
-- Không bịa file/symbol/field khi audit code → `core-verify-before-assert`.
+## Coordination (LINK — no copy)
+- Using 1/several modes + the order Open→Inversion→Critic→Synthesis → `core-synthesis-decision` §Orchestration.
+- Challenging the USER's idea/decision in conversation (calibrated, no-quota) → `core-sparring-partner` (the anti-sycophancy critique owner).
+- No fabricating file/symbol/field when auditing code → `core-verify-before-assert`.
 
 ## When to update
-- Khi đổi bộ trục quét, thang severity, hoặc định nghĩa verdict. Ranh giới với `core-sparring-partner`/`core-open-thinking` đổi → cập nhật cả mục "Khi nào KHÔNG dùng".
+- When changing the scan-axis set, the severity scale, or the verdict definition. If the boundary with `core-sparring-partner`/`core-open-thinking` changes → update the "When NOT to use" section too.

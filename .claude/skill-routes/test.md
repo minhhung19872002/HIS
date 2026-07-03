@@ -1,23 +1,23 @@
-# Skill-routes · TẦNG TEST (Testing)
+# Skill-routes · TEST TIER (Testing)
 
-> Map con — đọc **CÙNG** `.claude/SKILL-MAP.md`. Nguyên tắc CORE (chọn khi) xem (1a) trong SKILL-MAP.
-> Luôn lấy nguyên tắc level/isolation từ `core-testing-architecture` + reuse fixture `core-testing-reuse`.
+> Sub-map — read it **TOGETHER WITH** `.claude/SKILL-MAP.md`. For the CORE principles (choose when) see (1a) in SKILL-MAP.
+> Always take the level/isolation principle from `core-testing-architecture` + reuse fixtures from `core-testing-reuse`.
 
-## Skill TEST (`his-test-*`)
+## TEST skills (`his-test-*`)
 
-| Skill | Mục đích | Chọn khi yêu cầu liên quan |
+| Skill | Purpose | Choose when the request involves |
 |---|---|---|
-| `his-test-api-powershell` | test API PowerShell `localhost:5106` | test API backend |
-| `his-test-e2e` | Cypress + Playwright (convention HIS) | test UI/E2E |
+| `his-test-api-powershell` | PowerShell API test against `localhost:5106` | backend API test |
+| `his-test-e2e` | Cypress + Playwright (HIS conventions) | UI/E2E test |
 
-> ★ **Lái browser tương tác + chụp evidence** (CHỈ giai đoạn TEST cuối, sau khi fix DONE) → **plugin MCP playwright** (navigate/click/snapshot/screenshot) + **chrome-devtools** (a11y/perf/console). `his-test-e2e` VẪN sở hữu **file test bền** (Cypress/Playwright spec). Evidence theo `docs/architecture/evidence/README.md` · routing `../plugins.md`. ⚠️ KHÔNG chạy test sớm (rule test-cuối).
+> ★ **Interactive browser driving + evidence capture** (ONLY the final TEST phase, after the fix is DONE) → **MCP plugin playwright** (navigate/click/snapshot/screenshot) + **chrome-devtools** (a11y/perf/console). `his-test-e2e` STILL owns the **durable test files** (Cypress/Playwright spec). Evidence per `docs/architecture/evidence/README.md` · routing `../plugins.md`. ⚠️ Do NOT run tests early (the test-last rule).
 
-## Prompt → chuỗi skill (TEST) + PATH
+## Prompt → skill chain (TEST) + PATH
 
-| Khi developer prompt | Skills (core → his, đúng thứ tự) | File/đường dẫn chạm tới |
+| When the developer prompts | Skills (core → his, in order) | Files/paths touched |
 |---|---|---|
-| "viết test UI/E2E [X]" | `core-testing-architecture` → `core-testing-reuse` → `his-test-e2e` | `frontend/cypress/e2e/`, `frontend/e2e/` |
-| "viết test API backend [X]" | `core-testing-architecture` → `core-testing-reuse` → `his-test-api-powershell` | `test-*.ps1` |
+| "write a UI/E2E test [X]" | `core-testing-architecture` → `core-testing-reuse` → `his-test-e2e` | `frontend/cypress/e2e/`, `frontend/e2e/` |
+| "write a backend API test [X]" | `core-testing-architecture` → `core-testing-reuse` → `his-test-api-powershell` | `test-*.ps1` |
 
 ## Conflict (TEST)
-- Test BE vs E2E: API BE → `his-test-api-powershell`; UI/route/flow trên trình duyệt → `his-test-e2e`.
+- BE test vs E2E: BE API → `his-test-api-powershell`; UI/route/flow in the browser → `his-test-e2e`.

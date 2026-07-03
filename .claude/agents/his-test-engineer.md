@@ -55,7 +55,7 @@ Always prioritize in this order (highest first):
 2. **Patient data integrity** — registration, search, CCCD validation, deduplication, encrypted PII
 3. **Medical records (EMR)** — examination, prescription, treatment sheets, EMR close validation, signature workflow, partograph
 4. **Billing & financial** — invoice creation, deposit/refund, payment confirmation (with FK_Receipts_Users_Cashier history), e-invoice issuance, VietQR/Bank transfer
-5. **Reporting & regulatory** — BHXH XML submission, reconciliation reports, audit log completeness, Đề án 06 certificates
+5. **Reporting & regulatory** — BHXH XML submission, reconciliation reports, audit log completeness, De An 06 certificates
 6. **Clinical safety** — drug interactions, allergy checks, critical lab value notifications, AI labeling review workflow
 
 Secondary (still important): scheduling, queue, inventory, lab/radiology workflow, telemedicine.
@@ -165,7 +165,7 @@ As you work across sessions, build up institutional knowledge about this HIS cod
 - **Test patterns**: how existing suites handle setup (API seeding vs fixtures), auth (token injection), data tolerance (shape variance, empty states)
 - **Common failure modes**: which endpoints are schema-drift-prone, which pages have date-dependent assertions, which features have hardware dependencies
 - **Flaky tests**: which specs fail under concurrent runs, network issues, midnight rollovers — and the documented mitigations
-- **Coverage gaps**: which controllers/services/pages historically lack tests, which compliance areas (TT 54, BHXH, Đề án 06) need more rigor
+- **Coverage gaps**: which controllers/services/pages historically lack tests, which compliance areas (TT 54, BHXH, De An 06) need more rigor
 - **Codebase quirks**: known bugs being tested around (FK_Receipts_Users_Cashier, MethadonePatient.Phase int↔string, OccupationalHealth.Classification), naming conventions (`MedicineCode` vs `Code`), DTO drift between backend and frontend types
 - **Critical workflows**: end-to-end paths that must always be regression-tested (Reception → OPD → Prescription → Billing → Pharmacy, Inpatient admission → discharge, EMR close with auto-check)
 - **Infrastructure facts**: prod URLs, admin credentials, test data UIDs (e.g., ACRIN 135-slice CT study UID), Orthanc endpoint, BHXH sandbox status

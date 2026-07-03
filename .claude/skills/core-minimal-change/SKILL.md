@@ -7,65 +7,65 @@ metadata:
 
 # Core — Minimal Change (portable)
 
-> TẦNG: **A · CORE** (discipline, tech-agnostic). Guardrail **lúc implement** — kỷ luật phạm vi/YAGNI.
+> TIER: **A · CORE** (discipline, tech-agnostic). A guardrail **at implement time** — scope/YAGNI discipline.
 
-## (2) Vấn đề skill giải quyết
-AI hay làm quá: thêm abstraction "phòng xa", refactor lan man, đụng file ngoài yêu cầu, đổi style không
-liên quan → diff phình, khó review, dễ gãy, lệch ý. Skill buộc **thay đổi đúng-và-nhỏ-nhất** thoả yêu cầu.
+## (2) The problem this skill solves
+AI tends to overdo it: add "just-in-case" abstraction, sprawling refactor, touch files outside the request, change unrelated
+style → the diff bloats, hard to review, easy to break, off-target. This skill forces the **correct-and-smallest** change that satisfies the request.
 
-## (3) Vì sao AI hay fail ở đây
-- Muốn "hoàn hảo" → tổng quát hoá sớm (YAGNI vi phạm).
-- "Tiện tay" refactor/đổi tên/format khi đang sửa feature → trộn 2 loại thay đổi.
-- Thêm option/config/abstraction không ai yêu cầu.
-- Sửa cả file/khu vực không liên quan → blast radius vô cớ.
+## (3) Why AI fails here
+- Wants "perfect" → premature generalization (YAGNI violated).
+- "While-I'm-here" refactor/rename/format during a feature edit → mixes 2 kinds of change.
+- Adds an option/config/abstraction nobody asked for.
+- Edits whole unrelated files/areas → blast radius for no reason.
 
-## (4) Khi nào dùng (kích hoạt)
-- MỌI task code-gen/edit (guardrail lúc viết).
-- Khi nảy ý "nhân tiện refactor/rename/restructure".
-- Khi định thêm tầng/abstraction/tham số "cho tương lai".
-- Khi định đụng file/khu vực ngoài yêu cầu.
+## (4) When to use (triggers)
+- EVERY code-gen/edit task (a guardrail while writing).
+- When tempted to "refactor/rename/restructure while at it".
+- When about to add a layer/abstraction/parameter "for the future".
+- When about to touch a file/area outside the request.
 
-## (5) Khi nào KHÔNG dùng
-- User **yêu cầu rõ** refactor/redesign → `core-refactor` (đổi cấu trúc giữ behavior).
-- Thay đổi rộng **thật sự cần** và đã được xác nhận (qua `core-requirement-clarify` / `core-impact-analysis`).
-- Sửa lỗi cần đổi nhiều nơi để đúng (không phải "làm quá").
+## (5) When NOT to use
+- The user **explicitly asked** for a refactor/redesign → `core-refactor` (change structure preserving behavior).
+- A broad change is **genuinely needed** and has been confirmed (via `core-requirement-clarify` / `core-impact-analysis`).
+- A fix that legitimately needs changes in many places (not "overdoing it").
 
 ## (6) Workflow
-1. **Phát biểu phạm vi tối thiểu:** câu thay đổi nhỏ nhất khiến yêu cầu đạt "done".
-2. **Liệt kê file CHẮC CHẮN phải đụng**; mọi file khác = ngoài phạm vi (đừng đụng).
-3. **Loại bỏ** abstraction/option/tham số chưa ai cần (YAGNI). Theo tiền lệ sẵn có thay vì phát minh.
-4. **Tách thay đổi:** feature ≠ refactor ≠ format. Nếu thấy nợ kỹ thuật đáng dọn → **ghi chú đề xuất riêng**, không trộn.
-5. **Soi diff cuối:** mỗi dòng đổi có phục vụ trực tiếp yêu cầu không? Không → bỏ.
+1. **State the minimal scope:** the smallest change that gets the request to "done".
+2. **List the files you MUST touch**; every other file = out of scope (don't touch).
+3. **Drop** abstractions/options/parameters nobody needs yet (YAGNI). Follow existing precedent instead of inventing.
+4. **Separate the changes:** feature ≠ refactor ≠ format. If you see tech debt worth cleaning → **note it as a separate proposal**, don't mix.
+5. **Inspect the final diff:** does each changed line directly serve the request? No → drop it.
 
-## (7) Quy tắc & giới hạn an toàn
-- Mặc định **không** sửa file ngoài phạm vi; muốn đụng → nêu lý do.
-- Không thêm abstraction cho "tương lai giả định".
-- Không refactor/đổi tên/format cơ hội lẫn trong feature.
-- KHÔNG đánh đổi tính đúng/an toàn để "nhỏ" — đủ đúng trước, rồi mới tối thiểu (ưu tiên maintainability thực dụng hơn hoàn hảo lý thuyết).
-- Nợ kỹ thuật phát hiện được → đề xuất, để user quyết.
+## (7) Safety rules & limits
+- By default do **NOT** edit out-of-scope files; to touch one → state the reason.
+- Don't add abstraction for a "hypothetical future".
+- No opportunistic refactor/rename/format mixed into a feature.
+- Do NOT trade off correctness/safety for "smallness" — be correct first, then minimal (prefer practical maintainability over theoretical perfection).
+- Tech debt you find → propose it, let the user decide.
 
-## (8) Input kỳ vọng
-Yêu cầu đã hiểu rõ (qua `core-requirement-clarify`) + bản đồ tác động (qua `core-impact-analysis`).
+## (8) Expected input
+A well-understood request (via `core-requirement-clarify`) + an impact map (via `core-impact-analysis`).
 
-## (9) Output kỳ vọng
-Diff nhỏ nhất đúng yêu cầu, theo tiền lệ codebase, không file thừa, không abstraction thừa; nợ kỹ thuật (nếu có) nêu riêng dạng đề xuất.
+## (9) Expected output
+The smallest diff that satisfies the request, following codebase precedent, no surplus files, no surplus abstraction; tech debt (if any) raised separately as a proposal.
 
-## (10) Ví dụ (HIS)
-- "Thêm 1 cột vào bảng list v2" → sửa đúng page đó + (nếu cần) api client; KHÔNG đổi `_v2kit`/các page khác.
-- "Fix bug map field" → sửa chỗ map; KHÔNG tiện tay reorganize cả file/đổi import style.
-- Thấy 1 page v2 khác cũng lệch → **ghi chú đề xuất**, không sửa kèm trong task hiện tại.
-- Cần helper mới → ưu tiên `_v2kit`/util đã có (`core-reusable-code`), không tạo abstraction song song.
+## (10) Examples (HIS)
+- "Add 1 column to a v2 list table" → edit exactly that page + (if needed) the api client; do NOT change `_v2kit`/other pages.
+- "Fix a field-map bug" → edit the mapping; do NOT reorganize the whole file/change import style while at it.
+- See another v2 page is also off → **note a proposal**, don't fix it inside the current task.
+- Need a new helper → prefer an existing `_v2kit`/util (`core-reusable-code`), don't create a parallel abstraction.
 
-## (11) Anti-pattern / lỗi điển hình
-- Diff 600 dòng cho yêu cầu 20 dòng.
-- Trộn refactor + feature → khó review, dễ regress.
-- Thêm `options`/generic/flag "cho sau" không ai dùng.
-- Đổi format/đổi tên hàng loạt ngoài yêu cầu.
+## (11) Anti-pattern / typical mistakes
+- A 600-line diff for a 20-line request.
+- Mixing refactor + feature → hard to review, easy to regress.
+- Adding `options`/generic/flag "for later" that nobody uses.
+- Mass format/rename outside the request.
 
-## (12) Tích hợp + cấu trúc tệp
-- Đứng **cuối pipeline pre-flight**: clarify (#1) → verify (#2) → impact (#3) → **minimal-change (lúc viết)**.
-- Bổ trợ `core-reusable-code` (reuse thay vì tạo) + `core-refactor` (khi user CHỦ ĐỘNG muốn dọn) + `his-qa-anti-pattern` (không over-engineer: không CQRS/MediatR/Next.js).
-- `references/scope-checklist.md` — checklist phạm vi tối thiểu + tín hiệu "đang làm quá".
+## (12) Integration + file structure
+- Sits at the **end of the pre-flight pipeline**: clarify (#1) → verify (#2) → impact (#3) → **minimal-change (while writing)**.
+- Complements `core-reusable-code` (reuse instead of create) + `core-refactor` (when the user PROACTIVELY wants cleanup) + `his-qa-anti-pattern` (no over-engineering: no CQRS/MediatR/Next.js).
+- `references/scope-checklist.md` — a minimal-scope checklist + "you're overdoing it" signals.
 
 ## When to update
-- Khi xuất hiện kiểu "làm quá" mới hay gặp cần thêm vào tín hiệu cảnh báo.
+- When a new common "overdoing it" pattern appears that should be added to the warning signals.

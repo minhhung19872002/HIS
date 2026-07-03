@@ -1,9 +1,9 @@
 /// <reference types="cypress" />
-// TEMPLATE — HIS Cypress page-load smoke. Copy vào frontend/cypress/e2e/<feature>-pages.cy.ts
+// TEMPLATE — HIS Cypress page-load smoke. Copy into frontend/cypress/e2e/<feature>-pages.cy.ts
 
 const PAGES = [
   { path: '/v2/x-name',  name: 'X Name' },
-  // ...thêm route v2 cần smoke
+  // ...add the v2 routes to smoke
 ];
 
 const IGNORE_PATTERNS = [
@@ -13,14 +13,14 @@ const IGNORE_PATTERNS = [
 
 describe('<Feature> — page load smoke', () => {
   beforeEach(() => {
-    cy.intercept('**/api/**').as('api');                 // CHỈ /api — KHÔNG **/*
+    cy.intercept('**/api/**').as('api');                 // ONLY /api — NOT **/*
     cy.request({
       method: 'POST',
       url: 'http://localhost:5106/api/auth/login',
       body: { username: 'admin', password: 'Admin@123' },
       failOnStatusCode: false,
     }).then((resp) => {
-      const token = resp.body?.data?.token;              // token ở data.data.token
+      const token = resp.body?.data?.token;              // token is at data.data.token
       if (token) {
         cy.window().then((win) => {
           win.localStorage.setItem('token', token);

@@ -1,80 +1,80 @@
 ---
 name: core-inversion-thinking
-description: Use this skill (portable, tech-agnostic) to apply INVERSION — instead of asking how to make a goal SUCCEED, ask what would GUARANTEE its failure / what would break the result, enumerate those failure-modes exhaustively, then map each back to a forward "avoid / ensure / test" directive and surface the non-obvious insight that only the reversed view reveals. Three modes: failure-inversion (pre-mortem), goal-inversion (backward-chaining from the desired end-state), assumption-inversion (assume the opposite of a load-bearing assumption). Triggers include "làm sao để X chắc chắn chạy", "điều gì có thể hỏng", "pre-mortem", a high failure-cost decision, a single dominant frame / success-only thinking, being stuck, or debugging "cái gì gây ra hiện tượng này". Do NOT use to audit a concrete artifact (core-critic), to generate many diverse options (core-open-thinking), or to choose/merge a final answer (core-synthesis-decision).
+description: Use this skill (portable, tech-agnostic) to apply INVERSION — instead of asking how to make a goal SUCCEED, ask what would GUARANTEE its failure / what would break the result, enumerate those failure-modes exhaustively, then map each back to a forward "avoid / ensure / test" directive and surface the non-obvious insight that only the reversed view reveals. Three modes: failure-inversion (pre-mortem), goal-inversion (backward-chaining from the desired end-state), assumption-inversion (assume the opposite of a load-bearing assumption). Triggers include "how do I make X definitely work", "what could break", "pre-mortem", a high failure-cost decision, a single dominant frame / success-only thinking, being stuck, or debugging "what causes this symptom". Do NOT use to audit a concrete artifact (core-critic), to generate many diverse options (core-open-thinking), or to choose/merge a final answer (core-synthesis-decision).
 metadata:
   type: project
 ---
 
-# Core — Inversion Thinking (tư duy đảo ngược / pre-mortem engine)
+# Core — Inversion Thinking (inversion / pre-mortem engine)
 
-> TẦNG: **A · CORE** (portable, tech-agnostic). Một trong 4 chế độ tư duy hệ thống — orchestration là
-> **chủ ở `core-synthesis-decision` §Orchestration**; ở đây chỉ link.
+> TIER: **A · CORE** (portable, tech-agnostic). One of the 4 systematic thinking modes — orchestration is
+> **owned by `core-synthesis-decision` §Orchestration**; here it only links.
 
-## Mục đích
-Thay vì hỏi "làm sao để G **thành công**", đảo câu hỏi: "điều gì **đảm bảo ¬G** (thất bại / phá hỏng kết quả)?"
-rồi **thiết kế để tránh đúng những điều đó**. Khai thác insight chỉ lộ khi nhìn ngược — bắt failure-mode &
-đường-đi **phi hiển nhiên** mà tư duy xuôi bỏ sót. Đây là **1 phép biến đổi** (xoay khung), không phải breadth.
+## Purpose
+Instead of asking "how to make G **succeed**", invert the question: "what **guarantees ¬G** (failure / breaks the result)?"
+then **design to avoid exactly those**. Mine the insight that only shows when viewed in reverse — catch failure-modes &
+**non-obvious** paths that forward thinking misses. This is **1 transformation** (reframe), not breadth.
 
-## Khi nào dùng
-- Mục tiêu rõ nhưng **đường đi không hiển nhiên** HOẶC **chi phí thất bại cao**.
-- **Đồng thuận quá nhanh** vào một hướng — chưa ai liệt kê cách nó hỏng (success-only thinking).
-- Bị **kẹt/bí** (tư duy xuôi đã cạn); hoặc **debug** (đảo từ triệu chứng về nguyên nhân khả dĩ).
+## When to use
+- The goal is clear but the **path is non-obvious** OR the **failure cost is high**.
+- **Consensus too fast** on one direction — no one has listed how it fails (success-only thinking).
+- **Stuck** (forward thinking is exhausted); or **debugging** (invert from symptom to plausible cause).
 
-## Khi nào KHÔNG dùng
-- Bài toán đơn giản, đảo-ngược-được, rủi ro thấp → đảo chỉ thêm nhiễu.
-- Đã có failure-list đầy đủ → chuyển `core-critic` / hành động.
-- Cần **đánh giá độ đúng của 1 artifact cụ thể** → `core-critic`.
-- Cần **nhiều phương án mới đa dạng** → `core-open-thinking` (đảo chỉ cho 1 phép xoay, không cho breadth).
+## When NOT to use
+- A simple, reversible, low-risk problem → inversion just adds noise.
+- A complete failure-list already exists → switch to `core-critic` / act.
+- Need to **assess the correctness of a concrete artifact** → `core-critic`.
+- Need **many diverse new options** → `core-open-thinking` (inversion is just one reframe, not breadth).
 
-## Input cần có
-- **Bắt buộc:** mục tiêu G **hoặc** plan/candidate P.
-- **Nên có:** stakes / chi-phí-thất-bại; giả định chịu lực chính; end-state mong muốn (cho mode backward).
+## Required input
+- **Mandatory:** the goal G **or** a plan/candidate P.
+- **Should have:** stakes / failure-cost; the main load-bearing assumption; the desired end-state (for the backward mode).
 
-## Quy trình nội bộ
-1. Phát biểu rõ **G** (hoặc P) và "thành công nghĩa là gì".
-2. **Chọn mode đảo:**
-   - **A — Failure-inversion (pre-mortem):** "Giả sử đã thất bại hoàn toàn. Điều gì gây ra?" → liệt kê cạn.
-   - **B — Goal-inversion (backward):** xuất phát từ end-state, hỏi lùi "ngay trước đó điều gì PHẢI đúng?" đệ quy về hiện tại.
-   - **C — Assumption-inversion:** lấy giả định chịu lực, **giả định điều ngược lại đúng**, xem hệ quả.
-3. **Sinh tập đảo cho cạn** (đừng dừng ở 2–3 cái hiển nhiên).
-4. **Ánh xạ ngược mỗi mục đảo → 1 directive xuôi:** *tránh X* / *đảm bảo Y* / *kiểm chứng giả định Z*.
-5. Lọc **insight phi hiển nhiên** — thứ chỉ xuất hiện nhờ nhìn ngược.
-6. Xếp directive **theo đòn bẩy** (mục nào tránh được nhiều thất bại nhất).
+## Internal process
+1. State **G** (or P) clearly and "what success means".
+2. **Pick the inversion mode:**
+   - **A — Failure-inversion (pre-mortem):** "Assume it failed completely. What caused it?" → enumerate exhaustively.
+   - **B — Goal-inversion (backward):** start from the end-state, ask backward "right before that, what MUST be true?" recursively to the present.
+   - **C — Assumption-inversion:** take the load-bearing assumption, **assume the opposite is true**, see the consequences.
+3. **Generate the inversion set exhaustively** (don't stop at 2–3 obvious ones).
+4. **Map each inverted item back → 1 forward directive:** *avoid X* / *ensure Y* / *verify assumption Z*.
+5. Filter the **non-obvious insight** — the thing that only appears from the reversed view.
+6. Rank directives **by leverage** (which one prevents the most failures).
 
-## Output bắt buộc
-- **Danh sách đảo** (failure-modes / điều-kiện-end-state / giả-định-ngược) — đã liệt kê cạn.
-- **Bảng ánh xạ:** mỗi mục đảo → directive xuôi (avoid/ensure/test).
-- **Giả định cần bẻ gãy** (mode C).
-- **Top insight phi hiển nhiên** tư duy xuôi đã bỏ sót.
-- ⚠️ Nêu rõ: *"đây là failure-map, KHÔNG phải phán xét artifact cụ thể"* (ranh giới với `core-critic`).
+## Required output
+- **Inversion list** (failure-modes / end-state-conditions / inverted-assumptions) — exhaustively enumerated.
+- **Mapping table:** each inverted item → a forward directive (avoid/ensure/test).
+- **Assumptions to break** (mode C).
+- **Top non-obvious insight** that forward thinking missed.
+- ⚠️ State clearly: *"this is a failure-map, NOT a judgment of a concrete artifact"* (boundary with `core-critic`).
 
-## Failure modes (anti-patterns — đừng làm)
-- **Đảo cơ học/tautology** ("đừng làm sai") → 0 insight.
-- **Nhầm thành Critic:** bắt đầu chê artifact cụ thể thay vì xoay khung.
-- **List thất bại đáng sợ mà không có directive** → gieo lo, không hành động được.
-- **Đối xứng giả** (tưởng "điều ngược lại" tự động đúng/hữu ích); **cầu toàn** (coi "tránh MỌI failure" là khả thi → paralysis); **over-apply** cho bài tầm thường.
+## Failure modes (anti-patterns — don't do)
+- **Mechanical/tautological inversion** ("don't do it wrong") → 0 insight.
+- **Mistaking it for Critic:** starting to criticize a concrete artifact instead of reframing.
+- **A scary failure list with no directive** → seeds fear, can't act.
+- **Fake symmetry** (thinking "the opposite" is automatically true/useful); **perfectionism** (treating "avoid ALL failures" as feasible → paralysis); **over-apply** to a trivial problem.
 
-## Định vị workflow
-| Thuộc tính | Giá trị |
+## Workflow positioning
+| Attribute | Value |
 |---|---|
-| Tầng | **Xoay-khung / Stress** — giữa phân kỳ & hội tụ; hoặc khi bí |
-| Ưu tiên | **TB-CAO**, tăng theo chi-phí-thất-bại + mức single-frame |
-| Bài toán hợp | quyết định rủi ro cao, "làm sao không hỏng", debug, planning backward, phá khung cố định |
-| Dấu hiệu bật | một khung tư duy **độc tôn** / chỉ nghĩ thành công, chưa ai liệt kê đường hỏng |
+| Tier | **Reframe / Stress** — between diverge & converge; or when stuck |
+| Priority | **MED-HIGH**, rises with failure-cost + single-frame level |
+| Fits problems | high-risk decision, "how not to break it", debug, backward planning, breaking a fixed frame |
+| Trigger signal | a **single dominant** thinking frame / success-only thinking, no one has listed the failure paths |
 
-## Ví dụ
-> G = "Triển khai cho 1000 user **không downtime giờ cao điểm**." Mode A — "làm gì để CHẮC CHẮN sập giờ cao điểm?":
-> ① deploy 8h sáng; ② không rollback; ③ migration khóa bảng nóng; ④ min-instances=0 (cold start); ⑤ không load-test; ⑥ pool nhỏ.
-> Ánh xạ xuôi: ①→deploy 2h sáng; ②→blue-green + 1-click rollback; ③→migration online/idempotent; ④→min-instances≥2; ⑤→load-test trước; ⑥→tăng pool + đo.
-> **Insight ẩn:** rủi ro lớn nhất là **cửa sổ deploy + cold start**, thứ plan xuôi không hề nhắc.
+## Example
+> G = "Roll out to 1000 users with **no downtime during peak hours**." Mode A — "what would CERTAINLY crash it at peak?":
+> ① deploy at 8am; ② no rollback; ③ migration locks a hot table; ④ min-instances=0 (cold start); ⑤ no load-test; ⑥ small pool.
+> Forward mapping: ①→deploy at 2am; ②→blue-green + 1-click rollback; ③→online/idempotent migration; ④→min-instances≥2; ⑤→load-test first; ⑥→increase pool + measure.
+> **Hidden insight:** the biggest risk is the **deploy window + cold start**, which the forward plan never mentioned.
 
-## Phản ví dụ (anti-pattern)
-> ❌ G="tăng doanh thu" → "vậy đừng làm giảm doanh thu, đừng mất khách" → đảo **cơ học, tautology**, không ra failure-mode
-> cụ thể nào, không directive đòn bẩy. Inversion thật phải ra đường-hỏng **cụ thể, phi hiển nhiên** (vd "churn dồn tháng 13 do hợp đồng năm").
+## Counter-example (anti-pattern)
+> ❌ G="increase revenue" → "so don't decrease revenue, don't lose customers" → **mechanical, tautological** inversion, yields no
+> concrete failure-mode, no leverage directive. Real inversion must produce **concrete, non-obvious** failure paths (e.g. "churn spikes in month 13 due to annual contracts").
 
-## Phối hợp (LINK — không copy)
-- Dùng 1/nhiều chế độ + thứ tự → `core-synthesis-decision` §Orchestration.
-- Sau khi có directive mitigation → audit bằng `core-critic`; cần thêm phương án mới → `core-open-thinking`.
+## Coordination (LINK — no copy)
+- Using 1/several modes + the order → `core-synthesis-decision` §Orchestration.
+- After producing mitigation directives → audit with `core-critic`; need more new options → `core-open-thinking`.
 
 ## When to update
-- Khi thêm/bớt mode đảo hoặc đổi cách ánh-xạ-ngược. Ranh giới với `core-critic`/`core-open-thinking` đổi → sửa "Khi nào KHÔNG dùng".
+- When adding/removing an inversion mode or changing the back-mapping approach. If the boundary with `core-critic`/`core-open-thinking` changes → update "When NOT to use".

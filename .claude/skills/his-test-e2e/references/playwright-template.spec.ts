@@ -1,5 +1,5 @@
-// TEMPLATE — HIS Playwright page-load + functional. Copy vào frontend/e2e/<feature>-pages.spec.ts
-// (Prod smoke: copy vào frontend/e2e-prod/ và chạy với --config=playwright.prod.config.ts)
+// TEMPLATE — HIS Playwright page-load + functional. Copy into frontend/e2e/<feature>-pages.spec.ts
+// (Prod smoke: copy into frontend/e2e-prod/ and run with --config=playwright.prod.config.ts)
 import { test, expect, request as pwRequest } from '@playwright/test';
 
 const API = process.env.PW_API ?? 'http://localhost:5106/api';
@@ -11,11 +11,11 @@ const ROUTES = [
 
 const IGNORE_CONSOLE = [/SignalR/i, /\[HMR\]/, /\[vite\]/, /WebSocket/, /findDOMNode/, /useForm/];
 
-// Lấy token + inject localStorage trước khi vào app
+// Get the token + inject localStorage before entering the app
 async function authInit(page: any) {
   const ctx = await pwRequest.newContext();
   const r = await ctx.post(`${API}/auth/login`, { data: { username: 'admin', password: 'Admin@123' } });
-  const token = (await r.json())?.data?.token;            // token ở data.data.token
+  const token = (await r.json())?.data?.token;            // token is at data.data.token
   await page.addInitScript((t: string) => {
     localStorage.setItem('token', t);
     localStorage.setItem('user', JSON.stringify({ username: 'admin', roles: ['Admin'], permissions: ['*'] }));

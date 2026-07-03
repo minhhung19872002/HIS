@@ -7,51 +7,51 @@ metadata:
 
 # HIS WebAuthn Biometric Signature
 
-> TẦNG: **B · PROJECT/HIS** (system). Depend: `core-types-contract`, `core-error-loading-state`, `his-fe-api-client`.
+> TIER: **B · PROJECT/HIS** (system). Depends: `core-types-contract`, `core-error-loading-state`, `his-fe-api-client`.
 
-Skill cho chức năng **ký HSBA bằng sinh trắc (WebAuthn FIDO2)** — BN đăng ký vân tay/FaceID rồi ký document. Luồng 2 pha (begin → browser → finish), khác hẳn page REST thường nên cần skill riêng.
+A skill for **signing medical records by biometrics (WebAuthn FIDO2)** — a patient registers a fingerprint/FaceID then signs a document. A 2-phase flow (begin → browser → finish), quite different from a normal REST page so it needs its own skill.
 
-## Khi nào dùng
-- Thêm/sửa luồng đăng ký credential (register) hoặc ký (sign) sinh trắc.
-- Đụng `navigator.credentials.create()/get()`, endpoint `/api/biometric/*`, page `BiometricEnrollment`.
-- Fix lỗi WebAuthn (RpId, HTTPS, allowCredentials).
+## When to use
+- Adding/editing the credential register flow or the biometric sign flow.
+- Touching `navigator.credentials.create()/get()`, the `/api/biometric/*` endpoints, the `BiometricEnrollment` page.
+- Fixing a WebAuthn error (RpId, HTTPS, allowCredentials).
 
-## Khi nào KHÔNG dùng
-- Page list/detail thường → `his-fe-page-v2`.
-- Ký số tập trung CKS/USB token (Pkcs11) → đó là module khác (digital-signature/central-signing).
-- Gọi REST đơn thuần → `his-fe-api-client`.
+## When NOT to use
+- A normal list/detail page → `his-fe-page-v2`.
+- Central digital signing CKS/USB token (Pkcs11) → that's a different module (digital-signature/central-signing).
+- Plain REST calls → `his-fe-api-client`.
 
-## Kiến trúc (NangCap24)
+## Architecture (NangCap24)
 - BE: `BiometricSignatureService` · controller `/api/biometric` · entity `BiometricCredential` + `BiometricSignatureLog`.
 - FE: `pages-v2/BiometricEnrollment.tsx` + `api/nangcap24.ts` (object `biometric`).
-- Luồng **2 pha**:
-  - **Register**: `POST /register-begin` (trả `challenge`,`userHandle`,`rpId`,`rpName`) → browser `navigator.credentials.create()` → `POST /register-finish` (gửi `credentialId`,`publicKey`,`clientDataJson`,`attestationObject`).
-  - **Sign**: `POST /sign-begin` (trả `challenge`,`allowCredentials[]`) → browser `navigator.credentials.get()` → `POST /sign-finish` (gửi `signature`,`authenticatorData`,`clientDataJson`).
+- The **2-phase** flow:
+  - **Register**: `POST /register-begin` (returns `challenge`,`userHandle`,`rpId`,`rpName`) → browser `navigator.credentials.create()` → `POST /register-finish` (sends `credentialId`,`publicKey`,`clientDataJson`,`attestationObject`).
+  - **Sign**: `POST /sign-begin` (returns `challenge`,`allowCredentials[]`) → browser `navigator.credentials.get()` → `POST /sign-finish` (sends `signature`,`authenticatorData`,`clientDataJson`).
   - List/revoke: `GET /credentials/{patientId}`, `DELETE /credentials/{id}`.
 
-## Quy trình chuẩn
-1. **API client**: thêm/sửa hàm trong `api/nangcap24.ts` object `biometric` (begin/finish, list, revoke) — theo `his-fe-api-client`.
-2. **Browser flow**: convert base64url ↔ ArrayBuffer cho `challenge`/`credentialId`/`publicKey`/`signature` (WebAuthn dùng BufferSource). Xem `references/webauthn-flow.ts`.
-3. **UI**: trong `BiometricEnrollment.tsx` — chọn BN → register → list credential (status active/revoked, usageCount) → sign document → revoke. State/empty/error theo `core-error-loading-state`.
-4. **Verify**: cần **HTTPS** (prod Vercel/Cloud Run) + thiết bị authenticator. KHÔNG test được qua curl/headless → manual.
+## Standard process
+1. **API client**: add/edit functions in `api/nangcap24.ts` object `biometric` (begin/finish, list, revoke) — per `his-fe-api-client`.
+2. **Browser flow**: convert base64url ↔ ArrayBuffer for `challenge`/`credentialId`/`publicKey`/`signature` (WebAuthn uses BufferSource). See `references/webauthn-flow.ts`.
+3. **UI**: in `BiometricEnrollment.tsx` — select a patient → register → list credentials (status active/revoked, usageCount) → sign a document → revoke. State/empty/error per `core-error-loading-state`.
+4. **Verify**: needs **HTTPS** (prod Vercel/Cloud Run) + an authenticator device. Cannot test via curl/headless → manual.
 
-## Điều kiện BẮT BUỘC
-- **HTTPS** (hoặc `localhost`) — WebAuthn không chạy trên `http://<ip>`.
-- **RpId** = domain (vd `his-psi.vercel.app`); không khớp domain → browser từ chối.
-- Cần thiết bị có authenticator (Touch ID / Windows Hello / FIDO2 key).
+## MANDATORY conditions
+- **HTTPS** (or `localhost`) — WebAuthn doesn't run over `http://<ip>`.
+- **RpId** = the domain (e.g. `his-psi.vercel.app`); a domain mismatch → the browser refuses.
+- Needs a device with an authenticator (Touch ID / Windows Hello / FIDO2 key).
 
-## ⚠️ Known risk (đã ghi trong docs/features/nangcap24)
-- `FinishSignAsync` hiện **MVP: accept signature** — `IsVerified=true` khi credential active, **CHƯA verify chữ ký ECDSA/RSA thật** (COSE key). KHÔNG dùng làm chữ ký pháp lý cho tới khi wire `Fido2NetLib`. Khi sửa luồng phải giữ/đánh dấu rõ điểm này.
-- `SignatureCounter` chưa kiểm tra (replay/clone risk).
+## ⚠️ Known risk (noted in docs/features/nangcap24)
+- `FinishSignAsync` is currently an **MVP: accept signature** — `IsVerified=true` when the credential is active, **NOT yet verifying the real ECDSA/RSA signature** (COSE key). Do NOT use it as a legal signature until `Fido2NetLib` is wired. When editing the flow, keep/clearly mark this point.
+- `SignatureCounter` is not checked yet (replay/clone risk).
 
 ## Pitfalls
-- Quên convert base64url ↔ ArrayBuffer → browser API throw.
-- Test E2E: WebAuthn KHÔNG chạy headless → đánh dấu `skip` hoặc test bằng virtual authenticator (CDP). Xem `his-test-e2e`.
-- Credential revoke rồi vẫn gửi sign → `isVerified:false, error="...thu hồi"` (xử lý UI).
+- Forgetting to convert base64url ↔ ArrayBuffer → the browser API throws.
+- E2E test: WebAuthn does NOT run headless → mark it `skip` or test with a virtual authenticator (CDP). See `his-test-e2e`.
+- Sending a sign after the credential is revoked → `isVerified:false, error="...revoked"` (handle in the UI).
 
 ## Reference
-- `references/webauthn-flow.ts` — mẫu register/sign 2 pha + base64url↔buffer helper
+- `references/webauthn-flow.ts` — a 2-phase register/sign sample + base64url↔buffer helper
 
 ## When to update
-- Khi wire verify chữ ký thật (Fido2NetLib) → bỏ cảnh báo MVP.
-- Khi đổi endpoint/DTO `/api/biometric`.
+- When wiring real signature verification (Fido2NetLib) → drop the MVP warning.
+- When changing the `/api/biometric` endpoint/DTO.

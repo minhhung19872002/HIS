@@ -7,40 +7,40 @@ metadata:
 
 # Core — Validation Pattern (portable)
 
-> TẦNG: **A · CORE** (dùng chung, tech-agnostic).
+> TIER: **A · CORE** (shared, tech-agnostic).
 
 ## Purpose
-Validate input đúng nguyên tắc: **không tin client**, FE và BE **nhất quán rule**, lỗi rõ ràng cho người dùng.
+Validate input the right way: **don't trust the client**, FE and BE **consistent rules**, clear errors for the user.
 
-## Khi nào dùng
-- Thêm validate cho form/payload/request.
-- Định nghĩa required / range / format / business rule trên input.
-- Đồng bộ rule FE ↔ BE.
+## When to use
+- Adding validation for a form/payload/request.
+- Defining required / range / format / business rules on input.
+- Aligning FE ↔ BE rules.
 
-## Khi nào KHÔNG dùng
-- Cú pháp lib validate cụ thể → skill `his-*` (form/backend) hiện thực.
+## When NOT to use
+- A specific validation lib's syntax → the `his-*` skill (form/backend) implements it.
 
-## Nguyên tắc
-1. **Server là chốt chặn cuối**: BE PHẢI validate dù FE đã validate. FE validate để UX, BE validate để an toàn.
-2. **Cùng một rule 2 phía**: required/range/format khớp nhau (tránh FE cho qua mà BE chặn hoặc ngược lại).
-3. **Một nguồn rule nếu có thể**: chia sẻ/đồng bộ định nghĩa rule thay vì viết tay 2 nơi lệch nhau.
-4. **Lỗi rõ ràng**: trả message + field bị lỗi, dễ hiểu cho người dùng/QA.
-5. **Validate ở biên**: kiểm tra ngay khi nhận input, trước khi xử lý nghiệp vụ.
-6. **Business rule** (vd điều kiện hợp lệ theo nghiệp vụ) tách khỏi format validation, đặt đúng tầng domain.
+## Principles
+1. **Server is the last gate**: the BE MUST validate even if the FE already did. FE validates for UX, BE validates for safety.
+2. **Same rule on both sides**: required/range/format match (avoid FE letting it through while BE blocks, or vice versa).
+3. **One rule source if possible**: share/sync the rule definition instead of hand-writing two divergent copies.
+4. **Clear errors**: return the message + the failing field, easy for the user/QA.
+5. **Validate at the boundary**: check right when receiving input, before business processing.
+6. **Business rules** (e.g. business-level validity conditions) separated from format validation, placed in the right domain tier.
 
 ## Steps
-1. Liệt kê field + rule (required/range/format/business).
-2. Hiện thực ở BE (chốt chặn) + FE (UX), khớp nhau.
-3. Trả lỗi có field + message.
+1. List the fields + rules (required/range/format/business).
+2. Implement on the BE (the gate) + FE (UX), matching.
+3. Return an error with field + message.
 
-## Anti-patterns cần tránh
-- Chỉ validate ở FE, tin client → BE nhận rác.
-- Rule FE/BE lệch nhau → UX khó hiểu.
-- Nuốt lỗi validate / message mơ hồ.
-- Trộn format-validation với business-rule lẫn lộn 1 chỗ.
+## Anti-patterns to avoid
+- Validating only on the FE, trusting the client → the BE receives garbage.
+- FE/BE rules diverge → confusing UX.
+- Swallowing a validation error / a vague message.
+- Mixing format-validation with business-rule in one place.
 
 ## Dependency
-- Kèm `core-types-contract` (contract + validate đi đôi). Skill `his-*` (form, backend) depend.
+- Goes with `core-types-contract` (contract + validate go together). The `his-*` skills (form, backend) depend on it.
 
 ## When to update
-- Khi bổ sung nguyên tắc validate chung.
+- When adding a general validation principle.

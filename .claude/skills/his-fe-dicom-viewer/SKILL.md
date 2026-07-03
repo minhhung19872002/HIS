@@ -7,49 +7,49 @@ metadata:
 
 # HIS DICOM Viewer (Cornerstone3D)
 
-> TẦNG: **B · PROJECT/HIS** (system). Depend: `core-reusable-code`, `core-error-loading-state`.
+> TIER: **B · PROJECT/HIS** (system). Depends: `core-reusable-code`, `core-error-loading-state`.
 
-Skill cho **component viewer DICOM** dùng **Cornerstone3D** (full-bleed, không phải page list/detail). Gồm StackViewport + MPR/3D + MIP/MinIP + Cine + Mammography. Tích hợp vào `pages/DicomViewer.tsx`.
+A skill for the **DICOM viewer component** using **Cornerstone3D** (full-bleed, not a list/detail page). Includes StackViewport + MPR/3D + MIP/MinIP + Cine + Mammography. Integrated into `pages/DicomViewer.tsx`.
 
-## Khi nào dùng
-- Sửa/thêm `CornerstoneViewer`, `MprViewer`, `MipMinIpViewer`, `CineControls`, `MammoViewer`, `DicomViewer`.
-- Thêm tool (W/L, zoom, pan, length, angle), projection (MIP/MinIP), cine, hanging protocol mammo.
-- Load ảnh DICOM qua PACS proxy → render Cornerstone3D.
+## When to use
+- Editing/adding `CornerstoneViewer`, `MprViewer`, `MipMinIpViewer`, `CineControls`, `MammoViewer`, `DicomViewer`.
+- Adding a tool (W/L, zoom, pan, length, angle), projection (MIP/MinIP), cine, mammo hanging protocol.
+- Loading DICOM images via the PACS proxy → render Cornerstone3D.
 
-## Khi nào KHÔNG dùng
-- Page list/detail (`/v2/*`) → `his-fe-page-v2`.
-- CRUD phiếu CĐHA / kết quả RIS → backend/page skill thường.
-- DICOM auto-send/transmission (gửi study sang PACS) → đó là backend (`his-be-module-scaffold`/feature riêng), không phải viewer.
+## When NOT to use
+- A list/detail page (`/v2/*`) → `his-fe-page-v2`.
+- Imaging-order / RIS-report CRUD → the normal backend/page skill.
+- DICOM auto-send/transmission (sending a study to PACS) → that's backend (`his-be-module-scaffold`/a separate feature), not the viewer.
 
-## Kiến trúc (NangCap24/15)
-- Component: `frontend/src/components/{CornerstoneViewer, MprViewer, MipMinIpViewer, CineControls, MammoViewer}.tsx`.
-- Tích hợp vào `pages/DicomViewer.tsx` (route `/radiology/viewer` / `/v2/radiology/viewer` — **full-bleed**, giữ chrome riêng, KHÔNG theo khuôn `_v2kit`).
-- **Lấy ảnh**: imageIds dạng `wadouri:` trỏ về **backend PACS proxy** (`/api/RISComplete/pacs/instances/{id}/file` — AllowAnonymous, proxy Orthanc Basic Auth). FE prepend `API_ORIGIN` cho path tương đối.
+## Architecture (NangCap24/15)
+- Components: `frontend/src/components/{CornerstoneViewer, MprViewer, MipMinIpViewer, CineControls, MammoViewer}.tsx`.
+- Integrated into `pages/DicomViewer.tsx` (route `/radiology/viewer` / `/v2/radiology/viewer` — **full-bleed**, keeps its own chrome, does NOT follow the `_v2kit` frame).
+- **Image source**: imageIds in `wadouri:` form pointing to the **backend PACS proxy** (`/api/RISComplete/pacs/instances/{id}/file` — AllowAnonymous, proxies Orthanc Basic Auth). The FE prepends `API_ORIGIN` for a relative path.
 - Engine: Cornerstone3D 3.x — `RenderingEngine`, `StackViewport`/`VolumeViewport`, `ToolGroupManager`, `volumeLoader`, `setVolumesForViewports`, `CONSTANTS.VIEWPORT_PRESETS`.
 
-## Quy trình chuẩn
-1. **Reuse trước** (`core-reusable-code`): xem `CornerstoneViewer.tsx`/`MprViewer.tsx` đã có — extend thay vì viết lại engine.
-2. **Component**: dynamic `import()` Cornerstone3D (bundle nặng ~830KB gz) để chỉ tải khi mở viewer; bootstrap worker; ResizeObserver theo dõi kích thước.
-3. **Load**: lấy imageIds (`wadouri:` + PACS proxy URL), `viewport.setStack`/`volumeLoader.createAndCacheVolume` → `setVolumesForViewports` → `volume.load()`.
-4. **Tools/projection/cine** qua ToolGroup; MIP/MinIP qua blendMode; cine loop qua frame index.
-5. **State**: loading volume %, empty (study <N slice → fallback message), error (PACS unreachable) — theo `core-error-loading-state`.
-6. **Verify**: cần study DICOM trên PACS (vd ACRIN CT 135 slice trên R2). Build `npm run build` (chú ý chunk vendor-cornerstone).
+## Standard process
+1. **Reuse first** (`core-reusable-code`): look at the existing `CornerstoneViewer.tsx`/`MprViewer.tsx` — extend instead of rewriting the engine.
+2. **Component**: dynamic `import()` Cornerstone3D (heavy bundle ~830KB gz) so it only loads when the viewer opens; bootstrap the worker; ResizeObserver tracks the size.
+3. **Load**: get imageIds (`wadouri:` + PACS proxy URL), `viewport.setStack`/`volumeLoader.createAndCacheVolume` → `setVolumesForViewports` → `volume.load()`.
+4. **Tools/projection/cine** via a ToolGroup; MIP/MinIP via blendMode; cine loop via frame index.
+5. **State**: volume loading %, empty (study < N slices → fallback message), error (PACS unreachable) — per `core-error-loading-state`.
+6. **Verify**: needs a DICOM study on PACS (e.g. ACRIN CT 135 slices on R2). Build `npm run build` (mind the vendor-cornerstone chunk).
 
-## Vite config (đã có — đừng phá)
-- `worker.format: 'es'` (iife vỡ code-split worker cornerstone).
-- `optimizeDeps.exclude` cho `@cornerstonejs/dicom-image-loader` + codec WASM.
-- manualChunk `vendor-cornerstone` tách engine khỏi bundle chính.
+## Vite config (exists — don't break it)
+- `worker.format: 'es'` (iife breaks the cornerstone worker code-split).
+- `optimizeDeps.exclude` for `@cornerstonejs/dicom-image-loader` + codec WASM.
+- manualChunk `vendor-cornerstone` splits the engine off the main bundle.
 
-## Pitfalls (đã dính)
-- **URL ảnh tương đối** → `<img>`/loader resolve về Vercel (404) thay vì Cloud Run. Prepend `API_ORIGIN`; regex match cả `/preview` lẫn `/rendered`.
-- **worker iife** → build vỡ. Giữ `worker.format:'es'`.
-- **volume.load() trước setVolumesForViewports** → preset 3D không áp. Thứ tự: createVolume → setVolumesForViewports → load.
-- **CS3D 3.x layout**: `volumeLoader`/`setVolumesForViewports` export từ `@cornerstonejs/core` (khác 2.x). `OrientationAxis` ở `Enums`.
-- **Route** là `/radiology/viewer` (App.tsx), dễ gõ nhầm `/dicom-viewer`.
-- Antd v6 Button + `data-testid` không forward ổn → E2E dùng `getByRole('button',{name})`.
+## Pitfalls (hit before)
+- **Relative image URL** → `<img>`/loader resolves to Vercel (404) instead of Cloud Run. Prepend `API_ORIGIN`; the regex matches both `/preview` and `/rendered`.
+- **worker iife** → broken build. Keep `worker.format:'es'`.
+- **volume.load() before setVolumesForViewports** → the 3D preset isn't applied. Order: createVolume → setVolumesForViewports → load.
+- **CS3D 3.x layout**: `volumeLoader`/`setVolumesForViewports` export from `@cornerstonejs/core` (different from 2.x). `OrientationAxis` is in `Enums`.
+- **Route** is `/radiology/viewer` (App.tsx), easy to mistype as `/dicom-viewer`.
+- Antd v6 Button + `data-testid` doesn't forward reliably → E2E uses `getByRole('button',{name})`.
 
 ## Reference
-- `references/viewer-component-template.tsx` — khung component Cornerstone3D (StackViewport + tool + overlay slot)
+- `references/viewer-component-template.tsx` — a Cornerstone3D component frame (StackViewport + tool + overlay slot)
 
 ## When to update
-- Khi nâng Cornerstone3D major, đổi PACS proxy route, hoặc thêm chế độ viewer mới.
+- When upgrading a Cornerstone3D major, changing the PACS proxy route, or adding a new viewer mode.

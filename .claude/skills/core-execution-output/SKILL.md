@@ -7,74 +7,74 @@ metadata:
 
 # Core — Execution Output Discipline (portable)
 
-> TẦNG: **A · CORE** (discipline, tech-agnostic). Guardrail **luôn bật** khi báo cáo kết quả chạy lệnh/tool.
-> Hành xử như kỹ sư senior: mặc định cập nhật trạng thái ngắn gọn, chỉ bung chi tiết khi cần.
+> TIER: **A · CORE** (discipline, tech-agnostic). Guardrail **always on** when reporting command/tool output.
+> Behave like a senior engineer: short status updates by default, expand detail only when needed.
 
-## (2) Vấn đề skill giải quyết
-Đổ log thô, stream từng lệnh bash, in lại output thăm dò lặp lại, lộ đường dẫn temp / poll task nền →
-nhiễu, khó đọc, chôn vùi tín hiệu. Skill chuẩn hoá: **ngắn gọn theo mặc định, tự bung khi lỗi, an toàn không che giấu.**
+## (2) The problem this skill solves
+Dumping raw logs, streaming every bash command, reprinting repeated probe output, leaking temp paths / background-poll →
+noise, hard to read, buries the signal. This skill standardizes: **concise by default, auto-expand on failure, safety never hidden.**
 
-## (3) Vì sao AI hay fail ở đây
-- Dán nguyên output tool/log thô cho user.
-- Tường thuật từng bước nội bộ (grep/glob/poll task nền/đường dẫn temp).
-- In lại nhiều lần cùng một thăm dò.
-- Tệ hơn: tóm tắt "xanh" che mất 1 test/bước đã fail (giả mạo tiến trình).
+## (3) Why AI fails here
+- Pastes raw tool/log output to the user.
+- Narrates every internal step (grep/glob/background-task poll/temp path).
+- Reprints the same probe multiple times.
+- Worse: a "green" summary hiding a failed test/step (faking progress).
 
-## (4) Khi nào dùng (kích hoạt)
-- MỌI task có chạy lệnh/tool và báo cáo lại cho user (luôn áp).
+## (4) When to use (triggers)
+- EVERY task that runs commands/tools and reports back (always applied).
 
-## (5) Khi nào KHÔNG dùng
-- Hỏi-đáp/thiết kế thuần, không chạy lệnh.
-- Khi user **bật debug/verbose** hoặc **yêu cầu log thô** → chuyển chế độ chi tiết (mục 6).
-- Quyết định LÀM GÌ → các skill kỷ luật khác (clarify/verify/impact/minimal).
+## (5) When NOT to use
+- Q&A/pure design, no commands run.
+- When the user **enables debug/verbose** or **asks for raw logs** → switch to detailed mode (section 6).
+- Deciding WHAT to do → the other discipline skills (clarify/verify/impact/minimal).
 
-## (6) Workflow — 3 chế độ
-**CONCISE (mặc định):** tóm tắt theo cụm hành động, dòng tín hiệu cao. Mẫu ưu tiên:
-`Đã cài deps · giải quyết xung đột merge · build FE OK · cập nhật 6 file · 473/473 test pass.`
-KHÔNG: log thô, đường dẫn temp, dump thăm dò, trace từng lệnh, poll task nền.
+## (6) Workflow — 3 modes
+**CONCISE (default):** summarize by action group, high-signal lines. Preferred template:
+`Installed deps · resolved the merge conflict · FE build OK · updated 6 files · 473/473 tests pass.`
+NOT: raw logs, temp paths, probe dumps, per-command traces, background-task poll.
 
-**Báo cáo THAY ĐỔI CODE (mặc định collapse diff):** KHÔNG in full patch/diff preview cho mỗi file.
-Chỉ tóm tắt: **(1) file nào sửa · (2) thay đổi gì ở mức cao · (3) lý do**. Mẫu:
-`Updated Reception.tsx · thêm helper trích lỗi API · hiện lỗi server thật cho user.`
-Chỉ **bung diff đầy đủ** khi: user yêu cầu · refactor lớn/rủi ro · logic security/auth · migration/schema ·
-thao tác phá huỷ · debug/review mode · build/test fail. (Vẫn LUÔN nêu rõ thao tác nguy hiểm — mục 7.)
+**Reporting CODE CHANGES (collapse the diff by default):** do NOT print the full patch/diff preview per file.
+Just summarize: **(1) which files changed · (2) what changed at a high level · (3) why**. Template:
+`Updated Reception.tsx · added an API-error extraction helper · shows the real server error to the user.`
+Only **expand the full diff** when: the user asks · a large/risky refactor · security/auth logic · migration/schema ·
+a destructive op · debug/review mode · build/test fail. (Still ALWAYS surface dangerous ops — section 7.)
 
-**AUTO-EXPAND (tự bật khi lỗi):** kích hoạt khi — build fail · test fail · exit ≠ 0 · migration fail ·
-git conflict · timeout · runtime error · thao tác nhạy cảm bảo mật · user yêu cầu. Khi đó:
-- hiện **đúng lệnh bị lỗi** + stderr/stdout **liên quan nguyên nhân gốc** (không kèm log vô quan);
-- **tóm tắt lỗi có thể hành động** (nguyên nhân → cách sửa).
+**AUTO-EXPAND (auto on failure):** triggered when — build fail · test fail · exit ≠ 0 · migration fail ·
+git conflict · timeout · runtime error · security-sensitive op · user asks. Then:
+- show the **exact failing command** + the stderr/stdout **relevant to the root cause** (no irrelevant log);
+- **an actionable error summary** (cause → fix).
 
-**DEBUG (chỉ khi user bật rõ):** full command trace, full shell output, log task nền, log thăm dò.
+**DEBUG (only when the user explicitly enables):** full command trace, full shell output, background-task log, probe log.
 
-## (7) Quy tắc & giới hạn an toàn (override mọi chế độ — kể cả CONCISE)
-- KHÔNG che giấu lỗi nghiêm trọng; KHÔNG giả mạo tiến trình; KHÔNG tuyên bố "thành công" khi **chưa verify** (pair `core-verify-before-assert`).
-- LUÔN nêu rõ **thao tác nguy hiểm/phá huỷ** dù đang concise: `rm`/xoá tệp, `git reset --hard`/force-push/rebase, migration/drop/seed DB, cài/gỡ package, đổi env/secret, quyền/bảo mật.
-- "Ngắn gọn" ≠ "giấu lỗi". Nếu có bước fail → bung phần đó, không gói dưới tóm tắt xanh.
+## (7) Safety rules & limits (override every mode — even CONCISE)
+- Do NOT hide critical errors; do NOT fake progress; do NOT declare "success" when **not verified** (pair with `core-verify-before-assert`).
+- ALWAYS surface a **dangerous/destructive op** even when concise: `rm`/delete files, `git reset --hard`/force-push/rebase, migration/drop/seed DB, install/uninstall a package, change env/secret, permission/security.
+- "Concise" ≠ "hide errors". If a step failed → expand that part, don't wrap it under a green summary.
 
-## (8) Input kỳ vọng
-Kết quả thực thi lệnh/tool (stdout/stderr/exit code) + ngữ cảnh task.
+## (8) Expected input
+The command/tool execution result (stdout/stderr/exit code) + task context.
 
-## (9) Output kỳ vọng
-- Bình thường: 1–vài dòng trạng thái tín hiệu cao + (nếu có) liệt kê thao tác nguy hiểm.
-- Khi lỗi: lệnh lỗi + log nguyên nhân gốc + tóm tắt hành động.
-- Debug: trace đầy đủ.
+## (9) Expected output
+- Normal: 1–few high-signal status lines + (if any) a list of dangerous ops.
+- On error: the failing command + root-cause log + an action summary.
+- Debug: the full trace.
 
-## (10) Ví dụ (HIS)
-- **Concise OK:** "Đã rebase trên origin (giữ stash) · build FE OK (2m) · push 2 commit · main đồng bộ."
-- **Bung khi lỗi:** thay vì dán cả build log → "`dotnet build` FAIL: `SpecialtyEmrService.cs:74` CS0117 — `IcdCode` không tồn tại. Sửa: dùng `IcdName`." + đúng dòng lỗi.
-- **Nêu thao tác phá huỷ (dù concise):** "⚠️ `git reset --hard HEAD` (stash vẫn giữ) · xoá `HIS.bak` · drop+import DB `HIS` trên Cloud SQL."
-- **Tránh:** không in 30 dòng warning `LF→CRLF`, không liệt kê từng `Grep`/đường dẫn temp/poll task nền.
+## (10) Examples (HIS)
+- **Concise OK:** "Rebased on origin (kept the stash) · FE build OK (2m) · pushed 2 commits · main in sync."
+- **Expand on error:** instead of pasting the whole build log → "`dotnet build` FAIL: `SpecialtyEmrService.cs:74` CS0117 — `IcdCode` doesn't exist. Fix: use `IcdName`." + the exact error line.
+- **Surface a destructive op (even concise):** "⚠️ `git reset --hard HEAD` (stash kept) · deleted `HIS.bak` · drop+import DB `HIS` on Cloud SQL."
+- **Avoid:** don't print 30 lines of `LF→CRLF` warnings, don't list every `Grep`/temp path/background-task poll.
 
-## (11) Anti-pattern / lỗi điển hình
-- Stream từng lệnh bash + dán nguyên stdout cho mọi bước.
-- In lại nhiều lần cùng kết quả grep/glob thăm dò.
-- Lộ đường dẫn temp, tường thuật poll task nền.
-- Tóm tắt "hoàn thành/xanh" trong khi có test/bước đã fail → **vi phạm an toàn**.
-- Nói "đã chạy thành công" mà chưa kiểm chứng exit code.
+## (11) Anti-pattern / typical mistakes
+- Streaming every bash command + pasting the whole stdout for each step.
+- Reprinting the same grep/glob probe result multiple times.
+- Leaking temp paths, narrating background-task polls.
+- A "done/green" summary while a test/step has failed → a **safety violation**.
+- Saying "ran successfully" without checking the exit code.
 
-## (12) Tích hợp + cấu trúc tệp
-- **Luôn bật** cùng mọi task; pair `core-verify-before-assert` (không claim success khi chưa verify) + `his-qa-anti-pattern` (nêu thao tác phá huỷ, cảnh báo bảo mật).
-- `references/output-modes.md` — bảng 3 chế độ + danh sách trigger auto-expand + checklist thao tác phá huỷ.
+## (12) Integration + file structure
+- **Always on** with every task; pair with `core-verify-before-assert` (no claiming success unverified) + `his-qa-anti-pattern` (surface destructive ops, security warnings).
+- `references/output-modes.md` — the 3-mode table + the auto-expand trigger list + the destructive-op checklist.
 
 ## When to update
-- Khi thêm loại "thao tác phá huỷ phải luôn nêu" mới, hoặc đổi quy ước bật debug/verbose.
+- When adding a new "must-always-surface destructive op" kind, or changing the debug/verbose enabling convention.

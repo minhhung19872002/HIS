@@ -7,118 +7,118 @@ metadata:
 
 # HIS Anti-Patterns & Safety Guardrails
 
-Skill "phòng thủ" — danh sách điều **KHÔNG được làm** trong HIS + ràng buộc patient-safety / audit / pháp lý. Áp dụng cho MỌI task sinh/sửa code (BE/FE/SQL/test) và khi review diff trước commit. Đọc cùng skill chuyên môn liên quan.
+A "defensive" skill — the list of things you **must NOT do** in HIS + patient-safety / audit / legal constraints. Applies to EVERY code gen/edit task (BE/FE/SQL/test) and when reviewing a diff before commit. Read alongside the related specialty skill.
 
-## 🔴🔴 P0 TỐI THƯỢNG — KHÔNG ẢO TƯỞNG / KHÔNG BỊA ĐẶT (nền tảng mọi rule khác)
+## 🔴🔴 SUPREME P0 — NO HALLUCINATION / NO FABRICATION (the foundation of every other rule)
 
-> **TUYỆT ĐỐI KHÔNG** ảo tưởng · suy diễn · giả định · giả tạo · tự nghĩ ra rồi thêm vào.
-> **KHÔNG tự phát minh** file / hàm / class / component / endpoint / field / cột DB / prop / config key /
-> cấu trúc logic / luồng dữ liệu **không tồn tại** trong codebase hiện tại.
+> **ABSOLUTELY DO NOT** hallucinate · infer · assume · fabricate · make something up and add it.
+> **Do NOT invent** a file / function / class / component / endpoint / field / DB column / prop / config key /
+> logic structure / data flow that **does not exist** in the current codebase.
 >
-> - Trước khi tham chiếu/sửa/khẳng định bất cứ thứ gì → **PHẢI verify** bằng Read/Grep/Glob trong code thật
->   (`core-verify-before-assert`). Chỉ nói "có/làm X" khi **đã thấy tận nơi**.
-> - Tách bạch **"đã verify"** vs **"giả định"**: nếu chưa kiểm được → ghi rõ "giả định/chưa verify",
->   KHÔNG trình bày phỏng đoán như sự thật.
-> - Không chắc / thiếu dữ kiện → **DỪNG hỏi user** (`core-requirement-clarify`), KHÔNG đoán bừa rồi code.
-> - Nhớ từ memory/work-log/tài liệu cũ → vẫn phải **verify lại** file/symbol còn tồn tại trước khi dùng.
-> - Vi phạm rule này làm hỏng mọi rule khác (code dựa trên thứ không có thật) → mức **P0 cao nhất**.
+> - Before referencing/editing/asserting anything → you **MUST verify** via Read/Grep/Glob in the real code
+>   (`core-verify-before-assert`). Only say "X exists/does" when you've **seen it firsthand**.
+> - Separate **"verified"** vs **"assumed"**: if you can't check it → clearly write "assumed/not verified",
+>   do NOT present a guess as fact.
+> - Unsure / missing facts → **STOP and ask the user** (`core-requirement-clarify`), do NOT guess and code.
+> - Recalling from memory/work-log/old docs → you still must **re-verify** the file/symbol still exists before using it.
+> - Violating this rule breaks every other rule (code based on something unreal) → the **highest P0**.
 
-## Khi nào dùng
+## When to use
 
-- Trước/khi sinh hoặc refactor bất kỳ code HIS nào.
-- Khi review diff / chuẩn bị commit.
-- Khi không chắc một cách làm có vi phạm convention/an toàn không.
+- Before/while generating or refactoring any HIS code.
+- When reviewing a diff / preparing to commit.
+- When unsure whether an approach violates a convention/safety rule.
 
-## Khi nào KHÔNG dùng
+## When NOT to use
 
-- Không phải skill code-gen — không tự tạo file. Dùng kèm skill khác.
+- Not a code-gen skill — it doesn't create files. Use it alongside another skill.
 
-## ❌ NEVER — Kiến trúc / Backend
+## ❌ NEVER — Architecture / Backend
 
-1. **Quên đăng ký DI** service/controller mới trong `DependencyInjection.cs` → **500 runtime** không stack trace rõ. Luôn kiểm tra DI đầu tiên khi 500. (xem `his-be-module-scaffold`)
-2. **Đề xuất / dùng CQRS, MediatR, FastEndpoints, Minimal API, Next.js, shadcn, Tailwind-first** — dự án KHÔNG dùng. Giữ Controller+Service / React+Vite+Antd / _v2kit.
-3. **`dotnet ef migrations`** trông cậy auto-apply — dự án IGNORE pending model changes. Phải viết SQL script tay đánh số `NN_*.sql` (xem `his-db-migration`).
-4. **Đổi architecture / refactor lớn không yêu cầu**. Giữ 4-layer, giữ behavior.
-5. **`try/catch` nuốt exception trong service** rồi return rỗng (che lỗi). Để middleware/controller xử lý.
-6. **Inject scoped (DbContext) vào singleton** → lỗi scope. Dùng `IServiceScopeFactory` nếu cần.
+1. **Forgetting to register DI** for a new service/controller in `DependencyInjection.cs` → a **500 runtime** with no clear stack trace. Always check DI first on a 500. (see `his-be-module-scaffold`)
+2. **Proposing / using CQRS, MediatR, FastEndpoints, Minimal API, Next.js, shadcn, Tailwind-first** — the project does NOT use them. Keep Controller+Service / React+Vite+Antd / _v2kit.
+3. **`dotnet ef migrations`** relying on auto-apply — the project IGNOREs pending model changes. You must write a hand-written numbered SQL script `NN_*.sql` (see `his-db-migration`).
+4. **Changing the architecture / a large refactor not requested**. Keep the 4-layer, keep behavior.
+5. **`try/catch` swallowing an exception in a service** then returning empty (hiding the error). Let the middleware/controller handle it.
+6. **Injecting a scoped (DbContext) into a singleton** → a scope error. Use `IServiceScopeFactory` if needed.
 
 ## ❌ NEVER — Frontend / Test
 
-7. **`cy.intercept('**/*')`** → bắt Vite HMR/WebSocket/Google Fonts → ECONNRESET/ENOTFOUND flaky. Luôn `**/api/**`.
-8. **Login qua form UI trong test** → chậm/flaky. Dùng API token + set localStorage (xem `his-test-e2e`).
-9. **`console.error` cho lỗi API kỳ vọng** → fail smoke `console-errors.cy.ts`. Dùng `console.warn`.
-10. **Antd deprecated props** (`Space direction`, `Alert message`, `Drawer width`, `destroyOnClose`...) → dùng API v6 (xem `his-fe-antd-v6`).
-11. **Trộn v1/v2 UI** (import `_v2kit`/`ab-*` vào page Antd v1 hoặc ngược lại).
-12. **Chỉ chạy `tsc --noEmit`** rồi commit — `tsc -b` (Vercel build) nghiêm hơn. Luôn `npm run build` trước commit/deploy.
+7. **`cy.intercept('**/*')`** → catches Vite HMR/WebSocket/Google Fonts → ECONNRESET/ENOTFOUND flaky. Always `**/api/**`.
+8. **Logging in via the UI form in a test** → slow/flaky. Use an API token + set localStorage (see `his-test-e2e`).
+9. **`console.error` for an expected API error** → fails the `console-errors.cy.ts` smoke. Use `console.warn`.
+10. **Antd deprecated props** (`Space direction`, `Alert message`, `Drawer width`, `destroyOnClose`...) → use the v6 API (see `his-fe-antd-v6`).
+11. **Mixing v1/v2 UI** (importing `_v2kit`/`ab-*` into an Antd v1 page or vice versa).
+12. **Running only `tsc --noEmit`** then committing — `tsc -b` (the Vercel build) is stricter. Always `npm run build` before commit/deploy.
 
 ## ❌ NEVER — Deploy / Data
 
-13. **Push code BE rồi tưởng đã deploy** — Cloud Run KHÔNG auto-deploy. Phải `gcloud builds submit` + `run services update` (xem `his-ops-deploy`).
-14. **Seed mock/fake data lên prod** khi user yêu cầu dữ liệu thật — dữ liệu phải từ DB thật.
-15. **Bỏ `IF NOT EXISTS` / `COL_LENGTH IS NULL`** trong SQL script → không idempotent → vỡ lúc re-run.
+13. **Pushing BE code and thinking it's deployed** — Cloud Run does NOT auto-deploy. You must `gcloud builds submit` + `run services update` (see `his-ops-deploy`).
+14. **Seeding mock/fake data to prod** when the user asked for real data — data must come from the real DB.
+15. **Dropping `IF NOT EXISTS` / `COL_LENGTH IS NULL`** in a SQL script → not idempotent → breaks on re-run.
 
 ## ❌ NEVER — Hardcode
 
-16. **Hardcode tên bệnh viện** → dùng `frontend/src/constants/hospital.ts` (HOSPITAL_NAME/ADDRESS/PHONE).
-17. **Hardcode URL/host** (Orthanc, API) → dùng env (`VITE_API_URL`, `VITE_ORTHANC_URL`) / config.
-18. **Hardcode credentials / token / connection string** trong code hay skill.
-19. **Đặt file skill ngoài `.claude/skills/`** (vd trong `docs/`). docs = tài liệu, skill = `.claude/skills/`.
+16. **Hardcoding the hospital name** → use `frontend/src/constants/hospital.ts` (HOSPITAL_NAME/ADDRESS/PHONE).
+17. **Hardcoding a URL/host** (Orthanc, API) → use env (`VITE_API_URL`, `VITE_ORTHANC_URL`) / config.
+18. **Hardcoding credentials / token / connection string** in code or a skill.
+19. **Putting a skill file outside `.claude/skills/`** (e.g. in `docs/`). docs = documentation, skill = `.claude/skills/`.
 
-## ⚠️ ALWAYS — Patient safety (y khoa)
+## ⚠️ ALWAYS — Patient safety (clinical)
 
-20. **KHÔNG bỏ qua kiểm tra an toàn thuốc**: tương tác thuốc (severity cao), dị ứng, chống chỉ định — đã có `DrugInteractionService`/`DrugAllergyService`. Khi đụng kê đơn/phát thuốc, giữ các check này.
-21. **KHÔNG tự ý nới lỏng điều kiện cấp giấy** (vd eligibility lái xe — auto-compute theo TT 24/2023). Giữ defense-in-depth.
-22. **Mapping bệnh nhân / liều / chỉ định**: cực kỳ cẩn trọng — sai = nguy hiểm tính mạng. Verify Patient↔MedicalRecord↔Order đúng.
+20. **Do NOT skip drug-safety checks**: drug interactions (high severity), allergy, contraindication — there's already a `DrugInteractionService`/`DrugAllergyService`. When touching prescribing/dispensing, keep these checks.
+21. **Do NOT loosen eligibility conditions on your own** (e.g. driving-license eligibility — auto-computed per TT 24/2023). Keep defense-in-depth.
+22. **Patient / dose / order mapping**: extremely careful — a mistake = life-threatening. Verify Patient↔MedicalRecord↔Order is correct.
 
-## ⚠️ ALWAYS — Audit & Compliance (pháp lý)
+## ⚠️ ALWAYS — Audit & Compliance (legal)
 
-23. **Giữ audit log** cho mọi mutation (AuditLogMiddleware ghi POST/PUT/DELETE; access log giám định; signature log; study activity). KHÔNG bỏ.
-24. **CreatedBy/UpdatedBy** đúng user (KHÔNG `Guid.Empty` — đã từng gây 500 FK ở payment confirm). Resolve user thật, fallback hợp lệ.
-25. **Ký số / HSBA / liên thông** (BHYT XML, HL7/FHIR, Đề án 06): nếu là MVP/placeholder (vd biometric chưa verify chữ ký thật, signed-XML placeholder) → **ghi rõ known-risk**, KHÔNG coi là chữ ký pháp lý đầy đủ.
-26. **Privacy HSBA**: role guard chặt (vd `BhxhInspector` tách user thường). KHÔNG nới quyền truy cập hồ sơ.
+23. **Keep the audit log** for every mutation (AuditLogMiddleware logs POST/PUT/DELETE; inspection access log; signature log; study activity). Do NOT drop it.
+24. **CreatedBy/UpdatedBy** = the right user (NOT `Guid.Empty` — once caused a 500 FK at payment confirm). Resolve the real user, with a valid fallback.
+25. **Digital signature / medical records / interop** (BHYT XML, HL7/FHIR, De An 06): if it's an MVP/placeholder (e.g. biometric not yet verifying a real signature, signed-XML placeholder) → **clearly note it as a known-risk**, do NOT treat it as a fully legal signature.
+26. **Medical-record privacy**: tight role guards (e.g. `BhxhInspector` separate from a normal user). Do NOT loosen record access.
 
-## ⚠️ ALWAYS — Build-gate TRƯỚC khi báo xong (BẮT BUỘC)
+## ⚠️ ALWAYS — Build-gate BEFORE reporting done (MANDATORY)
 
-27. **Sau MỖI lần thêm / sửa / XOÁ code → PHẢI build sạch tầng đã đụng rồi MỚI báo hoàn thành.** Áp cho cả 3 thao tác (xoá file/hàm cũng có thể vỡ import/reference). KHÔNG báo "done" khi chưa build (vi phạm `core-execution-output`: không claim success khi chưa verify).
-    - **Đụng FE** (`frontend/src/**`): `cd frontend && npm run build` (= `tsc -b` strict + `vite build`) → **EXIT 0**. KHÔNG chỉ `tsc --noEmit` (lỏng hơn Vercel — đã từng lọt lỗi).
-    - **Đụng BE** (`backend/src/**`): `cd backend && dotnet build HIS.sln` → **0 Errors** (warning pre-existing OK). Nếu DLL bị khoá do app đang chạy → kill process cổng 5106 trước khi build.
-    - **Đụng cả 2 tầng** → build CẢ FE và BE. **Chỉ đổi `.claude/`/docs/script** (không chạm source) → không cần build, nói rõ "không cần build".
-    - Build **lỗi** → tự bung root-cause + sửa cho hết, **không báo xong** khi còn lỗi. Báo cáo phải ghi rõ trạng thái build (vd "npm run build EXIT 0", "dotnet build 0 errors").
+27. **After EVERY add / edit / DELETE of code → you MUST build the touched tier clean BEFORE reporting done.** Applies to all 3 operations (deleting a file/function can break an import/reference too). Do NOT report "done" before building (violates `core-execution-output`: no claiming success unverified).
+    - **Touched FE** (`frontend/src/**`): `cd frontend && npm run build` (= `tsc -b` strict + `vite build`) → **EXIT 0**. NOT just `tsc --noEmit` (looser than Vercel — has let errors slip through).
+    - **Touched BE** (`backend/src/**`): `cd backend && dotnet build HIS.sln` → **0 Errors** (pre-existing warnings OK). If the DLL is locked because the app is running → kill the process on port 5106 before building.
+    - **Touched both tiers** → build BOTH FE and BE. **Only changed `.claude/`/docs/script** (no source) → no build needed, say "no build needed".
+    - Build **fails** → auto-expand the root-cause + fix it all, **do NOT report done** while errors remain. The report must state the build status (e.g. "npm run build EXIT 0", "dotnet build 0 errors").
 
-## ⚠️ ALWAYS — Cấu trúc file / thư mục (đặt file đúng chỗ)
+## ⚠️ ALWAYS — File/folder structure (put files in the right place)
 
-28. **TUYỆT ĐỐI KHÔNG tạo file mới ở thư mục gốc (root) repo.** Mọi file mới PHẢI nằm trong thư mục đúng loại:
-    - FE: `frontend/src/{pages-v2,pages,api,components,hooks,contexts,types,constants,utils,layouts}/` · CSS design `layouts/terminal/`.
-    - BE: `backend/src/HIS.{Core/Entities,Application/{DTOs,Services},Infrastructure/Services,API/Controllers}/` · SQL `backend/src/HIS.Infrastructure/Data/Scripts/NN_*.sql` hoặc `scripts/`.
-    - Test: `frontend/cypress/e2e/`, `frontend/e2e/`, `frontend/e2e-prod/`, `test-*.ps1` → thư mục test tương ứng. Tài liệu → `docs/`. Skill → `.claude/skills/<name>/`.
-29. **Không có thư mục tương ứng với loại file đó** → **DỪNG, đề xuất user tạo thư mục** (nêu tên + vị trí + lý do) → được duyệt mới tạo thư mục rồi đặt file vào. KHÔNG tự nhét tạm ra root.
+28. **ABSOLUTELY DO NOT create a new file at the repo root.** Every new file MUST be in the right-type folder:
+    - FE: `frontend/src/{pages-v2,pages,api,components,hooks,contexts,types,constants,utils,layouts}/` · design CSS `layouts/terminal/`.
+    - BE: `backend/src/HIS.{Core/Entities,Application/{DTOs,Services},Infrastructure/Services,API/Controllers}/` · SQL `backend/src/HIS.Infrastructure/Data/Scripts/NN_*.sql` or `scripts/`.
+    - Test: `frontend/cypress/e2e/`, `frontend/e2e/`, `frontend/e2e-prod/`, `test-*.ps1` → the matching test folder. Docs → `docs/`. Skill → `.claude/skills/<name>/`.
+29. **No folder matches that file type** → **STOP, propose the user creates the folder** (state name + location + reason) → only after approval, create the folder then place the file. Do NOT dump it at the root temporarily.
 
-## ⚠️ ALWAYS — Self code-review 9 điểm (AI TỰ rà, CẢ BE + FE, trước khi báo xong)
+## ⚠️ ALWAYS — 9-point self code-review (AI SELF-reviews, BOTH BE + FE, before reporting done)
 
-30. **Sau khi gen/sửa code BE hoặc FE, AI PHẢI tự rà 9 điểm dưới đây rồi mới báo "xong"** (không chờ user nhắc). Phát hiện vi phạm → sửa trước khi báo. (FE chi tiết: `his-fe-convention` §7; mức hàm: `core-clean-code` §9.)
+30. **After generating/editing BE or FE code, the AI MUST self-review the 9 points below before reporting "done"** (without waiting for the user). On finding a violation → fix it before reporting. (FE detail: `his-fe-convention` §7; function-level: `core-clean-code` §9.)
 
-| # | Điểm | FE check | BE check |
+| # | Point | FE check | BE check |
 |---|---|---|---|
-| 1 | **Duplicate logic** | reuse `_v2kit`/`components`/`hooks`/`utils` trước | reuse Service/helper/extension có sẵn, không copy logic giữa service |
-| 2 | **Dead code** | import/biến/hàm thừa, code comment-out, `console.log` | using/method/field thừa, code comment-out, biến không dùng |
-| 3 | **Hard-code data** | tên BV/URL/credential/option → `constants`/env/`api` | connection string/secret/magic status → config/const/enum (Core) |
-| 4 | **Anti-pattern** | `cy.intercept('**/*')`, nuốt lỗi, raw HTML thay Antd | **quên DI**, `try/catch` nuốt exception, CQRS/EF-migrate (mục ❌ trên) |
-| 5 | **Component/đơn vị quá lớn** | god-component → tách sub-component/panel | god-service/controller → tách theo responsibility |
-| 6 | **Function quá dài** | > ~50–60 dòng → tách helper (guard clause) | method dài → tách private method/usecase |
-| 7 | **Import cycle** | không vòng lặp import TS | không circular namespace/project-ref; giữ hướng Core→App→Infra→API |
-| 8 | **Naming sai convention** | `his-fe-convention` §1 (Pascal/camel/UPPER) | PascalCase type/method, camelCase local/param, tên domain rõ |
-| 9 | **State management không hợp lý** | single source of truth, local vs context, không prop-drill/side-effect render | **service stateless** (không mutable shared state), DI lifetime đúng (Scoped/Singleton), không giữ state request trong singleton |
+| 1 | **Duplicate logic** | reuse `_v2kit`/`components`/`hooks`/`utils` first | reuse an existing Service/helper/extension, no copying logic between services |
+| 2 | **Dead code** | unused imports/vars/functions, commented-out code, `console.log` | unused using/method/field, commented-out code, unused vars |
+| 3 | **Hard-coded data** | hospital name/URL/credential/option → `constants`/env/`api` | connection string/secret/magic status → config/const/enum (Core) |
+| 4 | **Anti-pattern** | `cy.intercept('**/*')`, swallowing errors, raw HTML instead of Antd | **forgotten DI**, `try/catch` swallowing an exception, CQRS/EF-migrate (❌ section above) |
+| 5 | **Component/unit too large** | a god-component → split into sub-component/panel | a god-service/controller → split by responsibility |
+| 6 | **Function too long** | > ~50–60 lines → extract a helper (guard clause) | a long method → extract a private method/usecase |
+| 7 | **Import cycle** | no TS import loop | no circular namespace/project-ref; keep the direction Core→App→Infra→API |
+| 8 | **Wrong-convention naming** | `his-fe-convention` §1 (Pascal/camel/UPPER) | PascalCase type/method, camelCase local/param, clear domain names |
+| 9 | **Unreasonable state management** | single source of truth, local vs context, no prop-drill/side-effect-in-render | **stateless service** (no mutable shared state), correct DI lifetime (Scoped/Singleton), no holding request state in a singleton |
 
-> Báo cáo hoàn thành nên xác nhận đã tự rà 9 điểm + build sạch (#27). Đây là gate **tự kiểm**, không phải tuỳ chọn.
+> The completion report should confirm the 9-point self-review + a clean build (#27). This is a **self-check** gate, not optional.
 
-## Quy tắc chung
+## General rules
 
-- **Reuse over create**: tìm pattern/component/service đã có trước (xem Code Reuse Rules trong prompt gen).
-- **Hỏi khi không chắc, không đoán** — nhất là nghiệp vụ y tế.
-- **Explicit**: nói rõ đang làm gì + tại sao.
+- **Reuse over create**: find an existing pattern/component/service first (see the Code Reuse Rules in the gen prompt).
+- **Ask when unsure, don't guess** — especially clinical business.
+- **Explicit**: state clearly what you're doing + why.
 
 ## When to update
 
-- Khi phát hiện footgun mới (thêm vào list).
-- Khi convention an toàn/pháp lý/audit thay đổi.
-- Khi sửa được 1 known-risk (cập nhật trạng thái MVP → done).
+- When a new footgun is found (add it to the list).
+- When the safety/legal/audit convention changes.
+- When a known-risk is fixed (update the status MVP → done).

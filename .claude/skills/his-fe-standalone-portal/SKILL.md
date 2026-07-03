@@ -7,47 +7,47 @@ metadata:
 
 # HIS Standalone Portal
 
-> TẦNG: **B · PROJECT/HIS** (system). Depend: `core-error-loading-state`, `core-validation-pattern`, `his-fe-api-client`.
+> TIER: **B · PROJECT/HIS** (system). Depends: `core-error-loading-state`, `core-validation-pattern`, `his-fe-api-client`.
 
-Skill cho **cổng standalone** — trang có route **ngoài** layout chính (MainLayout/TerminalLayout), **đăng nhập riêng**, **JWT/role riêng**, dành cho người dùng ngoài (vd giám định viên BHXH). Mẫu: `pages-v2/InspectorPortal.tsx` tại `/inspector-portal`.
+A skill for a **standalone portal** — a page with a route **outside** the main layout (MainLayout/TerminalLayout), with its **own login**, **own JWT/role**, for external users (e.g. a BHXH inspector). Reference: `pages-v2/InspectorPortal.tsx` at `/inspector-portal`.
 
-## Khi nào dùng
-- Tạo cổng cho người dùng **ngoài** hệ thống (thanh tra/đối tác) đăng nhập độc lập, không qua admin login.
-- Route đặt **ngoài** `ProtectedRoute`/MainLayout/TerminalLayout.
-- Auth riêng: token + role riêng (vd `BhxhInspector`), tách khỏi JWT user thường.
+## When to use
+- Creating a portal for **external** users (inspector/partner) to log in independently, not via the admin login.
+- A route placed **outside** `ProtectedRoute`/MainLayout/TerminalLayout.
+- A separate auth: its own token + role (e.g. `BhxhInspector`), separate from the normal user JWT.
 
-## Khi nào KHÔNG dùng
-- Page nghiệp vụ thường trong TerminalLayout `/v2/*` → `his-fe-page-v2`.
-- Chỉ thêm api client → `his-fe-api-client`.
+## When NOT to use
+- A normal business page inside TerminalLayout `/v2/*` → `his-fe-page-v2`.
+- Just adding an api client → `his-fe-api-client`.
 
-## Kiến trúc (mẫu Inspector Portal — NangCap24)
-- Route trong `App.tsx`: đặt **ngoài** group `ProtectedRoute`/layout, ví dụ:
+## Architecture (Inspector Portal reference — NangCap24)
+- The route in `App.tsx`: placed **outside** the `ProtectedRoute`/layout group, e.g.:
   ```tsx
-  {/* Standalone routes - không thuộc layout chính */}
+  {/* Standalone routes - not part of the main layout */}
   <Route path="/inspector-portal" element={<InspectorPortalStandalone />} />
   ```
-- FE: `pages-v2/InspectorPortal.tsx` tự render login form + nội dung sau đăng nhập (KHÔNG dùng sidebar/menu chung).
-- BE: controller `/api/inspector-portal` — `POST /login` `[AllowAnonymous]` trả JWT role riêng;
-  các endpoint dữ liệu `[Authorize(Roles="BhxhInspector")]`; quản lý account `[Authorize(Roles="Admin")]`.
-- Token riêng: lưu localStorage key riêng (KHÔNG ghi đè `token`/`user` của app chính) để 2 phiên không đụng nhau.
+- FE: `pages-v2/InspectorPortal.tsx` renders its own login form + post-login content (does NOT use the shared sidebar/menu).
+- BE: controller `/api/inspector-portal` — `POST /login` `[AllowAnonymous]` returns a JWT with its own role;
+  data endpoints `[Authorize(Roles="BhxhInspector")]`; account management `[Authorize(Roles="Admin")]`.
+- Separate token: store it in its own localStorage key (do NOT overwrite the main app's `token`/`user`) so the 2 sessions don't collide.
 
-## Quy trình chuẩn
-1. **API client**: thêm object trong `api/nangcap24.ts` (login, search, detail, download, account CRUD) — theo `his-fe-api-client`.
-2. **Page standalone**: tạo `pages-v2/<Name>Portal.tsx` — quản lý `loggedIn` state; chưa login → login form; đã login → nội dung. Validate form theo `core-validation-pattern`; loading/empty/error theo `core-error-loading-state`.
-3. **Route**: đăng ký trong `App.tsx` **ngoài** layout chính + ngoài `ProtectedRoute`. KHÔNG thêm vào menu TerminalLayout.
-4. **Auth tách biệt**: lưu token portal ở key riêng; gọi API kèm token đó. Role guard BE phải đúng (vd `BhxhInspector`) — verify admin token KHÔNG vào được endpoint portal (403).
-5. **`data-testid`** cho login (vd `inspector-login-card/username/password/login-btn`) để E2E test.
-6. **Audit**: mọi truy cập dữ liệu nhạy cảm (HSBA) ghi access log (BE).
+## Standard process
+1. **API client**: add an object in `api/nangcap24.ts` (login, search, detail, download, account CRUD) — per `his-fe-api-client`.
+2. **Standalone page**: create `pages-v2/<Name>Portal.tsx` — manage `loggedIn` state; not logged in → login form; logged in → content. Validate the form per `core-validation-pattern`; loading/empty/error per `core-error-loading-state`.
+3. **Route**: register in `App.tsx` **outside** the main layout + outside `ProtectedRoute`. Do NOT add it to the TerminalLayout menu.
+4. **Separate auth**: store the portal token in its own key; call the API with that token. The BE role guard must be correct (e.g. `BhxhInspector`) — verify an admin token CANNOT reach the portal endpoint (403).
+5. **`data-testid`** for login (e.g. `inspector-login-card/username/password/login-btn`) for E2E tests.
+6. **Audit**: every access to sensitive data (medical records) logs an access log (BE).
 
 ## Pitfalls
-- **Đặt nhầm route trong layout/ProtectedRoute** → cổng bị ép qua admin login → sai mục đích. Phải ngoài.
-- **Dùng chung localStorage `token`** với app chính → đăng nhập portal làm văng phiên admin (và ngược lại). Dùng key riêng.
-- **Role guard lỏng** → lộ dữ liệu cho người không phận sự. Endpoint dữ liệu phải `[Authorize(Roles="...")]` đúng.
-- **Account lockout / BCrypt**: login sai nhiều lần phải khoá (`LockedUntil`); password BCrypt, không plaintext.
-- Credential test theo môi trường — xem `his-test-e2e` (vd Inspector: local seed `inspector`, prod `thanhtra01`).
+- **Putting the route inside the layout/ProtectedRoute by mistake** → the portal is forced through the admin login → wrong purpose. It must be outside.
+- **Sharing the localStorage `token`** with the main app → logging into the portal kicks out the admin session (and vice versa). Use a separate key.
+- **Loose role guard** → leaks data to unauthorized people. Data endpoints must be `[Authorize(Roles="...")]` correctly.
+- **Account lockout / BCrypt**: too many wrong logins must lock (`LockedUntil`); BCrypt the password, no plaintext.
+- Test credentials depend on the environment — see `his-test-e2e` (e.g. Inspector: local seed `inspector`, prod `thanhtra01`).
 
 ## Reference
-- `references/standalone-portal-template.tsx` — khung page standalone (login form + nội dung sau login)
+- `references/standalone-portal-template.tsx` — a standalone page frame (login form + post-login content)
 
 ## When to update
-- Khi thêm cổng standalone mới (đối tác khác) hoặc đổi cơ chế auth/role riêng.
+- When adding a new standalone portal (another partner) or changing the separate auth/role mechanism.

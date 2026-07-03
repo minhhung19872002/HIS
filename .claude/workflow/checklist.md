@@ -1,74 +1,74 @@
-# SOFTWARE DELIVERY CHECKLIST — Cổng giao hàng
+# SOFTWARE DELIVERY CHECKLIST — the delivery gate
 
-> **Đây là view checklist** gom theo nhóm, mỗi mục **trỏ về rule gốc** (nguồn-sự-thật). KHÔNG phải bộ rule
-> mới. Nguồn: `SKILL-MAP.md` (P0/P1/P2), `skills/his-qa-anti-pattern` (#1-30), `skills/his-fe-convention`,
-> `skills/core-*`. Khi mâu thuẫn → theo nguồn gốc.
+> **This is a checklist view** grouped by category, each item **pointing back to the origin rule** (source of truth). NOT a new
+> rule set. Sources: `SKILL-MAP.md` (P0/P1/P2), `skills/his-qa-anti-pattern` (#1-30), `skills/his-fe-convention`,
+> `skills/core-*`. On conflict → follow the origin.
 >
-> Áp ở bước **5·VERIFY** + **6·REVIEW** + **7·COMPLETE** của [`workflow.md`](workflow.md). Mục **🔴 = P0
-> tuyệt đối** (vi phạm = chặn DONE).
+> Applied at steps **5·VERIFY** + **6·REVIEW** + **7·COMPLETE** of [`workflow.md`](workflow.md). Items marked **🔴 = absolute
+> P0** (a violation blocks DONE).
 
 ---
 
-## A. Requirement (bước 1 UNDERSTAND)
-- [ ] Hiểu đúng yêu cầu nghiệp vụ → `core-requirement-clarify`
-- [ ] Restate yêu cầu bằng lời đơn giản (ghi `requirement_restated` ở [`task.md`](task.md))
-- [ ] Nêu thông tin còn thiếu / câu hỏi mở; mơ hồ → **STOP hỏi**, không đoán
-- [ ] Ghi giả định (`assumptions`) + rủi ro (`risks`)
+## A. Requirement (step 1 UNDERSTAND)
+- [ ] Understand the business requirement correctly → `core-requirement-clarify`
+- [ ] Restate the requirement in plain words (record `requirement_restated` in [`task.md`](task.md))
+- [ ] State missing info / open questions; ambiguous → **STOP and ask**, don't guess
+- [ ] Record assumptions (`assumptions`) + risks (`risks`)
 
-## B. Design / Impact (bước 2 ANALYZE + 3 PLAN)
-- [ ] Đã rà kiến trúc & tiền lệ hiện có → `core-architecture-consistency`, `core-architecture-follow`
-- [ ] 🔴 **Verify-before-assert**: không bịa file/symbol/endpoint/field/cột DB → `core-verify-before-assert` (SKILL-MAP P0 #2)
-- [ ] Bản đồ tác động (callers/contract/test/migration) trước khi sửa code dùng chung → `core-impact-analysis`
-- [ ] Impact DB / API / auth / UI / integration đã liệt kê (`impact` trong state-store)
-- [ ] Có `file_allow_list` + done-criteria từng bước
+## B. Design / Impact (step 2 ANALYZE + 3 PLAN)
+- [ ] Reviewed existing architecture & precedent → `core-architecture-consistency`, `core-architecture-follow`
+- [ ] 🔴 **Verify-before-assert**: don't invent file/symbol/endpoint/field/DB column → `core-verify-before-assert` (SKILL-MAP P0 #2)
+- [ ] Impact map (callers/contract/test/migration) before editing shared code → `core-impact-analysis`
+- [ ] DB / API / auth / UI / integration impact listed (`impact` in the state-store)
+- [ ] Has a `file_allow_list` + per-step done-criteria
 
-## C. Implementation (bước 4 IMPLEMENT)
-- [ ] 🔴 **Reuse-first**: tìm code/thư mục đã có → dùng lại/mở rộng, không tạo trùng → `core-reusable-code` (P1 #9)
-- [ ] Chỉ sửa file cần thiết, trong `file_allow_list`; không over-refactor → `core-minimal-change`
-- [ ] Không dead code / không logic trùng / clean-code mức hàm → `core-clean-code`
-- [ ] Theo convention (naming/layer/Antd-first) → [`project-rules.md`](project-rules.md), `his-fe-convention`
-- [ ] 🔴 **Đăng ký DI** service/controller mới → `DependencyInjection.cs` (P0 #4, his-qa #1)
-- [ ] 🔴 File đặt **đúng thư mục**, KHÔNG ở root → his-qa #28-29 (P0 #8)
-- [ ] Giữ stack — KHÔNG CQRS/MediatR/Next.js/Tailwind-first; migration SQL tay idempotent → his-qa #2-4 (P1 #15)
+## C. Implementation (step 4 IMPLEMENT)
+- [ ] 🔴 **Reuse-first**: find existing code/folder → reuse/extend, don't duplicate → `core-reusable-code` (P1 #9)
+- [ ] Edit only the necessary files, within `file_allow_list`; no over-refactor → `core-minimal-change`
+- [ ] No dead code / no duplicate logic / function-level clean-code → `core-clean-code`
+- [ ] Follow conventions (naming/layer/Antd-first) → [`project-rules.md`](project-rules.md), `his-fe-convention`
+- [ ] 🔴 **Register DI** for a new service/controller → `DependencyInjection.cs` (P0 #4, his-qa #1)
+- [ ] 🔴 File placed in the **right folder**, NOT at the root → his-qa #28-29 (P0 #8)
+- [ ] Keep the stack — NO CQRS/MediatR/Next.js/Tailwind-first; hand-written idempotent SQL migration → his-qa #2-4 (P1 #15)
 
-## D. Quality (bước 6 REVIEW)
-- [ ] **Self-review 9 điểm** (duplicate logic · dead code · hard-code · anti-pattern · component/service quá lớn · function quá dài · import cycle · naming · state mgmt) BE+FE → his-qa #30 (P1 #10)
-- [ ] Không lỗi logic / runtime đã biết
-- [ ] Edge case + error handling đã rà → `core-error-loading-state`
-- [ ] Tách layer (UI · api/service · state · validation · mapper · constants) → `his-fe-convention` §2,§8 (P1 #11)
+## D. Quality (step 6 REVIEW)
+- [ ] **9-point self-review** (duplicate logic · dead code · hard-code · anti-pattern · too-large component/service · too-long function · import cycle · naming · state mgmt) BE+FE → his-qa #30 (P1 #10)
+- [ ] No known logic / runtime bug
+- [ ] Edge cases + error handling reviewed → `core-error-loading-state`
+- [ ] Layer separation (UI · api/service · state · validation · mapper · constants) → `his-fe-convention` §2,§8 (P1 #11)
 
 ## E. Security & Patient-safety (🔴 P0)
-- [ ] 🔴 Giữ check tương tác thuốc / dị ứng / chống chỉ định; mapping Patient↔MedicalRecord↔Order đúng → his-qa #20-22 (P0 #1)
-- [ ] 🔴 **Validate ở BE** (không tin client) → `core-validation-pattern` (P0 #7)
-- [ ] 🔴 Auth/authz + route guard, không hardcode role → `his-fe-convention` §9 (P1 #16)
-- [ ] 🔴 KHÔNG hardcode credentials/secret/connection string/token; tên BV/URL → constants/env → his-qa #16-18 (P0 #5)
-- [ ] 🔴 Giữ audit log mutation; `CreatedBy` user thật (≠ `Guid.Empty`); role-guard HSBA → his-qa #23-26 (P0 #6)
+- [ ] 🔴 Keep drug-interaction / allergy / contraindication checks; correct Patient↔MedicalRecord↔Order mapping → his-qa #20-22 (P0 #1)
+- [ ] 🔴 **Validate on the BE** (don't trust the client) → `core-validation-pattern` (P0 #7)
+- [ ] 🔴 Auth/authz + route guard, no hardcoded role → `his-fe-convention` §9 (P1 #16)
+- [ ] 🔴 NO hardcoded credentials/secret/connection string/token; hospital name/URL → constants/env → his-qa #16-18 (P0 #5)
+- [ ] 🔴 Keep the audit log on mutations; `CreatedBy` = real user (≠ `Guid.Empty`); role-guard medical records → his-qa #23-26 (P0 #6)
 
-## F. Performance (P2 — chỉ khi đo được)
-- [ ] Query đắt / N+1 / payload lớn đã xem (khi có dấu hiệu tải) → `his-be-scalability`
-- [ ] Lazy/code-split/memo/virtualize **đúng chỗ, đo trước** — KHÔNG tối ưu non → `his-fe-performance` (P2 #19)
+## F. Performance (P2 — only when measured)
+- [ ] Expensive query / N+1 / large payload reviewed (when there's a load signal) → `his-be-scalability`
+- [ ] Lazy/code-split/memo/virtualize **where appropriate, measure first** — NO premature optimization → `his-fe-performance` (P2 #19)
 
-## G. Testing (bước 5 VERIFY)
-- [ ] 🔴 **BUILD-GATE**: build sạch tầng đã đụng MỚI báo xong — FE `npm run build` EXIT 0 · BE `dotnet build` 0 errors → his-qa #27 (P0 #3)
-- [ ] Lint / typecheck sạch (build-gate = `npm run build`, KHÔNG `tsc --noEmit`)
-- [ ] Chức năng cũ không bị ảnh hưởng (regression) → `core-testing-architecture`, `his-quality-reviewer`
-- [ ] 🔴 **Logic mới chạm tiền / thuốc / schema / contract / patient-safety → BẮT BUỘC ≥1 test (unit/integration/e2e) PASS** (ghi `verification`). Logic khác: test bổ sung khuyến nghị (`core-testing-reuse`).
+## G. Testing (step 5 VERIFY)
+- [ ] 🔴 **BUILD-GATE**: build the touched tier clean BEFORE reporting done — FE `npm run build` EXIT 0 · BE `dotnet build` 0 errors → his-qa #27 (P0 #3)
+- [ ] Lint / typecheck clean (build-gate = `npm run build`, NOT `tsc --noEmit`)
+- [ ] Existing features not affected (regression) → `core-testing-architecture`, `his-quality-reviewer`
+- [ ] 🔴 **New logic touching money / drugs / schema / contract / patient-safety → MANDATORY ≥1 test (unit/integration/e2e) PASS** (record `verification`). Other logic: extra tests recommended (`core-testing-reuse`).
 
-## H. Completion (bước 7 COMPLETE) — cổng DONE
-- [ ] 🔴 Yêu cầu thoả mãn (khớp `goal` + `completion_criteria`)
-- [ ] 🔴 VERIFY + REVIEW xong, **không còn `must_fix`**
-- [ ] Báo cáo cuối (7-part) viết xong → Finalizer
-- [ ] State-store sync về **GitHub Issue**
-- [ ] 🔴 **KHÔNG tự commit/push** — dừng `READY_FOR_PUSH`, xin phép; `DONE` chỉ sau khi push OK (SKILL-MAP §0c)
+## H. Completion (step 7 COMPLETE) — the DONE gate
+- [ ] 🔴 Requirement satisfied (matches `goal` + `completion_criteria`)
+- [ ] 🔴 VERIFY + REVIEW done, **no `must_fix` left**
+- [ ] Final report (7-part) written → Finalizer
+- [ ] State-store synced to the **GitHub Issue**
+- [ ] 🔴 **Do NOT commit/push on your own** — stop at `READY_FOR_PUSH`, ask permission; `DONE` only after push OK (SKILL-MAP §0c)
 
-> **Task chỉ được đánh `DONE` khi MỌI mục 🔴 pass + nhóm H đủ.** Còn 🔴 fail → giữ `IN_PROGRESS`/`REVIEW`.
+> **A task may be marked `DONE` only when EVERY 🔴 item passes + group H is complete.** Any 🔴 fail → keep `IN_PROGRESS`/`REVIEW`.
 
-## I. Requirement coverage (CHỈ khi task = rà soát / đối chiếu tài liệu / gap analysis / "đã đủ chưa")
-> Chi tiết: [`requirement-coverage.md`](requirement-coverage.md). Áp khi lập backlog từ `docs/requirements/**`.
-> ⚠️ **Các 🔴 dưới = P0 CÓ-ĐIỀU-KIỆN (chỉ chặn DONE KHI task thuộc loại rà-soát)** — KHÁC 🔴 P0-LUÔN-ÁP ở mục E (an-toàn-BN/secret). Task code thường KHÔNG áp mục I.
-- [ ] 🔴 **Source manifest 100%** — đã liệt kê + đọc HẾT mọi nguồn (`requirements/00·10·20·30·90` + `luong_nghiep_vu`); không còn ⬜/⚠️
-- [ ] 🔴 **Đọc PDF gốc** nếu `.md` trích rỗng/hụt (không tin bản trích)
-- [ ] 🔴 **Enumerate đủ** từng mục/feature/form (không tóm tắt "trọng yếu"); mỗi mục có evidence
-- [ ] 🔴 **Phương châm parity**: đối thủ-có→P0/P1 bắt buộc · không-có-nhưng-cần→P2 (ghi lý do) · không-có-không-cần→KHÔNG tạo
-- [ ] 🔴 **Dedup** vs `gh issue list` + "đã DONE trong code" trước khi tạo
-- [ ] 🔴 **Completeness critic** chạy xong + tách VERIFIED/ASSUMED → KHÔNG nói "đủ" khi manifest chưa 100%
+## I. Requirement coverage (ONLY when the task = review / compare docs / gap analysis / "is it complete")
+> Detail: [`requirement-coverage.md`](requirement-coverage.md). Applied when building a backlog from `docs/requirements/**`.
+> ⚠️ **The 🔴 below = CONDITIONAL P0 (block DONE ONLY when the task is a review-type)** — DIFFERENT from the ALWAYS-APPLY 🔴 P0 in group E (patient-safety/secret). A normal code task does NOT apply group I.
+- [ ] 🔴 **Source manifest 100%** — listed + read ALL sources (`requirements/00·10·20·30·90` + `luong_nghiep_vu`); no ⬜/⚠️ left
+- [ ] 🔴 **Read the original PDF** if the `.md` extract is empty/incomplete (don't trust the extract)
+- [ ] 🔴 **Enumerate fully** every item/feature/form (no "key items" summary); each item has evidence
+- [ ] 🔴 **Parity principle**: competitor-has→P0/P1 mandatory · not-there-but-needed→P2 (state the reason) · not-there-not-needed→DO NOT create
+- [ ] 🔴 **Dedup** vs `gh issue list` + "already DONE in code" before creating
+- [ ] 🔴 **Completeness critic** run + VERIFIED/ASSUMED separated → do NOT say "complete" until the manifest is 100%

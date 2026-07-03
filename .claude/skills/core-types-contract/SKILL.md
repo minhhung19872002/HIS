@@ -7,40 +7,40 @@ metadata:
 
 # Core — Types & Contracts (portable)
 
-> TẦNG: **A · CORE** (dùng chung, tech-agnostic — không gắn ngôn ngữ/lib).
+> TIER: **A · CORE** (shared, tech-agnostic — not bound to a language/lib).
 
 ## Purpose
-Định nghĩa **contract rõ ràng** giữa các layer/biên: input/output của hàm, shape request/response, DTO,
-interface. Để 2 phía (caller/callee, FE/BE) hiểu nhau, đổi 1 phía là biết phía kia phải đổi gì.
+Define a **clear contract** between layers/boundaries: a function's input/output, request/response shape, DTO,
+interface. So both sides (caller/callee, FE/BE) understand each other, and changing one side reveals what the other must change.
 
-## Khi nào dùng
-- Định nghĩa contract API (request/response).
-- Đặt signature service/function (nhận gì, trả gì).
-- Đồng bộ shape giữa producer và consumer.
+## When to use
+- Defining an API contract (request/response).
+- Setting a service/function signature (what it takes, what it returns).
+- Aligning the shape between a producer and consumer.
 
-## Khi nào KHÔNG dùng
-- Cú pháp type cụ thể của ngôn ngữ/lib (C#/TS/Zod…) → skill `his-*` (api-client, scaffold) hiện thực.
+## When NOT to use
+- The language/lib's specific type syntax (C#/TS/Zod…) → the `his-*` skill (api-client, scaffold) implements it.
 
-## Nguyên tắc
-1. **Explicit contract**: mỗi boundary có shape rõ; tránh "any"/object mơ hồ.
-2. **Một nguồn sự thật**: contract định nghĩa 1 chỗ, 2 phía cùng tham chiếu — không tự chế shape riêng mỗi nơi.
-3. **Tách input vs output**: shape gửi đi và shape nhận về thường khác → định nghĩa riêng (Create vs Read…).
-4. **Phân biệt trạng thái dữ liệu**: phân trang (list + total) vs object đơn vs mảng — gọi tên rõ.
-5. **Đổi contract = đổi cả 2 phía**: khi sửa shape, rà soát mọi nơi tiêu thụ.
+## Principles
+1. **Explicit contract**: each boundary has a clear shape; avoid "any"/a vague object.
+2. **One source of truth**: the contract is defined in one place, both sides reference it — don't invent a separate shape per place.
+3. **Separate input vs output**: the shape sent and the shape received are usually different → define them separately (Create vs Read…).
+4. **Distinguish data states**: pagination (list + total) vs single object vs array — name them clearly.
+5. **Change the contract = change both sides**: when editing a shape, review every consumer.
 
 ## Steps
-1. Xác định boundary + ai là producer/consumer.
-2. Định nghĩa shape input + output riêng, đặt tên rõ.
-3. Tham chiếu chung, không duplicate shape.
-4. Khi đổi → cập nhật mọi consumer.
+1. Identify the boundary + who is the producer/consumer.
+2. Define the input + output shapes separately, name them clearly.
+3. Reference a shared definition, don't duplicate the shape.
+4. When changing → update every consumer.
 
-## Anti-patterns cần tránh
-- Shape mơ hồ / "any" / object tự do.
-- Mỗi nơi tự định nghĩa lại cùng 1 shape (lệch nhau).
-- Đổi 1 phía quên phía kia → runtime mismatch.
+## Anti-patterns to avoid
+- A vague shape / "any" / a free-form object.
+- Each place redefining the same shape (drifting apart).
+- Changing one side and forgetting the other → runtime mismatch.
 
 ## Dependency
-- Kèm `core-validation-pattern` (contract + validate đi đôi). Skill `his-*` (api-client, backend scaffold) depend.
+- Goes with `core-validation-pattern` (contract + validate go together). The `his-*` skills (api-client, backend scaffold) depend on it.
 
 ## When to update
-- Khi bổ sung nguyên tắc contract chung.
+- When adding a general contract principle.

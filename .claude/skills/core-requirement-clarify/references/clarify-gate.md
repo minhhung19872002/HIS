@@ -1,29 +1,29 @@
-# Cổng quyết định HỎI vs TỰ-QUYẾT + mẫu câu hỏi
+# The ASK vs DECIDE decision gate + question templates
 
-## Cổng quyết định (chạy cho từng ẩn số ảnh hưởng kết quả)
+## Decision gate (run for each unknown that affects the result)
 
 ```
-Ẩn số này…
-├─ Tự verify được bằng Read/Grep?        → KHÔNG hỏi user; verify (core-verify-before-assert).
-├─ Có default hiển nhiên + verify được?  → TỰ QUYẾT, ghi "Giả định: ...".
-└─ Thoả ≥1 điều kiện sau → HỎI USER:
-     • đổi hành vi/kết quả quan trọng
-     • khó đảo ngược (xoá/ghi đè/migration phá vỡ)
-     • ≥2 cách hiểu cho ra kết quả khác nhau
-     • đụng patient-safety / pháp lý / tiền
+This unknown…
+├─ Can I verify it myself via Read/Grep?  → do NOT ask the user; verify (core-verify-before-assert).
+├─ Has an obvious default + verifiable?   → DECIDE, record "Assumption: ...".
+└─ Meets ≥1 of the following → ASK THE USER:
+     • changes important behavior/result
+     • hard to reverse (delete/overwrite/breaking migration)
+     • ≥2 interpretations lead to different results
+     • touches patient-safety / legal / money
 ```
 
-## Mẫu câu hỏi gộp (1–2 câu, mỗi câu 2–4 option + khuyến nghị)
+## Batched-question template (1–2 questions, each 2–4 options + a recommendation)
 
-> Tôi cần chốt vài điểm trước khi làm [X]:
-> 1. [Ẩn số A]? — (a) … *(khuyến nghị)* / (b) … / (c) …
-> 2. [Ẩn số B]? — (a) … / (b) …
+> I need to settle a few points before doing [X]:
+> 1. [Unknown A]? — (a) … *(recommended)* / (b) … / (c) …
+> 2. [Unknown B]? — (a) … / (b) …
 
-Ưu tiên dùng tool `AskUserQuestion` (option + recommended ở đầu). Gộp tối đa, KHÔNG hỏi rời rạc.
+Prefer the `AskUserQuestion` tool (options + recommended first). Batch as much as possible, do NOT ask piecemeal.
 
-## Mẫu "Giả định đã chốt" (khi proceed)
+## "Settled assumptions" template (when proceeding)
 
-> Giả định đã chốt (bác lại nếu sai):
-> - [Ẩn số A] → chọn … vì … (verify tại `path`).
-> - [Ẩn số B] → theo tiền lệ … .
-> Tiến hành: …
+> Settled assumptions (correct me if wrong):
+> - [Unknown A] → chose … because … (verified at `path`).
+> - [Unknown B] → follows precedent … .
+> Proceeding: …

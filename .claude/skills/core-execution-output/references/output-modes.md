@@ -1,41 +1,41 @@
-# Execution output — 3 chế độ + trigger + checklist an toàn
+# Execution output — 3 modes + triggers + safety checklist
 
-## Bảng 3 chế độ
-| Chế độ | Khi nào | Hiển thị gì |
+## The 3-mode table
+| Mode | When | Shows |
 |---|---|---|
-| **CONCISE** (mặc định) | task thường | tóm tắt cụm hành động, tiến trình cấp cao; KHÔNG log thô / temp path / dump thăm dò / trace từng lệnh / poll task nền |
-| **AUTO-EXPAND** | tự bật khi 1 trigger lỗi xảy ra | lệnh lỗi chính xác + stderr/stdout liên quan nguyên nhân gốc + tóm tắt hành động |
-| **DEBUG** | user bật rõ / cần troubleshoot sâu / user xin log thô | full command trace + full shell output + log task nền + log thăm dò |
+| **CONCISE** (default) | a normal task | a summary of action groups, high-level progress; NO raw logs / temp paths / probe dumps / per-command traces / background-task poll |
+| **AUTO-EXPAND** | auto on when a failure trigger occurs | the exact failing command + the stderr/stdout relevant to the root cause + an action summary |
+| **DEBUG** | user explicitly enables / needs deep troubleshooting / user asks for raw logs | full command trace + full shell output + background-task log + probe log |
 
-## Trigger tự chuyển AUTO-EXPAND
-- build thất bại
-- test thất bại
-- lệnh exit ≠ 0
-- migration thất bại
-- xung đột git
+## Triggers that auto-switch to AUTO-EXPAND
+- build failed
+- test failed
+- command exit ≠ 0
+- migration failed
+- git conflict
 - timeout
 - runtime error
-- thao tác nhạy cảm bảo mật
-- user yêu cầu chi tiết rõ ràng
+- security-sensitive op
+- user explicitly asks for detail
 
-Khi expand: chỉ log liên quan nguyên nhân gốc, tránh log vô quan, kèm tóm tắt có thể hành động.
+When expanding: only log relevant to the root cause, avoid irrelevant logs, include an actionable summary.
 
-## Báo cáo thay đổi code — collapse diff mặc định
-Mặc định CHỈ tóm tắt: file nào · thay đổi gì (mức cao) · lý do. KHÔNG in full diff mỗi file.
-Bung diff đầy đủ chỉ khi: user yêu cầu · refactor lớn/rủi ro · security/auth · migration/schema ·
-thao tác phá huỷ · debug/review · build/test fail.
+## Reporting code changes — collapse the diff by default
+By default ONLY summarize: which files · what changed (high level) · why. Do NOT print the full diff per file.
+Expand the full diff only when: the user asks · a large/risky refactor · security/auth · migration/schema ·
+a destructive op · debug/review · build/test fail.
 
-## Checklist "LUÔN NÊU dù đang CONCISE" (an toàn override)
-- [ ] Xoá tệp / thư mục (`rm`, xoá hàng loạt)
-- [ ] `git reset --hard`, force-push, rebase, revert, xoá branch
-- [ ] Migration / drop / truncate / seed DB; thay đổi schema
-- [ ] Cài / gỡ package (npm, nuget, pip…)
-- [ ] Đổi biến môi trường / secret / config nhạy cảm
-- [ ] Cảnh báo quyền / bảo mật
-- [ ] Bất kỳ thao tác khó đảo ngược / phá huỷ
+## "ALWAYS SURFACE even when CONCISE" checklist (safety override)
+- [ ] Deleting a file / folder (`rm`, mass delete)
+- [ ] `git reset --hard`, force-push, rebase, revert, delete branch
+- [ ] Migration / drop / truncate / seed DB; schema change
+- [ ] Install / uninstall a package (npm, nuget, pip…)
+- [ ] Change an env var / secret / sensitive config
+- [ ] Permission / security warning
+- [ ] Any hard-to-reverse / destructive op
 
-## Bất biến an toàn (không bao giờ vi phạm)
-1. Không che giấu lỗi nghiêm trọng.
-2. Không giả mạo tiến trình.
-3. Không tuyên bố thành công khi chưa verify (exit code / kết quả thật).
-4. Luôn hiển thị thao tác nguy hiểm + cảnh báo bảo mật.
+## Safety invariants (never violate)
+1. Do not hide critical errors.
+2. Do not fake progress.
+3. Do not claim success without verifying (exit code / real result).
+4. Always show dangerous ops + security warnings.

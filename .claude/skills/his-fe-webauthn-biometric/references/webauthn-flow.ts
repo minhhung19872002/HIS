@@ -1,8 +1,8 @@
 // TEMPLATE — HIS WebAuthn biometric 2-phase flow (frontend).
-// Dùng trong pages-v2/BiometricEnrollment.tsx. API qua api/nangcap24.ts object `biometric`.
+// Used in pages-v2/BiometricEnrollment.tsx. API via api/nangcap24.ts object `biometric`.
 import { biometric } from '../api/nangcap24';
 
-// ── base64url ↔ ArrayBuffer (WebAuthn cần BufferSource) ──
+// ── base64url ↔ ArrayBuffer (WebAuthn needs BufferSource) ──
 const b64urlToBuf = (s: string): ArrayBuffer => {
   const pad = '='.repeat((4 - (s.length % 4)) % 4);
   const b64 = (s + pad).replace(/-/g, '+').replace(/_/g, '/');
@@ -18,11 +18,11 @@ const bufToB64url = (buf: ArrayBuffer): string => {
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
 
-// ── REGISTER (2 pha) ──
+// ── REGISTER (2 phases) ──
 export async function registerBiometric(patientId: string, ownerName: string, deviceName: string) {
-  // Pha 1: begin → server trả challenge + rpId
+  // Phase 1: begin → server returns challenge + rpId
   const begin = await biometric.registerBegin({ patientId, ownerType: 'patient', ownerName, deviceName });
-  // Pha 2: browser tạo credential
+  // Phase 2: browser creates the credential
   const cred = (await navigator.credentials.create({
     publicKey: {
       challenge: b64urlToBuf(begin.challenge),
@@ -34,7 +34,7 @@ export async function registerBiometric(patientId: string, ownerName: string, de
     },
   })) as PublicKeyCredential;
   const att = cred.response as AuthenticatorAttestationResponse;
-  // Pha 2: finish → server lưu credential
+  // Phase 2: finish → server stores the credential
   return biometric.registerFinish({
     patientId, ownerType: 'patient', ownerName, deviceName,
     credentialId: bufToB64url(cred.rawId),
@@ -45,7 +45,7 @@ export async function registerBiometric(patientId: string, ownerName: string, de
   });
 }
 
-// ── SIGN (2 pha) ──
+// ── SIGN (2 phases) ──
 export async function signBiometric(patientId: string, documentType: string, documentRef: string) {
   const begin = await biometric.signBegin({ patientId, documentType, documentRef });
   const assertion = (await navigator.credentials.get({
@@ -60,7 +60,7 @@ export async function signBiometric(patientId: string, documentType: string, doc
     },
   })) as PublicKeyCredential;
   const asr = assertion.response as AuthenticatorAssertionResponse;
-  // finish → server ghi BiometricSignatureLog (⚠️ MVP: accept, chưa verify ECDSA/RSA thật)
+  // finish → server writes BiometricSignatureLog (⚠️ MVP: accept, not yet verifying a real ECDSA/RSA signature)
   return biometric.signFinish({
     patientId, credentialId: bufToB64url(assertion.rawId), documentType, documentRef,
     challenge: begin.challenge,
@@ -70,7 +70,7 @@ export async function signBiometric(patientId: string, documentType: string, doc
   });
 }
 
-/* Lưu ý:
-   - BẮT BUỘC HTTPS hoặc localhost; RpId phải khớp domain.
-   - Tên hàm api/DTO ở trên là minh hoạ — đối chiếu api/nangcap24.ts object `biometric` thật.
-   - E2E: WebAuthn không chạy headless → skip hoặc dùng CDP virtual authenticator. */
+/* Notes:
+   - HTTPS or localhost is MANDATORY; RpId must match the domain.
+   - The api function/DTO names above are illustrative — check the real api/nangcap24.ts object `biometric`.
+   - E2E: WebAuthn doesn't run headless → skip or use a CDP virtual authenticator. */

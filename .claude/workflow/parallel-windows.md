@@ -1,257 +1,221 @@
-# workflow/parallel-windows.md — Mô hình chạy NHIỀU cửa sổ chat Claude song song (same-tree, 1 RUNNER)
+# workflow/parallel-windows.md — Model for running MANY parallel Claude chat windows (same-tree, 1 RUNNER)
 
-> **CHỦ (REGISTRY):** mô hình vận hành đa-cửa-sổ trên CÙNG working tree. Sub-rule có chủ khác → **LINK, KHÔNG copy**.
-> Cơ chế git-ops chi tiết = [`project-rules.md`](project-rules.md) §2-4 · claim-first + SYNC-GATE = `project-rules.md` §2 ·
-> pipeline 5 chặng = [`workflow.md`](workflow.md) · build-gate/self-review = skill `his-qa-anti-pattern`.
+> **OWNER (REGISTRY):** the multi-window operating model on the SAME working tree. Sub-rules owned elsewhere → **LINK, do NOT copy**.
+> Detailed git-ops mechanics = [`project-rules.md`](project-rules.md) §2-4 · claim-first + SYNC-GATE = `project-rules.md` §2 ·
+> the 5-stage pipeline = [`workflow.md`](workflow.md) · build-gate/self-review = skill `his-qa-anti-pattern`.
 >
-> **PHẠM VI HIỆN TẠI:** dùng cho **tech-debt / fix / feature**. **KHÔNG** dùng cho task **TEST** — test làm CUỐI CÙNG sau
-> khi mọi fix DONE (chủ: `../../CLAUDE.md` §"Quản lý plan/task"). Khi chuyển sang test → xét lại mô hình này.
+> **CURRENT SCOPE:** used for **tech-debt / fix / feature**. **NOT** used for **TEST** tasks — test goes LAST after
+> all fixes are DONE (owner: `../../CLAUDE.md` §"Plan/task management"). When switching to test → re-examine this model.
 
-## 0. Vì sao có mô hình này
-Nhiều cửa sổ Claude trên cùng máy **chia sẻ 1 working tree + 1 backend + 1 DB + 1 bộ cổng** (worktree/tool ngoài/MCP
-chỉ cô lập *file*, KHÔNG cô lập *runtime* — đã nghiên cứu, kết luận: không hợp máy 16GB). Hệ quả: nguy hiểm nằm ở
-**CHẠY** (DB/cổng/migration), không phải **SOẠN**. Mô hình: **nhiều cửa cùng SOẠN — 1 cửa CHẠY.**
+## 0. Why this model exists
+Many Claude windows on the same machine **share 1 working tree + 1 backend + 1 DB + 1 set of gateways** (a worktree/external-tool/MCP
+only isolates *files*, NOT the *runtime* — researched, conclusion: not suitable for a 16GB machine). Consequence: the danger is in
+**RUNNING** (DB/gateways/migration), not **AUTHORING**. The model: **many windows AUTHOR — 1 window RUNS.**
 
-**Trần phần cứng (đo trên máy 16GB này — tùy máy):** WSL2/Docker bị cap RAM nhỏ (xem `~/.wslconfig`), SQL Server idle
-đã ăn >1GB; máy thường trực ở mức commit cao → **chỉ chứa nổi 1 stack HIS + 1 phiên dev đang chạy**. Vì vậy:
-- **MẶC ĐỊNH 2 cửa SOẠN** (an toàn nhất); **tối đa 4 SOẠN + 1 RUNNER**. Số cửa KHÔNG phải mục tiêu — **đếm số LÀN
-  file-rời-nhau backlog THỰC có** rồi mở đúng bấy nhiêu cửa (xem §2 STEP-0). Không đủ làn rời → **ít cửa hơn**. KHÔNG dựng stack/DB thứ 2.
-- **Build TUẦN TỰ** — không bao giờ build nặng ở cả 4 cửa cùng lúc (nguy cơ OOM/swap).
-- **Không đạt được** "mỗi cửa tự chạy/test app riêng" — đó là giới hạn phần cứng, không phải thiếu kỹ thuật.
+**Hardware ceiling (measured on this 16GB machine — varies by machine):** WSL2/Docker is RAM-capped small (see `~/.wslconfig`), an idle SQL Server
+already eats >1GB; the machine usually sits at high commit → **it can hold only 1 HIS stack + 1 running dev session**. Therefore:
+- **DEFAULT 2 AUTHOR windows** (safest); **max 4 AUTHOR + 1 RUNNER**. The window count is NOT the goal — **count the number of genuinely
+  separate-file backlog LANES** and open exactly that many windows (see §2 STEP-0). Not enough separate lanes → **fewer windows**. Do NOT stand up a 2nd stack/DB.
+- **Build SEQUENTIALLY** — never run a heavy build in all 4 windows at once (OOM/swap risk).
+- **Cannot achieve** "each window runs/tests its own app" — that's a hardware limit, not a lack of technique.
 
-## 1. Phân vai theo REGISTRY (né god-file) — bất biến: **1 registry / 1 cửa tại một thời điểm**
-God-file (append-magnet) là điểm đụng chính. Chia mỗi cửa giữ một **registry khác nhau** → không cửa nào tranh file:
+## 1. Role split by REGISTRY (avoid god-files) — invariant: **1 registry / 1 window at a time**
+A god-file (append-magnet) is the main collision point. Give each window a **different registry** → no window competes for files:
 
-| Cửa | Vai | Giữ registry (god-file) | Ví dụ task tech-debt | Chạy app? |
+| Window | Role | Holds registry (god-file) | Example tech-debt task | Runs the app? |
 |---|---|---|---|---|
-| **W1** | **RUNNER** | `HIS.Infrastructure/DependencyInjection.cs`, `Data/HISDbContext.cs`, **migration** | tách god-service BE, siết DI | ✅ **độc quyền** app + DB + docker |
-| **W2** | edit-only | `frontend/src/App.tsx` + menu `TerminalLayout.tsx` | refactor v2 page, gộp route | ❌ chỉ `npm run build`/`tsc -b` |
-| **W3** | edit-only | **registry-free**: controller (auto-discover) · `api/*.ts` (không barrel) · refactor **1 file cô lập** | siết `:any`, tách 1 component | ❌ chỉ build |
-| **W4** | edit-only | docs / governance / tech-debt **1 file** khác | xóa dead-code, sweep import | ❌ chỉ build |
+| **W1** | **RUNNER** | `HIS.Infrastructure/DependencyInjection.cs`, `Data/HISDbContext.cs`, **migration** | split BE god-service, tighten DI | ✅ **exclusive** app + DB + docker |
+| **W2** | edit-only | `frontend/src/App.tsx` + menu `TerminalLayout.tsx` | refactor a v2 page, merge a route | ❌ only `npm run build`/`tsc -b` |
+| **W3** | edit-only | **registry-free**: controller (auto-discover) · `api/*.ts` (no barrel) · refactor **1 isolated file** | tighten `:any`, split a component | ❌ build only |
+| **W4** | edit-only | docs / governance / a DIFFERENT single tech-debt file | remove dead-code, sweep imports | ❌ build only |
 
-> Nguyên tắc, KHÔNG cứng W1-W4: nếu phiên toàn tech-debt FE thì có thể W1=runner+refactor-isolated, W2=App.tsx,
-> W3/W4=file cô lập khác. **Miễn 2 cửa KHÔNG cùng chạm 1 registry/god-file/contract dùng chung.**
-> Shared/contract "committee file" (`client.ts`, `MappingProfile.cs`, `HISDbContext.cs`, core DTO, `_v2kit`) = cùng luật
-> mutex như god-file: **chỉ 1 cửa sửa/lúc**.
-> **★ Phân vùng theo CỤM-ISSUE (không chỉ god-file):** issue **decompose theo *type-site*** (vd #354/#355/#356 con #196 — bound
-> type-a / aggregate / write-bulk) chia theo *loại site* nên **cùng-file** → 2 cửa pick 2 issue-con khác nhau VẪN đụng file.
-> → 1 cửa **ôm CẢ cụm sibling** (single-owner); cửa khác KHÔNG pick sibling. Coordinator gán cụm-issue **không chồng** cho mỗi cửa.
+> A principle, NOT a hard W1-W4: if the session is all FE tech-debt, you can have W1=runner+isolated-refactor, W2=App.tsx,
+> W3/W4=other isolated files. **As long as no 2 windows touch the same registry/god-file/shared contract.**
+> A shared/contract "committee file" (`client.ts`, `MappingProfile.cs`, `HISDbContext.cs`, core DTO, `_v2kit`) = the same
+> mutex rule as a god-file: **only 1 window edits at a time**.
+> **★ Partition by ISSUE-CLUSTER (not just god-files):** an issue **decomposed by *type-site*** (e.g. #354/#355/#356 children of #196 — bound
+> type-a / aggregate / write-bulk) is split by *site type* so it's **same-file** → 2 windows picking 2 different sub-issues STILL collide on the file.
+> → 1 window **owns the WHOLE sibling cluster** (single-owner); the other does NOT pick a sibling. The coordinator assigns **non-overlapping** issue-clusters per window.
 
-**Model gợi ý / cửa** (model là PER-CỬA; tiêu chí đầy đủ → `../../CLAUDE.md` §"Agent routing"): cửa chạm
-**DI / contract / DB / migration / refactor-rủi-ro** (thường = RUNNER) → **Opus** · cửa **refactor cơ học verify-được /
-FE page / sweep import / siết `:any`** → **Sonnet** · cửa **docs / Q&A thuần / bulk cô lập KHÔNG chạm guardrail** →
-**Haiku** hoặc đẩy `agy`. Đặt `/model` **một lần** khi gán vai cửa; task lệch tầng thì nudge đổi.
+**Suggested model / window** (the model is PER-WINDOW; full criteria → `../../CLAUDE.md` §"Agent routing"): a window touching
+**DI / contract / DB / migration / risky-refactor** (usually = RUNNER) → **Opus** · a window doing **verifiable mechanical refactor /
+FE page / import sweep / tightening `:any`** → **Sonnet** · a window doing **docs / pure Q&A / isolated bulk NOT touching the guardrail** →
+**Haiku** or push to `agy`. Set `/model` **once** when assigning the window's role; nudge a change if a task is in the wrong tier.
 
-## 2. Nghi thức ĐẦU mỗi cửa sổ (mỗi phiên)
-**★ STEP-0 — CLAIM ATOMIC TRƯỚC KHI SỬA (an-toàn-MẶC-ĐỊNH, KHÔNG cần coordinator):** ngay khi chốt 1 task, chạy
-**`bash .claude/window-lock.sh claim <issue|slug> [model]`** TRƯỚC mọi Edit (⚠️ **M2** — từ cửa **PowerShell** phải dùng
-**`powershell -File .claude/window-lock.ps1 claim ...`**; ĐỪNG gõ `bash` trực tiếp vì `bash` trên PATH PowerShell là **WSL rỗng**
-→ exit 1, lock KHÔNG tạo **CÂM**). `mkdir` **atomic ở tầng OS** → dù N cửa cùng-máy pick cùng issue ĐỒNG THỜI, **đúng 1 cửa
-thắng lock**; cửa khác `[BUSY]` → **ĐỔI task**. Diệt gốc "2 cửa cùng máy trùng task" bằng **mutex**. Xong/đổi/blocked →
-**`window-lock.sh release <key>`** (release **kiểm session-owner** — cửa khác KHÔNG cướp được lock SỐNG; crash → `release <key> --force`).
-**★ ÉP tự động (PreToolUse gate `hooks/pre-edit-lock-gate.sh`):** chặn Edit file `backend/`/`frontend/` khi **≥2 cửa active** mà
-cửa đó **CHƯA claim lock nào** (phiên **1-cửa KHÔNG bị chặn** → 0 ma sát) — biến claim từ "nhắc" thành "ép" cho ca quên-claim.
+## 2. Ritual at the START of each window (each session)
+**★ STEP-0 — CLAIM ATOMICALLY BEFORE EDITING (safe-by-DEFAULT, no coordinator needed):** the moment you settle on a task, run
+**`bash .claude/window-lock.sh claim <issue|slug> [model]`** BEFORE any Edit (⚠️ **M2** — from a **PowerShell** window you must use
+**`powershell -File .claude/window-lock.ps1 claim ...`**; do NOT type `bash` directly because `bash` on the PowerShell PATH is an **empty WSL**
+→ exit 1, the lock is NOT created **SILENTLY**). `mkdir` is **atomic at the OS level** → even if N same-machine windows pick the same issue SIMULTANEOUSLY, **exactly 1 window
+wins the lock**; the others get `[BUSY]` → **SWITCH task**. Kills "2 same-machine windows duplicate a task" at the root with a **mutex**. Done/switch/blocked →
+**`window-lock.sh release <key>`** (release **checks the session-owner** — another window CANNOT steal a LIVE lock; crash → `release <key> --force`).
+**★ AUTO-ENFORCE (PreToolUse gate `hooks/pre-edit-lock-gate.sh`):** blocks Edit of a `backend/`/`frontend/` file when **≥2 windows are active** and
+that window **has claimed NO lock** (a **1-window session is NOT blocked** → 0 friction) — turning the claim from "reminder" into "enforcement" for the forgot-to-claim case.
 
-**Vì sao lock LOCAL chứ không phải GitHub:** 4 cửa cùng máy = **CÙNG 1 tài khoản GitHub** → `gh` thấy là MỘT danh tính →
-`in-progress`+assignee+verify-after-claim **MÙ với trùng-cửa same-machine** (cả 4 đều `@me`). Cần CẢ HAI trục:
+**Why a LOCAL lock and not GitHub:** 4 windows on the same machine = the **SAME GitHub account** → `gh` sees ONE identity →
+`in-progress`+assignee+verify-after-claim is **BLIND to same-machine window collisions** (all 4 are `@me`). You need BOTH axes:
 
-| trục | **same-machine** (4 cửa/1 máy) | **cross-machine** (máy-2) |
+| axis | **same-machine** (4 windows/1 machine) | **cross-machine** (machine-2) |
 |---|---|---|
-| **prevention** | `window-lock.sh claim` = **mkdir mutex** (nguồn-sự-thật) | `gh in-progress` + **verify-after-claim** (assignee tài khoản KHÁC = phát hiện) |
+| **prevention** | `window-lock.sh claim` = **mkdir mutex** (source of truth) | `gh in-progress` + **verify-after-claim** (a DIFFERENT account assignee = detection) |
 | **attribution** | `.claude/locks/<key>/meta` (window·model·time) | `gh` assignee |
 
-**COORDINATOR = TÙY CHỌN (tối ưu, KHÔNG bắt buộc):** lock đã chặn trùng-issue nên coordinator chỉ để **chia làn tốt hơn**
-(giảm file-overlap, gán cụm sibling). Không coordinator vẫn AN TOÀN nhờ lock; có thì hiệu quả hơn. Cửa **KHÔNG cần tự đánh số**
-— `window-lock.sh` tự sinh window-tag. Đếm **làn file-rời-nhau**, mở đúng số cửa (§0).
+**COORDINATOR = OPTIONAL (optimization, NOT required):** the lock already blocks issue collisions, so the coordinator is only for **better lane-splitting**
+(less file-overlap, assigning sibling clusters). Without a coordinator it's still SAFE thanks to the lock; with one it's more efficient. Windows do **NOT need to number themselves**
+— `window-lock.sh` auto-generates a window-tag. Count the **separate-file lanes**, open exactly that many windows (§0).
 
-**⚠️ GIỚI HẠN lock (không nói quá):** lock theo **ISSUE** → chặn 2 cửa cùng issue. **2 issue KHÁC nhau đụng CÙNG file**
-(vd #354/#355 cùng service file) lock KHÔNG thấy → vẫn cần **foreign-scan (bước 1) + single-owner cụm**; fix triệt để
-file-overlap = **`git worktree` cho cửa edit-only** (cô lập file vật lý, gộp bằng git merge thay vì last-write-wins câm).
-Cụm decompose-theo-type (vd #196 con) = **1 làn single-owner**. Cửa **solo (1 cửa)**: vẫn nên claim (rẻ) nhưng không bắt buộc.
+**⚠️ LOCK LIMIT (no overstatement):** the lock is per **ISSUE** → blocks 2 windows on the same issue. **2 DIFFERENT issues touching the SAME file**
+(e.g. #354/#355 on the same service file) the lock can't see → still need **foreign-scan (step 1) + single-owner cluster**; the radical fix for
+file-overlap = **`git worktree` for an edit-only window** (physical file isolation, merge via git merge instead of silent last-write-wins).
+A decompose-by-type cluster (e.g. #196's children) = **1 single-owner lane**. A **solo (1 window)**: still should claim (cheap) but not required.
 
-Các bước 0-4 dưới là **PER-cửa**:
-0. **MODEL-TIER CHECK TRƯỚC TIÊN** (trước khi vào task): đánh giá tính chất task của cửa này; nếu `/model` hiện tại
-   **lệch tầng** (vd Opus cho việc cơ học / Q&A) → **GỢI Ý user `/model` đúng tầng RỒI mới làm**, đừng vào việc luôn
-   (tầng = bảng "Model gợi ý / cửa" §1; tiêu chí chủ: `../../CLAUDE.md` §"Agent routing"; hook `session-start.sh` đã nudge).
-   Nudge **mềm** — KHÔNG tự đổi model giữa phiên.
-1. **SYNC-GATE** trước khi pick (cây sạch + `git pull --ff-only` + verify-against-CODE + **`git status` foreign-edit scan
-   TRƯỚC claim**: file dirty của mình-chưa-sửa = cửa khác đã ôm vùng đó → **ĐỔI candidate**; issue **decompose-theo-type**
-   = **single-owner cả cụm sibling**) — chủ: `project-rules.md` §2 (bước 3).
-2. **CLAIM-FIRST = lock (same-machine) + gh (cross-machine):** chạy `bash .claude/window-lock.sh claim <issue|slug> [model]`
-   — với key là **số issue** nó tự làm CẢ HAI: `mkdir` mutex local (chống trùng-cửa cùng máy) **và** `gh issue edit --add-label
-   in-progress --add-assignee @me` + **verify-after-claim** (assignee tài khoản KHÁC = máy-2 giành → ĐỔI task). Chủ: `project-rules.md` §2 (bước 4) + `../../CLAUDE.md`.
-3. **Khai báo allow-list**: nêu rõ *cửa này = issue/module nào + sẽ chạm file/thư mục nào*. Chỉ sửa trong allow-list.
-4. **Quy tắc nhận diện chéo:** thấy `git status` có file dirty **ngoài allow-list của mình** → đó là **cửa Claude khác
-   HOẶC `agy`** (không phải "Antigravity" mặc định) → **KHÔNG đụng, KHÔNG stage, KHÔNG nhận là việc của mình.**
+Steps 0-4 below are **PER-window**:
+0. **MODEL-TIER CHECK FIRST** (before starting the task): assess this window's task nature; if the current `/model`
+   is **in the wrong tier** (e.g. Opus for mechanical work / Q&A) → **NUDGE the user to `/model` the right tier THEN work**, don't just dive in
+   (the tier = the "Suggested model / window" table §1; owner criteria: `../../CLAUDE.md` §"Agent routing"; the `session-start.sh` hook already nudges).
+   The nudge is **soft** — do NOT change the model mid-session yourself.
+1. **SYNC-GATE** before picking (clean tree + `git pull --ff-only` + verify-against-CODE + **`git status` foreign-edit scan
+   BEFORE claiming**: a dirty file you didn't edit = another window already owns that area → **SWITCH candidate**; a **decompose-by-type** issue
+   = **single-owner of the whole sibling cluster**) — owner: `project-rules.md` §2 (step 3).
+2. **CLAIM-FIRST = lock (same-machine) + gh (cross-machine):** run `bash .claude/window-lock.sh claim <issue|slug> [model]`
+   — with the key as the **issue number** it does BOTH: a local `mkdir` mutex (anti same-machine window duplication) **and** `gh issue edit --add-label
+   in-progress --add-assignee @me` + **verify-after-claim** (a DIFFERENT account assignee = machine-2 grabbed it → SWITCH task). Owner: `project-rules.md` §2 (step 4) + `../../CLAUDE.md`.
+3. **Declare the allow-list**: state clearly *this window = which issue/module + which files/folders it will touch*. Only edit within the allow-list.
+4. **Cross-recognition rule:** if `git status` shows a dirty file **outside your allow-list** → it's **another Claude window
+   OR `agy`** (not "Antigravity" by default) → **do NOT touch, do NOT stage, do NOT claim it as your work.**
 
-### 2b. Skill-routing theo TẦNG MODEL — cửa Sonnet/Haiku KHÔNG tự navigate đa-hop
-> Hook SKILL-ROUTER + `SKILL-MAP.md` fire cho **mọi** model nhưng **không phân tầng** → model yếu (Haiku/Sonnet) dễ
-> **bỏ qua / chọn sai** khi phải tự đi `SKILL-MAP → sub-map → chọn skill`. 3 luật dưới chốt skill đúng cho cửa cheap:
-- **S1 — Pre-resolve (việc-khó để tầng-mạnh):** cửa **Opus/coordinator** (hoặc bạn) resolve **SẴN** danh sách *skill bắt
-  buộc + guardrail P0* cho task **theo `SKILL-MAP.md` (2) dispatch**, ghi vào **brief/issue body** (state-store, chủ:
-  `workflow.md` §2). Cửa cheap **chỉ áp đúng list đã ghi** — không phải tự suy luận đa-hop. Nếu brief CHƯA có list →
-  cửa cheap đọc **đúng 1 dòng dispatch** cho loại task của nó trong `SKILL-MAP.md` (2) và áp **nguyên chuỗi skill được
-  nêu**, TUYỆT ĐỐI không bịa skill (fallback `SKILL-MAP.md` (6): không chắc → DỪNG hỏi, không tự chế).
-- **S2 — Giới hạn loại task cho cửa cheap:** Sonnet/Haiku **CHỈ** nhận task **registry-free / cơ học verify-được /
-  docs** (routing đơn giản 1-2 skill). **KHÔNG** giao task chạm **guardrail** (DI · contract · DB/migration ·
-  patient-safety · tiền · secret) → giữ **Opus** (đã là rule `../../CLAUDE.md` §"Agent routing"). Mis-route ở cửa cheap
-  vì thế **ít nguy hiểm** (việc nó làm vốn không chạm guardrail).
-- **S3 — Auto-escalate:** đang làm mà phát hiện task **lỡ chạm guardrail** ngoài dự kiến (phải sửa `DependencyInjection.cs`,
-  đổi contract/DTO, viết migration…) → **STOP, KHÔNG tự làm**, nudge user chuyển sang cửa **Opus** / `/model opus`.
-- **P0 áp MỌI tầng (cheap không được bỏ):** no-hallucination · build-gate · no-hardcode-secret · DI-registration —
-  hook + `SKILL-MAP.md` §0b enforce, model nào cũng phải theo.
+### 2b. Skill-routing by MODEL TIER — Sonnet/Haiku windows do NOT self-navigate multi-hop
+> The SKILL-ROUTER hook + `SKILL-MAP.md` fire for **every** model but are **not tiered** → a weaker model (Haiku/Sonnet) easily
+> **skips / mis-picks** when it has to traverse `SKILL-MAP → sub-map → pick skill` itself. The 3 rules below lock the right skill for a cheap window:
+- **S1 — Pre-resolve (give the hard part to the strong tier):** the **Opus/coordinator** window (or you) resolves IN ADVANCE the list of *mandatory
+  skills + P0 guardrails* for the task **per `SKILL-MAP.md` (2) dispatch**, written into the **brief/issue body** (state-store, owner:
+  `workflow.md` §2). The cheap window **only applies the written list** — not its own multi-hop reasoning. If the brief has NO list yet →
+  the cheap window reads **exactly the 1 dispatch line** for its task type in `SKILL-MAP.md` (2) and applies **the whole listed skill chain**,
+  ABSOLUTELY no inventing skills (fallback `SKILL-MAP.md` (6): unsure → STOP and ask, no making-it-up).
+- **S2 — Limit the task type for a cheap window:** Sonnet/Haiku **ONLY** takes **registry-free / verifiable-mechanical /
+  docs** tasks (simple 1-2 skill routing). Do **NOT** give it a task touching the **guardrail** (DI · contract · DB/migration ·
+  patient-safety · money · secret) → keep that on **Opus** (already a rule `../../CLAUDE.md` §"Agent routing"). A mis-route on a cheap window is
+  therefore **less dangerous** (its work doesn't touch the guardrail anyway).
+- **S3 — Auto-escalate:** while working, if you discover the task **inadvertently touches the guardrail** unexpectedly (must edit `DependencyInjection.cs`,
+  change a contract/DTO, write a migration…) → **STOP, do NOT do it yourself**, nudge the user to switch to an **Opus** window / `/model opus`.
+- **P0 applies to EVERY tier (cheap can't skip):** no-hallucination · build-gate · no-hardcode-secret · DI-registration —
+  the hook + `SKILL-MAP.md` §0b enforce; every model must follow.
 
-## 3. Luật vận hành RIÊNG của mô hình (ngoài git-ops chuẩn)
-- **R1 — Chỉ RUNNER chạy app/DB/docker.** W2-W4 chỉ `dotnet build` / `tsc -b` / `vite build` (build-gate, KHÔNG run-gate).
-  → diệt: đụng cổng, bẩn DB chung, test nhầm-cửa.
-- **R2 — god-file & migration = MUTEX.** Chỉ 1 cửa có sửa-chưa-commit ở 1 god-file/lúc. Thêm dòng DI/route/DbSet →
-  **commit RIÊNG dòng đó + push ngay** để cửa khác rebase lên trước khi chạm cùng file.
-- **R3 — Migration đánh số an toàn:** chỉ **RUNNER** tạo migration. Số kế tiếp = `ls Data/Scripts/` → **max(NN)+1** (TUYỆT
-  ĐỐI không hard-code số); `git fetch` **trước** khi tính; tạo file rỗng `NN_*.sql` → commit/push NGAY để max+1 tiến cho
-  mọi máy; script luôn idempotent `IF NOT EXISTS`, **không DROP mù**.
-- **R4 — git an toàn cây-chung:** **chỉ `git add <file của mình>`** (CẤM `add -A`/`-am`) · dùng **Edit** không Write/sed
-  (chống CRLF churn) · `git pull --rebase` trước push · push nhỏ/atomic kèm `Closes #N`. Cơ chế đầy đủ → `project-rules.md` §2-4.
-- **R5 — RAM:** `docker stop` container không-liên-quan (vd n8n / vhandelivery) khi làm HIS · **build tuần tự**, tối đa 1
-  build nặng/lúc · đóng tab browser thừa khi build.
-- **R6 — STATUS.md:** Stop-hook đọc CẢ cây → có thể chặn vì file cửa khác. **KHÔNG** commit file lạ để mở khoá; cập nhật
-  STATUS cho phần của mình, để **RUNNER** là cửa giữ STATUS chính (đừng giành — xem `feedback_antigravity-parallel-same-tree`).
+## 3. The model's OWN operating rules (beyond standard git-ops)
+- **R1 — Only the RUNNER runs the app/DB/docker.** W2-W4 only `dotnet build` / `tsc -b` / `vite build` (build-gate, NOT run-gate).
+  → kills: port collisions, dirtying the shared DB, testing in the wrong window.
+- **R2 — god-file & migration = MUTEX.** Only 1 window has uncommitted edits on a god-file at a time. Adding a DI/route/DbSet line →
+  **commit JUST that line + push immediately** so other windows rebase onto it before touching the same file.
+- **R3 — Safe migration numbering:** only the **RUNNER** creates migrations. The next number = `ls Data/Scripts/` → **max(NN)+1** (ABSOLUTELY
+  do not hard-code the number); `git fetch` **before** computing; create the empty `NN_*.sql` file → commit/push IMMEDIATELY so max+1 advances for
+  all machines; the script is always idempotent `IF NOT EXISTS`, **no blind DROP**.
+- **R4 — Safe git on a shared tree:** **only `git add <your own files>`** (FORBID `add -A`/`-am`) · use **Edit** not Write/sed
+  (anti CRLF churn) · `git pull --rebase` before push · push small/atomic with `Closes #N`. Full mechanics → `project-rules.md` §2-4.
+- **R5 — RAM:** `docker stop` unrelated containers (e.g. n8n / vhandelivery) while on HIS · **build sequentially**, max 1
+  heavy build at a time · close spare browser tabs when building.
+- **R6 — STATUS.md:** the Stop-hook reads the WHOLE tree → it may block because of another window's file. Do **NOT** commit a foreign file to unblock;
+  update STATUS for your part, and let the **RUNNER** be the window that owns the main STATUS (don't fight over it — see `feedback_antigravity-parallel-same-tree`).
 
-## 4. Toàn bộ trường hợp → cách xử lý
-| # | Trường hợp | Mức | Xử lý |
+## 4. Every case → how to handle
+| # | Case | Level | Handling |
 |---|---|---|---|
-| 1 | 2 cửa sửa **cùng 1 file** (last-write-wins ghi đè câm) | 🔴 | Phân file/module từ đầu (R-allow-list); **Read lại trước mỗi Edit**; commit nhỏ-thường → thành git-conflict cứu được |
-| 2 | 2 cửa cùng thêm **god-file** | 🔴 | R2 mutex; thêm-commit-push ngay; build-gate sau mọi merge (rớt 1 dòng DI = 500 dù build pass) |
-| 3 | 2 cửa **trùng số migration** (merge sạch nhưng trùng câm) | 🔴 | R3: chỉ runner tạo; fetch trước; file rỗng push ngay; idempotent |
-| 4 | Cửa non-runner **lỡ chạy app** (đụng cổng / bẩn DB) | 🔴 | R1 build-only; `vite strictPort` chặn 3001→3002 câm; (tùy) DB riêng `HIS_w2` |
-| 5 | `git add -A`/`-am` **nuốt việc cửa khác** | 🔴 | R4: cấm add-all, chỉ add tường minh |
-| 6 | Task có **blast-radius ngầm** sang module cửa khác | 🔴 | impact-analysis TRƯỚC claim (grep callers); committee-file = mutex; ưu tiên đổi additive |
-| 7 | Push **non-fast-forward** (4 cửa + máy-2) | 🔴 | R4: `pull --rebase`; push nhỏ-thường; fetch trước claim/migration/push |
-| 8 | **OOM/swap** khi build chồng live-stack | 🟡 | R5: build tuần tự; `dotnet build` project lẻ `--no-restore`; stop container thừa |
-| 9 | **Nhãn in-progress treo** sau crash | 🟡 | Đầu phiên sweep nhãn stale của @me; claim nhỏ/atomic; dừng/blocked → gỡ nhãn ngay |
-| 10 | **Máy-2** = writer thứ 5 không thấy local | 🟡 | Nguồn-sự-thật chỉ `git fetch` + `gh issue list`; claim round-trip GitHub TRƯỚC khi làm |
-| 11 | Cửa **crash / VS Code reload** giữa task | 🟡 | Mở lại: `git status` + build-gate phát hiện file nửa-vời; commit checkpoint thường; reconcile nhãn |
-| 12 | **STATUS.md Stop-hook** chặn nhầm (thấy file cửa khác) | 🟡 | R6: không commit file lạ; runner giữ STATUS |
-| 13 | **CRLF churn** (autocrlf=true) phình diff/giả conflict | 🟡 | R4: Edit không Write/sed; soi `git diff` trước add (`feedback_windows-line-ending-sed-churn`) |
-| 14 | **DROP/seed phá DB chung** (runner chạy mọi script mỗi startup) | 🔴 | R3 idempotent + không DROP mù; mọi script destructive review tay; (tùy) DB riêng/cửa |
-| 15 | **2 cửa CÙNG MÁY pick TRÙNG issue** (gh assignee MÙ vì cùng tài khoản; cửa khác **edit-before-claim** → `gh issue list` chưa thấy; HOẶC **decompose-theo-type** share file) | 🔴 | **FIX CHÍNH = STEP-0 atomic lock** `bash .claude/window-lock.sh claim <key>` (`mkdir` mutex — đúng 1 cửa thắng dù pick đồng thời). Bổ trợ: **foreign-edit scan** `git status` trước Edit; decompose-theo-type = **single-owner cả cụm** — chủ `project-rules.md` §2 bước 3-4 (gốc lỗi 2026-06-28) |
-| 16 | **Lock treo sau crash** (cửa giữ `.claude/locks/<key>` chết → cửa mới `[BUSY]`/gate chặn) | 🟡 | `session-start` **LIỆT KÊ** lock đang giữ + ghi active-marker (KHÔNG tự sweep); **`window-lock.sh sweep`** (chạy TAY) cảnh báo nghi-treo (**session không-active** / >12h / issue CLOSED); release **kiểm session-owner** → cửa chết thật: `window-lock.sh release <key> --force`; **lock còn sống → ĐỂ NGUYÊN**. KHÔNG auto-xoá |
+| 1 | 2 windows edit **the same file** (silent last-write-wins overwrite) | 🔴 | Split files/modules upfront (R-allow-list); **Read again before each Edit**; small/frequent commits → becomes a recoverable git-conflict |
+| 2 | 2 windows both add to a **god-file** | 🔴 | R2 mutex; add-commit-push immediately; build-gate after every merge (a dropped DI line = 500 even if build passes) |
+| 3 | 2 windows **duplicate a migration number** (merges clean but silently duplicates) | 🔴 | R3: only the runner creates; fetch first; push the empty file immediately; idempotent |
+| 4 | A non-runner window **accidentally runs the app** (port collision / dirty DB) | 🔴 | R1 build-only; `vite strictPort` blocks the silent 3001→3002; (optionally) a separate DB `HIS_w2` |
+| 5 | `git add -A`/`-am` **swallows another window's work** | 🔴 | R4: ban add-all, only explicit add |
+| 6 | A task with **hidden blast-radius** into another window's module | 🔴 | impact-analysis BEFORE claiming (grep callers); committee-file = mutex; prefer additive changes |
+| 7 | A **non-fast-forward** push (4 windows + machine-2) | 🔴 | R4: `pull --rebase`; small/frequent push; fetch before claim/migration/push |
+| 8 | **OOM/swap** when builds stack on the live stack | 🟡 | R5: build sequentially; `dotnet build` a single project `--no-restore`; stop spare containers |
+| 9 | **A hung in-progress label** after a crash | 🟡 | At session start, sweep stale @me labels; small/atomic claims; stop/blocked → remove the label immediately |
+| 10 | **Machine-2** = a 5th writer invisible to local | 🟡 | The source of truth is only `git fetch` + `gh issue list`; claim round-trips GitHub BEFORE working |
+| 11 | A window **crashes / VS Code reloads** mid-task | 🟡 | Reopen: `git status` + build-gate detects half-done files; frequent checkpoint commits; reconcile labels |
+| 12 | **STATUS.md Stop-hook** blocks by mistake (sees another window's file) | 🟡 | R6: don't commit a foreign file; the runner owns STATUS |
+| 13 | **CRLF churn** (autocrlf=true) bloats the diff/fakes a conflict | 🟡 | R4: Edit not Write/sed; inspect `git diff` before add (`feedback_windows-line-ending-sed-churn`) |
+| 14 | **DROP/seed wrecks the shared DB** (the runner runs every script each startup) | 🔴 | R3 idempotent + no blind DROP; every destructive script reviewed by hand; (optionally) per-window DB |
+| 15 | **2 SAME-MACHINE windows pick the SAME issue** (gh assignee BLIND because same account; another window **edit-before-claim** → `gh issue list` doesn't see it yet; OR **decompose-by-type** shares the file) | 🔴 | **MAIN FIX = STEP-0 atomic lock** `bash .claude/window-lock.sh claim <key>` (`mkdir` mutex — exactly 1 window wins even on simultaneous pick). Backup: **foreign-edit scan** `git status` before Edit; decompose-by-type = **single-owner of the whole cluster** — owner `project-rules.md` §2 steps 3-4 (root of the 2026-06-28 bug) |
+| 16 | **A hung lock after a crash** (the window holding `.claude/locks/<key>` died → a new window gets `[BUSY]`/gate-blocked) | 🟡 | `session-start` **LISTS** held locks + writes an active-marker (does NOT auto-sweep); **`window-lock.sh sweep`** (run BY HAND) warns about suspected-hung (**inactive session** / >12h / CLOSED issue); release **checks the session-owner** → truly-dead window: `window-lock.sh release <key> --force`; **a live lock → LEAVE IT**. No auto-delete |
 
-## 5. An toàn đạt được & giới hạn
-- **Sau mitigation ≈ 90-93% trơn tru** (model authoring song song). ~10% còn lại đa số **hồi phục được** (git-conflict /
-  cổng báo lỗi to / script idempotent no-op).
-- **4 ca KHÔNG triệt tiêu hết bằng quy trình, chỉ giảm:** (1) blast-radius ngầm cross-module; (2) nhãn treo sau hard-crash;
-  (3) rớt dòng god-file khi gỡ conflict ẩu mà vẫn build-pass; (4) DROP/script phá DB chung. → đây là lý do nên **trả nợ
-  god-file + thêm bảng applied-migrations** để nâng trần an toàn (xem skill `his-tech-debt-workflow`).
-- **KHÔNG đạt:** 4 cửa cùng chạy/test app riêng (giới hạn phần cứng 16GB + DB chung). Muốn có → cần RAM 32-64GB / cloud
-  agent / per-window DB+port, KHÔNG theo hướng này trên máy hiện tại.
+## 5. Safety achieved & limits
+- **After mitigation ≈ 90-93% smooth** (parallel authoring model). The remaining ~10% are mostly **recoverable** (git-conflict /
+  loud port error / idempotent no-op script).
+- **4 cases NOT fully eliminated by process, only reduced:** (1) hidden cross-module blast-radius; (2) hung labels after a hard-crash;
+  (3) a dropped god-file line when a conflict is resolved sloppily but still build-passes; (4) DROP/scripts wrecking the shared DB. → this is why you should **pay down
+  the god-file debt + add an applied-migrations table** to raise the safety ceiling (see skill `his-tech-debt-workflow`).
+- **NOT achieved:** 4 windows each running/testing their own app (16GB hardware limit + shared DB). To get it → you need 32-64GB RAM / a cloud
+  agent / per-window DB+port, NOT this approach on the current machine.
 
-## 6. (Tùy chọn — smoke-test riêng, CHƯA auto-apply) Cap RAM SQL Server an toàn
-Nếu cần ghì SQL trong VM nhỏ, đặt **CẢ** giới hạn SQL nội bộ **và** headroom container (đừng chỉ `mem_limit` trần kẻo
-Docker OOM-kill SQL):
+## 6. (Optional — separate smoke-test, NOT yet auto-applied) Safe SQL Server RAM cap
+If you need to rein in SQL inside a small VM, set **BOTH** the SQL internal limit **and** container headroom (don't only set `mem_limit` or
+Docker may OOM-kill SQL):
 ```yaml
 # docker-compose.yml › services.sqlserver
 environment:
-  - MSSQL_MEMORY_LIMIT_MB=2048   # SQL tự giới hạn 2GB
-mem_limit: 2560m                 # container headroom > giới hạn SQL
+  - MSSQL_MEMORY_LIMIT_MB=2048   # SQL self-limits to 2GB
+mem_limit: 2560m                 # container headroom > the SQL limit
 ```
-Đây là thay đổi **DB-infra dùng chung** (máy-2 kế thừa) → **review + smoke-test** trước khi commit; rẻ-an-toàn hơn là chỉ
-`docker stop` container không-liên-quan để nhường RAM cho SQL.
+This is a **shared DB-infra** change (machine-2 inherits it) → **review + smoke-test** before committing; cheaper-safer than just
+`docker stop` of unrelated containers to free RAM for SQL.
 
-## 7. CHẾ ĐỘ TEST 4 cửa (chạy SAU khi mọi fix DONE)
-> Test làm **CUỐI CÙNG** (chủ: `../../CLAUDE.md` + `docs/architecture/evidence/README.md` §0). Quy ước **đặt-tên ảnh /
-> viewer / regen / dedup-GitHub** = chủ ở **`docs/architecture/evidence/README.md`** + skill `his-test-e2e` §6 — LINK, KHÔNG copy.
+## 7. 4-WINDOW TEST MODE (run AFTER all fixes are DONE)
+> Test goes **LAST** (owner: `../../CLAUDE.md` + `docs/architecture/evidence/README.md` §0). The conventions for **image naming /
+> viewer / regen / dedup-GitHub** = owned by **`docs/architecture/evidence/README.md`** + skill `his-test-e2e` §6 — LINK, do NOT copy.
 
-**Khác chế độ code:** test trên **PROD (his-psi)** → runtime ở cloud, **KHÔNG cần app/DB local** → **TẮT Docker local**
-(giải phóng RAM) → 4 cửa mỗi cửa **1 browser MCP CHẠY SONG SONG** được (Playwright / Chrome-DevTools MCP). Nên "1 RUNNER
-độc quyền app" của §1 **không áp lúc test**; thay bằng **1 cửa INTEGRATOR** lo gộp (xem dưới).
+**Different from code mode:** testing runs on **PROD (his-psi)** → the runtime is in the cloud, **no local app/DB needed** → **turn OFF local Docker**
+(frees RAM) → 4 windows each with **1 MCP browser running IN PARALLEL** (Playwright / Chrome-DevTools MCP). So the "1 exclusive RUNNER for the app" of §1
+**does not apply during test**; replace it with **1 INTEGRATOR window** handling the merge (see below).
 
-- **Phân chia (coordinator):** phân **TOÀN BỘ** plan (38 phân hệ + 12 luồng + cross) cho 4 cửa — **phủ hết, KHÔNG gap/overlap**.
-  Mỗi cửa nộp evidence theo **folder riêng** (`<layer>-<modid>/` · `flows/` · `cross/`) + **TC-code riêng** → tự không đụng.
-  **Completeness = bám checklist state từng item trong viewer**, KHÔNG do cách chia cửa quyết định. **Bảng chia 4 cửa cụ thể
-  (C1-C4 + tầng model + read-only) = `../../docs/workspace-docs/20-backlog/test-4window-allocation.md`** (nguồn-sự-thật, mọi máy).
-- **Model-tier:** luồng/module đơn giản (navigation, ít nhánh) → cửa **Sonnet/Haiku** (§2b S2); luồng phức tạp (nhiều
-  setup/nhánh, nghiệp vụ rối) → **Opus**.
-- **Chụp:** MCP tự lái + screenshot từng state, **đặt tên đúng** evidence README §2.
-- **File dùng chung khi test:** CHỈ **`manifest.js`** — **1 cửa INTEGRATOR** chạy `gen-manifest` **MỘT lần** sau khi cả 4 nộp
-  ảnh (mutex, như god-file). `data/*.js` **READ-ONLY** lúc chạy (đổi plan → workflow `his-testplan-evidence`, single-owner).
+- **Split (coordinator):** divide the **WHOLE** plan (38 modules + 12 flows + cross) across 4 windows — **full coverage, NO gap/overlap**.
+  Each window submits evidence in its **own folder** (`<layer>-<modid>/` · `flows/` · `cross/`) + its **own TC-code** → no self-collision.
+  **Completeness = follow the per-item checklist state in the viewer**, NOT decided by the window split. **The concrete 4-window allocation table
+  (C1-C4 + model tier + read-only) = `../../docs/workspace-docs/20-backlog/test-4window-allocation.md`** (source of truth, all machines).
+- **Model-tier:** a simple flow/module (navigation, few branches) → a **Sonnet/Haiku** window (§2b S2); a complex flow (much
+  setup/branches, tangled business) → **Opus**.
+- **Capture:** the MCP auto-drives + screenshots each state, **naming it correctly** per evidence README §2.
+- **Shared file during test:** ONLY **`manifest.js`** — **1 INTEGRATOR window** runs `gen-manifest` **ONCE** after all 4 submit
+  images (mutex, like a god-file). `data/*.js` is **READ-ONLY** at run time (changing the plan → workflow `his-testplan-evidence`, single-owner).
 
-**🔴 Luồng khi TEST FAIL (DỪNG + tạo task — + chống đụng/thiếu):**
-1. **DỪNG luồng đó** (KHÔNG bịa bước tiếp trên state hỏng); chụp state `error`/`validation`/`fail` làm bằng chứng.
-2. **DEDUP trước khi tạo:** `gh issue list --label bug` (+ search từ khoá lỗi) → đã có → **comment bổ sung**, KHÔNG tạo trùng.
-3. Chưa có → **tạo issue `bug`/`fix`**: tiêu đề = *lỗi gì + màn/nghiệp vụ*; body = mô tả + bước tái hiện + evidence +
-   kỳ-vọng-vs-thực-tế; **liên kết 2 chiều** (fix ghi "Phát hiện từ #<test>"; comment ngược task test "Bug → #<fix>") —
-   chủ: evidence README §5 + `../../CLAUDE.md`.
-4. Đánh item `fail` trong viewer — nhưng **nguồn-sự-thật của fail = GitHub issue** (localStorage chỉ review LOCAL, không
-   commit) → **không có file dùng chung để 4 cửa đụng**.
-5. **KHÔNG auto-fix lúc test** (test ≠ fix). Fix re-enter hàng đợi fix cho chu kỳ sau; re-test khi fix đã landed.
+**🔴 Flow when a TEST FAILS (STOP + create a task — + anti collision/omission):**
+1. **STOP that flow** (do NOT fabricate next steps on a broken state); screenshot the `error`/`validation`/`fail` state as evidence.
+2. **DEDUP before creating:** `gh issue list --label bug` (+ search the error keyword) → exists → **add a comment**, do NOT create a duplicate.
+3. None yet → **create a `bug`/`fix` issue**: title = *what bug + screen/business*; body = description + repro steps + evidence +
+   expected-vs-actual; **two-way link** (the fix notes "Found from #<test>"; comment back on the test task "Bug → #<fix>") —
+   owner: evidence README §5 + `../../CLAUDE.md`.
+4. Mark the item `fail` in the viewer — but the **source of truth for fail = the GitHub issue** (localStorage is only for LOCAL review, not
+   committed) → **no shared file for the 4 windows to collide on**.
+5. **Do NOT auto-fix during test** (test ≠ fix). The fix re-enters the fix queue for the next cycle; re-test when the fix has landed.
 
-**DoD test (chống "làm thiếu" khi 4 cửa):** một test-task **CHỈ DONE** khi **MỌI fail nó tìm ra đã có fix-issue đầy đủ +
-link 2 chiều**; còn fail chưa có fix-issue → **KHÔNG done**. **Integrator audit cuối:** không fail nào thiếu fix-issue,
-không phân hệ/luồng nào bị bỏ sót.
+**Test DoD (anti "under-doing" with 4 windows):** a test-task is **DONE ONLY** when **EVERY fail it found has a complete fix-issue +
+two-way link**; any fail without a fix-issue → **NOT done**. **Integrator final audit:** no fail is missing a fix-issue,
+no module/flow is skipped.
 
-### Case → xử lý (chế độ test)
-| # | Trường hợp | Mức | Xử lý |
-|---|---|---|---|
-| T1 | 2 cửa cùng GHI 1 loại bản ghi trên prod → giẫm data | 🔴 | Mỗi cửa 1 module/domain riêng; data prefix dễ nhận (vd `ZZTEST_`); ưu tiên đọc |
-| T2 | `manifest.js` regen đụng | 🔴 | Chỉ **INTEGRATOR** regen 1 lần cuối |
-| T3 | **2 cửa tạo trùng fix-issue** cùng 1 bug | 🟡 | **DEDUP `gh issue list` TRƯỚC khi tạo**; trùng → comment, không tạo mới |
-| T4 | **Thiếu bước fail→fix-issue** (decay khi 4 cửa) | 🔴 | **DoD gate**: fail chưa có fix-issue link 2 chiều = chưa DONE; integrator audit |
-| T5 | Luồng prod **bắn side-effect thật** (HĐĐT/payment/BHXH/SMS/Zalo) | 🔴 | Mặc định **chỉ chụp read-only**; kích hành động thật CHỈ khi xác nhận mock-mode + **user duyệt từng luồng** |
-| T6 | Sửa tay `data/*.js` đụng nhau | 🟡 | **READ-ONLY** lúc chạy; đổi plan qua workflow sinh-plan |
-| T7 | **A — 4 cửa CHUNG 1 browser/profile** (cửa A điều hướng khi B đang chụp; lock `user-data-dir`) | 🔴 | Mỗi cửa **1 browser context + profile/`user-data-dir` RIÊNG** (Playwright: context riêng; chrome-devtools: `--remote-debugging-port` riêng/cửa). KHÔNG share 1 Chrome |
-| T8 | **B — cùng `admin` + thiếu account role** (single-session đá nhau; PERM-001..012 cần DOCTOR/NURSE/CASHIER…) | 🔴 | Mỗi cửa **session/cookie-jar riêng** (profile riêng); **verify tồn tại account role** trên môi trường test; thiếu → đánh "blocked: cần seed account role", KHÔNG login admin rồi giả định role khác |
-| T9 | **D — prod là mục tiêu DI ĐỘNG** (Vercel auto-deploy mỗi push; data prod drift) → ảnh không nhất quán, fail giả | 🟠 | **Đóng băng version** lúc test (không để máy nào push→deploy); ghi **commit-sha + thời điểm + data-context** vào evidence/issue; re-test cùng version/data |
-| T10 | **E — PNG vào git** (ignore chỉ ở root) → repo bloat + push-race binary không merge | 🔴 | **Gitignore** ảnh evidence (local-only); viewer đọc local; chia sẻ qua artifact/storage (hoặc git-lfs nếu cần in-repo). `flows/`·`cross/` là folder chung → **integrator gom**, cửa khác không commit ảnh ở đó |
-| T11 | **F — state không chụp tất định** (loading thoáng qua; error-500/empty khó ép trên prod read-only) | 🟠 | MCP **ép state** (network throttle/offline→loading; block route→error; filter→empty) khi được; prod read-only không ép được → đánh **"N/A: cần staging"** có lý do — KHÔNG fake, KHÔNG gap câm |
-| T12 | **G — 4 browser MCP ăn RAM** trên 16GB | 🟠 | **Headless** + cap **2-3 browser đồng thời** (không 4); đóng page/snapshot sau mỗi capture |
-| T13 | **H — nhiễu hạ tầng → bug giả** (Cloud Run cold-start/timeout/429/WAF chụp ra "error") | 🟠 | Phân biệt **infra vs app**: chỉ tạo bug-issue khi **tái hiện ≥2 lần** + xem network status/timing; retry trước khi kết luận |
-| T14 | **I — MCP rớt giữa chừng** → evidence dở, gap câm | 🟡 | Item dở = **KHÔNG done**; integrator audit (mục DoD) bắt gap; capture lại |
-| T15 | **N1 — Plan ≠ thực tế** (route/màn là GUESS `route_guess`) → MCP vào route đoán → **404 hàng loạt = fail giả + bug-issue sai** | 🔴 | **Cổng reconciliation TRƯỚC khi chụp**: verify từng route/màn với `App.tsx` thật → sửa plan (workflow sinh-plan) → mới chụp. KHÔNG chụp route đoán |
-| T16 | **N2 — PHI nhạy cảm vào ảnh** (HIV/Lao/Pháp y/Tâm thần) = lưu dữ liệu sức khỏe được luật bảo vệ đặc biệt | 🔴 **P0** | **CHỈ data tổng hợp/giả** (staging); prod → **loại module nhạy cảm HOẶC mask PII**; ảnh đã gitignore + giữ trên D:, KHÔNG gửi ra ngoài |
-| T17 | **N3 — Thiếu test-id → MCP giòn** (bám text/Antd-class) → flaky, fail giả | 🟠 | **Screenshot-first** cho state tĩnh (không cần selector); luồng tương tác → thêm `data-testid` vào `_v2kit` (task fix tiền đề) hoặc làm tay |
-| T18 | **N4 — LLM tự hành GHI prod không giám sát** (người chỉ kèm 1-2 cửa) → lỡ xoá/submit/bắn side-effect trên bệnh viện LIVE | 🔴 | **Khoá BỘ CÔNG CỤ MCP của cửa prod về READ-ONLY** (navigate/snapshot/screenshot/đọc console-network); **CHẶN** click-submit/fill/upload/accept-dialog/`evaluate`/`run_code`; ghi chỉ ở staging bật rõ |
-| T19 | **N5 — Hỏng sequence DÙNG CHUNG** (mã BN/số biên lai/số hàng đợi qua `ICodeGenerator`) → race counter trên prod thật | 🔴 | Read-only prod loại bỏ; ghi chỉ **staging** |
-| T20 | **N6 — JWT hết hạn giữa run dài** (401=error giả) + **GitHub API rate-limit** (4 cửa+máy-2 spam `gh`) → claim/dedup im lặng fail | 🟠 | Re-auth check/cửa; **throttle `gh`** + batch; coi 401/429 là **infra** (như T13), KHÔNG tạo bug |
-| T21 | **N7 — Cạn ĐĨA C:** (máy này C: gần đầy) — profile/cache/download/ảnh 4 browser default về C: | 🟠 | Trỏ `user-data-dir` + downloads + output evidence **sang D:** |
-| T22 | **N8 — Done-metric (% evidence) GAMEABLE** (khớp tên↔slot) → % cao mà ảnh sai / thấp dù đã chụp = "done" giả | 🟠 | Integrator **validate tên-file theo schema + bind đúng slot** trước khi tin %; **% đơn lẻ KHÔNG phải DoD** |
-| T23 | **N9 — Cửa test "tiện tay fix"** bug nó tìm → phá test-last + trộn scope + cửa test không có build-env | 🔴 | Cửa test **CHỈ log fix-issue, KHÔNG fix**; fix ở cửa fix-phase riêng (có build-env) |
-| T24 | **N10 — Máy-2 push BE migration giữa test** → Cloud Run deploy → **prod SCHEMA đổi giữa run** | 🔴 | **Đóng băng cửa sổ deploy** lúc test (không push backend/migration); chốt qua GitHub board |
-| T25 | **R1 — UTF-16 BOM nuốt data**: lỡ dùng **PowerShell ghi** `data/*.js`/evidence (default UTF-16 BOM) → hỏng file → viewer vỡ | 🔴 | Ghi data/text **chỉ bằng Edit/Write (UTF-8)** hoặc `-Encoding utf8`; CẤM `Set-Content` default |
-| T26 | **R2 — `manifest.js` committed nhưng ảnh gitignore** → máy khác mở viewer = **vỡ ảnh** (manifest trỏ path local-only) | 🟠 | **Gitignore luôn `manifest.js`** (regen/máy) + untrack; chia sẻ ảnh+manifest qua artifact |
-| T27 | **R3 — Flake animation/lazy-load** (Antd transition · recharts · Cornerstone DICOM) → screenshot giữa render = mờ/thiếu | 🟠 | MCP **wait-for-stable** (network-idle + element visible + delay) trước mỗi capture |
-| T28 | **R4 — Viewport/DPI lệch giữa 4 cửa** → layout khác → reviewer tưởng vỡ | 🟡 | **Pin viewport** (vd 1920×1080) + DPI đồng nhất mọi cửa |
-| T29 | **R5 — Data giả logic-nhất-quán là task LỚN** (seed bừa → flow fail vì data = fail giả) | 🟠 | **Seed-generator tôn trọng FK + business-state** (đưa vào kế hoạch staging, không freebie) |
-| T30 | **R6 — Đốt quota** 4 cửa MCP screenshot+reason hàng giờ | 🟠 | Cửa **capture chạy Sonnet/Haiku** (§2b); batch; giảm số cửa khi cần |
-| T31 | **R7 — DICOM/RIS + Telemedicine(Jitsi)** khó evidence read-only (cần ảnh DICOM/phiên video thật) | 🟡 | Đánh **"blocked: cần staging + data DICOM giả"**; không fake-done |
-| T32 | **R8 — Integrator single-point-of-failure** (chết → manifest không regen + audit không chạy) | 🟡 | Fallback: **bất kỳ cửa nào regen được** + checklist audit commit sẵn |
+### 7c. TEST ENVIRONMENT by TYPE (resolving the read-only ⊥ E2E tension — angle C)
+The 12 flows are **data-consistency/E2E → inherently must WRITE + control data**. Don't pick one environment for everything:
+- **STATIC per-screen states** (list · form · detail · validation · permission-view) → **PROD read-only RIGHT AWAY** (safe, covers most of the 38-module checklist).
+- **The 12 E2E flows + FORCED states (error/empty/loading) + SENSITIVE modules (HIV/TB/Forensics/Psychiatry)** → need WRITE + data control + NOT touching real PHI → **STAGING (APPROVED 2026-06-24)**: 1 Cloud SQL `HIS_staging` + 1 Cloud Run staging revision · **LOGICALLY-CONSISTENT fake data** (referential-integrity + valid business-state so the flow runs) · resettable/seedable → **reproducible** · can force error/empty · **version freeze** (fixes T9/T24). Until staging is ready → flows + sensitive modules marked **"blocked: needs staging"** — do NOT fake-done.
+- **Prod write-sandbox** = a LAST resort (NOT recommended) for a few **non-financial** flows, `ZZTEST_` + cleanup + avoiding payment gateways — drop it once staging exists.
+> Why split: static-only-forever = an **illusion of coverage** (missing integration = under-doing); prod-write = **fake bugs from drift + real PHI in images** (wrong-doing + leak). Staging + fake data eliminates both.
 
-### 7c. MÔI TRƯỜNG test theo LOẠI (giải mâu thuẫn read-only ⊥ E2E — góc C)
-12 luồng là **data-consistency/E2E → bản chất phải GHI + kiểm soát data**. KHÔNG chọn 1 môi trường cho tất cả:
-- **State per-màn TĨNH** (list · form · detail · validation · permission-view) → **PROD read-only NGAY** (an toàn, phủ phần lớn checklist 38 phân hệ).
-- **12 luồng E2E + state ÉP (error/empty/loading) + module NHẠY CẢM (HIV/Lao/Pháp y/Tâm thần)** → cần GHI + kiểm soát data + KHÔNG đụng PHI thật → **STAGING (ĐÃ DUYỆT 2026-06-24)**: 1 Cloud SQL `HIS_staging` + 1 Cloud Run staging revision · **data giả LOGIC-NHẤT-QUÁN** (referential-integrity + business-state hợp lệ để flow chạy) · reset/seed được → **tái hiện** · ép được error/empty · **đóng băng version** (sửa T9/T24). Trước khi staging xong → flows + module nhạy cảm đánh **"blocked: cần staging"** — KHÔNG fake-done.
-- **Prod write-sandbox** = phương án CHÓT (KHÔNG khuyến nghị) cho vài luồng **phi-tài-chính**, `ZZTEST_` + cleanup + tránh cổng tiền — đã có staging thì BỎ.
-> Vì sao tách: static-only-mãi = **ảo giác phủ** (thiếu integration = làm THIẾU); prod-write = **bug giả do drift + PHI thật vào ảnh** (làm SAI + rò rỉ). Staging + data giả xoá cả hai.
+## 8. THREE root-fix PILLARS (the radical cure — solving 1 pillar disables many dangers)
+The T1-T24 case table is *spot patching*; the 3 pillars below are the *root* — prioritize building them:
+1. **STAGING + LOGICALLY-CONSISTENT FAKE DATA** (approved) → disables **N2(PHI) · N5(sequence) · N10(schema) · F(force state) · D(version)** at once. This is the most radical cure; prod-test is just a patch.
+2. **MCP READ-ONLY allow-list for prod windows** (don't grant write tools: click-submit/fill/upload/`evaluate`/`run_code`) → disables **N4(rogue LLM) · T5(side-effect)** at the *technical* layer, not relying on discipline.
+3. **Route/selector reconciliation gate + screenshot-first** → disables **N1(fake 404) · N3(brittle)** before wasting effort capturing.
+> 2 risks the process CAN'T patch — **real PHI in images (N2)** + **LLM rogue-writing prod (N4)** — MUST be solved by Pillar 1 + Pillar 2. Without those 2 pillars → only run **read-only static states, excluding sensitive modules, dropping the 12 E2E flows**.
 
-## 8. BA TRỤ root-fix (khắc phục TRIỆT ĐỂ — giải 1 trụ tắt nhiều nguy)
-Bảng case T1-T24 là *vá lẻ*; 3 trụ dưới mới là *gốc* — ưu tiên dựng:
-1. **STAGING + DATA GIẢ logic-nhất-quán** (đã duyệt) → tắt **N2(PHI) · N5(sequence) · N10(schema) · F(ép state) · D(version)** cùng lúc. Đây là khắc phục triệt để nhất; prod-test chỉ là chắp vá.
-2. **MCP allow-list READ-ONLY cho cửa prod** (không grant tool ghi: click-submit/fill/upload/`evaluate`/`run_code`) → tắt **N4(LLM rogue) · T5(side-effect)** ở tầng *kỹ thuật*, không dựa kỷ luật.
-3. **Cổng reconciliation route/selector + screenshot-first** → tắt **N1(404 giả) · N3(giòn)** trước khi tốn công chụp.
-> 2 rủi ro KHÔNG vá được bằng quy trình — **PHI thật vào ảnh (N2)** + **LLM tự hành ghi prod (N4)** — BẮT BUỘC giải bằng Trụ 1 + Trụ 2. Chưa có 2 trụ → chỉ chạy **read-only state tĩnh, loại module nhạy cảm, bỏ 12 luồng E2E**.
+## 9. ⚠️ REPOSITION (red-team round-4 — READ BEFORE USING §1-§8)
+**Discovery 2026-06-24 (verified):** the repo **ALREADY HAS ~127 Playwright/Cypress tests** — `frontend/e2e/workflows/00-13` = **exactly the 12 E2E flows** · `frontend/e2e-prod/*` runs **PROD read-only** · `e2e/clinical-safety-checks.spec.ts` **asserts real patient-safety rules** · CI `.github/workflows/e2e-prod-smoke.yml` auto-runs after deploy on a **GitHub runner** (NOT touching the 16GB local).
+- **Correctness** → use/extend the **EXISTING SUITE** (deterministic · CI · real asserts · NO 4-window collision). Do **NOT** rebuild it with manual 4-window-MCP.
+- **Evidence-screenshots (compliance/tender)** → generate via a **Playwright script** (headless · CI · auto-name), no human 4-window MCP needed.
+- **The 4-window-MCP model (§1-§8) is DEMOTED → OPTIONAL only** for the parts Playwright can't reach. **Screenshot ≠ correctness (M2)**: "% evidence" is NOT "tested".
+- **Foundation-layer warnings (red-team round-4):** M1 duplicates the existing suite · M2 false-confidence · M3 test-last ⊥ test-spawns-fix (logical contradiction) · M4 complexity-is-safety self-defeating (32 cases) · M5 human=SPOF · M6 "prod not sold yet" hidden-expiry · M7 doc≠enforce · M8 4-window-MCP unverified (Playwright already runs for real) · M9 a few old 🔴 unverified/over-stated · M10 priority-inversion (open fixes gate everything first).
+> **Right direction:** prioritize **running/extending the existing Playwright suite** (CI or on staging); 4-window-MCP is secondary. Before investing in anything more → settle **"what is the test FOR"** (compliance vs correctness vs regression).
 
-## 9. ⚠️ ĐỊNH VỊ LẠI (red-team vòng-4 — ĐỌC TRƯỚC KHI DÙNG §1-§8)
-**Phát hiện 2026-06-24 (verify):** repo **ĐÃ CÓ ~127 test Playwright/Cypress** — `frontend/e2e/workflows/00-13` = **đúng 12 luồng E2E** · `frontend/e2e-prod/*` chạy **PROD read-only** · `e2e/clinical-safety-checks.spec.ts` **assert patient-safety rule thật** · CI `.github/workflows/e2e-prod-smoke.yml` tự chạy sau deploy trên **GitHub runner** (KHÔNG đụng 16GB local).
-- **Correctness** → dùng/mở rộng **SUITE SẴN CÓ** (deterministic · CI · assert thật · KHÔNG collision 4-cửa). **KHÔNG dựng lại bằng 4-cửa-MCP thủ công.**
-- **Evidence-screenshot (compliance/tender)** → sinh bằng **Playwright script** (headless · CI · auto-name), KHÔNG cần 4 cửa MCP người.
-- **Mô hình 4-cửa-MCP (§1-§8) DEMOTE → chỉ OPTIONAL** cho phần Playwright không tới được. **Screenshot ≠ correctness (M2)**: "% evidence" KHÔNG phải "đã test".
-- **Cảnh báo tầng-móng (red-team vòng-4):** M1 trùng-suite-sẵn-có · M2 false-confidence · M3 test-last ⊥ test-đẻ-fix (mâu thuẫn logic) · M4 phức-tạp-là-an-toàn tự-bại (32 case) · M5 người=SPOF · M6 "prod chưa bán" hết-hạn-ngầm · M7 doc≠enforce · M8 4-cửa-MCP chưa-verify (Playwright đã chạy thật) · M9 vài 🔴 cũ chưa verify/over-state · M10 priority-inversion (fix đang mở mới gate mọi thứ).
-> **Hướng đúng:** ưu tiên **chạy/mở rộng suite Playwright sẵn có** (CI hoặc trên staging); 4-cửa-MCP là phụ. Trước khi đầu tư gì thêm → chốt **"test để LÀM GÌ"** (compliance vs correctness vs regression).
+**Red-team round-5 (verified 2026-06-24 — LOWERS confidence in "existing suite = enough" to LOW):** the suite has **hard-skip rot** (`'selector stale… route changed'`, `'No reception rows (seed failed'`, `'No inpatient rows'`) · **27 `test.skip`** mostly skip-if-no-data → **fake-green-by-skip** · **69 files point to localhost** (bulk need a backend, CI only runs a prod subset) · Cypress baseUrl `3003`≠dev`3001` · workflow read-dominant → **seed-via-test is CIRCULAR**.
+- **NR1** suite rot → fake green · **NR2** skip-on-no-data on staging → false-green · **NR3** seed must be DEDICATED (not "run tests to seed") · **NR4** fresh-DB schema silently missing a column (runner ordinal+error-swallow) → validate the data-layer, not just schema-drift · **NR5** fixing-the-suite = a hidden fix backlog · **NR6** *analysis-paralysis*: 5 red-team rounds done → **STOP theorizing, run 1 real workflow to measure** (empirically refute/confirm).
+- Hard rule: **SKIP ≠ PASS**; high skip = broken seed/suite, do NOT report "tested". Detailed remedy → `../../docs/workspace-docs/20-backlog/staging-runbook.md` §3-§5.
 
-**Red-team vòng-5 (verify 2026-06-24 — HẠ tin-cậy "suite sẵn có = đủ" xuống THẤP):** suite có **hard-skip rot** (`'selector stale… route changed'`, `'No reception rows (seed failed'`, `'No inpatient rows'`) · **27 `test.skip`** phần lớn skip-if-no-data → **xanh-giả-do-skip** · **69 file trỏ localhost** (bulk cần backend, CI chỉ chạy subset prod) · Cypress baseUrl `3003`≠dev`3001` · workflow read-dominant → **seed-via-test CIRCULAR**.
-- **NR1** suite rot → xanh giả · **NR2** skip-on-no-data trên staging → false-green · **NR3** seed phải CHUYÊN DỤNG (không "chạy test để seed") · **NR4** fresh-DB schema thiếu cột câm (runner ordinal+nuốt-lỗi) → validate data-layer, KHÔNG chỉ schema-drift · **NR5** sửa-suite = backlog fix ẩn · **NR6** *analysis-paralysis*: 5 vòng red-team rồi → **DỪNG lý thuyết, chạy 1 workflow thật để đo** (thực nghiệm bác/xác nhận).
-- Quy tắc cứng: **SKIP ≠ PASS**; skip cao = seed/suite hỏng, KHÔNG báo "đã test". Khắc phục chi tiết → `../../docs/workspace-docs/20-backlog/staging-runbook.md` §3-§5.
-
-**Vòng-6 — QUYẾT ĐỊNH: BỎ STAGING + TEST THẲNG PROD (2026-06-24, empirical):** prod = **no-real-data + đang xây** (deploy **1-3 lần/ngày**, **26 commit/3 ngày**) → staging cloud **THỪA** (PHI/pollution moot; schema prod chín > staging fresh). Đo thật `crud-25groups` (audit, **serial**) trên prod = **22/23 pass · 1 flaky (opd) · 0 API-err**; 4 nhóm empty-data → n/a (false-green).
-- **VEHICLE ỔN = Playwright `mode:'serial'` / CI** — KHÔNG phải **4-cửa-MCP SONG SONG**. 4-cửa-parallel-write trên prod **BẤT ỔN** (data-confirmed): moving-target 1-3/ngày · **4-ghi-đồng-thời-1-DB** (test team dùng `serial` để né) · flaky sẵn 1/23 dù serial · selector rot. **Bỏ staging KHÔNG fix mấy cái này** (độc lập với prod-vs-staging).
-- **🔴 TRIPWIRE GO-LIVE:** ngay khi có BN thật / pilot / bán → **DỪNG test-ghi-prod**, chuyển read-only hoặc dựng lại staging. + xác nhận gateway (HĐĐT/payment/BHXH/SMS) **mock** trước khi chạm.
-- → **staging = DEPRIORITIZED** (`../../docs/workspace-docs/20-backlog/staging-plan.md`); test = **Playwright-serial/CI trên prod + tripwire**; 4-cửa-MCP-parallel-write **KHÔNG dùng**.
+**Round-6 — DECISION: DROP STAGING + TEST PROD DIRECTLY (2026-06-24, empirical):** prod = **no-real-data + still being built** (deploys **1-3 times/day**, **26 commits/3 days**) → cloud staging is **REDUNDANT** (PHI/pollution moot; prod schema is more mature > a fresh staging). Measured for real `crud-25groups` (audit, **serial**) on prod = **22/23 pass · 1 flaky (opd) · 0 API-err**; 4 groups empty-data → n/a (false-green).
+- **The STABLE VEHICLE = Playwright `mode:'serial'` / CI** — NOT **4-window-MCP IN PARALLEL**. 4-window-parallel-write on prod is **UNSTABLE** (data-confirmed): moving-target 1-3/day · **4-concurrent-write-on-1-DB** (the test team uses `serial` to dodge it) · 1/23 flaky even serial · selector rot. **Dropping staging does NOT fix these** (independent of prod-vs-staging).
+- **🔴 GO-LIVE TRIPWIRE:** the moment there are real patients / a pilot / a sale → **STOP test-writing-on-prod**, switch to read-only or rebuild staging. + confirm gateways (e-invoice/payment/BHXH/SMS) are **mocked** before touching them.
+- → **staging = DEPRIORITIZED** (`../../docs/workspace-docs/20-backlog/staging-plan.md`); test = **Playwright-serial/CI on prod + tripwire**; 4-window-MCP-parallel-write is **NOT used**.

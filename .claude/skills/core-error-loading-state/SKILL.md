@@ -7,41 +7,41 @@ metadata:
 
 # Core — Error / Loading / Empty State (portable)
 
-> TẦNG: **A · CORE** (dùng chung, tech-agnostic).
+> TIER: **A · CORE** (shared, tech-agnostic).
 
 ## Purpose
-Mọi UI lấy/gửi dữ liệu PHẢI xử lý đủ **4 trạng thái**: loading · empty · error · success, kèm feedback rõ
-cho người dùng. Không để màn hình trắng / spinner mãi / fail im lặng.
+Every UI that fetches/sends data MUST handle all **4 states**: loading · empty · error · success, with clear feedback
+to the user. Never leave a blank screen / forever-spinner / silent failure.
 
-## Khi nào dùng
-- Thêm page/list/form/dialog có fetch hoặc submit.
-- Sửa màn hình bị blank / loading vô tận / lỗi không báo.
+## When to use
+- Adding a page/list/form/dialog with a fetch or submit.
+- Fixing a screen that's blank / endless loading / fails without notice.
 
-## Khi nào KHÔNG dùng
-- Component UI cụ thể theo lib → skill `his-*` (page/component) hiện thực.
+## When NOT to use
+- A lib-specific UI component → the `his-*` skill (page/component) implements it.
 
-## Nguyên tắc — 4 trạng thái
-1. **Loading**: hiển thị spinner/skeleton khi đang tải; không để màn hình trống vô nghĩa.
-2. **Empty**: dữ liệu rỗng → hiện thông điệp "chưa có dữ liệu" rõ ràng, KHÔNG để trống như đang lỗi.
-3. **Error**: fetch/submit fail → báo lỗi cho người dùng (toast/message) + KHÔNG hiện mock/giả dữ liệu;
-   log ở mức phù hợp (warn cho lỗi kỳ vọng), KHÔNG nuốt lỗi im lặng.
-4. **Success**: hiển thị dữ liệu; với hành động (submit) → feedback thành công.
-5. **Feedback nhất quán**: dùng cơ chế thông báo/confirm dùng chung của dự án, không tự chế mỗi nơi một kiểu.
+## Principles — 4 states
+1. **Loading**: show a spinner/skeleton while loading; don't leave a meaningless blank screen.
+2. **Empty**: empty data → show a clear "no data yet" message, do NOT leave it blank like an error.
+3. **Error**: fetch/submit fails → notify the user (toast/message) + do NOT show mock/fake data;
+   log at the appropriate level (warn for an expected error), do NOT swallow errors silently.
+4. **Success**: render the data; for an action (submit) → success feedback.
+5. **Consistent feedback**: use the project's shared notification/confirm mechanism, don't invent a different one per place.
 
 ## Steps
-1. Xác định nguồn dữ liệu + các trạng thái có thể xảy ra.
-2. Render đúng nhánh loading/empty/error/success.
-3. Hành động phá huỷ/nhạy cảm → confirm trước.
-4. Lỗi → thông báo + xử lý fallback (state rỗng), không crash, không mock.
+1. Identify the data source + the possible states.
+2. Render the correct loading/empty/error/success branch.
+3. A destructive/sensitive action → confirm first.
+4. Error → notify + fallback handling (empty state), no crash, no mock.
 
-## Anti-patterns cần tránh
-- Màn hình trắng khi loading/empty (không phân biệt được với lỗi).
-- Spinner chạy mãi do không xử lý nhánh error.
-- Fail im lặng / nuốt lỗi.
-- Hiện mock data khi API fail (gây hiểu nhầm).
+## Anti-patterns to avoid
+- A blank screen on loading/empty (indistinguishable from an error).
+- A forever-spinner from not handling the error branch.
+- Silent failure / swallowed error.
+- Showing mock data when the API fails (misleading).
 
 ## Dependency
-- Kèm `core-localization-pattern` (message không hardcode). Skill `his-*` (page/form) depend skill này.
+- Goes with `core-localization-pattern` (messages not hardcoded). The `his-*` skills (page/form) depend on this skill.
 
 ## When to update
-- Khi bổ sung nguyên tắc state/feedback chung.
+- When adding a general state/feedback principle.

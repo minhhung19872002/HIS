@@ -1,49 +1,49 @@
 ---
 name: core-refactor
-description: Use this skill (portable, tech-agnostic) when refactoring, cleaning up, extracting shared code, improving naming/readability, or reducing tech debt — without changing behavior. Triggers include "refactor X", "clean up X", "extract shared", "tách hàm/file", removing dead code, or reducing duplication. Reusable across any web project. Do NOT use to change architecture or add features.
+description: Use this skill (portable, tech-agnostic) when refactoring, cleaning up, extracting shared code, improving naming/readability, or reducing tech debt — without changing behavior. Triggers include "refactor X", "clean up X", "extract shared", "split a function/file", removing dead code, or reducing duplication. Reusable across any web project. Do NOT use to change architecture or add features.
 metadata:
   type: project
 ---
 
 # Core — Refactor (portable)
 
-> TẦNG: **A · CORE** (dùng chung). Gộp: clean-code, maintainability, extract-shared, dependency-cleanup, performance-awareness.
+> TIER: **A · CORE** (shared). Combines: clean-code, maintainability, extract-shared, dependency-cleanup, performance-awareness.
 
 ## Purpose
-Refactor an toàn: **giữ nguyên behavior**, cải thiện readability/maintainability, tách shared, dọn nợ.
+Safe refactor: **preserve behavior**, improve readability/maintainability, extract shared, pay down debt.
 
-## Khi nào dùng
-- "refactor / clean up / tách / gom" code.
-- Trích logic lặp lại thành shared.
-- Đổi tên cho rõ, chia hàm/file quá lớn, bỏ dead code/dependency thừa.
+## When to use
+- "refactor / clean up / split / consolidate" code.
+- Extracting repeated logic into shared.
+- Renaming for clarity, splitting a too-large function/file, removing dead code/unused dependencies.
 
-## Khi nào KHÔNG dùng
-- Thêm feature mới (đó là code-gen).
-- Đổi kiến trúc/structure (cấm — xem `core-architecture-follow`).
+## When NOT to use
+- Adding a new feature (that's code-gen).
+- Changing architecture/structure (forbidden — see `core-architecture-follow`).
 
-## Nguyên tắc
-1. **Behavior-preserving**: trước/sau refactor, hành vi + test phải y hệt. Có test thì giữ test XANH.
-2. **Reuse trước** (xem `core-reusable-code`): trích shared thay vì copy.
-3. **Clean code**: tên rõ nghĩa, hàm 1 nhiệm vụ, file không quá lớn, tách concern.
-4. **Maintainability > performance** (trừ khi có yêu cầu/đo lường rõ). Performance-awareness: tránh
-   O(n²) hiển nhiên, N+1, nhưng KHÔNG micro-optimize gây khó đọc.
-5. **Dependency cleanup**: bỏ import/dependency không dùng; không thêm dependency thừa.
-6. **Phạm vi hẹp**: chỉ refactor phần được yêu cầu; không "tiện tay" sửa lan man.
+## Principles
+1. **Behavior-preserving**: before/after the refactor, behavior + tests must be identical. With tests, keep them GREEN.
+2. **Reuse first** (see `core-reusable-code`): extract shared instead of copying.
+3. **Clean code**: clear names, single-responsibility functions, files not too large, separate concerns.
+4. **Maintainability > performance** (unless there's a clear requirement/measurement). Performance-awareness: avoid
+   obvious O(n²), N+1, but do NOT micro-optimize at the cost of readability.
+5. **Dependency cleanup**: remove unused imports/dependencies; don't add surplus dependencies.
+6. **Narrow scope**: refactor only what was requested; no "while-I'm-here" sprawling edits.
 
 ## Steps
-1. Hiểu behavior hiện tại (đọc + test nếu có).
-2. Xác định điểm cần cải thiện (trùng lặp / tên / kích thước / coupling).
-3. Refactor từng bước nhỏ; chạy test sau mỗi bước.
-4. Verify behavior không đổi.
+1. Understand the current behavior (read + tests if any).
+2. Identify what to improve (duplication / names / size / coupling).
+3. Refactor in small steps; run tests after each step.
+4. Verify behavior is unchanged.
 
-## Anti-patterns cần tránh
-- Refactor kèm đổi behavior mà không báo.
-- Refactor lan ra ngoài phạm vi yêu cầu.
-- Đổi kiến trúc nhân danh "refactor".
-- Micro-optimize làm code khó đọc.
+## Anti-patterns to avoid
+- Refactoring that changes behavior without saying so.
+- Refactoring sprawling beyond the requested scope.
+- Changing the architecture in the name of "refactor".
+- Micro-optimization that hurts readability.
 
 ## Dependency
-- Kèm `core-reusable-code`, `core-architecture-consistency`. Skill `his-*` quality depend skill này.
+- Goes with `core-reusable-code`, `core-architecture-consistency`. The `his-*` quality skills depend on this skill.
 
 ## When to update
-- Khi bổ sung nguyên tắc clean-code/refactor chung.
+- When adding a general clean-code/refactor principle.

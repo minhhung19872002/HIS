@@ -7,45 +7,45 @@ metadata:
 
 # HIS Payment Gateway (VietQR / VNPay / MoMo / ZaloPay)
 
-> TẦNG: **B · PROJECT/HIS** (system). Depend: `core-types-contract`, `core-validation-pattern`, `his-be-module-scaffold` (cấu trúc service), `his-qa-anti-pattern`.
+> TIER: **B · PROJECT/HIS** (system). Depends: `core-types-contract`, `core-validation-pattern`, `his-be-module-scaffold` (service structure), `his-qa-anti-pattern`.
 
-Skill cho **thanh toán không tiền mặt** HIS: VietQR (Napas247, 5 NH) + VNPay/MoMo/ZaloPay + đối soát thủ công ngân hàng + link giao dịch đã trả vào Receipt/HĐĐT. Có logic đặc thù (EMVCo TLV, CRC-16, IPN, FK Receipt) nên tách skill riêng thay vì backend-scaffold chung.
+A skill for HIS **cashless payment**: VietQR (Napas247, 5 banks) + VNPay/MoMo/ZaloPay + manual bank reconciliation + linking a paid transaction to a Receipt/e-invoice. It has specialized logic (EMVCo TLV, CRC-16, IPN, Receipt FK) so it's a separate skill instead of the generic backend-scaffold.
 
-## Khi nào dùng
-- Sửa/thêm `PaymentGatewayService` (gồm partial `PaymentGatewayService.VietQR.cs`).
-- Sinh QR VietQR EMVCo (BIN + account + amount + CRC), thêm/đổi ngân hàng.
-- Xử lý IPN/return (VNPay/MoMo/ZaloPay), bank confirm thủ công.
-- Page `BankPayments`, endpoint `/api/payment/*`.
+## When to use
+- Editing/adding `PaymentGatewayService` (including the partial `PaymentGatewayService.VietQR.cs`).
+- Generating a VietQR EMVCo QR (BIN + account + amount + CRC), adding/changing a bank.
+- Handling IPN/return (VNPay/MoMo/ZaloPay), a manual bank confirm.
+- The `BankPayments` page, the `/api/payment/*` endpoints.
 
-## Khi nào KHÔNG dùng
-- CRUD nghiệp vụ thường không liên quan thanh toán → `his-be-module-scaffold`.
-- Page list/detail thuần → `his-fe-page-v2` (BankPayments UI vẫn có thể dùng kèm).
+## When NOT to use
+- A normal business CRUD unrelated to payment → `his-be-module-scaffold`.
+- A pure list/detail page → `his-fe-page-v2` (the BankPayments UI can still use it alongside).
 
-## Kiến trúc (NangCap24)
-- BE: `PaymentGatewayService` + partial `PaymentGatewayService.VietQR.cs` · controller `/api/payment` · entity `PaymentTransaction` (sẵn có) + `Receipt`.
-- Endpoint chính: `GET /payment/bank/list` (5 NH), `POST /payment/create-url` (VietQR khi provider∈bank), `POST /payment/bank/confirm` `[Admin,Accountant,Cashier]`, IPN/return `[AllowAnonymous]`, `POST /payment/refund` `[Admin,Accountant]`.
+## Architecture (NangCap24)
+- BE: `PaymentGatewayService` + partial `PaymentGatewayService.VietQR.cs` · controller `/api/payment` · entity `PaymentTransaction` (existing) + `Receipt`.
+- Main endpoints: `GET /payment/bank/list` (5 banks), `POST /payment/create-url` (VietQR when provider∈bank), `POST /payment/bank/confirm` `[Admin,Accountant,Cashier]`, IPN/return `[AllowAnonymous]`, `POST /payment/refund` `[Admin,Accountant]`.
 - FE: `pages-v2/BankPayments.tsx` + `api/nangcap24.ts` object `bankPayment`.
 
-## Quy trình chuẩn
-1. **VietQR EMVCo** (`references/vietqr-emvco-notes.md`): build chuỗi TLV theo ID 00/01/38/53/54/58/59/60/62/63; CRC-16/CCITT-FALSE (poly 0x1021, init 0xFFFF); `NormalizeAscii` bỏ dấu tiếng Việt. BIN cố định Napas: BIDV 970418, VCB 970436, Agribank 970405, Vietinbank 970415, MSB 970426.
-- Số TK + merchant name lấy từ `appsettings PaymentGateway:Bank:<provider>` (KHÔNG hardcode TK thật).
-2. **Confirm/IPN → Receipt**: khi giao dịch paid → `LinkReceiptAsync(txn, userId)` tạo Receipt + HĐĐT. Validate theo `core-validation-pattern` (txn tồn tại, đúng provider bank, chưa confirm → idempotent).
-3. **FE**: BankPayments hiển thị giao dịch + QR (img.vietqr.io preview) + modal confirm. Theo `his-fe-page-v2` cho layout.
-4. **Verify**: QR string khớp regex `^00020101...6304[0-9A-F]{4}$`; confirm → status paid + Receipt tạo, KHÔNG 500.
+## Standard process
+1. **VietQR EMVCo** (`references/vietqr-emvco-notes.md`): build the TLV string per ID 00/01/38/53/54/58/59/60/62/63; CRC-16/CCITT-FALSE (poly 0x1021, init 0xFFFF); `NormalizeAscii` strips Vietnamese diacritics. Fixed Napas BINs: BIDV 970418, VCB 970436, Agribank 970405, Vietinbank 970415, MSB 970426.
+- The account number + merchant name come from `appsettings PaymentGateway:Bank:<provider>` (do NOT hardcode the real account).
+2. **Confirm/IPN → Receipt**: when a transaction is paid → `LinkReceiptAsync(txn, userId)` creates a Receipt + e-invoice. Validate per `core-validation-pattern` (txn exists, correct bank provider, not yet confirmed → idempotent).
+3. **FE**: BankPayments shows the transaction + QR (img.vietqr.io preview) + a confirm modal. Follow `his-fe-page-v2` for layout.
+4. **Verify**: the QR string matches the regex `^00020101...6304[0-9A-F]{4}$`; confirm → status paid + a Receipt created, NO 500.
 
-## ⚠️ Known bug đã fix (giữ, đừng tái phạm — commit b523579)
-- `LinkReceiptAsync` từng set `Receipt.CashierId = Guid.Empty` → vi phạm FK `FK_Receipts_Users_Cashier` (non-null) → 500. **Fix**: resolve `cashierId` về user xác nhận; fallback admin/system khi IPN online (không có user context).
-- Hàm này **dùng chung** cho VNPay/MoMo/ZaloPay/VietQR → sửa nó phải **regression cả 4 cổng** (xem `his-test-e2e`).
+## ⚠️ Known bug already fixed (keep, don't reintroduce — commit b523579)
+- `LinkReceiptAsync` once set `Receipt.CashierId = Guid.Empty` → violated the FK `FK_Receipts_Users_Cashier` (non-null) → 500. **Fix**: resolve `cashierId` to the confirming user; fall back to admin/system for an online IPN (no user context).
+- This function is **shared** across VNPay/MoMo/ZaloPay/VietQR → editing it must **regression-test all 4 gateways** (see `his-test-e2e`).
 
 ## Pitfalls
-- **CRC sai** → app NH không scan được QR / BN chuyển nhầm. Tính CRC trên đúng chuỗi tới `6304`.
-- **Hardcode số TK BV** → dùng appsettings/env (`his-qa-anti-pattern`).
-- **Confirm 2 lần** → double Receipt. Phải reject khi `Status==1` (idempotent).
-- **IPN AllowAnonymous** nhưng phải verify chữ ký/secret của cổng (HMAC) trước khi tin.
-- **Audit**: mọi confirm/refund ghi audit + đúng user.
+- **Wrong CRC** → the bank app can't scan the QR / the patient transfers wrong. Compute the CRC on the exact string up to `6304`.
+- **Hardcoding the hospital account number** → use appsettings/env (`his-qa-anti-pattern`).
+- **Confirming twice** → a double Receipt. Must reject when `Status==1` (idempotent).
+- **IPN AllowAnonymous** but you must verify the gateway's signature/secret (HMAC) before trusting it.
+- **Audit**: every confirm/refund logs an audit + the correct user.
 
 ## Reference
-- `references/vietqr-emvco-notes.md` — cấu trúc EMVCo TLV + CRC-16 + BIN + checklist confirm
+- `references/vietqr-emvco-notes.md` — the EMVCo TLV structure + CRC-16 + BIN + confirm checklist
 
 ## When to update
-- Khi thêm ngân hàng/cổng thanh toán mới, đổi schema Receipt, hoặc wire merchant API thật.
+- When adding a new bank/payment gateway, changing the Receipt schema, or wiring a real merchant API.

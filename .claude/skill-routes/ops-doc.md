@@ -1,21 +1,21 @@
-# Skill-routes · TẦNG OPS + DOC (Deploy / Tài liệu)
+# Skill-routes · OPS + DOC TIER (Deploy / Documentation)
 
-> Map con — đọc **CÙNG** `.claude/SKILL-MAP.md`. Nguyên tắc CORE xem (1a) trong SKILL-MAP.
+> Sub-map — read it **TOGETHER WITH** `.claude/SKILL-MAP.md`. For the CORE principles see (1a) in SKILL-MAP.
 
-## Skill OPS/DOC (`his-ops-*`, `his-doc-*`)
+## OPS/DOC skills (`his-ops-*`, `his-doc-*`)
 
-| Skill | Mục đích | Chọn khi yêu cầu liên quan |
+| Skill | Purpose | Choose when the request involves |
 |---|---|---|
-| `his-ops-deploy` | Cloud Run (thủ công) + Vercel (auto) + verify | deploy prod |
-| `his-doc-feature` | bộ tài liệu `docs/features/<feature>/` | viết tài liệu phân hệ |
+| `his-ops-deploy` | Cloud Run (manual) + Vercel (auto) + verify | prod deploy |
+| `his-doc-feature` | the `docs/features/<feature>/` doc set | write module documentation |
 
-## Prompt → chuỗi skill (OPS/DOC) + PATH
+## Prompt → skill chain (OPS/DOC) + PATH
 
-| Khi developer prompt | Skills | File/đường dẫn chạm tới |
+| When the developer prompts | Skills | Files/paths touched |
 |---|---|---|
 | "deploy [X]" | `his-ops-deploy` | `cloudbuild.yaml`, `gcloud`, `/health/schema-drift` |
-| "viết tài liệu [feature]" | `his-doc-feature` | `docs/features/<feature>/` |
+| "write documentation for [feature]" | `his-doc-feature` | `docs/features/<feature>/` |
 
-## Nhắc deploy (gotcha sống còn)
-- Vercel **auto-deploy** FE khi push; Cloud Run **KHÔNG** tự deploy — backend phải `gcloud builds submit` + `gcloud run services update` thủ công.
-- Triệu chứng "FE live nhưng API 404" = quên deploy backend.
+## Deploy reminder (critical gotcha)
+- Vercel **auto-deploys** the FE on push; Cloud Run does **NOT** auto-deploy — the backend must be deployed manually with `gcloud builds submit` + `gcloud run services update`.
+- The symptom "FE live but API 404" = forgot to deploy the backend.

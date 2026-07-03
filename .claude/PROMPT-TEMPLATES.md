@@ -1,101 +1,92 @@
 # Prompt Templates — HIS
 
-Câu lệnh mẫu cho developer. Điền `[...]` rồi prompt — Claude tự kích hoạt skill phù hợp theo `SKILL-MAP.md`
-(luôn áp nguyên tắc tầng **CORE** trước, rồi hiện thực bằng skill **HIS**). Càng nêu rõ route/field/role
-→ match càng chuẩn. *(Footer dùng TÊN SKILL THẬT đúng `SKILL-MAP §0` — grep ra được.)*
+Sample commands for developers. Fill in `[...]` then prompt — Claude auto-activates the right skill per `SKILL-MAP.md` (always apply the **CORE** tier principles first, then implement with the **HIS** skills). The more you specify route/field/role → the better the match. *(The footer uses REAL SKILL NAMES per `SKILL-MAP §0` — greppable.)*
 
-## Backend feature (service + controller + bảng)
+## Backend feature (service + controller + table)
 ```
-Thêm phân hệ [tên VN] (NangCap[NN]): service I[Xxx]Service + [Xxx]Service,
-controller route /api/[xxx], entity [Xxx] field [a:type, b:type], migration bảng + DI.
-Role: [Admin/Doctor/...] cho [action].
+Add module [VN name] (NangCap[NN]): service I[Xxx]Service + [Xxx]Service, controller route /api/[xxx], entity [Xxx] fields [a:type, b:type], migration table + DI. Role: [Admin/Doctor/...] for [action].
 ```
 → `core-architecture-follow` · `core-types-contract` · `core-reusable-code` · `his-be-module-scaffold` · `his-db-migration` · `his-qa-anti-pattern`
 
 ## Frontend v2 page
 ```
-Tạo page v2 [tên] tại /v2/[route] (menu nhóm [clinical/finance/...]):
-gọi api [getXList], KPI [...], status tabs [...], cột [...], drawer chi tiết [...].
+Create v2 page [name] at /v2/[route] (menu group [clinical/finance/...]): call api [getXList], KPI [...], status tabs [...], columns [...], detail drawer [...].
 ```
 → `core-reusable-code` · `core-error-loading-state` · `his-fe-api-client` · `his-fe-page-v2` · `his-fe-antd-v6` · `his-fe-convention`
 
 ## API client
 ```
-Thêm api client frontend/src/api/[module].ts cho [GET/POST /xxx] với DTO [XxxDto: field...].
-Response [paged {items,totalCount} | mảng].
+Add api client frontend/src/api/[module].ts for [GET/POST /xxx] with DTO [XxxDto: field...]. Response [paged {items,totalCount} | array].
 ```
 → `core-types-contract` · `his-fe-api-client`
 
-## Migration / bảng
+## Migration / table
 ```
-Tạo bảng [Xxx] idempotent (audit columns uniqueidentifier), FK tới [Patients/MedicalRecords/Users],
-script Data/Scripts/[NN]_[ten].sql.   (NN = ls Data/Scripts/ max+1, KHÔNG hard-code)
+Create table [Xxx] idempotent (audit columns uniqueidentifier), FK to [Patients/MedicalRecords/Users], script Data/Scripts/[NN]_[name].sql.   (NN = ls Data/Scripts/ max+1, do NOT hard-code)
 ```
 → `core-types-contract` · `his-db-migration`
 
 ## Test
 ```
-Viết Cypress smoke page-load cho [routes /v2/...] + API check [endpoints].   (UI/E2E)
-Viết test-[module].ps1 gọi [POST /api/...] assert [field].                    (API backend)
+Write a Cypress page-load smoke test for [routes /v2/...] + API check [endpoints].   (UI/E2E)
+Write test-[module].ps1 calling [POST /api/...] asserting [field].                     (backend API)
 ```
 → `core-testing-architecture` · `core-testing-reuse` · `his-test-e2e` / `his-test-api-powershell`
 
 ## Form / validate
 ```
-Thêm form [mục đích] field [...] + validate [required/range/format] (FE+BE khớp).
+Add a form [purpose] with fields [...] + validate [required/range/format] (FE+BE matching).
 ```
 → `core-validation-pattern` · `core-types-contract` · `his-fe-page-v2` / `his-be-module-scaffold`
 
-## Fix UI Antd v6
+## Fix Antd v6 UI
 ```
-Fix deprecated antd props trong [page/component] → API v6, console-errors.cy.ts 0 lỗi.
+Fix deprecated antd props in [page/component] → v6 API, console-errors.cy.ts 0 errors.
 ```
 → `core-error-loading-state` · `core-localization-pattern` · `his-fe-antd-v6`
 
 ## Deploy
 ```
-Deploy backend [NangCapNN] lên Cloud Run + verify schema-drift = 0 + smoke [endpoint].
+Deploy backend [NangCapNN] to Cloud Run + verify schema-drift = 0 + smoke [endpoint].
 ```
 → `his-ops-deploy`
 
-## Tài liệu feature
+## Feature documentation
 ```
-Viết bộ tài liệu docs/features/[feature]/ (6 file) cho phân hệ [tên], dựa source thật.
+Write the docs/features/[feature]/ doc set (6 files) for module [name], based on the real source.
 ```
 → `his-doc-feature`
 
 ## Refactor
 ```
-Refactor [module] theo [pattern] — giữ behavior + test xanh, KHÔNG đổi architecture.
+Refactor [module] per [pattern] — preserve behavior + green tests, do NOT change architecture.
 ```
 → `core-refactor` · `core-architecture-consistency` · `his-qa-anti-pattern`
 
-## Ký sinh trắc (WebAuthn)
+## Biometric signing (WebAuthn)
 ```
-Làm chức năng ký [document] bằng vân tay/FaceID cho BN: register + sign 2 pha qua /api/biometric.
+Build a sign-[document] feature with fingerprint/FaceID for patients: register + 2-phase sign via /api/biometric.
 ```
 → `core-types-contract` · `core-error-loading-state` · `his-fe-api-client` · `his-fe-webauthn-biometric` · `his-qa-anti-pattern`
 
-## Cổng standalone (user ngoài)
+## Standalone portal (external users)
 ```
-Tạo cổng [tên] cho [user ngoài] đăng nhập riêng tại /[route] (ngoài layout, JWT/role riêng [Role]).
+Create a [name] portal for [external users] with their own login at /[route] (outside the layout, separate JWT/role [Role]).
 ```
 → `core-validation-pattern` · `his-fe-api-client` · `his-fe-standalone-portal`
 
 ## DICOM viewer
 ```
-Thêm/sửa viewer DICOM [MPR/MIP/MinIP/cine/mammo] trong DicomViewer (Cornerstone3D).
+Add/edit a DICOM viewer [MPR/MIP/MinIP/cine/mammo] in DicomViewer (Cornerstone3D).
 ```
 → `core-reusable-code` · `core-error-loading-state` · `his-fe-dicom-viewer`
 
-## Thanh toán / VietQR
+## Payment / VietQR
 ```
-Làm thanh toán [VietQR/VNPay/MoMo/ZaloPay] cho [BN/viện phí]: tạo QR + confirm + link Receipt.
+Build [VietQR/VNPay/MoMo/ZaloPay] payment for [patient/hospital fee]: create QR + confirm + link Receipt.
 ```
-→ `core-types-contract` · `core-validation-pattern` · `his-be-payment-gateway` (+ `his-fe-page-v2` cho UI) · `his-qa-anti-pattern`
+→ `core-types-contract` · `core-validation-pattern` · `his-be-payment-gateway` (+ `his-fe-page-v2` for UI) · `his-qa-anti-pattern`
 
 ---
-**Mẹo:** prompt cụ thể (route/field/role/status) → match chuẩn, ít hỏi lại. Mọi code-gen được
-`core-reusable-code` (reuse trước) + `his-qa-anti-pattern` (guardrail) "gác".
-**Không có skill phù hợp?** Xem `SKILL-MAP.md` mục (6) — Claude sẽ đề xuất tạo skill mới đúng tầng
-(core nếu portable / his nếu riêng HIS) rồi bổ sung vào map để tái dùng.
+**Tip:** a specific prompt (route/field/role/status) → a precise match, fewer follow-up questions. Every code-gen is "guarded" by `core-reusable-code` (reuse first) + `his-qa-anti-pattern` (guardrail).
+**No suitable skill?** See `SKILL-MAP.md` section (6) — Claude will propose creating a new skill in the right tier (core if portable / his if HIS-specific) then add it to the map for reuse.

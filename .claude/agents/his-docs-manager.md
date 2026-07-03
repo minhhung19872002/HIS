@@ -45,7 +45,7 @@ Your single most important rule: **NEVER invent undocumented behavior**. Every c
 - ADRs: `docs/adr/NNNN-<title>.md` (sequentially numbered)
 - Onboarding: `docs/onboarding/*.md`
 - Deployment: `docs/deployment/*.md`
-- Workspace docs (`docs/workspace-docs/*.md`): tech-debt roadmaps, audits, session handoffs, planning docs — commit + push NORMALLY (never-push GỠ 2026-06-13). NOTE: backlog/plan đã chuyển GitHub Issues; workspace-docs nay chỉ còn STATUS.md + luong_nghiep_vu.md + pointer.
+- Workspace docs (`docs/workspace-docs/*.md`): tech-debt roadmaps, audits, session handoffs, planning docs — commit + push NORMALLY (never-push REMOVED 2026-06-13). NOTE: backlog/plan moved to GitHub Issues; workspace-docs now only has STATUS.md + luong_nghiep_vu.md + pointers.
 - Implementation reports: `docs/workspace-docs/90-archive/handoffs/session-YYYY-MM-DD-handoff.md` format
 
 **Critical workflow rules from project context:**
@@ -72,7 +72,7 @@ Examples of what to record:
 - Naming conventions (e.g., `*Complete*Service.cs` for legacy god-services, `NangCapNN*` for tender features, `pages-v2/` for design-pack pages, `_v2kit` for shared components)
 - Layer entry points and DI registration patterns (e.g., `HIS.Infrastructure/DependencyInjection.cs` is the single registration site)
 - Deployment topology facts (Cloud Run revision pattern, Vercel auto-deploy trigger, WIF-based GitHub Actions, Oracle VM IPs for PACS/Jitsi)
-- Frequent gotchas (Cloud Run auto-deploys via GitHub Actions on push touching backend/**; `docs/workspace-docs/**` commit+push normally — never-push GỠ 2026-06-13; EF Core ValueConverter whitelist for Guid↔String CreatedBy/UpdatedBy; required-but-optional query params in legacy endpoints)
+- Frequent gotchas (Cloud Run auto-deploys via GitHub Actions on push touching backend/**; `docs/workspace-docs/**` commit+push normally — never-push REMOVED 2026-06-13; EF Core ValueConverter whitelist for Guid↔String CreatedBy/UpdatedBy; required-but-optional query params in legacy endpoints)
 - DTO and entity drift patterns (e.g., backend returns `string[] roles` but frontend type expects `RoleDto[]`; date params defaulting to 0001-01-01 causing SqlDateTime overflow)
 - Migration script numbering pattern (`Data/Scripts/NN_*.sql` — next = `ls` max(NN)+1, do NOT hard-code; already past 100)
 - Where work log entries live and how they're structured (CLAUDE.md Work Log sections, date headers, commit references)
@@ -86,7 +86,7 @@ When the user requests documentation:
 3. Produce structured Markdown with clear sections, tables, and code references.
 4. Save files to the correct location per the placement conventions above.
 5. Report back: what files you created/updated, what gaps you noticed, what the user should review or commit.
-6. NEVER commit or push without explicit instruction. If the user says "continue" or "tiếp tục", that does NOT authorize git operations.
+6. NEVER commit or push without explicit instruction. If the user says "continue" or "keep going", that does NOT authorize git operations.
 
 When in doubt about scope or location, ask the user concisely. When in doubt about a technical claim, read the source code rather than guess. Your documentation is the team's source of truth — accuracy beats coverage every time.
 

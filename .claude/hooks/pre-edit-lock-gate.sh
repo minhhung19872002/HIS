@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# PreToolUse gate (red-team M3) — bien "claim truoc khi Edit" tu NHAC thanh EP, NHUNG:
-#   - CHI gate file code that (backend/ frontend/) — bo qua .claude/docs/...
-#   - CHI ep khi >=2 CUA active (session marker tuoi < 4h) -> phien 1-CUA binh thuong 0 MA SAT.
-#   - Session-aware: cua DA giu 1 lock bat ky -> cho qua; CHUA giu + dang sua code + da-cua -> DENY.
-#   - FAIL-OPEN: moi loi/parse-fail -> cho phep (khong bao gio brick viec sua file).
-# Input: JSON PreToolUse tren stdin (tool_name, tool_input.file_path|notebook_path, session_id).
-# Output: im lang = allow; hoac JSON permissionDecision=deny.
+# PreToolUse gate (red-team M3) — turns "claim before Edit" from a REMINDER into ENFORCEMENT, BUT:
+#   - ONLY gates real code files (backend/ frontend/) — skips .claude/docs/...
+#   - ONLY enforces when >=2 windows are active (session marker age < 4h) -> a 1-window session has 0 FRICTION.
+#   - Session-aware: a window that ALREADY holds any lock -> pass; not-holding + editing code + multi-window -> DENY.
+#   - FAIL-OPEN: any error/parse-fail -> allow (never brick file editing).
+# Input: PreToolUse JSON on stdin (tool_name, tool_input.file_path|notebook_path, session_id).
+# Output: silence = allow; or JSON permissionDecision=deny.
 set -u
 ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 LOCKDIR="$ROOT/.claude/locks"; ACTIVE="$LOCKDIR/.active"; TTL=14400
@@ -21,25 +21,25 @@ print(fp); print(d.get("session_id",""))' 2>/dev/null) || allow
 FILE=$(printf '%s' "$parsed" | sed -n 1p)
 SID=$(printf '%s' "$parsed" | sed -n 2p)
 [ -n "$FILE" ] || allow
-# Chuan hoa backslash -> slash roi chi gate code that.
+# Normalize backslash -> slash then only gate real code.
 FN="${FILE//\\//}"
 case "$FN" in
   */backend/*|*/frontend/*) : ;;
   *) allow;;
 esac
-# Refresh marker session nay; dem cua active (marker tuoi <= TTL).
+# Refresh this session's marker; count active windows (marker age <= TTL).
 mkdir -p "$ACTIVE" 2>/dev/null || allow
 [ -n "$SID" ] && touch "$ACTIVE/$SID" 2>/dev/null
 now=$(date +%s 2>/dev/null || echo 0); active=0
 for m in "$ACTIVE"/*; do [ -e "$m" ] || continue
   [ $(( now - $(stat -c %Y "$m" 2>/dev/null || echo 0) )) -le "$TTL" ] && active=$((active+1))
 done
-[ "$active" -le 1 ] && allow   # SOLO -> khong gate (0 ma sat)
-# >=2 cua active: cua nay co giu lock nao khong?
+[ "$active" -le 1 ] && allow   # SOLO -> no gate (0 friction)
+# >=2 active windows: does THIS window hold any lock?
 for d in "$LOCKDIR"/*/; do [ -d "$d" ] || continue
   [ "$(sed -n 's/^session=//p' "$d/meta" 2>/dev/null | head -1)" = "$SID" ] && allow
 done
-# Da-cua + CHUA giu lock + dang sua code -> DENY (day la ca "ai cung lao vao sua khong claim" = loi goc).
-reason="DA-CUA: $active cua dang active va cua NAY chua giu lock nao. Chong 2 cua trung task -> chay TRUOC khi sua file code:  bash .claude/window-lock.sh claim <issue|slug> [model]  (hoac powershell .claude/window-lock.ps1 ... neu o cua PowerShell). Phien 1-cua KHONG bi chan. Gioi han: chi bat khi chua-claim-gi; file-overlap 2 issue khac nhau van can foreign-scan/worktree."
+# Multi-window + NOT holding a lock + editing code -> DENY (this is the "everyone dives in without claiming" root cause).
+reason="MULTI-WINDOW: $active windows active and THIS window holds no lock. To stop 2 windows duplicating a task -> run BEFORE editing code files:  bash .claude/window-lock.sh claim <issue|slug> [model]  (or powershell .claude/window-lock.ps1 ... in a PowerShell window). A 1-window session is NOT blocked. Limit: only triggers when nothing is claimed yet; a file-overlap of 2 different issues still needs foreign-scan/worktree."
 printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "$reason"
 exit 0

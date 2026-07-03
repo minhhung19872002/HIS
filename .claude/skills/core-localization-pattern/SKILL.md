@@ -7,41 +7,41 @@ metadata:
 
 # Core — Localization Pattern (portable)
 
-> TẦNG: **A · CORE** (dùng chung, tech-agnostic).
+> TIER: **A · CORE** (shared, tech-agnostic).
 
 ## Purpose
-Không hardcode text hiển thị cho người dùng: dùng **translation key + namespace + fallback** để hỗ trợ
-đa ngôn ngữ và sửa text tập trung.
+Don't hardcode user-facing text: use a **translation key + namespace + fallback** to support
+multiple languages and centralize text edits.
 
-## Khi nào dùng
-- Thêm label/message/button/placeholder hiển thị cho người dùng.
-- Hỗ trợ nhiều ngôn ngữ.
-- Phát hiện text bị hardcode.
+## When to use
+- Adding a label/message/button/placeholder shown to the user.
+- Supporting multiple languages.
+- Finding hardcoded text.
 
-## Khi nào KHÔNG dùng
-- API cụ thể của lib i18n → skill `his-*` hiện thực.
-- Hằng số không hiển thị (mã code, enum kỹ thuật) — không cần localize.
+## When NOT to use
+- A specific i18n library's API → the `his-*` skill implements it.
+- A non-displayed constant (a code, a technical enum) — no need to localize.
 
-## Nguyên tắc
-1. **Không hardcode** chuỗi hiển thị trong logic/JSX/template.
-2. **Key + namespace**: đặt text vào file/dictionary dịch, gọi qua key; namespace theo module/feature.
-3. **Fallback**: thiếu key/ngôn ngữ → có fallback (vd ngôn ngữ mặc định), không hiện key thô/trống.
-4. **Tái dùng key** chung (nút Lưu/Huỷ/Xoá…) thay vì tạo key trùng nghĩa.
-5. **Giá trị cấu hình hiển thị** (tên tổ chức, địa chỉ…) đặt ở constant/config, không rải hardcode.
+## Principles
+1. **Don't hardcode** displayed strings in logic/JSX/template.
+2. **Key + namespace**: put text into a translation file/dictionary, call via the key; namespace by module/feature.
+3. **Fallback**: missing key/language → have a fallback (e.g. the default language), don't show a raw key/blank.
+4. **Reuse common keys** (Save/Cancel/Delete buttons…) instead of creating synonym-duplicate keys.
+5. **Displayed config values** (organization name, address…) go into a constant/config, not scattered hardcoded.
 
 ## Steps
-1. Nhận diện text hiển thị.
-2. Tạo/tái dùng key trong namespace phù hợp.
-3. Gọi qua cơ chế dịch của dự án; đảm bảo có fallback.
+1. Identify the displayed text.
+2. Create/reuse a key in the appropriate namespace.
+3. Call via the project's translation mechanism; ensure a fallback exists.
 
-## Anti-patterns cần tránh
-- Hardcode chuỗi hiển thị.
-- Trùng key cùng nghĩa rải rác.
-- Hiện key thô khi thiếu bản dịch.
-- Hardcode tên tổ chức/URL trong UI thay vì constant/config.
+## Anti-patterns to avoid
+- Hardcoding displayed strings.
+- Synonym-duplicate keys scattered around.
+- Showing a raw key when a translation is missing.
+- Hardcoding the organization name/URL in the UI instead of a constant/config.
 
 ## Dependency
-- Kèm `core-error-loading-state` (message lỗi/empty cũng phải localize). Skill `his-*` UI depend.
+- Goes with `core-error-loading-state` (error/empty messages must also be localized). The `his-*` UI skills depend on it.
 
 ## When to update
-- Khi bổ sung nguyên tắc localization chung.
+- When adding a general localization principle.

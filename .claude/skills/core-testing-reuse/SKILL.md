@@ -7,39 +7,39 @@ metadata:
 
 # Core — Testing Reuse (portable)
 
-> TẦNG: **A · CORE / A3 core-testing** (dùng chung). Gộp: test-reuse + mock-data-builder + regression.
+> TIER: **A · CORE / A3 core-testing** (shared). Combines: test-reuse + mock-data-builder + regression.
 
 ## Purpose
-Tái dùng setup test (helper/fixture/builder/mock/seed) thay vì copy-paste; nghĩ đến **regression** sau mỗi
-fix. Nguyên tắc portable.
+Reuse test setup (helper/fixture/builder/mock/seed) instead of copy-paste; think about **regression** after every
+fix. A portable principle.
 
-## Khi nào dùng
-- Viết test mới (tái dùng setup có sẵn).
-- Thấy setup/mock/fake-data bị lặp.
-- Sau khi fix bug → thêm regression test chặn tái phát.
+## When to use
+- Writing a new test (reuse existing setup).
+- Seeing duplicated setup/mock/fake-data.
+- After a bug fix → add a regression test to prevent recurrence.
 
-## Khi nào KHÔNG dùng
-- API mock/fixture của runner cụ thể → skill `his-testing-*` hiện thực.
+## When NOT to use
+- A specific runner's mock/fixture API → the `his-testing-*` skill implements it.
 
-## Nguyên tắc
-1. **Reuse setup**: dùng helper/fixture/builder/seed/mock đã có; nếu chưa có và sẽ tái dùng → tạo ở shared test util.
-2. **Builder/fixture cho data**: tạo dữ liệu test qua builder/factory (tham số hoá) thay vì hardcode lặp.
-3. **Mock dùng chung**: API mock / auth mock đặt 1 chỗ, tái dùng — không mỗi test định nghĩa lại.
-4. **Regression-first sau bug**: mỗi bug fix kèm 1 test tái hiện bug (đỏ trước fix, xanh sau fix).
-5. **Cấm copy-paste** setup/mock/fake-data giữa các test.
+## Principles
+1. **Reuse setup**: use existing helper/fixture/builder/seed/mock; if none exists and it'll be reused → create it in a shared test util.
+2. **Builder/fixture for data**: create test data via a builder/factory (parameterized) instead of repeated hardcode.
+3. **Shared mocks**: API mock / auth mock in one place, reused — not redefined per test.
+4. **Regression-first after a bug**: every bug fix carries a test reproducing the bug (red before fix, green after fix).
+5. **No copy-paste** of setup/mock/fake-data between tests.
 
 ## Steps
-1. Trước khi viết test → tìm helper/fixture/builder/mock đã có.
-2. Tái dùng / mở rộng; thiếu thì tạo ở shared.
-3. Bug fix → thêm regression test.
+1. Before writing a test → find an existing helper/fixture/builder/mock.
+2. Reuse / extend; create in shared if missing.
+3. Bug fix → add a regression test.
 
-## Anti-patterns cần tránh
-- Copy-paste khối setup/mock giữa nhiều test.
-- Hardcode fake-data lặp lại thay vì builder.
-- Fix bug mà không thêm test chặn tái phát.
+## Anti-patterns to avoid
+- Copy-pasting a setup/mock block across many tests.
+- Hardcoding repeated fake-data instead of a builder.
+- Fixing a bug without adding a recurrence-blocking test.
 
 ## Dependency
-- Kèm `core-testing-architecture`. Skill `his-testing-*` **depend** skill này.
+- Goes with `core-testing-architecture`. The `his-testing-*` skills **depend** on this skill.
 
 ## When to update
-- Khi bổ sung nguyên tắc test-reuse/regression chung.
+- When adding a general test-reuse/regression principle.

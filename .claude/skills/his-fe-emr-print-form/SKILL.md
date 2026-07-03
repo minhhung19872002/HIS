@@ -1,57 +1,57 @@
 ---
 name: his-fe-emr-print-form
-description: Use this skill when adding or editing a Vietnamese medical print form in HIS (biểu mẫu in MS xx/BV, DD xx, phiếu CLS, bệnh án chuyên khoa). Triggers include "thêm biểu mẫu/phiếu in [X]", a new *Print React component, registering a printType in PrintTemplateRenderer, the PrintHeader/SignatureBlock/Field layout, A4 print CSS, digital signature stamp, hoặc iText7 PDF export. Do NOT use for normal list/detail screens (his-fe-page-v2) or DICOM image viewing (his-fe-dicom-viewer).
+description: Use this skill when adding or editing a Vietnamese medical print form in HIS (forms MS xx/BV, DD xx, paraclinical slips, specialty medical records). Triggers include "add a print form/slip [X]", a new *Print React component, registering a printType in PrintTemplateRenderer, the PrintHeader/SignatureBlock/Field layout, A4 print CSS, a digital signature stamp, or iText7 PDF export. Do NOT use for normal list/detail screens (his-fe-page-v2) or DICOM image viewing (his-fe-dicom-viewer).
 metadata:
   type: project
 ---
 
-# HIS EMR Print Form (biểu mẫu in y tế VN)
+# HIS EMR Print Form (Vietnamese medical print forms)
 
-Chuẩn hoá thêm 1 **biểu mẫu in** theo mẫu Bộ Y Tế (MS xx/BV, DD xx). Đã có 38+ form; mỗi gói thầu
-thường thêm biểu mẫu chuyên khoa. Form là React component `forwardRef`, render HTML A4 + print CSS,
-nạp động qua `PrintTemplateRenderer`.
+Standardizing adding a **print form** following the Ministry of Health template (MS xx/BV, DD xx). There are 38+ forms already; each tender package usually adds a specialty form. A form is a `forwardRef` React component, rendering A4 HTML + print CSS, loaded dynamically via `PrintTemplateRenderer`.
 
-## Khi nào dùng
-- Thêm phiếu/biểu mẫu in: tóm tắt BA, tờ điều trị, hội chẩn, ra viện, chuyển viện, phiếu CLS
-  (X-quang/CT/MRI/SA/ECG/XN), phiếu điều dưỡng (DD xx), bệnh án chuyên khoa (TT 32).
+> NOTE: a few literal strings rendered on the printed form stay in Vietnamese (e.g. `BỘ Y TẾ` = "Ministry of Health" header, `ĐT:` = "Tel:", `Mẫu số:` = "Form no:") — these are the actual legal-form output text, not prose.
 
-## Khi nào KHÔNG dùng
-- Trang nhập liệu/list → `his-fe-page-v2`. Xem ảnh DICOM → `his-fe-dicom-viewer`.
+## When to use
+- Adding a slip/print form: medical-record summary, treatment sheet, consultation, discharge, transfer, a paraclinical slip
+  (X-ray/CT/MRI/US/ECG/lab), a nursing slip (DD xx), a specialty medical record (TT 32).
 
-## Vị trí code mẫu (đọc trước khi viết)
-- `frontend/src/components/PrintTemplateRenderer.tsx` — **bộ nạp trung tâm**: `switch(printType)` → dynamic import.
-  THÊM form mới = thêm 1 `case 'key': return (await import('./File')).XxxPrint;`
-- Template files: `EMRPrintTemplates.tsx` (BS), `EMRNursingPrintTemplates.tsx` (DD), `ClinicalFormPrintTemplates.tsx`
-  (CLS), `SpecialtyEMRForms1.tsx`/`SpecialtyEMRForms2.tsx`/`SpecialtyMedicalRecordPrintTemplates.tsx` (TT 32),
+## When NOT to use
+- A data-entry/list page → `his-fe-page-v2`. Viewing DICOM images → `his-fe-dicom-viewer`.
+
+## Sample code locations (read before writing)
+- `frontend/src/components/PrintTemplateRenderer.tsx` — the **central loader**: `switch(printType)` → dynamic import.
+  ADD a new form = add a `case 'key': return (await import('./File')).XxxPrint;`
+- Template files: `EMRPrintTemplates.tsx` (doctor), `EMRNursingPrintTemplates.tsx` (nursing), `ClinicalFormPrintTemplates.tsx`
+  (paraclinical), `SpecialtyEMRForms1.tsx`/`SpecialtyEMRForms2.tsx`/`SpecialtyMedicalRecordPrintTemplates.tsx` (TT 32),
   `BirthCertificatePrint.tsx`
 - Shared: `constants/hospital.ts` (`HOSPITAL_NAME/ADDRESS/PHONE`), `constants/printStyles.ts`
   (`PRINT_STYLES_BASE` + `PRINT_STYLES_DIGITAL_SIG`)
 
-## Pattern chuẩn (bám `EMRPrintTemplates.tsx`)
-- Component `forwardRef`, props là DTO (`MedicalRecordFullDto`, `TreatmentSheetDto`…), export tên `XxxPrint`.
-- **`PrintHeader`**: `BỘ Y TẾ` + `{HOSPITAL_NAME}` (từ `constants/hospital` — **KHÔNG hardcode tên BV**, xem
+## Standard pattern (follow `EMRPrintTemplates.tsx`)
+- A `forwardRef` component, props are a DTO (`MedicalRecordFullDto`, `TreatmentSheetDto`…), exported as `XxxPrint`.
+- **`PrintHeader`**: `BỘ Y TẾ` + `{HOSPITAL_NAME}` (from `constants/hospital` — **do NOT hardcode the hospital name**, see
   `his-qa-anti-pattern`) + `{HOSPITAL_ADDRESS} - ĐT: {HOSPITAL_PHONE}` + `formNumber` = `"Mẫu số: MS xx/BV"`.
-- Body: `<div className="...">` dùng class trong `PRINT_STYLES_BASE`; layout A4, Times New Roman, có `Field`,
-  bảng, chữ ký 2 cột.
-- **Chữ ký số**: `DigitalSignatureStamp` + `toSignatureStamp(sig?: DocumentSignatureDto)` (parse `O=`/`MST`
-  từ certificateSubject) → tem "Signature Valid" xanh. Style từ `PRINT_STYLES_DIGITAL_SIG`.
-- Đăng ký vào `PrintTemplateRenderer` với 1 `printType` key + dropdown/menu nơi gọi in (vd `EMR.tsx`).
+- Body: `<div className="...">` using classes from `PRINT_STYLES_BASE`; A4 layout, Times New Roman, with `Field`,
+  tables, a 2-column signature.
+- **Digital signature**: `DigitalSignatureStamp` + `toSignatureStamp(sig?: DocumentSignatureDto)` (parse `O=`/`MST`
+  from certificateSubject) → a green "Signature Valid" stamp. Styled from `PRINT_STYLES_DIGITAL_SIG`.
+- Register in `PrintTemplateRenderer` with a `printType` key + a dropdown/menu where print is invoked (e.g. `EMR.tsx`).
 
-## Xuất PDF + ký số (tùy chọn, backend)
-- HTML → PDF: `PdfGenerationService` + `PdfTemplateHelper` (iText7). Ký số: `PdfSignatureService`
-  (`SignPdfWithPfxAsync`, fallback self-signed; prod set cert BV qua env). Mẫu: `AiReportService.GenerateAiReportSignedPdfAsync`.
-- ⚠️ Linux container cần font (`fonts-dejavu`, `fonts-liberation` trong Dockerfile) để render tiếng Việt.
+## PDF export + digital sign (optional, backend)
+- HTML → PDF: `PdfGenerationService` + `PdfTemplateHelper` (iText7). Digital sign: `PdfSignatureService`
+  (`SignPdfWithPfxAsync`, falls back to self-signed; on prod set the hospital cert via env). Reference: `AiReportService.GenerateAiReportSignedPdfAsync`.
+- ⚠️ A Linux container needs fonts (`fonts-dejavu`, `fonts-liberation` in the Dockerfile) to render Vietnamese.
 
 ## Checklist
-- [ ] Component `forwardRef` export `XxxPrint`, dùng `PrintHeader` + `formNumber` "MS xx/BV"
-- [ ] Tên BV qua `HOSPITAL_NAME` constant (KHÔNG hardcode)
-- [ ] Style từ `PRINT_STYLES_BASE` (+ DIGITAL_SIG nếu có ký số)
-- [ ] Thêm `case` vào `PrintTemplateRenderer.tsx` + nút/menu in
-- [ ] `npm run build` 0 error; in thử (preview drawer) đúng A4
+- [ ] A `forwardRef` component exporting `XxxPrint`, using `PrintHeader` + `formNumber` "MS xx/BV"
+- [ ] Hospital name via the `HOSPITAL_NAME` constant (do NOT hardcode)
+- [ ] Style from `PRINT_STYLES_BASE` (+ DIGITAL_SIG if digitally signed)
+- [ ] Add a `case` to `PrintTemplateRenderer.tsx` + a print button/menu
+- [ ] `npm run build` 0 errors; test-print (preview drawer) renders correct A4
 
 ## Dependency
-`core-reusable-code` (tái dùng PrintHeader/SignatureBlock/Field, đừng tạo lại) → `his-fe-emr-print-form`
-→ `his-qa-anti-pattern` (không hardcode tên BV).
+`core-reusable-code` (reuse PrintHeader/SignatureBlock/Field, don't recreate them) → `his-fe-emr-print-form`
+→ `his-qa-anti-pattern` (don't hardcode the hospital name).
 
 ## When to update
-- Khi `EMRPrintTemplates.tsx`/`PrintTemplateRenderer` đổi cấu trúc, hoặc thêm loại biểu mẫu mới.
+- When `EMRPrintTemplates.tsx`/`PrintTemplateRenderer` changes structure, or a new form type is added.

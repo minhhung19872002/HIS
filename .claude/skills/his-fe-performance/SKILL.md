@@ -1,58 +1,58 @@
 ---
 name: his-fe-performance
-description: Use this skill when optimizing HIS frontend performance — bundle size, code-splitting, render/re-render cost, lazy loading heavy vendors (Cornerstone3D, Ant Design, recharts), and large-table/list responsiveness. Triggers include "tối ưu hiệu năng FE", "giảm bundle / chunk > 500KB", "trang load chậm / lag khi nhiều dòng", fixing the Vite `chunkSizeWarningLimit` warnings, tuning `manualChunks` in `vite.config.ts`, or adding `React.lazy`/`useMemo`/virtualization. Adapts the open-source `vercel-labs/agent-skills` React rules to this project's Vite + React 19 + Antd v6 stack. Do NOT use for backend/load capacity (his-be-scalability), accessibility (core-accessibility-pattern), or building a new page (his-fe-page-v2).
+description: Use this skill when optimizing HIS frontend performance — bundle size, code-splitting, render/re-render cost, lazy loading heavy vendors (Cornerstone3D, Ant Design, recharts), and large-table/list responsiveness. Triggers include "optimize FE performance", "reduce bundle / chunk > 500KB", "page loads slowly / lags with many rows", fixing the Vite `chunkSizeWarningLimit` warnings, tuning `manualChunks` in `vite.config.ts`, or adding `React.lazy`/`useMemo`/virtualization. Adapts the open-source `vercel-labs/agent-skills` React rules to this project's Vite + React 19 + Antd v6 stack. Do NOT use for backend/load capacity (his-be-scalability), accessibility (core-accessibility-pattern), or building a new page (his-fe-page-v2).
 metadata:
   type: project
 ---
 
 # HIS Frontend Performance (Vite + React 19 + Antd v6)
 
-Giảm bundle + chi phí render cho FE. Dự án có chunk rất nặng đã ghi nhận: `vendor-cornerstone`
-~3MB (gzip 830KB), `vendor-antd` ~1.6MB, `vendor-charts` ~398KB → build luôn cảnh báo >500KB.
-Skill này chuẩn hoá cách xử lý đúng thay vì để "accepted/deferred".
+Reduce bundle + render cost for the FE. The project has recorded very heavy chunks: `vendor-cornerstone`
+~3MB (gzip 830KB), `vendor-antd` ~1.6MB, `vendor-charts` ~398KB → the build always warns >500KB.
+This skill standardizes handling it properly instead of leaving it "accepted/deferred".
 
-## Khi nào dùng
-- Build cảnh báo chunk > 500KB; trang mở chậm; bảng/list lag khi nhiều dòng.
-- Thêm thư viện nặng (viewer DICOM, chart, export Excel/PDF, QR) → phải code-split.
-- Trang re-render thừa (typing ô search re-render cả bảng; props đổi liên tục).
+## When to use
+- Build warns chunk > 500KB; a page opens slowly; a table/list lags with many rows.
+- Adding a heavy library (DICOM viewer, chart, Excel/PDF export, QR) → must code-split.
+- A page re-renders excessively (typing in the search box re-renders the whole table; props change constantly).
 
-## Khi nào KHÔNG dùng
-- Chịu tải / nhiều user đồng thời / DB chậm → `his-be-scalability`.
-- A11y/WCAG → `core-accessibility-pattern`. Tạo màn hình mới → `his-fe-page-v2`.
+## When NOT to use
+- Load / many concurrent users / slow DB → `his-be-scalability`.
+- A11y/WCAG → `core-accessibility-pattern`. Creating a new screen → `his-fe-page-v2`.
 
-## Pattern chuẩn (theo tiền lệ repo)
+## Standard pattern (per repo precedent)
 
-1. **Route-level code-split** — mọi page nạp qua `React.lazy(() => import(...))` trong `App.tsx`
-   (đã là tiền lệ: `const OPDV2 = lazy(...)`). Page mới PHẢI lazy, đừng import tĩnh ở đầu `App.tsx`.
-2. **Dynamic import vendor nặng** — Cornerstone3D chỉ nạp khi mở viewer:
-   `await import('@cornerstonejs/core')` (xem `components/CornerstoneViewer.tsx`, `MipMinIpViewer.tsx`).
-   Áp cùng cách cho `xlsx`/export, `recharts`, `html5-qrcode` — import bên trong handler/effect, không top-level.
-3. **`manualChunks` (vite.config.ts)** — tách vendor lớn thành chunk riêng (`vendor-cornerstone`,
-   `vendor-antd`, `vendor-charts`, `vendor-qrcode` đã có). Thêm thư viện nặng mới → thêm 1 manualChunk
-   để không phình chunk chung. `worker.format: 'es'` BẮT BUỘC giữ (cornerstone codec workers code-split).
-4. **Tránh barrel import** — import trực tiếp icon/-component cần dùng, không `import * as Icons`.
-   Antd: import component lẻ, không kéo cả `antd`.
-5. **Chống re-render** — `useMemo`/`useCallback` cho cột bảng/columns + handler truyền xuống `DataTable`;
-   tách ô search thành state cục bộ + `debounce` (đừng filter toàn bảng mỗi keystroke); `React.memo` cho
-   row/cell nặng. KPI tính trong `useMemo`, không tính lại mỗi render.
-6. **Bảng/list lớn** — phân trang client (`Pager` của `_v2kit`) hoặc server-side; cân nhắc virtualization
-   khi > vài trăm dòng. Đừng render 2000 dòng 1 lần.
+1. **Route-level code-split** — every page loads via `React.lazy(() => import(...))` in `App.tsx`
+   (already the precedent: `const OPDV2 = lazy(...)`). A new page MUST be lazy, don't static-import it at the top of `App.tsx`.
+2. **Dynamic import a heavy vendor** — Cornerstone3D loads only when the viewer opens:
+   `await import('@cornerstonejs/core')` (see `components/CornerstoneViewer.tsx`, `MipMinIpViewer.tsx`).
+   Same for `xlsx`/export, `recharts`, `html5-qrcode` — import inside the handler/effect, not top-level.
+3. **`manualChunks` (vite.config.ts)** — split large vendors into separate chunks (`vendor-cornerstone`,
+   `vendor-antd`, `vendor-charts`, `vendor-qrcode` exist). A new heavy lib → add a manualChunk
+   so the common chunk doesn't bloat. `worker.format: 'es'` MUST be kept (cornerstone codec workers code-split).
+4. **Avoid barrel imports** — import the specific icon/component you need, not `import * as Icons`.
+   Antd: import the single component, don't pull in all of `antd`.
+5. **Anti re-render** — `useMemo`/`useCallback` for table columns + handlers passed down to `DataTable`;
+   split the search box into local state + `debounce` (don't filter the whole table per keystroke); `React.memo` for a
+   heavy row/cell. Compute KPIs in `useMemo`, don't recompute every render.
+6. **Large table/list** — client pagination (`_v2kit`'s `Pager`) or server-side; consider virtualization
+   when > a few hundred rows. Don't render 2000 rows at once.
 
-## Đo lường (không đoán)
-- `cd frontend && npm run build` → đọc bảng chunk + dòng cảnh báo >500KB ở cuối.
-- Cô lập regression: so kích thước `dist/assets/*` trước/sau. Chỉ tối ưu chunk thật sự lớn.
-- React DevTools Profiler để xác minh re-render thừa trước khi memo hoá (đừng memo bừa).
+## Measurement (don't guess)
+- `cd frontend && npm run build` → read the chunk table + the >500KB warning lines at the end.
+- Isolate a regression: compare `dist/assets/*` sizes before/after. Only optimize a genuinely large chunk.
+- React DevTools Profiler to confirm excessive re-render before memoizing (don't memo blindly).
 
 ## Pitfalls
-- **`tsc -b` strict hơn `tsc --noEmit`** — luôn chạy `npm run build` (Vercel dùng `tsc -b`) trước khi báo xong.
-- **Dynamic import sai `worker.format`** — đổi sang `iife` làm vỡ code-split cornerstone (đã dính, xem CLAUDE.md 2026-04-28).
-- **Memo hoá bừa** — `useMemo` cho giá trị rẻ làm chậm hơn + khó đọc; chỉ memo khi Profiler chỉ ra điểm nóng (đúng `core-minimal-change`).
-- **Lazy nhưng vẫn import tĩnh** ở chỗ khác → vendor vẫn vào chunk chung; grep import tĩnh còn sót.
+- **`tsc -b` is stricter than `tsc --noEmit`** — always run `npm run build` (Vercel uses `tsc -b`) before reporting done.
+- **Wrong dynamic-import `worker.format`** — switching to `iife` breaks cornerstone code-split (hit before, see CLAUDE.md 2026-04-28).
+- **Memoizing blindly** — `useMemo` on a cheap value is slower + harder to read; only memo when the Profiler points to a hotspot (per `core-minimal-change`).
+- **Lazy but still static-imported** elsewhere → the vendor still goes into the common chunk; grep for a lingering static import.
 
 ## Reference
-- Nguồn tri thức: `vercel-labs/agent-skills` (React best practices, 64 rule/8 nhóm — open-source).
-  Lọc: các rule **Vite-applicable** (bundle-size, re-render, rendering, JS efficiency); BỎ rule Next.js
-  (server caching/RSC/async-waterfall) vì dự án dùng Vite + Cloud Run, không phải Next.
+- Knowledge source: `vercel-labs/agent-skills` (React best practices, 64 rules/8 groups — open-source).
+  Filter: the **Vite-applicable** rules (bundle-size, re-render, rendering, JS efficiency); DROP the Next.js rules
+  (server caching/RSC/async-waterfall) since the project uses Vite + Cloud Run, not Next.
 
 ## When to update
-- Khi đổi bundler/manualChunks, nâng React/Antd major, hoặc thêm vendor nặng mới cần chiến lược split riêng.
+- When changing the bundler/manualChunks, upgrading a React/Antd major, or adding a new heavy vendor needing its own split strategy.

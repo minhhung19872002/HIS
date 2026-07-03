@@ -1,6 +1,6 @@
 # Antd v6 — Deprecated props cheatsheet (HIS)
 
-Tham chiếu CLAUDE.md "Antd v6 Migration Notes (completed 2026-02-24)". Mỗi mục: trước → sau.
+Reference CLAUDE.md "Antd v6 Migration Notes (completed 2026-02-24)". Each item: before → after.
 
 ## Space — direction → orientation
 ```tsx
@@ -13,9 +13,9 @@ Tham chiếu CLAUDE.md "Antd v6 Migration Notes (completed 2026-02-24)". Mỗi m
 ## Alert — message → title
 ```tsx
 // ❌
-<Alert message="Cảnh báo" type="warning" />
+<Alert message="Warning" type="warning" />
 // ✅
-<Alert title="Cảnh báo" type="warning" />
+<Alert title="Warning" type="warning" />
 ```
 
 ## Drawer — width → size
@@ -23,20 +23,20 @@ Tham chiếu CLAUDE.md "Antd v6 Migration Notes (completed 2026-02-24)". Mỗi m
 // ❌
 <Drawer width={520} open={open}>...</Drawer>
 // ✅
-<Drawer size="large" open={open}>...</Drawer>      // hoặc size={520}
+<Drawer size="large" open={open}>...</Drawer>      // or size={520}
 ```
 
 ## Timeline — children/Timeline.Item → items
 ```tsx
 // ❌
 <Timeline>
-  <Timeline.Item>Bước 1</Timeline.Item>
-  <Timeline.Item>Bước 2</Timeline.Item>
+  <Timeline.Item>Step 1</Timeline.Item>
+  <Timeline.Item>Step 2</Timeline.Item>
 </Timeline>
 // ✅
 <Timeline items={[
-  { content: 'Bước 1' },
-  { content: 'Bước 2', color: 'green' },
+  { content: 'Step 1' },
+  { content: 'Step 2', color: 'green' },
 ]} />
 ```
 
@@ -65,7 +65,7 @@ Tham chiếu CLAUDE.md "Antd v6 Migration Notes (completed 2026-02-24)". Mỗi m
 ```
 
 ## List (deprecated component) → div-based custom
-`List` cũ render trắng ở vài case. Thay bằng map div:
+The old `List` renders blank in some cases. Replace with a div map:
 ```tsx
 // ❌
 <List dataSource={items} renderItem={(it) => <List.Item>{it.name}</List.Item>} />
@@ -79,14 +79,14 @@ Tham chiếu CLAUDE.md "Antd v6 Migration Notes (completed 2026-02-24)". Mỗi m
 
 ## Logging convention
 ```tsx
-// ❌ console.error làm fail smoke test (console-errors.cy.ts)
+// ❌ console.error fails the smoke test (console-errors.cy.ts)
 catch (e) { console.error('API failed', e); }
 // ✅ expected failure → warn
-catch (e) { console.warn('API failed', e); message.warning('Không thể tải dữ liệu'); setData([]); }
+catch (e) { console.warn('API failed', e); message.warning('Unable to load data'); setData([]); }
 ```
 
-## Verify sau khi sửa
+## Verify after editing
 ```
-cd frontend && npm run build      # 0 lỗi
+cd frontend && npm run build      # 0 errors
 npx cypress run --spec "cypress/e2e/console-errors.cy.ts" --browser chrome   # 0 console.error
 ```

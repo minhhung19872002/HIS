@@ -1,83 +1,77 @@
-# REQUIREMENT COVERAGE PROTOCOL — Giao thức phủ yêu cầu (chống sót khi rà soát tài liệu)
+# REQUIREMENT COVERAGE PROTOCOL — covering requirements (anti-omission when reviewing docs)
 
-> **Vì sao có file này:** AI nhiều lần claim "đã rà đủ" nhưng thực tế **sót nguồn / đọc lướt / tin bản trích
-> rỗng**. File này là **ràng buộc CỨNG** cho mọi task dạng *rà soát · đối chiếu tài liệu · gap analysis ·
-> "đã đủ chưa" · backlog từ requirements*. Áp BẮT BUỘC ở chặng [1]Router + [4]Reviewer của
+> **Why this file exists:** AI has repeatedly claimed "fully reviewed" but actually **missed sources / skimmed / trusted an
+> empty extract**. This file is a **HARD constraint** for every task of the form *review · compare docs · gap analysis ·
+> "is it complete" · backlog from requirements*. MANDATORY at stage [1]Router + [4]Reviewer of
 > [`workflow.md`](workflow.md).
 
-## 0. Khi nào áp
-Bất kỳ task: "rà soát/đối chiếu/so với tài liệu", "còn thiếu tính năng gì", "đã đủ chưa", "đối chiếu
-[spec/đối thủ/gói thầu]", lập backlog từ `docs/requirements/**`. → PHẢI theo 5 luật dưới + cổng completeness.
+## 0. When to apply
+Any task: "review/compare/against the docs", "what features are still missing", "is it complete", "compare against [spec/competitor/tender]", build a backlog from `docs/requirements/**`. → MUST follow the 5 rules below + the completeness gate.
 
 ---
 
-## 1. LUẬT 1 — LẬP SOURCE MANIFEST TRƯỚC (mức FILE, không phải mức thư mục)
-TRƯỚC khi đọc bất cứ gì: **liệt kê TỪNG FILE** (không chỉ thư mục) — `find docs/requirements -name "*.md"`
-(+ `.pdf` không có `.md` kèm) + `docs/workspace-docs/luong_nghiep_vu.md` + tài liệu user trỏ tới. Lập bảng
-trạng thái **theo FILE**, **không kết luận khi còn file `⬜ chưa đọc`**.
-> ⚠️ **Bài học 2026-06-13:** đã claim "5/5 NGUỒN đủ" ở mức *thư mục* nhưng `10-tham-chieu/2-da-chat-loc-md/`
-> còn **8 file chưa đọc** (44-modules, integrations, dashboard-reports, emr-forms, workflows…). Manifest
-> PHẢI ở mức file. Lưu ý file **trùng nội dung** giữa thư mục (vd `10/1-goc-pdf` ≡ `90/1-goc-pdf`) → đánh
-> dấu "đã phủ qua nguồn khác", không cần đọc lại — nhưng PHẢI liệt kê để biết đã đối chiếu.
+## 1. RULE 1 — BUILD A SOURCE MANIFEST FIRST (FILE level, not folder level)
+BEFORE reading anything: **list EVERY FILE** (not just folders) — `find docs/requirements -name "*.md"`
+(+ `.pdf` without a companion `.md`) + `docs/workspace-docs/luong_nghiep_vu.md` + the docs the user points to. Build a status
+table **by FILE**, and **do not conclude while any file is `⬜ unread`**.
+> ⚠️ **Lesson 2026-06-13:** claimed "5/5 SOURCES complete" at the *folder* level, but `10-tham-chieu/2-da-chat-loc-md/`
+> still had **8 unread files** (44-modules, integrations, dashboard-reports, emr-forms, workflows…). The manifest
+> MUST be at file level. Note that files with **duplicate content** across folders (e.g. `10/1-goc-pdf` ≡ `90/1-goc-pdf`) → mark
+> "covered via another source", no need to re-read — but you MUST list them to show you cross-checked.
 
-| Nguồn | Vai trò | Trạng thái |
+| Source | Role | Status |
 |---|---|---|
-| `requirements/00-san-pham-cua-ta` | spec đích của ta | ✅ / ⚠️ / ⬜ |
-| `requirements/10-tham-chieu-mqsoft` | sản phẩm vendor tham chiếu | … |
-| `requirements/20-yeu-cau-nang-cap` | 24 gói NangCap | … |
-| `requirements/30-bieu-mau-nghiep-vu` | biểu mẫu bệnh án chuyên khoa | … |
-| `requirements/90-phan-tich-doi-thu` | HDSD đối thủ (theo actor) | … |
-| `workspace-docs/luong_nghiep_vu.md` | 25 nhóm nghiệp vụ | … |
+| `requirements/00-san-pham-cua-ta` | our target spec | ✅ / ⚠️ / ⬜ |
+| `requirements/10-tham-chieu-mqsoft` | reference vendor product | … |
+| `requirements/20-yeu-cau-nang-cap` | 24 NangCap packages | … |
+| `requirements/30-bieu-mau-nghiep-vu` | specialty medical-record forms | … |
+| `requirements/90-phan-tich-doi-thu` | competitor user guides (by actor) | … |
+| `workspace-docs/luong_nghiep_vu.md` | 25 business groups | … |
 
-Trạng thái: **✅ đọc đủ** · **⚠️ trích lỗi/đọc một phần** · **⬜ chưa đọc**. Báo manifest cho user; chỉ kết
-luận "đủ" khi **100% = ✅**.
+Status: **✅ fully read** · **⚠️ broken/partial extract** · **⬜ unread**. Report the manifest to the user; only conclude
+"complete" when **100% = ✅**.
 
-> ⚠️ **Bảng trên chỉ MINH HOẠ ở mức thư mục — KHÔNG dùng làm manifest thật.** Manifest THẬT sinh **runtime mức FILE**:
-> `find docs/requirements -type f \( -name "*.md" -o -name "*.pdf" \)` → liệt kê TỪNG file (gồm README/log/json, đánh dấu bỏ-qua nếu không phải spec). Đánh ✅ cho 1 thư mục mà chưa duyệt file con = đúng lỗi 2026-06-13 (manifest folder-level).
+> ⚠️ **The table above is ILLUSTRATIVE at the folder level only — do NOT use it as the real manifest.** The REAL manifest is generated **at runtime, file level**:
+> `find docs/requirements -type f \( -name "*.md" -o -name "*.pdf" \)` → list EVERY file (including README/log/json, marked skip if not a spec). Marking a folder ✅ before reviewing its child files = exactly the 2026-06-13 bug (folder-level manifest).
 
-## 2. LUẬT 2 — KHÔNG TIN BẢN TRÍCH, ĐỌC NGUỒN GỐC KHI NGHI
-Bản `.md` sinh từ PDF có thể **rỗng/hụt** (PDF scan). Nếu `.md` **ngắn bất thường** (vài dòng, chỉ
-`<!-- image -->`, "Khong chuyen doi duoc") → **đọc thẳng `.pdf` gốc** (Read tool đọc PDF được). Đánh dấu
-nguồn đó `⚠️` cho tới khi đọc được nội dung thật. *(Đây là lỗi NangCap2/3 từng bị bỏ qua.)*
+## 2. RULE 2 — DON'T TRUST THE EXTRACT, READ THE ORIGINAL WHEN IN DOUBT
+A `.md` generated from a PDF may be **empty/incomplete** (scanned PDF). If the `.md` is **unusually short** (a few lines, only
+`<!-- image -->`, "Khong chuyen doi duoc") → **read the original `.pdf` directly** (the Read tool can read PDFs). Mark
+that source `⚠️` until you read the real content. *(This is the NangCap2/3 bug that was once skipped.)*
 
-## 3. LUẬT 3 — LIỆT KÊ ĐỦ, KHÔNG TÓM TẮT "TRỌNG YẾU"
-Khi rà 1 nguồn: **enumerate TỪNG mục/feature/form**, không gộp thành "các mục trọng yếu đã có". File dài →
-đọc HẾT (chia batch/subagent nếu cần), không dừng giữa chừng rồi suy phần còn lại. Mỗi mục → trạng thái
-DONE/PARTIAL/MISSING **có evidence grep**. *(Đây là lỗi đọc-lướt file NangCap dài.)*
+## 3. RULE 3 — ENUMERATE FULLY, DON'T SUMMARIZE "KEY ITEMS"
+When reviewing a source: **enumerate EVERY item/feature/form**, don't lump it into "the key items are present". Long file → read it ALL (split into batches/subagents if needed), don't stop midway and infer the rest. Each item → status DONE/PARTIAL/MISSING **with grep evidence**. *(This is the skim-a-long-NangCap-file bug.)*
 
-## 4. LUẬT 4 — PHƯƠNG CHÂM PARITY-ĐỐI-THỦ (ưu tiên + chống over-build)
-> User explicit: *"cái gì đối thủ CÓ thì của tôi CHẮC CHẮN phải có; cái gì đối thủ CHƯA CÓ thì tôi cũng có
-> luôn NHƯNG phải đáp ứng nhu cầu thực tế — KHÔNG tạo tính năng thực tế không cần nếu đối thủ không có."*
+## 4. RULE 4 — COMPETITOR-PARITY PRINCIPLE (priority + anti over-build)
+> User explicit: *"whatever the competitor HAS, mine MUST definitely have; whatever the competitor DOESN'T HAVE I also
+> have it BUT it must meet a real need — do NOT create a feature with no real need if the competitor doesn't have it."*
 
-| Tình huống | Hành động |
+| Situation | Action |
 |---|---|
-| **Đối thủ CÓ** + ta thiếu | **P0/P1 — BẮT BUỘC đóng gap** (parity là tối thiểu) |
-| Đối thủ KHÔNG có + **nhu cầu thực tế cần** (chuẩn TT/BYT, vận hành thật) | P2 — làm, **ghi rõ lý do nhu cầu** |
-| Đối thủ KHÔNG có + **không nhu cầu thực** | **KHÔNG đề xuất** (chống over-engineer / feature thừa) |
+| **Competitor HAS** + we lack it | **P0/P1 — MUST close the gap** (parity is the minimum) |
+| Competitor DOESN'T have it + **a real need exists** (TT/BYT standard, real operation) | P2 — do it, **state the need clearly** |
+| Competitor DOESN'T have it + **no real need** | **DO NOT propose** (anti over-engineer / surplus feature) |
 
-- Tài liệu thuyết minh/bán hàng của đối thủ → **chỉ tính capability THỰC verify được**, bỏ marketing fluff.
-- Khác biệt **kiến trúc** (đối thủ WinForm/Oracle/desktop-local vs ta web/cloud) → **KHÔNG phải gap build**;
-  ghi chú cho khâu thuyết minh thầu, không tạo task "viết lại theo kiến trúc đối thủ".
+- A competitor's marketing/sales doc → **count only REAL verifiable capability**, drop marketing fluff.
+- An **architecture** difference (competitor WinForm/Oracle/desktop-local vs ours web/cloud) → **NOT a build gap**; note it for the tender presentation, do not create a "rewrite to the competitor's architecture" task.
 
-## 5. LUẬT 5 — DEDUP TRƯỚC KHI TẠO (no-duplicate)
-Trước khi tạo issue mới: đối chiếu **toàn bộ issue đang mở** (`gh issue list`) + danh sách "ĐÃ DONE trong
-code". Trùng tên/nghiệp vụ/mục tiêu → **KHÔNG tạo**, gộp/link thay vì nhân bản. Không tạo "task đi-làm-X"
-nếu sẽ tự làm X trong cùng phiên (tránh task thừa).
+## 5. RULE 5 — DEDUP BEFORE CREATING (no-duplicate)
+Before creating a new issue: compare against **all open issues** (`gh issue list`) + the "ALREADY DONE in code" list. Same name/business/goal → **do NOT create**, merge/link instead of duplicating. If the action will be done directly in the current session, do not create a separate task for it.
 
 ---
 
-## 6. ★ COMPLETENESS GATE — chống overconfidence (cổng trước khi nói "đủ")
-KHÔNG được kết luận *"đã rà đủ / đã phủ hết / không còn thiếu"* trừ khi **TẤT CẢ** đúng:
-- [ ] Source manifest (Luật 1) **100% = ✅** (không còn ⬜/⚠️)
-- [ ] Mỗi nguồn đã **enumerate đủ** (Luật 3), không phần nào bị suy đoán
-- [ ] Mọi nguồn nghi trích-hụt đã đọc **PDF gốc** (Luật 2)
-- [ ] Đã chạy **completeness critic**: tự hỏi *"nguồn/section/actor/form nào CHƯA đụng?"* và trả lời được
-- [ ] Phân tách rõ **VERIFIED** (có evidence) vs **ASSUMED** (chưa chắc → đánh CẦN XÁC MINH)
+## 6. ★ COMPLETENESS GATE — anti-overconfidence (the gate before saying "complete")
+Do NOT conclude *"fully reviewed / fully covered / nothing missing"* unless **ALL** are true:
+- [ ] Source manifest (Rule 1) is **100% = ✅** (no ⬜/⚠️ left)
+- [ ] Each source has been **fully enumerated** (Rule 3), no part inferred
+- [ ] Every source suspected of a broken extract has been read from the **original PDF** (Rule 2)
+- [ ] Ran the **completeness critic**: asked *"which source/section/actor/form is NOT yet touched?"* and can answer
+- [ ] Clearly separated **VERIFIED** (with evidence) vs **ASSUMED** (uncertain → marked NEEDS VERIFICATION)
 
-Chưa đủ 5 mục → nói **"đã rà X/Y nguồn, CÒN LẠI: …"** thay vì "đã đủ". **Thành thật > tự tin.**
+Not all 5 → say **"reviewed X/Y sources, REMAINING: …"** instead of "complete". **Honesty > confidence.**
 
 ---
 
-## 7. Liên kết
-- Pipeline: [`workflow.md`](workflow.md) · Checklist: [`checklist.md`](checklist.md) (mục I) · State-store: [`task.md`](task.md)
-- Nguồn yêu cầu: `docs/requirements/README.md` (bản đồ vùng tài liệu)
+## 7. Links
+- Pipeline: [`workflow.md`](workflow.md) · Checklist: [`checklist.md`](checklist.md) (section I) · State-store: [`task.md`](task.md)
+- Requirement sources: `docs/requirements/README.md` (the document-area map)

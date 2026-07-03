@@ -7,53 +7,53 @@ metadata:
 
 # Core — Production Change Discipline (portable)
 
-> TẦNG: **A · CORE** (portable, tech-agnostic). Playbook **Tech-Lead chịu trách nhiệm hệ Production** cho
-> MỌI thay đổi. **KHÔNG copy** skill khác — **LINK** chúng + đóng **5 gap** (G3/G6/G9/G10/G11).
-> Hành xử như người chịu trách nhiệm cuối: đúng > ổn định > còn lại.
+> TIER: **A · CORE** (portable, tech-agnostic). The **Tech-Lead-responsible-for-Production** playbook for
+> EVERY change. Does **NOT copy** other skills — **LINKS** them + closes **5 gaps** (G3/G6/G9/G10/G11).
+> Behave like the person ultimately responsible: correct > stable > the rest.
 
-## Khi nào dùng
-- Bất kỳ feature / bug fix / refactor / migration / đổi config·infra / "sửa lỗi production".
-- Ưu tiên khi thay đổi **rủi ro cao / khó rollback / chạm auth·tiền·schema·contract**.
+## When to use
+- Any feature / bug fix / refactor / migration / config·infra change / "fix a production bug".
+- Prioritize when the change is **high-risk / hard-to-rollback / touches auth·money·schema·contract**.
 
-## Khi nào KHÔNG dùng
-- Q&A / giải thích / tra cứu thuần (không thay đổi gì). Mechanics cụ thể → skill được link.
+## When NOT to use
+- Pure Q&A / explanation / lookup (no change). Specific mechanics → the linked skill.
 
-## Vòng đời 1 thay đổi (mỗi bước → skill phụ trách)
-1. **Làm rõ** yêu cầu, liệt kê thiếu, mark **UNKNOWN**, không suy diễn → `core-requirement-clarify`.
-2. **Phân tích → plan TRƯỚC code** (yêu cầu/scope/dependency/rủi ro/kiến trúc) → `core-impact-analysis` + `core-code-change-workflow` + `core-architecture-follow`. Chưa viết code.
-3. **(Bug) Root cause + bằng chứng** → **G3** dưới.
+## A change's lifecycle (each step → the responsible skill)
+1. **Clarify** the requirement, list what's missing, mark **UNKNOWN**, no inference → `core-requirement-clarify`.
+2. **Analyze → plan BEFORE code** (requirement/scope/dependency/risk/architecture) → `core-impact-analysis` + `core-code-change-workflow` + `core-architecture-follow`. No code yet.
+3. **(Bug) Root cause + evidence** → **G3** below.
 4. **Blast radius** (file·module·API·DTO·DB·auth·authz·UI·test) → `core-impact-analysis`.
-5. **Thay đổi nhỏ-nhất an-toàn-nhất**, không out-of-scope (refactor/kiến trúc/contract/DB/rename hàng loạt) → `core-minimal-change` + SKILL-MAP §5b.
-6. **≥3 phương án khi nhiều cách** → **G6**.
-7. **Kiểm soát scope**: việc mới ngoài plan → KHÔNG tự làm, báo cáo, **tách task riêng** → `core-minimal-change` + `his-tech-debt-workflow`.
-8. **Tech-debt phát hiện**: mô tả/nguyên nhân/mức độ/hướng xử lý/ưu tiên, **không auto-fix** chưa duyệt → `his-tech-debt-workflow`.
-9. **Tự phản biện** trước khi chốt → **G9**.
-10. **Cổng verify đủ** trước khi báo xong → **G10**.
-11. **Báo cáo 7 phần** → **G11**.
-12. **Thứ tự ưu tiên chất lượng** → **G12**.
+5. **Smallest-safest change**, no out-of-scope (refactor/architecture/contract/DB/mass-rename) → `core-minimal-change` + SKILL-MAP §5b.
+6. **≥3 options when there are several ways** → **G6**.
+7. **Scope control**: new work outside the plan → do NOT self-do it, report it, **split a separate task** → `core-minimal-change` + `his-tech-debt-workflow`.
+8. **Tech debt found**: describe it/cause/severity/handling direction/priority, **no auto-fix** without approval → `his-tech-debt-workflow`.
+9. **Self-critique** before deciding → **G9**.
+10. **Full verify gate** before reporting done → **G10**.
+11. **7-part report** → **G11**.
+12. **Quality priority order** → **G12**.
 
-## 5 rule bổ sung (đóng GAP)
+## 5 supplementary rules (closing the GAPs)
 
-### G3 · Root cause trước khi sửa
-Lỗi hệ thống: xác định **nguyên nhân GỐC** + **bằng chứng** (log / repro / diff / trace) + giải thích **WHY**.
-**KHÔNG** chữa triệu chứng. **KHÔNG** workaround tạm — trừ khi user yêu cầu rõ (ghi rõ là tạm + nợ phải xử).
+### G3 · Root cause before fixing
+A system bug: identify the **ROOT cause** + **evidence** (log / repro / diff / trace) + explain **WHY**.
+Do **NOT** patch the symptom. Do **NOT** workaround temporarily — unless the user explicitly asks (note it's temporary + a debt to handle).
 
-### G6 · ≥3 phương án khi có nhiều cách
-Khi >1 cách hợp lý → trình **tối thiểu 3 phương án**, mỗi cái nêu: **Ưu · Nhược · Độ phức tạp · Rủi ro · Chi phí triển khai** → rồi **đề xuất 1**. (Việc tầm thường / chỉ 1 cách hiển nhiên → bỏ qua, KHÔNG bịa option cho đủ số.)
+### G6 · ≥3 options when there are several ways
+When >1 reasonable way → present **at least 3 options**, each with: **Pros · Cons · Complexity · Risk · Implementation cost** → then **recommend 1**. (A trivial task / only one obvious way → skip, do NOT fabricate options to hit a number.)
 
-### G9 · Tự phản biện trước khi chốt
-Tự hỏi: có cách **đơn giản hơn**? **ít rủi ro hơn**? có **phá kiến trúc** hiện tại? có **thêm nợ kỹ thuật**? có **hại hiệu năng**? — "có" ở bất kỳ câu nào → cân nhắc lại trước khi làm.
+### G9 · Self-critique before deciding
+Ask yourself: is there a **simpler** way? **lower risk**? does it **break** the current architecture? does it **add tech debt**? does it **hurt performance**? — a "yes" to any → reconsider before doing it.
 
-### G10 · Cổng verify đủ (BẮT BUỘC trước khi báo "xong")
-Chạy theo mức **có sẵn** trong dự án: **lint · typecheck · build · unit · integration · e2e**. Còn đỏ = **CHƯA xong**; không claim success khi chưa verify (`core-execution-output`).
-> HIS: build-gate `his-qa-anti-pattern` #27 (FE `npm run build` EXIT 0 / BE `dotnet build` 0 err) · lint `npm run lint` · test Cypress/Playwright (`npm test`). Chỉ `.claude/`·docs → không cần build.
+### G10 · Full verify gate (MANDATORY before reporting "done")
+Run at the level **available** in the project: **lint · typecheck · build · unit · integration · e2e**. Still red = **NOT done**; don't claim success without verifying (`core-execution-output`).
+> HIS: build-gate `his-qa-anti-pattern` #27 (FE `npm run build` EXIT 0 / BE `dotnet build` 0 err) · lint `npm run lint` · Cypress/Playwright tests (`npm test`). `.claude/`·docs only → no build needed.
 
-### G11 · Báo cáo hoàn thành 7 phần
-(1) Công việc đã làm · (2) File đã thay đổi · (3) Phạm vi ảnh hưởng · (4) Rủi ro còn tồn tại · (5) Việc được hoãn · (6) Nợ kỹ thuật phát hiện · (7) **Hướng rollback**.
+### G11 · 7-part completion report
+(1) Work done · (2) Files changed · (3) Blast radius · (4) Residual risks · (5) Deferred work · (6) Tech debt found · (7) **Rollback plan**.
 
-## G12 · Thứ tự ưu tiên chất lượng
-**Đúng đắn > Ổn định > Bảo trì > Bảo mật > Hiệu năng > Thẩm mỹ code.** KHÔNG hy sinh ổn định chỉ để code ngắn/đẹp hơn.
-> ⚠️ Khớp SKILL-MAP §5c + P0: với hệ **y tế/HIS**, **an toàn BN + correctness + security** là **P0 tuyệt đối** — KHÔNG bị xếp dưới maintainability. Thứ tự trên áp cho các đánh đổi **ngoài P0**; khi xung đột, **P0 thắng trước**.
+## G12 · Quality priority order
+**Correctness > Stability > Maintainability > Security > Performance > Code aesthetics.** Do NOT sacrifice stability just for shorter/prettier code.
+> ⚠️ Matches SKILL-MAP §5c + P0: for a **medical/HIS** system, **patient-safety + correctness + security** are **absolute P0** — NOT ranked below maintainability. The order above applies to trade-offs **outside P0**; on conflict, **P0 wins first**.
 
-## Liên quan (LINK — không copy)
-`core-requirement-clarify` · `core-verify-before-assert` · `core-impact-analysis` · `core-minimal-change` · `core-code-change-workflow` · `core-architecture-follow` · `core-execution-output` · `his-tech-debt-workflow` · `his-qa-anti-pattern` (#27 build-gate, #30 self-review) · SKILL-MAP §5b/§5c (tiebreaker + thứ tự ưu tiên).
+## Related (LINK — no copy)
+`core-requirement-clarify` · `core-verify-before-assert` · `core-impact-analysis` · `core-minimal-change` · `core-code-change-workflow` · `core-architecture-follow` · `core-execution-output` · `his-tech-debt-workflow` · `his-qa-anti-pattern` (#27 build-gate, #30 self-review) · SKILL-MAP §5b/§5c (tiebreaker + priority order).

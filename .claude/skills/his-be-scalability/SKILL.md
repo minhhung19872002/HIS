@@ -1,66 +1,66 @@
 ---
 name: his-be-scalability
-description: Use this skill when sizing or hardening HIS for concurrent load — many users at once, a hospital with 100 vs 1000 staff, peak-hour overload, slow endpoints under load, DB connection exhaustion, or N+1 / unbounded queries. Triggers include "tối ưu chịu tải / quá tải / nhiều người dùng cùng lúc", "bệnh viện A 100 user vs B 1000 user", "API chậm khi đông", tuning Cloud Run concurrency/min/max-instances, pagination/AsNoTracking/Include, Redis caching hot reads, DB indexes for hot queries, or rate-limiting. Do NOT use for frontend bundle/render (his-fe-performance), creating a plain CRUD service (his-be-module-scaffold), background jobs (his-be-background-worker), or writing the index DDL itself (his-db-migration).
+description: Use this skill when sizing or hardening HIS for concurrent load — many users at once, a hospital with 100 vs 1000 staff, peak-hour overload, slow endpoints under load, DB connection exhaustion, or N+1 / unbounded queries. Triggers include "optimize for load / overload / many concurrent users", "hospital A 100 users vs B 1000 users", "API slow when busy", tuning Cloud Run concurrency/min/max-instances, pagination/AsNoTracking/Include, Redis caching hot reads, DB indexes for hot queries, or rate-limiting. Do NOT use for frontend bundle/render (his-fe-performance), creating a plain CRUD service (his-be-module-scaffold), background jobs (his-be-background-worker), or writing the index DDL itself (his-db-migration).
 metadata:
   type: project
 ---
 
-# HIS Backend Scalability (chịu tải / nhiều user đồng thời)
+# HIS Backend Scalability (load handling / many concurrent users)
 
-Cùng codebase nhưng bán cho BV 100 user khác BV 1000 user: khác ở **cấu hình hạ tầng + kỷ luật query**,
-không phải viết lại. Skill này gom các đòn bẩy chịu tải đúng stack (ASP.NET Core + SQL Server + Cloud Run + Redis)
-để tránh quá tải giờ cao điểm (đăng ký sáng, phát thuốc, kết quả CLS).
+The same codebase sold to a 100-user hospital vs a 1000-user hospital differs in **infrastructure config + query discipline**,
+not a rewrite. This skill gathers the right-stack load levers (ASP.NET Core + SQL Server + Cloud Run + Redis)
+to avoid peak-hour overload (morning registration, dispensing, paraclinical results).
 
-## Khi nào dùng
-- Ước lượng/cấu hình cho 1 BV theo số user; chuẩn bị giờ cao điểm.
-- Endpoint chậm/timeout khi đông; lỗi connection pool/timeout SQL; CPU/memory Cloud Run cao.
-- Trang trả "tất cả bản ghi" (không phân trang) hoặc nghi N+1.
+## When to use
+- Estimating/configuring for a hospital by user count; preparing for peak hours.
+- An endpoint slow/timing-out when busy; connection pool/SQL timeout errors; high Cloud Run CPU/memory.
+- A page returning "all records" (no pagination) or a suspected N+1.
 
-## Khi nào KHÔNG dùng
-- Bundle/re-render FE → `his-fe-performance`. Viết DDL index/bảng → `his-db-migration`.
-- CRUD service mới → `his-be-module-scaffold`. Worker nền → `his-be-background-worker`.
+## When NOT to use
+- FE bundle/re-render → `his-fe-performance`. Writing index/table DDL → `his-db-migration`.
+- A new CRUD service → `his-be-module-scaffold`. A background worker → `his-be-background-worker`.
 
-## Đòn bẩy chịu tải (kiểm tra theo thứ tự tác động)
+## Load levers (check in order of impact)
 
-**1. Query kỷ luật (tác động lớn nhất, rẻ nhất)**
-- **Phân trang BẮT BUỘC** cho mọi list — dùng `PagedResultDto` + `Skip/Take`; KHÔNG `ToListAsync()` trên bảng giao dịch lớn (Patients/Examinations/ServiceRequests…). Tiền lệ có `.Take(200)` cap — coi là tối thiểu.
-- **Chống N+1** — `.Include()`/`.ThenInclude()` hoặc projection `.Select(new {...})` cho dữ liệu liên quan; đừng lặp query trong vòng for.
-- **`AsNoTracking()`** cho mọi query GET (read-only) — giảm RAM + nhanh hơn.
-- **Index cho hot query** — cột lọc thường (date, status, FK, code) phải có index; tạo qua `his-db-migration` (script idempotent). Đo bằng query thật, đừng index bừa.
+**1. Query discipline (biggest impact, cheapest)**
+- **Pagination MANDATORY** for every list — use `PagedResultDto` + `Skip/Take`; do NOT `ToListAsync()` on a large transactional table (Patients/Examinations/ServiceRequests…). The existing `.Take(200)` cap is a minimum.
+- **Anti N+1** — `.Include()`/`.ThenInclude()` or a projection `.Select(new {...})` for related data; don't repeat a query inside a for loop.
+- **`AsNoTracking()`** for every GET (read-only) query — less RAM + faster.
+- **Index for hot queries** — frequently-filtered columns (date, status, FK, code) must be indexed; create via `his-db-migration` (idempotent script). Measure with real queries, don't index blindly.
 
-**2. Caching đọc-nhiều/ghi-ít (Redis có sẵn)**
-- Danh mục ít đổi (Departments, Services, ICD, master catalogs) → cache Redis, TTL hợp lý + invalidate khi sửa. Đây là nhóm bị query lại nhiều nhất khi đông user.
-- KHÔNG cache dữ liệu bệnh nhân/giao dịch nhạy cảm theo cách rò rỉ giữa user.
+**2. Read-heavy/write-light caching (Redis available)**
+- A rarely-changing catalog (Departments, Services, ICD, master catalogs) → Redis cache, reasonable TTL + invalidate on edit. This group is the most re-queried when users are busy.
+- Do NOT cache patient/transaction-sensitive data in a way that leaks between users.
 
-**3. Cloud Run autoscaling (đòn bẩy "100 vs 1000 user")**
-- Lever: `--concurrency` (số request/instance), `--min-instances` (giảm cold start giờ cao điểm), `--max-instances` (trần để không vỡ DB), `--cpu`/`--memory`.
-- BV nhỏ: min thấp, max vừa. BV lớn: tăng min (ấm sẵn) + max, nhưng **max phải khớp trần connection của SQL Server** (xem #4) — scale app mà DB không chịu nổi = sập DB.
-- Verify cấu hình hiện tại bằng `gcloud run services describe his-api` trước khi đổi (đừng đoán số).
+**3. Cloud Run autoscaling (the "100 vs 1000 user" lever)**
+- Levers: `--concurrency` (requests/instance), `--min-instances` (reduce cold start at peak), `--max-instances` (a ceiling so the DB isn't broken), `--cpu`/`--memory`.
+- Small hospital: low min, moderate max. Large hospital: raise min (pre-warmed) + max, but **max must match SQL Server's connection ceiling** (see #4) — scaling the app while the DB can't keep up = crash the DB.
+- Verify the current config with `gcloud run services describe his-api` before changing (don't guess numbers).
 
-**4. Kết nối DB & async**
-- Connection pool: tổng `max-instances × pool-size` KHÔNG vượt giới hạn kết nối Cloud SQL → chỉnh `Max Pool Size` trong connection string theo trần DB.
-- `async/await` xuyên suốt (đã là convention) — chặn thread đồng bộ giết throughput khi đông.
-- Tác vụ phụ không chặn request: fire-and-forget đúng cách (audit log đã dùng `Task.Run` + `IServiceScopeFactory` — KHÔNG tái dùng DbContext của request, sẽ ObjectDisposedException; xem `his-be-background-worker`).
+**4. DB connections & async**
+- Connection pool: total `max-instances × pool-size` must NOT exceed the Cloud SQL connection limit → tune `Max Pool Size` in the connection string to the DB ceiling.
+- `async/await` throughout (already the convention) — blocking a thread synchronously kills throughput when busy.
+- Side tasks that don't block the request: fire-and-forget correctly (the audit log uses `Task.Run` + `IServiceScopeFactory` — do NOT reuse the request's DbContext, it'll ObjectDisposedException; see `his-be-background-worker`).
 
-**5. Bảo vệ khi quá tải**
-- Rate limiting cho endpoint nặng/đăng nhập (ASP.NET RateLimiter) để 1 client không làm nghẽn.
-- Timeout + huỷ (`CancellationToken`) cho query dài; tránh giữ request treo.
+**5. Overload protection**
+- Rate limiting for heavy/login endpoints (ASP.NET RateLimiter) so one client doesn't choke it.
+- Timeout + cancel (`CancellationToken`) for long queries; avoid holding a hung request.
 
-## Quy trình áp dụng
-1. **Đo trước** — xác định endpoint chậm thật (log/APM), đừng tối ưu mò.
-2. Sửa query (phân trang/N+1/AsNoTracking/index) — thường đủ.
-3. Còn nghẽn → cache danh mục nóng (Redis).
-4. Tải cao thật → chỉnh Cloud Run (concurrency/min/max) cân bằng với trần DB.
-5. Verify lại bằng đo lường, ghi cấu hình theo từng BV (sizing profile).
+## How to apply
+1. **Measure first** — identify the genuinely slow endpoint (log/APM), don't optimize blindly.
+2. Fix the query (pagination/N+1/AsNoTracking/index) — usually enough.
+3. Still bottlenecked → cache the hot catalog (Redis).
+4. Genuinely high load → tune Cloud Run (concurrency/min/max) balanced with the DB ceiling.
+5. Re-verify by measurement, record the config per hospital (sizing profile).
 
 ## Pitfalls
-- **Scale app mà quên DB** — tăng max-instances làm cạn connection Cloud SQL → 500 hàng loạt. Cân `max-instances × pool ≤ trần DB`.
-- **Cache dữ liệu bệnh nhân sai** — rò rỉ giữa phiên/user; chỉ cache dữ liệu dùng chung, không nhạy cảm.
-- **Lọc `CreatedAt.Date == today` không index** + bảng lớn → full scan; index cột ngày (đã có tiền lệ trang trống do timezone — xem CLAUDE.md).
-- **Đổi cấu hình theo cảm tính** — luôn `describe` hiện trạng + đo trước/sau; thay đổi infra là thao tác cần nêu rõ (core-execution-output).
+- **Scaling the app but forgetting the DB** — raising max-instances exhausts Cloud SQL connections → mass 500s. Balance `max-instances × pool ≤ DB ceiling`.
+- **Caching patient data wrong** — leaks between session/user; only cache shared, non-sensitive data.
+- **Filtering `CreatedAt.Date == today` unindexed** + a large table → full scan; index the date column (there's a precedent of a blank page due to timezone — see CLAUDE.md).
+- **Changing config by gut** — always `describe` the current state + measure before/after; an infra change is an op to surface clearly (core-execution-output).
 
 ## Reference
-- Index/DDL: `his-db-migration`. Worker/scope an toàn: `his-be-background-worker`. Deploy Cloud Run: `his-ops-deploy`.
+- Index/DDL: `his-db-migration`. Worker/safe scope: `his-be-background-worker`. Cloud Run deploy: `his-ops-deploy`.
 
 ## When to update
-- Khi đổi hạ tầng (DB sang Cloud SQL tier khác, thêm cache layer), hoặc khi có sizing profile mới cho 1 BV.
+- When the infrastructure changes (DB to a different Cloud SQL tier, adding a cache layer), or when there's a new per-hospital sizing profile.

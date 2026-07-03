@@ -1,31 +1,31 @@
-# `.claude/workflow/` — Quy trình phát triển phần mềm (Software Delivery Workflow)
+# `.claude/workflow/` — Software Delivery Workflow
 
-> **Mục đích:** đặt 1 lớp **điều phối nhìn-thấy-được** lên trên hệ agent + skill đã có, để mọi task
-> code đi qua một **pipeline cố định** với **hợp đồng I/O rõ ràng giữa các agent** (không để agent
-> "nói chuyện mù"). Đây là thứ trước đây thiếu — các mảnh đã có nhưng nằm rải rác.
+> **Purpose:** put a **visible orchestration** layer on top of the existing agent + skill system, so every code task
+> goes through a **fixed pipeline** with a **clear I/O contract between agents** (no agents "talking blindly"). This is
+> what was previously missing — the pieces existed but were scattered.
 
-## ⚠️ Nguyên tắc nền: KHÔNG tạo tầng quản trị song song
+## ⚠️ Foundational principle: do NOT create a parallel governance layer
 
-Bộ file này **KHÔNG copy lại** nội dung đã có ở nơi khác (sẽ trôi-lệch / drift). Nó là **index +
-consolidation**: mỗi mục trỏ về **nguồn-sự-thật (source of truth)** đang chạy, chỉ **thêm phần thật sự
-thiếu**. Khi 2 nơi mâu thuẫn → theo nguồn-sự-thật được nêu trong từng file.
+This file set does **NOT copy** content that already exists elsewhere (it would drift). It is an **index +
+consolidation**: each item points to the running **source of truth**, adding only **what's genuinely
+missing**. When 2 places conflict → follow the source of truth named in each file.
 
-| File | Vai trò | Nguồn-sự-thật nó index về |
+| File | Role | Source of truth it indexes to |
 |---|---|---|
-| [`workflow.md`](workflow.md) | **★ Bản đồ pipeline end-to-end** (Input→Router→Planner→Worker→Reviewer→Finalizer) + 7 bước + **hợp đồng I/O giữa agent** | `agents/*.md`, `skills/core-prod-change-discipline`, `skills/core-code-change-workflow`, `SKILL-MAP.md` |
-| [`task.md`](task.md) | **★ State-store** mỗi task (scratchpad sync về GitHub Issue) + status lifecycle | GitHub Issues (`minhhung19872002/HIS`), memory `feedback_task-lifecycle-dod-remote` |
-| [`checklist.md`](checklist.md) | Checklist giao hàng — gom theo nhóm Requirement/Design/Impl/Quality/Security/Perf/Test/Done | `skills/his-qa-anti-pattern` #1-30, `SKILL-MAP.md` P0/P1/P2, self-review 9 điểm |
-| [`project-rules.md`](project-rules.md) | Convention · kiến trúc · branch/commit/PR/review | `CLAUDE.md`, `SKILL-MAP.md`, `skills/his-fe-convention`, git-ops rules |
-| [`ai-memory.md`](ai-memory.md) | **Sổ quyết định kiến trúc (ADR-lite)** + index 2 tầng memory | `memory/` (global), `agent-memory/<agent>/`, `his-docs-manager` (ADR) |
-| [`requirement-coverage.md`](requirement-coverage.md) | **Giao thức phủ yêu cầu** (chống sót khi rà tài liệu): source manifest · đọc PDF gốc · enumerate đủ · parity-đối-thủ · completeness gate | `docs/requirements/**`, `checklist.md` mục I |
-| [`audit-protocol.md`](audit-protocol.md) | **Chống audit/agent "nói quá"**: no-quota · evidence-command bắt buộc · confidence · Fact/Inference/Assumption | `core-verify-before-assert`, `../REGISTRY.md` |
-| [`session-ops.md`](session-ops.md) | **Vận hành 1 phiên**: đọc-gì-đầu-phiên · chọn model (nudge) · plan-mode timing · dọn context (`/compact`·`/clear`·`/rewind`·`/context`) · handoff giữ STATUS ngắn | `CLAUDE.md §Agent routing`, `SKILL-MAP §0a`, `workflow.md`, `project-rules.md §2` |
+| [`workflow.md`](workflow.md) | **★ The end-to-end pipeline map** (Input→Router→Planner→Worker→Reviewer→Finalizer) + 7 steps + **the I/O contract between agents** | `agents/*.md`, `skills/core-prod-change-discipline`, `skills/core-code-change-workflow`, `SKILL-MAP.md` |
+| [`task.md`](task.md) | **★ State-store** per task (scratchpad synced to a GitHub Issue) + status lifecycle | GitHub Issues (`minhhung19872002/HIS`), memory `feedback_task-lifecycle-dod-remote` |
+| [`checklist.md`](checklist.md) | Delivery checklist — grouped by Requirement/Design/Impl/Quality/Security/Perf/Test/Done | `skills/his-qa-anti-pattern` #1-30, `SKILL-MAP.md` P0/P1/P2, 9-point self-review |
+| [`project-rules.md`](project-rules.md) | Conventions · architecture · branch/commit/PR/review | `CLAUDE.md`, `SKILL-MAP.md`, `skills/his-fe-convention`, git-ops rules |
+| [`ai-memory.md`](ai-memory.md) | **Architecture decision log (ADR-lite)** + index of the 2 memory tiers | `memory/` (global), `agent-memory/<agent>/`, `his-docs-manager` (ADR) |
+| [`requirement-coverage.md`](requirement-coverage.md) | **Requirement coverage protocol** (anti-omission when reviewing docs): source manifest · read original PDF · enumerate fully · competitor-parity · completeness gate | `docs/requirements/**`, `checklist.md` section I |
+| [`audit-protocol.md`](audit-protocol.md) | **Anti audit/agent "overstatement"**: no-quota · mandatory evidence-command · confidence · Fact/Inference/Assumption | `core-verify-before-assert`, `../REGISTRY.md` |
+| [`session-ops.md`](session-ops.md) | **Running one session**: what-to-read-at-session-start · choose model (nudge) · plan-mode timing · context cleanup (`/compact`·`/clear`·`/rewind`·`/context`) · keep STATUS short for handoff | `CLAUDE.md §Agent routing`, `SKILL-MAP §0a`, `workflow.md`, `project-rules.md §2` |
 
-> ★ **Chống drift toàn hệ:** [`../REGISTRY.md`](../REGISTRY.md) = sổ NGUỒN-SỰ-THẬT (rule nào ở file nào — link-không-copy) · [`../lint.sh`](../lint.sh) = hệ miễn dịch tự phát hiện drift (auto chạy qua `stop-checks.sh` Stop hook khi `.claude` đổi).
+> ★ **System-wide anti-drift:** [`../REGISTRY.md`](../REGISTRY.md) = the SOURCE-OF-TRUTH register (which rule lives in which file — link-not-copy) · [`../lint.sh`](../lint.sh) = the immune system that auto-detects drift (auto-runs via the `stop-checks.sh` Stop hook when `.claude` changes).
 >
-> ⚙️ **Yêu cầu môi trường (prerequisite):** hook (`hooks/*.sh`) + `lint.sh` là script **POSIX bash** → cần **Git Bash hoặc WSL2** (đã có sẵn trên máy dev này). Windows thuần (CMD/PowerShell, không có bash) sẽ **không chạy được hook** — Claude Code vẫn hoạt động nhưng mất lớp gate DoD + drift-lint. Khuyến nghị dài hạn: **WSL2** (POSIX đầy đủ, Docker backend) ≥ **Git Bash** (đủ cho git + hook).
+> ⚙️ **Environment prerequisite:** the hooks (`hooks/*.sh`) + `lint.sh` are **POSIX bash** scripts → they need **Git Bash or WSL2** (already present on this dev machine). Plain Windows (CMD/PowerShell, no bash) **can't run the hooks** — Claude Code still works but loses the DoD gate + drift-lint layer. Long-term recommendation: **WSL2** (full POSIX, Docker backend) ≥ **Git Bash** (enough for git + hooks).
 
-## Pipeline 1 dòng
+## The pipeline in one line
 
 ```
 Input → [1] Router/Triage → [2] Planner → [3] Worker(s) → [4] Reviewer/Critic → [5] Finalizer → Output
@@ -35,23 +35,23 @@ Input → [1] Router/Triage → [2] Planner → [3] Worker(s) → [4] Reviewer/C
                  └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Mỗi agent **chỉ đọc/ghi vào state-store theo hợp đồng I/O** — không truyền văn xuôi tự do. Chi tiết +
-ánh xạ agent thật → xem [`workflow.md`](workflow.md).
+Each agent **only reads/writes the state-store per the I/O contract** — no free-prose handoffs. Detail +
+mapping to real agents → see [`workflow.md`](workflow.md).
 
-## Cách dùng (cho người + cho Claude)
+## How to use (for humans + for Claude)
 
-1. **Mọi task code** vẫn bắt đầu bằng `SKILL-MAP.md` (skill routing) — KHÔNG thay đổi.
-2. SKILL-MAP nay trỏ tới [`workflow.md`](workflow.md) để biết **task chạy qua pipeline nào + agent nào
-   ghi gì vào state-store**.
-3. Task **không trivial** (feature/bug/refactor/migration đa-file) → mở [`task.md`](task.md) làm
-   scratchpad, điền dần, cuối cùng sync kết quả về **GitHub Issue** tương ứng.
-4. Task trivial (Q&A, sửa 1 dòng) → KHÔNG cần state-store; vẫn theo gate ở [`checklist.md`](checklist.md).
+1. **Every code task** still starts with `SKILL-MAP.md` (skill routing) — unchanged.
+2. SKILL-MAP now points to [`workflow.md`](workflow.md) to know **which pipeline the task runs + which agent
+   writes what into the state-store**.
+3. A **non-trivial** task (multi-file feature/bug/refactor/migration) → open [`task.md`](task.md) as a
+   scratchpad, fill it in incrementally, finally sync the result to the corresponding **GitHub Issue**.
+4. A trivial task (Q&A, 1-line edit) → no state-store needed; still follow the gate in [`checklist.md`](checklist.md).
 
-## Quan hệ với các quyết định đã chốt (KHÔNG đảo ngược)
+## Relationship to settled decisions (NOT to be reversed)
 
-- **Task board chính = GitHub Issues** (từ 2026-06-13). `task.md` là **scratchpad bổ trợ**, KHÔNG phải
-  board thứ hai. Cuối task → sync về Issue (`gh issue ...`).
-- **Git-ops**: KHÔNG tự `commit`/`push` khi user chưa explicit (SKILL-MAP §0c). Pipeline dừng ở
-  `READY_FOR_PUSH`, xin phép, mới `DONE`.
-- **File báo cáo/plan** vẫn vào `docs/workspace-docs/` (SKILL-MAP §0a). Bộ `.claude/workflow/` là
-  **governance/process**, không phải report — nên nằm trong `.claude/`.
+- **The main task board = GitHub Issues** (since 2026-06-13). `task.md` is a **supporting scratchpad**, NOT a
+  second board. At task end → sync to the Issue (`gh issue ...`).
+- **Git-ops**: do NOT `commit`/`push` on your own until the user is explicit (SKILL-MAP §0c). The pipeline stops at
+  `READY_FOR_PUSH`, asks permission, then `DONE`.
+- **Report/plan files** still go to `docs/workspace-docs/` (SKILL-MAP §0a). The `.claude/workflow/` set is
+  **governance/process**, not reports — so it lives in `.claude/`.

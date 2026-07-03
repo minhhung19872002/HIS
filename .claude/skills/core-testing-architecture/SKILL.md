@@ -1,55 +1,55 @@
 ---
 name: core-testing-architecture
-description: Use this skill (portable, tech-agnostic) when deciding what kind of test to write and how to structure tests — choosing unit vs integration vs e2e vs contract, and keeping tests testable/deterministic/isolated. Triggers include "viết test cho X", planning test coverage, or a flaky/slow test that needs the right level. Reusable across any web project. Do NOT use for a specific test runner's syntax (his-testing-* skills implement that).
+description: Use this skill (portable, tech-agnostic) when deciding what kind of test to write and how to structure tests — choosing unit vs integration vs e2e vs contract, and keeping tests testable/deterministic/isolated. Triggers include "write a test for X", planning test coverage, or a flaky/slow test that needs the right level. Reusable across any web project. Do NOT use for a specific test runner's syntax (his-testing-* skills implement that).
 metadata:
   type: project
 ---
 
 # Core — Testing Architecture (portable)
 
-> TẦNG: **A · CORE / A3 core-testing** (dùng chung, KHÔNG gắn runner cụ thể).
+> TIER: **A · CORE / A3 core-testing** (shared, NOT bound to a specific runner).
 
 ## Purpose
-Chọn **đúng loại test** + cấu trúc test sao cho **testable / deterministic / isolated**. Nguyên tắc test bê
-dự án nào cũng dùng (runner gì cũng áp được).
+Choose the **right kind of test** + structure tests to be **testable / deterministic / isolated**. Testing principles
+usable in any project (with any runner).
 
-## Khi nào dùng
-- Quyết định viết unit / integration / e2e / contract cho 1 yêu cầu.
-- Lập kế hoạch coverage.
-- Test chậm/flaky cần đưa về đúng tầng.
+## When to use
+- Deciding to write unit / integration / e2e / contract for a requirement.
+- Planning coverage.
+- A slow/flaky test that needs the right level.
 
-## Khi nào KHÔNG dùng
-- Cú pháp runner cụ thể (assertion API, lệnh chạy) → skill `his-testing-*` hiện thực.
+## When NOT to use
+- A specific runner's syntax (assertion API, run command) → the `his-testing-*` skill implements it.
 
-## Phân tầng test (chọn đúng level)
-| Loại | Test cái gì | Khi nào |
+## Test levels (pick the right level)
+| Kind | Tests what | When |
 |---|---|---|
-| **Unit** | 1 đơn vị logic thuần (hàm/rule), không I/O | logic nhánh nhiều, dễ cô lập |
-| **Integration** | nhiều thành phần ghép (vd service + data-access) | luồng nội bộ qua nhiều lớp |
-| **E2E** | hành vi đầu-cuối qua UI/API thật | luồng người dùng quan trọng |
-| **Contract** | shape/contract giữa 2 phía khớp nhau | biên FE/BE hoặc service ↔ service |
+| **Unit** | 1 unit of pure logic (function/rule), no I/O | many branches, easy to isolate |
+| **Integration** | several components combined (e.g. service + data-access) | an internal flow across layers |
+| **E2E** | end-to-end behavior through real UI/API | a critical user flow |
+| **Contract** | the shape/contract between two sides matches | an FE/BE boundary or service ↔ service |
 
-→ Ưu tiên unit cho logic; integration cho luồng; e2e cho path quan trọng (ít nhưng giá trị cao); contract khi có biên.
+→ Prefer unit for logic; integration for flows; e2e for critical paths (few but high-value); contract at boundaries.
 
-## Nguyên tắc
-1. **Deterministic**: không phụ thuộc thời gian thực/ngẫu nhiên/thứ tự chạy → kết quả ổn định.
-2. **Isolated**: mỗi test tự setup/teardown, không lệ thuộc test khác hay state dùng chung.
-3. **Test hành vi, không test chi tiết cài đặt** (để refactor không vỡ test oan).
-4. **Đặt đúng tầng**: đừng e2e cái có thể unit; đừng unit cái cần integration.
-5. **Tên test mô tả hành vi** (given/when/then).
+## Principles
+1. **Deterministic**: no dependence on real time/randomness/run order → stable results.
+2. **Isolated**: each test self-setups/teardowns, doesn't depend on another test or shared state.
+3. **Test behavior, not implementation detail** (so a refactor doesn't wrongly break tests).
+4. **Right level**: don't e2e what can be unit; don't unit what needs integration.
+5. **Test name describes behavior** (given/when/then).
 
 ## Steps
-1. Xác định cái cần đảm bảo → chọn level.
-2. Viết test cô lập, deterministic, tên rõ.
-3. Path quan trọng (an toàn/tài chính/pháp lý) → ưu tiên cover.
+1. Identify what to guarantee → pick the level.
+2. Write an isolated, deterministic test with a clear name.
+3. Critical paths (safety/financial/legal) → prioritize coverage.
 
-## Anti-patterns cần tránh
-- Test phụ thuộc ngày/giờ/thứ tự (flaky).
-- Test chi tiết cài đặt (vỡ khi refactor).
-- Dồn mọi thứ vào e2e (chậm, khó debug).
+## Anti-patterns to avoid
+- A test depending on date/time/order (flaky).
+- Testing implementation detail (breaks on refactor).
+- Cramming everything into e2e (slow, hard to debug).
 
 ## Dependency
-- Kèm `core-testing-reuse`. Skill testing tầng system (`his-testing-*`) **depend** skill này (hiện thực bằng test runner thật của dự án).
+- Goes with `core-testing-reuse`. The system-tier testing skills (`his-testing-*`) **depend** on this skill (implemented with the project's real test runner).
 
 ## When to update
-- Khi bổ sung nguyên tắc test-architecture chung.
+- When adding a general test-architecture principle.

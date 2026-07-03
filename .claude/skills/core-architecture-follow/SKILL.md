@@ -7,45 +7,45 @@ metadata:
 
 # Core — Architecture Follow (portable)
 
-> TẦNG: **A · CORE** (dùng chung, tech-agnostic). KHÔNG nêu tên framework/DB/lib cụ thể.
+> TIER: **A · CORE** (shared, tech-agnostic). Does NOT name a specific framework/DB/lib.
 
 ## Purpose
-Giữ code đặt đúng layer + dependency đi đúng chiều + tôn trọng module boundary của **kiến trúc dự án
-đang dùng** (bất kể là gì). Nguyên tắc, không gắn công nghệ.
+Keep code in the right layer + dependencies pointing the right direction + respect the module boundary of **whatever
+architecture the project uses** (regardless of what it is). Principles, not technology-bound.
 
-## Khi nào dùng
-- Thêm/sửa code chạm **nhiều layer**.
-- Phân vân "logic này thuộc layer/module nào".
-- Review xem dependency có đi sai chiều không.
+## When to use
+- Adding/editing code that touches **multiple layers**.
+- Unsure "which layer/module this logic belongs to".
+- Reviewing whether a dependency points the wrong way.
 
-## Khi nào KHÔNG dùng
-- Cơ chế cụ thể theo stack (scaffold theo framework, ORM, route…) → dùng skill `his-*` tương ứng.
+## When NOT to use
+- Stack-specific mechanics (framework scaffold, ORM, routes…) → use the matching `his-*` skill.
 
-## Nguyên tắc (áp cho mọi kiến trúc)
-1. **Xác định layer thật của dự án trước** (đọc structure), KHÔNG áp khuôn có sẵn.
-2. **Dependency một chiều**: layer trong (domain/core) KHÔNG phụ thuộc layer ngoài (UI/infra). Lớp ngoài
-   phụ thuộc lớp trong, không ngược lại.
-3. **Logic đặt đúng chỗ**: business rule ở tầng domain/service, không nhét vào UI/controller; truy cập
-   dữ liệu ở tầng data-access, không rải khắp nơi.
-4. **Module boundary**: không cho module A reach thẳng vào nội bộ module B; đi qua contract/interface công khai.
-5. **Tôn trọng cái đang có**: KHÔNG tự đổi kiến trúc/đổi structure để "cho đẹp".
+## Principles (apply to any architecture)
+1. **Identify the project's actual layers first** (read the structure), do NOT impose a pre-made template.
+2. **One-way dependency**: the inner layer (domain/core) does NOT depend on the outer layer (UI/infra). Outer depends
+   on inner, not the reverse.
+3. **Logic in the right place**: business rules in the domain/service tier, not crammed into UI/controller; data
+   access in the data-access tier, not scattered everywhere.
+4. **Module boundary**: don't let module A reach straight into module B's internals; go through a public contract/interface.
+5. **Respect what exists**: do NOT change the architecture/structure "to make it nicer".
 
 ## Steps
-1. Đọc structure + xác định layer/module hiện tại.
-2. Map yêu cầu → layer nào chịu trách nhiệm gì.
-3. Đặt code đúng layer; chỉ thêm dependency theo đúng chiều.
-4. Nếu cần vượt boundary → qua interface/contract (xem `core-types-contract`).
+1. Read the structure + identify the current layers/modules.
+2. Map the requirement → which layer is responsible for what.
+3. Put the code in the right layer; only add dependencies in the correct direction.
+4. If you must cross a boundary → go through an interface/contract (see `core-types-contract`).
 
-## Anti-patterns cần tránh
-- Business logic trong UI/controller.
-- Layer trong import layer ngoài.
-- Module reach vào nội bộ module khác.
-- Tự ý refactor kiến trúc khi yêu cầu không đòi.
+## Anti-patterns to avoid
+- Business logic in UI/controller.
+- An inner layer importing an outer layer.
+- A module reaching into another module's internals.
+- Refactoring the architecture when the requirement doesn't ask for it.
 
 ## Dependency
-- Thường đi kèm `core-reusable-code`, `core-architecture-consistency`.
-- Skill `his-*` (backend/frontend scaffold) **depend** skill này để biết đặt code đúng layer.
+- Usually goes with `core-reusable-code`, `core-architecture-consistency`.
+- The `his-*` skills (backend/frontend scaffold) **depend** on this skill to know where to place code.
 
 ## When to update
-- Khi kiến trúc dự án thay đổi (thêm layer/bỏ layer) — nhưng vì là core portable, chỉ cập nhật phần
-  diễn đạt nguyên tắc, không nhét chi tiết stack vào đây.
+- When the project's architecture changes (adding/removing a layer) — but since this is portable core, only update the
+  principle wording, don't add stack detail here.

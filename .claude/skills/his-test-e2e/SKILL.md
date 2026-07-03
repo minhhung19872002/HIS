@@ -1,103 +1,101 @@
 ---
 name: his-test-e2e
-description: Use this skill when writing or fixing E2E/UI tests for HIS frontend using Cypress (`frontend/cypress/e2e/*.cy.ts`) or Playwright (`frontend/e2e/*.spec.ts`, `frontend/e2e-prod/*.spec.ts`). Triggers include "viết test cypress/playwright cho [page]", page-load console-error smoke, login via API token + localStorage, intercept `**/api/**`, IGNORE_PATTERNS for SignalR/HMR, or fixing flaky tests. Do NOT use for backend PowerShell API tests (use his-test-api-powershell).
+description: Use this skill when writing or fixing E2E/UI tests for HIS frontend using Cypress (`frontend/cypress/e2e/*.cy.ts`) or Playwright (`frontend/e2e/*.spec.ts`, `frontend/e2e-prod/*.spec.ts`). Triggers include "write a cypress/playwright test for [page]", page-load console-error smoke, login via API token + localStorage, intercept `**/api/**`, IGNORE_PATTERNS for SignalR/HMR, or fixing flaky tests. Do NOT use for backend PowerShell API tests (use his-test-api-powershell).
 metadata:
   type: project
 ---
 
 # HIS E2E Testing (Cypress + Playwright)
 
-Skill chuẩn hoá cách viết test E2E/UI cho frontend HIS. Hai runner: **Cypress** (smoke page-load + CRUD/flow) và **Playwright** (functional + prod smoke). Bám đúng các convention đã ổn định qua 800+ test (login API token, IGNORE_PATTERNS, intercept `**/api/**`).
+A skill standardizing how to write E2E/UI tests for the HIS frontend. Two runners: **Cypress** (page-load smoke + CRUD/flow) and **Playwright** (functional + prod smoke). Follow the conventions stabilized over 800+ tests (login API token, IGNORE_PATTERNS, intercept `**/api/**`).
 
-## Khi nào dùng
+## When to use
 
-- Viết smoke test page-load (kiểm tra route render + không console.error).
-- Viết flow/CRUD test (login → thao tác UI → verify).
-- Viết Playwright functional / prod smoke (`e2e-prod/` chạy với `playwright.prod.config.ts`).
-- Fix flaky test (timing, intercept sai, status assertion lỏng).
+- Writing a page-load smoke test (check the route renders + no console.error).
+- Writing a flow/CRUD test (login → UI actions → verify).
+- Writing a Playwright functional / prod smoke (`e2e-prod/` runs with `playwright.prod.config.ts`).
+- Fixing a flaky test (timing, wrong intercept, loose status assertion).
 
-## Khi nào KHÔNG dùng
+## When NOT to use
 
-- Test API backend bằng PowerShell → dùng `his-test-api-powershell`.
-- Tạo page/UI → dùng `his-fe-page-v2`.
+- Backend API tests in PowerShell → use `his-test-api-powershell`.
+- Creating a page/UI → use `his-fe-page-v2`.
 
-## Convention BẮT BUỘC (đã ổn định)
+## MANDATORY conventions (stabilized)
 
-### 1. Login qua API token (KHÔNG login qua form UI)
+### 1. Login via API token (NOT login via the UI form)
 ```ts
 cy.request({ method:'POST', url:'http://localhost:5106/api/auth/login',
   body:{ username:'admin', password:'Admin@123' } }).then((r) => {
-  const token = r.body?.data?.token;                 // token ở data.data.token
+  const token = r.body?.data?.token;                 // token is at data.data.token
   cy.window().then((w) => {
     w.localStorage.setItem('token', token);
     w.localStorage.setItem('user', JSON.stringify({ username:'admin', roles:['Admin'], permissions:['*'] }));
   });
 });
 ```
-Playwright: lấy token rồi `page.addInitScript(...)` set localStorage trước `goto`.
+Playwright: get the token then `page.addInitScript(...)` to set localStorage before `goto`.
 
-### 1b. Tài khoản test THEO MÔI TRƯỜNG (⚠️ KHÔNG hardcode mù)
-| Tài khoản | Local (`localhost:5106`) | Prod (Cloud Run) |
+### 1b. Test accounts BY ENVIRONMENT (⚠️ do NOT hardcode blindly)
+| Account | Local (`localhost:5106`) | Prod (Cloud Run) |
 |---|---|---|
-| Admin | `admin` / `Admin@123` | `admin` / `Admin@123` (giống) |
-| **Inspector Portal** | `inspector` / `Inspector@123` (seed migration 44) | **`thanhtra01` / `Inspector@123`** (account `inspector` KHÔNG đúng pass trên prod) |
+| Admin | `admin` / `Admin@123` | `admin` / `Admin@123` (same) |
+| **Inspector Portal** | `inspector` / `Inspector@123` (seed migration 44) | **`thanhtra01` / `Inspector@123`** (the `inspector` account has the wrong password on prod) |
 
-→ Test cổng thanh tra **đừng hardcode `inspector/Inspector@123`** cho mọi env (đã từng fail trên prod).
-Parametrize theo env, ví dụ:
+→ Testing the inspector portal, **don't hardcode `inspector/Inspector@123`** for every env (it once failed on prod). Parametrize by env, e.g.:
 ```ts
 const INSPECTOR = Cypress.env('PROD')
   ? { u: 'thanhtra01', p: 'Inspector@123' }
   : { u: 'inspector',  p: 'Inspector@123' };
 ```
-Playwright: đọc từ `process.env` / config prod vs local. Verify login trả `success:true` trước khi tiếp.
-(Phát hiện khi test prod: `inspector/Inspector@123` → "Mật khẩu không đúng"; `thanhtra01/Inspector@123` → OK.)
+Playwright: read from `process.env` / a prod vs local config. Verify login returns `success:true` before continuing.
+(Discovered while testing prod: `inspector/Inspector@123` → "wrong password"; `thanhtra01/Inspector@123` → OK.)
 
-### 2. Intercept CHỈ `**/api/**` (KHÔNG `**/*`)
+### 2. Intercept ONLY `**/api/**` (NOT `**/*`)
 ```ts
-cy.intercept('**/api/**').as('api');   // ĐÚNG
-// cy.intercept('**/*')  ← SAI: bắt cả Vite HMR/WebSocket/Google Fonts → ECONNRESET, flaky
+cy.intercept('**/api/**').as('api');   // CORRECT
+// cy.intercept('**/*')  ← WRONG: catches Vite HMR/WebSocket/Google Fonts → ECONNRESET, flaky
 ```
 
-### 3. IGNORE_PATTERNS cho console-error smoke
+### 3. IGNORE_PATTERNS for the console-error smoke
 ```ts
 const IGNORE_PATTERNS = [
   /useForm/, /\[antd:/, /not connected to any Form/, /SignalR/i,
   /\[HMR\]/, /\[vite\]/, /WebSocket/, /findDOMNode/,
 ];
 ```
-Bắt `console.error` qua `cy.stub(win.console,'error')`, lọc IGNORE_PATTERNS, assert `errors` rỗng.
+Catch `console.error` via `cy.stub(win.console,'error')`, filter by IGNORE_PATTERNS, assert `errors` is empty.
 
-### 4. Assertion status — chặt nhưng đúng thực tế
-- Endpoint chuẩn: `expect(r.status).to.eq(200)`.
-- ⚠️ Phân hệ KHÔNG có exception filter (NangCap24): lỗi validation trả **500** (không 400). Assert đúng 500 + message, đừng kỳ vọng 400.
-- USB Token / WebAuthn / thiết bị: `this.skip()` hoặc accept `[200,408,500]` (Windows dialog block headless).
+### 4. Status assertion — strict but realistic
+- Standard endpoint: `expect(r.status).to.eq(200)`.
+- ⚠️ A module with NO exception filter (NangCap24): a validation error returns **500** (not 400). Assert exactly 500 + message, don't expect 400.
+- USB Token / WebAuthn / device: `this.skip()` or accept `[200,408,500]` (a Windows dialog blocks headless).
 
-### 5. Timeout + retry cho block hay flaky
-- `cy.visit(path, { timeout: 30000 })` + `cy.wait(2500)` cho page nặng.
-- Block radiology/ris-pacs: `{ retries: { runMode: 2 } }`.
+### 5. Timeout + retry for blocks that are flaky
+- `cy.visit(path, { timeout: 30000 })` + `cy.wait(2500)` for a heavy page.
+- The radiology/ris-pacs block: `{ retries: { runMode: 2 } }`.
 
-### 6. Evidence & Traceability — BẮT BUỘC cho MỌI test UI
-Mỗi test case UI PHẢI: (a) **chụp screenshot evidence**, (b) **ghi rõ MÀN HÌNH + NGHIỆP VỤ** để dễ theo dõi/truy vết.
-- **Tên test = màn + nghiệp vụ + case**: `describe('[Reception] Tiếp đón BN', …)` + `it('TC01 - đăng ký BN BHYT → tạo lượt khám', …)`.
-  Tên phải nói RÕ màn nào · nghiệp vụ/case nào (không đặt tên mơ hồ kiểu "test 1").
-- **Screenshot mỗi case** (chụp cả khi PASS tại mốc chính: sau submit / khi hiện kết quả):
-  - Cypress: `cy.screenshot('Reception/TC01-dang-ky-bhyt', { capture:'viewport' })` → lưu `cypress/screenshots/`. (Cypress auto-chụp khi fail; thêm chụp mốc chính thủ công.)
-  - Playwright: `await page.screenshot({ path:'test-results/Reception/TC01-dang-ky-bhyt.png', fullPage:true })`; bật trong config `screenshot:'on'` + `trace:'on'` + `video:'retain-on-failure'`.
-- **Tên file evidence**: `<Module>/<TCxx>-<nghiệp-vụ-kebab>[-<state>].png` (vd `Billing/TC03-refund-amount-am-reject.png`). Responsive/theme thêm hậu tố `-mobile375` / `-dark`.
-- **Responsive (T6)/Dark (T7):** chụp evidence MỖI breakpoint (320/375/414/768/1366/1920) và MỖI theme (light+dark).
-- **Báo cáo** (trong Issue/PR khi đóng task): bảng `Màn hình · Nghiệp vụ · Case · Evidence(ảnh/link) · Pass/Fail`.
-- Lưu evidence tập trung: `frontend/cypress/screenshots/` · `frontend/test-results/`. Cân nhắc **visual-regression** `toHaveScreenshot()` để auto-diff pixel (baseline) — đỡ soi tay.
+### 6. Evidence & Traceability — MANDATORY for EVERY UI test
+Every UI test case MUST: (a) **capture an evidence screenshot**, (b) **clearly state the SCREEN + BUSINESS** for tracking/traceability.
+- **Test name = screen + business + case**: `describe('[Reception] Patient check-in', …)` + `it('TC01 - register a BHYT patient → create a visit', …)`. The name must clearly say which screen · which business/case (no vague names like "test 1").
+- **Screenshot per case** (capture even on PASS at a key milestone: after submit / when the result shows):
+  - Cypress: `cy.screenshot('Reception/TC01-dang-ky-bhyt', { capture:'viewport' })` → saved to `cypress/screenshots/`. (Cypress auto-captures on fail; add a manual capture at the key milestone.)
+  - Playwright: `await page.screenshot({ path:'test-results/Reception/TC01-dang-ky-bhyt.png', fullPage:true })`; enable in config `screenshot:'on'` + `trace:'on'` + `video:'retain-on-failure'`.
+- **Evidence file name**: `<Module>/<TCxx>-<business-kebab>[-<state>].png` (e.g. `Billing/TC03-refund-amount-negative-reject.png`). Responsive/theme add a suffix `-mobile375` / `-dark`.
+- **Responsive (T6)/Dark (T7):** capture evidence at EACH breakpoint (320/375/414/768/1366/1920) and EACH theme (light+dark).
+- **Report** (in the Issue/PR when closing the task): a table `Screen · Business · Case · Evidence(image/link) · Pass/Fail`.
+- Store evidence centrally: `frontend/cypress/screenshots/` · `frontend/test-results/`. Consider **visual-regression** `toHaveScreenshot()` to auto-diff pixels (baseline) — less manual inspection.
 
-## Quy trình viết 1 smoke spec (Cypress)
+## Process to write one smoke spec (Cypress)
 
-1. Tạo `frontend/cypress/e2e/<feature>-pages.cy.ts`.
-2. Khai `PAGES = [{ path:'/v2/...', name:'...' }, ...]` + `IGNORE_PATTERNS`.
+1. Create `frontend/cypress/e2e/<feature>-pages.cy.ts`.
+2. Declare `PAGES = [{ path:'/v2/...', name:'...' }, ...]` + `IGNORE_PATTERNS`.
 3. `beforeEach`: intercept `**/api/**` + login API token + set localStorage.
-4. `PAGES.forEach` → `it('... loads without console errors')`: stub console.error, visit, wait, assert errors rỗng.
-5. Thêm vài `it` API check (vd: `GET /payment/bank/list` trả 5 NH).
-6. Chạy: `npx cypress run --spec "cypress/e2e/<feature>-pages.cy.ts" --browser chrome`.
+4. `PAGES.forEach` → `it('... loads without console errors')`: stub console.error, visit, wait, assert errors empty.
+5. Add a few `it` API checks (e.g. `GET /payment/bank/list` returns 5 banks).
+6. Run: `npx cypress run --spec "cypress/e2e/<feature>-pages.cy.ts" --browser chrome`.
 
-Tham khảo: `references/cypress-pageload-template.cy.ts`, `references/playwright-template.spec.ts`.
+Reference: `references/cypress-pageload-template.cy.ts`, `references/playwright-template.spec.ts`.
 
 ## Commands
 
@@ -107,28 +105,28 @@ cd frontend
 npx cypress run --spec "cypress/e2e/<feature>-pages.cy.ts" --browser chrome
 # Playwright local
 npx playwright test e2e/<feature>-pages.spec.ts
-# Playwright prod (e2e-prod) — dùng config prod
+# Playwright prod (e2e-prod) — use the prod config
 npx playwright test e2e-prod/<feature>.spec.ts --config=playwright.prod.config.ts
 ```
-Cần backend `localhost:5106` + frontend `localhost:3001` đang chạy (xem CLAUDE.md "Running").
+Needs the backend `localhost:5106` + frontend `localhost:3001` running (see CLAUDE.md "Running").
 
-## Pitfalls (đã fix nhiều lần)
+## Pitfalls (fixed many times)
 
-- **`cy.intercept('**/*')`** → bắt HMR/font → ECONNRESET/ENOTFOUND flaky. Luôn `**/api/**`.
-- **Token sai chỗ**: `r.body.data.token` (KHÔNG `r.body.token`).
-- **DataTable empty-state là 1 `<tr>`** (1 td colspan) → đếm `tbody tr` = 1 dù rỗng. Đếm `tbody tr td.act` (chỉ row thật có cột hành động) hoặc check text "Không có dữ liệu".
-- **Antd v6 tab active class chậm**: dùng fallback selector + check body tồn tại, không assert `.ant-tabs-tabpane-active` ngay.
-- **Test phụ thuộc ngày** (admissions hôm nay > 0) → fail sau nửa đêm. Dùng `at.least(0)` / check cấu trúc bảng thay vì số lượng.
-- **Chạy Cypress + Playwright đồng thời** → API overload, flaky. Chạy riêng khi cần xác nhận pass.
-- **Vietnamese diacritic regex**: match exact text thay vì regex có dấu lỏng.
+- **`cy.intercept('**/*')`** → catches HMR/font → ECONNRESET/ENOTFOUND flaky. Always `**/api/**`.
+- **Token in the wrong place**: `r.body.data.token` (NOT `r.body.token`).
+- **The DataTable empty-state is one `<tr>`** (1 td colspan) → counting `tbody tr` = 1 even when empty. Count `tbody tr td.act` (only real rows with an action column) or check the text "No data".
+- **Antd v6 tab active class is slow**: use a fallback selector + check the body exists, don't assert `.ant-tabs-tabpane-active` immediately.
+- **Date-dependent test** (today's admissions > 0) → fails after midnight. Use `at.least(0)` / check the table structure instead of the count.
+- **Running Cypress + Playwright simultaneously** → API overload, flaky. Run separately when you need to confirm a pass.
+- **Vietnamese diacritic regex**: match exact text instead of a loose diacritic regex.
 
 ## Reference
 
-- `references/cypress-pageload-template.cy.ts` — smoke spec page-load + API check
+- `references/cypress-pageload-template.cy.ts` — page-load smoke spec + API check
 - `references/playwright-template.spec.ts` — Playwright page-load + functional
 
 ## When to update
 
-- Khi đổi port dev / cấu trúc login / localStorage keys.
-- Khi thêm pattern console-error mới cần ignore.
-- Khi đổi cách đếm row của DataTable v2.
+- When the dev port / login structure / localStorage keys change.
+- When adding a new console-error pattern to ignore.
+- When the v2 DataTable row-counting approach changes.

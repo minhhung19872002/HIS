@@ -1,246 +1,246 @@
 ---
 name: his-tech-debt-workflow
-description: Use this skill whenever working on tech-debt clean-up / refactor in HIS — splitting god-files, removing `:any`/`as any`, removing dead EF migrations, thinning controllers, blanket Fluent FK changes, sweep unused imports, planning multi-phase work, OR session handoff. Triggers include "xóa nợ kỹ thuật", "refactor", "tách god-file", "siết any", "fix hết / rà hết / file cũ", "tiếp tục theo lịch dễ → khó", "K1/K2/K5", "T1/T4/T5/T6", "D7-r*", "D8", "tổng hợp / lập kế hoạch / handoff / chuyển giao". Enforces 10 hard-learned rules per phiên 2026-05-30 (output markers, report sync, schedule discipline, no-commit-without-permission, side-effect audit, defer-on-logic-change, subagent bulk delegation, spot-check after bulk, scope expansion interpretation, comprehensive backlog planning).
+description: Use this skill whenever working on tech-debt clean-up / refactor in HIS — splitting god-files, removing `:any`/`as any`, removing dead EF migrations, thinning controllers, blanket Fluent FK changes, sweep unused imports, planning multi-phase work, OR session handoff. Triggers include "clean up tech debt", "refactor", "split a god-file", "tighten any", "fix all / sweep all / old files", "continue per the easy → hard schedule", "K1/K2/K5", "T1/T4/T5/T6", "D7-r*", "D8", "summary / make a plan / handoff". Enforces 10 hard-learned rules from the 2026-05-30 session (output markers, report sync, schedule discipline, no-commit-without-permission, side-effect audit, defer-on-logic-change, subagent bulk delegation, spot-check after bulk, scope expansion interpretation, comprehensive backlog planning).
 metadata:
   type: project
 ---
 
 # HIS Tech-Debt Workflow — 10 Rules
 
-Skill "guardrail" cho tech-debt clean-up. **MỌI** task dạng "xóa nợ" / refactor god-file / mass-replace types / migrate FE-BE pattern phải tuân thủ 6 rule dưới. Vi phạm → output không rõ, báo cáo stale, hoặc tệ hơn — vỡ logic nghiệp vụ.
+A "guardrail" skill for tech-debt clean-up. **EVERY** "debt cleanup" / god-file refactor / mass-replace types / FE-BE pattern migration task must follow the rules below. Violating them → unclear output, stale reports, or worse — broken business logic.
 
 Cross-ref:
-- Roadmap chi tiết: `docs/workspace-docs/20-backlog/tech-debt-roadmap.md`
-- Số liệu nợ: `docs/workspace-docs/10-assessment/rule-compliance-audit.md`
-- Vận hành dang dở: `docs/workspace-docs/90-archive/handoffs/session-handoff-*.md`
-- Memory entries chi tiết (auto-load): xem `~/.claude/projects/.../memory/feedback_*.md`
+- Detailed roadmap: `docs/workspace-docs/20-backlog/tech-debt-roadmap.md`
+- Debt metrics: `docs/workspace-docs/10-assessment/rule-compliance-audit.md`
+- Unfinished operations: `docs/workspace-docs/90-archive/handoffs/session-handoff-*.md`
+- Detailed memory entries (auto-load): see `~/.claude/projects/.../memory/feedback_*.md`
 
 ---
 
-## Rule 1 — Output progress markers (tiếng Anh, mỗi reply)
+## Rule 1 — Output progress markers (English, every reply)
 
-Mỗi reply liên quan tech-debt phải có **marker rõ** để user nhìn 1 scan biết đang ở đâu:
+Every tech-debt-related reply must have a **clear marker** so the user knows the position at a glance:
 
-- **Đầu reply**: `[EASY/D7-r3]`, `[MEDIUM/T5]`, `[HARD/K1-phiên-3]`…
-- **Khi báo done**: trong nội dung terminal (không chỉ task tool) phải có **rõ ràng** `[X/Y] HOÀN TẤT` hoặc `[X/Y] phiên N xong`.
-- **Task tool subject**: cũng prefix `[EASY|MEDIUM|HARD]` (vd `[HARD] K1 — split god-file FE`).
-- **Tiếng Anh** (không `DỄ/TB/KHÓ`), format `[<DIFFICULTY>/<TASK_ID>]`.
+- **Start of reply**: `[EASY/D7-r3]`, `[MEDIUM/T5]`, `[HARD/K1-session-3]`…
+- **When reporting done**: the terminal content (not just the task tool) must **clearly** have `[X/Y] COMPLETE` or `[X/Y] session N done`.
+- **Task tool subject**: also prefix `[EASY|MEDIUM|HARD]` (e.g. `[HARD] K1 — split FE god-file`).
+- **English** (not the Vietnamese words for easy/medium/hard), format `[<DIFFICULTY>/<TASK_ID>]`.
 
-> **Why:** User explicit 2026-05-30: "tôi không thấy ở output có nhắc đến việc đang làm tới phần nào bằng tiếng anh" + "điều này phải nằm trong nội dung của teminal khi đã báo là làm xong".
+> **Why:** User explicit 2026-05-30: "I don't see in the output a mention of which part is being worked on in English" + "this must be in the terminal content when you report done".
 
 ---
 
-## Rule 2 — Schedule discipline (roadmap dễ → khó)
+## Rule 2 — Schedule discipline (roadmap easy → hard)
 
-1. Mọi work tech-debt khởi đầu bằng **đọc `20-backlog/tech-debt-roadmap.md`** trước.
-2. Chọn mục đầu tiên còn `⏳` theo **decision matrix theo hạn chế hạ tầng** (máy D:\ không deploy được → skip mục cần deploy).
-3. Sort lịch theo: **EASY → MEDIUM → HARD** (ưu tiên dễ trước).
-4. Mỗi mục trong roadmap phải có:
-   - ID + scope còn lại + estimate
+1. Every tech-debt work starts by **reading `20-backlog/tech-debt-roadmap.md`** first.
+2. Pick the first `⏳` item per the **infrastructure-constraint decision matrix** (the D:\ machine can't deploy → skip items needing deploy).
+3. Sort the schedule by: **EASY → MEDIUM → HARD** (easy first).
+4. Each roadmap item must have:
+   - ID + remaining scope + estimate
    - Pre-flight commands
-   - Verify trước khi sửa (grep/read code thực)
-   - Verify sau (build/test command)
+   - Verify before editing (grep/read the real code)
+   - Verify after (build/test command)
    - Deliverable + blast-radius + blocker
-   - "Cần deploy hay không"
+   - "Needs deploy or not"
 
-> **Why:** User explicit 2026-05-30: "lên lịch chi tiết … chỉ cần bạn nhìn vào là sẽ biết nên làm những gì, bắt đầu từ đâu. Ưu tien lên lịch theo mức độ từ dễ đến khó".
-
----
-
-## Rule 3 — Update báo cáo sau MỖI step (atomic)
-
-Sau mỗi mục hoàn tất (vd D7 đợt 1, K1 phiên 2…) → **update ngay**, không đợi cuối phiên:
-
-1. `10-assessment/rule-compliance-audit.md`: strike-through item, đổi ✅/🟬, ghi số liệu thật.
-2. `20-backlog/tech-debt-roadmap.md`: cập nhật mục + add 1 dòng Update log cuối file.
-3. Trong terminal output: "Báo cáo X đã cập nhật" để user thấy.
-4. Khi liệt kê "Đã làm" cuối reply: list rõ file báo cáo đã update.
-
-> **Why:** User explicit 2026-05-30: "lưu ý sau khi làm tới đâu thì phải cập nhật lại báo cáo tới đó". Báo cáo stale = phiên sau / người khác không biết hiện trạng.
+> **Why:** User explicit 2026-05-30: "make a detailed schedule … so just looking at it you know what to do, where to start. Prioritize the schedule from easy to hard".
 
 ---
 
-## Rule 4 — KHÔNG commit/push khi user chưa nói rõ (EXPAND 2026-05-30)
+## Rule 3 — Update the report after EVERY step (atomic)
 
-- Sửa file (Edit/Write) = OK, an toàn local.
-- `git add` / `git commit` (kể cả LOCAL) + `git push` = **CHỈ khi user explicit** keyword
-  trong **lượt hiện tại**:
-  - "commit" / "lưu commit" / "ghi commit" / "git add" → OK commit local
-  - "push" / "đẩy code" / "git push" / "đẩy lên" → OK push
-- **"continue" / "tiếp tục" / "làm tiếp" / "mọi việc còn lại giao cho bạn" KHÔNG implicit OK**
-  cho bất kỳ git op nào. Chỉ làm:
-  1. Code change theo lịch roadmap
+After each item is done (e.g. D7 round 1, K1 session 2…) → **update immediately**, don't wait for session end:
+
+1. `10-assessment/rule-compliance-audit.md`: strike-through the item, change ✅/🟬, record real numbers.
+2. `20-backlog/tech-debt-roadmap.md`: update the item + add 1 Update-log line at the end of the file.
+3. In the terminal output: "Report X updated" so the user sees it.
+4. When listing "Done" at the end of a reply: clearly list the report files updated.
+
+> **Why:** User explicit 2026-05-30: "note that after each step you must update the report to match". A stale report = the next session / another person doesn't know the current state.
+
+---
+
+## Rule 4 — Do NOT commit/push until the user is explicit (EXPANDED 2026-05-30)
+
+- Editing files (Edit/Write) = OK, locally safe.
+- `git add` / `git commit` (even LOCAL) + `git push` = **ONLY when the user is explicit** with a keyword
+  in the **current turn**:
+  - "commit" / "save a commit" / "git add" → OK to commit local
+  - "push" / "git push" → OK to push
+- **"continue" / "keep going" / "carry on" / "the rest is up to you" is NOT implicit OK**
+  for any git op. Only do:
+  1. Code change per the roadmap schedule
   2. Build verify (tsc, dotnet build)
   3. Report progress + flag pending
-  4. KEEP working tree dirty là OK
-- Lượt cho phép trước **KHÔNG mở rộng** sang lượt sau (vd: "commit" ở turn N không có
-  nghĩa được commit thêm ở turn N+1 mà user chỉ nói "continue").
-- Nguy hiểm: HIS có GitHub Actions `deploy-backend.yml` auto-deploy Cloud Run khi push BE
-  → push lén = deploy prod. Plus user coi commit local cũng là "đẩy" qua log.
-- Workspace-docs: commit + push **BÌNH THƯỜNG** (never-push GỠ 2026-06-13). KHÔNG auto-exclude.
-  Git-ops nguồn chân lý: `.claude/workflow/project-rules.md` §2-4.
-- Khi nghi ngờ → STOP + clear status report, KHÔNG `AskUserQuestion` (user thường trả "continue").
+  4. KEEPING the working tree dirty is OK
+- A previous turn's permission does **NOT extend** to a later turn (e.g. "commit" at turn N does not
+  mean you may commit again at turn N+1 where the user only said "continue").
+- Danger: HIS has a GitHub Actions `deploy-backend.yml` auto-deploying Cloud Run on a BE push
+  → a sneaky push = a prod deploy. Plus the user treats a local commit as "pushing" via the log.
+- Workspace-docs: commit + push is **NORMAL** (never-push REMOVED 2026-06-13). Don't auto-exclude it.
+  Git-ops source of truth: `.claude/workflow/project-rules.md` §2-4.
+- When in doubt → STOP + a clear status report, do NOT `AskUserQuestion` (the user usually answers "continue").
 
 > **Why:** User reprimanded 2026-05-30:
-> 1. Sau commit `0be6eb1` push docs lén
-> 2. "sao tự đẩy code lên suốt thế. cập nhật trong skill-skillmap hay đâu đó để biết
->    khi continue thì làm theo lịch đã lên sẵn mà không push code"
-> 3. "tuyệt đối không đẩy code và đặc biệt là không đẩy code trong workspace-doc"
+> 1. After commit `0be6eb1` sneakily pushed docs
+> 2. "why do you keep pushing code on your own. update the skill-map or somewhere so you know
+>    that on continue you follow the pre-set schedule without pushing code"
+> 3. "absolutely do not push code, and especially do not push code in workspace-docs"
 
 ---
 
-## Rule 5 — Audit side-effects khi tách god-file
+## Rule 5 — Audit side-effects when splitting a god-file
 
-**Trước khi commit batch refactor**, grep timer/subscription trong từng sub-file mới:
+**Before committing a refactor batch**, grep for timers/subscriptions in each new sub-file:
 
 ```bash
 grep -nE "setInterval|setTimeout|addEventListener|subscribe|IntersectionObserver" pages/<feature>/*.tsx
 ```
 
-Với mỗi side-effect → audit:
+For each side-effect → audit:
 
-1. Trong god-file gốc, side-effect có gắn `if (activeTab === 'X')` / route visible check / modal open check không?
-2. Container giữ component mount? (Antd Tabs default keep mounted, React Router với state cũng keep, Modal `destroyOnClose=false` keep)
-3. Nếu có check + container giữ mount → sau tách side-effect chạy mãi → **logic CHANGE**.
+1. In the original god-file, is the side-effect gated by `if (activeTab === 'X')` / a route-visible check / a modal-open check?
+2. Does the container keep the component mounted? (Antd Tabs keep mounted by default, React Router with state also keeps it, Modal `destroyOnClose=false` keeps it)
+3. If there's a check + the container keeps it mounted → after the split the side-effect runs forever → **logic CHANGE**.
 
-**Fix preserve behavior**: pass `active` / `enabled` / `visible` prop từ parent → sub-component dùng prop trong useEffect deps + early return khi `!active`.
+**Fix to preserve behavior**: pass an `active` / `enabled` / `visible` prop from the parent → the sub-component uses the prop in the useEffect deps + early-returns when `!active`.
 
-Đã gặp 2026-05-30: K1 phiên 3 `HealthTab` interval 30s — pause-on-leave bị mất, đã fix bằng `active={activeTab === 'health'}` prop.
+Hit on 2026-05-30: K1 session 3 `HealthTab` 30s interval — the pause-on-leave was lost, fixed with the `active={activeTab === 'health'}` prop.
 
-> **Why:** User explicit 2026-05-30: "áp dụng quy tắc nhưng lưu ý không làm hỏng logic của hệ thống".
+> **Why:** User explicit 2026-05-30: "apply the rule but note: don't break the system's logic".
 
 ---
 
-## Rule 6 — Defer khi đụng logic nghiệp vụ
+## Rule 6 — Defer when touching business logic
 
-Khi clean tech-debt mà phát hiện change sẽ **ảnh hưởng logic nghiệp vụ**:
+When cleaning tech-debt and you discover a change would **affect business logic**:
 
-1. **STOP** tại đó.
-2. Document trong `20-backlog/tech-debt-roadmap.md`: chuyển mục sang 🔴 BLOCKED / ⚠️ PHẢI XÁC NHẬN, ghi rõ change ảnh hưởng gì.
-3. Báo user **trích đoạn code trước/sau** + impact.
-4. Hỏi user: fix-now (nếu minimal) / defer-and-schedule / revert toàn bộ.
-5. **Auto fix CHỈ KHI**: (a) change minimal (vd 1 prop preserve behavior), VÀ (b) verify behavior preserved bằng đọc code 2 chiều — không đoán.
+1. **STOP** right there.
+2. Document it in `20-backlog/tech-debt-roadmap.md`: move the item to 🔴 BLOCKED / ⚠️ NEEDS CONFIRMATION, state what the change affects.
+3. Report to the user **the before/after code snippet** + impact.
+4. Ask the user: fix-now (if minimal) / defer-and-schedule / revert entirely.
+5. **Auto-fix ONLY WHEN**: (a) the change is minimal (e.g. 1 prop preserving behavior), AND (b) you verified behavior is preserved by reading the code both ways — not guessing.
 
-**Mental checklist trước khi commit batch:**
-- [ ] Build/typecheck pass? (cần, không đủ)
-- [ ] Behavior identical bản trước? (đọc code 2 chiều, không đoán)
-- [ ] Side-effects preserved? (xem Rule 5)
+**Mental checklist before committing a batch:**
+- [ ] Build/typecheck pass? (necessary, not sufficient)
+- [ ] Behavior identical to before? (read the code both ways, don't guess)
+- [ ] Side-effects preserved? (see Rule 5)
 - [ ] API contract preserved? (FE shape + BE shape)
 - [ ] Edge case preserved? (null/empty/error path)
 
-Bất kỳ checkbox uncertain → **defer + roadmap**, không commit.
+Any uncertain checkbox → **defer + roadmap**, don't commit.
 
-**Cases:** T5 (`xóa Migrations/` blind sẽ vỡ `DatabaseSeeder.cs:32 MigrateAsync()` runtime) → đã BLOCK, defer cho phiên có deploy. ĐÚNG.
+**Cases:** T5 (blindly `deleting Migrations/` would break `DatabaseSeeder.cs:32 MigrateAsync()` at runtime) → BLOCKED, deferred to a session with deploy. CORRECT.
 
-> **Why:** User explicit 2026-05-30: "nếu quy tắc áp dụng đó ảnh hưởng logic nghiệp vụ thì phải cân nhắc và lên lịch phù hợp để áp dụng sau".
+> **Why:** User explicit 2026-05-30: "if the rule being applied affects business logic, you must consider it and schedule it appropriately to apply later".
 
 ---
 
-## Decision matrix — máy D:\ KHÔNG deploy/smoke-test được
+## Decision matrix — the D:\ machine CANNOT deploy/smoke-test
 
-| Tình huống | Mục có thể làm | Mục SKIP |
+| Situation | Items you can do | Items to SKIP |
 |---|---|---|
-| Chỉ FE build verify | D7 (siết any) · K1 (tách god-file FE) | — |
+| FE build verify only | D7 (tighten any) · K1 (split FE god-file) | — |
 | Build BE + FE | K2 (partial class) · T6 (build-gate) | — |
-| Cần deploy + smoke-test | — | T1 · T4 · T5 · K5 |
-| Cần hardware/Pkcs11 | — | USB Token PIN, smart card |
+| Needs deploy + smoke-test | — | T1 · T4 · T5 · K5 |
+| Needs hardware/Pkcs11 | — | USB Token PIN, smart card |
 
-**Trên máy D:\ ưu tiên:** `D7-r*` → `K1` → `K2`. **Skip:** `T1` `T4` `T5` `T6` `K5` đợi phiên có deploy.
-
----
+**On the D:\ machine prefer:** `D7-r*` → `K1` → `K2`. **Skip:** `T1` `T4` `T5` `T6` `K5` until a session with deploy.
 
 ---
 
-## Rule 7 — Subagent delegation cho bulk mechanical (>50 file)
+---
 
-Khi tech-debt cần fix bulk pattern lặp (vd 570 unused imports trong 70 file, >100 typed cast giống nhau) — **KHÔNG làm tuần tự một mình**, phí context window. Delegate **2-3 subagent (`general-purpose`) parallel**:
+## Rule 7 — Subagent delegation for bulk mechanical (>50 files)
 
-**Pattern subagent prompt:**
-1. **Scope rõ ràng**: list file paths đầy đủ HOẶC regex pattern + exclude list (tránh overlap giữa subagents)
-2. **Rule cụ thể**: behavior-preserving · KHÔNG đụng JSX/logic · KHÔNG commit/push · KHÔNG đụng task khác (vd KHÔNG đụng `:any` nếu task riêng)
-3. **Verify commands**: `tsc --noEmit -p tsconfig.app.json` sau mỗi file
-4. **Edge case handling**: vd `const [loading, setLoading]` nếu `loading` unused nhưng setLoading dùng → `const [, setLoading]`
+When tech-debt needs a bulk repeated-pattern fix (e.g. 570 unused imports in 70 files, >100 identical typed casts) — do **NOT do it sequentially alone**, it wastes the context window. Delegate **2-3 (`general-purpose`) subagents in parallel**:
+
+**Subagent prompt pattern:**
+1. **Clear scope**: a full list of file paths OR a regex pattern + exclude list (avoid overlap between subagents)
+2. **Specific rules**: behavior-preserving · do NOT touch JSX/logic · do NOT commit/push · do NOT touch another task (e.g. do NOT touch `:any` if that's a separate task)
+3. **Verify commands**: `tsc --noEmit -p tsconfig.app.json` after each file
+4. **Edge case handling**: e.g. `const [loading, setLoading]` where `loading` is unused but setLoading is used → `const [, setLoading]`
 5. **Report format**: per-file count + build status + uncertain cases
-6. **Run in background**: `run_in_background: true` để 3 agent parallel
+6. **Run in background**: `run_in_background: true` so 3 agents run in parallel
 
-**Cảnh báo:** Subagent có context riêng, KHÔNG biết domain HIS. Chỉ giao mechanical (remove imports, rename param, extract helper). KHÔNG giao logic refactor / business rule / API contract change.
+**Warning:** A subagent has its own context, does NOT know the HIS domain. Only assign mechanical work (remove imports, rename param, extract helper). Do NOT assign logic refactor / business rule / API contract change.
 
-**Khi KHÔNG dùng subagent:** <50 issue · cross-file dependencies · cần đọc context phức tạp.
+**When NOT to use a subagent:** <50 issues · cross-file dependencies · needs complex context reading.
 
 ---
 
-## Rule 8 — Spot-check sau bulk fix (BẮT BUỘC)
+## Rule 8 — Spot-check after a bulk fix (MANDATORY)
 
-Sau MỌI bulk fix (manual hoặc subagent) >20 file — PHẢI spot-check thực tế:
+After EVERY bulk fix (manual or subagent) >20 files — you MUST do a real spot-check:
 
-1. **3-5 file random** từ batch → đọc `git diff <file>` verify:
-   - Chỉ thay đổi imports/types đúng kỳ vọng
-   - KHÔNG xoá nhầm side-effect imports (`import './styles.css'`, `import 'dayjs/locale/vi'`)
-   - KHÔNG thay đổi JSX render
-   - KHÔNG thay đổi logic handler/useEffect
-2. **Build verify đầy đủ**:
-   - `tsc --noEmit -p tsconfig.app.json` → 0 error
-   - `tsc --noEmit --noUnusedLocals --noUnusedParameters` → 0 unused (cho D8-style task)
-   - `npm run build` cho FE / `dotnet build HIS.sln` cho BE — full bundle ok
-3. **Audit side-effects** (xem Rule 5): grep timer/subscription
-4. **Output report (BẮT BUỘC)**: list file spot-checked + verdict (PASS/WARN/FAIL) + build status
+1. **3-5 random files** from the batch → read `git diff <file>` to verify:
+   - Only the expected imports/types changed
+   - Did NOT remove side-effect imports by mistake (`import './styles.css'`, `import 'dayjs/locale/vi'`)
+   - Did NOT change JSX render
+   - Did NOT change handler/useEffect logic
+2. **Full build verify**:
+   - `tsc --noEmit -p tsconfig.app.json` → 0 errors
+   - `tsc --noEmit --noUnusedLocals --noUnusedParameters` → 0 unused (for a D8-style task)
+   - `npm run build` for FE / `dotnet build HIS.sln` for BE — full bundle OK
+3. **Audit side-effects** (see Rule 5): grep timer/subscription
+4. **Output report (MANDATORY)**: list spot-checked files + verdict (PASS/WARN/FAIL) + build status
 
-**Why:** Build pass ≠ behavior preserved. Subagent có thể xoá nhầm `import 'styles.css'` (build pass nhưng vỡ UI), `_param` rename quên ở callsite (silent runtime undefined). Spot-check phát hiện sớm.
+**Why:** Build pass ≠ behavior preserved. A subagent might remove `import 'styles.css'` by mistake (build passes but UI breaks), a `_param` rename forgotten at the call site (silent runtime undefined). A spot-check catches it early.
 
 ---
 
 ## Rule 10 — Comprehensive backlog planning + session handoff doc
 
-Cuối phiên tech-debt LỚN (>5 task hoặc >50 file modified) HOẶC khi user yêu cầu **"tổng hợp / lập kế hoạch / handoff / chuyển giao"** — PHẢI tạo session handoff doc.
+At the end of a LARGE tech-debt session (>5 tasks or >50 files modified) OR when the user asks for **"summary / make a plan / handoff"** — you MUST create a session handoff doc.
 
-**Vị trí BẮT BUỘC:** `docs/workspace-docs/90-archive/handoffs/session-YYYY-MM-DD-handoff.md` (kèm suffix `-AM`/`-PM` nếu cùng ngày có 2 phiên).
+**MANDATORY location:** `docs/workspace-docs/90-archive/handoffs/session-YYYY-MM-DD-handoff.md` (with a `-AM`/`-PM` suffix if there are 2 sessions the same day).
 
-**7 section bắt buộc:**
+**7 mandatory sections:**
 
-| Section | Nội dung |
+| Section | Content |
 |---|---|
-| **A. ĐÃ HOÀN TẤT** | Bảng task xong + số liệu thật (file count, dòng giảm, build time) + method |
-| **B. ĐANG CHẠY** | Background tasks/agents: ID, scope, % done, ETA, file còn unfixed |
-| **C. CHƯA LÀM (defer)** | Bảng task pending chia EASY/MEDIUM/HARD + cột **Lý do defer** + **Pre-requisite** |
-| **D. KẾ HOẠCH TIẾP THEO** | Phiên N+1, N+2, N+3… theo nguyên tắc 1 phiên 1 việc, sort dễ→khó. Mỗi phiên: scope rõ, pre-flight, effort estimate, risk, verify command |
-| **E. KEY DECISIONS** | Decision chốt phiên này (vd "decision matrix máy D:\", "subagent delegation effective", "logic-preserve via `active` prop") để phiên sau không debate lại |
-| **F. SKILL + MEMORY UPDATES** | Skill nào đã update + memory feedback nào đã add (link path) |
-| **G. CẢNH BÁO + GOTCHA** | List risk cho phiên sau (vd "máy D:\ không deploy", "Antd Tabs giữ mount", "subagent KHÔNG biết domain") |
+| **A. DONE** | A table of finished tasks + real numbers (file count, lines reduced, build time) + method |
+| **B. IN PROGRESS** | Background tasks/agents: ID, scope, % done, ETA, files still unfixed |
+| **C. NOT DONE (defer)** | A table of pending tasks split EASY/MEDIUM/HARD + a **Defer reason** column + **Pre-requisite** |
+| **D. NEXT PLAN** | Session N+1, N+2, N+3… per the 1-session-1-job principle, sorted easy→hard. Each session: clear scope, pre-flight, effort estimate, risk, verify command |
+| **E. KEY DECISIONS** | Decisions settled this session (e.g. "D:\ decision matrix", "subagent delegation effective", "logic-preserve via `active` prop") so the next session doesn't re-debate |
+| **F. SKILL + MEMORY UPDATES** | Which skills were updated + which memory feedback was added (link path) |
+| **G. WARNINGS + GOTCHAS** | A risk list for the next session (e.g. "D:\ can't deploy", "Antd Tabs keep mounted", "subagent doesn't know the domain") |
 
-**Cross-ref bắt buộc trong doc:**
+**Mandatory cross-ref in the doc:**
 - `docs/workspace-docs/20-backlog/tech-debt-roadmap.md`
 - `docs/workspace-docs/10-assessment/rule-compliance-audit.md`
 - `.claude/skills/his-tech-debt-workflow/SKILL.md`
-- Memory feedback files relevant
+- Relevant memory feedback files
 
-**Sau khi viết:** report user file đã tạo + tóm tắt 3-5 điểm chính, KHÔNG paste full content.
+**After writing:** report the created file to the user + a 3-5 point summary, do NOT paste the full content.
 
-**Why:** Phiên 2026-05-30 dài (~13h) làm xong D7/D8 + K1 partial + 148 file modified. Không document đầy đủ → phiên sau lặp lại work / debate lại decision / push commit chưa duyệt.
+**Why:** The 2026-05-30 session was long (~13h) finishing D7/D8 + K1 partial + 148 files modified. Without full documentation → the next session repeats work / re-debates decisions / pushes unapproved commits.
 
 ---
 
 ## Rule 9 — Scope expansion interpretation (tech-debt)
 
-Khi user dùng ngữ "**fix hết**" / "fix toàn bộ" / "rà hết" / "file cũ" trong context tech-debt — interpret **rộng nhất hợp lý**:
+When the user uses "**fix all**" / "fix everything" / "sweep all" / "old files" in a tech-debt context — interpret it **as broadly as reasonable**:
 
-| User nói | Scope interpret |
+| User says | Scope interpretation |
 |---|---|
-| "fix hết unused / dead code" | TOÀN project (`tsc --noUnusedLocals` toàn project, không chỉ file session) |
-| "fix file cũ" trong context refactor | TẤT CẢ file v1 cũ + file đã sửa session này |
-| "rà soát hết" | Toàn project, mọi area, mọi rule |
-| "tiếp tục fix" sau khi đã định scope hẹp | Mở rộng scope (user muốn complete cycle) |
-| "fix [X cụ thể] trong [file Y]" | Scope hẹp đúng X+Y |
+| "fix all unused / dead code" | the WHOLE project (`tsc --noUnusedLocals` whole project, not just session files) |
+| "fix old files" in a refactor context | ALL old v1 files + files edited this session |
+| "review everything" | whole project, every area, every rule |
+| "continue fixing" after a narrow scope was set | expand the scope (the user wants to complete the cycle) |
+| "fix [specific X] in [file Y]" | narrow scope, exactly X+Y |
 
-**How:** DEFAULT WIDE. Nếu scope rộng quá → estimate effort (vd "570 issue / 70 file / ~6-9h") + propose plan (delegate subagent / batching) + hỏi user **CÁCH làm chứ KHÔNG hỏi phạm vi**.
+**How:** DEFAULT WIDE. If the scope is too broad → estimate effort (e.g. "570 issues / 70 files / ~6-9h") + propose a plan (delegate subagent / batching) + ask the user **HOW to do it, NOT the scope**.
 
-**Why:** Phiên 2026-05-30 D8 — em interpret "file cũ" = file session-modified (filter 22 issue) → user lặp lại 3 lần "tiếp tục fix" mới hiểu là toàn project (570 issue). Đốt thời gian + lặp lại tin nhắn.
+**Why:** The 2026-05-30 session, D8 — I interpreted "old files" = session-modified files (filtered to 22 issues) → the user repeated "continue fixing" 3 times before I understood it was the whole project (570 issues). Wasted time + repeated messages.
 
 ---
 
-## Pair với skill khác
+## Pair with other skills
 
-- Pre-flight chung mọi code: `core-verify-before-assert` + `core-impact-analysis` + `core-minimal-change`
-- Refactor cụ thể: `core-refactor` (behavior-preserving) + `core-architecture-consistency`
-- HIS anti-pattern: `his-qa-anti-pattern` (KHÔNG ảo tưởng, KHÔNG bỏ DI, KHÔNG hardcode tên BV)
-- Khi đụng output style: `core-execution-output` (concise, surface destructive ops)
-- Khi đụng API contract: `core-types-contract`
+- General pre-flight for any code: `core-verify-before-assert` + `core-impact-analysis` + `core-minimal-change`
+- Specific refactor: `core-refactor` (behavior-preserving) + `core-architecture-consistency`
+- HIS anti-pattern: `his-qa-anti-pattern` (no hallucination, don't drop DI, don't hardcode the hospital name)
+- When touching output style: `core-execution-output` (concise, surface destructive ops)
+- When touching an API contract: `core-types-contract`

@@ -7,50 +7,50 @@ metadata:
 
 # Core — Codebase Map / Symbol-Index Tooling for AI Agents (portable)
 
-> TẦNG: **A · CORE** (portable, tech-agnostic). Dựng + dùng **"bản đồ mã"** (index hàm/lớp/symbol) để agent
-> điều hướng codebase **ít token, ít lệnh** — chỉ hữu ích khi **đang lập trình** một dự án phần mềm thật.
-> Ưu tiên **công cụ thực dụng cho agent**, KHÔNG "tool màu".
+> TIER: **A · CORE** (portable, tech-agnostic). Set up + use a **"code map"** (function/class/symbol index) so the agent
+> navigates the codebase with **fewer tokens, fewer commands** — useful only when **actually programming** a real software project.
+> Prefer **practical agent tooling**, NOT "eye-candy tools".
 
-## Tại sao
-Agent tìm "X định nghĩa ở đâu / ai gọi Y" bằng grep mù → nhiều lệnh + nhiều token + nhiễu. Một **index ký hiệu**
-trả ngay `file:line + kind + class` trong 1 lệnh. Đây là đề xuất nên áp **mọi dự án AI-assisted** (con người cũng dễ quản lý hơn).
+## Why
+The agent finds "where is X defined / who calls Y" via blind grep → many commands + many tokens + noise. A **symbol index**
+returns `file:line + kind + class` in 1 command. This is a recommendation to apply to **every AI-assisted project** (humans manage it more easily too).
 
-## Khi nào dùng / KHÔNG dùng
-- **Dùng:** bắt đầu/đang sửa source 1 dự án; "hàm/lớp X ở đâu", "ai gọi Y", onboard repo lạ, "tích hợp công cụ code-map".
-- **KHÔNG:** dự án không có source / chỉ hỏi đáp. KHÔNG dùng repo-dump (repomix/code2prompt — **tăng** token) hay visualizer GUI (đẹp cho người, agent không tiêu thụ).
+## When to use / NOT use
+- **Use:** starting/editing the source of a project; "where is function/class X", "who calls Y", onboarding an unfamiliar repo, "integrate a code-map tool".
+- **NOT:** a project with no source / pure Q&A. Do NOT use repo-dump (repomix/code2prompt — **increases** tokens) or a GUI visualizer (pretty for humans, not agent-consumable).
 
-## 3 tầng công cụ (chọn theo nhu cầu)
-| Tầng | Công cụ | Cho gì | Rủi ro/Setup |
+## 3 tool tiers (choose by need)
+| Tier | Tool | For | Risk/Setup |
 |---|---|---|---|
-| **1 (baseline)** | **universal-ctags** | index ký hiệu (hàm/lớp/method/const) → grep file `tags` | **Rất thấp** — 1 binary + 1 file |
-| 2 (semantic) | **LSP-MCP** (vd **Serena**) | find_references / symbol_overview qua Language Server (call-graph thật) | Trung — cần uv + LSP từng ngôn ngữ + `claude mcp add` |
-| 3 (graph) | **SCIP** (scip-typescript…) | code-graph chính xác chuẩn Sourcegraph | Cao — nặng, theo ngôn ngữ |
+| **1 (baseline)** | **universal-ctags** | symbol index (function/class/method/const) → grep the `tags` file | **Very low** — 1 binary + 1 file |
+| 2 (semantic) | **LSP-MCP** (e.g. **Serena**) | find_references / symbol_overview via a Language Server (real call-graph) | Medium — needs uv + a per-language LSP + `claude mcp add` |
+| 3 (graph) | **SCIP** (scip-typescript…) | a precise Sourcegraph-standard code-graph | High — heavy, per-language |
 
-→ **Bắt đầu tầng 1 (ctags)**; nâng tầng 2 (Serena) khi cần điều hướng sâu.
+→ **Start at tier 1 (ctags)**; upgrade to tier 2 (Serena) when you need deep navigation.
 
-## Dùng file `tags` thế nào (agent — token-efficient)
-Sau khi sinh `tags`, thay vì grep toàn source:
-- **Định nghĩa của symbol:** `grep -nE '^SymbolName\b' tags` (PowerShell: `Select-String -Path tags -Pattern '^SymbolName\b'`) → ra `file<TAB>pattern;"<TAB>kind line:N language:… class:…`.
-- Lọc theo loại/ngôn ngữ: thêm `class:` / `language:C#` / `kind` trong dòng kết quả.
-- **Luôn mở file thật ở `file:line`** để xác nhận (tags có thể **stale** → `core-verify-before-assert`).
+## How to use the `tags` file (agent — token-efficient)
+After generating `tags`, instead of grepping the whole source:
+- **A symbol's definition:** `grep -nE '^SymbolName\b' tags` (PowerShell: `Select-String -Path tags -Pattern '^SymbolName\b'`) → gives `file<TAB>pattern;"<TAB>kind line:N language:… class:…`.
+- Filter by kind/language: add `class:` / `language:C#` / `kind` in the result line.
+- **Always open the real file at `file:line`** to confirm (tags can be **stale** → `core-verify-before-assert`).
 
-## Người dùng (human) theo dõi — editor + sơ đồ (KHÔNG đọc raw `tags`)
-`tags` cho MÁY; con người điều hướng/giám sát qua:
-- **VS Code:** `F12` định nghĩa · `Shift+F12` nơi gọi · `Ctrl+T` tìm symbol toàn repo · chuột phải → **Show Call Hierarchy** (cây gọi) · panel **Outline**. (TS sẵn; **C# cần extension "C# Dev Kit"**.)
-- **Sơ đồ trực quan:** `docs/architecture/codebase-map.md` — kiến trúc hệ thống/FE/BE + sơ đồ phụ thuộc module. ⚠️ **Khối ```mermaid``` trong VS Code preview FLAKY** (render được rồi **trống sau reload** do extension nạp sau khi tab preview khôi phục). → **Render ra SVG tĩnh + nhúng `![]()`** (ổn định, không cần extension, sống qua reload, GitHub cũng thấy): nguồn `diagrams/*.mmd` → `pwsh -File scripts/gen-diagrams.ps1` (dùng `@mermaid-js/mermaid-cli` qua npx). **Script .ps1 phải ASCII-only** (Windows PowerShell 5.1 mis-parse non-ASCII trong string literal).
-- **dependency-cruiser (FE):** `cd frontend && npm run dep:mermaid` (sinh sơ đồ phụ thuộc module, collapse theo folder) · `npm run dep:check` (phát hiện **import vòng**). Config `frontend/.dependency-cruiser.cjs`. SVG (tuỳ chọn): cài Graphviz → `depcruise src --output-type dot | dot -Tsvg -o deps.svg`.
-> ⚠️ Tránh auto-vẽ call-graph CẢ repo (hairball không đọc nổi = "tool màu") — sơ đồ hữu ích phải **scoped + curated** (1 module/luồng).
+## Humans monitoring — editor + diagrams (do NOT read raw `tags`)
+`tags` is for the MACHINE; humans navigate/monitor via:
+- **VS Code:** `F12` definition · `Shift+F12` callers · `Ctrl+T` find a symbol across the repo · right-click → **Show Call Hierarchy** (call tree) · the **Outline** panel. (TS built-in; **C# needs the "C# Dev Kit" extension**.)
+- **Visual diagrams:** `docs/architecture/codebase-map.md` — system/FE/BE architecture + module dependency diagrams. ⚠️ A ```mermaid``` block in VS Code preview is FLAKY (renders, then goes **blank after reload** because the extension loads after the preview tab is restored). → **Render to a static SVG + embed `![]()`** (stable, no extension needed, survives reload, GitHub also shows it): source `diagrams/*.mmd` → `pwsh -File scripts/gen-diagrams.ps1` (uses `@mermaid-js/mermaid-cli` via npx). **The .ps1 script must be ASCII-only** (Windows PowerShell 5.1 mis-parses non-ASCII in a string literal).
+- **dependency-cruiser (FE):** `cd frontend && npm run dep:mermaid` (generates a module dependency diagram, collapsed by folder) · `npm run dep:check` (detects **circular imports**). Config `frontend/.dependency-cruiser.cjs`. SVG (optional): install Graphviz → `depcruise src --output-type dot | dot -Tsvg -o deps.svg`.
+> ⚠️ Avoid auto-drawing a call-graph of the WHOLE repo (an unreadable hairball = "eye-candy") — a useful diagram must be **scoped + curated** (1 module/flow).
 
-## Setup (HIS binding — portable cho dự án khác)
-- **Cài (Windows):** `winget install --id UniversalCtags.Ctags -e` (đã cài bản 6.1, hỗ trợ TypeScript + C#). Restart shell 1 lần để có `ctags` trên PATH. (macOS `brew install universal-ctags`; Linux `apt/dnf install universal-ctags`.)
-- **Sinh/cập nhật:** `pwsh -File scripts/gen-tags.ps1` → index `frontend/src` (TS) + `backend/src` (C#) vào `tags` (loại node_modules/bin/obj/dist). Raw: `ctags -R --languages=TypeScript,C# --exclude=node_modules --exclude=bin --exclude=obj --exclude=dist --fields=+nKl --extras=+q -f tags frontend/src backend/src`.
-- **Gitignore** `tags` (đã thêm `/tags`) — KHÔNG commit (lớn ~23MB + stale). Regenerate sau thay đổi lớn.
-- **Dự án khác:** đổi `--languages` + thư mục nguồn cho hợp stack; cùng pattern (cài → gen → gitignore → grep).
+## Setup (HIS binding — portable to other projects)
+- **Install (Windows):** `winget install --id UniversalCtags.Ctags -e` (v6.1 installed, supports TypeScript + C#). Restart the shell once to get `ctags` on PATH. (macOS `brew install universal-ctags`; Linux `apt/dnf install universal-ctags`.)
+- **Generate/refresh:** `pwsh -File scripts/gen-tags.ps1` → index `frontend/src` (TS) + `backend/src` (C#) into `tags` (exclude node_modules/bin/obj/dist). Raw: `ctags -R --languages=TypeScript,C# --exclude=node_modules --exclude=bin --exclude=obj --exclude=dist --fields=+nKl --extras=+q -f tags frontend/src backend/src`.
+- **Gitignore** `tags` (already added `/tags`) — do NOT commit (large ~23MB + stale). Regenerate after big changes.
+- **Other projects:** change `--languages` + source dirs to match the stack; same pattern (install → gen → gitignore → grep).
 
 ## Guardrail
-- `tags` là **navigation aid, KHÔNG phải source of truth** → khẳng định gì về code vẫn phải Read/Grep verify (`core-verify-before-assert`).
-- Stale: thêm/sửa/xoá symbol nhiều → chạy lại `gen-tags.ps1`.
-- Cài tool = **env-change** → surface + xin duyệt (`core-prod-change-discipline`); nâng lên Serena/MCP cũng vậy (`update-config` cho MCP).
+- `tags` is a **navigation aid, NOT a source of truth** → any claim about the code still needs Read/Grep verify (`core-verify-before-assert`).
+- Stale: after adding/editing/removing many symbols → re-run `gen-tags.ps1`.
+- Installing the tool = an **env-change** → surface + ask for approval (`core-prod-change-discipline`); upgrading to Serena/MCP too (`update-config` for MCP).
 
-## Liên quan
-`core-verify-before-assert` · `core-prod-change-discipline` (env-change discipline) · `update-config` (MCP nếu lên Serena) · `core-architecture-consistency`.
+## Related
+`core-verify-before-assert` · `core-prod-change-discipline` (env-change discipline) · `update-config` (MCP if upgrading to Serena) · `core-architecture-consistency`.

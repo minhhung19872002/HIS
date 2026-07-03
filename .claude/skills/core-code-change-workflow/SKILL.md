@@ -1,347 +1,347 @@
 ---
 name: core-code-change-workflow
-description: Use this skill (portable, tech-agnostic) cho MỌI thao tác thay đổi code — thêm/sửa/xóa file, function, class, schema, endpoint, config, test, doc — để giảm lỗi · giảm blast radius · dễ kiểm tra · dễ rollback. Triggers include "thêm/sửa/xóa code", "fix bug X", "refactor X", "thay đổi API/DB/contract", "delete file/function", bất kỳ task code-gen nào trên FE/BE/DB/API/test/docs. Cụ thể hóa workflow theo 3 nhánh (add/modify/delete) với pre-flight, file-allow-list, fail criteria, rollback. Do NOT use cho pure design discussion (chưa chạm code) hay open-ended brainstorm — chỉ áp khi có yêu cầu thay đổi code cụ thể.
+description: Use this skill (portable, tech-agnostic) for ANY code-changing operation — add/edit/delete a file, function, class, schema, endpoint, config, test, doc — to reduce bugs · reduce blast radius · ease verification · ease rollback. Triggers include "add/edit/delete code", "fix bug X", "refactor X", "change API/DB/contract", "delete file/function", any code-gen task on FE/BE/DB/API/test/docs. It concretizes the workflow into 3 branches (add/modify/delete) with pre-flight, file-allow-list, fail criteria, rollback. Do NOT use for pure design discussion (no code touched yet) or open-ended brainstorm — apply only when there is a concrete code-change request.
 metadata:
   type: core
   node_type: skill
   scope: portable
 ---
 
-# Code Change Workflow — quy trình chuẩn cho AI thay đổi code
+# Code Change Workflow — the standard process for an AI changing code
 
-## 1. Nguyên tắc cốt lõi (NON-NEGOTIABLE)
+## 1. Core principles (NON-NEGOTIABLE)
 
-1. **Verify trước, code sau** — KHÔNG đoán file/symbol/field tồn tại. Read/Grep/Glob trước khi reference.
-2. **Minimal change** — diff nhỏ nhất đúng việc được giao. KHÔNG refactor/rename/cleanup tiện tay ngoài scope.
-3. **Behavior-preserve mặc định** — đổi behavior chỉ khi user explicit yêu cầu. Khi không chắc → STOP hỏi.
-4. **Boundary catch hẹp** — try-catch ở boundary thật (SDK/DB/HTTP), KHÔNG broad-catch nuốt lỗi ở service/controller.
-5. **1 trục/phiên** — bug fix / refactor / split file / rename / migrate — chọn 1 trục, KHÔNG trộn.
-6. **No commit no push trừ khi user explicit** — chỉ Edit/Write file local; chữ "push"/"commit"/"đẩy code"/"deploy" phải xuất hiện rõ trong câu user.
-7. **No destructive op không xin phép** — `rm -rf` · `git reset --hard` · `--force-push` · drop schema/table · uninstall dep · revert revision — STOP, mô tả + xin confirm.
-8. **Defer logic-changing khi không có deploy/smoke** — refactor đụng interval / shape / side-effect / async → ghi roadmap, làm phiên có verify đầy đủ.
+1. **Verify first, code second** — do NOT guess that a file/symbol/field exists. Read/Grep/Glob before referencing.
+2. **Minimal change** — the smallest diff that does the assigned job. Do NOT refactor/rename/clean up incidentally outside scope.
+3. **Behavior-preserve by default** — change behavior only when the user explicitly asks. When unsure → STOP and ask.
+4. **Narrow boundary catch** — try-catch at a real boundary (SDK/DB/HTTP), NOT a broad-catch that swallows errors in a service/controller.
+5. **1 axis/session** — bug fix / refactor / split file / rename / migrate — pick 1 axis, do NOT mix.
+6. **No commit no push unless the user is explicit** — only Edit/Write local files; the words "push"/"commit"/"deploy" (in any language) must appear clearly in the user's message.
+7. **No destructive op without permission** — `rm -rf` · `git reset --hard` · `--force-push` · drop schema/table · uninstall dep · revert revision — STOP, describe + ask for confirmation.
+8. **Defer logic-changing when no deploy/smoke** — a refactor touching interval / shape / side-effect / async → log to the roadmap, do it in a session with full verification.
 
 ---
 
-## 2. Quy trình tổng quát (từ nhận yêu cầu → tích hợp)
+## 2. General process (from receiving the request → integration)
 
-| Bước | Hành động | Output |
+| Step | Action | Output |
 |---|---|---|
-| **A. Clarify** | Đọc yêu cầu. Nếu ≥2 interpretation khác kết quả → hỏi 1 lượt ngắn. Convert relative time → absolute. | Hiểu chính xác task |
-| **B. Verify-before-assert** | Read file thực, Grep symbol, Glob path. KHÔNG dựa memory cũ/doc cũ. | Danh sách file/symbol đã verify |
-| **C. Impact analysis** | Map caller, dependency, test, migration, config, doc tham chiếu | Bảng blast radius |
-| **D. Phân loại thao tác** | Xác định: ADD / MODIFY / DELETE (có thể >1) | Nhánh quy trình |
-| **E. Plan minimal** | Chốt: file được phép chạm, file KHÔNG chạm, contract đổi/không, test cần chạy | Plan rõ |
-| **F. Execute** | Edit/Write tuần tự theo plan. Mỗi step verify ngay khi nghi ngờ. | Diff |
-| **G. Verify post-change** | Lint → typecheck → build → test (unit/integration/e2e theo nhu cầu) | Status pass/fail |
-| **H. Report** | Tóm tắt thay đổi + risk còn + bước kế. KHÔNG commit/push tự ý. | Báo cáo + Q&A |
+| **A. Clarify** | Read the request. If ≥2 interpretations lead to different results → ask in one short batch. Convert relative time → absolute. | Exact understanding of the task |
+| **B. Verify-before-assert** | Read the real file, Grep the symbol, Glob the path. Do NOT rely on stale memory/docs. | A verified file/symbol list |
+| **C. Impact analysis** | Map callers, dependencies, tests, migrations, configs, referencing docs | Blast-radius table |
+| **D. Classify the operation** | Determine: ADD / MODIFY / DELETE (may be >1) | The process branch |
+| **E. Plan minimal** | Decide: files allowed to touch, files NOT to touch, contract changed/not, tests to run | A clear plan |
+| **F. Execute** | Edit/Write sequentially per the plan. Verify at each step when in doubt. | The diff |
+| **G. Verify post-change** | Lint → typecheck → build → test (unit/integration/e2e as needed) | Pass/fail status |
+| **H. Report** | Summarize the change + remaining risk + next step. Do NOT commit/push on your own. | Report + Q&A |
 
 ---
 
-## 3. Quy trình THÊM code (ADD)
+## 3. ADD code process
 
-### Input cần có
-- Tên feature/function/file/endpoint/migration cần thêm
-- Vị trí (folder/layer/module) hoặc convention để suy ra
-- Contract (signature, request/response shape) nếu là API/DB
-- Use case → test case tối thiểu (happy path)
+### Required input
+- The name of the feature/function/file/endpoint/migration to add
+- The location (folder/layer/module) or a convention to infer it
+- The contract (signature, request/response shape) if it's an API/DB
+- The use case → a minimal test case (happy path)
 
-### Điều kiện được phép
-- KHÔNG trùng với code/file đã có (verify Glob + Grep)
-- Có chỗ đặt phù hợp convention project (KHÔNG tạo folder mới nếu KHÔNG được phép)
-- Đã clarify nếu yêu cầu ambiguous
+### Allowed conditions
+- Does NOT duplicate existing code/file (verify Glob + Grep)
+- There's a place matching the project convention (do NOT create a new folder if not allowed)
+- Clarified if the request is ambiguous
 
-### File được phép chạm
-- File mới ở folder đúng convention
-- File index/barrel để export (nếu project dùng)
-- File register/DI nếu là service/controller mới
-- Test file đi kèm (mặc định bắt buộc cho function/endpoint mới)
+### Files allowed to touch
+- The new file in the convention-correct folder
+- An index/barrel file to export (if the project uses one)
+- The register/DI file if it's a new service/controller
+- The accompanying test file (mandatory by default for a new function/endpoint)
 
-### File KHÔNG chạm
-- File ngoài module liên quan
-- Config build/CI trừ khi yêu cầu rõ
-- Schema/migration cũ đã apply
-- File code "tiện tay refactor" không thuộc scope
+### Files NOT to touch
+- Files outside the related module
+- Build/CI config unless explicitly requested
+- Old already-applied schema/migration
+- "While-I'm-here refactor" code files not in scope
 
-### Tiêu chí hoàn thành
-- File mới biên dịch sạch (typecheck/build pass)
-- Test mới pass + test cũ KHÔNG vỡ
-- Đăng ký vào DI/route/index nếu cần
-- Doc/comment WHY (không WHAT) nếu non-obvious
+### Completion criteria
+- The new file compiles clean (typecheck/build pass)
+- New tests pass + old tests do NOT break
+- Registered in DI/route/index if needed
+- Doc/comment WHY (not WHAT) if non-obvious
 
-### Tiêu chí fail
-- Trùng code/file đã có → STOP, dùng cái cũ
-- Test cũ vỡ vì add → impact lan ngoài scope → STOP, hỏi
-- Phải sửa file ngoài allow-list → STOP, escalate
-- Build/typecheck fail không tự fix được trong scope → STOP
+### Fail criteria
+- Duplicates existing code/file → STOP, use the old one
+- An old test breaks because of the add → impact spread outside scope → STOP, ask
+- Must edit a file outside the allow-list → STOP, escalate
+- Build/typecheck fail you can't fix within scope → STOP
 
-### Cách kiểm tra
+### How to verify
 1. `<lint>` + `<typecheck>` 0 errors
-2. `<build>` produce artifact OK
-3. `<test mới>` pass
-4. `<test full suite scope liên quan>` pass
-5. Manual smoke (nếu UI hoặc workflow critical)
+2. `<build>` produces an OK artifact
+3. `<new test>` passes
+4. `<related-scope full test suite>` passes
+5. Manual smoke (if UI or workflow-critical)
 
-### Cách rollback
-- `git checkout -- <new file>` chưa add → file biến mất
-- Đã `git add` → `git restore --staged` rồi delete
-- Đã commit chưa push → `git reset HEAD~1` (soft, giữ working)
-- Đã push → tạo revert commit (không reset --hard branch chung)
-- Đã deploy → rollback artifact (cloud revision / docker image cũ)
+### How to rollback
+- `git checkout -- <new file>` not yet added → file disappears
+- Already `git add` → `git restore --staged` then delete
+- Committed not pushed → `git reset HEAD~1` (soft, keep working)
+- Pushed → create a revert commit (do not reset --hard a shared branch)
+- Deployed → roll back the artifact (cloud revision / old docker image)
 
 ---
 
-## 4. Quy trình SỬA code (MODIFY)
+## 4. MODIFY code process
 
-### Input cần có
-- File + symbol (function/class/field) cần đổi
-- Lý do (bug ID / requirement / refactor goal)
-- Behavior trước vs sau (rõ ràng)
-- Test phải pass sau khi sửa
+### Required input
+- The file + symbol (function/class/field) to change
+- The reason (bug ID / requirement / refactor goal)
+- Behavior before vs after (clearly)
+- The tests that must pass after the change
 
-### Điều kiện được phép
-- Đã hoàn tất **5 bước bắt buộc trước khi sửa**:
-  1. **Phạm vi ảnh hưởng** — grep caller, ref, import, doc
-  2. **Contract bị đổi** — signature/shape/enum/route/schema có đổi không? Nếu CÓ → cần permission rõ
-  3. **Rủi ro** — breaking change? performance? security? data loss?
-  4. **Dependency** — service/module/lib upstream-downstream nào đụng
-  5. **Test cần chạy** — đơn vị nào cần verify (list tên test/suite)
-- Nếu sửa code chung/shared (>1 caller): bắt buộc verify mọi caller
+### Allowed conditions
+- Completed the **5 mandatory pre-edit steps**:
+  1. **Impact scope** — grep callers, refs, imports, docs
+  2. **Contract changed** — does the signature/shape/enum/route/schema change? If YES → needs explicit permission
+  3. **Risk** — breaking change? performance? security? data loss?
+  4. **Dependency** — which upstream-downstream service/module/lib is affected
+  5. **Tests to run** — which units need verification (list test/suite names)
+- If editing shared code (>1 caller): you MUST verify every caller
 
-### File được phép chạm
-- File chứa symbol cần đổi
-- File test tương ứng (update khi behavior đổi)
-- File doc/comment trực tiếp tham chiếu (nếu cần)
-- File DI/config nếu đổi signature constructor
+### Files allowed to touch
+- The file containing the symbol to change
+- The matching test file (update when behavior changes)
+- The doc/comment that directly references it (if needed)
+- The DI/config file if the constructor signature changes
 
-### File KHÔNG chạm
-- File caller — chỉ chạm nếu contract đổi VÀ user OK
-- File "có vẻ cũ/xấu" nhưng không thuộc bug — defer
-- Format/style file lân cận — defer
-- Schema/migration đã apply prod — phải qua migration mới
+### Files NOT to touch
+- Caller files — touch only if the contract changes AND the user agrees
+- Files that "look old/ugly" but aren't part of the bug — defer
+- Format/style of neighboring files — defer
+- Schema/migration already applied to prod — must go through a new migration
 
-### Tiêu chí hoàn thành
-- Diff đúng phần cần đổi, KHÔNG kéo theo
-- Test cũ vẫn pass (behavior preserve nếu mục tiêu là preserve)
-- Test mới reproduce bug trước khi fix + pass sau fix (nếu bug fix)
-- Caller KHÔNG vỡ (verify build full)
+### Completion criteria
+- The diff is exactly the part to change, NOT dragging in extra
+- Old tests still pass (behavior preserved if the goal is to preserve)
+- A new test reproduces the bug before the fix + passes after (if a bug fix)
+- Callers do NOT break (verify a full build)
 
-### Tiêu chí fail
-- Phát sinh đụng file ngoài allow-list mà không xin phép → STOP
-- Test cũ vỡ + không thuộc behavior cần đổi → STOP, root-cause analyze
-- Build/typecheck fail không liên quan diff → có thể repo broken trước đó, STOP báo user
-- Diff > expectation 3x → scope creep → STOP, re-plan
+### Fail criteria
+- Touching a file outside the allow-list without permission → STOP
+- An old test breaks + it's not part of the behavior being changed → STOP, root-cause it
+- Build/typecheck fail unrelated to the diff → repo may have been broken before, STOP and report to the user
+- Diff > 3x the expectation → scope creep → STOP, re-plan
 
-### Cách kiểm tra
-1. `git diff` review trước commit (file + dòng đúng scope)
+### How to verify
+1. `git diff` review before commit (correct files + lines in scope)
 2. Lint + typecheck pass
 3. Build pass
-4. Test diff-targeted pass
-5. Smoke flow user-visible (nếu có UI hoặc workflow)
-6. Spot-check 3 file random nếu sửa bulk >20 file
+4. Diff-targeted tests pass
+5. Smoke the user-visible flow (if there's UI or a workflow)
+6. Spot-check 3 random files if it's a bulk edit >20 files
 
-### Cách rollback
-- Chưa commit: `git checkout -- <file>` revert from HEAD
-- Đã commit chưa push: `git reset HEAD~1` (soft) → fix → commit lại
-- Đã push: `git revert <sha>` tạo commit ngược
-- Database migration đã apply: cần migration "down" ngược, KHÔNG drop tay
-- Production: rollback revision/image cloud, không destructive
+### How to rollback
+- Not committed: `git checkout -- <file>` revert from HEAD
+- Committed not pushed: `git reset HEAD~1` (soft) → fix → re-commit
+- Pushed: `git revert <sha>` creates a reverse commit
+- A DB migration already applied: needs a reverse "down" migration, do NOT drop by hand
+- Production: roll back the cloud revision/image, nothing destructive
 
 ---
 
-## 5. Quy trình XÓA code (DELETE)
+## 5. DELETE code process
 
-### Input cần có
-- File/symbol/folder cần xóa
-- Lý do (dead code, deprecated, replaced by X)
-- Bằng chứng KHÔNG còn dùng (grep result, log, version metadata)
+### Required input
+- The file/symbol/folder to delete
+- The reason (dead code, deprecated, replaced by X)
+- Evidence it's NO longer used (grep result, log, version metadata)
 
-### Điều kiện được phép
-- **Verify bắt buộc**: grep TOÀN PROJECT KHÔNG còn reference (import/usage/route/config/doc)
-- Đã hỏi user nếu file >100 dòng hoặc file public API
-- KHÔNG xóa data/schema/migration đã apply prod (chỉ deprecate)
-- KHÔNG xóa file chưa biết origin (in-progress của ai đó?)
+### Allowed conditions
+- **Mandatory verify**: grep the WHOLE PROJECT for NO remaining reference (import/usage/route/config/doc)
+- Asked the user if the file is >100 lines or a public API
+- Do NOT delete data/schema/migration already applied to prod (only deprecate)
+- Do NOT delete a file of unknown origin (someone's in-progress work?)
 
-### File được phép chạm
-- File/folder cần xóa
-- File index/barrel/route/DI để bỏ export/register
-- File test tương ứng
-- File doc tham chiếu
+### Files allowed to touch
+- The file/folder to delete
+- The index/barrel/route/DI file to remove the export/registration
+- The matching test file
+- The referencing doc
 
-### File KHÔNG chạm
-- File khác có chung folder nhưng KHÔNG depend → defer cleanup riêng
-- Schema/migration cũ — chỉ thêm migration mới (drop column/table), KHÔNG sửa migration cũ
-- File git history (KHÔNG `git rebase -i` để rewrite history)
+### Files NOT to touch
+- Another file in the same folder that does NOT depend on it → defer cleanup separately
+- Old schema/migration — only add a new migration (drop column/table), do NOT edit the old migration
+- Git history files (do NOT `git rebase -i` to rewrite history)
 
-### Tiêu chí hoàn thành
-- 0 reference còn lại (grep verify TRƯỚC và SAU xóa)
-- Build pass (KHÔNG broken import)
-- Test cũ pass (chỉ test của symbol xóa được loại bỏ)
-- Doc tham chiếu cập nhật
+### Completion criteria
+- 0 references left (grep-verify BEFORE and AFTER deletion)
+- Build pass (NO broken import)
+- Old tests pass (only the deleted symbol's tests are removed)
+- Referencing docs updated
 
-### Tiêu chí fail
-- Grep còn reference → STOP, xóa từ caller trước
-- Build/test vỡ → có dependency hidden → STOP, restore
-- Phát hiện file đang được dùng mà ban đầu tưởng dead → STOP escalate
-- User chưa explicit OK cho file public API/lớn
+### Fail criteria
+- Grep still finds a reference → STOP, delete from the caller first
+- Build/test break → there's a hidden dependency → STOP, restore
+- Discover the file is actually in use that you thought was dead → STOP, escalate
+- The user hasn't explicitly OK'd for a public-API/large file
 
-### Cách kiểm tra
-1. `grep -rn '<symbol|filename>'` 0 hit (loại trừ chính file đang xóa)
+### How to verify
+1. `grep -rn '<symbol|filename>'` 0 hits (excluding the file being deleted)
 2. Build + typecheck pass
-3. Test pass
-4. Manual scan route/menu/sidebar (nếu là page) — không còn link mồ côi
-5. Diff review: chỉ delete, không kéo thêm modify
+3. Tests pass
+4. Manual scan of route/menu/sidebar (if it's a page) — no orphan link left
+5. Diff review: delete only, no extra modify dragged in
 
-### Cách rollback
-- `git checkout HEAD~1 -- <path>` restore file
-- Đã commit chưa push: `git reset HEAD~1`
-- Đã push: `git revert <sha>` restore qua commit ngược
-- Data đã DROP: restore từ backup (không có backup → mất vĩnh viễn, vì vậy KHÔNG drop data ngẫu hứng)
+### How to rollback
+- `git checkout HEAD~1 -- <path>` restore the file
+- Committed not pushed: `git reset HEAD~1`
+- Pushed: `git revert <sha>` restore via a reverse commit
+- Data already DROPped: restore from backup (no backup → permanently lost, which is why you do NOT drop data on a whim)
 
 ---
 
-## 6. Quy tắc kiểm tra (CHECKING)
+## 6. Checking rules (CHECKING)
 
-Sau MỌI thay đổi, theo thứ tự (không skip):
+After EVERY change, in order (don't skip):
 
 1. **Lint** — code style + import order + unused
-2. **Typecheck** — `tsc --noEmit` HOẶC compiler strict mode 0 errors
-3. **Build verify** — full build sinh artifact OK (FE bundle / BE binary)
-4. **Unit test** — test trực tiếp symbol đổi pass
-5. **Integration test** — test module/layer pass nếu đụng contract
-6. **E2E test** — chỉ chạy khi đụng user-visible workflow critical
-7. **Smoke prod-like** — manual hoặc auto trên staging nếu có deploy
-8. **Diff review** — đọc git diff cuối, không có hunk lạ ngoài plan
+2. **Typecheck** — `tsc --noEmit` OR compiler strict mode 0 errors
+3. **Build verify** — full build produces an OK artifact (FE bundle / BE binary)
+4. **Unit test** — tests directly on the changed symbol pass
+5. **Integration test** — module/layer tests pass if a contract was touched
+6. **E2E test** — only run when a user-visible critical workflow is touched
+7. **Smoke prod-like** — manual or auto on staging if there's a deploy
+8. **Diff review** — read the final git diff, no stray hunk outside the plan
 
 **Stop conditions:**
-- Lint/typecheck/build fail không liên quan diff → repo broken trước đó, STOP
-- Test cũ vỡ → impact ngoài scope, STOP root-cause
-- Test mới fail → fix trước khi report done
-- Diff lớn hơn 3x kế hoạch → scope creep, STOP re-plan
+- Lint/typecheck/build fail unrelated to the diff → repo broken before, STOP
+- Old test breaks → impact outside scope, STOP and root-cause
+- New test fails → fix before reporting done
+- Diff larger than 3x the plan → scope creep, STOP and re-plan
 
 ---
 
-## 7. Quy tắc rollback (UNIVERSAL)
+## 7. Rollback rules (UNIVERSAL)
 
-| Trạng thái | Cách rollback an toàn | KHÔNG dùng |
+| State | Safe rollback | Do NOT use |
 |---|---|---|
-| Chưa stage | `git checkout -- <file>` | `git clean -fd` (mất file untracked khác) |
-| Đã stage chưa commit | `git restore --staged <file>` | — |
-| Đã commit chưa push | `git reset --soft HEAD~N` (giữ working) | `git reset --hard` (mất uncommitted) |
-| Đã push branch riêng | `git revert <sha>` HOẶC `git reset` + `force-push` (chỉ branch riêng) | `force-push main/master` |
-| Đã push main + CI deploy | `git revert <sha>` + redeploy HOẶC rollback cloud revision | `force-push main` (history rewrite) |
-| Đã deploy prod | Rollback cloud revision/docker tag cũ TRƯỚC, fix code sau | Drop schema / data sửa tay |
-| DB migration đã apply | Viết migration "down" hoặc bù migration mới | Sửa file migration cũ |
+| Not staged | `git checkout -- <file>` | `git clean -fd` (loses other untracked files) |
+| Staged not committed | `git restore --staged <file>` | — |
+| Committed not pushed | `git reset --soft HEAD~N` (keep working) | `git reset --hard` (loses uncommitted) |
+| Pushed to a private branch | `git revert <sha>` OR `git reset` + `force-push` (private branch only) | `force-push main/master` |
+| Pushed to main + CI deploy | `git revert <sha>` + redeploy OR roll back the cloud revision | `force-push main` (history rewrite) |
+| Deployed to prod | Roll back the cloud revision/old docker tag FIRST, fix code after | Drop schema / hand-edit data |
+| DB migration applied | Write a "down" migration or a compensating new migration | Edit the old migration file |
 
-**Nguyên tắc:** rollback luôn ưu tiên **forward** (commit ngược / revision cũ) hơn **destructive** (reset hard / force push / drop).
+**Principle:** rollback always prefers **forward** (reverse commit / old revision) over **destructive** (reset hard / force push / drop).
 
 ---
 
-## 8. Quy tắc xử lý NỢ KỸ THUẬT
+## 8. TECHNICAL DEBT handling rules
 
-### Ghi nhận
-- Phát hiện trong khi sửa → ghi vào `docs/workspace-docs/20-backlog/tech-debt-roadmap.md` (HOẶC equivalent project) NGAY khi gặp
-- Format: ID + mô tả + file path + line + tier (EASY/MEDIUM/HARD) + blast radius
+### Recording
+- Found while editing → record it in `docs/workspace-docs/20-backlog/tech-debt-roadmap.md` (OR the project equivalent) IMMEDIATELY when you hit it
+- Format: ID + description + file path + line + tier (EASY/MEDIUM/HARD) + blast radius
 
-### Phân loại tier
-| Tier | Định nghĩa | Cách xử |
+### Tier classification
+| Tier | Definition | How to handle |
 |---|---|---|
-| **EASY** | <30p, FE-only hoặc build-verify đủ, blast hẹp | Có thể xử lý trong phiên hiện tại nếu user OK |
-| **MEDIUM** | 30p-3h, đụng nhiều file hoặc cross-layer, cần test rộng | Phiên riêng, có plan |
-| **HARD** | >3h, cross-module, cần migration/deploy, blast lớn | Phiên dài, chia batch nhỏ |
+| **EASY** | <30m, FE-only or build-verify is enough, narrow blast | Can handle in the current session if the user OKs |
+| **MEDIUM** | 30m-3h, touches many files or cross-layer, needs wide tests | A separate session, with a plan |
+| **HARD** | >3h, cross-module, needs migration/deploy, large blast | A long session, split into small batches |
 
-### Ưu tiên
-- Bug fix (đang vỡ) > Risk (sắp vỡ) > Smell (xấu nhưng OK)
-- Item chặn release > item nội bộ
-- EASY trước MEDIUM trước HARD (dứt điểm dễ → hết blocker → vào khó)
+### Priority
+- Bug fix (currently broken) > Risk (about to break) > Smell (ugly but OK)
+- Release-blocking item > internal item
+- EASY before MEDIUM before HARD (finish the easy → clear blockers → tackle the hard)
 
 ### Defer
-- Logic-changing không có deploy/smoke → defer phiên có deploy
-- Cross-state risk → defer phiên có e2e test
-- Hardware-dependent → defer khi có device
-- Scope creep phát hiện giữa phiên → ghi vào roadmap, KHÔNG mở rộng phiên hiện tại
+- Logic-changing with no deploy/smoke → defer to a session with deploy
+- Cross-state risk → defer to a session with e2e tests
+- Hardware-dependent → defer until the device is available
+- Scope creep found mid-session → record in the roadmap, do NOT expand the current session
 
-### Xử lý sau
-- Mỗi phiên 1 trục (bug / refactor / split) — KHÔNG trộn
-- Sau xong → update roadmap entry với commit SHA + verify result + còn lại
-- Re-prioritize roadmap nếu phát hiện blocker mới
+### Handle later
+- One axis per session (bug / refactor / split) — do NOT mix
+- After finishing → update the roadmap entry with the commit SHA + verify result + what's left
+- Re-prioritize the roadmap if a new blocker is found
 
 ---
 
-## 9. Quy tắc KHÔNG SỬA LAN
+## 9. NO-SPRAWL rules
 
-1. **Allow-list strict** — chỉ chạm file đã liệt kê trong plan. Đụng thêm file → STOP, escalate.
-2. **No opportunistic refactor** — thấy code xấu lân cận: ghi roadmap, KHÔNG sửa.
-3. **No contract change implicit** — đổi signature/shape/route/schema phải có explicit permission. Lưu ý "fix bug" KHÔNG bao gồm đổi contract.
-4. **No bulk rename/format** — KHÔNG mass-rename biến / mass-format file ngoài scope yêu cầu.
-5. **No dependency upgrade** — KHÔNG bump package version trừ khi yêu cầu rõ.
-6. **No file ngoài layer** — sửa BE service KHÔNG đụng FE (và ngược lại) trừ khi contract change đã agreed.
-7. **No "tiện tay sửa typo"** — typo trong code khác file đang sửa → roadmap.
-8. **No git config / CI / hook change** — trừ khi user explicit yêu cầu.
+1. **Strict allow-list** — only touch files listed in the plan. Touching an extra file → STOP, escalate.
+2. **No opportunistic refactor** — see ugly neighboring code: record to the roadmap, do NOT edit.
+3. **No implicit contract change** — changing a signature/shape/route/schema needs explicit permission. Note that "fix a bug" does NOT include changing a contract.
+4. **No bulk rename/format** — do NOT mass-rename variables / mass-format files outside the requested scope.
+5. **No dependency upgrade** — do NOT bump a package version unless explicitly requested.
+6. **No files outside the layer** — editing a BE service does NOT touch FE (and vice versa) unless a contract change is agreed.
+7. **No "while-I'm-here typo fix"** — a typo in a file other than the one being edited → roadmap.
+8. **No git config / CI / hook change** — unless the user explicitly requests it.
 
-### Khi gặp vấn đề
+### When you hit a problem
 
-| Tình huống | Action |
+| Situation | Action |
 |---|---|
-| **Blocker** (không tiếp tục được — env miss, dep miss, schema drift) | STOP, document blocker rõ (cái gì miss, fix thế nào), defer task hiện tại, báo user |
-| **Dependency** (cần task khác xong trước) | STOP, ghi roadmap "blocked by X", chuyển task khác hoặc đợi |
-| **Conflict** (code hiện tại đã có solution khác) | STOP, present 2 option (giữ cũ vs đổi), user quyết |
-| **Scope expansion** (việc lớn hơn kế hoạch) | STOP, không tự mở rộng. Re-plan với user, có thể tách phiên |
+| **Blocker** (can't continue — env missing, dep missing, schema drift) | STOP, document the blocker clearly (what's missing, how to fix), defer the current task, report to the user |
+| **Dependency** (needs another task done first) | STOP, record to the roadmap "blocked by X", switch to another task or wait |
+| **Conflict** (current code already has a different solution) | STOP, present 2 options (keep old vs change), user decides |
+| **Scope expansion** (the work is larger than planned) | STOP, do not self-expand. Re-plan with the user, possibly split into sessions |
 
 ---
 
-## 10. Checklist cuối cùng cho AI trước khi báo DONE
+## 10. Final checklist for the AI before reporting DONE
 
-Phải tick HẾT:
+Must tick ALL:
 
-- [ ] **Pre-flight**: clarify + verify-before-assert + impact analysis + minimal-change plan đều DONE
-- [ ] **Allow-list**: chỉ chạm file trong plan; nếu phát sinh → đã escalate user
-- [ ] **Contract**: nếu đổi → user đã OK explicit; nếu không đổi → verify caller KHÔNG vỡ
-- [ ] **Lint**: 0 error/warning mới phát sinh do diff
-- [ ] **Typecheck**: 0 error (strict mode pass, không chỉ noEmit lỏng)
-- [ ] **Build**: full build pass (sinh artifact thật, không skip)
-- [ ] **Test**: unit + integration relevant pass; e2e nếu workflow critical
-- [ ] **Smoke**: manual hoặc auto cho user-visible change (nếu UI/API)
-- [ ] **Diff review**: git diff đọc lại, không hunk lạ
-- [ ] **Roadmap update**: nợ phát hiện ghi vào tech-debt log
-- [ ] **Doc update**: WHY-comment + handoff/changelog nếu phiên dài
-- [ ] **No destructive op**: chưa run rm/reset/force trừ khi user explicit
-- [ ] **No commit/push tự ý**: chỉ làm khi user nói "commit"/"push"/"deploy" rõ
-- [ ] **Report**: tóm tắt thay đổi + risk còn + bước kế (<300 từ)
+- [ ] **Pre-flight**: clarify + verify-before-assert + impact analysis + minimal-change plan all DONE
+- [ ] **Allow-list**: only touched files in the plan; if extra arose → escalated to the user
+- [ ] **Contract**: if changed → user OK'd explicitly; if not changed → verified callers do NOT break
+- [ ] **Lint**: 0 new error/warning introduced by the diff
+- [ ] **Typecheck**: 0 errors (strict mode passes, not just loose noEmit)
+- [ ] **Build**: full build pass (produces a real artifact, no skip)
+- [ ] **Test**: relevant unit + integration pass; e2e if a critical workflow
+- [ ] **Smoke**: manual or auto for a user-visible change (if UI/API)
+- [ ] **Diff review**: re-read the git diff, no stray hunk
+- [ ] **Roadmap update**: found debt recorded in the tech-debt log
+- [ ] **Doc update**: WHY-comment + handoff/changelog if a long session
+- [ ] **No destructive op**: no rm/reset/force run unless the user was explicit
+- [ ] **No self-initiated commit/push**: only when the user says "commit"/"push"/"deploy" clearly
+- [ ] **Report**: summarize change + remaining risk + next step (<300 words)
 
 ---
 
-## 11. Trigger phrases (khi áp skill này)
+## 11. Trigger phrases (when to apply this skill)
 
-Áp ngay khi user nói (hoặc tương đương):
-- "thêm/sửa/xóa code"
-- "tạo file/function/endpoint X"
+Apply as soon as the user says (or equivalent):
+- "add/edit/delete code"
+- "create file/function/endpoint X"
 - "fix bug X"
 - "refactor X"
-- "đổi contract/schema/API"
+- "change contract/schema/API"
 - "delete dead code"
-- "rà soát code làm sạch"
-- bất kỳ task gen/edit code có scope cụ thể
+- "review and clean up the code"
+- any code gen/edit task with a concrete scope
 
-KHÔNG áp khi:
-- Pure design discussion (chưa chạm code) → dùng `core-requirement-clarify`
-- Tạo skill mới → dùng `core-skill-authoring`
-- Tạo doc thuần (không code) → dùng skill doc tương ứng
+Do NOT apply when:
+- Pure design discussion (no code touched yet) → use `core-requirement-clarify`
+- Creating a new skill → use `core-skill-authoring`
+- Pure docs (no code) → use the matching doc skill
 
 ---
 
-## 12. Cross-ref skill liên quan
+## 12. Cross-ref related skills
 
-- `core-requirement-clarify` — clarify ambiguous trước khi sửa
-- `core-verify-before-assert` — verify file/symbol thực tế
-- `core-impact-analysis` — map blast radius
+- `core-requirement-clarify` — clarify ambiguity before editing
+- `core-verify-before-assert` — verify the real file/symbol
+- `core-impact-analysis` — map the blast radius
 - `core-minimal-change` — smallest correct diff
-- `core-refactor` — refactor behavior-preserving
-- `core-reusable-code` — extend/reuse trước khi tạo mới
-- `core-testing-architecture` — chọn test level đúng
-- `core-execution-output` — báo cáo concise, không spam log
-- `his-tech-debt-workflow` — workflow tech-debt project-specific
-- `his-qa-anti-pattern` — anti-pattern catalog HIS
+- `core-refactor` — behavior-preserving refactor
+- `core-reusable-code` — extend/reuse before creating new
+- `core-testing-architecture` — pick the right test level
+- `core-execution-output` — concise reporting, no log spam
+- `his-tech-debt-workflow` — project-specific tech-debt workflow
+- `his-qa-anti-pattern` — the HIS anti-pattern catalog
 
 ---
 
-*(Portable skill — áp mọi project. Project-specific override ở `his-*` skills.)*
+*(Portable skill — applies to any project. Project-specific overrides live in `his-*` skills.)*

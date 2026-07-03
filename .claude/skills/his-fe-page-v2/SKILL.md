@@ -1,107 +1,107 @@
 ---
 name: his-fe-page-v2
-description: Use this skill when creating or editing a v2 frontend page in HIS (route `/v2/*`, TerminalLayout). Triggers include "tạo page v2", "thêm màn hình v2 cho [module]", build a list/detail screen with KPI strip + status tabs + table + drawer using the `_v2kit` design pack and `ab-*` CSS, wire it to an `api/*.ts` client, register the route in App.tsx and the menu in TerminalLayout. Do NOT use for v1 Antd pages (pages/, MainLayout).
+description: Use this skill when creating or editing a v2 frontend page in HIS (route `/v2/*`, TerminalLayout). Triggers include "create a v2 page", "add a v2 screen for [module]", build a list/detail screen with KPI strip + status tabs + table + drawer using the `_v2kit` design pack and `ab-*` CSS, wire it to an `api/*.ts` client, register the route in App.tsx and the menu in TerminalLayout. Do NOT use for v1 Antd pages (pages/, MainLayout).
 metadata:
   type: project
 ---
 
 # HIS Frontend Page v2
 
-Skill chuẩn hoá cách tạo 1 trang **v2** (giao diện TerminalLayout, prefix route `/v2/*`) bằng design pack `_v2kit` + CSS `ab-*`. Đây là layer UI chính của HIS hiện nay (toàn bộ 121 route đã chuyển v2). KHÔNG dùng cho page v1 (Antd MainLayout trong `pages/`).
+A skill standardizing how to create a **v2** page (TerminalLayout UI, route prefix `/v2/*`) with the `_v2kit` design pack + `ab-*` CSS. This is HIS's current main UI layer (all 121 routes are on v2). Do NOT use for v1 pages (Antd MainLayout in `pages/`).
 
-> Polish thẩm mỹ: áp kèm `core-ui-aesthetics` (gu + tiết chế, chống "AI-slop", KHÔNG hại UX) + `core-accessibility-pattern` (a11y/contrast) — bám đúng token `ab-*` + primitive `_v2kit`, giữ mật độ "terminal" của HIS.
+> Aesthetic polish: apply alongside `core-ui-aesthetics` (taste + restraint, anti "AI-slop", no UX harm) + `core-accessibility-pattern` (a11y/contrast) — stick to the `ab-*` tokens + `_v2kit` primitives, keep HIS's "terminal" density.
 
-## Khi nào dùng
+## When to use
 
-- Tạo màn hình mới dạng danh sách + chi tiết (vd: phân hệ NangCapNN mới).
-- Chuyển 1 page v1 (`pages/X.tsx`) sang v2 (`pages-v2/X.tsx`).
-- Sửa/ thêm tab, cột bảng, KPI, drawer cho page v2 có sẵn.
+- Creating a new list + detail screen (e.g. a new NangCapNN module).
+- Converting a v1 page (`pages/X.tsx`) to v2 (`pages-v2/X.tsx`).
+- Editing/adding a tab, table column, KPI, drawer for an existing v2 page.
 
-## Khi nào KHÔNG dùng
+## When NOT to use
 
-- Page v1 Antd (MainLayout, `pages/`) → không thuộc skill này.
-- Viewer toàn màn hình (DICOM viewer) — không theo khuôn list/detail.
-- Tạo API client backend → dùng `his-fe-api-client`.
-- Tạo test cho page → dùng `his-test-e2e`.
+- A v1 Antd page (MainLayout, `pages/`) → not this skill.
+- A full-screen viewer (DICOM viewer) — doesn't follow the list/detail frame.
+- Creating a backend API client → use `his-fe-api-client`.
+- Creating a test for the page → use `his-test-e2e`.
 
-## Hai cách dựng page (chọn đúng)
+## Two ways to build a page (pick the right one)
 
-| Cách | Khi nào | Độ dài |
+| Way | When | Length |
 |---|---|---|
-| **`SimpleV2Page<T>`** (khuyến nghị) | List + filter + status tab + drawer chuẩn | ~80–150 dòng |
-| **Bespoke** (tự ráp primitives) | Layout đặc thù (dashboard, grid, form lớn, nhiều panel) | tuỳ |
+| **`SimpleV2Page<T>`** (recommended) | Standard list + filter + status tab + drawer | ~80–150 lines |
+| **Bespoke** (assemble primitives yourself) | A specialized layout (dashboard, grid, large form, many panels) | varies |
 
-→ Mặc định dùng `SimpleV2Page<T>`. Chỉ bespoke khi layout không vừa khuôn.
+→ Default to `SimpleV2Page<T>`. Go bespoke only when the layout doesn't fit the frame.
 
-## Quy trình chuẩn (SimpleV2Page)
+## Standard process (SimpleV2Page)
 
-### Bước 1 — Chuẩn bị API client
-Phải có `frontend/src/api/<module>.ts` export hàm `getX(...)` + interface `XDto`.
-Nếu chưa có → tạo trước bằng skill `his-fe-api-client`.
+### Step 1 — Prepare the API client
+You need `frontend/src/api/<module>.ts` exporting a `getX(...)` function + a `XDto` interface.
+If it doesn't exist → create it first with skill `his-fe-api-client`.
 
-### Bước 2 — Tạo `frontend/src/pages-v2/<Name>.tsx`
-Theo `references/v2-page-template.tsx`. Cấu trúc:
-- `StatusKey` + `STATUS_TABS: StatusTab<StatusKey>[]` + hàm `statusKey(row) → StatusKey`
-- `columns: ColumnDef<TDto>[]` (mỗi cột có `render`, `mono`/`code`/`width` nếu cần)
+### Step 2 — Create `frontend/src/pages-v2/<Name>.tsx`
+Per `references/v2-page-template.tsx`. Structure:
+- `StatusKey` + `STATUS_TABS: StatusTab<StatusKey>[]` + a `statusKey(row) → StatusKey` function
+- `columns: ColumnDef<TDto>[]` (each column has `render`, `mono`/`code`/`width` if needed)
 - `<SimpleV2Page<TDto> title load rowKey columns searchOf statusTabs statusOf kpis drawer drawerTitle drawerSub />`
-- Drawer body dùng `.rec-section` + `.rec-kv` (xem template) hoặc `DrSec`/`DrField`
+- The drawer body uses `.rec-section` + `.rec-kv` (see template) or `DrSec`/`DrField`
 
-### Bước 3 — Đăng ký route trong `App.tsx`
+### Step 3 — Register the route in `App.tsx`
 ```tsx
-// (1) gần khối lazy import v2
+// (1) near the v2 lazy-import block
 const XNameV2 = lazy(() => import('./pages-v2/XName'));
-// (2) trong khối <Route> dưới prefix /v2
+// (2) in the <Route> block under the /v2 prefix
 <Route path="x-name" element={<XNameV2 />} />
 ```
-→ URL đầy đủ là `/v2/x-name`.
+→ The full URL is `/v2/x-name`.
 
-### Bước 4 — Đăng ký menu trong `TerminalLayout.tsx`
-Thêm item vào đúng `items: [...]` của nhóm phù hợp (clinical / paraclinical / support / finance / records / management / integration / public-health):
+### Step 4 — Register the menu in `TerminalLayout.tsx`
+Add an item to the right group's `items: [...]` (clinical / paraclinical / support / finance / records / management / integration / public-health):
 ```ts
-{ id: 'x-name', path: '/v2/x-name', label: 'Nhãn hiển thị' },
+{ id: 'x-name', path: '/v2/x-name', label: 'Display label' },
 ```
 
-### Bước 5 — Verify
+### Step 5 — Verify
 ```powershell
 cd frontend
-npx tsc --noEmit          # phải 0 lỗi (tsc -b nghiêm hơn — chạy npm run build trước commit)
-npm run build             # tsc -b + vite — KHÔNG được lỗi
+npx tsc --noEmit          # must be 0 errors (tsc -b is stricter — run npm run build before commit)
+npm run build             # tsc -b + vite — must have no errors
 ```
 
 ## Patterns & Conventions (`_v2kit` — `frontend/src/pages-v2/_v2kit.tsx`)
 
-Primitives dùng lại (KHÔNG tự code lại):
-- `KpiStrip` / `KpiItem` — dải KPI; `tone: 'ok'|'info'|'warn'|'crit'`
-- `TopTabs<T>` (tab đổi nguồn dữ liệu) vs `StatusTabs<T>` (tab lọc data hiện tại — dùng `v`/`l`/`tone`)
-- `SearchBox`, `Filter` (options dạng `{ v, l }[]` — KHÔNG `{value,label}`)
-- `DataTable<T>` — props `columns`, `data`, `rowKey`, `onRowClick`, `actions`; cột `ColumnDef<T>` `{key,label,render?,mono?,code?,width?}`
+Reused primitives (do NOT re-code them):
+- `KpiStrip` / `KpiItem` — the KPI strip; `tone: 'ok'|'info'|'warn'|'crit'`
+- `TopTabs<T>` (a tab that changes the data source) vs `StatusTabs<T>` (a tab that filters the current data — uses `v`/`l`/`tone`)
+- `SearchBox`, `Filter` (options as `{ v, l }[]` — NOT `{value,label}`)
+- `DataTable<T>` — props `columns`, `data`, `rowKey`, `onRowClick`, `actions`; column `ColumnDef<T>` `{key,label,render?,mono?,code?,width?}`
 - `Pager`, `StatusBadge` (`tone` + `dot`), `ActBtn` (`{ic,title,onClick,tone}`)
-- `DrawerShell` / `ModalShell` (declarative, caller giữ `open` state — KHÔNG `HUI.drawer(...)`)
+- `DrawerShell` / `ModalShell` (declarative, the caller keeps the `open` state — NOT `HUI.drawer(...)`)
 - `DrSec` (title + children), `DrField` (`lbl` + children)
 - Helpers: `fmtVNDg`, `fmtHMg`, `fmtDMYg`, `fmtDTg`; toast `tk/ti/tw/te`; confirm `cf`
 - Icon: `import TermIcon from '../layouts/terminal/Icon'`
 
-CSS class hay dùng trong drawer: `.rec-section` + `<h5>` + `.rec-kv` (grid label/value), `.cell-2l` (cell 2 dòng), `.mono`.
+CSS classes often used in the drawer: `.rec-section` + `<h5>` + `.rec-kv` (label/value grid), `.cell-2l` (a 2-line cell), `.mono`.
 
-Token màu: `var(--a-cy)`, `var(--s-crit)`, `var(--s-warn)`, `var(--t-0/1/2)`, `var(--line)`.
+Color tokens: `var(--a-cy)`, `var(--s-crit)`, `var(--s-warn)`, `var(--t-0/1/2)`, `var(--line)`.
 
-## Pitfalls (đã dính)
+## Pitfalls (hit before)
 
-- **`Filter` options là `{ v, l }`** không phải `{ value, label }` — sai → không render.
-- **`TopTabs` dùng `tab`/`setTab`**, còn `StatusTabs` dùng `value`/`onChange` — dễ copy nhầm.
-- **`StatusTab.tone` chỉ `'ok'|'info'|'warn'|'crit'`** — `'ghost'`/`undefined` lọt `tsc --noEmit` nhưng fail `tsc -b`. Luôn chạy `npm run build`.
-- **API trả paged vs array**: nhiều endpoint trả `{items,totalCount}`, vài cái trả mảng thuần. Trong `load` phải xử lý đúng (`(await getX()).items` vs `await getX()`). Defensive: `Array.isArray(b) ? b : b?.items ?? []`.
-- **Route path tương đối** dưới `/v2` — viết `path="x-name"` (KHÔNG `/v2/x-name`) trong `<Route>`.
-- **Menu group**: phải thêm vào đúng `items` của nhóm trong `TerminalLayout.tsx` (không phải MainLayout — đó là v1).
-- KHÔNG hardcode tên bệnh viện/URL — dùng constant `frontend/src/constants/hospital.ts` / env var.
+- **`Filter` options are `{ v, l }`** not `{ value, label }` — wrong → doesn't render.
+- **`TopTabs` uses `tab`/`setTab`**, while `StatusTabs` uses `value`/`onChange` — easy to copy wrong.
+- **`StatusTab.tone` is only `'ok'|'info'|'warn'|'crit'`** — `'ghost'`/`undefined` passes `tsc --noEmit` but fails `tsc -b`. Always run `npm run build`.
+- **API returns paged vs array**: many endpoints return `{items,totalCount}`, a few return a plain array. In `load` handle it right (`(await getX()).items` vs `await getX()`). Defensive: `Array.isArray(b) ? b : b?.items ?? []`.
+- **Relative route path** under `/v2` — write `path="x-name"` (NOT `/v2/x-name`) in `<Route>`.
+- **Menu group**: must add to the right group's `items` in `TerminalLayout.tsx` (not MainLayout — that's v1).
+- Do NOT hardcode the hospital name/URL — use the constant `frontend/src/constants/hospital.ts` / env var.
 
 ## Reference
 
-- `references/v2-page-template.tsx` — khung page v2 đầy đủ dùng `SimpleV2Page`
-- `references/v2kit-cheatsheet.md` — bảng tra nhanh mọi export của `_v2kit` + props
+- `references/v2-page-template.tsx` — a full v2 page frame using `SimpleV2Page`
+- `references/v2kit-cheatsheet.md` — a quick-lookup table of every `_v2kit` export + props
 
 ## When to update
 
-- Khi `_v2kit.tsx` thêm/đổi primitive hoặc props.
-- Khi đổi convention route (`/v2` prefix) hoặc cấu trúc menu TerminalLayout.
-- Khi thêm helper/CSS class mới dùng chung.
+- When `_v2kit.tsx` adds/changes a primitive or props.
+- When the route convention (`/v2` prefix) or the TerminalLayout menu structure changes.
+- When adding a new shared helper/CSS class.

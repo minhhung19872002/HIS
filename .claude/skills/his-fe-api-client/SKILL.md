@@ -1,29 +1,29 @@
 ---
 name: his-fe-api-client
-description: Use this skill when creating or editing a frontend API client in HIS (`frontend/src/api/*.ts`) that calls the backend via the shared axios `apiClient`. Triggers include "thêm api client cho [module]", wiring a v2/v1 page to backend endpoints, defining request/response DTO interfaces in TypeScript, handling paged vs array responses, or the login token wrapper `{data:{token}}`. Do NOT use for backend controller/service code or for test scripts.
+description: Use this skill when creating or editing a frontend API client in HIS (`frontend/src/api/*.ts`) that calls the backend via the shared axios `apiClient`. Triggers include "add an api client for [module]", wiring a v2/v1 page to backend endpoints, defining request/response DTO interfaces in TypeScript, handling paged vs array responses, or the login token wrapper `{data:{token}}`. Do NOT use for backend controller/service code or for test scripts.
 metadata:
   type: project
 ---
 
 # HIS Frontend API Client
 
-Skill chuẩn hoá cách viết API client TypeScript (`frontend/src/api/<module>.ts`) gọi backend HIS qua axios `apiClient` dùng chung. Đảm bảo đúng base URL, auth header, parse response, và khai báo DTO interface khớp backend.
+A skill standardizing how to write a TypeScript API client (`frontend/src/api/<module>.ts`) calling the HIS backend via the shared axios `apiClient`. Ensures the right base URL, auth header, response parsing, and DTO interfaces matching the backend.
 
-## Khi nào dùng
+## When to use
 
-- Tạo client mới cho 1 phân hệ (vd: `api/nangcap25.ts`).
-- Thêm hàm gọi endpoint mới vào client có sẵn.
-- Khai báo interface DTO TS khớp DTO C# backend.
+- Creating a new client for a module (e.g. `api/nangcap25.ts`).
+- Adding a function calling a new endpoint to an existing client.
+- Declaring a TS DTO interface matching a C# backend DTO.
 
-## Khi nào KHÔNG dùng
+## When NOT to use
 
-- Code backend (controller/service/DTO C#) → dùng `his-be-module-scaffold`.
-- Test script gọi API → dùng `his-test-api-powershell` (BE) hoặc `his-test-e2e` (E2E).
-- Dựng UI page → dùng `his-fe-page-v2`.
+- Backend code (controller/service/C# DTO) → use `his-be-module-scaffold`.
+- A test script calling the API → use `his-test-api-powershell` (BE) or `his-test-e2e` (E2E).
+- Building a UI page → use `his-fe-page-v2`.
 
-## Quy trình chuẩn
+## Standard process
 
-### Bước 1 — Tạo `frontend/src/api/<module>.ts`
+### Step 1 — Create `frontend/src/api/<module>.ts`
 ```ts
 import apiClient from './client';
 
@@ -37,51 +37,51 @@ export const createX    = (dto: Partial<XDto>) => apiClient.post<XDto>('/x', dto
 export const updateX    = (id: string, dto: Partial<XDto>) => apiClient.put<XDto>(`/x/${id}`, dto).then(r => r.data);
 export const deleteX    = (id: string)    => apiClient.delete(`/x/${id}`).then(r => r.data);
 ```
-Tham khảo đầy đủ: `references/api-client-template.ts`.
+Full reference: `references/api-client-template.ts`.
 
-### Bước 2 — Khớp shape với backend
-Trước khi viết, **đọc Controller + DTO backend** để biết:
-- Route prefix thật (`[Route("api/...")]`) — client gọi path bỏ `/api` (base đã có `/api`).
-- Response là **paged** (`{items,totalCount}`) hay **mảng thuần** hay object đơn.
-- Tên field PascalCase (C#) → axios trả JSON camelCase (đã cấu hình) — interface TS viết camelCase.
+### Step 2 — Match the shape with the backend
+Before writing, **read the backend Controller + DTO** to know:
+- The real route prefix (`[Route("api/...")]`) — the client calls the path without `/api` (the base already has `/api`).
+- Whether the response is **paged** (`{items,totalCount}`), a **plain array**, or a single object.
+- PascalCase field names (C#) → axios returns camelCase JSON (configured) — write the TS interface camelCase.
 
-### Bước 3 — Dùng trong page
-Page v2 gọi trong `load`/`useEffect`, bọc loading + `tw('...')` (toast warning) khi lỗi.
+### Step 3 — Use it in a page
+A v2 page calls it in `load`/`useEffect`, wrapping loading + `tw('...')` (warning toast) on error.
 
 ## Patterns & Conventions
 
 ### Base client (`frontend/src/api/client.ts`)
-- `apiClient = axios.create({ baseURL: API_URL })` — `API_URL` = `VITE_API_URL` (env), KHÔNG hardcode.
-- Request interceptor tự gắn `Authorization: Bearer <token>` từ `localStorage.token`.
-- Response interceptor xử lý lỗi chung. Import: `import apiClient from './client'` (default export).
+- `apiClient = axios.create({ baseURL: API_URL })` — `API_URL` = `VITE_API_URL` (env), do NOT hardcode.
+- The request interceptor auto-attaches `Authorization: Bearer <token>` from `localStorage.token`.
+- The response interceptor handles common errors. Import: `import apiClient from './client'` (default export).
 
 ### Login response wrapper
-`POST /api/auth/login` trả `{ success, message, data: { token, user } }`.
-→ Đọc token tại **`resp.data.data.token`** (KHÔNG `resp.data.token`). Lưu `localStorage` keys `token` + `user`.
+`POST /api/auth/login` returns `{ success, message, data: { token, user } }`.
+→ Read the token at **`resp.data.data.token`** (NOT `resp.data.token`). Save `localStorage` keys `token` + `user`.
 
-### Paged vs Array (rất hay sai)
-Một số endpoint trả `{ items, totalCount, ... }`, số khác trả mảng thuần (BE không nhất quán).
-Khi không chắc → defensive ở nơi tiêu thụ: `const arr = Array.isArray(b) ? b : (b?.items ?? []);`
+### Paged vs Array (very commonly wrong)
+Some endpoints return `{ items, totalCount, ... }`, others a plain array (BE is inconsistent).
+When unsure → be defensive at the consumer: `const arr = Array.isArray(b) ? b : (b?.items ?? []);`
 
 ### Status field
-NangCap ≤23 dùng status **int** (0..4); NangCap24 dùng **string** (`active/done/acked`). Interface để `number | string` nếu dùng chung mapper.
+NangCap ≤23 uses an **int** status (0..4); NangCap24 uses a **string** (`active/done/acked`). Type it as `number | string` if a shared mapper is used.
 
 ### Error handling
-KHÔNG `try/catch` nuốt lỗi trong client. Để lỗi nổi lên page → page hiện `tw()/te()`. Lưu ý: một số phân hệ BE KHÔNG có exception filter → lỗi validation trả **500** (không 400/404) — UI chỉ hiển thị message, không suy luận theo status code.
+Do NOT `try/catch` swallowing the error in the client. Let the error bubble to the page → the page shows `tw()/te()`. Note: some BE modules have NO exception filter → a validation error returns **500** (not 400/404) — the UI only shows the message, don't infer from the status code.
 
 ## Pitfalls
 
-- **Double `/api`**: base URL đã có `/api` → path chỉ viết `/payment/bank/list` (KHÔNG `/api/payment/...`).
-- **Token sai chỗ**: login trả token ở `data.data.token`.
-- **camelCase vs PascalCase**: interface TS camelCase, không copy nguyên PascalCase từ C#.
-- **Hardcode host**: dùng `apiClient` (đã có baseURL từ env). KHÔNG `axios.get('http://localhost:5106/...')` trong code app (chỉ cho phép trong test script).
-- **`AllowAnonymous` endpoints** (login, IPN payment, một số `test-types`): không cần token nhưng vẫn gọi qua `apiClient` được.
+- **Double `/api`**: the base URL already has `/api` → the path is just `/payment/bank/list` (NOT `/api/payment/...`).
+- **Token in the wrong place**: login returns the token at `data.data.token`.
+- **camelCase vs PascalCase**: the TS interface is camelCase, don't copy PascalCase verbatim from C#.
+- **Hardcoding the host**: use `apiClient` (it has the baseURL from env). NO `axios.get('http://localhost:5106/...')` in app code (only allowed in a test script).
+- **`AllowAnonymous` endpoints** (login, payment IPN, some `test-types`): don't need a token but can still be called via `apiClient`.
 
 ## Reference
 
-- `references/api-client-template.ts` — khung client đầy đủ (CRUD + paged + search + custom action)
+- `references/api-client-template.ts` — a full client frame (CRUD + paged + search + custom action)
 
 ## When to update
 
-- Khi `client.ts` đổi cấu hình (interceptor, baseURL env name, wrapper response).
-- Khi convention response (paged shape) thay đổi.
+- When `client.ts` changes config (interceptor, baseURL env name, response wrapper).
+- When the response convention (paged shape) changes.

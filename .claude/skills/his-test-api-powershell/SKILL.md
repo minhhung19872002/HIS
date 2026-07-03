@@ -1,34 +1,34 @@
 ---
 name: his-test-api-powershell
-description: Use this skill when writing or modifying PowerShell test scripts (`test-*.ps1`) that exercise the HIS backend API at `localhost:5106`. Triggers include creating tests for Reception/OPD/IPD/Surgery/Billing/Pharmacy/Ward/Payment modules, login với admin/Admin@123, gọi API có Bearer JWT, hoặc parse response wrapper `data`/`items`/`value`.
+description: Use this skill when writing or modifying PowerShell test scripts (`test-*.ps1`) that exercise the HIS backend API at `localhost:5106`. Triggers include creating tests for Reception/OPD/IPD/Surgery/Billing/Pharmacy/Ward/Payment modules, login with admin/Admin@123, calling an API with a Bearer JWT, or parsing the response wrapper `data`/`items`/`value`.
 metadata:
   type: project
 ---
 
 # HIS API Test (PowerShell)
 
-Skill này chuẩn hoá cách viết script test API của HIS bằng PowerShell. Project hiện đã có 21+ file `test-*.ps1` cùng pattern — mỗi script mới phải tuân theo để chạy được trên Windows + tận dụng helper sẵn có.
+This skill standardizes how to write HIS API test scripts in PowerShell. The project has 21+ `test-*.ps1` files with the same pattern — each new script must follow it to run on Windows + reuse the existing helpers.
 
-## Khi nào dùng
+## When to use
 
-- Tạo file mới `test-<module>.ps1` để smoke-test API sau khi thêm endpoint.
-- Sửa script hiện có (`test-reception-full.ps1`, `test-ipd-flow.ps1`, `test-billing.ps1`, ...) khi DTO hoặc route thay đổi.
-- Viết E2E flow nhiều bước (đăng ký bệnh nhân → khám → kê đơn → thanh toán) chạy nhanh ngoài Cypress/Playwright.
+- Creating a new `test-<module>.ps1` to smoke-test the API after adding an endpoint.
+- Editing an existing script (`test-reception-full.ps1`, `test-ipd-flow.ps1`, `test-billing.ps1`, ...) when a DTO or route changes.
+- Writing a multi-step E2E flow (register patient → exam → prescribe → pay) to run fast outside Cypress/Playwright.
 
-## Khi nào KHÔNG dùng
+## When NOT to use
 
-- Test UI/route/flow trên trình duyệt (Cypress/Playwright) → `his-test-e2e`.
-- Code backend service/controller → `his-be-module-scaffold` (skill này chỉ test, không sửa code app).
+- UI/route/flow tests in the browser (Cypress/Playwright) → `his-test-e2e`.
+- Backend service/controller code → `his-be-module-scaffold` (this skill only tests, doesn't edit app code).
 
-## Quy trình chuẩn
+## Standard process
 
-1. **Đọc skeleton**: `references/test-script-template.ps1`. Copy nguyên skeleton, đổi `<MODULE>` và các bước test.
-2. **Xác định endpoint**: tra `references/api-endpoints-cheatsheet.md` xem route + DTO đã verify. Nếu chưa có → đọc controller tương ứng trong `backend/src/HIS.API/Controllers/`.
-3. **Đặt file** ở root project: `C:\Source\HIS\test-<module>-<scenario>.ps1`. KHÔNG đặt vào subfolder để giữ convention với 21 script hiện có.
-4. **Chạy thử**: `powershell -ExecutionPolicy Bypass -File .\test-<module>.ps1` (yêu cầu backend đang chạy ở `localhost:5106`).
-5. **Output format**: mỗi bước là 1 section `=== N. TÊN ===` màu Cyan, kết quả Green, lỗi Red. Đừng tự sáng tạo format khác.
+1. **Read the skeleton**: `references/test-script-template.ps1`. Copy it whole, change `<MODULE>` and the test steps.
+2. **Identify the endpoint**: check `references/api-endpoints-cheatsheet.md` for the verified route + DTO. If not there → read the matching controller in `backend/src/HIS.API/Controllers/`.
+3. **Place the file** at the project root: `C:\Source\HIS\test-<module>-<scenario>.ps1`. Do NOT put it in a subfolder, to keep convention with the 21 existing scripts.
+4. **Test it**: `powershell -ExecutionPolicy Bypass -File .\test-<module>.ps1` (requires the backend running at `localhost:5106`).
+5. **Output format**: each step is a `=== N. NAME ===` section in Cyan, success in Green, error in Red. Don't invent a different format.
 
-## Convention bắt buộc
+## Mandatory conventions
 
 ### Login + headers
 ```powershell
@@ -39,8 +39,8 @@ $token = $loginResponse.data.token
 $headers = @{ Authorization = "Bearer $token" }
 ```
 
-### Helper `Get-ResultItems` (BẮT BUỘC copy y nguyên)
-HIS API trả wrapper khác nhau giữa các endpoint: có endpoint trả `{ data: [...] }`, có endpoint `{ items: [...] }`, có endpoint `{ value: [...] }`, một số endpoint trả mảng trực tiếp. Helper này gom hết về 1 dạng:
+### Helper `Get-ResultItems` (MANDATORY, copy verbatim)
+The HIS API returns different wrappers per endpoint: some return `{ data: [...] }`, some `{ items: [...] }`, some `{ value: [...] }`, some return a direct array. This helper normalizes them all:
 
 ```powershell
 function Get-ResultItems($response) {
@@ -53,22 +53,22 @@ function Get-ResultItems($response) {
 }
 ```
 
-### Chain steps qua `$global:`
-Khi step N cần ID từ step N-1 → lưu vào `$global:`:
+### Chain steps via `$global:`
+When step N needs an ID from step N-1 → save it to `$global:`:
 ```powershell
 $global:newPatientId = $regData.patientId
 $global:newAdmissionId = $regData.id
 ```
 
-### Test marker để dễ cleanup
+### Test marker for easy cleanup
 ```powershell
 $testMarker = "[AUTO-REG]"
 $patient.fullName = "$testMarker Patient $timestamp"
 ```
-Tên có prefix `[AUTO-REG]` để sau dễ filter/xóa data test bằng `DELETE FROM Patients WHERE FullName LIKE '%[AUTO-REG]%'`.
+A name with the `[AUTO-REG]` prefix so test data is easy to filter/delete later with `DELETE FROM Patients WHERE FullName LIKE '%[AUTO-REG]%'`.
 
-### Try/catch mỗi step
-KHÔNG để 1 step fail làm crash cả script. Mỗi `Invoke-RestMethod` bọc trong:
+### Try/catch per step
+Don't let one failed step crash the whole script. Wrap each `Invoke-RestMethod` in:
 ```powershell
 try {
     $resp = Invoke-RestMethod -Uri "..." -Headers $headers
@@ -78,27 +78,27 @@ try {
 }
 ```
 
-### Format section
+### Section format
 ```powershell
 Write-Host ""
 Write-Host "=== 3. REGISTER NEW PATIENT (Dang ky vien phi) ===" -ForegroundColor Cyan
 ```
-- Tiêu đề tiếng Anh + chú thích tiếng Việt không dấu trong ngoặc (vì console Windows hay vỡ Unicode).
-- Cuối script in `=== <MODULE> TEST COMPLETE ===` Green.
+- English title + a no-diacritic Vietnamese annotation in parentheses (the Windows console often breaks Unicode).
+- At the end of the script print `=== <MODULE> TEST COMPLETE ===` in Green.
 
 ## Pitfalls
 
-- **Đừng dùng `$response.data` trực tiếp** — endpoint khác wrapper khác → dùng `Get-ResultItems`.
-- **Đừng hard-code GUID** trừ khi đang reference master data đã seed (room ID, department ID). Khi cần ID động → query trước rồi pick item đầu tiên.
-- **Console Unicode**: Write-Host với ký tự có dấu thường vỡ trên Windows → dùng tiếng Việt KHÔNG dấu trong log (`Dang ky` thay vì `Đăng ký`).
-- **Backend chưa chạy** → script fail ngay step 1. Trước khi chạy: `cd backend\src\HIS.API; dotnet run --launch-profile http`.
-- **Token hết hạn** giữa chừng → script dài (>30 phút) phải re-login. Hiện chưa có script nào dài thế, nhưng nhớ.
-- **Database state**: nhiều test ghi data thật (Patients, Admissions, Receipts...). Dọn bằng `[AUTO-REG]` filter sau mỗi run nếu cần lặp lại.
+- **Don't use `$response.data` directly** — different endpoints have different wrappers → use `Get-ResultItems`.
+- **Don't hard-code a GUID** unless referencing already-seeded master data (room ID, department ID). When you need a dynamic ID → query first then pick the first item.
+- **Console Unicode**: `Write-Host` with diacritic characters often breaks on Windows → use no-diacritic Vietnamese in logs (`Dang ky`, not the diacritic form).
+- **Backend not running** → the script fails at step 1. Before running: `cd backend\src\HIS.API; dotnet run --launch-profile http`.
+- **Token expires mid-run** → a long script (>30 min) must re-login. No script is that long yet, but remember.
+- **Database state**: many tests write real data (Patients, Admissions, Receipts...). Clean up with the `[AUTO-REG]` filter after each run if you need to repeat.
 
 ## Reference
 
-- `references/test-script-template.ps1` — skeleton copy-paste-ready
-- `references/api-endpoints-cheatsheet.md` — route + DTO đã verify từ 21 script hiện tại
+- `references/test-script-template.ps1` — a copy-paste-ready skeleton
+- `references/api-endpoints-cheatsheet.md` — route + DTO verified from the 21 existing scripts
 
 ## When to update
-- Khi helper parse response (`Get-ResultItems`) hoặc convention login/headers thay đổi.
+- When the response parse helper (`Get-ResultItems`) or the login/headers convention changes.

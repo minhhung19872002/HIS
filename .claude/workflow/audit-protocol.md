@@ -1,28 +1,28 @@
-# AUDIT PROTOCOL — chống agent/AI "nói quá" khi review/audit
+# AUDIT PROTOCOL — anti agent/AI "overstatement" when reviewing/auditing
 
-> **ROOT-CAUSE "nói quá"** (đã tái hiện 2 lần ngay trong phiên 2026-06-13 — kể cả ở `.claude/lint.sh` của
-> chính tôi): khi audit, harness **thưởng SỐ LƯỢNG + CHẮC CHẮN, không thưởng ĐÚNG-được-kiểm-chứng**. Cụ thể:
-> quota "tối thiểu N findings" + framing "GIẢ ĐỊNH có lỗi" + schema ép `findings[]` không-rỗng + **thiếu ô
-> confidence/evidence** + **không phạt false-positive** → agent bịa/thổi phồng để đủ quota, phát biểu
-> inference/assumption như fact. Áp BẮT BUỘC cho mọi task audit/review/red-team.
+> **ROOT CAUSE of "overstatement"** (reproduced twice within session 2026-06-13 — even in my own `.claude/lint.sh`):
+> when auditing, the harness **rewards QUANTITY + CERTAINTY, not VERIFIED-CORRECTNESS**. Specifically:
+> a "minimum N findings" quota + a "ASSUME there are bugs" framing + a schema forcing a non-empty `findings[]` + **missing
+> confidence/evidence fields** + **no false-positive penalty** → the agent fabricates/inflates to meet the quota, stating
+> inference/assumption as fact. MANDATORY for every audit/review/red-team task.
 
-## 6 luật chống-nói-quá (BẮT BUỘC)
+## 6 anti-overstatement rules (MANDATORY)
 
-1. **KHÔNG quota số findings.** Cấm "tối thiểu N findings". Tuyên bố rõ: **"0 finding là kết quả HỢP LỆ nếu sạch; chất lượng > số lượng; false-positive bị trừ điểm."**
-2. **Mỗi finding PHẢI kèm BẰNG CHỨNG VERIFY thật** — trích **output lệnh đã chạy** (grep/ls/cat) chứng minh, KHÔNG chỉ khẳng định. Chưa chạy lệnh → KHÔNG được nói "grep = 0" / "file không tồn tại".
-3. **Phân loại bắt buộc: Fact / Inference / Assumption / Speculation.** Chỉ `Fact` (có evidence command) mới gọi là FINDING; còn lại gắn nhãn **HYPOTHESIS (cần xác minh)** — KHÔNG trộn vào findings.
-4. **Schema audit PHẢI có 2 field:** `evidence_command` (lệnh + output đã chạy) + `confidence` (high/med/low). Thiếu evidence → confidence ≤ low → đẩy sang mục "cần xác minh", không phải finding.
-5. **Adversarial CÂN BẰNG verify:** "giả định có lỗi" đi kèm "nhưng MỌI claim phải grep-verify + trích output; không verify được → là giả thuyết, KHÔNG phải lỗi".
-6. **Verification pass (tự phản biện):** trước khi nộp, rà lại từng finding: *"tôi đã CHẠY lệnh chứng minh chưa? path/giả-định của lệnh có đúng không?"* (lint từng false-positive vì sai path memory / tự-quét chính nó — luôn kiểm giả định của công cụ).
+1. **NO findings-count quota.** Ban "minimum N findings". State clearly: **"0 findings is a VALID result if it's clean; quality > quantity; false-positives lose points."**
+2. **Every finding MUST carry REAL VERIFY EVIDENCE** — quote the **output of the command you ran** (grep/ls/cat) as proof, NOT just an assertion. Haven't run the command → you may NOT say "grep = 0" / "the file doesn't exist".
+3. **Mandatory classification: Fact / Inference / Assumption / Speculation.** Only a `Fact` (with command evidence) counts as a FINDING; the rest are labeled **HYPOTHESIS (needs verification)** — do NOT mix them into findings.
+4. **The audit schema MUST have 2 fields:** `evidence_command` (the command + output you ran) + `confidence` (high/med/low). Missing evidence → confidence ≤ low → push it to "needs verification", not a finding.
+5. **BALANCED adversarial verify:** "assume there are bugs" goes with "but EVERY claim must be grep-verified + quote the output; if you can't verify it, it's a hypothesis, NOT a bug".
+6. **Verification pass (self-critique):** before submitting, re-review each finding: *"did I actually RUN the proving command? is the command's path/assumption correct?"* (lint each false-positive from a wrong memory path / self-scanning — always check the tool's own assumptions).
 
-## Khi chạy Workflow audit (mẫu prompt + schema đúng)
+## When running an audit Workflow (correct prompt + schema)
 ```
-MANDATE: Tìm vấn đề CÓ BẰNG CHỨNG. 0 finding = OK nếu sạch. KHÔNG quota. False-positive bị trừ.
-Mỗi finding: chạy lệnh verify (grep/ls), TRÍCH output vào evidence_command. Chưa verify -> HYPOTHESIS.
-SCHEMA findings[]: {severity, location, issue, evidence_command (lenh+output that), confidence(high|med|low), impact, fix}
-+ hypotheses[] (chua verify, can kiem) RIENG findings[].
+MANDATE: Find problems WITH EVIDENCE. 0 findings = OK if clean. NO quota. False-positives penalized.
+Each finding: run a verify command (grep/ls), QUOTE the output into evidence_command. Not verified -> HYPOTHESIS.
+SCHEMA findings[]: {severity, location, issue, evidence_command (real cmd+output), confidence(high|med|low), impact, fix}
++ hypotheses[] (not verified, to be checked) SEPARATE from findings[].
 ```
 
 ## Cross-ref
-- Phủ yêu cầu (manifest mức file): [`requirement-coverage.md`](requirement-coverage.md) — cùng triết lý "verify, đừng tin".
-- Verify trước khi khẳng định: skill `core-verify-before-assert`. Registry: [`../REGISTRY.md`](../REGISTRY.md).
+- Requirement coverage (file-level manifest): [`requirement-coverage.md`](requirement-coverage.md) — same "verify, don't trust" philosophy.
+- Verify before asserting: skill `core-verify-before-assert`. Registry: [`../REGISTRY.md`](../REGISTRY.md).

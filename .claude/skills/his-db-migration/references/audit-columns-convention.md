@@ -1,10 +1,10 @@
 # Audit Columns Convention (CreatedBy / UpdatedBy)
 
-HIS có HAI trường phái audit columns. Phải pick đúng trường phái khi tạo bảng mới, nếu không sẽ gây `InvalidCastException Guid↔String` (đã dính 31 bảng trước đây).
+HIS has TWO schools of audit columns. You must pick the right school when creating a new table, otherwise you cause an `InvalidCastException Guid↔String` (hit 31 tables before).
 
-## Trường phái 1 — Guid (DEFAULT cho bảng business mới)
+## School 1 — Guid (DEFAULT for a new business table)
 
-Dùng khi: bảng mới thuộc workflow chính (Inpatient, OPD, Surgery, RIS/PACS, LIS, Pharmacy logic, Reception, ...).
+Use when: the new table belongs to a main workflow (Inpatient, OPD, Surgery, RIS/PACS, LIS, Pharmacy logic, Reception, ...).
 
 ```sql
 CreatedAt DATETIME2(7)     NOT NULL DEFAULT GETDATE(),
@@ -23,7 +23,7 @@ public string? UpdatedBy { get; set; }
 public bool IsDeleted { get; set; }
 ```
 
-**BẮT BUỘC đăng ký ValueConverter** trong `HISDbContext.OnModelCreating` để EF Core map `string ↔ Guid`. Pattern hiện tại (đã apply cho 31 bảng):
+**MANDATORY: register the ValueConverter** in `HISDbContext.OnModelCreating` so EF Core maps `string ↔ Guid`. The current pattern (applied to 31 tables):
 
 ```csharp
 var guidStringConverter = new ValueConverter<string?, Guid?>(
@@ -35,55 +35,55 @@ modelBuilder.Entity<TEntity>().Property(e => e.CreatedBy).HasConversion(guidStri
 modelBuilder.Entity<TEntity>().Property(e => e.UpdatedBy).HasConversion(guidStringConverter);
 ```
 
-**Hoặc** dùng convention loop tự động — kiểm tra `HISDbContext` xem đã có loop áp converter cho mọi entity nào có property tên `CreatedBy/UpdatedBy` chưa, nếu có thì entity mới sẽ tự được pick up.
+**Or** use an automatic convention loop — check `HISDbContext` for whether there's already a loop applying the converter to every entity with a `CreatedBy/UpdatedBy` property; if so, a new entity is auto-picked-up.
 
-### Bảng đã dùng Guid (sample, không exhaustive)
+### Tables using Guid (sample, not exhaustive)
 - Inpatient: Admissions, BedAssignments, Transfers, Discharges
 - OPD: ServiceRequests, ServiceRequestDetails, Prescriptions
 - Surgery: SurgeryRequests, SurgerySchedules
 - RIS/PACS: ImagingOrders, ImagingResults, DigitalSignatures
-- 31+ bảng khác đã được wire vào ValueConverter (xem CLAUDE.md "Bugs da fix trong Session 2-3")
+- 31+ other tables already wired into the ValueConverter (see CLAUDE.md "Bugs fixed in Session 2-3")
 
-## Trường phái 2 — Nvarchar (LEGACY / log / external)
+## School 2 — Nvarchar (LEGACY / log / external)
 
-Dùng khi: bảng log, audit history, integration với hệ thống ngoài (BHXH, MOH), hoặc bảng cũ đã legacy.
+Use when: a log table, audit history, integration with an external system (BHXH, MOH), or an already-legacy table.
 
 ```sql
 CreatedBy NVARCHAR(200) NULL,
 UpdatedBy NVARCHAR(200) NULL,
 ```
 
-**C# entity**: `string? CreatedBy { get; set; }` — không cần converter.
+**C# entity**: `string? CreatedBy { get; set; }` — no converter needed.
 
-### Bảng đã dùng Nvarchar (NGOẠI LỆ, đừng wire converter cho các bảng này)
-- `CashBooks` (xem `scripts/create_billing_tables.sql:23`)
-- `Receipts` (xem `scripts/create_billing_tables.sql:52`)
+### Tables using Nvarchar (EXCEPTIONS, don't wire the converter for these)
+- `CashBooks` (see `scripts/create_billing_tables.sql:23`)
+- `Receipts` (see `scripts/create_billing_tables.sql:52`)
 - `ReceiptDetails`
-- `InvoiceSummaries` — **đã từng misapply ValueConverter và gây lỗi** (xem CLAUDE.md "Loai bo ValueConverter sai cho InvoiceSummary")
+- `InvoiceSummaries` — **once misapplied the ValueConverter and caused an error** (see CLAUDE.md "Removed the wrong ValueConverter for InvoiceSummary")
 - `AuditLogs`, `SmsLogs` — log tables
 
-## Cách quyết định nhanh
+## Quick decision
 
-| Câu hỏi | → Chọn |
+| Question | → Pick |
 |---|---|
-| Bảng có user thao tác (tạo/sửa/duyệt) trong workflow chính? | **Guid** |
-| Bảng chỉ chứa log / history / external data? | **Nvarchar** |
-| Bảng đã có sẵn — đang sửa? | **Giữ nguyên** kiểu hiện tại, đừng đổi |
-| Bảng tích hợp BHXH/MOH có tracking external user ID? | **Nvarchar** |
+| A table a user operates on (create/edit/approve) in a main workflow? | **Guid** |
+| A table holding only log / history / external data? | **Nvarchar** |
+| An existing table — being edited? | **Keep** the current type, don't change |
+| A BHXH/MOH integration table tracking an external user ID? | **Nvarchar** |
 
-## Checklist khi thêm bảng business mới (Guid)
+## Checklist when adding a new business table (Guid)
 
-- [ ] CREATE TABLE với `CreatedBy/UpdatedBy UNIQUEIDENTIFIER NULL`
-- [ ] Tạo entity `backend/src/HIS.Core/Entities/<Name>.cs` với `string? CreatedBy/UpdatedBy`
-- [ ] Đăng ký `DbSet<TEntity>` trong `HISDbContext`
-- [ ] Verify `HISDbContext.OnModelCreating` áp ValueConverter (qua loop convention hoặc explicit `HasConversion`)
-- [ ] Chạy `dotnet build` — nếu fail với cast error là chưa wire converter
-- [ ] Smoke test: insert 1 record qua API → query lại không lỗi
+- [ ] CREATE TABLE with `CreatedBy/UpdatedBy UNIQUEIDENTIFIER NULL`
+- [ ] Create the entity `backend/src/HIS.Core/Entities/<Name>.cs` with `string? CreatedBy/UpdatedBy`
+- [ ] Register `DbSet<TEntity>` in `HISDbContext`
+- [ ] Verify `HISDbContext.OnModelCreating` applies the ValueConverter (via the loop convention or an explicit `HasConversion`)
+- [ ] Run `dotnet build` — a failure with a cast error means the converter isn't wired
+- [ ] Smoke test: insert 1 record via the API → query it back without an error
 
-## Khi sửa bug cast error trên bảng cũ
+## When fixing a cast-error bug on an old table
 
-1. Xác nhận DB đang là gì: `SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='X' AND COLUMN_NAME='CreatedBy'`
-2. Xác nhận C# entity property type là gì.
-3. Nếu DB = uniqueidentifier, C# = string → áp ValueConverter (Guid path).
-4. Nếu DB = nvarchar, C# = string → KHÔNG áp converter (Nvarchar path).
-5. Đừng đổi schema DB chỉ để khớp C# — sửa entity hoặc thêm converter rẻ hơn nhiều.
+1. Confirm what the DB is: `SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='X' AND COLUMN_NAME='CreatedBy'`
+2. Confirm the C# entity property type.
+3. If DB = uniqueidentifier, C# = string → apply the ValueConverter (Guid path).
+4. If DB = nvarchar, C# = string → do NOT apply the converter (Nvarchar path).
+5. Don't change the DB schema just to match C# — editing the entity or adding a converter is far cheaper.

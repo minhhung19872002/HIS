@@ -1,55 +1,55 @@
 ---
 name: his-fe-library-policy
-description: Use this skill before generating or refactoring any HIS frontend code to make a deliberate, justified library choice per category (forms, validation, API/data-fetching, client state, dates, charts, testing, error handling) instead of reflexively reusing one pattern ("code đại trà"). Triggers include creating/editing a page/component/form/api-client/hook in frontend/src, deciding how to fetch data or manage state, adding a form with validation, picking a chart or test approach, or any "which library should I use / nên dùng thư viện nào" decision. Encodes the HIS DEFAULT per category (Antd v6 Form + _v2kit CrudModal/applyServerErrors for forms, axios apiClient + useEffect/refetch for data, local useState + Context for state, dayjs for dates, recharts for charts, Cypress + Playwright for tests) AND a controlled adoption path for libraries NOT yet installed (react-hook-form + zod + @hookform/resolvers, @tanstack/react-query, Zustand, Vitest + Testing Library): permitted only when measurably better for that case, with explicit user approval + npm install + incremental coexistence, never a blanket rewrite of existing Antd-Form/axios pages. Do NOT use for backend/SQL library choices, and never as a license to introduce a new dependency silently. Pair with his-fe-convention, his-fe-page-v2, his-fe-api-client, his-fe-performance, core-architecture-consistency, core-minimal-change.
+description: Use this skill before generating or refactoring any HIS frontend code to make a deliberate, justified library choice per category (forms, validation, API/data-fetching, client state, dates, charts, testing, error handling) instead of reflexively reusing one pattern ("mass-produced code"). Triggers include creating/editing a page/component/form/api-client/hook in frontend/src, deciding how to fetch data or manage state, adding a form with validation, picking a chart or test approach, or any "which library should I use" decision. Encodes the HIS DEFAULT per category (Antd v6 Form + _v2kit CrudModal/applyServerErrors for forms, axios apiClient + useEffect/refetch for data, local useState + Context for state, dayjs for dates, recharts for charts, Cypress + Playwright for tests) AND a controlled adoption path for libraries NOT yet installed (react-hook-form + zod + @hookform/resolvers, @tanstack/react-query, Zustand, Vitest + Testing Library): permitted only when measurably better for that case, with explicit user approval + npm install + incremental coexistence, never a blanket rewrite of existing Antd-Form/axios pages. Do NOT use for backend/SQL library choices, and never as a license to introduce a new dependency silently. Pair with his-fe-convention, his-fe-page-v2, his-fe-api-client, his-fe-performance, core-architecture-consistency, core-minimal-change.
 metadata:
   type: project
 ---
 
 # HIS Frontend — Library Decision Policy
 
-> TẦNG: **B · HIS (FE)**. Kỷ luật **cân nhắc + giải thích chọn thư viện** TRƯỚC khi gen/refactor code FE —
-> để code **fit-for-purpose**, KHÔNG "code đại trà" (phản xạ lặp 1 pattern cho mọi bài toán).
-> Đi CÙNG `his-fe-convention` (guardrail) + skill code-gen (`his-fe-page-v2`/`his-fe-api-client`).
+> TIER: **B · HIS (FE)**. The discipline of **considering + explaining the library choice** BEFORE generating/refactoring FE code —
+> so code is **fit-for-purpose**, NOT "mass-produced" (reflexively repeating one pattern for every problem).
+> Goes TOGETHER WITH `his-fe-convention` (guardrail) + the code-gen skill (`his-fe-page-v2`/`his-fe-api-client`).
 
-## Nguyên tắc vàng
-1. **Cân nhắc trước khi viết:** mỗi lần gen FE, với mỗi nhóm (form / validate / data-fetch / state / date / chart / test / error) → nêu RÕ 1 dòng "dùng X vì Y". Không mặc định copy pattern cũ mà không nghĩ.
-2. **Mặc định = lib HIS đang dùng** (bảng dưới) → giữ nhất quán, không phá 200+ page, không thêm dep thừa.
-3. **Tích hợp lib MỚI khi tối ưu rõ rệt** (đo được/lý do cụ thể) — KHÔNG cấm tuyệt đối, nhưng qua **cổng**: (a) giải thích tại sao default không đủ → (b) **hỏi user duyệt** → (c) `npm install` → (d) **coexist** (chỉ áp cho code MỚI, KHÔNG mass-rewrite code cũ) → (e) build/typecheck/eslint pass.
-4. **Không over-engineer:** lib mới thêm phụ thuộc + learning-curve + bundle → chỉ khi giá trị > chi phí (`core-minimal-change`, `his-fe-performance` đo trước khi tối ưu).
+## Golden principles
+1. **Consider before writing:** each time you gen FE, for each group (form / validate / data-fetch / state / date / chart / test / error) → state a clear 1-line "use X because Y". Don't default-copy the old pattern without thinking.
+2. **Default = the lib HIS already uses** (table below) → stay consistent, don't break 200+ pages, don't add surplus deps.
+3. **Adopt a NEW lib when there's a clear win** (measurable/specific reason) — NOT absolutely forbidden, but through a **gate**: (a) explain why the default isn't enough → (b) **ask the user to approve** → (c) `npm install` → (d) **coexist** (apply only to NEW code, do NOT mass-rewrite old code) → (e) build/typecheck/eslint pass.
+4. **Don't over-engineer:** a new lib adds a dependency + learning-curve + bundle → only when the value > the cost (`core-minimal-change`, `his-fe-performance` measure before optimizing).
 
-## Khi nào dùng
-- Trước khi tạo/sửa page, component, form, api client, hook; khi chọn cách fetch data / quản state / validate / vẽ chart / viết test.
+## When to use
+- Before creating/editing a page, component, form, api client, hook; when choosing how to fetch data / manage state / validate / draw a chart / write a test.
 
-## Khi nào KHÔNG dùng
-- Chọn lib BE/SQL → `his-be-*`. KHÔNG dùng skill này để lén thêm dep (luôn cần user duyệt).
+## When NOT to use
+- Choosing a BE/SQL lib → `his-be-*`. Do NOT use this skill to sneak in a dep (always needs user approval).
 
-## Bảng quyết định (DEFAULT HIS · CONSIDER lib mới khi…)
+## Decision table (HIS DEFAULT · CONSIDER a new lib when…)
 
-| Nhóm | DEFAULT (đang dùng, ưu tiên) | CONSIDER lib mới khi… (qua cổng mục 3) |
+| Group | DEFAULT (in use, preferred) | CONSIDER a new lib when… (via the gate in §3) |
 |---|---|---|
-| **Form** | **Antd v6 `Form`** + `_v2kit` `CrudModal`/`applyServerErrors` (`form.validateFields`) | `react-hook-form` (+`@hookform/resolvers`): form **rất phức tạp** (mảng động lớn, nested sâu, cross-field, re-render nặng đo được) mà Antd Form vướng |
-| **Validate** | Antd `Form` rules (client) + **BE là authoritative** (P0 — không tin client) | `zod`: schema dùng chung/nhiều nơi, parse dữ liệu ngoài, validate phức tạp tái dùng |
-| **Data fetch** | **axios** (`api/*` qua `apiClient`) + `useEffect`+`useState`+`.then`/`reload()` (hoặc hook nhỏ) | `@tanstack/react-query`: cần **cache/refetch/invalidate/optimistic/pagination** chia sẻ nhiều component (server-state nặng) |
-| **HTTP** | **axios** (`apiClient` — interceptor token sẵn) | `fetch` thuần chỉ khi có lý do (stream, không cần interceptor) — phải justify |
-| **State** | **local `useState` trước** → **Context** cho cross-tree | `Zustand`: global client-state chia sẻ rộng, update thường xuyên, Context gây re-render đau (đo được). **TRÁNH Redux** |
-| **Date** | **`dayjs`** (luôn) | — |
-| **Chart** | **`recharts`** (đã dùng: Dashboard, LabQC Levey-Jennings) | lib chart khác chỉ khi recharts không vẽ được loại biểu đồ cần |
-| **Test** | **Cypress** (E2E + component) + **Playwright** (E2E) | `Vitest` + `@testing-library`: unit/logic/hook test nhanh (cần cài + setup) |
-| **Error** | `ErrorBoundary` ở ranh giới route/page · **KHÔNG silent fail** (`message` + `console.warn` lỗi-dự-kiến / `console.error` bất ngờ) · đủ error/loading/empty (`core-error-loading-state`) | — |
+| **Form** | **Antd v6 `Form`** + `_v2kit` `CrudModal`/`applyServerErrors` (`form.validateFields`) | `react-hook-form` (+`@hookform/resolvers`): a **very complex** form (large dynamic arrays, deep nesting, cross-field, measurable heavy re-render) that Antd Form struggles with |
+| **Validate** | Antd `Form` rules (client) + **BE is authoritative** (P0 — don't trust the client) | `zod`: a schema shared/reused in many places, parsing external data, complex reusable validation |
+| **Data fetch** | **axios** (`api/*` via `apiClient`) + `useEffect`+`useState`+`.then`/`reload()` (or a small hook) | `@tanstack/react-query`: need **cache/refetch/invalidate/optimistic/pagination** shared across many components (heavy server-state) |
+| **HTTP** | **axios** (`apiClient` — interceptor token built in) | plain `fetch` only with a reason (stream, no interceptor needed) — must justify |
+| **State** | **local `useState` first** → **Context** for cross-tree | `Zustand`: widely-shared global client-state, frequent updates, Context causing painful re-renders (measurable). **AVOID Redux** |
+| **Date** | **`dayjs`** (always) | — |
+| **Chart** | **`recharts`** (in use: Dashboard, LabQC Levey-Jennings) | another chart lib only when recharts can't draw the needed chart type |
+| **Test** | **Cypress** (E2E + component) + **Playwright** (E2E) | `Vitest` + `@testing-library`: fast unit/logic/hook tests (needs install + setup) |
+| **Error** | `ErrorBoundary` at the route/page boundary · **NO silent fail** (`message` + `console.warn` expected-error / `console.error` unexpected) · complete error/loading/empty (`core-error-loading-state`) | — |
 
-> Lib hiện **CÓ** trong `package.json`: antd, axios, dayjs, recharts, react-router-dom, @microsoft/signalr, cornerstone, qrcode.react, xlsx, cypress, @playwright/test.
-> Lib **CHƯA cài** (cần cổng mục 3 mới thêm): react-hook-form, zod, @hookform/resolvers, @tanstack/react-query, zustand, vitest, @testing-library/*.
+> Libs currently **IN** `package.json`: antd, axios, dayjs, recharts, react-router-dom, @microsoft/signalr, cornerstone, qrcode.react, xlsx, cypress, @playwright/test.
+> Libs **NOT yet installed** (need the §3 gate to add): react-hook-form, zod, @hookform/resolvers, @tanstack/react-query, zustand, vitest, @testing-library/*.
 
-## Quy tắc khi THÊM lib mới (bắt buộc đủ 5)
-1. Nêu vấn đề default không giải quyết tốt (cụ thể, đo được nếu là perf).
-2. **Hỏi user duyệt** (lib + lý do + chi phí bundle/dep) — KHÔNG tự cài.
-3. `npm install` đúng package (+ devDependency nếu là test/tooling).
-4. **Coexist:** chỉ dùng cho phần MỚI; KHÔNG mass-migrate Antd-Form/axios/Context cũ (`core-minimal-change`, backward-compat).
-5. Build-gate: `npm run build` (tsc -b + vite) EXIT 0 + eslint pass mới báo xong.
+## Rules when ADDING a new lib (all 5 mandatory)
+1. State the problem the default doesn't solve well (specific, measurable if perf).
+2. **Ask the user to approve** (the lib + reason + bundle/dep cost) — do NOT install on your own.
+3. `npm install` the right package (+ devDependency if it's test/tooling).
+4. **Coexist:** use it only for the NEW part; do NOT mass-migrate old Antd-Form/axios/Context (`core-minimal-change`, backward-compat).
+5. Build-gate: `npm run build` (tsc -b + vite) EXIT 0 + eslint pass before reporting done.
 
-## Chất lượng (P0 — luôn áp)
-- Pass **eslint** + **typecheck** + **build** trước khi báo xong (đã là build-gate `his-qa-anti-pattern` #27).
-- Không thêm dep "phòng xa"; không introduce lib mới rồi để code cũ + mới lệch pattern không lý do.
+## Quality (P0 — always apply)
+- Pass **eslint** + **typecheck** + **build** before reporting done (already the build-gate `his-qa-anti-pattern` #27).
+- Don't add a "just-in-case" dep; don't introduce a new lib then leave old + new code on divergent patterns for no reason.
 
-## Liên quan
-`his-fe-convention` (ANTD-FIRST + layer) · `his-fe-page-v2` (page v2 `_v2kit`) · `his-fe-api-client` (axios pattern) · `his-fe-performance` (đo trước khi tối ưu) · `core-architecture-consistency` (theo tiền lệ) · `core-minimal-change` (YAGNI).
+## Related
+`his-fe-convention` (ANTD-FIRST + layer) · `his-fe-page-v2` (v2 page `_v2kit`) · `his-fe-api-client` (axios pattern) · `his-fe-performance` (measure before optimizing) · `core-architecture-consistency` (follow precedent) · `core-minimal-change` (YAGNI).

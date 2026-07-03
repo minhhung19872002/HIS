@@ -5,82 +5,82 @@ metadata:
   type: project
 ---
 
-# Clean Code — viết code dễ bảo trì / nâng cấp / sửa chữa
+# Clean Code — writing maintainable / upgradable / fixable code
 
-Áp cho **MỌI** lần viết/sửa code (FE + BE). Mục tiêu: không chỉ đúng luồng + logic nghiệp vụ, mà còn
-**clean code · tái sử dụng · dễ bảo trì · dễ mở rộng / thay đổi / sửa chữa**. Đây là quy tắc mức
-**hàm / câu lệnh** — bổ sung cho các skill cấu trúc đã có (xem "Không lặp lại" cuối file).
+Apply on **EVERY** code write/edit (FE + BE). Goal: not just a correct flow + business logic, but also
+**clean code · reuse · maintainable · easy to extend / change / fix**. These are **function / statement**-level
+rules — complementary to the existing structural skills (see "Don't duplicate" at the end).
 
-## Khi nào dùng
-- Khi viết hoặc refactor bất kỳ hàm/class/component/service nào (FE+BE).
-- Khi review diff trước khi báo xong / commit.
-- Khi thấy code dài ra, lồng sâu, lặp lại, hoặc khó hiểu.
+## When to use
+- When writing or refactoring any function/class/component/service (FE+BE).
+- When reviewing a diff before reporting done / committing.
+- When code is getting long, deeply nested, duplicated, or hard to understand.
 
-## Khi nào KHÔNG dùng
-- Không tự tạo file — là skill quy tắc, áp **NGAY trong lúc viết code** cùng skill code-gen.
+## When NOT to use
+- Don't create a file — this is a rule skill, applied **right while writing code** alongside the code-gen skill.
 
-## 1. Thiết kế hàm (function design)
-- **Single Responsibility** — 1 hàm làm 1 việc; tên mô tả đúng việc đó. Hàm "và/hoặc" → tách.
-- **Ngắn** — hàm quá dài (> ~50–60 dòng / nhiều mức trừu tượng) → tách helper/usecase.
-- **Guard clause / early-return** — kiểm tra điều kiện sai/biên rồi `return` sớm; tránh lồng `if` sâu (> 2–3 cấp).
-- **Ít tham số** — > 3–4 tham số → gói thành object/options. **KHÔNG dùng boolean-flag arg** (`doX(true)`) → tách 2 hàm hoặc enum.
-- **Pure khi có thể** — input → output, không side-effect ẩn; tách phần thuần khỏi phần I/O để dễ test.
-- **Command–Query separation** — hàm hoặc *làm* (mutate) hoặc *trả về* (query), không lẫn lộn gây khó đoán.
+## 1. Function design
+- **Single Responsibility** — 1 function does 1 thing; the name describes exactly that. An "and/or" function → split.
+- **Short** — a too-long function (> ~50–60 lines / many abstraction levels) → extract a helper/usecase.
+- **Guard clause / early-return** — check wrong/edge conditions then `return` early; avoid deep `if` nesting (> 2–3 levels).
+- **Few parameters** — > 3–4 params → bundle into an object/options. Do **NOT** use a boolean-flag arg (`doX(true)`) → split into 2 functions or an enum.
+- **Pure when possible** — input → output, no hidden side-effect; separate the pure part from I/O to ease testing.
+- **Command–Query separation** — a function either *does* (mutates) or *returns* (queries), not both, which is hard to predict.
 
-## 2. Đặt tên & hằng số (self-documenting)
-- Tên **lộ ý định** (intention-revealing); đọc tên hiểu việc, không cần đọc thân hàm. (Chi tiết convention FE: `his-fe-convention` §1.)
-- **KHÔNG magic number / magic string** rải trong code → đưa vào **named constant / enum** đặt tập trung
-  (FE: `constants/`, `STATUS_TABS`…; BE: const/enum trong Core). Số 0/1/2 trạng thái phải có nhãn.
-- Không tên mơ hồ `data/info/temp/handle/process/manager` đứng một mình — gắn domain.
+## 2. Naming & constants (self-documenting)
+- **Intention-revealing** names; reading the name tells you what it does, without reading the body. (FE convention detail: `his-fe-convention` §1.)
+- **NO magic number / magic string** scattered in code → move into a **named constant / enum** placed centrally
+  (FE: `constants/`, `STATUS_TABS`…; BE: const/enum in Core). A 0/1/2 status must have a label.
+- No vague standalone names `data/info/temp/handle/process/manager` — attach the domain.
 
-## 3. Comment & dọn rác
-- Comment giải thích **WHY** (lý do/nghiệp vụ/edge-case), KHÔNG mô tả lại WHAT code đã nói.
-- Doc ngắn cho **API dùng chung / public** (component shared, service, hàm phức tạp).
-- **KHÔNG để code chết / code comment-out** ("để dành sau") — xoá, git giữ lịch sử.
-- **KHÔNG để rác debug**: `console.log`, `print`, biến/import không dùng, TODO mồ côi không ngày/không chủ.
+## 3. Comment & cleanup
+- A comment explains **WHY** (reason/business/edge-case), NOT restate WHAT the code already says.
+- Short docs for a **shared / public API** (shared component, service, complex function).
+- **Do NOT keep dead code / commented-out code** ("for later") — delete it, git keeps history.
+- **Do NOT leave debug junk**: `console.log`, `print`, unused vars/imports, orphan TODOs with no date/no owner.
 
-## 4. Bất biến & state (immutability)
-- Ưu tiên `const`; cập nhật **bất biến** (spread/clone) thay vì mutate trực tiếp props/state/tham số đầu vào.
-- **Single source of truth** — không lưu trùng state suy ra được; **derived state** tính bằng `useMemo`/selector, không copy thành state riêng dễ lệch.
-- Tránh shared mutable global; state đặt đúng cấp (local vs context — xem `his-fe-convention` §3).
+## 4. Immutability & state
+- Prefer `const`; update **immutably** (spread/clone) instead of mutating props/state/input args directly.
+- **Single source of truth** — don't store derivable state twice; compute **derived state** with `useMemo`/selector, don't copy it into separate state that can drift.
+- Avoid shared mutable globals; put state at the right level (local vs context — see `his-fe-convention` §3).
 
-## 5. DRY có chừng mực + coupling/cohesion
-- **DRY** nhưng theo **rule-of-three**: lặp lần 3 mới trừu tượng hoá — tránh abstraction non (over-engineer; xem `core-minimal-change`).
-- **High cohesion** (gom thứ liên quan), **low coupling** (giảm phụ thuộc chéo); module/hàm biết càng ít về bên ngoài càng tốt.
-- **Depend on abstraction** (interface/contract) thay vì implementation cụ thể, để thay/sửa không lan rộng (xem `core-types-contract`, `core-architecture-follow`).
+## 5. Measured DRY + coupling/cohesion
+- **DRY** but by the **rule-of-three**: abstract on the 3rd repetition — avoid premature abstraction (over-engineering; see `core-minimal-change`).
+- **High cohesion** (group related things), **low coupling** (reduce cross-dependency); a module/function should know as little about the outside as possible.
+- **Depend on abstraction** (interface/contract) instead of a concrete implementation, so changes don't spread (see `core-types-contract`, `core-architecture-follow`).
 
-## 6. Mở cho thay đổi (open-for-change → dễ nâng cấp)
-- **Config / data-driven** thay chuỗi `if/else`/`switch` dài: map/lookup table, strategy, registry (FE: option/field config; BE: dictionary/strategy).
-- Thêm case mới = **thêm dữ liệu/nhánh nhỏ**, không phải sửa lõi (Open–Closed tinh thần).
-- Cô lập điểm dễ đổi (giá, mã nghiệp vụ, ngưỡng, URL cổng) vào config/constant — đổi 1 nơi.
+## 6. Open for change (open-for-change → easy to upgrade)
+- **Config / data-driven** instead of long `if/else`/`switch` chains: map/lookup table, strategy, registry (FE: option/field config; BE: dictionary/strategy).
+- Adding a new case = **adding data/a small branch**, not editing the core (Open–Closed spirit).
+- Isolate change-prone points (price, business code, threshold, gateway URL) into config/constant — change in one place.
 
 ## 7. Async & side-effect hygiene
-- **Không floating promise** — luôn `await` hoặc `.catch`; không bỏ lửng promise có thể lỗi.
-- `useEffect`/listener/timer/subscription → **cleanup** (return unsubscribe) tránh leak + cập nhật sau unmount.
-- Tránh **race condition** (giữ request mới nhất / AbortController); thao tác ghi nên **idempotent** khi có thể (xem `his-db-migration`, `his-be-background-worker`).
-- **Không side-effect trong render**; gọi API/log/timer đặt trong effect/handler.
+- **No floating promise** — always `await` or `.catch`; don't leave a possibly-failing promise dangling.
+- `useEffect`/listener/timer/subscription → **cleanup** (return unsubscribe) to avoid leaks + updates after unmount.
+- Avoid **race conditions** (keep the latest request / AbortController); a write op should be **idempotent** when possible (see `his-db-migration`, `his-be-background-worker`).
+- **No side-effect in render**; put API calls/log/timer in an effect/handler.
 
-## 8. An toàn & phòng thủ
-- **Null/undefined safety**: optional chaining `?.` + nullish `??`; kiểm biên mảng/đối tượng trước truy cập.
-- Không tin input ngoài — validate ở biên (FE+BE), BE là chuẩn (xem `core-validation-pattern`).
-- Không log secret/PII; không nuốt exception im lặng (xem `his-qa-anti-pattern`).
+## 8. Safety & defense
+- **Null/undefined safety**: optional chaining `?.` + nullish `??`; bounds-check arrays/objects before access.
+- Don't trust external input — validate at the boundary (FE+BE), BE is authoritative (see `core-validation-pattern`).
+- Don't log secret/PII; don't silently swallow exceptions (see `his-qa-anti-pattern`).
 
-## 9. Self-review clean-code (tự rà mỗi diff)
-- [ ] Hàm có **SRP** + đủ ngắn? Lồng ≤ 2–3 cấp (đã dùng guard clause)?
-- [ ] Tham số ≤ ~4, không boolean-flag arg?
-- [ ] Không magic number/string? Hằng số đặt tập trung?
-- [ ] Tên lộ ý định, theo convention?
-- [ ] Không code chết / comment-out / debug rác / import thừa?
-- [ ] State: single source of truth, derived dùng memo, cập nhật bất biến?
-- [ ] Trùng lặp: đã reuse/trừu tượng đúng mức (rule-of-three, không non)?
-- [ ] Async: không floating promise, effect có cleanup, không race?
-- [ ] Null-safe ở biên? Không nuốt lỗi?
-- [ ] Điểm dễ đổi đã cô lập vào config/constant (dễ nâng cấp sau)?
-- [ ] **Build/typecheck sạch** (FE+BE tầng đã sửa) TRƯỚC khi báo xong — không claim success khi chưa verify (HIS: xem `his-qa-anti-pattern` #27).
+## 9. Clean-code self-review (self-check every diff)
+- [ ] Function has **SRP** + short enough? Nesting ≤ 2–3 levels (used guard clauses)?
+- [ ] Parameters ≤ ~4, no boolean-flag arg?
+- [ ] No magic number/string? Constants placed centrally?
+- [ ] Names intention-revealing, follow the convention?
+- [ ] No dead code / commented-out / debug junk / unused imports?
+- [ ] State: single source of truth, derived via memo, immutable updates?
+- [ ] Duplication: reused/abstracted at the right level (rule-of-three, not premature)?
+- [ ] Async: no floating promise, effects have cleanup, no race?
+- [ ] Null-safe at boundaries? No swallowed errors?
+- [ ] Change-prone points isolated into config/constant (easy to upgrade later)?
+- [ ] **Build/typecheck clean** (FE+BE touched tier) BEFORE reporting done — don't claim success without verifying (HIS: see `his-qa-anti-pattern` #27).
 
-## Không lặp lại (dùng kèm, không chồng chéo)
-`core-reusable-code` (tìm-dùng-lại trước khi tạo) · `core-architecture-follow`/`-consistency` (ranh giới
-layer + theo tiền lệ) · `core-minimal-change` (YAGNI, không over-engineer) · `core-refactor` (dọn giữ
+## Don't duplicate (use alongside, no overlap)
+`core-reusable-code` (find-and-reuse before creating) · `core-architecture-follow`/`-consistency` (layer
+boundaries + follow precedent) · `core-minimal-change` (YAGNI, no over-engineering) · `core-refactor` (cleanup preserving
 behavior) · `core-types-contract` (contract) · `core-validation-pattern` (validate) · `core-error-loading-state`
-(loading/empty/error UI) · `his-fe-convention` (naming/folder/component FE, Antd-first) · `his-qa-anti-pattern`
-(footgun/an toàn/patient-safety). Skill này chỉ thêm phần **clean-code mức hàm/câu lệnh** cho cả FE+BE.
+(loading/empty/error UI) · `his-fe-convention` (FE naming/folder/component, Antd-first) · `his-qa-anti-pattern`
+(footgun/safety/patient-safety). This skill only adds the **function/statement-level clean-code** part for both FE+BE.

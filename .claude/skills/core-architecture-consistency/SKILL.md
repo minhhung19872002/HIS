@@ -7,41 +7,40 @@ metadata:
 
 # Core — Architecture Consistency (portable)
 
-> TẦNG: **A · CORE** (dùng chung). Gộp: consistency + scalability awareness.
+> TIER: **A · CORE** (shared). Combines: consistency + scalability awareness.
 
 ## Purpose
-Giữ code mới **nhất quán** với structure/naming/convention/pattern **đã có** của dự án — để hệ thống lớn
-lên vẫn đồng nhất, dễ maintain.
+Keep new code **consistent** with the project's **existing** structure/naming/convention/pattern — so the system stays uniform and maintainable as it grows.
 
-## Khi nào dùng
-- Thêm feature → bám đúng cách các feature cùng loại đang làm.
-- Review diff xem có lệch convention/pattern không.
-- Phát hiện 2 chỗ cùng mục đích nhưng làm khác nhau → chuẩn hoá.
+## When to use
+- Adding a feature → follow exactly how similar features are already done.
+- Reviewing a diff for convention/pattern deviations.
+- Spotting 2 places that do the same thing differently → standardize.
 
-## Khi nào KHÔNG dùng
-- Cơ chế cụ thể theo stack → `his-*`.
+## When NOT to use
+- Stack-specific mechanics → `his-*`.
 
-## Nguyên tắc
-1. **Theo mẫu đang có**: tìm 1-2 feature/màn hình tương tự gần nhất, làm GIỐNG cách đó (cấu trúc thư mục,
-   đặt tên, cách tách file, cách gọi layer).
-2. **Một cách làm cho một việc**: không tạo cách thứ 2 cho cùng mục đích.
-3. **Naming nhất quán**: theo quy ước hiện hành, không trộn nhiều style.
-4. **Scalability**: chọn cách mở rộng được khi số lượng module/feature tăng (không hardcode giới hạn,
-   không pattern chỉ chạy cho 1 trường hợp).
-5. KHÔNG tự đặt convention mới khi đã có convention.
+## Principles
+1. **Follow the existing pattern**: find the 1-2 nearest similar features/screens, do it the SAME way (folder structure,
+   naming, file splitting, how layers are called).
+2. **One way to do one thing**: don't create a 2nd way for the same purpose.
+3. **Consistent naming**: follow the current convention, don't mix multiple styles.
+4. **Scalability**: pick an approach that scales as the number of modules/features grows (no hard-coded limits,
+   no pattern that only works for one case).
+5. Do NOT invent a new convention when one already exists.
 
 ## Steps
-1. Tìm tiền lệ gần nhất trong codebase.
-2. Đối chiếu naming/structure/pattern.
-3. Làm theo; nếu buộc phải lệch → nêu lý do rõ ràng.
+1. Find the nearest precedent in the codebase.
+2. Compare naming/structure/pattern.
+3. Follow it; if you must deviate → state the reason clearly.
 
-## Anti-patterns cần tránh
-- "Mỗi nơi một kiểu" cho cùng một việc.
-- Đặt convention mới song song convention cũ.
-- Pattern không scale (chỉ đúng cho 1 case).
+## Anti-patterns to avoid
+- "A different style in each place" for the same thing.
+- A new convention parallel to the old one.
+- A non-scaling pattern (correct for only 1 case).
 
 ## Dependency
-- Kèm `core-architecture-follow`, `core-refactor`. Skill `his-*` quality (vd anti-pattern) depend skill này.
+- Goes with `core-architecture-follow`, `core-refactor`. The `his-*` quality skills (e.g. anti-pattern) depend on this skill.
 
 ## When to update
-- Khi bổ sung nguyên tắc consistency/scalability chung.
+- When adding a general consistency/scalability principle.

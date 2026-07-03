@@ -5,7 +5,7 @@ metadata:
   type: reference
 ---
 
-B1.5 "Theo doi dieu tri" first slice is implemented in `frontend/src/pages-v2/inpatient/TreatmentMonitorSection.tsx`.
+B1.5 "Treatment monitoring" first slice is implemented in `frontend/src/pages-v2/inpatient/TreatmentMonitorSection.tsx`.
 
 It is rendered inside the patient detail `DrawerShell` in `Inpatient.tsx` (after the warnings section), passing `patient: InpatientListDto` and `onRefresh: loadData`.
 
@@ -22,7 +22,7 @@ It is rendered inside the patient detail `DrawerShell` in `Inpatient.tsx` (after
 - `createNutritionOrder` (line 1470) — dto fields: admissionId, orderDate, mealType, nutritionLevel, menuCode?, specialRequirements?
 
 **Deferred (B1.5 next slices):**
-- `createInfusionRecord` — infusion / truyen dich
+- `createInfusionRecord` — IV infusion
 - `createBloodTransfusion` — blood transfusion
 - `getBillingStatement6556` — billing statement form 6556
 

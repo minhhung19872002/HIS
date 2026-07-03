@@ -7,71 +7,71 @@ metadata:
 
 # HIS Ant Design v6 Conventions
 
-Skill ghi nhớ cách dùng **Ant Design v6** đúng trong HIS và tránh các deprecated props đã được migrate hàng loạt (xem CLAUDE.md "Antd v6 Migration Notes"). Áp dụng chủ yếu cho page v1 (`pages/`, MainLayout). Page v2 dùng design pack riêng — xem `his-fe-page-v2`.
+A skill recording how to use **Ant Design v6** correctly in HIS and avoid the deprecated props that were mass-migrated (see CLAUDE.md "Antd v6 Migration Notes"). Mainly applies to v1 pages (`pages/`, MainLayout). v2 pages use a separate design pack — see `his-fe-page-v2`.
 
-## Khi nào dùng
+## When to use
 
-- Viết/sửa component Antd trong page v1.
-- Fix console warning/error kiểu `[antd: ...] deprecated`.
-- Thấy prop cũ (`Space direction`, `Alert message`, `Drawer width`...) cần đổi sang API v6.
+- Writing/editing an Antd component in a v1 page.
+- Fixing a console warning/error like `[antd: ...] deprecated`.
+- Seeing an old prop (`Space direction`, `Alert message`, `Drawer width`...) that needs the v6 API.
 
-## Khi nào KHÔNG dùng
+## When NOT to use
 
-- Page v2 (`pages-v2/`, `_v2kit`, `ab-*`) → dùng `his-fe-page-v2`.
-- Logic API/test → dùng skill tương ứng.
+- A v2 page (`pages-v2/`, `_v2kit`, `ab-*`) → use `his-fe-page-v2`.
+- API/test logic → use the matching skill.
 
-## Deprecated props → API v6 (BẮT BUỘC đổi)
+## Deprecated props → v6 API (MANDATORY to change)
 
-| Component | Prop CŨ (deprecated) | Prop MỚI v6 |
+| Component | OLD prop (deprecated) | NEW v6 prop |
 |---|---|---|
 | `Space` | `direction="vertical"` | `orientation="vertical"` |
 | `Alert` | `message="..."` | `title="..."` |
-| `Drawer` | `width={...}` | `size="default"\|"large"` (hoặc `size={number}`) |
+| `Drawer` | `width={...}` | `size="default"\|"large"` (or `size={number}`) |
 | `Timeline` | `<Timeline><Timeline.Item>` + `children` | `items={[{ content, ... }]}` |
-| `List` (deprecated component) | `<List dataSource render/>` | div-based custom render (tránh blank render bug) |
+| `List` (deprecated component) | `<List dataSource render/>` | div-based custom render (avoid the blank-render bug) |
 | `Tabs` | `tabPosition="..."` | `tabPlacement="..."` |
 | `Modal`/`Drawer` | `destroyOnClose` | `destroyOnHidden` |
 | `Statistic` | `valueStyle={...}` | `styles={{ content: {...} }}` |
 
-→ Chi tiết + ví dụ trước/sau: `references/deprecations-cheatsheet.md`.
+→ Detail + before/after examples: `references/deprecations-cheatsheet.md`.
 
-## Convention bổ sung
+## Additional conventions
 
 ### API error logging
-Theo convention dự án: log lỗi API kỳ vọng (expected failure) bằng **`console.warn`**, KHÔNG `console.error`. (Test smoke bắt `console.error` — dùng `error` sẽ làm fail test.)
+Per project convention: log an expected API failure with **`console.warn`**, NOT `console.error`. (The smoke test catches `console.error` — using `error` will fail the test.)
 
 ### Empty / Loading / Error state
-- Loading: bọc `<Spin>` quanh nội dung.
-- Empty: hiển thị "Chưa có dữ liệu" (Antd `<Empty>` hoặc text).
-- Error fetch: `message.warning(...)` / `message.error(...)` + set state rỗng (KHÔNG hiện mock data).
+- Loading: wrap the content in `<Spin>`.
+- Empty: show "No data yet" (Antd `<Empty>` or text).
+- Fetch error: `message.warning(...)` / `message.error(...)` + set empty state (do NOT show mock data).
 
 ### Form
-- Dùng `Form.useForm()` + `Form.Item name=...`. Tránh warning "not connected to any Form element" (đặt input trong `<Form>`).
+- Use `Form.useForm()` + `Form.Item name=...`. Avoid the "not connected to any Form element" warning (put the input inside `<Form>`).
 
 ### Icon
-Page v1 dùng `@ant-design/icons`. Page v2 dùng `TermIcon` (`layouts/terminal/Icon`) — KHÔNG trộn.
+v1 pages use `@ant-design/icons`. v2 pages use `TermIcon` (`layouts/terminal/Icon`) — do NOT mix.
 
-## Pitfalls (đã dính)
+## Pitfalls (hit before)
 
-- **`List` deprecated render blank**: component `List` cũ render trắng ở 1 số case → đã thay bằng div custom ở 6 page (Prescription, Dashboard, Quality, HR, EmergencyDisaster, PatientPortal). Khi gặp List → cân nhắc div-based.
-- **`console.error` làm fail smoke test**: đổi sang `console.warn` cho lỗi API kỳ vọng.
-- **`destroyOnClose` cảnh báo deprecated** → `destroyOnHidden`.
-- **Trộn v1/v2 UI**: KHÔNG import `_v2kit`/`ab-*` vào page v1, và ngược lại không dùng Antd primitive thô trong page v2 (page v2 dùng design pack).
-- **Hardcode tên BV/URL**: dùng `constants/hospital.ts` (HOSPITAL_NAME/ADDRESS/PHONE), env `VITE_ORTHANC_URL`...
+- **`List` deprecated renders blank**: the old `List` component renders blank in some cases → replaced with a custom div on 6 pages (Prescription, Dashboard, Quality, HR, EmergencyDisaster, PatientPortal). When you hit List → consider div-based.
+- **`console.error` fails the smoke test**: switch to `console.warn` for an expected API error.
+- **`destroyOnClose` deprecation warning** → `destroyOnHidden`.
+- **Mixing v1/v2 UI**: do NOT import `_v2kit`/`ab-*` into a v1 page, and conversely don't use a raw Antd primitive in a v2 page (v2 pages use the design pack).
+- **Hardcoding the hospital name/URL**: use `constants/hospital.ts` (HOSPITAL_NAME/ADDRESS/PHONE), env `VITE_ORTHANC_URL`...
 
 ## Verify
 ```powershell
 cd frontend
 npx tsc --noEmit
-npm run build           # tsc -b + vite — 0 lỗi/0 deprecated mới
+npm run build           # tsc -b + vite — 0 errors / 0 new deprecations
 ```
-Smoke `console-errors.cy.ts` (Cypress) phải 0 error sau khi sửa.
+The `console-errors.cy.ts` smoke (Cypress) must be 0 errors after the fix.
 
 ## Reference
 
-- `references/deprecations-cheatsheet.md` — bảng before/after từng deprecated prop + ví dụ code
+- `references/deprecations-cheatsheet.md` — a before/after table per deprecated prop + code examples
 
 ## When to update
 
-- Khi nâng Antd lên major mới (v7...) hoặc antd báo deprecated props mới.
-- Khi convention logging/empty-state thay đổi.
+- When upgrading Antd to a new major (v7...) or antd reports new deprecated props.
+- When the logging/empty-state convention changes.

@@ -1,97 +1,97 @@
 ---
 name: core-synthesis-decision
-description: Use this skill (portable, tech-agnostic) for the CONVERGENCE / closing step — synthesize divergent options (open-thinking) + audit findings (critic) + failure-maps (inversion) into ONE defensible decision: define decision criteria, score candidates by win-condition, graft the best ideas from runners-up, then state the chosen option + rationale + residual risks + confidence. It is ALSO the canonical OWNER of how the four thinking modes orchestrate (when to use 1/2/3/4 skills, and the order Open→Inversion→Critic→Synthesis). Triggers include "chốt phương án", "chọn cái nào", closing a design/architecture decision after exploration, or needing to combine multiple analyses into a single action. Do NOT use to generate options (core-open-thinking), to audit one artifact (core-critic), or to pre-mortem / reverse the framing (core-inversion-thinking).
+description: Use this skill (portable, tech-agnostic) for the CONVERGENCE / closing step — synthesize divergent options (open-thinking) + audit findings (critic) + failure-maps (inversion) into ONE defensible decision: define decision criteria, score candidates by win-condition, graft the best ideas from runners-up, then state the chosen option + rationale + residual risks + confidence. It is ALSO the canonical OWNER of how the four thinking modes orchestrate (when to use 1/2/3/4 skills, and the order Open→Inversion→Critic→Synthesis). Triggers include "settle the approach", "which one to pick", closing a design/architecture decision after exploration, or needing to combine multiple analyses into a single action. Do NOT use to generate options (core-open-thinking), to audit one artifact (core-critic), or to pre-mortem / reverse the framing (core-inversion-thinking).
 metadata:
   type: project
 ---
 
-# Core — Synthesis & Decision (hội tụ / chốt quyết định + orchestration)
+# Core — Synthesis & Decision (convergence / decision-closing + orchestration)
 
-> TẦNG: **A · CORE** (portable, tech-agnostic). **CHỦ DUY NHẤT** của §Orchestration cho 4 chế độ tư duy
-> (`core-open-thinking` · `core-inversion-thinking` · `core-critic` · skill này) — nơi khác chỉ **LINK** (`../../REGISTRY.md`).
+> TIER: **A · CORE** (portable, tech-agnostic). The **SINGLE OWNER** of §Orchestration for the 4 thinking modes
+> (`core-open-thinking` · `core-inversion-thinking` · `core-critic` · this skill) — elsewhere only **LINKS** (`../../REGISTRY.md`).
 
-## Mục đích
-Khép pha phân-kỳ-đánh-giá: gộp **options** (Open) + **findings** (Critic) + **failure-map** (Inversion) thành
-**1 quyết định bảo vệ được** — có tiêu chí, có lý do, có rủi ro tồn dư, có confidence. Không sinh thêm option,
-không audit lại từ đầu; **chọn + ghép + chốt**.
+## Purpose
+Close the diverge-evaluate phase: merge **options** (Open) + **findings** (Critic) + **failure-map** (Inversion) into
+**1 defensible decision** — with criteria, rationale, residual risk, confidence. Don't generate more options,
+don't re-audit from scratch; **choose + graft + close**.
 
-## Khi nào dùng
-- Đã có **≥2 phương án** (hoặc 1 phương án + findings/failure-map) và cần **ra quyết định/hành động**.
-- Cuối một vòng thiết kế/kiến trúc sau khi đã mở rộng + stress + audit.
-- Cần **gộp nhiều phân tích** (nhiều agent/nhiều lăng kính) thành một kết luận thống nhất.
+## When to use
+- There are **≥2 options** (or 1 option + findings/failure-map) and you need to **decide/act**.
+- The end of a design/architecture round after widening + stressing + auditing.
+- Need to **merge multiple analyses** (many agents/many lenses) into one unified conclusion.
 
-## Khi nào KHÔNG dùng
-- Chưa có phương án nào → `core-open-thinking` trước.
-- Cần tìm lỗi của 1 bản cụ thể → `core-critic`; cần pre-mortem → `core-inversion-thinking`.
-- Quyết định trivial/đảo-ngược-được → chốt thẳng, không cần skill.
+## When NOT to use
+- No option yet → `core-open-thinking` first.
+- Need to find errors in a concrete artifact → `core-critic`; need a pre-mortem → `core-inversion-thinking`.
+- A trivial/reversible decision → just decide, no skill needed.
 
-## Input cần có
-- **Bắt buộc:** tập phương án **hoặc** (phương án + findings/failure-map); mục tiêu + ràng buộc cứng.
-- **Nên có:** tiêu chí quyết định (nếu chưa có → tự rút từ ràng buộc + win-condition); stakes/độ-đảo-ngược.
+## Required input
+- **Mandatory:** an option set **or** (option + findings/failure-map); the goal + hard constraints.
+- **Should have:** decision criteria (if none → derive from constraints + win-condition); stakes/reversibility.
 
-## Quy trình nội bộ
-1. **Chuẩn hóa input:** liệt kê phương án + gắn kèm findings (Critic) & failure-mode (Inversion) liên quan từng cái.
-2. **Rút tiêu chí quyết định** (từ ràng buộc cứng + win-condition + rủi ro) — 3–6 tiêu chí, có trọng số thô.
-3. **Chấm** mỗi phương án theo tiêu chí; loại phương án vi phạm ràng buộc cứng / có Blocker chưa giải.
-4. **Ghép (graft):** lấy ý hay nhất từ phương án á-quân ghép vào phương án dẫn đầu (nếu tương thích).
-5. **Quyết:** nêu phương án chọn + **vì sao thắng** + **vì sao loại** các phương án khác.
-6. **Rủi ro tồn dư + điều kiện đảo quyết định** ("nếu X xảy ra thì chọn lại Y") + **confidence**.
+## Internal process
+1. **Normalize input:** list the options + attach the relevant findings (Critic) & failure-modes (Inversion) per option.
+2. **Derive decision criteria** (from hard constraints + win-condition + risk) — 3–6 criteria, rough weights.
+3. **Score** each option by the criteria; eliminate options violating a hard constraint / with an unresolved Blocker.
+4. **Graft:** take the best ideas from the runner-up into the leading option (if compatible).
+5. **Decide:** state the chosen option + **why it wins** + **why** the others were eliminated.
+6. **Residual risk + decision-reversal conditions** ("if X happens, reselect Y") + **confidence**.
 
-## Output bắt buộc
-- **Bảng quyết định:** phương án × tiêu chí (điểm) + lý do loại.
-- **Phương án chọn** + bản ghép (nếu có) + rationale.
-- **Rủi ro tồn dư** + **trigger đảo quyết định** + **confidence %**.
-- Phân loại `Fact / Assumption / Speculation` cho các luận cứ then chốt.
+## Required output
+- **Decision table:** option × criteria (scores) + elimination reasons.
+- **Chosen option** + the grafted version (if any) + rationale.
+- **Residual risk** + **decision-reversal trigger** + **confidence %**.
+- Classify `Fact / Assumption / Speculation` for the key arguments.
 
-## Failure modes (anti-patterns — đừng làm)
-- **Giả hội tụ:** chọn theo cảm tính, không tiêu chí, không lý-do-loại.
-- **Trung bình hóa** (gộp mọi option thành "cái lai" nhạt mất win-condition).
-- **Bỏ qua Blocker** của Critic để chọn phương án đẹp; **chốt khi chưa có đủ phương án** (nên Open trước).
-- **Quyết treo** (liệt kê mãi không chốt) — vi phạm chính mục đích skill.
+## Failure modes (anti-patterns — don't do)
+- **Fake convergence:** choosing by gut, no criteria, no elimination reason.
+- **Averaging** (merging all options into a bland hybrid that loses the win-condition).
+- **Ignoring a Critic Blocker** to pick a pretty option; **deciding before there are enough options** (Open first).
+- **Hanging decision** (listing forever without deciding) — violates the skill's very purpose.
 
-## Định vị workflow
-| Thuộc tính | Giá trị |
+## Workflow positioning
+| Attribute | Value |
 |---|---|
-| Tầng | **Hội tụ-cuối / Đóng** — sau Open(+Inversion+Critic) |
-| Ưu tiên | **CAO** khi đã đủ input để quyết; **0** khi chưa có phương án |
-| Bài toán hợp | chốt kiến trúc/chiến lược, gộp nhiều phân tích, ra hành động |
-| Dấu hiệu bật | có ≥2 phương án (hoặc options + findings) + áp lực phải quyết |
+| Tier | **Final-converge / Close** — after Open(+Inversion+Critic) |
+| Priority | **HIGH** when there's enough input to decide; **0** with no option yet |
+| Fits problems | settling architecture/strategy, merging multiple analyses, producing action |
+| Trigger signal | ≥2 options (or options + findings) + pressure to decide |
 
-## §Orchestration — phối hợp 4 chế độ tư duy (CHỦ; nơi khác chỉ link)
+## §Orchestration — coordinating the 4 thinking modes (OWNER; elsewhere only links)
 
-### Bảng so sánh
-| Tiêu chí | 🟢 open-thinking | 🟡 inversion-thinking | 🔴 critic | 🔵 synthesis-decision |
+### Comparison table
+| Criterion | 🟢 open-thinking | 🟡 inversion-thinking | 🔴 critic | 🔵 synthesis-decision |
 |---|---|---|---|---|
-| Mục tiêu | mở rộng tập phương án trực giao | đảo khung → tìm điều làm THẤT BẠI | audit 1 artifact đã có | gộp + chốt 1 quyết định |
-| Đối tượng | không-gian giải pháp | mục tiêu / khung bài toán | 1 artifact tồn tại | tập phương án + findings |
-| Hướng | phân kỳ-tạo | xoay 180° (1 phép) | hội tụ-phá | hội tụ-đóng |
-| Thời điểm | đầu (khung hóa) | giữa (stress / khi bí) | cuối-trước-commit (gate) | cuối (đóng) |
-| Đầu ra | ≥N mô hình + trade-off + câu hỏi-phân-định | failure-map + directive xuôi | findings xếp severity + verdict | bảng quyết định + phương án chọn |
-| Rủi ro lạm dụng | phân kỳ không chốt, breadth giả | đảo cơ học, paralysis | nihilism, bikeshedding | giả hội tụ, trung bình hóa |
-| Ưu tiên | TB-CAO khi mới; THẤP khi đã chốt | TB-CAO theo chi-phí-thất-bại | CAO/BLOCKING khi khó-đảo-ngược | CAO khi đủ input |
+| Goal | widen the orthogonal option set | reframe → find what FAILS | audit one existing artifact | merge + close one decision |
+| Target | the solution space | goal / problem frame | one existing artifact | option set + findings |
+| Direction | diverge-create | turn 180° (one transform) | converge-break | converge-close |
+| Timing | start (framing) | middle (stress / when stuck) | end-before-commit (gate) | end (close) |
+| Output | ≥N models + trade-off + decision-driver questions | failure-map + forward directive | severity-ranked findings + verdict | decision table + chosen option |
+| Misuse risk | diverge without closing, fake breadth | mechanical inversion, paralysis | nihilism, bikeshedding | fake convergence, averaging |
+| Priority | MED-HIGH when new; LOW when settled | MED-HIGH by failure-cost | HIGH/BLOCKING when hard-to-reverse | HIGH when there's enough input |
 
-### Dùng mấy skill?
-- **1 skill:** chỉ Critic (có artifact, sắp commit) · chỉ Inversion (mục tiêu rõ, rủi ro cao, pre-mortem / khi bí) · chỉ Open (vấn đề mới, đang sinh ý) · chỉ Synthesis (đã có sẵn các option, chỉ cần chốt).
-- **2 skill:** Open→Critic (sinh rồi prune — phổ biến nhất) · Open→Inversion (sinh rồi stress/phá khung) · Inversion→Critic (pre-mortem → audit mitigation) · {bất kỳ}→Synthesis (khép quyết định).
-- **3–4 skill (high-stakes / mới / khó-đảo-ngược):** chuỗi đầy đủ.
+### How many skills?
+- **1 skill:** Critic only (have an artifact, about to commit) · Inversion only (clear goal, high risk, pre-mortem / when stuck) · Open only (new problem, generating ideas) · Synthesis only (options already exist, just need to close).
+- **2 skills:** Open→Critic (generate then prune — most common) · Open→Inversion (generate then stress/break the frame) · Inversion→Critic (pre-mortem → audit the mitigation) · {any}→Synthesis (close the decision).
+- **3–4 skills (high-stakes / new / hard-to-reverse):** the full chain.
 
-### Thứ tự tối ưu: **Open → Inversion → Critic → Synthesis**
-1. **Open** mở rộng (thêm option lúc đầu là rẻ nhất). 2. **Inversion** stress + bẻ giả định-khung (bắt lỗi mức-khung trước khi đánh giá tốn kém). 3. **Critic** audit candidate đã-khung-hóa-tốt-nhất (đánh giá đắt → để cuối). 4. **Synthesis** chốt.
-> Critic để **cuối-trước-chốt** vì critique option sẽ-bị-loại là lãng phí, và critique *trước* inversion bỏ sót lỗi mức-khung.
+### Optimal order: **Open → Inversion → Critic → Synthesis**
+1. **Open** widens (adding options early is cheapest). 2. **Inversion** stresses + breaks frame-assumptions (catch frame-level errors before expensive evaluation). 3. **Critic** audits the best-framed candidate (expensive evaluation → save it for last). 4. **Synthesis** closes.
+> Critic goes **last-before-closing** because critiquing an option that'll be eliminated is wasteful, and critiquing *before* inversion misses frame-level errors.
 
-### Vòng lặp & anti-pattern điều phối
-- Critic ra **BLOCK + lỗi mức-khung** → quay lại **Open** (regenerate), không vá tại chỗ. Có sẵn 1 artifact (không sinh mới) → bỏ Open: **Inversion→Critic→Synthesis**.
-- ❌ Critic **trước** trên 1 ý bị-anchor (tối ưu cục bộ khung sai) · ❌ Open **sau** khi đã cam kết tài nguyên sâu (churn) · ❌ chạy Critic & Open **song song** cùng artifact (một bên giết, một bên nhân → xung đột; phải tuần tự) · ❌ cả 4 cho quyết định **trivial**.
-- Ưu tiên động: ↑khó-đảo-ngược→nâng Critic (blocking) · ↑mới/mơ hồ→nâng Open · ↑chi-phí-thất-bại+single-frame→nâng Inversion.
+### Loop & coordination anti-patterns
+- Critic yields **BLOCK + a frame-level error** → go back to **Open** (regenerate), don't patch in place. There's already an artifact (don't generate new) → skip Open: **Inversion→Critic→Synthesis**.
+- ❌ Critic **first** on an anchored idea (locally optimizing a wrong frame) · ❌ Open **after** deep resource commitment (churn) · ❌ running Critic & Open **in parallel** on the same artifact (one kills, one multiplies → conflict; must be sequential) · ❌ all 4 for a **trivial** decision.
+- Dynamic priority: ↑hard-to-reverse→raise Critic (blocking) · ↑new/vague→raise Open · ↑failure-cost+single-frame→raise Inversion.
 
-## Ví dụ
-> Sau Open (5 cách sync LIS) + Inversion (failure: phụ thuộc 1 vendor, mất bản ghi khi mạng rớt) + Critic (HL7 listener: Major — cần buffer/ack):
-> Synthesis rút tiêu chí {số-loại-máy, có-HL7, độ-tin-cậy, chi-phí-maintain}; chấm → chọn **HL7 listener + hàng đợi buffer** (graft ý "file-drop fallback" từ á-quân cho máy cũ).
-> Rủi ro tồn dư: vendor không chuẩn HL7 → trigger đảo: nếu >30% máy không HL7 → chuyển Middleware (Mirth). Confidence 75%.
+## Example
+> After Open (5 ways to sync LIS) + Inversion (failure: depends on 1 vendor, loses records when the network drops) + Critic (HL7 listener: Major — needs a buffer/ack):
+> Synthesis derives criteria {machine-type-count, has-HL7, reliability, maintenance-cost}; scores → chooses **HL7 listener + a buffer queue** (grafts the "file-drop fallback" idea from the runner-up for old machines).
+> Residual risk: a vendor isn't HL7-compliant → reversal trigger: if >30% of machines lack HL7 → switch to Middleware (Mirth). Confidence 75%.
 
-## Phản ví dụ (anti-pattern)
-> ❌ "Cả 5 cách đều hay, mình làm cái lai gồm tất cả cho chắc." → **trung bình hóa**: gộp mất win-condition, hệ thống ôm 5 cơ chế,
-> không tiêu chí, không lý-do-loại, không rủi ro tồn dư → quyết định không bảo vệ được.
+## Counter-example (anti-pattern)
+> ❌ "All 5 ways are good, let's build a hybrid of all of them to be safe." → **averaging**: the merge loses the win-condition, the system carries 5 mechanisms,
+> no criteria, no elimination reason, no residual risk → an indefensible decision.
 
 ## When to update
-- Khi đổi tiêu-chí/cách-chấm, HOẶC khi thêm/bớt chế độ tư duy / đổi thứ tự orchestration (sửa **Ở ĐÂY**; nơi khác chỉ cập nhật link).
+- When changing the criteria/scoring, OR adding/removing a thinking mode / changing the orchestration order (edit **HERE**; elsewhere only update the link).

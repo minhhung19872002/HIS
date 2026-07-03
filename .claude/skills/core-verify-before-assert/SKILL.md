@@ -7,65 +7,65 @@ metadata:
 
 # Core — Verify Before Assert (portable)
 
-> TẦNG: **A · CORE** (discipline, tech-agnostic). Guardrail **pre-flight #2** — chống ảo tưởng/giả định sai.
+> TIER: **A · CORE** (discipline, tech-agnostic). Guardrail **pre-flight #2** — anti hallucination/wrong assumption.
 
-## (2) Vấn đề skill giải quyết
-AI bịa tên file/hàm/endpoint/field/cột/prop hoặc khẳng định hành vi code không đúng → sửa nhầm chỗ,
-gãy build, lỗi runtime. Skill buộc **mọi khẳng định về codebase phải có bằng chứng** (Read/Grep/Glob)
-và **tách rõ "đã verify" vs "đang giả định"**.
+## (2) The problem this skill solves
+AI fabricates a file/function/endpoint/field/column/prop name or asserts wrong code behavior → edits the wrong place,
+breaks the build, runtime error. This skill forces **every claim about the codebase to have evidence** (Read/Grep/Glob)
+and **clearly separates "verified" vs "assumed"**.
 
-## (3) Vì sao AI hay fail ở đây
-- Suy ra tên ký hiệu "nghe hợp lý" từ pattern thay vì đọc thật.
-- Tin **ký ức / doc cũ / work-log** như sự thật hiện tại (CLAUDE.md ghi: "recalled memory phản ánh lúc viết — phải verify lại").
-- Tổng quát hoá từ 1 file sang cả codebase.
-- Khẳng định "code làm X" mà chưa mở hàm đó.
+## (3) Why AI fails here
+- Infers a "plausible-sounding" symbol name from a pattern instead of reading the real thing.
+- Trusts **memory / old docs / work-log** as current truth (CLAUDE.md notes: "a recalled memory reflects when it was written — re-verify it").
+- Generalizes from 1 file to the whole codebase.
+- Claims "the code does X" without opening that function.
 
-## (4) Khi nào dùng (kích hoạt)
-- Sắp **tham chiếu** một path/symbol/endpoint/field/cột/config key.
-- Sắp dựa vào **một ký hiệu để code** (gọi hàm, import, map DTO).
-- Dựa vào **memory recalled / doc / CLAUDE.md / work-log** → phải verify lại với code hiện tại.
-- Sắp phát biểu "hệ thống/đoạn này hoạt động như …".
+## (4) When to use (triggers)
+- About to **reference** a path/symbol/endpoint/field/column/config key.
+- About to **rely on a symbol to code** (call a function, import, map a DTO).
+- Relying on **recalled memory / docs / CLAUDE.md / work-log** → must re-verify against the current code.
+- About to state "this system/snippet works like …".
 
-## (5) Khi nào KHÔNG dùng
-- Hỏi user về **ý định/phạm vi** (đó là `core-requirement-clarify`, không phải verify code).
-- Thảo luận thiết kế thuần, chưa khẳng định gì về code thật.
-- Kiến thức ngôn ngữ/thư viện phổ quát, ổn định, không phụ thuộc repo.
+## (5) When NOT to use
+- Asking the user about **intent/scope** (that's `core-requirement-clarify`, not verifying code).
+- Pure design discussion, no claim about real code yet.
+- Universal, stable language/library knowledge not dependent on the repo.
 
 ## (6) Workflow
-1. Trước khi viết một fact về code → **xác định nguồn**: tôi đã Read/Grep nó trong phiên này chưa?
-2. Chưa → **verify**: `Grep` ký hiệu / `Glob` path / `Read` đúng vùng. Ưu tiên đọc *định nghĩa thật*, không chỉ chỗ gọi.
-3. Khớp → dùng. Không khớp → sửa lại hiểu biết, KHÔNG ép code theo giả định.
-4. Khi nêu fact, **gắn bằng chứng** ngắn (`path:line`) hoặc nói rõ **"giả định, chưa verify"**.
-5. Memory/doc/work-log chỉ là **gợi ý** → luôn verify lại file/hàm/flag còn tồn tại đúng như mô tả.
+1. Before writing a fact about the code → **identify the source**: have I Read/Grep'd it this session?
+2. Not yet → **verify**: `Grep` the symbol / `Glob` the path / `Read` the exact region. Prefer reading the *real definition*, not just a call site.
+3. Match → use it. No match → fix your understanding, do NOT force code to fit the assumption.
+4. When stating a fact, **attach short evidence** (`path:line`) or clearly say **"assumed, not verified"**.
+5. Memory/doc/work-log is only a **hint** → always re-verify the file/function/flag still exists exactly as described.
 
-## (7) Quy tắc & giới hạn an toàn
-- KHÔNG khẳng định sự tồn tại/hành vi của ký hiệu chưa verify.
-- KHÔNG sửa tên cho "khớp giả định" — verify rồi mới đổi.
-- Verify đúng mức: 1–3 lệnh tìm/đọc là đủ; không đào bới vô hạn (nếu thật sự không xác định được → nói rõ + hỏi/đề xuất).
-- Bằng chứng > trí nhớ; định nghĩa thật > suy đoán theo tên.
+## (7) Safety rules & limits
+- Do NOT assert the existence/behavior of an unverified symbol.
+- Do NOT rename to "match an assumption" — verify, then change.
+- Verify enough: 1–3 find/read commands is plenty; no endless digging (if truly indeterminable → say so + ask/propose).
+- Evidence > memory; the real definition > guessing by name.
 
-## (8) Input kỳ vọng
-Một fact/giả định sắp dùng về codebase + quyền Read/Grep/Glob.
+## (8) Expected input
+A fact/assumption about to be used about the codebase + Read/Grep/Glob access.
 
-## (9) Output kỳ vọng
-Fact đã verify (kèm `path`/bằng chứng), HOẶC nhãn rõ "giả định chưa verify" + kế hoạch verify/hỏi. Không có khẳng định trần trụi không nguồn.
+## (9) Expected output
+A verified fact (with `path`/evidence), OR a clear "assumed, not verified" label + a plan to verify/ask. No bare unsourced claim.
 
-## (10) Ví dụ (HIS)
-- Trước khi map DTO ở FE: Grep DTO backend thật (`SpecialtyEmrDto` dùng `icdCode`/`fieldData`, KHÔNG phải `diagnosisIcd`) thay vì đoán theo tên cũ.
-- Trước khi gọi `client.post('/specialty-emr')`: verify controller route tồn tại (`SpecialtyEmrController`).
-- CLAUDE.md nói Cloud Run URL `…rm6c6yvoja…` → verify lại: URL thật trong `frontend/.env.production` (cái cũ không resolve).
-- "PatientId có FK không?" → Read entity `SpecialtyEmr` (chỉ là Guid, không navigation) thay vì giả định FK.
+## (10) Examples (HIS)
+- Before mapping a DTO on the FE: Grep the real backend DTO (`SpecialtyEmrDto` uses `icdCode`/`fieldData`, NOT `diagnosisIcd`) instead of guessing by an old name.
+- Before calling `client.post('/specialty-emr')`: verify the controller route exists (`SpecialtyEmrController`).
+- CLAUDE.md says the Cloud Run URL is `…rm6c6yvoja…` → re-verify: the real URL is in `frontend/.env.production` (the old one doesn't resolve).
+- "Does PatientId have an FK?" → Read the `SpecialtyEmr` entity (just a Guid, no navigation) instead of assuming an FK.
 
-## (11) Anti-pattern / lỗi điển hình
-- Import từ path "đoán" → module not found.
-- Map field theo tên cũ trong trí nhớ → dữ liệu rỗng/sai.
-- Trích dẫn URL/ID/flag từ work-log cũ mà không kiểm chứng.
-- "Chắc là có hàm helper X" rồi gọi → undefined.
+## (11) Anti-pattern / typical mistakes
+- Import from a "guessed" path → module not found.
+- Map a field by an old name in memory → empty/wrong data.
+- Quote a URL/ID/flag from an old work-log without checking.
+- "Surely there's a helper X" then call it → undefined.
 
-## (12) Tích hợp + cấu trúc tệp
-- **Pipeline pre-flight:** sau `core-requirement-clarify` (#1) → skill này (#2) → `core-impact-analysis` (#3).
-- Cộng hưởng `core-reusable-code` (verify cái đã có trước khi tạo) + `his-qa-anti-pattern` (không hardcode URL/ID).
-- `references/verify-checklist.md` — checklist nguồn-bằng-chứng + loại ký hiệu cần verify.
+## (12) Integration + file structure
+- **Pre-flight pipeline:** after `core-requirement-clarify` (#1) → this skill (#2) → `core-impact-analysis` (#3).
+- Resonates with `core-reusable-code` (verify what exists before creating) + `his-qa-anti-pattern` (no hardcoded URL/ID).
+- `references/verify-checklist.md` — an evidence-source checklist + the symbol kinds to verify.
 
 ## When to update
-- Khi có loại "nguồn dễ sai" mới (vd doc/spec mới) cần thêm vào checklist verify.
+- When there's a new "error-prone source" kind (e.g. a new doc/spec) to add to the verify checklist.

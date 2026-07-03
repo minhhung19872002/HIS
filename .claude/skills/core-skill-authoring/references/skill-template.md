@@ -1,47 +1,47 @@
-# SKILL.md — khung copy-paste
+# SKILL.md — copy-paste frame
 
-Sao chép khối dưới vào `.claude/skills/<name>/SKILL.md`, thay `<...>` và xoá ghi chú.
+Copy the block below into `.claude/skills/<name>/SKILL.md`, replace `<...>` and delete the notes.
 
 ```markdown
 ---
-name: <name-kebab-case>          # PHẢI trùng tên thư mục
-description: Use this skill when <WHAT + ngữ cảnh>. Triggers include <trigger cụ thể: path, tên hàm, từ khoá VI/EN>. Do NOT use for <tình huống> (<skill-khác>).
+name: <name-kebab-case>          # MUST match the folder name
+description: Use this skill when <WHAT + context>. Triggers include <concrete triggers: path, function name, VI/EN keyword>. Do NOT use for <situation> (<other-skill>).
 metadata:
   type: project
-# allowed-tools: Read, Grep, Edit   # (tùy chọn) bỏ comment nếu cần giới hạn tool
+# allowed-tools: Read, Grep, Edit   # (optional) uncomment to limit the tools
 ---
 
-# <Tiêu đề ngắn>
+# <Short title>
 
-<1–2 câu mục đích: skill này chuẩn hoá việc gì, bám pattern/file nào.>
+<1–2 sentences of purpose: what this skill standardizes, which pattern/file it follows.>
 
-## Khi nào dùng
-- <tình huống cụ thể 1>
-- <tình huống cụ thể 2>
+## When to use
+- <concrete situation 1>
+- <concrete situation 2>
 
-## Khi nào KHÔNG dùng
-- <tình huống> → `<skill-anh-em>` (<lý do ngắn>)
+## When NOT to use
+- <situation> → `<sibling-skill>` (<short reason>)
 
-## Vị trí code mẫu (đọc trước khi viết)
-- `<path/tới/file-tham-chiếu>` — <vai trò>
+## Sample code location (read before writing)
+- `<path/to/reference-file>` — <role>
 
-## Quy trình chuẩn
-1. <bước 1, path thật>
-2. <bước 2>
+## Standard process
+1. <step 1, real path>
+2. <step 2>
 3. <build/verify>
 
 ## Pitfalls
-- <lỗi đã dính thật → cách tránh>
+- <a real mistake hit → how to avoid it>
 
 ## Reference
-- `references/<file>` — <mô tả> (nếu tách template/script)
+- `references/<file>` — <description> (if a template/script is split out)
 
 ## When to update
-- <khi nào cần sửa lại skill này>
+- <when to revise this skill>
 ```
 
-## Mẹo viết `description` mạnh
-- Mở đầu: `Use this skill when …` (ngôi thứ 3).
-- Nhồi trigger Claude dễ match: tên file, route, tên class/hàm, từ khoá tiếng Việt + Anh.
-- Kết bằng `Do NOT use for … (skill-khác)` để tránh chồng lấn.
-- ≤ 1024 ký tự; cụ thể luôn thắng chung chung.
+## Tips for a strong `description`
+- Open with: `Use this skill when …` (third person).
+- Pack in triggers Claude can match easily: file names, routes, class/function names, Vietnamese + English keywords.
+- End with `Do NOT use for … (other-skill)` to avoid overlap.
+- ≤ 1024 chars; specific always beats generic.

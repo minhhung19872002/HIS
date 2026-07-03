@@ -1,28 +1,28 @@
-# Skill-routes · Tham chiếu sâu (đọc khi cần)
+# Skill-routes · Deep reference (read when needed)
 
-> Phần tra-cứu nặng, tách khỏi SKILL-MAP mỏng để tiết kiệm token. Chỉ đọc khi cần playbook
-> end-to-end hoặc dependency map đầy đủ. Routing thường ngày dùng SKILL-MAP + map con theo tầng.
+> The heavy lookup section, split out of the slim SKILL-MAP to save tokens. Read it only when you need the
+> end-to-end playbook or the full dependency map. Everyday routing uses SKILL-MAP + the per-tier sub-map.
 
-## (3) Sơ đồ "đường đi" step-by-step (mẫu — áp cho task tương tự)
+## (3) Step-by-step "route" diagram (template — apply to similar tasks)
 
-**Task: thêm 1 phân hệ (backend + page v2 + test)**
-1. **Trước khi code** — inspect: phân hệ/`*CompleteService` tương tự (`core-reusable-code`); layer + DI hiện có
-   (`core-architecture-follow`); page v2 mẫu trong `pages-v2/` + `_v2kit`.
+**Task: add a module (backend + v2 page + test)**
+1. **Before coding** — inspect: a similar module/`*CompleteService` (`core-reusable-code`); the existing layer + DI
+   (`core-architecture-follow`); a sample v2 page in `pages-v2/` + `_v2kit`.
 2. **Backend** — `his-be-module-scaffold`: Entity → DTO (`core-types-contract`) → `IXxxService`/`XxxService`
-   (validate theo `core-validation-pattern`) → **đăng ký DI** → Controller. Bảng mới → `his-db-migration`
-   (script `NN_*.sql` idempotent). Build: `dotnet build`.
-3. **Frontend** — `his-fe-api-client` (`api/x.ts` + DTO) → `his-fe-page-v2` (page dùng `_v2kit`, state theo
-   `core-error-loading-state`, text theo `core-localization-pattern`) → route `App.tsx` + menu `TerminalLayout`.
+   (validate per `core-validation-pattern`) → **register DI** → Controller. New table → `his-db-migration`
+   (idempotent `NN_*.sql` script). Build: `dotnet build`.
+3. **Frontend** — `his-fe-api-client` (`api/x.ts` + DTO) → `his-fe-page-v2` (page using `_v2kit`, state per
+   `core-error-loading-state`, text per `core-localization-pattern`) → route `App.tsx` + menu `TerminalLayout`.
    Build: `npm run build`.
-4. **Test** — `core-testing-architecture` chọn level → `his-test-e2e` (smoke page-load + flow) /
-   `his-test-api-powershell` (API). Reuse fixture theo `core-testing-reuse`.
-5. **Guardrail xuyên suốt** — `his-qa-anti-pattern` (không quên DI, không hardcode, giữ audit/patient-safety).
-6. **Deploy** — `his-ops-deploy` (Cloud Run thủ công + verify schema-drift; nhớ Vercel auto FE).
+4. **Test** — `core-testing-architecture` to pick the level → `his-test-e2e` (page-load smoke + flow) /
+   `his-test-api-powershell` (API). Reuse fixtures per `core-testing-reuse`.
+5. **Cross-cutting guardrail** — `his-qa-anti-pattern` (don't forget DI, don't hardcode, keep audit/patient-safety).
+6. **Deploy** — `his-ops-deploy` (manual Cloud Run + verify schema-drift; remember Vercel auto-deploys FE).
 
 ## (4) Dependency map (his → core)
 
 ```
-his-fe-convention            → core-reusable-code, core-architecture-follow, core-architecture-consistency, core-refactor, his-qa-anti-pattern (★ kèm MỌI code-gen/refactor FE)
+his-fe-convention            → core-reusable-code, core-architecture-follow, core-architecture-consistency, core-refactor, his-qa-anti-pattern (★ with EVERY FE code-gen/refactor)
 his-fe-page-v2               → core-reusable-code, core-error-loading-state, core-architecture-follow, his-fe-convention
 his-fe-api-client            → core-types-contract
 his-fe-antd-v6               → core-error-loading-state, core-localization-pattern
@@ -34,30 +34,30 @@ his-be-external-gateway      → core-types-contract, his-be-module-scaffold, hi
 his-be-background-worker     → core-architecture-follow, his-qa-anti-pattern
 his-fs-realtime-signalr      → core-reusable-code, core-error-loading-state, his-fe-api-client, his-qa-anti-pattern
 his-fe-emr-print-form        → core-reusable-code, his-qa-anti-pattern
-his-flow-nangcap-package     → (điều phối) chains: his-be-module-scaffold, his-db-migration, his-fe-api-client, his-fe-page-v2, his-be-external-gateway, his-be-background-worker, his-fs-realtime-signalr, his-fe-emr-print-form, his-doc-feature, his-test-e2e, his-ops-deploy
+his-flow-nangcap-package     → (orchestration) chains: his-be-module-scaffold, his-db-migration, his-fe-api-client, his-fe-page-v2, his-be-external-gateway, his-be-background-worker, his-fs-realtime-signalr, his-fe-emr-print-form, his-doc-feature, his-test-e2e, his-ops-deploy
 his-be-module-scaffold       → core-architecture-follow, core-types-contract, core-validation-pattern, core-reusable-code
 his-db-migration             → core-types-contract
 his-test-e2e                 → core-testing-architecture, core-testing-reuse
 his-test-api-powershell      → core-testing-architecture, core-testing-reuse
 his-qa-anti-pattern          → core-refactor, core-architecture-consistency, core-reusable-code
-his-doc-feature              → (độc lập)
-his-ops-deploy               → (độc lập)
-core-skill-authoring         → (governance, độc lập) — chi phối cách viết MỌI skill (core + his)
-core-requirement-clarify     → (discipline pre-flight #1, độc lập) — dùng tool AskUserQuestion
-core-verify-before-assert    → (discipline pre-flight #2, độc lập)
+his-doc-feature              → (standalone)
+his-ops-deploy               → (standalone)
+core-skill-authoring         → (governance, standalone) — governs how EVERY skill is written (core + his)
+core-requirement-clarify     → (discipline pre-flight #1, standalone) — uses the AskUserQuestion tool
+core-verify-before-assert    → (discipline pre-flight #2, standalone)
 core-impact-analysis         → core-verify-before-assert, core-architecture-follow (pre-flight #3)
-core-minimal-change          → core-reusable-code, core-refactor (lúc implement)
-core-clean-code              → core-reusable-code, core-minimal-change, core-refactor, core-types-contract (★ kèm MỌI code-gen FE+BE — clean code mức hàm/câu lệnh)
-core-execution-output        → core-verify-before-assert, his-qa-anti-pattern (luôn bật khi báo cáo kết quả)
+core-minimal-change          → core-reusable-code, core-refactor (at implement time)
+core-clean-code              → core-reusable-code, core-minimal-change, core-refactor, core-types-contract (★ with EVERY FE+BE code-gen — function/statement-level clean code)
+core-execution-output        → core-verify-before-assert, his-qa-anti-pattern (always on when reporting results)
 ```
-Nguyên tắc: `his-*` **kế thừa** nguyên tắc từ `core-*` rồi **hiện thực hoá** theo stack HIS.
+Principle: `his-*` **inherits** the principles from `core-*` then **implements** them for the HIS stack.
 
-**Pipeline PRE-FLIGHT (mọi task code, chạy trước khi viết):**
-`core-requirement-clarify` → `core-verify-before-assert` → `core-impact-analysis` → viết theo `core-minimal-change`
-(luôn kèm `core-reusable-code` + `core-clean-code` + `his-qa-anti-pattern`).
+**PRE-FLIGHT pipeline (every code task, run before writing):**
+`core-requirement-clarify` → `core-verify-before-assert` → `core-impact-analysis` → write per `core-minimal-change`
+(always with `core-reusable-code` + `core-clean-code` + `his-qa-anti-pattern`).
 
-## Ghi chú vị trí
+## Location notes
 - Skill: `.claude/skills/<core-* | his-*>/SKILL.md` (+ `references/`, `scripts/`).
-- Map con routing theo tầng: `.claude/skill-routes/{fe,be,test,ops-doc}.md` + `_reference.md` (file này).
-- Tài liệu feature: `docs/features/<feature>/` (KHÔNG phải skill).
-- Skill CHỈ sống trong `.claude/skills/` — không bao giờ trong `docs/` hay `.ai/`.
+- Per-tier routing sub-map: `.claude/skill-routes/{fe,be,test,ops-doc}.md` + `_reference.md` (this file).
+- Feature docs: `docs/features/<feature>/` (NOT a skill).
+- A skill ONLY lives in `.claude/skills/` — never in `docs/` or `.ai/`.

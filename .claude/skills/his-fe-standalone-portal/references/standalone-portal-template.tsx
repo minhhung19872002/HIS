@@ -1,9 +1,9 @@
-// TEMPLATE — HIS standalone portal (login riêng, ngoài layout chính).
-// Copy vào pages-v2/<Name>Portal.tsx. Route đăng ký NGOÀI ProtectedRoute/layout trong App.tsx.
+// TEMPLATE — HIS standalone portal (own login, outside the main layout).
+// Copy into pages-v2/<Name>Portal.tsx. Register the route OUTSIDE ProtectedRoute/layout in App.tsx.
 import React, { useState, useEffect } from 'react';
-import { xPortal } from '../api/nangcap24';        // object api riêng cho portal
+import { xPortal } from '../api/nangcap24';        // a portal-specific api object
 
-const TOKEN_KEY = 'xportal_token';                  // key RIÊNG — KHÔNG đụng 'token' của app chính
+const TOKEN_KEY = 'xportal_token';                  // a SEPARATE key — do NOT touch the main app's 'token'
 
 const XPortalStandalone: React.FC = () => {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
@@ -13,35 +13,35 @@ const XPortalStandalone: React.FC = () => {
   const [err, setErr] = useState<string | null>(null);
 
   const login = async () => {
-    if (!username || !password) { setErr('Nhập đủ tài khoản/mật khẩu'); return; } // core-validation-pattern
+    if (!username || !password) { setErr('Enter both username and password'); return; } // core-validation-pattern
     setLoading(true); setErr(null);
     try {
       const r = await xPortal.login({ username, password });
       if (r.success && r.token) { localStorage.setItem(TOKEN_KEY, r.token); setToken(r.token); }
-      else setErr(r.message || 'Đăng nhập thất bại');     // core-error-loading-state: báo lỗi rõ
-    } catch { setErr('Lỗi kết nối'); }
+      else setErr(r.message || 'Login failed');     // core-error-loading-state: clear error
+    } catch { setErr('Connection error'); }
     finally { setLoading(false); }
   };
   const logout = () => { localStorage.removeItem(TOKEN_KEY); setToken(null); };
 
-  // Chưa login → login form standalone (KHÔNG sidebar/menu app chính)
+  // Not logged in → a standalone login form (NO main-app sidebar/menu)
   if (!token) {
     return (
       <div data-testid="xportal-login-card" style={{ maxWidth: 360, margin: '80px auto' }}>
-        <h2>CỔNG [TÊN] — Đăng nhập</h2>
-        <input data-testid="xportal-username" placeholder="Tài khoản"
+        <h2>[NAME] PORTAL — Login</h2>
+        <input data-testid="xportal-username" placeholder="Username"
           value={username} onChange={(e) => setUsername(e.target.value)} />
-        <input data-testid="xportal-password" type="password" placeholder="Mật khẩu"
+        <input data-testid="xportal-password" type="password" placeholder="Password"
           value={password} onChange={(e) => setPassword(e.target.value)} />
         {err && <div style={{ color: 'red' }}>{err}</div>}
         <button data-testid="xportal-login-btn" disabled={loading} onClick={login}>
-          {loading ? 'Đang đăng nhập…' : 'Đăng nhập'}
+          {loading ? 'Logging in…' : 'Login'}
         </button>
       </div>
     );
   }
 
-  // Đã login → nội dung portal (tự render, dùng token riêng cho mọi call)
+  // Logged in → the portal content (self-rendered, uses its own token for every call)
   return <XPortalContent token={token} onLogout={logout} />;
 };
 
@@ -57,9 +57,9 @@ const XPortalContent: React.FC<{ token: string; onLogout: () => void }> = ({ tok
   return (
     <div style={{ padding: 24 }}>
       <header style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <h2>CỔNG [TÊN]</h2><button onClick={onLogout}>Đăng xuất</button>
+        <h2>[NAME] PORTAL</h2><button onClick={onLogout}>Log out</button>
       </header>
-      {loading ? <div>Đang tải…</div> : rows.length === 0 ? <div>Chưa có dữ liệu</div> : (
+      {loading ? <div>Loading…</div> : rows.length === 0 ? <div>No data yet</div> : (
         <table>{/* render rows */}</table>
       )}
     </div>
@@ -68,8 +68,8 @@ const XPortalContent: React.FC<{ token: string; onLogout: () => void }> = ({ tok
 
 export default XPortalStandalone;
 
-/* App.tsx — đăng ký NGOÀI layout/ProtectedRoute:
+/* App.tsx — register OUTSIDE the layout/ProtectedRoute:
    const XPortalStandalone = lazy(() => import('./pages-v2/XPortal'));
    ...
-   <Route path="/x-portal" element={<XPortalStandalone />} />   // không trong group ProtectedRoute
-   KHÔNG thêm vào menu TerminalLayout. */
+   <Route path="/x-portal" element={<XPortalStandalone />} />   // not inside the ProtectedRoute group
+   Do NOT add it to the TerminalLayout menu. */

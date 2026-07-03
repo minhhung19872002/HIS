@@ -1,34 +1,34 @@
-# Technique catalog — định nghĩa ngắn + skill-home
+# Technique catalog — short definition + skill-home
 
-Các "kỹ thuật" trong Dispatch của `core-meta-reasoning-orchestrator` **KHÔNG phải skill riêng** (tránh skill-rác).
-Mỗi cái: 1 định nghĩa ngắn + nơi nó "sống" (skill-home đã có, nếu có). Áp inline khi orchestrator dispatch tới.
+The "techniques" in the Dispatch of `core-meta-reasoning-orchestrator` are **NOT separate skills** (avoid skill-junk).
+Each: a short definition + where it "lives" (an existing skill-home, if any). Apply inline when the orchestrator dispatches to it.
 
 ## Design / Open family
-- **Alternative Designs** — sinh ≥3 thiết kế khác bản chất qua nhiều lăng kính. Home: `core-open-thinking`.
-- **Counterargument** — chủ động dựng lập luận PHẢN BÁC kết luận của chính mình. Home: `core-critic` (artifact) / `core-sparring-partner` (ý-của-USER).
+- **Alternative Designs** — generate ≥3 fundamentally different designs through multiple lenses. Home: `core-open-thinking`.
+- **Counterargument** — actively build an argument REFUTING your own conclusion. Home: `core-critic` (artifact) / `core-sparring-partner` (the USER's idea).
 
 ## Decision family
-- **Tradeoff Analysis** — bảng tiêu-chí × phương-án, nêu cái được/mất mỗi lựa chọn, không có "free lunch". Home: `core-synthesis-decision`.
-- **Base-Rate Thinking** — neo vào tỷ lệ nền/thống kê điển hình ("cách X thường thắng bao nhiêu %?") trước khi tin câu chuyện cá biệt; chống base-rate-neglect. Home: `core-synthesis-decision`.
+- **Tradeoff Analysis** — a criteria × options table, stating the gains/losses of each choice, no "free lunch". Home: `core-synthesis-decision`.
+- **Base-Rate Thinking** — anchor to the base rate / typical statistics ("how often does approach X win?") before trusting a particular story; counters base-rate-neglect. Home: `core-synthesis-decision`.
 
 ## Architecture / Risk family
-- **Failure-Mode Analysis** — liệt kê cạn các kiểu hỏng + nguyên nhân + tác động + cách chặn (FMEA nhẹ). Home: `core-inversion-thinking`.
-- **Second-order Effects** — "rồi sao nữa?" qua 2-3 bậc: hệ quả của hệ quả (vd cache → stale → quyết-định-lâm-sàng-sai). Home: `core-critic` (trục 7) / `core-inversion-thinking`.
-- **Risk Analysis** — rủi ro × (khả-năng, tác-động) → xếp hạng → mitigation/owner/trigger. Home: `core-inversion-thinking` + `core-critic`.
-- **Scalability Review** — hành vi khi tải/dữ-liệu tăng 10×–100×: hot-path, N+1, connection pool, index, concurrency. Home: `his-be-scalability` (BE) · `his-fe-performance` (FE render/bundle).
+- **Failure-Mode Analysis** — exhaustively list the failure modes + causes + impact + mitigation (lightweight FMEA). Home: `core-inversion-thinking`.
+- **Second-order Effects** — "and then what?" through 2-3 levels: consequences of consequences (e.g. cache → stale → wrong-clinical-decision). Home: `core-critic` (axis 7) / `core-inversion-thinking`.
+- **Risk Analysis** — risk × (likelihood, impact) → rank → mitigation/owner/trigger. Home: `core-inversion-thinking` + `core-critic`.
+- **Scalability Review** — behavior when load/data grows 10×–100×: hot-path, N+1, connection pool, index, concurrency. Home: `his-be-scalability` (BE) · `his-fe-performance` (FE render/bundle).
 
 ## Planning family
-- **Dependency Analysis** — dựng đồ thị phụ thuộc, tìm thứ-tự khả thi + critical path + vòng lặp. Home: `core-impact-analysis`.
-- **Bottleneck Detection** — tìm điểm nghẽn THỰC (đo trước, không đoán): khâu chậm nhất giới hạn throughput. Home: `his-be-scalability` / `his-fe-performance`.
+- **Dependency Analysis** — build a dependency graph, find a feasible order + critical path + cycles. Home: `core-impact-analysis`.
+- **Bottleneck Detection** — find the REAL bottleneck (measure first, don't guess): the slowest stage limits throughput. Home: `his-be-scalability` / `his-fe-performance`.
 
-## Security family (chưa có skill-home riêng → inline; cân nhắc tạo skill nếu lặp nhiều)
-- **Red-Team Thinking** — nghĩ như kẻ tấn công: "tôi sẽ phá cái này bằng cách nào?" (đảo mục tiêu phòng-thủ). Gần `core-inversion-thinking`.
-- **Attack-Surface Analysis** — liệt kê mọi điểm vào (input/endpoint/upload/auth/dependency/secret) — nơi tin-cậy gặp không-tin-cậy.
-- **Threat-Modeling** — STRIDE-nhẹ (Spoofing/Tampering/Repudiation/Info-disclosure/DoS/Elevation) trên từng luồng dữ liệu; HIS bám `his-qa-anti-pattern` (audit/patient-safety/secret) + built-in `security-review`.
+## Security family (no dedicated skill-home yet → inline; consider creating a skill if it recurs a lot)
+- **Red-Team Thinking** — think like an attacker: "how would I break this?" (invert the defensive goal). Close to `core-inversion-thinking`.
+- **Attack-Surface Analysis** — list every entry point (input/endpoint/upload/auth/dependency/secret) — where trusted meets untrusted.
+- **Threat-Modeling** — light STRIDE (Spoofing/Tampering/Repudiation/Info-disclosure/DoS/Elevation) on each data flow; HIS follows `his-qa-anti-pattern` (audit/patient-safety/secret) + the built-in `security-review`.
 
 ## Troubleshooting / Research
-- **Hypothesis-Elimination** — đảo từ triệu chứng về tập nguyên-nhân-khả-dĩ, loại dần bằng bằng chứng rẻ-nhất-trước. Home: `core-inversion-thinking` + `core-verify-before-assert`.
-- **Source-Triangulation** — ≥2-3 nguồn độc lập xác nhận 1 claim trước khi tin; chống single-source. Home: `core-critic`; sâu → built-in `deep-research`.
+- **Hypothesis-Elimination** — invert from symptom to the set of plausible causes, eliminate by cheapest-evidence-first. Home: `core-inversion-thinking` + `core-verify-before-assert`.
+- **Source-Triangulation** — ≥2-3 independent sources confirm a claim before trusting it; counters single-source. Home: `core-critic`; deeper → the built-in `deep-research`.
 
-> Quy tắc: kỹ thuật ở đây **không** được backtick-ref như skill `core-*`/`his-*` (lint sẽ báo drift). Nếu một
-> kỹ thuật bắt đầu lặp lại nhiều task + đáng đóng gói → mới đề xuất tạo skill (qua `core-skill-authoring`, hỏi user duyệt).
+> Rule: a technique here must NOT be backtick-ref'd like a `core-*`/`his-*` skill (lint would report drift). If a
+> technique starts recurring across many tasks + is worth packaging → only then propose creating a skill (via `core-skill-authoring`, ask the user to approve).

@@ -1,52 +1,51 @@
-# .claude/REGISTRY.md — Sổ đăng ký NGUỒN-SỰ-THẬT (single-source-of-truth index)
+# .claude/REGISTRY.md — SOURCE-OF-TRUTH register (single-source-of-truth index)
 
-> **ROOT-CAUSE của drift** (mọi lần tạo gì trong `.claude` lại sinh mâu thuẫn): rule cross-cutting bị **copy
-> ra nhiều file mà KHÔNG khai báo file-chủ** → N bản → sửa 1 chỗ, N-1 chỗ tụt hậu. File này khai báo **CHỦ
-> DUY NHẤT** cho mỗi rule. **Mọi nơi khác PHẢI link, KHÔNG copy nội dung.** Sửa rule → chỉ sửa file-chủ.
+> **ROOT CAUSE of drift** (every time something new is created in `.claude` it spawns a contradiction): a cross-cutting rule gets **copied into many files WITHOUT declaring an owner file** → N copies → you fix one place, the other N-1 fall behind. This file declares the **SINGLE OWNER** for each rule. **Everywhere else MUST link, NOT copy the content.** To change a rule → change only the owner file.
 
-## Bảng CHỦ (canonical owner)
+## OWNER table (canonical owner)
 
-| Rule / chủ đề | **FILE CHỦ** | Nơi khác chỉ được |
+| Rule / topic | **OWNER FILE** | Elsewhere may only |
 |---|---|---|
-| git-ops (commit/push/workspace-docs) | `workflow/project-rules.md` §2-4 | nguyên-tắc-lõi 1 dòng + link |
-| trivial threshold (số hoá) | `workflow/workflow.md` §0 | link |
+| git-ops (commit/push/workspace-docs) | `workflow/project-rules.md` §2-4 | 1-line core-principle + link |
+| trivial threshold (numeric) | `workflow/workflow.md` §0 | link |
 | DONE / READY_FOR_PUSH / CODE_COMPLETE | `workflow/workflow.md` DoD | link |
-| build-gate (`npm run build`, KHÔNG `tsc --noEmit`) | `his-qa-anti-pattern` #27 | link |
-| self-review 9 điểm | `his-qa-anti-pattern` #30 | link (FE: `his-fe-convention` §7 = view) |
-| số migration kế tiếp | **ĐỘNG**: `ls Data/Scripts/` max(NN)+1 | KHÔNG hard-code số bao giờ |
+| build-gate (`npm run build`, NOT `tsc --noEmit`) | `his-qa-anti-pattern` #27 | link |
+| 9-point self-review | `his-qa-anti-pattern` #30 | link (FE: `his-fe-convention` §7 = view) |
+| next migration number | **DYNAMIC**: `ls Data/Scripts/` max(NN)+1 | NEVER hard-code the number |
 | P0/P1/P2 priority | `SKILL-MAP` §0b | link |
 | conflict tiebreaker / rule-tension | `SKILL-MAP` §5 / §5b | link |
-| thứ tự ưu tiên chất lượng | `SKILL-MAP` §5c | `core-prod-change-discipline` G12 chỉ link |
+| quality priority order | `SKILL-MAP` §5c | `core-prod-change-discipline` G12 only links |
 | owner-diff (refactor/god-file-split) | `SKILL-MAP` §5 (tech-debt=plan · code-change=execute · planner=design) | |
 | requirement coverage / completeness-gate | `workflow/requirement-coverage.md` | link |
-| audit / review không-nói-quá (no-quota, evidence, confidence) | `workflow/audit-protocol.md` | link |
-| UI-test evidence + traceability (screenshot mỗi case · tên test=màn+nghiệp vụ · báo cáo) | `skills/his-test-e2e` §6 | link; test-plan doc + Issues `test` chỉ link |
-| sparring / phản biện chống-nịnh (giao thức 4 bước, calibrated, no-quota) | `skills/core-sparring-partner` | link; global `~/.claude/CLAUDE.md` mang 1 pointer cho project khác |
-| thinking-modes (open/inversion/critic/synthesis): vai-trò + ranh-giới + orchestration (dùng 1/2/3/4 · thứ tự Open→Inversion→Critic→Synthesis) | `skills/core-synthesis-decision` §Orchestration | mỗi skill thinking chỉ LINK; critic-vs-sparring → `skills/core-sparring-partner` (chủ phản-biện-chống-nịnh, đối-tượng là Ý/QUYẾT-ĐỊNH-của-USER ≠ artifact) |
-| meta-reasoning: phân-loại-bài-toán (11 loại) → impact LOW/MED/HIGH → dispatch cách-nghĩ (calibrated) | `skills/core-meta-reasoning-orchestrator` | LINK; thứ-tự-4-mode KHÔNG lặp ở đây (→ `core-synthesis-decision` §Orchestration); compose-not-replace `SKILL-MAP` (skill-cho-code) + `workflow/workflow.md` (flow) |
-| drift-lint (hệ miễn dịch) | `.claude/lint.sh` (auto qua `hooks/stop-checks.sh`) | chạy sau mọi sửa .claude |
-| agent memory-spec block (~137 dòng boilerplate) | **đồng nhất 100% ở cả 7 agent** (KHÔNG dedup — subagent cần inline) | sửa 1 → sửa CẢ 7; lint [9] enforce giống nhau |
+| audit / review without overstating (no-quota, evidence, confidence) | `workflow/audit-protocol.md` | link |
+| UI-test evidence + traceability (screenshot per case · test name=screen+business · report) | `skills/his-test-e2e` §6 | link; test-plan doc + `test` Issues only link |
+| sparring / anti-sycophancy critique (4-step protocol, calibrated, no-quota) | `skills/core-sparring-partner` | link; global `~/.claude/CLAUDE.md` carries one pointer for other projects |
+| thinking-modes (open/inversion/critic/synthesis): roles + boundaries + orchestration (use 1/2/3/4 · order Open→Inversion→Critic→Synthesis) | `skills/core-synthesis-decision` §Orchestration | each thinking skill only LINKs; critic-vs-sparring → `skills/core-sparring-partner` (owner of anti-sycophancy critique, target is the USER's IDEA/DECISION ≠ an artifact) |
+| meta-reasoning: problem-classification (11 types) → impact LOW/MED/HIGH → dispatch how-to-think (calibrated) | `skills/core-meta-reasoning-orchestrator` | LINK; the 4-mode order is NOT repeated here (→ `core-synthesis-decision` §Orchestration); compose-not-replace `SKILL-MAP` (skill-for-code) + `workflow/workflow.md` (flow) |
+| drift-lint (immune system) | `.claude/lint.sh` (auto via `hooks/stop-checks.sh`) | run after every `.claude` edit |
+| agent memory-spec block (~137 lines of boilerplate) | **100% identical across all 7 agents** (NOT deduped — subagents need it inline) | edit one → edit ALL 7; lint [9] enforces sameness |
 | estimation rubric (XS-XL · P0-P3 · risk) | `workflow/project-rules.md` §7 | link |
 | rollback / recovery | `workflow/project-rules.md` §6 | link |
-| pipeline I/O contract + state-store = Issue body | `workflow/workflow.md` §2 | agent prompt chỉ link |
+| pipeline I/O contract + state-store = Issue body | `workflow/workflow.md` §2 | agent prompts only link |
 | skill naming token (his-`<token>`-) | `SKILL-MAP` §0 | |
 | agent slug ↔ display-name | `agents/ai-project-orchestrator.md` (AVAILABLE...) + `workflow.md` §1 | |
 | file-placement (report→workspace-docs; backlog→GitHub Issues) | `SKILL-MAP` §0a + `CLAUDE.md` | |
 | deploy (auto via GitHub Actions) | `his-ops-deploy` + `CLAUDE.md` Deploy | |
-| test-làm-cuối (fix/feature/tech-debt xong HẾT rồi mới test; không ngoại lệ harness) | `CLAUDE.md` §"Quản lý plan/task" | hook `session-start.sh`/`remind-pipeline.sh` inline-enforce + STATUS chỉ link |
-| model-tier routing (Opus/Sonnet/Haiku theo tính chất phiên; nudge mềm) | `CLAUDE.md` §"Agent routing" | hook `session-start.sh` nudge inline; nơi khác link |
-| task-lifecycle (in-progress label · scope-overlap · task-dài→push-1-lần) | `CLAUDE.md` §"Quản lý plan/task" | git-ops mechanics ở `workflow/project-rules.md` §2-4; nơi khác link |
-| SYNC-GATE chống-trùng-code (same-machine **mkdir atomic-lock** + cross-machine gh-claim + verify-after-claim) | `workflow/project-rules.md` §2 — **mechanism: `.claude/window-lock.sh`** (+ shim `.ps1`) | **ÉP: `hooks/pre-edit-lock-gate.sh` PreToolUse** (chặn Edit khi ≥2 cửa chưa-claim) + `session-start.sh` nudge/active-marker; `remind-pipeline.sh` chỉ nhắc pipeline (KHÔNG enforce lock); đa-cửa model→`workflow/parallel-windows.md` §2 |
-| evidence viewer / file-layout / naming / regen / dedup-GitHub | `docs/architecture/evidence/README.md` | `CLAUDE.md` §test + `his-test-e2e` §6 (convention đặt-tên-test) chỉ link |
-| session-ops (đọc-gì-đầu-phiên · plan-mode timing · dọn-context `/compact`-`/clear`-`/rewind`-`/context` · handoff giữ STATUS ngắn) | `workflow/session-ops.md` | link; KHÔNG sở hữu model (→`CLAUDE.md §Agent routing`) · git-sync (→`project-rules.md` §2) · pipeline/DONE (→`workflow.md`) · file-placement (→`SKILL-MAP` §0a) |
+| test-goes-last (finish ALL fix/feature/tech-debt first, then test; no harness exception) | `CLAUDE.md` §"Plan/task management" | hook `session-start.sh`/`remind-pipeline.sh` inline-enforce + STATUS only links |
+| model-tier routing (Opus/Sonnet/Haiku by session nature; soft nudge) | `CLAUDE.md` §"Agent routing" | hook `session-start.sh` nudges inline; elsewhere links |
+| task-lifecycle (in-progress label · scope-overlap · long-task→push-once) | `CLAUDE.md` §"Plan/task management" | git-ops mechanics in `workflow/project-rules.md` §2-4; elsewhere links |
+| SYNC-GATE anti-duplicate-code (same-machine **mkdir atomic-lock** + cross-machine gh-claim + verify-after-claim) | `workflow/project-rules.md` §2 — **mechanism: `.claude/window-lock.sh`** (+ `.ps1` shim) | **ENFORCE: `hooks/pre-edit-lock-gate.sh` PreToolUse** (blocks Edit when ≥2 windows are unclaimed) + `session-start.sh` nudge/active-marker; `remind-pipeline.sh` only reminds about the pipeline (does NOT enforce the lock); multi-window model → `workflow/parallel-windows.md` §2 |
+| evidence viewer / file-layout / naming / regen / dedup-GitHub | `docs/architecture/evidence/README.md` | `CLAUDE.md` §test + `his-test-e2e` §6 (test-naming convention) only link |
+| session-ops (what-to-read-at-session-start · plan-mode timing · context-cleanup `/compact`-`/clear`-`/rewind`-`/context` · keep STATUS short for handoff) | `workflow/session-ops.md` | link; does NOT own model (→`CLAUDE.md §Agent routing`) · git-sync (→`project-rules.md` §2) · pipeline/DONE (→`workflow.md`) · file-placement (→`SKILL-MAP` §0a) |
 | plugin-routing (USE net-new · DEFER-to-HIS overlap · COMPLEMENT) | `plugins.md` | link; review→`his-quality-reviewer` · UI→`core-ui-aesthetics`+`his-fe-page-v2` · skill-routing→`SKILL-MAP` · enabledPlugins→`~/.claude/settings.json` |
-| mô hình ĐA-CỬA-SỔ song song same-tree (4 soạn + 1 runner · role×registry · case→fix · trần RAM 16GB) | `workflow/parallel-windows.md` | link; git-ops mechanics→`workflow/project-rules.md` §2-4 · claim/SYNC-GATE→`workflow/project-rules.md` §2 · test-làm-cuối→`CLAUDE.md` |
+| parallel MULTI-WINDOW same-tree model (4 authors + 1 runner · role×registry · case→fix · 16GB RAM ceiling) | `workflow/parallel-windows.md` | link; git-ops mechanics→`workflow/project-rules.md` §2-4 · claim/SYNC-GATE→`workflow/project-rules.md` §2 · test-goes-last→`CLAUDE.md` |
+| multi-agent orchestration **QUALITY** (orchestrating many agents/subagents/Workflow: 7-layer gate · adversarial-verify · objective build-gate · no generic template copy) | `skills/his-flow-multi-agent-orchestration` | link; DISTINGUISH many human WINDOWS=mutex→`workflow/parallel-windows.md` · 1-Claude thinking→`core-synthesis-decision`/`core-meta-reasoning-orchestrator` |
 
-## ★ Quy tắc ghi/sửa rule trong `.claude` (BẮT BUỘC — chống tái drift)
-1. **Tra bảng trên TRƯỚC.** Rule đã có chủ → file mới chỉ **1 dòng + link**, TUYỆT ĐỐI không chép nội dung.
-2. Rule cross-cutting MỚI → **thêm 1 dòng vào bảng này** (khai báo chủ) rồi mới viết ở 1 nơi.
-3. **KHÔNG hard-code giá trị biến-động** (số migration / ngày / đếm) → dùng chỉ thị động (`ls`/`date`/`grep`).
-4. **KHÔNG ref memory bằng tên cứng** nếu không chắc tồn tại → tra MEMORY.md.
-5. Sau MỌI sửa `.claude` → chạy **`bash .claude/lint.sh`** (phải LINT OK mới coi là xong).
+## ★ Rules for writing/editing a rule in `.claude` (MANDATORY — anti re-drift)
+1. **Check the table above FIRST.** A rule that already has an owner → the new file gets only **1 line + a link**, ABSOLUTELY no copying of content.
+2. A NEW cross-cutting rule → **add a row to this table** (declare the owner) and only then write it in one place.
+3. **Do NOT hard-code changing values** (migration number / date / count) → use a dynamic directive (`ls`/`date`/`grep`).
+4. **Do NOT reference a memory by a hard-coded name** if you're unsure it exists → check MEMORY.md.
+5. After EVERY `.claude` edit → run **`bash .claude/lint.sh`** (must be LINT OK to count as done).
 
-> Nguyên lý: governance giữ nhất quán bằng **verify + enforce (lint)**, KHÔNG bằng trust/diligence (luôn trôi).
+> Principle: governance stays consistent through **verify + enforce (lint)**, NOT through trust/diligence (which always drifts).

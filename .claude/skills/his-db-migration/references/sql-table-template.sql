@@ -68,7 +68,7 @@ GO
 IF NOT EXISTS (SELECT 1 FROM <TABLE> WHERE Code = N'SAMPLE_001')
 BEGIN
     INSERT INTO <TABLE> (Id, Code, Name, Status, CreatedAt)
-    VALUES (NEWID(), N'SAMPLE_001', N'Mẫu dữ liệu', 1, GETDATE());
+    VALUES (NEWID(), N'SAMPLE_001', N'Sample data', 1, GETDATE());
     PRINT 'Seeded SAMPLE_001';
 END
 GO

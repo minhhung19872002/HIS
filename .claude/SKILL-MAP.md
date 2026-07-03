@@ -1,306 +1,288 @@
-# Skill Map — HIS (router mỏng)
+# Skill Map — HIS (slim router)
 
-Bản đồ ROUTER: chọn skill nào cho yêu cầu. **Mô tả đầy đủ từng skill đã được Claude tự nạp qua
-`description`** (danh sách available skills) → map này KHÔNG lặp lại mô tả, chỉ giữ **routing + governance**.
+ROUTER map: choose which skill to use for a request. **The full description of every skill is auto-loaded by Claude via `description`** (the available-skills list) → this map does NOT repeat those descriptions, it keeps only **routing + governance**.
 
-**★ CỬA VÀO DUY NHẤT (mọi input bắt đầu từ đây → đi hết 1 quy trình):**
+> **★ RESPONSE LANGUAGE (always):** reply to the user in the language of their message — a Vietnamese prompt gets a Vietnamese reply, an English prompt gets an English reply. Governance/skill files being written in English is for token efficiency only; it does **NOT** change the response language. (Enforced by the `UserPromptSubmit` hook in `settings.json`, which still requires the one-line skill note in Vietnamese.)
+
+**★ THE ONLY ENTRY POINT (every input starts here → runs one full process):**
 ```
-Input ─► [MAP] SKILL-MAP.md (chọn skill) ─► workflow/workflow.md (chọn flow/pipeline + state-store)
-        ─► chạy pipeline 5 chặng (Router→Planner→Worker→Reviewer→Finalizer) ─► Output/DONE
+Input ─► [MAP] SKILL-MAP.md (choose skill) ─► workflow/workflow.md (choose flow/pipeline + state-store)
+        ─► run the 5-stage pipeline (Router→Planner→Worker→Reviewer→Finalizer) ─► Output/DONE
 ```
-- **SKILL-MAP** = *làm bằng skill nào* (routing). **`workflow/workflow.md`** = *chạy theo flow/pipeline nào
-  + agent ghi gì vào state-store*. Hai cái bổ trợ, KHÔNG thay nhau.
-- Task **không trivial** PHẢI đi hết pipeline ([`workflow/workflow.md`](workflow/workflow.md)) + dùng
-  state-store ([`workflow/task.md`](workflow/task.md)); chỉ `DONE` khi qua [`workflow/checklist.md`](workflow/checklist.md).
-- Quy ước branch/commit/PR/review: [`workflow/project-rules.md`](workflow/project-rules.md) · Quyết định
-  kiến trúc: [`workflow/ai-memory.md`](workflow/ai-memory.md).
-- **Vận hành phiên** (đọc gì đầu phiên · chọn model · khi-nào plan-mode · dọn context `/compact`·`/clear`·`/rewind`·`/context` ·
-  handoff giữ STATUS ngắn): [`workflow/session-ops.md`](workflow/session-ops.md).
-- **Plugin đã cài** (USE net-new chrome-devtools/playwright MCP · DEFER-to-HIS cho frontend-design/code-review/github · meta recommender): [`plugins.md`](plugins.md).
-- **Task "rà soát / đối chiếu tài liệu / gap analysis / đã-đủ-chưa / backlog từ `docs/requirements/**`"**
-  → BẮT BUỘC theo [`workflow/requirement-coverage.md`](workflow/requirement-coverage.md): source-manifest
-  trước · đọc PDF gốc nếu `.md` hụt · enumerate đủ (không tóm tắt) · phương châm **parity-đối-thủ**
-  (đối thủ-có→bắt buộc; không-có-không-cần→KHÔNG tạo) · dedup · **completeness-gate** (KHÔNG nói "đủ" khi
-  chưa phủ 100% nguồn). Chống over-confidence/sót.
+- **SKILL-MAP** = *which skill to do it with* (routing). **`workflow/workflow.md`** = *which flow/pipeline to run + what the agent writes to the state-store*. The two are complementary, NOT interchangeable.
+- A **non-trivial** task MUST go through the full pipeline ([`workflow/workflow.md`](workflow/workflow.md)) + use the state-store ([`workflow/task.md`](workflow/task.md)); mark `DONE` only after passing [`workflow/checklist.md`](workflow/checklist.md).
+- Branch/commit/PR/review conventions: [`workflow/project-rules.md`](workflow/project-rules.md) · architecture decisions: [`workflow/ai-memory.md`](workflow/ai-memory.md).
+- **Session operations** (what to read at session start · choosing a model · when to use plan-mode · context cleanup `/compact`·`/clear`·`/rewind`·`/context` · keeping STATUS short for handoff): [`workflow/session-ops.md`](workflow/session-ops.md).
+- **Installed plugins** (USE net-new chrome-devtools/playwright MCP · DEFER-to-HIS for frontend-design/code-review/github · meta recommender): [`plugins.md`](plugins.md).
+- **Task "review / compare against docs / gap analysis / is-it-complete / backlog from `docs/requirements/**`"**
+  → MANDATORY per [`workflow/requirement-coverage.md`](workflow/requirement-coverage.md): source-manifest
+  first · read the original PDF if the `.md` is incomplete · enumerate fully (no summarizing) · the **competitor-parity** principle
+  (competitor-has → mandatory; not-there-not-needed → DO NOT create) · dedup · **completeness-gate** (DO NOT say "enough" until 100% of the sources are covered). Guards against over-confidence/omissions.
 
-**Cách dùng (2 bước, tiết kiệm token):**
-1. Đọc file này (governance + index + dispatch).
-2. Theo dispatch (2) → đọc **đúng 1 map con** trong `.claude/skill-routes/` cho tầng của task. Chỉ mở
-   `skill-routes/_reference.md` khi cần playbook end-to-end / dependency map đầy đủ.
+**How to use (2 steps, token-saving):**
+1. Read this file (governance + index + dispatch).
+2. Per dispatch (2) → read **exactly one sub-map** in `.claude/skill-routes/` for the task's tier. Open `skill-routes/_reference.md` only when you need the end-to-end playbook / full dependency map.
 
-Cấu trúc **2 cấp**: **A · CORE** (`core-*`, portable, tech-agnostic) và **B · PROJECT/HIS** (`his-*`, bám stack).
-Skill nằm ở `.claude/skills/` (**chỉ `SKILL.md` cấp 1 auto-nạp qua description**; nội dung `references/` + `scripts/` KHÔNG tự nạp — phải Read khi skill chỉ định, progressive disclosure). Tài liệu ở `docs/` (KHÔNG phải skill).
+**2-tier** structure: **A · CORE** (`core-*`, portable, tech-agnostic) and **B · PROJECT/HIS** (`his-*`, stack-bound). Skills live in `.claude/skills/` (**only the top-level `SKILL.md` auto-loads via description**; content under `references/` + `scripts/` does NOT auto-load — Read it when the skill says so, progressive disclosure). Docs live in `docs/` (NOT skills).
 
-> **Mục lục mục** (đọc theo logic, không theo thứ tự dòng): **(0)** đặt-tên-skill · **(0a)** vị-trí-file · **(0b)** P0/P1/P2 (rule lõi nhất) · **(0c)** git-ops · **(1)** index skill · **(2)** dispatch · **(5)** conflict-resolution+tiebreaker · **(6)** fallback · **(7)** split. **Mục (3) playbook + (4) dependency-map** nằm ở `skill-routes/_reference.md`.
+> **Section index** (read by logic, not by line order): **(0)** skill-naming · **(0a)** file-location · **(0b)** P0/P1/P2 (the most core rules) · **(0c)** git-ops · **(1)** skill index · **(2)** dispatch · **(5)** conflict-resolution+tiebreaker · **(6)** fallback · **(7)** split. **Sections (3) playbook + (4) dependency-map** live in `skill-routes/_reference.md`.
 
 ---
 
-## (0a) ★ VỊ TRÍ FILE BÁO CÁO / KẾ HOẠCH / HANDOFF (BẮT BUỘC)
+## (0a) ★ LOCATION OF REPORT / PLAN / HANDOFF FILES (MANDATORY)
 
-**Mọi file báo cáo, plan, handoff, audit, roadmap** trong dự án PHẢI lưu tại **`docs/workspace-docs/`** — KHÔNG đặt ở root, KHÔNG đặt rải rác trong `frontend/` hay `backend/`.
+**All report, plan, handoff, audit, and roadmap files** in the project MUST be stored under **`docs/workspace-docs/`** — do NOT put them at the project root, do NOT scatter them inside `frontend/` or `backend/`.
 
-| Loại file | Convention naming | Skill liên quan |
+| File type | Naming convention | Related skill |
 |---|---|---|
-| Lịch tech-debt evergreen | `docs/workspace-docs/20-backlog/tech-debt-roadmap.md` | `his-tech-debt-workflow` Rule 2 |
-| Audit số liệu rule compliance | `docs/workspace-docs/10-assessment/rule-compliance-audit.md` | `his-tech-debt-workflow` Rule 3 |
-| Session handoff cuối phiên dài | `docs/workspace-docs/90-archive/handoffs/session-YYYY-MM-DD-handoff.md` (suffix `-AM`/`-PM` nếu 2 phiên/ngày) | `his-tech-debt-workflow` Rule 10 |
-| Đánh giá module/feature | `docs/workspace-docs/10-assessment/danh-gia-<topic>.md` | `his-doc-feature` (nếu là feature doc set chính thức → đặt `docs/features/<feature>/`) |
-| Phân tích NangCapNN | `docs/workspace-docs/NangCap_<NN>_PhanTich.md` HOẶC `docs/requirements/` | `his-flow-nangcap-package` |
+| Evergreen tech-debt schedule | `docs/workspace-docs/20-backlog/tech-debt-roadmap.md` | `his-tech-debt-workflow` Rule 2 |
+| Rule-compliance metrics audit | `docs/workspace-docs/10-assessment/rule-compliance-audit.md` | `his-tech-debt-workflow` Rule 3 |
+| End-of-long-session handoff | `docs/workspace-docs/90-archive/handoffs/session-YYYY-MM-DD-handoff.md` (suffix `-AM`/`-PM` if 2 sessions/day) | `his-tech-debt-workflow` Rule 10 |
+| Module/feature assessment | `docs/workspace-docs/10-assessment/danh-gia-<topic>.md` | `his-doc-feature` (if it's an official feature doc set → put it under `docs/features/<feature>/`) |
+| NangCapNN analysis | `docs/workspace-docs/NangCap_<NN>_PhanTich.md` OR `docs/requirements/` | `his-flow-nangcap-package` |
 
-**KHÔNG được:**
-- Tạo `*.md` plan/report ở root project (`/PLAN.md`, `/REPORT.md`)
-- Tạo trong `frontend/` hay `backend/` (đó là code dir)
-- Tạo dạng `.txt` hay `.docx` — luôn dùng `.md` markdown
-- Bỏ qua cross-ref (mọi handoff phải link đến `20-backlog/tech-debt-roadmap.md` + `10-assessment/rule-compliance-audit.md` + skill liên quan)
+**Do NOT:**
+- Create plan/report `*.md` at the project root (`/PLAN.md`, `/REPORT.md`)
+- Create them inside `frontend/` or `backend/` (those are code dirs)
+- Use `.txt` or `.docx` — always use `.md` markdown
+- Skip cross-refs (every handoff must link to `20-backlog/tech-debt-roadmap.md` + `10-assessment/rule-compliance-audit.md` + the related skill)
 
-**Khi nào tạo file mới vs update file cũ:**
-- Lịch evergreen (roadmap/audit) → UPDATE file cũ (không tạo bản v2)
-- Snapshot phiên cụ thể (handoff/work-log) → TẠO file mới với date suffix
-- Đánh giá 1 lần (feature gap analysis) → TẠO file mới, đặt tên rõ ràng
+**When to create a new file vs update an existing one:**
+- Evergreen schedule (roadmap/audit) → UPDATE the existing file (do not create a v2)
+- Snapshot of a specific session (handoff/work-log) → CREATE a new file with a date suffix
+- One-off assessment (feature gap analysis) → CREATE a new file with a clear name
 
-**Subfolder khi nhóm file dài/nhiều:**
-- `docs/workspace-docs/20-backlog/items/plan-<ID>-<topic>.md` cho plan chi tiết từng task tech-debt (T1/T4/T5/T6/K1-K5) — mỗi plan có pre-requisite + verify command + steps + rollback + estimate
-- `docs/workspace-docs/90-archive/handoffs/session-YYYY-MM-DD.md` nếu có nhiều handoff (>5 file)
-- KHÔNG tạo subfolder cho file đơn lẻ — chỉ khi >3 file cùng loại
+**Subfolders when files get long/numerous:**
+- `docs/workspace-docs/20-backlog/items/plan-<ID>-<topic>.md` for a detailed per-task tech-debt plan (T1/T4/T5/T6/K1-K5) — each plan has pre-requisite + verify command + steps + rollback + estimate
+- `docs/workspace-docs/90-archive/handoffs/session-YYYY-MM-DD.md` when there are many handoffs (>5 files)
+- Do NOT create a subfolder for a single file — only when >3 files of the same kind
 
-User explicit 2026-05-30: "mỗi lần viết báo cáo hoặc lập kế hoạch cần phải viết vào đây ghi nhớ".
+User explicit 2026-05-30: "Every time you write a report or make a plan, you must write it down here, remember".
 
 ---
 
-## (0c) ★ GIT OPS — TUYỆT ĐỐI KHÔNG TỰ commit/push (BẮT BUỘC)
+## (0c) ★ GIT OPS — ABSOLUTELY DO NOT commit/push ON YOUR OWN (MANDATORY)
 
-User explicit 2026-05-30 (đã reprimanded 3+ lần):
-> "sao tự đẩy code lên suốt thế. cập nhật trong skill-skillmap hay đâu đó để biết
-> khi continue thì làm theo lịch đã lên sẵn mà không push code"
+User explicit 2026-05-30 (reprimanded 3+ times):
+> "why do you keep pushing code on your own. update the skill-map or somewhere so you know
+> that on continue you follow the pre-set schedule without pushing code"
+> "absolutely do not push code, and especially do not push code in the workspace-docs folder"
 
-> "tuyệt đối không đẩy code và đặc biệt là không đẩy code trong thư mục worspace-doc"
-
-**Nguyên-tắc-lõi** (★ **bảng đầy đủ + edge-case + ngưỡng = nguồn chân lý** [`workflow/project-rules.md`](workflow/project-rules.md) §2-4 — KHÔNG lặp ở đây, chống drift):
-- "continue / tiếp tục / làm tiếp" / "mọi việc còn lại giao cho bạn" = **CHỈ** code-change + build-verify + report → **KHÔNG** `git add`/`commit`/`push`.
-- Chỉ keyword explicit **lượt-hiện-tại** mới mở khoá: "commit" → commit LOCAL (KHÔNG push); "push / đẩy code" → mới `git push`. Lượt-trước-cho-phép KHÔNG nới sang lượt-sau.
-- workspace-docs commit + push **bình thường** (quy tắc never-push đã **GỠ** 2026-06-13).
+**Core principles** (★ **full table + edge cases + thresholds = source of truth** [`workflow/project-rules.md`](workflow/project-rules.md) §2-4 — NOT repeated here, to prevent drift):
+- "continue / keep going / carry on" / "the rest is up to you" = code-change + build-verify + report **ONLY** → do NOT `git add`/`commit`/`push`.
+- Only an explicit keyword **in the current turn** unlocks it: "commit" → commit LOCAL (do NOT push); "push" (in any language) → only then `git push`. A previous turn's permission does NOT extend to a later turn.
+- workspace-docs commit + push is **normal** (the never-push rule was **REMOVED** 2026-06-13).
 
 Cross-ref memory: `feedback_no-commit-push-without-permission.md` · `feedback_continue-no-git-ops.md`
-*(đã gỡ `feedback_workspace-docs-never-push.md` — memory này đã xoá + rule đã đảo ngược 2026-06-13.)*
+*(removed `feedback_workspace-docs-never-push.md` — that memory was deleted + the rule was reversed 2026-06-13.)*
 
 ---
 
-## (0) Quy tắc đặt tên skill (BẮT BUỘC — không hỏi, không tự bịa)
+## (0) Skill naming rules (MANDATORY — do not ask, do not invent)
 
-Mọi skill `his-*` phải có **token tầng** ngay sau `his-`: `his-<token>-<tên-mô-tả>` (lowercase-kebab).
-Tạo skill mới **chọn token theo bảng — KHÔNG hỏi lại, KHÔNG đặt tên tự do**.
+Every `his-*` skill must carry a **tier token** right after `his-`: `his-<token>-<descriptive-name>` (lowercase-kebab).
+When creating a new skill, **pick the token from the table — do NOT ask again, do NOT free-name**.
 
-| Token | Tầng | Dùng cho |
+| Token | Tier | Used for |
 |---|---|---|
-| `fe` | Frontend | page/component React, api client, UI Antd, viewer, biểu mẫu in, portal |
-| `be` | Backend | service/controller/entity, cổng ngoài, payment, logic trigger worker |
-| `db` | Database | bảng SQL Server, migration, seed |
-| `fs` | Fullstack (FE+BE) | tính năng xuyên 2 tầng không tách được (vd SignalR realtime) |
-| `ops` | DevOps | deploy, CI/CD, hạ tầng prod |
-| `test` | Testing | test runner cụ thể (Cypress/Playwright/PowerShell API) |
-| `qa` | Quality/guardrail | anti-pattern, convention, an toàn, patient-safety |
-| `doc` | Tài liệu | bộ tài liệu feature |
-| `flow` | Điều phối | playbook chuỗi nhiều skill (vd gói NangCapNN) |
+| `fe` | Frontend | React page/component, api client, Antd UI, viewer, print form, portal |
+| `be` | Backend | service/controller/entity, external gateway, payment, worker trigger logic |
+| `db` | Database | SQL Server tables, migration, seed |
+| `fs` | Fullstack (FE+BE) | a feature spanning both tiers that can't be split (e.g. SignalR realtime) |
+| `ops` | DevOps | deploy, CI/CD, prod infrastructure |
+| `test` | Testing | a specific test runner (Cypress/Playwright/PowerShell API) |
+| `qa` | Quality/guardrail | anti-pattern, convention, safety, patient-safety |
+| `doc` | Documentation | feature doc set |
+| `flow` | Orchestration | multi-skill chained playbook (e.g. the NangCapNN package) |
 
-Quy tắc:
-- `core-*` (portable, tech-agnostic) **KHÔNG** mang token tầng — giữ nguyên `core-<tên>`.
-- Skill xuyên tầng → `fs`; nếu phần lớn thuộc 1 tầng thì gán theo tầng trội (vd payment chủ yếu BE → `be`).
-- Token mới (ngoài bảng) **chỉ** thêm khi xuất hiện nhóm task thật sự mới, kèm cập nhật bảng này.
-- Tên lowercase-kebab; **`name:` frontmatter PHẢI trùng tên thư mục** (xác minh khớp sau khi tạo/đổi tên).
-- **Frontmatter chuẩn (Agent Skills spec):** chỉ `name` + `description` (bắt buộc) + tùy chọn
-  `metadata` / `allowed-tools`. Field tự định nghĩa (vd `type: project`) PHẢI nằm trong `metadata:`,
-  KHÔNG đặt ở cấp cao nhất. `description` ≤ 1024 ký tự, ngôi thứ 3, giàu trigger + `Do NOT use`.
-  Chi tiết cách viết frontmatter/description/body + template → skill **`core-skill-authoring`**.
+Rules:
+- `core-*` (portable, tech-agnostic) does **NOT** carry a tier token — keep it `core-<name>`.
+- A cross-tier skill → `fs`; if it's mostly one tier, assign it to the dominant tier (e.g. payment is mostly BE → `be`).
+- A new token (outside the table) is added **only** when a genuinely new task group appears, together with an update to this table.
+- Name is lowercase-kebab; the **`name:` frontmatter MUST match the folder name** (verify the match after creating/renaming).
+- **Standard frontmatter (Agent Skills spec):** only `name` + `description` (required) + optional
+  `metadata` / `allowed-tools`. A custom field (e.g. `type: project`) MUST live under `metadata:`,
+  NOT at the top level. `description` ≤ 1024 chars, third person, trigger-rich + `Do NOT use`.
+  How to write the frontmatter/description/body + template → skill **`core-skill-authoring`**.
 
 ---
 
-## (0b) ★ PHÂN TẦNG ƯU TIÊN RULE — P0 / P1 / P2 (mọi session PHẢI theo)
+## (0b) ★ RULE PRIORITY TIERS — P0 / P1 / P2 (every session MUST follow)
 
-Khi generate/refactor code, áp rule theo mức. **P0 = tuyệt đối không vi phạm · P1 = bắt buộc · P2 = khuyến nghị (đừng biến thành cớ over-engineer).**
+When generating/refactoring code, apply rules by tier. **P0 = absolutely never violate · P1 = mandatory · P2 = recommended (don't turn it into an excuse to over-engineer).**
 
-### 🔴 P0 — TUYỆT ĐỐI (vi phạm = mất an toàn BN / hỏng runtime / lộ bảo mật / báo sai sự thật)
-1. **Patient safety**: giữ check tương tác thuốc/dị ứng/chống chỉ định; mapping Patient↔MedicalRecord↔Order đúng (`his-qa` #20-22).
-2. **🔝 KHÔNG ẢO TƯỞNG / BỊA ĐẶT (P0 cao nhất)**: TUYỆT ĐỐI không suy diễn/giả định/giả tạo/tự nghĩ ra; KHÔNG phát minh file/hàm/endpoint/field/cột DB/prop/config/cấu-trúc-logic/luồng-dữ-liệu **không tồn tại**. Phải Read/Grep verify trong code thật mới khẳng định; chưa chắc → ghi "giả định" hoặc DỪNG hỏi, không trình bày phỏng đoán như sự thật (`core-verify-before-assert`, `his-qa` P0 đầu file).
-3. **BUILD-GATE**: thêm/sửa/xoá code → build sạch tầng đã đụng (FE `npm run build` EXIT 0 · BE `dotnet build` 0 errors) MỚI báo xong (`his-qa` #27). Không claim success khi chưa verify.
-4. **Đăng ký DI** service/controller mới (quên = 500) (`his-qa` #1).
-5. **KHÔNG hardcode** credentials/secret/connection string/token (`his-qa` #18); tên BV/URL → constants/env (#16-17).
-6. **Audit & privacy HSBA**: giữ audit log mutation; `CreatedBy` user thật (≠ `Guid.Empty`); role-guard hồ sơ (`his-qa` #23-26).
-7. **Validate ở BE** (không tin client) (`core-validation-pattern`).
-8. **ĐẶT FILE đúng thư mục — KHÔNG ở root**; thiếu thư mục → đề xuất user tạo (`his-qa` #28-29).
+### 🔴 P0 — ABSOLUTE (a violation = patient-safety loss / broken runtime / security leak / false reporting)
+1. **Patient safety**: keep drug-interaction/allergy/contraindication checks; correct Patient↔MedicalRecord↔Order mapping (`his-qa` #20-22).
+2. **🔝 NO HALLUCINATION / FABRICATION (highest P0)**: absolutely do not infer/assume/fabricate/make things up; do NOT invent files/functions/endpoints/fields/DB columns/props/config/logic-structures/data-flows that **don't exist**. You must Read/Grep verify in the real code before asserting; when unsure → write "assumption" or STOP and ask, never present a guess as fact (`core-verify-before-assert`, `his-qa` P0 at top of file).
+3. **BUILD-GATE**: add/modify/delete code → build the touched tier clean (FE `npm run build` EXIT 0 · BE `dotnet build` 0 errors) BEFORE reporting done (`his-qa` #27). Never claim success without verifying.
+4. **Register DI** for a new service/controller (forgetting = 500) (`his-qa` #1).
+5. **Do NOT hardcode** credentials/secret/connection string/token (`his-qa` #18); hospital name/URL → constants/env (#16-17).
+6. **Medical-record audit & privacy**: keep the audit log on mutations; `CreatedBy` = real user (≠ `Guid.Empty`); role-guard records (`his-qa` #23-26).
+7. **Validate on the BE** (do not trust the client) (`core-validation-pattern`).
+8. **PUT FILES in the right folder — NOT at the root**; missing folder → propose the user creates it (`his-qa` #28-29).
 
-### 🟠 P1 — BẮT BUỘC (kiến trúc & chất lượng cốt lõi — giữ codebase maintainable/scalable)
-9. **REUSE-FIRST** (FE+BE): tìm code/thư mục đã có → dùng lại/mở rộng, không tạo trùng (`core-reusable-code`).
-10. **SELF-REVIEW 9 điểm** (BE+FE) trước khi báo (`his-qa` #30).
-11. **Tách layer / separation of concerns**: UI · service(`api/*`) · state · validation · mapper · constants; KHÔNG trộn business/axios vào component render (`his-fe-convention` §2, §8).
-12. **FE ANTD-FIRST + config-driven**: ưu tiên Antd v6/`_v2kit`, options dạng JSON; KHÔNG HTML/CSS thuần khi không cần (`his-fe-convention` §5).
-13. **Naming convention** đúng + theo domain (`his-fe-convention` §1).
-14. **Refactor an toàn**: backward-compat · preserve behavior · migrate dần · KHÔNG replace cơ học/mass-migrate mù · impact-analysis trước khi sửa code dùng chung (`core-refactor`, `core-impact-analysis`, `his-fe-convention` §6).
-15. **Giữ stack — KHÔNG redesign/rewrite**: cấm CQRS/MediatR/Minimal-API/Next.js/Tailwind-first; SQL script tay idempotent (KHÔNG `ef migrations` auto) (`his-qa` #2-4).
-16. **Security/permission render** + route guard + không hardcode role (`his-fe-convention` §9).
-17. **Error/loading/empty** đầy đủ + chuẩn hoá lỗi API (`core-error-loading-state`, `his-fe-convention` §10).
+### 🟠 P1 — MANDATORY (core architecture & quality — keep the codebase maintainable/scalable)
+9. **REUSE-FIRST** (FE+BE): find existing code/folder → reuse/extend, don't create duplicates (`core-reusable-code`).
+10. **9-POINT SELF-REVIEW** (BE+FE) before reporting (`his-qa` #30).
+11. **Layer separation / separation of concerns**: UI · service (`api/*`) · state · validation · mapper · constants; do NOT mix business/axios into the render component (`his-fe-convention` §2, §8).
+12. **FE ANTD-FIRST + config-driven**: prefer Antd v6/`_v2kit`, JSON-shaped options; no plain HTML/CSS when not needed (`his-fe-convention` §5).
+13. **Naming convention** correct + domain-aligned (`his-fe-convention` §1).
+14. **Safe refactor**: backward-compat · preserve behavior · migrate incrementally · NO mechanical replace/blind mass-migrate · impact-analysis before editing shared code (`core-refactor`, `core-impact-analysis`, `his-fe-convention` §6).
+15. **Keep the stack — NO redesign/rewrite**: no CQRS/MediatR/Minimal-API/Next.js/Tailwind-first; hand-written idempotent SQL scripts (NO auto `ef migrations`) (`his-qa` #2-4).
+16. **Security/permission rendering** + route guard + no hardcoded roles (`his-fe-convention` §9).
+17. **Error/loading/empty** complete + standardized API errors (`core-error-loading-state`, `his-fe-convention` §10).
 
-### 🟡 P2 — KHUYẾN NGHỊ (clean-code & tinh chỉnh — áp khi hợp lý, KHÔNG over-engineer)
-18. Clean-code mức hàm: SRP, guard clause, ít tham số, magic-value→const, immutability (`core-clean-code`).
-19. Performance: lazy/code-split, `useMemo`/memo **đúng chỗ** (đo trước), debounce/throttle, virtualize bảng lớn (`his-fe-performance`) — KHÔNG tối ưu non.
-20. a11y/WCAG cho màn hình lâm sàng (`core-accessibility-pattern`).
-21. DRY theo **rule-of-three** — tránh abstraction non; YAGNI (`core-minimal-change`).
+### 🟡 P2 — RECOMMENDED (clean-code & polish — apply when reasonable, do NOT over-engineer)
+18. Function-level clean-code: SRP, guard clauses, few parameters, magic-value→const, immutability (`core-clean-code`).
+19. Performance: lazy/code-split, `useMemo`/memo **where appropriate** (measure first), debounce/throttle, virtualize large tables (`his-fe-performance`) — NO premature optimization.
+20. a11y/WCAG for clinical screens (`core-accessibility-pattern`).
+21. DRY by the **rule-of-three** — avoid premature abstraction; YAGNI (`core-minimal-change`).
 
-> ⚠️ **Chống over-engineering (HIS enterprise thực tế):** P2 KHÔNG được dùng làm cớ để thêm layer/abstraction
-> không cần. Dự án dùng **Controller+Service / React+Antd+`_v2kit` / context+local+refetch** — KHÔNG Redux/
-> normalized-store, KHÔNG DDD nặng (aggregate/value-object/repo-per-aggregate), KHÔNG CQRS. Khi phân vân giữa
-> "đúng pattern lý thuyết" và "khớp codebase hiện tại" → **theo codebase hiện tại** (`core-architecture-consistency`).
+> ⚠️ **Anti over-engineering (real-world HIS enterprise):** P2 must NOT be used as an excuse to add unneeded
+> layers/abstractions. The project uses **Controller+Service / React+Antd+`_v2kit` / context+local+refetch** — NO Redux/
+> normalized-store, NO heavy DDD (aggregate/value-object/repo-per-aggregate), NO CQRS. When torn between
+> "theoretically correct pattern" and "matches the current codebase" → **follow the current codebase** (`core-architecture-consistency`).
 
 ---
 
-## (1) Index skill (tên + tầng) — "chọn khi" của HIS xem map con
+## (1) Skill index (name + tier) — the "choose when" lives in the sub-maps
 
-### NHÓM A · CORE (`core-*`) — áp đầu mọi chuỗi, KHÔNG token tầng
+### GROUP A · CORE (`core-*`) — applied at the head of every chain, NO tier token
 
-| Sub-tier | Skill | Chọn khi yêu cầu liên quan |
+| Sub-tier | Skill | Choose when the request involves |
 |---|---|---|
-| A0 governance | `core-skill-authoring` | tạo/sửa/review skill `.claude/skills/*/SKILL.md` |
-| A-discipline (pre-flight) | `core-prod-change-discipline` | ★ **umbrella Tech-Lead** cho thay đổi hệ Production — bọc vòng đời (clarify→analyze→root-cause→blast-radius→minimal→**≥3 phương án**→scope→tech-debt→**self-critique**→**gate lint+test**→**báo cáo 7 phần**→thứ tự ưu tiên); LINK các skill dưới |
-| | `core-requirement-clarify` | hiểu đúng yêu cầu; STOP-and-ask vs proceed (đầu MỌI task) |
-| | `core-verify-before-assert` | chống ảo tưởng; verify file/symbol/endpoint/field trước khi khẳng định |
-| | `core-impact-analysis` | bản đồ tác động (callers/contract/test/migration) trước khi sửa code dùng chung |
-| | `core-minimal-change` | YAGNI; thay đổi nhỏ nhất đúng, không over-engineer, không sửa ngoài scope |
-| | `core-code-change-workflow` | **workflow tổng cho MỌI thay đổi code** (add/modify/delete) — pre-flight + file-allow-list + fail criteria + rollback; thực chiến cho FE/BE/DB/API/test/doc |
-| | `core-execution-output` | báo cáo kết quả chạy lệnh: ngắn gọn mặc định, tự bung khi lỗi, luôn nêu thao tác phá huỷ |
-| A1 arch/reuse | `core-architecture-follow` | code chạm nhiều layer |
-| | `core-reusable-code` | **mọi** lần tạo file/abstraction (reuse trước khi tạo) |
-| | `core-clean-code` | **mọi** code-gen/refactor — clean code mức hàm/câu lệnh (SRP, guard clause, magic value, immutability, async hygiene, dễ bảo trì/nâng cấp) |
-| | `core-architecture-consistency` | thêm feature theo tiền lệ |
-| | `core-refactor` | "refactor / clean up / tách" giữ behavior |
-| | `core-codebase-map-tooling` | điều hướng codebase nhanh (tìm hàm/lớp/symbol "ở đâu / ai gọi") bằng index **ctags** (`tags`) / LSP-MCP — ít token; onboard repo lạ |
-| A2 cross-cutting | `core-types-contract` | định nghĩa API contract / signature |
-| | `core-validation-pattern` | validate form/payload (FE+BE consistency) |
-| | `core-error-loading-state` | UI có fetch/submit (loading/empty/error/success) |
-| | `core-accessibility-pattern` | UI cần a11y/WCAG (keyboard, focus, ARIA, tương phản, nhãn) |
-| | `core-ui-aesthetics` | UI cần **có gu thẩm mỹ / bớt generic / pro hơn** (spacing/typo/màu/phân cấp/tiết chế) — KHÔNG hại UX; portable mọi dự án |
-| | `core-ui-ux-audit` | **AUDIT UX/UI toàn hệ thống** (light↔dark, đồng bộ, lạc-hệ, hardcode-vs-token, reuse/scale) → **plan + task TRƯỚC**, fix root-first SAU; audit-first, KHÔNG sửa khi chưa audit xong. Scope-able (1 module/full), token-heavy |
-| | `core-localization-pattern` | thêm text hiển thị / đa ngôn ngữ |
-| A3 testing | `core-testing-architecture` | chọn level unit/integration/e2e/contract |
-| | `core-testing-reuse` | reuse helper/fixture/mock + regression |
-| A4 thinking (tư duy hệ thống) | `core-meta-reasoning-orchestrator` | **ENTRY/ROUTER** nhóm tư duy: vấn đề suy-luận-nặng → phân loại 11 loại → đo impact LOW/MED/HIGH → dispatch skill+kỹ thuật → giả định/alt-model/confidence (gọi TRƯỚC khi suy luận; LOW → bỏ qua) |
-| | `core-open-thinking` | mở rộng không gian giải pháp — sinh nhiều mô hình **trực giao**, chống anchoring (pha PHÂN KỲ, đầu chu trình) |
-| | `core-inversion-thinking` | đảo bài toán — "điều gì làm THẤT BẠI" → pre-mortem / backward / assumption-flip (pha XOAY KHUNG / khi bí) |
-| | `core-critic` | audit **1 artifact đã có** — lỗi/giả-định-sai/rủi-ro/thiếu-chứng-cứ → findings xếp severity + verdict (pha HỘI TỤ / gate). USER-ý/quyết-định trong hội thoại → `core-sparring-partner` |
-| | `core-synthesis-decision` | chốt: gộp options + findings + failure-map → 1 quyết định + lý do + rủi ro tồn dư; **CHỦ §Orchestration 4 chế độ** |
+| A0 governance | `core-skill-authoring` | creating/editing/reviewing a skill `.claude/skills/*/SKILL.md` |
+| A-discipline (pre-flight) | `core-prod-change-discipline` | ★ **Tech-Lead umbrella** for a Production change — wraps the lifecycle (clarify→analyze→root-cause→blast-radius→minimal→**≥3 options**→scope→tech-debt→**self-critique**→**gate lint+test**→**7-part report**→priority order); LINKS the skills below |
+| | `core-requirement-clarify` | understand the requirement correctly; STOP-and-ask vs proceed (start of EVERY task) |
+| | `core-verify-before-assert` | anti-hallucination; verify file/symbol/endpoint/field before asserting |
+| | `core-impact-analysis` | blast-radius map (callers/contract/test/migration) before editing shared code |
+| | `core-minimal-change` | YAGNI; smallest correct change, no over-engineering, no out-of-scope edits |
+| | `core-code-change-workflow` | **the umbrella workflow for ANY code change** (add/modify/delete) — pre-flight + file-allow-list + fail criteria + rollback; practical for FE/BE/DB/API/test/doc |
+| | `core-execution-output` | reporting command output: concise by default, auto-expand on failure, always surface destructive ops |
+| A1 arch/reuse | `core-architecture-follow` | code touching multiple layers |
+| | `core-reusable-code` | **every** time you create a file/abstraction (reuse before create) |
+| | `core-clean-code` | **every** code-gen/refactor — function/statement-level clean code (SRP, guard clause, magic value, immutability, async hygiene, maintainability/upgradability) |
+| | `core-architecture-consistency` | adding a feature by precedent |
+| | `core-refactor` | "refactor / clean up / split" while preserving behavior |
+| | `core-codebase-map-tooling` | navigate the codebase fast (find a function/class/symbol "where / who calls it") via the **ctags** (`tags`) index / LSP-MCP — low token; onboarding an unfamiliar repo |
+| A2 cross-cutting | `core-types-contract` | defining an API contract / signature |
+| | `core-validation-pattern` | validating a form/payload (FE+BE consistency) |
+| | `core-error-loading-state` | UI with fetch/submit (loading/empty/error/success) |
+| | `core-accessibility-pattern` | UI needing a11y/WCAG (keyboard, focus, ARIA, contrast, labels) |
+| | `core-ui-aesthetics` | UI that needs **taste / less generic / more pro** (spacing/typo/color/hierarchy/restraint) — no UX harm; portable across projects |
+| | `core-ui-ux-audit` | **system-wide UX/UI AUDIT** (light↔dark, consistency, off-system, hardcode-vs-token, reuse/scale) → **plan + tasks FIRST**, root-first fixes AFTER; audit-first, no edits until the audit is done. Scope-able (1 module/full), token-heavy |
+| | `core-localization-pattern` | adding display text / multi-language |
+| A3 testing | `core-testing-architecture` | choosing the level unit/integration/e2e/contract |
+| | `core-testing-reuse` | reusing helper/fixture/mock + regression |
+| A4 thinking (systematic) | `core-meta-reasoning-orchestrator` | **ENTRY/ROUTER** of the thinking group: heavy-reasoning problem → classify into 11 types → gauge impact LOW/MED/HIGH → dispatch skills+techniques → assumptions/alt-model/confidence (call BEFORE reasoning; LOW → skip) |
+| | `core-open-thinking` | widen the solution space — generate multiple **orthogonal** models, anti-anchoring (DIVERGE phase, start of cycle) |
+| | `core-inversion-thinking` | invert the problem — "what would make it FAIL" → pre-mortem / backward / assumption-flip (REFRAME phase / when stuck) |
+| | `core-critic` | audit **one existing artifact** — errors/wrong-assumptions/risks/missing-evidence → severity-ranked findings + verdict (CONVERGE phase / gate). USER's idea/decision in conversation → `core-sparring-partner` |
+| | `core-synthesis-decision` | converge: merge options + findings + failure-map → 1 decision + rationale + residual risk; **OWNS §Orchestration of the 4 modes** |
 
-### NHÓM B · HIS (`his-*`) — index theo tầng, chi tiết "chọn khi" + chuỗi prompt ở map con
+### GROUP B · HIS (`his-*`) — indexed by tier, detailed "choose when" + prompt chains in the sub-maps
 
-| Tầng | Skill | Map con (đọc khi task thuộc tầng) |
+| Tier | Skill | Sub-map (read when the task is in this tier) |
 |---|---|---|
-| FE | `his-fe-convention` (★ guardrail convention/kiến trúc — kèm MỌI code-gen/refactor FE), `his-fe-library-policy` (★ chọn/tích hợp thư viện đúng lúc — kèm MỌI code-gen FE), `his-fe-page-v2`, `his-fe-api-client`, `his-fe-antd-v6`, `his-fe-webauthn-biometric`, `his-fe-standalone-portal`, `his-fe-dicom-viewer`, `his-fe-emr-print-form`, `his-fe-performance`, `his-fs-realtime-signalr` | `skill-routes/fe.md` |
+| FE | `his-fe-convention` (★ convention/architecture guardrail — with EVERY FE code-gen/refactor), `his-fe-library-policy` (★ choose/integrate the right library at the right time — with EVERY FE code-gen), `his-fe-page-v2`, `his-fe-api-client`, `his-fe-antd-v6`, `his-fe-webauthn-biometric`, `his-fe-standalone-portal`, `his-fe-dicom-viewer`, `his-fe-emr-print-form`, `his-fe-performance`, `his-fs-realtime-signalr` | `skill-routes/fe.md` |
 | BE/DB | `his-be-module-scaffold`, `his-db-migration`, `his-be-payment-gateway`, `his-be-external-gateway`, `his-be-background-worker`, `his-be-scalability` | `skill-routes/be.md` |
 | TEST | `his-test-api-powershell`, `his-test-e2e` | `skill-routes/test.md` |
 | OPS/DOC | `his-ops-deploy`, `his-doc-feature` | `skill-routes/ops-doc.md` |
-| Điều phối / Guardrail | `his-flow-nangcap-package` (gói NangCapNN), `his-qa-anti-pattern` (kèm **mọi** code-gen) | xem (2) dưới |
+| Orchestration / Guardrail | `his-flow-nangcap-package` (the NangCapNN package), `his-flow-multi-agent-orchestration` (ensure quality when orchestrating many agents/subagents/Workflow), `his-qa-anti-pattern` (with **every** code-gen) | see (2) below |
 
 ---
 
-## (2) Dispatch — task thuộc tầng nào → đọc map con đó
+## (2) Dispatch — which tier the task belongs to → read that sub-map
 
-| Loại task (prompt) | Đọc thêm map con | Ghi chú |
+| Task type (prompt) | Also read sub-map | Note |
 |---|---|---|
-| page v2 · api client · antd v1 · vân tay/WebAuthn · cổng login riêng · DICOM viewer · biểu mẫu in · realtime/SignalR · **tối ưu hiệu năng/bundle FE** · **a11y/WCAG** | `skill-routes/fe.md` | chuỗi skill + path nằm trong file |
-| phân hệ backend · tạo/sửa/seed bảng · thanh toán/QR · cổng QG/BHXH/Zalo/SMS/FHIR · worker nền · **chịu tải/nhiều user đồng thời** | `skill-routes/be.md` | |
-| test UI/E2E · test API backend | `skill-routes/test.md` | |
-| deploy prod · viết tài liệu phân hệ | `skill-routes/ops-doc.md` | |
-| làm **cả gói** NangCapNN / đối chiếu PDF gói thầu | (không cần map con) `his-flow-nangcap-package` điều phối → chain theo gap (đọc `_reference.md` cho playbook) | PDF `docs/requirements/`, `NangCap_PhanTich.md` |
-| **điều hướng codebase nhanh / tìm "hàm·lớp·symbol ở đâu / ai gọi" / onboard repo** | (không cần map con) `core-codebase-map-tooling` — grep index `tags` (ctags) hoặc LSP-MCP | cài: `winget install UniversalCtags.Ctags` · regen `scripts/gen-tags.ps1` · `tags` đã gitignore |
+| v2 page · api client · antd v1 · fingerprint/WebAuthn · standalone login portal · DICOM viewer · print form · realtime/SignalR · **FE performance/bundle optimization** · **a11y/WCAG** | `skill-routes/fe.md` | the skill chain + paths are in the file |
+| backend module · create/edit/seed tables · payment/QR · national/BHXH/Zalo/SMS/FHIR gateway · background worker · **load/concurrent-users** | `skill-routes/be.md` | |
+| UI/E2E test · backend API test | `skill-routes/test.md` | |
+| prod deploy · write module documentation | `skill-routes/ops-doc.md` | |
+| do the **whole package** NangCapNN / compare against a tender PDF | (no sub-map needed) `his-flow-nangcap-package` orchestrates → chain by gap (read `_reference.md` for the playbook) | PDFs in `docs/requirements/`, `NangCap_PhanTich.md` |
+| **fast codebase navigation / find "where is function·class·symbol / who calls it" / onboard a repo** | (no sub-map needed) `core-codebase-map-tooling` — grep the `tags` index (ctags) or LSP-MCP | install: `winget install UniversalCtags.Ctags` · regen `scripts/gen-tags.ps1` · `tags` is gitignored |
 
-**Chuỗi cross-cutting (giữ tại đây — không thuộc 1 tầng):**
+**Cross-cutting chains (kept here — not bound to one tier):**
 
-| Khi developer prompt | Skills (đúng thứ tự) |
+| When the developer prompts | Skills (in order) |
 |---|---|
-| "thêm validate / form [X]" | `core-validation-pattern` → `core-types-contract` → (`his-fe-page-v2`/`his-be-module-scaffold`) |
+| "add validate / form [X]" | `core-validation-pattern` → `core-types-contract` → (`his-fe-page-v2`/`his-be-module-scaffold`) |
 | "refactor [X]" | `core-refactor` → `core-architecture-consistency` → `his-qa-anti-pattern` |
-| "**xóa nợ kỹ thuật / tech-debt / tách god-file / siết any / dễ → khó**" (bất kỳ task chạy theo `docs/workspace-docs/20-backlog/tech-debt-roadmap.md`) | `his-tech-debt-workflow` (6 rule: progress markers · schedule discipline · report sync · no-commit-without-permission · side-effect audit · defer-on-logic-change) → `core-refactor` → `core-architecture-consistency` → `his-qa-anti-pattern` |
-| "tạo / sửa / chuẩn hoá / review skill [X]" | `core-reusable-code` (mở rộng trước khi tạo) → `core-skill-authoring` |
-| **vấn đề suy-luận-nặng cần CHỌN CÁCH NGHĨ** (design/architecture/decision/planning/security/risk/optimization/troubleshooting/research; "nên tiếp cận thế nào", "phân tích/đánh giá giúp") | `core-meta-reasoning-orchestrator` (phân loại → impact → dispatch → assumption/alt-model/confidence). LOW → trả thẳng. KHÔNG lấn `SKILL-MAP`(skill-cho-code)/`workflow.md`(flow) |
-| "thiết kế/đánh giá/brainstorm/**chốt phương án** · phản biện 1 bản · pre-mortem · mở rộng giải pháp" (tư duy hệ thống) | (theo rủi ro, dùng 1 hoặc nhiều) `core-open-thinking` → `core-inversion-thinking` → `core-critic` → `core-synthesis-decision`. Khi-dùng-mấy-skill + thứ tự = **§Orchestration** trong `core-synthesis-decision` |
-| **PRE-FLIGHT — MỌI task code (chạy TRƯỚC khi viết)** | `core-requirement-clarify` (mơ hồ → hỏi gộp; rõ → ghi giả định) → `core-verify-before-assert` (verify, KHÔNG bịa file/symbol/field) → `core-impact-analysis` (bản đồ tác động nếu sửa code dùng chung) → viết theo `core-minimal-change`. **Khi user nói "thêm/sửa/xóa code", "fix bug", "refactor", "delete file/function", hoặc bất kỳ task code-gen scope cụ thể** → bổ sung `core-code-change-workflow` (workflow tổng add/modify/delete với pre-flight, file-allow-list, fail criteria, rollback). **Thay đổi hệ Production (rủi ro/khó rollback/auth·tiền·schema·contract) hoặc "fix lỗi prod"** → bọc cả vòng đời bằng `core-prod-change-discipline` (root-cause+bằng chứng · **≥3 phương án** ưu/nhược/phức-tạp/rủi-ro/chi-phí · self-critique · **gate lint+typecheck+build+test** · **báo cáo 7 phần** · thứ tự ưu tiên) |
-| **BẤT KỲ code-gen / refactor** | luôn kèm `core-reusable-code` + `core-clean-code` + `his-qa-anti-pattern`; **code FE** kèm thêm `his-fe-convention` + `his-fe-library-policy` (cân nhắc + giải thích chọn thư viện cho từng nhóm form/data/state/test… — default stack HIS, lib mới chỉ khi tối ưu rõ + user duyệt); **dựng/sửa UI** kèm `core-ui-aesthetics` (gu thẩm mỹ + tiết chế, chống "AI-slop", KHÔNG hại UX). **(1) REUSE-FIRST (FE+BE):** trước khi tạo file/hàm/component/thư mục → **tìm xem code/thư mục liên quan đã tồn tại chưa** (grep `_v2kit`/`components`/`hooks`/`utils`/`api`/`constants` ở FE; `Services`/`Controllers`/`Entities`/`DTOs` ở BE) → đã có thì **dùng lại / mở rộng**, KHÔNG tạo trùng. **(2) FE ANTD-FIRST:** ưu tiên Antd v6 / `_v2kit`, **KHÔNG viết HTML/CSS thuần khi không cần**. **(3) ĐẶT FILE ĐÚNG THƯ MỤC:** file mới TUYỆT ĐỐI KHÔNG ở root → vào thư mục đúng loại (FE `frontend/src/...`, BE `backend/src/...`, test/docs/script tương ứng); thiếu thư mục phù hợp → **đề xuất user tạo thư mục rồi mới tạo file** (xem `his-qa-anti-pattern` #28-29). **(4)** Skill quy tắc (convention/guardrail) PHẢI áp NGAY trong lúc viết/sửa code — không đứng riêng, không "đọc rồi bỏ qua". Thứ tự: **core-* trước → his-* sau** |
-| **BÁO CÁO kết quả chạy lệnh (mọi task)** | `core-execution-output`: ngắn gọn mặc định · tự bung root-cause khi lỗi · luôn nêu thao tác phá huỷ/bảo mật · không claim success khi chưa verify |
-| **BUILD-GATE trước khi báo xong** (thêm/sửa/XOÁ code) | Build sạch tầng đã đụng rồi mới báo "xong" (FE `npm run build` EXIT 0 · BE `dotnet build` 0 err · đụng cả 2 → build cả 2 · chỉ `.claude`/docs → khỏi build). Còn lỗi = chưa xong. **Chi tiết (nguồn chân lý):** `his-qa-anti-pattern` #27 |
-| **SELF-REVIEW 9 điểm trước khi báo (BE+FE)** | AI tự rà 9 điểm (duplicate · dead-code · hard-code · anti-pattern · god-unit · hàm-dài · import-cycle · naming · state) rồi mới báo, không chờ nhắc. **Chi tiết (nguồn chân lý):** `his-qa-anti-pattern` #30 (FE view: `his-fe-convention` §7) |
+| "**tech-debt cleanup / split god-file / tighten any / easy → hard**" (any task driven by `docs/workspace-docs/20-backlog/tech-debt-roadmap.md`) | `his-tech-debt-workflow` (6 rules: progress markers · schedule discipline · report sync · no-commit-without-permission · side-effect audit · defer-on-logic-change) → `core-refactor` → `core-architecture-consistency` → `his-qa-anti-pattern` |
+| "create / edit / standardize / review skill [X]" | `core-reusable-code` (extend before create) → `core-skill-authoring` |
+| **a heavy-reasoning problem that needs CHOOSING HOW TO THINK** (design/architecture/decision/planning/security/risk/optimization/troubleshooting/research; "how should I approach", "analyze/assess for me") | `core-meta-reasoning-orchestrator` (classify → impact → dispatch → assumption/alt-model/confidence). LOW → answer directly. Does NOT override `SKILL-MAP` (skill-for-code) / `workflow.md` (flow) |
+| "design/assess/brainstorm/**finalize an approach** · critique one artifact · pre-mortem · widen solutions" (systematic thinking) | (by risk, use one or more) `core-open-thinking` → `core-inversion-thinking` → `core-critic` → `core-synthesis-decision`. How-many-skills + order = **§Orchestration** in `core-synthesis-decision` |
+| **using MANY agents/subagents · `Workflow` fan-out · "ensure quality with many agents" · parallel review/audit/research/migration/design** | `his-flow-multi-agent-orchestration` (7-layer gate: right-size → one-writer/worktree → schema → **adversarial-verify** → consensus-when-same-question → **objective build-gate** → completeness; anchored to the real harness, do NOT copy a generic template). DISTINGUISH: many human WINDOWS = mutex → `workflow/parallel-windows.md`; 1-Claude thinking → `core-meta-reasoning-orchestrator`/`core-synthesis-decision` |
+| **PRE-FLIGHT — EVERY code task (run BEFORE writing)** | `core-requirement-clarify` (ambiguous → ask in one batch; clear → record the assumption) → `core-verify-before-assert` (verify, do NOT invent file/symbol/field) → `core-impact-analysis` (blast-radius map if editing shared code) → write per `core-minimal-change`. **When the user says "add/edit/delete code", "fix bug", "refactor", "delete file/function", or any scoped code-gen task** → add `core-code-change-workflow` (the umbrella add/modify/delete workflow with pre-flight, file-allow-list, fail criteria, rollback). **A Production change (risky/hard-to-rollback/auth·money·schema·contract) or "fix a prod bug"** → wrap the whole lifecycle with `core-prod-change-discipline` (root-cause+evidence · **≥3 options** pros/cons/complexity/risk/cost · self-critique · **gate lint+typecheck+build+test** · **7-part report** · priority order) |
+| **ANY code-gen / refactor** | always include `core-reusable-code` + `core-clean-code` + `his-qa-anti-pattern`; **FE code** also includes `his-fe-convention` + `his-fe-library-policy` (consider + explain the library choice for each form/data/state/test group… — HIS default stack, a new lib only with a clear win + user approval); **building/editing UI** also includes `core-ui-aesthetics` (taste + restraint, anti "AI-slop", no UX harm). **(1) REUSE-FIRST (FE+BE):** before creating a file/function/component/folder → **check whether related code/folder already exists** (grep `_v2kit`/`components`/`hooks`/`utils`/`api`/`constants` on FE; `Services`/`Controllers`/`Entities`/`DTOs` on BE) → if it exists, **reuse / extend**, do NOT duplicate. **(2) FE ANTD-FIRST:** prefer Antd v6 / `_v2kit`, **do NOT write plain HTML/CSS when not needed**. **(3) PUT THE FILE IN THE RIGHT FOLDER:** a new file is NEVER at the root → into the right folder by type (FE `frontend/src/...`, BE `backend/src/...`, test/docs/script accordingly); no suitable folder → **propose the user creates the folder before creating the file** (see `his-qa-anti-pattern` #28-29). **(4)** Rule skills (convention/guardrail) MUST be applied RIGHT WHILE writing/editing code — not standalone, not "read then ignore". Order: **core-* first → his-* after** |
+| **REPORTING command output (any task)** | `core-execution-output`: concise by default · auto-expand root-cause on failure · always surface destructive/security ops · never claim success without verifying |
+| **BUILD-GATE before reporting done** (add/modify/DELETE code) | Build the touched tier clean before reporting "done" (FE `npm run build` EXIT 0 · BE `dotnet build` 0 err · touched both → build both · only `.claude`/docs → no build needed). Remaining errors = not done. **Detail (source of truth):** `his-qa-anti-pattern` #27 |
+| **9-POINT SELF-REVIEW before reporting (BE+FE)** | AI self-reviews 9 points (duplicate · dead-code · hard-code · anti-pattern · god-unit · long-function · import-cycle · naming · state) before reporting, without being prompted. **Detail (source of truth):** `his-qa-anti-pattern` #30 (FE view: `his-fe-convention` §7) |
 
 ---
 
 ## (5) Conflict resolution
 
-| Tình huống | Quy tắc |
+| Situation | Rule |
 |---|---|
-| Page v1 (Antd) vs v2 (`_v2kit`) | v1 → `his-fe-antd-v6`; v2 → `his-fe-page-v2`. Mặc định feature mới = v2. KHÔNG trộn. |
-| Test BE vs E2E | API BE → `his-test-api-powershell`; UI/route/flow → `his-test-e2e`. |
-| Migration EF vs SQL script | Luôn SQL script tay (`his-db-migration`) — dự án IGNORE pending model changes. |
-| core (portable) vs his (cụ thể) | Nguyên tắc chung ở `core-*`; `his-*` chỉ thêm phần stack-specific + nhắc lại phần liên quan. |
-| Trùng "không hardcode / không quên DI" | Nguồn chân lý chung: `his-qa-anti-pattern` (+ `core-*`). |
-| **Self-review / build-gate trùng nhiều nơi** | **Nguồn chân lý = `his-qa-anti-pattern` #27 (build) + #30 (9 điểm canonical).** `his-fe-convention` §7 = view FE = "9 điểm + 2 lát-cắt (API/Data, Security)", KHÔNG đánh số lại; `core-clean-code` §9 = view mức hàm. Build-gate = `npm run build` (KHÔNG `tsc --noEmit`). |
-| **git-ops / commit / push / workspace-docs** | **Nguồn chân lý = [`workflow/project-rules.md`](workflow/project-rules.md) §2-4.** workspace-docs commit+push **bình thường** (never-push GỠ 2026-06-13). Nơi khác chỉ giữ "không tự commit/push khi chưa cho phép" + LINK, KHÔNG lặp bảng. |
-| **trivial vs pipeline** | Định nghĩa **số hoá DUY NHẤT** ở [`workflow/workflow.md`](workflow/workflow.md) §0 (≤5 dòng·1 file·không chạm shared/contract/DB/auth/tiền/patient-safety). Nơi khác trỏ tới, KHÔNG tự phát biểu khác. |
-| **DONE vs READY_FOR_PUSH** | Theo `workflow/workflow.md` DoD: READY_FOR_PUSH = xong-chờ-giao (trạng-thái-cuối AI tự đạt); DONE chỉ sau user push OK → mới `gh issue close`. AI KHÔNG close ở READY_FOR_PUSH. |
-| **Số migration / trạng-thái-biến-động** | **KHÔNG hard-code số** trong governance. Luôn `ls Data/Scripts/` lấy max(NN)+1. Cấm ghi con số cụ thể (luôn drift). |
-| **Ai sở hữu diff refactor/god-file-split** | `tech-debt-manager` = plan+điều phối (không tự sửa lớn); `code-change-controller` = THỰC THI mọi diff; `his-architecture-planner` = chỉ design. 1 god-file-split chỉ 1 owner thực thi. |
+| Page v1 (Antd) vs v2 (`_v2kit`) | v1 → `his-fe-antd-v6`; v2 → `his-fe-page-v2`. Default new feature = v2. Do NOT mix. |
+| BE test vs E2E | BE API → `his-test-api-powershell`; UI/route/flow → `his-test-e2e`. |
+| EF migration vs SQL script | Always hand-written SQL scripts (`his-db-migration`) — the project IGNOREs pending model changes. |
+| core (portable) vs his (specific) | General principles in `core-*`; `his-*` only adds the stack-specific part + restates the relevant bit. |
+| Duplicate "no hardcode / don't forget DI" | Common source of truth: `his-qa-anti-pattern` (+ `core-*`). |
+| **Self-review / build-gate duplicated in many places** | **Source of truth = `his-qa-anti-pattern` #27 (build) + #30 (canonical 9 points).** `his-fe-convention` §7 = FE view = "9 points + 2 slices (API/Data, Security)", does NOT renumber; `core-clean-code` §9 = function-level view. Build-gate = `npm run build` (NOT `tsc --noEmit`). |
+| **git-ops / commit / push / workspace-docs** | **Source of truth = [`workflow/project-rules.md`](workflow/project-rules.md) §2-4.** workspace-docs commit+push is **normal** (never-push REMOVED 2026-06-13). Elsewhere keep only "do not commit/push on your own without permission" + a LINK, do NOT repeat the table. |
+| **trivial vs pipeline** | The **single numeric definition** is in [`workflow/workflow.md`](workflow/workflow.md) §0 (≤5 lines·1 file·doesn't touch shared/contract/DB/auth/money/patient-safety). Elsewhere points to it, does NOT state it differently. |
+| **DONE vs READY_FOR_PUSH** | Per `workflow/workflow.md` DoD: READY_FOR_PUSH = done-awaiting-handoff (the final state AI reaches on its own); DONE only after the user pushes OK → then `gh issue close`. AI does NOT close at READY_FOR_PUSH. |
+| **Migration number / changing state** | **Do NOT hard-code the number** in governance. Always `ls Data/Scripts/` and take max(NN)+1. Forbidden to write a specific number (it always drifts). |
+| **Who owns the refactor/god-file-split diff** | `tech-debt-manager` = plan+orchestrate (does not do large edits itself); `code-change-controller` = EXECUTES every diff; `his-architecture-planner` = design only. One god-file-split has only one executing owner. |
 
-### (5b) ★ Tiebreaker khi 2 rule CĂNG NHAU (rule-tension — tránh AI over-engineer / lệch)
+### (5b) ★ Tiebreaker when 2 rules ARE IN TENSION (rule-tension — avoid AI over-engineering / drift)
 
-| Căng giữa | Quyết (theo thứ tự) |
+| Tension between | Decide (in order) |
 |---|---|
-| **Reuse-first ↔ SRP/no-god-service** | Dùng lại khi **cùng trách nhiệm**. Nếu mở rộng làm service/component "ôm" thêm trách nhiệm KHÁC → **tạo mới**, KHÔNG nhồi để "reuse". *Reuse ≠ nhồi nhét.* |
-| **DRY/extract ↔ rule-of-three/YAGNI** | **Dùng lại** thứ ĐÃ CÓ thì luôn ưu tiên. Nhưng **TRÍCH XUẤT abstraction MỚI** chỉ khi lặp **≥3** + **cùng lý do thay đổi**. Trùng code "ngẫu nhiên" khác ngữ cảnh → KHÔNG gộp (gộp non = coupling sai). |
-| **Tách nhỏ (SRP) ↔ over-split / wrapper vô nghĩa** | Tách khi có **>1 trách nhiệm/lý-do-đổi rõ rệt** HOẶC quá dài/khó test/khó đọc. KHÔNG tách chỉ vì đếm dòng; KHÔNG tạo wrapper 1-lớp không thêm giá trị. Phân vân → giữ gộp (dễ đọc hơn). |
-| **Clean-up/refactor ↔ minimal-change/backward-compat** | Trong **scope đang sửa** được dọn dead-code/naming của chính phần đó (boy-scout nhẹ). KHÔNG mở rộng refactor ra file/module **ngoài scope** khi chưa được yêu cầu; KHÔNG đổi behavior/public API (tránh over-refactor + diff lớn khó review + vỡ hệ đang chạy). |
-| **Performance ↔ readability/maintainability** | Mặc định **readability**. Chỉ tối ưu (memo/lazy/virtualize/cache) khi **ĐO được** lag/bundle/chậm thật (`his-fe-performance`/`his-be-scalability`) — KHÔNG memo-hoá/abstract mọi thứ "phòng xa". |
+| **Reuse-first ↔ SRP/no-god-service** | Reuse when **same responsibility**. If extending makes a service/component "absorb" ANOTHER responsibility → **create new**, do NOT stuff it in to "reuse". *Reuse ≠ stuffing.* |
+| **DRY/extract ↔ rule-of-three/YAGNI** | **Reusing** something that ALREADY EXISTS is always preferred. But **EXTRACTING a NEW abstraction** only when repeated **≥3** times + **same reason to change**. "Accidental" duplication in different contexts → do NOT merge (premature merge = wrong coupling). |
+| **Split small (SRP) ↔ over-split / meaningless wrapper** | Split when there are **>1 clear responsibilities/reasons-to-change** OR it's too long/hard-to-test/hard-to-read. Do NOT split just by line count; do NOT create a 1-layer wrapper that adds no value. When unsure → keep it together (more readable). |
+| **Clean-up/refactor ↔ minimal-change/backward-compat** | Within the **scope being edited** you may clean dead-code/naming of that part (light boy-scout). Do NOT expand the refactor to files/modules **out of scope** unless requested; do NOT change behavior/public API (avoid over-refactor + large hard-to-review diff + breaking the running system). |
+| **Performance ↔ readability/maintainability** | Default to **readability**. Optimize (memo/lazy/virtualize/cache) only when a real lag/bundle/slowness is **MEASURED** (`his-fe-performance`/`his-be-scalability`) — do NOT memoize/abstract everything "just in case". |
 
-### (5c) ★ Thứ tự ưu tiên THUỘC TÍNH chất lượng (HIS đang vận hành — khi phải đánh đổi)
+### (5c) ★ Quality-attribute priority order (HIS in production — when you must trade off)
 
-**An toàn BN + Correctness + Security (P0)** → **Backward-compat / Refactor-safety** (KHÔNG vỡ hệ đang chạy) →
-**Readability + Maintainability** → **Scalability** (theo `his-be-scalability`, khi có nhu cầu tải) →
-**Performance** (tối ưu khi ĐO được điểm nóng) → **Delivery-speed** (nhanh nhưng KHÔNG đánh đổi các mục trên).
+**Patient safety + Correctness + Security (P0)** → **Backward-compat / Refactor-safety** (do NOT break the running system) →
+**Readability + Maintainability** → **Scalability** (per `his-be-scalability`, when there's a load need) →
+**Performance** (optimize when a hotspot is MEASURED) → **Delivery-speed** (fast but NOT at the cost of the above).
 
-> Lý do (HIS thực tế nhiều năm): **không vỡ cái đang chạy > đẹp lý thuyết**. Scalability/Performance chỉ
-> tối ưu khi đo được (tránh over-engineer non). Khi prompt user đòi "nhanh" mà xung đột P0/P1 → ưu tiên P0/P1, nói rõ đánh đổi.
+> Why (years of real HIS): **not breaking what runs > theoretically pretty**. Scalability/Performance are
+> optimized only when measured (avoid premature over-engineering). When the user's prompt demands "fast" but conflicts with P0/P1 → prioritize P0/P1, and state the trade-off clearly.
 
 ---
 
-## (6) ★ FALLBACK — khi KHÔNG có skill phù hợp
+## (6) ★ FALLBACK — when NO suitable skill exists
 
-Nếu yêu cầu **không khớp** skill nào ở (1)/(2): **KHÔNG vội tạo skill mới.** Skill chỉ đáng tạo khi
-**tái sử dụng được nhiều lần** — nếu không sẽ phình "skill rác". Chỉ được đề xuất skill và cách xử lý dựa trên tech stack, thư viện, framework, naming convention, và workflow đã có trong hệ thống. Chỉ tạo skill mới khi bài toán thực sự khác biệt, không thể gộp hợp lý vào skill hiện có, có khả năng tái sử dụng cho nhiều task trong tương lai.
-Khi đánh giá, cần cân nhắc: mục đích sử dụng, workflow, input/output, domain, pattern xử lý, mức độ trùng lặp logic với skill cũ. Chạy quyết định theo thứ tự:
+If the request **doesn't match** any skill in (1)/(2): **do NOT rush to create a new skill.** A skill is only worth creating when it's **reusable many times** — otherwise it bloats into "junk skills". Only propose a skill and an approach based on the tech stack, libraries, framework, naming convention, and workflow already in the system. Only create a new skill when the problem is genuinely different, can't reasonably fold into an existing skill, and is likely reusable across many future tasks.
+When evaluating, consider: intended use, workflow, input/output, domain, processing pattern, and the degree of logic overlap with existing skills. Decide in this order:
 
-**Bước 1 — Mở rộng skill cũ được không?**
-Có skill đã *gần đúng* → **cập nhật/mở rộng skill đó** (thêm case vào SKILL.md / reference) thay vì tạo mới.
-Ưu tiên reuse (đúng `core-reusable-code`). Cập nhật xong → chỉnh lại index (1) / dispatch (2) / map con / `_reference.md` nếu cần.
+**Step 1 — Can you extend an existing skill?**
+If a skill is *almost right* → **update/extend that skill** (add the case to SKILL.md / reference) instead of creating new. Prefer reuse (per `core-reusable-code`). After updating → fix the index (1) / dispatch (2) / sub-map / `_reference.md` if needed.
 
-**Bước 2 — Yêu cầu có TÁI SỬ DỤNG NHIỀU LẦN không?** (cổng quyết định)
-Tự hỏi: pattern/loại task này còn lặp lại ở các lần sau không?
-- **CÓ (đáng đóng gói)** → đề xuất **tạo skill mới**: tên **theo (0) Quy tắc đặt tên** (token tầng đúng,
-  KHÔNG hỏi/bịa) · **tầng** (`core-*` nếu portable cho dự án khác / `his-<token>-*` nếu riêng HIS) ·
-  mục đích · trigger · dependency (`his→core`).
-  **Hỏi user duyệt** → tạo theo skill **`core-skill-authoring`** (frontmatter chuẩn `name`+`description`+
-  `metadata.type`, progressive disclosure) → **bổ sung vào index (1) + dispatch (2) + map con + `_reference.md`** → tái dùng lần sau.
-- **KHÔNG (one-off, không lặp lại)** → **ĐỪNG tạo skill.** Làm trực tiếp task đó bằng các `core-*` +
-  cách chung, và **nói rõ**: "task một lần, không cần skill mới".
+**Step 2 — Is the request REUSED MANY TIMES?** (decision gate) Ask: will this pattern/task type recur later?
+- **YES (worth packaging)** → propose **creating a new skill**: name **per (0) naming rules** (correct tier token, do NOT ask/invent) · **tier** (`core-*` if portable to other projects / `his-<token>-*` if HIS-specific) · purpose · trigger · dependency (`his→core`). **Ask the user to approve** → create per skill **`core-skill-authoring`** (standard frontmatter `name`+`description`+`metadata.type`, progressive disclosure) → **add it to index (1) + dispatch (2) + sub-map + `_reference.md`** → reuse next time.
+- **NO (one-off, doesn't recur)** → **do NOT create a skill.** Do the task directly with the `core-*` skills + the general approach, and **say so clearly**: "one-off task, no new skill needed".
 
-**Luôn ưu tiên:** reuse > expand > merge > create new.
-KHÔNG tự "làm bừa" sai convention; KHÔNG nhét đại vào skill sai mục đích.
+**Always prefer:** reuse > expand > merge > create new. Do NOT "wing it" against the convention; do NOT cram things into the wrong-purpose skill.
 
-> Skill chỉ sinh ra khi **đáng tái dùng nhiều lần** (hoặc mở rộng skill cũ) → SKILL-MAP lớn dần đúng,
-> không phình skill dùng-một-lần.
+> A skill is born only when it's **worth reusing many times** (or extending an existing one) → SKILL-MAP grows correctly,
+> without bloating with one-off skills.
 
 ---
 
-## (7) Split plan — chống phình token (đã áp dụng + cách mở rộng tiếp)
+## (7) Split plan — anti token-bloat (already applied + how to extend)
 
-**Đã tách (progressive disclosure cho chính map):** file này chỉ giữ governance + index + dispatch.
-Chi tiết "chọn khi" + chuỗi prompt + path đã chuyển sang map con theo tầng; playbook + dependency map ở `_reference.md`.
-- `skill-routes/fe.md` · `be.md` · `test.md` · `ops-doc.md` — chuỗi prompt + path theo tầng.
-- `skill-routes/_reference.md` — (3) playbook end-to-end + (4) dependency map đầy đủ + ghi chú vị trí.
+**Already split (progressive disclosure for the map itself):** this file keeps only governance + index + dispatch. The detailed "choose when" + prompt chains + paths moved to the per-tier sub-maps; the playbook + dependency map are in `_reference.md`.
+- `skill-routes/fe.md` · `be.md` · `test.md` · `ops-doc.md` — prompt chains + paths by tier.
+- `skill-routes/_reference.md` — (3) end-to-end playbook + (4) full dependency map + location notes.
 
-**Ngưỡng tách tiếp:** khi 1 map con vượt **~250 dòng** → tách map con đó theo nhóm hẹp hơn
-(vd `be.md` → `be-core.md` + `be-gateway.md`), thêm 1 dòng dispatch ở (2). KHÔNG để 1 file routing > ~300 dòng.
-**Quy tắc vàng khi tách:** chỉ *di chuyển* nội dung (không xoá yêu cầu), mỗi file mới có header
-`> đọc CÙNG SKILL-MAP.md`, và (2) phải trỏ tới file mới. File này luôn là điểm vào duy nhất phải đọc đầu tiên.
+**Threshold to split further:** when a sub-map exceeds **~250 lines** → split that sub-map into narrower groups (e.g. `be.md` → `be-core.md` + `be-gateway.md`), add a dispatch line in (2). Do NOT let one routing file exceed ~300 lines.
+**Golden rule when splitting:** only *move* content (don't drop requirements), each new file has a header `> read TOGETHER WITH SKILL-MAP.md`, and (2) must point to the new file. This file is always the single entry point you must read first.

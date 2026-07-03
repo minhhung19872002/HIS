@@ -1,135 +1,135 @@
-# PROJECT RULES — Convention · Kiến trúc · Branch/Commit/PR/Review
+# PROJECT RULES — Conventions · Architecture · Branch/Commit/PR/Review
 
-> **Index**, không phải bản rule mới. Convention & kiến trúc đã là nguồn-sự-thật ở `CLAUDE.md`,
-> `SKILL-MAP.md`, `skills/his-fe-convention`, `skills/his-qa-anti-pattern`. File này **gom đường dẫn** +
-> **lấp phần thật sự thiếu**: quy ước **branch / commit / PR / review** (trước đây nằm rải hoặc chỉ trong
-> harness, chưa được viết ra). Mâu thuẫn → theo nguồn gốc.
+> **An index**, not a new rule set. Conventions & architecture are already the source of truth in `CLAUDE.md`,
+> `SKILL-MAP.md`, `skills/his-fe-convention`, `skills/his-qa-anti-pattern`. This file **gathers the paths** +
+> **fills what's genuinely missing**: the **branch / commit / PR / review** conventions (previously scattered or only
+> in the harness, never written down). On conflict → follow the origin source.
 
 ---
 
-## 1. Kiến trúc & convention — TRỎ về nguồn gốc (không lặp)
+## 1. Architecture & conventions — POINT to the origin (no repetition)
 
-| Chủ đề | Nguồn-sự-thật |
+| Topic | Source of truth |
 |---|---|
-| Cấu trúc dự án (Clean Arch BE · FE 2 lớp v1/v2) | [`../../CLAUDE.md`](../../CLAUDE.md) "Project Structure" + "Kiến trúc & quy ước" |
-| Phân tầng rule **P0/P1/P2** (an toàn BN · build-gate · DI · no-hardcode…) | [`../SKILL-MAP.md`](../SKILL-MAP.md) §0b |
-| Convention FE (naming · layer · Antd-first · config-driven) | [`../skills/his-fe-convention/SKILL.md`](../skills/his-fe-convention/SKILL.md) |
-| Anti-pattern / guardrail / patient-safety (#1-30) | [`../skills/his-qa-anti-pattern/SKILL.md`](../skills/his-qa-anti-pattern/SKILL.md) |
-| Clean-code mức hàm | [`../skills/core-clean-code/SKILL.md`](../skills/core-clean-code/SKILL.md) |
-| Quy tắc đặt tên skill (token tầng) | [`../SKILL-MAP.md`](../SKILL-MAP.md) §0 |
-| DI bắt buộc · migration SQL idempotent · ValueConverter Guid↔String | [`../../CLAUDE.md`](../../CLAUDE.md) "Backend" |
+| Project structure (Clean Arch BE · FE 2-tier v1/v2) | [`../../CLAUDE.md`](../../CLAUDE.md) "Project Structure" + "Architecture & conventions" |
+| Rule tiers **P0/P1/P2** (patient safety · build-gate · DI · no-hardcode…) | [`../SKILL-MAP.md`](../SKILL-MAP.md) §0b |
+| FE conventions (naming · layer · Antd-first · config-driven) | [`../skills/his-fe-convention/SKILL.md`](../skills/his-fe-convention/SKILL.md) |
+| Anti-patterns / guardrail / patient-safety (#1-30) | [`../skills/his-qa-anti-pattern/SKILL.md`](../skills/his-qa-anti-pattern/SKILL.md) |
+| Function-level clean-code | [`../skills/core-clean-code/SKILL.md`](../skills/core-clean-code/SKILL.md) |
+| Skill naming rules (tier token) | [`../SKILL-MAP.md`](../SKILL-MAP.md) §0 |
+| DI mandatory · idempotent SQL migration · ValueConverter Guid↔String | [`../../CLAUDE.md`](../../CLAUDE.md) "Backend" |
 
-> Tóm tắt P0 (chi tiết ở SKILL-MAP §0b): **không bịa** · **build-gate** · **đăng ký DI** · **không hardcode
-> secret** · **audit + privacy HSBA** · **validate ở BE** · **đặt file đúng thư mục** · **giữ check an
-> toàn BN**.
+> P0 summary (detail in SKILL-MAP §0b): **no fabrication** · **build-gate** · **register DI** · **no hardcoded
+> secret** · **medical-record audit + privacy** · **validate on BE** · **put files in the right folder** · **keep
+> patient-safety checks**.
 
 ---
 
-## 2. Branch — quy ước (LẤP GAP)
+## 2. Branch — convention (FILLS A GAP)
 
-- **KHÔNG commit thẳng lên `main`** khi làm thay đổi lớn/độc lập. Đang ở `main` → **tạo branch trước**.
-- Đặt tên branch theo loại task (khớp `classification` ở Router):
-  - `feat/<scope>-<mô-tả-ngắn>` · `fix/<scope>-<mô-tả>` · `refactor/<scope>` · `debt/<scope>` ·
+- **Do NOT commit straight to `main`** for a large/independent change. On `main` → **create a branch first**.
+- Name the branch by task type (matching the Router's `classification`):
+  - `feat/<scope>-<short-desc>` · `fix/<scope>-<desc>` · `refactor/<scope>` · `debt/<scope>` ·
     `docs/<scope>` · `test/<scope>` · `chore/<scope>`
-- 🔴 **PRE-FLIGHT PICK-TASK (parallel-safe — chống TRÙNG CODE 2 máy; BẮT BUỘC chạy TRƯỚC khi pick/viết code,
-  enforce bằng hook `session-start.sh` báo `behind=N` + `remind-pipeline.sh`):**
-  1. **Cây sạch** (commit/stash WIP) → **`git pull --ff-only`** — KHÔNG chỉ `fetch`; phải **SYNC working tree**.
-     Làm trên cây CŨ (behind>0) = **gốc gây trùng** (phiên 2026-06-15: local tụt 34 commit → làm lại #142/#101 đã có trên origin).
-  2. **Verify-against-CODE, KHÔNG tin issue-state:** `grep`/`Read` CODE **đã sync** cho symbol/route/file của tính năng.
-     **Đã có → đóng issue (already-done), KHÔNG làm lại.** Issue OPEN chỉ là chỉ báo **trễ** (đóng theo lô) — **CODE là phán quyết**.
-  3. 🔴 **WORKING-TREE FOREIGN-EDIT SCAN (chống 2 cửa CÙNG MÁY pick TRÙNG issue — gốc lỗi 2026-06-28):** ngay TRƯỚC claim
-     **VÀ** ngay trước Edit đầu tiên → **`git status --short`**. File dirty mà **mình CHƯA sửa** = **cửa Claude/`agy` khác
-     đang làm DỞ** (uncommitted + chưa kịp claim) → **4 check kia KHÔNG thấy** (chúng chỉ thấy state đã-commit/đã-push/đã-label;
-     working-tree là tín hiệu cùng-máy SỚM NHẤT). → Map file lạ về module/issue: **trùng vùng/file của candidate → cửa khác
-     đã ôm → ĐỔI candidate khác**, KHÔNG claim chồng. KHÔNG đụng/stage file lạ (R4 `parallel-windows.md`).
-     ⚠️ **Issue decompose theo LOẠI** (vd #354/#355/#356 con #196 — chia theo *type-site*, KHÔNG theo *file* → **cùng file**)
-     = **SINGLE-OWNER**: 1 cửa ôm CẢ cụm sibling; cửa khác KHÔNG pick sibling (claim 1 con KHÔNG đủ tách vùng).
-  4. **CLAIM-FIRST (GATE — hành động ĐẦU TIÊN ngay khi chốt task):** `bash .claude/window-lock.sh claim <issue|slug> [model]`
-     (⚠️ cửa **PowerShell**: `powershell -File .claude/window-lock.ps1 claim ...` — ĐỪNG gõ `bash` trực tiếp = WSL rỗng → lock câm)
-     — 1 lệnh lo CẢ HAI trục (ma trận `parallel-windows.md` §2 STEP-0); PreToolUse gate `hooks/pre-edit-lock-gate.sh` **ép** khi ≥2 cửa:
-     - 🔴 **same-machine (4 cửa/1 máy):** `mkdir .claude/locks/<key>` **ATOMIC** = mutex thật → đúng 1 cửa thắng dù pick đồng
-       thời; cửa khác `[BUSY]` → **ĐỔI task**. ⚠️ **Đây là tầng DUY NHẤT chặn trùng-cửa same-machine** — vì 4 cửa = **CÙNG 1
-       tài khoản GitHub**, `gh` assignee/in-progress **MÙ** (cả 4 đều `@me`). **KHÔNG dựa gh cho same-machine.**
-     - **cross-machine (máy-2):** script kèm `gh issue edit --add-label in-progress --add-assignee @me`, rồi **VERIFY-AFTER-CLAIM**
-       đọc lại `gh issue view <n> --json assignees`; **có tài khoản KHÁC bạn** = máy-2 giành → **ĐỔI task** (verify-after-claim
-       CHỈ phát hiện được khi KHÁC tài khoản — same-machine vô hiệu, đã có lock lo).
-     Bước 1-3 (sync + existence-check + foreign-scan) là kiểm-tra-NHẸ để CHỌN; **mọi việc "làm task" — đo-scope · đọc-file ·
-     impact-analysis · viết code — chỉ SAU claim.** Issue đã in-progress + assignee KHÁC mình → **DỪNG, không pick**.
-     Lock theo ISSUE; **file-overlap 2 issue khác nhau cùng đụng 1 file** vẫn cần foreign-scan (bước 3) / single-owner / `git worktree`.
-     Release (`window-lock.sh release <key>` khi xong/blocked/đổi-task) + label mechanics = nguồn-chủ `CLAUDE.md` §"Quản lý plan/task".
-  5. Nguồn-sự-thật = **git log origin + CODE đã sync + working-tree + Issues** (memory `feedback_fetch-origin-before-backlog`), KHÔNG phải docs local.
+- 🔴 **PRE-FLIGHT PICK-TASK (parallel-safe — anti DUPLICATE CODE across 2 machines; MANDATORY before picking/writing code,
+  enforced by hook `session-start.sh` reporting `behind=N` + `remind-pipeline.sh`):**
+  1. **Clean tree** (commit/stash WIP) → **`git pull --ff-only`** — NOT just `fetch`; you must **SYNC the working tree**.
+     Working on the OLD tree (behind>0) = **the root cause of duplication** (session 2026-06-15: local was 34 commits behind → redid #142/#101 that already existed on origin).
+  2. **Verify-against-CODE, do NOT trust issue-state:** `grep`/`Read` the **synced** CODE for the feature's symbol/route/file.
+     **Already there → close the issue (already-done), do NOT redo it.** An OPEN issue is only a **lagging** indicator (closed in batches) — **CODE is the verdict**.
+  3. 🔴 **WORKING-TREE FOREIGN-EDIT SCAN (anti 2 windows on the SAME MACHINE picking the SAME issue — root of the 2026-06-28 bug):** right BEFORE claiming
+     **AND** right before the first Edit → **`git status --short`**. A dirty file you **did NOT edit** = **another Claude/`agy` window
+     is mid-work** (uncommitted + not yet claimed) → **the other 4 checks won't see it** (they only see committed/pushed/labeled state;
+     the working tree is the EARLIEST same-machine signal). → Map the foreign file to a module/issue: **overlaps the candidate's area/file → another window
+     already owns it → SWITCH to a different candidate**, do NOT double-claim. Do NOT touch/stage foreign files (R4 `parallel-windows.md`).
+     ⚠️ **An issue decomposed BY TYPE** (e.g. #354/#355/#356 children of #196 — split by *type-site*, NOT by *file* → **same file**)
+     = **SINGLE-OWNER**: one window owns the WHOLE sibling cluster; another window does NOT pick a sibling (claiming one child doesn't separate the area).
+  4. **CLAIM-FIRST (GATE — the FIRST action the moment you settle on a task):** `bash .claude/window-lock.sh claim <issue|slug> [model]`
+     (⚠️ in a **PowerShell** window: `powershell -File .claude/window-lock.ps1 claim ...` — do NOT type `bash` directly = empty WSL → silent lock)
+     — one command handles BOTH axes (matrix `parallel-windows.md` §2 STEP-0); the PreToolUse gate `hooks/pre-edit-lock-gate.sh` **enforces** it when ≥2 windows:
+     - 🔴 **same-machine (4 windows/1 machine):** `mkdir .claude/locks/<key>` **ATOMIC** = a real mutex → exactly one window wins even on simultaneous picks;
+       the other gets `[BUSY]` → **SWITCH task**. ⚠️ **This is the ONLY layer that blocks same-machine window collisions** — because 4 windows = the **SAME
+       GitHub account**, `gh` assignee/in-progress is **BLIND** (all 4 are `@me`). **Do NOT rely on gh for same-machine.**
+     - **cross-machine (machine-2):** the script also runs `gh issue edit --add-label in-progress --add-assignee @me`, then **VERIFY-AFTER-CLAIM**
+       re-reads `gh issue view <n> --json assignees`; **another account besides you** = machine-2 grabbed it → **SWITCH task** (verify-after-claim
+       only catches a DIFFERENT account — useless same-machine, where the lock handles it).
+     Steps 1-3 (sync + existence-check + foreign-scan) are LIGHT checks to CHOOSE; **all "doing the task" work — scope-measuring · file-reading ·
+     impact-analysis · writing code — happens ONLY AFTER claiming.** An issue already in-progress + assignee OTHER than you → **STOP, do not pick**.
+     Lock is per ISSUE; **a file-overlap of 2 different issues touching the same file** still needs foreign-scan (step 3) / single-owner / `git worktree`.
+     Release (`window-lock.sh release <key>` when done/blocked/switching task) + label mechanics = owner `CLAUDE.md` §"Plan/task management".
+  5. Source of truth = **git log origin + synced CODE + working-tree + Issues** (memory `feedback_fetch-origin-before-backlog`), NOT local docs.
 
-## 3. Commit — quy ước (LẤP GAP)
+## 3. Commit — convention (FILLS A GAP)
 
-- **Conventional Commits**: `type(scope): mô tả` — `type` ∈ `feat|fix|refactor|chore|docs|test|perf|build`.
-  Ví dụ thực tế repo: `feat(ipd): consultation tab in Inpatient v2`, `chore(pm): ...`, `docs(status): ...`.
-- Mô tả ngắn, thì hiện tại, nêu **WHAT + WHY** (không liệt kê WHAT theo từng dòng diff).
-- Footer **bắt buộc** (theo cấu hình máy):
+- **Conventional Commits**: `type(scope): description` — `type` ∈ `feat|fix|refactor|chore|docs|test|perf|build`.
+  Real repo examples: `feat(ipd): consultation tab in Inpatient v2`, `chore(pm): ...`, `docs(status): ...`.
+- Short description, present tense, state the **WHAT + WHY** (do not list WHAT diff-line by diff-line).
+- **Mandatory** footer (per the machine config):
   ```
   Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
   ```
-- 🔴 **KHÔNG tự `git add`/`commit`/`push` khi user chưa explicit lượt-hiện-tại** (★ nguồn chân lý — SKILL-MAP §0c chỉ giữ tóm tắt + trỏ về đây). 3 mức mở khoá theo keyword:
-  - "continue / tiếp tục / làm tiếp" / "mọi việc còn lại giao cho bạn" → CHỈ code-change + build-verify + report; KHÔNG `git add`/`commit`/`push`.
-  - "commit / lưu commit / ghi commit" → `git add` + `git commit` **LOCAL**; KHÔNG push.
-  - "push / đẩy code / git push" → mới `git push` origin/main.
-  - **Edge-case:** "xong hết X mới review/push" KHÔNG implicit-OK (phải explicit "push") · working-tree dirty là BÌNH THƯỜNG khi "continue" (KHÔNG commit để cleanup) · Auto-Mode KHÔNG override · lượt-trước-cho-phép KHÔNG nới sang lượt-sau.
-  - Thay đổi < 5 file / < 100 dòng → **gom batch**, chưa đẩy (memory
-  `feedback_batch-changes-before-push`). ⚠️ **Khi 2 máy làm song song:** ƯU TIÊN **push sớm mỗi feature DONE**
-  thay vì stack nhiều feature uncommitted — batch lâu = cửa sổ phân kỳ lớn = dễ trùng/đụng (xin phép push từng cái).
-- Commit đúng thay đổi thật: `git diff --name-only | xargs git add` — tránh churn do line-ending CRLF/LF
-  (memory `feedback_windows-line-ending-sed-churn`); ưu tiên `Edit` tool hơn `sed -i`.
+- 🔴 **Do NOT `git add`/`commit`/`push` on your own until the user is explicit in the current turn** (★ source of truth — SKILL-MAP §0c keeps only a summary + points here). 3 unlock levels by keyword:
+  - "continue / keep going / carry on" / "the rest is up to you" → code-change + build-verify + report ONLY; NO `git add`/`commit`/`push`.
+  - "commit / save a commit" → `git add` + `git commit` **LOCAL**; NO push.
+  - "push (in any language) / git push" → only then `git push` origin/main.
+  - **Edge cases:** "finish all of X then review/push" is NOT implicit-OK (must be explicit "push") · a dirty working tree is NORMAL on "continue" (do NOT commit to clean up) · Auto-Mode does NOT override · a previous turn's permission does NOT extend to a later turn.
+  - Change < 5 files / < 100 lines → **batch it**, don't push yet (memory
+  `feedback_batch-changes-before-push`). ⚠️ **When 2 machines work in parallel:** PREFER **pushing early on each DONE feature**
+  rather than stacking many uncommitted features — a long batch = a large divergence window = easier to duplicate/collide (ask permission to push each one).
+- Commit only the real changes: `git diff --name-only | xargs git add` — avoid churn from CRLF/LF line-endings
+  (memory `feedback_windows-line-ending-sed-churn`); prefer the `Edit` tool over `sed -i`.
 
-## 4. Pull Request / Push — quy ước (LẤP GAP)
+## 4. Pull Request / Push — convention (FILLS A GAP)
 
-- `push` / `đẩy code` mới được `git push`; `commit` chỉ commit local. (Mức mở khoá đầy đủ: §3.)
-- 🔴 **Đóng issue ATOMIC với push** (chống "OPEN giả" khiến máy khác làm trùng): commit feature kèm
-  **`Closes #N`** (GitHub auto-close khi merge `main`) HOẶC `gh issue close <n>` **ngay sau push**. **KHÔNG đóng
-  issue theo lô trễ** nhiều commit sau khi code đã lên — đó là khoảng-trống khiến `gh issue list` còn hiện OPEN
-  dù tính năng đã xong (gốc gây trùng phiên 2026-06-15).
-- PR vào `main`. Body PR kết bằng:
+- Only "push" / "git push" allows `git push`; "commit" only commits locally. (Full unlock levels: §3.)
+- 🔴 **Close the issue ATOMICALLY with the push** (anti "fake OPEN" that makes another machine duplicate): commit the feature with
+  **`Closes #N`** (GitHub auto-closes on merge to `main`) OR `gh issue close <n>` **right after the push**. **Do NOT close
+  issues in a lagging batch** many commits after the code is up — that's the gap that leaves `gh issue list` still showing OPEN
+  even though the feature is done (root of the 2026-06-15 duplication).
+- PR into `main`. The PR body ends with:
   ```
   🤖 Generated with [Claude Code](https://claude.com/claude-code)
   ```
-- **Tách commit code (push-able) vs commit `docs/workspace-docs/`** — workspace-docs commit + push bình
-  thường từ 2026-06-13 (quy tắc never-push đã GỠ), nhưng vẫn tách logic để review rõ.
-- Sau khi push đụng `backend/**` → Cloud Run tự deploy qua GitHub Actions; verify `gh run list
+- **Separate the code commit (push-able) from the `docs/workspace-docs/` commit** — workspace-docs commit + push is normal
+  since 2026-06-13 (the never-push rule was REMOVED), but still separate them logically for clear review.
+- After pushing changes touching `backend/**` → Cloud Run auto-deploys via GitHub Actions; verify `gh run list
   --workflow=deploy-backend.yml` + `GET /health/schema-drift` = 0 (skill `his-ops-deploy`).
 
-## 5. Review — quy ước
+## 5. Review — convention
 
-- Trước khi báo "xong": **self-review 9 điểm** (his-qa #30) + **build-gate** (his-qa #27) — bước 6 REVIEW
-  trong [`workflow.md`](workflow.md).
-- Task lớn / rủi ro prod → chặng [4] Reviewer dùng agent `his-quality-reviewer` (+ `his-test-engineer`).
-- Bulk fix > 20 file → **spot-check 3-5 file random** qua `git diff` + build + audit side-effect
+- Before reporting "done": **9-point self-review** (his-qa #30) + **build-gate** (his-qa #27) — step 6 REVIEW
+  in [`workflow.md`](workflow.md).
+- Large / prod-risk task → stage [4] Reviewer uses the `his-quality-reviewer` agent (+ `his-test-engineer`).
+- Bulk fix > 20 files → **spot-check 3-5 random files** via `git diff` + build + side-effect audit
   (memory `feedback_spot-check-after-bulk`); build pass ≠ behavior preserved.
-- Review theo cổng [`checklist.md`](checklist.md); còn mục 🔴 fail → KHÔNG cho DONE.
+- Review against the [`checklist.md`](checklist.md) gate; any 🔴 fail remaining → do NOT allow DONE.
 
-## 6. Rollback / Recovery (hệ Production — BẮT BUỘC biết cách lùi trước khi đổi)
+## 6. Rollback / Recovery (Production system — MANDATORY to know how to revert before changing)
 
-Khi thay đổi gây sự cố, chọn cách revert **nhỏ-nhất-an-toàn**. Luôn **báo user trước thao tác lùi prod**.
+When a change causes an incident, choose the **smallest-safe** revert. Always **tell the user before a prod revert op**.
 
-| Tình huống | Cách lùi |
+| Situation | How to revert |
 |---|---|
-| Code chưa push | `git restore` / bỏ commit local (`git reset --soft HEAD~1`) |
-| Đã push, chưa deploy | **`git revert <sha>`** (KHÔNG `reset` nhánh chung) + push |
-| Backend deploy Cloud Run lỗi | Lùi **revision trước**: `gcloud run services update-traffic his-api --to-revisions=<rev-cũ>=100` (hoặc redeploy image cũ) |
-| Frontend Vercel lỗi | Promote lại **deployment trước** trên Vercel (hoặc revert commit → auto-deploy) |
-| Migration SQL gây hỏng | Script SQL **lùi tay** (idempotent) trong `Data/Scripts/`; KHÔNG `ef migrations` |
-| Tính năng mới hỏng | Tắt qua config/feature-flag (nếu có) **trước** khi revert code |
+| Code not yet pushed | `git restore` / drop the local commit (`git reset --soft HEAD~1`) |
+| Pushed, not yet deployed | **`git revert <sha>`** (do NOT `reset` a shared branch) + push |
+| Backend Cloud Run deploy broken | Roll back to the **previous revision**: `gcloud run services update-traffic his-api --to-revisions=<old-rev>=100` (or redeploy the old image) |
+| Frontend Vercel broken | Promote the **previous deployment** on Vercel (or revert the commit → auto-deploy) |
+| SQL migration broke something | A **hand-written reverse** SQL script (idempotent) in `Data/Scripts/`; NO `ef migrations` |
+| New feature broken | Turn it off via config/feature-flag (if any) **before** reverting the code |
 
-→ Ghi `rollback_notes` ở state-store ([`task.md`](task.md)) + **verify lại sau khi lùi**. Cross-ref Hotfix fast-path ([`workflow.md`](workflow.md) §6).
+→ Record `rollback_notes` in the state-store ([`task.md`](task.md)) + **re-verify after reverting**. Cross-ref the Hotfix fast-path ([`workflow.md`](workflow.md) §6).
 
-## 7. Estimation rubric (định nghĩa mức — dùng nhất quán cho mọi issue)
+## 7. Estimation rubric (level definitions — used consistently across issues)
 
-- **Độ phức tạp (effort):** `XS` vài giờ/1 file · `S` ~1 ngày/ít file · `M` vài ngày/1 module · `L` ~1 tuần/đa-file-đa-tầng · `XL` >1 tuần/đa-module/blast-radius lớn (**nên tách nhỏ**).
-- **Độ ưu tiên:** `P0` thiếu → KHÔNG vận hành được (hệ đang live → rất hiếm) · `P1` quan trọng: cần cho triển khai thực / an-toàn-BN / **parity-đối-thủ** · `P2` nên có, tăng hiệu quả · `P3` làm sau, không ảnh hưởng vận hành.
-- **Risk level:** `Critical` prod-down/mất-dữ-liệu/lộ-bảo-mật · `High` blast-radius rộng/khó-rollback · `Medium` giới-hạn-trong-module · `Low` cục-bộ/cosmetic.
+- **Effort:** `XS` a few hours/1 file · `S` ~1 day/few files · `M` a few days/1 module · `L` ~1 week/multi-file-multi-tier · `XL` >1 week/multi-module/large blast-radius (**should be split**).
+- **Priority:** `P0` missing → CANNOT operate (live system → very rare) · `P1` important: needed for real rollout / patient-safety / **competitor-parity** · `P2` nice-to-have, improves efficiency · `P3` do later, no operational impact.
+- **Risk level:** `Critical` prod-down/data-loss/security-leak · `High` wide blast-radius/hard-to-rollback · `Medium` contained-within-module · `Low` local/cosmetic.
 
-> Phương châm parity ([[competitor-parity-philosophy]] · `requirement-coverage.md` Luật 4): đối-thủ-có→P0/P1; không-có-nhưng-cần→P2; không-có-không-cần→KHÔNG tạo.
+> Parity principle ([[competitor-parity-philosophy]] · `requirement-coverage.md` Rule 4): competitor-has→P0/P1; not-there-but-needed→P2; not-there-not-needed→DO NOT create.
 
 ---
 
-## 8. Liên kết
+## 8. Links
 - Pipeline: [`workflow.md`](workflow.md) · State-store: [`task.md`](task.md) · Checklist: [`checklist.md`](checklist.md)
-- Quyết định kiến trúc: [`ai-memory.md`](ai-memory.md)
-- Routing skill (đọc đầu tiên): [`../SKILL-MAP.md`](../SKILL-MAP.md)
+- Architecture decisions: [`ai-memory.md`](ai-memory.md)
+- Skill routing (read first): [`../SKILL-MAP.md`](../SKILL-MAP.md)

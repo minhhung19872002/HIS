@@ -7,42 +7,42 @@ metadata:
 
 # Core — Reusable Code (portable)
 
-> TẦNG: **A · CORE** (dùng chung, tech-agnostic).
+> TIER: **A · CORE** (shared, tech-agnostic).
 
 ## Purpose
-Bắt buộc **reuse trước khi tạo mới**: tái dùng/extend code đã có thay vì duplicate. Chống trùng lặp logic
-và abstraction. Nguyên tắc dùng cho mọi dự án.
+Force **reuse before creating new**: reuse/extend existing code instead of duplicating. Prevents logic and
+abstraction duplication. A principle for every project.
 
-## Khi nào dùng
-- **Mọi** task code-gen (luôn áp dụng đầu tiên).
-- Trước khi tạo file/hàm/component/hook/service/type/test setup mới.
-- Khi nghi ngờ "cái này đã có ở đâu đó rồi".
+## When to use
+- **Every** code-gen task (always applied first).
+- Before creating a new file/function/component/hook/service/type/test setup.
+- When you suspect "this already exists somewhere".
 
-## Khi nào KHÔNG dùng
-- Không phải skill stand-alone tạo file — nó là guardrail kèm các skill khác.
+## When NOT to use
+- Not a stand-alone file-creating skill — it's a guardrail alongside other skills.
 
-## Quy trình BẮT BUỘC (theo thứ tự)
+## MANDATORY workflow (in order)
 ```
-1. inspect feature/màn hình tương tự đã có
-2. tìm abstraction/base đã tồn tại (shared layer)
-3. check component/hook dùng chung
+1. inspect a similar existing feature/screen
+2. find an existing abstraction/base (shared layer)
+3. check shared components/hooks
 4. check service / API client / util
 5. check store/state, types, validation schema
 6. check localization keys
 7. check test helper/fixture/builder
-→ ƯU TIÊN: extend / compose / extract-shared
-→ CHỈ tạo mới khi thật sự không có gì phù hợp
-→ Tạo mới mà có khả năng tái dùng → đặt ở shared
+→ PREFER: extend / compose / extract-shared
+→ Create new ONLY when nothing suitable exists
+→ Create new with reuse potential → put it in shared
 ```
 
-## Anti-patterns cần tránh
+## Anti-patterns to avoid
 - Duplicate logic / hook / API layer / validation / localization / test setup.
-- Tạo abstraction trùng cái đã có.
-- Copy-paste rồi sửa nhẹ thay vì tham số hoá / compose.
+- Creating an abstraction that duplicates an existing one.
+- Copy-paste then tweak instead of parameterizing / composing.
 
 ## Dependency
-- Nền cho mọi skill code-gen. Chống-trùng-lặp (anti-duplication) **gộp ngay trong skill này** + `core-refactor` khi cần
+- The foundation for every code-gen skill. Anti-duplication is **folded into this skill** + `core-refactor` when you need to
   extract-shared.
 
 ## When to update
-- Khi quy trình inspect/shared-layer convention thay đổi.
+- When the inspect/shared-layer convention changes.

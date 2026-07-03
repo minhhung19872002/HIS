@@ -1,23 +1,23 @@
-# Checklist verify-before-assert
+# verify-before-assert checklist
 
-## Loại ký hiệu PHẢI verify trước khi dùng/khẳng định
-- Đường dẫn file / thư mục → `Glob`.
-- Tên hàm / class / component / hook / interface → `Grep` định nghĩa (`function X`, `class X`, `const X =`, `interface X`).
-- Endpoint API / route → `Grep` controller/route thật.
-- Field DTO / cột DB / prop component / config key / env var → `Read` định nghĩa thật.
-- Hành vi ("code làm X") → `Read` đúng hàm, không suy từ tên.
+## Symbol kinds you MUST verify before using/asserting
+- File / folder path → `Glob`.
+- Function / class / component / hook / interface name → `Grep` the definition (`function X`, `class X`, `const X =`, `interface X`).
+- API endpoint / route → `Grep` the real controller/route.
+- DTO field / DB column / component prop / config key / env var → `Read` the real definition.
+- Behavior ("the code does X") → `Read` the actual function, don't infer from the name.
 
-## Nguồn DỄ SAI — luôn verify lại với code hiện tại
-- Ký ức (memory recalled) — phản ánh lúc viết, không phải hiện tại.
-- CLAUDE.md / work-log / docs — có thể đã lạc hậu (URL, ID, flag, path).
-- Tên "nghe hợp lý" suy từ convention.
-- Kết quả 1 file → KHÔNG tổng quát cho cả repo.
+## ERROR-PRONE sources — always re-verify against the current code
+- Memory (recalled) — reflects when it was written, not now.
+- CLAUDE.md / work-log / docs — may be stale (URL, ID, flag, path).
+- A "plausible-sounding" name inferred from convention.
+- A result from 1 file → does NOT generalize to the whole repo.
 
-## Cách gắn bằng chứng khi phát biểu
-- ✅ "DTO dùng `icdCode` (verify `…/SpecialtyEmrDTOs.cs`)."
-- ✅ "Giả định (CHƯA verify): có thể có helper format — sẽ Grep trước khi dùng."
-- ❌ "Chắc là có hàm `formatX()`." (khẳng định trần trụi, không nguồn)
+## How to attach evidence when stating something
+- ✅ "The DTO uses `icdCode` (verified `…/SpecialtyEmrDTOs.cs`)."
+- ✅ "Assumption (NOT verified): there may be a format helper — will Grep before using."
+- ❌ "There's probably a `formatX()` function." (a bare unsourced claim)
 
-## Mức verify hợp lý
-1–3 lệnh `Grep`/`Glob`/`Read` là đủ cho 1 fact. Không xác định được → nói rõ "không tìm thấy/không chắc",
-đề xuất hướng hoặc hỏi — KHÔNG bịa.
+## Reasonable verify effort
+1–3 `Grep`/`Glob`/`Read` commands is enough for one fact. Can't determine it → say "not found/unsure",
+propose a direction or ask — do NOT fabricate.

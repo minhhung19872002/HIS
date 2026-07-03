@@ -1,25 +1,25 @@
-# Checklist phân tích tác động (soi trước khi sửa)
+# Impact-analysis checklist (inspect before editing)
 
-## "Thứ ăn theo" cần Grep/Read
-- [ ] **Callers** trực tiếp ký hiệu/hàm/component.
-- [ ] **Consumer khác layer** (FE gọi BE / BE bị FE phụ thuộc) — contract xuyên tầng.
-- [ ] **Test** tham chiếu (unit/e2e/api) — sẽ đỏ nếu đổi.
-- [ ] **Migration / seed / schema** nếu đụng DB.
-- [ ] **DI registration** nếu thêm/đổi service (quên = 500).
-- [ ] **Config / env / feature flag** liên quan.
-- [ ] **Doc / work-log** mô tả hành vi cũ (cập nhật nếu cần).
+## "What hangs off it" to Grep/Read
+- [ ] **Callers** that directly use the symbol/function/component.
+- [ ] **Consumers in another layer** (FE calls BE / BE depended on by FE) — a cross-tier contract.
+- [ ] **Tests** referencing it (unit/e2e/api) — they'll go red if changed.
+- [ ] **Migration / seed / schema** if touching the DB.
+- [ ] **DI registration** if adding/changing a service (forget = 500).
+- [ ] **Config / env / feature flag** related.
+- [ ] **Doc / work-log** describing the old behavior (update if needed).
 
-## Phân loại thay đổi
-- **Additive / backward-compatible** → an toàn, ưu tiên.
-- **Breaking** (rename/remove/đổi kiểu/đổi chữ ký) → phải cập nhật ĐỒNG THỜI mọi dependent trong cùng thay đổi.
+## Change classification
+- **Additive / backward-compatible** → safe, preferred.
+- **Breaking** (rename/remove/change-type/change-signature) → must update ALL dependents SIMULTANEOUSLY in the same change.
 
-## Lệnh điển hình
+## Typical commands
 ```
-Grep "<symbolName>"            # call-site khắp repo
-Grep "<route|endpoint>"        # consumer của API
-Grep "<fieldName>"             # nơi map DTO/field (cả FE + BE)
-Glob "**/*.test.*|**/*.cy.ts"  # test liên quan
+Grep "<symbolName>"            # call sites across the repo
+Grep "<route|endpoint>"        # API consumers
+Grep "<fieldName>"             # where the DTO/field is mapped (both FE + BE)
+Glob "**/*.test.*|**/*.cy.ts"  # related tests
 ```
 
-## Cổng nâng cẩn trọng
-Đụng **patient-safety / audit / tiền / schema / xoá-ghi đè** → cân nhắc hỏi (`core-requirement-clarify`) trước khi sửa.
+## Raise-caution gate
+Touching **patient-safety / audit / money / schema / delete-overwrite** → consider asking (`core-requirement-clarify`) before editing.
