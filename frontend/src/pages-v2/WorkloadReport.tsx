@@ -5,6 +5,7 @@ import {
   getWorkload, type WorkloadReportDto, type DoctorWorkloadDto,
   type RadiologistWorkloadDto, type TechnicianWorkloadDto,
 } from '../api/workloadReport';
+import { exportToExcel } from '../utils/excelExport';
 import {
   KpiStrip, TopTabs, DataTable, StatusBadge, Btn, tk, ti, tw,
   type ColumnDef,
@@ -67,6 +68,33 @@ const WorkloadReportV2: React.FC = () => {
     tk('Đã xuất CSV');
   };
 
+  // #352 P4: parity v1 — Excel export per-tab (header tiếng Việt, cùng utils/excelExport)
+  const exportExcel = () => {
+    if (!data) { tw('Chưa có dữ liệu'); return; }
+    const name = `Workload_${tab}_${range[0].format('YYYYMMDD')}-${range[1].format('YYYYMMDD')}`;
+    if (tab === 'doctors') {
+      exportToExcel(data.doctors as unknown as Record<string, unknown>[], [
+        { key: 'fullName', header: 'Bác sĩ' },
+        { key: 'examinationCount', header: 'Lượt khám' },
+        { key: 'prescriptionCount', header: 'Đơn thuốc' },
+        { key: 'serviceRequestCount', header: 'Phiếu chỉ định' },
+      ], name, 'Bác sĩ');
+    } else if (tab === 'radiologists') {
+      exportToExcel(data.radiologists as unknown as Record<string, unknown>[], [
+        { key: 'fullName', header: 'Người dùng' },
+        { key: 'studiesRequested', header: 'Chỉ định CĐHA' },
+        { key: 'studiesPerformedAsTech', header: 'Chụp (KTV)' },
+        { key: 'reportsApproved', header: 'Đọc KQ' },
+      ], name, 'CĐHA');
+    } else {
+      exportToExcel(data.technicians as unknown as Record<string, unknown>[], [
+        { key: 'fullName', header: 'BS chỉ định XN' },
+        { key: 'labRequestsOrdered', header: 'Số phiếu XN' },
+      ], name, 'XN');
+    }
+    tk('Đã xuất Excel');
+  };
+
   const TABS = [
     { v: 'doctors' as Tab,      l: `Bác sĩ (${data?.doctors.length ?? 0})`,           ic: 'medicine' },
     { v: 'radiologists' as Tab, l: `CĐHA (${data?.radiologists.length ?? 0})`,        ic: 'qr' },
@@ -89,7 +117,8 @@ const WorkloadReportV2: React.FC = () => {
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
           <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
-          <Btn variant="primary" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
+          <Btn variant="ghost" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
+          <Btn variant="primary" icon="download" onClick={exportExcel}>Xuất Excel</Btn>
         </>
       } />
 

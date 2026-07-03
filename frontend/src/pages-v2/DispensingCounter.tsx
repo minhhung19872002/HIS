@@ -4,6 +4,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
 import { openPrintWindow } from '../utils/printWindow';
 import { searchPrescriptionByCode, type DispensePrescriptionLookupDto } from '../api/examination';
+import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, tw, Ico,
@@ -192,6 +193,8 @@ ${row.items.map((it) => `<div class="label"><h3>${it.medicineName}</h3><p><stron
 
   return (
     <div className="ab">
+      {/* #352 P4: parity v1 — cảnh báo HSD thuốc khi vào quầy phát (safety-notice) */}
+      <PharmacyExpiryBanner asModalOnFirstVisit sessionKey="pharmacy-module-expiry-shown" />
       <KpiStrip items={[
         { lbl: 'Đơn hôm nay', val: rows.length, sub: dayjs(date).format('DD/MM/YYYY') },
         { lbl: 'Chưa phát', val: counts.pending || 0, sub: 'cần xử lý', tone: 'warn' },

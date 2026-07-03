@@ -108,7 +108,9 @@ const StockReportV2: React.FC = () => {
       : r.daysToExpiry <= 90 ? <StatusBadge tone="warn">{r.daysToExpiry}d</StatusBadge>
       : `${r.daysToExpiry}d` },
     { key: 'qty', label: 'SL', mono: true, render: (r) => fmt(r.quantity) },
+    { key: 'reserved', label: 'Đã đặt', mono: true, render: (r) => fmt(r.reservedQuantity) },
     { key: 'avail', label: 'Khả dụng', mono: true, render: (r) => fmt(r.available) },
+    { key: 'price', label: 'Giá nhập', mono: true, render: (r) => fmt(r.importPrice) },
     { key: 'val', label: 'Giá trị', mono: true, render: (r) => fmt(r.value) },
     { key: 'lock', label: 'Khóa', render: (r) => r.isLocked ? <StatusBadge tone="crit" dot>Khóa</StatusBadge> : '—' },
   ];
@@ -119,6 +121,7 @@ const StockReportV2: React.FC = () => {
     { key: 'unit', label: 'ĐV', render: (r) => r.unit || '—' },
     { key: 'batches', label: 'Số lô', mono: true, render: (r) => r.batchCount },
     { key: 'qty', label: 'Tổng SL', mono: true, render: (r) => fmt(r.totalQuantity) },
+    { key: 'reserved', label: 'Đã đặt', mono: true, render: (r) => fmt(r.reservedQuantity) },
     { key: 'avail', label: 'Khả dụng', mono: true, render: (r) => fmt(r.available) },
     { key: 'exp', label: 'HSD gần', mono: true, render: (r) => r.nearestExpiry ? dayjs(r.nearestExpiry).format('DD/MM/YYYY') : '—' },
     { key: 'val', label: 'Giá trị', mono: true, render: (r) => fmt(r.totalValue) },

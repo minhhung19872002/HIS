@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
+import { exportToExcel } from '../utils/excelExport';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, Btn, tk, ti, tw,
   type ColumnDef,
@@ -121,6 +122,77 @@ const PaymentReportsV2: React.FC = () => {
     a.download = `${tab}-${range[0].format('YYYYMMDD')}-${range[1].format('YYYYMMDD')}.csv`;
     a.click();
     tk('Đã xuất CSV');
+  };
+
+  // #352 P4: parity v1 — Excel export per-tab (header tiếng Việt, cùng utils/excelExport như v1)
+  const EXCEL_HEADERS: Record<Tab, { key: string; header: string }[]> = {
+    bc1: [
+      { key: 'txnRef', header: 'Mã GD' }, { key: 'gatewayTxnRef', header: 'Mã cổng' },
+      { key: 'patientCode', header: 'Mã BN' }, { key: 'patientName', header: 'Bệnh nhân' },
+      { key: 'amount', header: 'Số tiền' }, { key: 'provider', header: 'Cổng' },
+      { key: 'bankCode', header: 'Ngân hàng' }, { key: 'completedAt', header: 'Thời gian' },
+    ],
+    bc2: [
+      { key: 'date', header: 'Ngày' }, { key: 'receipts', header: 'Số phiếu' },
+      { key: 'deposit', header: 'Tạm ứng' }, { key: 'payment', header: 'Viện phí' },
+      { key: 'refund', header: 'Hoàn trả' }, { key: 'net', header: 'Net' },
+      { key: 'cash', header: 'Tiền mặt' }, { key: 'transfer', header: 'Chuyển khoản' },
+      { key: 'card', header: 'Thẻ' }, { key: 'eWallet', header: 'Ví điện tử' },
+    ],
+    bc3: [
+      { key: 'receiptCode', header: 'Mã phiếu' }, { key: 'receiptDate', header: 'Ngày' },
+      { key: 'patientCode', header: 'Mã BN' }, { key: 'patientName', header: 'Bệnh nhân' },
+      { key: 'receiptTypeName', header: 'Loại phiếu' }, { key: 'paymentMethodName', header: 'PT thanh toán' },
+      { key: 'finalAmount', header: 'Thành tiền' }, { key: 'cashierName', header: 'Thu ngân' },
+    ],
+    bc4: [
+      { key: 'invoiceSeries', header: 'Ký hiệu' }, { key: 'invoiceNumber', header: 'Số HĐ' },
+      { key: 'invoiceDate', header: 'Ngày' }, { key: 'patientName', header: 'Họ tên' },
+      { key: 'subTotal', header: 'Trước thuế' }, { key: 'vatAmount', header: 'VAT' },
+      { key: 'totalAmount', header: 'Tổng' },
+    ],
+    bc5: [
+      { key: 'invoiceSeries', header: 'Ký hiệu' }, { key: 'invoiceNumber', header: 'Số HĐ' },
+      { key: 'invoiceDate', header: 'Ngày' }, { key: 'patientName', header: 'Họ tên' },
+      { key: 'subTotal', header: 'Trước thuế' }, { key: 'vatAmount', header: 'VAT' },
+      { key: 'totalAmount', header: 'Tổng' },
+    ],
+    bc6: [
+      { key: 'receiptCode', header: 'Mã phiếu' }, { key: 'receiptDate', header: 'Ngày' },
+      { key: 'patientName', header: 'Bệnh nhân' }, { key: 'itemCode', header: 'Mã DV' },
+      { key: 'itemName', header: 'Tên DV' }, { key: 'quantity', header: 'SL' },
+      { key: 'finalAmount', header: 'Thành tiền' },
+    ],
+    bc7: [
+      { key: 'txnRef', header: 'Mã GD' }, { key: 'provider', header: 'Cổng' },
+      { key: 'patientName', header: 'Bệnh nhân' }, { key: 'originalAmount', header: 'Tiền gốc' },
+      { key: 'refundedAmount', header: 'Đã hoàn' }, { key: 'refundedAt', header: 'Ngày hoàn' },
+      { key: 'refundReason', header: 'Lý do' },
+    ],
+    bc8: [
+      { key: 'saleCode', header: 'Mã phiếu' }, { key: 'saleDate', header: 'Ngày bán' },
+      { key: 'patientName', header: 'Khách hàng' }, { key: 'phoneNumber', header: 'SĐT' },
+      { key: 'totalAmount', header: 'Tổng tiền' }, { key: 'discountAmount', header: 'Giảm giá' },
+      { key: 'paidAmount', header: 'Thanh toán' }, { key: 'paymentMethod', header: 'PTTT' },
+      { key: 'cashierName', header: 'Thu ngân' }, { key: 'itemCount', header: 'Số mặt hàng' },
+    ],
+  };
+
+  const exportExcel = () => {
+    type XRow = Record<string, unknown>;
+    const rows: XRow[] = tab === 'bc1' ? (bc1?.items || []) as unknown as XRow[]
+      : tab === 'bc2' ? (bc2?.byDay || []) as unknown as XRow[]
+      : tab === 'bc3' ? (bc3 as unknown as XRow[])
+      : tab === 'bc4' ? (bc4?.items || []) as unknown as XRow[]
+      : tab === 'bc5' ? (bc5?.items || []) as unknown as XRow[]
+      : tab === 'bc6' ? (bc6 as unknown as XRow[])
+      : tab === 'bc7' ? (bc7?.items || []) as unknown as XRow[]
+      : (bc8?.items || []) as unknown as XRow[];
+    if (!rows || rows.length === 0) { tw('Không có dữ liệu'); return; }
+    exportToExcel(rows, EXCEL_HEADERS[tab],
+      `${tab.toUpperCase()}_${range[0].format('YYYYMMDD')}-${range[1].format('YYYYMMDD')}`,
+      tab.toUpperCase());
+    tk('Đã xuất Excel');
   };
 
   const bc1Cols: ColumnDef<TxnRow>[] = [
@@ -265,7 +337,8 @@ const PaymentReportsV2: React.FC = () => {
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
           <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
-          <Btn variant="primary" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
+          <Btn variant="ghost" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
+          <Btn variant="primary" icon="download" onClick={exportExcel}>Xuất Excel</Btn>
         </>
       } />
 

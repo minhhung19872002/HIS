@@ -5,6 +5,7 @@ import apiClient from '../api/client';
 import { openPrintWindow } from '../utils/printWindow';
 import systemApi from '../api/system';
 import { getWarehouses } from '../api/warehouse';
+import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
 import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {
   KpiStrip, Filter, StatusBadge, Btn, Ico, tk, ti, tw,
@@ -141,6 +142,8 @@ ${(printData.items || []).map((it, i) => `<tr><td>${i + 1}</td><td>${it.medicine
 
   return (
     <div className="ab">
+      {/* #352 P4: parity v1 — cảnh báo HSD thuốc (safety-notice) */}
+      <PharmacyExpiryBanner asModalOnFirstVisit sessionKey="pharmacy-module-expiry-shown" />
       <KpiStrip items={[
         { lbl: 'Khoa chờ phát', val: groups.length, sub: 'tất cả khoa', tone: 'info' },
         { lbl: 'Tổng đơn thuốc', val: totalPres, sub: 'cần xuất', tone: 'warn' },
