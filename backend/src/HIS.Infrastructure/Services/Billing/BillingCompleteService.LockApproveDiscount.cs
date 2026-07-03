@@ -127,6 +127,10 @@ public partial class BillingCompleteService {
             .Where(i => dto.InvoiceIds.Contains(i.Id))
             .ToListAsync();
 
+        // perf(#195): userId is the same approver for every invoice in this loop — look it up once
+        // instead of re-awaiting FindAsync(userId) per invoice.
+        var approverName = (await _context.Users.FindAsync(userId))?.FullName;
+
         foreach (var invoice in invoices)
         {
             if (dto.IsApproved)
@@ -155,7 +159,7 @@ public partial class BillingCompleteService {
                 ApprovalStatus = dto.IsApproved ? 2 : 3,
                 ApprovalStatusName = dto.IsApproved ? "Đã duyệt" : "Từ chối",
                 ApprovedBy = userId,
-                ApprovedByName = (await _context.Users.FindAsync(userId))?.FullName,
+                ApprovedByName = approverName,
                 ApprovedAt = DateTime.Now,
                 RejectReason = dto.IsApproved ? null : dto.RejectReason
             });
