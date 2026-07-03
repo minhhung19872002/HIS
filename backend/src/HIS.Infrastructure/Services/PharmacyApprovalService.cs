@@ -173,12 +173,24 @@ public class PharmacyApprovalService : IPharmacyApprovalService
         }
 
         // Khi duyệt: trừ tồn từ InventoryItem theo ApprovedQuantity
+        // perf(#195): batch-load InventoryItems instead of FirstOrDefaultAsync per item (N+1).
+        // Safe: entities are tracked, so repeated InventoryItemId across lines still resolve to the
+        // same in-memory instance (EF identity resolution) exactly like the previous per-iteration
+        // FirstOrDefaultAsync did — cumulative decrement/oversell-guard behavior is unchanged.
+        var approveInvIds = approval.Items
+            .Where(i => !i.IsExcluded && i.ApprovedQuantity > 0 && i.InventoryItemId.HasValue)
+            .Select(i => i.InventoryItemId!.Value)
+            .Distinct()
+            .ToList();
+        var approveInvMap = await _db.InventoryItems
+            .Where(x => approveInvIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id);
+
         foreach (var item in approval.Items.Where(i => !i.IsExcluded && i.ApprovedQuantity > 0))
         {
             if (item.InventoryItemId.HasValue)
             {
-                var inv = await _db.InventoryItems.FirstOrDefaultAsync(x => x.Id == item.InventoryItemId.Value);
-                if (inv != null)
+                if (approveInvMap.TryGetValue(item.InventoryItemId.Value, out var inv))
                 {
                     if (inv.Quantity < item.ApprovedQuantity)
                         throw new InvalidOperationException(
@@ -264,12 +276,23 @@ public class PharmacyApprovalService : IPharmacyApprovalService
             throw new ArgumentException("Lý do thu hồi bắt buộc");
 
         // Hoàn lại tồn kho
+        // perf(#195): batch-load InventoryItems instead of FirstOrDefaultAsync per item (N+1).
+        // Safe for the same reason as ApproveAsync — tracked entities, identity resolution keeps
+        // cumulative-across-duplicate-lines behavior identical.
+        var revokeInvIds = approval.Items
+            .Where(i => !i.IsExcluded && i.ApprovedQuantity > 0 && i.InventoryItemId.HasValue)
+            .Select(i => i.InventoryItemId!.Value)
+            .Distinct()
+            .ToList();
+        var revokeInvMap = await _db.InventoryItems
+            .Where(x => revokeInvIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id);
+
         foreach (var item in approval.Items.Where(i => !i.IsExcluded && i.ApprovedQuantity > 0))
         {
             if (item.InventoryItemId.HasValue)
             {
-                var inv = await _db.InventoryItems.FirstOrDefaultAsync(x => x.Id == item.InventoryItemId.Value);
-                if (inv != null)
+                if (revokeInvMap.TryGetValue(item.InventoryItemId.Value, out var inv))
                 {
                     inv.Quantity += item.ApprovedQuantity;
                     inv.UpdatedAt = DateTime.UtcNow;
