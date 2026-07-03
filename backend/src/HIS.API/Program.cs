@@ -86,6 +86,9 @@ builder.Services.AddCors(options =>
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
 if (jwtKey.Length < 32)
     throw new InvalidOperationException($"Jwt:Key too short ({jwtKey.Length} chars). HmacSha256 requires ≥32 chars (256 bits).");
+// #182: key mặc định trong appsettings.json đã lộ trong git history — Production BẮT BUỘC set env Jwt__Key riêng
+if (builder.Environment.IsProduction() && jwtKey == "HIS_SuperSecretKey_2024_ChangeThisInProduction_MinLength32Chars")
+    throw new InvalidOperationException("Jwt:Key is still the default (leaked) value in Production. Set env Jwt__Key.");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
 

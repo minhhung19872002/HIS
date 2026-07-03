@@ -15,6 +15,7 @@ Gọi `POST /api/dev/link-radiology/today` để link với RadiologyRequests.
 """
 
 import io
+import os
 import sys
 import uuid
 from datetime import datetime
@@ -30,8 +31,9 @@ except ImportError as e:
     print(f"Missing package: {e}. Run: pip install pydicom pillow requests numpy")
     sys.exit(1)
 
-ORTHANC_URL = "https://168-110-52-7.nip.io"
-ORTHANC_AUTH = ("admin", "Hz9KqW3PmN7xVfRbT4JdLc2YsEgA8UoI")
+ORTHANC_URL = os.environ.get("ORTHANC_URL", "https://168-110-52-7.nip.io")
+# Secret KHÔNG hardcode (#182): lấy từ env ORTHANC_ADMIN_PASSWORD (xem Cloud Run env PACS__Password)
+ORTHANC_AUTH = ("admin", os.environ.get("ORTHANC_ADMIN_PASSWORD", ""))
 
 # Public domain chest X-ray images from Wikimedia Commons.
 # Các URL này ổn định (Wikimedia không đổi ID).
