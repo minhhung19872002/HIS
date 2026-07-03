@@ -252,13 +252,10 @@ public partial class RISCompleteService
     public async Task<int> UpdateAllRequestDatesToTodayAsync()
     {
         var today = DateTime.UtcNow.Date; // dot16: chuẩn UTC (00:00Z = 07:00 VN — vẫn trong cửa sổ DayRangeUtc hôm nay)
-        var requests = await _context.RadiologyRequests.ToListAsync();
-        foreach (var request in requests)
-        {
-            request.RequestDate = today;
-        }
-        await _unitOfWork.SaveChangesAsync();
-        return requests.Count;
+        // #356: write-bulk (dev/test util, không cần audit từng dòng) → ExecuteUpdate set-based,
+        // KHÔNG bound thiếu record, không load nguyên bảng. Query-filter (soft-delete) vẫn áp dụng.
+        return await _context.RadiologyRequests.ExecuteUpdateAsync(
+            s => s.SetProperty(r => r.RequestDate, today));
     }
 
     public async Task<int> AddTestDicomStudiesForCompletedRequestsAsync()
