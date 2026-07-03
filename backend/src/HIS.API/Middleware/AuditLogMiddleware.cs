@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using HIS.Application.Common;
 using HIS.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -29,6 +30,9 @@ public class AuditLogMiddleware
 
     // Sensitive paths that require GET request auditing (Level 6 compliance).
     // Only detail-level GETs (with an ID segment) are logged, not list endpoints.
+    // NOTE: prefixes must match the ACTUAL controller route (verified via [Route] attributes),
+    // not just the module name used in RouteModuleMap below — e.g. LISCompleteController maps
+    // to "api/LISComplete" (from [Route("api/[controller]")]), NOT "api/lis". Issue #198 (b).
     private static readonly string[] SensitiveGetPaths = new[]
     {
         "/api/patients/",
@@ -36,7 +40,11 @@ public class AuditLogMiddleware
         "/api/emr/",
         "/api/inpatient/",
         "/api/prescription/",
-        "/api/reception/patient"
+        "/api/reception/patient",
+        "/api/liscomplete/",       // LISCompleteController — lab orders/results
+        "/api/riscomplete/",       // RISCompleteController — radiology orders/reports
+        "/api/billingcomplete/",   // BillingCompleteController — invoices/receipts
+        "/api/bloodbankcomplete/"  // BloodBankCompleteController — issue/transfusion records
     };
 
     // Map API route prefixes to module names
@@ -160,6 +168,7 @@ public class AuditLogMiddleware
                 }
                 catch (Exception ex)
                 {
+                    AuditWriteMetrics.RecordFailure(ex);
                     _logger.LogWarning(ex, "Background audit log write failed for {Method} {Path}", method, path);
                 }
             });
@@ -167,6 +176,7 @@ public class AuditLogMiddleware
         catch (Exception ex)
         {
             // Never let audit logging fail the main request
+            AuditWriteMetrics.RecordFailure(ex);
             _logger.LogWarning(ex, "Audit log middleware error for {Method} {Path}", method, path);
         }
     }
