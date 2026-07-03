@@ -73,6 +73,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<ElectronicInvoice> ElectronicInvoices => Set<ElectronicInvoice>();
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<RefundDisbursement> RefundDisbursements => Set<RefundDisbursement>();
+    public DbSet<MedicineDoseRange> MedicineDoseRanges => Set<MedicineDoseRange>(); // #214 dose-range
     public DbSet<PharmacyApproval> PharmacyApprovals => Set<PharmacyApproval>();
     public DbSet<PharmacyApprovalItem> PharmacyApprovalItems => Set<PharmacyApprovalItem>();
     public DbSet<PharmacyApprovalLog> PharmacyApprovalLogs => Set<PharmacyApprovalLog>();

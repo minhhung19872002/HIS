@@ -67,6 +67,40 @@ public class Medicine : BaseEntity
 }
 
 /// <summary>
+/// #214 [SAFE-3] Ngưỡng liều thuốc — cấu hình max-dose (đơn liều/ngày) cho thuốc nguy cơ cao.
+/// Bảng seed RỖNG; dược sĩ BV nhập giá trị liều chuẩn thật (KHÔNG bịa số liệu lâm sàng).
+/// Bảng rỗng / không có range active cho thuốc → không cảnh báo (advisory, không kẹt lâm sàng).
+/// </summary>
+public class MedicineDoseRange : BaseEntity
+{
+    public Guid MedicineId { get; set; }
+    public virtual Medicine Medicine { get; set; } = null!;
+
+    /// <summary>Đường dùng áp dụng (null = mọi đường dùng)</summary>
+    public string? RouteCode { get; set; }
+
+    /// <summary>Nhóm tuổi áp dụng: 0-Mọi lứa tuổi, 1-Trẻ em (&lt;12), 2-Người lớn, 3-Người cao tuổi (≥65)</summary>
+    public int AgeGroup { get; set; }
+
+    /// <summary>Điều chỉnh theo chức năng thận (suy thận) — cảnh báo thêm khi bật</summary>
+    public bool IsRenalAdjusted { get; set; }
+
+    /// <summary>Liều tối đa 1 lần (theo Unit)</summary>
+    public decimal? MaxSingleDose { get; set; }
+
+    /// <summary>Liều tối đa mỗi ngày (theo Unit)</summary>
+    public decimal? MaxDailyDose { get; set; }
+
+    public string? Unit { get; set; }
+
+    /// <summary>Hệ số vượt ngưỡng để coi là quá liều NẶNG (mặc định 1.5× → severity cao)</summary>
+    public decimal SevereMultiplier { get; set; } = 1.5m;
+
+    public string? Note { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
 /// Vật tư y tế - MedicalSupply
 /// </summary>
 public class MedicalSupply : BaseEntity

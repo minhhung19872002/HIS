@@ -63,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<IBillingCompleteService, BillingCompleteService>();
         services.AddScoped<IPaymentGatewayService, PaymentGatewayService>();
         services.AddScoped<IRefundDisbursementService, RefundDisbursementService>(); // NangCap25 IV: chi hộ hoàn tiền
+        services.AddScoped<IMedicineDoseRangeService, MedicineDoseRangeService>(); // #214 dose-range validation
         services.AddScoped<IMultiSpecialtyExamService, MultiSpecialtyExamService>();
         services.AddScoped<IPharmacyApprovalService, PharmacyApprovalService>();
         services.AddScoped<IReassignObjectService, ReassignObjectService>();
