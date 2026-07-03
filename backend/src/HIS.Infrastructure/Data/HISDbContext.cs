@@ -1231,7 +1231,10 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
 
                 // Apply string->Guid converter for entities with uniqueidentifier audit columns
                 // Skip entities that shadow CreatedBy with a navigation property (e.g. RehabTreatmentPlan, DutySchedule)
-                if (tablesWithGuidAudit.Contains(entityType.ClrType.Name))
+                // #197(b): hand-list UNION schema-derived (GuidAuditSchemaRegistry, probe ở Program.cs)
+                // — bảng mới có uniqueidentifier CreatedBy/UpdatedBy tự nhận converter, khỏi sửa list tay.
+                if (tablesWithGuidAudit.Contains(entityType.ClrType.Name)
+                    || GuidAuditSchemaRegistry.Contains(entityType.GetTableName()))
                 {
                     var createdByProp = entityType.FindProperty(nameof(BaseEntity.CreatedBy));
                     if (createdByProp != null && createdByProp.ClrType == typeof(string))

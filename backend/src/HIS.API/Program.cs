@@ -203,6 +203,12 @@ var app = builder.Build();
 // #196: cau hinh static logger cho ToBoundedListAsync (log "cham tran" = no silent cap)
 QueryBoundExtensions.Configure(app.Services.GetRequiredService<ILoggerFactory>());
 
+// #197(b): probe schema de suy whitelist Guid-audit converter (union voi hand-list trong
+// HISDbContext.OnModelCreating). PHAI chay TRUOC lan dung DbContext dau tien (model build 1 lan).
+GuidAuditSchemaRegistry.InitializeFromSchema(
+    builder.Configuration.GetConnectionString("DefaultConnection")!,
+    app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("GuidAuditSchemaRegistry"));
+
 // Seed database
 await DatabaseSeeder.SeedAsync(app.Services);
 
