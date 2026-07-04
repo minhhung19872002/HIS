@@ -10,6 +10,7 @@ import {
   type ColumnDef, type StatusTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+import { fmtVND } from '../utils/format';
 
 /* BHYT v2 — claims management */
 
@@ -45,7 +46,6 @@ const statusKey = (s: number): StatusKey => {
 };
 const statusTone = (s: StatusKey) => STATUS_TABS.find((t) => t.v === s)?.tone || 'info';
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
-const fmtVND = (n: number) => `${(n || 0).toLocaleString('vi-VN')} ₫`;
 
 const InsuranceV2: React.FC = () => {
   const { message } = AntdApp.useApp();

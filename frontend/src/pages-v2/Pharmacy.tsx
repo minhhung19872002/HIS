@@ -8,6 +8,7 @@ import type { PendingPrescription } from '../api/pharmacy';
 import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 import ExpiryAlertModal from './shared/ExpiryAlertModal';
+import { fmtVND } from '../utils/format';
 
 /* Nhà thuốc v2 — port of Pharmacy v2.html (RX dispensing tab) */
 
@@ -21,7 +22,6 @@ const STATUS_TABS: StatusTab<StatusKey>[] = [
 ];
 const fmtHM = (iso?: string) => iso ? dayjs(iso).format('HH:mm') : '—';
 const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM HH:mm') : '—';
-const fmtVND = (n: number) => `${(n || 0).toLocaleString('vi-VN')} ₫`;
 
 const PharmacyV2: React.FC = () => {
   const { message, modal } = AntdApp.useApp();

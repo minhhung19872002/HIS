@@ -27,3 +27,10 @@ export const fmtDateTime = (d: string | number | Date): string =>
  */
 export const fmtTime = (d: string | number | Date): string =>
   new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+/**
+ * Format a VND money amount: vi-VN number + ' ₫' suffix (dau cach truoc ky hieu).
+ * Nullish/NaN -> '0 ₫'. Gom cac ban sao `fmtVND` cuc bo o pages-v2
+ * (Billing/Insurance/Inpatient/Pharmacy) — output giu nguyen hanh vi cu.
+ */
+export const fmtVND = (n?: number | null): string => `${fmtNum(n)} ₫`;

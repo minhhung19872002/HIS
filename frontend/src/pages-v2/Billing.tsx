@@ -6,6 +6,7 @@ import { searchInvoices, createPayment, printInvoice } from '../api/billing';
 import type { InvoiceDto } from '../api/billing';
 import { SimpleV2Page, StatusBadge, ActBtn, Btn, ModalShell, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+import { fmtVND } from '../utils/format';
 
 /* Viện phí v2 — port of Billing v2.html */
 
@@ -20,7 +21,6 @@ const STATUS_TABS: StatusTab<StatusKey>[] = [
 const statusKey = (s: number): StatusKey =>
   s === 1 ? 'partial' : s === 2 ? 'paid' : s === 3 ? 'voided' : 'unpaid';
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
-const fmtVND = (n: number) => `${(n || 0).toLocaleString('vi-VN')} ₫`;
 
 const KIND_LABEL: Record<number, string> = { 1: 'Ngoại trú', 2: 'Nội trú' };
 

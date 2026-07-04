@@ -18,6 +18,7 @@ import {
   type ColumnDef, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+import { fmtVND } from '../utils/format';
 
 /* ────────────────────────────────────────────────────────────
    Nội trú v2 — bed-map (Sơ đồ giường) theo mock Ward v2.
@@ -46,7 +47,6 @@ const bedTone = (s: number): { bg: string; line: string } => {
 };
 
 const fmtDMY = (iso?: string) => (iso ? dayjs(iso).format('DD/MM/YYYY') : '—');
-const fmtVND = (n: number) => `${(n || 0).toLocaleString('vi-VN')} ₫`;
 const genderLabel = (g?: number) => (g === 1 ? 'Nam' : g === 2 ? 'Nữ' : '—');
 
 type IpStatusKey = 'admitted' | 'transferred' | 'discharged';
