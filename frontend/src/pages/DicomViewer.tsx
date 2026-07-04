@@ -1063,6 +1063,8 @@ const DicomViewer: React.FC = () => {
                           !!images[viewerCurrentIdx]?.sopInstanceUID &&
                           keyImages.some((k) => k.sopInstanceUID === images[viewerCurrentIdx]?.sopInstanceUID)
                         }
+                        studyInstanceUID={studyInstanceUID}
+                        sopByIndex={(idx) => images[idx]?.sopInstanceUID ?? ''}
                         overlay={(size, imageRect) =>
                           showAiOverlay && aiOverlayLabels.length > 0 ? (
                             <AiOverlayLayer

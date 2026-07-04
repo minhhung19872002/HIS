@@ -18,7 +18,9 @@ import {
   EditOutlined,
   LineChartOutlined,
   CalculatorOutlined,
+  SaveOutlined,
 } from '@ant-design/icons';
+import { saveAnnotation, getAnnotations } from '../api/ris/pacs';
 
 // Cornerstone3D singleton init flag — bootstrap engine only once per page load
 let csInitialized = false;
@@ -100,6 +102,10 @@ interface Props {
   isKeyImage?: boolean;
   /** Fired whenever the displayed frame index changes (stack scroll or setIndex). */
   onIndexChange?: (index: number) => void;
+  /** Study UID — enables annotation persist (save/load). Both this AND sopByIndex must be set. */
+  studyInstanceUID?: string;
+  /** Returns the SOP Instance UID for a given stack index. Enables per-slice annotation load. */
+  sopByIndex?: (idx: number) => string;
 }
 
 const TOOL_GROUP_ID = 'his-dicom-toolgroup';
@@ -171,9 +177,15 @@ function computeImageRect(viewport: MinimalCornerstoneViewport | null | undefine
   }
 }
 
+const ANNOTATION_TOOLS = [
+  'Length', 'Angle', 'CobbAngle', 'Probe',
+  'EllipticalROI', 'RectangleROI', 'Bidirectional', 'PlanarFreehandROI',
+] as const;
+
 const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
   imageIds, initialIndex = 0, height = '60vh', onError, overlay,
   onToggleKeyImage, isKeyImage = false, onIndexChange,
+  studyInstanceUID, sopByIndex,
 }, ref) => {
   const elementRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
@@ -182,10 +194,13 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
   const [currentIdx, setCurrentIdx] = useState(initialIndex);
   const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [imageRect, setImageRect] = useState<ImageCanvasRect | null>(null);
+  const [isSavingAnnotation, setIsSavingAnnotation] = useState(false);
   // Sync mirrors of frame count + current index so the imperative handle can
   // return them synchronously (useImperativeHandle has [] deps → closures are stale).
   const frameCountRef = useRef(0);
   const currentIdxRef = useRef(initialIndex);
+  // Track which SOPs we've already loaded annotations for (avoid duplicate loads on revisit).
+  const loadedAnnotationSopsRef = useRef<Set<string>>(new Set());
 
   // CTR panel state — user enters 2 Length measurements (mm) and sees ratio
   const [showCtrPanel, setShowCtrPanel] = useState(false);
@@ -447,6 +462,85 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
     return () => el.removeEventListener('CORNERSTONE_ANNOTATION_COMPLETED', handleAnnotationCompleted);
   }, [ready]);
 
+  // Load saved annotations from BE when slice changes (auto-load per SOP, cached to avoid duplicate fetches).
+  useEffect(() => {
+    if (!ready || !studyInstanceUID || !sopByIndex) return;
+    const sopUID = sopByIndex(currentIdx);
+    if (!sopUID || loadedAnnotationSopsRef.current.has(sopUID)) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await getAnnotations(sopUID);
+        const records = (resp.data ?? [])
+          .filter((r) => r.annotationType === 'cornerstone-v1')
+          .sort((a, b) => b.createdTime.localeCompare(a.createdTime));
+        if (!records.length || cancelled) return;
+
+        const toolAnnotations = JSON.parse(records[0].annotationData) as Record<string, unknown[]>;
+        const csTools = await import('@cornerstonejs/tools');
+        const el = elementRef.current;
+        if (!el || cancelled) return;
+
+        for (const anns of Object.values(toolAnnotations)) {
+          for (const ann of anns) {
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              csTools.annotation.state.addAnnotation(ann as any, el);
+            } catch { /* ignore duplicate UID or malformed */ }
+          }
+        }
+        loadedAnnotationSopsRef.current.add(sopUID);
+
+        const csCore = await import('@cornerstonejs/core');
+        const engine = csCore.getRenderingEngine(RENDERING_ENGINE_ID);
+        engine?.getViewport(VIEWPORT_ID)?.render();
+      } catch { /* non-critical — silently skip if annotation BE unavailable */ }
+    })();
+    return () => { cancelled = true; };
+  }, [ready, studyInstanceUID, sopByIndex, currentIdx]);
+
+  // Save all annotations for the current slice to BE.
+  const handleSaveAnnotations = async () => {
+    if (!studyInstanceUID || !sopByIndex) return;
+    const sopUID = sopByIndex(currentIdx);
+    if (!sopUID) return;
+    const currentImageId = imageIds[currentIdx] ?? '';
+
+    try {
+      setIsSavingAnnotation(true);
+      const csTools = await import('@cornerstonejs/tools');
+      const el = elementRef.current;
+      if (!el) return;
+
+      const toolAnnotations: Record<string, unknown[]> = {};
+      for (const toolName of ANNOTATION_TOOLS) {
+        const all = (csTools.annotation.state.getAnnotations(toolName, el) ?? []) as Array<{
+          metadata?: { referencedImageId?: string };
+        }>;
+        // Only save annotations belonging to the current slice.
+        const forSlice = all.filter(
+          (a) => !currentImageId || a.metadata?.referencedImageId === currentImageId,
+        );
+        if (forSlice.length) toolAnnotations[toolName] = forSlice;
+      }
+
+      await saveAnnotation({
+        id: '',
+        studyInstanceUID,
+        sopInstanceUID: sopUID,
+        annotationType: 'cornerstone-v1',
+        annotationData: JSON.stringify(toolAnnotations),
+        createdTime: '',
+      });
+      message.success('Đã lưu chú thích');
+    } catch {
+      message.error('Lưu chú thích thất bại');
+    } finally {
+      setIsSavingAnnotation(false);
+    }
+  };
+
   useImperativeHandle(ref, () => ({
     applyWlPreset: (p) => {
       void (async () => {
@@ -577,6 +671,18 @@ const CornerstoneViewer = forwardRef<CornerstoneViewerHandle, Props>(({
         </Tooltip>
         <Tooltip title="Đảo màu (Invert)"><Button size="small" icon={<BgColorsOutlined />} onClick={() => (ref as React.RefObject<CornerstoneViewerHandle>)?.current?.invert()} /></Tooltip>
         <Tooltip title="Reset"><Button size="small" icon={<ReloadOutlined />} onClick={() => (ref as React.RefObject<CornerstoneViewerHandle>)?.current?.reset()} /></Tooltip>
+        {studyInstanceUID && sopByIndex && (
+          <Tooltip title="Lưu chú thích ảnh hiện tại lên server">
+            <Button
+              size="small"
+              icon={<SaveOutlined />}
+              loading={isSavingAnnotation}
+              onClick={handleSaveAnnotations}
+            >
+              Lưu
+            </Button>
+          </Tooltip>
+        )}
         {onToggleKeyImage && (
           <Tooltip title={isKeyImage ? 'Bỏ đánh dấu ảnh key' : 'Đánh dấu ảnh key (Key Image)'}>
             <Button
