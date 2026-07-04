@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Input, Select } from 'antd';
-import { getMicrobiologyCultures, createCulture, updateCultureStatus } from '../api/microbiology';
-import type { MicrobiologyCulture } from '../api/microbiology';
+import { getMicrobiologyCultures, createCulture, updateCultureStatus, addOrganism, saveAntibiogram } from '../api/microbiology';
+import type { MicrobiologyCulture, MicrobiologyOrganism, AntibioticSensitivity } from '../api/microbiology';
 import { printLabResult } from '../api/pdf';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
@@ -19,6 +19,21 @@ const SAMPLE_OPTS = [
 const CULTURE_OPTS = [
   { value: 'aerobic', label: 'Hiếu khí' }, { value: 'anaerobic', label: 'Kỵ khí' },
   { value: 'fungal', label: 'Nấm' }, { value: 'mycobacteria', label: 'Mycobacteria' },
+];
+const GRAM_OPTS = [
+  { value: 'positive', label: 'Gram (+)' },
+  { value: 'negative', label: 'Gram (-)' },
+  { value: 'mixed', label: 'Hỗn hợp' },
+];
+const INTERP_OPTS = [
+  { value: 'S', label: 'S — Nhạy cảm' },
+  { value: 'I', label: 'I — Trung gian' },
+  { value: 'R', label: 'R — Kháng' },
+];
+const METHOD_OPTS = [
+  { value: 'disk', label: 'Disk diffusion' },
+  { value: 'mic', label: 'MIC' },
+  { value: 'etest', label: 'E-test' },
 ];
 
 const STATUS_LABEL: Record<number, string> = {
@@ -49,6 +64,8 @@ const MicrobiologyV2: React.FC = () => {
   const [sel, setSel] = useState<MicrobiologyCulture | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [statusCulture, setStatusCulture] = useState<MicrobiologyCulture | null>(null);
+  const [addOrgOpen, setAddOrgOpen] = useState(false);
+  const [astOrg, setAstOrg] = useState<MicrobiologyOrganism | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -162,6 +179,9 @@ const MicrobiologyV2: React.FC = () => {
           }}>
             <Ico name="print" size={12} /> In phiếu
           </Btn>
+          <Btn onClick={() => setAddOrgOpen(true)}>
+            <Ico name="plus" size={12} /> Thêm vi khuẩn
+          </Btn>
           <Btn variant="primary" onClick={() => { if (sel) { setStatusCulture(sel); setSel(null); } }}>
             <Ico name="activity" size={12} /> Cập nhật
           </Btn>
@@ -193,17 +213,17 @@ const MicrobiologyV2: React.FC = () => {
                   padding: 'var(--space-12)', marginBottom: 'var(--space-10)', background: 'var(--d-1)',
                   border: '1px solid var(--line)', borderRadius: 'var(--r-2)',
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-6)' }}>
-                    <b style={{ color: 'var(--t-0)' }}>{o.organismName}</b>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{o.organismCode}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
+                    <div>
+                      <b style={{ color: 'var(--t-0)' }}>{o.organismName}</b>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginLeft: 'var(--space-8)' }}>{o.organismCode}</span>
+                    </div>
+                    <Btn variant="ghost" onClick={() => setAstOrg(o)}>
+                      <Ico name="activity" size={12} /> Kháng sinh đồ{o.antibiogram?.length ? ` (${o.antibiogram.length})` : ''}
+                    </Btn>
                   </div>
                   {o.colonyCount && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>Khuẩn lạc: {o.colonyCount}</div>}
                   {o.gramStain && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>Gram: {o.gramStain}</div>}
-                  {o.antibiogram && o.antibiogram.length > 0 && (
-                    <div style={{ marginTop: 'var(--space-6)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
-                      Antibiogram: {o.antibiogram.length} kháng sinh
-                    </div>
-                  )}
                 </div>
               ))}
             </DrSec>
@@ -228,6 +248,22 @@ const MicrobiologyV2: React.FC = () => {
           culture={statusCulture}
           onClose={() => setStatusCulture(null)}
           onDone={() => { setStatusCulture(null); load(); }}
+        />
+      )}
+
+      {addOrgOpen && sel && (
+        <AddOrganismModal
+          cultureId={sel.id}
+          onClose={() => setAddOrgOpen(false)}
+          onDone={() => { setAddOrgOpen(false); load(); }}
+        />
+      )}
+
+      {astOrg && (
+        <AntibiogramModal
+          organism={astOrg}
+          onClose={() => setAstOrg(null)}
+          onDone={() => { setAstOrg(null); load(); }}
         />
       )}
     </div>
@@ -361,6 +397,235 @@ const UpdateStatusModal: React.FC<{ culture: MicrobiologyCulture; onClose: () =>
         <Fld lbl="Ghi chú">
           <Input.TextArea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ghi chú kết quả / diễn biến…" />
         </Fld>
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ────────────────────────────────────────────────────────────
+   Modal thêm vi khuẩn cho nuôi cấy — addOrganism(cultureId, data)
+   ──────────────────────────────────────────────────────────── */
+
+const AddOrganismModal: React.FC<{
+  cultureId: string;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ cultureId, onClose, onDone }) => {
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [colony, setColony] = useState('');
+  const [gram, setGram] = useState<string>('');
+  const [morph, setMorph] = useState('');
+  const [idMethod, setIdMethod] = useState('');
+  const [err, setErr] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (): Promise<void> => {
+    if (!code.trim() || !name.trim()) { setErr('Nhập Mã vi khuẩn và Tên vi khuẩn'); return; }
+    setErr('');
+    setSaving(true);
+    try {
+      await addOrganism(cultureId, {
+        organismCode: code.trim(),
+        organismName: name.trim(),
+        colonyCount: colony.trim() || undefined,
+        gramStain: gram || undefined,
+        morphology: morph.trim() || undefined,
+        identificationMethod: idMethod.trim() || undefined,
+      });
+      tk('Đã thêm vi khuẩn');
+      onDone();
+    } catch { te('Thêm vi khuẩn thất bại'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <ModalShell
+      open
+      onClose={onClose}
+      size="md"
+      title="Thêm vi khuẩn"
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
+        <Btn variant="primary" onClick={submit} disabled={saving}>
+          <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : 'Thêm'}
+        </Btn>
+      </>}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
+          <Fld lbl="Mã vi khuẩn" req>
+            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="VD: STAAUR" />
+          </Fld>
+          <Fld lbl="Tên vi khuẩn" req>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="VD: Staphylococcus aureus" />
+          </Fld>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
+          <Fld lbl="Số khuẩn lạc">
+            <Input value={colony} onChange={(e) => setColony(e.target.value)} placeholder="VD: >100,000 CFU/mL" />
+          </Fld>
+          <Fld lbl="Nhuộm Gram">
+            <Select
+              style={{ width: '100%' }} value={gram || undefined} onChange={setGram}
+              allowClear options={GRAM_OPTS} placeholder="Chọn…"
+            />
+          </Fld>
+        </div>
+        <Fld lbl="Hình thái">
+          <Input value={morph} onChange={(e) => setMorph(e.target.value)} placeholder="VD: Cầu khuẩn chùm nho" />
+        </Fld>
+        <Fld lbl="PP định danh">
+          <Input value={idMethod} onChange={(e) => setIdMethod(e.target.value)} placeholder="VD: VITEK 2, MALDI-TOF" />
+        </Fld>
+        {err && <div style={{ color: 'var(--s-crit)', fontSize: 'var(--fs-sm)' }}>{err}</div>}
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ────────────────────────────────────────────────────────────
+   Modal nhập kháng sinh đồ — saveAntibiogram(organismId, rows[])
+   Inline-editable table; pre-populate từ organism.antibiogram
+   ──────────────────────────────────────────────────────────── */
+
+interface AstRow {
+  key: number;
+  antibioticCode: string;
+  antibioticName: string;
+  mic: string;
+  zoneDiameter: string;
+  interpretation: string;
+  method: string;
+}
+
+const AntibiogramModal: React.FC<{
+  organism: MicrobiologyOrganism;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ organism, onClose, onDone }) => {
+  const [rows, setRows] = useState<AstRow[]>(() =>
+    (organism.antibiogram || []).map((a, i) => ({
+      key: i,
+      antibioticCode: a.antibioticCode || '',
+      antibioticName: a.antibioticName || '',
+      mic: a.mic != null ? String(a.mic) : '',
+      zoneDiameter: a.zoneDiameter != null ? String(a.zoneDiameter) : '',
+      interpretation: a.interpretation || '',
+      method: a.method || '',
+    }))
+  );
+  const [counter, setCounter] = useState(organism.antibiogram?.length || 0);
+  const [saving, setSaving] = useState(false);
+
+  const addRow = () => {
+    setRows((r) => [...r, { key: counter, antibioticCode: '', antibioticName: '', mic: '', zoneDiameter: '', interpretation: '', method: '' }]);
+    setCounter((c) => c + 1);
+  };
+
+  const removeRow = (key: number) => setRows((r) => r.filter((x) => x.key !== key));
+
+  const updateRow = (key: number, field: keyof AstRow, val: string) =>
+    setRows((r) => r.map((x) => x.key === key ? { ...x, [field]: val } : x));
+
+  const submit = async (): Promise<void> => {
+    const valid = rows.filter((r) => r.antibioticName.trim());
+    if (!valid.length) { te('Chưa có kháng sinh nào để lưu'); return; }
+    setSaving(true);
+    try {
+      const payload: AntibioticSensitivity[] = valid.map((r) => ({
+        id: '',
+        organismId: organism.id,
+        antibioticCode: r.antibioticCode.trim(),
+        antibioticName: r.antibioticName.trim(),
+        mic: r.mic ? parseFloat(r.mic) : undefined,
+        zoneDiameter: r.zoneDiameter ? parseFloat(r.zoneDiameter) : undefined,
+        interpretation: r.interpretation || 'S',
+        method: r.method || undefined,
+      }));
+      await saveAntibiogram(organism.id, payload);
+      tk('Đã lưu kháng sinh đồ');
+      onDone();
+    } catch { te('Lưu kháng sinh đồ thất bại'); }
+    finally { setSaving(false); }
+  };
+
+  const thStyle: React.CSSProperties = {
+    padding: 'var(--space-6) var(--space-8)', textAlign: 'left',
+    fontWeight: 600, color: 'var(--t-1)', whiteSpace: 'nowrap',
+  };
+  const tdStyle: React.CSSProperties = { padding: 'var(--space-4) var(--space-6)', verticalAlign: 'middle' };
+
+  return (
+    <ModalShell
+      open
+      onClose={onClose}
+      size="lg"
+      title="Kháng sinh đồ"
+      sub={organism.organismName}
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>Huỷ</Btn>
+        <Btn onClick={addRow}><Ico name="plus" size={12} /> Thêm kháng sinh</Btn>
+        <Btn variant="primary" onClick={submit} disabled={saving}>
+          <Ico name="check" size={12} /> {saving ? 'Đang lưu…' : `Lưu (${rows.length})`}
+        </Btn>
+      </>}
+    >
+      <div style={{ overflowX: 'auto' }}>
+        {rows.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 'var(--space-16)', color: 'var(--t-2)' }}>
+            Chưa có kháng sinh đồ — nhấn "Thêm kháng sinh" để bắt đầu
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--line)' }}>
+                <th style={thStyle}>Tên kháng sinh</th>
+                <th style={thStyle}>MIC</th>
+                <th style={thStyle}>Zone (mm)</th>
+                <th style={thStyle}>Kết quả</th>
+                <th style={thStyle}>Phương pháp</th>
+                <th style={{ ...thStyle, width: 32 }} />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.key} style={{ borderBottom: '1px solid var(--line)' }}>
+                  <td style={{ ...tdStyle, minWidth: 160 }}>
+                    <Input size="small" value={row.antibioticName}
+                      onChange={(e) => updateRow(row.key, 'antibioticName', e.target.value)}
+                      placeholder="Tên kháng sinh" />
+                  </td>
+                  <td style={{ ...tdStyle, width: 80 }}>
+                    <Input size="small" style={{ width: 68 }} value={row.mic}
+                      onChange={(e) => updateRow(row.key, 'mic', e.target.value)}
+                      placeholder="≥0.5" />
+                  </td>
+                  <td style={{ ...tdStyle, width: 84 }}>
+                    <Input size="small" style={{ width: 68 }} value={row.zoneDiameter}
+                      onChange={(e) => updateRow(row.key, 'zoneDiameter', e.target.value)}
+                      placeholder="20" />
+                  </td>
+                  <td style={{ ...tdStyle, width: 104 }}>
+                    <Select size="small" style={{ width: 96 }} value={row.interpretation || undefined}
+                      onChange={(v) => updateRow(row.key, 'interpretation', v)}
+                      options={INTERP_OPTS} placeholder="—" allowClear />
+                  </td>
+                  <td style={{ ...tdStyle, width: 128 }}>
+                    <Select size="small" style={{ width: 116 }} value={row.method || undefined}
+                      onChange={(v) => updateRow(row.key, 'method', v)}
+                      options={METHOD_OPTS} placeholder="—" allowClear />
+                  </td>
+                  <td style={tdStyle}>
+                    <Btn variant="ghost" onClick={() => removeRow(row.key)}>
+                      <Ico name="x" size={12} />
+                    </Btn>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </ModalShell>
   );
