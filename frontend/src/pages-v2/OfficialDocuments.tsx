@@ -3,6 +3,7 @@
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { DatePicker, Descriptions, Drawer, Form, Input, Modal, Select, Space, Tooltip } from 'antd';
+import { fmtDate } from '../utils/format';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
 import {
@@ -167,7 +168,7 @@ const OfficialDocumentsV2: React.FC = () => {
         <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.documentTypeName}</div>
       </div>
     ) },
-    { key: 'date',    label: 'Ngày',         mono: true, render: (r) => new Date(r.documentDate).toLocaleDateString('vi-VN') },
+    { key: 'date',    label: 'Ngày',         mono: true, render: (r) => fmtDate(r.documentDate) },
     { key: 'party',   label: 'Nơi gửi/nhận',             render: (r) => r.sender || r.receiver || '—' },
     { key: 'sum',     label: 'Trích yếu',               render: (r) => (
       <span style={{ fontSize: 'var(--fs-sm)' }}>{r.summary}</span>
@@ -176,7 +177,7 @@ const OfficialDocumentsV2: React.FC = () => {
     { key: 'dead',    label: 'Hạn XL',       mono: true, render: (r) => (
       r.deadline
         ? <span style={{ color: r.isOverdue ? 'var(--a-rd-text)' : undefined, fontWeight: r.isOverdue ? 700 : undefined }}>
-            {new Date(r.deadline).toLocaleDateString('vi-VN')}
+            {fmtDate(r.deadline)}
             {r.isOverdue && ' !'}
           </span>
         : <span style={{ color: 'var(--t-3)' }}>—</span>
@@ -281,7 +282,7 @@ const OfficialDocumentsV2: React.FC = () => {
           <Descriptions column={1} bordered size="small" labelStyle={{ width: 160 }}>
             <Descriptions.Item label="Số công văn">{drawerDoc.documentNumber}</Descriptions.Item>
             <Descriptions.Item label="Loại">{drawerDoc.documentTypeName}</Descriptions.Item>
-            <Descriptions.Item label="Ngày">{new Date(drawerDoc.documentDate).toLocaleDateString('vi-VN')}</Descriptions.Item>
+            <Descriptions.Item label="Ngày">{fmtDate(drawerDoc.documentDate)}</Descriptions.Item>
             <Descriptions.Item label="Nơi gửi">{drawerDoc.sender || '—'}</Descriptions.Item>
             <Descriptions.Item label="Nơi nhận">{drawerDoc.receiver || '—'}</Descriptions.Item>
             <Descriptions.Item label="Trích yếu">{drawerDoc.summary}</Descriptions.Item>
@@ -289,7 +290,7 @@ const OfficialDocumentsV2: React.FC = () => {
             <Descriptions.Item label="Hạn xử lý">
               {drawerDoc.deadline
                 ? <span style={{ color: drawerDoc.isOverdue ? 'var(--a-rd-text)' : undefined, fontWeight: drawerDoc.isOverdue ? 700 : undefined }}>
-                    {new Date(drawerDoc.deadline).toLocaleDateString('vi-VN')}
+                    {fmtDate(drawerDoc.deadline)}
                     {drawerDoc.isOverdue && ' — Quá hạn!'}
                   </span>
                 : '—'}

@@ -3,6 +3,7 @@
  * Dùng cho màn hình Reception, Billing v1/v2.
  */
 import { useState } from 'react';
+import { fmtDateTime } from '../utils/format';
 import {
   Drawer,
   Form,
@@ -109,7 +110,7 @@ const historyColumns = [
     dataIndex: 'changedAt',
     key: 'changedAt',
     width: 140,
-    render: (v: string) => new Date(v).toLocaleString('vi-VN'),
+    render: (v: string) => fmtDateTime(v),
   },
 ];
 

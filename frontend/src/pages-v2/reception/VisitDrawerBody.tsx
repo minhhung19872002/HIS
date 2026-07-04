@@ -7,6 +7,7 @@ import type { RawRow } from './shared';
 import { STATUS_TABS, PRIORITY_OPTS, VISIT_TYPE_OPTS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from './shared';
 import { TempInsuranceModal, DocumentHoldModal, PhotoModal, ServiceOrderModal } from './VisitActionsModals';
 import { getReceptionWarnings, updateAdmission } from '../../api/reception';
+import { fmtTime } from '../../utils/format';
 import type { ReceptionWarningDto } from '../../api/reception';
 import { PatientFlagsSection } from './PatientFlagsSection';
 type DrawerTab = 'info' | 'audit' | 'related';
@@ -479,7 +480,7 @@ const DrawerAuditTab: React.FC<{ events: AuditEvent[] }> = ({ events }) => (
     {events.map((a, i) => (
       <div key={i} className="rec-tline-it">
         <span className="tm">
-          {a.t.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+          {fmtTime(a.t)}
         </span>
         <span className={`dot ${a.tone}`} />
         <div>

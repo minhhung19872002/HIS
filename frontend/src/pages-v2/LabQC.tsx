@@ -6,6 +6,7 @@ import {
   Tooltip as RTooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 import { getQCLots, getQCResults, createQCLot, updateQCLot, deleteQCLot } from '../api/labQC';
+import { fmtDateTime } from '../utils/format';
 import type { QCLot, QCResult } from '../api/labQC';
 import { exportToExcel, formatDate } from '../utils/excelExport';
 import { runQC, getLeveyJenningsChart, getAnalyzers, getLabTestCatalog } from '../api/lis';
@@ -494,7 +495,7 @@ const LabQCV2: React.FC = () => {
             exportToExcel(
               results as unknown as Record<string, unknown>[],
               [
-                { header: 'Thời gian', key: 'runDate', width: 18, format: (v) => v ? new Date(v as string).toLocaleString('vi-VN') : '' },
+                { header: 'Thời gian', key: 'runDate', width: 18, format: (v) => v ? fmtDateTime(v as string) : '' },
                 { header: 'Mã XN', key: 'testCode', width: 14 },
                 { header: 'Tên xét nghiệm', key: 'testName', width: 28 },
                 { header: 'Số lô', key: 'lotNumber', width: 14 },

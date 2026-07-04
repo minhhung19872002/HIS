@@ -6,6 +6,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import apiClient from '../api/client';
+import { fmtDate as fmtDateBase } from '../utils/format';
 
 const TOKEN_KEY = 'patient_portal_token';
 const INFO_KEY = 'patient_portal_account';
@@ -44,7 +45,7 @@ interface LabRow { id: string; orderCode?: string; orderDate?: string; resultDat
 interface RxRow { id: string; prescriptionCode?: string; prescriptionDate?: string; doctorName?: string; diagnosis?: string; status?: string | number; items?: { medicineName?: string; quantity?: number; dosage?: string }[] }
 interface InvoiceRow { id: string; invoiceCode?: string; invoiceDate?: string; totalAmount?: number; paymentStatus?: string }
 
-const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString('vi-VN') : '—');
+const fmtDate = (s?: string) => (s ? fmtDateBase(s) : '—');
 const fmtMoney = (n?: number) => (typeof n === 'number' ? n.toLocaleString('vi-VN') + ' đ' : '—');
 
 const inputStyle: React.CSSProperties = {

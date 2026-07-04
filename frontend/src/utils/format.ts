@@ -5,3 +5,25 @@
  * Nullish/NaN -> '0' (giu nguyen hanh vi `(n || 0).toLocaleString('vi-VN')` cu).
  */
 export const fmtNum = (n?: number | null): string => (n || 0).toLocaleString('vi-VN');
+
+/**
+ * Format a date value as vi-VN date (dd/MM/yyyy).
+ * Mirror CHINH XAC `new Date(d).toLocaleDateString('vi-VN')` cu — KHONG them guard
+ * (input xau -> "Invalid Date" y het truoc); guard nullish o call-site nhu cu.
+ */
+export const fmtDate = (d: string | number | Date): string =>
+  new Date(d).toLocaleDateString('vi-VN');
+
+/**
+ * Format a date value as vi-VN date + time.
+ * Mirror CHINH XAC `new Date(d).toLocaleString('vi-VN')` cu (khong options).
+ */
+export const fmtDateTime = (d: string | number | Date): string =>
+  new Date(d).toLocaleString('vi-VN');
+
+/**
+ * Format a date value as vi-VN time HH:mm.
+ * Mirror CHINH XAC `new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })`.
+ */
+export const fmtTime = (d: string | number | Date): string =>
+  new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });

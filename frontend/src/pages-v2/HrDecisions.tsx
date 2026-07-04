@@ -3,6 +3,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DatePicker, Form, Input, Modal, Select } from 'antd';
+import { fmtDate } from '../utils/format';
 import type { RangePickerProps } from 'antd/es/date-picker';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../api/client';
@@ -58,7 +59,7 @@ function printDecision(d: HrDecision) {
     <style>body{font-family:serif;padding:'var(--space-40)'px}h2,h3{text-align:center}.meta{margin:'var(--space-12)'px 0}
     .content{margin-top:24px;white-space:pre-wrap}@media print{button{display:none}}</style></head>
     <body><h2>QUYẾT ĐỊNH NHÂN SỰ</h2><h3>Số: ${d.decisionNumber}</h3>
-    <div class="meta"><b>Loại:</b> ${d.decisionTypeName} &nbsp;|&nbsp; <b>Ngày hiệu lực:</b> ${new Date(d.effectiveDate).toLocaleDateString('vi-VN')}</div>
+    <div class="meta"><b>Loại:</b> ${d.decisionTypeName} &nbsp;|&nbsp; <b>Ngày hiệu lực:</b> ${fmtDate(d.effectiveDate)}</div>
     <div class="meta"><b>Nhân viên:</b> ${d.staffName || ''} (${d.staffCode || ''})</div>
     <div class="meta"><b>Trích yếu:</b> ${d.summary}</div>
     <div class="content">${d.content || ''}</div>
@@ -170,7 +171,7 @@ const HrDecisionsV2: React.FC = () => {
         <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.staffCode}</div>
       </div>
     ) },
-    { key: 'date',   label: 'Ngày hiệu lực',  mono: true, render: (r) => new Date(r.effectiveDate).toLocaleDateString('vi-VN') },
+    { key: 'date',   label: 'Ngày hiệu lực',  mono: true, render: (r) => fmtDate(r.effectiveDate) },
     { key: 'sum',    label: 'Trích yếu',                  render: (r) => (
       <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>{r.summary}</span>
     ) },

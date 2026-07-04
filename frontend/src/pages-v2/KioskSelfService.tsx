@@ -4,6 +4,7 @@
 // Issues #103 #123 #124 #125 — route /v2/kiosk
 // =====================================================================
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { fmtDate, fmtTime } from '../utils/format';
 import { Input, Select, Spin, Alert, QRCode, Divider } from 'antd';
 import {
   issueTicket, checkinByCard, getQueueStatus, callNext,
@@ -94,7 +95,7 @@ const TicketResult: React.FC<TicketResultProps> = ({ result, onClose }) => {
       )}
 
       <div style={{ fontSize: 'var(--fs-md)', color: '#aaa', marginBottom: 'var(--space-20)' }}>
-        Phát lúc {new Date(ticket.issuedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+        Phát lúc {fmtTime(ticket.issuedAt)}
       </div>
 
       {/* QR thanh toán — reuse PaymentGateway endpoint nếu BN chọn dịch vụ có phí */}
@@ -248,7 +249,7 @@ const KioskSelfService: React.FC = () => {
     { key: 'status', label: 'Trạng thái', width: 140,
       render: r => <StatusBadge tone={STATUS_TONE[r.status] ?? 'info'} dot>{r.statusLabel}</StatusBadge> },
     { key: 'issuedAt', label: 'Giờ lấy số', width: 90,
-      render: r => new Date(r.issuedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) },
+      render: r => fmtTime(r.issuedAt) },
   ];
 
   // ── KPI strip ───────────────────────────────────────────────────────────────
@@ -497,7 +498,7 @@ const KioskSelfService: React.FC = () => {
                   <div style={{ maxHeight: 180, overflow: 'auto', textAlign: 'left', margin: '0 auto', maxWidth: 480 }}>
                     {payResult.items.map(it => (
                       <div key={it.serviceRequestId} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 4px', borderBottom: '1px solid #f0f0f0', fontSize: 14 }}>
-                        <span>{it.requestCode} · {new Date(it.requestDate).toLocaleDateString('vi-VN')}</span>
+                        <span>{it.requestCode} · {fmtDate(it.requestDate)}</span>
                         <b>{it.amount.toLocaleString('vi-VN')} đ</b>
                       </div>
                     ))}

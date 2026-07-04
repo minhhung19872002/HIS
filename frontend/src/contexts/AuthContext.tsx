@@ -4,6 +4,7 @@ import { authApi } from '../api/auth';
 import type { User, LoginRequest } from '../api/auth';
 import apiClient from '../api/client';
 import { Modal } from 'antd';
+import { fmtDate } from '../utils/format';
 
 interface OtpPending {
   userId: string;
@@ -85,7 +86,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const alerts = body?.alerts || [];
       if (alerts.length > 0) {
         const content = alerts.map((a: { medicineName: string; batchNumber: string; expiryDate: string; alertLevelName: string }) =>
-          `• ${a.medicineName} (lô ${a.batchNumber}) — hạn ${new Date(a.expiryDate).toLocaleDateString('vi-VN')} [${a.alertLevelName}]`
+          `• ${a.medicineName} (lô ${a.batchNumber}) — hạn ${fmtDate(a.expiryDate)} [${a.alertLevelName}]`
         ).join('\n');
         Modal.warning({
           title: `⚠️ Cảnh báo thuốc sắp hết hạn (${alerts.length})`,

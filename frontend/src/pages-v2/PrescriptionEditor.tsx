@@ -20,6 +20,7 @@ import { getPrescriptionContext, type PrescriptionContextDto } from '../api/data
 import PatientFlagBanner from '../components/PatientFlagBanner';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import '../layouts/terminal/ed-responsive.css';
+import { fmtDate } from '../utils/format';
 
 const RX_FREQ = ['1 lần/ngày', '2 lần/ngày', '3 lần/ngày', 'Cách 6h', 'Khi cần', 'Trước ăn', 'Sau ăn'];
 const RX_ROUTE = ['Uống', 'Tiêm bắp', 'Tiêm tĩnh mạch', 'Bôi ngoài da', 'Khí dung', 'Ngậm dưới lưỡi'];
@@ -334,7 +335,7 @@ const PrescriptionEditorV2: React.FC = () => {
                   <div key={i} style={{ padding: 'var(--space-8)', marginBottom: 5, background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 11.5 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span className="mono">{e.prescriptionCode}</span>
-                      <span style={{ color: 'var(--t-2)', fontSize: 10.5 }}>{e.prescriptionDate ? new Date(e.prescriptionDate).toLocaleDateString('vi-VN') : ''}</span>
+                      <span style={{ color: 'var(--t-2)', fontSize: 10.5 }}>{e.prescriptionDate ? fmtDate(e.prescriptionDate) : ''}</span>
                     </div>
                     <div style={{ marginTop: 'var(--space-3)', color: 'var(--t-2)' }}>{e.itemCount} thuốc · {e.statusName}</div>
                   </div>

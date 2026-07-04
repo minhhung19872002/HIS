@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Tag } from 'antd';
 import { WarningFilled, SafetyCertificateOutlined } from '@ant-design/icons';
 import { getMyLicenseStatus, type LicenseStatusDto } from '../api/doctorLicense';
+import { fmtDate } from '../utils/format';
 
 interface Props {
   /** If true, only shows when license INVALID. Default true. */
@@ -55,7 +56,7 @@ export default function DoctorLicenseBanner({ onlyWhenInvalid = true, onStatus }
           {status.specialty && <Tag color="geekblue">Chuyên khoa: {status.specialty}</Tag>}
           {status.expiryDate && (
             <Tag color={severity === 'error' ? 'red' : severity === 'warning' ? 'orange' : 'green'}>
-              Hết hạn: {new Date(status.expiryDate).toLocaleDateString('vi-VN')}
+              Hết hạn: {fmtDate(status.expiryDate)}
               {status.daysUntilExpiry !== undefined && status.daysUntilExpiry >= 0 &&
                 ` (còn ${status.daysUntilExpiry} ngày)`}
             </Tag>

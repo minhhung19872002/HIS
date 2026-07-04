@@ -6,6 +6,7 @@ import {
   StatusTabs, DrSec, DrField, tk, te,
   type ColumnDef, type StatusTab,
 } from '../_v2kit';
+import { fmtDateTime } from '../../utils/format';
 import TermIcon from '../../layouts/terminal/Icon';
 import {
   getConsultations, createConsultation, completeConsultation, approveConsultation, printConsultation,
@@ -278,7 +279,7 @@ const ConsultationSection: React.FC<{ inpatients: InpatientListDto[]; active: bo
                     })()}
                   </DrField>
                   {sel.approvedByName && <DrField lbl="Người duyệt">{sel.approvedByName}</DrField>}
-                  {sel.approvedAt && <DrField lbl="Thời điểm">{new Date(sel.approvedAt).toLocaleString('vi-VN')}</DrField>}
+                  {sel.approvedAt && <DrField lbl="Thời điểm">{fmtDateTime(sel.approvedAt)}</DrField>}
                   {sel.approvalNote && <DrField lbl="Ghi chú">{sel.approvalNote}</DrField>}
                 </div>
               </DrSec>

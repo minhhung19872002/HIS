@@ -5,6 +5,7 @@ import {
   getExpiringMedicines,
   type ExpiringMedicineDto,
 } from '../api/pharmacyApproval';
+import { fmtDate } from '../utils/format';
 
 interface Props {
   /** If true, show as a Modal once per session (first visit to Pharmacy module). */
@@ -50,7 +51,7 @@ export function PharmacyExpiryBanner({
     { title: 'Thuốc / VTYT', dataIndex: 'medicineName', key: 'medicineName' },
     { title: 'Lô', dataIndex: 'batchNumber', key: 'batchNumber', width: 100 },
     { title: 'HSD', dataIndex: 'expiryDate', key: 'expiryDate', width: 110,
-      render: (v: string) => v ? new Date(v).toLocaleDateString('vi-VN') : '-' },
+      render: (v: string) => v ? fmtDate(v) : '-' },
     { title: 'Tồn', dataIndex: 'quantity', key: 'quantity', width: 80, align: 'right' as const },
     { title: 'Kho', dataIndex: 'warehouseName', key: 'warehouseName', width: 140 },
     { title: 'Còn (ngày)', dataIndex: 'daysUntilExpiry', key: 'daysUntilExpiry', width: 100, align: 'center' as const,

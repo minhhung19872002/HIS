@@ -4,6 +4,7 @@
  */
 
 import * as XLSX from 'xlsx';
+import { fmtDate, fmtDateTime } from './format';
 
 export interface ExcelColumn<T> {
   header: string;
@@ -99,7 +100,7 @@ export const formatVnd = (v: unknown): string => {
 export const formatDate = (v: unknown): string => {
   if (!v) return '';
   try {
-    return new Date(v as string).toLocaleDateString('vi-VN');
+    return fmtDate(v as string);
   } catch { return ''; }
 };
 
@@ -107,6 +108,6 @@ export const formatDate = (v: unknown): string => {
 export const formatDateTime = (v: unknown): string => {
   if (!v) return '';
   try {
-    return new Date(v as string).toLocaleString('vi-VN');
+    return fmtDateTime(v as string);
   } catch { return ''; }
 };

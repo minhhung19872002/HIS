@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react';
+import { fmtDateTime } from '../utils/format';
 import { Modal, Form, Input, Select, Checkbox, Button, Space, Tag, message, InputNumber, Divider, Typography, Tooltip } from 'antd';
 import { CopyOutlined, QrcodeOutlined, LinkOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -111,7 +112,7 @@ export default function ShareStudyModal({
             {link.hideDemographics && <Tag color="gold">Ẩn thông tin BN</Tag>}
             {link.expiresAt && (
               <div>
-                <Text type="secondary">Hết hạn: {new Date(link.expiresAt).toLocaleString('vi-VN')}</Text>
+                <Text type="secondary">Hết hạn: {fmtDateTime(link.expiresAt)}</Text>
               </div>
             )}
             {link.maxViews != null && (

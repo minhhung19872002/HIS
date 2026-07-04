@@ -3,6 +3,7 @@
  * Sprint 2 Item 2.6 — tái sử dụng PharmacyApproval backend type 2/3
  */
 import { useEffect, useMemo, useState } from 'react';
+import { fmtDateTime } from '../utils/format';
 import {
   Modal, Form, Select, Input, Button, Table, InputNumber, Space, message, Tag, Alert,
 } from 'antd';
@@ -304,7 +305,7 @@ export default function StockReservationModal({
               title: 'Ngày',
               dataIndex: 'requestDate',
               width: 140,
-              render: (v: string) => new Date(v).toLocaleString('vi-VN'),
+              render: (v: string) => fmtDateTime(v),
             },
           ]}
         />

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { fmtDateTime } from '../utils/format';
 import { Modal, Radio, Button, Statistic, Alert, Space, Result, Tag, message, Popconfirm } from 'antd';
 import { QRCodeCanvas } from 'qrcode.react';
 import {
@@ -225,7 +226,7 @@ export default function PaymentQRModal({
               </div>
               <Statistic title="Số tiền" value={payment.amount} suffix="đ" precision={0} />
               <div style={{ color: '#999', fontSize: 12 }}>
-                Hết hạn sau: {new Date(payment.expiresAt).toLocaleString('vi-VN')}
+                Hết hạn sau: {fmtDateTime(payment.expiresAt)}
               </div>
               {bank ? (
                 <Popconfirm

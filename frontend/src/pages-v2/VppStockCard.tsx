@@ -6,7 +6,7 @@
  * - Tồn kho: /api/warehouse/stock?warehouseId=
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { fmtNum as fmt } from '../utils/format';
+import { fmtNum as fmt, fmtDate } from '../utils/format';
 import { DatePicker, Select } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../api/client';
@@ -104,7 +104,7 @@ const VppStockCardV2: React.FC = () => {
   ];
 
   const cardCols: ColumnDef<StockCardEntry>[] = [
-    { key: 'date', label: 'Ngày',      mono: true, render: (r) => new Date(r.date).toLocaleDateString('vi-VN') },
+    { key: 'date', label: 'Ngày',      mono: true, render: (r) => fmtDate(r.date) },
     { key: 'desc', label: 'Diễn giải',             render: (r) => r.description },
     { key: 'ref',  label: 'Chứng từ',  code: true, render: (r) => r.reference || '—' },
     { key: 'in',   label: 'Nhập',      mono: true, render: (r) => r.receiptQty > 0 ? fmt(r.receiptQty) : '—' },
