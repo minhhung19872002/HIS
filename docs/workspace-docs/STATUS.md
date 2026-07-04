@@ -5,7 +5,42 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-03**.
+> Cập nhật cuối: **2026-07-04**.
+
+## Phiên 2026-07-04 (cửa #202-BE `w973` — thin 5 fat controller, build-green, CHỜ push)
+- **#202 [REFAC-3] Checkpoint** [HARD, build-only]: bỏ HISDbContext khỏi **5 controller** → service (RadiologyDispatch·RisCatalog·LisCatalog·OfficeSupply·EmployeeProfile = đủ 5 NAMED trong issue). Controller **2173→620 dòng**; logic move verbatim xuống `HIS.Infrastructure/Services/*Service.cs` + `HIS.Application/Interfaces/I*Service.cs`. Envelope mới `ServiceOutcome` (Application/Common) + `.ToActionResult()` (API/Extensions) giữ nguyên status+body; OfficeSupply dời DTO sang Application (money/kho verbatim).
+- **Verify build-only:** `dotnet build` toàn sln **0 error**; multi-agent 4 self-review + 12 adversarial (3 lens×4) = **0 drift**; spot-check money-path byte-identical. **CHƯA push** (backend down → chưa smoke; DI resolution runtime chỉ chắc khi smoke). Chờ user + phiên deploy+smoke. Còn ~42 controller khác vẫn inject HISDbContext.
+
+## Phiên 2026-07-04 (cửa này — SKILL core-safe-branch-merge + forensics backup-session-b2)
+- **User yêu cầu merge nhánh local → main.** Chỉ 1 nhánh khác = `backup-session-b2` (329-behind, 7 commit). **Workflow verify đối kháng (6 agent):** money-fix `3837270` ĐÃ trên main (`3edf11c`); 12 file BE B2.2/B2.4 superseded + full-merge sẽ **BUILD-BREAK** (trùng class + migration #48/#49); 4 docs never-push → **KHÔNG merge/cherry-pick backup** (leave-as-backup).
+- **2 gap FE thật backup lộ ra → đề xuất 2 issue PORT (feature, làm sau):** (1) DICOM annotation FE wiring (BE main sẵn, FE main KHÔNG gọi `saveAnnotation/getAnnotations` → chú thích mất khi reload); (2) v2 Microbiology antibiogram data-entry UI (chỉ có ở v1 retiring #204; api+BE main sẵn).
+- **Tạo skill `core-safe-branch-merge`** (CORE portable · LINT OK · REGISTRY+SKILL-MAP): nhúng 12 fix critique (fetch-origin trước · `git cherry` patch-id · `cherry-pick -n` stage-review · worktree teardown đừng `rm -rf` · đừng pull/rebase cây chung · FE push=Vercel deploy).
+- **Việc kế (CHỜ user duyệt execution):** #359 fmtVND (worktree, chưa commit) sẵn lên main; fmtDate `bd3e4b0` cửa khác (chưa push) → phối hợp, không push hộ.
+
+## Phiên 2026-07-04 (cửa #205-FE-2 — split 4 god-component v2, LOCAL build-green CHỜ push)
+- **#205 [FE-2] Checkpoint 2-5/5 — 4 god-component** [HARD tech-debt, DONE-code CHỜ-push]: tách 4 file `pages-v2/` thành folder phẳng (convention `reception/`/`inpatient/`), mỗi main giữ `export default` (App.tsx lazy import KHÔNG đổi):
+  - **Dashboard** 1166→**342** dòng · folder `dashboard/` 16 file (`_shared.ts`+9 section+6 modal). Pure-move verbatim.
+  - **Radiology** 1461→**507** dòng · folder `radiology/` 8 file (`_shared.tsx`+CallPatient/SignResult/Biopsy/ResultEntry modal+CoReaderSection+DrawerBody+columns). `onBulkApprove` (clinical bulk-approve) GIỮ trong main. SurgeryReportModal import từ `../shared/SurgeryReportModal` (barrel KHÔNG export).
+  - **Laboratory** 1003→**481** dòng · folder `laboratory/` 6 file (`_shared.ts`+columns+DrawerBody+ChainCancel/UtilDrawer/RolesModal). `runChainCancel`/`saveRoles`/`loadUtilData` GIỮ trong main (preserve click-gating, KHÔNG đổi useEffect).
+  - **OpdEditor Phase-1** 1648→**1290** dòng · folder `opd-editor/` 5 file (`_shared.ts`+InjurySection+ClsResults/Consult/Template modal). **CONSERVATIVE (Rule 6):** chỉ tách phần KHÔNG-patient-safety; Diagnosis/Orders/Allergy/Vitals/9 disposition-completion-modal/5 useEffect/handlers (persist·completeExamination TT46-guard·doHospitalize·doTransfer) **DEFER Phase-2** phiên deploy+smoke → main còn >500 dòng (có chủ đích).
+- **Verify:** `tsc -b` + `npm run build` **EXIT 0** (built 2m20s). **Verify đối kháng ĐỦ 4 lens PASS** (Radiology verbatim full-coverage 1461 dòng · Radiology patient-safety [sign/final-approve/biopsy/bulk/co-reader/statusKey] · Laboratory patient-safety [flagFor HH-LL/chainCancel level≥2/approval-chain/click-gating] · OpdEditor post-fix): equivalent=true, high-conf, **0 issue**; mount-semantics + columns-lift (0 state closure) confirmed. **2 defect OpdEditor đã fix trước verify:** ClsResultsModal+ConsultModal subtitle guard `patientName?` → pre-computed `sub` prop (khôi phục selPt-existence semantics). Side-effect audit Rule 5: 0 timer/subscribe mới sinh trong 32 file tách (2 setTimeout revoke-URL = verbatim-move từ gốc).
+- **User duyệt push+close (2026-07-04).** Comment #205 khai báo 4 component để máy-2 tránh; origin đối chiếu trước push: chưa có folder nào từ máy-2. File ngoài scope (KioskSelfService/PatientPortalStandalone/reception/BE #202) — KHÔNG stage.
+- **OpdEditor Phase-2 → issue #362** (scope-overlap transfer đủ context trước khi đóng #205): Diagnosis/Orders/Allergy/Vitals + 9 disposition modal + 5 useEffect + handlers TT46/persist/hospitalize/transfer — cần phiên deploy+smoke (Rule 6). TEST làm CUỐI.
+
+## Phiên 2026-07-04 (cửa fmtDate — dedup date/time-formatter ✅ DONE + PUSHED `df20215` → origin/main)
+- **SYNC-GATE:** local diverged 2 commit trùng-nội-dung đã lên origin (`4107a7f`/`3968db3`) → rebase `--skip` tự-lành về origin (0/0); STATUS.md lấy bản origin (không giành cửa khác).
+- **Backlog tech-debt CẠN/bị claim:** #201/#202/#205 in-progress cửa khác; #191/#212/#213 = test (để cuối). Slice cô lập không-cần-deploy còn lại = gom date-formatter.
+- **fmtDate/fmtDateTime/fmtTime** [EASY tech-debt, ✅ DONE + PUSHED `df20215` origin/main (fast-forward `4107a7f..df20215`, 0/0; Vercel auto-deploy)]: thêm **3 helper** vào `utils/format.ts` (mirror CHÍNH XÁC `new Date(x).toLocaleDateString/toLocaleString/toLocaleTimeString('vi-VN')`, không thêm guard) + migrate **24 site (13 date + 7 datetime + 3 time + 1 fold local-helper PatientPortalStandalone)** ở **18 file** v2/shared/utils. Chỉ thay inner substring, giữ nguyên guard/ternary/try-catch/fallback. **tsc -b EXIT 0**, behavior-preserving. Commit `df20215` (amend từ `bd3e4b0`; explicit-add CHỈ 18 file của tôi, KHÔNG đụng #205 god-component/CornerstoneViewer + BE #202).
+- **Safe scope date/time-formatter = HẾT** (grep xác nhận: 16 datetime còn lại đều ở v1 `pages/` hoặc `opd-editor/`+`surgery-modals/` của #205; 3 time đã xong; 1 options-datetime lẻ `BedLabResultSection` = không dedup).
+- **Non-goals giữ nguyên (cửa khác/deferred):** ~314 **number-formatter** (`n.toLocaleString('vi-VN')`+đ/%) = territory **#359 fmtVND** → KHÔNG đụng · no-arg `new Date()` (HrDecisions:66, current-date) · v1 `pages/` (v1-retire #204) · 5 god-component + split folders #205 · reception `fmtHM` (impl padStart khác, không byte-identical).
+- ⚠️ **Trùng file với #359 (đã push TRƯỚC):** `df20215` đã lên origin với `fmtDate/fmtDateTime/fmtTime` sau `fmtNum`. #359 `fmtVND` (worktree, CHỜ push) khi push sẽ append tiếp — không chồng dòng, tự-merge. Push df20215 = fast-forward sạch, KHÔNG cần worktree (0 behind); working-tree dirty của #205/#359/#202 KHÔNG bị đẩy (git push chỉ đẩy commit).
+- **Verify trước push:** workflow đối kháng 4 lens (helper-fidelity·guard-preservation·arg/type-refute·isolation) + synthesis gate = **SHIP** (0 blocker/0 fail; mọi finding là note clear/skip đúng).
+
+## Phiên 2026-07-04 (cửa này — #359+#360 DONE + PUSHED `30f0d71`/`2659d63` → origin/main)
+- **#359 fmtVND** ✅ **CLOSED+pushed `30f0d71`**: de-dup 4 bản sao `fmtVND` → `utils/format.ts`; 5 file FE (Billing|Insurance|Inpatient|Pharmacy + format.ts). Vercel auto-deploy.
+- **#360 DICOM annotation** ✅ **CLOSED+pushed `2659d63`**: wired save/load per-SOP vào `CornerstoneViewer.tsx` + plumbed `DicomViewer.tsx`; 2 file FE.
+- **Skill `core-safe-branch-merge`** đã ship (phiên này), REGISTRY+SKILL-MAP OK.
+- **Issues mới tạo:** #361 (v2 Microbiology antibiogram port — open, chưa claim).
 
 ## Phiên 2026-07-03 (cửa Opus/Fable — #358 NangCap25 QR động VCB CLOSED+pushed+deployed+verified prod)
 - **#358 [NangCap25] QR động Vietcombank kết nối viện phí (BV VN-Thụy Điển Uông Bí) → CLOSED** (`840dac9` feat + `a3a0e09` e2e).

@@ -35,7 +35,6 @@ import {
   type OutpatientRecordTemplateDto,
 } from '../api/clinicalNarratives';
 import { useAbbrExpansion } from '../utils/abbrExpand';
-import { ABBREVIATION_SCOPES } from '../api/abbreviation';
 import PatientFlagBanner from '../components/PatientFlagBanner';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import {
@@ -49,26 +48,16 @@ import {
   type ExamCompletionStatus,
 } from '../api/multiSpecialtyExam';
 import '../layouts/terminal/ed-responsive.css';
-
-interface Vitals { pulse?: number; temperature?: number; systolicBP?: number; diastolicBP?: number; respiratoryRate?: number; spO2?: number; weight?: number; height?: number; }
-interface DxRow { icdCode: string; icdName: string; isPrimary: boolean; }
-interface OrderRow { serviceId: string; code: string; name: string; qty: number; unitPrice: number; }
-
-// Viết tắt (F2-style macro): bung ở bệnh sử / khám LS / kết luận — gõ code + space
-const OPD_ABBR_SCOPES = [ABBREVIATION_SCOPES.GENERAL, ABBREVIATION_SCOPES.DIAGNOSIS] as const;
-
-const SEVERITY_LABEL: Record<number, string> = { 1: 'Nhẹ', 2: 'Vừa', 3: 'Nặng', 4: 'Phản vệ' };
-
-const VITAL_FIELDS: { k: keyof Vitals; l: string; unit: string }[] = [
-  { k: 'pulse', l: 'Mạch', unit: 'l/p' },
-  { k: 'temperature', l: 'Nhiệt', unit: '°C' },
-  { k: 'systolicBP', l: 'HA tâm thu', unit: 'mmHg' },
-  { k: 'diastolicBP', l: 'HA tâm trương', unit: 'mmHg' },
-  { k: 'respiratoryRate', l: 'Nhịp thở', unit: 'l/p' },
-  { k: 'spO2', l: 'SpO₂', unit: '%' },
-  { k: 'weight', l: 'Cân', unit: 'kg' },
-  { k: 'height', l: 'Cao', unit: 'cm' },
-];
+// #205 FE-2 (Phase 1) — presentational blocks split into ./opd-editor/*.
+// State/handlers/effects/loaders stay here; these receive everything via props.
+import {
+  type Vitals, type DxRow, type OrderRow,
+  OPD_ABBR_SCOPES, SEVERITY_LABEL, VITAL_FIELDS, openPdfBlob,
+} from './opd-editor/_shared';
+import { InjurySection } from './opd-editor/InjurySection';
+import { ClsResultsModal } from './opd-editor/ClsResultsModal';
+import { ConsultModal } from './opd-editor/ConsultModal';
+import { TemplateModals } from './opd-editor/TemplateModals';
 
 const OpdEditorV2: React.FC = () => {
   const navigate = useNavigate();
@@ -408,13 +397,6 @@ const OpdEditorV2: React.FC = () => {
   const goPrescribe = () => {
     if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
     navigate(`/v2/prescription/edit?examId=${encodeURIComponent(examId)}`);
-  };
-
-  // Mở PDF blob ở tab mới (dùng chung cho các nút in)
-  const openPdfBlob = (data: Blob) => {
-    const url = URL.createObjectURL(data);
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
 
   // In phiếu khám thật (PDF blob → tab mới) — thay nút giả cũ
@@ -774,137 +756,7 @@ const OpdEditorV2: React.FC = () => {
             </section>
 
             {/* Khai báo tai nạn giao thông — F1.6 (Biểu 14.5 SYT) */}
-            <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-12)' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Khai báo thương tích / TNGT (Biểu 14.5)</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-10)' }}>
-                <div>
-                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-3)' }}>Loại tai nạn</label>
-                  <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
-                    value={injuryInfo.injuryType ?? ''}
-                    onChange={(e) => setInjuryInfo((s) => ({ ...s, injuryType: e.target.value ? +e.target.value : undefined }))}>
-                    <option value="">-- Chọn --</option>
-                    <option value="1">Tai nạn giao thông</option>
-                    <option value="2">Tai nạn lao động</option>
-                    <option value="3">Bạo lực</option>
-                    <option value="4">Khác</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-3)' }}>Ngày xảy ra</label>
-                  <input type="date" className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
-                    value={injuryInfo.injuryDate ? injuryInfo.injuryDate.slice(0, 10) : ''}
-                    onChange={(e) => setInjuryInfo((s) => ({ ...s, injuryDate: e.target.value || undefined }))} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-3)' }}>Nơi xảy ra</label>
-                  <input type="text" className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
-                    placeholder="Địa điểm tai nạn"
-                    value={injuryInfo.injuryLocation ?? ''}
-                    onChange={(e) => setInjuryInfo((s) => ({ ...s, injuryLocation: e.target.value || undefined }))} />
-                </div>
-              </div>
-              {injuryInfo.injuryType === 1 && (
-                <>
-                  <div style={{ marginTop: 'var(--space-10)', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-10)' }}>
-                    <div>
-                      <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-3)' }}>Đội mũ bảo hiểm</label>
-                      <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
-                        value={injuryInfo.helmetWorn == null ? '' : injuryInfo.helmetWorn ? '1' : '0'}
-                        onChange={(e) => setInjuryInfo((s) => ({ ...s, helmetWorn: e.target.value === '' ? null : e.target.value === '1' }))}>
-                        <option value="">-- Chưa rõ --</option>
-                        <option value="1">Có đội</option>
-                        <option value="0">Không đội</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-3)' }}>Nồng độ cồn (mg/L khí thở)</label>
-                      <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
-                        value={injuryInfo.alcoholLevel ?? ''}
-                        onChange={(e) => setInjuryInfo((s) => ({ ...s, alcoholLevel: e.target.value || undefined }))}>
-                        <option value="">-- Chưa đo --</option>
-                        <option value="0">0 (âm tính)</option>
-                        <option value="<0.25">{'<0.25'}</option>
-                        <option value="0.25-<0.4">0.25 – {'<0.4'}</option>
-                        <option value=">=0.4">{'>='} 0.4</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-3)' }}>Phương tiện nạn nhân điều khiển</label>
-                      <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
-                        value={injuryInfo.vehicleTypeSelf ?? ''}
-                        onChange={(e) => setInjuryInfo((s) => ({ ...s, vehicleTypeSelf: e.target.value || undefined }))}>
-                        <option value="">-- Chọn --</option>
-                        <option value="xe_may">Xe máy / xe gắn máy</option>
-                        <option value="o_to">Ô tô</option>
-                        <option value="xe_dap">Xe đạp / xe đạp điện</option>
-                        <option value="xe_tai">Xe tải / xe buýt</option>
-                        <option value="bo">Đi bộ</option>
-                        <option value="khac">Khác</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 'var(--space-10)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)' }}>
-                    <div>
-                      <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-3)' }}>Phương tiện gây tai nạn</label>
-                      <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
-                        value={injuryInfo.vehicleTypeCauser ?? ''}
-                        onChange={(e) => setInjuryInfo((s) => ({ ...s, vehicleTypeCauser: e.target.value || undefined }))}>
-                        <option value="">-- Chọn --</option>
-                        <option value="xe_may">Xe máy / xe gắn máy</option>
-                        <option value="o_to">Ô tô</option>
-                        <option value="xe_dap">Xe đạp / xe đạp điện</option>
-                        <option value="xe_tai">Xe tải / xe buýt</option>
-                        <option value="cong_trinh">Công trình / vật thể cố định</option>
-                        <option value="khac">Khác</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-3)' }}>Phương tiện khác liên quan</label>
-                      <select className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
-                        value={injuryInfo.vehicleTypeVictim ?? ''}
-                        onChange={(e) => setInjuryInfo((s) => ({ ...s, vehicleTypeVictim: e.target.value || undefined }))}>
-                        <option value="">-- Không có / Không rõ --</option>
-                        <option value="xe_may">Xe máy / xe gắn máy</option>
-                        <option value="o_to">Ô tô</option>
-                        <option value="xe_dap">Xe đạp / xe đạp điện</option>
-                        <option value="xe_tai">Xe tải / xe buýt</option>
-                        <option value="khac">Khác</option>
-                      </select>
-                    </div>
-                  </div>
-                </>
-              )}
-              <div style={{ marginTop: 'var(--space-10)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)' }}>
-                <div>
-                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-3)' }}>Nguyên nhân / Hoàn cảnh</label>
-                  <input type="text" className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
-                    placeholder="Mô tả nguyên nhân"
-                    value={injuryInfo.injuryCause ?? ''}
-                    onChange={(e) => setInjuryInfo((s) => ({ ...s, injuryCause: e.target.value || undefined }))} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-3)' }}>Sơ cứu ban đầu</label>
-                  <input type="text" className="hui-inp" style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }}
-                    placeholder="Đã xử trí gì trước khi đến viện"
-                    value={injuryInfo.firstAid ?? ''}
-                    onChange={(e) => setInjuryInfo((s) => ({ ...s, firstAid: e.target.value || undefined }))} />
-                </div>
-              </div>
-              <div style={{ marginTop: 'var(--space-8)', display: 'flex', alignItems: 'center', gap: 'var(--space-12)' }}>
-                <label style={{ fontSize: 11.5, display: 'flex', alignItems: 'center', gap: 'var(--space-6)', cursor: 'pointer' }}>
-                  <input type="checkbox"
-                    checked={!!injuryInfo.isReportedToPolice}
-                    onChange={(e) => setInjuryInfo((s) => ({ ...s, isReportedToPolice: e.target.checked }))} />
-                  Đã báo cáo công an
-                </label>
-                {injuryInfo.isReportedToPolice && (
-                  <input type="text" className="hui-inp" style={{ height: 26, fontSize: 'var(--fs-sm)', flex: 1 }}
-                    placeholder="Số biên bản công an"
-                    value={injuryInfo.policeReportNumber ?? ''}
-                    onChange={(e) => setInjuryInfo((s) => ({ ...s, policeReportNumber: e.target.value || undefined }))} />
-                )}
-              </div>
-            </section>
+            <InjurySection injuryInfo={injuryInfo} setInjuryInfo={setInjuryInfo} />
           </>
         )}
       </main>
@@ -1133,62 +985,23 @@ const OpdEditorV2: React.FC = () => {
         </section>
       </aside>
 
-      {/* ── Modal: Lưu bản ghi hiện tại thành mẫu HSBA ───────────────── */}
-      <ModalShell
-        open={tplSaveOpen}
-        onClose={() => setTplSaveOpen(false)}
-        title="Lưu thành mẫu HSBA ngoại trú"
-        sub="Lưu bệnh sử / khám lâm sàng / kết luận đang nhập thành mẫu dùng lại"
-        size="sm"
-        footer={
-          <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
-            <Btn variant="ghost" size="sm" onClick={() => setTplSaveOpen(false)}>Hủy</Btn>
-            <Btn variant="primary" size="sm" disabled={tplBusy || !tplName.trim()} onClick={saveCurrentAsTpl}>
-              {tplBusy ? 'Đang lưu…' : 'Lưu mẫu'}
-            </Btn>
-          </div>
-        }
-      >
-        <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Tên mẫu</label>
-        <input className="hui-inp" value={tplName} onChange={(e) => setTplName(e.target.value)}
-          placeholder="VD: Viêm họng cấp người lớn" style={{ width: '100%', height: 32, fontSize: 12.5 }} autoFocus />
-        <div style={{ marginTop: 'var(--space-10)', fontSize: 11.5, color: 'var(--t-2)' }}>
-          Mẫu sẽ gồm: bệnh sử ({history ? history.length : 0} ký tự) · khám LS ({exam ? exam.length : 0} ký tự) ·
-          kết luận ({conclusion ? conclusion.length : 0} ký tự)
-          {diagnoses.length > 0 && <> · ICD {diagnoses.find((d) => d.isPrimary)?.icdCode || diagnoses[0]?.icdCode}</>}
-        </div>
-      </ModalShell>
-
-      {/* ── Modal: Quản lý mẫu HSBA ──────────────────────────────────── */}
-      <ModalShell
-        open={tplManageOpen}
-        onClose={() => setTplManageOpen(false)}
-        title="Quản lý mẫu HSBA ngoại trú"
-        sub={`${tpls.length} mẫu — xóa mẫu không còn dùng`}
-        size="md"
-      >
-        {tpls.length === 0 ? (
-          <div style={{ padding: 'var(--space-24)', textAlign: 'center', color: 'var(--t-3)', fontSize: 12.5 }}>
-            Chưa có mẫu nào — nhập nội dung khám rồi bấm "Lưu thành mẫu".
-          </div>
-        ) : (
-          <table className="ab-tbl ab-u-wfull">
-            <thead><tr><th>Mã</th><th>Tên mẫu</th><th>ICD</th><th style={{ width: 60 }} /></tr></thead>
-            <tbody>
-              {tpls.map((t) => (
-                <tr key={t.id}>
-                  <td className="mono">{t.templateCode}</td>
-                  <td>{t.templateName}</td>
-                  <td className="mono">{t.diagnosisCode || '—'}</td>
-                  <td className="act">
-                    <ActBtn ic="x" title="Xóa mẫu" tone="crit" onClick={() => removeTpl(t.id)} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </ModalShell>
+      {/* ── Modals: Lưu thành mẫu HSBA + Quản lý mẫu HSBA ────────────── */}
+      <TemplateModals
+        saveOpen={tplSaveOpen}
+        setSaveOpen={setTplSaveOpen}
+        name={tplName}
+        setName={setTplName}
+        busy={tplBusy}
+        onSave={saveCurrentAsTpl}
+        manageOpen={tplManageOpen}
+        setManageOpen={setTplManageOpen}
+        tpls={tpls}
+        onRemove={removeTpl}
+        history={history}
+        exam={exam}
+        conclusion={conclusion}
+        diagnoses={diagnoses}
+      />
 
       {/* ── Modal: Khám thêm CK khác ─────────────────────────────────── */}
       <ModalShell
@@ -1495,117 +1308,25 @@ const OpdEditorV2: React.FC = () => {
       </div>
 
       {/* ── Modal: KQ XN · CĐHA tại phòng khám ───────────────────────── */}
-      <ModalShell
+      <ClsResultsModal
         open={clsOpen}
         onClose={() => setClsOpen(false)}
-        title="Kết quả XN · CĐHA"
+        loading={clsLoading}
+        data={clsData}
         sub={selPt ? `${selPt.patientName} · ${selPt.patientCode}` : ''}
-        size="lg"
-        footer={<div style={{ display: 'flex', justifyContent: 'flex-end' }}><Btn variant="ghost" size="sm" onClick={() => setClsOpen(false)}>Đóng</Btn></div>}
-      >
-        {clsLoading && <div style={{ padding: 'var(--space-20)', textAlign: 'center', color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Đang tải…</div>}
-        {!clsLoading && clsData && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-14)' }}>
-            <div>
-              <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Xét nghiệm ({clsData.labResults?.length ?? 0})</h4>
-              {(clsData.labResults || []).length === 0 && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-3)' }}>Chưa có kết quả xét nghiệm</div>}
-              {(clsData.labResults || []).map((lr) => (
-                <div key={lr.orderId} style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 'var(--space-10)', marginBottom: 'var(--space-8)' }}>
-                  <div style={{ display: 'flex', gap: 'var(--space-8)', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
-                    <b style={{ fontSize: 12.5 }}>{lr.serviceName}</b>
-                    <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{lr.serviceCode}</span>
-                    <span className="spacer" />
-                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{lr.resultDate ? new Date(lr.resultDate).toLocaleString('vi-VN') : 'Chưa có KQ'}</span>
-                  </div>
-                  {(lr.items || []).map((it, idx) => (
-                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: 'var(--space-8)', fontSize: 'var(--fs-sm)', padding: '3px 0', borderBottom: '1px solid var(--line-soft)' }}>
-                      <span>{it.testName}</span>
-                      <span className="mono" style={{ textAlign: 'right', fontWeight: 600, color: it.isAbnormal ? 'var(--s-crit)' : 'var(--t-0)' }}>
-                        {it.result || '—'}{it.unit ? ` ${it.unit}` : ''}{it.isAbnormal ? ' ⚠' : ''}
-                      </span>
-                      <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{it.referenceRange || '—'}</span>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-            <div>
-              <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>CĐHA · TDCN ({clsData.imagingResults?.length ?? 0})</h4>
-              {(clsData.imagingResults || []).length === 0 && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-3)' }}>Chưa có kết quả CĐHA</div>}
-              {(clsData.imagingResults || []).map((ir) => (
-                <div key={ir.orderId} style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 'var(--space-10)', marginBottom: 'var(--space-8)' }}>
-                  <div style={{ display: 'flex', gap: 'var(--space-8)', alignItems: 'center' }}>
-                    <b style={{ fontSize: 12.5 }}>{ir.serviceName}</b>
-                    <span className="mono" style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{ir.serviceCode}</span>
-                    <span className="spacer" />
-                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{ir.resultDate ? new Date(ir.resultDate).toLocaleString('vi-VN') : 'Chưa có KQ'}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {!clsLoading && !clsData && <div style={{ padding: 'var(--space-20)', textAlign: 'center', color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Không có dữ liệu</div>}
-      </ModalShell>
+      />
 
       {/* ── Modal: Sổ hội chẩn ───────────────────────────────────────── */}
-      <ModalShell
+      <ConsultModal
         open={consultOpen}
         onClose={() => setConsultOpen(false)}
-        title="Sổ hội chẩn"
+        consults={consults}
+        form={consultForm}
+        setForm={setConsultForm}
+        saving={consultSaving}
+        onSave={saveConsult}
         sub={selPt ? `${selPt.patientName} · ${selPt.patientCode}` : ''}
-        size="lg"
-        footer={
-          <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
-            <Btn variant="ghost" size="sm" onClick={() => setConsultOpen(false)}>Đóng</Btn>
-            <Btn variant="primary" size="sm" disabled={consultSaving || !consultForm.reason.trim()} onClick={saveConsult}>
-              <TermIcon name="plus" size={11} /> Lưu biên bản
-            </Btn>
-          </div>
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
-          {consults.length > 0 && (
-            <div>
-              <h4 style={{ margin: '0 0 6px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Biên bản đã lập ({consults.length})</h4>
-              {consults.map((c) => (
-                <div key={c.id} style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 'var(--space-10)', marginBottom: 'var(--space-6)', fontSize: 'var(--fs-sm)' }}>
-                  <div style={{ display: 'flex', gap: 'var(--space-8)', marginBottom: 'var(--space-4)' }}>
-                    <b>{c.reason}</b>
-                    <span className="spacer" />
-                    <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>{c.consultationDate ? new Date(c.consultationDate).toLocaleString('vi-VN') : ''}</span>
-                  </div>
-                  {c.conclusion && <div style={{ color: 'var(--t-1)' }}>KL: {c.conclusion}</div>}
-                  {c.recommendations && <div style={{ color: 'var(--t-2)', fontSize: 11.5 }}>Đề nghị: {c.recommendations}</div>}
-                </div>
-              ))}
-            </div>
-          )}
-          <div>
-            <h4 style={{ margin: '0 0 6px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Lập biên bản mới</h4>
-            <div style={{ display: 'grid', gap: 'var(--space-8)' }}>
-              <div>
-                <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Lý do hội chẩn <span style={{ color: 'var(--s-err)' }}>*</span></label>
-                <input className="hui-inp" style={{ width: '100%', height: 28 }} value={consultForm.reason} onChange={(e) => setConsultForm((f) => ({ ...f, reason: e.target.value }))} placeholder="Ca khó, đa bệnh lý…" />
-              </div>
-              <div>
-                <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Tóm tắt diễn biến</label>
-                <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={consultForm.summary} onChange={(e) => setConsultForm((f) => ({ ...f, summary: e.target.value }))} />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-8)' }}>
-                <div>
-                  <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Kết luận</label>
-                  <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={consultForm.conclusion} onChange={(e) => setConsultForm((f) => ({ ...f, conclusion: e.target.value }))} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Đề nghị</label>
-                  <textarea className="hui-inp" rows={2} style={{ width: '100%', resize: 'vertical' }} value={consultForm.recommendations} onChange={(e) => setConsultForm((f) => ({ ...f, recommendations: e.target.value }))} />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </ModalShell>
+      />
 
       {/* ── Modal: Tường trình PTTT (G-09) ─────────────────────────── */}
       <SurgeryReportModal
