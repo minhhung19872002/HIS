@@ -7,6 +7,12 @@
 >
 > Cập nhật cuối: **2026-07-04**.
 
+## Phiên 2026-07-04 (cửa #205→#201 — #201 CLOSED: wave cuối ExtendedServiceImplementations, worktree cô lập)
+- **#201 [REFAC-2] WAVE CUỐI + CLOSE** [HARD tech-debt, pushed]: tách `HIS.Application/Services/ExtendedServiceImplementations.cs` (2487 dòng, 10 class Luồng 11-20) → **10 file/1 class** (Telemedicine·ClinicalNutrition·InfectionControl·Rehabilitation·MedicalEquipment·MedicalHR·QualityManagement·PatientPortal·HealthExchange·MassCasualty, 199-338 dòng/file). Đo lại 8 file đích danh issue: 7 file đã Part1-N <800 từ wave trước (`a50123a`), NangCap23Services đã xóa/split — Extended là mảnh cuối. **DI không đổi** (class name giữ nguyên — không đụng `DependencyInjection.cs` đang dirty của cửa #202).
+- **Verify:** cắt sed byte-exact + **tái dựng 10 file → diff == blob HEAD gốc: BYTE-IDENTICAL**; `dotnet build HIS.sln` trong **worktree cô lập** `d:/tmp/his-wt-201` (né code dở cửa #202) = **0 error**. Acceptance #201 (mỗi service đích danh <800) = ĐỦ.
+- **Scope-overlap transfer trước close:** phần logic-changing → **#363** (BusinessAlert threshold→config + HospitalReport switch→registry, cần deploy+smoke); god-file >800 NGOÀI scope đích danh (~25 file: BloodBank 1735·Supplementary 1699·RIS Core8x 1691·EmrManagement 1572·Fhir 1500...) → **#364** wave-3.
+- Cùng phiên: **#205 CLOSED** (`00dccaa` — 4 god-component FE + verify 4-lens PASS; Phase-2 OpdEditor → #362). TEST làm CUỐI.
+
 ## Phiên 2026-07-04 (cửa #202-BE `w973` — thin 5 fat controller, build-green, CHỜ push)
 - **#202 [REFAC-3] Checkpoint** [HARD, build-only]: bỏ HISDbContext khỏi **5 controller** → service (RadiologyDispatch·RisCatalog·LisCatalog·OfficeSupply·EmployeeProfile = đủ 5 NAMED trong issue). Controller **2173→620 dòng**; logic move verbatim xuống `HIS.Infrastructure/Services/*Service.cs` + `HIS.Application/Interfaces/I*Service.cs`. Envelope mới `ServiceOutcome` (Application/Common) + `.ToActionResult()` (API/Extensions) giữ nguyên status+body; OfficeSupply dời DTO sang Application (money/kho verbatim).
 - **Verify build-only:** `dotnet build` toàn sln **0 error**; multi-agent 4 self-review + 12 adversarial (3 lens×4) = **0 drift**; spot-check money-path byte-identical. **CHƯA push** (backend down → chưa smoke; DI resolution runtime chỉ chắc khi smoke). Chờ user + phiên deploy+smoke. Còn ~42 controller khác vẫn inject HISDbContext.
