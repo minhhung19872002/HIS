@@ -1,10 +1,12 @@
 using System.Security.Claims;
+using HIS.API.Extensions;
+using HIS.Application.DTOs.NonDicom;
+using HIS.Application.Interfaces;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using HIS.API.Dtos.NonDicom;
 
 namespace HIS.API.Controllers;
 
@@ -13,11 +15,15 @@ namespace HIS.API.Controllers;
 [Authorize]
 public class NonDicomController : ControllerBase
 {
+    private readonly INonDicomService _svc;
+    // #202: HISDbContext giữ lại RIÊNG cho Upload — không tách sang Application/Infrastructure được
+    // (IFormFileCollection không tham chiếu được từ HIS.Application + streaming file I/O). Xem INonDicomService.
     private readonly HISDbContext _db;
     private readonly IWebHostEnvironment _env;
 
-    public NonDicomController(HISDbContext db, IWebHostEnvironment env)
+    public NonDicomController(INonDicomService svc, HISDbContext db, IWebHostEnvironment env)
     {
+        _svc = svc;
         _db = db;
         _env = env;
     }
@@ -35,26 +41,7 @@ public class NonDicomController : ControllerBase
 
     [HttpPost("studies")]
     public async Task<IActionResult> CreateStudy([FromBody] CreateStudyDto dto)
-    {
-        var study = new NonDicomStudy
-        {
-            Id = Guid.NewGuid(),
-            ServiceRequestDetailId = dto.ServiceRequestDetailId,
-            PatientId = dto.PatientId,
-            DeviceType = dto.DeviceType,
-            DeviceName = dto.DeviceName,
-            RoomId = dto.RoomId,
-            PerformedByUserId = GetUserId(),
-            CapturedAt = DateTime.UtcNow,
-            Status = 0,
-            Description = dto.Description,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = GetUserId().ToString()
-        };
-        _db.NonDicomStudies.Add(study);
-        await _db.SaveChangesAsync();
-        return Ok(new { id = study.Id, status = study.Status });
-    }
+        => (await _svc.CreateStudyAsync(dto, GetUserId())).ToActionResult();
 
     /// <summary>
     /// Upload ảnh/video capture từ camera web.
@@ -138,93 +125,21 @@ public class NonDicomController : ControllerBase
 
     [HttpGet("studies/{studyId:guid}")]
     public async Task<IActionResult> GetStudy(Guid studyId)
-    {
-        var study = await _db.NonDicomStudies
-            .Include(s => s.Patient)
-            .Include(s => s.Images)
-            .FirstOrDefaultAsync(s => s.Id == studyId);
-        if (study == null) return NotFound();
-        return Ok(new
-        {
-            study.Id,
-            study.PatientId,
-            PatientName = study.Patient?.FullName,
-            study.DeviceType,
-            study.DeviceName,
-            study.CapturedAt,
-            study.Status,
-            study.Description,
-            study.Conclusion,
-            study.Findings,
-            Images = study.Images.OrderBy(i => i.SortOrder).Select(i => new
-            {
-                i.Id,
-                i.MediaType,
-                i.FileName,
-                i.FilePath,
-                i.MimeType,
-                i.SortOrder,
-                i.Annotation,
-                i.IncludeInReport,
-            })
-        });
-    }
+        => (await _svc.GetStudyAsync(studyId)).ToActionResult();
 
 
     [HttpPut("studies/{studyId:guid}")]
     public async Task<IActionResult> UpdateStudy(Guid studyId, [FromBody] UpdateStudyDto dto)
-    {
-        var study = await _db.NonDicomStudies.FirstOrDefaultAsync(s => s.Id == studyId)
-            ?? throw new KeyNotFoundException();
-        if (dto.Description != null) study.Description = dto.Description;
-        if (dto.Findings != null) study.Findings = dto.Findings;
-        if (dto.Conclusion != null) study.Conclusion = dto.Conclusion;
-        if (dto.Status.HasValue) study.Status = dto.Status.Value;
-        study.UpdatedAt = DateTime.UtcNow;
-        study.UpdatedBy = GetUserId().ToString();
-        await _db.SaveChangesAsync();
-        return Ok();
-    }
+        => (await _svc.UpdateStudyAsync(studyId, dto, GetUserId())).ToActionResult();
 
     [HttpDelete("image/{imageId:guid}")]
     public async Task<IActionResult> DeleteImage(Guid imageId)
-    {
-        var img = await _db.NonDicomImages.FirstOrDefaultAsync(i => i.Id == imageId)
-            ?? throw new KeyNotFoundException();
-        _db.NonDicomImages.Remove(img);
-        await _db.SaveChangesAsync();
-        // File thực để lại (tránh mất khi rollback), GC background task sẽ dọn sau
-        return Ok();
-    }
+        => (await _svc.DeleteImageAsync(imageId)).ToActionResult();
 
     [HttpGet("worklist")]
     public async Task<IActionResult> Worklist(
         [FromQuery] string? deviceType,
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate)
-    {
-        var q = _db.NonDicomStudies
-            .Include(s => s.Patient)
-            .Include(s => s.Images)
-            .AsQueryable();
-        if (!string.IsNullOrWhiteSpace(deviceType)) q = q.Where(s => s.DeviceType == deviceType);
-        if (fromDate.HasValue) q = q.Where(s => s.CapturedAt >= fromDate.Value);
-        if (toDate.HasValue) q = q.Where(s => s.CapturedAt <= toDate.Value.AddDays(1));
-        var list = await q
-            .OrderByDescending(s => s.CapturedAt)
-            .Take(200)
-            .ToListAsync();
-        return Ok(list.Select(s => new
-        {
-            s.Id,
-            PatientName = s.Patient?.FullName,
-            PatientCode = s.Patient?.PatientCode,
-            s.DeviceType,
-            s.DeviceName,
-            s.CapturedAt,
-            s.Status,
-            ImageCount = s.Images.Count,
-            HasConclusion = !string.IsNullOrWhiteSpace(s.Conclusion)
-        }));
-    }
+        => (await _svc.WorklistAsync(deviceType, fromDate, toDate)).ToActionResult();
 }

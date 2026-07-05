@@ -1,11 +1,10 @@
+using System.Security.Claims;
+using HIS.Application.DTOs.WriteGap;
+using HIS.Application.Interfaces;
 using HIS.Core.Entities;
-using HIS.Infrastructure.Data;
+using HIS.API.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
-using HIS.API.Dtos.WriteGap;
-using ApiResponse = HIS.Application.DTOs.Common.ApiResponse<object>;
 
 namespace HIS.API.Controllers;
 
@@ -14,275 +13,83 @@ namespace HIS.API.Controllers;
 [Authorize]
 public class WriteGapController : ControllerBase
 {
-    private readonly HISDbContext _db;
-    public WriteGapController(HISDbContext db) => _db = db;
+    private readonly IWriteGapService _svc;
+    public WriteGapController(IWriteGapService svc) => _svc = svc;
     private Guid Uid() => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
 
     // ========== 1. Sample Storage (store/retrieve) ==========
-    // #14e: thao tác trên ServiceRequestDetail (model 1) — id mẫu = SRD id (model 2 LabRequestItems đã gỡ)
 
     [HttpPost("sample/sample-storage/store")]
     public async Task<IActionResult> StoreSample([FromBody] StoreSampleDto dto)
-    {
-        var item = await _db.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
-        if (item == null) return NotFound(ApiResponse.Fail("Mẫu không tồn tại"));
-        item.SampleLocation = dto.Location;
-        item.UpdatedAt = DateTime.Now;
-        item.UpdatedBy = Uid().ToString();
-        await _db.SaveChangesAsync();
-        return Ok(new { message = $"Đã lưu trữ mẫu tại {dto.Location}" });
-    }
+        => (await _svc.StoreSampleAsync(dto, Uid())).ToActionResult();
 
     [HttpPost("sample/sample-storage/retrieve")]
     public async Task<IActionResult> RetrieveSample([FromBody] RetrieveSampleDto dto)
-    {
-        var item = await _db.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
-        if (item == null) return NotFound(ApiResponse.Fail("Mẫu không tồn tại"));
-        item.SampleLocation = null;
-        item.UpdatedAt = DateTime.Now;
-        item.UpdatedBy = Uid().ToString();
-        await _db.SaveChangesAsync();
-        return Ok(new { message = "Đã lấy mẫu ra khỏi kho" });
-    }
+        => (await _svc.RetrieveSampleAsync(dto, Uid())).ToActionResult();
 
     // ========== 2. Sample Tracking (reject/undo) ==========
 
     [HttpPost("sample/sample-tracking/reject")]
     public async Task<IActionResult> RejectSample([FromBody] RejectSampleDto dto)
-    {
-        var item = await _db.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
-        if (item == null) return NotFound();
-        // Cùng ngữ nghĩa SampleReceiveController.Reject: ReceiveStatus=2 + lý do
-        item.ReceiveStatus = 2;
-        item.RejectReason = dto.Reason;
-        item.UpdatedAt = DateTime.Now;
-        item.UpdatedBy = Uid().ToString();
-        await _db.SaveChangesAsync();
-        return Ok();
-    }
+        => (await _svc.RejectSampleAsync(dto, Uid())).ToActionResult();
 
     [HttpPost("sample/sample-tracking/undo-reject")]
     public async Task<IActionResult> UndoRejectSample([FromBody] UndoRejectDto dto)
-    {
-        var item = await _db.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
-        if (item == null) return NotFound();
-        item.ReceiveStatus = 1; // về trạng thái đã nhận mẫu
-        item.RejectReason = null;
-        item.UpdatedAt = DateTime.Now;
-        item.UpdatedBy = Uid().ToString();
-        await _db.SaveChangesAsync();
-        return Ok();
-    }
+        => (await _svc.UndoRejectSampleAsync(dto, Uid())).ToActionResult();
 
     // ========== 3. Epidemiology (create disease report) ==========
 
     [HttpPost("epidemiology/reports")]
     public async Task<IActionResult> CreateDiseaseReport([FromBody] DiseaseReport dto)
-    {
-        dto.Id = Guid.NewGuid();
-        dto.IsDeleted = false;
-        dto.ReportDate = DateTime.Now;
-        dto.CreatedAt = DateTime.Now;
-        dto.CreatedBy = Uid().ToString();
-        _db.DiseaseReports.Add(dto);
-        await _db.SaveChangesAsync();
-        return Ok(new { dto.Id });
-    }
+        => (await _svc.CreateDiseaseReportAsync(dto, Uid())).ToActionResult();
 
     // ========== 4. Infection Control (update/close HAI case) ==========
 
     [HttpPut("hai/hai-reports/{id:guid}/investigate")]
     public async Task<IActionResult> InvestigateHAI(Guid id, [FromBody] InvestigateHaiDto dto)
-    {
-        var hai = await _db.HAICases.FirstOrDefaultAsync(h => h.Id == id);
-        if (hai == null) return NotFound();
-        hai.IsInvestigated = true;
-        hai.RootCause = dto.RootCause;
-        hai.ContributingFactors = dto.ContributingFactors;
-        hai.PreventiveMeasures = dto.PreventiveMeasures;
-        hai.UpdatedAt = DateTime.Now;
-        hai.UpdatedBy = Uid().ToString();
-        await _db.SaveChangesAsync();
-        return Ok();
-    }
+        => (await _svc.InvestigateHAIAsync(id, dto, Uid())).ToActionResult();
 
     [HttpPut("hai/hai-reports/{id:guid}/close")]
     public async Task<IActionResult> CloseHAI(Guid id, [FromBody] CloseHaiDto dto)
-    {
-        var hai = await _db.HAICases.FirstOrDefaultAsync(h => h.Id == id);
-        if (hai == null) return NotFound();
-        hai.Status = "Closed";
-        hai.Outcome = dto.Outcome;
-        hai.ResolvedDate = DateTime.Now;
-        hai.Notes = dto.Notes;
-        hai.UpdatedAt = DateTime.Now;
-        hai.UpdatedBy = Uid().ToString();
-        await _db.SaveChangesAsync();
-        return Ok();
-    }
+        => (await _svc.CloseHAIAsync(id, dto, Uid())).ToActionResult();
 
     // ========== 5. Medical Record Archive (save) ==========
 
     [HttpPost("archive/medical-record-archive/save")]
     public async Task<IActionResult> SaveArchive([FromBody] SaveArchiveDto dto)
-    {
-        if (dto.Id.HasValue)
-        {
-            var existing = await _db.MedicalRecordArchives.FindAsync(dto.Id.Value);
-            if (existing == null) return NotFound();
-            existing.StorageLocation = dto.StorageLocation;
-            existing.ShelfNumber = dto.ShelfNumber;
-            existing.BoxNumber = dto.BoxNumber;
-            existing.UpdatedAt = DateTime.Now;
-            existing.UpdatedBy = Uid().ToString();
-        }
-        else
-        {
-            var archive = new MedicalRecordArchive
-            {
-                Id = Guid.NewGuid(),
-                ArchiveCode = $"HS{DateTime.Now:yyyyMMddHHmmss}",
-                MedicalRecordId = dto.MedicalRecordId,
-                PatientId = dto.PatientId,
-                StorageLocation = dto.StorageLocation,
-                ShelfNumber = dto.ShelfNumber,
-                BoxNumber = dto.BoxNumber,
-                Status = 1,
-                ArchivedDate = DateTime.Now,
-                ArchivedById = Uid(),
-                CreatedAt = DateTime.Now,
-                CreatedBy = Uid().ToString(),
-            };
-            _db.MedicalRecordArchives.Add(archive);
-        }
-        await _db.SaveChangesAsync();
-        return Ok();
-    }
+        => (await _svc.SaveArchiveAsync(dto, Uid())).ToActionResult();
 
     // ========== 6. Inter-Hospital Sharing (create) ==========
 
     [HttpPost("inter-hospital/requests")]
     public async Task<IActionResult> CreateInterHospitalRequest([FromBody] CreateInterHospitalDto dto)
-    {
-        var entity = new InterHospitalRequest
-        {
-            Id = Guid.NewGuid(),
-            RequestCode = $"LV{DateTime.Now:yyyyMMddHHmmss}",
-            RequestType = dto.RequestType ?? "Consultation",
-            RequestingFacility = dto.RequestingFacility ?? "",
-            ReceivingFacility = dto.ReceivingFacility ?? "",
-            Urgency = dto.Urgency.ToString(),
-            RequestDetails = dto.RequestDetails,
-            Status = 0,
-            RequestDate = DateTime.Now,
-            CreatedAt = DateTime.Now,
-            CreatedBy = Uid().ToString(),
-        };
-        _db.InterHospitalRequests.Add(entity);
-        await _db.SaveChangesAsync();
-        return Ok(new { entity.Id });
-    }
+        => (await _svc.CreateInterHospitalRequestAsync(dto, Uid())).ToActionResult();
 
     // ========== 7. Medical Record Planning (borrow/return) ==========
 
     [HttpPost("record-planning/borrow")]
     public async Task<IActionResult> BorrowRecord([FromBody] BorrowRecordDto dto)
-    {
-        var archive = await _db.MedicalRecordArchives.FirstOrDefaultAsync(a => a.Id == dto.ArchiveId);
-        if (archive == null) return NotFound();
-        archive.IsOnLoan = true;
-        archive.BorrowedByUserId = Uid();
-        archive.BorrowedAt = DateTime.Now;
-        archive.BorrowReason = dto.Reason;
-        archive.Status = 2; // Đang mượn
-        archive.UpdatedAt = DateTime.Now;
-        archive.UpdatedBy = Uid().ToString();
-        await _db.SaveChangesAsync();
-        return Ok();
-    }
+        => (await _svc.BorrowRecordAsync(dto, Uid())).ToActionResult();
 
     [HttpPost("record-planning/return")]
     public async Task<IActionResult> ReturnRecord([FromBody] ReturnArchiveDto dto)
-    {
-        var archive = await _db.MedicalRecordArchives.FirstOrDefaultAsync(a => a.Id == dto.ArchiveId);
-        if (archive == null) return NotFound();
-        archive.IsOnLoan = false;
-        archive.ReturnedAt = DateTime.Now;
-        archive.Status = 1; // Đã lưu
-        archive.UpdatedAt = DateTime.Now;
-        archive.UpdatedBy = Uid().ToString();
-        await _db.SaveChangesAsync();
-        return Ok();
-    }
+        => (await _svc.ReturnRecordAsync(dto, Uid())).ToActionResult();
 
     // ========== 8. Booking Management (doctor schedule) ==========
 
     [HttpPost("booking/doctor-schedule")]
     public async Task<IActionResult> SaveDoctorSchedule([FromBody] DoctorScheduleDto dto)
-    {
-        var existing = await _db.DutySchedules
-            .FirstOrDefaultAsync(d => d.DoctorId == dto.DoctorId && d.Date.Date == dto.Date.Date);
-        if (existing != null)
-        {
-            existing.ShiftType = dto.ShiftType;
-            existing.RoomId = dto.RoomId;
-            existing.Notes = dto.Notes;
-            existing.UpdatedAt = DateTime.Now;
-            existing.UpdatedBy = Uid().ToString();
-        }
-        else
-        {
-            _db.DutySchedules.Add(new DutySchedule
-            {
-                Id = Guid.NewGuid(),
-                DoctorId = dto.DoctorId,
-                DepartmentId = dto.DepartmentId,
-                Date = dto.Date,
-                ShiftType = dto.ShiftType,
-                RoomId = dto.RoomId,
-                Notes = dto.Notes,
-                CreatedAt = DateTime.Now,
-                CreatedBy = Uid().ToString(),
-            });
-        }
-        await _db.SaveChangesAsync();
-        return Ok();
-    }
+        => (await _svc.SaveDoctorScheduleAsync(dto, Uid())).ToActionResult();
 
     [HttpGet("booking/doctor-schedule")]
-    public async Task<IActionResult> GetDoctorSchedules([FromQuery] Guid? doctorId, [FromQuery] Guid? departmentId, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
-    {
-        var q = _db.DutySchedules.Where(d => !d.IsDeleted);
-        if (doctorId.HasValue) q = q.Where(d => d.DoctorId == doctorId);
-        if (departmentId.HasValue) q = q.Where(d => d.DepartmentId == departmentId);
-        if (fromDate.HasValue) q = q.Where(d => d.Date >= fromDate.Value);
-        if (toDate.HasValue) q = q.Where(d => d.Date <= toDate.Value);
-        var items = await q.OrderBy(d => d.Date).Take(200)
-            .Select(d => new { d.Id, d.DoctorId, DoctorName = d.Doctor != null ? d.Doctor.FullName : "", d.DepartmentId, d.Date, d.ShiftType, d.RoomId, d.Notes })
-            .ToListAsync();
-        return Ok(items);
-    }
+    public async Task<IActionResult> GetDoctorSchedules(
+        [FromQuery] Guid? doctorId, [FromQuery] Guid? departmentId,
+        [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
+        => (await _svc.GetDoctorSchedulesAsync(doctorId, departmentId, fromDate, toDate)).ToActionResult();
 
     // ========== 9. BHXH Audit (run audit session) ==========
 
     [HttpPost("bhxh-audit/sessions")]
     public async Task<IActionResult> CreateAuditSession([FromBody] CreateBhxhAuditDto dto)
-    {
-        var session = new BhxhAuditSession
-        {
-            Id = Guid.NewGuid(),
-            SessionCode = $"GD{DateTime.Now:yyyyMMddHHmmss}",
-            PeriodMonth = dto.PeriodMonth,
-            PeriodYear = dto.PeriodYear,
-            Status = 0,
-            AuditorId = Uid(),
-            Notes = dto.Notes,
-            CreatedAt = DateTime.Now,
-            CreatedBy = Uid().ToString(),
-        };
-        _db.BhxhAuditSessions.Add(session);
-        await _db.SaveChangesAsync();
-        return Ok(new { session.Id, session.SessionCode });
-    }
+        => (await _svc.CreateAuditSessionAsync(dto, Uid())).ToActionResult();
 }
-

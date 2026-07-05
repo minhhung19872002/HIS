@@ -1,12 +1,9 @@
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
-using HIS.Core.Entities;
-using HIS.Infrastructure.Data;
+using HIS.API.Extensions;
+using HIS.Application.DTOs.StudyShare;
+using HIS.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using HIS.API.Dtos.StudyShare;
 
 namespace HIS.API.Controllers;
 
@@ -14,168 +11,39 @@ namespace HIS.API.Controllers;
 [Route("api/study-share")]
 public class StudyShareController : ControllerBase
 {
-    private readonly HISDbContext _db;
+    private readonly IStudyShareService _svc;
 
-    public StudyShareController(HISDbContext db) { _db = db; }
+    public StudyShareController(IStudyShareService svc) { _svc = svc; }
 
     private Guid GetUserId() =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
 
-    private static string Sha256Hash(string input)
-    {
-        using var sha = SHA256.Create();
-        var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(input));
-        return Convert.ToHexString(bytes);
-    }
-
-    private static string GenerateToken()
-    {
-        var bytes = RandomNumberGenerator.GetBytes(24);
-        return Convert.ToHexString(bytes).ToLowerInvariant();
-    }
-
-
-
     [HttpPost]
     [Authorize]
-    public async Task<ActionResult<ShareLinkDto>> Create([FromBody] CreateShareDto dto)
-    {
-        if (string.IsNullOrWhiteSpace(dto.StudyInstanceUID))
-            return BadRequest("StudyInstanceUID required");
-
-        // HideDemographics chưa được hỗ trợ ở mức DICOM tag.
-        // Hiện tại chỉ null PatientName/PatientCode trong response metadata — không ẩn PHI trong tag (0010,xxxx).
-        // Viewer vẫn đọc được tên BN từ tag nếu kết nối trực tiếp Orthanc.
-        // Trả lỗi rõ thay vì tạo link gây hiểu nhầm an toàn dữ liệu.
-        // TODO (P1): Implement real PHI anonymization: call Orthanc POST /studies/{id}/anonymize at
-        // share creation time, store anonymized orthancStudyId, delete when share is revoked.
-        if (dto.HideDemographics)
-            return BadRequest(new
-            {
-                message = "Tính năng 'Ẩn thông tin bệnh nhân' ở mức DICOM tag chưa được hỗ trợ. " +
-                          "Nếu cần ẩn thông tin BN mức ảnh, liên hệ quản trị hệ thống."
-            });
-
-        var link = new StudyShareLink
-        {
-            Id = Guid.NewGuid(),
-            Token = GenerateToken(),
-            StudyInstanceUID = dto.StudyInstanceUID,
-            OrthancStudyId = dto.OrthancStudyId,
-            PatientId = dto.PatientId,
-            PasswordHash = !string.IsNullOrWhiteSpace(dto.Password) ? Sha256Hash(dto.Password) : null,
-            HideDemographics = false, // luôn false cho đến khi implement Orthanc anonymize at share-time
-            ExpiresAt = dto.ExpiresInMinutes.HasValue
-                ? DateTime.UtcNow.AddMinutes(dto.ExpiresInMinutes.Value)
-                : null,
-            MaxViews = dto.MaxViews,
-            CreatedByUserId = GetUserId(),
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = GetUserId().ToString()
-        };
-        _db.StudyShareLinks.Add(link);
-        await _db.SaveChangesAsync();
-
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        // Frontend route sẽ là /shared/:token — ở đây trả về URL đầy đủ.
-        return Ok(new ShareLinkDto(
-            link.Id, link.Token, $"{baseUrl}/shared/{link.Token}",
-            link.StudyInstanceUID, link.PasswordHash != null, link.HideDemographics,
-            link.ExpiresAt, link.MaxViews, 0, link.CreatedAt, false));
-    }
+    public async Task<IActionResult> Create([FromBody] CreateShareDto dto)
+        => (await _svc.CreateAsync(dto, Request.Scheme, Request.Host.ToString(), GetUserId())).ToActionResult();
 
     [HttpGet("my")]
     [Authorize]
-    public async Task<ActionResult<List<ShareLinkDto>>> MyLinks()
-    {
-        var userId = GetUserId();
-        var list = await _db.StudyShareLinks
-            .Where(l => l.CreatedByUserId == userId)
-            .OrderByDescending(l => l.CreatedAt)
-            .Take(100)
-            .ToListAsync();
-        return Ok(list.Select(l => new ShareLinkDto(
-            l.Id, l.Token, $"{Request.Scheme}://{Request.Host}/shared/{l.Token}",
-            l.StudyInstanceUID, l.PasswordHash != null, l.HideDemographics,
-            l.ExpiresAt, l.MaxViews, l.ViewCount, l.CreatedAt, l.IsRevoked)));
-    }
+    public async Task<IActionResult> MyLinks()
+        => (await _svc.MyLinksAsync(Request.Scheme, Request.Host.ToString(), GetUserId())).ToActionResult();
 
     [HttpPost("{id:guid}/revoke")]
     [Authorize]
     public async Task<IActionResult> Revoke(Guid id, [FromBody] RevokeDto dto)
-    {
-        var link = await _db.StudyShareLinks.FirstOrDefaultAsync(l => l.Id == id)
-            ?? throw new KeyNotFoundException();
-        link.IsRevoked = true;
-        link.RevokedAt = DateTime.UtcNow;
-        link.RevokeReason = dto.Reason;
-        link.UpdatedAt = DateTime.UtcNow;
-        link.UpdatedBy = GetUserId().ToString();
-        await _db.SaveChangesAsync();
-        return Ok();
-    }
-
-
+        => (await _svc.RevokeAsync(id, dto, GetUserId())).ToActionResult();
 
     /// <summary>
     /// Public access endpoint. Không yêu cầu authentication — chỉ cần token + password.
     /// </summary>
     [HttpPost("access/{token}")]
     [AllowAnonymous]
-    public async Task<ActionResult<AccessResultDto>> Access(string token, [FromBody] AccessDto dto)
-    {
-        var link = await _db.StudyShareLinks
-            .Include(l => l.Patient)
-            .FirstOrDefaultAsync(l => l.Token == token);
-
-        if (link == null) return NotFound(new { message = "Link không hợp lệ" });
-        if (link.IsRevoked) return StatusCode(403, new { message = "Link đã bị thu hồi" });
-        if (link.ExpiresAt.HasValue && link.ExpiresAt.Value < DateTime.UtcNow)
-            return StatusCode(403, new { message = "Link đã hết hạn" });
-        if (link.MaxViews.HasValue && link.ViewCount >= link.MaxViews.Value)
-            return StatusCode(403, new { message = "Link đã hết lượt xem" });
-
-        if (link.PasswordHash != null)
-        {
-            if (string.IsNullOrWhiteSpace(dto.Password))
-                return Ok(new AccessResultDto("", null, false, null, null, link.ExpiresAt, true));
-            if (Sha256Hash(dto.Password) != link.PasswordHash)
-                return StatusCode(401, new { message = "Sai mật khẩu" });
-        }
-
-        link.ViewCount++;
-        link.LastViewerIp = HttpContext.Connection.RemoteIpAddress?.ToString();
-        link.LastViewedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
-
-        return Ok(new AccessResultDto(
-            link.StudyInstanceUID,
-            link.OrthancStudyId,
-            link.HideDemographics,
-            link.HideDemographics ? null : link.Patient?.FullName,
-            link.HideDemographics ? null : link.Patient?.PatientCode,
-            link.ExpiresAt,
-            false));
-    }
+    public async Task<IActionResult> Access(string token, [FromBody] AccessDto dto)
+        => (await _svc.AccessAsync(token, dto, HttpContext.Connection.RemoteIpAddress?.ToString())).ToActionResult();
 
     /// <summary>Peek metadata — không tăng view count, dùng để render UI trước khi hỏi password.</summary>
     [HttpGet("peek/{token}")]
     [AllowAnonymous]
     public async Task<IActionResult> Peek(string token)
-    {
-        var link = await _db.StudyShareLinks
-            .FirstOrDefaultAsync(l => l.Token == token);
-        if (link == null) return NotFound(new { message = "Link không hợp lệ" });
-        if (link.IsRevoked) return StatusCode(403, new { message = "Link đã bị thu hồi" });
-        if (link.ExpiresAt.HasValue && link.ExpiresAt.Value < DateTime.UtcNow)
-            return StatusCode(403, new { message = "Link đã hết hạn" });
-
-        return Ok(new
-        {
-            requiresPassword = link.PasswordHash != null,
-            expiresAt = link.ExpiresAt,
-            viewCount = link.ViewCount,
-            maxViews = link.MaxViews,
-        });
-    }
+        => (await _svc.PeekAsync(token)).ToActionResult();
 }

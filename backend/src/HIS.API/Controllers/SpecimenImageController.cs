@@ -1,10 +1,9 @@
 using System.Security.Claims;
-using HIS.Core.Entities;
-using HIS.Infrastructure.Data;
+using HIS.API.Extensions;
+using HIS.Application.DTOs.SpecimenImage;
+using HIS.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using HIS.API.Dtos.SpecimenImage;
 
 namespace HIS.API.Controllers;
 
@@ -21,12 +20,12 @@ namespace HIS.API.Controllers;
 [Authorize]
 public class SpecimenImageController : ControllerBase
 {
-    private readonly HISDbContext _db;
+    private readonly ISpecimenImageService _svc;
     private readonly IWebHostEnvironment _env;
 
-    public SpecimenImageController(HISDbContext db, IWebHostEnvironment env)
+    public SpecimenImageController(ISpecimenImageService svc, IWebHostEnvironment env)
     {
-        _db = db;
+        _svc = svc;
         _env = env;
     }
 
@@ -70,7 +69,6 @@ public class SpecimenImageController : ControllerBase
             .Contains(ext.ToLowerInvariant()) ? ext.ToLowerInvariant() : ".jpg";
 
         var storageRoot = GetStorageRoot();
-        var userId = GetUserId();
         var newId = Guid.NewGuid();
         var safeFileName = $"{newId}{safeExt}";
         var fullPath = Path.Combine(storageRoot, safeFileName);
@@ -80,39 +78,19 @@ public class SpecimenImageController : ControllerBase
             await file.CopyToAsync(fs);
         }
 
-        var entity = new SpecimenImage
-        {
-            Id = newId,
-            PathologyResultId = pathologyResultId,
-            ServiceRequestDetailId = serviceRequestDetailId,
-            ServiceRequestId = serviceRequestId,
-            ImagePath = $"/api/specimen-image/file/{safeFileName}",
-            FileName = file.FileName,
-            MimeType = file.ContentType,
-            FileSize = file.Length,
-            Caption = caption,
-            Magnification = magnification,
-            Source = source,
-            CapturedAt = DateTime.UtcNow,
-            SortOrder = 0,
-            IncludeInReport = true,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = userId.ToString(),
-        };
-
-        _db.SpecimenImages.Add(entity);
-        await _db.SaveChangesAsync();
-
-        return Ok(new
-        {
-            entity.Id,
-            entity.ImagePath,
-            entity.FileName,
-            entity.FileSize,
-            entity.Caption,
-            entity.Source,
-            entity.CapturedAt,
-        });
+        return (await _svc.CreateImageAsync(
+            newId,
+            $"/api/specimen-image/file/{safeFileName}",
+            file.FileName,
+            file.ContentType,
+            file.Length,
+            pathologyResultId,
+            serviceRequestDetailId,
+            serviceRequestId,
+            caption,
+            magnification,
+            source,
+            GetUserId())).ToActionResult();
     }
 
     // ─── Upload base64 (từ webcam getUserMedia) ──────────────────────
@@ -153,7 +131,6 @@ public class SpecimenImageController : ControllerBase
             _ => ".jpg"
         };
 
-        var userId = GetUserId();
         var newId = Guid.NewGuid();
         var safeFileName = $"{newId}{ext}";
         var storageRoot = GetStorageRoot();
@@ -161,39 +138,19 @@ public class SpecimenImageController : ControllerBase
 
         await System.IO.File.WriteAllBytesAsync(fullPath, bytes);
 
-        var entity = new SpecimenImage
-        {
-            Id = newId,
-            PathologyResultId = dto.PathologyResultId,
-            ServiceRequestDetailId = dto.ServiceRequestDetailId,
-            ServiceRequestId = dto.ServiceRequestId,
-            ImagePath = $"/api/specimen-image/file/{safeFileName}",
-            FileName = safeFileName,
-            MimeType = dto.MimeType,
-            FileSize = bytes.LongLength,
-            Caption = dto.Caption,
-            Magnification = dto.Magnification,
-            Source = dto.Source,
-            CapturedAt = DateTime.UtcNow,
-            SortOrder = 0,
-            IncludeInReport = true,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = userId.ToString(),
-        };
-
-        _db.SpecimenImages.Add(entity);
-        await _db.SaveChangesAsync();
-
-        return Ok(new
-        {
-            entity.Id,
-            entity.ImagePath,
-            entity.FileName,
-            entity.FileSize,
-            entity.Caption,
-            entity.Source,
-            entity.CapturedAt,
-        });
+        return (await _svc.CreateImageAsync(
+            newId,
+            $"/api/specimen-image/file/{safeFileName}",
+            safeFileName,
+            dto.MimeType,
+            bytes.LongLength,
+            dto.PathologyResultId,
+            dto.ServiceRequestDetailId,
+            dto.ServiceRequestId,
+            dto.Caption,
+            dto.Magnification,
+            dto.Source,
+            GetUserId())).ToActionResult();
     }
 
     // ─── List theo result ─────────────────────────────────────────────
@@ -203,81 +160,21 @@ public class SpecimenImageController : ControllerBase
     /// </summary>
     [HttpGet("by-pathology-result/{resultId:guid}")]
     public async Task<IActionResult> ListByPathologyResult(Guid resultId)
-    {
-        var images = await _db.SpecimenImages
-            .Where(i => i.PathologyResultId == resultId && !i.IsDeleted)
-            .OrderBy(i => i.SortOrder).ThenBy(i => i.CapturedAt)
-            .Select(i => new
-            {
-                i.Id,
-                i.ImagePath,
-                i.FileName,
-                i.MimeType,
-                i.FileSize,
-                i.Caption,
-                i.Source,
-                i.Magnification,
-                i.SortOrder,
-                i.IncludeInReport,
-                i.CapturedAt,
-            })
-            .ToListAsync();
-        return Ok(images);
-    }
+        => (await _svc.ListByPathologyResultAsync(resultId)).ToActionResult();
 
     /// <summary>
     /// Lấy danh sách ảnh theo chi tiết yêu cầu dịch vụ (XN).
     /// </summary>
     [HttpGet("by-service-detail/{detailId:guid}")]
     public async Task<IActionResult> ListByServiceDetail(Guid detailId)
-    {
-        var images = await _db.SpecimenImages
-            .Where(i => i.ServiceRequestDetailId == detailId && !i.IsDeleted)
-            .OrderBy(i => i.SortOrder).ThenBy(i => i.CapturedAt)
-            .Select(i => new
-            {
-                i.Id,
-                i.ImagePath,
-                i.FileName,
-                i.MimeType,
-                i.FileSize,
-                i.Caption,
-                i.Source,
-                i.Magnification,
-                i.SortOrder,
-                i.IncludeInReport,
-                i.CapturedAt,
-            })
-            .ToListAsync();
-        return Ok(images);
-    }
+        => (await _svc.ListByServiceDetailAsync(detailId)).ToActionResult();
 
     /// <summary>
     /// Lấy danh sách ảnh theo ServiceRequest (đơn XN tổng — tất cả detail).
     /// </summary>
     [HttpGet("by-service-request/{requestId:guid}")]
     public async Task<IActionResult> ListByServiceRequest(Guid requestId)
-    {
-        var images = await _db.SpecimenImages
-            .Where(i => i.ServiceRequestId == requestId && !i.IsDeleted)
-            .OrderBy(i => i.SortOrder).ThenBy(i => i.CapturedAt)
-            .Select(i => new
-            {
-                i.Id,
-                i.ImagePath,
-                i.FileName,
-                i.MimeType,
-                i.FileSize,
-                i.Caption,
-                i.Source,
-                i.Magnification,
-                i.SortOrder,
-                i.IncludeInReport,
-                i.CapturedAt,
-            })
-            .ToListAsync();
-        return Ok(images);
-    }
+        => (await _svc.ListByServiceRequestAsync(requestId)).ToActionResult();
 
     // ─── Serve file ───────────────────────────────────────────────────
 
@@ -310,35 +207,11 @@ public class SpecimenImageController : ControllerBase
 
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateImageDto dto)
-    {
-        var img = await _db.SpecimenImages.FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted);
-        if (img == null) return NotFound();
-
-        if (dto.Caption != null) img.Caption = dto.Caption;
-        if (dto.Magnification != null) img.Magnification = dto.Magnification;
-        if (dto.IncludeInReport.HasValue) img.IncludeInReport = dto.IncludeInReport.Value;
-        if (dto.SortOrder.HasValue) img.SortOrder = dto.SortOrder.Value;
-        img.UpdatedAt = DateTime.UtcNow;
-        img.UpdatedBy = GetUserId().ToString();
-
-        await _db.SaveChangesAsync();
-        return Ok();
-    }
+        => (await _svc.UpdateAsync(id, dto, GetUserId())).ToActionResult();
 
     // ─── Delete ───────────────────────────────────────────────────────
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var img = await _db.SpecimenImages.FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted);
-        if (img == null) return NotFound();
-
-        img.IsDeleted = true;
-        img.UpdatedAt = DateTime.UtcNow;
-        img.UpdatedBy = GetUserId().ToString();
-        await _db.SaveChangesAsync();
-
-        // File vật lý: soft-delete chỉ ẩn record. GC task dọn sau.
-        return Ok();
-    }
+        => (await _svc.DeleteAsync(id, GetUserId())).ToActionResult();
 }

@@ -1,11 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
+using HIS.API.Extensions;
 using HIS.API.Hubs;
-using HIS.Core.Entities;
-using HIS.Infrastructure.Data;
-using HIS.Infrastructure.Services;
+using HIS.Application.Interfaces;
 
 namespace HIS.API.Controllers;
 
@@ -14,15 +12,13 @@ namespace HIS.API.Controllers;
 [Route("api/[controller]")]
 public class NotificationController : ControllerBase
 {
-    private readonly HISDbContext _context;
+    private readonly INotificationService _svc;
     private readonly IHubContext<NotificationHub> _hubContext;
-    private readonly ISmsService _smsService;
 
-    public NotificationController(HISDbContext context, IHubContext<NotificationHub> hubContext, ISmsService smsService)
+    public NotificationController(INotificationService svc, IHubContext<NotificationHub> hubContext)
     {
-        _context = context;
+        _svc = svc;
         _hubContext = hubContext;
-        _smsService = smsService;
     }
 
     private Guid? GetUserId()
@@ -41,25 +37,7 @@ public class NotificationController : ControllerBase
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
 
-        var notifications = await _context.Notifications
-            .Where(n => !n.IsDeleted && (n.TargetUserId == userId || n.TargetUserId == null))
-            .OrderByDescending(n => n.CreatedAt)
-            .Take(limit)
-            .Select(n => new
-            {
-                n.Id,
-                n.Title,
-                n.Content,
-                n.NotificationType,
-                n.Module,
-                n.ActionUrl,
-                n.IsRead,
-                n.ReadAt,
-                n.CreatedAt,
-            })
-            .ToListAsync();
-
-        return Ok(notifications);
+        return (await _svc.GetMyNotificationsAsync(limit, userId.Value)).ToActionResult();
     }
 
     /// <summary>
@@ -71,11 +49,7 @@ public class NotificationController : ControllerBase
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
 
-        var count = await _context.Notifications
-            .Where(n => !n.IsDeleted && !n.IsRead && (n.TargetUserId == userId || n.TargetUserId == null))
-            .CountAsync();
-
-        return Ok(new { count });
+        return (await _svc.GetUnreadCountAsync(userId.Value)).ToActionResult();
     }
 
     /// <summary>
@@ -87,14 +61,7 @@ public class NotificationController : ControllerBase
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
 
-        var notification = await _context.Notifications.FindAsync(id);
-        if (notification == null) return NotFound();
-
-        notification.IsRead = true;
-        notification.ReadAt = DateTime.UtcNow;
-        await _context.SaveChangesAsync();
-
-        return Ok();
+        return (await _svc.MarkAsReadAsync(id)).ToActionResult();
     }
 
     /// <summary>
@@ -106,18 +73,7 @@ public class NotificationController : ControllerBase
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
 
-        var unread = await _context.Notifications
-            .Where(n => !n.IsDeleted && !n.IsRead && (n.TargetUserId == userId || n.TargetUserId == null))
-            .ToListAsync();
-
-        foreach (var n in unread)
-        {
-            n.IsRead = true;
-            n.ReadAt = DateTime.UtcNow;
-        }
-        await _context.SaveChangesAsync();
-
-        return Ok(new { count = unread.Count });
+        return (await _svc.MarkAllAsReadAsync(userId.Value)).ToActionResult();
     }
 
     /// <summary>
@@ -129,16 +85,7 @@ public class NotificationController : ControllerBase
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
 
-        var notification = new HIS.Core.Entities.Notification
-        {
-            Title = "Thông báo test",
-            Content = $"Thông báo test lúc {DateTime.Now:HH:mm:ss}",
-            NotificationType = "Info",
-            Module = "System",
-            TargetUserId = userId,
-        };
-        _context.Notifications.Add(notification);
-        await _context.SaveChangesAsync();
+        var notification = await _svc.CreateTestNotificationAsync(userId.Value);
 
         // Push via SignalR
         await _hubContext.Clients.Group($"user_{userId}").SendAsync("ReceiveNotification", new
@@ -159,55 +106,10 @@ public class NotificationController : ControllerBase
     /// Tạo link kết quả xét nghiệm online và gửi SMS
     /// </summary>
     [HttpPost("send-lab-result-link")]
-    public async Task<ActionResult<HIS.Application.DTOs.NangCap18.LabResultLinkResultDto>> SendLabResultLink(
+    public async Task<IActionResult> SendLabResultLink(
         [FromBody] HIS.Application.DTOs.NangCap18.SendLabResultLinkDto dto)
     {
-        // Find lab request — #14b: model 1 ServiceRequest (RequestType=1 XN); LabRequests model 2 chỉ seed ghi
-        // → trước đây id thật từ FE không bao giờ khớp, luôn trả "Không tìm thấy".
-        var labRequest = await _context.ServiceRequests
-            .Include(r => r.MedicalRecord).ThenInclude(m => m.Patient)
-            .FirstOrDefaultAsync(r => r.Id == dto.LabRequestId && !r.IsDeleted && r.RequestType == 1);
-
-        if (labRequest == null)
-            return Ok(new HIS.Application.DTOs.NangCap18.LabResultLinkResultDto
-            {
-                Success = false,
-                Message = "Không tìm thấy yêu cầu xét nghiệm"
-            });
-
-        // Generate one-time access token
-        var token = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
-            .Replace("+", "-").Replace("/", "_").TrimEnd('=');
-
-        var link = new LabResultAccessLink
-        {
-            Id = Guid.NewGuid(),
-            LabRequestId = dto.LabRequestId,
-            AccessToken = token,
-            ExpiresAt = DateTime.Now.AddHours(72),
-            Phone = dto.Phone,
-            CreatedAt = DateTime.Now,
-            CreatedBy = GetUserId()?.ToString()
-        };
-
-        _context.Set<LabResultAccessLink>().Add(link);
-        await _context.SaveChangesAsync();
-
-        // Build access URL
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        var accessUrl = $"{baseUrl}/lab-result?token={token}";
-
-        // Send SMS
-        var patientName = labRequest.MedicalRecord?.Patient?.FullName ?? "Quý khách";
-        var smsMessage = $"BV Da Khoa: {patientName}, ket qua xet nghiem cua ban da co. Xem tai: {accessUrl} (het han sau 72h)";
-        var smsSent = await _smsService.SendSmsAsync(dto.Phone, smsMessage, "LabResult", patientName, "LabRequest", dto.LabRequestId);
-
-        return Ok(new HIS.Application.DTOs.NangCap18.LabResultLinkResultDto
-        {
-            Success = true,
-            Message = smsSent ? "Đã gửi SMS thành công" : "Đã tạo link nhưng gửi SMS thất bại (link vẫn hoạt động)",
-            AccessUrl = accessUrl,
-            ExpiresAt = link.ExpiresAt
-        });
+        return (await _svc.SendLabResultLinkAsync(dto, baseUrl, GetUserId())).ToActionResult();
     }
 }

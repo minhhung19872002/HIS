@@ -1,4 +1,4 @@
-# STATUS — đang ở đâu · blocker · việc kế tiếp
+﻿# STATUS — đang ở đâu · blocker · việc kế tiếp
 
 > 🔗 **Task board = GitHub Issues** (`minhhung19872002/HIS`): `gh issue list`. File này CHỈ giữ
 > **session-state NGẮN cho hook** — KHÔNG ghi backlog/plan/lịch sử dài. Quy tắc giữ-ngắn + vòng đời
@@ -12,6 +12,20 @@
 - **Verify:** cắt sed byte-exact + **tái dựng 10 file → diff == blob HEAD gốc: BYTE-IDENTICAL**; `dotnet build HIS.sln` trong **worktree cô lập** `d:/tmp/his-wt-201` (né code dở cửa #202) = **0 error**. Acceptance #201 (mỗi service đích danh <800) = ĐỦ.
 - **Scope-overlap transfer trước close:** phần logic-changing → **#363** (BusinessAlert threshold→config + HospitalReport switch→registry, cần deploy+smoke); god-file >800 NGOÀI scope đích danh (~25 file: BloodBank 1735·Supplementary 1699·RIS Core8x 1691·EmrManagement 1572·Fhir 1500...) → **#364** wave-3.
 - Cùng phiên: **#205 CLOSED** (`00dccaa` — 4 god-component FE + verify 4-lens PASS; Phase-2 OpdEditor → #362). TEST làm CUỐI.
+
+## Phiên 2026-07-04 (cửa này — #361 DONE + PUSHED `eade0b5` → origin/main)
+- **#361 feat(lis): port Microbiology antibiogram data-entry UI to v2** [feature, ✅ CLOSED]: thêm `AddOrganismModal` + `AntibiogramModal` vào `pages-v2/Microbiology.tsx`. Wire "Thêm vi khuẩn" button vào DrawerShell footer + "Kháng sinh đồ" button per organism. tsc -b EXIT 0, npm run build EXIT 0. Commit `eade0b5`, Closes #361.
+
+## Phiên 2026-07-04 (cửa này — #202 thin ĐỦ 13 controller Tier-G + DI wired, build 0 error, CHỜ push+smoke)
+- **#202 [REFAC-3] Tier-G sweep 13 controller tách HISDbContext** [HARD, build-only]: bỏ `HISDbContext` khỏi **13 controller guardrail** (money/kho/patient-safety/AI) → service layer, chia 4 nhóm agent song song:
+  - **Group A (4):** StockLedgerReport·PatientFlag·ServiceRefund·ClinicalPharmacy (chỉ `PatientSummary` tách; `ImportDrugInteractionsCsv` IFormFile giữ controller).
+  - **Group B (5):** RadiologyOperations·ReceiptBook (giữ verbatim `FromSqlRaw` UPDLOCK/ROWLOCK transaction trong `NextNumberAsync`)·PharmacyEnhancement·FrontendCompat (giữ `[AllowAnonymous]`)·StockReport.
+  - **Group C (3):** InpatientDispensing (FEFO depletion verbatim)·WriteGap (2 chỗ `ServiceOutcome.Status(404, ApiResponse.Fail(...))` giữ body-shape)·PaymentReports.
+  - **AiLabeling (partial):** 5 method dùng `_db` (Save/Review/GetQueue/ByStudy/RunViaProvider+MapAsync) → `IAiLabelingService`; giữ config/filesystem/provider method ở controller.
+- Tạo **13 interface** (`HIS.Application/Interfaces/`) + **13 service impl** (`HIS.Infrastructure/Services/`) + **9 DTO folder mới** (`Application/DTOs/*`, 4 controller không có DTO riêng) + xóa **9 `HIS.API/Dtos/*Dtos.cs`** cũ (stale using). Logic verbatim, behavior-preserving. Controller 36 file −6351/+496 dòng.
+- **DI:** đã thêm **13 `AddScoped`** vào `DependencyInjection.cs` (block "#202 thin-controller sweep Tier-G" sau Tier-S). Namespace `HIS.Application.Interfaces`+`HIS.Infrastructure.Services` đã có sẵn using.
+- **Build:** `dotnet build HIS.API` → **0 error, 4775 warning** (pre-existing). Spot-check 3 điểm rủi ro cao PASS (WriteGap ApiResponse.Fail · ReceiptBook UPDLOCK · ClinicalPharmacy IFormFile ở controller). **CHƯA push** (backend down → chưa smoke; DI resolution runtime chỉ chắc khi smoke). Chờ user + phiên deploy+smoke.
+- **Còn lại vẫn inject HISDbContext:** PdfController (DEFER — đã thin sẵn, `_db` chỉ ở ExportFullRecord + HttpContext phức tạp) + PatientPortalController + 6 god-controller PARTIAL (DailySeed/ExaminationComplete/LISComplete/DigitalSignature/InpatientComplete.Operations/Pharmacy) + NonDicon Upload (IFormFile blocker, cố ý).
 
 ## Phiên 2026-07-04 (cửa #202-BE `w973` — thin 5 fat controller, build-green, CHỜ push)
 - **#202 [REFAC-3] Checkpoint** [HARD, build-only]: bỏ HISDbContext khỏi **5 controller** → service (RadiologyDispatch·RisCatalog·LisCatalog·OfficeSupply·EmployeeProfile = đủ 5 NAMED trong issue). Controller **2173→620 dòng**; logic move verbatim xuống `HIS.Infrastructure/Services/*Service.cs` + `HIS.Application/Interfaces/I*Service.cs`. Envelope mới `ServiceOutcome` (Application/Common) + `.ToActionResult()` (API/Extensions) giữ nguyên status+body; OfficeSupply dời DTO sang Application (money/kho verbatim).
@@ -41,6 +55,9 @@
 - **Non-goals giữ nguyên (cửa khác/deferred):** ~314 **number-formatter** (`n.toLocaleString('vi-VN')`+đ/%) = territory **#359 fmtVND** → KHÔNG đụng · no-arg `new Date()` (HrDecisions:66, current-date) · v1 `pages/` (v1-retire #204) · 5 god-component + split folders #205 · reception `fmtHM` (impl padStart khác, không byte-identical).
 - ⚠️ **Trùng file với #359 (đã push TRƯỚC):** `df20215` đã lên origin với `fmtDate/fmtDateTime/fmtTime` sau `fmtNum`. #359 `fmtVND` (worktree, CHỜ push) khi push sẽ append tiếp — không chồng dòng, tự-merge. Push df20215 = fast-forward sạch, KHÔNG cần worktree (0 behind); working-tree dirty của #205/#359/#202 KHÔNG bị đẩy (git push chỉ đẩy commit).
 - **Verify trước push:** workflow đối kháng 4 lens (helper-fidelity·guard-preservation·arg/type-refute·isolation) + synthesis gate = **SHIP** (0 blocker/0 fail; mọi finding là note clear/skip đúng).
+
+## Phiên 2026-07-04 (cửa này — #361 v2 Microbiology antibiogram port, build-green, CHỜ push)
+- **#361 Microbiology antibiogram v2 port** [FEATURE, build EXIT 0, CHỜ push]: thêm `AddOrganismModal` + `AntibiogramModal` vào `pages-v2/Microbiology.tsx`. AddOrganismModal: 6 field (mã/tên vi khuẩn, khuẩn lạc, Gram, hình thái, PP định danh) → `addOrganism(cultureId, data)`. AntibiogramModal: inline-editable table (kháng sinh/MIC/Zone/S-I-R/PP) pre-populate từ `organism.antibiogram`, thêm/xóa hàng → `saveAntibiogram(organismId, rows[])`. Wired: nút "Thêm vi khuẩn" footer DrawerShell + nút "Kháng sinh đồ" per-organism card. tsc EXIT 0, `npm run build` EXIT 0. File: `frontend/src/pages-v2/Microbiology.tsx`.
 
 ## Phiên 2026-07-04 (cửa này — #359+#360 DONE + PUSHED `30f0d71`/`2659d63` → origin/main)
 - **#359 fmtVND** ✅ **CLOSED+pushed `30f0d71`**: de-dup 4 bản sao `fmtVND` → `utils/format.ts`; 5 file FE (Billing|Insurance|Inpatient|Pharmacy + format.ts). Vercel auto-deploy.

@@ -1,10 +1,10 @@
 using System.Security.Claims;
+using HIS.API.Extensions;
+using HIS.Application.Interfaces;
 using HIS.Core.Constants;
 using HIS.Core.Entities;
-using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace HIS.API.Controllers;
 
@@ -17,28 +17,11 @@ namespace HIS.API.Controllers;
 [Authorize]
 public class LisCatalogController : ControllerBase
 {
-    private readonly HISDbContext _db;
-    public LisCatalogController(HISDbContext db) { _db = db; }
+    private readonly ILisCatalogService _svc;
+    public LisCatalogController(ILisCatalogService svc) { _svc = svc; }
 
     private Guid GetUserId() =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
-
-    private void Stamp(BaseEntity e, bool isNew)
-    {
-        var uid = GetUserId().ToString();
-        if (isNew)
-        {
-            e.Id = Guid.NewGuid();
-            e.IsDeleted = false;
-            e.CreatedAt = DateTime.Now;
-            e.CreatedBy = uid;
-        }
-        else
-        {
-            e.UpdatedAt = DateTime.Now;
-            e.UpdatedBy = uid;
-        }
-    }
 
     // =====================
     // 1. LabBook (Sổ XN)
@@ -46,53 +29,17 @@ public class LisCatalogController : ControllerBase
 
     [HttpGet("books")]
     public async Task<IActionResult> GetBooks([FromQuery] string? keyword, [FromQuery] bool? isActive)
-    {
-        var q = _db.LabBooks.AsQueryable();
-        if (isActive.HasValue) q = q.Where(b => b.IsActive == isActive.Value);
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            var kw = keyword.Trim();
-            q = q.Where(b => b.BookCode.Contains(kw) || b.BookName.Contains(kw));
-        }
-        return Ok(await q.OrderBy(b => b.SortOrder).ThenBy(b => b.BookName).ToListAsync());
-    }
+        => (await _svc.GetBooksAsync(keyword, isActive)).ToActionResult();
 
     [HttpPost("books")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> SaveBook([FromBody] LabBook dto)
-    {
-        if (string.IsNullOrWhiteSpace(dto.BookCode) || string.IsNullOrWhiteSpace(dto.BookName))
-            return BadRequest(new { message = "Mã và tên sổ XN là bắt buộc" });
-        var existing = dto.Id != Guid.Empty ? await _db.LabBooks.FindAsync(dto.Id) : null;
-        if (existing == null)
-        {
-            Stamp(dto, true);
-            _db.LabBooks.Add(dto);
-        }
-        else
-        {
-            existing.BookCode = dto.BookCode;
-            existing.BookName = dto.BookName;
-            existing.SortOrder = dto.SortOrder;
-            existing.BarcodePrefix = dto.BarcodePrefix;
-            existing.Description = dto.Description;
-            existing.IsActive = dto.IsActive;
-            Stamp(existing, false);
-        }
-        await _db.SaveChangesAsync();
-        return Ok(new { id = existing?.Id ?? dto.Id });
-    }
+        => (await _svc.SaveBookAsync(dto, GetUserId())).ToActionResult();
 
     [HttpDelete("books/{id:guid}")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> DeleteBook(Guid id)
-    {
-        var e = await _db.LabBooks.FindAsync(id);
-        if (e == null) return NotFound();
-        e.IsDeleted = true;
-        await _db.SaveChangesAsync();
-        return NoContent();
-    }
+        => (await _svc.DeleteBookAsync(id)).ToActionResult();
 
     // =====================
     // 2. LabBookGroup (Nhóm XN / Loại XN)
@@ -100,53 +47,17 @@ public class LisCatalogController : ControllerBase
 
     [HttpGet("groups")]
     public async Task<IActionResult> GetGroups([FromQuery] Guid? labBookId, [FromQuery] string? keyword)
-    {
-        var q = _db.Set<LabBookGroup>().AsQueryable();
-        if (labBookId.HasValue) q = q.Where(g => g.LabBookId == labBookId.Value);
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            var kw = keyword.Trim();
-            q = q.Where(g => g.GroupCode.Contains(kw) || g.GroupName.Contains(kw));
-        }
-        return Ok(await q.OrderBy(g => g.LabBookId).ThenBy(g => g.SortOrder).ToListAsync());
-    }
+        => (await _svc.GetGroupsAsync(labBookId, keyword)).ToActionResult();
 
     [HttpPost("groups")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> SaveGroup([FromBody] LabBookGroup dto)
-    {
-        if (string.IsNullOrWhiteSpace(dto.GroupCode) || string.IsNullOrWhiteSpace(dto.GroupName))
-            return BadRequest(new { message = "Mã và tên nhóm là bắt buộc" });
-        var existing = dto.Id != Guid.Empty ? await _db.Set<LabBookGroup>().FindAsync(dto.Id) : null;
-        if (existing == null)
-        {
-            Stamp(dto, true);
-            _db.Set<LabBookGroup>().Add(dto);
-        }
-        else
-        {
-            existing.LabBookId = dto.LabBookId;
-            existing.GroupCode = dto.GroupCode;
-            existing.GroupName = dto.GroupName;
-            existing.SortOrder = dto.SortOrder;
-            existing.ServiceIdsJson = dto.ServiceIdsJson;
-            existing.IsActive = dto.IsActive;
-            Stamp(existing, false);
-        }
-        await _db.SaveChangesAsync();
-        return Ok(new { id = existing?.Id ?? dto.Id });
-    }
+        => (await _svc.SaveGroupAsync(dto, GetUserId())).ToActionResult();
 
     [HttpDelete("groups/{id:guid}")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> DeleteGroup(Guid id)
-    {
-        var e = await _db.Set<LabBookGroup>().FindAsync(id);
-        if (e == null) return NotFound();
-        e.IsDeleted = true;
-        await _db.SaveChangesAsync();
-        return NoContent();
-    }
+        => (await _svc.DeleteGroupAsync(id)).ToActionResult();
 
     // =====================
     // 3. LabMeasurementUnit (Đơn vị đo)
@@ -154,54 +65,17 @@ public class LisCatalogController : ControllerBase
 
     [HttpGet("units")]
     public async Task<IActionResult> GetUnits([FromQuery] string? keyword, [FromQuery] bool? isActive)
-    {
-        var q = _db.LabMeasurementUnits.AsQueryable();
-        if (isActive.HasValue) q = q.Where(u => u.IsActive == isActive.Value);
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            var kw = keyword.Trim();
-            q = q.Where(u => u.UnitCode.Contains(kw) || u.UnitName.Contains(kw)
-                || (u.UnitSymbol != null && u.UnitSymbol.Contains(kw)));
-        }
-        return Ok(await q.OrderBy(u => u.SortOrder).ThenBy(u => u.UnitName).ToListAsync());
-    }
+        => (await _svc.GetUnitsAsync(keyword, isActive)).ToActionResult();
 
     [HttpPost("units")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> SaveUnit([FromBody] LabMeasurementUnit dto)
-    {
-        if (string.IsNullOrWhiteSpace(dto.UnitCode) || string.IsNullOrWhiteSpace(dto.UnitName))
-            return BadRequest(new { message = "Mã và tên đơn vị là bắt buộc" });
-        var existing = dto.Id != Guid.Empty ? await _db.LabMeasurementUnits.FindAsync(dto.Id) : null;
-        if (existing == null)
-        {
-            Stamp(dto, true);
-            _db.LabMeasurementUnits.Add(dto);
-        }
-        else
-        {
-            existing.UnitCode = dto.UnitCode;
-            existing.UnitName = dto.UnitName;
-            existing.UnitSymbol = dto.UnitSymbol;
-            existing.Description = dto.Description;
-            existing.SortOrder = dto.SortOrder;
-            existing.IsActive = dto.IsActive;
-            Stamp(existing, false);
-        }
-        await _db.SaveChangesAsync();
-        return Ok(new { id = existing?.Id ?? dto.Id });
-    }
+        => (await _svc.SaveUnitAsync(dto, GetUserId())).ToActionResult();
 
     [HttpDelete("units/{id:guid}")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> DeleteUnit(Guid id)
-    {
-        var e = await _db.LabMeasurementUnits.FindAsync(id);
-        if (e == null) return NotFound();
-        e.IsDeleted = true;
-        await _db.SaveChangesAsync();
-        return NoContent();
-    }
+        => (await _svc.DeleteUnitAsync(id)).ToActionResult();
 
     // =====================
     // 4. LabOrganism (Vi khuẩn)
@@ -209,57 +83,17 @@ public class LisCatalogController : ControllerBase
 
     [HttpGet("organisms")]
     public async Task<IActionResult> GetOrganisms([FromQuery] string? keyword, [FromQuery] string? category)
-    {
-        var q = _db.LabOrganisms.AsQueryable();
-        if (!string.IsNullOrWhiteSpace(category)) q = q.Where(o => o.Category == category);
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            var kw = keyword.Trim();
-            q = q.Where(o => o.OrganismCode.Contains(kw) || o.OrganismName.Contains(kw)
-                || (o.LatinName != null && o.LatinName.Contains(kw)));
-        }
-        return Ok(await q.OrderBy(o => o.SortOrder).ThenBy(o => o.OrganismName).ToListAsync());
-    }
+        => (await _svc.GetOrganismsAsync(keyword, category)).ToActionResult();
 
     [HttpPost("organisms")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> SaveOrganism([FromBody] LabOrganism dto)
-    {
-        if (string.IsNullOrWhiteSpace(dto.OrganismCode) || string.IsNullOrWhiteSpace(dto.OrganismName))
-            return BadRequest(new { message = "Mã và tên vi khuẩn là bắt buộc" });
-        var existing = dto.Id != Guid.Empty ? await _db.LabOrganisms.FindAsync(dto.Id) : null;
-        if (existing == null)
-        {
-            Stamp(dto, true);
-            _db.LabOrganisms.Add(dto);
-        }
-        else
-        {
-            existing.OrganismCode = dto.OrganismCode;
-            existing.OrganismName = dto.OrganismName;
-            existing.LatinName = dto.LatinName;
-            existing.GramType = dto.GramType;
-            existing.MorphologyType = dto.MorphologyType;
-            existing.Category = dto.Category;
-            existing.Notes = dto.Notes;
-            existing.SortOrder = dto.SortOrder;
-            existing.IsActive = dto.IsActive;
-            Stamp(existing, false);
-        }
-        await _db.SaveChangesAsync();
-        return Ok(new { id = existing?.Id ?? dto.Id });
-    }
+        => (await _svc.SaveOrganismAsync(dto, GetUserId())).ToActionResult();
 
     [HttpDelete("organisms/{id:guid}")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> DeleteOrganism(Guid id)
-    {
-        var e = await _db.LabOrganisms.FindAsync(id);
-        if (e == null) return NotFound();
-        e.IsDeleted = true;
-        await _db.SaveChangesAsync();
-        return NoContent();
-    }
+        => (await _svc.DeleteOrganismAsync(id)).ToActionResult();
 
     // =====================
     // 5. LabAntibiotic (Kháng sinh)
@@ -267,59 +101,17 @@ public class LisCatalogController : ControllerBase
 
     [HttpGet("antibiotics")]
     public async Task<IActionResult> GetAntibiotics([FromQuery] string? keyword, [FromQuery] string? drugClass)
-    {
-        var q = _db.LabAntibiotics.AsQueryable();
-        if (!string.IsNullOrWhiteSpace(drugClass)) q = q.Where(a => a.DrugClass == drugClass);
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            var kw = keyword.Trim();
-            q = q.Where(a => a.AntibioticCode.Contains(kw) || a.AntibioticName.Contains(kw)
-                || (a.GenericName != null && a.GenericName.Contains(kw))
-                || (a.AtcCode != null && a.AtcCode.Contains(kw)));
-        }
-        return Ok(await q.OrderBy(a => a.SortOrder).ThenBy(a => a.AntibioticName).ToListAsync());
-    }
+        => (await _svc.GetAntibioticsAsync(keyword, drugClass)).ToActionResult();
 
     [HttpPost("antibiotics")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> SaveAntibiotic([FromBody] LabAntibiotic dto)
-    {
-        if (string.IsNullOrWhiteSpace(dto.AntibioticCode) || string.IsNullOrWhiteSpace(dto.AntibioticName))
-            return BadRequest(new { message = "Mã và tên kháng sinh là bắt buộc" });
-        var existing = dto.Id != Guid.Empty ? await _db.LabAntibiotics.FindAsync(dto.Id) : null;
-        if (existing == null)
-        {
-            Stamp(dto, true);
-            _db.LabAntibiotics.Add(dto);
-        }
-        else
-        {
-            existing.AntibioticCode = dto.AntibioticCode;
-            existing.AntibioticName = dto.AntibioticName;
-            existing.GenericName = dto.GenericName;
-            existing.AtcCode = dto.AtcCode;
-            existing.DrugClass = dto.DrugClass;
-            existing.Route = dto.Route;
-            existing.Notes = dto.Notes;
-            existing.SortOrder = dto.SortOrder;
-            existing.IsRestricted = dto.IsRestricted;
-            existing.IsActive = dto.IsActive;
-            Stamp(existing, false);
-        }
-        await _db.SaveChangesAsync();
-        return Ok(new { id = existing?.Id ?? dto.Id });
-    }
+        => (await _svc.SaveAntibioticAsync(dto, GetUserId())).ToActionResult();
 
     [HttpDelete("antibiotics/{id:guid}")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> DeleteAntibiotic(Guid id)
-    {
-        var e = await _db.LabAntibiotics.FindAsync(id);
-        if (e == null) return NotFound();
-        e.IsDeleted = true;
-        await _db.SaveChangesAsync();
-        return NoContent();
-    }
+        => (await _svc.DeleteAntibioticAsync(id)).ToActionResult();
 
     // =====================
     // 6. LabChemical (Hóa chất tiêu hao theo XN)
@@ -327,68 +119,17 @@ public class LisCatalogController : ControllerBase
 
     [HttpGet("chemicals")]
     public async Task<IActionResult> GetChemicals([FromQuery] Guid? serviceId, [FromQuery] Guid? supplyId)
-    {
-        var q = _db.Set<LabChemical>()
-            .Include(c => c.Service)
-            .Include(c => c.MedicalSupply)
-            .AsQueryable();
-        if (serviceId.HasValue) q = q.Where(c => c.ServiceId == serviceId.Value);
-        if (supplyId.HasValue) q = q.Where(c => c.MedicalSupplyId == supplyId.Value);
-        var list = await q.OrderBy(c => c.ServiceId).Take(500).ToListAsync();
-        return Ok(list.Select(c => new
-        {
-            c.Id,
-            c.ServiceId,
-            ServiceCode = c.Service != null ? c.Service.ServiceCode : null,
-            ServiceName = c.Service != null ? c.Service.ServiceName : null,
-            c.MedicalSupplyId,
-            SupplyCode = c.MedicalSupply != null ? c.MedicalSupply.SupplyCode : null,
-            SupplyName = c.MedicalSupply != null ? c.MedicalSupply.SupplyName : null,
-            c.QuantityPerTest,
-            c.Unit,
-            c.ObjectType,
-            c.IsActive,
-            c.Note,
-        }));
-    }
+        => (await _svc.GetChemicalsAsync(serviceId, supplyId)).ToActionResult();
 
     [HttpPost("chemicals")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> SaveChemical([FromBody] LabChemical dto)
-    {
-        if (dto.ServiceId == Guid.Empty || dto.MedicalSupplyId == Guid.Empty)
-            return BadRequest(new { message = "Phải chọn dịch vụ và vật tư" });
-        var existing = dto.Id != Guid.Empty ? await _db.Set<LabChemical>().FindAsync(dto.Id) : null;
-        if (existing == null)
-        {
-            Stamp(dto, true);
-            _db.Set<LabChemical>().Add(dto);
-        }
-        else
-        {
-            existing.ServiceId = dto.ServiceId;
-            existing.MedicalSupplyId = dto.MedicalSupplyId;
-            existing.QuantityPerTest = dto.QuantityPerTest;
-            existing.Unit = dto.Unit;
-            existing.ObjectType = dto.ObjectType;
-            existing.IsActive = dto.IsActive;
-            existing.Note = dto.Note;
-            Stamp(existing, false);
-        }
-        await _db.SaveChangesAsync();
-        return Ok(new { id = existing?.Id ?? dto.Id });
-    }
+        => (await _svc.SaveChemicalAsync(dto, GetUserId())).ToActionResult();
 
     [HttpDelete("chemicals/{id:guid}")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> DeleteChemical(Guid id)
-    {
-        var e = await _db.Set<LabChemical>().FindAsync(id);
-        if (e == null) return NotFound();
-        e.IsDeleted = true;
-        await _db.SaveChangesAsync();
-        return NoContent();
-    }
+        => (await _svc.DeleteChemicalAsync(id)).ToActionResult();
 
     // =====================
     // 7. LisTestParameter (Chỉ số XN) — G-22 / G-23
@@ -399,103 +140,17 @@ public class LisCatalogController : ControllerBase
         [FromQuery] string? keyword,
         [FromQuery] Guid? groupId,
         [FromQuery] bool? isActive)
-    {
-        var q = _db.LisTestParameters
-            .Include(t => t.Group)
-            .Include(t => t.Service)
-            .Include(t => t.SampleType)
-            .AsQueryable();
-        if (isActive.HasValue) q = q.Where(t => t.IsActive == isActive.Value);
-        if (groupId.HasValue) q = q.Where(t => t.GroupId == groupId.Value);
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            var kw = keyword.Trim();
-            q = q.Where(t => t.Code.Contains(kw) || t.Name.Contains(kw)
-                || (t.Hl7Code != null && t.Hl7Code.Contains(kw)));
-        }
-        var list = await q.OrderBy(t => t.SortOrder).ThenBy(t => t.Code).Take(500).ToListAsync();
-        return Ok(list.Select(t => new
-        {
-            t.Id,
-            t.Code,
-            t.Name,
-            t.Unit,
-            t.PrintUnit,
-            t.Hl7Code,
-            t.GroupId,
-            GroupName = t.Group != null ? t.Group.Name : null,
-            t.ServiceId,
-            ServiceCode = t.Service != null ? t.Service.ServiceCode : null,
-            ServiceName = t.Service != null ? t.Service.ServiceName : null,
-            t.SampleTypeId,
-            SampleTypeName = t.SampleType != null ? t.SampleType.Name : null,
-            t.NormalMinMale,
-            t.NormalMaxMale,
-            t.NormalMinFemale,
-            t.NormalMaxFemale,
-            t.ReferenceLow,
-            t.ReferenceHigh,
-            t.CriticalLow,
-            t.CriticalHigh,
-            t.DataType,
-            t.EnumValues,
-            t.Description,
-            t.SortOrder,
-            t.IsActive,
-        }));
-    }
+        => (await _svc.GetTestsAsync(keyword, groupId, isActive)).ToActionResult();
 
     [HttpPost("tests")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> SaveTest([FromBody] LisTestParameter dto)
-    {
-        if (string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.Name))
-            return BadRequest(new { message = "Mã và tên chỉ số là bắt buộc" });
-        var existing = dto.Id != Guid.Empty ? await _db.LisTestParameters.FindAsync(dto.Id) : null;
-        if (existing == null)
-        {
-            Stamp(dto, true);
-            _db.LisTestParameters.Add(dto);
-        }
-        else
-        {
-            existing.Code = dto.Code;
-            existing.Name = dto.Name;
-            existing.Unit = dto.Unit;
-            existing.Hl7Code = dto.Hl7Code;
-            existing.GroupId = dto.GroupId;
-            existing.ServiceId = dto.ServiceId;
-            existing.NormalMinMale = dto.NormalMinMale;
-            existing.NormalMaxMale = dto.NormalMaxMale;
-            existing.NormalMinFemale = dto.NormalMinFemale;
-            existing.NormalMaxFemale = dto.NormalMaxFemale;
-            existing.ReferenceLow = dto.ReferenceLow;
-            existing.ReferenceHigh = dto.ReferenceHigh;
-            existing.CriticalLow = dto.CriticalLow;
-            existing.CriticalHigh = dto.CriticalHigh;
-            existing.DataType = dto.DataType;
-            existing.EnumValues = dto.EnumValues;
-            existing.SampleTypeId = dto.SampleTypeId;
-            existing.PrintUnit = dto.PrintUnit;
-            existing.Description = dto.Description;
-            existing.SortOrder = dto.SortOrder;
-            existing.IsActive = dto.IsActive;
-            Stamp(existing, false);
-        }
-        await _db.SaveChangesAsync();
-        return Ok(new { id = existing?.Id ?? dto.Id });
-    }
+        => (await _svc.SaveTestAsync(dto, GetUserId())).ToActionResult();
 
     [HttpDelete("tests/{id:guid}")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.LabManager)]
     public async Task<IActionResult> DeleteTest(Guid id)
-    {
-        var e = await _db.LisTestParameters.FindAsync(id);
-        if (e == null) return NotFound();
-        e.IsDeleted = true;
-        await _db.SaveChangesAsync();
-        return NoContent();
-    }
+        => (await _svc.DeleteTestAsync(id)).ToActionResult();
 
     // =====================
     // 8. LabSampleType (Loại bệnh phẩm) — read-only catalog endpoint cho form tests
@@ -503,14 +158,5 @@ public class LisCatalogController : ControllerBase
 
     [HttpGet("sample-types")]
     public async Task<IActionResult> GetSampleTypes([FromQuery] string? keyword, [FromQuery] bool? isActive)
-    {
-        var q = _db.LabSampleTypes.AsQueryable();
-        if (isActive.HasValue) q = q.Where(s => s.IsActive == isActive.Value);
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            var kw = keyword.Trim();
-            q = q.Where(s => s.Code.Contains(kw) || s.Name.Contains(kw));
-        }
-        return Ok(await q.OrderBy(s => s.Code).Select(s => new { s.Id, s.Code, s.Name, s.IsActive }).ToListAsync());
-    }
+        => (await _svc.GetSampleTypesAsync(keyword, isActive)).ToActionResult();
 }

@@ -245,7 +245,46 @@ public static class DependencyInjection
 
         // Wave 2: catalog CLS DB-driven (#40 #64-67), CV365 XML (#88), worker nền
         services.AddScoped<IFunctionalDiagnosticCatalogService, FunctionalDiagnosticCatalogService>();
+        // #202 thin-controller: bỏ DbContext khỏi controller → service (điều phối CĐHA + catalog RIS/LIS + VPP + hồ sơ NV)
+        services.AddScoped<IRadiologyDispatchService, RadiologyDispatchService>();
+        services.AddScoped<IRisCatalogService, RisCatalogService>();
+        services.AddScoped<ILisCatalogService, LisCatalogService>();
+        services.AddScoped<IOfficeSupplyService, OfficeSupplyService>();
+        services.AddScoped<IEmployeeProfileService, EmployeeProfileService>();
+        // #202 thin-controller sweep Tier-S (18 controller CRUD/report bỏ DbContext → service)
+        services.AddScoped<IBhxhConfigService, BhxhConfigService>();
+        services.AddScoped<IClinicalNarrativeService, ClinicalNarrativeService>();
+        services.AddScoped<IConsultationRegisterService, ConsultationRegisterService>();
+        services.AddScoped<IDoctorLicenseService, DoctorLicenseService>();
+        services.AddScoped<ILabCancelChainService, LabCancelChainService>();
+        services.AddScoped<ILabResultEvaluationService, LabResultEvaluationService>();
+        services.AddScoped<INonDicomService, NonDicomService>();
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IObservationStayService, ObservationStayService>();
+        services.AddScoped<ISampleBatchService, SampleBatchService>();
+        services.AddScoped<ISampleCollectionService, SampleCollectionService>();
+        services.AddScoped<ISampleReceiveService, SampleReceiveService>();
+        services.AddScoped<ISatisfactionSurveyService, SatisfactionSurveyService>();
+        services.AddScoped<IServiceVolumeReportService, ServiceVolumeReportService>();
+        services.AddScoped<ISpecimenImageService, SpecimenImageService>();
+        services.AddScoped<IStudyShareService, StudyShareService>();
+        services.AddScoped<IVideoConsultationService, VideoConsultationService>();
+        services.AddScoped<IWorkloadReportService, WorkloadReportService>();
         services.AddScoped<ICv365XmlService, Cv365XmlService>();
+        // #202 thin-controller sweep Tier-G (13 controller guardrail money/kho/patient-safety/AI bỏ DbContext → service)
+        services.AddScoped<IStockLedgerReportService, StockLedgerReportService>();
+        services.AddScoped<IPatientFlagService, PatientFlagService>();
+        services.AddScoped<IServiceRefundService, ServiceRefundService>();
+        services.AddScoped<IClinicalPharmacyService, ClinicalPharmacyService>();
+        services.AddScoped<IRadiologyOperationsService, RadiologyOperationsService>();
+        services.AddScoped<IReceiptBookService, ReceiptBookService>();
+        services.AddScoped<IPharmacyEnhancementService, PharmacyEnhancementService>();
+        services.AddScoped<IFrontendCompatService, FrontendCompatService>();
+        services.AddScoped<IStockReportService, StockReportService>();
+        services.AddScoped<IInpatientDispensingService, InpatientDispensingService>();
+        services.AddScoped<IWriteGapService, WriteGapService>();
+        services.AddScoped<IPaymentReportsService, PaymentReportsService>();
+        services.AddScoped<IAiLabelingService, AiLabelingService>();
         services.AddHostedService<HIS.Infrastructure.Services.Workers.BackupSchedulerWorker>(); // #128
         services.AddHostedService<HIS.Infrastructure.Services.Workers.AppointmentReminderWorker>(); // #102
 

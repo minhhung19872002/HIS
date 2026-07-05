@@ -1,11 +1,11 @@
 using System.Security.Claims;
+using HIS.API.Extensions;
+using HIS.Application.DTOs.ReceiptBook;
+using HIS.Application.Interfaces;
 using HIS.Core.Constants;
 using HIS.Core.Entities;
-using HIS.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using HIS.API.Dtos.ReceiptBook;
 
 namespace HIS.API.Controllers;
 
@@ -17,8 +17,8 @@ namespace HIS.API.Controllers;
 [Authorize]
 public class ReceiptBookController : ControllerBase
 {
-    private readonly HISDbContext _db;
-    public ReceiptBookController(HISDbContext db) { _db = db; }
+    private readonly IReceiptBookService _svc;
+    public ReceiptBookController(IReceiptBookService svc) { _svc = svc; }
 
     private Guid GetUserId() =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
@@ -29,168 +29,34 @@ public class ReceiptBookController : ControllerBase
         [FromQuery] int? receiptType,
         [FromQuery] int? status,
         [FromQuery] int? fiscalYear)
-    {
-        var q = _db.ReceiptBooks.Include(b => b.Department).AsQueryable();
-        if (receiptType.HasValue) q = q.Where(b => b.ReceiptType == receiptType.Value);
-        if (status.HasValue) q = q.Where(b => b.Status == status.Value);
-        if (fiscalYear.HasValue) q = q.Where(b => b.FiscalYear == fiscalYear.Value);
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            var kw = keyword.Trim();
-            q = q.Where(b => b.BookCode.Contains(kw) || b.BookName.Contains(kw)
-                || (b.Series != null && b.Series.Contains(kw))
-                || (b.RegistrationNumber != null && b.RegistrationNumber.Contains(kw)));
-        }
-        var list = await q.OrderByDescending(b => b.FiscalYear).ThenBy(b => b.BookCode).ToListAsync();
-        return Ok(list.Select(b => new
-        {
-            b.Id, b.BookCode, b.BookName, b.ReceiptType,
-            b.Series, b.TemplateCode,
-            b.StartNumber, b.EndNumber, b.CurrentNumber,
-            Remaining = b.EndNumber - b.CurrentNumber + 1,
-            Used = b.CurrentNumber - b.StartNumber,
-            b.FiscalYear, b.IssueDate, b.RegisteredDate, b.RegistrationNumber,
-            b.Status, b.ClosedDate, b.ClosedReason,
-            DepartmentName = b.Department != null ? b.Department.DepartmentName : null,
-            b.DepartmentId, b.CashierId,
-            b.Notes, b.CollectionReason, b.IsActive,
-        }));
-    }
+        => (await _svc.SearchAsync(keyword, receiptType, status, fiscalYear)).ToActionResult();
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
-    {
-        var b = await _db.ReceiptBooks.Include(x => x.Department).FirstOrDefaultAsync(x => x.Id == id);
-        return b == null ? NotFound() : Ok(b);
-    }
+        => (await _svc.GetByIdAsync(id)).ToActionResult();
 
     [HttpPost]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<IActionResult> Save([FromBody] ReceiptBook dto)
-    {
-        if (string.IsNullOrWhiteSpace(dto.BookCode) || string.IsNullOrWhiteSpace(dto.BookName))
-            return BadRequest(new { message = "Mã và tên sổ là bắt buộc" });
-        if (dto.StartNumber <= 0 || dto.EndNumber < dto.StartNumber)
-            return BadRequest(new { message = "Dải số bắt đầu/kết thúc không hợp lệ" });
-
-        var uid = GetUserId();
-        var existing = dto.Id != Guid.Empty ? await _db.ReceiptBooks.FindAsync(dto.Id) : null;
-        if (existing == null)
-        {
-            dto.Id = Guid.NewGuid();
-            dto.IsDeleted = false;
-            if (dto.CurrentNumber <= 0) dto.CurrentNumber = dto.StartNumber;
-            dto.CreatedAt = DateTime.Now;
-            dto.CreatedBy = uid.ToString();
-            _db.ReceiptBooks.Add(dto);
-        }
-        else
-        {
-            existing.BookCode = dto.BookCode;
-            existing.BookName = dto.BookName;
-            existing.ReceiptType = dto.ReceiptType;
-            existing.Series = dto.Series;
-            existing.TemplateCode = dto.TemplateCode;
-            existing.StartNumber = dto.StartNumber;
-            existing.EndNumber = dto.EndNumber;
-            existing.CurrentNumber = dto.CurrentNumber > 0 ? dto.CurrentNumber : existing.CurrentNumber;
-            existing.FiscalYear = dto.FiscalYear;
-            existing.IssueDate = dto.IssueDate;
-            existing.RegisteredDate = dto.RegisteredDate;
-            existing.RegistrationNumber = dto.RegistrationNumber;
-            existing.Status = dto.Status;
-            existing.ClosedDate = dto.ClosedDate;
-            existing.ClosedReason = dto.ClosedReason;
-            existing.DepartmentId = dto.DepartmentId;
-            existing.CashierId = dto.CashierId;
-            existing.Notes = dto.Notes;
-            existing.CollectionReason = dto.CollectionReason;
-            existing.IsActive = dto.IsActive;
-            existing.UpdatedAt = DateTime.Now;
-            existing.UpdatedBy = uid.ToString();
-        }
-        await _db.SaveChangesAsync();
-        return Ok(new { id = existing?.Id ?? dto.Id });
-    }
+        => (await _svc.SaveAsync(dto, GetUserId())).ToActionResult();
 
     [HttpPost("{id:guid}/close")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<IActionResult> Close(Guid id, [FromBody] CloseDto dto)
-    {
-        var b = await _db.ReceiptBooks.FindAsync(id);
-        if (b == null) return NotFound();
-        b.Status = 2;
-        b.ClosedDate = DateTime.Now;
-        b.ClosedReason = dto.Reason;
-        b.UpdatedAt = DateTime.Now;
-        b.UpdatedBy = GetUserId().ToString();
-        await _db.SaveChangesAsync();
-        return Ok(new { b.Id, b.Status });
-    }
+        => (await _svc.CloseAsync(id, dto, GetUserId())).ToActionResult();
 
     [HttpPost("{id:guid}/activate")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
     public async Task<IActionResult> Activate(Guid id)
-    {
-        var b = await _db.ReceiptBooks.FindAsync(id);
-        if (b == null) return NotFound();
-        b.Status = 1;
-        b.UpdatedAt = DateTime.Now;
-        b.UpdatedBy = GetUserId().ToString();
-        await _db.SaveChangesAsync();
-        return Ok(new { b.Id, b.Status });
-    }
+        => (await _svc.ActivateAsync(id, GetUserId())).ToActionResult();
 
     [HttpPost("{id:guid}/next-number")]
     [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant + "," + RoleNames.Cashier)]
     public async Task<IActionResult> NextNumber(Guid id)
-    {
-        await using var tx = await _db.Database.BeginTransactionAsync();
-        try
-        {
-            var b = await _db.ReceiptBooks
-                .FromSqlRaw("SELECT * FROM ReceiptBooks WITH (UPDLOCK, ROWLOCK) WHERE Id = {0}", id)
-                .FirstOrDefaultAsync();
-            if (b == null) { await tx.RollbackAsync(); return NotFound(); }
-            if (b.Status != 1)
-                return BadRequest(new { message = "Sổ biên lai chưa được kích hoạt" });
-            if (b.CurrentNumber > b.EndNumber)
-                return BadRequest(new { message = "Sổ biên lai đã hết số — vui lòng đóng sổ và mở sổ mới" });
-
-            var number = b.CurrentNumber;
-            b.CurrentNumber++;
-            b.UpdatedAt = DateTime.Now;
-            b.UpdatedBy = GetUserId().ToString();
-            await _db.SaveChangesAsync();
-            await tx.CommitAsync();
-
-            return Ok(new
-            {
-                receiptBookId = b.Id,
-                series = b.Series,
-                number,
-                formatted = $"{b.Series}{number:D7}",
-                remaining = b.EndNumber - b.CurrentNumber + 1,
-            });
-        }
-        catch
-        {
-            await tx.RollbackAsync();
-            throw;
-        }
-    }
+        => (await _svc.NextNumberAsync(id, GetUserId())).ToActionResult();
 
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = RoleNames.Admin)]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var b = await _db.ReceiptBooks.FindAsync(id);
-        if (b == null) return NotFound();
-        if (b.CurrentNumber > b.StartNumber)
-            return BadRequest(new { message = "Sổ đã có phát hành — không thể xóa, nhấn Đóng sổ." });
-        b.IsDeleted = true;
-        await _db.SaveChangesAsync();
-        return NoContent();
-    }
-
+        => (await _svc.DeleteAsync(id)).ToActionResult();
 }

@@ -1,10 +1,10 @@
 using HIS.Application.DTOs.Examination;
 using HIS.Core.Constants;
 using HIS.Application.Services;
-using HIS.Infrastructure.Data;
+using HIS.API.Extensions;
+using HIS.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace HIS.API.Controllers;
 
@@ -17,127 +17,18 @@ namespace HIS.API.Controllers;
 [Authorize]
 public class ClinicalPharmacyController : ControllerBase
 {
-    private readonly HISDbContext _db;
+    private readonly IClinicalPharmacyService _svc;
     private readonly IExaminationCompleteService _examinationService;
 
-    public ClinicalPharmacyController(HISDbContext db, IExaminationCompleteService examinationService)
+    public ClinicalPharmacyController(IClinicalPharmacyService svc, IExaminationCompleteService examinationService)
     {
-        _db = db;
+        _svc = svc;
         _examinationService = examinationService;
     }
 
     [HttpGet("patient-summary/{patientId:guid}")]
     public async Task<IActionResult> PatientSummary(Guid patientId)
-    {
-        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.Id == patientId);
-        if (patient == null) return NotFound();
-
-        var records = await _db.MedicalRecords
-            .Where(m => m.PatientId == patientId && !m.IsDeleted)
-            .OrderByDescending(m => m.AdmissionDate)
-            .Take(5)
-            .ToListAsync();
-        var recordIds = records.Select(r => r.Id).ToList();
-
-        var prescriptions = await _db.Prescriptions
-            .Include(p => p.Details).ThenInclude(d => d.Medicine)
-            .Where(p => recordIds.Contains(p.MedicalRecordId))
-            .OrderByDescending(p => p.CreatedAt)
-            .Take(20)
-            .ToListAsync();
-
-        var services = await _db.ServiceRequestDetails
-            .Include(d => d.Service)
-            .Include(d => d.ServiceRequest)
-            .Where(d => recordIds.Contains(d.ServiceRequest.MedicalRecordId))
-            .OrderByDescending(d => d.CreatedAt)
-            .Take(30)
-            .ToListAsync();
-
-        // Dị ứng từ patient record
-        var flags = await _db.PatientFlags
-            .Where(f => f.PatientId == patientId && f.IsActive)
-            .ToListAsync();
-
-        // Tương tác thuốc sơ bộ: tìm cặp thuốc cùng đang dùng có trong DrugInteractions
-        var activeMedicineIds = prescriptions
-            .Where(p => !p.IsDispensed)
-            .SelectMany(p => p.Details)
-            .Select(d => d.MedicineId)
-            .Distinct()
-            .ToList();
-        var interactions = await _db.DrugInteractions
-            .Where(di => activeMedicineIds.Contains(di.Medicine1Id) && activeMedicineIds.Contains(di.Medicine2Id))
-            .ToListAsync();
-
-        return Ok(new
-        {
-            patient = new
-            {
-                patient.Id,
-                patient.PatientCode,
-                patient.FullName,
-                patient.Gender,
-                patient.DateOfBirth,
-                patient.PhoneNumber,
-                patient.Address,
-                patient.InsuranceNumber,
-            },
-            activeMedicalRecords = records.Select(r => new
-            {
-                r.Id,
-                r.MedicalRecordCode,
-                r.AdmissionDate,
-                r.MainDiagnosis,
-                r.PatientType,
-            }),
-            prescriptions = prescriptions.Select(p => new
-            {
-                p.Id,
-                p.PrescriptionCode,
-                p.PrescriptionDate,
-                p.PrescriptionType,
-                p.TotalAmount,
-                p.IsDispensed,
-                items = p.Details.Select(d => new
-                {
-                    d.Id,
-                    MedicineName = d.Medicine.MedicineName,
-                    MedicineCode = d.Medicine.MedicineCode,
-                    d.Quantity,
-                    d.Dosage,
-                    d.Days,
-                    d.UsageInstructions,
-                }),
-            }),
-            services = services.Select(d => new
-            {
-                ServiceName = d.Service.ServiceName,
-                d.Amount,
-                d.Status,
-                d.Result,
-                d.CreatedAt,
-            }),
-            flags = flags.Select(f => new { f.Id, f.FlagType, f.Color, f.Note }),
-            interactions = interactions.Select(i => new
-            {
-                i.Id,
-                i.Medicine1Id,
-                i.Medicine2Id,
-                i.Severity,
-                i.Description,
-                Management = i.Recommendation,
-            }),
-            summary = new
-            {
-                totalActiveMedicines = activeMedicineIds.Count,
-                totalPrescriptions = prescriptions.Count,
-                totalServices = services.Count,
-                warningFlagsCount = flags.Count,
-                drugInteractionsCount = interactions.Count,
-            },
-        });
-    }
+        => (await _svc.PatientSummaryAsync(patientId)).ToActionResult();
 
     /// <summary>
     /// Import danh sach cap tuong tac thuoc tu file CSV.
