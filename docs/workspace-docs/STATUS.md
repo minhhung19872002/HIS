@@ -1,17 +1,35 @@
-﻿# STATUS — đang ở đâu · blocker · việc kế tiếp
+# STATUS — đang ở đâu · blocker · việc kế tiếp
 
 > 🔗 **Task board = GitHub Issues** (`minhhung19872002/HIS`): `gh issue list`. File này CHỈ giữ
 > **session-state NGẮN cho hook** — KHÔNG ghi backlog/plan/lịch sử dài. Quy tắc giữ-ngắn + vòng đời
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-04**.
+> Cập nhật cuối: **2026-07-05** — push docs layout-architecture (8 file) + đánh giá RBAC redesign lên origin/main (cửa docs-push); dedup 13 issue trùng #388–#400 (đã đóng, trỏ về #374–#386 của cửa layout).
 
-## Phiên 2026-07-04 (cửa #205→#201 — #201 CLOSED: wave cuối ExtendedServiceImplementations, worktree cô lập)
-- **#201 [REFAC-2] WAVE CUỐI + CLOSE** [HARD tech-debt, pushed]: tách `HIS.Application/Services/ExtendedServiceImplementations.cs` (2487 dòng, 10 class Luồng 11-20) → **10 file/1 class** (Telemedicine·ClinicalNutrition·InfectionControl·Rehabilitation·MedicalEquipment·MedicalHR·QualityManagement·PatientPortal·HealthExchange·MassCasualty, 199-338 dòng/file). Đo lại 8 file đích danh issue: 7 file đã Part1-N <800 từ wave trước (`a50123a`), NangCap23Services đã xóa/split — Extended là mảnh cuối. **DI không đổi** (class name giữ nguyên — không đụng `DependencyInjection.cs` đang dirty của cửa #202).
-- **Verify:** cắt sed byte-exact + **tái dựng 10 file → diff == blob HEAD gốc: BYTE-IDENTICAL**; `dotnet build HIS.sln` trong **worktree cô lập** `d:/tmp/his-wt-201` (né code dở cửa #202) = **0 error**. Acceptance #201 (mỗi service đích danh <800) = ĐỦ.
-- **Scope-overlap transfer trước close:** phần logic-changing → **#363** (BusinessAlert threshold→config + HospitalReport switch→registry, cần deploy+smoke); god-file >800 NGOÀI scope đích danh (~25 file: BloodBank 1735·Supplementary 1699·RIS Core8x 1691·EmrManagement 1572·Fhir 1500...) → **#364** wave-3.
-- Cùng phiên: **#205 CLOSED** (`00dccaa` — 4 god-component FE + verify 4-lens PASS; Phase-2 OpdEditor → #362). TEST làm CUỐI.
+## Phiên 2026-07-05 (cửa layout-docs-push — commit+push docs research, dedup issue, ✅ DONE)
+- **Push docs** [ops-doc, user duyệt]: commit `docs/architecture/layout-architecture/` (8 file: README + 6 chương + roadmap) + `docs/workspace-docs/10-assessment/danh-gia-phan-quyen-rbac-redesign.md` (449 dòng) → origin/main. KHÔNG đụng: `anonymous-surface-whitelist.md` (của cửa #366 đang active) · REGISTRY/SKILL-MAP staged (stash dead-window, cần review) · `.obsidian`/`.continue`/test.txt.
+- **⚠️ Sự cố dedup:** cửa này tạo 13 issue layout theo roadmap ĐÚNG LÚC cửa layout-arch cũng tạo bộ #374–#386+epic #387 (số khớp docs) → 13 bản của cửa này thành #388–#400 TRÙNG → **đã đóng cả 13** (not-planned, comment trỏ issue gốc). Bài học: check `gh issue list` NGAY TRƯỚC create, không dựa snapshot cũ trong phiên.
+- Đầu phiên đã force-release lock `202` stale 35h — cửa 202 còn sống, đã tự re-claim (23:12). Không ảnh hưởng.
+
+## Phiên 2026-07-05 (cửa này — #366 AUTHZ-0 P0, BUILD 0 ERROR, CHỜ push+smoke)
+- **#366 AUTHZ-0 [P0]** [security-fix, build-green, CHỜ push]: (a) `FrontendCompatController` bỏ `[AllowAnonymous]` → fallback RequireAuth phủ; (b) `Users` + migration `100_lockout_columns.sql` (FailedLoginCount INT DEFAULT 0 + LockoutEndAt DATETIME2 NULL); lockout lũy tiến ≥5→5' ≥10→10' ≥15→20' ≥20→30' trong `AuthService.LoginAsync`; (c) rate-limit 10 req/min `[EnableRateLimiting("login")]` trên AuthController + `AddRateLimiter` Program.cs; (d) whitelist `anonymous-surface-whitelist.md` rà 50+ điểm anonymous. `dotnet build HIS.API` → **0 error**.
+- **Stash WIP orphan:** 3 stash (patientportal thin, examinationcomplete controllers/service) từ dead windows — `git stash list` để recover. `.claude/REGISTRY.md`+`SKILL-MAP.md` staged từ stash@{1} dead window (governance changes — cần review trước commit).
+
+## Phiên 2026-07-05 (cửa layout-arch — NGHIÊN CỨU Layout Architecture → epic #387 + 14 issues #373-#386)
+- **Research-only** (user chỉ đạo: "chỉ nghiên cứu, không code"): khảo sát TerminalLayout 959 dòng, App.tsx 834 dòng, RBAC 0 FE caller, 156 trang v2, 18 vai nhân viên 100–1.000 người.
+- **Kiến trúc chốt:** 1 shell TerminalLayout + Module Registry (`src/app/module-registry.ts`) + 3-layer permission (menu→route→button) + custom can()/Can, không CASL.
+- **P0 phát hiện:** (a) ErrorBoundary v2 bị thiếu → crash toàn shell; (b) Race condition đổi BN nhanh trong OpdEditor → data BN-A ghi vào BN-B (patient safety).
+- **Tài liệu tạo:** `docs/architecture/layout-architecture/` (7 file: README + 01-hien-trang + 02-layout + 03-permission + 04-routing + 05-navigation-ux + 06-theme-perf-security + 07-roadmap)
+- **Issues tạo:** epic **#387** + **#373** P0-ErrorBoundary · **#374** P0-race-condition · **#375** Module Registry · **#376** Shell split · **#377** Guards · **#378** Permission codes · **#379** Dashboard · **#380** Notification · **#381** Dark mode · **#382** Command Palette · **#383** Idle lock · **#384** Concurrent login · **#385** Break-glass · **#386** Perf.
+- **Phối hợp:** #378 cần RBAC epic #372/#367 xong trước; #373–#377 chạy song song RBAC.
+- **Không đụng code/git-ops**; cây dirty của các cửa khác giữ nguyên.
+
+## Phiên 2026-07-05 (cửa này — NGHIÊN CỨU thiết kế lại phân quyền → epic #372 + 6 issue, KHÔNG code theo yêu cầu user)
+- **Research-only** (user chỉ đạo: "chỉ nghiên cứu rồi tạo vấn đề, không code ngay"): quét hiện trạng AuthN/AuthZ (agent Explore, có bằng chứng path:line) → thiết kế 12 bước (actor/module/permission/role/matrix/rule đặc biệt/audit/DB/kiến trúc/rủi ro) → **doc đầy đủ `10-assessment/danh-gia-phan-quyen-rbac-redesign.md`** (UNCOMMITTED — push khi user duyệt batch).
+- **Kiến trúc chốt:** 4 lớp native ASP.NET Core (L1 permission `Resource.Action` + RequirePermission/policy-provider/cache · L2 scope OWN/DEPT/BRANCH/ORG trên lượt gán · L3 ABAC policy-as-code [quan hệ điều trị/SoD/break-glass/delegation] · L4 DTO field-masking) — KHÔNG OPA/Casbin (phản biện trong doc); multi-org DEFER.
+- **Issues tạo:** epic **#372** + **#366** AUTHZ-0 P0 vá bề mặt hở (FrontendCompat anonymous + lockout + rà AllowAnonymous) · **#367** AUTHZ-1 permission enforcement lõi · **#368** AUTHZ-2 refresh/SecurityStamp · **#369** AUTHZ-3 scope/BranchId/treatment-relationship/field-masking · **#370** AUTHZ-4 SoD/delegation/break-glass/temporary · **#371** AUTHZ-5 audit pipeline+retention. Body tự chứa (máy khác làm không cần doc local). #366 phối hợp #202 (FrontendCompat vừa thin). Test ma trận quyền #344/#216 làm CUỐI.
+- **Không đụng code/git-ops**; cây dirty 171 file của các cửa khác giữ nguyên.
 
 ## Phiên 2026-07-04 (cửa này — #361 DONE + PUSHED `eade0b5` → origin/main)
 - **#361 feat(lis): port Microbiology antibiogram data-entry UI to v2** [feature, ✅ CLOSED]: thêm `AddOrganismModal` + `AntibiogramModal` vào `pages-v2/Microbiology.tsx`. Wire "Thêm vi khuẩn" button vào DrawerShell footer + "Kháng sinh đồ" button per organism. tsc -b EXIT 0, npm run build EXIT 0. Commit `eade0b5`, Closes #361.
