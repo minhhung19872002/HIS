@@ -954,5 +954,81 @@ th {{ background: #f0f0f0; text-align: center; }}
         AnsweredBy = e.AnsweredBy ?? "", AnsweredByName = e.AnsweredByName ?? "",
         Answer = e.Answer ?? "", AnsweredAt = e.AnsweredAt, IsPublic = e.IsPublic, CreatedAt = e.CreatedAt
     };
+
+    // ── Issue #202: DB-touching logic moved from PatientPortalController ─────────
+
+    public async Task<PortalAuthResultDto> AuthenticatePortalAsync(string identifier, string password)
+    {
+        var ident = (identifier ?? "").Trim();
+        var account = await _context.PortalAccounts
+            .FirstOrDefaultAsync(a => !a.IsDeleted && (a.Username == ident || a.Email == ident || a.Phone == ident));
+        if (account == null)
+            return new PortalAuthResultDto { Success = false, Message = "Tài khoản hoặc mật khẩu không đúng" };
+
+        if (account.LockedUntil.HasValue && account.LockedUntil.Value > DateTime.UtcNow)
+            return new PortalAuthResultDto { Success = false, Message = "Tài khoản đang bị khóa tạm thời, thử lại sau" };
+
+        bool valid;
+        try { valid = BCrypt.Net.BCrypt.Verify(password, account.PasswordHash); }
+        catch { valid = false; }
+        if (!valid)
+        {
+            account.FailedLoginAttempts++;
+            if (account.FailedLoginAttempts >= 5)
+            {
+                account.LockedUntil = DateTime.UtcNow.AddMinutes(15);
+                account.FailedLoginAttempts = 0;
+            }
+            await _context.SaveChangesAsync();
+            return new PortalAuthResultDto { Success = false, Message = "Tài khoản hoặc mật khẩu không đúng" };
+        }
+
+        if (!string.Equals(account.Status, "Active", StringComparison.OrdinalIgnoreCase))
+            return new PortalAuthResultDto { Success = false, Message = "Tài khoản chưa kích hoạt hoặc đang bị tạm ngưng" };
+        if (!account.PatientId.HasValue || account.PatientId.Value == Guid.Empty)
+            return new PortalAuthResultDto { Success = false, Message = "Tài khoản chưa liên kết hồ sơ bệnh nhân" };
+
+        account.LastLoginAt = DateTime.UtcNow;
+        account.FailedLoginAttempts = 0;
+        account.LockedUntil = null;
+        await _context.SaveChangesAsync();
+
+        return new PortalAuthResultDto
+        {
+            Success = true,
+            Message = "Đăng nhập thành công",
+            AccountId = account.Id,
+            PatientId = account.PatientId.Value,
+            Username = account.Username,
+        };
+    }
+
+    public async Task<object> GetPortalDoctorsAsync()
+        => await _context.Users.Where(u => u.IsActive && u.UserType == 1)
+            .Select(u => new { u.Id, u.FullName, title = u.Title, specialty = u.Specialty })
+            .Take(20).ToListAsync();
+
+    public async Task<object> GetPortalDepartmentsAsync()
+        => await _context.Departments.Where(d => d.IsActive)
+            .Select(d => new { d.Id, d.DepartmentCode, d.DepartmentName })
+            .Take(30).ToListAsync();
+
+    public Task<bool> IsFamilyMemberOwnedByAccountAsync(Guid id, Guid accountId)
+        => _context.FamilyMembers.AnyAsync(x => x.Id == id && x.AccountId == accountId);
+
+    public Task<bool> IsMedicineReminderOwnedByAccountAsync(Guid id, Guid accountId)
+        => _context.MedicineReminders.AnyAsync(x => x.Id == id && x.AccountId == accountId);
+
+    public Task<bool> IsHealthMetricOwnedByAccountAsync(Guid id, Guid accountId)
+        => _context.HealthMetrics.AnyAsync(x => x.Id == id && x.AccountId == accountId);
+
+    public Task<bool> IsPatientQuestionOwnedByAccountAsync(Guid id, Guid accountId)
+        => _context.PatientQuestions.AnyAsync(x => x.Id == id && x.AccountId == accountId);
+
+    public Task<bool> IsPrescriptionOwnedByPatientAsync(Guid prescriptionId, Guid patientId)
+        => (from p in _context.Prescriptions
+            join mr in _context.MedicalRecords on p.MedicalRecordId equals mr.Id
+            where p.Id == prescriptionId && mr.PatientId == patientId
+            select p.Id).AnyAsync();
 }
 #endregion

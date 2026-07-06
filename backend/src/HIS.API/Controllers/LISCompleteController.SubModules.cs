@@ -371,51 +371,32 @@ namespace HIS.API.Controllers
     [HttpPost("sample-storage/store")]
     public async Task<IActionResult> StoreSample([FromBody] StoreSampleRequest dto)
     {
-        var item = await _context.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
-        if (item == null) return NotFound(ApiResponse.Fail("Mẫu không tồn tại"));
-        item.SampleLocation = dto.Location;
-        item.UpdatedAt = DateTime.Now;
-        item.UpdatedBy = GetUserId().ToString();
-        await _context.SaveChangesAsync();
+        var ok = await _lisService.StoreSampleAsync(dto.SampleId, dto.Location, GetUserId());
+        if (!ok) return NotFound(ApiResponse.Fail("Mẫu không tồn tại"));
         return Ok(new { message = $"Đã lưu trữ mẫu tại {dto.Location}" });
     }
 
     [HttpPost("sample-storage/retrieve")]
     public async Task<IActionResult> RetrieveSample([FromBody] RetrieveSampleRequest dto)
     {
-        var item = await _context.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
-        if (item == null) return NotFound(ApiResponse.Fail("Mẫu không tồn tại"));
-        item.SampleLocation = null;
-        item.UpdatedAt = DateTime.Now;
-        item.UpdatedBy = GetUserId().ToString();
-        await _context.SaveChangesAsync();
+        var ok = await _lisService.RetrieveSampleAsync(dto.SampleId, GetUserId());
+        if (!ok) return NotFound(ApiResponse.Fail("Mẫu không tồn tại"));
         return Ok(new { message = "Đã lấy mẫu ra khỏi kho" });
     }
 
     [HttpPost("sample-tracking/reject")]
     public async Task<IActionResult> RejectSample([FromBody] RejectSampleRequest dto)
     {
-        var item = await _context.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
-        if (item == null) return NotFound();
-        // Cùng ngữ nghĩa SampleReceiveController.Reject: ReceiveStatus=2 + lý do
-        item.ReceiveStatus = 2;
-        item.RejectReason = dto.Reason;
-        item.UpdatedAt = DateTime.Now;
-        item.UpdatedBy = GetUserId().ToString();
-        await _context.SaveChangesAsync();
+        var ok = await _lisService.RejectSampleAsync(dto.SampleId, dto.Reason, GetUserId());
+        if (!ok) return NotFound();
         return Ok();
     }
 
     [HttpPost("sample-tracking/undo-reject")]
     public async Task<IActionResult> UndoRejectSample([FromBody] UndoRejectRequest dto)
     {
-        var item = await _context.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == dto.SampleId && !i.IsDeleted);
-        if (item == null) return NotFound();
-        item.ReceiveStatus = 1; // về trạng thái đã nhận mẫu
-        item.RejectReason = null;
-        item.UpdatedAt = DateTime.Now;
-        item.UpdatedBy = GetUserId().ToString();
-        await _context.SaveChangesAsync();
+        var ok = await _lisService.UndoRejectSampleAsync(dto.SampleId, GetUserId());
+        if (!ok) return NotFound();
         return Ok();
     }
 

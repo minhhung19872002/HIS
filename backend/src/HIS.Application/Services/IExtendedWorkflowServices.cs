@@ -478,6 +478,24 @@ namespace HIS.Application.Services
         Task<PatientQuestionDto> CreatePatientQuestionAsync(CreatePatientQuestionDto dto);
         Task<PatientQuestionDto> GetQuestionByIdAsync(Guid id);
         Task<PatientQuestionDto> AnswerPatientQuestionAsync(Guid id, AnswerPatientQuestionDto dto);
+
+        // Issue #202: bỏ HISDbContext khỏi PatientPortalController → service layer.
+        /// <summary>R2: xác thực BN tự đăng nhập (BCrypt + lockout 5 lần/15 phút). JWT gen vẫn ở controller.</summary>
+        Task<PortalAuthResultDto> AuthenticatePortalAsync(string identifier, string password);
+        /// <summary>Danh sách bác sĩ cho form đặt lịch (UserType=1, active, tối đa 20).</summary>
+        Task<object> GetPortalDoctorsAsync();
+        /// <summary>Danh sách khoa active cho form đặt lịch (tối đa 30).</summary>
+        Task<object> GetPortalDepartmentsAsync();
+        /// <summary>R2 ownership: FamilyMember thuộc account? (chặn IDOR).</summary>
+        Task<bool> IsFamilyMemberOwnedByAccountAsync(Guid id, Guid accountId);
+        /// <summary>R2 ownership: MedicineReminder thuộc account?</summary>
+        Task<bool> IsMedicineReminderOwnedByAccountAsync(Guid id, Guid accountId);
+        /// <summary>R2 ownership: HealthMetric thuộc account?</summary>
+        Task<bool> IsHealthMetricOwnedByAccountAsync(Guid id, Guid accountId);
+        /// <summary>R2 ownership: PatientQuestion thuộc account?</summary>
+        Task<bool> IsPatientQuestionOwnedByAccountAsync(Guid id, Guid accountId);
+        /// <summary>R2 ownership: đơn thuốc (đơn→HSBA→PatientId) thuộc BN?</summary>
+        Task<bool> IsPrescriptionOwnedByPatientAsync(Guid prescriptionId, Guid patientId);
     }
 
     #endregion

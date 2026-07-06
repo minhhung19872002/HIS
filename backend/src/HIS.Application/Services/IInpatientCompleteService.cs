@@ -896,4 +896,23 @@ public interface IInpatientCompleteService
     Task<InpatientServiceRequestItemDto> UpdateServiceRequestPaymentTypeAsync(Guid serviceRequestId, UpdateServiceRequestPaymentTypeDto dto, Guid userId);
 
     #endregion
+
+    #region Operations (Issue #202 — moved from InpatientCompleteController.Operations.cs)
+
+    /// <summary>Tạo biên bản bàn giao ca trực. Trả về Id của biên bản mới.</summary>
+    Task<Guid> CreateShiftHandoverAsync(CreateShiftHandoverRequest request, Guid userId);
+
+    /// <summary>Danh sách biên bản bàn giao theo khoa + khoảng ngày (tối đa 100).</summary>
+    Task<object> GetShiftHandoversAsync(Guid? departmentId, DateTime? fromDate, DateTime? toDate);
+
+    /// <summary>Xác nhận bàn giao (ĐD nhận ca ký). false = không tìm thấy biên bản.</summary>
+    Task<bool> AcknowledgeShiftHandoverAsync(Guid id, Guid userId);
+
+    /// <summary>Danh sách hồ sơ lưu trữ (medical-record-archive) có phân trang.</summary>
+    Task<object> GetMedicalRecordArchiveListAsync(string? keyword, string? format, DateTime? fromDate, DateTime? toDate, int? status, int pageIndex, int pageSize);
+
+    /// <summary>Dashboard tổng hợp kho lưu trữ hồ sơ.</summary>
+    Task<object> GetMedicalRecordArchiveSummaryAsync();
+
+    #endregion
 }

@@ -1,6 +1,20 @@
 namespace HIS.Application.DTOs.Inpatient;
 
 
+/// <summary>Request tạo biên bản bàn giao ca trực (Issue #202 — moved from API layer).</summary>
+public class CreateShiftHandoverRequest
+{
+    public Guid DepartmentId { get; set; }
+    public string ShiftType { get; set; } = "Morning"; // Morning, Afternoon, Night
+    public DateTime ShiftDate { get; set; }
+    public Guid? HandoverToUserId { get; set; }
+    public int NewAdmissions { get; set; }
+    public int Discharges { get; set; }
+    public string? PendingOrders { get; set; }
+    public string? SpecialNotes { get; set; }
+    public string? IncidentNotes { get; set; }
+}
+
 /// <summary>
 /// DTO hoàn thành xuất viện
 /// </summary>

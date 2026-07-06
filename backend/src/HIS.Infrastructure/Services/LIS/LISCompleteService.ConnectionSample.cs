@@ -490,5 +490,55 @@ public partial class LISCompleteService {
         return result;
     }
 
+    // ── #14b: sample storage/tracking ops (Issue #202 — moved from controller) ──
+    // id mẫu = ServiceRequestDetail id (model 1). Trước thao tác LabRequestItems (model 2 chết) luôn 404.
+
+    public async Task<bool> StoreSampleAsync(Guid sampleId, string? location, Guid? userId)
+    {
+        var item = await _context.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == sampleId && !i.IsDeleted);
+        if (item == null) return false;
+        item.SampleLocation = location;
+        item.UpdatedAt = DateTime.Now;
+        item.UpdatedBy = userId.ToString(); // Nullable<Guid>.ToString(): "" khi null (giữ hành vi cũ)
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> RetrieveSampleAsync(Guid sampleId, Guid? userId)
+    {
+        var item = await _context.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == sampleId && !i.IsDeleted);
+        if (item == null) return false;
+        item.SampleLocation = null;
+        item.UpdatedAt = DateTime.Now;
+        item.UpdatedBy = userId.ToString(); // Nullable<Guid>.ToString(): "" khi null (giữ hành vi cũ)
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> RejectSampleAsync(Guid sampleId, string? reason, Guid? userId)
+    {
+        var item = await _context.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == sampleId && !i.IsDeleted);
+        if (item == null) return false;
+        // Cùng ngữ nghĩa SampleReceiveController.Reject: ReceiveStatus=2 + lý do
+        item.ReceiveStatus = 2;
+        item.RejectReason = reason;
+        item.UpdatedAt = DateTime.Now;
+        item.UpdatedBy = userId.ToString(); // Nullable<Guid>.ToString(): "" khi null (giữ hành vi cũ)
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> UndoRejectSampleAsync(Guid sampleId, Guid? userId)
+    {
+        var item = await _context.ServiceRequestDetails.FirstOrDefaultAsync(i => i.Id == sampleId && !i.IsDeleted);
+        if (item == null) return false;
+        item.ReceiveStatus = 1; // về trạng thái đã nhận mẫu
+        item.RejectReason = null;
+        item.UpdatedAt = DateTime.Now;
+        item.UpdatedBy = userId.ToString(); // Nullable<Guid>.ToString(): "" khi null (giữ hành vi cũ)
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     #endregion
 }

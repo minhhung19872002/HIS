@@ -83,19 +83,6 @@ public class CreateDrugReactionRequest
     public string? Treatment { get; set; }
 }
 
-public class CreateShiftHandoverRequest
-{
-    public Guid DepartmentId { get; set; }
-    public string ShiftType { get; set; } = "Morning"; // Morning, Afternoon, Night
-    public DateTime ShiftDate { get; set; }
-    public Guid? HandoverToUserId { get; set; }
-    public int NewAdmissions { get; set; }
-    public int Discharges { get; set; }
-    public string? PendingOrders { get; set; }
-    public string? SpecialNotes { get; set; }
-    public string? IncidentNotes { get; set; }
-}
-
 public class DischargeNewbornRequest
 {
     public DateTime DischargeDate { get; set; }

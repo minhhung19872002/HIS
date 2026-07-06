@@ -310,6 +310,16 @@ namespace HIS.Application.Services
         public Task<PatientQuestionDto> CreatePatientQuestionAsync(CreatePatientQuestionDto dto) => Task.FromResult(new PatientQuestionDto { Id = Guid.NewGuid(), Subject = dto.Subject, Content = dto.Content, Status = 1, StatusText = "Chờ trả lời" });
         public Task<PatientQuestionDto> GetQuestionByIdAsync(Guid id) => Task.FromResult(new PatientQuestionDto { Id = id });
         public Task<PatientQuestionDto> AnswerPatientQuestionAsync(Guid id, AnswerPatientQuestionDto dto) => Task.FromResult(new PatientQuestionDto { Id = id, Answer = dto.Answer, Status = 2, StatusText = "Đã trả lời" });
+
+        // Issue #202: stub (impl thật ở PatientPortalServiceImpl — Infrastructure). Class này KHÔNG được DI đăng ký.
+        public Task<PortalAuthResultDto> AuthenticatePortalAsync(string identifier, string password) => Task.FromResult(new PortalAuthResultDto { Success = false, Message = "Not implemented (stub)" });
+        public Task<object> GetPortalDoctorsAsync() => Task.FromResult<object>(new List<object>());
+        public Task<object> GetPortalDepartmentsAsync() => Task.FromResult<object>(new List<object>());
+        public Task<bool> IsFamilyMemberOwnedByAccountAsync(Guid id, Guid accountId) => Task.FromResult(false);
+        public Task<bool> IsMedicineReminderOwnedByAccountAsync(Guid id, Guid accountId) => Task.FromResult(false);
+        public Task<bool> IsHealthMetricOwnedByAccountAsync(Guid id, Guid accountId) => Task.FromResult(false);
+        public Task<bool> IsPatientQuestionOwnedByAccountAsync(Guid id, Guid accountId) => Task.FromResult(false);
+        public Task<bool> IsPrescriptionOwnedByPatientAsync(Guid prescriptionId, Guid patientId) => Task.FromResult(false);
     }
 
     #endregion

@@ -143,6 +143,24 @@ namespace HIS.Application.Services
             string keyword = null);
 
         /// <summary>
+        /// G-01: Danh sách phiếu XN theo lượt nội trú (Admission → HSBA → SR XN model 1).
+        /// Trả về null nếu admission không tồn tại.
+        /// </summary>
+        Task<List<LabOrderDto>?> GetLabOrdersByAdmissionAsync(Guid admissionId);
+
+        /// <summary>#14b: lưu trữ mẫu (ServiceRequestDetail) tại vị trí kho. false = mẫu không tồn tại.</summary>
+        Task<bool> StoreSampleAsync(Guid sampleId, string? location, Guid? userId);
+
+        /// <summary>#14b: lấy mẫu ra khỏi kho. false = mẫu không tồn tại.</summary>
+        Task<bool> RetrieveSampleAsync(Guid sampleId, Guid? userId);
+
+        /// <summary>#14b: từ chối mẫu (ReceiveStatus=2 + lý do). false = mẫu không tồn tại.</summary>
+        Task<bool> RejectSampleAsync(Guid sampleId, string? reason, Guid? userId);
+
+        /// <summary>#14b: hoàn tác từ chối mẫu (ReceiveStatus=1). false = mẫu không tồn tại.</summary>
+        Task<bool> UndoRejectSampleAsync(Guid sampleId, Guid? userId);
+
+        /// <summary>
         /// 7.3.2 Chi tiết xét nghiệm của bệnh nhân
         /// </summary>
         Task<LabOrderDetailDto> GetLabOrderDetailAsync(Guid orderId);

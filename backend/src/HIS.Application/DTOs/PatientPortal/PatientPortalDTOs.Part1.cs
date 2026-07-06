@@ -55,6 +55,16 @@ namespace HIS.Application.DTOs.PatientPortal
         public string Password { get; set; }
     }
 
+    /// <summary>Issue #202: kết quả xác thực portal (DB+BCrypt+lockout ở service; JWT gen ở controller).</summary>
+    public class PortalAuthResultDto
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public Guid AccountId { get; set; }
+        public Guid PatientId { get; set; }
+        public string Username { get; set; } = string.Empty;
+    }
+
     /// <summary>R2: Kết quả đăng nhập portal — token JWT role PortalPatient mang claim patientId.</summary>
     public class PortalLoginResponseDto
     {

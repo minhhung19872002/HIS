@@ -27,12 +27,10 @@ namespace HIS.API.Controllers
     public partial class LISCompleteController : ControllerBase
     {
         private readonly ILISCompleteService _lisService;
-        private readonly HIS.Infrastructure.Data.HISDbContext _context;
 
-        public LISCompleteController(ILISCompleteService lisService, HIS.Infrastructure.Data.HISDbContext context)
+        public LISCompleteController(ILISCompleteService lisService)
         {
             _lisService = lisService;
-            _context = context;
         }
 
         private Guid? GetUserId()
@@ -307,87 +305,8 @@ namespace HIS.API.Controllers
         [HttpGet("orders/by-admission/{admissionId}")]
         public async Task<ActionResult<List<LabOrderDto>>> GetLabOrdersByAdmission(Guid admissionId)
         {
-            var admission = await _context.Set<HIS.Core.Entities.Admission>()
-                .AsNoTracking()
-                .FirstOrDefaultAsync(a => a.Id == admissionId && !a.IsDeleted);
-            if (admission == null) return NotFound(ApiResponse.Fail("Admission not found"));
-
-            var medicalRecordId = admission.MedicalRecordId;
-            // #14b: model 1 — SR XN theo HSBA + chỉ số con R1 (model 2 LabRequests chết → endpoint này trước trả rỗng)
-            var orders = await _context.ServiceRequests
-                .AsNoTracking()
-                .Where(r => r.MedicalRecordId == medicalRecordId && !r.IsDeleted && r.RequestType == 1)
-                .Include(r => r.Details.Where(d => !d.IsDeleted)).ThenInclude(d => d.Service)
-                .Include(r => r.Doctor)
-                .OrderByDescending(r => r.RequestDate)
-                .ToListAsync();
-
-            var allDetailIds = orders.SelectMany(r => r.Details.Select(d => d.Id)).ToList();
-            var paramsByDetail = allDetailIds.Count == 0
-                ? new Dictionary<Guid, List<HIS.Core.Entities.ServiceRequestDetailParameter>>()
-                : (await _context.ServiceRequestDetailParameters.AsNoTracking()
-                        .Where(p => allDetailIds.Contains(p.ServiceRequestDetailId) && !p.IsDeleted)
-                        .OrderBy(p => p.SequenceNumber)
-                        .ToListAsync())
-                    .GroupBy(p => p.ServiceRequestDetailId)
-                    .ToDictionary(g => g.Key, g => g.ToList());
-
-            var dtos = orders.Select(r => new LabOrderDto
-            {
-                Id = r.Id,
-                OrderCode = r.RequestCode,
-                PatientId = admission.PatientId,
-                PatientCode = "",
-                PatientName = "",
-                MedicalRecordId = r.MedicalRecordId,
-                MedicalRecordCode = "",
-                OrderDepartmentId = r.DepartmentId,
-                OrderDoctorId = r.DoctorId,
-                OrderDoctorName = r.Doctor?.FullName ?? "",
-                Diagnosis = r.Diagnosis,
-                IcdCode = r.IcdCode,
-                Notes = r.Notes ?? r.Note,
-                Status = r.Status,
-                StatusName = r.Status switch
-                {
-                    0 => "Chờ thanh toán",
-                    1 => "Đã thanh toán",
-                    2 => "Đang thực hiện",
-                    3 => "Có kết quả",
-                    _ => "Đã hủy"
-                },
-                IsPriority = r.IsPriority || r.IsEmergency,
-                IsEmergency = r.IsEmergency,
-                OrderedAt = r.RequestDate,
-                ApprovedAt = r.Details.Select(d => d.ReviewedAt).Where(x => x.HasValue).OrderByDescending(x => x).FirstOrDefault(),
-                Tests = r.Details.Where(d => d.Status != 3).Select(d =>
-                {
-                    paramsByDetail.TryGetValue(d.Id, out var ps);
-                    var single = ps != null && ps.Count == 1 ? ps[0] : null;
-                    return new HIS.Application.DTOs.Laboratory.LabTestItemDto
-                    {
-                        Id = d.Id,
-                        LabOrderId = r.Id,
-                        TestCode = d.Service?.ServiceCode ?? "",
-                        TestName = d.Service?.ServiceName ?? "",
-                        SampleTypeName = null,
-                        Result = single?.Value ?? d.Result,
-                        Unit = single?.Unit,
-                        ReferenceRange = single?.ReferenceRange,
-                        AbnormalFlag = ps != null && ps.Any(p => !string.IsNullOrEmpty(p.Flag) && p.Flag != "N") ? 1 : 0,
-                        Status = d.Status,
-                        StatusName = d.ReceiveStatus == 2 ? "Từ chối" : d.Status switch
-                        {
-                            0 => "Chờ",
-                            1 => d.IsSampleCollected ? "Có mẫu" : "Đang XN",
-                            2 => d.ReviewedAt != null ? "Đã duyệt" : "Có KQ",
-                            3 => "Đã hủy",
-                            _ => "Không rõ"
-                        }
-                    };
-                }).ToList()
-            }).ToList();
-
+            var dtos = await _lisService.GetLabOrdersByAdmissionAsync(admissionId);
+            if (dtos == null) return NotFound(ApiResponse.Fail("Admission not found"));
             return Ok(dtos);
         }
 

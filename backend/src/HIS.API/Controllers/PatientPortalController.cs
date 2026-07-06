@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using HIS.Application.Services;
 using HIS.Application.DTOs.Telemedicine;
 using HIS.Application.DTOs.Nutrition;
@@ -30,13 +29,11 @@ namespace HIS.API.Controllers
     public class PatientPortalController : ControllerBase
     {
         private readonly IPatientPortalService _service;
-        private readonly HIS.Infrastructure.Data.HISDbContext _db;
         private readonly IConfiguration _configuration;
 
-        public PatientPortalController(IPatientPortalService service, HIS.Infrastructure.Data.HISDbContext db, IConfiguration configuration)
+        public PatientPortalController(IPatientPortalService service, IConfiguration configuration)
         {
             _service = service;
-            _db = db;
             _configuration = configuration;
         }
 
@@ -79,49 +76,20 @@ namespace HIS.API.Controllers
             if (ident.Length == 0 || string.IsNullOrEmpty(dto.Password))
                 return Ok(new PortalLoginResponseDto { Success = false, Message = "Thiếu thông tin đăng nhập" });
 
-            var account = await _db.PortalAccounts
-                .FirstOrDefaultAsync(a => !a.IsDeleted && (a.Username == ident || a.Email == ident || a.Phone == ident));
-            if (account == null)
-                return Ok(new PortalLoginResponseDto { Success = false, Message = "Tài khoản hoặc mật khẩu không đúng" });
-
-            if (account.LockedUntil.HasValue && account.LockedUntil.Value > DateTime.UtcNow)
-                return Ok(new PortalLoginResponseDto { Success = false, Message = "Tài khoản đang bị khóa tạm thời, thử lại sau" });
-
-            bool valid;
-            try { valid = BCrypt.Net.BCrypt.Verify(dto.Password, account.PasswordHash); }
-            catch { valid = false; }
-            if (!valid)
-            {
-                account.FailedLoginAttempts++;
-                if (account.FailedLoginAttempts >= 5)
-                {
-                    account.LockedUntil = DateTime.UtcNow.AddMinutes(15);
-                    account.FailedLoginAttempts = 0;
-                }
-                await _db.SaveChangesAsync();
-                return Ok(new PortalLoginResponseDto { Success = false, Message = "Tài khoản hoặc mật khẩu không đúng" });
-            }
-
-            if (!string.Equals(account.Status, "Active", StringComparison.OrdinalIgnoreCase))
-                return Ok(new PortalLoginResponseDto { Success = false, Message = "Tài khoản chưa kích hoạt hoặc đang bị tạm ngưng" });
-            if (!account.PatientId.HasValue || account.PatientId.Value == Guid.Empty)
-                return Ok(new PortalLoginResponseDto { Success = false, Message = "Tài khoản chưa liên kết hồ sơ bệnh nhân" });
-
-            account.LastLoginAt = DateTime.UtcNow;
-            account.FailedLoginAttempts = 0;
-            account.LockedUntil = null;
-            await _db.SaveChangesAsync();
+            var auth = await _service.AuthenticatePortalAsync(ident, dto.Password);
+            if (!auth.Success)
+                return Ok(new PortalLoginResponseDto { Success = false, Message = auth.Message });
 
             return Ok(new PortalLoginResponseDto
             {
                 Success = true,
                 Message = "Đăng nhập thành công",
-                Token = GeneratePortalToken(account),
-                Account = await _service.GetAccountAsync(account.Id),
+                Token = GeneratePortalToken(auth.AccountId, auth.Username, auth.PatientId),
+                Account = await _service.GetAccountAsync(auth.AccountId),
             });
         }
 
-        private string GeneratePortalToken(HIS.Core.Entities.PortalAccount account)
+        private string GeneratePortalToken(Guid accountId, string username, Guid patientId)
         {
             var key = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
                 System.Text.Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]
@@ -130,10 +98,10 @@ namespace HIS.API.Controllers
                 key, Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256);
             var claims = new[]
             {
-                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, account.Id.ToString()),
-                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, account.Username),
+                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, accountId.ToString()),
+                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, username),
                 new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, PortalPatientRole),
-                new System.Security.Claims.Claim(HIS.Core.Constants.JwtClaims.PatientId, account.PatientId!.Value.ToString()),
+                new System.Security.Claims.Claim(HIS.Core.Constants.JwtClaims.PatientId, patientId.ToString()),
             };
             var token = new System.IdentityModel.Tokens.Jwt.JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
@@ -200,23 +168,13 @@ namespace HIS.API.Controllers
         [HttpGet("doctors")]
         [Authorize]
         public async Task<ActionResult> GetDoctors()
-        {
             // Return a small list of doctors so the booking form has options.
-            var users = await _db.Users.Where(u => u.IsActive && u.UserType == 1)
-                .Select(u => new { u.Id, u.FullName, title = u.Title, specialty = u.Specialty })
-                .Take(20).ToListAsync();
-            return Ok(users);
-        }
+            => Ok(await _service.GetPortalDoctorsAsync());
 
         [HttpGet("departments")]
         [Authorize]
         public async Task<ActionResult> GetDepartments()
-        {
-            var depts = await _db.Departments.Where(d => d.IsActive)
-                .Select(d => new { d.Id, d.DepartmentCode, d.DepartmentName })
-                .Take(30).ToListAsync();
-            return Ok(depts);
-        }
+            => Ok(await _service.GetPortalDepartmentsAsync());
 
         [HttpGet("appointments")]
         [Authorize]
@@ -375,7 +333,7 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<bool>> DeleteFamilyMember(Guid id)
         {
             // R2: BN chỉ xóa được bản ghi thuộc account mình
-            if (IsPortalPatient && !await _db.FamilyMembers.AnyAsync(x => x.Id == id && x.AccountId == ClaimAccountId))
+            if (IsPortalPatient && !await _service.IsFamilyMemberOwnedByAccountAsync(id, ClaimAccountId))
                 return Forbid();
             return Ok(await _service.DeleteFamilyMemberAsync(id));
         }
@@ -403,7 +361,7 @@ namespace HIS.API.Controllers
         [Authorize]
         public async Task<ActionResult<bool>> DeleteMedicineReminder(Guid id)
         {
-            if (IsPortalPatient && !await _db.MedicineReminders.AnyAsync(x => x.Id == id && x.AccountId == ClaimAccountId))
+            if (IsPortalPatient && !await _service.IsMedicineReminderOwnedByAccountAsync(id, ClaimAccountId))
                 return Forbid();
             return Ok(await _service.DeleteMedicineReminderAsync(id));
         }
@@ -412,7 +370,7 @@ namespace HIS.API.Controllers
         [Authorize]
         public async Task<ActionResult<bool>> ToggleMedicineReminder(Guid id)
         {
-            if (IsPortalPatient && !await _db.MedicineReminders.AnyAsync(x => x.Id == id && x.AccountId == ClaimAccountId))
+            if (IsPortalPatient && !await _service.IsMedicineReminderOwnedByAccountAsync(id, ClaimAccountId))
                 return Forbid();
             return Ok(await _service.ToggleMedicineReminderAsync(id));
         }
@@ -440,7 +398,7 @@ namespace HIS.API.Controllers
         [Authorize]
         public async Task<ActionResult<bool>> DeleteHealthMetric(Guid id)
         {
-            if (IsPortalPatient && !await _db.HealthMetrics.AnyAsync(x => x.Id == id && x.AccountId == ClaimAccountId))
+            if (IsPortalPatient && !await _service.IsHealthMetricOwnedByAccountAsync(id, ClaimAccountId))
                 return Forbid();
             return Ok(await _service.DeleteHealthMetricAsync(id));
         }
@@ -477,7 +435,7 @@ namespace HIS.API.Controllers
         [Authorize]
         public async Task<ActionResult<PatientQuestionDto>> GetQuestionById(Guid id)
         {
-            if (IsPortalPatient && !await _db.PatientQuestions.AnyAsync(x => x.Id == id && x.AccountId == ClaimAccountId))
+            if (IsPortalPatient && !await _service.IsPatientQuestionOwnedByAccountAsync(id, ClaimAccountId))
                 return Forbid();
             return Ok(await _service.GetQuestionByIdAsync(id));
         }
@@ -493,14 +451,8 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<RefillRequestDto>> RequestRefill([FromBody] RefillRequestDto dto)
         {
             // R2: BN chỉ refill được đơn thuốc của chính mình (đơn → HSBA → PatientId)
-            if (IsPortalPatient)
-            {
-                var owns = await (from p in _db.Prescriptions
-                                  join mr in _db.MedicalRecords on p.MedicalRecordId equals mr.Id
-                                  where p.Id == dto.PrescriptionId && mr.PatientId == ClaimPatientId
-                                  select p.Id).AnyAsync();
-                if (!owns) return Forbid();
-            }
+            if (IsPortalPatient && !await _service.IsPrescriptionOwnedByPatientAsync(dto.PrescriptionId, ClaimPatientId))
+                return Forbid();
             return Ok(await _service.RequestRefillAsync(dto));
         }
 
