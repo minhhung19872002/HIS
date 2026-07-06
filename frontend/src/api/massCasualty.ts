@@ -713,13 +713,7 @@ export interface MonthlyEventStatDto {
 
 // #region Common DTOs
 
-export interface PagedResultDto<T> {
-  items: T[];
-  totalCount: number;
-  pageNumber: number;
-  pageSize: number;
-  totalPages: number;
-}
+export type { PagedResultDto } from '../types/pagination';
 
 // #endregion
 

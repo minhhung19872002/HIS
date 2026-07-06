@@ -522,13 +522,8 @@ export interface HRAlertDto {
 
 // #region Common DTOs
 
-export interface PagedResultDto<T> {
-  items: T[];
-  totalCount: number;
-  pageNumber: number;
-  pageSize: number;
-  totalPages: number;
-}
+import type { PagedResultDto } from '../types/pagination';
+export type { PagedResultDto } from '../types/pagination';
 
 // #endregion
 

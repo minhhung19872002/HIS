@@ -9,15 +9,8 @@
  * symbol này để render; nội dung HIS_GROUPS giữ NGUYÊN (byte-equivalent).
  */
 
-export type NavItem = { id: string; path: string; label: string; hot?: number };
-export type NavGroup = {
-  id: string;
-  label: string;
-  short: string;      // 3-5 char code shown in rail
-  icon: string;       // TermIcon name
-  hot?: number;
-  items: NavItem[];
-};
+import type { NavGroup, NavItem } from '../types/menu';
+export type { NavGroup, NavItem };
 
 export const HIS_GROUPS: NavGroup[] = [
   {

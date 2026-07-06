@@ -1,41 +1,11 @@
 import apiClient from '../services/apiClient';
 import type { ApiResponse } from './types';
+import type { User } from '../types/user';
+import type { LoginRequest, LoginResponse, TwoFactorStatus } from '../types/auth';
 
 export type { ApiResponse } from './types';
-
-export interface LoginRequest {
-  username: string;
-  password: string;
-}
-
-export interface User {
-  id: string;
-  username: string;
-  fullName: string;
-  email?: string;
-  employeeCode?: string;
-  title?: string;
-  departmentName?: string;
-  roles: string[];
-  permissions: string[];
-  isTwoFactorEnabled?: boolean;
-}
-
-export interface LoginResponse {
-  token: string;
-  refreshToken: string;
-  expiresAt: string;
-  user: User;
-  requiresOtp?: boolean;
-  otpUserId?: string;
-  maskedEmail?: string;
-  otpExpiresAt?: string;
-}
-
-export interface TwoFactorStatus {
-  isEnabled: boolean;
-  maskedEmail?: string;
-}
+export type { User } from '../types/user';
+export type { LoginRequest, LoginResponse, TwoFactorStatus } from '../types/auth';
 
 export const authApi = {
   login: async (data: LoginRequest): Promise<ApiResponse<LoginResponse>> => {

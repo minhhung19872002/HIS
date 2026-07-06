@@ -1,23 +1,6 @@
-import type { LazyExoticComponent, ComponentType } from 'react';
+import type { RouteEntry, RouteMeta } from '../../types/route';
 
-// ---------------------------------------------------------------------------
-// RouteEntry — the data shape for every /v2/* route (behavior-preserving
-// extraction of the inline <Route> tree that used to live in App.tsx).
-// `meta.permission` is intentionally omitted for now — filled later in #378.
-// ---------------------------------------------------------------------------
-export interface RouteMeta {
-  title: string;
-  group: string;
-  permission?: string;
-}
-
-export interface RouteEntry {
-  path: string;
-  Component?: LazyExoticComponent<ComponentType<any>>;
-  redirect?: string;
-  index?: boolean;
-  meta: RouteMeta;
-}
+export type { RouteEntry, RouteMeta };
 
 import { commonV2Routes } from './common.routes';
 import { clinicalV2Routes } from './clinical.routes';
