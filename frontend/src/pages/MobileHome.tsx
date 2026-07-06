@@ -19,7 +19,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { patientApi } from '../api/patient';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import BarcodeScanner from '../components/BarcodeScanner';
 
 const { Title, Text } = Typography;

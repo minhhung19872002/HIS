@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import { Spin } from 'antd';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { useGlobalAbbreviationExpander } from '../hooks/useAbbreviationExpander';
 import MainLayout from '../layouts/MainLayout';
 import Login from '../pages/Login';

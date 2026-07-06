@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { ConfigProvider, Popover, Dropdown, message } from 'antd';
 import type { MenuProps } from 'antd';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
   CommandProvider, useCommandCtx, COMMANDS, type CmdId,

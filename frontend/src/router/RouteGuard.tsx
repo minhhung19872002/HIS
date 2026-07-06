@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 // Extracted verbatim from App.tsx (behavior-preserving refactor #375).
 export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {

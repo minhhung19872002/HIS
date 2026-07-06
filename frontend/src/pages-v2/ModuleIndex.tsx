@@ -1,6 +1,6 @@
 import React, { Fragment, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { HOSPITAL_NAME } from '../constants/hospital';
 import '../styles/ModuleIndex.css';
 

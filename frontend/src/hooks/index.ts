@@ -1,0 +1,10 @@
+/**
+ * Hooks barrel — điểm vào thống nhất cho hook dùng chung toàn FE. #hooks-consolidation
+ */
+export { useAuth } from './useAuth';
+export { useDebounce } from './useDebounce';
+export { useLocalStorage } from './useLocalStorage';
+export { usePermission } from './usePermission';
+export * from './useAbbreviationExpander';
+export * from './useKeyboardShortcuts';
+export * from './useSafetyAlerts';
