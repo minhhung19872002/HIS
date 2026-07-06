@@ -16,7 +16,7 @@ import type { ColumnDef } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 import { biometricApi } from '../api/nangcap24';
 import type { BiometricCredentialDto } from '../api/nangcap24';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 
 interface PatientDto {
   id: string;

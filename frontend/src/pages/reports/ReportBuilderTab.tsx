@@ -37,12 +37,13 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { CustomReportDef, ReportField } from './types';
 import { DATA_SOURCES, OPERATORS, FORMATS, STORAGE_KEY } from './constants';
+import { storage } from '../../services/storage.service';
 
 const { Text } = Typography;
 
 const ReportBuilderTab: React.FC = () => {
   const [reports, setReports] = useState<CustomReportDef[]>(() => {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+    try { return storage.get<CustomReportDef[]>(STORAGE_KEY) ?? []; } catch { return []; }
   });
   const [editing, setEditing] = useState<CustomReportDef | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -55,7 +56,7 @@ const ReportBuilderTab: React.FC = () => {
 
   const saveReports = useCallback((updated: CustomReportDef[]) => {
     setReports(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    storage.set(STORAGE_KEY, updated);
   }, []);
 
   const availableFields = useMemo(() => {

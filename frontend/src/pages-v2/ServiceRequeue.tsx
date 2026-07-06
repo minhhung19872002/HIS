@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { fmtNum as fmt } from '../utils/format';
 import { Form, Input, Checkbox } from 'antd';
 import dayjs from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import {
   KpiStrip, SearchBox, DataTable, StatusBadge, ModalShell, Btn,
   tk, ti, tw, type ColumnDef,

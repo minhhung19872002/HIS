@@ -15,7 +15,7 @@ import {
   fmtDMYg, fmtDTg, tk, ti, te, tw, type ColumnDef, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import { generateCdaDocument } from '../api/cda';
 import {
   getAttachments, uploadAttachment, downloadAttachment, deleteAttachment,

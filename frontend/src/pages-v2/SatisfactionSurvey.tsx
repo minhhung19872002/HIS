@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import * as file from '../services/file.service';
 import dayjs from 'dayjs';
 import { Form, Input } from 'antd';
 import { getSurveyResults, contactCallback, createCampaign, exportSurveys } from '../api/satisfactionSurvey';
@@ -100,10 +101,7 @@ const SatisfactionSurveyV2: React.FC = () => {
       // interceptor không unwrap blob → res.data là Blob
       const blob: Blob = (res as unknown as { data: Blob }).data;
       if (blob instanceof Blob) {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = `khao-sat-hai-long-${dayjs().format('YYYY-MM-DD')}.csv`; a.click();
-        window.URL.revokeObjectURL(url);
+        file.downloadBlob(blob, `khao-sat-hai-long-${dayjs().format('YYYY-MM-DD')}.csv`);
         tk('Đã xuất CSV');
       } else throw new Error('no blob');
     } catch {

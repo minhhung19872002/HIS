@@ -5,7 +5,7 @@
  * Điểm tích hợp camera device-side (SDK máy kính) trong tương lai:
  * - POST /api/specimen-image/upload với source="microscope" + magnification
  */
-import { apiClient } from './client';
+import { apiClient } from '../services/apiClient';
 
 // ─── Types ────────────────────────────────────────────────────────
 

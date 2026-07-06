@@ -5,6 +5,7 @@
 // Field config dùng chung từ ../constants/specialtyEmr.
 // =====================================================================
 import React, { useEffect, useMemo, useState } from 'react';
+import * as file from '../services/file.service';
 import { Input, InputNumber, Select, Checkbox, DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
@@ -273,10 +274,7 @@ const SpecialtyEMRV2: React.FC = () => {
   const downloadXml = async (r: SpecialtyRecord) => {
     try {
       const res = await getSpecialtyRecordXml(r.id);
-      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/xml' }));
-      const a = document.createElement('a');
-      a.href = url; a.download = `benh-an-ck-${r.patientCode || r.id}.xml`; a.click();
-      URL.revokeObjectURL(url);
+      file.downloadBlob(new Blob([res.data], { type: 'application/xml' }), `benh-an-ck-${r.patientCode || r.id}.xml`);
       tk('Đã tải XML');
     } catch { te('Xuất XML thất bại'); }
   };

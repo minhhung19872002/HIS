@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from '../api/auth';
 import type { User, LoginRequest } from '../api/auth';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import { Modal } from 'antd';
 import { fmtDate } from '../utils/format';
 
@@ -52,7 +53,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('token');
+      const token = storage.getRaw(STORAGE_KEYS.token);
 
       // Chỉ setUser SAU khi getCurrentUser() validate xong với server, tránh race
       // render protected page với user cache cũ rồi mới phát hiện token expired
@@ -64,14 +65,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const me = (raw && ('id' in raw || 'username' in raw)) ? raw : raw?.data;
           if (me && (me.id || me.username)) {
             setUser(me);
-            localStorage.setItem('user', JSON.stringify(me));
+            storage.set(STORAGE_KEYS.user, me);
           } else {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
+            storage.remove(STORAGE_KEYS.token);
+            storage.remove(STORAGE_KEYS.user);
           }
         } catch {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          storage.remove(STORAGE_KEYS.token);
+          storage.remove(STORAGE_KEYS.user);
         }
       }
       setIsLoading(false);
@@ -118,8 +119,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         // Normal login (no 2FA)
         if (payload.token) {
-          localStorage.setItem('token', payload.token);
-          localStorage.setItem('user', JSON.stringify(payload.user));
+          storage.set(STORAGE_KEYS.token, payload.token);
+          storage.set(STORAGE_KEYS.user, payload.user);
           setUser(payload.user);
           checkExpiryAlertsOnLogin();
           return 'success';
@@ -139,8 +140,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Tolerant cả 2 shape (xem ghi chú ở login): payload đã unwrap hoặc raw.data.
       const payload = (raw && 'token' in raw) ? raw : raw?.data;
       if (payload && payload.token) {
-        localStorage.setItem('token', payload.token);
-        localStorage.setItem('user', JSON.stringify(payload.user));
+        storage.set(STORAGE_KEYS.token, payload.token);
+        storage.set(STORAGE_KEYS.user, payload.user);
         setUser(payload.user);
         setOtpPending(null);
         checkExpiryAlertsOnLogin();
@@ -170,8 +171,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    storage.remove(STORAGE_KEYS.token);
+    storage.remove(STORAGE_KEYS.user);
     setUser(null);
     setOtpPending(null);
   };

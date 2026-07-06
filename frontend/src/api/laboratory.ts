@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient } from '../services/apiClient';
 import { openPrintWindow } from '../utils/printWindow';
 
 /** R1: 1 chỉ số con của kết quả XN (từ ServiceRequestDetailParameters). */

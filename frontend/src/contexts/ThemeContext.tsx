@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { storage } from '../services/storage.service';
 
 type ThemeMode = 'light' | 'dark';
 
@@ -21,7 +22,7 @@ const STORAGE_KEY = 'his-theme-mode';
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = storage.getRaw(STORAGE_KEY);
       if (stored === 'dark' || stored === 'light') return stored;
     } catch { /* ignore */ }
     return 'light';
@@ -29,7 +30,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, themeMode);
+      storage.set(STORAGE_KEY, themeMode);
     } catch { /* ignore */ }
     // Toggle a class on body for global CSS overrides if needed
     document.body.setAttribute('data-theme', themeMode);

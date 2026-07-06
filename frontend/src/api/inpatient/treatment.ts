@@ -1,7 +1,7 @@
 /**
  * Inpatient — Treatment information (3.6)
  */
-import apiClient from '../client';
+import apiClient from '../../services/apiClient';
 
 const BASE_URL = '/inpatient';
 

@@ -9,6 +9,7 @@ import {
 } from 'antd';
 import { RobotOutlined, CheckOutlined, CloseOutlined, HistoryOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import {
   getAiHistoryByStudy,
   getModelConfig,
@@ -18,7 +19,7 @@ import {
   type AiModelConfig,
   type AiResultDto,
 } from '../api/aiLabeling';
-import { runInference, computeOcclusionHeatmaps, type InferenceResult } from '../services/aiLabelingService';
+import { runInference, computeOcclusionHeatmaps, type InferenceResult } from '../services/aiLabeling.service';
 
 const { Text, Title } = Typography;
 
@@ -124,7 +125,7 @@ export default function AiLabelingModal({
     setError(null);
     setResult(null);
     try {
-      const token = localStorage.getItem('token');
+      const token = storage.getRaw(STORAGE_KEYS.token);
       const authHeader = token ? `Bearer ${token}` : undefined;
       const inf = await runInference(config, previewUrl, {
         onProgress: setProgress,

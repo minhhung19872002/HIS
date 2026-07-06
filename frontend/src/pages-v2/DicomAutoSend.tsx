@@ -17,7 +17,7 @@ import { dicomAutoSendApi } from '../api/nangcap24';
 import type {
   DicomAutoSendRuleDto, DicomTransmissionLogDto, DicomTransmissionStatsDto,
 } from '../api/nangcap24';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 
 interface RemoteServerDto { id: string; name: string; aeTitle: string; host: string; port: number; isActive: boolean; }
 

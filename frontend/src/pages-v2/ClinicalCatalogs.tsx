@@ -4,6 +4,7 @@
 // Bound to /api/master-catalog/{nursing-care-levels,medical-record-types}
 // =====================================================================
 import React, { useEffect, useMemo, useState } from 'react';
+import * as file from '../services/file.service';
 import { Input, InputNumber, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
 import * as api from '../api/masterCatalog';
@@ -188,11 +189,7 @@ const ClinicalCatalogsV2: React.FC = () => {
       return /[,"\n]/.test(s) ? `"${s}"` : s;
     }).join(',')).join('\n');
     const blob = new Blob([`${header}\n${body}`], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `clinical-catalog-${tab}-${dayjs().format('YYYYMMDD')}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    file.downloadBlob(blob, `clinical-catalog-${tab}-${dayjs().format('YYYYMMDD')}.csv`);
     tk('Đã xuất CSV');
   };
 

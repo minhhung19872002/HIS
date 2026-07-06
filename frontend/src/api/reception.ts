@@ -1,4 +1,4 @@
-import api from './client';
+import api from '../services/apiClient';
 
 // F11.2: lưu vân tay tiếp đón (#100)
 export const saveFingerprint = (patientId: string, data: { fingerprintData?: string; notCollected: boolean }) =>

@@ -5,7 +5,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { DatePicker, Descriptions, Drawer, Form, Input, Modal, Select, Space, Tooltip } from 'antd';
 import { fmtDate } from '../utils/format';
 import dayjs from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
   useListData, useTabCounts, tk, tw, cf, type ColumnDef, type StatusTab,

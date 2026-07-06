@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import * as file from '../services/file.service';
 import { fmtNum as fmt } from '../utils/format';
 import { InputNumber } from 'antd';
 import dayjs from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import { getWarehouses } from '../api/warehouse';
 import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {
@@ -86,10 +87,7 @@ const StockReportV2: React.FC = () => {
       return v;
     }).join(','))).join('\n');
     const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `stock-${tab}-${dayjs().format('YYYYMMDD-HHmm')}.csv`;
-    a.click();
+    file.downloadBlob(blob, `stock-${tab}-${dayjs().format('YYYYMMDD-HHmm')}.csv`);
     tk('Đã xuất CSV');
   };
 

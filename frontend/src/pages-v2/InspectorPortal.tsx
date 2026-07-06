@@ -6,12 +6,14 @@
  * Workspace: top bar gradient + Card filter + Card table + Modal chi tiết HSBA.
  */
 import React, { useEffect, useState } from 'react';
+import * as file from '../services/file.service';
 import dayjs from 'dayjs';
 import type { AxiosError } from 'axios';
 import { inspectorApi } from '../api/nangcap24';
 import type { InspectorRecordListItemDto, InspectorRecordDetailDto } from '../api/nangcap24';
 import type { ServerValidationError } from '../utils/formError';
 import TermIcon from '../layouts/terminal/Icon';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 
 const INSPECTOR_TOKEN_KEY = 'inspector_token';
 const INSPECTOR_INFO_KEY = 'inspector_info';
@@ -31,9 +33,9 @@ const fmtDT  = (d?: string | null) => d ? dayjs(d).format('DD/MM/YYYY HH:mm') : 
 const fmtHM  = (d?: string | Date | null) => d ? dayjs(d).format('HH:mm') : '—';
 
 const InspectorPortal: React.FC = () => {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(INSPECTOR_TOKEN_KEY));
+  const [token, setToken] = useState<string | null>(() => storage.getRaw(INSPECTOR_TOKEN_KEY));
   const [info, setInfo] = useState<InspectorInfo | null>(() => {
-    const raw = localStorage.getItem(INSPECTOR_INFO_KEY);
+    const raw = storage.getRaw(INSPECTOR_INFO_KEY);
     return raw ? JSON.parse(raw) : null;
   });
 
@@ -41,8 +43,8 @@ const InspectorPortal: React.FC = () => {
     return <InspectorLogin onLogin={(t, i) => { setToken(t); setInfo(i); }} />;
   }
   return <InspectorWorkspace info={info} onLogout={() => {
-    localStorage.removeItem(INSPECTOR_TOKEN_KEY);
-    localStorage.removeItem(INSPECTOR_INFO_KEY);
+    storage.remove(INSPECTOR_TOKEN_KEY);
+    storage.remove(INSPECTOR_INFO_KEY);
     setToken(null); setInfo(null);
   }} />;
 };
@@ -63,9 +65,9 @@ const InspectorLogin: React.FC<{ onLogin: (token: string, info: InspectorInfo) =
       if (!r.success || !r.token || !r.inspector) {
         setErr(r.message ?? 'Đăng nhập thất bại'); return;
       }
-      localStorage.setItem(INSPECTOR_TOKEN_KEY, r.token);
-      localStorage.setItem(INSPECTOR_INFO_KEY, JSON.stringify(r.inspector));
-      localStorage.setItem('token', r.token);    // share with apiClient
+      storage.set(INSPECTOR_TOKEN_KEY, r.token);
+      storage.set(INSPECTOR_INFO_KEY, r.inspector);
+      storage.set(STORAGE_KEYS.token, r.token);    // share with apiClient
       onLogin(r.token, r.inspector);
     } catch (e: unknown) {
       const ax = e as AxiosError<ServerValidationError>;
@@ -206,10 +208,7 @@ const InspectorWorkspace: React.FC<{ info: InspectorInfo; onLogout: () => void }
   const downloadXml = async (r: InspectorRecordListItemDto) => {
     try {
       const blob = await inspectorApi.downloadXml(r.medicalRecordId);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `HSBA_${r.medicalRecordCode}.xml`; a.click();
-      URL.revokeObjectURL(url);
+      file.downloadBlob(blob, `HSBA_${r.medicalRecordCode}.xml`);
     } catch { /* ignore */ }
   };
 

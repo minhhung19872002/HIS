@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // Khảo sát hài lòng người bệnh. Tách call ra api layer (không gọi axios/client trong component).
 

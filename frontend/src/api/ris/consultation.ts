@@ -2,7 +2,7 @@
  * RIS API — Consultation sessions/cases/participants/discussion/image-notes/minutes/attachments.
  */
 
-import apiClient from '../client';
+import apiClient from '../../services/apiClient';
 
 // #region Interfaces
 

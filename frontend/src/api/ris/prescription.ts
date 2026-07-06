@@ -2,7 +2,7 @@
  * RIS API — Prescriptions, service norm, search items, check stock.
  */
 
-import apiClient from '../client';
+import apiClient from '../../services/apiClient';
 
 // #region Interfaces
 

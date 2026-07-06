@@ -1,7 +1,7 @@
 /**
  * Inpatient — Discharge / Reports (3.7 + 3.8 + 3.6.x Newborn + 3.6.y Hemodialysis)
  */
-import apiClient from '../client';
+import apiClient from '../../services/apiClient';
 
 const BASE_URL = '/inpatient';
 

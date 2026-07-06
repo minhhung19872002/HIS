@@ -3,7 +3,7 @@
  * Module: Nutrition
  */
 
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // ==================== INTERFACES ====================
 

@@ -1,4 +1,5 @@
-import { buildApiUrl } from '../config/api';
+import { buildApiUrl } from '../config/api.config';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 
 const availabilityCache = new Map<string, boolean>();
 const knownUnavailable = new Set([
@@ -16,7 +17,7 @@ export async function isApiAvailable(path: string): Promise<boolean> {
     return availabilityCache.get(path) ?? false;
   }
 
-  const token = localStorage.getItem('token');
+  const token = storage.getRaw(STORAGE_KEYS.token);
 
   try {
     const response = await fetch(buildApiUrl(path), {

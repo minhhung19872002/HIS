@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient } from '../services/apiClient';
 import { openPrintWindow } from '../utils/printWindow';
 
 // ---- Types ----

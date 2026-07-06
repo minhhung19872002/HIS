@@ -4,7 +4,7 @@
  * diagnosis history, co-reader, favorites.
  */
 
-import apiClient from '../client';
+import apiClient from '../../services/apiClient';
 import type { AttachedImageDto } from './_shared';
 
 // #region Interfaces

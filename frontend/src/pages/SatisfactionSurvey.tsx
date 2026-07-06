@@ -39,7 +39,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import client from '../api/client';
+import client from '../services/apiClient';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;

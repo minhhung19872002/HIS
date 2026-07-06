@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import * as file from '../services/file.service';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import {
@@ -245,12 +246,7 @@ const BhxhAuditV2: React.FC = () => {
     setBatchXmlLoading(true);
     try {
       const { data: blob } = await exportBatchXml(ids);
-      const url = URL.createObjectURL(blob as unknown as Blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `BHXH_XML_batch_${dayjs().format('YYYYMMDD')}.zip`;
-      a.click();
-      URL.revokeObjectURL(url);
+      file.downloadBlob(blob as unknown as Blob, `BHXH_XML_batch_${dayjs().format('YYYYMMDD')}.zip`);
       message.success(`Đã tải ZIP ${ids.length} XML hồ sơ`);
     } catch {
       message.error('Xuất XML hàng loạt thất bại');
@@ -263,12 +259,7 @@ const BhxhAuditV2: React.FC = () => {
     setXmlLoading(sessionId);
     try {
       const { data: blob } = await exportXml(sessionId);
-      const url = URL.createObjectURL(blob as unknown as Blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `BHXH_XML_${maLk}_${dayjs().format('YYYYMMDD')}.xml`;
-      a.click();
-      URL.revokeObjectURL(url);
+      file.downloadBlob(blob as unknown as Blob, `BHXH_XML_${maLk}_${dayjs().format('YYYYMMDD')}.xml`);
       message.success(`Đã tải XML hồ sơ ${maLk}`);
     } catch {
       message.error('Xuất XML thất bại');

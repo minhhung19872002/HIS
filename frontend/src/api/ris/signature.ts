@@ -3,7 +3,7 @@
  * USB token, generate/sign/preview PDF, certificates.
  */
 
-import apiClient from '../client';
+import apiClient from '../../services/apiClient';
 
 // #region Interfaces
 

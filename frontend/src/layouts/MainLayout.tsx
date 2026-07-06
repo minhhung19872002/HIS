@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Menu, Avatar, Dropdown, Typography, Space, Drawer, Tooltip, Button } from 'antd';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -429,7 +430,7 @@ const MainLayout: React.FC = () => {
                 size="small"
                 type="default"
                 onClick={() => {
-                  localStorage.setItem('layoutMode', 'v2');
+                  storage.set(STORAGE_KEYS.layoutMode, 'v2');
                   const current = location.pathname === '/' ? '/dashboard' : location.pathname;
                   navigate('/v2' + current);
                 }}

@@ -11,7 +11,7 @@ import {
 } from 'antd';
 import { ReloadOutlined, PrinterOutlined, EyeOutlined, BookOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 
 const { RangePicker } = DatePicker;
 const { Text } = Typography;

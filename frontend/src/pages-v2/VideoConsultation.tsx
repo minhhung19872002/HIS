@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import { Form, Input, Select, Switch, DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { exportToExcel } from '../utils/excelExport';
@@ -78,7 +79,7 @@ const VideoConsultationV2: React.FC = () => {
     try {
       // user info từ localStorage — Antd Layout / Auth context cũng dùng shape này
       interface SessionUser { fullName?: string; username?: string; email?: string }
-      const user = JSON.parse(localStorage.getItem('user') || '{}') as SessionUser;
+      const user = storage.get<SessionUser>(STORAGE_KEYS.user) ?? ({} as SessionUser);
       const info = await joinRoom(r.id, user.fullName || user.username || 'User', user.email, 'participant');
       const url = new URL(info.jitsiUrl);
       if (info.password) url.hash = `password=${encodeURIComponent(info.password)}`;

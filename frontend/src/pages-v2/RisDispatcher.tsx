@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Input, Select } from 'antd';
 import dayjs from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import { openPrintWindow } from '../utils/printWindow';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn, ModalShell,

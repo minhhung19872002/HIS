@@ -1,4 +1,4 @@
-import client from './client';
+import client from '../services/apiClient';
 
 // Partograph (Biểu đồ chuyển dạ)
 export const partographApi = {

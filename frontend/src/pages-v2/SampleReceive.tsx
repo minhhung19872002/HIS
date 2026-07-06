@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Input, Tabs } from 'antd';
 import dayjs from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import {
   KpiStrip, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, Ico, tk, ti, tw,

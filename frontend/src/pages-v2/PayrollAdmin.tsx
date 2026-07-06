@@ -2,10 +2,11 @@
  * G-41 Payroll Admin — quản lý kỳ lương + dòng lương nhân viên (MVP).
  */
 import React, { useCallback, useMemo, useState } from 'react';
+import * as file from '../services/file.service';
 import { fmtNum as fmt } from '../utils/format';
 import { Form, Input, InputNumber, Modal, Select } from 'antd';
 import dayjs from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
   useListData, useTabCounts, tk, ti, tw, cf, type ColumnDef, type StatusTab,
@@ -141,10 +142,7 @@ const PayrollAdminV2: React.FC = () => {
         i.baseSalary, i.allowance, i.otherIncome, i.bhxhDeduction, i.otherDeduction, i.netSalary].join(','));
     const csv = [header, ...rows].join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url;
-    a.download = `luong_${selectedPeriod?.periodCode || 'export'}.csv`; a.click();
-    URL.revokeObjectURL(url);
+    file.downloadBlob(blob, `luong_${selectedPeriod?.periodCode || 'export'}.csv`);
   };
 
   // ── Derived ──────────────────────────────────────────────────────────────

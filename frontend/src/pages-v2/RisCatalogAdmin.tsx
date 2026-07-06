@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Input, InputNumber, Switch, Select, Modal } from 'antd';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
   tk, ti, tw, cf, type ColumnDef,

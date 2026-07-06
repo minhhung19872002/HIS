@@ -3,7 +3,7 @@
  * Endpoints: /api/fhir/*
  */
 
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // ==================== FHIR Types ====================
 

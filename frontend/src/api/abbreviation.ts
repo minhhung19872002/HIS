@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 export const ABBREVIATION_SCOPES = {
   GENERAL: 0,

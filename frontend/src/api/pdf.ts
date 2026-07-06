@@ -2,13 +2,14 @@
  * PDF/HTML print API client
  * Opens backend-generated HTML forms in new browser tabs for printing
  */
-import { buildApiUrl } from '../config/api';
+import { buildApiUrl } from '../config/api.config';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 
 /**
  * Get the auth token from localStorage
  */
 function getToken(): string | null {
-  return localStorage.getItem('token');
+  return storage.getRaw(STORAGE_KEYS.token);
 }
 
 /**

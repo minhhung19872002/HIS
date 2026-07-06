@@ -11,7 +11,7 @@ import {
   SettingOutlined, WarningOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { API_ORIGIN } from '../../config/api';
+import { API_ORIGIN } from '../../config/api.config';
 import {
   getHealthDetails, getMetrics,
   type HealthCheckResult, type MetricsSnapshot, type ComponentHealth,

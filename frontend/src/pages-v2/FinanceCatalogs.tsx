@@ -5,6 +5,7 @@
 // transport-services,gasoline-prices}
 // =====================================================================
 import React, { useEffect, useMemo, useState } from 'react';
+import * as file from '../services/file.service';
 import { Input, InputNumber, Select, DatePicker, Switch } from 'antd';
 import dayjs from 'dayjs';
 import * as api from '../api/masterCatalog';
@@ -261,11 +262,7 @@ const FinanceCatalogsV2: React.FC = () => {
     }).join(',')).join('\n');
     const csv = `${header}\n${body}`;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `finance-catalog-${tab}-${dayjs().format('YYYYMMDD')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    file.downloadBlob(blob, `finance-catalog-${tab}-${dayjs().format('YYYYMMDD')}.csv`);
     tk('Đã xuất CSV');
   };
 

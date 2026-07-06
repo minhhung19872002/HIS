@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Input, InputNumber, Switch, Select, Modal } from 'antd';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import { searchAbbreviations, saveAbbreviation, deleteAbbreviation, ABBREVIATION_SCOPES } from '../api/abbreviation';
 import {

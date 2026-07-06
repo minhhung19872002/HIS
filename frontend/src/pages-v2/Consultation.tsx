@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import * as file from '../services/file.service';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import { useNavigate } from 'react-router-dom';
@@ -14,10 +15,7 @@ import TermIcon from '../layouts/terminal/Icon';
 /** Tải CSV với BOM UTF-8 để Excel mở đúng tiếng Việt */
 function downloadCsv(filename: string, lines: string[]): void {
   const blob = new Blob([`﻿${lines.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  window.URL.revokeObjectURL(url);
+  file.downloadBlob(blob, filename);
 }
 
 function escapeCsvCell(v: unknown): string {

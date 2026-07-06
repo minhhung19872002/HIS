@@ -5,6 +5,7 @@
  * Layout: KPI + alert info + 2-column (Form | Result) + recent exports table.
  */
 import React, { useState } from 'react';
+import * as file from '../services/file.service';
 import { Form, Input, Checkbox, Button } from 'antd';
 import type { AxiosError } from 'axios';
 import type { ServerValidationError } from '../utils/formError';
@@ -52,10 +53,7 @@ const EmrHl7Export: React.FC = () => {
   const download = () => {
     if (!result) return;
     const blob = new Blob([result.hl7Content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = result.fileName; a.click();
-    URL.revokeObjectURL(url);
+    file.downloadBlob(blob, result.fileName);
     tk(`Đang tải ${result.fileName}`);
   };
 

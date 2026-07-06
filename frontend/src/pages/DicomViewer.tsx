@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import {
   Card,
   Row,
@@ -41,7 +42,7 @@ import { createRoom, searchRooms, joinRoom } from '../api/videoConsultation';
 import AiLabelingModal from '../components/AiLabelingModal';
 import AiOverlayLayer from '../components/AiOverlayLayer';
 import { openAiReportHtml, downloadAiSignedPdf, uploadAiDicomSr, mergeAiToReport, type AiLabel } from '../api/aiLabeling';
-import { API_ORIGIN } from '../config/api';
+import { API_ORIGIN } from '../config/api.config';
 import { loadViewerConfig } from '../components/DicomViewerConfig';
 import CornerstoneViewer, { type CornerstoneViewerHandle } from '../components/CornerstoneViewer';
 import MprViewer from '../components/MprViewer';
@@ -99,7 +100,7 @@ const DicomViewer: React.FC = () => {
   // F2.12: userId for per-user localStorage config (lấy từ cached user object)
   const currentUserId = React.useMemo(() => {
     try {
-      const u = JSON.parse(localStorage.getItem('user') || '{}') as { id?: string; username?: string };
+      const u = storage.get<{ id?: string; username?: string }>(STORAGE_KEYS.user) ?? {};
       return u.id || u.username || undefined;
     } catch { return undefined; }
   }, []);
@@ -160,7 +161,7 @@ const DicomViewer: React.FC = () => {
   useEffect(() => {
     if (!studyInstanceUID) return;
     try {
-      const raw = localStorage.getItem(FAVE_KEY);
+      const raw = storage.getRaw(FAVE_KEY);
       const list: string[] = raw ? JSON.parse(raw) : [];
       setIsFavorite(list.includes(studyInstanceUID));
     } catch { setIsFavorite(false); }
@@ -168,7 +169,7 @@ const DicomViewer: React.FC = () => {
 
   const toggleFavorite = useCallback(() => {
     try {
-      const raw = localStorage.getItem(FAVE_KEY);
+      const raw = storage.getRaw(FAVE_KEY);
       let list: string[] = raw ? JSON.parse(raw) : [];
       if (list.includes(studyInstanceUID)) {
         list = list.filter((s) => s !== studyInstanceUID);
@@ -177,7 +178,7 @@ const DicomViewer: React.FC = () => {
         list = [studyInstanceUID, ...list].slice(0, 50); // giữ tối đa 50
         message.success('Đã thêm vào Favorite');
       }
-      localStorage.setItem(FAVE_KEY, JSON.stringify(list));
+      storage.set(FAVE_KEY, list);
       setIsFavorite(list.includes(studyInstanceUID));
     } catch { /* ignore */ }
   }, [studyInstanceUID]);

@@ -1,4 +1,4 @@
-import client from './client';
+import client from '../services/apiClient';
 
 // ============ Central Signing API (NangCap6 - BV Xanh Pon) ============
 

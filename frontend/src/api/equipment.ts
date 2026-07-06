@@ -3,7 +3,7 @@
  * Module: Equipment
  */
 
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // ==================== INTERFACES ====================
 

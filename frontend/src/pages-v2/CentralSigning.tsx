@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Form, Input, InputNumber, Select, Switch } from 'antd';
 import * as api from '../api/centralSigning';
-import { logger } from '../utils/logger';
+import { logger } from '../services/logger.service';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, tk, ti, tw, Ico,

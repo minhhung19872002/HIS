@@ -5,7 +5,8 @@
  * Flow: Đăng ký → Liên kết hồ sơ (mã BN + SĐT/CCCD/ngày sinh) → Đăng nhập → xem dữ liệu của CHÍNH MÌNH.
  */
 import React, { useEffect, useState } from 'react';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import { fmtDate as fmtDateBase } from '../utils/format';
 
 const TOKEN_KEY = 'patient_portal_token';
@@ -60,9 +61,9 @@ const btnStyle: React.CSSProperties = {
 };
 
 const PatientPortalStandalone: React.FC = () => {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
+  const [token, setToken] = useState<string | null>(() => storage.getRaw(TOKEN_KEY));
   const [info, setInfo] = useState<PortalAccountInfo | null>(() => {
-    const raw = localStorage.getItem(INFO_KEY);
+    const raw = storage.getRaw(INFO_KEY);
     try { return raw ? (JSON.parse(raw) as PortalAccountInfo) : null; } catch { return null; }
   });
 
@@ -70,9 +71,9 @@ const PatientPortalStandalone: React.FC = () => {
     return <PortalAuth onLogin={(t, i) => { setToken(t); setInfo(i); }} />;
   }
   const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(INFO_KEY);
-    localStorage.removeItem('token');
+    storage.remove(TOKEN_KEY);
+    storage.remove(INFO_KEY);
+    storage.remove(STORAGE_KEYS.token);
     setToken(null); setInfo(null);
   };
   return <PortalWorkspace info={info} onLogout={logout} />;
@@ -105,9 +106,9 @@ const PortalAuth: React.FC<{ onLogin: (token: string, info: PortalAccountInfo) =
     try {
       const r = await portalAuthApi.login(identifier.trim(), password);
       if (!r.success || !r.token || !r.account) { setErr(r.message ?? 'Đăng nhập thất bại'); return; }
-      localStorage.setItem(TOKEN_KEY, r.token);
-      localStorage.setItem(INFO_KEY, JSON.stringify(r.account));
-      localStorage.setItem('token', r.token); // share với apiClient (pattern InspectorPortal)
+      storage.set(TOKEN_KEY, r.token);
+      storage.set(INFO_KEY, r.account);
+      storage.set(STORAGE_KEYS.token, r.token); // share với apiClient (pattern InspectorPortal)
       onLogin(r.token, r.account);
     } catch {
       setErr('Đăng nhập thất bại — kiểm tra kết nối');

@@ -3,7 +3,7 @@
  * Endpoints: /api/provincial-health/*
  */
 
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // ==================== Types ====================
 

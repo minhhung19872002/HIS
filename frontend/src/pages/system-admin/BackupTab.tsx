@@ -7,7 +7,8 @@ import {
 } from 'antd';
 import { CloudUploadOutlined, FolderOutlined, SaveOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { apiClient as client } from '../../api/client';
+import { apiClient as client } from '../../services/apiClient';
+import { storage, STORAGE_KEYS } from '../../services/storage.service';
 
 const { Option } = Select;
 
@@ -39,7 +40,7 @@ const defaultBackupConfig: BackupConfig = {
 
 const loadBackupConfig = (): BackupConfig => {
   try {
-    const saved = localStorage.getItem('his_backup_config');
+    const saved = storage.getRaw(STORAGE_KEYS.backupConfig);
     return saved ? { ...defaultBackupConfig, ...JSON.parse(saved) } : defaultBackupConfig;
   } catch {
     return defaultBackupConfig;
@@ -58,7 +59,7 @@ const BackupTab: React.FC = () => {
 
   const saveBackupConfig = (cfg: BackupConfig) => {
     setBackupConfig(cfg);
-    localStorage.setItem('his_backup_config', JSON.stringify(cfg));
+    storage.set(STORAGE_KEYS.backupConfig, cfg);
     message.success('Cau hinh sao luu da duoc luu');
   };
 

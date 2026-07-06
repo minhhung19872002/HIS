@@ -3,7 +3,7 @@
  * Module: Quality
  */
 
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // ==================== INTERFACES ====================
 

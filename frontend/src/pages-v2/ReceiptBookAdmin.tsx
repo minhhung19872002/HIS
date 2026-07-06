@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { fmtNum as fmt } from '../utils/format';
 import { Form, Input, InputNumber, Select, DatePicker, Modal } from 'antd';
 import dayjs from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import systemApi from '../api/system';
 import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {

@@ -1,7 +1,7 @@
 /**
  * Inpatient — Prescriptions / Nutrition (3.4 + 3.5)
  */
-import apiClient from '../client';
+import apiClient from '../../services/apiClient';
 
 const BASE_URL = '/inpatient';
 

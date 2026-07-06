@@ -3,7 +3,7 @@ import { HOSPITAL_NAME } from '../constants/hospital';
 import { openPrintWindow } from '../utils/printWindow';
 import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import {
   KpiStrip, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, ti, tw,

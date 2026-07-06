@@ -3,7 +3,7 @@
  * Module: Mass Casualty
  */
 
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // ==================== INTERFACES ====================
 

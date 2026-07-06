@@ -3,7 +3,7 @@
  * is in report.ts (it's a report-related sync); this module covers the HL7/CDA messaging layer.
  */
 
-import apiClient from '../client';
+import apiClient from '../../services/apiClient';
 
 // #region Interfaces
 

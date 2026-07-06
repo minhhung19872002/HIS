@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 export const PATIENT_FLAG_TYPES: Record<number, string> = {
   1: 'Dị ứng nặng',

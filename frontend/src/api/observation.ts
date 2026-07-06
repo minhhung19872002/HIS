@@ -1,4 +1,4 @@
-import api from './client';
+import api from '../services/apiClient';
 
 // ========================
 // Phòng lưu / Observation ngắn hạn (N1.07) — API CLIENT

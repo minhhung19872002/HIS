@@ -2,7 +2,7 @@
  * RIS API — Worklist, rooms, schedules, room queue/assignment/statistics, duty schedules.
  */
 
-import apiClient from '../client';
+import apiClient from '../../services/apiClient';
 import type { ModalityDto } from './_shared';
 
 // #region Interfaces

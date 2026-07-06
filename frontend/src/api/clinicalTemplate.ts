@@ -3,7 +3,7 @@
  * 7 template types: HSBA ngoại trú / PTTT / Kết luận / Diễn biến / Hội chẩn / Cam kết / Chứng nhận
  */
 
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 export const TEMPLATE_TYPES = {
   HSBA_NGOAI_TRU: 1,

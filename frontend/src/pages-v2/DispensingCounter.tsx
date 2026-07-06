@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fmtNum as fmt } from '../utils/format';
 import { DatePicker, Input, Modal, type InputRef } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import { openPrintWindow } from '../utils/printWindow';
 import { searchPrescriptionByCode, type DispensePrescriptionLookupDto } from '../api/examination';
 import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';

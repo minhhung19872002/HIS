@@ -15,7 +15,7 @@ import type { DataNode } from 'antd/es/tree';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import client from '../api/client';
+import client from '../services/apiClient';
 import { isApiAvailable } from '../utils/apiAvailability';
 
 const { Search } = Input;

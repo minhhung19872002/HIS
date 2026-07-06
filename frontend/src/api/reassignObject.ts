@@ -1,7 +1,7 @@
 /**
  * Reassign object bulk + per-line — Sprint 2 Item 2.7 / #104 #126 #127 #137
  */
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // ────────────────────────────────────────────────────────────────────────────────
 // BULK (endpoint cũ, backward compatible)

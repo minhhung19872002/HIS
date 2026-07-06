@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import * as file from '../services/file.service';
 import {
   Card, Table, Input, Button, Space, Tag, Form, DatePicker, Select,
   Modal, message, Typography, Row, Col, Divider, Spin, Empty, Tooltip,
@@ -11,7 +12,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import client from '../api/client';
+import client from '../services/apiClient';
 import { SPECIALTY_TYPES, SPECIALTY_FIELDS, type FieldDef } from '../constants/specialtyEmr';
 
 const { Title, Text } = Typography;
@@ -182,9 +183,7 @@ const SpecialtyEMR: React.FC = () => {
     const fn = type === 'pdf' ? specialtyEMRApi.exportPdf : specialtyEMRApi.exportXml;
     const result = await fn(id);
     if (result?.data) {
-      const url = window.URL.createObjectURL(new Blob([result.data]));
-      const a = document.createElement('a'); a.href = url; a.download = `specialty-emr-${id}.${type}`;
-      a.click(); window.URL.revokeObjectURL(url);
+      file.downloadBlob(new Blob([result.data]), `specialty-emr-${id}.${type}`);
     } else { message.warning(`Xuat ${type.toUpperCase()} chua san sang`); }
   };
 

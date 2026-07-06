@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 const BASE_URL = '/business-alerts';
 

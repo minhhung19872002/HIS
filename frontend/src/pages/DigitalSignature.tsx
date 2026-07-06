@@ -15,7 +15,7 @@ import type {
   TokenInfoDto, DocumentSignatureDto, SessionStatusResponse,
   BatchSignResponse, BatchSignItemResult
 } from '../api/digitalSignature';
-import { apiClient } from '../api/client';
+import { apiClient } from '../services/apiClient';
 
 interface CertificateInfo {
   thumbprint: string;

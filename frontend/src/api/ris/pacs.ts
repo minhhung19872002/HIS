@@ -4,7 +4,7 @@
  * capture devices/workstations/sessions/media, sendToPacs, DICOM export/remote.
  */
 
-import apiClient from '../client';
+import apiClient from '../../services/apiClient';
 import type { ModalityDto } from './_shared';
 
 // #region Interfaces

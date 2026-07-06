@@ -11,7 +11,7 @@ import {
 } from 'antd';
 import { SearchOutlined, WarningOutlined, MedicineBoxOutlined, ExperimentOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 
 const { Title, Text } = Typography;
 

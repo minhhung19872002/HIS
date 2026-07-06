@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import {
   Card,
   Table,
@@ -152,12 +153,12 @@ const Radiology: React.FC = () => {
 
   // ===== Feature: Dark/Light Theme Toggle (NangCap15) =====
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    try { return localStorage.getItem('ris-dark-mode') === 'true'; } catch { return false; }
+    try { return storage.getRaw(STORAGE_KEYS.risDarkMode) === 'true'; } catch { return false; }
   });
   const toggleDarkMode = () => {
     const next = !isDarkMode;
     setIsDarkMode(next);
-    try { localStorage.setItem('ris-dark-mode', String(next)); } catch { /* ignore */ }
+    try { storage.set(STORAGE_KEYS.risDarkMode, String(next)); } catch { /* ignore */ }
   };
 
   // ===== Feature: Result Template Management (NangCap15) =====
@@ -434,7 +435,7 @@ const Radiology: React.FC = () => {
   // Send chat message via API with local fallback
   const sendChatMessage = async () => {
     if (!chatInput.trim()) return;
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = storage.get<{ fullName?: string; username?: string }>(STORAGE_KEYS.user) ?? {};
     const newMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       sender: user.fullName || user.username || 'Unknown',
@@ -466,7 +467,7 @@ const Radiology: React.FC = () => {
   const FILTER_PRESETS_KEY = 'his-radiology-filter-presets';
   const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => {
     try {
-      const stored = localStorage.getItem(FILTER_PRESETS_KEY);
+      const stored = storage.getRaw(FILTER_PRESETS_KEY);
       return stored ? JSON.parse(stored) : [];
     } catch { return []; }
   });
@@ -485,7 +486,7 @@ const Radiology: React.FC = () => {
     };
     const updated = [...filterPresets.filter((p) => p.name !== newPreset.name), newPreset];
     setFilterPresets(updated);
-    try { localStorage.setItem(FILTER_PRESETS_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+    try { storage.set(FILTER_PRESETS_KEY, updated); } catch { /* ignore */ }
     setPresetName('');
     message.success(`Da luu preset "${newPreset.name}"`);
   };
@@ -502,7 +503,7 @@ const Radiology: React.FC = () => {
   const deleteFilterPreset = (name: string) => {
     const updated = filterPresets.filter((p) => p.name !== name);
     setFilterPresets(updated);
-    try { localStorage.setItem(FILTER_PRESETS_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+    try { storage.set(FILTER_PRESETS_KEY, updated); } catch { /* ignore */ }
     message.success(`Da xoa preset "${name}"`);
   };
 
@@ -516,14 +517,14 @@ const Radiology: React.FC = () => {
   }
   const [risConfig, setRisConfig] = useState<RisConfig>(() => {
     try {
-      const stored = localStorage.getItem(RIS_CONFIG_KEY);
+      const stored = storage.getRaw(RIS_CONFIG_KEY);
       return stored ? JSON.parse(stored) : { maxResultsPerRead: 20, autoSaveInterval: 60, printGrouping: 'single', requireTechnician: false };
     } catch { return { maxResultsPerRead: 20, autoSaveInterval: 60, printGrouping: 'single', requireTechnician: false }; }
   });
 
   const saveRisConfig = (updated: RisConfig) => {
     setRisConfig(updated);
-    try { localStorage.setItem(RIS_CONFIG_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+    try { storage.set(RIS_CONFIG_KEY, updated); } catch { /* ignore */ }
     message.success('Da luu cau hinh');
   };
 

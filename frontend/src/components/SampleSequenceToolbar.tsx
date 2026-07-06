@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { Button, Modal, Form, Input, InputNumber, Select, message, Table, Tag, Space, Drawer, DatePicker } from 'antd';
 import { PlusOutlined, BarcodeOutlined, EditOutlined, HistoryOutlined, CalendarOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 
 interface Props {
   serviceRequestDetailId?: string;

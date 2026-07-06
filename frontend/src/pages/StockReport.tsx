@@ -4,12 +4,13 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import * as file from '../services/file.service';
 import {
   Card, Tabs, Table, Space, Input, Select, Button, Tag, Statistic, Row, Col, message, InputNumber,
 } from 'antd';
 import { ReloadOutlined, DatabaseOutlined, WarningOutlined, AlertOutlined, ExportOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import { getWarehouses } from '../api/warehouse';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 
@@ -94,11 +95,7 @@ export default function StockReport() {
       return v;
     }).join(','))).join('\n');
     const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `stock-${tab}-${dayjs().format('YYYYMMDD-HHmm')}.csv`;
-    a.click();
+    file.downloadBlob(blob, `stock-${tab}-${dayjs().format('YYYYMMDD-HHmm')}.csv`);
   };
 
   return (

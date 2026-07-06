@@ -7,7 +7,7 @@ import {
   Card, Form, Input, InputNumber, Select, Button, Space, message, Alert, Divider, Typography, Row, Col, Tabs,
 } from 'antd';
 import { SaveOutlined, ApiOutlined, LoginOutlined, SendOutlined, ReloadOutlined } from '@ant-design/icons';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 
 const { Title, Text } = Typography;
 

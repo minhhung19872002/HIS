@@ -1,4 +1,4 @@
-import client from './client';
+import client from '../services/apiClient';
 
 type ItTicketQueryParams = Record<string, string | number | boolean | null | undefined>;
 type ItTicketPayload = Record<string, unknown>;

@@ -1,7 +1,7 @@
 /**
  * API Client for Pharmacy Module
  */
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // ============================================================================
 // Types/Interfaces

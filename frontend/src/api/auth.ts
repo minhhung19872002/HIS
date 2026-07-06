@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 import type { ApiResponse } from './types';
 
 export type { ApiResponse } from './types';

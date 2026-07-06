@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 export interface CancelChainResponse {
   success: boolean;

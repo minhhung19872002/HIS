@@ -18,7 +18,7 @@ import {
   AppstoreOutlined, FolderOutlined, FileTextOutlined, UserSwitchOutlined,
   BarChartOutlined, MedicineBoxOutlined, EnvironmentOutlined, BankOutlined,
 } from '@ant-design/icons';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 
 const { Text } = Typography;
 

@@ -3,7 +3,7 @@
  * DTOs + catalogApi
  */
 
-import { apiClient } from '../client';
+import { apiClient } from '../../services/apiClient';
 
 type BranchPayload = Record<string, unknown>;
 

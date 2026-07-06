@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import * as file from '../services/file.service';
 import {
   Card, Tabs, Table, Button, Space, Tag, Modal, Form, Input, Select,
   DatePicker, Statistic, Row, Col, message, Spin, InputNumber, Switch,
@@ -149,10 +150,7 @@ const CentralSigning: React.FC = () => {
       const res = await centralSigningApi.exportSerials();
       const text = (res.data || []).join('\n');
       const blob = new Blob([text], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'certificate_serials.txt'; a.click();
-      URL.revokeObjectURL(url);
+      file.downloadBlob(blob, 'certificate_serials.txt');
       message.success('Đã xuất danh sách Serial');
     } catch (err) { console.warn('Export serials:', err); message.warning('Không thể xuất'); }
   };

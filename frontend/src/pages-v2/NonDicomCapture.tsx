@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Form, Input, Select, Modal, Upload } from 'antd';
 import dayjs from 'dayjs';
-import apiClient from '../api/client';
-import { API_URL } from '../config/api';
+import apiClient from '../services/apiClient';
+import { API_URL } from '../config/api.config';
 import {
   KpiStrip, Filter, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, Ico, tk, tw, cf,

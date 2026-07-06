@@ -5,6 +5,7 @@
 // paraclinical-room-priorities}
 // =====================================================================
 import React, { useEffect, useMemo, useState } from 'react';
+import * as file from '../services/file.service';
 import { Input, InputNumber, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
 import * as api from '../api/masterCatalog';
@@ -230,11 +231,7 @@ const ParaclinicalCatalogsV2: React.FC = () => {
       return /[,"\n]/.test(s) ? `"${s}"` : s;
     }).join(',')).join('\n');
     const blob = new Blob([`${header}\n${body}`], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `paraclinical-catalog-${tab}-${dayjs().format('YYYYMMDD')}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    file.downloadBlob(blob, `paraclinical-catalog-${tab}-${dayjs().format('YYYYMMDD')}.csv`);
     tk('Đã xuất CSV');
   };
 

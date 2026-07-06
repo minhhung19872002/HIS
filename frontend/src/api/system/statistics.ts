@@ -3,7 +3,7 @@
  * DTOs + statisticsApi
  */
 
-import { apiClient } from '../client';
+import { apiClient } from '../../services/apiClient';
 
 // ============================================================================
 // DTOs

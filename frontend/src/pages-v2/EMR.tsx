@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp, Modal, Form, Input, Select, Table, Button, Tag, Popconfirm } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import { getEmrRecords } from '../api/examination';
 import type { EmrRecordDto } from '../api/examination';
 import { SimpleV2Page, ActBtn, Btn, type ColumnDef } from './_v2kit';

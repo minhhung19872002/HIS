@@ -1,4 +1,4 @@
-import api from './client';
+import api from '../services/apiClient';
 
 export interface NotificationDto {
   id: string;

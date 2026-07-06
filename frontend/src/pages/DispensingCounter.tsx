@@ -15,7 +15,7 @@ import {
   ReloadOutlined, BarcodeOutlined,
 } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 
 const { Title, Text } = Typography;
 

@@ -1,7 +1,8 @@
 import axios from 'axios';
 import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { message } from 'antd';
-import { API_URL } from '../config/api';
+import { API_URL } from '../config/api.config';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 
 // Create axios instance
 const request: AxiosInstance = axios.create({
@@ -16,7 +17,7 @@ const request: AxiosInstance = axios.create({
 request.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // Get token from localStorage
-    const token = localStorage.getItem('token');
+    const token = storage.getRaw(STORAGE_KEYS.token);
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -48,8 +49,8 @@ request.interceptors.response.use(
         case 401:
           // Unauthorized - redirect to login
           message.error('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          storage.remove(STORAGE_KEYS.token);
+          storage.remove(STORAGE_KEYS.user);
           window.location.href = '/login';
           break;
         case 403:

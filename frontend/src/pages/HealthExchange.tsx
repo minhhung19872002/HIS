@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import * as file from '../services/file.service';
 import { HOSPITAL_NAME } from '../constants/hospital';
 import {
   Card,
@@ -351,12 +352,7 @@ const HealthExchange: React.FC = () => {
 
   const handleDownloadJson = () => {
     const blob = new Blob([fhirJsonContent], { type: 'application/fhir+json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${fhirJsonTitle.replace(/[^a-zA-Z0-9-_]/g, '_')}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    file.downloadBlob(blob, `${fhirJsonTitle.replace(/[^a-zA-Z0-9-_]/g, '_')}.json`);
   };
 
   // FHIR resource type search parameter definitions

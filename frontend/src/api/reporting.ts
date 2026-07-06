@@ -3,7 +3,7 @@
  * Frontend API calls for HIS Reporting Module
  */
 
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // ================== Types ==================
 

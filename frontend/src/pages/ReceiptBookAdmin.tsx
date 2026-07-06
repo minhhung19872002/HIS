@@ -10,7 +10,7 @@ import {
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, BookOutlined, PauseCircleOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import systemApi from '../api/system';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import * as file from '../services/file.service';
 import { useNavigate } from 'react-router-dom';
 import { App as AntdApp, Drawer, Modal, Select } from 'antd';
 import { getStaff, getRoster, approveSwapRequest, publishRoster, copyWeekRoster, type StaffProfileDto, type RosterAssignmentDto, type DutyRosterDto } from '../api/medicalHR';
@@ -145,12 +146,7 @@ function buildRotaFromAssignments(
 /** CSV helper — inline (same pattern as Reports.tsx downloadCsv) */
 function downloadCsv(filename: string, lines: string[]): void {
   const blob = new Blob([`﻿${lines.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  window.URL.revokeObjectURL(url);
+  file.downloadBlob(blob, filename);
 }
 
 const HRV2: React.FC = () => {

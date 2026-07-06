@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import {
   Card,
   Table,
@@ -43,7 +44,7 @@ import type { LabRequest, TestResult, TestParameter } from '../api/laboratory';
 import { buildBarcodeLabelHtml, buildLabResultHtml } from './laboratory/printTemplates';
 import SampleSequenceToolbar from '../components/SampleSequenceToolbar';
 import { HOSPITAL_NAME } from '../constants/hospital';
-import { SignatureStatusIcon, PinEntryModal } from '../components/digital-signature';
+import { SignatureStatusIcon, PinEntryModal } from '../components/digitalSignature';
 import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';
@@ -140,7 +141,7 @@ const Laboratory: React.FC = () => {
   const handleSendResultSms = async (record: TestResult) => {
     try {
       message.loading('Đang gửi SMS kết quả xét nghiệm...', 1);
-      const { apiClient } = await import('../api/client');
+      const { apiClient } = await import('../services/apiClient');
       await apiClient.post('/sms/send-test', {
         phoneNumber: record.patientCode, // backend will look up patient phone by code
         message: `Ket qua XN ${record.testName || record.requestCode} da hoan thanh. Vui long lien he BV de nhan ket qua. Ma phieu: ${record.requestCode}`,
@@ -311,7 +312,7 @@ const Laboratory: React.FC = () => {
     collectionForm.setFieldsValue({
       sampleType: record.requestedTests[0],
       collectionTime: dayjs(),
-      collectorName: JSON.parse(localStorage.getItem('user') || '{}').fullName || 'N/A',
+      collectorName: storage.get<{ fullName?: string }>(STORAGE_KEYS.user)?.fullName || 'N/A',
     });
     setIsCollectionModalOpen(true);
   };
@@ -538,7 +539,7 @@ const Laboratory: React.FC = () => {
         try {
           // Call API to approve results
           const approveData = {
-            approvedBy: JSON.parse(localStorage.getItem('user') || '{}').fullName || 'N/A',
+            approvedBy: storage.get<{ fullName?: string }>(STORAGE_KEYS.user)?.fullName || 'N/A',
             approvedTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
           };
 
@@ -550,7 +551,7 @@ const Laboratory: React.FC = () => {
                 ? {
                     ...r,
                     status: 2,
-                    approvedBy: JSON.parse(localStorage.getItem('user') || '{}').fullName || 'N/A',
+                    approvedBy: storage.get<{ fullName?: string }>(STORAGE_KEYS.user)?.fullName || 'N/A',
                     approvedTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
                   }
                 : r

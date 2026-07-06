@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import * as file from '../services/file.service';
 import {
   Card,
   Input,
@@ -45,9 +46,9 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload';
 import dayjs from 'dayjs';
-import client from '../api/client';
+import client from '../services/apiClient';
 import { HOSPITAL_NAME } from '../constants/hospital';
-import { buildApiUrl } from '../config/api';
+import { buildApiUrl } from '../config/api.config';
 import { isApiAvailable } from '../utils/apiAvailability';
 
 const { RangePicker } = DatePicker;
@@ -1509,10 +1510,7 @@ const BhxhAudit: React.FC = () => {
                 <Button
                   icon={<DownloadOutlined />}
                   onClick={() => {
-                    const link = document.createElement('a');
-                    link.href = buildApiUrl(`/bhxh-audit/records/${selectedPortalRecord.id}/pdf`);
-                    link.download = `HSBA_${selectedPortalRecord.maLk}.pdf`;
-                    link.click();
+                    file.downloadUrl(buildApiUrl(`/bhxh-audit/records/${selectedPortalRecord.id}/pdf`), `HSBA_${selectedPortalRecord.maLk}.pdf`);
                   }}
                 >
                   Tải xuống

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Input, InputNumber, Select, Checkbox } from 'antd';
 import dayjs from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import { getWarehouses } from '../api/warehouse';
 import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {

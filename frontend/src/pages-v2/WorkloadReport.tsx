@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import * as file from '../services/file.service';
 import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
@@ -61,10 +62,7 @@ const WorkloadReportV2: React.FC = () => {
     const keys = Object.keys(rows[0]);
     const csv = [keys.join(',')].concat(rows.map((r) => keys.map((k) => r[k] ?? '').join(','))).join('\n');
     const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `workload-${tab}-${range[0].format('YYYYMMDD')}-${range[1].format('YYYYMMDD')}.csv`;
-    a.click();
+    file.downloadBlob(blob, `workload-${tab}-${range[0].format('YYYYMMDD')}-${range[1].format('YYYYMMDD')}.csv`);
     tk('Đã xuất CSV');
   };
 

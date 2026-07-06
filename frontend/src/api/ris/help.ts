@@ -3,7 +3,7 @@
  * service-description templates.
  */
 
-import apiClient from '../client';
+import apiClient from '../../services/apiClient';
 
 // #region Interfaces
 

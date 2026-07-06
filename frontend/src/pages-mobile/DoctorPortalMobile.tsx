@@ -9,6 +9,7 @@ import dayjs from 'dayjs';
 import { searchExaminations, getPhysicalExamination } from '../api/examination';
 import type { ExaminationDto, PhysicalExaminationDto } from '../api/examination';
 import { printEmrForm } from '../api/pdf';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import {
   getInpatientList,
   createTreatmentSheet,
@@ -106,7 +107,7 @@ const DoctorPortalMobile: React.FC = () => {
   const [inpatients, setInpatients] = useState<InpatientListDto[]>([]);
 
   const doctorName = useMemo(() => {
-    try { return JSON.parse(localStorage.getItem('user') || '{}').fullName || 'Bác sĩ'; } catch { return 'Bác sĩ'; }
+    try { return storage.get<{ fullName?: string }>(STORAGE_KEYS.user)?.fullName || 'Bác sĩ'; } catch { return 'Bác sĩ'; }
   }, []);
 
   useEffect(() => {

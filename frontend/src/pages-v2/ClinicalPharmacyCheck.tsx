@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { fmtNum as fmt } from '../utils/format';
 import dayjs from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import { importDrugInteractionsCsv, type DrugInteractionImportResult } from '../api/examination';
 import {
   KpiStrip, SearchBox, StatusBadge, Btn, Ico, tk, ti, tw,

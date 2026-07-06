@@ -3,7 +3,7 @@
  * Base: /api/procurement
  * Entity: AssetProcurementRequest (khác ProcurementRequest của warehouse module)
  */
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 const BASE = '/api/asset-procurement';
 

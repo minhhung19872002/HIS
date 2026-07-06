@@ -3,7 +3,7 @@
  * Level 6 security compliance - tracks medical record access and modifications
  */
 
-import { apiClient } from './client';
+import { apiClient } from '../services/apiClient';
 
 // ============================================================================
 // DTOs

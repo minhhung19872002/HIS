@@ -4,7 +4,7 @@
  * Countries, Healthcare Facilities (CSKCB)
  */
 
-import { apiClient } from './client';
+import { apiClient } from '../services/apiClient';
 
 // ============================================================================
 // DTOs

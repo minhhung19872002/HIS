@@ -3,7 +3,7 @@
  * DTOs + adminApi (includes LockedServiceDto)
  */
 
-import { apiClient } from '../client';
+import { apiClient } from '../../services/apiClient';
 
 // ============================================================================
 // DTOs

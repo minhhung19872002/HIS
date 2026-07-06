@@ -1,4 +1,5 @@
 import React from 'react';
+import * as file from '../services/file.service';
 import { App as AntdApp, Drawer, Form, Input, Modal, Select, Tooltip } from 'antd';
 import {
   DownloadOutlined,
@@ -14,7 +15,7 @@ import dayjs from 'dayjs';
 import TermIcon from '../layouts/terminal/Icon';
 import { statisticsApi } from '../api/system';
 import type { DepartmentRevenueDto, HospitalDashboardDto } from '../api/system';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import '../styles/reports-v2.css';
 
 type ReportCategoryId = 'operational' | 'clinical' | 'financial' | 'regulatory';
@@ -227,12 +228,7 @@ function escapeCsvCell(value: string): string {
 
 function downloadCsv(filename: string, lines: string[]): void {
   const blob = new Blob([`\ufeff${lines.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
-  const url = window.URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  window.URL.revokeObjectURL(url);
+  file.downloadBlob(blob, filename);
 }
 
 function buildSeries(seedKey: string): number[] {
@@ -427,11 +423,7 @@ const ReportsV2: React.FC = () => {
   const downloadBlob = async (url: string, filename: string) => {
     const resp = await apiClient.get(url, { responseType: 'blob' });
     const blob = new Blob([resp.data as BlobPart]);
-    const link = document.createElement('a');
-    link.href = window.URL.createObjectURL(blob);
-    link.download = filename;
-    link.click();
-    window.URL.revokeObjectURL(link.href);
+    file.downloadBlob(blob, filename);
   };
 
   const handleRunReport = async (report: ReportDefinition) => {

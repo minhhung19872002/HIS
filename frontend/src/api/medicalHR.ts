@@ -3,7 +3,7 @@
  * Module: Medical HR
  */
 
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // ==================== INTERFACES ====================
 

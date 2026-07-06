@@ -1,7 +1,7 @@
 /**
  * Inpatient — Admission / Patient management (3.2)
  */
-import apiClient from '../client';
+import apiClient from '../../services/apiClient';
 import type { PagedResult } from './_shared';
 
 const BASE_URL = '/inpatient';

@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // F3.4: Danh sach BN BHYT chi tra 100% thuoc dac tri
 

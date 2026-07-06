@@ -16,7 +16,7 @@ import type { ColumnDef } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 import { bankPaymentApi } from '../api/nangcap24';
 import type { SupportedBankDto } from '../api/nangcap24';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 
 interface PaymentTxn {
   id: string;

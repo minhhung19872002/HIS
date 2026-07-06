@@ -3,7 +3,7 @@
  * tags + assign/requests-by-tag.
  */
 
-import apiClient from '../client';
+import apiClient from '../../services/apiClient';
 
 // #region Interfaces
 

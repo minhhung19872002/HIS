@@ -3,7 +3,7 @@
  * QR theo ngữ cảnh nghiệp vụ · kiosk · đối soát NH · báo cáo người tạo QR · chi hộ hoàn tiền
  */
 
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 import type { PaymentUrlResponse } from './paymentGateway';
 
 // ===== QR động theo ngữ cảnh =====

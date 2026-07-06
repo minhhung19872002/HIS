@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import * as file from '../services/file.service';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input, InputNumber, Select } from 'antd';
 import { useNavigate } from 'react-router-dom';
@@ -195,10 +196,7 @@ const TelemedicineV2: React.FC = () => {
             r.videoRoomUrl || '',
           ].map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','));
           const blob = new Blob(['﻿' + [header, ...csvRows].join('\n')], { type: 'text/csv;charset=utf-8;' });
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url; a.download = `telemedicine_${dayjs().format('YYYYMMDD-HHmm')}.csv`; a.click();
-          window.URL.revokeObjectURL(url);
+          file.downloadBlob(blob, `telemedicine_${dayjs().format('YYYYMMDD-HHmm')}.csv`);
           message.success(`Đã xuất ${filtered.length} dòng`);
         }}>
           <TermIcon name="download" size={12} /> Xuất CSV

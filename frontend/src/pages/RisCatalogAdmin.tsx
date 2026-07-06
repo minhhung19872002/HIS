@@ -9,7 +9,7 @@ import {
 } from 'antd';
 import type { ColumnsType, ColumnType } from 'antd/es/table';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, ScanOutlined } from '@ant-design/icons';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 
 type TabKey = 'modalities' | 'body-parts' | 'protocols' | 'report-templates';
 

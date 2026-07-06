@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signalr';
+import { HubConnection } from '@microsoft/signalr';
 import { message } from 'antd';
 import { useAuth } from './AuthContext';
 import * as notificationApi from '../api/notification';
 import type { NotificationDto } from '../api/notification';
-import { REALTIME_ORIGIN } from '../config/api';
+import { createHubConnection } from '../services/signalr.service';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 
 interface NotificationContextType {
   notifications: NotificationDto[];
@@ -92,18 +93,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return;
     }
 
-    const token = localStorage.getItem('token');
+    const token = storage.getRaw(STORAGE_KEYS.token);
     if (!token) return;
 
     // Fetch initial data
     fetchNotifications();
 
-    // Build SignalR connection
-    const connection = new HubConnectionBuilder()
-      .withUrl(`${REALTIME_ORIGIN}/hubs/notifications`, { accessTokenFactory: () => token })
-      .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-      .configureLogging(LogLevel.None)
-      .build();
+    // Build SignalR connection (shared factory — reconnect/log config byte-equivalent)
+    const connection = createHubConnection('/hubs/notifications', {
+      accessTokenFactory: () => token,
+    });
 
     connection.on('ReceiveNotification', (notification: NotificationDto) => {
       setNotifications(prev => [notification, ...prev].slice(0, 50));

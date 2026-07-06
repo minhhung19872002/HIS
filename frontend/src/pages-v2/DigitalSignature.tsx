@@ -5,7 +5,7 @@ import * as dsApi from '../api/digitalSignature';
 import type {
   TokenInfoDto, SessionStatusResponse, BatchSignResponse,
 } from '../api/digitalSignature';
-import { apiClient } from '../api/client';
+import { apiClient } from '../services/apiClient';
 import { signPdf as vgcaSignPdf } from '../utils/vgcaSign';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,

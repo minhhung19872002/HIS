@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // HSBA chuyên khoa (TT 32/2023). Tách call ra api layer (không gọi axios/client trong component).
 

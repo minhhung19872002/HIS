@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { message } from 'antd';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import type {
   OpenSessionResponse,
   SessionStatusResponse,
@@ -14,7 +15,7 @@ import {
   batchSign as apiBatchSign,
 } from '../api/digitalSignature';
 import * as signalR from '@microsoft/signalr';
-import { REALTIME_ORIGIN } from '../config/api';
+import { createHubConnection } from '../services/signalr.service';
 
 interface BatchProgress {
   current: number;
@@ -62,16 +63,15 @@ export function SigningProvider({ children }: { children: React.ReactNode }) {
   // Setup SignalR connection for batch signing progress
   useEffect(() => {
     let cancelled = false;
-    const token = localStorage.getItem('token');
+    const token = storage.getRaw(STORAGE_KEYS.token);
     if (!token) return;
 
-    const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${REALTIME_ORIGIN}/hubs/notifications`, {
-        accessTokenFactory: () => token,
-      })
-      .withAutomaticReconnect([0, 2000, 5000, 10000])
-      .configureLogging(signalR.LogLevel.None)
-      .build();
+    // Shared factory — reconnect delays kept as this context's own [0,2000,5000,10000]
+    // (byte-equivalent); LogLevel.None via factory default.
+    const connection = createHubConnection('/hubs/notifications', {
+      accessTokenFactory: () => token,
+      reconnectDelays: [0, 2000, 5000, 10000],
+    });
 
     connection.on('SigningProgress', (data: BatchProgress) => {
       setBatchProgress(data);
@@ -198,7 +198,7 @@ export function SigningProvider({ children }: { children: React.ReactNode }) {
 
   // Check session status on mount
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = storage.getRaw(STORAGE_KEYS.token);
     if (token) {
       refreshSessionStatus();
     }

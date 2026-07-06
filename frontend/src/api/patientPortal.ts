@@ -3,7 +3,7 @@
  * Module: Patient Portal
  */
 
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // ==================== INTERFACES ====================
 

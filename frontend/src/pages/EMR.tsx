@@ -29,7 +29,7 @@ import {
 } from '../api/examination';
 import PrintTemplateRenderer from '../components/PrintTemplateRenderer';
 import { printEmrForm } from '../api/pdf';
-import client from '../api/client';
+import client from '../services/apiClient';
 import {
   getCompletenessCheck, getAttachments, saveAttachment, deleteAttachment,
   getPrintLogs, stampPrintLog, finalizeRecord, reopenRecord, getAmendments,
@@ -38,7 +38,7 @@ import {
 import PatientTimeline from '../components/PatientTimeline';
 import EmrManagementTabs from '../components/EmrManagementTabs';
 import VoiceDictation from '../components/VoiceDictation';
-import { PinEntryModal, SignatureStatusIcon, SignatureVerificationPanel, BatchSigningModal } from '../components/digital-signature';
+import { PinEntryModal, SignatureStatusIcon, SignatureVerificationPanel, BatchSigningModal } from '../components/digitalSignature';
 import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures, getSignaturesBatch } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';

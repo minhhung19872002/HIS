@@ -3,7 +3,7 @@
  * Sprint 1 Item 1.1
  */
 
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 export type PaymentProvider =
   | 'vnpay' | 'momo' | 'zalopay'

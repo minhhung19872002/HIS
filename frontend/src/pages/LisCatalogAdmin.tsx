@@ -9,7 +9,7 @@ import {
 } from 'antd';
 import type { ColumnsType, ColumnType } from 'antd/es/table';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, ExperimentOutlined } from '@ant-design/icons';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 
 type TabKey = 'books' | 'groups' | 'units' | 'organisms' | 'antibiotics' | 'chemicals';

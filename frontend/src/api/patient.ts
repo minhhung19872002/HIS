@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 import type { ApiResponse } from './auth';
 
 // Re-export ApiResponse for convenience

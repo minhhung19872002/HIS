@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import {
   Card,
   Row,
@@ -69,7 +70,7 @@ import DoctorLicenseBanner from '../components/DoctorLicenseBanner';
 import type { LicenseStatusDto } from '../api/doctorLicense';
 import { getDepositBalance } from '../api/billing';
 import { useSafetyAlerts } from '../hooks/useSafetyAlerts';
-import { buildApiUrl } from '../config/api';
+import { buildApiUrl } from '../config/api.config';
 import type {
   QueuePatient,
   Examination,
@@ -172,7 +173,7 @@ const OPD: React.FC = () => {
   // NangCap4: Supply order templates (stored in localStorage)
   const [supplyTemplates, setSupplyTemplates] = useState<{ name: string; items: typeof supplyOrders }[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem('opd_supply_templates') || '[]');
+      return storage.get<{ name: string; items: typeof supplyOrders }[]>(STORAGE_KEYS.opdSupplyTemplates) ?? [];
     } catch {
       return [];
     }
@@ -954,7 +955,7 @@ const OPD: React.FC = () => {
     ];
     setSupplyTemplates(updated);
     try {
-      localStorage.setItem('opd_supply_templates', JSON.stringify(updated));
+      storage.set(STORAGE_KEYS.opdSupplyTemplates, updated);
     } catch { /* storage full */ }
     message.success(`Đã lưu mẫu vật tư "${name}"`);
     setTemplateNameModalVisible(false);
@@ -1001,7 +1002,7 @@ const OPD: React.FC = () => {
         buildApiUrl(`/examination/${prevExam.examinationId}/supply-orders`),
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+            Authorization: `Bearer ${storage.getRaw(STORAGE_KEYS.token) || ''}`,
           },
         }
       );

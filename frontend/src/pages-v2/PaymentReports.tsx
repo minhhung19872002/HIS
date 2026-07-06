@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import * as file from '../services/file.service';
 import { fmtNum as fmt } from '../utils/format';
 import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import { exportToExcel } from '../utils/excelExport';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, Btn, tk, ti, tw,
@@ -117,10 +118,7 @@ const PaymentReportsV2: React.FC = () => {
       return v;
     }).join(','))).join('\n');
     const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${tab}-${range[0].format('YYYYMMDD')}-${range[1].format('YYYYMMDD')}.csv`;
-    a.click();
+    file.downloadBlob(blob, `${tab}-${range[0].format('YYYYMMDD')}-${range[1].format('YYYYMMDD')}.csv`);
     tk('Đã xuất CSV');
   };
 

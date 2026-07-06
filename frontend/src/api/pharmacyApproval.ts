@@ -2,7 +2,7 @@
  * Pharmacy approval workflow — Sprint 2 Item 1.2
  */
 
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 export const APPROVAL_TYPES = {
   KHO_DU_TRU: 1,

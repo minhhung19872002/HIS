@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 import { publicClient } from './publicClient';
 
 export interface CreateShareRequest {

@@ -1,7 +1,7 @@
 /**
  * Inpatient — Service Orders / Diagnosis (3.3 + G-08 + G-15)
  */
-import apiClient from '../client';
+import apiClient from '../../services/apiClient';
 
 const BASE_URL = '/inpatient';
 

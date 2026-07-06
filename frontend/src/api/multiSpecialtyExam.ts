@@ -3,7 +3,7 @@
  * Đăng ký nhiều phòng + khám thêm chuyên khoa khác + undo bill/completion.
  */
 
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 export interface MultiRoomRegistrationRequest {
   patientId: string;

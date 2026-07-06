@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Input, InputNumber, Select } from 'antd';
 import type { AxiosError } from 'axios';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import type { ServerValidationError } from '../utils/formError';
 import {
   KpiStrip, TopTabs, StatusBadge, Btn, tk, ti, tw,

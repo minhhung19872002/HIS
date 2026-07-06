@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { fmtNum as fmt } from '../utils/format';
 import { Form, Input, InputNumber, DatePicker, Select, Checkbox } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn,

@@ -10,7 +10,7 @@ import {
 } from 'antd';
 import { ReloadOutlined, CheckCircleOutlined, PrinterOutlined, MedicineBoxOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import systemApi from '../api/system';
 import { getWarehouses } from '../api/warehouse';
 import { normalizeArrayResponse } from '../utils/apiNormalize';

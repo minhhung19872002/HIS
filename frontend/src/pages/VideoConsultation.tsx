@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import {
   Card, Table, Button, Space, Tag, Modal, Form, Input, Select, Switch,
   DatePicker, message, Drawer, Typography, Popconfirm, Divider,
@@ -95,7 +96,7 @@ export default function VideoConsultation() {
 
   const handleJoin = async (r: RoomDto) => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = storage.get<{ fullName?: string; username?: string; email?: string }>(STORAGE_KEYS.user) ?? {};
       const info = await joinRoom(r.id, user.fullName || user.username || 'User', user.email, 'participant');
       setJoinInfo(info);
       // Mở Jitsi trong tab mới

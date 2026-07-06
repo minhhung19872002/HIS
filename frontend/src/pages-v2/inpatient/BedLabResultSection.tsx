@@ -16,7 +16,7 @@ import {
   type BedLabOrder,
 } from '../../api/laboratory';
 import { adminApi } from '../../api/system';
-import apiClient from '../../api/client';
+import apiClient from '../../services/apiClient';
 import { useAbbrExpansion } from '../../utils/abbrExpand';
 import { ModalShell, Btn } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';

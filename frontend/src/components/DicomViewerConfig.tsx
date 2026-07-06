@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import { Modal, Tabs, Table, Form, Input, InputNumber, Select, Button, Tag, message, Typography, Checkbox } from 'antd';
 
 const { Text } = Typography;
@@ -102,7 +103,7 @@ function getStorageKey(userId?: string): string {
   if (userId) return `dicom_viewer_config_u_${userId}`;
   // Fallback: try to extract userId from cached user object
   try {
-    const u = JSON.parse(localStorage.getItem('user') || '{}') as { id?: string; username?: string };
+    const u = storage.get<{ id?: string; username?: string }>(STORAGE_KEYS.user) ?? {};
     const uid = u.id || u.username;
     if (uid) return `dicom_viewer_config_u_${uid}`;
   } catch { /* ignore */ }
@@ -111,14 +112,14 @@ function getStorageKey(userId?: string): string {
 
 export function loadViewerConfig(userId?: string): ViewerConfig {
   try {
-    const raw = localStorage.getItem(getStorageKey(userId));
+    const raw = storage.getRaw(getStorageKey(userId));
     if (raw) return { ...getDefaultConfig(), ...JSON.parse(raw) };
   } catch { /* ignore */ }
   return getDefaultConfig();
 }
 
 export function saveViewerConfig(config: ViewerConfig, userId?: string) {
-  localStorage.setItem(getStorageKey(userId), JSON.stringify(config));
+  storage.set(getStorageKey(userId), config);
 }
 
 function getDefaultConfig(): ViewerConfig {

@@ -6,7 +6,7 @@ import { DatePicker, Form, Input, Modal, Select } from 'antd';
 import { fmtDate } from '../utils/format';
 import type { RangePickerProps } from 'antd/es/date-picker';
 import dayjs, { type Dayjs } from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import { openPrintWindow } from '../utils/printWindow';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,

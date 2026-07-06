@@ -1,5 +1,5 @@
 /**
- * #210 [QA-1] Logger util — kênh log tập trung, có mức, tắt được ở production.
+ * Logger service — home THẬT của log tập trung (relocate từ utils/logger.ts, #services-consolidation).
  *
  * Dùng thay `console.log/info/debug` (dev-only, tự tắt khi build production).
  * `warn`/`error` LUÔN giữ (kể cả prod) vì là cảnh báo/lỗi thật cần quan sát —

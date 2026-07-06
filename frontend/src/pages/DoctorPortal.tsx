@@ -13,7 +13,8 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import client from '../api/client';
+import client from '../services/apiClient';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import * as examApi from '../api/examination';
 import * as inpatientApi from '../api/inpatient';
 import * as digitalSignApi from '../api/digitalSignature';
@@ -149,7 +150,7 @@ const DoctorPortal: React.FC = () => {
   const fetchDutySchedule = useCallback(async () => {
     setLoading(true);
     try {
-      const user = localStorage.getItem('user');
+      const user = storage.getRaw(STORAGE_KEYS.user);
       const userId = user ? JSON.parse(user).id : null;
       if (!userId) { setDutyShifts([]); setLoading(false); return; }
       const res = await hrApi.getStaffRoster(userId, dutyMonth.year(), dutyMonth.month() + 1);

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import * as labApi from '../api/laboratory';
 import type { LabRequest } from '../api/laboratory';
 import * as settingsApi from '../api/userSettings';

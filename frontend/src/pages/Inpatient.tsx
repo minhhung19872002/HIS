@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import {
   Card,
   Table,
@@ -73,7 +74,7 @@ import { patientApi, type Patient } from '../api/patient';
 import { printBirthCertificate, type BirthCertificateData } from '../components/BirthCertificatePrint';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import PatientFlagBanner from '../components/PatientFlagBanner';
-import { API_URL } from '../config/api';
+import { API_URL } from '../config/api.config';
 
 import { MEDICAL_RECORD_TYPES, SUPPLY_TEMPLATE_KEY } from './inpatient/constants';
 import { getStatusTag, getBedStatusBadge } from './inpatient/statusTags';
@@ -137,7 +138,7 @@ const Inpatient: React.FC = () => {
   // NangCap4: Supply order template (localStorage) — SUPPLY_TEMPLATE_KEY in ./inpatient/constants.ts
   const [supplyTemplates, setSupplyTemplates] = useState<Array<{ name: string; items: string }>>(() => {
     try {
-      return JSON.parse(localStorage.getItem(SUPPLY_TEMPLATE_KEY) || '[]');
+      return storage.get<Array<{ name: string; items: string }>>(SUPPLY_TEMPLATE_KEY) ?? [];
     } catch {
       return [];
     }
@@ -176,7 +177,7 @@ const Inpatient: React.FC = () => {
     const newTemplate = { name: supplyTemplateName.trim(), items: currentSupplyItems };
     const updated = [...supplyTemplates.filter(t => t.name !== newTemplate.name), newTemplate];
     setSupplyTemplates(updated);
-    localStorage.setItem(SUPPLY_TEMPLATE_KEY, JSON.stringify(updated));
+    storage.set(SUPPLY_TEMPLATE_KEY, updated);
     setIsSupplyTemplateModalOpen(false);
     setSupplyTemplateName('');
     message.success(`Đã lưu mẫu vật tư "${newTemplate.name}"`);
@@ -210,7 +211,7 @@ const Inpatient: React.FC = () => {
     try {
       // Try to fetch previous supply orders via API
       const apiUrl = API_URL;
-      const token = localStorage.getItem('token');
+      const token = storage.getRaw(STORAGE_KEYS.token);
       const resp = await fetch(
         `${apiUrl}/inpatient/supply-orders/previous?patientId=${admission.patientCode || ''}&excludeAdmissionId=${admission.admissionId || ''}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -238,7 +239,7 @@ const Inpatient: React.FC = () => {
   const checkActiveMedications = async (patientId: string) => {
     try {
       const apiUrl = API_URL;
-      const token = localStorage.getItem('token');
+      const token = storage.getRaw(STORAGE_KEYS.token);
       const resp = await fetch(
         `${apiUrl}/inpatient/prescriptions/active?patientId=${patientId}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -264,7 +265,7 @@ const Inpatient: React.FC = () => {
     if (!admission) return;
     try {
       const apiUrl = API_URL;
-      const token = localStorage.getItem('token');
+      const token = storage.getRaw(STORAGE_KEYS.token);
 
       // F3.3: Đọc song song balance + config enforce-block
       const [balanceResp, enforceResp, thresholdResp] = await Promise.allSettled([
@@ -2236,7 +2237,7 @@ const Inpatient: React.FC = () => {
                   onClose={() => {
                     const updated = supplyTemplates.filter(x => x.name !== t.name);
                     setSupplyTemplates(updated);
-                    localStorage.setItem(SUPPLY_TEMPLATE_KEY, JSON.stringify(updated));
+                    storage.set(SUPPLY_TEMPLATE_KEY, updated);
                   }}
                   style={{ marginBottom: 4 }}
                 >

@@ -1,4 +1,4 @@
-import client from './client';
+import client from '../services/apiClient';
 
 export const getBhytReport = (reportId: string, params?: Record<string, unknown>) =>
   client.get(`/reports/bhyt/${reportId}`, { params });

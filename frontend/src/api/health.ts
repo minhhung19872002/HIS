@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 
 // Types
 export interface ComponentHealth {
@@ -43,7 +44,7 @@ export interface MetricsSnapshot {
 
 // Helper: get auth headers
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
+  const token = storage.getRaw(STORAGE_KEYS.token);
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 

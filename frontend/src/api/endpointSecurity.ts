@@ -1,4 +1,4 @@
-import client from './client';
+import client from '../services/apiClient';
 
 export interface EndpointDeviceDto {
   id: string;

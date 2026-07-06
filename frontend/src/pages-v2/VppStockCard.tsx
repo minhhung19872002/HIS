@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { fmtNum as fmt, fmtDate } from '../utils/format';
 import { DatePicker, Select } from 'antd';
 import dayjs from 'dayjs';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import {
   KpiStrip, SearchBox, DataTable, ActBtn, Btn, tw, type ColumnDef,
 } from './_v2kit';

@@ -3,7 +3,7 @@
  * consumption norm, statistics, export-to-excel, exam statistics, syncResultToDoH.
  */
 
-import apiClient from '../client';
+import apiClient from '../../services/apiClient';
 
 // #region Interfaces
 

@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 export const ROOM_TYPES: Record<number, string> = {
   1: 'Hội chẩn CĐHA (DICOM)',

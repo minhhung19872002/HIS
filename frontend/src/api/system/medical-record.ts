@@ -3,7 +3,7 @@
  * DTOs + medicalRecordApi
  */
 
-import { apiClient } from '../client';
+import { apiClient } from '../../services/apiClient';
 
 // ============================================================================
 // DTOs

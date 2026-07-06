@@ -1,5 +1,13 @@
+/**
+ * apiClient service — home THẬT của axios instance dùng chung (relocate từ api/client.ts,
+ * #services-consolidation).
+ *
+ * Interceptor: gắn Bearer token (request) + auto-unwrap envelope {success,data} +
+ * xoá phiên & redirect /login khi 401 (response). Caller nhận thẳng payload đã unwrap.
+ */
+
 import axios from 'axios';
-import { API_URL } from '../config/api';
+import { API_URL } from '../config/api.config';
 
 export const apiClient = axios.create({
   baseURL: API_URL,

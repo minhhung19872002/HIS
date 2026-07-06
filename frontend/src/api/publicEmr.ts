@@ -1,5 +1,5 @@
 import { publicClient } from './publicClient';
-import { API_URL } from '../config/api';
+import { API_URL } from '../config/api.config';
 
 // Tra cứu công khai HSBA đã ký số (CCCD + ngày sinh) — KHÔNG cần đăng nhập.
 // Dùng publicClient (axios thuần, không gắn JWT, không unwrap envelope).

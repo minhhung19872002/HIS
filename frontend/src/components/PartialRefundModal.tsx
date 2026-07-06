@@ -8,7 +8,7 @@ import {
   Modal, Form, Input, Radio, Table, Alert, Tag, Space, message,
   Typography, Select,
 } from 'antd';
-import apiClient from '../api/client';
+import apiClient from '../services/apiClient';
 import { createRefund } from '../api/billing';
 
 const { Text } = Typography;

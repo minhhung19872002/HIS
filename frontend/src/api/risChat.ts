@@ -1,5 +1,6 @@
-import { HubConnectionBuilder, HubConnection, HubConnectionState, LogLevel } from '@microsoft/signalr';
-import { REALTIME_ORIGIN } from '../config/api';
+import { HubConnection, HubConnectionState } from '@microsoft/signalr';
+import { createHubConnection } from '../services/signalr.service';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 
 export interface RisChatMessage {
   senderId: string;
@@ -19,13 +20,9 @@ let userLeftHandlers: UserEventHandler[] = [];
 function getConnection(): HubConnection {
   if (connection) return connection;
 
-  const token = localStorage.getItem('token') || '';
+  const token = storage.getRaw(STORAGE_KEYS.token) || '';
 
-  connection = new HubConnectionBuilder()
-    .withUrl(`${REALTIME_ORIGIN}/hubs/ris-chat`, { accessTokenFactory: () => token })
-    .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-    .configureLogging(LogLevel.None)
-    .build();
+  connection = createHubConnection('/hubs/ris-chat', { accessTokenFactory: () => token });
 
   connection.on('ReceiveMessage', (senderId: string, senderName: string, message: string, timestamp: string) => {
     const msg: RisChatMessage = { senderId, senderName, message, timestamp };

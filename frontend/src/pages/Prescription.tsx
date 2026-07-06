@@ -47,7 +47,7 @@ import { examinationApi, type MedicineDto, type PrescriptionTemplateDto } from '
 import { patientApi, type Patient as ApiPatient } from '../api/patient';
 import { getPrescriptionContext, type PrescriptionContextDto } from '../api/dataInheritance';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS } from '../constants/hospital';
-import { PinEntryModal } from '../components/digital-signature';
+import { PinEntryModal } from '../components/digitalSignature';
 import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures } from '../api/digitalSignature';
 import type { DocumentSignatureDto } from '../api/digitalSignature';

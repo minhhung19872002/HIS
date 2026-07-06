@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // ============================================================================
 // Batch 1.1: National Prescription Gateway (donthuocquocgia.vn)

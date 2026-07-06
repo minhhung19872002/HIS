@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // ============================================================================
 // Gap #1 - Bank payment gateways (5 NH VN)

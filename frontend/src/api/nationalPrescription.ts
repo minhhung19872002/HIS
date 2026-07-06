@@ -3,7 +3,7 @@
  * Endpoints: /api/national-prescription/*
  */
 
-import apiClient from './client';
+import apiClient from '../services/apiClient';
 
 // ==================== Types ====================
 
