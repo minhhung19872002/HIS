@@ -5,16 +5,16 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-06** — cửa #202: push ExaminationCompleteController thin (3 endpoint); còn trong #202: LISComplete (_context), InpatientComplete.Operations (service-locator), PatientPortal (_db).
+> Cập nhật cuối: **2026-07-06** — cửa #366: AUTHZ-0 DONE (FrontendCompat+lockout+ratelimit+LIS-dev-fix+whitelist audit → Closes #366, build 0 error); cửa #202: ExaminationCompleteController thin pushed; còn trong #202: LISComplete, InpatientComplete.Operations, PatientPortal.
 
 ## Phiên 2026-07-05 (cửa layout-docs-push — commit+push docs research, dedup issue, ✅ DONE)
 - **Push docs** [ops-doc, user duyệt]: commit `docs/architecture/layout-architecture/` (8 file: README + 6 chương + roadmap) + `docs/workspace-docs/10-assessment/danh-gia-phan-quyen-rbac-redesign.md` (449 dòng) → origin/main. KHÔNG đụng: `anonymous-surface-whitelist.md` (của cửa #366 đang active) · REGISTRY/SKILL-MAP staged (stash dead-window, cần review) · `.obsidian`/`.continue`/test.txt.
 - **⚠️ Sự cố dedup:** cửa này tạo 13 issue layout theo roadmap ĐÚNG LÚC cửa layout-arch cũng tạo bộ #374–#386+epic #387 (số khớp docs) → 13 bản của cửa này thành #388–#400 TRÙNG → **đã đóng cả 13** (not-planned, comment trỏ issue gốc). Bài học: check `gh issue list` NGAY TRƯỚC create, không dựa snapshot cũ trong phiên.
 - Đầu phiên đã force-release lock `202` stale 35h — cửa 202 còn sống, đã tự re-claim (23:12). Không ảnh hưởng.
 
-## Phiên 2026-07-05 (cửa này — #366 AUTHZ-0 P0, BUILD 0 ERROR, CHỜ push+smoke)
-- **#366 AUTHZ-0 [P0]** [security-fix, build-green, CHỜ push]: (a) `FrontendCompatController` bỏ `[AllowAnonymous]` → fallback RequireAuth phủ; (b) `Users` + migration `100_lockout_columns.sql` (FailedLoginCount INT DEFAULT 0 + LockoutEndAt DATETIME2 NULL); lockout lũy tiến ≥5→5' ≥10→10' ≥15→20' ≥20→30' trong `AuthService.LoginAsync`; (c) rate-limit 10 req/min `[EnableRateLimiting("login")]` trên AuthController + `AddRateLimiter` Program.cs; (d) whitelist `anonymous-surface-whitelist.md` rà 50+ điểm anonymous. `dotnet build HIS.API` → **0 error**.
-- **Stash WIP orphan:** 3 stash (patientportal thin, examinationcomplete controllers/service) từ dead windows — `git stash list` để recover. `.claude/REGISTRY.md`+`SKILL-MAP.md` staged từ stash@{1} dead window (governance changes — cần review trước commit).
+## Phiên 2026-07-06 (cửa này — #366 AUTHZ-0 P0, ✅ PUSHED `Closes #366`)
+- **#366 AUTHZ-0 [P0]** [security-fix, ✅ PUSHED]: (a) `FrontendCompatController` bỏ `[AllowAnonymous]` → fallback RequireAuth; (b) `Users` + migration `100_lockout_columns.sql` (FailedLoginCount + LockoutEndAt); lockout ≥5→5' ≥10→10' ≥15→20' ≥20→30' `AuthService.LoginAsync`; (c) rate-limit 10 req/min `[EnableRateLimiting("login")]`; (d) LIS `dev/update-dates-to-today` thêm `[DevelopmentOnly]` (thiếu so với twin RIS); (e) `anonymous-surface-whitelist.md` rà 50+ endpoint, phân loại JUSTIFIED/DEV_ONLY/NEEDS_AUTH/SUSPICIOUS; tạo **#401** (Zalo ZNS low) + **#402** (PACS proxy+RIS PDF high) + issue TBD (queue-display medium). Build 0 error.
+- **Stash WIP orphan:** 3 stash (patientportal thin, examinationcomplete) từ dead windows — `git stash list` để recover. `.claude/REGISTRY.md`+`SKILL-MAP.md` staged từ stash@{1} (cần review trước commit riêng).
 
 ## Phiên 2026-07-05 (cửa layout-arch — NGHIÊN CỨU Layout Architecture → epic #387 + 14 issues #373-#386)
 - **Research-only** (user chỉ đạo: "chỉ nghiên cứu, không code"): khảo sát TerminalLayout 959 dòng, App.tsx 834 dòng, RBAC 0 FE caller, 156 trang v2, 18 vai nhân viên 100–1.000 người.

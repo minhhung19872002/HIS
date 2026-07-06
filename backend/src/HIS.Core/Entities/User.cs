@@ -28,6 +28,8 @@ public class User : BaseEntity
 
     public bool IsActive { get; set; } = true;
     public DateTime? LastLoginAt { get; set; }
+    public int FailedLoginCount { get; set; } = 0;
+    public DateTime? LockoutEndAt { get; set; }
 
     // Two-Factor Authentication
     public bool IsTwoFactorEnabled { get; set; } = false;

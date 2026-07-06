@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.API.Filters;
@@ -21,6 +22,7 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous] // B3-global: endpoint công khai (chưa đăng nhập) — giữ anonymous tường minh
+    [EnableRateLimiting("login")]
     [HttpPost("login")]
     public async Task<ActionResult<ApiResponse<LoginResponseDto>>> Login([FromBody] LoginDto dto)
     {

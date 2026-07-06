@@ -11,6 +11,7 @@ using HIS.Application.Services;
 using HIS.Application.DTOs.Laboratory;
 using ApproveLabResultDto = HIS.Application.Services.ApproveLabResultDto;
 using HIS.API.Dtos.LISComplete;
+using HIS.API.Filters;
 using ApiResponse = HIS.Application.DTOs.Common.ApiResponse<object>;
 
 namespace HIS.API.Controllers
@@ -47,6 +48,7 @@ namespace HIS.API.Controllers
         /// </summary>
         [HttpPost("dev/update-dates-to-today")]
         [AllowAnonymous]
+        [DevelopmentOnly]
         public async Task<ActionResult> UpdateDatesToToday()
         {
             var count = await _lisService.UpdateAllOrderDatesToTodayAsync();

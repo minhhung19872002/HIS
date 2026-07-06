@@ -43,15 +43,34 @@ public class AuthService : IAuthService
                         .ThenInclude(rp => rp.Permission)
             .FirstOrDefaultAsync(u => u.Username == dto.Username && u.IsActive && !u.IsDeleted);
 
-        if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
+        if (user == null)
             return null;
 
+        if (user.LockoutEndAt.HasValue && user.LockoutEndAt.Value > DateTime.UtcNow)
+        {
+            _logger.LogWarning("Login attempt on locked account username={Username}", dto.Username);
+            return null;
+        }
+
+        if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
+        {
+            user.FailedLoginCount++;
+            user.LockoutEndAt = ComputeLockoutEndAt(user.FailedLoginCount);
+            await _context.SaveChangesAsync();
+            _logger.LogWarning("FailedLogin username={Username} count={Count}", dto.Username, user.FailedLoginCount);
+            return null;
+        }
+
+        // Password correct — reset lockout counters
+        user.FailedLoginCount = 0;
+        user.LockoutEndAt = null;
         user.LastLoginAt = DateTime.UtcNow;
-        await _context.SaveChangesAsync();
+        _logger.LogInformation("Login success username={Username}", dto.Username);
 
         // If 2FA enabled, generate OTP and return partial response
         if (user.IsTwoFactorEnabled && !string.IsNullOrEmpty(user.Email))
         {
+            await _context.SaveChangesAsync();
             var otpCode = await GenerateAndSendOtp(user);
             var validityMinutes = int.Parse(_configuration["TwoFactor:OtpValidityMinutes"] ?? "5");
 
@@ -65,6 +84,8 @@ public class AuthService : IAuthService
                 OtpExpiresAt = DateTime.UtcNow.AddMinutes(validityMinutes),
             };
         }
+
+        await _context.SaveChangesAsync();
 
         // Normal login (no 2FA)
         var userDto = _mapper.Map<UserDto>(user);
@@ -422,6 +443,15 @@ public class AuthService : IAuthService
     }
 
     #endregion
+
+    private static DateTime? ComputeLockoutEndAt(int failedCount) => failedCount switch
+    {
+        >= 20 => DateTime.UtcNow.AddMinutes(30),
+        >= 15 => DateTime.UtcNow.AddMinutes(20),
+        >= 10 => DateTime.UtcNow.AddMinutes(10),
+        >= 5  => DateTime.UtcNow.AddMinutes(5),
+        _     => null
+    };
 
     #region Private Helpers
 

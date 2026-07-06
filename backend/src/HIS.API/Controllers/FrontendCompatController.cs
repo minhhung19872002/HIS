@@ -11,7 +11,6 @@ namespace HIS.API.Controllers;
 /// business logic — so the UI stops showing "empty" for seeded tables.
 /// </summary>
 [ApiController]
-[AllowAnonymous]
 public class FrontendCompatController : ControllerBase
 {
     private readonly IFrontendCompatService _svc;
