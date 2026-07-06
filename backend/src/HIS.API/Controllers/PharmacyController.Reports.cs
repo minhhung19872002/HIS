@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using HIS.Infrastructure.Data;
 using HIS.API.Dtos.Pharmacy;
 
 namespace HIS.API.Controllers;
@@ -22,29 +20,7 @@ public partial class PharmacyController
     {
         try
         {
-            var reports = await _context.PharmacyGppRecords
-                .AsNoTracking()
-                .Include(r => r.RecordedBy)
-                .Where(r => !r.IsDeleted && r.RecordType == 1)
-                .OrderByDescending(r => r.RecordDate)
-                .Take(200)
-                .Select(r => new
-                {
-                    id = r.Id.ToString(),
-                    patientName = "",
-                    patientCode = "",
-                    medicationName = r.MedicineName ?? "",
-                    reactionType = r.Description ?? "",
-                    severity = "moderate",
-                    onsetDate = r.RecordDate,
-                    reportedBy = r.RecordedBy != null ? r.RecordedBy.FullName : "",
-                    description = r.Description ?? "",
-                    outcome = r.ActionTaken ?? "",
-                    status = "reported",
-                })
-                .ToListAsync();
-
-            return Ok(reports);
+            return Ok(await _pharmacyService.GetAdrReportsAsync());
         }
         catch (Exception ex)
         {
@@ -61,20 +37,9 @@ public partial class PharmacyController
             var userIdValue = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             Guid? userId = Guid.TryParse(userIdValue, out var parsedUserId) ? parsedUserId : null;
 
-            var record = new HIS.Core.Entities.PharmacyGppRecord
-            {
-                Id = Guid.NewGuid(),
-                RecordType = 1,
-                RecordDate = DateTime.TryParse(request.OnsetDate, out var onsetDate) ? onsetDate : DateTime.UtcNow,
-                Description = request.Description ?? request.ReactionType,
-                MedicineName = request.MedicationName,
-                ActionTaken = request.Outcome,
-                RecordedById = userId,
-                CreatedAt = DateTime.UtcNow,
-            };
-
-            _context.PharmacyGppRecords.Add(record);
-            await _context.SaveChangesAsync();
+            var record = await _pharmacyService.CreateAdrReportAsync(
+                request.OnsetDate, request.Description, request.ReactionType,
+                request.MedicationName, request.Outcome, userId);
 
             return Ok(new
             {
@@ -103,9 +68,8 @@ public partial class PharmacyController
     {
         try
         {
-            var warehouseService = HttpContext.RequestServices.GetRequiredService<HIS.Application.Services.IWarehouseCompleteService>();
-            var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
-            var result = await warehouseService.CancelDispensedPrescriptionAsync(prescriptionId, request.Reason ?? "Hủy đơn", userId);
+            var userId = CurrentUserId();
+            var result = await _pharmacyService.CancelDispensedPrescriptionAsync(prescriptionId, request.Reason ?? "Hủy đơn", userId);
             return Ok(result);
         }
         catch (InvalidOperationException ex)
@@ -126,9 +90,8 @@ public partial class PharmacyController
     {
         try
         {
-            var warehouseService = HttpContext.RequestServices.GetRequiredService<HIS.Application.Services.IWarehouseCompleteService>();
-            var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
-            var result = await warehouseService.CreateBillingAfterDispensingAsync(issueId, userId);
+            var userId = CurrentUserId();
+            var result = await _pharmacyService.CreateBillingAfterDispensingAsync(issueId, userId);
             return Ok(result);
         }
         catch (Exception ex)
@@ -148,72 +111,10 @@ public partial class PharmacyController
     {
         try
         {
-            var prescription = await _context.Prescriptions
-                .AsNoTracking()
-                .Include(p => p.MedicalRecord).ThenInclude(m => m.Patient)
-                .Include(p => p.Doctor)
-                .Include(p => p.Details).ThenInclude(d => d.Medicine)
-                .FirstOrDefaultAsync(p => p.Id == prescriptionId && !p.IsDeleted);
-
-            if (prescription == null)
+            var html = await _pharmacyService.PrintDrugLabelAsync(prescriptionId);
+            if (html == null)
                 return NotFound(new { message = "Không tìm thấy đơn thuốc" });
-
-            var patient = prescription.MedicalRecord?.Patient;
-            var html = new System.Text.StringBuilder();
-            html.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'/>");
-            html.AppendLine("<style>");
-            html.AppendLine("body{font-family:Arial,sans-serif;font-size:11px;margin:0;padding:4px;}");
-            html.AppendLine(".label{border:1px solid #000;padding:4px 6px;margin-bottom:4px;page-break-inside:avoid;width:60mm;}");
-            html.AppendLine(".label-title{font-weight:bold;font-size:12px;text-align:center;border-bottom:1px dashed #333;padding-bottom:2px;margin-bottom:2px;}");
-            html.AppendLine(".label-row{margin:1px 0;}");
-            html.AppendLine(".label-drug{font-weight:bold;font-size:11px;}");
-            html.AppendLine("@media print{body{margin:0;} .no-print{display:none;}}");
-            html.AppendLine("</style></head><body>");
-
-            var patientName = patient?.FullName ?? "";
-            var patientCode = patient?.PatientCode ?? "";
-            var dob = patient?.DateOfBirth?.ToString("dd/MM/yyyy") ?? "";
-            var doctorName = prescription.Doctor?.FullName ?? "";
-            var rxCode = prescription.PrescriptionCode;
-            var rxDate = prescription.PrescriptionDate.ToString("dd/MM/yyyy");
-            var diagnosis = prescription.DiagnosisName ?? prescription.Diagnosis ?? "";
-
-            foreach (var detail in prescription.Details.Where(d => !d.IsDeleted))
-            {
-                var medicineName = detail.Medicine?.MedicineName ?? detail.Medicine?.MedicineCode ?? "(thuốc)";
-                var dosage = detail.Dosage ?? "";
-                var frequency = detail.Frequency ?? "";
-                var route = detail.Route ?? "";
-                var days = detail.Days;
-                var qty = detail.Quantity;
-                var unit = detail.Unit ?? "";
-                var usage = detail.UsageInstructions ?? detail.Usage ?? "";
-
-                html.AppendLine("<div class='label'>");
-                html.AppendLine("<div class='label-title'>NHÃN THUỐC</div>");
-                html.AppendLine($"<div class='label-row'>BN: <b>{System.Web.HttpUtility.HtmlEncode(patientName)}</b> ({System.Web.HttpUtility.HtmlEncode(patientCode)})</div>");
-                if (!string.IsNullOrEmpty(dob))
-                    html.AppendLine($"<div class='label-row'>Ngày sinh: {dob}</div>");
-                html.AppendLine($"<div class='label-row label-drug'>{System.Web.HttpUtility.HtmlEncode(medicineName)}</div>");
-                html.AppendLine($"<div class='label-row'>SL: {qty} {System.Web.HttpUtility.HtmlEncode(unit)} | {days} ngày</div>");
-                if (!string.IsNullOrEmpty(dosage))
-                    html.AppendLine($"<div class='label-row'>Liều: {System.Web.HttpUtility.HtmlEncode(dosage)}</div>");
-                if (!string.IsNullOrEmpty(frequency))
-                    html.AppendLine($"<div class='label-row'>Tần suất: {System.Web.HttpUtility.HtmlEncode(frequency)}</div>");
-                if (!string.IsNullOrEmpty(route))
-                    html.AppendLine($"<div class='label-row'>Đường dùng: {System.Web.HttpUtility.HtmlEncode(route)}</div>");
-                if (!string.IsNullOrEmpty(usage))
-                    html.AppendLine($"<div class='label-row'>Cách dùng: {System.Web.HttpUtility.HtmlEncode(usage)}</div>");
-                html.AppendLine($"<div class='label-row'>Đơn: {rxCode} | {rxDate} | BS: {System.Web.HttpUtility.HtmlEncode(doctorName)}</div>");
-                if (!string.IsNullOrEmpty(diagnosis))
-                    html.AppendLine($"<div class='label-row'>CĐ: {System.Web.HttpUtility.HtmlEncode(diagnosis)}</div>");
-                html.AppendLine("</div>");
-            }
-
-            html.AppendLine("<script>window.onload=function(){window.print();}</script>");
-            html.AppendLine("</body></html>");
-
-            return Content(html.ToString(), "text/html; charset=utf-8");
+            return Content(html, "text/html; charset=utf-8");
         }
         catch (Exception ex)
         {

@@ -4,13 +4,11 @@ using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Configuration;
-using HIS.Infrastructure.Data;
 using HIS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.API.Hubs;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using HIS.API.Dtos.DigitalSignature;
 
@@ -24,26 +22,22 @@ public partial class DigitalSignatureController
     [HttpGet("signatures/{documentId:guid}")]
     public async Task<ActionResult<List<DocumentSignatureDto>>> GetSignatures(Guid documentId)
     {
-        var signatures = await _db.DocumentSignatures
-            .Where(ds => ds.DocumentId == documentId && ds.Status == 0)
-            .Include(ds => ds.SignedByUser)
-            .OrderByDescending(ds => ds.SignedAt)
-            .Select(ds => new DocumentSignatureDto
-            {
-                Id = ds.Id,
-                DocumentId = ds.DocumentId,
-                DocumentType = ds.DocumentType,
-                DocumentCode = ds.DocumentCode,
-                SignerName = ds.SignedByUser != null ? ds.SignedByUser.FullName : ds.CertificateSubject,
-                SignedAt = ds.SignedAt.ToString("dd/MM/yyyy HH:mm:ss"),
-                CertificateSerial = ds.CertificateSerial,
-                CaProvider = ds.CaProvider,
-                TsaTimestamp = ds.TsaTimestamp,
-                OcspStatus = ds.OcspStatus,
-                Status = ds.Status,
-                CertificateSubject = ds.CertificateSubject,
-            })
-            .ToListAsync();
+        var entities = await _signatureStore.GetActiveSignaturesForDocumentAsync(documentId);
+        var signatures = entities.Select(ds => new DocumentSignatureDto
+        {
+            Id = ds.Id,
+            DocumentId = ds.DocumentId,
+            DocumentType = ds.DocumentType,
+            DocumentCode = ds.DocumentCode,
+            SignerName = ds.SignedByUser != null ? ds.SignedByUser.FullName : ds.CertificateSubject,
+            SignedAt = ds.SignedAt.ToString("dd/MM/yyyy HH:mm:ss"),
+            CertificateSerial = ds.CertificateSerial,
+            CaProvider = ds.CaProvider,
+            TsaTimestamp = ds.TsaTimestamp,
+            OcspStatus = ds.OcspStatus,
+            Status = ds.Status,
+            CertificateSubject = ds.CertificateSubject,
+        }).ToList();
 
         // Post-process to parse org name and tax code from CertificateSubject
         foreach (var sig in signatures)
@@ -62,7 +56,7 @@ public partial class DigitalSignatureController
     public async Task<ActionResult> RevokeSignature(Guid signatureId, [FromBody] RevokeSignatureRequest request)
     {
         var userId = GetCurrentUserId();
-        var signature = await _db.DocumentSignatures.FindAsync(signatureId);
+        var signature = await _signatureStore.GetSignatureByIdAsync(signatureId);
 
         if (signature == null)
             return NotFound(new { message = "Không tìm thấy chữ ký" });
@@ -78,12 +72,7 @@ public partial class DigitalSignatureController
                 return Forbid();
         }
 
-        signature.Status = 1; // Revoked
-        signature.RevokeReason = request.Reason;
-        signature.RevokedAt = DateTime.UtcNow;
-        signature.RevokedByUserId = userId;
-
-        await _db.SaveChangesAsync();
+        await _signatureStore.RevokeSignatureAsync(signatureId, request.Reason, userId);
 
         _logger.LogInformation("Signature {SignatureId} revoked by user {UserId}", signatureId, userId);
         return Ok(new { message = "Đã thu hồi chữ ký" });
@@ -99,56 +88,26 @@ public partial class DigitalSignatureController
     public async Task<ActionResult<List<DocumentSignatureHistoryDto>>> GetRecordSignatures(
         Guid medicalRecordId, [FromQuery] string? documentType = null)
     {
-        // Lấy danh sách examId thuộc record
-        var examIds = await _db.Examinations
-            .Where(e => e.MedicalRecordId == medicalRecordId && !e.IsDeleted)
-            .Select(e => e.Id)
-            .ToListAsync();
+        var entities = await _signatureStore.GetRecordSignaturesAsync(medicalRecordId, documentType);
 
-        // Lấy prescriptionId thuộc HSBA (dùng MedicalRecordId để tránh null-nullable Guid? mismatch)
-        var rxIds = await _db.Prescriptions
-            .Where(rx => rx.MedicalRecordId == medicalRecordId && !rx.IsDeleted)
-            .Select(rx => rx.Id).ToListAsync();
-
-        // Lấy serviceRequestId thuộc HSBA
-        var srIds = await _db.ServiceRequests
-            .Where(sr => sr.MedicalRecordId == medicalRecordId && !sr.IsDeleted)
-            .Select(sr => sr.Id).ToListAsync();
-
-        var allDocIds = examIds
-            .Concat(rxIds)
-            .Concat(srIds)
-            .Concat(new[] { medicalRecordId }) // chính record
-            .ToHashSet();
-
-        var query = _db.DocumentSignatures
-            .Include(ds => ds.SignedByUser)
-            .Where(ds => allDocIds.Contains(ds.DocumentId));
-
-        if (!string.IsNullOrEmpty(documentType))
-            query = query.Where(ds => ds.DocumentType == documentType);
-
-        var list = await query
-            .OrderByDescending(ds => ds.SignedAt)
-            .Select(ds => new DocumentSignatureHistoryDto
-            {
-                Id = ds.Id,
-                DocumentId = ds.DocumentId,
-                DocumentType = ds.DocumentType,
-                DocumentCode = ds.DocumentCode,
-                SignerName = ds.SignedByUser != null ? ds.SignedByUser.FullName : ds.CertificateSubject,
-                SignedAt = ds.SignedAt.ToString("dd/MM/yyyy HH:mm:ss"),
-                CertificateSerial = ds.CertificateSerial,
-                CaProvider = ds.CaProvider,
-                TsaTimestamp = ds.TsaTimestamp,
-                OcspStatus = ds.OcspStatus,
-                Status = ds.Status,
-                RevokeReason = ds.RevokeReason,
-                RevokedAt = ds.RevokedAt.HasValue ? ds.RevokedAt.Value.ToString("dd/MM/yyyy HH:mm:ss") : null,
-                CertificateSubject = ds.CertificateSubject,
-                SignedDocumentUrl = ds.Id != Guid.Empty ? $"/api/digital-signature/download/{ds.Id}" : null,
-            })
-            .ToListAsync();
+        var list = entities.Select(ds => new DocumentSignatureHistoryDto
+        {
+            Id = ds.Id,
+            DocumentId = ds.DocumentId,
+            DocumentType = ds.DocumentType,
+            DocumentCode = ds.DocumentCode,
+            SignerName = ds.SignedByUser != null ? ds.SignedByUser.FullName : ds.CertificateSubject,
+            SignedAt = ds.SignedAt.ToString("dd/MM/yyyy HH:mm:ss"),
+            CertificateSerial = ds.CertificateSerial,
+            CaProvider = ds.CaProvider,
+            TsaTimestamp = ds.TsaTimestamp,
+            OcspStatus = ds.OcspStatus,
+            Status = ds.Status,
+            RevokeReason = ds.RevokeReason,
+            RevokedAt = ds.RevokedAt.HasValue ? ds.RevokedAt.Value.ToString("dd/MM/yyyy HH:mm:ss") : null,
+            CertificateSubject = ds.CertificateSubject,
+            SignedDocumentUrl = ds.Id != Guid.Empty ? $"/api/digital-signature/download/{ds.Id}" : null,
+        }).ToList();
 
         return Ok(list);
     }
@@ -159,7 +118,7 @@ public partial class DigitalSignatureController
     [HttpGet("download/{signatureId}")]
     public async Task<IActionResult> DownloadSignedPdf(Guid signatureId)
     {
-        var signature = await _db.DocumentSignatures.FindAsync(signatureId);
+        var signature = await _signatureStore.GetSignatureByIdAsync(signatureId);
         if (signature == null)
             return NotFound(new { message = "Không tìm thấy chữ ký" });
 
@@ -198,15 +157,7 @@ public partial class DigitalSignatureController
         if (documentIds == null || documentIds.Count == 0)
             return Ok(new Dictionary<string, DocumentSignatureDto>());
 
-        // Limit batch size
-        var ids = documentIds.Take(100).ToList();
-
-        var signatures = await _db.DocumentSignatures
-            .Where(ds => ids.Contains(ds.DocumentId) && ds.Status == 0)
-            .Include(ds => ds.SignedByUser)
-            .GroupBy(ds => ds.DocumentId)
-            .Select(g => g.OrderByDescending(ds => ds.SignedAt).First())
-            .ToListAsync();
+        var signatures = await _signatureStore.GetLatestActiveSignaturesBatchAsync(documentIds);
 
         var result = signatures.ToDictionary(
             ds => ds.DocumentId.ToString(),

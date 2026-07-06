@@ -27,7 +27,7 @@ public partial class DigitalSignatureController : ControllerBase
     private readonly ITokenRegistryService _tokenRegistry;
     private readonly IPdfSignatureService _pdfService;
     private readonly IPdfGenerationService _pdfGeneration;
-    private readonly HISDbContext _db;
+    private readonly IDocumentSignatureStore _signatureStore;
     private readonly Pkcs11Configuration _config;
     private readonly IHubContext<NotificationHub> _hubContext;
     private readonly ILogger<DigitalSignatureController> _logger;
@@ -37,7 +37,7 @@ public partial class DigitalSignatureController : ControllerBase
         ITokenRegistryService tokenRegistry,
         IPdfSignatureService pdfService,
         IPdfGenerationService pdfGeneration,
-        HISDbContext db,
+        IDocumentSignatureStore signatureStore,
         IOptions<Pkcs11Configuration> config,
         IHubContext<NotificationHub> hubContext,
         ILogger<DigitalSignatureController> logger)
@@ -46,7 +46,7 @@ public partial class DigitalSignatureController : ControllerBase
         _tokenRegistry = tokenRegistry;
         _pdfService = pdfService;
         _pdfGeneration = pdfGeneration;
-        _db = db;
+        _signatureStore = signatureStore;
         _config = config.Value;
         _hubContext = hubContext;
         _logger = logger;
@@ -167,18 +167,10 @@ public partial class DigitalSignatureController : ControllerBase
         }
 
         // Auto-revoke existing signature if document already signed
-        var existingSignature = await _db.DocumentSignatures
-            .FirstOrDefaultAsync(ds => ds.DocumentId == request.DocumentId
-                                       && ds.DocumentType == request.DocumentType
-                                       && ds.Status == 0);
-        if (existingSignature != null)
+        var revokedSignatureId = await _signatureStore.RevokeActiveSignatureAsync(request.DocumentId, request.DocumentType, userId);
+        if (revokedSignatureId != null)
         {
-            existingSignature.Status = 1; // Revoked
-            existingSignature.RevokeReason = "Tự động thu hồi để ký lại";
-            existingSignature.RevokedAt = DateTime.UtcNow;
-            existingSignature.RevokedByUserId = userId;
-            await _db.SaveChangesAsync();
-            _logger.LogInformation("Auto-revoked signature {SignatureId} for re-signing document {DocumentId}", existingSignature.Id, request.DocumentId);
+            _logger.LogInformation("Auto-revoked signature {SignatureId} for re-signing document {DocumentId}", revokedSignatureId, request.DocumentId);
         }
 
         try
@@ -286,8 +278,7 @@ public partial class DigitalSignatureController : ControllerBase
                     };
 
                     // Check if already signed
-                    var existing = await _db.DocumentSignatures
-                        .AnyAsync(ds => ds.DocumentId == docId && ds.DocumentType == request.DocumentType && ds.Status == 0);
+                    var existing = await _signatureStore.IsDocumentSignedAsync(docId, request.DocumentType);
 
                     if (existing)
                     {
@@ -431,8 +422,7 @@ public partial class DigitalSignatureController : ControllerBase
             Status = 0
         };
 
-        _db.DocumentSignatures.Add(signature);
-        await _db.SaveChangesAsync();
+        await _signatureStore.AddSignatureAsync(signature);
 
         return new SignDocumentResponse
         {

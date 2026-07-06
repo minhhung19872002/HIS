@@ -285,6 +285,8 @@ public static class DependencyInjection
         services.AddScoped<IWriteGapService, WriteGapService>();
         services.AddScoped<IPaymentReportsService, PaymentReportsService>();
         services.AddScoped<IAiLabelingService, AiLabelingService>();
+        services.AddScoped<IPharmacyService, PharmacyService>(); // #202 tail: thin PharmacyController
+        services.AddScoped<IDocumentSignatureStore, DocumentSignatureStore>(); // #202 tail: thin DigitalSignatureController
         services.AddHostedService<HIS.Infrastructure.Services.Workers.BackupSchedulerWorker>(); // #128
         services.AddHostedService<HIS.Infrastructure.Services.Workers.AppointmentReminderWorker>(); // #102
 

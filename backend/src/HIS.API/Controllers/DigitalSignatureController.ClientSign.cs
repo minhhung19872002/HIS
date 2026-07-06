@@ -4,13 +4,11 @@ using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Configuration;
-using HIS.Infrastructure.Data;
 using HIS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.API.Hubs;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using HIS.API.Dtos.DigitalSignature;
 
@@ -27,50 +25,7 @@ public partial class DigitalSignatureController
         try
         {
             var userId = GetCurrentUserId();
-
-            // Find examinations completed but not signed by current doctor
-            var pendingExams = await _db.Examinations
-                .Where(e => e.DoctorId == userId && e.Status >= 2 && e.Status < 4 && !e.IsDeleted)
-                .Join(_db.MedicalRecords, e => e.MedicalRecordId, m => m.Id, (e, m) => new { e, m })
-                .Join(_db.Patients, em => em.m.PatientId, p => p.Id, (em, p) => new
-                {
-                    DocumentId = em.e.Id,
-                    DocumentType = "Examination",
-                    DocumentName = $"Phiếu khám - {p.FullName}",
-                    PatientName = p.FullName,
-                    PatientCode = p.PatientCode,
-                    CreatedAt = em.e.CreatedAt,
-                    Status = "Chờ ký"
-                })
-                .OrderByDescending(x => x.CreatedAt)
-                .Take(50)
-                .ToListAsync();
-
-            // Find prescriptions not signed
-            var pendingRx = await _db.Prescriptions
-                .Where(p => p.DoctorId == userId && p.Status >= 1 && p.Status < 3 && !p.IsDeleted)
-                .Join(_db.Examinations, rx => rx.ExaminationId, e => e.Id, (rx, e) => new { rx, e })
-                .Join(_db.MedicalRecords, re => re.e.MedicalRecordId, m => m.Id, (re, m) => new { re.rx, m })
-                .Join(_db.Patients, rm => rm.m.PatientId, p => p.Id, (rm, p) => new
-                {
-                    DocumentId = rm.rx.Id,
-                    DocumentType = "Prescription",
-                    DocumentName = $"Đơn thuốc - {p.FullName}",
-                    PatientName = p.FullName,
-                    PatientCode = p.PatientCode,
-                    CreatedAt = rm.rx.CreatedAt,
-                    Status = "Chờ ký"
-                })
-                .OrderByDescending(x => x.CreatedAt)
-                .Take(50)
-                .ToListAsync();
-
-            var allPending = pendingExams.Cast<object>().Concat(pendingRx.Cast<object>())
-                .OrderByDescending(x => ((dynamic)x).CreatedAt)
-                .Take(50)
-                .ToList();
-
-            return Ok(allPending);
+            return Ok(await _signatureStore.GetPendingDocumentsAsync(userId));
         }
         catch (Exception ex)
         {
@@ -124,17 +79,6 @@ public partial class DigitalSignatureController
         var userId = GetCurrentUserId();
         var ext = string.Equals(request.FileType, "xml", StringComparison.OrdinalIgnoreCase) ? "xml" : "pdf";
 
-        // Tự thu hồi chữ ký cũ đang hiệu lực để ký lại
-        var existing = await _db.DocumentSignatures.FirstOrDefaultAsync(ds =>
-            ds.DocumentId == request.DocumentId && ds.DocumentType == request.DocumentType && ds.Status == 0);
-        if (existing != null)
-        {
-            existing.Status = 1;
-            existing.RevokeReason = "Tự động thu hồi để ký lại";
-            existing.RevokedAt = DateTime.UtcNow;
-            existing.RevokedByUserId = userId;
-        }
-
         var outputDir = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Signed", request.DocumentType);
         Directory.CreateDirectory(outputDir);
         var fileName = $"{request.DocumentId}_{DateTime.UtcNow:yyyyMMddHHmmss}.{ext}";
@@ -155,8 +99,9 @@ public partial class DigitalSignatureController
             SignedDocumentPath = filePath,
             Status = 0,
         };
-        _db.DocumentSignatures.Add(signature);
-        await _db.SaveChangesAsync();
+
+        // Tự thu hồi chữ ký cũ đang hiệu lực + thêm chữ ký mới trong cùng 1 transaction (verbatim).
+        await _signatureStore.RevokeThenAddInOneSaveAsync(request.DocumentId, request.DocumentType, userId, signature);
 
         return Ok(new SignDocumentResponse
         {
