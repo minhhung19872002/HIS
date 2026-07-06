@@ -9,10 +9,10 @@ import { useParams } from 'react-router-dom';
 import { Card, Input, Button, Spin, Result, Alert, Tag, Space, message, Typography } from 'antd';
 import { LockOutlined, EyeOutlined } from '@ant-design/icons';
 import { peekShare, accessShare, type AccessResult } from '../api/studyShare';
+import { ORTHANC_URL } from '../config/env.config';
 
 const { Title, Text } = Typography;
 const API_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:5106/api').replace(/\/api$/, '');
-const ORTHANC_URL = import.meta.env.VITE_ORTHANC_URL || 'http://localhost:8042';
 
 export default function PublicStudyViewer() {
   const { token } = useParams<{ token: string }>();

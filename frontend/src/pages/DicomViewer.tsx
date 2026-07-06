@@ -43,6 +43,7 @@ import AiLabelingModal from '../components/AiLabelingModal';
 import AiOverlayLayer from '../components/AiOverlayLayer';
 import { openAiReportHtml, downloadAiSignedPdf, uploadAiDicomSr, mergeAiToReport, type AiLabel } from '../api/aiLabeling';
 import { API_ORIGIN } from '../config/api.config';
+import { ORTHANC_URL } from '../config/env.config';
 import { loadViewerConfig } from '../components/DicomViewerConfig';
 import CornerstoneViewer, { type CornerstoneViewerHandle } from '../components/CornerstoneViewer';
 import MprViewer from '../components/MprViewer';
@@ -63,7 +64,7 @@ function resolveApiUrl(path: string | undefined | null): string {
 
 const { Title, Text } = Typography;
 
-const ORTHANC_BASE = import.meta.env.VITE_ORTHANC_URL || 'http://localhost:8042';
+const ORTHANC_BASE = ORTHANC_URL;
 
 interface StudyInfo {
   studyInstanceUID: string;
