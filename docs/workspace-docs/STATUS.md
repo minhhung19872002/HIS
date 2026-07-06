@@ -5,7 +5,14 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-06** — cửa #366: AUTHZ-0 DONE; cửa layout-commercial-redesign: thiết kế thương mại HIS hoàn tất (10 docs + 8 comments re-scope + 3 issues mới #403/#404/#405). Lock released.
+> Cập nhật cuối: **2026-07-06** — cửa #202: HOÀN TẤT + Closes #202 (thin 6 controller nghiệp vụ bỏ HISDbContext); cửa #366 AUTHZ-0 DONE; cửa layout-commercial-redesign docs DONE.
+
+## Phiên 2026-07-06 (cửa #202 — thin-controller sweep HOÀN TẤT, ✅ Closes #202)
+- **#202 [REFAC-3] DONE** [refactor, ✅ PUSHED Closes #202]: thin 6 controller nghiệp vụ bỏ HISDbContext → service layer (Clean Arch), logic verbatim, build 0 error:
+  - **ExaminationComplete** (commit 8aba506): emr-records + prescriptions/recent + search-by-code → IExaminationCompleteService.
+  - **LIS + Inpatient.Operations + PatientPortal** (commit cfa1d1b): lab-orders-by-admission + 4 sample-op · shift-handover + medical-record-archive · login(BCrypt+lockout)/doctors/departments/6 ownership-check.
+  - **Pharmacy + DigitalSignature** (commit 09a2261): IPharmacyService (dispensing FEFO qua IWarehouseCompleteService + alerts/inventory/reports/transfers) · IDocumentSignatureStore (persistence+query, giữ orchestration PKCS#11/PDF ở controller, SubmitSigned giữ transaction đơn).
+- **Còn lại → #365** (đã comment đầy đủ): dev controller (DailySeed/PopulateData/DevLinkRadiology) + deferral có ý (Pdf HttpContext · NonDicom IFormFile · Health schema-drift diagnostic).
 
 ## Phiên 2026-07-06 (cửa layout-commercial-redesign — thiết kế thương mại HIS, ✅ DOCS DONE)
 - **Research-only** (user chỉ đạo KHÔNG CODE): hoàn tất brief thương mại 14 phần cho PK/TTYT/BV vừa-nhỏ (100–1.000 TK, team 1–3 dev, MVP 9–12 tháng).
