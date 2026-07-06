@@ -5,7 +5,7 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-05** — push docs layout-architecture (8 file) + đánh giá RBAC redesign lên origin/main (cửa docs-push); dedup 13 issue trùng #388–#400 (đã đóng, trỏ về #374–#386 của cửa layout).
+> Cập nhật cuối: **2026-07-06** — cửa #202: push ExaminationCompleteController thin (3 endpoint); còn trong #202: LISComplete (_context), InpatientComplete.Operations (service-locator), PatientPortal (_db).
 
 ## Phiên 2026-07-05 (cửa layout-docs-push — commit+push docs research, dedup issue, ✅ DONE)
 - **Push docs** [ops-doc, user duyệt]: commit `docs/architecture/layout-architecture/` (8 file: README + 6 chương + roadmap) + `docs/workspace-docs/10-assessment/danh-gia-phan-quyen-rbac-redesign.md` (449 dòng) → origin/main. KHÔNG đụng: `anonymous-surface-whitelist.md` (của cửa #366 đang active) · REGISTRY/SKILL-MAP staged (stash dead-window, cần review) · `.obsidian`/`.continue`/test.txt.

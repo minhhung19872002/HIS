@@ -1086,5 +1086,95 @@ public partial class ExaminationCompleteService
         return result;
     }
 
+    // ── Recent prescriptions + search by code (Issue #202 — moved from controller) ─
+
+    public async Task<object> GetRecentPrescriptionsAsync(DateTime fromDate, DateTime toDate, string? keyword, int pageSize)
+    {
+        if (pageSize <= 0 || pageSize > 500) pageSize = 100;
+        var q = _context.Prescriptions
+            .Include(p => p.MedicalRecord).ThenInclude(m => m!.Patient)
+            .Include(p => p.Doctor)
+            .Include(p => p.Details).ThenInclude(i => i.Medicine)
+            .Where(p => p.PrescriptionDate >= fromDate && p.PrescriptionDate <= toDate);
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim();
+            q = q.Where(p => p.PrescriptionCode.Contains(kw)
+                || (p.MedicalRecord != null && p.MedicalRecord.Patient != null
+                    && (p.MedicalRecord.Patient.FullName.Contains(kw)
+                        || p.MedicalRecord.Patient.PatientCode.Contains(kw))));
+        }
+        var list = await q.OrderByDescending(p => p.PrescriptionDate).Take(pageSize).ToListAsync();
+        return list.Select(p => new
+        {
+            id = p.Id,
+            prescriptionCode = p.PrescriptionCode,
+            prescriptionDate = p.PrescriptionDate,
+            prescribedAt = p.PrescriptionDate,
+            patientCode = p.MedicalRecord?.Patient?.PatientCode,
+            patientName = p.MedicalRecord?.Patient?.FullName,
+            gender = p.MedicalRecord?.Patient?.Gender,
+            doctorName = p.Doctor?.FullName,
+            diagnosis = p.Diagnosis,
+            isDispensed = p.IsDispensed,
+            status = p.Status,
+            totalAmount = p.TotalAmount,
+            items = p.Details.Select(i => new
+            {
+                id = i.Id,
+                medicineName = i.Medicine != null ? i.Medicine.MedicineName : null,
+                quantity = i.Quantity,
+                unit = i.Unit ?? (i.Medicine != null ? i.Medicine.Unit : null),
+                dosage = i.Dosage,
+                days = i.Days,
+            }),
+        });
+    }
+
+    public async Task<object?> SearchPrescriptionByCodeAsync(string code)
+    {
+        var trimmed = code.Trim();
+        var q = _context.Prescriptions
+            .Include(p => p.MedicalRecord).ThenInclude(m => m!.Patient)
+            .Include(p => p.Doctor)
+            .Include(p => p.Details).ThenInclude(i => i.Medicine)
+            .AsQueryable();
+        var p = await q.FirstOrDefaultAsync(x => x.PrescriptionCode == trimmed);
+        if (p == null && Guid.TryParse(trimmed, out var pid))
+            p = await q.FirstOrDefaultAsync(x => x.Id == pid);
+        if (p == null) return null;
+        return new
+        {
+            id = p.Id,
+            prescriptionCode = p.PrescriptionCode,
+            prescriptionDate = p.PrescriptionDate,
+            prescribedAt = p.PrescriptionDate,
+            patientCode = p.MedicalRecord?.Patient?.PatientCode,
+            patientName = p.MedicalRecord?.Patient?.FullName,
+            gender = p.MedicalRecord?.Patient?.Gender,
+            doctorName = p.Doctor?.FullName,
+            diagnosis = p.Diagnosis,
+            isDispensed = p.IsDispensed,
+            status = p.Status,
+            totalAmount = p.TotalAmount,
+            insuranceType = p.PrescriptionType switch
+            {
+                1 => "Ngoại trú",
+                2 => "Nội trú",
+                3 => "Nhà thuốc",
+                _ => "Thu phí",
+            },
+            items = p.Details.Select(i => new
+            {
+                id = i.Id,
+                medicineName = i.Medicine != null ? i.Medicine.MedicineName : null,
+                quantity = i.Quantity,
+                unit = i.Unit ?? (i.Medicine != null ? i.Medicine.Unit : null),
+                dosage = i.Dosage,
+                days = i.Days,
+            }),
+        };
+    }
+
     #endregion
 }

@@ -851,6 +851,14 @@ public interface IExaminationCompleteService
     Task<DTOs.NangCap18.DoctorCertificationResultDto> CheckDoctorCertificationAsync(Guid doctorId);
 
     #endregion
+
+    #region EMR + Prescription search (Issue #202 — moved from controller)
+
+    Task<object> GetEmrRecordsAsync(string? keyword, int pageIndex, int pageSize);
+    Task<object> GetRecentPrescriptionsAsync(DateTime fromDate, DateTime toDate, string? keyword, int pageSize);
+    Task<object?> SearchPrescriptionByCodeAsync(string code);
+
+    #endregion
 }
 
 #region Supporting DTOs

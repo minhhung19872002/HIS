@@ -63,8 +63,90 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
     // Behavior giữ nguyên: "sub"/"id" trước đây luôn null (AuthService không phát) → chỉ NameIdentifier có tác dụng.
     private Guid? GetCurrentUserId() => _currentUser.UserGuid;
 
+    // ── EMR records (Issue #202 — moved from controller) ────────────────────────
 
-
+    public async Task<object> GetEmrRecordsAsync(string? keyword, int pageIndex, int pageSize)
+    {
+        var since = DateTime.Today.AddDays(-365);
+        var rows = await _context.Examinations
+            .Where(e => e.CreatedAt >= since && e.MedicalRecord.PatientId != Guid.Empty)
+            .OrderByDescending(e => e.CreatedAt)
+            .Take(5000)
+            .Select(e => new
+            {
+                PatientId = e.MedicalRecord.PatientId,
+                MedicalRecordId = (Guid?)e.MedicalRecordId,
+                Code = e.MedicalRecord.Patient.PatientCode,
+                Name = e.MedicalRecord.Patient.FullName,
+                Gender = e.MedicalRecord.Patient.Gender,
+                Dob = e.MedicalRecord.Patient.DateOfBirth,
+                Yob = e.MedicalRecord.Patient.YearOfBirth,
+                Insurance = e.MedicalRecord.Patient.InsuranceNumber,
+                Date = e.CreatedAt,
+                Dx = e.MainDiagnosis,
+                Icd = e.MainIcdCode,
+                Room = e.Room.RoomName,
+            })
+            .ToListAsync();
+        var grouped = rows
+            .GroupBy(r => r.PatientId)
+            .Select(g =>
+            {
+                var latest = g.OrderByDescending(x => x.Date).First();
+                int? age = latest.Dob.HasValue
+                    ? Math.Max(0, DateTime.Today.Year - latest.Dob.Value.Year)
+                    : (latest.Yob.HasValue ? DateTime.Today.Year - latest.Yob.Value : (int?)null);
+                return new HIS.Application.DTOs.Examination.EmrRecordDto
+                {
+                    PatientId = g.Key,
+                    MedicalRecordId = latest.MedicalRecordId,
+                    PatientCode = latest.Code ?? "",
+                    PatientName = latest.Name ?? "",
+                    Gender = latest.Gender,
+                    Age = age,
+                    InsuranceNumber = latest.Insurance,
+                    VisitCount = g.Count(),
+                    LastVisit = latest.Date,
+                    LastDiagnosisName = latest.Dx,
+                    LastDiagnosisCode = latest.Icd,
+                    LastRoomName = latest.Room,
+                };
+            })
+            .ToList();
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim().ToLower();
+            grouped = grouped.Where(r =>
+                (r.PatientName?.ToLower().Contains(kw) ?? false) ||
+                (r.PatientCode?.ToLower().Contains(kw) ?? false) ||
+                (r.LastDiagnosisName?.ToLower().Contains(kw) ?? false)).ToList();
+        }
+        grouped = grouped.OrderByDescending(r => r.LastVisit).ToList();
+        var total = grouped.Count;
+        var page = grouped.Skip((Math.Max(1, pageIndex) - 1) * pageSize).Take(pageSize).ToList();
+        var ids = page.Select(p => p.PatientId).ToList();
+        if (ids.Count > 0)
+        {
+            var chronic = await _context.ChronicDiseaseRecords
+                .Where(c => c.Status == "Active" && ids.Contains(c.PatientId))
+                .Select(c => new { c.PatientId, c.IcdName })
+                .ToListAsync();
+            var chronicMap = chronic.GroupBy(c => c.PatientId)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.IcdName).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList());
+            var allergies = await _context.Allergies
+                .Where(a => a.IsActive && ids.Contains(a.PatientId))
+                .Select(a => new { a.PatientId, a.AllergenName })
+                .ToListAsync();
+            var allergyMap = allergies.GroupBy(a => a.PatientId)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.AllergenName).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList());
+            foreach (var p in page)
+            {
+                if (chronicMap.TryGetValue(p.PatientId, out var cs)) p.ChronicDiseases = cs;
+                if (allergyMap.TryGetValue(p.PatientId, out var al)) p.Allergies = al;
+            }
+        }
+        return new { items = page, totalCount = total, pageIndex, pageSize };
+    }
 
 
 

@@ -1,11 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using HIS.Application.Services;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Examination;
-using HIS.Infrastructure.Data;
 using RoomDto = HIS.Application.DTOs.RoomDto;
 using ServiceDto = HIS.Application.DTOs.ServiceDto;
 using HIS.API.Dtos.ExaminationComplete;
@@ -14,9 +12,6 @@ namespace HIS.API.Controllers;
 
 public partial class ExaminationCompleteController : ControllerBase
 {
-    /// <summary>
-    /// Lấy danh sách đơn thuốc
-    /// </summary>
     [HttpGet("{examinationId}/prescriptions")]
     public async Task<ActionResult<List<PrescriptionFullDto>>> GetPrescriptions(Guid examinationId)
     {
@@ -24,9 +19,6 @@ public partial class ExaminationCompleteController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
-    /// Danh sách đơn thuốc gần đây trong khoảng ngày — phục vụ DispensingCounter (quầy phát thuốc).
-    /// </summary>
     [HttpGet("prescriptions/recent")]
     public async Task<IActionResult> GetRecentPrescriptions(
         [FromQuery] DateTime? fromDate,
@@ -36,109 +28,18 @@ public partial class ExaminationCompleteController : ControllerBase
     {
         var from = fromDate ?? DateTime.Today;
         var to = toDate ?? DateTime.Today.AddDays(1).AddTicks(-1);
-        if (pageSize <= 0 || pageSize > 500) pageSize = 100;
-
-        var q = _db.Prescriptions
-            .Include(p => p.MedicalRecord).ThenInclude(m => m!.Patient)
-            .Include(p => p.Doctor)
-            .Include(p => p.Details).ThenInclude(i => i.Medicine)
-            .Where(p => p.PrescriptionDate >= from && p.PrescriptionDate <= to);
-
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            var kw = keyword.Trim();
-            q = q.Where(p =>
-                p.PrescriptionCode.Contains(kw)
-                || (p.MedicalRecord != null && p.MedicalRecord.Patient != null
-                    && (p.MedicalRecord.Patient.FullName.Contains(kw)
-                        || p.MedicalRecord.Patient.PatientCode.Contains(kw))));
-        }
-
-        var list = await q
-            .OrderByDescending(p => p.PrescriptionDate)
-            .Take(pageSize)
-            .ToListAsync();
-
-        return Ok(list.Select(p => new
-        {
-            id = p.Id,
-            prescriptionCode = p.PrescriptionCode,
-            prescriptionDate = p.PrescriptionDate,
-            prescribedAt = p.PrescriptionDate,
-            patientCode = p.MedicalRecord?.Patient?.PatientCode,
-            patientName = p.MedicalRecord?.Patient?.FullName,
-            gender = p.MedicalRecord?.Patient?.Gender,
-            doctorName = p.Doctor?.FullName,
-            diagnosis = p.Diagnosis,
-            isDispensed = p.IsDispensed,
-            status = p.Status,
-            totalAmount = p.TotalAmount,
-            items = p.Details.Select(i => new
-            {
-                id = i.Id,
-                medicineName = i.Medicine != null ? i.Medicine.MedicineName : null,
-                quantity = i.Quantity,
-                unit = i.Unit ?? (i.Medicine != null ? i.Medicine.Unit : null),
-                dosage = i.Dosage,
-                days = i.Days,
-            }),
-        }));
+        return Ok(await _examinationService.GetRecentPrescriptionsAsync(from, to, keyword, pageSize));
     }
 
-    /// <summary>
-    /// Tra đơn thuốc theo mã/barcode — dùng tại quầy phát thuốc ngoại trú (DispensingCounter).
-    /// Tìm theo PrescriptionCode (ưu tiên) hoặc Id nếu code là GUID hợp lệ.
-    /// Trả về shape tương thích DispenseRow để FE có thể điền trực tiếp vào drawer.
-    /// </summary>
     [HttpGet("prescriptions/search-by-code/{code}")]
     public async Task<IActionResult> SearchPrescriptionByCode(string code)
     {
         if (string.IsNullOrWhiteSpace(code))
             return BadRequest(new { message = "Mã đơn không được để trống" });
-
-        var trimmed = code.Trim();
-
-        var q = _db.Prescriptions
-            .Include(p => p.MedicalRecord).ThenInclude(m => m!.Patient)
-            .Include(p => p.Doctor)
-            .Include(p => p.Details).ThenInclude(i => i.Medicine)
-            .AsQueryable();
-
-        // Thử tìm theo PrescriptionCode trước (barcode in trên đơn)
-        var p = await q.FirstOrDefaultAsync(x => x.PrescriptionCode == trimmed);
-
-        // Nếu không tìm thấy và code trông như GUID → thử tìm theo Id
-        if (p == null && Guid.TryParse(trimmed, out var pid))
-            p = await q.FirstOrDefaultAsync(x => x.Id == pid);
-
-        if (p == null)
-            return NotFound(new { message = $"Không tìm thấy đơn thuốc với mã '{trimmed}'" });
-
-        return Ok(new
-        {
-            id = p.Id,
-            prescriptionCode = p.PrescriptionCode,
-            prescriptionDate = p.PrescriptionDate,
-            prescribedAt = p.PrescriptionDate,
-            patientCode = p.MedicalRecord?.Patient?.PatientCode,
-            patientName = p.MedicalRecord?.Patient?.FullName,
-            gender = p.MedicalRecord?.Patient?.Gender,
-            doctorName = p.Doctor?.FullName,
-            diagnosis = p.Diagnosis,
-            isDispensed = p.IsDispensed,
-            status = p.Status,
-            totalAmount = p.TotalAmount,
-            insuranceType = p.PrescriptionType switch { 1 => "Ngoại trú", 2 => "Nội trú", 3 => "Nhà thuốc", _ => "Thu phí" },
-            items = p.Details.Select(i => new
-            {
-                id = i.Id,
-                medicineName = i.Medicine != null ? i.Medicine.MedicineName : null,
-                quantity = i.Quantity,
-                unit = i.Unit ?? (i.Medicine != null ? i.Medicine.Unit : null),
-                dosage = i.Dosage,
-                days = i.Days,
-            }),
-        });
+        var result = await _examinationService.SearchPrescriptionByCodeAsync(code);
+        if (result == null)
+            return NotFound(new { message = $"Không tìm thấy đơn thuốc với mã '{code.Trim()}'" });
+        return Ok(result);
     }
 
     /// <summary>

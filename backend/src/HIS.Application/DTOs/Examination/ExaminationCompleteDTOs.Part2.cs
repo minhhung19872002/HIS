@@ -1,5 +1,23 @@
 namespace HIS.Application.DTOs.Examination;
 
+/// <summary>EMR record-centric row (per patient) — bệnh nền + dị ứng.</summary>
+public class EmrRecordDto
+{
+    public Guid PatientId { get; set; }
+    public string PatientCode { get; set; } = string.Empty;
+    public string PatientName { get; set; } = string.Empty;
+    public int Gender { get; set; }
+    public int? Age { get; set; }
+    public string? InsuranceNumber { get; set; }
+    public Guid? MedicalRecordId { get; set; }
+    public int VisitCount { get; set; }
+    public DateTime LastVisit { get; set; }
+    public string? LastDiagnosisName { get; set; }
+    public string? LastDiagnosisCode { get; set; }
+    public string? LastRoomName { get; set; }
+    public List<string> ChronicDiseases { get; set; } = new();
+    public List<string> Allergies { get; set; } = new();
+}
 
 /// <summary>
 /// DTO chỉ định dịch vụ đầy đủ
