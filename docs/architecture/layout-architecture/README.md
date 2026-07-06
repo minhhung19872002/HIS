@@ -1,7 +1,9 @@
 # HIS Layout Architecture — Tổng quan & Quyết định Kiến trúc
 
 > Phiên nghiên cứu: 2026-07-05 · Không chứa code production · Tài liệu này là **nguồn sự thật duy nhất** cho toàn bộ epic Layout Architecture.
-> Triển khai → xem `07-implementation-roadmap.md` + GitHub Issues `#373–#386`.
+> Triển khai → xem `07-implementation-roadmap.md` + GitHub Issues `#373–#386` + `#401+`.
+>
+> **★ CẬP NHẬT SCOPE THƯƠNG MẠI (2026-07-05, cùng ngày):** brief thương mại hóa (PK đa khoa/chuyên khoa · TTYT · BV vừa-nhỏ, 100–1.000 tài khoản, 30–150 CCU, team 1–3 dev, MVP 9–12 tháng) **điều chỉnh một phần các ADR dưới đây** — xem `08-thiet-ke-thuong-mai.md` (thiết kế thương mại) + `09-permission-catalog.md` (catalog 72 quyền × 12 role). Điểm đổi chính: ADR-L01 bổ sung **4 workspace logic** trên 1 shell; ADR-L05 dashboard theo workspace; permission format chuẩn hóa `Resource.Action` PascalCase (thay ví dụ `MODULE.ACTION` trong doc 02/03); thêm cơ chế **đóng gói module** (10 module thương mại + cờ EnabledModules).
 
 ---
 
@@ -172,6 +174,8 @@ frontend/src/
 | [05-navigation-ux.md](05-navigation-ux.md) | Sidebar/topbar/multi-tab/command palette + persona 18 vai |
 | [06-theme-performance-security.md](06-theme-performance-security.md) | Theme + performance + idle/break-glass/concurrent login |
 | [07-implementation-roadmap.md](07-implementation-roadmap.md) | Lộ trình triển khai theo priority + dependency |
+| [08-thiet-ke-thuong-mai.md](08-thiet-ke-thuong-mai.md) | **Thiết kế thương mại hóa**: 4 workspace · 12 role · 10 module + đóng gói · backlog KHÔNG-làm · tự phản biện |
+| [09-permission-catalog.md](09-permission-catalog.md) | **Catalog quyền v1**: 17 resource × actions = 72 mã + ma trận 12 role template (nguồn sự thật) |
 
 ---
 

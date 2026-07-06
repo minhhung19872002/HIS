@@ -5,7 +5,15 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-06** — cửa #366: AUTHZ-0 DONE (FrontendCompat+lockout+ratelimit+LIS-dev-fix+whitelist audit → Closes #366, build 0 error); cửa #202: ExaminationCompleteController thin pushed; còn trong #202: LISComplete, InpatientComplete.Operations, PatientPortal.
+> Cập nhật cuối: **2026-07-06** — cửa #366: AUTHZ-0 DONE; cửa layout-commercial-redesign: thiết kế thương mại HIS hoàn tất (10 docs + 8 comments re-scope + 3 issues mới #403/#404/#405). Lock released.
+
+## Phiên 2026-07-06 (cửa layout-commercial-redesign — thiết kế thương mại HIS, ✅ DOCS DONE)
+- **Research-only** (user chỉ đạo KHÔNG CODE): hoàn tất brief thương mại 14 phần cho PK/TTYT/BV vừa-nhỏ (100–1.000 TK, team 1–3 dev, MVP 9–12 tháng).
+- **Docs tạo/cập nhật:** `08-thiet-ke-thuong-mai.md` (14 phần + panel phản biện 4 lens đã điền Opus inline) + `09-permission-catalog.md` (72 mã × 12 role) + `07-implementation-roadmap.md` (thêm commercial timeline + 3 issues mới) + placeholder trong README.
+- **Kiến trúc thương mại chốt:** 1 shell + 4 workspace logic (data, không phải code) + 12 role template seed + 72 permission PascalCase + 10 module thương mại + EnabledModules cờ đóng gói.
+- **Gap phát hiện:** tìm BN không dấu (#403 — deal-breaker demo VN, plain `Contains()` accent-sensitive).
+- **GitHub actions:** 8 comments re-scope (#367/#372/#375/#378/#379/#382/#385 + epic #387) + 3 issues mới (#403 VN-accent · #404 workspace-layer · #405 EnabledModules).
+- **✅ PUSHED** (user duyệt): 5 file docs (README + 07 + 08 + 09 + STATUS) → origin/main. Chỉ `git add` tường minh file docs của cửa này; SOURCE CODE + cây dirty cửa khác = KHÔNG đụng.
 
 ## Phiên 2026-07-05 (cửa layout-docs-push — commit+push docs research, dedup issue, ✅ DONE)
 - **Push docs** [ops-doc, user duyệt]: commit `docs/architecture/layout-architecture/` (8 file: README + 6 chương + roadmap) + `docs/workspace-docs/10-assessment/danh-gia-phan-quyen-rbac-redesign.md` (449 dòng) → origin/main. KHÔNG đụng: `anonymous-surface-whitelist.md` (của cửa #366 đang active) · REGISTRY/SKILL-MAP staged (stash dead-window, cần review) · `.obsidian`/`.continue`/test.txt.

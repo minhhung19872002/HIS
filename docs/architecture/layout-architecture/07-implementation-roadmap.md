@@ -185,3 +185,47 @@ Issue #378 (permission codes) cần #367 (AUTHZ-1 BE enforcement) hoàn thành t
 - Không thể test role-gating FE nếu BE vẫn cho pass mọi request
 
 **Khuyến nghị:** Chạy #373 + #374 + #375 (nền móng, không liên quan RBAC) song song với RBAC epic. #377+ sau khi #367 có prototype.
+
+---
+
+## THÊM 2026-07-06 — Commercial Issues (brief thương mại hóa)
+
+Phát sinh từ brief thương mại hóa + verify agent trong phiên 2026-07-05.
+Tài liệu: `08-thiet-ke-thuong-mai.md`, `09-permission-catalog.md`.
+
+### #403 — Tìm bệnh nhân không dấu (P1 commercial, deal-breaker demo)
+- **Vấn đề:** Backend dùng `.Contains()` → accent-sensitive; gõ "nguyen van an" không ra "Nguyễn Văn An"
+- **Fix:** Đổi collation sang `Vietnamese_CI_AI` (Option A) hoặc cột SearchName normalize (Option B)
+- **Effort:** S (0.5–1 ngày)
+- **Dependency:** Không có — standalone BE fix
+- **Ưu tiên:** **NGAY — trước bất kỳ demo nào với khách**
+
+### #404 — Workspace layer (4 không gian làm việc)
+- **Mục tiêu:** Topbar workspace switcher + sidebar lọc theo workspace; sidebar mỗi WS ≤ 4 nhóm
+- **Effort:** M (1 ngày)
+- **Dependency:** #375 (registry + field workspace), #376 (Sidebar tách)
+
+### #405 — EnabledModules (cơ chế đóng gói Gói PK / Gói BV)
+- **Mục tiêu:** Bảng/API + FE filter menu+route theo module flag; trang tắt → "Module chưa kích hoạt"
+- **Effort:** M (1.5 ngày FE+BE)
+- **Dependency:** #375 (registry + field module)
+
+### Dependency graph bổ sung
+
+```
+#403 (VN accent search) — standalone, làm ngay
+#375 (Registry) → #376 (Shell split) → #404 (Workspace layer)
+#375 (Registry)                      → #405 (EnabledModules)
+#404 + #405                          → #379 (Dashboard workspace-aware)
+```
+
+### Timeline thương mại (P0 → shipable commercial demo)
+
+| Ưu tiên | Issues | Ghi chú |
+|---|---|---|
+| **Ngay** | #373, #374, #403 | P0 safety + P1 deal-breaker |
+| Tuần 1 | #375, #376, #405 | Nền + đóng gói |
+| Tuần 2 | #377, #378, #404 | Permission + workspace |
+| Tuần 3 | #379, #380, #381 | Dashboard + notification + dark mode |
+| Tuần 4+ | #383, #384, #386 | Security + perf |
+| Backlog | #382, #385, #370 | Không cần cho commercial v1 |
