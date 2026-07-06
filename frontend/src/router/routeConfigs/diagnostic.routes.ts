@@ -1,0 +1,42 @@
+import type { RouteEntry } from './index';
+import {
+  LaboratoryV2, LabQCV2, MicrobiologyV2, CultureCollectionV2, ScreeningV2, SampleStorageV2,
+  SampleTrackingV2, ReagentManagementV2, LISConfigV2, FunctionalDiagnosticsV2, SpecialTestRuleAdminV2,
+  RadiologyV2, DicomViewerV2, DicomAutoSendV2, DicomStudyAuditLogV2, PathologyV2, IvfLabV2,
+  BloodBankV2, ParaclinicalCatalogsV2, AnalyzerInboxV2, LisCatalogAdminV2, RisCatalogAdminV2,
+  SampleReceiveV2, RadiologyOpsV2, RisDispatcherV2, RisAdminV2, NonDicomCaptureV2,
+} from '../lazy/diagnostic.lazy';
+
+// Domain: diagnostic — menu group paraclinical.
+export const diagnosticV2Routes: RouteEntry[] = [
+  { path: 'lab', Component: LaboratoryV2, meta: { title: 'Xét nghiệm', group: 'paraclinical' } },
+  { path: 'lab-qc', Component: LabQCV2, meta: { title: 'QC Kiểm định', group: 'paraclinical' } },
+  { path: 'microbiology', Component: MicrobiologyV2, meta: { title: 'Vi sinh', group: 'paraclinical' } },
+  { path: 'culture-collection', Component: CultureCollectionV2, meta: { title: 'Lưu chủng vi sinh', group: 'paraclinical' } },
+  { path: 'screening', Component: ScreeningV2, meta: { title: 'Sàng lọc sơ sinh', group: 'paraclinical' } },
+  { path: 'sample-storage', Component: SampleStorageV2, meta: { title: 'Lưu trữ mẫu', group: 'paraclinical' } },
+  { path: 'sample-tracking', Component: SampleTrackingV2, meta: { title: 'Theo dõi mẫu', group: 'paraclinical' } },
+  { path: 'reagent-management', Component: ReagentManagementV2, meta: { title: 'Hoá chất XN', group: 'paraclinical' } },
+  { path: 'lis-config', Component: LISConfigV2, meta: { title: 'Cấu hình LIS', group: 'paraclinical' } },
+  { path: 'functional-diagnostics', Component: FunctionalDiagnosticsV2, meta: { title: 'Thăm dò chức năng', group: 'paraclinical' } },
+  { path: 'cdss/special-test-rules', Component: SpecialTestRuleAdminV2, meta: { title: 'Cấu hình XN đặc biệt', group: 'paraclinical' } },
+  { path: 'radiology', Component: RadiologyV2, meta: { title: 'Chẩn đoán HA', group: 'paraclinical' } },
+  { path: 'radiology/viewer', Component: DicomViewerV2, meta: { title: 'DICOM Viewer', group: 'paraclinical' } },
+  { path: 'dicom-autosend', Component: DicomAutoSendV2, meta: { title: 'DICOM tự động gửi', group: 'paraclinical' } },
+  { path: 'dicom-study-audit-log', Component: DicomStudyAuditLogV2, meta: { title: 'Log ca chụp DICOM', group: 'paraclinical' } },
+  { path: 'pathology', Component: PathologyV2, meta: { title: 'Giải phẫu bệnh', group: 'paraclinical' } },
+  { path: 'ivf-lab', Component: IvfLabV2, meta: { title: 'Phòng Lab IVF', group: 'paraclinical' } },
+  { path: 'blood-bank', Component: BloodBankV2, meta: { title: 'Ngân hàng máu', group: 'paraclinical' } },
+  { path: 'paraclinical-catalogs', Component: ParaclinicalCatalogsV2, meta: { title: 'DM CLS', group: 'paraclinical' } },
+  { path: 'analyzer-inbox', Component: AnalyzerInboxV2, meta: { title: 'Hộp thư máy phân tích', group: 'paraclinical' } },
+  { path: 'lis-catalog-admin', Component: LisCatalogAdminV2, meta: { title: 'DM LIS (admin)', group: 'paraclinical' } },
+  { path: 'ris-catalog-admin', Component: RisCatalogAdminV2, meta: { title: 'DM RIS (admin)', group: 'paraclinical' } },
+  { path: 'sample-receive', Component: SampleReceiveV2, meta: { title: 'Nhận mẫu XN', group: 'paraclinical' } },
+  { path: 'radiology-ops', Component: RadiologyOpsV2, meta: { title: 'Vận hành CĐHA', group: 'paraclinical' } },
+  { path: 'ris-dispatcher', Component: RisDispatcherV2, meta: { title: 'Điều phối CĐHA', group: 'paraclinical' } },
+  { path: 'ris-admin', Component: RisAdminV2, meta: { title: 'Quản trị RIS', group: 'paraclinical' } },
+  { path: 'non-dicom-capture', Component: NonDicomCaptureV2, meta: { title: 'Chụp ảnh non-DICOM', group: 'paraclinical' } },
+  { path: 'lite/lab', Component: LaboratoryV2, meta: { title: 'Xét nghiệm (lite)', group: 'paraclinical' } },
+  { path: 'lite/radiology', Component: RadiologyV2, meta: { title: 'Chẩn đoán HA (lite)', group: 'paraclinical' } },
+  { path: 'lite/blood-bank', Component: BloodBankV2, meta: { title: 'Ngân hàng máu (lite)', group: 'paraclinical' } },
+];
