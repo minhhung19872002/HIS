@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { ConfigProvider, Popover, Dropdown, message } from 'antd';
 import type { MenuProps } from 'antd';
 import { useAuth } from '../../hooks/useAuth';
+import { useInterval } from '../../hooks/useInterval';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
   CommandProvider, useCommandCtx, COMMANDS, type CmdId,
@@ -134,10 +135,7 @@ const Flyout: React.FC<FlyoutProps> = ({ groupId, activeItemId, pinned, onClose,
 
 function useClock() {
   const [now, setNow] = useState(new Date());
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30_000);
-    return () => clearInterval(t);
-  }, []);
+  useInterval(() => setNow(new Date()), 30_000);
   return now;
 }
 

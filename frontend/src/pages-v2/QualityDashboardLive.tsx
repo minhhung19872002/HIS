@@ -5,6 +5,7 @@ import {
   fmtVNDg, fmtHMg, ti
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+import { useInterval } from '../hooks/useInterval';
 import {
   qualityDash,
   type QualityDashboardDto,
@@ -39,9 +40,9 @@ const QualityDashboardLiveV2: React.FC = () => {
 
   useEffect(() => {
     load();
-    const id = setInterval(load, 60000);
-    return () => clearInterval(id);
   }, [load]);
+
+  useInterval(load, 60000);
 
   const refresh = () => { load(); ti('Đã làm mới · realtime'); };
 
