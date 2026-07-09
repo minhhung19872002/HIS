@@ -87,7 +87,8 @@ Rules:
 | `pages/` | v1 pages (Antd MainLayout, root routes) — legacy | only edit when touching v1 |
 | `pages-v2/_v2kit.tsx` | **the standard V2 shared kit** (Btn, DataTable, CrudModal, OptionsSelect…) | reuse before creating new |
 | `api/<domain>.ts` | axios client + DTO by domain | every BE call |
-| `components/` | a **cross-page** reusable component (e.g. `BarcodeScanner`, `PatientTimeline`, `ErrorBoundary`) | used by ≥2 pages |
+| `components/<category>/` | **shared UI-kit dùng chung** — generic, domain-agnostic primitives, grouped by category (see §4a) | reusable by ANY module, no business knowledge |
+| `modules/<module>/` | **domain feature dùng riêng** — a module's own pages/components/api/hooks | anything tied to ONE business domain (built out gradually) |
 | `hooks/` | a reusable custom hook | repeated stateful logic |
 | `contexts/` | React context (auth, notification, signing) | global/cross-level state |
 | `layouts/` | layout shell (`terminal/`, `MainLayout`) + design CSS (`ab-module.css`) | — |
@@ -99,11 +100,35 @@ Rules:
 - **Keep local to the module when**: only 1 page uses it (sub-component, field config, dedicated mapper) → declare it right in that page file.
 - **★ Do NOT put a new file at the repo root** or outside the folder tree — always into the right-type folder above. No suitable folder → **propose the user creates the folder** before placing the file (see `his-qa-anti-pattern` #28-29).
 
+## 4a. ★ Component placement — dùng chung vs dùng riêng (MANDATORY)
+
+`src/components/` is being reorganized (folder-restructure, 2026-07) so **every** component lands in exactly one of three homes. Classify BEFORE creating/moving a component:
+
+**A. Dùng chung (shared) → `src/components/<category>/<Component>/`**
+- Criterion: a **generic UI primitive with ZERO business-domain knowledge**, reusable by any module (button, input wrapper, table kit, modal/drawer shell, empty/error/loading state, permission gate…).
+- The **only** sub-folders allowed under `components/` are the semantic **categories** (each holds `<Component>/` folders, re-exported via a category `index.ts` barrel, then via `components/index.ts`):
+  `actions` · `common` · `dataDisplay` · `feedback` · `form` (App* wrappers over Antd) · `layout` · `navigation` · `overlay` · `permission` · `table` · `upload` · `digitalSignature`.
+- ⚠️ The `components/` **ROOT must end up containing ONLY these category folders** — no loose domain `.tsx` at root.
+
+**B. Dùng riêng (private) → `src/modules/<module>/components/`**
+- Criterion: tied to **ONE business domain** — even if reused by ≥2 pages of that domain (prints, DICOM/RIS viewers, AI widgets, payment/refund modals, signature pads, lab/pharmacy/patient banners…).
+- Lives with its module; it is **NOT** a shared category.
+
+**C. Local to one page** (§4, unchanged): only 1 page uses it → declare inside that page file.
+
+**Decision order:** domain-specific? → **B (module)**. Else a generic primitive reused ≥2 places? → **A (category)**. Else 1 page only? → **C (local)**.
+
+**Move discipline — GRADUAL + behavior-preserving ("chuyển dần", one component at a time):**
+1. Move the file → new path; keep its **named export**; add a **back-compat re-export at the OLD path** when importers are many (no mass import-churn in one diff).
+2. Update importers (or rely on the re-export) — **smallest correct diff, NO logic/style change**.
+3. `npm run build` EXIT 0 (§7 build-gate) after each move; spot-check per `core-minimal-change`.
+4. **DEFER** money · external-integration (DICOM/RIS/LIS/AI/SignalR) · patient-safety components to a session **with smoke-test** (`core-prod-change-discipline`). Do **NOT** big-bang all domain files at once.
+
 ## 5. Component Rules
 
 - **★ REUSE-FIRST (MANDATORY, FE too):** before writing a new component/hook/util/api → **check whether it exists**
-  (grep `_v2kit`, `components/`, `hooks/`, `utils/`, `api/`, `constants/`). Already there → **reuse / extend / compose**,
-  do NOT duplicate. See `core-reusable-code`.
+  (grep `_v2kit`, `components/<category>/` (§4a), `hooks/`, `utils/`, `api|services/`, `constants/`). Already there → **reuse / extend / compose**,
+  do NOT duplicate. See `core-reusable-code`. A new shared primitive → put it in the right §4a category, not at `components/` root.
 - **★ ANTD-FIRST (MANDATORY):** always prefer an **Ant Design v6** component (or a `_v2kit` primitive that already wraps Antd)
   as the base. Do **NOT write plain HTML/CSS** (hand-built `<div>`/`<input>`/`<select>`/`<table>`/`<button>`) to mimic
   something Antd/`_v2kit` already has (Input/Select/Radio/Checkbox/Table/Modal/Tabs/DatePicker/`Btn`/`DataTable`/`CrudModal`…).
