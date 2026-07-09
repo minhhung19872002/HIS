@@ -61,7 +61,7 @@ import {
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
-import ErrorBoundary from '../components/ErrorBoundary';
+import ErrorBoundary from '../components/feedback/ErrorBoundary';
 import NotificationBell from '../components/NotificationBell';
 import AiQueueBadge from '../components/AiQueueBadge';
 

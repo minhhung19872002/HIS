@@ -15,7 +15,7 @@ import { KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, fmtVNDg, tk, tw, te, ti
 import { SurgeryReportModal } from './shared/SurgeryReportModal';
 import { CabinetIssueModal } from './shared/CabinetIssueModal';
 import TermIcon from '../layouts/terminal/Icon';
-import BarcodeScanner from '../components/BarcodeScanner';
+import BarcodeScanner from '../components/form/BarcodeScanner';
 import {
   examinationApi, createSickLeave,
   getPatientLabResults, getPatientAllergies,
