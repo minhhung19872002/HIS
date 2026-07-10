@@ -246,3 +246,5 @@ ghinho.txt
 
 # Test scripts thuộc scripts/dev-tools — chặn tái xuất ở root
 /test-*.ps1
+
+.obsidian
