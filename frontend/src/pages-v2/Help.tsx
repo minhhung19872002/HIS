@@ -45,6 +45,16 @@ const HelpV2: React.FC = () => {
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
+  // Parity v1 (#352 P4): mở bài → gọi getHelpArticle lấy bản đầy đủ (content) + BE tăng viewCount.
+  const openArticle = async (r: HelpArticleDto) => {
+    setSelArt(r);
+    try {
+      const full = await risApi.getHelpArticle(r.id);
+      const fresh = full.data;
+      if (fresh) setSelArt((cur) => (cur && cur.id === r.id ? fresh : cur));
+    } catch { /* giữ bản tóm tắt từ list */ }
+  };
+
   const catOpts = useMemo(() => categories.map((c) => ({ v: c.id, l: c.name })), [categories]);
 
   const filteredArticles = useMemo(() => {
@@ -178,10 +188,10 @@ const HelpV2: React.FC = () => {
       {tab === 'articles' && <>
         <DataTable<HelpArticleDto>
           columns={articleCols} data={pagedArticles} rowKey={(r) => r.id}
-          onRowClick={setSelArt}
+          onRowClick={openArticle}
           actions={(r) => (
             <div className="ab-actions">
-              <ActBtn ic="eye" title="Đọc bài" onClick={() => setSelArt(r)} />
+              <ActBtn ic="eye" title="Đọc bài" onClick={() => openArticle(r)} />
               {r.videoUrl && <ActBtn ic="play" title="Xem video" onClick={() => window.open(r.videoUrl, '_blank')} />}
             </div>
           )}

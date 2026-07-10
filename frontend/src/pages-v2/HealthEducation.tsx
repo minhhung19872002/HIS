@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { fmtNum as fmt } from '../utils/format';
 import dayjs from 'dayjs';
-import { searchCampaigns, createCampaign, updateCampaign } from '../api/healthEducation';
-import type { HealthCampaign } from '../api/healthEducation';
+import { DatePicker } from 'antd';
+import { searchCampaigns, createCampaign, updateCampaign, searchMaterials, createMaterial } from '../api/healthEducation';
+import type { HealthCampaign, HealthMaterial } from '../api/healthEducation';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
-  KpiStrip, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
+  KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
@@ -30,6 +31,30 @@ const STATUS_LABEL: Record<number, string> = {
   0: 'Lên kế hoạch', 1: 'Đang diễn ra', 2: 'Hoàn thành', 3: 'Hủy',
 };
 
+// Parity v1 (#352 P4): tab Tài liệu GDSK (HealthMaterial list + tạo mới)
+const MATERIAL_TYPE_LABEL: Record<string, string> = {
+  poster: 'Poster', brochure: 'Tờ rơi', video: 'Video', audio: 'Audio',
+  presentation: 'Slide', infographic: 'Infographic', other: 'Khác',
+};
+const MATERIAL_STATUS: Record<number, { l: string; tone: 'ok' | 'info' | 'warn' }> = {
+  0: { l: 'Bản nháp', tone: 'warn' }, 1: { l: 'Đã xuất bản', tone: 'ok' }, 2: { l: 'Lưu trữ', tone: 'info' },
+};
+const MATERIAL_FIELDS: CrudFieldCfg[] = [
+  { key: 'title', label: 'Tiêu đề', required: true },
+  { key: 'materialType', label: 'Loại tài liệu', type: 'select', required: true,
+    options: Object.entries(MATERIAL_TYPE_LABEL).map(([value, label]) => ({ value, label })) },
+  { key: 'topic', label: 'Chủ đề' },
+  { key: 'author', label: 'Tác giả' },
+  { key: 'language', label: 'Ngôn ngữ', type: 'select',
+    options: [{ value: 'vi', label: 'Tiếng Việt' }, { value: 'en', label: 'English' }] },
+];
+
+type Tab = 'campaigns' | 'materials';
+const TOP_TABS = [
+  { v: 'campaigns' as Tab, l: 'Chiến dịch', ic: 'calendar' },
+  { v: 'materials' as Tab, l: 'Tài liệu', ic: 'file-text' },
+];
+
 type SKey = 'planning' | 'active' | 'completed' | 'cancelled';
 const STATUS_TABS = [
   { v: 'planning' as SKey,  l: 'Lên KH',       tone: 'warn' as const },
@@ -44,22 +69,35 @@ const sKey = (n: number): SKey =>
 const PER = 18;
 
 const HealthEducationV2: React.FC = () => {
+  const [tab, setTab] = useState<Tab>('campaigns');
   const [items, setItems] = useState<HealthCampaign[]>([]);
+  const [materials, setMaterials] = useState<HealthMaterial[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [stab, setStab] = useState<SKey | 'all'>('all');
+  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<HealthCampaign | null>(null);
+  const [matOpen, setMatOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
-      const r = await searchCampaigns({ keyword: search });
-      setItems(normalizeArrayResponse<HealthCampaign>(r));
-    } catch { ti('Không tải được chiến dịch'); }
+      const [cs, ms] = await Promise.allSettled([
+        searchCampaigns({
+          keyword: search,
+          fromDate: range?.[0]?.format('YYYY-MM-DD'),
+          toDate: range?.[1]?.format('YYYY-MM-DD'),
+        }),
+        searchMaterials({ keyword: search }),
+      ]);
+      if (cs.status === 'fulfilled') setItems(normalizeArrayResponse<HealthCampaign>(cs.value));
+      if (ms.status === 'fulfilled') setMaterials(normalizeArrayResponse<HealthMaterial>(ms.value));
+      if (cs.status === 'rejected') ti('Không tải được chiến dịch');
+    } catch { ti('Không tải được dữ liệu GDSK'); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [range]);
 
   const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r.status));
 
@@ -73,8 +111,16 @@ const HealthEducationV2: React.FC = () => {
     });
   }, [items, search, stab]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
+  const filteredMaterials = useMemo(() => {
+    const k = search.trim().toLowerCase();
+    if (!k) return materials;
+    return materials.filter((m) => [m.title, m.materialCode, m.topic, m.author]
+      .some((v) => (v || '').toLowerCase().includes(k)));
+  }, [materials, search]);
+
+  const totalPages = Math.max(1, Math.ceil((tab === 'campaigns' ? filtered.length : filteredMaterials.length) / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);
+  const pagedMaterials = filteredMaterials.slice(page * PER, (page + 1) * PER);
 
   const cols: ColumnDef<HealthCampaign>[] = [
     { key: 'code', label: 'Mã CD', code: true, render: (r) => r.campaignCode },
@@ -100,6 +146,26 @@ const HealthEducationV2: React.FC = () => {
     } },
   ];
 
+  const matCols: ColumnDef<HealthMaterial>[] = [
+    { key: 'code', label: 'Mã TL', code: true, render: (r) => r.materialCode },
+    { key: 'title', label: 'Tiêu đề', render: (r) => (
+      <div>
+        <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.title}</div>
+        {r.topic && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.topic}</div>}
+      </div>
+    ) },
+    { key: 'type', label: 'Loại', render: (r) => (
+      <StatusBadge tone="info">{MATERIAL_TYPE_LABEL[r.materialType] || r.materialType}</StatusBadge>
+    ) },
+    { key: 'author', label: 'Tác giả', render: (r) => r.author },
+    { key: 'date', label: 'Ngày tạo', mono: true, render: (r) => r.createdDate ? dayjs(r.createdDate).format('DD/MM/YYYY') : '—' },
+    { key: 'dl', label: 'Lượt tải', mono: true, render: (r) => r.downloadCount },
+    { key: 'st', label: 'Trạng thái', render: (r) => {
+      const s = MATERIAL_STATUS[r.status] || MATERIAL_STATUS[0];
+      return <StatusBadge tone={s.tone} dot>{s.l}</StatusBadge>;
+    } },
+  ];
+
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
   const openCreate = () => { setCrudInit({ status: 0, participantCount: 0 }); setCrudOpen(true); };
@@ -109,7 +175,6 @@ const HealthEducationV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
     </div>
   );
 
@@ -122,34 +187,62 @@ const HealthEducationV2: React.FC = () => {
         { lbl: 'Đang diễn ra', val: counts.active || 0, sub: 'hiện tại', tone: 'info' },
         { lbl: 'Hoàn thành', val: counts.completed || 0, sub: `${Math.round(((counts.completed || 0) / Math.max(1, items.length)) * 100)}%`, tone: 'ok' },
         { lbl: 'Tổng người TG', val: totalParticipants.toLocaleString('vi-VN'), sub: 'lượt' },
+        { lbl: 'Tài liệu', val: materials.length, sub: 'truyền thông' },
       ]} />
 
-      <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
+      <TopTabs<Tab> tab={tab} setTab={(v) => { setTab(v); setPage(0); }} tabs={TOP_TABS} actions={
+        <>
+          <Btn variant="ghost" onClick={load}>
+            <Ico name="refresh" size={12} /> Làm mới
+          </Btn>
+          {tab === 'campaigns' ? (
+            <Btn variant="primary" onClick={openCreate}>
+              <Ico name="plus" size={12} /> Chiến dịch mới
+            </Btn>
+          ) : (
+            <Btn variant="primary" onClick={() => setMatOpen(true)}>
+              <Ico name="plus" size={12} /> Tài liệu mới
+            </Btn>
+          )}
+        </>
+      } />
+
+      <div className="ab-toolbar" style={{ borderTop: 'none' }}>
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
-          placeholder="Tìm tiêu đề / địa điểm / đối tượng…" />
-        <Btn variant="ghost" onClick={() => { setSearch(''); setStab('all'); }}>
+          placeholder={tab === 'campaigns' ? 'Tìm tiêu đề / địa điểm / đối tượng…' : 'Tìm tiêu đề / chủ đề / tác giả…'} />
+        {tab === 'campaigns' && (
+          <DatePicker.RangePicker value={range} format="DD/MM/YYYY" size="small"
+            onChange={(v) => { setRange(v as [dayjs.Dayjs, dayjs.Dayjs] | null); setPage(0); }} />
+        )}
+        <Btn variant="ghost" onClick={() => { setSearch(''); setStab('all'); setRange(null); }}>
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
-        <Btn variant="ghost" onClick={() => window.print()}>
-          <Ico name="archive" size={12} /> Xuất danh sách
-        </Btn>
-        <Btn variant="primary" onClick={openCreate}>
-          <Ico name="plus" size={12} /> Chiến dịch mới
-        </Btn>
+        {tab === 'campaigns' && (
+          <Btn variant="ghost" onClick={() => window.print()}>
+            <Ico name="archive" size={12} /> Xuất danh sách
+          </Btn>
+        )}
       </div>
 
-      <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
+      {tab === 'campaigns' && <>
+        <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
-      <DataTable<HealthCampaign>
-        columns={cols} data={paged} rowKey={(r) => r.id}
-        onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có chiến dịch GDSK'}
-      />
-      <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
+        <DataTable<HealthCampaign>
+          columns={cols} data={paged} rowKey={(r) => r.id}
+          onRowClick={setSel} actions={actions}
+          empty={loading ? 'Đang tải…' : 'Chưa có chiến dịch GDSK'}
+        />
+        <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
+      </>}
+
+      {tab === 'materials' && <>
+        <DataTable<HealthMaterial>
+          columns={matCols} data={pagedMaterials} rowKey={(r) => r.id}
+          empty={loading ? 'Đang tải…' : 'Chưa có tài liệu GDSK'}
+        />
+        <Pager page={page} setPage={setPage} totalPages={totalPages} total={filteredMaterials.length} perPage={PER} />
+      </>}
 
       <DrawerShell
         open={!!sel}
@@ -202,6 +295,19 @@ const HealthEducationV2: React.FC = () => {
           if (editing && crudInit?.id) await updateCampaign(String(crudInit.id), v);
           else await createCampaign(v);
           tk(editing ? 'Đã cập nhật chiến dịch' : 'Đã tạo chiến dịch');
+          load();
+        }}
+      />
+
+      <CrudModal
+        open={matOpen}
+        onClose={() => setMatOpen(false)}
+        title="Tài liệu GDSK mới"
+        fields={MATERIAL_FIELDS}
+        initial={{ language: 'vi' }}
+        onSubmit={async (v) => {
+          await createMaterial(v);
+          tk('Đã tạo tài liệu');
           load();
         }}
       />
