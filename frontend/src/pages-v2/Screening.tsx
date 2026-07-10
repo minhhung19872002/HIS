@@ -1,10 +1,19 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getScreeningRequests } from '../api/screening';
+import { getScreeningRequests, createScreeningRequest } from '../api/screening';
 import type { ScreeningRequest } from '../api/screening';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
-import { SimpleV2Page, StatusBadge, type ColumnDef, type StatusTab } from './_v2kit';
-import TermIcon from '../layouts/terminal/Icon';
+import {
+  KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
+  DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, Ico,
+  type ColumnDef, type StatusTab, type CrudFieldCfg,
+} from './_v2kit';
+
+type Tab = 'newborn' | 'prenatal';
+const TOP_TABS = [
+  { v: 'newborn' as Tab, l: 'Sơ sinh', ic: 'user' },
+  { v: 'prenatal' as Tab, l: 'Trước sinh', ic: 'heart' },
+];
 
 type StatusKey = 'pending' | 'collected' | 'processing' | 'ready' | 'completed';
 const STATUS_TABS: StatusTab<StatusKey>[] = [
@@ -16,132 +25,331 @@ const STATUS_TABS: StatusTab<StatusKey>[] = [
 ];
 const statusKey = (s: number): StatusKey =>
   s === 1 ? 'collected' : s === 2 ? 'processing' : s === 3 ? 'ready' : s === 4 ? 'completed' : 'pending';
-const TYPE_LABEL: Record<string, string> = { newborn: 'SL sơ sinh', prenatal: 'SL trước sinh' };
+
+const INTERP_TONE: Record<string, 'ok' | 'warn' | 'crit' | 'info'> = {
+  normal: 'ok', borderline: 'warn', abnormal: 'crit', critical: 'crit',
+};
+const INTERP_LABEL: Record<string, string> = {
+  normal: 'Bình thường', borderline: 'Ranh giới', abnormal: 'Bất thường', critical: 'Nguy hiểm',
+};
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
+const NEWBORN_FIELDS: CrudFieldCfg[] = [
+  { key: 'babyName', label: 'Tên trẻ', required: true },
+  { key: 'babyGender', label: 'Giới tính', type: 'select', required: true,
+    options: [{ value: 1, label: 'Nam' }, { value: 2, label: 'Nữ' }] },
+  { key: 'birthDate', label: 'Ngày sinh', type: 'date', required: true },
+  { key: 'birthWeight', label: 'Cân nặng (g)', type: 'number', required: true },
+  { key: 'gestationalAge', label: 'Tuổi thai (tuần)', type: 'number', required: true },
+  { key: 'apgarScore', label: 'Điểm Apgar' },
+  { key: 'motherName', label: 'Tên mẹ', required: true },
+  { key: 'motherAge', label: 'Tuổi mẹ', type: 'number' },
+  { key: 'deliveryMethod', label: 'Phương pháp sinh', type: 'select',
+    options: [
+      { value: 'vaginal', label: 'Thường' },
+      { value: 'csection', label: 'Mổ lấy thai' },
+      { value: 'vacuum', label: 'Hút' },
+      { value: 'forceps', label: 'Forceps' },
+    ] },
+  { key: 'feedingType', label: 'Nuôi dưỡng', type: 'select',
+    options: [
+      { value: 'breastfed', label: 'Bú mẹ' },
+      { value: 'formula', label: 'Sữa công thức' },
+      { value: 'mixed', label: 'Hỗn hợp' },
+    ] },
+  { key: 'birthCondition', label: 'Tình trạng lúc sinh' },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
+
+const PRENATAL_FIELDS: CrudFieldCfg[] = [
+  { key: 'patientName', label: 'Họ tên thai phụ', required: true },
+  { key: 'patientCode', label: 'Mã BN' },
+  { key: 'maternalAge', label: 'Tuổi mẹ', type: 'number', required: true },
+  { key: 'pregnancyWeek', label: 'Thai kỳ (tuần)', type: 'number', required: true },
+  { key: 'lastMenstrualDate', label: 'Ngày kinh cuối (KKC)', type: 'date' },
+  { key: 'ultrasoundDate', label: 'Ngày siêu âm', type: 'date' },
+  { key: 'gravida', label: 'Số lần có thai (G)', type: 'number' },
+  { key: 'para', label: 'Số lần sinh (P)', type: 'number' },
+  { key: 'previousConditions', label: 'Tiền sử thai kỳ', type: 'textarea' },
+  { key: 'familyHistory', label: 'Tiền sử gia đình', type: 'textarea' },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
+
+const PER = 20;
+
 const ScreeningV2: React.FC = () => {
-  const columns: ColumnDef<ScreeningRequest>[] = [
-    { key: 'code', label: 'Mã SL', mono: true, width: 130, render: (r) => r.requestCode },
-    { key: 'type', label: 'Loại', width: 140, render: (r) =>
-      <span className={`chip ${r.screeningType === 'newborn' ? 'info' : 'warn'}`}>{TYPE_LABEL[r.screeningType] || r.screeningType}</span>
-    },
-    { key: 'subject', label: 'Đối tượng', render: (r) => (
+  const [tab, setTab] = useState<Tab>('newborn');
+  const [rows, setRows] = useState<ScreeningRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [page, setPage] = useState(0);
+
+  const [sel, setSel] = useState<ScreeningRequest | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await getScreeningRequests();
+      setRows(normalizeArrayResponse<ScreeningRequest>(data));
+    } catch { ti('Không tải được danh sách sàng lọc'); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const counts = useTabCounts(rows, STATUS_TABS, (r) => statusKey(r.status));
+
+  const filtered = useMemo(() => {
+    const k = search.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (r.screeningType !== tab) return false;
+      if (stab !== 'all' && statusKey(r.status) !== stab) return false;
+      if (!k) return true;
+      return [r.patientName, r.babyName, r.motherName, r.requestCode, r.sampleBarcode, r.patientCode]
+        .some((v) => (v || '').toLowerCase().includes(k));
+    });
+  }, [rows, search, stab, tab]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
+  const paged = filtered.slice(page * PER, (page + 1) * PER);
+
+  const newbornCols: ColumnDef<ScreeningRequest>[] = [
+    { key: 'code', label: 'Mã SL', mono: true, width: 120, render: (r) => r.requestCode },
+    { key: 'baby', label: 'Trẻ', render: (r) => (
       <div className="cell-2l">
-        <b>{r.babyName || r.patientName}</b>
-        <i className="mono">{r.patientCode}{r.motherName ? ` · Mẹ: ${r.motherName}` : ''}{r.maternalAge ? ` · ${r.maternalAge}t` : ''}</i>
+        <b>{r.babyName || '—'}</b>
+        <i>{r.babyGender === 1 ? 'Nam' : r.babyGender === 2 ? 'Nữ' : '—'} · {r.birthWeight ? `${r.birthWeight}g` : '—'} · {r.gestationalAge ? `${r.gestationalAge}t` : '—'}</i>
       </div>
-    )},
-    { key: 'detail', label: 'Chi tiết', width: 200, render: (r) =>
-      r.screeningType === 'newborn' ? (
-        <div className="cell-2l">
-          <b>{r.birthWeight}g · {r.gestationalAge}t</b>
-          <i>Apgar {r.apgarScore} · {r.deliveryMethod}</i>
-        </div>
-      ) : (
-        <div className="cell-2l">
-          <b>Tuần {r.pregnancyWeek}</b>
-          <i>G{r.gravida || 0}P{r.para || 0}</i>
-        </div>
-      )
-    },
-    { key: 'sample', label: 'Barcode mẫu', mono: true, width: 140, render: (r) => r.sampleBarcode || '—' },
-    { key: 'collected', label: 'Lấy mẫu', mono: true, width: 100, render: (r) => fmtDMY(r.collectionDate) },
-    { key: 'request', label: 'Ngày YC', mono: true, width: 100, render: (r) => fmtDMY(r.requestDate) },
-    { key: 'results', label: 'KQ', mono: true, width: 70, render: (r) => `${r.results?.length || 0}` },
-    { key: 'status', label: 'TT', width: 130, render: (r) => {
-      const sk = statusKey(r.status);
-      return <StatusBadge tone={STATUS_TABS.find((t) => t.v === sk)?.tone} dot>{STATUS_TABS.find((t) => t.v === sk)?.l}</StatusBadge>;
-    }},
+    ) },
+    { key: 'mother', label: 'Mẹ', width: 160, render: (r) => r.motherName || '—' },
+    { key: 'birthDate', label: 'Ngày sinh', mono: true, width: 100, render: (r) => fmtDMY(r.birthDate) },
+    { key: 'apgar', label: 'Apgar', mono: true, width: 70, render: (r) => r.apgarScore || '—' },
+    { key: 'barcode', label: 'Barcode', mono: true, width: 130, render: (r) => r.sampleBarcode || '—' },
+    { key: 'results', label: 'KQ', width: 80, render: (r) => {
+      const cnt = r.results?.length || 0;
+      if (!cnt) return <span style={{ color: 'var(--t-2)' }}>—</span>;
+      const abnormal = r.results.filter((res) => res.interpretation !== 'normal').length;
+      return abnormal > 0
+        ? <span className="chip crit">{abnormal} BT</span>
+        : <span className="chip ok">{cnt} OK</span>;
+    } },
+    { key: 'status', label: 'TT', width: 120, render: (r) => {
+      const t = STATUS_TABS.find((x) => x.v === statusKey(r.status));
+      return <StatusBadge tone={t?.tone} dot>{t?.l}</StatusBadge>;
+    } },
   ];
 
+  const prenatalCols: ColumnDef<ScreeningRequest>[] = [
+    { key: 'code', label: 'Mã SL', mono: true, width: 120, render: (r) => r.requestCode },
+    { key: 'patient', label: 'Thai phụ', render: (r) => (
+      <div className="cell-2l">
+        <b>{r.patientName}</b>
+        <i className="mono">{r.patientCode}</i>
+      </div>
+    ) },
+    { key: 'age', label: 'Tuổi mẹ', mono: true, width: 80, render: (r) => r.maternalAge ?? '—' },
+    { key: 'week', label: 'Thai kỳ', mono: true, width: 90, render: (r) => r.pregnancyWeek ? `${r.pregnancyWeek} tuần` : '—' },
+    { key: 'para', label: 'PARA', mono: true, width: 90, render: (r) => `G${r.gravida || 0}P${r.para || 0}` },
+    { key: 'lmp', label: 'KKC', mono: true, width: 100, render: (r) => fmtDMY(r.lastMenstrualDate) },
+    { key: 'barcode', label: 'Barcode', mono: true, width: 130, render: (r) => r.sampleBarcode || '—' },
+    { key: 'results', label: 'KQ', width: 80, render: (r) => {
+      const cnt = r.results?.length || 0;
+      if (!cnt) return <span style={{ color: 'var(--t-2)' }}>—</span>;
+      const abnormal = r.results.filter((res) => res.interpretation !== 'normal').length;
+      return abnormal > 0
+        ? <span className="chip crit">{abnormal} nguy cơ</span>
+        : <span className="chip ok">Thấp</span>;
+    } },
+    { key: 'status', label: 'TT', width: 120, render: (r) => {
+      const t = STATUS_TABS.find((x) => x.v === statusKey(r.status));
+      return <StatusBadge tone={t?.tone} dot>{t?.l}</StatusBadge>;
+    } },
+  ];
+
+  const columns = tab === 'newborn' ? newbornCols : prenatalCols;
+
+  const rowActions = (r: ScreeningRequest) => (
+    <div className="ab-actions">
+      <ActBtn ic="eye" title="Xem chi tiết" onClick={() => setSel(r)} />
+    </div>
+  );
+
+  const allRows = rows;
+  const newborn = allRows.filter((r) => r.screeningType === 'newborn').length;
+  const prenatal = allRows.filter((r) => r.screeningType === 'prenatal').length;
+  const abnormal = allRows.filter((r) => r.results?.some((res) => res.interpretation !== 'normal')).length;
+  const hasResult = allRows.filter((r) => r.status >= 3).length;
+
   return (
-    <SimpleV2Page<ScreeningRequest>
-      title="Sàng lọc sơ sinh / trước sinh"
-      load={async () => {
-        const r = await getScreeningRequests();
-        return normalizeArrayResponse<ScreeningRequest>(r);
-      }}
-      rowKey={(r) => r.id}
-      columns={columns}
-      searchPlaceholder="Tìm BN / mẹ / mã / barcode…"
-      searchOf={(r) => `${r.patientName} ${r.babyName || ''} ${r.motherName || ''} ${r.requestCode} ${r.sampleBarcode || ''}`}
-      statusTabs={STATUS_TABS as unknown as StatusTab<string>[]}
-      statusOf={(r) => statusKey(r.status)}
-      filters={[{
-        key: 'type', placeholder: '▾ Loại sàng lọc',
-        options: [{ v: 'newborn', l: 'Sơ sinh' }, { v: 'prenatal', l: 'Trước sinh' }],
-        valueOf: (r) => r.screeningType,
-      }]}
-      kpis={(rows) => {
-        const newborn = rows.filter((r) => r.screeningType === 'newborn').length;
-        const prenatal = rows.filter((r) => r.screeningType === 'prenatal').length;
-        return [
-          { lbl: 'Tổng SL', val: rows.length },
-          { lbl: 'SL sơ sinh', val: newborn, tone: 'info' },
-          { lbl: 'SL trước sinh', val: prenatal, tone: 'warn' },
-          { lbl: 'Có KQ', val: rows.filter((r) => r.status >= 3).length, tone: 'ok' },
-          { lbl: 'Đang xử lý', val: rows.filter((r) => r.status >= 1 && r.status <= 2).length, tone: 'warn' },
-          { lbl: 'Hoàn tất', val: rows.filter((r) => r.status === 4).length, tone: 'ok' },
-        ];
-      }}
-      drawer={(r) => (
-        <>
-          <div className="rec-section">
-            <h5><TermIcon name="info" size={11} /> THÔNG TIN SÀNG LỌC</h5>
-            <div className="rec-kv">
-              <span>Mã SL</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.requestCode}</span>
-              <span>Loại</span><b>{TYPE_LABEL[r.screeningType]}</b>
-              <span>BN</span><b>{r.patientName}</b>
-              <span>Mã BN</span><span className="mono">{r.patientCode}</span>
-              <span>Ngày YC</span><span>{fmtDMY(r.requestDate)}</span>
-            </div>
-          </div>
-          {r.screeningType === 'newborn' && (
-            <div className="rec-section">
-              <h5><TermIcon name="user" size={11} /> THÔNG TIN BÉ</h5>
-              <div className="rec-kv">
-                {r.babyName && (<><span>Tên bé</span><b>{r.babyName}</b></>)}
-                {r.babyGender && (<><span>Giới tính</span><span>{r.babyGender === 1 ? 'Nam' : 'Nữ'}</span></>)}
-                {r.birthWeight && (<><span>Cân khi sinh</span><b>{r.birthWeight} g</b></>)}
-                {r.gestationalAge && (<><span>Tuổi thai</span><span>{r.gestationalAge} tuần</span></>)}
-                {r.birthDate && (<><span>Ngày sinh</span><span>{fmtDMY(r.birthDate)}</span></>)}
-                {r.deliveryMethod && (<><span>PP sinh</span><span>{r.deliveryMethod}</span></>)}
-                {r.apgarScore && (<><span>Apgar</span><span>{r.apgarScore}</span></>)}
-                {r.feedingType && (<><span>Cho bú</span><span>{r.feedingType}</span></>)}
-                {r.motherName && (<><span>Mẹ</span><span>{r.motherName}{r.motherAge ? ` · ${r.motherAge}t` : ''}</span></>)}
-              </div>
-            </div>
-          )}
-          {r.screeningType === 'prenatal' && (
-            <div className="rec-section">
-              <h5><TermIcon name="heart" size={11} /> THÔNG TIN MẸ</h5>
-              <div className="rec-kv">
-                {r.maternalAge && (<><span>Tuổi mẹ</span><b>{r.maternalAge}</b></>)}
-                {r.pregnancyWeek && (<><span>Tuần thai</span><b>{r.pregnancyWeek}</b></>)}
-                {r.gravida && (<><span>Số lần có thai</span><span>G{r.gravida}P{r.para || 0}</span></>)}
-                {r.lastMenstrualDate && (<><span>Kinh cuối</span><span>{fmtDMY(r.lastMenstrualDate)}</span></>)}
-                {r.ultrasoundDate && (<><span>Siêu âm gần nhất</span><span>{fmtDMY(r.ultrasoundDate)}</span></>)}
-              </div>
-            </div>
-          )}
-          <div className="rec-section">
-            <h5><TermIcon name="flask" size={11} /> MẪU</h5>
-            <div className="rec-kv">
-              <span>Barcode</span><span className="mono">{r.sampleBarcode || '—'}</span>
-              <span>Lấy mẫu</span><span>{fmtDMY(r.collectionDate)}</span>
-              <span>Số test</span><b>{r.results?.length || 0}</b>
-            </div>
-          </div>
-        </>
-      )}
-      drawerTitle={(r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
-          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.requestCode}</span>
-          <span style={{ fontSize: 14 }}>{r.babyName || r.patientName}</span>
-        </span>
-      )}
-      drawerSub={(r) => `${TYPE_LABEL[r.screeningType]} · ${fmtDMY(r.requestDate)}`}
-    />
+    <div className="ab">
+      <KpiStrip items={[
+        { lbl: 'Tổng', val: allRows.length },
+        { lbl: 'Sơ sinh', val: newborn, tone: 'info' },
+        { lbl: 'Trước sinh', val: prenatal, tone: 'warn' },
+        { lbl: 'Bất thường', val: abnormal, sub: 'nguy cơ', tone: 'crit' },
+        { lbl: 'Có kết quả', val: hasResult, tone: 'ok' },
+        { lbl: 'Hoàn tất', val: allRows.filter((r) => r.status === 4).length, tone: 'ok' },
+      ]} />
+
+      <TopTabs<Tab>
+        tab={tab}
+        setTab={(v) => { setTab(v); setStab('all'); setPage(0); }}
+        tabs={TOP_TABS}
+        actions={
+          <>
+            <Btn variant="ghost" onClick={load}>
+              <Ico name="refresh" size={12} /> Làm mới
+            </Btn>
+            <Btn variant="primary" onClick={() => setCreateOpen(true)}>
+              <Ico name="plus" size={12} /> {tab === 'newborn' ? 'SL sơ sinh' : 'SL trước sinh'}
+            </Btn>
+          </>
+        }
+      />
+
+      <div className="ab-toolbar" style={{ borderTop: 'none' }}>
+        <SearchBox
+          value={search}
+          onChange={(v) => { setSearch(v); setPage(0); }}
+          placeholder={tab === 'newborn' ? 'Tìm tên trẻ / mẹ / mã / barcode…' : 'Tìm thai phụ / mã BN / mã SL…'}
+        />
+      </div>
+
+      <StatusTabs<StatusKey>
+        value={stab}
+        onChange={(v) => { setStab(v); setPage(0); }}
+        tabs={STATUS_TABS}
+        counts={counts}
+      />
+
+      <DataTable<ScreeningRequest>
+        columns={columns}
+        data={paged}
+        rowKey={(r) => r.id}
+        onRowClick={setSel}
+        actions={rowActions}
+        empty={loading ? 'Đang tải…' : `Không có yêu cầu sàng lọc ${tab === 'newborn' ? 'sơ sinh' : 'trước sinh'}`}
+      />
+      <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
+
+      {/* Chi tiết sàng lọc */}
+      <DrawerShell
+        open={!!sel}
+        onClose={() => setSel(null)}
+        size="lg"
+        title={sel?.requestCode || ''}
+        sub={sel ? `${sel.screeningType === 'newborn' ? 'Sơ sinh' : 'Trước sinh'} · ${fmtDMY(sel.requestDate)}` : ''}
+        footer={
+          <>
+            <Btn variant="ghost" onClick={() => window.print()}>
+              <Ico name="print" size={12} /> In phiếu
+            </Btn>
+            <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          </>
+        }
+      >
+        {sel && (
+          <>
+            <DrSec title="Thông tin sàng lọc">
+              <DrField lbl="Mã SL">
+                <span className="mono" style={{ color: 'var(--a-cy)' }}>{sel.requestCode}</span>
+              </DrField>
+              <DrField lbl="Loại">{sel.screeningType === 'newborn' ? 'Sơ sinh' : 'Trước sinh'}</DrField>
+              <DrField lbl="Ngày yêu cầu">{fmtDMY(sel.requestDate)}</DrField>
+              <DrField lbl="Barcode mẫu"><span className="mono">{sel.sampleBarcode || '—'}</span></DrField>
+              <DrField lbl="Ngày lấy mẫu">{fmtDMY(sel.collectionDate)}</DrField>
+              <DrField lbl="Trạng thái">
+                {(() => {
+                  const t = STATUS_TABS.find((x) => x.v === statusKey(sel.status));
+                  return <StatusBadge tone={t?.tone} dot>{t?.l}</StatusBadge>;
+                })()}
+              </DrField>
+            </DrSec>
+
+            {sel.screeningType === 'newborn' && (
+              <DrSec title="Thông tin trẻ">
+                <DrField lbl="Tên trẻ"><b>{sel.babyName || '—'}</b></DrField>
+                <DrField lbl="Giới tính">{sel.babyGender === 1 ? 'Nam' : sel.babyGender === 2 ? 'Nữ' : '—'}</DrField>
+                <DrField lbl="Ngày sinh">{fmtDMY(sel.birthDate)}</DrField>
+                <DrField lbl="Cân nặng">{sel.birthWeight ? `${sel.birthWeight} g` : '—'}</DrField>
+                <DrField lbl="Tuổi thai">{sel.gestationalAge ? `${sel.gestationalAge} tuần` : '—'}</DrField>
+                <DrField lbl="Apgar">{sel.apgarScore || '—'}</DrField>
+                <DrField lbl="Phương pháp sinh">{sel.deliveryMethod || '—'}</DrField>
+                <DrField lbl="Nuôi dưỡng">{sel.feedingType || '—'}</DrField>
+                <DrField lbl="Tên mẹ">{sel.motherName || '—'}</DrField>
+                {sel.motherAge && <DrField lbl="Tuổi mẹ">{sel.motherAge}</DrField>}
+              </DrSec>
+            )}
+
+            {sel.screeningType === 'prenatal' && (
+              <DrSec title="Thông tin thai phụ">
+                <DrField lbl="Họ tên"><b>{sel.patientName}</b></DrField>
+                <DrField lbl="Mã BN"><span className="mono">{sel.patientCode}</span></DrField>
+                <DrField lbl="Tuổi">{sel.maternalAge ?? '—'}</DrField>
+                <DrField lbl="Thai kỳ">{sel.pregnancyWeek ? `${sel.pregnancyWeek} tuần` : '—'}</DrField>
+                <DrField lbl="PARA">G{sel.gravida || 0}P{sel.para || 0}</DrField>
+                <DrField lbl="Ngày KKC">{fmtDMY(sel.lastMenstrualDate)}</DrField>
+                <DrField lbl="Siêu âm gần nhất">{fmtDMY(sel.ultrasoundDate)}</DrField>
+                {sel.previousConditions && <DrField lbl="Tiền sử thai kỳ">{sel.previousConditions}</DrField>}
+                {sel.familyHistory && <DrField lbl="Tiền sử gia đình">{sel.familyHistory}</DrField>}
+              </DrSec>
+            )}
+
+            <DrSec title={`Kết quả sàng lọc${sel.results?.length ? ` (${sel.results.length})` : ''}`}>
+              {!sel.results?.length ? (
+                <div style={{ color: 'var(--t-2)', padding: '8px 0', fontSize: 13 }}>Chưa có kết quả</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {sel.results.map((res) => (
+                    <div key={res.id} style={{ background: 'var(--bg-1)', borderRadius: 6, padding: '7px 12px', fontSize: 13 }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <span style={{ flex: 1, fontWeight: 500, color: 'var(--t-0)' }}>{res.testName}</span>
+                        {res.value !== undefined && (
+                          <span className="mono" style={{ color: 'var(--t-1)' }}>
+                            {res.value} {res.unit}
+                            {res.referenceRange ? ` [${res.referenceRange}]` : ''}
+                          </span>
+                        )}
+                        <span className={`chip ${INTERP_TONE[res.interpretation] || 'info'}`}>
+                          {INTERP_LABEL[res.interpretation] || res.interpretation}
+                        </span>
+                      </div>
+                      {res.riskLevel && (
+                        <div style={{ color: 'var(--t-2)', fontSize: 12, marginTop: 2 }}>
+                          Mức nguy cơ: {res.riskLevel}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </DrSec>
+
+            {sel.notes && (
+              <DrSec title="Ghi chú">
+                <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{sel.notes}</div>
+              </DrSec>
+            )}
+          </>
+        )}
+      </DrawerShell>
+
+      {/* Tạo yêu cầu sàng lọc */}
+      <CrudModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title={tab === 'newborn' ? 'Sàng lọc sơ sinh' : 'Sàng lọc trước sinh'}
+        fields={tab === 'newborn' ? NEWBORN_FIELDS : PRENATAL_FIELDS}
+        initial={tab === 'newborn' ? { babyGender: 1, deliveryMethod: 'vaginal', feedingType: 'breastfed' } : { gravida: 1, para: 0 }}
+        size="lg"
+        onSubmit={async (v) => {
+          await createScreeningRequest({ ...v as Partial<ScreeningRequest>, screeningType: tab });
+          tk(`Đã tạo yêu cầu sàng lọc ${tab === 'newborn' ? 'sơ sinh' : 'trước sinh'}`);
+          load();
+        }}
+      />
+    </div>
   );
 };
 
