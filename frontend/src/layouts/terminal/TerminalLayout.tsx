@@ -9,6 +9,7 @@ import {
   CommandProvider, useCommandCtx, COMMANDS, type CmdId,
 } from '../../contexts/CommandContext';
 import TermIcon from './Icon';
+import ErrorBoundary from '../../components/feedback/ErrorBoundary';
 import { HOSPITAL_NAME } from '../../constants/hospital';
 import { storage, STORAGE_KEYS } from '../../services/storage.service';
 import {
@@ -738,7 +739,9 @@ const TerminalShell: React.FC = () => {
                 },
               }}
             >
-              <Outlet />
+              <ErrorBoundary key={location.pathname}>
+                <Outlet />
+              </ErrorBoundary>
             </ConfigProvider>
           </div>
         </div>
