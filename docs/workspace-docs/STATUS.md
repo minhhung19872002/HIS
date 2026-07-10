@@ -5,7 +5,15 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-11** — **cửa 416 (w669/Sonnet4.6): #416 DONE-code READY_FOR_PUSH** — race-guard `selectPatient` BillingEditor+PrescriptionEditor (2 round: initial guard + 5 defect bổ sung từ verify-workflow 3 lens); tsc EXIT 0. Cửa PORT w480: #415 QueueDisplay TV board v2 DONE-code READY_FOR_PUSH. Cửa port-408: ✅ #408 CLOSED (9c3b762). Cửa FE-restructure: Batch 6 ✅ PUSHED `6f49492`.
+> Cập nhật cuối: **2026-07-11** — **cửa PORT w196: #415 ✅ PUSHED `be63a78` (CLOSED). #416 ✅ PUSHED `aec7178` (CLOSED, dead window w669 đã push+close). #412 AiQueueBadge → TerminalLayout DONE-code tsc EXIT 0 CHỜ vite+push.**
+
+## Phiên 2026-07-11 (cửa PORT w196 — #415+#416 ✅ CLOSED, #412 AiQueueBadge DONE-code CHỜ push)
+- **#415 [PORT-P9][FE][P2] ✅ PUSHED `be63a78` CLOSED**: QueueDisplay TV board v2 — TTS + beep + lab queue 5-status. Route `/v2/queue-display` standalone public. Lock released.
+- **#416 [P1][patient-safety] ✅ PUSHED `aec7178` CLOSED** (dead window w669 đã hoàn tất): race-guard `selectPatient` BillingEditor + PrescriptionEditor (pattern #374). Đã pull vào main khi push #415.
+- **#412 [PORT-P6][FE][P3] DONE-code** (lock `412`, gh in-progress + @me): AiQueueBadge → TerminalLayout topbar v2 (2 dòng thêm vào `layouts/terminal/TerminalLayout.tsx`):
+  - Import `AiQueueBadge from '../../modules/radiology/components/AiQueueBadge'`
+  - `<AiQueueBadge />` trước bell Popover trong `his-tb-right` (reuse component tự chứa — poll 30s + SignalR relay `ai-queue-updated`; navigate `/radiology/viewer?study=`).
+  - **Gate:** tsc EXIT 0. **CHỜ vite EXIT 0 → git add `TerminalLayout.tsx STATUS.md` + commit `Closes #412` → push.**
 
 ## Phiên 2026-07-11 (cửa 416 — #416 race-guard BillingEditor+PrescriptionEditor, DONE-code READY_FOR_PUSH)
 - **#416 [P1][patient-safety] DONE-code** (lock `416`): race-guard `selectPatient` 2 editor v2 cùng pattern `selectReqRef` của #374 OpdEditor:

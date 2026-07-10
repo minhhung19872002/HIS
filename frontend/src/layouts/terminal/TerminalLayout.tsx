@@ -9,6 +9,7 @@ import {
   CommandProvider, useCommandCtx, COMMANDS, type CmdId,
 } from '../../contexts/CommandContext';
 import TermIcon from './Icon';
+import AiQueueBadge from '../../modules/radiology/components/AiQueueBadge';
 import ErrorBoundary from '../../components/feedback/ErrorBoundary';
 import { HOSPITAL_NAME } from '../../constants/hospital';
 import { storage, STORAGE_KEYS } from '../../services/storage.service';
@@ -230,6 +231,7 @@ const Topbar: React.FC<{ crumb: string[]; onCmdK: () => void; onSwitchLayout: ()
         <button type="button" className="his-tb-btn" title="Trợ giúp (F1)" onClick={() => navigate('/v2/help')}>
           <TermIcon name="info" size={15} />
         </button>
+        <AiQueueBadge />
         <Popover content={notifContent} trigger="click" placement="bottomRight" styles={{ content: { padding: 12 } }}>
           <button type="button" className="his-tb-btn" title="Thông báo (có mới)">
             <TermIcon name="bell" size={15} />
