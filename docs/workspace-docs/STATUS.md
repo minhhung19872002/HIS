@@ -5,7 +5,7 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-10** — **cửa PORT #414 (w480): ✅ PUSHED Closes #414** (print gap 7 module v2). Cửa FE-restructure: Batch 6 ✅ PUSHED `6f49492` (API STRICT-relocate). Cửa port-408: 10 stub→CRUD DONE-code LOCAL. `components/` root chỉ còn shim + category §4a (restructure components HOÀN TẤT).
+> Cập nhật cuối: **2026-07-10** — **cửa port-408: ✅ #408 CLOSED** (12/13 stub→CRUD; 10 file lên origin trong `9c3b762` — đi CHUNG commit cửa #414 do race staging 2 cửa; DoctorPortal → **#417** mới). Cửa PORT #414 (w480): ✅ PUSHED Closes #414 (print gap 7 module v2). Cửa FE-restructure: Batch 6 ✅ PUSHED `6f49492` (API STRICT-relocate). `components/` root chỉ còn shim + category §4a (restructure components HOÀN TẤT).
 
 ## Phiên 2026-07-10 (cửa PORT #414 w480 — print gap v1→v2 7 module, ✅ PUSHED Closes #414)
 - **#414 [PORT-P8][FE][P1] DONE + PUSHED**: bổ sung print cho 7 module v2 theo pattern `openPrintWindow(html, {focus, print:{delayMs:500}})` + `HOSPITAL_NAME`:
@@ -26,6 +26,11 @@
 - **Gate:** tsc scope-clean (3 lỗi còn lại = WIP cửa port-408 Immunization/MedicalForensics, không liên quan) · **vite build EXIT 0** · stale-ref sweep toàn repo (src + cypress/playwright/scripts/config + mocks) = **ZERO** · **Workflow verify đối kháng 8 agent: 8/8 PASS, 91 file checked, 0 vấn đề thực** (info: `modules/patient/index.ts` barrel rỗng 0-byte scaffold — vô hại; 7 dynamic import OK).
 - **STAGED tách cửa (3 cửa sống cùng cây):** đã `git add` chính xác scope mình (128 file staged, git nhận 37 move = rename giữ history); **4 file overlap với cửa #414** (BloodBank/Inpatient/Quality/Reports v2) stage bằng **patch-filter CHỈ hunk import** (`git apply --cached`) — WIP print-gap của họ vẫn unstaged nguyên; 14 file WIP cửa 408/414 khác không đụng. Verify staged-tree tự nhất quán: HEAD/STAGED của mọi file skip = 0 import path cũ.
 - **READY_FOR_PUSH** — chờ user duyệt commit+push. ⚠️ Lưu ý cửa #414/#408: file các bạn khi commit sẽ tự mang theo import mới (đã sửa trong worktree) — KHÔNG `git checkout --` file của mình về HEAD (HEAD còn trỏ path đã xóa).
+
+## Phiên 2026-07-10 (cửa port-408 — ✅ #408 CLOSED: 12/13 stub→CRUD lên origin, DoctorPortal → #417)
+- **PUSH + CLOSE (user ra lệnh tường minh "push và đóng task"):** 10 file pages-v2 lên origin — ⚠️ đi **CHUNG commit `9c3b762` của cửa #414** (race staging: cửa #414 `git commit` toàn bộ index đúng lúc 10 file này vừa stage). Nội dung code verify TRƯỚC khi stage: `tsc -b` EXIT 0 + `vite build` EXIT 0 toàn cây (sau batch-6 api relocate). #408 đóng thủ công kèm sha + giải thích.
+- **DoctorPortal (trang 13)** → tách **#417** (gate quyết định sản phẩm: giữ portal hay bỏ; đã chuyển đủ context v1 4 khối + acceptance).
+- Lock `port-408` ĐÃ RELEASE. Locks còn sống: `415` (w8529 fable) · `components-restructure` (w1262 opus) — cửa khác, không đụng.
 
 ## Phiên 2026-07-10 (cửa port-408 — #408 P2 stub→CRUD: 10 trang DONE-code, tsc EXIT 0, CHỜ duyệt commit+push)
 - **#408 [PORT-P2] DONE-code** (lock `port-408`): upgrade 10 stub → full CRUD+v2kit:
