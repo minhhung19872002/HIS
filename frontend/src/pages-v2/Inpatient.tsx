@@ -8,8 +8,8 @@ import TreatmentMonitorSection from './inpatient/TreatmentMonitorSection';
 import ConsultationSection from './inpatient/ConsultationSection';
 import NewbornSection from './inpatient/NewbornSection';
 import HemodialysisSection from './inpatient/HemodialysisSection';
-import PatientFlagBanner from '../components/PatientFlagBanner';
-import BusinessAlertPanel from '../components/BusinessAlertPanel';
+import PatientFlagBanner from '../modules/patient/components/PatientFlagBanner';
+import BusinessAlertPanel from '../modules/patient/components/BusinessAlertPanel';
 import { catalogApi } from '../api/system';
 import type { DepartmentCatalogDto } from '../api/system';
 import {

@@ -5,7 +5,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../services/apiClient';
 import { openPrintWindow } from '../utils/printWindow';
 import { searchPrescriptionByCode, type DispensePrescriptionLookupDto } from '../api/examination';
-import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
+import { PharmacyExpiryBanner } from '../modules/pharmacy/components/PharmacyExpiryBanner';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, tw, Ico,

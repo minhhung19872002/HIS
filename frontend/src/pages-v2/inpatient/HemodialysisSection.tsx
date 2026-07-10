@@ -15,7 +15,7 @@ import {
 } from '../../api/inpatient';
 import { ModalShell, DataTable, ActBtn, Btn, type ColumnDef } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
-import { printHemodialysisSheet, type HemodialysisPrintHeader } from '../../components/HemodialysisSheetPrint';
+import { printHemodialysisSheet, type HemodialysisPrintHeader } from '../../modules/patient/components/HemodialysisSheetPrint';
 
 // ---------------------------------------------------------------------------
 // Helpers

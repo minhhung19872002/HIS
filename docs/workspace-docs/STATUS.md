@@ -5,7 +5,21 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-10** — cửa FE-restructure: (1) timer hooks ✅ PUSHED `69f0ebb`; (2) **RULE components dùng-chung vs dùng-riêng** ghi vào `his-fe-convention` §4a + REGISTRY row (LINT OK), memory cập nhật; (3) **Batch 1 chuyển dần** components → category (4 file generic: ErrorBoundary→feedback · BarcodeScanner+VoiceDictation→form · WebcamCapture→upload; shim back-compat v1 giữ nguyên; tsc 0 + vite ✓ 55s + byte-equiv) — **LOCAL chờ duyệt commit**. Phần còn lại root = domain (B→modules, user carve) hoặc DEFER (money/external).
+> Cập nhật cuối: **2026-07-10** — cửa FE-restructure: (1) timer hooks ✅ PUSHED `69f0ebb`; (2) **RULE §4a** ✅; (3) **Batch 1** generic→category ✅; (4) **Batch 2** _v2kit primitives ✅; (5) **Batch 3** B-domain 19 file+4 folder→modules/{patient,pharmacy,administration}/components + 4 dead-code xóa + 23 shim v1 + 12 v2 importer; (6) **Batch 4** điền code 3 category rỗng (common: Icon/Spinner/CopyButton/Divider/Logo · layout: PageContainer/PageHeader/PageToolbar/Section/CardSection · permission: PermissionGuard) + `_v2kit` Ico re-export từ common/Icon — tsc EXIT 0 · vite ✓ 52s — **COMMIT local (user duyệt), đang batch 5 (16 file DEFER→modules/{billing,radiology,system})**.
+
+## Phiên 2026-07-10 (cửa PORT-v1→v2 — audit vòng-3 + task tạo + #410/#411 DONE-code chờ push)
+- **Audit vòng-3 đa chiều HOÀN TẤT** [read-only]: rà 4 chiều bổ sung sau vòng-2:
+  - **Chiều 1 Print:** modules core (Billing/Lab/Reception/OPD/Radiology/EMR/Prescription/Pharmacy) dùng API-blob → KHÔNG phải gap. Gap thật: Surgery(7→0) · BloodBank(12→0) · HR(5→0) · Reports(7→0) + partial Inpatient/EmergencyDisaster/InfectionControl/Nutrition → **#414 MỚI tạo**.
+  - **Chiều 2 Lite routes:** 12 route `/v2/lite/*` → cùng component với `/v2/*` → KHÔNG gap.
+  - **Chiều 3 Cross-module links:** v2 có 30+ link giữa modules (v1 gần 0) → v2 TỐT HƠN, không gap.
+  - **Chiều 4 Kiosk/QueueDisplay:** KioskSelfService v2 tốt; nhưng QueueDisplay TV board (màn chờ công cộng: TTS vi-VN + beep + lab queue 5-status + KPI) chưa có v2 → **#415 MỚI tạo**.
+- **#414** [PORT-P8][FE][P1] tạo: print gap Surgery/BloodBank/HR/Reports v2 (0 print vs v1 5-12).
+- **#415** [PORT-P9][FE][P2] tạo: QueueDisplay TV board v2 (TTS + beep + lab queue 5-status).
+- **Comment #352:** audit vòng-3 full summary + bản đồ task #407-#415.
+- **Comment #409:** BHYT XML export (C79/C80) = critical sub-scope còn thiếu trong v2 Insurance.
+
+## Phiên 2026-07-10 (cửa PORT-v1→v2 — #410 DONE-code chờ push + #411 DONE-code chờ push)
+- **#411 [PORT-P5][FE][P2] DONE-code, tsc EXIT 0, CHỜ push** [feature FE, claim w1131]: `services/menu.service.ts` — thêm **24 mục** vào đúng group (128→152 item): clinical +4 (observation-stay/video-consultation/service-requeue/consultation-register) · paraclinical +8 (analyzer-inbox/sample-receive/radiology-ops/ris-dispatcher/non-dicom-capture/ris-admin/ris-catalog-admin/lis-catalog-admin) · support +5 (dispensing-counter/inpatient-dispensing/clinical-pharmacy-check/stock-report/office-supply-approval) · finance +4 (bhxh-config/payment-transactions/payment-reports/receipt-book-admin) · management +3 (catalogs-admin/employee-profile/workload-report). Labels lấy từ meta.title routeConfigs (không sáng tạo). tsc -b EXIT 0 (type-only change). Palette Ctrl+K tự ăn theo HIS_GROUPS → 14 trang mất-hẳn-lối-vào nay accessible. **Push cùng #410 hoặc riêng lẻ theo user.**
 
 ## Phiên 2026-07-10 (cửa PORT-v1→v2 w793 — dọn bảng task nhóm port + #410 P4-tail DONE-code, CHỜ duyệt push)
 - **Dọn bảng task loại "port v1→v2"** [governance]: nhóm này 0 issue open (epic #352+#204 bị đóng 2026-07-03 đợt dọn backlog, chưa làm xong). → **Reopen epic #352** (comment cập nhật: #357/#361/`b075c03` đã xong từ khi đóng) + vật-chất-hóa kế hoạch 4 batch thành issue claimable: **#407** PORT-P1 patient-safety residual (OPD/Prescription/EMR/Inpatient/Pharmacy/HospitalPharmacy/Insurance/MRPlanning — cần deploy+smoke) · **#408** PORT-P2 13 stub no-CRUD (re-verify line-count: vẫn stub) · **#409** PORT-P3 Partial còn lại ~40 trang · **#410** PORT-P4 tail. #204 giữ CLOSED tới khi P1-P4 xong.

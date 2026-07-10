@@ -8,7 +8,7 @@ import {
   DrawerShell, DrSec, DrField, CrudModal, tk, ti,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
-import { DriverCheckupPrint, VsattpCheckupPrint, StudentCheckupPrint } from '../components/HealthCheckupPrintTemplates';
+import { DriverCheckupPrint, VsattpCheckupPrint, StudentCheckupPrint } from '../modules/patient/components/HealthCheckupPrintTemplates';
 
 // ---- Static base fields (common to all KSK types) ----
 const BASE_FIELDS: CrudFieldCfg[] = [

@@ -108,8 +108,8 @@ export const cf = (
   });
 };
 
-// Re-export Icon for consumers so they don't need the layout import
-export { default as Ico } from '../layouts/terminal/Icon';
+// Re-export Icon (now in components/common/Icon) under the legacy alias `Ico`
+export { Icon as Ico } from '../components/common/Icon';
 
 // ─────────────────────────── List-data hooks (shared boilerplate) ───────────────────────────
 // #206 (REFAC FE-3): ~95% các page list v2 hand-roll lặp cùng một khối state quản lý dữ liệu

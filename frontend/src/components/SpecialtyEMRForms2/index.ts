@@ -1,5 +1,6 @@
-// Barrel — giữ import cũ '../components/SpecialtyEMRForms2'. Tách từ file dài.
-export * from './_shared';
-export * from './group1';
-export * from './group2';
-export * from './group3';
+/**
+ * TRANSITIONAL SHIM (his-fe-convention §4a) — folder đã dời về modules/patient/components/SpecialtyEMRForms2/.
+ * Giữ lại CHỈ để các importer v1 (pages/) không phải đổi — v1 đang retire (#204).
+ * Code MỚI import từ modules/patient/components/SpecialtyEMRForms2. Xóa shim khi v1 gỡ bỏ.
+ */
+export * from '../../modules/patient/components/SpecialtyEMRForms2';

@@ -35,8 +35,8 @@ import {
   type OutpatientRecordTemplateDto,
 } from '../api/clinicalNarratives';
 import { useAbbrExpansion } from '../utils/abbrExpand';
-import PatientFlagBanner from '../components/PatientFlagBanner';
-import BusinessAlertPanel from '../components/BusinessAlertPanel';
+import PatientFlagBanner from '../modules/patient/components/PatientFlagBanner';
+import BusinessAlertPanel from '../modules/patient/components/BusinessAlertPanel';
 import {
   addFollowUpSpecialty,
   changeRoomBeforeExam,

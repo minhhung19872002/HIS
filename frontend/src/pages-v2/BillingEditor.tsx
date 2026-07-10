@@ -16,8 +16,8 @@ import {
   fmtVNDg, fmtDTg, tk, tw, te, type ColumnDef, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
-import PatientFlagBanner from '../components/PatientFlagBanner';
-import BusinessAlertPanel from '../components/BusinessAlertPanel';
+import PatientFlagBanner from '../modules/patient/components/PatientFlagBanner';
+import BusinessAlertPanel from '../modules/patient/components/BusinessAlertPanel';
 import PaymentQRModal from '../components/PaymentQRModal';
 import {
   searchPatients, type PatientBillingStatusDto,

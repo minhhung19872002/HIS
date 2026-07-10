@@ -23,7 +23,7 @@ import {
   type EmrDocumentAttachmentDto,
 } from '../api/emrAdmin';
 import EmrSigningChainDrawer from './shared/EmrSigningChainDrawer';
-import PatientFlagBanner from '../components/PatientFlagBanner';
+import PatientFlagBanner from '../modules/patient/components/PatientFlagBanner';
 import {
   getEmrRecords, type EmrRecordDto,
   getPatientMedicalHistory, type MedicalHistoryDto,
@@ -34,8 +34,8 @@ import {
   type CreateMaternityLeaveDto,
 } from '../api/examination';
 import { printTreatmentSheet as printInpatientTreatmentSheet } from '../api/inpatient';
-import PrintTemplateRenderer from '../components/PrintTemplateRenderer';
-import ClinicalTemplatePicker from '../components/ClinicalTemplatePicker';
+import PrintTemplateRenderer from '../modules/patient/components/PrintTemplateRenderer';
+import ClinicalTemplatePicker from '../modules/patient/components/ClinicalTemplatePicker';
 import { TEMPLATE_TYPES } from '../api/clinicalTemplate';
 import '../layouts/terminal/ed-responsive.css';
 

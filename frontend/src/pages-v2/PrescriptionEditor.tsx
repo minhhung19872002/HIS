@@ -17,8 +17,8 @@ import TermIcon from '../layouts/terminal/Icon';
 import { examinationApi, printExternalPrescription, type MedicineDto, type DrugInteractionDto, type CreatePrescriptionDto, type PrescriptionTemplateDto, type WarehouseDto } from '../api/examination';
 import { patientApi, type Patient } from '../api/patient';
 import { getPrescriptionContext, type PrescriptionContextDto } from '../api/dataInheritance';
-import PatientFlagBanner from '../components/PatientFlagBanner';
-import BusinessAlertPanel from '../components/BusinessAlertPanel';
+import PatientFlagBanner from '../modules/patient/components/PatientFlagBanner';
+import BusinessAlertPanel from '../modules/patient/components/BusinessAlertPanel';
 import '../layouts/terminal/ed-responsive.css';
 import { fmtDate } from '../utils/format';
 

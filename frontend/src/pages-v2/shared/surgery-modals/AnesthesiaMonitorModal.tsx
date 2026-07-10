@@ -11,7 +11,7 @@ import { anesthesiaApi } from '../../../api/clinicalRecords';
 import {
   printAnesthesiaMonitor,
   printAnesthesiaRecord,
-} from '../../../components/AnesthesiaPrintTemplates';
+} from '../../../modules/patient/components/AnesthesiaPrintTemplates';
 import { Section } from './_shared';
 
 // ---------------------------------------------------------------------------

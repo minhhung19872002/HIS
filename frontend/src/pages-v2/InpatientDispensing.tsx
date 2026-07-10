@@ -6,7 +6,7 @@ import apiClient from '../services/apiClient';
 import { openPrintWindow } from '../utils/printWindow';
 import systemApi from '../api/system';
 import { getWarehouses } from '../api/warehouse';
-import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
+import { PharmacyExpiryBanner } from '../modules/pharmacy/components/PharmacyExpiryBanner';
 import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {
   KpiStrip, Filter, StatusBadge, Btn, Ico, tk, ti, tw,
