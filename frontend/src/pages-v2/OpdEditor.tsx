@@ -9,7 +9,7 @@
  * createServiceOrders, completeExamination. No backend change.
  * ===================================================================== */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, fmtVNDg, tk, tw, te, ti } from './_v2kit';
 import { SurgeryReportModal } from './shared/SurgeryReportModal';
@@ -263,7 +263,10 @@ const OpdEditorV2: React.FC = () => {
   useEffect(() => { loadQueue(roomId); }, [roomId, loadQueue]);
 
   // ── Select patient → load exam detail ────────────────────────────
+  // Guard chống race khi đổi BN nhanh: response cũ đến muộn không được ghi đè hồ sơ BN đang chọn (#374 patient-safety)
+  const selectReqRef = useRef(0);
   const selectPatient = useCallback(async (q: RoomPatientListDto) => {
+    const reqId = ++selectReqRef.current;
     setSelPt(q);
     setLeftOpen(false);
     // reset then load
@@ -279,6 +282,7 @@ const OpdEditorV2: React.FC = () => {
       getPatientAllergies(q.patientId),
       getInjuryInfo(id),
     ]);
+    if (selectReqRef.current !== reqId) return; // BN khác đã được chọn trong lúc chờ — bỏ response cũ
     if (v.status === 'fulfilled' && v.value.data) {
       const d = v.value.data;
       setVitals({ pulse: d.pulse, temperature: d.temperature, systolicBP: d.systolicBP, diastolicBP: d.diastolicBP, respiratoryRate: d.respiratoryRate, spO2: d.spO2, weight: d.weight, height: d.height });
