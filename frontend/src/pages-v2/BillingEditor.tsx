@@ -18,7 +18,7 @@ import {
 import TermIcon from '../layouts/terminal/Icon';
 import PatientFlagBanner from '../modules/patient/components/PatientFlagBanner';
 import BusinessAlertPanel from '../modules/patient/components/BusinessAlertPanel';
-import PaymentQRModal from '../components/PaymentQRModal';
+import PaymentQRModal from '../modules/billing/components/PaymentQRModal';
 import {
   searchPatients, type PatientBillingStatusDto,
   getUnpaidServices, type UnpaidServiceItemDto,

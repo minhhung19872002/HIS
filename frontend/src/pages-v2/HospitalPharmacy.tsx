@@ -8,7 +8,7 @@ import {
   type ColumnDef, type StatusTab, type KpiItem,
 } from './_v2kit';
 import ExpiryAlertModal from './shared/ExpiryAlertModal';
-import PaymentQRModal from '../components/PaymentQRModal';
+import PaymentQRModal from '../modules/billing/components/PaymentQRModal';
 
 const STATUS_TONE: Record<number, { label: string; tone: 'warn' | 'ok' | 'crit' }> = {
   0: { label: 'Chờ',    tone: 'warn' },

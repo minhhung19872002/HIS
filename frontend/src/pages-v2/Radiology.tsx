@@ -10,7 +10,7 @@ import {
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 import { SurgeryReportModal } from './shared/SurgeryReportModal';
-import ShareStudyModal from '../components/ShareStudyModal';
+import ShareStudyModal from '../modules/radiology/components/ShareStudyModal';
 import { radiologyColumns } from './radiology/columns';
 import { CallPatientModal } from './radiology/CallPatientModal';
 import { ResultEntryModal } from './radiology/ResultEntryModal';
