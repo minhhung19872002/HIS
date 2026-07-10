@@ -10,7 +10,7 @@
  * Replaces the v1 navigate('/billing') jump.
  * ===================================================================== */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   KpiStrip, StatusBadge, ActBtn, Btn, DataTable, TopTabs, ModalShell,
   fmtVNDg, fmtDTg, tk, tw, te, type ColumnDef, type TopTab,
@@ -89,7 +89,10 @@ const BillingEditorV2: React.FC = () => {
   const [einvoices, setEinvoices] = useState<ElectronicInvoiceDto[]>([]);
 
   // ── Select patient → load unpaid items + balance ─────────────────
+  // Guard chống race khi đổi BN nhanh: DS chưa thanh toán + số dư của BN cũ không được hiện dưới tên BN mới (#416, cùng pattern #374 — tiền)
+  const selectReqRef = useRef(0);
   const selectPatient = useCallback(async (p: PatientBillingStatusDto) => {
+    const reqId = ++selectReqRef.current;
     setPt(p);
     setSearchOpen(false);
     setItems([]); setSel(new Set()); setBalance(null);
@@ -100,6 +103,7 @@ const BillingEditorV2: React.FC = () => {
       getUnpaidMedicines(p.patientId),
       getDepositBalance(p.patientId),
     ]);
+    if (selectReqRef.current !== reqId) return; // BN khác đã được chọn trong lúc chờ — bỏ response cũ
     const rows: PayRow[] = [];
     if (svc.status === 'fulfilled' && Array.isArray(svc.value.data)) {
       (svc.value.data as UnpaidServiceItemDto[]).forEach((s) => rows.push({ id: `S-${s.id}`, kind: 'service', code: s.serviceCode, name: s.serviceName, qty: s.quantity, unitPrice: s.unitPrice, amount: s.amount, patientAmount: s.patientAmount ?? s.amount }));
@@ -110,8 +114,8 @@ const BillingEditorV2: React.FC = () => {
     setItems(rows);
     setSel(new Set(rows.map((r) => r.id)));
     if (bal.status === 'fulfilled' && bal.value.data) setBalance(bal.value.data);
-    // lazy-load other tabs
-    getPatientDeposits(p.patientId).then((r) => setDeposits(Array.isArray(r.data) ? r.data : [])).catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
+    // lazy-load other tabs (cùng guard — deposits BN cũ về muộn cũng phải bỏ)
+    getPatientDeposits(p.patientId).then((r) => { if (selectReqRef.current !== reqId) return; setDeposits(Array.isArray(r.data) ? r.data : []); }).catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
   }, []);
 
   // ── Tab data (lazy) ──────────────────────────────────────────────
@@ -119,7 +123,9 @@ const BillingEditorV2: React.FC = () => {
     setTab(t);
     try {
       if (t === 'refund' && refunds.length === 0) {
+        const reqId = selectReqRef.current; // refunds là dữ liệu theo-BN — response về sau khi đã đổi BN thì bỏ (#416)
         const r = await searchRefunds({ patientId: pt?.patientId, page: 1, pageSize: 50 });
+        if (selectReqRef.current !== reqId) return;
         setRefunds(r.data?.items || []);
       } else if (t === 'cashbook' && cashbooks.length === 0) {
         const r = await getCashBooks();
@@ -146,6 +152,8 @@ const BillingEditorV2: React.FC = () => {
   const doPayment = async () => {
     if (!pt) return;
     setBusy(true);
+    // Snapshot counter: nếu user đổi BN trong lúc payment in-flight → bỏ refresh tail (#416)
+    const paySnapId = selectReqRef.current;
     try {
       const inv = await getPatientInvoice(pt.medicalRecordId);
       const invoiceId = inv.data?.id;
@@ -171,8 +179,8 @@ const BillingEditorV2: React.FC = () => {
       if (newPaymentId) setLastPaymentId(newPaymentId);
       setConfirmOpen(false);
       tk(`✓ Đã thu ${fmtVNDg(finalAmount)} · ${METHODS.find((m) => m.v === method)?.l}`);
-      // refresh unpaid items
-      selectPatient(pt);
+      // refresh unpaid items — chỉ nếu user chưa đổi BN trong lúc chờ (#416)
+      if (selectReqRef.current === paySnapId) selectPatient(pt);
     } catch { te('Thu tiền thất bại'); }
     finally { setBusy(false); }
   };
@@ -194,18 +202,22 @@ const BillingEditorV2: React.FC = () => {
       return;
     }
     setSavingC(true);
+    // Snapshot: nếu user đổi BN trong lúc tạo phiếu in-flight → bỏ refresh post-create (#416 tiền)
+    const createSnapId = selectReqRef.current;
     try {
       if (createModal === 'deposit') {
         await createDeposit({ patientId: pt.patientId, medicalRecordId: pt.medicalRecordId, depositType: 1, depositSource: 1, amount: amt, paymentMethod: cform.method, notes: cform.reason || undefined });
         const [d, b] = await Promise.allSettled([getPatientDeposits(pt.patientId), getDepositBalance(pt.patientId)]);
-        if (d.status === 'fulfilled') setDeposits(Array.isArray(d.value.data) ? d.value.data : []);
-        if (b.status === 'fulfilled' && b.value.data) setBalance(b.value.data);
+        if (selectReqRef.current === createSnapId) {
+          if (d.status === 'fulfilled') setDeposits(Array.isArray(d.value.data) ? d.value.data : []);
+          if (b.status === 'fulfilled' && b.value.data) setBalance(b.value.data);
+        }
         tk(`Đã tạo tạm ứng ${fmtVNDg(amt)}`);
       } else if (createModal === 'refund') {
         if (!cform.reason.trim()) { tw('Nhập lý do hoàn tiền'); setSavingC(false); return; }
         await createRefund({ patientId: pt.patientId, refundType: 1, refundAmount: amt, refundMethod: cform.method, reason: cform.reason });
         const r = await searchRefunds({ patientId: pt.patientId, page: 1, pageSize: 50 });
-        setRefunds(r.data?.items || []);
+        if (selectReqRef.current === createSnapId) setRefunds(r.data?.items || []);
         tk(`Đã lập phiếu hoàn tiền ${fmtVNDg(amt)}`);
       }
       setCreateModal(null);
@@ -506,7 +518,10 @@ const BillingEditorV2: React.FC = () => {
           onSuccess={async () => {
             tk('✓ Đã nhận tạm ứng qua QR');
             setQrDepositOpen(false);
+            // Snapshot: nếu user đổi BN trong lúc fetch in-flight → bỏ kết quả (#416)
+            const qrSnapId = selectReqRef.current;
             const [d, b] = await Promise.allSettled([getPatientDeposits(pt.patientId), getDepositBalance(pt.patientId)]);
+            if (selectReqRef.current !== qrSnapId) return;
             if (d.status === 'fulfilled') setDeposits(Array.isArray(d.value.data) ? d.value.data : []);
             if (b.status === 'fulfilled' && b.value.data) setBalance(b.value.data);
           }}

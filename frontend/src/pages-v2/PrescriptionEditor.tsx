@@ -8,7 +8,7 @@
  * change. Replaces the old navigate('/prescription') v1 jump.
  * ===================================================================== */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, DrawerShell, fmtVNDg, tk, tw, te,
@@ -81,19 +81,26 @@ const PrescriptionEditorV2: React.FC = () => {
   const intCount = interactions.length;
 
   // ── Patient: select + derive examination context ────────────────
+  // Guard chống race khi đổi BN nhanh: response cũ đến muộn không được ghi đè context BN đang chọn (#416 patient-safety, cùng pattern #374)
+  const selectReqRef = useRef(0);
   const selectPatient = useCallback(async (p: Patient) => {
+    const reqId = ++selectReqRef.current;
     setPt(p);
     setSearchOpen(false);
     setCtx(null);
     setExamId(null);
+    setItems([]); // xóa giỏ thuốc BN cũ ngay lập tức — tránh toa BN-A gắn vào phiếu BN-B (#416 patient-safety)
+    setInteractions([]);
     try {
       const res = await examinationApi.searchExaminations({ patientCode: p.patientCode, pageIndex: 0, pageSize: 1 });
+      if (selectReqRef.current !== reqId) return; // BN khác đã được chọn trong lúc chờ — bỏ response cũ
       const data = res.data as { items?: Array<{ id: string }> } | Array<{ id: string }>;
       const list = Array.isArray(data) ? data : data?.items;
       const exId = list && list.length > 0 ? list[0].id : null;
       if (exId) {
         setExamId(exId);
         const ctxRes = await getPrescriptionContext(exId);
+        if (selectReqRef.current !== reqId) return;
         if (ctxRes.data) setCtx(ctxRes.data);
       }
     } catch {
@@ -108,15 +115,21 @@ const PrescriptionEditorV2: React.FC = () => {
     (async () => {
       try {
         if (exId) {
+          const reqId = ++selectReqRef.current; // preload cũng là 1 request — thua nếu user chọn BN tay trong lúc chờ
           const ctxRes = await getPrescriptionContext(exId);
+          if (selectReqRef.current !== reqId) return;
           if (ctxRes.data) {
             setCtx(ctxRes.data);
             setExamId(exId);
             const pRes = await patientApi.getById(ctxRes.data.patientId);
+            if (selectReqRef.current !== reqId) return;
             if (pRes.data) setPt(pRes.data);
           }
         } else if (pid) {
+          // Guard: nếu user chọn BN tay trong lúc getById đang chờ → preload thua và bị bỏ (#416)
+          const reqId = ++selectReqRef.current;
           const pRes = await patientApi.getById(pid);
+          if (selectReqRef.current !== reqId) return;
           if (pRes.data) await selectPatient(pRes.data);
         }
       } catch { /* ignore preload errors */ }

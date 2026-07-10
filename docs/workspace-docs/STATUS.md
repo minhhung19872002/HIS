@@ -5,7 +5,14 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-10** — **cửa PORT w480: #415 QueueDisplay TV board v2 DONE-code READY_FOR_PUSH** (§Phiên #415). Cửa port-408: ✅ #408 CLOSED (12/13 stub→CRUD; 10 file lên origin trong `9c3b762` — đi CHUNG commit cửa #414 do race staging 2 cửa; DoctorPortal → **#417** mới). Cửa PORT #414 (w480): ✅ PUSHED Closes #414 (print gap 7 module v2). Cửa FE-restructure: Batch 6 ✅ PUSHED `6f49492`.
+> Cập nhật cuối: **2026-07-11** — **cửa 416 (w669/Sonnet4.6): #416 DONE-code READY_FOR_PUSH** — race-guard `selectPatient` BillingEditor+PrescriptionEditor (2 round: initial guard + 5 defect bổ sung từ verify-workflow 3 lens); tsc EXIT 0. Cửa PORT w480: #415 QueueDisplay TV board v2 DONE-code READY_FOR_PUSH. Cửa port-408: ✅ #408 CLOSED (9c3b762). Cửa FE-restructure: Batch 6 ✅ PUSHED `6f49492`.
+
+## Phiên 2026-07-11 (cửa 416 — #416 race-guard BillingEditor+PrescriptionEditor, DONE-code READY_FOR_PUSH)
+- **#416 [P1][patient-safety] DONE-code** (lock `416`): race-guard `selectPatient` 2 editor v2 cùng pattern `selectReqRef` của #374 OpdEditor:
+  - **PrescriptionEditor**: guard `?patientId=` preload (MAJOR — `selectPatient(preloadPt)` với FRESH counter có thể đè manual pick) + clear `items[]`+`interactions[]` synchronously khi chọn BN (toa BN-A không leak sang BN-B) + guard 2 await của `selectPatient` + `?examId=` preload 2-point.
+  - **BillingEditor**: guard `selectPatient` allSettled + lazy `getPatientDeposits` + `ensureTab` refund + `doPayment` tail snapshot + `saveCreate` deposit/refund post-create refresh snapshot + QR-deposit `onSuccess` snapshot.
+  - Verify đối kháng 3 lens (workflow): coverage+interleaving FAIL → 5 defect bổ sung → đã fix (R2); behavior PASS.
+- **Build-gate:** `tsc -b --noEmit` EXIT 0 sau R2. **READY_FOR_PUSH** — chờ `git add` 2 file `BillingEditor.tsx PrescriptionEditor.tsx` + `Fixes #416` + push.
 
 ## Phiên 2026-07-10 (cửa PORT w480 — #415 QueueDisplay TV board v2, DONE-code READY_FOR_PUSH)
 - **#415 [PORT-P9][FE][P2] DONE-code** (lock `415`, gh in-progress + @me): tạo `pages-v2/QueueDisplay.tsx` (~590 dòng) — **port VERBATIM từ v1** (diff cơ học: helpers + LabQueueView + RoomQueueView = 485 dòng identical, chỉ khác comment tiêu đề): TTS `vi-VN` rate 0.9 + beep AudioContext 880Hz/0.2s + audio-unlock overlay + fullscreen btn + blink 5s + first-poll guard ref + polling 4s.
