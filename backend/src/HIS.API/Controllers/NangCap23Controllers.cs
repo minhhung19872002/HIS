@@ -439,7 +439,6 @@ public class ZaloNotificationController : ControllerBase
         => Ok(new { connected = await _svc.TestConnectionAsync() });
 
     [HttpGet("templates")]
-    [AllowAnonymous]
     public ActionResult<List<object>> GetTemplates() => Ok(new List<object>
     {
         new { id = "appointment_reminder", name = "Nhắc lịch tái khám", params_ = new[] { "patient_name", "appointment_date", "doctor_name" } },
