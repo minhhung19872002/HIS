@@ -12,7 +12,7 @@ import { ReloadOutlined, HomeOutlined, UserAddOutlined, HeartOutlined, LogoutOut
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import apiClient from '../services/apiClient';
-import systemApi from '../api/system';
+import systemApi from '../modules/system/api/system';
 import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 
 const { Text } = Typography;

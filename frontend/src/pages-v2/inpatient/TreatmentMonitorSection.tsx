@@ -50,8 +50,8 @@ import type {
   InpatientServiceRequestItemDto,
   SecondaryDiagnosisItemDto,
 } from '../../api/inpatient';
-import { catalogApi } from '../../api/system';
-import type { DepartmentCatalogDto } from '../../api/system';
+import { catalogApi } from '../../modules/system/api/system';
+import type { DepartmentCatalogDto } from '../../modules/system/api/system';
 import { ModalShell, Btn } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
 import BedLabResultSection from './BedLabResultSection';
@@ -955,7 +955,7 @@ const DrugReturnModal: React.FC<{
     setBusy(true);
     try {
       // Import createApproval inline to avoid circular — re-import from pharmacyApproval
-      const { createApproval } = await import('../../api/pharmacyApproval');
+      const { createApproval } = await import('../../modules/pharmacy/api/pharmacyApproval');
       await createApproval({
         approvalType: 5, // HOAN_TRA
         patientId,

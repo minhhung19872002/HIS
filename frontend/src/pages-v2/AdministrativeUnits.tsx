@@ -10,7 +10,7 @@ import {
   getDistricts, saveDistrict, deleteDistrict,
   getWards, saveWard, deleteWard,
   type ProvinceDto, type DistrictDto, type WardDto,
-} from '../api/administrativeUnit';
+} from '../modules/administration/api/administrativeUnit';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, te, cf,

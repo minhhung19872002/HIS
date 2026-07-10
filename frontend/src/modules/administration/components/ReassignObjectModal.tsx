@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Modal, Form, Select, Radio, Input, Alert, message, Descriptions, Tag } from 'antd';
-import { reassignObject, type ReassignObjectResult } from '../../../api/reassignObject';
+import { reassignObject, type ReassignObjectResult } from '../../billing/api/reassignObject';
 
 interface Props {
   open: boolean;

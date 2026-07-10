@@ -4,7 +4,7 @@
  */
 
 import apiClient from '../services/apiClient';
-import type { PaymentUrlResponse } from './paymentGateway';
+import type { PaymentUrlResponse } from '../modules/billing/api/paymentGateway';
 
 // ===== QR động theo ngữ cảnh =====
 

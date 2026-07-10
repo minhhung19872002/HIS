@@ -3,8 +3,8 @@ import dayjs from 'dayjs';
 import { App as AntdApp, Input, Select, DatePicker, Checkbox } from 'antd';
 import { getIncidents, getQualityIndicators, createIncident } from '../api/quality';
 import type { IncidentReportDto, QualityIndicatorDto } from '../api/quality';
-import { catalogApi } from '../api/system';
-import type { DepartmentCatalogDto } from '../api/system';
+import { catalogApi } from '../modules/system/api/system';
+import type { DepartmentCatalogDto } from '../modules/system/api/system';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, useTabCounts,

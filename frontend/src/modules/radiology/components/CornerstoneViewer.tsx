@@ -20,7 +20,7 @@ import {
   CalculatorOutlined,
   SaveOutlined,
 } from '@ant-design/icons';
-import { saveAnnotation, getAnnotations } from '../../../api/ris/pacs';
+import { saveAnnotation, getAnnotations } from '../api/ris/pacs';
 
 // Cornerstone3D singleton init flag — bootstrap engine only once per page load
 let csInitialized = false;

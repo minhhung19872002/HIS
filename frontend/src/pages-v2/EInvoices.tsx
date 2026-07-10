@@ -11,7 +11,7 @@ import {
   type EInvoiceDto,
   type EInvoiceDetailDto,
   type EInvoiceConfigDto,
-} from '../api/einvoice';
+} from '../modules/billing/api/einvoice';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 

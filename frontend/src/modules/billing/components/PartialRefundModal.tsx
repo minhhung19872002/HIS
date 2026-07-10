@@ -9,7 +9,7 @@ import {
   Typography, Select,
 } from 'antd';
 import apiClient from '../../../services/apiClient';
-import { createRefund } from '../../../api/billing';
+import { createRefund } from '../api/billing';
 
 const { Text } = Typography;
 

@@ -14,7 +14,7 @@ import {
   type PaymentTransactionDto,
   type PaymentSearchRequest,
   type PaymentStatsDto,
-} from '../api/paymentGateway';
+} from '../modules/billing/api/paymentGateway';
 
 const { RangePicker } = DatePicker;
 

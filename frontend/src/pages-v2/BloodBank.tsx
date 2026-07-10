@@ -5,8 +5,8 @@ import type { MessageInstance } from 'antd/es/message/interface';
 import { DatePicker } from 'antd';
 import { getBloodStock, getBloodStockDetail, getExpiringBloodBags, getIssueRequests, getProductTypes, createIssueRequest, createImportReceipt, getSuppliers, updateBloodBagStatus, destroyExpiredBloodBags } from '../api/bloodBank';
 import type { BloodStockDto, BloodBagDto, BloodIssueRequestDto, BloodProductTypeDto, BloodStockDetailDto, BloodSupplierDto } from '../api/bloodBank';
-import { catalogApi } from '../api/system';
-import type { DepartmentCatalogDto } from '../api/system';
+import { catalogApi } from '../modules/system/api/system';
+import type { DepartmentCatalogDto } from '../modules/system/api/system';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, ModalShell,

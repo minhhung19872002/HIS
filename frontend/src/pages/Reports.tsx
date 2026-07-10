@@ -63,12 +63,12 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { financeApi, pharmacyReportApi, statisticsApi } from '../api/system';
+import { financeApi, pharmacyReportApi, statisticsApi } from '../modules/system/api/system';
 import type {
   FinancialReportRequest,
   PharmacyReportRequest,
   StatisticsReportRequest,
-} from '../api/system';
+} from '../modules/system/api/system';
 import { reconciliationApi } from '../api/reconciliation';
 import { getBhytReport, getAdminReport, getPharmacyReport } from '../api/bhytReports';
 import { hospitalReportApi, type HospitalReportResult } from '../api/hospitalReport';

@@ -18,7 +18,7 @@ import {
   HeartOutlined, TeamOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { patientApi } from '../api/patient';
+import { patientApi } from '../modules/patient/api/patient';
 import { useAuth } from '../hooks/useAuth';
 import BarcodeScanner from '../components/BarcodeScanner';
 

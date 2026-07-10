@@ -30,7 +30,7 @@ import {
   getCashBooks, type CashBookDto,
   getElectronicInvoices, issueElectronicInvoice, type ElectronicInvoiceDto,
   printPaymentReceipt, printInvoice, sendElectronicInvoice,
-} from '../api/billing';
+} from '../modules/billing/api/billing';
 import '../layouts/terminal/ed-responsive.css';
 
 type TabKey = 'pay' | 'advance' | 'refund' | 'cashbook' | 'einv';

@@ -39,7 +39,7 @@ import {
   type CostByDepartmentDto,
   type InsuranceReconciliationDto,
   type FinancialSummaryReportDto,
-} from '../api/system';
+} from '../modules/system/api/system';
 
 const { Title, Text } = Typography;
 const { Search } = Input;

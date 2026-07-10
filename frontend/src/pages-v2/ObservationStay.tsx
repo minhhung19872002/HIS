@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Form, Input, InputNumber, Select, Modal } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../services/apiClient';
-import systemApi from '../api/system';
+import systemApi from '../modules/system/api/system';
 import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, DrSec, DrField,

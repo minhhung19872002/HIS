@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Input } from 'antd';
 import dayjs from 'dayjs';
-import { financeApi, type RevenueByServiceDto } from '../api/system';
+import { financeApi, type RevenueByServiceDto } from '../modules/system/api/system';
 import hospitalReportApi, { type HospitalReportResult } from '../api/hospitalReport';
 import { exportToExcel, type ExcelColumn, formatVnd } from '../utils/excelExport';
 import { downloadCsv, escapeCsvCell } from '../utils/csvExport';

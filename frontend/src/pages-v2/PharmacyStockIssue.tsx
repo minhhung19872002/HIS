@@ -32,8 +32,8 @@ import type {
 } from '../api/warehouse';
 import { searchMedicines } from '../api/examination';
 import type { MedicineDto } from '../api/examination';
-import systemApi from '../api/system';
-import type { SupplierCatalogDto, DepartmentCatalogDto } from '../api/system';
+import systemApi from '../modules/system/api/system';
+import type { SupplierCatalogDto, DepartmentCatalogDto } from '../modules/system/api/system';
 import {
   KpiStrip,
   StatusTabs,

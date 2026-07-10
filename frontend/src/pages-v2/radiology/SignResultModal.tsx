@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { App as AntdApp, Input } from 'antd';
-import * as risApi from '../../api/ris';
+import * as risApi from '../../modules/radiology/api/ris';
 import { ModalShell, Btn, AbSelect } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
 import { FormRow, fmtDT, type ApiErr } from './_shared';

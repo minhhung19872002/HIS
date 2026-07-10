@@ -12,7 +12,7 @@ import {
   DeleteOutlined, EditOutlined, KeyOutlined, PlusOutlined, SearchOutlined, UserOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { adminApi } from '../../api/system';
+import { adminApi } from '../../modules/system/api/system';
 import { isFormValidationError } from './helpers';
 import type { Role } from './RolesTab';
 

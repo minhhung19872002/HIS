@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { App as AntdApp, Input } from 'antd';
-import * as risApi from '../../api/ris';
-import type { RadiologyOrderDto, RadiologyResultTemplateDto } from '../../api/ris';
+import * as risApi from '../../modules/radiology/api/ris';
+import type { RadiologyOrderDto, RadiologyResultTemplateDto } from '../../modules/radiology/api/ris';
 import { useAbbrExpansion } from '../../utils/abbrExpand';
 import { ABBREVIATION_SCOPES } from '../../api/abbreviation';
 import { ModalShell, Btn, AbSelect } from '../_v2kit';

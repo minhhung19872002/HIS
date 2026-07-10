@@ -6,7 +6,7 @@ import {
   Button, Col, Descriptions, Form, Input, Modal, Popconfirm, Row, Space, Switch, Table, Tag, message,
 } from 'antd';
 import { BankOutlined, DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
-import { catalogApi } from '../../api/system';
+import { catalogApi } from '../../modules/system/api/system';
 import type { Branch, ApiErrorLike } from './types';
 
 const BranchesTab: React.FC = () => {

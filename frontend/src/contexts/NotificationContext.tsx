@@ -2,8 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { HubConnection } from '@microsoft/signalr';
 import { message } from 'antd';
 import { useAuth } from './AuthContext';
-import * as notificationApi from '../api/notification';
-import type { NotificationDto } from '../api/notification';
+import * as notificationApi from '../modules/system/api/notification';
+import type { NotificationDto } from '../modules/system/api/notification';
 import { createHubConnection } from '../services/signalr.service';
 import { storage, STORAGE_KEYS } from '../services/storage.service';
 

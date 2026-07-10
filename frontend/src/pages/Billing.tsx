@@ -75,7 +75,7 @@ import {
   type ElectronicInvoiceStatsDto,
   type InvoiceDto,
   getOutpatientRevenueReport,
-} from '../api/billing';
+} from '../modules/billing/api/billing';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
 import PaymentQRModal from '../components/PaymentQRModal';
 import ReassignObjectModal from '../components/ReassignObjectModal';

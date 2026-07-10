@@ -9,7 +9,7 @@ import {
   type PaymentProvider,
   type PaymentTransactionDto,
   type PaymentUrlResponse,
-} from '../../../api/paymentGateway';
+} from '../api/paymentGateway';
 import { createDynamicQr, type DynamicQrReferenceType } from '../../../api/nangcap25';
 import { bankPaymentApi } from '../../../api/nangcap24';
 

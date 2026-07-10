@@ -3,7 +3,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { message, Select, Input, DatePicker, InputNumber } from 'antd';
 import { getCouples, getIvfDashboard, saveCouple, getCycles, getEmbryos } from '../api/ivfLab';
 import type { IvfCouple, IvfDashboard, IvfEmbryo } from '../api/ivfLab';
-import { patientApi } from '../api/patient';
+import { patientApi } from '../modules/patient/api/patient';
 import {
   KpiStrip, SearchBox, DataTable, Pager, ActBtn, Btn, ModalShell,
   DrawerShell, DrSec, DrField, tk, ti, te, Ico,

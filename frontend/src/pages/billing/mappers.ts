@@ -7,7 +7,7 @@ import type {
   DepositDto,
   RefundDto,
   UnpaidServiceItemDto,
-} from '../../api/billing';
+} from '../../modules/billing/api/billing';
 import type { Deposit, RefundRecord, UnpaidService } from './types';
 
 export const mapDepositDto = (d: DepositDto): Deposit => ({

@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
-import * as risApi from '../api/ris';
-import type { RadiologyOrderDto, RadiologyResultDto, PtttServiceMappingDto } from '../api/ris';
+import * as risApi from '../modules/radiology/api/ris';
+import type { RadiologyOrderDto, RadiologyResultDto, PtttServiceMappingDto } from '../modules/radiology/api/ris';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager,
   ActBtn, Btn, DrawerShell,

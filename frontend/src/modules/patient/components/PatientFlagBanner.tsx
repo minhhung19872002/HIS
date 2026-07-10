@@ -16,7 +16,7 @@ import {
   deletePatientFlag,
   PATIENT_FLAG_TYPES,
   type PatientFlagDto,
-} from '../../../api/patientFlag';
+} from '../api/patientFlag';
 
 interface Props {
   patientId: string;

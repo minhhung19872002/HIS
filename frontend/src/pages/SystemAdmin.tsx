@@ -68,7 +68,7 @@ import DataManagementTab from './system-admin/DataManagementTab';
 import BackupTab from './system-admin/BackupTab';
 import AuditTab from './system-admin/AuditTab';
 import { useEmrAdminTabs } from './system-admin/EmrAdminTabs';
-import { adminApi, catalogApi, type UserSessionDto } from '../api/system';
+import { adminApi, catalogApi, type UserSessionDto } from '../modules/system/api/system';
 
 const { Title } = Typography;
 const { Search } = Input;

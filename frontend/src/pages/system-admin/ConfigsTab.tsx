@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { Button, Descriptions, Form, Input, Modal, Select, Switch, Table, Tag, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { EditOutlined, SettingOutlined } from '@ant-design/icons';
-import { adminApi } from '../../api/system';
+import { adminApi } from '../../modules/system/api/system';
 import { isFormValidationError } from './helpers';
 
 const { Option } = Select;

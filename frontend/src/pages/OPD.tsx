@@ -50,7 +50,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { patientApi, type Patient } from '../api/patient';
+import { patientApi, type Patient } from '../modules/patient/api/patient';
 import ClinicalTermSelector from '../components/ClinicalTermSelector';
 import VoiceDictation from '../components/VoiceDictation';
 import { HOSPITAL_NAME } from '../constants/hospital';
@@ -67,8 +67,8 @@ import ClinicalTemplatePicker from '../components/ClinicalTemplatePicker';
 import { TEMPLATE_TYPES } from '../api/clinicalTemplate';
 import PatientFlagBanner from '../components/PatientFlagBanner';
 import DoctorLicenseBanner from '../components/DoctorLicenseBanner';
-import type { LicenseStatusDto } from '../api/doctorLicense';
-import { getDepositBalance } from '../api/billing';
+import type { LicenseStatusDto } from '../modules/administration/api/doctorLicense';
+import { getDepositBalance } from '../modules/billing/api/billing';
 import { useSafetyAlerts } from '../hooks/useSafetyAlerts';
 import { buildApiUrl } from '../config/api.config';
 import type {

@@ -9,7 +9,7 @@ import {
 } from 'antd';
 import { CheckCircleOutlined, LockOutlined, ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { adminApi, catalogApi } from '../../api/system';
+import { adminApi, catalogApi } from '../../modules/system/api/system';
 import {
   getNestedData, isFormValidationError, toNumberValue, toRawItems, toStringValue,
   type RawApiItem,

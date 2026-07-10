@@ -24,8 +24,8 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   Legend,
 } from 'recharts';
-import { statisticsApi } from '../api/system';
-import type { HospitalDashboardDto, DepartmentStatisticsDto } from '../api/system';
+import { statisticsApi } from '../modules/system/api/system';
+import type { HospitalDashboardDto, DepartmentStatisticsDto } from '../modules/system/api/system';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;

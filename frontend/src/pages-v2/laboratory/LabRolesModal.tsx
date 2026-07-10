@@ -1,7 +1,7 @@
 import React from 'react';
 import { ModalShell, Btn } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
-import type { LabDefaultRoles } from '../../api/userSettings';
+import type { LabDefaultRoles } from '../../modules/system/api/userSettings';
 
 export const LabRolesModal: React.FC<{
   open: boolean;

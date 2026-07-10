@@ -30,7 +30,7 @@ import {
   type CreatePharmacyApprovalRequest,
   type PharmacyApprovalSearchRequest,
   type ExpiringMedicineDto,
-} from '../api/pharmacyApproval';
+} from '../modules/pharmacy/api/pharmacyApproval';
 import { searchMedicines, type MedicineDto } from '../api/examination';
 import * as wh from '../api/warehouse';
 import type { WarehouseDto } from '../api/warehouse';

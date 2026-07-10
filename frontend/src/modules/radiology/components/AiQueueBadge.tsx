@@ -16,7 +16,7 @@ import { Badge, Popover, List, Tag, Empty, Spin, Tooltip } from 'antd';
 import { RobotOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { getAiQueue, type AiQueueItem } from '../../../api/aiLabeling';
+import { getAiQueue, type AiQueueItem } from '../api/aiLabeling';
 
 const POLL_INTERVAL_MS = 30_000;
 

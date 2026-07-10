@@ -7,7 +7,7 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { DeleteOutlined, EditOutlined, PlusOutlined, SafetyOutlined } from '@ant-design/icons';
-import { adminApi } from '../../api/system';
+import { adminApi } from '../../modules/system/api/system';
 import { isFormValidationError } from './helpers';
 
 const { Option } = Select;

@@ -15,7 +15,7 @@ import {
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 import { examinationApi, printExternalPrescription, type MedicineDto, type DrugInteractionDto, type CreatePrescriptionDto, type PrescriptionTemplateDto, type WarehouseDto } from '../api/examination';
-import { patientApi, type Patient } from '../api/patient';
+import { patientApi, type Patient } from '../modules/patient/api/patient';
 import { getPrescriptionContext, type PrescriptionContextDto } from '../api/dataInheritance';
 import PatientFlagBanner from '../modules/patient/components/PatientFlagBanner';
 import BusinessAlertPanel from '../modules/patient/components/BusinessAlertPanel';

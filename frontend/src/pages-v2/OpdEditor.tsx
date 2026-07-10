@@ -28,7 +28,7 @@ import {
   type PatientLabResultsDto, type AllergyDto, type ConsultationRecordDto,
   type InjuryInfoDto,
 } from '../api/examination';
-import { catalogApi, type DepartmentCatalogDto } from '../api/system';
+import { catalogApi, type DepartmentCatalogDto } from '../modules/system/api/system';
 import {
   getOutpatientRecordTemplates, getOutpatientRecordTemplate,
   saveOutpatientRecordTemplate, deleteOutpatientRecordTemplate,

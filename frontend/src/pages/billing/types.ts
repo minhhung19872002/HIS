@@ -3,7 +3,7 @@
  * (K16 Batch 1). Pure types.
  */
 
-import type { PatientBillingStatusDto } from '../../api/billing';
+import type { PatientBillingStatusDto } from '../../modules/billing/api/billing';
 
 export interface Patient {
   id: string;

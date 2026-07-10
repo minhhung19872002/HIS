@@ -15,7 +15,7 @@ import {
   printTestResultReport,
   type BedLabOrder,
 } from '../../api/laboratory';
-import { adminApi } from '../../api/system';
+import { adminApi } from '../../modules/system/api/system';
 import apiClient from '../../services/apiClient';
 import { useAbbrExpansion } from '../../utils/abbrExpand';
 import { ModalShell, Btn } from '../_v2kit';

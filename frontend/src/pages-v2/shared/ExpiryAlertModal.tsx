@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { Modal, Table, Tag, Button } from 'antd';
-import * as pharmacyApi from '../../api/pharmacy';
-import type { LoginExpiryAlert } from '../../api/pharmacy';
+import * as pharmacyApi from '../../modules/pharmacy/api/pharmacy';
+import type { LoginExpiryAlert } from '../../modules/pharmacy/api/pharmacy';
 import TermIcon from '../../layouts/terminal/Icon';
 
 // ── Expiry Alert Modal (GAP-DoiThu Đ3.15 / issue #28) ────────────────────────

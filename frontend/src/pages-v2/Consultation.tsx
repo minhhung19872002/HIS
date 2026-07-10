@@ -3,8 +3,8 @@ import * as file from '../services/file.service';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import risApi from '../api/ris';
-import type { ConsultationSessionDto } from '../api/ris';
+import risApi from '../modules/radiology/api/ris';
+import type { ConsultationSessionDto } from '../modules/radiology/api/ris';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, useListData, useTabCounts,

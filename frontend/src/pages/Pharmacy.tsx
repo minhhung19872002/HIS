@@ -46,7 +46,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import pharmacyApi from '../api/pharmacy';
+import pharmacyApi from '../modules/pharmacy/api/pharmacy';
 import { HOSPITAL_NAME } from '../constants/hospital';
 import BarcodeScanner from '../components/BarcodeScanner';
 

@@ -6,7 +6,7 @@ import { Button, Col, Descriptions, Form, Input, Modal, Row, Select, Table, Tag,
 import type { ColumnsType } from 'antd/es/table';
 import { BellOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { adminApi } from '../../api/system';
+import { adminApi } from '../../modules/system/api/system';
 import { isFormValidationError } from './helpers';
 
 const { Option } = Select;

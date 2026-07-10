@@ -32,12 +32,12 @@ import {
   DownloadOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons';
-import risApi from '../api/ris';
+import risApi from '../modules/radiology/api/ris';
 import type {
   HelpCategoryDto,
   HelpArticleDto,
   TroubleshootingDto,
-} from '../api/ris';
+} from '../modules/radiology/api/ris';
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;

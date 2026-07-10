@@ -18,7 +18,7 @@ import {
   type AiLabel,
   type AiModelConfig,
   type AiResultDto,
-} from '../../../api/aiLabeling';
+} from '../api/aiLabeling';
 import { runInference, computeOcclusionHeatmaps, type InferenceResult } from '../../../services/aiLabeling.service';
 
 const { Text, Title } = Typography;

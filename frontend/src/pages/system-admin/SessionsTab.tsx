@@ -7,7 +7,7 @@ import {
   Button, Card, Col, Popconfirm, Row, Spin, Statistic, Table, Tag, Typography, message,
 } from 'antd';
 import { LaptopOutlined, ReloadOutlined } from '@ant-design/icons';
-import { adminApi, type UserSessionDto } from '../../api/system';
+import { adminApi, type UserSessionDto } from '../../modules/system/api/system';
 
 interface Props {
   active?: boolean;

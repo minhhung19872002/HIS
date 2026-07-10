@@ -8,7 +8,7 @@ import {
   Modal, Form, Select, Input, Button, Table, InputNumber, Space, message, Tag, Alert,
 } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { createApproval, submitApproval, searchApprovals, APPROVAL_TYPE_LABELS, STATUS_LABELS, STATUS_COLORS, type PharmacyApprovalDto } from '../../../api/pharmacyApproval';
+import { createApproval, submitApproval, searchApprovals, APPROVAL_TYPE_LABELS, STATUS_LABELS, STATUS_COLORS, type PharmacyApprovalDto } from '../api/pharmacyApproval';
 
 const OBJECT_OPTIONS = [
   { value: 'BHYT', label: 'BHYT' },

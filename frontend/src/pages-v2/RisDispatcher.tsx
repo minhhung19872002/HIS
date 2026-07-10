@@ -8,7 +8,7 @@ import {
   DrawerShell, DrSec, DrField,
   tk, ti, tw, type ColumnDef,
 } from './_v2kit';
-import { toggleFavorite, getFavorites } from '../api/ris';
+import { toggleFavorite, getFavorites } from '../modules/radiology/api/ris';
 
 interface PendingService {
   serviceRequestDetailId: string; patientId: string; patientName: string; patientCode: string;

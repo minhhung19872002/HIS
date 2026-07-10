@@ -1,8 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import dayjs from 'dayjs';
 import { fmtNum as fmt } from '../utils/format';
-import { getRetailSales, getPharmacyDashboard } from '../api/hospitalPharmacy';
-import type { RetailSaleDto } from '../api/hospitalPharmacy';
+import { getRetailSales, getPharmacyDashboard } from '../modules/pharmacy/api/hospitalPharmacy';
+import type { RetailSaleDto } from '../modules/pharmacy/api/hospitalPharmacy';
 import {
   SimpleV2Page, StatusBadge, DrSec, DrField, Btn, tk,
   type ColumnDef, type StatusTab, type KpiItem,

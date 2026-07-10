@@ -6,7 +6,7 @@ import TermIcon from '../../layouts/terminal/Icon';
 import {
   getPatientFlags, savePatientFlag, deletePatientFlag, PATIENT_FLAG_TYPES,
   type PatientFlagDto,
-} from '../../api/patientFlag';
+} from '../../modules/patient/api/patientFlag';
 
 /* ────────────────────────────────────────────────────────────
    Cờ cảnh báo bệnh nhân (PatientFlag) — CRUD ngay trong tiếp đón.

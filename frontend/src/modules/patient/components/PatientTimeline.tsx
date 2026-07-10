@@ -8,8 +8,8 @@ import {
 import dayjs from 'dayjs';
 import { getPatientMedicalHistory } from '../../../api/examination';
 import { getLabResultHistory } from '../../../api/lis';
-import { getPatientRadiologyHistory } from '../../../api/ris';
-import { getPaymentHistory } from '../../../api/billing';
+import { getPatientRadiologyHistory } from '../../radiology/api/ris';
+import { getPaymentHistory } from '../../billing/api/billing';
 
 const { Text } = Typography;
 

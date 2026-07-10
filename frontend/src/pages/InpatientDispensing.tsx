@@ -11,7 +11,7 @@ import {
 import { ReloadOutlined, CheckCircleOutlined, PrinterOutlined, MedicineBoxOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import apiClient from '../services/apiClient';
-import systemApi from '../api/system';
+import systemApi from '../modules/system/api/system';
 import { getWarehouses } from '../api/warehouse';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 

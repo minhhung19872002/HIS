@@ -1,5 +1,5 @@
 import React from 'react';
-import type { RadiologyOrderDto, RadiologyResultDto } from '../../api/ris';
+import type { RadiologyOrderDto, RadiologyResultDto } from '../../modules/radiology/api/ris';
 import { StatusBadge } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
 import { CoReaderSection } from './CoReaderSection';

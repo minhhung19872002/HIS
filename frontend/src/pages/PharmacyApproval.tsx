@@ -21,7 +21,7 @@ import {
   type PharmacyApprovalItemDto,
   type PharmacyApprovalSearchRequest,
   type ExpiringMedicineDto,
-} from '../api/pharmacyApproval';
+} from '../modules/pharmacy/api/pharmacyApproval';
 
 const { RangePicker } = DatePicker;
 

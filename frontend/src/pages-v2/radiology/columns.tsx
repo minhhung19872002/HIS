@@ -1,4 +1,4 @@
-import type { RadiologyOrderDto } from '../../api/ris';
+import type { RadiologyOrderDto } from '../../modules/radiology/api/ris';
 import { StatusBadge, type ColumnDef } from '../_v2kit';
 import { detectModality, statusKey, statusTone, STATUS_TABS, fmtHM } from './_shared';
 

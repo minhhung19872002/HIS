@@ -4,7 +4,7 @@ import { ExclamationCircleOutlined } from '@ant-design/icons';
 import {
   getExpiringMedicines,
   type ExpiringMedicineDto,
-} from '../../../api/pharmacyApproval';
+} from '../api/pharmacyApproval';
 import { fmtDate } from '../../../utils/format';
 
 interface Props {

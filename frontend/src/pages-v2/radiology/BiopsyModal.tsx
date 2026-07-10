@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { App as AntdApp, Input, Select } from 'antd';
 import * as pathologyApi from '../../api/pathology';
 import type { SpecimenType } from '../../api/pathology';
-import type { RadiologyOrderDto } from '../../api/ris';
+import type { RadiologyOrderDto } from '../../modules/radiology/api/ris';
 import { ModalShell, Btn } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
 import { FormRow, type ApiErr } from './_shared';

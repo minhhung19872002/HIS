@@ -8,7 +8,7 @@ import { fmtDateTime } from '../../../utils/format';
 import { Modal, Form, Input, Select, Checkbox, Button, Space, Tag, message, InputNumber, Divider, Typography, Tooltip } from 'antd';
 import { CopyOutlined, QrcodeOutlined, LinkOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { QRCodeCanvas } from 'qrcode.react';
-import { createShareLink, type ShareLinkDto } from '../../../api/studyShare';
+import { createShareLink, type ShareLinkDto } from '../api/studyShare';
 
 const { Text } = Typography;
 

@@ -44,7 +44,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as pharmacyApi from '../api/hospitalPharmacy';
+import * as pharmacyApi from '../modules/pharmacy/api/hospitalPharmacy';
 import type {
   RetailSaleDto,
   MedicineSearchResultDto,
@@ -55,7 +55,7 @@ import type {
   PharmacyShiftDto,
   PharmacyGppRecordDto,
   PharmacyCommissionDto,
-} from '../api/hospitalPharmacy';
+} from '../modules/pharmacy/api/hospitalPharmacy';
 
 const { Title, Text } = Typography;
 const { Search } = Input;

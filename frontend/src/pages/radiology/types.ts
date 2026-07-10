@@ -3,7 +3,7 @@
  * (K14 Batch 1). Pure types, KHÔNG có logic.
  */
 
-import type { RadiologyWaitingListDto } from '../../api/ris';
+import type { RadiologyWaitingListDto } from '../../modules/radiology/api/ris';
 
 export type ApiErrorLike = {
   response?: {

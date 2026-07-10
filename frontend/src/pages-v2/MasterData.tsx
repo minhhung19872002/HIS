@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Input, InputNumber, Select, Form } from 'antd';
 import type { AxiosError } from 'axios';
-import systemApi from '../api/system';
+import systemApi from '../modules/system/api/system';
 import { applyServerErrors, type ServerValidationError } from '../utils/formError';
 import {
   KpiStrip, SearchBox, DataTable, StatusBadge, ModalShell, ActBtn, Btn, tk, te, cf,

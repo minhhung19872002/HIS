@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tag, Input, Space, Spin, Empty, Tooltip } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
-import { catalogApi, type ClinicalTermCatalogDto } from '../../../api/system';
+import { catalogApi, type ClinicalTermCatalogDto } from '../../system/api/system';
 
 const { Search } = Input;
 

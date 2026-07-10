@@ -64,7 +64,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import risApi from '../api/ris';
+import risApi from '../modules/radiology/api/ris';
 import type {
   USBTokenCertificate,
   PdfGenerateSignRequest,
@@ -75,7 +75,7 @@ import type {
   RadiologyWaitingListDto,
   RadiologyResultTemplateDto,
   RisChatMessageDto,
-} from '../api/ris';
+} from '../modules/radiology/api/ris';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
 import ShareStudyModal from '../components/ShareStudyModal';
 import DicomViewerConfig from '../components/DicomViewerConfig';

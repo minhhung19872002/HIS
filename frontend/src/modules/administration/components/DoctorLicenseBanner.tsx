@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Tag } from 'antd';
 import { WarningFilled, SafetyCertificateOutlined } from '@ant-design/icons';
-import { getMyLicenseStatus, type LicenseStatusDto } from '../../../api/doctorLicense';
+import { getMyLicenseStatus, type LicenseStatusDto } from '../api/doctorLicense';
 import { fmtDate } from '../../../utils/format';
 
 interface Props {

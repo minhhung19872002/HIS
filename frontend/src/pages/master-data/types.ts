@@ -7,14 +7,14 @@ import type {
   ClinicalTermCatalogDto,
   ParaclinicalServiceCatalogDto,
   DepartmentCatalogDto,
-} from '../../api/system';
+} from '../../modules/system/api/system';
 import type {
   OccupationDto,
   GenderDto,
   AdministrativeDivisionDto,
   CountryDto,
   HealthcareFacilityDto,
-} from '../../api/administrativeCatalog';
+} from '../../modules/administration/api/administrativeCatalog';
 
 export interface ServiceItem {
   id?: string;

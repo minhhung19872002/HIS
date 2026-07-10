@@ -1,7 +1,7 @@
 import React from 'react';
 import dayjs from 'dayjs';
-import * as risApi from '../../api/ris';
-import type { RadiologyOrderItemDto } from '../../api/ris';
+import * as risApi from '../../modules/radiology/api/ris';
+import type { RadiologyOrderItemDto } from '../../modules/radiology/api/ris';
 import { type StatusTab } from '../_v2kit';
 
 export type ApiErr = { response?: { data?: { message?: string } } };

@@ -3,7 +3,7 @@ import { fmtNum as fmt } from '../utils/format';
 import { Form, Input, InputNumber, Select, DatePicker, Modal } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../services/apiClient';
-import systemApi from '../api/system';
+import systemApi from '../modules/system/api/system';
 import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,

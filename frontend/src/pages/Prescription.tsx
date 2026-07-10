@@ -44,7 +44,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { examinationApi, type MedicineDto, type PrescriptionTemplateDto } from '../api/examination';
-import { patientApi, type Patient as ApiPatient } from '../api/patient';
+import { patientApi, type Patient as ApiPatient } from '../modules/patient/api/patient';
 import { getPrescriptionContext, type PrescriptionContextDto } from '../api/dataInheritance';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS } from '../constants/hospital';
 import { PinEntryModal } from '../components/digitalSignature';

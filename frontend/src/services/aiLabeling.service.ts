@@ -15,7 +15,7 @@
  */
 
 import * as ort from 'onnxruntime-web';
-import type { AiLabel, AiModelConfig } from '../api/aiLabeling';
+import type { AiLabel, AiModelConfig } from '../modules/radiology/api/aiLabeling';
 
 // Point ort's WASM loader to the JSDelivr CDN so we don't have to bundle/copy
 // the ~12 MB of WASM artifacts during Vite build. Alternative: host WASM on

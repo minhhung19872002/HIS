@@ -36,12 +36,12 @@ import {
   StarOutlined,
   StarFilled,
 } from '@ant-design/icons';
-import risApi from '../api/ris';
-import type { DicomSeriesDto, DicomImageDto, KeyImageDto } from '../api/ris';
+import risApi from '../modules/radiology/api/ris';
+import type { DicomSeriesDto, DicomImageDto, KeyImageDto } from '../modules/radiology/api/ris';
 import { createRoom, searchRooms, joinRoom } from '../api/videoConsultation';
 import AiLabelingModal from '../components/AiLabelingModal';
 import AiOverlayLayer from '../components/AiOverlayLayer';
-import { openAiReportHtml, downloadAiSignedPdf, uploadAiDicomSr, mergeAiToReport, type AiLabel } from '../api/aiLabeling';
+import { openAiReportHtml, downloadAiSignedPdf, uploadAiDicomSr, mergeAiToReport, type AiLabel } from '../modules/radiology/api/aiLabeling';
 import { API_ORIGIN } from '../config/api.config';
 import { ORTHANC_URL } from '../config/env.config';
 import { loadViewerConfig } from '../components/DicomViewerConfig';

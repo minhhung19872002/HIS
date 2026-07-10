@@ -5,8 +5,8 @@ import { App as AntdApp } from 'antd';
 import apiClient from '../services/apiClient';
 import * as labApi from '../api/laboratory';
 import type { LabRequest } from '../api/laboratory';
-import * as settingsApi from '../api/userSettings';
-import type { LabDefaultRoles } from '../api/userSettings';
+import * as settingsApi from '../modules/system/api/userSettings';
+import type { LabDefaultRoles } from '../modules/system/api/userSettings';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager,
   ActBtn, Btn, DrawerShell,

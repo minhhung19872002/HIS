@@ -70,7 +70,7 @@ import {
   type InpatientServiceOrderDto,
 } from '../api/inpatient';
 import { getAdmissionContext, type AdmissionContextDto } from '../api/dataInheritance';
-import { patientApi, type Patient } from '../api/patient';
+import { patientApi, type Patient } from '../modules/patient/api/patient';
 import { printBirthCertificate, type BirthCertificateData } from '../components/BirthCertificatePrint';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import PatientFlagBanner from '../components/PatientFlagBanner';

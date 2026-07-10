@@ -49,7 +49,7 @@ import {
   type MedicineCatalogDto,
   type DepartmentCatalogDto,
   type ICD10CatalogDto,
-} from '../api/system';
+} from '../modules/system/api/system';
 import {
   administrativeCatalogApi,
   type OccupationDto,
@@ -57,7 +57,7 @@ import {
   type AdministrativeDivisionDto,
   type CountryDto,
   type HealthcareFacilityDto,
-} from '../api/administrativeCatalog';
+} from '../modules/administration/api/administrativeCatalog';
 
 const { Title, Text } = Typography;
 const { Search } = Input;

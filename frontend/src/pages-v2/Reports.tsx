@@ -13,8 +13,8 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import TermIcon from '../layouts/terminal/Icon';
-import { statisticsApi } from '../api/system';
-import type { DepartmentRevenueDto, HospitalDashboardDto } from '../api/system';
+import { statisticsApi } from '../modules/system/api/system';
+import type { DepartmentRevenueDto, HospitalDashboardDto } from '../modules/system/api/system';
 import apiClient from '../services/apiClient';
 import '../styles/reports-v2.css';
 

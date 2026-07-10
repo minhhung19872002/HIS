@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, Input, Button, Spin, Result, Alert, Tag, Space, message, Typography } from 'antd';
 import { LockOutlined, EyeOutlined } from '@ant-design/icons';
-import { peekShare, accessShare, type AccessResult } from '../api/studyShare';
+import { peekShare, accessShare, type AccessResult } from '../modules/radiology/api/studyShare';
 import { ORTHANC_URL } from '../config/env.config';
 
 const { Title, Text } = Typography;

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { App as AntdApp, Input, Select } from 'antd';
-import * as risApi from '../../api/ris';
-import type { CoReaderDto } from '../../api/ris';
+import * as risApi from '../../modules/radiology/api/ris';
+import type { CoReaderDto } from '../../modules/radiology/api/ris';
 import { Btn, ActBtn } from '../_v2kit';
 import TermIcon from '../../layouts/terminal/Icon';
 

@@ -10,8 +10,8 @@ import NewbornSection from './inpatient/NewbornSection';
 import HemodialysisSection from './inpatient/HemodialysisSection';
 import PatientFlagBanner from '../modules/patient/components/PatientFlagBanner';
 import BusinessAlertPanel from '../modules/patient/components/BusinessAlertPanel';
-import { catalogApi } from '../api/system';
-import type { DepartmentCatalogDto } from '../api/system';
+import { catalogApi } from '../modules/system/api/system';
+import type { DepartmentCatalogDto } from '../modules/system/api/system';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, ModalShell,

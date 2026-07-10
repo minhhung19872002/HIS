@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import risApi from '../api/ris';
-import type { HelpCategoryDto, HelpArticleDto, TroubleshootingDto } from '../api/ris';
+import risApi from '../modules/radiology/api/ris';
+import type { HelpCategoryDto, HelpArticleDto, TroubleshootingDto } from '../modules/radiology/api/ris';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, ti, Ico,

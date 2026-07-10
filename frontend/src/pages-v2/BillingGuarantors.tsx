@@ -12,7 +12,7 @@ import {
   getGuarantors, saveGuarantor, deleteGuarantor,
   getDebtReport,
   type SponsorOrgDto, type BillingGuarantorDto, type GuarantorDebtReportDto,
-} from '../api/billingGuarantor';
+} from '../modules/billing/api/billingGuarantor';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, useListData, tk, te, cf,
