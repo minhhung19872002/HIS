@@ -206,3 +206,20 @@ Batch-agent (Sonnet) **gắn Full quá rộng** (Full cho mọi trang có list+v
 **Kết luận #353:** v2 parity **rộng nhưng NÔNG** — chỉ **44/117** v1 page xóa-an-toàn (14 verified + 30 superset); **72** cần PORT (rớt tab thứ cấp / print / banner an-toàn); **DROP-list rỗng** (helper buộc vào v1 parent). **#204 KHÔNG thể xóa hàng loạt v1.** Patient-safety regression đã xử lý qua **#357** (khôi phục banner 5 editor v2); residual feature-PORT (liều-theo-cữ / AI-CDS / print MSS-01) track ở §2b-2 + PORT. RadiologyOps endpoint-mismatch đã **VERIFY = false-alarm** (v2 đúng convention 2=LIS/3=Radiology, §2b-3).
 **Cross-ref:** epic #352 · sunset #204 · fix #357 · roadmap `docs/architecture/his-roadmap/`.
 **Trạng thái:** Phase 0 **DONE** (117 cặp đọc thực tế + adversarial verify 33 Full / 2 vòng). Build: không cần (chỉ doc).
+
+## 6. Audit vòng-2 (2026-07-10) — NGOÀI tầng trang (chiều mà cách theo-cặp-trang bỏ sót)
+
+> Câu hỏi: "còn chức năng nào ở v1 chưa chuyển sang v2 mà §1-5 không thấy?" — rà 6 chiều A-F, read-only, bằng chứng grep/đếm. Trạng thái trang (§2) KHÔNG đổi: 0 commit vào `pages/` từ 2026-06-28.
+
+| Chiều | Kết quả | Task |
+|---|---|---|
+| A. File trang | ✅ kín — 149/149 có disposition; 72 PORT = #407(8)+#408(13)+#409(43)+#410(3)+đã-xong(5: b075c03×4, #361) | #407-#410 |
+| B. Route v1 | ✅ kín — ~120 route MainLayout đều vào §2/§3; standalone KEEP; `/m/*` app riêng | — |
+| C1. **Menu v2 thiếu** | 🔴 route v2 **165** vs menu `HIS_GROUPS` **126** (menu v1 = 115); **23 trang v1-menu vắng menu v2**, trong đó **14 mất hẳn lối vào** (0 menu + 0 deep-link; palette Ctrl+K cũng đọc HIS_GROUPS): clinical-pharmacy-check · lis-catalog-admin · non-dicom-capture · observation-stay · office-supply-approval · payment-reports · payment-transactions · receipt-book-admin · ris-admin · ris-catalog-admin · service-requeue · stock-report · video-consultation · workload-report; 9 chỉ-deep-link: bhxh-config/catalogs-admin/consultation-register/dispensing-counter/employee-profile/inpatient-dispensing(4)/radiology-ops/ris-dispatcher/sample-receive | **#411** (phối hợp #375 registry) |
+| C2. **Topbar** | 🔴 `AiQueueBadge` (poll AI-queue 30s + SignalR `ai-queue-updated` + navigate viewer) chỉ có ở MainLayout | **#412** (phối hợp #380) |
+| C3. Đã track sẵn | bell fake → #380 · dark-mode → #381 · palette mở rộng → #382 | — |
+| D. Component chỉ-v1 (21 file, v2=0 import) | 8 cụm DicomViewer → #413 · 4 đã trong #409 (ApplyDiscount/PartialRefund/ReassignObject/SurgeryDrawingPad) · **8 bổ sung scope**: #407 += ClinicalTermSelector·DoctorLicenseBanner·VoiceDictation·StockReservationModal (OPD) + PatientTimeline·VoiceDictation (EMR — EmrEditor mới có visit-history đơn giản) + BirthCertificatePrint (Inpatient prints) · #409 += WebcamCapture (Reception chụp ảnh BN) + SampleSequenceToolbar (Laboratory) · 1 không cần: LabCancelChainMenu (v2 có bản riêng) | comment #407/#409 |
+| E. DicomViewer | 🔴 `pages-v2/DicomViewer.tsx` = wrap 19 dòng import v1 — **import v1 cuối cùng từ pages-v2**, chặn Phase 3 | **#413** |
+| F. Drift | ✅ inventory còn giá trị (pages/ đóng băng) | — |
+
+**Bản đồ nhóm port sau audit: #407 · #408 · #409 · #410 · #411 · #412 · #413** → xong + smoke 44 DELETE-safe → mở lại #204 → Phase 3 gỡ `layoutMode==='v1'`.
