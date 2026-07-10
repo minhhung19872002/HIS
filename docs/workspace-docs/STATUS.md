@@ -5,9 +5,21 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-10** — **cửa FE-restructure: Batch 6 API STRICT-relocate DONE-local + ĐÃ STAGE, chờ duyệt commit+push** (chi tiết §Phiên Batch-6). Batch 1-5 ✅ PUSHED (`8d2353b`/`b9f3a72`). Cửa PORT #414 (w480): 7 file print gap DONE-code LOCAL. Cửa port-408: 10 stub→CRUD DONE-code LOCAL. `components/` root chỉ còn shim + category §4a (restructure components HOÀN TẤT).
+> Cập nhật cuối: **2026-07-10** — **cửa PORT #414 (w480): ✅ PUSHED Closes #414** (print gap 7 module v2). Cửa FE-restructure: Batch 6 ✅ PUSHED `6f49492` (API STRICT-relocate). Cửa port-408: 10 stub→CRUD DONE-code LOCAL. `components/` root chỉ còn shim + category §4a (restructure components HOÀN TẤT).
 
-## Phiên 2026-07-10 (cửa FE-restructure — Batch 6 API STRICT-relocate: XÓA HẲN file cũ, KHÔNG barrel — STAGED chờ duyệt commit+push)
+## Phiên 2026-07-10 (cửa PORT #414 w480 — print gap v1→v2 7 module, ✅ PUSHED Closes #414)
+- **#414 [PORT-P8][FE][P1] DONE + PUSHED**: bổ sung print cho 7 module v2 theo pattern `openPrintWindow(html, {focus, print:{delayMs:500}})` + `HOSPITAL_NAME`:
+  - **Surgery**: "In phiếu PT/TT" — reuse v1 `pages/surgery/printTemplates.buildSurgeryRecordHtml` (MS:06/BV-02), map từ SurgeryDto.
+  - **BloodBank**: "In nhãn đơn vị máu" (BloodStockDetailDto — nhóm máu/Rh lớn, bagCode, HSD, cảnh báo 2-6°C) + "In phiếu yêu cầu truyền máu" (BloodIssueRequestRow).
+  - **Quality**: "In phiếu báo cáo sự cố" — `buildIncidentReportHtml` 6 section (thông tin/mô tả/xử lý/điều tra RCA/phòng ngừa/bài học) + 2 chữ ký.
+  - **HR**: "In hồ sơ" — `buildEmployeeCardHtml` (field thiếu để trống điền tay — StaffMember chỉ có id/name/role/department/quota).
+  - **EmergencyDisaster**: thay `window.print()` → `buildEmergencyCaseHtml` (phiếu tiếp nhận CC: sinh hiệu/GCS/xử trí ban đầu/3 chữ ký) + **"In báo cáo MCI"** toolbar (port v1 handlePrintReport: event info + thống kê triage ĐỎ/VÀNG/XANH/ĐEN + DS nạn nhân; fetch victims fresh khi in).
+  - **Inpatient**: "In phiếu" (tóm tắt điều trị nội trú từ InpatientListDto) + **"In bệnh án"** — reuse v1 `pages/inpatient/printTemplates.buildMedicalRecordHtml` (MS 01/BV-01 nội khoa default, field sẵn pre-fill, còn lại dòng chấm điền tay). Tờ điều trị = ĐÃ CÓ sẵn API-blob (`printTreatmentSheet` TreatmentSheetsModal) — không phải gap.
+  - **Reports**: "In báo cáo" (card + drawer footer) — `handlePrintReport` tải PDF blob `/reporting/export/pdf/{id}` mở tab mới (revoke URL sau 60s).
+- **Gate**: tsc -b EXIT 0 + npm run build EXIT 0. **P3 (Telemedicine/Equipment/HealthExchange/InfectionControl/Nutrition…) = DEFER theo chính AC của issue** ("đưa vào sprint sau hoặc xử lý khi port module đó") — các trang này đã có `window.print()` cơ bản.
+- Kế tiếp: **#415** QueueDisplay TV board v2 (P2, chưa claim).
+
+## Phiên 2026-07-10 (cửa FE-restructure — Batch 6 API STRICT-relocate: XÓA HẲN file cũ, KHÔNG barrel — ✅ PUSHED `6f49492`)
 - **User đổi strategy giữa chừng:** barrel tạm → **STRICT-relocate ngay** (xóa hẳn 37 file `api/<domain>` + 2 thư mục `api/ris/` `api/system/`, rewrite TOÀN BỘ importer kể cả v1 — exception v1 được user duyệt turn này).
 - **Đã move (3 agent phiên trước + hoàn tất tay):** 37 file → `modules/{billing 5, pharmacy 3, radiology 4+11, system 3+6, patient 2, administration 3}/api/`. **Audit content-equivalence bằng diff máy vs git HEAD: 37/37 verbatim** (chỉ khác dòng import-depth), 0 thiếu, 0 đổi logic.
 - **Rewrite importer:** script Node resolve-based (không blind prefix-replace) — **122 specifier / 84 file** (v1 pages 33 · v2 43 · contexts/services 2 · intra-api `nangcap25.ts` 1 · modules cross-module 5); idempotent (re-run = 0); CRLF nguyên vẹn. 11 module-component đã sửa tay trước đó dùng `'../api/x'` nội-module — script tự skip (resolve đúng đích mới).

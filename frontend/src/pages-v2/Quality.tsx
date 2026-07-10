@@ -11,6 +11,8 @@ import {
   type ColumnDef, type StatusTab, type TopTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
+import { openPrintWindow } from '../utils/printWindow';
+import { HOSPITAL_NAME } from '../constants/hospital';
 
 /* ────────────────────────────────────────────────────────────
    Chất lượng v2 — port of design-system-v2/his/project/Quality v2.html
@@ -453,6 +455,44 @@ const AuditTab: React.FC = () => (
   </div>
 );
 
+function buildIncidentReportHtml(r: IncidentReportDto): string {
+  const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
+  const row = (label: string, value: string) =>
+    `<tr><td style="width:38%;font-weight:600;color:#555;padding:5px 8px;border:1px solid #ccc">${label}</td><td style="padding:5px 8px;border:1px solid #ccc">${value || '—'}</td></tr>`;
+  const section = (title: string, body: string) =>
+    `<div style="margin-top:14px"><div style="font-weight:700;font-size:13pt;border-bottom:1px solid #aaa;padding-bottom:3px;margin-bottom:6px">${title}</div>${body}</div>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Phiếu báo cáo sự cố</title>
+<style>body{font-family:'Times New Roman',serif;margin:18mm 15mm;font-size:13pt}
+h2{text-align:center;font-size:15pt;margin:8px 0}h4{text-align:center;font-size:12pt;font-weight:normal;margin:4px 0 16px}
+table{width:100%;border-collapse:collapse}.pre{white-space:pre-wrap;font-size:12.5pt;border:1px solid #ccc;padding:6px 8px;min-height:36px}
+</style></head><body>
+<div style="text-align:center;font-weight:bold;font-size:11pt">${HOSPITAL_NAME}</div>
+<h2>PHIẾU BÁO CÁO SỰ CỐ Y KHOA</h2>
+<h4>Mã phiếu: ${r.incidentCode || '...'}</h4>
+${section('I. THÔNG TIN SỰ CỐ', `<table>
+${row('Loại sự cố', r.incidentTypeName || r.incidentType)}
+${row('Mức độ nghiêm trọng', r.severityName)}
+${row('Khoa/Phòng', r.departmentName)}
+${row('Vị trí xảy ra', r.locationDescription || '—')}
+${row('Người báo cáo', r.reportedByName)}
+${row('Ngày báo cáo', fmtDate(r.reportedDate))}</table>`)}
+${section('II. MÔ TẢ SỰ CỐ', `<div class="pre">${r.description || '—'}</div>`)}
+${r.immediateActions ? section('III. XỬ LÝ NGAY LẬP TỨC', `<div class="pre">${r.immediateActions}</div>`) : ''}
+${r.investigationRequired ? section('IV. ĐIỀU TRA NGUYÊN NHÂN', `<table>
+${row('Người điều tra', r.investigatorName || 'Chưa phân công')}
+${r.investigationStartDate ? row('Bắt đầu điều tra', fmtDate(r.investigationStartDate)) : ''}
+${r.investigationCompletedDate ? row('Kết thúc điều tra', fmtDate(r.investigationCompletedDate)) : ''}
+${r.rcaMethod ? row('Phương pháp RCA', r.rcaMethod) : ''}</table>
+${r.rootCauseAnalysis ? `<div class="pre" style="margin-top:6px">${r.rootCauseAnalysis}</div>` : ''}`) : ''}
+${r.preventiveMeasures ? section('V. BIỆN PHÁP PHÒNG NGỪA', `<div class="pre">${r.preventiveMeasures}</div>`) : ''}
+${r.lessonLearned ? section('VI. BÀI HỌC RÚT RA', `<div class="pre">${r.lessonLearned}</div>`) : ''}
+<div style="margin-top:32px;display:grid;grid-template-columns:1fr 1fr;gap:24px;text-align:center;font-size:12pt">
+<div><b>Người báo cáo</b><br/><span style="font-size:10pt;color:#888">(Ký và ghi rõ họ tên)</span><div style="height:60px"></div><b>${r.reportedByName || '................'}</b></div>
+<div><b>Trưởng khoa/phòng</b><br/><span style="font-size:10pt;color:#888">(Ký và ghi rõ họ tên)</span><div style="height:60px"></div><b>................</b></div>
+</div>
+</body></html>`;
+}
+
 const IncidentDrawerBody: React.FC<{ r: IncidentReportDto }> = ({ r }) => (
   <>
     <div className="rec-section">
@@ -512,6 +552,12 @@ const IncidentDrawerBody: React.FC<{ r: IncidentReportDto }> = ({ r }) => (
         <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{r.lessonLearned}</div>
       </div>
     )}
+
+    <div style={{ marginTop: 'var(--space-12)', borderTop: '1px solid var(--line-soft)', paddingTop: 'var(--space-10)' }}>
+      <Btn variant="ghost" onClick={() => openPrintWindow(buildIncidentReportHtml(r), { focus: true, print: { delayMs: 500 } })}>
+        <TermIcon name="printer" size={12} /> In phiếu báo cáo sự cố
+      </Btn>
+    </div>
   </>
 );
 

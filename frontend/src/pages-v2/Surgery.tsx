@@ -9,6 +9,9 @@ import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab 
 import TermIcon from '../layouts/terminal/Icon';
 import { SurgeryCabinetIssueModal } from './shared/SurgeryCabinetIssueModal';
 import { PreAnesthesiaModal, AnesthesiaMonitorModal, ConsentModal, PostAnesthesiaPlanModal } from './shared/SurgeryFormModals';
+import { openPrintWindow } from '../utils/printWindow';
+import { buildSurgeryRecordHtml } from '../pages/surgery/printTemplates';
+import { HOSPITAL_NAME } from '../constants/hospital';
 
 /* Phẫu thuật v2 — port of OR v2.html */
 
@@ -206,6 +209,31 @@ const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => {
         {/* Kế hoạch sau gây mê – phẫu thuật (Prompt 8 Đợt 2) */}
         <Btn variant="ghost" size="sm" onClick={() => setPostAnesthOpen(true)}>
           <TermIcon name="clipboard" size={11} /> KH sau gây mê
+        </Btn>
+        <Btn variant="ghost" size="sm" onClick={() => {
+          openPrintWindow(
+            buildSurgeryRecordHtml(
+              {
+                hospitalName: HOSPITAL_NAME,
+                patientName: r.patientName || '',
+                gender: r.gender || '',
+                roomName: r.operatingRoomName || '',
+                surgeryTime: r.startTime || r.scheduledDate || '',
+                preOpDiagnosis: r.preOperativeDiagnosis || '',
+                postOpDiagnosis: r.postOperativeDiagnosis || '',
+                surgeryMethod: r.surgeryMethod || '',
+                surgeryType: r.surgeryNatureName || '',
+                anesthesiaMethod: r.anesthesiaTypeName || '',
+                surgeonName: r.requestDoctorName || '',
+                surgeryDescription: r.description || '',
+              },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              { requestCode: r.surgeryCode } as any,
+            ),
+            { focus: true, print: { delayMs: 500 } },
+          );
+        }}>
+          <TermIcon name="printer" size={11} /> In phiếu PT/TT
         </Btn>
       </div>
 

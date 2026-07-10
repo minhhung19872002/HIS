@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import TermIcon from '../layouts/terminal/Icon';
 import {
   getActiveEvent, getVictims, registerVictim, activateCodeBlue,
-  type MCIVictimDto, type RegisterVictimDto,
+  type MCIEventDto, type MCIVictimDto, type RegisterVictimDto,
 } from '../api/massCasualty';
 import { registerEmergencyPatient, type EmergencyRegistrationDto } from '../api/reception';
 import {
@@ -13,6 +13,8 @@ import {
   type ObservationStayDto,
 } from '../api/observation';
 import '../styles/EmergencyDisaster.css';
+import { openPrintWindow } from '../utils/printWindow';
+import { HOSPITAL_NAME } from '../constants/hospital';
 
 type TriageLevel = 1 | 2 | 3 | 4 | 5;
 type EmergencyStatus = 'triage' | 'treating' | 'observing' | 'admitted' | 'discharged' | 'referred';
@@ -208,6 +210,7 @@ const EmergencyDisasterV2: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [source, setSource] = useState<'mci' | 'observation'>('observation');
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
+  const [activeEvent, setActiveEvent] = useState<MCIEventDto | null>(null);
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [intakeSubmitting, setIntakeSubmitting] = useState(false);
 
@@ -247,6 +250,7 @@ const EmergencyDisasterV2: React.FC = () => {
         const evt = await getActiveEvent();
         if (evt?.data?.id) {
           setActiveEventId(evt.data.id);
+          setActiveEvent(evt.data);
           setSource('mci');
           const vRes = await getVictims(evt.data.id, 'all', 0);
           const list = Array.isArray(vRes?.data) ? vRes.data : [];
@@ -491,6 +495,24 @@ const EmergencyDisasterV2: React.FC = () => {
               <AlertOutlined />
               Code Blue
             </button>
+            {activeEvent && (
+              <button
+                className="er-v2-btn"
+                type="button"
+                onClick={async () => {
+                  try {
+                    const vRes = await getVictims(activeEvent.id, 'all', 0);
+                    const list = Array.isArray(vRes?.data) ? vRes.data : [];
+                    openPrintWindow(buildMciReportHtml(activeEvent, list), { focus: true, print: { delayMs: 500 } });
+                  } catch {
+                    message.error('Không tải được danh sách nạn nhân để in báo cáo');
+                  }
+                }}
+              >
+                <TermIcon name="printer" size={14} />
+                In báo cáo MCI
+              </button>
+            )}
           </div>
 
           <div className="er-v2-toolbar-right">
@@ -659,7 +681,7 @@ const EmergencyDisasterV2: React.FC = () => {
               setSelectedCase(null);
               void handleAdmit(target);
             }}
-            onPrint={() => window.print()}
+            onPrint={() => selectedCase && openPrintWindow(buildEmergencyCaseHtml(selectedCase), { focus: true, print: { delayMs: 500 } })}
           />
         )}
       </Drawer>
@@ -718,6 +740,106 @@ const StatusTab: React.FC<StatusTabProps> = ({ label, count, active, tone, onCli
     <b>{count}</b>
   </button>
 );
+
+// Port từ v1 pages/EmergencyDisaster.tsx handlePrintReport — báo cáo sự kiện MCI
+// (thông tin sự kiện + thống kê triage + danh sách nạn nhân).
+function buildMciReportHtml(evt: MCIEventDto, victims: MCIVictimDto[]): string {
+  const fmtDT = (d?: string) => d ? new Date(d).toLocaleString('vi-VN') : '—';
+  const red = evt.immediateRed ?? victims.filter((v) => v.triageCategory === 'Immediate').length;
+  const yellow = evt.delayedYellow ?? victims.filter((v) => v.triageCategory === 'Delayed').length;
+  const green = evt.minorGreen ?? victims.filter((v) => v.triageCategory === 'Minor').length;
+  const black = evt.expectantBlack ?? victims.filter((v) => v.triageCategory === 'Expectant').length;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Báo cáo Cấp cứu Thảm họa</title>
+<style>body{font-family:Arial,sans-serif;padding:20px;font-size:13px}
+h1{text-align:center;color:#f5222d;font-size:20px}h2{text-align:center;font-size:15px;margin:4px 0}
+h3{margin:16px 0 6px}table{width:100%;border-collapse:collapse;margin-top:8px}
+th,td{border:1px solid #000;padding:6px 8px;text-align:left}th{background:#f0f0f0}
+.stats{display:flex;justify-content:space-around;margin:16px 0}
+.stat-box{text-align:center;padding:8px 14px;border:1px solid #ddd}
+.red{color:red}.yellow{color:orange}.green{color:green}
+</style></head><body>
+<div style="text-align:center;margin-bottom:12px"><h2>${HOSPITAL_NAME}</h2><h1>BÁO CÁO SỰ KIỆN CẤP CỨU THẢM HỌA</h1></div>
+<h3>Thông tin sự kiện</h3>
+<table>
+<tr><td style="width:32%"><strong>Mã sự kiện:</strong></td><td>${evt.eventCode}</td></tr>
+<tr><td><strong>Cấp độ:</strong></td><td>${evt.alertLevelName || `Cấp ${evt.alertLevel}`}</td></tr>
+<tr><td><strong>Mô tả:</strong></td><td>${evt.eventName}</td></tr>
+<tr><td><strong>Địa điểm:</strong></td><td>${evt.location || '—'}</td></tr>
+<tr><td><strong>Thời gian kích hoạt:</strong></td><td>${fmtDT(evt.activatedAt)}</td></tr>
+<tr><td><strong>Người kích hoạt:</strong></td><td>${evt.activatedByName || evt.activatedBy || '—'}</td></tr>
+</table>
+<h3>Thống kê nạn nhân</h3>
+<div class="stats">
+<div class="stat-box"><span class="red">ĐỎ: ${red}</span></div>
+<div class="stat-box"><span class="yellow">VÀNG: ${yellow}</span></div>
+<div class="stat-box"><span class="green">XANH: ${green}</span></div>
+<div class="stat-box">ĐEN: ${black}</div>
+<div class="stat-box"><strong>TỔNG: ${evt.totalVictims ?? victims.length}</strong></div>
+</div>
+<h3>Danh sách nạn nhân</h3>
+<table>
+<tr><th>Tag</th><th>Phân loại</th><th>Họ tên</th><th>Thương tích</th><th>Vị trí</th><th>Trạng thái</th></tr>
+${victims.map((v) => `<tr>
+<td>${v.victimCode || v.temporaryId || ''}</td>
+<td>${v.triageCategoryName || v.triageCategory || ''}</td>
+<td>${v.fullName || 'Chưa xác định'}</td>
+<td>${(v.injuries && v.injuries.length) ? v.injuries.join(', ') : (v.chiefComplaint || '')}</td>
+<td>${v.assignedAreaName || v.assignedArea || ''}</td>
+<td>${v.dispositionName || v.treatmentStatus || ''}</td>
+</tr>`).join('')}
+</table>
+<p style="margin-top:30px;text-align:right">Ngày in: ${new Date().toLocaleString('vi-VN')}</p>
+</body></html>`;
+}
+
+function buildEmergencyCaseHtml(c: EmergencyCase): string {
+  const triageLabel = (() => {
+    const t: Record<number, string> = { 1: 'Mức 1 · Hồi sức', 2: 'Mức 2 · Khẩn cấp', 3: 'Mức 3 · Cấp', 4: 'Mức 4 · Bán cấp', 5: 'Mức 5 · Không cấp' };
+    return t[c.triage] || `Mức ${c.triage}`;
+  })();
+  const row = (label: string, value: string) =>
+    `<tr><td style="width:38%;font-weight:600;color:#555;padding:5px 8px;border:1px solid #ccc">${label}</td><td style="padding:5px 8px;border:1px solid #ccc">${value || '—'}</td></tr>`;
+  const arrivalFmt = c.arrivalTime ? new Date(c.arrivalTime).toLocaleString('vi-VN') : '—';
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Phiếu cấp cứu</title>
+<style>body{font-family:'Times New Roman',serif;margin:18mm 15mm;font-size:13pt}
+h2{text-align:center;font-size:15pt;margin:8px 0}h4{text-align:center;font-size:12pt;font-weight:normal;margin:4px 0 16px}
+table{width:100%;border-collapse:collapse}.section{margin-top:14px}
+.section h5{font-size:12pt;font-weight:700;border-bottom:1px solid #aaa;padding-bottom:3px;margin:0 0 6px}
+</style></head><body>
+<div style="text-align:center;font-weight:bold;font-size:11pt">${HOSPITAL_NAME}</div>
+<h2>PHIẾU TIẾP NHẬN CẤP CỨU</h2>
+<h4>Mã ca: ${c.code} · Phân loại: ${triageLabel}</h4>
+<div class="section"><h5>I. THÔNG TIN BỆNH NHÂN</h5>
+<table>
+${row('Mã bệnh nhân', c.patientCode)}
+${row('Họ và tên', c.patientName)}
+${row('Tuổi / Giới', `${c.age} tuổi · ${c.gender}`)}
+${row('Giờ đến', arrivalFmt)}
+${row('Đường vào', c.mode)}
+${row('Bác sĩ phụ trách', c.doctor)}
+${row('Giường', c.bed || 'Chưa phân')}</table></div>
+<div class="section"><h5>II. LÝ DO VÀO CẤP CỨU</h5>
+<div style="border:1px solid #ccc;padding:6px 8px;min-height:36px;white-space:pre-wrap">${c.complaint || '—'}</div></div>
+<div class="section"><h5>III. SINH HIỆU KHI ĐẾN</h5>
+<table>
+${row('Huyết áp (mmHg)', c.vitals.bp)}
+${row('Mạch (l/phút)', String(c.vitals.hr))}
+${row('Nhiệt độ (°C)', String(c.vitals.temp))}
+${row('SpO₂ (%)', String(c.vitals.spo2))}
+${row('GCS', `${c.gcs}/15`)}</table></div>
+<div class="section"><h5>IV. XỬ TRÍ BAN ĐẦU</h5>
+<div style="border:1px solid #ccc;padding:6px 8px;min-height:50px">
+${c.triage <= 2
+  ? 'Thiết lập đường truyền tĩnh mạch · Oxy mask 6L/phút · Theo dõi monitor liên tục · Hội chẩn chuyên khoa ngay.'
+  : 'Khám lâm sàng · Chỉ định cận lâm sàng cấp · Theo dõi sinh hiệu mỗi 15 phút · Chuẩn bị giường theo dõi.'}
+</div></div>
+<div style="margin-top:32px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;text-align:center;font-size:12pt">
+<div><b>Bác sĩ tiếp nhận</b><div style="height:55px"></div><b>${c.doctor}</b></div>
+<div><b>Điều dưỡng</b><div style="height:55px"></div><b>................</b></div>
+<div><b>Trưởng khoa Cấp cứu</b><div style="height:55px"></div><b>................</b></div>
+</div>
+</body></html>`;
+}
 
 type EmergencyCaseDrawerContentProps = {
   emergencyCase: EmergencyCase;

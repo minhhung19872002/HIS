@@ -12,10 +12,13 @@ import {
   RightOutlined,
   SwapOutlined,
   UserOutlined,
+  PrinterOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import TermIcon from '../layouts/terminal/Icon';
 import '../styles/HR.css';
+import { openPrintWindow } from '../utils/printWindow';
+import { HOSPITAL_NAME } from '../constants/hospital';
 
 type ShiftType = 'morning' | 'evening' | 'night' | 'off';
 
@@ -69,6 +72,34 @@ const STAFF: StaffMember[] = [
   { id: 'KTV01', name: 'KTV. Phan Đăng Khoa', role: 'KTV xét nghiệm', department: 'LIS', quota: 6 },
   { id: 'KTV02', name: 'KTV. Tô Anh Đức', role: 'KTV chẩn đoán hình ảnh', department: 'RIS', quota: 6 },
 ];
+
+function buildEmployeeCardHtml(s: StaffMember): string {
+  const row = (label: string, value: string) =>
+    `<tr><td style="width:40%;font-weight:600;color:#555;padding:5px 8px;border:1px solid #ccc">${label}</td><td style="padding:5px 8px;border:1px solid #ccc">${value || '—'}</td></tr>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Hồ sơ nhân viên</title>
+<style>body{font-family:'Times New Roman',serif;margin:20mm 15mm;font-size:13pt}
+h2{text-align:center;font-size:15pt;margin:8px 0}h4{text-align:center;font-size:12pt;font-weight:normal;margin:4px 0 16px}
+table{width:100%;border-collapse:collapse}
+</style></head><body>
+<div style="text-align:center;font-weight:bold;font-size:11pt">${HOSPITAL_NAME}</div>
+<h2>HỒ SƠ NHÂN VIÊN Y TẾ</h2>
+<table style="margin-top:14px">
+${row('Mã nhân viên', s.id)}
+${row('Họ và tên', s.name)}
+${row('Giới tính', '')}
+${row('Ngày sinh', '')}
+${row('Chức danh', s.role)}
+${row('Khoa/Phòng', s.department)}
+${row('Số ca định mức/tuần', String(s.quota))}
+${row('Ngày tuyển dụng', '')}
+${row('Số chứng chỉ hành nghề', '')}
+</table>
+<div style="margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:24px;text-align:center;font-size:12pt">
+<div><b>Nhân viên</b><br/><span style="font-size:10pt;color:#888">(Ký và ghi rõ họ tên)</span><div style="height:60px"></div><b>${s.name}</b></div>
+<div><b>Phòng Tổ chức - Nhân sự</b><br/><span style="font-size:10pt;color:#888">(Ký và ghi rõ họ tên)</span><div style="height:60px"></div><b>................</b></div>
+</div>
+</body></html>`;
+}
 
 function seededValue(seed: number): number {
   const value = Math.sin(seed * 123.456) * 10000;
@@ -618,6 +649,14 @@ const HRV2: React.FC = () => {
               >
                 <EditOutlined />
                 Sửa lịch
+              </button>
+              <button
+                type="button"
+                className="hr-v2-btn"
+                onClick={() => selectedStaff && openPrintWindow(buildEmployeeCardHtml(selectedStaff), { focus: true, print: { delayMs: 500 } })}
+              >
+                <PrinterOutlined />
+                In hồ sơ
               </button>
             </div>
           </div>

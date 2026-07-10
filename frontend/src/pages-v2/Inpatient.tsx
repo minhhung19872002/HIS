@@ -19,6 +19,10 @@ import {
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 import { fmtVND } from '../utils/format';
+import { openPrintWindow } from '../utils/printWindow';
+import { HOSPITAL_NAME } from '../constants/hospital';
+import { buildMedicalRecordHtml } from '../pages/inpatient/printTemplates';
+import { MEDICAL_RECORD_TYPES } from '../pages/inpatient/constants';
 
 /* ────────────────────────────────────────────────────────────
    Nội trú v2 — bed-map (Sơ đồ giường) theo mock Ward v2.
@@ -48,6 +52,44 @@ const bedTone = (s: number): { bg: string; line: string } => {
 
 const fmtDMY = (iso?: string) => (iso ? dayjs(iso).format('DD/MM/YYYY') : '—');
 const genderLabel = (g?: number) => (g === 1 ? 'Nam' : g === 2 ? 'Nữ' : '—');
+
+function buildInpatientRecordHtml(d: InpatientListDto): string {
+  const row = (label: string, value: string) =>
+    `<tr><td style="width:38%;font-weight:600;color:#555;padding:5px 8px;border:1px solid #ccc">${label}</td><td style="padding:5px 8px;border:1px solid #ccc">${value || '—'}</td></tr>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Phiếu nội trú</title>
+<style>body{font-family:'Times New Roman',serif;margin:18mm 15mm;font-size:13pt}
+h2{text-align:center;font-size:15pt;margin:8px 0}h4{text-align:center;font-size:12pt;font-weight:normal;margin:4px 0 16px}
+table{width:100%;border-collapse:collapse}.section{margin-top:14px}
+.section h5{font-size:12pt;font-weight:700;border-bottom:1px solid #aaa;padding-bottom:3px;margin:0 0 6px}
+</style></head><body>
+<div style="text-align:center;font-weight:bold;font-size:11pt">${HOSPITAL_NAME}</div>
+<h2>PHIẾU THEO DÕI ĐIỀU TRỊ NỘI TRÚ</h2>
+<h4>Số hồ sơ: ${d.medicalRecordCode}</h4>
+<div class="section"><h5>I. THÔNG TIN BỆNH NHÂN</h5>
+<table>
+${row('Họ và tên', d.patientName)}
+${row('Mã bệnh nhân', d.patientCode)}
+${row('Giới tính', genderLabel(d.gender))}
+${row('Tuổi', d.age ? String(d.age) : '—')}
+${row('Ngày sinh', fmtDMY(d.dateOfBirth))}
+${row('Số BHYT', d.insuranceNumber || '—')}</table></div>
+<div class="section"><h5>II. THÔNG TIN NHẬP VIỆN</h5>
+<table>
+${row('Khoa điều trị', d.departmentName)}
+${row('Phòng / Giường', `${d.roomName}${d.bedName ? ' · ' + d.bedName : ''}`)}
+${row('Bác sĩ điều trị', d.attendingDoctorName || '—')}
+${row('Chẩn đoán', d.mainDiagnosis || '—')}
+${row('Ngày nhập viện', fmtDMY(d.admissionDate))}
+${row('Số ngày nằm viện', `${d.daysOfStay} ngày`)}
+${row('Trạng thái', d.statusName || '—')}</table></div>
+<div class="section"><h5>III. GHI CHÚ / Y LỆNH CHÍNH</h5>
+<div style="border:1px solid #ccc;padding:6px 8px;min-height:80px"></div></div>
+<div style="margin-top:32px;display:grid;grid-template-columns:1fr 1fr;gap:24px;text-align:center;font-size:12pt">
+<div><b>Bác sĩ điều trị</b><br/><span style="font-size:10pt;color:#888">(Ký và ghi rõ họ tên)</span><div style="height:60px"></div><b>${d.attendingDoctorName || '................'}</b></div>
+<div><b>Điều dưỡng trưởng</b><br/><span style="font-size:10pt;color:#888">(Ký và ghi rõ họ tên)</span><div style="height:60px"></div><b>................</b></div>
+</div>
+</body></html>`;
+}
 
 type IpStatusKey = 'admitted' | 'transferred' | 'discharged';
 const ipStatusKey = (s: number): IpStatusKey => (s === 1 ? 'transferred' : s === 2 ? 'discharged' : 'admitted');
@@ -393,6 +435,34 @@ const InpatientV2: React.FC = () => {
         footer={detail ? (
           <>
             <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
+            <Btn variant="ghost" onClick={() => openPrintWindow(buildInpatientRecordHtml(detail), { focus: true, print: { delayMs: 500 } })}>
+              <TermIcon name="printer" size={12} /> In phiếu
+            </Btn>
+            <Btn variant="ghost" onClick={() => openPrintWindow(
+              buildMedicalRecordHtml(
+                {
+                  hospitalName: HOSPITAL_NAME,
+                  departmentName: detail.departmentName,
+                  bedNumber: detail.bedName || '',
+                  patientName: detail.patientName,
+                  dateOfBirth: detail.dateOfBirth ? fmtDMY(detail.dateOfBirth) : '',
+                  age: detail.age || '',
+                  gender: genderLabel(detail.gender),
+                  patientType: detail.isInsurance ? 'bhyt' : 'fee',
+                  insuranceNumber: detail.insuranceNumber || '',
+                  insuranceValidDate: detail.insuranceExpiry ? fmtDMY(detail.insuranceExpiry) : '',
+                  admissionDate: detail.admissionDate,
+                  mainDiagnosis: detail.mainDiagnosis || '',
+                  medicalCode: detail.patientCode,
+                  doctorName: detail.attendingDoctorName || '',
+                },
+                MEDICAL_RECORD_TYPES[0],
+                false,
+              ),
+              { focus: true, print: { delayMs: 500 } },
+            )}>
+              <TermIcon name="printer" size={12} /> In bệnh án
+            </Btn>
             <Btn variant="primary" onClick={() => { setDetail(null); navigate('/v2/inpatient-dispensing'); }}>
               <TermIcon name="clipboard" size={12} /> Y lệnh
             </Btn>

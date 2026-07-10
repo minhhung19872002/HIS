@@ -6,6 +6,7 @@ import {
   EyeOutlined,
   FileExcelOutlined,
   PlayCircleOutlined,
+  PrinterOutlined,
   PlusOutlined,
   ReloadOutlined,
   SendOutlined,
@@ -477,6 +478,30 @@ const ReportsV2: React.FC = () => {
     }
   };
 
+  const handlePrintReport = async (report: ReportDefinition) => {
+    if (runningReport === report.id) return;
+    setRunningReport(report.id);
+    try {
+      const { fromDate, toDate } = getDateRange();
+      const resp = await apiClient.get(`/reporting/export/pdf/${report.id}`, {
+        params: { fromDate, toDate },
+        responseType: 'blob',
+      });
+      const blob = new Blob([resp.data as BlobPart], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, '_blank');
+      // Revoke after 60s — new tab has time to load before URL is freed
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      if (!win) {
+        message.warning('Trình duyệt chặn cửa sổ pop-up — vui lòng cho phép và thử lại');
+      }
+    } catch {
+      message.error('Tải dữ liệu in thất bại — thử lại sau');
+    } finally {
+      setRunningReport(null);
+    }
+  };
+
   return (
     <div className="reports-v2-page">
       <section className="reports-v2-strip">
@@ -634,6 +659,18 @@ const ReportsV2: React.FC = () => {
               <button
                 type="button"
                 className="reports-v2-btn ghost"
+                disabled={runningReport === report.id}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void handlePrintReport(report);
+                }}
+              >
+                <PrinterOutlined />
+                <span>In báo cáo</span>
+              </button>
+              <button
+                type="button"
+                className="reports-v2-btn ghost"
                 onClick={(event) => {
                   event.stopPropagation();
                   setSelectedReport(report);
@@ -692,6 +729,15 @@ const ReportsV2: React.FC = () => {
             >
               <FileExcelOutlined />
               <span>Tải Excel</span>
+            </button>
+            <button
+              type="button"
+              className="reports-v2-btn"
+              disabled={runningReport === selectedReport.id}
+              onClick={() => void handlePrintReport(selectedReport)}
+            >
+              <PrinterOutlined />
+              <span>In báo cáo</span>
             </button>
             <Tooltip title="Gửi email báo cáo chưa được triển khai">
               <button type="button" className="reports-v2-btn primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
