@@ -408,6 +408,15 @@ namespace HIS.API.Controllers
     public async Task<ActionResult<LabQueueDisplayDto>> GetLabQueueDisplay()
     {
         var result = await _lisService.GetLabQueueDisplayAsync();
+        if (result != null)
+        {
+            // Endpoint anonymous (màn hình TV) không được lộ họ tên đầy đủ + mã BN (#406)
+            foreach (var item in result.ProcessingItems.Concat(result.WaitingItems).Concat(result.CompletedItems))
+            {
+                item.PatientName = HIS.Core.Common.NameMask.Mask(item.PatientName);
+                item.PatientCode = null;
+            }
+        }
         return Ok(result);
     }
     }

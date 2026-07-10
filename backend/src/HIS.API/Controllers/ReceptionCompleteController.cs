@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HIS.Core.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
@@ -227,6 +228,12 @@ public partial class ReceptionCompleteController : ControllerBase
     public async Task<ActionResult<QueueDisplayDto>> GetDisplayData(Guid roomId, [FromQuery] int queueType)
     {
         var result = await _receptionService.GetDisplayDataAsync(roomId, queueType);
+        if (result != null)
+        {
+            MaskTicketPii(result.CurrentServing);
+            result.CallingList.ForEach(MaskTicketPii);
+            result.WaitingList.ForEach(MaskTicketPii);
+        }
         return Ok(result);
     }
 
@@ -238,7 +245,17 @@ public partial class ReceptionCompleteController : ControllerBase
     public async Task<ActionResult<List<QueueTicketDto>>> GetCallingTickets(Guid roomId, [FromQuery] int limit = 5)
     {
         var result = await _receptionService.GetCallingTicketsAsync(roomId, limit);
+        result?.ForEach(MaskTicketPii);
         return Ok(result);
+    }
+
+    /// <summary>Endpoint anonymous (màn hình TV) không được lộ họ tên đầy đủ + PatientId/mã BN (#406).</summary>
+    private static void MaskTicketPii(QueueTicketDto? ticket)
+    {
+        if (ticket == null) return;
+        ticket.PatientName = NameMask.Mask(ticket.PatientName);
+        ticket.PatientId = null;
+        ticket.PatientCode = null;
     }
 
     #endregion

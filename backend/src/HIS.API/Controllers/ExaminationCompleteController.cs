@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using HIS.Core.Common;
 using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
@@ -43,7 +44,18 @@ public partial class ExaminationCompleteController : ControllerBase
     public async Task<ActionResult<WaitingRoomDisplayDto>> GetWaitingRoomDisplay(Guid roomId)
     {
         var result = await _examinationService.GetWaitingRoomDisplayAsync(roomId);
+        MaskWaitingRoomPii(result);
         return Ok(result);
+    }
+
+    /// <summary>Endpoint anonymous không được lộ họ tên đầy đủ BN ra internet (#406).</summary>
+    private static void MaskWaitingRoomPii(WaitingRoomDisplayDto? display)
+    {
+        if (display == null) return;
+        if (!string.IsNullOrEmpty(display.CurrentPatientName))
+            display.CurrentPatientName = NameMask.Mask(display.CurrentPatientName);
+        foreach (var c in display.CallingList) c.PatientName = NameMask.Mask(c.PatientName);
+        foreach (var w in display.WaitingList) w.PatientName = NameMask.Mask(w.PatientName);
     }
 
     /// <summary>
@@ -54,6 +66,7 @@ public partial class ExaminationCompleteController : ControllerBase
     public async Task<ActionResult<List<WaitingRoomDisplayDto>>> GetDepartmentWaitingRoomDisplays(Guid departmentId)
     {
         var result = await _examinationService.GetDepartmentWaitingRoomDisplaysAsync(departmentId);
+        result?.ForEach(MaskWaitingRoomPii);
         return Ok(result);
     }
 
