@@ -119,8 +119,10 @@ builder.Services.AddAuthentication(options =>
             var path = context.HttpContext.Request.Path;
             var isHubRequest = path.StartsWithSegments("/hubs");
             var isPrintRequest = path.StartsWithSegments("/api/pdf") || path.StartsWithSegments("/api/reception/print");
+            // #402: DICOM viewer nạp ảnh qua <img>/wadouri không gắn được header → nhận JWT qua query
+            var isPacsProxy = path.StartsWithSegments("/api/RISComplete/pacs");
 
-            if (!string.IsNullOrEmpty(accessToken) && (isHubRequest || isPrintRequest))
+            if (!string.IsNullOrEmpty(accessToken) && (isHubRequest || isPrintRequest || isPacsProxy))
             {
                 context.Token = accessToken;
             }

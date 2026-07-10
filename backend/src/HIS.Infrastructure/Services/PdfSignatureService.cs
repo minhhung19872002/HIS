@@ -485,7 +485,8 @@ public class PdfSignatureService : IPdfSignatureService
             var pdfBytes = memoryStream.ToArray();
 
             // Save to file
-            var fileName = $"RIS_{reportData.RequestCode}_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+            // #402: thêm GUID — tên file chỉ timestamp có thể brute-force để tải PDF của BN khác
+            var fileName = $"RIS_{reportData.RequestCode}_{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid():N}.pdf";
             var filePath = Path.Combine(_outputFolder, fileName);
             await File.WriteAllBytesAsync(filePath, pdfBytes);
 
@@ -596,7 +597,7 @@ public class PdfSignatureService : IPdfSignatureService
             outputStream.ForceDispose();
 
             // Save signed PDF
-            var fileName = $"RIS_SIGNED_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+            var fileName = $"RIS_SIGNED_{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid():N}.pdf";
             var filePath = Path.Combine(_outputFolder, fileName);
             await File.WriteAllBytesAsync(filePath, signedPdfBytes);
 

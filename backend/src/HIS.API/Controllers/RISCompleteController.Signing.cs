@@ -309,12 +309,25 @@ namespace HIS.API.Controllers
         /// Tải file PDF đã ký
         /// </summary>
         [HttpGet("pdf/download/{fileName}")]
-        [AllowAnonymous]
         public IActionResult DownloadSignedPdf(string fileName)
         {
             try
             {
-                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Radiology", fileName);
+                // #402: chặn path traversal — chỉ chấp nhận tên file .pdf thuần, không có phân cách đường dẫn
+                if (string.IsNullOrWhiteSpace(fileName)
+                    || fileName != Path.GetFileName(fileName)
+                    || fileName.Contains("..")
+                    || !fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(ApiResponse<object>.Fail("Tên file không hợp lệ"));
+                }
+
+                var reportsRoot = Path.Combine(Directory.GetCurrentDirectory(), "Reports", "Radiology");
+                var filePath = Path.GetFullPath(Path.Combine(reportsRoot, fileName));
+                if (!filePath.StartsWith(Path.GetFullPath(reportsRoot) + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+                {
+                    return BadRequest(ApiResponse<object>.Fail("Tên file không hợp lệ"));
+                }
                 if (!System.IO.File.Exists(filePath))
                 {
                     return NotFound(ApiResponse<object>.Fail("File không tồn tại"));

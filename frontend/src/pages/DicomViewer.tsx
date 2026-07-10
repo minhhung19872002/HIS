@@ -55,11 +55,21 @@ import { dicomStudyLogApi } from '../api/nangcap24';
 // Backend returns relative paths like "/api/RISComplete/pacs/instances/.../preview".
 // Resolve them against the API origin (Cloud Run) so the browser fetches them
 // from the backend instead of the frontend host (Vercel) which has no such route.
+// #402: proxy PACS yêu cầu JWT; <img>/wadouri không gắn được header nên đính ?access_token=
+// (Program.cs OnMessageReceived đọc query cho path /api/RISComplete/pacs).
 function resolveApiUrl(path: string | undefined | null): string {
   if (!path) return '';
-  if (/^https?:\/\//i.test(path)) return path;
-  if (!API_ORIGIN) return path;
-  return `${API_ORIGIN}${path.startsWith('/') ? '' : '/'}${path}`;
+  let url = path;
+  if (!/^https?:\/\//i.test(url) && API_ORIGIN) {
+    url = `${API_ORIGIN}${url.startsWith('/') ? '' : '/'}${url}`;
+  }
+  if (url.includes('/pacs/instances/')) {
+    const jwt = storage.getRaw(STORAGE_KEYS.token);
+    if (jwt && !url.includes('access_token=')) {
+      url += `${url.includes('?') ? '&' : '?'}access_token=${encodeURIComponent(jwt)}`;
+    }
+  }
+  return url;
 }
 
 const { Title, Text } = Typography;

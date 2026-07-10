@@ -223,8 +223,8 @@ namespace HIS.API.Controllers
         /// <summary>
         /// Proxy Orthanc instance preview (avoid CORS)
         /// </summary>
+        // #402: proxy stream PHI — yêu cầu JWT (viewer gửi qua ?access_token=, xem Program.cs OnMessageReceived)
         [HttpGet("pacs/instances/{instanceId}/preview")]
-        [AllowAnonymous]
         public async Task<ActionResult> GetInstancePreview(string instanceId)
         {
             var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:8042";
@@ -258,7 +258,6 @@ namespace HIS.API.Controllers
         /// và AI inference. Default 1024px width (config via ?width=).
         /// </summary>
         [HttpGet("pacs/instances/{instanceId}/rendered")]
-        [AllowAnonymous]
         public async Task<ActionResult> GetInstanceRendered(string instanceId, [FromQuery] int width = 1024)
         {
             var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:8042";
@@ -300,7 +299,6 @@ namespace HIS.API.Controllers
         /// Proxy Orthanc instance file download (avoid CORS)
         /// </summary>
         [HttpGet("pacs/instances/{instanceId}/file")]
-        [AllowAnonymous]
         public async Task<ActionResult> GetInstanceFile(string instanceId)
         {
             var pacsBaseUrl = _configuration["PACS:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:8042";
