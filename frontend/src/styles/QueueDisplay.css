@@ -886,3 +886,8 @@
     flex-direction: column;
   }
 }
+
+/* v2 TV board (#415) - so dang goi lon hon theo AC 96-120px; chi ap cho /v2/queue-display */
+.queue-display.v2 .queue-ticket-number {
+  font-size: 104px;
+}

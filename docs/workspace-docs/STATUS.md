@@ -5,7 +5,15 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-10** — **cửa port-408: ✅ #408 CLOSED** (12/13 stub→CRUD; 10 file lên origin trong `9c3b762` — đi CHUNG commit cửa #414 do race staging 2 cửa; DoctorPortal → **#417** mới). Cửa PORT #414 (w480): ✅ PUSHED Closes #414 (print gap 7 module v2). Cửa FE-restructure: Batch 6 ✅ PUSHED `6f49492` (API STRICT-relocate). `components/` root chỉ còn shim + category §4a (restructure components HOÀN TẤT).
+> Cập nhật cuối: **2026-07-10** — **cửa PORT w480: #415 QueueDisplay TV board v2 DONE-code READY_FOR_PUSH** (§Phiên #415). Cửa port-408: ✅ #408 CLOSED (12/13 stub→CRUD; 10 file lên origin trong `9c3b762` — đi CHUNG commit cửa #414 do race staging 2 cửa; DoctorPortal → **#417** mới). Cửa PORT #414 (w480): ✅ PUSHED Closes #414 (print gap 7 module v2). Cửa FE-restructure: Batch 6 ✅ PUSHED `6f49492`.
+
+## Phiên 2026-07-10 (cửa PORT w480 — #415 QueueDisplay TV board v2, DONE-code READY_FOR_PUSH)
+- **#415 [PORT-P9][FE][P2] DONE-code** (lock `415`, gh in-progress + @me): tạo `pages-v2/QueueDisplay.tsx` (~590 dòng) — **port VERBATIM từ v1** (diff cơ học: helpers + LabQueueView + RoomQueueView = 485 dòng identical, chỉ khác comment tiêu đề): TTS `vi-VN` rate 0.9 + beep AudioContext 880Hz/0.2s + audio-unlock overlay + fullscreen btn + blink 5s + first-poll guard ref + polling 4s.
+  - **Route:** `/v2/queue-display` standalone PUBLIC trong `router/AppRoutes.tsx` (ngoài TerminalLayout/ProtectedRoute — TV board không auth, giống v1 `/queue-display`; backend đã mask tên BN #406). Không xung đột `/v2` layout (routeConfigs không có `queue-display`).
+  - **Param:** `?type=lab` → LabQueueView (5 trạng thái màu riêng + emergency/priority class + KPI 4 chỉ số) · `?type=general`/default → RoomQueueView (`?rooms=id1,id2&queueType=`); chấp nhận `?mode=` legacy URL v1.
+  - **KHÔNG port:** Kiosk (v2 đã có KioskSelfService) · ZoneQueueView (ngoài AC #415, giữ ở v1).
+  - **CSS:** reuse `styles/QueueDisplay.css` (zero visual drift) + override scoped `.queue-display.v2 .queue-ticket-number{font-size:104px}` đáp ứng AC 96–120px (v1 giữ 72px).
+  - **Gate:** tsc -b EXIT 0 · npm run build EXIT 0. **CHỜ user duyệt push** (`Closes #415`; git add tường minh 4 file: pages-v2/QueueDisplay.tsx + router/AppRoutes.tsx + styles/QueueDisplay.css + STATUS.md; ⚠️ RE-CHECK `git diff --cached --name-only` NGAY SÁT commit — index chung đã gây race `9c3b762`).
 
 ## Phiên 2026-07-10 (cửa PORT #414 w480 — print gap v1→v2 7 module, ✅ PUSHED Closes #414)
 - **#414 [PORT-P8][FE][P1] DONE + PUSHED**: bổ sung print cho 7 module v2 theo pattern `openPrintWindow(html, {focus, print:{delayMs:500}})` + `HOSPITAL_NAME`:

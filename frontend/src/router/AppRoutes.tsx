@@ -90,6 +90,7 @@ const Consultation = lazy(() => import('../pages/Consultation'));
 const Help = lazy(() => import('../pages/Help'));
 const DicomViewer = lazy(() => import('../pages/DicomViewer'));
 const QueueDisplay = lazy(() => import('../pages/QueueDisplay'));
+const QueueDisplayV2 = lazy(() => import('../pages-v2/QueueDisplay'));
 const EMR = lazy(() => import('../pages/EMR'));
 const MedicalSupply = lazy(() => import('../pages/MedicalSupply'));
 const FollowUp = lazy(() => import('../pages/FollowUp'));
@@ -158,6 +159,7 @@ const AppRoutes: React.FC = () => {
     <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/queue-display" element={<QueueDisplay />} />
+        <Route path="/v2/queue-display" element={<QueueDisplayV2 />} />
         <Route path="/dat-lich" element={<AppointmentBooking />} />
         <Route path="/shared/:token" element={<PublicStudyViewer />} />
         <Route path="/tra-cuu-benh-an" element={<PublicEmrLookup />} />
