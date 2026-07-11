@@ -5,27 +5,34 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-11** — **goal "giải quyết tất cả issue open": ĐÃ CLOSE 6 issue FE shell self-contained (user cho push không hỏi lại) → `65f9fd24`·`83a76bed`·`9a85dfab`·`795e01f9`. Còn 24 non-test (đa số epic/deploy-smoke/product-decision).**
+> Cập nhật cuối: **2026-07-11** — **cửa 409-nghiep-vu: #409 sub-scope 8 trang nghiệp vụ DONE-code CHỜ push. cửa 409-sysadmin: #409 SystemAdmin 6 tab mới (wired 8→14) + 4 fix regression DONE-code (tsc EXIT 0 + vite BUILD_EXIT:0) CHỜ push. #412 CHỜ push.**
 
-## Phiên 2026-07-11 (goal all-open-issues — 6 FE shell issue CLOSED+pushed)
-- **#381 [LAYOUT-7] dark+compact** ✅ `65f9fd24`: `buildContentTheme(isDark,isCompact)` áp darkAlgorithm/compactAlgorithm trong ConfigProvider lồng TerminalShell (light giữ NGUYÊN, phân vùng brand/shape/light-surface); ThemeContext +isCompact/toggleCompact persist; nút toggle compact. Dark CSS-var đã có (#158) → ab-* tự flip.
-- **#380 [LAYOUT-6] SignalR notif thật** ✅ `65f9fd24`: bell v2 dùng `useNotifications()` thay 4 demo (unreadCount thật, markAsRead+navigate, markAllAsRead, empty-state); xóa DEMO_NOTIFICATIONS.
-- **#383 [LAYOUT-9] idle-lock** ✅ `65f9fd24`: `IdleLockScreen.tsx` (10' idle→overlay, verify-password mở khóa, sai 3→logout, IDLE_LOCK_IMMINENT); +`authApi.verifyPassword`.
-- **#382 [LAYOUT-8] Command Palette** ✅ `83a76bed`: `PALETTE_ITEMS` = union ALL_ITEMS + mọi v2Routes (phủ trang không-menu), lọc `usePermission().can()`; `useRegisterCommands` đã có sẵn.
-- **#377 [LAYOUT-3] permission guards** ✅ `9a85dfab`: `guards/{RequirePermission,Can,Forbidden403}` + wire vào v2Routes.map (permission=undefined→pass hết, an toàn, sẵn #378).
-- **#386 [LAYOUT-12] perf** ✅ `795e01f9`: memo Rail/Flyout + useCallback 6 handler (sidebar không re-render); Suspense-per-route xác nhận; bundle audit doc §2 (antd 496KB gzip eager = gap task-slim riêng; cornerstone 830KB lazy chấp nhận).
-- **#376 [LAYOUT-2] tách shell** ✅ `960a067d`: TerminalLayout 859→542 dòng → `Sidebar.tsx`(Rail+Flyout) · `TopBar.tsx`(Topbar+useClock+notif helpers) · `PatientContextBar.tsx`(Ticker). Verbatim move byte-identical, dọn 9 import thừa.
-- **Gate:** tsc0 + vite✓ mỗi lần. **DEFER (có lý do):** #379 role-dashboard (cần #375+#378+role-strings thật → làm bừa ẩn nhầm widget) · #378 (cần catalog AUTHZ).
-- **Còn 23 non-test — phân loại (đều cần thứ ngoài "code+build" nên KHÔNG tự đóng autonomos):**
-  - **Blocked-catalog:** #375 (unify registry, phần lớn đã đạt qua routeConfigs+menu.service+route.meta.permission) · #378 (điền mã quyền — cần catalog AUTHZ #367) · #379 (role-dashboard — cần #375+#378).
-  - **Backend AUTHZ epic (deploy+smoke, security lớn):** #367 #368 #369 #370 #371 · #372(epic) · #384 #385.
-  - **Commercial product-feature:** #404 workspace-layer · #405 EnabledModules.
-  - **PORT v1→v2 (deploy+smoke):** #407 patient-safety residual · #409 ~40 trang partial · #413 DicomViewer v2-native.
-  - **Product-decision:** #417 DoctorPortal giữ/bỏ.
-  - **REFAC:** #362 OpdEditor P2 (patient-safety, deploy+smoke) · #363 BusinessAlert (logic-change, deploy+smoke) · #364 BE god-split wave-3 (~25 file, phiên riêng) · #365 dev-controller thin (BE, isolated — closeable phiên BE riêng).
-  - **Epic tracker:** #352 · #387.
-  - **TEST (RULE: làm CUỐI):** #191 #212 #213 + 128 test-EV.
+## Phiên 2026-07-11 (cửa 409-nghiep-vu — #409 8 trang nghiệp vụ, DONE-code CHỜ push)
+- **#409 [PORT-P3][FE] sub-scope nghiệp vụ DONE-code** (lock `409-nghiep-vu`): port 8 trang `pages-v2/`:
+  - **EnvironmentalHealth**: `Promise.allSettled` 3 stats API + KpiStrip server + `DatePicker.RangePicker`.
+  - **FollowUp** (+264 dòng): TopTabs 4 scope (today/upcoming/overdue/all) + RangePicker + Filter status/type + `handleUpdateStatus` (confirm-arrived status=2 / no-show status=3) + server pagination `searchAppointments` + `getOverdueFollowUps(30)`.
+  - **Pathology** (+240 dòng): `ResultModal` 10 field + `createPathologyResult` + `printPathologyReport` PDF blob + `getPathologyStatistics` + RangePicker + 5-state StatusTabs.
+  - **Procurement** (+4/-4): fix import path `'../api/warehouse'` → `'../modules/pharmacy/api/warehouse'`.
+  - **TreatmentProtocol** (+34 dòng): `approveProtocol`/`createNewVersion` + `cf()` confirm + dept filter + fix duplicate ActBtn + `openPrintWindow` thay `window.print()`.
+  - **FoodSafety** (+430 dòng): TopTabs 2 tab — tab "Vụ ngộ độc" (giữ nguyên) + tab "Thanh kiểm tra" A/B/C/D grading + CrudModal 9 field + DataTable + DrawerShell.
+  - **ReproductiveHealth** (rewrite +617 dòng): TopTabs 2 tab — "Quản thai" (KpiStrip 4 tile + StatusTabs + CrudModal 10 field + `getHighRiskPregnancies`) + "KHHGĐ" (StatusTabs + Filter method + CrudModal 8 field).
+  - **HealthCheckup** (+685 dòng): TopTabs 2 tab — "KSK" (giữ nguyên) + "Chiến dịch KSK" (`CampaignTab`: CRUD campaign + groups sub-panel + Excel import `importBatchExcel`).
+  - **Gate:** `tsc -b --noEmit` EXIT 0 · `npm run build` EXIT 0 (agent confirmed). 8 file, ~1922 insertions.
+  - **CHỜ push** (git add tường minh 8 file + STATUS.md; commit `Refs #409`).
 
+## Phiên 2026-07-11 (cửa 409-sysadmin — #409 SystemAdmin v2 6 tab mới, DONE-code CHỜ push)
+- **#409 [PORT-P3][FE] sub-scope SystemAdmin DONE-code** (lock `409-sysadmin`): mở rộng SystemAdmin.tsx từ 8→14 tab bằng 6 panel mới trong `pages-v2/system-admin/`:
+  - **helpers.ts**: `getNestedData<T>`, `toStringValue`, `toNumberValue`, `RawApiItem`
+  - **ItTicketsPanel**: KpiStrip (4 chỉ số) + filter priority/status + SearchBox + DataTable + DrawerShell chi tiết + ModalShell tạo + ModalShell phản hồi + `cf()` đóng ticket. API: `modules/system/api/itTicket`.
+  - **AccessMatrixPanel**: DataTable vai trò + DrawerShell liệt kê quyền theo module dạng StatusBadge chips. API: `modules/system/api/security`.
+  - **CompliancePanel**: KpiStrip 8 chỉ số ATTT + DatePicker.RangePicker + DataTable + DrawerShell nested DataTable truy cập nhạy cảm. API: `modules/system/api/security`.
+  - **DataManagementPanel**: KpiStrip 6 chỉ số + DataTable module counts + grid backup/export + DataTable handover. API: `modules/administration/api/dataExport`.
+  - **HealthPanel**: interval 30s với `active` prop pause khi tab inactive (useRef + useEffect[active,fetch]) + KpiStrip + component health cards grid + DataTable HTTP codes + DataTable top endpoints. API: `api/health.ts` (KHÔNG relocate).
+  - **EmrAdminPanel**: TopTabs 6 sub-type + shared ModalShell Form switch-case + DataTable + `cf()` delete. API: `modules/emr/api/emrAdmin`. Pure CRUD, không interval.
+  - **SystemAdmin.tsx**: type AdminTab mở rộng 8→14; TABS thêm 6 mục; load() `else`→`else if (tab==='audit')` (chống audit fallthrough); render blocks 6 tab mới.
+  - **4 fix regression (phiên này):** ItTicketsPanel debounce 400ms (`useDebounce` thay per-keystroke) · DataManagementPanel xóa `.slice(0,5)` backup+exportHistory · EmrAdminPanel thêm `cover` vào điều kiện description · HealthPanel CSS tokens (`--brd`→`--line`, `--radius`→`--r-2`, `--srf`→`--d-1`, `--crit`→`--s-crit`).
+  - **Gate:** `tsc -b` EXIT 0 · `npm run build` (tsc -b && vite build) BUILD_EXIT:0. 7 file mới + SystemAdmin.tsx.
+  - **CHỜ user duyệt push** (`git add` tường minh 8 file: `pages-v2/SystemAdmin.tsx` + `pages-v2/system-admin/{helpers,ItTickets,AccessMatrix,Compliance,DataManagement,Health,EmrAdmin}Panel.tsx` + `STATUS.md` → commit `Refs #409`).
 
 ## Phiên 2026-07-11 (cửa PORT w196 — #415+#416 ✅ CLOSED, #412 AiQueueBadge DONE-code CHỜ push)
 - **#415 [PORT-P9][FE][P2] ✅ PUSHED `be63a78` CLOSED**: QueueDisplay TV board v2 — TTS + beep + lab queue 5-status. Route `/v2/queue-display` standalone public. Lock released.

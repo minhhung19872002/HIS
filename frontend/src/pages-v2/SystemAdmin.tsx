@@ -3,27 +3,51 @@ import dayjs from 'dayjs';
 import { Input, Select, Switch, Form } from 'antd';
 import type { AxiosError } from 'axios';
 import { adminApi, catalogApi } from '../modules/system/api/system';
-import type { SystemUserDto, RoleDto, SystemConfigDto, UserSessionDto, CreateUserDto, UpdateUserDto } from '../modules/system/api/system';
-import { getAuditLogs } from '../api/audit';
-import type { AuditLogDto } from '../api/audit';
+import type {
+  SystemUserDto, RoleDto, SystemConfigDto, UserSessionDto, CreateUserDto, UpdateUserDto,
+  SystemNotificationDto, LockedServiceDto,
+} from '../modules/system/api/system';
+import { getAuditLogs } from '../modules/system/api/audit';
+import type { AuditLogDto } from '../modules/system/api/audit';
 import { applyServerErrors, type ServerValidationError } from '../utils/formError';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, DrawerShell, DrSec, DrField, StatusBadge,
   ModalShell, ActBtn, Btn, tk, te, cf,
   type ColumnDef, type TopTab,
 } from './_v2kit';
+import ItTicketsPanel from './system-admin/ItTicketsPanel';
+import AccessMatrixPanel from './system-admin/AccessMatrixPanel';
+import CompliancePanel from './system-admin/CompliancePanel';
+import DataManagementPanel from './system-admin/DataManagementPanel';
+import HealthPanel from './system-admin/HealthPanel';
+import EmrAdminPanel from './system-admin/EmrAdminPanel';
 
 // Department có 2 shape (id|departmentId, name|departmentName) khi đến từ catalog API khác nhau
 interface RawDepartmentLite { id?: string; departmentId?: string; name?: string; departmentName?: string }
 // Chi nhánh từ /catalog/branches (R3 đa cơ sở)
 interface RawBranchLite { id?: string; branchName?: string }
+// Chi nhánh đầy đủ cho tab Branches
+interface BranchRecord { id: string; code?: string; name: string; address?: string; phone?: string; email?: string; isHeadquarter?: boolean; isActive?: boolean; description?: string }
+// Dịch vụ tìm kiếm khi khóa
+interface ServiceSearchItem { id: string; code: string; name: string; stype: number }
 
-type AdminTab = 'users' | 'roles' | 'audit' | 'config';
+type AdminTab = 'users' | 'roles' | 'audit' | 'config' | 'sessions' | 'notifications' | 'locked-services' | 'branches'
+  | 'it-tickets' | 'access-matrix' | 'compliance' | 'data-management' | 'health' | 'emr-admin';
 const TABS: TopTab<AdminTab>[] = [
-  { v: 'users',  l: 'Người dùng',      ic: 'users' },
-  { v: 'roles',  l: 'Vai trò & quyền', ic: 'shield' },
-  { v: 'audit',  l: 'Audit log',       ic: 'list' },
-  { v: 'config', l: 'Cấu hình HT',     ic: 'settings' },
+  { v: 'users',           l: 'Người dùng',         ic: 'users' },
+  { v: 'roles',           l: 'Vai trò & quyền',     ic: 'shield' },
+  { v: 'sessions',        l: 'Phiên đăng nhập',     ic: 'list' },
+  { v: 'notifications',   l: 'Thông báo',            ic: 'bell' },
+  { v: 'locked-services', l: 'Khóa dịch vụ',        ic: 'lock' },
+  { v: 'branches',        l: 'Chi nhánh',            ic: 'external' },
+  { v: 'audit',           l: 'Audit log',            ic: 'list' },
+  { v: 'config',          l: 'Cấu hình HT',          ic: 'settings' },
+  { v: 'it-tickets',      l: 'Yêu cầu CNTT',        ic: 'message-square' },
+  { v: 'access-matrix',   l: 'Ma trận quyền',       ic: 'grid' },
+  { v: 'compliance',      l: 'ATTT/Tuân thủ',       ic: 'check' },
+  { v: 'data-management', l: 'Dữ liệu',              ic: 'download' },
+  { v: 'health',          l: 'Giám sát HT',          ic: 'heart' },
+  { v: 'emr-admin',       l: 'EMR Admin',            ic: 'file-text' },
 ];
 
 function roleList(u: SystemUserDto): (string | RoleDto)[] { return (u.roles ?? []) as unknown as (string | RoleDto)[]; }
@@ -41,6 +65,7 @@ function isAdminUser(u: SystemUserDto): boolean {
 const SystemAdminV2: React.FC = () => {
   const [tab, setTab] = useState<AdminTab>('users');
   const [keyword, setKeyword] = useState('');
+  // ─── Users/Roles/Config/Audit ───
   const [users, setUsers] = useState<SystemUserDto[]>([]);
   const [sessions, setSessions] = useState<UserSessionDto[]>([]);
   const [roles, setRoles] = useState<RoleDto[]>([]);
@@ -48,19 +73,40 @@ const SystemAdminV2: React.FC = () => {
   const [configs, setConfigs] = useState<SystemConfigDto[]>([]);
   const [depts, setDepts] = useState<{ id: string; name: string }[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  // ─── New tab data ───
+  const [notifications, setNotifications] = useState<SystemNotificationDto[]>([]);
+  const [lockedServices, setLockedServices] = useState<LockedServiceDto[]>([]);
+  const [branchFull, setBranchFull] = useState<BranchRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selUser, setSelUser] = useState<SystemUserDto | null>(null);
+  const [selBranch, setSelBranch] = useState<BranchRecord | null>(null);
 
-  // Modal mode + Antd Form (validate + scrollToFirstError + lỗi inline)
+  // ─── User modal ───
   const [userModal, setUserModal] = useState<'new' | 'edit' | null>(null);
   const [editUserId, setEditUserId] = useState<string | null>(null);
+  // ─── Role modal ───
   const [roleModal, setRoleModal] = useState<'new' | 'edit' | null>(null);
   const [editRoleId, setEditRoleId] = useState<string | null>(null);
+  // ─── Config modal ───
   const [cfgModal, setCfgModal] = useState<SystemConfigDto | null>(null);
+  // ─── Notification modal ───
+  const [notifModal, setNotifModal] = useState(false);
+  // ─── Lock service modal ───
+  const [lockModal, setLockModal] = useState(false);
+  const [lockKw, setLockKw] = useState('');
+  const [lockResults, setLockResults] = useState<ServiceSearchItem[]>([]);
+  const [lockSearching, setLockSearching] = useState(false);
+  // ─── Branch modal ───
+  const [branchModal, setBranchModal] = useState<'new' | 'edit' | null>(null);
+  const [editingBranch, setEditingBranch] = useState<BranchRecord | null>(null);
+
   const [saving, setSaving] = useState(false);
   const [userF] = Form.useForm();
   const [roleF] = Form.useForm();
   const [cfgF] = Form.useForm();
+  const [notifF] = Form.useForm();
+  const [lockF] = Form.useForm();
+  const [branchF] = Form.useForm();
 
   useEffect(() => {
     (async () => {
@@ -98,10 +144,15 @@ const SystemAdminV2: React.FC = () => {
       if (tab === 'users') { const r = await adminApi.getUsers(); setUsers(Array.isArray(r.data) ? r.data : []); }
       else if (tab === 'roles') { const r = await adminApi.getRoles(true); setRoles(Array.isArray(r.data) ? r.data : []); }
       else if (tab === 'config') { const r = await adminApi.getSystemConfigs(); setConfigs(Array.isArray(r.data) ? r.data : []); }
-      else {
+      else if (tab === 'sessions') { const r = await adminApi.getActiveSessions(); setSessions(Array.isArray(r.data) ? r.data : []); }
+      else if (tab === 'notifications') { const r = await adminApi.getSystemNotifications(); setNotifications(Array.isArray(r.data) ? r.data : []); }
+      else if (tab === 'locked-services') { const r = await adminApi.getLockedServices(); setLockedServices(Array.isArray(r.data) ? r.data : []); }
+      else if (tab === 'branches') { const r = await catalogApi.getBranches(); setBranchFull((Array.isArray(r.data) ? r.data : []) as BranchRecord[]); }
+      else if (tab === 'audit') {
         const r = await getAuditLogs({ fromDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'), toDate: dayjs().format('YYYY-MM-DD'), keyword: keyword || undefined, pageIndex: 1, pageSize: 100 });
         setAudit(Array.isArray(r.data?.items) ? r.data.items : []);
       }
+      // else: it-tickets / access-matrix / compliance / data-management / health / emr-admin = self-loading panels, no-op
     } catch { /* keep current */ }
     finally { setLoading(false); }
   }, [tab, keyword]);
@@ -111,7 +162,7 @@ const SystemAdminV2: React.FC = () => {
   const deptOptions = useMemo(() => depts.map((d) => ({ value: d.id, label: d.name })), [depts]);
   const branchOptions = useMemo(() => branches.map((b) => ({ value: b.id, label: b.name })), [branches]);
 
-  // ─── User CRUD (Antd Form validate) ───
+  // ─── User CRUD ───
   const openNewUser = () => { setEditUserId(null); userF.resetFields(); userF.setFieldsValue({ isActive: true, roleIds: [] }); setUserModal('new'); };
   const openEditUser = (u: SystemUserDto) => {
     const ids = roleList(u).map((r) => {
@@ -128,7 +179,7 @@ const SystemAdminV2: React.FC = () => {
   };
   const submitUser = async () => {
     let v: Record<string, unknown>;
-    try { v = await userF.validateFields(); } catch { return; } // Antd tự focus/scroll field lỗi + hiện msg inline
+    try { v = await userF.validateFields(); } catch { return; }
     setSaving(true);
     try {
       if (userModal === 'new') {
@@ -198,6 +249,77 @@ const SystemAdminV2: React.FC = () => {
     finally { setSaving(false); }
   };
 
+  // ─── Sessions: terminate ───
+  const kickSession = (s: UserSessionDto) => cf(`Kết thúc phiên của "${s.fullName || s.username}"?`, async () => {
+    try { await adminApi.terminateSession(s.id!); tk('Đã kết thúc phiên'); load(); } catch { te('Thất bại'); }
+  }, { tone: 'crit', confirm: 'Kick' });
+
+  // ─── Notifications: send ───
+  const submitNotif = async () => {
+    let v: Record<string, unknown>;
+    try { v = await notifF.validateFields(); } catch { return; }
+    setSaving(true);
+    try {
+      await adminApi.saveSystemNotification({
+        title: v.title as string, content: v.content as string,
+        notificationType: (v.notificationType as string) || 'Info',
+        priority: 'Normal', isActive: true,
+        targetUsers: v.targetUserId ? [v.targetUserId as string] : undefined,
+        targetRoles: v.targetRoleId ? [v.targetRoleId as string] : undefined,
+        startDate: new Date().toISOString(),
+      } as SystemNotificationDto);
+      tk('Đã gửi thông báo'); setNotifModal(false); notifF.resetFields(); load();
+    } catch { te('Gửi thất bại'); }
+    finally { setSaving(false); }
+  };
+
+  // ─── Locked services: search + lock/unlock ───
+  const searchLockServices = async (kw: string) => {
+    if (!kw.trim()) { setLockResults([]); return; }
+    setLockSearching(true);
+    try {
+      const [ex, para, med] = await Promise.allSettled([
+        catalogApi.getExaminationServices(kw), catalogApi.getParaclinicalServices(kw), catalogApi.getMedicines({ keyword: kw }),
+      ]);
+      const res: ServiceSearchItem[] = [];
+      if (ex.status === 'fulfilled') { const arr = Array.isArray(ex.value.data) ? ex.value.data : (ex.value.data as { items?: unknown[] })?.items ?? []; (arr as Record<string, unknown>[]).forEach((s) => res.push({ id: String(s.id || ''), code: String(s.serviceCode || s.code || ''), name: String(s.serviceName || s.name || ''), stype: 3 })); }
+      if (para.status === 'fulfilled') { const arr = Array.isArray(para.value.data) ? para.value.data : (para.value.data as { items?: unknown[] })?.items ?? []; (arr as Record<string, unknown>[]).forEach((s) => res.push({ id: String(s.id || ''), code: String(s.serviceCode || s.code || ''), name: String(s.serviceName || s.name || ''), stype: 3 })); }
+      if (med.status === 'fulfilled') { const arr = Array.isArray(med.value.data) ? med.value.data : (med.value.data as { items?: unknown[] })?.items ?? []; (arr as Record<string, unknown>[]).forEach((s) => res.push({ id: String(s.id || ''), code: String(s.medicineCode || s.code || ''), name: String(s.medicineName || s.name || ''), stype: 1 })); }
+      setLockResults(res.slice(0, 50));
+    } catch { setLockResults([]); }
+    finally { setLockSearching(false); }
+  };
+  const submitLock = async () => {
+    let v: Record<string, unknown>;
+    try { v = await lockF.validateFields(); } catch { return; }
+    setSaving(true);
+    try { await adminApi.lockService(v.serviceId as string, v.reason as string); tk('Đã khóa dịch vụ'); setLockModal(false); lockF.resetFields(); setLockKw(''); setLockResults([]); load(); }
+    catch { te('Khóa thất bại'); }
+    finally { setSaving(false); }
+  };
+  const unlockSvc = (s: LockedServiceDto) => cf(`Mở khóa dịch vụ "${(s as unknown as Record<string, unknown>).serviceName || s.id}"?`, async () => {
+    try { await adminApi.unlockService(String((s as unknown as Record<string, unknown>).serviceId || s.id)); tk('Đã mở khóa'); load(); } catch { te('Thất bại'); }
+  }, { confirm: 'Mở khóa' });
+
+  // ─── Branches CRUD ───
+  const openNewBranch = () => { setEditingBranch(null); branchF.resetFields(); branchF.setFieldsValue({ isActive: true, isHeadquarter: false }); setBranchModal('new'); };
+  const openEditBranch = (b: BranchRecord) => { setEditingBranch(b); branchF.setFieldsValue(b); setBranchModal('edit'); };
+  const submitBranch = async () => {
+    let v: Record<string, unknown>;
+    try { v = await branchF.validateFields(); } catch { return; }
+    setSaving(true);
+    try {
+      const data = editingBranch ? { ...v, id: editingBranch.id } : v;
+      await catalogApi.saveBranch(data); tk(editingBranch ? 'Đã cập nhật chi nhánh' : 'Đã thêm chi nhánh');
+      setBranchModal(null); setEditingBranch(null); branchF.resetFields(); load();
+    } catch { te('Lưu thất bại'); }
+    finally { setSaving(false); }
+  };
+  const delBranch = (b: BranchRecord) => cf(`Xoá chi nhánh "${b.name}"?`, async () => {
+    try { await catalogApi.deleteBranch(b.id); tk('Đã xoá chi nhánh'); load(); } catch { te('Xoá thất bại'); }
+  }, { tone: 'crit', confirm: 'Xoá' });
+
+  // ─── Filter ───
   const filteredUsers = useMemo(() => {
     if (!keyword.trim()) return users;
     const q = keyword.toLowerCase();
@@ -213,15 +335,21 @@ const SystemAdminV2: React.FC = () => {
     const q = keyword.toLowerCase();
     return configs.filter((c) => c.configKey.toLowerCase().includes(q) || (c.category || '').toLowerCase().includes(q) || (c.description || '').toLowerCase().includes(q));
   }, [configs, keyword]);
+  const filteredBranches = useMemo(() => {
+    if (!keyword.trim()) return branchFull;
+    const q = keyword.toLowerCase();
+    return branchFull.filter((b) => (b.code || '').toLowerCase().includes(q) || b.name.toLowerCase().includes(q) || (b.address || '').toLowerCase().includes(q));
+  }, [branchFull, keyword]);
 
   const kpis = useMemo(() => [
     { lbl: 'Tổng tài khoản', val: users.length },
     { lbl: 'Đang online', val: sessions.filter((s) => s.isActive).length, tone: 'ok' as const },
     { lbl: 'Bị khoá', val: users.filter((u) => u.isLocked).length, tone: 'crit' as const },
     { lbl: 'Bật 2FA', val: users.filter((u) => u.isTwoFactorEnabled).length, tone: 'info' as const },
-    { lbl: 'Quản trị', val: users.filter(isAdminUser).length, tone: 'warn' as const },
-  ], [users, sessions]);
+    { lbl: 'Chi nhánh', val: branchFull.length || branches.length },
+  ], [users, sessions, branchFull, branches]);
 
+  // ─── Column defs ───
   const userColumns: ColumnDef<SystemUserDto>[] = [
     { key: 'username', label: 'Tài khoản', mono: true, code: true, render: (u) => u.username },
     { key: 'fullName', label: 'Họ tên', render: (u) => u.fullName },
@@ -253,18 +381,61 @@ const SystemAdminV2: React.FC = () => {
     { key: 'description', label: 'Mô tả', render: (c) => c.description || '—' },
     { key: 'dataType', label: 'Kiểu', width: 100, render: (c) => c.dataType || '—' },
   ];
+  type SessionRow = UserSessionDto & { id: string };
+  const sessionColumns: ColumnDef<SessionRow>[] = [
+    { key: 'user', label: 'Người dùng', render: (s) => `${s.fullName || ''} (@${s.username || ''})` },
+    { key: 'status', label: 'Trạng thái', width: 100, render: (s) => s.isActive ? <StatusBadge tone="ok" dot>Online</StatusBadge> : <StatusBadge dot>Offline</StatusBadge> },
+    { key: 'ip', label: 'IP', mono: true, width: 130, render: (s) => (s as unknown as Record<string, string>).ipAddress || '—' },
+    { key: 'device', label: 'Thiết bị', width: 100, render: (s) => (s as unknown as Record<string, string>).deviceType || '—' },
+    { key: 'login', label: 'Đăng nhập', mono: true, width: 140, render: (s) => (s as unknown as Record<string, string>).loginTime ? dayjs((s as unknown as Record<string, string>).loginTime).format('DD/MM HH:mm') : '—' },
+    { key: 'last', label: 'Hoạt động cuối', mono: true, width: 140, render: (s) => (s as unknown as Record<string, string>).lastActivityTime ? dayjs((s as unknown as Record<string, string>).lastActivityTime).format('DD/MM HH:mm') : '—' },
+  ];
+  type NotifRow = SystemNotificationDto & { id: string };
+  const notifColumns: ColumnDef<NotifRow>[] = [
+    { key: 'createdAt', label: 'Thời gian', mono: true, width: 140, render: (n) => n.startDate ? dayjs(n.startDate).format('DD/MM HH:mm') : '—' },
+    { key: 'title', label: 'Tiêu đề', render: (n) => n.title },
+    { key: 'content', label: 'Nội dung', render: (n) => n.content },
+    { key: 'type', label: 'Loại', width: 100, render: (n) => { const tone = n.notificationType === 'Error' ? 'crit' : n.notificationType === 'Warning' ? 'warn' : n.notificationType === 'Success' ? 'ok' : 'info'; return <StatusBadge tone={tone}>{n.notificationType || 'Info'}</StatusBadge>; } },
+    { key: 'isActive', label: 'Trạng thái', width: 100, render: (n) => n.isActive ? <StatusBadge tone="ok" dot>Hoạt động</StatusBadge> : <StatusBadge dot>Đã tắt</StatusBadge> },
+  ];
+  type LockRow = LockedServiceDto & { id: string };
+  const lockColumns: ColumnDef<LockRow>[] = [
+    { key: 'code', label: 'Mã DV', mono: true, width: 100, render: (s) => (s as unknown as Record<string, string>).serviceCode || '—' },
+    { key: 'name', label: 'Tên dịch vụ', render: (s) => (s as unknown as Record<string, string>).serviceName || '—' },
+    { key: 'reason', label: 'Lý do khóa', render: (s) => (s as unknown as Record<string, string>).lockReason || '—' },
+    { key: 'lockedBy', label: 'Người khóa', width: 120, render: (s) => (s as unknown as Record<string, string>).lockedByName || '—' },
+    { key: 'lockedAt', label: 'Ngày khóa', mono: true, width: 130, render: (s) => (s as unknown as Record<string, string>).lockedAt ? dayjs((s as unknown as Record<string, string>).lockedAt).format('DD/MM HH:mm') : '—' },
+    { key: 'status', label: 'Trạng thái', width: 100, render: (s) => (s as unknown as Record<string, boolean>).isLocked ? <StatusBadge tone="crit">Đang khoá</StatusBadge> : <StatusBadge tone="ok">Hoạt động</StatusBadge> },
+  ];
+  const branchColumns: ColumnDef<BranchRecord>[] = [
+    { key: 'code', label: 'Mã', mono: true, width: 80, render: (b) => b.code || '—' },
+    { key: 'name', label: 'Tên chi nhánh', render: (b) => b.name },
+    { key: 'address', label: 'Địa chỉ', render: (b) => b.address || '—' },
+    { key: 'phone', label: 'SĐT', width: 120, render: (b) => b.phone || '—' },
+    { key: 'hq', label: 'Trụ sở', width: 90, render: (b) => b.isHeadquarter ? <StatusBadge tone="warn">Trụ sở</StatusBadge> : '—' },
+    { key: 'status', label: 'Trạng thái', width: 110, render: (b) => b.isActive !== false ? <StatusBadge tone="ok">Hoạt động</StatusBadge> : <StatusBadge tone="warn">Ngừng</StatusBadge> },
+  ];
 
   return (
     <div className="ab">
       <KpiStrip items={kpis} />
 
       <div className="ab-tools">
-        <TopTabs tab={tab} setTab={setTab} tabs={TABS} />
+        <TopTabs tab={tab} setTab={(t) => { setKeyword(''); setTab(t); }} tabs={TABS} />
         <SearchBox value={keyword} onChange={setKeyword}
-          placeholder={tab === 'users' ? 'Tìm tài khoản / họ tên / vai trò…' : tab === 'roles' ? 'Tìm vai trò…' : tab === 'config' ? 'Tìm khoá / nhóm cấu hình…' : 'Tìm theo username / module…'} />
+          placeholder={
+            tab === 'users' ? 'Tìm tài khoản / họ tên / vai trò…' :
+            tab === 'roles' ? 'Tìm vai trò…' :
+            tab === 'config' ? 'Tìm khoá / nhóm cấu hình…' :
+            tab === 'branches' ? 'Tìm tên / mã / địa chỉ chi nhánh…' :
+            'Tìm theo username / module…'
+          } />
         <span className="spacer" />
         {tab === 'users' && <Btn variant="primary" onClick={openNewUser}>+ Thêm người dùng</Btn>}
         {tab === 'roles' && <Btn variant="primary" onClick={openNewRole}>+ Thêm vai trò</Btn>}
+        {tab === 'notifications' && <Btn variant="primary" onClick={() => setNotifModal(true)}>+ Gửi thông báo</Btn>}
+        {tab === 'locked-services' && <Btn variant="primary" onClick={() => { setLockModal(true); setLockResults([]); setLockKw(''); }}>+ Khóa dịch vụ</Btn>}
+        {tab === 'branches' && <Btn variant="primary" onClick={openNewBranch}>+ Thêm chi nhánh</Btn>}
         <Btn variant="ghost" onClick={load}>Làm mới</Btn>
       </div>
 
@@ -283,6 +454,26 @@ const SystemAdminV2: React.FC = () => {
           actions={(r) => (<><ActBtn ic="edit" title="Sửa" onClick={() => openEditRole(r)} /><ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => delRole(r)} /></>)}
           empty={loading ? 'Đang tải…' : 'Không có vai trò'} />
       )}
+      {tab === 'sessions' && (
+        <DataTable<SessionRow> columns={sessionColumns} data={sessions as SessionRow[]} rowKey={(s) => s.id || s.username || ''}
+          actions={(s) => s.isActive ? <ActBtn ic="trash" title="Kick" tone="crit" onClick={() => kickSession(s)} /> : null}
+          empty={loading ? 'Đang tải…' : 'Không có phiên đăng nhập'} />
+      )}
+      {tab === 'notifications' && (
+        <DataTable<NotifRow> columns={notifColumns} data={notifications as NotifRow[]} rowKey={(n) => String((n as unknown as Record<string, unknown>).id ?? n.title ?? '')}
+          empty={loading ? 'Đang tải…' : 'Chưa có thông báo'} />
+      )}
+      {tab === 'locked-services' && (
+        <DataTable<LockRow> columns={lockColumns} data={lockedServices as LockRow[]} rowKey={(s) => String((s as unknown as Record<string, unknown>).id ?? '')}
+          actions={(s) => (s as unknown as Record<string, boolean>).isLocked ? <ActBtn ic="check" title="Mở khóa" tone="warn" onClick={() => unlockSvc(s)} /> : null}
+          empty={loading ? 'Đang tải…' : 'Chưa có dịch vụ nào bị khóa'} />
+      )}
+      {tab === 'branches' && (
+        <DataTable<BranchRecord> columns={branchColumns} data={filteredBranches} rowKey={(b) => b.id}
+          onRowClick={(b) => setSelBranch(b)}
+          actions={(b) => (<><ActBtn ic="edit" title="Sửa" onClick={() => openEditBranch(b)} /><ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => delBranch(b)} /></>)}
+          empty={loading ? 'Đang tải…' : 'Chưa có chi nhánh'} />
+      )}
       {tab === 'audit' && (
         <DataTable<AuditLogDto> columns={auditColumns} data={audit} rowKey={(a) => String(a.id ?? '')} empty={loading ? 'Đang tải…' : 'Chưa có nhật ký 7 ngày'} />
       )}
@@ -291,7 +482,14 @@ const SystemAdminV2: React.FC = () => {
           actions={(c) => <ActBtn ic="edit" title="Sửa giá trị" onClick={() => openCfg(c)} />}
           empty={loading ? 'Đang tải…' : 'Chưa có cấu hình'} />
       )}
+      {tab === 'it-tickets' && <ItTicketsPanel />}
+      {tab === 'access-matrix' && <AccessMatrixPanel />}
+      {tab === 'compliance' && <CompliancePanel />}
+      {tab === 'data-management' && <DataManagementPanel />}
+      {tab === 'health' && <HealthPanel />}
+      {tab === 'emr-admin' && <EmrAdminPanel />}
 
+      {/* ─── User detail drawer ─── */}
       <DrawerShell open={!!selUser} onClose={() => setSelUser(null)} title={selUser?.fullName || ''} sub={selUser ? `@${selUser.username}` : ''} size="md">
         {selUser && (<>
           <DrSec title="Định danh">
@@ -319,7 +517,25 @@ const SystemAdminV2: React.FC = () => {
         </>)}
       </DrawerShell>
 
-      {/* User create/edit — Antd Form: validate + lỗi inline + scrollToFirstError */}
+      {/* ─── Branch detail drawer ─── */}
+      <DrawerShell open={!!selBranch} onClose={() => setSelBranch(null)} title={selBranch?.name || ''} sub={selBranch?.code || ''} size="md">
+        {selBranch && (<>
+          <DrSec title="Thông tin">
+            <DrField lbl="Mã">{selBranch.code || '—'}</DrField>
+            <DrField lbl="Địa chỉ">{selBranch.address || '—'}</DrField>
+            <DrField lbl="SĐT">{selBranch.phone || '—'}</DrField>
+            <DrField lbl="Email">{selBranch.email || '—'}</DrField>
+            <DrField lbl="Trụ sở chính">{selBranch.isHeadquarter ? 'Có' : 'Không'}</DrField>
+            <DrField lbl="Ghi chú">{selBranch.description || '—'}</DrField>
+          </DrSec>
+          <div style={{ display: 'flex', gap: 'var(--space-6)', marginTop: 'var(--space-12)' }}>
+            <Btn variant="primary" onClick={() => { setSelBranch(null); openEditBranch(selBranch); }}>Sửa</Btn>
+            <Btn variant="crit" onClick={() => { setSelBranch(null); delBranch(selBranch); }}>Xoá</Btn>
+          </div>
+        </>)}
+      </DrawerShell>
+
+      {/* ─── User create/edit modal ─── */}
       <ModalShell open={!!userModal} onClose={() => setUserModal(null)}
         title={userModal === 'new' ? 'Thêm người dùng' : 'Sửa người dùng'} size="md"
         footer={<><Btn onClick={() => setUserModal(null)}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submitUser}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn></>}>
@@ -340,7 +556,7 @@ const SystemAdminV2: React.FC = () => {
         </Form>
       </ModalShell>
 
-      {/* Role create/edit */}
+      {/* ─── Role create/edit modal ─── */}
       <ModalShell open={!!roleModal} onClose={() => setRoleModal(null)}
         title={roleModal === 'new' ? 'Thêm vai trò' : 'Sửa vai trò'} size="sm"
         footer={<><Btn onClick={() => setRoleModal(null)}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submitRole}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn></>}>
@@ -352,12 +568,74 @@ const SystemAdminV2: React.FC = () => {
         </Form>
       </ModalShell>
 
-      {/* Config edit */}
+      {/* ─── Config edit modal ─── */}
       <ModalShell open={!!cfgModal} onClose={() => setCfgModal(null)} title="Sửa cấu hình" sub={cfgModal?.configKey} size="sm"
         footer={<><Btn onClick={() => setCfgModal(null)}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submitCfg}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn></>}>
         <Form form={cfgF} layout="vertical" scrollToFirstError>
           <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)', marginBottom: 'var(--space-8)' }}>{cfgModal?.description || cfgModal?.category}</div>
           <Form.Item name="configValue" label="Giá trị" rules={[{ required: true, message: 'Nhập giá trị' }]}><Input.TextArea rows={3} /></Form.Item>
+        </Form>
+      </ModalShell>
+
+      {/* ─── Notification send modal ─── */}
+      <ModalShell open={notifModal} onClose={() => { setNotifModal(false); notifF.resetFields(); }} title="Gửi thông báo hệ thống" size="md"
+        footer={<><Btn onClick={() => { setNotifModal(false); notifF.resetFields(); }}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submitNotif}>{saving ? 'Đang gửi…' : 'Gửi'}</Btn></>}>
+        <Form form={notifF} layout="vertical" requiredMark>
+          <Form.Item name="title" label="Tiêu đề" rules={[{ required: true, message: 'Nhập tiêu đề' }]}><Input placeholder="Thông báo bảo trì hệ thống..." /></Form.Item>
+          <Form.Item name="content" label="Nội dung" rules={[{ required: true, message: 'Nhập nội dung' }]}><Input.TextArea rows={4} /></Form.Item>
+          <Form.Item name="notificationType" label="Loại thông báo" initialValue="Info">
+            <Select options={[{ value: 'Info', label: 'Thông tin' }, { value: 'Warning', label: 'Cảnh báo' }, { value: 'Error', label: 'Lỗi' }, { value: 'Success', label: 'Thành công' }]} />
+          </Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-8)' }}>
+            <Form.Item name="targetUserId" label="Gửi đến người dùng">
+              <Select allowClear showSearch optionFilterProp="label" placeholder="Tất cả" options={users.map((u) => ({ value: u.id, label: u.fullName || u.username }))} />
+            </Form.Item>
+            <Form.Item name="targetRoleId" label="Gửi đến vai trò">
+              <Select allowClear showSearch optionFilterProp="label" placeholder="Tất cả" options={roleOptions} />
+            </Form.Item>
+          </div>
+        </Form>
+      </ModalShell>
+
+      {/* ─── Lock service modal ─── */}
+      <ModalShell open={lockModal} onClose={() => { setLockModal(false); lockF.resetFields(); setLockKw(''); setLockResults([]); }} title="Khóa dịch vụ" size="md"
+        footer={<><Btn onClick={() => { setLockModal(false); lockF.resetFields(); setLockKw(''); setLockResults([]); }}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submitLock}>{saving ? 'Đang khóa…' : 'Khóa'}</Btn></>}>
+        <Form form={lockF} layout="vertical" requiredMark>
+          <Form.Item label="Tìm dịch vụ">
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Input value={lockKw} onChange={(e) => setLockKw(e.target.value)} placeholder="Nhập tên hoặc mã dịch vụ..." style={{ flex: 1 }} onPressEnter={() => searchLockServices(lockKw)} />
+              <Btn onClick={() => searchLockServices(lockKw)} disabled={lockSearching}>{lockSearching ? 'Tìm…' : 'Tìm'}</Btn>
+            </div>
+          </Form.Item>
+          <Form.Item name="serviceId" label="Chọn dịch vụ cần khóa" rules={[{ required: true, message: 'Chọn dịch vụ' }]}>
+            <Select showSearch optionFilterProp="label" placeholder="Chọn từ kết quả tìm kiếm"
+              options={lockResults.map((s) => ({ value: s.id, label: `${s.code} — ${s.name} (${s.stype === 1 ? 'Thuốc' : 'DVKT'})` }))} />
+          </Form.Item>
+          <Form.Item name="reason" label="Lý do khóa" rules={[{ required: true, message: 'Nhập lý do' }]}>
+            <Input.TextArea rows={3} placeholder="VD: Hết hàng, Thu hồi, Bảo trì..." />
+          </Form.Item>
+        </Form>
+      </ModalShell>
+
+      {/* ─── Branch create/edit modal ─── */}
+      <ModalShell open={!!branchModal} onClose={() => { setBranchModal(null); setEditingBranch(null); branchF.resetFields(); }}
+        title={branchModal === 'new' ? 'Thêm chi nhánh' : 'Sửa chi nhánh'} size="md"
+        footer={<><Btn onClick={() => { setBranchModal(null); setEditingBranch(null); branchF.resetFields(); }}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submitBranch}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn></>}>
+        <Form form={branchF} layout="vertical" requiredMark>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--space-8)' }}>
+            <Form.Item name="code" label="Mã chi nhánh" rules={[{ required: true, message: 'Nhập mã' }]}><Input placeholder="CN01" /></Form.Item>
+            <Form.Item name="name" label="Tên chi nhánh" rules={[{ required: true, message: 'Nhập tên' }]}><Input placeholder="Chi nhánh Hải Dương" /></Form.Item>
+          </div>
+          <Form.Item name="address" label="Địa chỉ"><Input placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/TP" /></Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-8)' }}>
+            <Form.Item name="phone" label="SĐT"><Input placeholder="0220-3xxx-xxx" /></Form.Item>
+            <Form.Item name="email" label="Email"><Input placeholder="chinhanh@benhvien.vn" /></Form.Item>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-8)' }}>
+            <Form.Item name="isHeadquarter" label="Trụ sở chính" valuePropName="checked"><Switch checkedChildren="Có" unCheckedChildren="Không" /></Form.Item>
+            <Form.Item name="isActive" label="Trạng thái" valuePropName="checked"><Switch checkedChildren="Hoạt động" unCheckedChildren="Ngừng" /></Form.Item>
+          </div>
+          <Form.Item name="description" label="Ghi chú"><Input.TextArea rows={2} /></Form.Item>
         </Form>
       </ModalShell>
     </div>
