@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchWasteRecords, createWasteRecord, updateWasteRecord, searchMonitoring, createMonitoring } from '../api/environmentalHealth';
-import type { WasteRecord, MonitoringRecord } from '../api/environmentalHealth';
+import { DatePicker } from 'antd';
+import {
+  searchWasteRecords, createWasteRecord, updateWasteRecord, searchMonitoring, createMonitoring,
+  getWasteStats, getMonitoringStats, getBiosafetyStatus,
+} from '../api/environmentalHealth';
+import type { WasteRecord, MonitoringRecord, WasteStats, MonitoringStats, BiosafetyStatus } from '../api/environmentalHealth';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
@@ -67,16 +71,35 @@ const EnvironmentalHealthV2: React.FC = () => {
   const [fType, setFType] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<WasteRecord | null>(null);
+  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+
+  // Thống kê server (parity v1): waste stats + monitoring stats + an toàn sinh học
+  const [wasteStats, setWasteStats] = useState<WasteStats>({ totalCollectedThisMonth: 0, nonCompliantItems: 0, infectiousWasteKg: 0, generalWasteKg: 0 });
+  const [monitoringStats, setMonitoringStats] = useState<MonitoringStats>({ totalMonitoringCount: 0, nonCompliantCount: 0 });
+  const [biosafety, setBiosafety] = useState<BiosafetyStatus>({ level: 0, isCompliant: true });
 
   const load = async () => {
     setLoading(true);
     try {
-      const r = await searchWasteRecords({ keyword: search });
-      setItems(normalizeArrayResponse<WasteRecord>(r));
+      const params = {
+        keyword: search || undefined,
+        fromDate: range?.[0]?.format('YYYY-MM-DD'),
+        toDate: range?.[1]?.format('YYYY-MM-DD'),
+      };
+      const results = await Promise.allSettled([
+        searchWasteRecords(params),
+        getWasteStats(),
+        getMonitoringStats(),
+        getBiosafetyStatus(),
+      ]);
+      if (results[0].status === 'fulfilled') setItems(normalizeArrayResponse<WasteRecord>(results[0].value));
+      if (results[1].status === 'fulfilled') setWasteStats(results[1].value);
+      if (results[2].status === 'fulfilled') setMonitoringStats(results[2].value);
+      if (results[3].status === 'fulfilled') setBiosafety(results[3].value);
     } catch { ti('Không tải được dữ liệu chất thải'); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [range]);
 
   const types = useMemo(() => Object.entries(TYPE_LABEL).map(([v, l]) => ({ v, l })), []);
 
@@ -130,7 +153,13 @@ const EnvironmentalHealthV2: React.FC = () => {
   const [monitorCrudOpen, setMonitorCrudOpen] = useState(false);
   const loadMonitorings = async () => {
     setMonitorLoading(true);
-    try { const r = await searchMonitoring({}); setMonitorings(r); }
+    try {
+      const r = await searchMonitoring({
+        fromDate: range?.[0]?.format('YYYY-MM-DD'),
+        toDate: range?.[1]?.format('YYYY-MM-DD'),
+      });
+      setMonitorings(r);
+    }
     catch { ti('Không tải được dữ liệu quan trắc'); }
     finally { setMonitorLoading(false); }
   };
@@ -143,27 +172,26 @@ const EnvironmentalHealthV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      <ActBtn ic="eye" title="Xem chi tiết" onClick={() => setSel(r)} />
     </div>
   );
-
-  const infectiousKg = items.filter((r) => r.wasteType === 'infectious').reduce((s, r) => s + r.quantity, 0);
-  const totalKg = items.reduce((s, r) => s + (r.quantity || 0), 0);
 
   return (
     <div className="ab">
       <KpiStrip items={[
-        { lbl: 'Tổng phiếu', val: items.length, sub: 'tất cả' },
-        { lbl: 'Đạt chuẩn', val: counts.compliant, sub: `${Math.round((counts.compliant / Math.max(1, items.length)) * 100)}%`, tone: 'ok' },
-        { lbl: 'Vi phạm', val: counts.noncompliant, sub: 'cần khắc phục', tone: 'crit' },
-        { lbl: 'CT lây nhiễm', val: infectiousKg.toFixed(1), unit: 'kg', sub: `tổng ${totalKg.toFixed(1)} kg`, tone: 'warn' },
+        { lbl: 'Thu gom tháng (kg)', val: wasteStats.totalCollectedThisMonth, sub: `lây nhiễm ${wasteStats.infectiousWasteKg} kg · thường ${wasteStats.generalWasteKg} kg`, tone: 'info' },
+        { lbl: 'Không tuân thủ', val: wasteStats.nonCompliantItems, sub: 'cần khắc phục', tone: 'crit' },
+        { lbl: 'Giám sát (lượt)', val: monitoringStats.totalMonitoringCount, sub: `${monitoringStats.nonCompliantCount} vi phạm`, tone: 'ok' },
+        { lbl: 'An toàn sinh học', val: biosafety.isCompliant ? 'Đạt' : 'Chưa đạt', sub: biosafety.level ? `cấp độ ${biosafety.level}` : undefined, tone: biosafety.isCompliant ? 'ok' : 'crit' },
+        { lbl: 'Tổng phiếu', val: items.length, sub: `${counts.compliant} đạt · ${counts.noncompliant} vi phạm` },
       ]} />
 
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm phiếu / nguồn / PP xử lý…" />
+        <DatePicker.RangePicker value={range} format="DD/MM/YYYY" size="small"
+          onChange={(v) => { setRange(v as [dayjs.Dayjs, dayjs.Dayjs] | null); setPage(0); }} />
         <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại chất thải" />
-        <Btn variant="ghost" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFType(''); setStab('all'); setRange(null); }}>
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />

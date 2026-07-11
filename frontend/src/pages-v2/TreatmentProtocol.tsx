@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchProtocols, saveProtocol, deleteProtocol } from '../api/treatmentProtocol';
+import { searchProtocols, saveProtocol, deleteProtocol, approveProtocol, newVersion as createNewVersion } from '../api/treatmentProtocol';
 import type { TreatmentProtocolDto, SaveTreatmentProtocolDto } from '../api/treatmentProtocol';
+import { openPrintWindow } from '../utils/printWindow';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf,
@@ -48,6 +49,7 @@ const TreatmentProtocolV2: React.FC = () => {
   const [search, setSearch] = useState('');
   const [stab, setStab] = useState<SKey | 'all'>('all');
   const [fGroup, setFGroup] = useState('');
+  const [fDept, setFDept] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<TreatmentProtocolDto | null>(null);
   const [crudOpen, setCrudOpen] = useState(false);
@@ -57,6 +59,12 @@ const TreatmentProtocolV2: React.FC = () => {
   const del = (r: TreatmentProtocolDto) => cf(`Xoá phác đồ "${r.name}"?`, async () => {
     try { await deleteProtocol(r.id); tk('Đã xoá'); load(); } catch { te('Xoá thất bại'); }
   }, { tone: 'crit', confirm: 'Xoá' });
+  const approve = (r: TreatmentProtocolDto) => cf(`Duyệt phác đồ "${r.name}"?`, async () => {
+    try { await approveProtocol(r.id); tk('Đã duyệt phác đồ'); load(); } catch { te('Duyệt thất bại'); }
+  }, { confirm: 'Duyệt' });
+  const doNewVersion = (r: TreatmentProtocolDto) => cf(`Tạo phiên bản mới từ "${r.name}" (v${r.version})?`, async () => {
+    try { await createNewVersion(r.id); tk('Đã tạo phiên bản mới (Nháp)'); load(); } catch { te('Không thể tạo phiên bản mới'); }
+  }, { confirm: 'Tạo' });
 
   const load = async () => {
     setLoading(true);
@@ -74,6 +82,11 @@ const TreatmentProtocolV2: React.FC = () => {
     return Array.from(set).map((v) => ({ v, l: v }));
   }, [items]);
 
+  const depts = useMemo(() => {
+    const set = new Set(items.map((r) => r.department).filter(Boolean) as string[]);
+    return Array.from(set).map((v) => ({ v, l: v }));
+  }, [items]);
+
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: items.length };
     STATUS_TABS.forEach((s) => { c[s.v] = items.filter((r) => sKey(r.status) === s.v).length; });
@@ -85,11 +98,12 @@ const TreatmentProtocolV2: React.FC = () => {
     return items.filter((r) => {
       if (stab !== 'all' && sKey(r.status) !== stab) return false;
       if (fGroup && r.diseaseGroup !== fGroup) return false;
+      if (fDept && r.department !== fDept) return false;
       if (!k) return true;
       return [r.code, r.name, r.icdCode, r.icdName, r.department]
         .some((v) => (v || '').toLowerCase().includes(k));
     });
-  }, [items, search, stab, fGroup]);
+  }, [items, search, stab, fGroup, fDept]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);
@@ -122,7 +136,8 @@ const TreatmentProtocolV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
+      {r.status === 1 && <ActBtn ic="check" title="Duyệt phác đồ" onClick={() => approve(r)} />}
+      {r.status === 2 && <ActBtn ic="copy" title="Phiên bản mới" onClick={() => doNewVersion(r)} />}
       <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
     </div>
   );
@@ -140,7 +155,8 @@ const TreatmentProtocolV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm tên / mã / ICD…" />
         <Filter value={fGroup} onChange={setFGroup} options={groups} placeholder="▾ Nhóm bệnh" />
-        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFGroup(''); setStab('all'); }}>Bỏ lọc</Btn>
+        <Filter value={fDept} onChange={setFDept} options={depts} placeholder="▾ Khoa" />
+        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFGroup(''); setFDept(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
         <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
         <Btn variant="primary" icon="plus" onClick={openCreate}>Phác đồ mới</Btn>
@@ -163,7 +179,13 @@ const TreatmentProtocolV2: React.FC = () => {
         sub={sel ? `${sel.code} · v${sel.version}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn icon="print" onClick={() => window.print()}>In phác đồ</Btn>
+          <Btn icon="print" onClick={() => {
+            if (!sel) return;
+            const rows = sel.steps?.length
+              ? sel.steps.map((s, i) => `<tr><td>${i + 1}</td><td>${s.name}</td><td>${s.activityType || ''}</td><td>${s.durationDays ? s.durationDays + 'd' : ''}</td><td>${s.notes || ''}</td></tr>`).join('')
+              : '<tr><td colspan="5" style="text-align:center;color:#666">Chưa có bước</td></tr>';
+            openPrintWindow(`<h2 style="margin:0 0 8px">Phác đồ: ${sel.name}</h2><p style="margin:0 0 4px;color:#555">${sel.code} · v${sel.version} · ${STATUS_LABEL[sel.status]}</p>${sel.department ? `<p style="margin:0 0 12px;color:#555">Khoa: ${sel.department}</p>` : ''}<table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;font-size:13px"><thead><tr><th>STT</th><th>Tên bước</th><th>Loại</th><th>Thời gian</th><th>Ghi chú</th></tr></thead><tbody>${rows}</tbody></table>`, { print: { delayMs: 300 } });
+          }}>In phác đồ</Btn>
           <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Chỉnh sửa</Btn>
         </>}
       >

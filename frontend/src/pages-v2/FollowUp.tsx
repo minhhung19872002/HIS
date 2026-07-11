@@ -1,79 +1,166 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as file from '../services/file.service';
-import dayjs from 'dayjs';
-import { App as AntdApp } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
+import { App as AntdApp, DatePicker } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { searchAppointments, updateAppointmentStatus } from '../api/examination';
+import { searchAppointments, getOverdueFollowUps, updateAppointmentStatus } from '../api/examination';
 import type { AppointmentListDto } from '../api/examination';
 import {
-  KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
+  KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell,
   type ColumnDef, type StatusTab,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
+const { RangePicker } = DatePicker;
+
 /* ────────────────────────────────────────────────────────────
    Tái khám v2 — port of design-system-v2/his/project/FollowUp v2.html
+   + full parity với v1 pages/FollowUp (issue #409)
    ──────────────────────────────────────────────────────────── */
+
+type TabKey = 'today' | 'upcoming' | 'overdue' | 'all';
 
 type StatusKey = 'scheduled' | 'reminded' | 'completed' | 'missed' | 'cancelled';
 
 const STATUS_TABS: StatusTab<StatusKey>[] = [
-  { v: 'scheduled', l: 'Đã hẹn',     tone: 'info' },
-  { v: 'reminded',  l: 'Đã nhắc',    tone: 'info' },
-  { v: 'completed', l: 'Đã tái khám', tone: 'ok' },
-  { v: 'missed',    l: 'Bỏ lỡ',      tone: 'crit' },
-  { v: 'cancelled', l: 'Đã huỷ',     tone: 'crit' },
+  { v: 'scheduled', l: 'Đã hẹn',      tone: 'info' },
+  { v: 'reminded',  l: 'Đã nhắc',     tone: 'info' },
+  { v: 'completed', l: 'Đã đến khám', tone: 'ok' },
+  { v: 'missed',    l: 'Không đến',   tone: 'crit' },
+  { v: 'cancelled', l: 'Đã hủy',      tone: 'warn' },
 ];
 
-// Backend AppointmentStatus: 0 Scheduled · 1 Confirmed · 2 Completed · 3 Cancelled · 4 NoShow
+// Backend Appointment.Status (HIS.Core/Entities/Appointment.cs:32):
+// 0 Chờ xác nhận · 1 Đã xác nhận · 2 Đã đến khám · 3 Không đến (NoShow) · 4 Đã hủy
 const statusKey = (s: number, isReminded: boolean): StatusKey => {
-  if (s === 4) return 'missed';
-  if (s === 3) return 'cancelled';
+  if (s === 3) return 'missed';
+  if (s === 4) return 'cancelled';
   if (s === 2) return 'completed';
   if (isReminded) return 'reminded';
   return 'scheduled';
 };
 const statusTone = (s: StatusKey) => STATUS_TABS.find((t) => t.v === s)?.tone || 'info';
 
+// Filter server-side theo đúng semantics v1 (status 0-4, loại hẹn 1-3)
+const STATUS_OPTS = [
+  { v: '0', l: 'Chờ xác nhận' },
+  { v: '1', l: 'Đã xác nhận' },
+  { v: '2', l: 'Đã đến khám' },
+  { v: '3', l: 'Không đến' },
+  { v: '4', l: 'Đã hủy' },
+];
+const TYPE_OPTS = [
+  { v: '1', l: 'Tái khám' },
+  { v: '2', l: 'Khám mới' },
+  { v: '3', l: 'Khám sức khỏe' },
+];
+
 const fmtHM = (iso?: string) => iso ? dayjs(iso).format('HH:mm') : '—';
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY HH:mm') : '—';
+
+const PAGE_SIZE = 16;
 
 const FollowUpV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   const navigate = useNavigate();
   const [rows, setRows] = useState<AppointmentListDto[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [overdueList, setOverdueList] = useState<AppointmentListDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<TabKey>('today');
   const [stab, setStab] = useState<StatusKey | 'all'>('all');
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [range, setRange] = useState<[Dayjs, Dayjs]>([dayjs(), dayjs()]);
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState<AppointmentListDto | null>(null);
-  const PAGE_SIZE = 16;
+  const seqRef = useRef(0);
 
-  const reload = () => {
+  const fetchAppointments = useCallback(async () => {
+    const seq = ++seqRef.current;
     setLoading(true);
-    // AppointmentSearchDto dùng `page` (1-based)
-    searchAppointments({
-      fromDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
-      toDate:   dayjs().add(60, 'day').format('YYYY-MM-DD'),
-      page: 1, pageSize: 200,
-    }).then((r) => {
-      setRows(r.data?.items || []);
-    }).catch(() => setRows([])).finally(() => setLoading(false));
+    let fromDate: string;
+    let toDate: string;
+    if (tab === 'today') {
+      fromDate = dayjs().format('YYYY-MM-DD');
+      toDate = dayjs().format('YYYY-MM-DD');
+    } else if (tab === 'upcoming') {
+      fromDate = dayjs().add(1, 'day').format('YYYY-MM-DD');
+      toDate = dayjs().add(30, 'day').format('YYYY-MM-DD');
+    } else if (tab === 'all') {
+      fromDate = range[0].format('YYYY-MM-DD');
+      toDate = range[1].format('YYYY-MM-DD');
+    } else {
+      fromDate = dayjs().subtract(90, 'day').format('YYYY-MM-DD');
+      toDate = dayjs().format('YYYY-MM-DD');
+    }
+
+    const [searchRes, overdueRes] = await Promise.allSettled([
+      searchAppointments({
+        fromDate,
+        toDate,
+        // tab Quá hạn không truyền status (như v1)
+        status: tab === 'overdue' || statusFilter === '' ? undefined : Number(statusFilter),
+        appointmentType: typeFilter === '' ? undefined : Number(typeFilter),
+        page: page + 1, // API 1-based
+        pageSize: PAGE_SIZE,
+      }),
+      getOverdueFollowUps(30),
+    ]);
+    if (seq !== seqRef.current) return; // stale response — bỏ qua
+
+    if (searchRes.status === 'fulfilled' && searchRes.value.data) {
+      setRows(searchRes.value.data.items || []);
+      setTotalCount(searchRes.value.data.totalCount || 0);
+    } else if (searchRes.status === 'rejected') {
+      setRows([]);
+      setTotalCount(0);
+    }
+    if (overdueRes.status === 'fulfilled' && overdueRes.value.data) {
+      setOverdueList(overdueRes.value.data || []);
+    }
+    setLoading(false);
+  }, [tab, statusFilter, typeFilter, range, page]);
+
+  useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
+
+  const handleUpdateStatus = async (appointmentId: string, status: number, statusLabel: string) => {
+    try {
+      await updateAppointmentStatus(appointmentId, status);
+      message.success(`Đã cập nhật: ${statusLabel}`);
+      fetchAppointments();
+    } catch {
+      message.error('Không thể cập nhật trạng thái');
+    }
   };
-  useEffect(reload, []);
+
+  const onRemind = async (r: AppointmentListDto, channel: 'SMS' | 'Zalo' = 'SMS') => {
+    // No backend endpoint to flip "reminded" alone; mark as Confirmed (status=1) to indicate engagement.
+    try {
+      await updateAppointmentStatus(r.id, 1);
+      message.success(`Đã gửi nhắc ${channel} cho ${r.patientName}`);
+      fetchAppointments();
+    } catch {
+      message.error('Gửi nhắc thất bại');
+    }
+  };
+
+  // Tab Quá hạn hiển thị danh sách overdue (client-side); các tab khác dùng trang server
+  const baseRows = tab === 'overdue' ? overdueList : rows;
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: rows.length };
+    const c: Record<string, number> = { all: baseRows.length };
     STATUS_TABS.forEach((s) => {
-      c[s.v] = rows.filter((r) => statusKey(r.status, r.isReminderSent) === s.v).length;
+      c[s.v] = baseRows.filter((r) => statusKey(r.status, r.isReminderSent) === s.v).length;
     });
     return c;
-  }, [rows]);
+  }, [baseRows]);
 
   const filtered = useMemo(() => {
-    return rows.filter((r) => {
+    return baseRows.filter((r) => {
       if (stab !== 'all' && statusKey(r.status, r.isReminderSent) !== stab) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
@@ -83,36 +170,29 @@ const FollowUpV2: React.FC = () => {
       }
       return true;
     });
-  }, [rows, stab, search]);
+  }, [baseRows, stab, search]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  // Phân trang: tab server → totalCount từ API; tab Quá hạn → client-slice
+  const isServerPaged = tab !== 'overdue';
+  const totalPages = isServerPaged
+    ? Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+    : Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = isServerPaged ? filtered : filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  const today = dayjs().startOf('day');
-  const sevenDays = dayjs().add(7, 'day').endOf('day');
+  // KPI hôm-nay như v1 (tính trên trang dữ liệu đang tải, cùng semantics v1)
   const kpis = useMemo(() => {
-    const upcoming7 = rows.filter((r) => {
-      const d = dayjs(r.appointmentDate);
-      return r.status === 0 && d.isAfter(today) && d.isBefore(sevenDays);
-    }).length;
-    const reminded = counts.reminded || 0;
-    const completed = counts.completed || 0;
-    const missed = counts.missed || 0;
-    const adherence = (completed + missed) > 0
-      ? Math.round(completed / (completed + missed) * 100)
-      : 0;
-    return { upcoming7, reminded, completed, missed, adherence, total: rows.length };
-  }, [rows, counts, today, sevenDays]);
+    const todayRows = rows.filter((r) => dayjs(r.appointmentDate).isSame(dayjs(), 'day'));
+    return {
+      todayTotal: todayRows.length,
+      todayConfirmed: todayRows.filter((r) => r.status === 1).length,
+      todayAttended: todayRows.filter((r) => r.status === 2).length,
+      todayNoShow: todayRows.filter((r) => r.status === 3).length,
+    };
+  }, [rows]);
 
-  const onRemind = async (r: AppointmentListDto, channel: 'SMS' | 'Zalo' = 'SMS') => {
-    // No backend endpoint to flip "reminded" alone; mark as Confirmed (status=1) to indicate engagement.
-    try {
-      await updateAppointmentStatus(r.id, 1);
-      message.success(`Đã gửi nhắc ${channel} cho ${r.patientName}`);
-      reload();
-    } catch {
-      message.error('Gửi nhắc thất bại');
-    }
+  const resetFilters = () => {
+    setSearch(''); setStab('all'); setStatusFilter(''); setTypeFilter('');
+    setRange([dayjs(), dayjs()]); setPage(0);
   };
 
   const columns: ColumnDef<AppointmentListDto>[] = [
@@ -170,22 +250,45 @@ const FollowUpV2: React.FC = () => {
     <div className="ab">
       <KpiStrip
         items={[
-          { lbl: 'Hẹn 7 ngày tới', val: kpis.upcoming7, sub: 'sắp đến', tone: 'info' },
-          { lbl: 'Đã nhắc', val: kpis.reminded, sub: 'BN đã liên lạc' },
-          { lbl: 'Đã tái khám', val: kpis.completed, sub: 'tuân thủ', tone: 'ok' },
-          { lbl: 'Bỏ lỡ', val: kpis.missed, sub: 'cần follow', tone: 'crit' },
-          { lbl: 'Tỷ lệ tuân thủ', val: kpis.adherence, unit: '%', sub: 'hoàn thành', tone: kpis.adherence >= 80 ? 'ok' : 'warn' },
-          { lbl: 'Tổng kế hoạch', val: kpis.total },
+          { lbl: 'Hôm nay', val: kpis.todayTotal, sub: 'lịch hẹn', tone: 'info' },
+          { lbl: 'Đã xác nhận', val: kpis.todayConfirmed, sub: 'hôm nay' },
+          { lbl: 'Đã đến khám', val: kpis.todayAttended, sub: 'hôm nay', tone: 'ok' },
+          { lbl: 'Không đến', val: kpis.todayNoShow, sub: 'hôm nay', tone: kpis.todayNoShow > 0 ? 'crit' : 'ok' },
+          { lbl: 'Quá hạn 30 ngày', val: overdueList.length, sub: 'cần follow', tone: overdueList.length > 0 ? 'crit' : 'ok' },
+          { lbl: 'Tổng tìm thấy', val: tab === 'overdue' ? overdueList.length : totalCount },
+        ]}
+      />
+
+      <TopTabs<TabKey>
+        tab={tab}
+        setTab={(t) => { setTab(t); setPage(0); }}
+        tabs={[
+          { v: 'today',    l: 'Hôm nay', ic: 'calendar' },
+          { v: 'upcoming', l: 'Sắp tới', ic: 'clock' },
+          { v: 'overdue',  l: overdueList.length > 0 ? `Quá hạn (${overdueList.length})` : 'Quá hạn', ic: 'alert' },
+          { v: 'all',      l: 'Tất cả', ic: 'list' },
         ]}
       />
 
       <div className="ab-tools">
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm BN / SĐT / mã hẹn / lý do…" />
-        <Btn variant="ghost" onClick={() => { setSearch(''); setStab('all'); }}>
+        <Filter value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(0); }} options={STATUS_OPTS} placeholder="▾ Trạng thái" />
+        <Filter value={typeFilter} onChange={(v) => { setTypeFilter(v); setPage(0); }} options={TYPE_OPTS} placeholder="▾ Loại hẹn" />
+        {tab === 'all' && (
+          <RangePicker
+            value={range}
+            onChange={(dates) => {
+              if (dates && dates[0] && dates[1]) { setRange([dates[0], dates[1]]); setPage(0); }
+            }}
+            format="DD/MM/YYYY"
+            allowClear={false}
+          />
+        )}
+        <Btn variant="ghost" onClick={resetFilters}>
           <TermIcon name="refresh" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
-        <Btn variant="ghost" onClick={reload}>
+        <Btn variant="ghost" onClick={fetchAppointments}>
           <TermIcon name="refresh" size={12} /> Làm mới
         </Btn>
         <Btn variant="ghost" onClick={() => navigate('/v2/sms-management')}>
@@ -230,7 +333,14 @@ const FollowUpV2: React.FC = () => {
               <ActBtn ic="phone" title="Ghi nhận liên lạc" onClick={() => onRemind(r, 'SMS')} />
             )}
             {[0, 1].includes(r.status) && (
-              <ActBtn ic="message-square" title="Nhắc SMS" onClick={() => onRemind(r, 'SMS')} />
+              <>
+                <ActBtn ic="message-square" title="Nhắc SMS" onClick={() => onRemind(r, 'SMS')} />
+                <ActBtn ic="check" title="Xác nhận đến khám" onClick={() => handleUpdateStatus(r.id, 2, 'Đã đến khám')} />
+                <ActBtn ic="x" title="Không đến" tone="crit" onClick={() => handleUpdateStatus(r.id, 3, 'Không đến')} />
+              </>
+            )}
+            {r.status === 0 && (
+              <ActBtn ic="calendar" title="Xác nhận lịch hẹn" onClick={() => handleUpdateStatus(r.id, 1, 'Đã xác nhận')} />
             )}
             <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
           </div>
@@ -243,7 +353,13 @@ const FollowUpV2: React.FC = () => {
         )}
       />
 
-      <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={PAGE_SIZE} />
+      <Pager
+        page={page}
+        totalPages={totalPages}
+        setPage={setPage}
+        total={isServerPaged ? totalCount : filtered.length}
+        perPage={PAGE_SIZE}
+      />
 
       <DrawerShell
         open={!!detail}
@@ -263,12 +379,22 @@ const FollowUpV2: React.FC = () => {
             <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             <span style={{ flex: 1 }} />
             {[0, 1].includes(detail.status) && detail.phoneNumber && (
+              <Btn onClick={() => onRemind(detail, 'SMS')}>
+                <TermIcon name="message-square" size={12} /> Nhắc SMS
+              </Btn>
+            )}
+            {detail.status === 0 && (
+              <Btn onClick={() => { handleUpdateStatus(detail.id, 1, 'Đã xác nhận'); setDetail(null); }}>
+                <TermIcon name="calendar" size={12} /> Xác nhận lịch hẹn
+              </Btn>
+            )}
+            {[0, 1].includes(detail.status) && (
               <>
-                <Btn onClick={() => onRemind(detail, 'SMS')}>
-                  <TermIcon name="message-square" size={12} /> Nhắc SMS
+                <Btn variant="crit" onClick={() => { handleUpdateStatus(detail.id, 3, 'Không đến'); setDetail(null); }}>
+                  <TermIcon name="x" size={12} /> Không đến
                 </Btn>
-                <Btn variant="primary" onClick={() => onRemind(detail, 'SMS')}>
-                  <TermIcon name="phone" size={12} /> Ghi nhận liên lạc
+                <Btn variant="primary" onClick={() => { handleUpdateStatus(detail.id, 2, 'Đã đến khám'); setDetail(null); }}>
+                  <TermIcon name="check" size={12} /> Xác nhận đến khám
                 </Btn>
               </>
             )}
