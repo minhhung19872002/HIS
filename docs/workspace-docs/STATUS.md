@@ -5,22 +5,23 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-11** — **cửa 409-nghiep-vu: #409 sub-scope 8 trang nghiệp vụ DONE-code CHỜ push. cửa 409-sysadmin: #409 SystemAdmin 6 tab mới (wired 8→14) + 4 fix regression DONE-code (tsc EXIT 0 + vite BUILD_EXIT:0) CHỜ push. #412 CHỜ push.**
+> Cập nhật cuối: **2026-07-11** — **cửa 409-nghiep-vu: #409 sub-scope 8 trang nghiệp vụ ✅ PUSHED `302cad6` (kèm fix build vỡ def00b7). cửa 409-sysadmin: #409 SystemAdmin 6 tab mới ✅ PUSHED `def00b7` (thiếu 5 file api → fixed tại 302cad6). #412 ✅ PUSHED `27b1c46`.**
 
-## Phiên 2026-07-11 (cửa 409-nghiep-vu — #409 8 trang nghiệp vụ, DONE-code CHỜ push)
+## Phiên 2026-07-11 (cửa 409-nghiep-vu — #409 8 trang nghiệp vụ, ✅ PUSHED `302cad6`)
 - **#409 [PORT-P3][FE] sub-scope nghiệp vụ DONE-code** (lock `409-nghiep-vu`): port 8 trang `pages-v2/`:
   - **EnvironmentalHealth**: `Promise.allSettled` 3 stats API + KpiStrip server + `DatePicker.RangePicker`.
   - **FollowUp** (+264 dòng): TopTabs 4 scope (today/upcoming/overdue/all) + RangePicker + Filter status/type + `handleUpdateStatus` (confirm-arrived status=2 / no-show status=3) + server pagination `searchAppointments` + `getOverdueFollowUps(30)`.
   - **Pathology** (+240 dòng): `ResultModal` 10 field + `createPathologyResult` + `printPathologyReport` PDF blob + `getPathologyStatistics` + RangePicker + 5-state StatusTabs.
-  - **Procurement** (+4/-4): fix import path `'../api/warehouse'` → `'../modules/pharmacy/api/warehouse'`.
+  - **Procurement**: không đổi so với origin (read-only by design; `ProcurementRequests.tsx` xử lý create).
   - **TreatmentProtocol** (+34 dòng): `approveProtocol`/`createNewVersion` + `cf()` confirm + dept filter + fix duplicate ActBtn + `openPrintWindow` thay `window.print()`.
   - **FoodSafety** (+430 dòng): TopTabs 2 tab — tab "Vụ ngộ độc" (giữ nguyên) + tab "Thanh kiểm tra" A/B/C/D grading + CrudModal 9 field + DataTable + DrawerShell.
   - **ReproductiveHealth** (rewrite +617 dòng): TopTabs 2 tab — "Quản thai" (KpiStrip 4 tile + StatusTabs + CrudModal 10 field + `getHighRiskPregnancies`) + "KHHGĐ" (StatusTabs + Filter method + CrudModal 8 field).
   - **HealthCheckup** (+685 dòng): TopTabs 2 tab — "KSK" (giữ nguyên) + "Chiến dịch KSK" (`CampaignTab`: CRUD campaign + groups sub-panel + Excel import `importBatchExcel`).
-  - **Gate:** `tsc -b --noEmit` EXIT 0 · `npm run build` EXIT 0 (agent confirmed). 8 file, ~1922 insertions.
-  - **CHỜ push** (git add tường minh 8 file + STATUS.md; commit `Refs #409`).
+  - **⚠️ api-import để `../api/*` (prod-safe):** restructure `modules/*/api` cho 7 domain này CHƯA trên origin lúc push → giữ path cũ; tự-lành khi cửa components-restructure land (rewrite-importer migrate tiếp).
+  - **✅ PUSHED `302cad6`** (fast-forward `def00b7..302cad6`, verify tsc -b EXIT 0 trên **worktree cô lập tại origin/main** = trạng thái Vercel thực): 7 page + **fix build vỡ def00b7** — bổ sung 5 file api cửa 409-sysadmin quên `git add` (`modules/system/api/{security,itTicket,audit}` + `modules/administration/api/dataExport` + `modules/emr/api/emrAdmin`, byte-identical old api, chỉ import services/apiClient). Chi tiết: comment #409.
+  - **⚠️ Vercel deploy `302cad6` = "Deployment was blocked"** (spend-cap/quyền account chủ minhhung19872002 — KHÔNG phải build fail; def00b7 cũng blocked "author no access"; 7c37939/960a067 cùng ngày success). Code tsc-xanh; chờ owner gỡ block (memory `reference_vercel-his-psi-other-account`).
 
-## Phiên 2026-07-11 (cửa 409-sysadmin — #409 SystemAdmin v2 6 tab mới, DONE-code CHỜ push)
+## Phiên 2026-07-11 (cửa 409-sysadmin — #409 SystemAdmin v2 6 tab mới, ✅ PUSHED `def00b7` — ⚠️ quên 5 file api, fixed tại `302cad6`)
 - **#409 [PORT-P3][FE] sub-scope SystemAdmin DONE-code** (lock `409-sysadmin`): mở rộng SystemAdmin.tsx từ 8→14 tab bằng 6 panel mới trong `pages-v2/system-admin/`:
   - **helpers.ts**: `getNestedData<T>`, `toStringValue`, `toNumberValue`, `RawApiItem`
   - **ItTicketsPanel**: KpiStrip (4 chỉ số) + filter priority/status + SearchBox + DataTable + DrawerShell chi tiết + ModalShell tạo + ModalShell phản hồi + `cf()` đóng ticket. API: `modules/system/api/itTicket`.
@@ -32,7 +33,7 @@
   - **SystemAdmin.tsx**: type AdminTab mở rộng 8→14; TABS thêm 6 mục; load() `else`→`else if (tab==='audit')` (chống audit fallthrough); render blocks 6 tab mới.
   - **4 fix regression (phiên này):** ItTicketsPanel debounce 400ms (`useDebounce` thay per-keystroke) · DataManagementPanel xóa `.slice(0,5)` backup+exportHistory · EmrAdminPanel thêm `cover` vào điều kiện description · HealthPanel CSS tokens (`--brd`→`--line`, `--radius`→`--r-2`, `--srf`→`--d-1`, `--crit`→`--s-crit`).
   - **Gate:** `tsc -b` EXIT 0 · `npm run build` (tsc -b && vite build) BUILD_EXIT:0. 7 file mới + SystemAdmin.tsx.
-  - **CHỜ user duyệt push** (`git add` tường minh 8 file: `pages-v2/SystemAdmin.tsx` + `pages-v2/system-admin/{helpers,ItTickets,AccessMatrix,Compliance,DataManagement,Health,EmrAdmin}Panel.tsx` + `STATUS.md` → commit `Refs #409`).
+  - **✅ PUSHED `def00b7`** — ⚠️ commit thiếu 5 file api (`modules/system/api/{security,itTicket,audit}` + `administration/dataExport` + `emr/emrAdmin` chưa `git add`) → origin vỡ build tạm thời; cửa 409-nghiep-vu bổ sung tại `302cad6`.
 
 ## Phiên 2026-07-11 (cửa PORT w196 — #415+#416 ✅ CLOSED, #412 AiQueueBadge DONE-code CHỜ push)
 - **#415 [PORT-P9][FE][P2] ✅ PUSHED `be63a78` CLOSED**: QueueDisplay TV board v2 — TTS + beep + lab queue 5-status. Route `/v2/queue-display` standalone public. Lock released.
