@@ -10,4 +10,3 @@ export { useLocalStorage } from './useLocalStorage';
 export { usePermission } from './usePermission';
 export * from './useAbbreviationExpander';
 export * from './useKeyboardShortcuts';
-export * from './useSafetyAlerts';

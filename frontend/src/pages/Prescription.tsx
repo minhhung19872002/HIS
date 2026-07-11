@@ -53,7 +53,7 @@ import { getSignatures } from '../modules/emr/api/digitalSignature';
 import type { DocumentSignatureDto } from '../modules/emr/api/digitalSignature';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import { getPrescriptions as getRecentPrescriptions } from '../modules/portal/api/patientPortal';
-import { useSafetyAlerts } from '../hooks/useSafetyAlerts';
+import { useSafetyAlerts } from '../modules/patient/hooks/useSafetyAlerts';
 import PatientFlagBanner from '../components/PatientFlagBanner';
 
 import type {

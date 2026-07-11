@@ -51,7 +51,7 @@ import * as insuranceApi from '../modules/insurance/api/insurance';
 import BarcodeScanner from '../components/BarcodeScanner';
 import WebcamCapture from '../components/WebcamCapture';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
-import { useSafetyAlerts } from '../hooks/useSafetyAlerts';
+import { useSafetyAlerts } from '../modules/patient/hooks/useSafetyAlerts';
 
 import type {
   ReceptionRecord,

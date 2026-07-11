@@ -69,7 +69,7 @@ import PatientFlagBanner from '../components/PatientFlagBanner';
 import DoctorLicenseBanner from '../components/DoctorLicenseBanner';
 import type { LicenseStatusDto } from '../modules/administration/api/doctorLicense';
 import { getDepositBalance } from '../modules/billing/api/billing';
-import { useSafetyAlerts } from '../hooks/useSafetyAlerts';
+import { useSafetyAlerts } from '../modules/patient/hooks/useSafetyAlerts';
 import { buildApiUrl } from '../config/api.config';
 import type {
   QueuePatient,

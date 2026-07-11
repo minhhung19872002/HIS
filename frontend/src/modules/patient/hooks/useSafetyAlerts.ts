@@ -1,14 +1,14 @@
 import { useCallback } from 'react';
 import { Modal, message } from 'antd';
-import type { AlertCheckResult } from '../modules/patient/api/businessAlerts';
+import type { AlertCheckResult } from '../api/businessAlerts';
 import {
   checkBloodTypeMismatch,
   checkBhytClsDailyLimit,
   checkIcdBhytProtocol,
   checkUnfilledPrescriptions,
   estimateCost,
-} from '../modules/patient/api/businessAlerts';
-import type { CostEstimationResult } from '../modules/patient/api/businessAlerts';
+} from '../api/businessAlerts';
+import type { CostEstimationResult } from '../api/businessAlerts';
 
 function showAlertModal(result: AlertCheckResult) {
   if (!result.newAlerts?.length) return;
