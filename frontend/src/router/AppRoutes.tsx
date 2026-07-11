@@ -8,6 +8,7 @@ import Login from '../pages/Login';
 import { ProtectedRoute } from './RouteGuard';
 import { HomeEntry } from './LayoutResolver';
 import { v2Routes } from './routeConfigs';
+import { RequirePermission } from '../guards';
 import { ModuleIndex } from './lazy/common.lazy';
 import {
   InspectorPortalStandalone,
@@ -328,9 +329,11 @@ const AppRoutes: React.FC = () => {
                     e.redirect
                       ? <Navigate to={e.redirect} replace />
                       : (
-                        <Suspense fallback={<PageLoader />}>
-                          {Cmp ? <Cmp /> : null}
-                        </Suspense>
+                        <RequirePermission meta={e.meta}>
+                          <Suspense fallback={<PageLoader />}>
+                            {Cmp ? <Cmp /> : null}
+                          </Suspense>
+                        </RequirePermission>
                       )
                   }
                 />
