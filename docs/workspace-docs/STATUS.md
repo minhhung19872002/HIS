@@ -14,8 +14,17 @@
 - **#382 [LAYOUT-8] Command Palette** ✅ `83a76bed`: `PALETTE_ITEMS` = union ALL_ITEMS + mọi v2Routes (phủ trang không-menu), lọc `usePermission().can()`; `useRegisterCommands` đã có sẵn.
 - **#377 [LAYOUT-3] permission guards** ✅ `9a85dfab`: `guards/{RequirePermission,Can,Forbidden403}` + wire vào v2Routes.map (permission=undefined→pass hết, an toàn, sẵn #378).
 - **#386 [LAYOUT-12] perf** ✅ `795e01f9`: memo Rail/Flyout + useCallback 6 handler (sidebar không re-render); Suspense-per-route xác nhận; bundle audit doc §2 (antd 496KB gzip eager = gap task-slim riêng; cornerstone 830KB lazy chấp nhận).
-- **Gate:** tsc0 + vite✓ mỗi lần. **DEFER (có lý do):** #379 role-dashboard (cần #375 registry + #378 permission-codes + role-strings thật → làm bừa ẩn nhầm widget) · #378 (cần catalog AUTHZ) · #375 (unify registry, partially done).
-- **Còn 24 non-test:** LAYOUT #375/376/378/379 · AUTHZ epic #367-372/384/385 (BE deploy+smoke) · commercial #404/405 (product) · PORT #407/409/413 (deploy+smoke) · #417 DoctorPortal (product-decision) · REFAC #362/363/364/365 · epic tracker #352/387. Test-label (128) CUỐI.
+- **#376 [LAYOUT-2] tách shell** ✅ `960a067d`: TerminalLayout 859→542 dòng → `Sidebar.tsx`(Rail+Flyout) · `TopBar.tsx`(Topbar+useClock+notif helpers) · `PatientContextBar.tsx`(Ticker). Verbatim move byte-identical, dọn 9 import thừa.
+- **Gate:** tsc0 + vite✓ mỗi lần. **DEFER (có lý do):** #379 role-dashboard (cần #375+#378+role-strings thật → làm bừa ẩn nhầm widget) · #378 (cần catalog AUTHZ).
+- **Còn 23 non-test — phân loại (đều cần thứ ngoài "code+build" nên KHÔNG tự đóng autonomos):**
+  - **Blocked-catalog:** #375 (unify registry, phần lớn đã đạt qua routeConfigs+menu.service+route.meta.permission) · #378 (điền mã quyền — cần catalog AUTHZ #367) · #379 (role-dashboard — cần #375+#378).
+  - **Backend AUTHZ epic (deploy+smoke, security lớn):** #367 #368 #369 #370 #371 · #372(epic) · #384 #385.
+  - **Commercial product-feature:** #404 workspace-layer · #405 EnabledModules.
+  - **PORT v1→v2 (deploy+smoke):** #407 patient-safety residual · #409 ~40 trang partial · #413 DicomViewer v2-native.
+  - **Product-decision:** #417 DoctorPortal giữ/bỏ.
+  - **REFAC:** #362 OpdEditor P2 (patient-safety, deploy+smoke) · #363 BusinessAlert (logic-change, deploy+smoke) · #364 BE god-split wave-3 (~25 file, phiên riêng) · #365 dev-controller thin (BE, isolated — closeable phiên BE riêng).
+  - **Epic tracker:** #352 · #387.
+  - **TEST (RULE: làm CUỐI):** #191 #212 #213 + 128 test-EV.
 
 
 ## Phiên 2026-07-11 (cửa PORT w196 — #415+#416 ✅ CLOSED, #412 AiQueueBadge DONE-code CHỜ push)
