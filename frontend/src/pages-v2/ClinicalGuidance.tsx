@@ -4,8 +4,8 @@ import dayjs from 'dayjs';
 import {
   getGuidanceBatches, createGuidanceBatch, updateGuidanceBatch, deleteGuidanceBatch,
   getGuidanceActivities, createGuidanceActivity,
-} from '../api/clinicalGuidance';
-import type { GuidanceBatchDto, CreateGuidanceBatchDto, GuidanceActivityDto, CreateGuidanceActivityDto } from '../api/clinicalGuidance';
+} from '../modules/patient/api/clinicalGuidance';
+import type { GuidanceBatchDto, CreateGuidanceBatchDto, GuidanceActivityDto, CreateGuidanceActivityDto } from '../modules/patient/api/clinicalGuidance';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, te, cf,

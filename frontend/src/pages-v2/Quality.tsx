@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input, Select, DatePicker, Checkbox } from 'antd';
-import { getIncidents, getQualityIndicators, createIncident } from '../api/quality';
-import type { IncidentReportDto, QualityIndicatorDto } from '../api/quality';
+import { getIncidents, getQualityIndicators, createIncident } from '../modules/quality/api/quality';
+import type { IncidentReportDto, QualityIndicatorDto } from '../modules/quality/api/quality';
 import { catalogApi } from '../modules/system/api/system';
 import type { DepartmentCatalogDto } from '../modules/system/api/system';
 import {

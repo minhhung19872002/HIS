@@ -35,7 +35,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as warehouseApi from '../api/warehouse';
+import * as warehouseApi from '../modules/pharmacy/api/warehouse';
 
 type ProcurementPagedLike = {
   items?: warehouseApi.ProcurementRequestDto[];

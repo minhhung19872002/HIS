@@ -4,7 +4,7 @@
  */
 import dayjs from 'dayjs';
 import { HOSPITAL_NAME } from '../../constants/hospital';
-import type { LabRequest, TestResult, TestParameter } from '../../api/laboratory';
+import type { LabRequest, TestResult, TestParameter } from '../../modules/laboratory/api/laboratory';
 
 const getParameterStatus = (param: TestParameter): 'normal' | 'high' | 'low' | 'critical' | null => {
   if (param.value === null || param.value === '') return null;

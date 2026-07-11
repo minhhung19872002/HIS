@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { fmtNum as fmt } from '../utils/format';
 import dayjs from 'dayjs';
 import { Form, Input, DatePicker, Tabs, Select, Checkbox } from 'antd';
-import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode, getStocktakes, createStocktake, completeStocktake, approveStocktake, updateStocktakeItem, printStocktake, getDepreciationReport } from '../api/assetManagement';
-import type { FixedAssetDto, AssetDashboardDto, AssetQrCodeDto, AssetStocktakeDto, AssetStocktakeItemDto, DepreciationReportDto } from '../api/assetManagement';
+import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode, getStocktakes, createStocktake, completeStocktake, approveStocktake, updateStocktakeItem, printStocktake, getDepreciationReport } from '../modules/asset/api/assetManagement';
+import type { FixedAssetDto, AssetDashboardDto, AssetQrCodeDto, AssetStocktakeDto, AssetStocktakeItemDto, DepreciationReportDto } from '../modules/asset/api/assetManagement';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal, ModalShell,
   DrawerShell, DrSec, DrField, useTabCounts, tk, ti, te,

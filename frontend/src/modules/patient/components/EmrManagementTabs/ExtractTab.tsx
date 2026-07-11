@@ -8,10 +8,10 @@ import {
   CloseCircleOutlined, PlusOutlined,
   SearchOutlined, CopyOutlined,
 } from '@ant-design/icons';
-import * as emrMgmt from '../../../../api/emrManagement';
+import * as emrMgmt from '../../../emr/api/emrManagement';
 import type {
   EmrExtractDto,
-} from '../../../../api/emrManagement';
+} from '../../../emr/api/emrManagement';
 
 // ============ Tab 1: Chia se BA (Sharing B.1.2) ============
 

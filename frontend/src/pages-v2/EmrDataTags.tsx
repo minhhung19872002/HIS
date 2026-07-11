@@ -8,7 +8,7 @@ import {
   KpiStrip, DataTable, StatusBadge, ActBtn, Btn, ModalShell, SearchBox,
   useListData, tk, te, cf, type ColumnDef,
 } from './_v2kit';
-import { getEmrDataTags, saveEmrDataTag, deleteEmrDataTag, type EmrDataTagDto } from '../api/emrManagement';
+import { getEmrDataTags, saveEmrDataTag, deleteEmrDataTag, type EmrDataTagDto } from '../modules/emr/api/emrManagement';
 
 // Kiểu dữ liệu thẻ — khớp comment entity EmrDataTag.DataType
 const DATA_TYPES = [

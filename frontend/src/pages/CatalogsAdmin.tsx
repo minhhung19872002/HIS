@@ -16,7 +16,7 @@ import {
 import {
   saveTemplate, deleteTemplate, searchTemplates, getTemplateById,
   TEMPLATE_TYPE_LABELS, type ClinicalTemplateDto,
-} from '../api/clinicalTemplate';
+} from '../modules/patient/api/clinicalTemplate';
 import { invalidateAbbreviationCache } from '../hooks/useAbbreviationExpander';
 
 const { Text } = Typography;

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getReagents, createReagent, updateReagent, deleteReagent, getReagentAlerts, getReagentUsageHistory } from '../api/reagent';
-import type { Reagent, ReagentAlert, ReagentUsage } from '../api/reagent';
+import { getReagents, createReagent, updateReagent, deleteReagent, getReagentAlerts, getReagentUsageHistory } from '../modules/laboratory/api/reagent';
+import type { Reagent, ReagentAlert, ReagentUsage } from '../modules/laboratory/api/reagent';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,

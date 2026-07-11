@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import type { ExpiryWarningDto } from '../../api/warehouse';
+import type { ExpiryWarningDto } from '../../modules/pharmacy/api/warehouse';
 
 /* ==========================================================================
    Pharmacy — pending count + expiry warnings

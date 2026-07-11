@@ -9,8 +9,8 @@ import { Input, Select, Spin, Alert, QRCode, Divider } from 'antd';
 import {
   issueTicket, checkinByCard, getQueueStatus, callNext,
   type KioskTicketDto, type CheckinResultDto, type QueueStatusDto,
-} from '../api/kiosk';
-import { createKioskQr, getKioskQrStatus, type KioskQrResponse } from '../api/nangcap25';
+} from '../modules/reception/api/kiosk';
+import { createKioskQr, getKioskQrStatus, type KioskQrResponse } from '../modules/billing/api/nangcap25';
 import {
   KpiStrip, TopTabs, ActBtn, Btn, ModalShell, DrSec, DrField,
   StatusBadge, DataTable, tk, te,

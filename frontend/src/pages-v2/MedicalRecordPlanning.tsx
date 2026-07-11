@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Form, Input, InputNumber, Divider } from 'antd';
-import { getRecordCodes, assignRecordCode, bulkAllocate } from '../api/medicalRecordPlanning';
-import type { BulkAllocateResult } from '../api/medicalRecordPlanning';
+import { getRecordCodes, assignRecordCode, bulkAllocate } from '../modules/medical-record/api/medicalRecordPlanning';
+import type { BulkAllocateResult } from '../modules/medical-record/api/medicalRecordPlanning';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, useTabCounts, tk, ti, tw, Ico,

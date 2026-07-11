@@ -4,8 +4,8 @@ import {
   searchHouseholds, createHousehold, updateHousehold,
   searchNcdScreenings, createNcdScreening,
   searchTeams, createTeam,
-} from '../api/communityHealth';
-import type { Household, NcdScreening, CommunityTeam } from '../api/communityHealth';
+} from '../modules/public-health/api/communityHealth';
+import type { Household, NcdScreening, CommunityTeam } from '../modules/public-health/api/communityHealth';
 import {
   TopTabs, KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, CrudModal,

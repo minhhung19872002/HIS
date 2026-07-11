@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getScreeningRequests, createScreeningRequest } from '../api/screening';
-import type { ScreeningRequest } from '../api/screening';
+import { getScreeningRequests, createScreeningRequest } from '../modules/laboratory/api/screening';
+import type { ScreeningRequest } from '../modules/laboratory/api/screening';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,

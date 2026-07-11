@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Input, Select } from 'antd';
-import { getMicrobiologyCultures, createCulture, updateCultureStatus, addOrganism, saveAntibiogram } from '../api/microbiology';
-import type { MicrobiologyCulture, MicrobiologyOrganism, AntibioticSensitivity } from '../api/microbiology';
+import { getMicrobiologyCultures, createCulture, updateCultureStatus, addOrganism, saveAntibiogram } from '../modules/laboratory/api/microbiology';
+import type { MicrobiologyCulture, MicrobiologyOrganism, AntibioticSensitivity } from '../modules/laboratory/api/microbiology';
 import { printLabResult } from '../api/pdf';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,

@@ -43,16 +43,16 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { examinationApi, type MedicineDto, type PrescriptionTemplateDto } from '../api/examination';
+import { examinationApi, type MedicineDto, type PrescriptionTemplateDto } from '../modules/opd/api/examination';
 import { patientApi, type Patient as ApiPatient } from '../modules/patient/api/patient';
-import { getPrescriptionContext, type PrescriptionContextDto } from '../api/dataInheritance';
+import { getPrescriptionContext, type PrescriptionContextDto } from '../modules/patient/api/dataInheritance';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS } from '../constants/hospital';
 import { PinEntryModal } from '../components/digitalSignature';
 import { useSigningContext } from '../contexts/SigningContext';
-import { getSignatures } from '../api/digitalSignature';
-import type { DocumentSignatureDto } from '../api/digitalSignature';
+import { getSignatures } from '../modules/emr/api/digitalSignature';
+import type { DocumentSignatureDto } from '../modules/emr/api/digitalSignature';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
-import { getPrescriptions as getRecentPrescriptions } from '../api/patientPortal';
+import { getPrescriptions as getRecentPrescriptions } from '../modules/portal/api/patientPortal';
 import { useSafetyAlerts } from '../hooks/useSafetyAlerts';
 import PatientFlagBanner from '../components/PatientFlagBanner';
 

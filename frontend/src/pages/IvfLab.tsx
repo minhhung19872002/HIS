@@ -9,11 +9,11 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as ivfApi from '../api/ivfLab';
+import * as ivfApi from '../modules/specialty/api/ivfLab';
 import type {
   IvfCouple, IvfCycle, IvfEmbryo, IvfSpermSample,
   IvfDashboard, IvfDailyReport
-} from '../api/ivfLab';
+} from '../modules/specialty/api/ivfLab';
 
 const { Search } = Input;
 

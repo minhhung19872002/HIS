@@ -14,7 +14,7 @@ import {
   createDisbursement, executeDisbursement, cancelDisbursement, searchDisbursements,
   type BankReconciliationReport, type QrFinanceReport, type QrFinanceItem,
   type RefundDisbursementDto, type QrCreatorStat,
-} from '../api/nangcap25';
+} from '../modules/billing/api/nangcap25';
 
 type TabKey = 'recon' | 'creators' | 'disburse';
 const TABS: TopTab<TabKey>[] = [

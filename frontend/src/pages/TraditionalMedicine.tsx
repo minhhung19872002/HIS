@@ -11,8 +11,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as tmApi from '../api/traditionalMedicine';
-import type { TraditionalTreatment, TraditionalMedicineStats, HerbalPrescription } from '../api/traditionalMedicine';
+import * as tmApi from '../modules/traditional-medicine/api/traditionalMedicine';
+import type { TraditionalTreatment, TraditionalMedicineStats, HerbalPrescription } from '../modules/traditional-medicine/api/traditionalMedicine';
 
 const { Title } = Typography;
 const { Search } = Input;

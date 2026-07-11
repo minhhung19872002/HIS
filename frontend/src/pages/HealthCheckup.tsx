@@ -43,8 +43,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as healthCheckupApi from '../api/healthCheckup';
-import type { HealthCheckup as HealthCheckupType, HealthCheckupStats, CheckupCampaign, CampaignGroup } from '../api/healthCheckup';
+import * as healthCheckupApi from '../modules/checkup/api/healthCheckup';
+import type { HealthCheckup as HealthCheckupType, HealthCheckupStats, CheckupCampaign, CampaignGroup } from '../modules/checkup/api/healthCheckup';
 
 const { Title } = Typography;
 const { Search } = Input;

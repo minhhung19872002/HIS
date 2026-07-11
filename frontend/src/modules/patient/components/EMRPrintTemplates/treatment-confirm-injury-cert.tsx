@@ -1,7 +1,7 @@
 import { forwardRef, useState, useEffect } from 'react';
 import dayjs from 'dayjs';
-import type { MedicalRecordFullDto, InjuryInfoDto } from '../../../../api/examination';
-import { getInjuryInfo } from '../../../../api/examination';
+import type { MedicalRecordFullDto, InjuryInfoDto } from '../../../opd/api/examination';
+import { getInjuryInfo } from '../../../opd/api/examination';
 import { printStyles, PrintHeader, SignatureBlock, Field } from './_shared';
 
 // ===========================

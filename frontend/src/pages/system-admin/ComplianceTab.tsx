@@ -10,7 +10,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import {
   getComplianceSummary, getSensitiveAccessReport,
   type ComplianceSummaryDto, type SensitiveDataAccessReportDto,
-} from '../../api/security';
+} from '../../modules/system/api/security';
 import { getNestedData } from './helpers';
 
 const { RangePicker } = DatePicker;

@@ -9,8 +9,8 @@ import {
   CheckCircleOutlined, ExperimentOutlined, HistoryOutlined, EyeOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { Reagent, ReagentUsage, ReagentAlert } from '../api/reagent';
-import * as reagentApi from '../api/reagent';
+import type { Reagent, ReagentUsage, ReagentAlert } from '../modules/laboratory/api/reagent';
+import * as reagentApi from '../modules/laboratory/api/reagent';
 
 const statusMap: Record<number, { text: string; color: string }> = {
   0: { text: 'Sẵn sàng', color: 'green' },

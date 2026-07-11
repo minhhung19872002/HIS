@@ -7,8 +7,8 @@ import type {
   RoomPatientListDto,
   ExaminationDto,
   ServiceDto,
-} from '../../api/examination';
-import type { StockDto } from '../../api/warehouse';
+} from '../../modules/opd/api/examination';
+import type { StockDto } from '../../modules/pharmacy/api/warehouse';
 
 export type QueuePatient = RoomPatientListDto;
 

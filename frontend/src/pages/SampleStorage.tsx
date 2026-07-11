@@ -8,8 +8,8 @@ import {
   WarningOutlined, ScanOutlined, ExportOutlined, EyeOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { SampleStorageRecord, StorageLocation, StorageAlert } from '../api/sampleStorage';
-import * as storageApi from '../api/sampleStorage';
+import type { SampleStorageRecord, StorageLocation, StorageAlert } from '../modules/laboratory/api/sampleStorage';
+import * as storageApi from '../modules/laboratory/api/sampleStorage';
 import BarcodeScanner from '../components/BarcodeScanner';
 
 const statusMap: Record<number, { text: string; color: string }> = {

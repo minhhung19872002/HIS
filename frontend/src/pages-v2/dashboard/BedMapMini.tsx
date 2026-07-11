@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import type { BedLayoutDto } from '../../api/inpatient';
+import type { BedLayoutDto } from '../../modules/inpatient/api/inpatient';
 
 /* ==========================================================================
    Bed Map Mini — real bed layout

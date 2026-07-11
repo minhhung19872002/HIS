@@ -26,7 +26,7 @@ import {
   type ExaminationDto, type ExaminationSearchDto, type PagedResult,
   type MedicalRecordFullDto, type MedicalHistoryDto,
   type TreatmentSheetDto, type ConsultationRecordDto, type NursingCareSheetDto,
-} from '../api/examination';
+} from '../modules/opd/api/examination';
 import PrintTemplateRenderer from '../components/PrintTemplateRenderer';
 import { printEmrForm } from '../api/pdf';
 import client from '../services/apiClient';
@@ -34,14 +34,14 @@ import {
   getCompletenessCheck, getAttachments, saveAttachment, deleteAttachment,
   getPrintLogs, stampPrintLog, finalizeRecord, reopenRecord, getAmendments,
   type EmrCompletenessDto, type EmrDocumentAttachmentDto, type EmrPrintLogDto, type EmrAmendmentDto,
-} from '../api/emrAdmin';
+} from '../modules/emr/api/emrAdmin';
 import PatientTimeline from '../components/PatientTimeline';
 import EmrManagementTabs from '../components/EmrManagementTabs';
 import VoiceDictation from '../components/VoiceDictation';
 import { PinEntryModal, SignatureStatusIcon, SignatureVerificationPanel, BatchSigningModal } from '../components/digitalSignature';
 import { useSigningContext } from '../contexts/SigningContext';
-import { getSignatures, getSignaturesBatch } from '../api/digitalSignature';
-import type { DocumentSignatureDto } from '../api/digitalSignature';
+import { getSignatures, getSignaturesBatch } from '../modules/emr/api/digitalSignature';
+import type { DocumentSignatureDto } from '../modules/emr/api/digitalSignature';
 import PatientFlagBanner from '../components/PatientFlagBanner';
 
 import { statusColors, statusNames } from './emr/constants';

@@ -1,6 +1,6 @@
 import { Tooltip } from 'antd';
 import { SafetyCertificateOutlined } from '@ant-design/icons';
-import type { DocumentSignatureDto } from '../../api/digitalSignature';
+import type { DocumentSignatureDto } from '../../modules/emr/api/digitalSignature';
 
 interface SignatureStatusIconProps {
   signed: boolean;

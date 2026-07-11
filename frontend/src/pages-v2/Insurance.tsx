@@ -3,8 +3,8 @@ import * as file from '../services/file.service';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { searchInsuranceClaims } from '../api/insurance';
-import type { InsuranceClaimSummaryDto } from '../api/insurance';
+import { searchInsuranceClaims } from '../modules/insurance/api/insurance';
+import type { InsuranceClaimSummaryDto } from '../modules/insurance/api/insurance';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, useListData, useTabCounts,

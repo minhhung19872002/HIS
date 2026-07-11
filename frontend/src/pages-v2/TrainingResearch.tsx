@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { fmtNum as fmt } from '../utils/format';
 import dayjs from 'dayjs';
-import { getTrainingClasses, getTrainingDashboard, saveTrainingClass, getClassStudents } from '../api/trainingResearch';
-import type { TrainingClassDto, TrainingDashboardDto, TrainingStudentDto } from '../api/trainingResearch';
+import { getTrainingClasses, getTrainingDashboard, saveTrainingClass, getClassStudents } from '../modules/training/api/trainingResearch';
+import type { TrainingClassDto, TrainingDashboardDto, TrainingStudentDto } from '../modules/training/api/trainingResearch';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
   DrawerShell, DrSec, DrField, tk, ti,

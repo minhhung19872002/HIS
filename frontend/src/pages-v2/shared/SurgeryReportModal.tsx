@@ -33,8 +33,8 @@ import {
   getSurgeries,
   printSurgeryReport,
   type SurgeryDto,
-} from '../../api/surgery';
-import { uploadPhoto } from '../../api/reception';
+} from '../../modules/surgery/api/surgery';
+import { uploadPhoto } from '../../modules/reception/api/reception';
 
 // Scope: general + diagnosis abbreviation dictionaries
 const PTTT_ABBR_SCOPES = [ABBREVIATION_SCOPES.GENERAL, ABBREVIATION_SCOPES.DIAGNOSIS] as const;

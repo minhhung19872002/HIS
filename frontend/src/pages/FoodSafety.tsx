@@ -35,14 +35,14 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as foodSafetyApi from '../api/foodSafety';
+import * as foodSafetyApi from '../modules/public-health/api/foodSafety';
 import type {
   FoodSafetyIncident,
   FoodInspection,
   FoodSafetyStats,
   FoodSafetySample,
   InspectionStats,
-} from '../api/foodSafety';
+} from '../modules/public-health/api/foodSafety';
 
 const { Title, Text } = Typography;
 const { Search } = Input;

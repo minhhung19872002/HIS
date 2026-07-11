@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
-import * as receptionApi from '../api/reception';
-import type { RoomOverviewDto } from '../api/reception';
+import * as receptionApi from '../modules/reception/api/reception';
+import type { RoomOverviewDto } from '../modules/reception/api/reception';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell,
@@ -16,16 +16,16 @@ import TermIcon from '../layouts/terminal/Icon';
    Reflects design pack: design-system-v2/his/project/Reception v2.html
    ──────────────────────────────────────────────────────────── */
 
-import type { RawRow, TopKey, StatusKey } from './reception/shared';
-import { TOP_TABS, STATUS_TABS, PRIORITY_OPTS, VISIT_TYPE_OPTS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from './reception/shared';
-import { NewVisitModal } from './reception/NewVisitModal';
-import { NowServingTab } from './reception/NowServingTab';
-import { StatsTab } from './reception/StatsTab';
-import { VisitDrawerBody } from './reception/VisitDrawerBody';
-import { BhytVerifyModal } from './reception/BhytVerifyModal';
-import { PatientLookupModal } from './reception/PatientLookupModal';
-import { MoveRoomModal } from './reception/MoveRoomModal';
-import { ReceptionPayModal } from './reception/ReceptionPayModal';
+import type { RawRow, TopKey, StatusKey } from '../modules/reception/pages/shared';
+import { TOP_TABS, STATUS_TABS, PRIORITY_OPTS, VISIT_TYPE_OPTS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from '../modules/reception/pages/shared';
+import { NewVisitModal } from '../modules/reception/pages/NewVisitModal';
+import { NowServingTab } from '../modules/reception/pages/NowServingTab';
+import { StatsTab } from '../modules/reception/pages/StatsTab';
+import { VisitDrawerBody } from '../modules/reception/pages/VisitDrawerBody';
+import { BhytVerifyModal } from '../modules/reception/pages/BhytVerifyModal';
+import { PatientLookupModal } from '../modules/reception/pages/PatientLookupModal';
+import { MoveRoomModal } from '../modules/reception/pages/MoveRoomModal';
+import { ReceptionPayModal } from '../modules/reception/pages/ReceptionPayModal';
 const ReceptionV2: React.FC = () => {
   const { message } = AntdApp.useApp();
 

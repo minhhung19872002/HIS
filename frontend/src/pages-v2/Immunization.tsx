@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   searchVaccinations, recordVaccination, searchCampaigns, getCampaignStats, getAefiReports,
-} from '../api/immunization';
-import type { Vaccination, Campaign, AefiReport, CampaignStats } from '../api/immunization';
+} from '../modules/immunization/api/immunization';
+import type { Vaccination, Campaign, AefiReport, CampaignStats } from '../modules/immunization/api/immunization';
 import {
   TopTabs, KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
   StatusBadge, Btn, DrawerShell, DrSec, DrField, CrudModal,

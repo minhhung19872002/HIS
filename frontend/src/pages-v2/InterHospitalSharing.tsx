@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchRequests, respondToRequest, createRequest } from '../api/interHospitalSharing';
-import type { InterHospitalRequest } from '../api/interHospitalSharing';
+import { searchRequests, respondToRequest, createRequest } from '../modules/system/api/interHospitalSharing';
+import type { InterHospitalRequest } from '../modules/system/api/interHospitalSharing';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,

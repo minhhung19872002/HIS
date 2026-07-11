@@ -12,7 +12,7 @@ import {
   type ProvincialDirectiveDto,
   type SaveProvincialDirectiveRequest,
   type ProvincialReportDto,
-} from '../api/provincialHealth';
+} from '../modules/administration/api/provincialHealth';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, te, cf,

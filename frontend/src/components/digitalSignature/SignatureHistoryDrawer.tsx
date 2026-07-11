@@ -27,7 +27,7 @@ import {
   getSessionStatus,
   type DocumentSignatureHistoryDto,
   type SignDocumentRequest,
-} from '../../api/digitalSignature';
+} from '../../modules/emr/api/digitalSignature';
 
 const { Text } = Typography;
 

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getHAICases, createHAICase, createIsolationOrder } from '../api/infectionControl';
-import type { CreateHAISurveillanceDto, CreateIsolationOrderDto } from '../api/infectionControl';
-import { getInpatientList } from '../api/inpatient';
+import { getHAICases, createHAICase, createIsolationOrder } from '../modules/infection-control/api/infectionControl';
+import type { CreateHAISurveillanceDto, CreateIsolationOrderDto } from '../modules/infection-control/api/infectionControl';
+import { getInpatientList } from '../modules/inpatient/api/inpatient';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, CrudModal, Btn,
   DrawerShell, DrSec, DrField, tk, ti,

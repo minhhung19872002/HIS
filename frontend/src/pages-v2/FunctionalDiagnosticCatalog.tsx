@@ -12,7 +12,7 @@ import {
   type FunctionalDiagnosticTemplateDto,
   type SaveFunctionalDiagnosticTestTypeDto,
   type SaveFunctionalDiagnosticTemplateDto,
-} from '../api/functionalDiagnosticCatalog';
+} from '../modules/administration/api/functionalDiagnosticCatalog';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, te, cf,

@@ -46,8 +46,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as receptionApi from '../api/reception';
-import * as insuranceApi from '../api/insurance';
+import * as receptionApi from '../modules/reception/api/reception';
+import * as insuranceApi from '../modules/insurance/api/insurance';
 import BarcodeScanner from '../components/BarcodeScanner';
 import WebcamCapture from '../components/WebcamCapture';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -339,7 +339,7 @@ const Reception: React.FC = () => {
 
       // Multi-room registration (chỉ áp dụng cho thu phí/dịch vụ)
       if (extraRoomIds.length > 0 && patientType !== 1) {
-        const { registerMultipleRooms } = await import('../api/multiSpecialtyExam');
+        const { registerMultipleRooms } = await import('../modules/opd/api/multiSpecialtyExam');
         const allRoomIds = [values.roomId, ...extraRoomIds].filter(Boolean);
         if (!values.patientId) {
           // Cần tạo patient trước khi đăng ký multi-room. Fall back to single-room registration

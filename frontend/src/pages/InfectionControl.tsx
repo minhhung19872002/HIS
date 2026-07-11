@@ -44,14 +44,14 @@ import {
   closeHAICase,
   createHandHygieneObservation,
   getOutbreaks,
-} from '../api/infectionControl';
+} from '../modules/infection-control/api/infectionControl';
 import type {
   HAISurveillanceDto,
   IsolationOrderDto,
   HandHygieneObservationDto,
   InfectionControlDashboardDto,
   OutbreakDto,
-} from '../api/infectionControl';
+} from '../modules/infection-control/api/infectionControl';
 import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;

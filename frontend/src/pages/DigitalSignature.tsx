@@ -10,11 +10,11 @@ import {
   LinkOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import * as dsApi from '../api/digitalSignature';
+import * as dsApi from '../modules/emr/api/digitalSignature';
 import type {
   TokenInfoDto, DocumentSignatureDto, SessionStatusResponse,
   BatchSignResponse, BatchSignItemResult
-} from '../api/digitalSignature';
+} from '../modules/emr/api/digitalSignature';
 import { apiClient } from '../services/apiClient';
 
 interface CertificateInfo {

@@ -11,14 +11,14 @@ import {
 import TermIcon from '../layouts/terminal/Icon';
 import { SurgeryReportModal } from './shared/SurgeryReportModal';
 import ShareStudyModal from '../modules/radiology/components/ShareStudyModal';
-import { radiologyColumns } from './radiology/columns';
-import { CallPatientModal } from './radiology/CallPatientModal';
-import { ResultEntryModal } from './radiology/ResultEntryModal';
-import { RadiologyDrawerBody } from './radiology/RadiologyDrawerBody';
+import { radiologyColumns } from '../modules/radiology/pages/columns';
+import { CallPatientModal } from '../modules/radiology/pages/CallPatientModal';
+import { ResultEntryModal } from '../modules/radiology/pages/ResultEntryModal';
+import { RadiologyDrawerBody } from '../modules/radiology/pages/RadiologyDrawerBody';
 import {
   type ApiErr, type StatusKey, STATUS_TABS, MODALITIES,
   detectModality, statusKey, printResultBlob, fmtDT,
-} from './radiology/_shared';
+} from '../modules/radiology/pages/_shared';
 
 // ─────────────── Modal chia sẻ ca chụp (v2 wrapper) ───────────────
 // ShareStudyModal đã có đầy đủ HideDemographics — dùng lại không sửa.

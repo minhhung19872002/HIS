@@ -20,7 +20,7 @@ import type {
   ServiceOrderDoctorsItemDto,
   DispensingVsBillingItemDto,
   DispensingVsStandardsItemDto,
-} from '../../api/reconciliation';
+} from '../../modules/reports/api/reconciliation';
 
 /** Union DTO covering tất cả response của reconciliationApi.getX(). */
 export type ReconciliationReportDto =

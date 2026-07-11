@@ -12,7 +12,7 @@
 import React from 'react';
 import { Card, Col, Form, InputNumber, Row, Tag, Typography } from 'antd';
 import type { FormInstance } from 'antd';
-import type { EarlyWarningScore } from '../../../api/clinicalDecisionSupport';
+import type { EarlyWarningScore } from '../../../modules/patient/api/clinicalDecisionSupport';
 
 const { Text } = Typography;
 

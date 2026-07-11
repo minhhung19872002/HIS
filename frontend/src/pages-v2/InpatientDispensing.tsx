@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import apiClient from '../services/apiClient';
 import { openPrintWindow } from '../utils/printWindow';
 import systemApi from '../modules/system/api/system';
-import { getWarehouses } from '../api/warehouse';
+import { getWarehouses } from '../modules/pharmacy/api/warehouse';
 import { PharmacyExpiryBanner } from '../modules/pharmacy/components/PharmacyExpiryBanner';
 import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {

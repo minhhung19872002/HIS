@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { fmtNum as fmt } from '../utils/format';
 import dayjs from 'dayjs';
 import { DatePicker } from 'antd';
-import { searchCampaigns, createCampaign, updateCampaign, searchMaterials, createMaterial } from '../api/healthEducation';
-import type { HealthCampaign, HealthMaterial } from '../api/healthEducation';
+import { searchCampaigns, createCampaign, updateCampaign, searchMaterials, createMaterial } from '../modules/public-health/api/healthEducation';
+import type { HealthCampaign, HealthMaterial } from '../modules/public-health/api/healthEducation';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,

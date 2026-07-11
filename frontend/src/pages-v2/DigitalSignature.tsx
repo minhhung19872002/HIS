@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Form, Input, Modal } from 'antd';
-import * as dsApi from '../api/digitalSignature';
+import * as dsApi from '../modules/emr/api/digitalSignature';
 import type {
   TokenInfoDto, SessionStatusResponse, BatchSignResponse,
-} from '../api/digitalSignature';
+} from '../modules/emr/api/digitalSignature';
 import { apiClient } from '../services/apiClient';
 import { signPdf as vgcaSignPdf } from '../utils/vgcaSign';
 import {

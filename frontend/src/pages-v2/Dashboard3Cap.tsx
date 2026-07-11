@@ -8,11 +8,11 @@ import {
 } from 'recharts';
 import {
   getMultiFacilityDashboard, getBranchTree, getConsolidatedReport, getBranchDutyRoster,
-} from '../api/multiFacility';
+} from '../modules/administration/api/multiFacility';
 import type {
   MultiFacilityDashboardDto, BranchTreeDto,
   ConsolidatedReportDto, BranchDutyRosterDto, BranchSummary,
-} from '../api/multiFacility';
+} from '../modules/administration/api/multiFacility';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti,

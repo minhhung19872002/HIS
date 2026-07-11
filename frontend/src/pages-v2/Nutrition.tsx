@@ -3,9 +3,9 @@ import dayjs from 'dayjs';
 import { Input } from 'antd';
 import {
   getDietOrders, getDietOrderById, createDietOrder, updateDietOrder, cancelDietOrder, getDietTypes,
-} from '../api/nutrition';
-import type { CreateDietOrderDto } from '../api/nutrition';
-import { getInpatientList } from '../api/inpatient';
+} from '../modules/nutrition/api/nutrition';
+import type { CreateDietOrderDto } from '../modules/nutrition/api/nutrition';
+import { getInpatientList } from '../modules/inpatient/api/inpatient';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal, ModalShell,
   DrawerShell, DrSec, DrField, tk, ti, te,

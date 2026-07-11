@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import dayjs from 'dayjs';
-import type { MedicalRecordFullDto } from '../../../../api/examination';
+import type { MedicalRecordFullDto } from '../../../opd/api/examination';
 import { printStyles, PrintHeader, SignatureBlock, Field } from './_shared';
 interface DeathReviewProps {
   record: MedicalRecordFullDto;

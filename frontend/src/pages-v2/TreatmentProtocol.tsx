@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchProtocols, saveProtocol, deleteProtocol, approveProtocol, newVersion as createNewVersion } from '../api/treatmentProtocol';
-import type { TreatmentProtocolDto, SaveTreatmentProtocolDto } from '../api/treatmentProtocol';
+import { searchProtocols, saveProtocol, deleteProtocol, approveProtocol, newVersion as createNewVersion } from '../modules/patient/api/treatmentProtocol';
+import type { TreatmentProtocolDto, SaveTreatmentProtocolDto } from '../modules/patient/api/treatmentProtocol';
 import { openPrintWindow } from '../utils/printWindow';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,

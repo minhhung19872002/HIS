@@ -7,7 +7,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import * as file from '../services/file.service';
 import { Input, InputNumber, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
-import * as api from '../api/masterCatalog';
+import * as api from '../modules/administration/api/masterCatalog';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, te, cf, Ico,

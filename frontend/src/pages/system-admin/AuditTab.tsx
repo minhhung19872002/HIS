@@ -12,7 +12,7 @@ import {
   type AuditLogDto as AuditLogLevel6,
   type AuditLogSearchDto as AuditLogLevel6Search,
   type AuditLogPagedResult,
-} from '../../api/audit';
+} from '../../modules/system/api/audit';
 
 const { Search } = Input;
 const { Option } = Select;

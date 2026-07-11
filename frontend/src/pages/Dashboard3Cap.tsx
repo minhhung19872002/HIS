@@ -24,11 +24,11 @@ import {
 } from 'recharts';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { getMultiFacilityDashboard, getBranchTree, getBranchesByLevel, getConsolidatedReport, getBranchDutyRoster } from '../api/multiFacility';
+import { getMultiFacilityDashboard, getBranchTree, getBranchesByLevel, getConsolidatedReport, getBranchDutyRoster } from '../modules/administration/api/multiFacility';
 import type {
   MultiFacilityDashboardDto, BranchTreeDto, BranchSummary,
   ConsolidatedReportDto, BranchReportItem, BranchDutyRosterDto, BranchStaffSummary
-} from '../api/multiFacility';
+} from '../modules/administration/api/multiFacility';
 
 const { Title, Text } = Typography;
 

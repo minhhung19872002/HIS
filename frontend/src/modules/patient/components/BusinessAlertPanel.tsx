@@ -23,7 +23,7 @@ import {
   ReloadOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
-import type { BusinessAlertDto, AlertCheckResult } from '../../../api/businessAlerts';
+import type { BusinessAlertDto, AlertCheckResult } from '../api/businessAlerts';
 import {
   checkOpdAlerts,
   checkInpatientAlerts,
@@ -31,7 +31,7 @@ import {
   checkLabAlerts,
   checkBillingAlerts,
   acknowledgeAlert,
-} from '../../../api/businessAlerts';
+} from '../api/businessAlerts';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;

@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import dayjs from 'dayjs';
-import type { MedicalRecordFullDto, NursingCareSheetDto } from '../../../../api/examination';
+import type { MedicalRecordFullDto, NursingCareSheetDto } from '../../../opd/api/examination';
 import { printStyles, PrintHeader, SignatureBlock, Field } from './_shared';
 interface NursingCarePrintProps {
   record: MedicalRecordFullDto;

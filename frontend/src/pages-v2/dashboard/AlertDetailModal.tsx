@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal } from 'antd';
-import type { BusinessAlertDto } from '../../api/businessAlerts';
+import type { BusinessAlertDto } from '../../modules/patient/api/businessAlerts';
 import { fmtRelShort } from './_shared';
 
 /* ==========================================================================

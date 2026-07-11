@@ -62,7 +62,7 @@ import {
   createTeleconsultRequest,
   startTeleconsult,
   printReferralLetter,
-} from '../api/healthExchange';
+} from '../modules/system/api/healthExchange';
 import type {
   HIEConnectionDto,
   InsuranceSubmissionDto,
@@ -72,7 +72,7 @@ import type {
   CreateReferralDto,
   CreateTeleconsultRequestDto,
   GenerateXMLDto,
-} from '../api/healthExchange';
+} from '../modules/system/api/healthExchange';
 import {
   getMetadata,
   searchResource,
@@ -83,8 +83,8 @@ import {
 import type { FhirCapabilityStatement, FhirBundle, FhirResource } from '../api/fhir';
 import * as nationalRxApi from '../api/nationalPrescription';
 import type { NationalPrescriptionDto, NationalPrescriptionStatsDto } from '../api/nationalPrescription';
-import * as provincialApi from '../api/provincialHealth';
-import type { ProvincialReportDto, ProvincialStatsDto } from '../api/provincialHealth';
+import * as provincialApi from '../modules/administration/api/provincialHealth';
+import type { ProvincialReportDto, ProvincialStatsDto } from '../modules/administration/api/provincialHealth';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;

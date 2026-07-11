@@ -11,8 +11,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as rhApi from '../api/reproductiveHealth';
-import type { PrenatalRecord, FamilyPlanningRecord, ReproductiveHealthStats } from '../api/reproductiveHealth';
+import * as rhApi from '../modules/specialty/api/reproductiveHealth';
+import type { PrenatalRecord, FamilyPlanningRecord, ReproductiveHealthStats } from '../modules/specialty/api/reproductiveHealth';
 
 const { Title } = Typography;
 const { Search } = Input;

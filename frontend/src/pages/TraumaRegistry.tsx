@@ -11,8 +11,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as traumaApi from '../api/traumaRegistry';
-import type { TraumaCase, TraumaStats } from '../api/traumaRegistry';
+import * as traumaApi from '../modules/mci/api/traumaRegistry';
+import type { TraumaCase, TraumaStats } from '../modules/mci/api/traumaRegistry';
 
 const { Title } = Typography;
 const { Search } = Input;

@@ -14,7 +14,7 @@ import {
   getImportedRows,
   type BhxhAuditImportRow,
   type BhxhAuditImportResult,
-} from '../api/bhxhAudit';
+} from '../modules/insurance/api/bhxhAudit';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import { openPrintWindow } from '../utils/printWindow';
 import {

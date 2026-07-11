@@ -27,13 +27,13 @@ import {
   type ServiceOrderFullDto, type DiagnosisFullDto,
   type PatientLabResultsDto, type AllergyDto, type ConsultationRecordDto,
   type InjuryInfoDto,
-} from '../api/examination';
+} from '../modules/opd/api/examination';
 import { catalogApi, type DepartmentCatalogDto } from '../modules/system/api/system';
 import {
   getOutpatientRecordTemplates, getOutpatientRecordTemplate,
   saveOutpatientRecordTemplate, deleteOutpatientRecordTemplate,
   type OutpatientRecordTemplateDto,
-} from '../api/clinicalNarratives';
+} from '../modules/patient/api/clinicalNarratives';
 import { useAbbrExpansion } from '../utils/abbrExpand';
 import PatientFlagBanner from '../modules/patient/components/PatientFlagBanner';
 import BusinessAlertPanel from '../modules/patient/components/BusinessAlertPanel';
@@ -46,18 +46,18 @@ import {
   cancelCompletion,
   deleteRegistration,
   type ExamCompletionStatus,
-} from '../api/multiSpecialtyExam';
+} from '../modules/opd/api/multiSpecialtyExam';
 import '../layouts/terminal/ed-responsive.css';
 // #205 FE-2 (Phase 1) — presentational blocks split into ./opd-editor/*.
 // State/handlers/effects/loaders stay here; these receive everything via props.
 import {
   type Vitals, type DxRow, type OrderRow,
   OPD_ABBR_SCOPES, SEVERITY_LABEL, VITAL_FIELDS, openPdfBlob,
-} from './opd-editor/_shared';
-import { InjurySection } from './opd-editor/InjurySection';
-import { ClsResultsModal } from './opd-editor/ClsResultsModal';
-import { ConsultModal } from './opd-editor/ConsultModal';
-import { TemplateModals } from './opd-editor/TemplateModals';
+} from '../modules/opd/pages/_shared';
+import { InjurySection } from '../modules/opd/pages/InjurySection';
+import { ClsResultsModal } from '../modules/opd/pages/ClsResultsModal';
+import { ConsultModal } from '../modules/opd/pages/ConsultModal';
+import { TemplateModals } from '../modules/opd/pages/TemplateModals';
 
 const OpdEditorV2: React.FC = () => {
   const navigate = useNavigate();

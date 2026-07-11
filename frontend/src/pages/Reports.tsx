@@ -69,9 +69,9 @@ import type {
   PharmacyReportRequest,
   StatisticsReportRequest,
 } from '../modules/system/api/system';
-import { reconciliationApi } from '../api/reconciliation';
+import { reconciliationApi } from '../modules/reports/api/reconciliation';
 import { getBhytReport, getAdminReport, getPharmacyReport } from '../api/bhytReports';
-import { hospitalReportApi, type HospitalReportResult } from '../api/hospitalReport';
+import { hospitalReportApi, type HospitalReportResult } from '../modules/reports/api/hospitalReport';
 import type {
   SupplierProcurementItemDto,
   RevenueByRecordItemDto,
@@ -89,7 +89,7 @@ import type {
   ServiceOrderDoctorsReportDto,
   DispensingVsBillingReportDto,
   DispensingVsStandardsReportDto,
-} from '../api/reconciliation';
+} from '../modules/reports/api/reconciliation';
 
 import type {
   ReconciliationReportDto,

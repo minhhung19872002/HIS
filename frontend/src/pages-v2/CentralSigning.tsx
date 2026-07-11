@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Form, Input, InputNumber, Select, Switch } from 'antd';
-import * as api from '../api/centralSigning';
+import * as api from '../modules/emr/api/centralSigning';
 import { logger } from '../services/logger.service';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,

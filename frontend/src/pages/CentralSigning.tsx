@@ -14,7 +14,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as centralSigningApi from '../api/centralSigning';
+import * as centralSigningApi from '../modules/emr/api/centralSigning';
 
 const { Text } = Typography;
 

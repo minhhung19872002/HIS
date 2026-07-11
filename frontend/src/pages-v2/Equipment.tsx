@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp, Form, Input, DatePicker, Select } from 'antd';
-import { getEquipment, createMaintenanceRecord } from '../api/equipment';
-import type { EquipmentDto } from '../api/equipment';
+import { getEquipment, createMaintenanceRecord } from '../modules/asset/api/equipment';
+import type { EquipmentDto } from '../modules/asset/api/equipment';
 import { SimpleV2Page, StatusBadge, ActBtn, ModalShell, DrawerShell, Btn, type ColumnDef, type StatusTab } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 

@@ -11,8 +11,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as forensicApi from '../api/forensic';
-import type { ForensicCase, ForensicStats, ForensicExamination } from '../api/forensic';
+import * as forensicApi from '../modules/specialty/api/forensic';
+import type { ForensicCase, ForensicStats, ForensicExamination } from '../modules/specialty/api/forensic';
 
 const { Title } = Typography;
 const { Search } = Input;

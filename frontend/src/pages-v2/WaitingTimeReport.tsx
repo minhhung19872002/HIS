@@ -19,7 +19,7 @@ import {
   getWaitingPhaseAnalysis,
   type WaitingPhaseAnalysisDto,
   type DepartmentWaitingDto,
-} from '../api/reception';
+} from '../modules/reception/api/reception';
 import {
   KpiStrip, TopTabs, DataTable, StatusBadge, Btn, ti,
   type ColumnDef,

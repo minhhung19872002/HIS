@@ -6,8 +6,8 @@ import {
   ReloadOutlined, FilterOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { getPatientMedicalHistory } from '../../../api/examination';
-import { getLabResultHistory } from '../../../api/lis';
+import { getPatientMedicalHistory } from '../../opd/api/examination';
+import { getLabResultHistory } from '../../laboratory/api/lis';
 import { getPatientRadiologyHistory } from '../../radiology/api/ris';
 import { getPaymentHistory } from '../../billing/api/billing';
 

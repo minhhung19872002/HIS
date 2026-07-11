@@ -4,8 +4,8 @@ import dayjs from 'dayjs';
 import {
   getAnalyzers, getLabconnectStatus, createAnalyzer, updateAnalyzer, deleteAnalyzer,
   testAnalyzerConnection, syncLabconnect,
-} from '../api/lisConfig';
-import type { AnalyzerDto, LabconnectStatusDto, CreateAnalyzerDto } from '../api/lisConfig';
+} from '../modules/laboratory/api/lisConfig';
+import type { AnalyzerDto, LabconnectStatusDto, CreateAnalyzerDto } from '../modules/laboratory/api/lisConfig';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
   DrawerShell, DrSec, DrField, tk, ti, tw, te, cf, useTabCounts,

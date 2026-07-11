@@ -10,7 +10,7 @@ import {
   type HisConnectionDto,
   type SaveHisConnectionDto,
   type MissingFormsCheckResultDto,
-} from '../api/hisConnector';
+} from '../modules/administration/api/hisConnector';
 import {
   SimpleV2Page,
   StatusBadge,

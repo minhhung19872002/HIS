@@ -68,8 +68,8 @@ import {
   type NursingCareSheetDto,
   type InpatientPrescriptionDto,
   type InpatientServiceOrderDto,
-} from '../api/inpatient';
-import { getAdmissionContext, type AdmissionContextDto } from '../api/dataInheritance';
+} from '../modules/inpatient/api/inpatient';
+import { getAdmissionContext, type AdmissionContextDto } from '../modules/patient/api/dataInheritance';
 import { patientApi, type Patient } from '../modules/patient/api/patient';
 import { printBirthCertificate, type BirthCertificateData } from '../components/BirthCertificatePrint';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';

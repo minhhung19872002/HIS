@@ -3,8 +3,8 @@ import dayjs from 'dayjs';
 import { Input, Select } from 'antd';
 import {
   getSampleStorageRecords, retrieveSample, disposeSample, storeSample, getSampleByBarcode,
-} from '../api/sampleStorage';
-import type { SampleStorageRecord } from '../api/sampleStorage';
+} from '../modules/laboratory/api/sampleStorage';
+import type { SampleStorageRecord } from '../modules/laboratory/api/sampleStorage';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, tk, ti, te, Ico,

@@ -18,7 +18,7 @@ import {
   type AssetProcurementRequestDto,
   type SaveAssetProcurementRequestDto,
   type SaveAssetProcurementItemDto,
-} from '../api/procurement';
+} from '../modules/asset/api/procurement';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager,
   ActBtn, Btn, DrawerShell, DrSec, DrField, StatusBadge,

@@ -6,12 +6,12 @@ import TermIcon from '../layouts/terminal/Icon';
 import {
   getActiveEvent, getVictims, registerVictim, activateCodeBlue,
   type MCIEventDto, type MCIVictimDto, type RegisterVictimDto,
-} from '../api/massCasualty';
-import { registerEmergencyPatient, type EmergencyRegistrationDto } from '../api/reception';
+} from '../modules/mci/api/massCasualty';
+import { registerEmergencyPatient, type EmergencyRegistrationDto } from '../modules/reception/api/reception';
 import {
   listObservationStays, createObservationStay, dischargeObservationStay, escalateObservationStay,
   type ObservationStayDto,
-} from '../api/observation';
+} from '../modules/inpatient/api/observation';
 import '../styles/EmergencyDisaster.css';
 import { openPrintWindow } from '../utils/printWindow';
 import { HOSPITAL_NAME } from '../constants/hospital';

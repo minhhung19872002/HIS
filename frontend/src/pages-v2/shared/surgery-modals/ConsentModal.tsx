@@ -13,7 +13,7 @@ import {
   signConsent,
   type SurgeryConsentDto,
   type SaveConsentDto,
-} from '../../../api/surgery';
+} from '../../../modules/surgery/api/surgery';
 import { Section, Row2 } from './_shared';
 
 // ---------------------------------------------------------------------------

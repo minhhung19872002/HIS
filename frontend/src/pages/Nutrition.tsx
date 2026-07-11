@@ -45,7 +45,7 @@ import {
   getDietTypes,
   getHighRiskPatients,
   getScreenings,
-} from '../api/nutrition';
+} from '../modules/nutrition/api/nutrition';
 import type {
   NutritionScreeningDto,
   DietOrderDto,
@@ -53,7 +53,7 @@ import type {
   PlannedMealDto,
   NutritionDashboardDto,
   DietTypeDto,
-} from '../api/nutrition';
+} from '../modules/nutrition/api/nutrition';
 import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;

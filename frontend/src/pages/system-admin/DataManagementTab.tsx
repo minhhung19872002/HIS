@@ -5,10 +5,10 @@ import { Button, Card, Col, Modal, Row, Spin, Statistic, Table, Tag, message } f
 import { CloudServerOutlined, DatabaseOutlined, FileTextOutlined, HddOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as dataExportApi from '../../api/dataExport';
+import * as dataExportApi from '../../modules/administration/api/dataExport';
 import type {
   DataStatsDto, ModuleDataCountDto, BackupInfoDto, DataExportResultDto, DataHandoverDto,
-} from '../../api/dataExport';
+} from '../../modules/administration/api/dataExport';
 
 const DataManagementTab: React.FC = () => {
   const [dataStats, setDataStats] = useState<DataStatsDto | null>(null);

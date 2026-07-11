@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import * as file from '../services/file.service';
 import { useNavigate } from 'react-router-dom';
 import { App as AntdApp, Drawer, Modal, Select } from 'antd';
-import { getStaff, getRoster, approveSwapRequest, publishRoster, copyWeekRoster, type StaffProfileDto, type RosterAssignmentDto, type DutyRosterDto } from '../api/medicalHR';
+import { getStaff, getRoster, approveSwapRequest, publishRoster, copyWeekRoster, type StaffProfileDto, type RosterAssignmentDto, type DutyRosterDto } from '../modules/hr/api/medicalHR';
 import {
   CheckOutlined,
   CopyOutlined,

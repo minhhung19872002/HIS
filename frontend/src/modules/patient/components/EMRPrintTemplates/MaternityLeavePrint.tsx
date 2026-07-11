@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import dayjs from 'dayjs';
-import type { MedicalRecordFullDto } from '../../../../api/examination';
-import type { CreateMaternityLeaveDto } from '../../../../api/examination';
+import type { MedicalRecordFullDto } from '../../../opd/api/examination';
+import type { CreateMaternityLeaveDto } from '../../../opd/api/examination';
 import { printStyles, PrintHeader, SignatureBlock, Field } from './_shared';
 
 // ===========================

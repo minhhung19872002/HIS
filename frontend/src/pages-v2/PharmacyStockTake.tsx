@@ -20,8 +20,8 @@ import React, { useState, useCallback } from 'react';
 import { App as AntdApp, DatePicker } from 'antd';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import * as wh from '../api/warehouse';
-import type { StockTakeDto, StockTakeItemDto, WarehouseDto } from '../api/warehouse';
+import * as wh from '../modules/pharmacy/api/warehouse';
+import type { StockTakeDto, StockTakeItemDto, WarehouseDto } from '../modules/pharmacy/api/warehouse';
 import {
   KpiStrip,
   DataTable,

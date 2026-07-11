@@ -6,8 +6,8 @@ import {
   ClockCircleOutlined,
   DownloadOutlined,
 } from '@ant-design/icons';
-import type { DocumentSignatureDto } from '../../api/digitalSignature';
-import { revokeSignature, downloadSignedPdf } from '../../api/digitalSignature';
+import type { DocumentSignatureDto } from '../../modules/emr/api/digitalSignature';
+import { revokeSignature, downloadSignedPdf } from '../../modules/emr/api/digitalSignature';
 
 interface SignatureVerificationPanelProps {
   open: boolean;

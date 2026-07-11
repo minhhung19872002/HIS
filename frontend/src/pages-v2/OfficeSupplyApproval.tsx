@@ -4,7 +4,7 @@ import { Form, Input, InputNumber, Modal, Select, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../services/apiClient';
 import systemApi from '../modules/system/api/system';
-import { getWarehouses } from '../api/warehouse';
+import { getWarehouses } from '../modules/pharmacy/api/warehouse';
 import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, DrSec, DrField,

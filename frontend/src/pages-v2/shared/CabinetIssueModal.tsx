@@ -28,10 +28,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AutoComplete, InputNumber, Select } from 'antd';
 import dayjs from 'dayjs';
-import { searchMedicines } from '../../api/examination';
-import type { MedicineDto } from '../../api/examination';
-import * as wh from '../../api/warehouse';
-import type { StockIssueDto, WarehouseDto } from '../../api/warehouse';
+import { searchMedicines } from '../../modules/opd/api/examination';
+import type { MedicineDto } from '../../modules/opd/api/examination';
+import * as wh from '../../modules/pharmacy/api/warehouse';
+import type { StockIssueDto, WarehouseDto } from '../../modules/pharmacy/api/warehouse';
 import {
   ModalShell, Btn, DrSec, DrField,
   fmtDTg, tk, tw, te,

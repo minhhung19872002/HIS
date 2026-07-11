@@ -11,7 +11,7 @@ import {
 import { ReloadOutlined, DatabaseOutlined, WarningOutlined, AlertOutlined, ExportOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import apiClient from '../services/apiClient';
-import { getWarehouses } from '../api/warehouse';
+import { getWarehouses } from '../modules/pharmacy/api/warehouse';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 
 interface Warehouse { id: string; warehouseName: string }

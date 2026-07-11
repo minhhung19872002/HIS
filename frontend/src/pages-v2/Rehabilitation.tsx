@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
-import { getReferrals, acceptReferral, printReferral } from '../api/rehabilitation';
+import { getReferrals, acceptReferral, printReferral } from '../modules/rehabilitation/api/rehabilitation';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, ti, Ico,

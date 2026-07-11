@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchDiseaseReports, getEpiStats, updateDiseaseReport, reportDisease, searchOutbreaks } from '../api/epidemiology';
-import type { DiseaseReport, EpiStats, Outbreak } from '../api/epidemiology';
+import { searchDiseaseReports, getEpiStats, updateDiseaseReport, reportDisease, searchOutbreaks } from '../modules/public-health/api/epidemiology';
+import type { DiseaseReport, EpiStats, Outbreak } from '../modules/public-health/api/epidemiology';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, Ico,

@@ -80,7 +80,7 @@ import {
   getLeaveReport,
   getOvertimeReport,
   getMovementReport,
-} from '../api/medicalHR';
+} from '../modules/hr/api/medicalHR';
 import type {
   StaffProfileDto,
   RosterAssignmentDto,
@@ -101,7 +101,7 @@ import type {
   LeaveReportDto,
   OvertimeReportDto,
   StaffMovementReportDto,
-} from '../api/medicalHR';
+} from '../modules/hr/api/medicalHR';
 import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;

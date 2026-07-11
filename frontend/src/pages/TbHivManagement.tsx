@@ -38,13 +38,13 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as tbHivApi from '../api/tbHivManagement';
+import * as tbHivApi from '../modules/public-health/api/tbHivManagement';
 import type {
   TbHivRecordDto,
   TbHivFollowUpDto,
   TbHivStatisticsDto,
   CreateTbHivRecordDto,
-} from '../api/tbHivManagement';
+} from '../modules/public-health/api/tbHivManagement';
 
 const { Title } = Typography;
 const { Search } = Input;

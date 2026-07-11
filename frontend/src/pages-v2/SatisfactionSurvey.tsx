@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import * as file from '../services/file.service';
 import dayjs from 'dayjs';
 import { Form, Input } from 'antd';
-import { getSurveyResults, contactCallback, createCampaign, exportSurveys } from '../api/satisfactionSurvey';
-import type { CreateCampaignDto, ContactCallbackDto } from '../api/satisfactionSurvey';
+import { getSurveyResults, contactCallback, createCampaign, exportSurveys } from '../modules/survey/api/satisfactionSurvey';
+import type { CreateCampaignDto, ContactCallbackDto } from '../modules/survey/api/satisfactionSurvey';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import { downloadCsv, escapeCsvCell } from '../utils/csvExport';
 import {

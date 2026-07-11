@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { Modal, InputNumber, Select as AntdSelect, DatePicker } from 'antd';
-import type { ExpiryWarningDto } from '../../api/warehouse';
+import type { ExpiryWarningDto } from '../../modules/pharmacy/api/warehouse';
 
 /* ==========================================================================
    Stock reorder modal — create a purchase order for a near-expiry item

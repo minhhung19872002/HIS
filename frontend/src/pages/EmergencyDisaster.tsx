@@ -63,7 +63,7 @@ import {
   type ActivateMCIDto,
   type RegisterVictimDto,
   type DepartmentStaffDto,
-} from '../api/massCasualty';
+} from '../modules/mci/api/massCasualty';
 
 import type {
   ActivateFormValues,

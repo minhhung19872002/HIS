@@ -3,8 +3,8 @@ import dayjs from 'dayjs';
 import {
   searchPatients, getLabHistory, getPmtctRecords, getStats,
   enrollPatient, addLabResult, addPmtctRecord,
-} from '../api/hivManagement';
-import type { HivPatient, HivLabResult, PmtctRecord, HivStats } from '../api/hivManagement';
+} from '../modules/public-health/api/hivManagement';
+import type { HivPatient, HivLabResult, PmtctRecord, HivStats } from '../modules/public-health/api/hivManagement';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, CrudModal,

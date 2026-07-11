@@ -34,8 +34,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as pathologyApi from '../api/pathology';
-import type { PathologyRequest, PathologyStats } from '../api/pathology';
+import * as pathologyApi from '../modules/pathology/api/pathology';
+import type { PathologyRequest, PathologyStats } from '../modules/pathology/api/pathology';
 
 const { Title } = Typography;
 const { Search } = Input;

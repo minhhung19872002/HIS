@@ -35,8 +35,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as occApi from '../api/occupationalHealth';
-import type { OccExam, OccStats, HazardType } from '../api/occupationalHealth';
+import * as occApi from '../modules/public-health/api/occupationalHealth';
+import type { OccExam, OccStats, HazardType } from '../modules/public-health/api/occupationalHealth';
 
 const { Title } = Typography;
 const { Search } = Input;

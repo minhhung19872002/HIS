@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Form, Input, InputNumber, Select, Checkbox } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../services/apiClient';
-import { getWarehouses } from '../api/warehouse';
+import { getWarehouses } from '../modules/pharmacy/api/warehouse';
 import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, StatusBadge, Btn,

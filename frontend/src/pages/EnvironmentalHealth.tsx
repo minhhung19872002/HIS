@@ -10,8 +10,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as envApi from '../api/environmentalHealth';
-import type { WasteRecord, MonitoringRecord, WasteStats, MonitoringStats, BiosafetyStatus } from '../api/environmentalHealth';
+import * as envApi from '../modules/public-health/api/environmentalHealth';
+import type { WasteRecord, MonitoringRecord, WasteStats, MonitoringStats, BiosafetyStatus } from '../modules/public-health/api/environmentalHealth';
 
 const { Title } = Typography;
 const { Search } = Input;

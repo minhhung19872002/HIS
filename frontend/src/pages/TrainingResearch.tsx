@@ -15,11 +15,11 @@ import {
   getTrainingClasses, saveTrainingClass, getClassStudents, enrollStudent,
   updateStudentStatus, issueCertificate, getClinicalDirections, saveClinicalDirection,
   getResearchProjects, saveResearchProject, getTrainingDashboard, getCreditSummary,
-} from '../api/trainingResearch';
+} from '../modules/training/api/trainingResearch';
 import type {
   TrainingClassDto, TrainingStudentDto, ClinicalDirectionDto, ResearchProjectDto,
   TrainingDashboardDto, CreditSummaryDto,
-} from '../api/trainingResearch';
+} from '../modules/training/api/trainingResearch';
 
 const { TextArea } = Input;
 

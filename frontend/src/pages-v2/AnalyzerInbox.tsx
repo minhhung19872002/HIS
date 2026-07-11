@@ -11,8 +11,8 @@ import {
   getAnalyzerInbox, transferInboxResult, rejectInboxResult,
   getAnalyzers,
   type AnalyzerInboxItemDto,
-} from '../api/lis';
-import type { LabAnalyzerDto } from '../api/lis';
+} from '../modules/laboratory/api/lis';
+import type { LabAnalyzerDto } from '../modules/laboratory/api/lis';
 
 // G-18: Màn "KQ máy" — inbox kết quả từ máy xét nghiệm
 // Status: 0=Pending, 1=Matched, 2=ManualMapped, 3=Ignored, 4=Transferred

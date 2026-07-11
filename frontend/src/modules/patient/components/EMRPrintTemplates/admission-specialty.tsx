@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import dayjs from 'dayjs';
-import type { MedicalRecordFullDto, PatientInfoDto } from '../../../../api/examination';
+import type { MedicalRecordFullDto, PatientInfoDto } from '../../../opd/api/examination';
 import { printStyles, PrintHeader, SignatureBlock, Field } from './_shared';
 interface AdmissionExamProps { record?: MedicalRecordFullDto | null; }
 export const AdmissionExamPrint = forwardRef<HTMLDivElement, AdmissionExamProps>(

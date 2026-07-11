@@ -1,5 +1,5 @@
 import type { Dayjs } from 'dayjs';
-import type { CreateCorrectiveActionDto } from '../../api/quality';
+import type { CreateCorrectiveActionDto } from '../../modules/quality/api/quality';
 
 export type IncidentFormValues = {
   incidentDate: Dayjs;

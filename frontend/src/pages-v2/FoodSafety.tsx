@@ -3,8 +3,8 @@ import dayjs from 'dayjs';
 import {
   searchIncidents, getIncidentStats, createIncident, updateIncident,
   searchInspections, createInspection, updateInspection, getInspectionStats,
-} from '../api/foodSafety';
-import type { FoodSafetyIncident, FoodSafetyStats, FoodInspection, InspectionStats } from '../api/foodSafety';
+} from '../modules/public-health/api/foodSafety';
+import type { FoodSafetyIncident, FoodSafetyStats, FoodInspection, InspectionStats } from '../modules/public-health/api/foodSafety';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti,

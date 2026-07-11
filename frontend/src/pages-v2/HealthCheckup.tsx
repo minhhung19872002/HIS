@@ -4,12 +4,12 @@ import {
   searchHealthCheckups, getHealthCheckupStats, createHealthCheckup, updateHealthCheckup, getCheckupTypes,
   getCampaigns, createCampaign, updateCampaign, deleteCampaign,
   getCampaignGroups, createCampaignGroup, deleteCampaignGroup, importBatchExcel,
-} from '../api/healthCheckup';
+} from '../modules/checkup/api/healthCheckup';
 import { openPrintWindow } from '../utils/printWindow';
 import type {
   HealthCheckup, HealthCheckupStats, CheckupType,
   CheckupCampaign, CampaignGroup, BatchImportResult,
-} from '../api/healthCheckup';
+} from '../modules/checkup/api/healthCheckup';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, cf, te, TopTabs,

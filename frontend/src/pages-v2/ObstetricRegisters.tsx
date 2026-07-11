@@ -11,7 +11,7 @@ import {
   getAbortions, saveAbortion, deleteAbortion,
   getObstetricReport,
   type BirthRegisterDto, type AbortionRegisterDto, type ObstetricReportDto,
-} from '../api/obstetricRegister';
+} from '../modules/administration/api/obstetricRegister';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, Pager, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, te, cf,

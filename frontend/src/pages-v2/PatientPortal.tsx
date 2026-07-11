@@ -1,7 +1,7 @@
 import React from 'react';
 import dayjs from 'dayjs';
-import { getMyAppointments } from '../api/patientPortal';
-import type { OnlineAppointmentDto } from '../api/patientPortal';
+import { getMyAppointments } from '../modules/portal/api/patientPortal';
+import type { OnlineAppointmentDto } from '../modules/portal/api/patientPortal';
 import { SimpleV2Page, StatusBadge, type ColumnDef } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 

@@ -32,7 +32,7 @@ import {
   SearchOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import * as api from '../api/masterCatalog';
+import * as api from '../modules/administration/api/masterCatalog';
 
 const { Title } = Typography;
 

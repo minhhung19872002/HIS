@@ -3,8 +3,8 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { DatePicker, Form, Input, InputNumber, Select } from 'antd';
 import {
   getPathologyRequests, getPathologyStatistics, createPathologyResult, printPathologyReport,
-} from '../api/pathology';
-import type { PathologyRequest, PathologyStats } from '../api/pathology';
+} from '../modules/pathology/api/pathology';
+import type { PathologyRequest, PathologyStats } from '../modules/pathology/api/pathology';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   SimpleV2Page, StatusBadge, ActBtn, Btn, ModalShell, tk, tw,

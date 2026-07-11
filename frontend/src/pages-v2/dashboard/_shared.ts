@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import type { AdmissionDto } from '../../api/reception';
+import type { AdmissionDto } from '../../modules/reception/api/reception';
 
 /* ==========================================================================
    Shared types + formatting helpers for the Dashboard sub-components.

@@ -10,8 +10,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as plApi from '../api/practiceLicense';
-import type { PracticeLicense as PracticeLicenseType, PracticeLicenseStats } from '../api/practiceLicense';
+import * as plApi from '../modules/hr/api/practiceLicense';
+import type { PracticeLicense as PracticeLicenseType, PracticeLicenseStats } from '../modules/hr/api/practiceLicense';
 
 const { Title } = Typography;
 const { Search } = Input;

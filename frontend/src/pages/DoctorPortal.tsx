@@ -15,10 +15,10 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import client from '../services/apiClient';
 import { storage, STORAGE_KEYS } from '../services/storage.service';
-import * as examApi from '../api/examination';
-import * as inpatientApi from '../api/inpatient';
-import * as digitalSignApi from '../api/digitalSignature';
-import * as hrApi from '../api/medicalHR';
+import * as examApi from '../modules/opd/api/examination';
+import * as inpatientApi from '../modules/inpatient/api/inpatient';
+import * as digitalSignApi from '../modules/emr/api/digitalSignature';
+import * as hrApi from '../modules/hr/api/medicalHR';
 
 const { Search } = Input;
 const { Title, Text } = Typography;

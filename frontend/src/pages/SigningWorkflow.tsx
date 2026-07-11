@@ -18,8 +18,8 @@ import {
   rejectSigningRequest,
   cancelSigningRequest,
   getSigningStats,
-} from '../api/signingWorkflow';
-import type { SigningRequestItem, SigningWorkflowStats } from '../api/signingWorkflow';
+} from '../modules/emr/api/signingWorkflow';
+import type { SigningRequestItem, SigningWorkflowStats } from '../modules/emr/api/signingWorkflow';
 
 const { Title } = Typography;
 

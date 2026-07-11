@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   getSmsBalance, getSmsLogs, getSmsStats, sendTestSms, testSmsConnection,
-} from '../api/sms';
-import type { SmsBalanceDto, SmsLogDto, SmsStatsDto } from '../api/sms';
+} from '../modules/system/api/sms';
+import type { SmsBalanceDto, SmsLogDto, SmsStatsDto } from '../modules/system/api/sms';
 import {
   TopTabs, KpiStrip, StatusBadge, SearchBox, DataTable, Pager,
   Btn, DrawerShell, DrSec, DrField, CrudModal, tk, te,

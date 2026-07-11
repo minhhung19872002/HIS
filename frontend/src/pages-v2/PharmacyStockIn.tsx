@@ -22,7 +22,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { App as AntdApp, AutoComplete, DatePicker, Form, Input, InputNumber } from 'antd';
 import dayjs from 'dayjs';
-import * as wh from '../api/warehouse';
+import * as wh from '../modules/pharmacy/api/warehouse';
 import type {
   StockReceiptDto,
   StockReceiptItemDto,
@@ -30,9 +30,9 @@ import type {
   CreateStockReceiptItemDto,
   StockReceiptSearchDto,
   WarehouseDto,
-} from '../api/warehouse';
-import { searchMedicines } from '../api/examination';
-import type { MedicineDto } from '../api/examination';
+} from '../modules/pharmacy/api/warehouse';
+import { searchMedicines } from '../modules/opd/api/examination';
+import type { MedicineDto } from '../modules/opd/api/examination';
 import systemApi from '../modules/system/api/system';
 import type { SupplierCatalogDto } from '../modules/system/api/system';
 import {

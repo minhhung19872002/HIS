@@ -44,7 +44,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as insuranceApi from '../api/insurance';
+import * as insuranceApi from '../modules/insurance/api/insurance';
 import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;

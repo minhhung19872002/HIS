@@ -40,13 +40,13 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as hivApi from '../api/hivManagement';
+import * as hivApi from '../modules/public-health/api/hivManagement';
 import type {
   HivPatient,
   HivLabResult,
   PmtctRecord,
   HivStats,
-} from '../api/hivManagement';
+} from '../modules/public-health/api/hivManagement';
 
 const { Title, Text } = Typography;
 const { Search } = Input;

@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   searchCases, createCase, getAssessments, screenDepression,
-} from '../api/mentalHealth';
-import type { MentalHealthCase, MentalHealthAssessment } from '../api/mentalHealth';
+} from '../modules/public-health/api/mentalHealth';
+import type { MentalHealthCase, MentalHealthAssessment } from '../modules/public-health/api/mentalHealth';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, Ico,

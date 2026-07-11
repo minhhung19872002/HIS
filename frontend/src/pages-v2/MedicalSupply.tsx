@@ -3,8 +3,8 @@ import dayjs from 'dayjs';
 import { fmtNum as fmt } from '../utils/format';
 import {
   getStock, getStockReceipts, approveStockReceipt, cancelStockReceipt,
-} from '../api/warehouse';
-import type { StockDto, StockReceiptDto } from '../api/warehouse';
+} from '../modules/pharmacy/api/warehouse';
+import type { StockDto, StockReceiptDto } from '../modules/pharmacy/api/warehouse';
 import {
   TopTabs, KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField,

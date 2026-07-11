@@ -5,12 +5,12 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
-import { getQCLots, getQCResults, createQCLot, updateQCLot, deleteQCLot } from '../api/labQC';
+import { getQCLots, getQCResults, createQCLot, updateQCLot, deleteQCLot } from '../modules/laboratory/api/labQC';
 import { fmtDateTime } from '../utils/format';
-import type { QCLot, QCResult } from '../api/labQC';
+import type { QCLot, QCResult } from '../modules/laboratory/api/labQC';
 import { exportToExcel, formatDate } from '../utils/excelExport';
-import { runQC, getLeveyJenningsChart, getAnalyzers, getLabTestCatalog } from '../api/lis';
-import type { QCResultDto, LeveyJenningsChartDto, LabAnalyzerDto, LabTestCatalogDto } from '../api/lis';
+import { runQC, getLeveyJenningsChart, getAnalyzers, getLabTestCatalog } from '../modules/laboratory/api/lis';
+import type { QCResultDto, LeveyJenningsChartDto, LabAnalyzerDto, LabTestCatalogDto } from '../modules/laboratory/api/lis';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, ModalShell, AbSelect, tk, ti, te, cf, Ico,

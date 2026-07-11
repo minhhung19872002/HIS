@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   getTbHivRecords, getTbHivStatistics, getFollowUps,
   createTbHivRecord, updateTbHivRecord, createFollowUp, printTreatmentCard,
-} from '../api/tbHivManagement';
+} from '../modules/public-health/api/tbHivManagement';
 import type {
   TbHivRecordDto, TbHivFollowUpDto, TbHivStatisticsDto,
   CreateTbHivRecordDto, CreateTbHivFollowUpDto,
-} from '../api/tbHivManagement';
+} from '../modules/public-health/api/tbHivManagement';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, tw, fmtDMYg,

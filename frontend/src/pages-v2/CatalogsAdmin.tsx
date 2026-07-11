@@ -7,7 +7,7 @@ import {
 import {
   saveTemplate, deleteTemplate, searchTemplates, getTemplateById,
   TEMPLATE_TYPE_LABELS, type ClinicalTemplateDto,
-} from '../api/clinicalTemplate';
+} from '../modules/patient/api/clinicalTemplate';
 import { invalidateAbbreviationCache } from '../hooks/useAbbreviationExpander';
 import {
   getOccupations, saveOccupation, deleteOccupation, type OccupationDto,
@@ -15,7 +15,7 @@ import {
   getEthnics, saveEthnic, deleteEthnic, type EthnicDto,
   getNations, saveNation, deleteNation, type NationDto,
   getInitialFacilities, saveInitialFacility, deleteInitialFacility, type InitialFacilityDto,
-} from '../api/masterCatalog';
+} from '../modules/administration/api/masterCatalog';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
   ModalShell, Ico, tk, ti, tw, cf,

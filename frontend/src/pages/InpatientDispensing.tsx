@@ -12,7 +12,7 @@ import { ReloadOutlined, CheckCircleOutlined, PrinterOutlined, MedicineBoxOutlin
 import dayjs from 'dayjs';
 import apiClient from '../services/apiClient';
 import systemApi from '../modules/system/api/system';
-import { getWarehouses } from '../api/warehouse';
+import { getWarehouses } from '../modules/pharmacy/api/warehouse';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 
 const { Title, Text } = Typography;

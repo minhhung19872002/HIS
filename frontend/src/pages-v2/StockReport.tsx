@@ -4,7 +4,7 @@ import { fmtNum as fmt } from '../utils/format';
 import { InputNumber } from 'antd';
 import dayjs from 'dayjs';
 import apiClient from '../services/apiClient';
-import { getWarehouses } from '../api/warehouse';
+import { getWarehouses } from '../modules/pharmacy/api/warehouse';
 import { unwrapList, type MaybePaged } from '../utils/apiNormalize';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, Btn, tk, ti, tw,

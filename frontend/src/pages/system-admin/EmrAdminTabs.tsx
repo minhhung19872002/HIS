@@ -22,7 +22,7 @@ import {
   getDocumentTypes, saveDocumentType, deleteDocumentType,
   type EmrCoverTypeDto, type EmrSignerCatalogDto, type EmrSigningRoleDto,
   type EmrSigningOperationDto, type EmrDocumentGroupDto, type EmrDocumentTypeDto,
-} from '../../api/emrAdmin';
+} from '../../modules/emr/api/emrAdmin';
 
 // Generic CRUD panel — rút common pattern khỏi 6 tab.
 interface EmrCrudPanelProps<T extends { id: string }> {

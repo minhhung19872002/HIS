@@ -68,7 +68,7 @@ import {
   syncLabconnect,
   getLabconnectHistory,
   retryFailedSyncs,
-} from '../api/lisConfig';
+} from '../modules/laboratory/api/lisConfig';
 import type {
   AnalyzerDto,
   TestParameterDto,
@@ -76,7 +76,7 @@ import type {
   AnalyzerMappingDto,
   LabconnectStatusDto,
   LabconnectSyncHistoryDto,
-} from '../api/lisConfig';
+} from '../modules/laboratory/api/lisConfig';
 
 dayjs.extend(relativeTime);
 dayjs.locale('vi');

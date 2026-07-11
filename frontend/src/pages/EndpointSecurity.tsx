@@ -11,12 +11,12 @@ import {
 import type {
   EndpointDeviceDto, SecurityIncidentDto, InstalledSoftwareDto,
   EndpointSecurityDashboardDto, RegisterDeviceDto, CreateIncidentDto,
-} from '../api/endpointSecurity';
+} from '../modules/administration/api/endpointSecurity';
 import {
   getDevices, getIncidents, getSoftwareInventory, getSecurityDashboard,
   registerDevice, createIncident, resolveIncident,
   flagUnauthorized,
-} from '../api/endpointSecurity';
+} from '../modules/administration/api/endpointSecurity';
 
 const severityColors: Record<number, string> = { 1: 'red', 2: 'orange', 3: 'blue', 4: 'green' };
 const severityLabels: Record<number, string> = { 1: 'Nghiêm trọng', 2: 'Cao', 3: 'Trung bình', 4: 'Thấp' };

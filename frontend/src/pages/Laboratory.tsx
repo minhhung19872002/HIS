@@ -39,15 +39,15 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import laboratoryApi from '../api/laboratory';
-import type { LabRequest, TestResult, TestParameter } from '../api/laboratory';
+import laboratoryApi from '../modules/laboratory/api/laboratory';
+import type { LabRequest, TestResult, TestParameter } from '../modules/laboratory/api/laboratory';
 import { buildBarcodeLabelHtml, buildLabResultHtml } from './laboratory/printTemplates';
 import SampleSequenceToolbar from '../components/SampleSequenceToolbar';
 import { HOSPITAL_NAME } from '../constants/hospital';
 import { SignatureStatusIcon, PinEntryModal } from '../components/digitalSignature';
 import { useSigningContext } from '../contexts/SigningContext';
-import { getSignatures } from '../api/digitalSignature';
-import type { DocumentSignatureDto } from '../api/digitalSignature';
+import { getSignatures } from '../modules/emr/api/digitalSignature';
+import type { DocumentSignatureDto } from '../modules/emr/api/digitalSignature';
 import LabCancelChainMenu from '../components/LabCancelChainMenu';
 
 const { Title, Text } = Typography;

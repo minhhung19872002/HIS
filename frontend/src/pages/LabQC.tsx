@@ -9,8 +9,8 @@ import {
 } from '@ant-design/icons';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip as RTooltip, Legend } from 'recharts';
 import dayjs from 'dayjs';
-import type { QCLot, QCResult, LeveyJenningsData, QCReport } from '../api/labQC';
-import * as labQCApi from '../api/labQC';
+import type { QCLot, QCResult, LeveyJenningsData, QCReport } from '../modules/laboratory/api/labQC';
+import * as labQCApi from '../modules/laboratory/api/labQC';
 
 const LabQC: React.FC = () => {
   const [activeTab, setActiveTab] = useState('lots');

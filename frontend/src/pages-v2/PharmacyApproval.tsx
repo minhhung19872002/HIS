@@ -31,9 +31,9 @@ import {
   type PharmacyApprovalSearchRequest,
   type ExpiringMedicineDto,
 } from '../modules/pharmacy/api/pharmacyApproval';
-import { searchMedicines, type MedicineDto } from '../api/examination';
-import * as wh from '../api/warehouse';
-import type { WarehouseDto } from '../api/warehouse';
+import { searchMedicines, type MedicineDto } from '../modules/opd/api/examination';
+import * as wh from '../modules/pharmacy/api/warehouse';
+import type { WarehouseDto } from '../modules/pharmacy/api/warehouse';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge,
   ActBtn, Btn, DrawerShell, ModalShell, DrSec, DrField,

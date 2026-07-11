@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import dayjs from 'dayjs';
-import type { HealthCheckup } from '../../../api/healthCheckup';
+import type { HealthCheckup } from '../../checkup/api/healthCheckup';
 import { printStyles, PrintHeader, SignatureBlock, Field } from './EMRPrintTemplates/_shared';
 
 // =====================================================================

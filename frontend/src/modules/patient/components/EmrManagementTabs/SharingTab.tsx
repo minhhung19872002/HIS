@@ -10,10 +10,10 @@ import {
   EyeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import * as emrMgmt from '../../../../api/emrManagement';
+import * as emrMgmt from '../../../emr/api/emrManagement';
 import type {
   EmrShareDto, ShareAccessLogDto,
-} from '../../../../api/emrManagement';
+} from '../../../emr/api/emrManagement';
 
 const { TextArea } = Input;
 

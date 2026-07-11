@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   searchCases, getStats, getExaminations, createCase, updateCase, approveCase,
-} from '../api/forensic';
-import type { ForensicCase, ForensicExamination, ForensicStats } from '../api/forensic';
+} from '../modules/specialty/api/forensic';
+import type { ForensicCase, ForensicExamination, ForensicStats } from '../modules/specialty/api/forensic';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, CrudModal,

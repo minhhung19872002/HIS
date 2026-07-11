@@ -5,7 +5,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import {
   getWorkload, type WorkloadReportDto, type DoctorWorkloadDto,
   type RadiologistWorkloadDto, type TechnicianWorkloadDto,
-} from '../api/workloadReport';
+} from '../modules/reports/api/workloadReport';
 import { exportToExcel } from '../utils/excelExport';
 import {
   KpiStrip, TopTabs, DataTable, StatusBadge, Btn, tk, ti, tw,

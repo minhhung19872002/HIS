@@ -13,7 +13,7 @@ import {
   getAdrReportSummary,
   type AdrReportDto,
   type AdrReportSummaryDto,
-} from '../api/adrReport';
+} from '../modules/quality/api/adrReport';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge,
   ActBtn, Btn, DrawerShell, DrSec, DrField, tk, te, cf,

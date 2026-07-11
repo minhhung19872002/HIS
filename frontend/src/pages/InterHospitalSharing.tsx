@@ -11,8 +11,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as ihApi from '../api/interHospitalSharing';
-import type { InterHospitalRequest, InterHospitalStats } from '../api/interHospitalSharing';
+import * as ihApi from '../modules/system/api/interHospitalSharing';
+import type { InterHospitalRequest, InterHospitalStats } from '../modules/system/api/interHospitalSharing';
 
 const { Title } = Typography;
 const { Search } = Input;

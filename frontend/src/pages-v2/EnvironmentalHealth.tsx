@@ -4,8 +4,8 @@ import { DatePicker } from 'antd';
 import {
   searchWasteRecords, createWasteRecord, updateWasteRecord, searchMonitoring, createMonitoring,
   getWasteStats, getMonitoringStats, getBiosafetyStatus,
-} from '../api/environmentalHealth';
-import type { WasteRecord, MonitoringRecord, WasteStats, MonitoringStats, BiosafetyStatus } from '../api/environmentalHealth';
+} from '../modules/public-health/api/environmentalHealth';
+import type { WasteRecord, MonitoringRecord, WasteStats, MonitoringStats, BiosafetyStatus } from '../modules/public-health/api/environmentalHealth';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,

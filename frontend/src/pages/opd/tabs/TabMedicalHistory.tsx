@@ -11,8 +11,8 @@ import { Col, Form, Input, Row, Select, message } from 'antd';
 import type { FormInstance } from 'antd';
 import ClinicalTermSelector from '../../../components/ClinicalTermSelector';
 import VoiceDictation from '../../../components/VoiceDictation';
-import { getOutpatientRecordTemplates, getOutpatientRecordTemplate } from '../../../api/clinicalNarratives';
-import type { OutpatientRecordTemplateDto } from '../../../api/clinicalNarratives';
+import { getOutpatientRecordTemplates, getOutpatientRecordTemplate } from '../../../modules/patient/api/clinicalNarratives';
+import type { OutpatientRecordTemplateDto } from '../../../modules/patient/api/clinicalNarratives';
 
 const { TextArea } = Input;
 

@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import apiClient from '../services/apiClient';
-import * as labApi from '../api/laboratory';
-import type { LabRequest } from '../api/laboratory';
+import * as labApi from '../modules/laboratory/api/laboratory';
+import type { LabRequest } from '../modules/laboratory/api/laboratory';
 import * as settingsApi from '../modules/system/api/userSettings';
 import type { LabDefaultRoles } from '../modules/system/api/userSettings';
 import {
@@ -16,12 +16,12 @@ import {
   WAREHOUSE_TYPE_CABINET, STATUS_TABS, statusKey, abnormalCount, fmtDT,
   printLabResultBlob,
   type WarehouseStock, type LabChemicalItem, type StatusKey,
-} from './laboratory/_shared';
-import { LAB_COLUMNS } from './laboratory/columns';
-import { LabDrawerBody } from './laboratory/LabDrawerBody';
-import { LabChainCancelModal } from './laboratory/LabChainCancelModal';
-import { LabUtilDrawer } from './laboratory/LabUtilDrawer';
-import { LabRolesModal } from './laboratory/LabRolesModal';
+} from '../modules/laboratory/pages/_shared';
+import { LAB_COLUMNS } from '../modules/laboratory/pages/columns';
+import { LabDrawerBody } from '../modules/laboratory/pages/LabDrawerBody';
+import { LabChainCancelModal } from '../modules/laboratory/pages/LabChainCancelModal';
+import { LabUtilDrawer } from '../modules/laboratory/pages/LabUtilDrawer';
+import { LabRolesModal } from '../modules/laboratory/pages/LabRolesModal';
 
 /* ────────────────────────────────────────────────────────────
    Lab v2 (LIS) — port of design-system-v2/his/project/LIS v2.html

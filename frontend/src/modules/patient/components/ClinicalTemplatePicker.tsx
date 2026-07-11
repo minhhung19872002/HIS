@@ -11,7 +11,7 @@ import {
   incrementTemplateUsage,
   TEMPLATE_TYPE_LABELS,
   type ClinicalTemplateDto,
-} from '../../../api/clinicalTemplate';
+} from '../api/clinicalTemplate';
 
 interface Props {
   open: boolean;

@@ -4,8 +4,8 @@ import { message } from 'antd';
 import {
   searchTreatments, createTreatment, updateTreatment,
   createHerbalPrescription, getHerbalPrescriptions, getHerbs,
-} from '../api/traditionalMedicine';
-import type { TraditionalTreatment, HerbalPrescription, HerbItem } from '../api/traditionalMedicine';
+} from '../modules/traditional-medicine/api/traditionalMedicine';
+import type { TraditionalTreatment, HerbalPrescription, HerbItem } from '../modules/traditional-medicine/api/traditionalMedicine';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,

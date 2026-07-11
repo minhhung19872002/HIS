@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Badge, Button, Col, Row, Space, Spin, Table, Tag, Typography } from 'antd';
 import { LockOutlined, PrinterOutlined, ReloadOutlined, TableOutlined } from '@ant-design/icons';
-import { getAccessControlMatrix, type AccessControlMatrixDto } from '../../api/security';
+import { getAccessControlMatrix, type AccessControlMatrixDto } from '../../modules/system/api/security';
 import { getNestedData } from './helpers';
 
 const AccessMatrixTab: React.FC = () => {

@@ -34,8 +34,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as schoolHealthApi from '../api/schoolHealth';
-import type { SchoolExam, SchoolStats, School } from '../api/schoolHealth';
+import * as schoolHealthApi from '../modules/public-health/api/schoolHealth';
+import type { SchoolExam, SchoolStats, School } from '../modules/public-health/api/schoolHealth';
 
 const { Title } = Typography;
 const { Search } = Input;

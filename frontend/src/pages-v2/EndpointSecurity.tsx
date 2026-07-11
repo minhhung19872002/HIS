@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getDevices, registerDevice, updateDeviceStatus, deleteDevice, getIncidents } from '../api/endpointSecurity';
-import type { EndpointDeviceDto, RegisterDeviceDto, UpdateDeviceStatusDto, SecurityIncidentDto } from '../api/endpointSecurity';
+import { getDevices, registerDevice, updateDeviceStatus, deleteDevice, getIncidents } from '../modules/administration/api/endpointSecurity';
+import type { EndpointDeviceDto, RegisterDeviceDto, UpdateDeviceStatusDto, SecurityIncidentDto } from '../modules/administration/api/endpointSecurity';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
   DrawerShell, DrSec, DrField, tk, ti, te, cf,

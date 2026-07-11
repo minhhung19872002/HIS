@@ -39,13 +39,13 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as chronicApi from '../api/chronicDisease';
+import * as chronicApi from '../modules/public-health/api/chronicDisease';
 import type {
   ChronicRecordDto,
   ChronicFollowUpDto,
   ChronicStatisticsDto,
   CreateChronicRecordDto,
-} from '../api/chronicDisease';
+} from '../modules/public-health/api/chronicDisease';
 
 const { Title } = Typography;
 const { Search } = Input;

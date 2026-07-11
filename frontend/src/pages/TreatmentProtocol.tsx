@@ -40,12 +40,12 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as protocolApi from '../api/treatmentProtocol';
+import * as protocolApi from '../modules/patient/api/treatmentProtocol';
 import type {
   TreatmentProtocolDto,
   TreatmentProtocolStepDto,
   SaveTreatmentProtocolDto,
-} from '../api/treatmentProtocol';
+} from '../modules/patient/api/treatmentProtocol';
 
 const { Title, Text } = Typography;
 const { Search } = Input;

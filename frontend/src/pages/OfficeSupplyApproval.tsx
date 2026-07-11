@@ -13,7 +13,7 @@ import { PlusOutlined, ReloadOutlined, CheckCircleOutlined, ShopOutlined } from 
 import dayjs from 'dayjs';
 import apiClient from '../services/apiClient';
 import systemApi from '../modules/system/api/system';
-import { getWarehouses } from '../api/warehouse';
+import { getWarehouses } from '../modules/pharmacy/api/warehouse';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 
 interface DeptLite { id: string; departmentCode?: string; departmentName: string }

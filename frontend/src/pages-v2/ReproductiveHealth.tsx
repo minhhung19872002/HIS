@@ -4,8 +4,8 @@ import {
   searchPrenatal, createPrenatal, updatePrenatal,
   searchFamilyPlanning, createFamilyPlanning, updateFamilyPlanning,
   getStats, getHighRiskPregnancies,
-} from '../api/reproductiveHealth';
-import type { PrenatalRecord, FamilyPlanningRecord, ReproductiveHealthStats } from '../api/reproductiveHealth';
+} from '../modules/specialty/api/reproductiveHealth';
+import type { PrenatalRecord, FamilyPlanningRecord, ReproductiveHealthStats } from '../modules/specialty/api/reproductiveHealth';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager,
   StatusBadge, ActBtn, DrawerShell, DrSec, DrField, CrudModal,

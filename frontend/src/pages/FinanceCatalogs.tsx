@@ -8,7 +8,7 @@
 import React from 'react';
 import { Tabs, Typography } from 'antd';
 import { CrudTab } from './_CrudTab';
-import * as api from '../api/masterCatalog';
+import * as api from '../modules/administration/api/masterCatalog';
 
 const { Title } = Typography;
 

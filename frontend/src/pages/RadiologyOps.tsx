@@ -10,7 +10,7 @@ import {
 import { SearchOutlined, PlusOutlined, ExperimentOutlined, MedicineBoxOutlined, ScanOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import apiClient from '../services/apiClient';
-import { getWarehouses } from '../api/warehouse';
+import { getWarehouses } from '../modules/pharmacy/api/warehouse';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 
 const { Text } = Typography;

@@ -37,13 +37,13 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as guidanceApi from '../api/clinicalGuidance';
+import * as guidanceApi from '../modules/patient/api/clinicalGuidance';
 import type {
   GuidanceBatchDto,
   GuidanceActivityDto,
   GuidanceStatisticsDto,
   CreateGuidanceBatchDto,
-} from '../api/clinicalGuidance';
+} from '../modules/patient/api/clinicalGuidance';
 
 const { Title } = Typography;
 const { Search } = Input;

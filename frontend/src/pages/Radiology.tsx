@@ -795,7 +795,7 @@ const Radiology: React.FC = () => {
     let cancelled = false;
     const loadLive = async () => {
       try {
-        const { searchRooms } = await import('../api/videoConsultation');
+        const { searchRooms } = await import('../modules/telemedicine/api/videoConsultation');
         const rooms = await searchRooms({ status: 1 });
         if (cancelled) return;
         const uids = new Set<string>();

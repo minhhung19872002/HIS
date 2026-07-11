@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Form, Input } from 'antd';
-import { getArchiveList, createArchive } from '../api/medicalRecordArchive';
+import { getArchiveList, createArchive } from '../modules/medical-record/api/medicalRecordArchive';
 import * as pdfApi from '../api/pdf';
-import { deptApproveRecord, getArchiveApproval, finalizeRecord, type ArchiveApprovalStatusDto } from '../api/emrAdmin';
+import { deptApproveRecord, getArchiveApproval, finalizeRecord, type ArchiveApprovalStatusDto } from '../modules/emr/api/emrAdmin';
 import {
   KpiStrip, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   StatusTabs, DrawerShell, ModalShell, DrSec, DrField, tk, ti, tw, Ico,

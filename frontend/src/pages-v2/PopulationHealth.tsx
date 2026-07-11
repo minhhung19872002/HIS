@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchRecords, getStats, createRecord, updateRecord } from '../api/populationHealth';
-import type { PopulationRecord, PopulationStats } from '../api/populationHealth';
+import { searchRecords, getStats, createRecord, updateRecord } from '../modules/public-health/api/populationHealth';
+import type { PopulationRecord, PopulationStats } from '../modules/public-health/api/populationHealth';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import { exportToExcel } from '../utils/excelExport';
 import {

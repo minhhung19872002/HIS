@@ -6,7 +6,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { App as AntdApp } from 'antd';
 import dayjs from 'dayjs';
-import * as portal from '../api/patientPortal';
+import * as portal from '../modules/portal/api/patientPortal';
 import './portal-mobile.css';
 
 /* ---- loose display shapes (mapped from real DTOs) ---- */

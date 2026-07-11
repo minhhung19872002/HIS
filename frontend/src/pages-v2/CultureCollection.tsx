@@ -4,8 +4,8 @@ import { Input, InputNumber, Select } from 'antd';
 import {
   getCultureStocks, getCultureStockStats, createCultureStock, updateCultureStock,
   retrieveAliquot, subcultureStock, getStockLogs, recordViabilityCheck,
-} from '../api/cultureStock';
-import type { CultureStock, CultureStockStats, CultureStockLog } from '../api/cultureStock';
+} from '../modules/laboratory/api/cultureStock';
+import type { CultureStock, CultureStockStats, CultureStockLog } from '../modules/laboratory/api/cultureStock';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, te, Ico,

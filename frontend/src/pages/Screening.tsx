@@ -10,8 +10,8 @@ import {
   UserOutlined, WomanOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { ScreeningRequest } from '../api/screening';
-import * as screeningApi from '../api/screening';
+import type { ScreeningRequest } from '../modules/laboratory/api/screening';
+import * as screeningApi from '../modules/laboratory/api/screening';
 
 const statusMap: Record<number, { text: string; color: string }> = {
   0: { text: 'Chờ xử lý', color: 'default' },

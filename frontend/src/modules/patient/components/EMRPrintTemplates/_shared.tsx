@@ -2,7 +2,7 @@ import React from 'react';
 import dayjs from 'dayjs';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../../../../constants/hospital';
 import { PRINT_STYLES_BASE, PRINT_STYLES_DIGITAL_SIG } from '../../../../constants/printStyles';
-import type { DocumentSignatureDto } from '../../../../api/digitalSignature';
+import type { DocumentSignatureDto } from '../../../emr/api/digitalSignature';
 
 /** Digital signature stamp matching Vietnamese USB Token format */
 export interface SignatureStampInfo {

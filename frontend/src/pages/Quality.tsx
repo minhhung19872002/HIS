@@ -42,7 +42,7 @@ import {
   investigateIncident,
   createAudit,
   getSatisfactionStatistics,
-} from '../api/quality';
+} from '../modules/quality/api/quality';
 import type {
   IncidentReportDto,
   QualityIndicatorDto,
@@ -51,7 +51,7 @@ import type {
   CAPADto,
   SatisfactionStatisticsDto,
   PagedResultDto,
-} from '../api/quality';
+} from '../modules/quality/api/quality';
 import { HOSPITAL_NAME } from '../constants/hospital';
 import type {
   IncidentFormValues,

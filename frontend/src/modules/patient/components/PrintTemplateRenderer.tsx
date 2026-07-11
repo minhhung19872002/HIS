@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Spin } from 'antd';
-import type { MedicalRecordFullDto, ConsultationRecordDto, TreatmentSheetDto, NursingCareSheetDto, CreateMaternityLeaveDto } from '../../../api/examination';
+import type { MedicalRecordFullDto, ConsultationRecordDto, TreatmentSheetDto, NursingCareSheetDto, CreateMaternityLeaveDto } from '../../opd/api/examination';
 
 // Superset record shape — gồm MedicalRecordFullDto + các field mở rộng mà các print
 // template hậu lấy ra (examination snapshot, admissionDate, main ICD ngoài diagnoses[]).

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchCases, createCase, updateCase, getOutcomeReport } from '../api/traumaRegistry';
-import type { TraumaCase, TraumaOutcomeReport } from '../api/traumaRegistry';
+import { searchCases, createCase, updateCase, getOutcomeReport } from '../modules/mci/api/traumaRegistry';
+import type { TraumaCase, TraumaOutcomeReport } from '../modules/mci/api/traumaRegistry';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,

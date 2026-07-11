@@ -10,11 +10,11 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as bookingApi from '../api/bookingManagement';
-import type { DoctorScheduleListDto, BookingStatsDto } from '../api/bookingManagement';
-import type { BookingStatusDto } from '../api/appointmentBooking';
-import { getBookingDepartments, getBookingDoctors } from '../api/appointmentBooking';
-import type { BookingDepartmentDto, BookingDoctorDto } from '../api/appointmentBooking';
+import * as bookingApi from '../modules/reception/api/bookingManagement';
+import type { DoctorScheduleListDto, BookingStatsDto } from '../modules/reception/api/bookingManagement';
+import type { BookingStatusDto } from '../modules/reception/api/appointmentBooking';
+import { getBookingDepartments, getBookingDoctors } from '../modules/reception/api/appointmentBooking';
+import type { BookingDepartmentDto, BookingDoctorDto } from '../modules/reception/api/appointmentBooking';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;

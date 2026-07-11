@@ -20,7 +20,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import {
   createRoom, searchRooms, startRoom, endRoom, cancelRoom, joinRoom, getParticipants,
   ROOM_TYPES, STATUS_LABELS, type RoomDto,
-} from '../api/videoConsultation';
+} from '../modules/telemedicine/api/videoConsultation';
 
 const { Text } = Typography;
 

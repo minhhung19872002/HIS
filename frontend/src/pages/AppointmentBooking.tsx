@@ -4,10 +4,10 @@ import { CalendarOutlined, UserOutlined, PhoneOutlined, SearchOutlined, ClockCir
 import dayjs from 'dayjs';
 import {
   getBookingDepartments, getBookingDoctors, getAvailableSlots, bookAppointment, lookupAppointment, cancelBooking,
-} from '../api/appointmentBooking';
+} from '../modules/reception/api/appointmentBooking';
 import type {
   BookingDepartmentDto, BookingDoctorDto, BookingSlotResult, BookingTimeSlot, BookingResultDto, BookingStatusDto
-} from '../api/appointmentBooking';
+} from '../modules/reception/api/appointmentBooking';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
 
 const { Title, Text, Paragraph } = Typography;

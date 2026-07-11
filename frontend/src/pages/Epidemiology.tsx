@@ -33,8 +33,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as epidemiologyApi from '../api/epidemiology';
-import type { DiseaseReport, Outbreak, EpiStats, NotifiableDisease } from '../api/epidemiology';
+import * as epidemiologyApi from '../modules/public-health/api/epidemiology';
+import type { DiseaseReport, Outbreak, EpiStats, NotifiableDisease } from '../modules/public-health/api/epidemiology';
 
 const { Title } = Typography;
 const { Search } = Input;

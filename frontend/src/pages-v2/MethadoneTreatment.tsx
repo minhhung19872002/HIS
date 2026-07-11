@@ -3,8 +3,8 @@ import dayjs from 'dayjs';
 import { message } from 'antd';
 import {
   searchMethadonePatients, updatePatient, recordDose, recordUrineTest, getDosingHistory,
-} from '../api/methadone';
-import type { MethadonePatient, DoseRecord } from '../api/methadone';
+} from '../modules/public-health/api/methadone';
+import type { MethadonePatient, DoseRecord } from '../modules/public-health/api/methadone';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,

@@ -75,7 +75,7 @@ import {
   getHealthMetricTrends,
   getPatientQuestions,
   createPatientQuestion,
-} from '../api/patientPortal';
+} from '../modules/portal/api/patientPortal';
 import type {
   PatientAccountDto,
   OnlineAppointmentDto,
@@ -92,7 +92,7 @@ import type {
   HealthMetricDto,
   HealthMetricTrendDto,
   PatientQuestionDto,
-} from '../api/patientPortal';
+} from '../modules/portal/api/patientPortal';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;

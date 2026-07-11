@@ -39,7 +39,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import bloodBankApi from '../api/bloodBank';
+import bloodBankApi from '../modules/blood-bank/api/bloodBank';
 import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;

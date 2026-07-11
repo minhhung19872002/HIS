@@ -21,7 +21,7 @@ import {
   type TenderDto, type TenderItemDto, type FixedAssetDto, type AssetHandoverDto,
   type AssetDisposalDto, type DepreciationReportDto, type AssetDashboardDto,
   type AssetReportTypeDto, type AssetQrCodeDto,
-} from '../api/assetManagement';
+} from '../modules/asset/api/assetManagement';
 
 const { Option } = Select;
 

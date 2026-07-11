@@ -6,14 +6,14 @@ import type {
   SessionStatusResponse,
   SignDocumentResponse,
   BatchSignResponse,
-} from '../api/digitalSignature';
+} from '../modules/emr/api/digitalSignature';
 import {
   openSession as apiOpenSession,
   getSessionStatus as apiGetSessionStatus,
   closeSession as apiCloseSession,
   signDocument as apiSignDocument,
   batchSign as apiBatchSign,
-} from '../api/digitalSignature';
+} from '../modules/emr/api/digitalSignature';
 import * as signalR from '@microsoft/signalr';
 import { createHubConnection } from '../services/signalr.service';
 

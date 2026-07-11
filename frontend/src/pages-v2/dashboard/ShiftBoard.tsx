@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import type { MedicalHRDashboardDto } from '../../api/medicalHR';
+import type { MedicalHRDashboardDto } from '../../modules/hr/api/medicalHR';
 
 /* ==========================================================================
    Shift Board — totals + alerts from HR dashboard API.

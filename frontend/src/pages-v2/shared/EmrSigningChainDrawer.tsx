@@ -16,11 +16,11 @@ import PrintTemplateRenderer from '../../modules/patient/components/PrintTemplat
 import {
   getDocumentChain, getChainTemplate, submitSigningChain, cancelSigningChain,
   type DocumentChain, type SigningChainStepInput,
-} from '../../api/signingWorkflow';
-import { getSigners, getSigningRoles, finalizeRecord, type EmrSignerCatalogDto, type EmrSigningRoleDto } from '../../api/emrAdmin';
+} from '../../modules/emr/api/signingWorkflow';
+import { getSigners, getSigningRoles, finalizeRecord, type EmrSignerCatalogDto, type EmrSigningRoleDto } from '../../modules/emr/api/emrAdmin';
 import type {
   MedicalRecordFullDto, TreatmentSheetDto, ConsultationRecordDto, NursingCareSheetDto,
-} from '../../api/examination';
+} from '../../modules/opd/api/examination';
 
 /** Giấy ký nhiều cấp gắn trình ký (printType = documentType của SigningRequest). */
 const SIGNABLE_FORMS: { label: string; printType: string; finalizeHint?: boolean }[] = [

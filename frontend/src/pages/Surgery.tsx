@@ -36,9 +36,9 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { getSurgeries, getOperatingRooms, createSurgeryRequest, scheduleSurgery, startSurgery as apiStartSurgery, completeSurgery, searchIcdCodes, searchServices, getSurgeryConsents, saveSurgeryConsent, signConsent, validateConsents, type SurgeryDto, type OperatingRoomDto, type SurgerySearchDto, type CreateSurgeryRequestDto, type ScheduleSurgeryDto, type StartSurgeryDto, type CompleteSurgeryDto, type IcdCodeDto, type ServiceDto as SurgeryServiceDto, type SurgeryConsentDto, type ConsentValidationResult } from '../api/surgery';
-import { examinationApi } from '../api/examination';
-import type { ExaminationDto } from '../api/examination';
+import { getSurgeries, getOperatingRooms, createSurgeryRequest, scheduleSurgery, startSurgery as apiStartSurgery, completeSurgery, searchIcdCodes, searchServices, getSurgeryConsents, saveSurgeryConsent, signConsent, validateConsents, type SurgeryDto, type OperatingRoomDto, type SurgerySearchDto, type CreateSurgeryRequestDto, type ScheduleSurgeryDto, type StartSurgeryDto, type CompleteSurgeryDto, type IcdCodeDto, type ServiceDto as SurgeryServiceDto, type SurgeryConsentDto, type ConsentValidationResult } from '../modules/surgery/api/surgery';
+import { examinationApi } from '../modules/opd/api/examination';
+import type { ExaminationDto } from '../modules/opd/api/examination';
 import { HOSPITAL_NAME } from '../constants/hospital';
 import SurgeryDrawingPad from '../components/SurgeryDrawingPad';
 

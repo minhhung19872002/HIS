@@ -48,7 +48,7 @@ import {
   type PagedResultDto,
   type CreateEquipmentDto,
   type EquipmentCategoryDto,
-} from '../api/equipment';
+} from '../modules/asset/api/equipment';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;

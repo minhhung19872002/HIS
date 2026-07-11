@@ -11,7 +11,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import {
   searchSpecialtyRecords, getSpecialtyRecord, saveSpecialtyRecord,
   deleteSpecialtyRecord, getSpecialtyRecordPdf, getSpecialtyRecordXml,
-} from '../api/specialtyEmr';
+} from '../modules/emr/api/specialtyEmr';
 import { useRegisterCommands } from '../contexts/CommandContext';
 import {
   SPECIALTY_TYPES, SPECIALTY_FIELDS, SPECIALTY_LABEL, type FieldDef,

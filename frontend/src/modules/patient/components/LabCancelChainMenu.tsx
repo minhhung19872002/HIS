@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { Button, Dropdown, Form, Input, Modal, Tag, message } from 'antd';
 import { DownOutlined, UndoOutlined } from '@ant-design/icons';
-import { cancelApproval, cancelCollection, cancelResult } from '../../../api/labCancelChain';
+import { cancelApproval, cancelCollection, cancelResult } from '../../laboratory/api/labCancelChain';
 
 interface Props {
   // FLOW-3 #14a: id của ServiceRequestDetail (model 1) hoặc ServiceRequest cha (BE dual-lookup).

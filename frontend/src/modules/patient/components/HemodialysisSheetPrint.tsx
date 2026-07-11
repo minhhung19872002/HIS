@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../../../constants/hospital';
 import { openPrintWindow } from '../../../utils/printWindow';
-import type { HemodialysisSessionDto } from '../../../api/inpatient';
+import type { HemodialysisSessionDto } from '../../inpatient/api/inpatient';
 
 export interface HemodialysisPrintHeader {
   patientName?: string;

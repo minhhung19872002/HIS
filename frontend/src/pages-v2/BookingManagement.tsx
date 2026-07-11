@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Input, Select, DatePicker } from 'antd';
-import { getBookings, getBookingStats, confirmBooking, checkInBooking, markNoShow, updateBooking, cancelBooking } from '../api/bookingManagement';
-import type { BookingStatsDto } from '../api/bookingManagement';
-import type { BookingStatusDto } from '../api/appointmentBooking';
+import { getBookings, getBookingStats, confirmBooking, checkInBooking, markNoShow, updateBooking, cancelBooking } from '../modules/reception/api/bookingManagement';
+import type { BookingStatsDto } from '../modules/reception/api/bookingManagement';
+import type { BookingStatusDto } from '../modules/reception/api/appointmentBooking';
 import {
   bookAppointment, getBookingDepartments, getBookingDoctors,
   type BookingDepartmentDto, type BookingDoctorDto,
-} from '../api/appointmentBooking';
+} from '../modules/reception/api/appointmentBooking';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, ModalShell, useTabCounts, tk, ti, te, cf, Ico,

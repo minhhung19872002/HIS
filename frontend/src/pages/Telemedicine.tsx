@@ -50,15 +50,15 @@ import {
   createConsultation,
   completeConsultation,
   createEPrescription,
-} from '../api/telemedicine';
+} from '../modules/telemedicine/api/telemedicine';
 import type {
   TelemedicineAppointmentDto,
   TelemedicineDashboardDto,
   VideoSessionDto,
   TeleconsultationDto,
-} from '../api/telemedicine';
+} from '../modules/telemedicine/api/telemedicine';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
-import * as examApi from '../api/examination';
+import * as examApi from '../modules/opd/api/examination';
 
 type BookingFormValues = {
   patientId?: string;

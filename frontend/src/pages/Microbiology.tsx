@@ -8,8 +8,8 @@ import {
   CheckCircleOutlined, ExperimentOutlined, EyeOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { MicrobiologyCulture, MicrobiologyOrganism, AntibioticSensitivity } from '../api/microbiology';
-import * as microApi from '../api/microbiology';
+import type { MicrobiologyCulture, MicrobiologyOrganism, AntibioticSensitivity } from '../modules/laboratory/api/microbiology';
+import * as microApi from '../modules/laboratory/api/microbiology';
 
 const statusMap: Record<number, { text: string; color: string }> = {
   0: { text: 'Chờ nuôi cấy', color: 'default' },

@@ -10,7 +10,7 @@ import {
   type PaymentTransactionDto,
   type PaymentUrlResponse,
 } from '../api/paymentGateway';
-import { createDynamicQr, type DynamicQrReferenceType } from '../../../api/nangcap25';
+import { createDynamicQr, type DynamicQrReferenceType } from '../api/nangcap25';
 import { bankPaymentApi } from '../../../api/nangcap24';
 
 interface Props {

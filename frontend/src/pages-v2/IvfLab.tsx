@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dayjs, { type Dayjs } from 'dayjs';
 import { message, Select, Input, DatePicker, InputNumber } from 'antd';
-import { getCouples, getIvfDashboard, saveCouple, getCycles, getEmbryos } from '../api/ivfLab';
-import type { IvfCouple, IvfDashboard, IvfEmbryo } from '../api/ivfLab';
+import { getCouples, getIvfDashboard, saveCouple, getCycles, getEmbryos } from '../modules/specialty/api/ivfLab';
+import type { IvfCouple, IvfDashboard, IvfEmbryo } from '../modules/specialty/api/ivfLab';
 import { patientApi } from '../modules/patient/api/patient';
 import {
   KpiStrip, SearchBox, DataTable, Pager, ActBtn, Btn, ModalShell,

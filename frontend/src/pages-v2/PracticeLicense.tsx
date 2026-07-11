@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchLicenses, createLicense, updateLicense, getExpiringLicenses, printLicense } from '../api/practiceLicense';
-import type { PracticeLicense } from '../api/practiceLicense';
+import { searchLicenses, createLicense, updateLicense, getExpiringLicenses, printLicense } from '../modules/hr/api/practiceLicense';
+import type { PracticeLicense } from '../modules/hr/api/practiceLicense';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,

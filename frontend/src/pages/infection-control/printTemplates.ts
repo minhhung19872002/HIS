@@ -4,7 +4,7 @@
  */
 import dayjs from 'dayjs';
 import { HOSPITAL_NAME } from '../../constants/hospital';
-import type { HAISurveillanceDto, InfectionControlDashboardDto } from '../../api/infectionControl';
+import type { HAISurveillanceDto, InfectionControlDashboardDto } from '../../modules/infection-control/api/infectionControl';
 
 export const buildInfectionReportHtml = (
   haiCases: HAISurveillanceDto[],

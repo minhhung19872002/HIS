@@ -15,12 +15,12 @@ import {
   ModalShell, ActBtn, Btn, tk, te, cf,
   type ColumnDef, type TopTab,
 } from './_v2kit';
-import ItTicketsPanel from './system-admin/ItTicketsPanel';
-import AccessMatrixPanel from './system-admin/AccessMatrixPanel';
-import CompliancePanel from './system-admin/CompliancePanel';
-import DataManagementPanel from './system-admin/DataManagementPanel';
-import HealthPanel from './system-admin/HealthPanel';
-import EmrAdminPanel from './system-admin/EmrAdminPanel';
+import ItTicketsPanel from '../modules/system/pages/ItTicketsPanel';
+import AccessMatrixPanel from '../modules/system/pages/AccessMatrixPanel';
+import CompliancePanel from '../modules/system/pages/CompliancePanel';
+import DataManagementPanel from '../modules/system/pages/DataManagementPanel';
+import HealthPanel from '../modules/system/pages/HealthPanel';
+import EmrAdminPanel from '../modules/system/pages/EmrAdminPanel';
 
 // Department có 2 shape (id|departmentId, name|departmentName) khi đến từ catalog API khác nhau
 interface RawDepartmentLite { id?: string; departmentId?: string; name?: string; departmentName?: string }

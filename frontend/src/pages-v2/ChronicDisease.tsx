@@ -4,10 +4,10 @@ import {
   getChronicRecords, getChronicStatistics, getFollowUps,
   createChronicRecord, updateChronicRecord, closeChronicRecord,
   removeChronicRecord, reopenChronicRecord, createFollowUp,
-} from '../api/chronicDisease';
+} from '../modules/public-health/api/chronicDisease';
 import type {
   ChronicRecordDto, ChronicFollowUpDto, ChronicStatisticsDto, CreateChronicRecordDto,
-} from '../api/chronicDisease';
+} from '../modules/public-health/api/chronicDisease';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, tw, cf,

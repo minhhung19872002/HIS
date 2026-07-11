@@ -11,13 +11,13 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as warehouseApi from '../api/warehouse';
+import * as warehouseApi from '../modules/pharmacy/api/warehouse';
 import type {
   ProcurementRequestDto,
   ProcurementItemDto,
   AutoProcurementSuggestionDto,
   CreateProcurementRequestDto,
-} from '../api/warehouse';
+} from '../modules/pharmacy/api/warehouse';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;

@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   searchSchoolExams, getSchoolStats, getSchoolList, createSchoolExam, updateSchoolExam,
-} from '../api/schoolHealth';
-import type { SchoolExam, SchoolStats, School } from '../api/schoolHealth';
+} from '../modules/public-health/api/schoolHealth';
+import type { SchoolExam, SchoolStats, School } from '../modules/public-health/api/schoolHealth';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, fmtDMYg, Ico,

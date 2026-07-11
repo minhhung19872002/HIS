@@ -10,8 +10,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as heApi from '../api/healthEducation';
-import type { HealthCampaign, HealthMaterial, CampaignStats } from '../api/healthEducation';
+import * as heApi from '../modules/public-health/api/healthEducation';
+import type { HealthCampaign, HealthMaterial, CampaignStats } from '../modules/public-health/api/healthEducation';
 
 const { Title } = Typography;
 const { Search } = Input;

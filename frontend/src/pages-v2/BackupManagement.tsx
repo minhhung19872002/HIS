@@ -4,10 +4,10 @@ import { App as AntdApp, Input, InputNumber, Modal, Switch, Select } from 'antd'
 import {
   getBackupHistory, createBackupWithHistory, requestRestore,
   getBackupConfig, saveBackupConfig,
-} from '../api/dataExport';
+} from '../modules/administration/api/dataExport';
 import type {
   BackupHistoryDto, BackupConfigDto, RestoreBackupResultDto,
-} from '../api/dataExport';
+} from '../modules/administration/api/dataExport';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, ModalShell,

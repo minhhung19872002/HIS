@@ -33,8 +33,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as immunizationApi from '../api/immunization';
-import type { Vaccination, Campaign, AefiReport, CampaignStats } from '../api/immunization';
+import * as immunizationApi from '../modules/immunization/api/immunization';
+import type { Vaccination, Campaign, AefiReport, CampaignStats } from '../modules/immunization/api/immunization';
 
 const { Title } = Typography;
 const { Search } = Input;

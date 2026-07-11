@@ -12,7 +12,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import * as api from '../api/medicalRecordPlanning';
+import * as api from '../modules/medical-record/api/medicalRecordPlanning';
 
 const { Search } = Input;
 const { RangePicker } = DatePicker;

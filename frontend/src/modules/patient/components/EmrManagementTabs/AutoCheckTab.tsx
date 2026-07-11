@@ -10,10 +10,10 @@ import {
   ReloadOutlined,
   SafetyOutlined,
 } from '@ant-design/icons';
-import * as emrMgmt from '../../../../api/emrManagement';
+import * as emrMgmt from '../../../emr/api/emrManagement';
 import type {
   AutoCheckRuleDto, AutoCheckViolationDto,
-} from '../../../../api/emrManagement';
+} from '../../../emr/api/emrManagement';
 
 const { TextArea } = Input;
 

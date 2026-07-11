@@ -6,10 +6,10 @@ import { useNavigate } from 'react-router-dom';
 import {
   getAppointments, confirmAppointment, cancelAppointment,
   createEPrescription, signEPrescription, sendToPharmacy,
-} from '../api/telemedicine';
-import type { TelemedicineAppointmentDto, TelePrescriptionDto, TelePrescriptionItemInput } from '../api/telemedicine';
-import { searchMedicines } from '../api/examination';
-import type { MedicineDto } from '../api/examination';
+} from '../modules/telemedicine/api/telemedicine';
+import type { TelemedicineAppointmentDto, TelePrescriptionDto, TelePrescriptionItemInput } from '../modules/telemedicine/api/telemedicine';
+import { searchMedicines } from '../modules/opd/api/examination';
+import type { MedicineDto } from '../modules/opd/api/examination';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, ModalShell,

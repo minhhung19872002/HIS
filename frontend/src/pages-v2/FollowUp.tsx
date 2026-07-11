@@ -3,8 +3,8 @@ import * as file from '../services/file.service';
 import dayjs, { type Dayjs } from 'dayjs';
 import { App as AntdApp, DatePicker } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { searchAppointments, getOverdueFollowUps, updateAppointmentStatus } from '../api/examination';
-import type { AppointmentListDto } from '../api/examination';
+import { searchAppointments, getOverdueFollowUps, updateAppointmentStatus } from '../modules/opd/api/examination';
+import type { AppointmentListDto } from '../modules/opd/api/examination';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell,

@@ -3,8 +3,8 @@ import dayjs from 'dayjs';
 import {
   getPendingRequests, getSubmittedRequests, getHistory, getSigningStats,
   approveSigningRequest, rejectSigningRequest, cancelSigningRequest, cancelSigningChain,
-} from '../api/signingWorkflow';
-import type { SigningRequestItem, SigningWorkflowStats } from '../api/signingWorkflow';
+} from '../modules/emr/api/signingWorkflow';
+import type { SigningRequestItem, SigningWorkflowStats } from '../modules/emr/api/signingWorkflow';
 import {
   KpiStrip, TopTabs, DataTable, DrawerShell, DrSec, DrField, StatusBadge, Btn, Filter, Ico,
   tk, te, type ColumnDef, type TopTab,

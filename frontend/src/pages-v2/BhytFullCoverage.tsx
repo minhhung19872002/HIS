@@ -14,7 +14,7 @@ import {
   deleteBhytFullCoverage,
   type BhytFullCoveragePatientDto,
   type CreateBhytFullCoverageDto,
-} from '../api/bhytFullCoverage';
+} from '../modules/insurance/api/bhytFullCoverage';
 
 // ── helpers ──
 

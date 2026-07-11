@@ -10,8 +10,8 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as popApi from '../api/populationHealth';
-import type { PopulationRecord, PopulationStats, ElderlyStats } from '../api/populationHealth';
+import * as popApi from '../modules/public-health/api/populationHealth';
+import type { PopulationRecord, PopulationStats, ElderlyStats } from '../modules/public-health/api/populationHealth';
 
 const { Title, Text } = Typography;
 const { Search } = Input;

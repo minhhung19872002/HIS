@@ -8,11 +8,11 @@ import {
   DeleteOutlined, PlusOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import * as emrMgmt from '../../../../api/emrManagement';
+import * as emrMgmt from '../../../emr/api/emrManagement';
 import type {
   EmrSpineDto,
   EmrSpineSectionDto,
-} from '../../../../api/emrManagement';
+} from '../../../emr/api/emrManagement';
 
 const { TextArea } = Input;
 

@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   searchOccExams, getOccStats, getHazardTypes, createOccExam, updateOccExam,
-} from '../api/occupationalHealth';
-import type { OccExam, OccStats, HazardType } from '../api/occupationalHealth';
+} from '../modules/public-health/api/occupationalHealth';
+import type { OccExam, OccStats, HazardType } from '../modules/public-health/api/occupationalHealth';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge,
   ActBtn, Btn, DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, tw, Ico, fmtDMYg,

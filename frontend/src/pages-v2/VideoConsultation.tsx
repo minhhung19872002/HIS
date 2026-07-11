@@ -8,7 +8,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import {
   createRoom, searchRooms, startRoom, endRoom, cancelRoom, joinRoom, getParticipants,
   ROOM_TYPES, STATUS_LABELS, type RoomDto,
-} from '../api/videoConsultation';
+} from '../modules/telemedicine/api/videoConsultation';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, ModalShell, Ico, tk, ti, tw, cf,

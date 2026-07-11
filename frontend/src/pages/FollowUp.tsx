@@ -32,7 +32,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import * as examApi from '../api/examination';
+import * as examApi from '../modules/opd/api/examination';
 
 const { Title } = Typography;
 const { Search } = Input;

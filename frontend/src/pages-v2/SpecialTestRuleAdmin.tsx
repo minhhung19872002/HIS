@@ -7,8 +7,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutoComplete, Input, InputNumber, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
-import * as api from '../api/businessAlerts';
-import { searchServices } from '../api/examination';
+import * as api from '../modules/patient/api/businessAlerts';
+import { searchServices } from '../modules/opd/api/examination';
 import {
   KpiStrip, DataTable, Pager, SearchBox, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, te, cf, Ico,

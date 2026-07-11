@@ -12,7 +12,7 @@ import {
   SafetyCertificateOutlined, IdcardOutlined, FileProtectOutlined, SearchOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { lookupPublicEmr, buildPublicEmrPdfUrl, type PublicEmrDocument } from '../api/publicEmr';
+import { lookupPublicEmr, buildPublicEmrPdfUrl, type PublicEmrDocument } from '../modules/emr/api/publicEmr';
 import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text, Paragraph } = Typography;

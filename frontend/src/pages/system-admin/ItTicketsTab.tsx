@@ -11,7 +11,7 @@ import {
   SearchOutlined, ThunderboltOutlined, ToolOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import * as itTicketApi from '../../api/itTicket';
+import * as itTicketApi from '../../modules/system/api/itTicket';
 
 const { Search } = Input;
 const { Option } = Select;

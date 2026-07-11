@@ -1,7 +1,7 @@
 import React from 'react';
 import dayjs from 'dayjs';
 import { Modal } from 'antd';
-import type { SurgeryScheduleDto } from '../../api/surgery';
+import type { SurgeryScheduleDto } from '../../modules/surgery/api/surgery';
 
 /* ==========================================================================
    OR case modal

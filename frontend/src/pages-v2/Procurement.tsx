@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import dayjs from 'dayjs';
-import { getProcurementRequests } from '../api/warehouse';
-import type { ProcurementRequestDto } from '../api/warehouse';
+import { getProcurementRequests } from '../modules/pharmacy/api/warehouse';
+import type { ProcurementRequestDto } from '../modules/pharmacy/api/warehouse';
 import {
   SimpleV2Page, StatusBadge, DrSec, DrField,
   type ColumnDef, type StatusTab, type KpiItem,

@@ -13,10 +13,10 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import {
   getSmsBalance, testSmsConnection, sendTestSms, getSmsLogs, getSmsStats,
-} from '../api/sms';
+} from '../modules/system/api/sms';
 import type {
   SmsBalanceDto, SmsLogDto, SmsLogSearchDto, SmsStatsDto,
-} from '../api/sms';
+} from '../modules/system/api/sms';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;

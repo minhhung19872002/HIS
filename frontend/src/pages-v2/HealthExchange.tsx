@@ -4,7 +4,7 @@ import {
   getConnections, createConnection, updateConnection, testConnection, activateConnection, deactivateConnection,
   syncAll,
   type HIEConnectionDto, type CreateConnectionDto,
-} from '../api/healthExchange';
+} from '../modules/system/api/healthExchange';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,

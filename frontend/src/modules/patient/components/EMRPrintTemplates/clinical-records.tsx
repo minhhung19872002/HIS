@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import dayjs from 'dayjs';
-import type { MedicalRecordFullDto, TreatmentSheetDto, ConsultationRecordDto } from '../../../../api/examination';
+import type { MedicalRecordFullDto, TreatmentSheetDto, ConsultationRecordDto } from '../../../opd/api/examination';
 import { printStyles, PrintHeader, SignatureBlock, Field } from './_shared';
 import type { SignatureStampInfo } from './_shared';
 interface MedicalRecordSummaryProps {

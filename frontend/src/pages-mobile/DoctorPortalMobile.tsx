@@ -6,8 +6,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { App as AntdApp } from 'antd';
 import dayjs from 'dayjs';
-import { searchExaminations, getPhysicalExamination } from '../api/examination';
-import type { ExaminationDto, PhysicalExaminationDto } from '../api/examination';
+import { searchExaminations, getPhysicalExamination } from '../modules/opd/api/examination';
+import type { ExaminationDto, PhysicalExaminationDto } from '../modules/opd/api/examination';
 import { printEmrForm } from '../api/pdf';
 import { storage, STORAGE_KEYS } from '../services/storage.service';
 import {
@@ -17,12 +17,12 @@ import {
   createServiceOrder,
   printTreatmentSheet,
   searchMedicines,
-} from '../api/inpatient';
-import type { InpatientListDto, MedicineSearchItemDto } from '../api/inpatient';
-import { getWarehouses } from '../api/warehouse';
+} from '../modules/inpatient/api/inpatient';
+import type { InpatientListDto, MedicineSearchItemDto } from '../modules/inpatient/api/inpatient';
+import { getWarehouses } from '../modules/pharmacy/api/warehouse';
 import ClinicalTemplatePicker from '../components/ClinicalTemplatePicker';
-import { TEMPLATE_TYPES } from '../api/clinicalTemplate';
-import type { WarehouseDto } from '../api/warehouse';
+import { TEMPLATE_TYPES } from '../modules/patient/api/clinicalTemplate';
+import type { WarehouseDto } from '../modules/pharmacy/api/warehouse';
 import './portal-mobile.css';
 
 type Tab = 'today' | 'queue' | 'patients' | 'inpatient' | 'me';

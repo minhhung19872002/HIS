@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal } from 'antd';
-import type { BedLayoutDto } from '../../api/inpatient';
+import type { BedLayoutDto } from '../../modules/inpatient/api/inpatient';
 
 /* ==========================================================================
    Bed detail modal

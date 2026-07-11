@@ -54,17 +54,17 @@ import { patientApi, type Patient } from '../modules/patient/api/patient';
 import ClinicalTermSelector from '../components/ClinicalTermSelector';
 import VoiceDictation from '../components/VoiceDictation';
 import { HOSPITAL_NAME } from '../constants/hospital';
-import { examinationApi, type RoomDto } from '../api/examination';
-import { getOpdContext, type OpdContextDto } from '../api/dataInheritance';
+import { examinationApi, type RoomDto } from '../modules/opd/api/examination';
+import { getOpdContext, type OpdContextDto } from '../modules/patient/api/dataInheritance';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
-import cdsApi from '../api/clinicalDecisionSupport';
-import { getStock as getWarehouseStock, type StockDto } from '../api/warehouse';
+import cdsApi from '../modules/patient/api/clinicalDecisionSupport';
+import { getStock as getWarehouseStock, type StockDto } from '../modules/pharmacy/api/warehouse';
 import BusinessAlertPanel from '../components/BusinessAlertPanel';
-import type { DiagnosisSuggestion, EarlyWarningScore, ClinicalAlert } from '../api/clinicalDecisionSupport';
+import type { DiagnosisSuggestion, EarlyWarningScore, ClinicalAlert } from '../modules/patient/api/clinicalDecisionSupport';
 import StockReservationModal from '../components/StockReservationModal';
 import ClinicalTemplatePicker from '../components/ClinicalTemplatePicker';
-import { TEMPLATE_TYPES } from '../api/clinicalTemplate';
+import { TEMPLATE_TYPES } from '../modules/patient/api/clinicalTemplate';
 import PatientFlagBanner from '../components/PatientFlagBanner';
 import DoctorLicenseBanner from '../components/DoctorLicenseBanner';
 import type { LicenseStatusDto } from '../modules/administration/api/doctorLicense';
@@ -1340,7 +1340,7 @@ const OPD: React.FC = () => {
     try {
       const values = await addSpecialtyForm.validateFields();
       setAddingSpecialty(true);
-      const { addFollowUpSpecialty } = await import('../api/multiSpecialtyExam');
+      const { addFollowUpSpecialty } = await import('../modules/opd/api/multiSpecialtyExam');
       const result = await addFollowUpSpecialty({
         parentExaminationId: examination!.id,
         roomId: values.roomId,
@@ -2008,7 +2008,7 @@ const OPD: React.FC = () => {
                           onClick: async () => {
                             if (!examination?.id) return;
                             try {
-                              const { printBill } = await import('../api/multiSpecialtyExam');
+                              const { printBill } = await import('../modules/opd/api/multiSpecialtyExam');
                               await printBill(examination.id);
                               message.success('Đã in chi phí');
                             } catch (e: unknown) {
@@ -2025,7 +2025,7 @@ const OPD: React.FC = () => {
                           onClick: async () => {
                             if (!examination?.id) return;
                             try {
-                              const { cancelPrintBill } = await import('../api/multiSpecialtyExam');
+                              const { cancelPrintBill } = await import('../modules/opd/api/multiSpecialtyExam');
                               await cancelPrintBill(examination.id);
                               message.success('Đã hủy in chi phí');
                             } catch (e: unknown) {
@@ -2047,7 +2047,7 @@ const OPD: React.FC = () => {
                               okButtonProps: { danger: true },
                               onOk: async () => {
                                 try {
-                                  const { cancelCompletion } = await import('../api/multiSpecialtyExam');
+                                  const { cancelCompletion } = await import('../modules/opd/api/multiSpecialtyExam');
                                   await cancelCompletion(examination.id);
                                   message.success('Đã hủy hoàn tất');
                                   if (selectedRoomId) loadQueue(selectedRoomId);

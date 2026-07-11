@@ -4,9 +4,9 @@ import { Input, DatePicker } from 'antd';
 import {
   getSampleRejections, undoRejection, reCollectSample,
   rejectSample, getSampleTimeline, getSampleTrackingSummary,
-} from '../api/sampleTracking';
-import type { SampleRejection, SampleTrackingEvent, SampleTrackingSummary } from '../api/sampleTracking';
-import { getSampleBatches, type SampleBatchDto, type SampleBatchItemDto } from '../api/sampleBatch';
+} from '../modules/laboratory/api/sampleTracking';
+import type { SampleRejection, SampleTrackingEvent, SampleTrackingSummary } from '../modules/laboratory/api/sampleTracking';
+import { getSampleBatches, type SampleBatchDto, type SampleBatchItemDto } from '../modules/laboratory/api/sampleBatch';
 import BarcodeScanner from '../components/BarcodeScanner';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,

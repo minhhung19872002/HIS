@@ -1,6 +1,6 @@
 import React from 'react';
 import { Drawer } from 'antd';
-import type { AdmissionDto } from '../../api/reception';
+import type { AdmissionDto } from '../../modules/reception/api/reception';
 import { fmtTime, essFromPriority } from './_shared';
 
 /* ==========================================================================

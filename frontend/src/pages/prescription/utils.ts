@@ -3,7 +3,7 @@
  * (K22 Batch 1).
  */
 
-import type { MedicineDto } from '../../api/examination';
+import type { MedicineDto } from '../../modules/opd/api/examination';
 import type { DosageInstruction, Medicine } from './types';
 
 /** Convert API MedicineDto → local Medicine view-model. */

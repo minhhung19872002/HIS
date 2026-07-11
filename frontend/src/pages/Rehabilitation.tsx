@@ -46,7 +46,7 @@ import {
   createTreatmentPlan,
   createSession,
   completeSession,
-} from '../api/rehabilitation';
+} from '../modules/rehabilitation/api/rehabilitation';
 import type {
   RehabReferralDto,
   TreatmentSessionDto,
@@ -55,7 +55,7 @@ import type {
   CreateTreatmentPlanDto,
   CreateTreatmentSessionDto,
   CompleteTreatmentSessionDto,
-} from '../api/rehabilitation';
+} from '../modules/rehabilitation/api/rehabilitation';
 import { HOSPITAL_NAME } from '../constants/hospital';
 
 const { Title, Text } = Typography;

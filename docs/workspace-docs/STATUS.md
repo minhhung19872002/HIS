@@ -5,7 +5,29 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-11** — **cửa 409-nghiep-vu: #409 sub-scope 8 trang nghiệp vụ ✅ PUSHED `302cad6` (kèm fix build vỡ def00b7). cửa 409-sysadmin: #409 SystemAdmin 6 tab mới ✅ PUSHED `def00b7` (thiếu 5 file api → fixed tại 302cad6). #412 ✅ PUSHED `27b1c46`.**
+> Cập nhật cuối: **2026-07-12** — **cửa components-restructure: wave-2+3 STRICT-relocate (107 api + 46 pages-v2 subdir → modules/) ✅ PUSHED. cửa 368-authz2: #368 AUTHZ-2 backend DONE (build 0 error) CHỜ push (FE part defer → comment #368). cửa 409-sysadmin: ✅ PUSHED `def00b7`. cửa 409-nghiep-vu: ✅ PUSHED `302cad6`. #412 ✅ PUSHED `27b1c46`.**
+
+## Phiên 2026-07-12 (cửa 368-authz2 — #368 AUTHZ-2 backend, DONE-code CHỜ push)
+- **#368 [AUTHZ-2][P1] backend increment DONE** (lock `368-authz2`): RefreshTokens thật + rotation + reuse-detection + SecurityStamp revoke tức thời. **100% backward-compatible** (token cũ không có claim → grace-accept; LoginResponseDto giữ nguyên shape).
+  - **Migration `144_authz2_refresh_tokens_security_stamp.sql`**: cột `Users.SecurityStamp` (+backfill NEWID) + bảng `RefreshTokens` (TokenHash SHA-256 NVARCHAR(128) indexed, ExpiresAt 14d, RevokedAt, ReplacedByTokenHash; audit NVARCHAR(450) tránh Guid-converter trap). Idempotent.
+  - **`RefreshTokenService`** (mới, DI-registered): Issue/Rotate/Revoke/RevokeAllForUser — rotation mỗi lần refresh; reuse token đã revoke → revoke cả family + bump stamp. Ghi/đóng `UserSessions` thật (M17 admin có data).
+  - **`AuthService`**: 3 luồng login (thường/OTP/WebAuthn) cấp refresh thật + claim `securityStamp`; `ChangePasswordAsync` xoay stamp + revoke all; `RefreshTokenAsync`/`LogoutAsync` mới.
+  - **`Program.cs OnTokenValidated`**: check stamp qua **DB + IMemoryCache TTL 30s** (KHÔNG Redis — prod không có Redis, xem ADR); fail-open khi DB lỗi; giữ nguyên `OnMessageReceived` (SignalR/print/PACS). Limiter `refresh` riêng (60/min) không ăn quota login.
+  - **Endpoints:** `POST /api/auth/refresh` (AllowAnonymous + ratelimit) · `POST /api/auth/logout` (revoke đúng thiết bị, KHÔNG đá thiết bị khác).
+  - **ADR:** `docs/architecture/adr/ADR-001-authz2-token-storage-and-revocation.md` (no-Redis stamp cache · giữ TTL 480' đến khi FE auto-refresh · localStorage + defer httpOnly cookie).
+  - **⚠️ FE part DEFER** (interceptor auto-refresh single-flight + AuthContext lưu refreshToken + logout gọi API + rút TTL 15-30'): bị chặn bởi cửa `components-restructure` đang dời `frontend/src/api/*` — handoff đầy đủ ở comment #368. #368 GIỮ OPEN.
+  - **Gate:** `dotnet build` 0 error ×2 (sau fix `Headers["User-Agent"]`). Push = auto-deploy Cloud Run; sau deploy check `GET /health/schema-drift` missingCount=0.
+
+## Phiên 2026-07-11 (cửa components-restructure — wave-3 pages-v2 subdir move, DONE-code CHỜ push)
+- **Wave-3 STRICT-relocate pages-v2 subdir → modules/*/pages/ DONE** (6 subdir, 46 file, resolve-based):
+  - `inpatient/` (8) → `modules/inpatient/pages/` · `laboratory/` (6) → `modules/laboratory/pages/`
+  - `opd-editor/` (5) → `modules/opd/pages/` · `radiology/` (8) → `modules/radiology/pages/`
+  - `reception/` (12) → `modules/reception/pages/` · `system-admin/` (7) → `modules/system/pages/`
+  - 6 parent pages rewritten (36 specifier) · tất cả internal cross-dir imports recalculated (`../_v2kit` → `../../../pages-v2/_v2kit` etc.)
+- **Fix đi kèm:** restore 3 barrel index.ts (EMRPrintTemplates/SpecialtyEMRForms1/SpecialtyEMRForms2 bị trunc BOM-fix) · re-apply wave-2 cho 8 pages-v2 file mới từ parallel window (16 specifier)
+- **Gate:** `tsc -b --noEmit` EXIT 0 · verify-wave2 A) 107/107 PASS · B) 2607 specifiers PASS
+- **Deferred:** `pages-v2/dashboard/` (cross-module) · `pages-v2/shared/` (giữ chỗ, dùng bởi nhiều module)
+- **✅ PUSHED** (user duyệt 2026-07-12; cherry-pick qua worktree cô lập tại origin/main, resolve 8 trang nghiệp vụ = origin content + retarget modules-import).
 
 ## Phiên 2026-07-11 (cửa 409-nghiep-vu — #409 8 trang nghiệp vụ, ✅ PUSHED `302cad6`)
 - **#409 [PORT-P3][FE] sub-scope nghiệp vụ DONE-code** (lock `409-nghiep-vu`): port 8 trang `pages-v2/`:
@@ -17,7 +39,7 @@
   - **FoodSafety** (+430 dòng): TopTabs 2 tab — tab "Vụ ngộ độc" (giữ nguyên) + tab "Thanh kiểm tra" A/B/C/D grading + CrudModal 9 field + DataTable + DrawerShell.
   - **ReproductiveHealth** (rewrite +617 dòng): TopTabs 2 tab — "Quản thai" (KpiStrip 4 tile + StatusTabs + CrudModal 10 field + `getHighRiskPregnancies`) + "KHHGĐ" (StatusTabs + Filter method + CrudModal 8 field).
   - **HealthCheckup** (+685 dòng): TopTabs 2 tab — "KSK" (giữ nguyên) + "Chiến dịch KSK" (`CampaignTab`: CRUD campaign + groups sub-panel + Excel import `importBatchExcel`).
-  - **⚠️ api-import để `../api/*` (prod-safe):** restructure `modules/*/api` cho 7 domain này CHƯA trên origin lúc push → giữ path cũ; tự-lành khi cửa components-restructure land (rewrite-importer migrate tiếp).
+  - **⚠️ api-import để `../api/*` (prod-safe):** restructure `modules/*/api` cho 7 domain này CHƯA trên origin lúc push → giữ path cũ; **đã tự-lành** khi cửa components-restructure land (commit wave-2+3 retarget 8 trang về `modules/*/api`).
   - **✅ PUSHED `302cad6`** (fast-forward `def00b7..302cad6`, verify tsc -b EXIT 0 trên **worktree cô lập tại origin/main** = trạng thái Vercel thực): 7 page + **fix build vỡ def00b7** — bổ sung 5 file api cửa 409-sysadmin quên `git add` (`modules/system/api/{security,itTicket,audit}` + `modules/administration/api/dataExport` + `modules/emr/api/emrAdmin`, byte-identical old api, chỉ import services/apiClient). Chi tiết: comment #409.
   - **⚠️ Vercel deploy `302cad6` = "Deployment was blocked"** (spend-cap/quyền account chủ minhhung19872002 — KHÔNG phải build fail; def00b7 cũng blocked "author no access"; 7c37939/960a067 cùng ngày success). Code tsc-xanh; chờ owner gỡ block (memory `reference_vercel-his-psi-other-account`).
 

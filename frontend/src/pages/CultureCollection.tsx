@@ -10,8 +10,8 @@ import {
   ScissorOutlined, HistoryOutlined, MedicineBoxOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { CultureStock, CultureStockLog, CultureStockStats } from '../api/cultureStock';
-import * as stockApi from '../api/cultureStock';
+import type { CultureStock, CultureStockLog, CultureStockStats } from '../modules/laboratory/api/cultureStock';
+import * as stockApi from '../modules/laboratory/api/cultureStock';
 
 const statusMap: Record<number, { text: string; color: string }> = {
   0: { text: 'Hoạt động', color: 'success' },

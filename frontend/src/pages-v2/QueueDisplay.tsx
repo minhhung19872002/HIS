@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { publicClient } from '../api/publicClient';
 import { HOSPITAL_NAME } from '../constants/hospital';
-import type { QueueDisplayDto, QueueTicketDto } from '../api/reception';
+import type { QueueDisplayDto, QueueTicketDto } from '../modules/reception/api/reception';
 import '../styles/QueueDisplay.css';
 
 /* ────────────────────────────────────────────────────────────
