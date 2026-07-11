@@ -301,3 +301,40 @@ Gửi batch lên BE mỗi 30s hoặc khi navigate. BE lưu vào audit_logs table
 | Anonymous endpoint public | Fix `[AllowAnonymous]` trong FrontendCompat (#366) |
 | In hồ sơ không có watermark | Thêm "Printed by: User, Time" vào PDF template |
 | Session không hết khi đổi mật khẩu | Thêm `SecurityStamp` + refresh invalidation (#368) |
+
+---
+
+## §2. Performance audit — kết quả (#386, 2026-07-11)
+
+Bundle report = output `vite build` (per-chunk gzip). Không cần thêm `rollup-plugin-visualizer`
+(size đã đủ để đánh giá; tránh thêm dev-dep).
+
+### Bundle hiện tại (gzip)
+| Chunk | Raw | Gzip | Tải khi |
+|---|---|---|---|
+| vendor-antd | 1.648 KB | **496 KB** | eager (dùng toàn app) |
+| entry index (×3) | ~288 KB | ~63 KB | eager |
+| vendor-cornerstone | 3.042 KB | 830 KB | lazy (chỉ route DICOM viewer) |
+| DicomViewer | 484 KB | 135 KB | lazy |
+| vendor-charts | 398 KB | 115 KB | lazy |
+| vendor-qrcode | 334 KB | 99 KB | lazy |
+| excelExport | 283 KB | 95 KB | lazy |
+| Inpatient / EMR / OPD / Reception / SystemAdmin | — | 35 / 29 / 25 / 23 / 21 KB | lazy per-route |
+
+### Đối chiếu target
+- **Suspense per route:** ✅ ĐẠT — mỗi route `/v2/*` đã bọc `<Suspense fallback={PageLoader}>` riêng
+  (`router/AppRoutes.tsx` — data-driven `v2Routes.map`). Không còn 1 Suspense toàn shell.
+- **Sidebar không re-render khi navigate:** ✅ ĐẠT — `Rail`+`Flyout` bọc `React.memo` + callbacks
+  (`onHoverGroup/onClickGroup/onSwitchLayout/...`) `useCallback` ổn định → navigate trong cùng group
+  không rebuild sidebar (verify React DevTools Profiler).
+- **Initial gzip < 300 KB:** ❌ CHƯA — eager ≈ 63 KB entry + **496 KB vendor-antd** ≈ 560 KB. Nghẽn = antd
+  (dùng khắp app, khó code-split). Đề xuất (ngoài scope, task riêng): audit import antd tree-shake, cân nhắc
+  giảm bề mặt component. KHÔNG ép giảm bằng cách vỡ kiến trúc.
+- **Largest lazy chunk < 150 KB:** ⚠️ vendor-cornerstone 830 KB gzip vượt — NHƯNG lazy, chỉ nạp ở route
+  DICOM viewer (chấp nhận: thư viện y tế nặng bản chất). DicomViewer app-chunk 135 KB < 150 ✅.
+
+### Đã làm (safe, self-contained)
+- `React.memo` cho Rail + Flyout; `useCallback` 6 handler shell → sidebar ổn định.
+- Suspense per-route xác nhận đã có (không cần đổi).
+- **DEFER (ngoài scope / phụ thuộc):** visualizer plugin (thêm dev-dep) · antd-slimming (task riêng) ·
+  memo sâu hơn sau khi tách shell (#376 Sidebar.tsx).

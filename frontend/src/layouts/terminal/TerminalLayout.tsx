@@ -63,7 +63,7 @@ type RailProps = {
   onClickGroup: (id: string) => void;
 };
 
-const Rail: React.FC<RailProps> = ({ activeGroupId, pinnedGroupId, hoveredGroupId, onHoverGroup, onClickGroup }) => (
+const Rail = React.memo(({ activeGroupId, pinnedGroupId, hoveredGroupId, onHoverGroup, onClickGroup }: RailProps) => (
   <aside className="his-rail" onMouseLeave={() => onHoverGroup(null)}>
     <Link to="/v2" className="his-rail-mark" title="HIS Terminal — Chỉ mục">HIS</Link>
     {HIS_GROUPS.map((g) => {
@@ -92,7 +92,8 @@ const Rail: React.FC<RailProps> = ({ activeGroupId, pinnedGroupId, hoveredGroupI
     })}
     <div className="his-rail-spacer" />
   </aside>
-);
+));
+Rail.displayName = 'Rail';
 
 /* ==========================================================================
    Flyout — slide-out submenu (240px wide), pinnable
@@ -107,7 +108,7 @@ type FlyoutProps = {
   onKeepOpen: () => void;
 };
 
-const Flyout: React.FC<FlyoutProps> = ({ groupId, activeItemId, pinned, onClose, onTogglePin, onKeepOpen }) => {
+const Flyout = React.memo(({ groupId, activeItemId, pinned, onClose, onTogglePin, onKeepOpen }: FlyoutProps) => {
   const g = HIS_GROUPS.find((x) => x.id === groupId);
   if (!g) return null;
   return (
@@ -150,7 +151,8 @@ const Flyout: React.FC<FlyoutProps> = ({ groupId, activeItemId, pinned, onClose,
       </div>
     </div>
   );
-};
+});
+Flyout.displayName = 'Flyout';
 
 /* ==========================================================================
    Topbar — hospital crumb + command palette + clock/shift/user
@@ -738,34 +740,32 @@ const TerminalShell: React.FC = () => {
       if (stored) setPatient(JSON.parse(stored));
     } catch { /* ignore bad json */ }
   }, [location.search]);
-  const clearPatient = () => {
+  // #386: callbacks ổn định (useCallback) để Rail/Flyout memo hiệu quả — sidebar
+  // không re-render khi điều hướng trong cùng group.
+  const clearPatient = useCallback(() => {
     setPatient(null);
     try { storage.remove(STORAGE_KEYS.patient); } catch { /* ignore */ }
-  };
+  }, []);
 
   // Hover intent: slight delay so accidental pointer crossings don't flicker
-  const scheduleHoverClose = () => {
+  const scheduleHoverClose = useCallback(() => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
     hoverTimer.current = setTimeout(() => setHoveredGroupId(null), 180);
-  };
-  const cancelHoverClose = () => {
+  }, []);
+  const cancelHoverClose = useCallback(() => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
-  };
+  }, []);
 
-  const onHoverGroup = (id: string | null) => {
+  const onHoverGroup = useCallback((id: string | null) => {
     cancelHoverClose();
     if (id) setHoveredGroupId(id);
     else scheduleHoverClose();
-  };
+  }, [cancelHoverClose, scheduleHoverClose]);
 
-  const onClickGroup = (id: string) => {
-    if (pinnedGroupId === id) {
-      setPinnedGroupId(null);
-    } else {
-      setPinnedGroupId(id);
-      setHoveredGroupId(id);
-    }
-  };
+  const onClickGroup = useCallback((id: string) => {
+    setPinnedGroupId((prev) => (prev === id ? null : id));
+    setHoveredGroupId((prev) => (prev === id ? prev : id));
+  }, []);
 
   // Close flyout when navigating (unless pinned)
   const [lastPath, setLastPath] = useState(location.pathname);
@@ -776,12 +776,17 @@ const TerminalShell: React.FC = () => {
     }
   }, [location.pathname, lastPath, pinnedGroupId]);
 
-  const onSwitchLayout = () => {
+  const onSwitchLayout = useCallback(() => {
     storage.set(STORAGE_KEYS.layoutMode, 'v1');
     let v1 = location.pathname.replace(/^\/v2/, '') || '/';
     if (v1 === '/dashboard') v1 = '/';
     navigate(v1);
-  };
+  }, [location.pathname, navigate]);
+
+  const onLogout = useCallback(() => {
+    logout();
+    navigate('/login');
+  }, [logout, navigate]);
 
   // Breadcrumb = [group label, active item label]
   const crumb = useMemo(() => {
@@ -823,7 +828,7 @@ const TerminalShell: React.FC = () => {
           crumb={crumb}
           onCmdK={() => setCmdKOpen(true)}
           onSwitchLayout={onSwitchLayout}
-          onLogout={() => { logout(); navigate('/login'); }}
+          onLogout={onLogout}
         />
         <Ticker patient={patient} onClearPatient={clearPatient} />
         <div className="his-main">
