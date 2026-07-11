@@ -22,6 +22,8 @@ import {
   findGroupIdForPath,
   findItemForPath,
 } from '../../services/menu.service';
+import { v2Routes } from '../../router/routeConfigs';
+import { usePermission } from '../../hooks/usePermission';
 import './terminal.css';
 import './terminal-antd.css';
 import './his-shell.css';
@@ -32,6 +34,22 @@ import './ab-module.css';
    (HIS_GROUPS, NavGroup/NavItem, ALL_ITEMS, findGroupIdForPath, findItemForPath).
    Imported above — rendering below unchanged. #services-consolidation
    ========================================================================== */
+
+/* Command-palette source (#382): mọi trang /v2 điều hướng được — union menu
+   (ALL_ITEMS, có label thân thiện) + TẤT CẢ v2Routes (phủ cả trang không có
+   mục menu). Dedup theo path; giữ label menu khi trùng. `permission` từ
+   route.meta (hiện trống — điền ở #378) để CmdK lọc theo can(). */
+type PaletteItem = { label: string; path: string; groupId?: string; permission?: string };
+const PALETTE_ITEMS: PaletteItem[] = (() => {
+  const byPath = new Map<string, PaletteItem>();
+  ALL_ITEMS.forEach((it) => byPath.set(it.path, { label: it.label, path: it.path, groupId: it.groupId }));
+  v2Routes.forEach((r) => {
+    if (r.redirect || r.index || !r.meta?.title) return;
+    const path = '/v2/' + r.path.replace(/^\/+/, '');
+    if (!byPath.has(path)) byPath.set(path, { label: r.meta.title, path, groupId: r.meta.group, permission: r.meta.permission });
+  });
+  return Array.from(byPath.values());
+})();
 
 /* ==========================================================================
    Rail — 64px left icon strip (10 groups)
@@ -399,6 +417,7 @@ const CmdK: React.FC<CmdKProps> = ({ open, onClose }) => {
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const { can } = usePermission();
 
   useEffect(() => {
     if (open) {
@@ -408,11 +427,14 @@ const CmdK: React.FC<CmdKProps> = ({ open, onClose }) => {
     }
   }, [open]);
 
+  // Chỉ hiện trang user có quyền (can() hiện stub=true → no-op tới #378).
+  const allowed = useMemo(() => PALETTE_ITEMS.filter((r) => !r.permission || can(r.permission)), [can]);
+
   const moduleMatches = useMemo(() => {
-    if (!q) return ALL_ITEMS.slice(0, 12);
+    if (!q) return allowed.slice(0, 12);
     const lq = q.toLowerCase();
-    return ALL_ITEMS.filter((r) => r.label.toLowerCase().includes(lq) || r.path.toLowerCase().includes(lq)).slice(0, 12);
-  }, [q]);
+    return allowed.filter((r) => r.label.toLowerCase().includes(lq) || r.path.toLowerCase().includes(lq)).slice(0, 12);
+  }, [q, allowed]);
 
   const flat = moduleMatches;
 
@@ -446,7 +468,7 @@ const CmdK: React.FC<CmdKProps> = ({ open, onClose }) => {
           <kbd>ESC</kbd>
         </div>
         <div className="his-cmdk-body">
-          <div className="his-cmdk-sec">Mô-đun ({ALL_ITEMS.length} trang)</div>
+          <div className="his-cmdk-sec">Mô-đun ({PALETTE_ITEMS.length} trang)</div>
           {flat.length === 0 ? (
             <div style={{ padding: '12px 16px', color: '#64748b', fontSize: 13 }}>
               Không có kết quả cho "{q}"
@@ -454,7 +476,7 @@ const CmdK: React.FC<CmdKProps> = ({ open, onClose }) => {
           ) : (
             flat.map((r, i) => (
               <div
-                key={r.id}
+                key={r.path}
                 className={'his-cmdk-row' + (i === active ? ' active' : '')}
                 onClick={() => { navigate(r.path); onClose(); }}
                 onMouseEnter={() => setActive(i)}
@@ -470,7 +492,7 @@ const CmdK: React.FC<CmdKProps> = ({ open, onClose }) => {
           <span>↑↓ chọn</span>
           <span>↵ mở</span>
           <span>ESC đóng</span>
-          <span style={{ marginLeft: 'auto' }}>HIS · {ALL_ITEMS.length} trang</span>
+          <span style={{ marginLeft: 'auto' }}>HIS · {PALETTE_ITEMS.length} trang</span>
         </div>
       </div>
     </div>
