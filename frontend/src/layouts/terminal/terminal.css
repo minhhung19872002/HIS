@@ -447,6 +447,7 @@ body[data-theme="dark"] {
   transition: color 0.12s, background 0.12s;
 }
 .his-tb-btn:hover { color: var(--t-0); background: var(--d-3); }
+.his-tb-btn.on { color: var(--a-cy); background: var(--a-cy-bg); }
 .his-tb-btn .dot-alert {
   position: absolute; top: 4px; right: 4px;
   width: 6px; height: 6px; border-radius: 50%;

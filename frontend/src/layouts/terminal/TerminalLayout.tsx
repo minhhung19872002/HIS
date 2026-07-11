@@ -1,14 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
-import { ConfigProvider, Popover, Dropdown, message } from 'antd';
-import type { MenuProps } from 'antd';
+import { ConfigProvider, Popover, Dropdown, message, theme as antdTheme } from 'antd';
+import type { MenuProps, ThemeConfig } from 'antd';
 import { useAuth } from '../../hooks/useAuth';
+import { useNotifications } from '../../contexts/NotificationContext';
+import type { NotificationDto } from '../../modules/system/api/notification';
 import { useInterval } from '../../hooks/useInterval';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
   CommandProvider, useCommandCtx, COMMANDS, type CmdId,
 } from '../../contexts/CommandContext';
 import TermIcon from './Icon';
+import IdleLockScreen from './IdleLockScreen';
 import AiQueueBadge from '../../modules/radiology/components/AiQueueBadge';
 import ErrorBoundary from '../../components/feedback/ErrorBoundary';
 import { HOSPITAL_NAME } from '../../constants/hospital';
@@ -141,12 +144,25 @@ function useClock() {
   return now;
 }
 
-const DEMO_NOTIFICATIONS = [
-  { t: 'crit', time: '08:42', title: 'Troponin cao',     msg: 'BN-00201 Troponin I 0.82 — CT STAT đã chỉ định' },
-  { t: 'warn', time: '08:30', title: 'Kho dược',          msg: 'Omeprazol 20mg còn 580 viên (< 2.000)' },
-  { t: 'info', time: '08:18', title: 'BHYT lô T10',      msg: 'Đã gửi 1.248 hồ sơ · chờ duyệt 12' },
-  { t: 'ok',   time: '07:50', title: 'Backup',            msg: 'Backup DB hoàn tất · 4.2 GB · NAS-02' },
-];
+/** notificationType (Info/Warning/Error/Success) → severity class dùng cho .alert-row. */
+const notifSeverityClass = (type?: string): string => {
+  switch ((type || '').toLowerCase()) {
+    case 'error': return 'crit';
+    case 'warning': return 'warn';
+    case 'success': return 'ok';
+    default: return 'info';
+  }
+};
+
+/** Giờ ngắn HH:mm cho dòng thông báo (từ createdAt ISO). */
+const notifTime = (iso?: string): string => {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+};
 
 const Topbar: React.FC<{ crumb: string[]; onCmdK: () => void; onSwitchLayout: () => void; onLogout: () => void }> = ({
   crumb,
@@ -157,7 +173,8 @@ const Topbar: React.FC<{ crumb: string[]; onCmdK: () => void; onSwitchLayout: ()
   const now = useClock();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, toggleTheme, isCompact, toggleCompact } = useTheme();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
   const dd = String(now.getDate()).padStart(2, '0');
@@ -167,27 +184,43 @@ const Topbar: React.FC<{ crumb: string[]; onCmdK: () => void; onSwitchLayout: ()
   const initials = fullName.split(' ').filter(Boolean).slice(-2).map((x) => x[0]).join('').toUpperCase().slice(0, 2) || 'A';
   const role = user?.roles?.[0] || 'Admin';
 
+  const onNotifClick = (n: NotificationDto) => {
+    if (!n.isRead) { void markAsRead(n.id); }
+    if (n.actionUrl) { navigate(n.actionUrl); }
+  };
+
   const notifContent = (
     <div style={{ width: 320, maxHeight: 380, overflow: 'auto', margin: -12 }}>
-      <div style={{ padding: '10px 14px', borderBottom: '1px solid #e4e9f0', fontSize: 12, fontWeight: 600, color: '#0f172a', display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--t-0)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>Thông báo</span>
-        <span style={{ color: '#64748b', fontFamily: 'JetBrains Mono, monospace', fontSize: 10 }}>{DEMO_NOTIFICATIONS.length} mới</span>
+        {unreadCount > 0 ? (
+          <button type="button" onClick={() => void markAllAsRead()} style={{ color: 'var(--a-cy)', fontSize: 11, fontWeight: 500, background: 'none', border: 0, cursor: 'pointer' }}>
+            Đánh dấu đã đọc ({unreadCount})
+          </button>
+        ) : (
+          <span style={{ color: 'var(--t-2)', fontFamily: 'JetBrains Mono, monospace', fontSize: 10 }}>0 mới</span>
+        )}
       </div>
-      {DEMO_NOTIFICATIONS.map((n, i) => (
-        <div
-          key={i}
-          className={'alert-row ' + n.t}
-          style={{ padding: '8px 14px', borderTop: i ? '1px solid #f1f4f9' : 'none' }}
-        >
-          <div className="alert-dt">{n.time}</div>
-          <div>
-            <div className="alert-who">{n.title}</div>
-            <div className="alert-msg">{n.msg}</div>
+      {notifications.length === 0 ? (
+        <div style={{ padding: '28px 14px', textAlign: 'center', color: 'var(--t-2)', fontSize: 12 }}>Không có thông báo</div>
+      ) : (
+        notifications.map((n, i) => (
+          <div
+            key={n.id}
+            className={'alert-row ' + notifSeverityClass(n.notificationType)}
+            onClick={() => onNotifClick(n)}
+            style={{ padding: '8px 14px', borderTop: i ? '1px solid var(--line-hair)' : 'none', cursor: n.actionUrl ? 'pointer' : 'default', opacity: n.isRead ? 0.6 : 1 }}
+          >
+            <div className="alert-dt">{notifTime(n.createdAt)}</div>
+            <div>
+              <div className="alert-who">{n.title}</div>
+              <div className="alert-msg">{n.content}</div>
+            </div>
           </div>
-        </div>
-      ))}
-      <div style={{ padding: '8px 14px', borderTop: '1px solid #e4e9f0', textAlign: 'center' }}>
-        <Link to="/v2/admin" style={{ color: '#2563eb', fontSize: 12, fontWeight: 500 }}>Xem tất cả →</Link>
+        ))
+      )}
+      <div style={{ padding: '8px 14px', borderTop: '1px solid var(--line)', textAlign: 'center' }}>
+        <Link to="/v2/admin" style={{ color: 'var(--a-cy)', fontSize: 12, fontWeight: 500 }}>Xem tất cả →</Link>
       </div>
     </div>
   );
@@ -225,6 +258,9 @@ const Topbar: React.FC<{ crumb: string[]; onCmdK: () => void; onSwitchLayout: ()
         <button type="button" className="his-tb-btn" title={isDark ? 'Chế độ Sáng' : 'Chế độ Tối'} aria-label="Đổi giao diện Sáng/Tối" onClick={toggleTheme}>
           <TermIcon name={isDark ? 'sun' : 'moon'} size={15} />
         </button>
+        <button type="button" className={`his-tb-btn${isCompact ? ' on' : ''}`} title={isCompact ? 'Mật độ Thường' : 'Mật độ Gọn'} aria-label="Đổi mật độ hiển thị" aria-pressed={isCompact} onClick={toggleCompact}>
+          <TermIcon name="list" size={15} />
+        </button>
         <button type="button" className="his-tb-btn" title="Giao ca / Làm mới" onClick={() => window.location.reload()}>
           <TermIcon name="refresh" size={15} />
         </button>
@@ -233,9 +269,9 @@ const Topbar: React.FC<{ crumb: string[]; onCmdK: () => void; onSwitchLayout: ()
         </button>
         <AiQueueBadge />
         <Popover content={notifContent} trigger="click" placement="bottomRight" styles={{ content: { padding: 12 } }}>
-          <button type="button" className="his-tb-btn" title="Thông báo (có mới)">
+          <button type="button" className="his-tb-btn" title={unreadCount > 0 ? `Thông báo (${unreadCount} mới)` : 'Thông báo'} aria-label="Thông báo">
             <TermIcon name="bell" size={15} />
-            <span className="dot-alert" />
+            {unreadCount > 0 && <span className="dot-alert" />}
           </button>
         </Popover>
         <button type="button" className="his-tb-btn" onClick={onSwitchLayout} title="Chuyển sang Layout cũ (v1)">
@@ -457,10 +493,125 @@ function focusSearch(): boolean {
   return false;
 }
 
+/**
+ * Theme cho vùng nội dung v2 (ConfigProvider lồng trong shell). #381 dark+compact.
+ * - Light mode: token/components giữ NGUYÊN palette sáng đang dùng (behavior-preserving).
+ * - Dark mode: bỏ token bề-mặt sáng để `darkAlgorithm` tự sinh; giữ brand + shape.
+ * - Compact: thêm `compactAlgorithm` + bỏ các height/padding hardcode để thuật toán thu gọn.
+ */
+function buildContentTheme(isDark: boolean, isCompact: boolean): ThemeConfig {
+  const { darkAlgorithm, defaultAlgorithm, compactAlgorithm } = antdTheme;
+  const algorithm = [
+    isDark ? darkAlgorithm : defaultAlgorithm,
+    isCompact ? compactAlgorithm : null,
+  ].filter(Boolean) as ThemeConfig['algorithm'];
+
+  const token: ThemeConfig['token'] = {
+    colorPrimary: '#2563eb',
+    colorInfo: '#0284c7',
+    colorSuccess: '#16a34a',
+    colorWarning: '#d97706',
+    colorError: '#dc2626',
+    borderRadius: 6,
+    borderRadiusLG: 8,
+    borderRadiusSM: 4,
+    fontFamily: 'Inter, "IBM Plex Sans", system-ui, sans-serif',
+    fontSize: 13,
+    fontSizeLG: 14,
+    fontSizeSM: 12,
+    fontSizeHeading1: 32,
+    fontSizeHeading2: 26,
+    fontSizeHeading3: 20,
+    fontSizeHeading4: 16,
+    lineHeight: 1.5,
+    // Chiều cao control cố định chỉ khi KHÔNG compact (compactAlgorithm mới thu nhỏ được).
+    ...(isCompact ? {} : { controlHeight: 34, controlHeightLG: 40, controlHeightSM: 26 }),
+    // Palette bề-mặt sáng chỉ áp ở light; dark để darkAlgorithm tự sinh.
+    ...(isDark
+      ? {}
+      : {
+          colorText: '#0f172a',
+          colorTextSecondary: '#334155',
+          colorTextTertiary: '#64748b',
+          colorBorder: '#e4e9f0',
+          colorBorderSecondary: '#edf1f6',
+          colorBgContainer: '#ffffff',
+          colorBgLayout: '#f7f9fc',
+          colorBgElevated: '#ffffff',
+          colorFillAlter: '#f1f5f9',
+          colorFillContent: '#f1f5f9',
+        }),
+  };
+
+  const components: ThemeConfig['components'] = {
+    Button: { fontWeight: 500, ...(isCompact ? {} : { controlHeight: 34 }) },
+    Card: { paddingLG: 18, ...(isCompact ? {} : { headerHeight: 44 }), ...(isDark ? {} : { headerBg: '#ffffff' }) },
+    Table: {
+      cellFontSize: 13,
+      ...(isCompact ? {} : { cellPaddingBlock: 10, cellPaddingInline: 14 }),
+      ...(isDark
+        ? {}
+        : {
+            headerBg: '#f7f9fc',
+            headerColor: '#64748b',
+            headerSplitColor: '#e4e9f0',
+            rowHoverBg: '#f7f9fc',
+            rowSelectedBg: '#eff5ff',
+            rowSelectedHoverBg: '#e5edf7',
+            borderColor: '#f1f4f9',
+          }),
+    },
+    Tabs: {
+      titleFontSize: 13,
+      horizontalItemGutter: 24,
+      inkBarColor: '#2563eb',
+      itemSelectedColor: '#2563eb',
+      itemActiveColor: '#1d4ed8',
+      ...(isDark ? {} : { itemHoverColor: '#0f172a' }),
+    },
+    Statistic: { titleFontSize: 11, contentFontSize: 26 },
+    Modal: { titleFontSize: 15, ...(isDark ? {} : { headerBg: '#ffffff' }) },
+    Drawer: { fontSizeLG: 15 },
+    Alert: { defaultPadding: '8px 12px' },
+    Form: { labelFontSize: 12, ...(isDark ? {} : { labelColor: '#64748b' }) },
+    // Nhóm token thuần-màu sáng: chỉ áp ở light, dark để algorithm sinh.
+    ...(isDark
+      ? {}
+      : {
+          Menu: {
+            itemBg: 'transparent',
+            itemColor: '#334155',
+            itemHoverBg: '#f1f5f9',
+            itemSelectedBg: '#eff5ff',
+            itemSelectedColor: '#2563eb',
+            itemHeight: 36,
+            itemBorderRadius: 4,
+          },
+          Tag: { defaultBg: '#f1f5f9', defaultColor: '#334155' },
+          Input: {
+            hoverBorderColor: '#bfd3fa',
+            activeBorderColor: '#2563eb',
+            activeShadow: '0 0 0 3px #eff5ff',
+          },
+          Select: { optionSelectedBg: '#eff5ff', optionSelectedColor: '#2563eb' },
+          Descriptions: { titleColor: '#64748b', labelBg: '#f7f9fc' },
+          Segmented: {
+            itemSelectedBg: '#ffffff',
+            itemSelectedColor: '#0f172a',
+            trackBg: '#f7f9fc',
+          },
+        }),
+  };
+
+  return { algorithm, token, components };
+}
+
 const TerminalShell: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { isDark, isCompact } = useTheme();
+  const contentTheme = useMemo(() => buildContentTheme(isDark, isCompact), [isDark, isCompact]);
   const { invoke, has } = useCommandCtx();
 
   const activeItem = useMemo(() => findItemForPath(location.pathname), [location.pathname]);
@@ -627,6 +778,7 @@ const TerminalShell: React.FC = () => {
 
   return (
     <div className="his-terminal">
+      <IdleLockScreen />
       <div className={'his-app' + (flyoutPinned ? ' has-pinned' : '')}>
         <Rail
           activeGroupId={activeGroupId}
@@ -655,91 +807,7 @@ const TerminalShell: React.FC = () => {
         <div className="his-main">
           <div className="his-content">
             <ConfigProvider
-              theme={{
-                token: {
-                  colorPrimary: '#2563eb',
-                  colorInfo: '#0284c7',
-                  colorSuccess: '#16a34a',
-                  colorWarning: '#d97706',
-                  colorError: '#dc2626',
-                  colorText: '#0f172a',
-                  colorTextSecondary: '#334155',
-                  colorTextTertiary: '#64748b',
-                  colorBorder: '#e4e9f0',
-                  colorBorderSecondary: '#edf1f6',
-                  colorBgContainer: '#ffffff',
-                  colorBgLayout: '#f7f9fc',
-                  colorBgElevated: '#ffffff',
-                  colorFillAlter: '#f1f5f9',
-                  colorFillContent: '#f1f5f9',
-                  borderRadius: 6,
-                  borderRadiusLG: 8,
-                  borderRadiusSM: 4,
-                  controlHeight: 34,
-                  controlHeightLG: 40,
-                  controlHeightSM: 26,
-                  fontFamily: 'Inter, "IBM Plex Sans", system-ui, sans-serif',
-                  fontSize: 13,
-                  fontSizeLG: 14,
-                  fontSizeSM: 12,
-                  fontSizeHeading1: 32,
-                  fontSizeHeading2: 26,
-                  fontSizeHeading3: 20,
-                  fontSizeHeading4: 16,
-                  lineHeight: 1.5,
-                },
-                components: {
-                  Button: { fontWeight: 500, controlHeight: 34 },
-                  Card: { headerBg: '#ffffff', headerHeight: 44, paddingLG: 18 },
-                  Table: {
-                    headerBg: '#f7f9fc',
-                    headerColor: '#64748b',
-                    headerSplitColor: '#e4e9f0',
-                    rowHoverBg: '#f7f9fc',
-                    rowSelectedBg: '#eff5ff',
-                    rowSelectedHoverBg: '#e5edf7',
-                    borderColor: '#f1f4f9',
-                    cellPaddingBlock: 10,
-                    cellPaddingInline: 14,
-                    cellFontSize: 13,
-                  },
-                  Tag: { defaultBg: '#f1f5f9', defaultColor: '#334155' },
-                  Tabs: {
-                    titleFontSize: 13,
-                    horizontalItemGutter: 24,
-                    inkBarColor: '#2563eb',
-                    itemSelectedColor: '#2563eb',
-                    itemActiveColor: '#1d4ed8',
-                    itemHoverColor: '#0f172a',
-                  },
-                  Menu: {
-                    itemBg: 'transparent',
-                    itemColor: '#334155',
-                    itemHoverBg: '#f1f5f9',
-                    itemSelectedBg: '#eff5ff',
-                    itemSelectedColor: '#2563eb',
-                    itemHeight: 36,
-                    itemBorderRadius: 4,
-                  },
-                  Input: {
-                    hoverBorderColor: '#bfd3fa',
-                    activeBorderColor: '#2563eb',
-                    activeShadow: '0 0 0 3px #eff5ff',
-                  },
-                  Select: { optionSelectedBg: '#eff5ff', optionSelectedColor: '#2563eb' },
-                  Statistic: { titleFontSize: 11, contentFontSize: 26 },
-                  Modal: { titleFontSize: 15, headerBg: '#ffffff' },
-                  Descriptions: { titleColor: '#64748b', labelBg: '#f7f9fc' },
-                  Drawer: { fontSizeLG: 15 },
-                  Alert: { defaultPadding: '8px 12px' },
-                  Segmented: {
-                    itemSelectedBg: '#ffffff',
-                    itemSelectedColor: '#0f172a',
-                    trackBg: '#f7f9fc',
-                  },
-                  Form: { labelColor: '#64748b', labelFontSize: 12 },
-                },
-              }}
+              theme={contentTheme}
             >
               <ErrorBoundary key={location.pathname}>
                 <Outlet />

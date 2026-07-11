@@ -5,7 +5,15 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-11** — **cửa PORT w196: #415 ✅ PUSHED `be63a78` (CLOSED). #416 ✅ PUSHED `aec7178` (CLOSED, dead window w669 đã push+close). #412 AiQueueBadge → TerminalLayout DONE-code tsc EXIT 0 CHỜ vite+push.**
+> Cập nhật cuối: **2026-07-11** — **goal "giải quyết tất cả issue open": batch shell v2 #381+#380+#383 DONE-code build-green (tsc0+vite✓), READY_FOR_PUSH chờ lệnh push.** (Trước đó: #415/#416/#412 đã PUSHED+CLOSED.)
+
+## Phiên 2026-07-11 (goal all-open-issues — batch shell v2 #381+#380+#383 READY_FOR_PUSH)
+- Claim + DONE-code 3 issue shell TerminalLayout (self-contained, cùng vùng → 1 batch push):
+  - **#381 [LAYOUT-7] dark+compact**: ConfigProvider lồng trong TerminalShell nay áp `darkAlgorithm`/`compactAlgorithm` (helper `buildContentTheme(isDark,isCompact)`) — light-mode giữ NGUYÊN token/components (phân vùng brand/shape/light-surface); ThemeContext thêm `isCompact`/`toggleCompact` persist `his-theme-compact` + `data-density`; nút toggle compact (icon list) cạnh nút dark; `.his-tb-btn.on` style. Dark CSS-var đã có sẵn (#158) → ab-* tự flip, KHÔNG đụng hardcode hex (#160).
+  - **#380 [LAYOUT-6] SignalR notif thật**: bell v2 dùng `useNotifications()` (NotificationProvider đã bọc AppRouter) thay 4 demo giả — unreadCount thật, click→markAsRead+navigate(actionUrl), markAllAsRead, empty-state, dot chỉ hiện khi unread>0; mapper `notifSeverityClass`/`notifTime`; xóa DEMO_NOTIFICATIONS.
+  - **#383 [LAYOUT-9] idle-lock**: `IdleLockScreen.tsx` (10' idle→overlay khóa, verify-password mở khóa, sai 3 lần→logout, IDLE_LOCK_IMMINENT trước khóa, timeout configurable localStorage). +wrapper `authApi.verifyPassword`. Mount trong TerminalShell.
+- **Gate:** tsc -b EXIT 0 + npm run build EXIT 0 (×3). Chưa commit/push (chờ lệnh). Còn 25 issue non-test (epic AUTHZ/LAYOUT/commercial + PORT — nhiều cái cần product-decision/deploy+smoke). Test-label (128) làm CUỐI.
+
 
 ## Phiên 2026-07-11 (cửa PORT w196 — #415+#416 ✅ CLOSED, #412 AiQueueBadge DONE-code CHỜ push)
 - **#415 [PORT-P9][FE][P2] ✅ PUSHED `be63a78` CLOSED**: QueueDisplay TV board v2 — TTS + beep + lab queue 5-status. Route `/v2/queue-display` standalone public. Lock released.

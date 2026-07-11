@@ -23,6 +23,12 @@ export const authApi = {
     return response.data;
   },
 
+  /** Xác thực lại mật khẩu user hiện tại (dùng cho idle-lock / phê duyệt nhạy cảm). */
+  verifyPassword: async (userId: string, password: string): Promise<boolean> => {
+    const response = await apiClient.post<boolean>('/auth/verify-password', { userId, password });
+    return response.data === true;
+  },
+
   getCurrentUser: async (): Promise<ApiResponse<User>> => {
     const response = await apiClient.get<ApiResponse<User>>('/auth/me');
     return response.data;
