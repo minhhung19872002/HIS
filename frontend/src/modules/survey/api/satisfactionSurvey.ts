@@ -32,6 +32,32 @@ export interface CreateCampaignDto {
   notes?: string;
 }
 
+export interface SurveyQuestion {
+  id: string;
+  text: string;
+  type: 'rating' | 'yesno' | 'text' | 'multiple_choice';
+  required: boolean;
+  options?: string[];
+}
+
+export interface SurveyTemplate {
+  id: string;
+  name: string;
+  description: string;
+  targetGroup: string;
+  questions: SurveyQuestion[];
+  status: string;
+  createdAt: string;
+}
+
+export interface SurveyConfig {
+  autoSend: boolean;
+  sendDelayHours: number;
+  channels: string[];
+  reminderEnabled: boolean;
+  reminderAfterHours: number;
+}
+
 export interface ContactCallbackDto {
   surveyResultId?: string;
   campaignId?: string;
@@ -64,6 +90,32 @@ export const getCampaigns = (status?: number) =>
 export const createCampaign = (dto: CreateCampaignDto) =>
   apiClient.post('/satisfaction-survey/campaigns', dto);
 
+// Templates (mẫu khảo sát + question builder)
+
+/** Danh sách mẫu khảo sát. */
+export const getTemplates = () => apiClient.get<SurveyTemplate[]>('/satisfaction-survey/templates');
+
+/** Tạo mẫu khảo sát mới. */
+export const createTemplate = (payload: Partial<SurveyTemplate>) =>
+  apiClient.post('/satisfaction-survey/templates', payload);
+
+/** Cập nhật mẫu khảo sát. */
+export const updateTemplate = (id: string, payload: Partial<SurveyTemplate>) =>
+  apiClient.put(`/satisfaction-survey/templates/${id}`, payload);
+
+/** Xóa mẫu khảo sát. */
+export const deleteTemplate = (id: string) =>
+  apiClient.delete(`/satisfaction-survey/templates/${id}`);
+
+// Config
+
+/** Cấu hình gửi khảo sát (auto-send, kênh, nhắc lại). */
+export const getConfig = () => apiClient.get<SurveyConfig>('/satisfaction-survey/config');
+
+/** Lưu cấu hình gửi khảo sát. */
+export const updateConfig = (config: SurveyConfig) =>
+  apiClient.put('/satisfaction-survey/config', config);
+
 // Feedback Callbacks
 
 /** Danh sách phản hồi cần liên hệ lại. */
@@ -90,6 +142,12 @@ export default {
   getSurveyAnalysis,
   getCampaigns,
   createCampaign,
+  getTemplates,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  getConfig,
+  updateConfig,
   getCallbacks,
   contactCallback,
   acknowledgeFeedback,
