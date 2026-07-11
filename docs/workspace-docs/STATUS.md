@@ -5,14 +5,17 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-11** — **goal "giải quyết tất cả issue open": batch shell v2 #381+#380+#383 DONE-code build-green (tsc0+vite✓), READY_FOR_PUSH chờ lệnh push.** (Trước đó: #415/#416/#412 đã PUSHED+CLOSED.)
+> Cập nhật cuối: **2026-07-11** — **goal "giải quyết tất cả issue open": ĐÃ CLOSE 6 issue FE shell self-contained (user cho push không hỏi lại) → `65f9fd24`·`83a76bed`·`9a85dfab`·`795e01f9`. Còn 24 non-test (đa số epic/deploy-smoke/product-decision).**
 
-## Phiên 2026-07-11 (goal all-open-issues — batch shell v2 #381+#380+#383 READY_FOR_PUSH)
-- Claim + DONE-code 3 issue shell TerminalLayout (self-contained, cùng vùng → 1 batch push):
-  - **#381 [LAYOUT-7] dark+compact**: ConfigProvider lồng trong TerminalShell nay áp `darkAlgorithm`/`compactAlgorithm` (helper `buildContentTheme(isDark,isCompact)`) — light-mode giữ NGUYÊN token/components (phân vùng brand/shape/light-surface); ThemeContext thêm `isCompact`/`toggleCompact` persist `his-theme-compact` + `data-density`; nút toggle compact (icon list) cạnh nút dark; `.his-tb-btn.on` style. Dark CSS-var đã có sẵn (#158) → ab-* tự flip, KHÔNG đụng hardcode hex (#160).
-  - **#380 [LAYOUT-6] SignalR notif thật**: bell v2 dùng `useNotifications()` (NotificationProvider đã bọc AppRouter) thay 4 demo giả — unreadCount thật, click→markAsRead+navigate(actionUrl), markAllAsRead, empty-state, dot chỉ hiện khi unread>0; mapper `notifSeverityClass`/`notifTime`; xóa DEMO_NOTIFICATIONS.
-  - **#383 [LAYOUT-9] idle-lock**: `IdleLockScreen.tsx` (10' idle→overlay khóa, verify-password mở khóa, sai 3 lần→logout, IDLE_LOCK_IMMINENT trước khóa, timeout configurable localStorage). +wrapper `authApi.verifyPassword`. Mount trong TerminalShell.
-- **Gate:** tsc -b EXIT 0 + npm run build EXIT 0 (×3). Chưa commit/push (chờ lệnh). Còn 25 issue non-test (epic AUTHZ/LAYOUT/commercial + PORT — nhiều cái cần product-decision/deploy+smoke). Test-label (128) làm CUỐI.
+## Phiên 2026-07-11 (goal all-open-issues — 6 FE shell issue CLOSED+pushed)
+- **#381 [LAYOUT-7] dark+compact** ✅ `65f9fd24`: `buildContentTheme(isDark,isCompact)` áp darkAlgorithm/compactAlgorithm trong ConfigProvider lồng TerminalShell (light giữ NGUYÊN, phân vùng brand/shape/light-surface); ThemeContext +isCompact/toggleCompact persist; nút toggle compact. Dark CSS-var đã có (#158) → ab-* tự flip.
+- **#380 [LAYOUT-6] SignalR notif thật** ✅ `65f9fd24`: bell v2 dùng `useNotifications()` thay 4 demo (unreadCount thật, markAsRead+navigate, markAllAsRead, empty-state); xóa DEMO_NOTIFICATIONS.
+- **#383 [LAYOUT-9] idle-lock** ✅ `65f9fd24`: `IdleLockScreen.tsx` (10' idle→overlay, verify-password mở khóa, sai 3→logout, IDLE_LOCK_IMMINENT); +`authApi.verifyPassword`.
+- **#382 [LAYOUT-8] Command Palette** ✅ `83a76bed`: `PALETTE_ITEMS` = union ALL_ITEMS + mọi v2Routes (phủ trang không-menu), lọc `usePermission().can()`; `useRegisterCommands` đã có sẵn.
+- **#377 [LAYOUT-3] permission guards** ✅ `9a85dfab`: `guards/{RequirePermission,Can,Forbidden403}` + wire vào v2Routes.map (permission=undefined→pass hết, an toàn, sẵn #378).
+- **#386 [LAYOUT-12] perf** ✅ `795e01f9`: memo Rail/Flyout + useCallback 6 handler (sidebar không re-render); Suspense-per-route xác nhận; bundle audit doc §2 (antd 496KB gzip eager = gap task-slim riêng; cornerstone 830KB lazy chấp nhận).
+- **Gate:** tsc0 + vite✓ mỗi lần. **DEFER (có lý do):** #379 role-dashboard (cần #375 registry + #378 permission-codes + role-strings thật → làm bừa ẩn nhầm widget) · #378 (cần catalog AUTHZ) · #375 (unify registry, partially done).
+- **Còn 24 non-test:** LAYOUT #375/376/378/379 · AUTHZ epic #367-372/384/385 (BE deploy+smoke) · commercial #404/405 (product) · PORT #407/409/413 (deploy+smoke) · #417 DoctorPortal (product-decision) · REFAC #362/363/364/365 · epic tracker #352/387. Test-label (128) CUỐI.
 
 
 ## Phiên 2026-07-11 (cửa PORT w196 — #415+#416 ✅ CLOSED, #412 AiQueueBadge DONE-code CHỜ push)
