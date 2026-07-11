@@ -280,8 +280,22 @@ public partial class SystemCompleteService
         {
             var session = await _context.UserSessions.FirstOrDefaultAsync(s => s.Id == sessionId);
             if (session == null) return false;
+            var now = DateTime.UtcNow;
             session.Status = 2; // Logged out
-            session.LogoutTime = DateTime.UtcNow;
+            session.LogoutTime = now;
+
+            // AUTHZ-2 #368: đóng session KHÔNG đủ để thu hồi — phải revoke refresh token của phiên
+            // (SessionToken = hash refresh token) để thiết bị không rotate tiếp, + xoay SecurityStamp của user
+            // để MỌI access token đang sống chết ≤30s (incident-response: admin bấm terminate = phải dứt điểm).
+            var rt = await _context.RefreshTokens
+                .FirstOrDefaultAsync(t => t.TokenHash == session.SessionToken && t.RevokedAt == null && !t.IsDeleted);
+            if (rt != null)
+            {
+                rt.RevokedAt = now; rt.ReasonRevoked = "admin_terminate"; rt.UpdatedAt = now;
+            }
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == session.UserId);
+            if (user != null) { user.SecurityStamp = Guid.NewGuid().ToString("N"); user.UpdatedAt = now; }
+
             await _context.SaveChangesAsync();
             return true;
         }
@@ -296,6 +310,7 @@ public partial class SystemCompleteService
     {
         try
         {
+            var now = DateTime.UtcNow;
             var sessions = await _context.UserSessions
                 .Where(s => s.UserId == userId && s.Status == 0)
                 .ToListAsync();
@@ -303,8 +318,19 @@ public partial class SystemCompleteService
             foreach (var session in sessions)
             {
                 session.Status = 2;
-                session.LogoutTime = DateTime.UtcNow;
+                session.LogoutTime = now;
             }
+
+            // AUTHZ-2 #368: force-logout MỌI thiết bị — revoke toàn bộ refresh token còn sống + xoay
+            // SecurityStamp (mọi access token chết ≤30s). Đây là nút "đá sạch" của admin.
+            var tokens = await _context.RefreshTokens
+                .Where(t => t.UserId == userId && t.RevokedAt == null && !t.IsDeleted)
+                .ToListAsync();
+            foreach (var t in tokens) { t.RevokedAt = now; t.ReasonRevoked = "admin_terminate_all"; t.UpdatedAt = now; }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user != null) { user.SecurityStamp = Guid.NewGuid().ToString("N"); user.UpdatedAt = now; }
+
             await _context.SaveChangesAsync();
             return true;
         }

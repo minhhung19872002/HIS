@@ -24,4 +24,7 @@ public static class JwtClaims
 
     /// <summary>R3 đa cơ sở: chi nhánh làm việc của user (User.BranchId). Không có claim = không giới hạn.</summary>
     public const string BranchId = "branchId";
+
+    /// <summary>AUTHZ-2 (#368): security stamp để thu hồi token tức thời. OnTokenValidated so khớp với User.SecurityStamp; lệch = token bị thu hồi.</summary>
+    public const string SecurityStamp = "securityStamp";
 }

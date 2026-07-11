@@ -34,6 +34,11 @@ public class User : BaseEntity
     // Two-Factor Authentication
     public bool IsTwoFactorEnabled { get; set; } = false;
 
+    // AUTHZ-2 (#368): con dấu thu hồi phiên — xoay khi đổi mật khẩu / force-logout / phát hiện reuse.
+    // JWT mang giá trị này; OnTokenValidated từ chối token khi không còn khớp → thu hồi TỨC THỜI
+    // (không đợi token hết hạn). NULL với user cũ trước deploy → token grace-accept đến khi hết hạn tự nhiên.
+    public string? SecurityStamp { get; set; }
+
     // Navigation properties
     public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 }

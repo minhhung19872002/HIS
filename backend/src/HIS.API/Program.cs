@@ -15,6 +15,9 @@ using HIS.API.Hubs;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Caching.Memory;      // AUTHZ-2 #368: cache SecurityStamp
+using Microsoft.EntityFrameworkCore;            // AUTHZ-2 #368: DB lookup trong OnTokenValidated
+using System.Security.Claims;                   // AUTHZ-2 #368: ClaimTypes.NameIdentifier
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -92,6 +95,8 @@ if (builder.Environment.IsProduction() && jwtKey == "HIS_SuperSecretKey_2024_Cha
     throw new InvalidOperationException("Jwt:Key is still the default (leaked) value in Production. Set env Jwt__Key.");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
+// AUTHZ-2 #368: TTL cache SecurityStamp (giây) — staleness tối đa của thu hồi tức thời khi không có Redis.
+var secStampCacheSeconds = int.Parse(builder.Configuration["Auth:SecurityStampCacheSeconds"] ?? "30");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -127,6 +132,54 @@ builder.Services.AddAuthentication(options =>
                 context.Token = accessToken;
             }
             return Task.CompletedTask;
+        },
+        // AUTHZ-2 #368: thu hồi token TỨC THỜI qua SecurityStamp. Chạy trên gần như mọi request (FallbackPolicy),
+        // nên đọc stamp qua IMemoryCache TTL ngắn (mặc định 30s) đứng trước DB — staleness ≤ TTL (không có Redis).
+        OnTokenValidated = async context =>
+        {
+            var principal = context.Principal;
+            var stampClaim = principal?.FindFirst(HIS.Core.Constants.JwtClaims.SecurityStamp)?.Value;
+            // Token cũ phát hành TRƯỚC deploy AUTHZ-2 (không mang claim) → grace-accept, để hết hạn tự nhiên.
+            if (string.IsNullOrEmpty(stampClaim)) return;
+
+            var idStr = principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(idStr, out var userId)) { context.Fail("invalid subject"); return; }
+
+            var services = context.HttpContext.RequestServices;
+            try
+            {
+                var cache = services.GetRequiredService<IMemoryCache>();
+                var cacheKey = $"secstamp:{userId}";
+                var info = await cache.GetOrCreateAsync(cacheKey, async entry =>
+                {
+                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(secStampCacheSeconds);
+                    var db = services.GetRequiredService<HISDbContext>();
+                    return await db.Users.Where(u => u.Id == userId)
+                        .Select(u => new UserStampInfo { Stamp = u.SecurityStamp, IsActive = u.IsActive })
+                        .FirstOrDefaultAsync();
+                });
+
+                if (info != null && info.IsActive && string.Equals(info.Stamp, stampClaim, StringComparison.Ordinal))
+                    return; // happy path: cache hit + khớp → pass, không chạm DB
+
+                // Cache lệch: có thể stamp vừa xoay ở instance khác → token MỚI hợp lệ bị từ chối OAN (login-loop).
+                // Mismatch hiếm (chỉ token bị thu hồi / vừa đổi mật khẩu) → đọc lại DB TƯƠI trước khi fail:
+                // đúng đa-instance, không đụng chiều "chấp nhận token cũ ≤TTL" (chiều đó cache vẫn khớp, đã return).
+                var freshDb = services.GetRequiredService<HISDbContext>();
+                var fresh = await freshDb.Users.Where(u => u.Id == userId)
+                    .Select(u => new UserStampInfo { Stamp = u.SecurityStamp, IsActive = u.IsActive })
+                    .FirstOrDefaultAsync();
+                cache.Set(cacheKey, fresh, TimeSpan.FromSeconds(secStampCacheSeconds));
+
+                if (fresh == null || !fresh.IsActive) { context.Fail("user inactive"); return; }
+                if (!string.Equals(fresh.Stamp, stampClaim, StringComparison.Ordinal)) { context.Fail("token revoked"); return; }
+            }
+            catch (Exception ex)
+            {
+                // Fail-OPEN: DB trục trặc KHÔNG nên đánh sập toàn bộ auth (token đã hợp lệ chữ ký + chưa hết hạn).
+                services.GetService<ILoggerFactory>()?.CreateLogger("AuthZ2")
+                    .LogWarning(ex, "SecurityStamp check failed-open user={UserId}", userId);
+            }
         }
     };
 });
@@ -151,6 +204,18 @@ builder.Services.AddRateLimiter(options =>
         opt.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
         opt.QueueLimit = 0;
     });
+    // AUTHZ-2 #368: /auth/refresh có bucket RIÊNG, partition THEO IP (review: global bucket = attacker
+    // ẩn danh 60 req/phút chặn refresh TOÀN VIỆN). 120/phút/IP đủ cho NAT bệnh viện (nhiều máy trạm
+    // chung 1 IP công cộng, burst đầu ca) mà vẫn vô nghĩa với brute-force token 256-bit.
+    options.AddPolicy("refresh", httpContext =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 120,
+                QueueLimit = 0
+            }));
     options.RejectionStatusCode = 429;
 });
 
@@ -299,4 +364,11 @@ static string[] GetCorsOrigins(IConfiguration configuration)
         .ToArray();
 
     return mergedOrigins.Length > 0 ? mergedOrigins : ["http://localhost:3000"];
+}
+
+// AUTHZ-2 #368: projection nhỏ cho check SecurityStamp trong OnTokenValidated (cache-able).
+internal sealed class UserStampInfo
+{
+    public string? Stamp { get; set; }
+    public bool IsActive { get; set; }
 }

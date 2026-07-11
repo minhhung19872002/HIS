@@ -55,6 +55,33 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse<bool>.Ok(true, "OTP đã được gửi lại"));
     }
 
+    // AUTHZ-2 #368: access token có thể ĐÃ hết hạn → endpoint tự xác thực bằng refresh token (AllowAnonymous).
+    // Rate-limit bucket riêng "refresh" (không ăn quota login) — vẫn chống token-grinding.
+    [AllowAnonymous]
+    [EnableRateLimiting("refresh")]
+    [HttpPost("refresh")]
+    public async Task<ActionResult<ApiResponse<LoginResponseDto>>> Refresh([FromBody] RefreshTokenRequestDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto?.RefreshToken))
+            return BadRequest(ApiResponse<LoginResponseDto>.Fail("RefreshToken là bắt buộc"));
+
+        var result = await _authService.RefreshTokenAsync(dto);
+        if (result == null)
+            return Unauthorized(ApiResponse<LoginResponseDto>.Fail("Refresh token không hợp lệ hoặc đã hết hạn"));
+
+        return Ok(ApiResponse<LoginResponseDto>.Ok(result, "Token refreshed"));
+    }
+
+    // AUTHZ-2 #368: đăng xuất — thu hồi refresh token của ĐÚNG thiết bị này + đóng UserSession.
+    [Authorize]
+    [HttpPost("logout")]
+    public async Task<ActionResult<ApiResponse<bool>>> Logout([FromBody] LogoutRequestDto dto)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _authService.LogoutAsync(userId, dto?.RefreshToken);
+        return Ok(ApiResponse<bool>.Ok(true, "Đã đăng xuất"));
+    }
+
     [Authorize]
     [HttpGet("2fa-status")]
     public async Task<ActionResult<ApiResponse<TwoFactorStatusDto>>> GetTwoFactorStatus()

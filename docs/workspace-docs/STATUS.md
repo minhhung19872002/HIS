@@ -5,7 +5,7 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-12** — **cửa components-restructure: wave-2+3 STRICT-relocate (107 api + 46 pages-v2 subdir → modules/) ✅ PUSHED. cửa 368-authz2: #368 AUTHZ-2 backend DONE (build 0 error) CHỜ push (FE part defer → comment #368). cửa 409-sysadmin: ✅ PUSHED `def00b7`. cửa 409-nghiep-vu: ✅ PUSHED `302cad6`. #412 ✅ PUSHED `27b1c46`.**
+> Cập nhật cuối: **2026-07-12** — **cửa 368-authz2: #368 AUTHZ-2 backend ✅ PUSHED (qua review đối kháng 3-lens + 6 hardening fix; FE part defer → comment #368, issue giữ OPEN). cửa components-restructure: wave-2+3 ✅ PUSHED. cửa 409-sysadmin ✅ `def00b7` · 409-nghiep-vu ✅ `302cad6` · #412 ✅ `27b1c46`.**
 
 ## Phiên 2026-07-12 (cửa 368-authz2 — #368 AUTHZ-2 backend, DONE-code CHỜ push)
 - **#368 [AUTHZ-2][P1] backend increment DONE** (lock `368-authz2`): RefreshTokens thật + rotation + reuse-detection + SecurityStamp revoke tức thời. **100% backward-compatible** (token cũ không có claim → grace-accept; LoginResponseDto giữ nguyên shape).
@@ -16,7 +16,8 @@
   - **Endpoints:** `POST /api/auth/refresh` (AllowAnonymous + ratelimit) · `POST /api/auth/logout` (revoke đúng thiết bị, KHÔNG đá thiết bị khác).
   - **ADR:** `docs/architecture/adr/ADR-001-authz2-token-storage-and-revocation.md` (no-Redis stamp cache · giữ TTL 480' đến khi FE auto-refresh · localStorage + defer httpOnly cookie).
   - **⚠️ FE part DEFER** (interceptor auto-refresh single-flight + AuthContext lưu refreshToken + logout gọi API + rút TTL 15-30'): bị chặn bởi cửa `components-restructure` đang dời `frontend/src/api/*` — handoff đầy đủ ở comment #368. #368 GIỮ OPEN.
-  - **Gate:** `dotnet build` 0 error ×2 (sau fix `Headers["User-Agent"]`). Push = auto-deploy Cloud Run; sau deploy check `GET /health/schema-drift` missingCount=0.
+  - **Hardening từ review đối kháng 3-lens (6 fix):** RotateAsync `ExecuteUpdateAsync` atomic (chống double-spend TOCTOU) + benign-race leeway 60s · OnTokenValidated fresh-recheck khi mismatch (hết login-loop sau bump) · limiter `/refresh` partition theo IP 120/min · logout ownership check · **M17 Terminate-session revoke THẬT** (revoke refresh + xoay stamp) · index `UserSessions.SessionToken`.
+  - **Gate:** `dotnet build` 0 error ×3 (worktree cô lập) + review đối kháng (all findings addressed/accepted, ADR §4b). Push = auto-deploy Cloud Run; sau deploy check `GET /health/schema-drift` missingCount=0 (cột SecurityStamp + bảng RefreshTokens).
 
 ## Phiên 2026-07-11 (cửa components-restructure — wave-3 pages-v2 subdir move, DONE-code CHỜ push)
 - **Wave-3 STRICT-relocate pages-v2 subdir → modules/*/pages/ DONE** (6 subdir, 46 file, resolve-based):

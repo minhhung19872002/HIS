@@ -365,6 +365,7 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     // System Administration
     public DbSet<SystemConfig> SystemConfigs => Set<SystemConfig>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>(); // AUTHZ-2 #368
     public DbSet<TwoFactorOtp> TwoFactorOtps => Set<TwoFactorOtp>();
     public DbSet<SystemLog> SystemLogs => Set<SystemLog>();
     public DbSet<Notification> Notifications => Set<Notification>();
@@ -1118,6 +1119,17 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<UserRole>().HasOne(u => u.User).WithMany(usr => usr.UserRoles).HasForeignKey(u => u.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<UserSession>().HasOne(u => u.User).WithMany().HasForeignKey(u => u.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<WebAuthnCredential>().HasOne(w => w.User).WithMany().HasForeignKey(w => w.UserId).OnDelete(DeleteBehavior.NoAction);
+        // AUTHZ-2 #368: RefreshToken — FK NoAction + TokenHash nvarchar(128) CÓ INDEX (EnsureCreated fresh-DB
+        // mặc định nvarchar(max) không index được → phải HasMaxLength để lookup theo hash không thành table scan).
+        modelBuilder.Entity<RefreshToken>().HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<RefreshToken>().Property(r => r.TokenHash).HasMaxLength(128);
+        modelBuilder.Entity<RefreshToken>().HasIndex(r => r.TokenHash);
+        modelBuilder.Entity<RefreshToken>().HasIndex(r => r.UserId);
+        modelBuilder.Entity<User>().Property(u => u.SecurityStamp).HasMaxLength(450);
+        // AUTHZ-2 #368: SessionToken tra cứu theo hash (rotation/logout/terminate) → cần index; HasMaxLength(450)
+        // để EnsureCreated fresh-DB không tạo nvarchar(max) (không index được). Bảng trước đây chưa từng được ghi.
+        modelBuilder.Entity<UserSession>().Property(u => u.SessionToken).HasMaxLength(450);
+        modelBuilder.Entity<UserSession>().HasIndex(u => u.SessionToken);
 
         // #50-54: NewbornRecord.MotherAdmission — NoAction de tranh multiple cascade paths
         modelBuilder.Entity<NewbornRecord>().HasOne(n => n.MotherAdmission).WithMany().HasForeignKey(n => n.MotherAdmissionId).OnDelete(DeleteBehavior.NoAction);

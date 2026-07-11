@@ -122,3 +122,15 @@ public class VerifyPasswordDto
     public Guid UserId { get; set; }
     public string Password { get; set; } = string.Empty;
 }
+
+/// <summary>AUTHZ-2 (#368): body cho POST /api/auth/refresh — refresh token plaintext FE đang giữ.</summary>
+public class RefreshTokenRequestDto
+{
+    public string RefreshToken { get; set; } = string.Empty;
+}
+
+/// <summary>AUTHZ-2 (#368): body cho POST /api/auth/logout — refresh token cần thu hồi (đúng thiết bị này).</summary>
+public class LogoutRequestDto
+{
+    public string RefreshToken { get; set; } = string.Empty;
+}

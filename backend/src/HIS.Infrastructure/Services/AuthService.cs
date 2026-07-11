@@ -22,15 +22,17 @@ public class AuthService : IAuthService
     private readonly IMapper _mapper;
     private readonly IEmailService _emailService;
     private readonly ILogger<AuthService> _logger;
+    private readonly IRefreshTokenService _refreshTokens;
 
     public AuthService(HISDbContext context, IConfiguration configuration, IMapper mapper,
-        IEmailService emailService, ILogger<AuthService> logger)
+        IEmailService emailService, ILogger<AuthService> logger, IRefreshTokenService refreshTokens)
     {
         _context = context;
         _configuration = configuration;
         _mapper = mapper;
         _emailService = emailService;
         _logger = logger;
+        _refreshTokens = refreshTokens;
     }
 
     public async Task<LoginResponseDto?> LoginAsync(LoginDto dto)
@@ -88,14 +90,15 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync();
 
         // Normal login (no 2FA)
+        var stamp = await EnsureSecurityStampAsync(user);
         var userDto = _mapper.Map<UserDto>(user);
-        var token = GenerateJwtToken(userDto);
+        var token = GenerateJwtToken(userDto, stamp);
         var expireMinutes = int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "60");
 
         return new LoginResponseDto
         {
             Token = token,
-            RefreshToken = Guid.NewGuid().ToString(),
+            RefreshToken = await _refreshTokens.IssueAsync(user.Id),
             ExpiresAt = DateTime.UtcNow.AddMinutes(expireMinutes),
             User = userDto
         };
@@ -144,14 +147,15 @@ public class AuthService : IAuthService
         if (user == null)
             return null;
 
+        var stamp = await EnsureSecurityStampAsync(user);
         var userDto = _mapper.Map<UserDto>(user);
-        var token = GenerateJwtToken(userDto);
+        var token = GenerateJwtToken(userDto, stamp);
         var expireMinutes = int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "60");
 
         return new LoginResponseDto
         {
             Token = token,
-            RefreshToken = Guid.NewGuid().ToString(),
+            RefreshToken = await _refreshTokens.IssueAsync(user.Id),
             ExpiresAt = DateTime.UtcNow.AddMinutes(expireMinutes),
             User = userDto
         };
@@ -234,9 +238,64 @@ public class AuthService : IAuthService
             return false;
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+        // AUTHZ-2 (#368): đổi mật khẩu → xoay SecurityStamp (đá mọi access token đang sống) +
+        // thu hồi mọi refresh token của user (không thiết bị nào refresh tiếp được).
+        user.SecurityStamp = NewSecurityStamp();
         user.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
+        await _refreshTokens.RevokeAllForUserAsync(userId, "password_changed");
 
+        _logger.LogInformation("Password changed + sessions revoked for user {UserId}", userId);
+        return true;
+    }
+
+    public async Task<LoginResponseDto?> RefreshTokenAsync(RefreshTokenRequestDto dto)
+    {
+        var result = await _refreshTokens.RotateAsync(dto.RefreshToken);
+        if (!result.Ok)
+        {
+            // Reuse-detection: service đã revoke family — bump stamp để đá luôn access token đang sống.
+            if (result.ReuseDetected && result.UserId != Guid.Empty)
+                await BumpSecurityStampAsync(result.UserId, "reuse_detected");
+            return null;
+        }
+
+        var user = await _context.Users
+            .Include(u => u.Department)
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                    .ThenInclude(r => r.RolePermissions)
+                        .ThenInclude(rp => rp.Permission)
+            .FirstOrDefaultAsync(u => u.Id == result.UserId && u.IsActive && !u.IsDeleted);
+
+        if (user == null)
+        {
+            // User bị khóa/xóa giữa chừng → refresh vừa cấp là mồ côi, thu hồi luôn.
+            await _refreshTokens.RevokeAllForUserAsync(result.UserId, "user_inactive");
+            return null;
+        }
+
+        var stamp = await EnsureSecurityStampAsync(user);
+        var userDto = _mapper.Map<UserDto>(user);
+        var token = GenerateJwtToken(userDto, stamp);
+        var expireMinutes = int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "60");
+
+        return new LoginResponseDto
+        {
+            Token = token,
+            RefreshToken = result.NewPlaintext!,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(expireMinutes),
+            User = userDto
+        };
+    }
+
+    public async Task<bool> LogoutAsync(Guid userId, string? refreshToken)
+    {
+        // Thu hồi refresh token của ĐÚNG thiết bị này + đóng session tương ứng. KHÔNG bump SecurityStamp
+        // (không đá thiết bị khác cùng user — máy trạm dùng chung). Force-logout mọi thiết bị = đổi mật khẩu / admin.
+        if (!string.IsNullOrWhiteSpace(refreshToken))
+            await _refreshTokens.RevokeAsync(userId, refreshToken, "logout");
+        _logger.LogInformation("Logout user {UserId}", userId);
         return true;
     }
 
@@ -266,7 +325,7 @@ public class AuthService : IAuthService
         { "IMAGING_TECH", new[] { "ImagingTech" } },
     };
 
-    public string GenerateJwtToken(UserDto user)
+    public string GenerateJwtToken(UserDto user, string? securityStamp = null)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key not configured")));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -278,6 +337,11 @@ public class AuthService : IAuthService
             new(JwtClaims.FullName, user.FullName),
             new(JwtClaims.EmployeeCode, user.EmployeeCode ?? "")
         };
+
+        // AUTHZ-2 (#368): security stamp → OnTokenValidated so khớp để thu hồi token tức thời.
+        // Không có stamp = token cũ trước deploy → grace-accept (không revoke được, để hết hạn tự nhiên).
+        if (!string.IsNullOrEmpty(securityStamp))
+            claims.Add(new Claim(JwtClaims.SecurityStamp, securityStamp));
 
         // R3 đa cơ sở: user gắn chi nhánh → claim branchId (không có = không giới hạn)
         if (user.BranchId.HasValue)
@@ -410,8 +474,9 @@ public class AuthService : IAuthService
         user.LastLoginAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
+        var stamp = await EnsureSecurityStampAsync(user);
         var userDto = _mapper.Map<UserDto>(user);
-        var token = GenerateJwtToken(userDto);
+        var token = GenerateJwtToken(userDto, stamp);
         var expireMinutes = int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "60");
 
         _logger.LogInformation("WebAuthn authentication successful for user {Username}", user.Username);
@@ -419,7 +484,7 @@ public class AuthService : IAuthService
         return new LoginResponseDto
         {
             Token = token,
-            RefreshToken = Guid.NewGuid().ToString(),
+            RefreshToken = await _refreshTokens.IssueAsync(user.Id),
             ExpiresAt = DateTime.UtcNow.AddMinutes(expireMinutes),
             User = userDto
         };
@@ -452,6 +517,32 @@ public class AuthService : IAuthService
         >= 5  => DateTime.UtcNow.AddMinutes(5),
         _     => null
     };
+
+    // AUTHZ-2 (#368): security stamp = 32 hex ngẫu nhiên (không lộ thông tin). Đổi = mọi token cũ hết hiệu lực.
+    private static string NewSecurityStamp() => Guid.NewGuid().ToString("N");
+
+    /// <summary>Đảm bảo user có SecurityStamp (user cũ trước migration có thể NULL) — set + lưu nếu thiếu. Trả về stamp.</summary>
+    private async Task<string> EnsureSecurityStampAsync(User user)
+    {
+        if (string.IsNullOrEmpty(user.SecurityStamp))
+        {
+            user.SecurityStamp = NewSecurityStamp();
+            user.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+        return user.SecurityStamp;
+    }
+
+    /// <summary>Xoay SecurityStamp của user → thu hồi TỨC THỜI mọi access token đang sống (OnTokenValidated sẽ fail).</summary>
+    private async Task BumpSecurityStampAsync(Guid userId, string reason)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return;
+        user.SecurityStamp = NewSecurityStamp();
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("SecurityStamp bumped user={UserId} reason={Reason}", userId, reason);
+    }
 
     #region Private Helpers
 

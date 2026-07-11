@@ -45,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<ISmsService, SmsService>();
         services.AddScoped<IResultNotificationService, ResultNotificationService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IRefreshTokenService, RefreshTokenService>(); // AUTHZ-2 #368
         services.AddScoped<IPatientService, PatientService>();
 
         // Phân hệ 1: Tiếp đón (Reception) - 105+ methods

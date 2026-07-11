@@ -29,6 +29,27 @@ public class UserSession : BaseEntity
 }
 
 /// <summary>
+/// Refresh token bền (AUTHZ-2 #368) — lưu HASH (SHA-256), KHÔNG lưu plaintext.
+/// Rotation: mỗi lần refresh cấp token mới + revoke token cũ (ReplacedByTokenHash trỏ sang token mới).
+/// Reuse-detection: dùng lại một token đã revoke = nghi bị đánh cắp → revoke cả family của user + xoay SecurityStamp.
+/// </summary>
+public class RefreshToken : BaseEntity
+{
+    public Guid UserId { get; set; }
+    public virtual User User { get; set; } = null!;
+
+    public string TokenHash { get; set; } = string.Empty; // SHA-256 hex của token plaintext
+    public DateTime ExpiresAt { get; set; }
+    public string? CreatedByIp { get; set; }
+    public DateTime? RevokedAt { get; set; }
+    public string? RevokedByIp { get; set; }
+    public string? ReplacedByTokenHash { get; set; }
+    public string? ReasonRevoked { get; set; }
+
+    public bool IsActiveToken => RevokedAt == null && DateTime.UtcNow < ExpiresAt;
+}
+
+/// <summary>
 /// Nhật ký hệ thống - System Log
 /// </summary>
 public class SystemLog : BaseEntity
