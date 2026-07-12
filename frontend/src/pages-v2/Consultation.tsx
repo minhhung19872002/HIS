@@ -1,14 +1,15 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import * as file from '../services/file.service';
 import dayjs from 'dayjs';
-import { App as AntdApp } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { App as AntdApp, Input } from 'antd';
 import risApi from '../modules/radiology/api/ris';
-import type { ConsultationSessionDto } from '../modules/radiology/api/ris';
+import type { ConsultationSessionDto, ConsultationDiscussionDto, ConsultationMinutesDto } from '../modules/radiology/api/ris';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell, useListData, useTabCounts,
+  StatusBadge, ActBtn, Btn, DrawerShell, DrSec, ModalShell, CrudModal,
+  type CrudFieldCfg, useListData, useTabCounts,
   type ColumnDef, type StatusTab,
+  cf, tk,
 } from './_v2kit';
 import TermIcon from '../layouts/terminal/Icon';
 
@@ -48,9 +49,16 @@ const fmtHM = (iso?: string) => iso ? dayjs(iso).format('HH:mm') : '—';
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY HH:mm') : '—';
 
+const CRUD_FIELDS: CrudFieldCfg[] = [
+  { key: 'title', label: 'Chủ đề hội chẩn', required: true },
+  { key: 'description', label: 'Mô tả', type: 'textarea' },
+  { key: 'scheduledTime', label: 'Thời gian lên lịch', type: 'date', required: true },
+  { key: 'meetingUrl', label: 'Đường dẫn họp' },
+];
+
 const ConsultationV2: React.FC = () => {
   const { message } = AntdApp.useApp();
-  const navigate = useNavigate();
+  const [createOpen, setCreateOpen] = useState(false);
   const { rows, loading, reload } = useListData<ConsultationSessionDto>(
     useCallback(() => risApi.searchConsultations({
       fromDate: dayjs().subtract(60, 'day').format('YYYY-MM-DD'),
@@ -163,7 +171,7 @@ const ConsultationV2: React.FC = () => {
         }}>
           <TermIcon name="download" size={12} /> Xuất CSV
         </Btn>
-        <Btn variant="primary" onClick={() => navigate('/v2/consultation-register')}>
+        <Btn variant="primary" onClick={() => setCreateOpen(true)}>
           <TermIcon name="plus" size={12} /> Tạo hội chẩn
         </Btn>
       </div>
@@ -182,6 +190,15 @@ const ConsultationV2: React.FC = () => {
               <ActBtn ic="play" title="Vào phòng họp" onClick={() => window.open(r.meetingUrl!, '_blank')} />
             )}
             <ActBtn ic="print" title="In biên bản" onClick={() => { setDetail(r); setTimeout(() => window.print(), 300); }} />
+            {r.status === 0 && (
+              <ActBtn ic="play" title="Bắt đầu" onClick={() => risApi.startConsultation(r.id).then(() => reload())} />
+            )}
+            {r.status === 1 && (
+              <ActBtn ic="video" title="Vào phòng" onClick={() => risApi.joinConsultation(r.id).then(() => { if (r.meetingUrl) window.open(r.meetingUrl, '_blank'); })} />
+            )}
+            {r.status === 1 && (
+              <ActBtn ic="x" title="Kết thúc" onClick={() => cf('Xác nhận kết thúc phiên hội chẩn?', () => { risApi.endConsultation(r.id).then(() => { tk('Đã kết thúc'); reload(); }); })} />
+            )}
           </div>
         )}
         empty={loading ? 'Đang tải…' : (
@@ -193,6 +210,23 @@ const ConsultationV2: React.FC = () => {
       />
 
       <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={PAGE_SIZE} />
+
+      <CrudModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Tạo phiên hội chẩn"
+        fields={CRUD_FIELDS}
+        onSubmit={async (values) => {
+          await risApi.saveConsultationSession({
+            title: values.title as string,
+            description: values.description as string | undefined,
+            scheduledTime: values.scheduledTime as string,
+            meetingUrl: values.meetingUrl as string | undefined,
+          });
+          tk('Tạo phiên hội chẩn thành công');
+          reload();
+        }}
+      />
 
       <DrawerShell
         open={!!detail}
@@ -230,6 +264,18 @@ const ConsultationDrawerBody: React.FC<{ r: ConsultationSessionDto }> = ({ r }) 
   const sk = statusKey(r.status);
   const tone = statusTone(sk);
   const lbl = r.statusName || STATUS_TABS.find((t) => t.v === sk)?.l || '';
+  const [disc, setDisc] = useState<ConsultationDiscussionDto[]>([]);
+  const [mins, setMins] = useState<ConsultationMinutesDto | null>(null);
+  const [dtext, setDtext] = useState('');
+  const [minsOpen, setMinsOpen] = useState(false);
+  const [mContent, setMContent] = useState('');
+  const [mConclusion, setMConclusion] = useState('');
+  const [mRec, setMRec] = useState('');
+
+  useEffect(() => {
+    risApi.getConsultationDiscussions?.(r.id).then((res) => setDisc(res.data || [])).catch(() => {});
+    risApi.getConsultationMinutes?.(r.id).then((res) => setMins(res.data || null)).catch(() => {});
+  }, [r.id]);
 
   return (
     <>
@@ -265,6 +311,87 @@ const ConsultationDrawerBody: React.FC<{ r: ConsultationSessionDto }> = ({ r }) 
           )}
         </div>
       </div>
+
+      <DrSec title="Thảo luận">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {disc.map((d) => (
+            <div key={d.id} style={{ padding: '6px 8px', background: 'var(--bg-2)', borderRadius: 4 }}>
+              <div style={{ fontSize: 11, color: 'var(--t-2)', marginBottom: 2 }}>
+                <b>{d.userName}</b> · {fmtDT(d.createdAt)}
+              </div>
+              <div style={{ fontSize: 12.5 }}>{d.content}</div>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+            <Input.TextArea
+              rows={2}
+              value={dtext}
+              onChange={(e) => setDtext(e.target.value)}
+              placeholder="Nhập bình luận…"
+              style={{ flex: 1 }}
+            />
+            <Btn onClick={() => {
+              if (!dtext.trim()) return;
+              risApi.addConsultationDiscussion({ consultationCaseId: r.id, content: dtext })
+                .then(() => {
+                  setDtext('');
+                  risApi.getConsultationDiscussions?.(r.id).then((res) => setDisc(res.data || [])).catch(() => {});
+                })
+                .catch(() => {});
+            }}>Gửi</Btn>
+          </div>
+        </div>
+      </DrSec>
+
+      <DrSec
+        title="Biên bản"
+        action={<Btn variant="ghost" onClick={() => {
+          setMContent(mins?.content || '');
+          setMConclusion(mins?.conclusion || '');
+          setMRec(mins?.recommendations || '');
+          setMinsOpen(true);
+        }}>Sửa biên bản</Btn>}
+      >
+        {mins && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12.5 }}>
+            {mins.content && <div><b>Nội dung:</b> {mins.content}</div>}
+            {mins.conclusion && <div><b>Kết luận:</b> {mins.conclusion}</div>}
+            {mins.recommendations && <div><b>Khuyến nghị:</b> {mins.recommendations}</div>}
+          </div>
+        )}
+      </DrSec>
+
+      <ModalShell
+        open={minsOpen}
+        onClose={() => setMinsOpen(false)}
+        title="Biên bản hội chẩn"
+        size="md"
+        footer={
+          <>
+            <button type="button" className="ab-btn" onClick={() => setMinsOpen(false)}>Huỷ</button>
+            <button type="button" className="ab-btn primary" onClick={() => {
+              risApi.saveConsultationMinutes({ consultationSessionId: r.id, content: mContent, conclusion: mConclusion, recommendations: mRec })
+                .then((res) => { setMins(res.data || null); setMinsOpen(false); })
+                .catch(() => {});
+            }}>Lưu</button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Nội dung</label>
+            <Input.TextArea rows={3} value={mContent} onChange={(e) => setMContent(e.target.value)} placeholder="Nội dung biên bản…" />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Kết luận</label>
+            <Input.TextArea rows={3} value={mConclusion} onChange={(e) => setMConclusion(e.target.value)} placeholder="Kết luận…" />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--t-2)', display: 'block', marginBottom: 4 }}>Khuyến nghị</label>
+            <Input.TextArea rows={3} value={mRec} onChange={(e) => setMRec(e.target.value)} placeholder="Khuyến nghị…" />
+          </div>
+        </div>
+      </ModalShell>
     </>
   );
 };

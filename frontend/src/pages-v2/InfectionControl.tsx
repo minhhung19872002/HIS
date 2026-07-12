@@ -1,12 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getHAICases, createHAICase, createIsolationOrder } from '../modules/infection-control/api/infectionControl';
-import type { CreateHAISurveillanceDto, CreateIsolationOrderDto } from '../modules/infection-control/api/infectionControl';
+import {
+  getHAICases, createHAICase, createIsolationOrder,
+  getHandHygieneObservations, createHandHygieneObservation,
+  getOutbreaks, investigateHAICase,
+} from '../modules/infection-control/api/infectionControl';
+import type {
+  CreateHAISurveillanceDto, CreateIsolationOrderDto,
+  CreateHandHygieneObservationDto, HandHygieneObservationDto, OutbreakDto,
+} from '../modules/infection-control/api/infectionControl';
 import { getInpatientList } from '../modules/inpatient/api/inpatient';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, CrudModal, Btn,
   DrawerShell, DrSec, DrField, tk, ti,
-  type ColumnDef, type CrudFieldCfg,
+  TopTabs, ModalShell,
+  type ColumnDef, type CrudFieldCfg, type TopTab,
 } from './_v2kit';
 
 type Row = {
@@ -69,7 +77,38 @@ const isDevice = (r: Row) => r.deviceAssociated || r.hasCentralLine || r.hasUrin
 
 const PER = 18;
 
+// ─── TopTabs ───────────────────────────────────────────────────────────────
+type TabKey = 'hai' | 'hh' | 'outbreak';
+const TOP_TABS: TopTab<TabKey>[] = [
+  { v: 'hai', l: 'Ca NKBV' },
+  { v: 'hh',  l: 'Vệ sinh tay' },
+  { v: 'outbreak', l: 'Ổ dịch' },
+];
+
+// ─── Hand Hygiene form fields (static, no deps) ───────────────────────────
+const hhFields: CrudFieldCfg[] = [
+  { key: 'departmentId', label: 'Khoa', required: true },
+  { key: 'auditDate', label: 'Ngày quan sát', type: 'date', required: true },
+  { key: 'shift', label: 'Ca', type: 'select', options: [
+    { value: 'Morning',   label: 'Sáng' },
+    { value: 'Afternoon', label: 'Chiều' },
+    { value: 'Evening',   label: 'Tối' },
+    { value: 'Night',     label: 'Đêm' },
+  ]},
+  { key: 'opportunitiesTotal', label: 'Tổng cơ hội', type: 'number', required: true },
+  { key: 'compliantCount',     label: 'Số tuân thủ',  type: 'number', required: true },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
+
+// Outbreak status → badge tone
+const obTone = (s: string): 'ok' | 'warn' | 'info' =>
+  s === 'Active' ? 'warn' : s === 'Resolved' ? 'ok' : 'info';
+
 const InfectionControlV2: React.FC = () => {
+  // ─── Tab ────────────────────────────────────────────────────────────────
+  const [tab, setTab] = useState<TabKey>('hai');
+
+  // ─── HAI state ──────────────────────────────────────────────────────────
   const [items, setItems] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -107,6 +146,7 @@ const InfectionControlV2: React.FC = () => {
     { key: 'visitorRestrictions', label: 'Hạn chế thăm bệnh', type: 'textarea' },
     { key: 'specialInstructions', label: 'Hướng dẫn đặc biệt', type: 'textarea' },
   ], [admissionOpts]);
+
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
 
@@ -151,6 +191,48 @@ const InfectionControlV2: React.FC = () => {
     })();
   }, []);
 
+  // ─── Hand Hygiene state ─────────────────────────────────────────────────
+  const [hhItems, setHhItems] = useState<HandHygieneObservationDto[]>([]);
+  const [hhLoading, setHhLoading] = useState(false);
+  const [hhLoaded, setHhLoaded] = useState(false);
+  const [hhCrudOpen, setHhCrudOpen] = useState(false);
+  const [hhCrudInit, setHhCrudInit] = useState<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    if (tab !== 'hh' || hhLoaded) return;
+    setHhLoading(true);
+    getHandHygieneObservations()
+      .then((r) => {
+        setHhItems(Array.isArray(r.data) ? r.data : []);
+        setHhLoaded(true);
+      })
+      .catch(() => ti('Không tải được dữ liệu vệ sinh tay'))
+      .finally(() => setHhLoading(false));
+  }, [tab, hhLoaded]);
+
+  // ─── Outbreak state ─────────────────────────────────────────────────────
+  const [outbreakItems, setOutbreakItems] = useState<OutbreakDto[]>([]);
+  const [outbreakLoading, setOutbreakLoading] = useState(false);
+  const [outbreakLoaded, setOutbreakLoaded] = useState(false);
+
+  useEffect(() => {
+    if (tab !== 'outbreak' || outbreakLoaded) return;
+    setOutbreakLoading(true);
+    getOutbreaks()
+      .then((r) => {
+        setOutbreakItems(Array.isArray(r.data) ? r.data : []);
+        setOutbreakLoaded(true);
+      })
+      .catch(() => ti('Không tải được ổ dịch'))
+      .finally(() => setOutbreakLoading(false));
+  }, [tab, outbreakLoaded]);
+
+  // ─── Investigate state ──────────────────────────────────────────────────
+  const [invOpen, setInvOpen] = useState(false);
+  const [invFindings, setInvFindings] = useState('');
+  const [invActions, setInvActions] = useState('');
+
+  // ─── HAI derived ────────────────────────────────────────────────────────
   const infTypes = useMemo(() => {
     const set = new Set(items.map((r) => r.infectionTypeName || r.infectionType).filter(Boolean) as string[]);
     return Array.from(set).map((v) => ({ v, l: v }));
@@ -177,6 +259,7 @@ const InfectionControlV2: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);
 
+  // ─── HAI table columns ──────────────────────────────────────────────────
   const cols: ColumnDef<Row>[] = [
     { key: 'code', label: 'Mã ca', code: true, render: (r) => r.caseCode || '—' },
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
@@ -220,35 +303,87 @@ const InfectionControlV2: React.FC = () => {
     </div>
   );
 
+  // ─── Hand Hygiene table columns ─────────────────────────────────────────
+  const hhCols: ColumnDef<HandHygieneObservationDto>[] = [
+    { key: 'dept',    label: 'Khoa',           render: (r) => r.departmentName },
+    { key: 'date',    label: 'Ngày quan sát',  render: (r) => dayjs(r.observationDate).format('DD/MM/YYYY') },
+    { key: 'shift',   label: 'Ca',             render: (r) => r.observationShift },
+    { key: 'opp',     label: 'Cơ hội',         mono: true, render: (r) => r.totalOpportunities },
+    { key: 'comp',    label: 'Tuân thủ',       mono: true, render: (r) => r.correctActions },
+    { key: 'rate',    label: 'Tỷ lệ (%)',      render: (r) => `${r.complianceRate.toFixed(1)}%` },
+    { key: 'auditor', label: 'Người quan sát', render: (r) => r.observedByName },
+  ];
+
+  // ─── Outbreak table columns ─────────────────────────────────────────────
+  const obCols: ColumnDef<OutbreakDto>[] = [
+    { key: 'code',    label: 'Mã ổ dịch',   code: true, render: (r) => r.outbreakCode },
+    { key: 'disease', label: 'Bệnh',                    render: (r) => r.organism },
+    { key: 'start',   label: 'Bắt đầu',                render: (r) => dayjs(r.startDate).format('DD/MM/YYYY') },
+    { key: 'end',     label: 'Kết thúc',               render: (r) => r.endDate ? dayjs(r.endDate).format('DD/MM/YYYY') : '—' },
+    { key: 'cases',   label: 'Số ca',        mono: true, render: (r) => r.totalCases },
+    { key: 'status',  label: 'Trạng thái',             render: (r) => (
+      <StatusBadge tone={obTone(r.statusName)} dot>{r.statusName}</StatusBadge>
+    )},
+    { key: 'dept',    label: 'Khoa',                    render: (r) => r.affectedDepartmentNames.join(', ') || '—' },
+  ];
+
+  // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="ab">
-      <KpiStrip items={[
-        { lbl: 'Tổng ca HAI', val: items.length, sub: 'tất cả' },
-        { lbl: 'MDRO', val: items.filter((c) => c.isMDRO).length, sub: 'kháng đa thuốc', tone: 'crit' },
-        { lbl: 'Liên quan TB', val: items.filter(isDevice).length, sub: 'CLABSI/CAUTI/VAP', tone: 'warn' },
-        { lbl: 'Ổ dịch', val: items.filter((c) => c.isOutbreakRelated).length, sub: 'cluster', tone: 'info' },
-      ]} />
+      <TopTabs<TabKey> tab={tab} setTab={setTab} tabs={TOP_TABS} />
 
-      <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
-        <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
-          placeholder="Tìm BN / mã ca / mầm bệnh…" />
-        <Filter value={fInfType} onChange={setFInfType} options={infTypes} placeholder="▾ Loại NK" />
-        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFInfType(''); setStab('all'); }}>Bỏ lọc</Btn>
-        <span className="spacer" />
-        <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
-        <Btn variant="ghost" icon="alert" onClick={() => { setIsoInit({ isMDRO: false }); setIsoOpen(true); }}>Cách ly</Btn>
-        <Btn variant="primary" icon="plus" onClick={openCreate}>Báo cáo HAI</Btn>
-      </div>
+      {/* ── Tab: Ca NKBV ─────────────────────────────────────────────── */}
+      {tab === 'hai' && <>
+        <KpiStrip items={[
+          { lbl: 'Tổng ca HAI', val: items.length, sub: 'tất cả' },
+          { lbl: 'MDRO', val: items.filter((c) => c.isMDRO).length, sub: 'kháng đa thuốc', tone: 'crit' },
+          { lbl: 'Liên quan TB', val: items.filter(isDevice).length, sub: 'CLABSI/CAUTI/VAP', tone: 'warn' },
+          { lbl: 'Ổ dịch', val: items.filter((c) => c.isOutbreakRelated).length, sub: 'cluster', tone: 'info' },
+        ]} />
 
-      <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
+        <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
+          <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
+            placeholder="Tìm BN / mã ca / mầm bệnh…" />
+          <Filter value={fInfType} onChange={setFInfType} options={infTypes} placeholder="▾ Loại NK" />
+          <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFInfType(''); setStab('all'); }}>Bỏ lọc</Btn>
+          <span className="spacer" />
+          <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
+          <Btn variant="ghost" icon="alert" onClick={() => { setIsoInit({ isMDRO: false }); setIsoOpen(true); }}>Cách ly</Btn>
+          <Btn variant="primary" icon="plus" onClick={openCreate}>Báo cáo HAI</Btn>
+        </div>
 
-      <DataTable<Row>
-        columns={cols} data={paged} rowKey={(r) => r.id}
-        onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có ca HAI'}
-      />
-      <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
+        <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
 
+        <DataTable<Row>
+          columns={cols} data={paged} rowKey={(r) => r.id}
+          onRowClick={setSel} actions={actions}
+          empty={loading ? 'Đang tải…' : 'Chưa có ca HAI'}
+        />
+        <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
+      </>}
+
+      {/* ── Tab: Vệ sinh tay ──────────────────────────────────────────── */}
+      {tab === 'hh' && <>
+        <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
+          <span className="spacer" />
+          <Btn variant="ghost" icon="refresh" onClick={() => setHhLoaded(false)}>Làm mới</Btn>
+          <Btn variant="primary" icon="plus" onClick={() => { setHhCrudInit(null); setHhCrudOpen(true); }}>Thêm quan sát</Btn>
+        </div>
+        <DataTable<HandHygieneObservationDto>
+          columns={hhCols} data={hhItems} rowKey={(r) => r.id}
+          empty={hhLoading ? 'Đang tải…' : 'Chưa có dữ liệu vệ sinh tay'}
+        />
+      </>}
+
+      {/* ── Tab: Ổ dịch ──────────────────────────────────────────────── */}
+      {tab === 'outbreak' && <>
+        <DataTable<OutbreakDto>
+          columns={obCols} data={outbreakItems} rowKey={(r) => r.id}
+          empty={outbreakLoading ? 'Đang tải…' : 'Chưa có ổ dịch'}
+        />
+      </>}
+
+      {/* ── DrawerShell: HAI detail ───────────────────────────────────── */}
       <DrawerShell
         open={!!sel}
         onClose={() => setSel(null)}
@@ -257,6 +392,7 @@ const InfectionControlV2: React.FC = () => {
         sub={sel ? `${sel.patientName || '—'} · ${sel.organism || sel.infectionTypeName || '—'}` : ''}
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
+          <Btn variant="ghost" icon="search" onClick={() => { setInvFindings(''); setInvActions(''); setInvOpen(true); }}>Điều tra</Btn>
           <Btn icon="print" onClick={() => window.print()}>In báo cáo</Btn>
         </>}
       >
@@ -312,6 +448,7 @@ const InfectionControlV2: React.FC = () => {
         </>}
       </DrawerShell>
 
+      {/* ── CrudModal: Báo cáo HAI ────────────────────────────────────── */}
       <CrudModal
         open={crudOpen}
         onClose={() => setCrudOpen(false)}
@@ -326,6 +463,7 @@ const InfectionControlV2: React.FC = () => {
         }}
       />
 
+      {/* ── CrudModal: Lệnh cách ly ───────────────────────────────────── */}
       <CrudModal
         open={isoOpen}
         onClose={() => setIsoOpen(false)}
@@ -351,6 +489,73 @@ const InfectionControlV2: React.FC = () => {
           load();
         }}
       />
+
+      {/* ── CrudModal: Thêm quan sát vệ sinh tay ─────────────────────── */}
+      <CrudModal
+        open={hhCrudOpen}
+        onClose={() => setHhCrudOpen(false)}
+        title="Thêm quan sát vệ sinh tay"
+        fields={hhFields}
+        initial={hhCrudInit}
+        onSubmit={async (v) => {
+          await createHandHygieneObservation(v as unknown as CreateHandHygieneObservationDto);
+          tk('Đã lưu quan sát');
+          setHhLoaded(false);
+          setHhCrudOpen(false);
+        }}
+      />
+
+      {/* ── ModalShell: Điều tra ca HAI ───────────────────────────────── */}
+      <ModalShell
+        open={invOpen}
+        onClose={() => setInvOpen(false)}
+        title="Điều tra ca HAI"
+        sub={sel ? `Ca ${sel.caseCode || '—'} · ${sel.patientName || '—'}` : undefined}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setInvOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={async () => {
+            if (!sel) return;
+            try {
+              await investigateHAICase(
+                sel.id,
+                invFindings,
+                invActions.split(',').map((s) => s.trim()).filter(Boolean),
+              );
+              tk('Đã lưu kết quả điều tra');
+              setInvOpen(false);
+            } catch { ti('Không lưu được điều tra'); }
+          }}>Lưu</Btn>
+        </>}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '4px 0' }}>
+          <div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4 }}>Phát hiện</div>
+            <textarea
+              value={invFindings}
+              onChange={(e) => setInvFindings(e.target.value)}
+              rows={4}
+              style={{
+                width: '100%', resize: 'vertical',
+                background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: 4,
+                padding: 8, color: 'var(--t-0)', fontSize: 'var(--fs-sm)', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+          <div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4 }}>Hành động (phân cách bằng dấu phẩy)</div>
+            <textarea
+              value={invActions}
+              onChange={(e) => setInvActions(e.target.value)}
+              rows={4}
+              style={{
+                width: '100%', resize: 'vertical',
+                background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: 4,
+                padding: 8, color: 'var(--t-0)', fontSize: 'var(--fs-sm)', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        </div>
+      </ModalShell>
     </div>
   );
 };

@@ -2,12 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react';
 import * as file from '../services/file.service';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input, InputNumber, Select } from 'antd';
-import { useNavigate } from 'react-router-dom';
 import {
   getAppointments, confirmAppointment, cancelAppointment,
   createEPrescription, signEPrescription, sendToPharmacy,
+  createAppointment, createVideoSession, endSession, getDashboard,
 } from '../modules/telemedicine/api/telemedicine';
-import type { TelemedicineAppointmentDto, TelePrescriptionDto, TelePrescriptionItemInput } from '../modules/telemedicine/api/telemedicine';
+import type {
+  TelemedicineAppointmentDto, TelePrescriptionDto, TelePrescriptionItemInput,
+  CreateTelemedicineAppointmentDto, TelemedicineDashboardDto,
+} from '../modules/telemedicine/api/telemedicine';
 import { searchMedicines } from '../modules/opd/api/examination';
 import type { MedicineDto } from '../modules/opd/api/examination';
 import {
@@ -47,7 +50,6 @@ const fmtVND = (n: number) => n ? `${n.toLocaleString('vi-VN')} ₫` : 'Miễn p
 
 const TelemedicineV2: React.FC = () => {
   const { message } = AntdApp.useApp();
-  const navigate = useNavigate();
   const [rows, setRows] = useState<TelemedicineAppointmentDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [stab, setStab] = useState<StatusKey | 'all'>('all');
@@ -55,16 +57,28 @@ const TelemedicineV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState<TelemedicineAppointmentDto | null>(null);
   const [rxFor, setRxFor] = useState<TelemedicineAppointmentDto | null>(null); // F8: kê đơn từ buổi tele
+  /* ── NEW: booking modal ── */
+  const [bookingOpen, setBookingOpen] = useState(false);
+  /* ── NEW: session action busy flags ── */
+  const [startSessionBusy, setStartSessionBusy] = useState(false);
+  /* ── NEW: page-level tab (list | stats) ── */
+  const [pageTab, setPageTab] = useState<'list' | 'stats'>('list');
+  /* ── NEW: dashboard stats ── */
+  const [dashboard, setDashboard] = useState<TelemedicineDashboardDto | null>(null);
   const PAGE_SIZE = 16;
 
   const reload = () => {
     setLoading(true);
-    getAppointments({
-      fromDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
-      toDate:   dayjs().add(60, 'day').format('YYYY-MM-DD'),
-    }).then((r) => {
-      setRows(r.data?.items || []);
-    }).catch(() => setRows([])).finally(() => setLoading(false));
+    Promise.allSettled([
+      getAppointments({
+        fromDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
+        toDate:   dayjs().add(60, 'day').format('YYYY-MM-DD'),
+      }),
+      getDashboard(dayjs().format('YYYY-MM-DD')),
+    ]).then(([apptRes, dashRes]) => {
+      setRows(apptRes.status === 'fulfilled' ? (apptRes.value.data?.items || []) : []);
+      setDashboard(dashRes.status === 'fulfilled' ? (dashRes.value.data || null) : null);
+    }).finally(() => setLoading(false));
   };
   useEffect(reload, []);
 
@@ -117,6 +131,30 @@ const TelemedicineV2: React.FC = () => {
     else message.info('Phòng họp chưa được tạo');
   };
 
+  /* ── NEW B: Bắt đầu phòng khám — tạo video session → mở roomUrl ── */
+  const onStartSession = async (r: TelemedicineAppointmentDto) => {
+    setStartSessionBusy(true);
+    try {
+      const res = await createVideoSession({ appointmentId: r.id });
+      const roomUrl = res.data?.roomUrl;
+      if (roomUrl) { window.open(roomUrl, '_blank'); reload(); }
+      else message.warning('Phòng họp chưa sẵn sàng');
+    } catch { message.error('Không thể tạo phiên video'); }
+    finally { setStartSessionBusy(false); }
+  };
+
+  /* ── NEW C: Kết thúc buổi khám — gọi endSession bằng sessionId ── */
+  const onEndSession = async (r: TelemedicineAppointmentDto) => {
+    if (!r.sessionId) { message.warning('Không có sessionId để kết thúc'); return; }
+    if (!window.confirm(`Kết thúc buổi khám của ${r.patientName}?`)) return;
+    try {
+      await endSession(r.sessionId, 'Kết thúc buổi khám');
+      message.success(`Đã kết thúc buổi khám · ${r.patientName}`);
+      reload();
+      setDetail(null);
+    } catch { message.error('Kết thúc thất bại'); }
+  };
+
   const columns: ColumnDef<TelemedicineAppointmentDto>[] = [
     { key: 'code', label: 'Mã', mono: true, width: 130, render: (r) => r.appointmentCode },
     {
@@ -163,74 +201,122 @@ const TelemedicineV2: React.FC = () => {
 
   return (
     <div className="ab">
-      <KpiStrip
-        items={[
-          { lbl: 'Hôm nay', val: kpis.today, sub: 'lịch hẹn', tone: 'info' },
-          { lbl: 'Đang khám', val: kpis.ongoing, sub: 'live', tone: 'warn' },
-          { lbl: 'Chờ vào phòng', val: kpis.waiting, sub: 'sẵn sàng', tone: 'warn' },
-          { lbl: 'Hoàn tất 7 ngày', val: kpis.completed7d, sub: 'tuần qua', tone: 'ok' },
-          { lbl: 'Không tham gia', val: kpis.noshow, sub: 'no-show', tone: 'crit' },
-          { lbl: 'Tổng cộng', val: kpis.total },
-        ]}
-      />
-
-      <div className="ab-tools">
-        <SearchBox value={search} onChange={setSearch} placeholder="Tìm BN / BS / mã hẹn / lý do…" />
-        <Btn variant="ghost" onClick={() => { setSearch(''); setStab('all'); }}>
-          <TermIcon name="refresh" size={12} /> Bỏ lọc
+      {/* ── NEW D: Page-level tab switcher (Lịch khám | Thống kê) ── */}
+      <div className="ab-tools" style={{ borderBottom: '1px solid var(--bdr)', marginBottom: 'var(--space-8)', paddingBottom: 'var(--space-4)' }}>
+        <Btn variant={pageTab === 'list' ? 'primary' : 'ghost'} onClick={() => setPageTab('list')}>
+          Lịch khám
         </Btn>
-        <span className="spacer" />
-        <Btn variant="ghost" onClick={reload}>
-          <TermIcon name="refresh" size={12} /> Làm mới
-        </Btn>
-        <Btn variant="ghost" onClick={() => {
-          if (!filtered.length) { message.warning('Không có dữ liệu để xuất'); return; }
-          const header = 'Mã hẹn,Bệnh nhân,Bác sĩ,Ngày hẹn,Lý do,Trạng thái,URL phòng';
-          const csvRows = filtered.map((r) => [
-            r.appointmentCode,
-            r.patientName,
-            r.doctorName || '',
-            r.scheduledDate ? `${dayjs(r.scheduledDate).format('DD/MM/YYYY')} ${(r.scheduledTime || '').slice(0, 5)}`.trim() : '',
-            r.chiefComplaint || '',
-            r.statusName || '',
-            r.videoRoomUrl || '',
-          ].map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','));
-          const blob = new Blob(['﻿' + [header, ...csvRows].join('\n')], { type: 'text/csv;charset=utf-8;' });
-          file.downloadBlob(blob, `telemedicine_${dayjs().format('YYYYMMDD-HHmm')}.csv`);
-          message.success(`Đã xuất ${filtered.length} dòng`);
-        }}>
-          <TermIcon name="download" size={12} /> Xuất CSV
-        </Btn>
-        <Btn variant="primary" onClick={() => navigate('/v2/booking-management')}>
-          <TermIcon name="plus" size={12} /> Đặt lịch
+        <Btn variant={pageTab === 'stats' ? 'primary' : 'ghost'} onClick={() => setPageTab('stats')}>
+          Thống kê
         </Btn>
       </div>
 
-      <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
+      {pageTab === 'stats' ? (
+        /* ── NEW D: Stats view ── */
+        <div>
+          {dashboard ? (
+            <>
+              <KpiStrip
+                items={[
+                  { lbl: 'Tổng lịch hẹn', val: dashboard.totalAppointments, sub: 'hôm nay', tone: 'info' },
+                  { lbl: 'Hoàn tất', val: dashboard.completedAppointments, sub: 'hoàn tất', tone: 'ok' },
+                  { lbl: 'Đang khám', val: kpis.ongoing, sub: 'trực tiếp', tone: 'warn' },
+                  { lbl: 'Doanh thu', val: dashboard.totalRevenue, sub: '₫', tone: 'ok' },
+                ]}
+              />
+              <div style={{ marginTop: 'var(--space-10)', fontSize: 12.5, color: 'var(--t-2)' }}>
+                TG chờ TB: <b>{dashboard.averageWaitTimeMinutes} phút</b>
+                &nbsp;·&nbsp;
+                TG khám TB: <b>{dashboard.averageConsultationDurationMinutes} phút</b>
+                &nbsp;·&nbsp;
+                Đã hủy: <b>{dashboard.cancelledAppointments}</b>
+                &nbsp;·&nbsp;
+                Không tham gia: <b>{dashboard.noShowAppointments}</b>
+                &nbsp;·&nbsp;
+                Đã kê đơn: <b>{dashboard.prescriptionsSent}</b>
+              </div>
+            </>
+          ) : (
+            <div className="ab-empty">
+              <TermIcon name="search" size={20} />
+              <div>Không có dữ liệu thống kê hôm nay</div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ── List view — existing content ── */
+        <>
+          <KpiStrip
+            items={[
+              { lbl: 'Hôm nay', val: kpis.today, sub: 'lịch hẹn', tone: 'info' },
+              { lbl: 'Đang khám', val: kpis.ongoing, sub: 'live', tone: 'warn' },
+              { lbl: 'Chờ vào phòng', val: kpis.waiting, sub: 'sẵn sàng', tone: 'warn' },
+              { lbl: 'Hoàn tất 7 ngày', val: kpis.completed7d, sub: 'tuần qua', tone: 'ok' },
+              { lbl: 'Không tham gia', val: kpis.noshow, sub: 'no-show', tone: 'crit' },
+              { lbl: 'Tổng cộng', val: kpis.total },
+            ]}
+          />
 
-      <DataTable<TelemedicineAppointmentDto>
-        columns={columns}
-        data={paged}
-        rowKey={(r) => r.id}
-        onRowClick={(r) => setDetail(r)}
-        actions={(r) => (
-          <div className="ab-actions">
-            {[0, 1].includes(r.status) && r.videoRoomUrl && (
-              <ActBtn ic="play" title="Vào phòng" onClick={() => onJoin(r)} />
+          <div className="ab-tools">
+            <SearchBox value={search} onChange={setSearch} placeholder="Tìm BN / BS / mã hẹn / lý do…" />
+            <Btn variant="ghost" onClick={() => { setSearch(''); setStab('all'); }}>
+              <TermIcon name="refresh" size={12} /> Bỏ lọc
+            </Btn>
+            <span className="spacer" />
+            <Btn variant="ghost" onClick={reload}>
+              <TermIcon name="refresh" size={12} /> Làm mới
+            </Btn>
+            <Btn variant="ghost" onClick={() => {
+              if (!filtered.length) { message.warning('Không có dữ liệu để xuất'); return; }
+              const header = 'Mã hẹn,Bệnh nhân,Bác sĩ,Ngày hẹn,Lý do,Trạng thái,URL phòng';
+              const csvRows = filtered.map((r) => [
+                r.appointmentCode,
+                r.patientName,
+                r.doctorName || '',
+                r.scheduledDate ? `${dayjs(r.scheduledDate).format('DD/MM/YYYY')} ${(r.scheduledTime || '').slice(0, 5)}`.trim() : '',
+                r.chiefComplaint || '',
+                r.statusName || '',
+                r.videoRoomUrl || '',
+              ].map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','));
+              const blob = new Blob(['﻿' + [header, ...csvRows].join('\n')], { type: 'text/csv;charset=utf-8;' });
+              file.downloadBlob(blob, `telemedicine_${dayjs().format('YYYYMMDD-HHmm')}.csv`);
+              message.success(`Đã xuất ${filtered.length} dòng`);
+            }}>
+              <TermIcon name="download" size={12} /> Xuất CSV
+            </Btn>
+            {/* ── NEW A: Đặt lịch → mở booking modal (thay vì navigate) ── */}
+            <Btn variant="primary" onClick={() => setBookingOpen(true)}>
+              <TermIcon name="plus" size={12} /> Đặt lịch
+            </Btn>
+          </div>
+
+          <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
+
+          <DataTable<TelemedicineAppointmentDto>
+            columns={columns}
+            data={paged}
+            rowKey={(r) => r.id}
+            onRowClick={(r) => setDetail(r)}
+            actions={(r) => (
+              <div className="ab-actions">
+                {[0, 1].includes(r.status) && r.videoRoomUrl && (
+                  <ActBtn ic="play" title="Vào phòng" onClick={() => onJoin(r)} />
+                )}
+                {r.status === 0 && <ActBtn ic="check" title="Xác nhận" onClick={() => onConfirm(r)} />}
+                <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
+              </div>
             )}
-            {r.status === 0 && <ActBtn ic="check" title="Xác nhận" onClick={() => onConfirm(r)} />}
-            <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
-          </div>
-        )}
-        empty={loading ? 'Đang tải…' : (
-          <div className="ab-empty">
-            <TermIcon name="search" size={20} />
-            <div>Không có lịch khám từ xa nào</div>
-          </div>
-        )}
-      />
+            empty={loading ? 'Đang tải…' : (
+              <div className="ab-empty">
+                <TermIcon name="search" size={20} />
+                <div>Không có lịch khám từ xa nào</div>
+              </div>
+            )}
+          />
 
-      <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={PAGE_SIZE} />
+          <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={PAGE_SIZE} />
+        </>
+      )}
 
       <DrawerShell
         open={!!detail}
@@ -257,6 +343,18 @@ const TelemedicineV2: React.FC = () => {
                 <TermIcon name="x" size={12} /> Huỷ
               </Btn>
             )}
+            {/* ── NEW B: Bắt đầu phòng khám — status=1 waiting ── */}
+            {detail.status === 1 && (
+              <Btn variant="primary" disabled={startSessionBusy} onClick={() => onStartSession(detail)}>
+                <TermIcon name="play" size={12} /> Bắt đầu phòng khám
+              </Btn>
+            )}
+            {/* ── NEW C: Kết thúc buổi khám — status=2 ongoing ── */}
+            {detail.status === 2 && (
+              <Btn onClick={() => onEndSession(detail)} style={{ color: 'var(--s-crit)' }}>
+                <TermIcon name="x" size={12} /> Kết thúc buổi khám
+              </Btn>
+            )}
             {detail.sessionId && ![4, 5].includes(detail.status) && (
               <Btn variant="ok" onClick={() => setRxFor(detail)}>
                 <TermIcon name="pill" size={12} /> Kê đơn thuốc
@@ -274,6 +372,9 @@ const TelemedicineV2: React.FC = () => {
       </DrawerShell>
 
       <TeleRxModal appt={rxFor} onClose={() => setRxFor(null)} />
+
+      {/* ── NEW A: Booking modal ── */}
+      <TeleBookingModal open={bookingOpen} onClose={() => setBookingOpen(false)} onDone={reload} />
     </div>
   );
 };
@@ -470,6 +571,167 @@ const TeleRxModal: React.FC<{ appt: TelemedicineAppointmentDto | null; onClose: 
     </ModalShell>
   );
 };
+
+/* ─────────── NEW A: Modal đặt lịch khám từ xa ─────────── */
+type BookingDraft = {
+  patientId: string;
+  doctorId: string;
+  departmentId: string;
+  appointmentType: number;
+  scheduledDate: string;
+  scheduledTime: string;
+  chiefComplaint: string;
+  notes: string;
+};
+
+const emptyBooking = (): BookingDraft => ({
+  patientId: '', doctorId: '', departmentId: '',
+  appointmentType: 0, scheduledDate: '', scheduledTime: '',
+  chiefComplaint: '', notes: '',
+});
+
+const TeleBookingModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [draft, setDraft] = useState<BookingDraft>(emptyBooking());
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { if (!open) setDraft(emptyBooking()); }, [open]);
+
+  const set = (patch: Partial<BookingDraft>) => setDraft((d) => ({ ...d, ...patch }));
+
+  const fl = (label: string, req?: boolean) => (
+    <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 'var(--space-4)' }}>
+      {label}{req && <span style={{ color: 'var(--s-crit)' }}> *</span>}
+    </div>
+  );
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '4px 8px',
+    border: '1px solid var(--bdr)', borderRadius: 4,
+    background: 'var(--bg-1)', color: 'var(--t-1)',
+  };
+
+  const doSubmit = async () => {
+    if (!draft.patientId.trim() || !draft.doctorId.trim() || !draft.scheduledDate) {
+      message.warning('Vui lòng điền đầy đủ thông tin bắt buộc');
+      return;
+    }
+    setBusy(true);
+    try {
+      const dto: CreateTelemedicineAppointmentDto = {
+        patientId: draft.patientId.trim(),
+        doctorId: draft.doctorId.trim(),
+        departmentId: draft.departmentId.trim(),
+        appointmentType: draft.appointmentType,
+        scheduledDate: draft.scheduledDate,
+        scheduledTime: draft.scheduledTime || '08:00',
+        durationMinutes: 30,
+        chiefComplaint: draft.chiefComplaint.trim() || undefined,
+        notes: draft.notes.trim() || undefined,
+      };
+      await createAppointment(dto);
+      message.success('Đã đặt lịch hẹn thành công');
+      onClose();
+      onDone();
+    } catch {
+      message.error('Không thể đặt lịch hẹn. Vui lòng thử lại.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="lg"
+      title="Đặt lịch khám từ xa"
+      sub="Điền thông tin để tạo lịch hẹn mới"
+      footer={
+        <>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <span style={{ flex: 1 }} />
+          <Btn variant="primary" disabled={busy} onClick={doSubmit}>
+            {busy ? 'Đang đặt…' : 'Đặt lịch'}
+          </Btn>
+        </>
+      }
+    >
+      <div style={{ display: 'flex', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 200px' }}>
+          {fl('Mã bệnh nhân', true)}
+          <Input value={draft.patientId} onChange={(e) => set({ patientId: e.target.value })} placeholder="VD: P001" />
+        </div>
+        <div style={{ flex: '1 1 200px' }}>
+          {fl('Mã bác sĩ', true)}
+          <Input value={draft.doctorId} onChange={(e) => set({ doctorId: e.target.value })} placeholder="VD: D001" />
+        </div>
+        <div style={{ flex: '1 1 200px' }}>
+          {fl('Mã khoa')}
+          <Input value={draft.departmentId} onChange={(e) => set({ departmentId: e.target.value })} placeholder="VD: DEP001" />
+        </div>
+        <div style={{ flex: '1 1 180px' }}>
+          {fl('Loại khám', true)}
+          <Select
+            style={{ width: '100%' }}
+            value={draft.appointmentType}
+            onChange={(v) => set({ appointmentType: v })}
+            options={[
+              { value: 0, label: 'Video call' },
+              { value: 1, label: 'Nhắn tin (Chat)' },
+              { value: 2, label: 'Điện thoại' },
+            ]}
+          />
+        </div>
+        <div style={{ flex: '1 1 180px' }}>
+          {fl('Ngày khám', true)}
+          <input
+            type="date"
+            style={inputStyle}
+            value={draft.scheduledDate}
+            onChange={(e) => set({ scheduledDate: e.target.value })}
+          />
+        </div>
+        <div style={{ flex: '1 1 140px' }}>
+          {fl('Giờ khám')}
+          <input
+            type="time"
+            style={inputStyle}
+            value={draft.scheduledTime}
+            onChange={(e) => set({ scheduledTime: e.target.value })}
+          />
+        </div>
+        <div style={{ flex: '2 1 100%' }}>
+          {fl('Lý do khám', true)}
+          <Input.TextArea
+            rows={3}
+            value={draft.chiefComplaint}
+            onChange={(e) => set({ chiefComplaint: e.target.value })}
+            placeholder="Mô tả lý do khám…"
+          />
+        </div>
+        <div style={{ flex: '2 1 100%' }}>
+          {fl('Ghi chú')}
+          <Input.TextArea
+            rows={2}
+            value={draft.notes}
+            onChange={(e) => set({ notes: e.target.value })}
+            placeholder="Ghi chú thêm…"
+          />
+        </div>
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ─────────── TODO (E): Consultation flow (createConsultation / completeConsultation)
+   skipped — requires active sessionId + encounter IDs from the session context.
+   Implement in a dedicated consultation modal when session management is fully wired.
+   ─────────────────────────────────────────────────────────────────────────────────── */
 
 const TelemedicineDrawerBody: React.FC<{ r: TelemedicineAppointmentDto }> = ({ r }) => {
   const sk = statusKey(r.status);
