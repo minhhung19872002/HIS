@@ -6,6 +6,7 @@ using HIS.Application.DTOs.Billing;
 using HIS.Application.Services;
 using System.Security.Claims;
 using HIS.API.Dtos.BillingComplete;
+using HIS.API.Authorization; // AUTHZ-1 #367 pilot: gate theo permission granular
 
 namespace HIS.API.Controllers;
 
@@ -17,7 +18,7 @@ public partial class BillingCompleteController
     /// Tạm khóa hồ sơ bệnh án
     /// </summary>
     [HttpPost("records/lock")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
+    [RequirePermission(PermissionCatalog.MedicalRecord.Lock)] // AUTHZ-1 pilot (cũ: Admin+Accountant — matrix: ADMIN+CASHIER)
     public async Task<ActionResult<RecordLockDto>> LockMedicalRecord([FromBody] LockRecordDto dto)
     {
         var result = await _billingService.LockMedicalRecordAsync(dto, GetUserId());
@@ -28,7 +29,7 @@ public partial class BillingCompleteController
     /// Mở khóa hồ sơ bệnh án
     /// </summary>
     [HttpPost("records/{medicalRecordId}/unlock")]
-    [Authorize(Roles = RoleNames.Admin)]
+    [RequirePermission(PermissionCatalog.MedicalRecord.Unlock)] // AUTHZ-1 pilot (cũ: Admin — matrix: chỉ ADMIN)
     public async Task<ActionResult<RecordLockDto>> UnlockMedicalRecord(Guid medicalRecordId)
     {
         var result = await _billingService.UnlockMedicalRecordAsync(medicalRecordId, GetUserId());
@@ -51,7 +52,7 @@ public partial class BillingCompleteController
     /// Duyệt kế toán cho hóa đơn
     /// </summary>
     [HttpPost("accounting/approve")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
+    [RequirePermission(PermissionCatalog.Billing.Approve)] // AUTHZ-1 pilot (cũ: Admin+Accountant)
     public async Task<ActionResult<List<AccountingApprovalDto>>> ApproveAccounting([FromBody] ApproveAccountingDto dto)
     {
         var result = await _billingService.ApproveAccountingAsync(dto, GetUserId());
@@ -62,7 +63,7 @@ public partial class BillingCompleteController
     /// Lấy danh sách hóa đơn chờ duyệt kế toán
     /// </summary>
     [HttpGet("accounting/pending")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
+    [RequirePermission(PermissionCatalog.Billing.Approve)] // AUTHZ-1 pilot (cũ: Admin+Accountant — danh sách chờ duyệt = quyền duyệt)
     public async Task<ActionResult<PagedResultDto<AccountingApprovalDto>>> GetPendingApprovals([FromQuery] PendingApprovalSearchDto dto)
     {
         var result = await _billingService.GetPendingApprovalsAsync(dto);
@@ -86,7 +87,7 @@ public partial class BillingCompleteController
     /// Áp dụng miễn giảm theo hóa đơn
     /// </summary>
     [HttpPost("discounts/invoice")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
+    [RequirePermission(PermissionCatalog.Billing.Approve)] // AUTHZ-1 pilot (cũ: Admin+Accountant — miễn giảm = quyền duyệt tiền)
     public async Task<ActionResult<InvoiceDto>> ApplyInvoiceDiscount([FromBody] ApplyDiscountDto dto)
     {
         var result = await _billingService.ApplyInvoiceDiscountAsync(dto, GetUserId());
@@ -97,7 +98,7 @@ public partial class BillingCompleteController
     /// Áp dụng miễn giảm theo từng dịch vụ
     /// </summary>
     [HttpPost("discounts/services")]
-    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Accountant)]
+    [RequirePermission(PermissionCatalog.Billing.Approve)] // AUTHZ-1 pilot (cũ: Admin+Accountant)
     public async Task<ActionResult<InvoiceDto>> ApplyServiceDiscount([FromBody] ApplyDiscountDto dto)
     {
         var result = await _billingService.ApplyServiceDiscountAsync(dto, GetUserId());

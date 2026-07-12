@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs.System;
 using HIS.Application.Services;
+using HIS.API.Authorization; // AUTHZ-1 #367 pilot
 
 namespace HIS.API.Controllers
 {
@@ -225,7 +226,7 @@ namespace HIS.API.Controllers
 
         // 17.6 Quản lý phiên đăng nhập
         [HttpGet("api/admin/sessions")]
-        [Authorize(Roles = RoleNames.Admin)]
+        [RequirePermission(PermissionCatalog.Session.Read)] // AUTHZ-1 pilot (cũ: Admin)
         public async Task<ActionResult<List<UserSessionDto>>> GetActiveSessions([FromQuery] Guid? userId = null)
         {
             var result = await _service.GetActiveSessionsAsync(userId);
@@ -233,7 +234,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/admin/sessions/{sessionId}")]
-        [Authorize(Roles = RoleNames.Admin)]
+        [RequirePermission(PermissionCatalog.Session.Terminate)] // AUTHZ-1 pilot (cũ: Admin)
         public async Task<ActionResult<bool>> TerminateSession(Guid sessionId)
         {
             var result = await _service.TerminateSessionAsync(sessionId);
@@ -241,7 +242,7 @@ namespace HIS.API.Controllers
         }
 
         [HttpDelete("api/admin/users/{userId}/sessions")]
-        [Authorize(Roles = RoleNames.Admin)]
+        [RequirePermission(PermissionCatalog.Session.Terminate)] // AUTHZ-1 pilot (cũ: Admin)
         public async Task<ActionResult<bool>> TerminateAllSessions(Guid userId)
         {
             var result = await _service.TerminateAllSessionsAsync(userId);

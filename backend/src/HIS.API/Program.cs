@@ -195,6 +195,12 @@ builder.Services.AddAuthorization(options =>
         .Build();
 });
 
+// AUTHZ-1 #367: policy động perm:{code} cho [RequirePermission] — provider singleton thay default
+// (mọi policy khác + FallbackPolicy trên ủy quyền nguyên vẹn về DefaultAuthorizationPolicyProvider);
+// handler scoped (resolve IPermissionService per-request).
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationPolicyProvider, HIS.API.Authorization.PermissionPolicyProvider>();
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, HIS.API.Authorization.PermissionAuthorizationHandler>();
+
 builder.Services.AddRateLimiter(options =>
 {
     options.AddFixedWindowLimiter("login", opt =>

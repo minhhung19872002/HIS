@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using HIS.Core.Constants;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.Services;
+using HIS.API.Authorization;
 using AuditDtos = HIS.Application.DTOs.Audit;
 
 namespace HIS.API.Controllers;
@@ -12,7 +13,7 @@ namespace HIS.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/audit")]
-[Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.QuanTriHeThong)] // B3 RBAC: nhật ký hệ thống chỉ admin
+[RequirePermission(PermissionCatalog.AuditLog.Read)] // AUTHZ-1 pilot (cũ: Admin/Manager/Director/QuanTriHeThong — đều sinh từ RoleCode ADMIN → matrix: chỉ ADMIN, preserve)
 public class AuditController : ControllerBase
 {
     private readonly IAuditLogService _auditLogService;

@@ -184,6 +184,17 @@ public static class DatabaseSeeder
             }
         }
 
+        // AUTHZ-1 (#367): upsert PermissionCatalog code-first + ma trận Role×Permission — chạy MỌI startup
+        // (idempotent; khác block trên chỉ chạy khi bảng rỗng). Lỗi seeder không chặn startup.
+        try
+        {
+            await PermissionCatalogSeeder.UpsertAsync(context, logger);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "PermissionCatalogSeeder failed; continuing startup.");
+        }
+
         // Seed medicines
         if (!await context.Medicines.AnyAsync())
         {

@@ -5,22 +5,18 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-12** — **cửa components-restructure: wave-5 ✅ PUSHED (commit này); wave-4 ✅ PUSHED `287a711`. cửa 368-authz2: ✅ PUSHED `edcbb78`. cửa 409-batch3: ✅ PUSHED `f594867`.**
+> Cập nhật cuối: **2026-07-12** — **cửa 367-authz1: #367 AUTHZ-1 backend core + pilot ✅ PUSHED (FE gating + taxonomy defer → comment #367, issue giữ OPEN). cửa 368-authz2: ✅ PUSHED + deploy success + smoke prod PASS. cửa components-restructure ✅ · 409-sysadmin ✅ · 409-nghiep-vu ✅ · #412 ✅.**
 
-## Phiên 2026-07-12 (cửa 409-batch3 — #409 5 trang batch-3, IN PROGRESS)
-- **#409 [PORT-P3][FE] sub-scope batch-3** (lock `409-batch3`): port 5 trang build-only — Consultation + InfectionControl + Telemedicine (`pages-v2/`) + TrainingResearch (`modules/training/pages/`) + Equipment (`modules/asset/pages/`). 5 agent đang chạy song song. Chờ kết quả + verify tsc + worktree push theo thứ tự: wave-4 push trước → batch-3 sau.
-- **Batch-2 hoàn tất**: Nutrition+survey-api ✅ PUSHED `e8ce769`; 5 trang batch-2 (`pages-v2/` modified: Rehabilitation/Epidemiology/SatisfactionSurvey/MethadoneTreatment/LabQC) CHỜ push gom sau (cửa components-restructure đã revert về pages-v2 cho mình owns).
+## Phiên 2026-07-12 (cửa 367-authz1 — #367 AUTHZ-1 backend core + pilot, ✅ PUSHED)
+- **#367 [AUTHZ-1][P1] backend core + pilot DONE** (lock `367-authz1`): permission enforcement granular đầu tiên của HIS.
+  - **`PermissionCatalog.cs`** code-first 38 permission `Resource.Action` + meta (VN/Module/IsSensitive) → seeder upsert mỗi startup + ma trận Role×Permission 8 role LIVE (ADMIN full; chỉ THÊM link — không mất quyền hiện hữu).
+  - **Enforcement stack** `HIS.API/Authorization/`: `[RequirePermission]` → `PermissionPolicyProvider` (policy `perm:{code}` on-demand, FallbackPolicy B3 giữ nguyên) → `PermissionAuthorizationHandler` → `IPermissionService` (DB + IMemoryCache 30s).
+  - **JWT gọn**: bỏ claim `permission` hàng loạt (verified 0 consumer; FE dùng `UserDto.Permissions` login response). Migration `145` Permissions.IsSensitive. `GET /api/me/permissions` mới.
+  - **Pilot 11 action/3 controller** behavior-preserve: Billing Approvals 6 (lock/unlock→MedicalRecord.Lock/Unlock; duyệt+pending+miễn giảm→Billing.Approve) · AuditController→AuditLog.Read · admin sessions 3→Session.Read/Terminate.
+  - **Deviations có chủ đích**: GIỮ `RoleCodeToEnglishRoles` (71 gate còn sống) · TTL-cache 30s thay PermVersion · taxonomy 32-role DEFER. Chi tiết comment #367.
+  - **Gate:** `dotnet build` 0 error. Sau deploy: schema-drift missingCount=0 + smoke 403 (user thường gọi /api/audit/logs) + admin /api/me/permissions ≥38.
 
-## Phiên 2026-07-12 (cửa components-restructure — wave-4 STRICT-relocate, DONE-code CHỜ push)
-- **Wave-4 STRICT-relocate 90 pages-v2/*.tsx → modules/*/pages/** (his-fe-convention §4a):
-  - 90 trang dời theo bằng chứng single-module-api-owner (classify-wave4.cjs) + rewrite specifier resolve-based
-  - Router: 7 file lazy + AppRoutes.tsx rewritten (93+ specifier → modules/*/ paths)
-  - Gate: `tsc -b --noEmit` EXIT 0 · verify A) 90/90 content-equiv PASS · B) 1017 stale-ref PASS
-  - **5 trang WIP reverted về pages-v2/** (on-disk nhiều dòng hơn HEAD → cửa 409-batch2 owns): Epidemiology · LabQC · MethadoneTreatment · Rehabilitation · SatisfactionSurvey
-  - **Deferred (không move wave-4):** 9 name-conflict (Help/OPD/EMR/Consultation/RadiologyOps/DispensingCounter/ClinicalPharmacyCheck/DoctorPortal/Finance) · 18 multi-module · 30 no-api — pages-v2/ giữ
-  - **✅ PUSHED `287a711`** — hook `0a72e27` + wave-4 `287a711` lên origin/main (cherry-pick qua worktree; STATUS conflict resolve = take theirs + sửa header)
-
-## Phiên 2026-07-12 (cửa 368-authz2 — #368 AUTHZ-2 backend, DONE-code CHỜ push)
+## Phiên 2026-07-12 (cửa 368-authz2 — #368 AUTHZ-2 backend, ✅ PUSHED + deploy + smoke PASS)
 - **#368 [AUTHZ-2][P1] backend increment DONE** (lock `368-authz2`): RefreshTokens thật + rotation + reuse-detection + SecurityStamp revoke tức thời. **100% backward-compatible** (token cũ không có claim → grace-accept; LoginResponseDto giữ nguyên shape).
   - **Migration `144_authz2_refresh_tokens_security_stamp.sql`**: cột `Users.SecurityStamp` (+backfill NEWID) + bảng `RefreshTokens` (TokenHash SHA-256 NVARCHAR(128) indexed, ExpiresAt 14d, RevokedAt, ReplacedByTokenHash; audit NVARCHAR(450) tránh Guid-converter trap). Idempotent.
   - **`RefreshTokenService`** (mới, DI-registered): Issue/Rotate/Revoke/RevokeAllForUser — rotation mỗi lần refresh; reuse token đã revoke → revoke cả family + bump stamp. Ghi/đóng `UserSessions` thật (M17 admin có data).
@@ -29,7 +25,8 @@
   - **Endpoints:** `POST /api/auth/refresh` (AllowAnonymous + ratelimit) · `POST /api/auth/logout` (revoke đúng thiết bị, KHÔNG đá thiết bị khác).
   - **ADR:** `docs/architecture/adr/ADR-001-authz2-token-storage-and-revocation.md` (no-Redis stamp cache · giữ TTL 480' đến khi FE auto-refresh · localStorage + defer httpOnly cookie).
   - **⚠️ FE part DEFER** (interceptor auto-refresh single-flight + AuthContext lưu refreshToken + logout gọi API + rút TTL 15-30'): bị chặn bởi cửa `components-restructure` đang dời `frontend/src/api/*` — handoff đầy đủ ở comment #368. #368 GIỮ OPEN.
-  - **Gate:** `dotnet build` 0 error ×2 (sau fix `Headers["User-Agent"]`). Push = auto-deploy Cloud Run; sau deploy check `GET /health/schema-drift` missingCount=0.
+  - **Hardening từ review đối kháng 3-lens (6 fix):** RotateAsync `ExecuteUpdateAsync` atomic (chống double-spend TOCTOU) + benign-race leeway 60s · OnTokenValidated fresh-recheck khi mismatch (hết login-loop sau bump) · limiter `/refresh` partition theo IP 120/min · logout ownership check · **M17 Terminate-session revoke THẬT** (revoke refresh + xoay stamp) · index `UserSessions.SessionToken`.
+  - **Gate:** `dotnet build` 0 error ×3 (worktree cô lập) + review đối kháng (all findings addressed/accepted, ADR §4b). Push = auto-deploy Cloud Run; sau deploy check `GET /health/schema-drift` missingCount=0 (cột SecurityStamp + bảng RefreshTokens).
 
 ## Phiên 2026-07-11 (cửa components-restructure — wave-3 pages-v2 subdir move, DONE-code CHỜ push)
 - **Wave-3 STRICT-relocate pages-v2 subdir → modules/*/pages/ DONE** (6 subdir, 46 file, resolve-based):
@@ -40,26 +37,23 @@
 - **Fix đi kèm:** restore 3 barrel index.ts (EMRPrintTemplates/SpecialtyEMRForms1/SpecialtyEMRForms2 bị trunc BOM-fix) · re-apply wave-2 cho 8 pages-v2 file mới từ parallel window (16 specifier)
 - **Gate:** `tsc -b --noEmit` EXIT 0 · verify-wave2 A) 107/107 PASS · B) 2607 specifiers PASS
 - **Deferred:** `pages-v2/dashboard/` (cross-module) · `pages-v2/shared/` (giữ chỗ, dùng bởi nhiều module)
-- **✅ PUSHED `49e8183`** (2026-07-12, user duyệt): cherry-pick qua worktree cô lập tại origin/main (conflict 8 trang nghiệp vụ = origin content + retarget modules-import, resolve lấy bản mình; STATUS merge tay), gate worktree tsc EXIT 0 + vite build EXIT 0. ⚠️ Race index chung tái diễn khi commit (nuốt 15 file backend cửa 368) → đã reset-soft + recommit sạch; bài học ghi memory `parallel-window-push-worktree`.
-- **Carve tiếp (LOCAL `3d96be2` chờ gom push):** hook `useSafetyAlerts` → `modules/patient/hooks/` (bọc businessAlerts api; rewrite 3 importer v1 + gỡ barrel; tsc EXIT 0). Candidate còn lại: `constants/specialtyEmr.ts` → emr (template module KHÔNG có constants/ — cần user quyết thêm subdir hay giữ); `vgcaSign`/AI/money = giữ theo quyết định cũ/DEFER.
-- **Việc kế (cần user quyết):** wave-4 = dời 132 trang `pages-v2/*.tsx` → `modules/*/pages/` + rewrite router `lazy/` (blast radius lớn, đề xuất làm theo batch domain).
+- **✅ PUSHED** (user duyệt 2026-07-12; cherry-pick qua worktree cô lập tại origin/main, resolve 8 trang nghiệp vụ = origin content + retarget modules-import).
 
-## Phiên 2026-07-11 (cửa 409-nghiep-vu — #409 8 trang nghiệp vụ, DONE-code CHỜ push)
+## Phiên 2026-07-11 (cửa 409-nghiep-vu — #409 8 trang nghiệp vụ, ✅ PUSHED `302cad6`)
 - **#409 [PORT-P3][FE] sub-scope nghiệp vụ DONE-code** (lock `409-nghiep-vu`): port 8 trang `pages-v2/`:
   - **EnvironmentalHealth**: `Promise.allSettled` 3 stats API + KpiStrip server + `DatePicker.RangePicker`.
   - **FollowUp** (+264 dòng): TopTabs 4 scope (today/upcoming/overdue/all) + RangePicker + Filter status/type + `handleUpdateStatus` (confirm-arrived status=2 / no-show status=3) + server pagination `searchAppointments` + `getOverdueFollowUps(30)`.
   - **Pathology** (+240 dòng): `ResultModal` 10 field + `createPathologyResult` + `printPathologyReport` PDF blob + `getPathologyStatistics` + RangePicker + 5-state StatusTabs.
-  - **Procurement** (+4/-4): fix import path `'../api/warehouse'` → `'../modules/pharmacy/api/warehouse'`.
+  - **Procurement**: không đổi so với origin (read-only by design; `ProcurementRequests.tsx` xử lý create).
   - **TreatmentProtocol** (+34 dòng): `approveProtocol`/`createNewVersion` + `cf()` confirm + dept filter + fix duplicate ActBtn + `openPrintWindow` thay `window.print()`.
   - **FoodSafety** (+430 dòng): TopTabs 2 tab — tab "Vụ ngộ độc" (giữ nguyên) + tab "Thanh kiểm tra" A/B/C/D grading + CrudModal 9 field + DataTable + DrawerShell.
   - **ReproductiveHealth** (rewrite +617 dòng): TopTabs 2 tab — "Quản thai" (KpiStrip 4 tile + StatusTabs + CrudModal 10 field + `getHighRiskPregnancies`) + "KHHGĐ" (StatusTabs + Filter method + CrudModal 8 field).
   - **HealthCheckup** (+685 dòng): TopTabs 2 tab — "KSK" (giữ nguyên) + "Chiến dịch KSK" (`CampaignTab`: CRUD campaign + groups sub-panel + Excel import `importBatchExcel`).
-  - **⚠️ Retarget import về `../api/*` cũ (prod-safe):** ground-truth git — restructure api→`modules/` cho 7 domain (public-health/opd/pathology/pharmacy-warehouse/patient-treatmentProtocol/specialty/checkup) **CHƯA committed trên origin** (file `modules/*/api/*` untracked, WIP cửa `components-restructure`); origin vẫn giữ `api/*.ts` cũ. Push 8 page trỏ `modules/*/api/*` → **vỡ Vercel prod build**. Đã verify 8 module-api file **byte-identical** old api (chỉ khác import-depth) + export ⊇ nhu cầu → **retarget api-import 8 page về `../api/<name>`** (path origin có). Giữ `HealthCheckupPrintTemplates` ở `modules/patient/components/` (đã trên origin). Tự-lành khi restructure land (script rewrite-importer của cửa đó migrate tiếp).
-  - **Gate:** `tsc -b --noEmit` EXIT 0 · verify **worktree cô lập tại origin/main** (old api có mặt = trạng thái Vercel thực) — CẢ def00b7 SystemAdmin + 7 page resolve.
-  - **✅ PUSHED `302cad6`** (fast-forward `def00b7..302cad6`): 7 page (Procurement không đổi) + **5 file api cửa 409-sysadmin QUÊN `git add`** (`modules/system/api/{security,itTicket,audit}` + `modules/administration/api/dataExport` + `modules/emr/api/emrAdmin`) — def00b7 import chúng nhưng untracked → origin vỡ build; đã bổ sung (byte-identical old api). Chi tiết: comment #409.
-  - **⚠️ Vercel deploy `302cad6` = "Deployment was blocked"** (spend-cap/quyền account chủ minhhung19872002 — KHÔNG phải build fail; def00b7 cũng blocked "author quangngoc1911 no access"; 7c37939/960a067 success intermittent). Code tsc-xanh, chờ owner gỡ block hoặc deploy từ account chủ (memory `reference_vercel-his-psi-other-account`).
+  - **⚠️ api-import để `../api/*` (prod-safe):** restructure `modules/*/api` cho 7 domain này CHƯA trên origin lúc push → giữ path cũ; **đã tự-lành** khi cửa components-restructure land (commit wave-2+3 retarget 8 trang về `modules/*/api`).
+  - **✅ PUSHED `302cad6`** (fast-forward `def00b7..302cad6`, verify tsc -b EXIT 0 trên **worktree cô lập tại origin/main** = trạng thái Vercel thực): 7 page + **fix build vỡ def00b7** — bổ sung 5 file api cửa 409-sysadmin quên `git add` (`modules/system/api/{security,itTicket,audit}` + `modules/administration/api/dataExport` + `modules/emr/api/emrAdmin`, byte-identical old api, chỉ import services/apiClient). Chi tiết: comment #409.
+  - **⚠️ Vercel deploy `302cad6` = "Deployment was blocked"** (spend-cap/quyền account chủ minhhung19872002 — KHÔNG phải build fail; def00b7 cũng blocked "author no access"; 7c37939/960a067 cùng ngày success). Code tsc-xanh; chờ owner gỡ block (memory `reference_vercel-his-psi-other-account`).
 
-## Phiên 2026-07-11 (cửa 409-sysadmin — #409 SystemAdmin v2 6 tab mới, DONE-code CHỜ push)
+## Phiên 2026-07-11 (cửa 409-sysadmin — #409 SystemAdmin v2 6 tab mới, ✅ PUSHED `def00b7` — ⚠️ quên 5 file api, fixed tại `302cad6`)
 - **#409 [PORT-P3][FE] sub-scope SystemAdmin DONE-code** (lock `409-sysadmin`): mở rộng SystemAdmin.tsx từ 8→14 tab bằng 6 panel mới trong `pages-v2/system-admin/`:
   - **helpers.ts**: `getNestedData<T>`, `toStringValue`, `toNumberValue`, `RawApiItem`
   - **ItTicketsPanel**: KpiStrip (4 chỉ số) + filter priority/status + SearchBox + DataTable + DrawerShell chi tiết + ModalShell tạo + ModalShell phản hồi + `cf()` đóng ticket. API: `modules/system/api/itTicket`.
@@ -71,7 +65,7 @@
   - **SystemAdmin.tsx**: type AdminTab mở rộng 8→14; TABS thêm 6 mục; load() `else`→`else if (tab==='audit')` (chống audit fallthrough); render blocks 6 tab mới.
   - **4 fix regression (phiên này):** ItTicketsPanel debounce 400ms (`useDebounce` thay per-keystroke) · DataManagementPanel xóa `.slice(0,5)` backup+exportHistory · EmrAdminPanel thêm `cover` vào điều kiện description · HealthPanel CSS tokens (`--brd`→`--line`, `--radius`→`--r-2`, `--srf`→`--d-1`, `--crit`→`--s-crit`).
   - **Gate:** `tsc -b` EXIT 0 · `npm run build` (tsc -b && vite build) BUILD_EXIT:0. 7 file mới + SystemAdmin.tsx.
-  - **CHỜ user duyệt push** (`git add` tường minh 8 file: `pages-v2/SystemAdmin.tsx` + `pages-v2/system-admin/{helpers,ItTickets,AccessMatrix,Compliance,DataManagement,Health,EmrAdmin}Panel.tsx` + `STATUS.md` → commit `Refs #409`).
+  - **✅ PUSHED `def00b7`** — ⚠️ commit thiếu 5 file api (`modules/system/api/{security,itTicket,audit}` + `administration/dataExport` + `emr/emrAdmin` chưa `git add`) → origin vỡ build tạm thời; cửa 409-nghiep-vu bổ sung tại `302cad6`.
 
 ## Phiên 2026-07-11 (cửa PORT w196 — #415+#416 ✅ CLOSED, #412 AiQueueBadge DONE-code CHỜ push)
 - **#415 [PORT-P9][FE][P2] ✅ PUSHED `be63a78` CLOSED**: QueueDisplay TV board v2 — TTS + beep + lab queue 5-status. Route `/v2/queue-display` standalone public. Lock released.

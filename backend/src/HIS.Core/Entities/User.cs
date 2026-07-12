@@ -91,6 +91,9 @@ public class Permission : BaseEntity
     public string? Module { get; set; } // Module: Reception, OPD, IPD, Pharmacy...
     public string? Description { get; set; }
 
+    // AUTHZ-1 (#367): quyền nhạy cảm (duyệt tiền/khóa bệnh án/audit/phiên...) — audit đậm hơn ở AUTHZ-5.
+    public bool IsSensitive { get; set; } = false;
+
     public virtual ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
 }
 

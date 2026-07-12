@@ -365,10 +365,11 @@ public class AuthService : IAuthService
             }
         }
 
-        foreach (var permission in user.Permissions)
-        {
-            claims.Add(new Claim(JwtClaims.Permission, permission));
-        }
+        // AUTHZ-1 (#367): KHÔNG phát claim permission hàng loạt nữa — token phình + stale khi đổi quyền.
+        // Permission resolve server-side qua IPermissionService (DB + cache 30s) tại PermissionAuthorizationHandler.
+        // Verified 0 consumer đọc claim này (grep 2026-07-12); FE dùng UserDto.Permissions trong login response (giữ nguyên).
+        // RoleCodeToEnglishRoles GIỮ LẠI (deviation khỏi #367): 71 controller còn gate [Authorize(Roles=...)] —
+        // bỏ mapping = khóa toàn bộ; sẽ gỡ khi migrate hết sang [RequirePermission] (phase sau).
 
         var expireMinutes = int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "60");
         var token = new JwtSecurityToken(
