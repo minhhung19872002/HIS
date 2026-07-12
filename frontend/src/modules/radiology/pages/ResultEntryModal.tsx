@@ -5,7 +5,7 @@ import type { RadiologyOrderDto, RadiologyResultTemplateDto } from '../api/ris';
 import { useAbbrExpansion } from '../../../utils/abbrExpand';
 import { ABBREVIATION_SCOPES } from '../../../api/abbreviation';
 import { ModalShell, Btn, AbSelect } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { SurgeryReportModal } from '../../../pages-v2/shared/SurgeryReportModal';
 import { FormRow, printResultBlob, type ApiErr } from './_shared';
 import { SignResultModal } from './SignResultModal';

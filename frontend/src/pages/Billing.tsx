@@ -77,12 +77,7 @@ import {
   getOutpatientRevenueReport,
 } from '../modules/billing/api/billing';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
-import PaymentQRModal from '../components/PaymentQRModal';
-import ReassignObjectModal from '../components/ReassignObjectModal';
-import PatientFlagBanner from '../components/PatientFlagBanner';
-import BusinessAlertPanel from '../components/BusinessAlertPanel';
-import ApplyDiscountModal from '../components/ApplyDiscountModal';
-import PartialRefundModal from '../components/PartialRefundModal';
+
 
 import type {
   Patient,
@@ -103,6 +98,12 @@ import {
   buildDepositHtml,
   buildRefundHtml,
 } from './billing/printTemplates';
+import BusinessAlertPanel from '@/modules/patient/components/BusinessAlertPanel';
+import ApplyDiscountModal from '@/modules/billing/components/ApplyDiscountModal';
+import PatientFlagBanner from '@/modules/patient/components/PatientFlagBanner';
+import PaymentQRModal from '@/modules/billing/components/PaymentQRModal';
+import ReassignObjectModal from '@/modules/administration/components/ReassignObjectModal';
+import PartialRefundModal from '@/modules/billing/components/PartialRefundModal';
 
 const { Title, Text } = Typography;
 const { Search } = Input;

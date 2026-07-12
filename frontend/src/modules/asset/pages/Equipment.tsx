@@ -12,7 +12,7 @@ import {
   StatusBadge, ActBtn, ModalShell, DrawerShell, Btn,
   type ColumnDef, type StatusTab, type KpiItem, type TopTab,
 } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 
 /* ── Trang thiết bị y tế — v2 ────────────────────────────────────────────── */
 

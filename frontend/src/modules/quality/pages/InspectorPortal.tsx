@@ -12,7 +12,7 @@ import type { AxiosError } from 'axios';
 import { inspectorApi } from '../../../api/nangcap24';
 import type { InspectorRecordListItemDto, InspectorRecordDetailDto } from '../../../api/nangcap24';
 import type { ServerValidationError } from '../../../utils/formError';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { storage, STORAGE_KEYS } from '../../../services/storage.service';
 
 const INSPECTOR_TOKEN_KEY = 'inspector_token';

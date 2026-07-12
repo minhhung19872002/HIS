@@ -77,8 +77,6 @@ import type {
   RisChatMessageDto,
 } from '../modules/radiology/api/ris';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../constants/hospital';
-import ShareStudyModal from '../components/ShareStudyModal';
-import DicomViewerConfig from '../components/DicomViewerConfig';
 import type {
   ApiErrorLike,
   RadiologyWaitingListItem,
@@ -94,6 +92,8 @@ import {
   getPriorityBadge,
 } from './radiology/statusTags';
 import { buildRadiologyReportHtml } from './radiology/printTemplates';
+import DicomViewerConfig from '@/modules/radiology/components/DicomViewerConfig';
+import ShareStudyModal from '@/modules/radiology/components/ShareStudyModal';
 
 const { Title } = Typography;
 const { Search } = Input;

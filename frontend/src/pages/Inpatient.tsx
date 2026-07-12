@@ -71,14 +71,14 @@ import {
 } from '../modules/inpatient/api/inpatient';
 import { getAdmissionContext, type AdmissionContextDto } from '../modules/patient/api/dataInheritance';
 import { patientApi, type Patient } from '../modules/patient/api/patient';
-import { printBirthCertificate, type BirthCertificateData } from '../components/BirthCertificatePrint';
-import BusinessAlertPanel from '../components/BusinessAlertPanel';
-import PatientFlagBanner from '../components/PatientFlagBanner';
 import { API_URL } from '../config/api.config';
 
 import { MEDICAL_RECORD_TYPES, SUPPLY_TEMPLATE_KEY } from './inpatient/constants';
 import { getStatusTag, getBedStatusBadge } from './inpatient/statusTags';
 import { buildMedicalRecordHtml, buildTreatmentTrackingHtml } from './inpatient/printTemplates';
+import { printBirthCertificate, type BirthCertificateData } from '@/modules/patient/components/BirthCertificatePrint';
+import BusinessAlertPanel from '@/modules/patient/components/BusinessAlertPanel';
+import PatientFlagBanner from '@/modules/patient/components/PatientFlagBanner';
 
 const { Title, Text } = Typography;
 const { Search } = Input;

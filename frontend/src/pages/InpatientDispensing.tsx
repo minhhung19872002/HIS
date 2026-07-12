@@ -4,7 +4,6 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
 import {
   Card, Button, Space, Table, Tag, Select, message, Modal, Typography, Alert, Input, Divider,
 } from 'antd';
@@ -14,6 +13,7 @@ import apiClient from '../services/apiClient';
 import systemApi from '../modules/system/api/system';
 import { getWarehouses } from '../modules/pharmacy/api/warehouse';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
+import { PharmacyExpiryBanner } from '@/modules/pharmacy/components/PharmacyExpiryBanner';
 
 const { Title, Text } = Typography;
 

@@ -4,7 +4,7 @@ import * as pathologyApi from '../../pathology/api/pathology';
 import type { SpecimenType } from '../../pathology/api/pathology';
 import type { RadiologyOrderDto } from '../api/ris';
 import { ModalShell, Btn } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { FormRow, type ApiErr } from './_shared';
 
 // ─────────────── Modal nhập sinh thiết / GPB từ màn KQ CĐHA ───────────────

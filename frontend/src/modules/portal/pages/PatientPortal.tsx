@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { getMyAppointments } from '../api/patientPortal';
 import type { OnlineAppointmentDto } from '../api/patientPortal';
 import { SimpleV2Page, StatusBadge, type ColumnDef } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 
 const fmtDT = (d?: string, t?: string) => {
   if (!d) return '—';

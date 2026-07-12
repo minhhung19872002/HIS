@@ -11,7 +11,7 @@ import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager,
   ActBtn, Btn, DrawerShell,
 } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import {
   WAREHOUSE_TYPE_CABINET, STATUS_TABS, statusKey, abnormalCount, fmtDT,
   printLabResultBlob,

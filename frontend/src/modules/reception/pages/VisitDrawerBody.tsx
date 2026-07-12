@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Modal, Form, Input, Select, message } from 'antd';
 import { StatusBadge } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import type { RawRow } from './shared';
 import { STATUS_TABS, PRIORITY_OPTS, VISIT_TYPE_OPTS, fmtHM, statusKey, statusTone, priorityKey, priorityLabel, genderLabel, ageOf, treatmentLabel, hasValidInsurance } from './shared';
 import { TempInsuranceModal, DocumentHoldModal, PhotoModal, ServiceOrderModal } from './VisitActionsModals';

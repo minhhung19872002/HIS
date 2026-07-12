@@ -40,7 +40,6 @@ import { getSurgeries, getOperatingRooms, createSurgeryRequest, scheduleSurgery,
 import { examinationApi } from '../modules/opd/api/examination';
 import type { ExaminationDto } from '../modules/opd/api/examination';
 import { HOSPITAL_NAME } from '../constants/hospital';
-import SurgeryDrawingPad from '../components/SurgeryDrawingPad';
 
 /**
  * Antd Form-compatible wrapper. Accepts `value` (base64) + `onChange` props
@@ -89,6 +88,7 @@ import type {
   OperatingRoom,
 } from './surgery/types';
 import { buildSurgeryRecordHtml } from './surgery/printTemplates';
+import SurgeryDrawingPad from '@/modules/patient/components/SurgeryDrawingPad';
 
 const Surgery: React.FC = () => {
   const [activeTab, setActiveTab] = useState('requests');

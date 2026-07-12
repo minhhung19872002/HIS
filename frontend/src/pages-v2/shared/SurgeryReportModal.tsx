@@ -25,7 +25,7 @@ import {
   ModalShell, Btn, AbSelect,
   fmtDTg, tk, tw, te,
 } from '../_v2kit';
-import TermIcon from '../../layouts/terminal/Icon';
+import TermIcon from '../../components/layout/terminal/Icon';
 import { useAbbrExpansion } from '../../utils/abbrExpand';
 import { ABBREVIATION_SCOPES } from '../../api/abbreviation';
 import {

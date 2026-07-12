@@ -1,5 +1,5 @@
 import React from 'react';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../layout/terminal/Icon';
 
 // ─────────────────────────── Action icon button ───────────────────────────
 

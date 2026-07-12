@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { App as AntdApp, Input } from 'antd';
 import * as receptionApi from '../api/reception';
 import { ModalShell } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 // API trả PatientSearchResultDto (field gối nhau, có index signature) — đủ rộng cho UI lookup.
 type LookupRow = receptionApi.PatientSearchResultDto;
 

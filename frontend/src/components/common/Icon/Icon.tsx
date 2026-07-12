@@ -1,5 +1,5 @@
 import React from 'react';
-import TermIconCmp from '../../../layouts/terminal/Icon';
+import TermIconCmp from '../../layout/terminal/Icon';
 
 export interface IconProps {
   name: string;

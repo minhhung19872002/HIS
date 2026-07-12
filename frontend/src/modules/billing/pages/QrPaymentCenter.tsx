@@ -8,7 +8,7 @@ import {
   KpiStrip, TopTabs, ActBtn, Btn, ModalShell, DataTable, StatusBadge,
   fmtVNDg, fmtDTg, tk, te, tw, type ColumnDef, type TopTab,
 } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import {
   getBankReconciliation, getQrFinanceReport,
   createDisbursement, executeDisbursement, cancelDisbursement, searchDisbursements,

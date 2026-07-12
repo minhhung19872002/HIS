@@ -86,7 +86,7 @@ import {
 } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import '../../../styles/HR.css';
 import { openPrintWindow } from '../../../utils/printWindow';
 import { HOSPITAL_NAME } from '../../../constants/hospital';

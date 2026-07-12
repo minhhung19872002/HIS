@@ -1,6 +1,6 @@
 import React from 'react';
 import { ModalShell, Btn } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import type { ConsultationRecordDto } from '../api/examination';
 
 /* ==========================================================================

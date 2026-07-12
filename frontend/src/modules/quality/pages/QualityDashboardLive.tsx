@@ -4,7 +4,7 @@ import {
   type ColumnDef, type TopTab, type KpiItem,
   fmtVNDg, fmtHMg, ti
 } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { useInterval } from '../../../hooks/useInterval';
 import {
   qualityDash,

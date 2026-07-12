@@ -18,7 +18,7 @@ import {
   StatusBadge, ActBtn, Btn, DrawerShell, ModalShell,
   type ColumnDef, type StatusTab,
 } from './_v2kit';
-import TermIcon from '../layouts/terminal/Icon';
+import TermIcon from '../components/layout/terminal/Icon';
 
 /* Khám từ xa v2 — port of design-system-v2/his/project/Telemedicine v2.html */
 

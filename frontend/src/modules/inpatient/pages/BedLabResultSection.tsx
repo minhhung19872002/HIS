@@ -19,7 +19,7 @@ import { adminApi } from '../../system/api/system';
 import apiClient from '../../../services/apiClient';
 import { useAbbrExpansion } from '../../../utils/abbrExpand';
 import { ModalShell, Btn } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 
 // ---------------------------------------------------------------------------
 // Constants

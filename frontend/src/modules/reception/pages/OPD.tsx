@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import * as receptionApi from '../api/reception';
 import type { AdmissionDto } from '../api/reception';
 import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import * as pdf from '../../../api/pdf';
 
 /* Khám bệnh OPD v2 — list shell.

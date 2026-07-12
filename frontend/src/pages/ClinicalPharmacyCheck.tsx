@@ -4,7 +4,6 @@
  */
 
 import { useCallback, useState } from 'react';
-import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
 import {
   Card, Input, Button, Space, Row, Col, Descriptions, Table, Tag, Alert,
   Statistic, Typography, Divider, message,
@@ -12,6 +11,7 @@ import {
 import { SearchOutlined, WarningOutlined, MedicineBoxOutlined, ExperimentOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import apiClient from '../services/apiClient';
+import { PharmacyExpiryBanner } from '@/modules/pharmacy/components/PharmacyExpiryBanner';
 
 const { Title, Text } = Typography;
 

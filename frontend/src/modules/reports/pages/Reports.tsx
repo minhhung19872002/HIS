@@ -13,7 +13,7 @@ import {
   SettingOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { statisticsApi } from '../../system/api/system';
 import type { DepartmentRevenueDto, HospitalDashboardDto } from '../../system/api/system';
 import apiClient from '../../../services/apiClient';

@@ -13,7 +13,7 @@ import {
   KpiStrip, DrawerShell, StatusBadge,
   tk, te, fmtDTg, fmtDMYg, fmtHMg,
 } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { emrHl7Api } from '../../../api/nangcap24';
 import type { Hl7ExportResponseDto } from '../../../api/nangcap24';
 

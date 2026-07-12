@@ -1,6 +1,6 @@
 import React from 'react';
 import dayjs from 'dayjs';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { StatusBadge } from '../../../pages-v2/_v2kit';
 import type { LabRequest } from '../api/laboratory';
 import {

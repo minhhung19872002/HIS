@@ -51,10 +51,8 @@ import { PinEntryModal } from '../components/digitalSignature';
 import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures } from '../modules/emr/api/digitalSignature';
 import type { DocumentSignatureDto } from '../modules/emr/api/digitalSignature';
-import BusinessAlertPanel from '../components/BusinessAlertPanel';
 import { getPrescriptions as getRecentPrescriptions } from '../modules/portal/api/patientPortal';
 import { useSafetyAlerts } from '../modules/patient/hooks/useSafetyAlerts';
-import PatientFlagBanner from '../components/PatientFlagBanner';
 
 import type {
   RecentPrescriptionDto,
@@ -73,6 +71,8 @@ import {
   calculateCost,
   formatDosage,
 } from './prescription/utils';
+import BusinessAlertPanel from '@/modules/patient/components/BusinessAlertPanel';
+import PatientFlagBanner from '@/modules/patient/components/PatientFlagBanner';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;

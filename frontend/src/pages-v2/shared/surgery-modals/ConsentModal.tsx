@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Input, Spin } from 'antd';
 import { ModalShell, Btn, AbSelect, tk, tw, te } from '../../_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import {
   getSurgeryConsents,
   saveSurgeryConsent,

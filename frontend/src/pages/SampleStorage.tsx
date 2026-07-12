@@ -10,7 +10,7 @@ import {
 import dayjs from 'dayjs';
 import type { SampleStorageRecord, StorageLocation, StorageAlert } from '../modules/laboratory/api/sampleStorage';
 import * as storageApi from '../modules/laboratory/api/sampleStorage';
-import BarcodeScanner from '../components/BarcodeScanner';
+import { BarcodeScanner } from '@/components/form';
 
 const statusMap: Record<number, { text: string; color: string }> = {
   0: { text: 'Đang lưu', color: 'blue' },

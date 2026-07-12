@@ -7,7 +7,7 @@ import {
   type ColumnDef, type StatusTab,
 } from '../../../pages-v2/_v2kit';
 import { fmtDateTime } from '../../../utils/format';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import {
   getConsultations, createConsultation, completeConsultation, approveConsultation, printConsultation,
   type ConsultationDto, type CreateConsultationDto, type InpatientListDto,

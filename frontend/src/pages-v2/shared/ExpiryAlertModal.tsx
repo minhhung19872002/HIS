@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { Modal, Table, Tag, Button } from 'antd';
 import * as pharmacyApi from '../../modules/pharmacy/api/pharmacy';
 import type { LoginExpiryAlert } from '../../modules/pharmacy/api/pharmacy';
-import TermIcon from '../../layouts/terminal/Icon';
+import TermIcon from '../../components/layout/terminal/Icon';
 
 // ── Expiry Alert Modal (GAP-DoiThu Đ3.15 / issue #28) ────────────────────────
 // Hiện khi vào module Dược (Nhà thuốc / Kho dược BV), 1 lần / phiên

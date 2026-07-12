@@ -53,7 +53,7 @@ import type {
 import { catalogApi } from '../../system/api/system';
 import type { DepartmentCatalogDto } from '../../system/api/system';
 import { ModalShell, Btn } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import BedLabResultSection from './BedLabResultSection';
 import { CabinetIssueModal, ItemPicker } from '../../../pages-v2/shared/CabinetIssueModal';
 import { InpatientPrescriptionModal } from './InpatientPrescriptionModal';

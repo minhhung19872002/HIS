@@ -5,7 +5,7 @@ import {
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
   tk, te, fmtDTg
 } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import {
   zalo,
   type ZaloNotificationLogDto,

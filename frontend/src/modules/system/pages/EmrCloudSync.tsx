@@ -12,7 +12,7 @@ import {
   tk, te, fmtDTg, fmtHMg, useTabCounts,
 } from '../../../pages-v2/_v2kit';
 import type { ColumnDef } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { emrCloudSyncApi } from '../../../api/nangcap24';
 import type { EmrCloudSyncLogDto, EmrCloudSyncStatusDto } from '../../../api/nangcap24';
 

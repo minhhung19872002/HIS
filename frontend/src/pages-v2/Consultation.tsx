@@ -11,7 +11,7 @@ import {
   type ColumnDef, type StatusTab,
   cf, tk,
 } from './_v2kit';
-import TermIcon from '../layouts/terminal/Icon';
+import TermIcon from '../components/layout/terminal/Icon';
 
 /** Tải CSV với BOM UTF-8 để Excel mở đúng tiếng Việt */
 function downloadCsv(filename: string, lines: string[]): void {

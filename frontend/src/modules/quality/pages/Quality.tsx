@@ -16,7 +16,7 @@ import {
   StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, useTabCounts, tk, tw,
   type ColumnDef, type StatusTab, type TopTab, type StatusTone,
 } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { openPrintWindow } from '../../../utils/printWindow';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 

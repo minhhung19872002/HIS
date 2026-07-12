@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
 import {
   Card,
   Table,
@@ -66,6 +65,7 @@ import {
   PAYMENT_COLORS,
   type CartItem,
 } from './hospital-pharmacy/types';
+import { PharmacyExpiryBanner } from '@/modules/pharmacy/components/PharmacyExpiryBanner';
 
 const HospitalPharmacy: React.FC = () => {
   const [loading, setLoading] = useState(false);

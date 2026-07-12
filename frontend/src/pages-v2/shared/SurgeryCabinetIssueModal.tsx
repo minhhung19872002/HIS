@@ -23,7 +23,7 @@ import {
   ModalShell, Btn, DrSec, DrField,
   fmtDTg, tk, tw, te,
 } from '../_v2kit';
-import TermIcon from '../../layouts/terminal/Icon';
+import TermIcon from '../../components/layout/terminal/Icon';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 

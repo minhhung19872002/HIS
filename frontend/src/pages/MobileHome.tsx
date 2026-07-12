@@ -20,7 +20,7 @@ import {
 import dayjs from 'dayjs';
 import { patientApi } from '../modules/patient/api/patient';
 import { useAuth } from '../hooks/useAuth';
-import BarcodeScanner from '../components/BarcodeScanner';
+import { BarcodeScanner } from '@/components/form';
 
 const { Title, Text } = Typography;
 

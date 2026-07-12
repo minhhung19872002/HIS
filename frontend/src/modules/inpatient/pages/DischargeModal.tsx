@@ -30,7 +30,7 @@ import type {
   PreDischargeCheckDto, CompleteDischargeDto, InpatientListDto, ReferralCertificateDto,
 } from '../api/inpatient';
 import { ModalShell, Btn, DrSec, DrField, tk, tw, te } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 
 const DISCHARGE_TYPES = [
   { value: 1, label: 'Ra viện' },

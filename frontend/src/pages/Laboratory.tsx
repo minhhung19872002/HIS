@@ -42,13 +42,13 @@ import dayjs from 'dayjs';
 import laboratoryApi from '../modules/laboratory/api/laboratory';
 import type { LabRequest, TestResult, TestParameter } from '../modules/laboratory/api/laboratory';
 import { buildBarcodeLabelHtml, buildLabResultHtml } from './laboratory/printTemplates';
-import SampleSequenceToolbar from '../components/SampleSequenceToolbar';
 import { HOSPITAL_NAME } from '../constants/hospital';
 import { SignatureStatusIcon, PinEntryModal } from '../components/digitalSignature';
 import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures } from '../modules/emr/api/digitalSignature';
 import type { DocumentSignatureDto } from '../modules/emr/api/digitalSignature';
-import LabCancelChainMenu from '../components/LabCancelChainMenu';
+import LabCancelChainMenu from '@/modules/patient/components/LabCancelChainMenu';
+import SampleSequenceToolbar from '@/modules/patient/components/SampleSequenceToolbar';
 
 const { Title, Text } = Typography;
 const { Search } = Input;

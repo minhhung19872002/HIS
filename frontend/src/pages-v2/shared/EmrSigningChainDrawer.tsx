@@ -11,7 +11,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DrawerShell, ModalShell, Btn, StatusBadge, tk, te, tw, fmtDTg } from '../_v2kit';
-import TermIcon from '../../layouts/terminal/Icon';
+import TermIcon from '../../components/layout/terminal/Icon';
 import PrintTemplateRenderer from '../../modules/patient/components/PrintTemplateRenderer';
 import {
   getDocumentChain, getChainTemplate, submitSigningChain, cancelSigningChain,

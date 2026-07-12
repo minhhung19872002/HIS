@@ -30,7 +30,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { message, Modal } from 'antd';
-import TermIconCmp from '../layouts/terminal/Icon';
+import TermIconCmp from '../components/layout/terminal/Icon';
 import { KpiStrip, type KpiItem } from '../components/dataDisplay/KpiStrip';
 import { SearchBox } from '../components/form/SearchBox';
 import { Filter } from '../components/form/Filter';

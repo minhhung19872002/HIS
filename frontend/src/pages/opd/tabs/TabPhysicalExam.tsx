@@ -8,8 +8,8 @@
 import React from 'react';
 import { Col, Form, Input, Row } from 'antd';
 import type { FormInstance } from 'antd';
-import ClinicalTermSelector from '../../../components/ClinicalTermSelector';
-import VoiceDictation from '../../../components/VoiceDictation';
+import ClinicalTermSelector from '@/modules/patient/components/ClinicalTermSelector';
+import { VoiceDictation } from '@/components/form';
 
 const { TextArea } = Input;
 

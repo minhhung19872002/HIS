@@ -14,7 +14,7 @@ import {
   StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, ModalShell,
   type ColumnDef, type TopTab,
 } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 
 /* ────────────────────────────────────────────────────────────
    Ngân hàng máu v2 — port of design-system-v2/his/project/BloodBank v2.html

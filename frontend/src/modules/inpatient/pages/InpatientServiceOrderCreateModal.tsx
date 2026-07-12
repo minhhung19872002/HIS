@@ -22,7 +22,7 @@ import type {
   ServiceSearchResultDto, ServiceTreeNodeDto, CreateInpatientServiceOrderDto,
 } from '../api/inpatient';
 import { ModalShell, Btn, DrSec, DrField, tk, tw, te } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { App as AntdApp, Drawer, Select, Input, Tag } from 'antd';
 import { AlertOutlined, EyeOutlined, HomeOutlined, LogoutOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import {
   getActiveEvent, getVictims, registerVictim, activateCodeBlue,
   type MCIEventDto, type MCIVictimDto, type RegisterVictimDto,

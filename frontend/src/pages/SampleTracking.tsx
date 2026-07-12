@@ -10,10 +10,10 @@ import {
 import dayjs from 'dayjs';
 import type { SampleTrackingEvent, SampleRejection, SampleTrackingSummary } from '../modules/laboratory/api/sampleTracking';
 import * as trackingApi from '../modules/laboratory/api/sampleTracking';
-import BarcodeScanner from '../components/BarcodeScanner';
 import { DatePicker, Collapse } from 'antd';
 import { getSampleBatches, type SampleBatchDto, type SampleBatchItemDto } from '../modules/laboratory/api/sampleBatch';
 import { useMemo as useMemoHook } from 'react';
+import { BarcodeScanner } from '@/components/form';
 
 /** M3.13 — Tab hiển thị lấy mẫu chia theo đợt sáng/chiều/tối/cấp cứu. */
 function SampleBatchesTab() {

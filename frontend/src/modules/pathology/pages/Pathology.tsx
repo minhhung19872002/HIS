@@ -10,7 +10,7 @@ import {
   SimpleV2Page, StatusBadge, ActBtn, Btn, ModalShell, tk, tw,
   type ColumnDef, type StatusTab,
 } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;

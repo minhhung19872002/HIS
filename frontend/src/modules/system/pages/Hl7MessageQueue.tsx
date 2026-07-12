@@ -12,7 +12,7 @@ import {
   tk, ti, te, fmtDTg, fmtHMg,
 } from '../../../pages-v2/_v2kit';
 import type { ColumnDef } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { hl7QueueApi } from '../../../api/nangcap24';
 import type { Hl7MessageQueueDto } from '../../../api/nangcap24';
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../layout/terminal/Icon';
 
 // ─────────────────────────── Async UI states (loading / empty / error) ───────────────────────────
 // UI-AUDIT #164 — primitive CHUNG cho 4 state data-driven. Dựng trên `.ab-empty` (token-based →

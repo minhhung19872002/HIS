@@ -14,7 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, fmtVNDg, tk, tw, te, ti } from '../../../pages-v2/_v2kit';
 import { SurgeryReportModal } from '../../../pages-v2/shared/SurgeryReportModal';
 import { CabinetIssueModal } from '../../../pages-v2/shared/CabinetIssueModal';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import BarcodeScanner from '../../../components/form/BarcodeScanner';
 import {
   examinationApi, createSickLeave,
@@ -47,7 +47,7 @@ import {
   deleteRegistration,
   type ExamCompletionStatus,
 } from '../api/multiSpecialtyExam';
-import '../../../layouts/terminal/ed-responsive.css';
+import '../components/layouts/terminal/ed-responsive.css';
 // #205 FE-2 (Phase 1) — presentational blocks split into ./opd-editor/*.
 // State/handlers/effects/loaders stay here; these receive everything via props.
 import {

@@ -6,7 +6,7 @@ import * as surgeryApi from '../api/surgery';
 import type { SurgeryDto, SurgeryTeamMemberDto } from '../api/surgery';
 import type { ServerValidationError } from '../../../utils/formError';
 import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { SurgeryCabinetIssueModal } from '../../../pages-v2/shared/SurgeryCabinetIssueModal';
 import { PreAnesthesiaModal, AnesthesiaMonitorModal, ConsentModal, PostAnesthesiaPlanModal } from '../../../pages-v2/shared/SurgeryFormModals';
 import { openPrintWindow } from '../../../utils/printWindow';

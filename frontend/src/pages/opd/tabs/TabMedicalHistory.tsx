@@ -9,10 +9,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Col, Form, Input, Row, Select, message } from 'antd';
 import type { FormInstance } from 'antd';
-import ClinicalTermSelector from '../../../components/ClinicalTermSelector';
-import VoiceDictation from '../../../components/VoiceDictation';
 import { getOutpatientRecordTemplates, getOutpatientRecordTemplate } from '../../../modules/patient/api/clinicalNarratives';
 import type { OutpatientRecordTemplateDto } from '../../../modules/patient/api/clinicalNarratives';
+import ClinicalTermSelector from '@/modules/patient/components/ClinicalTermSelector';
+import { VoiceDictation } from '@/components/form';
 
 const { TextArea } = Input;
 

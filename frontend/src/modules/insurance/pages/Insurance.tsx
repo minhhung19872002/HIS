@@ -10,7 +10,7 @@ import {
   StatusBadge, ActBtn, Btn, DrawerShell, useListData, useTabCounts,
   type ColumnDef, type StatusTab,
 } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { fmtVND } from '../../../utils/format';
 
 /* BHYT v2 — claims management */

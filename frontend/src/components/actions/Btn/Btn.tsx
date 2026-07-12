@@ -1,5 +1,5 @@
 import React from 'react';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../layout/terminal/Icon';
 
 // ─────────────────────────── Btn — chuẩn hoá nút ab-btn (raw <button>) ───────────────────────────
 // Giữ NGUYÊN style ab-* (terminal design): chỉ componentize, không đổi class/CSS.

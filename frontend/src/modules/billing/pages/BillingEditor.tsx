@@ -15,7 +15,7 @@ import {
   KpiStrip, StatusBadge, ActBtn, Btn, DataTable, TopTabs, ModalShell,
   fmtVNDg, fmtDTg, tk, tw, te, type ColumnDef, type TopTab,
 } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
 import BusinessAlertPanel from '../../patient/components/BusinessAlertPanel';
 import PaymentQRModal from '../components/PaymentQRModal';
@@ -31,7 +31,7 @@ import {
   getElectronicInvoices, issueElectronicInvoice, type ElectronicInvoiceDto,
   printPaymentReceipt, printInvoice, sendElectronicInvoice,
 } from '../api/billing';
-import '../../../layouts/terminal/ed-responsive.css';
+import '../components/layouts/terminal/ed-responsive.css';
 
 type TabKey = 'pay' | 'advance' | 'refund' | 'cashbook' | 'einv';
 const TABS: TopTab<TabKey>[] = [

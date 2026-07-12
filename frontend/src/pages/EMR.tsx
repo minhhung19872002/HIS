@@ -27,7 +27,6 @@ import {
   type MedicalRecordFullDto, type MedicalHistoryDto,
   type TreatmentSheetDto, type ConsultationRecordDto, type NursingCareSheetDto,
 } from '../modules/opd/api/examination';
-import PrintTemplateRenderer from '../components/PrintTemplateRenderer';
 import { printEmrForm } from '../api/pdf';
 import client from '../services/apiClient';
 import {
@@ -35,17 +34,18 @@ import {
   getPrintLogs, stampPrintLog, finalizeRecord, reopenRecord, getAmendments,
   type EmrCompletenessDto, type EmrDocumentAttachmentDto, type EmrPrintLogDto, type EmrAmendmentDto,
 } from '../modules/emr/api/emrAdmin';
-import PatientTimeline from '../components/PatientTimeline';
-import EmrManagementTabs from '../components/EmrManagementTabs';
-import VoiceDictation from '../components/VoiceDictation';
 import { PinEntryModal, SignatureStatusIcon, SignatureVerificationPanel, BatchSigningModal } from '../components/digitalSignature';
 import { useSigningContext } from '../contexts/SigningContext';
 import { getSignatures, getSignaturesBatch } from '../modules/emr/api/digitalSignature';
 import type { DocumentSignatureDto } from '../modules/emr/api/digitalSignature';
-import PatientFlagBanner from '../components/PatientFlagBanner';
 
 import { statusColors, statusNames } from './emr/constants';
 import { buildPrintDocument } from './emr/printDocument';
+import EmrManagementTabs from '@/modules/patient/components/EmrManagementTabs';
+import PatientTimeline from '@/modules/patient/components/PatientTimeline';
+import PatientFlagBanner from '@/modules/patient/components/PatientFlagBanner';
+import { VoiceDictation } from '@/components/form';
+import PrintTemplateRenderer from '@/modules/patient/components/PrintTemplateRenderer';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;

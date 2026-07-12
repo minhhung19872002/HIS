@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
 import {
   Card,
   Table,
@@ -48,7 +47,6 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import pharmacyApi from '../modules/pharmacy/api/pharmacy';
 import { HOSPITAL_NAME } from '../constants/hospital';
-import BarcodeScanner from '../components/BarcodeScanner';
 
 import type {
   PendingPrescription,
@@ -62,6 +60,8 @@ import type {
   AlertItem,
 } from './pharmacy/types';
 import { buildDispensingSlipHtml } from './pharmacy/printTemplates';
+import { BarcodeScanner } from '@/components/form';
+import { PharmacyExpiryBanner } from '@/modules/pharmacy/components/PharmacyExpiryBanner';
 
 const { Title, Text } = Typography;
 const { Search } = Input;

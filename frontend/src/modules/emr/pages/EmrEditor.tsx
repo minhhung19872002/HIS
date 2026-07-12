@@ -14,7 +14,7 @@ import {
   KpiStrip, StatusBadge, Btn, ActBtn, DataTable, TopTabs, DrawerShell, ModalShell,
   fmtDMYg, fmtDTg, tk, ti, te, tw, type ColumnDef, type TopTab,
 } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import apiClient from '../../../services/apiClient';
 import { generateCdaDocument } from '../api/cda';
 import {
@@ -37,7 +37,7 @@ import { printTreatmentSheet as printInpatientTreatmentSheet } from '../../inpat
 import PrintTemplateRenderer from '../../patient/components/PrintTemplateRenderer';
 import ClinicalTemplatePicker from '../../patient/components/ClinicalTemplatePicker';
 import { TEMPLATE_TYPES } from '../../patient/api/clinicalTemplate';
-import '../../../layouts/terminal/ed-responsive.css';
+import '../components/layouts/terminal/ed-responsive.css';
 
 type TabKey = 'record' | 'history' | 'treatment' | 'consult' | 'nursing' | 'reaction' | 'partograph' | 'attach';
 const TABS: TopTab<TabKey>[] = [

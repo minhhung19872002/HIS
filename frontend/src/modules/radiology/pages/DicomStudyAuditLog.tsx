@@ -12,7 +12,7 @@ import {
   te, fmtDTg,
 } from '../../../pages-v2/_v2kit';
 import type { ColumnDef } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { dicomStudyLogApi } from '../../../api/nangcap24';
 import type { DicomStudyActivityLogDto } from '../../../api/nangcap24';
 

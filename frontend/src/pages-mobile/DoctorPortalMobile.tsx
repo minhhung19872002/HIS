@@ -20,10 +20,10 @@ import {
 } from '../modules/inpatient/api/inpatient';
 import type { InpatientListDto, MedicineSearchItemDto } from '../modules/inpatient/api/inpatient';
 import { getWarehouses } from '../modules/pharmacy/api/warehouse';
-import ClinicalTemplatePicker from '../components/ClinicalTemplatePicker';
 import { TEMPLATE_TYPES } from '../modules/patient/api/clinicalTemplate';
 import type { WarehouseDto } from '../modules/pharmacy/api/warehouse';
 import './portal-mobile.css';
+import ClinicalTemplatePicker from '@/modules/patient/components/ClinicalTemplatePicker';
 
 type Tab = 'today' | 'queue' | 'patients' | 'inpatient' | 'me';
 

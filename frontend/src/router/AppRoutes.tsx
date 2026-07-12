@@ -3,12 +3,12 @@ import { Suspense, lazy } from 'react';
 import { Spin } from 'antd';
 import { useAuth } from '../hooks/useAuth';
 import { useGlobalAbbreviationExpander } from '../hooks/useAbbreviationExpander';
-import MainLayout from '../layouts/MainLayout';
+import MainLayout from '../components/layout/MainLayout';
 import Login from '../pages/Login';
 import { ProtectedRoute } from './RouteGuard';
 import { HomeEntry } from './LayoutResolver';
 import { v2Routes } from './routeConfigs';
-import { RequirePermission } from '../guards';
+import { RequirePermission } from './guards';
 import { ModuleIndex } from './lazy/common.lazy';
 import {
   InspectorPortalStandalone,
@@ -18,7 +18,7 @@ import {
 } from './lazy/auth.lazy';
 
 // Layout v2 (Terminal) shell wrapping /v2/* routes.
-const TerminalLayout = lazy(() => import('../layouts/terminal/TerminalLayout'));
+const TerminalLayout = lazy(() => import('../components/layout/terminal/TerminalLayout'));
 
 // --- v1 lazy-loaded pages (MainLayout tree + public/standalone). Kept inline: v1 is
 //     retiring (#204), so it is NOT reorganised into data configs — moved verbatim. ---

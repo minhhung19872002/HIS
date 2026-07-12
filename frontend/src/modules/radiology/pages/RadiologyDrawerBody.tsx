@@ -1,7 +1,7 @@
 import React from 'react';
 import type { RadiologyOrderDto, RadiologyResultDto } from '../api/ris';
 import { StatusBadge } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { CoReaderSection } from './CoReaderSection';
 import { statusKey, statusTone, STATUS_TABS, detectModality, fmtHM, fmtDT } from './_shared';
 

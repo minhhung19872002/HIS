@@ -3,7 +3,7 @@ import { App as AntdApp, Input, Select } from 'antd';
 import * as risApi from '../api/ris';
 import type { CoReaderDto } from '../api/ris';
 import { Btn, ActBtn } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 
 // ─────────────── Co-Reader Section (#139) ───────────────
 

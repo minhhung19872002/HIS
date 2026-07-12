@@ -5,7 +5,7 @@ import * as receptionApi from '../api/reception';
 import type { RoomOverviewDto } from '../api/reception';
 import { registerMultipleRooms } from '../../opd/api/multiSpecialtyExam';
 import { ModalShell } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { BookingPickerModal } from './BookingPickerModal';
 const VISIT_TYPES: { v: string; l: string; ic: string; fee: number; serviceType: number; bhyt?: boolean; emergency?: boolean }[] = [
   { v: 'kham-thuong', l: 'Khám thường',     ic: 'stethoscope', fee: 38000,  serviceType: 3 },

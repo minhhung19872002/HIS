@@ -7,7 +7,7 @@ import {
   KpiStrip, SearchBox, DataTable, StatusBadge, ModalShell, ActBtn, Btn, tk, te, cf,
   type ColumnDef,
 } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 
 // Row raw từ API — opaque dict để Antd Form setFieldsValue + truyền lại khi save
 type CatalogRowRaw = Record<string, unknown>;

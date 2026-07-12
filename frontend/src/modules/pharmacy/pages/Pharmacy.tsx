@@ -6,7 +6,7 @@ import * as pharmacyApi from '../api/pharmacy';
 import { openPrintWindow } from '../../../utils/printWindow';
 import type { PendingPrescription } from '../api/pharmacy';
 import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import ExpiryAlertModal from '../../../pages-v2/shared/ExpiryAlertModal';
 import { fmtVND } from '../../../utils/format';
 

@@ -48,8 +48,6 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import * as receptionApi from '../modules/reception/api/reception';
 import * as insuranceApi from '../modules/insurance/api/insurance';
-import BarcodeScanner from '../components/BarcodeScanner';
-import WebcamCapture from '../components/WebcamCapture';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useSafetyAlerts } from '../modules/patient/hooks/useSafetyAlerts';
 
@@ -64,6 +62,8 @@ import {
   unwrapResponseData,
 } from './reception/utils';
 import { CCCD_PROVINCES, validateCccd } from './reception/cccd';
+import { BarcodeScanner } from '@/components/form';
+import { WebcamCapture } from '@/components/upload';
 
 const { Title, Text } = Typography;
 const { Search } = Input;

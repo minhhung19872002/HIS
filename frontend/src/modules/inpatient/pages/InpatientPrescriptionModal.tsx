@@ -31,7 +31,7 @@ import type {
 import { getWarehouses } from '../../pharmacy/api/warehouse';
 import type { WarehouseDto } from '../../pharmacy/api/warehouse';
 import { ModalShell, Btn, DrSec, DrField, tk, tw, te } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 

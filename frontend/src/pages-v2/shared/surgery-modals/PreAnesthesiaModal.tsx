@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Input, Select, Spin } from 'antd';
 import { ModalShell, Btn, AbSelect, tk, tw, te } from '../../_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { anesthesiaApi } from '../../../modules/patient/api/clinicalRecords';
 import { printAnesthesiaForm } from '../../../modules/surgery/api/surgery';
 import { Section, Row2, ASA_OPTIONS, MALLAMPATI_OPTIONS, ANESTHESIA_TYPE_OPTIONS } from './_shared';

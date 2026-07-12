@@ -1,5 +1,5 @@
 import React from 'react';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../layout/terminal/Icon';
 
 // Async UI state — xem chú thích đầy đủ (UI-AUDIT #164) tại `../EmptyState/EmptyState.tsx`.
 

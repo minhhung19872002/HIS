@@ -1,6 +1,6 @@
 import React from 'react';
 import { ModalShell, Btn, ActBtn } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import type { OutpatientRecordTemplateDto } from '../../patient/api/clinicalNarratives';
 import type { DxRow } from './_shared';
 

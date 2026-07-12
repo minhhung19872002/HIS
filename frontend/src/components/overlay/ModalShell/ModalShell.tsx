@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../layout/terminal/Icon';
 import { usePopup } from '../usePopup';
 
 // ─────────────────────────── Modal shell ───────────────────────────

@@ -3,7 +3,7 @@ import { App as AntdApp } from 'antd';
 import * as risApi from '../api/ris';
 import type { RadiologyOrderDto } from '../api/ris';
 import { ModalShell, Btn, AbSelect } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 import { FormRow, type ApiErr } from './_shared';
 
 /** Gọi bệnh nhân vào phòng chụp CĐHA. roomId là bắt buộc theo CallPatientDto của backend. */

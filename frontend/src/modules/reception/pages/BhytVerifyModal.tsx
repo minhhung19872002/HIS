@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { App as AntdApp, Input } from 'antd';
 import * as receptionApi from '../api/reception';
 import { StatusBadge, ModalShell } from '../../../pages-v2/_v2kit';
-import TermIcon from '../../../layouts/terminal/Icon';
+import TermIcon from '../../../components/layout/terminal/Icon';
 export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
   const { message } = AntdApp.useApp();
   const [num, setNum] = useState('');
