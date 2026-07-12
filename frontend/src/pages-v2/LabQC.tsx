@@ -5,9 +5,9 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
-import { getQCLots, getQCResults, createQCLot, updateQCLot, deleteQCLot } from '../modules/laboratory/api/labQC';
+import { getQCLots, getQCResults, createQCLot, updateQCLot, deleteQCLot, getQCReport } from '../modules/laboratory/api/labQC';
 import { fmtDateTime } from '../utils/format';
-import type { QCLot, QCResult } from '../modules/laboratory/api/labQC';
+import type { QCLot, QCResult, QCReport } from '../modules/laboratory/api/labQC';
 import { exportToExcel, formatDate } from '../utils/excelExport';
 import { runQC, getLeveyJenningsChart, getAnalyzers, getLabTestCatalog } from '../modules/laboratory/api/lis';
 import type { QCResultDto, LeveyJenningsChartDto, LabAnalyzerDto, LabTestCatalogDto } from '../modules/laboratory/api/lis';
@@ -35,11 +35,14 @@ const LOT_FIELDS: CrudFieldCfg[] = [
 
 const LEVEL_LABEL: Record<number, string> = { 1: 'Low', 2: 'Normal', 3: 'High' };
 
-type Tab = 'lots' | 'results';
+type Tab = 'lots' | 'results' | 'reports';
 const TABS = [
   { v: 'lots' as Tab, l: 'Lô QC', ic: 'package' },
   { v: 'results' as Tab, l: 'Kết quả QC', ic: 'activity' },
+  { v: 'reports' as Tab, l: 'Báo cáo QC', ic: 'file-text' },
 ];
+
+const REPORT_STATUS_LABEL: Record<string, string> = { good: 'Tốt', warning: 'Cảnh báo', error: 'Lỗi' };
 
 const PER = 18;
 
@@ -293,6 +296,7 @@ const LabQCV2: React.FC = () => {
   const [tab, setTab] = useState<Tab>('lots');
   const [lots, setLots] = useState<QCLot[]>([]);
   const [results, setResults] = useState<QCResult[]>([]);
+  const [reports, setReports] = useState<QCReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -319,7 +323,7 @@ const LabQCV2: React.FC = () => {
         const r = await getQCLots({ testCode: search || undefined });
         const list = (r?.items || (Array.isArray(r) ? r : [])) as QCLot[];
         setLots(list);
-      } else {
+      } else if (tab === 'results') {
         const r = await getQCResults({
           testCode: search || undefined,
           fromDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
@@ -327,6 +331,13 @@ const LabQCV2: React.FC = () => {
         });
         const list = (r?.items || (Array.isArray(r) ? r : [])) as QCResult[];
         setResults(list);
+      } else {
+        const r = await getQCReport({
+          fromDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
+          toDate: dayjs().format('YYYY-MM-DD'),
+        });
+        const list = (r?.items || (Array.isArray(r) ? r : [])) as QCReport[];
+        setReports(list);
       }
     } catch { ti('Không tải được dữ liệu QC'); }
     finally { setLoading(false); }
@@ -349,10 +360,18 @@ const LabQCV2: React.FC = () => {
       || (r.testName || '').toLowerCase().includes(k)
       || (r.lotNumber || '').toLowerCase().includes(k));
   }, [results, search]);
+  const filteredReports = useMemo(() => {
+    const k = search.trim().toLowerCase();
+    if (!k) return reports;
+    return reports.filter((r) =>
+      (r.testCode || '').toLowerCase().includes(k)
+      || (r.testName || '').toLowerCase().includes(k));
+  }, [reports, search]);
 
-  const totalPages = Math.max(1, Math.ceil((tab === 'lots' ? filteredLots.length : filteredResults.length) / PER));
+  const totalPages = Math.max(1, Math.ceil((tab === 'lots' ? filteredLots.length : tab === 'results' ? filteredResults.length : filteredReports.length) / PER));
   const pagedLots = filteredLots.slice(page * PER, (page + 1) * PER);
   const pagedRes = filteredResults.slice(page * PER, (page + 1) * PER);
+  const pagedReports = filteredReports.slice(page * PER, (page + 1) * PER);
 
   const lotKpis = useMemo(() => {
     const today = dayjs();
@@ -381,6 +400,18 @@ const LabQCV2: React.FC = () => {
       { lbl: 'TB |Z-score|', val: avgZ.toFixed(2), sub: tests.size + ' xét nghiệm' },
     ];
   }, [results]);
+
+  const reportKpis = useMemo(() => {
+    const warnCount = reports.filter((r) => r.status === 'warning').length;
+    const errCount = reports.filter((r) => r.status === 'error').length;
+    const totalViolations = reports.reduce((s, r) => s + (r.violations || 0), 0);
+    return [
+      { lbl: 'Tổng XN theo dõi', val: reports.length, sub: '30 ngày qua' },
+      { lbl: 'Tốt', val: Math.max(0, reports.length - warnCount - errCount), tone: 'ok' as const },
+      { lbl: 'Cảnh báo', val: warnCount, tone: 'warn' as const },
+      { lbl: 'Lỗi', val: errCount, sub: `${totalViolations} vi phạm`, tone: 'crit' as const },
+    ];
+  }, [reports]);
 
   const lotCols: ColumnDef<QCLot>[] = [
     { key: 'lot', label: 'Lô', code: true, render: (r) => r.lotNumber },
@@ -430,6 +461,26 @@ const LabQCV2: React.FC = () => {
     { key: 'ana', label: 'Máy XN', render: (r) => r.analyzerName || '—' },
   ];
 
+  const reportCols: ColumnDef<QCReport>[] = [
+    { key: 'test', label: 'Xét nghiệm', render: (r) => (
+      <div>
+        <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{r.testName}</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.testCode}</div>
+      </div>
+    ) },
+    { key: 'total', label: 'Tổng lần chạy', mono: true, render: (r) => r.totalRuns },
+    { key: 'violations', label: 'Vi phạm', render: (r) => r.violations > 0
+      ? <StatusBadge tone="crit" dot>{r.violations}</StatusBadge>
+      : <StatusBadge tone="ok" dot>0</StatusBadge> },
+    { key: 'rate', label: 'Tỉ lệ VP', mono: true, render: (r) => `${(r.violationRate * 100).toFixed(1)}%` },
+    { key: 'last', label: 'Lần chạy cuối', mono: true, render: (r) => r.lastRunDate ? dayjs(r.lastRunDate).format('DD/MM/YYYY HH:mm') : '—' },
+    { key: 'status', label: 'Tình trạng', render: (r) => (
+      <StatusBadge tone={r.status === 'good' ? 'ok' : r.status === 'warning' ? 'warn' : 'crit'} dot>
+        {REPORT_STATUS_LABEL[r.status] || r.status}
+      </StatusBadge>
+    ) },
+  ];
+
   const lotActions = (r: QCLot) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSelLot(r)} />
@@ -447,7 +498,7 @@ const LabQCV2: React.FC = () => {
 
   return (
     <div className="ab">
-      <KpiStrip items={tab === 'lots' ? lotKpis : resKpis} />
+      <KpiStrip items={tab === 'lots' ? lotKpis : tab === 'results' ? resKpis : reportKpis} />
 
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
         <>
@@ -490,7 +541,7 @@ const LabQCV2: React.FC = () => {
               `lab-qc-lots-${dayjs().format('YYYYMMDD')}`,
             );
             tk('Đã xuất Excel danh sách lô QC');
-          } else {
+          } else if (tab === 'results') {
             if (!results.length) { ti('Chưa có kết quả QC để xuất'); return; }
             exportToExcel(
               results as unknown as Record<string, unknown>[],
@@ -512,6 +563,22 @@ const LabQCV2: React.FC = () => {
               `lab-qc-results-${dayjs().format('YYYYMMDD')}`,
             );
             tk('Đã xuất Excel kết quả QC');
+          } else {
+            if (!reports.length) { ti('Chưa có báo cáo QC để xuất'); return; }
+            exportToExcel(
+              reports as unknown as Record<string, unknown>[],
+              [
+                { header: 'Mã XN', key: 'testCode', width: 14 },
+                { header: 'Tên xét nghiệm', key: 'testName', width: 28 },
+                { header: 'Tổng lần chạy', key: 'totalRuns', width: 14 },
+                { header: 'Vi phạm', key: 'violations', width: 10 },
+                { header: 'Tỉ lệ VP', key: 'violationRate', width: 10, format: (v) => `${(Number(v) * 100).toFixed(1)}%` },
+                { header: 'Lần chạy cuối', key: 'lastRunDate', width: 18, format: (v) => v ? fmtDateTime(v as string) : '' },
+                { header: 'Tình trạng', key: 'status', width: 12, format: (v) => REPORT_STATUS_LABEL[v as string] || String(v) },
+              ],
+              `lab-qc-reports-${dayjs().format('YYYYMMDD')}`,
+            );
+            tk('Đã xuất Excel báo cáo QC');
           }
         }}>
           <Ico name="download" size={12} /> Xuất Excel
@@ -527,7 +594,7 @@ const LabQCV2: React.FC = () => {
           />
           <Pager page={page} setPage={setPage} totalPages={totalPages} total={filteredLots.length} perPage={PER} />
         </>
-      ) : (
+      ) : tab === 'results' ? (
         <>
           <DataTable<QCResult>
             columns={resCols} data={pagedRes} rowKey={(r) => r.id}
@@ -535,6 +602,14 @@ const LabQCV2: React.FC = () => {
             empty={loading ? 'Đang tải…' : 'Chưa có kết quả QC'}
           />
           <Pager page={page} setPage={setPage} totalPages={totalPages} total={filteredResults.length} perPage={PER} />
+        </>
+      ) : (
+        <>
+          <DataTable<QCReport>
+            columns={reportCols} data={pagedReports} rowKey={(r) => r.testCode}
+            empty={loading ? 'Đang tải…' : 'Chưa có báo cáo QC'}
+          />
+          <Pager page={page} setPage={setPage} totalPages={totalPages} total={filteredReports.length} perPage={PER} />
         </>
       )}
 

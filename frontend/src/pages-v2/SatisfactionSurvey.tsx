@@ -1,15 +1,22 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as file from '../services/file.service';
 import dayjs from 'dayjs';
-import { Form, Input } from 'antd';
-import { getSurveyResults, contactCallback, createCampaign, exportSurveys } from '../modules/survey/api/satisfactionSurvey';
-import type { CreateCampaignDto, ContactCallbackDto } from '../modules/survey/api/satisfactionSurvey';
+import { Form, Input, Select, Checkbox, Switch, InputNumber } from 'antd';
+import {
+  getSurveyResults, contactCallback, createCampaign, exportSurveys,
+  getTemplates, createTemplate, updateTemplate, deleteTemplate,
+  getConfig, updateConfig,
+} from '../modules/survey/api/satisfactionSurvey';
+import type {
+  CreateCampaignDto, ContactCallbackDto,
+  SurveyTemplate, SurveyQuestion, SurveyConfig,
+} from '../modules/survey/api/satisfactionSurvey';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
 import { downloadCsv, escapeCsvCell } from '../utils/csvExport';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  StatusTabs, DrawerShell, DrSec, DrField, ModalShell, tk, ti, tw, Ico,
-  type ColumnDef,
+  StatusTabs, TopTabs, DrawerShell, DrSec, DrField, ModalShell, tk, ti, tw, te, cf, Ico,
+  type ColumnDef, type TopTab,
 } from './_v2kit';
 
 interface SurveyResult {
@@ -36,7 +43,38 @@ const scoreKey = (s: number): ScoreKey => s >= 4 ? 'high' : s >= 3 ? 'mid' : 'lo
 const toneFor = (s: number): 'ok' | 'warn' | 'crit' | 'info' =>
   s >= 4.5 ? 'ok' : s >= 3.5 ? 'info' : s >= 2.5 ? 'warn' : 'crit';
 
+type ViewKey = 'results' | 'templates' | 'config';
+const VIEW_TABS: TopTab<ViewKey>[] = [
+  { v: 'results', l: 'Kết quả', ic: 'list' },
+  { v: 'templates', l: 'Mẫu khảo sát', ic: 'file-text' },
+  { v: 'config', l: 'Cấu hình', ic: 'settings' },
+];
+
+const TARGET_GROUPS = [
+  { value: 'outpatient', label: 'Ngoại trú' },
+  { value: 'inpatient', label: 'Nội trú' },
+  { value: 'all', label: 'Tất cả' },
+];
+
+const QUESTION_TYPES: { value: SurveyQuestion['type']; label: string }[] = [
+  { value: 'rating', label: 'Đánh giá 1-5 sao' },
+  { value: 'yesno', label: 'Có / Không' },
+  { value: 'text', label: 'Văn bản tự do' },
+  { value: 'multiple_choice', label: 'Chọn nhiều' },
+];
+
+const CHANNEL_OPTIONS = [
+  { label: 'SMS', value: 'sms' },
+  { label: 'Email', value: 'email' },
+  { label: 'Ứng dụng', value: 'app' },
+];
+
+const DEFAULT_SURVEY_CONFIG: SurveyConfig = {
+  autoSend: false, sendDelayHours: 24, channels: ['email'], reminderEnabled: false, reminderAfterHours: 48,
+};
+
 const SatisfactionSurveyV2: React.FC = () => {
+  const [view, setView] = useState<ViewKey>('results');
   const [items, setItems] = useState<SurveyResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -115,6 +153,102 @@ const SatisfactionSurveyV2: React.FC = () => {
       tk('Đã xuất CSV (dữ liệu hiển thị)');
     } finally { setCsvLoading(false); }
   };
+
+  // --- Mẫu khảo sát (template CRUD + question builder) ---
+  const [surveyTemplates, setSurveyTemplates] = useState<SurveyTemplate[]>([]);
+  const [tplLoading, setTplLoading] = useState(false);
+  const [tplModalOpen, setTplModalOpen] = useState(false);
+  const [editingTpl, setEditingTpl] = useState<SurveyTemplate | null>(null);
+  const [tplSaving, setTplSaving] = useState(false);
+  const [tplForm] = Form.useForm<{ name: string; description?: string; targetGroup: string }>();
+  const [tplQuestions, setTplQuestions] = useState<SurveyQuestion[]>([]);
+  const tplQCounterRef = useRef(0);
+
+  const loadTemplates = async () => {
+    setTplLoading(true);
+    try {
+      const res = await getTemplates();
+      setSurveyTemplates(normalizeArrayResponse<SurveyTemplate>(res.data));
+    } catch { setSurveyTemplates([]); ti('Không tải được mẫu khảo sát'); }
+    finally { setTplLoading(false); }
+  };
+
+  const openTplModal = (t?: SurveyTemplate) => {
+    if (t) {
+      setEditingTpl(t);
+      tplForm.setFieldsValue({ name: t.name, description: t.description, targetGroup: t.targetGroup });
+      setTplQuestions(t.questions || []);
+    } else {
+      setEditingTpl(null);
+      tplForm.resetFields();
+      setTplQuestions([]);
+    }
+    setTplModalOpen(true);
+  };
+
+  const addTplQuestion = () => {
+    tplQCounterRef.current += 1;
+    setTplQuestions((qs) => [...qs, { id: `q_${Date.now()}_${tplQCounterRef.current}`, text: '', type: 'rating', required: true }]);
+  };
+  const updateTplQuestion = (id: string, patch: Partial<SurveyQuestion>) =>
+    setTplQuestions((qs) => qs.map((q) => (q.id === id ? { ...q, ...patch } : q)));
+  const removeTplQuestion = (id: string) => setTplQuestions((qs) => qs.filter((q) => q.id !== id));
+
+  const submitTemplate = async () => {
+    try {
+      const v = await tplForm.validateFields();
+      if (!tplQuestions.some((q) => q.text.trim())) { tw('Cần ít nhất 1 câu hỏi có nội dung'); return; }
+      setTplSaving(true);
+      const payload: Partial<SurveyTemplate> = {
+        name: v.name, description: v.description, targetGroup: v.targetGroup,
+        questions: tplQuestions, status: 'active',
+      };
+      if (editingTpl) {
+        await updateTemplate(editingTpl.id, payload);
+        tk('Đã cập nhật mẫu khảo sát');
+      } else {
+        await createTemplate(payload);
+        tk('Đã tạo mẫu khảo sát');
+      }
+      setTplModalOpen(false);
+      loadTemplates();
+    } catch { tw('Lưu mẫu khảo sát thất bại'); }
+    finally { setTplSaving(false); }
+  };
+
+  const removeTemplate = (t: SurveyTemplate) => {
+    cf(`Xóa mẫu khảo sát "${t.name}"?`, async () => {
+      try { await deleteTemplate(t.id); tk('Đã xóa mẫu khảo sát'); loadTemplates(); }
+      catch { te('Xóa mẫu khảo sát thất bại'); }
+    }, { title: 'Xác nhận xóa mẫu', tone: 'crit', confirm: 'Xóa' });
+  };
+
+  // --- Cấu hình gửi khảo sát ---
+  const [config, setConfig] = useState<SurveyConfig>(DEFAULT_SURVEY_CONFIG);
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configSaving, setConfigSaving] = useState(false);
+
+  const loadConfig = async () => {
+    setConfigLoading(true);
+    try {
+      const res = await getConfig();
+      if (res.data) setConfig(res.data);
+    } catch { ti('Không tải được cấu hình khảo sát'); }
+    finally { setConfigLoading(false); }
+  };
+
+  const saveConfig = async () => {
+    setConfigSaving(true);
+    try { await updateConfig(config); tk('Đã lưu cấu hình khảo sát'); }
+    catch { te('Lưu cấu hình thất bại'); }
+    finally { setConfigSaving(false); }
+  };
+
+  useEffect(() => {
+    if (view === 'templates') loadTemplates();
+    if (view === 'config') loadConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
 
   const load = async () => {
     setLoading(true);
@@ -213,6 +347,28 @@ const SatisfactionSurveyV2: React.FC = () => {
     </div>
   );
 
+  const tplCols: ColumnDef<SurveyTemplate>[] = [
+    { key: 'name', label: 'Tên mẫu', render: (t) => (
+      <div style={{ fontWeight: 600, color: 'var(--t-0)' }}>{t.name}</div>
+    ) },
+    { key: 'target', label: 'Đối tượng', render: (t) =>
+      TARGET_GROUPS.find((g) => g.value === t.targetGroup)?.label || t.targetGroup || '—' },
+    { key: 'qcount', label: 'Số câu hỏi', mono: true, render: (t) => t.questions?.length || 0 },
+    { key: 'status', label: 'Trạng thái', render: (t) => (
+      <StatusBadge tone={t.status === 'active' ? 'ok' : 'info'} dot>
+        {t.status === 'active' ? 'Hoạt động' : 'Ngừng'}
+      </StatusBadge>
+    ) },
+    { key: 'created', label: 'Ngày tạo', mono: true, render: (t) => t.createdAt ? dayjs(t.createdAt).format('DD/MM/YYYY') : '—' },
+  ];
+
+  const tplActions = (t: SurveyTemplate) => (
+    <div className="ab-actions">
+      <ActBtn ic="edit" title="Sửa" onClick={() => openTplModal(t)} />
+      <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => removeTemplate(t)} />
+    </div>
+  );
+
   return (
     <div className="ab">
       <KpiStrip items={[
@@ -224,6 +380,9 @@ const SatisfactionSurveyV2: React.FC = () => {
         { lbl: 'NPS-like', val: `${npsLike}%`, sub: 'điểm thuần', tone: npsLike >= 50 ? 'ok' : npsLike >= 0 ? 'warn' : 'crit' },
       ]} />
 
+      <TopTabs<ViewKey> tab={view} setTab={setView} tabs={VIEW_TABS} />
+
+      {view === 'results' && <>
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm BN / mẫu khảo sát…" />
         <Filter value={fTmpl} onChange={setFTmpl} options={templates} placeholder="▾ Mẫu khảo sát" />
@@ -273,6 +432,82 @@ const SatisfactionSurveyV2: React.FC = () => {
         empty={loading ? 'Đang tải…' : 'Chưa có phản hồi khảo sát'}
       />
       <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
+      </>}
+
+      {view === 'templates' && <>
+      <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
+        <span style={{ color: 'var(--t-1)', fontWeight: 600 }}>Mẫu khảo sát ({surveyTemplates.length})</span>
+        <span className="spacer" />
+        <Btn variant="ghost" onClick={loadTemplates} disabled={tplLoading}>
+          <Ico name="refresh" size={12} /> Làm mới
+        </Btn>
+        <Btn variant="primary" onClick={() => openTplModal()}>
+          <Ico name="plus" size={12} /> Thêm mẫu mới
+        </Btn>
+      </div>
+      <DataTable<SurveyTemplate>
+        columns={tplCols} data={surveyTemplates} rowKey={(t) => t.id}
+        actions={tplActions}
+        empty={tplLoading ? 'Đang tải…' : 'Chưa có mẫu khảo sát'}
+      />
+      </>}
+
+      {view === 'config' && (
+        <div style={{ padding: 'var(--space-16)', maxWidth: 560 }}>
+          <Form layout="vertical">
+            <Form.Item label="Tự động gửi khảo sát sau khi ra viện">
+              <Switch
+                checked={config.autoSend}
+                onChange={(checked) => setConfig((c) => ({ ...c, autoSend: checked }))}
+                checkedChildren="Bật"
+                unCheckedChildren="Tắt"
+              />
+            </Form.Item>
+            <Form.Item label="Thời gian gửi sau khi ra viện (giờ)">
+              <InputNumber
+                min={1}
+                max={168}
+                value={config.sendDelayHours}
+                onChange={(val) => setConfig((c) => ({ ...c, sendDelayHours: val ?? 24 }))}
+                style={{ width: 160 }}
+              />
+            </Form.Item>
+            <Form.Item label="Kênh gửi khảo sát">
+              <Checkbox.Group
+                options={CHANNEL_OPTIONS}
+                value={config.channels}
+                onChange={(vals) => setConfig((c) => ({ ...c, channels: vals as string[] }))}
+              />
+            </Form.Item>
+            <Form.Item label="Gửi nhắc lại">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-10)' }}>
+                <Switch
+                  checked={config.reminderEnabled}
+                  onChange={(checked) => setConfig((c) => ({ ...c, reminderEnabled: checked }))}
+                  checkedChildren="Bật"
+                  unCheckedChildren="Tắt"
+                />
+                {config.reminderEnabled && <>
+                  <span style={{ color: 'var(--t-1)' }}>Sau</span>
+                  <InputNumber
+                    min={1}
+                    max={168}
+                    value={config.reminderAfterHours}
+                    onChange={(val) => setConfig((c) => ({ ...c, reminderAfterHours: val ?? 48 }))}
+                    style={{ width: 100 }}
+                  />
+                  <span style={{ color: 'var(--t-1)' }}>giờ</span>
+                </>}
+              </div>
+            </Form.Item>
+            <Form.Item>
+              <Btn variant="primary" onClick={saveConfig} disabled={configSaving || configLoading}>
+                <Ico name="check" size={12} /> {configSaving ? 'Đang lưu…' : 'Lưu cấu hình'}
+              </Btn>
+            </Form.Item>
+          </Form>
+        </div>
+      )}
 
       <DrawerShell
         open={!!sel}
@@ -380,6 +615,87 @@ const SatisfactionSurveyV2: React.FC = () => {
             <Input.TextArea rows={2} placeholder="Đã giải thích / hẹn gặp / chuyển khoa…" />
           </Form.Item>
         </Form>
+      </ModalShell>
+
+      {/* Modal tạo/sửa mẫu khảo sát + question builder */}
+      <ModalShell
+        open={tplModalOpen}
+        onClose={() => setTplModalOpen(false)}
+        size="lg"
+        title={editingTpl ? 'Sửa mẫu khảo sát' : 'Thêm mẫu khảo sát mới'}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setTplModalOpen(false)}>Hủy</Btn>
+          <Btn onClick={addTplQuestion}>
+            <Ico name="plus" size={12} /> Thêm câu hỏi
+          </Btn>
+          <Btn variant="primary" onClick={submitTemplate} disabled={tplSaving}>
+            <Ico name="check" size={12} /> {tplSaving ? 'Đang lưu…' : 'Lưu mẫu'}
+          </Btn>
+        </>}
+      >
+        <Form form={tplForm} layout="vertical">
+          <Form.Item name="name" label="Tên mẫu" rules={[{ required: true, message: 'Nhập tên mẫu khảo sát' }]}>
+            <Input placeholder="VD: Khảo sát ngoại trú tháng 7/2026" />
+          </Form.Item>
+          <Form.Item name="description" label="Mô tả">
+            <Input.TextArea rows={2} placeholder="Mô tả ngắn về mẫu khảo sát…" />
+          </Form.Item>
+          <Form.Item name="targetGroup" label="Đối tượng" rules={[{ required: true, message: 'Chọn đối tượng khảo sát' }]}>
+            <Select options={TARGET_GROUPS} placeholder="Chọn đối tượng khảo sát" />
+          </Form.Item>
+        </Form>
+
+        <div style={{ marginTop: 'var(--space-12)' }}>
+          <div style={{ fontWeight: 600, color: 'var(--t-0)', marginBottom: 'var(--space-8)' }}>
+            Danh sách câu hỏi ({tplQuestions.length})
+          </div>
+          {tplQuestions.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 'var(--space-16)', color: 'var(--t-2)', border: '1px dashed var(--line)', borderRadius: 'var(--r-2)' }}>
+              Chưa có câu hỏi — nhấn "Thêm câu hỏi" để bắt đầu
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
+              {tplQuestions.map((q, i) => (
+                <div key={q.id} style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 'var(--space-10)' }}>
+                  <div style={{ display: 'flex', gap: 'var(--space-8)', alignItems: 'center' }}>
+                    <Input
+                      style={{ flex: 1 }}
+                      placeholder={`Nội dung câu hỏi ${i + 1}`}
+                      value={q.text}
+                      onChange={(e) => updateTplQuestion(q.id, { text: e.target.value })}
+                    />
+                    <Select
+                      style={{ width: 168 }}
+                      value={q.type}
+                      onChange={(v) => updateTplQuestion(q.id, { type: v })}
+                      options={QUESTION_TYPES}
+                    />
+                    <Checkbox
+                      checked={q.required}
+                      onChange={(e) => updateTplQuestion(q.id, { required: e.target.checked })}
+                    >
+                      Bắt buộc
+                    </Checkbox>
+                    <Btn variant="ghost" onClick={() => removeTplQuestion(q.id)}>
+                      <Ico name="x" size={12} />
+                    </Btn>
+                  </div>
+                  {q.type === 'multiple_choice' && (
+                    <div style={{ marginTop: 'var(--space-8)' }}>
+                      <Select
+                        mode="tags"
+                        style={{ width: '100%' }}
+                        placeholder="Nhập lựa chọn rồi Enter…"
+                        value={q.options || []}
+                        onChange={(vals) => updateTplQuestion(q.id, { options: vals as string[] })}
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </ModalShell>
     </div>
   );

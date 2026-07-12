@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { message } from 'antd';
 import {
-  searchMethadonePatients, updatePatient, recordDose, recordUrineTest, getDosingHistory,
+  searchMethadonePatients, updatePatient, recordDose, recordUrineTest, getDosingHistory, enrollPatient,
 } from '../modules/public-health/api/methadone';
 import type { MethadonePatient, DoseRecord } from '../modules/public-health/api/methadone';
 import { normalizeArrayResponse } from '../utils/apiNormalize';
@@ -11,6 +11,25 @@ import {
   DrawerShell, ModalShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from './_v2kit';
+
+// Đăng ký BN mới vào chương trình Methadone (enrollPatient). Liều khởi đầu 5-200mg — port verbatim từ v1 (InputNumber min={5} max={200}).
+const ENROLL_FIELDS: CrudFieldCfg[] = [
+  { key: 'patientName', label: 'Họ tên', required: true, placeholder: 'Họ và tên bệnh nhân' },
+  { key: 'gender', label: 'Giới tính', type: 'select', options: [
+    { value: 1, label: 'Nam' }, { value: 2, label: 'Nữ' }] },
+  { key: 'dateOfBirth', label: 'Ngày sinh', type: 'date' },
+  { key: 'address', label: 'Địa chỉ' },
+  { key: 'phone', label: 'Số điện thoại' },
+  { key: 'enrollmentDate', label: 'Ngày đăng ký', type: 'date', required: true },
+  { key: 'currentDose', label: 'Liều khởi đầu (mg)', type: 'number', required: true, placeholder: 'mg', rules: [
+    { required: true, message: 'Nhập liều khởi đầu' },
+    { validator: (_: unknown, value: number) => (value === undefined || value === null || (value >= 5 && value <= 200))
+        ? Promise.resolve() : Promise.reject(new Error('Liều khởi đầu hợp lệ: 5-200mg')) },
+  ] },
+  { key: 'doseType', label: 'Hình thức uống', type: 'select', required: true, options: [
+    { value: 'witnessed', label: 'Uống tại chỗ' }, { value: 'takeHome', label: 'Mang về' }] },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea', placeholder: 'Tiền sử, ghi chú...' },
+];
 
 // Edit thông tin điều trị (updatePatient). Tránh field 'phase' do drift int/string ở DB.
 const MTD_FIELDS: CrudFieldCfg[] = [
@@ -117,6 +136,9 @@ const MethadoneTreatmentV2: React.FC = () => {
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
   const openEdit = (r: MethadonePatient) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
+
+  // ── Đăng ký BN mới ───────────────────────────────────────────────────────
+  const [enrollOpen, setEnrollOpen] = useState(false);
 
   // ── Cấp liều ──────────────────────────────────────────────────────────────
   const [doseTarget, setDoseTarget] = useState<MethadonePatient | null>(null);
@@ -241,6 +263,9 @@ const MethadoneTreatmentV2: React.FC = () => {
         }}>
           <Ico name="check" size={12} /> Cấp liều
         </Btn>
+        <Btn variant="primary" onClick={() => setEnrollOpen(true)}>
+          <Ico name="user-plus" size={12} /> Đăng ký BN mới
+        </Btn>
       </div>
 
       <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
@@ -319,6 +344,21 @@ const MethadoneTreatmentV2: React.FC = () => {
         onSubmit={async (v) => {
           if (crudInit?.id) await updatePatient(String(crudInit.id), v);
           tk('Đã cập nhật điều trị');
+          load();
+        }}
+      />
+
+      {/* ── Đăng ký BN mới ── */}
+      <CrudModal
+        open={enrollOpen}
+        onClose={() => setEnrollOpen(false)}
+        title="Đăng ký bệnh nhân Methadone"
+        fields={ENROLL_FIELDS}
+        initial={null}
+        size="lg"
+        onSubmit={async (v) => {
+          await enrollPatient(v);
+          tk('Đã đăng ký bệnh nhân Methadone');
           load();
         }}
       />
