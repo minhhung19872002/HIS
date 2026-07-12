@@ -5,13 +5,13 @@ import { lazy } from 'react';
 
 // --- clinical group ---
 export const ReceptionV2 = lazy(() => import('../../modules/reception/pages/Reception'));
-export const OPDV2 = lazy(() => import('../../pages-v2/OPD'));
+export const OPDV2 = lazy(() => import('../../modules/reception/pages/OPD'));
 export const OpdEditorV2 = lazy(() => import('../../pages-v2/OpdEditor'));
 export const InpatientV2 = lazy(() => import('../../modules/inpatient/pages/Inpatient'));
 export const PrescriptionV2 = lazy(() => import('../../pages-v2/Prescription'));
 export const PrescriptionEditorV2 = lazy(() => import('../../pages-v2/PrescriptionEditor'));
 export const SurgeryV2 = lazy(() => import('../../modules/surgery/pages/Surgery'));
-export const EMRV2 = lazy(() => import('../../pages-v2/EMR'));
+export const EMRV2 = lazy(() => import('../../modules/opd/pages/EMR'));
 export const EmrEditorV2 = lazy(() => import('../../pages-v2/EmrEditor'));
 export const EmrExtractV2 = lazy(() => import('../../pages-v2/EmrExtract'));
 export const EmrDataTagsV2 = lazy(() => import('../../modules/emr/pages/EmrDataTags'));
@@ -45,7 +45,7 @@ export const RehabilitationV2 = lazy(() => import('../../pages-v2/Rehabilitation
 export const TraditionalMedicineV2 = lazy(() => import('../../modules/traditional-medicine/pages/TraditionalMedicine'));
 export const PharmacyCatalogsV2 = lazy(() => import('../../modules/administration/pages/PharmacyCatalogs'));
 export const DispensingCounterV2 = lazy(() => import('../../pages-v2/DispensingCounter'));
-export const ClinicalPharmacyCheckV2 = lazy(() => import('../../pages-v2/ClinicalPharmacyCheck'));
+export const ClinicalPharmacyCheckV2 = lazy(() => import('../../modules/opd/pages/ClinicalPharmacyCheck'));
 export const InpatientDispensingV2 = lazy(() => import('../../modules/pharmacy/pages/InpatientDispensing'));
 export const StockReportV2 = lazy(() => import('../../modules/pharmacy/pages/StockReport'));
 export const OfficeSupplyApprovalV2 = lazy(() => import('../../modules/pharmacy/pages/OfficeSupplyApproval'));

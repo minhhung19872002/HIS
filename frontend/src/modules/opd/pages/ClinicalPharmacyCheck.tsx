@@ -1,11 +1,11 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { fmtNum as fmt } from '../utils/format';
+import { fmtNum as fmt } from '../../../utils/format';
 import dayjs from 'dayjs';
-import apiClient from '../services/apiClient';
-import { importDrugInteractionsCsv, type DrugInteractionImportResult } from '../modules/opd/api/examination';
+import apiClient from '../../../services/apiClient';
+import { importDrugInteractionsCsv, type DrugInteractionImportResult } from '../api/examination';
 import {
   KpiStrip, SearchBox, StatusBadge, Btn, Ico, tk, ti, tw,
-} from './_v2kit';
+} from '../../../pages-v2/_v2kit';
 
 interface PharmacyCheckData {
   patient: {

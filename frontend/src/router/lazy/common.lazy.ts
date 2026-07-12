@@ -6,5 +6,5 @@ import { lazy } from 'react';
 export const ModuleIndex = lazy(() => import('../../pages-v2/ModuleIndex'));
 export const DashboardV2 = lazy(() => import('../../pages-v2/Dashboard'));
 export const Dashboard3CapV2 = lazy(() => import('../../modules/administration/pages/Dashboard3Cap'));
-export const HelpV2 = lazy(() => import('../../pages-v2/Help'));
+export const HelpV2 = lazy(() => import('../../modules/radiology/pages/Help'));
 export const SatisfactionSurveyV2 = lazy(() => import('../../pages-v2/SatisfactionSurvey'));

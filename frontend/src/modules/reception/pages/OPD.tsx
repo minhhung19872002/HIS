@@ -2,11 +2,11 @@ import React from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import * as receptionApi from '../modules/reception/api/reception';
-import type { AdmissionDto } from '../modules/reception/api/reception';
-import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from './_v2kit';
-import TermIcon from '../layouts/terminal/Icon';
-import * as pdf from '../api/pdf';
+import * as receptionApi from '../api/reception';
+import type { AdmissionDto } from '../api/reception';
+import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from '../../../pages-v2/_v2kit';
+import TermIcon from '../../../layouts/terminal/Icon';
+import * as pdf from '../../../api/pdf';
 
 /* Khám bệnh OPD v2 — list shell.
    Form khám đầy đủ (vital signs, history, exam, CĐ, CLS) là native v2 tại

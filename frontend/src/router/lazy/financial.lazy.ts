@@ -5,7 +5,7 @@ import { lazy } from 'react';
 
 export const BillingV2 = lazy(() => import('../../modules/billing/pages/Billing'));
 export const BillingEditorV2 = lazy(() => import('../../modules/billing/pages/BillingEditor'));
-export const FinanceV2 = lazy(() => import('../../pages-v2/Finance'));
+export const FinanceV2 = lazy(() => import('../../modules/reports/pages/Finance'));
 export const InsuranceV2 = lazy(() => import('../../modules/insurance/pages/Insurance'));
 export const BhytFullCoverageV2 = lazy(() => import('../../modules/insurance/pages/BhytFullCoverage'));
 export const BhxhAuditV2 = lazy(() => import('../../modules/insurance/pages/BhxhAudit'));

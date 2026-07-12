@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import risApi from '../modules/radiology/api/ris';
-import type { HelpCategoryDto, HelpArticleDto, TroubleshootingDto } from '../modules/radiology/api/ris';
+import risApi from '../api/ris';
+import type { HelpCategoryDto, HelpArticleDto, TroubleshootingDto } from '../api/ris';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, ti, Ico,
   type ColumnDef,
-} from './_v2kit';
+} from '../../../pages-v2/_v2kit';
 
 type Tab = 'articles' | 'categories' | 'troubleshooting';
 const TABS = [

@@ -5,7 +5,7 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-12** — **cửa components-restructure: wave-4 STRICT-relocate ✅ PUSHED (commit này). cửa 368-authz2: ✅ PUSHED `edcbb78`. cửa 409-batch3: IN PROGRESS (Consultation/InfectionControl/Telemedicine/TrainingResearch/Equipment). ⚠️ 409-batch3 cần dùng modules/training/pages/+modules/asset/pages/ (wave-4 đã dời TrainingResearch+Equipment+AssetManagement về đó).**
+> Cập nhật cuối: **2026-07-12** — **cửa components-restructure: wave-5 ✅ PUSHED (commit này); wave-4 ✅ PUSHED `287a711`. cửa 368-authz2: ✅ PUSHED `edcbb78`. cửa 409-batch3: ✅ PUSHED `f594867`.**
 
 ## Phiên 2026-07-12 (cửa 409-batch3 — #409 5 trang batch-3, IN PROGRESS)
 - **#409 [PORT-P3][FE] sub-scope batch-3** (lock `409-batch3`): port 5 trang build-only — Consultation + InfectionControl + Telemedicine (`pages-v2/`) + TrainingResearch (`modules/training/pages/`) + Equipment (`modules/asset/pages/`). 5 agent đang chạy song song. Chờ kết quả + verify tsc + worktree push theo thứ tự: wave-4 push trước → batch-3 sau.
@@ -18,8 +18,7 @@
   - Gate: `tsc -b --noEmit` EXIT 0 · verify A) 90/90 content-equiv PASS · B) 1017 stale-ref PASS
   - **5 trang WIP reverted về pages-v2/** (on-disk nhiều dòng hơn HEAD → cửa 409-batch2 owns): Epidemiology · LabQC · MethadoneTreatment · Rehabilitation · SatisfactionSurvey
   - **Deferred (không move wave-4):** 9 name-conflict (Help/OPD/EMR/Consultation/RadiologyOps/DispensingCounter/ClinicalPharmacyCheck/DoctorPortal/Finance) · 18 multi-module · 30 no-api — pages-v2/ giữ
-  - **LOCAL commit** — CHỜ push qua worktree cô lập tại `origin/main` (`e8ce769`)
-  - Gom cùng push: hook `useSafetyAlerts → modules/patient/hooks` (`3d96be2` local)
+  - **✅ PUSHED `287a711`** — hook `0a72e27` + wave-4 `287a711` lên origin/main (cherry-pick qua worktree; STATUS conflict resolve = take theirs + sửa header)
 
 ## Phiên 2026-07-12 (cửa 368-authz2 — #368 AUTHZ-2 backend, DONE-code CHỜ push)
 - **#368 [AUTHZ-2][P1] backend increment DONE** (lock `368-authz2`): RefreshTokens thật + rotation + reuse-detection + SecurityStamp revoke tức thời. **100% backward-compatible** (token cũ không có claim → grace-accept; LoginResponseDto giữ nguyên shape).

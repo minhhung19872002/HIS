@@ -2,12 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp, Modal, Form, Input, Select, Table, Button, Tag, Popconfirm } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../services/apiClient';
-import { getEmrRecords } from '../modules/opd/api/examination';
-import type { EmrRecordDto } from '../modules/opd/api/examination';
-import { SimpleV2Page, ActBtn, Btn, type ColumnDef } from './_v2kit';
-import TermIcon from '../layouts/terminal/Icon';
-import * as pdf from '../api/pdf';
+import apiClient from '../../../services/apiClient';
+import { getEmrRecords } from '../api/examination';
+import type { EmrRecordDto } from '../api/examination';
+import { SimpleV2Page, ActBtn, Btn, type ColumnDef } from '../../../pages-v2/_v2kit';
+import TermIcon from '../../../layouts/terminal/Icon';
+import * as pdf from '../../../api/pdf';
 
 // ── Mẫu HSBA (ClinicalTemplate) ─────────────────────────────────────────────
 interface ClinicalTemplateDto {

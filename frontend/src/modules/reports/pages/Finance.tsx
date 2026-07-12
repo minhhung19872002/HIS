@@ -1,16 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Input } from 'antd';
 import dayjs from 'dayjs';
-import { financeApi, type RevenueByServiceDto } from '../modules/system/api/system';
-import hospitalReportApi, { type HospitalReportResult } from '../modules/reports/api/hospitalReport';
-import { exportToExcel, type ExcelColumn, formatVnd } from '../utils/excelExport';
-import { downloadCsv, escapeCsvCell } from '../utils/csvExport';
-import { exportToPdf } from '../modules/reports/api/reporting';
+import { financeApi, type RevenueByServiceDto } from '../../system/api/system';
+import hospitalReportApi, { type HospitalReportResult } from '../api/hospitalReport';
+import { exportToExcel, type ExcelColumn, formatVnd } from '../../../utils/excelExport';
+import { downloadCsv, escapeCsvCell } from '../../../utils/csvExport';
+import { exportToPdf } from '../api/reporting';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, fmtVNDg, tk, ti, te, Ico,
   type ColumnDef,
-} from './_v2kit';
+} from '../../../pages-v2/_v2kit';
 
 type Row = RevenueByServiceDto & { id: string };
 

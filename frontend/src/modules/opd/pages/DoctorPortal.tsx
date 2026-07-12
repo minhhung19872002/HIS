@@ -1,9 +1,9 @@
 import React from 'react';
 import dayjs from 'dayjs';
-import { searchExaminations } from '../modules/opd/api/examination';
-import type { ExaminationDto } from '../modules/opd/api/examination';
-import { SimpleV2Page, StatusBadge, type ColumnDef, type StatusTab } from './_v2kit';
-import TermIcon from '../layouts/terminal/Icon';
+import { searchExaminations } from '../api/examination';
+import type { ExaminationDto } from '../api/examination';
+import { SimpleV2Page, StatusBadge, type ColumnDef, type StatusTab } from '../../../pages-v2/_v2kit';
+import TermIcon from '../../../layouts/terminal/Icon';
 
 type StatusKey = 'waiting' | 'inProgress' | 'waitingResult' | 'concluding' | 'completed';
 const STATUS_TABS: StatusTab<StatusKey>[] = [
