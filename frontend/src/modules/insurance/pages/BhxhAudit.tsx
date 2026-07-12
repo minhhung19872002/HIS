@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as file from '../../../services/file.service';
 import dayjs from 'dayjs';
-import { App as AntdApp } from 'antd';
+import { App as AntdApp, DatePicker } from 'antd';
 import {
   getAuditSessions,
   approveAuditSession,
@@ -17,11 +17,23 @@ import {
 } from '../api/bhxhAudit';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import { openPrintWindow } from '../../../utils/printWindow';
+import { isApiAvailable } from '../../../utils/apiAvailability';
+import { HOSPITAL_NAME } from '../../../constants/hospital';
 import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  StatusTabs, DrawerShell, DrSec, DrField, fmtVNDg, ti, Ico,
+  StatusTabs, DrawerShell, DrSec, DrField, LoadingState, fmtVNDg, ti, Ico,
   type ColumnDef,
 } from '../../../pages-v2/_v2kit';
+
+const { RangePicker } = DatePicker;
+
+// TODO(#409): các tính năng v1 (pages/BhxhAudit.tsx) CHƯA port được vì api chưa relocate vào modules/insurance/api:
+//  - Tab "Cổng giám định": quản lý tài khoản giám định viên (GET/POST /bhxh-audit/auditor-accounts),
+//    danh sách hồ sơ trên cổng (GET /bhxh-audit/records) + xem/tải PDF hồ sơ (/bhxh-audit/records/{id}/pdf).
+//  - Duyệt hàng loạt 1 call (POST /bhxh-audit/approve {recordIds}) — v2 giữ duyệt từng hồ sơ (approveAuditSession).
+//  - Import Excel preview/confirm (POST /bhxh-audit/import-excel) — v2 đã có import CSV (/bhxh-audit/import-csv, #97/#121/#122).
+//  - Nguồn danh sách server-filter (GET /insurance-xml/claims/search) + danh mục khoa (GET /catalog/departments)
+//    + gửi cổng theo selection (POST /insurance-xml/submit) — v2 dùng getAuditSessions + submitBatch + filter client-side.
 
 interface AuditRecord {
   id: string;
@@ -40,6 +52,10 @@ interface AuditRecord {
   auditStatus: number;
   paymentStatus: number;
   sentToPortal: boolean;
+  sentDate?: string;
+  approvedDate?: string;
+  rejectReason?: string;
+  auditorNote?: string;
 }
 
 const PER = 18;
@@ -52,6 +68,19 @@ const STATUS_TABS = [
 ];
 
 const auditKey = (n: number): AuditKey => n === 1 ? 'approved' : n === 2 ? 'rejected' : 'pending';
+
+// Trạng thái thanh toán — status-mapping verbatim từ v1 getPaymentStatusTag (0=chưa TT · 1=đã TT · khác=không xác định)
+const paymentBadge = (status: number) => {
+  switch (status) {
+    case 0: return <StatusBadge tone="warn" dot>Chưa thanh toán</StatusBadge>;
+    case 1: return <StatusBadge tone="ok" dot>Đã thanh toán</StatusBadge>;
+    default: return <StatusBadge tone="info">Không xác định</StatusBadge>;
+  }
+};
+
+// formatVND — verbatim từ v1 (dùng cho bản in danh sách)
+const formatVND = (amount: number): string =>
+  new Intl.NumberFormat('vi-VN').format(amount) + ' VND';
 
 // Import tab status tabs
 type ImportTabKey = 'all' | 'chuaDuyet' | 'daDuyet' | 'tuChoi';
@@ -73,6 +102,11 @@ const BhxhAuditV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<AuditRecord | null>(null);
   const [approveLoading, setApproveLoading] = useState<string | null>(null);
+  // Availability gate + filter mở rộng — port từ v1
+  const [moduleAvailable, setModuleAvailable] = useState(true);
+  const [availabilityLoading, setAvailabilityLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+  const [fPayment, setFPayment] = useState<number | undefined>(undefined);
 
   // --- Import tab state ---
   const [activeMainTab, setActiveMainTab] = useState<'sessions' | 'import'>('sessions');
@@ -145,6 +179,8 @@ const BhxhAuditV2: React.FC = () => {
         totalAmount?: number; insuranceAmount?: number; patientAmount?: number;
         auditStatus?: number; paymentStatus?: number;
         sentToPortal?: boolean;
+        sentDate?: string; submitDate?: string; approvedDate?: string;
+        rejectReason?: string; auditorNote?: string;
       }
       const data = normalizeArrayResponse<RawAuditRow>(res.data);
       const rows: AuditRecord[] = data.map((r, i) => ({
@@ -164,12 +200,32 @@ const BhxhAuditV2: React.FC = () => {
         auditStatus: r.auditStatus ?? 0,
         paymentStatus: r.paymentStatus ?? 0,
         sentToPortal: r.sentToPortal ?? false,
+        sentDate: r.sentDate || r.submitDate, // alias verbatim từ v1 (sentDate || submitDate)
+        approvedDate: r.approvedDate,
+        rejectReason: r.rejectReason,
+        auditorNote: r.auditorNote,
       }));
       setItems(rows);
     } catch { setItems([]); ti('Không tải được hồ sơ giám định BHYT'); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  // Availability gate — verbatim từ v1: backend chưa có /api/bhxh-audit/* thì không gọi API (tránh lỗi 404)
+  useEffect(() => {
+    const checkAvailability = async () => {
+      setAvailabilityLoading(true);
+      const available = await isApiAvailable('/bhxh-audit/sessions');
+      setModuleAvailable(available);
+      if (available) load();
+      setAvailabilityLoading(false);
+    };
+    checkAvailability();
+    /* eslint-disable-next-line */
+  }, []);
+
+  // Toggle filter thanh toán — verbatim từ v1 handleFilterByPaymentStatus (bấm lại nút đang chọn để bỏ lọc)
+  const handleFilterByPaymentStatus = (status: number | undefined) => {
+    setFPayment(prev => (prev === status ? undefined : status));
+  };
 
   const handleApprove = (r: AuditRecord) => {
     let notes = '';
@@ -296,10 +352,17 @@ const BhxhAuditV2: React.FC = () => {
     return items.filter((r) => {
       if (stab !== 'all' && auditKey(r.auditStatus) !== stab) return false;
       if (fDept && r.departmentName !== fDept) return false;
+      // Filter thanh toán + khoảng ngày vào viện — điều kiện verbatim từ v1 getFilteredRecords
+      if (fPayment !== undefined && r.paymentStatus !== fPayment) return false;
+      if (dateRange) {
+        const [from, to] = dateRange;
+        const d = dayjs(r.admissionDate);
+        if (!(d.isAfter(from.startOf('day').subtract(1, 'ms')) && d.isBefore(to.endOf('day').add(1, 'ms')))) return false;
+      }
       if (!k) return true;
       return [r.patientName, r.maLk, r.insuranceNumber, r.patientCode].some((v) => (v || '').toLowerCase().includes(k));
     });
-  }, [items, search, stab, fDept]);
+  }, [items, search, stab, fDept, fPayment, dateRange]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);
@@ -307,6 +370,55 @@ const BhxhAuditV2: React.FC = () => {
   const totalIns = items.reduce((s, r) => s + (r.insuranceAmount || 0), 0);
   // totalAmt removed - không dùng trong KPI strip hiện tại (chỉ hiển thị totalIns)
   const sentCount = items.filter((r) => r.sentToPortal).length;
+
+  // In danh sách hồ sơ theo bộ lọc hiện tại — HTML + status-text verbatim từ v1 handlePrintList
+  const handlePrintList = () => {
+    const rows = filtered
+      .map(
+        (r, idx) => `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${r.maLk}</td>
+          <td>${r.patientName}</td>
+          <td>${r.insuranceNumber}</td>
+          <td>${r.diagnosisCode}</td>
+          <td style="text-align:right">${formatVND(r.totalAmount)}</td>
+          <td style="text-align:right">${formatVND(r.insuranceAmount)}</td>
+          <td>${r.auditStatus === 1 ? 'Đã duyệt' : r.auditStatus === 2 ? 'Từ chối' : 'Chưa duyệt'}</td>
+        </tr>`
+      )
+      .join('');
+
+    openPrintWindow(`
+      <html><head><title>Danh sách hồ sơ giám định BHXH</title>
+      <style>
+        body { font-family: 'Times New Roman', serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border: 1px solid #333; padding: 4px 6px; }
+        th { background: #f0f0f0; }
+        h2 { text-align: center; }
+        .header { text-align: center; margin-bottom: 20px; }
+      </style></head><body>
+        <div class="header">
+          <p>${HOSPITAL_NAME}</p>
+          <h2>DANH SÁCH HỒ SƠ GỬI GIÁM ĐỊNH BHXH</h2>
+          <p>Ngày in: ${dayjs().format('DD/MM/YYYY HH:mm')}</p>
+        </div>
+        <table>
+          <thead><tr>
+            <th>STT</th><th>Mã liên kết</th><th>Họ tên BN</th>
+            <th>Số thẻ BHYT</th><th>Mã bệnh</th><th>Tổng chi phí</th>
+            <th>BHYT chi trả</th><th>Trạng thái</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div style="margin-top:30px;text-align:right">
+          <p><strong>Người in</strong></p><br/><br/>
+          <p>____________________</p>
+        </div>
+      </body></html>
+    `, { print: 'immediate', onBlocked: () => message.error('Trình duyệt chặn popup — cho phép popup để in') });
+  };
 
   const cols: ColumnDef<AuditRecord>[] = [
     { key: 'malk', label: 'Mã LK', code: true, render: (r) => r.maLk || '—' },
@@ -317,6 +429,8 @@ const BhxhAuditV2: React.FC = () => {
       </div>
     ) },
     { key: 'bhyt', label: 'Số BHYT', mono: true, render: (r) => r.insuranceNumber },
+    { key: 'adm', label: 'Ngày vào', render: (r) => r.admissionDate ? dayjs(r.admissionDate).format('DD/MM/YYYY') : '—' },
+    { key: 'dis', label: 'Ngày ra', render: (r) => r.dischargeDate ? dayjs(r.dischargeDate).format('DD/MM/YYYY') : '—' },
     { key: 'dept', label: 'Khoa', render: (r) => r.departmentName },
     { key: 'icd', label: 'ICD', mono: true, render: (r) => (
       <span title={r.diagnosisName}>{r.diagnosisCode}</span>
@@ -328,6 +442,7 @@ const BhxhAuditV2: React.FC = () => {
       const tone = s === 'approved' ? 'ok' : s === 'rejected' ? 'crit' : 'warn';
       return <StatusBadge tone={tone} dot>{STATUS_TABS.find((x) => x.v === s)?.l}</StatusBadge>;
     } },
+    { key: 'pay', label: 'Thanh toán', render: (r) => paymentBadge(r.paymentStatus) },
   ];
 
   const actions = (r: AuditRecord) => (
@@ -351,6 +466,26 @@ const BhxhAuditV2: React.FC = () => {
       )}
     </div>
   );
+
+  // Trạng thái khả dụng của module — verbatim từ v1 (Spin / thông báo module chưa khả dụng)
+  if (availabilityLoading) {
+    return <div className="ab"><LoadingState /></div>;
+  }
+
+  if (!moduleAvailable) {
+    return (
+      <div className="ab">
+        <div style={{ margin: 12, padding: 'var(--space-14)', background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
+          <div style={{ fontWeight: 600, color: 'var(--t-0)', marginBottom: 'var(--space-4)' }}>
+            Màn hình giám định BHXH chưa khả dụng.
+          </div>
+          <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>
+            Backend hiện chưa cung cấp các endpoint `/api/bhxh-audit/*`, nên frontend tạm thời không gọi các API này để tránh lỗi `404`.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="ab">
@@ -389,12 +524,28 @@ const BhxhAuditV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={search} onChange={setSearch} placeholder="Tìm mã LK / BN / số BHYT…" />
         <Filter value={fDept} onChange={setFDept} options={depts} placeholder="▾ Khoa" />
-        <Btn variant="ghost" onClick={() => { setSearch(''); setFDept(''); setStab('all'); }}>
+        <RangePicker
+          size="small"
+          format="DD/MM/YYYY"
+          value={dateRange}
+          onChange={(dates) => setDateRange(dates ? [dates[0]!, dates[1]!] : null)}
+          placeholder={['Từ ngày', 'Đến ngày']}
+        />
+        <Btn variant={fPayment === 1 ? 'primary' : 'ghost'} onClick={() => handleFilterByPaymentStatus(1)}>
+          BN đã TT
+        </Btn>
+        <Btn variant={fPayment === 0 ? 'primary' : 'ghost'} onClick={() => handleFilterByPaymentStatus(0)}>
+          BN chưa TT
+        </Btn>
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFDept(''); setStab('all'); setDateRange(null); setFPayment(undefined); }}>
           <Ico name="refresh" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
+        </Btn>
+        <Btn variant="ghost" onClick={handlePrintList} title="In danh sách hồ sơ theo bộ lọc hiện tại">
+          <Ico name="print" size={12} /> In danh sách
         </Btn>
         <Btn
           variant="ghost"
@@ -491,10 +642,26 @@ const BhxhAuditV2: React.FC = () => {
             <DrField lbl="Thanh toán">{sel.paymentStatus === 1 ? 'Đã thanh toán' : 'Chưa thanh toán'}</DrField>
             <DrField lbl="Cổng BHXH">
               <StatusBadge tone={sel.sentToPortal ? 'ok' : 'warn'} dot>
-                {sel.sentToPortal ? 'Đã gửi' : 'Chưa gửi'}
+                {/* verbatim v1: kèm ngày gửi khi đã gửi cổng GĐ */}
+                {sel.sentToPortal ? `Đã gửi${sel.sentDate ? ` (${dayjs(sel.sentDate).format('DD/MM/YYYY')})` : ''}` : 'Chưa gửi'}
               </StatusBadge>
             </DrField>
+            <DrField lbl="Ngày duyệt">{sel.approvedDate ? dayjs(sel.approvedDate).format('DD/MM/YYYY') : '—'}</DrField>
           </DrSec>
+          {sel.rejectReason && (
+            <DrSec title="Lý do từ chối">
+              <div style={{ padding: '8px 12px', background: 'var(--d-1)', border: '1px solid var(--a-rd-text)', borderRadius: 'var(--r-2)', color: 'var(--a-rd-text)', fontSize: 'var(--fs-md)' }}>
+                {sel.rejectReason}
+              </div>
+            </DrSec>
+          )}
+          {sel.auditorNote && (
+            <DrSec title="Ghi chú giám định viên">
+              <div style={{ padding: '8px 12px', background: 'var(--d-1)', border: '1px solid var(--a-cy-text)', borderRadius: 'var(--r-2)', color: 'var(--a-cy-text)', fontSize: 'var(--fs-md)' }}>
+                {sel.auditorNote}
+              </div>
+            </DrSec>
+          )}
         </>}
       </DrawerShell>
       </>}
