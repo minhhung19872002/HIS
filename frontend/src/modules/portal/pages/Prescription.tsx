@@ -2,11 +2,11 @@ import React from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { getPrescriptions } from '../modules/portal/api/patientPortal';
-import type { PrescriptionHistoryDto } from '../modules/portal/api/patientPortal';
-import { printExternalPrescription } from '../modules/opd/api/examination';
-import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from './_v2kit';
-import TermIcon from '../layouts/terminal/Icon';
+import { getPrescriptions } from '../api/patientPortal';
+import type { PrescriptionHistoryDto } from '../api/patientPortal';
+import { printExternalPrescription } from '../../opd/api/examination';
+import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from '../../../pages-v2/_v2kit';
+import TermIcon from '../../../layouts/terminal/Icon';
 
 /* Kê đơn v2 — list shell.
    Editor đầy đủ (search BN, search thuốc, drug interactions, ký số) là native

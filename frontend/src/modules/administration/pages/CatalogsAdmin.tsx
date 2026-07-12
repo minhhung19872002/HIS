@@ -3,24 +3,24 @@ import { Form, Input, InputNumber, Select, Checkbox } from 'antd';
 import {
   saveAbbreviation, deleteAbbreviation, searchAbbreviations,
   ABBREVIATION_SCOPES, type AbbreviationDto,
-} from '../api/abbreviation';
+} from '../../../api/abbreviation';
 import {
   saveTemplate, deleteTemplate, searchTemplates, getTemplateById,
   TEMPLATE_TYPE_LABELS, type ClinicalTemplateDto,
-} from '../modules/patient/api/clinicalTemplate';
-import { invalidateAbbreviationCache } from '../hooks/useAbbreviationExpander';
+} from '../../patient/api/clinicalTemplate';
+import { invalidateAbbreviationCache } from '../../../hooks/useAbbreviationExpander';
 import {
   getOccupations, saveOccupation, deleteOccupation, type OccupationDto,
   getGenders, saveGender, deleteGender, type GenderDto,
   getEthnics, saveEthnic, deleteEthnic, type EthnicDto,
   getNations, saveNation, deleteNation, type NationDto,
   getInitialFacilities, saveInitialFacility, deleteInitialFacility, type InitialFacilityDto,
-} from '../modules/administration/api/masterCatalog';
+} from '../api/masterCatalog';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
   ModalShell, Ico, tk, ti, tw, cf,
   type ColumnDef,
-} from './_v2kit';
+} from '../../../pages-v2/_v2kit';
 
 type Tab = 'abbr' | 'templates' | 'occupation' | 'gender' | 'ethnic' | 'nation' | 'facility';
 const TABS = [

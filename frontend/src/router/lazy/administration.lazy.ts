@@ -26,13 +26,13 @@ export const FunctionalDiagnosticCatalogV2 = lazy(() => import('../../modules/ad
 export const ProvincialHealthV2 = lazy(() => import('../../modules/administration/pages/ProvincialHealth'));
 export const BackupManagementV2 = lazy(() => import('../../modules/administration/pages/BackupManagement'));
 export const HisConnectionsV2 = lazy(() => import('../../modules/administration/pages/HisConnections'));
-export const KioskSelfServiceV2 = lazy(() => import('../../pages-v2/KioskSelfService'));
+export const KioskSelfServiceV2 = lazy(() => import('../../modules/reception/pages/KioskSelfService'));
 export const ReportsV2 = lazy(() => import('../../modules/reports/pages/Reports'));
 export const WaitingTimeReportV2 = lazy(() => import('../../modules/reception/pages/WaitingTimeReport'));
 export const ReportCatalogsV2 = lazy(() => import('../../modules/administration/pages/ReportCatalogs'));
 export const QualityDashboardLiveV2 = lazy(() => import('../../modules/quality/pages/QualityDashboardLive'));
 export const WorkloadReportV2 = lazy(() => import('../../modules/reports/pages/WorkloadReport'));
-export const CatalogsAdminV2 = lazy(() => import('../../pages-v2/CatalogsAdmin'));
+export const CatalogsAdminV2 = lazy(() => import('../../modules/administration/pages/CatalogsAdmin'));
 export const EmployeeProfileV2 = lazy(() => import('../../modules/hr/pages/EmployeeProfile'));
 
 // --- records group ---

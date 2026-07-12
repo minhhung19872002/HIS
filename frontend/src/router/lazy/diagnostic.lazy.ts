@@ -13,7 +13,7 @@ export const SampleTrackingV2 = lazy(() => import('../../modules/laboratory/page
 export const ReagentManagementV2 = lazy(() => import('../../modules/laboratory/pages/ReagentManagement'));
 export const LISConfigV2 = lazy(() => import('../../modules/laboratory/pages/LISConfig'));
 export const FunctionalDiagnosticsV2 = lazy(() => import('../../modules/radiology/pages/FunctionalDiagnostics'));
-export const SpecialTestRuleAdminV2 = lazy(() => import('../../pages-v2/SpecialTestRuleAdmin'));
+export const SpecialTestRuleAdminV2 = lazy(() => import('../../modules/patient/pages/SpecialTestRuleAdmin'));
 export const RadiologyV2 = lazy(() => import('../../modules/radiology/pages/Radiology'));
 export const DicomViewerV2 = lazy(() => import('../../pages-v2/DicomViewer'));
 export const DicomAutoSendV2 = lazy(() => import('../../modules/radiology/pages/DicomAutoSend'));

@@ -7,13 +7,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutoComplete, Input, InputNumber, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
-import * as api from '../modules/patient/api/businessAlerts';
-import { searchServices } from '../modules/opd/api/examination';
+import * as api from '../api/businessAlerts';
+import { searchServices } from '../../opd/api/examination';
 import {
   KpiStrip, DataTable, Pager, SearchBox, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, te, cf, Ico,
   type ColumnDef,
-} from './_v2kit';
+} from '../../../pages-v2/_v2kit';
 
 const PER = 20;
 

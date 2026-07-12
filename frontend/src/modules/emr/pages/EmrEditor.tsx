@@ -13,17 +13,17 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   KpiStrip, StatusBadge, Btn, ActBtn, DataTable, TopTabs, DrawerShell, ModalShell,
   fmtDMYg, fmtDTg, tk, ti, te, tw, type ColumnDef, type TopTab,
-} from './_v2kit';
-import TermIcon from '../layouts/terminal/Icon';
-import apiClient from '../services/apiClient';
-import { generateCdaDocument } from '../modules/emr/api/cda';
+} from '../../../pages-v2/_v2kit';
+import TermIcon from '../../../layouts/terminal/Icon';
+import apiClient from '../../../services/apiClient';
+import { generateCdaDocument } from '../api/cda';
 import {
   getAttachments, uploadAttachment, downloadAttachment, deleteAttachment,
   getCompletenessCheck,
   type EmrDocumentAttachmentDto,
-} from '../modules/emr/api/emrAdmin';
-import EmrSigningChainDrawer from './shared/EmrSigningChainDrawer';
-import PatientFlagBanner from '../modules/patient/components/PatientFlagBanner';
+} from '../api/emrAdmin';
+import EmrSigningChainDrawer from '../../../pages-v2/shared/EmrSigningChainDrawer';
+import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
 import {
   getEmrRecords, type EmrRecordDto,
   getPatientMedicalHistory, type MedicalHistoryDto,
@@ -32,12 +32,12 @@ import {
   getConsultationRecords, createConsultationRecord, type ConsultationRecordDto,
   getNursingCareSheets, createNursingCareSheet, type NursingCareSheetDto,
   type CreateMaternityLeaveDto,
-} from '../modules/opd/api/examination';
-import { printTreatmentSheet as printInpatientTreatmentSheet } from '../modules/inpatient/api/inpatient';
-import PrintTemplateRenderer from '../modules/patient/components/PrintTemplateRenderer';
-import ClinicalTemplatePicker from '../modules/patient/components/ClinicalTemplatePicker';
-import { TEMPLATE_TYPES } from '../modules/patient/api/clinicalTemplate';
-import '../layouts/terminal/ed-responsive.css';
+} from '../../opd/api/examination';
+import { printTreatmentSheet as printInpatientTreatmentSheet } from '../../inpatient/api/inpatient';
+import PrintTemplateRenderer from '../../patient/components/PrintTemplateRenderer';
+import ClinicalTemplatePicker from '../../patient/components/ClinicalTemplatePicker';
+import { TEMPLATE_TYPES } from '../../patient/api/clinicalTemplate';
+import '../../../layouts/terminal/ed-responsive.css';
 
 type TabKey = 'record' | 'history' | 'treatment' | 'consult' | 'nursing' | 'reaction' | 'partograph' | 'attach';
 const TABS: TopTab<TabKey>[] = [

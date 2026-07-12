@@ -12,15 +12,15 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, DrawerShell, fmtVNDg, tk, tw, te,
-} from './_v2kit';
-import TermIcon from '../layouts/terminal/Icon';
-import { examinationApi, printExternalPrescription, type MedicineDto, type DrugInteractionDto, type CreatePrescriptionDto, type PrescriptionTemplateDto, type WarehouseDto } from '../modules/opd/api/examination';
-import { patientApi, type Patient } from '../modules/patient/api/patient';
-import { getPrescriptionContext, type PrescriptionContextDto } from '../modules/patient/api/dataInheritance';
-import PatientFlagBanner from '../modules/patient/components/PatientFlagBanner';
-import BusinessAlertPanel from '../modules/patient/components/BusinessAlertPanel';
-import '../layouts/terminal/ed-responsive.css';
-import { fmtDate } from '../utils/format';
+} from '../../../pages-v2/_v2kit';
+import TermIcon from '../../../layouts/terminal/Icon';
+import { examinationApi, printExternalPrescription, type MedicineDto, type DrugInteractionDto, type CreatePrescriptionDto, type PrescriptionTemplateDto, type WarehouseDto } from '../api/examination';
+import { patientApi, type Patient } from '../../patient/api/patient';
+import { getPrescriptionContext, type PrescriptionContextDto } from '../../patient/api/dataInheritance';
+import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
+import BusinessAlertPanel from '../../patient/components/BusinessAlertPanel';
+import '../../../layouts/terminal/ed-responsive.css';
+import { fmtDate } from '../../../utils/format';
 
 const RX_FREQ = ['1 lần/ngày', '2 lần/ngày', '3 lần/ngày', 'Cách 6h', 'Khi cần', 'Trước ăn', 'Sau ăn'];
 const RX_ROUTE = ['Uống', 'Tiêm bắp', 'Tiêm tĩnh mạch', 'Bôi ngoài da', 'Khí dung', 'Ngậm dưới lưỡi'];

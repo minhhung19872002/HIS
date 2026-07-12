@@ -2,19 +2,19 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { App as AntdApp, Drawer, Select, Input, Tag } from 'antd';
 import { AlertOutlined, EyeOutlined, HomeOutlined, LogoutOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import TermIcon from '../layouts/terminal/Icon';
+import TermIcon from '../../../layouts/terminal/Icon';
 import {
   getActiveEvent, getVictims, registerVictim, activateCodeBlue,
   type MCIEventDto, type MCIVictimDto, type RegisterVictimDto,
-} from '../modules/mci/api/massCasualty';
-import { registerEmergencyPatient, type EmergencyRegistrationDto } from '../modules/reception/api/reception';
+} from '../api/massCasualty';
+import { registerEmergencyPatient, type EmergencyRegistrationDto } from '../../reception/api/reception';
 import {
   listObservationStays, createObservationStay, dischargeObservationStay, escalateObservationStay,
   type ObservationStayDto,
-} from '../modules/inpatient/api/observation';
-import '../styles/EmergencyDisaster.css';
-import { openPrintWindow } from '../utils/printWindow';
-import { HOSPITAL_NAME } from '../constants/hospital';
+} from '../../inpatient/api/observation';
+import '../../../styles/EmergencyDisaster.css';
+import { openPrintWindow } from '../../../utils/printWindow';
+import { HOSPITAL_NAME } from '../../../constants/hospital';
 
 type TriageLevel = 1 | 2 | 3 | 4 | 5;
 type EmergencyStatus = 'triage' | 'treating' | 'observing' | 'admitted' | 'discharged' | 'referred';

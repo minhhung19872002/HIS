@@ -6,14 +6,14 @@ import { lazy } from 'react';
 // --- clinical group ---
 export const ReceptionV2 = lazy(() => import('../../modules/reception/pages/Reception'));
 export const OPDV2 = lazy(() => import('../../modules/reception/pages/OPD'));
-export const OpdEditorV2 = lazy(() => import('../../pages-v2/OpdEditor'));
+export const OpdEditorV2 = lazy(() => import('../../modules/opd/pages/OpdEditor'));
 export const InpatientV2 = lazy(() => import('../../modules/inpatient/pages/Inpatient'));
-export const PrescriptionV2 = lazy(() => import('../../pages-v2/Prescription'));
-export const PrescriptionEditorV2 = lazy(() => import('../../pages-v2/PrescriptionEditor'));
+export const PrescriptionV2 = lazy(() => import('../../modules/portal/pages/Prescription'));
+export const PrescriptionEditorV2 = lazy(() => import('../../modules/opd/pages/PrescriptionEditor'));
 export const SurgeryV2 = lazy(() => import('../../modules/surgery/pages/Surgery'));
 export const EMRV2 = lazy(() => import('../../modules/opd/pages/EMR'));
-export const EmrEditorV2 = lazy(() => import('../../pages-v2/EmrEditor'));
-export const EmrExtractV2 = lazy(() => import('../../pages-v2/EmrExtract'));
+export const EmrEditorV2 = lazy(() => import('../../modules/emr/pages/EmrEditor'));
+export const EmrExtractV2 = lazy(() => import('../../modules/emr/pages/EmrExtract'));
 export const EmrDataTagsV2 = lazy(() => import('../../modules/emr/pages/EmrDataTags'));
 export const TelemedicineV2 = lazy(() => import('../../pages-v2/Telemedicine'));
 export const FollowUpV2 = lazy(() => import('../../modules/opd/pages/FollowUp'));
@@ -26,7 +26,7 @@ export const ClinicalCatalogsV2 = lazy(() => import('../../modules/administratio
 export const SpecialtyEMRV2 = lazy(() => import('../../modules/emr/pages/SpecialtyEMR'));
 export const MedicalRecordArchiveV2 = lazy(() => import('../../pages-v2/MedicalRecordArchive'));
 export const MedicalRecordPlanningV2 = lazy(() => import('../../modules/medical-record/pages/MedicalRecordPlanning'));
-export const EmergencyDisasterV2 = lazy(() => import('../../pages-v2/EmergencyDisaster'));
+export const EmergencyDisasterV2 = lazy(() => import('../../modules/mci/pages/EmergencyDisaster'));
 export const ConsultationRegisterV2 = lazy(() => import('../../modules/reception/pages/ConsultationRegister'));
 export const ObservationStayV2 = lazy(() => import('../../modules/inpatient/pages/ObservationStay'));
 export const ServiceRequeueV2 = lazy(() => import('../../modules/checkup/pages/ServiceRequeue'));
@@ -35,9 +35,9 @@ export const VideoConsultationV2 = lazy(() => import('../../modules/telemedicine
 // --- support group ---
 export const PharmacyV2 = lazy(() => import('../../modules/pharmacy/pages/Pharmacy'));
 export const HospitalPharmacyV2 = lazy(() => import('../../modules/pharmacy/pages/HospitalPharmacy'));
-export const PharmacyStockInV2 = lazy(() => import('../../pages-v2/PharmacyStockIn'));
-export const PharmacyStockIssueV2 = lazy(() => import('../../pages-v2/PharmacyStockIssue'));
-export const PharmacyApprovalV2 = lazy(() => import('../../pages-v2/PharmacyApproval'));
+export const PharmacyStockInV2 = lazy(() => import('../../modules/pharmacy/pages/PharmacyStockIn'));
+export const PharmacyStockIssueV2 = lazy(() => import('../../modules/pharmacy/pages/PharmacyStockIssue'));
+export const PharmacyApprovalV2 = lazy(() => import('../../modules/pharmacy/pages/PharmacyApproval'));
 export const PharmacyStockTakeV2 = lazy(() => import('../../modules/pharmacy/pages/PharmacyStockTake'));
 export const MedicalSupplyV2 = lazy(() => import('../../modules/pharmacy/pages/MedicalSupply'));
 export const NutritionV2 = lazy(() => import('../../pages-v2/Nutrition'));

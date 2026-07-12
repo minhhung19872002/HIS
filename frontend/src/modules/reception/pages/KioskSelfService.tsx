@@ -4,18 +4,18 @@
 // Issues #103 #123 #124 #125 — route /v2/kiosk
 // =====================================================================
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { fmtDate, fmtTime } from '../utils/format';
+import { fmtDate, fmtTime } from '../../../utils/format';
 import { Input, Select, Spin, Alert, QRCode, Divider } from 'antd';
 import {
   issueTicket, checkinByCard, getQueueStatus, callNext,
   type KioskTicketDto, type CheckinResultDto, type QueueStatusDto,
-} from '../modules/reception/api/kiosk';
-import { createKioskQr, getKioskQrStatus, type KioskQrResponse } from '../modules/billing/api/nangcap25';
+} from '../api/kiosk';
+import { createKioskQr, getKioskQrStatus, type KioskQrResponse } from '../../billing/api/nangcap25';
 import {
   KpiStrip, TopTabs, ActBtn, Btn, ModalShell, DrSec, DrField,
   StatusBadge, DataTable, tk, te,
   type ColumnDef,
-} from './_v2kit';
+} from '../../../pages-v2/_v2kit';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

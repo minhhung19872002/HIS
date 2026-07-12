@@ -8,12 +8,12 @@ import { useState, useCallback } from 'react';
 import {
   KpiStrip, DataTable, StatusBadge, ActBtn, Btn, ModalShell, DrawerShell, SearchBox,
   tk, te, tw, cf, fmtDTg, fmtDMYg, type ColumnDef, type StatusTone,
-} from './_v2kit';
-import { HOSPITAL_NAME } from '../constants/hospital';
-import { getEmrRecords, getPatientMedicalHistory, type EmrRecordDto } from '../modules/opd/api/examination';
+} from '../../../pages-v2/_v2kit';
+import { HOSPITAL_NAME } from '../../../constants/hospital';
+import { getEmrRecords, getPatientMedicalHistory, type EmrRecordDto } from '../../opd/api/examination';
 import {
   getEmrExtracts, createEmrExtract, revokeEmrExtract, type EmrExtractDto,
-} from '../modules/emr/api/emrManagement';
+} from '../api/emrManagement';
 
 const STATUS_TONE: Record<string, StatusTone> = { Active: 'ok', Revoked: 'crit', Expired: 'warn' };
 const STATUS_LABEL: Record<string, string> = { Active: 'Hiệu lực', Revoked: 'Đã thu hồi', Expired: 'Hết hạn' };

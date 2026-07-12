@@ -18,7 +18,7 @@
  * Cảnh báo HSD: getExpiringMedicines(60) → ExpiringMedicineDto[]
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { fmtNum as fmt } from '../utils/format';
+import { fmtNum as fmt } from '../../../utils/format';
 import { AutoComplete, Checkbox, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
@@ -30,16 +30,16 @@ import {
   type CreatePharmacyApprovalRequest,
   type PharmacyApprovalSearchRequest,
   type ExpiringMedicineDto,
-} from '../modules/pharmacy/api/pharmacyApproval';
-import { searchMedicines, type MedicineDto } from '../modules/opd/api/examination';
-import * as wh from '../modules/pharmacy/api/warehouse';
-import type { WarehouseDto } from '../modules/pharmacy/api/warehouse';
+} from '../api/pharmacyApproval';
+import { searchMedicines, type MedicineDto } from '../../opd/api/examination';
+import * as wh from '../api/warehouse';
+import type { WarehouseDto } from '../api/warehouse';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge,
   ActBtn, Btn, DrawerShell, ModalShell, DrSec, DrField,
   tk, ti, tw, cf, Ico,
   type ColumnDef,
-} from './_v2kit';
+} from '../../../pages-v2/_v2kit';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;

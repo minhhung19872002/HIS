@@ -11,11 +11,11 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, fmtVNDg, tk, tw, te, ti } from './_v2kit';
-import { SurgeryReportModal } from './shared/SurgeryReportModal';
-import { CabinetIssueModal } from './shared/CabinetIssueModal';
-import TermIcon from '../layouts/terminal/Icon';
-import BarcodeScanner from '../components/form/BarcodeScanner';
+import { KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, fmtVNDg, tk, tw, te, ti } from '../../../pages-v2/_v2kit';
+import { SurgeryReportModal } from '../../../pages-v2/shared/SurgeryReportModal';
+import { CabinetIssueModal } from '../../../pages-v2/shared/CabinetIssueModal';
+import TermIcon from '../../../layouts/terminal/Icon';
+import BarcodeScanner from '../../../components/form/BarcodeScanner';
 import {
   examinationApi, createSickLeave,
   getPatientLabResults, getPatientAllergies,
@@ -27,16 +27,16 @@ import {
   type ServiceOrderFullDto, type DiagnosisFullDto,
   type PatientLabResultsDto, type AllergyDto, type ConsultationRecordDto,
   type InjuryInfoDto,
-} from '../modules/opd/api/examination';
-import { catalogApi, type DepartmentCatalogDto } from '../modules/system/api/system';
+} from '../api/examination';
+import { catalogApi, type DepartmentCatalogDto } from '../../system/api/system';
 import {
   getOutpatientRecordTemplates, getOutpatientRecordTemplate,
   saveOutpatientRecordTemplate, deleteOutpatientRecordTemplate,
   type OutpatientRecordTemplateDto,
-} from '../modules/patient/api/clinicalNarratives';
-import { useAbbrExpansion } from '../utils/abbrExpand';
-import PatientFlagBanner from '../modules/patient/components/PatientFlagBanner';
-import BusinessAlertPanel from '../modules/patient/components/BusinessAlertPanel';
+} from '../../patient/api/clinicalNarratives';
+import { useAbbrExpansion } from '../../../utils/abbrExpand';
+import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
+import BusinessAlertPanel from '../../patient/components/BusinessAlertPanel';
 import {
   addFollowUpSpecialty,
   changeRoomBeforeExam,
@@ -46,18 +46,18 @@ import {
   cancelCompletion,
   deleteRegistration,
   type ExamCompletionStatus,
-} from '../modules/opd/api/multiSpecialtyExam';
-import '../layouts/terminal/ed-responsive.css';
+} from '../api/multiSpecialtyExam';
+import '../../../layouts/terminal/ed-responsive.css';
 // #205 FE-2 (Phase 1) — presentational blocks split into ./opd-editor/*.
 // State/handlers/effects/loaders stay here; these receive everything via props.
 import {
   type Vitals, type DxRow, type OrderRow,
   OPD_ABBR_SCOPES, SEVERITY_LABEL, VITAL_FIELDS, openPdfBlob,
-} from '../modules/opd/pages/_shared';
-import { InjurySection } from '../modules/opd/pages/InjurySection';
-import { ClsResultsModal } from '../modules/opd/pages/ClsResultsModal';
-import { ConsultModal } from '../modules/opd/pages/ConsultModal';
-import { TemplateModals } from '../modules/opd/pages/TemplateModals';
+} from './_shared';
+import { InjurySection } from './InjurySection';
+import { ClsResultsModal } from './ClsResultsModal';
+import { ConsultModal } from './ConsultModal';
+import { TemplateModals } from './TemplateModals';
 
 const OpdEditorV2: React.FC = () => {
   const navigate = useNavigate();

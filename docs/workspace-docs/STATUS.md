@@ -5,7 +5,7 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-12** — **cửa components-restructure: wave-6 ✅ PUSHED (commit này, 36 pages-v2→modules) + wave-5 `0f27111` + wave-4 `287a711`. cửa 367-authz1: ✅ PUSHED (FE gating + taxonomy defer → comment #367, issue giữ OPEN). cửa 368-authz2: ✅ PUSHED + deploy + smoke PASS. 409 batch-2 `5217c77` + batch-3 `f594867` ✅.**
+> Cập nhật cuối: **2026-07-12** — **cửa components-restructure: wave-7 ✅ PUSHED (commit này, 12 trang multi-module → modules theo domain-chính; EXCLUDE MedicalRecordArchive+IvfLab do batch-4 owns); wave-6 ✅ `07facba`; wave-5 ✅ `0f27111`; wave-4 ✅ `287a711`. cửa 367-authz1: ✅ `e3c6d24` (#367 OPEN — FE gating defer). cửa 368-authz2: ✅ `edcbb78`. cửa 409: batch-2 ✅ `5217c77` · batch-3 ✅ `f594867` · batch-4 IN PROGRESS (lock `409-batch4`, 6 trang, fable).**
 
 ## Phiên 2026-07-12 (cửa 367-authz1 — #367 AUTHZ-1 backend core + pilot, ✅ PUSHED)
 - **#367 [AUTHZ-1][P1] backend core + pilot DONE** (lock `367-authz1`): permission enforcement granular đầu tiên của HIS.
@@ -16,11 +16,17 @@
   - **Deviations có chủ đích**: GIỮ `RoleCodeToEnglishRoles` (71 gate còn sống) · TTL-cache 30s thay PermVersion · taxonomy 32-role DEFER. Chi tiết comment #367.
   - **Gate:** `dotnet build` 0 error. Sau deploy: schema-drift missingCount=0 + smoke 403 (user thường gọi /api/audit/logs) + admin /api/me/permissions ≥38.
 
-## Phiên 2026-07-12 (cửa components-restructure — wave-6 STRICT-relocate, ✅ PUSHED commit này)
-- **Wave-6: 36 pages-v2/*.tsx → modules/*/pages/** theo heuristic name+URL+router (các trang 0-api sau khi wave-4/5 đã vét hết bằng chứng single-api): radiology 7 · system 8 · billing 3 · hr 3 · administration 2 · laboratory 2 · quality 2 · reception 2 · insurance/inpatient/portal/reports/checkup/opd/pharmacy 1. Router 7 lazy file rewrite resolve-based.
-- **Gate:** tsc EXIT 0 · A) 36/36 content-equiv PASS · B) 1015-file stale-ref PASS · 0 foreign file.
-- **pages-v2/ còn lại**: 17 DEFER (Dashboard/EmrEditor/OpdEditor/EmergencyDisaster/IvfLab/KioskSelfService/MedicalRecordArchive/PharmacyApproval/StockIn/StockIssue/Prescription/PrescriptionEditor/SpecialTestRuleAdmin/CatalogsAdmin/EmrExtract multi-module + DicomViewer + _v2kit) + 9 WIP cửa khác.
-- **components/ analysis**: 17 file single-v1-page-importer có thể move theo module · 4 shim barrel (EMRPrintTemplates/EmrManagementTabs/SpecialtyEMRForms1+2 → đã trỏ modules/patient) · 5 unused print-template ứng viên xóa · 7 DICOM defer · phần còn lại cross-cutting giữ nguyên.
+## Phiên 2026-07-12 (cửa components-restructure — wave-6 ✅ `07facba` · wave-7 ✅ PUSHED commit này)
+- **Wave-6: 36 pages-v2/*.tsx → modules/*/pages/** theo heuristic name+URL+router (các trang 0-api sau khi wave-4/5 đã vét hết bằng chứng single-api): radiology 7 · system 8 · billing 3 · hr 3 · administration 2 · laboratory 2 · quality 2 · reception 2 · insurance/inpatient/portal/reports/checkup/opd/pharmacy 1. Router 7 lazy file rewrite resolve-based. Gate: tsc EXIT 0 · A) 36/36 PASS · B) PASS.
+- **Wave-7: 12 trang multi-module → modules theo domain-chính** (đa api = dependency, không phải owner): pharmacy 3 (Approval/StockIn/StockIssue) · opd 2 (OpdEditor/PrescriptionEditor) · emr 2 (EmrEditor/EmrExtract) · administration (CatalogsAdmin) · mci (EmergencyDisaster) · reception (KioskSelfService) · portal (Prescription) · patient (SpecialTestRuleAdmin). EXCLUDE MedicalRecordArchive+IvfLab (batch-4 owns). Gate: tsc EXIT 0 · A) 12/12 PASS · B) PASS.
+- **pages-v2/ còn lại**: Dashboard (cross-domain shell) + DicomViewer + _v2kit + shared/ + 9 trang WIP cửa 409 — coi như DONE phần relocate.
+- **components/ analysis (wave-8 ứng viên)**: 8 file CHẾT chờ user duyệt xóa (5 print-template root đã có copy modules/patient: Anesthesia/ClinicalForm/EMRNursing/HealthCheckup/Hemodialysis + 3 shim barrel 0-importer: EMRPrintTemplates/SpecialtyEMRForms1+2) · shim EmrManagementTabs GIỮ (pages/EMR.tsx v1 còn dùng) · ~24 file root chỉ v1 dùng → chết theo v1 #204, không move · cross-cutting (actions/common/dataDisplay/form/layout/navigation/overlay/permission/table/upload/digitalSignature) giữ nguyên.
+
+## Phiên 2026-07-12 (cửa 409 — batch-3 ✅ `f594867` · batch-2 pages ✅ `5217c77` · batch-4 IN PROGRESS)
+- **#409 batch-3 PUSHED `f594867`**: Consultation (272→399) + InfectionControl (358→521) + Telemedicine (548→810) + TrainingResearch (290→605) + Equipment (264→923). tsc EXIT 0 worktree cô lập tại `287a711`.
+- **#409 batch-2 pages PUSHED `5217c77`**: Rehabilitation (269→840) + Epidemiology (319→568) + SatisfactionSurvey (388→704) + MethadoneTreatment (433→473) + LabQC (655→730). tsc EXIT 0 worktree cô lập tại `e3c6d24`. (Nutrition+survey-api đã lên trước `e8ce769`.)
+- **#409 batch-4 IN PROGRESS** (lock `409-batch4`, model fable theo chỉ đạo user): 6 trang build-only — MedicalRecordArchive (pages-v2, v1 2005 vs 363) · IvfLab Cycles+Cryo (pages-v2, 488 vs 365) · HealthExchange 6/7 tab (modules/system/pages, 1900 vs 257) · BhxhAudit (modules/insurance/pages, 1527 vs 610) · HR contracts/leave/OT/awards (modules/hr/pages, 1412 vs 834) · Quality (modules/quality/pages, 1272 vs 564). Workflow `wf_4c134799-cc7` port + verify đối kháng per-page → tsc gate → CHỜ user duyệt push.
+- **Còn lại #409 sau batch-4**: nhóm tiền/ký-số/lâm-sàng (Billing/Laboratory/Surgery/Reception/BloodBank/SigningWorkflow) = phiên deploy+smoke · nhóm admin (Reports/MasterData/Finance/LISConfig/EndpointSecurity/BookingManagement/Dashboard3Cap) · Radiology config-tabs · PatientPortal staff-route · AssetManagement Tenders · EnvironmentalHealth biosafety.
 
 ## Phiên 2026-07-12 (cửa 368-authz2 — #368 AUTHZ-2 backend, ✅ PUSHED + deploy + smoke PASS)
 - **#368 [AUTHZ-2][P1] backend increment DONE** (lock `368-authz2`): RefreshTokens thật + rotation + reuse-detection + SecurityStamp revoke tức thời. **100% backward-compatible** (token cũ không có claim → grace-accept; LoginResponseDto giữ nguyên shape).
