@@ -27,9 +27,9 @@ export const SpecialtyEMRV2 = lazy(() => import('../../modules/emr/pages/Special
 export const MedicalRecordArchiveV2 = lazy(() => import('../../pages-v2/MedicalRecordArchive'));
 export const MedicalRecordPlanningV2 = lazy(() => import('../../modules/medical-record/pages/MedicalRecordPlanning'));
 export const EmergencyDisasterV2 = lazy(() => import('../../pages-v2/EmergencyDisaster'));
-export const ConsultationRegisterV2 = lazy(() => import('../../pages-v2/ConsultationRegister'));
-export const ObservationStayV2 = lazy(() => import('../../pages-v2/ObservationStay'));
-export const ServiceRequeueV2 = lazy(() => import('../../pages-v2/ServiceRequeue'));
+export const ConsultationRegisterV2 = lazy(() => import('../../modules/reception/pages/ConsultationRegister'));
+export const ObservationStayV2 = lazy(() => import('../../modules/inpatient/pages/ObservationStay'));
+export const ServiceRequeueV2 = lazy(() => import('../../modules/checkup/pages/ServiceRequeue'));
 export const VideoConsultationV2 = lazy(() => import('../../modules/telemedicine/pages/VideoConsultation'));
 
 // --- support group ---
@@ -44,7 +44,7 @@ export const NutritionV2 = lazy(() => import('../../pages-v2/Nutrition'));
 export const RehabilitationV2 = lazy(() => import('../../pages-v2/Rehabilitation'));
 export const TraditionalMedicineV2 = lazy(() => import('../../modules/traditional-medicine/pages/TraditionalMedicine'));
 export const PharmacyCatalogsV2 = lazy(() => import('../../modules/administration/pages/PharmacyCatalogs'));
-export const DispensingCounterV2 = lazy(() => import('../../pages-v2/DispensingCounter'));
+export const DispensingCounterV2 = lazy(() => import('../../modules/opd/pages/DispensingCounter'));
 export const ClinicalPharmacyCheckV2 = lazy(() => import('../../modules/opd/pages/ClinicalPharmacyCheck'));
 export const InpatientDispensingV2 = lazy(() => import('../../modules/pharmacy/pages/InpatientDispensing'));
 export const StockReportV2 = lazy(() => import('../../modules/pharmacy/pages/StockReport'));

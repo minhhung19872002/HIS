@@ -5,7 +5,7 @@
 > context (mở phiên · chọn model · plan-mode · dọn context · handoff): [`.claude/workflow/session-ops.md`](../../.claude/workflow/session-ops.md).
 > 📜 Lịch sử phiên 2026-06-13→21: [`90-archive/handoffs/session-2026-06-21-handoff.md`](90-archive/handoffs/session-2026-06-21-handoff.md).
 >
-> Cập nhật cuối: **2026-07-12** — **cửa 367-authz1: #367 AUTHZ-1 backend core + pilot ✅ PUSHED (FE gating + taxonomy defer → comment #367, issue giữ OPEN). cửa 368-authz2: ✅ PUSHED + deploy success + smoke prod PASS. cửa components-restructure ✅ · 409-sysadmin ✅ · 409-nghiep-vu ✅ · #412 ✅.**
+> Cập nhật cuối: **2026-07-12** — **cửa components-restructure: wave-6 ✅ PUSHED (commit này, 36 pages-v2→modules) + wave-5 `0f27111` + wave-4 `287a711`. cửa 367-authz1: ✅ PUSHED (FE gating + taxonomy defer → comment #367, issue giữ OPEN). cửa 368-authz2: ✅ PUSHED + deploy + smoke PASS. 409 batch-2 `5217c77` + batch-3 `f594867` ✅.**
 
 ## Phiên 2026-07-12 (cửa 367-authz1 — #367 AUTHZ-1 backend core + pilot, ✅ PUSHED)
 - **#367 [AUTHZ-1][P1] backend core + pilot DONE** (lock `367-authz1`): permission enforcement granular đầu tiên của HIS.
@@ -15,6 +15,12 @@
   - **Pilot 11 action/3 controller** behavior-preserve: Billing Approvals 6 (lock/unlock→MedicalRecord.Lock/Unlock; duyệt+pending+miễn giảm→Billing.Approve) · AuditController→AuditLog.Read · admin sessions 3→Session.Read/Terminate.
   - **Deviations có chủ đích**: GIỮ `RoleCodeToEnglishRoles` (71 gate còn sống) · TTL-cache 30s thay PermVersion · taxonomy 32-role DEFER. Chi tiết comment #367.
   - **Gate:** `dotnet build` 0 error. Sau deploy: schema-drift missingCount=0 + smoke 403 (user thường gọi /api/audit/logs) + admin /api/me/permissions ≥38.
+
+## Phiên 2026-07-12 (cửa components-restructure — wave-6 STRICT-relocate, ✅ PUSHED commit này)
+- **Wave-6: 36 pages-v2/*.tsx → modules/*/pages/** theo heuristic name+URL+router (các trang 0-api sau khi wave-4/5 đã vét hết bằng chứng single-api): radiology 7 · system 8 · billing 3 · hr 3 · administration 2 · laboratory 2 · quality 2 · reception 2 · insurance/inpatient/portal/reports/checkup/opd/pharmacy 1. Router 7 lazy file rewrite resolve-based.
+- **Gate:** tsc EXIT 0 · A) 36/36 content-equiv PASS · B) 1015-file stale-ref PASS · 0 foreign file.
+- **pages-v2/ còn lại**: 17 DEFER (Dashboard/EmrEditor/OpdEditor/EmergencyDisaster/IvfLab/KioskSelfService/MedicalRecordArchive/PharmacyApproval/StockIn/StockIssue/Prescription/PrescriptionEditor/SpecialTestRuleAdmin/CatalogsAdmin/EmrExtract multi-module + DicomViewer + _v2kit) + 9 WIP cửa khác.
+- **components/ analysis**: 17 file single-v1-page-importer có thể move theo module · 4 shim barrel (EMRPrintTemplates/EmrManagementTabs/SpecialtyEMRForms1+2 → đã trỏ modules/patient) · 5 unused print-template ứng viên xóa · 7 DICOM defer · phần còn lại cross-cutting giữ nguyên.
 
 ## Phiên 2026-07-12 (cửa 368-authz2 — #368 AUTHZ-2 backend, ✅ PUSHED + deploy + smoke PASS)
 - **#368 [AUTHZ-2][P1] backend increment DONE** (lock `368-authz2`): RefreshTokens thật + rotation + reuse-detection + SecurityStamp revoke tức thời. **100% backward-compatible** (token cũ không có claim → grace-accept; LoginResponseDto giữ nguyên shape).
