@@ -78,9 +78,14 @@ public static class PermissionCatalogSeeder
         var now = DateTime.UtcNow;
 
         // 1) Upsert catalog vào Permissions (theo PermissionCode).
-        var existing = await context.Permissions
+        // ToListAsync + GroupBy (thay vì ToDictionaryAsync) để không throw ArgumentException
+        // khi DB có duplicate PermissionCode (concurrent startup trước khi unique index active).
+        var existingList = await context.Permissions
             .Where(p => !p.IsDeleted)
-            .ToDictionaryAsync(p => p.PermissionCode, p => p, StringComparer.OrdinalIgnoreCase);
+            .ToListAsync();
+        var existing = existingList
+            .GroupBy(p => p.PermissionCode, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         var added = 0;
         foreach (var def in PermissionCatalog.All)

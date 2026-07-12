@@ -1130,6 +1130,9 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
         // để EnsureCreated fresh-DB không tạo nvarchar(max) (không index được). Bảng trước đây chưa từng được ghi.
         modelBuilder.Entity<UserSession>().Property(u => u.SessionToken).HasMaxLength(450);
         modelBuilder.Entity<UserSession>().HasIndex(u => u.SessionToken);
+        // AUTHZ-1 #367: PermissionCode unique (non-deleted) — ngăn concurrent-startup duplicate + đảm bảo lookup.
+        modelBuilder.Entity<Permission>().Property(p => p.PermissionCode).HasMaxLength(100);
+        modelBuilder.Entity<Permission>().HasIndex(p => p.PermissionCode).IsUnique().HasFilter("[IsDeleted] = 0");
 
         // #50-54: NewbornRecord.MotherAdmission — NoAction de tranh multiple cascade paths
         modelBuilder.Entity<NewbornRecord>().HasOne(n => n.MotherAdmission).WithMany().HasForeignKey(n => n.MotherAdmissionId).OnDelete(DeleteBehavior.NoAction);
