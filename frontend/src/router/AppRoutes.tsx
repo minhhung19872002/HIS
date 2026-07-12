@@ -91,7 +91,7 @@ const Consultation = lazy(() => import('../pages/Consultation'));
 const Help = lazy(() => import('../pages/Help'));
 const DicomViewer = lazy(() => import('../pages/DicomViewer'));
 const QueueDisplay = lazy(() => import('../pages/QueueDisplay'));
-const QueueDisplayV2 = lazy(() => import('../pages-v2/QueueDisplay'));
+const QueueDisplayV2 = lazy(() => import('../modules/reception/pages/QueueDisplay'));
 const EMR = lazy(() => import('../pages/EMR'));
 const MedicalSupply = lazy(() => import('../pages/MedicalSupply'));
 const FollowUp = lazy(() => import('../pages/FollowUp'));
