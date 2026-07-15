@@ -18,10 +18,10 @@ import {
   DrawerShell, DrSec, DrField, tk, te, cf,
   type ColumnDef, type TopTab,
 } from '../../../pages-v2/_v2kit';
+import type {TabKey} from '../types';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-type TabKey = 'directives' | 'reports';
 
 const TABS: TopTab<TabKey>[] = [
   { v: 'directives', l: 'Chỉ đạo tuyến', ic: 'file-text' },

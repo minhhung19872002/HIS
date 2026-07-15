@@ -14,8 +14,7 @@ import {
   DrawerShell, DrSec, DrField, tk, te, cf, Ico,
   type ColumnDef,
 } from '../../../pages-v2/_v2kit';
-
-type TabKey = 'machines' | 'svc' | 'rooms';
+import type {TabKey} from '../types';
 
 type AnyRow =
   | (api.MachineCodeDto & { _kind: 'machines' })

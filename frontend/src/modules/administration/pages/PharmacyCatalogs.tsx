@@ -14,8 +14,8 @@ import {
   DrawerShell, DrSec, DrField, tk, te, cf, Ico,
   type ColumnDef,
 } from '../../../pages-v2/_v2kit';
+import type {TabKey} from '../types';
 
-type TabKey = 'mfr' | 'route' | 'comm';
 
 type AnyRow =
   | (api.ManufacturerDto & { _kind: 'mfr' })
