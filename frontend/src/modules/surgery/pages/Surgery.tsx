@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import type { AxiosError } from 'axios';
 import * as surgeryApi from '../api/surgery';
 import type { SurgeryDto, SurgeryTeamMemberDto } from '../api/surgery';
 import type { ServerValidationError } from '../../../utils/formError';
-import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from '../../../pages-v2/_v2kit';
+import { SimpleV2Page, StatusBadge, ActBtn, Btn, cf, tk, tw, type ColumnDef, type StatusTab } from '../../../pages-v2/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { SurgeryCabinetIssueModal } from '../../../pages-v2/shared/SurgeryCabinetIssueModal';
 import { PreAnesthesiaModal, AnesthesiaMonitorModal, ConsentModal, PostAnesthesiaPlanModal } from '../../../pages-v2/shared/SurgeryFormModals';
-import { openPrintWindow } from '../../../utils/printWindow';
-import { buildSurgeryRecordHtml } from '../../../pages/surgery/printTemplates';
-import { HOSPITAL_NAME } from '../../../constants/hospital';
+import { SurgeryRequestCreateModal } from './SurgeryRequestCreateModal';
+import { SurgeryScheduleModal } from './SurgeryScheduleModal';
+import { SurgeryStartModal } from './SurgeryStartModal';
+import { SurgeryPrintFormModal } from './SurgeryPrintFormModal';
 
 /* Phẫu thuật v2 — port of OR v2.html */
 
@@ -35,6 +36,14 @@ const SurgeryV2: React.FC = () => {
   // Refresh closure for action buttons (SimpleV2Page passes reload to actions)
   const [reloadVer, setReloadVer] = useState(0);
 
+  // #409: workflow modals (port v1 create-request / schedule-OR / start-surgery)
+  const [createOpen, setCreateOpen] = useState(false);
+  const [scheduleTarget, setScheduleTarget] = useState<SurgeryDto | null>(null);
+  const [startTarget, setStartTarget] = useState<SurgeryDto | null>(null);
+  // reload() closure comes from SimpleV2Page per-row — stash the one active when a modal opened
+  const scheduleReloadRef = useRef<() => void>(() => {});
+  const startReloadRef = useRef<() => void>(() => {});
+
   const onCancel = async (r: SurgeryDto, reload: () => void) => {
     try {
       await surgeryApi.cancelSurgery(r.id, 'Hủy từ giao diện quản trị');
@@ -54,6 +63,24 @@ const SurgeryV2: React.FC = () => {
       const ax = e as AxiosError<ServerValidationError>;
       message.error(ax?.response?.data?.message || 'Duyệt thất bại');
     }
+  };
+
+  // #409: hoàn thành ca mổ — VERBATIM v1 handleCompleteSurgery (confirm → completeSurgery endTime=now)
+  const onComplete = (r: SurgeryDto, reload: () => void) => {
+    cf(`Xác nhận hoàn thành ca phẫu thuật ${r.surgeryCode} - ${r.patientName}?`, () => {
+      void (async () => {
+        try {
+          await surgeryApi.completeSurgery({
+            surgeryId: r.id,
+            endTime: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
+          });
+          tk('Hoàn thành phẫu thuật thành công');
+          reload();
+        } catch {
+          tw('Có lỗi xảy ra khi hoàn thành phẫu thuật');
+        }
+      })();
+    }, { title: 'Hoàn thành phẫu thuật', confirm: 'Xác nhận' });
   };
 
   const columns: ColumnDef<SurgeryDto>[] = [
@@ -153,10 +180,40 @@ const SurgeryV2: React.FC = () => {
           {r.status === 0 && (
             <ActBtn ic="check" title="Duyệt mổ" onClick={() => { void onApprove(r, reload); setReloadVer((v) => v + 1); }} />
           )}
+          {r.status === 0 && !r.operatingRoomName && (
+            <ActBtn ic="calendar" title="Lên lịch" onClick={() => { setScheduleTarget(r); scheduleReloadRef.current = reload; }} />
+          )}
+          {r.status === 0 && !!r.operatingRoomName && (
+            <ActBtn ic="activity" title="Bắt đầu" onClick={() => { setStartTarget(r); startReloadRef.current = reload; }} />
+          )}
           {r.status !== 5 && r.status !== 4 && (
             <ActBtn ic="x" title="Hủy ca" onClick={() => { void onCancel(r, reload); setReloadVer((v) => v + 1); }} tone="crit" />
           )}
         </div>
+      )}
+      headerActions={(reload) => (
+        <>
+          <Btn variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
+            <TermIcon name="plus" size={12} /> Tạo yêu cầu
+          </Btn>
+          <SurgeryRequestCreateModal
+            open={createOpen}
+            onClose={() => setCreateOpen(false)}
+            onCreated={() => { setCreateOpen(false); reload(); }}
+          />
+          <SurgeryScheduleModal
+            open={!!scheduleTarget}
+            onClose={() => setScheduleTarget(null)}
+            surgery={scheduleTarget}
+            onScheduled={() => { setScheduleTarget(null); scheduleReloadRef.current(); }}
+          />
+          <SurgeryStartModal
+            open={!!startTarget}
+            onClose={() => setStartTarget(null)}
+            surgery={startTarget}
+            onStarted={() => { setStartTarget(null); startReloadRef.current(); }}
+          />
+        </>
       )}
       drawer={(r) => <SurgeryDrawerBody r={r} />}
       drawerTitle={(r) => (
@@ -176,6 +233,7 @@ const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => {
   const [anesthMonOpen, setAnesthMonOpen]     = useState(false);
   const [consentOpen, setConsentOpen]         = useState(false);
   const [postAnesthOpen, setPostAnesthOpen]   = useState(false);
+  const [printOpen, setPrintOpen]             = useState(false);
 
   return (
   <>
@@ -210,32 +268,11 @@ const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => {
         <Btn variant="ghost" size="sm" onClick={() => setPostAnesthOpen(true)}>
           <TermIcon name="clipboard" size={11} /> KH sau gây mê
         </Btn>
-        <Btn variant="ghost" size="sm" onClick={() => {
-          openPrintWindow(
-            buildSurgeryRecordHtml(
-              {
-                hospitalName: HOSPITAL_NAME,
-                patientName: r.patientName || '',
-                gender: r.gender || '',
-                roomName: r.operatingRoomName || '',
-                surgeryTime: r.startTime || r.scheduledDate || '',
-                preOpDiagnosis: r.preOperativeDiagnosis || '',
-                postOpDiagnosis: r.postOperativeDiagnosis || '',
-                surgeryMethod: r.surgeryMethod || '',
-                surgeryType: r.surgeryNatureName || '',
-                anesthesiaMethod: r.anesthesiaTypeName || '',
-                surgeonName: r.requestDoctorName || '',
-                surgeryDescription: r.description || '',
-              },
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              { requestCode: r.surgeryCode } as any,
-            ),
-            { focus: true, print: { delayMs: 500 } },
-          );
-        }}>
+        <Btn variant="ghost" size="sm" onClick={() => setPrintOpen(true)}>
           <TermIcon name="printer" size={11} /> In phiếu PT/TT
         </Btn>
       </div>
+      <SurgeryPrintFormModal open={printOpen} onClose={() => setPrintOpen(false)} surgery={r} />
 
       <PreAnesthesiaModal
         open={preAnesthOpen}

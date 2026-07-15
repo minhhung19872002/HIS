@@ -76,6 +76,23 @@
   font-weight: 700;
 }
 
+.reports-v2-page-tabs button {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: var(--t-2);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reports-v2-page-tabs button.is-active {
+  background: var(--d-3);
+  color: var(--t-0);
+  border-color: var(--t-2);
+}
+
 .reports-v2-period-switch {
   display: inline-flex;
   align-items: center;

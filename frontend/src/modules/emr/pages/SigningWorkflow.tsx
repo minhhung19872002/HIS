@@ -7,15 +7,20 @@ import {
 import type { SigningRequestItem, SigningWorkflowStats } from '../api/signingWorkflow';
 import {
   KpiStrip, TopTabs, DataTable, DrawerShell, DrSec, DrField, StatusBadge, Btn, Filter, Ico,
-  tk, te, type ColumnDef, type TopTab,
+  tk, te, tw, cf, type ColumnDef, type TopTab,
 } from '../../../pages-v2/_v2kit';
 
-type Tab = 'pending' | 'submitted' | 'history';
+type Tab = 'pending' | 'submitted' | 'history' | 'stats';
 const TABS: TopTab<Tab>[] = [
   { v: 'pending',   l: 'Chờ tôi ký',  ic: 'clock' },
   { v: 'submitted', l: 'Tôi đã gửi',  ic: 'send' },
   { v: 'history',   l: 'Lịch sử',     ic: 'archive' },
+  { v: 'stats',     l: 'Thống kê',    ic: 'chart' },
 ];
+
+// Ngưỡng cảnh báo tuổi yêu cầu chờ ký (v1 verbatim): >48h = quá hạn, >24h = sắp quá hạn
+const OVERDUE_MS = 48 * 60 * 60 * 1000;
+const WARNING_MS = 24 * 60 * 60 * 1000;
 
 const STATUS_LABEL: Record<number, { label: string; tone: 'warn' | 'ok' | 'crit' | 'info' }> = {
   0: { label: 'Chờ ký',   tone: 'warn' },
@@ -45,16 +50,20 @@ const SigningWorkflowV2: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<SigningRequestItem | null>(null);
   const [fSignerRole, setFSignerRole] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [batchApproving, setBatchApproving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const fn = tab === 'pending' ? getPendingRequests
-        : tab === 'submitted' ? getSubmittedRequests
-        : getHistory;
-      const params = fSignerRole ? { signerRole: fSignerRole } : undefined;
-      const list = await fn(params);
-      setItems(Array.isArray(list) ? list : []);
+      if (tab !== 'stats') {
+        const fn = tab === 'pending' ? getPendingRequests
+          : tab === 'submitted' ? getSubmittedRequests
+          : getHistory;
+        const params = fSignerRole ? { signerRole: fSignerRole } : undefined;
+        const list = await fn(params);
+        setItems(Array.isArray(list) ? list : []);
+      }
       const s = await getSigningStats().catch(() => null);
       setStats(s);
     } catch { setItems([]); }
@@ -76,6 +85,41 @@ const SigningWorkflowV2: React.FC = () => {
     { lbl: 'Hôm nay gửi', val: stats?.todaySubmitted ?? 0, tone: 'info' as const },
     { lbl: 'Hôm nay ký', val: stats?.todayApproved ?? 0, tone: 'ok' as const },
   ], [items, counts, stats]);
+
+  // Tab Thống kê: số liệu toàn hệ thống từ /signing-workflow/stats (v1 tab "Thống kê")
+  const statKpis = useMemo(() => [
+    { lbl: 'Chờ duyệt',     val: stats?.pendingCount ?? 0,   tone: 'info' as const },
+    { lbl: 'Đã duyệt',      val: stats?.approvedCount ?? 0,  tone: 'ok' as const },
+    { lbl: 'Từ chối',       val: stats?.rejectedCount ?? 0,  tone: 'crit' as const },
+    { lbl: 'Đã hủy',        val: stats?.cancelledCount ?? 0 },
+    { lbl: 'Tổng cộng',     val: stats?.totalCount ?? 0 },
+    { lbl: 'Gửi hôm nay',   val: stats?.todaySubmitted ?? 0, tone: 'info' as const },
+    { lbl: 'Duyệt hôm nay', val: stats?.todayApproved ?? 0,  tone: 'ok' as const },
+  ], [stats]);
+
+  // Cảnh báo tab "Chờ tôi ký" (logic v1 verbatim): quá hạn >48h + trùng lặp cùng loại+bệnh nhân
+  const pendingItems = tab === 'pending' ? items : [];
+  const overdueItems = pendingItems.filter((item) => {
+    if (!item.createdAt) return false;
+    const created = new Date(item.createdAt).getTime();
+    return Date.now() - created > OVERDUE_MS; // >48h
+  });
+  const duplicateGroups = pendingItems.reduce<Record<string, SigningRequestItem[]>>((acc, item) => {
+    const key = `${item.documentType}-${item.patientName || ''}`;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {});
+  const duplicateCount = Object.values(duplicateGroups).filter((g) => g.length > 1).reduce((sum, g) => sum + g.length, 0);
+
+  // Badge tuổi yêu cầu trên từng dòng chờ ký (thay rowClassName highlight của v1)
+  const ageBadge = (r: SigningRequestItem): React.ReactNode => {
+    if (tab !== 'pending' || !r.createdAt) return null;
+    const age = Date.now() - new Date(r.createdAt).getTime();
+    if (age > OVERDUE_MS) return <StatusBadge tone="crit">Quá hạn</StatusBadge>;
+    if (age > WARNING_MS) return <StatusBadge tone="warn">&gt;24h</StatusBadge>;
+    return null;
+  };
 
   const columns: ColumnDef<SigningRequestItem>[] = [
     { key: 'documentType',  label: 'Loại',
@@ -100,7 +144,12 @@ const SigningWorkflowV2: React.FC = () => {
     { key: 'stepOrder',     label: 'Cấp', mono: true,
       render: (r) => (r.chainId ? `${r.stepOrder}/${r.totalSteps}` : '—') },
     { key: 'createdAt',     label: 'Ngày tạo', mono: true,
-      render: (r) => dayjs(r.createdAt).format('DD/MM HH:mm') },
+      render: (r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-6)' }}>
+          {dayjs(r.createdAt).format('DD/MM HH:mm')}
+          {ageBadge(r)}
+        </span>
+      ) },
     { key: 'status',        label: 'Trạng thái',
       render: (r) => {
         const m = STATUS_LABEL[r.status] || { label: r.statusText, tone: 'info' as const };
@@ -127,19 +176,53 @@ const SigningWorkflowV2: React.FC = () => {
     else te('Không thể hủy');
   };
 
+  // Ký duyệt hàng loạt (logic v1 verbatim): duyệt tuần tự từng yêu cầu đã chọn, đếm số thành công
+  const doBatchApprove = async () => {
+    setBatchApproving(true);
+    let successCount = 0;
+    for (const id of selected) {
+      const r = await approveSigningRequest(id);
+      if (r) successCount++;
+    }
+    setBatchApproving(false);
+    if (successCount > 0) {
+      tk(`Đã phê duyệt ${successCount}/${selected.size} yêu cầu`);
+      setSelected(new Set());
+      void load();
+    } else {
+      te('Không thể phê duyệt');
+    }
+  };
+  const askBatchApprove = () => {
+    if (selected.size === 0) { tw('Vui lòng chọn ít nhất 1 yêu cầu'); return; }
+    cf(`Phê duyệt ${selected.size} yêu cầu cùng lúc?`, () => { void doBatchApprove(); },
+      { title: 'Ký duyệt hàng loạt', confirm: 'Duyệt tất cả' });
+  };
+  const toggleOne = (k: string) => setSelected((prev) => {
+    const next = new Set(prev);
+    if (next.has(k)) next.delete(k); else next.add(k);
+    return next;
+  });
+  const toggleAll = () => setSelected((prev) => {
+    const all = items.length > 0 && items.every((i) => prev.has(i.id));
+    return all ? new Set() : new Set(items.map((i) => i.id));
+  });
+
   return (
     <div className="ab">
-      <KpiStrip items={kpis} />
+      {tab !== 'stats' && <KpiStrip items={kpis} />}
 
       <div className="ab-tools">
-        <TopTabs tab={tab} setTab={setTab} tabs={TABS} />
-        <Filter
-          value={fSignerRole}
-          onChange={(v) => setFSignerRole(v)}
-          options={SIGNER_ROLE_OPTIONS}
-          placeholder="▾ Vai trò người ký"
-        />
-        {fSignerRole && (
+        <TopTabs tab={tab} setTab={(v) => { setTab(v); setSelected(new Set()); }} tabs={TABS} />
+        {tab !== 'stats' && (
+          <Filter
+            value={fSignerRole}
+            onChange={(v) => setFSignerRole(v)}
+            options={SIGNER_ROLE_OPTIONS}
+            placeholder="▾ Vai trò người ký"
+          />
+        )}
+        {tab !== 'stats' && fSignerRole && (
           <Btn variant="ghost" onClick={() => setFSignerRole('')}>
             <Ico name="x" size={12} /> Bỏ lọc
           </Btn>
@@ -148,13 +231,56 @@ const SigningWorkflowV2: React.FC = () => {
         <Btn variant="ghost" onClick={load}>Làm mới</Btn>
       </div>
 
-      <DataTable<SigningRequestItem>
-        columns={columns}
-        data={items}
-        rowKey={(r) => r.id}
-        onRowClick={(r) => setDetail(r)}
-        empty={loading ? 'Đang tải…' : 'Không có yêu cầu'}
-      />
+      {/* Cảnh báo quá hạn ký / trùng lặp — chỉ ở tab Chờ tôi ký (port từ v1) */}
+      {tab === 'pending' && overdueItems.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 'var(--space-8)', padding: '8px 14px',
+          marginBottom: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)',
+          color: 'var(--s-warn)', fontSize: 'var(--fs-sm)',
+        }}>
+          <Ico name="alert" size={14} />
+          <b>{overdueItems.length} yêu cầu quá hạn</b>
+          <span style={{ color: 'var(--t-2)' }}>&gt;48h chưa duyệt</span>
+        </div>
+      )}
+      {tab === 'pending' && duplicateCount > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 'var(--space-8)', padding: '8px 14px',
+          marginBottom: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)',
+          color: 'var(--t-2)', fontSize: 'var(--fs-sm)',
+        }}>
+          <Ico name="info" size={14} />
+          <b>{duplicateCount} yêu cầu trùng lặp</b>
+          <span>cùng loại + bệnh nhân</span>
+        </div>
+      )}
+
+      {/* Thanh ký duyệt hàng loạt — hiện khi đã chọn ≥1 yêu cầu chờ ký (port từ v1) */}
+      {tab === 'pending' && selected.size > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
+          <Ico name="users" size={14} />
+          <span style={{ fontSize: 'var(--fs-sm)' }}>Đã chọn {selected.size} yêu cầu</span>
+          <Btn variant="primary" loading={batchApproving} icon="check" onClick={askBatchApprove}>
+            Duyệt đồng loạt
+          </Btn>
+          <Btn variant="ghost" onClick={() => setSelected(new Set())}>Bỏ chọn</Btn>
+        </div>
+      )}
+
+      {tab === 'stats' ? (
+        <KpiStrip items={statKpis} />
+      ) : (
+        <DataTable<SigningRequestItem>
+          columns={columns}
+          data={items}
+          rowKey={(r) => r.id}
+          onRowClick={(r) => setDetail(r)}
+          selected={tab === 'pending' ? selected : null}
+          onToggle={toggleOne}
+          onToggleAll={toggleAll}
+          empty={loading ? 'Đang tải…' : 'Không có yêu cầu'}
+        />
+      )}
 
       <DrawerShell
         open={!!detail}

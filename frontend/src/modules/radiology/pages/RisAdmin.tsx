@@ -4,10 +4,12 @@ import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../../../services/apiClient';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import {
-  KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn,
+  KpiStrip, TopTabs, Filter, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
   ModalShell, DrawerShell, DrSec, DrField, Ico, tk, tw, cf,
   type ColumnDef,
 } from '../../../pages-v2/_v2kit';
+import { getRemoteServers, saveRemoteServer, deleteRemoteServer } from '../api/ris/pacs';
+import { getTags, saveTag, type RadiologyTagDto } from '../api/ris/label-tag-qr';
 
 const { RangePicker } = DatePicker;
 
@@ -33,7 +35,7 @@ interface FolderRow { id: string; folderName: string; folderType: number; areaNa
 interface Room { id: string; roomName: string; modalityType?: string; departmentName?: string }
 interface Stat { label: string; value: number }
 
-type Tab = 'permissions' | 'areas' | 'folders' | 'icdMap' | 'machines' | 'supplies' | 'hospital' | 'stats' | 'modalityPerm';
+type Tab = 'permissions' | 'areas' | 'folders' | 'icdMap' | 'machines' | 'supplies' | 'hospital' | 'stats' | 'modalityPerm' | 'remotePacs' | 'tags';
 const TABS = [
   { v: 'permissions' as Tab,  l: 'Phân quyền',        ic: 'user' },
   { v: 'modalityPerm' as Tab, l: 'Quyền theo máy',    ic: 'user' },
@@ -43,6 +45,8 @@ const TABS = [
   { v: 'machines' as Tab,     l: 'Máy chụp',          ic: 'qr' },
   { v: 'supplies' as Tab,     l: 'Vật tư',            ic: 'medicine' },
   { v: 'hospital' as Tab,     l: 'Cấu hình BV',       ic: 'edit' },
+  { v: 'remotePacs' as Tab,   l: 'Remote PACS',       ic: 'cloud' },
+  { v: 'tags' as Tab,         l: 'Quản lý Tag',       ic: 'star' },
   { v: 'stats' as Tab,        l: 'Thống kê',          ic: 'activity' },
 ];
 
@@ -54,7 +58,7 @@ const RisAdminV2: React.FC = () => {
         { lbl: 'Đang xem', val: TABS.find((t) => t.v === tab)?.l || '—', sub: 'admin RIS', tone: 'info' },
         { lbl: 'Module', val: 'RIS/PACS', sub: 'admin panel', tone: 'ok' },
         { lbl: 'Quyền', val: '4-eyes', sub: 'role-based', tone: 'warn' },
-        { lbl: 'Sub-tabs', val: 8, sub: 'mục cấu hình' },
+        { lbl: 'Sub-tabs', val: TABS.length, sub: 'mục cấu hình' },
       ]} />
       <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} />
       {tab === 'permissions' && <PermissionsTab />}
@@ -65,6 +69,8 @@ const RisAdminV2: React.FC = () => {
       {tab === 'machines' && <MachinesTab />}
       {tab === 'supplies' && <SuppliesTab />}
       {tab === 'hospital' && <HospitalConfigTab />}
+      {tab === 'remotePacs' && <RemotePacsTab />}
+      {tab === 'tags' && <TagsTab />}
       {tab === 'stats' && <StatsTab />}
     </div>
   );
@@ -541,6 +547,218 @@ const HospitalConfigTab: React.FC = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// #409 batch — Remote PACS (remote-DICOM config, port verbatim từ pages/Radiology.tsx
+// RemoteServerRow/drawer+modal, chỉ đổi UI shell sang DataTable+ModalShell/_v2kit)
+// ─────────────────────────────────────────────────────────────────────────────
+interface RemoteServerRow {
+  id: string;
+  name: string;
+  aeTitle: string;
+  host: string;
+  port: number;
+  description?: string;
+  isActive?: boolean;
+}
+
+const RemotePacsTab: React.FC = () => {
+  const [servers, setServers] = useState<RemoteServerRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<RemoteServerRow | null>(null);
+  const [sel, setSel] = useState<RemoteServerRow | null>(null);
+  const [form] = Form.useForm<RemoteServerRow>();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const res = await getRemoteServers(); setServers((res.data as RemoteServerRow[]) || []); }
+    catch { setServers([]); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const openAdd = () => {
+    setEditing(null); form.resetFields();
+    form.setFieldsValue({ port: 4242, isActive: true } as RemoteServerRow);
+    setModal(true);
+  };
+  const openEdit = (r: RemoteServerRow) => { setEditing(r); form.setFieldsValue(r); setModal(true); };
+
+  const submit = async () => {
+    try {
+      const v = await form.validateFields();
+      await saveRemoteServer({ ...v, id: editing?.id });
+      tk(editing ? 'Đã cập nhật server' : 'Đã thêm server'); setModal(false); load();
+    } catch { tw('Lưu thất bại'); }
+  };
+
+  const remove = (r: RemoteServerRow) => cf(`Xóa server "${r.name}"?`, async () => {
+    await deleteRemoteServer(r.id); tk('Đã xóa'); load();
+  }, { tone: 'crit', confirm: 'Xóa' });
+
+  const cols: ColumnDef<RemoteServerRow>[] = [
+    { key: 'name', label: 'Tên server', render: (r) => <b>{r.name}</b> },
+    { key: 'ae', label: 'AE Title', code: true, render: (r) => r.aeTitle },
+    { key: 'host', label: 'Host / IP', mono: true, render: (r) => r.host },
+    { key: 'port', label: 'Port', mono: true, render: (r) => r.port },
+    { key: 'active', label: 'Trạng thái', render: (r) => r.isActive !== false ? <StatusBadge tone="ok" dot>Hoạt động</StatusBadge> : <StatusBadge tone="warn" dot>Tắt</StatusBadge> },
+  ];
+
+  return (
+    <>
+      <div style={{ padding: 'var(--space-12)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, margin: 'var(--space-12)', fontSize: 'var(--fs-sm)' }}>
+        <Ico name="info" size={12} /> Quản lý các PACS server từ xa để gửi ảnh DICOM (C-STORE). Cấu hình AE Title, host, port cho từng server.
+      </div>
+      <div className="ab-toolbar" style={{ borderTop: 'none' }}>
+        <span className="spacer" />
+        <Btn variant="primary" onClick={openAdd}>
+          <Ico name="plus" size={12} /> Thêm server
+        </Btn>
+      </div>
+      <DataTable<RemoteServerRow> columns={cols} data={servers} rowKey={(r) => r.id}
+        onRowClick={setSel}
+        actions={(r) => (
+          <div className="ab-actions">
+            <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
+            <ActBtn ic="trash" title="Xóa" tone="crit" onClick={() => remove(r)} />
+          </div>
+        )}
+        empty={loading ? 'Đang tải…' : 'Chưa có Remote PACS server'} />
+
+      <DrawerShell
+        open={!!sel}
+        onClose={() => setSel(null)}
+        size="md"
+        title={sel ? `Remote PACS · ${sel.name}` : ''}
+        sub={sel ? sel.aeTitle : ''}
+      >
+        {sel && <>
+          <DrSec title="Thông tin kết nối">
+            <DrField lbl="Tên server">{sel.name}</DrField>
+            <DrField lbl="AE Title"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.aeTitle}</span></DrField>
+            <DrField lbl="Host / IP">{sel.host}</DrField>
+            <DrField lbl="Port">{sel.port}</DrField>
+            <DrField lbl="Mô tả">{sel.description || '—'}</DrField>
+            <DrField lbl="Trạng thái">
+              {sel.isActive !== false ? <StatusBadge tone="ok" dot>Hoạt động</StatusBadge> : <StatusBadge tone="warn" dot>Tắt</StatusBadge>}
+            </DrField>
+          </DrSec>
+        </>}
+      </DrawerShell>
+
+      <ModalShell open={modal} onClose={() => setModal(false)} size="md"
+        title={editing ? `Sửa Remote PACS Server` : 'Thêm Remote PACS Server'}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setModal(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submit}><Ico name="check" size={12} /> Lưu</Btn>
+        </>}>
+        <Form form={form} layout="vertical">
+          <Form.Item name="name" label="Tên server" rules={[{ required: true, message: 'Vui lòng nhập tên server' }]}>
+            <Input placeholder="VD: PACS Bệnh viện tỉnh" />
+          </Form.Item>
+          <Form.Item name="aeTitle" label="AE Title" rules={[{ required: true, message: 'Vui lòng nhập AE Title' }]}>
+            <Input placeholder="VD: REMOTE_PACS" />
+          </Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-12)' }}>
+            <Form.Item name="host" label="Host / IP" rules={[{ required: true, message: 'Vui lòng nhập host' }]}>
+              <Input placeholder="VD: 192.168.1.100" />
+            </Form.Item>
+            <Form.Item name="port" label="Port" rules={[{ required: true, message: 'Vui lòng nhập port' }]}>
+              <InputNumber min={1} max={65535} style={{ width: '100%' }} />
+            </Form.Item>
+          </div>
+          <Form.Item name="description" label="Mô tả">
+            <Input.TextArea rows={2} placeholder="Ghi chú thêm về server này…" />
+          </Form.Item>
+          <Form.Item name="isActive" label="Trạng thái" valuePropName="checked" initialValue={true}>
+            <Checkbox>Hoạt động</Checkbox>
+          </Form.Item>
+        </Form>
+      </ModalShell>
+    </>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// #409 batch — Quản lý Tag (case-tag CRUD, port verbatim từ pages/Radiology.tsx
+// tab "tags": search + list badge màu + modal "Thêm Tag mới". v1 KHÔNG có
+// sửa/xóa định nghĩa tag → giữ nguyên phạm vi, không thêm logic mới.
+// ─────────────────────────────────────────────────────────────────────────────
+const TAG_COLOR_OPTIONS = [
+  { value: 'red', label: 'Đỏ' }, { value: 'orange', label: 'Cam' },
+  { value: 'blue', label: 'Xanh dương' }, { value: 'green', label: 'Xanh lá' },
+  { value: 'purple', label: 'Tím' }, { value: 'cyan', label: 'Cyan' },
+];
+
+const TagsTab: React.FC = () => {
+  const [keyword, setKeyword] = useState('');
+  const [tags, setTags] = useState<RadiologyTagDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState(false);
+  const [form] = Form.useForm();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const res = await getTags(keyword || undefined); setTags(res.data || []); }
+    catch { setTags([]); }
+    finally { setLoading(false); }
+  }, [keyword]);
+  useEffect(() => { load(); }, [load]);
+
+  const submit = async () => {
+    try {
+      const v = await form.validateFields();
+      await saveTag({ code: v.code, name: v.name, color: v.color || 'blue', description: v.description });
+      tk('Đã tạo tag mới'); setModal(false); form.resetFields(); load();
+    } catch { tw('Tạo tag thất bại'); }
+  };
+
+  return (
+    <>
+      <div className="ab-toolbar" style={{ borderTop: 'none' }}>
+        <SearchBox value={keyword} onChange={setKeyword} placeholder="Tìm tag…" />
+        <span className="spacer" />
+        <Btn variant="primary" onClick={() => { form.resetFields(); setModal(true); }}>
+          <Ico name="plus" size={12} /> Thêm Tag mới
+        </Btn>
+      </div>
+      <div style={{ padding: 'var(--space-16)' }}>
+        <div style={{ padding: 'var(--space-12)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 4, marginBottom: 'var(--space-16)', fontSize: 'var(--fs-sm)' }}>
+          <Ico name="info" size={12} /> Tạo và quản lý các tag để phân loại, đánh dấu ca chụp. Hỗ trợ gắn nhiều tag cho một ca.
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-8)' }}>
+          {loading && <span style={{ color: 'var(--t-3)' }}>Đang tải…</span>}
+          {!loading && tags.length === 0 && <span style={{ color: 'var(--t-3)' }}>Chưa có tag nào</span>}
+          {!loading && tags.map((t) => (
+            <StatusBadge key={t.id} tone="info">{t.name}</StatusBadge>
+          ))}
+        </div>
+      </div>
+
+      <ModalShell open={modal} onClose={() => setModal(false)} size="sm" title="Thêm Tag mới"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setModal(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submit}><Ico name="check" size={12} /> Lưu</Btn>
+        </>}>
+        <Form form={form} layout="vertical">
+          <Form.Item name="code" label="Mã tag" rules={[{ required: true, message: 'Vui lòng nhập mã tag' }]}>
+            <Input placeholder="Nhập mã tag" />
+          </Form.Item>
+          <Form.Item name="name" label="Tên tag" rules={[{ required: true, message: 'Vui lòng nhập tên tag' }]}>
+            <Input placeholder="Nhập tên tag" />
+          </Form.Item>
+          <Form.Item name="color" label="Màu sắc">
+            <Select placeholder="Chọn màu" options={TAG_COLOR_OPTIONS} />
+          </Form.Item>
+          <Form.Item name="description" label="Mô tả">
+            <Input.TextArea rows={2} placeholder="Nhập mô tả (không bắt buộc)" />
+          </Form.Item>
+        </Form>
+      </ModalShell>
+    </>
   );
 };
 

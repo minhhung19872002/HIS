@@ -8,7 +8,7 @@ import {
 import type { WasteRecord, MonitoringRecord, WasteStats, MonitoringStats, BiosafetyStatus } from '../api/environmentalHealth';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
+  KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '../../../pages-v2/_v2kit';
@@ -61,6 +61,30 @@ const STATUS_TABS = [
   { v: 'noncompliant' as SKey, l: 'Vi phạm',    tone: 'crit' as const },
 ];
 
+// ─── Tab An toàn sinh học (đọc /environmental-health/biosafety-status — BiosafetyStatusDto BE) ───
+type MainTab = 'waste' | 'biosafety';
+interface BiosafetyDetail {
+  wasteComplianceRate: number;
+  environmentalComplianceRate: number;
+  pendingWasteDisposal: number;
+  nonCompliantMonitoring: number;
+  overallStatus: string; // good | warning | critical
+}
+const OVERALL_STATUS_META: Record<string, { label: string; tone?: 'ok' | 'warn' | 'crit' }> = {
+  good: { label: 'Tốt', tone: 'ok' },
+  warning: { label: 'Cảnh báo', tone: 'warn' },
+  critical: { label: 'Nguy cấp', tone: 'crit' },
+  unknown: { label: 'Chưa có dữ liệu' },
+};
+const cardStyle: React.CSSProperties = {
+  padding: '12px 16px', background: 'var(--bg-1)',
+  border: '1px solid var(--line)', borderRadius: 'var(--r-2)',
+};
+const cardTitleStyle: React.CSSProperties = {
+  margin: '0 0 10px', fontSize: 11, textTransform: 'uppercase',
+  letterSpacing: '0.06em', color: 'var(--t-2)',
+};
+
 const PER = 18;
 
 const EnvironmentalHealthV2: React.FC = () => {
@@ -72,11 +96,13 @@ const EnvironmentalHealthV2: React.FC = () => {
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<WasteRecord | null>(null);
   const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+  const [mainTab, setMainTab] = useState<MainTab>('waste');
 
   // Thống kê server (parity v1): waste stats + monitoring stats + an toàn sinh học
   const [wasteStats, setWasteStats] = useState<WasteStats>({ totalCollectedThisMonth: 0, nonCompliantItems: 0, infectiousWasteKg: 0, generalWasteKg: 0 });
   const [monitoringStats, setMonitoringStats] = useState<MonitoringStats>({ totalMonitoringCount: 0, nonCompliantCount: 0 });
   const [biosafety, setBiosafety] = useState<BiosafetyStatus>({ level: 0, isCompliant: true });
+  const [biosafetyDetail, setBiosafetyDetail] = useState<BiosafetyDetail | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -95,7 +121,12 @@ const EnvironmentalHealthV2: React.FC = () => {
       if (results[0].status === 'fulfilled') setItems(normalizeArrayResponse<WasteRecord>(results[0].value));
       if (results[1].status === 'fulfilled') setWasteStats(results[1].value);
       if (results[2].status === 'fulfilled') setMonitoringStats(results[2].value);
-      if (results[3].status === 'fulfilled') setBiosafety(results[3].value);
+      if (results[3].status === 'fulfilled') {
+        setBiosafety(results[3].value);
+        // BE trả BiosafetyStatusDto thực (wasteComplianceRate/environmentalComplianceRate/...) —
+        // khác field so với type BiosafetyStatus khai báo trong api client (level/isCompliant, chưa khớp BE).
+        setBiosafetyDetail(results[3].value as unknown as BiosafetyDetail);
+      }
     } catch { ti('Không tải được dữ liệu chất thải'); }
     finally { setLoading(false); }
   };
@@ -185,35 +216,79 @@ const EnvironmentalHealthV2: React.FC = () => {
         { lbl: 'Tổng phiếu', val: items.length, sub: `${counts.compliant} đạt · ${counts.noncompliant} vi phạm` },
       ]} />
 
-      <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
-        <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
-          placeholder="Tìm phiếu / nguồn / PP xử lý…" />
-        <DatePicker.RangePicker value={range} format="DD/MM/YYYY" size="small"
-          onChange={(v) => { setRange(v as [dayjs.Dayjs, dayjs.Dayjs] | null); setPage(0); }} />
-        <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại chất thải" />
-        <Btn variant="ghost" onClick={() => { setSearch(''); setFType(''); setStab('all'); setRange(null); }}>
-          <Ico name="x" size={12} /> Bỏ lọc
-        </Btn>
-        <span className="spacer" />
-        <Btn variant="ghost" onClick={load}>
-          <Ico name="refresh" size={12} /> Làm mới
-        </Btn>
-        <Btn variant="ghost" onClick={() => { setMonitorOpen(true); loadMonitorings(); }}>
-          <Ico name="activity" size={12} /> Quan trắc
-        </Btn>
-        <Btn variant="primary" onClick={openCreate}>
-          <Ico name="plus" size={12} /> Phiếu mới
-        </Btn>
-      </div>
-
-      <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
-
-      <DataTable<WasteRecord>
-        columns={cols} data={paged} rowKey={(r) => r.id}
-        onRowClick={setSel} actions={actions}
-        empty={loading ? 'Đang tải…' : 'Chưa có phiếu chất thải'}
+      <TopTabs<MainTab>
+        tab={mainTab}
+        setTab={setMainTab}
+        tabs={[
+          { v: 'waste', l: 'Rác thải & quan trắc', ic: 'trash' },
+          { v: 'biosafety', l: 'An toàn sinh học', ic: 'shield' },
+        ]}
       />
-      <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
+
+      {mainTab === 'waste' && <>
+        <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
+          <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
+            placeholder="Tìm phiếu / nguồn / PP xử lý…" />
+          <DatePicker.RangePicker value={range} format="DD/MM/YYYY" size="small"
+            onChange={(v) => { setRange(v as [dayjs.Dayjs, dayjs.Dayjs] | null); setPage(0); }} />
+          <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại chất thải" />
+          <Btn variant="ghost" onClick={() => { setSearch(''); setFType(''); setStab('all'); setRange(null); }}>
+            <Ico name="x" size={12} /> Bỏ lọc
+          </Btn>
+          <span className="spacer" />
+          <Btn variant="ghost" onClick={load}>
+            <Ico name="refresh" size={12} /> Làm mới
+          </Btn>
+          <Btn variant="ghost" onClick={() => { setMonitorOpen(true); loadMonitorings(); }}>
+            <Ico name="activity" size={12} /> Quan trắc
+          </Btn>
+          <Btn variant="primary" onClick={openCreate}>
+            <Ico name="plus" size={12} /> Phiếu mới
+          </Btn>
+        </div>
+
+        <StatusTabs<SKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
+
+        <DataTable<WasteRecord>
+          columns={cols} data={paged} rowKey={(r) => r.id}
+          onRowClick={setSel} actions={actions}
+          empty={loading ? 'Đang tải…' : 'Chưa có phiếu chất thải'}
+        />
+        <Pager page={page} setPage={setPage} totalPages={totalPages} total={filtered.length} perPage={PER} />
+      </>}
+
+      {mainTab === 'biosafety' && (
+        <div style={{ padding: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
+          <div style={cardStyle}>
+            <h4 style={cardTitleStyle}>Xếp loại an toàn sinh học chung</h4>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--line-soft)' }}>
+              <span style={{ fontSize: 12.5 }}>Đánh giá tổng thể</span>
+              <StatusBadge tone={OVERALL_STATUS_META[biosafetyDetail?.overallStatus || 'unknown']?.tone} dot>
+                {OVERALL_STATUS_META[biosafetyDetail?.overallStatus || 'unknown']?.label || 'Chưa có dữ liệu'}
+              </StatusBadge>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12.5 }}>
+              <span>Tỷ lệ xử lý rác thải đạt chuẩn</span>
+              <b style={{ color: 'var(--t-0)' }}>{biosafetyDetail?.wasteComplianceRate ?? 0}%</b>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12.5 }}>
+              <span>Tỷ lệ quan trắc môi trường đạt chuẩn</span>
+              <b style={{ color: 'var(--t-0)' }}>{biosafetyDetail?.environmentalComplianceRate ?? 0}%</b>
+            </div>
+          </div>
+          <div style={cardStyle}>
+            <h4 style={cardTitleStyle}>Cần xử lý</h4>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid var(--line-soft)', fontSize: 12.5 }}>
+              <span>Rác thải chờ xử lý</span>
+              <b style={{ color: 'var(--s-warn)' }}>{biosafetyDetail?.pendingWasteDisposal ?? 0}</b>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12.5 }}>
+              <span>Quan trắc không đạt chuẩn</span>
+              <b style={{ color: 'var(--s-crit)' }}>{biosafetyDetail?.nonCompliantMonitoring ?? 0}</b>
+            </div>
+          </div>
+        </div>
+      )}
 
       <DrawerShell
         open={!!sel}

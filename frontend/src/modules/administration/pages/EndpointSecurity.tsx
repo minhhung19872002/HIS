@@ -1,7 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { getDevices, registerDevice, updateDeviceStatus, deleteDevice, getIncidents } from '../api/endpointSecurity';
-import type { EndpointDeviceDto, RegisterDeviceDto, UpdateDeviceStatusDto, SecurityIncidentDto } from '../api/endpointSecurity';
+import {
+  getDevices, registerDevice, updateDeviceStatus, deleteDevice, getIncidents,
+  createIncident, resolveIncident, getSoftwareInventory, flagUnauthorized,
+} from '../api/endpointSecurity';
+import type {
+  EndpointDeviceDto, RegisterDeviceDto, UpdateDeviceStatusDto, SecurityIncidentDto,
+  CreateIncidentDto, InstalledSoftwareDto,
+} from '../api/endpointSecurity';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
   DrawerShell, DrSec, DrField, tk, ti, te, cf,
@@ -28,6 +34,23 @@ const DEVICE_UPDATE_FIELDS: CrudFieldCfg[] = [
   { key: 'complianceNotes', label: 'Ghi chú tuân thủ', type: 'textarea' },
   { key: 'antivirusStatus', label: 'Trạng thái AV' },
   { key: 'agentVersion', label: 'Phiên bản agent' },
+];
+
+const INCIDENT_FIELDS: CrudFieldCfg[] = [
+  { key: 'title', label: 'Tiêu đề', required: true },
+  { key: 'description', label: 'Mô tả', type: 'textarea' },
+  { key: 'severity', label: 'Mức độ', type: 'select', required: true, options: [
+    { value: 1, label: 'Nghiêm trọng' }, { value: 2, label: 'Cao' }, { value: 3, label: 'Trung bình' }, { value: 4, label: 'Thấp' }] },
+  { key: 'category', label: 'Phân loại', type: 'select', options: [
+    { value: 'Malware', label: 'Malware' }, { value: 'Phishing', label: 'Phishing' }, { value: 'Unauthorized', label: 'Unauthorized' },
+    { value: 'DataBreach', label: 'DataBreach' }, { value: 'DDoS', label: 'DDoS' }, { value: 'Other', label: 'Other' }] },
+  { key: 'affectedSystem', label: 'Hệ thống bị ảnh hưởng' },
+  { key: 'reportedByName', label: 'Người báo cáo' },
+];
+
+const RESOLVE_FIELDS: CrudFieldCfg[] = [
+  { key: 'resolution', label: 'Cách xử lý', type: 'textarea', required: true },
+  { key: 'rootCause', label: 'Nguyên nhân gốc', type: 'textarea' },
 ];
 
 type SKey = 'compliant' | 'noncompliant' | 'offline';
@@ -61,6 +84,12 @@ const EndpointSecurityV2: React.FC = () => {
   const [incidentOpen, setIncidentOpen] = useState(false);
   const [incidentLoading, setIncidentLoading] = useState(false);
   const [incidents, setIncidents] = useState<SecurityIncidentDto[]>([]);
+  const [incidentCreateOpen, setIncidentCreateOpen] = useState(false);
+  const [resolveTarget, setResolveTarget] = useState<SecurityIncidentDto | null>(null);
+  // Software inventory drawer
+  const [softwareOpen, setSoftwareOpen] = useState(false);
+  const [softwareLoading, setSoftwareLoading] = useState(false);
+  const [software, setSoftware] = useState<InstalledSoftwareDto[]>([]);
 
   const openCreate = () => { setCrudInit({}); setCrudOpen(true); };
   const openEdit = (r: EndpointDeviceDto) => {
@@ -81,6 +110,51 @@ const EndpointSecurityV2: React.FC = () => {
     finally { setLoading(false); }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+
+  const openIncidents = async () => {
+    setIncidentOpen(true);
+    setIncidentLoading(true);
+    setIncidents([]);
+    try {
+      const data = await getIncidents();
+      setIncidents(Array.isArray(data) ? data : []);
+    } catch {
+      te('Không tải được danh sách sự cố ATTT');
+      setIncidentOpen(false);
+    } finally {
+      setIncidentLoading(false);
+    }
+  };
+  const refreshIncidents = async () => {
+    setIncidentLoading(true);
+    try {
+      const data = await getIncidents();
+      setIncidents(Array.isArray(data) ? data : []);
+    } catch { te('Không tải được danh sách sự cố ATTT'); }
+    finally { setIncidentLoading(false); }
+  };
+
+  const openSoftware = async () => {
+    setSoftwareOpen(true);
+    setSoftwareLoading(true);
+    setSoftware([]);
+    try {
+      const data = await getSoftwareInventory();
+      setSoftware(Array.isArray(data) ? data : []);
+    } catch {
+      te('Không tải được danh mục phần mềm');
+      setSoftwareOpen(false);
+    } finally {
+      setSoftwareLoading(false);
+    }
+  };
+  const handleFlagUnauthorized = (sw: InstalledSoftwareDto) => cf(`Đánh dấu "${sw.softwareName}" là phần mềm không được phép?`, async () => {
+    try {
+      await flagUnauthorized(sw.id);
+      tk('Đã đánh dấu phần mềm không được phép');
+      setSoftware((prev) => prev.map((s) => (s.id === sw.id ? { ...s, isAuthorized: false } : s)));
+    } catch { te('Không thể cập nhật phần mềm'); }
+  }, { tone: 'crit', confirm: 'Đánh dấu' });
 
   const oses = useMemo(() => {
     const set = new Set(items.map((r) => r.operatingSystem).filter(Boolean) as string[]);
@@ -162,20 +236,8 @@ const EndpointSecurityV2: React.FC = () => {
         <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFOs(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
         <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
-        <Btn variant="ghost" icon="alert" onClick={async () => {
-          setIncidentOpen(true);
-          setIncidentLoading(true);
-          setIncidents([]);
-          try {
-            const data = await getIncidents();
-            setIncidents(Array.isArray(data) ? data : []);
-          } catch {
-            te('Không tải được danh sách sự cố ATTT');
-            setIncidentOpen(false);
-          } finally {
-            setIncidentLoading(false);
-          }
-        }}>Sự cố ATTT</Btn>
+        <Btn variant="ghost" icon="grid" onClick={openSoftware}>Phần mềm</Btn>
+        <Btn variant="ghost" icon="alert" onClick={openIncidents}>Sự cố ATTT</Btn>
         <Btn variant="primary" icon="plus" onClick={openCreate}>Thêm máy</Btn>
       </div>
 
@@ -252,6 +314,9 @@ const EndpointSecurityV2: React.FC = () => {
         sub={incidentLoading ? 'Đang tải…' : `${incidents.length} sự cố`}
         footer={<Btn variant="ghost" onClick={() => setIncidentOpen(false)}>Đóng</Btn>}
       >
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-8)' }}>
+          <Btn variant="primary" icon="plus" onClick={() => setIncidentCreateOpen(true)}>Tạo sự cố</Btn>
+        </div>
         {incidentLoading && <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải danh sách sự cố…</div>}
         {!incidentLoading && incidents.length === 0 && (
           <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Không có sự cố ATTT nào</div>
@@ -261,7 +326,7 @@ const EndpointSecurityV2: React.FC = () => {
             <thead>
               <tr>
                 <th>Mã SC</th><th>Tiêu đề</th><th>Mức độ</th>
-                <th>Danh mục</th><th>Máy bị ảnh hưởng</th><th>Trạng thái</th><th>Thời gian</th>
+                <th>Danh mục</th><th>Máy bị ảnh hưởng</th><th>Trạng thái</th><th>Thời gian</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -270,7 +335,7 @@ const EndpointSecurityV2: React.FC = () => {
                   <td className="mono">{inc.incidentCode}</td>
                   <td>{inc.title}</td>
                   <td>
-                    <StatusBadge tone={inc.severity >= 4 ? 'crit' : inc.severity >= 3 ? 'warn' : 'info'} dot>
+                    <StatusBadge tone={inc.severity <= 1 ? 'crit' : inc.severity === 2 ? 'warn' : inc.severity >= 4 ? 'ok' : 'info'} dot>
                       {inc.severityText}
                     </StatusBadge>
                   </td>
@@ -282,6 +347,81 @@ const EndpointSecurityV2: React.FC = () => {
                     </StatusBadge>
                   </td>
                   <td className="mono">{dayjs(inc.createdAt).format('DD/MM HH:mm')}</td>
+                  <td>
+                    {inc.status < 3 && <ActBtn ic="check" title="Xử lý" onClick={() => setResolveTarget(inc)} />}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </DrawerShell>
+
+      <CrudModal
+        open={incidentCreateOpen}
+        onClose={() => setIncidentCreateOpen(false)}
+        title="Tạo sự cố an ninh"
+        fields={INCIDENT_FIELDS}
+        initial={{ severity: 3 }}
+        size="md"
+        onSubmit={async (v) => {
+          await createIncident(v as unknown as CreateIncidentDto);
+          tk('Đã tạo sự cố');
+          refreshIncidents();
+        }}
+      />
+
+      <CrudModal
+        open={!!resolveTarget}
+        onClose={() => setResolveTarget(null)}
+        title={resolveTarget ? `Xử lý sự cố: ${resolveTarget.incidentCode}` : 'Xử lý sự cố'}
+        fields={RESOLVE_FIELDS}
+        initial={{}}
+        size="md"
+        onSubmit={async (v) => {
+          if (!resolveTarget) return;
+          await resolveIncident(resolveTarget.id, v.resolution as string, v.rootCause as string | undefined);
+          tk('Đã xử lý sự cố');
+          setResolveTarget(null);
+          refreshIncidents();
+        }}
+      />
+
+      {/* Drawer phần mềm cài đặt */}
+      <DrawerShell
+        open={softwareOpen}
+        onClose={() => setSoftwareOpen(false)}
+        size="lg"
+        title="Phần mềm cài đặt"
+        sub={softwareLoading ? 'Đang tải…' : `${software.length} phần mềm`}
+        footer={<Btn variant="ghost" onClick={() => setSoftwareOpen(false)}>Đóng</Btn>}
+      >
+        {softwareLoading && <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải danh mục phần mềm…</div>}
+        {!softwareLoading && software.length === 0 && (
+          <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Không có phần mềm nào</div>
+        )}
+        {!softwareLoading && software.length > 0 && (
+          <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>
+            <thead>
+              <tr>
+                <th>Phần mềm</th><th>Phiên bản</th><th>Nhà phát triển</th><th>Phân loại</th><th>Trạng thái</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {software.map((sw) => (
+                <tr key={sw.id}>
+                  <td>{sw.softwareName}</td>
+                  <td className="mono">{sw.version || '—'}</td>
+                  <td>{sw.publisher || '—'}</td>
+                  <td>{sw.category || '—'}</td>
+                  <td>
+                    {sw.isAuthorized
+                      ? <StatusBadge tone="ok" dot>Được phép</StatusBadge>
+                      : <StatusBadge tone="crit" dot>Không phép</StatusBadge>}
+                  </td>
+                  <td>
+                    {sw.isAuthorized && <ActBtn ic="trash" title="Cấm" tone="crit" onClick={() => handleFlagUnauthorized(sw)} />}
+                  </td>
                 </tr>
               ))}
             </tbody>

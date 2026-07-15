@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Input, InputNumber, Select, Form } from 'antd';
+import { Input, InputNumber, Select, Switch, Upload, Form } from 'antd';
 import type { AxiosError } from 'axios';
 import systemApi from '../api/system';
+import { administrativeCatalogApi } from '../../administration/api/administrativeCatalog';
 import { applyServerErrors, type ServerValidationError } from '../../../utils/formError';
 import {
-  KpiStrip, SearchBox, DataTable, StatusBadge, ModalShell, ActBtn, Btn, tk, te, cf,
+  KpiStrip, SearchBox, DataTable, StatusBadge, ModalShell, ActBtn, Btn, tk, te, tw, cf,
   type ColumnDef,
 } from '../../../pages-v2/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
@@ -19,24 +20,32 @@ interface RawCatalogItem {
   category?: string; bodySystem?: string;
 }
 
-/* Danh mục v2 — sidebar + table + CRUD. departments/medicines/clinical-terms có API ghi;
-   services + ICD hiện chỉ đọc (chưa có API ghi). Validate: client (UX, focus) + BACKEND (authoritative). */
+/* Danh mục v2 — sidebar + table + CRUD. departments/medicines/clinical-terms
+   + occupations/genders/admin-divisions có API ghi; services + ICD hiện chỉ đọc (chưa có API ghi).
+   Validate: client (UX, focus) + BACKEND (authoritative). Excel import: medicines + ICD. */
 
-type CatalogKey = 'departments' | 'services' | 'medicines' | 'icd' | 'clinical-terms';
-const WRITABLE: CatalogKey[] = ['departments', 'medicines', 'clinical-terms'];
+type CatalogKey = 'departments' | 'services' | 'medicines' | 'icd' | 'clinical-terms'
+  | 'occupations' | 'genders' | 'admin-divisions';
+const WRITABLE: CatalogKey[] = ['departments', 'medicines', 'clinical-terms', 'occupations', 'genders', 'admin-divisions'];
 
 const CATALOGS: { v: CatalogKey; l: string; ic: string }[] = [
-  { v: 'departments',    l: 'Khoa / Phòng',   ic: 'building' },
-  { v: 'services',       l: 'Dịch vụ KCB',    ic: 'list' },
-  { v: 'medicines',      l: 'Danh mục thuốc', ic: 'pill' },
-  { v: 'icd',            l: 'ICD-10',         ic: 'tag' },
-  { v: 'clinical-terms', l: 'Thuật ngữ LS',   ic: 'book' },
+  { v: 'departments',     l: 'Khoa / Phòng',   ic: 'building' },
+  { v: 'services',        l: 'Dịch vụ KCB',    ic: 'list' },
+  { v: 'medicines',       l: 'Danh mục thuốc', ic: 'pill' },
+  { v: 'icd',             l: 'ICD-10',         ic: 'tag' },
+  { v: 'clinical-terms',  l: 'Thuật ngữ LS',   ic: 'book' },
+  { v: 'occupations',     l: 'Nghề nghiệp',    ic: 'user' },
+  { v: 'genders',         l: 'Giới tính',      ic: 'users' },
+  { v: 'admin-divisions', l: 'Tỉnh/Huyện/Xã',  ic: 'layers' },
 ];
+
+// Nhãn cấp đơn vị hành chính (verbatim v1 MasterData)
+const DIVISION_LEVELS: Record<number, string> = { 1: 'Tỉnh/TP', 2: 'Quận/Huyện', 3: 'Phường/Xã' };
 
 interface CatalogRow { id?: string; code: string; name: string; meta?: string; isActive?: boolean; raw?: CatalogRowRaw; }
 
-type FieldType = 'text' | 'number' | 'select';
-interface FieldCfg { key: string; label: string; type?: FieldType; required?: boolean; options?: { value: string; label: string }[]; }
+type FieldType = 'text' | 'number' | 'select' | 'switch';
+interface FieldCfg { key: string; label: string; type?: FieldType; required?: boolean; options?: { value: string | number; label: string }[]; }
 const FORM_FIELDS: Record<string, FieldCfg[]> = {
   departments: [
     { key: 'code', label: 'Mã', required: true },
@@ -68,9 +77,51 @@ const FORM_FIELDS: Record<string, FieldCfg[]> = {
     { key: 'description', label: 'Mô tả' },
     { key: 'sortOrder', label: 'Thứ tự', type: 'number' },
   ],
+  occupations: [
+    { key: 'code', label: 'Mã nghề nghiệp', required: true },
+    { key: 'name', label: 'Tên nghề nghiệp', required: true },
+    { key: 'sortOrder', label: 'Thứ tự', type: 'number' },
+    { key: 'isActive', label: 'Trạng thái', type: 'switch' },
+  ],
+  genders: [
+    { key: 'code', label: 'Mã giới tính', required: true },
+    { key: 'name', label: 'Tên giới tính', required: true },
+    { key: 'sortOrder', label: 'Thứ tự', type: 'number' },
+    { key: 'isActive', label: 'Trạng thái', type: 'switch' },
+  ],
+  'admin-divisions': [
+    { key: 'code', label: 'Mã đơn vị', required: true },
+    { key: 'name', label: 'Tên đơn vị', required: true },
+    { key: 'level', label: 'Cấp', required: true, type: 'select', options: [
+      { value: 1, label: 'Tỉnh/Thành phố' }, { value: 2, label: 'Quận/Huyện' }, { value: 3, label: 'Phường/Xã' }] },
+    { key: 'parentCode', label: 'Mã đơn vị cha' },
+    { key: 'sortOrder', label: 'Thứ tự', type: 'number' },
+    { key: 'isActive', label: 'Trạng thái', type: 'switch' },
+  ],
 };
 
-async function loadCatalog(cat: CatalogKey, keyword?: string): Promise<CatalogRow[]> {
+interface DivisionFilter { level?: number; parentCode?: string; }
+
+async function loadCatalog(cat: CatalogKey, keyword?: string, divFilter?: DivisionFilter): Promise<CatalogRow[]> {
+  if (cat === 'occupations') {
+    const r = await administrativeCatalogApi.getOccupations(keyword || undefined);
+    const items = Array.isArray(r.data) ? r.data : [];
+    return items.map((o) => ({ id: o.id, code: o.code, name: o.name, meta: `Thứ tự ${o.sortOrder}`, isActive: o.isActive, raw: o as unknown as CatalogRowRaw }));
+  }
+  if (cat === 'genders') {
+    const r = await administrativeCatalogApi.getGenders(keyword || undefined);
+    const items = Array.isArray(r.data) ? r.data : [];
+    return items.map((g) => ({ id: g.id, code: g.code, name: g.name, meta: `Thứ tự ${g.sortOrder}`, isActive: g.isActive, raw: g as unknown as CatalogRowRaw }));
+  }
+  if (cat === 'admin-divisions') {
+    const r = await administrativeCatalogApi.getAdministrativeDivisions(keyword || undefined, divFilter?.level, divFilter?.parentCode);
+    const items = Array.isArray(r.data) ? r.data : [];
+    return items.map((d) => ({
+      id: d.id, code: d.code, name: d.name,
+      meta: `${DIVISION_LEVELS[d.level] || `Cấp ${d.level}`}${d.parentCode ? ` · cha: ${d.parentCode}` : ''}`,
+      isActive: d.isActive, raw: d as unknown as CatalogRowRaw,
+    }));
+  }
   if (cat === 'departments') {
     const r = await systemApi.catalog.getDepartments(keyword || undefined, undefined, true);
     return (r.data || []).map((d) => ({ id: d.id, code: d.code, name: d.name, meta: d.departmentType, isActive: true, raw: d as unknown as CatalogRowRaw }));
@@ -154,6 +205,27 @@ const MasterDataV2: React.FC = () => {
     }, { tone: 'crit', confirm: 'Xoá' });
   };
 
+  // Excel import (medicines/ICD-10) — verbatim v1 handleImportExcel: gửi arrayBuffer,
+  // báo warning nếu backend xử lý nhưng không có dòng nào được nhập.
+  const [importing, setImporting] = useState(false);
+  const handleImportExcel = async (file: File, type: 'medicines' | 'icd') => {
+    setImporting(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = type === 'medicines'
+        ? await systemApi.catalog.importMedicines(arrayBuffer)
+        : await systemApi.catalog.importICD10(arrayBuffer);
+      if (result.data) tk(type === 'medicines' ? 'Nhập danh mục thuốc từ Excel thành công' : 'Nhập danh mục ICD-10 từ Excel thành công');
+      else tw('Tệp đã được xử lý nhưng không có dữ liệu nào được nhập');
+      loadOne(type === 'medicines' ? 'medicines' : 'icd');
+    } catch {
+      tw('Nhập Excel thất bại. Vui lòng kiểm tra định dạng tệp và thử lại.');
+    } finally {
+      setImporting(false);
+    }
+    return false; // ngăn Upload tự upload mặc định
+  };
+
   const kpis = useMemo(() => [
     { lbl: 'Tổng mục', val: rows.length, sub: CATALOGS.find((c) => c.v === active)?.l },
     { lbl: 'Hoạt động', val: rows.filter((r) => r.isActive !== false).length, tone: 'ok' as const },
@@ -194,6 +266,18 @@ const MasterDataV2: React.FC = () => {
             <SearchBox value={keyword} onChange={setKeyword} placeholder="Tìm trong danh mục theo mã / tên…" />
             <Btn variant="ghost" onClick={loadAll}><TermIcon name="refresh" size={12} /> Làm mới</Btn>
             <span className="spacer" />
+            {(active === 'medicines' || active === 'icd') && (
+              <Upload
+                accept=".xlsx,.xls"
+                showUploadList={false}
+                disabled={importing}
+                beforeUpload={(f) => handleImportExcel(f, active === 'medicines' ? 'medicines' : 'icd')}
+              >
+                <Btn variant="ghost" disabled={importing}>
+                  <TermIcon name="upload" size={12} /> {importing ? 'Đang nhập…' : 'Nhập Excel'}
+                </Btn>
+              </Upload>
+            )}
             {writable ? <Btn variant="primary" onClick={openNew}>+ Thêm mới</Btn>
               : <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Danh mục chỉ đọc (chưa có API ghi)</span>}
           </div>

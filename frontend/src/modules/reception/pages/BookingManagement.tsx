@@ -1,17 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Input, Select, DatePicker } from 'antd';
-import { getBookings, getBookingStats, confirmBooking, checkInBooking, markNoShow, updateBooking, cancelBooking } from '../api/bookingManagement';
-import type { BookingStatsDto } from '../api/bookingManagement';
+import {
+  getBookings, getBookingStats, confirmBooking, checkInBooking, markNoShow, updateBooking, cancelBooking,
+  getDoctorSchedules, saveDoctorSchedule, deleteDoctorSchedule,
+} from '../api/bookingManagement';
+import type { BookingStatsDto, DoctorScheduleListDto } from '../api/bookingManagement';
 import type { BookingStatusDto } from '../api/appointmentBooking';
 import {
   bookAppointment, getBookingDepartments, getBookingDoctors,
   type BookingDepartmentDto, type BookingDoctorDto,
 } from '../api/appointmentBooking';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
   DrawerShell, DrSec, DrField, ModalShell, useTabCounts, tk, ti, te, cf, Ico,
-  type ColumnDef,
+  type ColumnDef, type CrudFieldCfg,
 } from '../../../pages-v2/_v2kit';
 
 const STATUS_LABEL: Record<number, string> = {
@@ -48,6 +51,21 @@ const BookingManagementV2: React.FC = () => {
   const [acting, setActing] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+
+  // Doctor schedule management drawer (parity với tab "Lịch bác sĩ" ở v1)
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [schedules, setSchedules] = useState<DoctorScheduleListDto[]>([]);
+  const [schDepts, setSchDepts] = useState<BookingDepartmentDto[]>([]);
+  const [schDoctors, setSchDoctors] = useState<BookingDoctorDto[]>([]);
+  const [scheduleCrudOpen, setScheduleCrudOpen] = useState(false);
+  const [scheduleCrudInit, setScheduleCrudInit] = useState<Record<string, unknown> | null>(null);
+
+  // Stats drawer (parity với tab "Thống kê" ở v1 — theo ngày + phân bổ theo khoa)
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsDate, setStatsDate] = useState<dayjs.Dayjs>(dayjs());
+  const [fullStats, setFullStats] = useState<BookingStatsDto | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -113,6 +131,64 @@ const BookingManagementV2: React.FC = () => {
       setActing(false);
     }
   };
+
+  // Lịch bác sĩ: load 14 ngày tới (giống mặc định v1 fetchSchedules).
+  const loadSchedules = async () => {
+    setScheduleLoading(true);
+    try {
+      const data = await getDoctorSchedules({ fromDate: dayjs().format('YYYY-MM-DD'), toDate: dayjs().add(14, 'day').format('YYYY-MM-DD') });
+      setSchedules(Array.isArray(data) ? data : []);
+    } catch { te('Không tải được lịch bác sĩ'); }
+    finally { setScheduleLoading(false); }
+  };
+  const openSchedules = () => {
+    setScheduleOpen(true);
+    loadSchedules();
+    getBookingDepartments().then((d) => setSchDepts(Array.isArray(d) ? d : [])).catch(() => setSchDepts([]));
+    getBookingDoctors().then((d) => setSchDoctors(Array.isArray(d) ? d : [])).catch(() => setSchDoctors([]));
+  };
+  const openScheduleCreate = () => { setScheduleCrudInit({}); setScheduleCrudOpen(true); };
+  const openScheduleEdit = (s: DoctorScheduleListDto) => {
+    setScheduleCrudInit({
+      id: s.id, doctorId: s.doctorId, departmentId: s.departmentId, roomId: s.roomId,
+      scheduleDate: s.scheduleDate, startTime: s.startTime.substring(0, 5), endTime: s.endTime.substring(0, 5),
+      maxPatients: s.maxPatients, slotDurationMinutes: s.slotDurationMinutes,
+      scheduleType: s.scheduleType, note: s.note, isRecurring: s.isRecurring,
+    });
+    setScheduleCrudOpen(true);
+  };
+  const delSchedule = (s: DoctorScheduleListDto) => cf(`Xoá lịch ${s.doctorName} ngày ${dayjs(s.scheduleDate).format('DD/MM')}?`, async () => {
+    try { await deleteDoctorSchedule(s.id); tk('Đã xoá lịch'); loadSchedules(); } catch { te('Xoá lịch thất bại'); }
+  }, { tone: 'crit', confirm: 'Xoá' });
+
+  const scheduleFields: CrudFieldCfg[] = [
+    { key: 'doctorId', label: 'Bác sĩ', type: 'select', required: true,
+      options: schDoctors.map((d) => ({ value: d.id, label: `${d.title ? d.title + ' ' : ''}${d.fullName}` })) },
+    { key: 'departmentId', label: 'Khoa', type: 'select', required: true,
+      options: schDepts.map((d) => ({ value: d.id, label: d.name })) },
+    { key: 'scheduleDate', label: 'Ngày', type: 'date', required: true },
+    { key: 'scheduleType', label: 'Loại ca', type: 'select', options: [
+      { value: 1, label: 'Thường' }, { value: 2, label: 'Trực' }, { value: 3, label: 'Hẹn trước' }] },
+    { key: 'startTime', label: 'Giờ bắt đầu (HH:mm)', required: true, placeholder: 'VD: 07:30' },
+    { key: 'endTime', label: 'Giờ kết thúc (HH:mm)', required: true, placeholder: 'VD: 11:30' },
+    { key: 'maxPatients', label: 'Số BN tối đa', type: 'number' },
+    { key: 'slotDurationMinutes', label: 'Thời gian slot (phút)', type: 'select', options: [
+      { value: 15, label: '15 phút' }, { value: 20, label: '20 phút' }, { value: 30, label: '30 phút' },
+      { value: 45, label: '45 phút' }, { value: 60, label: '60 phút' }] },
+    { key: 'note', label: 'Ghi chú', type: 'textarea' },
+    { key: 'isRecurring', label: 'Lặp lại hàng tuần', type: 'switch' },
+  ];
+
+  // Thống kê: tải theo ngày được chọn (giống v1 fetchStats theo statsDate).
+  const loadFullStats = async (d: dayjs.Dayjs) => {
+    setStatsLoading(true);
+    try {
+      const data = await getBookingStats(d.format('YYYY-MM-DD'));
+      setFullStats(data);
+    } catch { te('Không tải được thống kê'); }
+    finally { setStatsLoading(false); }
+  };
+  const openStats = () => { setStatsOpen(true); loadFullStats(statsDate); };
 
   const depts = useMemo(() => {
     const set = new Set(items.map((r) => r.departmentName).filter(Boolean) as string[]);
@@ -198,6 +274,12 @@ const BookingManagementV2: React.FC = () => {
         <span className="spacer" />
         <Btn variant="ghost" onClick={load}>
           <Ico name="refresh" size={12} /> Làm mới
+        </Btn>
+        <Btn variant="ghost" onClick={openSchedules}>
+          <Ico name="calendar" size={12} /> Lịch bác sĩ
+        </Btn>
+        <Btn variant="ghost" onClick={openStats}>
+          <Ico name="chart" size={12} /> Thống kê
         </Btn>
         <Btn variant="primary" onClick={() => setNewOpen(true)}>
           <Ico name="plus" size={12} /> Đặt lịch
@@ -308,6 +390,135 @@ const BookingManagementV2: React.FC = () => {
           onPressEnter={() => void doCancel()}
         />
       </ModalShell>
+
+      {/* Drawer Lịch bác sĩ — parity với tab "Lịch bác sĩ" ở v1 */}
+      <DrawerShell
+        open={scheduleOpen}
+        onClose={() => setScheduleOpen(false)}
+        size="lg"
+        title="Lịch bác sĩ"
+        sub={scheduleLoading ? 'Đang tải…' : `${schedules.length} ca · 14 ngày tới`}
+        footer={<Btn variant="ghost" onClick={() => setScheduleOpen(false)}>Đóng</Btn>}
+      >
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
+          <Btn variant="ghost" onClick={loadSchedules}><Ico name="refresh" size={12} /> Làm mới</Btn>
+          <Btn variant="primary" onClick={openScheduleCreate}><Ico name="plus" size={12} /> Thêm lịch làm việc</Btn>
+        </div>
+        {scheduleLoading && <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải lịch bác sĩ…</div>}
+        {!scheduleLoading && schedules.length === 0 && (
+          <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Chưa có ca làm việc nào</div>
+        )}
+        {!scheduleLoading && schedules.length > 0 && (
+          <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>
+            <thead>
+              <tr>
+                <th>Ngày</th><th>Bác sĩ</th><th>Khoa</th><th>Phòng</th><th>Ca</th><th>Đã đặt/Tối đa</th><th>Trạng thái</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {schedules.map((s) => (
+                <tr key={s.id}>
+                  <td className="mono">{dayjs(s.scheduleDate).format('DD/MM (ddd)')}</td>
+                  <td>{s.title ? `${s.title} ` : ''}{s.doctorName}</td>
+                  <td>{s.departmentName}</td>
+                  <td>{s.roomName || '—'}</td>
+                  <td className="mono">{s.startTime.substring(0, 5)} - {s.endTime.substring(0, 5)}</td>
+                  <td>
+                    <span style={{ color: s.bookedCount >= s.maxPatients ? 'var(--s-crit)' : 'var(--t-1)' }}>
+                      {s.bookedCount}/{s.maxPatients}
+                    </span>
+                  </td>
+                  <td>
+                    {s.isActive ? <StatusBadge tone="ok" dot>Hoạt động</StatusBadge> : <StatusBadge tone="crit" dot>Nghỉ</StatusBadge>}
+                    {s.isRecurring && <StatusBadge tone="info" dot>Lặp</StatusBadge>}
+                  </td>
+                  <td>
+                    <div className="ab-actions">
+                      <ActBtn ic="edit" title="Sửa" onClick={() => openScheduleEdit(s)} />
+                      <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => delSchedule(s)} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </DrawerShell>
+
+      <CrudModal
+        open={scheduleCrudOpen}
+        onClose={() => setScheduleCrudOpen(false)}
+        title={scheduleCrudInit?.id ? 'Sửa lịch làm việc' : 'Thêm lịch làm việc'}
+        fields={scheduleFields}
+        initial={scheduleCrudInit}
+        size="md"
+        onSubmit={async (v, isEdit) => {
+          await saveDoctorSchedule({
+            id: isEdit ? (scheduleCrudInit?.id as string) : undefined,
+            doctorId: v.doctorId as string,
+            departmentId: v.departmentId as string,
+            roomId: v.roomId as string | undefined,
+            scheduleDate: v.scheduleDate as string,
+            startTime: `${v.startTime}:00`,
+            endTime: `${v.endTime}:00`,
+            maxPatients: (v.maxPatients as number) || 30,
+            slotDurationMinutes: (v.slotDurationMinutes as number) || 30,
+            scheduleType: (v.scheduleType as number) || 1,
+            note: v.note as string | undefined,
+            isRecurring: (v.isRecurring as boolean) || false,
+          });
+          tk(isEdit ? 'Đã cập nhật lịch' : 'Đã tạo lịch');
+          loadSchedules();
+        }}
+      />
+
+      {/* Drawer Thống kê — parity với tab "Thống kê" ở v1 */}
+      <DrawerShell
+        open={statsOpen}
+        onClose={() => setStatsOpen(false)}
+        size="md"
+        title="Thống kê đặt lịch"
+        sub={statsLoading ? 'Đang tải…' : statsDate.format('DD/MM/YYYY')}
+        footer={<Btn variant="ghost" onClick={() => setStatsOpen(false)}>Đóng</Btn>}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-16)' }}>
+          <DatePicker
+            value={statsDate}
+            format="DD/MM/YYYY"
+            onChange={(d) => { if (d) { setStatsDate(d); loadFullStats(d); } }}
+          />
+          <Btn variant="ghost" onClick={() => loadFullStats(statsDate)}><Ico name="refresh" size={12} /> Làm mới</Btn>
+        </div>
+        {statsLoading && <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải thống kê…</div>}
+        {!statsLoading && fullStats && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-8)', marginBottom: 'var(--space-16)' }}>
+              <DrField lbl="Tổng lịch hẹn">{fullStats.totalBookings}</DrField>
+              <DrField lbl="Chờ xác nhận"><span style={{ color: 'var(--s-warn)' }}>{fullStats.pending}</span></DrField>
+              <DrField lbl="Đã xác nhận"><span style={{ color: 'var(--a-cy)' }}>{fullStats.confirmed}</span></DrField>
+              <DrField lbl="Đã đến khám"><span style={{ color: 'var(--s-ok)' }}>{fullStats.attended}</span></DrField>
+              <DrField lbl="Không đến"><span style={{ color: 'var(--s-crit)' }}>{fullStats.noShow}</span></DrField>
+              <DrField lbl="Tỷ lệ vắng"><span style={{ color: fullStats.noShowRate > 20 ? 'var(--s-crit)' : 'var(--t-1)' }}>{fullStats.noShowRate}%</span></DrField>
+            </div>
+            <DrSec title="Phân bổ theo khoa">
+              {fullStats.byDepartment.length === 0 && <span style={{ color: 'var(--t-2)' }}>Không có dữ liệu</span>}
+              {fullStats.byDepartment.map((d) => {
+                const pct = fullStats.totalBookings > 0 ? Math.round((d.count / fullStats.totalBookings) * 100) : 0;
+                return (
+                  <div key={d.departmentName} style={{ marginBottom: 'var(--space-8)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-sm)', marginBottom: 2 }}>
+                      <span>{d.departmentName}</span><span className="mono">{d.count}</span>
+                    </div>
+                    <div style={{ background: 'var(--line)', height: 6, borderRadius: 3 }}>
+                      <div style={{ width: `${pct}%`, background: 'var(--a-cy)', height: '100%', borderRadius: 3 }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </DrSec>
+          </>
+        )}
+      </DrawerShell>
     </div>
   );
 };

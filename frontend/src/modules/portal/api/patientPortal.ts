@@ -778,6 +778,15 @@ export interface CreateQuestionDto {
   category?: string;
   imageUrls?: string;
 }
+
+// Staff-side: trả lời câu hỏi của BN — backend PUT /portal/questions/{id}/answer
+// (HIS.API PatientPortalController.AnswerPatientQuestion, không giới hạn IsPortalPatient
+// → mọi role staff trong danh sách Authorize của controller đều gọi được).
+export interface AnswerPatientQuestionDto {
+  answeredBy?: string;
+  answeredByName?: string;
+  answer: string;
+}
 // #endregion
 
 // #region Common DTOs
@@ -1068,6 +1077,9 @@ export const getPatientQuestions = () =>
 export const createPatientQuestion = (data: CreateQuestionDto) =>
   apiClient.post<PatientQuestionDto>(`${BASE_URL}/questions`, data);
 
+export const answerPatientQuestion = (id: string, data: AnswerPatientQuestionDto) =>
+  apiClient.put<PatientQuestionDto>(`${BASE_URL}/questions/${id}/answer`, data);
+
 // #endregion
 
 export default {
@@ -1159,4 +1171,5 @@ export default {
   // Patient Questions
   getPatientQuestions,
   createPatientQuestion,
+  answerPatientQuestion,
 };

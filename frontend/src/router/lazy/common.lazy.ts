@@ -8,3 +8,4 @@ export const DashboardV2 = lazy(() => import('../../pages-v2/Dashboard'));
 export const Dashboard3CapV2 = lazy(() => import('../../modules/administration/pages/Dashboard3Cap'));
 export const HelpV2 = lazy(() => import('../../modules/radiology/pages/Help'));
 export const SatisfactionSurveyV2 = lazy(() => import('../../pages-v2/SatisfactionSurvey'));
+export const PatientPortalStaffV2 = lazy(() => import('../../modules/portal/pages/PatientPortalStaff'));

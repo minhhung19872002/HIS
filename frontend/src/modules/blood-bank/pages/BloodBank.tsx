@@ -26,12 +26,13 @@ const BLOOD_TYPES = ['O', 'A', 'B', 'AB'];
 const RH = ['+', '-'];
 const ALL_TYPES = BLOOD_TYPES.flatMap((b) => RH.map((r) => `${b}${r}`));
 
-type TopKey = 'stock' | 'expiring' | 'requests';
+type TopKey = 'stock' | 'expiring' | 'requests' | 'gelcard';
 
 const TOP_TABS: TopTab<TopKey>[] = [
   { v: 'stock',     l: 'Kho máu',          ic: 'drop' },
   { v: 'expiring',  l: 'Sắp hết hạn',      ic: 'alert' },
   { v: 'requests',  l: 'Yêu cầu xuất máu', ic: 'send' },
+  { v: 'gelcard',   l: 'Gelcard',          ic: 'flask' },
 ];
 
 const STATUS_LABEL: Record<string, { l: string; tone: 'ok' | 'warn' | 'info' | 'crit' }> = {
@@ -117,6 +118,10 @@ const BloodBankV2: React.FC = () => {
   const [unitSel, setUnitSel] = useState<BloodStockDetailDto | null>(null);
   const [issueOpen, setIssueOpen] = useState(false);
   const [receiveOpen, setReceiveOpen] = useState(false);
+  // Gelcard results — local-only (v1 lưu vào state, không có API persist). Key = bloodBagId.
+  const [gelcardResults, setGelcardResults] = useState<Record<string, string>>({});
+  const saveGelcardResult = (bloodBagId: string, testResult: string) =>
+    setGelcardResults((prev) => ({ ...prev, [bloodBagId]: testResult }));
   const PAGE_SIZE = 16;
 
   const reload = () => {
@@ -207,8 +212,26 @@ const BloodBankV2: React.FC = () => {
     });
   }, [requests, search]);
 
+  // ─── Gelcard: đơn vị máu còn hoạt động (Khả dụng / Đặt trước) ───
+  const gelcardBase = useMemo(
+    () => units.filter((u) => u.status === 'Available' || u.status === 'Reserved'),
+    [units],
+  );
+  const gelcardFiltered = useMemo(() => {
+    return gelcardBase.filter((u) => {
+      if (filterType && `${u.bloodType}${u.rhFactor}` !== filterType) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const hay = [u.bagCode, u.barcode, u.storageLocation, u.productTypeName, u.bloodType]
+          .filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [gelcardBase, search, filterType]);
+
   const totalPages = Math.max(1, Math.ceil(
-    (tab === 'stock' ? unitsFiltered.length : tab === 'expiring' ? expiringFiltered.length : requestsFiltered.length) / PAGE_SIZE,
+    (tab === 'stock' ? unitsFiltered.length : tab === 'expiring' ? expiringFiltered.length : tab === 'gelcard' ? gelcardFiltered.length : requestsFiltered.length) / PAGE_SIZE,
   ));
 
   // Unit table columns (mock "Kho máu")
@@ -282,6 +305,7 @@ const BloodBankV2: React.FC = () => {
         <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
           {tab === 'stock' ? `${unitsFiltered.length} đơn vị` :
            tab === 'expiring' ? `${expiringFiltered.length} túi` :
+           tab === 'gelcard' ? `${gelcardFiltered.length} đơn vị` :
            `${requestsFiltered.length} yêu cầu`}
         </span>
       </div>
@@ -316,9 +340,10 @@ const BloodBankV2: React.FC = () => {
       )}
       {tab === 'expiring' && <ExpiringTab rows={expiringFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} message={message} onReload={reload} />}
       {tab === 'requests' && <RequestsTab rows={requestsFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} />}
+      {tab === 'gelcard' && <GelcardTab rows={gelcardFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} allActiveUnits={gelcardBase} loading={loading} results={gelcardResults} onSaveResult={saveGelcardResult} />}
 
       <Pager page={page} totalPages={totalPages} setPage={setPage}
-        total={tab === 'stock' ? unitsFiltered.length : tab === 'expiring' ? expiringFiltered.length : requestsFiltered.length} perPage={PAGE_SIZE} />
+        total={tab === 'stock' ? unitsFiltered.length : tab === 'expiring' ? expiringFiltered.length : tab === 'gelcard' ? gelcardFiltered.length : requestsFiltered.length} perPage={PAGE_SIZE} />
 
       <DrawerShell
         open={!!detailType}
@@ -706,6 +731,154 @@ const RequestsTab: React.FC<{ rows: BloodIssueRequestDto[]; loading: boolean }> 
         </DrSec>
       )}
     </DrawerShell>
+    </>
+  );
+};
+
+/* ──────────────────────────────────────────────────────────
+   Gelcard compatibility-test tab — port từ v1 (pages/BloodBank.tsx
+   tab 'gelcard' + handleGelcardSubmit). Ghi kết quả phản ứng hòa hợp
+   gelcard per-đơn-vị-máu. Local-only: v1 lưu vào state (setInventory),
+   KHÔNG có API persist → v2 giữ nguyên bản chất, lưu map local.
+   ────────────────────────────────────────────────────────── */
+
+const GELCARD_TEST_TYPES = [
+  { value: 'ABO/Rh', label: 'Định nhóm ABO/Rh' },
+  { value: 'CrossMatch', label: 'Phản ứng chéo (Cross-match)' },
+  { value: 'Antibody', label: 'Sàng lọc kháng thể bất thường' },
+  { value: 'DAT', label: 'Direct Antiglobulin Test (DAT)' },
+];
+const GELCARD_RESULT_OPTS = [
+  { value: 'Phù hợp', label: 'Phù hợp (Compatible)' },
+  { value: 'Không phù hợp', label: 'Không phù hợp (Incompatible)' },
+  { value: 'Dương tính', label: 'Dương tính (Positive)' },
+  { value: 'Âm tính', label: 'Âm tính (Negative)' },
+];
+const GELCARD_BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+const GELCARD_RH_OPTS = [{ value: '+', label: 'Rh (+)' }, { value: '-', label: 'Rh (-)' }];
+
+const GelcardTab: React.FC<{
+  rows: BloodStockDetailDto[];
+  allActiveUnits: BloodStockDetailDto[];
+  loading: boolean;
+  results: Record<string, string>;
+  onSaveResult: (bloodBagId: string, testResult: string) => void;
+}> = ({ rows, allActiveUnits, loading, results, onSaveResult }) => {
+  const { message } = AntdApp.useApp();
+  const [open, setOpen] = useState(false);
+  const [unitId, setUnitId] = useState<string | undefined>(undefined);
+  const [testType, setTestType] = useState<string | undefined>(undefined);
+  const [bloodTypeResult, setBloodTypeResult] = useState<string | undefined>(undefined);
+  const [rhResult, setRhResult] = useState<string | undefined>(undefined);
+  const [result, setResult] = useState<string | undefined>(undefined);
+  const [notes, setNotes] = useState('');
+
+  const openModal = () => {
+    setUnitId(undefined); setTestType(undefined); setBloodTypeResult(undefined);
+    setRhResult(undefined); setResult(undefined); setNotes('');
+    setOpen(true);
+  };
+
+  const submit = () => {
+    if (!unitId) { message.warning('Chọn đơn vị máu'); return; }
+    if (!testType) { message.warning('Chọn loại xét nghiệm'); return; }
+    if (!result) { message.warning('Chọn kết quả'); return; }
+    const unit = allActiveUnits.find((u) => u.bloodBagId === unitId);
+    if (unit) {
+      // Business logic VERBATIM từ v1 handleGelcardSubmit (chuỗi kết quả giữ nguyên format)
+      const testResult = `Gelcard ${testType}: ${bloodTypeResult || ''} Rh${rhResult || ''} - ${result} (${dayjs().format('DD/MM/YYYY HH:mm')})`;
+      onSaveResult(unit.bloodBagId, testResult);
+      message.success(`Ghi nhận kết quả Gelcard cho ${unit.bagCode}`);
+    }
+    setOpen(false);
+  };
+
+  const columns: ColumnDef<BloodStockDetailDto>[] = [
+    { key: 'bag', label: 'Mã đơn vị', mono: true, code: true, width: 140, render: (u) => u.bagCode },
+    { key: 'type', label: 'Nhóm máu', width: 90, render: (u) => <span className="chip crit" style={{ fontWeight: 700 }}>{u.bloodType}{u.rhFactor}</span> },
+    { key: 'product', label: 'Chế phẩm', render: (u) => u.productTypeName },
+    { key: 'exp', label: 'Hạn SD', mono: true, width: 110, render: (u) => fmtDMY(u.expiryDate) },
+    {
+      key: 'gel', label: 'Kết quả Gelcard',
+      render: (u) => (
+        results[u.bloodBagId]
+          ? <span style={{ color: '#15803d', fontSize: 12 }}>{results[u.bloodBagId]}</span>
+          : <span style={{ color: 'var(--t-3)' }}>Chưa test</span>
+      ),
+    },
+    {
+      key: 'status', label: 'TT', width: 110,
+      render: (u) => {
+        const m = STATUS_LABEL[u.status] || { l: u.status, tone: 'info' as const };
+        return <StatusBadge tone={m.tone} dot>{m.l}</StatusBadge>;
+      },
+    },
+  ];
+
+  return (
+    <>
+      <div style={{ display: 'flex', gap: 'var(--space-10)', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid var(--line-soft)', background: 'var(--d-1)' }}>
+        <div style={{ flex: 1, display: 'flex', gap: 8, alignItems: 'center', fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>
+          <TermIcon name="info" size={14} />
+          Gelcard: Phương pháp xác định nhóm máu và thử phản ứng chéo bằng gel card
+        </div>
+        <Btn variant="primary" onClick={openModal}>
+          <TermIcon name="plus" size={12} /> Ghi kết quả Gelcard
+        </Btn>
+      </div>
+
+      <DataTable<BloodStockDetailDto>
+        columns={columns}
+        data={rows}
+        rowKey={(u) => u.bloodBagId}
+        empty={loading ? 'Đang tải…' : (
+          <div className="ab-empty">
+            <TermIcon name="flask" size={20} />
+            <div>Không có đơn vị máu để thử Gelcard</div>
+          </div>
+        )}
+      />
+
+      <ModalShell
+        open={open}
+        onClose={() => setOpen(false)}
+        size="md"
+        title="Ghi nhận kết quả Gelcard"
+        footer={(
+          <>
+            <Btn variant="ghost" onClick={() => setOpen(false)}>Hủy</Btn>
+            <Btn variant="primary" onClick={submit}>
+              <TermIcon name="check" size={12} /> Lưu kết quả
+            </Btn>
+          </>
+        )}
+      >
+        <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
+          <BbFld label="Đơn vị máu *" full>
+            <Select
+              value={unitId} onChange={setUnitId} showSearch optionFilterProp="label"
+              placeholder="Chọn đơn vị máu" style={{ width: '100%' }}
+              options={allActiveUnits.map((u) => ({ value: u.bloodBagId, label: `${u.bagCode} - ${u.bloodType}${u.rhFactor} - ${u.productTypeName}` }))}
+            />
+          </BbFld>
+          <BbFld label="Loại xét nghiệm *" full>
+            <Select value={testType} onChange={setTestType} placeholder="Chọn loại xét nghiệm" style={{ width: '100%' }} options={GELCARD_TEST_TYPES} />
+          </BbFld>
+          <BbFld label="Nhóm máu xác nhận">
+            <Select value={bloodTypeResult} onChange={setBloodTypeResult} allowClear placeholder="—" style={{ width: '100%' }}
+              options={GELCARD_BLOOD_GROUPS.map((g) => ({ value: g, label: g }))} />
+          </BbFld>
+          <BbFld label="Rh">
+            <Select value={rhResult} onChange={setRhResult} allowClear placeholder="—" style={{ width: '100%' }} options={GELCARD_RH_OPTS} />
+          </BbFld>
+          <BbFld label="Kết quả *" full>
+            <Select value={result} onChange={setResult} placeholder="Chọn kết quả" style={{ width: '100%' }} options={GELCARD_RESULT_OPTS} />
+          </BbFld>
+          <BbFld label="Ghi chú" full>
+            <Input.TextArea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Ghi chú kết quả Gelcard…" />
+          </BbFld>
+        </div>
+      </ModalShell>
     </>
   );
 };

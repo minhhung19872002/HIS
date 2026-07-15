@@ -7,6 +7,9 @@ import type { InvoiceDto } from '../api/billing';
 import { SimpleV2Page, StatusBadge, ActBtn, Btn, ModalShell, type ColumnDef, type StatusTab } from '../../../pages-v2/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { fmtVND } from '../../../utils/format';
+import ReassignObjectModal from '../../administration/components/ReassignObjectModal';
+import ApplyDiscountModal from '../components/ApplyDiscountModal';
+import PartialRefundModal from '../components/PartialRefundModal';
 
 /* Viện phí v2 — port of Billing v2.html */
 
@@ -28,6 +31,10 @@ const BillingV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   const navigate = useNavigate();
   const [payFor, setPayFor] = useState<InvoiceDto | null>(null);
+  // Port v1 Billing: đổi đối tượng thanh toán · miễn giảm viện phí · hoàn trả chi tiết (#409)
+  const [reassignFor, setReassignFor] = useState<InvoiceDto | null>(null);
+  const [discountFor, setDiscountFor] = useState<InvoiceDto | null>(null);
+  const [partialRefundFor, setPartialRefundFor] = useState<InvoiceDto | null>(null);
   const reloadRef = useRef<() => void>(() => {});
 
   const onPrintInvoice = async (r: InvoiceDto) => {
@@ -145,6 +152,11 @@ const BillingV2: React.FC = () => {
             {(r.paymentStatus === 0 || r.paymentStatus === 1) && (
               <ActBtn ic="dollar" title="Thu tiền" onClick={() => setPayFor(r)} />
             )}
+            {(r.paymentStatus === 0 || r.paymentStatus === 1) && r.totalAmount > 0 && (
+              <ActBtn ic="receipt" title="Miễn giảm" onClick={() => setDiscountFor(r)} />
+            )}
+            <ActBtn ic="users" title="Sửa đối tượng" onClick={() => setReassignFor(r)} />
+            <ActBtn ic="refresh" title="Hoàn trả chi tiết" onClick={() => setPartialRefundFor(r)} />
             <ActBtn ic="print" title="In HĐ" onClick={() => onPrintInvoice(r)} />
           </div>
         );
@@ -168,6 +180,34 @@ const BillingV2: React.FC = () => {
       invoice={payFor}
       onClose={() => setPayFor(null)}
       onDone={() => { setPayFor(null); reloadRef.current(); }}
+    />
+
+    {/* Đổi đối tượng thanh toán hàng loạt (patient-scoped) — port từ v1 Billing */}
+    <ReassignObjectModal
+      open={reassignFor !== null}
+      onClose={() => setReassignFor(null)}
+      patientId={reassignFor?.patientId ?? ''}
+      patientName={reassignFor?.patientName}
+      onSuccess={() => { reloadRef.current(); }}
+    />
+
+    {/* Miễn giảm viện phí (lý do chuẩn hóa + ngưỡng duyệt) — port từ v1 Billing */}
+    <ApplyDiscountModal
+      open={discountFor !== null}
+      onClose={() => setDiscountFor(null)}
+      invoiceId={discountFor?.id ?? ''}
+      totalAmount={discountFor?.totalAmount ?? 0}
+      patientName={discountFor?.patientName}
+      onSuccess={() => { reloadRef.current(); }}
+    />
+
+    {/* Hoàn trả chi tiết (tick từng dòng, luật BHYT trong modal) — port từ v1 Billing */}
+    <PartialRefundModal
+      open={partialRefundFor !== null}
+      onClose={() => setPartialRefundFor(null)}
+      patientId={partialRefundFor?.patientId ?? ''}
+      patientName={partialRefundFor?.patientName}
+      onSuccess={() => { reloadRef.current(); }}
     />
     </>
   );

@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { fmtNum as fmt } from '../../../utils/format';
 import dayjs from 'dayjs';
 import { Form, Input, DatePicker, Tabs, Select, Checkbox } from 'antd';
-import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode, getStocktakes, createStocktake, completeStocktake, approveStocktake, updateStocktakeItem, printStocktake, getDepreciationReport } from '../api/assetManagement';
-import type { FixedAssetDto, AssetDashboardDto, AssetQrCodeDto, AssetStocktakeDto, AssetStocktakeItemDto, DepreciationReportDto } from '../api/assetManagement';
+import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode, getStocktakes, createStocktake, completeStocktake, approveStocktake, updateStocktakeItem, printStocktake, getDepreciationReport, getTenders, saveTender, getTenderItems, saveTenderItem, awardTender } from '../api/assetManagement';
+import type { FixedAssetDto, AssetDashboardDto, AssetQrCodeDto, AssetStocktakeDto, AssetStocktakeItemDto, DepreciationReportDto, TenderDto, TenderItemDto } from '../api/assetManagement';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal, ModalShell,
   DrawerShell, DrSec, DrField, useTabCounts, tk, ti, te,
@@ -47,8 +47,37 @@ const PER = 18;
 
 const STOCKTAKE_STATUS: Record<number, string> = { 1: 'Nháp', 2: 'Đang kiểm', 3: 'Đã kiểm', 4: 'Đã duyệt' };
 
+const TENDER_TYPE_LABEL: Record<number, string> = { 1: 'Đấu thầu rộng rãi', 2: 'Đấu thầu hạn chế', 3: 'Mua sắm trực tiếp' };
+const TENDER_ITEM_TYPE_LABEL: Record<number, string> = { 1: 'TSCĐ', 2: 'CCDC', 3: 'VT' };
+const TENDER_STATUS_META: Record<number, { label: string; tone?: 'ok' | 'crit' | 'info' | 'warn' }> = {
+  1: { label: 'Nhập' }, 2: { label: 'Đã đăng', tone: 'info' }, 3: { label: 'Đang chấm', tone: 'warn' },
+  4: { label: 'Đã trao', tone: 'ok' }, 5: { label: 'Hủy', tone: 'crit' },
+};
+
+const TENDER_FIELDS: CrudFieldCfg[] = [
+  { key: 'tenderCode', label: 'Mã gói thầu', required: true, disabledOnEdit: true, placeholder: 'VD: GT-...' },
+  { key: 'tenderName', label: 'Tên gói thầu', required: true },
+  { key: 'tenderType', label: 'Loại đấu thầu', type: 'select', options: [
+    { value: 1, label: 'Đấu thầu rộng rãi' }, { value: 2, label: 'Đấu thầu hạn chế' }, { value: 3, label: 'Mua sắm trực tiếp' }] },
+  { key: 'budgetAmount', label: 'Ngân sách (đ)', type: 'number' },
+  { key: 'status', label: 'Trạng thái', type: 'select', options: [
+    { value: 1, label: 'Nhập' }, { value: 2, label: 'Đã đăng' }, { value: 3, label: 'Đang chấm' },
+    { value: 4, label: 'Đã trao' }, { value: 5, label: 'Hủy' }] },
+  { key: 'publishDate', label: 'Ngày đăng', type: 'date' },
+  { key: 'closingDate', label: 'Ngày đóng', type: 'date' },
+  { key: 'notes', label: 'Ghi chú', type: 'textarea' },
+];
+
+const TENDER_ITEM_FIELDS: CrudFieldCfg[] = [
+  { key: 'itemName', label: 'Tên hạng mục', required: true },
+  { key: 'itemType', label: 'Loại', type: 'select', options: [
+    { value: 1, label: 'TSCĐ' }, { value: 2, label: 'CCDC' }, { value: 3, label: 'Vật tư' }] },
+  { key: 'quantity', label: 'Số lượng', type: 'number' },
+  { key: 'unitPrice', label: 'Đơn giá (đ)', type: 'number' },
+];
+
 const AssetManagementV2: React.FC = () => {
-  const [moduleTab, setModuleTab] = useState<'assets' | 'stocktake'>('assets');
+  const [moduleTab, setModuleTab] = useState<'assets' | 'stocktake' | 'tenders'>('assets');
   const [items, setItems] = useState<FixedAssetDto[]>([]);
   const [dash, setDash] = useState<AssetDashboardDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,6 +102,13 @@ const AssetManagementV2: React.FC = () => {
   const [deprOpen, setDeprOpen] = useState(false);
   const [deprLoading, setDeprLoading] = useState(false);
   const [deprItems, setDeprItems] = useState<DepreciationReportDto[]>([]);
+  // Tenders (đấu thầu)
+  const [tenders, setTenders] = useState<TenderDto[]>([]);
+  const [tenderDetail, setTenderDetail] = useState<TenderDto | null>(null);
+  const [tenderItems, setTenderItems] = useState<TenderItemDto[]>([]);
+  const [tenderCrudOpen, setTenderCrudOpen] = useState(false);
+  const [tenderCrudInit, setTenderCrudInit] = useState<Record<string, unknown> | null>(null);
+  const [tenderItemCrudOpen, setTenderItemCrudOpen] = useState(false);
 
   const openCreate = () => { setCrudInit({ status: 0, depreciationMethod: 1, originalValue: 0, currentValue: 0, usefulLifeMonths: 60 }); setCrudOpen(true); };
   const openEdit = (r: FixedAssetDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
@@ -84,16 +120,40 @@ const AssetManagementV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const [r, d, sk] = await Promise.all([
+      const [r, d, sk, td] = await Promise.all([
         getAssets({ keyword: search, pageSize: 200 }),
         getAssetDashboard(),
         getStocktakes(),
+        getTenders({ pageSize: 200 }),
       ]);
       setItems(r.items || []);
       setDash(d);
       setStocktakes(sk);
+      setTenders(td.items || []);
     } catch { ti('Không tải được tài sản'); }
     finally { setLoading(false); }
+  };
+
+  const reloadTenders = async () => {
+    try { const td = await getTenders({ pageSize: 200 }); setTenders(td.items || []); }
+    catch { te('Không tải được danh sách gói thầu'); }
+  };
+
+  const openTenderCreate = () => { setTenderCrudInit({ tenderType: 1, status: 1 }); setTenderCrudOpen(true); };
+  const openTenderEdit = (r: TenderDto) => { setTenderCrudInit({ ...r } as Record<string, unknown>); setTenderCrudOpen(true); };
+
+  const viewTenderItems = async (r: TenderDto) => {
+    setTenderDetail(r);
+    try { setTenderItems(await getTenderItems(r.id)); }
+    catch { te('Không tải được hạng mục gói thầu'); }
+  };
+
+  const handleAwardTender = async (id: string) => {
+    try {
+      await awardTender({ tenderId: id, winnerSupplierId: '00000000-0000-0000-0000-000000000000' });
+      tk('Đã trao thầu');
+      reloadTenders();
+    } catch { te('Không thể trao thầu'); }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
@@ -168,6 +228,7 @@ const AssetManagementV2: React.FC = () => {
           items={[
             { key: 'assets', label: 'Danh sách tài sản' },
             { key: 'stocktake', label: `Kiểm kê (${stocktakes.length})` },
+            { key: 'tenders', label: `Đấu thầu (${tenders.length})` },
           ]}
         />
         <span className="spacer" />
@@ -192,6 +253,9 @@ const AssetManagementV2: React.FC = () => {
         </>}
         {moduleTab === 'stocktake' && (
           <Btn variant="primary" icon="plus" onClick={() => setNewStocktakeOpen(true)}>Tạo phiếu kiểm kê</Btn>
+        )}
+        {moduleTab === 'tenders' && (
+          <Btn variant="primary" icon="plus" onClick={openTenderCreate}>Thêm gói thầu</Btn>
         )}
       </div>
 
@@ -247,6 +311,33 @@ const AssetManagementV2: React.FC = () => {
             </div>
           )}
           empty={loading ? 'Đang tải…' : 'Chưa có phiếu kiểm kê'}
+        />
+      )}
+
+      {moduleTab === 'tenders' && (
+        <DataTable<TenderDto>
+          columns={[
+            { key: 'code', label: 'Mã', code: true, render: (r) => r.tenderCode },
+            { key: 'name', label: 'Tên gói thầu', render: (r) => r.tenderName },
+            { key: 'type', label: 'Loại', render: (r) => TENDER_TYPE_LABEL[r.tenderType] || '—' },
+            { key: 'budget', label: 'Ngân sách', mono: true, render: (r) => fmt(r.budgetAmount) },
+            { key: 'st', label: 'Trạng thái', render: (r) => {
+              const meta = TENDER_STATUS_META[r.status];
+              return <StatusBadge tone={meta?.tone} dot>{meta?.label || '—'}</StatusBadge>;
+            } },
+            { key: 'items', label: 'Hạng mục', mono: true, render: (r) => r.itemCount },
+          ] as ColumnDef<TenderDto>[]}
+          data={tenders}
+          rowKey={(r) => r.id}
+          onRowClick={viewTenderItems}
+          actions={(r) => (
+            <div className="ab-actions">
+              <ActBtn ic="eye" title="Hạng mục" onClick={() => viewTenderItems(r)} />
+              <ActBtn ic="edit" title="Sửa" onClick={() => openTenderEdit(r)} />
+              {r.status < 4 && <ActBtn ic="check" title="Trao thầu" onClick={() => handleAwardTender(r.id)} />}
+            </div>
+          )}
+          empty={loading ? 'Đang tải…' : 'Chưa có gói thầu'}
         />
       )}
 
@@ -552,6 +643,83 @@ const AssetManagementV2: React.FC = () => {
           </table>
         )}
       </DrawerShell>
+
+      {/* Chi tiết gói thầu + hạng mục */}
+      <DrawerShell
+        open={!!tenderDetail}
+        onClose={() => setTenderDetail(null)}
+        size="lg"
+        title={tenderDetail ? tenderDetail.tenderName : ''}
+        sub={tenderDetail ? tenderDetail.tenderCode : ''}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setTenderDetail(null)}>Đóng</Btn>
+          {tenderDetail && tenderDetail.status < 4 && (
+            <Btn variant="primary" icon="check" onClick={() => { handleAwardTender(tenderDetail.id); setTenderDetail(null); }}>Trao thầu</Btn>
+          )}
+        </>}
+      >
+        {tenderDetail && <>
+          <DrSec title="Thông tin gói thầu">
+            <DrField lbl="Mã gói thầu"><span style={{ fontFamily: 'var(--font-mono)' }}>{tenderDetail.tenderCode}</span></DrField>
+            <DrField lbl="Loại">{TENDER_TYPE_LABEL[tenderDetail.tenderType] || '—'}</DrField>
+            <DrField lbl="Ngân sách"><span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(tenderDetail.budgetAmount)} đ</span></DrField>
+            <DrField lbl="Trạng thái">
+              <StatusBadge tone={TENDER_STATUS_META[tenderDetail.status]?.tone} dot>
+                {TENDER_STATUS_META[tenderDetail.status]?.label || '—'}
+              </StatusBadge>
+            </DrField>
+            {tenderDetail.publishDate && <DrField lbl="Ngày đăng">{dayjs(tenderDetail.publishDate).format('DD/MM/YYYY')}</DrField>}
+            {tenderDetail.closingDate && <DrField lbl="Ngày đóng">{dayjs(tenderDetail.closingDate).format('DD/MM/YYYY')}</DrField>}
+            {tenderDetail.winnerSupplierName && <DrField lbl="Nhà thầu trúng">{tenderDetail.winnerSupplierName}</DrField>}
+            {tenderDetail.notes && <DrField lbl="Ghi chú">{tenderDetail.notes}</DrField>}
+          </DrSec>
+          <DrSec title={`Hạng mục (${tenderItems.length})`}>
+            <DataTable<TenderItemDto>
+              columns={[
+                { key: 'name', label: 'Tên', render: (r) => r.itemName },
+                { key: 'type', label: 'Loại', render: (r) => TENDER_ITEM_TYPE_LABEL[r.itemType] || '—' },
+                { key: 'qty', label: 'SL', mono: true, render: (r) => r.quantity },
+                { key: 'price', label: 'Đơn giá', mono: true, render: (r) => fmt(r.unitPrice) },
+              ] as ColumnDef<TenderItemDto>[]}
+              data={tenderItems}
+              rowKey={(r) => r.id}
+              empty="Chưa có hạng mục"
+            />
+            <div style={{ marginTop: 'var(--space-8)' }}>
+              <Btn variant="ghost" icon="plus" onClick={() => setTenderItemCrudOpen(true)}>Thêm hạng mục</Btn>
+            </div>
+          </DrSec>
+        </>}
+      </DrawerShell>
+
+      <CrudModal
+        open={tenderCrudOpen}
+        onClose={() => setTenderCrudOpen(false)}
+        title={tenderCrudInit?.id ? 'Cập nhật gói thầu' : 'Thêm gói thầu'}
+        fields={TENDER_FIELDS}
+        initial={tenderCrudInit}
+        size="lg"
+        onSubmit={async (v, editing) => {
+          await saveTender(v as Partial<TenderDto>);
+          tk(editing ? 'Đã cập nhật gói thầu' : 'Đã thêm gói thầu');
+          reloadTenders();
+        }}
+      />
+
+      <CrudModal
+        open={tenderItemCrudOpen}
+        onClose={() => setTenderItemCrudOpen(false)}
+        title="Thêm hạng mục gói thầu"
+        fields={TENDER_ITEM_FIELDS}
+        initial={null}
+        onSubmit={async (v) => {
+          if (!tenderDetail) return;
+          await saveTenderItem({ ...v, tenderId: tenderDetail.id } as Partial<TenderItemDto>);
+          tk('Đã thêm hạng mục');
+          setTenderItems(await getTenderItems(tenderDetail.id));
+          reloadTenders();
+        }}
+      />
 
       <ModalShell
         open={!!qrData}

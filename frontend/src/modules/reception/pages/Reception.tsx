@@ -26,6 +26,7 @@ import { BhytVerifyModal } from './BhytVerifyModal';
 import { PatientLookupModal } from './PatientLookupModal';
 import { MoveRoomModal } from './MoveRoomModal';
 import { ReceptionPayModal } from './ReceptionPayModal';
+import { PrintRequestFormModal, printBarcodeLabel } from './ReceptionPrintModals';
 const ReceptionV2: React.FC = () => {
   const { message } = AntdApp.useApp();
 
@@ -47,6 +48,7 @@ const ReceptionV2: React.FC = () => {
   const [lookupOpen, setLookupOpen] = useState(false);
   const [moveFor, setMoveFor]   = useState<RawRow | null>(null);
   const [payFor, setPayFor]     = useState<RawRow | null>(null);
+  const [ms03For, setMs03For]   = useState<RawRow | null>(null);
   const PAGE_SIZE = 14;
 
   const loadData = useCallback(() => {
@@ -215,6 +217,19 @@ const ReceptionV2: React.FC = () => {
       message.success(`Đã mở phiếu · ${r.queueCode || `#${r.queueNumber}`}`);
     } catch {
       message.error('In phiếu thất bại');
+    }
+  };
+
+  // In nhãn mã vạch hồ sơ (backend Code128 PDF 60x30mm — NangCap18). Port verbatim
+  // từ v1 detail-modal footer "In nhãn mã vạch".
+  const onPrintMrBarcode = async (r: RawRow) => {
+    try {
+      const res = await receptionApi.printMedicalRecordBarcode(r.id);
+      const url = URL.createObjectURL(new Blob([res.data as BlobPart], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      message.error('Không in được nhãn mã vạch');
     }
   };
 
@@ -473,6 +488,8 @@ const ReceptionV2: React.FC = () => {
                     <ActBtn ic="refresh" title="Đổi phòng" onClick={() => setMoveFor(r)} />
                   )}
                   <ActBtn ic="print" title="In phiếu" onClick={() => onPrint(r)} />
+                  <ActBtn ic="file" title="In giấy yêu cầu (MS 03/BV-02)" onClick={() => setMs03For(r)} />
+                  <ActBtn ic="scan" title="In mã vạch BN" onClick={() => printBarcodeLabel(r)} />
                   {(sk === 'waiting' || sk === 'serving' || sk === 'waitresult') && (
                     <ActBtn ic="alert" title="Vắng mặt" onClick={() => onSkip(r)} tone="warn" />
                   )}
@@ -532,6 +549,9 @@ const ReceptionV2: React.FC = () => {
             <Btn onClick={() => onPrint(detail)}>
               <TermIcon name="print" size={12} /> In phiếu
             </Btn>
+            <Btn variant="ghost" onClick={() => onPrintMrBarcode(detail)}>
+              <TermIcon name="scan" size={12} /> Nhãn mã vạch
+            </Btn>
             {(statusKey(detail) === 'waiting' || statusKey(detail) === 'noshow') && (
               <Btn variant="primary" onClick={() => { onCheckin(detail); setDetail(null); }}>
                 <TermIcon name="check" size={12} /> {statusKey(detail) === 'noshow' ? 'Gọi lại' : 'Bắt đầu khám'}
@@ -584,6 +604,9 @@ const ReceptionV2: React.FC = () => {
         onClose={() => setPayFor(null)}
         onDone={() => { setPayFor(null); loadData(); }}
       />
+
+      {/* In Giấy khám chữa bệnh theo yêu cầu (MS: 03/BV-02) */}
+      <PrintRequestFormModal row={ms03For} onClose={() => setMs03For(null)} />
     </div>
   );
 };

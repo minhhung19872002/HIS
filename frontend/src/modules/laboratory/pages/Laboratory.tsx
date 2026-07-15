@@ -12,6 +12,11 @@ import {
   ActBtn, Btn, DrawerShell,
 } from '../../../pages-v2/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { openPrintWindow } from '../../../utils/printWindow';
+import { SignatureStatusIcon, PinEntryModal } from '../../../components/digitalSignature';
+import { useSigningContext } from '../../../contexts/SigningContext';
+import { getSignatures } from '../../emr/api/digitalSignature';
+import type { DocumentSignatureDto } from '../../emr/api/digitalSignature';
 import {
   WAREHOUSE_TYPE_CABINET, STATUS_TABS, statusKey, abnormalCount, fmtDT,
   printLabResultBlob,
@@ -20,8 +25,10 @@ import {
 import { LAB_COLUMNS } from './columns';
 import { LabDrawerBody } from './LabDrawerBody';
 import { LabChainCancelModal } from './LabChainCancelModal';
+import { LabResultEntryModal } from './LabResultEntryModal';
 import { LabUtilDrawer } from './LabUtilDrawer';
 import { LabRolesModal } from './LabRolesModal';
+import { buildBarcodeLabelHtml } from './printTemplates';
 
 /* ────────────────────────────────────────────────────────────
    Lab v2 (LIS) — port of design-system-v2/his/project/LIS v2.html
@@ -100,6 +107,83 @@ const LaboratoryV2: React.FC = () => {
     rolesFetched.current = true;
     settingsApi.getLabDefaultRoles().then(setLabRoles).catch(() => { /* non-critical */ });
   }, []);
+
+  // Nhập kết quả thủ công per-test (port v1 Result Entry Modal)
+  const [entryTarget, setEntryTarget] = useState<LabRequest | null>(null);
+
+  // Ký số kết quả XN (port v1: SigningContext + PIN modal + signature map)
+  const { sessionActive, openSession, tryAutoOpenSession, signDocument } = useSigningContext();
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [signatureMap, setSignatureMap] = useState<Map<string, DocumentSignatureDto>>(new Map());
+
+  const loadResultSignature = async (resultId: string) => {
+    try {
+      const res = await getSignatures(resultId);
+      if (res.data.length > 0) {
+        setSignatureMap((prev) => new Map(prev).set(resultId, res.data[0]));
+      }
+    } catch { /* ignore */ }
+  };
+
+  const handlePinSubmit = async (pin: string) => {
+    setPinLoading(true);
+    setPinError('');
+    try {
+      const res = await openSession(pin);
+      if (res.success) {
+        setPinModalOpen(false);
+        message.success('Phiên ký số đã mở');
+      } else {
+        setPinError(res.message || 'PIN không đúng');
+      }
+    } catch {
+      setPinError('Không thể kết nối USB Token');
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  const handleSignResult = async (resultId: string) => {
+    if (!sessionActive) {
+      // Try auto-open with Windows Certificate Store first
+      try {
+        const autoRes = await tryAutoOpenSession();
+        if (autoRes.success) {
+          message.success(`Đã kết nối chứng thư số: ${autoRes.caProvider || 'Windows'}`);
+          const signRes = await signDocument(resultId, 'LabResult', 'Ký xác nhận kết quả xét nghiệm');
+          if (signRes.success) {
+            message.success('Ký kết quả xét nghiệm thành công');
+            void loadResultSignature(resultId);
+          } else {
+            message.warning(signRes.message || 'Ký số thất bại');
+          }
+          return;
+        }
+      } catch { /* fallback to PIN */ }
+      setPinModalOpen(true);
+      return;
+    }
+    try {
+      const res = await signDocument(resultId, 'LabResult', 'Ký xác nhận kết quả xét nghiệm');
+      if (res.success) {
+        message.success('Ký kết quả xét nghiệm thành công');
+        void loadResultSignature(resultId);
+      } else {
+        message.warning(res.message || 'Ký số thất bại');
+      }
+    } catch {
+      message.warning('Lỗi ký số');
+    }
+  };
+
+  // Mở drawer phiếu đã duyệt → nạp trạng thái chữ ký (hiển thị đúng đã-ký/chưa-ký)
+  const detailId = detail && detail.status >= 4 ? detail.id : null;
+  useEffect(() => {
+    if (detailId) void loadResultSignature(detailId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailId]);
 
   // Hủy ngược chuỗi workflow (M3.14): mức hủy + lý do, áp cho mọi test item của phiếu
   const [chainOpen, setChainOpen] = useState(false);
@@ -234,6 +318,46 @@ const LaboratoryV2: React.FC = () => {
     catch { message.error('Không in được phiếu'); }
   };
 
+  // In nhãn barcode dán mẫu (port v1 handlePrintBarcode):
+  // thử API blob trước → fallback labApi.printBarcode → cuối cùng render HTML local.
+  const onPrintBarcode = async (r: LabRequest) => {
+    const barcode = r.sampleBarcode || r.id;
+
+    try {
+      // Try to get a PDF/blob from the API first
+      const blobData = await labApi.printBarcodeLabel(r.id);
+      if (blobData && blobData instanceof Blob && blobData.size > 0) {
+        const url = URL.createObjectURL(blobData);
+        const printWindow = window.open(url, '_blank');
+        if (printWindow) {
+          printWindow.onload = () => {
+            printWindow.print();
+            // Clean up the blob URL after a delay
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+          };
+        } else {
+          message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+          URL.revokeObjectURL(url);
+        }
+        return;
+      }
+    } catch {
+      // API not available or returned error, fall back to local print
+    }
+
+    // Fallback: generate barcode label HTML locally and print
+    try {
+      await labApi.printBarcode(r.id, barcode);
+    } catch {
+      // Last resort: manual print window
+      openPrintWindow(buildBarcodeLabelHtml(r, barcode), {
+        focus: true,
+        print: { delayMs: 500 },
+        onBlocked: () => message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.'),
+      });
+    }
+  };
+
   const openChainCancel = (r: LabRequest) => {
     setChainTarget(r); setChainLevel(1); setChainReason(''); setChainOpen(true);
   };
@@ -353,6 +477,12 @@ const LaboratoryV2: React.FC = () => {
               {sk === 'ordered' && (
                 <ActBtn ic="check" title="Đánh dấu đã lấy mẫu" onClick={() => onCollect(r)} />
               )}
+              {r.status === 1 && (
+                <ActBtn ic="qr" title="In nhãn barcode mẫu" onClick={() => onPrintBarcode(r)} />
+              )}
+              {(r.status === 2 || r.status === 3) && (
+                <ActBtn ic="edit" title="Nhập kết quả thủ công" onClick={() => setEntryTarget(r)} />
+              )}
               {sk === 'running' && (
                 <ActBtn ic="check" title="Duyệt kết quả" onClick={() => onApprove(r)} />
               )}
@@ -364,6 +494,9 @@ const LaboratoryV2: React.FC = () => {
               )}
               {r.status >= 4 && (
                 <ActBtn ic="x" title="Hủy duyệt" tone="warn" onClick={() => onCancelApproval(r)} />
+              )}
+              {r.status >= 4 && !signatureMap.has(r.id) && (
+                <ActBtn ic="shield" title="Ký số kết quả xét nghiệm" onClick={() => handleSignResult(r.id)} />
               )}
               <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
               <ActBtn ic="print" title="In phiếu" onClick={() => onPrintRow(r)} />
@@ -405,15 +538,38 @@ const LaboratoryV2: React.FC = () => {
             <Btn variant="ghost" onClick={() => navigate(`/v2/emr/edit?patientId=${encodeURIComponent(detail.patientId)}`)}>
               <TermIcon name="folder" size={12} /> Xem HSBA
             </Btn>
+            {detail.status >= 4 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center' }} title="Trạng thái ký số">
+                <SignatureStatusIcon
+                  signed={signatureMap.has(detail.id)}
+                  signatureInfo={signatureMap.get(detail.id)}
+                />
+              </span>
+            )}
             <span className="ab-u-flex1" />
             {detail.status >= 1 && (
               <Btn onClick={() => openChainCancel(detail)}>
                 <TermIcon name="refresh" size={12} /> Hủy ngược chuỗi
               </Btn>
             )}
+            {detail.status === 1 && (
+              <Btn onClick={() => onPrintBarcode(detail)}>
+                <TermIcon name="qr" size={12} /> In nhãn
+              </Btn>
+            )}
+            {(detail.status === 2 || detail.status === 3) && (
+              <Btn onClick={() => setEntryTarget(detail)}>
+                <TermIcon name="edit" size={12} /> Nhập KQ
+              </Btn>
+            )}
             {detail.status >= 4 && (
               <Btn onClick={() => onCancelApproval(detail)}>
                 <TermIcon name="x" size={12} /> Hủy duyệt
+              </Btn>
+            )}
+            {detail.status >= 4 && !signatureMap.has(detail.id) && (
+              <Btn onClick={() => handleSignResult(detail.id)}>
+                <TermIcon name="shield" size={12} /> Ký KQ
               </Btn>
             )}
             <Btn onClick={() => onPrintRow(detail)}>
@@ -473,6 +629,23 @@ const LaboratoryV2: React.FC = () => {
         reason={chainReason}
         setReason={setChainReason}
         onConfirm={runChainCancel}
+      />
+
+      {/* ── Modal: nhập kết quả xét nghiệm thủ công ─────────────────── */}
+      <LabResultEntryModal
+        open={!!entryTarget}
+        request={entryTarget}
+        onClose={() => setEntryTarget(null)}
+        onSaved={() => { setEntryTarget(null); setDetail(null); reload(); }}
+      />
+
+      {/* ── Ký số: nhập PIN USB Token ────────────────────────────────── */}
+      <PinEntryModal
+        open={pinModalOpen}
+        onSubmit={handlePinSubmit}
+        onCancel={() => { setPinModalOpen(false); setPinError(''); }}
+        loading={pinLoading}
+        error={pinError}
       />
     </div>
   );

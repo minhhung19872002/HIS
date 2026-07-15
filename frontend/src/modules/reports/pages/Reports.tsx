@@ -17,6 +17,7 @@ import TermIcon from '../../../components/layout/terminal/Icon';
 import { statisticsApi } from '../../system/api/system';
 import type { DepartmentRevenueDto, HospitalDashboardDto } from '../../system/api/system';
 import apiClient from '../../../services/apiClient';
+import ReportsHospitalTab from './ReportsHospitalTab';
 import '../../../styles/reports-v2.css';
 
 type ReportCategoryId = 'operational' | 'clinical' | 'financial' | 'regulatory';
@@ -273,6 +274,8 @@ const TrendBadge: React.FC<{ value: number; inverse?: boolean }> = ({ value, inv
 
 const ReportsV2: React.FC = () => {
   const { message } = AntdApp.useApp();
+  // #409: page-level tab — "Tổng quan" (dashboard hiện có) vs "140 Báo cáo bệnh viện" (report-runner)
+  const [pageTab, setPageTab] = React.useState<'dashboard' | 'hospital'>('dashboard');
   const [activeCategory, setActiveCategory] = React.useState<ReportCategoryId>('operational');
   const [search, setSearch] = React.useState('');
   const [period, setPeriod] = React.useState<ReportPeriodId>('month');
@@ -504,6 +507,28 @@ const ReportsV2: React.FC = () => {
 
   return (
     <div className="reports-v2-page">
+      <div className="reports-v2-page-tabs" role="tablist" aria-label="Chọn khu vực báo cáo" style={{ display: 'flex', gap: 'var(--space-6)', marginBottom: 'var(--space-10)' }}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={pageTab === 'dashboard'}
+          className={pageTab === 'dashboard' ? 'is-active' : ''}
+          onClick={() => setPageTab('dashboard')}
+        >
+          Tổng quan
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={pageTab === 'hospital'}
+          className={pageTab === 'hospital' ? 'is-active' : ''}
+          onClick={() => setPageTab('hospital')}
+        >
+          140 Báo cáo bệnh viện
+        </button>
+      </div>
+      {pageTab === 'hospital' ? <ReportsHospitalTab /> : (
+      <>
       <section className="reports-v2-strip">
         {stripCards.map((card) => (
           <div key={card.label} className={`reports-v2-strip-card ${card.tone ?? ''}`}>
@@ -947,6 +972,8 @@ const ReportsV2: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+      </>
+      )}
     </div>
   );
 };

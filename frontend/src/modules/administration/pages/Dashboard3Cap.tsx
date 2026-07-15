@@ -7,7 +7,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
 } from 'recharts';
 import {
-  getMultiFacilityDashboard, getBranchTree, getConsolidatedReport, getBranchDutyRoster,
+  getMultiFacilityDashboard, getBranchTree, getConsolidatedReport, getBranchDutyRoster, getBranchesByLevel,
 } from '../api/multiFacility';
 import type {
   MultiFacilityDashboardDto, BranchTreeDto,
@@ -18,15 +18,20 @@ import {
   DrawerShell, DrSec, DrField, tk, ti,
   type ColumnDef,
 } from '../../../pages-v2/_v2kit';
+import TermIcon from '../../../components/layout/terminal/Icon';
 
-type Tab = 'dashboard' | 'consolidated' | 'duty';
+type Tab = 'dashboard' | 'tree' | 'consolidated' | 'duty';
 const TABS = [
   { v: 'dashboard' as Tab,    l: 'Tổng quan',     ic: 'activity' },
+  { v: 'tree' as Tab,        l: 'Cây chi nhánh', ic: 'folder' },
   { v: 'consolidated' as Tab, l: 'Báo cáo hợp nhất', ic: 'archive' },
   { v: 'duty' as Tab,         l: 'Lịch trực',     ic: 'calendar' },
 ];
 
 const CHART_COLORS = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2'];
+const LEVEL_ORDER = ['Tỉnh/Thành phố', 'Huyện/Quận', 'Trạm Y tế'] as const;
+const LEVEL_TONE = (level: string): 'crit' | 'warn' | 'info' =>
+  (level === 'Tỉnh/Thành phố' ? 'crit' : level === 'Huyện/Quận' ? 'warn' : 'info');
 
 const fmtCurr = (v: number) => {
   if (!v) return '0';
@@ -47,10 +52,35 @@ const flattenBranches = (nodes: BranchTreeDto[], level = 0): { v: string; l: str
   return result;
 };
 
+const BranchTreeNode: React.FC<{
+  node: BranchTreeDto; depth: number; rootId: string; onSelect: (n: BranchTreeDto) => void;
+}> = ({ node, depth, rootId, onSelect }) => (
+  <div>
+    <div
+      onClick={() => onSelect(node)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        padding: '6px 8px', paddingLeft: depth * 20 + 8,
+        cursor: 'pointer', borderBottom: '1px solid var(--line)',
+      }}
+    >
+      <TermIcon name={node.id === rootId ? 'archive' : node.children?.length ? 'folder' : 'shield'} size={14} />
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{node.branchCode}</span>
+      <span style={{ fontWeight: depth === 0 ? 700 : 500 }}>{node.branchName}</span>
+      <span className="spacer" />
+      <StatusBadge tone={LEVEL_TONE(node.branchLevel)}>{node.branchLevel}</StatusBadge>
+    </div>
+    {node.children?.map((c) => (
+      <BranchTreeNode key={c.id} node={c} depth={depth + 1} rootId={rootId} onSelect={onSelect} />
+    ))}
+  </div>
+);
+
 const Dashboard3CapV2: React.FC = () => {
   const [tab, setTab] = useState<Tab>('dashboard');
   const [dashboard, setDashboard] = useState<MultiFacilityDashboardDto | null>(null);
-  const [tree, setTree] = useState<BranchTreeDto[]>([]);
+  const [tree, setTree] = useState<BranchTreeDto | null>(null);
+  const [levels, setLevels] = useState<BranchTreeDto[]>([]);
   const [report, setReport] = useState<ConsolidatedReportDto | null>(null);
   const [duty, setDuty] = useState<BranchDutyRosterDto | null>(null);
   const [branchId, setBranchId] = useState('');
@@ -58,12 +88,14 @@ const Dashboard3CapV2: React.FC = () => {
   const [selBranch, setSelBranch] = useState<BranchTreeDto | null>(null);
   const [selSub, setSelSub] = useState<BranchSummary | null>(null);
 
-  const loadTree = async () => {
+  const loadTreeData = async () => {
     try {
-      const r = await getBranchTree();
-      const list = (Array.isArray(r) ? r : []) as BranchTreeDto[];
-      setTree(list);
-    } catch { /* ignore */ }
+      const [treeRes, levelsRes] = await Promise.allSettled([getBranchTree(), getBranchesByLevel()]);
+      if (treeRes.status === 'fulfilled') setTree(treeRes.value);
+      else console.warn('Branch tree load failed:', treeRes.reason);
+      if (levelsRes.status === 'fulfilled') setLevels(levelsRes.value);
+      else console.warn('Branches by level failed:', levelsRes.reason);
+    } catch (err) { console.warn('Failed to load branch tree data:', err); }
   };
 
   const loadDashboard = async () => {
@@ -102,15 +134,16 @@ const Dashboard3CapV2: React.FC = () => {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadTree(); }, []);
+  useEffect(() => { loadTreeData(); }, []);
   useEffect(() => {
     if (tab === 'dashboard') loadDashboard();
     else if (tab === 'consolidated') loadReport();
-    else loadDuty();
+    else if (tab === 'duty') loadDuty();
+    // 'tree' data loads once via loadTreeData() on mount (org tree/levels don't depend on branchId, same as v1)
     /* eslint-disable-next-line */
   }, [tab, branchId]);
 
-  const branchOpts = useMemo(() => flattenBranches(tree), [tree]);
+  const branchOpts = useMemo(() => flattenBranches(tree ? [tree] : []), [tree]);
 
   const trends = dashboard?.weeklyTrends?.map((t) => ({
     date: dayjs(t.date).format('DD/MM'),
@@ -180,6 +213,7 @@ const Dashboard3CapV2: React.FC = () => {
         <>
           <Btn variant="ghost" icon="refresh" onClick={() => {
             if (tab === 'dashboard') loadDashboard();
+            else if (tab === 'tree') loadTreeData();
             else if (tab === 'consolidated') loadReport();
             else loadDuty();
           }}>Làm mới</Btn>
@@ -310,6 +344,56 @@ const Dashboard3CapV2: React.FC = () => {
             />
           </div>
         </div>
+      )}
+
+      {tab === 'tree' && (
+        tree ? (
+          <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
+            <div className="panel" style={{ padding: 0 }}>
+              <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
+                <span>Cây chi nhánh (3 cấp)</span>
+              </div>
+              <div style={{ maxHeight: 480, overflowY: 'auto' }}>
+                <BranchTreeNode node={tree} depth={0} rootId={tree.id} onSelect={setSelBranch} />
+              </div>
+            </div>
+            <div className="panel" style={{ padding: 0 }}>
+              <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
+                <span>Danh sách theo cấp</span>
+              </div>
+              <div style={{ padding: 'var(--space-14)' }}>
+                {LEVEL_ORDER.map((level) => {
+                  const items = levels.filter((b) => b.branchLevel === level);
+                  if (!items.length) return null;
+                  return (
+                    <div key={level} style={{ marginBottom: 14 }}>
+                      <StatusBadge tone={LEVEL_TONE(level)}>{level} ({items.length})</StatusBadge>
+                      <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {items.map((b) => (
+                          <span
+                            key={b.id}
+                            onClick={() => setBranchId(b.id)}
+                            style={{
+                              padding: '3px 8px', borderRadius: 4, border: '1px solid var(--line)',
+                              cursor: 'pointer', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)',
+                            }}
+                          >
+                            {b.branchCode} · {b.branchName}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+                {levels.length === 0 && (
+                  <div style={{ textAlign: 'center', color: 'var(--t-2)', padding: 20 }}>Chưa có dữ liệu chi nhánh</div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: 60, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải cây chi nhánh…</div>
+        )
       )}
 
       {!loading && tab === 'consolidated' && report && (

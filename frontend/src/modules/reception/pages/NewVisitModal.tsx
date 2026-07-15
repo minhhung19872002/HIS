@@ -7,6 +7,7 @@ import { registerMultipleRooms } from '../../opd/api/multiSpecialtyExam';
 import { ModalShell } from '../../../pages-v2/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { BookingPickerModal } from './BookingPickerModal';
+import { validateCccd } from './cccd';
 const VISIT_TYPES: { v: string; l: string; ic: string; fee: number; serviceType: number; bhyt?: boolean; emergency?: boolean }[] = [
   { v: 'kham-thuong', l: 'Khám thường',     ic: 'stethoscope', fee: 38000,  serviceType: 3 },
   { v: 'kham-bhyt',   l: 'Khám BHYT',        ic: 'shield',      fee: 0,      serviceType: 3, bhyt: true },
@@ -111,7 +112,14 @@ export const NewVisitModal: React.FC<{
     if (!data.patientName.trim()) e.patientName = 'Bắt buộc';
     if (!data.phone || !/^0\d{9,10}$/.test(data.phone)) e.phone = 'SĐT 10 số';
     if (!data.age || data.age < 0 || data.age > 130) e.age = 'Tuổi không hợp lệ';
-    if (!data.cccd || !/^\d{12}$/.test(data.cccd)) e.cccd = 'CCCD 12 số';
+    // CCCD: 12 số + mã tỉnh/thành hợp lệ (validateCccd — port verbatim từ v1 pages/reception/cccd.ts).
+    // v2 giữ CCCD là trường bắt buộc (khác v1 optional) — chỉ siết thêm format/mã tỉnh.
+    if (!data.cccd) {
+      e.cccd = 'CCCD 12 số';
+    } else {
+      const cccdCheck = validateCccd(data.cccd);
+      if (!cccdCheck.valid) e.cccd = cccdCheck.error || 'CCCD 12 số';
+    }
     setErrs(e); return e;
   };
   const validate2 = (): Record<string, string> => {
@@ -270,7 +278,15 @@ export const NewVisitModal: React.FC<{
                 <Radio.Group value={data.gender} onChange={(e) => set('gender', e.target.value)} optionType="button" options={[{ value: 'M', label: 'Nam' }, { value: 'F', label: 'Nữ' }]} />
               </Lbl>
               <Lbl label="CCCD/CMND" required error={errs.cccd}>
-                <Input value={data.cccd} onChange={(e) => set('cccd', e.target.value)} placeholder="012345678901" />
+                <Input value={data.cccd} onChange={(e) => set('cccd', e.target.value)} placeholder="012345678901" maxLength={12} />
+                {(() => {
+                  // Gợi ý nơi cấp theo mã tỉnh (3 số đầu) — port v1 help "Nơi cấp: <tỉnh>".
+                  if (!data.cccd || data.cccd.replace(/\s/g, '').length !== 12) return null;
+                  const r = validateCccd(data.cccd);
+                  return r.valid && r.province
+                    ? <div style={{ fontSize: 10.5, color: 'var(--t-2)', marginTop: 'var(--space-3)' }}>Nơi cấp: {r.province}</div>
+                    : null;
+                })()}
               </Lbl>
             </div>
             <div style={{ marginTop: 'var(--space-10)' }}>
