@@ -31,7 +31,7 @@ import {
   getElectronicInvoices, issueElectronicInvoice, type ElectronicInvoiceDto,
   printPaymentReceipt, printInvoice, sendElectronicInvoice,
 } from '../api/billing';
-import '../components/layouts/terminal/ed-responsive.css';
+import '../../../components/layout/terminal/ed-responsive.css';
 
 type TabKey = 'pay' | 'advance' | 'refund' | 'cashbook' | 'einv';
 const TABS: TopTab<TabKey>[] = [

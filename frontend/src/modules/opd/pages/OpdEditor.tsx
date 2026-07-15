@@ -47,7 +47,7 @@ import {
   deleteRegistration,
   type ExamCompletionStatus,
 } from '../api/multiSpecialtyExam';
-import '../components/layouts/terminal/ed-responsive.css';
+import '../../../components/layout/terminal/ed-responsive.css';
 // #205 FE-2 (Phase 1) — presentational blocks split into ./opd-editor/*.
 // State/handlers/effects/loaders stay here; these receive everything via props.
 import {

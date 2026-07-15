@@ -37,7 +37,7 @@ import { printTreatmentSheet as printInpatientTreatmentSheet } from '../../inpat
 import PrintTemplateRenderer from '../../patient/components/PrintTemplateRenderer';
 import ClinicalTemplatePicker from '../../patient/components/ClinicalTemplatePicker';
 import { TEMPLATE_TYPES } from '../../patient/api/clinicalTemplate';
-import '../components/layouts/terminal/ed-responsive.css';
+import '../../../components/layout/terminal/ed-responsive.css';
 
 type TabKey = 'record' | 'history' | 'treatment' | 'consult' | 'nursing' | 'reaction' | 'partograph' | 'attach';
 const TABS: TopTab<TabKey>[] = [
