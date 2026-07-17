@@ -53,6 +53,7 @@ builder.Services.AddSingleton(auditChannel.Writer);
 builder.Services.AddSingleton(auditChannel.Reader);
 builder.Services.AddHostedService<HIS.API.Workers.AuditWriterWorker>();
 builder.Services.AddHostedService<HIS.API.Workers.AuditRetentionWorker>(); // #371: xóa định kỳ AuditLogs quá retention (bypass trigger via CONTEXT_INFO 'RETE')
+builder.Services.AddHostedService<HIS.API.Workers.AuditArchiveWorker>(); // #371 inc-6: lưu trữ lạnh R2 (gated AuditArchive:Enabled=false, mặc định TẮT)
 
 // Controllers
 builder.Services.AddControllers(options =>
