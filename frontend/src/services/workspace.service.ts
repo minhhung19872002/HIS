@@ -40,13 +40,17 @@ export function availableWorkspaces(): WorkspaceId[] {
   return WORKSPACES.filter((w) => seen.has(w.id)).map((w) => w.id);
 }
 
-const STORE_KEY = 'his.workspace';
+// v2: bump key để BỎ QUA giá trị auto-lưu của bản #404 lỗi (đã đá user vào 1 workspace
+// khiến "menu mất hết"). Bản mới opt-in — chỉ lưu khi user chủ động chọn trên switcher.
+const STORE_KEY = 'his.workspace.v2';
 
+/** Workspace đã lưu; null = chưa chọn hoặc chọn tường minh 'all' (Tất cả) → không lọc. */
 export function getStoredWorkspace(): WorkspaceId | null {
   const v = storage.getRaw(STORE_KEY);
   return WORKSPACES.some((w) => w.id === v) ? (v as WorkspaceId) : null;
 }
 
-export function setStoredWorkspace(ws: WorkspaceId): void {
+/** Lưu workspace đang chọn; truyền 'all' để ghi nhớ lựa chọn "Tất cả" (#404 hotfix). */
+export function setStoredWorkspace(ws: WorkspaceId | 'all'): void {
   storage.set(STORE_KEY, ws);
 }

@@ -305,9 +305,14 @@ export function getVisibleGroups(workspace?: WorkspaceId): NavGroup[] {
   return HIS_GROUPS
     .map((g) => ({
       ...g,
-      items: g.items.filter((it) =>
-        isPathAllowed(it.path)
-        && (!workspace || workspaceForPath(it.path) === workspace)),
+      items: g.items.filter((it) => {
+        if (!isPathAllowed(it.path)) return false;
+        if (!workspace) return true; // "Tất cả" (mặc định) — không lọc workspace
+        const ws = workspaceForPath(it.path);
+        // Hotfix regression #404: item KHÔNG có mapping workspace (route ngoài v2Routes
+        // như queue-display) → luôn hiện, không được ẩn ở mọi workspace.
+        return ws === undefined || ws === workspace;
+      }),
     }))
     .filter((g) => g.items.length > 0);
 }

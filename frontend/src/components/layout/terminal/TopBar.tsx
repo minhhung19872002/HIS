@@ -47,10 +47,10 @@ const notifTime = (iso?: string): string => {
 
 const Topbar: React.FC<{
   crumb: string[];
-  /** #404: workspace hiện hành + danh sách user thấy được; switcher chỉ hiện khi ≥2. */
+  /** #404: workspace đang lọc (undefined = Tất cả) + danh sách user thấy được; switcher chỉ hiện khi ≥2. */
   workspace?: WorkspaceId;
   workspaces?: WorkspaceId[];
-  onSwitchWorkspace?: (ws: WorkspaceId) => void;
+  onSwitchWorkspace?: (ws: WorkspaceId | undefined) => void;
   onCmdK: () => void;
   onSwitchLayout: () => void;
   onLogout: () => void;
@@ -141,9 +141,24 @@ const Topbar: React.FC<{
           </React.Fragment>
         ))}
       </div>
-      {/* #404: workspace switcher — chỉ khi user thấy được ≥2 workspace */}
+      {/* #404: workspace switcher — chỉ khi user thấy được ≥2 workspace. Nút "Tất cả"
+          (undefined) là mặc định — hiện toàn bộ menu; các nút còn lại lọc theo workspace. */}
       {workspaces.length >= 2 && onSwitchWorkspace && (
         <div style={{ display: 'inline-flex', gap: 2, marginRight: 8, border: '1px solid var(--line)', borderRadius: 6, padding: 2 }}>
+          <button
+            type="button"
+            title="Tất cả không gian làm việc"
+            onClick={() => onSwitchWorkspace(undefined)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px',
+              fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, borderRadius: 4,
+              border: 'none', cursor: 'pointer',
+              background: workspace === undefined ? 'var(--a-cy-bg)' : 'transparent',
+              color: workspace === undefined ? 'var(--a-cy)' : 'var(--t-2)',
+            }}
+          >
+            <TermIcon name="grid" size={11} /> TẤT CẢ
+          </button>
           {WORKSPACES.filter((w) => workspaces.includes(w.id)).map((w) => (
             <button
               key={w.id}

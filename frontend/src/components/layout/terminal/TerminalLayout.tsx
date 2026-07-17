@@ -481,24 +481,25 @@ const TerminalShell: React.FC = () => {
     navigate('/login');
   }, [logout, navigate]);
 
-  // #404: workspace hiện hành — init từ localStorage (hợp lệ trong available) hoặc workspace
-  // của trang đang mở, fallback workspace đầu tiên user thấy được.
+  // #404 (hotfix regression "menu mất hết"): workspace là OPT-IN — mặc định undefined
+  // = "Tất cả" (menu đầy đủ như trước #404). Chỉ lọc khi user chủ động chọn 1 workspace
+  // trên switcher; lựa chọn lưu localStorage ('all' = tường minh chọn Tất cả).
   const wsAvailable = useMemo(() => availableWorkspaces(), []);
-  const [workspace, setWorkspace] = useState<WorkspaceId>(() => {
+  const [workspace, setWorkspace] = useState<WorkspaceId | undefined>(() => {
     const stored = getStoredWorkspace();
-    const fromPath = workspaceForPath(window.location.pathname);
-    if (fromPath && wsAvailable.includes(fromPath)) return fromPath;
     if (stored && wsAvailable.includes(stored)) return stored;
-    return wsAvailable[0] ?? 'clinical';
+    return undefined; // mặc định: Tất cả
   });
-  const switchWorkspace = useCallback((ws: WorkspaceId) => {
+  const switchWorkspace = useCallback((ws: WorkspaceId | undefined) => {
     setWorkspace(ws);
-    setStoredWorkspace(ws);
+    setStoredWorkspace(ws ?? 'all');
     setPinnedGroupId(null);
     setHoveredGroupId(null);
   }, []);
-  // Deep-link vào trang thuộc workspace khác → tự chuyển (AC #404)
+  // Deep-link vào trang thuộc workspace khác → tự chuyển (AC #404) — CHỈ khi đang
+  // lọc theo 1 workspace; chế độ "Tất cả" thì không cần chuyển gì.
   useEffect(() => {
+    if (!workspace) return;
     const ws = workspaceForPath(location.pathname);
     if (ws && ws !== workspace && wsAvailable.includes(ws)) {
       setWorkspace(ws);
@@ -507,12 +508,13 @@ const TerminalShell: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
-  // Breadcrumb = [Workspace, group label, active item label] (#404)
+  // Breadcrumb = [Workspace (khi đang lọc), group label, active item label] (#404)
   const crumb = useMemo(() => {
     const group = HIS_GROUPS.find((g) => g.id === activeGroupId);
-    const parts: string[] = [workspaceDef(workspace).label];
+    const parts: string[] = workspace ? [workspaceDef(workspace).label] : [];
     if (group) parts.push(group.label);
     if (activeItem) parts.push(activeItem.label);
+    if (!parts.length) parts.push('Chỉ mục');
     return parts;
   }, [activeGroupId, activeItem, workspace]);
 
