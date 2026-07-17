@@ -57,6 +57,11 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    // AUTHZ-4 (#370): SoD/Delegation/Break-glass/Temp-permission (additive, chưa enforce)
+    public DbSet<SoDConstraint> SoDConstraints => Set<SoDConstraint>();
+    public DbSet<DelegationGrant> DelegationGrants => Set<DelegationGrant>();
+    public DbSet<BreakGlassSession> BreakGlassSessions => Set<BreakGlassSession>();
+    public DbSet<UserPermissionOverride> UserPermissionOverrides => Set<UserPermissionOverride>();
 
     // Khoa/Phòng/Giường
     public DbSet<Department> Departments => Set<Department>();
