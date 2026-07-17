@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { App as AntdApp, Input, Select, InputNumber } from 'antd';
 import type { MessageInstance } from 'antd/es/message/interface';
 import { DatePicker } from 'antd';
-import { getBloodStock, getBloodStockDetail, getExpiringBloodBags, getIssueRequests, getProductTypes, createIssueRequest, createImportReceipt, getSuppliers, updateBloodBagStatus, destroyExpiredBloodBags } from '../api/bloodBank';
+import { getBloodStock, getBloodStockDetail, getExpiringBloodBags, getIssueRequests, getProductTypes, createIssueRequest, createImportReceipt, getSuppliers, updateBloodBagStatus, destroyExpiredBloodBags, approveIssueRequest, issueBlood } from '../api/bloodBank';
 import type { BloodStockDto, BloodBagDto, BloodIssueRequestDto, BloodProductTypeDto, BloodStockDetailDto, BloodSupplierDto } from '../api/bloodBank';
 import { catalogApi } from '../../system/api/system';
 import type { DepartmentCatalogDto } from '../../system/api/system';
@@ -11,7 +11,7 @@ import { openPrintWindow } from '../../../utils/printWindow';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, ModalShell,
+  StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, ModalShell, cf,
   type ColumnDef, type TopTab,
 } from '../../../pages-v2/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
@@ -317,15 +317,28 @@ const BloodBankV2: React.FC = () => {
             {ALL_TYPES.map((t) => {
               const a = byType[t]?.available || 0;
               return (
-                <button key={t} type="button" onClick={() => { setFilterType(filterType === t ? '' : t); setPage(0); }}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 'var(--space-6)', padding: '4px 10px', borderRadius: 14,
-                    border: filterType === t ? '1px solid var(--a-cy)' : '1px solid var(--line)',
-                    background: filterType === t ? 'var(--a-cy-bg)' : 'var(--d-2)', cursor: 'pointer', fontSize: 11.5,
-                  }}>
-                  <b style={{ color: a < 5 ? 'var(--s-crit)' : 'var(--t-0)' }}>{t}</b>
-                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--t-2)' }}>{a}đv</span>
-                </button>
+                <span key={t} style={{
+                  display: 'inline-flex', alignItems: 'center', borderRadius: 14, overflow: 'hidden',
+                  border: filterType === t ? '1px solid var(--a-cy)' : '1px solid var(--line)',
+                  background: filterType === t ? 'var(--a-cy-bg)' : 'var(--d-2)', fontSize: 11.5,
+                }}>
+                  <button type="button" onClick={() => { setFilterType(filterType === t ? '' : t); setPage(0); }}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 'var(--space-6)', padding: '4px 6px 4px 10px',
+                      border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 'inherit',
+                    }}>
+                    <b style={{ color: a < 5 ? 'var(--s-crit)' : 'var(--t-0)' }}>{t}</b>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--t-2)' }}>{a}đv</span>
+                  </button>
+                  {/* #420: trigger mở drawer chi tiết nhóm máu (BloodTypeDetail trước đây dead-wired) */}
+                  <button type="button" title={`Chi tiết nhóm máu ${t}`} onClick={() => setDetailType(t)}
+                    style={{
+                      border: 'none', borderLeft: '1px solid var(--line-soft)', background: 'transparent',
+                      cursor: 'pointer', padding: '4px 8px', color: 'var(--t-2)', display: 'inline-flex', alignItems: 'center',
+                    }}>
+                    <TermIcon name="info" size={11} />
+                  </button>
+                </span>
               );
             })}
           </div>
@@ -339,7 +352,7 @@ const BloodBankV2: React.FC = () => {
         </>
       )}
       {tab === 'expiring' && <ExpiringTab rows={expiringFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} message={message} onReload={reload} />}
-      {tab === 'requests' && <RequestsTab rows={requestsFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} />}
+      {tab === 'requests' && <RequestsTab rows={requestsFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} units={units} onReload={reload} />}
       {tab === 'gelcard' && <GelcardTab rows={gelcardFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} allActiveUnits={gelcardBase} loading={loading} results={gelcardResults} onSaveResult={saveGelcardResult} />}
 
       <Pager page={page} totalPages={totalPages} setPage={setPage}
@@ -673,8 +686,88 @@ const ExpiringTab: React.FC<{
   );
 };
 
-const RequestsTab: React.FC<{ rows: BloodIssueRequestDto[]; loading: boolean }> = ({ rows, loading }) => {
+const RequestsTab: React.FC<{
+  rows: BloodIssueRequestDto[];
+  loading: boolean;
+  units: BloodStockDetailDto[];
+  onReload: () => void;
+}> = ({ rows, loading, units, onReload }) => {
+  const { message } = AntdApp.useApp();
   const [sel, setSel] = useState<BloodIssueRequestRow | null>(null);
+  // #420: port Duyệt + Xuất máu từ v1 (approveIssueRequest / issueBlood)
+  const [issueFor, setIssueFor] = useState<BloodIssueRequestRow | null>(null);
+  const [pickedBags, setPickedBags] = useState<Set<string>>(new Set());
+  const [issueSaving, setIssueSaving] = useState(false);
+
+  const stKey = (st?: string) => String(st || '').toLowerCase();
+  const canApprove = (r: BloodIssueRequestRow) => stKey(r.status) === 'pending';
+  const canIssue = (r: BloodIssueRequestRow) => ['approved', 'partiallyissued'].includes(stKey(r.status));
+
+  const handleApprove = (r: BloodIssueRequestRow) => {
+    cf(`Duyệt yêu cầu ${r.requestCode || r.id?.slice(0, 8)} — BN ${r.patientName || '—'}, ${r.bloodType}${r.rhFactor} × ${r.requestedQuantity}?`, async () => {
+      try {
+        await approveIssueRequest(r.id);
+        message.success('Đã duyệt yêu cầu');
+        setSel(null);
+        onReload();
+      } catch {
+        message.error('Lỗi khi duyệt yêu cầu. Vui lòng thử lại.');
+      }
+    }, { title: 'Xác nhận duyệt yêu cầu' });
+  };
+
+  const openIssue = (r: BloodIssueRequestRow) => {
+    setPickedBags(new Set());
+    setIssueFor(r);
+  };
+
+  // Túi máu khớp yêu cầu: đúng nhóm + Rh + chế phẩm, còn Khả dụng (patient-safety: backend KHÔNG tự chặn)
+  const matchingBags = useMemo(() => {
+    if (!issueFor) return [];
+    return units.filter((u) =>
+      u.status === 'Available'
+      && u.bloodType === issueFor.bloodType
+      && u.rhFactor === issueFor.rhFactor
+      && (!issueFor.productTypeName || u.productTypeName === issueFor.productTypeName));
+  }, [units, issueFor]);
+
+  const remainingQty = issueFor
+    ? Math.max(0, (issueFor.requestedQuantity || 0) - (issueFor.issuedQuantity || 0))
+    : 0;
+
+  const toggleBag = (bagId: string) => {
+    setPickedBags((prev) => {
+      const next = new Set(prev);
+      if (next.has(bagId)) next.delete(bagId);
+      else if (next.size >= remainingQty) {
+        message.warning(`Yêu cầu chỉ còn ${remainingQty} đơn vị — bỏ chọn túi khác trước`);
+        return prev;
+      } else next.add(bagId);
+      return next;
+    });
+  };
+
+  const submitIssue = async () => {
+    if (!issueFor) return;
+    if (pickedBags.size === 0) { message.warning('Chọn ít nhất 1 túi máu để xuất'); return; }
+    setIssueSaving(true);
+    try {
+      await issueBlood({
+        requestId: issueFor.id,
+        bloodBagIds: Array.from(pickedBags),
+        note: `Xuất máu cho BN ${issueFor.patientName || ''}${issueFor.patientCode ? ` - ${issueFor.patientCode}` : ''}`.trim(),
+      });
+      message.success(`Đã xuất ${pickedBags.size} đơn vị máu cho bệnh nhân`);
+      setIssueFor(null);
+      setSel(null);
+      onReload();
+    } catch {
+      message.error('Lỗi khi xuất máu. Vui lòng thử lại.');
+    } finally {
+      setIssueSaving(false);
+    }
+  };
+
   const cols: ColumnDef<BloodIssueRequestRow>[] = [
     { key: 'code', label: 'Mã YC', mono: true, width: 130, render: (r) => r.requestCode || r.id?.slice(0, 8) },
     { key: 'patient', label: 'Bệnh nhân', render: (r) => r.patientName || '—' },
@@ -689,6 +782,15 @@ const RequestsTab: React.FC<{ rows: BloodIssueRequestDto[]; loading: boolean }> 
     {
       key: 'date', label: 'Ngày YC', mono: true, width: 110,
       render: (r) => fmtDMY(r.requestDate || r.createdAt),
+    },
+    {
+      key: 'act', label: '', width: 90,
+      render: (r) => (
+        <>
+          {canApprove(r) && <ActBtn ic="check" title="Duyệt yêu cầu" onClick={() => handleApprove(r)} />}
+          {canIssue(r) && <ActBtn ic="send" title="Xuất máu" onClick={() => openIssue(r)} />}
+        </>
+      ),
     },
   ];
   return (
@@ -723,7 +825,20 @@ const RequestsTab: React.FC<{ rows: BloodIssueRequestDto[]; loading: boolean }> 
             <StatusBadge tone={sel.status === 'approved' || sel.status === 'issued' ? 'ok' : 'warn'} dot>{sel.statusName || sel.status || '—'}</StatusBadge>
           </DrField>
           <DrField lbl="Ngày YC">{fmtDMY(sel.requestDate || sel.createdAt)}</DrField>
-          <div style={{ marginTop: 'var(--space-12)', borderTop: '1px solid var(--line-soft)', paddingTop: 'var(--space-10)' }}>
+          <DrField lbl="Số lượng">
+            <span style={{ fontFamily: 'var(--font-mono)' }}>{sel.issuedQuantity || 0}/{sel.requestedQuantity || 0} đơn vị</span>
+          </DrField>
+          <div style={{ marginTop: 'var(--space-12)', borderTop: '1px solid var(--line-soft)', paddingTop: 'var(--space-10)', display: 'flex', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
+            {canApprove(sel) && (
+              <Btn variant="primary" onClick={() => handleApprove(sel)}>
+                <TermIcon name="check" size={12} /> Duyệt yêu cầu
+              </Btn>
+            )}
+            {canIssue(sel) && (
+              <Btn variant="primary" onClick={() => openIssue(sel)}>
+                <TermIcon name="send" size={12} /> Xuất máu
+              </Btn>
+            )}
             <Btn variant="ghost" onClick={() => openPrintWindow(buildBloodRequestHtml(sel), { focus: true, print: { delayMs: 500 } })}>
               <TermIcon name="printer" size={12} /> In phiếu yêu cầu truyền máu
             </Btn>
@@ -731,6 +846,55 @@ const RequestsTab: React.FC<{ rows: BloodIssueRequestDto[]; loading: boolean }> 
         </DrSec>
       )}
     </DrawerShell>
+
+    {/* #420: modal xuất máu — chọn túi khớp nhóm/Rh/chế phẩm, tối đa số lượng còn lại */}
+    <ModalShell
+      open={!!issueFor}
+      onClose={() => setIssueFor(null)}
+      size="md"
+      title={issueFor ? `Xuất máu — ${issueFor.requestCode || issueFor.id?.slice(0, 8)}` : ''}
+      sub={issueFor ? `${issueFor.patientName || '—'} · cần ${remainingQty} đơn vị ${issueFor.bloodType}${issueFor.rhFactor}${issueFor.productTypeName ? ` · ${issueFor.productTypeName}` : ''}` : ''}
+      footer={<>
+        <Btn variant="ghost" onClick={() => setIssueFor(null)}>Đóng</Btn>
+        <Btn variant="primary" disabled={issueSaving || pickedBags.size === 0} onClick={submitIssue}>
+          {issueSaving ? 'Đang xuất…' : `Xuất ${pickedBags.size} túi`}
+        </Btn>
+      </>}
+    >
+      {issueFor && (
+        matchingBags.length === 0 ? (
+          <div className="ab-empty" style={{ padding: 'var(--space-16)' }}>
+            <TermIcon name="alert" size={20} />
+            <div>Không có túi máu khả dụng khớp {issueFor.bloodType}{issueFor.rhFactor}{issueFor.productTypeName ? ` · ${issueFor.productTypeName}` : ''}</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', maxHeight: 380, overflowY: 'auto' }}>
+            {matchingBags.map((u) => {
+              const picked = pickedBags.has(u.bloodBagId);
+              return (
+                <button key={u.bloodBagId} type="button" onClick={() => toggleBag(u.bloodBagId)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 'var(--space-10)', padding: '8px 10px', textAlign: 'left',
+                    border: picked ? '1px solid var(--a-cy)' : '1px solid var(--line)', borderRadius: 6,
+                    background: picked ? 'var(--a-cy-bg)' : 'var(--d-2)', cursor: 'pointer',
+                  }}>
+                  <span style={{ width: 16, textAlign: 'center', color: picked ? 'var(--a-cy)' : 'var(--t-3)' }}>
+                    {picked ? <TermIcon name="check" size={12} /> : '·'}
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, minWidth: 120 }}>{u.bagCode}</span>
+                  <span className="chip crit" style={{ fontWeight: 700 }}>{u.bloodType}{u.rhFactor}</span>
+                  <span style={{ flex: 1 }}>{u.productTypeName}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{u.volume} mL</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', color: u.daysUntilExpiry < 7 ? 'var(--s-crit)' : 'var(--t-2)' }}>
+                    HSD {fmtDMY(u.expiryDate)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )
+      )}
+    </ModalShell>
     </>
   );
 };
