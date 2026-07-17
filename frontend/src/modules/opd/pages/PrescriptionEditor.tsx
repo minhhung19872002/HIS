@@ -21,13 +21,18 @@ import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
 import BusinessAlertPanel from '../../patient/components/BusinessAlertPanel';
 import '../../../components/layout/terminal/ed-responsive.css';
 import { fmtDate } from '../../../utils/format';
+import { HOSPITAL_NAME, HOSPITAL_ADDRESS } from '../../../constants/hospital';
 
-const RX_FREQ = ['1 lần/ngày', '2 lần/ngày', '3 lần/ngày', 'Cách 6h', 'Khi cần', 'Trước ăn', 'Sau ăn'];
 const RX_ROUTE = ['Uống', 'Tiêm bắp', 'Tiêm tĩnh mạch', 'Bôi ngoài da', 'Khí dung', 'Ngậm dưới lưỡi'];
 
 interface RxItem {
-  medicineId: string; code: string; name: string; dose: string;
+  medicineId: string; code: string; name: string;
+  // Dose schedule S/T/Ch/T (patient-safety — serialised via formatDosage for DTO)
+  morning: number; noon: number; evening: number; night: number;
+  mealTiming: 'before' | 'after' | '';
   freq: string; qty: number; days: number; route: string; note: string; price: number;
+  // Pharmacy clarity fields
+  dosageForm: string; strength: string;
 }
 
 const ageOf = (p: Patient): number => {
@@ -43,6 +48,19 @@ const vitalsStr = (c: PrescriptionContextDto | null): string => {
   if (c.temperature) parts.push(`T ${c.temperature}°C`);
   if (c.spO2) parts.push(`SpO₂ ${c.spO2}%`);
   return parts.join(' · ');
+};
+
+/** Serialise structured dose → 'Sáng: 1, Tối: 1 (Sau ăn)' for DTO dosage field. */
+const formatDosage = (it: Pick<RxItem, 'morning' | 'noon' | 'evening' | 'night' | 'mealTiming'>): string => {
+  const parts: string[] = [];
+  if (it.morning > 0) parts.push(`Sáng: ${it.morning}`);
+  if (it.noon > 0) parts.push(`Trưa: ${it.noon}`);
+  if (it.evening > 0) parts.push(`Chiều: ${it.evening}`);
+  if (it.night > 0) parts.push(`Tối: ${it.night}`);
+  let result = parts.join(', ') || '—';
+  if (it.mealTiming === 'before') result += ' (Trước ăn)';
+  else if (it.mealTiming === 'after') result += ' (Sau ăn)';
+  return result;
 };
 
 const PrescriptionEditorV2: React.FC = () => {
@@ -72,9 +90,16 @@ const PrescriptionEditorV2: React.FC = () => {
   const [tplOpen, setTplOpen] = useState(false);
   const [signOpen, setSignOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  // Toa ngoài / nhà thuốc (mua ngoài) — tách khỏi toa BHYT, in qua print-external
-  const [external, setExternal] = useState(false);
+  // F3 = BHYT/Thu phí (kho nội viện), F5 = Toa mua ngoài (nhà thuốc)
+  const [rxMode, setRxMode] = useState<1 | 2>(1);
   const [printingExt, setPrintingExt] = useState(false);
+  // Save-as-template
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateDiagnosis, setTemplateDiagnosis] = useState('');
+  const [savingTpl, setSavingTpl] = useState(false);
+  // Phiếu công khai thuốc MSS-01
+  const [disclosureOpen, setDisclosureOpen] = useState(false);
 
   const allergyNames = (ctx?.allergies || []).map((a) => a.allergenName);
   const total = items.reduce((s, x) => s + x.price * x.qty, 0);
@@ -173,8 +198,11 @@ const PrescriptionEditorV2: React.FC = () => {
   const addDrug = (d: MedicineDto) => {
     setItems((p) => [...p, {
       medicineId: d.id, code: d.code, name: d.name,
-      dose: d.name.match(/\d+\s*mg/i)?.[0] || '—',
+      morning: 1, noon: 0, evening: 0, night: 1,
+      mealTiming: '' as const,
       freq: '1 lần/ngày', qty: 30, days: 30, route: 'Uống', note: '', price: d.unitPrice,
+      dosageForm: d.unit || 'Viên',
+      strength: d.name.match(/\d+\s*mg/i)?.[0] || '',
     }]);
     setDQ(''); setDrugResults([]);
     tk(`Đã thêm ${d.name}`);
@@ -186,7 +214,7 @@ const PrescriptionEditorV2: React.FC = () => {
   // ── Save / complete ──────────────────────────────────────────────
   // Derive paymentCategory: 3=Thuốc ngoài (F5), 1=BHYT, 2=Thu phí
   const derivePaymentCategory = (): number => {
-    if (external) return 3;
+    if (rxMode === 2) return 3; // F5 = mua ngoài / nhà thuốc
     if (ctx?.patientType === 1) return 1; // BHYT
     return 2; // Thu phí / viện phí
   };
@@ -201,7 +229,7 @@ const PrescriptionEditorV2: React.FC = () => {
     totalDays: items.reduce((m, x) => Math.max(m, x.days), 0),
     items: items.map((it) => ({
       medicineId: it.medicineId, quantity: it.qty, days: it.days,
-      dosage: it.dose, route: it.route, frequency: it.freq,
+      dosage: formatDosage(it), route: it.route, frequency: it.freq,
       usageInstructions: it.note, paymentType: 1,
     })),
   });
@@ -232,6 +260,114 @@ const PrescriptionEditorV2: React.FC = () => {
   };
 
   const onClickSign = () => { if (guard()) setSignOpen(true); };
+
+  // ── In đơn thuốc nội viện ─────────────────────────────────────────
+  const handlePrintInternalRx = () => {
+    if (!guard()) return;
+    const pw = window.open('', '_blank');
+    if (!pw) { tw('Không thể mở cửa sổ in — vui lòng cho phép popup'); return; }
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    pw.document.write(`<!DOCTYPE html><html><head><title>Đơn thuốc</title>
+<style>body{font-family:'Times New Roman',serif;font-size:13px;padding:20px}.title{font-size:18px;font-weight:bold;text-align:center;margin:15px 0}.info{margin:5px 0}
+table{width:100%;border-collapse:collapse;margin:15px 0}th,td{border:1px solid #000;padding:5px;text-align:left}th{background:#f0f0f0}
+.tr{text-align:right}.sig{display:flex;justify-content:space-between;margin-top:40px;text-align:center}
+@media print{body{padding:10px}}</style></head><body>
+<div style="text-align:center"><strong>${HOSPITAL_NAME}</strong></div>
+<div class="title">ĐƠN THUỐC</div>
+${pt ? `<div class="info">Họ tên: <strong>${pt.fullName}</strong> — Mã BN: ${pt.patientCode}</div>
+<div class="info">Giới: ${pt.gender === 1 ? 'Nam' : 'Nữ'} · BHYT: ${pt.insuranceNumber || 'Không'}</div>` : ''}
+<div class="info">Chẩn đoán: <strong>${ctx?.mainDiagnosis || ''}</strong></div>
+<table><thead><tr><th>STT</th><th>Tên thuốc</th><th>Liều dùng</th><th>Số ngày</th><th>SL</th><th>Đường dùng</th><th>Ghi chú</th></tr></thead>
+<tbody>${items.map((it, i) => `<tr><td>${i + 1}</td>
+<td><strong>${it.name}</strong>${it.strength ? `<br/><small>${it.strength}</small>` : ''}</td>
+<td>${formatDosage(it)}</td><td>${it.days} ngày</td>
+<td>${it.qty} ${it.dosageForm || 'viên'}</td><td>${it.route}</td><td>${it.note || ''}</td></tr>`).join('')}</tbody></table>
+<div class="info"><strong>Tổng tiền:</strong> ${total.toLocaleString('vi-VN')} đ</div>
+<div class="sig"><div style="width:45%"><div>Ngày ${dd} tháng ${mm} năm ${yyyy}</div><strong>Bác sĩ kê đơn</strong><div style="margin-top:50px"></div></div></div>
+</body></html>`);
+    pw.document.close(); pw.focus();
+    setTimeout(() => { pw.print(); }, 500);
+  };
+
+  // ── Phiếu công khai thuốc MSS-01 ──────────────────────────────────
+  const handlePrintDrugDisclosure = () => {
+    if (items.length === 0) { tw('Chưa có thuốc trong đơn'); return; }
+    const pw = window.open('', '_blank');
+    if (!pw) { tw('Không thể mở cửa sổ in — vui lòng cho phép popup'); return; }
+    const isBHYT = !!pt?.insuranceNumber;
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    pw.document.write(`<!DOCTYPE html><html><head><title>Phiếu công khai thuốc</title>
+<style>body{font-family:'Times New Roman',serif;font-size:13px;padding:20px}
+.ft{font-size:16px;font-weight:bold;text-align:center;margin:15px 0 10px;text-transform:uppercase}
+.info{margin:4px 0}table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}
+th,td{border:1px solid #000;padding:4px 6px}th{background:#f0f0f0;text-align:center;font-weight:bold}
+.tr{text-align:right}.tc{text-align:center}.tot{font-weight:bold;background:#fafafa}
+.sig{display:flex;justify-content:space-between;margin-top:30px}
+.sigcol{width:40%;text-align:center}@media print{body{padding:10px}}</style></head><body>
+<div style="text-align:center;margin-bottom:10px"><div style="font-weight:bold;font-size:14px">${HOSPITAL_NAME}</div>
+<div style="font-size:12px">${HOSPITAL_ADDRESS}</div></div>
+<div class="ft">PHIẾU CÔNG KHAI THUỐC</div>
+${pt ? `<div class="info">Họ tên: <strong>${pt.fullName}</strong> &nbsp; Mã BN: <strong>${pt.patientCode}</strong></div>
+<div class="info">Giới tính: ${pt.gender === 1 ? 'Nam' : 'Nữ'}</div>
+${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranceNumber}</strong></div>` : ''}` : ''}
+<div class="info">Chẩn đoán: <strong>${ctx?.mainDiagnosis || ''}</strong></div>
+<table><thead><tr><th style="width:35px">STT</th><th>Tên thuốc</th><th>Hàm lượng</th><th>ĐVT</th>
+<th>SL</th><th>Đơn giá</th><th>Thành tiền</th><th>BHYT chi trả</th><th>BN chi trả</th><th>Ghi chú</th></tr></thead>
+<tbody>${items.map((it, i) => {
+  const itTot = it.price * it.qty;
+  const bhytPay = isBHYT ? Math.round(itTot * 0.8) : 0;
+  return `<tr><td class="tc">${i + 1}</td><td><strong>${it.name}</strong></td>
+<td class="tc">${it.strength || ''}</td><td class="tc">${it.dosageForm || 'Viên'}</td>
+<td class="tc">${it.qty}</td><td class="tr">${it.price.toLocaleString('vi-VN')}</td>
+<td class="tr">${itTot.toLocaleString('vi-VN')}</td>
+<td class="tr">${bhytPay > 0 ? bhytPay.toLocaleString('vi-VN') : '-'}</td>
+<td class="tr">${(itTot - bhytPay).toLocaleString('vi-VN')}</td><td>${it.note || ''}</td></tr>`;
+}).join('')}
+<tr class="tot"><td colspan="6" class="tc"><strong>Tổng cộng</strong></td>
+<td class="tr"><strong>${total.toLocaleString('vi-VN')}</strong></td>
+<td class="tr"><strong>${isBHYT ? Math.round(total * 0.8).toLocaleString('vi-VN') : '-'}</strong></td>
+<td class="tr"><strong>${(isBHYT ? Math.round(total * 0.2) : total).toLocaleString('vi-VN')}</strong></td>
+<td></td></tr></tbody></table>
+<div class="info"><em>Tổng số: ${items.length} khoản thuốc</em></div>
+<div class="sig">
+<div class="sigcol"><div style="font-style:italic;font-size:12px">(Ký, ghi rõ họ tên)</div><div style="font-weight:bold;margin-bottom:60px">Người lập</div></div>
+<div class="sigcol"><div style="font-style:italic;font-size:12px">(Ký, ghi rõ họ tên)</div><div style="font-weight:bold;margin-bottom:60px">Bệnh nhân/Người nhà</div></div>
+</div>
+<div style="text-align:right;margin-top:15px;font-size:12px">Ngày ${dd} tháng ${mm} năm ${yyyy}</div>
+</body></html>`);
+    pw.document.close(); pw.focus();
+    setTimeout(() => { pw.print(); }, 500);
+  };
+
+  // ── Lưu mẫu đơn ───────────────────────────────────────────────────
+  const handleSaveTemplate = async () => {
+    if (items.length === 0) { tw('Chưa có thuốc trong đơn để lưu mẫu'); return; }
+    if (!templateName.trim()) { tw('Vui lòng nhập tên mẫu'); return; }
+    setSavingTpl(true);
+    try {
+      await examinationApi.createPrescriptionTemplate({
+        id: '', templateName: templateName.trim(),
+        description: templateDiagnosis.trim(),
+        templateType: 1,
+        items: items.map((it) => ({
+          medicineId: it.medicineId, quantity: it.qty, days: it.days,
+          dosage: formatDosage(it), route: it.route, frequency: it.freq,
+          usageInstructions: it.note, paymentType: 1,
+        })),
+        isShared: false,
+      });
+      tk('Đã lưu mẫu đơn thuốc');
+      setSaveTemplateOpen(false);
+      setTemplateName(''); setTemplateDiagnosis('');
+    } catch { te('Lưu mẫu thất bại'); }
+    finally { setSavingTpl(false); }
+  };
 
   // In toa nhà thuốc (mua ngoài): tạo đơn rồi in qua endpoint print-external.
   // DTO tạo đơn không có cờ phân loại toa-ngoài nên không set field — chỉ in bản nhà thuốc.
@@ -266,11 +402,14 @@ const PrescriptionEditorV2: React.FC = () => {
         .filter((f) => f.med)
         .map((f) => ({
           medicineId: f.med!.id, code: f.med!.code, name: f.med!.name,
-          dose: f.it.dosage || f.med!.name.match(/\d+\s*mg/i)?.[0] || '—',
+          morning: 1, noon: 0, evening: 0, night: 1,
+          mealTiming: '' as const,
           freq: f.it.frequency || '1 lần/ngày',
           qty: f.it.quantity || 30, days: f.it.days || 30,
           route: f.it.route || 'Uống', note: f.it.usageInstructions || '',
           price: f.med!.unitPrice,
+          dosageForm: f.med!.unit || 'Viên',
+          strength: f.med!.name.match(/\d+\s*mg/i)?.[0] || '',
         }));
       setItems((p) => {
         const existing = new Set(p.map((x) => x.medicineId));
@@ -287,7 +426,7 @@ const PrescriptionEditorV2: React.FC = () => {
       <div style={{ gridColumn: '1 / -1' }}>
         <KpiStrip items={[
           { lbl: 'BN đang kê', val: pt ? pt.fullName : '—', sub: pt ? `${pt.patientCode} · ${ageOf(pt)}T · ${pt.gender === 1 ? 'Nam' : 'Nữ'}` : 'Chưa chọn' },
-          { lbl: 'Loại đơn', val: external ? 'Toa ngoài' : (type === 1 ? 'Ngoại trú' : 'YHCT'), tone: external ? 'warn' : 'info', sub: external ? 'Mua ngoài / nhà thuốc' : 'Theo kho nội viện' },
+          { lbl: 'Loại đơn', val: rxMode === 2 ? 'Toa ngoài (F5)' : (type === 1 ? 'Ngoại trú (F3)' : 'YHCT (F3)'), tone: rxMode === 2 ? 'warn' : 'info', sub: rxMode === 2 ? 'Mua ngoài / nhà thuốc' : 'Theo kho nội viện' },
           { lbl: 'Số thuốc', val: items.length, sub: items.length ? `${items.reduce((s, x) => s + x.qty, 0)} viên/gói` : '—' },
           { lbl: 'Cảnh báo', val: intCount + allergyNames.length, tone: 'warn', sub: `${intCount} tương tác · ${allergyNames.length} dị ứng` },
           { lbl: 'Tổng tiền', val: fmtVNDg(total), tone: 'ok' },
@@ -368,18 +507,24 @@ const PrescriptionEditorV2: React.FC = () => {
               <button key={t.v} onClick={() => setType(t.v)} style={{ background: type === t.v ? 'var(--c-pri)' : 'transparent', color: type === t.v ? '#fff' : 'var(--t-1)', border: 0, padding: '5px 12px', borderRadius: 'var(--r-1)', cursor: 'pointer', fontSize: 11.5, fontWeight: type === t.v ? 700 : 400 }}>{t.l}</button>
             ))}
           </div>
-          <select className="hui-inp hui-sel" value={warehouse} onChange={(e) => setWh(e.target.value)} style={{ width: 200, height: 32 }} disabled={external} title={external ? 'Toa ngoài không cấp theo kho nội viện' : undefined}>
+          <select className="hui-inp hui-sel" value={warehouse} onChange={(e) => setWh(e.target.value)} style={{ width: 200, height: 32 }} disabled={rxMode === 2} title={rxMode === 2 ? 'Toa ngoài không cấp theo kho nội viện' : undefined}>
             {warehouses.length === 0 && <option value="">(Chưa có kho)</option>}
             {warehouses.map((w) => <option key={w.id} value={w.id}>{w.code} — {w.name}</option>)}
           </select>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-6)', fontSize: 11.5, color: external ? 'var(--s-warn)' : 'var(--t-2)', fontWeight: external ? 700 : 400, cursor: 'pointer', whiteSpace: 'nowrap' }} title="Toa mua ngoài / nhà thuốc — tách khỏi toa BHYT">
-            <input type="checkbox" checked={external} onChange={(e) => setExternal(e.target.checked)} /> Toa ngoài (nhà thuốc)
-          </label>
+          {/* F3/F5 explicit rx-type radio — bác sĩ override BHYT ↔ tự trả */}
+          <div style={{ display: 'inline-flex', background: 'var(--d-1)', borderRadius: 4, padding: 'var(--space-2)' }}>
+            {([{ v: 1 as const, l: 'BHYT/Thu phí (F3)' }, { v: 2 as const, l: 'Toa ngoài (F5)' }]).map((m) => (
+              <button key={m.v} onClick={() => setRxMode(m.v)} style={{ background: rxMode === m.v ? (m.v === 2 ? 'var(--s-warn)' : 'var(--c-pri)') : 'transparent', color: rxMode === m.v ? '#fff' : 'var(--t-1)', border: 0, padding: '5px 12px', borderRadius: 'var(--r-1)', cursor: 'pointer', fontSize: 11.5, fontWeight: rxMode === m.v ? 700 : 400, whiteSpace: 'nowrap' }}>{m.l}</button>
+            ))}
+          </div>
           <span className="spacer ab-u-flex1" />
           <Btn variant="ghost" onClick={() => setTplOpen(true)}><TermIcon name="folder" size={12} /> Đơn mẫu</Btn>
+          <Btn variant="ghost" onClick={() => setSaveTemplateOpen(true)}><TermIcon name="folder" size={12} /> Lưu mẫu</Btn>
           <Btn variant="ghost" disabled={saving} onClick={saveDraft}><TermIcon name="folder" size={12} /> Lưu nháp</Btn>
+          <Btn variant="ghost" onClick={handlePrintInternalRx}><TermIcon name="print" size={12} /> In đơn</Btn>
           <Btn variant="ghost" disabled={printingExt} onClick={printExternalRx}><TermIcon name="print" size={12} /> In toa nhà thuốc</Btn>
-          {!external && <Btn variant="primary" disabled={saving} onClick={onClickSign}><TermIcon name="check" size={12} /> Hoàn tất · Ký số</Btn>}
+          <Btn variant="ghost" onClick={() => setDisclosureOpen(true)}><TermIcon name="list" size={12} /> Phiếu công khai</Btn>
+          {rxMode === 1 && <Btn variant="primary" disabled={saving} onClick={onClickSign}><TermIcon name="check" size={12} /> Hoàn tất · Ký số</Btn>}
         </div>
 
         {/* Drug search */}
@@ -412,8 +557,7 @@ const PrescriptionEditorV2: React.FC = () => {
               <tr>
                 <th style={{ width: 32 }}>#</th>
                 <th>Thuốc</th>
-                <th style={{ width: 80 }}>Liều</th>
-                <th style={{ width: 130 }}>Tần suất</th>
+                <th style={{ width: 170 }}>Liều S/T/Ch/T · Bữa ăn</th>
                 <th style={{ width: 70 }}>SL</th>
                 <th style={{ width: 70 }}>Ngày</th>
                 <th style={{ width: 110 }}>Đường dùng</th>
@@ -423,13 +567,31 @@ const PrescriptionEditorV2: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 && <tr><td colSpan={10} style={{ padding: 30, textAlign: 'center', color: 'var(--t-3)' }}>Chưa có thuốc · Tìm và thêm thuốc ở thanh trên</td></tr>}
+              {items.length === 0 && <tr><td colSpan={9} style={{ padding: 30, textAlign: 'center', color: 'var(--t-3)' }}>Chưa có thuốc · Tìm và thêm thuốc ở thanh trên</td></tr>}
               {items.map((it, i) => (
                 <tr key={i}>
                   <td className="mono">{i + 1}</td>
                   <td><div style={{ fontWeight: 600 }}>{it.name}</div><div style={{ fontSize: 10.5, color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>{it.code}</div></td>
-                  <td><input className="hui-inp" style={{ width: '100%', height: 26 }} value={it.dose} onChange={(e) => updateItem(i, 'dose', e.target.value)} /></td>
-                  <td><select className="hui-inp hui-sel" style={{ width: '100%', height: 26 }} value={it.freq} onChange={(e) => updateItem(i, 'freq', e.target.value)}>{RX_FREQ.map((f) => <option key={f}>{f}</option>)}</select></td>
+                  <td>
+                    {/* 4-field dose grid + meal timing (patient-safety) */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+                      {(['morning', 'noon', 'evening', 'night'] as const).map((f, fi) => (
+                        <label key={f} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10.5 }}>
+                          <span style={{ color: 'var(--t-2)', minWidth: 22, fontFamily: 'var(--font-mono)' }}>{['S', 'T', 'Ch', 'T'][fi]}</span>
+                          <input className="hui-inp" type="number" min={0} step={0.5}
+                            style={{ width: 44, height: 22, padding: '0 4px', fontSize: 11 }}
+                            value={it[f]}
+                            onChange={(e) => updateItem(i, f, Math.max(0, +e.target.value))} />
+                        </label>
+                      ))}
+                    </div>
+                    <select className="hui-inp hui-sel" style={{ width: '100%', height: 22, marginTop: 3, fontSize: 10.5 }}
+                      value={it.mealTiming} onChange={(e) => updateItem(i, 'mealTiming', e.target.value as 'before' | 'after' | '')}>
+                      <option value="">— Bữa ăn</option>
+                      <option value="before">Trước ăn</option>
+                      <option value="after">Sau ăn</option>
+                    </select>
+                  </td>
                   <td><input className="hui-inp" type="number" style={{ width: '100%', height: 26 }} value={it.qty} onChange={(e) => updateItem(i, 'qty', +e.target.value)} /></td>
                   <td><input className="hui-inp" type="number" style={{ width: '100%', height: 26 }} value={it.days} onChange={(e) => updateItem(i, 'days', +e.target.value)} /></td>
                   <td><select className="hui-inp hui-sel" style={{ width: '100%', height: 26 }} value={it.route} onChange={(e) => updateItem(i, 'route', e.target.value)}>{RX_ROUTE.map((f) => <option key={f}>{f}</option>)}</select></td>
@@ -442,7 +604,7 @@ const PrescriptionEditorV2: React.FC = () => {
             {items.length > 0 && (
               <tfoot>
                 <tr style={{ background: 'var(--d-1)', fontWeight: 700 }}>
-                  <td colSpan={8} style={{ textAlign: 'right' }}>Tổng cộng:</td>
+                  <td colSpan={7} style={{ textAlign: 'right' }}>Tổng cộng:</td>
                   <td className="mono" style={{ textAlign: 'right', color: 'var(--s-ok)', fontSize: 'var(--fs-md)' }}>{fmtVNDg(total)}</td>
                   <td></td>
                 </tr>
@@ -497,6 +659,104 @@ const PrescriptionEditorV2: React.FC = () => {
 
       {/* Patient search modal */}
       <PatientSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} onPick={selectPatient} />
+
+      {/* Save-as-template modal */}
+      <ModalShell open={saveTemplateOpen} onClose={() => setSaveTemplateOpen(false)} title="Lưu mẫu đơn thuốc" sub={`${items.length} thuốc`} size="sm"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setSaveTemplateOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" disabled={savingTpl} onClick={handleSaveTemplate}><TermIcon name="check" size={12} /> Lưu mẫu</Btn>
+        </>}>
+        <div style={{ padding: 'var(--space-18)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
+          <div>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 600, display: 'block', marginBottom: 'var(--space-4)' }}>Tên mẫu <span style={{ color: 'var(--s-crit)' }}>*</span></label>
+            <input className="hui-inp" style={{ width: '100%', height: 34 }} placeholder="VD: Cảm cúm thông thường" value={templateName} onChange={(e) => setTemplateName(e.target.value)} />
+          </div>
+          <div>
+            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontWeight: 600, display: 'block', marginBottom: 'var(--space-4)' }}>Chẩn đoán</label>
+            <input className="hui-inp" style={{ width: '100%', height: 34 }} placeholder="VD: Nhiễm khuẩn đường hô hấp trên" value={templateDiagnosis} onChange={(e) => setTemplateDiagnosis(e.target.value)} />
+          </div>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', padding: 'var(--space-8)', background: 'var(--d-1)', borderRadius: 'var(--r-2)' }}>
+            {items.map((it, i) => <div key={i}>{i + 1}. {it.name} · {formatDosage(it)} · {it.days} ngày</div>)}
+          </div>
+        </div>
+      </ModalShell>
+
+      {/* Phiếu công khai thuốc MSS-01 drawer */}
+      <DrawerShell open={disclosureOpen} onClose={() => setDisclosureOpen(false)} title="Phiếu công khai thuốc" sub="MSS-01 · xem trước" size="lg">
+        <div style={{ padding: 'var(--space-14)', display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-8)', borderBottom: '1px solid var(--line)', marginBottom: 'var(--space-14)' }}>
+          <Btn variant="primary" onClick={handlePrintDrugDisclosure} disabled={items.length === 0}><TermIcon name="print" size={12} /> In phiếu</Btn>
+        </div>
+        <div style={{ padding: '0 var(--space-14)', fontFamily: "'Times New Roman', serif" }}>
+          <div style={{ textAlign: 'center', marginBottom: 10 }}>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>{HOSPITAL_NAME}</div>
+            {HOSPITAL_ADDRESS && <div style={{ fontSize: 12 }}>{HOSPITAL_ADDRESS}</div>}
+          </div>
+          <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 700, margin: '15px 0 10px', textTransform: 'uppercase' }}>PHIẾU CÔNG KHAI THUỐC</div>
+          {pt ? (
+            <div style={{ marginBottom: 12, fontSize: 13 }}>
+              <div>Họ tên: <strong>{pt.fullName}</strong> &nbsp; Mã BN: <strong>{pt.patientCode}</strong></div>
+              <div>Giới tính: {pt.gender === 1 ? 'Nam' : 'Nữ'}</div>
+              {pt.insuranceNumber && <div>Số thẻ BHYT: <strong>{pt.insuranceNumber}</strong></div>}
+              {ctx?.mainDiagnosis && <div>Chẩn đoán: <strong>{ctx.mainDiagnosis}</strong></div>}
+            </div>
+          ) : (
+            <div style={{ padding: 'var(--space-12)', background: 'var(--s-warn-bg)', borderRadius: 'var(--r-2)', marginBottom: 12, fontSize: 'var(--fs-sm)' }}>Chưa chọn bệnh nhân</div>
+          )}
+          {items.length === 0 ? (
+            <div style={{ padding: 'var(--space-12)', background: 'var(--d-1)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)', color: 'var(--t-3)' }}>Chưa có thuốc nào trong đơn</div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: '#f0f0f0' }}>
+                    {['STT', 'Tên thuốc', 'Hàm lượng', 'ĐVT', 'SL', 'Đơn giá', 'Thành tiền', 'BHYT chi trả', 'BN chi trả', 'Ghi chú'].map((h) => (
+                      <th key={h} style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', fontWeight: 700 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((it, i) => {
+                    const itTot = it.price * it.qty;
+                    const bhytPay = pt?.insuranceNumber ? Math.round(itTot * 0.8) : 0;
+                    return (
+                      <tr key={i}>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{i + 1}</td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px' }}><strong>{it.name}</strong></td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{it.strength || '—'}</td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{it.dosageForm || 'Viên'}</td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{it.qty}</td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>{it.price.toLocaleString('vi-VN')}</td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>{itTot.toLocaleString('vi-VN')}</td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>{bhytPay > 0 ? bhytPay.toLocaleString('vi-VN') : '-'}</td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>{(itTot - bhytPay).toLocaleString('vi-VN')}</td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px' }}>{it.note || ''}</td>
+                      </tr>
+                    );
+                  })}
+                  <tr style={{ fontWeight: 700, background: '#fafafa' }}>
+                    <td colSpan={6} style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Tổng cộng</td>
+                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>{total.toLocaleString('vi-VN')}</td>
+                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>{pt?.insuranceNumber ? Math.round(total * 0.8).toLocaleString('vi-VN') : '-'}</td>
+                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'right' }}>{(pt?.insuranceNumber ? Math.round(total * 0.2) : total).toLocaleString('vi-VN')}</td>
+                    <td style={{ border: '1px solid #000', padding: '4px 6px' }}></td>
+                  </tr>
+                </tbody>
+              </table>
+              <div style={{ margin: '12px 0', fontSize: 13 }}><em>Tổng số: {items.length} khoản thuốc</em></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
+                <div style={{ width: '40%', textAlign: 'center' }}>
+                  <div style={{ fontStyle: 'italic', fontSize: 12 }}>(Ký, ghi rõ họ tên)</div>
+                  <div style={{ fontWeight: 700, marginTop: 60 }}>Người lập</div>
+                </div>
+                <div style={{ width: '40%', textAlign: 'center' }}>
+                  <div style={{ fontStyle: 'italic', fontSize: 12 }}>(Ký, ghi rõ họ tên)</div>
+                  <div style={{ fontWeight: 700, marginTop: 60 }}>Bệnh nhân/Người nhà</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </DrawerShell>
 
       {/* Interactions drawer */}
       <DrawerShell open={interOpen} onClose={() => setInterOpen(false)} title="Tương tác thuốc" sub={`${intCount} cảnh báo`} size="lg">

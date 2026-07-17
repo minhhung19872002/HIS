@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { App as AntdApp, Input, Select } from 'antd';
+import { App as AntdApp, Input, InputNumber, Select, DatePicker } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { getInpatientList, getWardLayout, admitFromOpd, getPendingAdmissions, type PendingAdmissionDto } from '../api/inpatient';
+import { getInpatientList, getWardLayout, admitFromOpd, getPendingAdmissions, transferBed, assignBed, type PendingAdmissionDto, type TransferBedDto, type CreateBedAssignmentDto } from '../api/inpatient';
 import type { InpatientListDto, WardLayoutDto, BedLayoutDto } from '../api/inpatient';
+import { printBirthCertificate, type BirthCertificateData } from '../../patient/components/BirthCertificatePrint';
 import TreatmentMonitorSection from './TreatmentMonitorSection';
 import ConsultationSection from './ConsultationSection';
 import NewbornSection from './NewbornSection';
@@ -30,12 +31,13 @@ import { MEDICAL_RECORD_TYPES } from '../../../pages/inpatient/constants';
    Dữ liệu thật: getWardLayout (rooms→beds) + getInpatientList.
    ──────────────────────────────────────────────────────────── */
 
-type TopKey = 'grid' | 'list' | 'orders' | 'consult';
+type TopKey = 'grid' | 'list' | 'orders' | 'consult' | 'discharge';
 const TOP_TABS: TopTab<TopKey>[] = [
-  { v: 'grid',    l: 'Sơ đồ giường', ic: 'grid' },
-  { v: 'list',    l: 'Danh sách BN', ic: 'users' },
-  { v: 'orders',  l: 'Y lệnh hôm nay', ic: 'clipboard' },
-  { v: 'consult', l: 'Hội chẩn', ic: 'message-square' },
+  { v: 'grid',      l: 'Sơ đồ giường',   ic: 'grid' },
+  { v: 'list',      l: 'Danh sách BN',   ic: 'users' },
+  { v: 'orders',    l: 'Y lệnh hôm nay', ic: 'clipboard' },
+  { v: 'consult',   l: 'Hội chẩn',       ic: 'message-square' },
+  { v: 'discharge', l: 'Đã xuất viện',   ic: 'logout' },
 ];
 
 // Bed status: 1 trống · 2 có BN · 3 bảo trì (khớp BedLayoutDto.status)
@@ -110,6 +112,14 @@ const InpatientV2: React.FC = () => {
   const [detail, setDetail] = useState<InpatientListDto | null>(null);
   const [admitOpen, setAdmitOpen] = useState(false);
   const [admitPrefill, setAdmitPrefill] = useState<AdmitPrefill | null>(null);
+  // Quick-win states
+  const [transferBedOpen, setTransferBedOpen] = useState(false);
+  const [assignBedOpen, setAssignBedOpen] = useState(false);
+  const [medRecordType, setMedRecordType] = useState<string>(MEDICAL_RECORD_TYPES[0].value);
+  const [birthCertOpen, setBirthCertOpen] = useState(false);
+  // Discharge tab date range
+  const [dischargeFrom, setDischargeFrom] = useState<dayjs.Dayjs | null>(null);
+  const [dischargeTo, setDischargeTo] = useState<dayjs.Dayjs | null>(null);
   const LIST_PAGE = 16;
 
   const loadData = useCallback(() => {
@@ -200,6 +210,19 @@ const InpatientV2: React.FC = () => {
 
   const ordersList = useMemo(() => inpatients.filter((r) => r.hasPendingOrders || r.hasUnclaimedMedicine || r.hasPendingLabResults), [inpatients]);
 
+  // Tab "Đã xuất viện" — filter status=2 + optional date range + search
+  const dischargeList = useMemo(() => inpatients.filter((r) => {
+    if (r.status !== 2) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const hay = [r.patientName, r.patientCode, r.medicalRecordCode].filter(Boolean).join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (dischargeFrom && r.admissionDate && dayjs(r.admissionDate).isBefore(dischargeFrom, 'day')) return false;
+    if (dischargeTo && r.admissionDate && dayjs(r.admissionDate).isAfter(dischargeTo, 'day')) return false;
+    return true;
+  }), [inpatients, search, dischargeFrom, dischargeTo]);
+
   const listColumns: ColumnDef<InpatientListDto>[] = [
     {
       key: 'patient', label: 'Bệnh nhân',
@@ -255,7 +278,7 @@ const InpatientV2: React.FC = () => {
       />
 
       {/* Tab Hội chẩn có toolbar riêng trong ConsultationSection */}
-      {tab !== 'consult' && (
+      {tab !== 'consult' && tab !== 'discharge' && (
         <div className="ab-tools">
           <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder="Tìm tên BN, mã BN, mã giường…" />
           <Filter value={fWard} onChange={(v) => { setFWard(v); setPage(0); }} options={wardOpts} placeholder="▾ Khoa" />
@@ -366,6 +389,72 @@ const InpatientV2: React.FC = () => {
       {/* ── Tab: Hội chẩn (issue #2 — list/tạo/hoàn thành/in, BE mig 99) ── */}
       {tab === 'consult' && <ConsultationSection inpatients={inpatients} active={tab === 'consult'} />}
 
+      {/* ── Tab: Đã xuất viện ── */}
+      {tab === 'discharge' && (
+        <>
+          <div className="ab-tools">
+            <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder="Tìm tên BN, mã BN, mã hồ sơ…" />
+            <Filter value={fWard} onChange={(v) => { setFWard(v); setPage(0); }} options={wardOpts} placeholder="▾ Khoa" />
+            <DatePicker
+              placeholder="Từ ngày"
+              value={dischargeFrom}
+              onChange={setDischargeFrom}
+              format="DD/MM/YYYY"
+              style={{ height: 28, fontSize: 'var(--fs-xs)' }}
+              allowClear
+            />
+            <DatePicker
+              placeholder="Đến ngày"
+              value={dischargeTo}
+              onChange={setDischargeTo}
+              format="DD/MM/YYYY"
+              style={{ height: 28, fontSize: 'var(--fs-xs)' }}
+              allowClear
+            />
+            <Btn variant="ghost" onClick={() => { setSearch(''); setFWard(''); setDischargeFrom(null); setDischargeTo(null); setPage(0); }}>
+              <TermIcon name="refresh" size={12} /> Bỏ lọc
+            </Btn>
+            <span className="spacer" />
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
+              {dischargeList.length} BN đã xuất
+            </span>
+          </div>
+          <div className="ab-stack">
+            <DataTable<InpatientListDto>
+              columns={[
+                {
+                  key: 'patient', label: 'Bệnh nhân',
+                  render: (r) => (
+                    <div className="cell-2l"><b>{r.patientName}</b><i className="mono">{r.patientCode} · {genderLabel(r.gender)} · {r.age || '—'}t</i></div>
+                  ),
+                },
+                { key: 'ward', label: 'Khoa điều trị', render: (r) => (
+                  <div className="cell-2l"><b>{r.departmentName}</b><i>{r.roomName}{r.bedName ? ` · ${r.bedName}` : ''}</i></div>
+                ) },
+                { key: 'dx', label: 'Chẩn đoán ra viện', render: (r) => r.mainDiagnosis || '—' },
+                { key: 'doctor', label: 'BS điều trị', width: 170, render: (r) => r.attendingDoctorName || '—' },
+                { key: 'admit', label: 'Vào viện', mono: true, width: 110, render: (r) => fmtDMY(r.admissionDate) },
+                { key: 'los', label: 'Ngày nằm', mono: true, width: 90, render: (r) => `${r.daysOfStay} ngày` },
+              ]}
+              data={dischargeList.slice(page * LIST_PAGE, (page + 1) * LIST_PAGE)}
+              rowKey={(r) => r.admissionId}
+              onRowClick={setDetail}
+              actions={(r) => (
+                <div className="ab-actions">
+                  <ActBtn ic="eye" title="Hồ sơ" onClick={() => setDetail(r)} />
+                </div>
+              )}
+              empty={loading ? 'Đang tải…' : <div className="ab-empty"><TermIcon name="logout" size={20} /><div>Không có bệnh nhân đã xuất viện</div></div>}
+            />
+            <div className="ab-tbl-ft">
+              <span>Tổng <b>{dischargeList.length}</b> BN · trang <b>{page + 1}/{Math.max(1, Math.ceil(dischargeList.length / LIST_PAGE))}</b></span>
+              <span className="spacer" />
+              <Pager page={page} totalPages={Math.max(1, Math.ceil(dischargeList.length / LIST_PAGE))} setPage={setPage} total={dischargeList.length} perPage={LIST_PAGE} />
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Bed drawer */}
       <DrawerShell
         open={!!bed}
@@ -377,6 +466,9 @@ const InpatientV2: React.FC = () => {
           bed.patientName ? (
             <>
               <Btn variant="ghost" onClick={() => setBed(null)}>Đóng</Btn>
+              <Btn variant="ghost" onClick={() => setTransferBedOpen(true)}>
+                <TermIcon name="arrow-right" size={12} /> Chuyển giường
+              </Btn>
               <Btn variant="primary" onClick={() => { setBed(null); navigate('/v2/inpatient-dispensing'); }}>
                 <TermIcon name="clipboard" size={12} /> Y lệnh
               </Btn>
@@ -384,6 +476,9 @@ const InpatientV2: React.FC = () => {
           ) : (
             <>
               <Btn variant="ghost" onClick={() => setBed(null)}>Đóng</Btn>
+              <Btn variant="ghost" onClick={() => setAssignBedOpen(true)}>
+                <TermIcon name="users" size={12} /> Phân giường
+              </Btn>
               <Btn variant="primary" onClick={() => { setAdmitPrefill({ departmentId: bed.wardId, roomId: bed.roomId, bedId: bed.bedId }); setBed(null); setAdmitOpen(true); }}>Nhập viện vào giường này</Btn>
             </>
           )
@@ -438,6 +533,13 @@ const InpatientV2: React.FC = () => {
             <Btn variant="ghost" onClick={() => openPrintWindow(buildInpatientRecordHtml(detail), { focus: true, print: { delayMs: 500 } })}>
               <TermIcon name="printer" size={12} /> In phiếu
             </Btn>
+            <Select
+              size="small"
+              value={medRecordType}
+              onChange={setMedRecordType}
+              style={{ width: 190, fontSize: 'var(--fs-xs)' }}
+              options={MEDICAL_RECORD_TYPES.map((t) => ({ value: t.value, label: `${t.code} ${t.label.replace('Bệnh án ', '')}` }))}
+            />
             <Btn variant="ghost" onClick={() => openPrintWindow(
               buildMedicalRecordHtml(
                 {
@@ -456,12 +558,15 @@ const InpatientV2: React.FC = () => {
                   medicalCode: detail.patientCode,
                   doctorName: detail.attendingDoctorName || '',
                 },
-                MEDICAL_RECORD_TYPES[0],
+                MEDICAL_RECORD_TYPES.find((t) => t.value === medRecordType) ?? MEDICAL_RECORD_TYPES[0],
                 false,
               ),
               { focus: true, print: { delayMs: 500 } },
             )}>
               <TermIcon name="printer" size={12} /> In bệnh án
+            </Btn>
+            <Btn variant="ghost" onClick={() => setBirthCertOpen(true)}>
+              <TermIcon name="printer" size={12} /> Giấy chứng sinh
             </Btn>
             <Btn variant="primary" onClick={() => { setDetail(null); navigate('/v2/inpatient-dispensing'); }}>
               <TermIcon name="clipboard" size={12} /> Y lệnh
@@ -530,6 +635,40 @@ const InpatientV2: React.FC = () => {
         onClose={() => setAdmitOpen(false)}
         onDone={() => { setAdmitOpen(false); loadData(); }}
       />
+
+      {/* Chuyển giường — mở từ bed drawer (giường đang có BN) */}
+      {bed && (
+        <TransferBedModal
+          open={transferBedOpen}
+          admissionId={bed.currentAdmissionId || ''}
+          fromBedName={bed.bedName || bed.bedCode}
+          onClose={() => setTransferBedOpen(false)}
+          onDone={() => { setTransferBedOpen(false); setBed(null); loadData(); }}
+        />
+      )}
+
+      {/* Phân giường — mở từ bed drawer (giường trống) */}
+      {bed && (
+        <AssignBedModal
+          open={assignBedOpen}
+          bedId={bed.bedId}
+          bedName={bed.bedName || bed.bedCode}
+          inpatients={inpatients.filter((r) => !r.bedName && r.status !== 2)}
+          onClose={() => setAssignBedOpen(false)}
+          onDone={() => { setAssignBedOpen(false); setBed(null); loadData(); }}
+        />
+      )}
+
+      {/* In giấy chứng sinh */}
+      {detail && (
+        <BirthCertFormModal
+          open={birthCertOpen}
+          patientName={detail.patientName}
+          departmentName={detail.departmentName}
+          doctorName={detail.attendingDoctorName || ''}
+          onClose={() => setBirthCertOpen(false)}
+        />
+      )}
     </div>
   );
 };
@@ -697,5 +836,264 @@ const IpFld: React.FC<{ label?: string; full?: boolean; children: React.ReactNod
     {children}
   </div>
 );
+
+/* ──────────────────────────────────────────────────────────
+   TransferBedModal — Chuyển giường cho BN đang nằm
+   API: transferBed({ admissionId, newBedId, reason? })
+   ────────────────────────────────────────────────────────── */
+const TransferBedModal: React.FC<{
+  open: boolean;
+  admissionId: string;
+  fromBedName: string;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, admissionId, fromBedName, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [newBedId, setNewBedId] = useState('');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) { setNewBedId(''); setReason(''); }
+  }, [open]);
+
+  const submit = async () => {
+    if (!newBedId.trim()) { message.warning('Nhập mã / UUID giường mới'); return; }
+    if (!admissionId) { message.warning('Không tìm thấy ID nhập viện'); return; }
+    setBusy(true);
+    try {
+      const dto: TransferBedDto = { admissionId, newBedId: newBedId.trim(), reason: reason.trim() || undefined };
+      await transferBed(dto);
+      message.success('Chuyển giường thành công');
+      onDone();
+    } catch {
+      message.error('Chuyển giường thất bại');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="sm"
+      title="Chuyển giường"
+      footer={(
+        <>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="primary" disabled={busy} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Xác nhận chuyển'}
+          </Btn>
+        </>
+      )}
+    >
+      <div style={{ padding: 'var(--space-16)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
+        <IpFld label="Giường hiện tại">
+          <Input value={fromBedName} disabled />
+        </IpFld>
+        <IpFld label="Giường mới (mã hoặc UUID) *">
+          <Input value={newBedId} onChange={(e) => setNewBedId(e.target.value)} placeholder="Nhập mã giường / UUID giường đích" autoFocus />
+        </IpFld>
+        <IpFld label="Lý do chuyển giường">
+          <Input.TextArea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="VD: Yêu cầu của gia đình, gần nhà vệ sinh…" />
+        </IpFld>
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ──────────────────────────────────────────────────────────
+   AssignBedModal — Phân giường cho BN đã nhập viện chưa có giường
+   API: assignBed({ admissionId, bedId })
+   ────────────────────────────────────────────────────────── */
+const AssignBedModal: React.FC<{
+  open: boolean;
+  bedId: string;
+  bedName: string;
+  inpatients: InpatientListDto[];
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, bedId, bedName, inpatients: noBedPatients, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [selectedAdmissionId, setSelectedAdmissionId] = useState<string | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) setSelectedAdmissionId(undefined);
+  }, [open]);
+
+  const submit = async () => {
+    if (!selectedAdmissionId) { message.warning('Chọn bệnh nhân cần phân giường'); return; }
+    setBusy(true);
+    try {
+      const dto: CreateBedAssignmentDto = { admissionId: selectedAdmissionId, bedId };
+      await assignBed(dto);
+      message.success('Phân giường thành công');
+      onDone();
+    } catch {
+      message.error('Phân giường thất bại');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="sm"
+      title="Phân giường nhanh"
+      footer={(
+        <>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="primary" disabled={busy} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang lưu…' : 'Xác nhận phân giường'}
+          </Btn>
+        </>
+      )}
+    >
+      <div style={{ padding: 'var(--space-16)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
+        <IpFld label="Giường được phân">
+          <Input value={bedName} disabled />
+        </IpFld>
+        <IpFld label="Bệnh nhân cần phân giường *">
+          <Select
+            value={selectedAdmissionId}
+            onChange={setSelectedAdmissionId}
+            showSearch
+            optionFilterProp="label"
+            placeholder={noBedPatients.length ? 'Chọn BN đã nhập viện chưa có giường' : 'Không có BN chưa có giường'}
+            style={{ width: '100%' }}
+            options={noBedPatients.map((p) => ({
+              value: p.admissionId,
+              label: `${p.patientName} (${p.patientCode}) · ${p.departmentName}`,
+            }))}
+          />
+        </IpFld>
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ──────────────────────────────────────────────────────────
+   BirthCertFormModal — In giấy chứng sinh (Giấy chứng sinh)
+   Sử dụng printBirthCertificate(BirthCertificateData) đã có sẵn.
+   ────────────────────────────────────────────────────────── */
+const DELIVERY_METHODS = [
+  { value: 'normal', label: 'Đẻ thường' },
+  { value: 'c-section', label: 'Mổ lấy thai' },
+  { value: 'forceps', label: 'Forceps' },
+  { value: 'vacuum', label: 'Giác hút' },
+];
+
+const BirthCertFormModal: React.FC<{
+  open: boolean;
+  patientName: string; // mother
+  departmentName: string;
+  doctorName: string;
+  onClose: () => void;
+}> = ({ open, patientName, departmentName, doctorName, onClose }) => {
+  const [babyFullName, setBabyFullName] = useState('');
+  const [babyGender, setBabyGender] = useState<'Nam' | 'Nu'>('Nam');
+  const [dateOfBirth, setDateOfBirth] = useState<dayjs.Dayjs | null>(dayjs());
+  const [timeOfBirth, setTimeOfBirth] = useState('');
+  const [birthWeight, setBirthWeight] = useState<number | null>(null);
+  const [deliveryMethod, setDeliveryMethod] = useState('normal');
+  const [motherFullName, setMotherFullName] = useState(patientName);
+  const [fatherFullName, setFatherFullName] = useState('');
+  const [motherAddress, setMotherAddress] = useState('');
+  const [certNumber, setCertNumber] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setBabyFullName(''); setBabyGender('Nam');
+      setDateOfBirth(dayjs()); setTimeOfBirth('');
+      setBirthWeight(null); setDeliveryMethod('normal');
+      setMotherFullName(patientName);
+      setFatherFullName(''); setMotherAddress(''); setCertNumber('');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const doPrint = () => {
+    const data: BirthCertificateData = {
+      certificateNumber: certNumber || undefined,
+      babyFullName: babyFullName || undefined,
+      babyGender: babyGender,
+      dateOfBirth: dateOfBirth ? dateOfBirth.toISOString() : undefined,
+      timeOfBirth: timeOfBirth || undefined,
+      birthWeight: birthWeight ?? undefined,
+      deliveryMethod,
+      motherFullName: motherFullName || undefined,
+      motherAddress: motherAddress || undefined,
+      fatherFullName: fatherFullName || undefined,
+      doctorName: doctorName || undefined,
+      departmentName: departmentName || undefined,
+    };
+    printBirthCertificate(data);
+    onClose();
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="md"
+      title="In giấy chứng sinh"
+      footer={(
+        <>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="primary" onClick={doPrint}>
+            <TermIcon name="printer" size={12} /> In giấy chứng sinh
+          </Btn>
+        </>
+      )}
+    >
+      <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
+        <IpFld label="Số giấy chứng sinh" full>
+          <Input value={certNumber} onChange={(e) => setCertNumber(e.target.value)} placeholder="Số phát hành (tùy chọn)" />
+        </IpFld>
+        <IpFld label="Họ tên trẻ" full>
+          <Input value={babyFullName} onChange={(e) => setBabyFullName(e.target.value)} placeholder="Họ và tên trẻ sơ sinh" />
+        </IpFld>
+        <IpFld label="Giới tính trẻ">
+          <Select<'Nam' | 'Nu'>
+            value={babyGender}
+            onChange={setBabyGender}
+            style={{ width: '100%' }}
+            options={[{ value: 'Nam', label: 'Nam' }, { value: 'Nu', label: 'Nữ' }]}
+          />
+        </IpFld>
+        <IpFld label="Hình thức sinh">
+          <Select
+            value={deliveryMethod}
+            onChange={setDeliveryMethod}
+            style={{ width: '100%' }}
+            options={DELIVERY_METHODS}
+          />
+        </IpFld>
+        <IpFld label="Ngày sinh">
+          <DatePicker value={dateOfBirth} onChange={setDateOfBirth} format="DD/MM/YYYY" style={{ width: '100%' }} />
+        </IpFld>
+        <IpFld label="Giờ sinh">
+          <Input value={timeOfBirth} onChange={(e) => setTimeOfBirth(e.target.value)} placeholder="VD: 08:30" />
+        </IpFld>
+        <IpFld label="Cân nặng (gram)" full>
+          <InputNumber value={birthWeight} onChange={(v) => setBirthWeight(v)} style={{ width: '100%' }} placeholder="VD: 3200" min={500} max={6000} />
+        </IpFld>
+        <IpFld label="Họ tên mẹ" full>
+          <Input value={motherFullName} onChange={(e) => setMotherFullName(e.target.value)} />
+        </IpFld>
+        <IpFld label="Địa chỉ mẹ" full>
+          <Input value={motherAddress} onChange={(e) => setMotherAddress(e.target.value)} placeholder="Địa chỉ thường trú" />
+        </IpFld>
+        <IpFld label="Họ tên cha" full>
+          <Input value={fatherFullName} onChange={(e) => setFatherFullName(e.target.value)} />
+        </IpFld>
+      </div>
+    </ModalShell>
+  );
+};
 
 export default InpatientV2;

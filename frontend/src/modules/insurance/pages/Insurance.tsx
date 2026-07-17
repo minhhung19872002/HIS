@@ -1,14 +1,27 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import * as file from '../../../services/file.service';
 import dayjs from 'dayjs';
-import { App as AntdApp } from 'antd';
+import { App as AntdApp, Alert, DatePicker } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { searchInsuranceClaims } from '../api/insurance';
-import type { InsuranceClaimSummaryDto } from '../api/insurance';
+import {
+  searchInsuranceClaims,
+  testPortalConnection,
+  validateClaimsBatch,
+  lockInsuranceClaim,
+  getMonthlyInsuranceReport,
+  getDepartmentReport,
+  getTreatmentTypeReport,
+  getReportC79a,
+  getReport80a,
+  exportReportC79aToExcel,
+  exportReport80aToExcel,
+} from '../api/insurance';
+import type { InsuranceClaimSummaryDto, PortalConnectionTestResult } from '../api/insurance';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, useListData, useTabCounts,
-  type ColumnDef, type StatusTab,
+  TopTabs,
+  type ColumnDef, type StatusTab, type TopTab,
 } from '../../../pages-v2/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { fmtVND } from '../../../utils/format';
@@ -26,7 +39,13 @@ function escapeCsvCell(v: unknown): string {
   return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-type StatusKey = 'draft' | 'pending' | 'submitted' | 'approved' | 'rejected';
+type PageTab = 'claims' | 'reports';
+type StatusKey = 'draft' | 'pending' | 'submitted' | 'approved' | 'rejected' | 'locked';
+
+const TOP_TABS: TopTab<PageTab>[] = [
+  { v: 'claims',  l: 'Danh sách hồ sơ', ic: 'list' },
+  { v: 'reports', l: 'Báo cáo BHYT',    ic: 'chart' },
+];
 
 const STATUS_TABS: StatusTab<StatusKey>[] = [
   { v: 'draft',     l: 'Nháp',     tone: 'info' },
@@ -34,8 +53,11 @@ const STATUS_TABS: StatusTab<StatusKey>[] = [
   { v: 'submitted', l: 'Đã gửi',   tone: 'warn' },
   { v: 'approved',  l: 'Đã duyệt', tone: 'ok' },
   { v: 'rejected',  l: 'Từ chối',  tone: 'crit' },
+  { v: 'locked',    l: 'Đã khóa',  tone: 'info' },
 ];
+
 const statusKey = (s: number): StatusKey => {
+  if (s === 5) return 'locked';
   if (s === 4) return 'rejected';
   if (s === 3) return 'approved';
   if (s === 2) return 'submitted';
@@ -45,8 +67,17 @@ const statusKey = (s: number): StatusKey => {
 const statusTone = (s: StatusKey) => STATUS_TABS.find((t) => t.v === s)?.tone || 'info';
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
+const REPORTS: { id: string; label: string; sub: string }[] = [
+  { id: 'mau19', label: 'Báo cáo mẫu 19',      sub: 'Tổng hợp KCB BHYT' },
+  { id: 'mau20', label: 'Báo cáo mẫu 20',      sub: 'Chi tiết chi phí KCB BHYT' },
+  { id: 'mau21', label: 'Báo cáo mẫu 21',      sub: 'Chi tiết theo đối tượng KCB' },
+  { id: 'mau79', label: 'Báo cáo mẫu 79',      sub: 'Chi tiết PTTT · Xuất Excel' },
+  { id: 'mau80', label: 'Báo cáo mẫu 80',      sub: 'Tổng hợp thuốc BHYT · Xuất Excel' },
+  { id: 'tt102', label: 'Báo cáo TT 102/2018', sub: 'Theo Thông tư 102/2018/TT-BTC' },
+];
+
 const InsuranceV2: React.FC = () => {
-  const { message } = AntdApp.useApp();
+  const { message, modal } = AntdApp.useApp();
   const navigate = useNavigate();
   const { rows, loading, reload } = useListData<InsuranceClaimSummaryDto>(
     useCallback(() => searchInsuranceClaims({
@@ -55,10 +86,16 @@ const InsuranceV2: React.FC = () => {
       pageNumber: 1, pageSize: 200,
     }).then((r) => Array.isArray(r.data?.items) ? r.data.items : []), []),
   );
-  const [stab, setStab] = useState<StatusKey | 'all'>('all');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(0);
-  const [detail, setDetail] = useState<InsuranceClaimSummaryDto | null>(null);
+
+  const [topTab, setTopTab]             = useState<PageTab>('claims');
+  const [stab, setStab]                 = useState<StatusKey | 'all'>('all');
+  const [search, setSearch]             = useState('');
+  const [claimDateRange, setClaimDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+  const [page, setPage]                 = useState(0);
+  const [detail, setDetail]             = useState<InsuranceClaimSummaryDto | null>(null);
+  const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set());
+  const [syncLoading, setSyncLoading]   = useState(false);
+  const [reportLoading, setReportLoading] = useState<string | null>(null);
   const PAGE_SIZE = 16;
 
   const counts = useTabCounts(rows, STATUS_TABS, (r) => statusKey(r.status));
@@ -71,8 +108,13 @@ const InsuranceV2: React.FC = () => {
         .filter(Boolean).join(' ').toLowerCase();
       if (!hay.includes(q)) return false;
     }
+    if (claimDateRange) {
+      const [from, to] = claimDateRange;
+      const admit = r.admissionDate ? dayjs(r.admissionDate) : null;
+      if (!admit || admit.isBefore(from.startOf('day')) || admit.isAfter(to.endOf('day'))) return false;
+    }
     return true;
-  }), [rows, stab, search]);
+  }), [rows, stab, search, claimDateRange]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -94,7 +136,114 @@ const InsuranceV2: React.FC = () => {
     };
   }, [rows, counts]);
 
+  /* ── Handlers ── */
+
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+
+  const handleSync = async () => {
+    setSyncLoading(true);
+    try {
+      const res = await testPortalConnection();
+      const data = res as unknown as PortalConnectionTestResult;
+      if (data?.isConnected) {
+        message.success(`Đồng bộ thành công (${data.responseTimeMs ?? 0}ms)`);
+        reload();
+      } else {
+        message.warning(`Không kết nối được cổng BHXH: ${data?.errorMessage || 'Không xác định'}`);
+      }
+    } catch {
+      message.warning('Lỗi khi đồng bộ với cổng BHXH');
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleApproveClaims = () => {
+    if (selectedIds.size === 0) { message.warning('Vui lòng chọn hồ sơ cần duyệt'); return; }
+    modal.confirm({
+      title: 'Xác nhận duyệt giám định',
+      content: `Duyệt ${selectedIds.size} hồ sơ đã chọn?`,
+      okText: 'Duyệt',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        const maLkList = rows.filter((r) => selectedIds.has(r.id)).map((r) => r.maLk);
+        await validateClaimsBatch(maLkList);
+        message.success(`Đã duyệt ${selectedIds.size} hồ sơ`);
+        setSelectedIds(new Set());
+        reload();
+      },
+    });
+  };
+
+  const handleLockClaims = () => {
+    if (selectedIds.size === 0) { message.warning('Vui lòng chọn hồ sơ cần khóa'); return; }
+    modal.confirm({
+      title: 'Xác nhận khóa giám định',
+      content: `Khóa ${selectedIds.size} hồ sơ? Hồ sơ sau khi khóa không thể chỉnh sửa.`,
+      okText: 'Khóa',
+      okButtonProps: { danger: true },
+      cancelText: 'Hủy',
+      onOk: async () => {
+        const maLkList = rows.filter((r) => selectedIds.has(r.id)).map((r) => r.maLk);
+        await Promise.all(maLkList.map((maLk) => lockInsuranceClaim(maLk)));
+        message.success(`Đã khóa ${selectedIds.size} hồ sơ`);
+        setSelectedIds(new Set());
+        reload();
+      },
+    });
+  };
+
+  const handleReportClick = async (reportId: string, reportName: string) => {
+    setReportLoading(reportId);
+    try {
+      const now = dayjs();
+      const month = now.month() + 1;
+      const year = now.year();
+      switch (reportId) {
+        case 'mau19': await getMonthlyInsuranceReport(month, year); break;
+        case 'mau20': await getDepartmentReport(month, year); break;
+        case 'mau21': await getTreatmentTypeReport(month, year); break;
+        case 'mau79': await getReportC79a(month, year); break;
+        case 'mau80': await getReport80a(month, year); break;
+        case 'tt102': await getMonthlyInsuranceReport(month, year); break;
+      }
+      // Export Excel where applicable
+      try {
+        let blob: Blob | null = null;
+        const xlsxMime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        if (reportId === 'mau79') {
+          const res = await exportReportC79aToExcel(month, year);
+          blob = (res instanceof Blob ? res : (res as unknown as { data: Blob }).data) as Blob;
+        } else if (reportId === 'mau80') {
+          const res = await exportReport80aToExcel(month, year);
+          blob = (res instanceof Blob ? res : (res as unknown as { data: Blob }).data) as Blob;
+        }
+        if (blob) file.downloadBlob(blob, `${reportId}-${month}-${year}.xlsx`);
+      } catch { /* export not available for all types */ }
+      message.success(`Đã tải ${reportName}`);
+    } catch {
+      message.warning(`Lỗi khi tải ${reportName}`);
+    } finally {
+      setReportLoading(null);
+    }
+  };
+
+  /* ── Columns ── */
+
   const columns: ColumnDef<InsuranceClaimSummaryDto>[] = [
+    {
+      key: 'select', label: '', width: 36,
+      render: (r) => (
+        <input
+          type="checkbox"
+          checked={selectedIds.has(r.id)}
+          onChange={() => toggleSelect(r.id)}
+          onClick={(e) => e.stopPropagation()}
+          style={{ cursor: 'pointer', accentColor: 'var(--a-cy)' }}
+        />
+      ),
+    },
     { key: 'maLk', label: 'Mã LK', mono: true, width: 130, render: (r) => r.maLk },
     {
       key: 'patient', label: 'Bệnh nhân',
@@ -115,9 +264,9 @@ const InsuranceV2: React.FC = () => {
         </div>
       ),
     },
-    { key: 'admit', label: 'Vào viện', mono: true, width: 100, render: (r) => fmtDMY(r.admissionDate) },
-    { key: 'discharge', label: 'Ra viện', mono: true, width: 100, render: (r) => fmtDMY(r.dischargeDate) },
-    { key: 'amount', label: 'Tổng tiền', mono: true, width: 120, render: (r) => fmtVND(r.totalAmount) },
+    { key: 'admit',     label: 'Vào viện',    mono: true, width: 100, render: (r) => fmtDMY(r.admissionDate) },
+    { key: 'discharge', label: 'Ra viện',     mono: true, width: 100, render: (r) => fmtDMY(r.dischargeDate) },
+    { key: 'amount',    label: 'Tổng tiền',   mono: true, width: 120, render: (r) => fmtVND(r.totalAmount) },
     { key: 'bhyt-amount', label: 'BHYT chi trả', mono: true, width: 120, render: (r) => fmtVND(r.insuranceAmount) },
     {
       key: 'status', label: 'TT', width: 120,
@@ -127,6 +276,10 @@ const InsuranceV2: React.FC = () => {
       },
     },
   ];
+
+  /* ── Render ── */
+
+  const firstRejected = useMemo(() => rows.find((r) => r.status === 4), [rows]);
 
   return (
     <div className="ab">
@@ -141,63 +294,141 @@ const InsuranceV2: React.FC = () => {
         ]}
       />
 
-      <div className="ab-tools">
-        <SearchBox value={search} onChange={setSearch} placeholder="Tìm BN / mã LK / số thẻ BHYT / CĐ…" />
-        <Btn variant="ghost" onClick={() => { setSearch(''); setStab('all'); }}>
-          <TermIcon name="refresh" size={12} /> Bỏ lọc
-        </Btn>
-        <span className="spacer" />
-        <Btn variant="ghost" onClick={reload}>
-          <TermIcon name="refresh" size={12} /> Làm mới
-        </Btn>
-        <Btn variant="ghost" onClick={() => navigate('/v2/bhxh-audit')}>
-          <TermIcon name="check" size={12} /> Validate XML
-        </Btn>
-        <Btn variant="ghost" onClick={() => {
-          const header = ['Ma LK', 'Ma BN', 'Ho ten', 'So the BHYT', 'Ngay vao vien', 'Ngay ra vien', 'Ma ICD', 'Chan doan', 'Tong tien', 'BHYT chi tra', 'BN dong chi tra', 'BN tu tra', 'Trang thai'];
-          const rows = filtered.map((r) => [
-            r.maLk, r.patientCode, r.patientName, r.insuranceNumber,
-            r.admissionDate ? dayjs(r.admissionDate).format('DD/MM/YYYY') : '',
-            r.dischargeDate ? dayjs(r.dischargeDate).format('DD/MM/YYYY') : '',
-            r.diagnosisCode, r.diagnosisName,
-            r.totalAmount, r.insuranceAmount, r.coPayAmount, r.patientAmount,
-            r.statusName,
-          ]);
-          downloadCsv(
-            `bhyt-claims-${dayjs().format('YYYYMMDD-HHmm')}.csv`,
-            [header, ...rows].map((row) => row.map(escapeCsvCell).join(',')),
-          );
-          message.success(`Đã xuất ${filtered.length} hồ sơ BHYT`);
-        }}>
-          <TermIcon name="download" size={12} /> Xuất CSV
-        </Btn>
-        <Btn variant="primary" onClick={() => navigate('/v2/bhxh-config')}>
-          <TermIcon name="send" size={12} /> Gửi BHXH
-        </Btn>
-      </div>
+      <TopTabs<PageTab> tab={topTab} setTab={setTopTab} tabs={TOP_TABS} />
 
-      <StatusTabs<StatusKey> value={stab} onChange={setStab} tabs={STATUS_TABS} counts={counts} />
+      {topTab === 'claims' && (
+        <>
+          {kpis.rejected > 0 && firstRejected && (
+            <Alert
+              title={`Có ${kpis.rejected} hồ sơ bị từ chối cần xử lý`}
+              type="warning"
+              showIcon
+              style={{ marginBottom: 8 }}
+              action={
+                <Btn variant="ghost" onClick={() => setDetail(firstRejected)}>
+                  Xem chi tiết
+                </Btn>
+              }
+            />
+          )}
 
-      <DataTable<InsuranceClaimSummaryDto>
-        columns={columns}
-        data={paged}
-        rowKey={(r) => r.id}
-        onRowClick={(r) => setDetail(r)}
-        actions={(r) => (
-          <div className="ab-actions">
-            <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
-            <ActBtn ic="print" title="In phiếu BHYT" onClick={() => { setDetail(r); setTimeout(() => window.print(), 300); }} />
+          <div className="ab-tools">
+            <SearchBox value={search} onChange={setSearch} placeholder="Tìm BN / mã LK / số thẻ BHYT / CĐ…" />
+            <DatePicker.RangePicker
+              format="DD/MM/YYYY"
+              value={claimDateRange}
+              onChange={(dates) => {
+                setClaimDateRange(dates ? [dates[0]!, dates[1]!] : null);
+                setPage(0);
+              }}
+              placeholder={['Vào viện từ', 'đến ngày']}
+              size="small"
+              style={{ height: 28 }}
+            />
+            <Btn variant="ghost" onClick={() => { setSearch(''); setStab('all'); setClaimDateRange(null); setSelectedIds(new Set()); }}>
+              <TermIcon name="refresh" size={12} /> Bỏ lọc
+            </Btn>
+            <span className="spacer" />
+            {selectedIds.size > 0 && (
+              <>
+                <Btn variant="ghost" onClick={handleApproveClaims}>
+                  <TermIcon name="check" size={12} /> Duyệt ({selectedIds.size})
+                </Btn>
+                <Btn variant="ghost" onClick={handleLockClaims}>
+                  <TermIcon name="lock" size={12} /> Khóa ({selectedIds.size})
+                </Btn>
+              </>
+            )}
+            <Btn variant="ghost" onClick={handleSync} disabled={syncLoading}>
+              <TermIcon name="refresh" size={12} /> {syncLoading ? 'Đang đồng bộ…' : 'Đồng bộ BHXH'}
+            </Btn>
+            <Btn variant="ghost" onClick={reload}>
+              <TermIcon name="refresh" size={12} /> Làm mới
+            </Btn>
+            <Btn variant="ghost" onClick={() => navigate('/v2/bhxh-audit')}>
+              <TermIcon name="check" size={12} /> Validate XML
+            </Btn>
+            <Btn variant="ghost" onClick={() => {
+              const header = ['Ma LK', 'Ma BN', 'Ho ten', 'So the BHYT', 'Ngay vao vien', 'Ngay ra vien', 'Ma ICD', 'Chan doan', 'Tong tien', 'BHYT chi tra', 'BN dong chi tra', 'BN tu tra', 'Trang thai'];
+              const csvRows = filtered.map((r) => [
+                r.maLk, r.patientCode, r.patientName, r.insuranceNumber,
+                r.admissionDate ? dayjs(r.admissionDate).format('DD/MM/YYYY') : '',
+                r.dischargeDate ? dayjs(r.dischargeDate).format('DD/MM/YYYY') : '',
+                r.diagnosisCode, r.diagnosisName,
+                r.totalAmount, r.insuranceAmount, r.coPayAmount, r.patientAmount,
+                r.statusName,
+              ]);
+              downloadCsv(
+                `bhyt-claims-${dayjs().format('YYYYMMDD-HHmm')}.csv`,
+                [header, ...csvRows].map((row) => row.map(escapeCsvCell).join(',')),
+              );
+              message.success(`Đã xuất ${filtered.length} hồ sơ BHYT`);
+            }}>
+              <TermIcon name="download" size={12} /> Xuất CSV
+            </Btn>
+            <Btn variant="primary" onClick={() => navigate('/v2/bhxh-config')}>
+              <TermIcon name="send" size={12} /> Gửi BHXH
+            </Btn>
           </div>
-        )}
-        empty={loading ? 'Đang tải…' : (
-          <div className="ab-empty">
-            <TermIcon name="search" size={20} />
-            <div>Không có hồ sơ BHYT nào</div>
-          </div>
-        )}
-      />
 
-      <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={PAGE_SIZE} />
+          <StatusTabs<StatusKey> value={stab} onChange={(v) => { setStab(v); setPage(0); }} tabs={STATUS_TABS} counts={counts} />
+
+          <DataTable<InsuranceClaimSummaryDto>
+            columns={columns}
+            data={paged}
+            rowKey={(r) => r.id}
+            onRowClick={(r) => setDetail(r)}
+            actions={(r) => (
+              <div className="ab-actions">
+                <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
+                <ActBtn ic="print" title="In phiếu BHYT" onClick={() => { setDetail(r); setTimeout(() => window.print(), 300); }} />
+              </div>
+            )}
+            empty={loading ? 'Đang tải…' : (
+              <div className="ab-empty">
+                <TermIcon name="search" size={20} />
+                <div>Không có hồ sơ BHYT nào</div>
+              </div>
+            )}
+          />
+
+          <Pager page={page} totalPages={totalPages} setPage={setPage} total={filtered.length} perPage={PAGE_SIZE} />
+        </>
+      )}
+
+      {topTab === 'reports' && (
+        <div style={{ padding: '16px 0' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+            gap: 12,
+          }}>
+            {REPORTS.map((rep) => (
+              <button
+                key={rep.id}
+                type="button"
+                disabled={reportLoading === rep.id}
+                onClick={() => handleReportClick(rep.id, rep.label)}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                  gap: 4, padding: '14px 16px',
+                  background: 'var(--surface-1)', border: '1px solid var(--border)',
+                  borderRadius: 6, cursor: 'pointer', textAlign: 'left',
+                  opacity: reportLoading === rep.id ? 0.6 : 1,
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--surface-1)')}
+              >
+                <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--t-1)' }}>
+                  {reportLoading === rep.id ? 'Đang tải…' : rep.label}
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--t-3)' }}>{rep.sub}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <DrawerShell
         open={!!detail}
