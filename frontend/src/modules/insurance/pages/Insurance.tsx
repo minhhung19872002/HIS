@@ -704,6 +704,8 @@ const InsuranceV2: React.FC = () => {
   );
 };
 
+export default InsuranceV2;
+
 const InsuranceDrawerBody: React.FC<{ r: InsuranceClaimSummaryDto }> = ({ r }) => {
   const sk = statusKey(r.status);
   const tone = statusTone(sk);

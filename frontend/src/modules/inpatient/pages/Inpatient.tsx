@@ -7,6 +7,7 @@ import type { InpatientListDto, WardLayoutDto, BedLayoutDto } from '../api/inpat
 import { printBirthCertificate, type BirthCertificateData } from '../../patient/components/BirthCertificatePrint';
 import TreatmentMonitorSection from './TreatmentMonitorSection';
 import ConsultationSection from './ConsultationSection';
+import NursingSection from './NursingSection';
 import NewbornSection from './NewbornSection';
 import HemodialysisSection from './HemodialysisSection';
 import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
@@ -31,12 +32,13 @@ import { MEDICAL_RECORD_TYPES } from '../../../pages/inpatient/constants';
    Dữ liệu thật: getWardLayout (rooms→beds) + getInpatientList.
    ──────────────────────────────────────────────────────────── */
 
-type TopKey = 'grid' | 'list' | 'orders' | 'consult' | 'discharge';
+type TopKey = 'grid' | 'list' | 'orders' | 'consult' | 'nursing' | 'discharge';
 const TOP_TABS: TopTab<TopKey>[] = [
   { v: 'grid',      l: 'Sơ đồ giường',   ic: 'grid' },
   { v: 'list',      l: 'Danh sách BN',   ic: 'users' },
   { v: 'orders',    l: 'Y lệnh hôm nay', ic: 'clipboard' },
   { v: 'consult',   l: 'Hội chẩn',       ic: 'message-square' },
+  { v: 'nursing',   l: 'Điều dưỡng',     ic: 'heart' },
   { v: 'discharge', l: 'Đã xuất viện',   ic: 'logout' },
 ];
 
@@ -278,7 +280,7 @@ const InpatientV2: React.FC = () => {
       />
 
       {/* Tab Hội chẩn có toolbar riêng trong ConsultationSection */}
-      {tab !== 'consult' && tab !== 'discharge' && (
+      {tab !== 'consult' && tab !== 'nursing' && tab !== 'discharge' && (
         <div className="ab-tools">
           <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder="Tìm tên BN, mã BN, mã giường…" />
           <Filter value={fWard} onChange={(v) => { setFWard(v); setPage(0); }} options={wardOpts} placeholder="▾ Khoa" />
@@ -388,6 +390,9 @@ const InpatientV2: React.FC = () => {
 
       {/* ── Tab: Hội chẩn (issue #2 — list/tạo/hoàn thành/in, BE mig 99) ── */}
       {tab === 'consult' && <ConsultationSection inpatients={inpatients} active={tab === 'consult'} />}
+
+      {/* ── Tab: Điều dưỡng ── */}
+      {tab === 'nursing' && <NursingSection inpatients={inpatients} active={tab === 'nursing'} />}
 
       {/* ── Tab: Đã xuất viện ── */}
       {tab === 'discharge' && (

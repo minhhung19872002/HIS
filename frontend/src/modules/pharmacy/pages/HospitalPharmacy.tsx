@@ -172,7 +172,7 @@ const HospitalPharmacyV2: React.FC = () => {
   const [medSearch,    setMedSearch]    = useState('');
   const [medResults,   setMedResults]   = useState<MedicineSearchResultDto[]>([]);
   const [posLoading,   setPosLoading]   = useState(false);
-  const medRef = useRef<ReturnType<typeof setTimeout>>();
+  const medRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const loadRetail = useCallback(async () => {
     const [dash, sales] = await Promise.allSettled([
@@ -247,7 +247,7 @@ const HospitalPharmacyV2: React.FC = () => {
   const [stKeyword, setStKeyword] = useState('');
   const [stDetail,  setStDetail]  = useState<MedicineSearchResultDto | null>(null);
   const [stLoading, setStLoading] = useState(false);
-  const stRef = useRef<ReturnType<typeof setTimeout>>();
+  const stRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const loadStock = useCallback(async () => {
     setStLoading(true);
@@ -328,7 +328,7 @@ const HospitalPharmacyV2: React.FC = () => {
   const [custModalOpen, setCustModalOpen] = useState(false);
   const [custLoading,   setCustLoading]   = useState(false);
   const [custForm,      setCustForm]      = useState<SavePharmacyCustomerDto>({ fullName: '', customerType: 0 });
-  const custRef = useRef<ReturnType<typeof setTimeout>>();
+  const custRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const loadCustomers = useCallback(async () => {
     setCustLoading(true);
@@ -451,7 +451,7 @@ const HospitalPharmacyV2: React.FC = () => {
   const [gppForm,     setGppForm]     = useState<SavePharmacyGppRecordDto>({
     recordType: 1, recordDate: dayjs().format('YYYY-MM-DD'),
   });
-  const gppRef = useRef<ReturnType<typeof setTimeout>>();
+  const gppRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const loadGpp = useCallback(async () => {
     setGppLoading(true);
