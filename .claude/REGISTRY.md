@@ -7,6 +7,7 @@
 | Rule / topic | **OWNER FILE** | Elsewhere may only |
 |---|---|---|
 | git-ops (commit/push/workspace-docs) | `workflow/project-rules.md` §2-4 | 1-line core-principle + link |
+| safe-commit (multi-window RACE-PROOF **partial-path** commit + fetch/rebase/push — anti commit-trộn do shared `.git/index`) | `.claude/safe-commit.sh` | mechanism; MANDATE + root-cause → `workflow/parallel-windows.md` R4 + case T5; STATUS per-window → R6 |
 | trivial threshold (numeric) | `workflow/workflow.md` §0 | link |
 | DONE / READY_FOR_PUSH / CODE_COMPLETE | `workflow/workflow.md` DoD | link |
 | build-gate (`npm run build`, NOT `tsc --noEmit`) | `his-qa-anti-pattern` #27 | link |

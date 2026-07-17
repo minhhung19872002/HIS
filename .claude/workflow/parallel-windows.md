@@ -109,12 +109,18 @@ Steps 0-4 below are **PER-window**:
 - **R3 — Safe migration numbering:** only the **RUNNER** creates migrations. The next number = `ls Data/Scripts/` → **max(NN)+1** (ABSOLUTELY
   do not hard-code the number); `git fetch` **before** computing; create the empty `NN_*.sql` file → commit/push IMMEDIATELY so max+1 advances for
   all machines; the script is always idempotent `IF NOT EXISTS`, **no blind DROP**.
-- **R4 — Safe git on a shared tree:** **only `git add <your own files>`** (FORBID `add -A`/`-am`) · use **Edit** not Write/sed
-  (anti CRLF churn) · `git pull --rebase` before push · push small/atomic with `Closes #N`. Full mechanics → `project-rules.md` §2-4.
+- **R4 — Safe git on a shared tree:** **only `git add <your own files>`** (FORBID `add -A`/`-am`) · **★ COMMIT THEO PATH TƯỜNG MINH
+  `git commit -- <paths>` (hoặc `bash .claude/safe-commit.sh "<msg>" <paths>`) — TUYỆT ĐỐI KHÔNG `git commit`/`-a` trần**: index là
+  **CHUNG** cho mọi cửa → một whole-index commit VƠ luôn file cửa khác vừa `git add` = **commit trộn** (đo được phiên 2026-07-18, nuốt
+  WIP #407). "Add đúng file mình" CHƯA đủ — phải commit-scope theo path · use **Edit** not Write/sed (anti CRLF churn) · `git fetch`+`pull --rebase`
+  before push · push small/atomic with `Closes #N`. `safe-commit.sh` gói cả: add-explicit → commit-partial → fetch → rebase-nếu-behind → push. Full mechanics → `project-rules.md` §2-4.
 - **R5 — RAM:** `docker stop` unrelated containers (e.g. n8n / vhandelivery) while on HIS · **build sequentially**, max 1
   heavy build at a time · close spare browser tabs when building.
-- **R6 — STATUS.md:** the Stop-hook reads the WHOLE tree → it may block because of another window's file. Do **NOT** commit a foreign file to unblock;
-  update STATUS for your part, and let the **RUNNER** be the window that owns the main STATUS (don't fight over it — see `feedback_antigravity-parallel-same-tree`).
+- **R6 — STATUS.md (per-window, anti last-writer-wins):** the Stop-hook reads the WHOLE tree → it may block because of another window's file.
+  Do **NOT** commit a foreign file to unblock. **★ MỖI cửa cập nhật DÒNG RIÊNG** — thêm 1 bullet phân biệt dưới mục `## Cập nhật theo cửa` dạng
+  `- **[<tag>]** updated <YYYY-MM-DD> — <việc> · <kế tiếp>` (mỗi cửa 1 dòng distinct → git merge sạch, KHÔNG ghi đè; Stop-hook chỉ cần 1 dòng
+  chứa `updated <today>`). **KHÔNG viết lại dòng/tag của cửa khác**; header "Cập nhật cuối" do **RUNNER** sở hữu (đừng giành — `feedback_antigravity-parallel-same-tree`).
+  Commit STATUS qua `safe-commit.sh` (partial-path, không nuốt file cửa khác).
 
 ## 4. Every case → how to handle
 | # | Case | Level | Handling |
@@ -123,7 +129,7 @@ Steps 0-4 below are **PER-window**:
 | 2 | 2 windows both add to a **god-file** | 🔴 | R2 mutex; add-commit-push immediately; build-gate after every merge (a dropped DI line = 500 even if build passes) |
 | 3 | 2 windows **duplicate a migration number** (merges clean but silently duplicates) | 🔴 | R3: only the runner creates; fetch first; push the empty file immediately; idempotent |
 | 4 | A non-runner window **accidentally runs the app** (port collision / dirty DB) | 🔴 | R1 build-only; `vite strictPort` blocks the silent 3001→3002; (optionally) a separate DB `HIS_w2` |
-| 5 | `git add -A`/`-am` **swallows another window's work** | 🔴 | R4: ban add-all, only explicit add |
+| 5 | **Commit trộn**: `git add -A`/`-am` **HOẶC** `git commit` whole-index **nuốt WIP cửa khác** (index CHUNG) | 🔴 | R4: cấm add-all **+ commit PARTIAL-PATH** `git commit -- <paths>` / `safe-commit.sh` (chỉ commit path mình, bỏ qua thứ cửa khác stage) |
 | 6 | A task with **hidden blast-radius** into another window's module | 🔴 | impact-analysis BEFORE claiming (grep callers); committee-file = mutex; prefer additive changes |
 | 7 | A **non-fast-forward** push (4 windows + machine-2) | 🔴 | R4: `pull --rebase`; small/frequent push; fetch before claim/migration/push |
 | 8 | **OOM/swap** when builds stack on the live stack | 🟡 | R5: build sequentially; `dotnet build` a single project `--no-restore`; stop spare containers |
