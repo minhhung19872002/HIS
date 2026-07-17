@@ -62,6 +62,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<DelegationGrant> DelegationGrants => Set<DelegationGrant>();
     public DbSet<BreakGlassSession> BreakGlassSessions => Set<BreakGlassSession>();
     public DbSet<UserPermissionOverride> UserPermissionOverrides => Set<UserPermissionOverride>();
+    // AUTHZ-5 (#371): lịch sử thay đổi phân quyền (additive, chưa wire ghi)
+    public DbSet<PermissionChangeHistory> PermissionChangeHistories => Set<PermissionChangeHistory>();
 
     // Khoa/Phòng/Giường
     public DbSet<Department> Departments => Set<Department>();
