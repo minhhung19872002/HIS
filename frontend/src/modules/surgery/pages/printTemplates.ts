@@ -7,6 +7,7 @@
  * + full `SurgerySchedule` while only `requestCode` is read).
  */
 import dayjs from 'dayjs';
+import { escapeHtml as esc } from '../../../utils/printWindow';
 
 export interface SurgeryRecordPrintValues {
   hospitalName?: string;
@@ -64,58 +65,58 @@ export const buildSurgeryRecordHtml = (
         <div class="header">
           <div class="header-left">
             <div>Sở Y tế: <span class="field">..........................</span></div>
-            <div>BV: <span class="field">${formValues.hospitalName || ''}</span></div>
+            <div>BV: <span class="field">${esc(formValues.hospitalName || '')}</span></div>
           </div>
           <div style="text-align: right;">
             <div><strong>MS: 06/BV-02</strong></div>
-            <div>Số vào viện: <span class="field">${selectedSchedule?.requestCode || ''}</span></div>
+            <div>Số vào viện: <span class="field">${esc(selectedSchedule?.requestCode || '')}</span></div>
           </div>
         </div>
 
         <div class="title">Phiếu phẫu thuật/thủ thuật</div>
 
         <div class="row">
-          - Họ tên người bệnh: <span class="field">${formValues.patientName || ''}</span>
-          Tuổi: <span class="field">${formValues.age || ''}</span>
-          ${formValues.gender || 'Nam/Nữ'}
+          - Họ tên người bệnh: <span class="field">${esc(formValues.patientName || '')}</span>
+          Tuổi: <span class="field">${esc(formValues.age || '')}</span>
+          ${esc(formValues.gender || 'Nam/Nữ')}
         </div>
         <div class="row">
-          - Khoa: <span class="field">${formValues.departmentName || ''}</span>
-          Buồng: <span class="field">${formValues.roomName || ''}</span>
-          Giường: <span class="field">${formValues.bedName || ''}</span>
+          - Khoa: <span class="field">${esc(formValues.departmentName || '')}</span>
+          Buồng: <span class="field">${esc(formValues.roomName || '')}</span>
+          Giường: <span class="field">${esc(formValues.bedName || '')}</span>
         </div>
         <div class="row">
-          - Vào viện lúc: <span class="field">${formValues.admissionTime || '......... giờ ....... phút'}</span>
+          - Vào viện lúc: <span class="field">${esc(formValues.admissionTime || '......... giờ ....... phút')}</span>
           ngày <span class="field">........ tháng ........ năm ........</span>
         </div>
         <div class="row">
-          - Phẫu thuật/thủ thuật lúc: <span class="field">${formValues.surgeryTime || ''}</span>
+          - Phẫu thuật/thủ thuật lúc: <span class="field">${esc(formValues.surgeryTime || '')}</span>
         </div>
 
         <div class="section">
           <div class="row">- Chẩn đoán:</div>
           <div class="row" style="margin-left: 20px;">
-            . Trước phẫu thuật/thủ thuật: <span class="field-long">${formValues.preOpDiagnosis || ''}</span>
+            . Trước phẫu thuật/thủ thuật: <span class="field-long">${esc(formValues.preOpDiagnosis || '')}</span>
           </div>
           <div class="row" style="margin-left: 20px;">
-            . Sau phẫu thuật/thủ thuật: <span class="field-long">${formValues.postOpDiagnosis || ''}</span>
+            . Sau phẫu thuật/thủ thuật: <span class="field-long">${esc(formValues.postOpDiagnosis || '')}</span>
           </div>
         </div>
 
         <div class="row">
-          - Phương pháp phẫu thuật/thủ thuật: <span class="field-long">${formValues.surgeryMethod || ''}</span>
+          - Phương pháp phẫu thuật/thủ thuật: <span class="field-long">${esc(formValues.surgeryMethod || '')}</span>
         </div>
         <div class="row">
-          - Loại phẫu thuật/thủ thuật: <span class="field">${formValues.surgeryType || ''}</span>
+          - Loại phẫu thuật/thủ thuật: <span class="field">${esc(formValues.surgeryType || '')}</span>
         </div>
         <div class="row">
-          - Phương pháp vô cảm: <span class="field">${formValues.anesthesiaMethod || ''}</span>
+          - Phương pháp vô cảm: <span class="field">${esc(formValues.anesthesiaMethod || '')}</span>
         </div>
         <div class="row">
-          - Bác sĩ phẫu thuật/thủ thuật: <span class="field">${formValues.surgeonName || ''}</span>
+          - Bác sĩ phẫu thuật/thủ thuật: <span class="field">${esc(formValues.surgeonName || '')}</span>
         </div>
         <div class="row">
-          - Bác sĩ gây mê hồi sức: <span class="field">${formValues.anesthesiologistName || ''}</span>
+          - Bác sĩ gây mê hồi sức: <span class="field">${esc(formValues.anesthesiologistName || '')}</span>
         </div>
 
         <div class="section-title">Lược đồ phẫu thuật/thủ thuật</div>
@@ -123,21 +124,21 @@ export const buildSurgeryRecordHtml = (
           ${formValues.surgeryDiagram || ''}
         </div>
 
-        <div class="row">- Dẫn lưu: <span class="field">${formValues.drainInfo || ''}</span></div>
-        <div class="row">- Bấc: <span class="field">${formValues.packingInfo || ''}</span></div>
-        <div class="row">- Ngày rút: <span class="field">${formValues.removalDate || ''}</span></div>
-        <div class="row">- Ngày cắt chỉ: <span class="field">${formValues.stitchRemovalDate || ''}</span></div>
-        <div class="row">- Khác: <span class="field">${formValues.notes || ''}</span></div>
+        <div class="row">- Dẫn lưu: <span class="field">${esc(formValues.drainInfo || '')}</span></div>
+        <div class="row">- Bấc: <span class="field">${esc(formValues.packingInfo || '')}</span></div>
+        <div class="row">- Ngày rút: <span class="field">${esc(formValues.removalDate || '')}</span></div>
+        <div class="row">- Ngày cắt chỉ: <span class="field">${esc(formValues.stitchRemovalDate || '')}</span></div>
+        <div class="row">- Khác: <span class="field">${esc(formValues.notes || '')}</span></div>
 
         <div class="section-title">Trình tự phẫu thuật/thủ thuật</div>
         <div style="border: 1px solid #ccc; min-height: 200px; padding: 10px; margin: 10px 0; white-space: pre-wrap;">
-          ${formValues.surgeryDescription || ''}
+          ${esc(formValues.surgeryDescription || '')}
         </div>
 
         <div class="signature">
-          <div>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</div>
+          <div>Ngày ${esc(dayjs().format('DD'))} tháng ${esc(dayjs().format('MM'))} năm ${esc(dayjs().format('YYYY'))}</div>
           <div style="margin-top: 10px;"><strong>Phẫu thuật/thủ thuật viên</strong></div>
-          <div style="margin-top: 50px;">Họ tên: ${formValues.surgeonName || '..................................'}</div>
+          <div style="margin-top: 50px;">Họ tên: ${esc(formValues.surgeonName || '..................................')}</div>
         </div>
       </body>
       </html>

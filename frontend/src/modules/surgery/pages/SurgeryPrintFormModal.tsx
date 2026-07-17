@@ -20,7 +20,7 @@ import { ModalShell, Btn, tw } from '../../../pages-v2/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { Section, Row2 } from '../../../pages-v2/shared/surgery-modals/_shared';
 import SurgeryDrawingPad from '../../patient/components/SurgeryDrawingPad';
-import { openPrintWindow } from '../../../utils/printWindow';
+import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import { buildSurgeryRecordHtml, type SurgeryRecordPrintValues } from './printTemplates';
 import type { SurgeryDto } from '../api/surgery';
@@ -140,7 +140,7 @@ export const SurgeryPrintFormModal: React.FC<SurgeryPrintFormModalProps> = ({ op
       ...form,
       // Fix wiring v1: đưa ảnh sơ đồ đã vẽ vào ô "Lược đồ phẫu thuật/thủ thuật" của template
       surgeryDiagram: form.diagramImage
-        ? `<img src="${form.diagramImage}" alt="Sơ đồ PTTT" style="max-width:100%;max-height:400px;" />`
+        ? `<img src="${esc(form.diagramImage)}" alt="Sơ đồ PTTT" style="max-width:100%;max-height:400px;" />`
         : '',
     };
     openPrintWindow(buildSurgeryRecordHtml(values, { requestCode: surgery.surgeryCode }), {

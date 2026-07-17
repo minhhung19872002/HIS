@@ -1,7 +1,11 @@
 /**
  * Hospital configuration constants
  * Used across print templates and reports
+ *
+ * #421: đọc từ env (Vercel/hosting đặt VITE_HOSPITAL_NAME per deployment).
+ * KHÔNG hardcode placeholder — form pháp lý (MS03/BV-02, MS06…) khi chưa cấu hình
+ * sẽ in TRỐNG (điền tay như v1), không in tên bệnh viện giả.
  */
-export const HOSPITAL_NAME = 'BỆNH VIỆN ĐA KHOA ABC';
-export const HOSPITAL_ADDRESS = '123 Đường ABC, Quận XYZ, TP. Hồ Chí Minh';
-export const HOSPITAL_PHONE = '(028) 1234 5678';
+export const HOSPITAL_NAME = (import.meta.env.VITE_HOSPITAL_NAME as string | undefined) || '';
+export const HOSPITAL_ADDRESS = (import.meta.env.VITE_HOSPITAL_ADDRESS as string | undefined) || '';
+export const HOSPITAL_PHONE = (import.meta.env.VITE_HOSPITAL_PHONE as string | undefined) || '';

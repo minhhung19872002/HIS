@@ -10,7 +10,7 @@ import dayjs from 'dayjs';
 import { Input, Select } from 'antd';
 import { ModalShell, tw } from '../../../pages-v2/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { openPrintWindow } from '../../../utils/printWindow';
+import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import type { RawRow } from './shared';
 import { genderLabel, ageOf } from './shared';
@@ -101,8 +101,8 @@ const buildRequestFormHtml = (formValues: Ms03Fields): string => `
       <body>
         <div class="header">
           <div class="header-left">
-            Sở Y tế: <span class="field">${formValues.healthDepartment || '.....................'}</span><br/>
-            BV: <span class="field">${formValues.hospitalName || '.....................'}</span>
+            Sở Y tế: <span class="field">${esc(formValues.healthDepartment || '.....................')}</span><br/>
+            BV: <span class="field">${esc(formValues.hospitalName || '.....................')}</span>
           </div>
           <div class="header-center">
             <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br/>
@@ -111,38 +111,38 @@ const buildRequestFormHtml = (formValues: Ms03Fields): string => `
           </div>
           <div class="header-right">
             MS: 03/BV-02<br/>
-            Số: <span class="field">${formValues.formNumber || '............'}</span>
+            Số: <span class="field">${esc(formValues.formNumber || '............')}</span>
           </div>
         </div>
 
         <div class="title">Giấy khám chữa bệnh theo yêu cầu</div>
 
-        <div class="subtitle">Kính gửi: <span class="field">${formValues.recipient || '......................................................'}</span></div>
+        <div class="subtitle">Kính gửi: <span class="field">${esc(formValues.recipient || '......................................................')}</span></div>
 
         <div class="section">
-          <div class="row">- Tên tôi là: <span class="field">${formValues.patientName || ''}</span> Tuổi: <span class="field">${formValues.age || ''}</span> Nam/Nữ: <span class="field">${formValues.gender || ''}</span></div>
-          <div class="row">- CMND/Hộ chiếu/Hộ khẩu số: <span class="field">${formValues.identityNumber || ''}</span> Cơ quan cấp: <span class="field">${formValues.issuingAuthority || ''}</span></div>
-          <div class="row">- Dân tộc: <span class="field">${formValues.ethnicity || ''}</span> Ngoại kiều: <span class="field">${formValues.nationality || ''}</span></div>
-          <div class="row">- Nghề nghiệp: <span class="field">${formValues.occupation || ''}</span> Nơi làm việc: <span class="field">${formValues.workplace || ''}</span></div>
-          <div class="row">- Địa chỉ: <span class="field" style="width: 80%">${formValues.address || ''}</span></div>
-          <div class="row">- Khi cần báo tin: <span class="field" style="width: 70%">${formValues.emergencyContact || ''}</span></div>
-          <div class="row">- Là người bệnh/đại diện gia đình người bệnh họ tên là: <span class="field">${formValues.representativeName || ''}</span></div>
-          <div class="row">Hiện đang khám/chữa bệnh tại Khoa: <span class="field">${formValues.roomName || ''}</span> Bệnh viện: <span class="field">${formValues.hospitalName || ''}</span></div>
+          <div class="row">- Tên tôi là: <span class="field">${esc(formValues.patientName || '')}</span> Tuổi: <span class="field">${esc(formValues.age || '')}</span> Nam/Nữ: <span class="field">${esc(formValues.gender || '')}</span></div>
+          <div class="row">- CMND/Hộ chiếu/Hộ khẩu số: <span class="field">${esc(formValues.identityNumber || '')}</span> Cơ quan cấp: <span class="field">${esc(formValues.issuingAuthority || '')}</span></div>
+          <div class="row">- Dân tộc: <span class="field">${esc(formValues.ethnicity || '')}</span> Ngoại kiều: <span class="field">${esc(formValues.nationality || '')}</span></div>
+          <div class="row">- Nghề nghiệp: <span class="field">${esc(formValues.occupation || '')}</span> Nơi làm việc: <span class="field">${esc(formValues.workplace || '')}</span></div>
+          <div class="row">- Địa chỉ: <span class="field" style="width: 80%">${esc(formValues.address || '')}</span></div>
+          <div class="row">- Khi cần báo tin: <span class="field" style="width: 70%">${esc(formValues.emergencyContact || '')}</span></div>
+          <div class="row">- Là người bệnh/đại diện gia đình người bệnh họ tên là: <span class="field">${esc(formValues.representativeName || '')}</span></div>
+          <div class="row">Hiện đang khám/chữa bệnh tại Khoa: <span class="field">${esc(formValues.roomName || '')}</span> Bệnh viện: <span class="field">${esc(formValues.hospitalName || '')}</span></div>
         </div>
 
         <div class="section">
           <p><strong>1. Sau khi nghe bác sĩ phổ biến quy định khám/chữa bệnh theo yêu cầu của bệnh viện, tôi viết giấy này thỏa thuận xin khám/chữa bệnh theo yêu cầu và chọn dịch vụ chăm sóc như sau:</strong></p>
           <div class="indent">
-            <div class="row">a. Bác sĩ khám/chữa bệnh/phẫu thuật/đỡ đẻ/chăm sóc: <span class="field">${formValues.requestedDoctor || ''}</span></div>
+            <div class="row">a. Bác sĩ khám/chữa bệnh/phẫu thuật/đỡ đẻ/chăm sóc: <span class="field">${esc(formValues.requestedDoctor || '')}</span></div>
             <div class="row">b. <span class="checkbox"></span> Y tá (điều dưỡng) chăm sóc theo chế độ bệnh lý tại giường.</div>
             <div class="row">c. <span class="checkbox"></span> Được dùng thuốc theo chỉ định của bác sĩ điều trị</div>
-            <div class="row">d. Được nằm chữa bệnh tại buồng loại: <span class="field">${formValues.roomType || ''}</span>, có tiện nghi: điều hòa nhiệt độ, tủ lạnh, nước nóng lạnh, buồng vệ sinh riêng.</div>
+            <div class="row">d. Được nằm chữa bệnh tại buồng loại: <span class="field">${esc(formValues.roomType || '')}</span>, có tiện nghi: điều hòa nhiệt độ, tủ lạnh, nước nóng lạnh, buồng vệ sinh riêng.</div>
           </div>
         </div>
 
         <div class="section">
-          <p><strong>2. Tôi xin ứng trước một khoản tiền theo quy định của bệnh viện là:</strong> <span class="field">${formValues.depositAmount || ''}</span> đồng,</p>
-          <p>(bằng chữ): <span class="field" style="width: 80%">${formValues.depositAmountInWords || ''}</span></p>
+          <p><strong>2. Tôi xin ứng trước một khoản tiền theo quy định của bệnh viện là:</strong> <span class="field">${esc(formValues.depositAmount || '')}</span> đồng,</p>
+          <p>(bằng chữ): <span class="field" style="width: 80%">${esc(formValues.depositAmountInWords || '')}</span></p>
           <p>để khám/chữa bệnh theo yêu cầu; khi ra viện tôi xin thanh toán đầy đủ.</p>
         </div>
 
@@ -162,7 +162,7 @@ const buildRequestFormHtml = (formValues: Ms03Fields): string => `
             <p>Họ tên: ................................</p>
           </div>
           <div class="signature-box">
-            <p>Ngày ${dayjs().format('DD')} tháng ${dayjs().format('MM')} năm ${dayjs().format('YYYY')}</p>
+            <p>Ngày ${esc(dayjs().format('DD'))} tháng ${esc(dayjs().format('MM'))} năm ${esc(dayjs().format('YYYY'))}</p>
             <p><strong>Người bệnh/đại diện gia đình</strong></p>
             <br/><br/><br/>
             <p>Họ tên: ................................</p>
@@ -325,7 +325,7 @@ export const printBarcodeLabel = (record: RawRow): void => {
   const dob = record.dateOfBirth ? dayjs(record.dateOfBirth).format('DD/MM/YYYY') : '';
   const html = `
       <!DOCTYPE html>
-      <html><head><title>Mã vạch - ${record.patientCode}</title>
+      <html><head><title>Mã vạch - ${esc(record.patientCode)}</title>
       <style>
         body { font-family: Arial, sans-serif; text-align: center; padding: 10px; margin: 0; }
         .label { border: 1px solid #000; padding: 8px 12px; display: inline-block; min-width: 220px; }
@@ -337,12 +337,12 @@ export const printBarcodeLabel = (record: RawRow): void => {
       </style></head>
       <body>
         <div class="label">
-          <div class="barcode">||||| ${record.patientCode} |||||</div>
-          <div class="barcode-text">${record.patientCode}</div>
-          <div class="patient-name">${record.patientName}</div>
-          ${dob ? `<div class="info">NS: ${dob}</div>` : ''}
-          <div class="info">HSBA: ${record.id.substring(0, 8).toUpperCase()}</div>
-          <div class="info">${dayjs().format('DD/MM/YYYY HH:mm')}</div>
+          <div class="barcode">||||| ${esc(record.patientCode)} |||||</div>
+          <div class="barcode-text">${esc(record.patientCode)}</div>
+          <div class="patient-name">${esc(record.patientName)}</div>
+          ${dob ? `<div class="info">NS: ${esc(dob)}</div>` : ''}
+          <div class="info">HSBA: ${esc(record.id.substring(0, 8).toUpperCase())}</div>
+          <div class="info">${esc(dayjs().format('DD/MM/YYYY HH:mm'))}</div>
         </div>
       </body></html>
     `;

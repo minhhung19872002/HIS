@@ -88,7 +88,7 @@ import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import '../../../styles/HR.css';
-import { openPrintWindow } from '../../../utils/printWindow';
+import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import {
   ActBtn,
@@ -215,13 +215,13 @@ type HrTab =
 
 function buildEmployeeCardHtml(s: StaffMember): string {
   const row = (label: string, value: string) =>
-    `<tr><td style="width:40%;font-weight:600;color:#555;padding:5px 8px;border:1px solid #ccc">${label}</td><td style="padding:5px 8px;border:1px solid #ccc">${value || '—'}</td></tr>`;
+    `<tr><td style="width:40%;font-weight:600;color:#555;padding:5px 8px;border:1px solid #ccc">${label}</td><td style="padding:5px 8px;border:1px solid #ccc">${esc(value || '—')}</td></tr>`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>Hồ sơ nhân viên</title>
 <style>body{font-family:'Times New Roman',serif;margin:20mm 15mm;font-size:13pt}
 h2{text-align:center;font-size:15pt;margin:8px 0}h4{text-align:center;font-size:12pt;font-weight:normal;margin:4px 0 16px}
 table{width:100%;border-collapse:collapse}
 </style></head><body>
-<div style="text-align:center;font-weight:bold;font-size:11pt">${HOSPITAL_NAME}</div>
+<div style="text-align:center;font-weight:bold;font-size:11pt">${esc(HOSPITAL_NAME)}</div>
 <h2>HỒ SƠ NHÂN VIÊN Y TẾ</h2>
 <table style="margin-top:14px">
 ${row('Mã nhân viên', s.id)}
@@ -235,7 +235,7 @@ ${row('Ngày tuyển dụng', '')}
 ${row('Số chứng chỉ hành nghề', '')}
 </table>
 <div style="margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:24px;text-align:center;font-size:12pt">
-<div><b>Nhân viên</b><br/><span style="font-size:10pt;color:#888">(Ký và ghi rõ họ tên)</span><div style="height:60px"></div><b>${s.name}</b></div>
+<div><b>Nhân viên</b><br/><span style="font-size:10pt;color:#888">(Ký và ghi rõ họ tên)</span><div style="height:60px"></div><b>${esc(s.name)}</b></div>
 <div><b>Phòng Tổ chức - Nhân sự</b><br/><span style="font-size:10pt;color:#888">(Ký và ghi rõ họ tên)</span><div style="height:60px"></div><b>................</b></div>
 </div>
 </body></html>`;
@@ -246,18 +246,18 @@ function buildStaffProfileCardHtml(emp: StaffProfileDto): string {
   const mainCert = emp.certifications?.[0];
   return `<!DOCTYPE html><html><head><title>Hồ sơ nhân viên</title>
     <style>body{font-family:'Times New Roman',serif;padding:20px;max-width:800px;margin:auto}.header{text-align:center;margin-bottom:20px}.title{font-size:20px;font-weight:bold;margin:20px 0;text-align:center}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{border:1px solid #000;padding:8px;text-align:left}th{background:#f0f0f0;width:30%}@media print{body{padding:0}}</style></head><body>
-    <div class="header"><strong>${HOSPITAL_NAME}</strong><br/>Phòng Tổ chức - Nhân sự</div>
+    <div class="header"><strong>${esc(HOSPITAL_NAME)}</strong><br/>Phòng Tổ chức - Nhân sự</div>
     <div class="title">HỒ SƠ NHÂN VIÊN Y TẾ</div>
-    <table><tr><th>Mã nhân viên</th><td>${emp.staffCode}</td></tr>
-    <tr><th>Họ và tên</th><td>${emp.fullName}</td></tr>
-    <tr><th>Giới tính</th><td>${emp.gender === 'Male' ? 'Nam' : emp.gender === 'Female' ? 'Nữ' : emp.gender || '-'}</td></tr>
-    <tr><th>Ngày sinh</th><td>${emp.dateOfBirth || '-'}</td></tr>
-    <tr><th>Chức vụ</th><td>${emp.positionName || '-'}</td></tr>
-    <tr><th>Khoa/Phòng</th><td>${emp.departmentName}</td></tr>
-    <tr><th>Chuyên khoa</th><td>${emp.specialty || '-'}</td></tr>
-    <tr><th>Số CCHN</th><td>${mainCert?.licenseNumber || '-'}</td></tr>
-    <tr><th>Ngày vào làm</th><td>${emp.hireDate || '-'}</td></tr></table>
-    <div style="margin-top:50px;text-align:right"><p>Ngày ${dayjs().format('DD/MM/YYYY')}</p><p><strong>Trưởng phòng Nhân sự</strong></p></div>
+    <table><tr><th>Mã nhân viên</th><td>${esc(emp.staffCode)}</td></tr>
+    <tr><th>Họ và tên</th><td>${esc(emp.fullName)}</td></tr>
+    <tr><th>Giới tính</th><td>${esc(emp.gender === 'Male' ? 'Nam' : emp.gender === 'Female' ? 'Nữ' : emp.gender || '-')}</td></tr>
+    <tr><th>Ngày sinh</th><td>${esc(emp.dateOfBirth || '-')}</td></tr>
+    <tr><th>Chức vụ</th><td>${esc(emp.positionName || '-')}</td></tr>
+    <tr><th>Khoa/Phòng</th><td>${esc(emp.departmentName)}</td></tr>
+    <tr><th>Chuyên khoa</th><td>${esc(emp.specialty || '-')}</td></tr>
+    <tr><th>Số CCHN</th><td>${esc(mainCert?.licenseNumber || '-')}</td></tr>
+    <tr><th>Ngày vào làm</th><td>${esc(emp.hireDate || '-')}</td></tr></table>
+    <div style="margin-top:50px;text-align:right"><p>Ngày ${esc(dayjs().format('DD/MM/YYYY'))}</p><p><strong>Trưởng phòng Nhân sự</strong></p></div>
     </body></html>`;
 }
 

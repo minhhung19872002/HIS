@@ -6,6 +6,21 @@
  * document.close + popup-blocked guard) is centralized here.
  */
 
+/**
+ * #421: escape một giá trị trước khi nội suy vào HTML template in ấn.
+ * Dữ liệu BN (tên/địa chỉ/ghi chú…) có thể chứa markup → phải bọc esc() tại MỌI điểm
+ * nội suy giá trị THÔ; KHÔNG bọc fragment HTML đã dựng sẵn (kết quả .map().join('')).
+ */
+export const escapeHtml = (v: unknown): string =>
+  v == null
+    ? ''
+    : String(v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
 /** How (and whether) to trigger printing after the HTML is written. */
 export type PrintTrigger =
   | false                  // do not auto-print (e.g. the HTML embeds its own "In" button)

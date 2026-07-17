@@ -7,7 +7,7 @@ import { getBloodStock, getBloodStockDetail, getExpiringBloodBags, getIssueReque
 import type { BloodStockDto, BloodBagDto, BloodIssueRequestDto, BloodProductTypeDto, BloodStockDetailDto, BloodSupplierDto } from '../api/bloodBank';
 import { catalogApi } from '../../system/api/system';
 import type { DepartmentCatalogDto } from '../../system/api/system';
-import { openPrintWindow } from '../../../utils/printWindow';
+import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager,
@@ -47,19 +47,19 @@ const fmtVol = (n: number) => `${n.toLocaleString('vi-VN')} mL`;
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 
 const buildBloodLabelHtml = (u: BloodStockDetailDto): string => `<!DOCTYPE html>
-<html><head><title>Nhãn đơn vị máu - ${u.bagCode}</title>
+<html><head><title>Nhãn đơn vị máu - ${esc(u.bagCode)}</title>
 <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:11px;padding:5px}.label{border:2px solid #000;padding:8px;width:280px}.header{text-align:center;font-weight:bold;font-size:12px;border-bottom:1px solid #000;padding-bottom:5px;margin-bottom:5px}.blood-type{font-size:36px;font-weight:bold;color:#d00;text-align:center;margin:10px 0}.info-row{display:flex;justify-content:space-between;margin:3px 0}.barcode{text-align:center;font-family:monospace;font-size:14px;letter-spacing:2px;margin:8px 0;padding:5px;background:#f0f0f0}.warning{background:#ffcc00;padding:3px;text-align:center;font-weight:bold;margin-top:5px}@media print{body{padding:0}}</style>
 </head><body>
 <div class="label">
-  <div class="header">${HOSPITAL_NAME}</div>
+  <div class="header">${esc(HOSPITAL_NAME)}</div>
   <div class="header" style="font-size:11px">NGÂN HÀNG MÁU</div>
-  <div class="blood-type">${u.bloodType}${u.rhFactor}</div>
-  <div class="barcode">${u.bagCode}</div>
-  <div class="info-row"><span>Thành phần:</span><span><strong>${u.productTypeName}</strong></span></div>
-  <div class="info-row"><span>Thể tích:</span><span><strong>${u.volume} mL</strong></span></div>
-  <div class="info-row"><span>Ngày nhập:</span><span>${dayjs(u.collectionDate).format('DD/MM/YYYY')}</span></div>
-  <div class="info-row"><span>Hạn SD:</span><span style="color:#d00"><strong>${dayjs(u.expiryDate).format('DD/MM/YYYY')}</strong></span></div>
-  <div class="info-row"><span>Vị trí:</span><span>${u.storageLocation || '—'}</span></div>
+  <div class="blood-type">${esc(u.bloodType)}${esc(u.rhFactor)}</div>
+  <div class="barcode">${esc(u.bagCode)}</div>
+  <div class="info-row"><span>Thành phần:</span><span><strong>${esc(u.productTypeName)}</strong></span></div>
+  <div class="info-row"><span>Thể tích:</span><span><strong>${esc(u.volume)} mL</strong></span></div>
+  <div class="info-row"><span>Ngày nhập:</span><span>${esc(dayjs(u.collectionDate).format('DD/MM/YYYY'))}</span></div>
+  <div class="info-row"><span>Hạn SD:</span><span style="color:#d00"><strong>${esc(dayjs(u.expiryDate).format('DD/MM/YYYY'))}</strong></span></div>
+  <div class="info-row"><span>Vị trí:</span><span>${esc(u.storageLocation || '—')}</span></div>
   <div class="warning">BẢO QUẢN 2-6°C</div>
 </div>
 </body></html>`;
@@ -72,31 +72,31 @@ const buildBloodRequestHtml = (r: BloodIssueRequestRow): string => {
   const urgencyColor = r.urgency === 'Emergency' || r.urgency === 'STAT' ? '#ff0000' : r.urgency === 'Urgent' || r.urgency === 'urgent' ? '#ff8800' : '#000';
   const reason = r.clinicalIndication || r.indication || r.reason || 'Không có thông tin';
   return `<!DOCTYPE html>
-<html><head><title>Phiếu yêu cầu truyền máu - ${r.requestCode}</title>
+<html><head><title>Phiếu yêu cầu truyền máu - ${esc(r.requestCode)}</title>
 <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Times New Roman',serif;font-size:13px;line-height:1.5;padding:20px}.header{display:flex;justify-content:space-between;margin-bottom:15px}.title{font-size:18px;font-weight:bold;text-align:center;margin:15px 0;text-transform:uppercase}.urgency{font-size:16px;font-weight:bold;text-align:center;color:${urgencyColor};margin-bottom:15px}.info-section{border:1px solid #000;padding:10px;margin-bottom:15px}.section-title{font-weight:bold;margin-bottom:5px;background:#f0f0f0;padding:5px}.info-row{margin:5px 0}.field{border-bottom:1px dotted #000;min-width:100px;display:inline-block;padding:0 5px}.blood-box{border:2px solid #000;padding:15px;margin:15px 0;background:#fff0f0}.blood-type-large{font-size:28px;font-weight:bold;color:#d00;text-align:center}.sig-row{display:flex;justify-content:space-between;margin-top:40px;text-align:center}.sig-col{width:30%}@media print{body{padding:10px}}</style>
 </head><body>
 <div class="header">
-  <div><strong>${HOSPITAL_NAME}</strong><br>Khoa: ${r.departmentName || '—'}</div>
-  <div style="text-align:right"><strong>Số phiếu: ${r.requestCode}</strong><br>Ngày: ${dayjs(r.requestDate || r.createdAt).format('DD/MM/YYYY HH:mm')}</div>
+  <div><strong>${esc(HOSPITAL_NAME)}</strong><br>Khoa: ${esc(r.departmentName || '—')}</div>
+  <div style="text-align:right"><strong>Số phiếu: ${esc(r.requestCode)}</strong><br>Ngày: ${esc(dayjs(r.requestDate || r.createdAt).format('DD/MM/YYYY HH:mm'))}</div>
 </div>
 <div class="title">PHIẾU YÊU CẦU TRUYỀN MÁU</div>
-<div class="urgency">[${r.urgency || 'Thường quy'}]</div>
+<div class="urgency">[${esc(r.urgency || 'Thường quy')}]</div>
 <div class="info-section">
   <div class="section-title">THÔNG TIN BỆNH NHÂN</div>
-  <div class="info-row">Họ và tên: <span class="field" style="width:300px"><strong>${r.patientName || '—'}</strong></span></div>
+  <div class="info-row">Họ và tên: <span class="field" style="width:300px"><strong>${esc(r.patientName || '—')}</strong></span></div>
 </div>
 <div class="blood-box">
   <div class="section-title" style="background:#ffcccc">YÊU CẦU MÁU</div>
   <div style="display:flex;justify-content:space-around;margin:15px 0">
-    <div style="text-align:center"><div>Nhóm máu:</div><div class="blood-type-large">${r.bloodType || '—'}</div></div>
+    <div style="text-align:center"><div>Nhóm máu:</div><div class="blood-type-large">${esc(r.bloodType || '—')}</div></div>
   </div>
 </div>
 <div class="info-section">
   <div class="section-title">CHỈ ĐỊNH LÂM SÀNG</div>
-  <div style="min-height:60px;padding:10px">${reason}</div>
+  <div style="min-height:60px;padding:10px">${esc(reason)}</div>
 </div>
 <div class="sig-row">
-  <div class="sig-col"><strong>BÁC SĨ YÊU CẦU</strong><div style="margin-top:50px">${r.requestedByName || ''}</div></div>
+  <div class="sig-col"><strong>BÁC SĨ YÊU CẦU</strong><div style="margin-top:50px">${esc(r.requestedByName || '')}</div></div>
   <div class="sig-col"><strong>TRƯỞNG KHOA</strong><div style="margin-top:50px"></div></div>
   <div class="sig-col"><strong>NGÂN HÀNG MÁU</strong><div style="margin-top:50px"></div></div>
 </div>

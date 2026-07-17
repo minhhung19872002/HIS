@@ -11,6 +11,7 @@
  * `isNgoaiKhoa`: surgical record type flag (caller compute).
  */
 import dayjs from 'dayjs';
+import { escapeHtml as esc } from '../../utils/printWindow';
 
 type RecordType = { value: string; label: string; code: string };
 
@@ -26,7 +27,7 @@ export const buildMedicalRecordHtml = (
       <!DOCTYPE html>
       <html>
       <head>
-        <title>${recordType.label}</title>
+        <title>${esc(recordType.label)}</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Times New Roman', serif; font-size: 13px; line-height: 1.4; padding: 20px; }
@@ -59,89 +60,89 @@ export const buildMedicalRecordHtml = (
       <body>
         <div class="header">
           <div class="header-left">
-            Sở Y tế: <span class="field">${formValues.healthDepartment || '........................'}</span><br/>
-            Bệnh viện: <span class="field">${formValues.hospitalName || '........................'}</span><br/>
-            Khoa: <span class="field">${formValues.departmentName || '............'}</span> Giường: <span class="field">${formValues.bedNumber || '......'}</span>
+            Sở Y tế: <span class="field">${esc(formValues.healthDepartment || '........................')}</span><br/>
+            Bệnh viện: <span class="field">${esc(formValues.hospitalName || '........................')}</span><br/>
+            Khoa: <span class="field">${esc(formValues.departmentName || '............')}</span> Giường: <span class="field">${esc(formValues.bedNumber || '......')}</span>
           </div>
           <div class="header-center">
-            <div class="title">${recordType.label.toUpperCase()}</div>
+            <div class="title">${esc(recordType.label.toUpperCase())}</div>
           </div>
           <div class="header-right">
-            MS: ${recordType.code}<br/>
-            Số lưu trữ: <span class="field">${formValues.archiveNumber || '............'}</span><br/>
-            Mã YT: <span class="field">${formValues.medicalCode || '...../...../...../.....'}</span>
+            MS: ${esc(recordType.code)}<br/>
+            Số lưu trữ: <span class="field">${esc(formValues.archiveNumber || '............')}</span><br/>
+            Mã YT: <span class="field">${esc(formValues.medicalCode || '...../...../...../.....')}</span>
           </div>
         </div>
 
         <div class="section">
           <div class="section-title">I. HÀNH CHÍNH:</div>
           <div class="row">
-            <div class="col-2">1. Họ và tên (In hoa): <span class="field">${formValues.patientName || ''}</span></div>
-            <div class="col">2. Sinh ngày: <span class="field">${formValues.dateOfBirth || ''}</span></div>
-            <div>Tuổi: <span class="field">${formValues.age || ''}</span></div>
+            <div class="col-2">1. Họ và tên (In hoa): <span class="field">${esc(formValues.patientName || '')}</span></div>
+            <div class="col">2. Sinh ngày: <span class="field">${esc(formValues.dateOfBirth || '')}</span></div>
+            <div>Tuổi: <span class="field">${esc(formValues.age || '')}</span></div>
           </div>
           <div class="row">
             <div class="col">3. Giới: <span class="checkbox ${formValues.gender === 'Nam' ? 'checked' : ''}"></span>Nam <span class="checkbox ${formValues.gender === 'Nữ' ? 'checked' : ''}"></span>Nữ</div>
-            <div class="col-2">4. Nghề nghiệp: <span class="field">${formValues.occupation || ''}</span></div>
+            <div class="col-2">4. Nghề nghiệp: <span class="field">${esc(formValues.occupation || '')}</span></div>
           </div>
           <div class="row">
-            <div class="col">5. Dân tộc: <span class="field">${formValues.ethnicity || ''}</span></div>
-            <div class="col">6. Ngoại kiều: <span class="field">${formValues.nationality || ''}</span></div>
+            <div class="col">5. Dân tộc: <span class="field">${esc(formValues.ethnicity || '')}</span></div>
+            <div class="col">6. Ngoại kiều: <span class="field">${esc(formValues.nationality || '')}</span></div>
           </div>
           <div class="row">
-            <div>7. Địa chỉ: Số nhà <span class="field">${formValues.houseNumber || ''}</span> Thôn, phố <span class="field">${formValues.street || ''}</span> Xã, phường <span class="field">${formValues.ward || ''}</span></div>
+            <div>7. Địa chỉ: Số nhà <span class="field">${esc(formValues.houseNumber || '')}</span> Thôn, phố <span class="field">${esc(formValues.street || '')}</span> Xã, phường <span class="field">${esc(formValues.ward || '')}</span></div>
           </div>
           <div class="row">
-            <div>Huyện (Q, Tx) <span class="field">${formValues.district || ''}</span> Tỉnh, thành phố <span class="field">${formValues.province || ''}</span></div>
+            <div>Huyện (Q, Tx) <span class="field">${esc(formValues.district || '')}</span> Tỉnh, thành phố <span class="field">${esc(formValues.province || '')}</span></div>
           </div>
           <div class="row">
-            <div class="col">8. Nơi làm việc: <span class="field">${formValues.workplace || ''}</span></div>
+            <div class="col">8. Nơi làm việc: <span class="field">${esc(formValues.workplace || '')}</span></div>
             <div class="col">9. Đối tượng: <span class="checkbox ${formValues.patientType === 'bhyt' ? 'checked' : ''}"></span>BHYT <span class="checkbox ${formValues.patientType === 'fee' ? 'checked' : ''}"></span>Thu phí <span class="checkbox ${formValues.patientType === 'free' ? 'checked' : ''}"></span>Miễn <span class="checkbox ${formValues.patientType === 'other' ? 'checked' : ''}"></span>Khác</div>
           </div>
           <div class="row">
-            <div>10. BHYT giá trị đến ngày <span class="field">${formValues.insuranceValidDate || ''}</span> Số thẻ BHYT: <span class="field">${formValues.insuranceNumber || ''}</span></div>
+            <div>10. BHYT giá trị đến ngày <span class="field">${esc(formValues.insuranceValidDate || '')}</span> Số thẻ BHYT: <span class="field">${esc(formValues.insuranceNumber || '')}</span></div>
           </div>
           <div class="row">
-            <div>11. Họ tên, địa chỉ người nhà khi cần báo tin: <span class="field">${formValues.emergencyContact || ''}</span> Điện thoại: <span class="field">${formValues.emergencyPhone || ''}</span></div>
+            <div>11. Họ tên, địa chỉ người nhà khi cần báo tin: <span class="field">${esc(formValues.emergencyContact || '')}</span> Điện thoại: <span class="field">${esc(formValues.emergencyPhone || '')}</span></div>
           </div>
         </div>
 
         <div class="section">
           <div class="section-title">II. QUẢN LÝ NGƯỜI BỆNH</div>
           <div class="row">
-            <div class="col">12. Vào viện: <span class="field">${formValues.admissionDate ? dayjs(formValues.admissionDate).format('HH') : ''}</span> giờ <span class="field">${formValues.admissionDate ? dayjs(formValues.admissionDate).format('mm') : ''}</span> ph ngày <span class="field">${formValues.admissionDate ? dayjs(formValues.admissionDate).format('DD/MM/YYYY') : ''}</span></div>
+            <div class="col">12. Vào viện: <span class="field">${esc(formValues.admissionDate ? dayjs(formValues.admissionDate).format('HH') : '')}</span> giờ <span class="field">${esc(formValues.admissionDate ? dayjs(formValues.admissionDate).format('mm') : '')}</span> ph ngày <span class="field">${esc(formValues.admissionDate ? dayjs(formValues.admissionDate).format('DD/MM/YYYY') : '')}</span></div>
             <div class="col">14. Nơi giới thiệu: <span class="checkbox"></span>Cơ quan y tế <span class="checkbox"></span>Tự đến <span class="checkbox"></span>Khác</div>
           </div>
           <div class="row">
             <div class="col">13. Trực tiếp vào: <span class="checkbox"></span>Cấp cứu <span class="checkbox"></span>KKB <span class="checkbox"></span>Khoa điều trị</div>
-            <div class="col">- Vào viện do bệnh này lần thứ: <span class="field">${formValues.visitNumber || ''}</span></div>
+            <div class="col">- Vào viện do bệnh này lần thứ: <span class="field">${esc(formValues.visitNumber || '')}</span></div>
           </div>
         </div>
 
         <div class="section">
           <div class="section-title">III. CHẨN ĐOÁN</div>
           <div class="row">
-            <div class="col">20. Nơi chuyển đến: <span class="field-long">${formValues.referralFrom || ''}</span></div>
+            <div class="col">20. Nơi chuyển đến: <span class="field-long">${esc(formValues.referralFrom || '')}</span></div>
             <div class="col">23. Ra viện:</div>
           </div>
           <div class="row">
-            <div class="col">21. KKB, Cấp cứu: <span class="field-long">${formValues.emergencyDiagnosis || ''}</span></div>
-            <div class="col">+ Bệnh chính: <span class="field-long">${formValues.mainDiagnosis || formValues.diagnosis || ''}</span></div>
+            <div class="col">21. KKB, Cấp cứu: <span class="field-long">${esc(formValues.emergencyDiagnosis || '')}</span></div>
+            <div class="col">+ Bệnh chính: <span class="field-long">${esc(formValues.mainDiagnosis || formValues.diagnosis || '')}</span></div>
           </div>
           <div class="row">
-            <div class="col">22. Khi vào khoa điều trị: <span class="field-long">${formValues.admissionDiagnosis || ''}</span></div>
-            <div class="col">+ Bệnh kèm theo: <span class="field-long">${formValues.comorbidity || ''}</span></div>
+            <div class="col">22. Khi vào khoa điều trị: <span class="field-long">${esc(formValues.admissionDiagnosis || '')}</span></div>
+            <div class="col">+ Bệnh kèm theo: <span class="field-long">${esc(formValues.comorbidity || '')}</span></div>
           </div>
           ${isNgoaiKhoa ? `
           <div class="row">
-            <div class="col">+ Chẩn đoán trước phẫu thuật: <span class="field-long">${formValues.preOpDiagnosis || ''}</span></div>
+            <div class="col">+ Chẩn đoán trước phẫu thuật: <span class="field-long">${esc(formValues.preOpDiagnosis || '')}</span></div>
           </div>
           <div class="row">
-            <div class="col">+ Chẩn đoán sau phẫu thuật: <span class="field-long">${formValues.postOpDiagnosis || ''}</span></div>
+            <div class="col">+ Chẩn đoán sau phẫu thuật: <span class="field-long">${esc(formValues.postOpDiagnosis || '')}</span></div>
           </div>
           <div class="row">
-            <div>23. Tổng số ngày điều trị sau phẫu thuật: <span class="field">${formValues.postOpDays || ''}</span></div>
-            <div>24. Tổng số lần phẫu thuật: <span class="field">${formValues.surgeryCount || ''}</span></div>
+            <div>23. Tổng số ngày điều trị sau phẫu thuật: <span class="field">${esc(formValues.postOpDays || '')}</span></div>
+            <div>24. Tổng số lần phẫu thuật: <span class="field">${esc(formValues.surgeryCount || '')}</span></div>
           </div>
           ` : ''}
         </div>
@@ -167,15 +168,15 @@ export const buildMedicalRecordHtml = (
 
         <div class="section">
           <div class="section-title">A - BỆNH ÁN</div>
-          <div><strong>I. Lý do vào viện:</strong> <span class="field-long">${formValues.admissionReason || ''}</span> Vào ngày thứ <span class="field">${formValues.illnessDay || ''}</span> của bệnh</div>
+          <div><strong>I. Lý do vào viện:</strong> <span class="field-long">${esc(formValues.admissionReason || '')}</span> Vào ngày thứ <span class="field">${esc(formValues.illnessDay || '')}</span> của bệnh</div>
 
           <div><strong>II. Hỏi bệnh:</strong></div>
           <div>1. Quá trình bệnh lý: (khởi phát, diễn biến, chẩn đoán, điều trị của tuyến dưới v.v..)</div>
-          <div class="field-long" style="min-height: 80px;">${formValues.illnessHistory || ''}</div>
+          <div class="field-long" style="min-height: 80px;">${esc(formValues.illnessHistory || '')}</div>
 
           <div>2. Tiền sử bệnh:</div>
           <div>+ Bản thân: (phát triển thể lực từ nhỏ đến lớn, những bệnh đã mắc, phương pháp ĐTr, tiêm phòng, ăn uống, sinh hoạt vv...)</div>
-          <div class="field-long" style="min-height: 60px;">${formValues.personalHistory || ''}</div>
+          <div class="field-long" style="min-height: 60px;">${esc(formValues.personalHistory || '')}</div>
 
           <div>Đặc điểm liên quan bệnh:</div>
           <table>
@@ -184,79 +185,79 @@ export const buildMedicalRecordHtml = (
               <th>TT</th><th>Ký hiệu</th><th>Thời gian (tháng)</th>
             </tr>
             <tr>
-              <td>01</td><td>- Dị ứng (dị nguyên)</td><td>${formValues.allergy || ''}</td>
-              <td>04</td><td>- Thuốc lá</td><td>${formValues.smoking || ''}</td>
+              <td>01</td><td>- Dị ứng (dị nguyên)</td><td>${esc(formValues.allergy || '')}</td>
+              <td>04</td><td>- Thuốc lá</td><td>${esc(formValues.smoking || '')}</td>
             </tr>
             <tr>
-              <td>02</td><td>- Ma tuý</td><td>${formValues.drugs || ''}</td>
-              <td>05</td><td>- Thuốc lào</td><td>${formValues.tobacco || ''}</td>
+              <td>02</td><td>- Ma tuý</td><td>${esc(formValues.drugs || '')}</td>
+              <td>05</td><td>- Thuốc lào</td><td>${esc(formValues.tobacco || '')}</td>
             </tr>
             <tr>
-              <td>03</td><td>- Rượu bia</td><td>${formValues.alcohol || ''}</td>
-              <td>06</td><td>- Khác</td><td>${formValues.otherHabits || ''}</td>
+              <td>03</td><td>- Rượu bia</td><td>${esc(formValues.alcohol || '')}</td>
+              <td>06</td><td>- Khác</td><td>${esc(formValues.otherHabits || '')}</td>
             </tr>
           </table>
 
           <div>+ Gia đình: (Những người trong gia đình: bệnh đã mắc, đời sống, tinh thần, vật chất v.v...)</div>
-          <div class="field-long" style="min-height: 40px;">${formValues.familyHistory || ''}</div>
+          <div class="field-long" style="min-height: 40px;">${esc(formValues.familyHistory || '')}</div>
         </div>
 
         <div class="section">
           <div><strong>III - Khám bệnh:</strong></div>
           <div class="vital-signs">
-            Mạch: <span class="field">${formValues.pulse || ''}</span> lần/ph<br/>
-            Nhiệt độ: <span class="field">${formValues.temperature || ''}</span> °C<br/>
-            Huyết áp: <span class="field">${formValues.bloodPressure || ''}</span> mmHg<br/>
-            Nhịp thở: <span class="field">${formValues.respRate || ''}</span> lần/ph<br/>
-            Cân nặng: <span class="field">${formValues.weight || ''}</span> kg
+            Mạch: <span class="field">${esc(formValues.pulse || '')}</span> lần/ph<br/>
+            Nhiệt độ: <span class="field">${esc(formValues.temperature || '')}</span> °C<br/>
+            Huyết áp: <span class="field">${esc(formValues.bloodPressure || '')}</span> mmHg<br/>
+            Nhịp thở: <span class="field">${esc(formValues.respRate || '')}</span> lần/ph<br/>
+            Cân nặng: <span class="field">${esc(formValues.weight || '')}</span> kg
           </div>
           <div>1. Toàn thân: (ý thức, da niêm mạc, hệ thống hạch, tuyến giáp, vị trí, kích thước, số lượng, di động v.v)</div>
-          <div class="field-long" style="min-height: 60px;">${formValues.generalExam || ''}</div>
+          <div class="field-long" style="min-height: 60px;">${esc(formValues.generalExam || '')}</div>
 
           ${isNgoaiKhoa ? `
           <div>2. Bệnh ngoại khoa:</div>
-          <div class="field-long" style="min-height: 100px;">${formValues.surgicalExam || ''}</div>
+          <div class="field-long" style="min-height: 100px;">${esc(formValues.surgicalExam || '')}</div>
           ` : ''}
 
           <div>${isNgoaiKhoa ? '3' : '2'}. Các cơ quan:</div>
-          <div>+ Tuần hoàn: <span class="field-long">${formValues.cardiovascular || ''}</span></div>
-          <div>+ Hô hấp: <span class="field-long">${formValues.respiratory || ''}</span></div>
-          <div>+ Tiêu hoá: <span class="field-long">${formValues.digestive || ''}</span></div>
-          <div>+ Thận - Tiết niệu - Sinh dục: <span class="field-long">${formValues.urogenital || ''}</span></div>
-          <div>+ Thần Kinh: <span class="field-long">${formValues.neurological || ''}</span></div>
-          <div>+ Cơ - Xương - Khớp: <span class="field-long">${formValues.musculoskeletal || ''}</span></div>
-          <div>+ Tai - Mũi - Họng: <span class="field-long">${formValues.ent || ''}</span></div>
-          <div>+ Răng - Hàm - Mặt: <span class="field-long">${formValues.dental || ''}</span></div>
-          <div>+ Mắt: <span class="field-long">${formValues.eye || ''}</span></div>
-          <div>+ Nội tiết, dinh dưỡng và các bệnh lý khác: <span class="field-long">${formValues.other || ''}</span></div>
+          <div>+ Tuần hoàn: <span class="field-long">${esc(formValues.cardiovascular || '')}</span></div>
+          <div>+ Hô hấp: <span class="field-long">${esc(formValues.respiratory || '')}</span></div>
+          <div>+ Tiêu hoá: <span class="field-long">${esc(formValues.digestive || '')}</span></div>
+          <div>+ Thận - Tiết niệu - Sinh dục: <span class="field-long">${esc(formValues.urogenital || '')}</span></div>
+          <div>+ Thần Kinh: <span class="field-long">${esc(formValues.neurological || '')}</span></div>
+          <div>+ Cơ - Xương - Khớp: <span class="field-long">${esc(formValues.musculoskeletal || '')}</span></div>
+          <div>+ Tai - Mũi - Họng: <span class="field-long">${esc(formValues.ent || '')}</span></div>
+          <div>+ Răng - Hàm - Mặt: <span class="field-long">${esc(formValues.dental || '')}</span></div>
+          <div>+ Mắt: <span class="field-long">${esc(formValues.eye || '')}</span></div>
+          <div>+ Nội tiết, dinh dưỡng và các bệnh lý khác: <span class="field-long">${esc(formValues.other || '')}</span></div>
         </div>
 
         <div class="section">
           <div>${isNgoaiKhoa ? '4' : '3'}. Các xét nghiệm cận lâm sàng cần làm:</div>
-          <div class="field-long" style="min-height: 40px;">${formValues.labTests || ''}</div>
+          <div class="field-long" style="min-height: 40px;">${esc(formValues.labTests || '')}</div>
 
           <div>${isNgoaiKhoa ? '5' : '4'}. Tóm tắt bệnh án:</div>
-          <div class="field-long" style="min-height: 80px;">${formValues.summary || ''}</div>
+          <div class="field-long" style="min-height: 80px;">${esc(formValues.summary || '')}</div>
         </div>
 
         <div class="section">
           <div><strong>IV. Chẩn đoán khi vào khoa điều trị:</strong></div>
-          <div>+ Bệnh chính: <span class="field-long">${formValues.mainDiagnosis || formValues.diagnosis || ''}</span></div>
-          <div>+ Bệnh kèm theo (nếu có): <span class="field-long">${formValues.comorbidity || ''}</span></div>
-          <div>+ Phân biệt: <span class="field-long">${formValues.differentialDiagnosis || ''}</span></div>
+          <div>+ Bệnh chính: <span class="field-long">${esc(formValues.mainDiagnosis || formValues.diagnosis || '')}</span></div>
+          <div>+ Bệnh kèm theo (nếu có): <span class="field-long">${esc(formValues.comorbidity || '')}</span></div>
+          <div>+ Phân biệt: <span class="field-long">${esc(formValues.differentialDiagnosis || '')}</span></div>
         </div>
 
         <div class="section">
-          <div><strong>V. Tiên lượng:</strong> <span class="field-long">${formValues.prognosis || ''}</span></div>
-          <div><strong>VI. Hướng điều trị:</strong> <span class="field-long">${formValues.treatmentPlan || ''}</span></div>
+          <div><strong>V. Tiên lượng:</strong> <span class="field-long">${esc(formValues.prognosis || '')}</span></div>
+          <div><strong>VI. Hướng điều trị:</strong> <span class="field-long">${esc(formValues.treatmentPlan || '')}</span></div>
         </div>
 
         <div class="signature-row">
           <div></div>
           <div class="signature-box">
-            <div>Ngày <span class="field">${dayjs().format('DD')}</span> tháng <span class="field">${dayjs().format('MM')}</span> năm <span class="field">${dayjs().format('YYYY')}</span></div>
+            <div>Ngày <span class="field">${esc(dayjs().format('DD'))}</span> tháng <span class="field">${esc(dayjs().format('MM'))}</span> năm <span class="field">${esc(dayjs().format('YYYY'))}</span></div>
             <div class="signature-title">Bác sỹ làm bệnh án</div>
-            <div>Họ và tên: <span class="field">${formValues.doctorName || ''}</span></div>
+            <div>Họ và tên: <span class="field">${esc(formValues.doctorName || '')}</span></div>
           </div>
         </div>
 
@@ -277,10 +278,10 @@ export const buildMedicalRecordHtml = (
               <th>Bác sỹ gây mê</th>
             </tr>
             <tr>
-              <td>${formValues.surgeryDateTime || ''}</td>
-              <td>${formValues.surgeryMethod || ''}</td>
-              <td>${formValues.surgeonName || ''}</td>
-              <td>${formValues.anesthesiologistName || ''}</td>
+              <td>${esc(formValues.surgeryDateTime || '')}</td>
+              <td>${esc(formValues.surgeryMethod || '')}</td>
+              <td>${esc(formValues.surgeonName || '')}</td>
+              <td>${esc(formValues.anesthesiologistName || '')}</td>
             </tr>
           </table>
         </div>
@@ -322,36 +323,36 @@ export const buildTreatmentTrackingHtml = (formValues: Record<string, any>): str
       <body>
         <div class="header">
           <div class="header-left">
-            <div>Cơ sở KB, CB: <span class="field">${formValues.hospitalName || ''}</span></div>
-            <div>Khoa: <span class="field">${formValues.departmentName || ''}</span></div>
+            <div>Cơ sở KB, CB: <span class="field">${esc(formValues.hospitalName || '')}</span></div>
+            <div>Khoa: <span class="field">${esc(formValues.departmentName || '')}</span></div>
           </div>
           <div style="text-align: center;">
             <div style="font-weight: bold;">PHIẾU THEO DÕI ĐIỀU TRỊ</div>
-            <div>Tờ số: <span class="field">${formValues.sheetNumber || '1'}</span></div>
+            <div>Tờ số: <span class="field">${esc(formValues.sheetNumber || '1')}</span></div>
           </div>
           <div style="text-align: right;">
             <div><strong>MS: 36/BV2</strong></div>
-            <div>Số vào viện: <span class="field">${formValues.admissionCode || ''}</span></div>
-            <div>Mã người bệnh: <span class="field">${formValues.patientCode || ''}</span></div>
+            <div>Số vào viện: <span class="field">${esc(formValues.admissionCode || '')}</span></div>
+            <div>Mã người bệnh: <span class="field">${esc(formValues.patientCode || '')}</span></div>
           </div>
         </div>
 
         <div class="row">
-          Họ và tên người bệnh: <span class="field" style="width: 300px;">${formValues.patientName || ''}</span>
-          Tuổi: <span class="field">${formValues.age || ''}</span>
+          Họ và tên người bệnh: <span class="field" style="width: 300px;">${esc(formValues.patientName || '')}</span>
+          Tuổi: <span class="field">${esc(formValues.age || '')}</span>
           <span class="checkbox ${formValues.gender === 'Nam' ? 'checked' : ''}"></span>Nam
           <span class="checkbox ${formValues.gender === 'Nữ' ? 'checked' : ''}"></span>Nữ
         </div>
         <div class="row">
-          Khoa: <span class="field">${formValues.departmentName || ''}</span>
-          Phòng: <span class="field">${formValues.roomName || ''}</span>
-          Giường: <span class="field">${formValues.bedName || ''}</span>
+          Khoa: <span class="field">${esc(formValues.departmentName || '')}</span>
+          Phòng: <span class="field">${esc(formValues.roomName || '')}</span>
+          Giường: <span class="field">${esc(formValues.bedName || '')}</span>
         </div>
         <div class="row">
-          Chẩn đoán: <span class="field-long">${formValues.diagnosis || ''}</span>
+          Chẩn đoán: <span class="field-long">${esc(formValues.diagnosis || '')}</span>
         </div>
         <div class="row">
-          Chẩn đoán phân biệt: <span class="field-long">${formValues.differentialDiagnosis || ''}</span>
+          Chẩn đoán phân biệt: <span class="field-long">${esc(formValues.differentialDiagnosis || '')}</span>
         </div>
 
         <table>
@@ -365,9 +366,9 @@ export const buildTreatmentTrackingHtml = (formValues: Record<string, any>): str
           <tbody>
             ${(formValues.trackingEntries || []).map((entry: { time: string; progress: string; orders: string }) => `
               <tr>
-                <td>${entry.time || ''}</td>
-                <td style="white-space: pre-wrap;">${entry.progress || ''}</td>
-                <td style="white-space: pre-wrap;">${entry.orders || ''}</td>
+                <td>${esc(entry.time || '')}</td>
+                <td style="white-space: pre-wrap;">${esc(entry.progress || '')}</td>
+                <td style="white-space: pre-wrap;">${esc(entry.orders || '')}</td>
               </tr>
             `).join('') || `
               <tr><td style="height: 60px;"></td><td></td><td></td></tr>

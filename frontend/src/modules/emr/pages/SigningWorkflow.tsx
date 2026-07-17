@@ -6,9 +6,10 @@ import {
 } from '../api/signingWorkflow';
 import type { SigningRequestItem, SigningWorkflowStats } from '../api/signingWorkflow';
 import {
-  KpiStrip, TopTabs, DataTable, DrawerShell, DrSec, DrField, StatusBadge, Btn, Filter, Ico,
+  KpiStrip, TopTabs, DataTable, DrawerShell, DrSec, DrField, StatusBadge, Btn, Filter, SearchBox, Ico,
   tk, te, tw, cf, type ColumnDef, type TopTab,
 } from '../../../pages-v2/_v2kit';
+import { useDebounce } from '../../../hooks';
 
 type Tab = 'pending' | 'submitted' | 'history' | 'stats';
 const TABS: TopTab<Tab>[] = [
@@ -28,6 +29,20 @@ const STATUS_LABEL: Record<number, { label: string; tone: 'warn' | 'ok' | 'crit'
   2: { label: 'Từ chối',  tone: 'crit' },
   3: { label: 'Hủy',      tone: 'info' },
 };
+
+// #421: loại tài liệu chuẩn (labels đồng bộ v1 DOCUMENT_TYPE_LABELS) — backend filter DocumentType
+const DOC_TYPE_OPTIONS = [
+  { v: 'TreatmentSheet',   l: 'Phiếu điều trị' },
+  { v: 'NursingCare',      l: 'Phiếu chăm sóc' },
+  { v: 'Prescription',     l: 'Đơn thuốc' },
+  { v: 'LabReport',        l: 'Kết quả XN' },
+  { v: 'RadiologyReport',  l: 'Kết quả CĐHA' },
+  { v: 'DischargeSummary', l: 'Giấy ra viện' },
+  { v: 'SurgeryRecord',    l: 'Phiếu phẫu thuật' },
+  { v: 'Consultation',     l: 'Biên bản hội chẩn' },
+  { v: 'MedicalRecord',    l: 'Hồ sơ bệnh án' },
+  { v: 'Other',            l: 'Khác' },
+];
 
 // Danh sách vai trò ký chuẩn để hiển thị trong dropdown filter
 const SIGNER_ROLE_OPTIONS = [
@@ -50,6 +65,10 @@ const SigningWorkflowV2: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<SigningRequestItem | null>(null);
   const [fSignerRole, setFSignerRole] = useState('');
+  // #421: search keyword + filter documentType (server-side — SigningRequestSearchDto sẵn hỗ trợ)
+  const [keyword, setKeyword] = useState('');
+  const debouncedKeyword = useDebounce(keyword, 400);
+  const [fDocType, setFDocType] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchApproving, setBatchApproving] = useState(false);
 
@@ -60,15 +79,18 @@ const SigningWorkflowV2: React.FC = () => {
         const fn = tab === 'pending' ? getPendingRequests
           : tab === 'submitted' ? getSubmittedRequests
           : getHistory;
-        const params = fSignerRole ? { signerRole: fSignerRole } : undefined;
-        const list = await fn(params);
+        const params: Record<string, unknown> = {};
+        if (fSignerRole) params.signerRole = fSignerRole;
+        if (fDocType) params.documentType = fDocType;
+        if (debouncedKeyword.trim()) params.keyword = debouncedKeyword.trim();
+        const list = await fn(Object.keys(params).length ? params : undefined);
         setItems(Array.isArray(list) ? list : []);
       }
       const s = await getSigningStats().catch(() => null);
       setStats(s);
     } catch { setItems([]); }
     finally { setLoading(false); }
-  }, [tab, fSignerRole]);
+  }, [tab, fSignerRole, fDocType, debouncedKeyword]);
   useEffect(() => { load(); }, [load]);
 
   const counts = useMemo(() => ({
@@ -215,15 +237,24 @@ const SigningWorkflowV2: React.FC = () => {
       <div className="ab-tools">
         <TopTabs tab={tab} setTab={(v) => { setTab(v); setSelected(new Set()); }} tabs={TABS} />
         {tab !== 'stats' && (
-          <Filter
-            value={fSignerRole}
-            onChange={(v) => setFSignerRole(v)}
-            options={SIGNER_ROLE_OPTIONS}
-            placeholder="▾ Vai trò người ký"
-          />
+          <>
+            <SearchBox value={keyword} onChange={setKeyword} placeholder="Tìm tiêu đề / bệnh nhân…" />
+            <Filter
+              value={fDocType}
+              onChange={(v) => setFDocType(v)}
+              options={DOC_TYPE_OPTIONS}
+              placeholder="▾ Loại tài liệu"
+            />
+            <Filter
+              value={fSignerRole}
+              onChange={(v) => setFSignerRole(v)}
+              options={SIGNER_ROLE_OPTIONS}
+              placeholder="▾ Vai trò người ký"
+            />
+          </>
         )}
-        {tab !== 'stats' && fSignerRole && (
-          <Btn variant="ghost" onClick={() => setFSignerRole('')}>
+        {tab !== 'stats' && (fSignerRole || fDocType || keyword) && (
+          <Btn variant="ghost" onClick={() => { setFSignerRole(''); setFDocType(''); setKeyword(''); }}>
             <Ico name="x" size={12} /> Bỏ lọc
           </Btn>
         )}

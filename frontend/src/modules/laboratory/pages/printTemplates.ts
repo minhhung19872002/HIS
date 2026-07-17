@@ -5,12 +5,13 @@
  */
 import dayjs from 'dayjs';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
+import { escapeHtml as esc } from '../../../utils/printWindow';
 import type { LabRequest } from '../api/laboratory';
 
 /** Nhãn barcode dán mẫu — local fallback khi API printBarcode lỗi. */
 export const buildBarcodeLabelHtml = (record: LabRequest, barcode: string): string => `
         <!DOCTYPE html>
-        <html><head><title>Nhãn Barcode - ${barcode}</title>
+        <html><head><title>Nhãn Barcode - ${esc(barcode)}</title>
         <style>
           body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
           .label { border: 2px solid #000; padding: 15px; display: inline-block; min-width: 250px; }
@@ -21,12 +22,12 @@ export const buildBarcodeLabelHtml = (record: LabRequest, barcode: string): stri
         </style></head>
         <body>
           <div class="label">
-            <div style="font-weight: bold; font-size: 11px;">${HOSPITAL_NAME}</div>
-            <div class="barcode">||||| ${barcode} |||||</div>
-            <div class="code"><strong>${barcode}</strong></div>
-            <div class="patient">${record.patientName} - ${record.patientCode}</div>
-            <div class="patient">${record.requestedTests?.join(', ') || ''}</div>
-            <div class="patient">${dayjs().format('DD/MM/YYYY HH:mm')}</div>
+            <div style="font-weight: bold; font-size: 11px;">${esc(HOSPITAL_NAME)}</div>
+            <div class="barcode">||||| ${esc(barcode)} |||||</div>
+            <div class="code"><strong>${esc(barcode)}</strong></div>
+            <div class="patient">${esc(record.patientName)} - ${esc(record.patientCode)}</div>
+            <div class="patient">${esc(record.requestedTests?.join(', ') || '')}</div>
+            <div class="patient">${esc(dayjs().format('DD/MM/YYYY HH:mm'))}</div>
           </div>
         </body></html>
 `;
