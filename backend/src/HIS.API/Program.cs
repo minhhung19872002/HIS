@@ -37,6 +37,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 // được reference API).
 builder.Services.AddHostedService<HIS.API.Workers.DailyDemoSeedWorker>();
 builder.Services.AddHostedService<HIS.API.Workers.TokenCleanupWorker>(); // #422: dọn RefreshTokens/UserSessions hết hạn
+builder.Services.AddHostedService<HIS.API.Workers.DelegationExpiryWorker>(); // #370: auto-expire ủy quyền tạm (gated Auth:DelegationEnabled, mặc định OFF)
 
 // #371 inc-2: Channel<AuditLog> — bounded 2000, DropOldest (giữ bộ nhớ ổn định dưới burst).
 // AuditWriterWorker đọc + batch-write; AuditLogMiddleware enqueue qua ChannelWriter (TryWrite, non-blocking).

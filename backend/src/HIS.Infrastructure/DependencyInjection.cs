@@ -50,6 +50,7 @@ public static class DependencyInjection
         services.AddScoped<IModulePackagingService, ModulePackagingService>(); // #405 module packaging
         services.AddScoped<ITreatmentRelationshipService, TreatmentRelationshipService>(); // AUTHZ-3 #369
         services.AddScoped<ISoDService, SoDService>(); // AUTHZ-4 #370 (grant-time SoD, kill-switch OFF)
+        services.AddScoped<IDelegationService, DelegationService>(); // AUTHZ-4 #370 (delegation resolve + expiry, kill-switch OFF)
         services.AddScoped<IPatientService, PatientService>();
 
         // Phân hệ 1: Tiếp đón (Reception) - 105+ methods
