@@ -92,6 +92,13 @@ public class RefreshTokenService : IRefreshTokenService
             if (benignRace)
                 return new RefreshRotationResult { Ok = false, UserId = token.UserId, FailReason = "rotated_race" };
 
+            // #384: reuse-detection CHỈ áp cho replay chuỗi rotation ("rotated" ngoài leeway = nghi trộm).
+            // Token bị thu hồi bởi CHÍNH SÁCH (new_login last-wins / logout / password_changed / user_inactive /
+            // reuse_detected trước đó) mà thiết bị cũ auto-refresh lại → hành vi DỰ KIẾN của client stale,
+            // KHÔNG phải bằng chứng trộm → fail mềm, KHÔNG revoke family (tránh ping-pong đá thiết bị MỚI).
+            if (token.ReasonRevoked != "rotated")
+                return new RefreshRotationResult { Ok = false, UserId = token.UserId, FailReason = "session_ended" };
+
             _logger.LogWarning("RefreshToken REUSE detected user={UserId} — revoking family", token.UserId);
             await RevokeAllForUserAsync(token.UserId, "reuse_detected");
             return new RefreshRotationResult { Ok = false, ReuseDetected = true, UserId = token.UserId, FailReason = "reuse_detected" };

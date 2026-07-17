@@ -18,6 +18,17 @@ const Login: React.FC = () => {
   const [otpValue, setOtpValue] = React.useState('');
   const [resendCooldown, setResendCooldown] = React.useState(0);
 
+  // #384: bị đá do đăng nhập nơi khác (SESSION_INVALIDATED từ apiClient) → thông báo rõ
+  // thay vì im lặng như token hết hạn thường.
+  React.useEffect(() => {
+    try {
+      if (sessionStorage.getItem('logout_reason') === 'SESSION_INVALIDATED') {
+        sessionStorage.removeItem('logout_reason');
+        message.warning('Tài khoản của bạn vừa đăng nhập ở nơi khác — phiên này đã bị đăng xuất.', 8);
+      }
+    } catch { /* private-mode */ }
+  }, []);
+
   // Countdown timer for resend
   React.useEffect(() => {
     if (resendCooldown <= 0) return;

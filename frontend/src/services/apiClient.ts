@@ -80,6 +80,19 @@ apiClient.interceptors.response.use(
       // không redirect về /login chính kể cả khi call nền (notification poll) bị 401.
       const onInspectorPortal = window.location.pathname.startsWith('/inspector-portal');
       if (!onInspectorPortal) {
+        // #384: phiên bị chấm dứt (đăng nhập nơi khác last-wins / đổi mật khẩu / admin đá) —
+        // refresh token cũng đã bị thu hồi → bỏ qua refresh, lưu lý do cho trang /login hiển thị.
+        const bodyCode = (error.response?.data as { code?: string } | undefined)?.code;
+        if (bodyCode === 'SESSION_INVALIDATED') {
+          try { sessionStorage.setItem('logout_reason', 'SESSION_INVALIDATED'); } catch { /* private-mode */ }
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('refreshToken');
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+          return Promise.reject(error);
+        }
         const original = error.config as RetriableConfig | undefined;
         const url = String(original?.url || '');
         // Không refresh cho chính các endpoint auth (login sai mật khẩu, OTP sai…)

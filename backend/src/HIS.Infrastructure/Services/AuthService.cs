@@ -89,8 +89,8 @@ public class AuthService : IAuthService
 
         await _context.SaveChangesAsync();
 
-        // Normal login (no 2FA)
-        var stamp = await EnsureSecurityStampAsync(user);
+        // Normal login (no 2FA) — #384: last-wins đá phiên cũ
+        var stamp = await ApplySingleSessionPolicyAsync(user);
         var userDto = _mapper.Map<UserDto>(user);
         var token = GenerateJwtToken(userDto, stamp);
         var expireMinutes = int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "60");
@@ -147,7 +147,8 @@ public class AuthService : IAuthService
         if (user == null)
             return null;
 
-        var stamp = await EnsureSecurityStampAsync(user);
+        // #384: last-wins đá phiên cũ (luồng OTP)
+        var stamp = await ApplySingleSessionPolicyAsync(user);
         var userDto = _mapper.Map<UserDto>(user);
         var token = GenerateJwtToken(userDto, stamp);
         var expireMinutes = int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "60");
@@ -475,7 +476,8 @@ public class AuthService : IAuthService
         user.LastLoginAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        var stamp = await EnsureSecurityStampAsync(user);
+        // #384: last-wins đá phiên cũ (luồng WebAuthn)
+        var stamp = await ApplySingleSessionPolicyAsync(user);
         var userDto = _mapper.Map<UserDto>(user);
         var token = GenerateJwtToken(userDto, stamp);
         var expireMinutes = int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "60");
@@ -521,6 +523,23 @@ public class AuthService : IAuthService
 
     // AUTHZ-2 (#368): security stamp = 32 hex ngẫu nhiên (không lộ thông tin). Đổi = mọi token cũ hết hiệu lực.
     private static string NewSecurityStamp() => Guid.NewGuid().ToString("N");
+
+    /// <summary>
+    /// #384: chính sách concurrent-login LAST-WINS — login mới thu hồi TOÀN BỘ refresh token cũ
+    /// + xoay SecurityStamp → thiết bị cũ 401 (SESSION_INVALIDATED) trong ≤ TTL cache stamp (30s).
+    /// Tắt qua config `Auth:SingleSessionPerUser=false` (mặc định BẬT theo #384).
+    /// </summary>
+    private async Task<string> ApplySingleSessionPolicyAsync(User user)
+    {
+        var enabled = !bool.TryParse(_configuration["Auth:SingleSessionPerUser"], out var b) || b;
+        if (!enabled) return await EnsureSecurityStampAsync(user);
+
+        await _refreshTokens.RevokeAllForUserAsync(user.Id, "new_login");
+        user.SecurityStamp = NewSecurityStamp();
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return user.SecurityStamp;
+    }
 
     /// <summary>Đảm bảo user có SecurityStamp (user cũ trước migration có thể NULL) — set + lưu nếu thiếu. Trả về stamp.</summary>
     private async Task<string> EnsureSecurityStampAsync(User user)

@@ -172,13 +172,34 @@ builder.Services.AddAuthentication(options =>
                 cache.Set(cacheKey, fresh, TimeSpan.FromSeconds(secStampCacheSeconds));
 
                 if (fresh == null || !fresh.IsActive) { context.Fail("user inactive"); return; }
-                if (!string.Equals(fresh.Stamp, stampClaim, StringComparison.Ordinal)) { context.Fail("token revoked"); return; }
+                if (!string.Equals(fresh.Stamp, stampClaim, StringComparison.Ordinal))
+                {
+                    // #384: stamp xoay = phiên bị chấm dứt (login nơi khác last-wins / đổi mật khẩu /
+                    // admin terminate) → gắn cờ để OnChallenge trả body SESSION_INVALIDATED cho FE
+                    // phân biệt với 401 hết-hạn thường.
+                    context.HttpContext.Items["auth_challenge_code"] = "SESSION_INVALIDATED";
+                    context.Fail("token revoked");
+                    return;
+                }
             }
             catch (Exception ex)
             {
                 // Fail-OPEN: DB trục trặc KHÔNG nên đánh sập toàn bộ auth (token đã hợp lệ chữ ký + chưa hết hạn).
                 services.GetService<ILoggerFactory>()?.CreateLogger("AuthZ2")
                     .LogWarning(ex, "SecurityStamp check failed-open user={UserId}", userId);
+            }
+        },
+        // #384: 401 do phiên bị chấm dứt → body JSON có code để FE hiện thông báo đúng
+        // ("đăng nhập nơi khác") thay vì im lặng như hết-hạn thường. Các 401 khác giữ nguyên.
+        OnChallenge = async context =>
+        {
+            if (context.HttpContext.Items.TryGetValue("auth_challenge_code", out var code) && code is string s)
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json; charset=utf-8";
+                await context.Response.WriteAsync(
+                    "{\"success\":false,\"code\":\"" + s + "\",\"message\":\"Phiên đăng nhập đã bị chấm dứt (tài khoản vừa đăng nhập ở nơi khác hoặc đổi mật khẩu).\"}");
             }
         }
     };
