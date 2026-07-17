@@ -36,6 +36,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 // reuse trực tiếp DailySeedController/PopulateDataController (Infrastructure không
 // được reference API).
 builder.Services.AddHostedService<HIS.API.Workers.DailyDemoSeedWorker>();
+builder.Services.AddHostedService<HIS.API.Workers.TokenCleanupWorker>(); // #422: dọn RefreshTokens/UserSessions hết hạn
 
 // Controllers
 builder.Services.AddControllers(options =>
