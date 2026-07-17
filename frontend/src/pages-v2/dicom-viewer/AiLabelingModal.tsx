@@ -9,7 +9,7 @@ import {
 } from 'antd';
 import { RobotOutlined, CheckOutlined, CloseOutlined, HistoryOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { storage, STORAGE_KEYS } from '../../../services/storage.service';
+import { storage, STORAGE_KEYS } from '../../services/storage.service';
 import {
   getAiHistoryByStudy,
   getModelConfig,
@@ -18,8 +18,8 @@ import {
   type AiLabel,
   type AiModelConfig,
   type AiResultDto,
-} from '../api/aiLabeling';
-import { runInference, computeOcclusionHeatmaps, type InferenceResult } from '../../../services/aiLabeling.service';
+} from '../../modules/radiology/api/aiLabeling';
+import { runInference, computeOcclusionHeatmaps, type InferenceResult } from '../../services/aiLabeling.service';
 
 const { Text, Title } = Typography;
 

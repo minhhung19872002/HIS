@@ -11,7 +11,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { message, Spin } from 'antd';
-import TermIcon from '../../../components/layout/terminal/Icon';
+import TermIcon from '../../components/layout/terminal/Icon';
 
 let csInitialized = false;
 let csInitPromise: Promise<void> | null = null;
