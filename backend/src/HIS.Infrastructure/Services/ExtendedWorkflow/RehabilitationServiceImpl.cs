@@ -125,6 +125,22 @@ public class RehabilitationServiceImpl : IRehabilitationService
         return list.Select(e => new FunctionalAssessmentDto { Id = e.Id, ReferralId = e.ReferralId, AssessmentDate = e.AssessmentDate, BarthelIndex = e.BarthelIndex }).ToList();
     }
 
+    public async Task<List<RehabTreatmentPlanDto>> GetActivePlansAsync()
+    {
+        var list = await _context.RehabTreatmentPlans.Include(x => x.Referral).ThenInclude(x => x!.Patient)
+            .Where(x => x.Status == "Active").OrderByDescending(x => x.StartDate)
+            .ToBoundedListAsync("Rehabilitation.ActivePlans");
+        return list.Select(e => new RehabTreatmentPlanDto
+        {
+            Id = e.Id, PlanCode = e.PlanCode, ReferralId = e.ReferralId,
+            PatientId = e.Referral?.PatientId ?? Guid.Empty,
+            PatientName = e.Referral?.Patient?.FullName ?? "",
+            RehabType = e.RehabType,
+            PlannedTotalSessions = e.PlannedSessions, CompletedSessions = e.CompletedSessions,
+            Status = e.Status, StartDate = e.StartDate, ExpectedEndDate = e.ExpectedEndDate
+        }).ToList();
+    }
+
     public async Task<RehabTreatmentPlanDto> GetTreatmentPlanAsync(Guid id)
     {
         var e = await _context.RehabTreatmentPlans.Include(x => x.Referral).ThenInclude(x => x!.Patient).FirstOrDefaultAsync(x => x.Id == id);
@@ -458,7 +474,11 @@ public class RehabilitationServiceImpl : IRehabilitationService
     private static RehabSessionDto MapToRehabSessionDto(RehabSession e) => new()
     {
         Id = e.Id, TreatmentPlanId = e.TreatmentPlanId, SessionNumber = e.SessionNumber, ScheduledDate = e.SessionDate,
-        ScheduledTime = e.StartTime, TherapistName = e.Therapist?.FullName ?? "", Status = e.Status, ProgressNotes = e.ProgressNotes
+        ScheduledTime = e.StartTime, ScheduledDuration = e.DurationMinutes ?? 0,
+        TherapistName = e.Therapist?.FullName ?? "", Status = e.Status, ProgressNotes = e.ProgressNotes,
+        PatientId = e.TreatmentPlan?.Referral?.PatientId ?? Guid.Empty,
+        PatientName = e.TreatmentPlan?.Referral?.Patient?.FullName ?? "",
+        PatientResponse = e.PatientResponse, CancellationReason = e.CancellationReason
     };
 }
 

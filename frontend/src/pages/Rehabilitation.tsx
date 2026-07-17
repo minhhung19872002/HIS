@@ -246,7 +246,7 @@ const Rehabilitation: React.FC = () => {
       const dto: CreateTreatmentPlanDto = {
         referralId: selectedReferral.id,
         assessmentId: '', // Will be resolved by backend from referral
-        diagnosis: selectedReferral.diagnosis,
+        diagnosis: selectedReferral.diagnosis || selectedReferral.primaryDiagnosis || '',
         diagnosisIcd: selectedReferral.diagnosisIcd,
         precautions: selectedReferral.precautions,
         contraindications: selectedReferral.contraindications,
@@ -285,7 +285,7 @@ const Rehabilitation: React.FC = () => {
 
   const handleAcceptReferral = async (referral: RehabReferralDto) => {
     try {
-      await acceptReferral(referral.id, dayjs().add(1, 'day').format('YYYY-MM-DD'));
+      await acceptReferral(referral.id);
       message.success('Đã tiếp nhận chỉ định');
       fetchData();
     } catch (err) {
@@ -693,7 +693,8 @@ const Rehabilitation: React.FC = () => {
                     onRow={(record) => ({
                       onDoubleClick: () => {
                         setSelectedReferral(record);
-                        if (record.status <= 1) {
+                        const st = String(record.status ?? '').toLowerCase();
+                        if (st === '0' || st === '1' || st === 'pending' || st === 'accepted') {
                           setIsAssessmentModalOpen(true);
                         } else {
                           setIsPlanModalOpen(true);

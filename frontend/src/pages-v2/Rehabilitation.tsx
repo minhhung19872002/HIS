@@ -114,6 +114,11 @@ const SESS_STATUS_TABS = [
   { v: 'noshow' as SessStatusKey,    l: 'Không đến',   tone: 'crit' as const },
 ];
 
+// backend RehabSessionDto trả scheduledDate/scheduledTime ("HH:mm:ss") — fallback field legacy nếu có (#418)
+const sessTime = (r: TreatmentSessionDto) => String(r.scheduledTime || r.startTime || '').slice(0, 5);
+const sessDay = (r: TreatmentSessionDto) => r.scheduledDate || r.sessionDate;
+const sessDuration = (r: TreatmentSessionDto) => r.actualDuration ?? r.scheduledDuration ?? r.duration ?? 0;
+
 const sessKey = (st: string | number | undefined): SessStatusKey => {
   const k = String(st ?? '').toLowerCase();
   if (k === 'completed' || k === '2') return 'completed';
@@ -356,8 +361,8 @@ const RehabilitationV2: React.FC = () => {
   const sessCols: ColumnDef<TreatmentSessionDto>[] = [
     { key: 'time', label: 'Giờ', mono: true, render: (r) => (
       <div>
-        <div style={{ fontWeight: 600 }}>{r.startTime}</div>
-        {r.duration ? <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{r.duration} phút</div> : null}
+        <div style={{ fontWeight: 600 }}>{sessTime(r) || '—'}</div>
+        {sessDuration(r) ? <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{sessDuration(r)} phút</div> : null}
       </div>
     ) },
     { key: 'pt', label: 'Bệnh nhân', render: (r) => (
@@ -431,7 +436,7 @@ const RehabilitationV2: React.FC = () => {
     if (!cancelTarget) return;
     setCancelSaving(true);
     try {
-      if (cancelKind === 'noshow') await markNoShow(cancelTarget.id, cancelReason || undefined);
+      if (cancelKind === 'noshow') await markNoShow(cancelTarget.id);
       else await cancelSession(cancelTarget.id, cancelReason || 'Huỷ bởi KTV');
       tk(cancelKind === 'noshow' ? 'Đã đánh dấu không đến' : 'Đã huỷ buổi tập');
       setCancelTarget(null);
@@ -686,7 +691,7 @@ const RehabilitationV2: React.FC = () => {
             onClose={() => setSelSession(null)}
             size="md"
             title={selSession ? (selSession.sessionNumber ? `Buổi #${selSession.sessionNumber}` : selSession.sessionCode || 'Buổi tập') : ''}
-            sub={selSession ? `${selSession.patientName || '—'} · ${dayjs(selSession.sessionDate).format('DD/MM/YYYY')}` : ''}
+            sub={selSession ? `${selSession.patientName || '—'} · ${dayjs(sessDay(selSession)).format('DD/MM/YYYY')}` : ''}
             footer={<>
               <Btn variant="ghost" onClick={() => setSelSession(null)}>Đóng</Btn>
               {selSession && (sessKey(selSession.status) === 'scheduled' || sessKey(selSession.status) === 'active') && <>
@@ -703,8 +708,8 @@ const RehabilitationV2: React.FC = () => {
               <DrSec title="Buổi tập">
                 <DrField lbl="Bệnh nhân">{selSession.patientName || '—'}</DrField>
                 <DrField lbl="KTV">{selSession.therapistName || '—'}</DrField>
-                <DrField lbl="Ngày">{dayjs(selSession.sessionDate).format('DD/MM/YYYY')}</DrField>
-                <DrField lbl="Giờ">{selSession.startTime}{selSession.endTime ? ` – ${selSession.endTime}` : ''}</DrField>
+                <DrField lbl="Ngày">{dayjs(sessDay(selSession)).format('DD/MM/YYYY')}</DrField>
+                <DrField lbl="Giờ">{sessTime(selSession) || '—'}{selSession.actualEndTime ? ` – ${dayjs(selSession.actualEndTime).format('HH:mm')}` : ''}</DrField>
                 <DrField lbl="Địa điểm">{selSession.location || '—'}</DrField>
                 <DrField lbl="Trạng thái">
                   <StatusBadge tone={SESS_STATUS_TABS.find((x) => x.v === sessKey(selSession.status))?.tone || 'info'} dot>
@@ -726,7 +731,7 @@ const RehabilitationV2: React.FC = () => {
             open={completeOpen}
             onClose={() => setCompleteOpen(false)}
             title="Ghi nhận kết quả buổi tập"
-            sub={completeTarget ? `${completeTarget.patientName || '—'} · ${completeTarget.startTime || ''}` : ''}
+            sub={completeTarget ? `${completeTarget.patientName || '—'} · ${sessTime(completeTarget)}` : ''}
             fields={SESSION_COMPLETE_FIELDS}
             initial={completeInit}
             size="sm"
@@ -756,7 +761,7 @@ const RehabilitationV2: React.FC = () => {
             open={!!cancelTarget}
             onClose={() => setCancelTarget(null)}
             title={cancelKind === 'noshow' ? 'Đánh dấu không đến' : 'Huỷ buổi tập'}
-            sub={cancelTarget ? `${cancelTarget.patientName || '—'} · ${cancelTarget.startTime || ''}` : ''}
+            sub={cancelTarget ? `${cancelTarget.patientName || '—'} · ${sessTime(cancelTarget)}` : ''}
             size="sm"
             footer={<>
               <Btn variant="ghost" onClick={() => setCancelTarget(null)}>Đóng</Btn>
@@ -792,7 +797,7 @@ const RehabilitationV2: React.FC = () => {
                   placeholder="— Chọn bệnh nhân / kế hoạch —"
                   showSearch
                   optionFilterProp="label"
-                  options={plans.map((p) => ({ value: p.id, label: `${p.patientName} · ${p.rehabTypeName || p.rehabType}` }))}
+                  options={plans.map((p) => ({ value: p.id, label: `${p.patientName || '—'} · ${p.planCode || p.rehabType || ''}` }))}
                 />
               </FormRow>
               <div style={{ display: 'flex', gap: 'var(--space-12)' }}>

@@ -169,6 +169,7 @@ namespace HIS.Application.Services
         Task<List<FunctionalAssessmentDto>> GetAssessmentHistoryAsync(Guid referralId);
 
         // Treatment Plan
+        Task<List<RehabTreatmentPlanDto>> GetActivePlansAsync();
         Task<RehabTreatmentPlanDto> GetTreatmentPlanAsync(Guid id);
         Task<RehabTreatmentPlanDto> CreateTreatmentPlanAsync(CreateTreatmentPlanDto dto);
         Task<RehabTreatmentPlanDto> UpdateTreatmentPlanAsync(Guid id, CreateTreatmentPlanDto dto);

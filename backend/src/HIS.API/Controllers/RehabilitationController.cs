@@ -64,6 +64,10 @@ namespace HIS.API.Controllers
         public async Task<ActionResult<List<RehabReferralDto>>> GetTreatmentPlansList()
             => Ok(await _service.GetPendingReferralsAsync());
 
+        [HttpGet("treatment-plans/active")]
+        public async Task<ActionResult<List<RehabTreatmentPlanDto>>> GetActiveTreatmentPlans()
+            => Ok(await _service.GetActivePlansAsync());
+
         [HttpGet("treatment-plans/{id}")]
         public async Task<ActionResult<RehabTreatmentPlanDto>> GetTreatmentPlan(Guid id)
             => Ok(await _service.GetTreatmentPlanAsync(id));

@@ -102,6 +102,12 @@ namespace HIS.Application.Services
         }
 
         // Treatment Plan
+        public async Task<List<RehabTreatmentPlanDto>> GetActivePlansAsync()
+        {
+            _logger.LogInformation("Getting active treatment plans");
+            return new List<RehabTreatmentPlanDto>();
+        }
+
         public async Task<RehabTreatmentPlanDto> GetTreatmentPlanAsync(Guid id)
         {
             _logger.LogInformation("Getting treatment plan {Id}", id);

@@ -172,6 +172,7 @@ namespace HIS.Application.DTOs.Rehabilitation
         public Guid PatientId { get; set; }
         public string PatientName { get; set; }
         public Guid AssessmentId { get; set; }
+        public string RehabType { get; set; } // PT, OT, ST
 
         // Goals (SMART)
         public List<RehabGoalDto> ShortTermGoals { get; set; }
