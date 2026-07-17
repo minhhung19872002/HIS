@@ -429,6 +429,29 @@ export interface RefundItemDto {
   reason?: string;
 }
 
+/** #419: một dòng dịch vụ/thuốc đã thanh toán còn hoàn được */
+export interface RefundableItemDto {
+  id: string;
+  itemType: 'service' | 'medicine';
+  name: string;
+  quantity: number;
+  amount: number;
+  patientAmount: number;
+  patientType: number; // 1-BHYT, 2-Viện phí, 3-Dịch vụ
+  hasResult: boolean;
+  isDispensed: boolean;
+}
+
+/** #419: phiếu thanh toán của BN (chọn phiếu gốc khi hoàn RefundType=2) */
+export interface PatientPaymentBriefDto {
+  id: string;
+  receiptCode: string;
+  receiptDate: string;
+  finalAmount: number;
+  paymentMethod: number;
+  note?: string;
+}
+
 export interface ApproveRefundDto {
   refundId: string;
   isApproved: boolean;
@@ -1221,6 +1244,16 @@ export const checkPaymentStatus = (medicalRecordId: string) =>
 // #endregion
 
 // #region 10.1.5 Hoàn ứng
+
+/** #419: dịch vụ/thuốc đã thanh toán còn hoàn được (modal hoàn trả chi tiết) */
+export const getRefundableItems = (patientId: string, medicalRecordId?: string) =>
+  apiClient.get<RefundableItemDto[]>(`${BASE_URL}/refundable-items`, {
+    params: { patientId, medicalRecordId },
+  });
+
+/** #419: phiếu thanh toán hợp lệ của BN (chọn phiếu gốc khi hoàn) */
+export const getPatientPayments = (patientId: string) =>
+  apiClient.get<PatientPaymentBriefDto[]>(`${BASE_URL}/payments/patient/${patientId}`);
 
 export const createRefund = (dto: CreateRefundDto) =>
   apiClient.post<RefundDto>(`${BASE_URL}/refunds`, dto);

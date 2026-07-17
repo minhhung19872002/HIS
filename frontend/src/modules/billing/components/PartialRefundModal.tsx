@@ -8,8 +8,10 @@ import {
   Modal, Form, Input, Radio, Table, Alert, Tag, Space, message,
   Typography, Select,
 } from 'antd';
-import apiClient from '../../../services/apiClient';
-import { createRefund } from '../api/billing';
+import {
+  createRefund, getRefundableItems, getPatientPayments,
+  type RefundableItemDto, type PatientPaymentBriefDto,
+} from '../api/billing';
 
 const { Text } = Typography;
 
@@ -23,17 +25,7 @@ interface Props {
   medicalRecordId?: string;
 }
 
-interface ServiceRow {
-  id: string;
-  itemType: 'service' | 'medicine';
-  name: string;
-  quantity: number;
-  amount: number;
-  patientAmount: number;
-  patientType: number;
-  hasResult: boolean;
-  isDispensed: boolean;
-}
+type ServiceRow = RefundableItemDto;
 
 export default function PartialRefundModal({
   open, onClose, onSuccess, patientId, patientName, originalPaymentId, medicalRecordId,
@@ -47,21 +39,33 @@ export default function PartialRefundModal({
     bankName?: string;
   }>();
   const [rows, setRows] = useState<ServiceRow[]>([]);
+  const [payments, setPayments] = useState<PatientPaymentBriefDto[]>([]);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | undefined>(originalPaymentId);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const loadRefundableItems = async () => {
+  const loadData = async () => {
     if (!patientId) return;
     setLoading(true);
     try {
-      // Gọi API liệt kê dịch vụ + thuốc có thể hoàn
-      const { data } = await apiClient.get<ServiceRow[]>('/billingcomplete/refundable-items', {
-        params: { patientId, medicalRecordId },
-      }).catch(() => ({ data: [] as ServiceRow[] }));
-      setRows(data);
+      // #419: interceptor apiClient đã unwrap envelope — nhận payload trực tiếp
+      const [items, pays] = await Promise.all([
+        getRefundableItems(patientId, medicalRecordId).catch(() => ({ data: [] as RefundableItemDto[] })),
+        getPatientPayments(patientId).catch(() => ({ data: [] as PatientPaymentBriefDto[] })),
+      ]);
+      setRows(Array.isArray(items.data) ? items.data : []);
+      const payList = Array.isArray(pays.data) ? pays.data : [];
+      setPayments(payList);
+      // Mặc định: prop truyền vào (nếu có trong list) > phiếu mới nhất
+      setSelectedPaymentId(
+        originalPaymentId && payList.some(p => p.id === originalPaymentId)
+          ? originalPaymentId
+          : payList[0]?.id,
+      );
     } catch {
       setRows([]);
+      setPayments([]);
     } finally { setLoading(false); }
   };
 
@@ -70,16 +74,22 @@ export default function PartialRefundModal({
       form.resetFields();
       form.setFieldsValue({ refundType: 2, mode: 'full', refundMethod: 1 });
       setSelectedIds(new Set());
-      loadRefundableItems();
+      loadData();
     }
   }, [open, patientId]);
 
+  const selectedPayment = payments.find(p => p.id === selectedPaymentId);
   const selectedItems = rows.filter(r => selectedIds.has(r.id));
   const totalSelected = selectedItems.reduce((sum, r) => sum + r.patientAmount, 0);
 
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
+      // #419: backend RefundType=2 bắt buộc phiếu thanh toán gốc
+      if (!selectedPayment) {
+        message.error('Chọn phiếu thanh toán gốc để hoàn');
+        return;
+      }
       if (values.mode === 'detail' && selectedIds.size === 0) {
         message.error('Chọn ít nhất 1 mục để hoàn chi tiết');
         return;
@@ -97,12 +107,23 @@ export default function PartialRefundModal({
           return;
         }
       }
+      // #419: full = hoàn theo số tiền phiếu gốc; detail = tổng các dòng đã tick
+      const refundAmount = values.mode === 'detail' ? totalSelected : selectedPayment.finalAmount;
+      if (refundAmount <= 0) {
+        message.error('Số tiền hoàn phải lớn hơn 0');
+        return;
+      }
+      if (refundAmount > selectedPayment.finalAmount) {
+        message.error(
+          `Tổng hoàn (${refundAmount.toLocaleString('vi-VN')}đ) vượt quá số tiền phiếu gốc (${selectedPayment.finalAmount.toLocaleString('vi-VN')}đ)`,
+        );
+        return;
+      }
       setSubmitting(true);
-      const refundAmount = values.mode === 'detail' ? totalSelected : selectedItems.reduce((s, r) => s + r.patientAmount, 0) || 0;
       await createRefund({
         patientId,
         refundType: values.refundType,
-        originalPaymentId,
+        originalPaymentId: selectedPayment.id,
         refundAmount,
         refundMethod: values.refundMethod,
         bankAccount: values.bankAccount,
@@ -134,14 +155,35 @@ export default function PartialRefundModal({
       onOk={handleOk}
       onCancel={onClose}
       okText="Tạo phiếu hoàn"
+      okButtonProps={{ disabled: !selectedPayment }}
       confirmLoading={submitting}
       width={900}
       destroyOnHidden
     >
       <Form form={form} layout="vertical">
+        {!loading && payments.length === 0 && (
+          <Alert
+            title="Bệnh nhân chưa có phiếu thanh toán nào đã thu — không thể tạo phiếu hoàn"
+            type="warning"
+            showIcon
+            style={{ marginBottom: 12 }}
+          />
+        )}
+        <Form.Item label="Phiếu thanh toán gốc" required>
+          <Select
+            value={selectedPaymentId}
+            onChange={setSelectedPaymentId}
+            loading={loading}
+            placeholder="— Chọn phiếu thanh toán đã thu —"
+            options={payments.map(p => ({
+              value: p.id,
+              label: `${p.receiptCode} · ${new Date(p.receiptDate).toLocaleDateString('vi-VN')} · ${p.finalAmount.toLocaleString('vi-VN')}đ`,
+            }))}
+          />
+        </Form.Item>
         <Form.Item name="mode" label="Phạm vi hoàn">
           <Radio.Group>
-            <Radio value="full">Hoàn toàn bộ (hủy hóa đơn)</Radio>
+            <Radio value="full">Hoàn toàn bộ phiếu gốc{selectedPayment ? ` (${selectedPayment.finalAmount.toLocaleString('vi-VN')}đ)` : ''}</Radio>
             <Radio value="detail">Hoàn chi tiết (tick từng mục)</Radio>
           </Radio.Group>
         </Form.Item>

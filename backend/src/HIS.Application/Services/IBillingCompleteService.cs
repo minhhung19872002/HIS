@@ -143,6 +143,16 @@ public interface IBillingCompleteService
     #region 10.1.5 Hoàn ứng
 
     /// <summary>
+    /// #419: liệt kê dịch vụ/thuốc đã thanh toán còn hoàn được (modal hoàn trả chi tiết)
+    /// </summary>
+    Task<List<RefundableItemDto>> GetRefundableItemsAsync(Guid patientId, Guid? medicalRecordId);
+
+    /// <summary>
+    /// #419: danh sách phiếu thanh toán hợp lệ của BN (chọn phiếu gốc khi hoàn RefundType=2)
+    /// </summary>
+    Task<List<PatientPaymentBriefDto>> GetPatientPaymentsAsync(Guid patientId);
+
+    /// <summary>
     /// Tạo phiếu hoàn ứng cho người bệnh
     /// </summary>
     Task<RefundDto> CreateRefundAsync(CreateRefundDto dto, Guid userId);

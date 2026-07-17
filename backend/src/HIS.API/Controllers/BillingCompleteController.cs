@@ -292,6 +292,30 @@ public partial class BillingCompleteController : ControllerBase
     #region 10.1.5 Hoàn ứng
 
     /// <summary>
+    /// #419: liệt kê dịch vụ/thuốc đã thanh toán còn hoàn được (modal hoàn trả chi tiết)
+    /// </summary>
+    [HttpGet("refundable-items")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Cashier + "," + RoleNames.Accountant)]
+    public async Task<ActionResult<List<RefundableItemDto>>> GetRefundableItems(
+        [FromQuery] Guid patientId, [FromQuery] Guid? medicalRecordId)
+    {
+        if (patientId == Guid.Empty) return BadRequest("patientId là bắt buộc");
+        var result = await _billingService.GetRefundableItemsAsync(patientId, medicalRecordId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// #419: danh sách phiếu thanh toán hợp lệ của BN (chọn phiếu gốc khi hoàn)
+    /// </summary>
+    [HttpGet("payments/patient/{patientId}")]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Cashier + "," + RoleNames.Accountant)]
+    public async Task<ActionResult<List<PatientPaymentBriefDto>>> GetPatientPayments(Guid patientId)
+    {
+        var result = await _billingService.GetPatientPaymentsAsync(patientId);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Tạo phiếu hoàn ứng
     /// </summary>
     [HttpPost("refunds")]

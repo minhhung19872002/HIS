@@ -537,6 +537,88 @@ public partial class BillingCompleteService {
 
     #region 10.1.5 Refunds
 
+    public async Task<List<RefundableItemDto>> GetRefundableItemsAsync(Guid patientId, Guid? medicalRecordId)
+    {
+        // Dịch vụ: phiếu chỉ định ĐÃ THANH TOÁN, chưa hủy, BN có phải trả
+        var serviceQuery = _context.ServiceRequestDetails
+            .Include(d => d.Service)
+            .Include(d => d.ServiceRequest)
+            .Where(d => d.ServiceRequest.MedicalRecord.PatientId == patientId
+                && d.ServiceRequest.IsPaid
+                && d.ServiceRequest.Status != 4
+                && d.Status != 3
+                && d.PatientAmount > 0);
+        if (medicalRecordId.HasValue)
+            serviceQuery = serviceQuery.Where(d => d.ServiceRequest.MedicalRecordId == medicalRecordId.Value);
+
+        var services = await serviceQuery
+            .OrderByDescending(d => d.ServiceRequest.RequestDate)
+            .ToBoundedListAsync("BillingCompleteService.GetRefundableItemsAsync.Services");
+
+        // Thuốc: đơn đã duyệt/đã cấp phát, chưa hủy, dòng chưa hoàn trả, BN có phải trả
+        // (Prescription không có cờ IsPaid — phiếu hoàn luôn Status=0 chờ kế toán duyệt nên fail-safe)
+        var medicineQuery = _context.PrescriptionDetails
+            .Include(d => d.Medicine)
+            .Include(d => d.Prescription)
+            .Where(d => d.Prescription.MedicalRecord.PatientId == patientId
+                && (d.Prescription.Status == 1 || d.Prescription.Status == 2)
+                && d.Status != 2
+                && d.PatientAmount > 0);
+        if (medicalRecordId.HasValue)
+            medicineQuery = medicineQuery.Where(d => d.Prescription.MedicalRecordId == medicalRecordId.Value);
+
+        var medicines = await medicineQuery
+            .OrderByDescending(d => d.Prescription.PrescriptionDate)
+            .ToBoundedListAsync("BillingCompleteService.GetRefundableItemsAsync.Medicines");
+
+        var result = services.Select(d => new RefundableItemDto
+        {
+            Id = d.Id,
+            ItemType = "service",
+            Name = d.Service?.ServiceName ?? "",
+            Quantity = d.Quantity,
+            Amount = d.Amount,
+            PatientAmount = d.PatientAmount,
+            PatientType = d.PatientType,
+            HasResult = !string.IsNullOrWhiteSpace(d.Result),
+            IsDispensed = false
+        }).ToList();
+
+        result.AddRange(medicines.Select(d => new RefundableItemDto
+        {
+            Id = d.Id,
+            ItemType = "medicine",
+            Name = d.Medicine?.MedicineName ?? "",
+            Quantity = d.Quantity,
+            Amount = d.Amount,
+            PatientAmount = d.PatientAmount,
+            PatientType = d.PatientType,
+            HasResult = false,
+            IsDispensed = d.Prescription.IsDispensed || d.Status == 1
+        }));
+
+        return result;
+    }
+
+    public async Task<List<PatientPaymentBriefDto>> GetPatientPaymentsAsync(Guid patientId)
+    {
+        // Phiếu thanh toán (ReceiptType=2) đã thu (Status=1) — nguồn chọn phiếu gốc cho RefundType=2
+        var receipts = await _context.Receipts
+            .Where(r => r.PatientId == patientId && r.ReceiptType == 2 && r.Status == 1)
+            .OrderByDescending(r => r.ReceiptDate)
+            .ToBoundedListAsync("BillingCompleteService.GetPatientPaymentsAsync");
+
+        return receipts.Select(r => new PatientPaymentBriefDto
+        {
+            Id = r.Id,
+            ReceiptCode = r.ReceiptCode,
+            ReceiptDate = r.ReceiptDate,
+            FinalAmount = r.FinalAmount,
+            PaymentMethod = r.PaymentMethod,
+            Note = r.Note
+        }).ToList();
+    }
+
     public async Task<RefundDto> CreateRefundAsync(CreateRefundDto dto, Guid userId)
     {
         var patient = await _context.Patients.FindAsync(dto.PatientId);

@@ -630,6 +630,38 @@ public class RefundItemDto
 }
 
 /// <summary>
+/// #419: một dòng dịch vụ/thuốc đã thanh toán còn hoàn được (nguồn cho modal hoàn trả chi tiết)
+/// </summary>
+public class RefundableItemDto
+{
+    /// <summary>ServiceRequestDetail.Id hoặc PrescriptionDetail.Id</summary>
+    public Guid Id { get; set; }
+
+    /// <summary>"service" | "medicine"</summary>
+    public string ItemType { get; set; } = "service";
+    public string Name { get; set; } = string.Empty;
+    public decimal Quantity { get; set; }
+    public decimal Amount { get; set; }
+    public decimal PatientAmount { get; set; }
+    public int PatientType { get; set; } // 1-BHYT, 2-Viện phí, 3-Dịch vụ
+    public bool HasResult { get; set; }
+    public bool IsDispensed { get; set; }
+}
+
+/// <summary>
+/// #419: phiếu thanh toán của BN (chọn phiếu gốc khi hoàn RefundType=2)
+/// </summary>
+public class PatientPaymentBriefDto
+{
+    public Guid Id { get; set; }
+    public string ReceiptCode { get; set; } = string.Empty;
+    public DateTime ReceiptDate { get; set; }
+    public decimal FinalAmount { get; set; }
+    public int PaymentMethod { get; set; }
+    public string? Note { get; set; }
+}
+
+/// <summary>
 /// DTO cho phê duyệt hoàn ứng
 /// </summary>
 public class ApproveRefundDto
