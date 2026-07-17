@@ -70,6 +70,9 @@ type BloodIssueRequestRow = BloodIssueRequestDto & {
 
 const buildBloodRequestHtml = (r: BloodIssueRequestRow): string => {
   const urgencyColor = r.urgency === 'Emergency' || r.urgency === 'STAT' ? '#ff0000' : r.urgency === 'Urgent' || r.urgency === 'urgent' ? '#ff8800' : '#000';
+  // Nhãn mức độ tiếng Việt như v1 (không in raw 'Emergency' lên phiếu)
+  const urgencyText = r.urgency === 'Emergency' || r.urgency === 'STAT' ? 'CẤP CỨU'
+    : r.urgency === 'Urgent' || r.urgency === 'urgent' ? 'Cần gấp' : 'Bình thường';
   const reason = r.clinicalIndication || r.indication || r.reason || 'Không có thông tin';
   return `<!DOCTYPE html>
 <html><head><title>Phiếu yêu cầu truyền máu - ${esc(r.requestCode)}</title>
@@ -80,15 +83,18 @@ const buildBloodRequestHtml = (r: BloodIssueRequestRow): string => {
   <div style="text-align:right"><strong>Số phiếu: ${esc(r.requestCode)}</strong><br>Ngày: ${esc(dayjs(r.requestDate || r.createdAt).format('DD/MM/YYYY HH:mm'))}</div>
 </div>
 <div class="title">PHIẾU YÊU CẦU TRUYỀN MÁU</div>
-<div class="urgency">[${esc(r.urgency || 'Thường quy')}]</div>
+<div class="urgency">[${esc(urgencyText)}]</div>
 <div class="info-section">
   <div class="section-title">THÔNG TIN BỆNH NHÂN</div>
+  <div class="info-row">Mã bệnh nhân: <span class="field">${esc(r.patientCode || '—')}</span></div>
   <div class="info-row">Họ và tên: <span class="field" style="width:300px"><strong>${esc(r.patientName || '—')}</strong></span></div>
 </div>
 <div class="blood-box">
   <div class="section-title" style="background:#ffcccc">YÊU CẦU MÁU</div>
   <div style="display:flex;justify-content:space-around;margin:15px 0">
-    <div style="text-align:center"><div>Nhóm máu:</div><div class="blood-type-large">${esc(r.bloodType || '—')}</div></div>
+    <div style="text-align:center"><div>Nhóm máu:</div><div class="blood-type-large">${esc(r.bloodType || '—')}${esc(r.rhFactor || '')}</div></div>
+    <div style="text-align:center"><div>Thành phần:</div><div style="font-size:18px;font-weight:bold">${esc(r.productTypeName || '—')}</div></div>
+    <div style="text-align:center"><div>Số lượng:</div><div style="font-size:24px;font-weight:bold">${esc(String(r.requestedQuantity ?? '—'))} đơn vị</div></div>
   </div>
 </div>
 <div class="info-section">
@@ -108,7 +114,9 @@ const BloodBankV2: React.FC = () => {
   const [tab, setTab] = useState<TopKey>('stock');
   const [stock, setStock] = useState<BloodStockDto[]>([]);
   const [units, setUnits] = useState<BloodStockDetailDto[]>([]);
-  const [expiring, setExpiring] = useState<BloodBagDto[]>([]);
+  // BE stock/expiring trả BloodStockDetailDto (bloodBagId, KHÔNG có id/donorName/unit)
+  // — cast BloodBagDto cũ che lệch shape làm Cấp phát/Tiêu huỷ gửi id=undefined.
+  const [expiring, setExpiring] = useState<BloodStockDetailDto[]>([]);
   const [requests, setRequests] = useState<BloodIssueRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -134,7 +142,7 @@ const BloodBankV2: React.FC = () => {
     ]).then(([s, u, e, r]) => {
       if (s.status === 'fulfilled') setStock((s.value.data || []) as BloodStockDto[]);
       if (u.status === 'fulfilled') setUnits((u.value.data || []) as BloodStockDetailDto[]);
-      if (e.status === 'fulfilled') setExpiring((e.value.data || []) as unknown as BloodBagDto[]);
+      if (e.status === 'fulfilled') setExpiring((e.value.data || []) as BloodStockDetailDto[]);
       if (r.status === 'fulfilled') setRequests((r.value.data || []) as BloodIssueRequestDto[]);
       setLoading(false);
     });
@@ -192,7 +200,7 @@ const BloodBankV2: React.FC = () => {
       if (filterType && `${b.bloodType}${b.rhFactor}` !== filterType) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
-        const hay = [b.bagCode, b.barcode, b.donorName, b.donorCode, b.storageLocation, b.productTypeName]
+        const hay = [b.bagCode, b.barcode, b.storageLocation, b.productTypeName]
           .filter(Boolean).join(' ').toLowerCase();
         if (!hay.includes(q)) return false;
       }
@@ -274,7 +282,7 @@ const BloodBankV2: React.FC = () => {
 
       <TopTabs<TopKey>
         tab={tab}
-        setTab={setTab}
+        setTab={(t) => { setTab(t); setPage(0); }}
         tabs={TOP_TABS}
         actions={
           <>
@@ -292,7 +300,7 @@ const BloodBankV2: React.FC = () => {
       />
 
       <div className="ab-tools">
-        <SearchBox value={search} onChange={setSearch} placeholder="Tìm mã túi / barcode / hiến / khoa…" />
+        <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder="Tìm mã túi / barcode / hiến / khoa…" />
         <Filter
           value={filterType} onChange={setFilterType}
           options={ALL_TYPES.map((t) => ({ v: t, l: t }))}
@@ -539,16 +547,16 @@ const BbFld: React.FC<{ label?: string; full?: boolean; children: React.ReactNod
 );
 
 const ExpiringTab: React.FC<{
-  rows: BloodBagDto[];
+  rows: BloodStockDetailDto[];
   loading: boolean;
   message: MessageInstance;
   onReload: () => void;
 }> = ({ rows, loading, message, onReload }) => {
-  const [sel, setSel] = useState<BloodBagDto | null>(null);
-  const [actionBag, setActionBag] = useState<{ bag: BloodBagDto; type: 'dispense' | 'discard' } | null>(null);
+  const [sel, setSel] = useState<BloodStockDetailDto | null>(null);
+  const [actionBag, setActionBag] = useState<{ bag: BloodStockDetailDto; type: 'dispense' | 'discard' } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [discardReason, setDiscardReason] = useState('');
-  const columns: ColumnDef<BloodBagDto>[] = [
+  const columns: ColumnDef<BloodStockDetailDto>[] = [
     { key: 'bag', label: 'Mã túi', mono: true, width: 130, render: (b) => b.bagCode },
     { key: 'barcode', label: 'Barcode', mono: true, width: 130, render: (b) => b.barcode },
     {
@@ -560,9 +568,8 @@ const ExpiringTab: React.FC<{
     { key: 'product', label: 'Chế phẩm', render: (b) => b.productTypeName },
     {
       key: 'volume', label: 'Thể tích', mono: true, width: 100,
-      render: (b) => `${b.volume} ${b.unit || 'mL'}`,
+      render: (b) => `${b.volume} mL`,
     },
-    { key: 'donor', label: 'Người hiến', render: (b) => b.donorName || '—' },
     {
       key: 'expiry', label: 'HSD', mono: true, width: 110,
       render: (b) => {
@@ -579,15 +586,18 @@ const ExpiringTab: React.FC<{
     { key: 'storage', label: 'Vị trí', mono: true, width: 100, render: (b) => b.storageLocation || '—' },
     {
       key: 'status', label: 'TT', width: 110,
-      render: (b) => <StatusBadge tone={b.status === 'available' ? 'ok' : 'warn'} dot>{b.status}</StatusBadge>,
+      render: (b) => {
+        const m = STATUS_LABEL[b.status] || { l: b.status, tone: 'info' as const };
+        return <StatusBadge tone={m.tone} dot>{m.l}</StatusBadge>;
+      },
     },
   ];
   return (
     <>
-    <DataTable<BloodBagDto>
+    <DataTable<BloodStockDetailDto>
       columns={columns}
       data={rows}
-      rowKey={(b) => b.id}
+      rowKey={(b) => b.bloodBagId}
       onRowClick={setSel}
       actions={(b) => (
         <div className="ab-actions">
@@ -615,11 +625,10 @@ const ExpiringTab: React.FC<{
           <DrField lbl="Barcode"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.barcode || '—'}</span></DrField>
           <DrField lbl="Nhóm máu">{sel.bloodType}{sel.rhFactor}</DrField>
           <DrField lbl="Chế phẩm">{sel.productTypeName}</DrField>
-          <DrField lbl="Thể tích"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.volume} {sel.unit || 'mL'}</span></DrField>
-          <DrField lbl="Người hiến">{sel.donorName || '—'}{sel.donorCode ? ` (${sel.donorCode})` : ''}</DrField>
+          <DrField lbl="Thể tích"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.volume} mL</span></DrField>
           <DrField lbl="Vị trí">{sel.storageLocation || '—'}</DrField>
           <DrField lbl="Hạn sử dụng">{fmtDMY(sel.expiryDate)}</DrField>
-          <DrField lbl="Trạng thái"><StatusBadge tone={sel.status === 'available' ? 'ok' : 'warn'} dot>{sel.status}</StatusBadge></DrField>
+          <DrField lbl="Trạng thái">{(() => { const m = STATUS_LABEL[sel.status] || { l: sel.status, tone: 'info' as const }; return <StatusBadge tone={m.tone} dot>{m.l}</StatusBadge>; })()}</DrField>
         </DrSec>
       )}
     </DrawerShell>
@@ -629,7 +638,7 @@ const ExpiringTab: React.FC<{
       open={!!actionBag}
       onClose={() => setActionBag(null)}
       title={actionBag?.type === 'dispense' ? `Cấp phát túi máu ${actionBag.bag.bagCode}` : `Tiêu huỷ túi máu ${actionBag?.bag.bagCode}`}
-      sub={actionBag ? `${actionBag.bag.bloodType}${actionBag.bag.rhFactor} · ${actionBag.bag.productTypeName} · ${actionBag.bag.volume} ${actionBag.bag.unit || 'mL'}` : ''}
+      sub={actionBag ? `${actionBag.bag.bloodType}${actionBag.bag.rhFactor} · ${actionBag.bag.productTypeName} · ${actionBag.bag.volume} mL` : ''}
       size="sm"
       footer={<>
         <Btn variant="ghost" onClick={() => setActionBag(null)}>Huỷ</Btn>
@@ -646,10 +655,10 @@ const ExpiringTab: React.FC<{
             setActionLoading(true);
             try {
               if (actionBag.type === 'dispense') {
-                await updateBloodBagStatus(actionBag.bag.id, 'Issued', 'Cấp phát từ kho sắp hết hạn');
+                await updateBloodBagStatus(actionBag.bag.bloodBagId, 'Issued', 'Cấp phát từ kho sắp hết hạn');
                 message.success(`Đã cấp phát túi máu ${actionBag.bag.bagCode}`);
               } else {
-                await destroyExpiredBloodBags([actionBag.bag.id], discardReason.trim());
+                await destroyExpiredBloodBags([actionBag.bag.bloodBagId], discardReason.trim());
                 message.success(`Đã tiêu huỷ túi máu ${actionBag.bag.bagCode}`);
               }
               setActionBag(null);
@@ -774,10 +783,20 @@ const RequestsTab: React.FC<{
     { key: 'dept', label: 'Khoa yêu cầu', render: (r) => r.departmentName || '—' },
     { key: 'reason', label: 'Lý do', render: (r) => r.clinicalIndication || r.indication || r.reason || '—' },
     { key: 'urgency', label: 'Mức', width: 100,
-      render: (r) => <span className={`chip ${r.urgency === 'STAT' || r.urgency === 'urgent' ? 'crit' : 'info'}`}>{r.urgency || 'Thường'}</span> },
+      render: (r) => {
+        // Backend + modal tạo phiếu dùng 'Routine'/'Urgent'/'Emergency' (URGENCY_OPTS)
+        const crit = r.urgency === 'Emergency' || r.urgency === 'STAT';
+        const warn = r.urgency === 'Urgent' || r.urgency === 'urgent';
+        const label = crit ? 'Cấp cứu' : warn ? 'Khẩn' : 'Thường quy';
+        return <span className={`chip ${crit ? 'crit' : warn ? 'warn' : 'info'}`}>{label}</span>;
+      } },
     {
       key: 'status', label: 'TT', width: 130,
-      render: (r) => <StatusBadge tone={r.status === 'approved' || r.status === 'issued' ? 'ok' : 'warn'} dot>{r.statusName || r.status}</StatusBadge>,
+      render: (r) => {
+        // Backend trả 'Approved' / 'FullyIssued' / 'PartiallyIssued' (PascalCase)
+        const done = r.status === 'Approved' || r.status === 'FullyIssued' || r.status === 'PartiallyIssued';
+        return <StatusBadge tone={done ? 'ok' : 'warn'} dot>{r.statusName || r.status}</StatusBadge>;
+      },
     },
     {
       key: 'date', label: 'Ngày YC', mono: true, width: 110,
@@ -1216,7 +1235,7 @@ const BloodReceiveModal: React.FC<{
           />
         </BbFld>
         <BbFld label="Thể tích (mL)">
-          <InputNumber value={volume} onChange={(v) => setVolume(Number(v) || 0)} min={1} step={50} style={{ width: '100%' }} />
+          <InputNumber value={volume} onChange={(v) => setVolume(Number(v) || 0)} min={100} max={500} step={50} style={{ width: '100%' }} />
         </BbFld>
         <BbFld label="Ngày nhập / lấy máu *">
           <DatePicker value={receiveDate} onChange={setReceiveDate} format="DD/MM/YYYY" style={{ width: '100%' }} />
