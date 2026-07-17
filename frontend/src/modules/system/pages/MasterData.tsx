@@ -186,6 +186,10 @@ const MasterDataV2: React.FC = () => {
       if (active === 'departments') await systemApi.catalog.saveDepartment(v as unknown as Parameters<typeof systemApi.catalog.saveDepartment>[0]);
       else if (active === 'medicines') await systemApi.catalog.saveMedicine(v as unknown as Parameters<typeof systemApi.catalog.saveMedicine>[0]);
       else if (active === 'clinical-terms') await systemApi.catalog.saveClinicalTerm({ sortOrder: 0, isActive: true, ...v } as unknown as Parameters<typeof systemApi.catalog.saveClinicalTerm>[0]);
+      else if (active === 'occupations') await administrativeCatalogApi.saveOccupation({ sortOrder: 0, isActive: true, ...v } as unknown as Parameters<typeof administrativeCatalogApi.saveOccupation>[0]);
+      else if (active === 'genders') await administrativeCatalogApi.saveGender({ sortOrder: 0, isActive: true, ...v } as unknown as Parameters<typeof administrativeCatalogApi.saveGender>[0]);
+      else if (active === 'admin-divisions') await administrativeCatalogApi.saveAdministrativeDivision({ sortOrder: 0, isActive: true, ...v } as unknown as Parameters<typeof administrativeCatalogApi.saveAdministrativeDivision>[0]);
+      else { te('Danh mục này chưa hỗ trợ ghi'); return; }
       tk(modal === 'new' ? 'Đã thêm' : 'Đã cập nhật'); setModal(null); loadOne(active);
     } catch (e: unknown) {
       const ax = e as AxiosError<ServerValidationError>;
@@ -200,6 +204,10 @@ const MasterDataV2: React.FC = () => {
         if (active === 'departments') await systemApi.catalog.deleteDepartment(r.id!);
         else if (active === 'medicines') await systemApi.catalog.deleteMedicine(r.id!);
         else if (active === 'clinical-terms') await systemApi.catalog.deleteClinicalTerm(r.id!);
+        else if (active === 'occupations') await administrativeCatalogApi.deleteOccupation(r.id!);
+        else if (active === 'genders') await administrativeCatalogApi.deleteGender(r.id!);
+        else if (active === 'admin-divisions') await administrativeCatalogApi.deleteAdministrativeDivision(r.id!);
+        else { te('Danh mục này chưa hỗ trợ xoá'); return; }
         tk('Đã xoá'); loadOne(active);
       } catch { te('Xoá thất bại (có thể đang được dùng)'); }
     }, { tone: 'crit', confirm: 'Xoá' });

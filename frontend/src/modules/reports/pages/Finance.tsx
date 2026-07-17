@@ -1,16 +1,13 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Input } from 'antd';
+import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { financeApi, type RevenueByServiceDto, type RevenueByExecutingDeptDto } from '../../system/api/system';
-import hospitalReportApi, { type HospitalReportResult } from '../api/hospitalReport';
 import {
   exportMultiSheetExcel, downloadCsv, escapeCsvCell,
   type ExcelColumn, formatVnd,
 } from '../../../services/file.service';
-import { exportToPdf } from '../api/reporting';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, ModalShell, DrSec, DrField, fmtVNDg, tk, ti, te, Ico,
+  DrawerShell, DrSec, DrField, fmtVNDg, tk, ti, te, Ico,
   type ColumnDef, type TopTab,
 } from '../../../pages-v2/_v2kit';
 
@@ -37,17 +34,9 @@ const FinanceV2: React.FC = () => {
   const [sel, setSel] = useState<Row | null>(null);
   const [tab, setTab] = useState<TopKey>('service');
   const [deptItems, setDeptItems] = useState<DeptRow[]>([]);
-  // Monthly report modal
-  const [reportOpen, setReportOpen] = useState(false);
-  const [reportLoading, setReportLoading] = useState(false);
-  const [reportData, setReportData] = useState<HospitalReportResult | null>(null);
   // Export loading states
   const [csvLoading, setCsvLoading] = useState(false);
   const [xlsxLoading, setXlsxLoading] = useState(false);
-  // Send report email modal
-  const [emailModalOpen, setEmailModalOpen] = useState(false);
-  const [emailLoading, setEmailLoading] = useState(false);
-  const emailInputRef = useRef<string>('');
 
   const load = async () => {
     setLoading(true);
@@ -194,41 +183,6 @@ const FinanceV2: React.FC = () => {
     }
   };
 
-  const handleMonthlyReport = async () => {
-    setReportOpen(true);
-    setReportLoading(true);
-    setReportData(null);
-    try {
-      const from = dayjs().startOf('month').format('YYYY-MM-DD');
-      const to = dayjs().endOf('month').format('YYYY-MM-DD');
-      const res = await hospitalReportApi.getReport('REVENUE_MONTHLY', from, to);
-      setReportData(res.data);
-    } catch {
-      te('Không tải được báo cáo tổng hợp tháng');
-      setReportOpen(false);
-    } finally {
-      setReportLoading(false);
-    }
-  };
-
-  const handleSendReport = async () => {
-    const toEmail = emailInputRef.current.trim();
-    if (!toEmail) { te('Vui lòng nhập địa chỉ email'); return; }
-    setEmailLoading(true);
-    try {
-      const from = dayjs().startOf('month').format('YYYY-MM-DD');
-      const to = dayjs().endOf('month').format('YYYY-MM-DD');
-      await hospitalReportApi.sendReport('REVENUE_MONTHLY', { toEmail, from, to });
-      tk(`Đã gửi báo cáo tháng ${dayjs().format('MM/YYYY')} tới ${toEmail}`);
-      setEmailModalOpen(false);
-      emailInputRef.current = '';
-    } catch {
-      te('Gửi báo cáo thất bại — vui lòng thử lại');
-    } finally {
-      setEmailLoading(false);
-    }
-  };
-
   const actions = (r: Row) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
@@ -280,9 +234,6 @@ const FinanceV2: React.FC = () => {
           <Btn variant="ghost" disabled={csvLoading} onClick={handleExportCsv}>
             <Ico name="download" size={12} /> {csvLoading ? 'Đang xuất…' : 'Xuất CSV'}
           </Btn>
-          <Btn variant="primary" onClick={handleMonthlyReport}>
-            <Ico name="activity" size={12} /> Báo cáo tháng
-          </Btn>
         </div>
 
         <DataTable<Row>
@@ -315,95 +266,13 @@ const FinanceV2: React.FC = () => {
         />
       </>}
 
-      {/* Báo cáo tổng hợp tháng */}
-      <ModalShell
-        open={reportOpen}
-        onClose={() => setReportOpen(false)}
-        title={`Báo cáo tổng hợp tháng ${dayjs().format('MM/YYYY')}`}
-        sub={reportData ? `Cập nhật: ${dayjs(reportData.generatedAt).format('DD/MM/YYYY HH:mm')}` : ''}
-        size="lg"
-        footer={<Btn variant="ghost" onClick={() => setReportOpen(false)}>Đóng</Btn>}
-      >
-        {reportLoading && <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải báo cáo…</div>}
-        {!reportLoading && reportData && (
-          <div style={{ fontSize: 'var(--fs-md)' }}>
-            {Object.entries(reportData.summary).map(([k, v]) => (
-              <DrField key={k} lbl={k}>{String(v)}</DrField>
-            ))}
-            {reportData.data.length > 0 && (
-              <div style={{ marginTop: 'var(--space-12)', overflowX: 'auto' }}>
-                <table className="ab-tbl" style={{ width: '100%', fontSize: 'var(--fs-sm)' }}>
-                  <thead>
-                    <tr>{reportData.columns.map((c) => <th key={c}>{c}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {reportData.data.slice(0, 50).map((row, i) => (
-                      <tr key={i}>
-                        {reportData.columns.map((c) => <td key={c}>{String(row[c] ?? '—')}</td>)}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {reportData.data.length > 50 && (
-                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-6)' }}>
-                    Hiển thị 50 / {reportData.data.length} dòng
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </ModalShell>
-
-      {/* Modal gửi báo cáo qua email */}
-      <ModalShell
-        open={emailModalOpen}
-        onClose={() => { setEmailModalOpen(false); emailInputRef.current = ''; }}
-        title="Gửi báo cáo qua email"
-        sub={`Báo cáo tháng ${dayjs().format('MM/YYYY')}`}
-        size="sm"
-        footer={<>
-          <Btn variant="ghost" onClick={() => { setEmailModalOpen(false); emailInputRef.current = ''; }}>Hủy</Btn>
-          <Btn variant="primary" loading={emailLoading} onClick={handleSendReport}>
-            <Ico name="send" size={12} /> Gửi
-          </Btn>
-        </>}
-      >
-        <div style={{ padding: '8px 0' }}>
-          <div style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)', marginBottom: 'var(--space-8)' }}>Địa chỉ email nhận báo cáo</div>
-          <Input
-            type="email"
-            placeholder="example@hospital.vn"
-            autoFocus
-            onChange={(e) => { emailInputRef.current = e.target.value; }}
-            onPressEnter={handleSendReport}
-            style={{ borderRadius: 'var(--r-2)' }}
-          />
-        </div>
-      </ModalShell>
-
       <DrawerShell
         open={!!sel}
         onClose={() => setSel(null)}
         size="lg"
         title={sel ? `Dịch vụ · ${sel.serviceName}` : ''}
         sub={sel ? `${sel.serviceCode} · ${sel.serviceGroupName}` : ''}
-        footer={<>
-          <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-          <Btn onClick={() => {
-            if (!sel) return;
-            const from = dayjs().startOf('month').format('YYYY-MM-DD');
-            const to = dayjs().endOf('month').format('YYYY-MM-DD');
-            const url = exportToPdf('SERVICE_REVENUE', from, to);
-            window.open(url, '_blank');
-            tk(`Mở PDF báo cáo dịch vụ: ${sel.serviceName}`);
-          }}>
-            <Ico name="print" size={12} /> In
-          </Btn>
-          <Btn variant="primary" onClick={() => setEmailModalOpen(true)}>
-            <Ico name="send" size={12} /> Gửi báo cáo
-          </Btn>
-        </>}
+        footer={<Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>}
       >
         {sel && <>
           <DrSec title="Thông tin dịch vụ">

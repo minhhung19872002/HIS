@@ -6,7 +6,7 @@ import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode, getStocktakes,
 import type { FixedAssetDto, AssetDashboardDto, AssetQrCodeDto, AssetStocktakeDto, AssetStocktakeItemDto, DepreciationReportDto, TenderDto, TenderItemDto } from '../api/assetManagement';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal, ModalShell,
-  DrawerShell, DrSec, DrField, useTabCounts, tk, ti, te,
+  DrawerShell, DrSec, DrField, useTabCounts, tk, ti, te, cf,
   type ColumnDef, type CrudFieldCfg,
 } from '../../../pages-v2/_v2kit';
 
@@ -109,6 +109,7 @@ const AssetManagementV2: React.FC = () => {
   const [tenderCrudOpen, setTenderCrudOpen] = useState(false);
   const [tenderCrudInit, setTenderCrudInit] = useState<Record<string, unknown> | null>(null);
   const [tenderItemCrudOpen, setTenderItemCrudOpen] = useState(false);
+  const [tenderItemCrudInit, setTenderItemCrudInit] = useState<Record<string, unknown> | null>(null);
 
   const openCreate = () => { setCrudInit({ status: 0, depreciationMethod: 1, originalValue: 0, currentValue: 0, usefulLifeMonths: 60 }); setCrudOpen(true); };
   const openEdit = (r: FixedAssetDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
@@ -140,7 +141,6 @@ const AssetManagementV2: React.FC = () => {
   };
 
   const openTenderCreate = () => { setTenderCrudInit({ tenderType: 1, status: 1 }); setTenderCrudOpen(true); };
-  const openTenderEdit = (r: TenderDto) => { setTenderCrudInit({ ...r } as Record<string, unknown>); setTenderCrudOpen(true); };
 
   const viewTenderItems = async (r: TenderDto) => {
     setTenderDetail(r);
@@ -333,8 +333,7 @@ const AssetManagementV2: React.FC = () => {
           actions={(r) => (
             <div className="ab-actions">
               <ActBtn ic="eye" title="Hạng mục" onClick={() => viewTenderItems(r)} />
-              <ActBtn ic="edit" title="Sửa" onClick={() => openTenderEdit(r)} />
-              {r.status < 4 && <ActBtn ic="check" title="Trao thầu" onClick={() => handleAwardTender(r.id)} />}
+              {r.status < 4 && <ActBtn ic="check" title="Trao thầu" onClick={() => cf('Xác nhận trao thầu?', () => handleAwardTender(r.id))} />}
             </div>
           )}
           empty={loading ? 'Đang tải…' : 'Chưa có gói thầu'}
@@ -654,7 +653,7 @@ const AssetManagementV2: React.FC = () => {
         footer={<>
           <Btn variant="ghost" onClick={() => setTenderDetail(null)}>Đóng</Btn>
           {tenderDetail && tenderDetail.status < 4 && (
-            <Btn variant="primary" icon="check" onClick={() => { handleAwardTender(tenderDetail.id); setTenderDetail(null); }}>Trao thầu</Btn>
+            <Btn variant="primary" icon="check" onClick={() => cf('Xác nhận trao thầu?', () => { handleAwardTender(tenderDetail.id); setTenderDetail(null); })}>Trao thầu</Btn>
           )}
         </>}
       >
@@ -686,7 +685,7 @@ const AssetManagementV2: React.FC = () => {
               empty="Chưa có hạng mục"
             />
             <div style={{ marginTop: 'var(--space-8)' }}>
-              <Btn variant="ghost" icon="plus" onClick={() => setTenderItemCrudOpen(true)}>Thêm hạng mục</Btn>
+              <Btn variant="ghost" icon="plus" onClick={() => { setTenderItemCrudInit({ itemType: 1 }); setTenderItemCrudOpen(true); }}>Thêm hạng mục</Btn>
             </div>
           </DrSec>
         </>}
@@ -711,7 +710,7 @@ const AssetManagementV2: React.FC = () => {
         onClose={() => setTenderItemCrudOpen(false)}
         title="Thêm hạng mục gói thầu"
         fields={TENDER_ITEM_FIELDS}
-        initial={null}
+        initial={tenderItemCrudInit}
         onSubmit={async (v) => {
           if (!tenderDetail) return;
           await saveTenderItem({ ...v, tenderId: tenderDetail.id } as Partial<TenderItemDto>);

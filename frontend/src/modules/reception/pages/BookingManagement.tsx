@@ -169,8 +169,10 @@ const BookingManagementV2: React.FC = () => {
     { key: 'scheduleDate', label: 'Ngày', type: 'date', required: true },
     { key: 'scheduleType', label: 'Loại ca', type: 'select', options: [
       { value: 1, label: 'Thường' }, { value: 2, label: 'Trực' }, { value: 3, label: 'Hẹn trước' }] },
-    { key: 'startTime', label: 'Giờ bắt đầu (HH:mm)', required: true, placeholder: 'VD: 07:30' },
-    { key: 'endTime', label: 'Giờ kết thúc (HH:mm)', required: true, placeholder: 'VD: 11:30' },
+    { key: 'startTime', label: 'Giờ bắt đầu (HH:mm)', required: true, placeholder: 'VD: 07:30',
+      rules: [{ required: true, message: 'Nhập giờ bắt đầu' }, { pattern: /^([01]\d|2[0-3]):[0-5]\d$/, message: 'Định dạng HH:mm, vd 07:30' }] },
+    { key: 'endTime', label: 'Giờ kết thúc (HH:mm)', required: true, placeholder: 'VD: 11:30',
+      rules: [{ required: true, message: 'Nhập giờ kết thúc' }, { pattern: /^([01]\d|2[0-3]):[0-5]\d$/, message: 'Định dạng HH:mm, vd 07:30' }] },
     { key: 'maxPatients', label: 'Số BN tối đa', type: 'number' },
     { key: 'slotDurationMinutes', label: 'Thời gian slot (phút)', type: 'select', options: [
       { value: 15, label: '15 phút' }, { value: 20, label: '20 phút' }, { value: 30, label: '30 phút' },

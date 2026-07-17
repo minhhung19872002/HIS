@@ -14,7 +14,6 @@ import {
 } from '../../../pages-v2/_v2kit';
 
 const MONITORING_FIELDS: CrudFieldCfg[] = [
-  { key: 'recordCode', label: 'Mã phiếu', required: true, disabledOnEdit: true },
   { key: 'monitoringDate', label: 'Ngày quan trắc', type: 'date', required: true },
   { key: 'monitoringType', label: 'Loại quan trắc', type: 'select', required: true, options: [
     { value: 'air', label: 'Không khí' }, { value: 'water', label: 'Nước' },
@@ -25,13 +24,11 @@ const MONITORING_FIELDS: CrudFieldCfg[] = [
   { key: 'value', label: 'Giá trị', type: 'number', required: true },
   { key: 'unit', label: 'Đơn vị' },
   { key: 'standardLimit', label: 'Giới hạn chuẩn', type: 'number' },
-  { key: 'isCompliant', label: 'Đạt chuẩn', type: 'switch' },
   { key: 'measuredBy', label: 'Người đo' },
   { key: 'notes', label: 'Ghi chú', type: 'textarea' },
 ];
 
 const WASTE_FIELDS: CrudFieldCfg[] = [
-  { key: 'recordCode', label: 'Mã phiếu', required: true, disabledOnEdit: true },
   { key: 'recordDate', label: 'Ngày', type: 'date', required: true },
   { key: 'wasteType', label: 'Loại chất thải', type: 'select', required: true, options: [
     { value: 'infectious', label: 'Lây nhiễm' }, { value: 'sharp', label: 'Sắc nhọn' },
@@ -42,7 +39,6 @@ const WASTE_FIELDS: CrudFieldCfg[] = [
   { key: 'source', label: 'Nguồn phát sinh' },
   { key: 'handlerName', label: 'Người xử lý' },
   { key: 'disposalMethod', label: 'PP xử lý' },
-  { key: 'isCompliant', label: 'Đạt chuẩn', type: 'switch' },
   { key: 'notes', label: 'Ghi chú', type: 'textarea' },
 ];
 
@@ -186,6 +182,7 @@ const EnvironmentalHealthV2: React.FC = () => {
     setMonitorLoading(true);
     try {
       const r = await searchMonitoring({
+        keyword: search || undefined,
         fromDate: range?.[0]?.format('YYYY-MM-DD'),
         toDate: range?.[1]?.format('YYYY-MM-DD'),
       });
@@ -198,6 +195,13 @@ const EnvironmentalHealthV2: React.FC = () => {
   const MONITOR_TYPE_LABEL: Record<string, string> = {
     air: 'Không khí', water: 'Nước', surface: 'Bề mặt', noise: 'Tiếng ồn', radiation: 'Phóng xạ',
   };
+
+  const filteredMonitorings = useMemo(() => {
+    const k = search.trim().toLowerCase();
+    if (!k) return monitorings;
+    return monitorings.filter((m) => [m.recordCode, m.location, m.parameter, m.measuredBy]
+      .some((v) => (v || '').toLowerCase().includes(k)));
+  }, [monitorings, search]);
 
   const actions = (r: WasteRecord) => (
     <div className="ab-actions">
@@ -350,7 +354,7 @@ const EnvironmentalHealthV2: React.FC = () => {
         onClose={() => setMonitorOpen(false)}
         size="lg"
         title="Quan trắc môi trường"
-        sub={`${monitorings.length} bản ghi`}
+        sub={`${filteredMonitorings.length} bản ghi`}
         footer={<>
           <Btn variant="ghost" onClick={() => setMonitorOpen(false)}>Đóng</Btn>
           <Btn variant="primary" onClick={() => setMonitorCrudOpen(true)}>
@@ -360,9 +364,9 @@ const EnvironmentalHealthV2: React.FC = () => {
       >
         {monitorLoading ? (
           <div style={{ padding: 'var(--space-24)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải…</div>
-        ) : monitorings.length === 0 ? (
+        ) : filteredMonitorings.length === 0 ? (
           <div style={{ padding: 'var(--space-24)', textAlign: 'center', color: 'var(--t-2)' }}>Chưa có bản ghi quan trắc</div>
-        ) : monitorings.map((m) => (
+        ) : filteredMonitorings.map((m) => (
           <DrSec key={m.id} title={`${MONITOR_TYPE_LABEL[m.monitoringType] || m.monitoringType} · ${m.location}`}>
             <DrField lbl="Ngày">{dayjs(m.monitoringDate).format('DD/MM/YYYY')}</DrField>
             <DrField lbl="Thông số">{m.parameter}</DrField>

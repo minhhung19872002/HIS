@@ -78,9 +78,9 @@ const APPT_STATUS: Record<number, { label: string; tone: StatusTone }> = {
 };
 
 const QUESTION_STATUS: Record<number, { label: string; tone: StatusTone }> = {
-  0: { label: 'Chờ trả lời', tone: 'warn' },
-  1: { label: 'Đã trả lời', tone: 'ok' },
-  2: { label: 'Đã đóng', tone: 'info' },
+  1: { label: 'Chờ trả lời', tone: 'warn' },
+  2: { label: 'Đã trả lời', tone: 'ok' },
+  3: { label: 'Đã đóng', tone: 'info' },
 };
 
 const TIME_SLOTS = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '14:00', '14:30', '15:00', '15:30'];
@@ -190,8 +190,10 @@ const PatientPortalStaffV2: React.FC = () => {
       });
       tk('Đã đặt lịch hẹn thành công');
       setBookOpen(false);
-      const res = await getMyAppointments();
-      setAppointments(res.data ?? []);
+      try {
+        const res = await getMyAppointments();
+        setAppointments(res.data ?? []);
+      } catch { /* ignore refresh error */ }
     } catch {
       te('Không thể đặt lịch hẹn. Vui lòng thử lại.');
     } finally {
@@ -224,8 +226,10 @@ const PatientPortalStaffV2: React.FC = () => {
       await createPatientQuestion({ subject: askForm.subject, content: askForm.content, category: askForm.category });
       tk('Đã gửi câu hỏi');
       setAskOpen(false);
-      const res = await getPatientQuestions();
-      setQuestions(res.data ?? []);
+      try {
+        const res = await getPatientQuestions();
+        setQuestions(res.data ?? []);
+      } catch { /* ignore refresh error */ }
     } catch {
       te('Không thể gửi câu hỏi.');
     } finally {
@@ -249,8 +253,10 @@ const PatientPortalStaffV2: React.FC = () => {
       tk('Đã gửi trả lời');
       setAnswerTarget(null);
       setQDetail(null);
-      const res = await getPatientQuestions();
-      setQuestions(res.data ?? []);
+      try {
+        const res = await getPatientQuestions();
+        setQuestions(res.data ?? []);
+      } catch { /* ignore refresh error */ }
     } catch {
       te('Không thể gửi trả lời.');
     } finally {
@@ -296,7 +302,7 @@ const PatientPortalStaffV2: React.FC = () => {
             data={questions}
             rowKey={(r) => r.id}
             onRowClick={setQDetail}
-            actions={(r) => (r.status === 0
+            actions={(r) => (r.status === 1
               ? <ActBtn ic="message-square" title="Trả lời" onClick={() => openAnswer(r)} />
               : null)}
             empty={loading ? 'Đang tải…' : 'Chưa có câu hỏi nào'}
@@ -487,7 +493,7 @@ const PatientPortalStaffV2: React.FC = () => {
                 </div>
               </DrField>
             )}
-            {qDetail.status === 0 && (
+            {qDetail.status === 1 && (
               <div style={{ marginTop: 'var(--space-12)' }}>
                 <Btn variant="primary" icon="message-square" onClick={() => openAnswer(qDetail)}>Trả lời câu hỏi</Btn>
               </div>
