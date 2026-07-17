@@ -21,6 +21,7 @@ import {
   findItemForPath,
   permissionForPath,
   workspaceForPath,
+  isPathAllowed,
 } from '../../../services/menu.service';
 import {
   WORKSPACES, workspaceDef, availableWorkspaces, getStoredWorkspace, setStoredWorkspace,
@@ -121,8 +122,8 @@ const CmdK: React.FC<CmdKProps> = ({ open, onClose }) => {
     }
   }, [open]);
 
-  // Chỉ hiện trang user có quyền (can() hiện stub=true → no-op tới #378).
-  const allowed = useMemo(() => PALETTE_ITEMS.filter((r) => !r.permission || can(r.permission)), [can]);
+  // #378+#405: chỉ hiện trang user có quyền VÀ thuộc module đang bật (choke-point isPathAllowed).
+  const allowed = useMemo(() => PALETTE_ITEMS.filter((r) => isPathAllowed(r.path)), []);
 
   const moduleMatches = useMemo(() => {
     if (!q) return allowed.slice(0, 12);

@@ -5,6 +5,7 @@ import type { User, LoginRequest } from '../api/auth';
 import apiClient from '../services/apiClient';
 import { storage, STORAGE_KEYS } from '../services/storage.service';
 import { loadPermissions, clearPermissions } from '../services/permission.service';
+import { loadEnabledModules, clearEnabledModules } from '../services/modulePackaging.service';
 import { Modal } from 'antd';
 import { fmtDate } from '../utils/format';
 
@@ -65,7 +66,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           // Tolerant: interceptor unwrap → raw đã là User; fallback raw.data nếu chưa unwrap.
           const me = (raw && ('id' in raw || 'username' in raw)) ? raw : raw?.data;
           if (me && (me.id || me.username)) {
-            await loadPermissions(); // #378: nạp set TRƯỚC setUser → render đầu đã gate đúng
+            await Promise.all([loadPermissions(), loadEnabledModules()]); // #378+#405: nạp TRƯỚC setUser → render đầu gate đúng
             setUser(me);
             storage.set(STORAGE_KEYS.user, me);
           } else {
@@ -125,7 +126,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           // AUTHZ-2 (#368): lưu refresh token thật — interceptor apiClient auto-refresh khi 401
           if (payload.refreshToken) storage.set(STORAGE_KEYS.refreshToken, payload.refreshToken);
           storage.set(STORAGE_KEYS.user, payload.user);
-          await loadPermissions(); // #378
+          await Promise.all([loadPermissions(), loadEnabledModules()]); // #378+#405
           setUser(payload.user);
           checkExpiryAlertsOnLogin();
           return 'success';
@@ -149,7 +150,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // AUTHZ-2 (#368): luồng OTP cũng nhận refresh token thật
         if (payload.refreshToken) storage.set(STORAGE_KEYS.refreshToken, payload.refreshToken);
         storage.set(STORAGE_KEYS.user, payload.user);
-        await loadPermissions(); // #378
+        await Promise.all([loadPermissions(), loadEnabledModules()]); // #378+#405
         setUser(payload.user);
         setOtpPending(null);
         checkExpiryAlertsOnLogin();
@@ -187,6 +188,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     storage.remove(STORAGE_KEYS.refreshToken);
     storage.remove(STORAGE_KEYS.user);
     clearPermissions(); // #378
+    clearEnabledModules(); // #405
     setUser(null);
     setOtpPending(null);
   };

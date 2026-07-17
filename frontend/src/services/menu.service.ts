@@ -10,9 +10,10 @@
  */
 
 import type { NavGroup, NavItem } from '../types/menu';
-import type { WorkspaceId } from '../types/route';
+import type { WorkspaceId, CommercialModuleId } from '../types/route';
 import { v2Routes } from '../router/routeConfigs';
 import { can } from './permission.service';
+import { isModuleEnabled } from './modulePackaging.service';
 export type { NavGroup, NavItem };
 
 export const HIS_GROUPS: NavGroup[] = [
@@ -268,10 +269,32 @@ export function permissionForPath(path: string): string | undefined {
   return PERM_BY_PATH.get(path);
 }
 
-/** Path này user hiện tại có được thấy không (fail-open khi set chưa nạp — xem permission.service). */
+// #405: path → module thương mại (registry meta.module).
+const MODULE_BY_PATH = new Map<string, CommercialModuleId>(
+  v2Routes
+    .filter((r) => r.meta.module)
+    .map((r) => ['/v2/' + r.path.replace(/^\/+/, ''), r.meta.module as CommercialModuleId]),
+);
+
+/** Module thương mại của 1 path ('/v2/x'); khớp exact rồi prefix. */
+export function moduleForPath(path: string): CommercialModuleId | undefined {
+  const hit = MODULE_BY_PATH.get(path);
+  if (hit) return hit;
+  for (const [p, m] of MODULE_BY_PATH) {
+    if (path.startsWith(p + '/')) return m;
+  }
+  return undefined;
+}
+
+/**
+ * Path này user hiện tại có được thấy không:
+ * permission (#378, fail-open khi set chưa nạp) AND module đang bật (#405, fail-open tương tự).
+ * Đây là choke-point duy nhất — menu / palette / workspace switcher đều đi qua đây.
+ */
 export function isPathAllowed(path: string): boolean {
   const perm = PERM_BY_PATH.get(path);
-  return !perm || can(perm);
+  if (perm && !can(perm)) return false;
+  return isModuleEnabled(moduleForPath(path));
 }
 
 /**
