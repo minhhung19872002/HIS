@@ -22,6 +22,7 @@ export const TreatmentProtocolV2 = lazy(() => import('../../modules/patient/page
 export const ChronicDiseaseV2 = lazy(() => import('../../modules/public-health/pages/ChronicDisease'));
 export const TbHivManagementV2 = lazy(() => import('../../modules/public-health/pages/TbHivManagement'));
 export const ConsultationV2 = lazy(() => import('../../pages-v2/Consultation'));
+export const DoctorPortalV2 = lazy(() => import('../../modules/opd/pages/DoctorPortal'));
 export const ClinicalCatalogsV2 = lazy(() => import('../../modules/administration/pages/ClinicalCatalogs'));
 export const SpecialtyEMRV2 = lazy(() => import('../../modules/emr/pages/SpecialtyEMR'));
 export const MedicalRecordArchiveV2 = lazy(() => import('../../pages-v2/MedicalRecordArchive'));
