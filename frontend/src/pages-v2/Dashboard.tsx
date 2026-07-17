@@ -18,6 +18,7 @@ import * as alertsApi from '../modules/patient/api/businessAlerts';
 import type { BusinessAlertDto } from '../modules/patient/api/businessAlerts';
 import * as hrApi from '../modules/hr/api/medicalHR';
 import type { MedicalHRDashboardDto } from '../modules/hr/api/medicalHR';
+import { usePermission } from '../hooks/usePermission';
 import '../styles/Dashboard.css';
 
 import type { Kpi } from './dashboard/_shared';
@@ -48,6 +49,12 @@ const DashboardV2: React.FC = () => {
   const today = useMemo(() => dayjs().format('YYYY-MM-DD'), []);
   const { message } = AntdApp.useApp();
   const navigate = useNavigate();
+  // #379: role-aware dashboard — widget gate theo permission catalog (#367/#378).
+  // Fail-open khi set chưa nạp (can()=true) — hành vi cũ giữ nguyên cho backend cũ/lỗi mạng.
+  const { can } = usePermission();
+  const seeClinical = can('MedicalRecord.Read');
+  const seePharmacy = can('Pharmacy.Read');
+  const seeBilling  = can('Billing.Read');
 
   const [loading, setLoading]       = useState(true);
   const [history, setHistory]       = useState<(HospitalDashboardDto | null)[]>([]);
@@ -174,9 +181,10 @@ const DashboardV2: React.FC = () => {
     { k: 'Phẫu thuật',     v: String(gSurg(latest)), delta: fmtDelta(deltaOf(gSurg)),                 spark: sparkOf(gSurg) },
     { k: 'Cấp cứu 24h',    v: String(gEmer(latest)), delta: fmtDelta(deltaOf(gEmer)), negSpark: true, spark: sparkOf(gEmer) },
     { k: 'Tỷ lệ giường',   v: `${Math.round(gOcc(latest))}%`, delta: '—',                             spark: sparkOf(gOcc) },
-    { k: 'Doanh thu',      v: (gRev(latest) ? Math.round(gRev(latest) / 1_000_000) + 'M' : '0'), delta: fmtDelta(revPct, '%'), spark: sparkOf(gRev) },
+    // #379: KPI tiền chỉ hiện khi có Billing.Read (Doctor/Nurse không thấy doanh thu)
+    ...(seeBilling ? [{ k: 'Doanh thu', v: (gRev(latest) ? Math.round(gRev(latest) / 1_000_000) + 'M' : '0'), delta: fmtDelta(revPct, '%'), spark: sparkOf(gRev) }] : []),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ]), [latest, prev, history]);
+  ]), [latest, prev, history, seeBilling]);
 
   /* --------- OPD by department from department-statistics --------- */
   const opdByDept = useMemo(() =>
@@ -222,29 +230,37 @@ const DashboardV2: React.FC = () => {
       </div>
 
       {/* ============== MAIN 3-COL GRID ============== */}
+      {/* #379: widget gate theo permission — lâm sàng=MedicalRecord.Read · dược=Pharmacy.Read ·
+          tiền=Billing.Read; ShiftBoard/AlertsPanel chưa có mã catalog → hiện cho mọi role. */}
       <div className="dash-grid">
         {/* ---------- COL 1 ---------- */}
         <div className="dash-col">
-          <ErSnapshot
-            rows={erRows}
-            total={admissions.filter((a) => a.isEmergency).length}
-            onRowClick={setErPt}
-          />
-          <OpdFlow
-            flow={opdFlow}
-            byDept={opdByDept}
-          />
+          {seeClinical && (
+            <ErSnapshot
+              rows={erRows}
+              total={admissions.filter((a) => a.isEmergency).length}
+              onRowClick={setErPt}
+            />
+          )}
+          {seeClinical && (
+            <OpdFlow
+              flow={opdFlow}
+              byDept={opdByDept}
+            />
+          )}
         </div>
 
         {/* ---------- COL 2 ---------- */}
         <div className="dash-col">
-          <BedMapMini beds={allBeds} totals={bedTotals} onBedClick={setBedIt} />
-          <OrBoard schedule={surgeries} onSlotClick={(s, orName) => setOrIt({ surgery: s, orName })} />
-          <PharmacyAlerts
-            items={expiry.slice(0, 3)}
-            pendingCount={pendingRx.filter((r) => r.status === 'pending').length}
-            onStockClick={setStockIt}
-          />
+          {seeClinical && <BedMapMini beds={allBeds} totals={bedTotals} onBedClick={setBedIt} />}
+          {seeClinical && <OrBoard schedule={surgeries} onSlotClick={(s, orName) => setOrIt({ surgery: s, orName })} />}
+          {seePharmacy && (
+            <PharmacyAlerts
+              items={expiry.slice(0, 3)}
+              pendingCount={pendingRx.filter((r) => r.status === 'pending').length}
+              onStockClick={setStockIt}
+            />
+          )}
         </div>
 
         {/* ---------- COL 3 ---------- */}
@@ -255,7 +271,7 @@ const DashboardV2: React.FC = () => {
             onAlertClick={setAlertIt}
             onShowAll={() => setShowAllAlerts(true)}
           />
-          <BhytCard revenue={gRev(latest)} revenueChange={revPct ?? 0} />
+          {seeBilling && <BhytCard revenue={gRev(latest)} revenueChange={revPct ?? 0} />}
         </div>
       </div>
 
