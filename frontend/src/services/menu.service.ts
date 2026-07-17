@@ -10,6 +10,7 @@
  */
 
 import type { NavGroup, NavItem } from '../types/menu';
+import type { WorkspaceId } from '../types/route';
 import { v2Routes } from '../router/routeConfigs';
 import { can } from './permission.service';
 export type { NavGroup, NavItem };
@@ -245,6 +246,23 @@ const PERM_BY_PATH = new Map<string, string>(
     .map((r) => ['/v2/' + r.path.replace(/^\/+/, ''), r.meta.permission as string]),
 );
 
+// #404: path → workspace (registry meta.workspace, điền ở #375).
+const WS_BY_PATH = new Map<string, WorkspaceId>(
+  v2Routes
+    .filter((r) => r.meta.workspace)
+    .map((r) => ['/v2/' + r.path.replace(/^\/+/, ''), r.meta.workspace as WorkspaceId]),
+);
+
+/** Workspace của 1 path ('/v2/x'); khớp exact rồi prefix (trang con /v2/opd/edit). */
+export function workspaceForPath(path: string): WorkspaceId | undefined {
+  const hit = WS_BY_PATH.get(path);
+  if (hit) return hit;
+  for (const [p, ws] of WS_BY_PATH) {
+    if (path.startsWith(p + '/')) return ws;
+  }
+  return undefined;
+}
+
 /** Permission code gắn với 1 path menu ('/v2/x') — undefined nếu không gate. */
 export function permissionForPath(path: string): string | undefined {
   return PERM_BY_PATH.get(path);
@@ -256,9 +274,17 @@ export function isPathAllowed(path: string): boolean {
   return !perm || can(perm);
 }
 
-/** HIS_GROUPS đã lọc theo quyền user; group rỗng bị ẩn. Gọi trong render (set nạp trước setUser — AuthContext #378). */
-export function getVisibleGroups(): NavGroup[] {
+/**
+ * HIS_GROUPS đã lọc theo quyền user (+ workspace hiện hành nếu truyền — #404);
+ * group rỗng bị ẩn. Gọi trong render (permission set nạp trước setUser — #378).
+ */
+export function getVisibleGroups(workspace?: WorkspaceId): NavGroup[] {
   return HIS_GROUPS
-    .map((g) => ({ ...g, items: g.items.filter((it) => isPathAllowed(it.path)) }))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((it) =>
+        isPathAllowed(it.path)
+        && (!workspace || workspaceForPath(it.path) === workspace)),
+    }))
     .filter((g) => g.items.length > 0);
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import TermIcon from './Icon';
 import { getVisibleGroups } from '../../../services/menu.service';
+import type { WorkspaceId } from '../../../types/route';
 
 /* Auto-extracted from TerminalLayout.tsx (#376 split) — behavior-preserving verbatim move. */
 
@@ -13,15 +14,17 @@ type RailProps = {
   activeGroupId: string | null;
   pinnedGroupId: string | null;
   hoveredGroupId: string | null;
+  /** #404: workspace hiện hành — sidebar chỉ hiện nhóm/mục thuộc workspace này. */
+  workspace?: WorkspaceId;
   onHoverGroup: (id: string | null) => void;
   onClickGroup: (id: string) => void;
 };
 
-const Rail = React.memo(({ activeGroupId, pinnedGroupId, hoveredGroupId, onHoverGroup, onClickGroup }: RailProps) => (
+const Rail = React.memo(({ activeGroupId, pinnedGroupId, hoveredGroupId, workspace, onHoverGroup, onClickGroup }: RailProps) => (
   <aside className="his-rail" onMouseLeave={() => onHoverGroup(null)}>
     <Link to="/v2" className="his-rail-mark" title="HIS Terminal — Chỉ mục">HIS</Link>
-    {/* #378: chỉ render group/item user có quyền thấy (fail-open khi set chưa nạp) */}
-    {getVisibleGroups().map((g) => {
+    {/* #378: chỉ render group/item user có quyền thấy · #404: lọc theo workspace hiện hành */}
+    {getVisibleGroups(workspace).map((g) => {
       const active = g.id === activeGroupId;
       const pinned = g.id === pinnedGroupId;
       const hovered = g.id === hoveredGroupId;
@@ -58,13 +61,15 @@ type FlyoutProps = {
   groupId: string;
   activeItemId: string | null;
   pinned: boolean;
+  /** #404: workspace hiện hành. */
+  workspace?: WorkspaceId;
   onClose: () => void;
   onTogglePin: () => void;
   onKeepOpen: () => void;
 };
 
-const Flyout = React.memo(({ groupId, activeItemId, pinned, onClose, onTogglePin, onKeepOpen }: FlyoutProps) => {
-  const g = getVisibleGroups().find((x) => x.id === groupId);
+const Flyout = React.memo(({ groupId, activeItemId, pinned, workspace, onClose, onTogglePin, onKeepOpen }: FlyoutProps) => {
+  const g = getVisibleGroups(workspace).find((x) => x.id === groupId);
   if (!g) return null;
   return (
     <div

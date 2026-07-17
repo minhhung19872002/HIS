@@ -20,7 +20,12 @@ import {
   findGroupIdForPath,
   findItemForPath,
   permissionForPath,
+  workspaceForPath,
 } from '../../../services/menu.service';
+import {
+  WORKSPACES, workspaceDef, availableWorkspaces, getStoredWorkspace, setStoredWorkspace,
+} from '../../../services/workspace.service';
+import type { WorkspaceId } from '../../../types/route';
 import { v2Routes } from '../../../router/routeConfigs';
 import { usePermission } from '../../../hooks/usePermission';
 import './terminal.css';
@@ -475,15 +480,40 @@ const TerminalShell: React.FC = () => {
     navigate('/login');
   }, [logout, navigate]);
 
-  // Breadcrumb = [group label, active item label]
+  // #404: workspace hiện hành — init từ localStorage (hợp lệ trong available) hoặc workspace
+  // của trang đang mở, fallback workspace đầu tiên user thấy được.
+  const wsAvailable = useMemo(() => availableWorkspaces(), []);
+  const [workspace, setWorkspace] = useState<WorkspaceId>(() => {
+    const stored = getStoredWorkspace();
+    const fromPath = workspaceForPath(window.location.pathname);
+    if (fromPath && wsAvailable.includes(fromPath)) return fromPath;
+    if (stored && wsAvailable.includes(stored)) return stored;
+    return wsAvailable[0] ?? 'clinical';
+  });
+  const switchWorkspace = useCallback((ws: WorkspaceId) => {
+    setWorkspace(ws);
+    setStoredWorkspace(ws);
+    setPinnedGroupId(null);
+    setHoveredGroupId(null);
+  }, []);
+  // Deep-link vào trang thuộc workspace khác → tự chuyển (AC #404)
+  useEffect(() => {
+    const ws = workspaceForPath(location.pathname);
+    if (ws && ws !== workspace && wsAvailable.includes(ws)) {
+      setWorkspace(ws);
+      setStoredWorkspace(ws);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  // Breadcrumb = [Workspace, group label, active item label] (#404)
   const crumb = useMemo(() => {
     const group = HIS_GROUPS.find((g) => g.id === activeGroupId);
-    const parts: string[] = [];
+    const parts: string[] = [workspaceDef(workspace).label];
     if (group) parts.push(group.label);
     if (activeItem) parts.push(activeItem.label);
-    if (!parts.length) parts.push('Chỉ mục');
     return parts;
-  }, [activeGroupId, activeItem]);
+  }, [activeGroupId, activeItem, workspace]);
 
   const moduleLabel = activeItem?.label ?? '—';
   const visibleGroupId = hoveredGroupId || pinnedGroupId;
@@ -498,6 +528,7 @@ const TerminalShell: React.FC = () => {
           activeGroupId={activeGroupId}
           pinnedGroupId={pinnedGroupId}
           hoveredGroupId={hoveredGroupId}
+          workspace={workspace}
           onHoverGroup={onHoverGroup}
           onClickGroup={onClickGroup}
         />
@@ -506,6 +537,7 @@ const TerminalShell: React.FC = () => {
             groupId={visibleGroupId}
             activeItemId={activeItem?.id ?? null}
             pinned={flyoutPinned}
+            workspace={workspace}
             onClose={() => setHoveredGroupId(null)}
             onTogglePin={() => setPinnedGroupId(flyoutPinned ? null : visibleGroupId)}
             onKeepOpen={cancelHoverClose}
@@ -513,6 +545,9 @@ const TerminalShell: React.FC = () => {
         )}
         <Topbar
           crumb={crumb}
+          workspace={workspace}
+          workspaces={wsAvailable}
+          onSwitchWorkspace={switchWorkspace}
           onCmdK={() => setCmdKOpen(true)}
           onSwitchLayout={onSwitchLayout}
           onLogout={onLogout}

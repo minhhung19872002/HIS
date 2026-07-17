@@ -10,6 +10,8 @@ import { useInterval } from '../../../hooks/useInterval';
 import TermIcon from './Icon';
 import AiQueueBadge from '../../../modules/radiology/components/AiQueueBadge';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
+import { WORKSPACES } from '../../../services/workspace.service';
+import type { WorkspaceId } from '../../../types/route';
 
 /* Auto-extracted from TerminalLayout.tsx (#376 split) — behavior-preserving verbatim move. */
 
@@ -43,8 +45,20 @@ const notifTime = (iso?: string): string => {
   }
 };
 
-const Topbar: React.FC<{ crumb: string[]; onCmdK: () => void; onSwitchLayout: () => void; onLogout: () => void }> = ({
+const Topbar: React.FC<{
+  crumb: string[];
+  /** #404: workspace hiện hành + danh sách user thấy được; switcher chỉ hiện khi ≥2. */
+  workspace?: WorkspaceId;
+  workspaces?: WorkspaceId[];
+  onSwitchWorkspace?: (ws: WorkspaceId) => void;
+  onCmdK: () => void;
+  onSwitchLayout: () => void;
+  onLogout: () => void;
+}> = ({
   crumb,
+  workspace,
+  workspaces = [],
+  onSwitchWorkspace,
   onCmdK,
   onSwitchLayout,
   onLogout,
@@ -127,6 +141,28 @@ const Topbar: React.FC<{ crumb: string[]; onCmdK: () => void; onSwitchLayout: ()
           </React.Fragment>
         ))}
       </div>
+      {/* #404: workspace switcher — chỉ khi user thấy được ≥2 workspace */}
+      {workspaces.length >= 2 && onSwitchWorkspace && (
+        <div style={{ display: 'inline-flex', gap: 2, marginRight: 8, border: '1px solid var(--line)', borderRadius: 6, padding: 2 }}>
+          {WORKSPACES.filter((w) => workspaces.includes(w.id)).map((w) => (
+            <button
+              key={w.id}
+              type="button"
+              title={w.label}
+              onClick={() => onSwitchWorkspace(w.id)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px',
+                fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, borderRadius: 4,
+                border: 'none', cursor: 'pointer',
+                background: w.id === workspace ? 'var(--a-cy-bg)' : 'transparent',
+                color: w.id === workspace ? 'var(--a-cy)' : 'var(--t-2)',
+              }}
+            >
+              <TermIcon name={w.icon} size={11} /> {w.short}
+            </button>
+          ))}
+        </div>
+      )}
       <button type="button" className="his-cmd" onClick={onCmdK} title="Command palette (Ctrl+K)">
         <span className="prompt">❯</span>
         <span className="hint">Tìm BN, XN, HĐ, thuốc, phòng… (mã, tên, SĐT)</span>
