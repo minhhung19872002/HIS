@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import TermIcon from './Icon';
-import { HIS_GROUPS } from '../../../services/menu.service';
+import { getVisibleGroups } from '../../../services/menu.service';
 
 /* Auto-extracted from TerminalLayout.tsx (#376 split) — behavior-preserving verbatim move. */
 
@@ -20,7 +20,8 @@ type RailProps = {
 const Rail = React.memo(({ activeGroupId, pinnedGroupId, hoveredGroupId, onHoverGroup, onClickGroup }: RailProps) => (
   <aside className="his-rail" onMouseLeave={() => onHoverGroup(null)}>
     <Link to="/v2" className="his-rail-mark" title="HIS Terminal — Chỉ mục">HIS</Link>
-    {HIS_GROUPS.map((g) => {
+    {/* #378: chỉ render group/item user có quyền thấy (fail-open khi set chưa nạp) */}
+    {getVisibleGroups().map((g) => {
       const active = g.id === activeGroupId;
       const pinned = g.id === pinnedGroupId;
       const hovered = g.id === hoveredGroupId;
@@ -63,7 +64,7 @@ type FlyoutProps = {
 };
 
 const Flyout = React.memo(({ groupId, activeItemId, pinned, onClose, onTogglePin, onKeepOpen }: FlyoutProps) => {
-  const g = HIS_GROUPS.find((x) => x.id === groupId);
+  const g = getVisibleGroups().find((x) => x.id === groupId);
   if (!g) return null;
   return (
     <div

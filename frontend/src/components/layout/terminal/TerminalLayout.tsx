@@ -19,6 +19,7 @@ import {
   ALL_ITEMS,
   findGroupIdForPath,
   findItemForPath,
+  permissionForPath,
 } from '../../../services/menu.service';
 import { v2Routes } from '../../../router/routeConfigs';
 import { usePermission } from '../../../hooks/usePermission';
@@ -36,11 +37,11 @@ import './ab-module.css';
 /* Command-palette source (#382): mọi trang /v2 điều hướng được — union menu
    (ALL_ITEMS, có label thân thiện) + TẤT CẢ v2Routes (phủ cả trang không có
    mục menu). Dedup theo path; giữ label menu khi trùng. `permission` từ
-   route.meta (hiện trống — điền ở #378) để CmdK lọc theo can(). */
+   route.meta (#378 đã điền — mục menu cũng tra registry) để CmdK lọc theo can(). */
 type PaletteItem = { label: string; path: string; groupId?: string; permission?: string };
 const PALETTE_ITEMS: PaletteItem[] = (() => {
   const byPath = new Map<string, PaletteItem>();
-  ALL_ITEMS.forEach((it) => byPath.set(it.path, { label: it.label, path: it.path, groupId: it.groupId }));
+  ALL_ITEMS.forEach((it) => byPath.set(it.path, { label: it.label, path: it.path, groupId: it.groupId, permission: permissionForPath(it.path) }));
   v2Routes.forEach((r) => {
     if (r.redirect || r.index || !r.meta?.title) return;
     const path = '/v2/' + r.path.replace(/^\/+/, '');

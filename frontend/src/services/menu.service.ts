@@ -10,6 +10,8 @@
  */
 
 import type { NavGroup, NavItem } from '../types/menu';
+import { v2Routes } from '../router/routeConfigs';
+import { can } from './permission.service';
 export type { NavGroup, NavItem };
 
 export const HIS_GROUPS: NavGroup[] = [
@@ -231,4 +233,32 @@ export function findGroupIdForPath(pathname: string): string | null {
 
 export function findItemForPath(pathname: string): (NavItem & { groupId: string }) | null {
   return ALL_ITEMS.find((it) => pathname === it.path || pathname.startsWith(it.path + '/')) ?? null;
+}
+
+// ── #378: lọc menu theo permission ──
+// Nguồn sự thật permission = route registry (meta.permission, catalog AUTHZ-1 #367).
+// Menu item map sang route qua path '/v2/<route.path>'. Item không có mã → luôn hiện.
+
+const PERM_BY_PATH = new Map<string, string>(
+  v2Routes
+    .filter((r) => r.meta.permission)
+    .map((r) => ['/v2/' + r.path.replace(/^\/+/, ''), r.meta.permission as string]),
+);
+
+/** Permission code gắn với 1 path menu ('/v2/x') — undefined nếu không gate. */
+export function permissionForPath(path: string): string | undefined {
+  return PERM_BY_PATH.get(path);
+}
+
+/** Path này user hiện tại có được thấy không (fail-open khi set chưa nạp — xem permission.service). */
+export function isPathAllowed(path: string): boolean {
+  const perm = PERM_BY_PATH.get(path);
+  return !perm || can(perm);
+}
+
+/** HIS_GROUPS đã lọc theo quyền user; group rỗng bị ẩn. Gọi trong render (set nạp trước setUser — AuthContext #378). */
+export function getVisibleGroups(): NavGroup[] {
+  return HIS_GROUPS
+    .map((g) => ({ ...g, items: g.items.filter((it) => isPathAllowed(it.path)) }))
+    .filter((g) => g.items.length > 0);
 }
