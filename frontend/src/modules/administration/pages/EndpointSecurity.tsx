@@ -2,16 +2,16 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   getDevices, registerDevice, updateDeviceStatus, deleteDevice, getIncidents,
-  createIncident, resolveIncident, getSoftwareInventory, flagUnauthorized,
+  createIncident, resolveIncident, getSoftwareInventory, flagUnauthorized, getSecurityDashboard,
 } from '../api/endpointSecurity';
 import type {
   EndpointDeviceDto, RegisterDeviceDto, UpdateDeviceStatusDto, SecurityIncidentDto,
-  CreateIncidentDto, InstalledSoftwareDto,
+  CreateIncidentDto, InstalledSoftwareDto, EndpointSecurityDashboardDto,
 } from '../api/endpointSecurity';
 import {
-  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
+  KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
   DrawerShell, DrSec, DrField, tk, ti, te, cf,
-  type ColumnDef, type CrudFieldCfg,
+  type TopTab, type ColumnDef, type CrudFieldCfg,
 } from '../../../pages-v2/_v2kit';
 
 const DEVICE_FIELDS: CrudFieldCfg[] = [
@@ -53,6 +53,12 @@ const RESOLVE_FIELDS: CrudFieldCfg[] = [
   { key: 'rootCause', label: 'Nguyên nhân gốc', type: 'textarea' },
 ];
 
+type PageTab = 'overview' | 'devices';
+const PAGE_TABS: TopTab<PageTab>[] = [
+  { v: 'overview', l: 'Tổng quan',   ic: 'activity' },
+  { v: 'devices',  l: 'Danh sách máy', ic: 'grid' },
+];
+
 type SKey = 'compliant' | 'noncompliant' | 'offline';
 const STATUS_TABS = [
   { v: 'compliant' as SKey,    l: 'Tuân thủ',     tone: 'ok' as const },
@@ -70,6 +76,9 @@ const sKey = (r: EndpointDeviceDto): SKey => {
 const PER = 18;
 
 const EndpointSecurityV2: React.FC = () => {
+  const [tab, setTab] = useState<PageTab>('overview');
+  const [dashboard, setDashboard] = useState<EndpointSecurityDashboardDto | null>(null);
+  const [dashLoading, setDashLoading] = useState(true);
   const [items, setItems] = useState<EndpointDeviceDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -100,6 +109,15 @@ const EndpointSecurityV2: React.FC = () => {
     try { await deleteDevice(r.id); tk('Đã xoá'); load(); } catch { te('Xoá thất bại'); }
   }, { tone: 'crit', confirm: 'Xoá' });
 
+  const loadDashboard = async () => {
+    setDashLoading(true);
+    try {
+      const d = await getSecurityDashboard();
+      setDashboard(d);
+    } catch { /* silent — overview falls back gracefully */ }
+    finally { setDashLoading(false); }
+  };
+
   const load = async () => {
     setLoading(true);
     try {
@@ -109,7 +127,7 @@ const EndpointSecurityV2: React.FC = () => {
     } catch { ti('Không tải được danh sách máy'); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { loadDashboard(); load(); /* eslint-disable-next-line */ }, []);
 
   const openIncidents = async () => {
     setIncidentOpen(true);
@@ -220,8 +238,100 @@ const EndpointSecurityV2: React.FC = () => {
     </div>
   );
 
+  const statusLabel = (s: string) => {
+    switch (s) {
+      case 'Online': return 'Online';
+      case 'Offline': return 'Offline';
+      case 'Warning': return 'Cảnh báo';
+      case 'Critical': return 'Nguy hiểm';
+      default: return s;
+    }
+  };
+
   return (
     <div className="ab">
+      <TopTabs<PageTab> tab={tab} setTab={setTab} tabs={PAGE_TABS} />
+
+      {tab === 'overview' && (
+        <div>
+          <KpiStrip items={[
+            { lbl: 'Tổng máy', val: dashboard?.totalDevices ?? items.length, sub: 'tất cả' },
+            { lbl: 'Tuân thủ', val: dashboard?.compliantDevices ?? counts.compliant ?? 0, sub: dashboard ? `${dashboard.compliancePercent}%` : '—', tone: 'ok' },
+            { lbl: 'Sự cố mở', val: dashboard?.openIncidents ?? 0, sub: `${dashboard?.criticalIncidents ?? 0} nghiêm trọng`, tone: (dashboard?.openIncidents ?? 0) > 0 ? 'crit' : 'ok' },
+            { lbl: 'PM không phép', val: dashboard?.unauthorizedSoftware ?? 0, sub: `/${dashboard?.totalSoftware ?? 0} phần mềm`, tone: (dashboard?.unauthorizedSoftware ?? 0) > 0 ? 'warn' : 'ok' },
+          ]} />
+
+          {dashLoading && <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>Đang tải tổng quan…</div>}
+
+          {!dashLoading && dashboard && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-16)', padding: 'var(--space-16)' }}>
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', padding: 'var(--space-16)' }}>
+                <div style={{ fontWeight: 600, marginBottom: 'var(--space-12)', fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>Thiết bị theo trạng thái</div>
+                {dashboard.devicesByStatus.length === 0 && (
+                  <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Không có dữ liệu</div>
+                )}
+                {dashboard.devicesByStatus.map((d) => {
+                  const pct = dashboard.totalDevices > 0 ? Math.round(d.count / dashboard.totalDevices * 100) : 0;
+                  const tone = d.status === 'Critical' ? 'var(--a-rd-text)' : d.status === 'Warning' ? 'var(--a-or-text)' : d.status === 'Offline' ? 'var(--t-2)' : 'var(--a-gr-text)';
+                  return (
+                    <div key={d.status} style={{ marginBottom: 'var(--space-10)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-sm)', marginBottom: 4 }}>
+                        <span style={{ color: tone }}>{statusLabel(d.status)}</span>
+                        <span style={{ color: 'var(--t-2)' }}>{d.count} ({pct}%)</span>
+                      </div>
+                      <div style={{ height: 6, background: 'var(--line)', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: tone, borderRadius: 3, transition: 'width 0.4s' }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', padding: 'var(--space-16)' }}>
+                <div style={{ fontWeight: 600, marginBottom: 'var(--space-12)', fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>Sự cố theo danh mục</div>
+                {dashboard.incidentsByCategory.length === 0 && (
+                  <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Không có sự cố nào</div>
+                )}
+                {dashboard.incidentsByCategory.map((c) => (
+                  <div key={c.category} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-6) 0', borderBottom: '1px solid var(--line)' }}>
+                    <span style={{ fontSize: 'var(--fs-sm)' }}>{c.category}</span>
+                    <StatusBadge tone={c.count > 5 ? 'crit' : c.count > 0 ? 'warn' : 'ok'}>
+                      {c.count}
+                    </StatusBadge>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', padding: 'var(--space-16)', gridColumn: '1 / -1' }}>
+                <div style={{ fontWeight: 600, marginBottom: 'var(--space-12)', fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>Tóm tắt hệ thống</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 'var(--space-12)' }}>
+                  {[
+                    { l: 'Tổng máy',       v: dashboard.totalDevices },
+                    { l: 'Máy tuân thủ',   v: dashboard.compliantDevices },
+                    { l: 'Tổng phần mềm',  v: dashboard.totalSoftware },
+                    { l: 'PM không phép',   v: dashboard.unauthorizedSoftware },
+                    { l: 'SC nghiêm trọng', v: dashboard.criticalIncidents },
+                  ].map((s) => (
+                    <div key={s.l} style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 'var(--fs-xl)', fontWeight: 700, color: 'var(--t-1)' }}>{s.v}</div>
+                      <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>{s.l}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!dashLoading && !dashboard && (
+            <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--t-2)' }}>
+              Không tải được dữ liệu tổng quan.{' '}
+              <button type="button" style={{ color: 'var(--a-bl-text)', background: 'none', border: 'none', cursor: 'pointer' }} onClick={loadDashboard}>Thử lại</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'devices' && <>
       <KpiStrip items={[
         { lbl: 'Tổng máy', val: items.length, sub: 'tất cả' },
         { lbl: 'Tuân thủ', val: counts.compliant || 0, sub: `${Math.round(((counts.compliant || 0) / Math.max(1, items.length)) * 100)}%`, tone: 'ok' },
@@ -428,6 +538,7 @@ const EndpointSecurityV2: React.FC = () => {
           </table>
         )}
       </DrawerShell>
+      </>}
     </div>
   );
 };

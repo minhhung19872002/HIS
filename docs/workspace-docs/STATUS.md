@@ -11,6 +11,7 @@
 
 ## Cập nhật theo cửa (per-window — mỗi cửa 1 dòng distinct, KHÔNG ghi đè cửa khác; R6 anti last-writer-wins)
 - **[370]** updated 2026-07-18 — Phiên: #363(registry+threshold✅f5de4388·deployed) · #371 BE 2-report✅d7c8a72a + FE viewer✅d1df5ce8 · #370 Delegation dormant✅33da97da · FIX va-chạm-4-cửa `safe-commit.sh`✅027e90a7 · **#426 [DOC] authz-activation-runbook** (survey 3-agent map kill-switch/wiring #369/#370/#371 → `docs/architecture/authz-activation-runbook.md`, phục vụ phiên smoke). Kế: chờ user.
+- **[425]** updated 2026-07-18 — **#425 [FE][v2] EndpointSecurity Tổng-quan tab — DONE-code, CHỜ PUSH.** Thêm `TopTabs` (Tổng quan / Danh sách máy) vào v2 EndpointSecurity; tab Tổng quan: `getSecurityDashboard()` → KpiStrip (totalDevices/compliantDevices/openIncidents/unauthorizedSoftware) + devicesByStatus progress-bars + incidentsByCategory badges + summary stats grid. `TopTab` type import từ `_v2kit`; `EndpointSecurityDashboardDto` type đã có sẵn trong api; build-gate `-b --noEmit` EXIT 0; pre-existing errors (Inpatient/Insurance/PrescriptionEditor) từ cửa #407/#371 không liên quan.
 
 ## Phiên 2026-07-12 (cửa 367-authz1 — #367 AUTHZ-1 backend, ✅ PUSHED + CLOSED)
 - **#367 [AUTHZ-1][P1] DONE**: PermissionCatalog (38 code) + RequirePermission + PermissionPolicyProvider + PermissionAuthorizationHandler (fail-closed) + PermissionService (DB + IMemoryCache 30s) + PermissionCatalogSeeder (idempotent startup) + MeController GET /api/me/permissions + 11 pilot action / 3 controller. Migration 145: IsSensitive + unique index PermissionCode.
