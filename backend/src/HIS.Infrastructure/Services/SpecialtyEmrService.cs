@@ -1,6 +1,7 @@
 using System.Text;
 using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
+using HIS.Application.Common;
 using HIS.Application.DTOs.SpecialtyEmr;
 using HIS.Application.Services;
 using HIS.Core.Entities;
@@ -11,10 +12,14 @@ namespace HIS.Infrastructure.Services;
 public class SpecialtyEmrService : ISpecialtyEmrService
 {
     private readonly HISDbContext _context;
+    private readonly ICurrentUserAccessor _currentUser;
+    private readonly ITreatmentRelationshipService _treatRel;
 
-    public SpecialtyEmrService(HISDbContext context)
+    public SpecialtyEmrService(HISDbContext context, ICurrentUserAccessor currentUser, ITreatmentRelationshipService treatRel)
     {
         _context = context;
+        _currentUser = currentUser;
+        _treatRel = treatRel;
     }
 
     public async Task<SpecialtyEmrPagedResult> SearchAsync(SpecialtyEmrSearchDto dto)
@@ -95,6 +100,11 @@ public class SpecialtyEmrService : ISpecialtyEmrService
             .FirstOrDefaultAsync();
 
         if (entity == null) return null;
+
+        // AUTHZ-3 (#369) — guard: kill-switch OFF by default (Auth:TreatmentRelationshipEnabled=false).
+        if (_currentUser.UserGuid.HasValue)
+            await _treatRel.EnsureCanAccessPatientAsync(
+                _currentUser.UserGuid.Value, _currentUser.Roles, entity.PatientId);
 
         return new SpecialtyEmrDto
         {

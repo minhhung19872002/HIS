@@ -35,8 +35,11 @@ public class PermissionService : IPermissionService
                 .AnyAsync(u => u.Id == userId && u.IsActive && !u.IsDeleted);
             if (!isActive) return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+            var now = DateTime.UtcNow;
             var codes = await _context.UserRoles
-                .Where(ur => ur.UserId == userId && !ur.IsDeleted)
+                .Where(ur => ur.UserId == userId && !ur.IsDeleted
+                    && (ur.ValidFrom == null || ur.ValidFrom <= now)
+                    && (ur.ValidTo == null || ur.ValidTo >= now))
                 .SelectMany(ur => ur.Role.RolePermissions)
                 .Where(rp => !rp.IsDeleted && !rp.Permission.IsDeleted)
                 .Select(rp => rp.Permission.PermissionCode)

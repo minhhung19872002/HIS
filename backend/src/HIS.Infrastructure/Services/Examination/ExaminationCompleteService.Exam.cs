@@ -35,6 +35,11 @@ public partial class ExaminationCompleteService
 
         if (examination == null) throw new Exception("Examination not found");
 
+        // AUTHZ-3 (#369) — guard: kill-switch OFF by default (Auth:TreatmentRelationshipEnabled=false).
+        if (_currentUser.UserGuid.HasValue)
+            await _treatRel.EnsureCanAccessPatientAsync(
+                _currentUser.UserGuid.Value, _currentUser.Roles, examination.MedicalRecord.PatientId);
+
         var patient = examination.MedicalRecord.Patient;
 
         return new MedicalRecordFullDto

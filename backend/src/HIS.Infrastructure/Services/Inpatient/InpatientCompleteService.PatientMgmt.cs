@@ -152,6 +152,11 @@ public partial class InpatientCompleteService {
         if (admission == null)
             return null;
 
+        // AUTHZ-3 (#369) — guard: kill-switch OFF by default (Auth:TreatmentRelationshipEnabled=false).
+        if (_currentUser.UserGuid.HasValue)
+            await _treatRel.EnsureCanAccessPatientAsync(
+                _currentUser.UserGuid.Value, _currentUser.Roles, admission.PatientId);
+
         var dept = await _context.Departments.FindAsync(admission.DepartmentId);
         var room = admission.RoomId != Guid.Empty ? await _context.Rooms.FindAsync(admission.RoomId) : null;
         var bed = admission.BedId.HasValue ? await _context.Beds.FindAsync(admission.BedId.Value) : null;

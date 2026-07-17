@@ -36,6 +36,7 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserAccessor _currentUser;
     private readonly IPaymentGatewayService _paymentGateway;
+    private readonly ITreatmentRelationshipService _treatRel;
 
     public ExaminationCompleteService(
         HISDbContext context,
@@ -46,7 +47,8 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
         IRepository<User> userRepo,
         IUnitOfWork unitOfWork,
         ICurrentUserAccessor currentUser,
-        IPaymentGatewayService paymentGateway)
+        IPaymentGatewayService paymentGateway,
+        ITreatmentRelationshipService treatRel)
     {
         _context = context;
         _patientRepo = patientRepo;
@@ -57,6 +59,7 @@ public partial class ExaminationCompleteService : IExaminationCompleteService
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _paymentGateway = paymentGateway;
+        _treatRel = treatRel;
     }
 
     // Đọc người dùng hiện tại qua ICurrentUserAccessor (canonical claim) — #200 REFAC-1.

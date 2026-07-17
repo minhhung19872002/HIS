@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using HIS.Application.Common;
 using HIS.Application.DTOs;
 using HIS.Application.DTOs.Inpatient;
 using HIS.Application.Services;
@@ -29,6 +30,8 @@ public partial class InpatientCompleteService : IInpatientCompleteService
     private readonly IRepository<User> _userRepo;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPaymentGatewayService _paymentGateway;
+    private readonly ICurrentUserAccessor _currentUser;
+    private readonly ITreatmentRelationshipService _treatRel;
 
     public InpatientCompleteService(
         HISDbContext context,
@@ -41,7 +44,9 @@ public partial class InpatientCompleteService : IInpatientCompleteService
         IRepository<BedAssignment> bedAssignmentRepo,
         IRepository<User> userRepo,
         IUnitOfWork unitOfWork,
-        IPaymentGatewayService paymentGateway)
+        IPaymentGatewayService paymentGateway,
+        ICurrentUserAccessor currentUser,
+        ITreatmentRelationshipService treatRel)
     {
         _context = context;
         _patientRepo = patientRepo;
@@ -54,6 +59,8 @@ public partial class InpatientCompleteService : IInpatientCompleteService
         _userRepo = userRepo;
         _unitOfWork = unitOfWork;
         _paymentGateway = paymentGateway;
+        _currentUser = currentUser;
+        _treatRel = treatRel;
     }
 
 
