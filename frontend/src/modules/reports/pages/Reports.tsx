@@ -447,23 +447,6 @@ const ReportsV2: React.FC = () => {
     }
   };
 
-  const handleDownloadPdf = async (report: ReportDefinition) => {
-    if (runningReport === report.id) return;
-    setRunningReport(report.id);
-    try {
-      const { fromDate, toDate } = getDateRange();
-      await downloadBlob(
-        `/reporting/export/pdf/${report.id}?fromDate=${fromDate}&toDate=${toDate}`,
-        `${report.id}_${dayjs().format('YYYYMMDD')}.pdf`,
-      );
-      message.success(`Đã tải PDF: ${report.name}`);
-    } catch {
-      message.error('Tải PDF thất bại — thử lại sau');
-    } finally {
-      setRunningReport(null);
-    }
-  };
-
   const handleDownloadExcel = async (report: ReportDefinition) => {
     if (runningReport === report.id) return;
     setRunningReport(report.id);

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { DatePicker, Select } from 'antd';
 import { exportToExcel } from '../../../utils/excelExport';
 import type { ExcelColumn } from '../../../utils/excelExport';
 import {
@@ -87,6 +88,10 @@ const Dashboard3CapV2: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [selBranch, setSelBranch] = useState<BranchTreeDto | null>(null);
   const [selSub, setSelSub] = useState<BranchSummary | null>(null);
+  const [dashDate, setDashDate] = useState(() => dayjs());
+  const [reportMonth, setReportMonth] = useState(() => dayjs().startOf('month'));
+  const [dutyYear, setDutyYear] = useState(() => dayjs().year());
+  const [dutyMonth, setDutyMonth] = useState(() => dayjs().month() + 1);
 
   const loadTreeData = async () => {
     try {
@@ -101,7 +106,7 @@ const Dashboard3CapV2: React.FC = () => {
   const loadDashboard = async () => {
     setLoading(true);
     try {
-      const r = await getMultiFacilityDashboard(branchId || undefined);
+      const r = await getMultiFacilityDashboard(branchId || undefined, dashDate.format('YYYY-MM-DD'));
       setDashboard(r);
     } catch { ti('Không tải được dashboard'); }
     finally { setLoading(false); }
@@ -113,8 +118,8 @@ const Dashboard3CapV2: React.FC = () => {
       const r = await getConsolidatedReport(
         branchId || undefined,
         'monthly',
-        dayjs().startOf('month').format('YYYY-MM-DD'),
-        dayjs().endOf('month').format('YYYY-MM-DD'),
+        reportMonth.startOf('month').format('YYYY-MM-DD'),
+        reportMonth.endOf('month').format('YYYY-MM-DD'),
       );
       setReport(r);
     } catch { ti('Không tải được báo cáo'); }
@@ -126,8 +131,8 @@ const Dashboard3CapV2: React.FC = () => {
     try {
       const r = await getBranchDutyRoster(
         branchId || undefined,
-        dayjs().year(),
-        dayjs().month() + 1,
+        dutyYear,
+        dutyMonth,
       );
       setDuty(r);
     } catch { ti('Không tải được lịch trực'); }
@@ -141,7 +146,7 @@ const Dashboard3CapV2: React.FC = () => {
     else if (tab === 'duty') loadDuty();
     // 'tree' data loads once via loadTreeData() on mount (org tree/levels don't depend on branchId, same as v1)
     /* eslint-disable-next-line */
-  }, [tab, branchId]);
+  }, [tab, branchId, dashDate, reportMonth, dutyYear, dutyMonth]);
 
   const branchOpts = useMemo(() => flattenBranches(tree ? [tree] : []), [tree]);
 
@@ -263,6 +268,41 @@ const Dashboard3CapV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: 'none' }}>
         <Filter value={branchId} onChange={setBranchId} options={branchOpts} placeholder="▾ Toàn hệ thống" />
         <Btn variant="ghost" icon="x" onClick={() => setBranchId('')}>Xem tất cả</Btn>
+        {tab === 'dashboard' && (
+          <DatePicker
+            value={dashDate}
+            onChange={(d) => d && setDashDate(d)}
+            format="DD/MM/YYYY"
+            allowClear={false}
+            style={{ width: 140 }}
+          />
+        )}
+        {tab === 'consolidated' && (
+          <DatePicker
+            picker="month"
+            value={reportMonth}
+            onChange={(d) => d && setReportMonth(d)}
+            format="MM/YYYY"
+            allowClear={false}
+            style={{ width: 120 }}
+          />
+        )}
+        {tab === 'duty' && (
+          <>
+            <Select
+              value={dutyYear}
+              onChange={setDutyYear}
+              options={Array.from({ length: 5 }, (_, i) => dayjs().year() - 2 + i).map((y) => ({ value: y, label: String(y) }))}
+              style={{ width: 90 }}
+            />
+            <Select
+              value={dutyMonth}
+              onChange={setDutyMonth}
+              options={Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `Tháng ${i + 1}` }))}
+              style={{ width: 110 }}
+            />
+          </>
+        )}
         <span className="spacer" />
         <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
           {dayjs().format('dddd · DD/MM/YYYY')}

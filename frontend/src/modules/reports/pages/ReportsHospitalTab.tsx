@@ -515,7 +515,11 @@ const callReportApi = async (
 
   const fromDate = dateRange[0].format('YYYY-MM-DD');
   const toDate = dateRange[1].format('YYYY-MM-DD');
-  const departmentId = departmentIdMap[department] || department;
+  // #423: DEPARTMENT_OPTIONS/WAREHOUSE_OPTIONS dùng demo string (không phải Guid) → BE khai Guid? → 400.
+  // Chỉ gửi khi value là UUID hợp lệ; demo strings và 'all' → undefined (= Tất cả).
+  const isGuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+  const departmentId = isGuid(department) ? department : undefined;
+  const resolvedWarehouseId = isGuid(warehouseId) ? warehouseId : undefined;
 
   const { apiCategory, reportType } = mapping;
 
@@ -530,7 +534,7 @@ const callReportApi = async (
         reportType,
         fromDate,
         toDate,
-        departmentId: departmentId || undefined,
+        departmentId: departmentId,
         outputFormat,
       };
       if (outputFormat === 'print') {
@@ -545,8 +549,8 @@ const callReportApi = async (
         reportType,
         fromDate,
         toDate,
-        departmentId: departmentId || undefined,
-        warehouseId: warehouseId || undefined,
+        departmentId: departmentId,
+        warehouseId: resolvedWarehouseId,
         outputFormat,
       };
       if (outputFormat === 'print') {
@@ -561,7 +565,7 @@ const callReportApi = async (
         reportType,
         fromDate,
         toDate,
-        departmentId: departmentId || undefined,
+        departmentId: departmentId,
         outputFormat,
       };
       if (outputFormat === 'print') {

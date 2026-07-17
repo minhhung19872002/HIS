@@ -21,22 +21,24 @@ interface RawCatalogItem {
 }
 
 /* Danh mục v2 — sidebar + table + CRUD. departments/medicines/clinical-terms
-   + occupations/genders/admin-divisions có API ghi; services + ICD hiện chỉ đọc (chưa có API ghi).
+   + occupations/genders/admin-divisions/services/ICD có API ghi.
    Validate: client (UX, focus) + BACKEND (authoritative). Excel import: medicines + ICD. */
 
 type CatalogKey = 'departments' | 'services' | 'medicines' | 'icd' | 'clinical-terms'
-  | 'occupations' | 'genders' | 'admin-divisions';
-const WRITABLE: CatalogKey[] = ['departments', 'medicines', 'clinical-terms', 'occupations', 'genders', 'admin-divisions'];
+  | 'occupations' | 'genders' | 'admin-divisions' | 'countries' | 'healthcare-facilities';
+const WRITABLE: CatalogKey[] = ['departments', 'services', 'medicines', 'icd', 'clinical-terms', 'occupations', 'genders', 'admin-divisions', 'countries', 'healthcare-facilities'];
 
 const CATALOGS: { v: CatalogKey; l: string; ic: string }[] = [
-  { v: 'departments',     l: 'Khoa / Phòng',   ic: 'building' },
-  { v: 'services',        l: 'Dịch vụ KCB',    ic: 'list' },
-  { v: 'medicines',       l: 'Danh mục thuốc', ic: 'pill' },
-  { v: 'icd',             l: 'ICD-10',         ic: 'tag' },
-  { v: 'clinical-terms',  l: 'Thuật ngữ LS',   ic: 'book' },
-  { v: 'occupations',     l: 'Nghề nghiệp',    ic: 'user' },
-  { v: 'genders',         l: 'Giới tính',      ic: 'users' },
-  { v: 'admin-divisions', l: 'Tỉnh/Huyện/Xã',  ic: 'layers' },
+  { v: 'departments',           l: 'Khoa / Phòng',   ic: 'building' },
+  { v: 'services',              l: 'Dịch vụ KCB',    ic: 'list' },
+  { v: 'medicines',             l: 'Danh mục thuốc', ic: 'pill' },
+  { v: 'icd',                   l: 'ICD-10',         ic: 'tag' },
+  { v: 'clinical-terms',        l: 'Thuật ngữ LS',   ic: 'book' },
+  { v: 'occupations',           l: 'Nghề nghiệp',    ic: 'user' },
+  { v: 'genders',               l: 'Giới tính',      ic: 'users' },
+  { v: 'admin-divisions',       l: 'Tỉnh/Huyện/Xã',  ic: 'layers' },
+  { v: 'countries',             l: 'Quốc gia',       ic: 'globe' },
+  { v: 'healthcare-facilities', l: 'CSKCB',          ic: 'building' },
 ];
 
 // Nhãn cấp đơn vị hành chính (verbatim v1 MasterData)
@@ -47,6 +49,25 @@ interface CatalogRow { id?: string; code: string; name: string; meta?: string; i
 type FieldType = 'text' | 'number' | 'select' | 'switch';
 interface FieldCfg { key: string; label: string; type?: FieldType; required?: boolean; options?: { value: string | number; label: string }[]; }
 const FORM_FIELDS: Record<string, FieldCfg[]> = {
+  services: [
+    { key: 'code', label: 'Mã dịch vụ', required: true },
+    { key: 'name', label: 'Tên dịch vụ', required: true },
+    { key: 'serviceType', label: 'Loại dịch vụ', required: true, type: 'select' as const, options: [
+      { value: 'Xray', label: 'X-quang' }, { value: 'Ultrasound', label: 'Siêu âm' },
+      { value: 'Lab', label: 'Xét nghiệm' }, { value: 'Endoscopy', label: 'Nội soi' },
+      { value: 'Other', label: 'Khác' }] },
+    { key: 'departmentId', label: 'ID Khoa (GUID)', required: true },
+    { key: 'unitPrice', label: 'Đơn giá (VNĐ)', required: true, type: 'number' as const },
+    { key: 'nameEnglish', label: 'Tên tiếng Anh' },
+    { key: 'isActive', label: 'Trạng thái', type: 'switch' as const },
+  ],
+  icd: [
+    { key: 'code', label: 'Mã ICD-10', required: true },
+    { key: 'name', label: 'Tên bệnh (tiếng Việt)', required: true },
+    { key: 'nameEnglish', label: 'Tên bệnh (tiếng Anh)' },
+    { key: 'chapterCode', label: 'Mã chương', required: true },
+    { key: 'isActive', label: 'Trạng thái', type: 'switch' as const },
+  ],
   departments: [
     { key: 'code', label: 'Mã', required: true },
     { key: 'name', label: 'Tên khoa/phòng', required: true },
@@ -56,6 +77,7 @@ const FORM_FIELDS: Record<string, FieldCfg[]> = {
     { key: 'nameEnglish', label: 'Tên tiếng Anh' },
     { key: 'phone', label: 'Điện thoại' },
     { key: 'location', label: 'Vị trí' },
+    { key: 'isActive', label: 'Trạng thái', type: 'switch' },
   ],
   medicines: [
     { key: 'code', label: 'Mã thuốc', required: true },
@@ -65,6 +87,7 @@ const FORM_FIELDS: Record<string, FieldCfg[]> = {
     { key: 'dosageForm', label: 'Dạng bào chế', required: true },
     { key: 'unit', label: 'Đơn vị', required: true },
     { key: 'concentration', label: 'Hàm lượng' },
+    { key: 'isActive', label: 'Trạng thái', type: 'switch' },
   ],
   'clinical-terms': [
     { key: 'code', label: 'Mã', required: true },
@@ -92,11 +115,29 @@ const FORM_FIELDS: Record<string, FieldCfg[]> = {
   'admin-divisions': [
     { key: 'code', label: 'Mã đơn vị', required: true },
     { key: 'name', label: 'Tên đơn vị', required: true },
-    { key: 'level', label: 'Cấp', required: true, type: 'select', options: [
+    { key: 'level', label: 'Cấp', required: true, type: 'select' as const, options: [
       { value: 1, label: 'Tỉnh/Thành phố' }, { value: 2, label: 'Quận/Huyện' }, { value: 3, label: 'Phường/Xã' }] },
     { key: 'parentCode', label: 'Mã đơn vị cha' },
-    { key: 'sortOrder', label: 'Thứ tự', type: 'number' },
-    { key: 'isActive', label: 'Trạng thái', type: 'switch' },
+    { key: 'sortOrder', label: 'Thứ tự', type: 'number' as const },
+    { key: 'isActive', label: 'Trạng thái', type: 'switch' as const },
+  ],
+  countries: [
+    { key: 'code', label: 'Mã quốc gia', required: true },
+    { key: 'name', label: 'Tên quốc gia', required: true },
+    { key: 'nationalityName', label: 'Tên quốc tịch' },
+    { key: 'sortOrder', label: 'Thứ tự', type: 'number' as const },
+    { key: 'isActive', label: 'Trạng thái', type: 'switch' as const },
+  ],
+  'healthcare-facilities': [
+    { key: 'code', label: 'Mã CSKCB', required: true },
+    { key: 'name', label: 'Tên cơ sở', required: true },
+    { key: 'level', label: 'Tuyến', type: 'select' as const, options: [
+      { value: 'TW', label: 'Trung ương' }, { value: 'Tinh', label: 'Tỉnh' },
+      { value: 'Huyen', label: 'Huyện' }, { value: 'Xa', label: 'Xã' }] },
+    { key: 'address', label: 'Địa chỉ' },
+    { key: 'provinceCode', label: 'Mã tỉnh' },
+    { key: 'sortOrder', label: 'Thứ tự', type: 'number' as const },
+    { key: 'isActive', label: 'Trạng thái', type: 'switch' as const },
   ],
 };
 
@@ -141,6 +182,16 @@ async function loadCatalog(cat: CatalogKey, keyword?: string, divFilter?: Divisi
     const items: RawCatalogItem[] = Array.isArray(r.data) ? r.data : [];
     return items.map((i) => ({ id: i.id, code: i.code || '', name: i.name || '', meta: i.chapterCode, raw: i as CatalogRowRaw }));
   }
+  if (cat === 'countries') {
+    const r = await administrativeCatalogApi.getCountries(keyword || undefined);
+    const items = Array.isArray(r.data) ? r.data : [];
+    return items.map((c) => ({ id: c.id, code: c.code, name: c.name, meta: c.nationalityName, isActive: c.isActive, raw: c as unknown as CatalogRowRaw }));
+  }
+  if (cat === 'healthcare-facilities') {
+    const r = await administrativeCatalogApi.getHealthcareFacilities(keyword || undefined);
+    const items = Array.isArray(r.data) ? r.data : [];
+    return items.map((f) => ({ id: f.id, code: f.code, name: f.name, meta: `${f.level || ''} · ${f.address || ''}`, isActive: f.isActive, raw: f as unknown as CatalogRowRaw }));
+  }
   const r = await systemApi.catalog.getClinicalTerms(keyword || undefined, undefined, undefined, true);
   const items: RawCatalogItem[] = Array.isArray(r.data) ? r.data : [];
   return items.map((c) => ({ id: c.id, code: c.code || '', name: c.name || '', meta: `${c.category || ''} · ${c.bodySystem || ''}`, raw: c as CatalogRowRaw }));
@@ -184,11 +235,15 @@ const MasterDataV2: React.FC = () => {
     setSaving(true);
     try {
       if (active === 'departments') await systemApi.catalog.saveDepartment(v as unknown as Parameters<typeof systemApi.catalog.saveDepartment>[0]);
+      else if (active === 'services') await systemApi.catalog.saveParaclinicalService({ isActive: true, unitPrice: 0, ...v } as unknown as Parameters<typeof systemApi.catalog.saveParaclinicalService>[0]);
       else if (active === 'medicines') await systemApi.catalog.saveMedicine(v as unknown as Parameters<typeof systemApi.catalog.saveMedicine>[0]);
+      else if (active === 'icd') await systemApi.catalog.saveICD10Code({ isReportable: false, isActive: true, ...v } as unknown as Parameters<typeof systemApi.catalog.saveICD10Code>[0]);
       else if (active === 'clinical-terms') await systemApi.catalog.saveClinicalTerm({ sortOrder: 0, isActive: true, ...v } as unknown as Parameters<typeof systemApi.catalog.saveClinicalTerm>[0]);
       else if (active === 'occupations') await administrativeCatalogApi.saveOccupation({ sortOrder: 0, isActive: true, ...v } as unknown as Parameters<typeof administrativeCatalogApi.saveOccupation>[0]);
       else if (active === 'genders') await administrativeCatalogApi.saveGender({ sortOrder: 0, isActive: true, ...v } as unknown as Parameters<typeof administrativeCatalogApi.saveGender>[0]);
       else if (active === 'admin-divisions') await administrativeCatalogApi.saveAdministrativeDivision({ sortOrder: 0, isActive: true, ...v } as unknown as Parameters<typeof administrativeCatalogApi.saveAdministrativeDivision>[0]);
+      else if (active === 'countries') await administrativeCatalogApi.saveCountry({ sortOrder: 0, isActive: true, ...v } as unknown as Parameters<typeof administrativeCatalogApi.saveCountry>[0]);
+      else if (active === 'healthcare-facilities') await administrativeCatalogApi.saveHealthcareFacility({ sortOrder: 0, isActive: true, ...v } as unknown as Parameters<typeof administrativeCatalogApi.saveHealthcareFacility>[0]);
       else { te('Danh mục này chưa hỗ trợ ghi'); return; }
       tk(modal === 'new' ? 'Đã thêm' : 'Đã cập nhật'); setModal(null); loadOne(active);
     } catch (e: unknown) {
@@ -202,11 +257,15 @@ const MasterDataV2: React.FC = () => {
     cf(`Xoá "${r.name}"?`, async () => {
       try {
         if (active === 'departments') await systemApi.catalog.deleteDepartment(r.id!);
+        else if (active === 'services') await systemApi.catalog.deleteParaclinicalService(r.id!);
         else if (active === 'medicines') await systemApi.catalog.deleteMedicine(r.id!);
+        else if (active === 'icd') await systemApi.catalog.deleteICD10Code(r.id!);
         else if (active === 'clinical-terms') await systemApi.catalog.deleteClinicalTerm(r.id!);
         else if (active === 'occupations') await administrativeCatalogApi.deleteOccupation(r.id!);
         else if (active === 'genders') await administrativeCatalogApi.deleteGender(r.id!);
         else if (active === 'admin-divisions') await administrativeCatalogApi.deleteAdministrativeDivision(r.id!);
+        else if (active === 'countries') await administrativeCatalogApi.deleteCountry(r.id!);
+        else if (active === 'healthcare-facilities') await administrativeCatalogApi.deleteHealthcareFacility(r.id!);
         else { te('Danh mục này chưa hỗ trợ xoá'); return; }
         tk('Đã xoá'); loadOne(active);
       } catch { te('Xoá thất bại (có thể đang được dùng)'); }

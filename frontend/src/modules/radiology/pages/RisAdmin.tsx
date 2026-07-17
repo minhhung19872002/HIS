@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Form, Input, InputNumber, Select, DatePicker, Checkbox } from 'antd';
+import { Form, Input, InputNumber, Select, Switch, DatePicker, Checkbox } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../../../services/apiClient';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
@@ -711,7 +711,7 @@ const TagsTab: React.FC = () => {
   const submit = async () => {
     try {
       const v = await form.validateFields();
-      await saveTag({ code: v.code, name: v.name, color: v.color || 'blue', description: v.description });
+      await saveTag({ code: v.code, name: v.name, color: v.color || 'blue', description: v.description, isActive: v.isActive !== false });
       tk('Đã tạo tag mới'); setModal(false); form.resetFields(); load();
     } catch { tw('Tạo tag thất bại'); }
   };
@@ -755,6 +755,9 @@ const TagsTab: React.FC = () => {
           </Form.Item>
           <Form.Item name="description" label="Mô tả">
             <Input.TextArea rows={2} placeholder="Nhập mô tả (không bắt buộc)" />
+          </Form.Item>
+          <Form.Item name="isActive" label="Kích hoạt" valuePropName="checked" initialValue={true}>
+            <Switch />
           </Form.Item>
         </Form>
       </ModalShell>
