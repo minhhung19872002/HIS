@@ -36,4 +36,8 @@ public class CurrentUserAccessor : ICurrentUserAccessor
 
     public IReadOnlyList<string> Roles =>
         User?.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList() ?? new List<string>();
+
+    /// <summary>AUTHZ-3 (#369): claim <c>branchId</c> — null = không giới hạn.</summary>
+    public Guid? BranchId =>
+        Guid.TryParse(User?.FindFirst(JwtClaims.BranchId)?.Value, out var b) ? b : null;
 }

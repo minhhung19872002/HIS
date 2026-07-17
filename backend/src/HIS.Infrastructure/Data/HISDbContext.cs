@@ -12,6 +12,13 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
 {
     private readonly IDataProtectionProvider? _dataProtectionProvider;
 
+    // AUTHZ-3 (#369): cô lập chi nhánh — EF query filter đọc 2 field này PER-INSTANCE
+    // (multi-tenant pattern chính thức của EF Core). Kill-switch `Auth:BranchIsolationEnabled`
+    // (default FALSE — bật dần theo pilot có characterization test). null branch = không giới hạn
+    // (admin toàn viện / user không gắn branch / background worker không có HTTP context).
+    private readonly bool _branchIsolationEnabled;
+    private readonly Guid? _currentBranchId;
+
     public HISDbContext(DbContextOptions<HISDbContext> options) : base(options)
     {
     }
@@ -19,6 +26,19 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public HISDbContext(DbContextOptions<HISDbContext> options, IDataProtectionProvider dataProtectionProvider) : base(options)
     {
         _dataProtectionProvider = dataProtectionProvider;
+    }
+
+    // DI runtime chọn ctor dài nhất resolve được (ActivatorUtilities) → ctor này là đường chính.
+    public HISDbContext(
+        DbContextOptions<HISDbContext> options,
+        IDataProtectionProvider dataProtectionProvider,
+        HIS.Application.Common.ICurrentUserAccessor currentUser,
+        Microsoft.Extensions.Configuration.IConfiguration configuration) : base(options)
+    {
+        _dataProtectionProvider = dataProtectionProvider;
+        _branchIsolationEnabled = string.Equals(
+            configuration["Auth:BranchIsolationEnabled"], "true", StringComparison.OrdinalIgnoreCase);
+        _currentBranchId = _branchIsolationEnabled ? currentUser.BranchId : null;
     }
 
     // Quản lý bệnh nhân
@@ -1270,6 +1290,17 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
                 }
             }
         }
+
+        // AUTHZ-3 (#369): cô lập chi nhánh — PILOT Reception (Patient + Queue). Combined filter
+        // (soft-delete + branch) vì EF chỉ giữ MỘT HasQueryFilter/entity (đè filter của loop trên).
+        // Hàng BranchId NULL (dữ liệu legacy/trước gán branch) LUÔN thấy được — không "mất" dữ liệu cũ.
+        // _branchIsolationEnabled=false (default) hoặc user không có branch → hành vi y như cũ.
+        modelBuilder.Entity<Patient>().HasQueryFilter(p =>
+            !p.IsDeleted && (!_branchIsolationEnabled || _currentBranchId == null
+                || p.BranchId == null || p.BranchId == _currentBranchId));
+        modelBuilder.Entity<QueueTicket>().HasQueryFilter(q =>
+            !q.IsDeleted && (!_branchIsolationEnabled || _currentBranchId == null
+                || q.BranchId == null || q.BranchId == _currentBranchId));
 
         // NangCap25 fix: PaymentTransaction.Patient là required-navigation; khi Patient bị
         // soft-delete, filtered Include biến txn "biến mất" (EF required-end + query filter →

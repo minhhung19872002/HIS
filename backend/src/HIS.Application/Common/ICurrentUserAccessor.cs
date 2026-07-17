@@ -25,4 +25,7 @@ public interface ICurrentUserAccessor
 
     /// <summary>Danh sách role (<c>ClaimTypes.Role</c>); rỗng nếu không có.</summary>
     IReadOnlyList<string> Roles { get; }
+
+    /// <summary>AUTHZ-3 (#369): chi nhánh của user (claim <c>branchId</c>); <c>null</c> = không giới hạn (toàn viện / user không gắn branch / background job).</summary>
+    Guid? BranchId { get; }
 }

@@ -79,6 +79,21 @@ public class UserRole : BaseEntity
 
     public Guid RoleId { get; set; }
     public virtual Role Role { get; set; } = null!;
+
+    // AUTHZ-3 (#369): scope là chiều của LƯỢT GÁN, không phải của permission.
+    // OWN = chỉ dữ liệu mình phụ trách · DEPT = toàn khoa · BRANCH = toàn cơ sở · ORG = toàn viện.
+    // Backfill migration 146 = 'ORG' (behavior-preserving — thu hẹp là bước bật policy sau).
+    public string ScopeType { get; set; } = "ORG";
+
+    /// <summary>Id của phạm vi khi ScopeType=DEPT/BRANCH (DepartmentId/BranchId); null = suy từ user.</summary>
+    public Guid? ScopeId { get; set; }
+
+    public DateTime? ValidFrom { get; set; }
+    public DateTime? ValidTo { get; set; }
+
+    /// <summary>Ai gán (username/id chuỗi — NVARCHAR để né Guid-converter trap).</summary>
+    public string? GrantedBy { get; set; }
+    public string? GrantReason { get; set; }
 }
 
 /// <summary>
