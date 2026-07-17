@@ -36,7 +36,9 @@ export const BhytVerifyModal: React.FC<{ open: boolean; onClose: () => void }> =
   };
 
   const viewHistory = async () => {
-    const insuranceNumber = num.trim();
+    // Ưu tiên số thẻ đã CHUẨN HÓA từ kết quả xác minh (gateway có thể trả
+    // newInsuranceNumber cho thẻ cũ/thẻ 20 số) — parity v1 handleViewBhxhHistory.
+    const insuranceNumber = result?.newInsuranceNumber || result?.insuranceNumber || num.trim();
     if (!insuranceNumber) return;
     setHistBusy(true);
     setHistOpen(true);

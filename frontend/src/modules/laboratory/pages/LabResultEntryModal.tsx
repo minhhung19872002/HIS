@@ -20,10 +20,13 @@ const getParameterStatus = (param: TestParameter): 'normal' | 'high' | 'low' | '
   const numValue = typeof param.value === 'number' ? param.value : parseFloat(param.value as string);
   if (isNaN(numValue)) return null;
 
-  if (param.criticalLow !== undefined && numValue < param.criticalLow) return 'critical';
-  if (param.criticalHigh !== undefined && numValue > param.criticalHigh) return 'critical';
-  if (param.normalMin !== undefined && numValue < param.normalMin) return 'low';
-  if (param.normalMax !== undefined && numValue > param.normalMax) return 'high';
+  // != null guard cả null lẫn undefined — đồng nhất với buildParameters (API có thể
+  // trả criticalLow: null; thiếu guard null thì 'numValue < null' coerce null→0 → mọi
+  // giá trị âm bị flag critical/LL giả, vd Base Excess).
+  if (param.criticalLow != null && numValue < param.criticalLow) return 'critical';
+  if (param.criticalHigh != null && numValue > param.criticalHigh) return 'critical';
+  if (param.normalMin != null && numValue < param.normalMin) return 'low';
+  if (param.normalMax != null && numValue > param.normalMax) return 'high';
 
   return 'normal';
 };
@@ -35,7 +38,7 @@ const flagLabelFor = (param: TestParameter): '' | 'N' | 'H' | 'L' | 'HH' | 'LL' 
   if (!status) return '';
   if (status === 'critical') {
     const numValue = typeof param.value === 'number' ? param.value : parseFloat(param.value as string);
-    return param.criticalHigh !== undefined && numValue > param.criticalHigh ? 'HH' : 'LL';
+    return param.criticalHigh != null && numValue > param.criticalHigh ? 'HH' : 'LL';
   }
   return status === 'high' ? 'H' : status === 'low' ? 'L' : 'N';
 };

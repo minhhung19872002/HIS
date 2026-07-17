@@ -265,16 +265,22 @@ export const getTestResultById = async (id: string) => {
   return response.data;
 };
 
-export const saveTestResults = async (requestId: string, data: SaveResultRequest) => {
-  const response = await apiClient.post<TestResult>('/LISComplete/orders/enter-result', {
-    labOrderId: requestId,
-    results: data.parameters?.map(p => ({
+export const saveTestResults = async (_requestId: string, data: SaveResultRequest) => {
+  // Backend orders/enter-result bind EnterLabResultDto ĐƠN LẺ {LabTestItemId, Result, Notes}
+  // (không có endpoint batch) — payload batch {labOrderId, results[]} cũ bind LabTestItemId
+  // = Guid.Empty → 400 "Thiếu LabTestItemId" 100%. Gửi tuần tự từng item; ghi chú của
+  // phiếu (data.notes) đưa vào Notes từng item (trước đây bị vứt im lặng).
+  // Chỉ gửi chỉ số CÓ giá trị — backend 400 khi Result rỗng ("Cần nhập kết quả").
+  const params = (data.parameters ?? []).filter(
+    (p) => p.value !== null && p.value !== undefined && String(p.value).trim() !== '',
+  );
+  for (const p of params) {
+    await apiClient.post('/LISComplete/orders/enter-result', {
       labTestItemId: p.id,
-      result: String(p.value ?? ''),
-      notes: ''
-    })) || []
-  });
-  return response.data;
+      result: String(p.value),
+      notes: data.notes || undefined,
+    });
+  }
 };
 
 // Approve test results

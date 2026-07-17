@@ -186,6 +186,9 @@ const SurgeryV2: React.FC = () => {
           {r.status === 0 && !!r.operatingRoomName && (
             <ActBtn ic="activity" title="Bắt đầu" onClick={() => { setStartTarget(r); startReloadRef.current = reload; }} />
           )}
+          {r.status === 2 && (
+            <ActBtn ic="check" title="Hoàn thành ca mổ" onClick={() => onComplete(r, reload)} />
+          )}
           {r.status !== 5 && r.status !== 4 && (
             <ActBtn ic="x" title="Hủy ca" onClick={() => { void onCancel(r, reload); setReloadVer((v) => v + 1); }} tone="crit" />
           )}

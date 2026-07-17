@@ -78,7 +78,7 @@ export default function ApplyDiscountModal({ open, onClose, onSuccess, invoiceId
         return;
       }
       setSubmitting(true);
-      await apiClient.post('/billingcomplete/invoices/apply-discount', {
+      await apiClient.post('/billingcomplete/discounts/invoice', {
         invoiceId,
         discountScope: 1,
         discountType: values.discountType,
@@ -93,8 +93,11 @@ export default function ApplyDiscountModal({ open, onClose, onSuccess, invoiceId
       onSuccess?.();
       onClose();
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { message?: string } } };
-      if (err?.response?.data?.message) message.error(err.response.data.message);
+      const err = e as { response?: { data?: { message?: string } }; errorFields?: unknown };
+      // validateFields reject (form lỗi) thì antd đã tự hiện lỗi field — không toast thêm
+      if (!err?.errorFields) {
+        message.error(err?.response?.data?.message || 'Áp dụng miễn giảm thất bại — vui lòng thử lại');
+      }
     } finally {
       setSubmitting(false);
     }

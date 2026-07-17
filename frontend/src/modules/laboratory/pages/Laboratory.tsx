@@ -324,9 +324,14 @@ const LaboratoryV2: React.FC = () => {
     const barcode = r.sampleBarcode || r.id;
 
     try {
-      // Try to get a PDF/blob from the API first
+      // Try to get a PDF/blob from the API first.
+      // Backend PrintSampleBarcodeAsync hiện là stub trả bytes "BARCODE:{id}" gắn mác
+      // application/pdf → phải kiểm tra magic-bytes %PDF thật, không thì rơi xuống fallback
+      // HTML local (nhãn đầy đủ thông tin BN) thay vì mở tab PDF hỏng.
       const blobData = await labApi.printBarcodeLabel(r.id);
-      if (blobData && blobData instanceof Blob && blobData.size > 0) {
+      const isRealPdf = blobData instanceof Blob && blobData.size > 4 &&
+        new TextDecoder().decode(new Uint8Array(await blobData.slice(0, 4).arrayBuffer())) === '%PDF';
+      if (isRealPdf) {
         const url = URL.createObjectURL(blobData);
         const printWindow = window.open(url, '_blank');
         if (printWindow) {
@@ -345,17 +350,14 @@ const LaboratoryV2: React.FC = () => {
       // API not available or returned error, fall back to local print
     }
 
-    // Fallback: generate barcode label HTML locally and print
-    try {
-      await labApi.printBarcode(r.id, barcode);
-    } catch {
-      // Last resort: manual print window
-      openPrintWindow(buildBarcodeLabelHtml(r, barcode), {
-        focus: true,
-        print: { delayMs: 500 },
-        onBlocked: () => message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.'),
-      });
-    }
+    // Fallback: nhãn HTML local ĐẦY ĐỦ thông tin BN (buildBarcodeLabelHtml).
+    // Bỏ tầng labApi.printBarcode (nhãn thô chỉ có code, không bao giờ throw →
+    // che mất nhãn đầy đủ; xác nhận ở verify #409).
+    openPrintWindow(buildBarcodeLabelHtml(r, barcode), {
+      focus: true,
+      print: { delayMs: 500 },
+      onBlocked: () => message.warning('Không thể mở cửa sổ in. Vui lòng cho phép popup.'),
+    });
   };
 
   const openChainCancel = (r: LabRequest) => {

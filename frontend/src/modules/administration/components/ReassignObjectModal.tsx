@@ -29,6 +29,9 @@ export default function ReassignObjectModal({ open, onClose, patientId, patientN
   const [result, setResult] = useState<ReassignObjectResult | null>(null);
 
   const handleOk = async () => {
+    // Đã có kết quả → nút OK là "Đóng": đóng modal, KHÔNG re-submit
+    // (trước đây bấm "Đóng" gọi reassignObject lần 2 với values cũ trong form store).
+    if (result) { handleClose(); return; }
     try {
       const values = await form.validateFields();
       setSubmitting(true);

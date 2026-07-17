@@ -112,13 +112,11 @@ export const NewVisitModal: React.FC<{
     if (!data.patientName.trim()) e.patientName = 'Bắt buộc';
     if (!data.phone || !/^0\d{9,10}$/.test(data.phone)) e.phone = 'SĐT 10 số';
     if (!data.age || data.age < 0 || data.age > 130) e.age = 'Tuổi không hợp lệ';
-    // CCCD: 12 số + mã tỉnh/thành hợp lệ (validateCccd — port verbatim từ v1 pages/reception/cccd.ts).
-    // v2 giữ CCCD là trường bắt buộc (khác v1 optional) — chỉ siết thêm format/mã tỉnh.
-    if (!data.cccd) {
+    // CCCD: bắt buộc 12 số (hành vi v2 trước port — v1 optional). Mã tỉnh KHÔNG chặn:
+    // 3 số đầu có thể là mã QUỐC GIA (công dân sinh/ĐKKS ở nước ngoài, NĐ 137/2015 +
+    // TT 07/2016/TT-BCA) — validateCccd chỉ dùng làm gợi ý/cảnh báo mềm dưới ô nhập.
+    if (!data.cccd || !/^\d{12}$/.test(data.cccd.replace(/\s/g, ''))) {
       e.cccd = 'CCCD 12 số';
-    } else {
-      const cccdCheck = validateCccd(data.cccd);
-      if (!cccdCheck.valid) e.cccd = cccdCheck.error || 'CCCD 12 số';
     }
     setErrs(e); return e;
   };
@@ -281,11 +279,13 @@ export const NewVisitModal: React.FC<{
                 <Input value={data.cccd} onChange={(e) => set('cccd', e.target.value)} placeholder="012345678901" maxLength={12} />
                 {(() => {
                   // Gợi ý nơi cấp theo mã tỉnh (3 số đầu) — port v1 help "Nơi cấp: <tỉnh>".
+                  // Mã lạ → cảnh báo MỀM (không chặn lưu: có thể là mã quốc gia ĐKKS nước ngoài).
                   if (!data.cccd || data.cccd.replace(/\s/g, '').length !== 12) return null;
                   const r = validateCccd(data.cccd);
-                  return r.valid && r.province
-                    ? <div style={{ fontSize: 10.5, color: 'var(--t-2)', marginTop: 'var(--space-3)' }}>Nơi cấp: {r.province}</div>
-                    : null;
+                  if (r.valid && r.province) {
+                    return <div style={{ fontSize: 10.5, color: 'var(--t-2)', marginTop: 'var(--space-3)' }}>Nơi cấp: {r.province}</div>;
+                  }
+                  return <div style={{ fontSize: 10.5, color: 'var(--s-warn)', marginTop: 'var(--space-3)' }}>Mã tỉnh không nhận diện được — kiểm tra lại số CCCD (vẫn lưu được nếu đúng)</div>;
                 })()}
               </Lbl>
             </div>
