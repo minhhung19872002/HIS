@@ -15,4 +15,9 @@ public interface IRealtimeNotifier
     /// poll 30s. Payload chỉ là số lượng + timestamp (không chứa dữ liệu BN).
     /// </summary>
     Task NotifyAiQueueUpdatedAsync(int addedCount, CancellationToken ct = default);
+
+    /// <summary>
+    /// #385 Break-glass: alert realtime đến Admin/DirectorDoctor khi bác sĩ kích hoạt break-glass.
+    /// </summary>
+    Task NotifyBreakGlassActivatedAsync(Guid userId, string username, Guid patientId, DateTime expireAt, CancellationToken ct = default);
 }

@@ -28,7 +28,22 @@ type TickerPatient = {
   gender: 'M' | 'F';
 };
 
-const Ticker: React.FC<{ patient: TickerPatient | null; onClearPatient: () => void }> = ({ patient, onClearPatient }) => (
+type BreakGlassActive = {
+  sessionId: string;
+  patientId: string;
+  expireAt: Date;
+};
+
+type TickerProps = {
+  patient: TickerPatient | null;
+  onClearPatient: () => void;
+  /** #385: hiển thị nút break-glass khi bác sĩ đang chọn BN */
+  canBreakGlass?: boolean;
+  onBreakGlass?: () => void;
+  breakGlass?: BreakGlassActive | null;
+};
+
+const Ticker: React.FC<TickerProps> = ({ patient, onClearPatient, canBreakGlass, onBreakGlass, breakGlass }) => (
   <div className="his-ticker">
     <div className="his-ticker-head"><span className="dot" />LIVE · HIS</div>
     {patient && (
@@ -36,7 +51,29 @@ const Ticker: React.FC<{ patient: TickerPatient | null; onClearPatient: () => vo
         <span className="tk">BN</span>
         <span className="nm">{patient.name}</span>
         <span className="id">{patient.id} · {patient.age}T · {patient.gender === 'M' ? 'Nam' : 'Nữ'}</span>
+        {canBreakGlass && onBreakGlass && !breakGlass && (
+          <span
+            className="bg-btn"
+            onClick={(e) => { e.stopPropagation(); onBreakGlass(); }}
+            title="Break-glass: yêu cầu truy cập khẩn cấp hồ sơ BN"
+            style={{ marginLeft: 6, padding: '0 6px', fontSize: 11, color: '#ef4444', cursor: 'pointer', fontWeight: 700, border: '1px solid #ef4444', borderRadius: 3 }}
+          >
+            ⚠ BG
+          </span>
+        )}
         <span className="x" onClick={(e) => { e.stopPropagation(); onClearPatient(); }} title="Bỏ chọn BN">×</span>
+      </div>
+    )}
+    {breakGlass && (
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px',
+          background: '#ef4444', color: '#fff', fontWeight: 700, fontSize: 11,
+          letterSpacing: '0.05em', flexShrink: 0,
+        }}
+        title={`Break-glass session ${breakGlass.sessionId}`}
+      >
+        ⚠ BREAK-GLASS ACTIVE — Hết lúc {breakGlass.expireAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
       </div>
     )}
     <div className="his-ticker-scroll">
@@ -51,4 +88,4 @@ const Ticker: React.FC<{ patient: TickerPatient | null; onClearPatient: () => vo
 );
 
 export { Ticker };
-export type { TickerPatient };
+export type { TickerPatient, BreakGlassActive };

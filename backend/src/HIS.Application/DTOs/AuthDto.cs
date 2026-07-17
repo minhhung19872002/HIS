@@ -123,6 +123,19 @@ public class VerifyPasswordDto
     public string Password { get; set; } = string.Empty;
 }
 
+// #385 Break-glass emergency access
+public class BreakGlassRequestDto
+{
+    public Guid PatientId { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}
+
+public class BreakGlassResponseDto
+{
+    public Guid SessionId { get; set; }
+    public DateTime ExpireAt { get; set; }
+}
+
 /// <summary>AUTHZ-2 (#368): body cho POST /api/auth/refresh — refresh token plaintext FE đang giữ.</summary>
 public class RefreshTokenRequestDto
 {

@@ -23,9 +23,11 @@ public class AuthService : IAuthService
     private readonly IEmailService _emailService;
     private readonly ILogger<AuthService> _logger;
     private readonly IRefreshTokenService _refreshTokens;
+    private readonly IRealtimeNotifier _realtime;
 
     public AuthService(HISDbContext context, IConfiguration configuration, IMapper mapper,
-        IEmailService emailService, ILogger<AuthService> logger, IRefreshTokenService refreshTokens)
+        IEmailService emailService, ILogger<AuthService> logger, IRefreshTokenService refreshTokens,
+        IRealtimeNotifier realtime)
     {
         _context = context;
         _configuration = configuration;
@@ -33,6 +35,7 @@ public class AuthService : IAuthService
         _emailService = emailService;
         _logger = logger;
         _refreshTokens = refreshTokens;
+        _realtime = realtime;
     }
 
     public async Task<LoginResponseDto?> LoginAsync(LoginDto dto)
@@ -539,6 +542,50 @@ public class AuthService : IAuthService
         user.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         return user.SecurityStamp;
+    }
+
+    // #385 Break-glass emergency access
+    public async Task<BreakGlassResponseDto?> BreakGlassAsync(Guid userId, BreakGlassRequestDto dto, string? ipAddress)
+    {
+        if (dto.Reason.Trim().Length < 20)
+            return null;
+
+        var now = DateTime.UtcNow;
+        var expireAt = now.AddHours(2);
+
+        var session = new BreakGlassSession
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            PatientId = dto.PatientId,
+            Reason = dto.Reason.Trim(),
+            StartAt = now,
+            ExpireAt = expireAt,
+            IsEmergencyAccess = false,
+            IpAddress = ipAddress,
+            CreatedAt = now,
+            CreatedBy = userId.ToString(),
+            IsDeleted = false,
+        };
+
+        _context.BreakGlassSessions.Add(session);
+        await _context.SaveChangesAsync();
+
+        var user = await _context.Users.FindAsync(userId);
+        try
+        {
+            await _realtime.NotifyBreakGlassActivatedAsync(userId, user?.Username ?? "", dto.PatientId, expireAt);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Break-glass SignalR notification failed for session {SessionId}", session.Id);
+        }
+
+        _logger.LogWarning(
+            "BREAK-GLASS activated: userId={UserId} username={Username} patientId={PatientId} ip={Ip}",
+            userId, user?.Username, dto.PatientId, ipAddress);
+
+        return new BreakGlassResponseDto { SessionId = session.Id, ExpireAt = expireAt };
     }
 
     /// <summary>Đảm bảo user có SecurityStamp (user cũ trước migration có thể NULL) — set + lưu nếu thiếu. Trả về stamp.</summary>

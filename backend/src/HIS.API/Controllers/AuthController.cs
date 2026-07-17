@@ -240,5 +240,26 @@ public class AuthController : ControllerBase
         if (!result) return NotFound(ApiResponse<bool>.Fail("Credential not found"));
         return Ok(ApiResponse<bool>.Ok(true, "Credential deleted"));
     }
+
+    /// <summary>
+    /// #385 Break-glass: bác sĩ cấp cứu yêu cầu truy cập khẩn cấp hồ sơ BN.
+    /// Ghi audit log immutable + gửi alert realtime đến Admin/DirectorDoctor.
+    /// </summary>
+    [Authorize]
+    [HttpPost("break-glass")]
+    public async Task<ActionResult<ApiResponse<BreakGlassResponseDto>>> BreakGlass([FromBody] BreakGlassRequestDto dto)
+    {
+        if (dto.PatientId == Guid.Empty)
+            return BadRequest(ApiResponse<BreakGlassResponseDto>.Fail("PatientId là bắt buộc"));
+
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+        var result = await _authService.BreakGlassAsync(userId, dto, ipAddress);
+        if (result == null)
+            return BadRequest(ApiResponse<BreakGlassResponseDto>.Fail("Lý do phải có ít nhất 20 ký tự"));
+
+        return Ok(ApiResponse<BreakGlassResponseDto>.Ok(result, "Break-glass session đã được tạo — truy cập khẩn cấp có hiệu lực 2h"));
+    }
 }
 

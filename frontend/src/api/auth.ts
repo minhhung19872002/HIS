@@ -70,6 +70,16 @@ export const authApi = {
     return response.data;
   },
 
+  /** #385 Break-glass: tạo phiên truy cập khẩn cấp hồ sơ BN (TTL 2h). */
+  breakGlass: async (patientId: string, reason: string): Promise<{ sessionId: string; expireAt: string } | null> => {
+    try {
+      const response = await apiClient.post<{ sessionId: string; expireAt: string }>('/auth/break-glass', { patientId, reason });
+      return response.data;
+    } catch {
+      return null;
+    }
+  },
+
   getTwoFactorStatus: async (): Promise<ApiResponse<TwoFactorStatus>> => {
     const response = await apiClient.get<ApiResponse<TwoFactorStatus>>('/auth/2fa-status');
     return response.data;

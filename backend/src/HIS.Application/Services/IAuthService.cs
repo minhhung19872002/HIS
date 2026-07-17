@@ -37,4 +37,10 @@ public interface IAuthService
     Task<WebAuthnCredentialDto?> RegisterWebAuthnCredentialAsync(Guid userId, WebAuthnRegisterDto dto);
     Task<LoginResponseDto?> AuthenticateWebAuthnAsync(WebAuthnAuthenticateDto dto);
     Task<bool> DeleteWebAuthnCredentialAsync(Guid userId, Guid credentialId);
+
+    /// <summary>
+    /// #385 Break-glass: tạo phiên truy cập khẩn cấp (TTL 2h), ghi audit log, gửi alert realtime.
+    /// Trả null nếu lý do quá ngắn (&lt;20 ký tự).
+    /// </summary>
+    Task<BreakGlassResponseDto?> BreakGlassAsync(Guid userId, BreakGlassRequestDto dto, string? ipAddress);
 }

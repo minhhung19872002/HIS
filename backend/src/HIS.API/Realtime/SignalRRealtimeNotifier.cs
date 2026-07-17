@@ -19,4 +19,7 @@ public class SignalRRealtimeNotifier : IRealtimeNotifier
 
     public Task NotifyAiQueueUpdatedAsync(int addedCount, CancellationToken ct = default)
         => _hub.Clients.All.SendAsync("ReceiveAiQueueUpdate", new { addedCount, at = DateTime.UtcNow }, ct);
+
+    public Task NotifyBreakGlassActivatedAsync(Guid userId, string username, Guid patientId, DateTime expireAt, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("ReceiveBreakGlassAlert", new { userId, username, patientId, expireAt }, ct);
 }

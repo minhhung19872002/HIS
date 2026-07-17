@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ConfigProvider, message, theme as antdTheme } from 'antd';
+import { ConfigProvider, message, Modal, Input, theme as antdTheme } from 'antd';
 import type { ThemeConfig } from 'antd';
 import { useAuth } from '../../../hooks/useAuth';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -11,7 +11,8 @@ import TermIcon from './Icon';
 import IdleLockScreen from './IdleLockScreen';
 import { Rail, Flyout } from './Sidebar';
 import { Topbar } from './TopBar';
-import { Ticker, type TickerPatient } from './PatientContextBar';
+import { Ticker, type TickerPatient, type BreakGlassActive } from './PatientContextBar';
+import { authApi } from '../../../api/auth';
 import ErrorBoundary from '../../feedback/ErrorBoundary';
 import { storage, STORAGE_KEYS } from '../../../services/storage.service';
 import {
@@ -327,7 +328,7 @@ function buildContentTheme(isDark: boolean, isCompact: boolean): ThemeConfig {
 const TerminalShell: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const { isDark, isCompact } = useTheme();
   const contentTheme = useMemo(() => buildContentTheme(isDark, isCompact), [isDark, isCompact]);
   const { invoke, has } = useCommandCtx();
@@ -440,6 +441,53 @@ const TerminalShell: React.FC = () => {
     setPatient(null);
     try { storage.remove(STORAGE_KEYS.patient); } catch { /* ignore */ }
   }, []);
+
+  /* ---- #385 Break-glass state ---- */
+  const [breakGlass, setBreakGlass] = useState<BreakGlassActive | null>(() => {
+    try {
+      const stored = sessionStorage.getItem('his.breakGlass');
+      if (stored) {
+        const s = JSON.parse(stored) as { sessionId: string; patientId: string; expireAt: string };
+        const expireAt = new Date(s.expireAt);
+        if (expireAt > new Date()) return { sessionId: s.sessionId, patientId: s.patientId, expireAt };
+        sessionStorage.removeItem('his.breakGlass');
+      }
+    } catch { /* ignore */ }
+    return null;
+  });
+  const [bgModalOpen, setBgModalOpen] = useState(false);
+  const [bgReason, setBgReason] = useState('');
+  const [bgSubmitting, setBgSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!breakGlass) return;
+    const ms = breakGlass.expireAt.getTime() - Date.now();
+    if (ms <= 0) { setBreakGlass(null); sessionStorage.removeItem('his.breakGlass'); return; }
+    const t = setTimeout(() => { setBreakGlass(null); sessionStorage.removeItem('his.breakGlass'); }, ms);
+    return () => clearTimeout(t);
+  }, [breakGlass]);
+
+  const canBreakGlass = !!(user?.roles?.some((r) => r === 'Doctor' || r === 'EmergencyDoctor'));
+
+  const handleBreakGlassSubmit = useCallback(async () => {
+    if (!patient || bgReason.trim().length < 20) {
+      message.warning('Lý do phải có ít nhất 20 ký tự');
+      return;
+    }
+    setBgSubmitting(true);
+    try {
+      const result = await authApi.breakGlass(patient.id, bgReason.trim());
+      if (!result) { message.error('Không thể kích hoạt break-glass. Vui lòng thử lại.'); return; }
+      const session: BreakGlassActive = { sessionId: result.sessionId, patientId: patient.id, expireAt: new Date(result.expireAt) };
+      setBreakGlass(session);
+      sessionStorage.setItem('his.breakGlass', JSON.stringify({ ...session, expireAt: result.expireAt }));
+      setBgModalOpen(false);
+      setBgReason('');
+      message.success('Break-glass đã kích hoạt — truy cập khẩn cấp có hiệu lực 2h');
+    } finally {
+      setBgSubmitting(false);
+    }
+  }, [patient, bgReason]);
 
   // Hover intent: slight delay so accidental pointer crossings don't flicker
   const scheduleHoverClose = useCallback(() => {
@@ -557,7 +605,36 @@ const TerminalShell: React.FC = () => {
           onSwitchLayout={onSwitchLayout}
           onLogout={onLogout}
         />
-        <Ticker patient={patient} onClearPatient={clearPatient} />
+        <Ticker
+          patient={patient}
+          onClearPatient={clearPatient}
+          canBreakGlass={canBreakGlass}
+          onBreakGlass={() => setBgModalOpen(true)}
+          breakGlass={breakGlass}
+        />
+        <Modal
+          title="⚠ Break-Glass — Truy cập khẩn cấp"
+          open={bgModalOpen}
+          onOk={handleBreakGlassSubmit}
+          onCancel={() => { setBgModalOpen(false); setBgReason(''); }}
+          okText="Xác nhận truy cập"
+          cancelText="Hủy"
+          okButtonProps={{ danger: true, loading: bgSubmitting }}
+          destroyOnClose
+        >
+          <p style={{ marginBottom: 8, color: '#ef4444', fontWeight: 600 }}>
+            Hành động này sẽ được ghi vào audit log và thông báo đến Quản trị viên.
+          </p>
+          <p style={{ marginBottom: 8 }}>Lý do truy cập khẩn cấp <span style={{ color: '#ef4444' }}>*</span> (tối thiểu 20 ký tự)</p>
+          <Input.TextArea
+            value={bgReason}
+            onChange={(e) => setBgReason(e.target.value)}
+            rows={4}
+            placeholder="Mô tả tình huống khẩn cấp cần truy cập hồ sơ bệnh nhân..."
+            maxLength={500}
+            showCount
+          />
+        </Modal>
         <div className="his-main">
           <div className="his-content">
             <ConfigProvider
