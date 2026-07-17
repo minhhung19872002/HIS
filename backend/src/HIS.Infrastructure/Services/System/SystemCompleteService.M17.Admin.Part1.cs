@@ -158,6 +158,9 @@ public partial class SystemCompleteService
             var roleNames = new List<string>();
             if (dto.RoleIds?.Any() == true)
             {
+                // AUTHZ-4 (#370): SoD grant-time check (no-op khi Auth:SoDEnabled=false)
+                await _sodService.EnsureNoGrantTimeConflictAsync(dto.RoleIds);
+
                 var roles = await _context.Roles.AsNoTracking()
                     .Where(r => dto.RoleIds.Contains(r.Id))
                     .ToListAsync();
@@ -221,6 +224,9 @@ public partial class SystemCompleteService
             // Sync roles if RoleIds provided
             if (dto.RoleIds != null)
             {
+                // AUTHZ-4 (#370): SoD grant-time check (no-op khi Auth:SoDEnabled=false)
+                await _sodService.EnsureNoGrantTimeConflictAsync(dto.RoleIds);
+
                 // Remove existing role assignments
                 var existingRoles = await _context.UserRoles.Where(ur => ur.UserId == userId).ToListAsync();
                 _context.UserRoles.RemoveRange(existingRoles);

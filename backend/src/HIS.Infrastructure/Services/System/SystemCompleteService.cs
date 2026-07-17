@@ -27,11 +27,14 @@ public partial class SystemCompleteService : ISystemCompleteService
 {
     private readonly HISDbContext _context;
     private readonly ILogger<SystemCompleteService> _logger;
+    private readonly HIS.Application.Services.ISoDService _sodService; // AUTHZ-4 #370 (grant-time SoD, OFF)
 
-    public SystemCompleteService(HISDbContext context, ILogger<SystemCompleteService> logger)
+    public SystemCompleteService(HISDbContext context, ILogger<SystemCompleteService> logger,
+        HIS.Application.Services.ISoDService sodService)
     {
         _context = context;
         _logger = logger;
+        _sodService = sodService;
     }
 
 
