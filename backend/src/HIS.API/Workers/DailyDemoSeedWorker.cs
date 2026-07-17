@@ -1,4 +1,4 @@
-using HIS.API.Controllers;
+using HIS.Application.Services;
 using HIS.Infrastructure.Data;
 
 namespace HIS.API.Workers;
@@ -8,15 +8,16 @@ namespace HIS.API.Workers;
 /// khác) luôn có dữ liệu để review.
 ///
 /// Mỗi chu kỳ (mặc định 24h, chạy lần đầu ~30s sau khi app khởi động) worker:
-///   1. Gọi <see cref="DailySeedController.RunDailySeedAsync"/> — sinh bệnh nhân tiếp đón
+///   1. Gọi <see cref="IDailySeedService.RunDailySeedAsync"/> — sinh bệnh nhân tiếp đón
 ///      hôm nay + hồ sơ/khám/đơn thuốc/XN/CĐHA/PT/nội trú/viện phí/hàng đợi của ngày.
-///   2. Gọi <see cref="PopulateDataController.PopulateAll"/> — fill các bảng còn rỗng cho
+///   2. Gọi <see cref="IPopulateDataService.PopulateAllAsync"/> — fill các bảng còn rỗng cho
 ///      những phân hệ chưa có dữ liệu (KSNK, portal, thiết bị, GPB, chất lượng, PHCN,
 ///      tele, dinh dưỡng, ngân hàng máu, y tế công cộng, methadone, lab-QC, MCI, CME...).
 ///
 /// Cả hai bước đều idempotent (kiểm tra count theo mã *SEED* / bảng rỗng) nên chạy lại
-/// nhiều lần trong ngày không tạo trùng. Tái sử dụng nguyên logic 2 controller seed
-/// có sẵn — worker chỉ điều phối lịch chạy, không nhân bản logic.
+/// nhiều lần trong ngày không tạo trùng. Tái sử dụng nguyên logic 2 service seed
+/// có sẵn (#365 REFAC-3 chuyển từ controller sang service) — worker chỉ điều phối lịch
+/// chạy, không nhân bản logic.
 ///
 /// Cấu hình (mặc định TẮT cho local/test — bật trên Cloud Run qua env var):
 ///   DailyDemoSeed:Enabled          (default false)   → env DailyDemoSeed__Enabled=true
@@ -83,15 +84,14 @@ public sealed class DailyDemoSeedWorker : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var sp = scope.ServiceProvider;
         var db = sp.GetRequiredService<HISDbContext>();
-        var config = sp.GetRequiredService<IConfiguration>();
 
         // Bước 1 — Tiếp Đón + workflow lâm sàng của hôm nay.
-        // Khởi tạo trực tiếp controller với các dependency đã resolve: hai phương thức
-        // seed dưới đây chỉ dùng DbContext/Config/Logger, không chạm HttpContext nên
-        // gọi in-process an toàn (tránh self-HTTP + không cần X-Seed-Key/URL).
-        var daily = new DailySeedController(
-            db, config, sp.GetRequiredService<ILogger<DailySeedController>>());
-        var dailyResult = await daily.RunDailySeedAsync(_patientsPerDay, purge: false);
+        // #365 REFAC-3: gọi thẳng service qua DI scope thay vì `new` controller trực tiếp
+        // (controller không còn constructor nhận HISDbContext) — service chỉ dùng
+        // DbContext/Logger, không chạm HttpContext nên gọi in-process an toàn (tránh
+        // self-HTTP + không cần X-Seed-Key/URL).
+        var dailySeedService = sp.GetRequiredService<IDailySeedService>();
+        var dailyResult = await dailySeedService.RunDailySeedAsync(_patientsPerDay, purge: false);
         if (dailyResult is null)
             _logger.LogWarning(
                 "DailyDemoSeedWorker: bỏ qua seed tiếp đón — chưa có phòng khám (Room active) nào");
@@ -100,10 +100,9 @@ public sealed class DailyDemoSeedWorker : BackgroundService
 
         if (ct.IsCancellationRequested) return;
 
-        // Bước 2 — fill các phân hệ còn rỗng (PopulateAll đã orchestrate đúng thứ tự).
-        var populate = new PopulateDataController(
-            db, sp.GetRequiredService<ILogger<PopulateDataController>>());
-        await populate.PopulateAll();
+        // Bước 2 — fill các phân hệ còn rỗng (PopulateAllAsync đã orchestrate đúng thứ tự).
+        var populateDataService = sp.GetRequiredService<IPopulateDataService>();
+        await populateDataService.PopulateAllAsync();
         db.ChangeTracker.Clear();
 
         _logger.LogInformation("DailyDemoSeedWorker: hoàn tất một chu kỳ seed demo");

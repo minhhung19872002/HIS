@@ -550,6 +550,16 @@ public static class DependencyInjection
             c.Timeout = einvTimeout;
         });
 
+        // #365 REFAC-3: DEV/SEED controllers thinned — HISDbContext moved out of the
+        // controllers into these services (DailySeedController/PopulateDataController/
+        // DevLinkRadiologyController no longer inject HISDbContext directly).
+        services.AddScoped<HIS.Application.Services.IDailySeedService,
+            HIS.Infrastructure.Services.DevData.DailySeedServiceImpl>();
+        services.AddScoped<HIS.Application.Services.IPopulateDataService,
+            HIS.Infrastructure.Services.DevData.PopulateDataServiceImpl>();
+        services.AddScoped<HIS.Application.Services.IDevLinkRadiologyService,
+            HIS.Infrastructure.Services.DevData.DevLinkRadiologyServiceImpl>();
+
         return services;
     }
 }
