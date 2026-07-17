@@ -1,8 +1,12 @@
+using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using HIS.Application.DTOs.System;
 using HIS.Application.Services;
+using HIS.Core.Constants;
 using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using static HIS.Infrastructure.Services.PdfTemplateHelper;
@@ -28,13 +32,18 @@ public partial class SystemCompleteService : ISystemCompleteService
     private readonly HISDbContext _context;
     private readonly ILogger<SystemCompleteService> _logger;
     private readonly HIS.Application.Services.ISoDService _sodService; // AUTHZ-4 #370 (grant-time SoD, OFF)
+    private readonly IHttpContextAccessor _httpCtx;
 
-    public SystemCompleteService(HISDbContext context, ILogger<SystemCompleteService> logger,
-        HIS.Application.Services.ISoDService sodService)
+    public SystemCompleteService(
+        HISDbContext context,
+        ILogger<SystemCompleteService> logger,
+        HIS.Application.Services.ISoDService sodService,
+        IHttpContextAccessor httpContextAccessor)
     {
         _context = context;
         _logger = logger;
         _sodService = sodService;
+        _httpCtx = httpContextAccessor;
     }
 
 
@@ -45,6 +54,73 @@ public partial class SystemCompleteService : ISystemCompleteService
     // Module 17 + 17.12 + 13.19 → SystemCompleteService.M17.Admin.cs (K2 phien 2)
 
     #region Private Helper Methods
+
+    /// <summary>
+    /// #371 inc-2: ghi PermissionChangeHistory khi role set của user thay đổi.
+    /// Phân tích diff old→new, ghi mỗi role grant/revoke thành 1 dòng history.
+    /// </summary>
+    private async Task RecordRoleChangeHistoryAsync(
+        Guid targetUserId,
+        IReadOnlySet<Guid> oldRoleIds,
+        IReadOnlySet<Guid> newRoleIds)
+    {
+        try
+        {
+            var changedBy = _httpCtx.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                         ?? _httpCtx.HttpContext?.User?.FindFirst("sub")?.Value
+                         ?? "system";
+            var now = DateTime.UtcNow;
+            var histories = new List<PermissionChangeHistory>();
+
+            foreach (var revokedId in oldRoleIds.Except(newRoleIds))
+            {
+                histories.Add(new PermissionChangeHistory
+                {
+                    Id = Guid.NewGuid(),
+                    CreatedAt = now,
+                    CreatedBy = changedBy,
+                    IsDeleted = false,
+                    ChangeType = "UserRole",
+                    TargetUserId = targetUserId,
+                    TargetRoleId = revokedId,
+                    Action = "revoke",
+                    OldValueJson = JsonSerializer.Serialize(new { RoleId = revokedId }),
+                    NewValueJson = null,
+                    ChangedBy = changedBy,
+                    ChangedAt = now,
+                });
+            }
+
+            foreach (var grantedId in newRoleIds.Except(oldRoleIds))
+            {
+                histories.Add(new PermissionChangeHistory
+                {
+                    Id = Guid.NewGuid(),
+                    CreatedAt = now,
+                    CreatedBy = changedBy,
+                    IsDeleted = false,
+                    ChangeType = "UserRole",
+                    TargetUserId = targetUserId,
+                    TargetRoleId = grantedId,
+                    Action = "grant",
+                    OldValueJson = null,
+                    NewValueJson = JsonSerializer.Serialize(new { RoleId = grantedId }),
+                    ChangedBy = changedBy,
+                    ChangedAt = now,
+                });
+            }
+
+            if (histories.Count > 0)
+            {
+                _context.PermissionChangeHistories.AddRange(histories);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Never let audit history block the main operation
+            _logger.LogWarning(ex, "RecordRoleChangeHistoryAsync failed for user {UserId}", targetUserId);
+        }
+    }
 
     private async Task<bool> SoftDeleteEntityAsync<T>(Guid id) where T : BaseEntity
     {

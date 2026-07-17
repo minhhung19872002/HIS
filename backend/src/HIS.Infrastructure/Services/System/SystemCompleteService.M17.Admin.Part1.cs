@@ -229,6 +229,8 @@ public partial class SystemCompleteService
 
                 // Remove existing role assignments
                 var existingRoles = await _context.UserRoles.Where(ur => ur.UserId == userId).ToListAsync();
+                var oldRoleIds = existingRoles.Select(r => r.RoleId).ToHashSet();
+                var newRoleIds = dto.RoleIds.ToHashSet();
                 _context.UserRoles.RemoveRange(existingRoles);
 
                 // Add new role assignments
@@ -240,6 +242,9 @@ public partial class SystemCompleteService
                         RoleId = roleId
                     });
                 }
+
+                // #371 inc-2: record permission change history (who changed which roles)
+                await RecordRoleChangeHistoryAsync(userId, oldRoleIds, newRoleIds);
             }
 
             await _context.SaveChangesAsync();

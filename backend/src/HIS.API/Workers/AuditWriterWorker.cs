@@ -1,0 +1,96 @@
+using System.Threading.Channels;
+using HIS.Application.Services;
+using HIS.Core.Entities;
+
+namespace HIS.API.Workers;
+
+/// <summary>
+/// #371 AUTHZ-5 inc-2: Channel-based audit writer — thay Task.Run fire-and-forget trong AuditLogMiddleware.
+/// Singleton BackgroundService đọc AuditLog từ ChannelReader, batch-write vào DB qua IAuditLogService.WriteManyAsync.
+/// Lợi ích vs Task.Run:
+///   1. Backpressure — BoundedChannel(2000) DropOldest giữ bộ nhớ ổn định dưới load cao.
+///   2. Batch write — gom tối đa 20 entry / lần SaveChanges thay vì N lần riêng lẻ.
+///   3. Graceful shutdown — drain toàn bộ khi CancellationToken được kích hoạt.
+/// </summary>
+public sealed class AuditWriterWorker : BackgroundService
+{
+    private readonly ChannelReader<AuditLog> _reader;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<AuditWriterWorker> _logger;
+    private const int MaxBatch = 20;
+
+    public AuditWriterWorker(
+        ChannelReader<AuditLog> reader,
+        IServiceScopeFactory scopeFactory,
+        ILogger<AuditWriterWorker> logger)
+    {
+        _reader = reader;
+        _scopeFactory = scopeFactory;
+        _logger = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _logger.LogInformation("AuditWriterWorker started — batching up to {Batch} entries per write", MaxBatch);
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                // Block until at least 1 entry available (or cancellation)
+                await _reader.WaitToReadAsync(stoppingToken);
+
+                // Drain up to MaxBatch without blocking
+                var batch = new List<AuditLog>(MaxBatch);
+                while (batch.Count < MaxBatch && _reader.TryRead(out var entry))
+                    batch.Add(entry);
+
+                if (batch.Count > 0)
+                    await WriteBatchAsync(batch);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "AuditWriterWorker: loi iteration — tiep tuc sau 500ms");
+                try { await Task.Delay(500, stoppingToken); } catch (OperationCanceledException) { break; }
+            }
+        }
+
+        // Drain remaining entries on graceful shutdown
+        await DrainRemainingAsync();
+        _logger.LogInformation("AuditWriterWorker stopped");
+    }
+
+    private async Task WriteBatchAsync(List<AuditLog> batch)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var auditService = scope.ServiceProvider.GetRequiredService<IAuditLogService>();
+            await auditService.WriteManyAsync(batch);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "AuditWriterWorker: khong ghi duoc batch {Count} entry — dropped", batch.Count);
+        }
+    }
+
+    private async Task DrainRemainingAsync()
+    {
+        var remaining = new List<AuditLog>(MaxBatch);
+        while (_reader.TryRead(out var entry))
+        {
+            remaining.Add(entry);
+            if (remaining.Count >= MaxBatch)
+            {
+                await WriteBatchAsync(remaining);
+                remaining.Clear();
+            }
+        }
+        if (remaining.Count > 0)
+            await WriteBatchAsync(remaining);
+    }
+}

@@ -38,6 +38,20 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<HIS.API.Workers.DailyDemoSeedWorker>();
 builder.Services.AddHostedService<HIS.API.Workers.TokenCleanupWorker>(); // #422: dọn RefreshTokens/UserSessions hết hạn
 
+// #371 inc-2: Channel<AuditLog> — bounded 2000, DropOldest (giữ bộ nhớ ổn định dưới burst).
+// AuditWriterWorker đọc + batch-write; AuditLogMiddleware enqueue qua ChannelWriter (TryWrite, non-blocking).
+var auditChannel = System.Threading.Channels.Channel.CreateBounded<HIS.Core.Entities.AuditLog>(
+    new System.Threading.Channels.BoundedChannelOptions(2000)
+    {
+        FullMode = System.Threading.Channels.BoundedChannelFullMode.DropOldest,
+        SingleReader = true,
+        SingleWriter = false,
+    });
+builder.Services.AddSingleton(auditChannel);
+builder.Services.AddSingleton(auditChannel.Writer);
+builder.Services.AddSingleton(auditChannel.Reader);
+builder.Services.AddHostedService<HIS.API.Workers.AuditWriterWorker>();
+
 // Controllers
 builder.Services.AddControllers(options =>
     {

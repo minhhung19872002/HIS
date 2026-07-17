@@ -1,20 +1,21 @@
 using System.Security.Claims;
 using System.Text.Json;
+using System.Threading.Channels;
 using HIS.Application.Common;
-using HIS.Application.Services;
-using Microsoft.Extensions.DependencyInjection;
+using HIS.Core.Entities;
 
 namespace HIS.API.Middleware;
 
 /// <summary>
 /// Middleware that automatically logs POST/PUT/DELETE API calls for Level 6 audit compliance.
 /// Placed after authentication middleware so JWT claims are available.
-/// Logs are written fire-and-forget to avoid blocking the response pipeline.
+/// #371 inc-2: Logs are enqueued to a bounded Channel and written by AuditWriterWorker (batch, graceful-shutdown).
 /// </summary>
 public class AuditLogMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<AuditLogMiddleware> _logger;
+    private readonly ChannelWriter<AuditLog> _auditChannel;
 
     // Paths to skip audit logging (health checks, swagger, static files)
     private static readonly string[] SkipPaths = new[]
@@ -89,10 +90,14 @@ public class AuditLogMiddleware
         { "/api/queue", "Queue" }
     };
 
-    public AuditLogMiddleware(RequestDelegate next, ILogger<AuditLogMiddleware> logger)
+    public AuditLogMiddleware(
+        RequestDelegate next,
+        ILogger<AuditLogMiddleware> logger,
+        ChannelWriter<AuditLog> auditChannel)
     {
         _next = next;
         _logger = logger;
+        _auditChannel = auditChannel;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -110,15 +115,11 @@ public class AuditLogMiddleware
         // Execute the request first
         await _next(context);
 
-        // Capture state from the request pipeline BEFORE the scope is disposed.
-        // The IAuditLogService depends on a scoped DbContext; resolving it here and using it
-        // inside Task.Run causes ObjectDisposedException once the request scope tears down.
-        // Instead, snapshot the values and open a fresh scope inside the background task.
+        // Build audit entry from HTTP context and enqueue to bounded channel.
+        // AuditWriterWorker (BackgroundService) drains the channel and batch-writes to DB.
+        // TryWrite is non-blocking; DropOldest policy keeps memory bounded under burst load.
         try
         {
-            var scopeFactory = context.RequestServices.GetService<IServiceScopeFactory>();
-            if (scopeFactory == null) return;
-
             var userId = context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
                       ?? context.User?.FindFirst("sub")?.Value
                       ?? string.Empty;
@@ -143,35 +144,36 @@ public class AuditLogMiddleware
                 queryString = context.Request.QueryString.Value
             });
 
-            // Fire-and-forget - do not await to avoid blocking
-            _ = Task.Run(async () =>
+            var entry = new AuditLog
             {
-                try
-                {
-                    using var scope = scopeFactory.CreateScope();
-                    var auditService = scope.ServiceProvider.GetService<IAuditLogService>();
-                    if (auditService == null) return;
+                Id = Guid.NewGuid(),
+                UserId = Guid.TryParse(userId, out var uid) ? uid : null,
+                Username = userName,
+                UserFullName = userName,
+                Action = action,
+                TableName = entityType,
+                EntityType = entityType,
+                RecordId = Guid.TryParse(entityId, out var rid) ? rid : Guid.Empty,
+                EntityId = entityId,
+                Details = details,
+                IpAddress = ipAddress,
+                UserAgent = userAgent?.Length > 500 ? userAgent[..500] : userAgent,
+                Timestamp = DateTime.UtcNow,
+                Module = module,
+                RequestPath = path.Length > 500 ? path[..500] : path,
+                RequestMethod = method,
+                ResponseStatusCode = statusCode,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = userId,
+                IsDeleted = false,
+            };
 
-                    await auditService.LogAsync(
-                        userId,
-                        userName,
-                        action,
-                        entityType,
-                        entityId,
-                        details,
-                        ipAddress,
-                        userAgent,
-                        module,
-                        path,
-                        method,
-                        statusCode);
-                }
-                catch (Exception ex)
-                {
-                    AuditWriteMetrics.RecordFailure(ex);
-                    _logger.LogWarning(ex, "Background audit log write failed for {Method} {Path}", method, path);
-                }
-            });
+            if (!_auditChannel.TryWrite(entry))
+            {
+                // Channel full (2000 entries) — oldest was dropped (BoundedChannelFullMode.DropOldest).
+                AuditWriteMetrics.RecordFailure(new InvalidOperationException("AuditChannel full — entry dropped (DropOldest)"));
+                _logger.LogWarning("AuditChannel full — audit entry dropped for {Method} {Path}", method, path);
+            }
         }
         catch (Exception ex)
         {
