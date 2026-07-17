@@ -21,6 +21,7 @@ import CompliancePanel from './CompliancePanel';
 import DataManagementPanel from './DataManagementPanel';
 import HealthPanel from './HealthPanel';
 import EmrAdminPanel from './EmrAdminPanel';
+import DelegationPanel from './DelegationPanel';
 
 // Department có 2 shape (id|departmentId, name|departmentName) khi đến từ catalog API khác nhau
 interface RawDepartmentLite { id?: string; departmentId?: string; name?: string; departmentName?: string }
@@ -32,7 +33,7 @@ interface BranchRecord { id: string; code?: string; name: string; address?: stri
 interface ServiceSearchItem { id: string; code: string; name: string; stype: number }
 
 type AdminTab = 'users' | 'roles' | 'audit' | 'config' | 'sessions' | 'notifications' | 'locked-services' | 'branches'
-  | 'it-tickets' | 'access-matrix' | 'compliance' | 'data-management' | 'health' | 'emr-admin';
+  | 'it-tickets' | 'access-matrix' | 'compliance' | 'data-management' | 'health' | 'emr-admin' | 'delegation';
 const TABS: TopTab<AdminTab>[] = [
   { v: 'users',           l: 'Người dùng',         ic: 'users' },
   { v: 'roles',           l: 'Vai trò & quyền',     ic: 'shield' },
@@ -48,6 +49,7 @@ const TABS: TopTab<AdminTab>[] = [
   { v: 'data-management', l: 'Dữ liệu',              ic: 'download' },
   { v: 'health',          l: 'Giám sát HT',          ic: 'heart' },
   { v: 'emr-admin',       l: 'EMR Admin',            ic: 'file-text' },
+  { v: 'delegation',      l: 'Ủy quyền tạm',         ic: 'share' },
 ];
 
 function roleList(u: SystemUserDto): (string | RoleDto)[] { return (u.roles ?? []) as unknown as (string | RoleDto)[]; }
@@ -496,6 +498,7 @@ const SystemAdminV2: React.FC = () => {
       {tab === 'data-management' && <DataManagementPanel />}
       {tab === 'health' && <HealthPanel />}
       {tab === 'emr-admin' && <EmrAdminPanel />}
+      {tab === 'delegation' && <DelegationPanel />}
 
       {/* ─── User detail drawer ─── */}
       <DrawerShell open={!!selUser} onClose={() => setSelUser(null)} title={selUser?.fullName || ''} sub={selUser ? `@${selUser.username}` : ''} size="md">
