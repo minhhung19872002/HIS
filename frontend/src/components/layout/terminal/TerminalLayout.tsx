@@ -26,6 +26,7 @@ import {
 import {
   WORKSPACES, workspaceDef, availableWorkspaces, getStoredWorkspace, setStoredWorkspace,
 } from '../../../services/workspace.service';
+import { ACCESS_GATING_ENABLED } from '../../../services/permission.service';
 import type { WorkspaceId } from '../../../types/route';
 import { v2Routes } from '../../../router/routeConfigs';
 import { usePermission } from '../../../hooks/usePermission';
@@ -484,7 +485,8 @@ const TerminalShell: React.FC = () => {
   // #404 (hotfix regression "menu mất hết"): workspace là OPT-IN — mặc định undefined
   // = "Tất cả" (menu đầy đủ như trước #404). Chỉ lọc khi user chủ động chọn 1 workspace
   // trên switcher; lựa chọn lưu localStorage ('all' = tường minh chọn Tất cả).
-  const wsAvailable = useMemo(() => availableWorkspaces(), []);
+  // Gating tắt (mặc định) → không có switcher, menu đầy đủ như trước phiên.
+  const wsAvailable = useMemo(() => (ACCESS_GATING_ENABLED ? availableWorkspaces() : []), []);
   const [workspace, setWorkspace] = useState<WorkspaceId | undefined>(() => {
     const stored = getStoredWorkspace();
     if (stored && wsAvailable.includes(stored)) return stored;

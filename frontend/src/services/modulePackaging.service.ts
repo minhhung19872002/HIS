@@ -7,6 +7,7 @@
 
 import apiClient from './apiClient';
 import type { CommercialModuleId } from '../types/route';
+import { ACCESS_GATING_ENABLED } from './permission.service';
 
 let enabledSet: Set<string> | null = null;
 
@@ -26,6 +27,7 @@ export function clearEnabledModules(): void {
 
 /** Module này có đang bật không. Route không gán module → luôn true. */
 export function isModuleEnabled(module?: CommercialModuleId): boolean {
+  if (!ACCESS_GATING_ENABLED) return true; // gating tắt → không ẩn theo gói module (mặc định)
   if (!module) return true;
   if (enabledSet === null) return true; // fail-open — hành vi cũ
   return enabledSet.has(module);

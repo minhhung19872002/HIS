@@ -11,6 +11,14 @@ import apiClient from './apiClient';
 import { storage, STORAGE_KEYS } from './storage.service';
 import type { User } from '../api/auth';
 
+/**
+ * MASTER SWITCH lọc menu/route theo quyền ở FE. MẶC ĐỊNH TẮT — menu hiện ĐẦY ĐỦ như
+ * trước (FE gating chỉ là UX; an ninh THẬT ở BE [RequirePermission] #367, không đổi khi tắt).
+ * Bật lại bằng env VITE_ACCESS_GATING=true (không cần sửa code). Xem #378/#404/#405.
+ */
+export const ACCESS_GATING_ENABLED =
+  (import.meta.env.VITE_ACCESS_GATING as string | undefined) === 'true';
+
 function getUser(): User | null {
   return storage.get<User>(STORAGE_KEYS.user);
 }
@@ -58,6 +66,7 @@ export function clearPermissions(): void {
  * Set chưa nạp → true (fail-open); đã nạp → membership check.
  */
 export function can(permission: string): boolean {
+  if (!ACCESS_GATING_ENABLED) return true; // gating tắt → hiện/cho phép tất cả (mặc định)
   if (permissionSet === null) return true;
   return permissionSet.has(permission);
 }
