@@ -6,10 +6,23 @@ import type { LazyExoticComponent, ComponentType } from 'react';
 // `meta.permission` is intentionally omitted for now — filled later in #378.
 // Extracted from router/routeConfigs/index.ts (which now re-exports from here).
 // ---------------------------------------------------------------------------
+/** #375 re-scope (doc 08 §2): 4 không gian làm việc thương mại. */
+export type WorkspaceId = 'frontoffice' | 'clinical' | 'pharmacy' | 'backoffice';
+
+/** #375 re-scope (doc 08 §7): 10 module thương mại; 'extended' = ngoài gói (ẩn bởi EnabledModules #405). */
+export type CommercialModuleId =
+  | 'TIEPDON' | 'KHAMBENH' | 'LIS' | 'CDHA' | 'DUOCKHO'
+  | 'THUNGAN' | 'BHYT' | 'NOITRU' | 'BAOCAO' | 'QUANTRI'
+  | 'extended';
+
 export interface RouteMeta {
   title: string;
   group: string;
   permission?: string;
+  /** #375: workspace chứa trang (sidebar theo workspace / switcher #404 đọc). */
+  workspace?: WorkspaceId;
+  /** #375: module thương mại (cờ EnabledModules #405 đọc). */
+  module?: CommercialModuleId;
 }
 
 export interface RouteEntry {
