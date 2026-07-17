@@ -6,7 +6,7 @@
  * 140 báo cáo, reportApiMapping, callReportApi, export/preview/data-view)
  * giữ VERBATIM; UI chuyển sang _v2kit (Btn/SearchBox/DataTable/ModalShell/Pager).
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DatePicker, Select } from 'antd';
 import dayjs from 'dayjs';
 import TermIcon from '../../../components/layout/terminal/Icon';
@@ -16,13 +16,14 @@ import {
 } from '../../../pages-v2/_v2kit';
 import * as file from '../../../services/file.service';
 import { openPrintWindow } from '../../../utils/printWindow';
-import { financeApi, pharmacyReportApi, statisticsApi } from '../../system/api/system';
+import { financeApi, pharmacyReportApi, statisticsApi, catalogApi } from '../../system/api/system';
 import type {
   FinancialReportRequest,
   PharmacyReportRequest,
   StatisticsReportRequest,
 } from '../../system/api/system';
 import { hospitalReportApi, type HospitalReportResult } from '../api/hospitalReport';
+import { getWarehouses } from '../../pharmacy/api/warehouse';
 
 const { RangePicker } = DatePicker;
 
@@ -448,50 +449,8 @@ const reportApiMapping: Record<string, { apiCategory: ApiCategory; reportType: s
   r9_27:  { apiCategory: 'statistics', reportType: 'DialysisMachineUsage' },
 };
 
-/** Department value-to-ID mapping for API calls — VERBATIM từ v1. */
-const departmentIdMap: Record<string, string | undefined> = {
-  all: undefined,
-  noi: 'noi',
-  ngoai: 'ngoai',
-  san: 'san',
-  nhi: 'nhi',
-  xn: 'xn',
-  cdha: 'cdha',
-  duoc: 'duoc',
-  cap_cuu: 'cap_cuu',
-  hscc: 'hscc',
-  phcn: 'phcn',
-  tmh: 'tmh',
-  mat: 'mat',
-  rhm: 'rhm',
-  da_lieu: 'da_lieu',
-};
-
-const DEPARTMENT_OPTIONS = [
-  { value: 'all', label: 'Tất cả khoa/phòng' },
-  { value: 'noi', label: 'Khoa Nội' },
-  { value: 'ngoai', label: 'Khoa Ngoại' },
-  { value: 'san', label: 'Khoa Sản' },
-  { value: 'nhi', label: 'Khoa Nhi' },
-  { value: 'xn', label: 'Khoa Xét nghiệm' },
-  { value: 'cdha', label: 'Khoa CĐHA' },
-  { value: 'duoc', label: 'Khoa Dược' },
-  { value: 'cap_cuu', label: 'Khoa Cấp cứu' },
-  { value: 'hscc', label: 'HSCC' },
-  { value: 'phcn', label: 'Khoa PHCN' },
-  { value: 'tmh', label: 'Khoa TMH' },
-  { value: 'mat', label: 'Khoa Mắt' },
-  { value: 'rhm', label: 'Khoa RHM' },
-  { value: 'da_lieu', label: 'Khoa Da liễu' },
-];
-
-const WAREHOUSE_OPTIONS = [
-  { value: 'kho_thuoc', label: 'Kho Thuốc' },
-  { value: 'kho_vtyt', label: 'Kho VTYT' },
-  { value: 'kho_hc', label: 'Kho Hóa chất' },
-  { value: 'tu_truc', label: 'Tủ trực' },
-  { value: 'nha_thuoc', label: 'Nhà thuốc' },
-];
+const isGuid = (s?: string) =>
+  !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
 // ============================================================================
 // Helper Functions — logic VERBATIM từ v1
@@ -515,9 +474,6 @@ const callReportApi = async (
 
   const fromDate = dateRange[0].format('YYYY-MM-DD');
   const toDate = dateRange[1].format('YYYY-MM-DD');
-  // #423: DEPARTMENT_OPTIONS/WAREHOUSE_OPTIONS dùng demo string (không phải Guid) → BE khai Guid? → 400.
-  // Chỉ gửi khi value là UUID hợp lệ; demo strings và 'all' → undefined (= Tất cả).
-  const isGuid = (s?: string) => !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
   const departmentId = isGuid(department) ? department : undefined;
   const resolvedWarehouseId = isGuid(warehouseId) ? warehouseId : undefined;
 
@@ -614,8 +570,12 @@ const ReportsHospitalTab: React.FC = () => {
     dayjs().startOf('month'),
     dayjs(),
   ]);
-  const [department, setDepartment] = useState<string>('all');
+  const [department, setDepartment] = useState<string>('');
   const [warehouseId, setWarehouseId] = useState<string>('');
+  const [deptOptions, setDeptOptions] = useState<Array<{value: string; label: string}>>([
+    { value: '', label: 'Tất cả khoa/phòng' },
+  ]);
+  const [warehouseOptions, setWarehouseOptions] = useState<Array<{value: string; label: string}>>([]);
   const [searchText, setSearchText] = useState('');
   const [exporting, setExporting] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
@@ -624,6 +584,23 @@ const ReportsHospitalTab: React.FC = () => {
   const [dataViewVisible, setDataViewVisible] = useState(false);
   const [dataViewResult, setDataViewResult] = useState<HospitalReportResult | null>(null);
   const [dataViewPage, setDataViewPage] = useState(0);
+
+  // Load departments and warehouses from catalog API on mount
+  useEffect(() => {
+    catalogApi.getDepartments(undefined, undefined, true).then((r) => {
+      const items = Array.isArray(r.data) ? r.data : [];
+      setDeptOptions([
+        { value: '', label: 'Tất cả khoa/phòng' },
+        ...items
+          .filter((d) => d.id)
+          .map((d) => ({ value: d.id as string, label: d.name })),
+      ]);
+    }).catch(() => {});
+    getWarehouses().then((r) => {
+      const items = Array.isArray(r.data) ? r.data : [];
+      setWarehouseOptions(items.map((w) => ({ value: w.id, label: w.warehouseName })));
+    }).catch(() => {});
+  }, []);
 
   // Flatten all reports for search
   const allReports = useMemo(() => {
@@ -713,7 +690,7 @@ const ReportsHospitalTab: React.FC = () => {
     try {
       const fromDate = dateRange[0].format('YYYY-MM-DD');
       const toDate = dateRange[1].format('YYYY-MM-DD');
-      const deptId = departmentIdMap[department] || undefined;
+      const deptId = isGuid(department) ? department : undefined;
       const whId = warehouseId || undefined;
       const res = await hospitalReportApi.getReport(mapping.reportType, fromDate, toDate, deptId, whId);
       const data = res.data as unknown as HospitalReportResult;
@@ -928,7 +905,7 @@ const ReportsHospitalTab: React.FC = () => {
                 style={{ width: '100%' }}
                 value={department}
                 onChange={(value) => setDepartment(value)}
-                options={DEPARTMENT_OPTIONS}
+                options={deptOptions}
               />
             </div>
             {isPharmacyCategory && (
@@ -940,7 +917,7 @@ const ReportsHospitalTab: React.FC = () => {
                   onChange={(value) => setWarehouseId(value || '')}
                   allowClear
                   placeholder="Tất cả kho"
-                  options={WAREHOUSE_OPTIONS}
+                  options={warehouseOptions}
                 />
               </div>
             )}
