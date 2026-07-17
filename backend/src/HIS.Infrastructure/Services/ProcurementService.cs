@@ -1,267 +1,304 @@
-using HIS.Application.DTOs.Procurement;
-using HIS.Application.Interfaces;
-using HIS.Core.Entities;
-using HIS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using HIS.Application.Services;
+using HIS.Application.DTOs;
+using HIS.Core.Entities;
+using HIS.Core.Interfaces;
+using HIS.Infrastructure.Data;
+
+using HIS.Infrastructure.Extensions;
 
 namespace HIS.Infrastructure.Services;
 
-/// <summary>
-/// Workflow de xuat - du tru - to trinh - duyet mua sam tai san / vat tu (#108)
-/// Entity: AssetProcurementRequest / AssetProcurementRequestItem
-/// Status: 0=DuThao, 1=ChoXetDuyet, 2=DaDuyet, 3=TuChoi, 4=HoanTat
-/// </summary>
-public class AssetProcurementService : IAssetProcurementService
+public class ProcurementService : IProcurementService
 {
-    private readonly HISDbContext _db;
+    private readonly HISDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public AssetProcurementService(HISDbContext db) => _db = db;
-
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
-    private static string GetRequestTypeName(int type) => type switch
+    public ProcurementService(HISDbContext context, IUnitOfWork unitOfWork)
     {
-        1 => "Đề xuất",
-        2 => "Dự trù",
-        3 => "Mua sắm",
-        _ => $"Type {type}",
-    };
-
-    private static string GetStatusName(int status) => status switch
-    {
-        0 => "Dự thảo",
-        1 => "Chờ xét duyệt",
-        2 => "Đã duyệt",
-        3 => "Từ chối",
-        4 => "Hoàn tất",
-        _ => $"Status {status}",
-    };
-
-    private static AssetProcurementRequestDto MapToDto(AssetProcurementRequest e) => new()
-    {
-        Id              = e.Id,
-        RequestNo       = e.RequestNo,
-        Title           = e.Title,
-        RequestType     = e.RequestType,
-        RequestTypeName = GetRequestTypeName(e.RequestType),
-        DepartmentId    = e.DepartmentId,
-        DepartmentName  = e.DepartmentName,
-        RequesterId     = e.RequesterId,
-        RequesterName   = e.RequesterName,
-        Reason          = e.Reason,
-        Status          = e.Status,
-        StatusName      = GetStatusName(e.Status),
-        TotalAmount     = e.TotalAmount,
-        ApproverId      = e.ApproverId,
-        ApproverName    = e.ApproverName,
-        ApprovedAt      = e.ApprovedAt,
-        Note            = e.Note,
-        CreatedAt       = e.CreatedAt,
-        CreatedBy       = e.CreatedBy,
-        ItemCount       = e.Items.Count,
-        Items           = e.Items.Select(i => new AssetProcurementItemDto
-        {
-            Id                        = i.Id,
-            AssetProcurementRequestId = i.AssetProcurementRequestId,
-            ItemName                  = i.ItemName,
-            Unit                      = i.Unit,
-            Quantity                  = i.Quantity,
-            UnitPrice                 = i.UnitPrice,
-            Amount                    = i.Amount,
-            Specification             = i.Specification,
-        }).ToList(),
-    };
-
-    private static string GenerateRequestNo(int requestType)
-    {
-        var prefix = requestType switch { 2 => "DT", 3 => "MS", _ => "DX" };
-        return $"{prefix}-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
+        _context = context;
+        _unitOfWork = unitOfWork;
     }
 
-    // ── CRUD ─────────────────────────────────────────────────────────────────
-
-    public async Task<AssetProcurementPagedResult> GetListAsync(AssetProcurementSearchDto filter)
+    private static readonly Dictionary<int, string> StatusNames = new()
     {
-        var q = _db.AssetProcurementRequests
-            .Include(r => r.Items)
-            .Where(r => !r.IsDeleted);
+        { 0, "Nháp" }, { 1, "Chờ duyệt" }, { 2, "Đã duyệt" }, { 3, "Từ chối" }, { 4, "Hoàn thành" }
+    };
 
-        if (filter.Status.HasValue)
-            q = q.Where(r => r.Status == filter.Status.Value);
-        if (filter.RequestType.HasValue)
-            q = q.Where(r => r.RequestType == filter.RequestType.Value);
-        if (filter.DepartmentId.HasValue)
-            q = q.Where(r => r.DepartmentId == filter.DepartmentId.Value);
+    public async Task<ProcurementPagedResult> GetRequestsAsync(ProcurementSearchDto filter)
+    {
+        var query = _context.ProcurementRequests
+            .Include(p => p.Department)
+            .Include(p => p.RequestedBy)
+            .Include(p => p.ApprovedBy)
+            .Include(p => p.Items)
+            .Where(p => !p.IsDeleted)
+            .AsQueryable();
+
         if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {
-            var kw = filter.Keyword.Trim();
-            q = q.Where(r => r.RequestNo.Contains(kw) || r.Title.Contains(kw)
-                           || (r.RequesterName != null && r.RequesterName.Contains(kw))
-                           || (r.DepartmentName != null && r.DepartmentName.Contains(kw)));
+            var kw = filter.Keyword.Trim().ToLower();
+            query = query.Where(p =>
+                p.RequestCode.ToLower().Contains(kw) ||
+                (p.Notes != null && p.Notes.ToLower().Contains(kw)));
         }
-        if (!string.IsNullOrWhiteSpace(filter.FromDate) && DateTime.TryParse(filter.FromDate, out var from))
-            q = q.Where(r => r.CreatedAt >= from);
-        if (!string.IsNullOrWhiteSpace(filter.ToDate) && DateTime.TryParse(filter.ToDate, out var to))
-            q = q.Where(r => r.CreatedAt <= to.AddDays(1));
 
-        var total = await q.CountAsync();
-        var items = await q
-            .OrderByDescending(r => r.CreatedAt)
+        if (filter.Status.HasValue)
+            query = query.Where(p => p.Status == filter.Status.Value);
+
+        if (filter.DepartmentId.HasValue)
+            query = query.Where(p => p.DepartmentId == filter.DepartmentId.Value);
+
+        if (!string.IsNullOrWhiteSpace(filter.DateFrom) && DateTime.TryParse(filter.DateFrom, out var dateFrom))
+            query = query.Where(p => p.RequestDate >= dateFrom);
+
+        if (!string.IsNullOrWhiteSpace(filter.DateTo) && DateTime.TryParse(filter.DateTo, out var dateTo))
+            query = query.Where(p => p.RequestDate <= dateTo.AddDays(1));
+
+        var totalCount = await query.CountAsync();
+
+        var items = await query
+            .OrderByDescending(p => p.RequestDate)
             .Skip(filter.PageIndex * filter.PageSize)
             .Take(filter.PageSize)
+            .Select(p => new ProcurementListDto
+            {
+                Id = p.Id,
+                RequestCode = p.RequestCode,
+                RequestDate = p.RequestDate,
+                DepartmentId = p.DepartmentId,
+                DepartmentName = p.Department != null ? p.Department.DepartmentName : null,
+                RequestedByName = p.RequestedBy != null ? p.RequestedBy.FullName : null,
+                Status = p.Status,
+                StatusName = "", // mapped below
+                TotalAmount = p.TotalAmount,
+                Notes = p.Notes,
+                ApprovedByName = p.ApprovedBy != null ? p.ApprovedBy.FullName : null,
+                ApprovedDate = p.ApprovedDate,
+                ItemCount = p.Items.Count(i => !i.IsDeleted),
+                CreatedAt = p.CreatedAt
+            })
             .ToListAsync();
 
-        return new AssetProcurementPagedResult
+        foreach (var item in items)
+            item.StatusName = StatusNames.GetValueOrDefault(item.Status, "Không xác định");
+
+        return new ProcurementPagedResult
         {
-            Items     = items.Select(MapToDto).ToList(),
-            Total     = total,
+            Items = items,
+            TotalCount = totalCount,
             PageIndex = filter.PageIndex,
-            PageSize  = filter.PageSize,
+            PageSize = filter.PageSize
         };
     }
 
-    public async Task<AssetProcurementRequestDto?> GetByIdAsync(Guid id)
+    public async Task<ProcurementDetailDto?> GetByIdAsync(Guid id)
     {
-        var e = await _db.AssetProcurementRequests
-            .Include(r => r.Items)
-            .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted);
-        return e == null ? null : MapToDto(e);
+        var p = await _context.ProcurementRequests
+            .Include(x => x.Department)
+            .Include(x => x.RequestedBy)
+            .Include(x => x.ApprovedBy)
+            .Include(x => x.Items.Where(i => !i.IsDeleted))
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+
+        if (p == null) return null;
+
+        return new ProcurementDetailDto
+        {
+            Id = p.Id,
+            RequestCode = p.RequestCode,
+            RequestDate = p.RequestDate,
+            DepartmentId = p.DepartmentId,
+            DepartmentName = p.Department?.DepartmentName,
+            RequestedByName = p.RequestedBy?.FullName,
+            Status = p.Status,
+            StatusName = StatusNames.GetValueOrDefault(p.Status, "Không xác định"),
+            TotalAmount = p.TotalAmount,
+            Notes = p.Notes,
+            ApprovedByName = p.ApprovedBy?.FullName,
+            ApprovedDate = p.ApprovedDate,
+            ItemCount = p.Items.Count,
+            CreatedAt = p.CreatedAt,
+            RejectReason = p.RejectReason,
+            Items = p.Items.Select(i => new ProcurementRequestItemDto
+            {
+                Id = i.Id,
+                ItemId = i.ItemId,
+                ItemName = i.ItemName,
+                ItemCode = i.ItemCode,
+                Unit = i.Unit,
+                RequestedQuantity = i.RequestedQuantity,
+                CurrentStock = i.CurrentStock,
+                MinimumStock = i.MinimumStock,
+                EstimatedPrice = i.EstimatedPrice,
+                Notes = i.Notes,
+                Specification = i.Specification
+            }).ToList()
+        };
     }
 
-    public async Task<AssetProcurementRequestDto> SaveAsync(SaveAssetProcurementRequestDto dto, string? userId)
+    public async Task<ProcurementDetailDto> CreateAsync(CreateProcurementDto dto)
     {
-        AssetProcurementRequest entity;
+        var code = $"DT{DateTime.Now:yyyyMMdd}{new Random().Next(1000, 9999)}";
 
-        if (dto.Id == null || dto.Id == Guid.Empty)
+        var entity = new ProcurementRequest
         {
-            entity = new AssetProcurementRequest
+            Id = Guid.NewGuid(),
+            RequestCode = code,
+            RequestDate = DateTime.UtcNow,
+            DepartmentId = dto.DepartmentId,
+            Status = 1, // Pending
+            Notes = dto.Notes,
+            TotalAmount = dto.Items.Sum(i => i.RequestedQuantity * i.EstimatedPrice),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        foreach (var itemDto in dto.Items)
+        {
+            // Look up current stock from InventoryItems if ItemId provided
+            int currentStock = 0;
+            if (itemDto.ItemId.HasValue)
             {
-                RequestNo = GenerateRequestNo(dto.RequestType),
-                Status    = 0, // DuThao
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = userId,
-            };
-            _db.AssetProcurementRequests.Add(entity);
-        }
-        else
-        {
-            entity = await _db.AssetProcurementRequests
-                .Include(r => r.Items)
-                .FirstAsync(r => r.Id == dto.Id.Value);
+                var totalQty = await _context.InventoryItems
+                    .Where(x => (x.MedicineId == itemDto.ItemId.Value || x.SupplyId == itemDto.ItemId.Value) && !x.IsDeleted)
+                    .SumAsync(x => x.Quantity);
+                currentStock = (int)totalQty;
+            }
 
-            if (entity.Status != 0)
-                throw new InvalidOperationException("Chỉ có thể sửa phiếu ở trạng thái Dự thảo.");
-
-            entity.UpdatedAt = DateTime.UtcNow;
-            entity.UpdatedBy = userId;
-
-            // Replace items
-            _db.AssetProcurementRequestItems.RemoveRange(entity.Items);
-            entity.Items.Clear();
-        }
-
-        entity.Title          = dto.Title;
-        entity.RequestType    = dto.RequestType;
-        entity.DepartmentId   = dto.DepartmentId;
-        entity.DepartmentName = dto.DepartmentName;
-        entity.RequesterName  = dto.RequesterName;
-        entity.Reason         = dto.Reason;
-        entity.Note           = dto.Note;
-
-        foreach (var item in dto.Items)
-        {
-            var amount = item.Quantity * (item.UnitPrice ?? 0);
-            entity.Items.Add(new AssetProcurementRequestItem
+            entity.Items.Add(new ProcurementRequestItem
             {
-                ItemName      = item.ItemName,
-                Unit          = item.Unit,
-                Quantity      = item.Quantity,
-                UnitPrice     = item.UnitPrice,
-                Amount        = amount > 0 ? amount : null,
-                Specification = item.Specification,
-                CreatedAt     = DateTime.UtcNow,
-                CreatedBy     = userId,
+                Id = Guid.NewGuid(),
+                ProcurementRequestId = entity.Id,
+                ItemId = itemDto.ItemId,
+                ItemName = itemDto.ItemName,
+                ItemCode = itemDto.ItemCode,
+                Unit = itemDto.Unit,
+                RequestedQuantity = itemDto.RequestedQuantity,
+                CurrentStock = currentStock,
+                MinimumStock = 0,
+                EstimatedPrice = itemDto.EstimatedPrice,
+                Notes = itemDto.Notes,
+                Specification = itemDto.Specification,
+                CreatedAt = DateTime.UtcNow
             });
         }
 
-        entity.TotalAmount = entity.Items.Sum(i => i.Amount ?? 0);
-        if (entity.TotalAmount == 0) entity.TotalAmount = null;
+        await _context.ProcurementRequests.AddAsync(entity);
+        await _unitOfWork.SaveChangesAsync();
 
-        await _db.SaveChangesAsync();
-
-        await _db.Entry(entity).Collection(e => e.Items).LoadAsync();
-        return MapToDto(entity);
+        return (await GetByIdAsync(entity.Id))!;
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<ProcurementListDto> ApproveAsync(Guid id)
     {
-        var e = await _db.AssetProcurementRequests.FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted);
-        if (e == null) return false;
-        if (e.Status != 0)
-            throw new InvalidOperationException("Chỉ xóa được phiếu ở trạng thái Dự thảo.");
-        e.IsDeleted = true;
-        e.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
-        return true;
+        var entity = await _context.ProcurementRequests
+            .Include(p => p.Department)
+            .Include(p => p.RequestedBy)
+            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted)
+            ?? throw new Exception("Không tìm thấy phiếu dự trù");
+
+        if (entity.Status != 1)
+            throw new Exception("Chỉ có thể duyệt phiếu đang chờ duyệt");
+
+        entity.Status = 2; // Approved
+        entity.ApprovedDate = DateTime.UtcNow;
+        entity.UpdatedAt = DateTime.UtcNow;
+
+        await _unitOfWork.SaveChangesAsync();
+
+        return new ProcurementListDto
+        {
+            Id = entity.Id,
+            RequestCode = entity.RequestCode,
+            RequestDate = entity.RequestDate,
+            DepartmentName = entity.Department?.DepartmentName,
+            RequestedByName = entity.RequestedBy?.FullName,
+            Status = entity.Status,
+            StatusName = StatusNames.GetValueOrDefault(entity.Status),
+            TotalAmount = entity.TotalAmount,
+            ApprovedDate = entity.ApprovedDate,
+            CreatedAt = entity.CreatedAt
+        };
     }
 
-    // ── Workflow actions ──────────────────────────────────────────────────────
-
-    public async Task<AssetProcurementRequestDto> SubmitAsync(Guid id, string? userId)
+    public async Task<ProcurementListDto> RejectAsync(Guid id, string? reason)
     {
-        var e = await _db.AssetProcurementRequests.Include(r => r.Items)
-            .FirstAsync(r => r.Id == id && !r.IsDeleted);
-        if (e.Status != 0)
-            throw new InvalidOperationException("Chỉ trình duyệt phiếu ở trạng thái Dự thảo.");
-        e.Status    = 1; // ChoXetDuyet
-        e.UpdatedAt = DateTime.UtcNow;
-        e.UpdatedBy = userId;
-        await _db.SaveChangesAsync();
-        return MapToDto(e);
+        var entity = await _context.ProcurementRequests
+            .Include(p => p.Department)
+            .Include(p => p.RequestedBy)
+            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted)
+            ?? throw new Exception("Không tìm thấy phiếu dự trù");
+
+        if (entity.Status != 1)
+            throw new Exception("Chỉ có thể từ chối phiếu đang chờ duyệt");
+
+        entity.Status = 3; // Rejected
+        entity.RejectReason = reason;
+        entity.UpdatedAt = DateTime.UtcNow;
+
+        await _unitOfWork.SaveChangesAsync();
+
+        return new ProcurementListDto
+        {
+            Id = entity.Id,
+            RequestCode = entity.RequestCode,
+            RequestDate = entity.RequestDate,
+            DepartmentName = entity.Department?.DepartmentName,
+            RequestedByName = entity.RequestedBy?.FullName,
+            Status = entity.Status,
+            StatusName = StatusNames.GetValueOrDefault(entity.Status),
+            TotalAmount = entity.TotalAmount,
+            CreatedAt = entity.CreatedAt
+        };
     }
 
-    public async Task<AssetProcurementRequestDto> ApproveAsync(ApproveRejectAssetProcurementDto dto, string? userId)
+    public async Task<List<AutoSuggestionDto>> GetAutoSuggestionsAsync()
     {
-        var e = await _db.AssetProcurementRequests.Include(r => r.Items)
-            .FirstAsync(r => r.Id == dto.RequestId && !r.IsDeleted);
-        if (e.Status != 1)
-            throw new InvalidOperationException("Chỉ duyệt phiếu ở trạng thái Chờ xét duyệt.");
-        // #156: role duyệt (Admin/Director/WarehouseManager) enforce ở controller [Authorize(Roles)] AssetProcurementController.Approve
-        e.Status      = 2; // DaDuyet
-        e.ApproverId  = userId != null && Guid.TryParse(userId, out var uid) ? uid : null;
-        e.ApproverName = userId;
-        e.ApprovedAt  = DateTime.UtcNow;
-        e.Note        = dto.Note ?? e.Note;
-        e.UpdatedAt   = DateTime.UtcNow;
-        e.UpdatedBy   = userId;
-        await _db.SaveChangesAsync();
-        return MapToDto(e);
+        // Aggregate inventory by medicine, find items with low stock
+        var medicineStock = await _context.InventoryItems
+            .Include(i => i.Medicine)
+            .Where(i => !i.IsDeleted && i.MedicineId.HasValue && i.Medicine != null)
+            .GroupBy(i => new { i.MedicineId, i.Medicine!.MedicineName, i.Medicine.MedicineCode, i.Medicine.Unit })
+            .Select(g => new
+            {
+                MedicineId = g.Key.MedicineId!.Value,
+                Name = g.Key.MedicineName,
+                Code = g.Key.MedicineCode,
+                Unit = g.Key.Unit,
+                TotalQty = g.Sum(x => x.Quantity),
+                LastPrice = g.Max(x => x.UnitPrice)
+            })
+            .Where(x => x.TotalQty < 10) // Items with less than 10 units in stock
+            .OrderBy(x => x.TotalQty)
+            .Take(50)
+            .ToListAsync();
+
+        return medicineStock.Select(m => new AutoSuggestionDto
+        {
+            ItemId = m.MedicineId,
+            ItemName = m.Name,
+            ItemCode = m.Code,
+            Unit = m.Unit,
+            CurrentStock = (int)m.TotalQty,
+            MinimumStock = 10,
+            SuggestedQuantity = 10 - (int)m.TotalQty + 5, // Buffer of 5
+            LastPrice = m.LastPrice
+        }).ToList();
     }
 
-    public async Task<AssetProcurementRequestDto> RejectAsync(ApproveRejectAssetProcurementDto dto, string? userId)
+    public async Task<ProcurementStatisticsDto> GetStatisticsAsync()
     {
-        var e = await _db.AssetProcurementRequests.Include(r => r.Items)
-            .FirstAsync(r => r.Id == dto.RequestId && !r.IsDeleted);
-        if (e.Status != 1)
-            throw new InvalidOperationException("Chỉ từ chối phiếu ở trạng thái Chờ xét duyệt.");
-        e.Status    = 3; // TuChoi
-        e.Note      = dto.Note;
-        e.UpdatedAt = DateTime.UtcNow;
-        e.UpdatedBy = userId;
-        await _db.SaveChangesAsync();
-        return MapToDto(e);
-    }
+        var query = _context.ProcurementRequests.Where(p => !p.IsDeleted);
 
-    public async Task<AssetProcurementRequestDto> CompleteAsync(Guid id, string? userId)
-    {
-        var e = await _db.AssetProcurementRequests.Include(r => r.Items)
-            .FirstAsync(r => r.Id == id && !r.IsDeleted);
-        if (e.Status != 2)
-            throw new InvalidOperationException("Chỉ hoàn tất phiếu ở trạng thái Đã duyệt.");
-        e.Status    = 4; // HoanTat
-        e.UpdatedAt = DateTime.UtcNow;
-        e.UpdatedBy = userId;
-        await _db.SaveChangesAsync();
-        return MapToDto(e);
+        return new ProcurementStatisticsDto
+        {
+            TotalRequests = await query.CountAsync(),
+            DraftCount = await query.CountAsync(p => p.Status == 0),
+            PendingCount = await query.CountAsync(p => p.Status == 1),
+            ApprovedCount = await query.CountAsync(p => p.Status == 2),
+            RejectedCount = await query.CountAsync(p => p.Status == 3),
+            TotalApprovedAmount = await query.Where(p => p.Status == 2).SumAsync(p => p.TotalAmount),
+            TotalPendingAmount = await query.Where(p => p.Status == 1).SumAsync(p => p.TotalAmount)
+        };
     }
 }
