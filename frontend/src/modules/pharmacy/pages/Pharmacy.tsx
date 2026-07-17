@@ -1,201 +1,591 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { App as AntdApp } from 'antd';
+import { App as AntdApp, InputNumber, Select, Input } from 'antd';
 import * as pharmacyApi from '../api/pharmacy';
 import { openPrintWindow } from '../../../utils/printWindow';
-import type { PendingPrescription } from '../api/pharmacy';
-import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from '../../../pages-v2/_v2kit';
+import type { PendingPrescription, InventoryItem, TransferRequest, AlertItem, MedicationItem } from '../api/pharmacy';
+import {
+  KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager,
+  DrawerShell, DrSec, DrField, ModalShell,
+  StatusBadge, ActBtn, Btn, tk, ti, te,
+  type ColumnDef, type TopTab, type KpiItem, type StatusTab,
+} from '../../../pages-v2/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import ExpiryAlertModal from '../../../pages-v2/shared/ExpiryAlertModal';
 import { fmtVND } from '../../../utils/format';
 
-/* Nhà thuốc v2 — port of Pharmacy v2.html (RX dispensing tab) */
+/* ────────────── Types ────────────── */
 
-type StatusKey = 'pending' | 'accepted' | 'dispensing' | 'completed' | 'rejected';
-const STATUS_TABS: StatusTab<StatusKey>[] = [
-  { v: 'pending',    l: 'Chờ duyệt',    tone: 'warn' },
-  { v: 'accepted',   l: 'DS đã nhận',   tone: 'info' },
-  { v: 'dispensing', l: 'Đang cấp',     tone: 'warn' },
-  { v: 'completed',  l: 'Đã cấp',       tone: 'ok' },
-  { v: 'rejected',   l: 'Hoàn',         tone: 'crit' },
+type PageTab = 'rx' | 'inventory' | 'transfers' | 'alerts' | 'clinical';
+type RxStatus = 'pending' | 'accepted' | 'dispensing' | 'completed' | 'rejected';
+type ClSubTab = 'reviews' | 'adr';
+interface ClinReview { id: string; patientName?: string; medicationName?: string; reviewDate?: string; recommendation?: string; }
+interface AdrReport  { id: string; patientName?: string; medicationName?: string; reaction?: string; severity?: string; reportDate?: string; }
+
+/* ────────────── Constants ────────────── */
+
+const TOP_TABS: TopTab<PageTab>[] = [
+  { v: 'rx',        l: 'Đơn cấp phát',  ic: 'activity' },
+  { v: 'inventory', l: 'Kho thuốc',     ic: 'box' },
+  { v: 'transfers', l: 'Chuyển kho',    ic: 'shuffle' },
+  { v: 'alerts',    l: 'Cảnh báo',      ic: 'alert' },
+  { v: 'clinical',  l: 'Dược lâm sàng', ic: 'flask' },
 ];
-const fmtHM = (iso?: string) => iso ? dayjs(iso).format('HH:mm') : '—';
-const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM HH:mm') : '—';
+
+const RX_TABS: StatusTab<RxStatus>[] = [
+  { v: 'pending',    l: 'Chờ duyệt',  tone: 'warn' },
+  { v: 'accepted',   l: 'DS đã nhận', tone: 'info' },
+  { v: 'dispensing', l: 'Đang cấp',   tone: 'warn' },
+  { v: 'completed',  l: 'Đã cấp',     tone: 'ok'   },
+  { v: 'rejected',   l: 'Hoàn',       tone: 'crit' },
+];
+
+const AL_TABS: StatusTab<'unack' | 'ack'>[] = [
+  { v: 'unack', l: 'Chưa xác nhận', tone: 'warn' },
+  { v: 'ack',   l: 'Đã xác nhận',   tone: 'ok'   },
+];
+
+const CL_TABS: StatusTab<ClSubTab>[] = [
+  { v: 'reviews', l: 'Phiếu duyệt', tone: 'info' },
+  { v: 'adr',     l: 'Báo cáo ADR', tone: 'warn' },
+];
+
+const TR_STATUS_OPTS = [
+  { value: '',         label: 'Tất cả'    },
+  { value: 'pending',  label: 'Chờ duyệt' },
+  { value: 'approved', label: 'Đã duyệt'  },
+  { value: 'rejected', label: 'Từ chối'   },
+  { value: 'received', label: 'Đã nhận'   },
+];
+
+const ADR_SEV_OPTS = [
+  { value: 'mild',     label: 'Nhẹ (mild)'              },
+  { value: 'moderate', label: 'Trung bình (moderate)'   },
+  { value: 'severe',   label: 'Nặng (severe)'           },
+];
+
+const PER = 18;
+const fmtHM  = (s?: string) => s ? dayjs(s).format('HH:mm')       : '—';
+const fmtDT  = (s?: string) => s ? dayjs(s).format('DD/MM HH:mm') : '—';
+const sevTone = (s?: string): 'crit' | 'warn' | 'info' =>
+  s === 'high' || s === 'severe' ? 'crit' : s === 'medium' || s === 'moderate' ? 'warn' : 'info';
+
+/* ────────────────────────── Main Component ────────────────────────── */
 
 const PharmacyV2: React.FC = () => {
   const { message, modal } = AntdApp.useApp();
   const navigate = useNavigate();
-  const [reloadVer] = useState(0);
-  const [printLabelLoading, setPrintLabelLoading] = useState<string | null>(null);
+  const [tab, setTab] = useState<PageTab>('rx');
+
+  /* ── RX state ── */
+  const [rxRows,     setRxRows]     = useState<PendingPrescription[]>([]);
+  const [rxLoading,  setRxLoading]  = useState(true);
+  const [rxSearch,   setRxSearch]   = useState('');
+  const [rxStab,     setRxStab]     = useState<RxStatus | 'all'>('all');
+  const [rxPage,     setRxPage]     = useState(0);
+  const [rxSel,      setRxSel]      = useState<PendingPrescription | null>(null);
+  const [printLoad,  setPrintLoad]  = useState<string | null>(null);
+
+  const loadRx = useCallback(async () => {
+    setRxLoading(true);
+    try { const r = await pharmacyApi.getPendingPrescriptions(); setRxRows(Array.isArray(r.data) ? r.data : []); }
+    catch { /* silent */ } finally { setRxLoading(false); }
+  }, []);
+  useEffect(() => { if (tab === 'rx') loadRx(); }, [tab, loadRx]);
+
+  /* ── Inventory state ── */
+  const [invRows,    setInvRows]    = useState<InventoryItem[]>([]);
+  const [invLoading, setInvLoading] = useState(false);
+  const [invSearch,  setInvSearch]  = useState('');
+  const [invPage,    setInvPage]    = useState(0);
+
+  const loadInv = useCallback(async () => {
+    setInvLoading(true);
+    try { const r = await pharmacyApi.getInventoryItems(); setInvRows(Array.isArray(r.data) ? r.data : []); }
+    catch { ti('Không tải được kho thuốc'); } finally { setInvLoading(false); }
+  }, []);
+  useEffect(() => { if (tab === 'inventory') loadInv(); }, [tab, loadInv]);
+
+  /* ── Transfers state ── */
+  const [trRows,     setTrRows]     = useState<TransferRequest[]>([]);
+  const [trLoading,  setTrLoading]  = useState(false);
+  const [trStatus,   setTrStatus]   = useState('');
+  const [trPage,     setTrPage]     = useState(0);
+  const [trModal,    setTrModal]    = useState(false);
+  const [trFromWh,   setTrFromWh]   = useState('');
+  const [trToWh,     setTrToWh]     = useState('');
+  const [trMedId,    setTrMedId]    = useState('');
+  const [trQty,      setTrQty]      = useState<number>(1);
+  const [trNote,     setTrNote]     = useState('');
+
+  const loadTr = useCallback(async () => {
+    setTrLoading(true);
+    try { const r = await pharmacyApi.getTransferRequests(trStatus || undefined); setTrRows(Array.isArray(r.data) ? r.data : []); }
+    catch { ti('Không tải được yêu cầu chuyển kho'); } finally { setTrLoading(false); }
+  }, [trStatus]);
+  useEffect(() => { if (tab === 'transfers') loadTr(); }, [tab, loadTr]);
+
+  /* ── Alerts state ── */
+  const [alRows,     setAlRows]     = useState<AlertItem[]>([]);
+  const [alLoading,  setAlLoading]  = useState(false);
+  const [alStab,     setAlStab]     = useState<'unack' | 'ack' | 'all'>('unack');
+  const [alPage,     setAlPage]     = useState(0);
+
+  const loadAl = useCallback(async () => {
+    setAlLoading(true);
+    try { const r = await pharmacyApi.getAlerts(); setAlRows(Array.isArray(r.data) ? r.data : []); }
+    catch { ti('Không tải được cảnh báo'); } finally { setAlLoading(false); }
+  }, []);
+  useEffect(() => { if (tab === 'alerts') loadAl(); }, [tab, loadAl]);
+
+  /* ── Clinical state ── */
+  const [clSubTab,   setClSubTab]   = useState<ClSubTab | 'all'>('reviews');
+  const [clReviews,  setClReviews]  = useState<ClinReview[]>([]);
+  const [clAdr,      setClAdr]      = useState<AdrReport[]>([]);
+  const [clLoading,  setClLoading]  = useState(false);
+  const [clPage,     setClPage]     = useState(0);
+  const [adrModal,   setAdrModal]   = useState(false);
+  const [adrPatient, setAdrPatient] = useState('');
+  const [adrMed,     setAdrMed]     = useState('');
+  const [adrReact,   setAdrReact]   = useState('');
+  const [adrSev,     setAdrSev]     = useState<'mild' | 'moderate' | 'severe'>('mild');
+  const [adrDesc,    setAdrDesc]    = useState('');
+
+  const loadCl = useCallback(async () => {
+    setClLoading(true);
+    try {
+      const [rev, adr] = await Promise.all([pharmacyApi.getClinicalReviews(), pharmacyApi.getAdrReports()]);
+      setClReviews(Array.isArray(rev.data) ? (rev.data as ClinReview[]) : []);
+      setClAdr(Array.isArray(adr.data) ? (adr.data as AdrReport[]) : []);
+    }
+    catch { ti('Không tải được dữ liệu lâm sàng'); } finally { setClLoading(false); }
+  }, []);
+  useEffect(() => { if (tab === 'clinical') loadCl(); }, [tab, loadCl]);
+
+  /* ══════════════ RX HANDLERS ══════════════ */
 
   const onPrintLabel = async (r: PendingPrescription) => {
-    setPrintLabelLoading(r.id);
+    setPrintLoad(r.id);
     try {
       const { data: html } = await pharmacyApi.printDrugLabel(r.id);
       openPrintWindow(html as unknown as string, { onBlocked: () => message.error('Trình duyệt chặn popup — cho phép popup để in') });
-    } catch {
-      message.error('In nhãn thất bại — vui lòng thử lại');
-    } finally {
-      setPrintLabelLoading(null);
-    }
+    } catch { message.error('In nhãn thất bại'); } finally { setPrintLoad(null); }
   };
 
-  const onAccept = async (r: PendingPrescription, reload: () => void) => {
-    try {
-      await pharmacyApi.acceptPrescription(r.id);
-      message.success(`DS đã nhận · ${r.prescriptionCode}`);
-      reload();
-    } catch {
-      message.error('Nhận thất bại');
-    }
+  const onAccept = async (r: PendingPrescription) => {
+    try { await pharmacyApi.acceptPrescription(r.id); message.success(`DS đã nhận · ${r.prescriptionCode}`); loadRx(); }
+    catch { message.error('Nhận thất bại'); }
   };
 
-  const onComplete = async (r: PendingPrescription, reload: () => void) => {
+  const onComplete = (r: PendingPrescription) => {
     modal.confirm({
-      title: 'Cấp phát đơn thuốc?',
-      content: `${r.itemsCount} thuốc · ${fmtVND(r.totalAmount)}`,
+      title: 'Cấp phát đơn thuốc?', content: `${r.itemsCount} thuốc · ${fmtVND(r.totalAmount)}`,
       okText: 'Cấp phát', cancelText: 'Hủy',
       onOk: async () => {
-        try {
-          await pharmacyApi.completeDispensing(r.id);
-          message.success('Đã cấp phát');
-          reload();
-        } catch {
-          message.error('Cấp phát thất bại');
-        }
+        try { await pharmacyApi.completeDispensing(r.id); message.success('Đã cấp phát'); loadRx(); }
+        catch { message.error('Cấp phát thất bại'); }
       },
     });
   };
 
-  const onReject = async (r: PendingPrescription, reload: () => void) => {
-    try {
-      await pharmacyApi.rejectPrescription(r.id, 'Hoàn từ giao diện cấp phát');
-      message.warning(`Đã hoàn · ${r.prescriptionCode}`);
-      reload();
-    } catch {
-      message.error('Hoàn thất bại');
-    }
+  const onRejectRx = async (r: PendingPrescription) => {
+    try { await pharmacyApi.rejectPrescription(r.id, 'Hoàn từ giao diện cấp phát'); message.warning(`Đã hoàn · ${r.prescriptionCode}`); loadRx(); }
+    catch { message.error('Hoàn thất bại'); }
   };
 
-  const columns: ColumnDef<PendingPrescription>[] = [
+  /* ══════════════ RX DERIVED ══════════════ */
+
+  const rxFiltered = useMemo(() => {
+    const k = rxSearch.toLowerCase();
+    return rxRows.filter((r) => {
+      if (rxStab !== 'all' && r.status !== rxStab) return false;
+      if (k && !`${r.patientName} ${r.patientCode} ${r.prescriptionCode} ${r.doctorName}`.toLowerCase().includes(k)) return false;
+      return true;
+    });
+  }, [rxRows, rxSearch, rxStab]);
+
+  const rxCounts = useMemo(() => {
+    const c: Record<string, number> = { all: rxRows.length };
+    RX_TABS.forEach((t) => { c[t.v] = rxRows.filter((r) => r.status === t.v).length; });
+    return c;
+  }, [rxRows]);
+
+  const rxKpis = useMemo((): KpiItem[] => {
+    const today   = dayjs().startOf('day');
+    const pending   = rxRows.filter((r) => r.status === 'pending').length;
+    const dispensing = rxRows.filter((r) => r.status === 'dispensing').length;
+    const urgent  = rxRows.filter((r) => r.priority === 'urgent').length;
+    const revenue = rxRows.filter((r) => r.status === 'completed').reduce((s, r) => s + (r.totalAmount || 0), 0);
+    return [
+      { lbl: 'Đơn hôm nay',  val: rxRows.filter((r) => dayjs(r.createdDate).isSame(today, 'day')).length, sub: 'cần cấp',    tone: 'info' },
+      { lbl: 'Chờ duyệt',    val: pending,                                                                  sub: 'DS xử lý',  tone: 'warn' },
+      { lbl: 'Đang cấp',     val: dispensing,                                                               sub: 'đang xử lý', tone: 'warn' },
+      { lbl: 'STAT',         val: urgent,                                                                   sub: 'ưu tiên',   tone: 'crit' },
+      { lbl: 'Doanh thu',    val: Math.round(revenue / 1_000_000), unit: 'tr',                              sub: 'VND'               },
+    ];
+  }, [rxRows]);
+
+  const rxTotalPages = Math.max(1, Math.ceil(rxFiltered.length / PER));
+  const rxPaged = rxFiltered.slice(rxPage * PER, (rxPage + 1) * PER);
+
+  const rxCols: ColumnDef<PendingPrescription>[] = [
     {
       key: 'code', label: 'Mã đơn', mono: true, width: 150,
       render: (r) => (
         <span>
           {r.prescriptionCode}
           {r.priority === 'urgent' && (
-            <span style={{
-              marginLeft: 'var(--space-6)', padding: '1px 5px',
-              background: 'var(--s-crit-bg)', color: 'var(--s-crit)',
-              border: '1px solid #fca5a5', borderRadius: 'var(--r-1)',
-              fontSize: 9, fontWeight: 700,
-            }}>STAT</span>
+            <span style={{ marginLeft: 6, padding: '1px 5px', background: 'var(--s-crit-bg)', color: 'var(--s-crit)', border: '1px solid #fca5a5', borderRadius: 'var(--r-1)', fontSize: 9, fontWeight: 700 }}>STAT</span>
           )}
         </span>
       ),
     },
     { key: 'time', label: 'Giờ', mono: true, width: 80, render: (r) => fmtHM(r.createdDate) },
-    {
-      key: 'patient', label: 'Bệnh nhân',
-      render: (r) => (
-        <div className="cell-2l">
-          <b>{r.patientName}</b>
-          <i className="mono">{r.patientCode}</i>
-        </div>
-      ),
-    },
-    {
-      key: 'doctor', label: 'BS / Khoa',
-      render: (r) => (
-        <div className="cell-2l">
-          <b>{r.doctorName}</b>
-          <i>{r.department}</i>
-        </div>
-      ),
-    },
-    { key: 'items', label: 'Thuốc', mono: true, width: 90, render: (r) => `${r.itemsCount} loại` },
-    { key: 'total', label: 'Tổng tiền', mono: true, width: 130, render: (r) => fmtVND(r.totalAmount) },
+    { key: 'patient', label: 'Bệnh nhân', render: (r) => <div className="cell-2l"><b>{r.patientName}</b><i className="mono">{r.patientCode}</i></div> },
+    { key: 'doctor',  label: 'BS / Khoa',  render: (r) => <div className="cell-2l"><b>{r.doctorName}</b><i>{r.department}</i></div> },
+    { key: 'items',  label: 'Thuốc',  mono: true, width: 90,  render: (r) => `${r.itemsCount} loại` },
+    { key: 'total',  label: 'Tổng tiền', mono: true, width: 130, render: (r) => fmtVND(r.totalAmount) },
     {
       key: 'status', label: 'Trạng thái', width: 130,
+      render: (r) => { const t = RX_TABS.find((x) => x.v === r.status); return <StatusBadge tone={t?.tone} dot>{t?.l || r.status}</StatusBadge>; },
+    },
+  ];
+
+  /* ══════════════ INVENTORY DERIVED ══════════════ */
+
+  const invFiltered = useMemo(() => {
+    const k = invSearch.toLowerCase();
+    return invRows.filter((r) => !k || `${r.medicationName} ${r.medicationCode}`.toLowerCase().includes(k));
+  }, [invRows, invSearch]);
+  const invTotalPages = Math.max(1, Math.ceil(invFiltered.length / PER));
+  const invPaged = invFiltered.slice(invPage * PER, (invPage + 1) * PER);
+
+  const invCols: ColumnDef<InventoryItem>[] = [
+    { key: 'name', label: 'Thuốc',       render: (r) => <div className="cell-2l"><b>{r.medicationName}</b><i className="mono">{r.medicationCode}</i></div> },
+    { key: 'unit', label: 'ĐVT',         width: 70,  render: (r) => r.unit },
+    { key: 'qty',  label: 'Tồn kho',     mono: true, width: 100, render: (r) => r.totalStock },
+    { key: 'min',  label: 'Tối thiểu',   mono: true, width: 100, render: (r) => r.minStock },
+    { key: 'exp',  label: 'Hạn gần nhất', mono: true, width: 130, render: (r) => fmtDT(r.nearestExpiry) },
+    { key: 'wh',   label: 'Kho',          render: (r) => r.warehouse },
+    {
+      key: 'st', label: 'Tình trạng', width: 130,
       render: (r) => {
-        const tab = STATUS_TABS.find((t) => t.v === r.status);
-        return <StatusBadge tone={tab?.tone} dot>{tab?.l || r.status}</StatusBadge>;
+        const tone = r.status === 'out' ? 'crit' as const : (r.status === 'low' || r.status === 'expiring') ? 'warn' as const : 'ok' as const;
+        const lbl  = r.status === 'out' ? 'Hết hàng' : r.status === 'low' ? 'Sắp hết' : r.status === 'expiring' ? 'Gần hết hạn' : 'Bình thường';
+        return <StatusBadge tone={tone} dot>{lbl}</StatusBadge>;
       },
     },
   ];
 
+  /* ══════════════ TRANSFER HANDLERS & COLS ══════════════ */
+
+  const onApprove  = async (r: TransferRequest) => { try { await pharmacyApi.approveTransfer(r.id);  tk(`Đã duyệt · ${r.transferCode}`); loadTr(); } catch { te('Duyệt thất bại'); } };
+  const onRejectTr = async (r: TransferRequest) => { try { await pharmacyApi.rejectTransfer(r.id, 'Từ chối từ giao diện'); te(`Đã từ chối · ${r.transferCode}`); loadTr(); } catch { te('Từ chối thất bại'); } };
+  const onReceive  = async (r: TransferRequest) => { try { await pharmacyApi.receiveTransfer(r.id); tk(`Đã nhận · ${r.transferCode}`); loadTr(); } catch { te('Nhận hàng thất bại'); } };
+
+  const onCreateTransfer = async () => {
+    try {
+      await pharmacyApi.createTransfer({ fromWarehouse: trFromWh, toWarehouse: trToWh, note: trNote } as unknown as Partial<TransferRequest>);
+      tk('Đã tạo yêu cầu chuyển kho'); setTrModal(false);
+      setTrFromWh(''); setTrToWh(''); setTrMedId(''); setTrQty(1); setTrNote('');
+      loadTr();
+    } catch { te('Tạo yêu cầu thất bại'); }
+  };
+
+  const trCols: ColumnDef<TransferRequest>[] = [
+    { key: 'code', label: 'Mã',        code: true, width: 130, render: (r) => r.transferCode },
+    { key: 'from', label: 'Kho gửi',   render: (r) => r.fromWarehouse },
+    { key: 'to',   label: 'Kho nhận',  render: (r) => r.toWarehouse },
+    { key: 'cnt',  label: 'Dòng',      mono: true, width: 80, render: (r) => r.itemsCount },
+    { key: 'date', label: 'Ngày YC',   mono: true, width: 130, render: (r) => fmtDT(r.requestedDate) },
+    {
+      key: 'st', label: 'Trạng thái', width: 120,
+      render: (r) => {
+        const tone = r.status === 'rejected' ? 'crit' as const : r.status === 'received' ? 'ok' as const : r.status === 'approved' ? 'info' as const : 'warn' as const;
+        const lbl  = { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối', received: 'Đã nhận' }[r.status] ?? r.status;
+        return <StatusBadge tone={tone} dot>{lbl}</StatusBadge>;
+      },
+    },
+  ];
+  const trTotalPages = Math.max(1, Math.ceil(trRows.length / PER));
+  const trPaged = trRows.slice(trPage * PER, (trPage + 1) * PER);
+
+  /* ══════════════ ALERTS DERIVED ══════════════ */
+
+  const alFiltered = useMemo(() => {
+    if (alStab === 'ack')   return alRows.filter((a) => a.acknowledged);
+    if (alStab === 'unack') return alRows.filter((a) => !a.acknowledged);
+    return alRows;
+  }, [alRows, alStab]);
+  const alTotalPages = Math.max(1, Math.ceil(alFiltered.length / PER));
+  const alPaged = alFiltered.slice(alPage * PER, (alPage + 1) * PER);
+  const alCounts: Record<string, number> = {
+    all: alRows.length,
+    unack: alRows.filter((a) => !a.acknowledged).length,
+    ack: alRows.filter((a) => a.acknowledged).length,
+  };
+
+  const onAck     = async (r: AlertItem) => { try { await pharmacyApi.acknowledgeAlert(r.id); tk('Đã xác nhận'); loadAl(); } catch { te('Thất bại'); } };
+  const onResolve = async (r: AlertItem) => { try { await pharmacyApi.resolveAlert(r.id); tk('Đã giải quyết'); loadAl(); } catch { te('Thất bại'); } };
+
+  const alCols: ColumnDef<AlertItem>[] = [
+    { key: 'type', label: 'Loại',      width: 130, render: (r) => r.type },
+    { key: 'med',  label: 'Thuốc',     render: (r) => r.medicationName ?? '—' },
+    { key: 'msg',  label: 'Thông điệp', render: (r) => r.message },
+    { key: 'sev',  label: 'Mức độ',    width: 110, render: (r) => <StatusBadge tone={sevTone(r.severity)} dot>{r.severity}</StatusBadge> },
+    { key: 'date', label: 'Ngày',       mono: true, width: 130, render: (r) => fmtDT(r.createdDate) },
+  ];
+
+  /* ══════════════ CLINICAL COLS ══════════════ */
+
+  const clCurRows = clSubTab === 'adr' ? clAdr : clReviews;
+  const clTotalPages = Math.max(1, Math.ceil(clCurRows.length / PER));
+  const clPaged = clCurRows.slice(clPage * PER, (clPage + 1) * PER);
+  const clCounts: Record<string, number> = { all: clCurRows.length, reviews: clReviews.length, adr: clAdr.length };
+
+  const revCols: ColumnDef<ClinReview>[] = [
+    { key: 'pt',  label: 'Bệnh nhân',  render: (r) => r.patientName  ?? '—' },
+    { key: 'med', label: 'Thuốc',       render: (r) => r.medicationName ?? '—' },
+    { key: 'rec', label: 'Khuyến cáo', render: (r) => r.recommendation ?? '—' },
+    { key: 'dt',  label: 'Ngày',  mono: true, width: 130, render: (r) => fmtDT(r.reviewDate) },
+  ];
+  const adrCols: ColumnDef<AdrReport>[] = [
+    { key: 'pt',   label: 'Bệnh nhân', render: (r) => r.patientName   ?? '—' },
+    { key: 'med',  label: 'Thuốc',      render: (r) => r.medicationName ?? '—' },
+    { key: 'reac', label: 'Phản ứng',  render: (r) => r.reaction ?? '—' },
+    { key: 'sev',  label: 'Mức độ', width: 110, render: (r) => <StatusBadge tone={sevTone(r.severity)} dot>{r.severity ?? '—'}</StatusBadge> },
+    { key: 'dt',   label: 'Ngày BC', mono: true, width: 130, render: (r) => fmtDT(r.reportDate) },
+  ];
+
+  const onSubmitAdr = async () => {
+    try {
+      await pharmacyApi.submitAdrReport({ patientId: adrPatient, medicationName: adrMed, reaction: adrReact, severity: adrSev, description: adrDesc });
+      tk('Đã gửi báo cáo ADR'); setAdrModal(false);
+      setAdrPatient(''); setAdrMed(''); setAdrReact(''); setAdrSev('mild'); setAdrDesc('');
+      loadCl();
+    } catch { te('Gửi báo cáo ADR thất bại'); }
+  };
+
+  /* ══════════════════════════════ RENDER ══════════════════════════════ */
+
   return (
     <>
-    <ExpiryAlertModal />
-    <SimpleV2Page<PendingPrescription>
-      key={reloadVer}
-      title="Đơn cần cấp phát"
-      load={async () => {
-        const r = await pharmacyApi.getPendingPrescriptions();
-        return Array.isArray(r.data) ? r.data : [];
-      }}
-      rowKey={(r) => r.id}
-      columns={columns}
-      searchPlaceholder="Tìm BN / mã đơn / bác sĩ…"
-      searchOf={(r) => `${r.patientName} ${r.patientCode} ${r.prescriptionCode} ${r.doctorName}`}
-      statusTabs={STATUS_TABS as unknown as StatusTab<string>[]}
-      statusOf={(r) => r.status}
-      pageSize={18}
-      kpis={(rows) => {
-        const today = dayjs().startOf('day');
-        const todayCount = rows.filter((r) => dayjs(r.createdDate).isSame(today, 'day')).length;
-        const pending = rows.filter((r) => r.status === 'pending').length;
-        const completed = rows.filter((r) => r.status === 'completed').length;
-        const urgent = rows.filter((r) => r.priority === 'urgent').length;
-        const revenue = rows.filter((r) => r.status === 'completed').reduce((s, r) => s + (r.totalAmount || 0), 0);
-        return [
-          { lbl: 'Đơn hôm nay', val: todayCount, sub: 'cần cấp', tone: 'info' },
-          { lbl: 'Chờ duyệt', val: pending, sub: 'DS xử lý', tone: 'warn' },
-          { lbl: 'Đã cấp', val: completed, sub: rows.length > 0 ? `${Math.round(completed / rows.length * 100)}%` : '—', tone: 'ok' },
-          { lbl: 'STAT', val: urgent, sub: 'ưu tiên', tone: 'crit' },
-          { lbl: 'Doanh thu', val: Math.round(revenue / 1_000_000), unit: 'tr', sub: 'VND' },
-          { lbl: 'Tổng đơn', val: rows.length },
-        ];
-      }}
-      rowActions={(r, reload) => (
-        <div className="ab-actions">
-          {r.status === 'pending' && <ActBtn ic="check" title="DS duyệt" onClick={() => onAccept(r, reload)} />}
-          {(r.status === 'accepted' || r.status === 'dispensing') && (
-            <ActBtn ic="check" title="Cấp phát" onClick={() => onComplete(r, reload)} />
-          )}
-          <ActBtn ic="print" title="In nhãn" loading={printLabelLoading === r.id} onClick={() => onPrintLabel(r)} />
-          {r.status !== 'completed' && r.status !== 'rejected' && (
-            <ActBtn ic="x" title="Hoàn" onClick={() => onReject(r, reload)} tone="crit" />
-          )}
-        </div>
-      )}
-      drawer={(r) => <RxDrawerBody r={r} />}
-      drawerTitle={(r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
-          <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{r.prescriptionCode}</span>
-          <span style={{ fontSize: 14 }}>{r.patientName}</span>
-        </span>
-      )}
-      drawerSub={(r) => `${r.doctorName} · ${r.department} · ${fmtDT(r.createdDate)}`}
-      toolbarRight={
-        <>
-          <Btn variant="ghost" onClick={() => navigate('/v2/pharmacy-approval')}>
-            <TermIcon name="download" size={12} /> Nhập kho
-          </Btn>
-          <Btn variant="primary" onClick={() => navigate('/v2/dispensing-counter')}>
-            <TermIcon name="plus" size={12} /> Đơn ngoại
-          </Btn>
-        </>
-      }
-    />
+      <ExpiryAlertModal />
+      <div className="ab">
+        <TopTabs<PageTab> tab={tab} setTab={setTab} tabs={TOP_TABS} />
+
+        {/* ════ TAB: ĐƠN CẤP PHÁT ════ */}
+        {tab === 'rx' && (
+          <>
+            <KpiStrip items={rxKpis} />
+            <div className="ab-tools">
+              <SearchBox value={rxSearch} onChange={(v) => { setRxSearch(v); setRxPage(0); }} placeholder="Tìm BN / mã đơn / bác sĩ…" />
+              <button type="button" className="ab-btn ghost" onClick={() => { setRxSearch(''); setRxStab('all'); setRxPage(0); }}>
+                <TermIcon name="refresh" size={12} /> Bỏ lọc
+              </button>
+              <span className="spacer" />
+              <Btn variant="ghost" onClick={() => navigate('/v2/pharmacy-approval')}>
+                <TermIcon name="download" size={12} /> Nhập kho
+              </Btn>
+              <Btn variant="primary" onClick={() => navigate('/v2/dispensing-counter')}>
+                <TermIcon name="plus" size={12} /> Đơn ngoại
+              </Btn>
+            </div>
+            <StatusTabs<RxStatus>
+              value={rxStab}
+              onChange={(v) => { setRxStab(v); setRxPage(0); }}
+              tabs={RX_TABS}
+              counts={rxCounts}
+            />
+            <DataTable<PendingPrescription>
+              columns={rxCols} data={rxPaged} rowKey={(r) => r.id}
+              onRowClick={setRxSel}
+              actions={(r) => (
+                <div className="ab-actions">
+                  {r.status === 'pending'    && <ActBtn ic="check" title="DS duyệt" onClick={() => onAccept(r)} />}
+                  {(r.status === 'accepted' || r.status === 'dispensing') && (
+                    <ActBtn ic="check" title="Cấp phát" onClick={() => onComplete(r)} />
+                  )}
+                  <ActBtn ic="print" title="In nhãn" loading={printLoad === r.id} onClick={() => onPrintLabel(r)} />
+                  {r.status !== 'completed' && r.status !== 'rejected' && (
+                    <ActBtn ic="x" title="Hoàn" tone="crit" onClick={() => onRejectRx(r)} />
+                  )}
+                </div>
+              )}
+              empty={rxLoading ? 'Đang tải…' : 'Không có đơn thuốc'}
+            />
+            <Pager page={rxPage} setPage={setRxPage} totalPages={rxTotalPages} total={rxFiltered.length} perPage={PER} />
+            <DrawerShell
+              open={!!rxSel} onClose={() => setRxSel(null)} size="lg"
+              title={rxSel ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-10)' }}>
+                  <span className="mono" style={{ color: 'var(--a-cy)', fontSize: 'var(--fs-md)' }}>{rxSel.prescriptionCode}</span>
+                  <span style={{ fontSize: 14 }}>{rxSel.patientName}</span>
+                </span>
+              ) : ''}
+              sub={rxSel ? `${rxSel.doctorName} · ${rxSel.department} · ${fmtDT(rxSel.createdDate)}` : ''}
+              footer={rxSel ? (
+                <Btn icon="print" loading={printLoad === rxSel.id} onClick={() => onPrintLabel(rxSel)}>
+                  In phiếu cấp phát
+                </Btn>
+              ) : undefined}
+            >
+              {rxSel && <RxDrawerBody r={rxSel} />}
+            </DrawerShell>
+          </>
+        )}
+
+        {/* ════ TAB: KHO THUỐC ════ */}
+        {tab === 'inventory' && (
+          <>
+            <div className="ab-tools">
+              <SearchBox value={invSearch} onChange={(v) => { setInvSearch(v); setInvPage(0); }} placeholder="Tìm tên / mã thuốc…" />
+              <span className="spacer" />
+              <Btn variant="ghost" icon="refresh" onClick={loadInv}>Làm mới</Btn>
+            </div>
+            <DataTable<InventoryItem>
+              columns={invCols} data={invPaged} rowKey={(r) => r.id}
+              empty={invLoading ? 'Đang tải…' : 'Kho thuốc trống'}
+            />
+            <Pager page={invPage} setPage={setInvPage} totalPages={invTotalPages} total={invFiltered.length} perPage={PER} />
+          </>
+        )}
+
+        {/* ════ TAB: CHUYỂN KHO ════ */}
+        {tab === 'transfers' && (
+          <>
+            <div className="ab-tools">
+              <Select value={trStatus} onChange={(v) => { setTrStatus(v); setTrPage(0); }}
+                style={{ width: 160 }} options={TR_STATUS_OPTS} />
+              <span className="spacer" />
+              <Btn variant="ghost" icon="refresh" onClick={loadTr}>Làm mới</Btn>
+              <Btn variant="primary" icon="plus" onClick={() => setTrModal(true)}>Tạo yêu cầu</Btn>
+            </div>
+            <DataTable<TransferRequest>
+              columns={trCols} data={trPaged} rowKey={(r) => r.id}
+              actions={(r) => (
+                <div className="ab-actions">
+                  {r.status === 'pending'  && <ActBtn ic="check" title="Duyệt"    onClick={() => onApprove(r)} />}
+                  {r.status === 'pending'  && <ActBtn ic="x"     title="Từ chối" tone="crit" onClick={() => onRejectTr(r)} />}
+                  {r.status === 'approved' && <ActBtn ic="check" title="Đã nhận"  onClick={() => onReceive(r)} />}
+                </div>
+              )}
+              empty={trLoading ? 'Đang tải…' : 'Không có yêu cầu chuyển kho'}
+            />
+            <Pager page={trPage} setPage={setTrPage} totalPages={trTotalPages} total={trRows.length} perPage={PER} />
+            <ModalShell open={trModal} onClose={() => setTrModal(false)} title="Tạo yêu cầu chuyển kho" size="sm"
+              footer={<><Btn variant="ghost" onClick={() => setTrModal(false)}>Hủy</Btn><Btn variant="primary" onClick={onCreateTransfer}>Tạo yêu cầu</Btn></>}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '4px 0' }}>
+                <label style={{ fontSize: 12.5 }}>Kho gửi
+                  <Input value={trFromWh} onChange={(e) => setTrFromWh(e.target.value)} placeholder="ID kho gửi" style={{ marginTop: 4 }} />
+                </label>
+                <label style={{ fontSize: 12.5 }}>Kho nhận
+                  <Input value={trToWh} onChange={(e) => setTrToWh(e.target.value)} placeholder="ID kho nhận" style={{ marginTop: 4 }} />
+                </label>
+                <label style={{ fontSize: 12.5 }}>Mã thuốc
+                  <Input value={trMedId} onChange={(e) => setTrMedId(e.target.value)} placeholder="Mã thuốc" style={{ marginTop: 4 }} />
+                </label>
+                <label style={{ fontSize: 12.5 }}>Số lượng
+                  <InputNumber value={trQty} onChange={(v) => setTrQty(v ?? 1)} min={1} style={{ width: '100%', marginTop: 4 }} />
+                </label>
+                <label style={{ fontSize: 12.5 }}>Ghi chú
+                  <Input value={trNote} onChange={(e) => setTrNote(e.target.value)} placeholder="Ghi chú…" style={{ marginTop: 4 }} />
+                </label>
+              </div>
+            </ModalShell>
+          </>
+        )}
+
+        {/* ════ TAB: CẢNH BÁO ════ */}
+        {tab === 'alerts' && (
+          <>
+            <StatusTabs<'unack' | 'ack'>
+              value={alStab}
+              onChange={(v) => { setAlStab(v as 'unack' | 'ack' | 'all'); setAlPage(0); }}
+              tabs={AL_TABS}
+              counts={alCounts}
+            />
+            <DataTable<AlertItem>
+              columns={alCols} data={alPaged} rowKey={(r) => r.id}
+              actions={(r) => (
+                <div className="ab-actions">
+                  {!r.acknowledged && <ActBtn ic="check" title="Xác nhận"    onClick={() => onAck(r)} />}
+                  {r.acknowledged  && <ActBtn ic="x"     title="Giải quyết" onClick={() => onResolve(r)} />}
+                </div>
+              )}
+              empty={alLoading ? 'Đang tải…' : 'Không có cảnh báo'}
+            />
+            <Pager page={alPage} setPage={setAlPage} totalPages={alTotalPages} total={alFiltered.length} perPage={PER} />
+          </>
+        )}
+
+        {/* ════ TAB: DƯỢC LÂM SÀNG ════ */}
+        {tab === 'clinical' && (
+          <>
+            <StatusTabs<ClSubTab>
+              value={clSubTab}
+              onChange={(v) => { setClSubTab(v as ClSubTab | 'all'); setClPage(0); }}
+              tabs={CL_TABS}
+              counts={clCounts}
+            />
+            {clSubTab === 'adr' && (
+              <div className="ab-tools">
+                <span className="spacer" />
+                <Btn variant="primary" icon="plus" onClick={() => setAdrModal(true)}>Báo cáo ADR</Btn>
+              </div>
+            )}
+            {clSubTab !== 'adr' ? (
+              <DataTable<ClinReview>
+                columns={revCols} data={clPaged as ClinReview[]} rowKey={(r) => r.id}
+                empty={clLoading ? 'Đang tải…' : 'Không có phiếu duyệt'}
+              />
+            ) : (
+              <DataTable<AdrReport>
+                columns={adrCols} data={clPaged as AdrReport[]} rowKey={(r) => r.id}
+                empty={clLoading ? 'Đang tải…' : 'Chưa có báo cáo ADR'}
+              />
+            )}
+            <Pager page={clPage} setPage={setClPage} totalPages={clTotalPages} total={clCurRows.length} perPage={PER} />
+            <ModalShell open={adrModal} onClose={() => setAdrModal(false)} title="Báo cáo phản ứng có hại (ADR)" size="md"
+              footer={<><Btn variant="ghost" onClick={() => setAdrModal(false)}>Hủy</Btn><Btn variant="primary" onClick={onSubmitAdr}>Gửi báo cáo</Btn></>}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '4px 0' }}>
+                <label style={{ fontSize: 12.5 }}>Mã bệnh nhân
+                  <Input value={adrPatient} onChange={(e) => setAdrPatient(e.target.value)} placeholder="Mã BN…" style={{ marginTop: 4 }} />
+                </label>
+                <label style={{ fontSize: 12.5 }}>Tên thuốc
+                  <Input value={adrMed} onChange={(e) => setAdrMed(e.target.value)} placeholder="Tên thuốc…" style={{ marginTop: 4 }} />
+                </label>
+                <label style={{ fontSize: 12.5 }}>Phản ứng
+                  <Input value={adrReact} onChange={(e) => setAdrReact(e.target.value)} placeholder="Mô tả phản ứng…" style={{ marginTop: 4 }} />
+                </label>
+                <label style={{ fontSize: 12.5 }}>Mức độ
+                  <Select value={adrSev} onChange={(v) => setAdrSev(v)} options={ADR_SEV_OPTS} style={{ width: '100%', marginTop: 4 }} />
+                </label>
+                <label style={{ fontSize: 12.5 }}>Mô tả chi tiết
+                  <Input.TextArea value={adrDesc} onChange={(e) => setAdrDesc(e.target.value)} rows={3} placeholder="Mô tả chi tiết…" style={{ marginTop: 4, resize: 'vertical' }} />
+                </label>
+              </div>
+            </ModalShell>
+          </>
+        )}
+      </div>
     </>
   );
 };
 
+/* ────────────────────────── RX Drawer Body ────────────────────────── */
+
 const RxDrawerBody: React.FC<{ r: PendingPrescription }> = ({ r }) => {
-  const [items, setItems] = useState<pharmacyApi.MedicationItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { message } = AntdApp.useApp();
+  const [items,     setItems]     = useState<MedicationItem[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [dispQty,   setDispQty]   = useState<Record<string, number>>({});
+  const [savingId,  setSavingId]  = useState<string | null>(null);
+
+  const canEdit = r.status === 'accepted' || r.status === 'dispensing';
 
   React.useEffect(() => {
     setLoading(true);
@@ -205,48 +595,59 @@ const RxDrawerBody: React.FC<{ r: PendingPrescription }> = ({ r }) => {
       .finally(() => setLoading(false));
   }, [r.id]);
 
+  const onSaveQty = async (it: MedicationItem) => {
+    const qty = dispQty[it.id] ?? it.dispensedQuantity;
+    setSavingId(it.id);
+    try {
+      await pharmacyApi.updateDispensedQuantity(it.id, qty);
+      message.success(`Đã lưu: ${it.medicationName} → ${qty} ${it.unit}`);
+    } catch { message.error('Lưu số lượng thất bại'); }
+    finally { setSavingId(null); }
+  };
+
   return (
     <>
-      <div className="rec-section">
-        <h5><TermIcon name="user" size={11} /> ĐƠN THUỐC</h5>
-        <div className="rec-kv">
-          <span>Mã đơn</span><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.prescriptionCode}</span>
-          <span>Bệnh nhân</span><b>{r.patientName} · {r.patientCode}</b>
-          <span>BS chỉ định</span><span>{r.doctorName}</span>
-          <span>Khoa</span><span>{r.department}</span>
-          <span>Ngày kê</span><span>{fmtDT(r.createdDate)}</span>
-          <span>Số thuốc</span><b>{r.itemsCount} loại</b>
-          <span>Tổng tiền</span><b className="mono" style={{ color: 'var(--a-cy)' }}>{fmtVND(r.totalAmount)}</b>
-          <span>Ưu tiên</span><span className={`chip ${r.priority === 'urgent' ? 'crit' : 'info'}`}>{r.priority === 'urgent' ? 'STAT' : 'Thường'}</span>
-        </div>
-      </div>
-      <div className="rec-section">
-        <h5><TermIcon name="flask" size={11} /> DANH MỤC THUỐC</h5>
+      <DrSec title="Đơn thuốc">
+        <DrField lbl="Mã đơn"><span className="mono" style={{ color: 'var(--a-cy)' }}>{r.prescriptionCode}</span></DrField>
+        <DrField lbl="Bệnh nhân"><b>{r.patientName}</b> · <span className="mono">{r.patientCode}</span></DrField>
+        <DrField lbl="BS chỉ định">{r.doctorName}</DrField>
+        <DrField lbl="Khoa">{r.department}</DrField>
+        <DrField lbl="Ngày kê">{fmtDT(r.createdDate)}</DrField>
+        <DrField lbl="Số thuốc"><b>{r.itemsCount} loại</b></DrField>
+        <DrField lbl="Tổng tiền"><b className="mono" style={{ color: 'var(--a-cy)' }}>{fmtVND(r.totalAmount)}</b></DrField>
+        <DrField lbl="Ưu tiên">
+          <span className={`chip ${r.priority === 'urgent' ? 'crit' : 'info'}`}>{r.priority === 'urgent' ? 'STAT' : 'Thường'}</span>
+        </DrField>
+      </DrSec>
+      <DrSec title="Danh mục thuốc">
         {loading && <div style={{ textAlign: 'center', padding: 'var(--space-16)', color: 'var(--t-2)' }}>Đang tải…</div>}
         {!loading && items.length === 0 && <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Chưa có thuốc</div>}
-        {!loading && items.length > 0 && (
-          <div style={{ fontSize: 12.5 }}>
-            {items.map((it) => (
-              <div key={it.id} style={{
-                padding: '10px 0', borderBottom: '1px solid var(--line-soft)',
-                display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 'var(--space-10)', alignItems: 'center',
-              }}>
-                <div>
-                  <b style={{ color: 'var(--t-0)' }}>{it.medicationName}</b>
-                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
-                    <span className="mono">{it.medicationCode}</span> · {it.dosage}
-                  </div>
-                  {it.instruction && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)' }}>{it.instruction}</div>}
-                </div>
-                <span className="mono" style={{ fontWeight: 600 }}>{it.quantity} {it.unit}</span>
-                {it.dispensedQuantity > 0 && (
-                  <span className="chip ok mono">{it.dispensedQuantity} đã cấp</span>
-                )}
+        {!loading && items.map((it) => (
+          <div key={it.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--line-soft)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'start' }}>
+            <div>
+              <b style={{ color: 'var(--t-0)', fontSize: 13 }}>{it.medicationName}</b>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>
+                <span className="mono">{it.medicationCode}</span> · {it.dosage}
               </div>
-            ))}
+              {it.instruction && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 2 }}>{it.instruction}</div>}
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 4 }}>
+                Kê: <b className="mono">{it.quantity} {it.unit}</b>
+                {it.dispensedQuantity > 0 && <> · Đã cấp: <span className="chip ok mono">{it.dispensedQuantity}</span></>}
+              </div>
+            </div>
+            {canEdit && (
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+                <InputNumber
+                  size="small" min={0} style={{ width: 80 }}
+                  value={dispQty[it.id] ?? it.dispensedQuantity}
+                  onChange={(v) => setDispQty((prev) => ({ ...prev, [it.id]: v ?? 0 }))}
+                />
+                <ActBtn ic="check" title="Lưu số lượng" loading={savingId === it.id} onClick={() => onSaveQty(it)} />
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        ))}
+      </DrSec>
     </>
   );
 };

@@ -20,7 +20,7 @@ import { generateCdaDocument } from '../api/cda';
 import {
   getAttachments, uploadAttachment, downloadAttachment, deleteAttachment,
   getCompletenessCheck,
-  type EmrDocumentAttachmentDto,
+  type EmrDocumentAttachmentDto, type EmrCompletenessDto,
 } from '../api/emrAdmin';
 import EmrSigningChainDrawer from '../../../pages-v2/shared/EmrSigningChainDrawer';
 import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
@@ -116,6 +116,7 @@ const EmrEditorV2: React.FC = () => {
   // Trình ký nhiều cấp + trạng thái khóa TT46 (plan-emr-signing-chain)
   const [chainOpen, setChainOpen] = useState(false);
   const [finalized, setFinalized] = useState(false);
+  const [completeness, setCompleteness] = useState<EmrCompletenessDto | null>(null);
   const [modal, setModal] = useState<null | 'treatment' | 'consult' | 'nursing'>(null);
   const [form, setForm] = useState<Record<string, string>>({});
   const [tplPickerOpen, setTplPickerOpen] = useState(false);
@@ -195,9 +196,10 @@ const EmrEditorV2: React.FC = () => {
 
   // Trạng thái khóa TT46 của HSBA đang chọn (badge 🔒 + drawer trình ký)
   const refreshFinalized = useCallback(async () => {
-    if (!full?.id) { setFinalized(false); return; }
+    if (!full?.id) { setFinalized(false); setCompleteness(null); return; }
     const c = await getCompletenessCheck(full.id);
     setFinalized(!!c?.isFinalized);
+    setCompleteness(c);
   }, [full?.id]);
   useEffect(() => { void refreshFinalized(); }, [refreshFinalized]);
 
@@ -512,6 +514,30 @@ const EmrEditorV2: React.FC = () => {
                       {!full?.interview?.historyOfPresentIllness && !full?.physicalExam?.generalAppearance && (full?.diagnoses?.length ?? 0) === 0 && <span className="ab-u-faint">Chưa có nội dung bệnh án</span>}
                     </div>
                   </section>
+
+                  {/* ── Completeness check (parity v1 #407) ── */}
+                  {completeness && (
+                    <section style={{ gridColumn: '1 / -1', background: 'var(--d-0)', border: `1px solid ${completeness.isComplete ? 'var(--s-ok-bd)' : 'var(--s-warn-bd)'}`, borderRadius: 'var(--r-3)', padding: 'var(--space-14)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: completeness.missingDocumentNames.length > 0 ? 'var(--space-10)' : 0 }}>
+                        <h4 style={{ margin: 0, fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Kiểm tra hoàn thiện HSBA</h4>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-10)' }}>
+                          <div style={{ height: 6, width: 120, background: 'var(--d-2)', borderRadius: 99, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${completeness.completenessPercent}%`, background: completeness.isComplete ? 'var(--s-ok)' : 'var(--s-warn)', borderRadius: 99, transition: 'width .3s' }} />
+                          </div>
+                          <StatusBadge tone={completeness.isComplete ? 'ok' : 'warn'}>
+                            {completeness.completenessPercent}% ({completeness.signedDocuments}/{completeness.totalDocuments})
+                          </StatusBadge>
+                          {finalized && <StatusBadge tone="crit">🔒 Đã khóa TT46</StatusBadge>}
+                        </div>
+                      </div>
+                      {completeness.missingDocumentNames.length > 0 && (
+                        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--s-warn-text, #92400e)', background: 'var(--s-warn-bg)', border: '1px solid var(--s-warn-bd)', borderRadius: 'var(--r-2)', padding: 'var(--space-8) var(--space-12)' }}>
+                          <b>Thiếu {completeness.missingRequiredDocuments} biểu mẫu bắt buộc:</b>{' '}
+                          {completeness.missingDocumentNames.join(' · ')}
+                        </div>
+                      )}
+                    </section>
+                  )}
                 </div>
               )}
 
