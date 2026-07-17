@@ -16,18 +16,18 @@ import { SurgeryPrintFormModal } from './SurgeryPrintFormModal';
 
 /* Phẫu thuật v2 — port of OR v2.html */
 
-type StatusKey = 'scheduled' | 'preop' | 'ongoing' | 'recovery' | 'completed' | 'cancelled';
+type StatusKey = 'pending' | 'approved' | 'ongoing' | 'completed' | 'cancelled' | 'postponed';
+// Backend GetStatusName (SurgeryRequest.Status): 0 Chờ duyệt · 1 Đã duyệt · 2 Đang thực hiện · 3 Hoàn thành · 4 Hủy · 5 Hoãn
 const STATUS_TABS: StatusTab<StatusKey>[] = [
-  { v: 'scheduled', l: 'Đã lên lịch', tone: 'info' },
-  { v: 'preop',     l: 'Tiền phẫu',   tone: 'warn' },
-  { v: 'ongoing',   l: 'Đang mổ',     tone: 'crit' },
-  { v: 'recovery',  l: 'Hồi tỉnh',    tone: 'warn' },
-  { v: 'completed', l: 'Hoàn tất',    tone: 'ok' },
-  { v: 'cancelled', l: 'Hủy',         tone: 'crit' },
+  { v: 'pending',   l: 'Chờ duyệt',      tone: 'warn' },
+  { v: 'approved',  l: 'Đã duyệt',       tone: 'info' },
+  { v: 'ongoing',   l: 'Đang thực hiện', tone: 'crit' },
+  { v: 'completed', l: 'Hoàn thành',     tone: 'ok' },
+  { v: 'cancelled', l: 'Hủy',            tone: 'crit' },
+  { v: 'postponed', l: 'Hoãn',           tone: 'warn' },
 ];
-// Backend Status: 0 Pending/Scheduled · 1 Preop · 2 Ongoing · 3 Recovery · 4 Completed · 5 Cancelled
 const statusKey = (s: number): StatusKey =>
-  s === 1 ? 'preop' : s === 2 ? 'ongoing' : s === 3 ? 'recovery' : s === 4 ? 'completed' : s === 5 ? 'cancelled' : 'scheduled';
+  s === 1 ? 'approved' : s === 2 ? 'ongoing' : s === 3 ? 'completed' : s === 4 ? 'cancelled' : s === 5 ? 'postponed' : 'pending';
 const fmtHM = (iso?: string) => iso ? dayjs(iso).format('HH:mm') : '—';
 const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM HH:mm') : '—';
 
@@ -159,9 +159,10 @@ const SurgeryV2: React.FC = () => {
         const today = dayjs().startOf('day');
         const todayCount = rows.filter((r) => r.scheduledDate && dayjs(r.scheduledDate).isSame(today, 'day')).length;
         const ongoing = rows.filter((r) => r.status === 2).length;
-        const completed = rows.filter((r) => r.status === 4).length;
-        const cancelled = rows.filter((r) => r.status === 5).length;
-        const emergency = rows.filter((r) => r.surgeryNature === 1).length;
+        const completed = rows.filter((r) => r.status === 3).length;
+        const cancelled = rows.filter((r) => r.status === 4).length;
+        // BE getSurgeries: SurgeryNature = Priority; "Cấp cứu" khi Priority === 3 (SurgeryNatureName)
+        const emergency = rows.filter((r) => r.surgeryNature === 3).length;
         const avgDur = rows.filter((r) => r.durationMinutes).length > 0
           ? Math.round(rows.reduce((s, r) => s + (r.durationMinutes || 0), 0) / rows.filter((r) => r.durationMinutes).length)
           : 0;
@@ -175,21 +176,25 @@ const SurgeryV2: React.FC = () => {
         ];
       }}
       rowActions={(r, reload) => (
+        // Gate theo request.Status stream mà getSurgeries trả (BE SurgeryRequest.Status):
+        // 0 Chờ duyệt · 1 Đã duyệt/lên lịch · 2 Đang thực hiện · 3 Hoàn thành · 4 Hủy · 5 Hoãn.
+        // getSurgeries KHÔNG map operatingRoomName → không gate theo phòng được; ở trạng thái
+        // "Đã duyệt" (1) cho phép cả Lên lịch (tạo SurgerySchedule) lẫn Bắt đầu (start ca).
         <div className="ab-actions">
           <ActBtn ic="eye" title="Hồ sơ ca mổ" onClick={() => { /* drawer auto-opens via row click */ }} />
           {r.status === 0 && (
             <ActBtn ic="check" title="Duyệt mổ" onClick={() => { void onApprove(r, reload); setReloadVer((v) => v + 1); }} />
           )}
-          {r.status === 0 && !r.operatingRoomName && (
+          {r.status === 1 && (
             <ActBtn ic="calendar" title="Lên lịch" onClick={() => { setScheduleTarget(r); scheduleReloadRef.current = reload; }} />
           )}
-          {r.status === 0 && !!r.operatingRoomName && (
+          {r.status === 1 && (
             <ActBtn ic="activity" title="Bắt đầu" onClick={() => { setStartTarget(r); startReloadRef.current = reload; }} />
           )}
           {r.status === 2 && (
             <ActBtn ic="check" title="Hoàn thành ca mổ" onClick={() => onComplete(r, reload)} />
           )}
-          {r.status !== 5 && r.status !== 4 && (
+          {(r.status === 0 || r.status === 1) && (
             <ActBtn ic="x" title="Hủy ca" onClick={() => { void onCancel(r, reload); setReloadVer((v) => v + 1); }} tone="crit" />
           )}
         </div>
@@ -330,7 +335,7 @@ const SurgeryDrawerBody: React.FC<{ r: SurgeryDto }> = ({ r }) => {
         <span>Loại / Tính chất</span>
         <span>
           <span className="chip info">{r.surgeryClassName}</span>
-          &nbsp;<span className={`chip ${r.surgeryNature === 1 ? 'crit' : 'info'}`}>{r.surgeryNatureName}</span>
+          &nbsp;<span className={`chip ${r.surgeryNature === 3 ? 'crit' : 'info'}`}>{r.surgeryNatureName}</span>
         </span>
         <span>Phòng / Giờ</span><span>{r.operatingRoomName || '—'} · {fmtDT(r.scheduledDate)}</span>
         {r.durationMinutes && (<><span>Dự kiến</span><span>{r.durationMinutes} phút</span></>)}
