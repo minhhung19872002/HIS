@@ -62,3 +62,65 @@ export const getUserActivity = (userId: string, from?: string, to?: string) =>
   apiClient.get<AuditLogDto[]>(`/audit/user/${userId}`, {
     params: { from, to },
   });
+
+// ============================================================================
+// AUTHZ-5 (#371) increment-3: báo cáo truy vết compliance (read-only)
+// ============================================================================
+
+/** 1 dòng lịch sử thay đổi phân quyền (ai gán/thu-hồi role/quyền cho ai, old→new, khi nào). */
+export interface PermissionChangeHistoryDto {
+  id: string;
+  changeType: string;            // UserRole | RolePermission | UserPermissionOverride | Delegation
+  targetUserId?: string;
+  targetUserName?: string;
+  targetRoleId?: string;
+  targetRoleName?: string;
+  permissionCode?: string;
+  action: string;                // grant | revoke | modify
+  oldValueJson?: string;
+  newValueJson?: string;
+  reason?: string;
+  changedBy?: string;
+  changedAt: string;
+}
+
+export interface PermissionChangeSearchDto {
+  targetUserId?: string;
+  changeType?: string;
+  action?: string;
+  changedBy?: string;
+  fromDate?: string;
+  toDate?: string;
+  pageIndex?: number;
+  pageSize?: number;
+}
+
+export interface PermissionChangePagedResult {
+  items: PermissionChangeHistoryDto[];
+  totalCount: number;
+  pageIndex: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface AuditCountItem {
+  key: string;
+  count: number;
+}
+
+export interface AuditSummaryDto {
+  fromDate: string;
+  toDate: string;
+  totalEvents: number;
+  byAction: AuditCountItem[];
+  byModule: AuditCountItem[];
+  topUsers: AuditCountItem[];
+}
+
+/** Báo cáo truy vết thay đổi phân quyền (lọc + phân trang). */
+export const getPermissionChanges = (params: PermissionChangeSearchDto) =>
+  apiClient.get<PermissionChangePagedResult>('/audit/permission-changes', { params });
+
+/** Báo cáo tổng hợp hoạt động audit theo khoảng ngày (đếm action/module/top-user). */
+export const getAuditSummary = (from?: string, to?: string) =>
+  apiClient.get<AuditSummaryDto>('/audit/summary', { params: { from, to } });
