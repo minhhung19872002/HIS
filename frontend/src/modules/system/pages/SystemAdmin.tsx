@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { Input, Select, Switch, Form } from 'antd';
+import { Input, Select, Switch, Form, DatePicker } from 'antd';
 import type { AxiosError } from 'axios';
 import { adminApi, catalogApi } from '../api/system';
 import type {
   SystemUserDto, RoleDto, SystemConfigDto, UserSessionDto, CreateUserDto, UpdateUserDto,
-  SystemNotificationDto, LockedServiceDto,
+  RoleAssignmentDto, SystemNotificationDto, LockedServiceDto,
 } from '../api/system';
 import { getAuditLogs } from '../api/audit';
 import type { AuditLogDto } from '../api/audit';
@@ -182,13 +182,21 @@ const SystemAdminV2: React.FC = () => {
     try { v = await userF.validateFields(); } catch { return; }
     setSaving(true);
     try {
+      const roleIds = v.roleIds as string[];
+      const scopeType = (v.scopeType as RoleAssignmentDto['scopeType']) || 'ORG';
+      const validTo = v.validTo ? (v.validTo as import('dayjs').Dayjs).toISOString() : undefined;
+      const grantReason = (v.grantReason as string) || undefined;
+      const roleAssignments: RoleAssignmentDto[] = roleIds.map((id) => ({
+        roleId: id, scopeType, validTo, grantReason,
+      }));
+
       if (userModal === 'new') {
         const dto: CreateUserDto = {
           username: (v.username as string).trim(), fullName: (v.fullName as string).trim(),
           email: (v.email as string) || undefined, phoneNumber: (v.phoneNumber as string) || undefined,
           employeeId: (v.employeeId as string) || undefined, departmentId: (v.departmentId as string) || undefined,
           branchId: (v.branchId as string) || undefined,
-          roleIds: v.roleIds as string[], initialPassword: (v.initialPassword as string) || undefined,
+          roleIds, roleAssignments, initialPassword: (v.initialPassword as string) || undefined,
         };
         await adminApi.createUser(dto); tk('Đã tạo người dùng');
       } else {
@@ -196,7 +204,7 @@ const SystemAdminV2: React.FC = () => {
           fullName: (v.fullName as string).trim(), email: (v.email as string) || undefined,
           phoneNumber: (v.phoneNumber as string) || undefined, employeeId: (v.employeeId as string) || undefined,
           departmentId: (v.departmentId as string) || undefined, branchId: (v.branchId as string) || undefined,
-          roleIds: v.roleIds as string[], isActive: v.isActive as boolean,
+          roleIds, roleAssignments, isActive: v.isActive as boolean,
         };
         await adminApi.updateUser(editUserId!, dto); tk('Đã cập nhật người dùng');
       }
@@ -550,6 +558,11 @@ const SystemAdminV2: React.FC = () => {
           <Form.Item name="departmentId" label="Khoa"><Select allowClear showSearch optionFilterProp="label" options={deptOptions} placeholder="Chọn khoa" /></Form.Item>
           <Form.Item name="branchId" label="Chi nhánh" extra="Để trống = toàn viện (không giới hạn cơ sở)"><Select allowClear showSearch optionFilterProp="label" options={branchOptions} placeholder="Chọn chi nhánh" /></Form.Item>
           <Form.Item name="roleIds" label="Vai trò" rules={[{ required: true, message: 'Chọn ít nhất 1 vai trò' }]}><Select mode="multiple" optionFilterProp="label" options={roleOptions} placeholder="Chọn vai trò" /></Form.Item>
+          <Form.Item name="scopeType" label="Phạm vi quyền" initialValue="ORG" extra="Áp dụng cho tất cả vai trò được chọn">
+            <Select options={[{ value: 'ORG', label: 'ORG — Toàn viện' }, { value: 'BRANCH', label: 'BRANCH — Toàn cơ sở' }, { value: 'DEPT', label: 'DEPT — Toàn khoa' }, { value: 'OWN', label: 'OWN — Dữ liệu của bản thân' }]} />
+          </Form.Item>
+          <Form.Item name="validTo" label="Hiệu lực đến" extra="Để trống = vĩnh viễn"><DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} /></Form.Item>
+          <Form.Item name="grantReason" label="Lý do gán quyền"><Input placeholder="vd: Quyết định phân công ngày..." /></Form.Item>
           {userModal === 'new'
             ? <Form.Item name="initialPassword" label="Mật khẩu khởi tạo" extra="Để trống = mật khẩu mặc định hệ thống"><Input.Password /></Form.Item>
             : <Form.Item name="isActive" label="Hoạt động" valuePropName="checked"><Switch /></Form.Item>}

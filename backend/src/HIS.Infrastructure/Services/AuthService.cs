@@ -347,6 +347,10 @@ public class AuthService : IAuthService
         if (!string.IsNullOrEmpty(securityStamp))
             claims.Add(new Claim(JwtClaims.SecurityStamp, securityStamp));
 
+        // AUTHZ-3 (#369): claim departmentId (không có = không giới hạn theo khoa)
+        if (user.DepartmentId.HasValue)
+            claims.Add(new Claim(JwtClaims.DepartmentId, user.DepartmentId.Value.ToString()));
+
         // R3 đa cơ sở: user gắn chi nhánh → claim branchId (không có = không giới hạn)
         if (user.BranchId.HasValue)
             claims.Add(new Claim(JwtClaims.BranchId, user.BranchId.Value.ToString()));

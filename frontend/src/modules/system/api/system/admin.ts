@@ -34,6 +34,15 @@ export interface SystemUserDto {
   modifiedBy?: string;
 }
 
+/** AUTHZ-3 (#369): phạm vi của lượt gán role — OWN/DEPT/BRANCH/ORG. */
+export interface RoleAssignmentDto {
+  roleId: string;
+  scopeType: 'OWN' | 'DEPT' | 'BRANCH' | 'ORG';
+  scopeId?: string;
+  validTo?: string; // ISO date — null = vĩnh viễn
+  grantReason?: string;
+}
+
 export interface CreateUserDto {
   username: string;
   fullName: string;
@@ -43,6 +52,8 @@ export interface CreateUserDto {
   departmentId?: string;
   branchId?: string; // R3 đa cơ sở
   roleIds: string[];
+  /** AUTHZ-3: nếu cung cấp, ghi đè roleIds với scope info */
+  roleAssignments?: RoleAssignmentDto[];
   initialPassword?: string;
 }
 
@@ -54,6 +65,8 @@ export interface UpdateUserDto {
   departmentId?: string;
   branchId?: string; // R3 đa cơ sở
   roleIds: string[];
+  /** AUTHZ-3: nếu cung cấp, ghi đè roleIds với scope info */
+  roleAssignments?: RoleAssignmentDto[];
   isActive: boolean;
 }
 

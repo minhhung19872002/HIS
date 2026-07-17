@@ -618,6 +618,17 @@ namespace HIS.Application.Services
         public int? PageSize { get; set; }
     }
 
+    // AUTHZ-3 (#369): phạm vi của lượt gán role — OWN/DEPT/BRANCH/ORG.
+    // Khi RoleAssignments được cung cấp, dùng thay RoleIds (backward compat: RoleIds vẫn hoạt động với ScopeType='ORG').
+    public class RoleAssignmentDto
+    {
+        public Guid RoleId { get; set; }
+        public string ScopeType { get; set; } = "ORG"; // OWN | DEPT | BRANCH | ORG
+        public Guid? ScopeId { get; set; } // DepartmentId khi DEPT, BranchId khi BRANCH
+        public DateTime? ValidTo { get; set; } // null = vĩnh viễn
+        public string? GrantReason { get; set; }
+    }
+
     // User DTOs
     public class CreateUserDto
     {
@@ -636,6 +647,8 @@ namespace HIS.Application.Services
         [Required(ErrorMessage = "Chọn ít nhất 1 vai trò")]
         [MinLength(1, ErrorMessage = "Chọn ít nhất 1 vai trò")]
         public List<Guid> RoleIds { get; set; }
+        // AUTHZ-3: khi cung cấp thì ghi đè RoleIds (có scope info); null = dùng RoleIds với ScopeType='ORG'
+        public List<RoleAssignmentDto>? RoleAssignments { get; set; }
         public string? InitialPassword { get; set; }
     }
 
@@ -652,6 +665,8 @@ namespace HIS.Application.Services
         [Required(ErrorMessage = "Chọn ít nhất 1 vai trò")]
         [MinLength(1, ErrorMessage = "Chọn ít nhất 1 vai trò")]
         public List<Guid> RoleIds { get; set; }
+        // AUTHZ-3: khi cung cấp thì ghi đè RoleIds (có scope info); null = dùng RoleIds với ScopeType='ORG'
+        public List<RoleAssignmentDto>? RoleAssignments { get; set; }
         public bool IsActive { get; set; }
     }
 

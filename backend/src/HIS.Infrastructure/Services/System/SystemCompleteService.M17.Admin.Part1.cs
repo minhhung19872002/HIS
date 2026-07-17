@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -154,24 +155,31 @@ public partial class SystemCompleteService
             };
             _context.Users.Add(user);
 
-            // Assign roles
+            // Assign roles — AUTHZ-3: RoleAssignments có scope info; fallback RoleIds với ScopeType='ORG'
             var roleNames = new List<string>();
-            if (dto.RoleIds?.Any() == true)
+            var effectiveRoleIds = dto.RoleAssignments?.Select(a => a.RoleId).ToList() ?? dto.RoleIds ?? new();
+            if (effectiveRoleIds.Any())
             {
                 // AUTHZ-4 (#370): SoD grant-time check (no-op khi Auth:SoDEnabled=false)
-                await _sodService.EnsureNoGrantTimeConflictAsync(dto.RoleIds);
+                await _sodService.EnsureNoGrantTimeConflictAsync(effectiveRoleIds);
 
                 var roles = await _context.Roles.AsNoTracking()
-                    .Where(r => dto.RoleIds.Contains(r.Id))
+                    .Where(r => effectiveRoleIds.Contains(r.Id))
                     .ToListAsync();
                 roleNames = roles.Select(r => r.RoleName).ToList();
 
-                foreach (var roleId in dto.RoleIds)
+                var grantedBy = _httpCtx.HttpContext?.User?.FindFirst(ClaimTypes.Name)?.Value ?? "system";
+                foreach (var assignment in dto.RoleAssignments ?? effectiveRoleIds.Select(id => new RoleAssignmentDto { RoleId = id }))
                 {
                     _context.UserRoles.Add(new UserRole
                     {
                         UserId = user.Id,
-                        RoleId = roleId
+                        RoleId = assignment.RoleId,
+                        ScopeType = assignment.ScopeType,
+                        ScopeId = assignment.ScopeId,
+                        ValidTo = assignment.ValidTo,
+                        GrantedBy = grantedBy,
+                        GrantReason = assignment.GrantReason,
                     });
                 }
             }
@@ -221,25 +229,33 @@ public partial class SystemCompleteService
             user.BranchId = dto.BranchId; // R3 đa cơ sở
             user.IsActive = dto.IsActive;
 
-            // Sync roles if RoleIds provided
-            if (dto.RoleIds != null)
+            // Sync roles — AUTHZ-3: RoleAssignments có scope info; fallback RoleIds với ScopeType='ORG'
+            var incomingAssignments = dto.RoleAssignments;
+            var incomingRoleIds = incomingAssignments?.Select(a => a.RoleId).ToList() ?? dto.RoleIds;
+            if (incomingRoleIds != null)
             {
                 // AUTHZ-4 (#370): SoD grant-time check (no-op khi Auth:SoDEnabled=false)
-                await _sodService.EnsureNoGrantTimeConflictAsync(dto.RoleIds);
+                await _sodService.EnsureNoGrantTimeConflictAsync(incomingRoleIds);
 
                 // Remove existing role assignments
                 var existingRoles = await _context.UserRoles.Where(ur => ur.UserId == userId).ToListAsync();
                 var oldRoleIds = existingRoles.Select(r => r.RoleId).ToHashSet();
-                var newRoleIds = dto.RoleIds.ToHashSet();
+                var newRoleIds = incomingRoleIds.ToHashSet();
                 _context.UserRoles.RemoveRange(existingRoles);
 
-                // Add new role assignments
-                foreach (var roleId in dto.RoleIds)
+                // Add new role assignments with scope
+                var grantedBy = _httpCtx.HttpContext?.User?.FindFirst(ClaimTypes.Name)?.Value ?? "system";
+                foreach (var assignment in incomingAssignments ?? incomingRoleIds.Select(id => new RoleAssignmentDto { RoleId = id }))
                 {
                     _context.UserRoles.Add(new UserRole
                     {
                         UserId = userId,
-                        RoleId = roleId
+                        RoleId = assignment.RoleId,
+                        ScopeType = assignment.ScopeType,
+                        ScopeId = assignment.ScopeId,
+                        ValidTo = assignment.ValidTo,
+                        GrantedBy = grantedBy,
+                        GrantReason = assignment.GrantReason,
                     });
                 }
 

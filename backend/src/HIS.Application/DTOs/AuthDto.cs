@@ -27,6 +27,7 @@ public class UserDto
     public string? EmployeeCode { get; set; }
     public string? Title { get; set; }
     public string? DepartmentName { get; set; }
+    public Guid? DepartmentId { get; set; } // AUTHZ-3 — NULL = không giới hạn theo khoa
     public Guid? BranchId { get; set; } // R3 đa cơ sở — NULL = toàn viện
     public List<string> Roles { get; set; } = new();
     public List<string> RoleCodes { get; set; } = new();
