@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import * as file from '../../../services/file.service';
 import dayjs from 'dayjs';
 import { App as AntdApp, Alert, DatePicker } from 'antd';
@@ -15,11 +15,18 @@ import {
   getReport80a,
   exportReportC79aToExcel,
   exportReport80aToExcel,
+  exportXml,
+  downloadXmlFile,
+  createSettlementBatch,
+  getSettlementBatches,
 } from '../api/insurance';
-import type { InsuranceClaimSummaryDto, PortalConnectionTestResult } from '../api/insurance';
+import type {
+  InsuranceClaimSummaryDto, PortalConnectionTestResult,
+  XmlExportConfigDto, XmlExportResultDto, InsuranceSettlementBatchDto,
+} from '../api/insurance';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
-  StatusBadge, ActBtn, Btn, DrawerShell, useListData, useTabCounts,
+  StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, useListData, useTabCounts,
   TopTabs,
   type ColumnDef, type StatusTab, type TopTab,
 } from '../../../pages-v2/_v2kit';
@@ -39,12 +46,14 @@ function escapeCsvCell(v: unknown): string {
   return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-type PageTab = 'claims' | 'reports';
+type PageTab = 'claims' | 'reports' | 'xml' | 'batch';
 type StatusKey = 'draft' | 'pending' | 'submitted' | 'approved' | 'rejected' | 'locked';
 
 const TOP_TABS: TopTab<PageTab>[] = [
   { v: 'claims',  l: 'Danh sách hồ sơ', ic: 'list' },
   { v: 'reports', l: 'Báo cáo BHYT',    ic: 'chart' },
+  { v: 'xml',     l: 'Xuất XML QĐ4210', ic: 'download' },
+  { v: 'batch',   l: 'Đợt quyết toán',  ic: 'archive' },
 ];
 
 const STATUS_TABS: StatusTab<StatusKey>[] = [
@@ -76,6 +85,37 @@ const REPORTS: { id: string; label: string; sub: string }[] = [
   { id: 'tt102', label: 'Báo cáo TT 102/2018', sub: 'Theo Thông tư 102/2018/TT-BTC' },
 ];
 
+// ── XML export constants ───────────────────────────────────────────────────────
+const XML_LABELS: Record<string, string> = {
+  xml1: 'Bệnh án', xml2: 'Thuốc', xml3: 'DVKT', xml4: 'Thuốc khác', xml5: 'Đơn thuốc', xml7: 'Chuyển tuyến',
+};
+
+// ── Settlement batch columns (module-level — no closure) ─────────────────────
+const BATCH_STATUS_MAP: Record<number, { l: string; tone: 'info' | 'warn' | 'ok' | 'crit' }> = {
+  0: { l: 'Nháp',      tone: 'info' },
+  1: { l: 'Chờ gửi',  tone: 'warn' },
+  2: { l: 'Đã gửi',   tone: 'warn' },
+  3: { l: 'Đã duyệt', tone: 'ok'   },
+  4: { l: 'Từ chối',  tone: 'crit' },
+};
+
+const BATCH_COLS: ColumnDef<InsuranceSettlementBatchDto>[] = [
+  { key: 'batchCode', label: 'Mã đợt',      mono: true, render: (r) => r.batchCode },
+  { key: 'period',    label: 'Kỳ',           mono: true, render: (r) => `${String(r.month).padStart(2, '0')}/${r.year}` },
+  { key: 'total',     label: 'Tổng HS',      render: (r) => String(r.totalRecords) },
+  { key: 'valid',     label: 'Hợp lệ',       render: (r) => <span style={{ color: 'var(--s-ok)' }}>{r.validRecords}</span> },
+  { key: 'invalid',   label: 'Không HLệ',    render: (r) => r.invalidRecords > 0
+    ? <span style={{ color: 'var(--s-crit)' }}>{r.invalidRecords}</span>
+    : <span>—</span> },
+  { key: 'insAmt',    label: 'BHYT chi trả', mono: true, render: (r) => fmtVND(r.insuranceAmount) },
+  { key: 'status',    label: 'Trạng thái',   render: (r) => {
+    const s = BATCH_STATUS_MAP[r.status] ?? { l: '—', tone: 'info' as const };
+    return <StatusBadge tone={s.tone}>{s.l}</StatusBadge>;
+  }},
+  { key: 'createdAt',  label: 'Ngày tạo',    mono: true, render: (r) => fmtDMY(r.createdAt) },
+  { key: 'submitDate', label: 'Ngày gửi',    mono: true, render: (r) => fmtDMY(r.submitDate) },
+];
+
 const InsuranceV2: React.FC = () => {
   const { message, modal } = AntdApp.useApp();
   const navigate = useNavigate();
@@ -97,6 +137,24 @@ const InsuranceV2: React.FC = () => {
   const [syncLoading, setSyncLoading]   = useState(false);
   const [reportLoading, setReportLoading] = useState<string | null>(null);
   const PAGE_SIZE = 16;
+
+  // ── XML export state ──────────────────────────────────────────────────────
+  const [xmlMonth, setXmlMonth]       = useState(dayjs().month() + 1);
+  const [xmlYear, setXmlYear]         = useState(dayjs().year());
+  const [xmlIncludes, setXmlIncludes] = useState({
+    xml1: true, xml2: true, xml3: true, xml4: true, xml5: true, xml7: true,
+  });
+  const [xmlResult, setXmlResult]     = useState<XmlExportResultDto | null>(null);
+  const [xmlLoading, setXmlLoading]   = useState(false);
+
+  // ── Batch state ───────────────────────────────────────────────────────────
+  const [batchYear, setBatchYear]           = useState(dayjs().year());
+  const [batches, setBatches]               = useState<InsuranceSettlementBatchDto[]>([]);
+  const [batchLoading, setBatchLoading]     = useState(false);
+  const [batchCreateOpen, setBatchCreateOpen] = useState(false);
+  const [newBatchMonth, setNewBatchMonth]   = useState(dayjs().month() + 1);
+  const [newBatchYear, setNewBatchYear]     = useState(dayjs().year());
+  const [batchCreating, setBatchCreating]   = useState(false);
 
   const counts = useTabCounts(rows, STATUS_TABS, (r) => statusKey(r.status));
 
@@ -135,6 +193,21 @@ const InsuranceV2: React.FC = () => {
       approvalRate,
     };
   }, [rows, counts]);
+
+  /* ── Batch load ── */
+
+  const loadBatches = useCallback(async (year: number) => {
+    setBatchLoading(true);
+    try {
+      const r = await getSettlementBatches(year);
+      setBatches(Array.isArray(r.data) ? r.data : []);
+    } catch { setBatches([]); }
+    finally { setBatchLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (topTab === 'batch') loadBatches(batchYear);
+  }, [topTab, batchYear, loadBatches]);
 
   /* ── Handlers ── */
 
@@ -208,10 +281,8 @@ const InsuranceV2: React.FC = () => {
         case 'mau80': await getReport80a(month, year); break;
         case 'tt102': await getMonthlyInsuranceReport(month, year); break;
       }
-      // Export Excel where applicable
       try {
         let blob: Blob | null = null;
-        const xlsxMime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
         if (reportId === 'mau79') {
           const res = await exportReportC79aToExcel(month, year);
           blob = (res instanceof Blob ? res : (res as unknown as { data: Blob }).data) as Blob;
@@ -226,6 +297,55 @@ const InsuranceV2: React.FC = () => {
       message.warning(`Lỗi khi tải ${reportName}`);
     } finally {
       setReportLoading(null);
+    }
+  };
+
+  const handleExportXml = async () => {
+    setXmlLoading(true);
+    setXmlResult(null);
+    try {
+      const config: XmlExportConfigDto = {
+        month: xmlMonth, year: xmlYear,
+        includeXml1: xmlIncludes.xml1, includeXml2: xmlIncludes.xml2,
+        includeXml3: xmlIncludes.xml3, includeXml4: xmlIncludes.xml4,
+        includeXml5: xmlIncludes.xml5, includeXml7: xmlIncludes.xml7,
+        validateBeforeExport: true, compressOutput: true,
+      };
+      const r = await exportXml(config);
+      const result = (r.data ?? r) as unknown as XmlExportResultDto;
+      setXmlResult(result);
+      message.success(`Xuất XML thành công — ${result.successRecords ?? 0} hồ sơ`);
+    } catch {
+      message.warning('Lỗi khi xuất XML QĐ4210');
+    } finally {
+      setXmlLoading(false);
+    }
+  };
+
+  const handleDownloadXml = async (batchId: string) => {
+    try {
+      const r = await downloadXmlFile(batchId);
+      const blob = r.data instanceof Blob
+        ? r.data
+        : new Blob([r.data as unknown as BlobPart], { type: 'application/zip' });
+      file.downloadBlob(blob, `xml-4210-${xmlYear}${String(xmlMonth).padStart(2, '0')}.zip`);
+      message.success('Đã tải file XML');
+    } catch {
+      message.warning('Lỗi khi tải file XML');
+    }
+  };
+
+  const handleCreateBatch = async () => {
+    setBatchCreating(true);
+    try {
+      await createSettlementBatch(newBatchMonth, newBatchYear);
+      message.success(`Đã tạo đợt quyết toán ${String(newBatchMonth).padStart(2, '0')}/${newBatchYear}`);
+      setBatchCreateOpen(false);
+      loadBatches(batchYear);
+    } catch {
+      message.warning('Lỗi khi tạo đợt quyết toán');
+    } finally {
+      setBatchCreating(false);
     }
   };
 
@@ -264,10 +384,10 @@ const InsuranceV2: React.FC = () => {
         </div>
       ),
     },
-    { key: 'admit',     label: 'Vào viện',    mono: true, width: 100, render: (r) => fmtDMY(r.admissionDate) },
-    { key: 'discharge', label: 'Ra viện',     mono: true, width: 100, render: (r) => fmtDMY(r.dischargeDate) },
-    { key: 'amount',    label: 'Tổng tiền',   mono: true, width: 120, render: (r) => fmtVND(r.totalAmount) },
-    { key: 'bhyt-amount', label: 'BHYT chi trả', mono: true, width: 120, render: (r) => fmtVND(r.insuranceAmount) },
+    { key: 'admit',     label: 'Vào viện',       mono: true, width: 100, render: (r) => fmtDMY(r.admissionDate) },
+    { key: 'discharge', label: 'Ra viện',         mono: true, width: 100, render: (r) => fmtDMY(r.dischargeDate) },
+    { key: 'amount',    label: 'Tổng tiền',       mono: true, width: 120, render: (r) => fmtVND(r.totalAmount) },
+    { key: 'bhyt-amt',  label: 'BHYT chi trả',   mono: true, width: 120, render: (r) => fmtVND(r.insuranceAmount) },
     {
       key: 'status', label: 'TT', width: 120,
       render: (r) => {
@@ -285,12 +405,12 @@ const InsuranceV2: React.FC = () => {
     <div className="ab">
       <KpiStrip
         items={[
-          { lbl: 'Tổng hồ sơ', val: kpis.total, sub: '60 ngày' },
-          { lbl: 'Chờ duyệt', val: kpis.pending, sub: 'đã gửi BHXH', tone: 'warn' },
-          { lbl: 'Đã duyệt', val: kpis.approved, sub: `${kpis.approvalRate}% pass`, tone: 'ok' },
-          { lbl: 'Từ chối', val: kpis.rejected, sub: 'cần sửa', tone: 'crit' },
-          { lbl: 'Tổng tiền', val: Math.round(kpis.totalAmount / 1_000_000), unit: 'tr', sub: 'VND' },
-          { lbl: 'BHYT chi trả', val: Math.round(kpis.insuranceAmount / 1_000_000), unit: 'tr', sub: 'VND', tone: 'ok' },
+          { lbl: 'Tổng hồ sơ',   val: kpis.total,       sub: '60 ngày' },
+          { lbl: 'Chờ duyệt',    val: kpis.pending,      sub: 'đã gửi BHXH', tone: 'warn' },
+          { lbl: 'Đã duyệt',     val: kpis.approved,     sub: `${kpis.approvalRate}% pass`, tone: 'ok' },
+          { lbl: 'Từ chối',      val: kpis.rejected,     sub: 'cần sửa', tone: 'crit' },
+          { lbl: 'Tổng tiền',    val: Math.round(kpis.totalAmount / 1_000_000),      unit: 'tr', sub: 'VND' },
+          { lbl: 'BHYT chi trả', val: Math.round(kpis.insuranceAmount / 1_000_000),  unit: 'tr', sub: 'VND', tone: 'ok' },
         ]}
       />
 
@@ -430,6 +550,142 @@ const InsuranceV2: React.FC = () => {
         </div>
       )}
 
+      {topTab === 'xml' && (
+        <div style={{ padding: '16px 0', maxWidth: 700 }}>
+          <div style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 13, color: 'var(--t-2)', whiteSpace: 'nowrap' }}>Tháng xuất:</label>
+            <DatePicker
+              picker="month"
+              value={dayjs(`${xmlYear}-${String(xmlMonth).padStart(2, '0')}-01`)}
+              onChange={(d) => {
+                if (d) { setXmlMonth(d.month() + 1); setXmlYear(d.year()); setXmlResult(null); }
+              }}
+              format="MM/YYYY"
+              size="small"
+              style={{ width: 120 }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 8 }}>Bao gồm file XML:</div>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              {(Object.keys(xmlIncludes) as Array<keyof typeof xmlIncludes>).map((k) => (
+                <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={xmlIncludes[k]}
+                    onChange={(e) => setXmlIncludes((prev) => ({ ...prev, [k]: e.target.checked }))}
+                    style={{ accentColor: 'var(--a-cy)', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontWeight: 500 }}>{k.toUpperCase()}</span>
+                  <span style={{ color: 'var(--t-3)', fontSize: 11 }}>({XML_LABELS[k]})</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+            <Btn variant="primary" loading={xmlLoading} icon="download" onClick={handleExportXml}>
+              Xuất XML QĐ4210
+            </Btn>
+            {xmlResult?.batchId && (
+              <Btn variant="ghost" icon="download" onClick={() => handleDownloadXml(xmlResult.batchId)}>
+                Tải về (.zip)
+              </Btn>
+            )}
+          </div>
+
+          {xmlResult && (
+            <div style={{
+              background: 'var(--surface-1)', border: '1px solid var(--border)',
+              borderRadius: 6, padding: 16,
+            }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 10, color: 'var(--t-1)' }}>
+                Kết quả xuất XML — đợt {String(xmlMonth).padStart(2, '0')}/{xmlYear}
+              </div>
+              <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: xmlResult.errors.length > 0 ? 12 : 0 }}>
+                <span style={{ fontSize: 13 }}>Tổng: <b>{xmlResult.totalRecords}</b></span>
+                <span style={{ fontSize: 13, color: 'var(--s-ok)' }}>Thành công: <b>{xmlResult.successRecords}</b></span>
+                {xmlResult.failedRecords > 0 && (
+                  <span style={{ fontSize: 13, color: 'var(--s-crit)' }}>Thất bại: <b>{xmlResult.failedRecords}</b></span>
+                )}
+                {xmlResult.fileSize > 0 && (
+                  <span style={{ fontSize: 13, color: 'var(--t-3)' }}>Kích thước: {Math.round(xmlResult.fileSize / 1024)} KB</span>
+                )}
+              </div>
+              {xmlResult.errors.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--t-2)', marginBottom: 4 }}>
+                    Lỗi ({xmlResult.errors.length} hồ sơ):
+                  </div>
+                  <div style={{ maxHeight: 180, overflow: 'auto', fontSize: 12, color: 'var(--s-crit)', lineHeight: 1.6 }}>
+                    {xmlResult.errors.slice(0, 30).map((e, i) => (
+                      <div key={i}><span className="mono">{e.maLk}</span>: {e.errorMessage}</div>
+                    ))}
+                    {xmlResult.errors.length > 30 && (
+                      <div style={{ color: 'var(--t-3)' }}>… và {xmlResult.errors.length - 30} lỗi khác</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {topTab === 'batch' && (
+        <>
+          <div className="ab-tools">
+            <DatePicker
+              picker="year"
+              value={dayjs(String(batchYear))}
+              onChange={(d) => { if (d) setBatchYear(d.year()); }}
+              size="small"
+              format="YYYY"
+              style={{ width: 100 }}
+            />
+            <span className="spacer" />
+            <Btn icon="plus" variant="primary" onClick={() => setBatchCreateOpen(true)}>
+              Tạo đợt quyết toán
+            </Btn>
+            <Btn variant="ghost" onClick={() => loadBatches(batchYear)}>
+              <TermIcon name="refresh" size={12} /> Làm mới
+            </Btn>
+          </div>
+
+          <DataTable<InsuranceSettlementBatchDto>
+            columns={BATCH_COLS}
+            data={batches}
+            rowKey={(r) => r.id}
+            empty={batchLoading ? 'Đang tải…' : 'Chưa có đợt quyết toán nào'}
+          />
+
+          <ModalShell
+            open={batchCreateOpen}
+            onClose={() => setBatchCreateOpen(false)}
+            title="Tạo đợt quyết toán"
+            footer={
+              <>
+                <Btn onClick={() => setBatchCreateOpen(false)}>Hủy</Btn>
+                <Btn icon="check" loading={batchCreating} onClick={handleCreateBatch}>Tạo đợt</Btn>
+              </>
+            }
+          >
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '8px 0' }}>
+              <label style={{ fontSize: 13, color: 'var(--t-2)', whiteSpace: 'nowrap' }}>Kỳ quyết toán:</label>
+              <DatePicker
+                picker="month"
+                value={dayjs(`${newBatchYear}-${String(newBatchMonth).padStart(2, '0')}-01`)}
+                onChange={(d) => { if (d) { setNewBatchMonth(d.month() + 1); setNewBatchYear(d.year()); } }}
+                format="MM/YYYY"
+                size="small"
+                style={{ width: 130 }}
+              />
+            </div>
+          </ModalShell>
+        </>
+      )}
+
       <DrawerShell
         open={!!detail}
         onClose={() => setDetail(null)}
@@ -501,5 +757,3 @@ const InsuranceDrawerBody: React.FC<{ r: InsuranceClaimSummaryDto }> = ({ r }) =
     </>
   );
 };
-
-export default InsuranceV2;
