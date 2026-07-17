@@ -7,12 +7,12 @@ using HIS.Infrastructure.Data;
 namespace HIS.Infrastructure.Services;
 
 /// <summary>
-/// AUTHZ-3 (#369): quan hệ điều trị từ 4 nguồn encounter (OR bất kỳ):
+/// AUTHZ-3 (#369): quan hệ điều trị từ 5 nguồn encounter (OR bất kỳ):
 /// 1. MedicalRecord.DoctorId — BS điều trị hồ sơ (mở, hoặc đóng trong grace-days)
 /// 2. Examination.DoctorId — BS khám lượt khám trong grace-days
 /// 3. Admission.AdmittingDoctorId — BS nhận nội trú (đang điều trị / trong grace-days)
 /// 4. ServiceRequest.DoctorId — BS chỉ định CLS trong grace-days
-/// (Hội chẩn/ConsultationParticipant: bổ sung khi wire enforcement — increment-3.)
+/// 5. InpatientConsultationMember.DoctorId — BS tham gia hội chẩn nội trú trong grace-days (inc-3)
 /// </summary>
 public class TreatmentRelationshipService : ITreatmentRelationshipService
 {
@@ -62,7 +62,15 @@ public class TreatmentRelationshipService : ITreatmentRelationshipService
         var viaRequest = await _context.ServiceRequests.AnyAsync(sr =>
             sr.DoctorId == userId && sr.MedicalRecord.PatientId == patientId
             && sr.RequestDate >= since);
-        return viaRequest;
+        if (viaRequest) return true;
+
+        // 5. Hội chẩn nội trú — BS là thành viên hội chẩn (increment-3 wire)
+        var patientAdmIds = _context.Admissions.Where(a => a.PatientId == patientId).Select(a => a.Id);
+        var viaConsultation = await _context.InpatientConsultationMembers.AnyAsync(m =>
+            m.DoctorId == userId
+            && m.Consultation.ConsultationDate >= since
+            && patientAdmIds.Contains(m.Consultation.AdmissionId));
+        return viaConsultation;
     }
 
     public async Task EnsureCanAccessPatientAsync(Guid userId, IReadOnlyList<string> roles, Guid patientId)
