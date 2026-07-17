@@ -204,7 +204,183 @@ public partial class HospitalReportService : IHospitalReportService
     private static string GetReportName(string reportType) =>
         ReportNames.TryGetValue(reportType, out var name) ? name : reportType;
 
+    // #363 [REFAC-2b]: dispatch registry thay cho switch 151-case (control-flow refactor, behavior-preserving).
+    // Mỗi report-code map tới đúng Fill* handler + đúng bộ tham số như switch cũ
+    // (chú ý: nhóm Pharmacy/Warehouse dùng warehouseId (w); IssueToDept dùng cả w + d; còn lại dùng departmentId (d)).
+    private delegate Task ReportFiller(
+        HospitalReportService svc, HospitalReportResult result, DateTime from, DateTime to, Guid? deptId, Guid? whId);
 
+    private static readonly Dictionary<string, ReportFiller> ReportHandlers = new()
+    {
+        // ==================== A. Clinical / OPD ====================
+        ["OpdIpdCostByFee"] = (s, r, f, t, d, w) => s.FillOpdIpdCostByFee(r, f, t, d),
+        ["ExaminationActivity"] = (s, r, f, t, d, w) => s.FillExaminationActivity(r, f, t, d),
+        ["ExaminationActivity2"] = (s, r, f, t, d, w) => s.FillExaminationActivity(r, f, t, d),
+        ["ExaminationActivitySummary"] = (s, r, f, t, d, w) => s.FillExaminationActivity(r, f, t, d),
+        ["DailyPatientCount"] = (s, r, f, t, d, w) => s.FillDailyPatientCount(r, f, t, d),
+        ["ExaminationRegister"] = (s, r, f, t, d, w) => s.FillExaminationRegister(r, f, t, d),
+        ["ExaminationRegister2"] = (s, r, f, t, d, w) => s.FillExaminationRegister(r, f, t, d),
+        ["ExaminationRegister3"] = (s, r, f, t, d, w) => s.FillExaminationRegister(r, f, t, d),
+        ["ServiceTimeAndWait"] = (s, r, f, t, d, w) => s.FillServiceTimeAndWait(r, f, t, d),
+        ["AvgExaminationTime"] = (s, r, f, t, d, w) => s.FillServiceTimeAndWait(r, f, t, d),
+        ["PatientWaitTimeDetail"] = (s, r, f, t, d, w) => s.FillServiceTimeAndWait(r, f, t, d),
+        ["ServiceRevenueDetail"] = (s, r, f, t, d, w) => s.FillServiceRevenueDetail(r, f, t, d),
+        ["ServiceRevenueDetailKCB"] = (s, r, f, t, d, w) => s.FillServiceRevenueDetail(r, f, t, d),
+        ["ReceptionByRoom"] = (s, r, f, t, d, w) => s.FillReceptionByRoom(r, f, t, d),
+        ["ClinicRoomStatistics"] = (s, r, f, t, d, w) => s.FillReceptionByRoom(r, f, t, d),
+        ["VisitAndAdmissionCount"] = (s, r, f, t, d, w) => s.FillVisitAndAdmissionCount(r, f, t, d),
+        ["ExaminationDiary"] = (s, r, f, t, d, w) => s.FillExaminationDiary(r, f, t, d),
+
+        // ==================== B. Inpatient ====================
+        ["DailyBriefingBedCapacity"] = (s, r, f, t, d, w) => s.FillBedCapacity(r, f, t, d),
+        ["BedServiceByDept"] = (s, r, f, t, d, w) => s.FillBedCapacity(r, f, t, d),
+        ["CareLevelClassification"] = (s, r, f, t, d, w) => s.FillCareLevelClassification(r, f, t, d),
+        ["UndischargedPatients"] = (s, r, f, t, d, w) => s.FillActiveInpatients(r, f, t, d),
+        ["ActiveInpatients"] = (s, r, f, t, d, w) => s.FillActiveInpatients(r, f, t, d),
+        ["ActivePatientsByDept"] = (s, r, f, t, d, w) => s.FillActiveInpatients(r, f, t, d),
+        ["PresentPatientsByDept"] = (s, r, f, t, d, w) => s.FillActiveInpatients(r, f, t, d),
+        ["UnfinishedTreatment"] = (s, r, f, t, d, w) => s.FillActiveInpatients(r, f, t, d),
+        ["DischargeByDeptTreatType"] = (s, r, f, t, d, w) => s.FillDischargeByDept(r, f, t, d),
+        ["DischargeByDept"] = (s, r, f, t, d, w) => s.FillDischargeByDept(r, f, t, d),
+        ["DischargeRegister"] = (s, r, f, t, d, w) => s.FillDischargeByDept(r, f, t, d),
+        ["TreatmentCompletionByDept"] = (s, r, f, t, d, w) => s.FillDischargeByDept(r, f, t, d),
+        ["PatientsByRoom"] = (s, r, f, t, d, w) => s.FillPatientsByRoom(r, f, t, d),
+        ["PatientsByWard"] = (s, r, f, t, d, w) => s.FillPatientsByRoom(r, f, t, d),
+        ["AdmitTransferDischarge"] = (s, r, f, t, d, w) => s.FillAdmitTransferDischarge(r, f, t, d),
+        ["InpatientTreatmentActivity"] = (s, r, f, t, d, w) => s.FillAdmitTransferDischarge(r, f, t, d),
+        ["TreatmentActivity"] = (s, r, f, t, d, w) => s.FillAdmitTransferDischarge(r, f, t, d),
+        ["TreatmentActivity2"] = (s, r, f, t, d, w) => s.FillAdmitTransferDischarge(r, f, t, d),
+        ["TreatmentActivity2360"] = (s, r, f, t, d, w) => s.FillAdmitTransferDischarge(r, f, t, d),
+        ["AdmissionDetailByDept"] = (s, r, f, t, d, w) => s.FillAdmissionByDept(r, f, t, d),
+        ["AdmissionRegister"] = (s, r, f, t, d, w) => s.FillAdmissionByDept(r, f, t, d),
+        ["AdmissionByDept"] = (s, r, f, t, d, w) => s.FillAdmissionByDept(r, f, t, d),
+        ["AdmissionByDept2"] = (s, r, f, t, d, w) => s.FillAdmissionByDept(r, f, t, d),
+        ["TransferOutPatients"] = (s, r, f, t, d, w) => s.FillTransferOutPatients(r, f, t, d),
+
+        // ==================== C. Finance ====================
+        ["CashierSummary"] = (s, r, f, t, d, w) => s.FillCashierSummary(r, f, t, d),
+        ["CashCollectionDetail"] = (s, r, f, t, d, w) => s.FillCashierSummary(r, f, t, d),
+        ["HospitalRevenueDetail"] = (s, r, f, t, d, w) => s.FillCashierSummary(r, f, t, d),
+        ["OutpatientRevenueSummary"] = (s, r, f, t, d, w) => s.FillCashierSummary(r, f, t, d),
+        ["HospitalFeeServiceDetail"] = (s, r, f, t, d, w) => s.FillRevenueByService(r, f, t, d),
+        ["DeptRevenueServiceDetail"] = (s, r, f, t, d, w) => s.FillRevenueByService(r, f, t, d),
+        ["RevenueByServiceType"] = (s, r, f, t, d, w) => s.FillRevenueByService(r, f, t, d),
+        ["DeptRevenueDetail"] = (s, r, f, t, d, w) => s.FillRevenueByService(r, f, t, d),
+        ["RevenueByService"] = (s, r, f, t, d, w) => s.FillRevenueByService(r, f, t, d),
+        ["CashBookUsageDetail"] = (s, r, f, t, d, w) => s.FillCashBookUsage(r, f, t, d),
+        ["FundUsageSummary"] = (s, r, f, t, d, w) => s.FillCashBookUsage(r, f, t, d),
+        ["HospitalFeeSummary"] = (s, r, f, t, d, w) => s.FillHospitalFeeSummary(r, f, t, d),
+        ["PatientRevenueByDept"] = (s, r, f, t, d, w) => s.FillHospitalFeeSummary(r, f, t, d),
+        ["DeptRoomRevenue"] = (s, r, f, t, d, w) => s.FillHospitalFeeSummary(r, f, t, d),
+        ["OtherPayerPatients"] = (s, r, f, t, d, w) => s.FillOtherPayerPatients(r, f, t, d),
+        ["RevenueByOrderingDept"] = (s, r, f, t, d, w) => s.FillRevenueByOrderingDept(r, f, t, d),
+        ["RevenueByOrderingDept2"] = (s, r, f, t, d, w) => s.FillRevenueByOrderingDept(r, f, t, d),
+        ["CancelledTransactionsSummary"] = (s, r, f, t, d, w) => s.FillCancelledTransactions(r, f, t, d),
+        ["CancelledTransactionDetail"] = (s, r, f, t, d, w) => s.FillCancelledTransactions(r, f, t, d),
+        ["ApprovedExcessDeficit"] = (s, r, f, t, d, w) => s.FillApprovedExcessDeficit(r, f, t, d),
+        ["UnapprovedFinanceClose"] = (s, r, f, t, d, w) => s.FillApprovedExcessDeficit(r, f, t, d),
+        ["AutoSurgeryBonus"] = (s, r, f, t, d, w) => s.FillSurgeryFinance(r, f, t, d),
+        ["SurgeryProfitLoss"] = (s, r, f, t, d, w) => s.FillSurgeryFinance(r, f, t, d),
+        ["DischargePayment"] = (s, r, f, t, d, w) => s.FillDischargePayment(r, f, t, d),
+
+        // ==================== D. Pharmacy / Warehouse ====================
+        ["StockMovementByWarehouse"] = (s, r, f, t, d, w) => s.FillStockMovement(r, f, t, w),
+        ["StockMovement"] = (s, r, f, t, d, w) => s.FillStockMovement(r, f, t, w),
+        ["StockMovementAllWH"] = (s, r, f, t, d, w) => s.FillStockMovement(r, f, t, w),
+        ["StockMovementDetail"] = (s, r, f, t, d, w) => s.FillStockMovement(r, f, t, w),
+        ["PharmacyProfit"] = (s, r, f, t, d, w) => s.FillPharmacyProfit(r, f, t, w),
+        ["RetailSaleRevenue"] = (s, r, f, t, d, w) => s.FillPharmacyProfit(r, f, t, w),
+        ["RetailSaleDetail"] = (s, r, f, t, d, w) => s.FillPharmacyProfit(r, f, t, w),
+        ["EmergencyCabinetNXT"] = (s, r, f, t, d, w) => s.FillEmergencyCabinetNXT(r, f, t, w),
+        ["IssueToDepByWarehouse"] = (s, r, f, t, d, w) => s.FillIssueToDept(r, f, t, w, d),
+        ["IssueToDept"] = (s, r, f, t, d, w) => s.FillIssueToDept(r, f, t, w, d),
+        ["IssueToDept2"] = (s, r, f, t, d, w) => s.FillIssueToDept(r, f, t, w, d),
+        ["IssueByDeptDetail"] = (s, r, f, t, d, w) => s.FillIssueToDept(r, f, t, w, d),
+        ["IssuedQtyByDept"] = (s, r, f, t, d, w) => s.FillIssueToDept(r, f, t, w, d),
+        ["DeptConsumableIssue"] = (s, r, f, t, d, w) => s.FillIssueToDept(r, f, t, w, d),
+        ["DeptDispensingSheet"] = (s, r, f, t, d, w) => s.FillDeptDispensingSheet(r, f, t, d),
+        ["ProcurementImport"] = (s, r, f, t, d, w) => s.FillProcurementImport(r, f, t, w),
+        ["ProcurementVsStock"] = (s, r, f, t, d, w) => s.FillProcurementImport(r, f, t, w),
+        ["ImportBySupplier"] = (s, r, f, t, d, w) => s.FillProcurementImport(r, f, t, w),
+        ["ImportInvoiceSheet"] = (s, r, f, t, d, w) => s.FillProcurementImport(r, f, t, w),
+        ["PrescriptionByDoctor"] = (s, r, f, t, d, w) => s.FillPrescriptionByDoctor(r, f, t, d),
+        ["StockCardDetail"] = (s, r, f, t, d, w) => s.FillStockCardDetail(r, f, t, w),
+        ["IssueByPatientType"] = (s, r, f, t, d, w) => s.FillIssueByPatientType(r, f, t, w),
+        ["PrescriptionIssueByType"] = (s, r, f, t, d, w) => s.FillIssueByPatientType(r, f, t, w),
+        ["PrescriptionIssueByPatient"] = (s, r, f, t, d, w) => s.FillIssueByPatientType(r, f, t, w),
+
+        // ==================== E. CLS (Lab / Imaging) ====================
+        ["ParaclinicalBriefing"] = (s, r, f, t, d, w) => s.FillParaclinicalSummary(r, f, t, d),
+        ["ParaclinicalActivitySummary"] = (s, r, f, t, d, w) => s.FillParaclinicalSummary(r, f, t, d),
+        ["ParaclinicalDeptSummary"] = (s, r, f, t, d, w) => s.FillParaclinicalSummary(r, f, t, d),
+        ["ParaclinicalRegister"] = (s, r, f, t, d, w) => s.FillParaclinicalSummary(r, f, t, d),
+        ["ParaclinicalTracking"] = (s, r, f, t, d, w) => s.FillParaclinicalSummary(r, f, t, d),
+        ["MicrobiologyRegister"] = (s, r, f, t, d, w) => s.FillMicrobiologyRegister(r, f, t, d),
+        ["MicrobiologyOrder"] = (s, r, f, t, d, w) => s.FillMicrobiologyRegister(r, f, t, d),
+        ["LabRegister"] = (s, r, f, t, d, w) => s.FillLabRegister(r, f, t, d),
+        ["LabRegister2"] = (s, r, f, t, d, w) => s.FillLabRegister(r, f, t, d),
+        ["LabWithIndexRegister"] = (s, r, f, t, d, w) => s.FillLabRegister(r, f, t, d),
+        ["UltrasoundRegister"] = (s, r, f, t, d, w) => s.FillUltrasoundRegister(r, f, t, d),
+        ["UltrasoundByRoom"] = (s, r, f, t, d, w) => s.FillUltrasoundRegister(r, f, t, d),
+        ["EndoscopyRegister"] = (s, r, f, t, d, w) => s.FillEndoscopyRegister(r, f, t, d),
+        ["FunctionalTestRegister"] = (s, r, f, t, d, w) => s.FillEndoscopyRegister(r, f, t, d),
+        ["ImagingRegister"] = (s, r, f, t, d, w) => s.FillImagingRegister(r, f, t, d),
+        ["ImagingFilmStatistics"] = (s, r, f, t, d, w) => s.FillImagingRegister(r, f, t, d),
+        ["ImagingRevenue"] = (s, r, f, t, d, w) => s.FillImagingRevenue(r, f, t, d),
+        ["DoctorByMachine"] = (s, r, f, t, d, w) => s.FillDoctorByMachine(r, f, t, d),
+        ["OrderedVsPerformedCLS"] = (s, r, f, t, d, w) => s.FillOrderedVsPerformedCLS(r, f, t, d),
+
+        // ==================== F. Surgery ====================
+        ["ProcedureRegister"] = (s, r, f, t, d, w) => s.FillProcedureRegister(r, f, t, d),
+        ["ProcedureRegister2"] = (s, r, f, t, d, w) => s.FillProcedureRegister(r, f, t, d),
+        ["InpatientProcedureRegister"] = (s, r, f, t, d, w) => s.FillProcedureRegister(r, f, t, d),
+        ["SurgeryRegister"] = (s, r, f, t, d, w) => s.FillSurgeryRegister(r, f, t, d),
+        ["SurgeryList"] = (s, r, f, t, d, w) => s.FillSurgeryRegister(r, f, t, d),
+        ["SurgeryPatientList"] = (s, r, f, t, d, w) => s.FillSurgeryRegister(r, f, t, d),
+        ["ORCost"] = (s, r, f, t, d, w) => s.FillORCost(r, f, t, d),
+        ["ProcedureByDept"] = (s, r, f, t, d, w) => s.FillProcedureByDept(r, f, t, d),
+        ["SurgeryProcedure"] = (s, r, f, t, d, w) => s.FillProcedureByDept(r, f, t, d),
+        ["SurgeryProcedureActivity"] = (s, r, f, t, d, w) => s.FillProcedureByDept(r, f, t, d),
+        ["SurgeryPathologyBonus"] = (s, r, f, t, d, w) => s.FillSurgeryPathologyBonus(r, f, t, d),
+
+        // ==================== G. BHYT (Insurance) ====================
+        ["C80aNew"] = (s, r, f, t, d, w) => s.FillInsuranceReport(r, f, t, d),
+        ["C79aNew"] = (s, r, f, t, d, w) => s.FillInsuranceReport(r, f, t, d),
+        ["Form79QD3360"] = (s, r, f, t, d, w) => s.FillInsuranceReport(r, f, t, d),
+        ["Form80QD3360"] = (s, r, f, t, d, w) => s.FillInsuranceReport(r, f, t, d),
+        ["InsuranceServiceForm21"] = (s, r, f, t, d, w) => s.FillInsuranceReport(r, f, t, d),
+        ["InsuranceSupplyForm19"] = (s, r, f, t, d, w) => s.FillInsuranceReport(r, f, t, d),
+        ["InsuranceMedicineForm20"] = (s, r, f, t, d, w) => s.FillInsuranceReport(r, f, t, d),
+        ["InsurancePaymentRequest"] = (s, r, f, t, d, w) => s.FillInsuranceReport(r, f, t, d),
+        ["InsuranceDetail"] = (s, r, f, t, d, w) => s.FillInsuranceReport(r, f, t, d),
+        ["UnapprovedDischargeSettlement"] = (s, r, f, t, d, w) => s.FillInsuranceReport(r, f, t, d),
+        ["InternalDataAudit"] = (s, r, f, t, d, w) => s.FillInsuranceReport(r, f, t, d),
+        ["ScheduledPatients"] = (s, r, f, t, d, w) => s.FillScheduledPatients(r, f, t, d),
+        ["ReferralPatients"] = (s, r, f, t, d, w) => s.FillReferralPatients(r, f, t, d),
+        ["InboundReferralPatients"] = (s, r, f, t, d, w) => s.FillReferralPatients(r, f, t, d),
+        ["ExternalBloodRegister"] = (s, r, f, t, d, w) => s.FillExternalBloodRegister(r, f, t, d),
+        ["DiseaseAndDeathICD10"] = (s, r, f, t, d, w) => s.FillDiseaseAndDeathICD10(r, f, t, d),
+        ["ICDCV2360Statistics"] = (s, r, f, t, d, w) => s.FillDiseaseAndDeathICD10(r, f, t, d),
+        ["NutritionMealPortion"] = (s, r, f, t, d, w) => s.FillNutritionMealPortion(r, f, t, d),
+        ["ForeignNationalPatients"] = (s, r, f, t, d, w) => s.FillForeignNationalPatients(r, f, t, d),
+        ["MedicalRecordArchive"] = (s, r, f, t, d, w) => s.FillMedicalRecordArchive(r, f, t, d),
+
+        // ==================== H. HR / Referral ====================
+        ["OutboundReferralSummary"] = (s, r, f, t, d, w) => s.FillOutboundReferralSummary(r, f, t, d),
+        ["DialysisMachineUsage"] = (s, r, f, t, d, w) => s.FillDialysisMachineUsage(r, f, t, d),
+
+        // ==================== Friendly Aliases ====================
+        ["OutpatientRegister"] = (s, r, f, t, d, w) => s.FillExaminationRegister(r, f, t, d),
+        ["InpatientRegister"] = (s, r, f, t, d, w) => s.FillAdmissionByDept(r, f, t, d),
+        ["PharmacyDispensing"] = (s, r, f, t, d, w) => s.FillDeptDispensingSheet(r, f, t, d),
+        ["RevenueByDept"] = (s, r, f, t, d, w) => s.FillHospitalFeeSummary(r, f, t, d),
+        ["LabResults"] = (s, r, f, t, d, w) => s.FillLabRegister(r, f, t, d),
+        ["ImagingResults"] = (s, r, f, t, d, w) => s.FillImagingRegister(r, f, t, d),
+        ["SurgerySchedule"] = (s, r, f, t, d, w) => s.FillSurgeryRegister(r, f, t, d),
+        ["InsuranceSummary"] = (s, r, f, t, d, w) => s.FillInsuranceReport(r, f, t, d),
+        ["StockInventory"] = (s, r, f, t, d, w) => s.FillStockMovement(r, f, t, w),
+        ["BedOccupancy"] = (s, r, f, t, d, w) => s.FillBedCapacity(r, f, t, d),
+    };
 
     public async Task<HospitalReportResult> GetReportDataAsync(
         string reportCode, DateTime? from, DateTime? to, Guid? departmentId, Guid? warehouseId)
@@ -228,321 +404,14 @@ public partial class HospitalReportService : IHospitalReportService
 
         try
         {
-            switch (reportCode)
+            if (ReportHandlers.TryGetValue(reportCode, out var handler))
             {
-                // ==================== A. Clinical / OPD ====================
-                case "OpdIpdCostByFee":
-                    await FillOpdIpdCostByFee(result, fromDate, toDate, departmentId);
-                    break;
-                case "ExaminationActivity":
-                case "ExaminationActivity2":
-                case "ExaminationActivitySummary":
-                    await FillExaminationActivity(result, fromDate, toDate, departmentId);
-                    break;
-                case "DailyPatientCount":
-                    await FillDailyPatientCount(result, fromDate, toDate, departmentId);
-                    break;
-                case "ExaminationRegister":
-                case "ExaminationRegister2":
-                case "ExaminationRegister3":
-                    await FillExaminationRegister(result, fromDate, toDate, departmentId);
-                    break;
-                case "ServiceTimeAndWait":
-                case "AvgExaminationTime":
-                case "PatientWaitTimeDetail":
-                    await FillServiceTimeAndWait(result, fromDate, toDate, departmentId);
-                    break;
-                case "ServiceRevenueDetail":
-                case "ServiceRevenueDetailKCB":
-                    await FillServiceRevenueDetail(result, fromDate, toDate, departmentId);
-                    break;
-                case "ReceptionByRoom":
-                case "ClinicRoomStatistics":
-                    await FillReceptionByRoom(result, fromDate, toDate, departmentId);
-                    break;
-                case "VisitAndAdmissionCount":
-                    await FillVisitAndAdmissionCount(result, fromDate, toDate, departmentId);
-                    break;
-                case "ExaminationDiary":
-                    await FillExaminationDiary(result, fromDate, toDate, departmentId);
-                    break;
-
-                // ==================== B. Inpatient ====================
-                case "DailyBriefingBedCapacity":
-                case "BedServiceByDept":
-                    await FillBedCapacity(result, fromDate, toDate, departmentId);
-                    break;
-                case "CareLevelClassification":
-                    await FillCareLevelClassification(result, fromDate, toDate, departmentId);
-                    break;
-                case "UndischargedPatients":
-                case "ActiveInpatients":
-                case "ActivePatientsByDept":
-                case "PresentPatientsByDept":
-                case "UnfinishedTreatment":
-                    await FillActiveInpatients(result, fromDate, toDate, departmentId);
-                    break;
-                case "DischargeByDeptTreatType":
-                case "DischargeByDept":
-                case "DischargeRegister":
-                case "TreatmentCompletionByDept":
-                    await FillDischargeByDept(result, fromDate, toDate, departmentId);
-                    break;
-                case "PatientsByRoom":
-                case "PatientsByWard":
-                    await FillPatientsByRoom(result, fromDate, toDate, departmentId);
-                    break;
-                case "AdmitTransferDischarge":
-                case "InpatientTreatmentActivity":
-                case "TreatmentActivity":
-                case "TreatmentActivity2":
-                case "TreatmentActivity2360":
-                    await FillAdmitTransferDischarge(result, fromDate, toDate, departmentId);
-                    break;
-                case "AdmissionDetailByDept":
-                case "AdmissionRegister":
-                case "AdmissionByDept":
-                case "AdmissionByDept2":
-                    await FillAdmissionByDept(result, fromDate, toDate, departmentId);
-                    break;
-                case "TransferOutPatients":
-                    await FillTransferOutPatients(result, fromDate, toDate, departmentId);
-                    break;
-
-                // ==================== C. Finance ====================
-                case "CashierSummary":
-                case "CashCollectionDetail":
-                case "HospitalRevenueDetail":
-                case "OutpatientRevenueSummary":
-                    await FillCashierSummary(result, fromDate, toDate, departmentId);
-                    break;
-                case "HospitalFeeServiceDetail":
-                case "DeptRevenueServiceDetail":
-                case "RevenueByServiceType":
-                case "DeptRevenueDetail":
-                case "RevenueByService":
-                    await FillRevenueByService(result, fromDate, toDate, departmentId);
-                    break;
-                case "CashBookUsageDetail":
-                case "FundUsageSummary":
-                    await FillCashBookUsage(result, fromDate, toDate, departmentId);
-                    break;
-                case "HospitalFeeSummary":
-                case "PatientRevenueByDept":
-                case "DeptRoomRevenue":
-                    await FillHospitalFeeSummary(result, fromDate, toDate, departmentId);
-                    break;
-                case "OtherPayerPatients":
-                    await FillOtherPayerPatients(result, fromDate, toDate, departmentId);
-                    break;
-                case "RevenueByOrderingDept":
-                case "RevenueByOrderingDept2":
-                    await FillRevenueByOrderingDept(result, fromDate, toDate, departmentId);
-                    break;
-                case "CancelledTransactionsSummary":
-                case "CancelledTransactionDetail":
-                    await FillCancelledTransactions(result, fromDate, toDate, departmentId);
-                    break;
-                case "ApprovedExcessDeficit":
-                case "UnapprovedFinanceClose":
-                    await FillApprovedExcessDeficit(result, fromDate, toDate, departmentId);
-                    break;
-                case "AutoSurgeryBonus":
-                case "SurgeryProfitLoss":
-                    await FillSurgeryFinance(result, fromDate, toDate, departmentId);
-                    break;
-                case "DischargePayment":
-                    await FillDischargePayment(result, fromDate, toDate, departmentId);
-                    break;
-
-                // ==================== D. Pharmacy / Warehouse ====================
-                case "StockMovementByWarehouse":
-                case "StockMovement":
-                case "StockMovementAllWH":
-                case "StockMovementDetail":
-                    await FillStockMovement(result, fromDate, toDate, warehouseId);
-                    break;
-                case "PharmacyProfit":
-                case "RetailSaleRevenue":
-                case "RetailSaleDetail":
-                    await FillPharmacyProfit(result, fromDate, toDate, warehouseId);
-                    break;
-                case "EmergencyCabinetNXT":
-                    await FillEmergencyCabinetNXT(result, fromDate, toDate, warehouseId);
-                    break;
-                case "IssueToDepByWarehouse":
-                case "IssueToDept":
-                case "IssueToDept2":
-                case "IssueByDeptDetail":
-                case "IssuedQtyByDept":
-                case "DeptConsumableIssue":
-                    await FillIssueToDept(result, fromDate, toDate, warehouseId, departmentId);
-                    break;
-                case "DeptDispensingSheet":
-                    await FillDeptDispensingSheet(result, fromDate, toDate, departmentId);
-                    break;
-                case "ProcurementImport":
-                case "ProcurementVsStock":
-                case "ImportBySupplier":
-                case "ImportInvoiceSheet":
-                    await FillProcurementImport(result, fromDate, toDate, warehouseId);
-                    break;
-                case "PrescriptionByDoctor":
-                    await FillPrescriptionByDoctor(result, fromDate, toDate, departmentId);
-                    break;
-                case "StockCardDetail":
-                    await FillStockCardDetail(result, fromDate, toDate, warehouseId);
-                    break;
-                case "IssueByPatientType":
-                case "PrescriptionIssueByType":
-                case "PrescriptionIssueByPatient":
-                    await FillIssueByPatientType(result, fromDate, toDate, warehouseId);
-                    break;
-
-                // ==================== E. CLS (Lab / Imaging) ====================
-                case "ParaclinicalBriefing":
-                case "ParaclinicalActivitySummary":
-                case "ParaclinicalDeptSummary":
-                case "ParaclinicalRegister":
-                case "ParaclinicalTracking":
-                    await FillParaclinicalSummary(result, fromDate, toDate, departmentId);
-                    break;
-                case "MicrobiologyRegister":
-                case "MicrobiologyOrder":
-                    await FillMicrobiologyRegister(result, fromDate, toDate, departmentId);
-                    break;
-                case "LabRegister":
-                case "LabRegister2":
-                case "LabWithIndexRegister":
-                    await FillLabRegister(result, fromDate, toDate, departmentId);
-                    break;
-                case "UltrasoundRegister":
-                case "UltrasoundByRoom":
-                    await FillUltrasoundRegister(result, fromDate, toDate, departmentId);
-                    break;
-                case "EndoscopyRegister":
-                case "FunctionalTestRegister":
-                    await FillEndoscopyRegister(result, fromDate, toDate, departmentId);
-                    break;
-                case "ImagingRegister":
-                case "ImagingFilmStatistics":
-                    await FillImagingRegister(result, fromDate, toDate, departmentId);
-                    break;
-                case "ImagingRevenue":
-                    await FillImagingRevenue(result, fromDate, toDate, departmentId);
-                    break;
-                case "DoctorByMachine":
-                    await FillDoctorByMachine(result, fromDate, toDate, departmentId);
-                    break;
-                case "OrderedVsPerformedCLS":
-                    await FillOrderedVsPerformedCLS(result, fromDate, toDate, departmentId);
-                    break;
-
-                // ==================== F. Surgery ====================
-                case "ProcedureRegister":
-                case "ProcedureRegister2":
-                case "InpatientProcedureRegister":
-                    await FillProcedureRegister(result, fromDate, toDate, departmentId);
-                    break;
-                case "SurgeryRegister":
-                case "SurgeryList":
-                case "SurgeryPatientList":
-                    await FillSurgeryRegister(result, fromDate, toDate, departmentId);
-                    break;
-                case "ORCost":
-                    await FillORCost(result, fromDate, toDate, departmentId);
-                    break;
-                case "ProcedureByDept":
-                case "SurgeryProcedure":
-                case "SurgeryProcedureActivity":
-                    await FillProcedureByDept(result, fromDate, toDate, departmentId);
-                    break;
-                case "SurgeryPathologyBonus":
-                    await FillSurgeryPathologyBonus(result, fromDate, toDate, departmentId);
-                    break;
-
-                // ==================== G. BHYT (Insurance) ====================
-                case "C80aNew":
-                case "C79aNew":
-                case "Form79QD3360":
-                case "Form80QD3360":
-                case "InsuranceServiceForm21":
-                case "InsuranceSupplyForm19":
-                case "InsuranceMedicineForm20":
-                case "InsurancePaymentRequest":
-                case "InsuranceDetail":
-                case "UnapprovedDischargeSettlement":
-                case "InternalDataAudit":
-                    await FillInsuranceReport(result, fromDate, toDate, departmentId);
-                    break;
-                case "ScheduledPatients":
-                    await FillScheduledPatients(result, fromDate, toDate, departmentId);
-                    break;
-                case "ReferralPatients":
-                case "InboundReferralPatients":
-                    await FillReferralPatients(result, fromDate, toDate, departmentId);
-                    break;
-                case "ExternalBloodRegister":
-                    await FillExternalBloodRegister(result, fromDate, toDate, departmentId);
-                    break;
-                case "DiseaseAndDeathICD10":
-                case "ICDCV2360Statistics":
-                    await FillDiseaseAndDeathICD10(result, fromDate, toDate, departmentId);
-                    break;
-                case "NutritionMealPortion":
-                    await FillNutritionMealPortion(result, fromDate, toDate, departmentId);
-                    break;
-                case "ForeignNationalPatients":
-                    await FillForeignNationalPatients(result, fromDate, toDate, departmentId);
-                    break;
-                case "MedicalRecordArchive":
-                    await FillMedicalRecordArchive(result, fromDate, toDate, departmentId);
-                    break;
-
-                // ==================== H. HR / Referral ====================
-                case "OutboundReferralSummary":
-                    await FillOutboundReferralSummary(result, fromDate, toDate, departmentId);
-                    break;
-                case "DialysisMachineUsage":
-                    await FillDialysisMachineUsage(result, fromDate, toDate, departmentId);
-                    break;
-
-                // ==================== Friendly Aliases ====================
-                case "OutpatientRegister":
-                    await FillExaminationRegister(result, fromDate, toDate, departmentId);
-                    break;
-                case "InpatientRegister":
-                    await FillAdmissionByDept(result, fromDate, toDate, departmentId);
-                    break;
-                case "PharmacyDispensing":
-                    await FillDeptDispensingSheet(result, fromDate, toDate, departmentId);
-                    break;
-                case "RevenueByDept":
-                    await FillHospitalFeeSummary(result, fromDate, toDate, departmentId);
-                    break;
-                case "LabResults":
-                    await FillLabRegister(result, fromDate, toDate, departmentId);
-                    break;
-                case "ImagingResults":
-                    await FillImagingRegister(result, fromDate, toDate, departmentId);
-                    break;
-                case "SurgerySchedule":
-                    await FillSurgeryRegister(result, fromDate, toDate, departmentId);
-                    break;
-                case "InsuranceSummary":
-                    await FillInsuranceReport(result, fromDate, toDate, departmentId);
-                    break;
-                case "StockInventory":
-                    await FillStockMovement(result, fromDate, toDate, warehouseId);
-                    break;
-                case "BedOccupancy":
-                    await FillBedCapacity(result, fromDate, toDate, departmentId);
-                    break;
-
-                default:
-                    result.ReportName = $"Bao cao: {reportCode}";
-                    result.Data.Add(new Dictionary<string, object> { ["message"] = $"Report type '{reportCode}' - data loading" });
-                    break;
+                await handler(this, result, fromDate, toDate, departmentId, warehouseId);
+            }
+            else
+            {
+                result.ReportName = $"Bao cao: {reportCode}";
+                result.Data.Add(new Dictionary<string, object> { ["message"] = $"Report type '{reportCode}' - data loading" });
             }
         }
         catch (SqlException ex) when (ExtendedWorkflowSqlGuard.IsMissingColumnOrTable(ex))

@@ -574,8 +574,8 @@ public partial class BusinessAlertService
     {
         var alerts = new List<BusinessAlertDto>();
 
-        // Resolve threshold (future: read from SystemConfig; for now use const)
-        var threshold = ClinicOverloadThreshold;
+        // Resolve threshold: override qua "Alerts:Opd:ClinicOverloadThreshold", default = const cũ (65). (#363)
+        var threshold = AlertInt("Opd:ClinicOverloadThreshold", ClinicOverloadThreshold);
 
         // Resolve the VN-local date to a sargable UTC range
         var localDate = date?.Date ?? VnTime.TodayVn;

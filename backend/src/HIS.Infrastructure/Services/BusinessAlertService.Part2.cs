@@ -21,9 +21,11 @@ public partial class BusinessAlertService
             if (patient == null || !patient.DateOfBirth.HasValue) return alerts;
 
             var age = (DateTime.UtcNow - patient.DateOfBirth.Value).Days / 365;
-            if (age >= 65)
+            var fallRiskAge = AlertInt("Inpatient:FallRiskAge", 65);
+            var fallRiskCriticalAge = AlertInt("Inpatient:FallRiskCriticalAge", 80);
+            if (age >= fallRiskAge)
             {
-                alerts.Add(CreateAlert("IPD-11", "Inpatient", age >= 80 ? 1 : 2, "Inpatient",
+                alerts.Add(CreateAlert("IPD-11", "Inpatient", age >= fallRiskCriticalAge ? 1 : 2, "Inpatient",
                     "Nguy co nga",
                     $"BN {age} tuoi - nguy co nga cao. Can danh gia va ap dung bien phap phong nga.",
                     patientId, null, null));
@@ -49,7 +51,7 @@ public partial class BusinessAlertService
             var daysAdmitted = (DateTime.UtcNow - admission.AdmissionDate).Days;
 
             // High risk if elderly + long stay
-            if (age >= 70 && daysAdmitted >= 3)
+            if (age >= AlertInt("Inpatient:PressureUlcerAge", 70) && daysAdmitted >= AlertInt("Inpatient:PressureUlcerDays", 3))
             {
                 alerts.Add(CreateAlert("IPD-12", "Inpatient", 2, "Inpatient",
                     "Nguy co loet ti de",
@@ -97,9 +99,11 @@ public partial class BusinessAlertService
             if (admission == null) return alerts;
 
             var daysAdmitted = (DateTime.UtcNow - admission.AdmissionDate).Days;
-            if (daysAdmitted >= 7)
+            var haiRiskDays = AlertInt("Inpatient:HaiRiskDays", 7);
+            var haiRiskCriticalDays = AlertInt("Inpatient:HaiRiskCriticalDays", 14);
+            if (daysAdmitted >= haiRiskDays)
             {
-                alerts.Add(CreateAlert("IPD-14", "Inpatient", daysAdmitted >= 14 ? 2 : 3, "Inpatient",
+                alerts.Add(CreateAlert("IPD-14", "Inpatient", daysAdmitted >= haiRiskCriticalDays ? 2 : 3, "Inpatient",
                     "Nguy co nhiem khuan benh vien",
                     $"BN nam vien {daysAdmitted} ngay - nguy co NKBV tang. Kiem tra cac thiet bi xam lan (catheter, ong NKQ, CVP).",
                     patientId, null, admissionId));
@@ -121,7 +125,7 @@ public partial class BusinessAlertService
             if (admission == null) return alerts;
 
             var daysAdmitted = (DateTime.UtcNow - admission.AdmissionDate).Days;
-            if (daysAdmitted > 21)
+            if (daysAdmitted > AlertInt("Inpatient:ExtendedStayDays", 21))
             {
                 alerts.Add(CreateAlert("IPD-15", "Inpatient", 2, "Inpatient",
                     "Thoi gian nam vien dai",
@@ -139,18 +143,20 @@ public partial class BusinessAlertService
         var alerts = new List<BusinessAlertDto>();
         try
         {
+            var pendingOverdueHours = AlertInt("Inpatient:PendingOrderOverdueHours", 4);
+            var pendingCriticalHours = AlertInt("Inpatient:PendingOrderCriticalHours", 8);
             var pendingOrders = await _context.ServiceRequests
                 .Include(sr => sr.MedicalRecord)
                 .Where(sr => sr.MedicalRecord != null && sr.MedicalRecord.PatientId == patientId
                     && sr.Status == 0 // Pending
-                    && sr.CreatedAt < DateTime.UtcNow.AddHours(-4))
+                    && sr.CreatedAt < DateTime.UtcNow.AddHours(-pendingOverdueHours))
                 .Take(5)
                 .ToListAsync();
 
             foreach (var order in pendingOrders)
             {
                 var hoursOverdue = (DateTime.UtcNow - order.CreatedAt).TotalHours;
-                alerts.Add(CreateAlert("IPD-16", "Inpatient", hoursOverdue > 8 ? 1 : 2, "Inpatient",
+                alerts.Add(CreateAlert("IPD-16", "Inpatient", hoursOverdue > pendingCriticalHours ? 1 : 2, "Inpatient",
                     "Y lenh chua thuc hien",
                     $"Y lenh tao luc {order.CreatedAt:HH:mm dd/MM} chua duoc thuc hien ({hoursOverdue:F0} gio). Can xu ly ngay.",
                     patientId, null, admissionId));
@@ -166,19 +172,21 @@ public partial class BusinessAlertService
         var alerts = new List<BusinessAlertDto>();
         try
         {
+            var undispensedHours = AlertInt("Inpatient:UndispensedMedHours", 2);
+            var undispensedCriticalHours = AlertInt("Inpatient:UndispensedMedCriticalHours", 4);
             var pendingRx = await _context.Prescriptions
                 .Include(p => p.MedicalRecord)
                 .Where(p => p.MedicalRecord != null && p.MedicalRecord.PatientId == patientId
                     && !p.IsDispensed
                     && p.Status < 2 // Not completed/cancelled
-                    && p.CreatedAt < DateTime.UtcNow.AddHours(-2))
+                    && p.CreatedAt < DateTime.UtcNow.AddHours(-undispensedHours))
                 .Take(5)
                 .ToListAsync();
 
             foreach (var rx in pendingRx)
             {
                 var hoursOverdue = (DateTime.UtcNow - rx.CreatedAt).TotalHours;
-                alerts.Add(CreateAlert("IPD-17", "Inpatient", hoursOverdue > 4 ? 1 : 2, "Pharmacy",
+                alerts.Add(CreateAlert("IPD-17", "Inpatient", hoursOverdue > undispensedCriticalHours ? 1 : 2, "Pharmacy",
                     "Thuoc chua phat",
                     $"Don thuoc tao luc {rx.CreatedAt:HH:mm dd/MM} chua duoc cap phat ({hoursOverdue:F0} gio).",
                     patientId, null, admissionId));
@@ -199,16 +207,19 @@ public partial class BusinessAlertService
             var admission = await _context.Admissions.FirstOrDefaultAsync(a => a.Id == admissionId.Value);
             if (admission == null) return alerts;
 
+            // Ở đây "số ngày" vừa là ngưỡng nằm-viện vừa là cửa sổ tra hội chẩn — CÙNG một khái niệm
+            // "48h nguy kịch" nên cố ý dùng chung 1 config (override dịch cả hai cùng nhau), khác lookback-window độc lập.
+            var criticalNoConsultDays = AlertInt("Inpatient:CriticalNoConsultDays", 2);
             var daysAdmitted = (DateTime.UtcNow - admission.AdmissionDate).Days;
-            if (daysAdmitted < 2) return alerts;
+            if (daysAdmitted < criticalNoConsultDays) return alerts;
 
             // Check if patient has had a consultation (ConsultationRecord -> Examination -> MedicalRecordId)
             var hasConsultation = await _context.ConsultationRecords
                 .Include(cr => cr.Examination)
                 .AnyAsync(cr => cr.Examination != null && cr.Examination.MedicalRecordId == admission.MedicalRecordId
-                    && cr.CreatedAt >= DateTime.UtcNow.AddDays(-2));
+                    && cr.CreatedAt >= DateTime.UtcNow.AddDays(-criticalNoConsultDays));
 
-            if (!hasConsultation && daysAdmitted >= 2)
+            if (!hasConsultation && daysAdmitted >= criticalNoConsultDays)
             {
                 alerts.Add(CreateAlert("IPD-18", "Inpatient", 2, "Inpatient",
                     "BN nang chua hoi chan",
@@ -326,12 +337,14 @@ public partial class BusinessAlertService
                 total += spo2 <= 91 ? 3 : spo2 <= 93 ? 2 : spo2 <= 95 ? 1 : 0;
             }
 
-            if (total >= 5)
+            var news2Alert = AlertInt("Inpatient:News2AlertScore", 5);
+            var news2Critical = AlertInt("Inpatient:News2CriticalScore", 7);
+            if (total >= news2Alert)
             {
-                var riskLevel = total >= 7 ? "NGUY KICH" : "CAO";
-                alerts.Add(CreateAlert("IPD-21", "Inpatient", total >= 7 ? 1 : 2, "Inpatient",
+                var riskLevel = total >= news2Critical ? "NGUY KICH" : "CAO";
+                alerts.Add(CreateAlert("IPD-21", "Inpatient", total >= news2Critical ? 1 : 2, "Inpatient",
                     "Diem canh bao som NEWS2",
-                    $"NEWS2 = {total} ({riskLevel}). " + (total >= 7 ? "GOI DOI CAP CUU NGAY. Theo doi lien tuc." : "BAO BAC SI NGAY. Theo doi moi 30 phut."),
+                    $"NEWS2 = {total} ({riskLevel}). " + (total >= news2Critical ? "GOI DOI CAP CUU NGAY. Theo doi lien tuc." : "BAO BAC SI NGAY. Theo doi moi 30 phut."),
                     patientId, null, admissionId));
             }
         }
@@ -378,6 +391,8 @@ public partial class BusinessAlertService
                 .Where(d => d.IsActive)
                 .ToListAsync();
 
+            var bedCapacityWarnPct = AlertInt("Inpatient:BedCapacityWarnPct", 85);
+            var bedCapacityCriticalPct = AlertInt("Inpatient:BedCapacityCriticalPct", 95);
             foreach (var dept in departments)
             {
                 var totalBeds = await _context.Beds
@@ -391,12 +406,12 @@ public partial class BusinessAlertService
                     .CountAsync();
 
                 var occupancyRate = (double)occupiedBeds / totalBeds * 100;
-                if (occupancyRate > 85)
+                if (occupancyRate > bedCapacityWarnPct)
                 {
-                    alerts.Add(CreateAlert("IPD-23", "Inpatient", occupancyRate > 95 ? 1 : 2, "Inpatient",
+                    alerts.Add(CreateAlert("IPD-23", "Inpatient", occupancyRate > bedCapacityCriticalPct ? 1 : 2, "Inpatient",
                         "Giuong sap day",
                         $"Khoa {dept.DepartmentName}: {occupiedBeds}/{totalBeds} giuong ({occupancyRate:F0}%). " +
-                        (occupancyRate > 95 ? "GAN HET GIUONG - can dieu phoi." : "Can chuan bi ke hoach."),
+                        (occupancyRate > bedCapacityCriticalPct ? "GAN HET GIUONG - can dieu phoi." : "Can chuan bi ke hoach."),
                         null, null, null));
                 }
             }
@@ -419,7 +434,7 @@ public partial class BusinessAlertService
             if (insurance != null && insurance.EndDate.HasValue)
             {
                 var daysUntilExpiry = (insurance.EndDate.Value - DateTime.UtcNow).Days;
-                if (daysUntilExpiry <= 7 && daysUntilExpiry >= 0)
+                if (daysUntilExpiry <= AlertInt("Inpatient:InsuranceExpiryWarnDays", 7) && daysUntilExpiry >= 0)
                 {
                     alerts.Add(CreateAlert("IPD-24", "Inpatient", 2, "Insurance",
                         "Bao hiem sap het han",

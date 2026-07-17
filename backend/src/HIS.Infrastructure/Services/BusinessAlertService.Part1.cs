@@ -5,6 +5,7 @@ using HIS.Core.Entities;
 using HIS.Infrastructure.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace HIS.Infrastructure.Services;
@@ -12,17 +13,26 @@ namespace HIS.Infrastructure.Services;
 public partial class BusinessAlertService : IBusinessAlertService
 {
     private readonly HISDbContext _context;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<BusinessAlertService> _logger;
 
     /// <summary>Ngưỡng mặc định số lượt khám/ngày của 1 BS hoặc 1 phòng khám (Rule OPD-40).
     /// Có thể override qua SystemConfig (key "ClinicOverloadThreshold") nếu cần cấu hình per-bệnh viện.</summary>
     private const int ClinicOverloadThreshold = 65;
 
-    public BusinessAlertService(HISDbContext context, ILogger<BusinessAlertService> logger)
+    public BusinessAlertService(HISDbContext context, IConfiguration configuration, ILogger<BusinessAlertService> logger)
     {
         _context = context;
+        _configuration = configuration;
         _logger = logger;
     }
+
+    // #363 [REFAC-2b]: ngưỡng cảnh báo lâm sàng rút ra config (section "Alerts").
+    // Default của mỗi lần đọc = ĐÚNG giá trị literal cũ → hành vi byte-identical khi config vắng; hospital
+    // có thể override per-cơ-sở. KHÔNG rút: bảng chấm điểm NEWS2 (thuật toán chuẩn — chỉ rút ngưỡng trigger),
+    // so sánh enum-severity, cửa sổ lookback (AddDays/-window), hay giới hạn query (Take) — chúng không phải threshold.
+    private int AlertInt(string key, int def) => _configuration.GetValue<int>("Alerts:" + key, def);
+    private decimal AlertDec(string key, decimal def) => _configuration.GetValue<decimal>("Alerts:" + key, def);
 
     // ========== OPD ALERTS (Rules 1-10) ==========
 
@@ -668,34 +678,44 @@ public partial class BusinessAlertService : IBusinessAlertService
             var exam = await _context.Examinations.FirstOrDefaultAsync(e => e.Id == examinationId);
             if (exam == null) return alerts;
 
-            if (exam.Temperature.HasValue && exam.Temperature > 39)
-                alerts.Add(CreateAlert("OPD-10", "OPD", exam.Temperature > 40 ? 1 : 2, "OPD",
+            // #363: ngưỡng sinh hiệu — default = giá trị literal cũ (39/40/180/90/92/88/130/40), override qua "Alerts:VitalSign:*".
+            var tempWarn = AlertDec("VitalSign:TemperatureWarnC", 39m);
+            var tempCrit = AlertDec("VitalSign:TemperatureCriticalC", 40m);
+            var sbpHigh = AlertInt("VitalSign:SystolicBpHigh", 180);
+            var sbpLow = AlertInt("VitalSign:SystolicBpLow", 90);
+            var spo2Warn = AlertDec("VitalSign:SpO2Warn", 92m);
+            var spo2Crit = AlertDec("VitalSign:SpO2Critical", 88m);
+            var pulseHigh = AlertInt("VitalSign:PulseHigh", 130);
+            var pulseLow = AlertInt("VitalSign:PulseLow", 40);
+
+            if (exam.Temperature.HasValue && exam.Temperature > tempWarn)
+                alerts.Add(CreateAlert("OPD-10", "OPD", exam.Temperature > tempCrit ? 1 : 2, "OPD",
                     "Sinh hieu bat thuong - Sot cao",
-                    $"Nhiet do: {exam.Temperature}*C" + (exam.Temperature > 40 ? " - SOT RAT CAO" : ""),
+                    $"Nhiet do: {exam.Temperature}*C" + (exam.Temperature > tempCrit ? " - SOT RAT CAO" : ""),
                     patientId, examinationId, null));
 
-            if (exam.BloodPressureSystolic.HasValue && exam.BloodPressureSystolic > 180)
+            if (exam.BloodPressureSystolic.HasValue && exam.BloodPressureSystolic > sbpHigh)
                 alerts.Add(CreateAlert("OPD-10", "OPD", 1, "OPD",
                     "Sinh hieu bat thuong - Tang huyet ap cap cuu",
                     $"HA: {exam.BloodPressureSystolic}/{exam.BloodPressureDiastolic} mmHg",
                     patientId, examinationId, null));
 
-            if (exam.BloodPressureSystolic.HasValue && exam.BloodPressureSystolic < 90)
+            if (exam.BloodPressureSystolic.HasValue && exam.BloodPressureSystolic < sbpLow)
                 alerts.Add(CreateAlert("OPD-10", "OPD", 1, "OPD",
                     "Sinh hieu bat thuong - Ha huyet ap",
                     $"HA: {exam.BloodPressureSystolic}/{exam.BloodPressureDiastolic} mmHg - CAN XU TRI CAP CUU",
                     patientId, examinationId, null));
 
-            if (exam.SpO2.HasValue && exam.SpO2 < 92)
-                alerts.Add(CreateAlert("OPD-10", "OPD", exam.SpO2 < 88 ? 1 : 2, "OPD",
+            if (exam.SpO2.HasValue && exam.SpO2 < spo2Warn)
+                alerts.Add(CreateAlert("OPD-10", "OPD", exam.SpO2 < spo2Crit ? 1 : 2, "OPD",
                     "Sinh hieu bat thuong - SpO2 thap",
-                    $"SpO2: {exam.SpO2}%" + (exam.SpO2 < 88 ? " - CAN THO OXY NGAY" : ""),
+                    $"SpO2: {exam.SpO2}%" + (exam.SpO2 < spo2Crit ? " - CAN THO OXY NGAY" : ""),
                     patientId, examinationId, null));
 
-            if (exam.Pulse.HasValue && (exam.Pulse > 130 || exam.Pulse < 40))
+            if (exam.Pulse.HasValue && (exam.Pulse > pulseHigh || exam.Pulse < pulseLow))
                 alerts.Add(CreateAlert("OPD-10", "OPD", 1, "OPD",
                     "Sinh hieu bat thuong - Nhip tim",
-                    $"Mach: {exam.Pulse} lan/phut" + (exam.Pulse > 130 ? " - NHIP TIM RAT NHANH" : " - NHIP TIM RAT CHAM"),
+                    $"Mach: {exam.Pulse} lan/phut" + (exam.Pulse > pulseHigh ? " - NHIP TIM RAT NHANH" : " - NHIP TIM RAT CHAM"),
                     patientId, examinationId, null));
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Rule OPD-10 error"); }
