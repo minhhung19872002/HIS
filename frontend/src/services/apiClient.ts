@@ -3,11 +3,45 @@
  * #services-consolidation).
  *
  * Interceptor: gắn Bearer token (request) + auto-unwrap envelope {success,data} +
- * xoá phiên & redirect /login khi 401 (response). Caller nhận thẳng payload đã unwrap.
+ * AUTHZ-2 (#368) auto-refresh single-flight khi 401 (retry 1 lần) — hết đường cứu mới
+ * xoá phiên & redirect /login. Caller nhận thẳng payload đã unwrap.
  */
 
 import axios from 'axios';
+import type { InternalAxiosRequestConfig } from 'axios';
 import { API_URL } from '../config/api.config';
+
+// ─── AUTHZ-2 (#368): auto-refresh single-flight ───
+// Nhiều request 401 cùng lúc → chỉ MỘT call /auth/refresh; các request khác đợi chung
+// promise rồi replay. Server đã tolerate benign-race 60s nhưng single-flight đỡ 429 + gọn UX.
+let refreshInFlight: Promise<string | null> | null = null;
+
+function refreshAccessToken(): Promise<string | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = (async (): Promise<string | null> => {
+      const rt = localStorage.getItem('refreshToken');
+      if (!rt) return null;
+      try {
+        // axios TRẦN — không qua apiClient để tránh đệ quy interceptor
+        const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken: rt });
+        const body = res.data;
+        const payload = body && typeof body === 'object' && 'data' in body ? body.data : body;
+        if (payload?.token) {
+          localStorage.setItem('token', payload.token);
+          // rotation: server cấp refresh token MỚI mỗi lần — phải lưu lại, token cũ đã bị revoke
+          if (payload.refreshToken) localStorage.setItem('refreshToken', payload.refreshToken);
+          return payload.token as string;
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    })().finally(() => { refreshInFlight = null; });
+  }
+  return refreshInFlight;
+}
+
+type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -37,19 +71,33 @@ apiClient.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
+  async (error) => {
     // 401 = lỗi XÁC THỰC (token thiếu / hết hạn / không hợp lệ). Backend trả 403 cho lỗi
-    // PHÂN QUYỀN, nên gặp 401 nghĩa là phiên đã hết hiệu lực → xoá phiên + đưa về /login.
-    // Trước đây chỉ redirect khi không còn token trong localStorage, nên token hết hạn (JWT
-    // sống 60 phút, không có refresh) khiến mọi call nền 401 bị nuốt → các trang im lặng rỗng
-    // dữ liệu (vd Tiếp đón báo "Không có phòng khám khả dụng") mà không bắt đăng nhập lại.
+    // PHÂN QUYỀN. AUTHZ-2 (#368): gặp 401 → thử auto-refresh (single-flight) + replay
+    // request 1 lần; chỉ khi hết đường cứu mới xoá phiên + đưa về /login.
     if (error.response?.status === 401) {
       // /inspector-portal là cổng standalone (login riêng của giám định viên BHXH);
       // không redirect về /login chính kể cả khi call nền (notification poll) bị 401.
       const onInspectorPortal = window.location.pathname.startsWith('/inspector-portal');
       if (!onInspectorPortal) {
+        const original = error.config as RetriableConfig | undefined;
+        const url = String(original?.url || '');
+        // Không refresh cho chính các endpoint auth (login sai mật khẩu, OTP sai…)
+        const isAuthFlow = url.includes('/auth/login') || url.includes('/auth/verify-otp')
+          || url.includes('/auth/resend-otp') || url.includes('/auth/refresh');
+        if (original && !original._retried && !isAuthFlow) {
+          const newToken = await refreshAccessToken();
+          if (newToken) {
+            original._retried = true;
+            original.headers = original.headers ?? {};
+            original.headers.Authorization = `Bearer ${newToken}`;
+            return apiClient(original); // replay — envelope unwrap chạy lại như thường
+          }
+        }
+        // Hết đường cứu (không có/refresh fail/đã retry) → behavior cũ: xoá phiên + /login
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        localStorage.removeItem('refreshToken');
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }

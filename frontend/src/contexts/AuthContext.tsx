@@ -120,6 +120,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Normal login (no 2FA)
         if (payload.token) {
           storage.set(STORAGE_KEYS.token, payload.token);
+          // AUTHZ-2 (#368): lưu refresh token thật — interceptor apiClient auto-refresh khi 401
+          if (payload.refreshToken) storage.set(STORAGE_KEYS.refreshToken, payload.refreshToken);
           storage.set(STORAGE_KEYS.user, payload.user);
           setUser(payload.user);
           checkExpiryAlertsOnLogin();
@@ -141,6 +143,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const payload = (raw && 'token' in raw) ? raw : raw?.data;
       if (payload && payload.token) {
         storage.set(STORAGE_KEYS.token, payload.token);
+        // AUTHZ-2 (#368): luồng OTP cũng nhận refresh token thật
+        if (payload.refreshToken) storage.set(STORAGE_KEYS.refreshToken, payload.refreshToken);
         storage.set(STORAGE_KEYS.user, payload.user);
         setUser(payload.user);
         setOtpPending(null);
@@ -171,7 +175,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = () => {
+    // AUTHZ-2 (#368): thu hồi refresh token đúng thiết bị này (fire-and-forget,
+    // header chụp trước khi clear — không đá thiết bị khác cùng user)
+    const rt = storage.getRaw(STORAGE_KEYS.refreshToken);
+    if (rt) authApi.logout(rt);
     storage.remove(STORAGE_KEYS.token);
+    storage.remove(STORAGE_KEYS.refreshToken);
     storage.remove(STORAGE_KEYS.user);
     setUser(null);
     setOtpPending(null);

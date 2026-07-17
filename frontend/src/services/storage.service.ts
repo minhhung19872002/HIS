@@ -10,6 +10,8 @@
 export const STORAGE_KEYS = {
   /** JWT — lưu dạng chuỗi thô (dùng getRaw/setToken, KHÔNG JSON). */
   token: 'token',
+  /** AUTHZ-2 (#368): refresh token — chuỗi thô như token. */
+  refreshToken: 'refreshToken',
   /** User đăng nhập — lưu dạng JSON. */
   user: 'user',
   /** 'v1' | 'v2' — layout đang chọn. */
