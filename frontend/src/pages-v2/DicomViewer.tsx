@@ -12,7 +12,7 @@
  * If the design pack ever ships a viewer skin we'd port that here.
  */
 import React from 'react';
-import V1DicomViewer from './dicom-viewer/DicomViewer';
+import V1DicomViewer from '../pages/DicomViewer';
 
 const DicomViewerV2: React.FC = () => <V1DicomViewer />;
 

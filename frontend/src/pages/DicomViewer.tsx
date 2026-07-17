@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { storage, STORAGE_KEYS } from '../../services/storage.service';
+import { storage, STORAGE_KEYS } from '../services/storage.service';
 import {
   Card,
   Row,
@@ -36,23 +36,23 @@ import {
   StarOutlined,
   StarFilled,
 } from '@ant-design/icons';
-import risApi from '../../modules/radiology/api/ris';
-import type { DicomSeriesDto, DicomImageDto, KeyImageDto } from '../../modules/radiology/api/ris';
-import { createRoom, searchRooms, joinRoom } from '../../modules/telemedicine/api/videoConsultation';
-import { openAiReportHtml, downloadAiSignedPdf, uploadAiDicomSr, mergeAiToReport, type AiLabel } from '../../modules/radiology/api/aiLabeling';
-import { API_ORIGIN } from '../../config/api.config';
-import { ORTHANC_URL } from '../../config/env.config';
-import { dicomStudyLogApi } from '../../api/nangcap24';
-import AiLabelingModal from './AiLabelingModal';
-import AiOverlayLayer from './AiOverlayLayer';
-import CineControls, { type CineViewportHandle } from './CineControls';
-import type { CornerstoneViewerHandle } from './CornerstoneViewer';
+import risApi from '../modules/radiology/api/ris';
+import type { DicomSeriesDto, DicomImageDto, KeyImageDto } from '../modules/radiology/api/ris';
+import { createRoom, searchRooms, joinRoom } from '../modules/telemedicine/api/videoConsultation';
+import { openAiReportHtml, downloadAiSignedPdf, uploadAiDicomSr, mergeAiToReport, type AiLabel } from '../modules/radiology/api/aiLabeling';
+import { API_ORIGIN } from '../config/api.config';
+import { ORTHANC_URL } from '../config/env.config';
+import { dicomStudyLogApi } from '../api/nangcap24';
+import AiLabelingModal from '@/modules/radiology/components/AiLabelingModal';
+import AiOverlayLayer from '@/modules/radiology/components/AiOverlayLayer';
+import CineControls, { type CineViewportHandle } from '@/modules/radiology/components/CineControls';
+import type { CornerstoneViewerHandle } from '@/modules/radiology/components/CornerstoneViewer';
 import { loadViewerConfig } from '@/modules/radiology/components/DicomViewerConfig';
-import type { MammoImage } from './MammoViewer';
-import MprViewer from './MprViewer';
-import MammoViewer from './MammoViewer';
-import MipMinIpViewer from './MipMinIpViewer';
-import CornerstoneViewer from './CornerstoneViewer';
+import type { MammoImage } from '@/modules/radiology/components/MammoViewer';
+import MprViewer from '@/modules/radiology/components/MprViewer';
+import MammoViewer from '@/modules/radiology/components/MammoViewer';
+import MipMinIpViewer from '@/modules/radiology/components/MipMinIpViewer';
+import CornerstoneViewer from '@/modules/radiology/components/CornerstoneViewer';
 
 // Backend returns relative paths like "/api/RISComplete/pacs/instances/.../preview".
 // Resolve them against the API origin (Cloud Run) so the browser fetches them

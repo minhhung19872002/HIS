@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import type { AiLabel, AiBoundingBox, AiHeatmap } from '../../modules/radiology/api/aiLabeling';
+import type { AiLabel, AiBoundingBox, AiHeatmap } from '../api/aiLabeling';
 
 interface Props {
   labels: AiLabel[];
