@@ -259,4 +259,139 @@ public class AuditLogService : IAuditLogService
             return new List<AuditResultDto>();
         }
     }
+
+    // AUTHZ-5 (#371) increment-3: báo cáo truy vết thay đổi phân quyền — read-only, fail-safe (lỗi → rỗng).
+    public async Task<PermissionChangePagedResult> GetPermissionChangeHistoryAsync(PermissionChangeSearchDto dto)
+    {
+        try
+        {
+            var pageSize = dto.PageSize is > 0 and <= 500 ? dto.PageSize : 50;
+            var pageIndex = dto.PageIndex < 0 ? 0 : dto.PageIndex;
+
+            var query = _context.PermissionChangeHistories
+                .IgnoreQueryFilters() // include soft-deleted for audit completeness
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(dto.TargetUserId) && Guid.TryParse(dto.TargetUserId, out var tuid))
+                query = query.Where(h => h.TargetUserId == tuid);
+
+            if (!string.IsNullOrWhiteSpace(dto.ChangeType))
+                query = query.Where(h => h.ChangeType == dto.ChangeType);
+
+            if (!string.IsNullOrWhiteSpace(dto.Action))
+                query = query.Where(h => h.Action == dto.Action);
+
+            if (!string.IsNullOrWhiteSpace(dto.ChangedBy))
+                query = query.Where(h => h.ChangedBy != null && h.ChangedBy.Contains(dto.ChangedBy!));
+
+            if (dto.FromDate.HasValue)
+                query = query.Where(h => h.ChangedAt >= dto.FromDate.Value);
+
+            if (dto.ToDate.HasValue)
+            {
+                var toEnd = dto.ToDate.Value.Date.AddDays(1);
+                query = query.Where(h => h.ChangedAt < toEnd);
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var rows = await query
+                .OrderByDescending(h => h.ChangedAt)
+                .Skip(pageIndex * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            // Resolve tên user/role trong bộ nhớ (né correlated-subquery; IgnoreQueryFilters đọc cả bản ghi đã xoá mềm).
+            var userIds = rows.Where(r => r.TargetUserId.HasValue).Select(r => r.TargetUserId!.Value).Distinct().ToList();
+            var roleIds = rows.Where(r => r.TargetRoleId.HasValue).Select(r => r.TargetRoleId!.Value).Distinct().ToList();
+
+            var userNames = userIds.Count == 0 ? new Dictionary<Guid, string>() :
+                await _context.Users.IgnoreQueryFilters().AsNoTracking()
+                    .Where(u => userIds.Contains(u.Id))
+                    .Select(u => new { u.Id, Name = u.FullName != "" ? u.FullName : u.Username })
+                    .ToDictionaryAsync(x => x.Id, x => x.Name);
+
+            var roleNames = roleIds.Count == 0 ? new Dictionary<Guid, string>() :
+                await _context.Roles.IgnoreQueryFilters().AsNoTracking()
+                    .Where(r => roleIds.Contains(r.Id))
+                    .Select(r => new { r.Id, r.RoleName })
+                    .ToDictionaryAsync(x => x.Id, x => x.RoleName);
+
+            var items = rows.Select(h => new PermissionChangeHistoryDto
+            {
+                Id = h.Id,
+                ChangeType = h.ChangeType,
+                TargetUserId = h.TargetUserId,
+                TargetUserName = h.TargetUserId.HasValue && userNames.TryGetValue(h.TargetUserId.Value, out var un) ? un : null,
+                TargetRoleId = h.TargetRoleId,
+                TargetRoleName = h.TargetRoleId.HasValue && roleNames.TryGetValue(h.TargetRoleId.Value, out var rn) ? rn : null,
+                PermissionCode = h.PermissionCode,
+                Action = h.Action,
+                OldValueJson = h.OldValueJson,
+                NewValueJson = h.NewValueJson,
+                Reason = h.Reason,
+                ChangedBy = h.ChangedBy,
+                ChangedAt = h.ChangedAt
+            }).ToList();
+
+            return new PermissionChangePagedResult
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageIndex = pageIndex,
+                PageSize = pageSize
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error in GetPermissionChangeHistoryAsync");
+            return new PermissionChangePagedResult { Items = new(), TotalCount = 0, PageIndex = dto.PageIndex, PageSize = dto.PageSize };
+        }
+    }
+
+    // AUTHZ-5 (#371) increment-3: báo cáo tổng hợp hoạt động audit (đếm theo action/module/top-user) — read-only, fail-safe.
+    public async Task<AuditSummaryDto> GetAuditSummaryAsync(DateTime from, DateTime to)
+    {
+        try
+        {
+            var toEnd = to.Date.AddDays(1);
+            var baseQuery = _context.AuditLogs
+                .IgnoreQueryFilters()
+                .AsNoTracking()
+                .Where(l => (l.Timestamp >= from && l.Timestamp < toEnd) || (l.CreatedAt >= from && l.CreatedAt < toEnd));
+
+            var totalEvents = await baseQuery.CountAsync();
+
+            var byActionRaw = await baseQuery
+                .GroupBy(l => l.Action)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .OrderByDescending(x => x.Count).Take(20).ToListAsync();
+
+            var byModuleRaw = await baseQuery
+                .GroupBy(l => l.Module)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .OrderByDescending(x => x.Count).Take(20).ToListAsync();
+
+            var topUsersRaw = await baseQuery
+                .GroupBy(l => l.Username)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .OrderByDescending(x => x.Count).Take(20).ToListAsync();
+
+            return new AuditSummaryDto
+            {
+                FromDate = from,
+                ToDate = to,
+                TotalEvents = totalEvents,
+                ByAction = byActionRaw.Select(x => new AuditCountItem { Key = string.IsNullOrEmpty(x.Key) ? "(none)" : x.Key, Count = x.Count }).ToList(),
+                ByModule = byModuleRaw.Select(x => new AuditCountItem { Key = string.IsNullOrEmpty(x.Key) ? "(none)" : x.Key!, Count = x.Count }).ToList(),
+                TopUsers = topUsersRaw.Select(x => new AuditCountItem { Key = string.IsNullOrEmpty(x.Key) ? "(none)" : x.Key!, Count = x.Count }).ToList()
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error in GetAuditSummaryAsync");
+            return new AuditSummaryDto { FromDate = from, ToDate = to, TotalEvents = 0 };
+        }
+    }
 }

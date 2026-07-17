@@ -46,4 +46,14 @@ public interface IAuditLogService
     /// Get activity logs for a specific user within a date range.
     /// </summary>
     Task<List<DTOs.Audit.AuditLogDto>> GetUserActivityAsync(string userId, DateTime from, DateTime to);
+
+    /// <summary>
+    /// AUTHZ-5 (#371): báo cáo truy vết thay đổi phân quyền (đọc PermissionChangeHistory), có lọc + phân trang.
+    /// </summary>
+    Task<DTOs.Audit.PermissionChangePagedResult> GetPermissionChangeHistoryAsync(DTOs.Audit.PermissionChangeSearchDto dto);
+
+    /// <summary>
+    /// AUTHZ-5 (#371): báo cáo tổng hợp hoạt động audit trong khoảng thời gian (đếm theo action/module/top-user).
+    /// </summary>
+    Task<DTOs.Audit.AuditSummaryDto> GetAuditSummaryAsync(DateTime from, DateTime to);
 }

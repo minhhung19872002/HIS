@@ -49,4 +49,30 @@ public class AuditController : ControllerBase
         var result = await _auditLogService.GetUserActivityAsync(userId, fromDate, toDate);
         return Ok(result);
     }
+
+    /// <summary>
+    /// AUTHZ-5 (#371): báo cáo truy vết thay đổi phân quyền (ai gán/thu-hồi role/quyền cho ai, old→new, khi nào).
+    /// Read-only compliance report over PermissionChangeHistory — lọc theo user/loại/hành động/người-đổi + ngày, phân trang.
+    /// </summary>
+    [HttpGet("permission-changes")]
+    public async Task<ActionResult<AuditDtos.PermissionChangePagedResult>> GetPermissionChanges(
+        [FromQuery] AuditDtos.PermissionChangeSearchDto search)
+    {
+        var result = await _auditLogService.GetPermissionChangeHistoryAsync(search);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// AUTHZ-5 (#371): báo cáo tổng hợp hoạt động audit trong khoảng thời gian (đếm theo action/module/top-user).
+    /// </summary>
+    [HttpGet("summary")]
+    public async Task<ActionResult<AuditDtos.AuditSummaryDto>> GetSummary(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to)
+    {
+        var fromDate = from ?? DateTime.UtcNow.AddDays(-30);
+        var toDate = to ?? DateTime.UtcNow;
+        var result = await _auditLogService.GetAuditSummaryAsync(fromDate, toDate);
+        return Ok(result);
+    }
 }
