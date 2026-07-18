@@ -33,5 +33,24 @@ if [ -d "$lockdir" ]; then
   fi
 fi
 msg="[HIS session] branch=${branch} · dirty=${dirty} file · unpushed=${ahead} · behind=${behind} commit.${sync}${rule}${model}${par}${locks} Read docs/workspace-docs/STATUS.md before starting."
-printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$msg"
+# ★ Session↔task naming (#430): if THIS session ALREADY holds a window-lock (typical on RESUME of a task),
+# set the chat tab title to that task so parallel windows are distinguishable. Only emit sessionTitle when a
+# lock exists (else keep Claude's auto-title). Strip "/\ to keep JSON valid. Owner rule: workflow/session-ops.md.
+title=""
+if [ -n "$sid" ] && [ -d "$lockdir" ]; then
+  for m in "$lockdir"/*/meta; do
+    [ -f "$m" ] || continue
+    if grep -qx "session=$sid" "$m" 2>/dev/null; then
+      k=$(sed -n 's/^key=//p' "$m" | head -1)
+      case "$k" in ''|*[!0-9]*) title="HIS: $k";; *) title="HIS: task #$k";; esac
+      break
+    fi
+  done
+fi
+if [ -n "$title" ]; then
+  title=$(printf '%s' "$title" | tr -d '"\\')
+  printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","sessionTitle":"%s","additionalContext":"%s"}}\n' "$title" "$msg"
+else
+  printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$msg"
+fi
 exit 0

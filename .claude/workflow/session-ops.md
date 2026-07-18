@@ -72,5 +72,22 @@ Other modes not shown: **`auto`** (auto-allows safe work · soft-blocks destruct
 - HIS currently: project (`settings.local.json`) + global = **`auto`**. **ABSOLUTELY DO NOT** set `bypassPermissions` as default (skips even destructive-command prompts — against governance). Use Plan Mode **per task**.
 - **The `allow`/`ask`/`deny` rules** = long-term guardrails (stronger than the mode): **deny** secrets (`.env`·`secrets/`·`*.key|pem|pfx`·`appsettings.Production.json`) + destructive (`rm -rf`·force-push·`reset --hard`·DROP) · **ask** `git commit`·`git push`·`reset`·`npm install`·`gcloud run|builds` · **allow** safe-read + build + test. Baseline = `.claude/settings.json` (committed, shared across 2 machines); per-machine allow = `settings.local.json`.
 
+## 8. Session ↔ task naming — which window is running which task (#430)
+
+Running N parallel windows on one tree → make each window's CURRENT TASK visible so the user tells them apart.
+The identity source is the **window-lock** you already claim (CLAIM-FIRST, [`project-rules.md`](project-rules.md) §2): its `key` = the task.
+
+- **Claim with the ISSUE NUMBER as the key + a short note** so the display reads well:
+  `bash .claude/window-lock.sh claim <issue#> <model> "<short title>"` (a slug only when there is no issue).
+- **Statusline** (`.claude/statusline.sh`, wired in `settings.json`) shows `⎇branch · 🔖 task #<key> · <note> · <model>`
+  for THIS window, LIVE — it auto-updates the moment you claim/release a lock. No user action needed.
+- **Tab title**: the `SessionStart` hook sets `sessionTitle = HIS: task #<key>` from this session's lock on
+  **startup/resume** (only when a lock exists — else Claude's auto-title stands; ignored on clear/compact).
+- **On task switch**: release the old lock + claim the new one → statusline updates immediately. The assistant
+  **CANNOT** rename the chat tab mid-session (Claude Code exposes `/rename` to the USER only) → state the canonical
+  name and suggest the user run `/rename <task>` (the tab also self-corrects on the next resume via the hook).
+
+> Mechanism: `.claude/statusline.sh` + `.claude/hooks/session-start.sh` (sessionTitle) reading `.claude/window-lock.sh` locks.
+
 ---
 > Related: [`workflow.md`](workflow.md) (pipeline) · [`project-rules.md`](project-rules.md) (git-ops/rollback) · [`README.md`](README.md) (index of `.claude/workflow/`) · `CLAUDE.md §Agent routing` (model). **After editing this file → run `bash .claude/lint.sh`.**
