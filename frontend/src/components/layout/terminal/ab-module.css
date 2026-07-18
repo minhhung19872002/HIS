@@ -1126,6 +1126,8 @@
 /* Btn loading spinner (shared <Btn loading>) — chỉ xoay icon, không đổi style nút */
 .ab-btn-spin { display: inline-flex; animation: ab-btn-rotate 0.8s linear infinite; }
 @keyframes ab-btn-rotate { to { transform: rotate(360deg); } }
+/* Spinner component keyframe (Spinner.tsx) */
+@keyframes ab-spin { to { transform: rotate(360deg); } }
 
 /* ───────────────────────────────────────────────────────────────────────────
  * UI-AUDIT #162 — utility classes cho các inline-style LẶP NHIỀU (rule-of-three).
