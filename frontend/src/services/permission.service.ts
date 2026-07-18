@@ -70,3 +70,30 @@ export function can(permission: string): boolean {
   if (permissionSet === null) return true;
   return permissionSet.has(permission);
 }
+
+/**
+ * #431 Phase 2.5 — TRANG CHỦ theo quyền: actor sau đăng nhập vào route HỌ CÓ QUYỀN, tránh 403.
+ * Trước đây mọi actor redirect cứng `/v2/dashboard` (permission Report.Read) → điều dưỡng/tiếp đón/
+ * dược sĩ/KTV-XN KHÔNG có Report.Read nên khi gating ON bị 403 ngay màn đầu.
+ *
+ * Duyệt ứng viên HẸP→RỘNG theo actor, trả route đầu tiên `can()` cho phép. Gating OFF → `can()` luôn
+ * true → trả ứng viên đầu (`/v2/dashboard`) = giữ nguyên hành vi cũ. Fallback `/v2` (ModuleIndex,
+ * KHÔNG cần quyền) — luôn an toàn, không bao giờ 403.
+ */
+const HOME_CANDIDATES: ReadonlyArray<readonly [string, string]> = [
+  ['System.Configure', '/v2/dashboard'], // Admin (có full → dashboard tổng quan)
+  ['Reception.Read', '/v2/reception'],    // Tiếp đón
+  ['Pharmacy.Read', '/v2/pharmacy'],      // Dược sĩ
+  ['LabResult.Create', '/v2/lab'],        // KTV Xét nghiệm
+  ['Radiology.Create', '/v2/radiology'],  // KTV Chẩn đoán hình ảnh
+  ['MedicalRecord.Read', '/v2/opd'],      // Bác sĩ + Điều dưỡng → Khám bệnh
+  ['Billing.Read', '/v2/finance'],        // Thu ngân
+  ['Report.Read', '/v2/dashboard'],       // Actor còn lại có báo cáo
+];
+
+export function resolveHomeRoute(): string {
+  for (const [perm, path] of HOME_CANDIDATES) {
+    if (can(perm)) return path;
+  }
+  return '/v2'; // ModuleIndex — cover page không gác quyền, luôn vào được
+}
