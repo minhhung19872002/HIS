@@ -12,6 +12,7 @@ import { RequirePermission } from './guards';
 import { ModuleIndex } from './lazy/common.lazy';
 import NotFound from './guards/NotFound';
 import { HttpError } from '../components/shared/HttpError';
+import { RouteLayoutHost } from '../components/layout';
 import {
   InspectorPortalStandalone,
   PatientPortalSelfLogin,
@@ -326,8 +327,34 @@ const AppRoutes: React.FC = () => {
           }
         >
           <Route index element={<ModuleIndex />} />
+          {/* #431: OVERRIDE-layout routes (viewer→fullscreen / print→blank) render WITHOUT the
+              shell. RouteLayoutHost chọn layout theo meta.layoutOverride. Route KHÔNG override →
+              nhánh band-shell dưới (TerminalLayout). Không route nào override → hành vi giữ nguyên. */}
+          {v2Routes.filter((e) => e.meta.layoutOverride).map((e) => {
+            const Cmp = e.Component;
+            return (
+              <Route
+                key={e.path}
+                path={e.path}
+                element={
+                  e.redirect
+                    ? <Navigate to={e.redirect} replace />
+                    : (
+                      <RequirePermission meta={e.meta}>
+                        <RouteLayoutHost meta={e.meta}>
+                          <Suspense fallback={<PageLoader />}>
+                            {Cmp ? <Cmp /> : null}
+                          </Suspense>
+                        </RouteLayoutHost>
+                      </RequirePermission>
+                    )
+                }
+              />
+            );
+          })}
+          {/* Band-shell routes — render trong TerminalLayout (band suy từ meta.workspace #404/#431). */}
           <Route element={<TerminalLayout />}>
-            {v2Routes.map((e) => {
+            {v2Routes.filter((e) => !e.meta.layoutOverride).map((e) => {
               const Cmp = e.Component;
               return (
                 <Route

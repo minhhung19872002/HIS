@@ -29,13 +29,13 @@ import { QueuePanel } from './QueuePanel';
 import { HistoryExamSection } from './HistoryExamSection';
 import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
 import BusinessAlertPanel from '../../patient/components/BusinessAlertPanel';
-import { useOpdQueue } from './hooks/useOpdQueue';
-import { useOpdPatientData } from './hooks/useOpdPatientData';
-import { useOpdCompletion } from './hooks/useOpdCompletion';
-import { useOpdAutoSave } from './hooks/useOpdAutoSave';
-import { useOpdTemplates } from './hooks/useOpdTemplates';
-import { useOpdClsConsult } from './hooks/useOpdClsConsult';
-import { useOpdDisposition } from './hooks/useOpdDisposition';
+import { useOpdQueue } from '../hooks/useOpdQueue';
+import { useOpdPatientData } from '../hooks/useOpdPatientData';
+import { useOpdCompletion } from '../hooks/useOpdCompletion';
+import { useOpdAutoSave } from '../hooks/useOpdAutoSave';
+import { useOpdTemplates } from '../hooks/useOpdTemplates';
+import { useOpdClsConsult } from '../hooks/useOpdClsConsult';
+import { useOpdDisposition } from '../hooks/useOpdDisposition';
 import '../../../components/layout/terminal/ed-responsive.css';
 
 const OpdEditorV2: React.FC = () => {

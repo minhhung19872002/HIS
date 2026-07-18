@@ -3,6 +3,11 @@
    ============================================ */
 .ab { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 
+/* #431 Design Y — band Workstation (data-density=compact trên .his-app): quầy nghiệp vụ, thu gọn chiều
+   dọc toolbar/tab để nhập liệu nhanh hơn. Chỉ áp ở band compact, không đụng band khác. */
+.his-app[data-density="compact"] .ab-tools { padding-top: 5px; padding-bottom: 5px; }
+.his-app[data-density="compact"] .ab-tabs { padding-top: 4px; }
+
 /* KPI strip */
 .ab-kpis {
   display: grid;

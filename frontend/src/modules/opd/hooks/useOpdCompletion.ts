@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { getCompletionStatus, type ExamCompletionStatus } from '../../api/multiSpecialtyExam';
+import { getCompletionStatus, type ExamCompletionStatus } from '../api/multiSpecialtyExam';
 
 export function useOpdCompletion(examId: string | null) {
   const [completion, setCompletion] = useState<ExamCompletionStatus | null>(null);

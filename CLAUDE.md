@@ -90,7 +90,7 @@ All services must be registered in `backend/src/HIS.Infrastructure/DependencyInj
 ### Frontend 2-tier
 - **v2 (main)** — route `/v2/*`, `TerminalLayout`, design pack `_v2kit`
   (`KpiStrip/TopTabs/StatusTabs/DataTable/DrawerShell/ModalShell` in `frontend/src/pages-v2/_v2kit.tsx`)
-  + CSS `ab-*` (`frontend/src/layouts/terminal/ab-module.css`). List-page helper: `SimpleV2Page<T>`.
+  + CSS `ab-*` (`frontend/src/components/layout/terminal/ab-module.css`). List-page helper: `SimpleV2Page<T>`.
   → skill `his-fe-page-v2`.
 - **v1 (old)** — `frontend/src/pages/`, `MainLayout`, Antd v6 → skill `his-fe-antd-v6`.
 - **API client** — `frontend/src/api/*.ts` via the axios `apiClient`; login returns `{data:{token}}` → skill `his-fe-api-client`. ⚠️ The interceptor (`client.ts`) **auto-unwraps the envelope** `{success,data}` → the caller receives the inner `data` directly. **Do NOT check `response.success`/`.data` after calling `apiClient`** — this mismatch once broke prod login (fixed to tolerate both shapes in `AuthContext.tsx`, commit `92d35a2`). New code: read the already-unwrapped payload directly.

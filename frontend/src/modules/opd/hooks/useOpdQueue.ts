@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import {
   examinationApi,
   type RoomDto, type RoomPatientListDto,
-} from '../../api/examination';
+} from '../api/examination';
 
 export function useOpdQueue() {
   const [rooms, setRooms] = useState<RoomDto[]>([]);

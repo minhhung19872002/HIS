@@ -23,6 +23,10 @@ export interface RouteMeta {
   workspace?: WorkspaceId;
   /** #375: module thương mại (cờ EnabledModules #405 đọc). */
   module?: CommercialModuleId;
+  /** #431: page OVERRIDE sang layout đặc biệt (in→'blank', viewer→'fullscreen'). Mặc định = band-shell suy từ workspace. */
+  layoutOverride?: 'blank' | 'fullscreen';
+  /** #431: VARIANT/mode trong band (luồng nhiều bước / master-detail). */
+  layoutVariant?: 'wizard' | 'split';
 }
 
 export interface RouteEntry {

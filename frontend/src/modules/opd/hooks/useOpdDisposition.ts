@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
-import { catalogApi, type DepartmentCatalogDto } from '../../../system/api/system';
+import { catalogApi, type DepartmentCatalogDto } from '../../system/api/system';
 import {
   requestHospitalization, requestTransfer, createAppointment,
   printAdmissionForm, printTransferForm, printAppointmentSlip,
-} from '../../api/examination';
+} from '../api/examination';
 import {
   addFollowUpSpecialty, changeRoomBeforeExam, deleteRegistration,
   type ExamCompletionStatus,
-} from '../../api/multiSpecialtyExam';
-import { openPdfBlob } from '../_shared';
-import { tk, tw, te, ti } from '../../../../pages-v2/_v2kit';
-import type { DxRow } from '../_shared';
+} from '../api/multiSpecialtyExam';
+import { openPdfBlob } from '../pages/_shared';
+import { tk, tw, te, ti } from '../../../pages-v2/_v2kit';
+import type { DxRow } from '../pages/_shared';
 
 interface Params {
   examId: string | null;

@@ -4,9 +4,9 @@ import {
   getPatientAllergies, getInjuryInfo,
   type RoomPatientListDto, type IcdCodeFullDto, type ServiceDto,
   type ServiceOrderFullDto, type DiagnosisFullDto, type AllergyDto, type InjuryInfoDto,
-} from '../../api/examination';
-import { useAbbrExpansion } from '../../../../utils/abbrExpand';
-import { type Vitals, type DxRow, type OrderRow, OPD_ABBR_SCOPES } from '../_shared';
+} from '../api/examination';
+import { useAbbrExpansion } from '../../../utils/abbrExpand';
+import { type Vitals, type DxRow, type OrderRow, OPD_ABBR_SCOPES } from '../pages/_shared';
 
 interface Params {
   setLeftOpen: (v: boolean) => void;

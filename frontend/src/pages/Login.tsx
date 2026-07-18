@@ -3,6 +3,7 @@ import { Form, Input, Button, Card, message, Typography } from 'antd';
 import { UserOutlined, LockOutlined, SafetyOutlined, ArrowLeftOutlined, MailOutlined, MedicineBoxOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { AuthLayout } from '../components/layout/AuthLayout';
 
 const { Title } = Typography;
 
@@ -98,13 +99,7 @@ const Login: React.FC = () => {
   // OTP verification step
   if (otpPending) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-      }}>
+      <AuthLayout>
         <Card style={{ width: 420, borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <SafetyOutlined style={{ fontSize: 48, color: '#1677ff' }} />
@@ -152,19 +147,13 @@ const Login: React.FC = () => {
             </Button>
           </div>
         </Card>
-      </div>
+      </AuthLayout>
     );
   }
 
   // Normal login form
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-    }}>
+    <AuthLayout>
       <Card style={{ width: 420, borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ width: 64, height: 64, borderRadius: 16, background: 'linear-gradient(135deg, #1677ff, #4096ff)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
@@ -216,7 +205,7 @@ const Login: React.FC = () => {
           </div>
         )}
       </Card>
-    </div>
+    </AuthLayout>
   );
 };
 

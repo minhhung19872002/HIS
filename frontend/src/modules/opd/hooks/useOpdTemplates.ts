@@ -3,9 +3,9 @@ import {
   getOutpatientRecordTemplates, getOutpatientRecordTemplate,
   saveOutpatientRecordTemplate, deleteOutpatientRecordTemplate,
   type OutpatientRecordTemplateDto,
-} from '../../../patient/api/clinicalNarratives';
-import { tk, tw, te } from '../../../../pages-v2/_v2kit';
-import type { DxRow } from '../_shared';
+} from '../../patient/api/clinicalNarratives';
+import { tk, tw, te } from '../../../pages-v2/_v2kit';
+import type { DxRow } from '../pages/_shared';
 
 interface Params {
   history: string;

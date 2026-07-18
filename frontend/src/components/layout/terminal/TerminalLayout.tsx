@@ -22,6 +22,7 @@ import {
   findItemForPath,
   permissionForPath,
   workspaceForPath,
+  moduleForPath,
   isPathAllowed,
 } from '../../../services/menu.service';
 import {
@@ -29,6 +30,8 @@ import {
 } from '../../../services/workspace.service';
 import { ACCESS_GATING_ENABLED } from '../../../services/permission.service';
 import type { WorkspaceId } from '../../../types/route';
+import { bandForWorkspace } from '../layoutRegistry';
+import { bandConfigFor } from '../bands/bandConfig';
 import { v2Routes } from '../../../router/routeConfigs';
 import { usePermission } from '../../../hooks/usePermission';
 import './terminal.css';
@@ -568,6 +571,16 @@ const TerminalShell: React.FC = () => {
     return parts;
   }, [activeGroupId, activeItem, workspace]);
 
+  // #431 Design Y — band của ROUTE hiện tại (route-driven, KHÔNG theo filter user) → shell tự cấu hình
+  // ĐÚNG cấu trúc từng band (bật/tắt patient-context Ticker, mật độ). 1 shell bền, không remount khi đổi band.
+  const routeBand = useMemo(() => {
+    const ws = workspaceForPath(location.pathname);
+    // #431 (c): backoffice gộp cả quản trị + báo cáo → tách band bằng module (BAOCAO = dashboard).
+    if (ws === 'backoffice' && moduleForPath(location.pathname) === 'BAOCAO') return 'dashboard';
+    return bandForWorkspace(ws);
+  }, [location.pathname]);
+  const bandCfg = bandConfigFor(routeBand);
+
   const moduleLabel = activeItem?.label ?? '—';
   const visibleGroupId = hoveredGroupId || pinnedGroupId;
   const showFlyout = visibleGroupId !== null;
@@ -576,7 +589,7 @@ const TerminalShell: React.FC = () => {
   return (
     <div className="his-terminal">
       <IdleLockScreen />
-      <div className={'his-app' + (flyoutPinned ? ' has-pinned' : '')}>
+      <div className={'his-app' + (flyoutPinned ? ' has-pinned' : '')} data-band={routeBand} data-density={bandCfg.density}>
         <Rail
           activeGroupId={activeGroupId}
           pinnedGroupId={pinnedGroupId}
@@ -605,13 +618,17 @@ const TerminalShell: React.FC = () => {
           onSwitchLayout={onSwitchLayout}
           onLogout={onLogout}
         />
-        <Ticker
-          patient={patient}
-          onClearPatient={clearPatient}
-          canBreakGlass={canBreakGlass}
-          onBreakGlass={() => setBgModalOpen(true)}
-          breakGlass={breakGlass}
-        />
+        {/* #431 Design Y: patient-context bar chỉ hiện ở band làm-việc-trên-BN (Clinical/Workstation);
+            band Admin/Dashboard ẩn (đúng cấu trúc — không thao tác trên hồ sơ BN). */}
+        {bandCfg.showPatientContext && (
+          <Ticker
+            patient={patient}
+            onClearPatient={clearPatient}
+            canBreakGlass={canBreakGlass}
+            onBreakGlass={() => setBgModalOpen(true)}
+            breakGlass={breakGlass}
+          />
+        )}
         <Modal
           title="⚠ Break-Glass — Truy cập khẩn cấp"
           open={bgModalOpen}
