@@ -62,3 +62,38 @@ public class AuditSummaryDto
     public List<AuditCountItem> ByModule { get; set; } = new();
     public List<AuditCountItem> TopUsers { get; set; } = new();
 }
+
+// ── AUTHZ-5 (#371) inc-6: Báo cáo tái chứng nhận quyền (recertification) ──────────────────────────
+
+/// <summary>1 dòng gán role cho 1 user tại thời điểm xem báo cáo.</summary>
+public class UserRoleRecordDto
+{
+    public string UserId { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string RoleCode { get; set; } = string.Empty;
+    public string RoleName { get; set; } = string.Empty;
+    public string ScopeType { get; set; } = "ORG";
+    public DateTime? ValidFrom { get; set; }
+    public DateTime? ValidTo { get; set; }
+    public string? GrantedBy { get; set; }
+}
+
+/// <summary>Nhóm gán role theo ScopeType (ORG/DEPT/BRANCH) cho báo cáo tái chứng nhận.</summary>
+public class RecertificationGroupDto
+{
+    public string ScopeType { get; set; } = string.Empty;
+    public string ScopeLabel { get; set; } = string.Empty;
+    public int TotalAssignments { get; set; }
+    public int TotalUniqueUsers { get; set; }
+    public List<UserRoleRecordDto> Assignments { get; set; } = new();
+}
+
+/// <summary>Báo cáo tái chứng nhận: ai đang có quyền gì tại thời điểm AsOf, nhóm theo scope.</summary>
+public class RecertificationReportDto
+{
+    public DateTime AsOf { get; set; }
+    public int TotalActiveAssignments { get; set; }
+    public int TotalUsers { get; set; }
+    public List<RecertificationGroupDto> Groups { get; set; } = new();
+}

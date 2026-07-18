@@ -56,4 +56,10 @@ public interface IAuditLogService
     /// AUTHZ-5 (#371): báo cáo tổng hợp hoạt động audit trong khoảng thời gian (đếm theo action/module/top-user).
     /// </summary>
     Task<DTOs.Audit.AuditSummaryDto> GetAuditSummaryAsync(DateTime from, DateTime to);
+
+    /// <summary>
+    /// AUTHZ-5 (#371) inc-6: Báo cáo tái chứng nhận — ai đang có role gì tại thời điểm <paramref name="asOf"/>.
+    /// Dùng cho định kỳ xét duyệt quyền (access recertification/periodic review).
+    /// </summary>
+    Task<DTOs.Audit.RecertificationReportDto> GetRecertificationAsync(DateTime asOf);
 }

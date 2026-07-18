@@ -1,7 +1,8 @@
-// Panel ATTT Cấp độ 3 (NĐ 85/2016/NĐ-CP) — 3 báo cáo compliance qua TopTabs:
+// Panel ATTT Cấp độ 3 (NĐ 85/2016/NĐ-CP) — 4 báo cáo compliance qua TopTabs:
 //  1. Truy cập dữ liệu nhạy cảm (port v1 ComplianceTab, giữ nguyên hành vi).
 //  2. Thay đổi phân quyền — AUTHZ-5 (#371) GET /audit/permission-changes.
 //  3. Tổng hợp hoạt động audit — AUTHZ-5 (#371) GET /audit/summary.
+//  4. Tái chứng nhận — AUTHZ-5 (#371) inc-6: GET /audit/recertification.
 // v1 dùng expandable row cho recent accesses; v2 chuyển thành row-click → DrawerShell.
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -12,9 +13,10 @@ import {
   type ComplianceSummaryDto, type SensitiveDataAccessReportDto,
 } from '../api/security';
 import {
-  getPermissionChanges, getAuditSummary,
+  getPermissionChanges, getAuditSummary, getRecertification,
   type PermissionChangeHistoryDto, type PermissionChangeSearchDto,
   type AuditSummaryDto, type AuditCountItem,
+  type RecertificationReportDto, type UserRoleRecordDto,
 } from '../api/audit';
 import {
   KpiStrip, DataTable, DrawerShell, DrSec, StatusBadge, Btn, TopTabs, Filter, Pager, type ColumnDef,
@@ -308,9 +310,110 @@ const AuditSummaryReport: React.FC = () => {
 };
 
 // ============================================================================
-// Panel — 3 báo cáo qua TopTabs
+// Report 4 — Tái chứng nhận (Recertification) — ai đang có role gì hiện tại
 // ============================================================================
-type ReportTab = 'sensitive' | 'permchange' | 'summary';
+const scopeToneMap: Record<string, 'ok' | 'info' | 'warn' | 'crit'> = {
+  ORG: 'warn', BRANCH: 'info', DEPT: 'ok', OWN: 'info',
+};
+
+const RecertificationReport: React.FC = () => {
+  const [report, setReport] = useState<RecertificationReportDto | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [selRecord, setSelRecord] = useState<UserRoleRecordDto | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await getRecertification();
+      setReport(Array.isArray(res.data) ? null : (res.data as RecertificationReportDto));
+    } catch { /* keep current */ }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const columns: ColumnDef<UserRoleRecordDto>[] = [
+    { key: 'fullName', label: 'Người dùng', render: (r) => `${r.fullName}${r.username ? ` (@${r.username})` : ''}` },
+    { key: 'roleName', label: 'Vai trò', render: (r) => (
+      <StatusBadge tone={scopeToneMap[r.scopeType] ?? 'info'}>{r.roleName}</StatusBadge>
+    ) },
+    { key: 'scopeType', label: 'Phạm vi', width: 100, render: (r) => (
+      <StatusBadge tone={scopeToneMap[r.scopeType] ?? 'info'}>{r.scopeType}</StatusBadge>
+    ) },
+    { key: 'validFrom', label: 'Hiệu lực từ', mono: true, width: 120, render: (r) => r.validFrom ? dayjs(r.validFrom).format('DD/MM/YYYY') : '—' },
+    { key: 'validTo', label: 'Hết hạn', mono: true, width: 120, render: (r) => r.validTo ? dayjs(r.validTo).format('DD/MM/YYYY') : 'Vĩnh viễn' },
+    { key: 'grantedBy', label: 'Gán bởi', width: 120, render: (r) => r.grantedBy ?? '—' },
+  ];
+
+  if (!report && !loading) return (
+    <div style={{ padding: '32px', textAlign: 'center', color: 'var(--t-2)' }}>
+      <Btn onClick={load}>Tải báo cáo</Btn>
+    </div>
+  );
+
+  const allAssignments = report?.groups.flatMap(g => g.assignments) ?? [];
+
+  return (
+    <>
+      <KpiStrip items={[
+        { lbl: 'Tổng phân quyền', val: report?.totalActiveAssignments ?? 0 },
+        { lbl: 'Người dùng có quyền', val: report?.totalUsers ?? 0, tone: 'ok' },
+        { lbl: 'Nhóm phạm vi', val: report?.groups.length ?? 0 },
+        { lbl: 'Phạm vi ORG (rộng)', val: report?.groups.find(g => g.scopeType === 'ORG')?.totalAssignments ?? 0, tone: 'warn' },
+      ]} />
+      <div className="ab-tools">
+        <span style={{ fontWeight: 600 }}>Tái chứng nhận phân quyền</span>
+        <span style={{ color: 'var(--t-2)', fontSize: '0.85em' }}>
+          {report ? `Tại: ${dayjs(report.asOf).format('DD/MM/YYYY HH:mm')}` : ''}
+        </span>
+        <span className="spacer" />
+        <Btn variant="ghost" onClick={load}>Làm mới</Btn>
+      </div>
+      {report?.groups.map(group => (
+        <div key={group.scopeType} style={{ marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 2px', borderBottom: '1px solid var(--line)' }}>
+            <StatusBadge tone={scopeToneMap[group.scopeType] ?? 'info'} dot>{group.scopeLabel}</StatusBadge>
+            <span style={{ color: 'var(--t-2)', fontSize: '0.85em' }}>
+              {group.totalAssignments} lần gán · {group.totalUniqueUsers} người dùng
+            </span>
+          </div>
+          <DataTable<UserRoleRecordDto>
+            columns={columns}
+            data={group.assignments}
+            rowKey={(r) => `${r.userId}-${r.roleCode}`}
+            onRowClick={setSelRecord}
+            empty={loading ? 'Đang tải…' : 'Không có phân quyền'}
+          />
+        </div>
+      ))}
+      {!loading && allAssignments.length === 0 && (
+        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--t-2)' }}>
+          Chưa có phân quyền nào đang hoạt động
+        </div>
+      )}
+
+      <DrawerShell open={!!selRecord} onClose={() => setSelRecord(null)}
+        title={selRecord?.fullName ?? ''} sub={selRecord?.username ? `@${selRecord.username}` : ''}>
+        {selRecord && (
+          <DrSec title="Chi tiết phân quyền">
+            <div className="rec-kv">
+              <span>Vai trò</span><span>{selRecord.roleName} ({selRecord.roleCode})</span>
+              <span>Phạm vi</span><span><StatusBadge tone={scopeToneMap[selRecord.scopeType] ?? 'info'}>{selRecord.scopeType}</StatusBadge></span>
+              <span>Hiệu lực từ</span><span>{selRecord.validFrom ? dayjs(selRecord.validFrom).format('DD/MM/YYYY HH:mm') : '—'}</span>
+              <span>Hết hạn</span><span>{selRecord.validTo ? dayjs(selRecord.validTo).format('DD/MM/YYYY HH:mm') : 'Vĩnh viễn'}</span>
+              <span>Gán bởi</span><span>{selRecord.grantedBy ?? '—'}</span>
+            </div>
+          </DrSec>
+        )}
+      </DrawerShell>
+    </>
+  );
+};
+
+// ============================================================================
+// Panel — 4 báo cáo qua TopTabs
+// ============================================================================
+type ReportTab = 'sensitive' | 'permchange' | 'summary' | 'recertify';
 
 const CompliancePanel: React.FC = () => {
   const [reportTab, setReportTab] = useState<ReportTab>('sensitive');
@@ -320,10 +423,12 @@ const CompliancePanel: React.FC = () => {
         { v: 'sensitive', l: 'Truy cập nhạy cảm' },
         { v: 'permchange', l: 'Thay đổi phân quyền' },
         { v: 'summary', l: 'Tổng hợp audit' },
+        { v: 'recertify', l: 'Tái chứng nhận' },
       ]} />
       {reportTab === 'sensitive' && <SensitiveAccessReport />}
       {reportTab === 'permchange' && <PermissionChangesReport />}
       {reportTab === 'summary' && <AuditSummaryReport />}
+      {reportTab === 'recertify' && <RecertificationReport />}
     </>
   );
 };

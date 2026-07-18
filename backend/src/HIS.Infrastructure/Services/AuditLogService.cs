@@ -394,4 +394,65 @@ public class AuditLogService : IAuditLogService
             return new AuditSummaryDto { FromDate = from, ToDate = to, TotalEvents = 0 };
         }
     }
+
+    public async Task<RecertificationReportDto> GetRecertificationAsync(DateTime asOf)
+    {
+        try
+        {
+            // Query active UserRoles at asOf: ValidTo==null (permanent) or ValidTo>=asOf
+            var assignments = await (
+                from ur in _context.UserRoles
+                    .AsNoTracking()
+                    .Where(u => !u.IsDeleted && (u.ValidTo == null || u.ValidTo >= asOf))
+                join u in _context.Users.AsNoTracking() on ur.UserId equals u.Id
+                join r in _context.Roles.AsNoTracking() on ur.RoleId equals r.Id
+                where !u.IsDeleted && !r.IsDeleted
+                orderby ur.ScopeType, u.FullName ?? u.Username
+                select new UserRoleRecordDto
+                {
+                    UserId = ur.UserId.ToString(),
+                    Username = u.Username,
+                    FullName = !string.IsNullOrEmpty(u.FullName) ? u.FullName : u.Username,
+                    RoleCode = r.RoleCode,
+                    RoleName = !string.IsNullOrEmpty(r.RoleName) ? r.RoleName : r.RoleCode,
+                    ScopeType = ur.ScopeType,
+                    ValidFrom = ur.ValidFrom,
+                    ValidTo = ur.ValidTo,
+                    GrantedBy = ur.GrantedBy
+                }).ToListAsync();
+
+            var groups = assignments
+                .GroupBy(a => a.ScopeType)
+                .Select(g => new RecertificationGroupDto
+                {
+                    ScopeType = g.Key,
+                    ScopeLabel = g.Key switch
+                    {
+                        "ORG" => "Toàn viện",
+                        "BRANCH" => "Cơ sở",
+                        "DEPT" => "Khoa/Phòng",
+                        "OWN" => "Cá nhân",
+                        _ => g.Key
+                    },
+                    TotalAssignments = g.Count(),
+                    TotalUniqueUsers = g.Select(a => a.UserId).Distinct().Count(),
+                    Assignments = g.ToList()
+                })
+                .OrderBy(g => g.ScopeType)
+                .ToList();
+
+            return new RecertificationReportDto
+            {
+                AsOf = asOf,
+                TotalActiveAssignments = assignments.Count,
+                TotalUsers = assignments.Select(a => a.UserId).Distinct().Count(),
+                Groups = groups
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error in GetRecertificationAsync");
+            return new RecertificationReportDto { AsOf = asOf, TotalActiveAssignments = 0, TotalUsers = 0 };
+        }
+    }
 }

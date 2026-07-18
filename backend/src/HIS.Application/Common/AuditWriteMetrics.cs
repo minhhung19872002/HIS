@@ -15,8 +15,12 @@ public static class AuditWriteMetrics
 {
     private static long _successCount;
     private static long _failureCount;
+    private static long _fallbackCount;
     private static string? _lastFailureMessage;
     private static DateTime? _lastFailureAt;
+
+    /// <summary>Current cumulative failure count — readable without Interlocked overhead (approximate, for delta-check).</summary>
+    public static long FailureCount => Interlocked.Read(ref _failureCount);
 
     /// <summary>Record one (or more, for batch writes) successful audit-log write(s).</summary>
     public static void RecordSuccess(int count = 1)
@@ -33,11 +37,19 @@ public static class AuditWriteMetrics
         _lastFailureAt = DateTime.UtcNow;
     }
 
+    /// <summary>Record entries written to the fallback file when DB was unavailable.</summary>
+    public static void RecordFallback(int count = 1)
+    {
+        if (count <= 0) return;
+        Interlocked.Add(ref _fallbackCount, count);
+    }
+
     /// <summary>Snapshot for the health endpoint (anonymous object, JSON-serializable).</summary>
     public static object GetSnapshot() => new
     {
         successCount = Interlocked.Read(ref _successCount),
         failureCount = Interlocked.Read(ref _failureCount),
+        fallbackCount = Interlocked.Read(ref _fallbackCount),
         lastFailureAt = _lastFailureAt,
         lastFailureMessage = _lastFailureMessage
     };

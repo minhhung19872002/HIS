@@ -124,3 +124,39 @@ export const getPermissionChanges = (params: PermissionChangeSearchDto) =>
 /** Báo cáo tổng hợp hoạt động audit theo khoảng ngày (đếm action/module/top-user). */
 export const getAuditSummary = (from?: string, to?: string) =>
   apiClient.get<AuditSummaryDto>('/audit/summary', { params: { from, to } });
+
+// ── AUTHZ-5 (#371) inc-6: Recertification ────────────────────────────────────
+
+/** 1 dòng gán role cho user (tại thời điểm asOf). */
+export interface UserRoleRecordDto {
+  userId: string;
+  username: string;
+  fullName: string;
+  roleCode: string;
+  roleName: string;
+  scopeType: string;  // ORG | DEPT | BRANCH | OWN
+  validFrom?: string;
+  validTo?: string;
+  grantedBy?: string;
+}
+
+/** Nhóm gán role theo scopeType cho báo cáo tái chứng nhận. */
+export interface RecertificationGroupDto {
+  scopeType: string;
+  scopeLabel: string;
+  totalAssignments: number;
+  totalUniqueUsers: number;
+  assignments: UserRoleRecordDto[];
+}
+
+/** Báo cáo tái chứng nhận: ai đang có role gì tại asOf. */
+export interface RecertificationReportDto {
+  asOf: string;
+  totalActiveAssignments: number;
+  totalUsers: number;
+  groups: RecertificationGroupDto[];
+}
+
+/** Báo cáo tái chứng nhận — ai đang có quyền gì tại thời điểm asOf (mặc định = now). */
+export const getRecertification = (asOf?: string) =>
+  apiClient.get<RecertificationReportDto>('/audit/recertification', { params: { asOf } });

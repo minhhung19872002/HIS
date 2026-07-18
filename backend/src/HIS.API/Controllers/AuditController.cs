@@ -75,4 +75,16 @@ public class AuditController : ControllerBase
         var result = await _auditLogService.GetAuditSummaryAsync(fromDate, toDate);
         return Ok(result);
     }
+
+    /// <summary>
+    /// AUTHZ-5 (#371) inc-6: Báo cáo tái chứng nhận — ai đang có role gì tại asOf (mặc định = now).
+    /// Dùng cho định kỳ xét duyệt quyền (access recertification / periodic access review per NĐ 13/2023).
+    /// </summary>
+    [HttpGet("recertification")]
+    public async Task<ActionResult<AuditDtos.RecertificationReportDto>> GetRecertification(
+        [FromQuery] DateTime? asOf)
+    {
+        var result = await _auditLogService.GetRecertificationAsync(asOf ?? DateTime.UtcNow);
+        return Ok(result);
+    }
 }
