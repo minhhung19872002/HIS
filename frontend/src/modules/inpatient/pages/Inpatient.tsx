@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input, InputNumber, Select, DatePicker } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { getInpatientList, getWardLayout, admitFromOpd, getPendingAdmissions, transferBed, assignBed, type PendingAdmissionDto, type TransferBedDto, type CreateBedAssignmentDto } from '../api/inpatient';
+import { getInpatientList, getWardLayout, admitFromOpd, getPendingAdmissions, transferBed, assignBed, getDepositRequests, createDepositRequest, type PendingAdmissionDto, type TransferBedDto, type CreateBedAssignmentDto, type DepositRequestDto, type CreateDepositRequestDto } from '../api/inpatient';
 import type { InpatientListDto, WardLayoutDto, BedLayoutDto } from '../api/inpatient';
+import { getServiceOrders, type InpatientServiceOrderDto } from '../api/inpatient';
 import { printBirthCertificate, type BirthCertificateData } from '../../patient/components/BirthCertificatePrint';
 import TreatmentMonitorSection from './TreatmentMonitorSection';
 import ConsultationSection from './ConsultationSection';
@@ -32,11 +33,12 @@ import { MEDICAL_RECORD_TYPES } from '../../../pages/inpatient/constants';
    Dữ liệu thật: getWardLayout (rooms→beds) + getInpatientList.
    ──────────────────────────────────────────────────────────── */
 
-type TopKey = 'grid' | 'list' | 'orders' | 'consult' | 'nursing' | 'discharge';
+type TopKey = 'grid' | 'list' | 'orders' | 'supplies' | 'consult' | 'nursing' | 'discharge';
 const TOP_TABS: TopTab<TopKey>[] = [
   { v: 'grid',      l: 'Sơ đồ giường',   ic: 'grid' },
   { v: 'list',      l: 'Danh sách BN',   ic: 'users' },
   { v: 'orders',    l: 'Y lệnh hôm nay', ic: 'clipboard' },
+  { v: 'supplies',  l: 'Vật tư / DV',    ic: 'package' },
   { v: 'consult',   l: 'Hội chẩn',       ic: 'message-square' },
   { v: 'nursing',   l: 'Điều dưỡng',     ic: 'heart' },
   { v: 'discharge', l: 'Đã xuất viện',   ic: 'logout' },
@@ -122,6 +124,13 @@ const InpatientV2: React.FC = () => {
   // Discharge tab date range
   const [dischargeFrom, setDischargeFrom] = useState<dayjs.Dayjs | null>(null);
   const [dischargeTo, setDischargeTo] = useState<dayjs.Dayjs | null>(null);
+  // Deposit (tạm ứng)
+  const [depositModal, setDepositModal] = useState(false);
+  const [depositAdmissionId, setDepositAdmissionId] = useState('');
+  // Supplies tab — selected patient for service-order drill-down
+  const [supplyPatient, setSupplyPatient] = useState<InpatientListDto | null>(null);
+  const [supplyOrders, setSupplyOrders] = useState<InpatientServiceOrderDto[]>([]);
+  const [supplyLoading, setSupplyLoading] = useState(false);
   const LIST_PAGE = 16;
 
   const loadData = useCallback(() => {
@@ -153,6 +162,16 @@ const InpatientV2: React.FC = () => {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const loadSupplyOrders = useCallback(async (p: InpatientListDto) => {
+    setSupplyPatient(p); setSupplyOrders([]); setSupplyLoading(true);
+    try {
+      const today = dayjs().format('YYYY-MM-DD');
+      const res = await getServiceOrders(p.admissionId, today, today);
+      setSupplyOrders(Array.isArray(res.data) ? res.data as InpatientServiceOrderDto[] : []);
+    } catch { setSupplyOrders([]); }
+    finally { setSupplyLoading(false); }
+  }, []);
 
   // All beds flattened (with ward name) for grid + filtering.
   const allBeds = useMemo(
@@ -280,7 +299,7 @@ const InpatientV2: React.FC = () => {
       />
 
       {/* Tab Hội chẩn có toolbar riêng trong ConsultationSection */}
-      {tab !== 'consult' && tab !== 'nursing' && tab !== 'discharge' && (
+      {tab !== 'consult' && tab !== 'nursing' && tab !== 'discharge' && tab !== 'supplies' && (
         <div className="ab-tools">
           <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder="Tìm tên BN, mã BN, mã giường…" />
           <Filter value={fWard} onChange={(v) => { setFWard(v); setPage(0); }} options={wardOpts} placeholder="▾ Khoa" />
@@ -386,6 +405,80 @@ const InpatientV2: React.FC = () => {
             ))}
           </div>
         </div>
+      )}
+
+      {/* ── Tab: Vật tư / Dịch vụ ── */}
+      {tab === 'supplies' && (
+        <>
+          <div className="ab-tools">
+            <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder="Tìm BN có đặt vật tư / dịch vụ…" />
+            <Filter value={fWard} onChange={(v) => { setFWard(v); setPage(0); }} options={wardOpts} placeholder="▾ Khoa" />
+            <Btn variant="ghost" onClick={() => { setSearch(''); setFWard(''); }}>
+              <TermIcon name="refresh" size={12} /> Bỏ lọc
+            </Btn>
+            <span className="spacer" />
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', fontFamily: 'var(--font-mono)' }}>
+              {inpatients.filter((r) => r.hasPendingOrders).length} BN có y lệnh
+            </span>
+          </div>
+          <div className="ab-stack">
+            <DataTable<InpatientListDto>
+              columns={[
+                { key: 'patient', label: 'Bệnh nhân',
+                  render: (r) => <div className="cell-2l"><b>{r.patientName}</b><i className="mono">{r.patientCode}</i></div> },
+                { key: 'ward', label: 'Khoa · Giường',
+                  render: (r) => <div className="cell-2l"><b>{r.departmentName}</b><i>{r.roomName}{r.bedName ? ` · ${r.bedName}` : ''}</i></div> },
+                { key: 'doctor', label: 'BS điều trị', width: 160, render: (r) => r.attendingDoctorName || '—' },
+                { key: 'flags', label: 'Trạng thái', width: 200,
+                  render: (r) => (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
+                      {r.hasPendingOrders && <span className="chip warn">Y lệnh chờ</span>}
+                      {r.hasUnclaimedMedicine && <span className="chip warn">Thuốc chưa lấy</span>}
+                      {r.hasPendingLabResults && <span className="chip info">CLS</span>}
+                    </div>
+                  ) },
+              ]}
+              data={listFiltered.filter((r) => r.hasPendingOrders || r.hasUnclaimedMedicine)}
+              rowKey={(r) => r.admissionId}
+              onRowClick={(r) => void loadSupplyOrders(r)}
+              empty={loading ? 'Đang tải…' : <div className="ab-empty"><TermIcon name="package" size={20} /><div>Không có BN cần xử lý vật tư / dịch vụ</div></div>}
+            />
+          </div>
+
+          {/* Drawer: service orders của BN được chọn */}
+          <DrawerShell
+            open={!!supplyPatient} onClose={() => setSupplyPatient(null)} size="lg"
+            title={supplyPatient ? `${supplyPatient.patientName} — Vật tư / Dịch vụ` : ''}
+            sub={supplyPatient ? `${supplyPatient.departmentName} · ${supplyPatient.roomName}${supplyPatient.bedName ? ` · ${supplyPatient.bedName}` : ''}` : ''}
+          >
+            {supplyPatient && (
+              <div style={{ padding: 'var(--space-18)' }}>
+                {supplyLoading && <div style={{ padding: 20, textAlign: 'center', color: 'var(--t-2)' }}>Đang tải y lệnh…</div>}
+                {!supplyLoading && supplyOrders.length === 0 && (
+                  <div style={{ padding: 20, textAlign: 'center', color: 'var(--t-2)' }}>Không có y lệnh dịch vụ hôm nay</div>
+                )}
+                {supplyOrders.map((order, i) => (
+                  <div key={order.id || i} style={{ marginBottom: 'var(--space-16)', background: 'var(--d-2)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 'var(--space-12)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-8)' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
+                        Y lệnh #{i + 1} · {order.orderingDoctorName || ''}
+                      </span>
+                      <StatusBadge tone={(order.status === 2 ? 'ok' : order.status === 3 ? 'crit' : 'warn')}>
+                        {order.status === 0 ? 'Chờ' : order.status === 1 ? 'Đang thực hiện' : order.status === 2 ? 'Hoàn thành' : 'Hủy'}
+                      </StatusBadge>
+                    </div>
+                    {(order.services || []).map((item, j) => (
+                      <div key={item.id || j} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderTop: j > 0 ? '1px solid var(--line-soft)' : undefined }}>
+                        <span>{item.serviceName || item.serviceCode}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>×{item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </DrawerShell>
+        </>
       )}
 
       {/* ── Tab: Hội chẩn (issue #2 — list/tạo/hoàn thành/in, BE mig 99) ── */}
@@ -630,9 +723,22 @@ const InpatientV2: React.FC = () => {
                 diagnosis: detail.mainDiagnosis,
               }}
             />
+            {/* ── Tạm ứng ── */}
+            <DepositSection
+              admissionId={detail.admissionId}
+              onRequest={() => { setDepositAdmissionId(detail.admissionId); setDepositModal(true); }}
+            />
           </div>
         )}
       </DrawerShell>
+
+      {/* Yêu cầu tạm ứng modal */}
+      <DepositRequestModal
+        open={depositModal}
+        admissionId={depositAdmissionId}
+        onClose={() => setDepositModal(false)}
+        onDone={() => { setDepositModal(false); loadData(); }}
+      />
 
       <AdmitModal
         open={admitOpen}
@@ -1095,6 +1201,131 @@ const BirthCertFormModal: React.FC<{
         </IpFld>
         <IpFld label="Họ tên cha" full>
           <Input value={fatherFullName} onChange={(e) => setFatherFullName(e.target.value)} />
+        </IpFld>
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ──────────────────────────────────────────────────────────
+   DepositSection — hiển thị danh sách tạm ứng của đợt điều trị
+   Load lazy khi mount. Nút "Yêu cầu tạm ứng" → mở DepositRequestModal.
+   ────────────────────────────────────────────────────────── */
+const DepositSection: React.FC<{ admissionId: string; onRequest: () => void }> = ({ admissionId, onRequest }) => {
+  const [deposits, setDeposits] = useState<DepositRequestDto[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!admissionId) return;
+    setLoading(true);
+    getDepositRequests()
+      .then((r) => {
+        const all = Array.isArray(r) ? r : (Array.isArray((r as { data?: unknown[] }).data) ? (r as { data: DepositRequestDto[] }).data : []);
+        setDeposits(all.filter((d: DepositRequestDto) => d.admissionId === admissionId));
+      })
+      .catch(() => setDeposits([]))
+      .finally(() => setLoading(false));
+  }, [admissionId]);
+
+  const total = deposits.reduce((s, d) => s + (d.requestedAmount || 0), 0);
+
+  return (
+    <div style={{ margin: 'var(--space-16) 0 0', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-10) var(--space-14)', background: 'var(--d-2)', borderBottom: deposits.length ? '1px solid var(--line)' : undefined }}>
+        <span style={{ fontWeight: 700, fontSize: 'var(--fs-sm)' }}>Tạm ứng</span>
+        <div style={{ display: 'flex', gap: 'var(--space-8)', alignItems: 'center' }}>
+          {total > 0 && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--a-gr)' }}>{fmtVND(total)}</span>}
+          <ActBtn ic="plus" title="Yêu cầu tạm ứng" onClick={onRequest} />
+        </div>
+      </div>
+      {loading && <div style={{ padding: 12, color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>Đang tải…</div>}
+      {!loading && deposits.length === 0 && (
+        <div style={{ padding: 12, color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>Chưa có tạm ứng</div>
+      )}
+      {deposits.map((d) => (
+        <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-8) var(--space-14)', borderTop: '1px solid var(--line-soft)' }}>
+          <div>
+            <div style={{ fontSize: 'var(--fs-sm)' }}>{fmtVND(d.requestedAmount)}</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{d.reason || 'Tạm ứng viện phí'} · {fmtDMY(d.requestDate)}</div>
+          </div>
+          <StatusBadge tone={d.status === 1 ? 'ok' : d.status === 2 ? 'crit' : 'warn'}>
+            {d.statusName || (d.status === 0 ? 'Chờ duyệt' : d.status === 1 ? 'Đã thu' : 'Từ chối')}
+          </StatusBadge>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/* ──────────────────────────────────────────────────────────
+   DepositRequestModal — Tạo yêu cầu tạm ứng
+   API: createDepositRequest({ admissionId, requestedAmount, reason? })
+   ────────────────────────────────────────────────────────── */
+const DepositRequestModal: React.FC<{
+  open: boolean;
+  admissionId: string;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, admissionId, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [amount, setAmount] = useState<number | null>(null);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) { setAmount(null); setReason(''); }
+  }, [open]);
+
+  const submit = async () => {
+    if (!amount || amount <= 0) { message.warning('Nhập số tiền tạm ứng'); return; }
+    if (!admissionId) { message.warning('Không tìm thấy đợt điều trị'); return; }
+    setBusy(true);
+    try {
+      const dto: CreateDepositRequestDto = { admissionId, requestedAmount: amount, reason: reason.trim() || undefined };
+      await createDepositRequest(dto);
+      message.success('Đã gửi yêu cầu tạm ứng');
+      onDone();
+    } catch {
+      message.error('Gửi yêu cầu thất bại');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="sm"
+      title="Yêu cầu tạm ứng"
+      footer={(
+        <>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="primary" disabled={busy} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang gửi…' : 'Gửi yêu cầu'}
+          </Btn>
+        </>
+      )}
+    >
+      <div style={{ padding: 'var(--space-16)', display: 'flex', flexDirection: 'column', gap: 'var(--space-12)' }}>
+        <IpFld label="Số tiền tạm ứng (VND) *">
+          <InputNumber
+            value={amount}
+            onChange={(v) => setAmount(v)}
+            style={{ width: '100%' }}
+            placeholder="VD: 2000000"
+            min={0}
+            formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+            parser={(v) => Number((v || '').replace(/,/g, ''))}
+          />
+        </IpFld>
+        <IpFld label="Lý do / ghi chú">
+          <Input.TextArea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={2}
+            placeholder="VD: Tạm ứng chi phí phẫu thuật, thuốc đặc trị…"
+          />
         </IpFld>
       </div>
     </ModalShell>

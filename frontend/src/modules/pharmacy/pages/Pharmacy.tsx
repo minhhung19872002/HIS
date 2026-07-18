@@ -426,9 +426,21 @@ const PharmacyV2: React.FC = () => {
               ) : ''}
               sub={rxSel ? `${rxSel.doctorName} · ${rxSel.department} · ${fmtDT(rxSel.createdDate)}` : ''}
               footer={rxSel ? (
-                <Btn icon="print" loading={printLoad === rxSel.id} onClick={() => onPrintLabel(rxSel)}>
-                  In phiếu cấp phát
-                </Btn>
+                <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  {rxSel.status === 'pending' && (
+                    <Btn variant="default" onClick={() => { onAccept(rxSel); setRxSel(null); }}>
+                      <TermIcon name="check" size={12} /> Nhận đơn
+                    </Btn>
+                  )}
+                  {(rxSel.status === 'accepted' || rxSel.status === 'dispensing') && (
+                    <Btn variant="primary" onClick={() => { onComplete(rxSel); setRxSel(null); }}>
+                      <TermIcon name="check-circle" size={12} /> Cấp phát
+                    </Btn>
+                  )}
+                  <Btn loading={printLoad === rxSel.id} onClick={() => onPrintLabel(rxSel)}>
+                    <TermIcon name="printer" size={12} /> In phiếu
+                  </Btn>
+                </div>
               ) : undefined}
             >
               {rxSel && <RxDrawerBody r={rxSel} />}
