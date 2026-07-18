@@ -28,6 +28,7 @@
 | estimation rubric (XS-XL · P0-P3 · risk) | `workflow/project-rules.md` §7 | link |
 | rollback / recovery | `workflow/project-rules.md` §6 | link |
 | pipeline I/O contract + state-store = Issue body | `workflow/workflow.md` §2 | agent prompts only link |
+| per-task DoD-checklist lifecycle (materialize at CREATE · tick `- [ ]`→`- [x]` as you go · self-verify re-check before READY_FOR_PUSH · TodoWrite live-mirror) | `workflow/dod-checklist.md` | link; item SOURCE = `workflow/checklist.md` · state-store = Issue body → `workflow.md` §2 · status lifecycle → `workflow/task.md` · scaffold → `.github/ISSUE_TEMPLATE/task.md` |
 | skill naming token (his-`<token>`-) | `SKILL-MAP` §0 | |
 | agent slug ↔ display-name | `agents/ai-project-orchestrator.md` (AVAILABLE...) + `workflow.md` §1 | |
 | file-placement (report→workspace-docs; backlog→GitHub Issues) | `SKILL-MAP` §0a + `CLAUDE.md` | |

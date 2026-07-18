@@ -53,6 +53,7 @@ risk_level:         # Critical|High|Medium|Low
 agent_sequence:     # the chosen agent flow (the smallest-safe flow)
 verification_required:  # lint? typecheck? build? unit? integration? e2e?
 completion_criteria:    # measurable — when it counts as done
+dod_checklist:          # the `## ✅ DoD checklist` (- [ ] items) rendered into the Issue body; tick as you go + self-verify before READY_FOR_PUSH → dod-checklist.md
 
 # ── [2] PLANNER — ANALYZE + PLAN ──────────────────────
 impact:

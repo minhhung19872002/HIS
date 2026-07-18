@@ -6,6 +6,9 @@
 >
 > Applied at steps **5·VERIFY** + **6·REVIEW** + **7·COMPLETE** of [`workflow.md`](workflow.md). Items marked **🔴 = absolute
 > P0** (a violation blocks DONE).
+>
+> **This is the SOURCE of items.** The **per-task INSTANCE** (a concrete `## ✅ DoD checklist` materialized in the
+> Issue body, ticked `- [x]` as work completes, self-verified with evidence before READY_FOR_PUSH) → [`dod-checklist.md`](dod-checklist.md).
 
 ---
 

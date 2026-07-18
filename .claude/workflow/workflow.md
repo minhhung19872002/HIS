@@ -105,6 +105,7 @@ Missing any item → **do NOT code**; go back to Router/Planner or STOP and ask 
   - `agent_sequence` (the chosen agent flow — the smallest-safe flow)
   - `verification_required` (which lint/typecheck/build/test are mandatory)
   - `completion_criteria` (measurable)
+  - **`dod_checklist`** — materialize a `## ✅ DoD checklist` (`- [ ]` items) into the Issue body from `completion_criteria` + the applicable 🔴 [`checklist.md`](checklist.md) items + non-goals → [`dod-checklist.md`](dod-checklist.md) §1. Mirror to TodoWrite.
 - **GATE:** ambiguous → STOP and ask (`core-requirement-clarify`); do NOT guess.
 
 ### [2] Planner
@@ -146,7 +147,8 @@ Missing any item → **do NOT code**; go back to Router/Planner or STOP and ask 
   - `remaining_risks` (+ owner)
   - `rollback_notes`
   - `next_actions` (prioritized)
-  - `status` → `READY_FOR_PUSH` (do NOT auto-push — SKILL-MAP §0c) → after the user pushes: `DONE` + `gh issue close`.
+  - **DoD self-verify pass (🔴 before READY_FOR_PUSH):** re-check EVERY `dod_checklist` item — PASS + evidence (`file:line` / fresh command output) or leave unchecked = NOT done; any 🔴 unchecked → stay IN_PROGRESS → [`dod-checklist.md`](dod-checklist.md) §3.
+  - `status` → `READY_FOR_PUSH` (do NOT auto-push — SKILL-MAP §0c) → after the user pushes: `DONE` + `gh issue close` (every DoD box `- [x]`).
 
 ---
 
@@ -212,6 +214,6 @@ A serious prod bug (service down / data corruption / security leak) → a **redu
 
 ## 7. Links
 - Skill routing: [`../SKILL-MAP.md`](../SKILL-MAP.md) — **read first** for every code task.
-- State-store template: [`task.md`](task.md) · Checklist: [`checklist.md`](checklist.md)
+- State-store template: [`task.md`](task.md) · Checklist gate: [`checklist.md`](checklist.md) · Per-task DoD lifecycle (materialize·tick·self-verify): [`dod-checklist.md`](dod-checklist.md)
 - Conventions · git · **rollback** · **estimation**: [`project-rules.md`](project-rules.md)
 - Architecture decision log: [`ai-memory.md`](ai-memory.md) · Requirement coverage: [`requirement-coverage.md`](requirement-coverage.md)
