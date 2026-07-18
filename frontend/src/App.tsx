@@ -3,6 +3,7 @@ import viVN from 'antd/locale/vi_VN';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import AppRouter from './router/AppRouter';
 import { getAntdTheme } from './config/theme.config';
+import ErrorBoundary from './components/feedback/ErrorBoundary';
 import './App.css';
 
 const ThemedApp: React.FC = () => {
@@ -19,9 +20,11 @@ const ThemedApp: React.FC = () => {
 
 function App() {
   return (
-    <ThemeProvider>
-      <ThemedApp />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <ThemedApp />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

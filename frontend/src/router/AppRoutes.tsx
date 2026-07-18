@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet, useParams } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import { Spin } from 'antd';
 import { useAuth } from '../hooks/useAuth';
@@ -10,12 +10,20 @@ import { HomeEntry } from './LayoutResolver';
 import { v2Routes } from './routeConfigs';
 import { RequirePermission } from './guards';
 import { ModuleIndex } from './lazy/common.lazy';
+import NotFound from './guards/NotFound';
+import { HttpError } from '../components/shared/HttpError';
 import {
   InspectorPortalStandalone,
   PatientPortalSelfLogin,
   PatientPortalMobileApp,
   DoctorPortalMobileApp,
 } from './lazy/auth.lazy';
+
+// Trang lỗi generic cho /v2/error/:code
+const HttpErrorPage = () => {
+  const { code } = useParams<{ code: string }>();
+  return <HttpError code={code ? parseInt(code, 10) : undefined} />;
+};
 
 // Layout v2 (Terminal) shell wrapping /v2/* routes.
 const TerminalLayout = lazy(() => import('../components/layout/terminal/TerminalLayout'));
@@ -339,7 +347,8 @@ const AppRoutes: React.FC = () => {
                 />
               );
             })}
-            <Route path="*" element={<Navigate to="/v2/dashboard" replace />} />
+            <Route path="error/:code" element={<HttpErrorPage />} />
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Route>
         {/* Standalone routes - không thuộc layout chính */}
@@ -347,7 +356,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/patient-portal" element={<PatientPortalSelfLogin />} />
         <Route path="/m/patient-portal" element={<ProtectedRoute><PatientPortalMobileApp /></ProtectedRoute>} />
         <Route path="/m/doctor-portal" element={<ProtectedRoute><DoctorPortalMobileApp /></ProtectedRoute>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
   );

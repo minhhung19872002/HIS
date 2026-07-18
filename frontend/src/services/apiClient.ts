@@ -116,8 +116,18 @@ apiClient.interceptors.response.use(
         }
       }
     }
+    // 503 = bảo trì → gửi sự kiện để layout có thể hiện banner/overlay
+    if (error.response?.status === 503) {
+      window.dispatchEvent(new CustomEvent('his:maintenance', { detail: { retry: error.config?.url } }));
+    }
     return Promise.reject(error);
   }
 );
 
 export default apiClient;
+
+/**
+ * httpErrorMessage — chuỗi tiếng Việt mô tả lỗi HTTP cho toast/thông báo.
+ * Import tại điểm hiển thị lỗi để hiện message thay vì status code trần.
+ */
+export { httpErrorMessage } from '../components/shared/HttpError';
