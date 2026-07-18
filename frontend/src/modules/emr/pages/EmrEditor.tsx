@@ -19,9 +19,15 @@ import apiClient from '../../../services/apiClient';
 import { generateCdaDocument } from '../api/cda';
 import {
   getAttachments, uploadAttachment, downloadAttachment, deleteAttachment,
-  getCompletenessCheck,
-  type EmrDocumentAttachmentDto, type EmrCompletenessDto,
+  getCompletenessCheck, getAmendments,
+  type EmrDocumentAttachmentDto, type EmrCompletenessDto, type EmrAmendmentDto,
 } from '../api/emrAdmin';
+import {
+  getPartographRecords, savePartographRecord, deletePartographRecord,
+  getAnesthesiaRecords, saveAnesthesiaRecord, deleteAnesthesiaRecord,
+  type PartographRecordDto, type PartographSaveDto,
+  type AnesthesiaRecordDto, type AnesthesiaSaveDto,
+} from '../api/clinicalRecord';
 import EmrSigningChainDrawer from '../../../pages-v2/shared/EmrSigningChainDrawer';
 import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
 import {
@@ -39,7 +45,7 @@ import ClinicalTemplatePicker from '../../patient/components/ClinicalTemplatePic
 import { TEMPLATE_TYPES } from '../../patient/api/clinicalTemplate';
 import '../../../components/layout/terminal/ed-responsive.css';
 
-type TabKey = 'record' | 'history' | 'treatment' | 'consult' | 'nursing' | 'reaction' | 'partograph' | 'attach';
+type TabKey = 'record' | 'history' | 'treatment' | 'consult' | 'nursing' | 'reaction' | 'partograph' | 'anesthesia' | 'amendment' | 'attach';
 const TABS: TopTab<TabKey>[] = [
   { v: 'record', l: 'Hồ sơ BA', ic: 'folder' },
   { v: 'history', l: 'Lịch sử khám', ic: 'clock' },
@@ -48,6 +54,8 @@ const TABS: TopTab<TabKey>[] = [
   { v: 'nursing', l: 'Chăm sóc ĐD', ic: 'heart' },
   { v: 'reaction', l: 'Phản ứng thuốc', ic: 'alert' },
   { v: 'partograph', l: 'Biểu đồ chuyển dạ', ic: 'activity' },
+  { v: 'anesthesia', l: 'Phiếu gây mê', ic: 'zap' },
+  { v: 'amendment', l: 'Nhật ký sửa BA', ic: 'edit-3' },
   { v: 'attach', l: 'Đính kèm', ic: 'file-text' },
 ];
 
@@ -125,6 +133,21 @@ const EmrEditorV2: React.FC = () => {
   // Multi-select in tờ điều trị
   const [selectedTreatIds, setSelectedTreatIds] = useState<Set<string>>(new Set());
   const [printingAllTreat, setPrintingAllTreat] = useState(false);
+
+  // ── Partograph state ─────────────────────────────────────────────
+  const [partographs, setPartographs] = useState<PartographRecordDto[]>([]);
+  const [ptgOpen, setPtgOpen] = useState(false);
+  const [ptgForm, setPtgForm] = useState<Partial<PartographSaveDto>>({});
+  const [ptgSaving, setPtgSaving] = useState(false);
+
+  // ── Anesthesia state ─────────────────────────────────────────────
+  const [anesRecords, setAnesRecords] = useState<AnesthesiaRecordDto[]>([]);
+  const [anesOpen, setAnesOpen] = useState(false);
+  const [anesForm, setAnesForm] = useState<Partial<AnesthesiaSaveDto>>({});
+  const [anesSaving, setAnesSaving] = useState(false);
+
+  // ── Amendment audit-log ──────────────────────────────────────────
+  const [amendments, setAmendments] = useState<EmrAmendmentDto[]>([]);
 
   const openCreate = (kind: 'treatment' | 'consult' | 'nursing') => {
     if (!examId) { tw('Chưa có lần khám để thêm phiếu'); return; }
@@ -272,6 +295,42 @@ const EmrEditorV2: React.FC = () => {
       tk('Đã tạo phiếu'); setModal(null);
     } catch { te('Tạo phiếu thất bại'); }
     finally { setSavingForm(false); }
+  };
+
+  // ── Partograph / Anesthesia / Amendments — load when record selected ──────
+  useEffect(() => {
+    if (!sel?.patientId) { setPartographs([]); setAnesRecords([]); setAmendments([]); return; }
+    const admId = sel.medicalRecordId || '';
+    if (admId) getPartographRecords(admId).then((r) => setPartographs(Array.isArray(r.data) ? r.data : [])).catch(() => setPartographs([]));
+    else setPartographs([]);
+    getAnesthesiaRecords(sel.patientId).then((r) => setAnesRecords(Array.isArray(r.data) ? r.data : [])).catch(() => setAnesRecords([]));
+    if (sel.medicalRecordId) getAmendments(sel.medicalRecordId).then(setAmendments).catch(() => setAmendments([]));
+  }, [sel?.patientId, sel?.medicalRecordId]);
+
+  const savePartograph = async () => {
+    const admId = sel?.medicalRecordId || '';
+    if (!sel || !admId) { tw('HSBA này không có phiếu nội trú để ghi biểu đồ'); return; }
+    if (!ptgForm.recordTime) { tw('Chọn thời điểm ghi'); return; }
+    setPtgSaving(true);
+    try {
+      await savePartographRecord({ ...ptgForm, admissionId: admId, patientId: sel.patientId, patientName: sel.patientName } as PartographSaveDto);
+      tk('Đã lưu điểm biểu đồ chuyển dạ');
+      setPtgOpen(false); setPtgForm({});
+      const r = await getPartographRecords(admId); setPartographs(Array.isArray(r.data) ? r.data : []);
+    } catch { te('Lưu thất bại'); }
+    finally { setPtgSaving(false); }
+  };
+
+  const saveAnesthesia = async () => {
+    if (!sel || !anesForm.anesthesiaType) { tw('Nhập loại gây mê'); return; }
+    setAnesSaving(true);
+    try {
+      await saveAnesthesiaRecord({ ...anesForm, surgeryId: anesForm.surgeryId || sel.medicalRecordId || '', patientId: sel.patientId, patientName: sel.patientName, asaClass: anesForm.asaClass || 1, mallampatiScore: anesForm.mallampatiScore || 1, anesthesiaType: anesForm.anesthesiaType || '', status: anesForm.status || 0, monitors: [], drugs: [], fluids: [] } as AnesthesiaSaveDto);
+      tk('Đã lưu phiếu gây mê');
+      setAnesOpen(false); setAnesForm({});
+      const r = await getAnesthesiaRecords(sel.patientId); setAnesRecords(Array.isArray(r.data) ? r.data : []);
+    } catch { te('Lưu thất bại'); }
+    finally { setAnesSaving(false); }
   };
 
   // ── Attachments (B3.4 so hoa HSBA — upload bytes vao DB blob) ─────
@@ -654,11 +713,105 @@ const EmrEditorV2: React.FC = () => {
               )}
 
               {tab === 'partograph' && (
-                <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-14)' }}>
-                  <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-sm)' }}>Biểu đồ chuyển dạ (Partograph)</h4>
-                  <div style={{ height: 320, background: 'var(--d-1)', borderRadius: 'var(--r-2)', display: 'grid', placeItems: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 'var(--space-16)' }}>
-                    Biểu đồ partograph (độ mở CTC · ngôi · tim thai · cơn co) — chỉ áp dụng HSBA sản khoa.
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-10)' }}>
+                    <h4 style={{ margin: 0, fontSize: 'var(--fs-sm)', flex: 1 }}>Biểu đồ chuyển dạ</h4>
+                    <Btn variant="primary" disabled={!sel?.medicalRecordId} onClick={() => { setPtgForm({ recordTime: new Date().toISOString().slice(0, 16) }); setPtgOpen(true); }}>
+                      <TermIcon name="plus" size={12} /> Thêm điểm
+                    </Btn>
                   </div>
+                  {!sel?.medicalRecordId && <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)', marginBottom: 'var(--space-10)' }}>Chỉ áp dụng cho HSBA có phiếu nội trú sản khoa.</div>}
+                  <DataTable<PartographRecordDto>
+                    columns={[
+                      { key: 'recordTime', label: 'Thời điểm', render: (r) => fmtDTg(r.recordTime) },
+                      { key: 'cervicalDilation', label: 'Mở CTC (cm)', render: (r) => r.cervicalDilation ?? '—' },
+                      { key: 'fetalHeartRate', label: 'Tim thai (ck/p)', render: (r) => r.fetalHeartRate ?? '—' },
+                      { key: 'contractionFrequency', label: 'Cơn co (ck/10p)', render: (r) => r.contractionFrequency ?? '—' },
+                      { key: 'maternalPulse', label: 'Mạch mẹ', render: (r) => r.maternalPulse ?? '—' },
+                      { key: 'systolicBP', label: 'HA (mmHg)', render: (r) => r.systolicBP ? `${r.systolicBP}/${r.diastolicBP ?? '?'}` : '—' },
+                      { key: 'alertLine', label: 'Cảnh báo', render: (r) => r.alertLine ? <StatusBadge tone={r.alertLine === 'Action' ? 'crit' : r.alertLine === 'Alert' ? 'warn' : 'ok'}>{r.alertLineLabel || r.alertLine}</StatusBadge> : '—' },
+                      { key: 'notes', label: 'Ghi chú', render: (r) => r.notes || '—' },
+                    ] as ColumnDef<PartographRecordDto>[]}
+                    data={partographs}
+                    rowKey={(r) => r.id}
+                    empty="Chưa có dữ liệu biểu đồ chuyển dạ"
+                    actions={(r) => (
+                      <div className="ab-actions">
+                        <ActBtn ic="trash" title="Xóa" tone="crit" onClick={async () => {
+                          await deletePartographRecord(r.id);
+                          setPartographs((p) => p.filter((x) => x.id !== r.id));
+                          tk('Đã xóa');
+                        }} />
+                      </div>
+                    )}
+                  />
+                </div>
+              )}
+
+              {tab === 'anesthesia' && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-10)' }}>
+                    <h4 style={{ margin: 0, fontSize: 'var(--fs-sm)', flex: 1 }}>Phiếu gây mê · gây tê</h4>
+                    <Btn variant="primary" onClick={() => { setAnesForm({ asaClass: 1, mallampatiScore: 1, status: 0, anesthesiaType: 'GeneralAnesthesia' }); setAnesOpen(true); }}>
+                      <TermIcon name="plus" size={12} /> Tạo phiếu
+                    </Btn>
+                  </div>
+                  <DataTable<AnesthesiaRecordDto>
+                    columns={[
+                      { key: 'createdAt', label: 'Ngày', render: (r) => r.createdAt ? fmtDTg(r.createdAt) : '—' },
+                      { key: 'anesthesiaType', label: 'Loại gây mê' },
+                      { key: 'asaClass', label: 'ASA', render: (r) => `ASA ${r.asaClass}` },
+                      { key: 'mallampatiScore', label: 'Mallampati', render: (r) => `M${r.mallampatiScore}` },
+                      { key: 'status', label: 'Trạng thái', render: (r) => <StatusBadge tone={r.status === 2 ? 'ok' : r.status === 1 ? 'warn' : 'info'}>{r.statusLabel || String(r.status)}</StatusBadge> },
+                      { key: 'createdBy', label: 'BS gây mê', render: (r) => r.createdBy || '—' },
+                    ] as ColumnDef<AnesthesiaRecordDto>[]}
+                    data={anesRecords}
+                    rowKey={(r) => r.id}
+                    empty="Chưa có phiếu gây mê"
+                    actions={(r) => (
+                      <div className="ab-actions">
+                        <ActBtn ic="trash" title="Xóa" tone="crit" onClick={async () => {
+                          await deleteAnesthesiaRecord(r.id);
+                          setAnesRecords((p) => p.filter((x) => x.id !== r.id));
+                          tk('Đã xóa phiếu gây mê');
+                        }} />
+                      </div>
+                    )}
+                  />
+                </div>
+              )}
+
+              {tab === 'amendment' && (
+                <div>
+                  <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-sm)' }}>Nhật ký sửa đổi bệnh án</h4>
+                  {amendments.length === 0
+                    ? <div style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Chưa có lần chỉnh sửa nào được ghi nhận</div>
+                    : (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '2px solid var(--line)', textAlign: 'left' }}>
+                            <th style={{ padding: '6px 8px', color: 'var(--t-2)', fontWeight: 600 }}>Thời gian</th>
+                            <th style={{ padding: '6px 8px', color: 'var(--t-2)', fontWeight: 600 }}>Thao tác</th>
+                            <th style={{ padding: '6px 8px', color: 'var(--t-2)', fontWeight: 600 }}>Lý do</th>
+                            <th style={{ padding: '6px 8px', color: 'var(--t-2)', fontWeight: 600 }}>Người thực hiện</th>
+                            <th style={{ padding: '6px 8px', color: 'var(--t-2)', fontWeight: 600 }}>Phiên bản</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {amendments.map((a) => (
+                            <tr key={a.id} style={{ borderBottom: '1px solid var(--line-soft)' }}>
+                              <td style={{ padding: '6px 8px', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{fmtDTg(a.performedAt)}</td>
+                              <td style={{ padding: '6px 8px' }}>
+                                <StatusBadge tone={a.action === 1 ? 'ok' : a.action === 2 ? 'warn' : 'info'}>{a.actionName}</StatusBadge>
+                              </td>
+                              <td style={{ padding: '6px 8px', color: 'var(--t-1)', maxWidth: 240 }}>{a.reason || '—'}</td>
+                              <td style={{ padding: '6px 8px' }}>{a.performedByName || a.performedBy}</td>
+                              <td style={{ padding: '6px 8px', fontFamily: 'var(--font-mono)' }}>v{a.versionNo}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
                 </div>
               )}
 
@@ -928,6 +1081,113 @@ const EmrEditorV2: React.FC = () => {
             <FormField lbl="Can thiệp"><textarea className="ed-fld" rows={2} value={form.nursingInterventions || ''} onChange={(e) => fld('nursingInterventions', e.target.value)} /></FormField>
             <FormField lbl="Đáp ứng"><textarea className="ed-fld" rows={2} value={form.patientResponse || ''} onChange={(e) => fld('patientResponse', e.target.value)} /></FormField>
           </>}
+        </div>
+      </ModalShell>
+
+      {/* Partograph add-point modal */}
+      <ModalShell
+        open={ptgOpen}
+        onClose={() => setPtgOpen(false)}
+        title="Ghi điểm biểu đồ chuyển dạ"
+        footer={
+          <>
+            <Btn variant="ghost" onClick={() => setPtgOpen(false)}>Hủy</Btn>
+            <Btn variant="primary" disabled={ptgSaving} onClick={savePartograph}>
+              {ptgSaving ? 'Đang lưu…' : 'Lưu'}
+            </Btn>
+          </>
+        }
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)' }}>
+          <FormField lbl="Thời điểm *">
+            <input type="datetime-local" className="ed-fld" value={ptgForm.recordTime || ''} onChange={(e) => setPtgForm((p) => ({ ...p, recordTime: e.target.value }))} />
+          </FormField>
+          <FormField lbl="Mở CTC (cm)">
+            <input type="number" className="ed-fld" min={0} max={10} step={0.5} value={ptgForm.cervicalDilation ?? ''} onChange={(e) => setPtgForm((p) => ({ ...p, cervicalDilation: e.target.value ? +e.target.value : undefined }))} />
+          </FormField>
+          <FormField lbl="Tim thai (ck/phút)">
+            <input type="number" className="ed-fld" min={60} max={200} value={ptgForm.fetalHeartRate ?? ''} onChange={(e) => setPtgForm((p) => ({ ...p, fetalHeartRate: e.target.value ? +e.target.value : undefined }))} />
+          </FormField>
+          <FormField lbl="Cơn co (ck/10p)">
+            <input type="number" className="ed-fld" min={0} max={10} value={ptgForm.contractionFrequency ?? ''} onChange={(e) => setPtgForm((p) => ({ ...p, contractionFrequency: e.target.value ? +e.target.value : undefined }))} />
+          </FormField>
+          <FormField lbl="Thời gian cơn co (s)">
+            <input type="number" className="ed-fld" min={0} max={90} value={ptgForm.contractionDuration ?? ''} onChange={(e) => setPtgForm((p) => ({ ...p, contractionDuration: e.target.value ? +e.target.value : undefined }))} />
+          </FormField>
+          <FormField lbl="HA tâm thu (mmHg)">
+            <input type="number" className="ed-fld" value={ptgForm.systolicBP ?? ''} onChange={(e) => setPtgForm((p) => ({ ...p, systolicBP: e.target.value ? +e.target.value : undefined }))} />
+          </FormField>
+          <FormField lbl="HA tâm trương (mmHg)">
+            <input type="number" className="ed-fld" value={ptgForm.diastolicBP ?? ''} onChange={(e) => setPtgForm((p) => ({ ...p, diastolicBP: e.target.value ? +e.target.value : undefined }))} />
+          </FormField>
+          <FormField lbl="Mạch mẹ (ck/phút)">
+            <input type="number" className="ed-fld" value={ptgForm.maternalPulse ?? ''} onChange={(e) => setPtgForm((p) => ({ ...p, maternalPulse: e.target.value ? +e.target.value : undefined }))} />
+          </FormField>
+          <FormField lbl="Cảnh báo">
+            <select className="ed-fld" value={ptgForm.alertLine || ''} onChange={(e) => setPtgForm((p) => ({ ...p, alertLine: e.target.value || undefined }))}>
+              <option value="">Bình thường</option>
+              <option value="Alert">Cảnh báo</option>
+              <option value="Action">Cần xử trí</option>
+            </select>
+          </FormField>
+          <FormField lbl="Nước ối">
+            <input className="ed-fld" value={ptgForm.amnioticFluid || ''} onChange={(e) => setPtgForm((p) => ({ ...p, amnioticFluid: e.target.value || undefined }))} placeholder="I/M/A..." />
+          </FormField>
+          <FormField lbl="Ghi chú">
+            <input className="ed-fld" value={ptgForm.notes || ''} onChange={(e) => setPtgForm((p) => ({ ...p, notes: e.target.value || undefined }))} />
+          </FormField>
+        </div>
+      </ModalShell>
+
+      {/* Anesthesia create modal */}
+      <ModalShell
+        open={anesOpen}
+        onClose={() => setAnesOpen(false)}
+        title="Tạo phiếu gây mê · gây tê"
+        footer={
+          <>
+            <Btn variant="ghost" onClick={() => setAnesOpen(false)}>Hủy</Btn>
+            <Btn variant="primary" disabled={anesSaving} onClick={saveAnesthesia}>
+              {anesSaving ? 'Đang lưu…' : 'Lưu phiếu'}
+            </Btn>
+          </>
+        }
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)' }}>
+          <FormField lbl="Loại gây mê *">
+            <select className="ed-fld" value={anesForm.anesthesiaType || ''} onChange={(e) => setAnesForm((p) => ({ ...p, anesthesiaType: e.target.value }))}>
+              <option value="GeneralAnesthesia">Gây mê toàn thân</option>
+              <option value="SpinalAnesthesia">Tê tủy sống</option>
+              <option value="EpiduralAnesthesia">Gây tê ngoài màng cứng</option>
+              <option value="LocalAnesthesia">Gây tê tại chỗ</option>
+              <option value="RegionalAnesthesia">Gây tê vùng</option>
+            </select>
+          </FormField>
+          <FormField lbl="Phân loại ASA">
+            <select className="ed-fld" value={anesForm.asaClass || 1} onChange={(e) => setAnesForm((p) => ({ ...p, asaClass: +e.target.value }))}>
+              {[1,2,3,4,5].map((i) => <option key={i} value={i}>ASA {i}</option>)}
+            </select>
+          </FormField>
+          <FormField lbl="Mallampati">
+            <select className="ed-fld" value={anesForm.mallampatiScore || 1} onChange={(e) => setAnesForm((p) => ({ ...p, mallampatiScore: +e.target.value }))}>
+              {[1,2,3,4].map((i) => <option key={i} value={i}>Mallampati {i}</option>)}
+            </select>
+          </FormField>
+          <FormField lbl="Trạng thái NPO">
+            <input className="ed-fld" value={anesForm.npoStatus || ''} onChange={(e) => setAnesForm((p) => ({ ...p, npoStatus: e.target.value || undefined }))} placeholder="Nhịn ăn từ..." />
+          </FormField>
+          <FormField lbl="Dị ứng">
+            <input className="ed-fld" value={anesForm.allergies || ''} onChange={(e) => setAnesForm((p) => ({ ...p, allergies: e.target.value || undefined }))} />
+          </FormField>
+          <FormField lbl="Kế hoạch đường thở">
+            <input className="ed-fld" value={anesForm.airwayPlan || ''} onChange={(e) => setAnesForm((p) => ({ ...p, airwayPlan: e.target.value || undefined }))} />
+          </FormField>
+          <FormField lbl="Đánh giá tiền mê" >
+            <textarea className="ed-fld" rows={2} value={anesForm.preOpAssessment || ''} onChange={(e) => setAnesForm((p) => ({ ...p, preOpAssessment: e.target.value || undefined }))} />
+          </FormField>
+          <FormField lbl="Đánh giá tâm lý">
+            <textarea className="ed-fld" rows={2} value={anesForm.psychologicalAssessment || ''} onChange={(e) => setAnesForm((p) => ({ ...p, psychologicalAssessment: e.target.value || undefined }))} />
+          </FormField>
         </div>
       </ModalShell>
 
