@@ -57,6 +57,7 @@ public static class DatabaseSeeder
                 new() { Id = Guid.NewGuid(), RoleCode = "RECEPTIONIST", RoleName = "Tiếp đón", Description = "Nhân viên tiếp đón" },
                 new() { Id = Guid.NewGuid(), RoleCode = "PHARMACIST", RoleName = "Dược sĩ", Description = "Dược sĩ" },
                 new() { Id = Guid.NewGuid(), RoleCode = "LAB_TECH", RoleName = "KTV Xét nghiệm", Description = "Kỹ thuật viên xét nghiệm" },
+                new() { Id = Guid.NewGuid(), RoleCode = "IMAGING_TECH", RoleName = "KTV Chẩn đoán hình ảnh", Description = "Kỹ thuật viên chẩn đoán hình ảnh (RIS/PACS)" },
                 new() { Id = Guid.NewGuid(), RoleCode = "CASHIER", RoleName = "Thu ngân", Description = "Nhân viên thu ngân" },
             };
 
@@ -120,69 +121,9 @@ public static class DatabaseSeeder
             await context.SaveChangesAsync();
         }
 
-        // Seed permissions
-        if (!await context.Permissions.AnyAsync())
-        {
-            var permissions = new List<Permission>
-            {
-                // System
-                new() { Id = Guid.NewGuid(), PermissionCode = "SYSTEM.MANAGE", PermissionName = "Quản lý hệ thống", Module = "System" },
-                new() { Id = Guid.NewGuid(), PermissionCode = "SYSTEM.CONFIG", PermissionName = "Cấu hình hệ thống", Module = "System" },
-
-                // Users
-                new() { Id = Guid.NewGuid(), PermissionCode = "USER.VIEW", PermissionName = "Xem người dùng", Module = "User" },
-                new() { Id = Guid.NewGuid(), PermissionCode = "USER.CREATE", PermissionName = "Tạo người dùng", Module = "User" },
-                new() { Id = Guid.NewGuid(), PermissionCode = "USER.EDIT", PermissionName = "Sửa người dùng", Module = "User" },
-                new() { Id = Guid.NewGuid(), PermissionCode = "USER.DELETE", PermissionName = "Xóa người dùng", Module = "User" },
-
-                // Patients
-                new() { Id = Guid.NewGuid(), PermissionCode = "PATIENT.VIEW", PermissionName = "Xem bệnh nhân", Module = "Patient" },
-                new() { Id = Guid.NewGuid(), PermissionCode = "PATIENT.CREATE", PermissionName = "Tạo bệnh nhân", Module = "Patient" },
-                new() { Id = Guid.NewGuid(), PermissionCode = "PATIENT.EDIT", PermissionName = "Sửa bệnh nhân", Module = "Patient" },
-
-                // Reception
-                new() { Id = Guid.NewGuid(), PermissionCode = "RECEPTION.VIEW", PermissionName = "Xem tiếp đón", Module = "Reception" },
-                new() { Id = Guid.NewGuid(), PermissionCode = "RECEPTION.CREATE", PermissionName = "Đăng ký khám", Module = "Reception" },
-
-                // Examination
-                new() { Id = Guid.NewGuid(), PermissionCode = "EXAM.VIEW", PermissionName = "Xem khám bệnh", Module = "Examination" },
-                new() { Id = Guid.NewGuid(), PermissionCode = "EXAM.CREATE", PermissionName = "Thực hiện khám", Module = "Examination" },
-
-                // Pharmacy
-                new() { Id = Guid.NewGuid(), PermissionCode = "PHARMACY.VIEW", PermissionName = "Xem dược", Module = "Pharmacy" },
-                new() { Id = Guid.NewGuid(), PermissionCode = "PHARMACY.DISPENSE", PermissionName = "Cấp phát thuốc", Module = "Pharmacy" },
-
-                // Laboratory
-                new() { Id = Guid.NewGuid(), PermissionCode = "LAB.VIEW", PermissionName = "Xem xét nghiệm", Module = "Laboratory" },
-                new() { Id = Guid.NewGuid(), PermissionCode = "LAB.RESULT", PermissionName = "Nhập kết quả XN", Module = "Laboratory" },
-
-                // Billing
-                new() { Id = Guid.NewGuid(), PermissionCode = "BILLING.VIEW", PermissionName = "Xem viện phí", Module = "Billing" },
-                new() { Id = Guid.NewGuid(), PermissionCode = "BILLING.COLLECT", PermissionName = "Thu phí", Module = "Billing" },
-
-                // Reports
-                new() { Id = Guid.NewGuid(), PermissionCode = "REPORT.VIEW", PermissionName = "Xem báo cáo", Module = "Report" },
-                new() { Id = Guid.NewGuid(), PermissionCode = "REPORT.EXPORT", PermissionName = "Xuất báo cáo", Module = "Report" },
-            };
-
-            await context.Permissions.AddRangeAsync(permissions);
-            await context.SaveChangesAsync();
-
-            // Assign all permissions to admin role
-            if (adminRole != null)
-            {
-                var rolePermissions = permissions.Select(p => new RolePermission
-                {
-                    Id = Guid.NewGuid(),
-                    RoleId = adminRole.Id,
-                    PermissionId = p.Id,
-                    CreatedAt = DateTime.UtcNow
-                }).ToList();
-
-                await context.RolePermissions.AddRangeAsync(rolePermissions);
-                await context.SaveChangesAsync();
-            }
-        }
+        // Permission catalog + role×permission = PermissionCatalogSeeder (canonical PascalCase, mọi startup).
+        // (AUTHZ #432) Block seed mã UPPER-CASE cũ đã GỠ ở đây — chống trùng casing; mã cũ trong DB đã có
+        // dọn bởi migration Data/Scripts/151_Dedup_Legacy_Uppercase_Permissions.sql.
 
         // AUTHZ-1 (#367): upsert PermissionCatalog code-first + ma trận Role×Permission — chạy MỌI startup
         // (idempotent; khác block trên chỉ chạy khi bảng rỗng). Lỗi seeder không chặn startup.

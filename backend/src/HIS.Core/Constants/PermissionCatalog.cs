@@ -91,6 +91,35 @@ public static class PermissionCatalog
         public const string Export = "Report.Export";
     }
 
+    // AUTHZ #432: resource bổ sung để cô lập route theo actor (Reception/Surgery/Radiology/Insurance).
+    public static class Reception
+    {
+        public const string Read = "Reception.Read";
+        public const string Update = "Reception.Update";
+    }
+
+    public static class Surgery
+    {
+        public const string Read = "Surgery.Read";
+        public const string Create = "Surgery.Create";
+        public const string Update = "Surgery.Update";
+    }
+
+    public static class Radiology
+    {
+        public const string Read = "Radiology.Read";
+        public const string Create = "Radiology.Create";
+        public const string Report = "Radiology.Report";
+        public const string Approve = "Radiology.Approve";
+    }
+
+    public static class Insurance
+    {
+        public const string Read = "Insurance.Read";
+        public const string Submit = "Insurance.Submit";
+        public const string Approve = "Insurance.Approve";
+    }
+
     /// <summary>Định nghĩa 1 permission cho seeder (mã · tên VN · module · nhạy cảm — audit đậm hơn ở AUTHZ-5).</summary>
     public sealed record PermissionDef(string Code, string Name, string Module, bool IsSensitive = false);
 
@@ -145,5 +174,19 @@ public static class PermissionCatalog
 
         new(Report.Read,           "Xem báo cáo",                "Report"),
         new(Report.Export,         "Xuất báo cáo",               "Report"),
+
+        // AUTHZ #432
+        new(Reception.Read,        "Xem tiếp đón",               "Reception"),
+        new(Reception.Update,      "Cập nhật tiếp đón",          "Reception"),
+        new(Surgery.Read,          "Xem phẫu thuật",             "Surgery"),
+        new(Surgery.Create,        "Lên lịch phẫu thuật",        "Surgery"),
+        new(Surgery.Update,        "Cập nhật phẫu thuật",        "Surgery"),
+        new(Radiology.Read,        "Xem CĐHA",                   "Radiology"),
+        new(Radiology.Create,      "Chụp/tạo ca CĐHA",           "Radiology"),
+        new(Radiology.Report,      "Đọc kết quả CĐHA",           "Radiology"),
+        new(Radiology.Approve,     "Duyệt kết quả CĐHA",         "Radiology",     IsSensitive: true),
+        new(Insurance.Read,        "Xem BHYT/BHXH",              "Insurance"),
+        new(Insurance.Submit,      "Gửi hồ sơ BHYT",             "Insurance"),
+        new(Insurance.Approve,     "Duyệt giám định BHYT",       "Insurance",     IsSensitive: true),
     };
 }

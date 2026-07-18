@@ -29,6 +29,9 @@ public static class PermissionCatalogSeeder
             PermissionCatalog.Prescription.Update, PermissionCatalog.Prescription.Cancel,
             PermissionCatalog.LabResult.Read,
             PermissionCatalog.Report.Read,
+            // #432: bác sĩ = phẫu thuật + đọc/duyệt CĐHA
+            PermissionCatalog.Surgery.Read, PermissionCatalog.Surgery.Create, PermissionCatalog.Surgery.Update,
+            PermissionCatalog.Radiology.Read, PermissionCatalog.Radiology.Report, PermissionCatalog.Radiology.Approve,
         },
         ["NURSE"] = new[]
         {
@@ -42,6 +45,8 @@ public static class PermissionCatalogSeeder
             PermissionCatalog.Patient.Read, PermissionCatalog.Patient.Create,
             PermissionCatalog.Patient.Update,
             PermissionCatalog.Billing.Read,
+            // #432: tiếp đón
+            PermissionCatalog.Reception.Read, PermissionCatalog.Reception.Update,
         },
         ["PHARMACIST"] = new[]
         {
@@ -65,11 +70,15 @@ public static class PermissionCatalogSeeder
             PermissionCatalog.MedicalRecord.Lock,
             PermissionCatalog.Report.Read, PermissionCatalog.Report.Export,
             PermissionCatalog.Patient.Read,
+            // #432: thu ngân = giám định/BHYT back-office
+            PermissionCatalog.Insurance.Read, PermissionCatalog.Insurance.Submit, PermissionCatalog.Insurance.Approve,
         },
         ["IMAGING_TECH"] = new[]
         {
             PermissionCatalog.Patient.Read,
             PermissionCatalog.Report.Read,
+            // #432: KTV CĐHA = chụp + xem CĐHA
+            PermissionCatalog.Radiology.Read, PermissionCatalog.Radiology.Create,
         },
     };
 
