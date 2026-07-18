@@ -9,7 +9,7 @@
  * createServiceOrders, completeExamination. No backend change.
  * ===================================================================== */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, fmtVNDg, tk, tw, te, ti } from '../../../pages-v2/_v2kit';
 import { SurgeryReportModal } from '../../../pages-v2/shared/SurgeryReportModal';
@@ -17,7 +17,7 @@ import { CabinetIssueModal } from '../../../pages-v2/shared/CabinetIssueModal';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import BarcodeScanner from '../../../components/form/BarcodeScanner';
 import {
-  examinationApi, createSickLeave,
+  examinationApi, createSickLeave, printSickLeave,
   getPatientLabResults, getPatientAllergies,
   getConsultationRecords, createConsultationRecord, printExaminationForm,
   requestHospitalization, requestTransfer, createAppointment,
@@ -56,6 +56,7 @@ import {
 } from './_shared';
 import { InjurySection } from './InjurySection';
 import { ClsResultsModal } from './ClsResultsModal';
+import StockReservationModal from '../../pharmacy/components/StockReservationModal';
 import { ConsultModal } from './ConsultModal';
 import { TemplateModals } from './TemplateModals';
 
@@ -77,7 +78,11 @@ const OpdEditorV2: React.FC = () => {
   const [pastHist, setPastHist] = useState('');     // → MedicalInterview.pastMedicalHistory
   const [familyHist, setFamilyHist] = useState(''); // → MedicalInterview.familyHistory
   const [allergyHist, setAllergyHist] = useState(''); // → MedicalInterview.allergyHistory
+  const [medHist, setMedHist] = useState('');         // → MedicalInterview.medicationHistory (thuốc đang dùng)
   const [allergies, setAllergies] = useState<AllergyDto[]>([]); // hồ sơ dị ứng cấu trúc (đọc)
+  const [stockOpen, setStockOpen] = useState(false);  // F10 xuất dự trù
+  const [autoSavedTs, setAutoSavedTs] = useState<number | null>(null); // auto-save timestamp
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [injuryInfo, setInjuryInfo] = useState<Partial<InjuryInfoDto>>({}); // F1.6 — khai bao TNGT
   const [exam, setExam] = useState('');             // → PhysicalExamination.generalAppearance
   const [conclusion, setConclusion] = useState(''); // → completeExamination.conclusionNotes
@@ -234,6 +239,20 @@ const OpdEditorV2: React.FC = () => {
   const bmiStr = bmi ? bmi.toFixed(1) : '—';
   const totalSvc = orders.reduce((s, o) => s + o.unitPrice * o.qty, 0);
 
+  // NEWS2 (National Early Warning Score 2) — tính từ sinh hiệu đo được
+  const news2 = useMemo(() => {
+    const { respiratoryRate: rr, spO2, systolicBP: sbp, pulse, temperature: tmp } = vitals;
+    const hasData = [rr, spO2, sbp, pulse, tmp].some((v) => v != null);
+    if (!hasData) return null;
+    let s = 0;
+    if (rr != null) s += rr <= 8 ? 3 : rr <= 11 ? 1 : rr <= 20 ? 0 : rr <= 24 ? 2 : 3;
+    if (spO2 != null) s += spO2 >= 96 ? 0 : spO2 >= 94 ? 1 : spO2 >= 92 ? 2 : 3;
+    if (sbp != null) s += sbp <= 90 ? 3 : sbp <= 100 ? 2 : sbp <= 110 ? 1 : sbp <= 219 ? 0 : 3;
+    if (pulse != null) s += pulse <= 40 ? 3 : pulse <= 50 ? 1 : pulse <= 90 ? 0 : pulse <= 110 ? 1 : pulse <= 130 ? 2 : 3;
+    if (tmp != null) s += tmp <= 35.0 ? 3 : tmp <= 36.0 ? 1 : tmp <= 38.0 ? 0 : tmp <= 39.0 ? 1 : 2;
+    return s;
+  }, [vitals]);
+
   // ── Rooms (once) ─────────────────────────────────────────────────
   useEffect(() => {
     examinationApi.getActiveExaminationRooms()
@@ -251,6 +270,28 @@ const OpdEditorV2: React.FC = () => {
       .then((r) => setDepartments(Array.isArray(r.data) ? r.data : []))
       .catch(() => setDepartments([]));
   }, []);
+
+  // ── Auto-save nháp vào localStorage (3s debounce) ───────────────
+  useEffect(() => {
+    if (!examId) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      try {
+        localStorage.setItem(`opd-as:${examId}`, JSON.stringify({ history, pastHist, familyHist, allergyHist, medHist, exam, conclusion }));
+        setAutoSavedTs(Date.now());
+      } catch { /* localStorage full — silently skip */ }
+    }, 3000);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, [examId, history, pastHist, familyHist, allergyHist, medHist, exam, conclusion]);
+
+  // ── F10: Xuất dự trù ─────────────────────────────────────────────
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'F10' && examId) { e.preventDefault(); setStockOpen(true); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [examId]);
 
   // ── Queue when room changes ──────────────────────────────────────
   const loadQueue = useCallback(async (rid: string) => {
@@ -270,8 +311,9 @@ const OpdEditorV2: React.FC = () => {
     setSelPt(q);
     setLeftOpen(false);
     // reset then load
-    setVitals({}); setHistory(''); setPastHist(''); setFamilyHist(''); setAllergyHist('');
+    setVitals({}); setHistory(''); setPastHist(''); setFamilyHist(''); setAllergyHist(''); setMedHist('');
     setAllergies([]); setInjuryInfo({}); setExam(''); setConclusion(''); setDx([]); setOrd([]);
+    setAutoSavedTs(null);
     const id = q.examinationId;
     const [v, mi, pe, dx, so, al, inj] = await Promise.allSettled([
       examinationApi.getVitalSigns(id),
@@ -293,6 +335,15 @@ const OpdEditorV2: React.FC = () => {
       setPastHist(m.pastMedicalHistory || '');
       setFamilyHist(m.familyHistory || '');
       setAllergyHist(m.allergyHistory || '');
+      setMedHist(m.medicationHistory || '');
+    }
+    // Restore auto-saved draft: only apply non-empty draft values when API returned empty
+    const draft = (() => { try { return JSON.parse(localStorage.getItem(`opd-as:${id}`) || 'null'); } catch { return null; } })();
+    if (draft) {
+      if (draft.history) setHistory((v) => v || draft.history);
+      if (draft.exam) setExam((v) => v || draft.exam);
+      if (draft.conclusion) setConclusion((v) => v || draft.conclusion);
+      if (draft.medHist) setMedHist((v) => v || draft.medHist);
     }
     if (al.status === 'fulfilled' && Array.isArray(al.value.data)) {
       setAllergies((al.value.data as AllergyDto[]).filter((a) => a.isActive !== false));
@@ -352,6 +403,7 @@ const OpdEditorV2: React.FC = () => {
         pastMedicalHistory: pastHist,
         familyHistory: familyHist,
         allergyHistory: allergyHist,
+        medicationHistory: medHist,
       }),
       examinationApi.updatePhysicalExamination(examId, { generalAppearance: exam }),
       examinationApi.updateDiagnosisList(examId, {
@@ -622,9 +674,13 @@ const OpdEditorV2: React.FC = () => {
                   </div>
                 ))}
               </div>
-              <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-6)', background: 'var(--d-1)', borderRadius: 4, fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', color: 'var(--t-2)' }}>
-                BMI = <b style={{ color: bmi == null ? 'var(--t-2)' : bmi < 18.5 ? 'var(--s-info)' : bmi > 25 ? 'var(--s-crit)' : 'var(--s-ok)' }}>{bmiStr}</b>
-                {bmi != null && <> ({bmi < 18.5 ? 'Gầy' : bmi > 25 ? 'Thừa cân' : 'Bình thường'})</>}
+              <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-6)', background: 'var(--d-1)', borderRadius: 4, fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', color: 'var(--t-2)', display: 'flex', alignItems: 'center', gap: 'var(--space-12)', flexWrap: 'wrap' }}>
+                <span>BMI = <b style={{ color: bmi == null ? 'var(--t-2)' : bmi < 18.5 ? 'var(--s-info)' : bmi > 25 ? 'var(--s-crit)' : 'var(--s-ok)' }}>{bmiStr}</b>
+                  {bmi != null && <> ({bmi < 18.5 ? 'Gầy' : bmi > 25 ? 'Thừa cân' : 'Bình thường'})</>}
+                </span>
+                {news2 != null && (
+                  <span title="National Early Warning Score 2 — ≥7: nguy cấp, 5-6: cảnh báo, 3-4: chú ý, <3: bình thường">NEWS2 = <StatusBadge tone={news2 >= 7 ? 'crit' : news2 >= 5 ? 'warn' : news2 >= 3 ? 'info' : 'ok'}>{news2}</StatusBadge></span>
+                )}
               </div>
             </section>
 
@@ -671,7 +727,7 @@ const OpdEditorV2: React.FC = () => {
                   ))}
                 </div>
               )}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-8)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 'var(--space-8)' }}>
                 <div>
                   <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Tiền sử bệnh bản thân</label>
                   <textarea value={pastHist} onChange={(e) => setPastHist(expandAbbr(e.target.value))} placeholder="Bệnh nền, phẫu thuật cũ…" style={{ width: '100%', minHeight: 56, padding: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
@@ -683,6 +739,12 @@ const OpdEditorV2: React.FC = () => {
                 <div>
                   <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Dị ứng (thuốc / thức ăn)</label>
                   <textarea value={allergyHist} onChange={(e) => setAllergyHist(expandAbbr(e.target.value))} placeholder="Thuốc, thức ăn, tác nhân dị ứng…" style={{ width: '100%', minHeight: 56, padding: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ color: 'var(--s-warn)', fontSize: 10 }}>⚠</span> Thuốc đang dùng
+                  </label>
+                  <textarea value={medHist} onChange={(e) => setMedHist(e.target.value)} placeholder="Liệt kê thuốc BN đang dùng (tên, liều, thời gian)…" style={{ width: '100%', minHeight: 56, padding: 'var(--space-8)', border: '1px solid var(--s-warn)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
                 </div>
               </div>
             </section>
@@ -778,9 +840,18 @@ const OpdEditorV2: React.FC = () => {
             <div><label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Từ ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} value={sickFrom} onChange={(e) => setSickFrom(e.target.value)} /></div>
             <div><label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Đến ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} value={sickTo} onChange={(e) => setSickTo(e.target.value)} /></div>
           </div>
-          <Btn variant="ghost" size="sm" style={{ width: '100%', marginTop: 'var(--space-8)', justifyContent: 'center' }} disabled={!sickFrom || !sickTo} onClick={saveSickLeave}>
-            <TermIcon name="file-text" size={11} /> Lưu giấy nghỉ
-          </Btn>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)', marginTop: 'var(--space-8)' }}>
+            <Btn variant="ghost" size="sm" style={{ justifyContent: 'center' }} disabled={!sickFrom || !sickTo} onClick={saveSickLeave}>
+              <TermIcon name="file-text" size={11} /> Lưu giấy nghỉ
+            </Btn>
+            <Btn variant="ghost" size="sm" style={{ justifyContent: 'center' }} disabled={!examId} onClick={async () => {
+              if (!examId) return;
+              try { const r = await printSickLeave(examId); openPdfBlob(r.data as Blob); }
+              catch { te('Không in được giấy nghỉ'); }
+            }}>
+              <TermIcon name="print" size={11} /> In giấy nghỉ
+            </Btn>
+          </div>
         </section>
 
         <div style={{ display: 'grid', gap: 'var(--space-6)' }}>
@@ -796,8 +867,17 @@ const OpdEditorV2: React.FC = () => {
             if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
             setCabinetOpen(true);
           }}><TermIcon name="package" size={12} /> Xuất tủ trực</Btn>
+          <Btn variant="ghost" onClick={() => {
+            if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
+            setStockOpen(true);
+          }}><TermIcon name="archive" size={12} /> Xuất dự trù (F10)</Btn>
           <Btn variant="ghost" onClick={printExamForm}><TermIcon name="print" size={12} /> In phiếu khám</Btn>
           <Btn variant="primary" disabled={saving} onClick={complete}><TermIcon name="check" size={12} /> Hoàn tất khám</Btn>
+          {autoSavedTs != null && (
+            <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-3)', textAlign: 'center', marginTop: 2 }}>
+              ✓ Tự lưu {Math.round((Date.now() - autoSavedTs) / 1000)}s trước
+            </div>
+          )}
         </div>
 
         {/* ── XỬ TRÍ ─────────────────────────────────────────── */}
@@ -1352,6 +1432,16 @@ const OpdEditorV2: React.FC = () => {
         patientName={selPt?.patientName}
         patientCode={selPt?.patientCode}
         examinationId={examId}
+      />
+
+      {/* F10: Xuất dự trù thuốc/VTYT */}
+      <StockReservationModal
+        open={stockOpen}
+        onClose={() => setStockOpen(false)}
+        patientId={selPt?.patientId || ''}
+        patientName={selPt?.patientName}
+        departmentId={rooms.find((r) => r.id === roomId)?.departmentId}
+        defaultType={2}
       />
 
       {/* Barcode scan → find patient in current room queue */}
