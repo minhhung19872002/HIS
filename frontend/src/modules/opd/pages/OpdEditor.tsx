@@ -1,59 +1,20 @@
-/* =====================================================================
- * OpdEditor v2 — full-screen khám ngoại trú (native v2, ab-* design)
- * Ported from design-system bundle mod-opd-editor-v2.jsx.
- * 3-col: Queue (trái) · Vitals/Bệnh sử/Khám/CĐ/CLS (giữa) · Kết luận/Actions (phải)
- * Real API (examinationApi): getActiveExaminationRooms, getRoomPatientList,
- * getVitalSigns/updateVitalSigns, getMedicalInterview/updateMedicalInterview,
- * getPhysicalExamination/updatePhysicalExamination, getDiagnoses/
- * updateDiagnosisList, searchIcdCodes, searchServices, getServiceOrders/
- * createServiceOrders, completeExamination. No backend change.
- * ===================================================================== */
+/* OpdEditor v2 — full-screen khám ngoại trú (native v2, ab-* design)
+ * State/handlers extracted to hooks/; JSX blocks to child components.
+ * Patient-safety handlers (persist/saveDraft/complete) stay here per Rule 6.
+ */
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { KpiStrip, StatusBadge, ActBtn, Btn, fmtVNDg, tk, tw, te, ti } from '../../../pages-v2/_v2kit';
+import { KpiStrip, Btn, fmtVNDg, tk, tw, te, ti } from '../../../pages-v2/_v2kit';
 import { SurgeryReportModal } from '../../../pages-v2/shared/SurgeryReportModal';
 import { CabinetIssueModal } from '../../../pages-v2/shared/CabinetIssueModal';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import BarcodeScanner from '../../../components/form/BarcodeScanner';
 import {
-  examinationApi, createSickLeave, printSickLeave,
-  getPatientLabResults, getPatientAllergies,
-  getConsultationRecords, createConsultationRecord, printExaminationForm,
-  requestHospitalization, requestTransfer, createAppointment,
-  printAdmissionForm, printTransferForm, printAppointmentSlip,
-  getInjuryInfo, updateInjuryInfo,
-  type RoomDto, type RoomPatientListDto, type IcdCodeFullDto, type ServiceDto,
-  type ServiceOrderFullDto, type DiagnosisFullDto,
-  type PatientLabResultsDto, type AllergyDto, type ConsultationRecordDto,
-  type InjuryInfoDto,
+  examinationApi, printExaminationForm, updateInjuryInfo,
+  type RoomPatientListDto, type InjuryInfoDto,
 } from '../api/examination';
-import { catalogApi, type DepartmentCatalogDto } from '../../system/api/system';
-import {
-  getOutpatientRecordTemplates, getOutpatientRecordTemplate,
-  saveOutpatientRecordTemplate, deleteOutpatientRecordTemplate,
-  type OutpatientRecordTemplateDto,
-} from '../../patient/api/clinicalNarratives';
-import { useAbbrExpansion } from '../../../utils/abbrExpand';
-import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
-import BusinessAlertPanel from '../../patient/components/BusinessAlertPanel';
-import {
-  addFollowUpSpecialty,
-  changeRoomBeforeExam,
-  getCompletionStatus,
-  printBill,
-  cancelPrintBill,
-  cancelCompletion,
-  deleteRegistration,
-  type ExamCompletionStatus,
-} from '../api/multiSpecialtyExam';
-import '../../../components/layout/terminal/ed-responsive.css';
-// #205 FE-2 (Phase 1) — presentational blocks split into ./opd-editor/*.
-// State/handlers/effects/loaders stay here; these receive everything via props.
-import {
-  type Vitals, type DxRow, type OrderRow,
-  OPD_ABBR_SCOPES, SEVERITY_LABEL, VITAL_FIELDS, openPdfBlob,
-} from './_shared';
+import { openPdfBlob } from './_shared';
 import { InjurySection } from './InjurySection';
 import { ClsResultsModal } from './ClsResultsModal';
 import StockReservationModal from '../../pharmacy/components/StockReservationModal';
@@ -61,6 +22,21 @@ import { ConsultModal } from './ConsultModal';
 import { TemplateModals } from './TemplateModals';
 import { DispositionModals } from './DispositionModals';
 import { DiagnosisOrdersSection } from './DiagnosisOrdersSection';
+import { VitalsSection } from './VitalsSection';
+import { AnamnesisSection } from './AnamnesisSection';
+import { RightPanel } from './RightPanel';
+import { QueuePanel } from './QueuePanel';
+import { HistoryExamSection } from './HistoryExamSection';
+import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
+import BusinessAlertPanel from '../../patient/components/BusinessAlertPanel';
+import { useOpdQueue } from './hooks/useOpdQueue';
+import { useOpdPatientData } from './hooks/useOpdPatientData';
+import { useOpdCompletion } from './hooks/useOpdCompletion';
+import { useOpdAutoSave } from './hooks/useOpdAutoSave';
+import { useOpdTemplates } from './hooks/useOpdTemplates';
+import { useOpdClsConsult } from './hooks/useOpdClsConsult';
+import { useOpdDisposition } from './hooks/useOpdDisposition';
+import '../../../components/layout/terminal/ed-responsive.css';
 
 const OpdEditorV2: React.FC = () => {
   const navigate = useNavigate();
@@ -69,359 +45,72 @@ const OpdEditorV2: React.FC = () => {
   const [rightOpen, setRightOpen] = useState(false);
   const closeAll = () => { setLeftOpen(false); setRightOpen(false); };
 
-  const [rooms, setRooms] = useState<RoomDto[]>([]);
-  const [roomId, setRoomId] = useState<string>('');
-  const [type, setType] = useState<'general' | 'yhct'>('general');
-  const [queue, setQueue] = useState<RoomPatientListDto[]>([]);
   const [selPt, setSelPt] = useState<RoomPatientListDto | null>(null);
-
-  const [vitals, setVitals] = useState<Vitals>({});
-  const [history, setHistory] = useState('');       // → MedicalInterview.historyOfPresentIllness
-  const [pastHist, setPastHist] = useState('');     // → MedicalInterview.pastMedicalHistory
-  const [familyHist, setFamilyHist] = useState(''); // → MedicalInterview.familyHistory
-  const [allergyHist, setAllergyHist] = useState(''); // → MedicalInterview.allergyHistory
-  const [medHist, setMedHist] = useState('');         // → MedicalInterview.medicationHistory (thuốc đang dùng)
-  const [allergies, setAllergies] = useState<AllergyDto[]>([]); // hồ sơ dị ứng cấu trúc (đọc)
-  const [stockOpen, setStockOpen] = useState(false);  // F10 xuất dự trù
-  const [autoSavedTs, setAutoSavedTs] = useState<number | null>(null); // auto-save timestamp
-  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [injuryInfo, setInjuryInfo] = useState<Partial<InjuryInfoDto>>({}); // F1.6 — khai bao TNGT
-  const [exam, setExam] = useState('');             // → PhysicalExamination.generalAppearance
-  const [conclusion, setConclusion] = useState(''); // → completeExamination.conclusionNotes
-  const [diagnoses, setDx] = useState<DxRow[]>([]);
-  const [orders, setOrd] = useState<OrderRow[]>([]);
-  const expandAbbr = useAbbrExpansion(OPD_ABBR_SCOPES);
-
-  // Mẫu HSBA ngoại trú (issue #30 mục 7) — áp mẫu + lưu bản ghi hiện tại thành mẫu + quản lý
-  const [tpls, setTpls] = useState<OutpatientRecordTemplateDto[]>([]);
-  const [tplManageOpen, setTplManageOpen] = useState(false);
-  const [tplSaveOpen, setTplSaveOpen] = useState(false);
-  const [tplName, setTplName] = useState('');
-  const [tplBusy, setTplBusy] = useState(false);
-
-  const loadTpls = useCallback(() => {
-    getOutpatientRecordTemplates().then((r) => setTpls(Array.isArray(r.data) ? r.data : [])).catch((e) => { console.warn('[async] tải dữ liệu phụ thất bại:', e); });
-  }, []);
-  useEffect(() => { loadTpls(); }, [loadTpls]);
-
-  const applyTpl = async (id: string) => {
-    if (!id) return;
-    try {
-      const { data: t } = await getOutpatientRecordTemplate(id);
-      if (!t) return;
-      const histParts = [t.chiefComplaint, t.medicalHistory].filter(Boolean);
-      if (histParts.length) setHistory(histParts.join('\n'));
-      const examParts = [
-        t.physicalExamination, t.generalExamBody,
-        t.cardiovascularExam && `Tim mạch: ${t.cardiovascularExam}`,
-        t.respiratoryExam && `Hô hấp: ${t.respiratoryExam}`,
-        t.giExam && `Tiêu hóa: ${t.giExam}`,
-        t.neuroExam && `Thần kinh: ${t.neuroExam}`,
-      ].filter(Boolean);
-      if (examParts.length) setExam(examParts.join('\n'));
-      const conclParts = [t.conclusion, t.treatmentPlan && `Hướng điều trị: ${t.treatmentPlan}`, t.followUpNotes].filter(Boolean);
-      if (conclParts.length) setConclusion(conclParts.join('\n'));
-      tk(`Đã áp mẫu "${t.templateName}"`);
-    } catch { tw('Không tải được mẫu HSBA'); }
-  };
-
-  const saveCurrentAsTpl = async () => {
-    if (!tplName.trim()) { tw('Nhập tên mẫu'); return; }
-    setTplBusy(true);
-    try {
-      await saveOutpatientRecordTemplate({
-        templateCode: `OPD-${Date.now().toString(36).toUpperCase()}`,
-        templateName: tplName.trim(),
-        diagnosisCode: diagnoses.find((d) => d.isPrimary)?.icdCode || diagnoses[0]?.icdCode,
-        diagnosisName: diagnoses.find((d) => d.isPrimary)?.icdName || diagnoses[0]?.icdName,
-        medicalHistory: history || undefined,
-        physicalExamination: exam || undefined,
-        conclusion: conclusion || undefined,
-        isPublic: true,
-      });
-      tk('Đã lưu mẫu HSBA');
-      setTplSaveOpen(false); setTplName('');
-      loadTpls();
-    } catch { te('Lưu mẫu thất bại'); } finally { setTplBusy(false); }
-  };
-
-  const removeTpl = async (id: string) => {
-    setTplBusy(true);
-    try { await deleteOutpatientRecordTemplate(id); tk('Đã xóa mẫu'); loadTpls(); }
-    catch { te('Xóa mẫu thất bại'); } finally { setTplBusy(false); }
-  };
-
-  // Modal: KQ CLS tại phòng khám
-  const [clsOpen, setClsOpen] = useState(false);
-  const [clsData, setClsData] = useState<PatientLabResultsDto | null>(null);
-  const [clsLoading, setClsLoading] = useState(false);
-
-  // Modal: PTTT (G-09) — tường trình phẫu thuật/thủ thuật tại phòng khám
+  const [stockOpen, setStockOpen] = useState(false);
   const [ptttOpen, setPtttOpen] = useState(false);
-
-  // Modal: Xuất tủ trực (G-10a) — OPD cabinet dispensing
   const [cabinetOpen, setCabinetOpen] = useState(false);
-
-  // Modal: sổ hội chẩn
-  const [consultOpen, setConsultOpen] = useState(false);
-  const [consults, setConsults] = useState<ConsultationRecordDto[]>([]);
-  const [consultForm, setConsultForm] = useState({ reason: '', summary: '', conclusion: '', recommendations: '' });
-  const [consultSaving, setConsultSaving] = useState(false);
-
-  const [scanOpen, setScanOpen] = useState(false);
-  const [sickFrom, setSickFrom] = useState('');
-  const [sickTo, setSickTo] = useState('');
-  const [icdQ, setIcdQ] = useState('');
-  const [icdResults, setIcdResults] = useState<IcdCodeFullDto[]>([]);
-  const [svcQ, setSvcQ] = useState('');
-  const [svcResults, setSvcResults] = useState<ServiceDto[]>([]);
   const [saving, setSaving] = useState(false);
+  const [autoSavedTs, setAutoSavedTs] = useState<number | null>(null);
 
-  // ── Đa chuyên khoa state ─────────────────────────────────────────
-  const [completion, setCompletion] = useState<ExamCompletionStatus | null>(null);
+  const { rooms, roomId, setRoomId, type, setType, queue, loadQueue, scanOpen, setScanOpen } = useOpdQueue();
 
-  // Modal: khám thêm CK khác
-  const [followUpOpen, setFollowUpOpen] = useState(false);
-  const [followUpRoomId, setFollowUpRoomId] = useState('');
-  const [followUpReason, setFollowUpReason] = useState('');
-  const [followUpSaving, setFollowUpSaving] = useState(false);
-
-  // Modal: đổi phòng trước khám
-  const [changeRoomOpen, setChangeRoomOpen] = useState(false);
-  const [changeRoomNewId, setChangeRoomNewId] = useState('');
-  const [changeRoomReason, setChangeRoomReason] = useState('');
-  const [changeRoomSaving, setChangeRoomSaving] = useState(false);
-
-  // Modal: xóa đăng ký
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteReason, setDeleteReason] = useState('');
-  const [deleteSaving, setDeleteSaving] = useState(false);
-
-  // ── Xử trí state ─────────────────────────────────────────────────
-  const [departments, setDepartments] = useState<DepartmentCatalogDto[]>([]);
-
-  // Modal: Nhập viện
-  const [hospOpen, setHospOpen] = useState(false);
-  const [hospDeptId, setHospDeptId] = useState('');
-  const [hospReason, setHospReason] = useState('');
-  const [hospEmergency, setHospEmergency] = useState(false);
-  const [hospSaving, setHospSaving] = useState(false);
-
-  // Modal: Chuyển viện
-  const [transferOpen, setTransferOpen] = useState(false);
-  const [transferFacility, setTransferFacility] = useState('');
-  const [transferReason, setTransferReason] = useState('');
-  const [transferTransport, setTransferTransport] = useState('');
-  const [transferSaving, setTransferSaving] = useState(false);
-
-  // Modal: Hẹn tái khám
-  const [apptOpen, setApptOpen] = useState(false);
-  const [apptDate, setApptDate] = useState('');
-  const [apptNotes, setApptNotes] = useState('');
-  const [apptSaving, setApptSaving] = useState(false);
+  const {
+    vitals, setVitals, history, setHistory, pastHist, setPastHist,
+    familyHist, setFamilyHist, allergyHist, setAllergyHist, medHist, setMedHist,
+    allergies, injuryInfo, setInjuryInfo, exam, setExam, conclusion, setConclusion,
+    diagnoses, orders, expandAbbr,
+    icdQ, searchIcd, icdResults, addIcd, setPrimary, removeIcd,
+    svcQ, searchSvc, svcResults, addSvc, updateQty, removeSvc, selectPatient,
+  } = useOpdPatientData({ setLeftOpen, setSelPt, setAutoSavedTs });
 
   const examId = selPt?.examinationId ?? null;
 
-  // ── Completion status: load when patient selected, clear when deselected ──
-  const refreshCompletion = useCallback(async (eid: string) => {
-    try {
-      const status = await getCompletionStatus(eid);
-      setCompletion(status);
-    } catch {
-      setCompletion(null);
-    }
-  }, []);
+  const { completion, setCompletion, refreshCompletion } = useOpdCompletion(examId);
 
-  useEffect(() => {
-    if (!examId) { setCompletion(null); return; }
-    refreshCompletion(examId);
-  }, [examId, refreshCompletion]);
-
-  const bmi = vitals.weight && vitals.height ? (vitals.weight / ((vitals.height / 100) ** 2)) : null;
-  const bmiStr = bmi ? bmi.toFixed(1) : '—';
-  const totalSvc = orders.reduce((s, o) => s + o.unitPrice * o.qty, 0);
-
-  // NEWS2 (National Early Warning Score 2) — tính từ sinh hiệu đo được
-  const news2 = useMemo(() => {
-    const { respiratoryRate: rr, spO2, systolicBP: sbp, pulse, temperature: tmp } = vitals;
-    const hasData = [rr, spO2, sbp, pulse, tmp].some((v) => v != null);
-    if (!hasData) return null;
-    let s = 0;
-    if (rr != null) s += rr <= 8 ? 3 : rr <= 11 ? 1 : rr <= 20 ? 0 : rr <= 24 ? 2 : 3;
-    if (spO2 != null) s += spO2 >= 96 ? 0 : spO2 >= 94 ? 1 : spO2 >= 92 ? 2 : 3;
-    if (sbp != null) s += sbp <= 90 ? 3 : sbp <= 100 ? 2 : sbp <= 110 ? 1 : sbp <= 219 ? 0 : 3;
-    if (pulse != null) s += pulse <= 40 ? 3 : pulse <= 50 ? 1 : pulse <= 90 ? 0 : pulse <= 110 ? 1 : pulse <= 130 ? 2 : 3;
-    if (tmp != null) s += tmp <= 35.0 ? 3 : tmp <= 36.0 ? 1 : tmp <= 38.0 ? 0 : tmp <= 39.0 ? 1 : 2;
-    return s;
-  }, [vitals]);
-
-  // ── Rooms (once) ─────────────────────────────────────────────────
-  useEffect(() => {
-    examinationApi.getActiveExaminationRooms()
-      .then((r) => {
-        const list = Array.isArray(r.data) ? r.data : [];
-        setRooms(list);
-        if (list.length > 0) setRoomId(list[0].id);
-      })
-      .catch(() => setRooms([]));
-  }, []);
-
-  // ── Departments (once) — dùng cho modal Nhập viện ────────────────
-  useEffect(() => {
-    catalogApi.getDepartments(undefined, undefined, true)
-      .then((r) => setDepartments(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setDepartments([]));
-  }, []);
-
-  // ── Auto-save nháp vào localStorage (3s debounce) ───────────────
-  useEffect(() => {
-    if (!examId) return;
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => {
-      try {
-        localStorage.setItem(`opd-as:${examId}`, JSON.stringify({ history, pastHist, familyHist, allergyHist, medHist, exam, conclusion }));
-        setAutoSavedTs(Date.now());
-      } catch { /* localStorage full — silently skip */ }
-    }, 3000);
-    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
-  }, [examId, history, pastHist, familyHist, allergyHist, medHist, exam, conclusion]);
-
-  // ── F10: Xuất dự trù ─────────────────────────────────────────────
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'F10' && examId) { e.preventDefault(); setStockOpen(true); }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [examId]);
-
-  // ── Queue when room changes ──────────────────────────────────────
-  const loadQueue = useCallback(async (rid: string) => {
-    if (!rid) { setQueue([]); return; }
-    try {
-      const r = await examinationApi.getRoomPatientList(rid);
-      setQueue(Array.isArray(r.data) ? r.data : []);
-    } catch { setQueue([]); }
-  }, []);
-  useEffect(() => { loadQueue(roomId); }, [roomId, loadQueue]);
-
-  // ── Select patient → load exam detail ────────────────────────────
-  // Guard chống race khi đổi BN nhanh: response cũ đến muộn không được ghi đè hồ sơ BN đang chọn (#374 patient-safety)
-  const selectReqRef = useRef(0);
-  const selectPatient = useCallback(async (q: RoomPatientListDto) => {
-    const reqId = ++selectReqRef.current;
-    setSelPt(q);
-    setLeftOpen(false);
-    // reset then load
-    setVitals({}); setHistory(''); setPastHist(''); setFamilyHist(''); setAllergyHist(''); setMedHist('');
-    setAllergies([]); setInjuryInfo({}); setExam(''); setConclusion(''); setDx([]); setOrd([]);
-    setAutoSavedTs(null);
-    const id = q.examinationId;
-    const [v, mi, pe, dx, so, al, inj] = await Promise.allSettled([
-      examinationApi.getVitalSigns(id),
-      examinationApi.getMedicalInterview(id),
-      examinationApi.getPhysicalExamination(id),
-      examinationApi.getDiagnoses(id),
-      examinationApi.getServiceOrders(id),
-      getPatientAllergies(q.patientId),
-      getInjuryInfo(id),
-    ]);
-    if (selectReqRef.current !== reqId) return; // BN khác đã được chọn trong lúc chờ — bỏ response cũ
-    if (v.status === 'fulfilled' && v.value.data) {
-      const d = v.value.data;
-      setVitals({ pulse: d.pulse, temperature: d.temperature, systolicBP: d.systolicBP, diastolicBP: d.diastolicBP, respiratoryRate: d.respiratoryRate, spO2: d.spO2, weight: d.weight, height: d.height });
-    }
-    if (mi.status === 'fulfilled' && mi.value.data) {
-      const m = mi.value.data;
-      setHistory(m.historyOfPresentIllness || m.chiefComplaint || '');
-      setPastHist(m.pastMedicalHistory || '');
-      setFamilyHist(m.familyHistory || '');
-      setAllergyHist(m.allergyHistory || '');
-      setMedHist(m.medicationHistory || '');
-    }
-    // Restore auto-saved draft: only apply non-empty draft values when API returned empty
-    const draft = (() => { try { return JSON.parse(localStorage.getItem(`opd-as:${id}`) || 'null'); } catch { return null; } })();
-    if (draft) {
-      if (draft.history) setHistory((v) => v || draft.history);
-      if (draft.exam) setExam((v) => v || draft.exam);
-      if (draft.conclusion) setConclusion((v) => v || draft.conclusion);
-      if (draft.medHist) setMedHist((v) => v || draft.medHist);
-    }
-    if (al.status === 'fulfilled' && Array.isArray(al.value.data)) {
-      setAllergies((al.value.data as AllergyDto[]).filter((a) => a.isActive !== false));
-    }
-    if (pe.status === 'fulfilled' && pe.value.data) setExam(pe.value.data.generalAppearance || '');
-    if (dx.status === 'fulfilled' && Array.isArray(dx.value.data)) {
-      setDx((dx.value.data as DiagnosisFullDto[]).map((x) => ({ icdCode: x.icdCode, icdName: x.icdName, isPrimary: x.isPrimary })));
-    }
-    if (so.status === 'fulfilled' && Array.isArray(so.value.data)) {
-      setOrd((so.value.data as ServiceOrderFullDto[]).map((x) => ({ serviceId: x.serviceId, code: x.serviceCode, name: x.serviceName, qty: x.quantity, unitPrice: x.unitPrice })));
-    }
-    if (inj.status === 'fulfilled' && inj.value.data) {
-      setInjuryInfo(inj.value.data as InjuryInfoDto);
-    }
-  }, []);
-
-  // ── ICD search ───────────────────────────────────────────────────
-  const searchIcd = useCallback(async (q: string) => {
-    setIcdQ(q);
-    if (!q || q.length < 2) { setIcdResults([]); return; }
-    try { const r = await examinationApi.searchIcdCodes(q, undefined, 20); setIcdResults(Array.isArray(r.data) ? r.data : []); }
-    catch { setIcdResults([]); }
-  }, []);
-  const addIcd = (i: IcdCodeFullDto) => {
-    setDx((p) => p.some((x) => x.icdCode === i.code) ? p : [...p, { icdCode: i.code, icdName: i.name, isPrimary: p.length === 0 }]);
-    setIcdQ(''); setIcdResults([]);
-  };
-  const setPrimary = (idx: number) => setDx((p) => p.map((x, i) => ({ ...x, isPrimary: i === idx })));
-  const removeIcd = (idx: number) => setDx((p) => {
-    const next = p.filter((_, i) => i !== idx);
-    if (next.length > 0 && !next.some((x) => x.isPrimary)) next[0].isPrimary = true;
-    return [...next];
+  useOpdAutoSave({
+    examId, history, pastHist, familyHist, allergyHist, medHist, exam, conclusion,
+    setAutoSavedTs, setStockOpen,
   });
 
-  // ── Service search ───────────────────────────────────────────────
-  const searchSvc = useCallback(async (q: string) => {
-    setSvcQ(q);
-    if (!q || q.length < 2) { setSvcResults([]); return; }
-    try { const r = await examinationApi.searchServices(q, 20); setSvcResults(Array.isArray(r.data) ? r.data : []); }
-    catch { setSvcResults([]); }
-  }, []);
-  const addSvc = (s: ServiceDto) => {
-    setOrd((p) => p.some((x) => x.serviceId === s.id) ? p : [...p, { serviceId: s.id, code: s.code, name: s.name, qty: 1, unitPrice: s.unitPrice }]);
-    setSvcQ(''); setSvcResults([]);
-  };
-  const updateQty = (i: number, q: number) => setOrd((p) => p.map((x, j) => (j === i ? { ...x, qty: q } : x)));
-  const removeSvc = (i: number) => setOrd((p) => p.filter((_, j) => j !== i));
+  const {
+    tpls, tplManageOpen, setTplManageOpen, tplSaveOpen, setTplSaveOpen,
+    tplName, setTplName, tplBusy, applyTpl, saveCurrentAsTpl, removeTpl,
+  } = useOpdTemplates({ history, exam, conclusion, diagnoses, setHistory, setExam, setConclusion });
 
-  // ── Save / complete ──────────────────────────────────────────────
+  const {
+    clsOpen, setClsOpen, clsData, clsLoading,
+    consultOpen, setConsultOpen, consults, consultForm, setConsultForm, consultSaving,
+    openClsResults, openConsults, saveConsult,
+    sickFrom, setSickFrom, sickTo, setSickTo, saveSickLeave,
+  } = useOpdClsConsult({ examId });
+
+  const disp = useOpdDisposition({
+    examId, diagnoses, refreshCompletion, loadQueue, roomId, setSelPt, setCompletion,
+  });
+
+  const totalSvc = orders.reduce((s, o) => s + o.unitPrice * o.qty, 0);
+
+  // ── Patient-safety handlers (Rule 6: stay in main) ──────────────────
   const persist = async (): Promise<boolean> => {
     if (!examId) { tw('Chưa chọn bệnh nhân từ hàng đợi'); return false; }
     const primary = diagnoses.find((d) => d.isPrimary);
     await Promise.allSettled([
       examinationApi.updateVitalSigns(examId, { ...vitals, measuredAt: new Date().toISOString() }),
       examinationApi.updateMedicalInterview(examId, {
-        historyOfPresentIllness: history,
-        pastMedicalHistory: pastHist,
-        familyHistory: familyHist,
-        allergyHistory: allergyHist,
-        medicationHistory: medHist,
+        historyOfPresentIllness: history, pastMedicalHistory: pastHist,
+        familyHistory: familyHist, allergyHistory: allergyHist, medicationHistory: medHist,
       }),
       examinationApi.updatePhysicalExamination(examId, { generalAppearance: exam }),
       examinationApi.updateDiagnosisList(examId, {
-        primaryIcdCode: primary?.icdCode,
-        primaryDiagnosis: primary?.icdName,
+        primaryIcdCode: primary?.icdCode, primaryDiagnosis: primary?.icdName,
         secondaryDiagnoses: diagnoses.filter((d) => !d.isPrimary).map((d) => ({ icdCode: d.icdCode, diagnosisName: d.icdName })),
       }),
     ]);
     if (orders.length > 0) {
       await examinationApi.createServiceOrders({
-        examinationId: examId,
-        diagnosisCode: primary?.icdCode,
-        diagnosisName: primary?.icdName,
+        examinationId: examId, diagnosisCode: primary?.icdCode, diagnosisName: primary?.icdName,
         services: orders.map((o) => ({ serviceId: o.serviceId, quantity: o.qty, paymentType: 1, isPriority: false, isEmergency: false })),
-        autoSelectRoom: true,
-        calculateOptimalPath: true,
+        autoSelectRoom: true, calculateOptimalPath: true,
       }).catch(() => { /* orders may already exist */ });
     }
     if (injuryInfo.injuryType) {
@@ -433,23 +122,19 @@ const OpdEditorV2: React.FC = () => {
   const saveDraft = async () => {
     setSaving(true);
     try { if (await persist()) tk('Đã lưu nháp phiếu khám'); }
-    catch { te('Lưu nháp thất bại'); }
-    finally { setSaving(false); }
+    catch { te('Lưu nháp thất bại'); } finally { setSaving(false); }
   };
 
   const complete = async () => {
     if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
     if (diagnoses.length === 0) { tw('Cần ít nhất 1 chẩn đoán (tab Chẩn đoán)'); return; }
-    // TT46: không cho hoàn tất với kết luận rỗng (BE cũng chặn — đồng bộ 2 tầng)
     if (!conclusion.trim()) { tw('Nhập kết luận khám (tab Kết luận) trước khi hoàn tất'); return; }
     setSaving(true);
     try {
       await persist();
       await examinationApi.completeExamination(examId, { conclusionType: 1, conclusionNotes: conclusion });
-      tk('✓ Đã hoàn tất khám');
-      loadQueue(roomId);
-    } catch { te('Hoàn tất khám thất bại'); }
-    finally { setSaving(false); }
+      tk('✓ Đã hoàn tất khám'); loadQueue(roomId);
+    } catch { te('Hoàn tất khám thất bại'); } finally { setSaving(false); }
   };
 
   const goPrescribe = () => {
@@ -457,215 +142,16 @@ const OpdEditorV2: React.FC = () => {
     navigate(`/v2/prescription/edit?examId=${encodeURIComponent(examId)}`);
   };
 
-  // In phiếu khám thật (PDF blob → tab mới) — thay nút giả cũ
   const printExamForm = async () => {
     if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
-    try {
-      const r = await printExaminationForm(examId);
-      openPdfBlob(r.data as Blob);
-    } catch { te('Không in được phiếu khám'); }
-  };
-
-  // ── Xử trí: Nhập viện ────────────────────────────────────────────
-  const doHospitalize = async () => {
-    if (!examId) return;
-    if (!hospDeptId) { tw('Chọn khoa nhập viện'); return; }
-    if (!hospReason.trim()) { tw('Nhập lý do nhập viện'); return; }
-    setHospSaving(true);
-    try {
-      const primary = diagnoses.find((d) => d.isPrimary);
-      await requestHospitalization(examId, {
-        departmentId: hospDeptId,
-        reason: hospReason.trim(),
-        diagnosisCode: primary?.icdCode,
-        diagnosisName: primary?.icdName,
-        isEmergency: hospEmergency,
-      });
-      tk('Đã tạo yêu cầu nhập viện');
-      try { const r = await printAdmissionForm(examId); openPdfBlob(r.data as Blob); }
-      catch { ti('Đã tạo yêu cầu nhưng không in được giấy nhập viện'); }
-      setHospOpen(false);
-      setHospDeptId(''); setHospReason(''); setHospEmergency(false);
-      refreshCompletion(examId);
-      loadQueue(roomId);
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      te(msg || 'Yêu cầu nhập viện thất bại');
-    } finally { setHospSaving(false); }
-  };
-
-  // ── Xử trí: Chuyển viện ──────────────────────────────────────────
-  const doTransfer = async () => {
-    if (!examId) return;
-    if (!transferFacility.trim()) { tw('Nhập tên cơ sở chuyển đến'); return; }
-    if (!transferReason.trim()) { tw('Nhập lý do chuyển viện'); return; }
-    setTransferSaving(true);
-    try {
-      const primary = diagnoses.find((d) => d.isPrimary);
-      await requestTransfer(examId, {
-        facilityName: transferFacility.trim(),
-        reason: transferReason.trim(),
-        diagnosisCode: primary?.icdCode,
-        diagnosisName: primary?.icdName,
-        transportMethod: transferTransport.trim() || undefined,
-      });
-      tk('Đã tạo yêu cầu chuyển viện');
-      try { const r = await printTransferForm(examId); openPdfBlob(r.data as Blob); }
-      catch { ti('Đã tạo yêu cầu nhưng không in được giấy chuyển viện'); }
-      setTransferOpen(false);
-      setTransferFacility(''); setTransferReason(''); setTransferTransport('');
-      refreshCompletion(examId);
-      loadQueue(roomId);
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      te(msg || 'Yêu cầu chuyển viện thất bại');
-    } finally { setTransferSaving(false); }
-  };
-
-  // ── Xử trí: Hẹn tái khám ─────────────────────────────────────────
-  const doAppointment = async () => {
-    if (!examId) return;
-    if (!apptDate) { tw('Chọn ngày hẹn tái khám'); return; }
-    setApptSaving(true);
-    try {
-      const r = await createAppointment(examId, {
-        appointmentDate: new Date(apptDate).toISOString(),
-        roomId: roomId || undefined,
-        notes: apptNotes.trim() || undefined,
-      });
-      tk('Đã tạo lịch hẹn tái khám');
-      const apptId = r.data?.id;
-      if (apptId) {
-        try { const slip = await printAppointmentSlip(apptId); openPdfBlob(slip.data as Blob); }
-        catch { /* giấy hẹn là tùy chọn */ }
-      }
-      setApptOpen(false);
-      setApptDate(''); setApptNotes('');
-      refreshCompletion(examId);
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      te(msg || 'Hẹn tái khám thất bại');
-    } finally { setApptSaving(false); }
-  };
-
-  // ── Xử trí: Khám thêm CK khác (#362 hoist verbatim từ inline modal footer) ──
-  const doFollowUp = async () => {
-    if (!examId || !followUpRoomId) return;
-    setFollowUpSaving(true);
-    try {
-      const result = await addFollowUpSpecialty({
-        parentExaminationId: examId,
-        roomId: followUpRoomId,
-        reason: followUpReason || undefined,
-      });
-      tk(`Đã tạo phiên khám CK khác — Phòng ${result.roomName}, STT ${result.queueNumber}`);
-      setFollowUpOpen(false);
-      loadQueue(roomId);
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      te(msg || 'Không thêm được phiên khám CK khác');
-    } finally {
-      setFollowUpSaving(false);
-    }
-  };
-
-  // ── Xử trí: Đổi phòng trước khám ─────────────────────────────────
-  const doChangeRoom = async () => {
-    if (!examId || !changeRoomNewId) return;
-    setChangeRoomSaving(true);
-    try {
-      await changeRoomBeforeExam({
-        examinationId: examId,
-        newRoomId: changeRoomNewId,
-        reason: changeRoomReason || undefined,
-      });
-      tk('Đã đổi phòng trước khám');
-      setChangeRoomOpen(false);
-      setSelPt(null);
-      loadQueue(roomId);
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      te(msg || 'Không thể đổi phòng');
-    } finally {
-      setChangeRoomSaving(false);
-    }
-  };
-
-  // ── Xử trí: Xóa đăng ký khám ─────────────────────────────────────
-  const doDelete = async () => {
-    if (!examId || !deleteReason.trim()) return;
-    setDeleteSaving(true);
-    try {
-      await deleteRegistration(examId, deleteReason.trim());
-      tk('Đã xóa đăng ký khám');
-      setDeleteOpen(false);
-      setSelPt(null);
-      setCompletion(null);
-      loadQueue(roomId);
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      te(msg || 'Không thể xóa đăng ký khám');
-    } finally {
-      setDeleteSaving(false);
-    }
-  };
-
-  // KQ CLS (XN + CĐHA) tại phòng khám
-  const openClsResults = async () => {
-    if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
-    setClsOpen(true); setClsLoading(true); setClsData(null);
-    try { const r = await getPatientLabResults(examId); setClsData(r.data ?? null); }
-    catch { te('Không tải được kết quả CLS'); }
-    finally { setClsLoading(false); }
-  };
-
-  // Sổ hội chẩn của lần khám
-  const openConsults = async () => {
-    if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
-    setConsultForm({ reason: '', summary: '', conclusion: '', recommendations: '' });
-    setConsultOpen(true);
-    try { const r = await getConsultationRecords(examId); setConsults(Array.isArray(r.data) ? r.data : []); }
-    catch { setConsults([]); }
-  };
-
-  const saveConsult = async () => {
-    if (!examId) return;
-    if (!consultForm.reason.trim()) { tw('Cần nhập lý do hội chẩn'); return; }
-    setConsultSaving(true);
-    try {
-      await createConsultationRecord({
-        id: '', examinationId: examId,
-        consultationDate: new Date().toISOString(),
-        reason: consultForm.reason.trim(),
-        summary: consultForm.summary.trim(),
-        conclusion: consultForm.conclusion.trim(),
-        recommendations: consultForm.recommendations.trim(),
-        consultants: [],
-      });
-      tk('Đã lưu biên bản hội chẩn');
-      setConsultForm({ reason: '', summary: '', conclusion: '', recommendations: '' });
-      const r = await getConsultationRecords(examId);
-      setConsults(Array.isArray(r.data) ? r.data : []);
-    } catch { te('Lưu biên bản hội chẩn thất bại'); }
-    finally { setConsultSaving(false); }
-  };
-
-  const saveSickLeave = async () => {
-    if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
-    if (!sickFrom || !sickTo) { tw('Chọn từ ngày / đến ngày'); return; }
-    const days = Math.max(1, Math.round((new Date(sickTo).getTime() - new Date(sickFrom).getTime()) / 86400000) + 1);
-    try {
-      await createSickLeave(examId, { days, fromDate: sickFrom, toDate: sickTo });
-      tk(`Đã lưu giấy nghỉ ${days} ngày`);
-      setSickFrom(''); setSickTo('');
-    } catch { te('Lưu giấy nghỉ thất bại'); }
+    try { const r = await printExaminationForm(examId); openPdfBlob(r.data as Blob); }
+    catch { te('Không in được phiếu khám'); }
   };
 
   const waitingCount = queue.filter((q) => q.status === 0 || q.status === 1).length;
 
   return (
     <div className="ab ed-root" style={{ display: 'grid', gridTemplateColumns: '260px 1fr 320px', gridTemplateRows: 'auto 1fr', height: '100%' }}>
-      {/* KPI */}
       <div style={{ gridColumn: '1 / -1' }}>
         <KpiStrip items={[
           { lbl: 'Phòng khám', val: rooms.find((r) => r.id === roomId)?.name || '—', sub: type === 'general' ? 'Ngoại trú chung' : 'YHCT' },
@@ -676,43 +162,12 @@ const OpdEditorV2: React.FC = () => {
         ]} />
       </div>
 
-      {/* Queue panel */}
-      <aside className={'ed-left-panel ' + (leftOpen ? 'is-open' : '')} style={{ borderRight: '1px solid var(--line)', overflow: 'auto', padding: 'var(--space-10)', background: 'var(--d-1)' }}>
-        <div style={{ display: 'flex', gap: 'var(--space-6)', marginBottom: 'var(--space-10)' }}>
-          <select className="hui-inp hui-sel" value={roomId} onChange={(e) => { setRoomId(e.target.value); setSelPt(null); }} style={{ flex: 1, height: 30 }}>
-            {rooms.length === 0 && <option value="">(Chưa có phòng)</option>}
-            {rooms.map((r) => <option key={r.id} value={r.id}>{r.code} · {r.name}</option>)}
-          </select>
-          <ActBtn ic="qr" title="Quét barcode BN" onClick={() => setScanOpen(true)} />
-        </div>
-        <div style={{ display: 'inline-flex', background: 'var(--d-0)', borderRadius: 4, padding: 'var(--space-2)', marginBottom: 'var(--space-10)', width: '100%' }}>
-          {([{ v: 'general', l: 'Ngoại trú' }, { v: 'yhct', l: 'YHCT' }] as const).map((t) => (
-            <button key={t.v} onClick={() => setType(t.v)} style={{ flex: 1, background: type === t.v ? 'var(--c-pri)' : 'transparent', color: type === t.v ? '#fff' : 'var(--t-1)', border: 0, padding: '4px 8px', borderRadius: 'var(--r-1)', cursor: 'pointer', fontSize: 'var(--fs-xs)', fontWeight: type === t.v ? 700 : 400 }}>{t.l}</button>
-          ))}
-        </div>
+      <QueuePanel
+        leftOpen={leftOpen} rooms={rooms} roomId={roomId} setRoomId={setRoomId}
+        setSelPt={setSelPt} setScanOpen={setScanOpen} type={type} setType={setType}
+        queue={queue} selPt={selPt} selectPatient={selectPatient}
+      />
 
-        <div style={{ fontSize: 10.5, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600, marginBottom: 'var(--space-6)' }}>Hàng đợi ({queue.length})</div>
-        {queue.length === 0 && <div style={{ color: 'var(--t-3)', fontSize: 11.5, padding: 'var(--space-12)', textAlign: 'center' }}>Không có bệnh nhân trong phòng</div>}
-        {queue.map((q) => {
-          const sel = q.examinationId === selPt?.examinationId;
-          const tone = q.status === 2 ? 'info' : q.status === 1 ? 'warn' : 'info';
-          return (
-            <div key={q.examinationId} onClick={() => selectPatient(q)} style={{ padding: 'var(--space-10)', marginBottom: 5, background: sel ? 'var(--c-pri-bg, rgba(37,99,235,.12))' : 'var(--d-0)', border: sel ? '1px solid var(--c-pri)' : '1px solid var(--line)', borderRadius: 'var(--r-2)', cursor: 'pointer' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className="mono" style={{ fontWeight: 700, fontSize: 14, color: 'var(--a-cy)' }}>{q.queueNumber}</span>
-                {(q.isEmergency || q.isPriority) && <StatusBadge tone="crit">{q.isEmergency ? 'Cấp cứu' : 'Ưu tiên'}</StatusBadge>}
-              </div>
-              <div style={{ fontWeight: 600, fontSize: 12.5, marginTop: 'var(--space-3)' }}>{q.patientName}</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--space-3)' }}>
-                <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{q.age}T · {q.gender === 1 ? 'Nam' : 'Nữ'}</span>
-                <StatusBadge tone={tone}>{q.statusName || (q.status === 2 ? 'Đang khám' : q.status === 1 ? 'Gọi' : 'Chờ')}</StatusBadge>
-              </div>
-            </div>
-          );
-        })}
-      </aside>
-
-      {/* Main */}
       <main style={{ overflow: 'auto', padding: 'var(--space-14)', display: 'flex', flexDirection: 'column', gap: 'var(--space-14)' }}>
         {!selPt ? (
           <div style={{ padding: '60px 12px', textAlign: 'center', color: 'var(--t-3)' }}>
@@ -721,406 +176,89 @@ const OpdEditorV2: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* #357 patient-safety: khôi phục cờ cảnh báo BN + cảnh báo nghiệp vụ (parity v1 OPD) */}
             <PatientFlagBanner patientId={selPt.patientId} patientName={selPt.patientName} />
             <BusinessAlertPanel patientId={selPt.patientId} examinationId={examId ?? undefined} module="OPD" />
-            {/* Vitals */}
-            <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-12)' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Sinh hiệu</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 'var(--space-8)' }}>
-                {VITAL_FIELDS.map((v) => (
-                  <div key={v.k}>
-                    <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>{v.l}</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-                      <input className="hui-inp mono" type="number" value={vitals[v.k] ?? ''} onChange={(e) => setVitals((s) => ({ ...s, [v.k]: e.target.value === '' ? undefined : +e.target.value }))} style={{ width: '100%', height: 28, fontSize: 'var(--fs-sm)' }} />
-                      <span style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-3)' }}>{v.unit}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-6)', background: 'var(--d-1)', borderRadius: 4, fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', color: 'var(--t-2)', display: 'flex', alignItems: 'center', gap: 'var(--space-12)', flexWrap: 'wrap' }}>
-                <span>BMI = <b style={{ color: bmi == null ? 'var(--t-2)' : bmi < 18.5 ? 'var(--s-info)' : bmi > 25 ? 'var(--s-crit)' : 'var(--s-ok)' }}>{bmiStr}</b>
-                  {bmi != null && <> ({bmi < 18.5 ? 'Gầy' : bmi > 25 ? 'Thừa cân' : 'Bình thường'})</>}
-                </span>
-                {news2 != null && (
-                  <span title="National Early Warning Score 2 — ≥7: nguy cấp, 5-6: cảnh báo, 3-4: chú ý, <3: bình thường">NEWS2 = <StatusBadge tone={news2 >= 7 ? 'crit' : news2 >= 5 ? 'warn' : news2 >= 3 ? 'info' : 'ok'}>{news2}</StatusBadge></span>
-                )}
-              </div>
-            </section>
-
-            {/* Mẫu HSBA ngoại trú — áp nhanh / lưu bản ghi thành mẫu / quản lý (issue #30 mục 7) */}
+            <VitalsSection vitals={vitals} setVitals={setVitals} />
             <section style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
               <select className="hui-inp" value="" onChange={(e) => applyTpl(e.target.value)}
                 style={{ height: 30, fontSize: 'var(--fs-sm)', flex: '0 1 340px', minWidth: 220 }}>
                 <option value="">Áp mẫu HSBA{tpls.length ? ` (${tpls.length} mẫu)` : ' (chưa có mẫu)'}…</option>
-                {tpls.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.templateCode} — {t.templateName}{t.diagnosisCode ? ` (${t.diagnosisCode})` : ''}
-                  </option>
-                ))}
+                {tpls.map((t) => <option key={t.id} value={t.id}>{t.templateCode} — {t.templateName}{t.diagnosisCode ? ` (${t.diagnosisCode})` : ''}</option>)}
               </select>
-              <Btn variant="ghost" onClick={() => { setTplName(''); setTplSaveOpen(true); }}>
-                <TermIcon name="plus" size={12} /> Lưu thành mẫu
-              </Btn>
-              <Btn variant="ghost" onClick={() => setTplManageOpen(true)}>
-                <TermIcon name="list" size={12} /> Quản lý mẫu
-              </Btn>
+              <Btn variant="ghost" onClick={() => { setTplName(''); setTplSaveOpen(true); }}><TermIcon name="plus" size={12} /> Lưu thành mẫu</Btn>
+              <Btn variant="ghost" onClick={() => setTplManageOpen(true)}><TermIcon name="list" size={12} /> Quản lý mẫu</Btn>
             </section>
-
-            {/* History + exam */}
-            <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
-              <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-12)' }}>
-                <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Bệnh sử · Lý do khám</h4>
-                <textarea value={history} onChange={(e) => setHistory(expandAbbr(e.target.value))} placeholder="Lý do đến khám, diễn biến bệnh… (gõ từ viết tắt + space để bung)" style={{ width: '100%', minHeight: 80, padding: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
-              </div>
-              <div style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-12)' }}>
-                <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Khám lâm sàng</h4>
-                <textarea value={exam} onChange={(e) => setExam(expandAbbr(e.target.value))} placeholder="Toàn thân, tim, phổi, bụng…" style={{ width: '100%', minHeight: 80, padding: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
-              </div>
-            </section>
-
-            {/* Tiền sử · Dị ứng (MedicalInterview + hồ sơ dị ứng cấu trúc) */}
-            <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-12)' }}>
-              <h4 style={{ margin: '0 0 8px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Tiền sử · Dị ứng</h4>
-              {allergies.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-6)', marginBottom: 'var(--space-8)' }}>
-                  {allergies.map((a) => (
-                    <span key={a.id} className="chip crit" title={a.reaction || ''}>
-                      ⚠ {a.allergenName}{SEVERITY_LABEL[a.severity] ? ` · ${SEVERITY_LABEL[a.severity]}` : ''}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 'var(--space-8)' }}>
-                <div>
-                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Tiền sử bệnh bản thân</label>
-                  <textarea value={pastHist} onChange={(e) => setPastHist(expandAbbr(e.target.value))} placeholder="Bệnh nền, phẫu thuật cũ…" style={{ width: '100%', minHeight: 56, padding: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Tiền sử gia đình</label>
-                  <textarea value={familyHist} onChange={(e) => setFamilyHist(expandAbbr(e.target.value))} placeholder="Bệnh di truyền, dịch tễ gia đình…" style={{ width: '100%', minHeight: 56, padding: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Dị ứng (thuốc / thức ăn)</label>
-                  <textarea value={allergyHist} onChange={(e) => setAllergyHist(expandAbbr(e.target.value))} placeholder="Thuốc, thức ăn, tác nhân dị ứng…" style={{ width: '100%', minHeight: 56, padding: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ color: 'var(--s-warn)', fontSize: 10 }}>⚠</span> Thuốc đang dùng
-                  </label>
-                  <textarea value={medHist} onChange={(e) => setMedHist(e.target.value)} placeholder="Liệt kê thuốc BN đang dùng (tên, liều, thời gian)…" style={{ width: '100%', minHeight: 56, padding: 'var(--space-8)', border: '1px solid var(--s-warn)', borderRadius: 4, fontSize: 'var(--fs-sm)', background: 'var(--d-0)', color: 'var(--t-0)' }} />
-                </div>
-              </div>
-            </section>
-
-            {/* Chẩn đoán + Chỉ định CLS (#362 inc-2 tách → DiagnosisOrdersSection) */}
+            <HistoryExamSection history={history} setHistory={setHistory} exam={exam} setExam={setExam} expandAbbr={expandAbbr} />
+            <AnamnesisSection
+              allergies={allergies} pastHist={pastHist} setPastHist={setPastHist}
+              familyHist={familyHist} setFamilyHist={setFamilyHist}
+              allergyHist={allergyHist} setAllergyHist={setAllergyHist}
+              medHist={medHist} setMedHist={setMedHist} expandAbbr={expandAbbr}
+            />
             <DiagnosisOrdersSection
               icdQ={icdQ} searchIcd={searchIcd} icdResults={icdResults} addIcd={addIcd}
               diagnoses={diagnoses} setPrimary={setPrimary} removeIcd={removeIcd}
               svcQ={svcQ} searchSvc={searchSvc} svcResults={svcResults} addSvc={addSvc}
               orders={orders} updateQty={updateQty} removeSvc={removeSvc} totalSvc={totalSvc}
             />
-
-            {/* Khai báo tai nạn giao thông — F1.6 (Biểu 14.5 SYT) */}
             <InjurySection injuryInfo={injuryInfo} setInjuryInfo={setInjuryInfo} />
           </>
         )}
       </main>
 
-      {/* Right tools */}
-      <aside className={'ed-right-panel ' + (rightOpen ? 'is-open' : '')} style={{ borderLeft: '1px solid var(--line)', padding: 'var(--space-12)', background: 'var(--d-1)', display: 'flex', flexDirection: 'column', gap: 'var(--space-10)', overflow: 'auto' }}>
-        <section style={{ padding: 'var(--space-12)', background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
-          <h4 style={{ margin: '0 0 8px', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Kết luận</h4>
-          <textarea value={conclusion} onChange={(e) => setConclusion(expandAbbr(e.target.value))} placeholder="Kết luận khám, hướng xử trí, hẹn tái khám…" style={{ width: '100%', minHeight: 80, padding: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 11.5, background: 'var(--d-0)', color: 'var(--t-0)' }} />
-        </section>
+      <RightPanel
+        rightOpen={rightOpen}
+        conclusion={conclusion} setConclusion={setConclusion} expandAbbr={expandAbbr}
+        examId={examId} sickFrom={sickFrom} setSickFrom={setSickFrom} sickTo={sickTo} setSickTo={setSickTo} saveSickLeave={saveSickLeave}
+        saving={saving} saveDraft={saveDraft} goPrescribe={goPrescribe}
+        openClsResults={openClsResults} openConsults={openConsults}
+        setPtttOpen={setPtttOpen} setCabinetOpen={setCabinetOpen} setStockOpen={setStockOpen}
+        printExamForm={printExamForm} complete={complete} autoSavedTs={autoSavedTs}
+        selPt={selPt} completion={completion} setCompletion={setCompletion}
+        roomId={roomId} loadQueue={loadQueue}
+        setHospDeptId={disp.setHospDeptId} setHospReason={disp.setHospReason} setHospEmergency={disp.setHospEmergency} setHospOpen={disp.setHospOpen}
+        setTransferFacility={disp.setTransferFacility} setTransferReason={disp.setTransferReason} setTransferTransport={disp.setTransferTransport} setTransferOpen={disp.setTransferOpen}
+        setApptDate={disp.setApptDate} setApptNotes={disp.setApptNotes} setApptOpen={disp.setApptOpen}
+        setFollowUpRoomId={disp.setFollowUpRoomId} setFollowUpReason={disp.setFollowUpReason} setFollowUpOpen={disp.setFollowUpOpen}
+        setChangeRoomNewId={disp.setChangeRoomNewId} setChangeRoomReason={disp.setChangeRoomReason} setChangeRoomOpen={disp.setChangeRoomOpen}
+        setDeleteReason={disp.setDeleteReason} setDeleteOpen={disp.setDeleteOpen}
+      />
 
-        <section style={{ padding: 'var(--space-12)', background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
-          <h4 style={{ margin: '0 0 8px', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Giấy nghỉ ốm</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)' }}>
-            <div><label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Từ ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} value={sickFrom} onChange={(e) => setSickFrom(e.target.value)} /></div>
-            <div><label style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-2)' }}>Đến ngày</label><input type="date" className="hui-inp" style={{ width: '100%', height: 26 }} value={sickTo} onChange={(e) => setSickTo(e.target.value)} /></div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)', marginTop: 'var(--space-8)' }}>
-            <Btn variant="ghost" size="sm" style={{ justifyContent: 'center' }} disabled={!sickFrom || !sickTo} onClick={saveSickLeave}>
-              <TermIcon name="file-text" size={11} /> Lưu giấy nghỉ
-            </Btn>
-            <Btn variant="ghost" size="sm" style={{ justifyContent: 'center' }} disabled={!examId} onClick={async () => {
-              if (!examId) return;
-              try { const r = await printSickLeave(examId); openPdfBlob(r.data as Blob); }
-              catch { te('Không in được giấy nghỉ'); }
-            }}>
-              <TermIcon name="print" size={11} /> In giấy nghỉ
-            </Btn>
-          </div>
-        </section>
-
-        <div style={{ display: 'grid', gap: 'var(--space-6)' }}>
-          <Btn variant="ghost" disabled={saving} onClick={saveDraft}><TermIcon name="folder" size={12} /> Lưu nháp</Btn>
-          <Btn variant="ghost" onClick={goPrescribe}><TermIcon name="pill" size={12} /> Kê đơn thuốc →</Btn>
-          <Btn variant="ghost" onClick={openClsResults}><TermIcon name="flask" size={12} /> KQ XN · CĐHA</Btn>
-          <Btn variant="ghost" onClick={openConsults}><TermIcon name="users" size={12} /> Sổ hội chẩn</Btn>
-          <Btn variant="ghost" onClick={() => {
-            if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
-            setPtttOpen(true);
-          }}><TermIcon name="scissors" size={12} /> PTTT (F6)</Btn>
-          <Btn variant="ghost" onClick={() => {
-            if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
-            setCabinetOpen(true);
-          }}><TermIcon name="package" size={12} /> Xuất tủ trực</Btn>
-          <Btn variant="ghost" onClick={() => {
-            if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
-            setStockOpen(true);
-          }}><TermIcon name="archive" size={12} /> Xuất dự trù (F10)</Btn>
-          <Btn variant="ghost" onClick={printExamForm}><TermIcon name="print" size={12} /> In phiếu khám</Btn>
-          <Btn variant="primary" disabled={saving} onClick={complete}><TermIcon name="check" size={12} /> Hoàn tất khám</Btn>
-          {autoSavedTs != null && (
-            <div style={{ fontSize: 'var(--fs-xxs)', color: 'var(--t-3)', textAlign: 'center', marginTop: 2 }}>
-              ✓ Tự lưu {Math.round((Date.now() - autoSavedTs) / 1000)}s trước
-            </div>
-          )}
-        </div>
-
-        {/* ── XỬ TRÍ ─────────────────────────────────────────── */}
-        <section style={{ padding: 'var(--space-12)', background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Xử trí</h4>
-          <div style={{ display: 'grid', gap: 'var(--space-6)' }}>
-            <Btn
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
-                setHospDeptId(''); setHospReason(''); setHospEmergency(false);
-                setHospOpen(true);
-              }}
-            >
-              <TermIcon name="bed" size={11} /> Nhập viện
-            </Btn>
-            <Btn
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
-                setTransferFacility(''); setTransferReason(''); setTransferTransport('');
-                setTransferOpen(true);
-              }}
-            >
-              <TermIcon name="arrow-right" size={11} /> Chuyển viện
-            </Btn>
-            <Btn
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
-                setApptDate(''); setApptNotes('');
-                setApptOpen(true);
-              }}
-            >
-              <TermIcon name="calendar" size={11} /> Hẹn tái khám
-            </Btn>
-          </div>
-        </section>
-
-        {/* ── ĐA CHUYÊN KHOA ─────────────────────────────────── */}
-        <section style={{ padding: 'var(--space-12)', background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)' }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--t-2)' }}>Đa chuyên khoa</h4>
-
-          {/* 1. Khám thêm CK khác */}
-          <div style={{ display: 'grid', gap: 'var(--space-6)', marginBottom: 'var(--space-10)' }}>
-            <Btn
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
-                setFollowUpRoomId('');
-                setFollowUpReason('');
-                setFollowUpOpen(true);
-              }}
-            >
-              <TermIcon name="plus" size={11} /> Khám thêm CK khác
-            </Btn>
-
-            {/* 2. Đổi phòng (trước khám) — chỉ khi status Chờ hoặc Gọi */}
-            <Btn
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
-                if (selPt?.status !== 0 && selPt?.status !== 1) {
-                  tw('Chỉ có thể đổi phòng khi bệnh nhân đang Chờ hoặc Gọi');
-                  return;
-                }
-                setChangeRoomNewId('');
-                setChangeRoomReason('');
-                setChangeRoomOpen(true);
-              }}
-              disabled={examId !== null && selPt?.status !== 0 && selPt?.status !== 1}
-            >
-              <TermIcon name="arrow-right" size={11} /> Đổi phòng (trước khám)
-            </Btn>
-          </div>
-
-          {/* 3. Bảng kê chi phí — completion status */}
-          <div style={{ borderTop: '1px solid var(--line)', paddingTop: 'var(--space-8)', marginBottom: 'var(--space-8)' }}>
-            <div style={{ fontSize: 'var(--fs-xxs)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)', marginBottom: 'var(--space-6)' }}>Bảng kê chi phí</div>
-            {completion ? (
-              <>
-                <div style={{ display: 'flex', gap: 'var(--space-8)', flexWrap: 'wrap', marginBottom: 'var(--space-6)', fontSize: 'var(--fs-xs)' }}>
-                  <span>Hoàn tất: <b style={{ color: completion.isCompleted ? 'var(--s-ok)' : 'var(--t-2)' }}>{completion.isCompleted ? '✓' : '✗'}</b></span>
-                  <span>Đã in BK: <b style={{ color: completion.isBillPrinted ? 'var(--s-ok)' : 'var(--t-2)' }}>{completion.isBillPrinted ? '✓' : '✗'}</b></span>
-                  {completion.totalExamsInChain > 1 && (
-                    <span className="ab-u-muted">{completion.completedExamsInChain}/{completion.totalExamsInChain} CK</span>
-                  )}
-                </div>
-                {completion.blockReason && (
-                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-warn)', marginBottom: 'var(--space-6)', padding: '4px 6px', background: 'var(--d-1)', borderRadius: 4, borderLeft: '3px solid var(--s-warn)' }}>
-                    {completion.blockReason}
-                  </div>
-                )}
-                <div style={{ display: 'grid', gap: 5 }}>
-                  {/* In bảng kê */}
-                  {completion.canPrintBill && (
-                    <Btn
-                      variant="ok"
-                      size="sm"
-                      onClick={async () => {
-                        if (!examId) return;
-                        try {
-                          const result = await printBill(examId);
-                          tk('Đã in chi phí (bảng kê)');
-                          setCompletion(result);
-                        } catch (err: unknown) {
-                          const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-                          te(msg || 'Không thể in bảng kê chi phí');
-                        }
-                      }}
-                    >
-                      <TermIcon name="print" size={11} /> In bảng kê chi phí
-                    </Btn>
-                  )}
-                  {/* Hủy in chi phí */}
-                  {completion.isBillPrinted && (
-                    <Btn
-                      variant="ghost"
-                      size="sm"
-                      onClick={async () => {
-                        if (!examId) return;
-                        try {
-                          const result = await cancelPrintBill(examId);
-                          tk('Đã hủy in chi phí');
-                          setCompletion(result);
-                        } catch (err: unknown) {
-                          const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-                          te(msg || 'Không thể hủy in chi phí');
-                        }
-                      }}
-                    >
-                      <TermIcon name="x" size={11} /> Hủy in chi phí
-                    </Btn>
-                  )}
-                  {/* Hủy hoàn tất */}
-                  {completion.isCompleted && (
-                    <Btn
-                      variant="crit"
-                      size="sm"
-                      onClick={async () => {
-                        if (!examId) return;
-                        // Cảnh báo nếu đã in bảng kê
-                        const confirmed = window.confirm(
-                          'Hủy hoàn tất? Phiên khám trở về Đang khám.' +
-                          (completion.isBillPrinted ? ' Cần hủy in chi phí trước nếu có.' : ''),
-                        );
-                        if (!confirmed) return;
-                        try {
-                          const result = await cancelCompletion(examId);
-                          tk('Đã hủy hoàn tất');
-                          setCompletion(result);
-                          loadQueue(roomId);
-                        } catch (err: unknown) {
-                          const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-                          te(msg || 'Không thể hủy hoàn tất');
-                        }
-                      }}
-                    >
-                      <TermIcon name="refresh" size={11} /> Hủy hoàn tất (về Đang khám)
-                    </Btn>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-3)' }}>{examId ? 'Đang tải…' : 'Chọn bệnh nhân để xem trạng thái'}</div>
-            )}
-          </div>
-
-          {/* 4. Xóa đăng ký — destructive */}
-          <div style={{ borderTop: '1px solid var(--line)', paddingTop: 'var(--space-8)' }}>
-            <Btn
-              variant="crit"
-              size="sm"
-              style={{ width: '100%', justifyContent: 'center' }}
-              onClick={() => {
-                if (!examId) { tw('Chưa chọn bệnh nhân'); return; }
-                setDeleteReason('');
-                setDeleteOpen(true);
-              }}
-            >
-              <TermIcon name="trash" size={11} /> Xóa đăng ký khám
-            </Btn>
-          </div>
-        </section>
-      </aside>
-
-      {/* ── Modals: Lưu thành mẫu HSBA + Quản lý mẫu HSBA ────────────── */}
       <TemplateModals
-        saveOpen={tplSaveOpen}
-        setSaveOpen={setTplSaveOpen}
-        name={tplName}
-        setName={setTplName}
-        busy={tplBusy}
-        onSave={saveCurrentAsTpl}
-        manageOpen={tplManageOpen}
-        setManageOpen={setTplManageOpen}
-        tpls={tpls}
-        onRemove={removeTpl}
-        history={history}
-        exam={exam}
-        conclusion={conclusion}
-        diagnoses={diagnoses}
+        saveOpen={tplSaveOpen} setSaveOpen={setTplSaveOpen} name={tplName} setName={setTplName}
+        busy={tplBusy} onSave={saveCurrentAsTpl} manageOpen={tplManageOpen} setManageOpen={setTplManageOpen}
+        tpls={tpls} onRemove={removeTpl} history={history} exam={exam} conclusion={conclusion} diagnoses={diagnoses}
       />
 
-      {/* ── 6 modal xử trí / đa chuyên khoa (#362 tách → DispositionModals) ── */}
       <DispositionModals
-        rooms={rooms}
-        roomId={roomId}
-        selPt={selPt}
-        departments={departments}
-        followUpOpen={followUpOpen} setFollowUpOpen={setFollowUpOpen}
-        followUpRoomId={followUpRoomId} setFollowUpRoomId={setFollowUpRoomId}
-        followUpReason={followUpReason} setFollowUpReason={setFollowUpReason}
-        followUpSaving={followUpSaving} onFollowUp={doFollowUp}
-        changeRoomOpen={changeRoomOpen} setChangeRoomOpen={setChangeRoomOpen}
-        changeRoomNewId={changeRoomNewId} setChangeRoomNewId={setChangeRoomNewId}
-        changeRoomReason={changeRoomReason} setChangeRoomReason={setChangeRoomReason}
-        changeRoomSaving={changeRoomSaving} onChangeRoom={doChangeRoom}
-        deleteOpen={deleteOpen} setDeleteOpen={setDeleteOpen}
-        deleteReason={deleteReason} setDeleteReason={setDeleteReason}
-        deleteSaving={deleteSaving} onDelete={doDelete}
-        hospOpen={hospOpen} setHospOpen={setHospOpen}
-        hospDeptId={hospDeptId} setHospDeptId={setHospDeptId}
-        hospReason={hospReason} setHospReason={setHospReason}
-        hospEmergency={hospEmergency} setHospEmergency={setHospEmergency}
-        hospSaving={hospSaving} onHospitalize={doHospitalize}
-        transferOpen={transferOpen} setTransferOpen={setTransferOpen}
-        transferFacility={transferFacility} setTransferFacility={setTransferFacility}
-        transferReason={transferReason} setTransferReason={setTransferReason}
-        transferTransport={transferTransport} setTransferTransport={setTransferTransport}
-        transferSaving={transferSaving} onTransfer={doTransfer}
-        apptOpen={apptOpen} setApptOpen={setApptOpen}
-        apptDate={apptDate} setApptDate={setApptDate}
-        apptNotes={apptNotes} setApptNotes={setApptNotes}
-        apptSaving={apptSaving} onAppointment={doAppointment}
+        rooms={rooms} roomId={roomId} selPt={selPt} departments={disp.departments}
+        followUpOpen={disp.followUpOpen} setFollowUpOpen={disp.setFollowUpOpen}
+        followUpRoomId={disp.followUpRoomId} setFollowUpRoomId={disp.setFollowUpRoomId}
+        followUpReason={disp.followUpReason} setFollowUpReason={disp.setFollowUpReason}
+        followUpSaving={disp.followUpSaving} onFollowUp={disp.doFollowUp}
+        changeRoomOpen={disp.changeRoomOpen} setChangeRoomOpen={disp.setChangeRoomOpen}
+        changeRoomNewId={disp.changeRoomNewId} setChangeRoomNewId={disp.setChangeRoomNewId}
+        changeRoomReason={disp.changeRoomReason} setChangeRoomReason={disp.setChangeRoomReason}
+        changeRoomSaving={disp.changeRoomSaving} onChangeRoom={disp.doChangeRoom}
+        deleteOpen={disp.deleteOpen} setDeleteOpen={disp.setDeleteOpen}
+        deleteReason={disp.deleteReason} setDeleteReason={disp.setDeleteReason}
+        deleteSaving={disp.deleteSaving} onDelete={disp.doDelete}
+        hospOpen={disp.hospOpen} setHospOpen={disp.setHospOpen}
+        hospDeptId={disp.hospDeptId} setHospDeptId={disp.setHospDeptId}
+        hospReason={disp.hospReason} setHospReason={disp.setHospReason}
+        hospEmergency={disp.hospEmergency} setHospEmergency={disp.setHospEmergency}
+        hospSaving={disp.hospSaving} onHospitalize={disp.doHospitalize}
+        transferOpen={disp.transferOpen} setTransferOpen={disp.setTransferOpen}
+        transferFacility={disp.transferFacility} setTransferFacility={disp.setTransferFacility}
+        transferReason={disp.transferReason} setTransferReason={disp.setTransferReason}
+        transferTransport={disp.transferTransport} setTransferTransport={disp.setTransferTransport}
+        transferSaving={disp.transferSaving} onTransfer={disp.doTransfer}
+        apptOpen={disp.apptOpen} setApptOpen={disp.setApptOpen}
+        apptDate={disp.apptDate} setApptDate={disp.setApptDate}
+        apptNotes={disp.apptNotes} setApptNotes={disp.setApptNotes}
+        apptSaving={disp.apptSaving} onAppointment={disp.doAppointment}
       />
 
-      {/* Responsive toggles */}
       {(leftOpen || rightOpen) && <div className="ed-panel-backdrop" onClick={closeAll} />}
       <div className="ed-panel-toggles">
         <button className="ed-panel-toggle" onClick={() => setLeftOpen((o) => !o)} title="Hàng đợi">
@@ -1132,63 +270,33 @@ const OpdEditorV2: React.FC = () => {
         </button>
       </div>
 
-      {/* ── Modal: KQ XN · CĐHA tại phòng khám ───────────────────────── */}
       <ClsResultsModal
-        open={clsOpen}
-        onClose={() => setClsOpen(false)}
-        loading={clsLoading}
-        data={clsData}
+        open={clsOpen} onClose={() => setClsOpen(false)} loading={clsLoading} data={clsData}
         sub={selPt ? `${selPt.patientName} · ${selPt.patientCode}` : ''}
       />
-
-      {/* ── Modal: Sổ hội chẩn ───────────────────────────────────────── */}
       <ConsultModal
-        open={consultOpen}
-        onClose={() => setConsultOpen(false)}
-        consults={consults}
-        form={consultForm}
-        setForm={setConsultForm}
-        saving={consultSaving}
-        onSave={saveConsult}
+        open={consultOpen} onClose={() => setConsultOpen(false)}
+        consults={consults} form={consultForm} setForm={setConsultForm}
+        saving={consultSaving} onSave={saveConsult}
         sub={selPt ? `${selPt.patientName} · ${selPt.patientCode}` : ''}
       />
-
-      {/* ── Modal: Tường trình PTTT (G-09) ─────────────────────────── */}
       <SurgeryReportModal
-        open={ptttOpen}
-        onClose={() => setPtttOpen(false)}
-        onSaved={() => setPtttOpen(false)}
-        examinationId={examId}
-        patientId={selPt?.patientId}
-        patientName={selPt?.patientName}
-        patientCode={selPt?.patientCode}
+        open={ptttOpen} onClose={() => setPtttOpen(false)} onSaved={() => setPtttOpen(false)}
+        examinationId={examId} patientId={selPt?.patientId}
+        patientName={selPt?.patientName} patientCode={selPt?.patientCode}
         prefillDiagnosis={diagnoses.find((d) => d.isPrimary)?.icdName}
       />
-
-      {/* ── Modal: Xuất tủ trực (G-10a) ────────────────────────────── */}
       <CabinetIssueModal
-        open={cabinetOpen}
-        onClose={() => setCabinetOpen(false)}
-        onSaved={() => setCabinetOpen(false)}
-        patientName={selPt?.patientName}
-        patientCode={selPt?.patientCode}
-        examinationId={examId}
+        open={cabinetOpen} onClose={() => setCabinetOpen(false)} onSaved={() => setCabinetOpen(false)}
+        patientName={selPt?.patientName} patientCode={selPt?.patientCode} examinationId={examId}
       />
-
-      {/* F10: Xuất dự trù thuốc/VTYT */}
       <StockReservationModal
-        open={stockOpen}
-        onClose={() => setStockOpen(false)}
-        patientId={selPt?.patientId || ''}
-        patientName={selPt?.patientName}
-        departmentId={rooms.find((r) => r.id === roomId)?.departmentId}
-        defaultType={2}
+        open={stockOpen} onClose={() => setStockOpen(false)}
+        patientId={selPt?.patientId || ''} patientName={selPt?.patientName}
+        departmentId={rooms.find((r) => r.id === roomId)?.departmentId} defaultType={2}
       />
-
-      {/* Barcode scan → find patient in current room queue */}
       <BarcodeScanner
-        open={scanOpen}
-        onClose={() => setScanOpen(false)}
+        open={scanOpen} onClose={() => setScanOpen(false)}
         onScan={(code) => {
           setScanOpen(false);
           const key = code.trim().toLowerCase();
