@@ -1220,7 +1220,7 @@ const DepositSection: React.FC<{ admissionId: string; onRequest: () => void }> =
     setLoading(true);
     getDepositRequests()
       .then((r) => {
-        const all = (r as DepositRequestDto[]);
+        const all = Array.isArray(r.data) ? r.data : [];
         setDeposits(all.filter((d: DepositRequestDto) => d.admissionId === admissionId));
       })
       .catch(() => setDeposits([]))
