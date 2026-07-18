@@ -8,7 +8,7 @@ import {
 // Domain: financial — menu group finance.
 export const financialV2Routes: RouteEntry[] = [
   { path: 'billing', Component: BillingV2, meta: { title: 'Viện phí', group: 'finance', permission: 'Billing.Read', workspace: 'frontoffice', module: 'THUNGAN' } },
-  { path: 'billing/edit', Component: BillingEditorV2, meta: { title: 'Viện phí (chỉnh sửa)', group: 'finance', permission: 'Billing.Read', workspace: 'frontoffice', module: 'THUNGAN' } },
+  { path: 'billing/edit', Component: BillingEditorV2, meta: { title: 'Viện phí (chỉnh sửa)', group: 'finance', permission: 'Billing.Collect', workspace: 'frontoffice', module: 'THUNGAN' } },
   { path: 'finance', Component: FinanceV2, meta: { title: 'Quản lý tài chính', group: 'finance', permission: 'Billing.Read', workspace: 'frontoffice', module: 'THUNGAN' } },
   { path: 'insurance', Component: InsuranceV2, meta: { permission: 'Insurance.Read', title: 'Giám định BHYT', group: 'finance', workspace: 'backoffice', module: 'BHYT' } },
   { path: 'bhyt-full-coverage', Component: BhytFullCoverageV2, meta: { permission: 'Insurance.Read', title: 'BN BHYT chi trả 100%', group: 'finance', workspace: 'backoffice', module: 'BHYT' } },
@@ -19,7 +19,7 @@ export const financialV2Routes: RouteEntry[] = [
   { path: 'bank-payments', Component: BankPaymentsV2, meta: { title: 'TT Ngân hàng (BIDV/VCB/...)', group: 'finance', permission: 'Billing.Read', workspace: 'frontoffice', module: 'THUNGAN' } },
   { path: 'einvoices', Component: EInvoicesV2, meta: { title: 'Hóa đơn điện tử (HĐĐT)', group: 'finance', permission: 'Billing.Read', workspace: 'frontoffice', module: 'THUNGAN' } },
   { path: 'qr-payment-center', Component: QrPaymentCenterV2, meta: { title: 'QR động & Đối soát VCB', group: 'finance', permission: 'Billing.Read', workspace: 'frontoffice', module: 'THUNGAN' } },
-  { path: 'receipt-book-admin', Component: ReceiptBookAdminV2, meta: { title: 'Quản lý sổ biên lai', group: 'finance', permission: 'Billing.Read', workspace: 'frontoffice', module: 'THUNGAN' } },
+  { path: 'receipt-book-admin', Component: ReceiptBookAdminV2, meta: { title: 'Quản lý sổ biên lai', group: 'finance', permission: 'System.Configure', workspace: 'frontoffice', module: 'THUNGAN' } },
   { path: 'bhxh-config', Component: BhxhConfigV2, meta: { permission: 'System.Configure', title: 'Cấu hình BHXH', group: 'finance', workspace: 'backoffice', module: 'BHYT' } },
   { path: 'payment-reports', Component: PaymentReportsV2, meta: { title: 'Báo cáo thanh toán', group: 'finance', permission: 'Report.Read', workspace: 'frontoffice', module: 'THUNGAN' } },
   { path: 'payment-transactions', Component: PaymentTransactionsV2, meta: { title: 'Giao dịch thanh toán', group: 'finance', permission: 'Billing.Read', workspace: 'frontoffice', module: 'THUNGAN' } },

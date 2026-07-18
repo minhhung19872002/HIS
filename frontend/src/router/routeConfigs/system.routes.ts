@@ -15,6 +15,6 @@ export const systemV2Routes: RouteEntry[] = [
   { path: 'national-gateways', Component: NationalGatewaysV2, meta: { permission: 'System.Configure', title: 'Cổng Đơn thuốc / Dược QG', group: 'integration', workspace: 'backoffice', module: 'extended' } },
   { path: 'de-an-06', Component: DeAn06LiaisonV2, meta: { permission: 'System.Configure', title: 'Đề án 06 (GCS/GBT/Lái xe)', group: 'integration', workspace: 'backoffice', module: 'extended' } },
   { path: 'hl7-message-queue', Component: Hl7MessageQueueV2, meta: { permission: 'System.Configure', title: 'Hàng đợi HL7 (retry)', group: 'integration', workspace: 'backoffice', module: 'extended' } },
-  { path: 'emr-cloud-sync', Component: EmrCloudSyncV2, meta: { permission: 'MedicalRecord.Read', title: 'Đồng bộ EMR lên Cloud', group: 'integration', workspace: 'clinical', module: 'KHAMBENH' } },
-  { path: 'emr-hl7-export', Component: EmrHl7ExportV2, meta: { permission: 'MedicalRecord.Read', title: 'Xuất HL7 v2 HSBA', group: 'integration', workspace: 'clinical', module: 'KHAMBENH' } },
+  { path: 'emr-cloud-sync', Component: EmrCloudSyncV2, meta: { permission: 'System.Configure', title: 'Đồng bộ EMR lên Cloud', group: 'integration', workspace: 'clinical', module: 'KHAMBENH' } },
+  { path: 'emr-hl7-export', Component: EmrHl7ExportV2, meta: { permission: 'MedicalRecord.Export', title: 'Xuất HL7 v2 HSBA', group: 'integration', workspace: 'clinical', module: 'KHAMBENH' } },
 ];
