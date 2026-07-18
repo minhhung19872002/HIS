@@ -24,6 +24,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
           code={500}
           desc={this.state.error ? `${this.state.error.name}: ${this.state.error.message}` : undefined}
           onRetry={() => { this.setState({ hasError: false, error: null }); }}
+          onBack={() => { this.setState({ hasError: false, error: null }); window.history.back(); }}
         />
       );
     }

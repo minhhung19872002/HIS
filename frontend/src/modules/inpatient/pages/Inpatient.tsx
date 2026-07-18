@@ -168,7 +168,7 @@ const InpatientV2: React.FC = () => {
     try {
       const today = dayjs().format('YYYY-MM-DD');
       const res = await getServiceOrders(p.admissionId, today, today);
-      setSupplyOrders(Array.isArray(res.data) ? res.data as InpatientServiceOrderDto[] : []);
+      setSupplyOrders(Array.isArray(res) ? res as InpatientServiceOrderDto[] : []);
     } catch { setSupplyOrders([]); }
     finally { setSupplyLoading(false); }
   }, []);
@@ -1220,7 +1220,7 @@ const DepositSection: React.FC<{ admissionId: string; onRequest: () => void }> =
     setLoading(true);
     getDepositRequests()
       .then((r) => {
-        const all = Array.isArray(r) ? r : (Array.isArray((r as { data?: unknown[] }).data) ? (r as { data: DepositRequestDto[] }).data : []);
+        const all = (r as DepositRequestDto[]);
         setDeposits(all.filter((d: DepositRequestDto) => d.admissionId === admissionId));
       })
       .catch(() => setDeposits([]))

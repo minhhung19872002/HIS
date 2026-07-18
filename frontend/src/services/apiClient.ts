@@ -116,7 +116,7 @@ apiClient.interceptors.response.use(
         }
       }
     }
-    // 503 = bảo trì → gửi sự kiện để layout có thể hiện banner/overlay
+    // 503 = bảo trì → signal để layout hiện banner (TODO: implement MaintenanceBanner listener in TerminalLayout)
     if (error.response?.status === 503) {
       window.dispatchEvent(new CustomEvent('his:maintenance', { detail: { retry: error.config?.url } }));
     }
