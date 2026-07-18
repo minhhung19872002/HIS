@@ -223,3 +223,74 @@ Batch-agent (Sonnet) **gắn Full quá rộng** (Full cho mọi trang có list+v
 | F. Drift | ✅ inventory còn giá trị (pages/ đóng băng) | — |
 
 **Bản đồ nhóm port sau audit: #407 · #408 · #409 · #410 · #411 · #412 · #413** → xong + smoke 44 DELETE-safe → mở lại #204 → Phase 3 gỡ `layoutMode==='v1'`.
+
+## 7. Cập nhật 2026-07-18 — Tiến độ thực tế sau phiên 2026-07-10
+
+> Cập nhật: phiên 2026-07-18 (cửa 352-phase0). Phương pháp: đọc git log + STATUS.md + `gh issue list`. **Không đọc lại từng cặp trang** — patch nhanh để §5 còn đúng.
+
+### 7a. Số liệu file (2026-07-18)
+
+| Nhóm | Số | Ghi chú |
+|---|---|---|
+| v1 pages/ (tất cả `.tsx`) | **149** | Đóng băng — không đổi (quyết-định duplicate-not-move §7c) |
+| v2 pages (pages-v2/ top-level) | **42** | (14 top-level + 15 dashboard/ + 1 dicom-viewer/ + 7 shared/ + 5 shared/surgery-modals/) |
+| v2 pages (modules/*/pages/) | **197** | Sau restructure wave-3/4 (phiên 2026-07-11/12) |
+| **v2 tổng** | **239** | Tăng mạnh vs 156 cũ nhờ restructure + port mới |
+
+### 7b. Roadmap §6 — tiến độ issue
+
+| Issue | Scope (§6) | Trạng thái |
+|---|---|---|
+| **#408** [PORT-P2] | 13 Stub (12 ported + DoctorPortal→#417) | ✅ **CLOSED** |
+| **#409** [PORT-P3] | ~40 Partial còn lại (Billing/Lab/Surgery/Reception/BloodBank/SigningWorkflow + SystemAdmin 14 tab + 8 trang nghiệp vụ) | ✅ **CLOSED** |
+| **#410** [PORT-P4] | Minor tail: HealthEducation tab Tài-liệu, SampleTracking tab, StockReport cols, DispensingCounter banner | ✅ **CLOSED** |
+| **#411** [PORT-P5] | Khôi phục 23 lối vào menu bị mất + 14 trang vắng menu | ✅ **CLOSED** |
+| **#412** [PORT-P6] | AiQueueBadge vào topbar v2 | ✅ **CLOSED** |
+| **#413** [PORT-P7] | DicomViewer v2-native | ✅ **CLOSED** ⚠ (nhưng bị REVERT — xem §7c) |
+| **#414** [PORT-P8] | Print gap 7 module (Surgery/BloodBank/Quality/HR/EmergencyDisaster/Inpatient/Reports) | ✅ **CLOSED** |
+| **#415** [PORT-P9] | QueueDisplay TV board v2 (TTS + beep + lab queue) | ✅ **CLOSED** |
+| **#417** [PORT-P2] | DoctorPortal v2 đầy đủ 4 tab (OPD/Inpatient/Ký số/Lịch trực) | ✅ **CLOSED** |
+| **#407** [PORT-P1] | Patient-safety clinical: OPD/Prescription/EMR/Inpatient/Pharmacy/HospitalPharmacy/Insurance + OPD AI-CDS/drug-warnings | 🟡 **OPEN in-progress** — nhiều phần done (Pharmacy 5-tab ✅, Insurance 4-tab ✅, HospitalPharmacy 8-tab ✅, Nursing ✅); còn cần smoke: OPD AI-CDS/supply-template · Prescription dose-slots/template · EMR partograph/anesthesia · Inpatient deposit/bed-transfer/supply-order |
+
+### 7c. Thay đổi kiến trúc quan trọng (từ 2026-07-10)
+
+1. **Quy tắc mới `pages/` = DUPLICATE not MOVE** (user decision 2026-07-18): mọi port v1→v2 PHẢI tạo file mới trong `pages-v2/`/`modules/*/pages/`, TUYỆT ĐỐI không xóa/move file `pages/`. v1 sẽ retire bằng cách gỡ route + gỡ `layoutMode==='v1'` (Phase 3), không phải xóa file. Ảnh hưởng: §5 "DELETE-candidate" nay = "retire-route-candidate" (file vẫn tồn tại, chỉ route bị gỡ).
+
+2. **DicomViewer #413 REVERT**: User yêu cầu khôi phục `pages/DicomViewer.tsx` + 7 component (git revert). `pages-v2/DicomViewer.tsx` hiện = re-export 1 dòng từ `pages-v2/dicom-viewer/DicomViewer.tsx` (native copy). Kết luận §2c KEEP vẫn đúng nhưng lý do đổi: không phải "dependency" mà "quy tắc duplicate-not-move".
+
+3. **Folder restructure hoàn tất**: `pages-v2/*.tsx` phần lớn đã dời sang `modules/*/pages/` (wave-3 2026-07-11, wave-4 2026-07-12). 29/33 module có pages/ có file; 4 module còn giữ ở `pages-v2/` top-level (InfectionControl, Nutrition, Rehabilitation, SatisfactionSurvey — chưa di chuyển).
+
+### 7d. Parity patch (§2a/§2b — cập nhật nhanh sau #408-#417)
+
+**Stub → Partial/Full (từ §2a):**
+| Page | Cũ (2026-06-28) | Mới | Issue |
+|---|---|---|---|
+| DoctorPortal | Stub (no v2 route) | **Full** (4 tab: OPD/Inpatient/Ký số/Lịch trực) | #417 |
+| HospitalPharmacy | Stub (list 7 ngày only) | **Partial** (8 tab: Kho/Cấp phát/Bán lẻ/Lĩnh liên khoa/Chuyển kho/Nhập/Khách/GPP) | #407 |
+| Immunization + 10 stubs còn lại | Stub (no CRUD) | **Partial** (CRUD + vệ tinh cơ bản) | #408 |
+| SmsManagement | Stub (list only) | **Partial** (dashboard tab + test-connection) | #409/#408 |
+
+**Partial → Full (từ §2b-2):**
+| Page | Cũ | Mới | Issue |
+|---|---|---|---|
+| Surgery | Partial (list only) | **Full** (create-request + schedule + start + OR-gate + in MS06) | #409 |
+| Billing | Partial | **Full** (BillingEditor: ReassignObject/ApplyDiscount/PartialRefund/QR/deposit/refund/e-invoice; #419 PartialRefundModal fix) | #409+#419 |
+| BloodBank | Partial | **Partial→better** (Duyệt + Xuất máu + BloodTypeDetail; gelcard vẫn thiếu) | #409+#420 |
+| SigningWorkflow | Partial | **Partial→better** (batch approve + filter doc-type + SearchBox) | #409 |
+| SystemAdmin | Partial (4 tab) | **Partial→better** (14 tab: +ItTickets/AccessMatrix/Compliance/DataManagement/Health/EmrAdmin) | #409 |
+
+### 7e. Trạng thái hiện tại (2026-07-18) — con đường còn lại đến Phase 3
+
+```
+Đã xong (closed):  #408 #409 #410 #411 #412 #413(+revert) #414 #415 #417
+Đang làm:          #407 (patient-safety — cần deploy+smoke prod → phiên khác)
+Sau khi #407 xong: smoke 44 DELETE-safe → mở #204 → Phase 3 (gỡ layoutMode=v1 + route retire)
+```
+
+**Ước lượng parity hiện tại (2026-07-18):**
+- Full: ~60 (từ 45 cũ; Surgery/Billing/DoctorPortal nâng lên)
+- Partial: ~50 (từ 58; nhiều partial được bổ sung nhưng feature phụ còn thiếu)
+- Stub: ~7 (từ 14; 7 đã bổ sung CRUD qua #408; MedicalSupply + một số lâm sàng sâu vẫn Stub)
+- **DELETE-safe** (smoke-ready): ước ~55-60 (từ 44; thêm các trang mới ported đầy đủ)
+
+> ⚠️ Con số trên là ước lượng nhanh — KHÔNG đọc lại từng cặp. Cần adversarial verify vòng-3 trước khi #204 xóa hàng loạt.
