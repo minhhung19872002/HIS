@@ -17,11 +17,13 @@ import { AutoComplete, Checkbox, Input, InputNumber, Select, Tree } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import {
   searchServices, getServiceTree, createServiceOrder, getDiagnosisFromRecord,
+  checkServiceOrderWarnings,
 } from '../api/inpatient';
 import type {
   ServiceSearchResultDto, ServiceTreeNodeDto, CreateInpatientServiceOrderDto,
+  ServiceOrderWarningDto,
 } from '../api/inpatient';
-import { ModalShell, Btn, DrSec, DrField, tk, tw, te } from '../../../pages-v2/_v2kit';
+import { ModalShell, Btn, DrSec, DrField, fmtVNDg, tk, tw, te } from '../../../pages-v2/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -113,6 +115,10 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
   const [mainDiagnosisCode, setMainDiagnosisCode] = useState('');
   const [mainDiagnosis, setMainDiagnosis] = useState('');
   const [saving, setSaving] = useState(false);
+  // Deposit / TT35 / duplicate / package / protocol warnings — advisory pre-submit gate
+  const [warnings, setWarnings] = useState<ServiceOrderWarningDto | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [ack, setAck] = useState(false); // BS đã đọc cảnh báo → cho phép tạo
 
   // Tree state
   const [treeData, setTreeData] = useState<DataNode[]>([]);
@@ -141,6 +147,7 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
   const reset = useCallback(() => {
     setMode('search'); setLines([]); setTreeChecked([]);
     setMainDiagnosisCode(''); setMainDiagnosis('');
+    setWarnings(null); setAck(false); setChecking(false);
     nodeMap.current.clear();
     void getDiagnosisFromRecord(admissionId)
       .then((r) => { setMainDiagnosisCode(r.data?.mainDiagnosisCode ?? ''); setMainDiagnosis(r.data?.mainDiagnosis ?? ''); })
@@ -156,13 +163,20 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
     setTreeData((prev) => updateTreeChildren(prev, String(node.key), children));
   };
 
-  // Thêm dịch vụ (tránh trùng)
-  const addService = (id: string, name: string, code = '', unitPrice = 0) =>
-    setLines((prev) => prev.some((l) => l.serviceId === id) ? prev : [...prev, makeLine(id, name, code, unitPrice)]);
+  // Danh sách dịch vụ đổi → cảnh báo cũ không còn giá trị, phải kiểm tra lại
+  const invalidateWarnings = () => { if (warnings || ack) { setWarnings(null); setAck(false); } };
 
-  const removeLine = (id: string) => setLines((prev) => prev.filter((l) => l.serviceId !== id));
-  const updateLine = (id: string, patch: Partial<SvcLine>) =>
+  // Thêm dịch vụ (tránh trùng)
+  const addService = (id: string, name: string, code = '', unitPrice = 0) => {
+    invalidateWarnings();
+    setLines((prev) => prev.some((l) => l.serviceId === id) ? prev : [...prev, makeLine(id, name, code, unitPrice)]);
+  };
+
+  const removeLine = (id: string) => { invalidateWarnings(); setLines((prev) => prev.filter((l) => l.serviceId !== id)); };
+  const updateLine = (id: string, patch: Partial<SvcLine>) => {
+    invalidateWarnings();
     setLines((prev) => prev.map((l) => (l.serviceId === id ? { ...l, ...patch } : l)));
+  };
 
   // Đẩy các node đã tick (chỉ node lá) vào danh sách
   const addCheckedFromTree = () => {
@@ -176,24 +190,28 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
     setTreeChecked([]);
   };
 
-  const submit = async () => {
-    if (!lines.length) { tw('Chưa chọn dịch vụ nào'); return; }
-    const dto: CreateInpatientServiceOrderDto = {
-      admissionId,
-      mainDiagnosisCode: mainDiagnosisCode.trim() || undefined,
-      mainDiagnosis: mainDiagnosis.trim() || undefined,
-      services: lines.map((l) => ({
-        serviceId: l.serviceId,
-        quantity: l.quantity,
-        paymentSource: l.paymentSource,
-        isUrgent: l.isUrgent,
-        isEmergency: l.isEmergency,
-        note: l.note.trim() || undefined,
-      })),
-    };
+  const buildDto = (): CreateInpatientServiceOrderDto => ({
+    admissionId,
+    mainDiagnosisCode: mainDiagnosisCode.trim() || undefined,
+    mainDiagnosis: mainDiagnosis.trim() || undefined,
+    services: lines.map((l) => ({
+      serviceId: l.serviceId,
+      quantity: l.quantity,
+      paymentSource: l.paymentSource,
+      isUrgent: l.isUrgent,
+      isEmergency: l.isEmergency,
+      note: l.note.trim() || undefined,
+    })),
+  });
+
+  const hasBlockingWarning = (w: ServiceOrderWarningDto): boolean =>
+    w.hasDuplicateToday || w.exceedsDeposit || w.hasTT35Warnings ||
+    w.exceedsPackageLimit || w.isOutsideProtocol || (w.generalWarnings?.length ?? 0) > 0;
+
+  const doCreate = async () => {
     setSaving(true);
     try {
-      await createServiceOrder(dto);
+      await createServiceOrder(buildDto());
       tk(`Đã tạo chỉ định ${lines.length} dịch vụ`);
       onDone();
     } catch (e) {
@@ -201,6 +219,31 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
       te(msg || 'Tạo chỉ định dịch vụ thất bại');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Bước 1: kiểm tra cảnh báo (tạm ứng/TT35/trùng/gói/phác đồ) trước khi tạo.
+  // Nếu đã đọc cảnh báo (ack) hoặc không có cảnh báo → tạo luôn.
+  const submit = async () => {
+    if (!lines.length) { tw('Chưa chọn dịch vụ nào'); return; }
+    if (ack) { void doCreate(); return; } // BS đã xác nhận đọc cảnh báo
+    setChecking(true);
+    try {
+      const items = buildDto().services;
+      const w = (await checkServiceOrderWarnings(admissionId, items)).data as ServiceOrderWarningDto | undefined;
+      if (w && hasBlockingWarning(w)) {
+        setWarnings(w);        // hiện panel cảnh báo, nút chuyển thành "Xác nhận tạo"
+        setAck(true);
+        tw('Có cảnh báo — kiểm tra trước khi xác nhận tạo chỉ định');
+        return;
+      }
+      // không có cảnh báo (hoặc BE không trả) → tạo thẳng
+      await doCreate();
+    } catch {
+      // BE lỗi khi kiểm cảnh báo → không chặn tạo (advisory), tạo thẳng
+      await doCreate();
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -219,8 +262,8 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
       footer={
         <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
           <Btn variant="ghost" size="sm" onClick={onClose}>Đóng</Btn>
-          <Btn variant="primary" size="sm" loading={saving} disabled={!lines.length} onClick={() => { void submit(); }}>
-            <TermIcon name="check" size={12} /> Lưu chỉ định
+          <Btn variant="primary" size="sm" loading={saving || checking} disabled={!lines.length} onClick={() => { void submit(); }}>
+            <TermIcon name={ack ? 'alert' : 'check'} size={12} /> {ack ? 'Xác nhận tạo (đã đọc cảnh báo)' : 'Lưu chỉ định'}
           </Btn>
         </div>
       }
@@ -236,6 +279,38 @@ export const InpatientServiceOrderCreateModal: React.FC<InpatientServiceOrderCre
           </DrField>
         </div>
       </DrSec>
+
+      {/* Cảnh báo trước khi tạo (tạm ứng/TT35/trùng/gói/phác đồ) */}
+      {warnings && (
+        <div style={{ margin: '0 0 var(--space-10)', padding: 'var(--space-12)', background: 'var(--s-warn-bg)', border: '1px solid var(--s-warn-bd)', borderRadius: 'var(--r-2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', marginBottom: 'var(--space-8)', fontWeight: 700, color: 'var(--s-warn-tx)', fontSize: 'var(--fs-sm)' }}>
+            <TermIcon name="alert" size={13} /> Cảnh báo — kiểm tra trước khi tạo chỉ định
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>
+            {warnings.exceedsDeposit && (
+              <div>💰 <b>Vượt tạm ứng:</b> chi phí chỉ định {fmtVNDg(warnings.orderAmount)} — còn lại tạm ứng {fmtVNDg(warnings.depositRemaining)}. Đề nghị thu thêm tạm ứng.</div>
+            )}
+            {warnings.hasDuplicateToday && (warnings.duplicateServices?.length ?? 0) > 0 && (
+              <div>🔁 <b>Trùng chỉ định hôm nay:</b> {warnings.duplicateServices.join(' · ')}</div>
+            )}
+            {warnings.hasTT35Warnings && (warnings.tt35Warnings?.length ?? 0) > 0 && (
+              <div>📋 <b>TT35 (định mức):</b> {warnings.tt35Warnings.join(' · ')}</div>
+            )}
+            {warnings.exceedsPackageLimit && (
+              <div>📦 <b>Vượt định mức gói:</b> {warnings.packageLimitMessage || 'Chỉ định vượt giới hạn gói dịch vụ.'}</div>
+            )}
+            {warnings.isOutsideProtocol && (
+              <div>🩺 <b>Ngoài phác đồ:</b> {warnings.protocolWarning || 'Chỉ định không nằm trong phác đồ điều trị.'}</div>
+            )}
+            {(warnings.generalWarnings?.length ?? 0) > 0 && warnings.generalWarnings.map((g, i) => (
+              <div key={i}>⚠ {g}</div>
+            ))}
+          </div>
+          <div style={{ marginTop: 'var(--space-8)', fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>
+            Nhấn <b>“Xác nhận tạo”</b> để tạo chỉ định dù có cảnh báo, hoặc chỉnh sửa danh sách dịch vụ.
+          </div>
+        </div>
+      )}
 
       {/* Chọn dịch vụ */}
       <DrSec title="Chọn dịch vụ" action={
