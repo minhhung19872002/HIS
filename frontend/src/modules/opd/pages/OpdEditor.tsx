@@ -11,7 +11,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { KpiStrip, StatusBadge, ActBtn, Btn, ModalShell, fmtVNDg, tk, tw, te, ti } from '../../../pages-v2/_v2kit';
+import { KpiStrip, StatusBadge, ActBtn, Btn, fmtVNDg, tk, tw, te, ti } from '../../../pages-v2/_v2kit';
 import { SurgeryReportModal } from '../../../pages-v2/shared/SurgeryReportModal';
 import { CabinetIssueModal } from '../../../pages-v2/shared/CabinetIssueModal';
 import TermIcon from '../../../components/layout/terminal/Icon';
@@ -59,6 +59,7 @@ import { ClsResultsModal } from './ClsResultsModal';
 import StockReservationModal from '../../pharmacy/components/StockReservationModal';
 import { ConsultModal } from './ConsultModal';
 import { TemplateModals } from './TemplateModals';
+import { DispositionModals } from './DispositionModals';
 
 const OpdEditorV2: React.FC = () => {
   const navigate = useNavigate();
@@ -544,6 +545,68 @@ const OpdEditorV2: React.FC = () => {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       te(msg || 'Hẹn tái khám thất bại');
     } finally { setApptSaving(false); }
+  };
+
+  // ── Xử trí: Khám thêm CK khác (#362 hoist verbatim từ inline modal footer) ──
+  const doFollowUp = async () => {
+    if (!examId || !followUpRoomId) return;
+    setFollowUpSaving(true);
+    try {
+      const result = await addFollowUpSpecialty({
+        parentExaminationId: examId,
+        roomId: followUpRoomId,
+        reason: followUpReason || undefined,
+      });
+      tk(`Đã tạo phiên khám CK khác — Phòng ${result.roomName}, STT ${result.queueNumber}`);
+      setFollowUpOpen(false);
+      loadQueue(roomId);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      te(msg || 'Không thêm được phiên khám CK khác');
+    } finally {
+      setFollowUpSaving(false);
+    }
+  };
+
+  // ── Xử trí: Đổi phòng trước khám ─────────────────────────────────
+  const doChangeRoom = async () => {
+    if (!examId || !changeRoomNewId) return;
+    setChangeRoomSaving(true);
+    try {
+      await changeRoomBeforeExam({
+        examinationId: examId,
+        newRoomId: changeRoomNewId,
+        reason: changeRoomReason || undefined,
+      });
+      tk('Đã đổi phòng trước khám');
+      setChangeRoomOpen(false);
+      setSelPt(null);
+      loadQueue(roomId);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      te(msg || 'Không thể đổi phòng');
+    } finally {
+      setChangeRoomSaving(false);
+    }
+  };
+
+  // ── Xử trí: Xóa đăng ký khám ─────────────────────────────────────
+  const doDelete = async () => {
+    if (!examId || !deleteReason.trim()) return;
+    setDeleteSaving(true);
+    try {
+      await deleteRegistration(examId, deleteReason.trim());
+      tk('Đã xóa đăng ký khám');
+      setDeleteOpen(false);
+      setSelPt(null);
+      setCompletion(null);
+      loadQueue(roomId);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      te(msg || 'Không thể xóa đăng ký khám');
+    } finally {
+      setDeleteSaving(false);
+    }
   };
 
   // KQ CLS (XN + CĐHA) tại phòng khám
@@ -1087,297 +1150,38 @@ const OpdEditorV2: React.FC = () => {
         diagnoses={diagnoses}
       />
 
-      {/* ── Modal: Khám thêm CK khác ─────────────────────────────────── */}
-      <ModalShell
-        open={followUpOpen}
-        onClose={() => setFollowUpOpen(false)}
-        title="Khám thêm chuyên khoa khác"
-        sub="Tạo phiên khám tại phòng chuyên khoa khác cho bệnh nhân này"
-        size="sm"
-        footer={
-          <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
-            <Btn variant="ghost" size="sm" onClick={() => setFollowUpOpen(false)}>Hủy</Btn>
-            <Btn
-              variant="primary"
-              size="sm"
-              disabled={!followUpRoomId || followUpSaving}
-              onClick={async () => {
-                if (!examId || !followUpRoomId) return;
-                setFollowUpSaving(true);
-                try {
-                  const result = await addFollowUpSpecialty({
-                    parentExaminationId: examId,
-                    roomId: followUpRoomId,
-                    reason: followUpReason || undefined,
-                  });
-                  tk(`Đã tạo phiên khám CK khác — Phòng ${result.roomName}, STT ${result.queueNumber}`);
-                  setFollowUpOpen(false);
-                  loadQueue(roomId);
-                } catch (err: unknown) {
-                  const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-                  te(msg || 'Không thêm được phiên khám CK khác');
-                } finally {
-                  setFollowUpSaving(false);
-                }
-              }}
-            >
-              <TermIcon name="plus" size={11} /> Tạo phiên khám
-            </Btn>
-          </div>
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Phòng chuyên khoa <span style={{ color: 'var(--s-err)' }}>*</span></label>
-            <select
-              className="hui-inp hui-sel"
-              value={followUpRoomId}
-              onChange={(e) => setFollowUpRoomId(e.target.value)}
-              style={{ width: '100%', height: 30 }}
-            >
-              <option value="">(Chọn phòng)</option>
-              {rooms.filter((r) => r.id !== roomId).map((r) => (
-                <option key={r.id} value={r.id}>{r.code} · {r.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Lý do (tùy chọn)</label>
-            <textarea
-              className="hui-inp"
-              value={followUpReason}
-              onChange={(e) => setFollowUpReason(e.target.value)}
-              placeholder="Lý do chuyển khám chuyên khoa…"
-              rows={3}
-              style={{ width: '100%', resize: 'vertical' }}
-            />
-          </div>
-        </div>
-      </ModalShell>
-
-      {/* ── Modal: Đổi phòng trước khám ──────────────────────────────── */}
-      <ModalShell
-        open={changeRoomOpen}
-        onClose={() => setChangeRoomOpen(false)}
-        title="Đổi phòng trước khi khám"
-        sub="Chuyển bệnh nhân sang phòng khám khác (chỉ khi chưa bắt đầu khám)"
-        size="sm"
-        footer={
-          <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
-            <Btn variant="ghost" size="sm" onClick={() => setChangeRoomOpen(false)}>Hủy</Btn>
-            <Btn
-              variant="primary"
-              size="sm"
-              disabled={!changeRoomNewId || changeRoomSaving}
-              onClick={async () => {
-                if (!examId || !changeRoomNewId) return;
-                setChangeRoomSaving(true);
-                try {
-                  await changeRoomBeforeExam({
-                    examinationId: examId,
-                    newRoomId: changeRoomNewId,
-                    reason: changeRoomReason || undefined,
-                  });
-                  tk('Đã đổi phòng trước khám');
-                  setChangeRoomOpen(false);
-                  setSelPt(null);
-                  loadQueue(roomId);
-                } catch (err: unknown) {
-                  const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-                  te(msg || 'Không thể đổi phòng');
-                } finally {
-                  setChangeRoomSaving(false);
-                }
-              }}
-            >
-              <TermIcon name="arrow-right" size={11} /> Xác nhận đổi phòng
-            </Btn>
-          </div>
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Phòng mới <span style={{ color: 'var(--s-err)' }}>*</span></label>
-            <select
-              className="hui-inp hui-sel"
-              value={changeRoomNewId}
-              onChange={(e) => setChangeRoomNewId(e.target.value)}
-              style={{ width: '100%', height: 30 }}
-            >
-              <option value="">(Chọn phòng)</option>
-              {rooms.filter((r) => r.id !== roomId).map((r) => (
-                <option key={r.id} value={r.id}>{r.code} · {r.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Lý do (tùy chọn)</label>
-            <textarea
-              className="hui-inp"
-              value={changeRoomReason}
-              onChange={(e) => setChangeRoomReason(e.target.value)}
-              placeholder="Lý do đổi phòng…"
-              rows={3}
-              style={{ width: '100%', resize: 'vertical' }}
-            />
-          </div>
-        </div>
-      </ModalShell>
-
-      {/* ── Modal: Xóa đăng ký khám ──────────────────────────────────── */}
-      <ModalShell
-        open={deleteOpen}
-        onClose={() => setDeleteOpen(false)}
-        title="Xóa đăng ký khám"
-        sub="Thao tác này không thể hoàn tác"
-        size="sm"
-        tone="danger"
-        footer={
-          <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
-            <Btn variant="ghost" size="sm" onClick={() => setDeleteOpen(false)}>Hủy</Btn>
-            <Btn
-              variant="crit"
-              size="sm"
-              disabled={!deleteReason.trim() || deleteSaving}
-              onClick={async () => {
-                if (!examId || !deleteReason.trim()) return;
-                setDeleteSaving(true);
-                try {
-                  await deleteRegistration(examId, deleteReason.trim());
-                  tk('Đã xóa đăng ký khám');
-                  setDeleteOpen(false);
-                  setSelPt(null);
-                  setCompletion(null);
-                  loadQueue(roomId);
-                } catch (err: unknown) {
-                  const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-                  te(msg || 'Không thể xóa đăng ký khám');
-                } finally {
-                  setDeleteSaving(false);
-                }
-              }}
-            >
-              <TermIcon name="trash" size={11} /> Xóa đăng ký
-            </Btn>
-          </div>
-        }
-      >
-        <div>
-          <div style={{ marginBottom: 'var(--space-10)', fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>
-            Xóa đăng ký khám của <b>{selPt?.patientName}</b> (STT {selPt?.queueNumber})?
-          </div>
-          <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>
-            Lý do xóa <span style={{ color: 'var(--s-err)' }}>*</span>
-          </label>
-          <textarea
-            className="hui-inp"
-            value={deleteReason}
-            onChange={(e) => setDeleteReason(e.target.value)}
-            placeholder="Bắt buộc nhập lý do xóa…"
-            rows={3}
-            style={{ width: '100%', resize: 'vertical', borderColor: !deleteReason.trim() ? 'var(--s-err)' : undefined }}
-          />
-          {!deleteReason.trim() && (
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-err)', marginTop: 'var(--space-4)' }}>Lý do không được để trống</div>
-          )}
-        </div>
-      </ModalShell>
-
-      {/* ── Modal: Nhập viện ─────────────────────────────────────────── */}
-      <ModalShell
-        open={hospOpen}
-        onClose={() => setHospOpen(false)}
-        title="Yêu cầu nhập viện"
-        sub={selPt ? `${selPt.patientName} · ${selPt.patientCode}` : ''}
-        size="sm"
-        footer={
-          <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
-            <Btn variant="ghost" size="sm" onClick={() => setHospOpen(false)}>Hủy</Btn>
-            <Btn variant="primary" size="sm" disabled={!hospDeptId || !hospReason.trim() || hospSaving} onClick={doHospitalize}>
-              <TermIcon name="bed" size={11} /> Tạo yêu cầu &amp; in
-            </Btn>
-          </div>
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Khoa nhập viện <span style={{ color: 'var(--s-err)' }}>*</span></label>
-            <select className="hui-inp hui-sel" value={hospDeptId} onChange={(e) => setHospDeptId(e.target.value)} style={{ width: '100%', height: 30 }}>
-              <option value="">(Chọn khoa)</option>
-              {departments.filter((d) => d.id).map((d) => (
-                <option key={d.id} value={d.id}>{d.code} · {d.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Lý do nhập viện <span style={{ color: 'var(--s-err)' }}>*</span></label>
-            <textarea className="hui-inp" value={hospReason} onChange={(e) => setHospReason(e.target.value)} placeholder="Lý do nhập viện…" rows={3} style={{ width: '100%', resize: 'vertical' }} />
-          </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>
-            <input type="checkbox" checked={hospEmergency} onChange={(e) => setHospEmergency(e.target.checked)} /> Nhập viện cấp cứu
-          </label>
-        </div>
-      </ModalShell>
-
-      {/* ── Modal: Chuyển viện ───────────────────────────────────────── */}
-      <ModalShell
-        open={transferOpen}
-        onClose={() => setTransferOpen(false)}
-        title="Yêu cầu chuyển viện"
-        sub={selPt ? `${selPt.patientName} · ${selPt.patientCode}` : ''}
-        size="sm"
-        footer={
-          <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
-            <Btn variant="ghost" size="sm" onClick={() => setTransferOpen(false)}>Hủy</Btn>
-            <Btn variant="primary" size="sm" disabled={!transferFacility.trim() || !transferReason.trim() || transferSaving} onClick={doTransfer}>
-              <TermIcon name="arrow-right" size={11} /> Tạo yêu cầu &amp; in
-            </Btn>
-          </div>
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Cơ sở chuyển đến <span style={{ color: 'var(--s-err)' }}>*</span></label>
-            <input className="hui-inp" value={transferFacility} onChange={(e) => setTransferFacility(e.target.value)} placeholder="Tên bệnh viện / cơ sở y tế…" style={{ width: '100%', height: 30 }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Lý do chuyển viện <span style={{ color: 'var(--s-err)' }}>*</span></label>
-            <textarea className="hui-inp" value={transferReason} onChange={(e) => setTransferReason(e.target.value)} placeholder="Lý do chuyển viện…" rows={3} style={{ width: '100%', resize: 'vertical' }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Phương tiện vận chuyển</label>
-            <input className="hui-inp" value={transferTransport} onChange={(e) => setTransferTransport(e.target.value)} placeholder="Xe cứu thương, tự túc…" style={{ width: '100%', height: 30 }} />
-          </div>
-        </div>
-      </ModalShell>
-
-      {/* ── Modal: Hẹn tái khám ──────────────────────────────────────── */}
-      <ModalShell
-        open={apptOpen}
-        onClose={() => setApptOpen(false)}
-        title="Hẹn tái khám"
-        sub={selPt ? `${selPt.patientName} · ${selPt.patientCode}` : ''}
-        size="sm"
-        footer={
-          <div style={{ display: 'flex', gap: 'var(--space-8)', justifyContent: 'flex-end' }}>
-            <Btn variant="ghost" size="sm" onClick={() => setApptOpen(false)}>Hủy</Btn>
-            <Btn variant="primary" size="sm" disabled={!apptDate || apptSaving} onClick={doAppointment}>
-              <TermIcon name="calendar" size={11} /> Tạo lịch hẹn
-            </Btn>
-          </div>
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Ngày hẹn tái khám <span style={{ color: 'var(--s-err)' }}>*</span></label>
-            <input type="date" className="hui-inp" value={apptDate} onChange={(e) => setApptDate(e.target.value)} style={{ width: '100%', height: 30 }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', display: 'block', marginBottom: 'var(--space-4)' }}>Lý do / ghi chú</label>
-            <textarea className="hui-inp" value={apptNotes} onChange={(e) => setApptNotes(e.target.value)} placeholder="Lý do hẹn tái khám, dặn dò…" rows={3} style={{ width: '100%', resize: 'vertical' }} />
-          </div>
-        </div>
-      </ModalShell>
+      {/* ── 6 modal xử trí / đa chuyên khoa (#362 tách → DispositionModals) ── */}
+      <DispositionModals
+        rooms={rooms}
+        roomId={roomId}
+        selPt={selPt}
+        departments={departments}
+        followUpOpen={followUpOpen} setFollowUpOpen={setFollowUpOpen}
+        followUpRoomId={followUpRoomId} setFollowUpRoomId={setFollowUpRoomId}
+        followUpReason={followUpReason} setFollowUpReason={setFollowUpReason}
+        followUpSaving={followUpSaving} onFollowUp={doFollowUp}
+        changeRoomOpen={changeRoomOpen} setChangeRoomOpen={setChangeRoomOpen}
+        changeRoomNewId={changeRoomNewId} setChangeRoomNewId={setChangeRoomNewId}
+        changeRoomReason={changeRoomReason} setChangeRoomReason={setChangeRoomReason}
+        changeRoomSaving={changeRoomSaving} onChangeRoom={doChangeRoom}
+        deleteOpen={deleteOpen} setDeleteOpen={setDeleteOpen}
+        deleteReason={deleteReason} setDeleteReason={setDeleteReason}
+        deleteSaving={deleteSaving} onDelete={doDelete}
+        hospOpen={hospOpen} setHospOpen={setHospOpen}
+        hospDeptId={hospDeptId} setHospDeptId={setHospDeptId}
+        hospReason={hospReason} setHospReason={setHospReason}
+        hospEmergency={hospEmergency} setHospEmergency={setHospEmergency}
+        hospSaving={hospSaving} onHospitalize={doHospitalize}
+        transferOpen={transferOpen} setTransferOpen={setTransferOpen}
+        transferFacility={transferFacility} setTransferFacility={setTransferFacility}
+        transferReason={transferReason} setTransferReason={setTransferReason}
+        transferTransport={transferTransport} setTransferTransport={setTransferTransport}
+        transferSaving={transferSaving} onTransfer={doTransfer}
+        apptOpen={apptOpen} setApptOpen={setApptOpen}
+        apptDate={apptDate} setApptDate={setApptDate}
+        apptNotes={apptNotes} setApptNotes={setApptNotes}
+        apptSaving={apptSaving} onAppointment={doAppointment}
+      />
 
       {/* Responsive toggles */}
       {(leftOpen || rightOpen) && <div className="ed-panel-backdrop" onClick={closeAll} />}
