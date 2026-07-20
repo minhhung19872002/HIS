@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import * as file from '../../../services/file.service';
 import dayjs from 'dayjs';
-import { App as AntdApp, Alert, DatePicker } from 'antd';
+import { App as AntdApp, Alert, DatePicker, Input } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
   searchInsuranceClaims,
@@ -19,10 +19,13 @@ import {
   downloadXmlFile,
   createSettlementBatch,
   getSettlementBatches,
+  verifyInsuranceCard,
+  getInsuranceHistory,
 } from '../api/insurance';
 import type {
   InsuranceClaimSummaryDto, PortalConnectionTestResult,
   XmlExportConfigDto, XmlExportResultDto, InsuranceSettlementBatchDto,
+  InsuranceCardVerificationDto, InsuranceHistoryDto, InsuranceVisitHistoryDto,
 } from '../api/insurance';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
@@ -46,11 +49,12 @@ function escapeCsvCell(v: unknown): string {
   return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-type PageTab = 'claims' | 'reports' | 'xml' | 'batch';
+type PageTab = 'claims' | 'card' | 'reports' | 'xml' | 'batch';
 type StatusKey = 'draft' | 'pending' | 'submitted' | 'approved' | 'rejected' | 'locked';
 
 const TOP_TABS: TopTab<PageTab>[] = [
   { v: 'claims',  l: 'Danh sách hồ sơ', ic: 'list' },
+  { v: 'card',    l: 'Tra cứu thẻ',     ic: 'search' },
   { v: 'reports', l: 'Báo cáo BHYT',    ic: 'chart' },
   { v: 'xml',     l: 'Xuất XML QĐ4210', ic: 'download' },
   { v: 'batch',   l: 'Đợt quyết toán',  ic: 'archive' },
@@ -116,6 +120,18 @@ const BATCH_COLS: ColumnDef<InsuranceSettlementBatchDto>[] = [
   { key: 'submitDate', label: 'Ngày gửi',    mono: true, render: (r) => fmtDMY(r.submitDate) },
 ];
 
+// ── Card verification helpers + history columns (module-level — no closure) ──
+const genderLabel = (g: number) => (g === 1 ? 'Nam' : g === 2 ? 'Nữ' : '—');
+const fmtDTSec = (iso?: string) => (iso ? dayjs(iso).format('DD/MM/YYYY HH:mm:ss') : '—');
+
+const HISTORY_COLS: ColumnDef<InsuranceVisitHistoryDto>[] = [
+  { key: 'ngayKcb',      label: 'Ngày KCB',       mono: true, width: 110, render: (v) => fmtDMY(v.ngayKcb) },
+  { key: 'tenCsKcb',     label: 'Tên CSKCB',                             render: (v) => v.tenCsKcb || '—' },
+  { key: 'maBenhChinh',  label: 'Mã bệnh',        mono: true, width: 100, render: (v) => v.maBenhChinh || '—' },
+  { key: 'tenBenhChinh', label: 'Tên bệnh chính',                        render: (v) => v.tenBenhChinh || '—' },
+  { key: 'tienBhyt',     label: 'Tiền BHYT',      mono: true, width: 130, render: (v) => fmtVND(v.tienBhyt) },
+];
+
 const InsuranceV2: React.FC = () => {
   const { message, modal } = AntdApp.useApp();
   const navigate = useNavigate();
@@ -155,6 +171,16 @@ const InsuranceV2: React.FC = () => {
   const [newBatchMonth, setNewBatchMonth]   = useState(dayjs().month() + 1);
   const [newBatchYear, setNewBatchYear]     = useState(dayjs().year());
   const [batchCreating, setBatchCreating]   = useState(false);
+
+  // ── Card verification state ───────────────────────────────────────────────
+  const [cardNumber, setCardNumber]         = useState('');
+  const [cardName, setCardName]             = useState('');
+  const [cardDob, setCardDob]               = useState<dayjs.Dayjs | null>(null);
+  const [verifyLoading, setVerifyLoading]   = useState(false);
+  const [cardResult, setCardResult]         = useState<InsuranceCardVerificationDto | null>(null);
+  const [historyOpen, setHistoryOpen]       = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [history, setHistory]               = useState<InsuranceHistoryDto | null>(null);
 
   const counts = useTabCounts(rows, STATUS_TABS, (r) => statusKey(r.status));
 
@@ -229,6 +255,42 @@ const InsuranceV2: React.FC = () => {
       message.warning('Lỗi khi đồng bộ với cổng BHXH');
     } finally {
       setSyncLoading(false);
+    }
+  };
+
+  const handleVerifyCard = async () => {
+    if (!cardNumber.trim()) { message.warning('Vui lòng nhập số thẻ BHYT'); return; }
+    setVerifyLoading(true);
+    setCardResult(null);
+    setHistory(null);
+    try {
+      const r = await verifyInsuranceCard({
+        insuranceNumber: cardNumber.trim(),
+        patientName: cardName.trim(),
+        dateOfBirth: cardDob ? cardDob.format('YYYY-MM-DD') : '',
+      });
+      const data = r.data;
+      setCardResult(data);
+      if (data.duDkKcb) message.success('Thẻ BHYT hợp lệ — đủ điều kiện KCB');
+      else message.warning(data.lyDoKhongDuDk || 'Thẻ BHYT không đủ điều kiện KCB');
+    } catch {
+      message.warning('Không kết nối được cổng BHXH. Vui lòng thử lại sau.');
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const handleViewHistory = async () => {
+    if (!cardResult?.maThe) return;
+    setHistoryLoading(true);
+    setHistoryOpen(true);
+    try {
+      const r = await getInsuranceHistory(cardResult.maThe);
+      setHistory(r.data);
+    } catch {
+      message.warning('Không thể tải lịch sử KCB');
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -516,6 +578,55 @@ const InsuranceV2: React.FC = () => {
         </>
       )}
 
+      {topTab === 'card' && (
+        <div style={{ padding: '16px 0', maxWidth: 880 }}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 18 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, color: 'var(--t-2)' }}>Số thẻ BHYT <span style={{ color: 'var(--s-crit)' }}>*</span></label>
+              <Input
+                value={cardNumber}
+                onChange={(e) => setCardNumber(e.target.value)}
+                onPressEnter={handleVerifyCard}
+                placeholder="Nhập số thẻ BHYT (15 ký tự)"
+                maxLength={15}
+                style={{ width: 240 }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, color: 'var(--t-2)' }}>Họ tên bệnh nhân</label>
+              <Input
+                value={cardName}
+                onChange={(e) => setCardName(e.target.value)}
+                placeholder="Không bắt buộc"
+                style={{ width: 220 }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 12, color: 'var(--t-2)' }}>Ngày sinh</label>
+              <DatePicker
+                value={cardDob}
+                onChange={(d) => setCardDob(d)}
+                format="DD/MM/YYYY"
+                placeholder="Không bắt buộc"
+                style={{ width: 150 }}
+              />
+            </div>
+            <Btn variant="primary" loading={verifyLoading} onClick={handleVerifyCard}>
+              <TermIcon name="search" size={12} /> Xác minh
+            </Btn>
+          </div>
+
+          {cardResult ? (
+            <CardResultPanel r={cardResult} onViewHistory={handleViewHistory} historyLoading={historyLoading} />
+          ) : (
+            <div className="ab-empty" style={{ padding: '36px 0' }}>
+              <TermIcon name="search" size={20} />
+              <div>Nhập số thẻ BHYT rồi bấm “Xác minh” để tra cứu điều kiện KCB</div>
+            </div>
+          )}
+        </div>
+      )}
+
       {topTab === 'reports' && (
         <div style={{ padding: '16px 0' }}>
           <div style={{
@@ -700,6 +811,23 @@ const InsuranceV2: React.FC = () => {
       >
         {detail && <InsuranceDrawerBody r={detail} />}
       </DrawerShell>
+
+      <ModalShell
+        open={historyOpen}
+        onClose={() => { setHistoryOpen(false); setHistory(null); }}
+        title="Lịch sử khám chữa bệnh BHYT"
+        footer={<Btn onClick={() => { setHistoryOpen(false); setHistory(null); }}>Đóng</Btn>}
+      >
+        <div style={{ marginBottom: 10, fontSize: 13, color: 'var(--t-2)' }}>
+          Mã thẻ BHYT: <span className="mono" style={{ color: 'var(--a-cy)' }}>{history?.maThe || cardResult?.maThe || '—'}</span>
+        </div>
+        <DataTable<InsuranceVisitHistoryDto>
+          columns={HISTORY_COLS}
+          data={history?.visits ?? []}
+          rowKey={(v) => `${v.ngayKcb}|${v.maCsKcb}|${v.maBenhChinh}|${v.tienBhyt}`}
+          empty={historyLoading ? 'Đang tải…' : 'Không có lịch sử KCB'}
+        />
+      </ModalShell>
     </div>
   );
 };
@@ -757,5 +885,64 @@ const InsuranceDrawerBody: React.FC<{ r: InsuranceClaimSummaryDto }> = ({ r }) =
         </div>
       )}
     </>
+  );
+};
+
+/* ── Card verification result panel (Tra cứu thẻ BHYT — ported from v1 #407) ── */
+const CardResultPanel: React.FC<{
+  r: InsuranceCardVerificationDto;
+  onViewHistory: () => void;
+  historyLoading: boolean;
+}> = ({ r, onViewHistory, historyLoading }) => {
+  const rows: Array<[string, React.ReactNode]> = [
+    ['Mã thẻ', <span className="mono" style={{ color: 'var(--a-cy)' }}>{r.maThe}</span>],
+    ['Họ tên', <b>{r.hoTen || '—'}</b>],
+    ['Ngày sinh', fmtDMY(r.ngaySinh)],
+    ['Giới tính', genderLabel(r.gioiTinh)],
+    ['Địa chỉ', r.diaChi || '—'],
+    ['GT thẻ từ', fmtDMY(r.gtTheTu)],
+    ['GT thẻ đến', fmtDMY(r.gtTheDen)],
+    ['Nơi ĐKKCB BĐ', `${r.tenDkbd || '—'} (${r.maDkbd || '—'})`],
+    ['Mức hưởng', <b style={{ color: 'var(--a-cy)' }}>{r.mucHuong}%</b>],
+    ['Miễn cùng chi trả', r.mienCungCt ? 'Có' : 'Không'],
+    ['Loại thẻ', r.loaiThe || '—'],
+    ['Mã khu vực', r.maKv || '—'],
+    ['Trả trước', r.isTraTruoc ? 'Có' : 'Không'],
+    ['Thời gian xác minh', fmtDTSec(r.verificationTime)],
+  ];
+  return (
+    <div style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 6, padding: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--t-1)' }}>Kết quả xác minh thẻ</div>
+        <Btn variant="ghost" loading={historyLoading} onClick={onViewHistory}>
+          <TermIcon name="list" size={12} /> Xem lịch sử KCB
+        </Btn>
+      </div>
+
+      <Alert
+        title={r.duDkKcb ? 'Đủ điều kiện KCB' : 'Không đủ điều kiện KCB'}
+        description={r.duDkKcb
+          ? `Mức hưởng ${r.mucHuong}% · Hiệu lực ${fmtDMY(r.gtTheTu)} – ${fmtDMY(r.gtTheDen)}`
+          : (r.lyDoKhongDuDk || 'Không có thông tin')}
+        type={r.duDkKcb ? 'success' : 'error'}
+        showIcon
+        style={{ marginBottom: 14 }}
+      />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '170px 1fr', rowGap: 7, columnGap: 12, fontSize: 13 }}>
+        {rows.map(([label, node], i) => (
+          <React.Fragment key={i}>
+            <span style={{ color: 'var(--t-3)' }}>{label}</span>
+            <span style={{ color: 'var(--t-1)' }}>{node}</span>
+          </React.Fragment>
+        ))}
+        {r.lyDoKhongDuDk && (
+          <>
+            <span style={{ color: 'var(--t-3)' }}>Lý do không đủ ĐK</span>
+            <span style={{ color: 'var(--s-crit)' }}>{r.lyDoKhongDuDk}</span>
+          </>
+        )}
+      </div>
+    </div>
   );
 };
