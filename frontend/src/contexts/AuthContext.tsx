@@ -6,6 +6,7 @@ import apiClient from '../services/apiClient';
 import { storage, STORAGE_KEYS } from '../services/storage.service';
 import { loadPermissions, clearPermissions } from '../services/permission.service';
 import { loadEnabledModules, clearEnabledModules } from '../services/modulePackaging.service';
+import { REFRESH_COOKIE_MODE } from '../config/api.config';
 import { Modal } from 'antd';
 import { fmtDate } from '../utils/format';
 
@@ -182,8 +183,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => {
     // AUTHZ-2 (#368): thu hồi refresh token đúng thiết bị này (fire-and-forget,
     // header chụp trước khi clear — không đá thiết bị khác cùng user)
+    // #422 cookie-mode: refresh token ở httpOnly cookie (không đọc được từ JS) → luôn gọi API
+    // để BE đọc cookie + thu hồi + xoá cookie. localStorage-mode: chỉ gọi khi có rt như cũ.
     const rt = storage.getRaw(STORAGE_KEYS.refreshToken);
-    if (rt) authApi.logout(rt);
+    if (REFRESH_COOKIE_MODE) authApi.logout();
+    else if (rt) authApi.logout(rt);
     storage.remove(STORAGE_KEYS.token);
     storage.remove(STORAGE_KEYS.refreshToken);
     storage.remove(STORAGE_KEYS.user);

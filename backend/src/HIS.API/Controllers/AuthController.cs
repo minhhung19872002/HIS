@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Configuration;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
 using HIS.API.Filters;
@@ -15,10 +17,57 @@ namespace HIS.API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IConfiguration _config;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, IConfiguration config)
     {
         _authService = authService;
+        _config = config;
+    }
+
+    // ─── #422 [AUTHZ-2b]: refresh token qua httpOnly cookie (DORMANT — kill-switch) ──────────
+    // Gated Auth:RefreshCookieEnabled (MẶC ĐỊNH false). Khi TẮT: mọi helper dưới là no-op →
+    // hành vi giữ NGUYÊN như localStorage-mode (#368). Khi BẬT (chỉ nên bật khi FE+API cùng
+    // site/parent-domain — cross-site vercel.app↔run.app bị Safari/Firefox chặn 3rd-party cookie):
+    // refresh token chuyển vào httpOnly cookie (JS không đọc được → chống XSS-read) và bị XOÁ
+    // khỏi response body. /auth/refresh + /auth/logout đọc token từ cookie HOẶC body (dual-mode).
+    private bool RefreshCookieEnabled => _config.GetValue("Auth:RefreshCookieEnabled", false);
+    private string RefreshCookieName => _config["Auth:RefreshCookieName"] ?? "his_rt";
+    private int RefreshCookieDays => int.TryParse(_config["Auth:RefreshTokenDays"], out var d) ? d : 14;
+
+    /// <summary>Khi bật cookie mode + có refresh token thật (bỏ qua bước OTP-pending): set httpOnly
+    /// cookie + xoá token khỏi body để JS không đọc được. Tắt → no-op (token giữ trong body như cũ).</summary>
+    private void IssueRefreshCookie(LoginResponseDto? result)
+    {
+        if (!RefreshCookieEnabled || result == null || string.IsNullOrEmpty(result.RefreshToken)) return;
+        Response.Cookies.Append(RefreshCookieName, result.RefreshToken, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.None, // cross-site FE↔API cần None+Secure; same-site có thể hạ Lax qua config sau
+            Path = "/api/auth",           // chỉ đính kèm các call /auth (refresh/logout) — thu hẹp bề mặt CSRF
+            MaxAge = TimeSpan.FromDays(RefreshCookieDays),
+            IsEssential = true,           // cookie kỹ thuật bắt buộc — không dính consent-gate
+        });
+        result.RefreshToken = string.Empty; // không để refresh token lọt vào body/JS
+    }
+
+    /// <summary>Xoá cookie refresh (logout). Tắt cookie mode → no-op.</summary>
+    private void ClearRefreshCookie()
+    {
+        if (!RefreshCookieEnabled) return;
+        Response.Cookies.Delete(RefreshCookieName, new CookieOptions
+        {
+            HttpOnly = true, Secure = true, SameSite = SameSiteMode.None, Path = "/api/auth",
+        });
+    }
+
+    /// <summary>Đọc refresh token: ưu tiên body (localStorage-mode) → fallback cookie (cookie-mode).
+    /// Trả null nếu cả hai rỗng.</summary>
+    private string? ReadRefreshToken(string? bodyToken)
+    {
+        if (!string.IsNullOrWhiteSpace(bodyToken)) return bodyToken;
+        return Request.Cookies.TryGetValue(RefreshCookieName, out var c) && !string.IsNullOrWhiteSpace(c) ? c : null;
     }
 
     [AllowAnonymous] // B3-global: endpoint công khai (chưa đăng nhập) — giữ anonymous tường minh
@@ -30,6 +79,7 @@ public class AuthController : ControllerBase
         if (result == null)
             return Unauthorized(ApiResponse<LoginResponseDto>.Fail("Invalid username or password"));
 
+        IssueRefreshCookie(result); // #422: cookie mode → set httpOnly + strip body (no-op nếu OTP-pending / flag off)
         return Ok(ApiResponse<LoginResponseDto>.Ok(result, result.RequiresOtp ? "OTP sent" : "Login successful"));
     }
 
@@ -41,6 +91,7 @@ public class AuthController : ControllerBase
         if (result == null)
             return Unauthorized(ApiResponse<LoginResponseDto>.Fail("Mã OTP không hợp lệ hoặc đã hết hạn"));
 
+        IssueRefreshCookie(result); // #422: luồng OTP cấp refresh token thật → cookie mode set httpOnly + strip body
         return Ok(ApiResponse<LoginResponseDto>.Ok(result, "Login successful"));
     }
 
@@ -57,28 +108,38 @@ public class AuthController : ControllerBase
 
     // AUTHZ-2 #368: access token có thể ĐÃ hết hạn → endpoint tự xác thực bằng refresh token (AllowAnonymous).
     // Rate-limit bucket riêng "refresh" (không ăn quota login) — vẫn chống token-grinding.
+    // #422: [Consumes json] chống form-post CSRF (cross-site form không set được Content-Type=json →
+    // 415; còn credentialed-CORS preflight chặn cross-site fetch). Body cho phép rỗng khi cookie mode.
     [AllowAnonymous]
     [EnableRateLimiting("refresh")]
+    [Consumes("application/json")]
     [HttpPost("refresh")]
-    public async Task<ActionResult<ApiResponse<LoginResponseDto>>> Refresh([FromBody] RefreshTokenRequestDto dto)
+    public async Task<ActionResult<ApiResponse<LoginResponseDto>>> Refresh([FromBody] RefreshTokenRequestDto? dto)
     {
-        if (string.IsNullOrWhiteSpace(dto?.RefreshToken))
+        // #422: đọc token từ body (localStorage-mode) HOẶC httpOnly cookie (cookie-mode).
+        var refreshToken = ReadRefreshToken(dto?.RefreshToken);
+        if (string.IsNullOrWhiteSpace(refreshToken))
             return BadRequest(ApiResponse<LoginResponseDto>.Fail("RefreshToken là bắt buộc"));
 
-        var result = await _authService.RefreshTokenAsync(dto);
+        var result = await _authService.RefreshTokenAsync(new RefreshTokenRequestDto { RefreshToken = refreshToken });
         if (result == null)
             return Unauthorized(ApiResponse<LoginResponseDto>.Fail("Refresh token không hợp lệ hoặc đã hết hạn"));
 
+        IssueRefreshCookie(result); // #422: cấp cookie MỚI (rotation) + strip body. Không xoá cookie khi fail
+                                    // (benign-race/rotated_race trả null cũng vào đây) — tránh đá nhầm tab hợp lệ;
+                                    // token chết tự hết hạn/ghi đè lần refresh sau; logout mới xoá cookie tường minh.
         return Ok(ApiResponse<LoginResponseDto>.Ok(result, "Token refreshed"));
     }
 
     // AUTHZ-2 #368: đăng xuất — thu hồi refresh token của ĐÚNG thiết bị này + đóng UserSession.
     [Authorize]
     [HttpPost("logout")]
-    public async Task<ActionResult<ApiResponse<bool>>> Logout([FromBody] LogoutRequestDto dto)
+    public async Task<ActionResult<ApiResponse<bool>>> Logout([FromBody] LogoutRequestDto? dto)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        await _authService.LogoutAsync(userId, dto?.RefreshToken);
+        // #422: refresh token cần thu hồi lấy từ body (localStorage-mode) HOẶC cookie (cookie-mode).
+        await _authService.LogoutAsync(userId, ReadRefreshToken(dto?.RefreshToken));
+        ClearRefreshCookie(); // #422: xoá httpOnly cookie tường minh (no-op nếu flag off)
         return Ok(ApiResponse<bool>.Ok(true, "Đã đăng xuất"));
     }
 
@@ -219,6 +280,7 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.AuthenticateWebAuthnAsync(dto);
         if (result == null) return Unauthorized(ApiResponse<LoginResponseDto>.Fail("Biometric authentication failed"));
+        IssueRefreshCookie(result); // #422: đăng nhập sinh trắc cũng cấp refresh token thật → cookie mode set httpOnly + strip body
         return Ok(ApiResponse<LoginResponseDto>.Ok(result, "Biometric login successful"));
     }
 

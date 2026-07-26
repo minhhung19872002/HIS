@@ -9,7 +9,7 @@
 
 import axios from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
-import { API_URL } from '../config/api.config';
+import { API_URL, REFRESH_COOKIE_MODE } from '../config/api.config';
 
 // ─── AUTHZ-2 (#368): auto-refresh single-flight ───
 // Nhiều request 401 cùng lúc → chỉ MỘT call /auth/refresh; các request khác đợi chung
@@ -19,16 +19,21 @@ let refreshInFlight: Promise<string | null> | null = null;
 function refreshAccessToken(): Promise<string | null> {
   if (!refreshInFlight) {
     refreshInFlight = (async (): Promise<string | null> => {
-      const rt = localStorage.getItem('refreshToken');
-      if (!rt) return null;
+      // #422 cookie-mode: refresh token nằm trong httpOnly cookie (JS không đọc được) → gửi body rỗng
+      // + withCredentials để cookie tự đính kèm. localStorage-mode (#368 mặc định): đọc token từ localStorage.
+      const rt = REFRESH_COOKIE_MODE ? null : localStorage.getItem('refreshToken');
+      if (!REFRESH_COOKIE_MODE && !rt) return null;
       try {
         // axios TRẦN — không qua apiClient để tránh đệ quy interceptor
-        const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken: rt });
+        const res = REFRESH_COOKIE_MODE
+          ? await axios.post(`${API_URL}/auth/refresh`, {}, { withCredentials: true })
+          : await axios.post(`${API_URL}/auth/refresh`, { refreshToken: rt });
         const body = res.data;
         const payload = body && typeof body === 'object' && 'data' in body ? body.data : body;
         if (payload?.token) {
           localStorage.setItem('token', payload.token);
-          // rotation: server cấp refresh token MỚI mỗi lần — phải lưu lại, token cũ đã bị revoke
+          // rotation: server cấp refresh token MỚI mỗi lần — phải lưu lại, token cũ đã bị revoke.
+          // Cookie-mode: BE xoá refreshToken khỏi body (cookie mới đã set qua Set-Cookie) → skip.
           if (payload.refreshToken) localStorage.setItem('refreshToken', payload.refreshToken);
           return payload.token as string;
         }
@@ -48,6 +53,9 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // #422: chỉ gửi cookie khi cookie-mode bật (CORS đã AllowCredentials + origins cụ thể).
+  // Mặc định false → byte-equivalent hành vi cũ (không đính kèm credentials).
+  withCredentials: REFRESH_COOKIE_MODE,
 });
 
 // Request interceptor
