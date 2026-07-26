@@ -129,6 +129,11 @@ const sKey = (n: number): SKey =>
 const PER = 18;
 const PAGE_SIZE = 20;
 
+// FE-only parity filters (v1→v2): DatePicker.RangePicker value shape.
+type DateRange = [dayjs.Dayjs | null, dayjs.Dayjs | null] | null;
+const fmtDay = (d: dayjs.Dayjs | null | undefined): string | undefined =>
+  d ? d.format('YYYY-MM-DD') : undefined;
+
 type TabKey = 'codes' | 'transfers' | 'borrowing' | 'handover' | 'outpatient' | 'attendance';
 
 const TABS: TopTab<TabKey>[] = [
@@ -175,6 +180,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
   const [search, setSearch] = useState('');
   const [stab, setStab] = useState<SKey | 'all'>('all');
   const [fDept, setFDept] = useState('');
+  const [rcRange, setRcRange] = useState<DateRange>(null); // Ngày cấp từ–đến (in-memory)
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<RecordCode | null>(null);
 
@@ -193,6 +199,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
   const [trPage, setTrPage] = useState(0);
   const [trTotal, setTrTotal] = useState(0);
   const [trSearch, setTrSearch] = useState('');
+  const [trRange, setTrRange] = useState<DateRange>(null); // Ngày CV từ–đến (server)
 
   // ── Tab 2: Mượn trả BA ────────────────────────────────────────────────────
   const [borrowing, setBorrowing] = useState<BorrowRecord[]>([]);
@@ -215,6 +222,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
   const [hoPage, setHoPage] = useState(0);
   const [hoTotal, setHoTotal] = useState(0);
   const [hoStatus, setHoStatus] = useState('');
+  const [hoSearch, setHoSearch] = useState(''); // keyword (server)
 
   // ── Tab 4: BA Ngoại trú ───────────────────────────────────────────────────
   const [outpatient, setOutpatient] = useState<OutpatientRecord[]>([]);
@@ -222,6 +230,7 @@ const MedicalRecordPlanningV2: React.FC = () => {
   const [opPage, setOpPage] = useState(0);
   const [opTotal, setOpTotal] = useState(0);
   const [opSearch, setOpSearch] = useState('');
+  const [opRange, setOpRange] = useState<DateRange>(null); // Ngày khám từ–đến (server)
 
   // ── Tab 5: Điểm danh ──────────────────────────────────────────────────────
   const [attendance, setAttendance] = useState<DepartmentAttendance[]>([]);
@@ -247,10 +256,15 @@ const MedicalRecordPlanningV2: React.FC = () => {
     finally { setLoading(false); }
   };
 
-  const loadTransfers = async (p = 0, kw?: string) => {
+  const loadTransfers = async (p = 0, kw?: string, range?: DateRange) => {
     setTrLoading(true);
     try {
-      const r = await getTransfers({ pageIndex: p, pageSize: PAGE_SIZE, keyword: (kw ?? trSearch) || undefined });
+      const [from, to] = (range === undefined ? trRange : range) || [null, null];
+      const r = await getTransfers({
+        pageIndex: p, pageSize: PAGE_SIZE,
+        keyword: (kw ?? trSearch) || undefined,
+        fromDate: fmtDay(from), toDate: fmtDay(to),
+      });
       const d = r.data as { items?: TransferRecord[]; totalCount?: number };
       setTransfers(d.items || []);
       setTrTotal(d.totalCount || 0);
@@ -273,10 +287,14 @@ const MedicalRecordPlanningV2: React.FC = () => {
     finally { setBrLoading(false); }
   };
 
-  const loadHandover = async (p = 0, st?: string) => {
+  const loadHandover = async (p = 0, st?: string, kw?: string) => {
     setHoLoading(true);
     try {
-      const r = await getHandover({ pageIndex: p, pageSize: PAGE_SIZE, status: (st ?? hoStatus) || undefined });
+      const r = await getHandover({
+        pageIndex: p, pageSize: PAGE_SIZE,
+        status: (st ?? hoStatus) || undefined,
+        keyword: (kw ?? hoSearch) || undefined,
+      });
       const d = r.data as { items?: HandoverRecord[]; totalCount?: number };
       setHandover(d.items || []);
       setHoTotal(d.totalCount || 0);
@@ -284,10 +302,15 @@ const MedicalRecordPlanningV2: React.FC = () => {
     finally { setHoLoading(false); }
   };
 
-  const loadOutpatient = async (p = 0, kw?: string) => {
+  const loadOutpatient = async (p = 0, kw?: string, range?: DateRange) => {
     setOpLoading(true);
     try {
-      const r = await getOutpatientRecords({ pageIndex: p, pageSize: PAGE_SIZE, keyword: (kw ?? opSearch) || undefined });
+      const [from, to] = (range === undefined ? opRange : range) || [null, null];
+      const r = await getOutpatientRecords({
+        pageIndex: p, pageSize: PAGE_SIZE,
+        keyword: (kw ?? opSearch) || undefined,
+        fromDate: fmtDay(from), toDate: fmtDay(to),
+      });
       const d = r.data as { items?: OutpatientRecord[]; totalCount?: number };
       setOutpatient(d.items || []);
       setOpTotal(d.totalCount || 0);
@@ -478,14 +501,21 @@ const MedicalRecordPlanningV2: React.FC = () => {
 
   const filtered = useMemo(() => {
     const k = search.trim().toLowerCase();
+    const rcFrom = fmtDay(rcRange?.[0]);
+    const rcTo = fmtDay(rcRange?.[1]);
     return items.filter((r) => {
       if (stab !== 'all' && sKey(r.status) !== stab) return false;
       if (fDept && r.departmentName !== fDept) return false;
+      if (rcFrom || rcTo) {
+        const d = dayjs(r.createdAt).format('YYYY-MM-DD'); // ngày cấp (allocation)
+        if (rcFrom && d < rcFrom) return false;
+        if (rcTo && d > rcTo) return false;
+      }
       if (!k) return true;
       return [r.recordCode, r.patientName, r.patientCode, r.doctorName]
         .some((v) => (v || '').toLowerCase().includes(k));
     });
-  }, [items, search, stab, fDept]);
+  }, [items, search, stab, fDept, rcRange]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);
@@ -671,7 +701,13 @@ const MedicalRecordPlanningV2: React.FC = () => {
           <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
             placeholder="Tìm BN / mã BA…" />
           <Filter value={fDept} onChange={setFDept} options={depts} placeholder="▾ Khoa" />
-          <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFDept(''); setStab('all'); }}>Bỏ lọc</Btn>
+          <DatePicker.RangePicker
+            value={rcRange}
+            onChange={(v) => { setRcRange(v); setPage(0); }}
+            format="DD/MM/YYYY"
+            placeholder={['Ngày cấp từ', 'đến']}
+          />
+          <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFDept(''); setStab('all'); setRcRange(null); setPage(0); }}>Bỏ lọc</Btn>
           <span className="spacer" />
           <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
           <Btn variant="primary" icon="plus" onClick={openBulk}>Cấp dải mã</Btn>
@@ -692,6 +728,12 @@ const MedicalRecordPlanningV2: React.FC = () => {
         <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
           <SearchBox value={trSearch} onChange={(v) => { setTrSearch(v); setTrPage(0); loadTransfers(0, v); }}
             placeholder="Tìm số CV / bệnh nhân…" />
+          <DatePicker.RangePicker
+            value={trRange}
+            onChange={(v) => { setTrRange(v); setTrPage(0); loadTransfers(0, undefined, v); }}
+            format="DD/MM/YYYY"
+            placeholder={['Ngày CV từ', 'đến']}
+          />
           <span className="spacer" />
           <Btn variant="ghost" icon="refresh" onClick={() => loadTransfers(trPage)}>Làm mới</Btn>
         </div>
@@ -745,6 +787,8 @@ const MedicalRecordPlanningV2: React.FC = () => {
       {/* ══════════════════ Tab 3: Bàn giao BA ══════════════════ */}
       {tab === 'handover' && <>
         <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
+          <SearchBox value={hoSearch} onChange={(v) => { setHoSearch(v); setHoPage(0); loadHandover(0, hoStatus, v); }}
+            placeholder="Tìm mã bàn giao / bệnh nhân…" />
           <Filter
             value={hoStatus}
             onChange={(v) => { setHoStatus(v); setHoPage(0); loadHandover(0, v); }}
@@ -774,6 +818,12 @@ const MedicalRecordPlanningV2: React.FC = () => {
         <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
           <SearchBox value={opSearch} onChange={(v) => { setOpSearch(v); setOpPage(0); loadOutpatient(0, v); }}
             placeholder="Tìm mã BA / bệnh nhân / chẩn đoán…" />
+          <DatePicker.RangePicker
+            value={opRange}
+            onChange={(v) => { setOpRange(v); setOpPage(0); loadOutpatient(0, undefined, v); }}
+            format="DD/MM/YYYY"
+            placeholder={['Ngày khám từ', 'đến']}
+          />
           <span className="spacer" />
           <Btn variant="ghost" icon="refresh" onClick={() => loadOutpatient(opPage)}>Làm mới</Btn>
         </div>

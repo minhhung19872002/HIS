@@ -35,6 +35,8 @@ import {
 } from '../../../pages-v2/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { fmtVND } from '../../../utils/format';
+import { openPrintWindow, escapeHtml } from '../../../utils/printWindow';
+import { HOSPITAL_NAME } from '../../../constants/hospital';
 
 /* BHYT v2 — claims management */
 
@@ -131,6 +133,64 @@ const HISTORY_COLS: ColumnDef<InsuranceVisitHistoryDto>[] = [
   { key: 'tenBenhChinh', label: 'Tên bệnh chính',                        render: (v) => v.tenBenhChinh || '—' },
   { key: 'tienBhyt',     label: 'Tiền BHYT',      mono: true, width: 130, render: (v) => fmtVND(v.tienBhyt) },
 ];
+
+/* ── In bảng kê chi phí KCB BHYT (mẫu BHYT-BK — ported từ v1 #407, escape #421) ── */
+function printClaimSheet(r: InsuranceClaimSummaryDto): void {
+  const nf = (n?: number) => new Intl.NumberFormat('vi-VN').format(n ?? 0);
+  const d = (iso?: string) => (iso ? dayjs(iso).format('DD/MM/YYYY') : '---');
+  const now = dayjs();
+  const html = `
+    <!DOCTYPE html><html><head>
+      <title>Bảng kê giám định BHYT - ${escapeHtml(r.maLk)}</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Times New Roman',serif; font-size:13px; line-height:1.5; padding:20px; }
+        .header { display:flex; justify-content:space-between; margin-bottom:15px; }
+        .title { font-size:16px; font-weight:bold; text-align:center; margin:15px 0; text-transform:uppercase; }
+        .info-row { margin:6px 0; }
+        .field { border-bottom:1px dotted #000; min-width:100px; display:inline-block; padding:0 5px; }
+        table { width:100%; border-collapse:collapse; margin:15px 0; }
+        th,td { border:1px solid #000; padding:6px 8px; text-align:left; }
+        th { background:#f0f0f0; font-weight:bold; }
+        .text-right { text-align:right; }
+        .total-row { font-weight:bold; background:#f0f5ff; }
+        .signature-row { display:flex; justify-content:space-between; margin-top:30px; text-align:center; }
+        .signature-col { width:30%; }
+        .reject-box { border:1px solid #ff4d4f; background:#fff2f0; padding:10px; margin:10px 0; }
+        @media print { body { padding:10px; } }
+      </style>
+    </head><body>
+      <div class="header">
+        <div><div><strong>${escapeHtml(HOSPITAL_NAME)}</strong></div><div>Phòng Tài chính - Kế toán</div></div>
+        <div style="text-align:right;"><div><strong>Mẫu: BHYT-BK</strong></div><div>Số: ${escapeHtml(r.maLk)}</div></div>
+      </div>
+      <div class="title">BẢNG KÊ CHI PHÍ KHÁM CHỮA BỆNH BHYT</div>
+      <div style="text-align:center; margin-bottom:15px;">Ngày ${now.format('DD')} tháng ${now.format('MM')} năm ${now.format('YYYY')}</div>
+      <div class="info-row">Mã giám định (LK): <span class="field"><strong>${escapeHtml(r.maLk)}</strong></span></div>
+      <div class="info-row">Mã BN: <span class="field">${escapeHtml(r.patientCode)}</span> &nbsp; Họ tên BN: <span class="field" style="min-width:250px;"><strong>${escapeHtml(r.patientName)}</strong></span></div>
+      <div class="info-row">Số thẻ BHYT: <span class="field">${escapeHtml(r.insuranceNumber)}</span></div>
+      <div class="info-row">Ngày vào viện: <span class="field">${d(r.admissionDate)}</span> &nbsp; Ngày ra viện: <span class="field">${d(r.dischargeDate)}</span></div>
+      <div class="info-row">Chẩn đoán: <span class="field" style="min-width:400px;">${escapeHtml(r.diagnosisCode)} - ${escapeHtml(r.diagnosisName)}</span></div>
+      <table>
+        <thead><tr><th>Nội dung</th><th class="text-right" style="width:180px;">Số tiền (VND)</th></tr></thead>
+        <tbody>
+          <tr><td>Tổng chi phí KCB</td><td class="text-right">${nf(r.totalAmount)}</td></tr>
+          <tr><td>BHYT chi trả</td><td class="text-right">${nf(r.insuranceAmount)}</td></tr>
+          <tr><td>Người bệnh đồng chi trả</td><td class="text-right">${nf(r.coPayAmount)}</td></tr>
+          <tr><td>Người bệnh tự trả</td><td class="text-right">${nf(r.patientAmount)}</td></tr>
+          <tr class="total-row"><td>Tổng cộng chi phí</td><td class="text-right">${nf(r.totalAmount)}</td></tr>
+        </tbody>
+      </table>
+      ${r.status === 4 && r.rejectReason ? `<div class="reject-box"><strong>Lý do từ chối:</strong> ${escapeHtml(r.rejectReason)}</div>` : ''}
+      ${r.submitDate ? `<div class="info-row">Ngày gửi BHXH: <span class="field">${d(r.submitDate)}</span></div>` : ''}
+      <div class="signature-row">
+        <div class="signature-col"><div><strong>NGƯỜI LẬP BẢNG KÊ</strong></div><div>(Ký, ghi rõ họ tên)</div></div>
+        <div class="signature-col"><div><strong>KẾ TOÁN VIỆN PHÍ</strong></div><div>(Ký, ghi rõ họ tên)</div></div>
+        <div class="signature-col"><div><strong>GIÁM ĐỐC BỆNH VIỆN</strong></div><div>(Ký tên, đóng dấu)</div></div>
+      </div>
+    </body></html>`;
+  openPrintWindow(html, { features: 'width=900,height=700', focus: true, print: { delayMs: 400 } });
+}
 
 const InsuranceV2: React.FC = () => {
   const { message, modal } = AntdApp.useApp();
@@ -563,7 +623,7 @@ const InsuranceV2: React.FC = () => {
             actions={(r) => (
               <div className="ab-actions">
                 <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
-                <ActBtn ic="print" title="In phiếu BHYT" onClick={() => { setDetail(r); setTimeout(() => window.print(), 300); }} />
+                <ActBtn ic="print" title="In bảng kê BHYT" onClick={() => printClaimSheet(r)} />
               </div>
             )}
             empty={loading ? 'Đang tải…' : (
@@ -809,7 +869,16 @@ const InsuranceV2: React.FC = () => {
         sub={detail ? `${detail.patientCode} · ${fmtDMY(detail.admissionDate)}` : ''}
         size="lg"
       >
-        {detail && <InsuranceDrawerBody r={detail} />}
+        {detail && (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+              <Btn variant="ghost" onClick={() => printClaimSheet(detail)}>
+                <TermIcon name="print" size={12} /> In bảng kê
+              </Btn>
+            </div>
+            <InsuranceDrawerBody r={detail} />
+          </>
+        )}
       </DrawerShell>
 
       <ModalShell

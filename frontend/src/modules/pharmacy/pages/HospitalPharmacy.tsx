@@ -24,6 +24,7 @@ import {
 } from '../../../pages-v2/_v2kit';
 import ExpiryAlertModal from '../../../pages-v2/shared/ExpiryAlertModal';
 import PaymentQRModal from '../../billing/components/PaymentQRModal';
+import { openPrintWindow, escapeHtml } from '../../../utils/printWindow';
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
@@ -294,6 +295,43 @@ const HospitalPharmacyV2: React.FC = () => {
   }, [revFrom, revTo]);
   useEffect(() => { if (tab === 'report') void loadRevenue(); }, [tab, loadRevenue]);
 
+  const handlePrintRevenue = () => {
+    const tot = revData.reduce((a, r) => ({
+      sales: a.sales + r.totalSales, amount: a.amount + r.totalAmount,
+      discount: a.discount + r.totalDiscount, net: a.net + r.netRevenue,
+    }), { sales: 0, amount: 0, discount: 0, net: 0 });
+    const rows = revData.map((r) => `<tr>
+        <td>${escapeHtml(fmtD(r.date))}</td>
+        <td class="r">${escapeHtml(String(r.totalSales))}</td>
+        <td class="r">${escapeHtml(fmt(r.totalAmount))}đ</td>
+        <td class="r">${escapeHtml(fmt(r.totalDiscount))}đ</td>
+        <td class="r">${escapeHtml(fmt(r.netRevenue))}đ</td>
+      </tr>`).join('');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Báo cáo doanh thu nhà thuốc</title>
+      <style>
+        body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:24px}
+        h1{font-size:16px;margin:0 0 4px} .sub{color:#555;margin:0 0 16px}
+        table{width:100%;border-collapse:collapse} th,td{border:1px solid #999;padding:5px 8px}
+        th{background:#eee;text-align:left} td.r,th.r{text-align:right}
+        tfoot td{font-weight:bold;background:#f5f5f5}
+      </style></head><body>
+      <h1>Báo cáo doanh thu nhà thuốc</h1>
+      <p class="sub">Từ ${escapeHtml(fmtD(revFrom))} đến ${escapeHtml(fmtD(revTo))}</p>
+      <table>
+        <thead><tr><th>Ngày</th><th class="r">Số HĐ</th><th class="r">Tổng tiền</th><th class="r">Giảm giá</th><th class="r">Doanh thu</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" style="text-align:center">Không có dữ liệu</td></tr>'}</tbody>
+        <tfoot><tr>
+          <td>Tổng cộng</td>
+          <td class="r">${escapeHtml(String(tot.sales))}</td>
+          <td class="r">${escapeHtml(fmt(tot.amount))}đ</td>
+          <td class="r">${escapeHtml(fmt(tot.discount))}đ</td>
+          <td class="r">${escapeHtml(fmt(tot.net))}đ</td>
+        </tr></tfoot>
+      </table></body></html>`;
+    openPrintWindow(html, { features: 'width=900,height=650', focus: true, print: 'onload',
+      onBlocked: () => te('Trình duyệt chặn cửa sổ in') });
+  };
+
   const revTotalPages = Math.max(1, Math.ceil(revData.length / PS));
   const revPaged      = revData.slice(revPage * PS, (revPage + 1) * PS);
   const revKpis: KpiItem[] = useMemo(() => {
@@ -499,6 +537,7 @@ const HospitalPharmacyV2: React.FC = () => {
 
   // ── Tab 8: Commission ──────────────────────────────────────────────────────
   const [commissions,  setCommissions]  = useState<PharmacyCommissionDto[]>([]);
+  const [commKeyword,  setCommKeyword]  = useState('');
   const [commStatusF,  setCommStatusF]  = useState('');
   const [commFrom]                      = useState(dayjs().subtract(30, 'day').format('YYYY-MM-DD'));
   const [commTo]                        = useState(dayjs().format('YYYY-MM-DD'));
@@ -510,6 +549,7 @@ const HospitalPharmacyV2: React.FC = () => {
     setCommLoading(true);
     try {
       const r = await getCommissions({
+        keyword:  commKeyword || undefined,
         fromDate: commFrom,
         toDate:   commTo,
         status:   commStatusF === '' ? undefined : parseInt(commStatusF, 10),
@@ -518,7 +558,7 @@ const HospitalPharmacyV2: React.FC = () => {
       setCommSelected(new Set<string>());
     } catch { setCommissions([]); }
     finally  { setCommLoading(false); }
-  }, [commFrom, commTo, commStatusF]);
+  }, [commFrom, commTo, commStatusF, commKeyword]);
   useEffect(() => { if (tab === 'commission') void loadCommissions(); }, [tab, loadCommissions]);
 
   const commTotalPages = Math.max(1, Math.ceil(commissions.length / PS));
@@ -819,6 +859,7 @@ const HospitalPharmacyV2: React.FC = () => {
                 }}
               />
               <span className="spacer" />
+              <Btn variant="ghost" icon="printer" onClick={handlePrintRevenue} disabled={revData.length === 0}>In báo cáo</Btn>
               <Btn variant="ghost" icon="refresh" onClick={loadRevenue}>Làm mới</Btn>
             </div>
             <DataTable<PharmacyRevenueDto>
@@ -859,6 +900,25 @@ const HospitalPharmacyV2: React.FC = () => {
               data={custPaged}
               rowKey={(r) => r.id}
               onRowClick={setCustDetail}
+              actions={(r) => (
+                <div className="ab-actions">
+                  <ActBtn ic="edit" title="Sửa khách hàng" onClick={() => {
+                    setCustForm({
+                      id:           r.id,
+                      fullName:     r.fullName,
+                      phone:        r.phone,
+                      email:        r.email,
+                      address:      r.address,
+                      dateOfBirth:  r.dateOfBirth,
+                      gender:       r.gender,
+                      customerType: r.customerType,
+                      cardNumber:   r.cardNumber,
+                      notes:        r.notes,
+                    });
+                    setCustModalOpen(true);
+                  }} />
+                </div>
+              )}
               empty={custLoading ? 'Đang tải…' : 'Không có khách hàng'}
             />
             <Pager page={custPage} setPage={setCustPage} totalPages={custTotalPages} total={customers.length} perPage={PS} />
@@ -895,10 +955,11 @@ const HospitalPharmacyV2: React.FC = () => {
                 </>
               )}
             </DrawerShell>
-            <ModalShell open={custModalOpen} onClose={() => setCustModalOpen(false)} title="Thêm khách hàng" size="md"
+            <ModalShell open={custModalOpen} onClose={() => setCustModalOpen(false)}
+              title={custForm.id ? 'Sửa khách hàng' : 'Thêm khách hàng'} size="md"
               footer={<>
                 <Btn variant="ghost" onClick={() => setCustModalOpen(false)}>Hủy</Btn>
-                <Btn variant="primary" onClick={handleSaveCustomer}>Lưu</Btn>
+                <Btn variant="primary" onClick={handleSaveCustomer}>{custForm.id ? 'Cập nhật' : 'Lưu'}</Btn>
               </>}
             >
               <Form layout="vertical" style={{ padding: '4px 0' }}>
@@ -921,6 +982,28 @@ const HospitalPharmacyV2: React.FC = () => {
                   <Input value={custForm.address ?? ''}
                     onChange={(e) => setCustForm((p) => ({ ...p, address: e.target.value || undefined }))} />
                 </Form.Item>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <Form.Item label="Ngày sinh">
+                    <DatePicker
+                      value={custForm.dateOfBirth ? dayjs(custForm.dateOfBirth) : null}
+                      format="DD/MM/YYYY"
+                      style={{ width: '100%' }}
+                      onChange={(d) => setCustForm((p) => ({ ...p, dateOfBirth: d ? d.format('YYYY-MM-DD') : undefined }))} />
+                  </Form.Item>
+                  <Form.Item label="Giới tính">
+                    <Select<number>
+                      value={custForm.gender}
+                      allowClear
+                      placeholder="Chọn giới tính"
+                      onChange={(v) => setCustForm((p) => ({ ...p, gender: v ?? undefined }))}
+                      options={[
+                        { value: 0, label: 'Nam' },
+                        { value: 1, label: 'Nữ' },
+                        { value: 2, label: 'Khác' },
+                      ]}
+                    />
+                  </Form.Item>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <Form.Item label="Loại khách hàng">
                     <Select<number>
@@ -1100,6 +1183,7 @@ const HospitalPharmacyV2: React.FC = () => {
           <>
             <KpiStrip items={commKpis} />
             <div className="ab-tools">
+              <SearchBox value={commKeyword} onChange={(v) => { setCommKeyword(v); setCommPage(0); }} placeholder="Tìm bác sĩ / thuốc…" />
               <Select<string>
                 value={commStatusF}
                 onChange={(v) => { setCommStatusF(v); setCommPage(0); }}

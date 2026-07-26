@@ -12,6 +12,7 @@ import {
   type ColumnDef, type TopTab, type KpiItem, type StatusTab,
 } from '../../../pages-v2/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import BarcodeScanner from '../../../components/form/BarcodeScanner';
 import ExpiryAlertModal from '../../../pages-v2/shared/ExpiryAlertModal';
 import { fmtVND } from '../../../utils/format';
 
@@ -99,6 +100,7 @@ const PharmacyV2: React.FC = () => {
   const [invLoading, setInvLoading] = useState(false);
   const [invSearch,  setInvSearch]  = useState('');
   const [invPage,    setInvPage]    = useState(0);
+  const [invScanOpen, setInvScanOpen] = useState(false);
 
   const loadInv = useCallback(async () => {
     setInvLoading(true);
@@ -453,6 +455,7 @@ const PharmacyV2: React.FC = () => {
           <>
             <div className="ab-tools">
               <SearchBox value={invSearch} onChange={(v) => { setInvSearch(v); setInvPage(0); }} placeholder="Tìm tên / mã thuốc…" />
+              <Btn variant="ghost" icon="scan" onClick={() => setInvScanOpen(true)}>Quét mã vạch</Btn>
               <span className="spacer" />
               <Btn variant="ghost" icon="refresh" onClick={loadInv}>Làm mới</Btn>
             </div>
@@ -461,6 +464,12 @@ const PharmacyV2: React.FC = () => {
               empty={invLoading ? 'Đang tải…' : 'Kho thuốc trống'}
             />
             <Pager page={invPage} setPage={setInvPage} totalPages={invTotalPages} total={invFiltered.length} perPage={PER} />
+            <BarcodeScanner
+              open={invScanOpen}
+              onClose={() => setInvScanOpen(false)}
+              onScan={(decodedText) => { setInvSearch(decodedText); setInvPage(0); }}
+              title="Quét mã vạch thuốc"
+            />
           </>
         )}
 
