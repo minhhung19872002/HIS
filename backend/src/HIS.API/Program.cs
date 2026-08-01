@@ -59,6 +59,8 @@ builder.Services.AddHostedService<HIS.API.Workers.AuditArchiveWorker>(); // #371
 builder.Services.AddControllers(options =>
     {
         options.Filters.Add<HIS.API.Filters.ApiResponseWrapperFilter>();
+        // #369: UnauthorizedAccessException → 403 (trước đây rơi vào catch-all → 500).
+        options.Filters.Add<HIS.API.Filters.ForbiddenExceptionFilter>();
     })
     .AddJsonOptions(options =>
     {

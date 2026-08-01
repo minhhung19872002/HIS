@@ -48,6 +48,23 @@ public sealed class DomainExceptionFilter : IExceptionFilter
                 context.ExceptionHandled = true;
                 _logger.LogInformation("Domain state guard: {Msg}", invEx.Message);
                 break;
+            case UnauthorizedAccessException forbidEx:
+                // #369 (AUTHZ-3): guard quan hệ điều trị / permission ném UnauthorizedAccessException.
+                // Phải là 403 (user đã xác thực, chỉ thiếu quyền trên tài nguyên) — KHÔNG phải 401,
+                // vì 401 khiến interceptor FE tưởng token hết hạn và chạy refresh vô ích.
+                // Trước đây rơi xuống catch-all → 500, smoke pilot 2 bác sĩ phát hiện.
+                context.Result = new ObjectResult(new
+                {
+                    error = "FORBIDDEN",
+                    message = forbidEx.Message
+                })
+                {
+                    StatusCode = StatusCodes.Status403Forbidden
+                };
+                context.ExceptionHandled = true;
+                _logger.LogWarning("Forbidden on {Path}: {Msg}",
+                    context.HttpContext.Request.Path, forbidEx.Message);
+                break;
             case KeyNotFoundException kEx:
                 context.Result = new NotFoundObjectResult(new
                 {
