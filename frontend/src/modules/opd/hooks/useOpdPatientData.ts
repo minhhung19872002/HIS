@@ -41,7 +41,6 @@ export function useOpdPatientData({ setLeftOpen, setSelPt, setAutoSavedTs }: Par
     setSelPt(q);
     setLeftOpen(false);
     setVitals({}); setHistory(''); setPastHist(''); setFamilyHist(''); setAllergyHist(''); setMedHist('');
-    setIcdQ(''); setIcdResults([]); setSvcQ(''); setSvcResults([]); // #439: ô tìm ICD/DV không giữ text của BN trước
     setAllergies([]); setInjuryInfo({}); setExam(''); setConclusion(''); setDx([]); setOrd([]);
     // #439: reset luôn ô tìm ICD/dịch vụ — trước đây từ khoá của BN trước còn sót lại khi đổi BN
     setIcdQ(''); setIcdResults([]); setSvcQ(''); setSvcResults([]);
