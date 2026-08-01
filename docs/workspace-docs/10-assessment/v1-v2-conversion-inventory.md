@@ -294,3 +294,7 @@ Sau khi #407 xong: smoke 44 DELETE-safe → mở #204 → Phase 3 (gỡ layoutMo
 - **DELETE-safe** (smoke-ready): ước ~55-60 (từ 44; thêm các trang mới ported đầy đủ)
 
 > ⚠️ Con số trên là ước lượng nhanh — KHÔNG đọc lại từng cặp. Cần adversarial verify vòng-3 trước khi #204 xóa hàng loạt.
+
+## §8. Vòng-3 adversarial parity verify (2026-08-02) — KẾT QUẢ CHÍNH THỨC thay §7e
+
+Bảng verdict đầy đủ 119 cặp (skeptic đối kháng 100% các DELETE_SAFE): **35 DELETE_SAFE · 83 GAP (kèm missing file:line) · 1 KEEP** → xem **`v1-v2-parity-round3-2026-08-02.md`** (cùng thư mục). Ước lượng "~55-60 DELETE-safe" của §7e đã bị bác (50% verdict DELETE_SAFE ban đầu bị skeptic lật). #204 chỉ được gỡ route 35 trang bảng A; 83 trang bảng B cần đóng gap hoặc user chấp nhận bỏ tính năng (ghi rõ) trước khi gỡ.
