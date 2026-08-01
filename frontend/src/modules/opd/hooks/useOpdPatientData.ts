@@ -42,6 +42,8 @@ export function useOpdPatientData({ setLeftOpen, setSelPt, setAutoSavedTs }: Par
     setLeftOpen(false);
     setVitals({}); setHistory(''); setPastHist(''); setFamilyHist(''); setAllergyHist(''); setMedHist('');
     setAllergies([]); setInjuryInfo({}); setExam(''); setConclusion(''); setDx([]); setOrd([]);
+    // #439: reset luôn ô tìm ICD/dịch vụ — trước đây từ khoá của BN trước còn sót lại khi đổi BN
+    setIcdQ(''); setIcdResults([]); setSvcQ(''); setSvcResults([]);
     setAutoSavedTs(null);
     const id = q.examinationId;
     const [v, mi, pe, dx, so, al, inj] = await Promise.allSettled([
