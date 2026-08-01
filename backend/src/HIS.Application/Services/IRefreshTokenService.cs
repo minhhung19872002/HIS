@@ -19,6 +19,11 @@ public interface IRefreshTokenService
     /// Chỉ revoke khi token thuộc về userId (ownership check — không cho user này tắt phiên user khác).</summary>
     Task RevokeAsync(Guid userId, string plaintext, string reason);
 
+    /// <summary>#437: thu hồi bằng CHÍNH refresh token, KHÔNG cần userId — sở hữu plaintext token = đủ quyền
+    /// tắt phiên của nó (userId lấy từ bản ghi token). Dùng cho idle-logout cookie-mode khi access token đã
+    /// hết hạn ([Authorize] /logout không chạy được). Token không tồn tại → im lặng (không leak — chống probing).</summary>
+    Task RevokeByTokenAsync(string plaintext, string reason);
+
     /// <summary>Thu hồi TẤT CẢ refresh token còn sống của user + đóng mọi session (đổi mật khẩu / force-logout / reuse).</summary>
     Task RevokeAllForUserAsync(Guid userId, string reason);
 }

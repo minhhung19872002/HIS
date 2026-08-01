@@ -303,6 +303,15 @@ public class AuthService : IAuthService
         return true;
     }
 
+    public async Task<bool> LogoutByTokenAsync(string? refreshToken)
+    {
+        // #437: idle-logout cookie-mode — access token đã hết hạn nên không có userId từ claims;
+        // sở hữu refresh token = đủ quyền thu hồi chính nó (service tra userId từ bản ghi token).
+        if (!string.IsNullOrWhiteSpace(refreshToken))
+            await _refreshTokens.RevokeByTokenAsync(refreshToken, "logout");
+        return true;
+    }
+
     public async Task<UserDto?> GetCurrentUserAsync(Guid userId)
     {
         var user = await _context.Users

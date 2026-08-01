@@ -26,6 +26,11 @@ public interface IAuthService
     /// </summary>
     Task<bool> LogoutAsync(Guid userId, string? refreshToken);
 
+    /// <summary>#437 (cookie-mode): đăng xuất bằng CHÍNH refresh token khi access token đã hết hạn
+    /// (idle-logout — [Authorize] /logout không chạy được). Thu hồi token + đóng session của đúng
+    /// thiết bị cầm token; token không tồn tại → no-op im lặng (chống probing).</summary>
+    Task<bool> LogoutByTokenAsync(string? refreshToken);
+
     /// <summary>
     /// Xác thực mật khẩu của một user theo userId — dùng để confirm danh tính người duyệt.
     /// KHÔNG log password. Trả false nếu user không tồn tại hoặc mật khẩu sai.

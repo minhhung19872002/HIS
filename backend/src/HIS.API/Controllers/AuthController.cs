@@ -143,6 +143,23 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse<bool>.Ok(true, "Đã đăng xuất"));
     }
 
+    // #437 (fix session-resurrection cookie-mode): idle-logout khi access token ĐÃ hết hạn →
+    // [Authorize] /logout trả 401 trước khi vào action → cookie + refresh token sống sót = logout-bypass.
+    // Endpoint này AllowAnonymous, thu hồi bằng CHÍNH refresh token (cookie hoặc body) — sở hữu token
+    // = đủ quyền tắt phiên của nó. Luôn trả 200 + xoá cookie (không tiết lộ token có tồn tại hay không —
+    // chống probing); rate-limit bucket "refresh" chống grinding; [Consumes json] chống form-CSRF.
+    // localStorage-mode không dùng endpoint này (FE chỉ gọi khi VITE_REFRESH_COOKIE bật) — DORMANT.
+    [AllowAnonymous]
+    [EnableRateLimiting("refresh")]
+    [Consumes("application/json")]
+    [HttpPost("logout-by-token")]
+    public async Task<ActionResult<ApiResponse<bool>>> LogoutByToken([FromBody] LogoutRequestDto? dto)
+    {
+        await _authService.LogoutByTokenAsync(ReadRefreshToken(dto?.RefreshToken));
+        ClearRefreshCookie();
+        return Ok(ApiResponse<bool>.Ok(true, "Đã đăng xuất"));
+    }
+
     [Authorize]
     [HttpGet("2fa-status")]
     public async Task<ActionResult<ApiResponse<TwoFactorStatusDto>>> GetTwoFactorStatus()

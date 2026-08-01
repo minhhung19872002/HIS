@@ -51,12 +51,18 @@ export const authApi = {
    * #422 cookie-mode: refresh token trong cookie → gửi body rỗng + withCredentials để BE đọc + xoá cookie.
    */
   logout: (refreshToken?: string): void => {
+    if (REFRESH_COOKIE_MODE) {
+      // #437: cookie-mode gọi endpoint AllowAnonymous /logout-by-token — thu hồi bằng CHÍNH cookie,
+      // chạy được cả khi access token đã hết hạn (idle-logout) hoặc localStorage đã bị xoá.
+      // KHÔNG gửi Bearer ([Authorize] /logout sẽ 401 khi token hết hạn → cookie sống sót = resurrection).
+      axios.post(`${API_URL}/auth/logout-by-token`, {}, { withCredentials: true })
+        .catch(() => { /* logout best-effort */ });
+      return;
+    }
     const tk = localStorage.getItem('token');
-    if (!tk) return;
-    if (!REFRESH_COOKIE_MODE && !refreshToken) return; // localStorage-mode: cần token để thu hồi
-    axios.post(`${API_URL}/auth/logout`,
-      REFRESH_COOKIE_MODE ? {} : { refreshToken },
-      { headers: { Authorization: `Bearer ${tk}` }, withCredentials: REFRESH_COOKIE_MODE },
+    if (!tk || !refreshToken) return; // localStorage-mode: cần token để thu hồi
+    axios.post(`${API_URL}/auth/logout`, { refreshToken },
+      { headers: { Authorization: `Bearer ${tk}` } },
     ).catch(() => { /* logout best-effort — stamp/reuse-detection che phần còn lại */ });
   },
 

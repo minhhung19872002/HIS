@@ -169,6 +169,32 @@ public class RefreshTokenService : IRefreshTokenService
         await _context.SaveChangesAsync();
     }
 
+    public async Task RevokeByTokenAsync(string plaintext, string reason)
+    {
+        if (string.IsNullOrWhiteSpace(plaintext)) return;
+        var hash = Hash(plaintext);
+        var now = DateTime.UtcNow;
+
+        // #437: không cần userId — chỉ ai cầm plaintext token mới tính ra hash này (SHA-256, token 64-byte random),
+        // nên sở hữu token = đủ quyền thu hồi chính nó. Token không tồn tại → return im lặng (chống probing).
+        var token = await _context.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash && !t.IsDeleted);
+        if (token == null) return;
+
+        if (token.RevokedAt == null)
+        {
+            token.RevokedAt = now;
+            token.RevokedByIp = ClientIp();
+            token.ReasonRevoked = reason;
+            token.UpdatedAt = now;
+        }
+
+        var session = await _context.UserSessions
+            .FirstOrDefaultAsync(s => s.SessionToken == hash && s.UserId == token.UserId && s.Status == 0 && !s.IsDeleted);
+        if (session != null) { session.Status = 2; session.LogoutTime = now; session.UpdatedAt = now; }
+
+        await _context.SaveChangesAsync();
+    }
+
     public async Task RevokeAllForUserAsync(Guid userId, string reason)
     {
         var now = DateTime.UtcNow;
