@@ -176,6 +176,12 @@ public interface IInsuranceXmlService
     /// <summary>
     /// Kiểm tra hồ sơ BHYT đơn lẻ
     /// </summary>
+    // #441 ký số đợt XML — mô hình client-side USB-token (BE không giữ khóa bí mật)
+    /// <summary>Trả nội dung đợt XML (zip base64) + digest để client ký bằng USB-token. null = không có đợt/file.</summary>
+    Task<XmlSignPayloadDto?> GetXmlSignPayloadAsync(Guid batchId);
+    /// <summary>Nhận chữ ký từ client, VERIFY bằng public key trong chứng thư rồi mới lưu.</summary>
+    Task<XmlSignatureResultDto> ApplyXmlSignatureAsync(Guid batchId, SubmitXmlSignatureDto dto, Guid userId);
+
     Task<InsuranceValidationResultDto> ValidateClaimAsync(string maLk);
 
     /// <summary>

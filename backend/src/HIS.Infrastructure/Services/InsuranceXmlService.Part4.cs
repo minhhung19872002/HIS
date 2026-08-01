@@ -64,20 +64,13 @@ public partial class InsuranceXmlService
                 };
             }
 
-            using var zipStream = new MemoryStream();
-            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: true))
-            {
-                foreach (var f in xmlFiles)
-                {
-                    var entry = archive.CreateEntry(Path.GetFileName(f), CompressionLevel.Optimal);
-                    using var es = entry.Open();
-                    await es.WriteAsync(await File.ReadAllBytesAsync(f));
-                }
-            }
+            // Dùng CHUNG hàm đóng gói với luồng ký (#441): ký cái gì thì gửi đúng cái đó,
+            // và bytes deterministic nên chữ ký đã ghi nhận vẫn khớp với payload gửi đi.
+            var packed = await PackBatchAsync(batch.FilePath);
 
             var request = new BhxhSubmitRequest
             {
-                XmlBase64 = Convert.ToBase64String(zipStream.ToArray()),
+                XmlBase64 = Convert.ToBase64String(packed),
                 BatchCode = batch.BatchCode,       // mã đợt THẬT, không sinh timestamp mới
                 FacilityCode = "" // Will use gateway options internally
             };
@@ -93,7 +86,7 @@ public partial class InsuranceXmlService
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Submitted batch {BatchCode} ({Files} files, {Size} bytes) → status={Status} txn={Txn}",
-                batch.BatchCode, xmlFiles.Length, zipStream.Length, response.Status, response.TransactionId);
+                batch.BatchCode, xmlFiles.Length, packed.Length, response.Status, response.TransactionId);
 
             return new SubmitResultDto
             {
