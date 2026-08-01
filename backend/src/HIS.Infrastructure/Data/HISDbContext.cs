@@ -64,6 +64,8 @@ public partial class HISDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<UserPermissionOverride> UserPermissionOverrides => Set<UserPermissionOverride>();
     // AUTHZ-5 (#371): lịch sử thay đổi phân quyền (additive, chưa wire ghi)
     public DbSet<PermissionChangeHistory> PermissionChangeHistories => Set<PermissionChangeHistory>();
+    // #441: đợt xuất XML BHYT (BatchId ↔ thư mục file) — mắt xích thiếu khiến download/submit phải đoán
+    public DbSet<InsuranceXmlBatch> InsuranceXmlBatches => Set<InsuranceXmlBatch>();
 
     // Khoa/Phòng/Giường
     public DbSet<Department> Departments => Set<Department>();

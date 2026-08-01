@@ -227,17 +227,37 @@ public partial class InsuranceXmlService
         _logger.LogInformation("XML export complete: {Count} files, {Size} bytes total, path={Path}",
             xmlFiles.Count, totalFileSize, outputPath);
 
-        // Step 6: Return success result
+        // Step 6: #441 — LƯU đợt xuất (BatchId ↔ FilePath). Trước đây trả Guid.NewGuid() vứt đi
+        // nên download/submit không tra ngược được ra thư mục file.
+        var batch = new InsuranceXmlBatch
+        {
+            Id = Guid.NewGuid(),
+            BatchCode = batchCode,
+            PeriodMonth = config.Month,
+            PeriodYear = config.Year,
+            DepartmentId = config.DepartmentId,
+            FilePath = outputPath,
+            FileSize = totalFileSize,
+            TotalRecords = xml1Data.Count,
+            SuccessRecords = xml1Data.Count,
+            FailedRecords = 0,
+            Status = 0, // đã xuất
+            ExportTime = DateTime.Now,
+            CreatedAt = DateTime.UtcNow,
+        };
+        _context.Set<InsuranceXmlBatch>().Add(batch);
+        await _context.SaveChangesAsync();
+
         return new XmlExportResultDto
         {
-            BatchId = Guid.NewGuid(),
+            BatchId = batch.Id,
             BatchCode = batchCode,
             TotalRecords = xml1Data.Count,
             SuccessRecords = xml1Data.Count,
             FailedRecords = 0,
             FilePath = outputPath,
             FileSize = totalFileSize,
-            ExportTime = DateTime.Now
+            ExportTime = batch.ExportTime
         };
     }
 
@@ -272,32 +292,23 @@ public partial class InsuranceXmlService
     {
         try
         {
-            // Search exports folder for the batch by scanning directories
-            var exportsDir = Path.Combine("exports", "xml");
-            if (!Directory.Exists(exportsDir))
+            // #441: tra ĐÚNG đợt theo batchId. Trước đây quét `exports/xml` rồi lấy thư mục MỚI NHẤT
+            // → xuất nhiều đợt thì tải nhầm đợt (sai hồ sơ BHYT mà không có dấu hiệu gì).
+            var batch = await _context.Set<InsuranceXmlBatch>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(b => b.Id == batchId && !b.IsDeleted);
+
+            if (batch == null)
             {
-                _logger.LogWarning("Exports directory not found: {Path}", exportsDir);
+                _logger.LogWarning("XML batch not found in DB (batchId={BatchId})", batchId);
                 return Array.Empty<byte>();
             }
 
-            // Find the batch folder (match by looking for XML files)
-            var batchDirs = Directory.GetDirectories(exportsDir);
-            string? batchPath = null;
-
-            // Try to find by convention -- most recent folder with XML files
-            foreach (var dir in batchDirs.OrderByDescending(d => Directory.GetCreationTime(d)))
+            var batchPath = batch.FilePath;
+            if (string.IsNullOrWhiteSpace(batchPath) || !Directory.Exists(batchPath))
             {
-                var xmlFiles = Directory.GetFiles(dir, "*.xml");
-                if (xmlFiles.Length > 0)
-                {
-                    batchPath = dir;
-                    break;
-                }
-            }
-
-            if (batchPath == null)
-            {
-                _logger.LogWarning("No XML batch found for download (batchId={BatchId})", batchId);
+                _logger.LogWarning("XML batch {BatchCode} has no file directory on disk: {Path}",
+                    batch.BatchCode, batchPath);
                 return Array.Empty<byte>();
             }
 

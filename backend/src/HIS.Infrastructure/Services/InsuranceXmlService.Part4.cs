@@ -22,23 +22,82 @@ public partial class InsuranceXmlService
     {
         try
         {
-            // Get export data for the batch
-            var batchExport = await _context.InsuranceClaims
-                .Where(c => !c.IsDeleted && c.ClaimStatus == 1) // Only approved claims
-                .CountAsync();
+            // #441: gửi XML THẬT của đợt. Trước đây payload là chuỗi giả
+            // `<batch>{BatchId}</batch>` vì BatchId không được persist → cổng BHXH nhận rác
+            // trong khi UI báo thành công (thành công giả trên đường compliance).
+            var batch = await _context.Set<InsuranceXmlBatch>()
+                .FirstOrDefaultAsync(b => b.Id == dto.BatchId && !b.IsDeleted);
+
+            if (batch == null)
+            {
+                _logger.LogWarning("Submit rejected: XML batch {BatchId} not found", dto.BatchId);
+                return new SubmitResultDto
+                {
+                    Success = false,
+                    Message = "Không tìm thấy đợt xuất XML. Vui lòng xuất lại XML trước khi gửi.",
+                    SubmitTime = DateTime.Now
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(batch.FilePath) || !Directory.Exists(batch.FilePath))
+            {
+                _logger.LogWarning("Submit rejected: batch {BatchCode} missing files at {Path}",
+                    batch.BatchCode, batch.FilePath);
+                return new SubmitResultDto
+                {
+                    Success = false,
+                    Message = $"Đợt {batch.BatchCode} không còn file XML trên máy chủ. Vui lòng xuất lại.",
+                    SubmitTime = DateTime.Now
+                };
+            }
+
+            // Gói 14 file XML của đợt thành ZIP rồi base64 — đúng nội dung đã xuất, không phải chuỗi giả.
+            var xmlFiles = Directory.GetFiles(batch.FilePath, "*.xml");
+            if (xmlFiles.Length == 0)
+            {
+                _logger.LogWarning("Submit rejected: batch {BatchCode} has 0 xml file", batch.BatchCode);
+                return new SubmitResultDto
+                {
+                    Success = false,
+                    Message = $"Đợt {batch.BatchCode} không có file XML nào để gửi.",
+                    SubmitTime = DateTime.Now
+                };
+            }
+
+            using var zipStream = new MemoryStream();
+            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                foreach (var f in xmlFiles)
+                {
+                    var entry = archive.CreateEntry(Path.GetFileName(f), CompressionLevel.Optimal);
+                    using var es = entry.Open();
+                    await es.WriteAsync(await File.ReadAllBytesAsync(f));
+                }
+            }
 
             var request = new BhxhSubmitRequest
             {
-                XmlBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes($"<batch>{dto.BatchId}</batch>")),
-                BatchCode = CodeGenerator.Timestamp("XML"),
+                XmlBase64 = Convert.ToBase64String(zipStream.ToArray()),
+                BatchCode = batch.BatchCode,       // mã đợt THẬT, không sinh timestamp mới
                 FacilityCode = "" // Will use gateway options internally
             };
 
             var response = await _gatewayClient.SubmitCostDataAsync(request);
+            var ok = response.Status != 3; // 3 = error
+
+            // Ghi vết kết quả gửi lên chính đợt — phục vụ tra cứu/đối soát sau này.
+            batch.Status = ok ? 2 : 3; // 2-Đã gửi BHXH · 3-Bị từ chối
+            batch.SubmittedAt = DateTime.Now;
+            batch.SubmitTransactionId = response.TransactionId;
+            batch.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Submitted batch {BatchCode} ({Files} files, {Size} bytes) → status={Status} txn={Txn}",
+                batch.BatchCode, xmlFiles.Length, zipStream.Length, response.Status, response.TransactionId);
 
             return new SubmitResultDto
             {
-                Success = response.Status != 3, // 3 = error
+                Success = ok,
                 TransactionId = response.TransactionId,
                 Message = response.Message,
                 SubmitTime = DateTime.Now
