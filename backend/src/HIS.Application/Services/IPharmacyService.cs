@@ -58,5 +58,11 @@ namespace HIS.Application.Services
         Task<bool> ApproveTransferAsync(Guid transferId);
         Task<bool> RejectTransferAsync(Guid transferId, string? reason);
         Task<bool> ReceiveTransferAsync(Guid transferId);
+
+        // Medication reconciliation (#438) — READ-ONLY, phase 1 chỉ báo cáo
+        /// <summary>Đối chiếu y lệnh thuốc nội trú vs cấp phát thực tế theo ĐỢT ĐIỀU TRỊ
+        /// (khoá MedicalRecordId + MedicineId). Lọc theo HSBA hoặc khoa + khoảng ngày kê.</summary>
+        Task<HIS.Application.DTOs.Pharmacy.MedicationReconciliationResultDto> GetMedicationReconciliationAsync(
+            Guid? medicalRecordId, Guid? departmentId, DateTime? fromDate, DateTime? toDate);
     }
 }

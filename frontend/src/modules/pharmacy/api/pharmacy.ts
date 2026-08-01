@@ -107,6 +107,41 @@ export interface AlertItem {
   acknowledged: boolean;
 }
 
+/** #438: một dòng lệch khi đối chiếu y lệnh nội trú vs cấp phát thực tế. */
+export interface ReconciliationRow {
+  medicalRecordId: string;
+  medicalRecordCode?: string;
+  patientId?: string;
+  patientCode?: string;
+  patientName?: string;
+  departmentName?: string;
+  medicineId: string;
+  medicineCode?: string;
+  medicineName?: string;
+  unit?: string;
+  orderedQuantity: number;
+  dispensedQuantity: number;
+  recordedDispensedQuantity: number;
+  variance: number;
+  /** NOT_DISPENSED · NO_ORDER · OVER_DISPENSED · FIELD_DRIFT · CABINET_ISSUE */
+  discrepancyType: string;
+  note?: string;
+}
+
+export interface ReconciliationSummary {
+  medicalRecordCount: number;
+  notDispensedCount: number;
+  noOrderCount: number;
+  overDispensedCount: number;
+  fieldDriftCount: number;
+  cabinetIssueCount: number;
+}
+
+export interface ReconciliationResult {
+  rows: ReconciliationRow[];
+  summary: ReconciliationSummary;
+}
+
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -152,6 +187,14 @@ export interface InventoryHistoryItem {
   createdDate: string;
   createdBy: string;
 }
+
+/** #438: báo cáo đối chiếu thuốc nội trú (read-only). Lọc theo HSBA hoặc khoa + khoảng ngày kê. */
+export const getMedicationReconciliation = (params?: {
+  medicalRecordId?: string;
+  departmentId?: string;
+  fromDate?: string;
+  toDate?: string;
+}) => apiClient.get<ReconciliationResult>(`${BASE_URL}/reconciliation`, { params });
 
 export const getInventoryHistory = (medicationId: string) =>
   apiClient.get<InventoryHistoryItem[]>(`${BASE_URL}/inventory/${medicationId}/history`);

@@ -20,7 +20,7 @@ import { fmtVND } from '../../../utils/format';
 
 /* ────────────── Types ────────────── */
 
-type PageTab = 'rx' | 'inventory' | 'transfers' | 'alerts' | 'clinical';
+type PageTab = 'rx' | 'inventory' | 'transfers' | 'alerts' | 'clinical' | 'recon';
 type RxStatus = 'pending' | 'accepted' | 'dispensing' | 'completed' | 'rejected';
 type ClSubTab = 'reviews' | 'adr';
 interface ClinReview { id: string; patientName?: string; medicationName?: string; reviewDate?: string; recommendation?: string; }
@@ -36,7 +36,17 @@ const TOP_TABS: TopTab<PageTab>[] = [
   { v: 'transfers', l: 'Chuyển kho',    ic: 'shuffle' },
   { v: 'alerts',    l: 'Cảnh báo',      ic: 'alert' },
   { v: 'clinical',  l: 'Dược lâm sàng', ic: 'flask' },
+  { v: 'recon',     l: 'Đối chiếu thuốc', ic: 'check' },
 ];
+
+/* #438: nhãn + tông màu cho từng loại lệch khi đối chiếu y lệnh vs cấp phát */
+const RECON_TYPES: Record<string, { label: string; tone: 'crit' | 'warn' | 'info' | 'ok' }> = {
+  NOT_DISPENSED:  { label: 'Chưa/thiếu cấp',   tone: 'crit' },
+  NO_ORDER:       { label: 'Không có y lệnh',  tone: 'crit' },
+  OVER_DISPENSED: { label: 'Cấp vượt y lệnh',  tone: 'warn' },
+  FIELD_DRIFT:    { label: 'Lệch dữ liệu',     tone: 'info' },
+  CABINET_ISSUE:  { label: 'Xuất tủ trực',     tone: 'ok'   },
+};
 
 const RX_TABS: StatusTab<RxStatus>[] = [
   { v: 'pending',    l: 'Chờ duyệt',  tone: 'warn' },
@@ -194,6 +204,76 @@ const PharmacyV2: React.FC = () => {
     catch { ti('Không tải được dữ liệu lâm sàng'); } finally { setClLoading(false); }
   }, []);
   useEffect(() => { if (tab === 'clinical') loadCl(); }, [tab, loadCl]);
+
+  /* ══════════════ ĐỐI CHIẾU THUỐC (#438) ══════════════ */
+  // Read-only: chỉ báo cáo lệch, KHÔNG tạo phiếu điều chỉnh (quyết định clinical design 2026-08-02).
+  const [rcRows,    setRcRows]    = useState<pharmacyApi.ReconciliationRow[]>([]);
+  const [rcSummary, setRcSummary] = useState<pharmacyApi.ReconciliationSummary | null>(null);
+  const [rcLoading, setRcLoading] = useState(false);
+  const [rcPage,    setRcPage]    = useState(0);
+  const [rcType,    setRcType]    = useState<string>('');
+  const [rcFrom,    setRcFrom]    = useState(dayjs().subtract(30, 'day').format('YYYY-MM-DD'));
+  const [rcTo,      setRcTo]      = useState(dayjs().format('YYYY-MM-DD'));
+
+  const loadRecon = useCallback(async () => {
+    setRcLoading(true);
+    try {
+      const { data } = await pharmacyApi.getMedicationReconciliation({ fromDate: rcFrom, toDate: rcTo });
+      setRcRows(Array.isArray(data?.rows) ? data.rows : []);
+      setRcSummary(data?.summary ?? null);
+    } catch {
+      ti('Không tải được báo cáo đối chiếu thuốc');
+      setRcRows([]); setRcSummary(null);
+    } finally { setRcLoading(false); }
+  }, [rcFrom, rcTo]);
+  useEffect(() => { if (tab === 'recon') loadRecon(); }, [tab, loadRecon]);
+
+  const rcFiltered = useMemo(
+    () => (rcType ? rcRows.filter((r) => r.discrepancyType === rcType) : rcRows),
+    [rcRows, rcType],
+  );
+  const rcTotalPages = Math.max(1, Math.ceil(rcFiltered.length / PER));
+  const rcPaged      = rcFiltered.slice(rcPage * PER, (rcPage + 1) * PER);
+  const rcKpis: KpiItem[] = useMemo(() => [
+    { lbl: 'HSBA đối chiếu', val: rcSummary?.medicalRecordCount ?? 0 },
+    { lbl: 'Chưa/thiếu cấp', val: rcSummary?.notDispensedCount ?? 0,  tone: 'crit' as const },
+    { lbl: 'Không y lệnh',   val: rcSummary?.noOrderCount ?? 0,       tone: 'crit' as const },
+    { lbl: 'Cấp vượt',       val: rcSummary?.overDispensedCount ?? 0, tone: 'warn' as const },
+    { lbl: 'Lệch dữ liệu',   val: rcSummary?.fieldDriftCount ?? 0,    tone: 'info' as const },
+    { lbl: 'Tủ trực',        val: rcSummary?.cabinetIssueCount ?? 0,  tone: 'ok'   as const },
+  ], [rcSummary]);
+
+  const rcCols: ColumnDef<pharmacyApi.ReconciliationRow>[] = [
+    { key: 'patient',   label: 'Bệnh nhân', render: (r) => (
+        <div>
+          <div style={{ fontWeight: 600 }}>{r.patientName || '—'}</div>
+          <div style={{ fontSize: 11, color: 'var(--t-3)', fontFamily: 'var(--font-mono)' }}>
+            {r.patientCode || '—'}{r.medicalRecordCode ? ` · ${r.medicalRecordCode}` : ''}
+          </div>
+        </div>
+    )},
+    { key: 'dept',      label: 'Khoa',   render: (r) => r.departmentName || '—' },
+    { key: 'medicine',  label: 'Thuốc',  render: (r) => (
+        <div>
+          <div>{r.medicineName || '—'}</div>
+          <div style={{ fontSize: 11, color: 'var(--t-3)', fontFamily: 'var(--font-mono)' }}>{r.medicineCode || ''}</div>
+        </div>
+    )},
+    { key: 'ordered',   label: 'Y lệnh',   mono: true, render: (r) => `${r.orderedQuantity}${r.unit ? ' ' + r.unit : ''}` },
+    { key: 'dispensed', label: 'Đã cấp',   mono: true, render: (r) => `${r.dispensedQuantity}${r.unit ? ' ' + r.unit : ''}` },
+    { key: 'variance',  label: 'Lệch',     mono: true, render: (r) => (
+        <span style={{ color: r.variance === 0 ? 'var(--t-2)' : r.variance < 0 ? 'var(--s-crit)' : 'var(--s-warn)' }}>
+          {r.variance > 0 ? `+${r.variance}` : r.variance}
+        </span>
+    )},
+    { key: 'type',      label: 'Loại lệch', render: (r) => {
+        const m = RECON_TYPES[r.discrepancyType] ?? { label: r.discrepancyType, tone: 'warn' as const };
+        return <StatusBadge tone={m.tone}>{m.label}</StatusBadge>;
+    }},
+    { key: 'note',      label: 'Ghi chú', render: (r) => (
+        <span style={{ fontSize: 11.5, color: 'var(--t-2)' }}>{r.note || '—'}</span>
+    )},
+  ];
 
   /* ══════════════ RX HANDLERS ══════════════ */
 
@@ -719,6 +799,40 @@ const PharmacyV2: React.FC = () => {
                 </label>
               </div>
             </ModalShell>
+          </>
+        )}
+
+        {/* ══════ Đối chiếu thuốc nội trú (#438) — READ-ONLY ══════ */}
+        {tab === 'recon' && (
+          <>
+            <KpiStrip items={rcKpis} />
+            <div className="ab-tools">
+              <span style={{ fontSize: 12.5, color: 'var(--t-2)' }}>Ngày kê:</span>
+              <Input type="date" value={rcFrom} onChange={(e) => { setRcFrom(e.target.value); setRcPage(0); }} style={{ width: 150 }} />
+              <span style={{ fontSize: 12.5, color: 'var(--t-2)' }}>→</span>
+              <Input type="date" value={rcTo} onChange={(e) => { setRcTo(e.target.value); setRcPage(0); }} style={{ width: 150 }} />
+              <Select<string>
+                value={rcType}
+                onChange={(v) => { setRcType(v); setRcPage(0); }}
+                style={{ width: 190 }}
+                options={[
+                  { value: '', label: 'Tất cả loại lệch' },
+                  ...Object.entries(RECON_TYPES).map(([v, m]) => ({ value: v, label: m.label })),
+                ]}
+              />
+              <span className="spacer" />
+              <Btn variant="ghost" icon="refresh" onClick={loadRecon}>Làm mới</Btn>
+            </div>
+            <div style={{ fontSize: 11.5, color: 'var(--t-3)', margin: '0 0 8px' }}>
+              Đối chiếu theo <strong>đợt điều trị</strong> (hồ sơ × thuốc). Báo cáo chỉ đọc — sửa lệch do dược sĩ xử lý thủ công có duyệt.
+            </div>
+            <DataTable<pharmacyApi.ReconciliationRow>
+              columns={rcCols}
+              data={rcPaged}
+              rowKey={(r) => `${r.medicalRecordId}-${r.medicineId}-${r.discrepancyType}`}
+              empty={rcLoading ? 'Đang tải…' : 'Không phát hiện lệch trong khoảng đã chọn'}
+            />
+            <Pager page={rcPage} setPage={setRcPage} totalPages={rcTotalPages} total={rcFiltered.length} perPage={PER} />
           </>
         )}
       </div>
