@@ -6,10 +6,11 @@
  * ===================================================================== */
 
 import React from 'react';
-import { ActBtn, fmtVNDg } from '../../../pages-v2/_v2kit';
+import { ActBtn, Btn, fmtVNDg } from '../../../pages-v2/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import type { IcdCodeFullDto, ServiceDto } from '../api/examination';
 import type { DxRow, OrderRow } from './_shared';
+import type { DiagnosisSuggestion } from '../../patient/api/clinicalDecisionSupport';
 
 export interface DiagnosisOrdersSectionProps {
   // Chẩn đoán
@@ -21,6 +22,12 @@ export interface DiagnosisOrdersSectionProps {
   setPrimary: (idx: number) => void;
   removeIcd: (idx: number) => void;
 
+  // Gợi ý chẩn đoán CDS (#433) — bổ trợ, bác sĩ vẫn quyết định
+  cdsSuggestions: DiagnosisSuggestion[];
+  cdsLoading: boolean;
+  onRunCds: () => void;
+  onPickSuggestion: (s: DiagnosisSuggestion) => void;
+
   // Chỉ định CLS
   svcQ: string;
   searchSvc: (q: string) => void;
@@ -30,11 +37,19 @@ export interface DiagnosisOrdersSectionProps {
   updateQty: (i: number, q: number) => void;
   removeSvc: (i: number) => void;
   totalSvc: number;
+
+  // Mẫu bộ chỉ định dùng nhanh (#433)
+  orderTpls: { name: string; items: OrderRow[] }[];
+  onApplyOrderTpl: (name: string) => void;
+  onSaveOrderTpl: () => void;
+  onRemoveOrderTpl: (name: string) => void;
 }
 
 export const DiagnosisOrdersSection: React.FC<DiagnosisOrdersSectionProps> = ({
   icdQ, searchIcd, icdResults, addIcd, diagnoses, setPrimary, removeIcd,
+  cdsSuggestions, cdsLoading, onRunCds, onPickSuggestion,
   svcQ, searchSvc, svcResults, addSvc, orders, updateQty, removeSvc, totalSvc,
+  orderTpls, onApplyOrderTpl, onSaveOrderTpl, onRemoveOrderTpl,
 }) => {
   return (
     <>
@@ -69,11 +84,58 @@ export const DiagnosisOrdersSection: React.FC<DiagnosisOrdersSectionProps> = ({
             </span>
           ))}
         </div>
+
+        {/* Gợi ý chẩn đoán (CDS) — chỉ tham khảo, bấm để thêm vào danh sách */}
+        <div style={{ marginTop: 'var(--space-10)' }}>
+          <Btn variant="ghost" onClick={onRunCds} disabled={cdsLoading}>
+            <TermIcon name={cdsLoading ? 'refresh' : 'star'} size={12} />
+            {cdsLoading ? ' Đang phân tích…' : ' Gợi ý chẩn đoán (CDS)'}
+          </Btn>
+          {cdsSuggestions.length > 0 && (
+            <div style={{ marginTop: 'var(--space-8)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              {cdsSuggestions.map((s) => (
+                <div key={s.icdCode} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', fontSize: 11.5 }}>
+                  <span className="mono" style={{ minWidth: 46, textAlign: 'right', color: s.confidence >= 0.7 ? 'var(--s-ok)' : 'var(--s-warn)' }}>
+                    {Math.round(s.confidence * 100)}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onPickSuggestion(s)}
+                    style={{ background: 'transparent', border: 0, color: 'var(--a-cy)', cursor: 'pointer', padding: 0, textAlign: 'left' }}
+                    title="Thêm vào danh sách chẩn đoán"
+                  >
+                    <span className="mono" style={{ fontWeight: 700 }}>{s.icdCode}</span> — {s.icdName}
+                  </button>
+                  {s.isCommonInDepartment && <span style={{ fontSize: 9.5, color: 'var(--t-3)' }}>THƯỜNG GẶP</span>}
+                  {s.reasoning && <span style={{ color: 'var(--t-3)', fontSize: 10.5 }}>{s.reasoning}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Orders */}
       <section style={{ background: 'var(--d-0)', border: '1px solid var(--line)', borderRadius: 'var(--r-3)', padding: 'var(--space-12)' }}>
         <h4 style={{ margin: '0 0 10px', fontSize: 11.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--t-2)' }}>Chỉ định CLS · Dịch vụ</h4>
+
+        {/* Mẫu bộ chỉ định dùng nhanh (#433) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-10)', flexWrap: 'wrap' }}>
+          <select
+            className="hui-inp" value="" onChange={(e) => { if (e.target.value) onApplyOrderTpl(e.target.value); }}
+            style={{ height: 28, fontSize: 'var(--fs-sm)', flex: '0 1 280px', minWidth: 200 }}
+          >
+            <option value="">Áp mẫu chỉ định{orderTpls.length ? ` (${orderTpls.length} mẫu)` : ' (chưa có mẫu)'}…</option>
+            {orderTpls.map((t) => <option key={t.name} value={t.name}>{t.name} ({t.items.length} DV)</option>)}
+          </select>
+          <Btn variant="ghost" onClick={onSaveOrderTpl} disabled={orders.length === 0}>
+            <TermIcon name="plus" size={12} /> Lưu mẫu
+          </Btn>
+          {orderTpls.map((t) => (
+            <ActBtn key={t.name} ic="trash" tone="crit" title={`Xoá mẫu "${t.name}"`} onClick={() => onRemoveOrderTpl(t.name)} />
+          ))}
+        </div>
+
         <div style={{ position: 'relative', marginBottom: 'var(--space-10)' }}>
           <div className="ab-search">
             <TermIcon name="search" size={13} />

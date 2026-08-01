@@ -5,16 +5,16 @@ import { fmtNum as fmt } from '../../../utils/format';
 import {
   getRetailSales, cancelRetailSale, createRetailSale, searchMedicines,
   getPharmacyStock, getPharmacyRevenue,
-  getCustomers, saveCustomer,
+  getCustomers, saveCustomer, addPoints, redeemPoints,
   getShifts, openShift, closeShift, getCurrentShift,
   getGppRecords, saveGppRecord,
-  getCommissions, payCommissions, getEnhancedDashboard,
+  getCommissions, saveCommission, payCommissions, getEnhancedDashboard,
 } from '../api/hospitalPharmacy';
 import type {
   RetailSaleDto, MedicineSearchResultDto,
   PharmacyRevenueDto, PharmacyCustomerDto, SavePharmacyCustomerDto,
   PharmacyShiftDto, PharmacyGppRecordDto, SavePharmacyGppRecordDto,
-  PharmacyCommissionDto, PharmacyEnhancedDashboardDto,
+  PharmacyCommissionDto, SavePharmacyCommissionDto, PharmacyEnhancedDashboardDto,
 } from '../api/hospitalPharmacy';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager,
@@ -422,6 +422,39 @@ const HospitalPharmacyV2: React.FC = () => {
     } catch { te('Lỗi lưu khách hàng'); }
   };
 
+  // ── Loyalty points (add / redeem) ─────────────────────────────────────────
+  const [ptsCust,  setPtsCust]  = useState<PharmacyCustomerDto | null>(null);
+  const [ptsValue, setPtsValue] = useState<number>(0);
+  const [ptsDesc,  setPtsDesc]  = useState('');
+  const [ptsBusy,  setPtsBusy]  = useState(false);
+
+  const openPointsModal = (c: PharmacyCustomerDto) => {
+    setPtsCust(c);
+    setPtsValue(0);
+    setPtsDesc('');
+  };
+
+  const handlePoints = (type: 'add' | 'redeem') => {
+    if (!ptsCust) return;
+    if (!ptsValue || ptsValue <= 0) { te('Nhập số điểm lớn hơn 0'); return; }
+    if (type === 'redeem' && ptsValue > (ptsCust.totalPoints ?? 0)) {
+      te(`Khách chỉ còn ${ptsCust.totalPoints ?? 0} điểm`); return;
+    }
+    const verb = type === 'add' ? 'Cộng' : 'Trừ';
+    cf(`${verb} ${ptsValue} điểm cho ${ptsCust.fullName}?`, async () => {
+      setPtsBusy(true);
+      try {
+        const payload = { customerId: ptsCust.id, points: ptsValue, description: ptsDesc || undefined };
+        if (type === 'add') await addPoints(payload);
+        else                await redeemPoints(payload);
+        tk(`Đã ${verb.toLowerCase()} ${ptsValue} điểm`);
+        setPtsCust(null);
+        void loadCustomers();
+      } catch { te('Lỗi xử lý điểm tích lũy'); }
+      finally  { setPtsBusy(false); }
+    }, { tone: type === 'add' ? 'info' : 'warn', confirm: verb });
+  };
+
   // ── Tab 6: Shifts ─────────────────────────────────────────────────────────
   const [currentShift, setCurrentShift] = useState<PharmacyShiftDto | null>(null);
   const [shifts,        setShifts]       = useState<PharmacyShiftDto[]>([]);
@@ -588,6 +621,25 @@ const HospitalPharmacyV2: React.FC = () => {
     }},
     { key: 'paidDate',         label: 'Ngày trả', mono: true, render: (r) => fmtD(r.paidDate) },
   ];
+
+  const [commModal, setCommModal] = useState(false);
+  const [commForm,  setCommForm]  = useState<SavePharmacyCommissionDto>({
+    quantity: 1, saleAmount: 0, commissionRate: 0, saleDate: dayjs().format('YYYY-MM-DD'),
+  });
+
+  const handleSaveCommission = async () => {
+    if (!commForm.doctorName?.trim())                       { te('Nhập tên bác sĩ / người hưởng hoa hồng'); return; }
+    if (!commForm.quantity || commForm.quantity <= 0)       { te('Số lượng phải lớn hơn 0'); return; }
+    if (commForm.saleAmount < 0)                            { te('Tiền bán không hợp lệ'); return; }
+    if (commForm.commissionRate < 0 || commForm.commissionRate > 100) { te('Tỉ lệ hoa hồng phải trong khoảng 0–100%'); return; }
+    try {
+      await saveCommission(commForm);
+      tk('Đã lưu hoa hồng');
+      setCommModal(false);
+      setCommForm({ quantity: 1, saleAmount: 0, commissionRate: 0, saleDate: dayjs().format('YYYY-MM-DD') });
+      void loadCommissions();
+    } catch { te('Lỗi lưu hoa hồng'); }
+  };
 
   const handlePayCommissions = () => {
     if (commSelected.size === 0) { te('Chọn ít nhất một hoa hồng'); return; }
@@ -902,6 +954,7 @@ const HospitalPharmacyV2: React.FC = () => {
               onRowClick={setCustDetail}
               actions={(r) => (
                 <div className="ab-actions">
+                  <ActBtn ic="star" title="Quản lý điểm tích lũy" onClick={() => openPointsModal(r)} />
                   <ActBtn ic="edit" title="Sửa khách hàng" onClick={() => {
                     setCustForm({
                       id:           r.id,
@@ -1022,6 +1075,29 @@ const HospitalPharmacyV2: React.FC = () => {
                     onChange={(e) => setCustForm((p) => ({ ...p, notes: e.target.value || undefined }))} />
                 </Form.Item>
               </Form>
+            </ModalShell>
+
+            <ModalShell open={!!ptsCust} onClose={() => setPtsCust(null)}
+              title={`Điểm tích lũy — ${ptsCust?.fullName ?? ''}`} size="sm"
+              footer={<>
+                <Btn variant="ghost" onClick={() => setPtsCust(null)}>Hủy</Btn>
+                <Btn variant="ghost" onClick={() => handlePoints('redeem')} disabled={ptsBusy}>Đổi điểm</Btn>
+                <Btn variant="primary" onClick={() => handlePoints('add')} disabled={ptsBusy}>Cộng điểm</Btn>
+              </>}
+            >
+              <div style={frow}>
+                <div style={{ fontSize: 12.5, opacity: 0.75 }}>
+                  Điểm hiện có: <strong>{ptsCust?.totalPoints ?? 0}</strong>
+                </div>
+                <label style={flbl}>Số điểm *
+                  <InputNumber min={1} value={ptsValue} style={{ width: '100%' }}
+                    onChange={(v) => setPtsValue(v ?? 0)} />
+                </label>
+                <label style={flbl}>Mô tả
+                  <Input value={ptsDesc} onChange={(e) => setPtsDesc(e.target.value)}
+                    placeholder="Lý do cộng / đổi điểm…" />
+                </label>
+              </div>
             </ModalShell>
           </>
         )}
@@ -1196,6 +1272,14 @@ const HospitalPharmacyV2: React.FC = () => {
               />
               <span className="spacer" />
               <Btn variant="ghost" icon="refresh" onClick={loadCommissions}>Làm mới</Btn>
+              <Btn variant="ghost" icon="plus"
+                onClick={() => {
+                  setCommForm({ quantity: 1, saleAmount: 0, commissionRate: 0, saleDate: dayjs().format('YYYY-MM-DD') });
+                  setCommModal(true);
+                }}
+              >
+                Thêm hoa hồng
+              </Btn>
               <Btn variant="primary" icon="dollar"
                 onClick={handlePayCommissions}
                 disabled={commSelected.size === 0}
@@ -1220,6 +1304,51 @@ const HospitalPharmacyV2: React.FC = () => {
               empty={commLoading ? 'Đang tải…' : 'Không có hoa hồng'}
             />
             <Pager page={commPage} setPage={setCommPage} totalPages={commTotalPages} total={commissions.length} perPage={PS} />
+
+            <ModalShell open={commModal} onClose={() => setCommModal(false)} title="Thêm hoa hồng" size="md"
+              footer={<>
+                <Btn variant="ghost" onClick={() => setCommModal(false)}>Hủy</Btn>
+                <Btn variant="primary" onClick={handleSaveCommission}>Lưu</Btn>
+              </>}
+            >
+              <div style={frow}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <label style={flbl}>Bác sĩ / người hưởng *
+                    <Input value={commForm.doctorName ?? ''}
+                      onChange={(e) => setCommForm((p) => ({ ...p, doctorName: e.target.value || undefined }))}
+                      placeholder="Họ tên" />
+                  </label>
+                  <label style={flbl}>Ngày bán
+                    <DatePicker
+                      value={commForm.saleDate ? dayjs(commForm.saleDate) : null}
+                      format="DD/MM/YYYY"
+                      style={{ width: '100%' }}
+                      onChange={(d) => setCommForm((p) => ({ ...p, saleDate: d ? d.format('YYYY-MM-DD') : undefined }))} />
+                  </label>
+                </div>
+                <label style={flbl}>Tên thuốc
+                  <Input value={commForm.medicineName ?? ''}
+                    onChange={(e) => setCommForm((p) => ({ ...p, medicineName: e.target.value || undefined }))} />
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                  <label style={flbl}>Số lượng *
+                    <InputNumber min={1} value={commForm.quantity} style={{ width: '100%' }}
+                      onChange={(v) => setCommForm((p) => ({ ...p, quantity: v ?? 0 }))} />
+                  </label>
+                  <label style={flbl}>Tiền bán (đ) *
+                    <InputNumber min={0} value={commForm.saleAmount} style={{ width: '100%' }}
+                      onChange={(v) => setCommForm((p) => ({ ...p, saleAmount: v ?? 0 }))} />
+                  </label>
+                  <label style={flbl}>Tỉ lệ HH (%) *
+                    <InputNumber min={0} max={100} value={commForm.commissionRate} style={{ width: '100%' }}
+                      onChange={(v) => setCommForm((p) => ({ ...p, commissionRate: v ?? 0 }))} />
+                  </label>
+                </div>
+                <div style={{ fontSize: 12.5, opacity: 0.75 }}>
+                  Hoa hồng tạm tính: <strong>{fmt(Math.round((commForm.saleAmount * commForm.commissionRate) / 100))}đ</strong>
+                </div>
+              </div>
+            </ModalShell>
           </>
         )}
       </div>

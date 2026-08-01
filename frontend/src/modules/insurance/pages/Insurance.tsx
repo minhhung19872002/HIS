@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import * as file from '../../../services/file.service';
 import dayjs from 'dayjs';
-import { App as AntdApp, Alert, DatePicker, Input } from 'antd';
+import { App as AntdApp, Alert, DatePicker, Input, Select } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
   searchInsuranceClaims,
@@ -16,6 +16,7 @@ import {
   exportReportC79aToExcel,
   exportReport80aToExcel,
   exportXml,
+  previewExport,
   downloadXmlFile,
   createSettlementBatch,
   getSettlementBatches,
@@ -24,7 +25,7 @@ import {
 } from '../api/insurance';
 import type {
   InsuranceClaimSummaryDto, PortalConnectionTestResult,
-  XmlExportConfigDto, XmlExportResultDto, InsuranceSettlementBatchDto,
+  XmlExportConfigDto, XmlExportResultDto, XmlExportPreviewDto, InsuranceSettlementBatchDto,
   InsuranceCardVerificationDto, InsuranceHistoryDto, InsuranceVisitHistoryDto,
 } from '../api/insurance';
 import {
@@ -222,6 +223,10 @@ const InsuranceV2: React.FC = () => {
   });
   const [xmlResult, setXmlResult]     = useState<XmlExportResultDto | null>(null);
   const [xmlLoading, setXmlLoading]   = useState(false);
+  const [xmlDeptId, setXmlDeptId]     = useState('');
+  const [xmlDepts, setXmlDepts]       = useState<{ id: string; name: string }[]>([]);
+  const [xmlPreview, setXmlPreview]   = useState<XmlExportPreviewDto | null>(null);
+  const [xmlPvLoading, setXmlPvLoading] = useState(false);
 
   // ── Batch state ───────────────────────────────────────────────────────────
   const [batchYear, setBatchYear]           = useState(dayjs().year());
@@ -422,17 +427,59 @@ const InsuranceV2: React.FC = () => {
     }
   };
 
+  /** Config dùng chung cho preview / validate / export — 1 nguồn sự thật */
+  const buildXmlConfig = useCallback((): XmlExportConfigDto => ({
+    month: xmlMonth, year: xmlYear,
+    departmentId: xmlDeptId || undefined,
+    includeXml1: xmlIncludes.xml1, includeXml2: xmlIncludes.xml2,
+    includeXml3: xmlIncludes.xml3, includeXml4: xmlIncludes.xml4,
+    includeXml5: xmlIncludes.xml5, includeXml7: xmlIncludes.xml7,
+    validateBeforeExport: true, compressOutput: true,
+  }), [xmlMonth, xmlYear, xmlDeptId, xmlIncludes]);
+
+  /** Xem trước + validate QĐ4210 trước khi xuất. Trả preview để hàm export dùng làm cổng chặn. */
+  const runXmlPreview = useCallback(async (): Promise<XmlExportPreviewDto | null> => {
+    setXmlPvLoading(true);
+    try {
+      const r = await previewExport(buildXmlConfig());
+      const pv = (r.data ?? r) as unknown as XmlExportPreviewDto;
+      setXmlPreview(pv);
+      return pv;
+    } catch {
+      message.warning('Không thể tạo bản xem trước XML');
+      setXmlPreview(null);
+      return null;
+    } finally {
+      setXmlPvLoading(false);
+    }
+  }, [buildXmlConfig, message]);
+
+  // Danh sách khoa có phát sinh BHYT trong kỳ — tái dùng báo cáo theo khoa (không thêm API mới)
+  useEffect(() => {
+    if (topTab !== 'xml') return;
+    let alive = true;
+    void (async () => {
+      try {
+        const r = await getDepartmentReport(xmlMonth, xmlYear);
+        const rows = ((r.data ?? r) as unknown as { departmentId: string; departmentName: string }[]) || [];
+        if (!alive) return;
+        setXmlDepts(rows.filter((d) => d.departmentId).map((d) => ({ id: d.departmentId, name: d.departmentName })));
+      } catch { if (alive) setXmlDepts([]); }
+    })();
+    return () => { alive = false; };
+  }, [topTab, xmlMonth, xmlYear]);
+
   const handleExportXml = async () => {
+    // Cổng chặn QĐ4210: luôn validate trước khi xuất, có lỗi blocking thì KHÔNG xuất
+    const pv = await runXmlPreview();
+    if (pv?.hasBlockingErrors) {
+      message.error('Còn lỗi nghiêm trọng theo QĐ4210 — vui lòng sửa trước khi xuất XML');
+      return;
+    }
     setXmlLoading(true);
     setXmlResult(null);
     try {
-      const config: XmlExportConfigDto = {
-        month: xmlMonth, year: xmlYear,
-        includeXml1: xmlIncludes.xml1, includeXml2: xmlIncludes.xml2,
-        includeXml3: xmlIncludes.xml3, includeXml4: xmlIncludes.xml4,
-        includeXml5: xmlIncludes.xml5, includeXml7: xmlIncludes.xml7,
-        validateBeforeExport: true, compressOutput: true,
-      };
+      const config = buildXmlConfig();
       const r = await exportXml(config);
       const result = (r.data ?? r) as unknown as XmlExportResultDto;
       setXmlResult(result);
@@ -735,6 +782,17 @@ const InsuranceV2: React.FC = () => {
               size="small"
               style={{ width: 120 }}
             />
+            <label style={{ fontSize: 13, color: 'var(--t-2)', whiteSpace: 'nowrap' }}>Khoa:</label>
+            <Select<string>
+              value={xmlDeptId}
+              onChange={(v) => { setXmlDeptId(v); setXmlResult(null); setXmlPreview(null); }}
+              size="small"
+              style={{ minWidth: 190 }}
+              options={[
+                { value: '', label: 'Tất cả khoa' },
+                ...xmlDepts.map((d) => ({ value: d.id, label: d.name })),
+              ]}
+            />
           </div>
 
           <div style={{ marginBottom: 16 }}>
@@ -756,7 +814,10 @@ const InsuranceV2: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-            <Btn variant="primary" loading={xmlLoading} icon="download" onClick={handleExportXml}>
+            <Btn variant="ghost" loading={xmlPvLoading} icon="eye" onClick={() => { void runXmlPreview(); }}>
+              Xem trước &amp; kiểm tra
+            </Btn>
+            <Btn variant="primary" loading={xmlLoading || xmlPvLoading} icon="download" onClick={handleExportXml}>
               Xuất XML QĐ4210
             </Btn>
             {xmlResult?.batchId && (
@@ -765,6 +826,53 @@ const InsuranceV2: React.FC = () => {
               </Btn>
             )}
           </div>
+
+          {xmlPreview && (
+            <div style={{
+              background: 'var(--surface-1)', border: '1px solid var(--border)',
+              borderRadius: 6, padding: 16, marginBottom: 16,
+            }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 10, color: 'var(--t-1)' }}>
+                Xem trước — đợt {String(xmlMonth).padStart(2, '0')}/{xmlYear}
+                {xmlPreview.departmentName ? ` · ${xmlPreview.departmentName}` : ''}
+              </div>
+              <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: 12 }}>
+                <span style={{ fontSize: 13 }}>Hồ sơ: <b>{xmlPreview.totalRecords}</b></span>
+                <span style={{ fontSize: 13 }}>Tổng chi phí: <b>{fmtVND(xmlPreview.totalCostAmount)}</b></span>
+                <span style={{ fontSize: 13 }}>BHYT trả: <b>{fmtVND(xmlPreview.totalInsuranceAmount)}</b></span>
+                <span style={{ fontSize: 13 }}>BN trả: <b>{fmtVND(xmlPreview.totalPatientAmount)}</b></span>
+              </div>
+              {xmlPreview.tables?.length > 0 && (
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                  {xmlPreview.tables.map((t) => (
+                    <span key={t.tableName} style={{ fontSize: 12, color: 'var(--t-2)' }}>
+                      <b className="mono">{t.tableName}</b> {t.recordCount} bản ghi
+                    </span>
+                  ))}
+                </div>
+              )}
+              {xmlPreview.hasBlockingErrors ? (
+                <Alert type="error" showIcon
+                  title="Có lỗi nghiêm trọng — không thể xuất XML"
+                  description={`${xmlPreview.validationErrors?.length ?? 0} hồ sơ lỗi. Vui lòng sửa hồ sơ rồi kiểm tra lại.`}
+                />
+              ) : (
+                <Alert type="success" showIcon title="Dữ liệu hợp lệ theo QĐ4210 — có thể xuất XML" />
+              )}
+              {xmlPreview.validationErrors?.length > 0 && (
+                <div style={{ maxHeight: 180, overflow: 'auto', fontSize: 12, lineHeight: 1.6, marginTop: 10 }}>
+                  {xmlPreview.validationErrors.slice(0, 30).map((v, i) => (
+                    <div key={i} style={{ color: 'var(--s-crit)' }}>
+                      <span className="mono">{v.maLk}</span>: {v.errors?.map((e) => e.message).join('; ')}
+                    </div>
+                  ))}
+                  {xmlPreview.validationErrors.length > 30 && (
+                    <div style={{ color: 'var(--t-3)' }}>… và {xmlPreview.validationErrors.length - 30} hồ sơ lỗi khác</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {xmlResult && (
             <div style={{

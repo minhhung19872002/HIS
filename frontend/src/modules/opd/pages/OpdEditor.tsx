@@ -36,6 +36,8 @@ import { useOpdAutoSave } from '../hooks/useOpdAutoSave';
 import { useOpdTemplates } from '../hooks/useOpdTemplates';
 import { useOpdClsConsult } from '../hooks/useOpdClsConsult';
 import { useOpdDisposition } from '../hooks/useOpdDisposition';
+import { useOpdCds } from '../hooks/useOpdCds';
+import { useOpdOrderTemplates } from '../hooks/useOpdOrderTemplates';
 import '../../../components/layout/terminal/ed-responsive.css';
 
 const OpdEditorV2: React.FC = () => {
@@ -58,7 +60,7 @@ const OpdEditorV2: React.FC = () => {
     vitals, setVitals, history, setHistory, pastHist, setPastHist,
     familyHist, setFamilyHist, allergyHist, setAllergyHist, medHist, setMedHist,
     allergies, injuryInfo, setInjuryInfo, exam, setExam, conclusion, setConclusion,
-    diagnoses, orders, expandAbbr,
+    diagnoses, setDx, orders, setOrd, expandAbbr,
     icdQ, searchIcd, icdResults, addIcd, setPrimary, removeIcd,
     svcQ, searchSvc, svcResults, addSvc, updateQty, removeSvc, selectPatient,
   } = useOpdPatientData({ setLeftOpen, setSelPt, setAutoSavedTs });
@@ -68,9 +70,27 @@ const OpdEditorV2: React.FC = () => {
   const { completion, setCompletion, refreshCompletion } = useOpdCompletion(examId);
 
   useOpdAutoSave({
-    examId, history, pastHist, familyHist, allergyHist, medHist, exam, conclusion,
+    examId, history, pastHist, familyHist, allergyHist, medHist, exam, conclusion, vitals,
     setAutoSavedTs, setStockOpen,
   });
+
+  const { suggestions: cdsSuggestions, alerts: cdsAlerts, ews: cdsEws, cdsLoading, hasActiveMeds, runCds } =
+    useOpdCds({ examId, selPt, vitals, history, exam });
+
+  const { orderTpls, saveOrderTpl, applyOrderTpl, removeOrderTpl } = useOpdOrderTemplates(orders, setOrd);
+
+  const saveCurrentOrderTpl = () => {
+    const name = window.prompt('Tên mẫu bộ chỉ định:')?.trim();
+    if (!name) return;
+    if (saveOrderTpl(name)) tk(`Đã lưu mẫu "${name}"`);
+    else tw('Chưa có chỉ định nào để lưu thành mẫu');
+  };
+
+  /** Thêm chẩn đoán từ gợi ý CDS — bác sĩ chủ động chọn (không tự áp). */
+  const pickCdsSuggestion = (s: { icdCode: string; icdName: string }) =>
+    setDx((p) => (p.some((x) => x.icdCode === s.icdCode)
+      ? p
+      : [...p, { icdCode: s.icdCode, icdName: s.icdName, isPrimary: p.length === 0 }]));
 
   const {
     tpls, tplManageOpen, setTplManageOpen, tplSaveOpen, setTplSaveOpen,
@@ -178,6 +198,50 @@ const OpdEditorV2: React.FC = () => {
           <>
             <PatientFlagBanner patientId={selPt.patientId} patientName={selPt.patientName} />
             <BusinessAlertPanel patientId={selPt.patientId} examinationId={examId ?? undefined} module="OPD" />
+
+            {/* Cảnh báo lâm sàng CDS (tương tác thuốc · dị ứng · KQ bất thường) — #433 */}
+            {cdsAlerts.length > 0 && (
+              <section style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                {cdsAlerts.map((a, i) => (
+                  <div key={`${a.alertType}-${i}`} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 'var(--space-8)',
+                    padding: '6px 10px', borderRadius: 'var(--r-2)', fontSize: 11.5,
+                    border: '1px solid var(--line)',
+                    borderLeft: `3px solid ${a.severity === 'Critical' ? 'var(--s-crit)' : a.severity === 'Warning' ? 'var(--s-warn)' : 'var(--a-cy)'}`,
+                    background: 'var(--d-0)',
+                  }}>
+                    <TermIcon name="alert" size={12} />
+                    <div>
+                      <strong>{a.title}</strong>
+                      <div style={{ color: 'var(--t-2)' }}>
+                        {a.message}{a.actionRecommendation ? ` → ${a.actionRecommendation}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </section>
+            )}
+
+            {hasActiveMeds && (
+              <div style={{
+                padding: '6px 10px', borderRadius: 'var(--r-2)', fontSize: 11.5,
+                border: '1px solid var(--line)', borderLeft: '3px solid var(--s-warn)', background: 'var(--d-0)',
+              }}>
+                <strong>Còn thuốc chưa lĩnh</strong>
+                <span style={{ color: 'var(--t-2)' }}> — bệnh nhân có đơn thuốc chưa được cấp phát. Kiểm tra trước khi kê đơn mới.</span>
+              </div>
+            )}
+
+            {cdsEws && (
+              <div style={{
+                padding: '6px 10px', borderRadius: 'var(--r-2)', fontSize: 11.5,
+                border: '1px solid var(--line)', borderLeft: '3px solid var(--s-warn)', background: 'var(--d-0)',
+              }}>
+                <strong>NEWS2: {cdsEws.totalScore} — {cdsEws.riskLevel}</strong>
+                <span style={{ color: 'var(--t-2)' }}> · {cdsEws.recommendation}</span>
+              </div>
+            )}
+
             <VitalsSection vitals={vitals} setVitals={setVitals} />
             <section style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
               <select className="hui-inp" value="" onChange={(e) => applyTpl(e.target.value)}
@@ -198,8 +262,12 @@ const OpdEditorV2: React.FC = () => {
             <DiagnosisOrdersSection
               icdQ={icdQ} searchIcd={searchIcd} icdResults={icdResults} addIcd={addIcd}
               diagnoses={diagnoses} setPrimary={setPrimary} removeIcd={removeIcd}
+              cdsSuggestions={cdsSuggestions} cdsLoading={cdsLoading}
+              onRunCds={() => { void runCds(); }} onPickSuggestion={pickCdsSuggestion}
               svcQ={svcQ} searchSvc={searchSvc} svcResults={svcResults} addSvc={addSvc}
               orders={orders} updateQty={updateQty} removeSvc={removeSvc} totalSvc={totalSvc}
+              orderTpls={orderTpls} onApplyOrderTpl={applyOrderTpl}
+              onSaveOrderTpl={saveCurrentOrderTpl} onRemoveOrderTpl={removeOrderTpl}
             />
             <InjurySection injuryInfo={injuryInfo} setInjuryInfo={setInjuryInfo} />
           </>
