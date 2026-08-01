@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { App as AntdApp, InputNumber, Select, Input } from 'antd';
 import * as pharmacyApi from '../api/pharmacy';
+import { getWarehouses } from '../api/warehouse';
+import type { WarehouseDto } from '../api/warehouse';
 import { openPrintWindow } from '../../../utils/printWindow';
 import type { PendingPrescription, InventoryItem, TransferRequest, AlertItem, MedicationItem } from '../api/pharmacy';
 import {
@@ -23,6 +25,8 @@ type RxStatus = 'pending' | 'accepted' | 'dispensing' | 'completed' | 'rejected'
 type ClSubTab = 'reviews' | 'adr';
 interface ClinReview { id: string; patientName?: string; medicationName?: string; reviewDate?: string; recommendation?: string; }
 interface AdrReport  { id: string; patientName?: string; medicationName?: string; reaction?: string; severity?: string; reportDate?: string; }
+/** Một dòng thuốc đang soạn trong modal tạo phiếu điều chuyển (#436) */
+interface TransferLine { medicineId: string; code: string; name: string; unit: string; stock: number; qty: number; }
 
 /* ────────────── Constants ────────────── */
 
@@ -117,9 +121,15 @@ const PharmacyV2: React.FC = () => {
   const [trModal,    setTrModal]    = useState(false);
   const [trFromWh,   setTrFromWh]   = useState('');
   const [trToWh,     setTrToWh]     = useState('');
-  const [trMedId,    setTrMedId]    = useState('');
-  const [trQty,      setTrQty]      = useState<number>(1);
   const [trNote,     setTrNote]     = useState('');
+  const [trWhs,      setTrWhs]      = useState<WarehouseDto[]>([]);
+  const [trInv,      setTrInv]      = useState<InventoryItem[]>([]);
+  const [trInvLoading, setTrInvLoading] = useState(false);
+  const [trItems,    setTrItems]    = useState<TransferLine[]>([]);
+  const [trPickMed,  setTrPickMed]  = useState('');
+  const [trPickQty,  setTrPickQty]  = useState<number>(1);
+  const [trSubmitting, setTrSubmitting] = useState(false);
+  const [trSel,      setTrSel]      = useState<TransferRequest | null>(null);
 
   const loadTr = useCallback(async () => {
     setTrLoading(true);
@@ -127,6 +137,26 @@ const PharmacyV2: React.FC = () => {
     catch { ti('Không tải được yêu cầu chuyển kho'); } finally { setTrLoading(false); }
   }, [trStatus]);
   useEffect(() => { if (tab === 'transfers') loadTr(); }, [tab, loadTr]);
+
+  // Danh sách kho cho modal điều chuyển (nạp 1 lần khi mở modal lần đầu)
+  useEffect(() => {
+    if (!trModal || trWhs.length > 0) return;
+    getWarehouses()
+      .then((r) => setTrWhs((Array.isArray(r.data) ? r.data : []).filter((w) => w.isActive)))
+      .catch(() => ti('Không tải được danh sách kho'));
+  }, [trModal, trWhs.length]);
+
+  // Tồn kho của kho gửi → nguồn picker thuốc trong modal
+  useEffect(() => {
+    if (!trModal || !trFromWh) { setTrInv([]); return; }
+    let alive = true;
+    setTrInvLoading(true);
+    pharmacyApi.getInventoryItems(trFromWh)
+      .then((r) => { if (alive) setTrInv(Array.isArray(r.data) ? r.data : []); })
+      .catch(() => { if (alive) ti('Không tải được tồn kho của kho gửi'); })
+      .finally(() => { if (alive) setTrInvLoading(false); });
+    return () => { alive = false; };
+  }, [trModal, trFromWh]);
 
   /* ── Alerts state ── */
   const [alRows,     setAlRows]     = useState<AlertItem[]>([]);
@@ -286,13 +316,42 @@ const PharmacyV2: React.FC = () => {
   const onRejectTr = async (r: TransferRequest) => { try { await pharmacyApi.rejectTransfer(r.id, 'Từ chối từ giao diện'); te(`Đã từ chối · ${r.transferCode}`); loadTr(); } catch { te('Từ chối thất bại'); } };
   const onReceive  = async (r: TransferRequest) => { try { await pharmacyApi.receiveTransfer(r.id); tk(`Đã nhận · ${r.transferCode}`); loadTr(); } catch { te('Nhận hàng thất bại'); } };
 
+  const trAddLine = () => {
+    const inv = trInv.find((i) => i.medicineId === trPickMed);
+    if (!inv?.medicineId) { ti('Chọn thuốc từ danh sách'); return; }
+    if (trPickQty <= 0) { ti('Số lượng phải lớn hơn 0'); return; }
+    if (trPickQty > inv.totalStock) { ti(`Vượt tồn khả dụng (${inv.totalStock} ${inv.unit})`); return; }
+    setTrItems((prev) => [...prev, {
+      medicineId: inv.medicineId!, code: inv.medicationCode, name: inv.medicationName,
+      unit: inv.unit, stock: inv.totalStock, qty: trPickQty,
+    }]);
+    setTrPickMed(''); setTrPickQty(1);
+  };
+
+  const trRemoveLine = (medicineId: string) =>
+    setTrItems((prev) => prev.filter((l) => l.medicineId !== medicineId));
+
+  const trCanSubmit = !!trFromWh && !!trToWh && trFromWh !== trToWh && trItems.length > 0 && !trSubmitting;
+
+  const trResetForm = () => {
+    setTrFromWh(''); setTrToWh(''); setTrNote(''); setTrItems([]); setTrPickMed(''); setTrPickQty(1);
+  };
+
   const onCreateTransfer = async () => {
+    if (!trCanSubmit) return;
+    setTrSubmitting(true);
     try {
-      await pharmacyApi.createTransfer({ fromWarehouse: trFromWh, toWarehouse: trToWh, note: trNote } as unknown as Partial<TransferRequest>);
+      await pharmacyApi.createTransfer({
+        fromWarehouse: trFromWh, toWarehouse: trToWh, note: trNote || undefined,
+        items: trItems.map((l) => ({ medicineId: l.medicineId, quantity: l.qty })),
+      });
       tk('Đã tạo yêu cầu chuyển kho'); setTrModal(false);
-      setTrFromWh(''); setTrToWh(''); setTrMedId(''); setTrQty(1); setTrNote('');
+      trResetForm();
       loadTr();
-    } catch { te('Tạo yêu cầu thất bại'); }
+    } catch (e) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      te(msg || 'Tạo yêu cầu thất bại');
+    } finally { setTrSubmitting(false); }
   };
 
   const trCols: ColumnDef<TransferRequest>[] = [
@@ -485,6 +544,7 @@ const PharmacyV2: React.FC = () => {
             </div>
             <DataTable<TransferRequest>
               columns={trCols} data={trPaged} rowKey={(r) => r.id}
+              onRowClick={(r) => setTrSel(r)}
               actions={(r) => (
                 <div className="ab-actions">
                   {r.status === 'pending'  && <ActBtn ic="check" title="Duyệt"    onClick={() => onApprove(r)} />}
@@ -495,27 +555,96 @@ const PharmacyV2: React.FC = () => {
               empty={trLoading ? 'Đang tải…' : 'Không có yêu cầu chuyển kho'}
             />
             <Pager page={trPage} setPage={setTrPage} totalPages={trTotalPages} total={trRows.length} perPage={PER} />
-            <ModalShell open={trModal} onClose={() => setTrModal(false)} title="Tạo yêu cầu chuyển kho" size="sm"
-              footer={<><Btn variant="ghost" onClick={() => setTrModal(false)}>Hủy</Btn><Btn variant="primary" onClick={onCreateTransfer}>Tạo yêu cầu</Btn></>}
+            <ModalShell open={trModal} onClose={() => { setTrModal(false); trResetForm(); }} title="Tạo yêu cầu chuyển kho"
+              footer={<>
+                <Btn variant="ghost" onClick={() => { setTrModal(false); trResetForm(); }}>Hủy</Btn>
+                <Btn variant="primary" loading={trSubmitting} disabled={!trCanSubmit} onClick={onCreateTransfer}>Tạo yêu cầu</Btn>
+              </>}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '4px 0' }}>
-                <label style={{ fontSize: 12.5 }}>Kho gửi
-                  <Input value={trFromWh} onChange={(e) => setTrFromWh(e.target.value)} placeholder="ID kho gửi" style={{ marginTop: 4 }} />
-                </label>
-                <label style={{ fontSize: 12.5 }}>Kho nhận
-                  <Input value={trToWh} onChange={(e) => setTrToWh(e.target.value)} placeholder="ID kho nhận" style={{ marginTop: 4 }} />
-                </label>
-                <label style={{ fontSize: 12.5 }}>Mã thuốc
-                  <Input value={trMedId} onChange={(e) => setTrMedId(e.target.value)} placeholder="Mã thuốc" style={{ marginTop: 4 }} />
-                </label>
-                <label style={{ fontSize: 12.5 }}>Số lượng
-                  <InputNumber value={trQty} onChange={(v) => setTrQty(v ?? 1)} min={1} style={{ width: '100%', marginTop: 4 }} />
-                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <label style={{ fontSize: 12.5 }}>Kho gửi
+                    <Select showSearch optionFilterProp="label" value={trFromWh || undefined}
+                      onChange={(v) => { setTrFromWh(v); setTrItems([]); setTrPickMed(''); }}
+                      placeholder="Chọn kho gửi" style={{ width: '100%', marginTop: 4 }}
+                      options={trWhs.map((w) => ({ value: w.id, label: `${w.warehouseName} (${w.warehouseCode})` }))} />
+                  </label>
+                  <label style={{ fontSize: 12.5 }}>Kho nhận
+                    <Select showSearch optionFilterProp="label" value={trToWh || undefined}
+                      onChange={setTrToWh}
+                      placeholder="Chọn kho nhận" style={{ width: '100%', marginTop: 4 }}
+                      options={trWhs.filter((w) => w.id !== trFromWh).map((w) => ({ value: w.id, label: `${w.warehouseName} (${w.warehouseCode})` }))} />
+                  </label>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 12.5, marginBottom: 4 }}>Dòng thuốc ({trItems.length})</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px auto', gap: 8 }}>
+                    <Select showSearch optionFilterProp="label" value={trPickMed || undefined}
+                      onChange={(v) => setTrPickMed(v)}
+                      disabled={!trFromWh || trInvLoading}
+                      placeholder={!trFromWh ? 'Chọn kho gửi trước' : trInvLoading ? 'Đang tải tồn kho…' : 'Chọn thuốc từ kho gửi'}
+                      style={{ width: '100%' }}
+                      options={trInv
+                        .filter((i) => i.medicineId && i.totalStock > 0 && !trItems.some((l) => l.medicineId === i.medicineId))
+                        .map((i) => ({ value: i.medicineId!, label: `${i.medicationName} (${i.medicationCode}) · tồn ${i.totalStock} ${i.unit}` }))} />
+                    <InputNumber value={trPickQty} onChange={(v) => setTrPickQty(v ?? 1)} min={1} style={{ width: '100%' }} />
+                    <Btn variant="ghost" icon="plus" disabled={!trPickMed} onClick={trAddLine}>Thêm</Btn>
+                  </div>
+                  {trItems.length > 0 && (
+                    <div style={{ marginTop: 8, border: '1px solid var(--line-soft)', borderRadius: 'var(--r-1)' }}>
+                      {trItems.map((l) => (
+                        <div key={l.medicineId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderBottom: '1px solid var(--line-soft)', fontSize: 12.5 }}>
+                          <span style={{ flex: 1 }}><b>{l.name}</b> <span className="mono" style={{ color: 'var(--t-2)' }}>{l.code}</span></span>
+                          <span className="mono">{l.qty} {l.unit}</span>
+                          <span className="mono" style={{ color: 'var(--t-2)' }}>/ tồn {l.stock}</span>
+                          <ActBtn ic="x" title="Xoá dòng" tone="crit" onClick={() => trRemoveLine(l.medicineId)} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <label style={{ fontSize: 12.5 }}>Ghi chú
                   <Input value={trNote} onChange={(e) => setTrNote(e.target.value)} placeholder="Ghi chú…" style={{ marginTop: 4 }} />
                 </label>
+                {!!trFromWh && !!trToWh && trFromWh === trToWh && (
+                  <div style={{ fontSize: 12, color: 'var(--s-crit)' }}>Kho gửi và kho nhận phải khác nhau</div>
+                )}
               </div>
             </ModalShell>
+            <DrawerShell open={!!trSel} onClose={() => setTrSel(null)}
+              title={trSel?.transferCode ?? ''} sub="Chi tiết phiếu điều chuyển kho"
+            >
+              {trSel && (
+                <>
+                  <DrSec title="Thông tin phiếu">
+                    <DrField lbl="Kho gửi">{trSel.fromWarehouse || '—'}</DrField>
+                    <DrField lbl="Kho nhận">{trSel.toWarehouse || '—'}</DrField>
+                    <DrField lbl="Người yêu cầu">{trSel.requestedBy || '—'}</DrField>
+                    <DrField lbl="Ngày YC">{fmtDT(trSel.requestedDate)}</DrField>
+                    <DrField lbl="Trạng thái">
+                      {(() => {
+                        const tone = trSel.status === 'rejected' ? 'crit' as const : trSel.status === 'received' ? 'ok' as const : trSel.status === 'approved' ? 'info' as const : 'warn' as const;
+                        const lbl  = { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối', received: 'Đã nhận' }[trSel.status] ?? trSel.status;
+                        return <StatusBadge tone={tone} dot>{lbl}</StatusBadge>;
+                      })()}
+                    </DrField>
+                    {trSel.note && <DrField lbl="Ghi chú">{trSel.note}</DrField>}
+                  </DrSec>
+                  <DrSec title={`Dòng thuốc (${trSel.items?.length ?? 0})`}>
+                    {(trSel.items?.length ?? 0) === 0
+                      ? <div style={{ fontSize: 12.5, color: 'var(--t-2)' }}>Phiếu không có dòng thuốc</div>
+                      : (trSel.items ?? []).map((it, idx) => (
+                        <div key={`${it.medicineId}-${idx}`} style={{ display: 'flex', gap: 8, padding: '5px 0', fontSize: 12.5, borderBottom: '1px solid var(--line-soft)' }}>
+                          <span style={{ flex: 1 }}><b>{it.medicationName}</b> <span className="mono" style={{ color: 'var(--t-2)' }}>{it.medicationCode}</span></span>
+                          <span className="mono">{it.quantity} {it.unit}</span>
+                        </div>
+                      ))}
+                  </DrSec>
+                </>
+              )}
+            </DrawerShell>
           </>
         )}
 

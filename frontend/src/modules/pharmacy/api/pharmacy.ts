@@ -45,6 +45,7 @@ export interface BatchInfo {
 
 export interface InventoryItem {
   id: string;
+  medicineId?: string;
   medicationCode: string;
   medicationName: string;
   category: string;
@@ -68,6 +69,32 @@ export interface TransferRequest {
   itemsCount: number;
   status: 'pending' | 'approved' | 'rejected' | 'received';
   note?: string;
+  items?: TransferLineItem[];
+}
+
+export interface TransferLineItem {
+  medicineId: string;
+  medicationCode: string;
+  medicationName: string;
+  unit: string;
+  quantity: number;
+  batchNumber?: string;
+  note?: string;
+}
+
+export interface CreateTransferItemPayload {
+  medicineId?: string;
+  medicationCode?: string;
+  quantity: number;
+  batchNumber?: string;
+  note?: string;
+}
+
+export interface CreateTransferPayload {
+  fromWarehouse: string;
+  toWarehouse: string;
+  note?: string;
+  items?: CreateTransferItemPayload[];
 }
 
 export interface AlertItem {
@@ -133,7 +160,7 @@ export const getInventoryHistory = (medicationId: string) =>
 export const getTransferRequests = (status?: string) =>
   apiClient.get<TransferRequest[]>(`${BASE_URL}/transfers`, { params: { status } });
 
-export const createTransfer = (transfer: Partial<TransferRequest>) =>
+export const createTransfer = (transfer: CreateTransferPayload) =>
   apiClient.post<TransferRequest>(`${BASE_URL}/transfers`, transfer);
 
 export const approveTransfer = (transferId: string) =>

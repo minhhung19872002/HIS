@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.API.Dtos.Pharmacy;
+using HIS.Application.Services;
 
 namespace HIS.API.Controllers;
 
@@ -31,8 +32,21 @@ public partial class PharmacyController
                 !Guid.TryParse(request.ToWarehouse, out var toId))
                 return BadRequest(new { message = "Kho xuất/nhập không hợp lệ" });
 
+            List<TransferItemInput>? items = null;
+            if (request.Items is { Count: > 0 })
+            {
+                items = new List<TransferItemInput>(request.Items.Count);
+                foreach (var line in request.Items)
+                {
+                    Guid? medicineId = Guid.TryParse(line.MedicineId, out var mid) ? mid : null;
+                    if (medicineId == null && string.IsNullOrWhiteSpace(line.MedicationCode))
+                        return BadRequest(new { message = "Dòng thuốc thiếu mã thuốc (medicineId hoặc medicationCode)" });
+                    items.Add(new TransferItemInput(medicineId, line.MedicationCode, line.Quantity, line.BatchNumber, line.Note));
+                }
+            }
+
             var requestedBy = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            var (id, transferCode) = await _pharmacyService.CreateTransferAsync(fromId, toId, request.Note, requestedBy);
+            var (id, transferCode) = await _pharmacyService.CreateTransferAsync(fromId, toId, request.Note, requestedBy, items);
 
             return Ok(new
             {
@@ -40,6 +54,11 @@ public partial class PharmacyController
                 transferCode,
                 status = "pending",
             });
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Lỗi nghiệp vụ từ service (kho trùng / thuốc không tồn / vượt tồn) → 400 kèm message
+            return BadRequest(new { message = ex.Message });
         }
         catch (Exception ex)
         {

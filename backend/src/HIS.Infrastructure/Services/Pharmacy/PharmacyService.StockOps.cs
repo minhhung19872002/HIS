@@ -196,6 +196,7 @@ public partial class PharmacyService
             return new
             {
                 id = first.Id.ToString(),
+                medicineId = first.MedicineId?.ToString() ?? "",
                 medicationCode = medicine?.MedicineCode ?? "",
                 medicationName = medicine?.MedicineName ?? "",
                 category = medicine?.MedicineGroupCode ?? "",
@@ -375,6 +376,7 @@ public partial class PharmacyService
             .Include(t => t.FromWarehouse)
             .Include(t => t.ToWarehouse)
             .Include(t => t.Items)
+                .ThenInclude(i => i.Medicine)
             .Where(t => !t.IsDeleted);
 
         if (!string.IsNullOrEmpty(status))
@@ -428,6 +430,8 @@ public partial class PharmacyService
             if (Guid.TryParse(requestedBy, out var uid) && users.TryGetValue(uid, out var name))
                 requestedBy = name;
 
+            var lineItems = t.Items.Where(i => !i.IsDeleted).ToList();
+
             return new
             {
                 id = t.Id.ToString(),
@@ -436,16 +440,30 @@ public partial class PharmacyService
                 toWarehouse = t.ToWarehouse?.WarehouseName ?? "",
                 requestedBy,
                 requestedDate = t.TransferDate,
-                itemsCount = t.Items.Count,
+                itemsCount = lineItems.Count,
                 status = statusStr,
                 note = t.Notes ?? "",
+                items = lineItems.Select(i => new
+                {
+                    medicineId = i.MedicineId.ToString(),
+                    medicationCode = i.Medicine?.MedicineCode ?? "",
+                    medicationName = i.Medicine?.MedicineName ?? "",
+                    unit = i.Medicine?.Unit ?? "",
+                    quantity = i.RequestedQuantity,
+                    batchNumber = i.BatchNumber ?? "",
+                    note = i.Notes ?? "",
+                }).ToList(),
             };
         }).ToList();
     }
 
     public async Task<(Guid Id, string TransferCode)> CreateTransferAsync(
-        Guid fromWarehouseId, Guid toWarehouseId, string? note, string? requestedBy)
+        Guid fromWarehouseId, Guid toWarehouseId, string? note, string? requestedBy,
+        IReadOnlyList<TransferItemInput>? items = null)
     {
+        if (fromWarehouseId == toWarehouseId)
+            throw new InvalidOperationException("Kho gửi và kho nhận phải khác nhau");
+
         var transfer = new WarehouseTransfer
         {
             Id = Guid.NewGuid(),
@@ -458,6 +476,80 @@ public partial class PharmacyService
             Notes = note,
             CreatedAt = DateTime.UtcNow,
         };
+
+        if (items is { Count: > 0 })
+        {
+            if (items.Any(i => i.Quantity <= 0))
+                throw new InvalidOperationException("Số lượng mỗi dòng thuốc phải lớn hơn 0");
+
+            // Resolve v1-legacy MedicationCode → MedicineId
+            var codes = items.Where(i => !i.MedicineId.HasValue && !string.IsNullOrWhiteSpace(i.MedicationCode))
+                .Select(i => i.MedicationCode!.Trim()).Distinct().ToList();
+            var idByCode = codes.Any()
+                ? await _context.Medicines.AsNoTracking()
+                    .Where(m => !m.IsDeleted && codes.Contains(m.MedicineCode))
+                    .ToDictionaryAsync(m => m.MedicineCode, m => m.Id)
+                : new Dictionary<string, Guid>();
+
+            var resolved = new List<(Guid MedicineId, TransferItemInput Item)>();
+            foreach (var item in items)
+            {
+                Guid medicineId;
+                if (item.MedicineId.HasValue)
+                    medicineId = item.MedicineId.Value;
+                else if (!string.IsNullOrWhiteSpace(item.MedicationCode) && idByCode.TryGetValue(item.MedicationCode.Trim(), out var byCode))
+                    medicineId = byCode;
+                else
+                    throw new InvalidOperationException($"Mã thuốc '{item.MedicationCode ?? "(trống)"}' không tồn tại");
+                resolved.Add((medicineId, item));
+            }
+
+            var medicineIds = resolved.Select(r => r.MedicineId).Distinct().ToList();
+
+            var stockByMedicine = await _context.InventoryItems.AsNoTracking()
+                .Where(i => !i.IsDeleted && i.WarehouseId == fromWarehouseId
+                    && i.MedicineId != null && medicineIds.Contains(i.MedicineId.Value))
+                .GroupBy(i => i.MedicineId!.Value)
+                .Select(g => new { MedicineId = g.Key, Available = g.Sum(x => x.Quantity), AvgPrice = g.Average(x => x.UnitPrice) })
+                .ToDictionaryAsync(x => x.MedicineId);
+
+            var nameById = await _context.Medicines.AsNoTracking()
+                .Where(m => medicineIds.Contains(m.Id))
+                .ToDictionaryAsync(m => m.Id, m => m.MedicineName);
+
+            foreach (var group in resolved.GroupBy(r => r.MedicineId))
+            {
+                var displayName = nameById.GetValueOrDefault(group.Key, group.Key.ToString());
+                if (!nameById.ContainsKey(group.Key))
+                    throw new InvalidOperationException($"Thuốc '{displayName}' không tồn tại trong danh mục");
+                if (!stockByMedicine.TryGetValue(group.Key, out var stock))
+                    throw new InvalidOperationException($"Thuốc '{displayName}' không có tồn trong kho gửi");
+                var requested = group.Sum(r => r.Item.Quantity);
+                if (requested > stock.Available)
+                    throw new InvalidOperationException($"Thuốc '{displayName}' vượt tồn khả dụng ({requested:0.##} > {stock.Available:0.##})");
+            }
+
+            decimal total = 0;
+            foreach (var (medicineId, item) in resolved)
+            {
+                var price = Math.Round(stockByMedicine[medicineId].AvgPrice, 0);
+                var amount = Math.Round(price * item.Quantity, 0);
+                total += amount;
+                transfer.Items.Add(new WarehouseTransferItem
+                {
+                    Id = Guid.NewGuid(),
+                    WarehouseTransferId = transfer.Id,
+                    MedicineId = medicineId,
+                    BatchNumber = item.BatchNumber,
+                    RequestedQuantity = item.Quantity,
+                    UnitPrice = price,
+                    Amount = amount,
+                    Notes = item.Note,
+                    CreatedAt = DateTime.UtcNow,
+                });
+            }
+            transfer.TotalAmount = total;
+        }
 
         _context.WarehouseTransfers.Add(transfer);
         await _context.SaveChangesAsync();

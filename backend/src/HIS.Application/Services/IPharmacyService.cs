@@ -1,8 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace HIS.Application.Services
 {
+    /// <summary>Issue #436: một dòng thuốc khi tạo phiếu điều chuyển kho.
+    /// Nhận MedicineId (v2) hoặc MedicationCode (v1 legacy) — service tự resolve code → id.</summary>
+    public record TransferItemInput(Guid? MedicineId, string? MedicationCode, decimal Quantity, string? BatchNumber, string? Note);
+
     /// <summary>Issue #202: kết quả CompleteDispensing để controller map đúng HTTP status verbatim.</summary>
     public class PharmacyDispenseResultDto
     {
@@ -47,8 +52,9 @@ namespace HIS.Application.Services
 
         // Transfers
         Task<object> GetTransferRequestsAsync(string? status);
-        /// <summary>Tạo phiếu điều chuyển kho. Trả về (id, transferCode) đã lưu.</summary>
-        Task<(Guid Id, string TransferCode)> CreateTransferAsync(Guid fromWarehouseId, Guid toWarehouseId, string? note, string? requestedBy);
+        /// <summary>Tạo phiếu điều chuyển kho (kèm dòng thuốc nếu có — #436). Trả về (id, transferCode) đã lưu.
+        /// Lỗi nghiệp vụ (kho trùng / thuốc không có trong kho gửi / vượt tồn) → InvalidOperationException.</summary>
+        Task<(Guid Id, string TransferCode)> CreateTransferAsync(Guid fromWarehouseId, Guid toWarehouseId, string? note, string? requestedBy, IReadOnlyList<TransferItemInput>? items = null);
         Task<bool> ApproveTransferAsync(Guid transferId);
         Task<bool> RejectTransferAsync(Guid transferId, string? reason);
         Task<bool> ReceiveTransferAsync(Guid transferId);
