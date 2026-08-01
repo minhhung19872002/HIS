@@ -18,6 +18,7 @@ import {
   exportXml,
   previewExport,
   downloadXmlFile,
+  submitToInsurancePortal,
   createSettlementBatch,
   getSettlementBatches,
   verifyInsuranceCard,
@@ -227,6 +228,8 @@ const InsuranceV2: React.FC = () => {
   const [xmlDepts, setXmlDepts]       = useState<{ id: string; name: string }[]>([]);
   const [xmlPreview, setXmlPreview]   = useState<XmlExportPreviewDto | null>(null);
   const [xmlPvLoading, setXmlPvLoading] = useState(false);
+  const [xmlSubmitting, setXmlSubmitting] = useState(false);
+  const [xmlSubmitMsg, setXmlSubmitMsg]   = useState<{ ok: boolean; text: string } | null>(null);
 
   // ── Batch state ───────────────────────────────────────────────────────────
   const [batchYear, setBatchYear]           = useState(dayjs().year());
@@ -489,6 +492,40 @@ const InsuranceV2: React.FC = () => {
     } finally {
       setXmlLoading(false);
     }
+  };
+
+  /** #441: nộp đợt XML lên cổng BHXH. BE gửi ĐÚNG file XML của đợt và không cấp
+   *  TransactionId giả khi thiếu batch/file → an toàn để wire nút này. */
+  const handleSubmitToBhxh = (batchId: string, batchCode?: string) => {
+    modal.confirm({
+      title: 'Nộp hồ sơ lên cổng BHXH',
+      content: `Gửi đợt ${batchCode || ''} lên cổng BHXH? Thao tác này gửi dữ liệu ra ngoài hệ thống.`,
+      okText: 'Gửi',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        setXmlSubmitting(true);
+        setXmlSubmitMsg(null);
+        try {
+          const r = await submitToInsurancePortal({
+            batchId, username: '', password: '', certificatePath: '', testMode: false,
+          });
+          const res = (r.data ?? r) as unknown as { success: boolean; message?: string; transactionId?: string };
+          if (res.success) {
+            setXmlSubmitMsg({ ok: true, text: `Đã gửi cổng BHXH${res.transactionId ? ` — mã giao dịch ${res.transactionId}` : ''}` });
+            message.success('Đã gửi hồ sơ lên cổng BHXH');
+          } else {
+            // BE trả Success=false kèm lý do rõ — hiện NGUYÊN VĂN, không tự diễn giải thành công.
+            setXmlSubmitMsg({ ok: false, text: res.message || 'Cổng BHXH từ chối hồ sơ' });
+            message.warning(res.message || 'Cổng BHXH từ chối hồ sơ');
+          }
+        } catch {
+          setXmlSubmitMsg({ ok: false, text: 'Không gửi được lên cổng BHXH (lỗi kết nối)' });
+          message.warning('Không gửi được lên cổng BHXH');
+        } finally {
+          setXmlSubmitting(false);
+        }
+      },
+    });
   };
 
   const handleDownloadXml = async (batchId: string) => {
@@ -825,7 +862,24 @@ const InsuranceV2: React.FC = () => {
                 Tải về (.zip)
               </Btn>
             )}
+            {xmlResult?.batchId && (
+              <Btn variant="ghost" icon="upload" loading={xmlSubmitting}
+                onClick={() => handleSubmitToBhxh(xmlResult.batchId, xmlResult.batchCode)}>
+                Nộp cổng BHXH
+              </Btn>
+            )}
           </div>
+
+          {xmlSubmitMsg && (
+            <Alert
+              type={xmlSubmitMsg.ok ? 'success' : 'error'}
+              showIcon
+              title={xmlSubmitMsg.text}
+              style={{ marginBottom: 16 }}
+              closable
+              onClose={() => setXmlSubmitMsg(null)}
+            />
+          )}
 
           {xmlPreview && (
             <div style={{
