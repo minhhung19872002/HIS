@@ -9,3 +9,4 @@ export const Dashboard3CapV2 = lazy(() => import('../../modules/administration/p
 export const HelpV2 = lazy(() => import('../../modules/radiology/pages/Help'));
 export const SatisfactionSurveyV2 = lazy(() => import('../../pages-v2/SatisfactionSurvey'));
 export const PatientPortalStaffV2 = lazy(() => import('../../modules/portal/pages/PatientPortalStaff'));
+export const MobileHomeV2 = lazy(() => import('../../pages-v2/MobileHome'));

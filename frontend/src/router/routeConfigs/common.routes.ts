@@ -5,6 +5,7 @@ import {
   HelpV2,
   SatisfactionSurveyV2,
   PatientPortalStaffV2,
+  MobileHomeV2,
 } from '../lazy/common.lazy';
 
 // Domain: common — menu groups overview + portals.
@@ -19,4 +20,6 @@ export const commonV2Routes: RouteEntry[] = [
   { path: 'patient-portal', redirect: '/m/patient-portal', meta: { permission: 'Reception.Read', title: 'Cổng bệnh nhân', group: 'portals', workspace: 'frontoffice', module: 'TIEPDON' } },
   // #409: staff-on-behalf v1 (route cũ /patient-portal-staff, MainLayout) port sang v2.
   { path: 'patient-portal-staff', Component: PatientPortalStaffV2, meta: { permission: 'Reception.Read', title: 'Cổng bệnh nhân (Nhân viên)', group: 'portals', workspace: 'frontoffice', module: 'TIEPDON' } },
+  // #457: MobileHome v1 (route cũ /mobile, MainLayout) port sang v2 — dashboard BS/ĐD mobile.
+  { path: 'mobile', Component: MobileHomeV2, meta: { permission: 'Patient.Read', title: 'Mobile (BS/ĐD)', group: 'portals', workspace: 'frontoffice', module: 'extended' } },
 ];
