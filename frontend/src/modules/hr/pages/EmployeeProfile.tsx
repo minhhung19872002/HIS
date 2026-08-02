@@ -5,7 +5,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../../../services/apiClient';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import {
-  KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn,
+  KpiStrip, TopTabs, DataTable, StatusBadge, ActBtn, Btn,
   ModalShell, tk, tw, cf,
   type ColumnDef,
 } from '@/_v2kit';
@@ -64,9 +64,14 @@ const EmployeeProfileV2: React.FC = () => {
 
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Nhân viên:</span>
-        <Filter value={userId} onChange={setUserId}
-          options={users.map((u) => ({ v: u.id, l: `${u.fullName}${u.username ? ` (${u.username})` : ''}` }))}
-          placeholder="▾ Chọn nhân viên" />
+        {/* parity v1: picker gõ-tìm được (~300 NV) thay native select không search */}
+        <Select
+          showSearch optionFilterProp="label" allowClear
+          placeholder="Chọn nhân viên" style={{ minWidth: 260 }}
+          value={userId || undefined}
+          onChange={(v) => setUserId(v ?? '')}
+          options={users.map((u) => ({ value: u.id, label: `${u.fullName}${u.username ? ` (${u.username})` : ''}` }))}
+        />
         <Btn variant="ghost" icon="x" onClick={() => setUserId('')}>Bỏ chọn</Btn>
       </div>
 
@@ -124,7 +129,12 @@ function GenericCrudTab<T extends { id: string }>(props: CrudConfig<T>) {
       if (editing) (payload as Record<string, unknown>).id = editing.id;
       await apiClient.post(`${endpoint}/${userId}/${subPath}`, payload);
       tk('Đã lưu'); setModal(false); setEditing(null); form.resetFields(); load();
-    } catch { tw('Lưu thất bại'); }
+    } catch (err: unknown) {
+      // validateFields reject → lỗi đã hiện inline, không toast; lỗi BE → hiện message thật
+      if (err && typeof err === 'object' && 'errorFields' in err) return;
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      tw(msg || 'Lưu thất bại');
+    }
   };
 
   const remove = (r: T) => cf('Xóa mục này?', async () => {
@@ -462,7 +472,11 @@ const InsuranceTab: React.FC<{ userId: string }> = ({ userId }) => {
         healthInsuranceEndDate: (v.healthInsuranceEndDate as Dayjs | undefined)?.toISOString(),
       });
       tk('Đã lưu');
-    } catch { tw('Lưu thất bại'); }
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return;
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      tw(msg || 'Lưu thất bại');
+    }
     finally { setLoading(false); }
   };
 

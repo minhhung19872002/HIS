@@ -184,7 +184,12 @@ const ClinicalCatalogsV2: React.FC = () => {
         else await api.deleteMedicalRecordType(row.id);
         tk('Đã xoá');
         reload(tab);
-      } catch { te('Xoá thất bại'); }
+      } catch (err: unknown) {
+        // BE trả lý do cụ thể (vd "Loại bệnh án này đang khóa, không thể xóa") → hiện thật
+        const msg = (err as { response?: { data?: { message?: string; title?: string } } })?.response?.data?.message
+          || (err as { response?: { data?: { title?: string } } })?.response?.data?.title;
+        te(msg || 'Xoá thất bại');
+      }
     }, { tone: 'crit', confirm: 'Xoá' });
   };
 
@@ -220,6 +225,7 @@ const ClinicalCatalogsV2: React.FC = () => {
       <div className="ab-toolbar">
         <SearchBox value={search} onChange={setSearch} placeholder={tab === 'nursing' ? 'Tìm chế độ chăm sóc…' : 'Tìm loại bệnh án…'} />
         <span className="spacer" />
+        <Btn variant="ghost" icon="refresh" onClick={() => reload(tab)}>Làm mới</Btn>
         <Btn variant="ghost" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
         <Btn variant="primary" icon="plus" onClick={() => openDrawer()}>Thêm mới</Btn>
       </div>

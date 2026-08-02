@@ -27,6 +27,8 @@ interface SigningStats {
   totalTransactions: number; totalSuccess: number; totalFailed: number;
   activeCertificates: number; expiringSoon: number; expiredCertificates: number;
   activeUsers: number; todayTransactions: number;
+  byType?: { dataType: string; count: number }[];
+  topUsers?: { userFullName?: string; userName?: string; count: number }[];
 }
 
 type Tab = 'certs' | 'transactions' | 'config';
@@ -49,6 +51,7 @@ const CentralSigningV2: React.FC = () => {
   const [search, setSearch] = useState('');
   const [fStorage, setFStorage] = useState('');
   const [fSuccess, setFSuccess] = useState('');
+  const [fAction, setFAction] = useState(''); // parity v1: lọc theo hành động ký (SignHash/SignPdf…)
   const [page, setPage] = useState(0);
   const [selCert, setSelCert] = useState<ManagedCertificate | null>(null);
   const [selTx, setSelTx] = useState<SigningTransaction | null>(null);
@@ -87,11 +90,12 @@ const CentralSigningV2: React.FC = () => {
       const r = await api.getTransactions({
         pageIndex: p, pageSize: PER,
         success: fSuccess === '1' ? true : fSuccess === '0' ? false : undefined,
+        action: fAction || undefined,
       });
       setTxs((r.data?.items || []) as SigningTransaction[]);
       setTxTotal(r.data?.total || 0);
     } catch { ti('Không tải được giao dịch'); }
-  }, [fSuccess]);
+  }, [fSuccess, fAction]);
 
   const fetchStats = useCallback(async () => {
     try { const r = await api.getStatistics(); setStats(r.data as SigningStats); }
@@ -329,8 +333,16 @@ const CentralSigningV2: React.FC = () => {
           </Btn>
         </>}
         {tab === 'transactions' && <>
+          <Filter value={fAction} onChange={(v) => { setFAction(v); setPage(0); }} options={[
+            { v: 'SignHash', l: 'Ký Hash' },
+            { v: 'SignRaw', l: 'Ký Raw' },
+            { v: 'SignPdfInvisible', l: 'Ký PDF ẩn' },
+            { v: 'SignPdfVisible', l: 'Ký PDF hiện' },
+            { v: 'SignXml', l: 'Ký XML' },
+            { v: 'VerifyPdf', l: 'Xác thực PDF' },
+          ]} placeholder="▾ Hành động" />
           <Filter value={fSuccess} onChange={(v) => { setFSuccess(v); setPage(0); }} options={successOpts} placeholder="▾ Trạng thái" />
-          <Btn variant="ghost" onClick={() => setFSuccess('')}>
+          <Btn variant="ghost" onClick={() => { setFSuccess(''); setFAction(''); }}>
             <Ico name="x" size={12} /> Bỏ lọc
           </Btn>
         </>}
@@ -376,6 +388,31 @@ const CentralSigningV2: React.FC = () => {
           empty={'Chưa có giao dịch'}
         />
         <Pager page={page} setPage={setPage} totalPages={Math.max(1, Math.ceil(txTotal / PER))} total={txTotal} perPage={PER} />
+        {/* parity v1: phân loại theo định dạng + top người dùng (Thống kê tab v1 :280-313) */}
+        {((stats?.byType?.length ?? 0) > 0 || (stats?.topUsers?.length ?? 0) > 0) && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, padding: '12px 16px' }}>
+            {(stats?.byType?.length ?? 0) > 0 && (
+              <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 12 }}>
+                <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', marginBottom: 8, textTransform: 'uppercase', color: 'var(--t-2)' }}>Phân loại theo định dạng</div>
+                {stats!.byType!.map((t) => (
+                  <div key={t.dataType} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: 'var(--fs-sm)' }}>
+                    <span>{t.dataType || '—'}</span><b className="mono">{t.count}</b>
+                  </div>
+                ))}
+              </div>
+            )}
+            {(stats?.topUsers?.length ?? 0) > 0 && (
+              <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 12 }}>
+                <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', marginBottom: 8, textTransform: 'uppercase', color: 'var(--t-2)' }}>Top người dùng ký</div>
+                {stats!.topUsers!.map((u, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: 'var(--fs-sm)' }}>
+                    <span>{i + 1}. {u.userFullName || u.userName || '—'}</span><b className="mono">{u.count}</b>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </>}
 
       {tab === 'config' && (

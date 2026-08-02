@@ -98,14 +98,14 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 - v1: `frontend/src/pages/CentralSigning.tsx` | v2: `frontend/src/modules/emr/pages/CentralSigning.tsx` | confidence scan: high | SCAN_ONLY
   - [ ] Tab 'Sinh trắc học' (WebAuthn/FIDO2 biometric registration for signing) entirely absent — v1 pages/CentralSigning.tsx:438-482; no PublicKeyCredential/WebAuthn reference anywhere in v2's file (verified via grep)
   - [x] TOTP setup flow broken — ĐÃ SỬA 2026-08-02 (đọc response → ModalShell hiện qrCodeUri + manualEntryKey; thêm nút Tắt TOTP có cf-confirm): v2's Setup TOTP button (modules/emr/pages/CentralSigning.tsx:391-394) discards the API response and never displays the QR code / manual entry key needed to actually enroll an authenticator app, unlike v1's Modal.info with qrCodeUri+manualEntryKey (pages/CentralSigning.tsx:406-424); 'Tắt TOTP' (disable) button also missing in v2 even though api.disableTotp exists unused
-  - [ ] Thống kê tab reduced to 4 KPI numbers — v1's 8 stat cards plus 'Phân loại theo định dạng' (byType) and 'Top người dùng' (topUsers ranking) tables (pages/CentralSigning.tsx:280-313) have no equivalent in v2
-  - [ ] Giao dịch tab missing the 'Hành động' (action-type: SignHash/SignRaw/SignPdfVisible/etc.) filter dropdown — v1 pages/CentralSigning.tsx:250-259; v2 (modules/emr/pages/CentralSigning.tsx:329-334) only filters by success/fail
+  - [x] byType + topUsers — ĐÃ PORT 2026-08-02 (2 panel "Phân loại theo định dạng" + "Top người dùng ký" dưới bảng giao dịch, đọc byType/topUsers BE đã trả sẵn; KPI 4 số giữ nguyên phong cách v2)
+  - [x] 'Hành động' filter — ĐÃ SỬA 2026-08-02 (Filter 6 action SignHash/SignRaw/SignPdf ẩn·hiện/SignXml/VerifyPdf → param `action` server-side)
 
 ### ClinicalCatalogs
 - v1: `frontend/src/pages/ClinicalCatalogs.tsx` | v2: `frontend/src/modules/administration/pages/ClinicalCatalogs.tsx` | confidence scan: high | OVERTURNED_R2
   - [ ] Required-field validation bị mất hoàn toàn: v1 chặn save khi trống Mã/Tên/Cấp/Phân loại qua form.validateFields() (frontend/src/pages/_CrudTab.tsx:110-112, rules sinh tại _CrudTab.tsx:221 từ required:true ở frontend/src/pages/ClinicalCatalogs.tsx:22-24 và :42-48); v2 handleSave (modules/administration/pages/ClinicalCatalogs.tsx:157-166) submit thẳng không kiểm tra — và backend KHÔNG đỡ (DTO không [Required], MasterCatalogDtos.cs:127-149; service copy thẳng vào entity, MasterCatalogService.cs:382-391 & 413-422) → v2 tạo được bản ghi danh mục lâm sàng RỖNG ghi thật vào DB kèm toast 'Đã thêm'
-  - [ ] Chi tiết lỗi backend không còn hiển thị: v1 show response.data.message/title khi save lỗi (frontend/src/pages/_CrudTab.tsx:124-126) và xoá lỗi (:139) — vd message 'Loại bệnh án này đang khóa, không thể xóa' (MasterCatalogService.cs:428); v2 nuốt mọi lỗi thành 'Lưu thất bại'/'Xoá thất bại' generic (modules/administration/pages/ClinicalCatalogs.tsx:165,179)
-  - [ ] (Phụ) Nút 'Làm mới' refresh thủ công (frontend/src/pages/_CrudTab.tsx:190) không có ở v2 — muốn thấy dữ liệu máy khác vừa sửa phải F5 cả trang
+  - [x] Chi tiết lỗi backend — ĐÃ SỬA 2026-08-02 (save đã có từ trước; bổ sung delete catch hiện response.data.message/title — vd 'Loại bệnh án này đang khóa, không thể xóa')
+  - [x] Nút 'Làm mới' — ĐÃ SỬA 2026-08-02 (Btn refresh toolbar gọi reload(tab))
 
 ### ClinicalGuidance
 - v1: `frontend/src/pages/ClinicalGuidance.tsx` | v2: `frontend/src/modules/patient/pages/ClinicalGuidance.tsx` | confidence scan: high | OVERTURNED
@@ -186,8 +186,8 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### EmployeeProfile
 - v1: `frontend/src/pages/EmployeeProfile.tsx` | v2: `frontend/src/modules/hr/pages/EmployeeProfile.tsx` | confidence scan: high | OVERTURNED
-  - [ ] Searchable employee picker: v1 frontend/src/pages/EmployeeProfile.tsx:40-45 uses Antd Select showSearch + optionFilterProp="label" to type-filter ~300 employees; v2 uses _v2kit Filter = native <select> with no search (frontend/src/components/form/Filter/Filter.tsx:11) — significant regression on the page's gateway interaction
-  - [ ] Backend error message on CRUD save failure: v1 frontend/src/pages/EmployeeProfile.tsx:638-641 shows err.response.data.message via message.error in all 9 tabs' modals; v2 (frontend/src/modules/hr/pages/EmployeeProfile.tsx:127) only shows generic 'Lưu thất bại' and also fires it on client-side validateFields rejection
+  - [x] Searchable employee picker — ĐÃ SỬA 2026-08-02 (Antd Select showSearch optionFilterProp=label thay Filter native)
+  - [x] Backend error message on save — ĐÃ SỬA 2026-08-02 (cả GenericCrudTab lẫn Insurance form: bỏ toast khi validateFields reject, hiện response.data.message thật)
   - [ ] Sub-table pagination: v1 frontend/src/pages/EmployeeProfile.tsx:684 Table pagination pageSize=10; v2 DataTable (frontend/src/components/table/DataTable/DataTable.tsx) renders all rows unpaginated (minor)
   - [ ] Mechanical delete blocker (not a feature gap): v1 still imported+routed at frontend/src/router/AppRoutes.tsx:67 and :234 — route + lazy import must be removed in the same change as the file deletion
 
