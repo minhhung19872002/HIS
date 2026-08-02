@@ -663,8 +663,8 @@ const TerminalShell: React.FC = () => {
             </ConfigProvider>
           </div>
         </div>
-        <StatusBar moduleLabel={moduleLabel} runCommand={runCommand} />
       </div>
+      <StatusBar moduleLabel={moduleLabel} runCommand={runCommand} />
       <CmdK open={cmdKOpen} onClose={() => setCmdKOpen(false)} />
     </div>
   );

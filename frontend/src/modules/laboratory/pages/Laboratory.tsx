@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useRegisterCommands } from '@/contexts/CommandContext';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import apiClient from '../../../services/apiClient';
@@ -201,6 +202,12 @@ const LaboratoryV2: React.FC = () => {
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(reload, [date, search]);
+
+  // F2=Chỉ định XN · F5=Làm mới (khớp kbd hint trên nút)
+  useRegisterCommands({
+    save: () => navigate('/v2/sample-receive'),
+    refresh: reload,
+  });
 
   const groupOpts = useMemo(() => {
     const set = new Set<string>();

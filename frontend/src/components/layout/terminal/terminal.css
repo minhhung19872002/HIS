@@ -145,6 +145,8 @@ body[data-theme="dark"] {
   text-rendering: optimizeLegibility;
   height: 100vh;
   width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 /* :where() gives 0-specificity so component classes like .opd-btn-primary
    (0,1,0) beat these element resets — same behavior as design which uses
@@ -163,8 +165,9 @@ body[data-theme="dark"] {
 .his-app {
   display: grid;
   grid-template-columns: 64px 1fr;
-  grid-template-rows: 44px 32px 1fr 26px;
-  height: 100vh;
+  grid-template-rows: 44px 32px 1fr;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
   position: relative;
 }
@@ -185,7 +188,7 @@ body[data-theme="dark"] {
 .his-topbar  { grid-column: 2; grid-row: 1; }
 .his-ticker  { grid-column: 2; grid-row: 2; }
 .his-main    { grid-column: 2; grid-row: 3; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
-.his-status  { grid-column: 1 / -1; grid-row: 4; }
+/* .his-status is now a flex child of .his-terminal (outside the grid) — no grid placement needed */
 
 /* ============== RAIL ============== */
 .his-rail {
@@ -274,7 +277,7 @@ body[data-theme="dark"] {
   position: absolute;
   left: 64px;
   top: 0;
-  bottom: 26px;
+  bottom: 0;
   width: 240px;
   background: #ffffff;
   border-right: 1px solid var(--line);
@@ -573,6 +576,9 @@ body[data-theme="dark"] {
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.02em;
+  height: 26px;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 .his-status .seg { display: inline-flex; align-items: center; gap: 5px; }
 .his-status .seg b { color: #f8fafc; font-weight: 600; }
@@ -1122,16 +1128,16 @@ kbd {
 @media (max-width: 640px) {
   .his-app {
     grid-template-columns: 44px 1fr;
-    grid-template-rows: 40px 28px 1fr 24px;
+    grid-template-rows: 40px 28px 1fr;
   }
   .his-app.has-pinned {
     grid-template-columns: 44px 1fr;
-    grid-template-rows: 40px 28px 1fr 24px;
+    grid-template-rows: 40px 28px 1fr;
   }
   .his-app.has-pinned .his-flyout.pinned {
     position: absolute;
     grid-column: auto; grid-row: auto;
-    left: 44px; top: 40px; bottom: 24px;
+    left: 44px; top: 40px; bottom: 0;
     width: min(260px, calc(100vw - 44px));
     box-shadow: 2px 0 16px rgba(15,23,42,.12);
   }

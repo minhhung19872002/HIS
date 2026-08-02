@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRegisterCommands } from '@/contexts/CommandContext';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input, InputNumber, Select, DatePicker } from 'antd';
 import { useNavigate } from 'react-router-dom';
@@ -172,6 +173,13 @@ const InpatientV2: React.FC = () => {
     } catch { setSupplyOrders([]); }
     finally { setSupplyLoading(false); }
   }, []);
+
+  // F2=Y lệnh mới · F4=Bàn giao ca · F5=Làm mới (khớp kbd hint trên nút)
+  useRegisterCommands({
+    save: () => navigate('/v2/inpatient-dispensing'),
+    search: () => navigate('/v2/hr'),
+    refresh: loadData,
+  });
 
   // All beds flattened (with ward name) for grid + filtering.
   const allBeds = useMemo(

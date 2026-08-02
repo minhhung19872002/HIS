@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useRegisterCommands } from '@/contexts/CommandContext';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import * as risApi from '../api/ris';
@@ -74,6 +75,12 @@ const RadiologyV2: React.FC = () => {
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(reload, [date, search]);
+
+  // F2=Chỉ định CĐHA · F5=Làm mới (khớp kbd hint trên nút)
+  useRegisterCommands({
+    save: () => navigate('/v2/radiology-ops'),
+    refresh: reload,
+  });
 
   // Batch-check PTTT mapping: chạy sau khi rows thay đổi.
   // Thu thập serviceId duy nhất từ items[0], gọi 1 request, lưu vào map.

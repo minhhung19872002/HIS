@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useRegisterCommands } from '@/contexts/CommandContext';
 import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import * as receptionApi from '../api/reception';
@@ -283,15 +284,13 @@ const ReceptionV2: React.FC = () => {
     setSelRows(new Set());
   };
 
-  // F2 = đăng ký mới · F3 = gọi số · F4 = tìm BN cũ
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (e.key === 'F2') { e.preventDefault(); setNewOpen(true); }
-      if (e.key === 'F3') { e.preventDefault(); onCallNext(); }
-      if (e.key === 'F4') { e.preventDefault(); setLookupOpen(true); }
-    };
-    window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
+  // F2=đăng ký mới (save) · F3=gọi số (new) · F4=tìm BN (search) · F5=làm mới
+  // Dùng command system thay raw useEffect để tránh double-fire với TerminalLayout shell.
+  useRegisterCommands({
+    save: () => setNewOpen(true),
+    new: onCallNext,
+    search: () => setLookupOpen(true),
+    refresh: loadData,
   });
 
   // ─── Table column definitions ───

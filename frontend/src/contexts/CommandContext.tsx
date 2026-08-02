@@ -24,12 +24,12 @@ export interface CommandDef {
 export const COMMANDS: CommandDef[] = [
   { id: 'help',           label: 'Trợ giúp', keyHint: 'F1',  pageOwned: false },
   { id: 'commandPalette', label: 'Lệnh',     keyHint: '⌘K',  pageOwned: false },
-  { id: 'new',            label: 'Thêm mới', keyHint: 'F3',  pageOwned: true },
-  { id: 'save',           label: 'Lưu',      keyHint: 'F2',  pageOwned: true },
-  { id: 'search',         label: 'Tìm',      keyHint: 'F4',  pageOwned: true },
-  { id: 'print',          label: 'In',       keyHint: 'F8',  pageOwned: true },
-  { id: 'refresh',        label: 'Làm mới',  keyHint: 'F5',  pageOwned: true },
-  { id: 'cancel',         label: 'Hủy',      keyHint: 'Esc', pageOwned: true },
+  { id: 'new',            label: 'Thêm mới', keyHint: 'F3',  pageOwned: false }, // fallback: click .ab-btn.primary
+  { id: 'save',           label: 'Lưu',      keyHint: 'F2',  pageOwned: true  }, // no generic fallback
+  { id: 'search',         label: 'Tìm',      keyHint: 'F4',  pageOwned: false }, // fallback: focus .ab-search, then CmdK
+  { id: 'print',          label: 'In',       keyHint: 'F8',  pageOwned: true  }, // no generic fallback
+  { id: 'refresh',        label: 'Làm mới',  keyHint: 'F5',  pageOwned: false }, // fallback: window.location.reload()
+  { id: 'cancel',         label: 'Hủy',      keyHint: 'Esc', pageOwned: false }, // fallback: close flyout/cmdk
 ];
 
 export type CommandHandlers = Partial<Record<CmdId, () => void>>;
