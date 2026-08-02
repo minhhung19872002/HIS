@@ -523,7 +523,7 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### Surgery
 - v1: `frontend/src/pages/Surgery.tsx` | v2: `frontend/src/modules/surgery/pages/Surgery.tsx` | confidence scan: med | SCAN_ONLY
-  - [ ] Tab 'Phòng mổ' (OR status board: mã/tên/loại phòng, vị trí, trạng thái available/busy, số ca hôm nay) không có màn tương đương ở v2 — v1 Surgery.tsx:1154-1201 (roomColumns tại dòng 777, dữ liệu operatingRooms) vs v2 chỉ dùng operatingRoomName như 1 field hiển thị trong bảng ca mổ/modal lên lịch, không có view giám sát trạng thái phòng mổ độc lập.
+  - [x] Tab 'Phòng mổ' — ĐÃ PORT 2026-08-02 (nút "Phòng mổ" headerActions mở DrawerShell OR board: mã/tên/loại/trạng thái Trống-Đang dùng/ca hiện tại/số ca hôm nay từ getOperatingRooms + getSurgerySchedule(today))
 
 ### SystemAdmin
 - v1: `frontend/src/pages/SystemAdmin.tsx` | v2: `frontend/src/modules/system/pages/SystemAdmin.tsx` | confidence scan: med | OVERTURNED

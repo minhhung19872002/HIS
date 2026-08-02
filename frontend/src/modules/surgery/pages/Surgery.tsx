@@ -3,9 +3,9 @@ import dayjs from 'dayjs';
 import { App as AntdApp } from 'antd';
 import type { AxiosError } from 'axios';
 import * as surgeryApi from '../api/surgery';
-import type { SurgeryDto, SurgeryTeamMemberDto } from '../api/surgery';
+import type { SurgeryDto, SurgeryTeamMemberDto, OperatingRoomDto, SurgeryScheduleDto } from '../api/surgery';
 import type { ServerValidationError } from '../../../utils/formError';
-import { SimpleV2Page, StatusBadge, ActBtn, Btn, cf, tk, tw, type ColumnDef, type StatusTab } from '@/_v2kit';
+import { SimpleV2Page, StatusBadge, ActBtn, Btn, DrawerShell, DataTable, cf, tk, tw, type ColumnDef, type StatusTab } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { SurgeryCabinetIssueModal } from './SurgeryCabinetIssueModal';
 import { PreAnesthesiaModal, AnesthesiaMonitorModal, ConsentModal, PostAnesthesiaPlanModal } from './SurgeryFormModals';
@@ -43,6 +43,31 @@ const SurgeryV2: React.FC = () => {
   // reload() closure comes from SimpleV2Page per-row — stash the one active when a modal opened
   const scheduleReloadRef = useRef<() => void>(() => {});
   const startReloadRef = useRef<() => void>(() => {});
+
+  // #352 parity v1 tab "Phòng mổ" — OR status board (drawer, không phá layout SimpleV2Page)
+  const [orOpen, setOrOpen] = useState(false);
+  const [orLoading, setOrLoading] = useState(false);
+  const [orRooms, setOrRooms] = useState<OperatingRoomDto[]>([]);
+  const [orToday, setOrToday] = useState<Map<string, number>>(new Map());
+  const openOrBoard = async () => {
+    setOrOpen(true);
+    setOrLoading(true);
+    try {
+      const [rooms, sched] = await Promise.allSettled([
+        surgeryApi.getOperatingRooms(),
+        surgeryApi.getSurgerySchedule(dayjs().format('YYYY-MM-DD')),
+      ]);
+      if (rooms.status === 'fulfilled') setOrRooms(Array.isArray(rooms.value.data) ? rooms.value.data : []);
+      const counts = new Map<string, number>();
+      if (sched.status === 'fulfilled') {
+        (sched.value.data as SurgeryScheduleDto[] | undefined)?.forEach((s) => {
+          counts.set(s.operatingRoomId, (counts.get(s.operatingRoomId) || 0) + (s.surgeries?.length || 0));
+        });
+      }
+      setOrToday(counts);
+    } catch { tw('Không tải được trạng thái phòng mổ'); }
+    finally { setOrLoading(false); }
+  };
 
   const onCancel = async (r: SurgeryDto, reload: () => void) => {
     try {
@@ -201,6 +226,9 @@ const SurgeryV2: React.FC = () => {
       )}
       headerActions={(reload) => (
         <>
+          <Btn variant="ghost" size="sm" onClick={() => { void openOrBoard(); }}>
+            <TermIcon name="grid" size={12} /> Phòng mổ
+          </Btn>
           <Btn variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
             <TermIcon name="plus" size={12} /> Tạo yêu cầu
           </Btn>
@@ -221,6 +249,38 @@ const SurgeryV2: React.FC = () => {
             surgery={startTarget}
             onStarted={() => { setStartTarget(null); startReloadRef.current(); }}
           />
+          {/* #352: bảng trạng thái phòng mổ (parity v1 tab "Phòng mổ" pages/Surgery.tsx:1154-1201) */}
+          <DrawerShell
+            open={orOpen}
+            onClose={() => setOrOpen(false)}
+            size="lg"
+            title="Trạng thái phòng mổ"
+            sub={`Theo dõi trạng thái + số ca hôm nay · ${dayjs().format('DD/MM/YYYY')}`}
+            footer={<Btn variant="ghost" onClick={() => setOrOpen(false)}>Đóng</Btn>}
+          >
+            <DataTable<OperatingRoomDto>
+              columns={[
+                { key: 'code', label: 'Mã phòng', code: true, width: 110, render: (r) => r.code },
+                { key: 'name', label: 'Tên phòng', render: (r) => (
+                  <div className="cell-2l">
+                    <b>{r.name}</b>
+                    {r.description && <i>{r.description}</i>}
+                  </div>
+                ) },
+                { key: 'type', label: 'Loại', width: 150, render: (r) => r.roomTypeName || (
+                  r.roomType === 1 ? 'Phòng mổ lớn' : r.roomType === 2 ? 'Phòng mổ nhỏ' : r.roomType === 3 ? 'Phòng mổ cấp cứu' : 'Phòng mổ chuyên khoa'
+                ) },
+                { key: 'st', label: 'Trạng thái', width: 140, render: (r) => r.status === 0
+                  ? <StatusBadge tone="ok" dot>{r.statusName || 'Trống'}</StatusBadge>
+                  : <StatusBadge tone="warn" dot>{r.statusName || 'Đang sử dụng'}</StatusBadge> },
+                { key: 'cur', label: 'Ca hiện tại', render: (r) => r.currentPatientName || '—' },
+                { key: 'today', label: 'Ca hôm nay', mono: true, width: 100,
+                  render: (r) => orToday.get(r.id) ?? 0 },
+              ]}
+              data={orRooms} rowKey={(r) => r.id}
+              empty={orLoading ? 'Đang tải…' : 'Chưa có phòng mổ'}
+            />
+          </DrawerShell>
         </>
       )}
       drawer={(r) => <SurgeryDrawerBody r={r} />}
