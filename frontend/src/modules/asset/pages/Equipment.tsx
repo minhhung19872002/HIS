@@ -13,6 +13,7 @@ import {
   type ColumnDef, type StatusTab, type KpiItem, type TopTab,
 } from '../../../pages-v2/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
+import { HOSPITAL_NAME } from '../../../constants/hospital';
 
 /* ── Trang thiết bị y tế — v2 ────────────────────────────────────────────── */
 
@@ -122,7 +123,18 @@ const EquipmentV2: React.FC = () => {
         getMaintenanceSchedules(undefined, 90),
         getRepairRequests(),
       ]);
-      if (eqRes.status === 'fulfilled') setEquipment(eqRes.value.data?.items || []);
+      if (eqRes.status === 'fulfilled') {
+        // #352 CRITICAL: GET /api/equipment trả MẢNG TRẦN (EquipmentController.cs:35-40 →
+        // GetEquipmentListAsync trả List<...>), KHÔNG phải {items}. v2 chỉ đọc
+        // `data?.items` ⇒ luôn rỗng ⇒ danh sách + KPI + đếm trạng thái + tab Kiểm định đều trắng.
+        // v1 xử lý cả 2 shape (pages/Equipment.tsx:113) nên vẫn hiển thị được.
+        const raw = eqRes.value.data as unknown;
+        setEquipment(
+          Array.isArray(raw)
+            ? (raw as EquipmentDto[])
+            : ((raw as { items?: EquipmentDto[] } | undefined)?.items || []),
+        );
+      }
       if (maintRes.status === 'fulfilled') setMaintenanceSchedules(maintRes.value.data || []);
       if (repairRes.status === 'fulfilled') setRepairRequests(repairRes.value.data || []);
     } catch {
@@ -314,6 +326,9 @@ const EquipmentV2: React.FC = () => {
   </style>
 </head>
 <body>
+  <!-- #352: v1 in tên bệnh viện ở đầu phiếu (pages/Equipment.tsx:261); v2 bỏ mất → phiếu pháp lý
+       không có đơn vị phát hành. Lấy từ env qua constants/hospital.ts như các form in khác. -->
+  <div class="header"><strong>${HOSPITAL_NAME}</strong></div>
   <div class="header"><strong>PHÒNG VẬT TƯ - THIẾT BỊ Y TẾ</strong></div>
   <div class="title">PHIẾU LÝ LỊCH THIẾT BỊ Y TẾ</div>
   <table>
