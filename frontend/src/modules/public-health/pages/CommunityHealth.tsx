@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   searchHouseholds, createHousehold, updateHousehold,
@@ -125,6 +125,11 @@ const PER = 20;
 
 const CommunityHealthV2: React.FC = () => {
   const [tab, setTab] = useState<Tab>('households');
+  // #352: CRUD hộ gia đình — HH_FIELDS đã định nghĩa sẵn nhưng chưa gắn CrudModal nào,
+  // nên v2 chỉ xem được, không tạo/sửa được hộ (v1 có cả 2: pages/CommunityHealth.tsx:448, :273).
+  const [hhCrudOpen, setHhCrudOpen] = useState(false);
+  const [hhCrudInit, setHhCrudInit] = useState<Record<string, unknown> | null>(null);
+  const hhReloadRef = useRef<(() => void) | null>(null);
 
   // ── NCD state ──
   const [ncdRows, setNcdRows]     = useState<NcdScreening[]>([]);
@@ -305,6 +310,25 @@ const CommunityHealthV2: React.FC = () => {
             kpis={hhKpis}
             pageSize={20}
             emptyMessage="Chưa có hộ gia đình"
+            headerActions={(reload) => {
+              hhReloadRef.current = reload;
+              return (
+                <Btn variant="primary" icon="plus" onClick={() => { setHhCrudInit(null); setHhCrudOpen(true); }}>
+                  Thêm hộ gia đình
+                </Btn>
+              );
+            }}
+            rowActions={(r, reload) => {
+              hhReloadRef.current = reload;
+              return (
+                <div className="ab-actions">
+                  <ActBtn ic="edit" title="Sửa hộ gia đình" onClick={() => {
+                    setHhCrudInit({ ...r } as unknown as Record<string, unknown>);
+                    setHhCrudOpen(true);
+                  }} />
+                </div>
+              );
+            }}
             drawerTitle={(r) => `${r.headName} · ${r.householdCode}`}
             drawerSub={(r) => `${r.memberCount} thành viên · ${r.ward}, ${r.district}`}
             drawer={(r) => (
@@ -341,6 +365,31 @@ const CommunityHealthV2: React.FC = () => {
             )}
           />
         )}
+
+        {/* #352: modal tạo/sửa hộ gia đình — dùng đúng HH_FIELDS vốn đã khai báo mà chưa ai gắn */}
+        <CrudModal
+          open={hhCrudOpen}
+          onClose={() => { setHhCrudOpen(false); setHhCrudInit(null); }}
+          title={hhCrudInit ? 'Sửa hộ gia đình' : 'Thêm hộ gia đình'}
+          fields={HH_FIELDS}
+          initial={hhCrudInit ?? undefined}
+          size="lg"
+          onSubmit={async (v) => {
+            const payload = {
+              ...v,
+              memberCount: v.memberCount ? Number(v.memberCount) : 0,
+              hasElderlyMember: v.hasElderlyMember === 'true' || v.hasElderlyMember === true,
+              hasChildUnder5: v.hasChildUnder5 === 'true' || v.hasChildUnder5 === true,
+              hasPregnant: v.hasPregnant === 'true' || v.hasPregnant === true,
+              hasChronicDisease: v.hasChronicDisease === 'true' || v.hasChronicDisease === true,
+            } as unknown as Partial<Household>;
+            const id = (hhCrudInit as { id?: string } | null)?.id;
+            if (id) { await updateHousehold(id, payload); tk('Đã cập nhật hộ gia đình'); }
+            else { await createHousehold(payload); tk('Đã thêm hộ gia đình'); }
+            setHhCrudInit(null);
+            hhReloadRef.current?.();
+          }}
+        />
 
         {/* ── TAB 2: Sàng lọc NCD ── */}
         {tab === 'ncd' && (

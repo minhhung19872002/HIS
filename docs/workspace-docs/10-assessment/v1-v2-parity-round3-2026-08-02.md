@@ -121,9 +121,9 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### CommunityHealth
 - v1: `frontend/src/pages/CommunityHealth.tsx` | v2: `frontend/src/modules/public-health/pages/CommunityHealth.tsx` | confidence scan: high | SCAN_ONLY
-  - [ ] Nút 'Thêm HGD' tạo hộ gia đình mới — v1:448 (Button PlusOutlined) → không có trong v2
-  - [ ] Nút Sửa hộ gia đình theo dòng — v1:273 (EditOutlined) → không có trong v2 (v2 chỉ có onRowClick mở drawer xem)
-  - [ ] Modal Thêm/Sửa hộ gia đình (chủ hộ, địa chỉ, phường/xã/quận/tỉnh, SL thành viên, mức rủi ro, đội phụ trách, 4 checkbox NCT/trẻ<5/thai phụ/bệnh mạn tính, ghi chú) — v1:619-698 → HH_FIELDS định nghĩa ở v2:36-61 nhưng chưa gắn CrudModal nào
+  - [x] Nút 'Thêm HGD' tạo hộ gia đình mới — ĐÃ PORT 2026-08-02 (headerActions + CrudModal dùng HH_FIELDS sẵn có) — v1:448 (Button PlusOutlined) → không có trong v2
+  - [x] Nút Sửa hộ gia đình theo dòng — ĐÃ PORT 2026-08-02 (rowActions ic=edit mở CrudModal prefill) — v1:273 (EditOutlined) → không có trong v2 (v2 chỉ có onRowClick mở drawer xem)
+  - [x] Modal Thêm/Sửa hộ gia đình — ĐÃ PORT 2026-08-02 (CrudModal gắn HH_FIELDS, create/update theo id) (chủ hộ, địa chỉ, phường/xã/quận/tỉnh, SL thành viên, mức rủi ro, đội phụ trách, 4 checkbox NCT/trẻ<5/thai phụ/bệnh mạn tính, ghi chú) — v1:619-698 → HH_FIELDS định nghĩa ở v2:36-61 nhưng chưa gắn CrudModal nào
 
 ### Consultation
 - v1: `frontend/src/pages/Consultation.tsx` | v2: `frontend/src/pages-v2/Consultation.tsx` | confidence scan: high | SCAN_ONLY
