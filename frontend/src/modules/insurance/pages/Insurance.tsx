@@ -18,6 +18,7 @@ import {
   exportXml,
   previewExport,
   downloadXmlFile,
+  signXmlBatch,
   submitToInsurancePortal,
   createSettlementBatch,
   getSettlementBatches,
@@ -230,6 +231,8 @@ const InsuranceV2: React.FC = () => {
   const [xmlPvLoading, setXmlPvLoading] = useState(false);
   const [xmlSubmitting, setXmlSubmitting] = useState(false);
   const [xmlSubmitMsg, setXmlSubmitMsg]   = useState<{ ok: boolean; text: string } | null>(null);
+  const [xmlSigning, setXmlSigning]       = useState(false);
+  const [xmlSignMsg, setXmlSignMsg]       = useState<{ ok: boolean; text: string } | null>(null);
 
   // ── Batch state ───────────────────────────────────────────────────────────
   const [batchYear, setBatchYear]           = useState(dayjs().year());
@@ -300,7 +303,7 @@ const InsuranceV2: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (topTab === 'batch') loadBatches(batchYear);
+    if (topTab === 'batch' || topTab === 'xml') loadBatches(batchYear);
   }, [topTab, batchYear, loadBatches]);
 
   /* ── Handlers ── */
@@ -491,6 +494,27 @@ const InsuranceV2: React.FC = () => {
       message.warning('Lỗi khi xuất XML QĐ4210');
     } finally {
       setXmlLoading(false);
+    }
+  };
+
+  const handleSignXml = async (batchId: string) => {
+    setXmlSigning(true);
+    setXmlSignMsg(null);
+    try {
+      const r = await signXmlBatch(batchId);
+      const res = (r.data ?? r) as unknown as { success: boolean; message: string };
+      if (res.success) {
+        setXmlSignMsg({ ok: true, text: 'Ký XML thành công' });
+        message.success('Đã ký XML điện tử');
+      } else {
+        setXmlSignMsg({ ok: false, text: res.message || 'Ký XML thất bại' });
+        message.warning(res.message || 'Ký XML thất bại');
+      }
+    } catch {
+      setXmlSignMsg({ ok: false, text: 'Lỗi khi ký XML — kiểm tra kết nối USB-token' });
+      message.warning('Lỗi khi ký XML');
+    } finally {
+      setXmlSigning(false);
     }
   };
 
@@ -858,6 +882,12 @@ const InsuranceV2: React.FC = () => {
               Xuất XML QĐ4210
             </Btn>
             {xmlResult?.batchId && (
+              <Btn variant="ghost" icon="check" loading={xmlSigning}
+                onClick={() => handleSignXml(xmlResult.batchId)}>
+                Ký XML
+              </Btn>
+            )}
+            {xmlResult?.batchId && (
               <Btn variant="ghost" icon="download" onClick={() => handleDownloadXml(xmlResult.batchId)}>
                 Tải về (.zip)
               </Btn>
@@ -869,6 +899,17 @@ const InsuranceV2: React.FC = () => {
               </Btn>
             )}
           </div>
+
+          {xmlSignMsg && (
+            <Alert
+              type={xmlSignMsg.ok ? 'success' : 'error'}
+              showIcon
+              title={xmlSignMsg.text}
+              style={{ marginBottom: 16 }}
+              closable
+              onClose={() => setXmlSignMsg(null)}
+            />
+          )}
 
           {xmlSubmitMsg && (
             <Alert
@@ -925,6 +966,36 @@ const InsuranceV2: React.FC = () => {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {batches.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 10, color: 'var(--t-1)' }}>
+                Lịch sử xuất XML — {xmlYear}
+                {batchLoading && <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--t-3)', marginLeft: 8 }}>Đang tải…</span>}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {batches.map((b) => (
+                  <div key={b.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '8px 12px', background: 'var(--surface-1)',
+                    border: '1px solid var(--border)', borderRadius: 6, flexWrap: 'wrap',
+                  }}>
+                    <span className="mono" style={{ fontSize: 12, color: 'var(--t-2)', minWidth: 80 }}>{b.batchCode}</span>
+                    <span style={{ fontSize: 12, color: 'var(--t-2)', flex: 1, minWidth: 120 }}>
+                      {String(b.month).padStart(2, '0')}/{b.year} · {b.validRecords}/{b.totalRecords} hồ sơ hợp lệ
+                    </span>
+                    <StatusBadge tone={BATCH_STATUS_MAP[b.status]?.tone ?? 'info'}>
+                      {BATCH_STATUS_MAP[b.status]?.l ?? '—'}
+                    </StatusBadge>
+                    <Btn variant="ghost" icon="check" loading={xmlSigning} onClick={() => handleSignXml(b.id)}>Ký XML</Btn>
+                    <Btn variant="ghost" icon="download" onClick={() => handleDownloadXml(b.id)}>Tải về</Btn>
+                    <Btn variant="ghost" icon="upload" loading={xmlSubmitting}
+                      onClick={() => handleSubmitToBhxh(b.id, b.batchCode)}>Nộp BHXH</Btn>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -991,6 +1062,13 @@ const InsuranceV2: React.FC = () => {
             data={batches}
             rowKey={(r) => r.id}
             empty={batchLoading ? 'Đang tải…' : 'Chưa có đợt quyết toán nào'}
+            actions={(r) => (
+              <div className="ab-actions">
+                <ActBtn ic="check" title="Ký XML" onClick={() => handleSignXml(r.id)} />
+                <ActBtn ic="download" title="Tải về XML" onClick={() => handleDownloadXml(r.id)} />
+                <ActBtn ic="upload" title="Nộp cổng BHXH" onClick={() => handleSubmitToBhxh(r.id, r.batchCode)} />
+              </div>
+            )}
           />
 
           <ModalShell
