@@ -27,7 +27,9 @@ public class PrescriptionSafetyTests
             new Mock<IRepository<Room>>().Object,
             new Mock<IRepository<User>>().Object,
             new UnitOfWork(ctx),
-            new Mock<ICurrentUserAccessor>().Object);
+            new Mock<ICurrentUserAccessor>().Object,
+            new Mock<HIS.Application.Services.IPaymentGatewayService>().Object,
+            new Mock<HIS.Application.Services.ITreatmentRelationshipService>().Object);
 
     private static (Guid examId, Guid medId) SeedScenario(HISDbContext ctx, bool withSevereAllergy)
     {

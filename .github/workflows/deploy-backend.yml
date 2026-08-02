@@ -36,6 +36,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # #191: TEST GATE — dotnet test chạy TRƯỚC build/deploy; test đỏ → job fail → KHÔNG deploy.
+      - name: Set up .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Run backend tests (gate)
+        run: dotnet test backend/tests/HIS.Tests/HIS.Tests.csproj -c Release --nologo
+
       - name: Compute image tag
         id: img
         run: echo "tag=${IMAGE_REPO}:$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"

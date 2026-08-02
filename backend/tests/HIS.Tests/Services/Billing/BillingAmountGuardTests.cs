@@ -23,7 +23,8 @@ public class BillingAmountGuardTests
             ctx,
             new Mock<IUnitOfWork>().Object,
             new Mock<IElectronicInvoiceProvider>().Object,
-            new Mock<ILogger<BillingCompleteService>>().Object);
+            new Mock<ILogger<BillingCompleteService>>().Object,
+            new Mock<IPaymentGatewayService>().Object);
 
     private static Patient SeedPatient(HISDbContext ctx)
     {
