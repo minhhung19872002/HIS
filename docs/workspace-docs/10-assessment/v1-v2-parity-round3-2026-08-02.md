@@ -65,10 +65,16 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### BhxhAudit
 - v1: `frontend/src/pages/BhxhAudit.tsx` | v2: `frontend/src/modules/insurance/pages/BhxhAudit.tsx` | confidence scan: high | SCAN_ONLY
-  - [ ] Tab 'Cổng giám định': auditor account management CRUD (GET/POST /bhxh-audit/auditor-accounts) — v1 pages/BhxhAudit.tsx:1066-1089, 1354-1451
-  - [ ] Portal records list + PDF viewer (view/download HSBA PDF, GET /bhxh-audit/records/{id}/pdf) — v1 pages/BhxhAudit.tsx:1094-1135, 1453-1522
-  - [ ] Bulk single-call approve (POST /bhxh-audit/approve {recordIds}) — v1 pages/BhxhAudit.tsx:388-408; v2 keeps only per-record approveAuditSession
-  - [ ] Excel import with preview/confirm (POST /bhxh-audit/import-excel) — v1 pages/BhxhAudit.tsx:338-386, 1199-1288; v2 replaced with a different CSV import flow
+  > ⛔ **VERIFY 2026-08-02 — CẢ 4 GAP DƯỚI ĐÂY LÀ TÍNH NĂNG CHẾT Ở CHÍNH v1, KHÔNG PORT.**
+  > Backend `[Route("api/bhxh-audit")]` (SupplementaryControllers2.cs) chỉ có **6 endpoint**:
+  > `GET sessions` · `POST session` · `POST session/{id}/run` · `GET session/{id}/errors` · `PUT error/{id}/fix` · `GET dashboard`.
+  > Grep toàn bộ `backend/src`: `auditor-accounts`=0 · `import-excel`=0 · `recordIds`/`RecordIds`=0 · `records/{id}/pdf`=0.
+  > → 4 lệnh gọi của v1 (`pages/BhxhAudit.tsx:198,350,397,518,1503`) đều trỏ route **KHÔNG TỒN TẠI** ⇒ v1 đang 404.
+  > Port sang v2 = nhân bản lỗi. Muốn có thật thì phải **làm backend trước** (task riêng), không phải việc của #352.
+  - [~]   - [ ] Tab 'Cổng giám định': auditor account management CRUD (GET/POST /bhxh-audit/auditor-accounts) — v1 pages/BhxhAudit.tsx:1066-1089, 1354-1451
+  - [~] Portal records list + PDF viewer — KHÔNG PORT (BE thiếu route, xem note trên) (view/download HSBA PDF, GET /bhxh-audit/records/{id}/pdf) — v1 pages/BhxhAudit.tsx:1094-1135, 1453-1522
+  - [~] Bulk single-call approve — KHÔNG PORT (BE thiếu route, xem note trên) (POST /bhxh-audit/approve {recordIds}) — v1 pages/BhxhAudit.tsx:388-408; v2 keeps only per-record approveAuditSession
+  - [~] Excel import with preview/confirm — KHÔNG PORT (BE thiếu route, xem note trên) (POST /bhxh-audit/import-excel) — v1 pages/BhxhAudit.tsx:338-386, 1199-1288; v2 replaced with a different CSV import flow
 
 ### Billing
 - v1: `frontend/src/pages/Billing.tsx` | v2: `frontend/src/modules/billing/pages/Billing.tsx` | confidence scan: high | SCAN_ONLY
