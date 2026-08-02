@@ -140,7 +140,7 @@ const InpatientV2: React.FC = () => {
       let ip: InpatientListDto[] = [];
       try {
         // InpatientSearchDto dùng `page` (1-based), không phải `pageIndex` (0-based)
-        const r = await getInpatientList({ page: 1, pageSize: 300 });
+        const r = await getInpatientList({ page: 1, pageSize: 300, keyword: search || undefined });
         ip = r.data?.items || [];
       } catch { ip = []; }
       setInpatients(ip);
@@ -159,7 +159,7 @@ const InpatientV2: React.FC = () => {
       } catch { setWards([]); }
       setLoading(false);
     })();
-  }, []);
+  }, [search]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -219,13 +219,8 @@ const InpatientV2: React.FC = () => {
       const w = wards.find((x) => x.departmentId === fWard);
       if (w && r.departmentName !== w.departmentName) return false;
     }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const hay = [r.patientName, r.patientCode, r.medicalRecordCode, r.mainDiagnosis].filter(Boolean).join(' ').toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
     return true;
-  }), [inpatients, fWard, wards, search]);
+  }), [inpatients, fWard, wards]);
   const listTotalPages = Math.max(1, Math.ceil(listFiltered.length / LIST_PAGE));
   const listPaged = listFiltered.slice(page * LIST_PAGE, (page + 1) * LIST_PAGE);
 
@@ -234,15 +229,10 @@ const InpatientV2: React.FC = () => {
   // Tab "Đã xuất viện" — filter status=2 + optional date range + search
   const dischargeList = useMemo(() => inpatients.filter((r) => {
     if (r.status !== 2) return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const hay = [r.patientName, r.patientCode, r.medicalRecordCode].filter(Boolean).join(' ').toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
     if (dischargeFrom && r.admissionDate && dayjs(r.admissionDate).isBefore(dischargeFrom, 'day')) return false;
     if (dischargeTo && r.admissionDate && dayjs(r.admissionDate).isAfter(dischargeTo, 'day')) return false;
     return true;
-  }), [inpatients, search, dischargeFrom, dischargeTo]);
+  }), [inpatients, dischargeFrom, dischargeTo]);
 
   const listColumns: ColumnDef<InpatientListDto>[] = [
     {

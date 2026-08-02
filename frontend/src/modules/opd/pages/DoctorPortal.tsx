@@ -104,6 +104,11 @@ const DoctorPortalV2: React.FC = () => {
   const [block, setBlock] = useState<BlockKey>('outpatient');
 
   // ── Outpatient ──────────────────────────────────────────────────────────
+  const [opdSearch, setOpdSearch] = useState('');
+  const [opdStab, setOpdStab] = useState('all');
+  const [opdPage, setOpdPage] = useState(0);
+  const [opdDetail, setOpdDetail] = useState<ExaminationDto | null>(null);
+
   const opd = useListData<ExaminationDto>(
     useCallback(async () => {
       const r = await examApi.searchExaminations({
@@ -111,43 +116,35 @@ const DoctorPortalV2: React.FC = () => {
         fromDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
         toDate: dayjs().add(1, 'day').format('YYYY-MM-DD'),
         pageIndex: 1, pageSize: 200,
+        keyword: opdSearch || undefined,
       });
       return r.data?.items || [];
-    }, []),
+    }, [opdSearch]),
     useCallback(() => tw('Không thể tải danh sách bệnh nhân ngoại trú'), []),
   );
-  const [opdSearch, setOpdSearch] = useState('');
-  const [opdStab, setOpdStab] = useState('all');
-  const [opdPage, setOpdPage] = useState(0);
-  const [opdDetail, setOpdDetail] = useState<ExaminationDto | null>(null);
 
   const opdFiltered = useMemo(() => opd.rows.filter((r) => {
     if (opdStab !== 'all' && opdStatus.keyOf(r.status) !== opdStab) return false;
-    if (!opdSearch.trim()) return true;
-    const q = opdSearch.toLowerCase();
-    return `${r.patientName} ${r.patientCode} ${r.diagnosisName || ''} ${r.diagnosisCode || ''}`.toLowerCase().includes(q);
-  }), [opd.rows, opdStab, opdSearch]);
+    return true;
+  }), [opd.rows, opdStab]);
   const opdTotalPages = Math.max(1, Math.ceil(opdFiltered.length / PER));
   const opdPaged = opdFiltered.slice(opdPage * PER, (opdPage + 1) * PER);
   const opdTabCounts = useTabCounts(opd.rows, opdStatus.tabs, (r) => opdStatus.keyOf(r.status));
 
   // ── Inpatient ────────────────────────────────────────────────────────────
-  const ipd = useListData<InpatientListDto>(
-    useCallback(async () => {
-      const r = await inpatientApi.getInpatientList({ status: 1, page: 1, pageSize: 200 });
-      return r.data?.items || [];
-    }, []),
-    useCallback(() => tw('Không thể tải danh sách bệnh nhân nội trú'), []),
-  );
   const [ipdSearch, setIpdSearch] = useState('');
   const [ipdPage, setIpdPage] = useState(0);
   const [ipdDetail, setIpdDetail] = useState<InpatientListDto | null>(null);
 
-  const ipdFiltered = useMemo(() => ipd.rows.filter((r) => {
-    if (!ipdSearch.trim()) return true;
-    const q = ipdSearch.toLowerCase();
-    return `${r.patientName} ${r.patientCode} ${r.bedName || ''}`.toLowerCase().includes(q);
-  }), [ipd.rows, ipdSearch]);
+  const ipd = useListData<InpatientListDto>(
+    useCallback(async () => {
+      const r = await inpatientApi.getInpatientList({ status: 1, page: 1, pageSize: 200, keyword: ipdSearch || undefined });
+      return r.data?.items || [];
+    }, [ipdSearch]),
+    useCallback(() => tw('Không thể tải danh sách bệnh nhân nội trú'), []),
+  );
+
+  const ipdFiltered = ipd.rows;
   const ipdTotalPages = Math.max(1, Math.ceil(ipdFiltered.length / PER));
   const ipdPaged = ipdFiltered.slice(ipdPage * PER, (ipdPage + 1) * PER);
 
