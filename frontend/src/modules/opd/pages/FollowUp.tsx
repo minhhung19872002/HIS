@@ -102,6 +102,11 @@ const FollowUpV2: React.FC = () => {
       searchAppointments({
         fromDate,
         toDate,
+        // #352: gửi keyword lên server — trước đây chỉ lọc client trong 16 dòng của TRANG hiện tại
+        // nên bệnh nhân ngoài trang đầu không thể tìm thấy, và totalCount/Pager bỏ qua từ khoá.
+        // Backend lọc FullName/PatientCode/AppointmentCode/PhoneNumber trước khi phân trang
+        // (ExaminationCompleteService.Conclusion.cs:241-248).
+        keyword: search.trim() || undefined,
         // tab Quá hạn không truyền status (như v1)
         status: tab === 'overdue' || statusFilter === '' ? undefined : Number(statusFilter),
         appointmentType: typeFilter === '' ? undefined : Number(typeFilter),
@@ -123,7 +128,7 @@ const FollowUpV2: React.FC = () => {
       setOverdueList(overdueRes.value.data || []);
     }
     setLoading(false);
-  }, [tab, statusFilter, typeFilter, range, page]);
+  }, [tab, statusFilter, typeFilter, range, page, search]);
 
   useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
 
@@ -137,14 +142,23 @@ const FollowUpV2: React.FC = () => {
     }
   };
 
-  const onRemind = async (r: AppointmentListDto, channel: 'SMS' | 'Zalo' = 'SMS') => {
-    // No backend endpoint to flip "reminded" alone; mark as Confirmed (status=1) to indicate engagement.
+  /** #352: GỌI ĐIỆN thật cho bệnh nhân (v1 render <a href="tel:">, v2 mất hẳn). */
+  const onCall = (r: AppointmentListDto) => {
+    if (!r.phoneNumber) { message.warning('Bệnh nhân không có số điện thoại'); return; }
+    window.location.href = `tel:${r.phoneNumber.replace(/[^\d+]/g, '')}`;
+  };
+
+  /** #352: ghi nhận ĐÃ LIÊN HỆ.
+   *  Trước đây hàm này báo "Đã gửi nhắc SMS/Zalo" nhưng KHÔNG hề gửi tin nào — nó chỉ đổi
+   *  trạng thái lịch hẹn sang Đã xác nhận. Đó là thông báo sai sự thật với người dùng
+   *  (điều dưỡng tưởng bệnh nhân đã được nhắc). Nay nói đúng việc nó làm. */
+  const onMarkContacted = async (r: AppointmentListDto) => {
     try {
       await updateAppointmentStatus(r.id, 1);
-      message.success(`Đã gửi nhắc ${channel} cho ${r.patientName}`);
+      message.success(`Đã ghi nhận liên hệ ${r.patientName} — lịch hẹn chuyển sang Đã xác nhận`);
       fetchAppointments();
     } catch {
-      message.error('Gửi nhắc thất bại');
+      message.error('Không ghi nhận được liên hệ');
     }
   };
 
@@ -202,7 +216,14 @@ const FollowUpV2: React.FC = () => {
       render: (r) => (
         <div className="cell-2l">
           <b>{r.patientName}</b>
-          <i className="mono">{r.patientCode} · {r.phoneNumber || '—'}</i>
+          {/* #352: SĐT bấm gọi được (v1 có <a href="tel:">, v2 để text trơn) */}
+          <i className="mono">
+            {r.patientCode} · {r.phoneNumber
+              ? <a href={`tel:${r.phoneNumber.replace(/[^\d+]/g, '')}`}
+                   onClick={(e) => e.stopPropagation()}
+                   style={{ color: 'var(--a-cy)' }}>{r.phoneNumber}</a>
+              : '—'}
+          </i>
         </div>
       ),
     },
@@ -329,12 +350,13 @@ const FollowUpV2: React.FC = () => {
         onRowClick={(r) => setDetail(r)}
         actions={(r) => (
           <div className="ab-actions">
+            {/* #352: nút điện thoại GỌI thật, không còn âm thầm đổi trạng thái */}
             {r.phoneNumber && (
-              <ActBtn ic="phone" title="Ghi nhận liên lạc" onClick={() => onRemind(r, 'SMS')} />
+              <ActBtn ic="phone" title={`Gọi ${r.phoneNumber}`} onClick={() => onCall(r)} />
             )}
             {[0, 1].includes(r.status) && (
               <>
-                <ActBtn ic="message-square" title="Nhắc SMS" onClick={() => onRemind(r, 'SMS')} />
+                <ActBtn ic="check" title="Ghi nhận đã liên hệ (chuyển Đã xác nhận)" onClick={() => onMarkContacted(r)} />
                 <ActBtn ic="check" title="Xác nhận đến khám" onClick={() => handleUpdateStatus(r.id, 2, 'Đã đến khám')} />
                 <ActBtn ic="x" title="Không đến" tone="crit" onClick={() => handleUpdateStatus(r.id, 3, 'Không đến')} />
               </>
@@ -378,9 +400,14 @@ const FollowUpV2: React.FC = () => {
           <>
             <Btn variant="ghost" onClick={() => setDetail(null)}>Đóng</Btn>
             <span style={{ flex: 1 }} />
-            {[0, 1].includes(detail.status) && detail.phoneNumber && (
-              <Btn onClick={() => onRemind(detail, 'SMS')}>
-                <TermIcon name="message-square" size={12} /> Nhắc SMS
+            {detail.phoneNumber && (
+              <Btn onClick={() => onCall(detail)}>
+                <TermIcon name="phone" size={12} /> Gọi {detail.phoneNumber}
+              </Btn>
+            )}
+            {[0, 1].includes(detail.status) && (
+              <Btn onClick={() => onMarkContacted(detail)}>
+                <TermIcon name="check" size={12} /> Ghi nhận đã liên hệ
               </Btn>
             )}
             {detail.status === 0 && (
