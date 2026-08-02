@@ -85,7 +85,7 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### BookingManagement
 - v1: `frontend/src/pages/BookingManagement.tsx` | v2: `frontend/src/modules/reception/pages/BookingManagement.tsx` | confidence scan: high | OVERTURNED_R2
-  - [ ] Date-range filter on booking list: v1 pages/BookingManagement.tsx:338-343 (RangePicker) + :58-59 passes fromDate/toDate to getBookings (backend supports it, BookingManagementService.cs:231-234); v2 modules/reception/pages/BookingManagement.tsx:73-76 calls getBookings({keyword, pageSize:200}) with no date UI and no date params — cannot view bookings for a specific day/range (e.g. tomorrow's list to call-confirm)
+  - [x] Date-range filter on booking list — ĐÃ PORT 2026-08-02 (2 ô date trên toolbar, mặc định hôm nay→+7d, truyền fromDate/toDate): v1 pages/BookingManagement.tsx:338-343 (RangePicker) + :58-59 passes fromDate/toDate to getBookings (backend supports it, BookingManagementService.cs:231-234); v2 modules/reception/pages/BookingManagement.tsx:73-76 calls getBookings({keyword, pageSize:200}) with no date UI and no date params — cannot view bookings for a specific day/range (e.g. tomorrow's list to call-confirm)
   - [ ] Server-side pagination + full-dataset filtering: v1 pages/BookingManagement.tsx:62-66 + 358-364 uses pageIndex/pageSize=20/totalCount and server-side status filter (:60); v2 hard-caps at 200 rows fetched once (line 74) with client-side Pager — backend sorts OrderByDescending(AppointmentDate) (BookingManagementService.cs:253), so any booking beyond the newest 200 by date is unreachable, and StatusTabs/department filter/tab counts operate on the truncated 200-row window
 
 ### CentralSigning

@@ -62,6 +62,9 @@ const BookingManagementV2: React.FC = () => {
   const [scheduleCrudInit, setScheduleCrudInit] = useState<Record<string, unknown> | null>(null);
 
   // Stats drawer (parity với tab "Thống kê" ở v1 — theo ngày + phân bổ theo khoa)
+  // #352: khoảng ngày xem lịch hẹn (mặc định hôm nay → +7 ngày, phủ ca "gọi xác nhận ngày mai")
+  const [dFrom, setDFrom] = useState<string>(dayjs().format('YYYY-MM-DD'));
+  const [dTo, setDTo] = useState<string>(dayjs().add(7, 'day').format('YYYY-MM-DD'));
   const [statsOpen, setStatsOpen] = useState(false);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsDate, setStatsDate] = useState<dayjs.Dayjs>(dayjs());
@@ -71,7 +74,10 @@ const BookingManagementV2: React.FC = () => {
     setLoading(true);
     try {
       const [r, s] = await Promise.all([
-        getBookings({ keyword: search, pageSize: 200 }),
+        // #352: truyền fromDate/toDate — backend đã hỗ trợ (BookingManagementService.cs:231-234),
+        // trước đây FE không có UI ngày nên không xem được lịch của một ngày cụ thể
+        // (vd danh sách ngày mai để gọi xác nhận).
+        getBookings({ keyword: search, fromDate: dFrom, toDate: dTo, pageSize: 200 }),
         getBookingStats(dayjs().format('YYYY-MM-DD')),
       ]);
       const list = (r.items || []).map((b) => ({ ...b, id: b.appointmentCode })) as Booking[];
@@ -79,7 +85,7 @@ const BookingManagementV2: React.FC = () => {
       setStats(s);
     } catch { ti('Không tải được lịch hẹn'); }
     finally { setLoading(false); }
-  }, [search]);
+  }, [search, dFrom, dTo]);
   useEffect(() => { load(); }, [load]);
 
   // Gọi 1 action quản lý lịch (confirm / checkin / no-show) rồi refetch.
@@ -270,7 +276,17 @@ const BookingManagementV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm BN / mã hẹn / SĐT…" />
         <Filter value={fDept} onChange={setFDept} options={depts} placeholder="▾ Khoa" />
-        <Btn variant="ghost" onClick={() => { setSearch(''); setFDept(''); setStab('all'); }}>
+        {/* #352: lọc theo khoảng ngày hẹn */}
+        <Input type="date" value={dFrom} onChange={(e) => { setDFrom(e.target.value); setPage(0); }}
+          style={{ width: 150 }} title="Từ ngày hẹn" />
+        <span style={{ fontSize: 12.5, color: 'var(--t-2)' }}>→</span>
+        <Input type="date" value={dTo} onChange={(e) => { setDTo(e.target.value); setPage(0); }}
+          style={{ width: 150 }} title="Đến ngày hẹn" />
+        <Btn variant="ghost" onClick={() => {
+          setSearch(''); setFDept(''); setStab('all');
+          setDFrom(dayjs().format('YYYY-MM-DD'));
+          setDTo(dayjs().add(7, 'day').format('YYYY-MM-DD'));
+        }}>
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
