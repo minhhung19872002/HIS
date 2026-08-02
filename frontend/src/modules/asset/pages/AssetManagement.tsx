@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { fmtNum as fmt } from '../../../utils/format';
 import dayjs from 'dayjs';
 import { Form, Input, DatePicker, Tabs, Select, Checkbox } from 'antd';
-import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode, getStocktakes, createStocktake, completeStocktake, approveStocktake, updateStocktakeItem, printStocktake, getDepreciationReport, getTenders, saveTender, getTenderItems, saveTenderItem, awardTender } from '../api/assetManagement';
-import type { FixedAssetDto, AssetDashboardDto, AssetQrCodeDto, AssetStocktakeDto, AssetStocktakeItemDto, DepreciationReportDto, TenderDto, TenderItemDto } from '../api/assetManagement';
+import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode, getStocktakes, createStocktake, completeStocktake, approveStocktake, updateStocktakeItem, printStocktake, getDepreciationReport, getTenders, saveTender, getTenderItems, saveTenderItem, awardTender, getHandovers, saveHandover, confirmHandover, getDisposals, proposeDisposal, approveDisposal, completeDisposal } from '../api/assetManagement';
+import type { FixedAssetDto, AssetDashboardDto, AssetQrCodeDto, AssetStocktakeDto, AssetStocktakeItemDto, DepreciationReportDto, TenderDto, TenderItemDto, AssetHandoverDto, AssetDisposalDto } from '../api/assetManagement';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal, ModalShell,
   DrawerShell, DrSec, DrField, useTabCounts, tk, ti, te, cf,
@@ -68,6 +68,17 @@ const TENDER_FIELDS: CrudFieldCfg[] = [
   { key: 'notes', label: 'Ghi chú', type: 'textarea' },
 ];
 
+// #352 port từ v1 (pages/AssetManagement.tsx:308-453) — 2 tab Bàn giao + Thanh lý.
+// Sạch hơn v1: v1 bắt gõ tay GUID tài sản vào ô text; v2 chọn từ danh sách tài sản đã nạp.
+const HANDOVER_TYPE: Record<number, string> = { 1: 'Điều chuyển', 2: 'Cấp mới', 3: 'Thu hồi' };
+const DISPOSAL_TYPE: Record<number, string> = { 1: 'Thanh lý', 2: 'Nhượng bán', 3: 'Tiêu hủy', 4: 'Mất/Hỏng' };
+const DISPOSAL_STATUS: Record<number, { label: string; tone?: 'ok' | 'warn' | 'info' | 'crit' }> = {
+  1: { label: 'Đề xuất', tone: 'warn' },
+  2: { label: 'Đã duyệt', tone: 'info' },
+  3: { label: 'Hoàn thành', tone: 'ok' },
+  4: { label: 'Từ chối', tone: 'crit' },
+};
+
 const TENDER_ITEM_FIELDS: CrudFieldCfg[] = [
   { key: 'itemName', label: 'Tên hạng mục', required: true },
   { key: 'itemType', label: 'Loại', type: 'select', options: [
@@ -77,7 +88,7 @@ const TENDER_ITEM_FIELDS: CrudFieldCfg[] = [
 ];
 
 const AssetManagementV2: React.FC = () => {
-  const [moduleTab, setModuleTab] = useState<'assets' | 'stocktake' | 'tenders'>('assets');
+  const [moduleTab, setModuleTab] = useState<'assets' | 'stocktake' | 'tenders' | 'handovers' | 'disposals'>('assets');
   const [items, setItems] = useState<FixedAssetDto[]>([]);
   const [dash, setDash] = useState<AssetDashboardDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,6 +121,13 @@ const AssetManagementV2: React.FC = () => {
   const [tenderCrudInit, setTenderCrudInit] = useState<Record<string, unknown> | null>(null);
   const [tenderItemCrudOpen, setTenderItemCrudOpen] = useState(false);
   const [tenderItemCrudInit, setTenderItemCrudInit] = useState<Record<string, unknown> | null>(null);
+  // #352: Bàn giao + Thanh lý (port từ v1)
+  const [handovers, setHandovers] = useState<AssetHandoverDto[]>([]);
+  const [disposals, setDisposals] = useState<AssetDisposalDto[]>([]);
+  const [hoOpen, setHoOpen] = useState(false);
+  const [hoForm, setHoForm] = useState<{ fixedAssetId?: string; handoverType: number; handoverDate?: string; notes?: string }>({ handoverType: 1 });
+  const [dpOpen, setDpOpen] = useState(false);
+  const [dpForm, setDpForm] = useState<{ fixedAssetId?: string; disposalType: number; disposalValue?: number; residualValue?: number; reason?: string }>({ disposalType: 1 });
 
   const openCreate = () => { setCrudInit({ status: 0, depreciationMethod: 1, originalValue: 0, currentValue: 0, usefulLifeMonths: 60 }); setCrudOpen(true); };
   const openEdit = (r: FixedAssetDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
@@ -121,16 +139,20 @@ const AssetManagementV2: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const [r, d, sk, td] = await Promise.all([
+      const [r, d, sk, td, ho, dp] = await Promise.all([
         getAssets({ keyword: search, pageSize: 200 }),
         getAssetDashboard(),
         getStocktakes(),
         getTenders({ pageSize: 200 }),
+        getHandovers({ pageSize: 200 }),
+        getDisposals({ pageSize: 200 }),
       ]);
       setItems(r.items || []);
       setDash(d);
       setStocktakes(sk);
       setTenders(td.items || []);
+      setHandovers(ho.items || []);
+      setDisposals(dp.items || []);
     } catch { ti('Không tải được tài sản'); }
     finally { setLoading(false); }
   };
@@ -141,6 +163,88 @@ const AssetManagementV2: React.FC = () => {
   };
 
   const openTenderCreate = () => { setTenderCrudInit({ tenderType: 1, status: 1 }); setTenderCrudOpen(true); };
+
+  // ── #352: Bàn giao tài sản ────────────────────────────────────────────────
+  const assetOptions = useMemo(
+    () => items.map((a) => ({ value: a.id, label: `${a.assetCode} — ${a.assetName}` })),
+    [items],
+  );
+
+  const reloadHandovers = async () => {
+    try { const r = await getHandovers({ pageSize: 200 }); setHandovers(r.items || []); }
+    catch { te('Không tải được danh sách bàn giao'); }
+  };
+  const reloadDisposals = async () => {
+    try { const r = await getDisposals({ pageSize: 200 }); setDisposals(r.items || []); }
+    catch { te('Không tải được danh sách thanh lý'); }
+  };
+
+  const submitHandover = async () => {
+    if (!hoForm.fixedAssetId) { te('Chọn tài sản cần bàn giao'); return; }
+    try {
+      await saveHandover({ ...hoForm });
+      tk('Đã tạo phiếu bàn giao');
+      setHoOpen(false);
+      setHoForm({ handoverType: 1 });
+      void reloadHandovers();
+    } catch { te('Lỗi tạo phiếu bàn giao'); }
+  };
+
+  const doConfirmHandover = (r: AssetHandoverDto) =>
+    cf(`Xác nhận bàn giao "${r.assetName || r.assetCode}"?`, async () => {
+      try { await confirmHandover(r.id); tk('Đã xác nhận bàn giao'); void reloadHandovers(); }
+      catch { te('Lỗi xác nhận bàn giao'); }
+    }, { tone: 'info', confirm: 'Xác nhận' });
+
+  // ── #352: Thanh lý tài sản (tiền) ─────────────────────────────────────────
+  const submitDisposal = async () => {
+    if (!dpForm.fixedAssetId) { te('Chọn tài sản cần thanh lý'); return; }
+    if ((dpForm.disposalValue ?? 0) < 0 || (dpForm.residualValue ?? 0) < 0) { te('Giá trị không được âm'); return; }
+    try {
+      await proposeDisposal({ ...dpForm });
+      tk('Đã đề xuất thanh lý');
+      setDpOpen(false);
+      setDpForm({ disposalType: 1 });
+      void reloadDisposals();
+    } catch { te('Lỗi đề xuất thanh lý'); }
+  };
+
+  const doApproveDisposal = (r: AssetDisposalDto) =>
+    cf(`Duyệt thanh lý "${r.assetName || r.assetCode}" (giá ${fmt(r.disposalValue)}đ)?`, async () => {
+      try { await approveDisposal(r.id); tk('Đã duyệt thanh lý'); void reloadDisposals(); }
+      catch { te('Lỗi duyệt thanh lý'); }
+    }, { tone: 'warn', confirm: 'Duyệt' });
+
+  const doCompleteDisposal = (r: AssetDisposalDto) =>
+    cf(`Hoàn thành thanh lý "${r.assetName || r.assetCode}"? Tài sản sẽ chuyển trạng thái đã thanh lý.`, async () => {
+      try { await completeDisposal(r.id); tk('Đã hoàn thành thanh lý'); void reloadDisposals(); void load(); }
+      catch { te('Lỗi hoàn thành thanh lý'); }
+    }, { tone: 'crit', confirm: 'Hoàn thành' });
+
+  const hoCols: ColumnDef<AssetHandoverDto>[] = [
+    { key: 'assetCode', label: 'Mã TS', mono: true, code: true, render: (r) => r.assetCode || '—' },
+    { key: 'assetName', label: 'Tài sản', render: (r) => r.assetName || '—' },
+    { key: 'handoverType', label: 'Loại', render: (r) => HANDOVER_TYPE[r.handoverType] || '—' },
+    { key: 'from', label: 'Từ khoa', render: (r) => r.fromDepartmentName || '—' },
+    { key: 'to', label: 'Đến khoa', render: (r) => r.toDepartmentName || '—' },
+    { key: 'handoverDate', label: 'Ngày BG', mono: true, render: (r) => r.handoverDate ? dayjs(r.handoverDate).format('DD/MM/YYYY') : '—' },
+    { key: 'status', label: 'TT', render: (r) => (
+        <StatusBadge tone={r.status === 2 ? 'ok' : 'warn'}>{r.status === 2 ? 'Đã xác nhận' : 'Chờ xác nhận'}</StatusBadge>
+    )},
+  ];
+
+  const dpCols: ColumnDef<AssetDisposalDto>[] = [
+    { key: 'assetCode', label: 'Mã TS', mono: true, code: true, render: (r) => r.assetCode || '—' },
+    { key: 'assetName', label: 'Tài sản', render: (r) => r.assetName || '—' },
+    { key: 'disposalType', label: 'Loại', render: (r) => DISPOSAL_TYPE[r.disposalType] || '—' },
+    { key: 'originalValue', label: 'Nguyên giá', mono: true, render: (r) => `${fmt(r.originalValue)}đ` },
+    { key: 'disposalValue', label: 'Giá thanh lý', mono: true, render: (r) => `${fmt(r.disposalValue)}đ` },
+    { key: 'residualValue', label: 'Còn lại', mono: true, render: (r) => `${fmt(r.residualValue)}đ` },
+    { key: 'status', label: 'TT', render: (r) => {
+        const m = DISPOSAL_STATUS[r.status] ?? { label: '—' };
+        return <StatusBadge tone={m.tone}>{m.label}</StatusBadge>;
+    }},
+  ];
 
   const viewTenderItems = async (r: TenderDto) => {
     setTenderDetail(r);
@@ -229,6 +333,8 @@ const AssetManagementV2: React.FC = () => {
             { key: 'assets', label: 'Danh sách tài sản' },
             { key: 'stocktake', label: `Kiểm kê (${stocktakes.length})` },
             { key: 'tenders', label: `Đấu thầu (${tenders.length})` },
+            { key: 'handovers', label: `Bàn giao (${handovers.length})` },
+            { key: 'disposals', label: `Thanh lý (${disposals.length})` },
           ]}
         />
         <span className="spacer" />
@@ -256,6 +362,12 @@ const AssetManagementV2: React.FC = () => {
         )}
         {moduleTab === 'tenders' && (
           <Btn variant="primary" icon="plus" onClick={openTenderCreate}>Thêm gói thầu</Btn>
+        )}
+        {moduleTab === 'handovers' && (
+          <Btn variant="primary" icon="plus" onClick={() => { setHoForm({ handoverType: 1 }); setHoOpen(true); }}>Tạo bàn giao</Btn>
+        )}
+        {moduleTab === 'disposals' && (
+          <Btn variant="primary" icon="plus" onClick={() => { setDpForm({ disposalType: 1 }); setDpOpen(true); }}>Đề xuất thanh lý</Btn>
         )}
       </div>
 
@@ -339,6 +451,102 @@ const AssetManagementV2: React.FC = () => {
           empty={loading ? 'Đang tải…' : 'Chưa có gói thầu'}
         />
       )}
+
+      {/* #352: Bàn giao tài sản — port từ v1 pages/AssetManagement.tsx:308-379 */}
+      {moduleTab === 'handovers' && (
+        <DataTable<AssetHandoverDto>
+          columns={hoCols}
+          data={handovers}
+          rowKey={(r) => r.id}
+          actions={(r) => (
+            <div className="ab-actions">
+              {r.status === 1 && (
+                <ActBtn ic="check" title="Xác nhận bàn giao" onClick={() => doConfirmHandover(r)} />
+              )}
+            </div>
+          )}
+          empty={loading ? 'Đang tải…' : 'Chưa có phiếu bàn giao'}
+        />
+      )}
+
+      {/* #352: Thanh lý tài sản — port từ v1 pages/AssetManagement.tsx:382-453 */}
+      {moduleTab === 'disposals' && (
+        <DataTable<AssetDisposalDto>
+          columns={dpCols}
+          data={disposals}
+          rowKey={(r) => r.id}
+          actions={(r) => (
+            <div className="ab-actions">
+              {r.status === 1 && <ActBtn ic="check" title="Duyệt thanh lý" onClick={() => doApproveDisposal(r)} />}
+              {r.status === 2 && <ActBtn ic="check" title="Hoàn thành thanh lý" tone="warn" onClick={() => doCompleteDisposal(r)} />}
+            </div>
+          )}
+          empty={loading ? 'Đang tải…' : 'Chưa có phiếu thanh lý'}
+        />
+      )}
+
+      <ModalShell open={hoOpen} onClose={() => setHoOpen(false)} title="Tạo phiếu bàn giao tài sản" size="md"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setHoOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitHandover}>Lưu</Btn>
+        </>}
+      >
+        <Form layout="vertical" style={{ padding: '4px 0' }}>
+          <Form.Item label="Tài sản *">
+            <Select showSearch optionFilterProp="label" placeholder="Chọn tài sản…"
+              value={hoForm.fixedAssetId} options={assetOptions} style={{ width: '100%' }}
+              onChange={(v) => setHoForm((p) => ({ ...p, fixedAssetId: v }))} />
+          </Form.Item>
+          <Form.Item label="Loại bàn giao">
+            <Select value={hoForm.handoverType} style={{ width: '100%' }}
+              options={Object.entries(HANDOVER_TYPE).map(([k, l]) => ({ value: Number(k), label: l }))}
+              onChange={(v) => setHoForm((p) => ({ ...p, handoverType: v }))} />
+          </Form.Item>
+          <Form.Item label="Ngày bàn giao">
+            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY"
+              value={hoForm.handoverDate ? dayjs(hoForm.handoverDate) : null}
+              onChange={(d) => setHoForm((p) => ({ ...p, handoverDate: d ? d.toISOString() : undefined }))} />
+          </Form.Item>
+          <Form.Item label="Ghi chú">
+            <Input.TextArea rows={2} value={hoForm.notes ?? ''}
+              onChange={(e) => setHoForm((p) => ({ ...p, notes: e.target.value || undefined }))} />
+          </Form.Item>
+        </Form>
+      </ModalShell>
+
+      <ModalShell open={dpOpen} onClose={() => setDpOpen(false)} title="Đề xuất thanh lý tài sản" size="md"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setDpOpen(false)}>Hủy</Btn>
+          <Btn variant="primary" onClick={submitDisposal}>Đề xuất</Btn>
+        </>}
+      >
+        <Form layout="vertical" style={{ padding: '4px 0' }}>
+          <Form.Item label="Tài sản *">
+            <Select showSearch optionFilterProp="label" placeholder="Chọn tài sản…"
+              value={dpForm.fixedAssetId} options={assetOptions} style={{ width: '100%' }}
+              onChange={(v) => setDpForm((p) => ({ ...p, fixedAssetId: v }))} />
+          </Form.Item>
+          <Form.Item label="Loại thanh lý">
+            <Select value={dpForm.disposalType} style={{ width: '100%' }}
+              options={Object.entries(DISPOSAL_TYPE).map(([k, l]) => ({ value: Number(k), label: l }))}
+              onChange={(v) => setDpForm((p) => ({ ...p, disposalType: v }))} />
+          </Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Form.Item label="Giá thanh lý (đ)">
+              <Input type="number" min={0} value={dpForm.disposalValue ?? ''}
+                onChange={(e) => setDpForm((p) => ({ ...p, disposalValue: e.target.value === '' ? undefined : Number(e.target.value) }))} />
+            </Form.Item>
+            <Form.Item label="Giá trị còn lại (đ)">
+              <Input type="number" min={0} value={dpForm.residualValue ?? ''}
+                onChange={(e) => setDpForm((p) => ({ ...p, residualValue: e.target.value === '' ? undefined : Number(e.target.value) }))} />
+            </Form.Item>
+          </div>
+          <Form.Item label="Lý do">
+            <Input.TextArea rows={2} value={dpForm.reason ?? ''}
+              onChange={(e) => setDpForm((p) => ({ ...p, reason: e.target.value || undefined }))} />
+          </Form.Item>
+        </Form>
+      </ModalShell>
 
       <DrawerShell
         open={!!sel}

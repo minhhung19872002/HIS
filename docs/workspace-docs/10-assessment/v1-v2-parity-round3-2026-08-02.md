@@ -58,8 +58,8 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### AssetManagement
 - v1: `frontend/src/pages/AssetManagement.tsx` | v2: `frontend/src/modules/asset/pages/AssetManagement.tsx` | confidence scan: high | SCAN_ONLY
-  - [ ] Handovers tab (Bàn giao tài sản) — v1 pages/AssetManagement.tsx:308-379 create/list/confirm handover; getHandovers/saveHandover/confirmHandover exist unused in modules/asset/api/assetManagement.ts:222-239
-  - [ ] Disposals tab (Thanh lý) — v1 pages/AssetManagement.tsx:382-453 propose/approve/complete disposal; getDisposals/proposeDisposal/approveDisposal/completeDisposal exist unused in modules/asset/api/assetManagement.ts:243-265
+  - [x] Handovers tab (Bàn giao tài sản) — ĐÃ PORT 2026-08-02 (tab "Bàn giao" v2, chọn tài sản bằng Select thay vì gõ GUID) — v1 pages/AssetManagement.tsx:308-379 create/list/confirm handover; getHandovers/saveHandover/confirmHandover exist unused in modules/asset/api/assetManagement.ts:222-239
+  - [x] Disposals tab (Thanh lý) — ĐÃ PORT 2026-08-02 (tab "Thanh lý" v2, đủ đề xuất/duyệt/hoàn thành + cf-confirm) — v1 pages/AssetManagement.tsx:382-453 propose/approve/complete disposal; getDisposals/proposeDisposal/approveDisposal/completeDisposal exist unused in modules/asset/api/assetManagement.ts:243-265
   - [ ] Full 'Báo cáo TSCD' report catalog — v1 pages/AssetManagement.tsx:576-681 (grouped report types + generateAssetReport by category); getAssetReportTypes/generateAssetReport exist unused in modules/asset/api/assetManagement.ts:304-314
   - [ ] Dashboard pie/bar charts by status + depreciation trend (v1 pages/AssetManagement.tsx:540-570) — v2 only shows 4 KPI numbers, no chart
 
