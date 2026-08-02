@@ -4,7 +4,7 @@ import { fmtNum as fmt } from '../../../utils/format';
 import { DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import apiClient from '../../../services/apiClient';
-import { exportToExcel } from '../../../utils/excelExport';
+import { exportToExcel, type ExcelColumn, formatVnd, formatDateTime, formatDate } from '../../../utils/excelExport';
 import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, Btn, tk, ti, tw,
   type ColumnDef,
@@ -47,10 +47,15 @@ type BillingDetailRow = Record<string, any>;
 type RefundRow = Record<string, any>;
 interface PharmacyRetailRow { saleCode: string; saleDate: string; patientName: string; phoneNumber?: string; totalAmount: number; discountAmount: number; paidAmount: number; paymentMethod: string; cashierName?: string; itemCount: number }
 
+const defaultRange = (t: Tab): [Dayjs, Dayjs] => {
+  if (t === 'bc3' || t === 'bc6') return [dayjs().startOf('day'), dayjs()];
+  if (t === 'bc4' || t === 'bc5' || t === 'bc7') return [dayjs().subtract(30, 'day'), dayjs()];
+  return [dayjs().subtract(7, 'day'), dayjs()];
+};
 
 const PaymentReportsV2: React.FC = () => {
   const [tab, setTab] = useState<Tab>('bc1');
-  const [range, setRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(7, 'day'), dayjs()]);
+  const [range, setRange] = useState<[Dayjs, Dayjs]>(defaultRange('bc1'));
   const [provider, setProvider] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -122,56 +127,57 @@ const PaymentReportsV2: React.FC = () => {
     tk('Đã xuất CSV');
   };
 
-  // #352 P4: parity v1 — Excel export per-tab (header tiếng Việt, cùng utils/excelExport như v1)
-  const EXCEL_HEADERS: Record<Tab, { key: string; header: string }[]> = {
+  type XCol = ExcelColumn<Record<string, unknown>>;
+  const EXCEL_HEADERS: Record<Tab, XCol[]> = {
     bc1: [
       { key: 'txnRef', header: 'Mã GD' }, { key: 'gatewayTxnRef', header: 'Mã cổng' },
       { key: 'patientCode', header: 'Mã BN' }, { key: 'patientName', header: 'Bệnh nhân' },
-      { key: 'amount', header: 'Số tiền' }, { key: 'provider', header: 'Cổng' },
-      { key: 'bankCode', header: 'Ngân hàng' }, { key: 'completedAt', header: 'Thời gian' },
+      { key: 'amount', header: 'Số tiền', format: formatVnd }, { key: 'provider', header: 'Cổng' },
+      { key: 'bankCode', header: 'Ngân hàng' }, { key: 'completedAt', header: 'Thời gian', format: formatDateTime },
     ],
     bc2: [
-      { key: 'date', header: 'Ngày' }, { key: 'receipts', header: 'Số phiếu' },
-      { key: 'deposit', header: 'Tạm ứng' }, { key: 'payment', header: 'Viện phí' },
-      { key: 'refund', header: 'Hoàn trả' }, { key: 'net', header: 'Net' },
-      { key: 'cash', header: 'Tiền mặt' }, { key: 'transfer', header: 'Chuyển khoản' },
-      { key: 'card', header: 'Thẻ' }, { key: 'eWallet', header: 'Ví điện tử' },
+      { key: 'date', header: 'Ngày', format: formatDate }, { key: 'receipts', header: 'Số phiếu' },
+      { key: 'deposit', header: 'Tạm ứng', format: formatVnd }, { key: 'payment', header: 'Viện phí', format: formatVnd },
+      { key: 'refund', header: 'Hoàn trả', format: formatVnd }, { key: 'net', header: 'Net', format: formatVnd },
+      { key: 'cash', header: 'Tiền mặt', format: formatVnd }, { key: 'transfer', header: 'Chuyển khoản', format: formatVnd },
+      { key: 'card', header: 'Thẻ', format: formatVnd }, { key: 'eWallet', header: 'Ví điện tử', format: formatVnd },
     ],
     bc3: [
-      { key: 'receiptCode', header: 'Mã phiếu' }, { key: 'receiptDate', header: 'Ngày' },
+      { key: 'receiptCode', header: 'Mã phiếu' }, { key: 'receiptDate', header: 'Ngày', format: formatDateTime },
       { key: 'patientCode', header: 'Mã BN' }, { key: 'patientName', header: 'Bệnh nhân' },
       { key: 'receiptTypeName', header: 'Loại phiếu' }, { key: 'paymentMethodName', header: 'PT thanh toán' },
-      { key: 'finalAmount', header: 'Thành tiền' }, { key: 'cashierName', header: 'Thu ngân' },
+      { key: 'finalAmount', header: 'Thành tiền', format: formatVnd }, { key: 'cashierName', header: 'Thu ngân' },
     ],
     bc4: [
       { key: 'invoiceSeries', header: 'Ký hiệu' }, { key: 'invoiceNumber', header: 'Số HĐ' },
-      { key: 'invoiceDate', header: 'Ngày' }, { key: 'patientName', header: 'Họ tên' },
-      { key: 'subTotal', header: 'Trước thuế' }, { key: 'vatAmount', header: 'VAT' },
-      { key: 'totalAmount', header: 'Tổng' },
+      { key: 'invoiceDate', header: 'Ngày', format: formatDate }, { key: 'patientName', header: 'Họ tên' },
+      { key: 'subTotal', header: 'Trước thuế', format: formatVnd }, { key: 'vatAmount', header: 'VAT', format: formatVnd },
+      { key: 'totalAmount', header: 'Tổng', format: formatVnd },
     ],
     bc5: [
       { key: 'invoiceSeries', header: 'Ký hiệu' }, { key: 'invoiceNumber', header: 'Số HĐ' },
-      { key: 'invoiceDate', header: 'Ngày' }, { key: 'patientName', header: 'Họ tên' },
-      { key: 'subTotal', header: 'Trước thuế' }, { key: 'vatAmount', header: 'VAT' },
-      { key: 'totalAmount', header: 'Tổng' },
+      { key: 'invoiceDate', header: 'Ngày', format: formatDate }, { key: 'patientName', header: 'Họ tên' },
+      { key: 'subTotal', header: 'Trước thuế', format: formatVnd }, { key: 'vatAmount', header: 'VAT', format: formatVnd },
+      { key: 'totalAmount', header: 'Tổng', format: formatVnd },
     ],
     bc6: [
-      { key: 'receiptCode', header: 'Mã phiếu' }, { key: 'receiptDate', header: 'Ngày' },
+      { key: 'receiptCode', header: 'Mã phiếu' }, { key: 'receiptDate', header: 'Ngày', format: formatDateTime },
       { key: 'patientName', header: 'Bệnh nhân' }, { key: 'itemCode', header: 'Mã DV' },
       { key: 'itemName', header: 'Tên DV' }, { key: 'quantity', header: 'SL' },
-      { key: 'finalAmount', header: 'Thành tiền' },
+      { key: 'unitPrice', header: 'Đơn giá', format: formatVnd },
+      { key: 'finalAmount', header: 'Thành tiền', format: formatVnd },
     ],
     bc7: [
       { key: 'txnRef', header: 'Mã GD' }, { key: 'provider', header: 'Cổng' },
-      { key: 'patientName', header: 'Bệnh nhân' }, { key: 'originalAmount', header: 'Tiền gốc' },
-      { key: 'refundedAmount', header: 'Đã hoàn' }, { key: 'refundedAt', header: 'Ngày hoàn' },
+      { key: 'patientName', header: 'Bệnh nhân' }, { key: 'originalAmount', header: 'Tiền gốc', format: formatVnd },
+      { key: 'refundedAmount', header: 'Đã hoàn', format: formatVnd }, { key: 'refundedAt', header: 'Ngày hoàn', format: formatDateTime },
       { key: 'refundReason', header: 'Lý do' },
     ],
     bc8: [
-      { key: 'saleCode', header: 'Mã phiếu' }, { key: 'saleDate', header: 'Ngày bán' },
+      { key: 'saleCode', header: 'Mã phiếu' }, { key: 'saleDate', header: 'Ngày bán', format: formatDateTime },
       { key: 'patientName', header: 'Khách hàng' }, { key: 'phoneNumber', header: 'SĐT' },
-      { key: 'totalAmount', header: 'Tổng tiền' }, { key: 'discountAmount', header: 'Giảm giá' },
-      { key: 'paidAmount', header: 'Thanh toán' }, { key: 'paymentMethod', header: 'PTTT' },
+      { key: 'totalAmount', header: 'Tổng tiền', format: formatVnd }, { key: 'discountAmount', header: 'Giảm giá', format: formatVnd },
+      { key: 'paidAmount', header: 'Thanh toán', format: formatVnd }, { key: 'paymentMethod', header: 'PTTT' },
       { key: 'cashierName', header: 'Thu ngân' }, { key: 'itemCount', header: 'Số mặt hàng' },
     ],
   };
@@ -243,6 +249,7 @@ const PaymentReportsV2: React.FC = () => {
     { key: 'sc', label: 'Mã DV', code: true, render: (r) => String(r.itemCode || '—') },
     { key: 'name', label: 'Tên DV', render: (r) => String(r.itemName || '—') },
     { key: 'qty', label: 'SL', mono: true, render: (r) => Number(r.quantity || 0) },
+    { key: 'price', label: 'Đơn giá', mono: true, render: (r) => fmt(Number(r.unitPrice || 0)) },
     { key: 'amt', label: 'Thành tiền', mono: true, render: (r) => fmt(Number(r.finalAmount || 0)) },
   ];
 
@@ -283,19 +290,19 @@ const PaymentReportsV2: React.FC = () => {
   const kpiSet = () => {
     if (tab === 'bc1') return [
       { lbl: 'Số GD', val: bc1?.totalCount ?? 0, sub: 'tạm ứng cổng' },
-      { lbl: 'Tổng tạm ứng', val: Math.round((bc1?.totalAmount ?? 0) / 1_000_000), unit: 'tr', sub: 'VND', tone: 'info' as const },
+      { lbl: 'Tổng tạm ứng', val: fmt(bc1?.totalAmount ?? 0), sub: '₫', tone: 'info' as const },
       { lbl: 'Cổng', val: provider.toUpperCase() || 'TẤT CẢ', sub: '', tone: 'warn' as const },
       { lbl: 'Khoảng', val: range[1].diff(range[0], 'day') + 1, unit: 'ngày', sub: range[0].format('DD/MM') + '–' + range[1].format('DD/MM') },
     ];
     if (tab === 'bc2') return [
       { lbl: 'Số ngày', val: bc2?.byDay?.length ?? 0, sub: 'có giao dịch' },
-      { lbl: 'Tổng net', val: Math.round((bc2?.totalNet ?? 0) / 1_000_000), unit: 'tr', sub: 'VND', tone: 'ok' as const },
-      { lbl: 'TB/ngày', val: bc2?.byDay?.length ? Math.round((bc2.totalNet / bc2.byDay.length) / 1_000_000) : 0, unit: 'tr', sub: 'VND/ngày', tone: 'info' as const },
+      { lbl: 'Tổng net', val: fmt(bc2?.totalNet ?? 0), sub: '₫', tone: 'ok' as const },
+      { lbl: 'TB/ngày', val: bc2?.byDay?.length ? fmt(Math.round(bc2.totalNet / bc2.byDay.length)) : '0', sub: '₫/ngày', tone: 'info' as const },
       { lbl: 'Khoảng', val: range[1].diff(range[0], 'day') + 1, unit: 'ngày', sub: range[0].format('DD/MM') + '–' + range[1].format('DD/MM') },
     ];
     if (tab === 'bc3') return [
       { lbl: 'Số phiếu', val: bc3.length, sub: 'chi tiết' },
-      { lbl: 'Tổng tiền', val: Math.round(bc3.reduce((s, r) => s + (r.finalAmount || 0), 0) / 1_000_000), unit: 'tr', sub: 'VND', tone: 'ok' as const },
+      { lbl: 'Tổng tiền', val: fmt(bc3.reduce((s, r) => s + (r.finalAmount || 0), 0)), sub: '₫', tone: 'ok' as const },
       { lbl: 'Số BN', val: new Set(bc3.map((r) => r.patientCode).filter(Boolean)).size, sub: 'unique' },
       { lbl: 'Khoảng', val: range[1].diff(range[0], 'day') + 1, unit: 'ngày', sub: range[0].format('DD/MM') + '–' + range[1].format('DD/MM') },
     ];
@@ -303,27 +310,27 @@ const PaymentReportsV2: React.FC = () => {
       const data = tab === 'bc4' ? bc4 : bc5;
       return [
         { lbl: 'Số HĐ', val: data?.count ?? 0, sub: tab === 'bc4' ? 'BHYT' : 'Dịch vụ', tone: 'info' as const },
-        { lbl: 'Tổng', val: Math.round((data?.totalAmount ?? 0) / 1_000_000), unit: 'tr', sub: 'VND', tone: 'ok' as const },
-        { lbl: 'TB/HĐ', val: data?.count ? Math.round((data.totalAmount / data.count) / 1000) : 0, unit: 'k', sub: 'đ/HĐ' },
+        { lbl: 'Tổng', val: fmt(data?.totalAmount ?? 0), sub: '₫', tone: 'ok' as const },
+        { lbl: 'TB/HĐ', val: data?.count ? fmt(Math.round(data.totalAmount / data.count)) : '0', sub: '₫/HĐ' },
         { lbl: 'Khoảng', val: range[1].diff(range[0], 'day') + 1, unit: 'ngày', sub: range[0].format('DD/MM') + '–' + range[1].format('DD/MM') },
       ];
     }
     if (tab === 'bc6') return [
       { lbl: 'Số dòng', val: bc6.length, sub: 'chi tiết DV' },
-      { lbl: 'Tổng tiền', val: Math.round(bc6.reduce((s, r) => s + (Number(r.finalAmount) || 0), 0) / 1_000_000), unit: 'tr', sub: 'VND', tone: 'ok' as const },
+      { lbl: 'Tổng tiền', val: fmt(bc6.reduce((s, r) => s + (Number(r.finalAmount) || 0), 0)), sub: '₫', tone: 'ok' as const },
       { lbl: 'Số DV unique', val: new Set(bc6.map((r) => r.itemCode).filter(Boolean)).size, sub: 'mã DV' },
       { lbl: 'Khoảng', val: range[1].diff(range[0], 'day') + 1, unit: 'ngày', sub: range[0].format('DD/MM') + '–' + range[1].format('DD/MM') },
     ];
     if (tab === 'bc7') return [
       { lbl: 'Số GD hoàn', val: bc7?.count ?? 0, sub: 'qua cổng', tone: 'crit' as const },
-      { lbl: 'Tổng hoàn', val: Math.round((bc7?.totalRefunded ?? 0) / 1_000_000), unit: 'tr', sub: 'VND', tone: 'crit' as const },
-      { lbl: 'TB/GD', val: bc7?.count ? Math.round((bc7.totalRefunded / bc7.count) / 1000) : 0, unit: 'k', sub: 'đ/GD' },
+      { lbl: 'Tổng hoàn', val: fmt(bc7?.totalRefunded ?? 0), sub: '₫', tone: 'crit' as const },
+      { lbl: 'TB/GD', val: bc7?.count ? fmt(Math.round(bc7.totalRefunded / bc7.count)) : '0', sub: '₫/GD' },
       { lbl: 'Khoảng', val: range[1].diff(range[0], 'day') + 1, unit: 'ngày', sub: range[0].format('DD/MM') + '–' + range[1].format('DD/MM') },
     ];
     return [
       { lbl: 'Số phiếu bán', val: bc8?.totalCount ?? 0, sub: 'nhà thuốc', tone: 'info' as const },
-      { lbl: 'Doanh thu', val: Math.round((bc8?.totalPaid ?? 0) / 1_000_000), unit: 'tr', sub: 'VND', tone: 'ok' as const },
-      { lbl: 'Giảm giá', val: Math.round((bc8?.totalDiscount ?? 0) / 1_000_000), unit: 'tr', sub: 'VND', tone: 'warn' as const },
+      { lbl: 'Doanh thu', val: fmt(bc8?.totalPaid ?? 0), sub: '₫', tone: 'ok' as const },
+      { lbl: 'Giảm giá', val: fmt(bc8?.totalDiscount ?? 0), sub: '₫', tone: 'warn' as const },
       { lbl: 'Khoảng', val: range[1].diff(range[0], 'day') + 1, unit: 'ngày', sub: range[0].format('DD/MM') + '–' + range[1].format('DD/MM') },
     ];
   };
@@ -348,7 +355,7 @@ const PaymentReportsV2: React.FC = () => {
         {tab === 'bc8' && (
           <Filter value={pharmMethod} onChange={setPharmMethod} options={PHARM_METHODS} placeholder="▾ Phương thức TT" />
         )}
-        <Btn variant="ghost" icon="x" onClick={() => { setRange([dayjs().subtract(7, 'day'), dayjs()]); setProvider(''); setPharmMethod(''); }}>Reset</Btn>
+        <Btn variant="ghost" icon="x" onClick={() => { setRange(defaultRange(tab)); setProvider(''); setPharmMethod(''); }}>Reset</Btn>
       </div>
 
       {renderCurrent()}
