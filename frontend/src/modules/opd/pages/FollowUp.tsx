@@ -60,7 +60,7 @@ const fmtHM = (iso?: string) => iso ? dayjs(iso).format('HH:mm') : '—';
 const fmtDMY = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY') : '—';
 const fmtDT = (iso?: string) => iso ? dayjs(iso).format('DD/MM/YYYY HH:mm') : '—';
 
-const PAGE_SIZE = 16;
+const PAGE_SIZE_OPTS = [16, 20, 50];
 
 const FollowUpV2: React.FC = () => {
   const { message } = AntdApp.useApp();
@@ -76,6 +76,8 @@ const FollowUpV2: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState('');
   const [range, setRange] = useState<[Dayjs, Dayjs]>([dayjs(), dayjs()]);
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(16); // parity v1 showSizeChanger
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null); // parity v1 sorter Ngày hẹn (trang hiện tại)
   const [detail, setDetail] = useState<AppointmentListDto | null>(null);
   const seqRef = useRef(0);
 
@@ -111,7 +113,7 @@ const FollowUpV2: React.FC = () => {
         status: tab === 'overdue' || statusFilter === '' ? undefined : Number(statusFilter),
         appointmentType: typeFilter === '' ? undefined : Number(typeFilter),
         page: page + 1, // API 1-based
-        pageSize: PAGE_SIZE,
+        pageSize,
       }),
       getOverdueFollowUps(30),
     ]);
@@ -128,7 +130,7 @@ const FollowUpV2: React.FC = () => {
       setOverdueList(overdueRes.value.data || []);
     }
     setLoading(false);
-  }, [tab, statusFilter, typeFilter, range, page, search]);
+  }, [tab, statusFilter, typeFilter, range, page, search, pageSize]);
 
   useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
 
@@ -189,9 +191,17 @@ const FollowUpV2: React.FC = () => {
   // Phân trang: tab server → totalCount từ API; tab Quá hạn → client-slice
   const isServerPaged = tab !== 'overdue';
   const totalPages = isServerPaged
-    ? Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-    : Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged = isServerPaged ? filtered : filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+    ? Math.max(1, Math.ceil(totalCount / pageSize))
+    : Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pagedRaw = isServerPaged ? filtered : filtered.slice(page * pageSize, (page + 1) * pageSize);
+  // Sorter Ngày hẹn trên trang hiện tại (đúng hành vi Antd sorter + server pagination của v1)
+  const paged = useMemo(() => {
+    if (!sortDir) return pagedRaw;
+    return [...pagedRaw].sort((a, b) => {
+      const d = dayjs(a.appointmentDate).valueOf() - dayjs(b.appointmentDate).valueOf();
+      return sortDir === 'asc' ? d : -d;
+    });
+  }, [pagedRaw, sortDir]);
 
   // KPI hôm-nay như v1 (tính trên trang dữ liệu đang tải, cùng semantics v1)
   const kpis = useMemo(() => {
@@ -284,7 +294,8 @@ const FollowUpV2: React.FC = () => {
         tab={tab}
         setTab={(t) => { setTab(t); setPage(0); }}
         tabs={[
-          { v: 'today',    l: 'Hôm nay', ic: 'calendar' },
+          // parity v1: badge số lịch đã xác nhận hôm nay trên tab Hôm nay
+          { v: 'today',    l: kpis.todayConfirmed > 0 ? `Hôm nay (${kpis.todayConfirmed}✓)` : 'Hôm nay', ic: 'calendar' },
           { v: 'upcoming', l: 'Sắp tới', ic: 'clock' },
           { v: 'overdue',  l: overdueList.length > 0 ? `Quá hạn (${overdueList.length})` : 'Quá hạn', ic: 'alert' },
           { v: 'all',      l: 'Tất cả', ic: 'list' },
@@ -308,6 +319,14 @@ const FollowUpV2: React.FC = () => {
         <Btn variant="ghost" onClick={resetFilters}>
           <TermIcon name="refresh" size={12} /> Bỏ lọc
         </Btn>
+        {/* parity v1: sorter Ngày hẹn (trang hiện tại) + showSizeChanger */}
+        <Btn variant="ghost" onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : d === 'desc' ? null : 'asc'))}>
+          Ngày hẹn {sortDir === 'asc' ? '↑' : sortDir === 'desc' ? '↓' : '↕'}
+        </Btn>
+        <select className="ab-sel" value={pageSize} title="Số dòng/trang"
+          onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}>
+          {PAGE_SIZE_OPTS.map((n) => <option key={n} value={n}>{n}/trang</option>)}
+        </select>
         <span className="spacer" />
         <Btn variant="ghost" onClick={fetchAppointments}>
           <TermIcon name="refresh" size={12} /> Làm mới
@@ -380,7 +399,7 @@ const FollowUpV2: React.FC = () => {
         totalPages={totalPages}
         setPage={setPage}
         total={isServerPaged ? totalCount : filtered.length}
-        perPage={PAGE_SIZE}
+        perPage={pageSize}
       />
 
       <DrawerShell

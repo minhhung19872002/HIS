@@ -508,7 +508,7 @@ const CampaignTab: React.FC = () => {
 // ──────────────────────────────────────────────────────────────────────────────
 
 const HealthCheckupV2: React.FC = () => {
-  const [mainTab, setMainTab] = useState<'ksk' | 'campaign'>('ksk');
+  const [mainTab, setMainTab] = useState<'ksk' | 'campaign' | 'report'>('ksk');
 
   const [items, setItems] = useState<HealthCheckup[]>([]);
   const [stats, setStats] = useState<HealthCheckupStats | null>(null);
@@ -626,12 +626,13 @@ const HealthCheckupV2: React.FC = () => {
 
   return (
     <div className="ab">
-      <TopTabs<'ksk' | 'campaign'>
+      <TopTabs<'ksk' | 'campaign' | 'report'>
         tab={mainTab}
         setTab={setMainTab}
         tabs={[
           { v: 'ksk',      l: 'Danh sách KSK',  ic: 'list' },
           { v: 'campaign', l: 'Chiến dịch KSK',  ic: 'briefcase' },
+          { v: 'report',   l: 'Báo cáo',         ic: 'chart' },
         ]}
       />
 
@@ -761,6 +762,52 @@ const HealthCheckupV2: React.FC = () => {
       )}
 
       {mainTab === 'campaign' && <CampaignTab />}
+
+      {/* ── Tab Báo cáo: tổng hợp KSK theo công ty/đợt (parity v1 pages/HealthCheckup.tsx:865-908) ── */}
+      {mainTab === 'report' && (() => {
+        const byCompany = new Map<string, { total: number; completed: number; pass: number; fail: number }>();
+        items.forEach((r) => {
+          const key = r.companyName || 'Khách lẻ';
+          const g = byCompany.get(key) || { total: 0, completed: 0, pass: 0, fail: 0 };
+          g.total += 1;
+          if (r.status >= 2) g.completed += 1;
+          if (r.conclusion === 'pass') g.pass += 1;
+          if (r.conclusion === 'fail') g.fail += 1;
+          byCompany.set(key, g);
+        });
+        const rows = Array.from(byCompany.entries()).map(([company, g]) => ({ company, ...g }));
+        const totals = rows.reduce((a, r) => ({
+          total: a.total + r.total, completed: a.completed + r.completed, pass: a.pass + r.pass, fail: a.fail + r.fail,
+        }), { total: 0, completed: 0, pass: 0, fail: 0 });
+        const pct = (c: number, t: number) => (t > 0 ? `${Math.round((c / t) * 100)}%` : '0%');
+        return (
+          <>
+            <DataTable<typeof rows[number]>
+              columns={[
+                { key: 'company', label: 'Công ty / Đợt', render: (r) => <b>{r.company}</b> },
+                { key: 'total', label: 'Tổng đăng ký', mono: true, width: 120, render: (r) => r.total },
+                { key: 'completed', label: 'Đã hoàn thành', mono: true, width: 130, render: (r) => r.completed },
+                { key: 'pass', label: 'Đạt SK', width: 100, render: (r) => <span className="chip ok">{r.pass}</span> },
+                { key: 'fail', label: 'Không đạt', width: 100, render: (r) => <span className="chip crit">{r.fail}</span> },
+                { key: 'rate', label: 'Tỷ lệ hoàn thành', mono: true, width: 130, render: (r) => pct(r.completed, r.total) },
+              ]}
+              data={rows} rowKey={(r) => r.company}
+              empty="Chưa có dữ liệu KSK"
+            />
+            <div style={{
+              display: 'flex', gap: 'var(--space-16)', padding: '10px 14px', flexWrap: 'wrap',
+              borderTop: '2px solid var(--line)', fontSize: 'var(--fs-sm)', fontWeight: 600,
+            }}>
+              <span>TỔNG CỘNG</span>
+              <span className="mono">Đăng ký: {totals.total}</span>
+              <span className="mono">Hoàn thành: {totals.completed}</span>
+              <span className="mono">Đạt: {totals.pass}</span>
+              <span className="mono">Không đạt: {totals.fail}</span>
+              <span className="mono">{pct(totals.completed, totals.total)}</span>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 };

@@ -80,10 +80,11 @@ const COMPLIANCE_TONE: Record<string, 'ok' | 'info' | 'warn' | 'crit'> = { A: 'o
 
 const PER = 18;
 
-type MainTab = 'incidents' | 'inspections';
+type MainTab = 'incidents' | 'inspections' | 'statistics';
 const TOP_TABS: { v: MainTab; l: string; ic?: string }[] = [
   { v: 'incidents',   l: 'Vụ ngộ độc',    ic: 'alert' },
   { v: 'inspections', l: 'Thanh kiểm tra', ic: 'clipboard' },
+  { v: 'statistics',  l: 'Thống kê',       ic: 'chart' },
 ];
 
 // ──── Component ────
@@ -139,7 +140,8 @@ const FoodSafetyV2: React.FC = () => {
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
-  useEffect(() => { if (tab === 'inspections') loadInspections(); /* eslint-disable-next-line */ }, [tab]);
+  // Tab Thống kê cần cả inspStats → nạp chung
+  useEffect(() => { if (tab === 'inspections' || tab === 'statistics') loadInspections(); /* eslint-disable-next-line */ }, [tab]);
 
   // ── Incident derived ──
   const locTypes = useMemo(() => {
@@ -466,6 +468,33 @@ const FoodSafetyV2: React.FC = () => {
               loadInspections();
             }}
           />
+        </>
+      )}
+
+      {/* ════════════ TAB: THỐNG KÊ (parity v1 pages/FoodSafety.tsx:468-533) ════════════ */}
+      {tab === 'statistics' && (
+        <>
+          <KpiStrip items={[
+            { lbl: 'Tổng sự cố',        val: stats?.totalIncidents ?? 0, sub: 'ngộ độc TP', tone: 'warn' },
+            { lbl: 'Người bị ảnh hưởng', val: stats?.totalAffected ?? 0, sub: 'tổng cộng', tone: 'info' },
+            { lbl: 'Điểm tuân thủ TB',   val: `${Math.round(inspStats?.avgScore ?? stats?.avgComplianceScore ?? 0)}/100`, sub: 'thanh kiểm', tone: 'ok' },
+            { lbl: 'CS xếp loại C/D',    val: (inspStats?.complianceC ?? 0) + (inspStats?.complianceD ?? 0), sub: 'cần chấn chỉnh', tone: 'crit' },
+          ]} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14, padding: '12px 16px' }}>
+            <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 12 }}>
+              <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', marginBottom: 8, textTransform: 'uppercase', color: 'var(--t-2)' }}>Sự cố theo tháng</div>
+              {stats?.incidentsByMonth?.length
+                ? stats.incidentsByMonth.map((m) => <Line key={m.month} label={m.month} value={m.count} />)
+                : <span style={{ color: 'var(--t-3)', fontSize: 'var(--fs-sm)' }}>Chưa có dữ liệu</span>}
+            </div>
+            <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 12 }}>
+              <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', marginBottom: 8, textTransform: 'uppercase', color: 'var(--t-2)' }}>Xếp loại tuân thủ</div>
+              <Line label="A — Xuất sắc"   value={`${inspStats?.complianceA ?? 0} CS`} tone="ok" />
+              <Line label="B — Khá"        value={`${inspStats?.complianceB ?? 0} CS`} tone="info" />
+              <Line label="C — Trung bình" value={`${inspStats?.complianceC ?? 0} CS`} tone="warn" />
+              <Line label="D — Không đạt"  value={`${inspStats?.complianceD ?? 0} CS`} tone="crit" />
+            </div>
+          </div>
         </>
       )}
     </div>

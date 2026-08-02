@@ -223,15 +223,15 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 - v1: `frontend/src/pages/FollowUp.tsx` | v2: `frontend/src/modules/opd/pages/FollowUp.tsx` | confidence scan: high | OVERTURNED
   - [x] Server-side keyword search: v1 pages/FollowUp — ĐÃ PORT 2026-08-02 (truyền keyword lên searchAppointments, thêm vào deps).tsx:79 sends keyword to searchAppointments (DTO modules/opd/api/examination.ts:1391; backend filters FullName/PatientCode/AppointmentCode/PhoneNumber in ExaminationCompleteService.Conclusion.cs:241-248, before paging). v2 modules/opd/pages/FollowUp.tsx:101-110 never sends keyword — its SearchBox (L162-173) filters client-side over only the 16 rows of the current server page (PAGE_SIZE=16 L63; paged=filtered on server-paged tabs L180), so on tabs Hôm nay/Sắp tới/Tất cả any patient beyond the first page is unfindable and totalCount/Pager ignore the search. v1 searched database-wide.
   - [x] Click-to-call tel: links — ĐÃ PORT 2026-08-02 (SĐT thành <a href=tel:> + nút phone GỌI thật; tách nút "Ghi nhận đã liên hệ" nói đúng việc nó làm): v1 pages/FollowUp.tsx:188-192 (table SĐT column) and :443-447 (detail modal) render <a href="tel:...">; v2 has zero tel: occurrences — phone is plain text, and the phone-icon ActBtn 'Ghi nhận liên lạc' (v2 L332-334) does NOT dial: it calls onRemind → updateAppointmentStatus(id, 1) (v2 L140-149), silently mutating the appointment to 'Đã xác nhận' instead of opening a call.
-  - [ ] Sortable 'Ngày hẹn' column: v1 pages/FollowUp.tsx:168 has sorter on appointmentDate; v2 DataTable columns (L198-247) have no sorting.
-  - [ ] Page-size changer: v1 pages/FollowUp.tsx:403 showSizeChanger (default 20, user-adjustable); v2 hard-codes 16 rows with no size control (L63, Pager L356-362).
-  - [ ] 'Hôm nay' tab badge with confirmed count: v1 pages/FollowUp.tsx:279-283 shows Badge(todayConfirmed) on the tab label; v2 TopTabs 'Hôm nay' (L266) has no count.
+  - [x] Sortable 'Ngày hẹn' — ĐÃ SỬA 2026-08-02 (nút toggle ↑/↓/↕ toolbar sort trang hiện tại — đúng hành vi Antd sorter + server pagination của v1)
+  - [x] Page-size changer — ĐÃ SỬA 2026-08-02 (select 16/20/50 dòng/trang, wired vào fetch + Pager)
+  - [x] 'Hôm nay' tab badge — ĐÃ SỬA 2026-08-02 (label `Hôm nay (N✓)` = số lịch đã xác nhận hôm nay)
 
 ### FoodSafety
 - v1: `frontend/src/pages/FoodSafety.tsx` | v2: `frontend/src/modules/public-health/pages/FoodSafety.tsx` | confidence scan: high | SCAN_ONLY
-  - [ ] v1 pages/FoodSafety.tsx:468-533 'Thống kê' (statistics) tab entirely absent in v2 — no equivalent UI anywhere in modules/public-health/pages/FoodSafety.tsx
-  - [ ] v1 pages/FoodSafety.tsx:499-512 'Sự cố theo tháng' (incidents-by-month breakdown, stats.incidentsByMonth) — not rendered in v2
-  - [ ] v1 pages/FoodSafety.tsx:488 'Điểm tuân thủ TB' (inspectionStats.avgScore average compliance score) — not shown in v2 KpiStrip (checked, avgScore never referenced in v2 file)
+  - [x] 'Thống kê' tab — ĐÃ PORT 2026-08-02 (tab Thống kê: 4 KPI + panel Sự cố theo tháng + panel Xếp loại tuân thủ A-D)
+  - [x] 'Sự cố theo tháng' — ĐÃ PORT 2026-08-02 (Line rows từ stats.incidentsByMonth trong tab Thống kê)
+  - [x] 'Điểm tuân thủ TB' — ĐÃ PORT 2026-08-02 (KPI `avgScore/100` trong tab Thống kê, fallback avgComplianceScore)
 
 ### FunctionalDiagnostics
 - v1: `frontend/src/pages/FunctionalDiagnostics.tsx` | v2: `frontend/src/modules/radiology/pages/FunctionalDiagnostics.tsx` | confidence scan: high | OVERTURNED_R2
@@ -242,7 +242,7 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### HealthCheckup
 - v1: `frontend/src/pages/HealthCheckup.tsx` | v2: `frontend/src/modules/checkup/pages/HealthCheckup.tsx` | confidence scan: high | SCAN_ONLY
-  - [ ] v1 pages/HealthCheckup.tsx:865-908 'Báo cáo' tab — summary table by company/campaign (Tổng đăng ký / Đã hoàn thành / Đạt SK / Không đạt / Tỷ lệ hoàn thành, with totals row) — no equivalent tab or table exists anywhere in v2 modules/checkup/pages/HealthCheckup.tsx
+  - [x] 'Báo cáo' tab — ĐÃ PORT 2026-08-02 (tab Báo cáo: DataTable tổng hợp theo công ty/đợt — Tổng ĐK/Hoàn thành/Đạt/Không đạt/Tỷ lệ + hàng TỔNG CỘNG)
 
 ### Help
 - v1: `frontend/src/pages/Help.tsx` | v2: `frontend/src/modules/radiology/pages/Help.tsx` | confidence scan: high | OVERTURNED_R2
