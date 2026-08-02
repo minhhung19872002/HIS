@@ -15,7 +15,7 @@ import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
   DrawerShell, DrSec, DrField, ModalShell, useTabCounts, tk, ti, te, cf, Ico,
   type ColumnDef, type CrudFieldCfg,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 const STATUS_LABEL: Record<number, string> = {
   0: 'Chờ xác nhận', 1: 'Đã xác nhận', 2: 'Đã đến', 3: 'Vắng mặt', 4: 'Hủy',

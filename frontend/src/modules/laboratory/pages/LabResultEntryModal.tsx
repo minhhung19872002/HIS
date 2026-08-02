@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input, InputNumber } from 'antd';
-import { ModalShell, Btn, StatusBadge } from '../../../pages-v2/_v2kit';
+import { ModalShell, Btn, StatusBadge } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import * as labApi from '../api/laboratory';
 import type { LabRequest, TestParameter } from '../api/laboratory';

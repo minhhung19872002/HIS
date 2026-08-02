@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { getAccessControlMatrix, type AccessControlMatrixDto } from '../api/security';
 import {
   DataTable, DrawerShell, DrSec, DrField, StatusBadge, Btn, type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import { getNestedData } from './helpers';
 
 const CLINICAL_ROLES = ['DOCTOR', 'NURSE', 'PHARMACIST', 'LAB_TECH'];

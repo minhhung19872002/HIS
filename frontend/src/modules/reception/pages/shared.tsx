@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import type { AdmissionDto } from '../api/reception';
-import type { StatusTab, TopTab } from '../../../pages-v2/_v2kit';
+import type { StatusTab, TopTab } from '@/_v2kit';
 
 export type TopKey = 'queue' | 'now' | 'stats';
 // 5 trạng thái thực tế tại quầy tiếp đón BV VN:

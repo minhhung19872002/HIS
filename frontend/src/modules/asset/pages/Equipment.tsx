@@ -11,7 +11,7 @@ import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager,
   StatusBadge, ActBtn, ModalShell, DrawerShell, Btn,
   type ColumnDef, type StatusTab, type KpiItem, type TopTab,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 

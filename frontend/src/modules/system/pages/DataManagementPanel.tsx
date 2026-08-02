@@ -9,7 +9,7 @@ import type {
 } from '../../administration/api/dataExport';
 import {
   KpiStrip, DataTable, StatusBadge, Btn, tk, te, cf, type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 const HANDOVER_TONE: Record<number, 'ok' | 'info' | 'warn' | 'crit' | undefined> = { 0: undefined, 1: 'warn', 2: 'ok', 3: 'info' };
 

@@ -7,7 +7,7 @@ import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 const TRAUMA_FIELDS: CrudFieldCfg[] = [
   { key: 'caseCode', label: 'Mã ca', required: true, disabledOnEdit: true },

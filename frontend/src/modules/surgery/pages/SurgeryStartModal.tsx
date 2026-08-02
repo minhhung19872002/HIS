@@ -8,9 +8,9 @@
 import React, { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { DatePicker } from 'antd';
-import { ModalShell, Btn, tk, tw } from '../../../pages-v2/_v2kit';
+import { ModalShell, Btn, tk, tw } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { Section, Row2 } from '../../../pages-v2/shared/surgery-modals/_shared';
+import { Section, Row2 } from './surgery-modals/_shared';
 import { startSurgery, type StartSurgeryDto, type SurgeryDto } from '../api/surgery';
 
 export interface SurgeryStartModalProps {

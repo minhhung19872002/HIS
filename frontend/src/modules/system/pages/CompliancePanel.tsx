@@ -20,7 +20,7 @@ import {
 } from '../api/audit';
 import {
   KpiStrip, DataTable, DrawerShell, DrSec, StatusBadge, Btn, TopTabs, Filter, Pager, type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import { getNestedData } from './helpers';
 
 const { RangePicker } = DatePicker;

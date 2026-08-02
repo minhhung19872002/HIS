@@ -12,7 +12,7 @@ import dayjs from 'dayjs';
 import apiClient from '../../../services/apiClient';
 import {
   KpiStrip, SearchBox, DataTable, ActBtn, Btn, tw, type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

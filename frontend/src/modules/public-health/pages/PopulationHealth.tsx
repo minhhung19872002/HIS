@@ -8,7 +8,7 @@ import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, Ico,
   type ColumnDef, type CrudFieldCfg,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 const POP_FIELDS: CrudFieldCfg[] = [
   { key: 'recordCode', label: 'Mã hồ sơ', required: true, disabledOnEdit: true },

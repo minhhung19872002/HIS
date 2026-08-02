@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   KpiStrip, TopTabs, ActBtn, Btn, ModalShell, DataTable, StatusBadge,
   fmtVNDg, fmtDTg, tk, te, tw, type ColumnDef, type TopTab,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import {
   getBankReconciliation, getQrFinanceReport,

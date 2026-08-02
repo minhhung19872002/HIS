@@ -9,7 +9,7 @@ import {
   type ExamCompletionStatus,
 } from '../api/multiSpecialtyExam';
 import { openPdfBlob } from '../pages/_shared';
-import { tk, tw, te, ti } from '../../../pages-v2/_v2kit';
+import { tk, tw, te, ti } from '@/_v2kit';
 import type { DxRow } from '../pages/_shared';
 
 interface Params {

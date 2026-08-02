@@ -9,7 +9,7 @@ import {
   StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, CrudModal,
   useTabCounts, tk, te, cf,
   type ColumnDef, type StatusTab, type CrudFieldCfg, type KpiItem,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 type SKey = 'pending' | 'examining' | 'completed' | 'approved';
 const STATUS_TABS: StatusTab<SKey>[] = [

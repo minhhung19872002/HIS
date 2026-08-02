@@ -8,7 +8,7 @@
 import React, { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { Input, Select } from 'antd';
-import { ModalShell, tw } from '../../../pages-v2/_v2kit';
+import { ModalShell, tw } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { HOSPITAL_NAME } from '../../../constants/hospital';

@@ -15,7 +15,7 @@ import {
   KpiStrip, TopTabs, ActBtn, Btn, ModalShell, DrSec, DrField,
   StatusBadge, DataTable, tk, te,
   type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

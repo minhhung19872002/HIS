@@ -8,7 +8,7 @@ import type {
   BookingDepartmentDto, BookingDoctorDto, BookingSlotResult,
   BookingTimeSlot, BookingResultDto, BookingStatusDto,
 } from '../api/appointmentBooking';
-import { AbSelect, Btn, LoadingState, StatusBadge, Ico, tk, ti, tw } from '../../../pages-v2/_v2kit';
+import { AbSelect, Btn, LoadingState, StatusBadge, Ico, tk, ti, tw } from '@/_v2kit';
 import { HOSPITAL_NAME, HOSPITAL_ADDRESS, HOSPITAL_PHONE } from '../../../constants/hospital';
 
 /* ==========================================================================

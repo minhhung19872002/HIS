@@ -5,7 +5,7 @@ import {
   useListData, DataTable, DrawerShell, DrSec, DrField, TopTabs, KpiStrip, StatusBadge,
   fmtDMYg, fmtVNDg, tk, te,
   type ColumnDef, type TopTab,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import type {
   OnlineAppointmentDto, LabResultDto,
   VisitSummaryDto, PrescriptionHistoryDto, BillSummaryDto,

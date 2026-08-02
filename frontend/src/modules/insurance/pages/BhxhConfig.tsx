@@ -5,7 +5,7 @@ import apiClient from '../../../services/apiClient';
 import type { ServerValidationError } from '../../../utils/formError';
 import {
   KpiStrip, TopTabs, StatusBadge, Btn, tk, ti, tw,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 interface ConfigData {
   gatewayUrl?: string; tokenUrl?: string; username?: string; passwordMasked?: string;

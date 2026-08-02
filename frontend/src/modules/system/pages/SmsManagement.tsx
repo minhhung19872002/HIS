@@ -8,7 +8,7 @@ import {
   TopTabs, KpiStrip, StatusBadge, SearchBox, DataTable, Pager,
   Btn, DrawerShell, DrSec, DrField, CrudModal, tk, te,
   type ColumnDef, type KpiItem, type CrudFieldCfg,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 

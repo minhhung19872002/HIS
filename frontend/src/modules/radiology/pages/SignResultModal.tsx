@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { App as AntdApp, Input } from 'antd';
 import * as risApi from '../api/ris';
-import { ModalShell, Btn, AbSelect } from '../../../pages-v2/_v2kit';
+import { ModalShell, Btn, AbSelect } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { FormRow, fmtDT, type ApiErr } from './_shared';
 

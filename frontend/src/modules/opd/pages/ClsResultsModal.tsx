@@ -1,5 +1,5 @@
 import React from 'react';
-import { ModalShell, Btn } from '../../../pages-v2/_v2kit';
+import { ModalShell, Btn } from '@/_v2kit';
 import type { PatientLabResultsDto } from '../api/examination';
 
 /* ==========================================================================

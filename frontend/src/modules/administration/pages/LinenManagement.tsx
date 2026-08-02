@@ -4,7 +4,7 @@ import {
   DrawerShell, DrSec, DrField, useListData,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
   tk, te, fmtDTg
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import {
   linen,
   type LinenItemDto, type LinenTransactionDto, type SterilizationScheduleDto

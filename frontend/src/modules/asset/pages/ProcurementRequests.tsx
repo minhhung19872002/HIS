@@ -24,7 +24,7 @@ import {
   ActBtn, Btn, DrawerShell, DrSec, DrField, StatusBadge,
   tk, te, cf,
   type ColumnDef, type StatusTab, type TopTab,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

@@ -5,9 +5,9 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { KpiStrip, Btn, fmtVNDg, tk, tw, te, ti } from '../../../pages-v2/_v2kit';
-import { SurgeryReportModal } from '../../../pages-v2/shared/SurgeryReportModal';
-import { CabinetIssueModal } from '../../../pages-v2/shared/CabinetIssueModal';
+import { KpiStrip, Btn, fmtVNDg, tk, tw, te, ti } from '@/_v2kit';
+import { SurgeryReportModal } from '../../surgery/pages/SurgeryReportModal';
+import { CabinetIssueModal } from '../../pharmacy/pages/CabinetIssueModal';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import BarcodeScanner from '../../../components/form/BarcodeScanner';
 import {

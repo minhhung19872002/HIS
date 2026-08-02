@@ -8,7 +8,7 @@ import {
   KpiStrip, TopTabs, Filter, DataTable, StatusBadge, ActBtn, Btn,
   ModalShell, tk, tw, cf,
   type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 // Insurance subform có nhiều field date — lấy shape lỏng (BE trả mixed Date / string / undefined).
 interface InsuranceData {

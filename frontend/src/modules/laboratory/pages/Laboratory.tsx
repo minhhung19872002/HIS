@@ -10,7 +10,7 @@ import type { LabDefaultRoles } from '../../system/api/userSettings';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager,
   ActBtn, Btn, DrawerShell,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { openPrintWindow } from '../../../utils/printWindow';
 import { SignatureStatusIcon, PinEntryModal } from '../../../components/digitalSignature';

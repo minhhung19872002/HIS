@@ -11,7 +11,7 @@ import {
   StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, CrudModal,
   SimpleV2Page, useTabCounts, tk,
   type TopTab, type ColumnDef, type StatusTab, type CrudFieldCfg, type KpiItem,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 type Tab = 'households' | 'ncd' | 'teams';
 const TABS: TopTab<Tab>[] = [

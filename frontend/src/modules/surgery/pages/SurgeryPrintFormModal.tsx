@@ -16,9 +16,9 @@
 import React, { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { Input } from 'antd';
-import { ModalShell, Btn, tw } from '../../../pages-v2/_v2kit';
+import { ModalShell, Btn, tw } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { Section, Row2 } from '../../../pages-v2/shared/surgery-modals/_shared';
+import { Section, Row2 } from './surgery-modals/_shared';
 import SurgeryDrawingPad from '../../patient/components/SurgeryDrawingPad';
 import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import { HOSPITAL_NAME } from '../../../constants/hospital';

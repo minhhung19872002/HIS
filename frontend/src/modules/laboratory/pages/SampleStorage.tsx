@@ -9,7 +9,7 @@ import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, tk, ti, te, Ico,
   type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 const STATUS_LABEL: Record<number, string> = {
   0: 'Đã lưu', 1: 'Đã lấy', 2: 'Đã hủy', 3: 'Hết hạn',

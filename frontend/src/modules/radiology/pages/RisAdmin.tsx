@@ -7,7 +7,7 @@ import {
   KpiStrip, TopTabs, Filter, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
   ModalShell, DrawerShell, DrSec, DrField, Ico, tk, tw, cf,
   type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import { getRemoteServers, saveRemoteServer, deleteRemoteServer } from '../api/ris/pacs';
 import { getTags, saveTag, type RadiologyTagDto } from '../api/ris/label-tag-qr';
 

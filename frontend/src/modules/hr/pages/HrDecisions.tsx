@@ -11,7 +11,7 @@ import { openPrintWindow } from '../../../utils/printWindow';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
   tk, ti, tw, cf, useTabCounts, type ColumnDef, type StatusTab,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

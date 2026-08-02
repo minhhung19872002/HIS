@@ -13,9 +13,9 @@
  */
 import React, { useState } from 'react';
 import { Input, Select } from 'antd';
-import { ModalShell, Btn, AbSelect, tk, tw } from '../../../pages-v2/_v2kit';
+import { ModalShell, Btn, AbSelect, tk, tw } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { Section, Row2 } from '../../../pages-v2/shared/surgery-modals/_shared';
+import { Section, Row2 } from './surgery-modals/_shared';
 import {
   createSurgeryRequest,
   searchIcdCodes,

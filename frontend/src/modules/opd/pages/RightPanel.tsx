@@ -1,5 +1,5 @@
 import React from 'react';
-import { Btn, te, tk, tw } from '../../../pages-v2/_v2kit';
+import { Btn, te, tk, tw } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { printSickLeave, type RoomPatientListDto } from '../api/examination';
 import {

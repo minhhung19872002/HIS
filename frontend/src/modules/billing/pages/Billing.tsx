@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import { App as AntdApp, Input, InputNumber, Select } from 'antd';
 import { searchInvoices, createPayment, printInvoice } from '../api/billing';
 import type { InvoiceDto } from '../api/billing';
-import { SimpleV2Page, StatusBadge, ActBtn, Btn, ModalShell, type ColumnDef, type StatusTab } from '../../../pages-v2/_v2kit';
+import { SimpleV2Page, StatusBadge, ActBtn, Btn, ModalShell, type ColumnDef, type StatusTab } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { fmtVND } from '../../../utils/format';
 import ReassignObjectModal from '../../administration/components/ReassignObjectModal';

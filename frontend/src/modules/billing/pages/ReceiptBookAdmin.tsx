@@ -8,7 +8,7 @@ import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, StatusBadge, ActBtn, Btn,
   tk, ti, tw, cf, type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 interface Department { id: string; departmentName: string; departmentCode?: string }
 interface ReceiptBookSearchParams {

@@ -7,7 +7,7 @@ import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti,
   type ColumnDef, type CrudFieldCfg,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 const TYPE_LABEL: Record<string, string> = {
   drug_lookup: 'Tra thuốc', ecpr: 'eCPR', patient_transfer: 'Chuyển BN',

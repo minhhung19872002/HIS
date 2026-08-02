@@ -5,7 +5,7 @@ import {
   KpiStrip, DataTable, DrawerShell, DrSec, DrField, ModalShell,
   ActBtn, Btn, StatusBadge, tk, te, cf,
   type ColumnDef, type KpiItem,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import { getGrants, createGrant, revokeGrant } from '../api/delegation';
 import type { DelegationGrantDto, CreateDelegationGrantDto } from '../api/delegation';
 import { adminApi } from '../api/system';

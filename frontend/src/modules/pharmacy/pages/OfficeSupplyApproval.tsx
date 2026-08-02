@@ -9,7 +9,7 @@ import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn, DrawerShell, ModalShell, DrSec, DrField,
   Ico, tk, ti, tw, type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 interface Supply {
   id: string; supplyCode: string; supplyName: string; supplyType: number;

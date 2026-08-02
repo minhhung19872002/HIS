@@ -1,7 +1,7 @@
 import React from 'react';
 import dayjs from 'dayjs';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { StatusBadge } from '../../../pages-v2/_v2kit';
+import { StatusBadge } from '@/_v2kit';
 import type { LabRequest } from '../api/laboratory';
 import {
   STATUS_TABS, statusKey, statusTone, abnormalCount,

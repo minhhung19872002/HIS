@@ -1,7 +1,7 @@
 import React from 'react';
 import dayjs from 'dayjs';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { DrawerShell } from '../../../pages-v2/_v2kit';
+import { DrawerShell } from '@/_v2kit';
 import type { WarehouseStock, LabChemicalItem } from './_shared';
 
 export const LabUtilDrawer: React.FC<{

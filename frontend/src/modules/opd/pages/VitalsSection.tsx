@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { StatusBadge } from '../../../pages-v2/_v2kit';
+import { StatusBadge } from '@/_v2kit';
 import { VITAL_FIELDS, type Vitals } from './_shared';
 
 interface VitalsSectionProps {

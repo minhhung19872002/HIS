@@ -5,7 +5,7 @@ import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, ti, Ico,
   type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 type Tab = 'articles' | 'categories' | 'troubleshooting';
 const TABS = [

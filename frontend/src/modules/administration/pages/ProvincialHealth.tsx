@@ -17,7 +17,7 @@ import {
   KpiStrip, TopTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, tk, te, cf,
   type ColumnDef, type TopTab,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import type {TabKey} from '../types';
 
 // ─── Constants ───────────────────────────────────────────────────────────────

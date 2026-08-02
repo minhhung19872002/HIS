@@ -5,7 +5,7 @@ import apiClient from '../../../services/apiClient';
 import { importDrugInteractionsCsv, type DrugInteractionImportResult } from '../api/examination';
 import {
   KpiStrip, SearchBox, StatusBadge, Btn, Ico, tk, ti, tw,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 interface PharmacyCheckData {
   patient: {

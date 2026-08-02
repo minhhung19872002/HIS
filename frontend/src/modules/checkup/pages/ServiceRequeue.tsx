@@ -6,7 +6,7 @@ import apiClient from '../../../services/apiClient';
 import {
   KpiStrip, SearchBox, DataTable, StatusBadge, ModalShell, Btn,
   tk, ti, tw, type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 interface CancelledService {
   id: string; serviceRequestId: string; requestCode: string; requestDate: string;

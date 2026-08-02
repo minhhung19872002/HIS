@@ -7,9 +7,9 @@ import type { RadiologyOrderDto, RadiologyResultDto, PtttServiceMappingDto } fro
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager,
   ActBtn, Btn, DrawerShell,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
-import { SurgeryReportModal } from '../../../pages-v2/shared/SurgeryReportModal';
+import { SurgeryReportModal } from '../../surgery/pages/SurgeryReportModal';
 import ShareStudyModal from '../components/ShareStudyModal';
 import { radiologyColumns } from './columns';
 import { CallPatientModal } from './CallPatientModal';

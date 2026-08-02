@@ -32,7 +32,7 @@ import {
   cf,
   type ColumnDef,
   type StatusTone,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 

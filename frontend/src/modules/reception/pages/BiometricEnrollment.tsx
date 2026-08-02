@@ -11,8 +11,8 @@ import {
   KpiStrip, DataTable, SearchBox, ModalShell, StatusBadge, ActBtn,
   DrawerShell, DrSec, DrField,
   tk, te, fmtDTg, cf,
-} from '../../../pages-v2/_v2kit';
-import type { ColumnDef } from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
+import type { ColumnDef } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { biometricApi } from '../../../api/nangcap24';
 import type { BiometricCredentialDto } from '../../../api/nangcap24';

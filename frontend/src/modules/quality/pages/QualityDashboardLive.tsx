@@ -3,7 +3,7 @@ import {
   KpiStrip, TopTabs, DataTable, Btn,
   type ColumnDef, type TopTab, type KpiItem,
   fmtVNDg, fmtHMg, ti
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { useInterval } from '../../../hooks/useInterval';
 import {

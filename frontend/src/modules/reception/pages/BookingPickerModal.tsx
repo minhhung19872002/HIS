@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { App as AntdApp, Input } from 'antd';
-import { ModalShell } from '../../../pages-v2/_v2kit';
+import { ModalShell } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { getBookings } from '../api/bookingManagement';
 import type { BookingStatusDto } from '../api/appointmentBooking';

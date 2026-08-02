@@ -23,7 +23,7 @@ import {
 import {
   KpiStrip, TopTabs, DataTable, StatusBadge, Btn, ti,
   type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 const { RangePicker } = DatePicker;
 

@@ -8,7 +8,7 @@ import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge,
   ActBtn, Btn, DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, tw, Ico, fmtDMYg,
   type ColumnDef, type StatusTab, type CrudFieldCfg, type KpiItem,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 // ─── Trạng thái phiếu khám (0=Chờ khám, 1=Đang khám, 2=Hoàn thành, 3=Đã cấp GCN) ───
 type StatusKey = 'pending' | 'inProgress' | 'completed' | 'certified';

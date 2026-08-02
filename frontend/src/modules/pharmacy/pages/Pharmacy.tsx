@@ -12,10 +12,10 @@ import {
   DrawerShell, DrSec, DrField, ModalShell,
   StatusBadge, ActBtn, Btn, tk, ti, te,
   type ColumnDef, type TopTab, type KpiItem, type StatusTab,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import BarcodeScanner from '../../../components/form/BarcodeScanner';
-import ExpiryAlertModal from '../../../pages-v2/shared/ExpiryAlertModal';
+import ExpiryAlertModal from './ExpiryAlertModal';
 import { fmtVND } from '../../../utils/format';
 
 /* ────────────── Types ────────────── */

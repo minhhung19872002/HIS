@@ -6,7 +6,7 @@ import {
   StatusBadge,
   type ColumnDef,
   type KpiItem,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import {
   searchBhytFullCoverage,
   createBhytFullCoverage,

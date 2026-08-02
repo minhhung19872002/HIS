@@ -4,7 +4,7 @@ import {
   createSickLeave,
   type PatientLabResultsDto, type ConsultationRecordDto,
 } from '../api/examination';
-import { tk, tw, te } from '../../../pages-v2/_v2kit';
+import { tk, tw, te } from '@/_v2kit';
 
 interface Params {
   examId: string | null;

@@ -10,8 +10,8 @@ import {
   KpiStrip, DataTable, StatusTabs, SearchBox, DrawerShell, ModalShell,
   Filter, Pager, ActBtn, StatusBadge, DrSec, DrField,
   tk, te, fmtDTg, fmtHMg, useTabCounts,
-} from '../../../pages-v2/_v2kit';
-import type { ColumnDef } from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
+import type { ColumnDef } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { emrCloudSyncApi } from '../../../api/nangcap24';
 import type { EmrCloudSyncLogDto, EmrCloudSyncStatusDto } from '../../../api/nangcap24';

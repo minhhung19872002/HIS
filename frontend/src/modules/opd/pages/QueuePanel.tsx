@@ -1,5 +1,5 @@
 import React from 'react';
-import { StatusBadge, ActBtn } from '../../../pages-v2/_v2kit';
+import { StatusBadge, ActBtn } from '@/_v2kit';
 import type { RoomDto, RoomPatientListDto } from '../api/examination';
 
 interface Props {

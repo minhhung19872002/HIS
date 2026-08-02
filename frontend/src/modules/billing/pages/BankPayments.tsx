@@ -11,8 +11,8 @@ import {
   KpiStrip, DataTable, StatusTabs, SearchBox, DrawerShell, ModalShell,
   Filter, Pager, ActBtn, StatusBadge, DrSec, DrField,
   tk, te, fmtVNDg, fmtDTg, fmtHMg,
-} from '../../../pages-v2/_v2kit';
-import type { ColumnDef } from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
+import type { ColumnDef } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import { bankPaymentApi } from '../../../api/nangcap24';
 import type { SupportedBankDto } from '../../../api/nangcap24';

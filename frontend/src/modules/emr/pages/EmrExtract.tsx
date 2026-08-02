@@ -8,7 +8,7 @@ import { useState, useCallback } from 'react';
 import {
   KpiStrip, DataTable, StatusBadge, ActBtn, Btn, ModalShell, DrawerShell, SearchBox,
   tk, te, tw, cf, fmtDTg, fmtDMYg, type ColumnDef, type StatusTone,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import { getEmrRecords, getPatientMedicalHistory, type EmrRecordDto } from '../../opd/api/examination';
 import {

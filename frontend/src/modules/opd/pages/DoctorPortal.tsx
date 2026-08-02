@@ -14,7 +14,7 @@ import {
   DrawerShell, DrField, ModalShell, tk, ti, tw, cf, fmtDTg, Ico,
   useListData, useTabCounts, makeStatus,
   type ColumnDef, type TopTab, type StatusTone,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 // ============================================================================
 // Local types (ported 1:1 from v1 pages/DoctorPortal.tsx)

@@ -6,7 +6,7 @@
  * ===================================================================== */
 
 import React from 'react';
-import { ActBtn, Btn, fmtVNDg } from '../../../pages-v2/_v2kit';
+import { ActBtn, Btn, fmtVNDg } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import type { IcdCodeFullDto, ServiceDto } from '../api/examination';
 import type { DxRow, OrderRow } from './_shared';

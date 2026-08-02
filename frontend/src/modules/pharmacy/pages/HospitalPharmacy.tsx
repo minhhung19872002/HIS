@@ -21,8 +21,8 @@ import {
   DrawerShell, DrSec, DrField, ModalShell, ActBtn, Btn, StatusBadge,
   tk, te, cf,
   type ColumnDef, type TopTab, type KpiItem, type StatusTab,
-} from '../../../pages-v2/_v2kit';
-import ExpiryAlertModal from '../../../pages-v2/shared/ExpiryAlertModal';
+} from '@/_v2kit';
+import ExpiryAlertModal from './ExpiryAlertModal';
 import PaymentQRModal from '../../billing/components/PaymentQRModal';
 import { openPrintWindow, escapeHtml } from '../../../utils/printWindow';
 

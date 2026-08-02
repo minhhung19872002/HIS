@@ -12,7 +12,7 @@ import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, tw, cf,
   type ColumnDef, type StatusTab, type CrudFieldCfg,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 // ─── Trạng thái hồ sơ: 0=đang theo dõi · 1=cần tái khám · 2=đã đóng · 3=đã loại ───
 type TabKey = 'active' | 'followup' | 'closed';

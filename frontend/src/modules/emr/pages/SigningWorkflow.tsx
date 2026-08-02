@@ -8,7 +8,7 @@ import type { SigningRequestItem, SigningWorkflowStats } from '../api/signingWor
 import {
   KpiStrip, TopTabs, DataTable, DrawerShell, DrSec, DrField, StatusBadge, Btn, Filter, SearchBox, Ico,
   tk, te, tw, cf, type ColumnDef, type TopTab,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import { useDebounce } from '../../../hooks';
 
 type Tab = 'pending' | 'submitted' | 'history' | 'stats';

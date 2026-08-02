@@ -105,7 +105,7 @@ import {
   type ColumnDef,
   type KpiItem,
   type TopTab,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 const { RangePicker } = DatePicker;
 

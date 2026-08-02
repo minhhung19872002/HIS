@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import * as labApi from '../api/laboratory';
 import type { LabTestItem } from '../api/laboratory';
-import type { StatusTab } from '../../../pages-v2/_v2kit';
+import type { StatusTab } from '@/_v2kit';
 
 // ─── Types cho Panel Tiện ích ────────────────────────────────
 export interface WarehouseStock {

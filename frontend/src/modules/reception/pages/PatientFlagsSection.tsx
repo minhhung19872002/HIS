@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { Select, Input, DatePicker } from 'antd';
-import { ModalShell, tk, te, cf } from '../../../pages-v2/_v2kit';
+import { ModalShell, tk, te, cf } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import {
   getPatientFlags, savePatientFlag, deletePatientFlag, PATIENT_FLAG_TYPES,

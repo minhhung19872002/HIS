@@ -7,7 +7,7 @@ import type { RefundDto } from '../api/billing';
 import {
   SimpleV2Page, ActBtn, ModalShell, Btn, StatusBadge, tk, te, cf,
   type ColumnDef, type StatusTab,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 /* ────────────────────────────────────────────────────────────
    #352 — Duyệt hoàn tiền (v1 pages/Billing.tsx:1344-1502).

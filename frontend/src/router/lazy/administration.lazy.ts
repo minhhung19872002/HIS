@@ -13,7 +13,7 @@ export const OfficialDocumentsV2 = lazy(() => import('../../modules/administrati
 export const QualityV2 = lazy(() => import('../../modules/quality/pages/Quality'));
 export const EquipmentV2 = lazy(() => import('../../modules/asset/pages/Equipment'));
 export const AssetManagementV2 = lazy(() => import('../../modules/asset/pages/AssetManagement'));
-export const InfectionControlV2 = lazy(() => import('../../pages-v2/InfectionControl'));
+export const InfectionControlV2 = lazy(() => import('../../modules/infection-control/pages/InfectionControl'));
 export const LinenManagementV2 = lazy(() => import('../../modules/administration/pages/LinenManagement'));
 export const TrainingResearchV2 = lazy(() => import('../../modules/training/pages/TrainingResearch'));
 export const PracticeLicenseV2 = lazy(() => import('../../modules/hr/pages/PracticeLicense'));

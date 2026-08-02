@@ -23,7 +23,7 @@ import {
   KpiStrip, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   StatusTabs, DrawerShell, DrSec, DrField, LoadingState, fmtVNDg, ti, Ico,
   type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 const { RangePicker } = DatePicker;
 

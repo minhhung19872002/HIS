@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { getPrescriptions } from '../api/patientPortal';
 import type { PrescriptionHistoryDto } from '../api/patientPortal';
 import { printExternalPrescription } from '../../opd/api/examination';
-import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from '../../../pages-v2/_v2kit';
+import { SimpleV2Page, StatusBadge, ActBtn, Btn, type ColumnDef, type StatusTab } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 
 /* Kê đơn v2 — list shell.

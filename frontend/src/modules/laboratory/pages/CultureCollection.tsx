@@ -11,7 +11,7 @@ import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, te, Ico,
   type ColumnDef, type CrudFieldCfg,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 const STOCK_FIELDS: CrudFieldCfg[] = [
   { key: 'stockCode', label: 'Mã chủng', required: true, disabledOnEdit: true },

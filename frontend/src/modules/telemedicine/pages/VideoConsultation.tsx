@@ -13,7 +13,7 @@ import {
   KpiStrip, StatusTabs, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, ModalShell, Ico, tk, ti, tw, cf,
   type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 type SKey = 'active' | 'scheduled' | 'ended' | 'cancelled';
 const STATUS_TABS = [

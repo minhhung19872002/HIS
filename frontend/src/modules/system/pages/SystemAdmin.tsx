@@ -14,7 +14,7 @@ import {
   KpiStrip, TopTabs, SearchBox, DataTable, DrawerShell, DrSec, DrField, StatusBadge,
   ModalShell, ActBtn, Btn, Pager, tk, te, cf,
   type ColumnDef, type TopTab,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import ItTicketsPanel from './ItTicketsPanel';
 import AccessMatrixPanel from './AccessMatrixPanel';
 import CompliancePanel from './CompliancePanel';

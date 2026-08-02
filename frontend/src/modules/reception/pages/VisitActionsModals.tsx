@@ -15,7 +15,7 @@ import type { DocumentHoldDto, PatientPhotoDto, CostEstimationResultDto } from '
 import { estimateCostDirect } from '../api/reception';
 import { searchServices } from '../../opd/api/examination';
 import type { ServiceDto } from '../../opd/api/examination';
-import { ModalShell } from '../../../pages-v2/_v2kit';
+import { ModalShell } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 
 // ─── Shared helpers ──────────────────────────────────────────────────────────

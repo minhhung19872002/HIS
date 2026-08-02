@@ -52,10 +52,10 @@ import type {
 } from '../api/inpatient';
 import { catalogApi } from '../../system/api/system';
 import type { DepartmentCatalogDto } from '../../system/api/system';
-import { ModalShell, Btn } from '../../../pages-v2/_v2kit';
+import { ModalShell, Btn } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import BedLabResultSection from './BedLabResultSection';
-import { CabinetIssueModal, ItemPicker } from '../../../pages-v2/shared/CabinetIssueModal';
+import { CabinetIssueModal, ItemPicker } from '../../pharmacy/pages/CabinetIssueModal';
 import { InpatientPrescriptionModal } from './InpatientPrescriptionModal';
 import { InpatientServiceOrderCreateModal } from './InpatientServiceOrderCreateModal';
 import DischargeModal from './DischargeModal';

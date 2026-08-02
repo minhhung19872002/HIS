@@ -9,7 +9,7 @@ import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, Btn, tk, ti, tw,
   type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 interface Warehouse { id: string; warehouseName: string }
 interface DetailRow { id: string; warehouseName: string; itemCode: string; itemName: string; unit?: string; batchNumber?: string; expiryDate?: string; daysToExpiry?: number; quantity: number; reservedQuantity?: number; available: number; importPrice?: number; value?: number; isLocked?: boolean }

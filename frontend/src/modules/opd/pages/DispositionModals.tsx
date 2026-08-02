@@ -7,7 +7,7 @@
  * ===================================================================== */
 
 import React from 'react';
-import { ModalShell, Btn } from '../../../pages-v2/_v2kit';
+import { ModalShell, Btn } from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import type { RoomDto, RoomPatientListDto } from '../api/examination';
 import type { DepartmentCatalogDto } from '../../system/api/system';

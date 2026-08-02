@@ -10,7 +10,7 @@ import { PharmacyExpiryBanner } from '../components/PharmacyExpiryBanner';
 import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
 import {
   KpiStrip, Filter, StatusBadge, Btn, Ico, tk, ti, tw,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 interface BatchDispenseResponse {
   receiptCode?: string;

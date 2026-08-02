@@ -12,7 +12,7 @@ import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal,
   DrawerShell, DrSec, DrField, tk, ti, te, cf,
   type TopTab, type ColumnDef, type CrudFieldCfg,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 const DEVICE_FIELDS: CrudFieldCfg[] = [
   { key: 'hostname', label: 'Hostname', required: true },

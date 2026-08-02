@@ -6,7 +6,7 @@ import {
   KpiStrip, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, Ico, tk, ti, tw,
   type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 
 // ── Types cho Panel Tiện ích XN (tái sử dụng từ Laboratory.tsx) ──

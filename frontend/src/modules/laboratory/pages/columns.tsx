@@ -1,4 +1,4 @@
-import { StatusBadge, type ColumnDef } from '../../../pages-v2/_v2kit';
+import { StatusBadge, type ColumnDef } from '@/_v2kit';
 import type { LabRequest } from '../api/laboratory';
 import {
   STATUS_TABS, statusKey, statusTone, PRIO_LABEL, PRIO_TONE,

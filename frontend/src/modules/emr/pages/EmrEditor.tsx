@@ -13,7 +13,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   KpiStrip, StatusBadge, Btn, ActBtn, DataTable, TopTabs, DrawerShell, ModalShell,
   fmtDMYg, fmtDTg, tk, ti, te, tw, type ColumnDef, type TopTab,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import apiClient from '../../../services/apiClient';
 import { generateCdaDocument } from '../api/cda';
@@ -28,7 +28,7 @@ import {
   type PartographRecordDto, type PartographSaveDto,
   type AnesthesiaRecordDto, type AnesthesiaSaveDto,
 } from '../api/clinicalRecord';
-import EmrSigningChainDrawer from '../../../pages-v2/shared/EmrSigningChainDrawer';
+import EmrSigningChainDrawer from './EmrSigningChainDrawer';
 import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
 import {
   getEmrRecords, type EmrRecordDto,

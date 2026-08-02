@@ -1,5 +1,5 @@
 import type { RadiologyOrderDto } from '../api/ris';
-import { StatusBadge, type ColumnDef } from '../../../pages-v2/_v2kit';
+import { StatusBadge, type ColumnDef } from '@/_v2kit';
 import { detectModality, statusKey, statusTone, STATUS_TABS, fmtHM } from './_shared';
 
 export const radiologyColumns: ColumnDef<RadiologyOrderDto>[] = [

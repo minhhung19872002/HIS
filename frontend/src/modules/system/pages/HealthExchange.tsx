@@ -26,7 +26,7 @@ import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal, ModalShell,
   StatusTabs, DrawerShell, DrSec, DrField, tk, ti, tw, te, Ico, useListData, useTabCounts,
   type ColumnDef, type CrudFieldCfg, type TopTab, type StatusTone, type KpiItem,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 // ─────────────────────── Form value types (port từ v1 pages/health-exchange/types.ts) ───────────────────────
 

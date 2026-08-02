@@ -10,7 +10,7 @@ import {
   StatusBadge, ActBtn, Btn, DrawerShell, DrSec, DrField, CrudModal,
   useTabCounts, tk, ti, Ico,
   type ColumnDef, type StatusTab, type CrudFieldCfg,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 /* Quản lý HIV/AIDS v2 — port từ v1 pages/HivManagement.tsx
  * 4 tab nghiệp vụ: Danh sách BN · Xét nghiệm (CD4/VL) · PMTCT · Thống kê (cascade 90-90-90)

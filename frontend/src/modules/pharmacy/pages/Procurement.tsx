@@ -5,7 +5,7 @@ import type { ProcurementRequestDto } from '../api/warehouse';
 import {
   SimpleV2Page, StatusBadge, DrSec, DrField,
   type ColumnDef, type StatusTab, type KpiItem,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 type SKey = 'new' | 'approved' | 'purchased' | 'cancelled';
 const STATUS_TABS: StatusTab<SKey>[] = [

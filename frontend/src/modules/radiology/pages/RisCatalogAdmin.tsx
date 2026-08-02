@@ -4,7 +4,7 @@ import apiClient from '../../../services/apiClient';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
   tk, ti, tw, cf, type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 type TabKey = 'modalities' | 'body-parts' | 'protocols' | 'report-templates' | 'icd-templates' | 'pttt-service-mappings';
 const TABS = [

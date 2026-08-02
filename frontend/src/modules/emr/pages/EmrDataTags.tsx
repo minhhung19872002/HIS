@@ -7,7 +7,7 @@ import { useState, useCallback } from 'react';
 import {
   KpiStrip, DataTable, StatusBadge, ActBtn, Btn, ModalShell, SearchBox,
   useListData, tk, te, cf, type ColumnDef,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import { getEmrDataTags, saveEmrDataTag, deleteEmrDataTag, type EmrDataTagDto } from '../api/emrManagement';
 
 // Kiểu dữ liệu thẻ — khớp comment entity EmrDataTag.DataType

@@ -11,7 +11,7 @@ import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, ModalShell, DrSec, DrField, CrudModal, tk, te, ti, cf, Ico,
   type ColumnDef, type CrudFieldCfg,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 
 const TM_FIELDS: CrudFieldCfg[] = [
   { key: 'treatmentCode', label: 'Mã phác đồ', required: true, disabledOnEdit: true },

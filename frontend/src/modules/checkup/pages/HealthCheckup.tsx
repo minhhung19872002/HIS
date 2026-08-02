@@ -14,7 +14,7 @@ import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, tk, ti, cf, te, TopTabs,
   type ColumnDef, type CrudFieldCfg, type StatusTab,
-} from '../../../pages-v2/_v2kit';
+} from '@/_v2kit';
 import { DriverCheckupPrint, VsattpCheckupPrint, StudentCheckupPrint } from '../../patient/components/HealthCheckupPrintTemplates';
 
 // ---- Static base fields (common to all KSK types) ----
