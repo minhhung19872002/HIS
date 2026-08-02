@@ -110,3 +110,27 @@ public class SpecimenTypeDto
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
 }
+
+public class CancelPathologyRequestDto
+{
+    public string Reason { get; set; } = string.Empty;
+}
+
+public class VerifyPathologyResultDto
+{
+    public string? Notes { get; set; }
+}
+
+public class TransitionPathologyStatusDto
+{
+    public int NewStatus { get; set; }
+}
+
+public class CancelledPathologyRequestDto
+{
+    public Guid Id { get; set; }
+    public int Status { get; set; }
+    public string? CancelledBy { get; set; }
+    public string? CancelledAt { get; set; }
+    public string? CancellationReason { get; set; }
+}

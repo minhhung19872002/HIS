@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
@@ -84,5 +85,65 @@ public class PathologyController : ControllerBase
     {
         var htmlBytes = await _pathologyService.PrintPathologyReportAsync(id);
         return File(htmlBytes, "text/html", "pathology-report.html");
+    }
+
+    [HttpPost("requests/{id}/cancel")]
+    [RequirePermission(PermissionCatalog.LabResult.Create)]
+    public async Task<ActionResult<CancelledPathologyRequestDto>> CancelPathologyRequest(Guid id, [FromBody] CancelPathologyRequestDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto?.Reason))
+            return BadRequest(new { message = "Lý do hủy là bắt buộc" });
+
+        var cancelledBy = User.FindFirst(ClaimTypes.Name)?.Value
+            ?? User.FindFirst("name")?.Value
+            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? "Unknown";
+
+        try
+        {
+            var result = await _pathologyService.CancelPathologyRequestAsync(id, dto.Reason, cancelledBy);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("results/{id}/verify")]
+    [RequirePermission(PermissionCatalog.LabResult.Validate)]
+    public async Task<ActionResult<PathologyResultDto>> VerifyPathologyResult(Guid id, [FromBody] VerifyPathologyResultDto? dto)
+    {
+        var verifierName = User.FindFirst(ClaimTypes.Name)?.Value
+            ?? User.FindFirst("name")?.Value
+            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? "Unknown";
+        var verifierIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var verifierId = Guid.TryParse(verifierIdClaim, out var gid) ? gid : Guid.Empty;
+
+        try
+        {
+            var result = await _pathologyService.VerifyPathologyResultAsync(id, verifierId, verifierName);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("requests/{id}/status")]
+    [RequirePermission(PermissionCatalog.LabResult.Create)]
+    public async Task<ActionResult<PathologyRequestDetailDto>> TransitionPathologyStatus(Guid id, [FromBody] TransitionPathologyStatusDto dto)
+    {
+        try
+        {
+            var result = await _pathologyService.TransitionPathologyStatusAsync(id, dto.NewStatus);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }

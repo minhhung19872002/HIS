@@ -26,7 +26,7 @@ public class PathologyRequest : BaseEntity
     public string? ClinicalHistory { get; set; } // Bệnh sử tóm tắt
     public string Priority { get; set; } = "normal"; // normal, urgent
 
-    // Status: 0=Pending, 1=Grossing, 2=Processing, 3=Completed, 4=Verified
+    // Status: 0=Pending, 1=Grossing, 2=Processing, 3=Completed, 4=Verified, 5=Cancelled
     public int Status { get; set; }
 
     // Billing

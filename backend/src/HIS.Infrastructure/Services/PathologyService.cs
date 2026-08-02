@@ -279,6 +279,117 @@ td, th {{ border: 1px solid #000; padding: 5px; }}
         return System.Text.Encoding.UTF8.GetBytes(html);
     }
 
+    public async Task<CancelledPathologyRequestDto> CancelPathologyRequestAsync(Guid id, string reason, string cancelledBy)
+    {
+        var request = await _context.PathologyRequests.FindAsync(id)
+            ?? throw new InvalidOperationException("Không tìm thấy phiếu GPB");
+
+        if (request.Status == 4)
+            throw new InvalidOperationException("Không thể hủy phiếu GPB đã duyệt");
+        if (request.Status == 5)
+            throw new InvalidOperationException("Phiếu GPB đã được hủy trước đó");
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("Lý do hủy là bắt buộc");
+
+        request.Status = 5; // Cancelled
+        request.CancelledBy = cancelledBy;
+        request.CancelledAt = DateTime.UtcNow;
+        request.CancellationReason = reason;
+        request.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return new CancelledPathologyRequestDto
+        {
+            Id = request.Id,
+            Status = request.Status,
+            CancelledBy = request.CancelledBy,
+            CancelledAt = request.CancelledAt?.ToString("yyyy-MM-ddTHH:mm:ss"),
+            CancellationReason = request.CancellationReason,
+        };
+    }
+
+    public async Task<PathologyResultDto> VerifyPathologyResultAsync(Guid resultId, Guid verifiedById, string verifiedByName)
+    {
+        var result = await _context.PathologyResults
+            .Include(r => r.Request)
+            .FirstOrDefaultAsync(r => r.Id == resultId)
+            ?? throw new InvalidOperationException("Không tìm thấy kết quả GPB");
+
+        if (result.Request == null)
+            throw new InvalidOperationException("Kết quả không gắn với phiếu GPB hợp lệ");
+        if (result.Request.Status != 3)
+            throw new InvalidOperationException("Chỉ duyệt được kết quả phiếu GPB đã hoàn thành (Status=Completed)");
+        if (result.VerifiedAt.HasValue)
+            throw new InvalidOperationException("Kết quả GPB này đã được duyệt");
+
+        result.VerifiedBy = verifiedById;
+        result.VerifiedByName = verifiedByName;
+        result.VerifiedAt = DateTime.UtcNow;
+        result.UpdatedAt = DateTime.UtcNow;
+
+        result.Request.Status = 4; // Verified
+        result.Request.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return MapResultDto(result);
+    }
+
+    private static readonly HashSet<(int from, int to)> _allowedTransitions = new()
+    {
+        (0, 1), // Pending → Grossing
+        (1, 2), // Grossing → Processing
+        (2, 3), // Processing → Completed
+    };
+
+    public async Task<PathologyRequestDetailDto> TransitionPathologyStatusAsync(Guid id, int newStatus)
+    {
+        var request = await _context.PathologyRequests
+            .Include(r => r.Patient)
+            .Include(r => r.RequestingDoctor)
+            .Include(r => r.Department)
+            .Include(r => r.Results)
+            .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted)
+            ?? throw new InvalidOperationException("Không tìm thấy phiếu GPB");
+
+        if (!_allowedTransitions.Contains((request.Status, newStatus)))
+            throw new InvalidOperationException(
+                $"Không cho phép chuyển trạng thái từ {request.Status} sang {newStatus}. " +
+                "Dùng endpoint cancel để hủy, endpoint verify để duyệt kết quả.");
+
+        request.Status = newStatus;
+        request.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        var latestResult = request.Results.OrderByDescending(x => x.CreatedAt).FirstOrDefault();
+        return new PathologyRequestDetailDto
+        {
+            Id = request.Id,
+            RequestCode = request.RequestCode,
+            PatientName = request.Patient?.FullName ?? "",
+            PatientCode = request.Patient?.PatientCode ?? "",
+            PatientId = request.PatientId,
+            Gender = request.Patient?.Gender,
+            DateOfBirth = request.Patient?.DateOfBirth?.ToString("yyyy-MM-dd"),
+            RequestDate = request.RequestDate.ToString("yyyy-MM-ddTHH:mm:ss"),
+            SpecimenType = request.SpecimenType,
+            SpecimenSite = request.SpecimenSite,
+            SpecimenDescription = request.SpecimenDescription,
+            SpecimenCount = request.SpecimenCount,
+            ClinicalDiagnosis = request.ClinicalDiagnosis,
+            ClinicalHistory = request.ClinicalHistory,
+            RequestingDoctor = request.RequestingDoctor?.FullName ?? "",
+            DepartmentName = request.Department?.DepartmentName ?? "",
+            Status = request.Status,
+            Priority = request.Priority,
+            Notes = request.Notes,
+            TotalAmount = request.TotalAmount,
+            IsPaid = request.IsPaid,
+            Result = latestResult != null ? MapResultDto(latestResult) : null,
+        };
+    }
+
     private static PathologyResultDto MapResultDto(PathologyResult r)
     {
         List<string> stainingMethods = new();

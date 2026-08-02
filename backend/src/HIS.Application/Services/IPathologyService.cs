@@ -11,4 +11,7 @@ public interface IPathologyService
     Task<PathologyStatsDto> GetPathologyStatisticsAsync();
     Task<List<SpecimenTypeDto>> GetSpecimenTypesAsync();
     Task<byte[]> PrintPathologyReportAsync(Guid resultId);
+    Task<CancelledPathologyRequestDto> CancelPathologyRequestAsync(Guid id, string reason, string cancelledBy);
+    Task<PathologyResultDto> VerifyPathologyResultAsync(Guid resultId, Guid verifiedById, string verifiedByName);
+    Task<PathologyRequestDetailDto> TransitionPathologyStatusAsync(Guid id, int newStatus);
 }
