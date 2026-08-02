@@ -4,13 +4,9 @@ name: Deploy backend to Cloud Run
 # Xác thực GCP bằng Workload Identity Federation (keyless — không có SA key).
 # FE (Vercel) đã auto-deploy riêng; workflow này chỉ lo backend.
 
+# DISABLED 2026-08-02: backend moved to Azure Container Apps (GCP billing delinquent).
+# Auto-trigger removed; keep workflow_dispatch only for reference until the Azure workflow replaces this.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - 'cloudbuild.yaml'
-      - '.github/workflows/deploy-backend.yml'
   workflow_dispatch: {}
 
 # Không cho 2 lần deploy chạy chồng nhau; lần mới xếp hàng đợi lần trước xong.

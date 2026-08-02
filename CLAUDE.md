@@ -127,10 +127,10 @@ All services must be registered in `backend/src/HIS.Infrastructure/DependencyInj
 
 | Item | Value |
 |---|---|
-| Backend (Cloud Run) | service `his-api` · project `project-4d4a3f8e-d582-4536-97f` · region `asia-southeast1` |
-| API URL prod | https://his-api-694913628964.asia-southeast1.run.app |
+| Backend (Azure Container Apps) | app `his-api` · resource group `rg-his` · env `cae-his` · region `southeastasia` · image `ghcr.io/minhhung19872002/his-api` (migrated off GCP 2026-08-02, GCP billing delinquent) |
+| API URL prod | https://his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io |
 | Frontend (Vercel) | https://his-psi.vercel.app |
-| Cloud SQL DB | `HIS` · instance `his-sql` **private IP ONLY `10.10.0.3`** (VPC `default`, #292 2026-07-03) — public 1433 is blocked; dev access via `cloud-sql-proxy` (IAM); Cloud Run connects via Direct VPC egress |
+| Azure SQL DB | `HIS` · server `his-sql-bp2026.database.windows.net` · serverless **free offer** (100k vCore-s/month, auto-pause when exhausted) · collation Vietnamese_CI_AS · login `hisadmin` (password in Container App secret `sqlconn`) |
 | Admin login (all envs) | `admin` / `Admin@123` |
 | Local Docker | container `his-sqlserver` · DB `HIS` · sqlcmd `/opt/mssql-tools18/bin/sqlcmd` |
 | PACS prod | Orthanc @ https://168-110-52-7.nip.io (Oracle VM `168.110.52.7`) · storage Cloudflare R2 `his-pacs-dicom` |
@@ -138,10 +138,11 @@ All services must be registered in `backend/src/HIS.Infrastructure/DependencyInj
 
 ### Deploy (→ skill `his-ops-deploy`)
 - **Frontend Vercel**: auto-deploys on every push to `main`.
-- **Backend Cloud Run**: **auto-deploys via GitHub Actions** (`.github/workflows/deploy-backend.yml`) when a push
-  touches `backend/**` (since 2026-05-29, WIF keyless auth). Check: `gh run list --workflow=deploy-backend.yml`.
-  Manual fallback: `gcloud builds submit --config cloudbuild.yaml --substitutions=_IMAGE=...`
-  then `gcloud run services update his-api --image=...`.
+- **Backend Azure Container Apps**: manual for now (since 2026-08-02; the old GCP workflow `.github/workflows/deploy-backend.yml` is DEAD — GCP billing delinquent, do not use):
+  `docker build -f backend/src/HIS.API/Dockerfile -t ghcr.io/minhhung19872002/his-api:<tag> backend`
+  → `docker push ghcr.io/minhhung19872002/his-api:<tag>`
+  → `az containerapp update -n his-api -g rg-his --image ghcr.io/minhhung19872002/his-api:<tag>`.
+  TODO: rewrite deploy-backend.yml for Azure (ghcr build-push + azure/login SP).
 - After a migration: `GET /health/schema-drift` (Admin) → `missingCount` must be 0.
   `ProductionSchemaRepairRunner` auto-applies `Data/Scripts/*.sql` at startup.
 
