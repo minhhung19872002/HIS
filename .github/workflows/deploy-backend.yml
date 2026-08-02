@@ -1,12 +1,17 @@
-name: Deploy backend to Cloud Run
+name: Deploy backend to Azure Container Apps
 
-# Tự động build + deploy backend lên Cloud Run khi push code BE vào main.
-# Xác thực GCP bằng Workload Identity Federation (keyless — không có SA key).
+# Tự động build + deploy backend lên Azure Container Apps khi push code BE vào main.
+# Xác thực Azure bằng OIDC federated credential (keyless — không có client secret).
+# Image đẩy lên GitHub Container Registry (ghcr.io) bằng GHCR_TOKEN secret.
 # FE (Vercel) đã auto-deploy riêng; workflow này chỉ lo backend.
+# (Migrated off GCP Cloud Run 2026-08-02 — GCP billing delinquent.)
 
-# DISABLED 2026-08-02: backend moved to Azure Container Apps (GCP billing delinquent).
-# Auto-trigger removed; keep workflow_dispatch only for reference until the Azure workflow replaces this.
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
   workflow_dispatch: {}
 
 # Không cho 2 lần deploy chạy chồng nhau; lần mới xếp hàng đợi lần trước xong.
@@ -16,15 +21,12 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write   # BẮT BUỘC để lấy OIDC token cho Workload Identity Federation
+  id-token: write   # BẮT BUỘC để lấy OIDC token cho azure/login
 
 env:
-  GCP_PROJECT: project-4d4a3f8e-d582-4536-97f
-  GCP_REGION: asia-southeast1
-  CLOUD_RUN_SERVICE: his-api
-  IMAGE_REPO: asia-southeast1-docker.pkg.dev/project-4d4a3f8e-d582-4536-97f/his/his-api
-  WIF_PROVIDER: projects/694913628964/locations/global/workloadIdentityPools/github-pool/providers/github-provider
-  DEPLOY_SA: github-deploy@project-4d4a3f8e-d582-4536-97f.iam.gserviceaccount.com
+  IMAGE_REPO: ghcr.io/minhhung19872002/his-api
+  ACA_APP: his-api
+  ACA_RG: rg-his
 
 jobs:
   deploy:
@@ -34,36 +36,41 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Authenticate to Google Cloud (Workload Identity)
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.DEPLOY_SA }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v3
-
       - name: Compute image tag
         id: img
         run: echo "tag=${IMAGE_REPO}:$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      - name: Build image (Cloud Build)
-        run: |
-          gcloud builds submit \
-            --config cloudbuild.yaml \
-            --substitutions=_IMAGE=${{ steps.img.outputs.tag }} \
-            --project=${{ env.GCP_PROJECT }}
+      - name: Login to ghcr.io
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u minhhung19872002 --password-stdin
 
-      - name: Deploy to Cloud Run
-        run: |
-          gcloud run services update ${{ env.CLOUD_RUN_SERVICE }} \
-            --image=${{ steps.img.outputs.tag }} \
-            --region=${{ env.GCP_REGION }} \
-            --project=${{ env.GCP_PROJECT }} \
-            --update-env-vars=DEPLOY_AT=$(date +%s)
+      - name: Build image
+        run: docker build -f backend/src/HIS.API/Dockerfile -t "${{ steps.img.outputs.tag }}" backend
 
-      - name: Summary
+      - name: Push image
+        run: docker push "${{ steps.img.outputs.tag }}"
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Container Apps
         run: |
-          echo "### ✅ Backend deployed" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Image: \`${{ steps.img.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Service: \`${{ env.CLOUD_RUN_SERVICE }}\` (${{ env.GCP_REGION }})" >> "$GITHUB_STEP_SUMMARY"
+          az containerapp update \
+            --name "$ACA_APP" \
+            --resource-group "$ACA_RG" \
+            --image "${{ steps.img.outputs.tag }}" \
+            --query "properties.latestRevisionName" -o tsv
+
+      - name: Smoke test (login endpoint)
+        run: |
+          URL="https://his-api.thankfulcoast-bd0486a9.southeastasia.azurecontainerapps.io/api/auth/login"
+          for i in $(seq 1 10); do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 120 -X POST "$URL" \
+              -H "Content-Type: application/json" \
+              -d '{"username":"admin","password":"Admin@123"}') && [ "$CODE" = "200" ] && exit 0
+            echo "attempt $i: HTTP $CODE — retrying in 20s"; sleep 20
+          done
+          echo "Smoke test failed"; exit 1

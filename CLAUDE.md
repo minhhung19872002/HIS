@@ -138,11 +138,10 @@ All services must be registered in `backend/src/HIS.Infrastructure/DependencyInj
 
 ### Deploy (→ skill `his-ops-deploy`)
 - **Frontend Vercel**: auto-deploys on every push to `main`.
-- **Backend Azure Container Apps**: manual for now (since 2026-08-02; the old GCP workflow `.github/workflows/deploy-backend.yml` is DEAD — GCP billing delinquent, do not use):
-  `docker build -f backend/src/HIS.API/Dockerfile -t ghcr.io/minhhung19872002/his-api:<tag> backend`
-  → `docker push ghcr.io/minhhung19872002/his-api:<tag>`
-  → `az containerapp update -n his-api -g rg-his --image ghcr.io/minhhung19872002/his-api:<tag>`.
-  TODO: rewrite deploy-backend.yml for Azure (ghcr build-push + azure/login SP).
+- **Backend Azure Container Apps**: **auto-deploys via GitHub Actions** (`.github/workflows/deploy-backend.yml`) when a push
+  touches `backend/**` (since 2026-08-02, Azure OIDC keyless auth, image on ghcr.io). Check: `gh run list --workflow=deploy-backend.yml`.
+  Manual fallback: `docker build -f backend/src/HIS.API/Dockerfile -t ghcr.io/minhhung19872002/his-api:<tag> backend`
+  → `docker push` → `az containerapp update -n his-api -g rg-his --image <tag>`.
 - After a migration: `GET /health/schema-drift` (Admin) → `missingCount` must be 0.
   `ProductionSchemaRepairRunner` auto-applies `Data/Scripts/*.sql` at startup.
 
