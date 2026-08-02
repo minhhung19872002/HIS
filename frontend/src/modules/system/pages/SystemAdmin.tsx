@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { Input, Select, Switch, Form, DatePicker } from 'antd';
+import { Input, Select, Switch, Form, DatePicker, Checkbox } from 'antd';
 import type { AxiosError } from 'axios';
 import { adminApi, catalogApi } from '../api/system';
 import type {
@@ -111,6 +111,7 @@ const SystemAdminV2: React.FC = () => {
   const [editingBranch, setEditingBranch] = useState<BranchRecord | null>(null);
 
   const [saving, setSaving] = useState(false);
+  const [permSearch, setPermSearch] = useState('');
   const [userF] = Form.useForm();
   const [roleF] = Form.useForm();
   const [cfgF] = Form.useForm();
@@ -247,12 +248,12 @@ const SystemAdminV2: React.FC = () => {
       }).catch(() => {});
   };
   const openNewRole = () => {
-    setEditRoleId(null); setRolePermIds([]);
+    setEditRoleId(null); setRolePermIds([]); setPermSearch('');
     roleF.resetFields(); roleF.setFieldsValue({ isActive: true, isSystemRole: false });
     ensurePermissions(); setRoleModal('new');
   };
   const openEditRole = (r: RoleDto) => {
-    setEditRoleId(r.id || null); setRolePermIds([]);
+    setEditRoleId(r.id || null); setRolePermIds([]); setPermSearch('');
     roleF.setFieldsValue({ code: r.code, name: r.name, description: r.description || '', isSystemRole: r.isSystemRole, isActive: r.isActive });
     if (r.id) adminApi.getRolePermissions(r.id).then((raw) => {
       const ps: PermissionDto[] = Array.isArray(raw) ? raw : (raw as { data?: PermissionDto[] })?.data ?? [];
@@ -388,6 +389,12 @@ const SystemAdminV2: React.FC = () => {
     return branchFull.filter((b) => (b.code || '').toLowerCase().includes(q) || b.name.toLowerCase().includes(q) || (b.address || '').toLowerCase().includes(q));
   }, [branchFull, keyword]);
 
+  const permsByModule = useMemo(() => {
+    const map: Record<string, PermissionDto[]> = {};
+    allPermissions.forEach(p => { (map[p.module] ??= []).push(p); });
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
+  }, [allPermissions]);
+
   const kpis = useMemo(() => [
     { lbl: 'Tổng tài khoản', val: users.length },
     { lbl: 'Đang online', val: sessions.filter((s) => s.isActive).length, tone: 'ok' as const },
@@ -410,6 +417,7 @@ const SystemAdminV2: React.FC = () => {
     { key: 'code', label: 'Mã', mono: true, code: true, render: (r) => r.code },
     { key: 'name', label: 'Tên vai trò', render: (r) => r.name },
     { key: 'description', label: 'Mô tả', render: (r) => r.description || '—' },
+    { key: 'userCount', label: 'Người dùng', mono: true, width: 100, render: (r) => r.userCount ?? '—' },
     { key: 'isSystemRole', label: 'Hệ thống', width: 90, render: (r) => r.isSystemRole ? <StatusBadge tone="info">Hệ thống</StatusBadge> : '—' },
     { key: 'isActive', label: 'Trạng thái', width: 110, render: (r) => r.isActive ? <StatusBadge tone="ok">Hoạt động</StatusBadge> : <StatusBadge tone="warn">Tạm dừng</StatusBadge> },
   ];
@@ -663,26 +671,64 @@ const SystemAdminV2: React.FC = () => {
 
       {/* ─── Role create/edit modal ─── */}
       <ModalShell open={!!roleModal} onClose={() => setRoleModal(null)}
-        title={roleModal === 'new' ? 'Thêm vai trò' : 'Sửa vai trò'} size="sm"
+        title={roleModal === 'new' ? 'Thêm vai trò' : 'Sửa vai trò'} size="lg"
         footer={<><Btn onClick={() => setRoleModal(null)}>Huỷ</Btn><Btn variant="primary" disabled={saving} onClick={submitRole}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn></>}>
         <Form form={roleF} layout="vertical" scrollToFirstError requiredMark>
-          <Form.Item name="code" label="Mã vai trò" rules={[{ required: true, message: 'Nhập mã' }]}><Input disabled={roleModal === 'edit'} placeholder="vd: Nurse" /></Form.Item>
-          <Form.Item name="name" label="Tên vai trò" rules={[{ required: true, message: 'Nhập tên' }]}><Input placeholder="Điều dưỡng" /></Form.Item>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-8)' }}>
+            <Form.Item name="code" label="Mã vai trò" rules={[{ required: true, message: 'Nhập mã' }]}><Input disabled={roleModal === 'edit'} placeholder="vd: Nurse" /></Form.Item>
+            <Form.Item name="name" label="Tên vai trò" rules={[{ required: true, message: 'Nhập tên' }]}><Input placeholder="Điều dưỡng" /></Form.Item>
+          </div>
           <Form.Item name="description" label="Mô tả"><Input /></Form.Item>
           <Form.Item name="isActive" label="Hoạt động" valuePropName="checked"><Switch /></Form.Item>
-          <Form.Item label="Quyền hạn" extra={roleModal === 'new' ? 'Có thể gán quyền ngay khi tạo' : undefined}>
-            <Select<string[]>
-              mode="multiple"
+          <Form.Item label={`Quyền hạn${allPermissions.length ? ` — ${rolePermIds.length} / ${allPermissions.length} đã chọn` : ''}`}>
+            <Input
+              value={permSearch}
+              onChange={(e) => setPermSearch(e.target.value)}
+              placeholder="Tìm quyền theo tên hoặc mã module…"
               allowClear
-              showSearch
-              optionFilterProp="label"
-              value={rolePermIds}
-              onChange={setRolePermIds}
-              placeholder="Chọn quyền…"
-              options={allPermissions.map(p => ({ value: p.id!, label: `${p.module} / ${p.name}` }))}
-              style={{ width: '100%' }}
-              maxTagCount={5}
+              style={{ marginBottom: 8 }}
             />
+            <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--ab-border)', borderRadius: 6 }}>
+              {allPermissions.length === 0
+                ? <div style={{ padding: 16, color: 'var(--t-2)', textAlign: 'center' }}>Đang tải danh sách quyền…</div>
+                : permsByModule.map(([mod, ps]) => {
+                    const pq = permSearch.toLowerCase();
+                    const filtered = permSearch ? ps.filter(p => p.name.toLowerCase().includes(pq) || p.code.toLowerCase().includes(pq)) : ps;
+                    if (filtered.length === 0) return null;
+                    const modIds = filtered.map(p => p.id!).filter(Boolean);
+                    const checkedCnt = modIds.filter(id => rolePermIds.includes(id)).length;
+                    const allChk = modIds.length > 0 && checkedCnt === modIds.length;
+                    const halfChk = checkedCnt > 0 && !allChk;
+                    const toggleMod = () => {
+                      if (allChk) setRolePermIds(prev => prev.filter(id => !modIds.includes(id)));
+                      else setRolePermIds(prev => [...new Set([...prev, ...modIds])]);
+                    };
+                    return (
+                      <div key={mod} style={{ borderBottom: '1px solid var(--ab-border)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', background: 'var(--ab-bg-2)', userSelect: 'none' }}>
+                          <Checkbox checked={allChk} indeterminate={halfChk} onChange={toggleMod} />
+                          <span style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', flex: 1 }}>{mod}</span>
+                          <span style={{ color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>{checkedCnt}/{filtered.length}</span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, padding: '4px 12px 8px 36px' }}>
+                          {filtered.map(p => (
+                            <Checkbox
+                              key={p.id}
+                              checked={rolePermIds.includes(p.id!)}
+                              onChange={(e) => {
+                                if (e.target.checked) setRolePermIds(prev => [...new Set([...prev, p.id!])]);
+                                else setRolePermIds(prev => prev.filter(id => id !== p.id));
+                              }}
+                            >
+                              <span title={p.description || p.code} style={{ fontSize: 'var(--fs-sm)' }}>{p.name}</span>
+                            </Checkbox>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })
+              }
+            </div>
           </Form.Item>
         </Form>
       </ModalShell>
