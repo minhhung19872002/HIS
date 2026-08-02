@@ -29,9 +29,12 @@ import {
   getDiagnosisFromRecord,
   saveInpatientDiagnosis,
   getTreatmentSheets,
+  createTreatmentSheet,
+  updateTreatmentSheet,
   printTreatmentSheet,
   getTreatmentStatAggregate,
   type TreatmentSheetDto,
+  type CreateTreatmentSheetDto,
   type TreatmentStatAggregateDto,
 } from '../api/inpatient';
 import { getWarehouses } from '../../pharmacy/api/warehouse';
@@ -1620,7 +1623,144 @@ const InpatientDiagnosisModal: React.FC<{
 };
 
 // ---------------------------------------------------------------------------
-// TreatmentSheetsModal — chọn nhiều đợt điều trị + in tuần tự
+// TreatmentSheetEditModal — ghi / sửa diễn biến hàng ngày (tờ điều trị)
+// ---------------------------------------------------------------------------
+
+const TreatmentSheetEditModal: React.FC<{
+  open: boolean;
+  admissionId: string;
+  editing?: TreatmentSheetDto | null;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, admissionId, editing, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [saving, setSaving] = useState(false);
+  const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [progressNotes, setProgressNotes] = useState('');
+  const [treatmentOrders, setTreatmentOrders] = useState('');
+  const [nursingOrders, setNursingOrders] = useState('');
+  const [dietOrders, setDietOrders] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    if (editing) {
+      setDate(dayjs(editing.treatmentDate).format('YYYY-MM-DD'));
+      setProgressNotes(editing.progressNotes || '');
+      setTreatmentOrders(editing.treatmentOrders || '');
+      setNursingOrders(editing.nursingOrders || '');
+      setDietOrders(editing.dietOrders || '');
+    } else {
+      setDate(dayjs().format('YYYY-MM-DD'));
+      setProgressNotes('');
+      setTreatmentOrders('');
+      setNursingOrders('');
+      setDietOrders('');
+    }
+  }, [open, editing]);
+
+  const submit = async () => {
+    if (!progressNotes.trim()) { message.warning('Vui lòng nhập diễn biến bệnh'); return; }
+    setSaving(true);
+    try {
+      const dto: CreateTreatmentSheetDto = {
+        admissionId,
+        treatmentDate: date,
+        progressNotes: progressNotes.trim(),
+        treatmentOrders: treatmentOrders.trim() || undefined,
+        nursingOrders: nursingOrders.trim() || undefined,
+        dietOrders: dietOrders.trim() || undefined,
+      };
+      if (editing) {
+        await updateTreatmentSheet(editing.id, dto);
+        message.success('Đã cập nhật tờ điều trị');
+      } else {
+        await createTreatmentSheet(dto);
+        message.success('Đã ghi nhận diễn biến');
+      }
+      onDone();
+    } catch {
+      message.error(editing ? 'Cập nhật thất bại' : 'Ghi nhận thất bại');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const rowStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' };
+  const labelStyle: React.CSSProperties = { fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--t-2)', textTransform: 'uppercase', letterSpacing: '0.04em' };
+  const taStyle: React.CSSProperties = { fontSize: 'var(--fs-sm)', borderRadius: 'var(--r-2)', border: '1px solid var(--line)', background: 'var(--d-1)', color: 'var(--t-1)', padding: '6px 8px', resize: 'vertical', outline: 'none', width: '100%', boxSizing: 'border-box' };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="md"
+      title={editing ? 'Sửa diễn biến điều trị' : 'Ghi diễn biến hôm nay'}
+      sub={editing ? `Ngày ${dayjs(editing.treatmentDate).format('DD/MM/YYYY')}` : 'Tờ điều trị hàng ngày (SOAP)'}
+      footer={
+        <>
+          <Btn variant="ghost" onClick={onClose} disabled={saving}>Huỷ</Btn>
+          <Btn variant="primary" onClick={submit} disabled={saving}>
+            {saving ? 'Đang lưu…' : editing ? 'Cập nhật' : 'Ghi nhận'}
+          </Btn>
+        </>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)', padding: 'var(--space-16)' }}>
+        <div style={rowStyle}>
+          <span style={labelStyle}>Ngày điều trị</span>
+          <DatePicker
+            value={dayjs(date)}
+            onChange={(d) => d && setDate(d.format('YYYY-MM-DD'))}
+            format="DD/MM/YYYY"
+            style={{ width: '100%' }}
+            disabledDate={(d) => d.isAfter(dayjs(), 'day')}
+          />
+        </div>
+        <div style={rowStyle}>
+          <span style={labelStyle}>Diễn biến bệnh <span style={{ color: 'var(--s-crit)' }}>*</span></span>
+          <textarea
+            rows={4}
+            value={progressNotes}
+            onChange={(e) => setProgressNotes(e.target.value)}
+            placeholder="S/O/A — Triệu chứng, thăm khám, đánh giá…"
+            style={taStyle}
+          />
+        </div>
+        <div style={rowStyle}>
+          <span style={labelStyle}>Y lệnh điều trị (Plan)</span>
+          <textarea
+            rows={3}
+            value={treatmentOrders}
+            onChange={(e) => setTreatmentOrders(e.target.value)}
+            placeholder="Thuốc, liều, chỉ định xét nghiệm / CĐHA…"
+            style={taStyle}
+          />
+        </div>
+        <div style={rowStyle}>
+          <span style={labelStyle}>Y lệnh điều dưỡng</span>
+          <textarea
+            rows={2}
+            value={nursingOrders}
+            onChange={(e) => setNursingOrders(e.target.value)}
+            placeholder="Chăm sóc, theo dõi sinh hiệu, vệ sinh…"
+            style={taStyle}
+          />
+        </div>
+        <div style={rowStyle}>
+          <span style={labelStyle}>Chế độ ăn</span>
+          <Input
+            value={dietOrders}
+            onChange={(e) => setDietOrders(e.target.value)}
+            placeholder="Ăn thường / lỏng / nhạt muối / tiểu đường…"
+          />
+        </div>
+      </div>
+    </ModalShell>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// TreatmentSheetsModal — danh sách tờ điều trị: thêm / sửa / in
 // ---------------------------------------------------------------------------
 
 const TreatmentSheetsModal: React.FC<{
@@ -1633,17 +1773,24 @@ const TreatmentSheetsModal: React.FC<{
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printing, setPrinting] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<TreatmentSheetDto | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    setSelectedIds(new Set());
+  const reload = () => {
     setLoading(true);
     getTreatmentSheets({ admissionId }).then((r) => {
       setSheets(Array.isArray(r.data) ? r.data : []);
     }).catch(() => {
       message.warning('Không tải được danh sách phiếu điều trị');
     }).finally(() => setLoading(false));
-  }, [open, admissionId, message]);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    setSelectedIds(new Set());
+    reload();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, admissionId]);
 
   const toggle = (id: string) => {
     const next = new Set(selectedIds);
@@ -1678,58 +1825,105 @@ const TreatmentSheetsModal: React.FC<{
     else message.success(`Đã mở ${ids.length} tờ điều trị`);
   };
 
+  const openCreate = () => { setEditTarget(null); setEditOpen(true); };
+  const openEdit = (s: TreatmentSheetDto) => { setEditTarget(s); setEditOpen(true); };
+  const onEditDone = () => { setEditOpen(false); reload(); };
+
   return (
-    <ModalShell
-      open={open}
-      onClose={onClose}
-      size="md"
-      title="In tờ điều trị"
-      sub={`Chọn đợt điều trị cần in · ${sheets.length} phiếu`}
-      footer={
-        <>
-          <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
-          <Btn variant="primary" disabled={printing || selectedIds.size === 0} onClick={printSelected}>
-            <TermIcon name="printer" size={12} />
-            {printing ? 'Đang in…' : `In ${selectedIds.size} phiếu`}
-          </Btn>
-        </>
-      }
-    >
-      <div style={{ padding: 'var(--space-16)' }}>
-        {loading ? (
-          <div style={{ textAlign: 'center', color: 'var(--t-2)', padding: 'var(--space-24)' }}>Đang tải…</div>
-        ) : sheets.length === 0 ? (
-          <div style={{ textAlign: 'center', color: 'var(--t-3)', padding: 'var(--space-24)' }}>Chưa có phiếu điều trị</div>
-        ) : (
+    <>
+      <TreatmentSheetEditModal
+        open={editOpen}
+        admissionId={admissionId}
+        editing={editTarget}
+        onClose={() => setEditOpen(false)}
+        onDone={onEditDone}
+      />
+      <ModalShell
+        open={open}
+        onClose={onClose}
+        size="md"
+        title="Tờ điều trị hàng ngày"
+        sub={`${sheets.length} phiếu · chọn để in`}
+        footer={
           <>
-            <div style={{ marginBottom: 'var(--space-8)' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', fontSize: 'var(--fs-sm)', cursor: 'pointer', fontWeight: 600 }}>
-                <input type="checkbox" checked={selectedIds.size === sheets.length} onChange={toggleAll} />
-                Chọn tất cả ({sheets.length} phiếu)
-              </label>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', maxHeight: 360, overflowY: 'auto' }}>
-              {sheets.map((s) => (
-                <label key={s.id} style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 'var(--space-8)', cursor: 'pointer',
-                  padding: '8px 10px', borderRadius: 'var(--r-2)',
-                  background: selectedIds.has(s.id) ? 'var(--a-em-bg)' : 'var(--d-1)',
-                  border: `1px solid ${selectedIds.has(s.id) ? 'var(--a-em-bd)' : 'var(--line)'}`,
-                  fontSize: 12.5,
-                }}>
-                  <input type="checkbox" checked={selectedIds.has(s.id)} onChange={() => toggle(s.id)} style={{ marginTop: 'var(--space-2)' }} />
-                  <div>
-                    <div style={{ fontWeight: 500 }}>{dayjs(s.treatmentDate).format('DD/MM/YYYY')}</div>
-                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{s.doctorName || '—'}</div>
-                    {s.progressNotes && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)', whiteSpace: 'pre-line', maxWidth: 400 }}>{s.progressNotes.slice(0, 80)}{s.progressNotes.length > 80 ? '…' : ''}</div>}
-                  </div>
-                </label>
-              ))}
-            </div>
+            <Btn variant="ghost" onClick={onClose}>Đóng</Btn>
+            <Btn variant="secondary" onClick={openCreate}>
+              <TermIcon name="plus" size={12} />
+              Thêm diễn biến
+            </Btn>
+            <Btn variant="primary" disabled={printing || selectedIds.size === 0} onClick={printSelected}>
+              <TermIcon name="printer" size={12} />
+              {printing ? 'Đang in…' : `In ${selectedIds.size} phiếu`}
+            </Btn>
           </>
-        )}
-      </div>
-    </ModalShell>
+        }
+      >
+        <div style={{ padding: 'var(--space-16)' }}>
+          {loading ? (
+            <div style={{ textAlign: 'center', color: 'var(--t-2)', padding: 'var(--space-24)' }}>Đang tải…</div>
+          ) : sheets.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 'var(--space-32)' }}>
+              <div style={{ color: 'var(--t-3)', marginBottom: 'var(--space-12)' }}>Chưa có tờ điều trị nào</div>
+              <Btn variant="primary" onClick={openCreate}>
+                <TermIcon name="plus" size={12} />
+                Ghi diễn biến đầu tiên
+              </Btn>
+            </div>
+          ) : (
+            <>
+              <div style={{ marginBottom: 'var(--space-8)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', fontSize: 'var(--fs-sm)', cursor: 'pointer', fontWeight: 600 }}>
+                  <input type="checkbox" checked={selectedIds.size === sheets.length} onChange={toggleAll} />
+                  Chọn tất cả ({sheets.length} phiếu)
+                </label>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', maxHeight: 360, overflowY: 'auto' }}>
+                {sheets.map((s) => (
+                  <div key={s.id} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 'var(--space-8)',
+                    padding: '8px 10px', borderRadius: 'var(--r-2)',
+                    background: selectedIds.has(s.id) ? 'var(--a-em-bg)' : 'var(--d-1)',
+                    border: `1px solid ${selectedIds.has(s.id) ? 'var(--a-em-bd)' : 'var(--line)'}`,
+                    fontSize: 12.5,
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(s.id)}
+                      onChange={() => toggle(s.id)}
+                      style={{ marginTop: 'var(--space-2)', flexShrink: 0 }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 500 }}>{dayjs(s.treatmentDate).format('DD/MM/YYYY')}</div>
+                      <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>{s.doctorName || '—'}</div>
+                      {s.progressNotes && (
+                        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginTop: 'var(--space-2)', whiteSpace: 'pre-line' }}>
+                          {s.progressNotes.slice(0, 80)}{s.progressNotes.length > 80 ? '…' : ''}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 'var(--space-4)', flexShrink: 0 }}>
+                      <Btn variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(s); }} style={{ padding: '2px 7px', fontSize: 11 }}>Sửa</Btn>
+                      <Btn variant="ghost" onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          const r = await printTreatmentSheet(s.id);
+                          const url = URL.createObjectURL(r.data as Blob);
+                          const w = window.open(url, '_blank');
+                          if (w) w.onload = () => URL.revokeObjectURL(url);
+                          else URL.revokeObjectURL(url);
+                        } catch { message.error('Không in được phiếu'); }
+                      }} style={{ padding: '2px 7px', fontSize: 11 }}>
+                        <TermIcon name="printer" size={10} />
+                      </Btn>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </ModalShell>
+    </>
   );
 };
 
