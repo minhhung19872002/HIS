@@ -20,8 +20,12 @@ const TOP_TABS = [
 ];
 
 const MSG_TYPE_LABEL: Record<string, string> = {
-  appointment: 'Lịch hẹn', reminder: 'Nhắc nhở', result: 'Kết quả',
-  billing: 'Hóa đơn', emergency: 'Khẩn cấp', test: 'Thử nghiệm',
+  OTP:           'OTP xác thực',
+  Result:        'Kết quả XN/CĐHA',
+  Booking:       'Đặt lịch hẹn',
+  Reminder:      'Nhắc lịch hẹn',
+  General:       'Chung',
+  CriticalValue: 'Giá trị nguy cấp',
 };
 const typeLabel = (t: string) => MSG_TYPE_LABEL[t] || t;
 
