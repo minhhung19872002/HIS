@@ -108,6 +108,7 @@ const DoctorPortalV2: React.FC = () => {
   const [opdStab, setOpdStab] = useState('all');
   const [opdPage, setOpdPage] = useState(0);
   const [opdDetail, setOpdDetail] = useState<ExaminationDto | null>(null);
+  const [opdTotal, setOpdTotal] = useState(0); // totalCount thật từ server (KPI không bị trần 200)
 
   const opd = useListData<ExaminationDto>(
     useCallback(async () => {
@@ -118,7 +119,9 @@ const DoctorPortalV2: React.FC = () => {
         pageIndex: 1, pageSize: 200,
         keyword: opdSearch || undefined,
       });
-      return r.data?.items || [];
+      const items = r.data?.items || [];
+      setOpdTotal(r.data?.totalCount ?? items.length);
+      return items;
     }, [opdSearch]),
     useCallback(() => tw('Không thể tải danh sách bệnh nhân ngoại trú'), []),
   );
@@ -135,11 +138,14 @@ const DoctorPortalV2: React.FC = () => {
   const [ipdSearch, setIpdSearch] = useState('');
   const [ipdPage, setIpdPage] = useState(0);
   const [ipdDetail, setIpdDetail] = useState<InpatientListDto | null>(null);
+  const [ipdTotal, setIpdTotal] = useState(0); // totalCount thật từ server
 
   const ipd = useListData<InpatientListDto>(
     useCallback(async () => {
       const r = await inpatientApi.getInpatientList({ status: 1, page: 1, pageSize: 200, keyword: ipdSearch || undefined });
-      return r.data?.items || [];
+      const items = r.data?.items || [];
+      setIpdTotal(r.data?.totalCount ?? items.length);
+      return items;
     }, [ipdSearch]),
     useCallback(() => tw('Không thể tải danh sách bệnh nhân nội trú'), []),
   );
@@ -180,11 +186,12 @@ const DoctorPortalV2: React.FC = () => {
       return next;
     });
   };
+  // parity v1: chọn tất cả trên TOÀN BỘ danh sách đã lọc (không chỉ trang hiện tại)
   const toggleAllSig = () => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (sigPaged.every((r) => next.has(r.id))) sigPaged.forEach((r) => next.delete(r.id));
-      else sigPaged.forEach((r) => next.add(r.id));
+      if (sigFiltered.every((r) => next.has(r.id))) sigFiltered.forEach((r) => next.delete(r.id));
+      else sigFiltered.forEach((r) => next.add(r.id));
       return next;
     });
   };
@@ -278,13 +285,13 @@ const DoctorPortalV2: React.FC = () => {
         { lbl: 'Đang khám', val: opd.rows.filter((r) => r.status === 1).length, tone: 'warn' as const },
         { lbl: 'Chờ KQ CLS', val: opd.rows.filter((r) => r.status === 2).length, tone: 'warn' as const },
         { lbl: 'Hoàn thành', val: opd.rows.filter((r) => r.status === 3).length, tone: 'ok' as const },
-        { lbl: 'Tổng cộng', val: opd.rows.length, sub: '7 ngày', tone: undefined },
+        { lbl: 'Tổng cộng', val: opdTotal || opd.rows.length, sub: '7 ngày', tone: undefined },
       ];
     }
     if (block === 'inpatient') {
       const alerts = ipd.rows.filter((r) => r.hasPendingOrders || r.hasPendingLabResults || r.hasUnclaimedMedicine || r.isDebtWarning).length;
       return [
-        { lbl: 'Đang điều trị', val: ipd.rows.length, tone: 'info' as const },
+        { lbl: 'Đang điều trị', val: ipdTotal || ipd.rows.length, tone: 'info' as const },
         { lbl: 'Chờ xuất viện', val: ipd.rows.filter((r) => r.status === 2).length, tone: 'warn' as const },
         { lbl: 'Có cảnh báo', val: alerts, tone: alerts > 0 ? 'crit' as const : 'ok' as const },
         { lbl: 'Nợ viện phí', val: ipd.rows.filter((r) => r.isDebtWarning).length, tone: 'crit' as const },
@@ -303,7 +310,7 @@ const DoctorPortalV2: React.FC = () => {
       { lbl: 'Trực', val: duty.rows.filter((s) => s.isOnCall).length, tone: 'warn' as const },
       { lbl: 'Hôm nay', val: todayShift ? todayShift.shiftName : 'Nghỉ', tone: todayShift ? 'ok' as const : undefined },
     ];
-  }, [block, opd.rows, ipd.rows, sig.rows, selectedIds.size, selectedDocTypes.length, hasMixedSelectedDocTypes, duty.rows, todayShift]);
+  }, [block, opd.rows, ipd.rows, sig.rows, selectedIds.size, selectedDocTypes.length, hasMixedSelectedDocTypes, duty.rows, todayShift, opdTotal, ipdTotal]);
 
   // ── Columns ──────────────────────────────────────────────────────────────
   const opdColumns: ColumnDef<ExaminationDto>[] = [

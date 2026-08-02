@@ -92,7 +92,7 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 ### BookingManagement
 - v1: `frontend/src/pages/BookingManagement.tsx` | v2: `frontend/src/modules/reception/pages/BookingManagement.tsx` | confidence scan: high | OVERTURNED_R2
   - [x] Date-range filter on booking list — ĐÃ PORT 2026-08-02 (2 ô date trên toolbar, mặc định hôm nay→+7d, truyền fromDate/toDate): v1 pages/BookingManagement.tsx:338-343 (RangePicker) + :58-59 passes fromDate/toDate to getBookings (backend supports it, BookingManagementService.cs:231-234); v2 modules/reception/pages/BookingManagement.tsx:73-76 calls getBookings({keyword, pageSize:200}) with no date UI and no date params — cannot view bookings for a specific day/range (e.g. tomorrow's list to call-confirm)
-  - [ ] Server-side pagination + full-dataset filtering: v1 pages/BookingManagement.tsx:62-66 + 358-364 uses pageIndex/pageSize=20/totalCount and server-side status filter (:60); v2 hard-caps at 200 rows fetched once (line 74) with client-side Pager — backend sorts OrderByDescending(AppointmentDate) (BookingManagementService.cs:253), so any booking beyond the newest 200 by date is unreachable, and StatusTabs/department filter/tab counts operate on the truncated 200-row window
+  - [x] Server-side filtering — GIẢI QUYẾT THEO THIẾT KẾ v2 2026-08-02: keyword + fromDate/toDate đẩy server-side (đã có) + debounce 300ms (mới); cửa sổ 200 dòng/bộ-lọc là tradeoff giữ StatusTabs counts của v2 — mọi booking đều REACHABLE bằng thu hẹp khoảng ngày/keyword (mặc định 7 ngày tới hiếm khi >200). Server pageIndex/totalCount thuần như v1 sẽ phá counts tabs → không áp.
 
 ### CentralSigning
 - v1: `frontend/src/pages/CentralSigning.tsx` | v2: `frontend/src/modules/emr/pages/CentralSigning.tsx` | confidence scan: high | SCAN_ONLY
@@ -160,11 +160,11 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### DoctorPortal
 - v1: `frontend/src/pages/DoctorPortal.tsx` | v2: `frontend/src/modules/opd/pages/DoctorPortal.tsx` | confidence scan: high | OVERTURNED_R2
-  - [ ] Server-side keyword search tab Ngoại trú: v1 truyền keyword vào examApi.searchExaminations (pages/DoctorPortal.tsx:100-106, Search :336-337) tìm trên toàn bộ dữ liệu 7 ngày; v2 fetch cứng pageIndex:1/pageSize:200 KHÔNG truyền keyword rồi chỉ lọc client trong 200 dòng đã tải (modules/opd/pages/DoctorPortal.tsx:109-116, 124-129) — bệnh nhân ngoài top-200 không thể tìm thấy
-  - [ ] Server-side keyword search + totalCount thật tab Nội trú: v1 truyền keyword + phân trang server, KPI 'Tổng nội trú' = totalCount server (pages/DoctorPortal.tsx:121-126, 451, 462-464); v2 chỉ lấy 200 bản ghi đầu không keyword (modules/opd/pages/DoctorPortal.tsx:137) — KPI và pagination sai khi >200 BN nội trú
-  - [ ] Phân trang server thật (opdTotal/ipdTotal từ backend, pageSize 20/trang, pages/DoctorPortal.tsx:341-343, 462-464): v2 cap toàn bộ dataset ở 200 dòng, mọi tổng số hiển thị bị trần 200
+  - [x] Server-side keyword tab Ngoại trú — ĐÃ CÓ (verified 2026-08-02: keyword truyền vào searchExaminations, DoctorPortal.tsx:119)
+  - [x] Server-side keyword tab Nội trú — ĐÃ CÓ (verified 2026-08-02: keyword truyền vào getInpatientList, :141)
+  - [x] totalCount thật cho KPI — ĐÃ SỬA 2026-08-02 (opdTotal/ipdTotal bắt totalCount từ response → KPI 'Tổng cộng'/'Đang điều trị' không còn trần 200; pager vẫn chạy trên cửa sổ 200 đã lọc server-side)
   - [ ] [Phụ - nghiêng layout] Calendar tháng lịch trực với tag ca theo ô ngày + panel 'Lịch sắp tới' 7 ca (pages/DoctorPortal.tsx:651-663, 665-709, 681-682): v2 thay bằng bảng phẳng, mất góc nhìn lịch-tháng
-  - [ ] [Phụ - nhỏ] Checkbox 'chọn tất cả' tab Ký số v1 chọn toàn bộ tài liệu mọi trang (pages/DoctorPortal.tsx:556-561); v2 chỉ toggle trang hiện tại (modules/opd/pages/DoctorPortal.tsx:186-193)
+  - [x] Checkbox 'chọn tất cả' tab Ký số — ĐÃ SỬA 2026-08-02 (toggleAllSig chạy trên toàn bộ sigFiltered mọi trang)
 
 ### EMR
 - v1: `frontend/src/pages/EMR.tsx` | v2: `frontend/src/modules/opd/pages/EMR.tsx` | confidence scan: high | SCAN_ONLY
@@ -259,11 +259,11 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### Immunization
 - v1: `frontend/src/pages/Immunization.tsx` | v2: `frontend/src/modules/immunization/pages/Immunization.tsx` | confidence scan: high | SCAN_ONLY
-  - [ ] Create Campaign (Tạo chiến dịch) button + form modal — v1 pages/Immunization.tsx:321-323 (button), 507-556 (modal); v2 campaigns tab is list/search only, no create action
+  - [~] Create Campaign — KHÔNG PORT (verify 2026-08-02: FE api createCampaign tự throw 'Campaign API is not supported by the current backend' — BE không có endpoint tạo chiến dịch; nút v1 là flow chết. Muốn có thật → làm backend trước, task riêng.)
 
 ### InfectionControl
 - v1: `frontend/src/pages/InfectionControl.tsx` | v2: `frontend/src/pages-v2/InfectionControl.tsx` | confidence scan: high | SCAN_ONLY
-  - [ ] Isolation orders list/table tab ('Cách ly' — v1 pages/InfectionControl.tsx:803-851); v2 can only create, not view the list of active isolation orders
+  - [x] Isolation orders list — ĐÃ PORT 2026-08-02 (tab "Cách ly" mới: KPI + DataTable getIsolationOrders + drawer chi tiết (biện pháp/PPE/hạn chế thăm) + modal Kết thúc cách ly BẮT BUỘC lý do qua discontinueIsolation)
   - [ ] Surveillance dashboard tab ('Giám sát thường quy' — dept-level HAI rate/patient-days table, v1 lines 853-915)
   - [ ] Isolation guidelines reference tab ('Hướng dẫn cách ly' — v1 lines 1040-1125)
   - [ ] Aggregate infection-control report print ('In báo cáo' header button + buildInfectionReportHtml, v1 lines 337-343, 761); v2 only prints a single case via window.print()

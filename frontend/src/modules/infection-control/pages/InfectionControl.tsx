@@ -4,10 +4,12 @@ import {
   getHAICases, createHAICase, createIsolationOrder,
   getHandHygieneObservations, createHandHygieneObservation,
   getOutbreaks, investigateHAICase,
+  getIsolationOrders, discontinueIsolation,
 } from '../api/infectionControl';
 import type {
   CreateHAISurveillanceDto, CreateIsolationOrderDto,
   CreateHandHygieneObservationDto, HandHygieneObservationDto, OutbreakDto,
+  IsolationOrderDto,
 } from '../api/infectionControl';
 import { getInpatientList } from '../../inpatient/api/inpatient';
 import {
@@ -78,11 +80,12 @@ const isDevice = (r: Row) => r.deviceAssociated || r.hasCentralLine || r.hasUrin
 const PER = 18;
 
 // ─── TopTabs ───────────────────────────────────────────────────────────────
-type TabKey = 'hai' | 'hh' | 'outbreak';
+type TabKey = 'hai' | 'hh' | 'outbreak' | 'isolation';
 const TOP_TABS: TopTab<TabKey>[] = [
   { v: 'hai', l: 'Ca NKBV' },
   { v: 'hh',  l: 'Vệ sinh tay' },
   { v: 'outbreak', l: 'Ổ dịch' },
+  { v: 'isolation', l: 'Cách ly' },
 ];
 
 // ─── Hand Hygiene form fields (static, no deps) ───────────────────────────
@@ -209,6 +212,38 @@ const InfectionControlV2: React.FC = () => {
       .catch(() => ti('Không tải được dữ liệu vệ sinh tay'))
       .finally(() => setHhLoading(false));
   }, [tab, hhLoaded]);
+
+  // ─── Isolation orders state (#352 parity v1 tab Cách ly) ────────────────
+  const [isoItems, setIsoItems] = useState<IsolationOrderDto[]>([]);
+  const [isoLoading, setIsoLoading] = useState(false);
+  const [isoLoaded, setIsoLoaded] = useState(false);
+  const [isoSel, setIsoSel] = useState<IsolationOrderDto | null>(null);
+  const [isoDiscTarget, setIsoDiscTarget] = useState<IsolationOrderDto | null>(null);
+  const [isoDiscReason, setIsoDiscReason] = useState('');
+
+  useEffect(() => {
+    if (tab !== 'isolation' || isoLoaded) return;
+    setIsoLoading(true);
+    getIsolationOrders()
+      .then((r) => {
+        setIsoItems(Array.isArray(r.data) ? r.data : []);
+        setIsoLoaded(true);
+      })
+      .catch(() => ti('Không tải được danh sách y lệnh cách ly'))
+      .finally(() => setIsoLoading(false));
+  }, [tab, isoLoaded]);
+
+  const doDiscontinueIso = async () => {
+    if (!isoDiscTarget) return;
+    if (!isoDiscReason.trim()) { ti('Nhập lý do kết thúc cách ly'); return; }
+    try {
+      await discontinueIsolation({ isolationOrderId: isoDiscTarget.id, reason: isoDiscReason.trim() });
+      tk('Đã kết thúc cách ly');
+      setIsoDiscTarget(null);
+      setIsoDiscReason('');
+      setIsoLoaded(false); // reload
+    } catch { ti('Kết thúc cách ly thất bại'); }
+  };
 
   // ─── Outbreak state ─────────────────────────────────────────────────────
   const [outbreakItems, setOutbreakItems] = useState<OutbreakDto[]>([]);
@@ -380,6 +415,56 @@ const InfectionControlV2: React.FC = () => {
         <DataTable<OutbreakDto>
           columns={obCols} data={outbreakItems} rowKey={(r) => r.id}
           empty={outbreakLoading ? 'Đang tải…' : 'Chưa có ổ dịch'}
+        />
+      </>}
+
+      {/* ── Tab: Cách ly (#352 parity v1 pages/InfectionControl.tsx:803-851) ── */}
+      {tab === 'isolation' && <>
+        <KpiStrip items={[
+          { lbl: 'Tổng y lệnh', val: isoItems.length, sub: 'cách ly' },
+          { lbl: 'Đang cách ly', val: isoItems.filter((o) => !o.discontinuedDate).length, tone: 'warn' },
+          { lbl: 'MDRO', val: isoItems.filter((o) => o.isMDRO).length, sub: 'kháng đa thuốc', tone: 'crit' },
+          { lbl: 'Đã kết thúc', val: isoItems.filter((o) => !!o.discontinuedDate).length, tone: 'ok' },
+        ]} />
+        <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
+          <span className="spacer" />
+          <Btn variant="ghost" icon="refresh" onClick={() => setIsoLoaded(false)}>Làm mới</Btn>
+        </div>
+        <DataTable<IsolationOrderDto>
+          columns={[
+            { key: 'code', label: 'Mã YL', code: true, width: 120, render: (r) => r.orderCode },
+            { key: 'patient', label: 'Bệnh nhân', render: (r) => (
+              <div className="cell-2l">
+                <b>{r.patientName}</b>
+                <i>{r.departmentName}{r.bedNumber ? ` · giường ${r.bedNumber}` : ''}</i>
+              </div>
+            ) },
+            { key: 'type', label: 'Loại cách ly', width: 140, render: (r) => (
+              <span className="chip warn">{r.isolationTypeName || r.isolationType}</span>
+            ) },
+            { key: 'reason', label: 'Lý do / tác nhân', render: (r) => (
+              <div className="cell-2l">
+                <b>{r.reason}</b>
+                {r.organism && <i>{r.organism}{r.isMDRO ? ' · MDRO' : ''}</i>}
+              </div>
+            ) },
+            { key: 'start', label: 'Bắt đầu', mono: true, width: 110, render: (r) => dayjs(r.startDate).format('DD/MM/YYYY') },
+            { key: 'st', label: 'TT', width: 130, render: (r) => r.discontinuedDate
+              ? <StatusBadge tone="ok" dot>Đã kết thúc</StatusBadge>
+              : <StatusBadge tone="warn" dot>{r.statusName || 'Đang cách ly'}</StatusBadge> },
+          ]}
+          data={isoItems} rowKey={(r) => r.id}
+          onRowClick={(r) => setIsoSel(r)}
+          actions={(r) => (
+            <div className="ab-actions">
+              <ActBtn ic="eye" title="Chi tiết" onClick={() => setIsoSel(r)} />
+              {!r.discontinuedDate && (
+                <ActBtn ic="x" title="Kết thúc cách ly" tone="warn"
+                  onClick={() => { setIsoDiscTarget(r); setIsoDiscReason(''); }} />
+              )}
+            </div>
+          )}
+          empty={isoLoading ? 'Đang tải…' : 'Chưa có y lệnh cách ly'}
         />
       </>}
 
@@ -555,6 +640,72 @@ const InfectionControlV2: React.FC = () => {
             />
           </div>
         </div>
+      </ModalShell>
+
+      {/* ── Drawer: chi tiết y lệnh cách ly ─────────────────────────────── */}
+      <DrawerShell
+        open={!!isoSel}
+        onClose={() => setIsoSel(null)}
+        size="md"
+        title={isoSel ? `Cách ly ${isoSel.orderCode}` : ''}
+        sub={isoSel ? `${isoSel.patientName} · ${isoSel.departmentName}` : ''}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setIsoSel(null)}>Đóng</Btn>
+          {isoSel && !isoSel.discontinuedDate && (
+            <Btn variant="primary" icon="x" onClick={() => { setIsoDiscTarget(isoSel); setIsoDiscReason(''); setIsoSel(null); }}>
+              Kết thúc cách ly
+            </Btn>
+          )}
+        </>}
+      >
+        {isoSel && <>
+          <DrSec title="Y lệnh">
+            <DrField lbl="Loại cách ly"><span className="chip warn">{isoSel.isolationTypeName || isoSel.isolationType}</span></DrField>
+            <DrField lbl="Lý do">{isoSel.reason}</DrField>
+            {isoSel.organism && <DrField lbl="Tác nhân">{isoSel.organism}{isoSel.isMDRO ? ' (MDRO)' : ''}</DrField>}
+            <DrField lbl="Bắt đầu">{dayjs(isoSel.startDate).format('DD/MM/YYYY')}</DrField>
+            <DrField lbl="BS chỉ định">{isoSel.orderedByName || '—'}</DrField>
+          </DrSec>
+          <DrSec title="Biện pháp">
+            <DrField lbl="Phòng ngừa">{isoSel.precautions?.length ? isoSel.precautions.join(', ') : '—'}</DrField>
+            <DrField lbl="PPE">{isoSel.ppeRequirements?.length ? isoSel.ppeRequirements.join(', ') : '—'}</DrField>
+            {isoSel.visitorRestrictions && <DrField lbl="Hạn chế thăm">{isoSel.visitorRestrictions}</DrField>}
+            {isoSel.specialInstructions && <DrField lbl="Hướng dẫn đặc biệt">{isoSel.specialInstructions}</DrField>}
+          </DrSec>
+          {isoSel.discontinuedDate && (
+            <DrSec title="Kết thúc">
+              <DrField lbl="Ngày">{dayjs(isoSel.discontinuedDate).format('DD/MM/YYYY')}</DrField>
+              <DrField lbl="Người kết thúc">{isoSel.discontinuedByName || '—'}</DrField>
+              {isoSel.discontinuedReason && <DrField lbl="Lý do">{isoSel.discontinuedReason}</DrField>}
+            </DrSec>
+          )}
+        </>}
+      </DrawerShell>
+
+      {/* ── Modal: kết thúc cách ly (bắt buộc lý do) ────────────────────── */}
+      <ModalShell
+        open={!!isoDiscTarget}
+        onClose={() => setIsoDiscTarget(null)}
+        title={isoDiscTarget ? `Kết thúc cách ly ${isoDiscTarget.orderCode}` : ''}
+        sub={isoDiscTarget ? `${isoDiscTarget.patientName} · ${isoDiscTarget.isolationTypeName || isoDiscTarget.isolationType}` : ''}
+        size="sm"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setIsoDiscTarget(null)}>Hủy</Btn>
+          <Btn variant="primary" onClick={doDiscontinueIso}>Xác nhận kết thúc</Btn>
+        </>}
+      >
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 4 }}>Lý do kết thúc cách ly *</div>
+        <textarea
+          value={isoDiscReason}
+          onChange={(e) => setIsoDiscReason(e.target.value)}
+          rows={3}
+          placeholder="VD: đủ tiêu chuẩn ngừng cách ly, 2 lần cấy âm tính…"
+          style={{
+            width: '100%', resize: 'vertical',
+            background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: 4,
+            padding: 8, color: 'var(--t-0)', fontSize: 'var(--fs-sm)', boxSizing: 'border-box',
+          }}
+        />
       </ModalShell>
     </div>
   );

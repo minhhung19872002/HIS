@@ -86,7 +86,11 @@ const BookingManagementV2: React.FC = () => {
     } catch { ti('Không tải được lịch hẹn'); }
     finally { setLoading(false); }
   }, [search, dFrom, dTo]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    setPage(0);
+    const t = setTimeout(load, 300); // debounce gõ phím → tránh spam API
+    return () => clearTimeout(t);
+  }, [load]);
 
   // Gọi 1 action quản lý lịch (confirm / checkin / no-show) rồi refetch.
   const runAction = useCallback(async (
