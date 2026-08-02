@@ -61,6 +61,30 @@ public partial class ReceptionCompleteService {
         return result;
     }
 
+    // #459: luồng BN OPD 7 trạng thái chuẩn MQSoft — đếm trực tiếp trên MedicalRecord.Status.
+    public async Task<OpdFlowStatsDto> GetOpdFlowStatsAsync(DateTime date)
+    {
+        // CreatedAt lưu UTC; date là ngày local VN từ FE → so theo khoảng UTC của trọn ngày VN.
+        var (fromUtc, toUtc) = HIS.Core.Common.VnTime.DayRangeUtc(date);
+        var counts = await _context.MedicalRecords
+            .Where(m => m.CreatedAt >= fromUtc && m.CreatedAt < toUtc)
+            .GroupBy(m => m.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        int C(int s) => counts.FirstOrDefault(x => x.Status == s)?.Count ?? 0;
+        return new OpdFlowStatsDto
+        {
+            Registered = counts.Where(x => x.Status != 6).Sum(x => x.Count), // trừ 6-Hủy
+            Waiting = C(0),
+            InProgress = C(1),
+            WaitingCls = C(5),
+            ClsResultReady = C(2), // 2-Chờ kết luận = đã có kết quả CLS
+            Completed = C(3),
+            Paid = C(4)
+        };
+    }
+
     public async Task<QueueDailyStatisticsDto> GetDailyStatisticsAsync(DateTime date, Guid? departmentId)
     {
         // IssueDate chuẩn hóa UTC — dùng DayRangeUtc để tránh lệch UTC 00h-07h VN.

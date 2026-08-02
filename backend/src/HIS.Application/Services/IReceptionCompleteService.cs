@@ -47,6 +47,11 @@ public interface IReceptionCompleteService
     Task<List<AdmissionDto>> GetTodayAdmissionsAsync(Guid? roomId, DateTime date);
     Task<List<AdmissionDto>> SearchPatientsAsync(string keyword);
 
+    /// <summary>
+    /// Luồng BN OPD trong ngày theo 7 trạng thái chuẩn MQSoft (#459)
+    /// </summary>
+    Task<OpdFlowStatsDto> GetOpdFlowStatsAsync(DateTime date);
+
     #endregion
 
     #region 1.2 Hệ thống xếp hàng

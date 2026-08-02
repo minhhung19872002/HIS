@@ -5,7 +5,7 @@ import { App as AntdApp } from 'antd';
 import { statisticsApi } from '../modules/system/api/system';
 import type { HospitalDashboardDto, DepartmentStatisticsDto } from '../modules/system/api/system';
 import * as receptionApi from '../modules/reception/api/reception';
-import type { AdmissionDto } from '../modules/reception/api/reception';
+import type { AdmissionDto, OpdFlowStatsDto } from '../modules/reception/api/reception';
 import * as surgeryApi from '../modules/surgery/api/surgery';
 import type { SurgeryScheduleDto } from '../modules/surgery/api/surgery';
 import * as inpatientApi from '../modules/inpatient/api/inpatient';
@@ -66,6 +66,9 @@ const DashboardV2: React.FC = () => {
   const [pendingRx, setPendingRx]   = useState<PendingPrescription[]>([]);
   const [alerts, setAlerts]         = useState<BusinessAlertDto[]>([]);
   const [hr, setHr]                 = useState<MedicalHRDashboardDto | null>(null);
+  // #459: 7 bucket luồng BN từ API riêng (thay vì đếm client-side 4 trạng thái)
+  const EMPTY_FLOW: OpdFlowStatsDto = { registered: 0, waiting: 0, inProgress: 0, waitingCls: 0, clsResultReady: 0, completed: 0, paid: 0 };
+  const [opdFlow, setOpdFlow]       = useState<OpdFlowStatsDto>(EMPTY_FLOW);
 
   // Popup state — ER row drawer, bed modal, OR case modal, stock PO modal,
   // alert detail modal, all-alerts drawer.
@@ -107,6 +110,7 @@ const DashboardV2: React.FC = () => {
           pharmacyApi.getPendingPrescriptions().catch(() => ({ data: [] as PendingPrescription[] })),
           alertsApi.getActiveAlerts({ pageIndex: 0, pageSize: 5, status: 0 }).catch(() => ({ data: { items: [] as BusinessAlertDto[], totalCount: 0, pageIndex: 0, pageSize: 0 } })),
           hrApi.getDashboard(today).catch(() => ({ data: null as MedicalHRDashboardDto | null })),
+          receptionApi.getOpdFlowStats(today).then((r) => { if (!cancelled && r.data) setOpdFlow(r.data); }).catch(() => undefined),
         ]);
 
         if (cancelled) return;
@@ -201,12 +205,6 @@ const DashboardV2: React.FC = () => {
       .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
       .slice(0, 6),
     [admissions]);
-
-  /* --------- OPD flow status counts from real admissions --------- */
-  const opdFlow = useMemo(() => {
-    const s = (v: number) => admissions.filter((a) => a.status === v).length;
-    return { waiting: s(1), inprog: s(2), done: s(3), skipped: s(4) };
-  }, [admissions]);
 
   /* --------- All beds flattened across loaded wards --------- */
   const allBeds = useMemo<BedLayoutDto[]>(

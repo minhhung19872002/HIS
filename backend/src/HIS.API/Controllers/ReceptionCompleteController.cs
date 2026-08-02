@@ -108,6 +108,16 @@ public partial class ReceptionCompleteController : ControllerBase
     }
 
     /// <summary>
+    /// Luồng BN OPD trong ngày theo 7 trạng thái chuẩn MQSoft (#459)
+    /// </summary>
+    [HttpGet("opd-flow-stats")]
+    public async Task<ActionResult<OpdFlowStatsDto>> GetOpdFlowStats([FromQuery] DateTime? date)
+    {
+        var result = await _receptionService.GetOpdFlowStatsAsync(date ?? DateTime.Today);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Tìm kiếm bệnh nhân theo mã, tên, CCCD, SĐT, thẻ BHYT
     /// </summary>
     [HttpGet("patients/search")]

@@ -374,6 +374,22 @@ export const getTodayAdmissions = (roomId?: string, date?: string) =>
     params: { roomId, date }
   });
 
+// #459: luồng BN OPD 7 trạng thái chuẩn MQSoft
+export interface OpdFlowStatsDto {
+  registered: number;
+  waiting: number;
+  inProgress: number;
+  waitingCls: number;
+  clsResultReady: number;
+  completed: number;
+  paid: number;
+}
+
+export const getOpdFlowStats = (date?: string) =>
+  api.get<OpdFlowStatsDto>('/reception/opd-flow-stats', {
+    params: { date }
+  });
+
 export const getRoomDetail = (roomId: string, date?: string) =>
   api.get<RoomOverviewDto>(`/reception/rooms/${roomId}/detail`, {
     params: { date }

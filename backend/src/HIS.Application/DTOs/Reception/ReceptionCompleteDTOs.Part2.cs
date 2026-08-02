@@ -527,3 +527,19 @@ public class QueueRoomStatisticsDto
     public double AverageWaitMinutes { get; set; }
 }
 
+
+/// <summary>
+/// DTO luồng bệnh nhân OPD theo 7 trạng thái chuẩn MQSoft (#459).
+/// Map từ MedicalRecord.Status: 0-Chờ khám, 1-Đang khám, 2-Chờ kết luận (có KQ CLS),
+/// 3-Hoàn thành, 4-Đã thanh toán, 5-Chờ CLS; Registered = tổng hồ sơ trong ngày (trừ 6-Hủy).
+/// </summary>
+public class OpdFlowStatsDto
+{
+    public int Registered { get; set; }
+    public int Waiting { get; set; }
+    public int InProgress { get; set; }
+    public int WaitingCls { get; set; }
+    public int ClsResultReady { get; set; }
+    public int Completed { get; set; }
+    public int Paid { get; set; }
+}
