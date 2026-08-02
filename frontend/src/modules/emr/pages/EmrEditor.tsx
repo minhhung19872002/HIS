@@ -80,16 +80,105 @@ const ATTACH_CATS = [
   { v: 'BenhAn', l: 'Bệnh án' }, { v: 'GiayTo', l: 'Giấy tờ' }, { v: 'Khac', l: 'Khác' },
 ];
 
-const PRINT_FORMS: { label: string; printType: string }[] = [
-  { label: 'MS-01 · Tóm tắt bệnh án ra viện',  printType: 'summary' },
-  { label: 'MS-02 · Bệnh án tổng quát',          printType: 'finalsummary' },
-  { label: 'MS-03 · Phiếu điều trị',             printType: 'treatment' },
-  { label: 'MS-04 · Phiếu chăm sóc ĐD',         printType: 'nursing' },
-  { label: 'DD-01 · Phiếu công khai DV-Thuốc',  printType: 'dd09-meddisclosure' },
-  { label: 'BHYT-01 · Tổng hợp thanh toán',      printType: 'finalsummary' }, // dùng tổng kết HSBA làm proxy — chưa có template riêng BHYT-01
-  { label: 'XN-01 · Giấy xác nhận đang điều trị', printType: 'treatment-confirm' },
-  { label: 'CT-01 · Giấy chứng nhận thương tích', printType: 'injury-cert' },
-  { label: 'SAN-01 · Giấy nghỉ dưỡng thai',       printType: 'maternity-leave' },
+// TT32/2023/TT-BYT + biểu mẫu lâm sàng bổ sung
+type PrintFormEntry = { label: string; printType: string; group?: string };
+const PRINT_FORMS: PrintFormEntry[] = [
+  // ── Biểu mẫu hành chính / tổng kết ────────────────────────────────
+  { group: 'Hành chính & tổng kết',    label: 'Tóm tắt bệnh án ra viện',         printType: 'summary' },
+  { group: 'Hành chính & tổng kết',    label: 'Bệnh án tổng quát',               printType: 'finalsummary' },
+  { group: 'Hành chính & tổng kết',    label: 'Phiếu khám bệnh (nhập viện)',      printType: 'admission' },
+  { group: 'Hành chính & tổng kết',    label: 'Giấy ra viện',                     printType: 'discharge' },
+  { group: 'Hành chính & tổng kết',    label: 'Giấy chuyển viện / chuyển tuyến', printType: 'referral' },
+  { group: 'Hành chính & tổng kết',    label: 'Giấy xác nhận đang điều trị',      printType: 'treatment-confirm' },
+  { group: 'Hành chính & tổng kết',    label: 'Giấy chứng nhận thương tích',      printType: 'injury-cert' },
+  { group: 'Hành chính & tổng kết',    label: 'Giấy nghỉ dưỡng thai',             printType: 'maternity-leave' },
+
+  // ── Phiếu điều trị & theo dõi (TT32 §36) ─────────────────────────
+  { group: 'Điều trị & theo dõi',      label: 'Phiếu điều trị hàng ngày',        printType: 'treatment' },
+  { group: 'Điều trị & theo dõi',      label: 'Phiếu tư vấn / hướng dẫn',        printType: 'counseling' },
+  { group: 'Điều trị & theo dõi',      label: 'Phiếu diễn biến (ghi chú tiến triển)', printType: 'progress' },
+  { group: 'Điều trị & theo dõi',      label: 'Phiếu chăm sóc điều dưỡng',       printType: 'nursing' },
+  { group: 'Điều trị & theo dõi',      label: 'Phiếu đánh giá dinh dưỡng',        printType: 'nutrition' },
+  { group: 'Điều trị & theo dõi',      label: 'Phiếu phân loại cấp cứu (Triage)', printType: 'ls-triage-assess' },
+  { group: 'Điều trị & theo dõi',      label: 'Phiếu bàn giao chuyển khoa (BS)',  printType: 'ls-dept-transfer-doc' },
+  { group: 'Điều trị & theo dõi',      label: 'Phiếu bàn giao chuyển khoa (ĐD)', printType: 'ls-dept-transfer-nurse' },
+  { group: 'Điều trị & theo dõi',      label: 'Phiếu chuyển khoa / chuyển viện', printType: 'depttransfer' },
+
+  // ── Phẫu thuật & gây mê (TT32 §6-7) ──────────────────────────────
+  { group: 'Phẫu thuật & gây mê',      label: 'Phiếu phẫu thuật / thủ thuật',    printType: 'surgeryrecord' },
+  { group: 'Phẫu thuật & gây mê',      label: 'Phiếu duyệt PT',                  printType: 'surgeryapproval' },
+  { group: 'Phẫu thuật & gây mê',      label: 'Tổng kết PT',                      printType: 'surgerysummary' },
+  { group: 'Phẫu thuật & gây mê',      label: 'Giấy chứng nhận PT/TT (MS.18)',    printType: 'ls-surgery-cert' },
+  { group: 'Phẫu thuật & gây mê',      label: 'Phiếu khám tiền mê',              printType: 'preanesthetic' },
+  { group: 'Phẫu thuật & gây mê',      label: 'Cam kết đồng ý PT/TT',            printType: 'consent' },
+  { group: 'Phẫu thuật & gây mê',      label: 'Biên bản gây mê',                  printType: 'gayme-record' },
+  { group: 'Phẫu thuật & gây mê',      label: 'Phiếu theo dõi gây mê',            printType: 'gayme-monitor' },
+  { group: 'Phẫu thuật & gây mê',      label: 'Phiếu hồi tỉnh sau mê',            printType: 'gayme-recovery' },
+
+  // ── Bệnh án nội trú chuyên khoa (TT32 mẫu 1-20) ───────────────────
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Nội khoa',                      printType: 'sp-noikhoa' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Nhi khoa',                      printType: 'pediatric' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Truyền nhiễm',                  printType: 'sp-truyennhiem' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Phụ khoa',                      printType: 'sp-phukhoa' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Sản khoa',                      printType: 'obstetrics' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Sơ sinh',                       printType: 'neonatal' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Tâm thần',                      printType: 'sp-tamthan' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Da liễu',                       printType: 'sp-dalieu' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Huyết học - Truyền máu',        printType: 'sp-huyethoc' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Ngoại khoa',                    printType: 'sp-ngoaikhoa' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Bỏng',                          printType: 'sp-bong' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Ung bướu',                      printType: 'sp-ungbuou' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Răng hàm mặt (nội trú)',        printType: 'sp-rhm' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Tai mũi họng',                  printType: 'sp-tmh' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA YHCT nội trú',                  printType: 'sp-yhctnoidru' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Nhi YHCT',                      printType: 'sp-nhiyhct' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Mắt chấn thương / tổng quát',   printType: 'sp-matchung' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Mắt bán phần trước',            printType: 'sp-matvmcb' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Mắt đáy mắt / đục TTT',        printType: 'sp-matducttt' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Mắt Glaucoma',                  printType: 'sp-matglocom' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Mắt sụp mi / lác',             printType: 'sp-matleo' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Mắt trẻ em',                    printType: 'sp-matkxt' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA Phục hồi chức năng',            printType: 'sp-phcn' },
+  { group: 'BA chuyên khoa nội trú',   label: 'BA PHCN nhi',                      printType: 'sp-phcnnhi' },
+
+  // ── Bệnh án ngoại trú chuyên khoa (TT32 mẫu 15-17, 19, 29) ────────
+  { group: 'BA chuyên khoa ngoại trú', label: 'BA Ngoại trú chung',               printType: 'sp-ngoaitru' },
+  { group: 'BA chuyên khoa ngoại trú', label: 'BA Ngoại trú RHM',                 printType: 'sp-ngoaitrurhm' },
+  { group: 'BA chuyên khoa ngoại trú', label: 'BA Tuyến xã / phường',             printType: 'sp-tuyenxa' },
+  { group: 'BA chuyên khoa ngoại trú', label: 'BA YHCT ngoại trú',                printType: 'sp-yhctngoaitru' },
+  { group: 'BA chuyên khoa ngoại trú', label: 'BA PHCN ngoại trú',                printType: 'sp-phcnngoaitru' },
+  { group: 'BA chuyên khoa ngoại trú', label: 'Phiếu khám CK / chuyên khoa',     printType: 'sp-phieuchuyenkhoa' },
+  { group: 'BA chuyên khoa ngoại trú', label: 'Giấy KCB theo yêu cầu',           printType: 'sp-giaykhamsuckhoe' },
+
+  // ── Kiểm thảo & sự cố y khoa ──────────────────────────────────────
+  { group: 'Kiểm thảo & sự cố',        label: 'Biên bản kiểm thảo tử vong (MS.19)', printType: 'ls-death-review' },
+  { group: 'Kiểm thảo & sự cố',        label: 'Phiếu đánh giá tử vong',              printType: 'deathreview' },
+
+  // ── Điều dưỡng chuyên biệt (DD-01…DD-21) ──────────────────────────
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-01 · Kế hoạch chăm sóc',          printType: 'dd01-careplan' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-02 · Chăm sóc ICU',               printType: 'dd02-icucare' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-03 · Lượng giá điều dưỡng',       printType: 'dd03-assessment' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-04 · Chăm sóc hằng ngày',         printType: 'dd04-dailycare' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-05 · Theo dõi truyền dịch',       printType: 'dd05-infusion' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-06 · Truyền máu (XN)',             printType: 'dd06-bloodlab' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-07 · Truyền máu (lâm sàng)',      printType: 'dd07-bloodclinical' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-08 · Theo dõi sinh hiệu',         printType: 'dd08-vitalsigns' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-09 · Công khai DV-Thuốc',         printType: 'dd09-meddisclosure' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-10 · Chuẩn bị trước mổ',         printType: 'dd10-preop' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-11 · Tiêu chí nhận ICU',          printType: 'dd11-icutransfer' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-12 · Bàn giao chuyển khoa (ĐD)',  printType: 'dd12-nursetransfer' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-13 · Tiền sản giật',              printType: 'dd13-preeclampsia' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-14 · Bàn giao nội trú',          printType: 'dd14-ipdhandover' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-15 · Bàn giao phòng mổ',         printType: 'dd15-orhandover' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-16 · An toàn phẫu thuật',         printType: 'dd16-safetychecklist' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-17 · Theo dõi đường huyết',       printType: 'dd17-glucose' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-18 · Nguy cơ thai kỳ',           printType: 'dd18-pregnancyrisk' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-19 · Đánh giá nuốt',              printType: 'dd19-swallowing' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-20 · Lưu tài liệu',              printType: 'dd20-docscan' },
+  { group: 'Điều dưỡng chuyên biệt',   label: 'DD-21 · Theo dõi VAP',              printType: 'dd21-vap' },
+
+  // ── BHYT & thanh toán ─────────────────────────────────────────────
+  { group: 'BHYT & thanh toán',         label: 'Tổng hợp thanh toán',               printType: 'finalsummary' },
 ];
 
 const EmrEditorV2: React.FC = () => {
@@ -864,22 +953,36 @@ const EmrEditorV2: React.FC = () => {
         </button>
       </div>
 
-      {/* Print drawer — danh sách biểu mẫu */}
-      <DrawerShell open={printOpen} onClose={() => setPrintOpen(false)} title="In biểu mẫu HSBA" size="md">
+      {/* Print drawer — danh sách biểu mẫu TT32/2023 */}
+      <DrawerShell open={printOpen} onClose={() => setPrintOpen(false)} title="In biểu mẫu HSBA (TT32/2023)" size="md">
         <div style={{ padding: 'var(--space-14)' }}>
           {!full && (
             <div style={{ marginBottom: 'var(--space-10)', padding: '8px 12px', background: 'var(--bg-2)', borderRadius: 'var(--r-2)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
               Chọn một bệnh nhân để xem trước và in biểu mẫu.
             </div>
           )}
-          {PRINT_FORMS.map((m) => (
-            <div key={m.printType + m.label} style={{ padding: 'var(--space-10)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 'var(--space-6)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 12.5 }}>{m.label}</span>
-              <Btn variant="ghost" size="sm" disabled={!full} onClick={() => { setPrintOpen(false); openPrintForm(m.printType); }}>
-                <TermIcon name="print" size={11} /> In
-              </Btn>
-            </div>
-          ))}
+          {(() => {
+            const groups = PRINT_FORMS.reduce<Record<string, PrintFormEntry[]>>((acc, m) => {
+              const g = m.group ?? 'Khác';
+              (acc[g] ??= []).push(m);
+              return acc;
+            }, {});
+            return Object.entries(groups).map(([g, items]) => (
+              <div key={g} style={{ marginBottom: 'var(--space-14)' }}>
+                <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, color: 'var(--t-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 'var(--space-6)', paddingBottom: 'var(--space-4)', borderBottom: '1px solid var(--line-soft)' }}>
+                  {g}
+                </div>
+                {items.map((m) => (
+                  <div key={m.printType + m.label} style={{ padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', marginBottom: 'var(--space-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12.5 }}>{m.label}</span>
+                    <Btn variant="ghost" size="sm" disabled={!full} onClick={() => { setPrintOpen(false); openPrintForm(m.printType); }}>
+                      <TermIcon name="print" size={11} /> In
+                    </Btn>
+                  </div>
+                ))}
+              </div>
+            ));
+          })()}
         </div>
       </DrawerShell>
 
