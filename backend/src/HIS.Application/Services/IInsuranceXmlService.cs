@@ -169,6 +169,11 @@ public interface IInsuranceXmlService
     /// </summary>
     Task<byte[]> DownloadXmlFileAsync(Guid batchId);
 
+    /// <summary>
+    /// #352: Lịch sử đợt xuất XML (bảng InsuranceXmlBatches #441) — lọc năm/tháng, mới nhất trước.
+    /// </summary>
+    Task<List<XmlBatchHistoryDto>> GetXmlBatchHistoryAsync(int? year = null, int? month = null);
+
     #endregion
 
     #region 12.4 Kiểm tra và validate

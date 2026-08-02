@@ -24,11 +24,13 @@ import {
   getSettlementBatches,
   verifyInsuranceCard,
   getInsuranceHistory,
+  getXmlBatchHistory,
 } from '../api/insurance';
 import type {
   InsuranceClaimSummaryDto, PortalConnectionTestResult,
   XmlExportConfigDto, XmlExportResultDto, XmlExportPreviewDto, InsuranceSettlementBatchDto,
   InsuranceCardVerificationDto, InsuranceHistoryDto, InsuranceVisitHistoryDto,
+  XmlBatchHistoryDto,
 } from '../api/insurance';
 import {
   KpiStrip, StatusTabs, SearchBox, DataTable, Pager,
@@ -233,6 +235,19 @@ const InsuranceV2: React.FC = () => {
   const [xmlSubmitMsg, setXmlSubmitMsg]   = useState<{ ok: boolean; text: string } | null>(null);
   const [xmlSigning, setXmlSigning]       = useState(false);
   const [xmlSignMsg, setXmlSignMsg]       = useState<{ ok: boolean; text: string } | null>(null);
+  // #352: khoảng ngày tùy ý (bổ sung cho tháng/năm — BE XmlExportConfigDto.FromDate/ToDate có sẵn)
+  const [xmlRange, setXmlRange]           = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
+  // #352: lịch sử đợt XML đã xuất (bảng InsuranceXmlBatches #441) — tải/gửi lại bất kỳ đợt nào
+  const [xmlHistory, setXmlHistory]       = useState<XmlBatchHistoryDto[]>([]);
+  const [xmlHistLoading, setXmlHistLoading] = useState(false);
+  const loadXmlHistory = useCallback(async () => {
+    setXmlHistLoading(true);
+    try {
+      const r = await getXmlBatchHistory();
+      setXmlHistory(Array.isArray(r.data) ? r.data : []);
+    } catch { setXmlHistory([]); }
+    finally { setXmlHistLoading(false); }
+  }, []);
 
   // ── Batch state ───────────────────────────────────────────────────────────
   const [batchYear, setBatchYear]           = useState(dayjs().year());
@@ -304,7 +319,8 @@ const InsuranceV2: React.FC = () => {
 
   useEffect(() => {
     if (topTab === 'batch' || topTab === 'xml') loadBatches(batchYear);
-  }, [topTab, batchYear, loadBatches]);
+    if (topTab === 'xml') void loadXmlHistory();
+  }, [topTab, batchYear, loadBatches, loadXmlHistory]);
 
   /* ── Handlers ── */
 
@@ -436,12 +452,15 @@ const InsuranceV2: React.FC = () => {
   /** Config dùng chung cho preview / validate / export — 1 nguồn sự thật */
   const buildXmlConfig = useCallback((): XmlExportConfigDto => ({
     month: xmlMonth, year: xmlYear,
+    // #352 parity v1: khoảng ngày tùy ý ghi đè kỳ tháng khi được chọn (BE ưu tiên FromDate/ToDate)
+    fromDate: xmlRange?.[0] ? xmlRange[0].format('YYYY-MM-DD') : undefined,
+    toDate: xmlRange?.[1] ? xmlRange[1].format('YYYY-MM-DD') : undefined,
     departmentId: xmlDeptId || undefined,
     includeXml1: xmlIncludes.xml1, includeXml2: xmlIncludes.xml2,
     includeXml3: xmlIncludes.xml3, includeXml4: xmlIncludes.xml4,
     includeXml5: xmlIncludes.xml5, includeXml7: xmlIncludes.xml7,
     validateBeforeExport: true, compressOutput: true,
-  }), [xmlMonth, xmlYear, xmlDeptId, xmlIncludes]);
+  }), [xmlMonth, xmlYear, xmlRange, xmlDeptId, xmlIncludes]);
 
   /** Xem trước + validate QĐ4210 trước khi xuất. Trả preview để hàm export dùng làm cổng chặn. */
   const runXmlPreview = useCallback(async (): Promise<XmlExportPreviewDto | null> => {
@@ -490,6 +509,7 @@ const InsuranceV2: React.FC = () => {
       const result = (r.data ?? r) as unknown as XmlExportResultDto;
       setXmlResult(result);
       message.success(`Xuất XML thành công — ${result.successRecords ?? 0} hồ sơ`);
+      void loadXmlHistory(); // đợt vừa xuất hiện ngay trong Lịch sử xuất XML
     } catch {
       message.warning('Lỗi khi xuất XML QĐ4210');
     } finally {
@@ -843,6 +863,14 @@ const InsuranceV2: React.FC = () => {
               size="small"
               style={{ width: 120 }}
             />
+            {/* #352 parity v1: khoảng ngày tùy ý (ghi đè kỳ tháng khi chọn) */}
+            <label style={{ fontSize: 13, color: 'var(--t-2)', whiteSpace: 'nowrap' }}>Hoặc khoảng ngày:</label>
+            <DatePicker.RangePicker
+              size="small" format="DD/MM/YYYY" style={{ width: 230 }}
+              value={xmlRange}
+              onChange={(v) => { setXmlRange(v as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null); setXmlResult(null); setXmlPreview(null); }}
+              placeholder={['Từ ngày', 'Đến ngày']}
+            />
             <label style={{ fontSize: 13, color: 'var(--t-2)', whiteSpace: 'nowrap' }}>Khoa:</label>
             <Select<string>
               value={xmlDeptId}
@@ -1034,6 +1062,43 @@ const InsuranceV2: React.FC = () => {
               )}
             </div>
           )}
+
+          {/* #352: Lịch sử xuất XML — tải lại/gửi lại BẤT KỲ đợt nào (bảng InsuranceXmlBatches #441) */}
+          <div style={{ marginTop: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--t-1)' }}>Lịch sử xuất XML</span>
+              <Btn variant="ghost" icon="refresh" onClick={() => { void loadXmlHistory(); }}>Làm mới</Btn>
+            </div>
+            <DataTable<XmlBatchHistoryDto>
+              columns={[
+                { key: 'code', label: 'Mã đợt', code: true, width: 170, render: (r) => r.batchCode },
+                { key: 'period', label: 'Kỳ', mono: true, width: 90,
+                  render: (r) => `${String(r.periodMonth).padStart(2, '0')}/${r.periodYear}` },
+                { key: 'recs', label: 'Hồ sơ', mono: true, width: 110,
+                  render: (r) => <span>{r.successRecords}/{r.totalRecords}{r.failedRecords > 0 && <span style={{ color: 'var(--s-crit)' }}> · {r.failedRecords} lỗi</span>}</span> },
+                { key: 'size', label: 'Kích thước', mono: true, width: 100,
+                  render: (r) => r.fileSize > 0 ? `${Math.round(r.fileSize / 1024)} KB` : '—' },
+                { key: 'time', label: 'Xuất lúc', mono: true, width: 130,
+                  render: (r) => dayjs(r.exportTime).format('DD/MM/YY HH:mm') },
+                { key: 'st', label: 'TT', width: 120, render: (r) => (
+                  r.status === 2 ? <StatusBadge tone="ok" dot>Đã gửi BHXH</StatusBadge>
+                  : r.status === 3 ? <StatusBadge tone="crit" dot>Bị từ chối</StatusBadge>
+                  : r.status === 1 ? <StatusBadge tone="info" dot>Đã ký số</StatusBadge>
+                  : <StatusBadge tone="warn" dot>Đã xuất</StatusBadge>
+                ) },
+              ]}
+              data={xmlHistory} rowKey={(r) => r.batchId}
+              actions={(r) => (
+                <div className="ab-actions">
+                  <ActBtn ic="download" title="Tải xuống" onClick={() => { void handleDownloadXml(r.batchId); }} />
+                  {r.status < 2 && (
+                    <ActBtn ic="upload" title="Gửi cổng BHXH" onClick={() => handleSubmitToBhxh(r.batchId, r.batchCode)} />
+                  )}
+                </div>
+              )}
+              empty={xmlHistLoading ? 'Đang tải…' : 'Chưa có đợt xuất XML nào được lưu'}
+            />
+          </div>
         </div>
       )}
 

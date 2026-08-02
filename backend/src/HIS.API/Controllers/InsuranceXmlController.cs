@@ -371,5 +371,16 @@ public partial class InsuranceXmlController : ControllerBase
         return File(result, "application/zip", $"XML_BHYT_{batchId}.zip");
     }
 
+    /// <summary>
+    /// #352: Lịch sử đợt xuất XML (đọc InsuranceXmlBatches #441) — tải lại/gửi lại bất kỳ đợt nào.
+    /// </summary>
+    [HttpGet("xml/batches")]
+    public async Task<ActionResult<List<XmlBatchHistoryDto>>> GetXmlBatchHistory(
+        [FromQuery] int? year = null, [FromQuery] int? month = null)
+    {
+        var result = await _insuranceService.GetXmlBatchHistoryAsync(year, month);
+        return Ok(result);
+    }
+
     #endregion
 }

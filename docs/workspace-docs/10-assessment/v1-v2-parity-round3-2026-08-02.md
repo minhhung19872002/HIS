@@ -281,9 +281,9 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 ### Insurance
 - v1: `frontend/src/pages/Insurance.tsx` | v2: `frontend/src/modules/insurance/pages/Insurance.tsx` | confidence scan: high | OVERTURNED_R2
   - [ ] Ký số XML lô xuất (USB token) — frontend/src/pages/Insurance.tsx:429-449 handleSignExport → signXmlBatch (POST /insurance/xml/sign/{batchId}); nút 'Ký số XML' :1039-1046; panel 'Bước 4: Kết quả ký số' :1051-1061. Không có caller v2 nào cho signXmlBatch.
-  - [ ] Gửi lô XML lên cổng BHXH (batch-level, dùng portal credentials) — frontend/src/pages/Insurance.tsx:541-567 handleSubmitBatch (getPortalConfig + submitToInsurancePortal); nút 'Gửi BHXH' per-batch :793-797. Không có caller v2; BhxhAudit chỉ gửi per-hồ-sơ qua /insurance-xml/submit; nút 'Gửi BHXH' v2 chỉ navigate sang trang cấu hình /v2/bhxh-config.
-  - [ ] Tải xuống lô XML lịch sử (bất kỳ lô nào đã xuất trước đó) — frontend/src/pages/Insurance.tsx:522-539 handleDownloadBatch; nút 'Tải xuống' trong bảng 'Lịch sử xuất XML' :790-792, bảng :1063-1077. Tab 'Đợt quyết toán' v2 không có action nào; v2 chỉ tải được lô vừa xuất trong session (modules/insurance/pages/Insurance.tsx:823-827).
-  - [ ] Xuất XML theo khoảng ngày tùy ý (fromDate/toDate) — frontend/src/pages/Insurance.tsx:76-79, 290-307 (buildExportConfig), 874-884 (RangePicker); v2 buildXmlConfig (modules/insurance/pages/Insurance.tsx:431-438) chỉ chọn tháng/năm. Gap phụ.
+  - [x] Gửi lô XML lên cổng BHXH batch-level — ĐÃ SỬA 2026-08-02 (bảng "Lịch sử xuất XML" mới trong tab XML: nút Gửi cổng BHXH per-batch dùng handleSubmitToBhxh sẵn có → submitToInsurancePortal gửi file THẬT nhờ BE #441)
+  - [x] Tải xuống lô XML lịch sử — ĐÃ SỬA 2026-08-02 (BE thêm endpoint additive `GET /insurance/xml/batches` đọc bảng InsuranceXmlBatches #441 + FE bảng lịch sử: tải BẤT KỲ đợt nào theo batchId, status Đã xuất/Đã ký/Đã gửi/Bị từ chối)
+  - [x] Xuất XML theo khoảng ngày — ĐÃ SỬA 2026-08-02 (RangePicker "Hoặc khoảng ngày" → fromDate/toDate trong buildXmlConfig; BE Part7:159-168 đã filter ServiceDate theo FromDate/ToDate)
 
 ### InterHospitalSharing
 - v1: `frontend/src/pages/InterHospitalSharing.tsx` | v2: `frontend/src/modules/system/pages/InterHospitalSharing.tsx` | confidence scan: high | OVERTURNED_R2

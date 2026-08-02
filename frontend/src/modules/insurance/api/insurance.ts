@@ -679,6 +679,26 @@ export const exportExcel = (config: XmlExportConfigDto) =>
 export const downloadXmlFile = (batchId: string) =>
   request.get(`/insurance/xml/download/${batchId}`, { responseType: 'blob' });
 
+/** #352: 1 dòng lịch sử đợt xuất XML (bảng InsuranceXmlBatches #441). */
+export interface XmlBatchHistoryDto {
+  batchId: string;
+  batchCode: string;
+  periodMonth: number;
+  periodYear: number;
+  totalRecords: number;
+  successRecords: number;
+  failedRecords: number;
+  fileSize: number;
+  status: number; // 0-Đã xuất · 1-Đã ký số · 2-Đã gửi BHXH · 3-Bị từ chối
+  submittedAt?: string;
+  submitTransactionId?: string;
+  exportTime: string;
+}
+
+/** #352: lịch sử đợt xuất XML — tải lại/gửi lại bất kỳ đợt nào đã xuất trước đó. */
+export const getXmlBatchHistory = (year?: number, month?: number) =>
+  request.get<XmlBatchHistoryDto[]>('/insurance/xml/batches', { params: { year, month } });
+
 // #endregion
 
 // #region 12.4 Kiểm tra và validate

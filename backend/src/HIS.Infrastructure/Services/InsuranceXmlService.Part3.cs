@@ -336,6 +336,41 @@ public partial class InsuranceXmlService
         }
     }
 
+    /// <summary>#352: lịch sử đợt xuất XML từ bảng InsuranceXmlBatches (#441) — additive, read-only.</summary>
+    public async Task<List<XmlBatchHistoryDto>> GetXmlBatchHistoryAsync(int? year = null, int? month = null)
+    {
+        try
+        {
+            var query = _context.Set<InsuranceXmlBatch>().AsNoTracking().Where(b => !b.IsDeleted);
+            if (year.HasValue) query = query.Where(b => b.PeriodYear == year.Value);
+            if (month.HasValue) query = query.Where(b => b.PeriodMonth == month.Value);
+            return await query
+                .OrderByDescending(b => b.ExportTime)
+                .Take(100)
+                .Select(b => new XmlBatchHistoryDto
+                {
+                    BatchId = b.Id,
+                    BatchCode = b.BatchCode,
+                    PeriodMonth = b.PeriodMonth,
+                    PeriodYear = b.PeriodYear,
+                    TotalRecords = b.TotalRecords,
+                    SuccessRecords = b.SuccessRecords,
+                    FailedRecords = b.FailedRecords,
+                    FileSize = b.FileSize,
+                    Status = b.Status,
+                    SubmittedAt = b.SubmittedAt,
+                    SubmitTransactionId = b.SubmitTransactionId,
+                    ExportTime = b.ExportTime,
+                })
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GetXmlBatchHistory failed");
+            return new List<XmlBatchHistoryDto>();
+        }
+    }
+
 
 
     public async Task<InsuranceValidationResultDto> ValidateClaimAsync(string maLk)

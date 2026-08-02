@@ -96,6 +96,27 @@ public class XmlExportError
 }
 
 /// <summary>
+/// #352: 1 dòng lịch sử đợt xuất XML (đọc từ bảng InsuranceXmlBatches #441)
+/// — cho tab "Đợt XML đã xuất" tải lại/gửi lại bất kỳ đợt nào.
+/// </summary>
+public class XmlBatchHistoryDto
+{
+    public Guid BatchId { get; set; }
+    public string BatchCode { get; set; } = string.Empty;
+    public int PeriodMonth { get; set; }
+    public int PeriodYear { get; set; }
+    public int TotalRecords { get; set; }
+    public int SuccessRecords { get; set; }
+    public int FailedRecords { get; set; }
+    public long FileSize { get; set; }
+    /// <summary>0-Đã xuất · 1-Đã ký số · 2-Đã gửi BHXH · 3-Bị từ chối.</summary>
+    public int Status { get; set; }
+    public DateTime? SubmittedAt { get; set; }
+    public string? SubmitTransactionId { get; set; }
+    public DateTime ExportTime { get; set; }
+}
+
+/// <summary>
 /// DTO gửi dữ liệu lên cổng BHXH
 /// </summary>
 public class SubmitToInsurancePortalDto
