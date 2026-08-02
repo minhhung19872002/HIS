@@ -2,12 +2,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HIS.Application.DTOs;
 using HIS.Application.Services;
+using HIS.API.Authorization;
+using HIS.Core.Constants;
 
 namespace HIS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[RequirePermission(PermissionCatalog.LabResult.Read)] // #464: enforce permission — [Authorize] alone allowed any authenticated user
 public class PathologyController : ControllerBase
 {
     private readonly IPathologyService _pathologyService;
@@ -46,6 +48,7 @@ public class PathologyController : ControllerBase
     }
 
     [HttpPost("results")]
+    [RequirePermission(PermissionCatalog.LabResult.Create)]
     public async Task<ActionResult<PathologyResultDto>> CreatePathologyResult([FromBody] CreatePathologyResultDto dto)
     {
         if (dto == null || dto.RequestId == null || dto.RequestId == Guid.Empty)
@@ -55,6 +58,7 @@ public class PathologyController : ControllerBase
     }
 
     [HttpPut("results/{id}")]
+    [RequirePermission(PermissionCatalog.LabResult.Create)]
     public async Task<ActionResult<PathologyResultDto>> UpdatePathologyResult(Guid id, [FromBody] UpdatePathologyResultDto dto)
     {
         var result = await _pathologyService.UpdatePathologyResultAsync(id, dto);
