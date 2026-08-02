@@ -102,6 +102,8 @@ const PrescriptionEditorV2: React.FC = () => {
   const [savingTpl, setSavingTpl] = useState(false);
   // Interaction gate: tracks which save action was blocked by interactions
   const [pendingAction, setPendingAction] = useState<'draft' | 'sign' | null>(null);
+  // Override reason for HIGH-severity drug interactions (severity>=3) — required by PrescriptionSafetyGuard
+  const [overrideReason, setOverrideReason] = useState('');
   // Phiếu công khai thuốc MSS-01
   const [disclosureOpen, setDisclosureOpen] = useState(false);
 
@@ -237,6 +239,7 @@ const PrescriptionEditorV2: React.FC = () => {
       dosage: formatDosage(it), route: it.route, frequency: it.freq,
       usageInstructions: it.note, paymentType: it.bhyt ? 1 : 2,
     })),
+    overrideReason: overrideReason.trim() || undefined,
   });
 
   const guard = (): boolean => {
@@ -312,6 +315,9 @@ ${pt ? `<div class="info">Họ tên: <strong>${pt.fullName}</strong> — Mã BN:
     const pw = window.open('', '_blank');
     if (!pw) { tw('Không thể mở cửa sổ in — vui lòng cho phép popup'); return; }
     const isBHYT = !!pt?.insuranceNumber;
+    // bhyt-only subtotal: only count items flagged bhyt=true
+    const bhytTotal = isBHYT ? items.reduce((s, x) => s + (x.bhyt ? Math.round(x.price * x.qty * 0.8) : 0), 0) : 0;
+    const ptTotal   = total - bhytTotal;
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -335,7 +341,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
 <th>SL</th><th>Đơn giá</th><th>Thành tiền</th><th>BHYT chi trả</th><th>BN chi trả</th><th>Ghi chú</th></tr></thead>
 <tbody>${items.map((it, i) => {
   const itTot = it.price * it.qty;
-  const bhytPay = isBHYT ? Math.round(itTot * 0.8) : 0;
+  const bhytPay = (isBHYT && it.bhyt) ? Math.round(itTot * 0.8) : 0;
   return `<tr><td class="tc">${i + 1}</td><td><strong>${it.name}</strong></td>
 <td class="tc">${it.strength || ''}</td><td class="tc">${it.dosageForm || 'Viên'}</td>
 <td class="tc">${it.qty}</td><td class="tr">${it.price.toLocaleString('vi-VN')}</td>
@@ -345,8 +351,8 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
 }).join('')}
 <tr class="tot"><td colspan="6" class="tc"><strong>Tổng cộng</strong></td>
 <td class="tr"><strong>${total.toLocaleString('vi-VN')}</strong></td>
-<td class="tr"><strong>${isBHYT ? Math.round(total * 0.8).toLocaleString('vi-VN') : '-'}</strong></td>
-<td class="tr"><strong>${(isBHYT ? Math.round(total * 0.2) : total).toLocaleString('vi-VN')}</strong></td>
+<td class="tr"><strong>${isBHYT ? bhytTotal.toLocaleString('vi-VN') : '-'}</strong></td>
+<td class="tr"><strong>${ptTotal.toLocaleString('vi-VN')}</strong></td>
 <td></td></tr></tbody></table>
 <div class="info"><em>Tổng số: ${items.length} khoản thuốc</em></div>
 <div class="sig">
@@ -776,7 +782,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
       </DrawerShell>
 
       {/* Interactions drawer */}
-      <DrawerShell open={interOpen} onClose={() => { setInterOpen(false); setPendingAction(null); }} title="Tương tác thuốc" sub={`${intCount} cảnh báo`} size="lg">
+      <DrawerShell open={interOpen} onClose={() => { setInterOpen(false); setPendingAction(null); setOverrideReason(''); }} title="Tương tác thuốc" sub={`${intCount} cảnh báo`} size="lg">
         {interactions.map((it, i) => {
           const tone = it.severity >= 3 ? 'crit' : it.severity === 2 ? 'warn' : 'info';
           const bg = it.severity >= 3 ? 'var(--s-crit-bg)' : it.severity === 2 ? 'var(--a-or-bg)' : '#fefce8';
@@ -789,14 +795,24 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
               </div>
               {it.description && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)', marginBottom: 'var(--space-6)' }}>{it.description}</div>}
               {it.recommendation && <div style={{ fontSize: 11.5, color: 'var(--t-2)', marginBottom: 'var(--space-10)' }}>Khuyến nghị: {it.recommendation}</div>}
-              <textarea placeholder="Lý do override (bắt buộc nếu vẫn kê)…" style={{ width: '100%', minHeight: 60, padding: 'var(--space-8)', border: '1px solid var(--line)', borderRadius: 4, fontSize: 11.5 }} />
+              {it.severity >= 3 && (
+                <textarea
+                  placeholder="Lý do bỏ qua (bắt buộc cho tương tác NẶNG)…"
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  style={{ width: '100%', minHeight: 60, padding: 'var(--space-8)', border: `1px solid ${overrideReason.trim() ? 'var(--s-ok-bd)' : 'var(--s-crit-bd)'}`, borderRadius: 4, fontSize: 11.5 }}
+                />
+              )}
             </div>
           );
         })}
         {pendingAction && (
           <div style={{ margin: 'var(--space-14)', padding: 'var(--space-14)', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-10)' }}>
-            <Btn variant="ghost" onClick={() => { setInterOpen(false); setPendingAction(null); }}>Hủy</Btn>
-            <Btn variant="primary" disabled={saving} onClick={async () => {
+            <Btn variant="ghost" onClick={() => { setInterOpen(false); setPendingAction(null); setOverrideReason(''); }}>Hủy</Btn>
+            <Btn variant="primary"
+              disabled={saving || (interactions.some((i) => i.severity >= 3) && !overrideReason.trim())}
+              title={interactions.some((i) => i.severity >= 3) && !overrideReason.trim() ? 'Cần nhập lý do bỏ qua cho tương tác NẶNG' : undefined}
+              onClick={async () => {
               setInterOpen(false);
               if (pendingAction === 'draft') { await doSaveDraft(); }
               else { setSignOpen(true); }

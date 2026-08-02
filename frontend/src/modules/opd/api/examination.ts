@@ -547,6 +547,8 @@ export interface CreatePrescriptionDto {
   totalDays: number;
   items: CreatePrescriptionItemDto[];
   instructions?: string;
+  /** Required by PrescriptionSafetyGuard when severity>=3 interactions are present */
+  overrideReason?: string;
 }
 
 export interface CreatePrescriptionItemDto {

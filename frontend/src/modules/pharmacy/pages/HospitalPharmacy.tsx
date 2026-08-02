@@ -37,11 +37,11 @@ const PAYMENT_LABEL: Record<number, string> = { 0: 'Tiền mặt', 1: 'Thẻ', 2
 const PMT_OPTS = [{ value: 0, label: 'Tiền mặt' }, { value: 1, label: 'Thẻ' }, { value: 2, label: 'Chuyển khoản' }];
 const CTYPE: Record<number, string> = { 1: 'Thường', 2: 'VIP', 3: 'Nhân viên' }; // backend: 1=Regular,2=VIP,3=Staff
 const SHIFT_ST: Record<number, { label: string; tone: 'ok' | 'crit' }> = {
-  0: { label: 'Đang mở', tone: 'ok'   },
-  1: { label: 'Đã đóng', tone: 'crit' },
+  1: { label: 'Đang mở', tone: 'ok'   }, // backend: 1=Open
+  2: { label: 'Đã đóng', tone: 'crit' }, // backend: 2=Closed
 };
 const GPP_TYPES: Record<number, string> = {
-  1: 'ADR (biến cố thuốc)', 2: 'Đình chỉ thuốc', 3: 'Nhiệt độ/Độ ẩm', 4: 'Kiểm tra vệ sinh',
+  1: 'ADR (biến cố thuốc)', 2: 'Đình chỉ thuốc', 3: 'Nhiệt độ', 4: 'Độ ẩm',
   // backend RecordType: 1=ADR,2=DrugSuspension,3=Temperature,4=Humidity
 };
 const COMM_ST: Record<number, { label: string; tone: 'warn' | 'ok' }> = {
@@ -393,8 +393,8 @@ const HospitalPharmacyV2: React.FC = () => {
   const custPaged      = customers.slice(custPage * PS, (custPage + 1) * PS);
   const custKpis: KpiItem[] = useMemo(() => [
     { lbl: 'Khách hàng', val: customers.length },
-    { lbl: 'VIP',        val: customers.filter((c) => c.customerType === 1).length, tone: 'ok'   as const },
-    { lbl: 'Đại lý',     val: customers.filter((c) => c.customerType === 2).length, tone: 'info' as const },
+    { lbl: 'VIP',        val: customers.filter((c) => c.customerType === 2).length, tone: 'ok'   as const }, // 2=VIP
+    { lbl: 'NV',         val: customers.filter((c) => c.customerType === 3).length, tone: 'info' as const }, // 3=Staff
   ], [customers]);
 
   const cuCols: ColumnDef<PharmacyCustomerDto>[] = [
@@ -598,13 +598,13 @@ const HospitalPharmacyV2: React.FC = () => {
   const commTotalPages = Math.max(1, Math.ceil(commissions.length / PS));
   const commPaged      = commissions.slice(commPage * PS, (commPage + 1) * PS);
   const commKpis: KpiItem[] = useMemo(() => {
-    const pending    = commissions.filter((c) => c.status === 0);
+    const pending    = commissions.filter((c) => c.status === 1); // 1=Pending
     const pendingAmt = pending.reduce((s, c) => s + c.commissionAmount, 0);
     return [
       { lbl: 'Tổng HH',  val: commissions.length },
       { lbl: 'Chờ TT',   val: pending.length,                                tone: 'warn' as const },
       { lbl: 'Cần TT',   val: Math.round(pendingAmt / 1_000_000), unit: 'M₫', tone: 'warn' as const },
-      { lbl: 'Đã trả',   val: commissions.filter((c) => c.status === 1).length, tone: 'ok' as const },
+      { lbl: 'Đã trả',   val: commissions.filter((c) => c.status === 2).length, tone: 'ok' as const }, // 2=Paid
     ];
   }, [commissions]);
 
@@ -1105,7 +1105,7 @@ const HospitalPharmacyV2: React.FC = () => {
         {/* ══════ Tab 6: Ca làm việc ══════ */}
         {tab === 'shifts' && (
           <>
-            {currentShift && currentShift.status === 0 ? (
+            {currentShift && currentShift.status === 1 ? (
               <div style={{ margin: '12px 14px', padding: '12px 16px', background: 'var(--d-2)', border: '1px solid var(--line)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600 }}>{currentShift.shiftCode}</div>

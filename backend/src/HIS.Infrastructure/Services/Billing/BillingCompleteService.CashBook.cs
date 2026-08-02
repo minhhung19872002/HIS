@@ -382,8 +382,14 @@ public partial class BillingCompleteService {
             result.CardToDate = patient.InsuranceExpireDate;
             result.IsValid = patient.InsuranceExpireDate == null || patient.InsuranceExpireDate >= DateTime.Today;
             result.IsInNetwork = true;
-            result.InsuranceRate = 0.8m;
-            result.CoPaymentRate = 0.2m;
+            // Use rate stored on the most recent medical record; fall back to statutory 80%
+            var coveragePercent = await _context.MedicalRecords
+                .Where(m => m.PatientId == patient.Id && m.InsuranceCoverageRate.HasValue)
+                .OrderByDescending(m => m.AdmissionDate)
+                .Select(m => m.InsuranceCoverageRate)
+                .FirstOrDefaultAsync();
+            result.InsuranceRate  = (coveragePercent ?? 80) / 100m;
+            result.CoPaymentRate  = 1m - result.InsuranceRate;
 
             if (!result.IsValid)
                 result.Warnings.Add("The BHYT da het han su dung");

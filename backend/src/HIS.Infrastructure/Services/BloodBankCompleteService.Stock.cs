@@ -106,7 +106,8 @@ namespace HIS.Infrastructure.Services
 
         public async Task<List<BloodStockDetailDto>> GetExpiringBloodBagsAsync(int daysUntilExpiry = 7)
         {
-            return await GetBloodStockDetailInternalAsync(null, null, null, "Available", daysUntilExpiry, false);
+            // No status filter: show Available + Reserved bags nearing expiry
+            return await GetBloodStockDetailInternalAsync(null, null, null, null, daysUntilExpiry, false);
         }
 
         public async Task<List<BloodStockDetailDto>> GetExpiredBloodBagsAsync()
