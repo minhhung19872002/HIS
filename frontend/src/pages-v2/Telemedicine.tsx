@@ -6,6 +6,7 @@ import {
   getAppointments, confirmAppointment, cancelAppointment,
   createEPrescription, signEPrescription, sendToPharmacy,
   createAppointment, createVideoSession, endSession, getDashboard,
+  createConsultation, completeConsultation,
 } from '../modules/telemedicine/api/telemedicine';
 import type {
   TelemedicineAppointmentDto, TelePrescriptionDto, TelePrescriptionItemInput,
@@ -61,6 +62,12 @@ const TelemedicineV2: React.FC = () => {
   const [bookingOpen, setBookingOpen] = useState(false);
   /* ── NEW: session action busy flags ── */
   const [startSessionBusy, setStartSessionBusy] = useState(false);
+  /* #352: form ghi hồ sơ khi kết thúc buổi khám từ xa */
+  const [endTarget, setEndTarget] = useState<TelemedicineAppointmentDto | null>(null);
+  const [endBusy, setEndBusy] = useState(false);
+  const [endForm, setEndForm] = useState({
+    assessment: '', diagnosisMain: '', diagnosisMainIcd: '', treatmentPlan: '', followUpInstructions: '',
+  });
   /* ── NEW: page-level tab (list | stats) ── */
   const [pageTab, setPageTab] = useState<'list' | 'stats'>('list');
   /* ── NEW: dashboard stats ── */
@@ -143,16 +150,43 @@ const TelemedicineV2: React.FC = () => {
     finally { setStartSessionBusy(false); }
   };
 
-  /* ── NEW C: Kết thúc buổi khám — gọi endSession bằng sessionId ── */
-  const onEndSession = async (r: TelemedicineAppointmentDto) => {
+  /* ── #352: Kết thúc buổi khám — PHẢI ghi chẩn đoán/kế hoạch điều trị trước khi đóng phiên.
+     Trước đây chỉ gọi endSession ⇒ ca khám từ xa đóng lại mà hồ sơ KHÔNG có chẩn đoán,
+     mã ICD hay kế hoạch điều trị nào (v1 gọi completeConsultation, pages/Telemedicine.tsx:261-286). */
+  const onEndSession = (r: TelemedicineAppointmentDto) => {
     if (!r.sessionId) { message.warning('Không có sessionId để kết thúc'); return; }
-    if (!window.confirm(`Kết thúc buổi khám của ${r.patientName}?`)) return;
+    setEndForm({ assessment: '', diagnosisMain: '', diagnosisMainIcd: '', treatmentPlan: '', followUpInstructions: '' });
+    setEndTarget(r);
+  };
+
+  const submitEndSession = async () => {
+    if (!endTarget?.sessionId) return;
+    if (!endForm.diagnosisMain.trim()) { message.warning('Cần nhập chẩn đoán chính trước khi kết thúc'); return; }
+    setEndBusy(true);
     try {
-      await endSession(r.sessionId, 'Kết thúc buổi khám');
-      message.success(`Đã kết thúc buổi khám · ${r.patientName}`);
+      // Ghi hồ sơ TRƯỚC rồi mới đóng phiên: nếu đảo thứ tự mà bước ghi lỗi thì phiên đã đóng
+      // và dữ liệu lâm sàng mất hẳn (v1 đóng phiên trước — đây là chỗ v2 làm chặt hơn).
+      const c = await createConsultation({ sessionId: endTarget.sessionId, appointmentId: endTarget.id });
+      const consultationId = (c.data as { id?: string } | undefined)?.id;
+      if (!consultationId) throw new Error('no consultation id');
+
+      await completeConsultation({
+        consultationId,
+        assessment: endForm.assessment.trim() || 'Hoàn tất qua khám từ xa',
+        diagnosisMain: endForm.diagnosisMain.trim(),
+        diagnosisMainIcd: endForm.diagnosisMainIcd.trim(),
+        treatmentPlan: endForm.treatmentPlan.trim(),
+        followUpInstructions: endForm.followUpInstructions.trim() || undefined,
+      });
+
+      await endSession(endTarget.sessionId, 'Kết thúc buổi khám');
+      message.success(`Đã kết thúc buổi khám · ${endTarget.patientName}`);
+      setEndTarget(null);
       reload();
       setDetail(null);
-    } catch { message.error('Kết thúc thất bại'); }
+    } catch {
+      message.error('Kết thúc thất bại — hồ sơ khám chưa được ghi, phiên vẫn đang mở');
+    } finally { setEndBusy(false); }
   };
 
   const columns: ColumnDef<TelemedicineAppointmentDto>[] = [
@@ -375,6 +409,47 @@ const TelemedicineV2: React.FC = () => {
 
       {/* ── NEW A: Booking modal ── */}
       <TeleBookingModal open={bookingOpen} onClose={() => setBookingOpen(false)} onDone={reload} />
+
+      {/* #352: ghi hồ sơ khi kết thúc buổi khám từ xa (chẩn đoán / ICD / kế hoạch điều trị) */}
+      <ModalShell
+        open={!!endTarget}
+        onClose={() => setEndTarget(null)}
+        size="md"
+        title={`Kết thúc buổi khám · ${endTarget?.patientName ?? ''}`}
+        sub={endTarget ? `${endTarget.appointmentCode} · ghi hồ sơ trước khi đóng phiên` : ''}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setEndTarget(null)}>Hủy</Btn>
+          <Btn variant="primary" loading={endBusy} onClick={submitEndSession}>Ghi hồ sơ &amp; kết thúc</Btn>
+        </>}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12.5 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
+            <label>Chẩn đoán chính <span style={{ color: 'var(--s-crit)' }}>*</span>
+              <Input value={endForm.diagnosisMain} style={{ marginTop: 4 }}
+                onChange={(e) => setEndForm((p) => ({ ...p, diagnosisMain: e.target.value }))}
+                placeholder="Chẩn đoán xác định sau buổi khám" />
+            </label>
+            <label>Mã ICD-10
+              <Input value={endForm.diagnosisMainIcd} style={{ marginTop: 4 }}
+                onChange={(e) => setEndForm((p) => ({ ...p, diagnosisMainIcd: e.target.value }))}
+                placeholder="VD: J06.9" />
+            </label>
+          </div>
+          <label>Kế hoạch điều trị
+            <Input.TextArea rows={3} value={endForm.treatmentPlan} style={{ marginTop: 4 }}
+              onChange={(e) => setEndForm((p) => ({ ...p, treatmentPlan: e.target.value }))} />
+          </label>
+          <label>Đánh giá
+            <Input.TextArea rows={2} value={endForm.assessment} style={{ marginTop: 4 }}
+              onChange={(e) => setEndForm((p) => ({ ...p, assessment: e.target.value }))}
+              placeholder="Bỏ trống = 'Hoàn tất qua khám từ xa'" />
+          </label>
+          <label>Dặn dò tái khám
+            <Input value={endForm.followUpInstructions} style={{ marginTop: 4 }}
+              onChange={(e) => setEndForm((p) => ({ ...p, followUpInstructions: e.target.value }))} />
+          </label>
+        </div>
+      </ModalShell>
     </div>
   );
 };
