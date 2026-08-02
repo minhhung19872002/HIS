@@ -319,11 +319,20 @@ const DlhcTab: React.FC = () => {
               </DrField>
               <DrField lbl="Mạch"><span className="mono">{detail.heartRate} l/p</span></DrField>
             </DrSec>
-            <DrSec title="THỊ LỰC">
+            <DrSec title="THỊ / THÍNH / THẦN KINH / TÂM THẦN">
               <DrField lbl="Phải (không kính)">{detail.visionRightWithoutGlasses || '—'}</DrField>
               <DrField lbl="Trái (không kính)">{detail.visionLeftWithoutGlasses || '—'}</DrField>
               <DrField lbl="Mù màu">
                 {detail.colorBlindNormal ? 'Bình thường' : (detail.colorVisionDetail || 'Bất thường')}
+              </DrField>
+              <DrField lbl="Thính lực">
+                {detail.hearingNormal ? 'Bình thường' : (detail.hearingDetail || 'Bất thường')}
+              </DrField>
+              <DrField lbl="Thần kinh">
+                {detail.neurologicalNormal ? 'Bình thường' : (detail.neurologicalDetail || 'Bất thường')}
+              </DrField>
+              <DrField lbl="Tâm thần">
+                {detail.psychiatricNormal ? 'Bình thường' : (detail.psychiatricDetail || 'Bất thường')}
               </DrField>
             </DrSec>
             <DrSec title="XN MA TUÝ / CỒN">

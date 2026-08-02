@@ -109,11 +109,11 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### ClinicalGuidance
 - v1: `frontend/src/pages/ClinicalGuidance.tsx` | v2: `frontend/src/modules/patient/pages/ClinicalGuidance.tsx` | confidence scan: high | OVERTURNED
-  - [ ] Bộ lọc khoảng thời gian (RangePicker fromDate/toDate) — v1 pages/ClinicalGuidance.tsx:421-428, wired vào API v1:142-143; backend hỗ trợ thật (ClinicalGuidanceController.cs:25-26); v2 toolbar (modules/patient/pages/ClinicalGuidance.tsx:171-179) không có date filter nào
-  - [ ] Luồng lọc/tìm kiếm server-side — v1 refetch theo keyword/status/type/date mỗi lần đổi (v1:126-167); v2 chỉ fetch 1 lần lúc mount không tham số (v2:61-70) trong khi backend mặc định pageSize=50 (ClinicalGuidanceController.cs:28, service .Take dòng 55) → đợt thứ 51+ không bao giờ hiển thị/tìm thấy được ở v2, search/tab/pager chỉ chạy trên tập 50 dòng bị cắt
-  - [ ] KPI thống kê server /clinical-guidance/statistics — v1 gọi getGuidanceStatistics (v1:147, hiển thị v1:361-390); v2 không gọi, tự cộng client trên ≤50 dòng đã tải (v2:160,164-169) → Tổng ngân sách/Hoàn tất sai khi dữ liệu vượt trang đầu
-  - [ ] Option loại hình 'Khám chữa bệnh' (guidanceType=0) trong form tạo/sửa — v1:505 có; BATCH_FIELDS v2:18-20 chỉ có 1-4 → mất khả năng tạo/sửa đợt loại KCB (nặng hơn 'bug hiển thị nội bộ' mà agent kia ghi nhận), và giá trị 4 'Giám sát' tạo ra không lọc được vì Filter dùng TYPE_LABEL 0-3
-  - [ ] (Phụ, yếu) Guard chỉ-cho-xóa-khi-status===0 Kế hoạch — v1:322; v2:151-157 hiện nút Xoá mọi trạng thái; lưu ý backend không có endpoint HttpDelete cho batches nên delete fail ở cả hai bản, nhưng guard UI vẫn là hành vi bị mất
+  - [x] Bộ lọc khoảng thời gian — ĐÃ SỬA 2026-08-02 (2 input date toolbar, fromDate/toDate server-side)
+  - [x] Luồng lọc/tìm kiếm server-side — ĐÃ SỬA 2026-08-02 (load useCallback keyword/type/date + pageSize 200 vượt trần BE 50 + debounce 300ms; filtered chỉ còn tab trạng thái)
+  - [x] KPI thống kê server — ĐÃ SỬA 2026-08-02 (getGuidanceStatistics gọi song song, KPI ưu tiên stats server, fallback client)
+  - [x] Option guidanceType=0 'Khám chữa bệnh' — ĐÃ SỬA 2026-08-02 (BATCH_FIELDS đủ 0-4, TYPE_LABEL đủ 0-4 nên filter 'Giám sát' hoạt động)
+  - [x] Guard chỉ-cho-xóa-khi-status===0 — ĐÃ SỬA 2026-08-02 (nút Xoá chỉ hiện khi Lên kế hoạch)
 
 ### ClinicalPharmacyCheck
 - v1: `frontend/src/pages/ClinicalPharmacyCheck.tsx` | v2: `frontend/src/modules/opd/pages/ClinicalPharmacyCheck.tsx` | confidence scan: high | SCAN_ONLY
@@ -144,14 +144,14 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### Dashboard3Cap
 - v1: `frontend/src/pages/Dashboard3Cap.tsx` | v2: `frontend/src/modules/administration/pages/Dashboard3Cap.tsx` | confidence scan: high | SCAN_ONLY
-  - [ ] Day-by-day duty roster calendar table (who is on Sáng/Chiều/Đêm each specific day of the month) — pages/Dashboard3Cap.tsx:795-827
-  - [ ] Consolidated report table TOTALS summary footer row — pages/Dashboard3Cap.tsx:707-730
+  - [x] Day-by-day duty roster calendar table — ĐÃ PORT 2026-08-02 (panel "Lịch trực theo ngày" dưới tổng hợp ca trực: Ngày/Thứ chip CN-T7/Sáng/Chiều/Đêm từ duty.shifts) — pages/Dashboard3Cap.tsx:795-827
+  - [x] Consolidated report TOTALS footer — ĐÃ PORT 2026-08-02 (hàng TỔNG CỘNG dưới DataTable: BN/lượt khám/nhập viện/doanh thu/100%) — pages/Dashboard3Cap.tsx:707-730
 
 ### DeAn06Liaison
 - v1: `frontend/src/pages/DeAn06Liaison.tsx` | v2: `frontend/src/modules/system/pages/DeAn06Liaison.tsx` | confidence scan: high | SCAN_ONLY
-  - [ ] KSK lái xe drawer: Thính lực (hearingNormal) field — v1 pages/DeAn06Liaison.tsx:260 vs v2 modules/system/pages/DeAn06Liaison.tsx:322-328
-  - [ ] KSK lái xe drawer: Thần kinh (neurologicalNormal) field — v1 pages/DeAn06Liaison.tsx:261
-  - [ ] KSK lái xe drawer: Tâm thần (psychiatricNormal) field — v1 pages/DeAn06Liaison.tsx:262
+  - [x] KSK lái xe drawer: Thính lực — ĐÃ SỬA 2026-08-02 (DrField hearingNormal + hearingDetail fallback, sec đổi tên "THỊ / THÍNH / THẦN KINH / TÂM THẦN") — v1 pages/DeAn06Liaison.tsx:260
+  - [x] KSK lái xe drawer: Thần kinh — ĐÃ SỬA 2026-08-02 (neurologicalNormal + neurologicalDetail) — v1 pages/DeAn06Liaison.tsx:261
+  - [x] KSK lái xe drawer: Tâm thần — ĐÃ SỬA 2026-08-02 (psychiatricNormal + psychiatricDetail) — v1 pages/DeAn06Liaison.tsx:262
 
 ### DispensingCounter
 - v1: `frontend/src/pages/DispensingCounter.tsx` | v2: `frontend/src/modules/opd/pages/DispensingCounter.tsx` | confidence scan: high | OVERTURNED_R2
@@ -193,11 +193,11 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### Epidemiology
 - v1: `frontend/src/pages/Epidemiology.tsx` | v2: `frontend/src/pages-v2/Epidemiology.tsx` | confidence scan: high | OVERTURNED_R2
-  - [ ] 'Truy vết tiếp xúc' (contact-tracing) tab — but this was a non-functional static placeholder in v1 (Alert text only, no API/form), so dropping it loses no capability (v1 pages/Epidemiology.tsx lines 318-345)
-  - [ ] Date-range filter on disease reports: v1 pages/Epidemiology.tsx:278-285 (RangePicker) + :124-125 passes fromDate/toDate to searchDiseaseReports (server-side param, api/epidemiology.ts:64-65); v2 has no date filter UI or param at all — core surveillance-period filtering lost
-  - [ ] Cross-tab active-outbreak alert banner: v1 pages/Epidemiology.tsx:421-442 shows a page-level error Alert enumerating every active outbreak (name/disease/location/cases/deaths/risk) visible from any tab; v2 only shows a numeric KPI count
-  - [ ] Catalog-driven disease select in case-report form: v1 pages/Epidemiology.tsx:499-509 required searchable Select from the 28-notifiable-disease catalog ensuring valid diseaseCode; v2 DR_FIELDS (pages-v2/Epidemiology.tsx:23-24) uses free-text diseaseName/diseaseCode with no catalog validation; v2 also drops required reportDate (v1 :533) and forces manual reportCode entry
-  - [ ] Dynamic group-A urgent contact-tracing alert: v1 pages/Epidemiology.tsx:336-342 computes and warns 'N ca bệnh nhóm A cần truy vết khẩn cấp'; the contact-tracing tab was not purely static as the evidence claimed — no v2 equivalent
+  - [~] 'Truy vết tiếp xúc' (contact-tracing) tab — KHÔNG PORT (v1 là static placeholder, không API/form; phần cảnh báo động nhóm A đã port riêng dòng dưới) (v1 pages/Epidemiology.tsx lines 318-345)
+  - [x] Date-range filter — ĐÃ SỬA 2026-08-02 (2 input date toolbar, fromDate/toDate server-side qua searchDiseaseReports)
+  - [x] Cross-tab active-outbreak alert banner — ĐÃ SỬA 2026-08-02 (banner đỏ trên TopTabs khi activeOutbreaks>0 + nút nhảy tab Ổ dịch)
+  - [x] Catalog-driven disease select — ĐÃ SỬA 2026-08-02 (drFields useMemo: diseaseName = select showSearch từ danh mục 28 bệnh, chọn → tự điền ICD+nhóm khi bỏ trống; reportDate required; reportCode prefill BC+timestamp; fallback free-text khi danh mục rỗng)
+  - [x] Dynamic group-A urgent alert — ĐÃ SỬA 2026-08-02 (banner cam "N ca bệnh nhóm A cần truy vết tiếp xúc khẩn cấp" tính từ ca nhóm A chưa đóng + nút lọc nhóm A)
 
 ### Equipment
 - v1: `frontend/src/pages/Equipment.tsx` | v2: `frontend/src/modules/asset/pages/Equipment.tsx` | confidence scan: high | OVERTURNED_R2
@@ -209,9 +209,9 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### Finance
 - v1: `frontend/src/pages/Finance.tsx` | v2: `frontend/src/modules/reports/pages/Finance.tsx` | confidence scan: high | SCAN_ONLY
-  - [ ] 'Chi phí' (Expense) tab entirely — search/filter by category, supplier + invoice-number columns, approval-status tag (Chờ duyệt/Đã duyệt/Đã thanh toán), per-row print-invoice, summary total row (v1 lines 432-491, 824-907, 273-301). v2's 'Chi phí' only means a per-service COGS field, not AP/expense tracking.
-  - [ ] 'Báo cáo' (Reports) tab — 6 report cards each hitting a dedicated backend endpoint + Excel export: revenue_dept, revenue_service, expense (getCostByDepartment), insurance (getInsuranceReconciliation — QĐ 6556/BYT statutory reconciliation), surgery_profit (getSurgeryProfitReport), summary (getFinancialSummary) (v1 lines 303-362, 908-1016)
-  - [ ] Global date-range picker + 'Lọc' filter button in tab bar (v1 lines 648-663) — v2 hardcodes current-month-only via dayjs().startOf('month')/endOf('month'), no way to view a past period
+  - [~] 'Chi phí' (Expense) tab — KHÔNG PORT (verify 2026-08-02: v1 tab là PSEUDO-AP — map lại getCostByDepartment thành "expense record" với supplier/invoiceNumber LUÔN undefined + status hardcode 2 "Đã thanh toán" (pages/Finance.tsx:188-199) → không có nghiệp vụ AP thật ở BE; v2 đã hiện đúng cùng dữ liệu qua card "Chi phí theo khoa". AP thật = làm backend trước, task riêng.)
+  - [x] 'Báo cáo' (Reports) tab — ĐÃ PORT 2026-08-02 (tab Báo cáo v2: doanh thu dịch vụ/khoa trong tab chính + 4 RptCard Chi phí theo khoa / Đối soát BHYT QĐ 6556 / Lợi nhuận phẫu thuật / Tổng hợp thu chi, mỗi card hit endpoint riêng) (v1 lines 303-362, 908-1016)
+  - [x] Global date-range picker — ĐÃ PORT 2026-08-02 (reportFrom/reportTo inputs dùng chung mọi tab + card, không còn hardcode tháng hiện tại) (v1 lines 648-663)
   - [ ] Department-revenue detail drawer on row click (v1 double-click → modal, lines 713-720, 1059-1073) — v2's 'Theo khoa' DataTable has no onRowClick for department rows
 
 ### FinanceCatalogs
@@ -252,10 +252,10 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 ### HospitalPharmacy
 - v1: `frontend/src/pages/HospitalPharmacy.tsx` | v2: `frontend/src/modules/pharmacy/pages/HospitalPharmacy.tsx` | confidence scan: high | OVERTURNED_R2
   - [ ] Đóng ca (close shift) unreachable in v2: backend PharmacyShift.Status 1=Open/2=Closed (HIS.Core/Entities/HospitalPharmacy.cs:119, Shifts.cs:70,106); v1 renders per-row 'Đóng ca' when status===1 + close modal (frontend/src/pages/HospitalPharmacy.tsx:1005-1010, 1033-1057); v2 only renders its close button inside `currentShift.status === 0` branch (modules/pharmacy/pages/HospitalPharmacy.tsx:1108-1116) which is never true — close-shift modal (v2:1152) can never open; open shifts also mislabeled 'Đã đóng' (v2 SHIFT_ST:39-42)
-  - [ ] GPP record types ADR + Đình chỉ thuốc (patient-safety) missing in v2: backend RecordType 1=ADR, 2=DrugSuspension, 3=Temperature, 4=Humidity (HospitalPharmacy.cs:131); v1 filter/form match exactly (frontend/src/pages/HospitalPharmacy.tsx:1077-1082, 1134-1140); v2 GPP_TYPES = {1:'Nhập hàng',2:'Kiểm kho',3:'Nhiệt độ/Độ ẩm',4:'Vệ sinh',5:'Khác'} (v2:43-45) — cannot create or correctly display ADR/drug-suspension records; type 5 does not exist in backend
-  - [ ] Customer type 'Nhân viên' (Staff=3) absent + VIP filter broken: backend CustomerType 1=Regular/2=VIP/3=Staff (HospitalPharmacy.cs:78); v1 filter+form use 1/2/3 (frontend/src/pages/HospitalPharmacy.tsx:789-799, 892-893); v2 CTYPE={0:'Thường',1:'VIP',2:'Đại lý'} (v2:38, filter v2:937-942) — filtering VIP sends customerType=1 (=Regular), new customers saved with invalid type 0, Staff type gone
-  - [ ] Commission status filter non-functional + paid rows selectable: backend Status 1=Pending/2=Paid (HospitalPharmacy.cs:159, GppCommission.cs:198-205); v1 filter uses 1/2 and disables paid checkboxes (frontend/src/pages/HospitalPharmacy.tsx:1204-1208, 1229); v2 filter sends 0/1 (v2:1267-1271) — 'Chờ TT' filter always returns empty, status labels inverted, paid rows still selectable for payment
-  - [ ] Supporting: gender values inverted vs backend 0=Female/1=Male (HospitalPharmacy.cs:77) — v1 correct (frontend/src/pages/HospitalPharmacy.tsx:910), v2 uses Nam=0/Nữ=1/Khác=2 (v2:1052-1056) so editing a customer silently flips gender; sales history reduced from 30-day server-side keyword search + server pagination (v1:131-137, 680-687) to 7-day client-side only (v2:108-111)
+  - [x] GPP record types ADR + Đình chỉ thuốc — ĐÃ SỬA (016feeba P0): GPP_TYPES = {1:'ADR (biến cố thuốc)',2:'Đình chỉ thuốc',3:'Nhiệt độ',4:'Độ ẩm'} khớp backend RecordType (HospitalPharmacy.cs:131)
+  - [x] Customer type Staff + VIP filter — ĐÃ SỬA (016feeba P0 + 2026-08-02): CTYPE={1:'Thường',2:'VIP',3:'Nhân viên'} khớp backend; default customerType form 0→1 (0 không tồn tại trong BE)
+  - [x] Commission status filter — ĐÃ SỬA (016feeba P0): COMM_ST 1=Chờ TT/2=Đã trả khớp backend
+  - [x] Gender + sales history — ĐÃ SỬA (016feeba + 2026-08-02): gender Nam=1/Nữ=0 khớp BE 0=Female/1=Male; sales history 7→30 ngày + keyword server-side (debounce 300ms), tab trạng thái vẫn client-side
 
 ### Immunization
 - v1: `frontend/src/pages/Immunization.tsx` | v2: `frontend/src/modules/immunization/pages/Immunization.tsx` | confidence scan: high | SCAN_ONLY

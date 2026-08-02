@@ -70,6 +70,7 @@ const ClinicalGuidanceV2: React.FC = () => {
           guidanceType: fType || undefined,
           fromDate: fromDate || undefined,
           toDate: toDate || undefined,
+          pageSize: 200, // BE default pageSize=50 → nâng trần để không cắt danh sách
         }),
         getGuidanceStatistics(),
       ]);
@@ -79,22 +80,20 @@ const ClinicalGuidanceV2: React.FC = () => {
     } catch { ti('Không tải được danh sách chỉ đạo tuyến'); }
     finally { setLoading(false); }
   }, [search, fType, fromDate, toDate]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const t = setTimeout(load, 300); // debounce gõ phím → tránh spam API
+    return () => clearTimeout(t);
+  }, [load]);
 
   const types = useMemo(() => Object.entries(TYPE_LABEL).map(([v, l]) => ({ v, l })), []);
 
   const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r.status));
 
-  const filtered = useMemo(() => {
-    const k = search.trim().toLowerCase();
-    return items.filter((r) => {
-      if (stab !== 'all' && sKey(r.status) !== stab) return false;
-      if (fType && String(r.guidanceType) !== fType) return false;
-      if (!k) return true;
-      return [r.title, r.batchCode, r.targetFacility]
-        .some((v) => (v || '').toLowerCase().includes(k));
-    });
-  }, [items, search, stab, fType]);
+  // keyword/loại/ngày đã lọc server-side trong load(); chỉ còn tab trạng thái client-side
+  const filtered = useMemo(
+    () => items.filter((r) => stab === 'all' || sKey(r.status) === stab),
+    [items, stab],
+  );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);
@@ -165,7 +164,8 @@ const ClinicalGuidanceV2: React.FC = () => {
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       <ActBtn ic="activity" title="Hoạt động" onClick={() => openActivities(r)} />
       <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />
+      {/* parity v1: chỉ cho xoá đợt đang Lên kế hoạch (status 0) */}
+      {r.status === 0 && <ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => del(r)} />}
     </div>
   );
 

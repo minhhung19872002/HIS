@@ -13,17 +13,20 @@ import {
 
 // ──── Báo cáo ca bệnh ────
 
-const DR_FIELDS: CrudFieldCfg[] = [
+// Field tĩnh của form ca bệnh — diseaseName được thay bằng select danh mục 28 bệnh trong drFields (useMemo)
+const DR_FIELDS_HEAD: CrudFieldCfg[] = [
   { key: 'reportCode', label: 'Mã báo cáo', required: true, disabledOnEdit: true },
   { key: 'patientName', label: 'Họ tên BN', required: true },
   { key: 'patientCode', label: 'Mã BN' },
   { key: 'gender', label: 'Giới tính', type: 'select', options: [{ value: 1, label: 'Nam' }, { value: 2, label: 'Nữ' }] },
   { key: 'age', label: 'Tuổi', type: 'number' },
   { key: 'address', label: 'Địa chỉ' },
-  { key: 'diseaseName', label: 'Tên bệnh', required: true },
-  { key: 'diseaseCode', label: 'Mã bệnh (ICD)' },
+];
+const DR_FIELDS_TAIL: CrudFieldCfg[] = [
+  { key: 'diseaseCode', label: 'Mã bệnh (ICD)', placeholder: 'Bỏ trống → tự điền theo danh mục' },
   { key: 'diseaseGroup', label: 'Nhóm bệnh', type: 'select', options: [
     { value: 'A', label: 'Nhóm A · đặc biệt nguy hiểm' }, { value: 'B', label: 'Nhóm B · nguy hiểm' }, { value: 'C', label: 'Nhóm C · ít nguy hiểm' }] },
+  { key: 'reportDate', label: 'Ngày báo cáo', type: 'date', required: true },
   { key: 'onsetDate', label: 'Ngày khởi phát', type: 'date' },
   { key: 'diagnosisDate', label: 'Ngày chẩn đoán', type: 'date' },
   { key: 'reportingDoctor', label: 'BS báo cáo' },
@@ -267,7 +270,34 @@ const EpidemiologyV2: React.FC = () => {
     catch { ti('Không tải được danh mục bệnh phải khai báo'); }
     finally { setNotifLoading(false); }
   };
-  useEffect(() => { if (tab === 'notifiable') loadNotifiable(); /* eslint-disable-next-line */ }, [tab]);
+  // Nạp ngay từ mount: danh mục dùng cho cả tab liệt kê LẪN select trong form ca bệnh
+  useEffect(() => { loadNotifiable(); /* eslint-disable-next-line */ }, []);
+
+  // Form ca bệnh: tên bệnh = select từ danh mục 28 bệnh phải khai báo (parity v1) — fallback free-text khi danh mục rỗng
+  const drFields = useMemo<CrudFieldCfg[]>(() => [
+    ...DR_FIELDS_HEAD,
+    notifiable.length > 0
+      ? { key: 'diseaseName', label: 'Tên bệnh', type: 'select' as const, required: true,
+          options: notifiable.map((d) => ({ value: d.name, label: `${d.code} · ${d.name} (Nhóm ${d.group})` })) }
+      : { key: 'diseaseName', label: 'Tên bệnh', required: true },
+    ...DR_FIELDS_TAIL,
+  ], [notifiable]);
+
+  // Chọn bệnh từ danh mục → tự điền mã ICD + nhóm nếu người dùng bỏ trống
+  const enrichDisease = (v: Record<string, unknown>) => {
+    const m = notifiable.find((d) => d.name === v.diseaseName);
+    if (m) {
+      if (!v.diseaseCode) v.diseaseCode = m.code;
+      if (!v.diseaseGroup) v.diseaseGroup = m.group;
+    }
+    return v;
+  };
+
+  const newReportInitial = useMemo(() => (newReportOpen ? {
+    reportCode: `BC${dayjs().format('YYMMDDHHmmss')}`,
+    reportDate: dayjs().format('YYYY-MM-DD'),
+    status: 0,
+  } : null), [newReportOpen]);
 
   const notifFiltered = useMemo(() => {
     const k = notifSearch.trim().toLowerCase();
@@ -289,6 +319,11 @@ const EpidemiologyV2: React.FC = () => {
   };
 
   const activeOutbreakCount = stats?.activeOutbreaks ?? 0;
+  // parity v1: cảnh báo truy vết khẩn cấp nhóm A (ca chưa đóng)
+  const groupAUrgent = useMemo(
+    () => items.filter((r) => r.diseaseGroup === 'A' && r.status < 3).length,
+    [items],
+  );
 
   return (
     <div className="ab">
@@ -308,6 +343,24 @@ const EpidemiologyV2: React.FC = () => {
           </span>
           <Btn variant="ghost" onClick={() => setTab('outbreaks')} style={{ marginLeft: 'auto', fontSize: 12 }}>
             Xem ổ dịch →
+          </Btn>
+        </div>
+      )}
+
+      {/* parity v1: cảnh báo động ca bệnh nhóm A cần truy vết khẩn cấp */}
+      {groupAUrgent > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px',
+          background: 'color-mix(in srgb, var(--s-warn) 12%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--s-warn) 35%, transparent)',
+          borderRadius: 6, marginBottom: 8, fontSize: 13,
+        }}>
+          <Ico name="zap" size={14} />
+          <span style={{ fontWeight: 600, color: 'var(--s-warn)' }}>
+            {groupAUrgent} ca bệnh nhóm A cần truy vết tiếp xúc khẩn cấp
+          </span>
+          <Btn variant="ghost" onClick={() => { setTab('reports'); setFGroup('A'); }} style={{ marginLeft: 'auto', fontSize: 12 }}>
+            Xem ca nhóm A →
           </Btn>
         </div>
       )}
@@ -408,11 +461,11 @@ const EpidemiologyV2: React.FC = () => {
             open={crudOpen}
             onClose={() => setCrudOpen(false)}
             title="Cập nhật báo cáo dịch tễ"
-            fields={DR_FIELDS}
+            fields={drFields}
             initial={crudInit}
             size="lg"
             onSubmit={async (v) => {
-              if (crudInit?.id) await updateDiseaseReport(String(crudInit.id), v);
+              if (crudInit?.id) await updateDiseaseReport(String(crudInit.id), enrichDisease(v));
               tk('Đã cập nhật báo cáo');
               load();
             }}
@@ -422,11 +475,11 @@ const EpidemiologyV2: React.FC = () => {
             open={newReportOpen}
             onClose={() => setNewReportOpen(false)}
             title="Báo cáo ca bệnh truyền nhiễm"
-            fields={DR_FIELDS}
-            initial={null}
+            fields={drFields}
+            initial={newReportInitial}
             size="lg"
             onSubmit={async (v) => {
-              await reportDisease(v as Partial<DiseaseReport>);
+              await reportDisease(enrichDisease(v) as Partial<DiseaseReport>);
               tk('Đã gửi báo cáo ca bệnh');
               setNewReportOpen(false);
               load();

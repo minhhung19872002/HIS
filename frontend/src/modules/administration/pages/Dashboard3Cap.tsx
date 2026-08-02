@@ -459,6 +459,18 @@ const Dashboard3CapV2: React.FC = () => {
               ]}
               data={report.branchItems} rowKey={(r) => r.branchId}
             />
+            {/* #352 parity v1: hàng TỔNG CỘNG (Table.Summary v1 pages/Dashboard3Cap.tsx:707-730) */}
+            <div style={{
+              display: 'flex', gap: 'var(--space-16)', padding: '10px 14px', flexWrap: 'wrap',
+              borderTop: '2px solid var(--line)', fontSize: 'var(--fs-sm)', fontWeight: 600,
+            }}>
+              <span>TỔNG CỘNG</span>
+              <span className="mono">BN: {report.totalPatients.toLocaleString('vi-VN')}</span>
+              <span className="mono">Lượt khám: {report.totalVisits.toLocaleString('vi-VN')}</span>
+              <span className="mono">Nhập viện: {report.totalAdmissions.toLocaleString('vi-VN')}</span>
+              <span className="mono">Doanh thu: {fmtCurr(report.totalRevenue)}</span>
+              <span className="mono">100%</span>
+            </div>
           </div>
         </div>
       )}
@@ -483,6 +495,38 @@ const Dashboard3CapV2: React.FC = () => {
                 { key: 'total', label: 'Tổng', mono: true, render: (r) => <b>{r.totalShifts}</b> },
               ]}
               data={duty.staffSummary} rowKey={(r) => r.staffId}
+            />
+          </div>
+
+          {/* #352 parity v1: lịch trực theo TỪNG NGÀY trong tháng (ai trực Sáng/Chiều/Đêm ngày nào — v1 :795-827) */}
+          <div className="panel" style={{ padding: 0, marginTop: 'var(--space-16)' }}>
+            <div className="panel-h" style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
+              <span>Lịch trực theo ngày — tháng {duty.month}/{duty.year}</span>
+            </div>
+            <DataTable
+              columns={[
+                { key: 'day', label: 'Ngày', mono: true, width: 60, render: (r) => <b>{r.day}</b> },
+                { key: 'dow', label: 'Thứ', width: 60, render: (r) => (
+                  <span className={`chip ${r.dow === 'CN' ? 'crit' : r.dow === 'T7' ? 'warn' : 'info'}`}>{r.dow}</span>
+                ) },
+                { key: 'sang', label: '☀ Sáng', render: (r) => r.sang || <span style={{ color: 'var(--t-3)' }}>—</span> },
+                { key: 'chieu', label: '🌙 Chiều', render: (r) => r.chieu || <span style={{ color: 'var(--t-3)' }}>—</span> },
+                { key: 'dem', label: '🌑 Đêm', render: (r) => r.dem || <span style={{ color: 'var(--t-3)' }}>—</span> },
+              ]}
+              data={Array.from({ length: new Date(duty.year, duty.month, 0).getDate() }, (_, i) => {
+                const day = i + 1;
+                const forDay = duty.shifts.filter((s) => s.dayOfMonth === day);
+                const pick = (t: string) => {
+                  const s = forDay.find((x) => x.shiftType === t);
+                  return s ? `${s.staffName}${s.title ? ` (${s.title})` : ''}` : '';
+                };
+                return {
+                  day,
+                  dow: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][new Date(duty.year, duty.month - 1, day).getDay()],
+                  sang: pick('Sang'), chieu: pick('Chieu'), dem: pick('Dem'),
+                };
+              })}
+              rowKey={(r) => String(r.day)}
             />
           </div>
         </div>

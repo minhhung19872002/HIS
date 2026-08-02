@@ -106,24 +106,28 @@ const HospitalPharmacyV2: React.FC = () => {
   const loadHistory = useCallback(async () => {
     setHLoading(true);
     try {
+      // parity v1: 30 ngày + keyword server-side (BE lọc toàn bộ dữ liệu, không chỉ trang đầu)
       const r = await getRetailSales({
-        fromDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
+        fromDate: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
         toDate:   dayjs().format('YYYY-MM-DD'),
+        keyword:  hSearch.trim() || undefined,
       });
       setHRows(r.items);
     } catch { setHRows([]); }
     finally  { setHLoading(false); }
-  }, []);
-  useEffect(() => { if (tab === 'history') void loadHistory(); }, [tab, loadHistory]);
+  }, [hSearch]);
+  useEffect(() => {
+    if (tab !== 'history') return;
+    setHPage(0);
+    const t = setTimeout(() => { void loadHistory(); }, 300);
+    return () => clearTimeout(t);
+  }, [tab, loadHistory]);
 
-  const hFiltered = useMemo(() => hRows.filter((r) => {
-    if (hStab !== 'all' && saleStatusKey(r) !== hStab) return false;
-    if (hSearch.trim()) {
-      const q = hSearch.toLowerCase();
-      if (!`${r.saleCode} ${r.customerName ?? ''} ${r.customerPhone ?? ''}`.toLowerCase().includes(q)) return false;
-    }
-    return true;
-  }), [hRows, hStab, hSearch]);
+  // keyword đã lọc server-side trong loadHistory; chỉ còn tab trạng thái client-side
+  const hFiltered = useMemo(
+    () => hRows.filter((r) => hStab === 'all' || saleStatusKey(r) === hStab),
+    [hRows, hStab],
+  );
 
   const hCounts = useMemo(() => {
     const c: Record<string, number> = { all: hRows.length };
@@ -366,7 +370,7 @@ const HospitalPharmacyV2: React.FC = () => {
   const [custDetail,    setCustDetail]    = useState<PharmacyCustomerDto | null>(null);
   const [custModalOpen, setCustModalOpen] = useState(false);
   const [custLoading,   setCustLoading]   = useState(false);
-  const [custForm,      setCustForm]      = useState<SavePharmacyCustomerDto>({ fullName: '', customerType: 0 });
+  const [custForm,      setCustForm]      = useState<SavePharmacyCustomerDto>({ fullName: '', customerType: 1 });
   const custRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const loadCustomers = useCallback(async () => {
@@ -418,7 +422,7 @@ const HospitalPharmacyV2: React.FC = () => {
       await saveCustomer(custForm);
       tk('Đã lưu khách hàng');
       setCustModalOpen(false);
-      setCustForm({ fullName: '', customerType: 0 });
+      setCustForm({ fullName: '', customerType: 1 });
       void loadCustomers();
     } catch { te('Lỗi lưu khách hàng'); }
   };
