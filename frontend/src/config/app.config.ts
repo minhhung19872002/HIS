@@ -11,18 +11,14 @@ export const HOSPITAL_ADDRESS = (import.meta.env.VITE_HOSPITAL_ADDRESS as string
 export const HOSPITAL_PHONE   = (import.meta.env.VITE_HOSPITAL_PHONE   as string | undefined) || '';
 
 // ── Application identity ────────────────────────────────────────────────────
-export const APP_NAME    = (import.meta.env.VITE_APP_NAME    as string | undefined) || 'Bluestar HIS';
-export const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) || '1.0.0';
+// Dùng: Logo.tsx fallback khi HOSPITAL_NAME chưa đặt (env VITE_APP_NAME per deployment).
+export const APP_NAME = (import.meta.env.VITE_APP_NAME as string | undefined) || 'Bluestar HIS';
 
-// ── Pagination defaults (dùng nhất quán trong mọi DataTable / List) ─────────
+// ── Pagination defaults ─────────────────────────────────────────────────────
+// Dùng: SimpleV2Page default pageSize trong _v2kit.tsx.
 export const PAGE_SIZE_DEFAULT = 20;
-export const PAGE_SIZE_OPTIONS: number[] = [10, 20, 50, 100];
-
-// ── Date / time format strings (dayjs) ─────────────────────────────────────
-export const DATE_FORMAT     = 'DD/MM/YYYY';
-export const DATETIME_FORMAT = 'DD/MM/YYYY HH:mm';
-export const TIME_FORMAT     = 'HH:mm';
 
 // ── File upload limits ──────────────────────────────────────────────────────
+// Dùng: EmrEditor.tsx upload attachment guard.
 export const MAX_UPLOAD_MB    = 10;
 export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;

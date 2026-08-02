@@ -29,6 +29,7 @@
  * Code MỚI có thể import primitive thẳng từ `components/<category>/`.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PAGE_SIZE_DEFAULT } from './config/app.config';
 import { message, Modal } from 'antd';
 import TermIconCmp from './components/layout/terminal/Icon';
 import { KpiStrip, type KpiItem } from './components/dataDisplay/KpiStrip';
@@ -229,7 +230,7 @@ export function SimpleV2Page<T>({
   statusTabs, statusOf,
   filters = [],
   kpis,
-  pageSize = 16,
+  pageSize = PAGE_SIZE_DEFAULT,
   rowActions, drawer, drawerTitle, drawerSub,
   toolbarRight, headerActions,
   emptyMessage,

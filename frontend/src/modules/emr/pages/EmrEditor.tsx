@@ -44,6 +44,7 @@ import PrintTemplateRenderer from '../../patient/components/PrintTemplateRendere
 import ClinicalTemplatePicker from '../../patient/components/ClinicalTemplatePicker';
 import { TEMPLATE_TYPES } from '../../patient/api/clinicalTemplate';
 import '../../../components/layout/terminal/ed-responsive.css';
+import { MAX_UPLOAD_MB, MAX_UPLOAD_BYTES } from '../../../config/app.config';
 
 type TabKey = 'record' | 'history' | 'treatment' | 'consult' | 'nursing' | 'reaction' | 'partograph' | 'anesthesia' | 'amendment' | 'attach';
 const TABS: TopTab<TabKey>[] = [
@@ -346,7 +347,7 @@ const EmrEditorV2: React.FC = () => {
     e.target.value = ''; // cho phep chon lai cung file
     if (!file) return;
     if (!full?.id) { tw('Chưa chọn HSBA có hồ sơ bệnh án'); return; }
-    if (file.size > 10 * 1024 * 1024) { tw('File vượt quá giới hạn 10MB'); return; }
+    if (file.size > MAX_UPLOAD_BYTES) { tw(`File vượt quá giới hạn ${MAX_UPLOAD_MB}MB`); return; }
     setAttachBusy(true);
     try {
       const contentBase64 = await fileToBase64(file);

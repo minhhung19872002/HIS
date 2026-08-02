@@ -8,7 +8,7 @@
  * Bật/tắt debug qua localStorage: `localStorage.setItem('debug', '1')`.
  */
 
-const isDev = import.meta.env?.DEV ?? false;
+import { isDev } from '../config/env.config';
 
 function debugEnabled(): boolean {
   if (isDev) return true;
