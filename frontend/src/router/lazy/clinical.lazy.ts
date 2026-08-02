@@ -50,6 +50,7 @@ export const ClinicalPharmacyCheckV2 = lazy(() => import('../../modules/opd/page
 export const InpatientDispensingV2 = lazy(() => import('../../modules/pharmacy/pages/InpatientDispensing'));
 export const StockReportV2 = lazy(() => import('../../modules/pharmacy/pages/StockReport'));
 export const OfficeSupplyApprovalV2 = lazy(() => import('../../modules/pharmacy/pages/OfficeSupplyApproval'));
+export const EmergencyCabinetV2 = lazy(() => import('../../modules/pharmacy/pages/EmergencyCabinet'));
 
 // --- public-health group ---
 export const HealthCheckupV2 = lazy(() => import('../../modules/checkup/pages/HealthCheckup'));

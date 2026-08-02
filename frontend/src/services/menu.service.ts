@@ -96,6 +96,7 @@ export const HIS_GROUPS: NavGroup[] = [
       { id: 'hospital-pharmacy',    path: '/v2/hospital-pharmacy',    label: 'Nhà thuốc bệnh viện' },
       { id: 'dispensing-counter',   path: '/v2/dispensing-counter',   label: 'Quầy cấp phát thuốc' },
       { id: 'inpatient-dispensing', path: '/v2/inpatient-dispensing', label: 'Cấp phát nội trú' },
+      { id: 'emergency-cabinet',   path: '/v2/emergency-cabinet',   label: 'Tủ trực' },
       { id: 'clinical-pharmacy-check', path: '/v2/clinical-pharmacy-check', label: 'Dược lâm sàng kiểm tra' },
       { id: 'pharmacy-stock-in',    path: '/v2/pharmacy-stock-in',    label: 'Nhập kho NCC' },
       { id: 'pharmacy-stock-issue', path: '/v2/pharmacy-stock-issue', label: 'Xuất kho' },
