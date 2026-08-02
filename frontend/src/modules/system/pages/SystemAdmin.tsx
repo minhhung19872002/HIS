@@ -224,6 +224,12 @@ const SystemAdminV2: React.FC = () => {
     else cf(`Khoá tài khoản "${u.username}"?`, async () => { try { await adminApi.lockUser(u.id!, 'Khoá bởi quản trị viên'); tk('Đã khoá'); load(); } catch { te('Thất bại'); } }, { tone: 'crit', confirm: 'Khoá' });
   };
   const resetPw = (u: SystemUserDto) => cf(`Đặt lại mật khẩu cho "${u.username}"?`, async () => { try { await adminApi.resetPassword(u.id!); tk('Đã đặt lại mật khẩu (gửi cho người dùng)'); } catch { te('Thất bại'); } }, { confirm: 'Reset' });
+  const deleteUser = (u: SystemUserDto) => {
+    if (isAdminUser(u)) { te('Không thể xoá tài khoản quản trị viên'); return; }
+    cf(`Xoá tài khoản "${u.username}"? Thao tác không thể hoàn tác.`, async () => {
+      try { await adminApi.deleteUser(u.id!); tk('Đã xoá tài khoản'); load(); } catch { te('Xoá thất bại'); }
+    }, { tone: 'crit', confirm: 'Xoá' });
+  };
 
   // ─── Role CRUD ───
   const ensurePermissions = () => {
@@ -252,9 +258,10 @@ const SystemAdminV2: React.FC = () => {
     try { v = await roleF.validateFields(); } catch { return; }
     setSaving(true);
     try {
-      await adminApi.saveRole({ id: editRoleId || undefined, code: (v.code as string).trim(), name: (v.name as string).trim(), description: (v.description as string) || '', isSystemRole: !!v.isSystemRole, isActive: v.isActive !== false } as RoleDto);
-      if (editRoleId && rolePermIds.length >= 0)
-        await adminApi.updateRolePermissions(editRoleId, rolePermIds).catch(() => {});
+      const res = await adminApi.saveRole({ id: editRoleId || undefined, code: (v.code as string).trim(), name: (v.name as string).trim(), description: (v.description as string) || '', isSystemRole: !!v.isSystemRole, isActive: v.isActive !== false } as RoleDto);
+      const savedId = editRoleId || (res?.data as RoleDto | null)?.id;
+      if (savedId && rolePermIds.length >= 0)
+        await adminApi.updateRolePermissions(savedId, rolePermIds).catch(() => {});
       tk('Đã lưu vai trò'); setRoleModal(null); load();
     } catch (e: unknown) {
       const ax = e as AxiosError<ServerValidationError>;
@@ -479,6 +486,7 @@ const SystemAdminV2: React.FC = () => {
             <ActBtn ic="edit" title="Sửa" onClick={() => openEditUser(u)} />
             <ActBtn ic="lock" title={u.isLocked ? 'Mở khoá' : 'Khoá'} tone={u.isLocked ? 'warn' : 'crit'} onClick={() => lockToggle(u)} />
             <ActBtn ic="refresh" title="Reset mật khẩu" onClick={() => resetPw(u)} />
+            {!isAdminUser(u) && <ActBtn ic="trash" title="Xoá tài khoản" tone="crit" onClick={() => deleteUser(u)} />}
           </>)}
           empty={loading ? 'Đang tải…' : 'Không có người dùng'} />
       )}
@@ -604,22 +612,20 @@ const SystemAdminV2: React.FC = () => {
           <Form.Item name="name" label="Tên vai trò" rules={[{ required: true, message: 'Nhập tên' }]}><Input placeholder="Điều dưỡng" /></Form.Item>
           <Form.Item name="description" label="Mô tả"><Input /></Form.Item>
           <Form.Item name="isActive" label="Hoạt động" valuePropName="checked"><Switch /></Form.Item>
-          {roleModal === 'edit' && (
-            <Form.Item label="Quyền hạn">
-              <Select<string[]>
-                mode="multiple"
-                allowClear
-                showSearch
-                optionFilterProp="label"
-                value={rolePermIds}
-                onChange={setRolePermIds}
-                placeholder="Chọn quyền…"
-                options={allPermissions.map(p => ({ value: p.id!, label: `${p.module} / ${p.name}` }))}
-                style={{ width: '100%' }}
-                maxTagCount={5}
-              />
-            </Form.Item>
-          )}
+          <Form.Item label="Quyền hạn" extra={roleModal === 'new' ? 'Có thể gán quyền ngay khi tạo' : undefined}>
+            <Select<string[]>
+              mode="multiple"
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              value={rolePermIds}
+              onChange={setRolePermIds}
+              placeholder="Chọn quyền…"
+              options={allPermissions.map(p => ({ value: p.id!, label: `${p.module} / ${p.name}` }))}
+              style={{ width: '100%' }}
+              maxTagCount={5}
+            />
+          </Form.Item>
         </Form>
       </ModalShell>
 
