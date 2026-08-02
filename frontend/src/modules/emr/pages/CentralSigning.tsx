@@ -5,7 +5,7 @@ import * as api from '../api/centralSigning';
 import { logger } from '../../../services/logger.service';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, ModalShell, DrSec, DrField, tk, ti, tw, Ico,
+  DrawerShell, ModalShell, DrSec, DrField, tk, ti, tw, cf, Ico,
   type ColumnDef,
 } from '../../../pages-v2/_v2kit';
 
@@ -40,6 +40,8 @@ const PER = 18;
 
 const CentralSigningV2: React.FC = () => {
   const [tab, setTab] = useState<Tab>('certs');
+  // #352: dữ liệu ghép ứng dụng OTP (QR + mã thủ công) — v2 trước đây vứt đi
+  const [totpSetup, setTotpSetup] = useState<{ qrCodeUri?: string; manualEntryKey?: string } | null>(null);
   const [certs, setCerts] = useState<ManagedCertificate[]>([]);
   const [txs, setTxs] = useState<SigningTransaction[]>([]);
   const [txTotal, setTxTotal] = useState(0);
@@ -388,11 +390,27 @@ const CentralSigningV2: React.FC = () => {
                 <Btn onClick={openAppearance}>
                   <Ico name="edit" size={12} /> Cấu hình appearance
                 </Btn>
+                {/* #352: trước đây vứt response nên KHÔNG BAO GIỜ hiện QR/mã thủ công
+                    → bấm xong báo "Đã setup" nhưng người dùng không có gì để quét = setup giả. */}
                 <Btn onClick={async () => {
-                  try { await api.setupTotp(); tk('Đã setup TOTP'); }
-                  catch { tw('Lỗi setup TOTP'); }
+                  try {
+                    const res = await api.setupTotp();
+                    const d = (res?.data ?? res) as { enabled?: boolean; qrCodeUri?: string; manualEntryKey?: string };
+                    if (d?.enabled) { ti('TOTP đã được kích hoạt trước đó'); return; }
+                    if (d?.qrCodeUri || d?.manualEntryKey) {
+                      setTotpSetup({ qrCodeUri: d.qrCodeUri, manualEntryKey: d.manualEntryKey });
+                    } else {
+                      tw('Máy chủ không trả về mã QR/mã thủ công — chưa thể ghép ứng dụng OTP');
+                    }
+                  } catch { tw('Lỗi setup TOTP'); }
                 }}>
                   <Ico name="lock" size={12} /> Setup TOTP
+                </Btn>
+                <Btn onClick={() => cf('Tắt xác thực TOTP cho ký số?', async () => {
+                  try { await api.disableTotp(); tk('Đã tắt TOTP'); }
+                  catch { tw('Không thể tắt TOTP'); }
+                }, { tone: 'crit', confirm: 'Tắt TOTP' })}>
+                  <Ico name="x" size={12} /> Tắt TOTP
                 </Btn>
                 <Btn onClick={openHsm}>
                   <Ico name="card" size={12} /> HSM info
@@ -403,6 +421,32 @@ const CentralSigningV2: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* #352: hiện QR + mã thủ công để người dùng thực sự ghép được ứng dụng OTP */}
+          <ModalShell open={!!totpSetup} onClose={() => setTotpSetup(null)} size="sm"
+            title="Ghép ứng dụng xác thực (TOTP)"
+            sub="Google Authenticator · Microsoft Authenticator — hoạt động cả khi không có Internet"
+            footer={<Btn variant="primary" onClick={() => setTotpSetup(null)}>Đã ghép xong</Btn>}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 12.5 }}>
+              {totpSetup?.qrCodeUri && (
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>Chuỗi URI (dán vào ứng dụng)</div>
+                  <Input.TextArea readOnly rows={3} value={totpSetup.qrCodeUri} onFocus={(e) => e.currentTarget.select()} />
+                </div>
+              )}
+              {totpSetup?.manualEntryKey && (
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>Mã nhập thủ công</div>
+                  <Input readOnly value={totpSetup.manualEntryKey} onFocus={(e) => e.currentTarget.select()}
+                    style={{ fontFamily: 'var(--font-mono)', letterSpacing: 1 }} />
+                </div>
+              )}
+              <div style={{ color: 'var(--t-2)' }}>
+                Sau khi ghép, nhập mã OTP 6 số khi ký để xác nhận danh tính.
+              </div>
+            </div>
+          </ModalShell>
         </div>
       )}
 
