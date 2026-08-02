@@ -35,26 +35,31 @@ const fdtLabel = (s: number): string => FDT_STATUS[s]?.l || '—';
 const PER = 20;
 
 const FunctionalDiagnosticsV2: React.FC = () => {
-  const { rows, reload } = useListData<FunctionalDiagnosticTestDto>(
-    useCallback(() => fdt.search({ pageSize: 500 }), []),
-    useCallback(() => te('Không tải được'), []),
-  );
   const [search, setSearch] = useState('');
   const [fType, setFType] = useState('');
   const [fStatus, setFStatus] = useState('');
   const [page, setPage] = useState(0);
   const [detail, setDetail] = useState<FunctionalDiagnosticTestDto | null>(null);
 
+  // #352: lọc SERVER-SIDE. Trước đây chỉ tải 500 bản ghi mới nhất rồi lọc client ⇒ bản ghi cũ
+  // hơn cửa sổ 500 dòng không thể tìm/lọc ra ở v2 (v1 truyền keyword/testType/status lên
+  // fdt.search, backend lọc TOÀN BẢNG — FunctionalDiagnosticsService.SearchAsync:42-52).
+  const { rows, loading, reload } = useListData<FunctionalDiagnosticTestDto>(
+    useCallback(() => fdt.search({
+      keyword: search.trim() || undefined,
+      testType: fType || undefined,
+      status: fStatus === '' ? undefined : Number(fStatus),
+      pageSize: 500,
+    }), [search, fType, fStatus]),
+    useCallback(() => te('Không tải được'), []),
+  );
+
+  // Server đã lọc; giữ lại lọc client như lưới an toàn khi API bỏ qua tham số.
   const filtered = useMemo(() => rows.filter((r) => {
     if (fType && r.testType !== fType) return false;
     if (fStatus !== '' && r.status !== Number(fStatus)) return false;
-    if (search) {
-      const k = search.toLowerCase();
-      return [r.testCode, r.patientName || '', r.patientCode || '']
-        .some((x) => x.toLowerCase().includes(k));
-    }
     return true;
-  }), [rows, fType, fStatus, search]);
+  }), [rows, fType, fStatus]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);
@@ -105,10 +110,16 @@ const FunctionalDiagnosticsV2: React.FC = () => {
         <Filter value={fStatus} onChange={setFStatus}
           options={FDT_STATUS.map((s) => ({ v: String(s.v), l: s.l }))}
           placeholder="▾ Trạng thái" />
+        <span className="spacer" />
+        {/* #352: nút Làm mới — worklist trước đây chỉ fetch 1 lần lúc mount nên bị stale
+            (house-style v2: SimpleV2Page và các trang khác đều có nút này) */}
+        <Btn variant="ghost" icon="refresh" onClick={reload}>Làm mới</Btn>
       </div>
       <DataTable<FunctionalDiagnosticTestDto>
         rowKey={(r) => r.id} data={paged} columns={columns}
         onRowClick={setDetail}
+        // #352: phân biệt đang-tải với không-có-dữ-liệu (trước đây bảng trống trơn khi tải)
+        empty={loading ? 'Đang tải…' : 'Không có phiếu thăm dò chức năng'}
         actions={(r) => (
           <>
             {r.status === 1 && <ActBtn ic="check" title="Hoàn thành" onClick={() => complete(r)} />}
@@ -153,11 +164,14 @@ const FunctionalDiagnosticsV2: React.FC = () => {
                 {detail.clinicalIndication || '—'}
               </div>
             </DrSec>
-            {detail.findings && (
+            {/* #352: LUÔN hiện khối kết quả. Trước đây cả khối bọc trong `detail.findings &&`
+                nên phiếu có Kết luận/Khuyến nghị mà Mô tả rỗng thì ẨN LUÔN dữ liệu lâm sàng
+                — bác sĩ mở drawer không thấy kết luận. v1 luôn render với fallback '—'. */}
+            {(detail.findings || detail.conclusion || detail.recommendation || detail.status >= 2) && (
               <DrSec title="KẾT QUẢ">
                 <div style={{ marginBottom: 'var(--space-8)' }}><b>Mô tả:</b></div>
                 <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap', marginBottom: 'var(--space-12)' }}>
-                  {detail.findings}
+                  {detail.findings || '—'}
                 </div>
                 <div style={{ marginBottom: 'var(--space-8)' }}><b>Kết luận:</b></div>
                 <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap', marginBottom: 'var(--space-12)' }}>
