@@ -69,6 +69,16 @@ public class AlertCheckResultDto
 
 // ===== Cost Estimation =====
 
+/// <summary>#455: Request DTO cho dự toán viện phí — không cần patientId (pre-registration).</summary>
+public class CostEstimateDirectRequestDto
+{
+    public List<Guid> ServiceIds { get; set; } = new();
+    /// <summary>1=BHYT, 2=Viện phí, 3=Dịch vụ, 4=Khám sức khỏe</summary>
+    public int PatientType { get; set; } = 2;
+    /// <summary>Tỷ lệ BHYT thanh toán (%), e.g. 80, 95, 100. Chỉ áp dụng khi PatientType=1.</summary>
+    public int InsuranceCoverageRate { get; set; } = 80;
+}
+
 public class CostEstimationResultDto
 {
     public Guid PatientId { get; set; }

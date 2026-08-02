@@ -467,6 +467,48 @@ public partial class BusinessAlertService
         return result;
     }
 
+    // #455: Pre-registration cost estimation (no patientId required)
+    public async Task<CostEstimationResultDto> EstimateCostDirectAsync(CostEstimateDirectRequestDto req)
+    {
+        var coverageRate = req.PatientType == 1 ? req.InsuranceCoverageRate : 0;
+        var result = new CostEstimationResultDto
+        {
+            PatientType = req.PatientType,
+            PatientTypeName = req.PatientType switch { 1 => "BHYT", 2 => "Viện phí", 3 => "Dịch vụ", 4 => "Khám sức khỏe", _ => "Khác" },
+            InsuranceCoverageRate = coverageRate,
+        };
+        try
+        {
+            var services = await _context.Services
+                .Where(s => req.ServiceIds.Contains(s.Id))
+                .Select(s => new { s.Id, s.ServiceName, GroupName = s.ServiceGroup != null ? s.ServiceGroup.GroupName : "", s.UnitPrice, s.InsurancePrice })
+                .ToListAsync();
+
+            foreach (var svc in services)
+            {
+                var insPrice = req.PatientType == 1 && svc.InsurancePrice > 0
+                    ? svc.InsurancePrice * coverageRate / 100m
+                    : 0;
+                result.Items.Add(new CostEstimationItemDto
+                {
+                    ServiceId = svc.Id,
+                    ServiceName = svc.ServiceName,
+                    ServiceGroupName = svc.GroupName,
+                    UnitPrice = svc.UnitPrice,
+                    InsurancePrice = insPrice,
+                    PatientPrice = svc.UnitPrice - insPrice,
+                    CoverageRate = coverageRate,
+                });
+            }
+
+            result.TotalAmount = result.Items.Sum(i => i.UnitPrice);
+            result.InsuranceAmount = result.Items.Sum(i => i.InsurancePrice);
+            result.PatientAmount = result.Items.Sum(i => i.PatientPrice);
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "#455 EstimateCostDirect error"); }
+        return result;
+    }
+
     // =====================================================================
     // SPECIAL TEST RULE CRUD (F2.13)
     // =====================================================================

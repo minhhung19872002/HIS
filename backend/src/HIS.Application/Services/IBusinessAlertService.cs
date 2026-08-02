@@ -42,6 +42,10 @@ public interface IBusinessAlertService
     /// <summary>Rule 39: Cost estimation at registration — not an alert, returns breakdown</summary>
     Task<CostEstimationResultDto> EstimateCostAsync(Guid patientId, List<Guid> serviceIds);
 
+    /// <summary>#455: Dự toán viện phí không cần patientId — dùng trước khi đăng ký</summary>
+    Task<CostEstimationResultDto> EstimateCostDirectAsync(CostEstimateDirectRequestDto dto);
+
+
     // ===== SPECIAL TEST RULE CRUD (F2.13) =====
 
     Task<SpecialTestRulePagedResult> GetSpecialTestRulesAsync(SpecialTestRuleSearchDto search);

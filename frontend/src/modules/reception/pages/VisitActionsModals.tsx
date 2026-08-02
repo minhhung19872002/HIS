@@ -11,7 +11,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { App as AntdApp, DatePicker, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import * as receptionApi from '../api/reception';
-import type { DocumentHoldDto, PatientPhotoDto } from '../api/reception';
+import type { DocumentHoldDto, PatientPhotoDto, CostEstimationResultDto } from '../api/reception';
+import { estimateCostDirect } from '../api/reception';
 import { searchServices } from '../../opd/api/examination';
 import type { ServiceDto } from '../../opd/api/examination';
 import { ModalShell } from '../../../pages-v2/_v2kit';
@@ -611,6 +612,12 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
   const [searchLoading, setSearchLoading] = useState(false);
   const [activeRowKey, setActiveRowKey] = useState<number | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // #455 Cost estimation state
+  const [estOpen, setEstOpen] = useState(false);
+  const [estLoading, setEstLoading] = useState(false);
+  const [estResult, setEstResult] = useState<CostEstimationResultDto | null>(null);
+  const [estPatientType, setEstPatientType] = useState(2);
+  const [estCoverage, setEstCoverage] = useState(80);
 
   useEffect(() => {
     if (open) {
@@ -680,6 +687,38 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
     }
   };
 
+  const doEstimate = async () => {
+    const serviceIds = rows.filter(r => r.service).map(r => r.service!.id);
+    if (serviceIds.length === 0) { message.warning('Thêm ít nhất một dịch vụ để dự toán'); return; }
+    setEstLoading(true);
+    setEstOpen(true);
+    try {
+      const res = await estimateCostDirect({ serviceIds, patientType: estPatientType, insuranceCoverageRate: estCoverage });
+      setEstResult(res.data ?? null);
+    } catch {
+      setEstResult(null);
+    } finally {
+      setEstLoading(false);
+    }
+  };
+
+  const printEstimate = () => {
+    if (!estResult) return;
+    const win = window.open('', '_blank');
+    if (!win) return;
+    const rows = estResult.items.map((it, i) =>
+      `<tr><td>${i + 1}</td><td>${it.serviceName}</td><td>${it.serviceGroupName}</td><td>${it.unitPrice.toLocaleString('vi-VN')}</td><td>${it.insurancePrice.toLocaleString('vi-VN')}</td><td style="font-weight:600">${it.patientPrice.toLocaleString('vi-VN')}</td></tr>`
+    ).join('');
+    win.document.write(`<html><head><title>Dự toán viện phí</title><style>body{font-family:Arial;font-size:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:4px 6px}th{background:#f0f0f0}h3{text-align:center}</style></head><body>
+      <h3>DỰ TOÁN VIỆN PHÍ</h3><p>Đối tượng: <b>${estResult.patientTypeName}</b>${estResult.patientType === 1 ? ` — BHYT ${estResult.insuranceCoverageRate}%` : ''}</p>
+      <table><thead><tr><th>STT</th><th>Tên dịch vụ</th><th>Nhóm</th><th>Đơn giá</th><th>BHYT trả</th><th>BN trả</th></tr></thead><tbody>${rows}</tbody>
+      <tfoot><tr><td colspan="3"><b>TỔNG CỘNG</b></td><td><b>${estResult.totalAmount.toLocaleString('vi-VN')}</b></td><td><b>${estResult.insuranceAmount.toLocaleString('vi-VN')}</b></td><td><b>${estResult.patientAmount.toLocaleString('vi-VN')}</b></td></tr></tfoot></table>
+      <p style="margin-top:16px;font-style:italic;font-size:11px">* Đây là ước tính sơ bộ, chi phí thực tế có thể thay đổi tùy theo chỉ định của bác sĩ.</p>
+      </body></html>`);
+    win.document.close();
+    win.print();
+  };
+
   return (
     <ModalShell
       open={open}
@@ -690,6 +729,9 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
       footer={(
         <>
           <button type="button" className="ab-btn ghost" onClick={onClose}>Hủy</button>
+          <button type="button" className="ab-btn ghost" disabled={estLoading} onClick={doEstimate}>
+            <TermIcon name="calculator" size={12} /> {estLoading ? 'Đang tính…' : 'Dự toán'}
+          </button>
           <button type="button" className="ab-btn primary" disabled={busy} onClick={submit}>
             <TermIcon name="check" size={12} /> {busy ? 'Đang chỉ định…' : `Chỉ định (${rows.filter((r) => r.service).length})`}
           </button>
@@ -779,6 +821,84 @@ export const ServiceOrderModal: React.FC<ServiceOrderModalProps> = ({
           Tìm dịch vụ bằng từ khoá (mã hoặc tên). Phòng thực hiện sẽ được tự động chọn.
           Hình thức thanh toán mặc định: Viện phí.
         </div>
+
+        {/* #455 Cost estimate panel */}
+        {estOpen && (
+          <div style={{ marginTop: 'var(--space-14)', border: '1px solid var(--line)', borderRadius: 6, overflow: 'hidden' }}>
+            {/* Header + controls */}
+            <div style={{ padding: '8px 12px', background: 'var(--d-1)', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', flex: 1 }}>Dự toán viện phí</span>
+              <Select
+                size="small" value={estPatientType} onChange={(v) => { setEstPatientType(v); setEstResult(null); }}
+                style={{ width: 130 }}
+                options={[
+                  { value: 1, label: 'BHYT' },
+                  { value: 2, label: 'Viện phí' },
+                  { value: 3, label: 'Dịch vụ' },
+                  { value: 4, label: 'Khám sức khỏe' },
+                ]}
+              />
+              {estPatientType === 1 && (
+                <Select
+                  size="small" value={estCoverage} onChange={(v) => { setEstCoverage(v); setEstResult(null); }}
+                  style={{ width: 100 }}
+                  options={[
+                    { value: 100, label: 'BHYT 100%' },
+                    { value: 95, label: 'BHYT 95%' },
+                    { value: 80, label: 'BHYT 80%' },
+                  ]}
+                />
+              )}
+              <button type="button" className="ab-btn ghost sm" disabled={estLoading} onClick={doEstimate}>
+                {estLoading ? 'Đang tính…' : 'Tính lại'}
+              </button>
+              {estResult && (
+                <button type="button" className="ab-btn ghost sm" onClick={printEstimate}>
+                  <TermIcon name="printer" size={11} /> In
+                </button>
+              )}
+              <button type="button" className="ab-iconbtn" onClick={() => setEstOpen(false)}>
+                <TermIcon name="x" size={11} />
+              </button>
+            </div>
+
+            {/* Table */}
+            {estResult ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-xs)' }}>
+                <thead>
+                  <tr style={{ background: 'var(--d-1)' }}>
+                    <th style={{ padding: '5px 8px', textAlign: 'left', borderBottom: '1px solid var(--line)', fontWeight: 600 }}>Dịch vụ</th>
+                    <th style={{ padding: '5px 8px', textAlign: 'right', borderBottom: '1px solid var(--line)', fontWeight: 600, whiteSpace: 'nowrap' }}>Đơn giá</th>
+                    <th style={{ padding: '5px 8px', textAlign: 'right', borderBottom: '1px solid var(--line)', fontWeight: 600, whiteSpace: 'nowrap' }}>BHYT trả</th>
+                    <th style={{ padding: '5px 8px', textAlign: 'right', borderBottom: '1px solid var(--line)', fontWeight: 600, whiteSpace: 'nowrap' }}>BN trả</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {estResult.items.map((it, i) => (
+                    <tr key={it.serviceId} style={{ background: i % 2 === 0 ? 'transparent' : 'var(--d-1)' }}>
+                      <td style={{ padding: '4px 8px' }}>{it.serviceName}</td>
+                      <td style={{ padding: '4px 8px', textAlign: 'right' }}>{it.unitPrice.toLocaleString('vi-VN')}</td>
+                      <td style={{ padding: '4px 8px', textAlign: 'right', color: 'var(--a-cy)' }}>{it.insurancePrice.toLocaleString('vi-VN')}</td>
+                      <td style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 600, color: estResult.patientType === 1 ? 'var(--s-warn)' : 'var(--t-0)' }}>{it.patientPrice.toLocaleString('vi-VN')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ borderTop: '2px solid var(--line)', fontWeight: 700 }}>
+                    <td style={{ padding: '6px 8px' }}>Tổng cộng</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right' }}>{estResult.totalAmount.toLocaleString('vi-VN')}₫</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--a-cy)' }}>{estResult.insuranceAmount.toLocaleString('vi-VN')}₫</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--s-crit)', fontSize: 'var(--fs-sm)' }}>{estResult.patientAmount.toLocaleString('vi-VN')}₫</td>
+                  </tr>
+                </tfoot>
+              </table>
+            ) : estLoading ? (
+              <div style={{ padding: 16, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>Đang tính dự toán…</div>
+            ) : (
+              <div style={{ padding: 16, textAlign: 'center', color: 'var(--t-2)', fontSize: 'var(--fs-xs)' }}>Chưa có kết quả. Nhấn "Tính lại" để dự toán.</div>
+            )}
+          </div>
+        )}
       </div>
     </ModalShell>
   );

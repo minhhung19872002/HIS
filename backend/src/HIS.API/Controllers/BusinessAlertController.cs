@@ -187,6 +187,17 @@ public class BusinessAlertController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// #455: Dự toán viện phí — không cần patientId, dùng trước khi đăng ký.
+    /// Body: { serviceIds, patientType (1=BHYT/2=VienPhi/3=DichVu), insuranceCoverageRate (%) }
+    /// </summary>
+    [HttpPost("estimate-cost-direct")]
+    public async Task<IActionResult> EstimateCostDirect([FromBody] CostEstimateDirectRequestDto dto)
+    {
+        var result = await _alertService.EstimateCostDirectAsync(dto);
+        return Ok(result);
+    }
+
     // ===== SPECIAL TEST RULE CRUD (F2.13) =====
 
     /// <summary>

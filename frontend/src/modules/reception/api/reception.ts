@@ -1080,4 +1080,39 @@ export const printBarcodeLabel = (_patientId: string) => {
   return printWindow;
 };
 
+// ============================================================
+// #455: Dự toán viện phí (cost estimation)
+// ============================================================
+
+export interface CostEstimateDirectRequest {
+  serviceIds: string[];
+  /** 1=BHYT, 2=Viện phí, 3=Dịch vụ, 4=Khám sức khỏe */
+  patientType: number;
+  /** Tỷ lệ BHYT thanh toán (%), e.g. 80, 95, 100 */
+  insuranceCoverageRate: number;
+}
+
+export interface CostEstimationItemDto {
+  serviceId: string;
+  serviceName: string;
+  serviceGroupName: string;
+  unitPrice: number;
+  insurancePrice: number;
+  patientPrice: number;
+  coverageRate: number | null;
+}
+
+export interface CostEstimationResultDto {
+  patientType: number;
+  patientTypeName: string;
+  insuranceCoverageRate: number | null;
+  items: CostEstimationItemDto[];
+  totalAmount: number;
+  insuranceAmount: number;
+  patientAmount: number;
+}
+
+export const estimateCostDirect = (body: CostEstimateDirectRequest) =>
+  api.post<CostEstimationResultDto>('/business-alerts/estimate-cost-direct', body);
+
 // #endregion
