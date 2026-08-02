@@ -20,6 +20,7 @@ public partial class PopulateDataServiceImpl
             ("patient-portal", PopulatePatientPortalAsync),
             ("equipment", PopulateEquipmentAsync),
             ("pathology", PopulatePathologyAsync),
+            ("functional-diagnostics", PopulateFunctionalDiagnosticsAsync),
             ("quality", PopulateQualityAsync),
             ("rehab-sessions", PopulateRehabSessionsAsync),
             ("tele-sessions", PopulateTeleSessionsAsync),

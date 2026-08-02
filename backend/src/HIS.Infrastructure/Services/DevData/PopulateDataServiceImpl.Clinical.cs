@@ -471,4 +471,74 @@ public partial class PopulateDataServiceImpl
         return Ok(new { module = "prereqs", inserted = summary });
     }
 
+    // ==========================================================================
+    // FUNCTIONAL DIAGNOSTICS (TDCN) — #285: module rỗng khiến evidence #308 không chạy được.
+    // Sinh phiếu thăm dò chức năng đa loại + đủ 4 trạng thái (Requested/InProgress/Completed/Verified).
+    // ==========================================================================
+    public async Task<object> PopulateFunctionalDiagnosticsAsync()
+    {
+        var ctx = await LoadCtxAsync();
+        var summary = new Dictionary<string, int>();
+        var rng = new Random(23);
+        if (ctx.PatientIds.Count == 0)
+            return Ok(new { error = "no patients" });
+
+        if (!await _db.FunctionalDiagnosticTests.AnyAsync())
+        {
+            var types = new[] { "ECG", "ECGStress", "Endoscopy", "BoneDensity", "EEG", "EMG", "Spirometry", "Audiometry" };
+            var indications = new[] {
+                "Đau ngực, hồi hộp đánh trống ngực", "Khó thở khi gắng sức", "Đau thượng vị kéo dài",
+                "Đau lưng, nghi loãng xương", "Co giật, đau đầu mạn", "Tê bì chi, yếu cơ",
+                "Ho khó thở mạn tính", "Nghe kém một bên tai"
+            };
+            var conclusions = new[] {
+                "Nhịp xoang đều, tần số 78 l/ph, không thấy thiếu máu cơ tim", "Test gắng sức âm tính, đáp ứng HA-nhịp bình thường",
+                "Viêm dạ dày hang vị, H.pylori nghi (+), sinh thiết làm GPB", "Mật độ xương T-score -2.1 (thiếu xương)",
+                "Sóng điện não trong giới hạn bình thường", "Dẫn truyền thần kinh giảm nhẹ dây trụ (P)",
+                "Rối loạn thông khí tắc nghẽn mức độ nhẹ (FEV1 78%)", "Giảm thính lực tiếp nhận tần số cao tai (P)"
+            };
+            var devices = new[] { "Nihon Kohden ECG-2550", "GE CASE Stress", "Olympus CV-190", "Hologic Horizon DXA",
+                "Nihon Kohden EEG-1200", "Natus UltraPro EMG", "MIR Spirolab", "Interacoustics AC40" };
+
+            var tests = new List<FunctionalDiagnosticTest>();
+            for (int i = 0; i < 24; i++)
+            {
+                var t = i % types.Length;
+                var requested = ctx.Now.AddDays(-rng.Next(1, 60));
+                int status = i < 4 ? 0 : i < 9 ? 1 : i < 16 ? 2 : 3; // 0-req,1-inprog,2-completed,3-verified
+                bool done = status >= 2;
+                var performed = done ? requested.AddHours(rng.Next(1, 48)) : (DateTime?)null;
+                var docId = ctx.DoctorIds.Count > 0 ? ctx.DoctorIds[i % ctx.DoctorIds.Count] : (Guid?)null;
+                tests.Add(new FunctionalDiagnosticTest
+                {
+                    Id = Guid.NewGuid(),
+                    TestCode = NextCode("TDCN", i + 1, 4),
+                    PatientId = ctx.PatientIds[i % ctx.PatientIds.Count],
+                    TestType = types[t],
+                    PerformingDoctorId = status >= 1 ? docId : null,
+                    PerformingDoctorName = status >= 1 ? new[] { "BS. Vũ Đình Nam", "BS. Hoàng Thị Lan", "BS. Đỗ Minh Quân" }[i % 3] : null,
+                    PerformedAt = performed,
+                    DeviceName = status >= 1 ? devices[t] : null,
+                    DeviceSerialNumber = status >= 1 ? $"SN{1000 + i}" : null,
+                    ClinicalIndication = indications[t],
+                    Findings = done ? "Xem mô tả chi tiết trong hình ảnh/đo lường đính kèm." : null,
+                    Conclusion = done ? conclusions[t] : null,
+                    Recommendation = done ? (rng.Next(0, 2) == 0 ? "Theo dõi định kỳ 3-6 tháng" : "Hội chẩn chuyên khoa") : null,
+                    MeasurementsJson = done ? "{\"HR\":78,\"QT\":400,\"FEV1\":78}" : "{}",
+                    ImagesJson = "[]",
+                    Status = status,
+                    VerifiedById = status >= 3 ? docId : null,
+                    VerifiedAt = status >= 3 ? performed?.AddHours(rng.Next(2, 24)) : null,
+                    Notes = i == 0 ? "Ưu tiên đọc kết quả trong ngày" : null,
+                    CreatedAt = requested, UpdatedAt = performed ?? requested,
+                });
+            }
+            _db.FunctionalDiagnosticTests.AddRange(tests);
+            await _db.SaveChangesAsync();
+            summary["FunctionalDiagnosticTests"] = tests.Count;
+        }
+
+        return Ok(new { module = "functional-diagnostics", inserted = summary });
+    }
+
 }

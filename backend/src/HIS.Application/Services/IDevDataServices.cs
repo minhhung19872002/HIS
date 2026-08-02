@@ -34,6 +34,7 @@ public interface IPopulateDataService
     Task<object> PopulatePatientPortalAsync();
     Task<object> PopulateEquipmentAsync();
     Task<object> PopulatePathologyAsync();
+    Task<object> PopulateFunctionalDiagnosticsAsync();
     Task<object> PopulateQualityAsync();
     Task<object> PopulateRehabSessionsAsync();
     Task<object> PopulateTeleSessionsAsync();

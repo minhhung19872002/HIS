@@ -50,6 +50,9 @@ public partial class PopulateDataController : ControllerBase
     [HttpPost("pathology")]
     public async Task<IActionResult> PopulatePathology() => Ok(await _service.PopulatePathologyAsync());
 
+    [HttpPost("functional-diagnostics")]
+    public async Task<IActionResult> PopulateFunctionalDiagnostics() => Ok(await _service.PopulateFunctionalDiagnosticsAsync());
+
     // ==========================================================================
     // QUALITY: Indicators + Values
     // ==========================================================================
