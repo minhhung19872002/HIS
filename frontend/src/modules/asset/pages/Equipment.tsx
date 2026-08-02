@@ -119,7 +119,7 @@ const EquipmentV2: React.FC = () => {
     setLoading(true);
     try {
       const [eqRes, maintRes, repairRes] = await Promise.allSettled([
-        getEquipment({ page: 1, pageSize: 200 }),
+        getEquipment({ page: 1, pageSize: 200, keyword: search || undefined }),
         getMaintenanceSchedules(undefined, 90),
         getRepairRequests(),
       ]);
@@ -142,7 +142,7 @@ const EquipmentV2: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [message]);
+  }, [message, search]);
 
   useEffect(() => { void reload(); }, [reload]);
 
@@ -155,14 +155,8 @@ const EquipmentV2: React.FC = () => {
     let rows = equipment;
     if (statusFilter !== 'all') rows = rows.filter((r) => statusKey(r.operationalStatus) === statusFilter);
     if (riskFilter) rows = rows.filter((r) => r.riskClass === riskFilter);
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      rows = rows.filter((r) =>
-        `${r.equipmentCode} ${r.name} ${r.model} ${r.serialNumber} ${r.manufacturer}`.toLowerCase().includes(q),
-      );
-    }
     return rows;
-  }, [equipment, statusFilter, riskFilter, search]);
+  }, [equipment, statusFilter, riskFilter]);
 
   const pagedEq = filteredEq.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
   const totalPages = Math.max(1, Math.ceil(filteredEq.length / PER_PAGE));

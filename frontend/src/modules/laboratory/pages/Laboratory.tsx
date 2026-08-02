@@ -194,12 +194,13 @@ const LaboratoryV2: React.FC = () => {
 
   const reload = () => {
     setLoading(true);
-    labApi.getLabRequests({ fromDate: date.format('YYYY-MM-DD') })
+    labApi.getLabRequests({ fromDate: date.format('YYYY-MM-DD'), search: search || undefined })
       .then((data) => setRows(Array.isArray(data) ? data : []))
       .catch(() => setRows([]))
       .finally(() => setLoading(false));
   };
-  useEffect(reload, [date]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(reload, [date, search]);
 
   const groupOpts = useMemo(() => {
     const set = new Set<string>();
@@ -219,14 +220,9 @@ const LaboratoryV2: React.FC = () => {
     return rows.filter((r) => {
       if (stab !== 'all' && statusKey(r.status) !== stab) return false;
       if (fGroup && !(r.tests || []).some((t) => t.testGroup === fGroup)) return false;
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        const hay = [r.patientName, r.patientCode, r.requestCode, r.sampleBarcode].filter(Boolean).join(' ').toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
       return true;
     });
-  }, [rows, stab, fGroup, search]);
+  }, [rows, stab, fGroup]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);

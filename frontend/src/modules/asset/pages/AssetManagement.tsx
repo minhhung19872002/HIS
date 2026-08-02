@@ -259,7 +259,8 @@ const AssetManagementV2: React.FC = () => {
       reloadTenders();
     } catch { te('Không thể trao thầu'); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, [search]);
 
   const depts = useMemo(() => {
     const set = new Set(items.map((r) => r.departmentName).filter(Boolean) as string[]);
@@ -269,15 +270,12 @@ const AssetManagementV2: React.FC = () => {
   const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r.status));
 
   const filtered = useMemo(() => {
-    const k = search.trim().toLowerCase();
     return items.filter((r) => {
       if (stab !== 'all' && sKey(r.status) !== stab) return false;
       if (fDept && r.departmentName !== fDept) return false;
-      if (!k) return true;
-      return [r.assetCode, r.assetName, r.serialNumber, r.departmentName]
-        .some((v) => (v || '').toLowerCase().includes(k));
+      return true;
     });
-  }, [items, search, stab, fDept]);
+  }, [items, stab, fDept]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);

@@ -65,12 +65,15 @@ const RadiologyV2: React.FC = () => {
     risApi.getRadiologyOrders(
       date.subtract(7, 'day').format('YYYY-MM-DD'),
       date.format('YYYY-MM-DD'),
+      undefined, undefined, undefined,
+      search || undefined,
     )
       .then((r) => setRows(Array.isArray(r.data) ? r.data : []))
       .catch(() => setRows([]))
       .finally(() => setLoading(false));
   };
-  useEffect(reload, [date]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(reload, [date, search]);
 
   // Batch-check PTTT mapping: chạy sau khi rows thay đổi.
   // Thu thập serviceId duy nhất từ items[0], gọi 1 request, lưu vào map.
@@ -129,15 +132,9 @@ const RadiologyV2: React.FC = () => {
         const m = detectModality(r.items?.[0]);
         if (m.v !== fMod) return false;
       }
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        const hay = [r.patientName, r.patientCode, r.orderCode, r.diagnosis,
-          ...(r.items || []).map((i) => i.serviceName)].filter(Boolean).join(' ').toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
       return true;
     });
-  }, [rows, stab, fMod, search]);
+  }, [rows, stab, fMod]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
