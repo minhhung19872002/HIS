@@ -103,13 +103,32 @@ const DispensingCounterV2: React.FC = () => {
 
   const handleDispense = async () => {
     if (selected.size === 0) { tw('Chưa chọn đơn thuốc'); return; }
+    const ids = Array.from(selected);
+    // #352: giữ lại các dòng vừa phát để in tem NGAY — sau khi load() chúng nhảy sang tab "Đã phát"
+    const dispensedRows = rows.filter((r) => ids.includes(r.prescriptionId));
     try {
-      for (const id of Array.from(selected)) {
+      for (const id of ids) {
         await apiClient.post(`/warehousecomplete/issues/dispense-outpatient/${id}`);
       }
-      tk(`Đã phát ${selected.size} đơn`);
-      setPrintCount((c) => c + selected.size);
+      tk(`Đã phát ${ids.length} đơn`);
+      setPrintCount((c) => c + ids.length);
       setSelected(new Set());
+      if (dispensedRows.length > 0) printLabels(dispensedRows); // 1 tài liệu gộp, không mở N cửa sổ
+      load();
+    } catch { tw('Phát thuốc thất bại'); }
+  };
+
+  /** #352: phát 1 đơn NGAY TẠI DÒNG rồi TỰ MỞ tem in (v1 pages/DispensingCounter.tsx:288-302).
+   *  v2 trước đây: dòng chờ phát không có nút phát nào, phát xong dòng nhảy sang tab "Đã phát"
+   *  nên dược sĩ phải đổi tab, tìm lại dòng rồi bấm in tay — bước dễ bị bỏ qua ở quầy đông,
+   *  mà tem là nhãn hướng dẫn liều dùng dán lên thuốc giao cho bệnh nhân. */
+  const dispenseAndPrint = async (r: DispenseRow) => {
+    try {
+      await apiClient.post(`/warehousecomplete/issues/dispense-outpatient/${r.prescriptionId}`);
+      tk(`Đã phát đơn ${r.prescriptionCode}`);
+      setPrintCount((c) => c + 1);
+      printLabels(r); // in ngay, không để dược sĩ phải tự nhớ
+      setSelected((prev) => { const n = new Set(prev); n.delete(r.prescriptionId); return n; });
       load();
     } catch { tw('Phát thuốc thất bại'); }
   };
@@ -154,11 +173,19 @@ const DispensingCounterV2: React.FC = () => {
     }
   };
 
-  const printLabels = (row: DispenseRow) => {
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Tem thuốc ${row.patientCode}</title>
-<style>body{font-family:Arial;margin:0;padding:'var(--space-10)'px}.label{border:1px solid #000;padding:'var(--space-8)'px 12px;margin-bottom:8px;width:260px}.label h3{margin:0 0 4px;font-size:13px}.label p{margin:'var(--space-2)'px 0;font-size:11px}.barcode{font-family:'Libre Barcode 128',monospace;font-size:32px;text-align:center}@media print{.no-print{display:none}}</style></head>
+  /** #352: in tem cho 1 HOẶC NHIỀU đơn — batch gộp vào MỘT tài liệu thay vì mở N cửa sổ in. */
+  const printLabels = (rowOrRows: DispenseRow | DispenseRow[]) => {
+    // tên khác `rows` state ở ngoài để khỏi che biến
+    const targets = Array.isArray(rowOrRows) ? rowOrRows : [rowOrRows];
+    if (targets.length === 0) return;
+    const title = targets.length === 1 ? `Tem thuốc ${targets[0].patientCode}` : `Tem thuốc (${targets.length} đơn)`;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${title}</title>
+<!-- #352: sửa CSS hỏng do sweep design-token — 'var(--space-10)'px không phải giá trị CSS hợp lệ
+     nên trình duyệt bỏ qua, tem in ra mất padding/margin. Cửa sổ in là document RIÊNG,
+     không có biến CSS của app → phải dùng px tuyệt đối như v1. -->
+<style>body{font-family:Arial;margin:0;padding:10px}.label{border:1px solid #000;padding:8px 12px;margin-bottom:8px;width:260px}.label h3{margin:0 0 4px;font-size:13px}.label p{margin:2px 0;font-size:11px}.barcode{font-family:'Libre Barcode 128',monospace;font-size:32px;text-align:center}@media print{.no-print{display:none}}</style></head>
 <body><div class="no-print" style="margin-bottom:12px"><button onclick="window.print()">In</button> <button onclick="window.close()">Đóng</button></div>
-${row.items.map((it) => `<div class="label"><h3>${it.medicineName}</h3><p><strong>BN:</strong> ${row.patientName} (${row.patientCode})</p><p><strong>SL:</strong> ${it.quantity} ${it.unit || ''} × ${it.days || 1} ngày</p><p><strong>Cách dùng:</strong> ${it.dosage || '-'}</p><p class="barcode">*${row.prescriptionCode}*</p></div>`).join('')}
+${targets.map((row) => row.items.map((it) => `<div class="label"><h3>${it.medicineName}</h3><p><strong>BN:</strong> ${row.patientName} (${row.patientCode})</p><p><strong>SL:</strong> ${it.quantity} ${it.unit || ''} × ${it.days || 1} ngày</p><p><strong>Cách dùng:</strong> ${it.dosage || '-'}</p><p class="barcode">*${row.prescriptionCode}*</p></div>`).join('')).join('')}
 </body></html>`;
     openPrintWindow(html, { features: 'width=400,height=600' });
   };
@@ -233,6 +260,10 @@ ${row.items.map((it) => `<div class="label"><h3>${it.medicineName}</h3><p><stron
         actions={(r) => (
           <div className="ab-actions">
             <ActBtn ic="eye" title="Chi tiết" onClick={() => setDetail(r)} />
+            {/* #352: phát + in tem trong 1 thao tác cho dòng đang chờ */}
+            {!r.isDispensed && (
+              <ActBtn ic="check" title="Phát đơn + in tem" onClick={() => dispenseAndPrint(r)} />
+            )}
             <ActBtn ic="print" title="In tem" onClick={() => printLabels(r)} />
             {r.isDispensed && (
               <ActBtn ic="refresh" title="Hủy phát" tone="warn" onClick={() => handleCancel(r.prescriptionId)} />
