@@ -20,7 +20,7 @@ import apiClient from '../../../services/apiClient';
 import ReportsHospitalTab from './ReportsHospitalTab';
 import '../../../styles/reports-v2.css';
 
-type ReportCategoryId = 'operational' | 'clinical' | 'financial' | 'regulatory';
+type ReportCategoryId = 'operational' | 'clinical' | 'financial' | 'regulatory' | 'level6' | 'cost' | 'admin' | 'pharmacy';
 type ReportPeriodId = 'day' | 'week' | 'month' | 'year';
 
 type ReportCategory = {
@@ -56,10 +56,14 @@ type DashboardPayload = Partial<HospitalDashboardDto> & Record<string, unknown>;
 type DashboardTrendPoint = Record<string, unknown>;
 
 const REPORT_CATEGORIES: ReportCategory[] = [
-  { id: 'operational', label: 'Vận hành', icon: 'chart', color: 'var(--a-cy)', softColor: 'var(--s-info-soft)' },
-  { id: 'clinical', label: 'Lâm sàng', icon: 'stethoscope', color: '#0f766e', softColor: '#ecfeff' },
-  { id: 'financial', label: 'Tài chính', icon: 'receipt', color: 'var(--s-warn)', softColor: 'var(--a-or-bg)' },
-  { id: 'regulatory', label: 'Báo cáo BYT', icon: 'shield', color: 'var(--s-mag)', softColor: 'var(--s-mag-bg)' },
+  { id: 'operational', label: 'Vận hành',       icon: 'chart',      color: 'var(--a-cy)',   softColor: 'var(--s-info-soft)' },
+  { id: 'clinical',   label: 'Lâm sàng',        icon: 'stethoscope', color: '#0f766e',      softColor: '#ecfeff' },
+  { id: 'financial',  label: 'Tài chính',        icon: 'receipt',    color: 'var(--s-warn)', softColor: 'var(--a-or-bg)' },
+  { id: 'regulatory', label: 'Báo cáo BYT',     icon: 'shield',     color: 'var(--s-mag)',  softColor: 'var(--s-mag-bg)' },
+  { id: 'level6',     label: 'Đối chiếu L6',    icon: 'check',      color: '#7c3aed',       softColor: '#f5f3ff' },
+  { id: 'cost',       label: 'Chi phí KCB',     icon: 'dollar',     color: '#0891b2',       softColor: '#ecfeff' },
+  { id: 'admin',      label: 'Hành chính & CLS', icon: 'list',      color: '#0369a1',       softColor: '#e0f2fe' },
+  { id: 'pharmacy',   label: 'BC Dược',          icon: 'package',   color: '#15803d',       softColor: '#f0fdf4' },
 ];
 
 const REPORTS: ReportDefinition[] = [
@@ -81,6 +85,39 @@ const REPORTS: ReportDefinition[] = [
   { id: 'RPT-302', category: 'regulatory', name: 'BC bệnh truyền nhiễm (TT 54)', periodLabel: 'Hằng ngày', lastRun: '06:00 hôm nay', schedule: 'Tự động', scope: 'Toàn viện', owner: 'Khoa KSNK' },
   { id: 'RPT-303', category: 'regulatory', name: 'Báo cáo dịch vụ kỹ thuật', periodLabel: 'Quý', lastRun: '01/10/2026', schedule: 'Hàng quý', scope: 'Toàn viện', owner: 'P. KHTH' },
   { id: 'RPT-304', category: 'regulatory', name: 'Báo cáo BHYT giám định', periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Hàng tháng', scope: 'Toàn viện', owner: 'P. TCKT' },
+
+  // ── Đối chiếu Level 6 (reconciliation) ───────────────────────────────────
+  { id: 'supplier-procurement',  category: 'level6', name: 'Theo dõi trúng thầu theo NCC', periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Thủ công', scope: 'Khoa Dược/VTYT', owner: 'P. TCKT' },
+  { id: 'revenue-by-record',     category: 'level6', name: 'Doanh thu chi phí theo HSBA',  periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Thủ công', scope: 'Toàn viện',     owner: 'P. TCKT' },
+  { id: 'dept-cost-vs-fees',     category: 'level6', name: 'Chi phí khoa phòng vs viện phí', periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Thủ công', scope: 'Toàn viện', owner: 'P. TCKT' },
+  { id: 'record-cost-summary',   category: 'level6', name: 'Tổng hợp chi phí HSBA: SD vs Thu', periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Thủ công', scope: 'Toàn viện', owner: 'P. TCKT' },
+  { id: 'fees-vs-standards',     category: 'level6', name: 'Viện phí vs định mức DVKT',    periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Thủ công', scope: 'Toàn viện',     owner: 'P. TCKT' },
+  { id: 'service-order-doctors', category: 'level6', name: 'BS chỉ định vs BS thực hiện',  periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Thủ công', scope: 'Toàn viện',     owner: 'Phòng QLCL' },
+  { id: 'dispensing-vs-billing', category: 'level6', name: 'Xuất kho thuốc/VTYT vs viện phí', periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Thủ công', scope: 'Khoa Dược', owner: 'P. TCKT' },
+  { id: 'dispensing-vs-standards', category: 'level6', name: 'Xuất kho vs định mức theo khoa', periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Thủ công', scope: 'Khoa Dược', owner: 'TK Dược' },
+
+  // ── Chi phí KCB BHYT ─────────────────────────────────────────────────────
+  { id: 'bhyt-16', category: 'cost', name: '16/BHYT - Danh mục thuốc chế phẩm YHCT thanh toán BHYT', periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Thủ công', scope: 'Khoa Dược', owner: 'TK Dược' },
+  { id: 'bhyt-17', category: 'cost', name: '17/BHYT - Danh mục vị thuốc YHCT thanh toán BHYT',       periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Thủ công', scope: 'Khoa Dược', owner: 'TK Dược' },
+  { id: 'bhyt-18', category: 'cost', name: '18/BHYT - Thống kê DVKT sử dụng thuốc phóng xạ',        periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Thủ công', scope: 'Toàn viện', owner: 'P. TCKT' },
+  { id: 'bhyt-chi-phi-kcb', category: 'cost', name: 'Chi phí KCB theo bệnh nhân',                   periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Thủ công', scope: 'Toàn viện', owner: 'P. TCKT' },
+  { id: 'bhyt-quyet-toan',  category: 'cost', name: 'Quyết toán BHYT theo đợt',                     periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Thủ công', scope: 'Toàn viện', owner: 'P. TCKT' },
+
+  // ── Hành chính & CLS ─────────────────────────────────────────────────────
+  { id: 'admin-so-kham',    category: 'admin', name: 'Sổ khám bệnh (chung, chuyên khoa, ngoại trú)', periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Hàng tháng', scope: 'Toàn viện', owner: 'Phòng KHTH' },
+  { id: 'admin-so-vao-ra',  category: 'admin', name: 'Sổ vào viện, ra viện, chuyển viện',           periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Hàng tháng', scope: 'Toàn viện', owner: 'Phòng KHTH' },
+  { id: 'admin-so-pt',      category: 'admin', name: 'Sổ phẫu thuật',                               periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Hàng tháng', scope: 'Khoa Ngoại', owner: 'TK Ngoại' },
+  { id: 'admin-xn',         category: 'admin', name: 'Thống kê xét nghiệm theo khoa',               periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Hàng tháng', scope: 'Khoa XN',    owner: 'TK XN' },
+  { id: 'admin-cdha',       category: 'admin', name: 'Thống kê CĐHA theo loại',                     periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Hàng tháng', scope: 'Khoa CĐHA',  owner: 'TK CĐHA' },
+  { id: 'admin-nhan-su',    category: 'admin', name: 'Thống kê lượt khám theo nhân sự',             periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Hàng tháng', scope: 'Toàn viện', owner: 'P. Tổ chức' },
+
+  // ── BC Dược ───────────────────────────────────────────────────────────────
+  { id: 'pharma-the-kho',        category: 'pharmacy', name: 'Thẻ kho',                              periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Hàng tháng', scope: 'Khoa Dược', owner: 'TK Dược' },
+  { id: 'pharma-bc-cong-tac',    category: 'pharmacy', name: 'BC công tác Dược bệnh viện',          periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Hàng tháng', scope: 'Khoa Dược', owner: 'TK Dược' },
+  { id: 'pharma-bc-sd-thuoc',    category: 'pharmacy', name: 'BC sử dụng thuốc',                    periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Hàng tháng', scope: 'Toàn viện', owner: 'TK Dược' },
+  { id: 'pharma-ton-kho',        category: 'pharmacy', name: 'Báo cáo tồn kho dược phẩm',          periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Hàng tháng', scope: 'Khoa Dược', owner: 'TK Dược' },
+  { id: 'pharma-nhap-xuat',      category: 'pharmacy', name: 'Tổng hợp nhập — xuất — tồn',         periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Hàng tháng', scope: 'Khoa Dược', owner: 'TK Dược' },
+  { id: 'pharma-tieu-hao-bdm',   category: 'pharmacy', name: 'Tiêu hao theo danh mục thuốc BĐM',   periodLabel: 'Tháng', lastRun: '01/10/2026', schedule: 'Hàng tháng', scope: 'Toàn viện', owner: 'TK Dược' },
 ];
 
 const FALLBACK_TOP_DEPARTMENTS: Array<{ name: string; value: number; color: string }> = [
@@ -295,10 +332,8 @@ const ReportsV2: React.FC = () => {
     counts[category.id] = REPORTS.filter((report) => report.category === category.id).length;
     return counts;
   }, {
-    operational: 0,
-    clinical: 0,
-    financial: 0,
-    regulatory: 0,
+    operational: 0, clinical: 0, financial: 0, regulatory: 0,
+    level6: 0, cost: 0, admin: 0, pharmacy: 0,
   });
 
   const filteredReports = REPORTS.filter((report) => {
