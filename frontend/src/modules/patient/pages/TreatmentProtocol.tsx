@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import { searchProtocols, saveProtocol, deleteProtocol, approveProtocol, newVersion as createNewVersion } from '../api/treatmentProtocol';
-import type { TreatmentProtocolDto, SaveTreatmentProtocolDto } from '../api/treatmentProtocol';
+import type { TreatmentProtocolDto, TreatmentProtocolStepDto, SaveTreatmentProtocolDto } from '../api/treatmentProtocol';
 import { openPrintWindow } from '../../../utils/printWindow';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, DrSec, DrField, CrudModal, tk, ti, te, cf,
+  DrawerShell, ModalShell, DrSec, DrField, CrudModal, tk, ti, te, cf, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '@/_v2kit';
 
@@ -132,6 +132,69 @@ const TreatmentProtocolV2: React.FC = () => {
     } },
   ];
 
+  // ── Step editor ─────────────────────────────────────────────────────────────
+  const [stepOpen, setStepOpen] = useState(false);
+  const [stepTarget, setStepTarget] = useState<TreatmentProtocolDto | null>(null);
+  const [editSteps, setEditSteps] = useState<TreatmentProtocolStepDto[]>([]);
+  const [stepSaving, setStepSaving] = useState(false);
+  const nextOrderRef = useRef(1);
+
+  const openStepEditor = (proto: TreatmentProtocolDto) => {
+    const steps = [...(proto.steps || [])].sort((a, b) => a.stepOrder - b.stepOrder);
+    setEditSteps(steps);
+    nextOrderRef.current = steps.length ? Math.max(...steps.map((s) => s.stepOrder)) + 1 : 1;
+    setStepTarget(proto);
+    setStepOpen(true);
+  };
+
+  const addStep = () => {
+    setEditSteps((p) => [...p, {
+      stepOrder: nextOrderRef.current++,
+      name: '',
+      isOptional: false,
+    }]);
+  };
+
+  const removeStep = (idx: number) =>
+    setEditSteps((p) => p.filter((_, i) => i !== idx));
+
+  const patchStep = <K extends keyof TreatmentProtocolStepDto>(
+    idx: number, key: K, val: TreatmentProtocolStepDto[K],
+  ) => setEditSteps((p) => p.map((s, i) => i === idx ? { ...s, [key]: val } : s));
+
+  const saveSteps = async () => {
+    if (!stepTarget) return;
+    const missing = editSteps.findIndex((s) => !s.name.trim());
+    if (missing >= 0) { te(`Bước ${missing + 1}: Tên bước không được để trống`); return; }
+    setStepSaving(true);
+    try {
+      await saveProtocol({
+        id: stepTarget.id,
+        code: stepTarget.code,
+        name: stepTarget.name,
+        description: stepTarget.description,
+        icdCode: stepTarget.icdCode,
+        icdName: stepTarget.icdName,
+        diseaseGroup: stepTarget.diseaseGroup,
+        department: stepTarget.department,
+        references: stepTarget.references,
+        notes: stepTarget.notes,
+        steps: editSteps.map((s, i) => ({ ...s, stepOrder: i + 1 })),
+      });
+      tk('Đã lưu các bước');
+      setStepOpen(false);
+      load();
+    } catch { te('Lưu bước thất bại'); }
+    finally { setStepSaving(false); }
+  };
+
+  const CELL: React.CSSProperties = {
+    border: '1px solid var(--line)', borderRadius: 3, padding: '4px 6px',
+    fontSize: 12.5, background: 'var(--bg-1)', color: 'var(--t-0)', width: '100%',
+  };
+
+  const ACTIVITY_TYPES = ['', 'medication', 'service', 'procedure', 'monitoring', 'education'];
+
   const actions = (r: TreatmentProtocolDto) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
@@ -186,6 +249,7 @@ const TreatmentProtocolV2: React.FC = () => {
               : '<tr><td colspan="5" style="text-align:center;color:#666">Chưa có bước</td></tr>';
             openPrintWindow(`<h2 style="margin:0 0 8px">Phác đồ: ${sel.name}</h2><p style="margin:0 0 4px;color:#555">${sel.code} · v${sel.version} · ${STATUS_LABEL[sel.status]}</p>${sel.department ? `<p style="margin:0 0 12px;color:#555">Khoa: ${sel.department}</p>` : ''}<table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;font-size:13px"><thead><tr><th>STT</th><th>Tên bước</th><th>Loại</th><th>Thời gian</th><th>Ghi chú</th></tr></thead><tbody>${rows}</tbody></table>`, { print: { delayMs: 300 } });
           }}>In phác đồ</Btn>
+          <Btn icon="list" onClick={() => { if (sel) { openStepEditor(sel); setSel(null); } }}>Chỉnh sửa bước</Btn>
           <Btn variant="primary" icon="edit" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>Chỉnh sửa</Btn>
         </>}
       >
@@ -231,6 +295,105 @@ const TreatmentProtocolV2: React.FC = () => {
           load();
         }}
       />
+
+      {/* ── Step editor modal ── */}
+      <ModalShell
+        open={stepOpen}
+        onClose={() => setStepOpen(false)}
+        title={stepTarget ? `Các bước: ${stepTarget.name}` : ''}
+        size="xl"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setStepOpen(false)}>Huỷ</Btn>
+          <Btn variant="primary" loading={stepSaving} onClick={saveSteps}>Lưu bước</Btn>
+        </>}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <span style={{ fontSize: 12.5, color: 'var(--t-2)' }}>{editSteps.length} bước</span>
+            <Btn icon="plus" onClick={addStep}>Thêm bước</Btn>
+          </div>
+          {editSteps.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--t-3)', fontSize: 13 }}>
+              Chưa có bước nào. Nhấn "Thêm bước" để bắt đầu.
+            </div>
+          )}
+          {editSteps.map((step, idx) => (
+            <div key={idx} style={{
+              border: '1px solid var(--line)', borderRadius: 6, padding: '10px 12px',
+              background: 'var(--bg-1)', display: 'flex', flexDirection: 'column', gap: 8,
+            }}>
+              {/* Row 1: step number + name + type + optional + delete */}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'var(--t-3)', minWidth: 24, textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
+                  {idx + 1}
+                </span>
+                <input
+                  placeholder="Tên bước *"
+                  value={step.name}
+                  onChange={(e) => patchStep(idx, 'name', e.target.value)}
+                  style={{ ...CELL, flex: 3 }}
+                />
+                <select
+                  value={step.activityType || ''}
+                  onChange={(e) => patchStep(idx, 'activityType', e.target.value || undefined)}
+                  style={{ ...CELL, flex: 1.5 }}
+                >
+                  <option value="">— Loại —</option>
+                  {ACTIVITY_TYPES.filter(Boolean).map((t) => (
+                    <option key={t} value={t}>{t === 'medication' ? 'Thuốc' : t === 'service' ? 'Dịch vụ' : t === 'procedure' ? 'Thủ thuật' : t === 'monitoring' ? 'Theo dõi' : t === 'education' ? 'Giáo dục' : t}</option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Số ngày"
+                  value={step.durationDays ?? ''}
+                  onChange={(e) => patchStep(idx, 'durationDays', e.target.value ? Number(e.target.value) : undefined)}
+                  style={{ ...CELL, width: 80, flex: 'none' }}
+                  title="Số ngày thực hiện"
+                />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5, color: 'var(--t-2)', whiteSpace: 'nowrap' }}>
+                  <input
+                    type="checkbox"
+                    checked={step.isOptional}
+                    onChange={(e) => patchStep(idx, 'isOptional', e.target.checked)}
+                  />
+                  Tuỳ chọn
+                </label>
+                <button
+                  onClick={() => removeStep(idx)}
+                  title="Xoá bước"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--crit)', fontSize: 16, padding: '0 4px', lineHeight: 1 }}
+                >
+                  <Ico name="trash" size={14} />
+                </button>
+              </div>
+              {/* Row 2: medication fields */}
+              {step.activityType === 'medication' && (
+                <div style={{ display: 'flex', gap: 8, paddingLeft: 32 }}>
+                  <input placeholder="Tên thuốc" value={step.medicationName || ''} onChange={(e) => patchStep(idx, 'medicationName', e.target.value)} style={{ ...CELL, flex: 2 }} />
+                  <input placeholder="Liều dùng" value={step.medicationDose || ''} onChange={(e) => patchStep(idx, 'medicationDose', e.target.value)} style={{ ...CELL, flex: 1 }} />
+                  <input placeholder="Đường dùng" value={step.medicationRoute || ''} onChange={(e) => patchStep(idx, 'medicationRoute', e.target.value)} style={{ ...CELL, flex: 1 }} />
+                  <input placeholder="Tần suất" value={step.medicationFrequency || ''} onChange={(e) => patchStep(idx, 'medicationFrequency', e.target.value)} style={{ ...CELL, flex: 1 }} />
+                </div>
+              )}
+              {/* Row 2: service fields */}
+              {step.activityType === 'service' && (
+                <div style={{ display: 'flex', gap: 8, paddingLeft: 32 }}>
+                  <input placeholder="Mã dịch vụ" value={step.serviceCode || ''} onChange={(e) => patchStep(idx, 'serviceCode', e.target.value)} style={{ ...CELL, flex: 1 }} />
+                  <input placeholder="Tên dịch vụ" value={step.serviceName || ''} onChange={(e) => patchStep(idx, 'serviceName', e.target.value)} style={{ ...CELL, flex: 2 }} />
+                </div>
+              )}
+              {/* Row 3: conditions + expected outcome */}
+              <div style={{ display: 'flex', gap: 8, paddingLeft: 32 }}>
+                <input placeholder="Điều kiện áp dụng" value={step.conditions || ''} onChange={(e) => patchStep(idx, 'conditions', e.target.value)} style={{ ...CELL, flex: 1 }} />
+                <input placeholder="Kết quả kỳ vọng" value={step.expectedOutcome || ''} onChange={(e) => patchStep(idx, 'expectedOutcome', e.target.value)} style={{ ...CELL, flex: 1 }} />
+                <input placeholder="Ghi chú" value={step.notes || ''} onChange={(e) => patchStep(idx, 'notes', e.target.value)} style={{ ...CELL, flex: 1 }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </ModalShell>
     </div>
   );
 };

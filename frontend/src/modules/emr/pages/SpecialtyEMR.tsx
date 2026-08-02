@@ -4,7 +4,7 @@
 // field động). Bound to /api/specialty-emr (search/get/save/delete/pdf/xml).
 // Field config dùng chung từ ../constants/specialtyEmr.
 // =====================================================================
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import * as file from '../../../services/file.service';
 import { Input, InputNumber, Select, Checkbox, DatePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -119,16 +119,23 @@ const SpecialtyEMRV2: React.FC = () => {
   const [search, setSearch] = useState('');
   const [stab, setStab] = useState<StatusKey | 'all'>('all');
   const [fSpec, setFSpec] = useState('');
+  const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<SpecialtyRecord | null>(null);   // detail drawer
   const [form, setForm] = useState<FormState | null>(null);       // create/edit drawer
   const [isNew, setIsNew] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await searchSpecialtyRecords(0, 200);
+      const res = await searchSpecialtyRecords({
+        pageIndex: 0, pageSize: 200,
+        keyword: search.trim() || undefined,
+        specialtyType: fSpec || undefined,
+        fromDate: range?.[0] ? range[0].format('YYYY-MM-DD') : undefined,
+        toDate: range?.[1] ? range[1].format('YYYY-MM-DD') : undefined,
+      });
       const body = res.data;
       const data = (Array.isArray(body) ? body : body?.items || body?.data || []) as Partial<SpecialtyRecord>[];
       const rows: SpecialtyRecord[] = data.map((r, i) => ({
@@ -151,8 +158,12 @@ const SpecialtyEMRV2: React.FC = () => {
       setItems(rows);
     } catch { setItems([]); ti('Không tải được hồ sơ chuyên khoa'); }
     finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  }, [search, fSpec, range]);
+  useEffect(() => {
+    setPage(0);
+    const t = setTimeout(load, 300); // debounce gõ phím → tránh spam API
+    return () => clearTimeout(t);
+  }, [load]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: items.length };
@@ -160,16 +171,11 @@ const SpecialtyEMRV2: React.FC = () => {
     return c;
   }, [items]);
 
-  const filtered = useMemo(() => {
-    const k = search.trim().toLowerCase();
-    return items.filter((r) => {
-      if (stab !== 'all' && statusKey(r.status) !== stab) return false;
-      if (fSpec && r.specialtyType !== fSpec) return false;
-      if (!k) return true;
-      return [r.patientName, r.patientCode, r.icdCode, r.icdName, specialtyLabel(r)]
-        .some((v) => (v || '').toLowerCase().includes(k));
-    });
-  }, [items, search, stab, fSpec]);
+  // keyword/chuyên khoa/khoảng ngày đã lọc server-side trong load(); chỉ còn tab trạng thái client-side
+  const filtered = useMemo(
+    () => items.filter((r) => stab === 'all' || statusKey(r.status) === stab),
+    [items, stab],
+  );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);
@@ -348,7 +354,11 @@ const SpecialtyEMRV2: React.FC = () => {
           options={specOptions}
           placeholder="▾ Chuyên khoa"
         />
-        <Btn variant="ghost" onClick={() => { setSearch(''); setFSpec(''); setStab('all'); setPage(0); }}>
+        <DatePicker.RangePicker
+          format="DD/MM/YYYY" style={{ width: 250 }} placeholder={['Từ ngày', 'Đến ngày']}
+          value={range} onChange={(v) => setRange(v as [Dayjs | null, Dayjs | null] | null)}
+        />
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFSpec(''); setRange(null); setStab('all'); setPage(0); }}>
           <Ico name="refresh" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />

@@ -16,6 +16,8 @@ import {
   type CashierRevenueDto
 } from '../../../api/nangcap23';
 
+const fmtMny = (n: number | null | undefined): string => n === 0 ? '0đ' : fmtVNDg(n);
+
 type TabKey = 'clinic' | 'inpatient' | 'paraclinical' | 'lab' | 'revenue';
 const TOP_TABS: TopTab<TabKey>[] = [
   { v: 'clinic',       l: 'Phòng khám',           ic: 'stethoscope' },
@@ -101,7 +103,7 @@ const InpatientView: React.FC<{ rows: InpatientDepartmentViewDto[] }> = ({ rows 
     { lbl: 'Hiện diện',        val: rows.reduce((s, r) => s + r.present, 0), tone: 'info' },
     { lbl: 'Nhập viện hôm nay',val: rows.reduce((s, r) => s + r.admitted, 0), tone: 'ok' },
     { lbl: 'Xuất viện hôm nay',val: rows.reduce((s, r) => s + r.discharged, 0), tone: 'warn' },
-    { lbl: 'Tổng chi phí',     val: fmtVNDg(rows.reduce((s, r) => s + r.totalCost, 0)) },
+    { lbl: 'Tổng chi phí',     val: fmtMny(rows.reduce((s, r) => s + r.totalCost, 0)) },
   ];
   const columns: ColumnDef<InpatientDepartmentViewDto>[] = [
     { key: 'departmentName', label: 'Khoa', render: (r) => <b>{r.departmentName}</b> },
@@ -111,7 +113,7 @@ const InpatientView: React.FC<{ rows: InpatientDepartmentViewDto[] }> = ({ rows 
     { key: 'discharged',     label: 'Xuất viện', mono: true, width: 110,
       render: (r) => <span style={{ color: 'var(--s-warn)' }}>{r.discharged}</span> },
     { key: 'totalCost',      label: 'Chi phí phát sinh', mono: true, width: 170,
-      render: (r) => fmtVNDg(r.totalCost) },
+      render: (r) => fmtMny(r.totalCost) },
   ];
   return (
     <>
@@ -180,19 +182,19 @@ const RevenueView: React.FC<{
   grandTotal: number;
 }> = ({ byCashier, outpatientTotal, inpatientTotal, grandTotal }) => {
   const kpis: KpiItem[] = [
-    { lbl: 'Tổng doanh thu',  val: fmtVNDg(grandTotal),     tone: 'ok' },
-    { lbl: 'Ngoại trú',       val: fmtVNDg(outpatientTotal), tone: 'info' },
-    { lbl: 'Nội trú',         val: fmtVNDg(inpatientTotal),  tone: 'warn' },
+    { lbl: 'Tổng doanh thu',  val: fmtMny(grandTotal),     tone: 'ok' },
+    { lbl: 'Ngoại trú',       val: fmtMny(outpatientTotal), tone: 'info' },
+    { lbl: 'Nội trú',         val: fmtMny(inpatientTotal),  tone: 'warn' },
     { lbl: 'Số bàn thu ngân', val: byCashier.length },
   ];
   const columns: ColumnDef<CashierRevenueDto>[] = [
     { key: 'cashierName',       label: 'Bàn thu ngân', render: (r) => <b>{r.cashierName}</b> },
     { key: 'outpatientRevenue', label: 'Ngoại trú', mono: true, width: 170,
-      render: (r) => fmtVNDg(r.outpatientRevenue) },
+      render: (r) => fmtMny(r.outpatientRevenue) },
     { key: 'inpatientRevenue',  label: 'Nội trú',   mono: true, width: 170,
-      render: (r) => fmtVNDg(r.inpatientRevenue) },
+      render: (r) => fmtMny(r.inpatientRevenue) },
     { key: 'total',             label: 'Tổng', mono: true, width: 170,
-      render: (r) => <span style={{ color: 'var(--a-cy)' }}><b>{fmtVNDg(r.total)}</b></span> },
+      render: (r) => <span style={{ color: 'var(--a-cy)' }}><b>{fmtMny(r.total)}</b></span> },
     { key: 'receiptCount',      label: 'Số biên lai', mono: true, width: 120 },
   ];
   return (

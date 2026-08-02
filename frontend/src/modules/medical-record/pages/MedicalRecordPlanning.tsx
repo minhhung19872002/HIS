@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { DatePicker, Form, Input, InputNumber, Divider } from 'antd';
 import {
@@ -246,15 +246,20 @@ const MedicalRecordPlanningV2: React.FC = () => {
     } catch { /* silent — KPI stays at '…' */ }
   };
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await getRecordCodes({ pageIndex: 0, pageSize: 200, keyword: search || undefined });
+      const r = await getRecordCodes({
+        pageIndex: 0, pageSize: 200,
+        keyword: search || undefined,
+        fromDate: fmtDay(rcRange?.[0]),
+        toDate: fmtDay(rcRange?.[1]),
+      });
       const list = ((r.data as { items?: RecordCode[] })?.items || []) as RecordCode[];
       setItems(list);
     } catch { ti('Không tải được mã BA'); }
     finally { setLoading(false); }
-  };
+  }, [search, rcRange]);
 
   const loadTransfers = async (p = 0, kw?: string, range?: DateRange) => {
     setTrLoading(true);
@@ -333,10 +338,14 @@ const MedicalRecordPlanningV2: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadStats(); }, []);
 
+  // Reload mã BA khi search/rcRange/tab thay đổi (server-side keyword + date)
+  useEffect(() => {
+    if (tab === 'codes') { setPage(0); load(); }
+  }, [load, tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     switch (tab) {
-      case 'codes':      load();            break;
       case 'transfers':  setTrPage(0); loadTransfers(0);  break;
       case 'borrowing':  setBrPage(0); loadBorrowing(0);  break;
       case 'handover':   setHoPage(0); loadHandover(0);   break;
@@ -500,22 +509,12 @@ const MedicalRecordPlanningV2: React.FC = () => {
   const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r.status));
 
   const filtered = useMemo(() => {
-    const k = search.trim().toLowerCase();
-    const rcFrom = fmtDay(rcRange?.[0]);
-    const rcTo = fmtDay(rcRange?.[1]);
     return items.filter((r) => {
       if (stab !== 'all' && sKey(r.status) !== stab) return false;
       if (fDept && r.departmentName !== fDept) return false;
-      if (rcFrom || rcTo) {
-        const d = dayjs(r.createdAt).format('YYYY-MM-DD'); // ngày cấp (allocation)
-        if (rcFrom && d < rcFrom) return false;
-        if (rcTo && d > rcTo) return false;
-      }
-      if (!k) return true;
-      return [r.recordCode, r.patientName, r.patientCode, r.doctorName]
-        .some((v) => (v || '').toLowerCase().includes(k));
+      return true;
     });
-  }, [items, search, stab, fDept, rcRange]);
+  }, [items, stab, fDept]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);

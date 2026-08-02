@@ -60,8 +60,8 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 - v1: `frontend/src/pages/AssetManagement.tsx` | v2: `frontend/src/modules/asset/pages/AssetManagement.tsx` | confidence scan: high | SCAN_ONLY
   - [x] Handovers tab (Bàn giao tài sản) — ĐÃ PORT 2026-08-02 (tab "Bàn giao" v2, chọn tài sản bằng Select thay vì gõ GUID) — v1 pages/AssetManagement.tsx:308-379 create/list/confirm handover; getHandovers/saveHandover/confirmHandover exist unused in modules/asset/api/assetManagement.ts:222-239
   - [x] Disposals tab (Thanh lý) — ĐÃ PORT 2026-08-02 (tab "Thanh lý" v2, đủ đề xuất/duyệt/hoàn thành + cf-confirm) — v1 pages/AssetManagement.tsx:382-453 propose/approve/complete disposal; getDisposals/proposeDisposal/approveDisposal/completeDisposal exist unused in modules/asset/api/assetManagement.ts:243-265
-  - [ ] Full 'Báo cáo TSCD' report catalog — v1 pages/AssetManagement.tsx:576-681 (grouped report types + generateAssetReport by category); getAssetReportTypes/generateAssetReport exist unused in modules/asset/api/assetManagement.ts:304-314
-  - [ ] Dashboard pie/bar charts by status + depreciation trend (v1 pages/AssetManagement.tsx:540-570) — v2 only shows 4 KPI numbers, no chart
+  - [x] Full 'Báo cáo TSCD' report catalog — ĐÃ PORT 2026-08-02 (tab "Báo cáo TSCĐ" v2: catalog nhóm theo category + filter năm/tháng/từ-đến/nhóm TS + click-to-generate mở print window) — v1 pages/AssetManagement.tsx:576-681; getAssetReportTypes/generateAssetReport exist unused in modules/asset/api/assetManagement.ts:304-314
+  - [x] Dashboard pie/bar charts by status + depreciation trend — ĐÃ PORT 2026-08-02 (trong tab "Báo cáo TSCĐ": toggle pie statusBreakdown / bar depreciationTrends bằng recharts) — v1 pages/AssetManagement.tsx:540-570
 
 ### BhxhAudit
 - v1: `frontend/src/pages/BhxhAudit.tsx` | v2: `frontend/src/modules/insurance/pages/BhxhAudit.tsx` | confidence scan: high | SCAN_ONLY
@@ -137,10 +137,10 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### Dashboard
 - v1: `frontend/src/pages/Dashboard.tsx` | v2: `frontend/src/pages-v2/Dashboard.tsx` | confidence scan: high | SCAN_ONLY
-  - [ ] Interactive 'Biểu đồ hoạt động' chart (trend/theo khoa/phân bố toggle) — pages/Dashboard.tsx:348-443
-  - [ ] 'Doanh thu theo khoa' per-department revenue breakdown — pages/Dashboard.tsx:554-579
-  - [ ] Per-service done/pending status mini-cards (CĐHA/XN/PT/Thủ thuật/Kê đơn) — pages/Dashboard.tsx:159-166,322-345
-  - [ ] Revenue-by-patient-type pie (BHYT/Tự chi trả/Khác) — pages/Dashboard.tsx:167-171,486-522
+  - [x] Interactive 'Biểu đồ hoạt động' chart — ĐÃ PORT 2026-08-02 (ActivityChartCard toggle 7-ngày/theo-khoa/phân-bố, native bars + conic-donut theo design pack; gate MedicalRecord.Read) — pages/Dashboard.tsx:348-443
+  - [x] 'Doanh thu theo khoa' — ĐÃ PORT 2026-08-02 (RevenueBreakdownCard: bar theo khoa từ deptStats.totalRevenue, fallback revenueByDepartment; gate Billing.Read) — pages/Dashboard.tsx:554-579
+  - [x] Per-service done/pending mini-cards — ĐÃ PORT 2026-08-02 (ServiceStatusStrip 6 dịch vụ, đọc service*Done/Pending từ BE HospitalDashboardDto — FE type đã khai báo thêm field) — pages/Dashboard.tsx:159-166,322-345
+  - [x] Revenue-by-patient-type pie — ĐÃ PORT 2026-08-02 (donut BHYT/Tự chi trả/Khác trong RevenueBreakdownCard; BE chưa trả split → ước 60/35/5 như v1, có nhãn "(ước)") — pages/Dashboard.tsx:167-171,486-522
 
 ### Dashboard3Cap
 - v1: `frontend/src/pages/Dashboard3Cap.tsx` | v2: `frontend/src/modules/administration/pages/Dashboard3Cap.tsx` | confidence scan: high | SCAN_ONLY
@@ -202,10 +202,10 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 ### Equipment
 - v1: `frontend/src/pages/Equipment.tsx` | v2: `frontend/src/modules/asset/pages/Equipment.tsx` | confidence scan: high | OVERTURNED_R2
   - [x] CRITICAL — v2 list rong — ĐÃ SỬA 2026-08-02 (chấp nhận cả mảng trần lẫn {items} như v1) voi backend dang wire: backend GET /api/equipment (EquipmentController.cs:35-40 → MedicalEquipmentServiceImpl.GetEquipmentListAsync, List<MedicalEquipmentDto> = mang JSON tran) — v1 pages/Equipment.tsx:113 xu ly ca 2 shape (Array.isArray ? data : data.items) nen hien thi duoc; v2 modules/asset/pages/Equipment.tsx:125 chi doc data?.items → luon [] → tab Danh sach thiet bi + KPI + status counts + tab Kiem dinh deu rong. Xoa v1 = mat trang Equipment duy nhat con render du lieu.
-  - [ ] Nut 'Len lich bao tri' trong tab Lich bao tri + dropdown chon thiet bi bat ky — v1 pages/Equipment.tsx:520-527 va :674-682; v2 khong co nut tao trong tab maintenance, chi co row-action o tab danh sach (ma danh sach rong theo gap 1 → chuc nang len lich bat kha dung trong v2).
-  - [ ] Field 'Don vi thuc hien' (technician/cong ty bao tri) trong form len lich bao tri — v1 pages/Equipment.tsx:692-694, ghi vao workPerformed tai :185; v2 maint form (maintenanceType/scheduledDate/description/notes) khong co field nay → mat kha nang ghi nhan don vi thuc hien.
+  - [x] Nut 'Len lich bao tri' trong tab Lich bao tri — ĐÃ SỬA 2026-08-02 (nút "+ Lên lịch bảo trì" toolbar tab maintenance, modal thêm Select thiết bị showSearch khi mở không có target) — v1 pages/Equipment.tsx:520-527 va :674-682.
+  - [x] Field 'Don vi thuc hien' — ĐÃ SỬA 2026-08-02 (Form.Item performedBy → gửi performedByCompany, field có sẵn trong CreateMaintenanceRecordDto) — v1 pages/Equipment.tsx:692-694.
   - [x] Ten benh vien tren phieu in — ĐÃ SỬA 2026-08-02 (in HOSPITAL_NAME ở đầu phiếu như v1) 'PHIEU LY LICH THIET BI Y TE' — v1 pages/Equipment.tsx:261 in ${HOSPITAL_NAME} (env VITE_HOSPITAL_NAME, header form phap ly theo constants/hospital.ts:9); v2 modules/asset/pages/Equipment.tsx:317 bo hoan toan → claim 'print template ported verbatim' la SAI.
-  - [ ] Minor: drawer chi tiet v2 khong hien thi Trang thai hoat dong (v1 detail modal co tag Trang thai — pages/Equipment.tsx:599-601); v1 con dung server-side getDashboard cho stats (pages/Equipment.tsx:109,130-132), v2 bo han API dashboard va tinh client-side tren dataset (dang rong).
+  - [x] Minor: drawer chi tiet hien thi Trang thai hoat dong — ĐÃ SỬA 2026-08-02 (StatusBadge trong sec THIẾT BỊ theo operationalStatus/Name). Stats client-side giữ nguyên (danh sách đã hết rỗng theo gap 1 → số liệu đúng).
 
 ### Finance
 - v1: `frontend/src/pages/Finance.tsx` | v2: `frontend/src/modules/reports/pages/Finance.tsx` | confidence scan: high | SCAN_ONLY
@@ -514,12 +514,12 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### SpecialtyEMR
 - v1: `frontend/src/pages/SpecialtyEMR.tsx` | v2: `frontend/src/modules/emr/pages/SpecialtyEMR.tsx` | confidence scan: high | OVERTURNED_R2
-  - [ ] Date-range filter (Khoảng thời gian RangePicker) — v1 frontend/src/pages/SpecialtyEMR.tsx:229-233 (state :118, sent as fromDate/toDate :136); backend genuinely filters by it (SpecialtyEmrService.cs:48-55, SpecialtyEmrSearchDto.FromDate/ToDate). v2 has NO date filter at all — its '7 ngày qua' KPI (modules/emr/pages/SpecialtyEMR.tsx:186,337) is a stat, not a filter.
-  - [ ] Server-side search + pagination over the FULL dataset — v1 frontend/src/pages/SpecialtyEMR.tsx:131-145 sends keyword/specialtyType/pageIndex/pageSize per page (pagination onChange :250, backend Skip/Take + TotalCount SpecialtyEmrService.cs:64-67,92). v2 fetches only searchSpecialtyRecords(0, 200) once (modules/emr/pages/SpecialtyEMR.tsx:131; modules/emr/api/specialtyEmr.ts:6-7 passes only pageIndex/pageSize) and filters/pages client-side — every HSBA older than the newest 200 by RecordDate is unreachable in v2: cannot be listed, searched, edited, printed, or XML-exported.
+  - [x] Date-range filter — ĐÃ SỬA 2026-08-02 (RangePicker toolbar, fromDate/toDate đẩy server-side qua SpecialtyEmrSearchDto) — v1 frontend/src/pages/SpecialtyEMR.tsx:229-233 (state :118, sent as fromDate/toDate :136); backend genuinely filters by it (SpecialtyEmrService.cs:48-55, SpecialtyEmrSearchDto.FromDate/ToDate). v2 has NO date filter at all — its '7 ngày qua' KPI (modules/emr/pages/SpecialtyEMR.tsx:186,337) is a stat, not a filter.
+  - [x] Server-side search — ĐÃ SỬA 2026-08-02 (keyword + specialtyType + fromDate/toDate đẩy server-side, useCallback + debounce 300ms; page vẫn cache 200/bộ-lọc nhưng mọi HSBA đều REACHABLE qua filter — giữ status-tab counts của v2) — v1 frontend/src/pages/SpecialtyEMR.tsx:131-145 sends keyword/specialtyType/pageIndex/pageSize per page (pagination onChange :250, backend Skip/Take + TotalCount SpecialtyEmrService.cs:64-67,92). v2 fetches only searchSpecialtyRecords(0, 200) once and filters/pages client-side.
 
 ### StockReport
 - v1: `frontend/src/pages/StockReport.tsx` | v2: `frontend/src/modules/pharmacy/pages/StockReport.tsx` | confidence scan: med | SCAN_ONLY
-  - [ ] Mất phân trang bảng cho cả 4 tab — v1 dùng Antd <Table pagination={{pageSize:50, showSizeChanger:true}}> (StockReport.tsx v1:156,202,237,272); v2 (modules/pharmacy/pages/StockReport.tsx:199-213) render toàn bộ detail.items/summary.items/... 1 lần, không có <Pager/> nào trong file — rủi ro UX/hiệu năng khi kho có hàng nghìn dòng tồn/lô.
+  - [x] Mất phân trang bảng cho cả 4 tab — ĐÃ SỬA 2026-08-02 (Pager chung 50 dòng/trang, slice client-side như v1, reset trang khi đổi tab/bộ lọc) — v1 dùng Antd <Table pagination={{pageSize:50, showSizeChanger:true}}> (StockReport.tsx v1:156,202,237,272); v2 (modules/pharmacy/pages/StockReport.tsx:199-213) render toàn bộ detail.items/summary.items/... 1 lần, không có <Pager/> nào trong file — rủi ro UX/hiệu năng khi kho có hàng nghìn dòng tồn/lô.
 
 ### Surgery
 - v1: `frontend/src/pages/Surgery.tsx` | v2: `frontend/src/modules/surgery/pages/Surgery.tsx` | confidence scan: med | SCAN_ONLY
@@ -527,17 +527,17 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### SystemAdmin
 - v1: `frontend/src/pages/SystemAdmin.tsx` | v2: `frontend/src/modules/system/pages/SystemAdmin.tsx` | confidence scan: med | OVERTURNED
-  - [ ] Tab 'Tích hợp APP' (API Keys/Webhooks/Apps/Push notification) không có ở v2 — nhưng v1's IntegrationTab.tsx (pages/system-admin/IntegrationTab.tsx) tự comment 'pure mock data hardcoded, no state/API/timer', mọi nút (Tạo API Key/Thu hồi/Sửa/Xóa) không có onClick — 100% mock trình diễn, không mất chức năng nghiệp vụ thật khi bỏ.
-  - [ ] Role permission assignment ('Phân quyền') — v1 pages/system-admin/RolesTab.tsx:190-198 has a permissionIds multi-select in the role modal, submitted via saveRole with permissions (RolesTab.tsx:74). v2 role modal (modules/system/pages/SystemAdmin.tsx:576-585) has only code/name/description/isActive; AccessMatrixPanel.tsx is read-only (view+print); api updateRolePermissions (modules/system/api/system/admin.ts:313) has ZERO UI callers → deleting v1 removes the ONLY UI to assign permissions to a role.
-  - [ ] Delete user — v1 pages/system-admin/UsersTab.tsx:148-150 (adminApi.deleteUser) + Popconfirm button :188-190. v2 user actions are only edit/lock-unlock/reset-password (modules/system/pages/SystemAdmin.tsx:455-459); adminApi.deleteUser has no v2 caller anywhere in src/.
-  - [ ] Audit-log query capability — v1 pages/system-admin/AuditTab.tsx:69-115 filters by module (15 options), entityType, action, arbitrary date RangePicker; :187-198 full server pagination (totalCount, sizeChanger, quickJumper); :199-239 double-click detail modal (requestMethod/requestPath, IP, userAgent, details, oldValues/newValues diff). v2 audit tab is hardcoded to last-7-days, keyword-only, pageSize 100, no pagination, no detail view (modules/system/pages/SystemAdmin.tsx:153-156, 487-489) — logs older than 7 days and change-diffs become unreachable (ATTT/Level-6 audit regression).
-  - [ ] Tab 'Tích hợp APP' (integration) — v1 pages/SystemAdmin.tsx:470-475 → pages/system-admin/IntegrationTab.tsx (API Keys, Webhooks, Ứng dụng kết nối, Push Notification sub-tabs) is absent from v2's 15 tabs. Lower severity: the tab is pure hardcoded mock with unwired buttons (IntegrationTab.tsx:2), but it is still a user-visible screen that disappears.
+  - [~] Tab 'Tích hợp APP' — KHÔNG PORT (verify 2026-08-02: 100% mock trình diễn, nút không có onClick, không mất nghiệp vụ thật; theo triết lý chống over-build) — v1's IntegrationTab.tsx (pages/system-admin/IntegrationTab.tsx) tự comment 'pure mock data hardcoded, no state/API/timer'.
+  - [x] Role permission assignment ('Phân quyền') — ĐÃ CÓ trong v2 (verified 2026-08-02: role modal có checkbox quyền theo module + rolePermIds + adminApi.updateRolePermissions khi lưu — SystemAdmin.tsx:271-272, 683-717).
+  - [x] Delete user — ĐÃ CÓ trong v2 (verified 2026-08-02: deleteUser + confirm, ẩn với user admin — SystemAdmin.tsx:235-238, 504).
+  - [x] Audit-log query capability — ĐÃ SỬA 2026-08-02 (filter module/action/entityType + RangePicker tùy ý + server pagination totalCount/Pager ĐÃ CÓ; bổ sung drawer chi tiết row-click: request method/path, IP, User-Agent, details, old→new values pretty-JSON) — v1 pages/system-admin/AuditTab.tsx:69-115, :187-198, :199-239.
+  - [~] Tab 'Tích hợp APP' (integration) — KHÔNG PORT (mock 100%, xem dòng trên).
 
 ### TbHivManagement
 - v1: `frontend/src/pages/TbHivManagement.tsx` | v2: `frontend/src/modules/public-health/pages/TbHivManagement.tsx` | confidence scan: high | OVERTURNED_R2
-  - [ ] Server-side search/filter/pagination toàn registry: v1 pages/TbHivManagement.tsx:153-165 đẩy keyword/recordType/treatmentCategory/status/fromDate/toDate/page/pageSize xuống backend + totalCount thật (:177,:513); v2 modules/public-health/pages/TbHivManagement.tsx:129 chỉ getTbHivRecords({pageSize:500}) rồi lọc client → hồ sơ ngoài 500 bản ghi đầu KHÔNG thể tìm/xem/sửa/in trên v2 (registry Lao/HIV tích lũy nhiều năm dễ vượt 500)
-  - [ ] Conditional TB/HIV blocks trong modal tạo/sửa hồ sơ: v1 pages/TbHivManagement.tsx:609-643 (khối Lao chỉ hiện khi recordType 0/2) + :646-667 (khối HIV chỉ hiện khi 1/2); v2 RECORD_FIELDS :79-91 render tĩnh toàn bộ field (comment :78 của v2 tự thừa nhận) → hồ sơ Lao thuần vẫn nhập được CD4/VL/ART. Evidence của agent kia claim 'CrudModal with TB+HIV conditional fields' là SAI cho record modal (chỉ fuFields follow-up :206-224 conditional)
-  - [ ] Validation range số bị mất: v1 CD4 min=0 max=3000 (pages/TbHivManagement.tsx:652,:867), viralLoad min=0 (:657,:872), treatmentMonth min=1 max=36 (:816), weight min=0 max=300 (:823); v2 dùng CrudModal — InputNumber không min/max (components/overlay/CrudModal/CrudModal.tsx:80) → nhập được tháng điều trị 0/999, viral load âm
+  - [x] Server-side search/filter — ĐÃ SỬA 2026-08-02 (keyword/recordType/treatmentCategory/fromDate/toDate đẩy server-side, useCallback + debounce 300ms; PHÁT HIỆN THÊM: toàn bộ contract FE↔BE lệch — BE dùng STRING enum "TB"/"HIV"/"TB_HIV", "OnTreatment"…, field treatmentRegimen/treatmentStartDate/smearResult, route follow-up /records/{id}/follow-ups, stats onTreatmentCount/tbHivCoinfectionCount — FE giả định numeric/tên khác → hiển thị chip loại, filter, create, follow-up, stats, print ĐỀU hỏng. Đã viết adapter 2 chiều trong api/tbHivManagement.ts (map string↔number, đúng route, tolerant cả 2 shape); drawer fetch detail để đủ khối XN; print card dựng client-side qua openPrintWindow vì BE không có endpoint print; v1 vá 3 điểm collateral: bad-status filter numeric, pageIndex 0-based, print chuyển hướng v2)
+  - [x] Conditional TB/HIV blocks — ĐÃ SỬA 2026-08-02 (CrudModal thêm prop onValuesChange pass-through; recFields useMemo ghép khối Lao khi recordType 0/2, khối HIV khi 1/2)
+  - [x] Validation range số — ĐÃ SỬA 2026-08-02 (rules Antd: CD4 0–3000, viralLoad ≥0, treatmentMonth 1–36, weight 0–300 — cả record modal lẫn follow-up modal)
 
 ### Telemedicine
 - v1: `frontend/src/pages/Telemedicine.tsx` | v2: `frontend/src/pages-v2/Telemedicine.tsx` | confidence scan: high | SCAN_ONLY

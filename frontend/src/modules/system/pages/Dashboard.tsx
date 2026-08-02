@@ -38,6 +38,7 @@ import { OrCaseModal } from './dashboard/OrCaseModal';
 import { StockReorderModal } from './dashboard/StockReorderModal';
 import { AlertDetailModal } from './dashboard/AlertDetailModal';
 import { AllAlertsDrawer } from './dashboard/AllAlertsDrawer';
+import { ServiceStatusStrip, ActivityChartCard, RevenueBreakdownCard } from './dashboard/ActivityCharts';
 
 /* ==========================================================================
    Main component — all data from real APIs.
@@ -246,6 +247,8 @@ const DashboardV2: React.FC = () => {
               byDept={opdByDept}
             />
           )}
+          {/* #352 parity v1: biểu đồ hoạt động (7 ngày / theo khoa / phân bố) */}
+          {seeClinical && <ActivityChartCard history={history} byDept={opdByDept} />}
         </div>
 
         {/* ---------- COL 2 ---------- */}
@@ -259,6 +262,8 @@ const DashboardV2: React.FC = () => {
               onStockClick={setStockIt}
             />
           )}
+          {/* #352 parity v1: mini-card xong/chờ theo dịch vụ (Khám/CĐHA/XN/PT/TT/Kê đơn) */}
+          {seeClinical && <ServiceStatusStrip d={latest} />}
         </div>
 
         {/* ---------- COL 3 ---------- */}
@@ -270,6 +275,8 @@ const DashboardV2: React.FC = () => {
             onShowAll={() => setShowAllAlerts(true)}
           />
           {seeBilling && <BhytCard revenue={gRev(latest)} revenueChange={revPct ?? 0} />}
+          {/* #352 parity v1: doanh thu theo khoa + theo loại BN */}
+          {seeBilling && <RevenueBreakdownCard latest={latest} deptStats={deptStats} />}
         </div>
       </div>
 

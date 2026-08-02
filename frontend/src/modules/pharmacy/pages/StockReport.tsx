@@ -7,7 +7,7 @@ import apiClient from '../../../services/apiClient';
 import { getWarehouses } from '../api/warehouse';
 import { unwrapList, type MaybePaged } from '../../../utils/apiNormalize';
 import {
-  KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, Btn, tk, ti, tw,
+  KpiStrip, TopTabs, SearchBox, Filter, DataTable, StatusBadge, Btn, Pager, tk, ti, tw,
   type ColumnDef,
 } from '@/_v2kit';
 
@@ -19,6 +19,7 @@ interface LowStockRow { itemCode: string; itemName: string; unit?: string; avail
 
 interface ReportResp<T> { items?: T[]; count?: number; totalValue?: number }
 
+const PER = 50;
 type Tab = 'detail' | 'summary' | 'expiring' | 'low-stock';
 const TABS = [
   { v: 'detail' as Tab,    l: 'Chi tiết theo lô', ic: 'archive' },
@@ -40,6 +41,7 @@ const StockReportV2: React.FC = () => {
   const [expiring, setExpiring] = useState<ReportResp<ExpiringRow>>({});
   const [lowStock, setLowStock] = useState<ReportResp<LowStockRow>>({});
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     getWarehouses(1)
@@ -70,7 +72,7 @@ const StockReportV2: React.FC = () => {
     finally { setLoading(false); }
   }, [tab, warehouseId, keyword, days, threshold]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { setPage(0); load(); }, [load]);
 
   const exportCsv = () => {
     // 4 row type khác nhau theo tab → dùng Record<string, unknown> để view chung cho CSV serialization
@@ -196,25 +198,24 @@ const StockReportV2: React.FC = () => {
       </div>
 
       {tab === 'detail' && (
-        <DataTable<DetailRow> columns={detailCols} data={detail.items || []} rowKey={(r) => r.id}
+        <DataTable<DetailRow> columns={detailCols} data={(detail.items || []).slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.id}
           empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />
       )}
       {tab === 'summary' && (
-        <DataTable<SummaryRow> columns={summaryCols} data={summary.items || []} rowKey={(r) => r.itemCode}
+        <DataTable<SummaryRow> columns={summaryCols} data={(summary.items || []).slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.itemCode}
           empty={loading ? 'Đang tải…' : 'Không có dữ liệu'} />
       )}
       {tab === 'expiring' && (
-        <DataTable<ExpiringRow> columns={expiringCols} data={expiring.items || []} rowKey={(r) => r.id}
+        <DataTable<ExpiringRow> columns={expiringCols} data={(expiring.items || []).slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.id}
           empty={loading ? 'Đang tải…' : 'Không có thuốc sắp hết hạn'} />
       )}
       {tab === 'low-stock' && (
-        <DataTable<LowStockRow> columns={lowStockCols} data={lowStock.items || []} rowKey={(r) => r.itemCode}
+        <DataTable<LowStockRow> columns={lowStockCols} data={(lowStock.items || []).slice(page * PER, (page + 1) * PER)} rowKey={(r) => r.itemCode}
           empty={loading ? 'Đang tải…' : 'Không có thuốc tồn thấp'} />
       )}
 
-      <div style={{ padding: '10px 14px', fontSize: 'var(--fs-xs)', color: 'var(--t-2)', borderTop: '1px solid var(--line)' }}>
-        Hiển thị {currentRows.length.toLocaleString('vi-VN')} dòng
-      </div>
+      <Pager page={page} setPage={setPage} totalPages={Math.max(1, Math.ceil(currentRows.length / PER))}
+        total={currentRows.length} perPage={PER} />
     </div>
   );
 };

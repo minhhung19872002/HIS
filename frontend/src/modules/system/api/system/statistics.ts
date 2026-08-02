@@ -40,6 +40,23 @@ export interface HospitalDashboardDto {
   outpatientByDepartment: DepartmentCountDto[];
   inpatientByDepartment: DepartmentCountDto[];
   revenueByDepartment: DepartmentRevenueDto[];
+  // Service status breakdown (BE SystemCompleteDTOs.Part2 HospitalDashboardDto)
+  serviceOpdDone?: number;
+  serviceOpdPending?: number;
+  serviceRadiologyDone?: number;
+  serviceRadiologyPending?: number;
+  serviceLabDone?: number;
+  serviceLabPending?: number;
+  serviceSurgeryDone?: number;
+  serviceSurgeryPending?: number;
+  serviceProcedureDone?: number;
+  serviceProcedurePending?: number;
+  servicePrescriptionDone?: number;
+  servicePrescriptionPending?: number;
+  // Revenue breakdown by patient type
+  revenueBHYT?: number;
+  revenueSelfPay?: number;
+  revenueOther?: number;
 }
 
 export interface DepartmentCountDto {

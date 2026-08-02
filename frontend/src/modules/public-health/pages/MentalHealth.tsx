@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import {
-  searchCases, createCase, getAssessments, screenDepression,
+  searchCases, createCase, getAssessments, screenDepression, getStats,
 } from '../api/mentalHealth';
-import type { MentalHealthCase, MentalHealthAssessment } from '../api/mentalHealth';
+import type { MentalHealthCase, MentalHealthAssessment, MentalHealthStats } from '../api/mentalHealth';
 import {
-  KpiStrip, StatusTabs, SearchBox, DataTable, Pager, StatusBadge, ActBtn, Btn,
+  KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, Ico,
   type ColumnDef, type StatusTab, type CrudFieldCfg,
 } from '@/_v2kit';
@@ -85,7 +85,11 @@ const MentalHealthV2: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [stab, setStab] = useState<StatusKey | 'all'>('all');
+  const [fType, setFType] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(0);
+  const [statsData, setStatsData] = useState<MentalHealthStats | null>(null);
 
   const [sel, setSel] = useState<MentalHealthCase | null>(null);
   const [assessments, setAssessments] = useState<MentalHealthAssessment[]>([]);
@@ -94,15 +98,24 @@ const MentalHealthV2: React.FC = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [phqOpen, setPhqOpen] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await searchCases();
+      const [data, s] = await Promise.all([
+        searchCases({
+          keyword: search || undefined,
+          caseType: fType || undefined,
+          fromDate: fromDate || undefined,
+          toDate: toDate || undefined,
+        }),
+        getStats(),
+      ]);
       setRows(Array.isArray(data) ? data : []);
+      setStatsData(s);
     } catch { ti('Không tải được danh sách ca tâm thần'); }
     finally { setLoading(false); }
-  };
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [search, fType, fromDate, toDate]);
+  useEffect(() => { load(); }, [load]);
 
   const openDetail = async (r: MentalHealthCase) => {
     setSel(r);
@@ -116,14 +129,11 @@ const MentalHealthV2: React.FC = () => {
   const counts = useTabCounts(rows, STATUS_TABS, (r) => statusKey(r.status));
 
   const filtered = useMemo(() => {
-    const k = search.trim().toLowerCase();
     return rows.filter((r) => {
       if (stab !== 'all' && statusKey(r.status) !== stab) return false;
-      if (!k) return true;
-      return [r.patientName, r.patientCode, r.caseCode, r.diagnosis]
-        .some((v) => (v || '').toLowerCase().includes(k));
+      return true;
     });
-  }, [rows, search, stab]);
+  }, [rows, stab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);
@@ -158,18 +168,23 @@ const MentalHealthV2: React.FC = () => {
     </div>
   );
 
-  const severe = rows.filter((r) => r.severity === 'severe').length;
+  const severe = statsData?.severeCases ?? rows.filter((r) => r.severity === 'severe').length;
   const poor = rows.filter((r) => r.adherenceLevel === 'poor').length;
+
+  const SEL: React.CSSProperties = {
+    height: 28, padding: '0 6px', borderRadius: 4, border: '1px solid var(--line)',
+    background: 'var(--bg-1)', fontSize: 13,
+  };
 
   return (
     <div className="ab">
       <KpiStrip items={[
-        { lbl: 'Tổng ca', val: rows.length, sub: 'tất cả' },
-        { lbl: 'Đang ĐT', val: counts.active || 0, tone: 'warn' },
-        { lbl: 'Nặng', val: severe, sub: 'cần ưu tiên', tone: 'crit' },
-        { lbl: 'Tuân thủ kém', val: poor, sub: 'cần tư vấn', tone: 'crit' },
-        { lbl: 'Thuyên giảm', val: counts.remission || 0, tone: 'ok' },
-        { lbl: 'Ổn định', val: counts.stable || 0, tone: 'ok' },
+        { lbl: 'Tổng ca',      val: rows.length,                                               sub: 'tất cả' },
+        { lbl: 'Đang ĐT',      val: statsData?.activeCases ?? (counts.active || 0),             tone: 'warn' },
+        { lbl: 'Nặng',         val: severe,                                                    sub: 'cần ưu tiên', tone: 'crit' },
+        { lbl: 'Quá hạn tái khám', val: statsData?.overdueFollowUps ?? 0,                      sub: 'cần liên hệ', tone: 'crit' },
+        { lbl: 'ĐG tháng này', val: statsData?.assessmentsThisMonth ?? 0,                      tone: 'ok' },
+        { lbl: 'Ổn định',      val: counts.stable || 0,                                        tone: 'ok' },
       ]} />
 
       <div className="ab-toolbar">
@@ -178,6 +193,12 @@ const MentalHealthV2: React.FC = () => {
           onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm BN / mã ca / chẩn đoán…"
         />
+        <Filter value={fType} onChange={(v) => { setFType(v); setPage(0); }} options={CASE_TYPE_OPTIONS.map((o) => ({ v: String(o.value), l: o.label }))} placeholder="▾ Loại bệnh" />
+        <input type="date" style={SEL} value={fromDate} onChange={(e) => { setFromDate(e.target.value); setPage(0); }} title="Từ ngày" />
+        <input type="date" style={SEL} value={toDate}   onChange={(e) => { setToDate(e.target.value);   setPage(0); }} title="Đến ngày" />
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFType(''); setFromDate(''); setToDate(''); setStab('all'); }}>
+          <Ico name="x" size={12} /> Bỏ lọc
+        </Btn>
         <span className="spacer" />
         <Btn variant="ghost" onClick={() => setPhqOpen(true)}>
           <Ico name="activity" size={12} /> Sàng lọc PHQ-9

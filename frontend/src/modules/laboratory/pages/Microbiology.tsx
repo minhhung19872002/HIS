@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Input, Select } from 'antd';
 import { getMicrobiologyCultures, createCulture, updateCultureStatus, addOrganism, saveAntibiogram } from '../api/microbiology';
@@ -20,6 +20,10 @@ const CULTURE_OPTS = [
   { value: 'aerobic', label: 'Hiếu khí' }, { value: 'anaerobic', label: 'Kỵ khí' },
   { value: 'fungal', label: 'Nấm' }, { value: 'mycobacteria', label: 'Mycobacteria' },
 ];
+const CULTURE_LABEL: Record<string, string> = {
+  aerobic: 'Hiếu khí', anaerobic: 'Kỵ khí', fungal: 'Nấm', mycobacteria: 'Mycobacteria',
+};
+const GRAM_LABEL: Record<string, string> = { positive: 'Gram (+)', negative: 'Gram (−)', mixed: 'Hỗn hợp' };
 const GRAM_OPTS = [
   { value: 'positive', label: 'Gram (+)' },
   { value: 'negative', label: 'Gram (-)' },
@@ -41,16 +45,18 @@ const STATUS_LABEL: Record<number, string> = {
 };
 const STATUS_OPTS = Object.entries(STATUS_LABEL).map(([value, label]) => ({ value: Number(value), label }));
 
-type SKey = 'pending' | 'incubating' | 'growth' | 'completed';
+type SKey = 'pending' | 'incubating' | 'growth' | 'noGrowth' | 'completed';
 const STATUS_TABS = [
   { v: 'pending' as SKey,     l: 'Chờ',           tone: 'warn' as const },
   { v: 'incubating' as SKey,  l: 'Đang ủ',        tone: 'info' as const },
   { v: 'growth' as SKey,      l: 'Có VSV mọc',    tone: 'crit' as const },
+  { v: 'noGrowth' as SKey,    l: 'Không mọc',     tone: 'ok' as const },
   { v: 'completed' as SKey,   l: 'Hoàn tất',      tone: 'ok' as const },
 ];
 
 const sKey = (n: number): SKey =>
-  n === 0 ? 'pending' : n === 1 ? 'incubating' : (n === 2 || n === 4) ? 'growth' : 'completed';
+  n === 0 ? 'pending' : n === 1 ? 'incubating' : (n === 2 || n === 4) ? 'growth'
+  : n === 3 ? 'noGrowth' : 'completed';
 
 const PER = 18;
 
@@ -67,16 +73,16 @@ const MicrobiologyV2: React.FC = () => {
   const [addOrgOpen, setAddOrgOpen] = useState(false);
   const [astOrg, setAstOrg] = useState<MicrobiologyOrganism | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await getMicrobiologyCultures({ keyword: search });
+      const r = await getMicrobiologyCultures({ keyword: search || undefined });
       const list = (r?.items || (Array.isArray(r) ? r : [])) as MicrobiologyCulture[];
       setItems(list);
     } catch { setItems([]); ti('Không tải được danh sách cấy'); }
     finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  }, [search]);
+  useEffect(() => { load(); }, [load]);
 
   const types = useMemo(() => {
     const set = new Set(items.map((c) => c.cultureType).filter(Boolean));
@@ -85,16 +91,13 @@ const MicrobiologyV2: React.FC = () => {
 
   const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r.status));
 
-  const filtered = useMemo(() => {
-    const k = search.trim().toLowerCase();
-    return items.filter((r) => {
+  const filtered = useMemo(() =>
+    items.filter((r) => {
       if (stab !== 'all' && sKey(r.status) !== stab) return false;
       if (fType && r.cultureType !== fType) return false;
-      if (!k) return true;
-      return [r.patientName, r.patientCode, r.requestCode, r.sampleBarcode]
-        .some((v) => (v || '').toLowerCase().includes(k));
-    });
-  }, [items, search, stab, fType]);
+      return true;
+    }),
+  [items, stab, fType]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);
@@ -109,7 +112,7 @@ const MicrobiologyV2: React.FC = () => {
     ) },
     { key: 'sample', label: 'Loại mẫu', render: (r) => r.sampleType },
     { key: 'bar', label: 'Barcode', code: true, render: (r) => r.sampleBarcode },
-    { key: 'cult', label: 'Loại cấy', render: (r) => <StatusBadge tone="info">{r.cultureType}</StatusBadge> },
+    { key: 'cult', label: 'Loại cấy', render: (r) => <StatusBadge tone="info">{CULTURE_LABEL[r.cultureType] || r.cultureType}</StatusBadge> },
     { key: 'date', label: 'Cấy lúc', mono: true, render: (r) => dayjs(r.cultureDate).format('DD/MM HH:mm') },
     { key: 'org', label: 'VSV', render: (r) => r.organisms?.length
       ? <span style={{ color: 'var(--a-rd-text)', fontWeight: 600 }}>{r.organisms.length}</span>
@@ -193,7 +196,7 @@ const MicrobiologyV2: React.FC = () => {
             <DrField lbl="Bệnh nhân">{sel.patientName} · {sel.patientCode}</DrField>
             <DrField lbl="Loại mẫu">{sel.sampleType}</DrField>
             <DrField lbl="Barcode"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.sampleBarcode}</span></DrField>
-            <DrField lbl="Loại cấy">{sel.cultureType}</DrField>
+            <DrField lbl="Loại cấy">{CULTURE_LABEL[sel.cultureType] || sel.cultureType}</DrField>
           </DrSec>
           <DrSec title="Tiến trình">
             <DrField lbl="Cấy lúc">{dayjs(sel.cultureDate).format('DD/MM/YYYY HH:mm')}</DrField>
@@ -223,7 +226,9 @@ const MicrobiologyV2: React.FC = () => {
                     </Btn>
                   </div>
                   {o.colonyCount && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>Khuẩn lạc: {o.colonyCount}</div>}
-                  {o.gramStain && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>Gram: {o.gramStain}</div>}
+                  {o.gramStain && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>Nhuộm Gram: <b>{GRAM_LABEL[o.gramStain] || o.gramStain}</b></div>}
+                  {o.morphology && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>Hình thái: {o.morphology}</div>}
+                  {o.identificationMethod && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-1)' }}>PP định danh: {o.identificationMethod}</div>}
                 </div>
               ))}
             </DrSec>

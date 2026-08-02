@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { fmtNum as fmt } from '../../../utils/format';
 import dayjs from 'dayjs';
 import {
   getGuidanceBatches, createGuidanceBatch, updateGuidanceBatch, deleteGuidanceBatch,
-  getGuidanceActivities, createGuidanceActivity,
+  getGuidanceActivities, createGuidanceActivity, getGuidanceStatistics,
 } from '../api/clinicalGuidance';
-import type { GuidanceBatchDto, CreateGuidanceBatchDto, GuidanceActivityDto, CreateGuidanceActivityDto } from '../api/clinicalGuidance';
+import type { GuidanceBatchDto, CreateGuidanceBatchDto, GuidanceActivityDto, CreateGuidanceActivityDto, GuidanceStatisticsDto } from '../api/clinicalGuidance';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
   DrawerShell, DrSec, DrField, CrudModal, useTabCounts, tk, ti, te, cf,
@@ -16,8 +16,8 @@ const BATCH_FIELDS: CrudFieldCfg[] = [
   { key: 'title', label: 'Nội dung đợt', required: true },
   { key: 'targetFacility', label: 'Cơ sở nhận chỉ đạo', required: true },
   { key: 'guidanceType', label: 'Loại đợt', type: 'select', required: true, options: [
-    { value: 1, label: 'Chuyển giao kỹ thuật' }, { value: 2, label: 'Đào tạo' },
-    { value: 3, label: 'Hỗ trợ chuyên môn' }, { value: 4, label: 'Giám sát' }] },
+    { value: 0, label: 'Khám chữa bệnh' }, { value: 1, label: 'Chuyển giao kỹ thuật' },
+    { value: 2, label: 'Đào tạo' }, { value: 3, label: 'Hỗ trợ chuyên môn' }, { value: 4, label: 'Giám sát' }] },
   { key: 'startDate', label: 'Bắt đầu', type: 'date', required: true },
   { key: 'endDate', label: 'Kết thúc', type: 'date', required: true },
   { key: 'teamMembers', label: 'Thành viên đoàn', type: 'textarea' },
@@ -26,7 +26,7 @@ const BATCH_FIELDS: CrudFieldCfg[] = [
 ];
 
 const TYPE_LABEL: Record<number, string> = {
-  0: 'Khám chữa bệnh', 1: 'Đào tạo', 2: 'Chuyển giao KT', 3: 'Hỗ trợ',
+  0: 'Khám chữa bệnh', 1: 'Chuyển giao KT', 2: 'Đào tạo', 3: 'Hỗ trợ CM', 4: 'Giám sát',
 };
 const STATUS_LABEL: Record<number, string> = {
   0: 'Lên kế hoạch', 1: 'Đang triển khai', 2: 'Hoàn tất', 3: 'Hủy',
@@ -55,19 +55,31 @@ const ClinicalGuidanceV2: React.FC = () => {
   const [search, setSearch] = useState('');
   const [stab, setStab] = useState<SKey | 'all'>('all');
   const [fType, setFType] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<GuidanceBatchDto | null>(null);
+  const [stats, setStats] = useState<GuidanceStatisticsDto | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await getGuidanceBatches({ keyword: search });
+      const [r, s] = await Promise.all([
+        getGuidanceBatches({
+          keyword: search || undefined,
+          guidanceType: fType || undefined,
+          fromDate: fromDate || undefined,
+          toDate: toDate || undefined,
+        }),
+        getGuidanceStatistics(),
+      ]);
       const list = (r?.items || (Array.isArray(r) ? r : [])) as GuidanceBatchDto[];
       setItems(list);
+      setStats(s);
     } catch { ti('Không tải được danh sách chỉ đạo tuyến'); }
     finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  }, [search, fType, fromDate, toDate]);
+  useEffect(() => { load(); }, [load]);
 
   const types = useMemo(() => Object.entries(TYPE_LABEL).map(([v, l]) => ({ v, l })), []);
 
@@ -157,22 +169,27 @@ const ClinicalGuidanceV2: React.FC = () => {
     </div>
   );
 
-  const totalBudget = items.reduce((s, b) => s + (b.budget || 0), 0);
+  const SEL: React.CSSProperties = {
+    height: 28, padding: '0 6px', borderRadius: 4, border: '1px solid var(--line)',
+    background: 'var(--bg-1)', fontSize: 13,
+  };
 
   return (
     <div className="ab">
       <KpiStrip items={[
-        { lbl: 'Tổng đợt', val: items.length, sub: 'tất cả' },
-        { lbl: 'Đang triển khai', val: counts.inprogress || 0, sub: 'hiện tại', tone: 'info' },
-        { lbl: 'Đã hoàn tất', val: counts.completed || 0, sub: `${Math.round(((counts.completed || 0) / Math.max(1, items.length)) * 100)}%`, tone: 'ok' },
-        { lbl: 'Tổng ngân sách', val: Math.round(totalBudget / 1_000_000), unit: 'tr', sub: 'VND', tone: 'warn' },
+        { lbl: 'Tổng đợt',       val: items.length,                                                                           sub: 'tất cả' },
+        { lbl: 'Đang triển khai', val: stats?.inProgress ?? (counts.inprogress ?? 0),                                        sub: 'hiện tại', tone: 'info' },
+        { lbl: 'Đã hoàn tất',    val: stats?.completed ?? (counts.completed ?? 0),                                           sub: `${Math.round(((stats?.completed ?? counts.completed ?? 0) / Math.max(1, items.length)) * 100)}%`, tone: 'ok' },
+        { lbl: 'Tổng ngân sách',  val: Math.round((stats?.totalBudget ?? items.reduce((s, b) => s + (b.budget || 0), 0)) / 1_000_000), unit: 'tr', sub: 'VND', tone: 'warn' },
       ]} />
 
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm nội dung / cơ sở / mã đợt…" />
-        <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại đợt" />
-        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>Bỏ lọc</Btn>
+        <Filter value={fType} onChange={(v) => { setFType(v); setPage(0); }} options={types} placeholder="▾ Loại đợt" />
+        <input type="date" style={SEL} value={fromDate} onChange={(e) => { setFromDate(e.target.value); setPage(0); }} title="Từ ngày" />
+        <input type="date" style={SEL} value={toDate} onChange={(e) => { setToDate(e.target.value); setPage(0); }} title="Đến ngày" />
+        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setFromDate(''); setToDate(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
         <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
         <Btn variant="primary" icon="plus" onClick={openCreate}>Đợt mới</Btn>

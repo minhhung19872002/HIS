@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { fmtNum as fmt } from '../../../utils/format';
 import dayjs from 'dayjs';
-import { Form, Input, DatePicker, Tabs, Select, Checkbox } from 'antd';
-import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode, getStocktakes, createStocktake, completeStocktake, approveStocktake, updateStocktakeItem, printStocktake, getDepreciationReport, getTenders, saveTender, getTenderItems, saveTenderItem, awardTender, getHandovers, saveHandover, confirmHandover, getDisposals, proposeDisposal, approveDisposal, completeDisposal } from '../api/assetManagement';
-import type { FixedAssetDto, AssetDashboardDto, AssetQrCodeDto, AssetStocktakeDto, AssetStocktakeItemDto, DepreciationReportDto, TenderDto, TenderItemDto, AssetHandoverDto, AssetDisposalDto } from '../api/assetManagement';
+import { Form, Input, InputNumber, DatePicker, Tabs, Select, Checkbox } from 'antd';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { getAssets, getAssetDashboard, saveAsset, getAssetQrCode, getStocktakes, createStocktake, completeStocktake, approveStocktake, updateStocktakeItem, printStocktake, getDepreciationReport, getTenders, saveTender, getTenderItems, saveTenderItem, awardTender, getHandovers, saveHandover, confirmHandover, getDisposals, proposeDisposal, approveDisposal, completeDisposal, getAssetReportTypes, generateAssetReport } from '../api/assetManagement';
+import type { FixedAssetDto, AssetDashboardDto, AssetQrCodeDto, AssetStocktakeDto, AssetStocktakeItemDto, DepreciationReportDto, TenderDto, TenderItemDto, AssetHandoverDto, AssetDisposalDto, AssetReportTypeDto } from '../api/assetManagement';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn, CrudModal, ModalShell,
   DrawerShell, DrSec, DrField, useTabCounts, tk, ti, te, cf,
@@ -87,8 +88,11 @@ const TENDER_ITEM_FIELDS: CrudFieldCfg[] = [
   { key: 'unitPrice', label: 'Đơn giá (đ)', type: 'number' },
 ];
 
+// #352: bảng màu pie/bar cho tab Báo cáo (recharts cần màu literal)
+const PIE_COLORS = ['#4aa3ff', '#52c41a', '#faad14', '#ff4d4f', '#b37feb', '#13c2c2'];
+
 const AssetManagementV2: React.FC = () => {
-  const [moduleTab, setModuleTab] = useState<'assets' | 'stocktake' | 'tenders' | 'handovers' | 'disposals'>('assets');
+  const [moduleTab, setModuleTab] = useState<'assets' | 'stocktake' | 'tenders' | 'handovers' | 'disposals' | 'reports'>('assets');
   const [items, setItems] = useState<FixedAssetDto[]>([]);
   const [dash, setDash] = useState<AssetDashboardDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -128,6 +132,16 @@ const AssetManagementV2: React.FC = () => {
   const [hoForm, setHoForm] = useState<{ fixedAssetId?: string; handoverType: number; handoverDate?: string; notes?: string }>({ handoverType: 1 });
   const [dpOpen, setDpOpen] = useState(false);
   const [dpForm, setDpForm] = useState<{ fixedAssetId?: string; disposalType: number; disposalValue?: number; residualValue?: number; reason?: string }>({ disposalType: 1 });
+  // #352: tab Báo cáo TSCĐ (catalog + biểu đồ) — port từ v1 ReportsTab + dashboard charts
+  const [reportTypes, setReportTypes] = useState<AssetReportTypeDto[]>([]);
+  const [repSel, setRepSel] = useState<number | undefined>();
+  const [repYear, setRepYear] = useState(dayjs().year());
+  const [repMonth, setRepMonth] = useState<number | undefined>();
+  const [repFrom, setRepFrom] = useState<string | undefined>();
+  const [repTo, setRepTo] = useState<string | undefined>();
+  const [repGroup, setRepGroup] = useState('');
+  const [repLoading, setRepLoading] = useState(false);
+  const [chartView, setChartView] = useState<'status' | 'trend'>('status');
 
   const openCreate = () => { setCrudInit({ status: 0, depreciationMethod: 1, originalValue: 0, currentValue: 0, usefulLifeMonths: 60 }); setCrudOpen(true); };
   const openEdit = (r: FixedAssetDto) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
@@ -163,6 +177,31 @@ const AssetManagementV2: React.FC = () => {
   };
 
   const openTenderCreate = () => { setTenderCrudInit({ tenderType: 1, status: 1 }); setTenderCrudOpen(true); };
+
+  // ── #352: Báo cáo TSCĐ — lazy-load danh mục khi mở tab, generate mở print window ─
+  useEffect(() => {
+    if (moduleTab === 'reports' && reportTypes.length === 0) {
+      getAssetReportTypes().then(setReportTypes);
+    }
+  }, [moduleTab, reportTypes.length]);
+
+  const runReport = async (code?: number) => {
+    const rc = code ?? repSel;
+    if (!rc) { ti('Chọn loại báo cáo'); return; }
+    setRepLoading(true);
+    try {
+      await generateAssetReport(rc, {
+        year: repYear, month: repMonth, fromDate: repFrom, toDate: repTo,
+        assetGroupCode: repGroup || undefined,
+      });
+    } catch { te('Lỗi xuất báo cáo'); }
+    finally { setRepLoading(false); }
+  };
+
+  const groupedReports = useMemo(() => reportTypes.reduce<Record<string, AssetReportTypeDto[]>>((acc, rt) => {
+    (acc[rt.category] ||= []).push(rt);
+    return acc;
+  }, {}), [reportTypes]);
 
   // ── #352: Bàn giao tài sản ────────────────────────────────────────────────
   const assetOptions = useMemo(
@@ -324,7 +363,7 @@ const AssetManagementV2: React.FC = () => {
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <Tabs
           activeKey={moduleTab}
-          onChange={(k) => setModuleTab(k as 'assets' | 'stocktake')}
+          onChange={(k) => setModuleTab(k as typeof moduleTab)}
           size="small"
           style={{ marginBottom: 0 }}
           items={[
@@ -333,6 +372,7 @@ const AssetManagementV2: React.FC = () => {
             { key: 'tenders', label: `Đấu thầu (${tenders.length})` },
             { key: 'handovers', label: `Bàn giao (${handovers.length})` },
             { key: 'disposals', label: `Thanh lý (${disposals.length})` },
+            { key: 'reports', label: 'Báo cáo TSCĐ' },
           ]}
         />
         <span className="spacer" />
@@ -481,6 +521,83 @@ const AssetManagementV2: React.FC = () => {
           )}
           empty={loading ? 'Đang tải…' : 'Chưa có phiếu thanh lý'}
         />
+      )}
+
+      {/* #352: Báo cáo TSCĐ — biểu đồ trạng thái/khấu hao + catalog báo cáo (port v1 ReportsTab + charts) */}
+      {moduleTab === 'reports' && (
+        <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 12 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <Btn variant={chartView === 'status' ? 'primary' : 'ghost'} onClick={() => setChartView('status')}>Theo trạng thái</Btn>
+              <Btn variant={chartView === 'trend' ? 'primary' : 'ghost'} onClick={() => setChartView('trend')}>Xu hướng khấu hao</Btn>
+            </div>
+            <div style={{ height: 280 }}>
+              {chartView === 'status' ? (
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie data={dash?.statusBreakdown || []} dataKey="count" nameKey="statusName"
+                      cx="50%" cy="50%" outerRadius={100}
+                      label={({ name, value }) => `${String(name ?? '')}: ${Number(value ?? 0)}`}>
+                      {(dash?.statusBreakdown || []).map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                    </Pie>
+                    <RTooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <ResponsiveContainer>
+                  <BarChart data={dash?.depreciationTrends || []}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" tickFormatter={(m: number, i: number) => `T${m}/${dash?.depreciationTrends?.[i]?.year ?? ''}`} />
+                    <YAxis tickFormatter={(v: number) => `${Math.round(v / 1_000_000)}tr`} />
+                    <RTooltip formatter={(value) => Number(value ?? 0).toLocaleString('vi-VN')} />
+                    <Bar dataKey="amount" fill="#ff4d4f" name="Khấu hao" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Select placeholder="Chọn loại báo cáo" value={repSel} onChange={setRepSel}
+              style={{ minWidth: 280 }} showSearch optionFilterProp="label" allowClear
+              options={Object.entries(groupedReports).map(([cat, its]) => ({
+                label: cat,
+                options: its.map((rt) => ({ value: rt.code, label: `${rt.code}. ${rt.name}` })),
+              }))} />
+            <InputNumber placeholder="Năm" value={repYear} min={2020} max={2035}
+              onChange={(v) => setRepYear(Number(v) || dayjs().year())} style={{ width: 90 }} />
+            <Select placeholder="Tháng" allowClear value={repMonth} onChange={setRepMonth} style={{ width: 100 }}
+              options={Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `Tháng ${i + 1}` }))} />
+            <DatePicker placeholder="Từ ngày" format="DD/MM/YYYY" style={{ width: 130 }}
+              onChange={(d) => setRepFrom(d ? d.format('YYYY-MM-DD') : undefined)} />
+            <DatePicker placeholder="Đến ngày" format="DD/MM/YYYY" style={{ width: 130 }}
+              onChange={(d) => setRepTo(d ? d.format('YYYY-MM-DD') : undefined)} />
+            <Input placeholder="Nhóm TS" value={repGroup} onChange={(e) => setRepGroup(e.target.value)} style={{ width: 110 }} />
+            <Btn variant="primary" icon="printer" loading={repLoading} onClick={() => runReport()}>Xuất báo cáo</Btn>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+            {Object.entries(groupedReports).map(([cat, its]) => (
+              <div key={cat} style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 12 }}>
+                <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', marginBottom: 8, textTransform: 'uppercase', color: 'var(--t-2)' }}>{cat}</div>
+                {its.map((rt) => (
+                  <button key={rt.code} type="button" title={rt.description}
+                    onClick={() => { setRepSel(rt.code); runReport(rt.code); }}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left', padding: '5px 4px',
+                      background: 'none', border: 'none', borderBottom: '1px solid var(--line-soft)',
+                      color: 'var(--a-cy)', fontSize: 'var(--fs-sm)', cursor: 'pointer',
+                    }}>
+                    {rt.code}. {rt.name}
+                  </button>
+                ))}
+              </div>
+            ))}
+            {reportTypes.length === 0 && (
+              <div style={{ color: 'var(--t-2)', fontSize: 'var(--fs-sm)' }}>Đang tải danh mục báo cáo…</div>
+            )}
+          </div>
+        </div>
       )}
 
       <ModalShell open={hoOpen} onClose={() => setHoOpen(false)} title="Tạo phiếu bàn giao tài sản" size="md"

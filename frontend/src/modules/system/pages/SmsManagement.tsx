@@ -97,9 +97,11 @@ const SmsManagementV2: React.FC = () => {
   const [rows,    setRows]    = useState<SmsLogDto[]>([]);
   const [total,   setTotal]   = useState(0);
   const [page,    setPage]    = useState(0);
-  const [kw,      setKw]      = useState('');
-  const [fType,   setFType]   = useState('');
-  const [fStatus, setFStatus] = useState('');
+  const [kw,       setKw]       = useState('');
+  const [fType,    setFType]    = useState('');
+  const [fStatus,  setFStatus]  = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate,   setToDate]   = useState('');
   const [logLoading, setLogLoading] = useState(false);
 
   // overlay
@@ -127,6 +129,8 @@ const SmsManagementV2: React.FC = () => {
         keyword:     kw || undefined,
         messageType: fType || undefined,
         status:      fStatus !== '' ? Number(fStatus) : undefined,
+        fromDate:    fromDate || undefined,
+        toDate:      toDate   || undefined,
         pageIndex: p, pageSize: 20,
       }) as any;
       setRows(r?.items ?? r?.data?.items ?? []);
@@ -134,7 +138,7 @@ const SmsManagementV2: React.FC = () => {
       setPage(p);
     } catch { setRows([]); setTotal(0); }
     finally { setLogLoading(false); }
-  }, [kw, fType, fStatus]);
+  }, [kw, fType, fStatus, fromDate, toDate]);
 
   useEffect(() => {
     if (tab === 'logs') loadLogs(0);
@@ -247,6 +251,10 @@ const SmsManagementV2: React.FC = () => {
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
+        <input type="date" style={SEL} value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(0); }}
+          title="Từ ngày" />
+        <input type="date" style={SEL} value={toDate} onChange={e => { setToDate(e.target.value); setPage(0); }}
+          title="Đến ngày" />
         <select style={SEL} value={fStatus} onChange={e => setFStatus(e.target.value)}>
           <option value="">-- Trạng thái --</option>
           {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}

@@ -45,13 +45,26 @@ const ZnsLogsPanel: React.FC = () => {
   const [rows, setRows] = useState<ZaloNotificationLogDto[]>([]);
   const [search, setSearch] = useState('');
   const [fStatus, setFStatus] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [detail, setDetail] = useState<ZaloNotificationLogDto | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
 
+  const SEL_DATE: React.CSSProperties = {
+    height: 30, padding: '0 6px', borderRadius: 4,
+    border: '1px solid var(--line)', background: 'var(--bg-1)', fontSize: 13, color: 'var(--t-1)',
+  };
+
   const load = useCallback(async () => {
-    try { setRows(await zalo.search({ pageSize: 200 })); }
+    try {
+      setRows(await zalo.search({
+        pageSize: 200,
+        from: from || undefined,
+        to:   to   || undefined,
+      }));
+    }
     catch { te('Không tải được'); }
-  }, []);
+  }, [from, to]);
   useEffect(() => { load(); }, [load]);
 
   const filtered = rows.filter((r) => {
@@ -100,6 +113,8 @@ const ZnsLogsPanel: React.FC = () => {
         <Filter value={fStatus} onChange={setFStatus}
           options={ZNS_STATUS.map((s) => ({ v: String(s.v), l: s.l }))}
           placeholder="▾ Trạng thái" />
+        <input type="date" style={SEL_DATE} value={from} onChange={e => setFrom(e.target.value)} title="Từ ngày" />
+        <input type="date" style={SEL_DATE} value={to}   onChange={e => setTo(e.target.value)}   title="Đến ngày" />
         <span className="spacer" />
         <Btn icon="refresh" onClick={load} title="Tải lại" />
         <Btn variant="primary" onClick={() => setSendOpen(true)}>

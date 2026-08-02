@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchLicenses, createLicense, updateLicense, getExpiringLicenses, printLicense } from '../api/practiceLicense';
+import { searchLicenses, createLicense, updateLicense, getExpiringLicenses, renewLicense, printLicense } from '../api/practiceLicense';
 import type { PracticeLicense } from '../api/practiceLicense';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import {
@@ -60,34 +60,34 @@ const PracticeLicenseV2: React.FC = () => {
   const [search, setSearch] = useState('');
   const [stab, setStab] = useState<SKey | 'all'>('all');
   const [fType, setFType] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<PracticeLicense | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await searchLicenses({ keyword: search });
+      const r = await searchLicenses({
+        keyword: search || undefined,
+        licenseType: fType || undefined,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
+      });
       setItems(normalizeArrayResponse<PracticeLicense>(r));
     } catch { ti('Không tải được CCHN'); }
     finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  }, [search, fType, fromDate, toDate]);
+  useEffect(() => { load(); }, [load]);
 
   const today = dayjs();
   const types = useMemo(() => Object.entries(TYPE_LABEL).map(([v, l]) => ({ v, l })), []);
 
   const counts = useTabCounts(items, STATUS_TABS, (r) => sKey(r.status));
 
-  const filtered = useMemo(() => {
-    const k = search.trim().toLowerCase();
-    return items.filter((r) => {
-      if (stab !== 'all' && sKey(r.status) !== stab) return false;
-      if (fType && r.licenseType !== fType) return false;
-      if (!k) return true;
-      return [r.staffName, r.staffCode, r.licenseNumber, r.specialty]
-        .some((v) => (v || '').toLowerCase().includes(k));
-    });
-  }, [items, search, stab, fType]);
+  const filtered = useMemo(() =>
+    items.filter((r) => stab === 'all' || sKey(r.status) === stab),
+  [items, stab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);
@@ -129,6 +129,28 @@ const PracticeLicenseV2: React.FC = () => {
   const openCreate = () => { setCrudInit({ status: 0, licenseType: 'doctor' }); setCrudOpen(true); };
   const openEdit = (r: PracticeLicense) => { setCrudInit({ ...r } as Record<string, unknown>); setCrudOpen(true); };
 
+  // --- Renew modal ---
+  const [renewOpen, setRenewOpen] = useState(false);
+  const [renewTarget, setRenewTarget] = useState<PracticeLicense | null>(null);
+  const [renewDate, setRenewDate] = useState('');
+  const [renewSaving, setRenewSaving] = useState(false);
+  const openRenew = (r: PracticeLicense) => {
+    setRenewTarget(r);
+    setRenewDate(dayjs(r.expiryDate).add(1, 'year').format('YYYY-MM-DD'));
+    setRenewOpen(true);
+  };
+  const handleRenew = async () => {
+    if (!renewTarget || !renewDate) return;
+    setRenewSaving(true);
+    try {
+      await renewLicense(renewTarget.id, { newExpiryDate: renewDate });
+      tk(`Đã gia hạn CCHN ${renewTarget.staffName}`);
+      setRenewOpen(false);
+      load();
+    } catch { te('Gia hạn thất bại'); }
+    finally { setRenewSaving(false); }
+  };
+
   // --- Drawer cảnh báo CCHN sắp hết hạn ---
   const [expiringOpen, setExpiringOpen] = useState(false);
   const [expiringList, setExpiringList] = useState<PracticeLicense[]>([]);
@@ -148,7 +170,7 @@ const PracticeLicenseV2: React.FC = () => {
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
-      <ActBtn ic="refresh" title="Gia hạn" onClick={() => openEdit(r)} />
+      <ActBtn ic="refresh" title="Gia hạn" onClick={() => openRenew(r)} />
     </div>
   );
 
@@ -171,7 +193,11 @@ const PracticeLicenseV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm tên / mã NV / số CCHN…" />
         <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại CCHN" />
-        <Btn variant="ghost" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>
+        <input type="date" style={{ height: 30, padding: '0 6px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--bg-1)', fontSize: 13 }}
+          value={fromDate} onChange={(e) => setFromDate(e.target.value)} title="Ngày cấp từ" />
+        <input type="date" style={{ height: 30, padding: '0 6px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--bg-1)', fontSize: 13 }}
+          value={toDate} onChange={(e) => setToDate(e.target.value)} title="Ngày cấp đến" />
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFType(''); setFromDate(''); setToDate(''); setStab('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
@@ -215,8 +241,11 @@ const PracticeLicenseV2: React.FC = () => {
           }}>
             <Ico name="print" size={12} /> In CCHN
           </Btn>
-          <Btn variant="primary" onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
-            <Ico name="refresh" size={12} /> Gia hạn / Sửa
+          <Btn onClick={() => { if (sel) openEdit(sel); setSel(null); }}>
+            <Ico name="edit" size={12} /> Sửa
+          </Btn>
+          <Btn variant="primary" onClick={() => { if (sel) { openRenew(sel); setSel(null); } }}>
+            <Ico name="refresh" size={12} /> Gia hạn
           </Btn>
         </>}
       >
@@ -306,7 +335,7 @@ const PracticeLicenseV2: React.FC = () => {
       <CrudModal
         open={crudOpen}
         onClose={() => setCrudOpen(false)}
-        title={crudInit?.id ? 'Cập nhật / Gia hạn CCHN' : 'Đăng ký CCHN mới'}
+        title={crudInit?.id ? 'Cập nhật CCHN' : 'Đăng ký CCHN mới'}
         fields={LICENSE_FIELDS}
         initial={crudInit}
         size="lg"
@@ -317,6 +346,41 @@ const PracticeLicenseV2: React.FC = () => {
           load();
         }}
       />
+
+      {/* ===== Gia hạn CCHN ===== */}
+      <DrawerShell
+        open={renewOpen}
+        onClose={() => setRenewOpen(false)}
+        size="sm"
+        title="Gia hạn chứng chỉ hành nghề"
+        sub={renewTarget ? `${renewTarget.staffName} · ${renewTarget.licenseNumber}` : ''}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setRenewOpen(false)} disabled={renewSaving}>Hủy</Btn>
+          <Btn variant="primary" onClick={handleRenew} disabled={!renewDate || renewSaving}>
+            {renewSaving ? 'Đang lưu…' : 'Xác nhận gia hạn'}
+          </Btn>
+        </>}
+      >
+        {renewTarget && (
+          <DrSec title="Thông tin gia hạn">
+            <DrField lbl="Nhân viên">{renewTarget.staffName} ({renewTarget.staffCode})</DrField>
+            <DrField lbl="Loại CCHN">{TYPE_LABEL[renewTarget.licenseType] || renewTarget.licenseType}</DrField>
+            <DrField lbl="Hết hạn hiện tại">
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--a-or-text)' }}>
+                {dayjs(renewTarget.expiryDate).format('DD/MM/YYYY')}
+              </span>
+            </DrField>
+            <DrField lbl="Ngày hết hạn mới">
+              <input
+                type="date"
+                value={renewDate}
+                onChange={(e) => setRenewDate(e.target.value)}
+                style={{ height: 32, padding: '0 8px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--bg-1)', fontSize: 13, width: '100%' }}
+              />
+            </DrField>
+          </DrSec>
+        )}
+      </DrawerShell>
     </div>
   );
 };

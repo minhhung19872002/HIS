@@ -52,8 +52,10 @@ const PER_PAGE = 16;
 // ── Form value types ───────────────────────────────────────────────────────────
 
 type MaintFormValues = {
+  equipmentId?: string;      // chỉ dùng khi mở từ tab Lịch bảo trì (chưa chọn sẵn thiết bị)
   maintenanceType: string;
   scheduledDate?: dayjs.Dayjs | null;
+  performedBy?: string;      // Đơn vị thực hiện (KTV/công ty) → performedByCompany
   description?: string;
   notes?: string;
 };
@@ -103,6 +105,7 @@ const EquipmentV2: React.FC = () => {
   // Modal state
   const [detailEq, setDetailEq] = useState<EquipmentDto | null>(null);
   const [maintTarget, setMaintTarget] = useState<EquipmentDto | null>(null);
+  const [maintOpen, setMaintOpen] = useState(false); // mở từ tab Lịch bảo trì — tự chọn thiết bị
   const [repairTarget, setRepairTarget] = useState<EquipmentDto | null>(null);
   const [showAddEq, setShowAddEq] = useState(false);
   const [categories, setCategories] = useState<EquipmentCategoryDto[]>([]);
@@ -253,25 +256,28 @@ const EquipmentV2: React.FC = () => {
     }
   };
 
-  // Schedule maintenance for a specific equipment (row action)
+  // Schedule maintenance — từ row action (maintTarget) hoặc từ tab Lịch bảo trì (chọn thiết bị trong form)
   const handleScheduleMaintenance = async () => {
-    if (!maintTarget) return;
     try {
       const v = await maintForm.validateFields();
+      const target = maintTarget ?? equipment.find((e) => e.id === v.equipmentId);
+      if (!target) { message.warning('Chưa chọn thiết bị'); return; }
       const scheduledIso = v.scheduledDate ? v.scheduledDate.toISOString() : undefined;
       await createMaintenanceRecord({
-        equipmentId: maintTarget.id,
+        equipmentId: target.id,
         maintenanceType: v.maintenanceType || 'Preventive',
         scheduledDate: scheduledIso,
         performedDate: new Date().toISOString(),
+        performedByCompany: v.performedBy || undefined,
         description: v.description || '',
         workPerformed: v.description || '',
-        afterStatus: maintTarget.operationalStatus,
+        afterStatus: target.operationalStatus,
         nextMaintenanceDate: scheduledIso,
         notes: v.notes,
       });
-      message.success(`Đã lên lịch bảo trì cho ${maintTarget.name}`);
+      message.success(`Đã lên lịch bảo trì cho ${target.name}`);
       setMaintTarget(null);
+      setMaintOpen(false);
       void reload();
     } catch (err) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
@@ -603,12 +609,20 @@ const EquipmentV2: React.FC = () => {
 
         {/* ── Tab: Lịch bảo trì ────────────────────────────────────────── */}
         {tab === 'maintenance' && (
-          <DataTable<MaintenanceScheduleDto>
-            columns={maintColumns}
-            data={maintenanceSchedules}
-            rowKey={(r) => r.id}
-            empty={loading ? 'Đang tải…' : 'Không có lịch bảo trì nào trong 90 ngày tới'}
-          />
+          <>
+            <div className="ab-tools">
+              <span className="spacer" />
+              <Btn variant="primary" onClick={() => { maintForm.resetFields(); setMaintOpen(true); }}>
+                + Lên lịch bảo trì
+              </Btn>
+            </div>
+            <DataTable<MaintenanceScheduleDto>
+              columns={maintColumns}
+              data={maintenanceSchedules}
+              rowKey={(r) => r.id}
+              empty={loading ? 'Đang tải…' : 'Không có lịch bảo trì nào trong 90 ngày tới'}
+            />
+          </>
         )}
 
         {/* ── Tab: Yêu cầu sửa chữa ────────────────────────────────────── */}
@@ -663,22 +677,30 @@ const EquipmentV2: React.FC = () => {
         )}
       </div>
 
-      {/* ── Modal: Lên lịch bảo trì ─────────────────────────────────────── */}
+      {/* ── Modal: Lên lịch bảo trì (row action = thiết bị chọn sẵn; tab Lịch BT = tự chọn) ── */}
       <ModalShell
-        open={!!maintTarget}
-        onClose={() => setMaintTarget(null)}
-        title={maintTarget ? `Lên lịch bảo trì: ${maintTarget.name}` : ''}
-        sub={maintTarget ? `${maintTarget.equipmentCode} · ${maintTarget.departmentName}` : ''}
+        open={!!maintTarget || maintOpen}
+        onClose={() => { setMaintTarget(null); setMaintOpen(false); }}
+        title={maintTarget ? `Lên lịch bảo trì: ${maintTarget.name}` : 'Lên lịch bảo trì thiết bị'}
+        sub={maintTarget ? `${maintTarget.equipmentCode} · ${maintTarget.departmentName}` : 'Chọn thiết bị và ngày bảo trì dự kiến'}
         size="md"
         footer={
           <>
-            <Btn variant="ghost" onClick={() => setMaintTarget(null)}>Hủy</Btn>
+            <Btn variant="ghost" onClick={() => { setMaintTarget(null); setMaintOpen(false); }}>Hủy</Btn>
             <Btn variant="primary" onClick={() => { void handleScheduleMaintenance(); }}>Lưu lịch</Btn>
           </>
         }
       >
-        {maintTarget && (
+        {(maintTarget || maintOpen) && (
           <Form form={maintForm} layout="vertical">
+            {!maintTarget && (
+              <Form.Item name="equipmentId" label="Thiết bị" rules={[{ required: true, message: 'Chọn thiết bị' }]}>
+                <Select
+                  showSearch optionFilterProp="label" placeholder="Chọn thiết bị cần bảo trì"
+                  options={equipment.map((e) => ({ value: e.id, label: `${e.equipmentCode} — ${e.name}` }))}
+                />
+              </Form.Item>
+            )}
             <Form.Item name="maintenanceType" label="Loại bảo trì" initialValue="Preventive">
               <Select options={[
                 { value: 'Preventive',  label: 'Bảo trì định kỳ (Preventive)' },
@@ -688,6 +710,9 @@ const EquipmentV2: React.FC = () => {
             </Form.Item>
             <Form.Item name="scheduledDate" label="Ngày bảo trì dự kiến" rules={[{ required: true }]}>
               <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} disabledDate={(d) => d.isBefore(dayjs(), 'day')} />
+            </Form.Item>
+            <Form.Item name="performedBy" label="Đơn vị thực hiện">
+              <Input placeholder="KTV nội bộ / công ty bảo trì bên ngoài" />
             </Form.Item>
             <Form.Item name="description" label="Mô tả công việc">
               <Input.TextArea rows={3} placeholder="Mô tả nội dung bảo trì cần thực hiện…" />
@@ -883,6 +908,12 @@ const EquipmentDrawerBody: React.FC<{ r: EquipmentDto }> = ({ r }) => (
           <span className={`chip ${r.riskClass === 'III' || r.riskClass === 'A' ? 'crit' : r.riskClass === 'II' || r.riskClass === 'B' ? 'warn' : 'info'}`}>
             {r.riskClassName || r.riskClass}
           </span>
+        </span>
+        <span>Trạng thái</span>
+        <span>
+          <StatusBadge tone={STATUS_TABS.find((t) => t.v === statusKey(r.operationalStatus))?.tone} dot>
+            {r.operationalStatusName || STATUS_TABS.find((t) => t.v === statusKey(r.operationalStatus))?.l}
+          </StatusBadge>
         </span>
       </div>
     </div>

@@ -1,6 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { financeApi, type RevenueByServiceDto, type RevenueByExecutingDeptDto } from '../../system/api/system';
+import {
+  financeApi,
+  type RevenueByServiceDto, type RevenueByExecutingDeptDto,
+  type SurgeryProfitReportDto, type CostByDepartmentDto,
+  type FinancialSummaryReportDto, type InsuranceReconciliationDto,
+} from '../../system/api/system/finance';
 import {
   exportMultiSheetExcel, downloadCsv, escapeCsvCell,
   type ExcelColumn, formatVnd,
@@ -13,11 +18,12 @@ import {
 
 type Row = RevenueByServiceDto & { id: string };
 type DeptRow = RevenueByExecutingDeptDto & { id: string };
-type TopKey = 'service' | 'department';
+type TopKey = 'service' | 'department' | 'reports';
 
 const TOP_TABS: TopTab<TopKey>[] = [
   { v: 'service', l: 'Theo dịch vụ', ic: 'list' },
   { v: 'department', l: 'Theo khoa', ic: 'grid' },
+  { v: 'reports', l: 'Báo cáo', ic: 'grid' },
 ];
 
 const fmtPct = (n: number) => `${(n || 0).toFixed(1)}%`;
@@ -37,22 +43,32 @@ const FinanceV2: React.FC = () => {
   // Export loading states
   const [csvLoading, setCsvLoading] = useState(false);
   const [xlsxLoading, setXlsxLoading] = useState(false);
+  const [reportFrom, setReportFrom] = useState<string>(dayjs().startOf('month').format('YYYY-MM-DD'));
+  const [reportTo,   setReportTo]   = useState<string>(dayjs().endOf('month').format('YYYY-MM-DD'));
 
-  const load = async () => {
+  // Department detail drawer
+  const [deptSel, setDeptSel] = useState<DeptRow | null>(null);
+
+  // Report cards
+  const [rpSurgery, setRpSurgery] = useState<SurgeryProfitReportDto[] | null>(null);
+  const [rpCost, setRpCost] = useState<CostByDepartmentDto[] | null>(null);
+  const [rpSummary, setRpSummary] = useState<FinancialSummaryReportDto | null>(null);
+  const [rpInsurance, setRpInsurance] = useState<InsuranceReconciliationDto | null>(null);
+  const [rpLoading, setRpLoading] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const fromDate = dayjs().startOf('month').format('YYYY-MM-DD');
-      const toDate = dayjs().endOf('month').format('YYYY-MM-DD');
       const [svcRes, deptRes] = await Promise.all([
-        financeApi.getRevenueByService(fromDate, toDate),
-        financeApi.getRevenueByExecutingDept(fromDate, toDate),
+        financeApi.getRevenueByService(reportFrom, reportTo),
+        financeApi.getRevenueByExecutingDept(reportFrom, reportTo),
       ]);
       setItems((svcRes.data || []).map((x, i) => ({ ...x, id: x.serviceId || `r-${i}` })));
       setDeptItems((deptRes.data || []).map((x, i) => ({ ...x, id: x.departmentId || `d-${i}` })));
     } catch { setItems([]); setDeptItems([]); ti('Không tải được dữ liệu tài chính'); }
     finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  }, [reportFrom, reportTo]);
+  useEffect(() => { load(); }, [load]);
 
   const groups = useMemo(() => {
     const set = new Set(items.map((r) => r.serviceGroupName).filter(Boolean));
@@ -209,15 +225,27 @@ const FinanceV2: React.FC = () => {
         { lbl: 'Lợi nhuận', val: Math.round(kpis.profit / 1_000_000), unit: 'tr', sub: 'VND', tone: kpis.profit >= 0 ? 'ok' : 'crit' },
       ]} />
 
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px var(--space-14)', borderBottom: '1px solid var(--line)' }}>
+        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>Kỳ báo cáo:</span>
+        <input type="date" style={{ height: 28, padding: '0 6px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--bg-1)', fontSize: 12 }}
+          value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} />
+        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)' }}>→</span>
+        <input type="date" style={{ height: 28, padding: '0 6px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--bg-1)', fontSize: 12 }}
+          value={reportTo} onChange={(e) => setReportTo(e.target.value)} />
+        <Btn variant="ghost" onClick={() => { setReportFrom(dayjs().startOf('month').format('YYYY-MM-DD')); setReportTo(dayjs().endOf('month').format('YYYY-MM-DD')); }}>
+          Tháng này
+        </Btn>
+      </div>
+
       <TopTabs<TopKey>
         tab={tab}
         setTab={setTab}
         tabs={TOP_TABS}
-        actions={
+        actions={tab !== 'reports' ? (
           <Btn variant="ghost" disabled={xlsxLoading} onClick={handleExportExcel}>
             <Ico name="download" size={12} /> {xlsxLoading ? 'Đang xuất…' : 'Xuất Excel'}
           </Btn>
-        }
+        ) : undefined}
       />
 
       {tab === 'service' && <>
@@ -225,7 +253,7 @@ const FinanceV2: React.FC = () => {
           <SearchBox value={search} onChange={setSearch} placeholder="Tìm tên / mã dịch vụ…" />
           <Filter value={fGroup} onChange={setFGroup} options={groups} placeholder="▾ Nhóm dịch vụ" />
           <Btn variant="ghost" onClick={() => { setSearch(''); setFGroup(''); }}>
-            <Ico name="refresh" size={12} /> Bỏ lọc
+            <Ico name="x" size={12} /> Bỏ lọc
           </Btn>
           <span className="spacer" />
           <Btn variant="ghost" onClick={load}>
@@ -246,7 +274,7 @@ const FinanceV2: React.FC = () => {
 
       {tab === 'department' && <>
         <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
-          <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Doanh thu theo khoa thực hiện · tháng {dayjs().format('MM/YYYY')}</span>
+          <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>Doanh thu theo khoa thực hiện · {dayjs(reportFrom).format('DD/MM')} – {dayjs(reportTo).format('DD/MM/YYYY')}</span>
           <span className="spacer" />
           <Btn variant="ghost" onClick={load}>
             <Ico name="refresh" size={12} /> Làm mới
@@ -262,9 +290,134 @@ const FinanceV2: React.FC = () => {
 
         <DataTable<DeptRow>
           columns={deptCols} data={deptItems} rowKey={(r) => r.id}
+          onRowClick={(r) => setDeptSel(r)}
           empty={loading ? 'Đang tải…' : 'Không có dữ liệu doanh thu theo khoa'}
         />
       </>}
+
+      {tab === 'reports' && (
+        <div style={{ padding: 'var(--space-14)', display: 'grid', gap: 'var(--space-12)', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+          <RptCard title="Chi phí theo khoa" desc="Thuốc · Vật tư · Nhân sự · Tiện ích" loading={rpLoading === 'cost'}
+            onLoad={async () => { setRpLoading('cost'); try { const r = await financeApi.getCostByDepartment(reportFrom, reportTo); setRpCost((r.data || []) as CostByDepartmentDto[]); } finally { setRpLoading(null); } }}
+            hasData={!!rpCost}
+            content={rpCost ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead><tr style={{ borderBottom: '1px solid var(--line)' }}>
+                  {['Khoa', 'Thuốc', 'Vật tư', 'Nhân sự', 'Tổng CP'].map((h) => <th key={h} style={{ padding: '4px 6px', textAlign: 'left', color: 'var(--t-2)' }}>{h}</th>)}
+                </tr></thead>
+                <tbody>{rpCost.map((r) => (
+                  <tr key={r.departmentId} style={{ borderBottom: '1px solid var(--line)' }}>
+                    <td style={{ padding: '4px 6px' }}>{r.departmentName || r.departmentCode}</td>
+                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{fmtVNDg(r.medicineCost)}</td>
+                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{fmtVNDg(r.supplyCost)}</td>
+                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{fmtVNDg(r.personnelCost)}</td>
+                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{fmtVNDg(r.totalCost)}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            ) : null}
+          />
+          <RptCard title="Đối soát BHYT" desc="QĐ 6556/BYT · Chênh lệch quyết toán" loading={rpLoading === 'ins'}
+            onLoad={async () => { setRpLoading('ins'); try { const r = await financeApi.getInsuranceReconciliation(reportFrom, reportTo); setRpInsurance(r.data as InsuranceReconciliationDto); } finally { setRpLoading(null); } }}
+            hasData={!!rpInsurance}
+            content={rpInsurance ? (
+              <div style={{ fontSize: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--line)' }}>
+                  <span style={{ color: 'var(--t-2)' }}>Tổng BN</span><span style={{ fontFamily: 'var(--font-mono)' }}>{(rpInsurance.totalPatients || 0).toLocaleString('vi-VN')}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--line)' }}>
+                  <span style={{ color: 'var(--t-2)' }}>Tổng lượt khám</span><span style={{ fontFamily: 'var(--font-mono)' }}>{(rpInsurance.totalVisits || 0).toLocaleString('vi-VN')}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--line)' }}>
+                  <span style={{ color: 'var(--t-2)' }}>BV tính</span><span style={{ fontFamily: 'var(--font-mono)' }}>{fmtVNDg(rpInsurance.hospitalCalculation)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--line)' }}>
+                  <span style={{ color: 'var(--t-2)' }}>BHYT tính</span><span style={{ fontFamily: 'var(--font-mono)' }}>{fmtVNDg(rpInsurance.insuranceCalculation)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                  <span style={{ fontWeight: 600 }}>Chênh lệch</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: (rpInsurance.difference || 0) > 0 ? 'var(--a-em-text)' : 'var(--a-rd-text)' }}>
+                    {fmtVNDg(rpInsurance.difference)} ({fmtPct(rpInsurance.differencePercentage)})
+                  </span>
+                </div>
+              </div>
+            ) : null}
+          />
+          <RptCard title="Lợi nhuận phẫu thuật" desc="Doanh thu · Chi phí · Biên LN từng loại mổ" loading={rpLoading === 'surg'}
+            onLoad={async () => { setRpLoading('surg'); try { const r = await financeApi.getSurgeryProfitReport(reportFrom, reportTo); setRpSurgery((r.data || []) as SurgeryProfitReportDto[]); } finally { setRpLoading(null); } }}
+            hasData={!!rpSurgery}
+            content={rpSurgery ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead><tr style={{ borderBottom: '1px solid var(--line)' }}>
+                  {['Loại mổ', 'SL', 'Doanh thu', 'Chi phí', 'LN%'].map((h) => <th key={h} style={{ padding: '4px 6px', textAlign: 'left', color: 'var(--t-2)' }}>{h}</th>)}
+                </tr></thead>
+                <tbody>{rpSurgery.map((r) => (
+                  <tr key={r.surgeryId} style={{ borderBottom: '1px solid var(--line)' }}>
+                    <td style={{ padding: '4px 6px' }}>{r.surgeryName}</td>
+                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{r.surgeryCount}</td>
+                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{fmtVNDg(r.totalRevenue)}</td>
+                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)' }}>{fmtVNDg(r.totalCost)}</td>
+                    <td style={{ padding: '4px 6px', fontFamily: 'var(--font-mono)', color: r.profitMargin >= 0 ? 'var(--a-em-text)' : 'var(--a-rd-text)' }}>{fmtPct(r.profitMargin)}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            ) : null}
+          />
+          <RptCard title="Tổng hợp thu chi" desc="Doanh thu · Chi phí · Lợi nhuận ròng" loading={rpLoading === 'sum'}
+            onLoad={async () => { setRpLoading('sum'); try { const r = await financeApi.getFinancialSummary(reportFrom, reportTo); setRpSummary(r.data as FinancialSummaryReportDto); } finally { setRpLoading(null); } }}
+            hasData={!!rpSummary}
+            content={rpSummary ? (
+              <div style={{ fontSize: 12 }}>
+                {[
+                  { l: 'Tổng doanh thu', v: fmtVNDg(rpSummary.totalRevenue), tone: 'info' },
+                  { l: '  BHYT', v: fmtVNDg(rpSummary.insuranceRevenue) },
+                  { l: '  Bệnh nhân', v: fmtVNDg(rpSummary.patientRevenue) },
+                  { l: 'Tổng chi phí', v: fmtVNDg(rpSummary.totalCost), tone: 'warn' },
+                  { l: '  Thuốc', v: fmtVNDg(rpSummary.medicineCost) },
+                  { l: '  Nhân sự', v: fmtVNDg(rpSummary.personnelCost) },
+                  { l: 'Lợi nhuận gộp', v: fmtVNDg(rpSummary.grossProfit), tone: rpSummary.grossProfit >= 0 ? 'ok' : 'crit' },
+                  { l: 'Lợi nhuận ròng', v: `${fmtVNDg(rpSummary.netProfit)} (${fmtPct(rpSummary.profitMargin)})`, tone: rpSummary.netProfit >= 0 ? 'ok' : 'crit', bold: true },
+                ].map(({ l, v, tone, bold }) => (
+                  <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid var(--line)', fontWeight: bold ? 700 : 400, color: tone === 'ok' ? 'var(--a-em-text)' : tone === 'crit' ? 'var(--a-rd-text)' : tone === 'info' ? 'var(--a-cy-text)' : tone === 'warn' ? 'var(--a-or-text)' : 'var(--t-0)' }}>
+                    <span>{l}</span><span style={{ fontFamily: 'var(--font-mono)' }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          />
+        </div>
+      )}
+
+      {/* ===== Dept Detail Drawer ===== */}
+      <DrawerShell
+        open={!!deptSel}
+        onClose={() => setDeptSel(null)}
+        size="md"
+        title={deptSel ? `${deptSel.departmentName || deptSel.departmentCode}` : ''}
+        sub={deptSel ? `Doanh thu · ${dayjs(reportFrom).format('DD/MM')} – ${dayjs(reportTo).format('DD/MM/YYYY')}` : ''}
+        footer={<Btn variant="ghost" onClick={() => setDeptSel(null)}>Đóng</Btn>}
+      >
+        {deptSel && (
+          <DrSec title="Chi tiết doanh thu">
+            <div style={{ padding: 'var(--space-14)', background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)' }}>
+              {[
+                { l: 'BHYT chi trả', v: fmtVNDg(deptSel.insuranceRevenue), color: 'var(--a-cy-text)' },
+                { l: 'Viện phí', v: fmtVNDg(deptSel.patientRevenue), color: 'var(--a-em-text)' },
+                { l: 'Dịch vụ', v: fmtVNDg(deptSel.serviceRevenue), color: 'var(--a-or-text)' },
+                { l: 'Số BN', v: (deptSel.patientCount || 0).toLocaleString('vi-VN'), color: 'var(--t-0)' },
+              ].map(({ l, v, color }) => (
+                <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--line)', color }}>
+                  <span>{l}</span><span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{v}</span>
+                </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontWeight: 700, fontSize: 14 }}>
+                <span>Tổng doanh thu</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{fmtVNDg(deptSel.totalRevenue)}</span>
+              </div>
+            </div>
+          </DrSec>
+        )}
+      </DrawerShell>
 
       <DrawerShell
         open={!!sel}
@@ -321,6 +474,24 @@ const Row: React.FC<{ label: string; value: React.ReactNode; tone?: 'ok' | 'crit
     </div>
   );
 };
+
+const RptCard: React.FC<{
+  title: string; desc: string; loading: boolean;
+  onLoad: () => void; hasData: boolean;
+  content: React.ReactNode;
+}> = ({ title, desc, loading, onLoad, hasData, content }) => (
+  <div style={{ background: 'var(--d-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-2)', padding: 'var(--space-14)' }}>
+    <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', color: 'var(--t-0)', marginBottom: 4 }}>{title}</div>
+    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--t-2)', marginBottom: 'var(--space-10)' }}>{desc}</div>
+    {!hasData ? (
+      <Btn variant="ghost" onClick={onLoad} disabled={loading}>
+        <Ico name="download" size={12} /> {loading ? 'Đang tải…' : 'Tải báo cáo'}
+      </Btn>
+    ) : (
+      <div style={{ maxHeight: 220, overflowY: 'auto' }}>{content}</div>
+    )}
+  </div>
+);
 
 // Thanh "biểu đồ" cơ cấu doanh thu theo đối tượng (BHYT/Viện phí/Dịch vụ) — thay thế <Progress> antd v1
 const CompositionBar: React.FC<{ label: string; value: number; pct: number; color: string }> = ({ label, value, pct, color }) => (

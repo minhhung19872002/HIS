@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   searchDiseaseReports, getEpiStats, updateDiseaseReport, reportDisease, searchOutbreaks,
@@ -98,22 +98,31 @@ const EpidemiologyV2: React.FC = () => {
   const [search, setSearch] = useState('');
   const [stab, setStab] = useState<SKey | 'all'>('all');
   const [fGroup, setFGroup] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<DiseaseReport | null>(null);
   const [crudOpen, setCrudOpen] = useState(false);
   const [crudInit, setCrudInit] = useState<Record<string, unknown> | null>(null);
   const [newReportOpen, setNewReportOpen] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [list, s] = await Promise.all([searchDiseaseReports({ keyword: search }), getEpiStats()]);
+      const [list, s] = await Promise.all([
+        searchDiseaseReports({
+          keyword: search || undefined,
+          fromDate: fromDate || undefined,
+          toDate: toDate || undefined,
+        }),
+        getEpiStats(),
+      ]);
       setItems(list);
       setStats(s);
     } catch { ti('Không tải được báo cáo dịch tễ'); }
     finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  }, [search, fromDate, toDate]);
+  useEffect(() => { load(); }, [load]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: items.length };
@@ -274,9 +283,34 @@ const EpidemiologyV2: React.FC = () => {
     ) },
   ];
 
+  const SEL_DATE: React.CSSProperties = {
+    height: 28, padding: '0 6px', borderRadius: 4, border: '1px solid var(--line)',
+    background: 'var(--bg-1)', fontSize: 13,
+  };
+
+  const activeOutbreakCount = stats?.activeOutbreaks ?? 0;
+
   return (
     <div className="ab">
       <TopTabs<MainTab> tab={tab} setTab={setTab} tabs={TOP_TABS} />
+
+      {/* Cross-tab active-outbreak alert banner */}
+      {activeOutbreakCount > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px',
+          background: 'color-mix(in srgb, var(--s-crit) 10%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--s-crit) 30%, transparent)',
+          borderRadius: 6, marginBottom: 8, fontSize: 13,
+        }}>
+          <Ico name="alert" size={14} />
+          <span style={{ fontWeight: 600, color: 'var(--s-crit)' }}>
+            {activeOutbreakCount} ổ dịch đang hoạt động cần theo dõi khẩn
+          </span>
+          <Btn variant="ghost" onClick={() => setTab('outbreaks')} style={{ marginLeft: 'auto', fontSize: 12 }}>
+            Xem ổ dịch →
+          </Btn>
+        </div>
+      )}
 
       {/* ════════════ TAB: BÁO CÁO CA BỆNH ════════════ */}
       {tab === 'reports' && (
@@ -284,15 +318,17 @@ const EpidemiologyV2: React.FC = () => {
           <KpiStrip items={[
             { lbl: 'Tổng báo cáo', val: stats?.totalReports ?? items.length, sub: 'tổng số' },
             { lbl: 'XN khẳng định', val: stats?.confirmedCases ?? items.filter((r) => r.labConfirmed).length, sub: 'có chắc chắn', tone: 'info' },
-            { lbl: 'Ổ dịch', val: stats?.activeOutbreaks ?? 0, sub: 'đang hoạt động', tone: 'warn' },
-            { lbl: 'Tử vong', val: stats?.deathCount ?? 0, sub: 'liên quan', tone: 'crit' },
+            { lbl: 'Ổ dịch',       val: activeOutbreakCount, sub: 'đang hoạt động', tone: 'warn' },
+            { lbl: 'Tử vong',      val: stats?.deathCount ?? 0, sub: 'liên quan', tone: 'crit' },
           ]} />
 
           <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
             <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
               placeholder="Tìm BN / mã BC / bệnh…" />
             <Filter value={fGroup} onChange={setFGroup} options={groupOpts} placeholder="▾ Nhóm bệnh" />
-            <Btn variant="ghost" onClick={() => { setSearch(''); setFGroup(''); setStab('all'); }}>
+            <input type="date" style={SEL_DATE} value={fromDate} onChange={(e) => { setFromDate(e.target.value); setPage(0); }} title="Từ ngày" />
+            <input type="date" style={SEL_DATE} value={toDate} onChange={(e) => { setToDate(e.target.value); setPage(0); }} title="Đến ngày" />
+            <Btn variant="ghost" onClick={() => { setSearch(''); setFGroup(''); setFromDate(''); setToDate(''); setStab('all'); }}>
               <Ico name="x" size={12} /> Bỏ lọc
             </Btn>
             <span className="spacer" />

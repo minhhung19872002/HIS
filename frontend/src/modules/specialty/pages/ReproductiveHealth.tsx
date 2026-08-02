@@ -130,10 +130,12 @@ const ReproductiveHealthV2: React.FC = () => {
   const [prenatalLoading, setPrenatalLoading] = useState(true);
   const [serverStats, setServerStats]     = useState<ReproductiveHealthStats>(EMPTY_STATS);
 
-  const [prenatalSearch, setPrenatalSearch] = useState('');
-  const [prenatalStatus, setPrenatalStatus] = useState<PrenatalStatus | 'all'>('all');
-  const [prenatalRisk,   setPrenatalRisk]   = useState('');
-  const [prenatalPage,   setPrenatalPage]   = useState(0);
+  const [prenatalSearch,   setPrenatalSearch]   = useState('');
+  const [prenatalStatus,   setPrenatalStatus]   = useState<PrenatalStatus | 'all'>('all');
+  const [prenatalRisk,     setPrenatalRisk]     = useState('');
+  const [prenatalFromDate, setPrenatalFromDate] = useState('');
+  const [prenatalToDate,   setPrenatalToDate]   = useState('');
+  const [prenatalPage,     setPrenatalPage]     = useState(0);
   const [prenatalSel,    setPrenatalSel]    = useState<PrenatalRecord | null>(null);
   const [prenatalCrudOpen, setPrenatalCrudOpen] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -142,14 +144,19 @@ const ReproductiveHealthV2: React.FC = () => {
   const loadPrenatal = useCallback(async () => {
     setPrenatalLoading(true);
     const [prenatalRes, statsRes] = await Promise.allSettled([
-      searchPrenatal(),
+      searchPrenatal({
+        keyword: prenatalSearch || undefined,
+        riskLevel: prenatalRisk || undefined,
+        fromDate: prenatalFromDate || undefined,
+        toDate: prenatalToDate || undefined,
+      }),
       getStats(),
       getHighRiskPregnancies(), // parallel warm-up; count comes from stats
     ]);
     if (prenatalRes.status === 'fulfilled') setPrenatalRows(prenatalRes.value);
     if (statsRes.status  === 'fulfilled') setServerStats(statsRes.value);
     setPrenatalLoading(false);
-  }, []);
+  }, [prenatalSearch, prenatalRisk, prenatalFromDate, prenatalToDate]);
 
   useEffect(() => { void loadPrenatal(); }, [loadPrenatal]);
 
@@ -292,6 +299,13 @@ const ReproductiveHealthV2: React.FC = () => {
               options={RISK_OPTIONS}
               placeholder="▾ Mức rủi ro"
             />
+            <input type="date" style={{ height: 28, padding: '0 6px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--bg-1)', fontSize: 13 }}
+              value={prenatalFromDate} onChange={(e) => { setPrenatalFromDate(e.target.value); setPrenatalPage(0); }} title="Từ ngày" />
+            <input type="date" style={{ height: 28, padding: '0 6px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--bg-1)', fontSize: 13 }}
+              value={prenatalToDate} onChange={(e) => { setPrenatalToDate(e.target.value); setPrenatalPage(0); }} title="Đến ngày" />
+            <button type="button" className="ab-btn ghost" onClick={() => { setPrenatalSearch(''); setPrenatalRisk(''); setPrenatalFromDate(''); setPrenatalToDate(''); setPrenatalStatus('all'); }}>
+              Bỏ lọc
+            </button>
             <span className="spacer" />
             <button
               type="button"

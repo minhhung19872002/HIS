@@ -35,7 +35,10 @@ export const CrudModal: React.FC<{
   size?: 'sm' | 'md' | 'lg' | 'xl';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onSubmit: (values: Record<string, any>, editing: boolean) => Promise<void>;
-}> = ({ open, onClose, title, sub, fields, initial, size = 'md', onSubmit }) => {
+  // cho parent theo dõi giá trị form (vd: hiện/ẩn field theo lựa chọn) — pass-through Antd Form
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onValuesChange?: (changed: Record<string, any>, all: Record<string, any>) => void;
+}> = ({ open, onClose, title, sub, fields, initial, size = 'md', onSubmit, onValuesChange }) => {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const editing = !!(initial && initial.id);
@@ -67,7 +70,7 @@ export const CrudModal: React.FC<{
         <button type="button" className="ab-btn" onClick={onClose}>Huỷ</button>
         <button type="button" className="ab-btn primary" disabled={saving} onClick={submit}>{saving ? 'Đang lưu…' : 'Lưu'}</button>
       </>}>
-      <Form form={form} layout="vertical" scrollToFirstError requiredMark>
+      <Form form={form} layout="vertical" scrollToFirstError requiredMark onValuesChange={onValuesChange}>
         {fields.map((f) => (
           <Form.Item key={f.key} name={f.key} label={f.label}
             valuePropName={f.type === 'switch' ? 'checked' : undefined}

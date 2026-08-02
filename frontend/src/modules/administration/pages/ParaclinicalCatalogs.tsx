@@ -199,6 +199,12 @@ const ParaclinicalCatalogsV2: React.FC = () => {
       if (!code) { te('Mã máy không được để trống'); return; }
       if (!name) { te('Tên máy không được để trống'); return; }
       payload = { ...edit, code, name };
+    } else if (tab === 'svc') {
+      if (!(edit as any).serviceId) { te('Vui lòng chọn dịch vụ'); return; }
+      if (!(edit as any).machineCodeId) { te('Vui lòng chọn máy'); return; }
+    } else if (tab === 'rooms') {
+      if (!(edit as any).serviceId) { te('Vui lòng chọn dịch vụ'); return; }
+      if (!(edit as any).roomId) { te('Vui lòng chọn phòng'); return; }
     }
     try {
       if (tab === 'machines')   await api.saveMachineCode(payload as Partial<api.MachineCodeDto>);

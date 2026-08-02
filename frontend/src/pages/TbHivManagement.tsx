@@ -158,7 +158,7 @@ const TbHivManagement: React.FC = () => {
           status: statusMap[activeTab],
           fromDate: dateRange?.[0]?.format('YYYY-MM-DD'),
           toDate: dateRange?.[1]?.format('YYYY-MM-DD'),
-          page: pagination.current,
+          page: pagination.current - 1, // adapter nhận pageIndex 0-based
           pageSize: pagination.pageSize,
         }),
         tbHivApi.getTbHivStatistics(),
@@ -167,11 +167,11 @@ const TbHivManagement: React.FC = () => {
       if (results[0].status === 'fulfilled') {
         const data = results[0].value;
         let items = data.items || [];
-        // Special filtering for "failed/defaulted" tab — backend Status is a
-        // string enum name, not a numeric code.
+        // Special filtering for "failed/defaulted" tab — api adapter đã map status
+        // về mã số (2=Failed, 3=Defaulted, 4=Died).
         if (activeTab === 'failed') {
-          const bad = ['Failed', 'DefaultedLostToFollowUp', 'Died'];
-          items = items.filter((r) => bad.includes(String(r.status)));
+          const bad = [2, 3, 4];
+          items = items.filter((r) => bad.includes(Number(r.status)));
         }
         setRecords(items);
         setTotalCount(data.totalCount || 0);
@@ -276,14 +276,9 @@ const TbHivManagement: React.FC = () => {
     }
   };
 
-  const handlePrint = async (id: string) => {
-    try {
-      const blob = await tbHivApi.printTreatmentCard(id);
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-    } catch {
-      message.warning('Khong the in phieu dieu tri');
-    }
+  const handlePrint = async (_id: string) => {
+    // BE không có endpoint in phiếu; chức năng in đầy đủ nằm ở giao diện v2 (Y tế công cộng → Lao/HIV)
+    message.info('In phiếu điều trị: dùng giao diện v2 (Y tế công cộng → Quản lý Lao/HIV)');
   };
 
   const columns: ColumnsType<TbHivRecordDto> = [

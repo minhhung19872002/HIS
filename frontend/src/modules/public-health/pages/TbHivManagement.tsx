@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  getTbHivRecords, getTbHivStatistics, getFollowUps,
-  createTbHivRecord, updateTbHivRecord, createFollowUp, printTreatmentCard,
+  getTbHivRecords, getTbHivRecordById, getTbHivStatistics, getFollowUps,
+  createTbHivRecord, updateTbHivRecord, createFollowUp,
 } from '../api/tbHivManagement';
+import { openPrintWindow, escapeHtml as esc } from '../../../utils/printWindow';
 import type {
   TbHivRecordDto, TbHivFollowUpDto, TbHivStatisticsDto,
   CreateTbHivRecordDto, CreateTbHivFollowUpDto,
@@ -75,20 +76,26 @@ const ADHERENCE_OPTIONS = [
   { value: 2, label: 'Kém' },
 ];
 
-// CrudModal render tĩnh toàn bộ field → khối Lao/HIV để optional, nhập theo loại hồ sơ đã chọn
-const RECORD_FIELDS: CrudFieldCfg[] = [
+// Khối Lao/HIV hiện theo loại hồ sơ đang chọn trong modal (parity v1) — ghép trong recFields useMemo
+const RECORD_BASE_FIELDS: CrudFieldCfg[] = [
   { key: 'patientId', label: 'Mã bệnh nhân', required: true, placeholder: 'Mã bệnh nhân' },
   { key: 'recordType', label: 'Loại hồ sơ', type: 'select', required: true, options: TYPE_OPTIONS },
   { key: 'treatmentCategory', label: 'Phân loại điều trị', type: 'select', required: true, options: CATEGORY_OPTIONS },
   { key: 'regimen', label: 'Phác đồ điều trị', required: true, placeholder: 'VD: 2RHZE/4RH, TDF/3TC/DTG' },
   { key: 'startDate', label: 'Ngày bắt đầu điều trị', type: 'date', required: true },
+];
+const RECORD_TB_FIELDS: CrudFieldCfg[] = [
   { key: 'sputumSmearResult', label: 'Kết quả soi đờm (Lao)', type: 'select', options: AFB_OPTIONS },
   { key: 'geneXpertResult', label: 'Kết quả GeneXpert (Lao)', type: 'select', options: GENEXPERT_OPTIONS },
-  { key: 'cd4Count', label: 'CD4 (tế bào/µL) (HIV)', type: 'number', placeholder: '0' },
-  { key: 'viralLoad', label: 'Viral Load (copies/mL) (HIV)', type: 'number', placeholder: '0' },
-  { key: 'artRegimen', label: 'Phác đồ ART (HIV)', placeholder: 'VD: TDF/3TC/DTG' },
-  { key: 'notes', label: 'Ghi chú', type: 'textarea', placeholder: 'Ghi chú thêm…' },
 ];
+const CD4_RULES = [{ type: 'number' as const, min: 0, max: 3000, message: 'CD4 trong khoảng 0–3000' }];
+const VL_RULES = [{ type: 'number' as const, min: 0, message: 'Viral Load không âm' }];
+const RECORD_HIV_FIELDS: CrudFieldCfg[] = [
+  { key: 'cd4Count', label: 'CD4 (tế bào/µL) (HIV)', type: 'number', placeholder: '0', rules: CD4_RULES },
+  { key: 'viralLoad', label: 'Viral Load (copies/mL) (HIV)', type: 'number', placeholder: '0', rules: VL_RULES },
+  { key: 'artRegimen', label: 'Phác đồ ART (HIV)', placeholder: 'VD: TDF/3TC/DTG' },
+];
+const RECORD_NOTES_FIELD: CrudFieldCfg = { key: 'notes', label: 'Ghi chú', type: 'textarea', placeholder: 'Ghi chú thêm…' };
 
 const numOrUndef = (v: unknown): number | undefined =>
   v === undefined || v === null || v === '' ? undefined : Number(v);
@@ -122,44 +129,92 @@ const TbHivManagementV2: React.FC = () => {
   const [editRecord, setEditRecord] = useState<TbHivRecordDto | null>(null);
   const [fuOpen, setFuOpen] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const [rec, st] = await Promise.allSettled([
-        getTbHivRecords({ pageSize: 500 }),
+        getTbHivRecords({
+          pageSize: 500,
+          keyword: search.trim() || undefined,
+          recordType: typeFilter || undefined,
+          treatmentCategory: categoryFilter || undefined,
+          fromDate: fromDate || undefined,
+          toDate: toDate || undefined,
+        }),
         getTbHivStatistics(),
       ]);
-      if (rec.status === 'fulfilled') {
-        const r = rec.value as unknown;
-        const items = (r as { items?: TbHivRecordDto[] })?.items
-          ?? (r as { data?: { items?: TbHivRecordDto[] } })?.data?.items
-          ?? (Array.isArray(r) ? (r as TbHivRecordDto[]) : []);
-        setRows(items);
-      }
+      if (rec.status === 'fulfilled') setRows(rec.value.items);
       if (st.status === 'fulfilled') setStats(st.value);
     } catch { tw('Không thể tải dữ liệu Lao/HIV'); }
     finally { setLoading(false); }
-  };
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [search, typeFilter, categoryFilter, fromDate, toDate]);
+  useEffect(() => {
+    setPage(0);
+    const t = setTimeout(load, 300); // debounce gõ phím → tránh spam API
+    return () => clearTimeout(t);
+  }, [load]);
 
   const openDetail = async (r: TbHivRecordDto) => {
     setSel(r);
     setFollowUps([]);
     setFuLoading(true);
-    try { setFollowUps(await getFollowUps(r.id)); }
-    catch { tw('Không thể tải lịch sử điều trị'); }
-    finally { setFuLoading(false); }
+    // List DTO của BE không có khối XN (soi đờm/CD4/VL/notes) → fetch detail để drawer đủ dữ liệu
+    const [detail, fus] = await Promise.allSettled([getTbHivRecordById(r.id), getFollowUps(r.id)]);
+    if (detail.status === 'fulfilled') setSel({ ...r, ...detail.value });
+    if (fus.status === 'fulfilled') setFollowUps(fus.value);
+    else tw('Không thể tải lịch sử điều trị');
+    setFuLoading(false);
   };
 
-  const openCreate = () => { setEditRecord(null); setCrudOpen(true); };
-  const openEdit = (r: TbHivRecordDto) => { setEditRecord(r); setCrudOpen(true); };
+  // Loại hồ sơ đang chọn trong modal → quyết định khối Lao/HIV hiển thị (parity v1)
+  const [formRecordType, setFormRecordType] = useState<number | null>(null);
+  const openCreate = () => { setEditRecord(null); setFormRecordType(null); setCrudOpen(true); };
+  const openEdit = (r: TbHivRecordDto) => { setEditRecord(r); setFormRecordType(r.recordType); setCrudOpen(true); };
 
-  const handlePrint = async (id: string) => {
-    try {
-      const blob = await printTreatmentCard(id);
-      const url = URL.createObjectURL(blob as Blob);
-      window.open(url, '_blank');
-    } catch { tw('Không thể in phiếu điều trị'); }
+  const recFields = useMemo<CrudFieldCfg[]>(() => [
+    ...RECORD_BASE_FIELDS,
+    ...(formRecordType === 0 || formRecordType === 2 ? RECORD_TB_FIELDS : []),
+    ...(formRecordType === 1 || formRecordType === 2 ? RECORD_HIV_FIELDS : []),
+    RECORD_NOTES_FIELD,
+  ], [formRecordType]);
+
+  // BE không có endpoint in phiếu → dựng phiếu điều trị client-side từ detail + follow-ups
+  const handlePrint = async (r: TbHivRecordDto) => {
+    let d = r;
+    let fus: TbHivFollowUpDto[] = [];
+    const [detail, fuRes] = await Promise.allSettled([getTbHivRecordById(r.id), getFollowUps(r.id)]);
+    if (detail.status === 'fulfilled') d = { ...r, ...detail.value };
+    if (fuRes.status === 'fulfilled') fus = fuRes.value;
+    const row = (lbl: string, val: unknown) =>
+      `<tr><td class="l">${esc(lbl)}</td><td>${esc(val ?? '—')}</td></tr>`;
+    const fuRows = fus.map((f) =>
+      `<tr><td>${esc(fmtDMYg(f.visitDate))}</td><td>T${esc(f.treatmentMonth)}</td>` +
+      `<td>${esc(ADHERENCE_LABEL[f.drugAdherence] ?? '—')}</td>` +
+      `<td>${esc(f.weight != null ? `${f.weight}kg` : '—')}</td>` +
+      `<td>${esc([f.sputumSmearResult, f.cd4Count != null ? `CD4 ${f.cd4Count}` : '', f.viralLoad != null ? `VL ${f.viralLoad}` : ''].filter(Boolean).join(' · ') || '—')}</td></tr>`
+    ).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Phiếu điều trị ${esc(d.registrationCode)}</title>
+<style>
+  body{font-family:'Times New Roman',serif;max-width:760px;margin:auto;padding:24px;font-size:14px;color:#000}
+  h2{text-align:center;margin:12px 0 4px}  .sub{text-align:center;margin-bottom:16px;font-style:italic}
+  table{width:100%;border-collapse:collapse;margin-bottom:14px}
+  td,th{border:1px solid #444;padding:5px 8px;text-align:left;vertical-align:top}
+  td.l{width:180px;font-weight:bold;background:#f3f3f3}
+  h3{margin:14px 0 6px;font-size:15px}
+</style></head><body>
+<h2>PHIẾU ĐIỀU TRỊ ${d.recordType === 1 ? 'HIV' : d.recordType === 2 ? 'LAO/HIV' : 'LAO'}</h2>
+<div class="sub">Mã đăng ký: ${esc(d.registrationCode)}</div>
+<h3>Bệnh nhân</h3>
+<table>${row('Họ tên', d.patientName)}${row('Mã BN', d.patientCode)}${row('Loại hồ sơ', TYPE_LABEL[d.recordType])}${row('Phân loại điều trị', CATEGORY_LABEL[d.treatmentCategory] ?? 'Khác')}</table>
+<h3>Điều trị</h3>
+<table>${row('Phác đồ', d.regimen)}${row('Bắt đầu', fmtDMYg(d.startDate))}${row('Trạng thái', STATUS_TABS.find((x) => x.v === statusKey(d.status))?.l)}${d.recordType !== 1 ? row('Soi đờm (AFB)', d.sputumSmearResult) + row('GeneXpert', d.geneXpertResult) : ''}${d.recordType !== 0 ? row('CD4', d.cd4Count != null ? `${d.cd4Count} tế bào/µL` : '—') + row('Viral Load', d.viralLoad != null ? `${d.viralLoad} copies/mL` : '—') + row('Phác đồ ART', d.artRegimen) : ''}${d.notes ? row('Ghi chú', d.notes) : ''}</table>
+<h3>Lịch sử điều trị (${fus.length})</h3>
+<table><tr><th>Ngày khám</th><th>Tháng ĐT</th><th>Tuân thủ</th><th>Cân nặng</th><th>Xét nghiệm</th></tr>${fuRows || '<tr><td colspan="5">Chưa có lần điều trị nào</td></tr>'}</table>
+</body></html>`;
+    openPrintWindow(html, {
+      focus: true, print: 'immediate',
+      onBlocked: () => tw('Popup bị chặn — hãy cho phép popup để in phiếu'),
+    });
   };
 
   const submitRecord = async (v: Record<string, unknown>, editing: boolean) => {
@@ -207,8 +262,10 @@ const TbHivManagementV2: React.FC = () => {
     const rt = sel ? Number(sel.recordType) : -1;
     const f: CrudFieldCfg[] = [
       { key: 'visitDate', label: 'Ngày khám', type: 'date', required: true },
-      { key: 'treatmentMonth', label: 'Tháng điều trị', type: 'number', required: true, placeholder: '1' },
-      { key: 'weight', label: 'Cân nặng (kg)', type: 'number', placeholder: '0' },
+      { key: 'treatmentMonth', label: 'Tháng điều trị', type: 'number', placeholder: '1',
+        rules: [{ required: true, message: 'Nhập Tháng điều trị' }, { type: 'number', min: 1, max: 36, message: 'Tháng điều trị 1–36' }] },
+      { key: 'weight', label: 'Cân nặng (kg)', type: 'number', placeholder: '0',
+        rules: [{ type: 'number', min: 0, max: 300, message: 'Cân nặng 0–300kg' }] },
       { key: 'drugAdherence', label: 'Tuân thủ thuốc', type: 'select', required: true, options: ADHERENCE_OPTIONS },
       { key: 'sideEffects', label: 'Tác dụng phụ', type: 'textarea', placeholder: 'Mô tả tác dụng phụ (nếu có)…' },
     ];
@@ -216,8 +273,8 @@ const TbHivManagementV2: React.FC = () => {
       f.push({ key: 'sputumSmearResult', label: 'Kết quả soi đờm', type: 'select', options: AFB_OPTIONS });
     }
     if (rt === 1 || rt === 2) {
-      f.push({ key: 'cd4Count', label: 'CD4 (tế bào/µL)', type: 'number', placeholder: '0' });
-      f.push({ key: 'viralLoad', label: 'Viral Load (copies/mL)', type: 'number', placeholder: '0' });
+      f.push({ key: 'cd4Count', label: 'CD4 (tế bào/µL)', type: 'number', placeholder: '0', rules: CD4_RULES });
+      f.push({ key: 'viralLoad', label: 'Viral Load (copies/mL)', type: 'number', placeholder: '0', rules: VL_RULES });
     }
     f.push({ key: 'notes', label: 'Ghi chú', type: 'textarea', placeholder: 'Ghi chú thêm…' });
     return f;
@@ -244,20 +301,11 @@ const TbHivManagementV2: React.FC = () => {
 
   const counts = useTabCounts(rows, STATUS_TABS, (r) => statusKey(r.status));
 
-  const filtered = useMemo(() => {
-    const k = search.trim().toLowerCase();
-    return rows.filter((r) => {
-      if (stab !== 'all' && statusKey(r.status) !== stab) return false;
-      if (typeFilter && String(r.recordType) !== typeFilter) return false;
-      if (categoryFilter && String(r.treatmentCategory) !== categoryFilter) return false;
-      const sd = (r.startDate || '').slice(0, 10); // ISO YYYY-MM-DD → so sánh chuỗi
-      if (fromDate && (!sd || sd < fromDate)) return false;
-      if (toDate && (!sd || sd > toDate)) return false;
-      if (!k) return true;
-      return [r.patientName, r.patientCode, r.registrationCode, r.regimen, r.artRegimen]
-        .some((v) => (v || '').toLowerCase().includes(k));
-    });
-  }, [rows, search, stab, typeFilter, categoryFilter, fromDate, toDate]);
+  // keyword/loại/phân loại/ngày đã lọc server-side trong load(); chỉ còn tab trạng thái client-side
+  const filtered = useMemo(
+    () => rows.filter((r) => stab === 'all' || statusKey(r.status) === stab),
+    [rows, stab],
+  );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);
@@ -290,7 +338,7 @@ const TbHivManagementV2: React.FC = () => {
       {statusKey(r.status) === 'onTreatment' && (
         <ActBtn ic="edit" title="Chỉnh sửa" onClick={() => openEdit(r)} />
       )}
-      <ActBtn ic="printer" title="In phiếu điều trị" onClick={() => handlePrint(r.id)} />
+      <ActBtn ic="printer" title="In phiếu điều trị" onClick={() => handlePrint(r)} />
     </div>
   );
 
@@ -368,7 +416,7 @@ const TbHivManagementV2: React.FC = () => {
         footer={(
           <>
             <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
-            <Btn variant="ghost" icon="printer" onClick={() => sel && handlePrint(sel.id)}>In phiếu</Btn>
+            <Btn variant="ghost" icon="printer" onClick={() => sel && handlePrint(sel)}>In phiếu</Btn>
             {sel && statusKey(sel.status) === 'onTreatment' && (
               <Btn variant="primary" icon="plus" onClick={() => setFuOpen(true)}>Thêm lần điều trị</Btn>
             )}
@@ -483,13 +531,14 @@ const TbHivManagementV2: React.FC = () => {
       {/* ── Modal tạo/sửa hồ sơ ── */}
       <CrudModal
         open={crudOpen}
-        onClose={() => { setCrudOpen(false); setEditRecord(null); }}
+        onClose={() => { setCrudOpen(false); setEditRecord(null); setFormRecordType(null); }}
         title={editRecord ? 'Chỉnh sửa hồ sơ Lao/HIV' : 'Thêm hồ sơ Lao/HIV'}
-        sub="Khối Lao (soi đờm/GeneXpert) và HIV (CD4/VL/ART) nhập theo loại hồ sơ"
-        fields={RECORD_FIELDS}
+        sub="Chọn loại hồ sơ → khối Lao (soi đờm/GeneXpert) / HIV (CD4/VL/ART) hiện tương ứng"
+        fields={recFields}
         initial={recordInitial}
         size="lg"
         onSubmit={submitRecord}
+        onValuesChange={(ch) => { if ('recordType' in ch) setFormRecordType(ch.recordType as number); }}
       />
 
       {/* ── Modal thêm lần điều trị (theo dõi) ── */}

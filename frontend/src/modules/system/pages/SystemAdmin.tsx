@@ -88,6 +88,7 @@ const SystemAdminV2: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selUser, setSelUser] = useState<SystemUserDto | null>(null);
   const [selBranch, setSelBranch] = useState<BranchRecord | null>(null);
+  const [selAudit, setSelAudit] = useState<AuditLogDto | null>(null);
 
   // ─── User modal ───
   const [userModal, setUserModal] = useState<'new' | 'edit' | null>(null);
@@ -580,7 +581,8 @@ const SystemAdminV2: React.FC = () => {
               Xuất Excel
             </Btn>
           </div>
-          <DataTable<AuditLogDto> columns={auditColumns} data={audit} rowKey={(a) => String(a.id ?? '')} empty={loading ? 'Đang tải…' : 'Chưa có nhật ký'} />
+          <DataTable<AuditLogDto> columns={auditColumns} data={audit} rowKey={(a) => String(a.id ?? '')}
+            onRowClick={(a) => setSelAudit(a)} empty={loading ? 'Đang tải…' : 'Chưa có nhật ký'} />
           <Pager page={auditPage} totalPages={Math.max(1, Math.ceil(auditTotal / 50))} setPage={setAuditPage} total={auditTotal} perPage={50} />
         </>
       )}
@@ -596,6 +598,49 @@ const SystemAdminV2: React.FC = () => {
       {tab === 'health' && <HealthPanel />}
       {tab === 'emr-admin' && <EmrAdminPanel />}
       {tab === 'delegation' && <DelegationPanel />}
+
+      {/* ─── Audit log detail drawer (request/IP/UA + old→new diff, parity v1 AuditTab) ─── */}
+      <DrawerShell open={!!selAudit} onClose={() => setSelAudit(null)} size="md"
+        title={selAudit ? `${selAudit.action}${selAudit.entityType ? ` · ${selAudit.entityType}` : ''}` : ''}
+        sub={selAudit ? dayjs(selAudit.timestamp).format('DD/MM/YYYY HH:mm:ss') : ''}>
+        {selAudit && (() => {
+          const pretty = (s?: string) => {
+            if (!s) return null;
+            try { return JSON.stringify(JSON.parse(s), null, 2); } catch { return s; }
+          };
+          const mono: React.CSSProperties = {
+            fontFamily: 'var(--font-mono)', fontSize: 11.5, whiteSpace: 'pre-wrap',
+            background: 'var(--bg-1)', border: '1px solid var(--line-soft)',
+            borderRadius: 'var(--r-2)', padding: '6px 8px', maxHeight: 240, overflow: 'auto',
+          };
+          const oldV = pretty(selAudit.oldValues); const newV = pretty(selAudit.newValues);
+          return (<>
+            <DrSec title="Sự kiện">
+              <DrField lbl="Người dùng"><b>{selAudit.userFullName || selAudit.userName || '—'}</b></DrField>
+              <DrField lbl="Hành động">{selAudit.action}</DrField>
+              <DrField lbl="Phân hệ">{selAudit.module || '—'}</DrField>
+              <DrField lbl="Đối tượng">{selAudit.entityType || '—'}{selAudit.entityId ? <span className="mono"> · {selAudit.entityId}</span> : null}</DrField>
+              {selAudit.responseStatusCode != null && <DrField lbl="HTTP status"><span className="mono">{selAudit.responseStatusCode}</span></DrField>}
+            </DrSec>
+            <DrSec title="Request">
+              <DrField lbl="Endpoint"><span className="mono">{selAudit.requestMethod || '—'} {selAudit.requestPath || ''}</span></DrField>
+              <DrField lbl="Địa chỉ IP"><span className="mono">{selAudit.ipAddress || '—'}</span></DrField>
+              {selAudit.userAgent && <DrField lbl="User-Agent"><span style={{ fontSize: 11.5, wordBreak: 'break-all' }}>{selAudit.userAgent}</span></DrField>}
+            </DrSec>
+            {selAudit.details && (
+              <DrSec title="Chi tiết">
+                <div style={{ fontSize: 12.5, color: 'var(--t-1)', whiteSpace: 'pre-wrap' }}>{selAudit.details}</div>
+              </DrSec>
+            )}
+            {(oldV || newV) && (
+              <DrSec title="Thay đổi dữ liệu (old → new)">
+                {oldV && (<><div style={{ fontSize: 11, color: 'var(--s-crit)', margin: '2px 0' }}>Giá trị cũ</div><div style={mono}>{oldV}</div></>)}
+                {newV && (<><div style={{ fontSize: 11, color: 'var(--s-ok)', margin: '6px 0 2px' }}>Giá trị mới</div><div style={mono}>{newV}</div></>)}
+              </DrSec>
+            )}
+          </>);
+        })()}
+      </DrawerShell>
 
       {/* ─── User detail drawer ─── */}
       <DrawerShell open={!!selUser} onClose={() => setSelUser(null)} title={selUser?.fullName || ''} sub={selUser ? `@${selUser.username}` : ''} size="md">

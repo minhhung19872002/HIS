@@ -2,9 +2,21 @@ import apiClient from '../../../services/apiClient';
 
 // HSBA chuyên khoa (TT 32/2023). Tách call ra api layer (không gọi axios/client trong component).
 
-/** Tìm kiếm HSBA chuyên khoa (có phân trang). */
-export const searchSpecialtyRecords = (pageIndex = 0, pageSize = 200) =>
-  apiClient.get('/specialty-emr/search', { params: { pageIndex, pageSize } });
+/** Tìm kiếm HSBA chuyên khoa — BE SpecialtyEmrSearchDto hỗ trợ keyword/specialtyType/fromDate/toDate + phân trang. */
+export const searchSpecialtyRecords = (params: {
+  pageIndex?: number; pageSize?: number; keyword?: string;
+  specialtyType?: string; fromDate?: string; toDate?: string;
+} = {}) =>
+  apiClient.get('/specialty-emr/search', {
+    params: {
+      pageIndex: params.pageIndex ?? 0,
+      pageSize: params.pageSize ?? 200,
+      keyword: params.keyword || undefined,
+      specialtyType: params.specialtyType || undefined,
+      fromDate: params.fromDate || undefined,
+      toDate: params.toDate || undefined,
+    },
+  });
 
 /** Chi tiết 1 HSBA chuyên khoa. */
 export const getSpecialtyRecord = (id: string) => apiClient.get(`/specialty-emr/${id}`);

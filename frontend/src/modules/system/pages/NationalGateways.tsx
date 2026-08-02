@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   KpiStrip, TopTabs, DataTable, SearchBox, Filter, StatusBadge,
-  DrawerShell, ActBtn, Btn, DrSec, DrField, useListData,
+  DrawerShell, ModalShell, ActBtn, Btn, DrSec, DrField, useListData,
   type ColumnDef, type TopTab, type KpiItem, type StatusTone,
   tk, tw, te, cf, fmtDTg, fmtDMYg
 } from '@/_v2kit';
@@ -175,25 +175,48 @@ const NgRxPanel: React.FC = () => {
 
 // ────────────────────────── Dược QG ──────────────────────────
 
+const NPH_REPORT_TYPES = [
+  { value: 'DailySale',       label: 'Xuất bán hàng ngày' },
+  { value: 'NarcoticReport',  label: 'Thuốc gây nghiện / hướng thần' },
+  { value: 'AntibioticReport',label: 'Kháng sinh' },
+  { value: 'InPatientUsage',  label: 'Sử dụng nội trú' },
+];
+
 const NgPharmPanel: React.FC = () => {
   const { rows, reload } = useListData<NationalPharmacyOutboundReportDto>(
     useCallback(() => nphGateway.search({ pageSize: 200 }), []),
     useCallback(() => te('Không tải được'), []),
   );
 
+  const [genOpen, setGenOpen]       = useState(false);
+  const [reportType, setReportType] = useState('DailySale');
+  const [periodFrom, setPeriodFrom] = useState(dayjs().subtract(7, 'day').format('YYYY-MM-DD'));
+  const [periodTo, setPeriodTo]     = useState(dayjs().format('YYYY-MM-DD'));
+  const [genLoading, setGenLoading] = useState(false);
+
   const retry = async (r: NationalPharmacyOutboundReportDto) => {
     try { await nphGateway.retry(r.id); tk('Đã gửi lại'); reload(); }
     catch { te('Gửi lại thất bại'); }
   };
 
-  const generate = async () => {
+  const submitGenerate = async () => {
+    setGenLoading(true);
     try {
-      const periodFrom = dayjs().subtract(7, 'day').toISOString();
-      const periodTo = dayjs().toISOString();
-      await nphGateway.generate({ reportType: 'DailySale', periodFrom, periodTo });
-      tk('Đã tạo & gửi báo cáo');
+      await nphGateway.generate({
+        reportType,
+        periodFrom: new Date(periodFrom).toISOString(),
+        periodTo:   new Date(periodTo + 'T23:59:59').toISOString(),
+      });
+      tk(`Đã tạo & gửi báo cáo ${NPH_REPORT_TYPES.find(t => t.value === reportType)?.label}`);
+      setGenOpen(false);
       reload();
     } catch { te('Tạo báo cáo thất bại'); }
+    finally { setGenLoading(false); }
+  };
+
+  const SEL: React.CSSProperties = {
+    height: 32, padding: '0 8px', borderRadius: 4,
+    border: '1px solid var(--line)', background: 'var(--bg-1)', fontSize: 13, color: 'var(--t-0)', width: '100%',
   };
 
   const kpis: KpiItem[] = [
@@ -220,7 +243,7 @@ const NgPharmPanel: React.FC = () => {
       <KpiStrip items={kpis} />
       <div className="ab-toolbar">
         <span className="spacer" />
-        <Btn variant="primary" onClick={generate}>
+        <Btn variant="primary" onClick={() => setGenOpen(true)}>
           <TermIcon name="plus" size={12} /> Tạo &amp; gửi
         </Btn>
       </div>
@@ -230,6 +253,33 @@ const NgPharmPanel: React.FC = () => {
           ? <ActBtn ic="refresh" title="Gửi lại" onClick={() => retry(r)} />
           : null}
       />
+      <ModalShell open={genOpen} onClose={() => setGenOpen(false)} title="Tạo báo cáo Dược QG" size="sm"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setGenOpen(false)}>Huỷ</Btn>
+          <Btn variant="primary" onClick={submitGenerate} disabled={genLoading}>
+            <TermIcon name="external" size={12} /> {genLoading ? 'Đang gửi…' : 'Tạo & gửi'}
+          </Btn>
+        </>}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)', padding: 'var(--space-4) 0' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <label style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Loại báo cáo</label>
+            <select style={SEL} value={reportType} onChange={(e) => setReportType(e.target.value)}>
+              {NPH_REPORT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-10)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              <label style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Từ ngày</label>
+              <input type="date" style={SEL} value={periodFrom} onChange={(e) => setPeriodFrom(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              <label style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Đến ngày</label>
+              <input type="date" style={SEL} value={periodTo} onChange={(e) => setPeriodTo(e.target.value)} />
+            </div>
+          </div>
+        </div>
+      </ModalShell>
     </>
   );
 };

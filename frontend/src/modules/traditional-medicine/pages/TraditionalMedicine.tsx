@@ -137,6 +137,7 @@ const TraditionalMedicineV2: React.FC = () => {
   const [rxDosage, setRxDosage] = useState('');
   const [rxPrep, setRxPrep] = useState('');
   const [rxDuration, setRxDuration] = useState('7');
+  const [rxDurationUnit, setRxDurationUnit] = useState<'ngày' | 'tuần' | 'tháng'>('ngày');
   const [rxSubmitting, setRxSubmitting] = useState(false);
 
   const rxThangNum = Math.max(1, parseInt(rxThang, 10) || 1);
@@ -179,12 +180,12 @@ const TraditionalMedicineV2: React.FC = () => {
         dosage: rxDosage.trim(),
         preparation: rxPrep.trim(),
         duration: parseInt(rxDuration, 10) || 7,
-        durationUnit: 'ngày',
+        durationUnit: rxDurationUnit,
         quantity: rxThangNum, // số thang
       });
       tk('Đã tạo đơn thuốc bắc + vào viện phí');
       setRxFormOpen(false);
-      setRxRows([]); setRxThang('1'); setRxDosage(''); setRxPrep(''); setRxDuration('7');
+      setRxRows([]); setRxThang('1'); setRxDosage(''); setRxPrep(''); setRxDuration('7'); setRxDurationUnit('ngày');
       const rows = await getHerbalPrescriptions(rxTarget.id);
       setRxList(rows);
       load();
@@ -384,9 +385,17 @@ const TraditionalMedicineV2: React.FC = () => {
                 style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 'var(--fs-md)' }} />
             </div>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Số ngày dùng</span>
-              <input type="number" min={1} value={rxDuration} onChange={(e) => setRxDuration(e.target.value)}
-                style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 'var(--fs-md)' }} />
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--t-2)' }}>Thời gian dùng</span>
+              <div style={{ display: 'flex', gap: 'var(--space-6)' }}>
+                <input type="number" min={1} value={rxDuration} onChange={(e) => setRxDuration(e.target.value)}
+                  style={{ flex: 1, border: '1px solid var(--line)', borderRadius: 4, padding: '6px 10px', fontSize: 'var(--fs-md)' }} />
+                <select value={rxDurationUnit} onChange={(e) => setRxDurationUnit(e.target.value as 'ngày' | 'tuần' | 'tháng')}
+                  style={{ border: '1px solid var(--line)', borderRadius: 4, padding: '6px 8px', fontSize: 'var(--fs-md)' }}>
+                  <option value="ngày">ngày</option>
+                  <option value="tuần">tuần</option>
+                  <option value="tháng">tháng</option>
+                </select>
+              </div>
             </div>
           </div>
           {([['Liều dùng', rxDosage, setRxDosage], ['Cách bào chế', rxPrep, setRxPrep]] as [string, string, (v: string) => void][]).map(([lbl, val, setter]) => (

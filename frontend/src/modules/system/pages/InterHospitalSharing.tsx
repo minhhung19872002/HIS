@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { searchRequests, respondToRequest, createRequest } from '../api/interHospitalSharing';
-import type { InterHospitalRequest } from '../api/interHospitalSharing';
+import { searchRequests, respondToRequest, createRequest, getStats } from '../api/interHospitalSharing';
+import type { InterHospitalRequest, InterHospitalStats } from '../api/interHospitalSharing';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
@@ -38,11 +38,15 @@ const sKey = (n: number): SKey =>
 const PER = 18;
 
 const InterHospitalSharingV2: React.FC = () => {
+  const [stats, setStats] = useState<InterHospitalStats | null>(null);
   const [items, setItems] = useState<InterHospitalRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [stab, setStab] = useState<SKey | 'all'>('all');
   const [fType, setFType] = useState('');
+  const [fDir, setFDir] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<InterHospitalRequest | null>(null);
   const [respondOpen, setRespondOpen] = useState(false);
@@ -53,8 +57,8 @@ const InterHospitalSharingV2: React.FC = () => {
 
   const RESPOND_FIELDS: CrudFieldCfg[] = [
     { key: 'statusDecision', label: 'Quyết định', type: 'select', required: true, options: [
-      { value: 'approve', label: 'Chấp nhận (Approve)' },
-      { value: 'reject',  label: 'Từ chối (Reject)' }] },
+      { value: 'accept',  label: 'Tiếp nhận (Đã nhận)' },
+      { value: 'reject',  label: 'Từ chối' }] },
     { key: 'responseNotes', label: 'Nội dung phản hồi', type: 'textarea', required: true },
   ];
 
@@ -68,15 +72,24 @@ const InterHospitalSharingV2: React.FC = () => {
     { key: 'patientCode', label: 'Mã bệnh nhân' },
   ];
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await searchRequests({ keyword: search });
+      const [r, s] = await Promise.all([
+        searchRequests({
+          keyword: search || undefined,
+          direction: fDir || undefined,
+          fromDate: fromDate || undefined,
+          toDate: toDate || undefined,
+        }),
+        getStats().catch(() => null),
+      ]);
       setItems(normalizeArrayResponse<InterHospitalRequest>(r));
+      if (s) setStats(s);
     } catch { ti('Không tải được yêu cầu liên viện'); }
     finally { setLoading(false); }
-  };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  }, [search, fDir, fromDate, toDate]);
+  useEffect(() => { load(); }, [load]);
 
   const types = useMemo(() => Object.entries(TYPE_LABEL).map(([v, l]) => ({ v, l })), []);
 
@@ -96,6 +109,8 @@ const InterHospitalSharingV2: React.FC = () => {
         .some((v) => (v || '').toLowerCase().includes(k));
     });
   }, [items, search, stab, fType]);
+
+  const DIR_OPTS = [{ v: 'incoming', l: '← Vào' }, { v: 'outgoing', l: '→ Ra' }];
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);
@@ -130,7 +145,7 @@ const InterHospitalSharingV2: React.FC = () => {
   const actions = (r: InterHospitalRequest) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
-      {(r.status === 0 || r.status === 1) && (
+      {r.direction === 'incoming' && (r.status === 0 || r.status === 1) && (
         <ActBtn ic="check" title="Xử lý" onClick={() => openRespond(r)} />
       )}
     </div>
@@ -139,17 +154,22 @@ const InterHospitalSharingV2: React.FC = () => {
   return (
     <div className="ab">
       <KpiStrip items={[
-        { lbl: 'Tổng yêu cầu', val: items.length, sub: 'tất cả' },
-        { lbl: 'Chờ xử lý', val: counts.pending || 0, sub: 'cần phản hồi', tone: 'warn' },
-        { lbl: 'Khẩn / Cấp cứu', val: items.filter((r) => r.urgency !== 'normal').length, sub: 'ưu tiên', tone: 'crit' },
-        { lbl: 'Hoàn thành', val: counts.completed || 0, sub: `${Math.round(((counts.completed || 0) / Math.max(1, items.length)) * 100)}%`, tone: 'ok' },
+        { lbl: 'Tổng yêu cầu', val: stats?.totalRequests ?? items.length, sub: 'tất cả' },
+        { lbl: 'Chờ xử lý', val: stats?.pendingRequests ?? (counts.pending || 0), sub: 'cần phản hồi', tone: 'warn' },
+        { lbl: 'Hoàn thành hôm nay', val: stats?.completedToday ?? (counts.completed || 0), sub: 'hôm nay', tone: 'ok' },
+        { lbl: 'TB phản hồi', val: stats ? `${Math.round(stats.avgResponseTimeMinutes)}p` : '—', sub: 'phút/yêu cầu', tone: 'info' },
       ]} />
 
       <div className="ab-toolbar" style={{ borderTop: '1px solid var(--line)' }}>
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm chủ đề / BV / BN…" />
         <Filter value={fType} onChange={setFType} options={types} placeholder="▾ Loại YC" />
-        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setStab('all'); }}>Bỏ lọc</Btn>
+        <Filter value={fDir} onChange={setFDir} options={DIR_OPTS} placeholder="▾ Chiều" />
+        <input type="date" style={{ height: 30, padding: '0 6px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--bg-1)', fontSize: 13 }}
+          value={fromDate} onChange={(e) => { setFromDate(e.target.value); setPage(0); }} title="Từ ngày" />
+        <input type="date" style={{ height: 30, padding: '0 6px', borderRadius: 4, border: '1px solid var(--line)', background: 'var(--bg-1)', fontSize: 13 }}
+          value={toDate} onChange={(e) => { setToDate(e.target.value); setPage(0); }} title="Đến ngày" />
+        <Btn variant="ghost" icon="x" onClick={() => { setSearch(''); setFType(''); setFDir(''); setFromDate(''); setToDate(''); setStab('all'); }}>Bỏ lọc</Btn>
         <span className="spacer" />
         <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
         <Btn variant="primary" icon="plus" onClick={() => setCreateOpen(true)}>Yêu cầu mới</Btn>
@@ -174,12 +194,12 @@ const InterHospitalSharingV2: React.FC = () => {
         size="md"
         onSubmit={async (v) => {
           if (!respondTarget) return;
-          const statusCode = v.statusDecision === 'approve' ? 3 : 4; // 3=completed, 4=rejected
+          const statusCode = v.statusDecision === 'accept' ? 1 : 4; // 1=Đã nhận, 4=Từ chối
           await respondToRequest(respondTarget.id, {
             status: statusCode,
             responseNotes: v.responseNotes as string,
           });
-          tk(v.statusDecision === 'approve' ? 'Đã chấp nhận yêu cầu' : 'Đã từ chối yêu cầu');
+          tk(v.statusDecision === 'accept' ? 'Đã tiếp nhận yêu cầu' : 'Đã từ chối yêu cầu');
           load();
         }}
       />
@@ -217,7 +237,7 @@ const InterHospitalSharingV2: React.FC = () => {
         footer={<>
           <Btn variant="ghost" onClick={() => setSel(null)}>Đóng</Btn>
           <Btn icon="print" onClick={() => window.print()}>In YC</Btn>
-          {sel && (sel.status === 0 || sel.status === 1) && (
+          {sel && sel.direction === 'incoming' && (sel.status === 0 || sel.status === 1) && (
             <Btn variant="primary" icon="check" onClick={() => { openRespond(sel); setSel(null); }}>Xử lý</Btn>
           )}
         </>}

@@ -69,6 +69,8 @@ const PaymentReportsV2: React.FC = () => {
   const [bc8, setBc8] = useState<{ items: PharmacyRetailRow[]; totalCount: number; totalPaid: number; totalDiscount: number } | null>(null);
   const [pharmMethod, setPharmMethod] = useState('');
 
+  const handleTabChange = (t: Tab) => { setTab(t); setRange(defaultRange(t)); };
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -339,7 +341,7 @@ const PaymentReportsV2: React.FC = () => {
     <div className="ab">
       <KpiStrip items={kpiSet()} />
 
-      <TopTabs<Tab> tab={tab} setTab={setTab} tabs={TABS} actions={
+      <TopTabs<Tab> tab={tab} setTab={handleTabChange} tabs={TABS} actions={
         <>
           <Btn variant="ghost" icon="refresh" onClick={load}>Làm mới</Btn>
           <Btn variant="ghost" icon="download" onClick={exportCsv}>Xuất CSV</Btn>
