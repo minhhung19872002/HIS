@@ -7,12 +7,12 @@ import type {
   SystemUserDto, RoleDto, SystemConfigDto, UserSessionDto, CreateUserDto, UpdateUserDto,
   RoleAssignmentDto, SystemNotificationDto, LockedServiceDto, PermissionDto,
 } from '../api/system';
-import { getAuditLogs } from '../api/audit';
-import type { AuditLogDto } from '../api/audit';
+import { getAuditLogs, exportAuditLogs } from '../api/audit';
+import type { AuditLogDto, AuditLogSearchDto } from '../api/audit';
 import { applyServerErrors, type ServerValidationError } from '../../../utils/formError';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, DrawerShell, DrSec, DrField, StatusBadge,
-  ModalShell, ActBtn, Btn, tk, te, cf,
+  ModalShell, ActBtn, Btn, Pager, tk, te, cf,
   type ColumnDef, type TopTab,
 } from '../../../pages-v2/_v2kit';
 import ItTicketsPanel from './ItTicketsPanel';
@@ -72,6 +72,12 @@ const SystemAdminV2: React.FC = () => {
   const [sessions, setSessions] = useState<UserSessionDto[]>([]);
   const [roles, setRoles] = useState<RoleDto[]>([]);
   const [audit, setAudit] = useState<AuditLogDto[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditFilters, setAuditFilters] = useState<Pick<AuditLogSearchDto, 'module' | 'action' | 'entityType' | 'fromDate' | 'toDate'>>({
+    fromDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
+    toDate: dayjs().format('YYYY-MM-DD'),
+  });
   const [configs, setConfigs] = useState<SystemConfigDto[]>([]);
   const [depts, setDepts] = useState<{ id: string; name: string }[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
@@ -153,13 +159,14 @@ const SystemAdminV2: React.FC = () => {
       else if (tab === 'locked-services') { const r = await adminApi.getLockedServices(); setLockedServices(Array.isArray(r.data) ? r.data : []); }
       else if (tab === 'branches') { const r = await catalogApi.getBranches(); setBranchFull((Array.isArray(r.data) ? r.data : []) as BranchRecord[]); }
       else if (tab === 'audit') {
-        const r = await getAuditLogs({ fromDate: dayjs().subtract(7, 'day').format('YYYY-MM-DD'), toDate: dayjs().format('YYYY-MM-DD'), keyword: keyword || undefined, pageIndex: 1, pageSize: 100 });
+        const r = await getAuditLogs({ ...auditFilters, keyword: keyword || undefined, pageIndex: auditPage - 1, pageSize: 50 });
         setAudit(Array.isArray(r.data?.items) ? r.data.items : []);
+        setAuditTotal(r.data?.totalCount ?? 0);
       }
       // else: it-tickets / access-matrix / compliance / data-management / health / emr-admin = self-loading panels, no-op
     } catch { /* keep current */ }
     finally { setLoading(false); }
-  }, [tab, keyword]);
+  }, [tab, keyword, auditFilters, auditPage]);
   useEffect(() => { load(); }, [load]);
 
   const roleOptions = useMemo(() => roles.map((r) => ({ value: r.id || r.code, label: r.name })), [roles]);
@@ -516,7 +523,58 @@ const SystemAdminV2: React.FC = () => {
           empty={loading ? 'Đang tải…' : 'Chưa có chi nhánh'} />
       )}
       {tab === 'audit' && (
-        <DataTable<AuditLogDto> columns={auditColumns} data={audit} rowKey={(a) => String(a.id ?? '')} empty={loading ? 'Đang tải…' : 'Chưa có nhật ký 7 ngày'} />
+        <>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '8px 16px', alignItems: 'center', borderBottom: '1px solid var(--ab-border)' }}>
+            <Select allowClear placeholder="Phân hệ" style={{ width: 150 }} value={auditFilters.module || undefined}
+              onChange={(v) => { setAuditPage(1); setAuditFilters(f => ({ ...f, module: v ?? undefined })); }}
+              options={[
+                { value: 'Reception', label: 'Tiếp đón' },
+                { value: 'Examination', label: 'Khám bệnh' },
+                { value: 'Inpatient', label: 'Nội trú' },
+                { value: 'Pharmacy', label: 'Dược' },
+                { value: 'Laboratory', label: 'Xét nghiệm' },
+                { value: 'Radiology', label: 'CĐHA' },
+                { value: 'Billing', label: 'Viện phí' },
+                { value: 'Insurance', label: 'BHYT' },
+                { value: 'System', label: 'Hệ thống' },
+                { value: 'Auth', label: 'Xác thực' },
+              ]} />
+            <Select allowClear placeholder="Hành động" style={{ width: 140 }} value={auditFilters.action || undefined}
+              onChange={(v) => { setAuditPage(1); setAuditFilters(f => ({ ...f, action: v ?? undefined })); }}
+              options={[
+                { value: 'Create', label: 'Tạo mới' },
+                { value: 'Update', label: 'Cập nhật' },
+                { value: 'Delete', label: 'Xóa' },
+                { value: 'Read', label: 'Đọc' },
+                { value: 'Login', label: 'Đăng nhập' },
+                { value: 'Logout', label: 'Đăng xuất' },
+                { value: 'Export', label: 'Xuất dữ liệu' },
+                { value: 'Approve', label: 'Duyệt' },
+              ]} />
+            <Select allowClear placeholder="Loại đối tượng" style={{ width: 160 }} value={auditFilters.entityType || undefined}
+              onChange={(v) => { setAuditPage(1); setAuditFilters(f => ({ ...f, entityType: v ?? undefined })); }}
+              options={[
+                { value: 'Patient', label: 'Bệnh nhân' },
+                { value: 'MedicalRecord', label: 'Hồ sơ bệnh án' },
+                { value: 'Prescription', label: 'Đơn thuốc' },
+                { value: 'User', label: 'Người dùng' },
+                { value: 'Role', label: 'Vai trò' },
+                { value: 'SystemConfig', label: 'Cấu hình' },
+              ]} />
+            <DatePicker format="DD/MM/YYYY" placeholder="Từ ngày" style={{ width: 130 }}
+              value={auditFilters.fromDate ? dayjs(auditFilters.fromDate) : null}
+              onChange={(d) => { setAuditPage(1); setAuditFilters(f => ({ ...f, fromDate: d ? d.format('YYYY-MM-DD') : undefined })); }} />
+            <DatePicker format="DD/MM/YYYY" placeholder="Đến ngày" style={{ width: 130 }}
+              value={auditFilters.toDate ? dayjs(auditFilters.toDate) : null}
+              onChange={(d) => { setAuditPage(1); setAuditFilters(f => ({ ...f, toDate: d ? d.format('YYYY-MM-DD') : undefined })); }} />
+            <span style={{ flex: 1 }} />
+            <Btn variant="ghost" onClick={() => exportAuditLogs({ ...auditFilters, keyword: keyword || undefined })}>
+              Xuất Excel
+            </Btn>
+          </div>
+          <DataTable<AuditLogDto> columns={auditColumns} data={audit} rowKey={(a) => String(a.id ?? '')} empty={loading ? 'Đang tải…' : 'Chưa có nhật ký'} />
+          <Pager page={auditPage} totalPages={Math.max(1, Math.ceil(auditTotal / 50))} setPage={setAuditPage} total={auditTotal} perPage={50} />
+        </>
       )}
       {tab === 'config' && (
         <DataTable<SystemConfigDto> columns={configColumns} data={filteredConfigs} rowKey={(c) => c.configKey}

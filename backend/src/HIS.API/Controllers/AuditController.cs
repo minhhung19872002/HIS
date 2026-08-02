@@ -87,4 +87,19 @@ public class AuditController : ControllerBase
         var result = await _auditLogService.GetRecertificationAsync(asOf ?? DateTime.UtcNow);
         return Ok(result);
     }
+
+    /// <summary>
+    /// #458: Xuất nhật ký kiểm toán ra Excel (HTML-as-xlsx, tối đa 5000 bản ghi).
+    /// </summary>
+    [HttpGet("logs/export")]
+    public async Task<IActionResult> ExportLogs([FromQuery] AuditDtos.AuditLogSearchDto search)
+    {
+        var result = await _auditLogService.ExportLogsAsync(search);
+        if (result.Length == 0)
+            return NoContent();
+        var fromStr = search.FromDate.HasValue ? search.FromDate.Value.ToString("yyyyMMdd") : "all";
+        var toStr = search.ToDate.HasValue ? search.ToDate.Value.ToString("yyyyMMdd") : "all";
+        return File(result, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"NhatKyKiemToan_{fromStr}_{toStr}.xlsx");
+    }
 }

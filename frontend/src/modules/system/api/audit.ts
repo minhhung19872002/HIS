@@ -57,6 +57,37 @@ export interface AuditLogPagedResult {
 export const getAuditLogs = (params: AuditLogSearchDto) =>
   apiClient.get<AuditLogPagedResult>('/audit/logs', { params });
 
+/** #458: Xuất nhật ký kiểm toán ra Excel — trả URL blob để tải xuống */
+export const exportAuditLogs = (params: AuditLogSearchDto): void => {
+  const qs = new URLSearchParams();
+  if (params.fromDate) qs.set('fromDate', params.fromDate);
+  if (params.toDate) qs.set('toDate', params.toDate);
+  if (params.action) qs.set('action', params.action);
+  if (params.module) qs.set('module', params.module);
+  if (params.entityType) qs.set('entityType', params.entityType);
+  if (params.keyword) qs.set('keyword', params.keyword);
+  if (params.userId) qs.set('userId', params.userId);
+  const base = (import.meta.env.VITE_API_URL ?? 'http://localhost:5106/api').replace(/\/+$/, '');
+  const token = localStorage.getItem('token');
+  // Build URL with auth token as query param for file download (Bearer header not applicable on window.open)
+  const url = `${base}/audit/logs/export?${qs.toString()}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.setAttribute('download', '');
+  // Use fetch + blob so Bearer header is sent correctly
+  fetch(url, { headers: { Authorization: `Bearer ${token ?? ''}` } })
+    .then(r => r.ok ? r.blob() : Promise.reject(r.status))
+    .then(blob => {
+      const objUrl = URL.createObjectURL(blob);
+      a.href = objUrl;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objUrl);
+    })
+    .catch(() => { /* silent — no alert needed */ });
+};
+
 /** Get activity logs for a specific user */
 export const getUserActivity = (userId: string, from?: string, to?: string) =>
   apiClient.get<AuditLogDto[]>(`/audit/user/${userId}`, {

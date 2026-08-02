@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using HIS.Application.Common;
@@ -392,6 +393,52 @@ public class AuditLogService : IAuditLogService
         {
             _logger.LogWarning(ex, "Error in GetAuditSummaryAsync");
             return new AuditSummaryDto { FromDate = from, ToDate = to, TotalEvents = 0 };
+        }
+    }
+
+    public async Task<byte[]> ExportLogsAsync(AuditSearchDto dto)
+    {
+        try
+        {
+            var exportDto = new AuditSearchDto
+            {
+                UserId = dto.UserId,
+                Action = dto.Action,
+                EntityType = dto.EntityType,
+                Module = dto.Module,
+                FromDate = dto.FromDate,
+                ToDate = dto.ToDate,
+                Keyword = dto.Keyword,
+                PageIndex = 0,
+                PageSize = 5000
+            };
+
+            var result = await GetLogsAsync(exportDto);
+
+            var headers = new[] { "Thời gian", "Người dùng", "Phân hệ", "Hành động", "Loại đối tượng", "IP", "Mã HTTP", "Chi tiết" };
+            var rows = result.Items.Select(l => new[]
+            {
+                l.Timestamp.ToString("dd/MM/yyyy HH:mm:ss"),
+                l.UserFullName ?? l.UserName ?? "",
+                l.Module ?? "",
+                l.Action,
+                l.EntityType ?? "",
+                l.IpAddress ?? "",
+                l.ResponseStatusCode?.ToString() ?? "",
+                l.Details ?? ""
+            }).ToList();
+
+            var fromStr = dto.FromDate.HasValue ? dto.FromDate.Value.ToString("dd/MM/yyyy") : "";
+            var toStr = dto.ToDate.HasValue ? dto.ToDate.Value.ToString("dd/MM/yyyy") : "";
+            var subtitle = fromStr != "" ? $"Từ {fromStr} đến {toStr} — {result.TotalCount} bản ghi" : $"{result.TotalCount} bản ghi";
+
+            var html = PdfTemplateHelper.BuildTableReport("NHẬT KÝ KIỂM TOÁN HỆ THỐNG", subtitle, DateTime.Now, headers, rows, "Quản trị hệ thống");
+            return Encoding.UTF8.GetBytes(html);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error in ExportLogsAsync");
+            return Array.Empty<byte>();
         }
     }
 

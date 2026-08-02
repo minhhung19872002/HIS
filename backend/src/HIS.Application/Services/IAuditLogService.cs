@@ -62,4 +62,9 @@ public interface IAuditLogService
     /// Dùng cho định kỳ xét duyệt quyền (access recertification/periodic review).
     /// </summary>
     Task<DTOs.Audit.RecertificationReportDto> GetRecertificationAsync(DateTime asOf);
+
+    /// <summary>
+    /// #458: Xuất nhật ký kiểm toán ra Excel (HTML-as-xlsx, tối đa 5000 bản ghi).
+    /// </summary>
+    Task<byte[]> ExportLogsAsync(DTOs.Audit.AuditLogSearchDto dto);
 }
