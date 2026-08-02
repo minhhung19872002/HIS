@@ -36,3 +36,16 @@ test('#352 BloodBank gọi API túi đã hết hạn và render tab riêng', asy
   const emptyOrRows = page.getByText(/Không có túi máu nào quá hạn|Mã túi/).first();
   await expect(emptyOrRows).toBeVisible({ timeout: 15_000 });
 });
+
+test('#352 tab Sắp hết hạn có 4 stat-card phân bố hạn dùng', async ({ page }) => {
+  test.setTimeout(90_000);
+  await login(page);
+  await page.goto(`${BASE}/v2/blood-bank`);
+  await page.getByRole('button', { name: /Sắp hết hạn/ }).click();
+
+  // 4 bucket v1 có mà v2 trước đây thiếu (chỉ có mốc ≤7 ngày)
+  await expect(page.getByText('Đã quá hạn')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Còn ≤ 7 ngày')).toBeVisible();
+  await expect(page.getByText('8–30 ngày')).toBeVisible();
+  await expect(page.getByText('> 30 ngày (an toàn)')).toBeVisible();
+});

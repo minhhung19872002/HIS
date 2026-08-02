@@ -202,8 +202,25 @@ const BloodBankV2: React.FC = () => {
     });
   }, [units, search, filterType]);
 
+  /**
+   * #352: hợp nhất nguồn "sắp hết hạn".
+   * `getExpiringBloodBags` bị backend ép `status='Available'` (BloodBankCompleteService.Stock.cs:109)
+   * nên **túi Đã đặt trước (Reserved) sắp hết hạn KHÔNG hiện** — v1 tính theo status 0|1 nên vẫn thấy.
+   * Bổ sung bằng cách tự tính từ danh sách đơn vị máu (đã có sẵn `units`), gộp theo bloodBagId.
+   */
+  const expiringMerged = useMemo(() => {
+    const byId = new Map<string, BloodStockDetailDto>();
+    expiring.forEach((b) => byId.set(b.bloodBagId, b));
+    units.forEach((u) => {
+      if (u.status !== 'Available' && u.status !== 'Reserved') return;
+      const days = dayjs(u.expiryDate).diff(dayjs(), 'day');
+      if (days >= 0 && days <= 7 && !byId.has(u.bloodBagId)) byId.set(u.bloodBagId, u);
+    });
+    return [...byId.values()];
+  }, [expiring, units]);
+
   const expiringFiltered = useMemo(() => {
-    return expiring.filter((b) => {
+    return expiringMerged.filter((b) => {
       if (filterType && `${b.bloodType}${b.rhFactor}` !== filterType) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
@@ -213,7 +230,24 @@ const BloodBankV2: React.FC = () => {
       }
       return true;
     });
-  }, [expiring, search, filterType]);
+  }, [expiringMerged, search, filterType]);
+
+  /**
+   * #352: phân bố hạn dùng 4 bucket (v1 pages/BloodBank.tsx:1035-1048 + :1060-1063).
+   * v2 trước đây chỉ có mốc ≤7 ngày → không thấy được nhóm 8-30 ngày để lên kế hoạch dùng trước.
+   */
+  const expiryBuckets = useMemo(() => {
+    let expiredN = 0, d7 = 0, d30 = 0, safe = 0;
+    units.forEach((u) => {
+      if (u.status !== 'Available' && u.status !== 'Reserved') return;
+      const days = dayjs(u.expiryDate).diff(dayjs(), 'day');
+      if (days < 0) expiredN++;
+      else if (days <= 7) d7++;
+      else if (days <= 30) d30++;
+      else safe++;
+    });
+    return { expiredN, d7, d30, safe };
+  }, [units]);
 
   const expiredFiltered = useMemo(() => {
     return expired.filter((b) => {
@@ -379,7 +413,28 @@ const BloodBankV2: React.FC = () => {
           />
         </>
       )}
-      {tab === 'expiring' && <ExpiringTab rows={expiringFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} message={message} onReload={reload} />}
+      {tab === 'expiring' && (
+        <>
+          {/* #352: 4 stat-card phân bố hạn dùng (v1 có, v2 trước đây chỉ có mốc ≤7 ngày) */}
+          <div style={{ display: 'flex', gap: 'var(--space-8)', margin: '0 16px 10px', flexWrap: 'wrap' }}>
+            {[
+              { l: 'Đã quá hạn', v: expiryBuckets.expiredN, c: 'var(--s-crit)' },
+              { l: 'Còn ≤ 7 ngày', v: expiryBuckets.d7, c: 'var(--s-warn)' },
+              { l: '8–30 ngày', v: expiryBuckets.d30, c: 'var(--a-cy)' },
+              { l: '> 30 ngày (an toàn)', v: expiryBuckets.safe, c: 'var(--s-ok)' },
+            ].map((b) => (
+              <div key={b.l} style={{
+                flex: '1 1 140px', padding: '8px 12px', borderRadius: 'var(--r-2)',
+                border: '1px solid var(--line)', borderLeft: `3px solid ${b.c}`, background: 'var(--d-0)',
+              }}>
+                <div style={{ fontSize: 11, color: 'var(--t-2)' }}>{b.l}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-mono)', color: b.c }}>{b.v}</div>
+              </div>
+            ))}
+          </div>
+          <ExpiringTab rows={expiringFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} message={message} onReload={reload} />
+        </>
+      )}
       {tab === 'expired' && (
         <>
           {expiredFiltered.length > 0 && (
