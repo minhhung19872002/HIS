@@ -18,6 +18,7 @@ import { statisticsApi } from '../../system/api/system';
 import type { DepartmentRevenueDto, HospitalDashboardDto } from '../../system/api/system';
 import apiClient from '../../../services/apiClient';
 import ReportsHospitalTab from './ReportsHospitalTab';
+import ReportBuilderTab from './ReportBuilderTab';
 import '../../../styles/reports-v2.css';
 
 type ReportCategoryId = 'operational' | 'clinical' | 'financial' | 'regulatory' | 'level6' | 'cost' | 'admin' | 'pharmacy';
@@ -312,7 +313,7 @@ const TrendBadge: React.FC<{ value: number; inverse?: boolean }> = ({ value, inv
 const ReportsV2: React.FC = () => {
   const { message } = AntdApp.useApp();
   // #409: page-level tab — "Tổng quan" (dashboard hiện có) vs "140 Báo cáo bệnh viện" (report-runner)
-  const [pageTab, setPageTab] = React.useState<'dashboard' | 'hospital'>('dashboard');
+  const [pageTab, setPageTab] = React.useState<'dashboard' | 'hospital' | 'builder'>('dashboard');
   const [activeCategory, setActiveCategory] = React.useState<ReportCategoryId>('operational');
   const [search, setSearch] = React.useState('');
   const [period, setPeriod] = React.useState<ReportPeriodId>('month');
@@ -544,8 +545,17 @@ const ReportsV2: React.FC = () => {
         >
           140 Báo cáo bệnh viện
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={pageTab === 'builder'}
+          className={pageTab === 'builder' ? 'is-active' : ''}
+          onClick={() => setPageTab('builder')}
+        >
+          Báo cáo tùy chỉnh
+        </button>
       </div>
-      {pageTab === 'hospital' ? <ReportsHospitalTab /> : (
+      {pageTab === 'hospital' ? <ReportsHospitalTab /> : pageTab === 'builder' ? <ReportBuilderTab /> : (
       <>
       <section className="reports-v2-strip">
         {stripCards.map((card) => (
