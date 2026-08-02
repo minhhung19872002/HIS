@@ -14,7 +14,7 @@ import {
   DrawerShell, DrSec, DrField, tk, te, cf, Ico,
   type ColumnDef,
 } from '@/_v2kit';
-import type {TabKey} from '../types';
+import type {TabKey} from '../types/tabs';
 
 type AnyRow =
   | (api.MachineCodeDto & { _kind: 'machines' })

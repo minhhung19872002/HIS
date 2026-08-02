@@ -13,7 +13,7 @@ import {
   DrawerShell, DrSec, DrField, tk, te, cf,
   type ColumnDef,
 } from '@/_v2kit';
-import type {TabKey} from '../types';
+import type {TabKey} from '../types/tabs';
 
 type AnyRow =
   | (api.ReportServiceGroupTypeDto & { _kind: 'types' })

@@ -18,7 +18,7 @@ import {
   DrawerShell, DrSec, DrField, tk, te, cf,
   type ColumnDef, type TopTab,
 } from '@/_v2kit';
-import type {TabKey} from '../types';
+import type {TabKey} from '../types/tabs';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
