@@ -104,7 +104,8 @@ const QueueDisplayV2 = lazy(() => import('../modules/reception/pages/QueueDispla
 const EMR = lazy(() => import('../pages/EMR'));
 const MedicalSupply = lazy(() => import('../pages/MedicalSupply'));
 const FollowUp = lazy(() => import('../pages/FollowUp'));
-const AppointmentBooking = lazy(() => import('../pages/AppointmentBooking'));
+// #456: /dat-lich port v1 Antd → v2kit standalone (public, không auth)
+const AppointmentBookingPublic = lazy(() => import('../modules/reception/pages/AppointmentBookingPublic'));
 const BookingManagement = lazy(() => import('../pages/BookingManagement'));
 const SmsManagement = lazy(() => import('../pages/SmsManagement'));
 const LabQC = lazy(() => import('../pages/LabQC'));
@@ -170,7 +171,7 @@ const AppRoutes: React.FC = () => {
       <Routes>
         <Route path="/queue-display" element={<QueueDisplay />} />
         <Route path="/v2/queue-display" element={<QueueDisplayV2 />} />
-        <Route path="/dat-lich" element={<AppointmentBooking />} />
+        <Route path="/dat-lich" element={<AppointmentBookingPublic />} />
         <Route path="/shared/:token" element={<PublicStudyViewer />} />
         <Route path="/tra-cuu-benh-an" element={<PublicEmrLookup />} />
         <Route
