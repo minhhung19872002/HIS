@@ -123,9 +123,10 @@ public partial class DailySeedServiceImpl : HIS.Application.Services.IDailySeedS
         var newPatients = new List<Patient>(toCreate);
         var newRecords = new List<MedicalRecord>(toCreate);
         var newExams = new List<Examination>();
-        // Store CreatedAt/UpdatedAt as VN wall-clock datetime so `.Date` lines up with
-        // what the frontend (dayjs local) sends as "today". SQL datetime2 is kind-agnostic.
-        var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vnTz);
+        // CreatedAt/UpdatedAt lưu UTC — convention app-wide (HISDbContext auto-audit dùng
+        // DateTime.UtcNow; GetTodayAdmissionsAsync lọc theo VnTime.DayRangeUtc). Ghi VN
+        // wall-clock ở đây làm bản ghi seed sau 17:00 VN rơi ra ngoài khung "hôm nay" (#466).
+        var now = DateTime.UtcNow;
 
         var queueByRoom = await _db.Examinations
             .Where(e => e.MedicalRecord.AdmissionDate.Date == today)
