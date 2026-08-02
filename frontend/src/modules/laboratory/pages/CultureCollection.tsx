@@ -4,6 +4,7 @@ import { Input, InputNumber, Select } from 'antd';
 import {
   getCultureStocks, getCultureStockStats, createCultureStock, updateCultureStock,
   retrieveAliquot, subcultureStock, getStockLogs, recordViabilityCheck,
+  discardStock, getFreezerCodes,
 } from '../api/cultureStock';
 import type { CultureStock, CultureStockStats, CultureStockLog } from '../api/cultureStock';
 import {
@@ -227,6 +228,12 @@ const CultureCollectionV2: React.FC = () => {
   const [search, setSearch] = useState('');
   const [stab, setStab] = useState<SKey | 'all'>('all');
   const [fMethod, setFMethod] = useState('');
+  // #352: lọc theo tủ lạnh (v1 có, v2 chỉ còn lọc PP bảo quản) + huỷ chủng có lý do (audit)
+  const [fFreezer, setFFreezer] = useState('');
+  const [freezerCodes, setFreezerCodes] = useState<string[]>([]);
+  const [discardTarget, setDiscardTarget] = useState<CultureStock | null>(null);
+  const [discardReason, setDiscardReason] = useState('');
+  const [discardBusy, setDiscardBusy] = useState(false);
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<CultureStock | null>(null);
   const [retrieveTarget, setRetrieveTarget] = useState<CultureStock | null>(null);
@@ -246,6 +253,10 @@ const CultureCollectionV2: React.FC = () => {
     finally { setLoading(false); }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  // #352: danh sách tủ lạnh lấy từ API riêng (không suy từ dữ liệu trang hiện tại)
+  useEffect(() => {
+    getFreezerCodes().then((c) => setFreezerCodes(Array.isArray(c) ? c : [])).catch(() => setFreezerCodes([]));
+  }, []);
 
   const methods = useMemo(() => {
     const set = new Set(items.map((r) => r.preservationMethod).filter(Boolean));
@@ -259,11 +270,12 @@ const CultureCollectionV2: React.FC = () => {
     return items.filter((r) => {
       if (stab !== 'all' && sKey(r.status) !== stab) return false;
       if (fMethod && r.preservationMethod !== fMethod) return false;
+      if (fFreezer && r.freezerCode !== fFreezer) return false;
       if (!k) return true;
       return [r.stockCode, r.organismName, r.organismCode, r.scientificName, r.locationDisplay]
         .some((v) => (v || '').toLowerCase().includes(k));
     });
-  }, [items, search, stab, fMethod]);
+  }, [items, search, stab, fMethod, fFreezer]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const paged = filtered.slice(page * PER, (page + 1) * PER);
@@ -320,6 +332,8 @@ const CultureCollectionV2: React.FC = () => {
       <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
       <ActBtn ic="package" title="Lấy ống" onClick={() => setRetrieveTarget(r)} />
       <ActBtn ic="activity" title="Cấy chuyền" onClick={() => setSubcultureTarget(r)} />
+      {/* #352: huỷ chủng — discardStock có sẵn trong api nhưng v2 chưa gọi bao giờ */}
+      <ActBtn ic="trash" title="Hủy chủng" tone="crit" onClick={() => { setDiscardReason(''); setDiscardTarget(r); }} />
     </div>
   );
 
@@ -336,7 +350,9 @@ const CultureCollectionV2: React.FC = () => {
         <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(0); }}
           placeholder="Tìm mã chủng / VSV / vị trí…" />
         <Filter value={fMethod} onChange={setFMethod} options={methods} placeholder="▾ PP bảo quản" />
-        <Btn variant="ghost" onClick={() => { setSearch(''); setFMethod(''); setStab('all'); }}>
+        <Filter value={fFreezer} onChange={setFFreezer}
+          options={freezerCodes.map((c) => ({ v: c, l: c }))} placeholder="▾ Tủ lạnh" />
+        <Btn variant="ghost" onClick={() => { setSearch(''); setFMethod(''); setFFreezer(''); setStab('all'); }}>
           <Ico name="x" size={12} /> Bỏ lọc
         </Btn>
         <span className="spacer" />
@@ -418,6 +434,39 @@ const CultureCollectionV2: React.FC = () => {
           )}
         </>}
       </DrawerShell>
+
+      {/* #352: Hủy chủng — BẮT BUỘC lý do vì đây là loại bỏ vật liệu sinh học, cần vết audit */}
+      <ModalShell
+        open={!!discardTarget}
+        onClose={() => setDiscardTarget(null)}
+        size="sm"
+        title={`Hủy chủng ${discardTarget?.stockCode ?? ''}`}
+        sub={discardTarget ? `${discardTarget.organismName} · ${discardTarget.locationDisplay || '—'}` : ''}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setDiscardTarget(null)}>Hủy bỏ</Btn>
+          <Btn variant="primary" loading={discardBusy}
+            style={{ background: 'var(--s-crit)', borderColor: 'var(--s-crit)', color: '#fff' }}
+            onClick={async () => {
+              if (!discardTarget) return;
+              if (!discardReason.trim()) { te('Cần nhập lý do hủy chủng'); return; }
+              setDiscardBusy(true);
+              try {
+                await discardStock(discardTarget.id, discardReason.trim());
+                tk(`Đã hủy chủng ${discardTarget.stockCode}`);
+                setDiscardTarget(null);
+                load();
+              } catch { te('Hủy chủng thất bại'); }
+              finally { setDiscardBusy(false); }
+            }}
+          >
+            Xác nhận hủy
+          </Btn>
+        </>}
+      >
+        <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Lý do hủy *</div>
+        <Input.TextArea rows={3} value={discardReason} onChange={(e) => setDiscardReason(e.target.value)}
+          placeholder="Vd: quá hạn bảo quản, nhiễm tạp, mất viability…" />
+      </ModalShell>
 
       {/* Modal lấy ống */}
       <RetrieveAliquotModal

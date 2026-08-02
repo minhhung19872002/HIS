@@ -132,8 +132,8 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### CultureCollection
 - v1: `frontend/src/pages/CultureCollection.tsx` | v2: `frontend/src/modules/laboratory/pages/CultureCollection.tsx` | confidence scan: high | SCAN_ONLY
-  - [ ] Nút 'Hủy chủng' (discardStock API + Popconfirm xác nhận, có audit lý do) — v1:333-335, không được gọi ở modules/laboratory/pages/CultureCollection.tsx
-  - [ ] Bộ lọc theo Tủ lạnh (freezerCode, getFreezerCodes()) — v1:46-47,239-240, không có trong v2 (chỉ còn filter PP bảo quản)
+  - [x] Nút 'Hủy chủng' — ĐÃ PORT 2026-08-02 (ActBtn trash + ModalShell BẮT BUỘC lý do → audit) (discardStock API + Popconfirm xác nhận, có audit lý do) — v1:333-335, không được gọi ở modules/laboratory/pages/CultureCollection.tsx
+  - [x] Bộ lọc theo Tủ lạnh — ĐÃ PORT 2026-08-02 (Filter ▾ Tủ lạnh, nguồn getFreezerCodes()) (freezerCode, getFreezerCodes()) — v1:46-47,239-240, không có trong v2 (chỉ còn filter PP bảo quản)
 
 ### Dashboard
 - v1: `frontend/src/pages/Dashboard.tsx` | v2: `frontend/src/pages-v2/Dashboard.tsx` | confidence scan: high | SCAN_ONLY
