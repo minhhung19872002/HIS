@@ -33,6 +33,8 @@ interface RxItem {
   freq: string; qty: number; days: number; route: string; note: string; price: number;
   // Pharmacy clarity fields
   dosageForm: string; strength: string;
+  // Per-item BHYT: true=BHYT covers, false=self-pay (paymentType 1 vs 2 in DTO)
+  bhyt: boolean;
 }
 
 const ageOf = (p: Patient): number => {
@@ -98,6 +100,8 @@ const PrescriptionEditorV2: React.FC = () => {
   const [templateName, setTemplateName] = useState('');
   const [templateDiagnosis, setTemplateDiagnosis] = useState('');
   const [savingTpl, setSavingTpl] = useState(false);
+  // Interaction gate: tracks which save action was blocked by interactions
+  const [pendingAction, setPendingAction] = useState<'draft' | 'sign' | null>(null);
   // Phiếu công khai thuốc MSS-01
   const [disclosureOpen, setDisclosureOpen] = useState(false);
 
@@ -203,11 +207,12 @@ const PrescriptionEditorV2: React.FC = () => {
       freq: '1 lần/ngày', qty: 30, days: 30, route: 'Uống', note: '', price: d.unitPrice,
       dosageForm: d.unit || 'Viên',
       strength: d.name.match(/\d+\s*mg/i)?.[0] || '',
+      bhyt: !!pt?.insuranceNumber,
     }]);
     setDQ(''); setDrugResults([]);
     tk(`Đã thêm ${d.name}`);
   };
-  const updateItem = (i: number, k: keyof RxItem, v: string | number) =>
+  const updateItem = (i: number, k: keyof RxItem, v: string | number | boolean) =>
     setItems((p) => p.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
   const removeItem = (i: number) => setItems((p) => p.filter((_, j) => j !== i));
 
@@ -230,7 +235,7 @@ const PrescriptionEditorV2: React.FC = () => {
     items: items.map((it) => ({
       medicineId: it.medicineId, quantity: it.qty, days: it.days,
       dosage: formatDosage(it), route: it.route, frequency: it.freq,
-      usageInstructions: it.note, paymentType: 1,
+      usageInstructions: it.note, paymentType: it.bhyt ? 1 : 2,
     })),
   });
 
@@ -241,12 +246,17 @@ const PrescriptionEditorV2: React.FC = () => {
     return true;
   };
 
-  const saveDraft = async () => {
-    if (!guard()) return;
+  const doSaveDraft = async () => {
     setSaving(true);
     try { await examinationApi.createPrescription(buildDto()); tk('Đã lưu nháp đơn thuốc'); }
     catch { te('Lưu nháp thất bại'); }
     finally { setSaving(false); }
+  };
+
+  const saveDraft = async () => {
+    if (!guard()) return;
+    if (interactions.length > 0) { setPendingAction('draft'); setInterOpen(true); return; }
+    await doSaveDraft();
   };
 
   const completeWithSign = async () => {
@@ -259,7 +269,11 @@ const PrescriptionEditorV2: React.FC = () => {
     finally { setSaving(false); }
   };
 
-  const onClickSign = () => { if (guard()) setSignOpen(true); };
+  const onClickSign = () => {
+    if (!guard()) return;
+    if (interactions.length > 0) { setPendingAction('sign'); setInterOpen(true); return; }
+    setSignOpen(true);
+  };
 
   // ── In đơn thuốc nội viện ─────────────────────────────────────────
   const handlePrintInternalRx = () => {
@@ -410,6 +424,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
           price: f.med!.unitPrice,
           dosageForm: f.med!.unit || 'Viên',
           strength: f.med!.name.match(/\d+\s*mg/i)?.[0] || '',
+          bhyt: !!pt?.insuranceNumber,
         }));
       setItems((p) => {
         const existing = new Set(p.map((x) => x.medicineId));
@@ -561,13 +576,14 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
                 <th style={{ width: 70 }}>SL</th>
                 <th style={{ width: 70 }}>Ngày</th>
                 <th style={{ width: 110 }}>Đường dùng</th>
+                <th style={{ width: 52, textAlign: 'center' }} title="BHYT chi trả">BHYT</th>
                 <th>Lời dặn</th>
                 <th style={{ width: 110, textAlign: 'right' }}>Thành tiền</th>
                 <th style={{ width: 40 }}></th>
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 && <tr><td colSpan={9} style={{ padding: 30, textAlign: 'center', color: 'var(--t-3)' }}>Chưa có thuốc · Tìm và thêm thuốc ở thanh trên</td></tr>}
+              {items.length === 0 && <tr><td colSpan={10} style={{ padding: 30, textAlign: 'center', color: 'var(--t-3)' }}>Chưa có thuốc · Tìm và thêm thuốc ở thanh trên</td></tr>}
               {items.map((it, i) => (
                 <tr key={i}>
                   <td className="mono">{i + 1}</td>
@@ -595,6 +611,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
                   <td><input className="hui-inp" type="number" style={{ width: '100%', height: 26 }} value={it.qty} onChange={(e) => updateItem(i, 'qty', +e.target.value)} /></td>
                   <td><input className="hui-inp" type="number" style={{ width: '100%', height: 26 }} value={it.days} onChange={(e) => updateItem(i, 'days', +e.target.value)} /></td>
                   <td><select className="hui-inp hui-sel" style={{ width: '100%', height: 26 }} value={it.route} onChange={(e) => updateItem(i, 'route', e.target.value)}>{RX_ROUTE.map((f) => <option key={f}>{f}</option>)}</select></td>
+                  <td style={{ textAlign: 'center' }}><input type="checkbox" checked={it.bhyt} onChange={(e) => updateItem(i, 'bhyt', e.target.checked)} title={it.bhyt ? 'BHYT chi trả' : 'Tự chi'} /></td>
                   <td><input className="hui-inp" style={{ width: '100%', height: 26 }} value={it.note} onChange={(e) => updateItem(i, 'note', e.target.value)} /></td>
                   <td className="mono" style={{ textAlign: 'right', fontWeight: 600 }}>{fmtVNDg(it.price * it.qty)}</td>
                   <td><ActBtn ic="trash" title="Xoá" tone="crit" onClick={() => removeItem(i)} /></td>
@@ -604,7 +621,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
             {items.length > 0 && (
               <tfoot>
                 <tr style={{ background: 'var(--d-1)', fontWeight: 700 }}>
-                  <td colSpan={7} style={{ textAlign: 'right' }}>Tổng cộng:</td>
+                  <td colSpan={8} style={{ textAlign: 'right' }}>Tổng cộng:</td>
                   <td className="mono" style={{ textAlign: 'right', color: 'var(--s-ok)', fontSize: 'var(--fs-md)' }}>{fmtVNDg(total)}</td>
                   <td></td>
                 </tr>
@@ -759,7 +776,7 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
       </DrawerShell>
 
       {/* Interactions drawer */}
-      <DrawerShell open={interOpen} onClose={() => setInterOpen(false)} title="Tương tác thuốc" sub={`${intCount} cảnh báo`} size="lg">
+      <DrawerShell open={interOpen} onClose={() => { setInterOpen(false); setPendingAction(null); }} title="Tương tác thuốc" sub={`${intCount} cảnh báo`} size="lg">
         {interactions.map((it, i) => {
           const tone = it.severity >= 3 ? 'crit' : it.severity === 2 ? 'warn' : 'info';
           const bg = it.severity >= 3 ? 'var(--s-crit-bg)' : it.severity === 2 ? 'var(--a-or-bg)' : '#fefce8';
@@ -776,6 +793,19 @@ ${pt.insuranceNumber ? `<div class="info">Số thẻ BHYT: <strong>${pt.insuranc
             </div>
           );
         })}
+        {pendingAction && (
+          <div style={{ margin: 'var(--space-14)', padding: 'var(--space-14)', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-10)' }}>
+            <Btn variant="ghost" onClick={() => { setInterOpen(false); setPendingAction(null); }}>Hủy</Btn>
+            <Btn variant="primary" disabled={saving} onClick={async () => {
+              setInterOpen(false);
+              if (pendingAction === 'draft') { await doSaveDraft(); }
+              else { setSignOpen(true); }
+              setPendingAction(null);
+            }}>
+              {pendingAction === 'draft' ? 'Lưu nháp dù có cảnh báo' : 'Tiếp tục ký dù có cảnh báo'}
+            </Btn>
+          </div>
+        )}
       </DrawerShell>
 
       {/* Templates drawer */}
