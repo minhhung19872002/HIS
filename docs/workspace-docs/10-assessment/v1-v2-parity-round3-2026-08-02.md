@@ -78,7 +78,7 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
 
 ### Billing
 - v1: `frontend/src/pages/Billing.tsx` | v2: `frontend/src/modules/billing/pages/Billing.tsx` | confidence scan: high | SCAN_ONLY
-  - [ ] Refund approval/rejection workflow (Duyệt/Từ chối, approveRefund/cancelRefund) — v1 pages/Billing.tsx:1435-1476; the API functions exist in modules/billing/api/billing.ts but are never called from any v2 page (verified via repo-wide grep)
+  - [x] Refund approval/rejection workflow — ĐÃ PORT 2026-08-02 (màn mới /v2/refund-approval: duyệt/từ chối/xác-nhận-chi/hủy, gate Billing.Collect) (Duyệt/Từ chối, approveRefund/cancelRefund) — v1 pages/Billing.tsx:1435-1476; the API functions exist in modules/billing/api/billing.ts but are never called from any v2 page (verified via repo-wide grep)
   - [ ] Global cross-patient Deposits/Refunds admin lists with search+stats — v1 pages/Billing.tsx:1204-1267 (Deposits) and 1344-1502 (Refunds); v2's only equivalent (BillingEditor.tsx) is scoped to one selected patient at a time, no global admin view
   - [ ] E-invoice send-email, export, and print-representative actions + full buyer-info issue form (buyerName/buyerTaxCode/buyerAddress/buyerEmail) — v1 pages/Billing.tsx:1976-2012, 2223-2291; v2's EInvoicesV2 (modules/billing/pages/EInvoices.tsx) issue/cancel/sync-status only, no send/export/print-representative and a simplified issue form (receiptId + provider only)
 

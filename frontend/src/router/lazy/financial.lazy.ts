@@ -13,6 +13,8 @@ export const ProcurementV2 = lazy(() => import('../../modules/pharmacy/pages/Pro
 export const FinanceCatalogsV2 = lazy(() => import('../../modules/administration/pages/FinanceCatalogs'));
 export const BankPaymentsV2 = lazy(() => import('../../modules/billing/pages/BankPayments'));
 export const EInvoicesV2 = lazy(() => import('../../modules/billing/pages/EInvoices'));
+// #352: màn duyệt hoàn tiền liên-bệnh-nhân (v2 chưa từng có, phiếu hoàn bị kẹt chờ duyệt)
+export const RefundApprovalV2 = lazy(() => import('../../modules/billing/pages/RefundApproval'));
 export const QrPaymentCenterV2 = lazy(() => import('../../modules/billing/pages/QrPaymentCenter'));
 export const ReceiptBookAdminV2 = lazy(() => import('../../modules/billing/pages/ReceiptBookAdmin'));
 export const BhxhConfigV2 = lazy(() => import('../../modules/insurance/pages/BhxhConfig'));
