@@ -22,6 +22,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
       return (
         <HttpError
           code={500}
+          variant='fullpage'
           desc={this.state.error ? `${this.state.error.name}: ${this.state.error.message}` : undefined}
           onRetry={() => { this.setState({ hasError: false, error: null }); }}
           onBack={() => { this.setState({ hasError: false, error: null }); window.history.back(); }}

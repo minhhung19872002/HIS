@@ -10,14 +10,9 @@
 import apiClient from './apiClient';
 import { storage, STORAGE_KEYS } from './storage.service';
 import type { User } from '../api/auth';
+import { ACCESS_GATING_ENABLED } from '../config/permission.config';
 
-/**
- * MASTER SWITCH lọc menu/route theo quyền ở FE. MẶC ĐỊNH TẮT — menu hiện ĐẦY ĐỦ như
- * trước (FE gating chỉ là UX; an ninh THẬT ở BE [RequirePermission] #367, không đổi khi tắt).
- * Bật lại bằng env VITE_ACCESS_GATING=true (không cần sửa code). Xem #378/#404/#405.
- */
-export const ACCESS_GATING_ENABLED =
-  (import.meta.env.VITE_ACCESS_GATING as string | undefined) === 'true';
+export { ACCESS_GATING_ENABLED };
 
 function getUser(): User | null {
   return storage.get<User>(STORAGE_KEYS.user);

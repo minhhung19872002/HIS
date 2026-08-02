@@ -23,7 +23,7 @@ import {
 // Trang lỗi generic cho /v2/error/:code
 const HttpErrorPage = () => {
   const { code } = useParams<{ code: string }>();
-  return <HttpError code={code ? parseInt(code, 10) : undefined} />;
+  return <HttpError code={code ? parseInt(code, 10) : undefined} variant='fullpage' />;
 };
 
 // Layout v2 (Terminal) shell wrapping /v2/* routes.

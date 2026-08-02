@@ -8,7 +8,9 @@ import { Link } from 'react-router-dom';
 const ModuleNotEnabled: React.FC<{ resource?: string }> = ({ resource }) => (
   <div style={{
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    minHeight: '60vh', gap: 12, textAlign: 'center', padding: 24,
+    position: 'fixed', inset: 0, zIndex: 9999,
+    background: 'var(--d-0, var(--color-bg-layout, #fff))',
+    gap: 12, textAlign: 'center', padding: 24,
   }}>
     <div style={{ fontSize: 40 }}>📦</div>
     <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--t-0)' }}>

@@ -11,6 +11,7 @@ const Forbidden403: React.FC<{ resource?: string }> = ({ resource }) => {
   return (
     <HttpError
       code={403}
+      variant='fullpage'
       desc={
         resource
           ? `Bạn không có quyền truy cập chức năng "${resource}". Vui lòng liên hệ quản trị viên.`

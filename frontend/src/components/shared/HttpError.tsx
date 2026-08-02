@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import TermIcon from '../layout/terminal/Icon';
+import { ROUTES } from '../../config/route.config';
 
 // ── HTTP error registry ────────────────────────────────────────────────────
 type Tone = 'crit' | 'warn' | 'info';
@@ -38,7 +39,8 @@ export interface HttpErrorProps {
   code?: number;
   title?: string;
   desc?: string;
-  variant?: 'page' | 'inline';
+  /** page: fills parent container · inline: compact strip · fullpage: covers entire viewport (position:fixed) */
+  variant?: 'page' | 'inline' | 'fullpage';
   onBack?: () => void;
   onRetry?: () => void;
   showBack?: boolean;
@@ -54,8 +56,8 @@ export const HttpError: React.FC<HttpErrorProps> = ({
   variant = 'page',
   onBack,
   onRetry,
-  showBack = variant === 'page',
-  showHome = variant === 'page',
+  showBack = variant === 'page' || variant === 'fullpage',
+  showHome = variant === 'page' || variant === 'fullpage',
   className,
 }) => {
   const def = (code ? REGISTRY[code] : undefined) ?? FALLBACK;
@@ -66,7 +68,7 @@ export const HttpError: React.FC<HttpErrorProps> = ({
 
   // a11y: move focus to alert container on mount so screen readers announce immediately
   useEffect(() => {
-    if (variant === 'page') { containerRef.current?.focus(); }
+    if (variant === 'page' || variant === 'fullpage') { containerRef.current?.focus(); }
   }, [variant]);
 
   const handleBack = () => {
@@ -97,6 +99,8 @@ export const HttpError: React.FC<HttpErrorProps> = ({
     );
   }
 
+  const isFullpage = variant === 'fullpage';
+
   return (
     <div
       ref={containerRef}
@@ -104,7 +108,20 @@ export const HttpError: React.FC<HttpErrorProps> = ({
       aria-live="polite"
       tabIndex={-1}
       className={className}
-      style={{
+      style={isFullpage ? {
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        background: 'var(--d-0, var(--color-bg-layout, #fff))',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 16,
+        padding: 32,
+        textAlign: 'center',
+        outline: 'none',
+      } : {
         height: '100%',
         minHeight: 320,
         display: 'flex',
@@ -165,7 +182,7 @@ export const HttpError: React.FC<HttpErrorProps> = ({
         {showHome && (
           <button
             type="button"
-            onClick={() => { window.location.href = '/v2/dashboard'; }}
+            onClick={() => { window.location.href = ROUTES.DASHBOARD; }}
             style={{
               height: 36, padding: '0 18px', borderRadius: 'var(--r-2)',
               background: 'var(--a-cy)', color: '#fff',

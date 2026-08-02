@@ -14,8 +14,7 @@
  * API SignServiceJS phổ biến, anh đối chiếu tài liệu SDK rồi tinh chỉnh nếu lệch.
  */
 
-const SDK_URL = (import.meta.env.VITE_VGCA_SDK_URL as string) || '/vgca/SignServiceJS.js';
-const SIGN_FN = (import.meta.env.VITE_VGCA_SIGN_FN as string) || '';
+import { VGCA_SDK_URL as SDK_URL, VGCA_SIGN_FN as SIGN_FN } from '../config/permission.config';
 
 export interface VgcaSignResult {
   signedBase64: string;

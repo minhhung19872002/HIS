@@ -7,6 +7,7 @@ const NotFound: React.FC = () => {
   return (
     <HttpError
       code={404}
+      variant='fullpage'
       onBack={() => navigate(-1)}
     />
   );
