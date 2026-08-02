@@ -180,7 +180,7 @@ const SmsManagementV2: React.FC = () => {
           </StatusBadge>
           {stats && (
             <div style={{ marginTop: 8, fontSize: 12, color: 'var(--t-2)' }}>
-              Tỷ lệ thành công: <b>{(stats.successRate * 100).toFixed(1)}%</b>
+              Tỷ lệ thành công: <b>{stats.successRate.toFixed(1)}%</b>
             </div>
           )}
         </div>

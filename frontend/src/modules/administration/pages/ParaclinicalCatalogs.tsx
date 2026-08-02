@@ -192,14 +192,26 @@ const ParaclinicalCatalogsV2: React.FC = () => {
 
   const handleSave = async () => {
     if (!edit) return;
+    let payload = edit;
+    if (tab === 'machines') {
+      const code = String(edit.code || '').trim();
+      const name = String(edit.name || '').trim();
+      if (!code) { te('Mã máy không được để trống'); return; }
+      if (!name) { te('Tên máy không được để trống'); return; }
+      payload = { ...edit, code, name };
+    }
     try {
-      if (tab === 'machines')   await api.saveMachineCode(edit as Partial<api.MachineCodeDto>);
-      else if (tab === 'svc')   await api.saveMachineService(edit as Partial<api.MachineServiceDto>);
-      else                      await api.saveParaclinicalRoomPriority(edit as Partial<api.ParaclinicalRoomPriorityDto>);
+      if (tab === 'machines')   await api.saveMachineCode(payload as Partial<api.MachineCodeDto>);
+      else if (tab === 'svc')   await api.saveMachineService(payload as Partial<api.MachineServiceDto>);
+      else                      await api.saveParaclinicalRoomPriority(payload as Partial<api.ParaclinicalRoomPriorityDto>);
       tk(editIsNew ? 'Đã thêm' : 'Đã cập nhật');
       setEdit(null);
       reload(tab);
-    } catch { te('Lưu thất bại'); }
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string; title?: string } } })?.response?.data?.message
+        || (err as { response?: { data?: { title?: string } } })?.response?.data?.title;
+      te(msg || 'Lưu thất bại');
+    }
   };
 
   const handleDelete = (row: AnyRow) => {

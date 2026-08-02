@@ -198,14 +198,23 @@ const PharmacyCatalogsV2: React.FC = () => {
 
   const handleSave = async () => {
     if (!edit) return;
+    const code = String(edit.code || '').trim();
+    const name = String(edit.name || '').trim();
+    if (!code) { te('Mã không được để trống'); return; }
+    if (!name) { te('Tên không được để trống'); return; }
+    const payload = { ...edit, code, name };
     try {
-      if (tab === 'mfr') await api.saveManufacturer(edit as Partial<api.ManufacturerDto>);
-      else if (tab === 'route') await api.saveMedicationRoute(edit as Partial<api.MedicationRouteDto>);
-      else await api.saveInspectionCommittee(edit as Partial<api.InspectionCommitteeDto>);
+      if (tab === 'mfr') await api.saveManufacturer(payload as Partial<api.ManufacturerDto>);
+      else if (tab === 'route') await api.saveMedicationRoute(payload as Partial<api.MedicationRouteDto>);
+      else await api.saveInspectionCommittee(payload as Partial<api.InspectionCommitteeDto>);
       tk(editIsNew ? 'Đã thêm' : 'Đã cập nhật');
       setEdit(null);
       reload(tab);
-    } catch { te('Lưu thất bại'); }
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string; title?: string } } })?.response?.data?.message
+        || (err as { response?: { data?: { title?: string } } })?.response?.data?.title;
+      te(msg || 'Lưu thất bại');
+    }
   };
 
   const handleDelete = (row: AnyRow) => {

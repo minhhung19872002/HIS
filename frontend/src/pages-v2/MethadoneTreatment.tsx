@@ -176,11 +176,14 @@ const MethadoneTreatmentV2: React.FC = () => {
   const [morphine, setMorphine] = useState('negative');
   const [amphetamine, setAmphetamine] = useState('negative');
   const [thc, setThc] = useState('negative');
+  const [methadoneResult, setMethadoneResult] = useState('positive');
+  const [benzodiazepine, setBenzodiazepine] = useState('negative');
   const [urineSubmitting, setUrineSubmitting] = useState(false);
 
   const openUrine = (r?: MethadonePatient) => {
     setUrineTarget(r || null);
     setMorphine('negative'); setAmphetamine('negative'); setThc('negative');
+    setMethadoneResult('positive'); setBenzodiazepine('negative');
   };
 
   const submitUrine = async () => {
@@ -191,8 +194,8 @@ const MethadoneTreatmentV2: React.FC = () => {
         patientId: urineTarget.id,
         testDate: new Date().toISOString(),
         morphine, amphetamine, thc,
-        methadone: 'positive',
-        benzodiazepine: 'negative',
+        methadone: methadoneResult,
+        benzodiazepine,
       });
       tk(`Đã ghi XN nước tiểu cho ${urineTarget.patientName}`);
       setUrineTarget(null);
@@ -419,6 +422,8 @@ const MethadoneTreatmentV2: React.FC = () => {
           ['Morphine', morphine, setMorphine],
           ['Amphetamine', amphetamine, setAmphetamine],
           ['THC (cần sa)', thc, setThc],
+          ['Methadone', methadoneResult, setMethadoneResult],
+          ['Benzodiazepine', benzodiazepine, setBenzodiazepine],
         ] as [string, string, (v: string) => void][]).map(([lbl, val, setter]) => (
           <div key={lbl} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
             <span style={{ fontSize: 'var(--fs-md)', color: 'var(--t-1)' }}>{lbl}</span>

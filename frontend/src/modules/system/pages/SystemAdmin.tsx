@@ -5,7 +5,7 @@ import type { AxiosError } from 'axios';
 import { adminApi, catalogApi } from '../api/system';
 import type {
   SystemUserDto, RoleDto, SystemConfigDto, UserSessionDto, CreateUserDto, UpdateUserDto,
-  RoleAssignmentDto, SystemNotificationDto, LockedServiceDto,
+  RoleAssignmentDto, SystemNotificationDto, LockedServiceDto, PermissionDto,
 } from '../api/system';
 import { getAuditLogs } from '../api/audit';
 import type { AuditLogDto } from '../api/audit';
@@ -86,9 +86,11 @@ const SystemAdminV2: React.FC = () => {
   // ─── User modal ───
   const [userModal, setUserModal] = useState<'new' | 'edit' | null>(null);
   const [editUserId, setEditUserId] = useState<string | null>(null);
-  // ─── Role modal ───
+  // ─── Role modal + permissions ───
   const [roleModal, setRoleModal] = useState<'new' | 'edit' | null>(null);
   const [editRoleId, setEditRoleId] = useState<string | null>(null);
+  const [allPermissions, setAllPermissions] = useState<PermissionDto[]>([]);
+  const [rolePermIds, setRolePermIds] = useState<string[]>([]);
   // ─── Config modal ───
   const [cfgModal, setCfgModal] = useState<SystemConfigDto | null>(null);
   // ─── Notification modal ───
@@ -224,14 +226,35 @@ const SystemAdminV2: React.FC = () => {
   const resetPw = (u: SystemUserDto) => cf(`Đặt lại mật khẩu cho "${u.username}"?`, async () => { try { await adminApi.resetPassword(u.id!); tk('Đã đặt lại mật khẩu (gửi cho người dùng)'); } catch { te('Thất bại'); } }, { confirm: 'Reset' });
 
   // ─── Role CRUD ───
-  const openNewRole = () => { setEditRoleId(null); roleF.resetFields(); roleF.setFieldsValue({ isActive: true, isSystemRole: false }); setRoleModal('new'); };
-  const openEditRole = (r: RoleDto) => { setEditRoleId(r.id || null); roleF.setFieldsValue({ code: r.code, name: r.name, description: r.description || '', isSystemRole: r.isSystemRole, isActive: r.isActive }); setRoleModal('edit'); };
+  const ensurePermissions = () => {
+    if (!allPermissions.length)
+      adminApi.getPermissions().then((r) => {
+        const data: PermissionDto[] = Array.isArray(r) ? r : (r as { data?: PermissionDto[] })?.data ?? [];
+        setAllPermissions(data);
+      }).catch(() => {});
+  };
+  const openNewRole = () => {
+    setEditRoleId(null); setRolePermIds([]);
+    roleF.resetFields(); roleF.setFieldsValue({ isActive: true, isSystemRole: false });
+    ensurePermissions(); setRoleModal('new');
+  };
+  const openEditRole = (r: RoleDto) => {
+    setEditRoleId(r.id || null); setRolePermIds([]);
+    roleF.setFieldsValue({ code: r.code, name: r.name, description: r.description || '', isSystemRole: r.isSystemRole, isActive: r.isActive });
+    if (r.id) adminApi.getRolePermissions(r.id).then((raw) => {
+      const ps: PermissionDto[] = Array.isArray(raw) ? raw : (raw as { data?: PermissionDto[] })?.data ?? [];
+      setRolePermIds(ps.map(p => p.id!).filter(Boolean));
+    }).catch(() => {});
+    ensurePermissions(); setRoleModal('edit');
+  };
   const submitRole = async () => {
     let v: Record<string, unknown>;
     try { v = await roleF.validateFields(); } catch { return; }
     setSaving(true);
     try {
       await adminApi.saveRole({ id: editRoleId || undefined, code: (v.code as string).trim(), name: (v.name as string).trim(), description: (v.description as string) || '', isSystemRole: !!v.isSystemRole, isActive: v.isActive !== false } as RoleDto);
+      if (editRoleId && rolePermIds.length >= 0)
+        await adminApi.updateRolePermissions(editRoleId, rolePermIds).catch(() => {});
       tk('Đã lưu vai trò'); setRoleModal(null); load();
     } catch (e: unknown) {
       const ax = e as AxiosError<ServerValidationError>;
@@ -581,6 +604,22 @@ const SystemAdminV2: React.FC = () => {
           <Form.Item name="name" label="Tên vai trò" rules={[{ required: true, message: 'Nhập tên' }]}><Input placeholder="Điều dưỡng" /></Form.Item>
           <Form.Item name="description" label="Mô tả"><Input /></Form.Item>
           <Form.Item name="isActive" label="Hoạt động" valuePropName="checked"><Switch /></Form.Item>
+          {roleModal === 'edit' && (
+            <Form.Item label="Quyền hạn">
+              <Select<string[]>
+                mode="multiple"
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                value={rolePermIds}
+                onChange={setRolePermIds}
+                placeholder="Chọn quyền…"
+                options={allPermissions.map(p => ({ value: p.id!, label: `${p.module} / ${p.name}` }))}
+                style={{ width: '100%' }}
+                maxTagCount={5}
+              />
+            </Form.Item>
+          )}
         </Form>
       </ModalShell>
 

@@ -65,7 +65,7 @@ export * from '../components/overlay/CrudModal';           // CrudFieldCfg, Crud
 // ─────────────────────────── Helpers ───────────────────────────
 
 export const fmtVNDg = (n: number | null | undefined): string =>
-  n ? n.toLocaleString('vi-VN') + ' ₫' : 'Miễn phí';
+  n != null ? n.toLocaleString('vi-VN') + ' ₫' : 'Miễn phí';
 
 export const fmtHMg = (d: Date | string | null | undefined): string => {
   if (!d) return '—';

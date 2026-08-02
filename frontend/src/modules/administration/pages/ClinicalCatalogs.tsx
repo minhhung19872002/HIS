@@ -156,13 +156,21 @@ const ClinicalCatalogsV2: React.FC = () => {
 
   const handleSave = async () => {
     if (!edit) return;
+    const code = String(edit.code || '').trim();
+    const name = String(edit.name || '').trim();
+    if (!code) { te('Mã không được để trống'); return; }
+    if (!name) { te('Tên không được để trống'); return; }
     try {
-      if (tab === 'nursing') await api.saveNursingCareLevel(edit as Partial<api.NursingCareLevelDto>);
-      else await api.saveMedicalRecordType(edit as Partial<api.MedicalRecordTypeDto>);
+      if (tab === 'nursing') await api.saveNursingCareLevel({ ...edit, code, name } as Partial<api.NursingCareLevelDto>);
+      else await api.saveMedicalRecordType({ ...edit, code, name } as Partial<api.MedicalRecordTypeDto>);
       tk(editIsNew ? 'Đã thêm' : 'Đã cập nhật');
       setEdit(null);
       reload(tab);
-    } catch { te('Lưu thất bại'); }
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string; title?: string } } })?.response?.data?.message
+        || (err as { response?: { data?: { title?: string } } })?.response?.data?.title;
+      te(msg || 'Lưu thất bại');
+    }
   };
 
   const handleDelete = (row: AnyRow) => {

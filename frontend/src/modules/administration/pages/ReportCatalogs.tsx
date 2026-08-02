@@ -150,13 +150,22 @@ const ReportCatalogsV2: React.FC = () => {
 
   const handleSave = async () => {
     if (!edit) return;
+    const code = String(edit.code || '').trim();
+    const name = String(edit.name || '').trim();
+    if (!code) { te('Mã không được để trống'); return; }
+    if (!name) { te('Tên không được để trống'); return; }
+    if (tab === 'groups' && !edit.groupTypeId) { te('Vui lòng chọn Nhóm loại báo cáo'); return; }
     try {
-      if (tab === 'types') await api.saveReportServiceGroupType(edit as Partial<api.ReportServiceGroupTypeDto>);
-      else                 await api.saveReportServiceGroup(edit as Partial<api.ReportServiceGroupDto>);
+      if (tab === 'types') await api.saveReportServiceGroupType({ ...edit, code, name } as Partial<api.ReportServiceGroupTypeDto>);
+      else                 await api.saveReportServiceGroup({ ...edit, code, name } as Partial<api.ReportServiceGroupDto>);
       tk(editIsNew ? 'Đã thêm' : 'Đã cập nhật');
       setEdit(null);
       reload();  // both, so groups KPI on types tab refreshes
-    } catch { te('Lưu thất bại'); }
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string; title?: string } } })?.response?.data?.message
+        || (err as { response?: { data?: { title?: string } } })?.response?.data?.title;
+      te(msg || 'Lưu thất bại');
+    }
   };
 
   const handleDelete = (row: AnyRow) => {

@@ -3,13 +3,13 @@ import dayjs from 'dayjs';
 import { message } from 'antd';
 import {
   searchTreatments, createTreatment, updateTreatment,
-  createHerbalPrescription, getHerbalPrescriptions, getHerbs,
+  createHerbalPrescription, getHerbalPrescriptions, getHerbs, completeTreatment,
 } from '../api/traditionalMedicine';
 import type { TraditionalTreatment, HerbalPrescription, HerbItem } from '../api/traditionalMedicine';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import {
   KpiStrip, StatusTabs, SearchBox, Filter, DataTable, Pager, StatusBadge, ActBtn, Btn,
-  DrawerShell, ModalShell, DrSec, DrField, CrudModal, tk, ti, Ico,
+  DrawerShell, ModalShell, DrSec, DrField, CrudModal, tk, te, ti, cf, Ico,
   type ColumnDef, type CrudFieldCfg,
 } from '../../../pages-v2/_v2kit';
 
@@ -192,10 +192,21 @@ const TraditionalMedicineV2: React.FC = () => {
     finally { setRxSubmitting(false); }
   };
 
+  const handleComplete = (r: TraditionalTreatment) => {
+    cf(`Kết thúc điều trị cho "${r.patientName}"?`, async () => {
+      try {
+        await completeTreatment(r.id);
+        tk('Đã kết thúc điều trị');
+        load();
+      } catch { te('Kết thúc thất bại'); }
+    }, { tone: 'warn', confirm: 'Kết thúc' });
+  };
+
   const actions = (r: TraditionalTreatment) => (
     <div className="ab-actions">
       <ActBtn ic="eye" title="Chi tiết" onClick={() => setSel(r)} />
       <ActBtn ic="edit" title="Sửa" onClick={() => openEdit(r)} />
+      {r.status === 0 && <ActBtn ic="check" title="Kết thúc ĐT" onClick={() => handleComplete(r)} />}
     </div>
   );
 

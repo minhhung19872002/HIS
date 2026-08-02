@@ -35,17 +35,18 @@ const STATUS_TONE: Record<number, { label: string; tone: 'warn' | 'ok' | 'crit' 
 };
 const PAYMENT_LABEL: Record<number, string> = { 0: 'Tiền mặt', 1: 'Thẻ', 2: 'Chuyển khoản' };
 const PMT_OPTS = [{ value: 0, label: 'Tiền mặt' }, { value: 1, label: 'Thẻ' }, { value: 2, label: 'Chuyển khoản' }];
-const CTYPE: Record<number, string> = { 0: 'Thường', 1: 'VIP', 2: 'Đại lý' };
+const CTYPE: Record<number, string> = { 1: 'Thường', 2: 'VIP', 3: 'Nhân viên' }; // backend: 1=Regular,2=VIP,3=Staff
 const SHIFT_ST: Record<number, { label: string; tone: 'ok' | 'crit' }> = {
   0: { label: 'Đang mở', tone: 'ok'   },
   1: { label: 'Đã đóng', tone: 'crit' },
 };
 const GPP_TYPES: Record<number, string> = {
-  1: 'Nhập hàng', 2: 'Kiểm kho', 3: 'Nhiệt độ/Độ ẩm', 4: 'Vệ sinh', 5: 'Khác',
+  1: 'ADR (biến cố thuốc)', 2: 'Đình chỉ thuốc', 3: 'Nhiệt độ/Độ ẩm', 4: 'Kiểm tra vệ sinh',
+  // backend RecordType: 1=ADR,2=DrugSuspension,3=Temperature,4=Humidity
 };
 const COMM_ST: Record<number, { label: string; tone: 'warn' | 'ok' }> = {
-  0: { label: 'Chờ TT', tone: 'warn' },
-  1: { label: 'Đã trả', tone: 'ok'   },
+  1: { label: 'Chờ TT', tone: 'warn' }, // backend: 1=Pending
+  2: { label: 'Đã trả', tone: 'ok'   }, // backend: 2=Paid
 };
 
 // ── History status tabs ────────────────────────────────────────────────────
@@ -936,14 +937,14 @@ const HospitalPharmacyV2: React.FC = () => {
                 style={{ width: 130 }}
                 options={[
                   { value: '', label: 'Tất cả' },
-                  { value: '0', label: 'Thường' },
-                  { value: '1', label: 'VIP' },
-                  { value: '2', label: 'Đại lý' },
+                  { value: '1', label: 'Thường' },
+                  { value: '2', label: 'VIP' },
+                  { value: '3', label: 'Nhân viên' },
                 ]}
               />
               <span className="spacer" />
               <Btn variant="ghost" icon="refresh" onClick={loadCustomers}>Làm mới</Btn>
-              <Btn variant="primary" icon="plus" onClick={() => { setCustForm({ fullName: '', customerType: 0 }); setCustModalOpen(true); }}>
+              <Btn variant="primary" icon="plus" onClick={() => { setCustForm({ fullName: '', customerType: 1 }); setCustModalOpen(true); }}>
                 Thêm khách
               </Btn>
             </div>
@@ -990,7 +991,7 @@ const HospitalPharmacyV2: React.FC = () => {
                     {custDetail.email   && <DrField lbl="Email">{custDetail.email}</DrField>}
                     {custDetail.address && <DrField lbl="Địa chỉ">{custDetail.address}</DrField>}
                     <DrField lbl="Loại KH">
-                      <StatusBadge tone={custDetail.customerType === 1 ? 'ok' : custDetail.customerType === 2 ? 'info' : undefined}>
+                      <StatusBadge tone={custDetail.customerType === 2 ? 'ok' : custDetail.customerType === 3 ? 'info' : undefined}>
                         {CTYPE[custDetail.customerType] || '—'}
                       </StatusBadge>
                     </DrField>
@@ -1050,9 +1051,8 @@ const HospitalPharmacyV2: React.FC = () => {
                       placeholder="Chọn giới tính"
                       onChange={(v) => setCustForm((p) => ({ ...p, gender: v ?? undefined }))}
                       options={[
-                        { value: 0, label: 'Nam' },
-                        { value: 1, label: 'Nữ' },
-                        { value: 2, label: 'Khác' },
+                        { value: 1, label: 'Nam' },
+                        { value: 0, label: 'Nữ' },
                       ]}
                     />
                   </Form.Item>
@@ -1266,8 +1266,8 @@ const HospitalPharmacyV2: React.FC = () => {
                 style={{ width: 140 }}
                 options={[
                   { value: '',  label: 'Tất cả' },
-                  { value: '0', label: 'Chờ TT' },
-                  { value: '1', label: 'Đã trả'  },
+                  { value: '1', label: 'Chờ TT' },
+                  { value: '2', label: 'Đã trả'  },
                 ]}
               />
               <span className="spacer" />

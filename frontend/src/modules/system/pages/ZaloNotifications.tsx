@@ -101,6 +101,7 @@ const ZnsLogsPanel: React.FC = () => {
           options={ZNS_STATUS.map((s) => ({ v: String(s.v), l: s.l }))}
           placeholder="▾ Trạng thái" />
         <span className="spacer" />
+        <Btn icon="refresh" onClick={load} title="Tải lại" />
         <Btn variant="primary" onClick={() => setSendOpen(true)}>
           <TermIcon name="external" size={12} /> Gửi thử
         </Btn>
@@ -227,8 +228,8 @@ const ZnsConfigPanel: React.FC = () => {
       <div className="hui-section-t" style={{ marginBottom: 'var(--space-14)' }}>ZALO OFFICIAL ACCOUNT</div>
       <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 'var(--space-10)', fontSize: 'var(--fs-md)' }}>
         <span>Access Token</span>
-        <input className="ab-sel" value={cfg.accessToken}
-          onChange={(e) => set('accessToken', e.target.value)} />
+        <input className="ab-sel" type="password" value={cfg.accessToken}
+          onChange={(e) => set('accessToken', e.target.value)} autoComplete="off" />
         <span>OA ID</span>
         <input className="ab-sel" value={cfg.oaId}
           onChange={(e) => set('oaId', e.target.value)} />
