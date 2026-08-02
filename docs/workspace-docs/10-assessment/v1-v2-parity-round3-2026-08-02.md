@@ -178,7 +178,7 @@ Ty le lat qua 2 vong skeptic: 35/70 (50%) verdict DELETE_SAFE ban dau bi bac —
   - [ ] 'Tài nguyên' (Resources) tab — bed/ICU/OR/phòng mổ/máu/thiết bị availability tracking, getResources() (v1 lines 780-832)
   - [ ] 'Nhân sự' (Staff) tab — command-center staff roster with role/department/status/phone, getCommandCenter() (v1 lines 834-887)
   - [ ] 'Hướng dẫn START' triage-protocol reference tab (v1 lines 888-957)
-  - [ ] 'Kết thúc sự kiện' button to deactivate/end an active MCI event, handleEndMCI()->deactivateMCI() (v1 lines 422-441, 992-994) — v2 has no way to end an MCI event once Code Blue is activated
+  - [x] 'Kết thúc sự kiện' button — ĐÃ PORT 2026-08-02 (nút + modal bắt buộc lý do → deactivateMCI, reset activeEvent) to deactivate/end an active MCI event, handleEndMCI()->deactivateMCI() (v1 lines 422-441, 992-994) — v2 has no way to end an MCI event once Code Blue is activated
   - [ ] Per-victim 'Liên lạc' family-notification action, notifyFamily() (v1 lines 300-337)
   - [ ] Per-victim quick 'Cập nhật' (updateVictim) inline action (v1 lines 353-369)
   - [ ] Event-history table + facility readiness KPIs (events/victims this year, readiness score, staff on-call) shown when no active event, getDashboard()/getEvents() (v1 lines 1012-1088)

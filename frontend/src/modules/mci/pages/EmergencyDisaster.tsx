@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { App as AntdApp, Drawer, Select, Input, Tag } from 'antd';
+import { App as AntdApp, Drawer, Modal, Select, Input, Tag } from 'antd';
 import { AlertOutlined, EyeOutlined, HomeOutlined, LogoutOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import TermIcon from '../../../components/layout/terminal/Icon';
 import {
-  getActiveEvent, getVictims, registerVictim, activateCodeBlue,
+  getActiveEvent, getVictims, registerVictim, activateCodeBlue, deactivateMCI,
   type MCIEventDto, type MCIVictimDto, type RegisterVictimDto,
 } from '../api/massCasualty';
 import { registerEmergencyPatient, type EmergencyRegistrationDto } from '../../reception/api/reception';
@@ -211,6 +211,11 @@ const EmergencyDisasterV2: React.FC = () => {
   const [source, setSource] = useState<'mci' | 'observation'>('observation');
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [activeEvent, setActiveEvent] = useState<MCIEventDto | null>(null);
+  // #352: kết thúc sự kiện MCI (bắt buộc lý do — đây là mốc chuyển bệnh viện khỏi trạng thái thảm hoạ)
+  const [endMciOpen, setEndMciOpen] = useState(false);
+  const [endMciReason, setEndMciReason] = useState('');
+  const [endMciNotes, setEndMciNotes] = useState('');
+  const [endMciBusy, setEndMciBusy] = useState(false);
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [intakeSubmitting, setIntakeSubmitting] = useState(false);
 
@@ -513,6 +518,18 @@ const EmergencyDisasterV2: React.FC = () => {
                 In báo cáo MCI
               </button>
             )}
+            {/* #352: kết thúc sự kiện MCI — v2 kích hoạt được Code Blue nhưng KHÔNG có đường tắt
+                sự kiện, nên bệnh viện kẹt ở trạng thái thảm hoạ vô thời hạn (v1 có handleEndMCI). */}
+            {activeEvent && (
+              <button
+                className="er-v2-btn"
+                type="button"
+                onClick={() => setEndMciOpen(true)}
+              >
+                <TermIcon name="check" size={14} />
+                Kết thúc sự kiện
+              </button>
+            )}
           </div>
 
           <div className="er-v2-toolbar-right">
@@ -703,6 +720,36 @@ const EmergencyDisasterV2: React.FC = () => {
           />
         )}
       </Drawer>
+
+      {/* #352: kết thúc sự kiện MCI */}
+      <EndMciModal
+        open={endMciOpen}
+        eventCode={activeEvent?.eventCode}
+        reason={endMciReason}
+        setReason={setEndMciReason}
+        notes={endMciNotes}
+        setNotes={setEndMciNotes}
+        busy={endMciBusy}
+        onClose={() => setEndMciOpen(false)}
+        onSubmit={async () => {
+          if (!activeEvent) return;
+          if (!endMciReason.trim()) { message.warning('Cần nhập lý do kết thúc sự kiện'); return; }
+          setEndMciBusy(true);
+          try {
+            await deactivateMCI({
+              eventId: activeEvent.id,
+              reason: endMciReason.trim(),
+              finalNotes: endMciNotes.trim() || undefined,
+            });
+            message.success('Đã kết thúc sự kiện MCI');
+            setEndMciOpen(false);
+            setEndMciReason(''); setEndMciNotes('');
+            setActiveEvent(null); setActiveEventId(null);
+            void reload();
+          } catch { message.error('Không kết thúc được sự kiện MCI'); }
+          finally { setEndMciBusy(false); }
+        }}
+      />
     </div>
   );
 };
@@ -1043,6 +1090,47 @@ const IntakeDrawerContent: React.FC<IntakeDrawerContentProps> = ({ submitting, i
     </div>
   );
 };
+
+/* #352: modal kết thúc sự kiện MCI — tách riêng cho gọn, bắt buộc lý do. */
+type EndMciModalProps = {
+  open: boolean;
+  eventCode?: string;
+  reason: string;
+  setReason: (v: string) => void;
+  notes: string;
+  setNotes: (v: string) => void;
+  busy: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+};
+
+const EndMciModal: React.FC<EndMciModalProps> = ({
+  open, eventCode, reason, setReason, notes, setNotes, busy, onClose, onSubmit,
+}) => (
+  <Modal
+    open={open}
+    title={`Kết thúc sự kiện MCI ${eventCode ?? ''}`}
+    onCancel={onClose}
+    onOk={onSubmit}
+    okText="Kết thúc sự kiện"
+    cancelText="Huỷ"
+    okButtonProps={{ danger: true, loading: busy }}
+    destroyOnHidden
+  >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
+      <div style={{ color: '#b91c1c' }}>
+        Bệnh viện sẽ thoát khỏi trạng thái thảm hoạ. Chỉ kết thúc khi mọi nạn nhân đã được phân loại và bàn giao.
+      </div>
+      <label>Lý do kết thúc <span style={{ color: '#b91c1c' }}>*</span>
+        <Input value={reason} onChange={(e) => setReason(e.target.value)} style={{ marginTop: 4 }}
+          placeholder="VD: đã xử lý xong toàn bộ nạn nhân" />
+      </label>
+      <label>Ghi chú tổng kết
+        <Input.TextArea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} style={{ marginTop: 4 }} />
+      </label>
+    </div>
+  </Modal>
+);
 
 type VitalCardProps = {
   label: string;
