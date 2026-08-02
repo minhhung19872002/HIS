@@ -214,9 +214,48 @@ const FinanceCatalogsV2: React.FC = () => {
     }
   };
 
+  /** #352: validate trước khi lưu — v1 chặn bằng form rules (_CrudTab.tsx:112), v2 post thẳng
+   *  và seed `code:'' name:''` ⇒ tạo được bản ghi danh mục RỖNG. Backend cũng không validate
+   *  (MasterCatalogDtos.cs không có [Required]; MasterCatalogService.cs:114-123 lưu thẳng),
+   *  mà các danh mục này nuôi giá viện phí / vận chuyển → rác ở đây chảy thẳng vào tiền.
+   *  Trả về chuỗi lỗi đầu tiên, null = hợp lệ. */
+  const validateEdit = (): string | null => {
+    if (!edit) return 'Chưa có dữ liệu';
+    const e = edit as Record<string, unknown>;
+    const str = (k: string) => String(e[k] ?? '').trim();
+    const num = (k: string) => Number(e[k] ?? 0);
+
+    if (tab === 'surcharge' || tab === 'other') {
+      if (!str('code')) return 'Mã là bắt buộc';
+      if (!str('name')) return 'Tên là bắt buộc';
+      if (!(num('price') > 0)) return 'Đơn giá phải lớn hơn 0';
+      return null;
+    }
+    if (tab === 'transport') {
+      if (!str('code')) return 'Mã là bắt buộc';
+      if (!str('name')) return 'Tên là bắt buộc';
+      if (!e.calculationType) return 'Cách tính là bắt buộc';
+      if (!(num('unitPrice') > 0)) return 'Đơn giá phải lớn hơn 0';
+      return null;
+    }
+    // gasoline
+    if (!str('fuelType')) return 'Loại nhiên liệu là bắt buộc';
+    if (!(num('pricePerLitre') > 0)) return 'Giá/lít phải lớn hơn 0';
+    if (!str('effectiveFrom')) return 'Ngày hiệu lực là bắt buộc';
+    return null;
+  };
+
+  /** #352: lấy message thật từ server thay vì nuốt thành 'Lưu thất bại' (v1 hiện response.data.message). */
+  const serverMsg = (err: unknown, fallback: string): string => {
+    const r = (err as { response?: { data?: { message?: string; title?: string } } })?.response?.data;
+    return r?.message || r?.title || fallback;
+  };
+
   // ----- Save handler -----
   const handleSave = async () => {
     if (!edit) return;
+    const invalid = validateEdit();
+    if (invalid) { te(invalid); return; }
     try {
       if (tab === 'surcharge') {
         await api.saveAdditionalCharge(edit as Partial<api.AdditionalChargeDto>);
@@ -230,7 +269,7 @@ const FinanceCatalogsV2: React.FC = () => {
       tk(editIsNew ? 'Đã thêm' : 'Đã cập nhật');
       setEdit(null);
       reload(tab);
-    } catch { te('Lưu thất bại'); }
+    } catch (err) { te(serverMsg(err, 'Lưu thất bại')); }
   };
 
   // ----- Delete -----
@@ -247,7 +286,7 @@ const FinanceCatalogsV2: React.FC = () => {
         else await api.deleteGasolinePrice(row.id);
         tk('Đã xoá');
         reload(tab);
-      } catch { te('Xoá thất bại'); }
+      } catch (err) { te(serverMsg(err, 'Xoá thất bại')); }
     }, { tone: 'crit', confirm: 'Xoá' });
   };
 
