@@ -98,6 +98,38 @@ public class BillingAmountGuardTests
         Assert.Equal(100000, ctx.Deposits.Single().RemainingAmount);
     }
 
+    // #462 (found from #213 e2e): deposit không tồn tại → KeyNotFoundException (404), không phải Exception trần (500)
+    [Fact]
+    public async Task UseDeposit_unknown_deposit_throws_KeyNotFound()
+    {
+        using var ctx = TestDb.NewInMemory();
+        var svc = NewService(ctx);
+        var dto = new UseDepositForPaymentDto { DepositId = Guid.NewGuid(), Amount = 1000, InvoiceId = Guid.NewGuid() };
+        await Assert.ThrowsAsync<KeyNotFoundException>(
+            () => svc.UseDepositForPaymentAsync(dto, Guid.NewGuid()));
+    }
+
+    // #462: thiếu số dư → InvalidOperationException (400), không phải Exception trần (500)
+    [Fact]
+    public async Task UseDeposit_insufficient_balance_throws_InvalidOperation()
+    {
+        using var ctx = TestDb.NewInMemory();
+        var p = SeedPatient(ctx);
+        var deposit = new Deposit
+        {
+            Id = Guid.NewGuid(), PatientId = p.Id, Amount = 50000,
+            RemainingAmount = 50000, UsedAmount = 0, Status = 2,
+            ReceiptNumber = "TU002"
+        };
+        ctx.Deposits.Add(deposit);
+        ctx.SaveChanges();
+        var svc = NewService(ctx);
+        var dto = new UseDepositForPaymentDto { DepositId = deposit.Id, Amount = 999999, InvoiceId = Guid.NewGuid() };
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => svc.UseDepositForPaymentAsync(dto, Guid.NewGuid()));
+        Assert.Equal(50000, ctx.Deposits.Single().RemainingAmount);
+    }
+
     // ---------- CreateRefundAsync ----------
     [Theory]
     [InlineData(0)]

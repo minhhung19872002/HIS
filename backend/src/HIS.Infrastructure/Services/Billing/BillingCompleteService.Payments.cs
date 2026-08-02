@@ -169,12 +169,12 @@ public partial class BillingCompleteService {
     {
         var deposit = await _context.Deposits.FindAsync(dto.DepositId);
         if (deposit == null)
-            throw new Exception("Deposit not found");
+            throw new KeyNotFoundException("Không tìm thấy phiếu tạm ứng"); // #462: 404, không phải 500
         // #189: chặn số tiền <= 0 trước khi so số dư
         if (dto.Amount <= 0)
             throw new InvalidOperationException("Số tiền sử dụng phải lớn hơn 0");
         if (deposit.RemainingAmount < dto.Amount)
-            throw new Exception("Insufficient deposit balance");
+            throw new InvalidOperationException("Số dư tạm ứng không đủ"); // #462: 400, không phải 500
 
         deposit.UsedAmount += dto.Amount;
         deposit.RemainingAmount -= dto.Amount;
