@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import { App as AntdApp, Input, Select, InputNumber } from 'antd';
 import type { MessageInstance } from 'antd/es/message/interface';
 import { DatePicker } from 'antd';
-import { getBloodStock, getBloodStockDetail, getExpiringBloodBags, getIssueRequests, getProductTypes, createIssueRequest, createImportReceipt, getSuppliers, updateBloodBagStatus, destroyExpiredBloodBags, approveIssueRequest, issueBlood } from '../api/bloodBank';
+import { getBloodStock, getBloodStockDetail, getExpiringBloodBags, getExpiredBloodBags, getIssueRequests, getProductTypes, createIssueRequest, createImportReceipt, getSuppliers, updateBloodBagStatus, destroyExpiredBloodBags, approveIssueRequest, issueBlood } from '../api/bloodBank';
 import type { BloodStockDto, BloodBagDto, BloodIssueRequestDto, BloodProductTypeDto, BloodStockDetailDto, BloodSupplierDto } from '../api/bloodBank';
 import { catalogApi } from '../../system/api/system';
 import type { DepartmentCatalogDto } from '../../system/api/system';
@@ -26,11 +26,15 @@ const BLOOD_TYPES = ['O', 'A', 'B', 'AB'];
 const RH = ['+', '-'];
 const ALL_TYPES = BLOOD_TYPES.flatMap((b) => RH.map((r) => `${b}${r}`));
 
-type TopKey = 'stock' | 'expiring' | 'requests' | 'gelcard';
+type TopKey = 'stock' | 'expiring' | 'expired' | 'requests' | 'gelcard';
 
 const TOP_TABS: TopTab<TopKey>[] = [
   { v: 'stock',     l: 'Kho máu',          ic: 'drop' },
   { v: 'expiring',  l: 'Sắp hết hạn',      ic: 'alert' },
+  // #352: túi ĐÃ quá hạn — trước đây v2 không có view nào chứa chúng (getExpiringBloodBags
+  // chỉ trả Available + ExpiryDate > GETDATE()) nên nút "Tiêu huỷ" không bao giờ với tới
+  // đúng túi cần huỷ. Patient-safety.
+  { v: 'expired',   l: 'Đã hết hạn',       ic: 'x' },
   { v: 'requests',  l: 'Yêu cầu xuất máu', ic: 'send' },
   { v: 'gelcard',   l: 'Gelcard',          ic: 'flask' },
 ];
@@ -117,6 +121,7 @@ const BloodBankV2: React.FC = () => {
   // BE stock/expiring trả BloodStockDetailDto (bloodBagId, KHÔNG có id/donorName/unit)
   // — cast BloodBagDto cũ che lệch shape làm Cấp phát/Tiêu huỷ gửi id=undefined.
   const [expiring, setExpiring] = useState<BloodStockDetailDto[]>([]);
+  const [expired, setExpired] = useState<BloodStockDetailDto[]>([]);
   const [requests, setRequests] = useState<BloodIssueRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -139,11 +144,13 @@ const BloodBankV2: React.FC = () => {
       getBloodStockDetail(),
       getExpiringBloodBags(7),
       getIssueRequests(dayjs().subtract(60, 'day').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')),
-    ]).then(([s, u, e, r]) => {
+      getExpiredBloodBags(),
+    ]).then(([s, u, e, r, x]) => {
       if (s.status === 'fulfilled') setStock((s.value.data || []) as BloodStockDto[]);
       if (u.status === 'fulfilled') setUnits((u.value.data || []) as BloodStockDetailDto[]);
       if (e.status === 'fulfilled') setExpiring((e.value.data || []) as BloodStockDetailDto[]);
       if (r.status === 'fulfilled') setRequests((r.value.data || []) as BloodIssueRequestDto[]);
+      if (x.status === 'fulfilled') setExpired((x.value.data || []) as BloodStockDetailDto[]);
       setLoading(false);
     });
   };
@@ -208,6 +215,19 @@ const BloodBankV2: React.FC = () => {
     });
   }, [expiring, search, filterType]);
 
+  const expiredFiltered = useMemo(() => {
+    return expired.filter((b) => {
+      if (filterType && `${b.bloodType}${b.rhFactor}` !== filterType) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const hay = [b.bagCode, b.barcode, b.storageLocation, b.productTypeName]
+          .filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [expired, search, filterType]);
+
   const requestsFiltered = useMemo(() => {
     return requests.filter((r) => {
       if (search.trim()) {
@@ -239,7 +259,7 @@ const BloodBankV2: React.FC = () => {
   }, [gelcardBase, search, filterType]);
 
   const totalPages = Math.max(1, Math.ceil(
-    (tab === 'stock' ? unitsFiltered.length : tab === 'expiring' ? expiringFiltered.length : tab === 'gelcard' ? gelcardFiltered.length : requestsFiltered.length) / PAGE_SIZE,
+    (tab === 'stock' ? unitsFiltered.length : tab === 'expiring' ? expiringFiltered.length : tab === 'expired' ? expiredFiltered.length : tab === 'gelcard' ? gelcardFiltered.length : requestsFiltered.length) / PAGE_SIZE,
   ));
 
   // Unit table columns (mock "Kho máu")
@@ -360,11 +380,33 @@ const BloodBankV2: React.FC = () => {
         </>
       )}
       {tab === 'expiring' && <ExpiringTab rows={expiringFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} message={message} onReload={reload} />}
+      {tab === 'expired' && (
+        <>
+          {expiredFiltered.length > 0 && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 'var(--space-8)',
+              margin: '0 16px 10px', padding: '8px 12px', borderRadius: 'var(--r-2)',
+              border: '1px solid var(--s-crit)', borderLeft: '3px solid var(--s-crit)',
+              background: 'var(--d-0)', fontSize: 12.5,
+            }}>
+              <TermIcon name="alert" size={14} />
+              <div>
+                <strong>{expiredFiltered.length} túi máu đã quá hạn — cần xử lý ngay.</strong>
+                <span style={{ color: 'var(--t-2)' }}> Máu quá hạn KHÔNG được cấp phát; chỉ có thao tác tiêu huỷ.</span>
+              </div>
+            </div>
+          )}
+          <ExpiringTab
+            rows={expiredFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)}
+            loading={loading} message={message} onReload={reload} mode="expired"
+          />
+        </>
+      )}
       {tab === 'requests' && <RequestsTab rows={requestsFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} loading={loading} units={units} onReload={reload} />}
       {tab === 'gelcard' && <GelcardTab rows={gelcardFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)} allActiveUnits={gelcardBase} loading={loading} results={gelcardResults} onSaveResult={saveGelcardResult} />}
 
       <Pager page={page} totalPages={totalPages} setPage={setPage}
-        total={tab === 'stock' ? unitsFiltered.length : tab === 'expiring' ? expiringFiltered.length : tab === 'gelcard' ? gelcardFiltered.length : requestsFiltered.length} perPage={PAGE_SIZE} />
+        total={tab === 'stock' ? unitsFiltered.length : tab === 'expiring' ? expiringFiltered.length : tab === 'expired' ? expiredFiltered.length : tab === 'gelcard' ? gelcardFiltered.length : requestsFiltered.length} perPage={PAGE_SIZE} />
 
       <DrawerShell
         open={!!detailType}
@@ -551,7 +593,10 @@ const ExpiringTab: React.FC<{
   loading: boolean;
   message: MessageInstance;
   onReload: () => void;
-}> = ({ rows, loading, message, onReload }) => {
+  /** #352: 'expired' = túi ĐÃ quá hạn → CHỈ được tiêu huỷ, không cấp phát (patient-safety). */
+  mode?: 'expiring' | 'expired';
+}> = ({ rows, loading, message, onReload, mode = 'expiring' }) => {
+  const isExpired = mode === 'expired';
   const [sel, setSel] = useState<BloodStockDetailDto | null>(null);
   const [actionBag, setActionBag] = useState<{ bag: BloodStockDetailDto; type: 'dispense' | 'discard' } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -601,14 +646,18 @@ const ExpiringTab: React.FC<{
       onRowClick={setSel}
       actions={(b) => (
         <div className="ab-actions">
-          <ActBtn ic="send" title="Cấp phát" onClick={() => { setDiscardReason(''); setActionBag({ bag: b, type: 'dispense' }); }} />
-          <ActBtn ic="alert" title="Tiêu huỷ" tone="warn" onClick={() => { setDiscardReason(''); setActionBag({ bag: b, type: 'discard' }); }} />
+          {/* Máu quá hạn TUYỆT ĐỐI không cấp phát → chỉ hiện nút Tiêu huỷ */}
+          {!isExpired && (
+            <ActBtn ic="send" title="Cấp phát" onClick={() => { setDiscardReason(''); setActionBag({ bag: b, type: 'dispense' }); }} />
+          )}
+          <ActBtn ic="alert" title="Tiêu huỷ" tone={isExpired ? 'crit' : 'warn'}
+            onClick={() => { setDiscardReason(''); setActionBag({ bag: b, type: 'discard' }); }} />
         </div>
       )}
       empty={loading ? 'Đang tải…' : (
         <div className="ab-empty">
           <TermIcon name="check" size={20} />
-          <div>Không có túi máu nào sắp hết hạn</div>
+          <div>{isExpired ? 'Không có túi máu nào quá hạn' : 'Không có túi máu nào sắp hết hạn'}</div>
         </div>
       )}
     />
@@ -620,7 +669,7 @@ const ExpiringTab: React.FC<{
       sub={sel ? `${sel.bloodType}${sel.rhFactor} · ${sel.productTypeName}` : ''}
     >
       {sel && (
-        <DrSec title="Túi máu sắp hết hạn">
+        <DrSec title={isExpired ? 'Túi máu đã quá hạn' : 'Túi máu sắp hết hạn'}>
           <DrField lbl="Mã túi"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.bagCode}</span></DrField>
           <DrField lbl="Barcode"><span style={{ fontFamily: 'var(--font-mono)' }}>{sel.barcode || '—'}</span></DrField>
           <DrField lbl="Nhóm máu">{sel.bloodType}{sel.rhFactor}</DrField>
@@ -655,6 +704,7 @@ const ExpiringTab: React.FC<{
             setActionLoading(true);
             try {
               if (actionBag.type === 'dispense') {
+                if (isExpired) { message.error('Không được cấp phát túi máu đã quá hạn'); setActionLoading(false); return; }
                 await updateBloodBagStatus(actionBag.bag.bloodBagId, 'Issued', 'Cấp phát từ kho sắp hết hạn');
                 message.success(`Đã cấp phát túi máu ${actionBag.bag.bagCode}`);
               } else {
