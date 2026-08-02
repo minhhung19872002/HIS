@@ -10,7 +10,7 @@ namespace HIS.API.Controllers;
 
 /// <summary>
 /// Controller đầy đủ cho Phân hệ 12: Giám định BHYT - XML Export
-/// Theo QĐ 4210, 4750, 3176, 130
+/// Theo QĐ 4210, 4750, 130, 3716
 /// </summary>
 [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager + "," + RoleNames.Director + "," + RoleNames.QuanTriHeThong + "," + RoleNames.Cashier + "," + RoleNames.Accountant + "," + RoleNames.ThuNgan + "," + RoleNames.Receptionist)] // B3 RBAC shortlist (#293): BHYT/giám định XML → admin+tài chính+lễ tân (Reception check thẻ BHYT)
 [ApiController]

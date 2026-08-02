@@ -46,6 +46,7 @@ public partial class InsuranceXmlService
                 GioiTinh = c.Patient?.Gender ?? 1,
                 DiaChi = c.Patient?.Address ?? "",
                 MaThe = c.InsuranceNumber ?? "",
+                SoCccd = c.Patient?.IdentityNumber,
                 MaDkbd = c.InsuranceFacilityCode ?? "",
                 GtTheTu = c.InsuranceStartDate ?? DateTime.MinValue,
                 GtTheDen = c.InsuranceEndDate ?? DateTime.MinValue,

@@ -2,7 +2,7 @@ namespace HIS.Application.DTOs.Insurance;
 
 /// <summary>
 /// Phân hệ 12: Giám định BHYT - DTOs cho xuất XML BHXH
-/// Theo QĐ 4210, 4750, 3176, 130
+/// Theo QĐ 4210, 4750, 130, 3716
 /// </summary>
 
 

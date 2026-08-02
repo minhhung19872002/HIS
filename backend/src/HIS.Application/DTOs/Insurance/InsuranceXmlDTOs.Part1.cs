@@ -2,7 +2,7 @@ namespace HIS.Application.DTOs.Insurance;
 
 /// <summary>
 /// Phân hệ 12: Giám định BHYT - DTOs cho xuất XML BHXH
-/// Theo QĐ 4210, 4750, 3176, 130
+/// Theo QĐ 4210, 4750, 130, 3716
 /// </summary>
 
 
@@ -21,6 +21,8 @@ public class Xml1MedicalRecordDto
     public int GioiTinh { get; set; } // 1-Nam, 2-Nữ
     public string DiaChi { get; set; } = string.Empty;
     public string MaThe { get; set; } = string.Empty; // Mã thẻ BHYT
+    /// <summary>QĐ 3716/2024: số CCCD/CMND của bệnh nhân</summary>
+    public string? SoCccd { get; set; }
     public string MaDkbd { get; set; } = string.Empty; // Mã ĐKBD
     public DateTime GtTheTu { get; set; } // Giá trị thẻ từ
     public DateTime GtTheDen { get; set; } // Giá trị thẻ đến

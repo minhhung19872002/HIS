@@ -64,7 +64,9 @@ public class XmlExportService
         await using var writer = XmlWriter.Create(stream, CreateSettings());
 
         await writer.WriteStartDocumentAsync();
+        // QĐ 3716/QĐ-BYT 29/10/2024: version header
         writer.WriteStartElement("DSACH_THONG_TIN");
+        writer.WriteAttributeString("PHIEN_BAN", "3716");
 
         foreach (var r in records)
         {
@@ -77,6 +79,7 @@ public class XmlExportService
             WriteElement(writer, "GIOI_TINH", ToInt(r.GioiTinh));
             WriteElement(writer, "DIA_CHI", r.DiaChi);
             WriteElement(writer, "MA_THE", r.MaThe);
+            WriteElement(writer, "MA_CCCD", r.SoCccd ?? ""); // QĐ 3716/2024
             WriteElement(writer, "MA_DKBD", r.MaDkbd);
             WriteElement(writer, "GT_THE_TU", ToBhxhDate(r.GtTheTu));
             WriteElement(writer, "GT_THE_DEN", ToBhxhDate(r.GtTheDen));
