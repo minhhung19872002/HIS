@@ -3,12 +3,13 @@ import { Form, Input, InputNumber, Switch, Select, Modal } from 'antd';
 import apiClient from '../../../services/apiClient';
 import { normalizeArrayResponse } from '../../../utils/apiNormalize';
 import { searchAbbreviations, saveAbbreviation, deleteAbbreviation, ABBREVIATION_SCOPES } from '../../../api/abbreviation';
+import { getSendingUnits, saveSendingUnit, deleteSendingUnit } from '../api/labQC';
 import {
   KpiStrip, TopTabs, SearchBox, DataTable, StatusBadge, ActBtn, Btn,
   tk, ti, tw, cf, type ColumnDef,
 } from '@/_v2kit';
 
-type TabKey = 'books' | 'groups' | 'units' | 'organisms' | 'antibiotics' | 'chemicals' | 'abbr' | 'tests';
+type TabKey = 'books' | 'groups' | 'units' | 'organisms' | 'antibiotics' | 'chemicals' | 'abbr' | 'tests' | 'sendingunits';
 const TABS = [
   { v: 'books' as TabKey,       l: 'Sổ XN',       ic: 'archive' },
   { v: 'groups' as TabKey,      l: 'Nhóm XN',     ic: 'list' },
@@ -18,6 +19,8 @@ const TABS = [
   { v: 'antibiotics' as TabKey, l: 'Kháng sinh',  ic: 'medicine' },
   { v: 'chemicals' as TabKey,   l: 'Hóa chất',    ic: 'package' },
   { v: 'abbr' as TabKey,        l: 'Viết tắt KQ', ic: 'file-text' },
+  // NangCap26 LIS #15 — CSYT/phòng khám gửi mẫu về labo
+  { v: 'sendingunits' as TabKey, l: 'Đơn vị gửi mẫu', ic: 'send' },
 ];
 
 const GRAM_OPTIONS = [{ label: 'Gram (+)', value: '+' }, { label: 'Gram (-)', value: '-' }, { label: 'Thay đổi', value: 'Variable' }];
@@ -50,6 +53,11 @@ const LisCatalogAdminV2: React.FC = () => {
         const list = await searchAbbreviations(ABBREVIATION_SCOPES.LAB) || [];
         const kw = keyword.trim().toLowerCase();
         setData((kw ? list.filter((a) => a.code.toLowerCase().includes(kw) || a.expansion.toLowerCase().includes(kw)) : list) as unknown as Row[]);
+      } else if (tab === 'sendingunits') {
+        // NangCap26 LIS #15 — route riêng /LISComplete/sending-units, lọc keyword client-side
+        const list = (await getSendingUnits(false)).data || [];
+        const kw = keyword.trim().toLowerCase();
+        setData((kw ? list.filter((u) => u.code.toLowerCase().includes(kw) || u.name.toLowerCase().includes(kw)) : list) as unknown as Row[]);
       } else {
         const params = keyword ? { keyword } : {};
         const { data } = await apiClient.get(`/lis-catalog/${tab}`, { params });
@@ -84,6 +92,8 @@ const LisCatalogAdminV2: React.FC = () => {
           id: editing?.id, code: payload.code, expansion: payload.expansion,
           scope: ABBREVIATION_SCOPES.LAB, ownerOnly: false, sortOrder: payload.sortOrder ?? 0,
         });
+      } else if (tab === 'sendingunits') {
+        await saveSendingUnit(payload);
       } else {
         await apiClient.post(`/lis-catalog/${tab}`, payload);
       }
@@ -95,6 +105,7 @@ const LisCatalogAdminV2: React.FC = () => {
   const remove = (row: Row) => cf('Xóa mục này?', async () => {
     try {
       if (tab === 'abbr') await deleteAbbreviation(row.id);
+      else if (tab === 'sendingunits') await deleteSendingUnit(row.id);
       else await apiClient.delete(`/lis-catalog/${tab}/${row.id}`);
       tk('Đã xóa'); load();
     }
@@ -172,6 +183,15 @@ const LisCatalogAdminV2: React.FC = () => {
       { key: 'expansion', label: 'Bung thành', render: (r) => r.expansion },
       { key: 'order', label: 'STT', mono: true, render: (r) => r.sortOrder ?? 0 },
       { key: 'usage', label: 'Đã dùng', mono: true, render: (r) => r.usageCount ?? 0 },
+      { key: 'active', label: 'Hoạt động', render: (r) => r.isActive !== false ? <StatusBadge tone="ok" dot>Có</StatusBadge> : <StatusBadge tone="warn" dot>Ẩn</StatusBadge> },
+    ],
+    sendingunits: [
+      { key: 'code', label: 'Mã đơn vị', code: true, render: (r) => r.code },
+      { key: 'name', label: 'Tên đơn vị gửi mẫu', render: (r) => r.name },
+      { key: 'facility', label: 'Mã CSYT', code: true, render: (r) => r.facilityCode || '—' },
+      { key: 'contact', label: 'Người liên hệ', render: (r) => r.contactPerson || '—' },
+      { key: 'phone', label: 'Điện thoại', mono: true, render: (r) => r.phoneNumber || '—' },
+      { key: 'addr', label: 'Địa chỉ', render: (r) => r.address || '—' },
       { key: 'active', label: 'Hoạt động', render: (r) => r.isActive !== false ? <StatusBadge tone="ok" dot>Có</StatusBadge> : <StatusBadge tone="warn" dot>Ẩn</StatusBadge> },
     ],
   };
@@ -289,6 +309,21 @@ const LisCatalogAdminV2: React.FC = () => {
       <Form.Item label="Từ viết tắt" name="code" rules={[{ required: true }]}><Input placeholder="vd: hc, bc, tc…" /></Form.Item>
       <Form.Item label="Bung thành" name="expansion" rules={[{ required: true }]}><Input.TextArea rows={2} placeholder="vd: Hồng cầu trong giới hạn bình thường" /></Form.Item>
       <Form.Item label="STT" name="sortOrder"><InputNumber min={0} /></Form.Item>
+    </>,
+    sendingunits: <>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
+        <Form.Item label="Mã đơn vị" name="code" rules={[{ required: true }]}><Input placeholder="vd: PKDK-AN" /></Form.Item>
+        <Form.Item label="Mã CSYT (BHYT)" name="facilityCode"><Input placeholder="5 số, vd: 89001" /></Form.Item>
+      </div>
+      <Form.Item label="Tên đơn vị gửi mẫu" name="name" rules={[{ required: true }]}><Input placeholder="Phòng khám / TYT / CSYT gửi mẫu về labo" /></Form.Item>
+      <Form.Item label="Địa chỉ" name="address"><Input /></Form.Item>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
+        <Form.Item label="Người liên hệ" name="contactPerson"><Input /></Form.Item>
+        <Form.Item label="Điện thoại" name="phoneNumber"><Input /></Form.Item>
+      </div>
+      <Form.Item label="Email" name="email"><Input type="email" /></Form.Item>
+      <Form.Item label="Ghi chú" name="notes"><Input.TextArea rows={2} /></Form.Item>
+      <Form.Item label="Hoạt động" name="isActive" valuePropName="checked" initialValue={true}><Switch /></Form.Item>
     </>,
   };
 

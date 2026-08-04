@@ -4,6 +4,7 @@ import { App as AntdApp, Form, Input, DatePicker, Select, Row, Col } from 'antd'
 import {
   getEquipment, getMaintenanceSchedules, getRepairRequests,
   createEquipment, createMaintenanceRecord, createRepairRequest, getEquipmentCategories,
+  approveMaintenanceRecord, rejectMaintenanceSchedule,
   type EquipmentDto, type CreateEquipmentDto, type MaintenanceScheduleDto,
   type RepairRequestDto, type EquipmentCategoryDto,
 } from '../api/equipment';
@@ -110,6 +111,10 @@ const EquipmentV2: React.FC = () => {
   const [showAddEq, setShowAddEq] = useState(false);
   const [categories, setCategories] = useState<EquipmentCategoryDto[]>([]);
   const [addLoading, setAddLoading] = useState(false);
+  // NangCap26 XVII.7 — duyệt kế hoạch bảo dưỡng
+  const [maintBusy, setMaintBusy] = useState<string | null>(null);
+  const [maintRejectTarget, setMaintRejectTarget] = useState<MaintenanceScheduleDto | null>(null);
+  const [maintRejectNote, setMaintRejectNote] = useState('');
 
   // Forms
   const [maintForm] = Form.useForm<MaintFormValues>();
@@ -285,6 +290,34 @@ const EquipmentV2: React.FC = () => {
     }
   };
 
+  // NangCap26 XVII.7 — duyệt / từ chối kế hoạch bảo dưỡng (chỉ khi đang Chờ duyệt)
+  const handleApproveMaint = async (r: MaintenanceScheduleDto) => {
+    setMaintBusy(r.id);
+    try {
+      await approveMaintenanceRecord(r.id);
+      // MaintenanceRecords chưa có cột mã phiếu → scheduleCode có thể undefined, fallback tên thiết bị
+      message.success(`Đã duyệt kế hoạch bảo dưỡng ${r.scheduleCode || r.equipmentName}`);
+      void reload();
+    } catch (e) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      message.warning(msg || 'Duyệt kế hoạch thất bại');
+    } finally { setMaintBusy(null); }
+  };
+
+  const handleRejectMaintConfirm = async () => {
+    if (!maintRejectTarget || !maintRejectNote.trim()) return;
+    setMaintBusy(maintRejectTarget.id);
+    try {
+      await rejectMaintenanceSchedule(maintRejectTarget.id, maintRejectNote.trim());
+      message.success('Đã từ chối kế hoạch bảo dưỡng');
+      setMaintRejectTarget(null); setMaintRejectNote('');
+      void reload();
+    } catch (e) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      message.warning(msg || 'Từ chối kế hoạch thất bại');
+    } finally { setMaintBusy(null); }
+  };
+
   // Report repair for a specific equipment (row action — verbatim from v1)
   const handleSubmitRepair = async () => {
     if (!repairTarget) return;
@@ -445,6 +478,15 @@ const EquipmentV2: React.FC = () => {
       render: (r) => {
         const toneMap: Record<number, 'ok' | 'info' | 'warn' | 'crit'> = { 1: 'info', 2: 'warn', 3: 'ok', 4: 'crit' };
         return <StatusBadge tone={toneMap[r.status] ?? 'info'} dot>{r.statusName}</StatusBadge>;
+      },
+    },
+    // NangCap26 XVII.7 — trạng thái duyệt kế hoạch bảo dưỡng (0=Chờ duyệt, 1=Đã duyệt, 2=Từ chối)
+    {
+      key: 'approval', label: 'Duyệt KH', width: 110,
+      render: (r) => {
+        const st = r.approvalStatus ?? 0;
+        const tone = st === 1 ? 'ok' : st === 2 ? 'crit' : 'warn';
+        return <StatusBadge tone={tone} dot>{r.approvalStatusName || (st === 1 ? 'Đã duyệt' : st === 2 ? 'Từ chối' : 'Chờ duyệt')}</StatusBadge>;
       },
     },
   ];
@@ -621,6 +663,17 @@ const EquipmentV2: React.FC = () => {
               data={maintenanceSchedules}
               rowKey={(r) => r.id}
               empty={loading ? 'Đang tải…' : 'Không có lịch bảo trì nào trong 90 ngày tới'}
+              actions={(r) => (
+                /* NangCap26 XVII.7 — chỉ kế hoạch đang Chờ duyệt mới có thao tác duyệt/từ chối */
+                (r.approvalStatus ?? 0) === 0 ? (
+                  <div className="ab-actions" style={{ display: 'flex', gap: 'var(--space-6)' }}>
+                    <ActBtn ic="check" title="Duyệt kế hoạch bảo dưỡng"
+                      onClick={() => { if (maintBusy !== r.id) void handleApproveMaint(r); }} />
+                    <ActBtn ic="x" title="Từ chối kế hoạch"
+                      onClick={() => { setMaintRejectTarget(r); setMaintRejectNote(''); }} />
+                  </div>
+                ) : <span style={{ color: 'var(--t-2)' }}>—</span>
+              )}
             />
           </>
         )}
@@ -722,6 +775,33 @@ const EquipmentV2: React.FC = () => {
             </Form.Item>
           </Form>
         )}
+      </ModalShell>
+
+      {/* ── NangCap26 XVII.7 · Từ chối kế hoạch bảo dưỡng (bắt buộc nêu lý do) ── */}
+      <ModalShell
+        open={!!maintRejectTarget}
+        onClose={() => { setMaintRejectTarget(null); setMaintRejectNote(''); }}
+        title="Từ chối kế hoạch bảo dưỡng"
+        sub={maintRejectTarget ? [maintRejectTarget.scheduleCode, maintRejectTarget.equipmentName].filter(Boolean).join(' · ') : ''}
+        size="sm"
+        footer={
+          <>
+            <Btn variant="ghost" onClick={() => { setMaintRejectTarget(null); setMaintRejectNote(''); }}>Hủy</Btn>
+            <Btn variant="crit"
+              disabled={!maintRejectNote.trim() || maintBusy === maintRejectTarget?.id}
+              onClick={() => { void handleRejectMaintConfirm(); }}>Từ chối</Btn>
+          </>
+        }
+      >
+        <div style={{ marginBottom: 'var(--space-8)', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
+          Kế hoạch bị từ chối sẽ không được đưa vào lịch thực hiện. Lý do được lưu vào hồ sơ thiết bị.
+        </div>
+        <Input.TextArea
+          rows={3}
+          value={maintRejectNote}
+          onChange={(e) => setMaintRejectNote(e.target.value)}
+          placeholder="Lý do từ chối (bắt buộc)…"
+        />
       </ModalShell>
 
       {/* ── Modal: Báo hỏng / Yêu cầu sửa chữa ────────────────────────── */}

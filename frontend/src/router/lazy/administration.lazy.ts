@@ -13,6 +13,9 @@ export const OfficialDocumentsV2 = lazy(() => import('../../modules/administrati
 export const QualityV2 = lazy(() => import('../../modules/quality/pages/Quality'));
 export const EquipmentV2 = lazy(() => import('../../modules/asset/pages/Equipment'));
 export const AssetManagementV2 = lazy(() => import('../../modules/asset/pages/AssetManagement'));
+// NangCap26 XVII.3/XVII.4 — trang đề xuất/dự trù/mua sắm/TRANG CẤP tài sản (AssetProcurementRequest).
+// Trước #375 trang này chết vì trùng path 'procurement' với ProcurementV2 (kho) → nay có path riêng.
+export const AssetProcurementRequestsV2 = lazy(() => import('../../modules/asset/pages/ProcurementRequests'));
 export const InfectionControlV2 = lazy(() => import('../../modules/infection-control/pages/InfectionControl'));
 export const LinenManagementV2 = lazy(() => import('../../modules/administration/pages/LinenManagement'));
 export const TrainingResearchV2 = lazy(() => import('../../modules/training/pages/TrainingResearch'));

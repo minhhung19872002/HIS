@@ -5,7 +5,9 @@
  */
 import apiClient from '../../../services/apiClient';
 
-const BASE = '/api/asset-procurement';
+// apiClient.baseURL đã kết thúc bằng /api → path ở đây KHÔNG lặp lại tiền tố /api
+// (bug cũ '/api/asset-procurement' → gọi ra /api/api/... = 404; trang trước đây chưa có route nên không lộ).
+const BASE = '/asset-procurement';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

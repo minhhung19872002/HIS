@@ -1,7 +1,7 @@
 import type { RouteEntry } from './index';
 import {
   SystemAdminV2, HRV2, PayrollAdminV2, HrDecisionsV2, VppStockCardV2, OfficialDocumentsV2,
-  QualityV2, EquipmentV2, AssetManagementV2, InfectionControlV2, LinenManagementV2,
+  QualityV2, EquipmentV2, AssetManagementV2, AssetProcurementRequestsV2, InfectionControlV2, LinenManagementV2,
   TrainingResearchV2, PracticeLicenseV2, EndpointSecurityV2, AdministrativeUnitsV2,
   ObstetricRegistersV2, AdrReportsV2, BillingGuarantorsV2, FunctionalDiagnosticCatalogV2,
   ProvincialHealthV2, BackupManagementV2, HisConnectionsV2, KioskSelfServiceV2, ReportsV2,
@@ -22,6 +22,8 @@ export const administrationV2Routes: RouteEntry[] = [
   { path: 'quality', Component: QualityV2, meta: { permission: 'System.Configure', title: 'Chất lượng BV', group: 'management', workspace: 'backoffice', module: 'extended' } },
   { path: 'equipment', Component: EquipmentV2, meta: { permission: 'System.Configure', title: 'Thiết bị y tế', group: 'management', workspace: 'backoffice', module: 'extended' } },
   { path: 'asset-management', Component: AssetManagementV2, meta: { permission: 'System.Configure', title: 'Tài sản - CCDC', group: 'management', workspace: 'backoffice', module: 'extended' } },
+  // NangCap26 XVII.3/XVII.4 — path riêng để không đụng 'procurement' (kho) như trước #375
+  { path: 'asset-procurement', Component: AssetProcurementRequestsV2, meta: { permission: 'System.Configure', title: 'Đề xuất - Trang cấp TS', group: 'management', workspace: 'backoffice', module: 'extended' } },
   { path: 'infection-control', Component: InfectionControlV2, meta: { permission: 'System.Configure', title: 'Kiểm soát nhiễm khuẩn', group: 'management', workspace: 'backoffice', module: 'extended' } },
   { path: 'linen-management', Component: LinenManagementV2, meta: { permission: 'System.Configure', title: 'Đồ giặt & Tiệt trùng', group: 'management', workspace: 'backoffice', module: 'extended' } },
   { path: 'training-research', Component: TrainingResearchV2, meta: { permission: 'System.Configure', title: 'Đào tạo - NCKH', group: 'management', workspace: 'backoffice', module: 'extended' } },

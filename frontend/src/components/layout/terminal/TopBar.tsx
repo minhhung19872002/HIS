@@ -9,6 +9,7 @@ import type { NotificationDto } from '../../../modules/system/api/notification';
 import { useInterval } from '../../../hooks/useInterval';
 import TermIcon from './Icon';
 import AiQueueBadge from '../../../modules/radiology/components/AiQueueBadge';
+import WorkingPlacePicker from './WorkingPlacePicker';
 import { HOSPITAL_NAME } from '../../../constants/hospital';
 import { WORKSPACES } from '../../../services/workspace.service';
 import type { WorkspaceId } from '../../../types/route';
@@ -185,6 +186,8 @@ const Topbar: React.FC<{
       </button>
       <div className="his-tb-right">
         <div className="his-chip-shift"><span className="dot" />CA SÁNG · {hh}:{mm}</div>
+        {/* NangCap26 I.4 — chọn khoa/phòng đang trực (mặc định cho các màn nghiệp vụ) */}
+        <WorkingPlacePicker />
         <button type="button" className="his-tb-btn" title={isDark ? 'Chế độ Sáng' : 'Chế độ Tối'} aria-label="Đổi giao diện Sáng/Tối" onClick={toggleTheme}>
           <TermIcon name={isDark ? 'sun' : 'moon'} size={15} />
         </button>

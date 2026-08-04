@@ -15,10 +15,13 @@ import {
   approveAssetProcurementRequest,
   rejectAssetProcurementRequest,
   completeAssetProcurementRequest,
+  issueAssetProcurementRequest,
   type AssetProcurementRequestDto,
   type SaveAssetProcurementRequestDto,
   type SaveAssetProcurementItemDto,
 } from '../api/procurement';
+import { getAssets, type FixedAssetDto } from '../api/assetManagement';
+import { catalogApi, type DepartmentCatalogDto } from '../../system/api/system/catalog';
 import {
   KpiStrip, TopTabs, StatusTabs, SearchBox, DataTable, Pager,
   ActBtn, Btn, DrawerShell, DrSec, DrField, StatusBadge,
@@ -28,12 +31,14 @@ import {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-type TabKey = 'all' | 'de-xuat' | 'du-tru' | 'mua-sam';
+type TabKey = 'all' | 'de-xuat' | 'du-tru' | 'mua-sam' | 'trang-cap';
 const TABS: TopTab<TabKey>[] = [
   { v: 'all',     l: 'Tất cả',     ic: 'list' },
   { v: 'de-xuat', l: 'Đề xuất',   ic: 'file-text' },
   { v: 'du-tru',  l: 'Dự trù',    ic: 'clipboard' },
   { v: 'mua-sam', l: 'Mua sắm',   ic: 'shopping-cart' },
+  // NangCap26 XVII.3/XVII.4 — yêu cầu trang cấp TTB + cấp phát về khoa
+  { v: 'trang-cap', l: 'Trang cấp', ic: 'archive' },
 ];
 
 type SKey = 'draft' | 'pending' | 'approved' | 'rejected' | 'done';
@@ -61,7 +66,11 @@ const TYPE_OPTS = [
   { value: 1, label: 'Đề xuất' },
   { value: 2, label: 'Dự trù' },
   { value: 3, label: 'Mua sắm' },
+  { value: 4, label: 'Trang cấp' },
 ];
+
+/** Loại Trang cấp — BE bắt buộc DepartmentId để sinh phiếu bàn giao khi cấp phát. */
+const TYPE_ISSUE = 4;
 
 const fmtMoney = (v?: number | null) =>
   v != null ? v.toLocaleString('vi-VN') + ' đ' : '—';
@@ -97,6 +106,13 @@ const ProcurementRequestsV2: React.FC = () => {
   const [rejectTarget, setRejectTarget] = useState<AssetProcurementRequestDto | null>(null);
   const [rejectNote, setRejectNote] = useState('');
 
+  // NangCap26 XVII.3/XVII.4 — danh mục khoa (bắt buộc cho phiếu Trang cấp) + cấp phát tài sản
+  const [departments, setDepartments] = useState<DepartmentCatalogDto[]>([]);
+  const [issueTarget, setIssueTarget] = useState<AssetProcurementRequestDto | null>(null);
+  const [issueAssets, setIssueAssets] = useState<FixedAssetDto[]>([]);
+  const [issuePicked, setIssuePicked] = useState<string[]>([]);
+  const [issueBusy, setIssueBusy] = useState(false);
+
   // ── Load ──────────────────────────────────────────────────────────────────
 
   const reload = useCallback(async () => {
@@ -118,6 +134,13 @@ const ProcurementRequestsV2: React.FC = () => {
   useEffect(() => { void reload(); }, [reload]);
   useEffect(() => { setPage(0); }, [tab, stab, search]);
 
+  // Danh mục khoa/phòng — dùng cho phiếu Trang cấp (BE cần DepartmentId khi cấp phát)
+  useEffect(() => {
+    catalogApi.getDepartments(undefined, undefined, true)
+      .then((r) => setDepartments(r.data ?? []))
+      .catch((e) => { console.warn('[async] tải danh mục khoa thất bại:', e); });
+  }, []);
+
   // ── Filter ────────────────────────────────────────────────────────────────
 
   const filtered = useMemo(() => {
@@ -126,6 +149,7 @@ const ProcurementRequestsV2: React.FC = () => {
       if (tab === 'de-xuat' && r.requestType !== 1) return false;
       if (tab === 'du-tru'  && r.requestType !== 2) return false;
       if (tab === 'mua-sam' && r.requestType !== 3) return false;
+      if (tab === 'trang-cap' && r.requestType !== TYPE_ISSUE) return false;
       if (stab !== 'all' && statusKey(r) !== stab) return false;
       if (kw && !`${r.requestNo} ${r.title} ${r.requesterName ?? ''} ${r.departmentName ?? ''}`.toLowerCase().includes(kw)) return false;
       return true;
@@ -263,6 +287,29 @@ const ProcurementRequestsV2: React.FC = () => {
     } catch { te('Từ chối thất bại'); }
   };
 
+  // NangCap26 XVII.4 — mở modal chọn tài sản để cấp phát cho phiếu Trang cấp đã duyệt
+  const openIssue = async (r: AssetProcurementRequestDto) => {
+    if (!r.departmentId) { te('Phiếu chưa gán khoa/phòng nhận — sửa phiếu và chọn khoa trước khi cấp phát'); return; }
+    setIssueTarget(r); setIssuePicked([]); setIssueAssets([]);
+    try {
+      const res = await getAssets({ pageIndex: 0, pageSize: 500 });
+      setIssueAssets(res.items ?? []);
+    } catch { te('Không tải được danh mục tài sản'); }
+  };
+
+  const handleIssueConfirm = async () => {
+    if (!issueTarget || issuePicked.length === 0) return;
+    setIssueBusy(true);
+    try {
+      await issueAssetProcurementRequest(issueTarget.id, issuePicked);
+      tk(`Đã cấp phát ${issuePicked.length} tài sản — phiếu bàn giao chờ khoa nhận xác nhận`);
+      setIssueTarget(null); setDetail(null); void reload();
+    } catch (e) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      te(msg || 'Cấp phát thất bại');
+    } finally { setIssueBusy(false); }
+  };
+
   const handleComplete = (r: AssetProcurementRequestDto) => {
     cf(`Hoàn tất phiếu "${r.requestNo}"?`, async () => {
       try {
@@ -328,7 +375,11 @@ const ProcurementRequestsV2: React.FC = () => {
             {detail.status === 0 && <Btn variant="primary" icon="send" onClick={() => handleSubmit(detail)}>Trình duyệt</Btn>}
             {detail.status === 1 && <Btn variant="ok"   icon="check" onClick={() => handleApprove(detail)}>Duyệt</Btn>}
             {detail.status === 1 && <Btn variant="crit" icon="x"     onClick={() => { setRejectTarget(detail); setRejectNote(''); }}>Từ chối</Btn>}
-            {detail.status === 2 && <Btn variant="default" icon="check-circle" onClick={() => handleComplete(detail)}>Hoàn tất</Btn>}
+            {/* NangCap26 XVII.4 — phiếu Trang cấp đã duyệt: cấp phát tài sản (tự chốt sang Hoàn tất) */}
+            {detail.status === 2 && detail.requestType === TYPE_ISSUE && (
+              <Btn variant="ok" icon="send" onClick={() => void openIssue(detail)}>Cấp phát</Btn>
+            )}
+            {detail.status === 2 && detail.requestType !== TYPE_ISSUE && <Btn variant="default" icon="check-circle" onClick={() => handleComplete(detail)}>Hoàn tất</Btn>}
             {detail.status === 0 && <Btn variant="default" icon="edit-2" onClick={() => openEdit(detail)}>Sửa</Btn>}
           </>
         )}
@@ -408,11 +459,16 @@ const ProcurementRequestsV2: React.FC = () => {
               placeholder="Nhập tiêu đề phiếu…"
             />
           </DrField>
-          <DrField lbl="Phòng/Khoa">
-            <Input
-              value={editForm.departmentName ?? ''}
-              onChange={e => setEditForm(f => ({ ...f, departmentName: e.target.value }))}
-              placeholder="Tên phòng / khoa đề xuất"
+          <DrField lbl={editForm.requestType === TYPE_ISSUE ? 'Khoa/Phòng nhận *' : 'Phòng/Khoa'}>
+            <Select
+              showSearch allowClear optionFilterProp="label"
+              style={{ width: '100%' }}
+              placeholder={editForm.requestType === TYPE_ISSUE ? 'Bắt buộc — nơi nhận tài sản trang cấp' : 'Chọn phòng / khoa đề xuất'}
+              value={editForm.departmentId}
+              options={departments.map(d => ({ value: d.id as string, label: `${d.code} — ${d.name}` }))}
+              onChange={v => setEditForm(f => ({
+                ...f, departmentId: v, departmentName: departments.find(d => d.id === v)?.name,
+              }))}
             />
           </DrField>
           <DrField lbl="Người đề xuất">
@@ -538,6 +594,37 @@ const ProcurementRequestsV2: React.FC = () => {
           value={rejectNote}
           onChange={e => setRejectNote(e.target.value)}
           placeholder="Lý do từ chối (tùy chọn)…"
+        />
+      </Modal>
+
+      {/* ── NangCap26 XVII.4 · chọn tài sản cấp phát cho phiếu Trang cấp ── */}
+      <Modal
+        open={!!issueTarget}
+        title={`Cấp phát tài sản — ${issueTarget?.requestNo ?? ''}`}
+        okText={`Cấp phát ${issuePicked.length > 0 ? `(${issuePicked.length})` : ''}`}
+        cancelText="Hủy"
+        confirmLoading={issueBusy}
+        okButtonProps={{ disabled: issuePicked.length === 0 }}
+        onOk={handleIssueConfirm}
+        onCancel={() => setIssueTarget(null)}
+        width={720}
+        destroyOnHidden
+      >
+        <p style={{ marginBottom: 'var(--space-8)' }}>
+          Bàn giao về <b>{issueTarget?.departmentName || '—'}</b>. Mỗi tài sản được chọn sẽ sinh 1 phiếu
+          bàn giao <b>chờ khoa nhận xác nhận</b>, phiếu trang cấp chuyển sang <b>Hoàn tất</b>.
+        </p>
+        <Select
+          mode="multiple"
+          showSearch optionFilterProp="label"
+          style={{ width: '100%' }}
+          placeholder="Chọn tài sản cần trang cấp…"
+          value={issuePicked}
+          onChange={setIssuePicked}
+          options={issueAssets.map(a => ({
+            value: a.id,
+            label: `${a.assetCode} — ${a.assetName}${a.departmentName ? ` (đang ở ${a.departmentName})` : ''}`,
+          }))}
         />
       </Modal>
     </div>

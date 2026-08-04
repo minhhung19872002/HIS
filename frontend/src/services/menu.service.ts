@@ -157,6 +157,7 @@ export const HIS_GROUPS: NavGroup[] = [
       { id: 'quality',           path: '/v2/quality',           label: 'Chất lượng BV' },
       { id: 'equipment',         path: '/v2/equipment',         label: 'Thiết bị y tế' },
       { id: 'asset-management',  path: '/v2/asset-management',  label: 'Tài sản - CCDC' },
+      { id: 'asset-procurement', path: '/v2/asset-procurement', label: 'Đề xuất - Trang cấp TS' },
       { id: 'infection-control', path: '/v2/infection-control', label: 'Kiểm soát nhiễm khuẩn' },
       { id: 'linen-management',  path: '/v2/linen-management',  label: 'Đồ giặt & Tiệt trùng' },
       { id: 'training-research', path: '/v2/training-research', label: 'Đào tạo - NCKH' },

@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRegisterCommands } from '@/contexts/CommandContext';
-import dayjs from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
 import { App as AntdApp, Input, InputNumber, Select, DatePicker } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { getInpatientList, getWardLayout, admitFromOpd, getPendingAdmissions, transferBed, assignBed, getDepositRequests, createDepositRequest, type PendingAdmissionDto, type TransferBedDto, type CreateBedAssignmentDto, type DepositRequestDto, type CreateDepositRequestDto } from '../api/inpatient';
+import { getInpatientList, getWardLayout, admitFromOpd, getPendingAdmissions, transferBed, assignBed, getDepositRequests, createDepositRequest, splitEmergencyToInpatient, type PendingAdmissionDto, type TransferBedDto, type CreateBedAssignmentDto, type DepositRequestDto, type CreateDepositRequestDto } from '../api/inpatient';
 import type { InpatientListDto, WardLayoutDto, BedLayoutDto } from '../api/inpatient';
 import { getServiceOrders, type InpatientServiceOrderDto } from '../api/inpatient';
 import { printBirthCertificate, type BirthCertificateData } from '../../patient/components/BirthCertificatePrint';
@@ -15,7 +15,7 @@ import HemodialysisSection from './HemodialysisSection';
 import PatientFlagBanner from '../../patient/components/PatientFlagBanner';
 import BusinessAlertPanel from '../../patient/components/BusinessAlertPanel';
 import { catalogApi } from '../../system/api/system';
-import type { DepartmentCatalogDto } from '../../system/api/system';
+import type { DepartmentCatalogDto, RoomCatalogDto } from '../../system/api/system';
 import {
   KpiStrip, TopTabs, SearchBox, Filter, DataTable, Pager,
   StatusBadge, ActBtn, Btn, DrawerShell, ModalShell,
@@ -117,6 +117,8 @@ const InpatientV2: React.FC = () => {
   const [detail, setDetail] = useState<InpatientListDto | null>(null);
   const [admitOpen, setAdmitOpen] = useState(false);
   const [admitPrefill, setAdmitPrefill] = useState<AdmitPrefill | null>(null);
+  // NangCap26 XIX.2 #20 — tách điều trị nội trú tại khoa cấp cứu
+  const [splitOpen, setSplitOpen] = useState(false);
   // Quick-win states
   const [transferBedOpen, setTransferBedOpen] = useState(false);
   const [assignBedOpen, setAssignBedOpen] = useState(false);
@@ -288,6 +290,9 @@ const InpatientV2: React.FC = () => {
             </Btn>
             <Btn variant="ghost" onClick={() => { setAdmitPrefill(null); setAdmitOpen(true); }}>
               <TermIcon name="plus" size={12} /> Nhập viện
+            </Btn>
+            <Btn variant="ghost" onClick={() => setSplitOpen(true)}>
+              <TermIcon name="layers" size={12} /> Tách ĐT nội trú (CC)
             </Btn>
             <Btn variant="primary" onClick={() => navigate('/v2/inpatient-dispensing')}>
               <TermIcon name="clipboard" size={12} /> Y lệnh mới <kbd>F2</kbd>
@@ -745,6 +750,13 @@ const InpatientV2: React.FC = () => {
         onDone={() => { setAdmitOpen(false); loadData(); }}
       />
 
+      {/* NangCap26 XIX.2 #20 — tách điều trị nội trú tại khoa cấp cứu */}
+      <SplitEmergencyModal
+        open={splitOpen}
+        onClose={() => setSplitOpen(false)}
+        onDone={() => { setSplitOpen(false); loadData(); }}
+      />
+
       {/* Chuyển giường — mở từ bed drawer (giường đang có BN) */}
       {bed && (
         <TransferBedModal
@@ -933,6 +945,139 @@ const AdmitModal: React.FC<{
         </IpFld>
         <IpFld label="Lý do nhập viện" full>
           <Input.TextArea value={reasonForAdmission} onChange={(e) => setReasonForAdmission(e.target.value)} rows={2} placeholder="Mô tả lý do nhập viện…" />
+        </IpFld>
+      </div>
+    </ModalShell>
+  );
+};
+
+/* ──────────────────────────────────────────────────────────
+   SplitEmergencyModal — NangCap26 XIX.2 #20
+   Tách đợt điều trị nội trú ra khỏi đợt cấp cứu: chốt đợt cấp cứu tại mốc tách,
+   chuyển chỉ định/đơn thuốc phát sinh SAU mốc sang hồ sơ nội trú mới.
+   BE chặn khi đợt đã thanh toán hoặc đã duyệt/gửi BHYT.
+   ────────────────────────────────────────────────────────── */
+const SplitEmergencyModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ open, onClose, onDone }) => {
+  const { message } = AntdApp.useApp();
+  const [depts, setDepts] = useState<DepartmentCatalogDto[]>([]);
+  const [rooms, setRooms] = useState<RoomCatalogDto[]>([]);
+  const [sourceMedicalRecordId, setSourceMedicalRecordId] = useState('');
+  const [splitAt, setSplitAt] = useState<Dayjs | null>(null);
+  const [departmentId, setDepartmentId] = useState<string | undefined>(undefined);
+  const [roomId, setRoomId] = useState('');
+  const [bedId, setBedId] = useState('');
+  const [attendingDoctorId, setAttendingDoctorId] = useState('');
+  const [diagnosisOnAdmission, setDiagnosisOnAdmission] = useState('');
+  const [icdCode, setIcdCode] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setSourceMedicalRecordId(''); setSplitAt(null); setDepartmentId(undefined);
+      setRoomId(''); setBedId(''); setAttendingDoctorId('');
+      setDiagnosisOnAdmission(''); setIcdCode('');
+      catalogApi.getDepartments(undefined, undefined, true)
+        .then((r) => setDepts(r.data || [])).catch(() => setDepts([]));
+    }
+  }, [open]);
+
+  // Phòng phụ thuộc khoa — chọn từ danh mục thay vì gõ tay UUID (FK Rooms sẽ chặn nếu sai).
+  useEffect(() => {
+    if (!departmentId) { setRooms([]); setRoomId(''); return; }
+    catalogApi.getRooms(departmentId, undefined, true)
+      .then((r) => setRooms(r.data || [])).catch(() => setRooms([]));
+  }, [departmentId]);
+
+  const submit = async () => {
+    if (!sourceMedicalRecordId.trim()) { message.warning('Nhập mã hồ sơ cấp cứu nguồn'); return; }
+    if (!departmentId) { message.warning('Chọn khoa nội trú tiếp nhận'); return; }
+    if (!roomId.trim()) { message.warning('Chọn phòng'); return; }
+    if (!attendingDoctorId.trim()) { message.warning('Nhập mã BS điều trị'); return; }
+    setBusy(true);
+    try {
+      const res = await splitEmergencyToInpatient({
+        sourceMedicalRecordId: sourceMedicalRecordId.trim(),
+        splitAt: splitAt ? splitAt.toISOString() : undefined,
+        departmentId,
+        roomId: roomId.trim(),
+        bedId: bedId.trim() || undefined,
+        attendingDoctorId: attendingDoctorId.trim(),
+        diagnosisOnAdmission: diagnosisOnAdmission.trim() || undefined,
+        icdCode: icdCode.trim() || undefined,
+      });
+      const d = res.data;
+      message.success(
+        `Đã tách sang HSBA nội trú ${d?.targetMedicalRecordCode ?? ''} — chuyển ${d?.movedServiceRequests ?? 0} chỉ định, ${d?.movedPrescriptions ?? 0} đơn thuốc`,
+      );
+      onDone();
+    } catch (e) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      message.error(msg || 'Tách điều trị nội trú thất bại');
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      size="md"
+      title="Tách điều trị nội trú tại khoa cấp cứu"
+      footer={(
+        <>
+          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="primary" disabled={busy} onClick={submit}>
+            <TermIcon name="check" size={12} /> {busy ? 'Đang tách…' : 'Tách điều trị'}
+          </Btn>
+        </>
+      )}
+    >
+      <div style={{ padding: 'var(--space-16)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-12)' }}>
+        <div style={{ gridColumn: '1 / -1', fontSize: 'var(--fs-sm)', color: 'var(--t-2)' }}>
+          Đợt cấp cứu được chốt tại mốc tách; chỉ định và đơn thuốc phát sinh <b>sau mốc</b> chuyển sang
+          hồ sơ nội trú mới. Không tách được khi đợt đã thanh toán hoặc đã duyệt/gửi hồ sơ BHYT.
+        </div>
+        <IpFld label="Mã hồ sơ cấp cứu nguồn *" full>
+          <Input value={sourceMedicalRecordId} onChange={(e) => setSourceMedicalRecordId(e.target.value)} placeholder="Mã HSBA cấp cứu hoặc UUID" />
+        </IpFld>
+        <IpFld label="Mốc tách" full>
+          <DatePicker
+            showTime format="DD/MM/YYYY HH:mm" style={{ width: '100%' }}
+            value={splitAt} onChange={setSplitAt}
+            placeholder="Bỏ trống = thời điểm hiện tại"
+            disabledDate={(d) => d.isAfter(dayjs(), 'day')}
+          />
+        </IpFld>
+        <IpFld label="Khoa nội trú tiếp nhận *" full>
+          <Select
+            value={departmentId} onChange={setDepartmentId} showSearch optionFilterProp="label"
+            placeholder="Chọn khoa" style={{ width: '100%' }}
+            options={depts.map((d) => ({ value: d.id!, label: d.name }))}
+          />
+        </IpFld>
+        <IpFld label="Phòng *">
+          <Select
+            value={roomId || undefined} onChange={(v) => setRoomId(v || '')}
+            showSearch allowClear optionFilterProp="label" style={{ width: '100%' }}
+            placeholder={departmentId ? 'Chọn phòng' : 'Chọn khoa trước'}
+            disabled={!departmentId}
+            options={rooms.map((r) => ({ value: r.id as string, label: `${r.code} — ${r.name}` }))}
+          />
+        </IpFld>
+        <IpFld label="Mã giường">
+          <Input value={bedId} onChange={(e) => setBedId(e.target.value)} placeholder="Mã giường (tùy chọn)" />
+        </IpFld>
+        <IpFld label="Mã BS điều trị *" full>
+          <Input value={attendingDoctorId} onChange={(e) => setAttendingDoctorId(e.target.value)} placeholder="Mã BS / UUID" />
+        </IpFld>
+        <IpFld label="Chẩn đoán vào viện">
+          <Input value={diagnosisOnAdmission} onChange={(e) => setDiagnosisOnAdmission(e.target.value)} placeholder="VD: Viêm phổi" />
+        </IpFld>
+        <IpFld label="Mã ICD">
+          <Input value={icdCode} onChange={(e) => setIcdCode(e.target.value)} placeholder="VD: J18.9" />
         </IpFld>
       </div>
     </ModalShell>
