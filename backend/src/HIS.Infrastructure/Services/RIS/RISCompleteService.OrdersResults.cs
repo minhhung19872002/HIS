@@ -100,6 +100,7 @@ public partial class RISCompleteService
             Status = GetStatusName(r.Status),
             PatientType = r.PatientType == 1 ? "BHYT" : "Vien phi",
             StudyInstanceUID = r.Exams.SelectMany(e => e.DicomStudies).FirstOrDefault()?.StudyInstanceUID,
+            DicomStudyId = r.Exams.SelectMany(e => e.DicomStudies).FirstOrDefault()?.Id,
             Items = new List<RadiologyOrderItemDto>
             {
                 new RadiologyOrderItemDto
@@ -154,6 +155,7 @@ public partial class RISCompleteService
             Status = GetStatusName(request.Status),
             PatientType = request.PatientType == 1 ? "BHYT" : "Vien phi",
             StudyInstanceUID = request.Exams.SelectMany(e => e.DicomStudies).FirstOrDefault()?.StudyInstanceUID,
+            DicomStudyId = request.Exams.SelectMany(e => e.DicomStudies).FirstOrDefault()?.Id,
             Items = new List<RadiologyOrderItemDto>
             {
                 new RadiologyOrderItemDto

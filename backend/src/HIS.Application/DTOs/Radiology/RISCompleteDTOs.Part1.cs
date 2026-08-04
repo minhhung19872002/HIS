@@ -251,6 +251,11 @@ namespace HIS.Application.DTOs.Radiology
         public string PatientType { get; set; }
         /// <summary>DICOM Study Instance UID — từ DicomStudy đầu tiên liên kết với exam. Null nếu chưa có DICOM.</summary>
         public string? StudyInstanceUID { get; set; }
+        /// <summary>
+        /// Khoá chính DicomStudies của ca chụp (KHÁC <see cref="Id"/> = id phiếu chỉ định).
+        /// Dùng cho các endpoint nhận studyId: ghi đĩa CD/DVD, export ảnh. Null nếu chưa có DICOM.
+        /// </summary>
+        public Guid? DicomStudyId { get; set; }
     }
 
     /// <summary>

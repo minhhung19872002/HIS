@@ -28,6 +28,11 @@ export interface RadiologyOrderDto {
   patientType: string;
   /** DICOM Study Instance UID — null nếu chưa có DICOM linked */
   studyInstanceUID?: string;
+  /**
+   * Khoá chính DicomStudies của ca chụp — KHÁC `id` (id phiếu chỉ định).
+   * Dùng cho endpoint nhận studyId (ghi đĩa CD/DVD). Null nếu chưa có DICOM.
+   */
+  dicomStudyId?: string;
 }
 
 export interface RadiologyOrderItemDto {

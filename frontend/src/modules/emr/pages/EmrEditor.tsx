@@ -115,6 +115,10 @@ const PRINT_FORMS: PrintFormEntry[] = [
   { group: 'Phẫu thuật & gây mê',      label: 'Biên bản gây mê',                  printType: 'gayme-record' },
   { group: 'Phẫu thuật & gây mê',      label: 'Phiếu theo dõi gây mê',            printType: 'gayme-monitor' },
   { group: 'Phẫu thuật & gây mê',      label: 'Phiếu hồi tỉnh sau mê',            printType: 'gayme-recovery' },
+  { group: 'Phẫu thuật & gây mê',      label: 'Phiếu đếm gạc / dụng cụ',          printType: 'gauze-count' },
+
+  // ── Vật tư & hóa chất (NangCap26 phiếu in #98) ────────────────────
+  { group: 'Vật tư & hóa chất',        label: 'Phiếu lĩnh hóa chất',              printType: 'chemical-issue' },
 
   // ── Bệnh án nội trú chuyên khoa (TT32 mẫu 1-20) ───────────────────
   { group: 'BA chuyên khoa nội trú',   label: 'BA Nội khoa',                      printType: 'sp-noikhoa' },

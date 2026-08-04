@@ -223,8 +223,10 @@ const RadiologyV2: React.FC = () => {
   // BE đóng gói ZIP (ảnh DICOM + phiếu kết quả + README), FE tải về,
   // người dùng ghi đĩa bằng công cụ hệ điều hành.
   const onBurnDisc = async (r: RadiologyOrderDto) => {
-    const studyId = r.id;
-    setBurningId(studyId);
+    // Endpoint nhận DicomStudies.Id — KHÔNG phải id phiếu chỉ định (r.id).
+    const studyId = r.dicomStudyId;
+    if (!studyId) { message.warning('Ca chụp chưa có dữ liệu ảnh trên PACS'); return; }
+    setBurningId(r.id);
     try {
       const chk = await risApi.checkDiscPackage(studyId);
       if (!chk.data?.canBurn) { message.warning(chk.data?.message || 'Không đủ điều kiện ghi đĩa'); return; }

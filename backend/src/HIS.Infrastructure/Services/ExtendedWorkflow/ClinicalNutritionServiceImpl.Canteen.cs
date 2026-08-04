@@ -71,8 +71,12 @@ public partial class ClinicalNutritionServiceImpl
     {
         var q = _context.MealPlans
             .Include(p => p.Department)
+            // Màn hình gộp 2 vai (khoa dinh dưỡng DUYỆT + nhà ăn CHUẨN BỊ/PHÁT) nên phải trả cả
+            // phiếu "Planned" — nếu lọc bỏ thì khâu duyệt XII.5 không có đường vào. Việc chặn
+            // nhà ăn thao tác trên phiếu chưa duyệt do AdvanceCanteenStatusAsync đảm nhiệm.
             .Where(p => !p.IsDeleted && p.Date.Date == date.Date
-                        && (p.Status == "Approved" || p.Status == "Prepared" || p.Status == "Distributed"));
+                        && (p.Status == "Planned" || p.Status == "Approved"
+                            || p.Status == "Prepared" || p.Status == "Distributed"));
         if (!string.IsNullOrWhiteSpace(mealType)) q = q.Where(p => p.MealType == mealType);
 
         var plans = await q.OrderBy(p => p.MealType).ThenBy(p => p.Department!.DepartmentName).ToListAsync();

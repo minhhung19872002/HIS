@@ -299,6 +299,21 @@ export default function PrintTemplateRenderer({ printType, record, printRef, sel
   if (printType === 'maternity-leave' && record && maternityLeaveDto) {
     return <Component ref={printRef} record={record} dto={maternityLeaveDto} />;
   }
+  // NangCap26 — 2 biểu mẫu ekip điền tay khi in: chỉ bind sẵn phần hành chính,
+  // phần đếm/lĩnh để trống theo đúng bản giấy (X.2 #16 · phiếu in #98).
+  if (printType === 'gauze-count') {
+    const p = record?.patient;
+    return <Component ref={printRef}
+      patientName={p?.fullName}
+      patientCode={p?.patientCode}
+      age={p?.age}
+      gender={p?.gender}
+      surgeryDate={record?.admissionDate}
+    />;
+  }
+  if (printType === 'chemical-issue') {
+    return <Component ref={printRef} slipDate={new Date().toISOString()} />;
+  }
   // F10.5 KSK chuyen biet — component nhan `record` la HealthCheckup shape
   if (printType.startsWith('ksk-')) {
     return <Component ref={printRef} record={record as unknown as Record<string, unknown>} />;

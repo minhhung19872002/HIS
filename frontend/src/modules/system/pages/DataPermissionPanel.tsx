@@ -176,13 +176,13 @@ export const DataPermissionPanel: React.FC<Props> = ({ departments = [] }) => {
               <AbSelect
                 value={it.scopeType}
                 onChange={(v) => setItem(idx, { scopeType: v as DataScopeType, scopeId: undefined, scopeValue: undefined, scopeName: undefined })}
-                options={SCOPE_TYPES.map((t) => ({ v: t, l: DATA_SCOPE_LABEL[t] }))}
+                options={SCOPE_TYPES.map((t) => ({ value: t, label: DATA_SCOPE_LABEL[t] }))}
               />
               {USES_ID[it.scopeType] && it.scopeType === 'Department' ? (
                 <AbSelect
                   value={it.scopeId || ''}
                   onChange={(v) => setItem(idx, { scopeId: v, scopeName: departments.find((d) => d.id === v)?.name })}
-                  options={departments.map((d) => ({ v: d.id, l: d.name }))}
+                  options={departments.map((d) => ({ value: d.id, label: d.name }))}
                   placeholder="Chọn khoa/phòng"
                 />
               ) : USES_ID[it.scopeType] ? (
